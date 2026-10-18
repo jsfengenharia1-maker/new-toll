@@ -173,3 +173,25 @@ describe('ligações semirrígidas', () => {
     expect(P.evaluate(h.M, L)).toBeCloseTo((-q * L * L) / 8, 8);
   });
 });
+
+describe('solver em banda', () => {
+  it('pórtico 30 vãos × 30 andares: equilíbrio global e tempo', () => {
+    const nx = 30, ny = 30, nodes: Node[] = [], members: Partial<Member>[] = [], loads: Load[] = [];
+    const id = (i: number, j: number) => j * (nx + 1) + i + 1;
+    for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) nodes.push({ id: id(i, j), x: i * 5, y: j * 3, ...(j === 0 ? { support: FIX } : {}) });
+    for (let j = 1; j <= ny; j++) {
+      for (let i = 0; i <= nx; i++) members.push({ ni: id(i, j - 1), nj: id(i, j) });
+      for (let i = 0; i < nx; i++) members.push({ ni: id(i, j), nj: id(i + 1, j) });
+      loads.push({ kind: 'nodal', id: j, caseId: 1, node: id(0, j), fx: 10, fy: 0, mz: 0 });
+    }
+    const m = model(nodes, members, loads);
+    const t0 = performance.now();
+    const r = run(m);
+    const dt = performance.now() - t0;
+    let Rx = 0;
+    r.reactions.forEach((R) => (Rx += R[0]));
+    expect(Rx).toBeCloseTo(-10 * ny, 6);
+    expect(dt).toBeLessThan(5000);
+    console.log(`${nodes.length} nós, ${members.length} barras: ${dt.toFixed(0)} ms`);
+  });
+});

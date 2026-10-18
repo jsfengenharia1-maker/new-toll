@@ -1,6 +1,6 @@
 // Montagem e solução do sistema global (método da rigidez direta).
 import { elementMatrices, noLoad, recoverReleased, rotation, springFlex, type ElemLoad, type ElemMatrices, type ElemProps } from './element';
-import { LU, P, linearPoly, matVec, transpose, type Mat, type Poly } from './math';
+import { BandLDL, P, linearPoly, matVec, rcmOrder, spAdd, transpose, type Mat, type Poly, type SpRows } from './math';
 import { sectionProps } from './section';
 import type { DistLoad, Member, Model } from './types';
 
@@ -28,11 +28,12 @@ export interface Prepared {
   nodeIndex: Map<number, number>;
   members: PMember[];
   ndof: number;
-  K: Float64Array; // global completa (n x n)
+  K: SpRows; // global esparsa (linhas), já com apoios inclinados e molas
   constrained: Int8Array; // 1 = grau de liberdade eliminado (apoio fixo ou rotação indeterminada)
-  free: number[];
+  free: number[]; // gdl livres na ordem de Cuthill-McKee reversa
   freePos: Int32Array; // posição do gdl na lista livre ou -1
-  lu: LU | null;
+  hb: number; // meia largura de banda
+  lu: BandLDL | null;
   skew: { nodeIdx: number; c: number; s: number }[];
   warnings: string[];
   error?: string;
@@ -97,8 +98,8 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
     });
   });
 
-  const K = new Float64Array(ndof * ndof);
-  const add = (r: number, c: number, v: number) => { K[r * ndof + c] += v; };
+  const K: SpRows = Array.from({ length: ndof }, () => new Map<number, number>());
+  const add = (r: number, c: number, v: number) => spAdd(K, r, c, v);
   const connected = new Int32Array(nn);
   for (const pm of members) {
     connected[pm.i]++; connected[pm.j]++;
@@ -108,7 +109,7 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
   }
 
   let maxDiag = 0;
-  for (let d = 0; d < ndof; d++) maxDiag = Math.max(maxDiag, K[d * ndof + d]);
+  for (let d = 0; d < ndof; d++) maxDiag = Math.max(maxDiag, K[d].get(d) ?? 0);
 
   // apoios inclinados: rotaciona os gdl de translação do nó para os eixos do apoio (exato)
   const skew: Prepared['skew'] = [];
@@ -117,13 +118,14 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
     if (!n.support || Math.abs(ang) < 1e-12) return;
     const c = Math.cos(ang), s = Math.sin(ang), b = k * DOF;
     skew.push({ nodeIdx: k, c, s });
-    for (let j = 0; j < ndof; j++) {
-      const a0 = K[b * ndof + j], a1 = K[(b + 1) * ndof + j];
-      K[b * ndof + j] = c * a0 + s * a1; K[(b + 1) * ndof + j] = -s * a0 + c * a1;
+    const cols = new Set([...K[b].keys(), ...K[b + 1].keys(), b, b + 1]);
+    for (const j of cols) {
+      const a0 = K[b].get(j) ?? 0, a1 = K[b + 1].get(j) ?? 0;
+      K[b].set(j, c * a0 + s * a1); K[b + 1].set(j, -s * a0 + c * a1);
     }
-    for (let i = 0; i < ndof; i++) {
-      const a0 = K[i * ndof + b], a1 = K[i * ndof + b + 1];
-      K[i * ndof + b] = c * a0 + s * a1; K[i * ndof + b + 1] = -s * a0 + c * a1;
+    for (const i of cols) {
+      const a0 = K[i].get(b) ?? 0, a1 = K[i].get(b + 1) ?? 0;
+      K[i].set(b, c * a0 + s * a1); K[i].set(b + 1, -s * a0 + c * a1);
     }
   });
 
@@ -138,29 +140,39 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
     if (sup.rz === 'fixed') constrained[base + 2] = 1; else if (sup.rz === 'spring') add(base + 2, base + 2, sup.kr ?? 0);
     }
     // rotação indeterminada: todas as barras rotuladas no nó, sem restrição à rotação
-    if (!constrained[base + 2] && Math.abs(K[(base + 2) * ndof + base + 2]) < 1e-12 * (maxDiag || 1)) constrained[base + 2] = 1;
+    if (!constrained[base + 2] && Math.abs(K[base + 2].get(base + 2) ?? 0) < 1e-12 * (maxDiag || 1)) constrained[base + 2] = 1;
   });
 
-  const free: number[] = [];
+  const freeIdx: number[] = [];
+  for (let d = 0; d < ndof; d++) if (!constrained[d]) freeIdx.push(d);
+  const { order: free, hb } = rcmOrder(K, freeIdx);
   const freePos = new Int32Array(ndof).fill(-1);
-  for (let d = 0; d < ndof; d++) if (!constrained[d]) { freePos[d] = free.length; free.push(d); }
+  free.forEach((d, p) => (freePos[d] = p));
   const nf = free.length;
-  const Kff = new Float64Array(nf * nf);
-  for (let a = 0; a < nf; a++) for (let b = 0; b < nf; b++) Kff[a * nf + b] = K[free[a] * ndof + free[b]];
-  let lu: LU | null = null;
+  let lu: BandLDL | null = null;
   let error: string | undefined;
   if (members.length === 0) error = 'Crie a estrutura (nenhuma barra válida).';
   else if (nf > 0) {
-    lu = new LU(Kff, nf, maxDiag);
+    lu = factorFree(K, free, freePos, hb, maxDiag);
     if (lu.singularRow >= 0) {
-      const d = free[lu.piv[lu.singularRow]] ?? free[lu.singularRow];
+      const d = free[lu.singularRow];
       const node = model.nodes[Math.floor(d / DOF)];
       const dirName = ['X', 'Y', 'rotação'][d % DOF];
       error = `Estrutura hipostática (instável). Verifique apoios e rótulas próximo ao nó ${node?.id} (direção ${dirName}).`;
       lu = null;
     }
   }
-  return { model, nodeIndex, members, ndof, K, constrained, free, freePos, lu, skew, warnings, error };
+  return { model, nodeIndex, members, ndof, K, constrained, free, freePos, hb, lu, skew, warnings, error };
+}
+
+/** Fatora a submatriz livre de K (mais `extra`, opcional, na mesma esparsidade) na ordem `free`. */
+export function factorFree(K: SpRows, free: number[], freePos: Int32Array, hb: number, scale: number, extra?: SpRows, alpha = 1): BandLDL {
+  return new BandLDL(free.length, hb, (set) => {
+    free.forEach((d, p) => {
+      for (const [c, v] of K[d]) { const q = freePos[c]; if (q >= p) set(p, q, v); }
+      if (extra) for (const [c, v] of extra[d]) { const q = freePos[c]; if (q >= p) set(p, q, alpha * v); }
+    });
+  }, scale);
 }
 
 function dofMap(pm: PMember) {
@@ -258,7 +270,7 @@ export function solveLoading(
     for (let a = 0; a < nf; a++) {
       const r = free[a];
       let s = F[r];
-      for (let c = 0; c < ndof; c++) if (freePos[c] < 0 && u[c] !== 0) s -= K[r * ndof + c] * u[c];
+      for (const [c, v] of K[r]) if (freePos[c] < 0 && u[c] !== 0) s -= v * u[c];
       rhs[a] = s;
     }
     const x = lu!.solve(rhs);

@@ -139,3 +139,91 @@ export class LU {
     return b;
   }
 }
+
+/** Matriz esparsa simétrica por linhas (padrão simétrico). */
+export type SpRows = Map<number, number>[];
+
+export function spAdd(K: SpRows, r: number, c: number, v: number) {
+  if (v === 0) return;
+  const row = K[r];
+  row.set(c, (row.get(c) ?? 0) + v);
+}
+
+/**
+ * Renumeração Cuthill-McKee reversa dos índices `idx` (subconjunto das linhas de K).
+ * Retorna `order` (posição → índice original) e a meia largura de banda resultante.
+ */
+export function rcmOrder(K: SpRows, idx: number[]): { order: number[]; hb: number } {
+  const n = idx.length;
+  const pos = new Map(idx.map((d, i) => [d, i]));
+  const adj: number[][] = idx.map((d) => [...K[d].keys()].map((c) => pos.get(c)).filter((p): p is number => p !== undefined && p !== pos.get(d)));
+  const deg = adj.map((a) => a.length);
+  const seen = new Uint8Array(n);
+  const out: number[] = [];
+  while (out.length < n) {
+    let start = -1;
+    for (let i = 0; i < n; i++) if (!seen[i] && (start < 0 || deg[i] < deg[start])) start = i;
+    const queue = [start];
+    seen[start] = 1;
+    for (let q = 0; q < queue.length; q++) {
+      const v = queue[q];
+      out.push(v);
+      const nb = adj[v].filter((w) => !seen[w]).sort((a, b) => deg[a] - deg[b]);
+      for (const w of nb) { seen[w] = 1; queue.push(w); }
+    }
+  }
+  out.reverse();
+  const rank = new Int32Array(n);
+  out.forEach((v, r) => (rank[v] = r));
+  let hb = 0;
+  for (let i = 0; i < n; i++) for (const j of adj[i]) hb = Math.max(hb, Math.abs(rank[i] - rank[j]));
+  return { order: out.map((v) => idx[v]), hb };
+}
+
+/**
+ * Fatoração LDLᵀ em banda (matriz simétrica, sem pivotamento). Custo n·hb².
+ * `singularRow` ≥ 0 indica pivô nulo (estrutura instável) na posição dada.
+ */
+export class BandLDL {
+  n: number; hb: number; w: number;
+  L: Float64Array; D: Float64Array;
+  singularRow = -1;
+  /** Número de pivôs negativos (índice de inércia: modos abaixo do deslocamento aplicado). */
+  negatives = 0;
+
+  constructor(n: number, hb: number, fill: (set: (i: number, j: number, v: number) => void) => void, scale?: number) {
+    this.n = n; this.hb = hb; this.w = hb + 1;
+    const L = (this.L = new Float64Array(n * this.w));
+    const D = (this.D = new Float64Array(n));
+    const w = this.w;
+    // armazenamento: linha i, coluna j (i−hb ≤ j ≤ i) em L[i·w + (j − i + hb)]
+    fill((i, j, v) => { if (j > i) [i, j] = [j, i]; if (i - j <= hb) L[i * w + (j - i + hb)] += v; });
+    let maxDiag = 0;
+    for (let i = 0; i < n; i++) maxDiag = Math.max(maxDiag, Math.abs(L[i * w + hb]));
+    const tol = 1e-11 * (scale || maxDiag || 1);
+    for (let i = 0; i < n; i++) {
+      const i0 = Math.max(0, i - hb);
+      for (let j = i0; j <= i; j++) {
+        let s = L[i * w + (j - i + hb)];
+        const k0 = Math.max(i0, j - hb);
+        for (let k = k0; k < j; k++) s -= L[i * w + (k - i + hb)] * L[j * w + (k - j + hb)] * D[k];
+        if (j < i) L[i * w + (j - i + hb)] = s / D[j];
+        else {
+          if (Math.abs(s) < tol) { this.singularRow = i; return; }
+          D[i] = s;
+          if (s < 0) this.negatives++;
+          L[i * w + hb] = 1;
+        }
+      }
+    }
+  }
+
+  solve(bIn: ArrayLike<number>): Float64Array {
+    const { n, hb, w, L, D } = this;
+    const x = Float64Array.from(bIn);
+    for (let i = 0; i < n; i++) { let s = x[i]; for (let k = Math.max(0, i - hb); k < i; k++) s -= L[i * w + (k - i + hb)] * x[k]; x[i] = s; }
+    for (let i = 0; i < n; i++) x[i] /= D[i];
+    for (let i = n - 1; i >= 0; i--) { let s = x[i]; for (let k = i + 1; k <= Math.min(n - 1, i + hb); k++) s -= L[k * w + (i - k + hb)] * x[k]; x[i] = s; }
+    return x;
+  }
+}

@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 60 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test           # 61 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -67,4 +67,3 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
 - Cotas, transformações (copiar, espelhar, girar, escalar), unidades configuráveis
 - Exportação DXF e PDF com memorial de cálculo; LI de deslocamentos e reações
-- Solver esparso (banda/skyline) para modelos com milhares de nós

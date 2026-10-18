@@ -136,7 +136,7 @@ Proposta original:
 - Mover os scripts Playwright descartáveis para `e2e/`, com `npm run e2e`.
 - Fluxos: desenhar → calcular → dimensionar → memorial; salvar e abrir o arquivo de trabalho.
 
-### D4. Solver esparso
+### D4. Solver esparso — **feito** (18/10/2026): K esparsa por linhas, renumeração Cuthill-McKee reversa e LDLᵀ em banda; pórtico de 961 nós/1830 barras em ~0,4 s.
 - Matriz em banda ou skyline com renumeração Cuthill-McKee, para modelos com milhares de nós.
 - Requisito para A3 a A5 continuarem rápidos.
 
