@@ -11,7 +11,14 @@ export function buildCharacteristics(model: Model, rep: DesignReport): SavedChar
   return {
     projectName: model.name,
     savedFrom: 'Dimensionamento do pórtico',
-    supports: rep.foundation.map((f, i) => ({
+    supports: rep.foundation.map((f, i) => {
+      // seção do pilar: barra retangular ligada ao apoio (h no plano do pórtico = a, b fora do plano)
+      const nd = new Map(model.nodes.map((n) => [n.id, n]));
+      const vert = (m: Model['members'][number]) => { const a = nd.get(m.ni), b = nd.get(m.nj); return a && b ? Math.abs(b.y - a.y) / (Math.hypot(b.x - a.x, b.y - a.y) || 1) : 0; };
+      const mem = model.members.filter((m) => m.ni === f.nodeId || m.nj === f.nodeId).sort((a, b) => vert(b) - vert(a))[0];
+      const sec = mem ? model.sections.find((s) => s.id === mem.section) : undefined;
+      const col = sec?.shape.kind === 'rect' ? { ap: sec.shape.h, bp: sec.shape.b } : {};
+      return {
       id: i + 1,
       label: `Apoio ${f.nodeId}`,
       Nk: Math.max(0, f.charMax[1]),
@@ -22,7 +29,8 @@ export function buildCharacteristics(model: Model, rep: DesignReport): SavedChar
       Mx: 0,
       My: Math.max(Math.abs(f.charMax[2]), Math.abs(f.charMin[2])),
       source: model.name,
-    })),
+      ...col,
+    }; }),
     members: rep.members.map((m) => ({ id: m.id, role: m.role, section: m.sectionName, material: m.materialName, status: m.status, summary: m.summary, NdMax: m.NdMax })),
     settings: { ...rep.settings },
   };

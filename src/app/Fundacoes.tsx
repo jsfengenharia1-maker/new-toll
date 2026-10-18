@@ -1,16 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { Check, Group, Hint, NumField, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
 import {
-  PILE_LABEL, PRECAST_CATALOG, SOIL_LABEL, STRUCT, capacityCurve, defaultFoundationParams, recommendedOption, sampleFoundation, solveSupport,
-  type FLoad, type FoundationData, type FoundationParams, type PileSolution, type PileType, type SoilClass,
+  KIND_LABEL, PILE_LABEL, PRECAST_CATALOG, SOIL_LABEL, STRUCT, boringsOf, capacityCurve, defaultFoundationParams, normalizeFoundation, recommendedOption, sampleFoundation,
+  type Boring, type FLoad, type FoundationData, type FoundationKind, type FoundationParams, type PileSolution, type PileType, type SoilClass,
 } from '../core/piles';
+import { capFor, designSupport, type SupportDesign } from '../core/foundation';
+import { isFooting } from '../core/footings';
+import { isCaisson } from '../core/caissons';
+import { CaissonDetail, CapDetail, FootingDetail, Tbc, barTxt, phiTxt } from './FundacoesDetail';
 
 const SOILS = Object.keys(SOIL_LABEL) as SoilClass[];
 const SOIL_COLOR: Record<SoilClass, string> = { argila: '#b0764a', silteArgiloso: '#c9a36b', silteArenoso: '#d8c27a', areia: '#e6d58f' };
+const KINDS = Object.keys(KIND_LABEL) as FoundationKind[];
+/** Campos por apoio preservados ao reimportar cargas (casados pelo nome do apoio). */
+const KEEP: (keyof FLoad)[] = ['kind', 'boringId', 'x', 'y', 'ap', 'bp', 'pile'];
+type Sel = { load: number; type?: PileType; D?: number } | null;
+type SetLoad = (id: number, fn: (l: FLoad) => void, msg?: string) => void;
 
 function parseSoil(t: string): SoilClass {
   const s = t.toLowerCase();
@@ -20,47 +29,54 @@ function parseSoil(t: string): SoilClass {
   return 'argila';
 }
 
+const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
+
 export function Fundacoes() {
   const st = useStore();
   const a = useAnalysis();
-  const f: FoundationData = useMemo(() => {
-    const base = st.model.foundation ?? sampleFoundation();
-    return { ...base, params: { ...defaultFoundationParams(), ...base.params } };
-  }, [st.model.foundation]);
+  const f: FoundationData = useMemo(() => normalizeFoundation(clone(st.model.foundation ?? sampleFoundation())), [st.model.foundation]);
   const upd = (fn: (d: FoundationData) => void, msg?: string) => st.commit((m) => {
-    const d: FoundationData = m.foundation ?? JSON.parse(JSON.stringify(f));
-    d.params = { ...defaultFoundationParams(), ...d.params };
+    const d = normalizeFoundation(clone(m.foundation ?? f));
     fn(d);
+    d.boring = d.borings![0];
     m.foundation = d;
   }, msg);
   const setP = (p: Partial<FoundationParams>) => upd((d) => { d.params = { ...d.params, ...p }; });
+  const setLoad: SetLoad = (id, fn, msg) => upd((d) => { const l = d.loads.find((x) => x.id === id); if (l) fn(l); }, msg);
 
-  const results = useMemo(() => f.loads.map((ld) => solveSupport(ld, f)), [f]);
-  const [sel, setSel] = useState<{ load: number; type: PileType; D: number } | null>(null);
+  const borings = f.borings!;
+  const [bi, setBi] = useState(0);
+  const bIdx = Math.min(bi, borings.length - 1);
+  const b = borings[bIdx];
+  const updB = (fn: (x: Boring) => void, msg?: string) => upd((d) => fn(d.borings![bIdx]), msg);
+
+  const designs = useMemo(() => f.loads.map((ld) => designSupport(ld, f)), [f]);
+  const [sel, setSel] = useState<Sel>(null);
   const [paste, setPaste] = useState('');
   const [saved, setSaved] = useState<LibraryItem[]>([]);
   useEffect(() => { listLibrary().then((r) => setSaved(r.items.filter((i) => i.kind === 'characteristics'))).catch(() => {}); }, []);
 
-  const selected: PileSolution | null = useMemo(() => {
-    if (!sel) {
-      const r = results[0]?.byType[0];
-      return r?.recommended ?? null;
-    }
-    const r = results.find((x) => x.load.id === sel.load);
-    return r?.byType.find((t) => t.type === sel.type)?.diameters.find((d) => d.D === sel.D)?.best ?? null;
-  }, [sel, results]);
-  const selLoad = sel ? f.loads.find((l) => l.id === sel.load) : f.loads[0];
+  const selDesign: SupportDesign | undefined = (sel ? designs.find((x) => x.load.id === sel.load) : undefined) ?? designs[0];
+  const selPile: PileSolution | null = useMemo(() => {
+    if (!selDesign || selDesign.kind !== 'estacas') return null;
+    if (sel?.type && sel.D !== undefined && sel.load === selDesign.load.id) return selDesign.piles?.byType.find((t) => t.type === sel.type)?.diameters.find((d) => d.D === sel.D)?.best ?? selDesign.pile ?? null;
+    return selDesign.pile ?? null;
+  }, [sel, selDesign]);
 
+  const mergeLoads = (d: FoundationData, incoming: FLoad[]) => {
+    const old = new Map(d.loads.map((l) => [l.label, l]));
+    d.loads = incoming.map((s) => { const o = old.get(s.label); const keep: Partial<FLoad> = {}; if (o) for (const k of KEEP) if (o[k] !== undefined) (keep as Record<string, unknown>)[k] = o[k]; return { ...s, ...keep }; });
+  };
   const importModel = () => {
     if (a.prep.error) { st.set({ message: 'O pórtico está instável: não há reações para importar.' }); return; }
     const ch = buildCharacteristics(st.model, getDesign(a));
-    upd((d) => { d.loads = ch.supports; }, `${ch.supports.length} apoio(s) importados do pórtico atual (valores característicos).`);
+    upd((d) => mergeLoads(d, ch.supports), `${ch.supports.length} apoio(s) importados do pórtico atual (valores característicos).`);
   };
   const importSaved = async (id: string) => {
     const e = await loadFromLibrary(id);
     if (!e) return;
     const ch = e.payload as SavedCharacteristics;
-    upd((d) => { d.loads = ch.supports.map((s, i) => ({ ...s, id: i + 1, source: e.name })); }, `Cargas de “${e.name}” importadas.`);
+    upd((d) => mergeLoads(d, ch.supports.map((s, i) => ({ ...s, id: i + 1, source: e.name }))), `Cargas de “${e.name}” importadas.`);
   };
   const applyPaste = () => {
     const rows = paste.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[;\t,]+|\s{2,}/).map((x) => x.trim()));
@@ -71,41 +87,67 @@ export function Fundacoes() {
       return { N: Math.max(0, Math.round(N ?? 0)), soil: soilTxt ? parseSoil(soilTxt) : 'argila' as SoilClass };
     }).filter((m) => Number.isFinite(m.N));
     if (!meters.length) { st.set({ message: 'Nada reconhecido. Cole uma linha por metro: “N” ou “prof; N; solo”.' }); return; }
-    upd((d) => { d.boring.meters = meters; }, `${meters.length} metros de SPT colados.`);
+    updB((x) => { x.meters = meters; }, `${meters.length} metros de SPT colados em ${b.name}.`);
     setPaste('');
   };
+  const addBoring = () => {
+    upd((d) => {
+      const list = boringsOf(d);
+      const id = Math.max(0, ...list.map((x) => x.id ?? 0)) + 1;
+      d.borings = [...list, { id, name: `SP-${String(id).padStart(2, '0')}`, water: b.water, endImpenetrable: false, meters: clone(b.meters) }];
+    }, 'Furo de sondagem adicionado (cópia do atual; edite os valores).');
+    setBi(borings.length);
+  };
+  const removeBoring = () => {
+    upd((d) => {
+      const gone = d.borings![bIdx].id;
+      d.borings!.splice(bIdx, 1);
+      for (const l of d.loads) if (l.boringId === gone) delete l.boringId;
+    }, 'Furo de sondagem removido.');
+    setBi(0);
+  };
 
-  const b = f.boring, p = f.params;
+  const p = f.params;
   return (
     <div className="fund">
       <aside className="fund-in">
-        <Group title="Sondagem SPT">
-          <div className="row">
-            <TextField label="Identificação" value={b.name} onChange={(v) => upd((d) => { d.boring.name = v; })} />
-            <NumField label="Nível d'água" unit="m" value={b.water ?? 0} onChange={(v) => upd((d) => { d.boring.water = v > 0 ? v : null; })} />
+        <Group title={`Sondagens SPT (${borings.length})`}>
+          <div className="row wrap">
+            <Select label="Furo" value={bIdx} options={borings.map((x, i) => ({ v: i, label: `${x.name}${x.x !== undefined && x.y !== undefined ? ` (${fmt(x.x, 1)}; ${fmt(x.y, 1)})` : ''}` }))} onChange={(v) => setBi(v)} />
+            <button type="button" className="mini" onClick={addBoring}>+ furo</button>
+            {borings.length > 1 && <button type="button" className="mini" onClick={removeBoring}>remover furo</button>}
           </div>
-          <Check label="Sondagem terminou em impenetrável" checked={b.endImpenetrable} onChange={(v) => upd((d) => { d.boring.endImpenetrable = v; })} />
+          <div className="row">
+            <TextField label="Identificação" value={b.name} onChange={(v) => updB((x) => { x.name = v; })} />
+            <NumField label="Nível d'água" unit="m" value={b.water ?? 0} onChange={(v) => updB((x) => { x.water = v > 0 ? v : null; })} />
+          </div>
+          <div className="row">
+            <OptField label="x do furo" unit="m" value={b.x} onChange={(v) => updB((x) => { if (v === undefined) delete x.x; else x.x = v; })} />
+            <OptField label="y do furo" unit="m" value={b.y} onChange={(v) => updB((x) => { if (v === undefined) delete x.y; else x.y = v; })} />
+          </div>
+          <Check label="Sondagem terminou em impenetrável" checked={b.endImpenetrable} onChange={(v) => updB((x) => { x.endImpenetrable = v; })} />
           <div className="spt">
             <div className="spt-table">
               <div className="spt-h"><span>m</span><span>N</span><span>Solo</span><span /></div>
               {b.meters.map((m, i) => (
                 <div className={`spt-r${b.water !== null && i + 1 > b.water ? ' wet' : ''}`} key={i}>
                   <span className="muted">{i + 1}</span>
-                  <input aria-label={`N no metro ${i + 1}`} value={m.N} inputMode="numeric" onChange={(e) => { const v = parseInt(e.target.value || '0', 10); if (Number.isFinite(v)) upd((d) => { d.boring.meters[i].N = v; }); }} />
-                  <select aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => upd((d) => { d.boring.meters[i].soil = e.target.value as SoilClass; })}>
+                  <input aria-label={`N no metro ${i + 1}`} value={m.N} inputMode="numeric" onChange={(e) => { const v = parseInt(e.target.value || '0', 10); if (Number.isFinite(v)) updB((x) => { x.meters[i].N = v; }); }} />
+                  <select aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => updB((x) => { x.meters[i].soil = e.target.value as SoilClass; })}>
                     {SOILS.map((s) => <option key={s} value={s}>{SOIL_LABEL[s]}</option>)}
                   </select>
-                  <button type="button" className="x" aria-label="Remover metro" onClick={() => upd((d) => { d.boring.meters.splice(i, 1); })}>×</button>
+                  <button type="button" className="x" aria-label="Remover metro" onClick={() => updB((x) => { x.meters.splice(i, 1); })}>×</button>
                 </div>
               ))}
-              <button type="button" className="mini" onClick={() => upd((d) => { const last = d.boring.meters.at(-1) ?? { N: 10, soil: 'argila' as SoilClass }; d.boring.meters.push({ ...last }); })}>+ metro</button>
+              <button type="button" className="mini" onClick={() => updB((x) => { const last = x.meters.at(-1) ?? { N: 10, soil: 'argila' as SoilClass }; x.meters.push({ ...last }); })}>+ metro</button>
             </div>
-            <SptChart f={f} sol={selected} />
+            <SptChart b={b} cutoff={p.cutoff} sol={selDesign && selDesign.boring.id === b.id ? selPile : null} />
           </div>
           <label className="field" htmlFor="sptpaste"><span className="flabel">Colar do boletim (uma linha por metro: “N” ou “prof; N; solo”)</span>
             <textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
           </label>
-          <button type="button" className="btn ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT pelo texto colado</button>
+          <button type="button" className="btn ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT deste furo pelo texto colado</button>
+          <Hint>Cada apoio usa o furo escolhido no seu cartão; em “automático”, o mais próximo quando apoio e furos têm coordenadas, senão o primeiro.</Hint>
         </Group>
 
         <Group title="Cargas por apoio (características)">
@@ -132,90 +174,273 @@ export function Fundacoes() {
             </table>
           </div>
           <button type="button" className="mini" onClick={() => upd((d) => { const id = Math.max(0, ...d.loads.map((x) => x.id)) + 1; d.loads.push({ id, label: `P${id}`, Nk: 500, NkMin: 300, Hx: 0, Hy: 0, Mx: 0, My: 0 }); })}>+ apoio</button>
-          <Hint>kN e kN·m, valores característicos no topo do bloco. N mín negativo indica tração. N perm é a parcela permanente (casos G); ela entra com γf = {fmt(p.gammaFfav, 1)} em Nd,mín, e o alívio variável (N perm − N mín) e o binário do momento com γf = {fmt(p.gammaF, 1)}. Vazio: adota-se N perm = N máx (a favor da segurança). Do pórtico 2D: X = Rx, My = Mz; direção Y livre para você completar.</Hint>
+          <Hint>kN e kN·m, valores característicos no topo da fundação. N mín negativo indica tração. N perm é a parcela permanente (casos G); ela entra com γf = {fmt(p.gammaFfav, 1)} em Nd,mín, e o alívio variável (N perm − N mín) e o binário do momento com γf = {fmt(p.gammaF, 1)}. Vazio: adota-se N perm = N máx (a favor da segurança). Do pórtico 2D: X = Rx, My = Mz; direção Y livre para você completar. Tipo de fundação, furo, pilar e coordenadas ficam no cartão de cada apoio.</Hint>
         </Group>
 
-        <Group title="Premissas" open={false}>
-          <div className="row wrap">
-            {(['helice', 'escavada', 'premoldada'] as PileType[]).map((t) => (
-              <Check key={t} label={PILE_LABEL[t]} checked={p.types.includes(t)} onChange={(v) => setP({ types: v ? [...p.types, t] : p.types.filter((x) => x !== t) })} />
-            ))}
-          </div>
-          <TextField label="Diâmetros moldadas in loco (cm)" value={p.diameters.join(', ')} onChange={(v) => setP({ diameters: v.split(/[,;\s]+/).map(Number).filter((x) => x > 0) })} />
-          <TextField label="Diâmetros pré-moldadas (cm, catálogo)" value={p.precastDiameters.join(', ')} onChange={(v) => setP({ precastDiameters: v.split(/[,;\s]+/).map(Number).filter((x) => PRECAST_CATALOG[x]) })} />
-          <div className="row">
-            <NumField label="Cota de arrasamento" unit="m" value={p.cutoff} onChange={(v) => setP({ cutoff: Math.max(0, v) })} />
-            <NumField label="Comprimento mínimo" unit="m" value={p.minLength} onChange={(v) => setP({ minLength: Math.max(1, v) })} />
-          </div>
-          <div className="row">
-            <NumField label="Peso do bloco" unit="% de N" value={p.blockWeightPct} onChange={(v) => setP({ blockWeightPct: v })} />
-            <NumField label="Espaç. moldadas" unit="×φ" value={p.spacingInSitu} onChange={(v) => setP({ spacingInSitu: v })} />
-            <NumField label="Espaç. pré-mold." unit="×φ" value={p.spacingPrecast} onChange={(v) => setP({ spacingPrecast: v })} />
-          </div>
-          <div className="row">
-            <NumField label="Hélice: prof. máx." unit="m" value={p.hcMaxDepth} onChange={(v) => setP({ hcMaxDepth: v })} />
-            <NumField label="Pré-moldada: N de parada" value={p.precastStopN} onChange={(v) => setP({ precastStopN: v })} />
-            <NumField label="Escavada: N do trado" value={p.augerStopN} onChange={(v) => setP({ augerStopN: v })} />
-          </div>
-          <div className="row">
-            <Select label="CAA (Tabela 4)" value={p.caa} options={[{ v: 'I-II', label: 'I-II' }, { v: 'III-IV', label: 'III-IV' }]} onChange={(v) => setP({ caa: v })} />
-            <NumField label="Cobrimento" unit="cm" value={p.cover * 100} onChange={(v) => setP({ cover: v / 100 })} />
-            <NumField label="nh argila média" unit="MN/m³" value={p.nhClay} onChange={(v) => setP({ nhClay: v })} />
-          </div>
-          <div className="row">
-            <NumField label="Estribo espiral φ" unit="mm" value={p.stirrupPhi} onChange={(v) => setP({ stirrupPhi: v })} />
-            <NumField label="passo" unit="cm" value={p.stirrupS * 100} onChange={(v) => setP({ stirrupS: v / 100 })} />
-            <NumField label="1 m³ equivale a" unit="kg aço" value={p.steelPerM3} onChange={(v) => setP({ steelPerM3: v })} />
-          </div>
-          <div className="row">
-            <NumField label="γf desfavorável" value={p.gammaF} onChange={(v) => setP({ gammaF: v })} />
-            <NumField label="γf permanente favorável" value={p.gammaFfav} onChange={(v) => setP({ gammaFfav: v })} />
-          </div>
-          <Hint>Hélice: C{STRUCT.helice[p.caa].fck}, γc {STRUCT.helice[p.caa].gc}, σ sem armar {STRUCT.helice.sigmaLim} MPa, armadura mínima {STRUCT.helice.Lmin} m. Escavada: C{STRUCT.escavada[p.caa].fck}, γc {STRUCT.escavada[p.caa].gc}, {STRUCT.escavada.sigmaLim} MPa, {STRUCT.escavada.Lmin} m. As,mín 0,4%. N de parada da pré-moldada é estimativa: confirme com nega e repique na cravação. A solução escolhida minimiza concreto das estacas + bloco estimado + aço convertido pela equivalência acima.</Hint>
-          <button type="button" className="btn ghost" onClick={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')}>Restaurar padrões</button>
-        </Group>
+        <Premissas p={p} setP={setP} reset={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')} />
       </aside>
 
       <section className="fund-out">
-        {results.length === 0 && <p className="hint">Lance as cargas dos apoios para dimensionar.</p>}
-        {results.map((r) => (
-          <div className="fcard" key={r.load.id}>
-            <div className="fcard-h">
-              <b>{r.load.label}</b>
-              <span className="muted">N {fmt(r.load.Nk, 0)} / {fmt(r.load.NkMin, 0)} kN · H {fmt(Math.hypot(r.load.Hx, r.load.Hy), 1)} kN · M {fmt(Math.hypot(r.load.Mx, r.load.My), 1)} kN·m</span>
-            </div>
-            <div className="fsum">
-              {r.byType.map((t) => (
-                <button type="button" key={t.type} className={`fpick${selected && sel?.load === r.load.id && sel.type === t.type && t.recommended && sel.D === Math.round(t.recommended.D * 100) ? ' on' : ''}`} onClick={() => t.recommended && setSel({ load: r.load.id, type: t.type, D: Math.round(t.recommended.D * 100) })}>
-                  <span className="ftype">{PILE_LABEL[t.type]}</span>
-                  {t.recommended ? <b>{t.recommended.n} × Ø{Math.round(t.recommended.D * 100)} · L = {t.recommended.L} m</b> : <b className="bad">sem solução</b>}
-                  {t.recommended && recommendedOption(t.recommended.struct.options) && <span className="muted">{recommendedOption(t.recommended.struct.options)!.n} φ{fmt(recommendedOption(t.recommended.struct.options)!.phi, 1).replace(',0', '')} em {fmt(t.recommended.struct.armedLength, 1)} m · espiral φ{p.stirrupPhi} c/{Math.round(p.stirrupS * 100)}</span>}
-                  {t.recommended && t.type === 'premoldada' && <span className="muted">armadura de fábrica</span>}
-                </button>
-              ))}
-            </div>
-            <details>
-              <summary>Todos os diâmetros</summary>
-              <div className="tablewrap">
-                <table className="data">
-                  <thead><tr><th className="l">Tipo</th><th>Ø</th><th>Estacas</th><th>L (m)</th><th>Padm</th><th>N/estaca</th><th>Aço</th><th className="l">Observação</th></tr></thead>
-                  <tbody>
-                    {r.byType.flatMap((t) => t.diameters.map((d) => (
-                      <tr key={`${t.type}-${d.D}`} className={d.best ? 'click' : 'dimrow'} onClick={() => d.best && setSel({ load: r.load.id, type: t.type, D: d.D })}>
-                        <td className="l">{PILE_LABEL[t.type].split(' ')[0]}</td><td>{d.D}</td>
-                        {d.best ? (<><td>{d.best.n}</td><td>{d.best.L}</td><td>{fmt(d.best.cap.Padm, 0)}</td><td>{fmt(d.best.loads.Nmax, 0)}</td><td>{d.best.struct.options.length ? `${fmt(d.best.steelKg, 0)} kg` : '—'}</td><td className="l">{t.recommended === d.best ? 'recomendada' : ''}</td></>)
-                          : (<><td colSpan={5}>—</td><td className="l muted">{d.reason}</td></>)}
-                      </tr>
-                    )))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
+        {designs.length === 0 && <p className="hint">Lance as cargas dos apoios para dimensionar.</p>}
+        {designs.map((ds) => <SupportCard key={ds.load.id} ds={ds} f={f} sel={sel} setSel={setSel} setLoad={setLoad} active={selDesign?.load.id === ds.load.id} />)}
+        {selDesign && selDesign.kind === 'estacas' && selPile && <SolutionDetail s={selPile} ds={selDesign} f={f} setLoad={setLoad} />}
+        {selDesign && selDesign.kind === 'sapata' && selDesign.footing && (
+          <div className="fdetail">
+            <h3>{selDesign.load.label} · sapata{isFooting(selDesign.footing) ? ` ${fmt(selDesign.footing.A * 100, 0)} × ${fmt(selDesign.footing.B * 100, 0)} × ${fmt(selDesign.footing.h * 100, 0)} cm` : ''} · furo {selDesign.boring.name}</h3>
+            {isFooting(selDesign.footing) ? <FootingDetail r={selDesign.footing} ap={selDesign.ap} bp={selDesign.bp} p={p} /> : selDesign.footing.messages.map((m, i) => <div className="note bad" key={i}>{m}</div>)}
           </div>
-        ))}
-        {selected && selLoad && <SolutionDetail s={selected} f={f} />}
+        )}
+        {selDesign && selDesign.kind === 'tubulao' && selDesign.caisson && (
+          <div className="fdetail">
+            <h3>{selDesign.load.label} · tubulão a céu aberto · furo {selDesign.boring.name}</h3>
+            {isCaisson(selDesign.caisson) ? <CaissonDetail r={selDesign.caisson} water={selDesign.boring.water} p={p} /> : selDesign.caisson.messages.map((m, i) => <div className="note bad" key={i}>{m}</div>)}
+          </div>
+        )}
       </section>
     </div>
+  );
+}
+
+function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesign; f: FoundationData; sel: Sel; setSel: (s: Sel) => void; setLoad: SetLoad; active: boolean }) {
+  const ld = ds.load, p = f.params;
+  const borings = f.borings!;
+  const r = ds.piles;
+  return (
+    <div className={`fcard${active ? ' on' : ''}`}>
+      <div className="fcard-h">
+        <b>{ld.label}</b>
+        <span className="muted">N {fmt(ld.Nk, 0)} / {fmt(ld.NkMin, 0)} kN · H {fmt(Math.hypot(ld.Hx, ld.Hy), 1)} kN · M {fmt(Math.hypot(ld.Mx, ld.My), 1)} kN·m · furo {ds.boring.name} ({ds.boringChoice})</span>
+      </div>
+      <div className="row wrap fctl">
+        <Select label="Fundação" value={ds.kind} options={KINDS.map((k) => ({ v: k, label: KIND_LABEL[k] }))} onChange={(v) => { setLoad(ld.id, (l) => { if (v === 'estacas') delete l.kind; else l.kind = v; }); setSel({ load: ld.id }); }} />
+        <Select label="Sondagem" value={ld.boringId ?? 0} options={[{ v: 0, label: 'Automático' }, ...borings.map((x) => ({ v: x.id!, label: x.name }))]} onChange={(v) => setLoad(ld.id, (l) => { if (!v) delete l.boringId; else l.boringId = v; })} />
+        <NumField label="Pilar a (x)" unit="cm" width={92} value={ds.ap * 100} onChange={(v) => setLoad(ld.id, (l) => { l.ap = Math.max(0.1, v / 100); })} />
+        <NumField label="b (y)" unit="cm" width={80} value={ds.bp * 100} onChange={(v) => setLoad(ld.id, (l) => { l.bp = Math.max(0.1, v / 100); })} />
+        <OptField label="x" unit="m" width={72} value={ld.x} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.x; else l.x = v; })} />
+        <OptField label="y" unit="m" width={72} value={ld.y} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.y; else l.y = v; })} />
+      </div>
+      {ds.kind === 'estacas' && r && (
+        <>
+          <div className="fsum">
+            {r.byType.map((t) => (
+              <button type="button" key={t.type} className={`fpick${sel?.load === ld.id && sel.type === t.type && t.recommended && sel.D === Math.round(t.recommended.D * 100) ? ' on' : ''}`} onClick={() => t.recommended && setSel({ load: ld.id, type: t.type, D: Math.round(t.recommended.D * 100) })}>
+                <span className="ftype">{PILE_LABEL[t.type]}</span>
+                {t.recommended ? <b>{t.recommended.n} × Ø{Math.round(t.recommended.D * 100)} · L = {t.recommended.L} m</b> : <b className="bad">sem solução</b>}
+                {t.recommended && recommendedOption(t.recommended.struct.options) && <span className="muted">{recommendedOption(t.recommended.struct.options)!.n} φ{phiTxt(recommendedOption(t.recommended.struct.options)!.phi)} em {fmt(t.recommended.struct.armedLength, 1)} m · espiral φ{p.stirrupPhi} c/{Math.round(p.stirrupS * 100)}</span>}
+                {t.recommended && t.type === 'premoldada' && <span className="muted">armadura de fábrica</span>}
+              </button>
+            ))}
+          </div>
+          {ds.pile && ds.cap && (
+            <div className="fadopt">
+              <span className="pill na">{ds.pileAdopted ? 'adotada' : 'recomendada'}</span>
+              <span className={`pill ${ds.cap.ok ? 'ok' : 'bad'}`}>{ds.cap.ok ? 'bloco atende' : 'bloco não atende'}</span>
+              <span>{PILE_LABEL[ds.pile.type].split(' ')[0]} Ø{Math.round(ds.pile.D * 100)} · {ds.pile.n} estaca{ds.pile.n > 1 ? 's' : ''} · L {ds.pile.L} m · bloco {fmt(ds.cap.lx * 100, 0)} × {fmt(ds.cap.ly * 100, 0)} × {fmt(ds.cap.h * 100, 0)} cm{ds.cap.ties[0]?.bars ? ` · tirante ${barTxt(ds.cap.ties[0].bars, false)}` : ''}</span>
+              <button type="button" className="mini" onClick={() => setSel({ load: ld.id, type: ds.pile!.type, D: Math.round(ds.pile!.D * 100) })}>ver bloco</button>
+            </div>
+          )}
+          <details>
+            <summary>Todos os diâmetros</summary>
+            <div className="tablewrap">
+              <table className="data">
+                <thead><tr><th className="l">Tipo</th><th>Ø</th><th>Estacas</th><th>L (m)</th><th>Padm</th><th>N/estaca</th><th>Aço</th><th className="l">Observação</th></tr></thead>
+                <tbody>
+                  {r.byType.flatMap((t) => t.diameters.map((d) => (
+                    <tr key={`${t.type}-${d.D}`} className={d.best ? 'click' : 'dimrow'} onClick={() => d.best && setSel({ load: ld.id, type: t.type, D: d.D })}>
+                      <td className="l">{PILE_LABEL[t.type].split(' ')[0]}</td><td>{d.D}</td>
+                      {d.best ? (<><td>{d.best.n}</td><td>{d.best.L}</td><td>{fmt(d.best.cap.Padm, 0)}</td><td>{fmt(d.best.loads.Nmax, 0)}</td><td>{d.best.struct.options.length ? `${fmt(d.best.steelKg, 0)} kg` : '—'}</td><td className="l">{[t.recommended === d.best ? 'recomendada' : '', ds.pile === d.best ? 'adotada no bloco' : ''].filter(Boolean).join(' · ')}</td></>)
+                        : (<><td colSpan={5}>—</td><td className="l muted">{d.reason}</td></>)}
+                    </tr>
+                  )))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </>
+      )}
+      {ds.kind === 'sapata' && ds.footing && (
+        <button type="button" className={`fpick${active ? ' on' : ''}`} onClick={() => setSel({ load: ld.id })}>
+          <span className="ftype">Sapata isolada</span>
+          {isFooting(ds.footing) ? <>
+            <b>{fmt(ds.footing.A * 100, 0)} × {fmt(ds.footing.B * 100, 0)} cm · h {fmt(ds.footing.h * 100, 0)} cm ({ds.footing.kind === 'rigida' ? 'rígida' : 'flexível'})</b>
+            <span className="muted">σadm {fmt(ds.footing.sigmaAdm, 0)} kPa ({ds.footing.sigmaSrc.startsWith('estimada') ? 'SPT, a confirmar' : 'informada'}) · A: {barTxt(ds.footing.flex.x.bars)} · B: {barTxt(ds.footing.flex.y.bars)}{ds.footing.ok ? '' : ' · com pendências'}</span>
+          </> : <b className="bad">{ds.footing.messages[0]}</b>}
+        </button>
+      )}
+      {ds.kind === 'tubulao' && ds.caisson && (
+        <button type="button" className={`fpick${active ? ' on' : ''}`} onClick={() => setSel({ load: ld.id })}>
+          <span className="ftype">Tubulão a céu aberto</span>
+          {isCaisson(ds.caisson) ? <>
+            <b>Fuste Ø{fmt(ds.caisson.Df * 100, 0)} · base Ø{fmt(ds.caisson.Db * 100, 0)} · cota {fmt(ds.caisson.depth, 1)} m</b>
+            <span className="muted">σadm {fmt(ds.caisson.sigmaAdm, 0)} kPa ({ds.caisson.sigmaSrc.startsWith('estimada') ? 'SPT, a confirmar' : 'informada'}) · H {fmt(ds.caisson.H * 100, 0)} cm · {fmt(ds.caisson.volume, 2)} m³</span>
+          </> : <b className="bad">{ds.caisson.messages[0]}</b>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const Row = ({ children }: { children: ReactNode }) => <div className="row">{children}</div>;
+
+function Premissas({ p, setP, reset }: { p: FoundationParams; setP: (x: Partial<FoundationParams>) => void; reset: () => void }) {
+  return (
+    <>
+      <Group title="Premissas — estacas" open={false}>
+        <div className="row wrap">
+          {(['helice', 'escavada', 'premoldada'] as PileType[]).map((t) => (
+            <Check key={t} label={PILE_LABEL[t]} checked={p.types.includes(t)} onChange={(v) => setP({ types: v ? [...p.types, t] : p.types.filter((x) => x !== t) })} />
+          ))}
+        </div>
+        <TextField label="Diâmetros moldadas in loco (cm)" value={p.diameters.join(', ')} onChange={(v) => setP({ diameters: v.split(/[,;\s]+/).map(Number).filter((x) => x > 0) })} />
+        <TextField label="Diâmetros pré-moldadas (cm, catálogo)" value={p.precastDiameters.join(', ')} onChange={(v) => setP({ precastDiameters: v.split(/[,;\s]+/).map(Number).filter((x) => PRECAST_CATALOG[x]) })} />
+        <Row>
+          <NumField label="Cota de arrasamento" unit="m" value={p.cutoff} onChange={(v) => setP({ cutoff: Math.max(0, v) })} />
+          <NumField label="Comprimento mínimo" unit="m" value={p.minLength} onChange={(v) => setP({ minLength: Math.max(1, v) })} />
+        </Row>
+        <Row>
+          <NumField label="Peso do bloco" unit="% de N" value={p.blockWeightPct} onChange={(v) => setP({ blockWeightPct: v })} />
+          <NumField label="Espaç. moldadas" unit="×φ" value={p.spacingInSitu} onChange={(v) => setP({ spacingInSitu: v })} />
+          <NumField label="Espaç. pré-mold." unit="×φ" value={p.spacingPrecast} onChange={(v) => setP({ spacingPrecast: v })} />
+        </Row>
+        <Row>
+          <NumField label="Hélice: prof. máx." unit="m" value={p.hcMaxDepth} onChange={(v) => setP({ hcMaxDepth: v })} />
+          <NumField label="Pré-moldada: N de parada" value={p.precastStopN} onChange={(v) => setP({ precastStopN: v })} />
+          <NumField label="Escavada: N do trado" value={p.augerStopN} onChange={(v) => setP({ augerStopN: v })} />
+        </Row>
+        <Row>
+          <Select label="CAA (Tabela 4)" value={p.caa} options={[{ v: 'I-II', label: 'I-II' }, { v: 'III-IV', label: 'III-IV' }]} onChange={(v) => setP({ caa: v })} />
+          <NumField label="Cobrimento" unit="cm" value={p.cover * 100} onChange={(v) => setP({ cover: v / 100 })} />
+          <NumField label="nh argila média" unit="MN/m³" value={p.nhClay} onChange={(v) => setP({ nhClay: v })} />
+        </Row>
+        <Row>
+          <NumField label="Estribo espiral φ" unit="mm" value={p.stirrupPhi} onChange={(v) => setP({ stirrupPhi: v })} />
+          <NumField label="passo" unit="cm" value={p.stirrupS * 100} onChange={(v) => setP({ stirrupS: v / 100 })} />
+          <NumField label="1 m³ equivale a" unit="kg aço" value={p.steelPerM3} onChange={(v) => setP({ steelPerM3: v })} />
+        </Row>
+        <Row>
+          <NumField label="γf desfavorável" value={p.gammaF} onChange={(v) => setP({ gammaF: v })} />
+          <NumField label="γf permanente favorável" value={p.gammaFfav} onChange={(v) => setP({ gammaFfav: v })} />
+        </Row>
+        <Hint>Hélice: C{STRUCT.helice[p.caa].fck}, γc {STRUCT.helice[p.caa].gc}, σ sem armar {STRUCT.helice.sigmaLim} MPa, armadura mínima {STRUCT.helice.Lmin} m. Escavada: C{STRUCT.escavada[p.caa].fck}, γc {STRUCT.escavada[p.caa].gc}, {STRUCT.escavada.sigmaLim} MPa, {STRUCT.escavada.Lmin} m. As,mín 0,4%. N de parada da pré-moldada é estimativa: confirme com nega e repique na cravação. A solução escolhida minimiza concreto das estacas + bloco estimado + aço convertido pela equivalência acima. O cobrimento vale também para blocos, sapatas e tubulões.</Hint>
+      </Group>
+
+      <Group title="Premissas — pilar e concreto" open={false}>
+        <Row>
+          <NumField label="Pilar padrão a (x)" unit="cm" value={p.colA * 100} onChange={(v) => setP({ colA: Math.max(0.1, v / 100) })} />
+          <NumField label="b (y)" unit="cm" value={p.colB * 100} onChange={(v) => setP({ colB: Math.max(0.1, v / 100) })} />
+          <NumField label="φ do pilar" unit="mm" value={p.colPhi} onChange={(v) => setP({ colPhi: v })} />
+        </Row>
+        <Row>
+          <NumField label="fck blocos/sapatas" unit="MPa" value={p.fckFound} onChange={(v) => setP({ fckFound: v })} />
+          <NumField label="γc" value={p.gammaC} onChange={(v) => setP({ gammaC: v })} />
+          <NumField label="γs" value={p.gammaS} onChange={(v) => setP({ gammaS: v })} />
+          <NumField label="fyk" unit="MPa" value={p.fyk} onChange={(v) => setP({ fyk: v })} />
+        </Row>
+        <Hint>O pilar padrão vale para apoios sem seção informada (na importação do pórtico, vem da seção retangular da barra ligada ao apoio). O φ do pilar define o comprimento de ancoragem lb (NBR 6118 9.4.2.4, boa aderência, sem gancho), que limita a altura mínima de blocos e sapatas: informe a bitola real.</Hint>
+      </Group>
+
+      <Group title="Premissas — blocos de coroamento" open={false}>
+        <Row>
+          <NumField label="θ mín" unit="°" value={p.capThetaMin} onChange={(v) => setP({ capThetaMin: v })} />
+          <NumField label="θ máx" unit="°" value={p.capThetaMax} onChange={(v) => setP({ capThetaMax: v })} />
+          <NumField label="Borda além da estaca" unit="cm" value={p.capEdge * 100} onChange={(v) => setP({ capEdge: v / 100 })} />
+        </Row>
+        <div className="tbcrow"><span>Limites das bielas K·KR·fcd (Blévot)</span><Tbc /></div>
+        <Row>
+          <NumField label="K 2 est." value={p.capK2} onChange={(v) => setP({ capK2: v })} />
+          <NumField label="K 3" value={p.capK3} onChange={(v) => setP({ capK3: v })} />
+          <NumField label="K 4" value={p.capK4} onChange={(v) => setP({ capK4: v })} />
+        </Row>
+        <Row>
+          <NumField label="K 5" value={p.capK5} onChange={(v) => setP({ capK5: v })} />
+          <NumField label="K 6" value={p.capK6} onChange={(v) => setP({ capK6: v })} />
+          <NumField label="KR" value={p.capKR} onChange={(v) => setP({ capKR: v })} />
+        </Row>
+        <Row>
+          <NumField label="d′ mínimo" unit="cm" value={p.capDprime * 100} onChange={(v) => setP({ capDprime: v / 100 })} />
+          <NumField label="Faixa sobre estaca" unit="×D" value={p.capBand} onChange={(v) => setP({ capBand: v })} />
+          <NumField label="Malha / principal" unit="%" value={p.capDistRatio * 100} onChange={(v) => setP({ capDistRatio: v / 100 })} />
+        </Row>
+        <Row>
+          <NumField label="Suspensão se s >" unit="×D" value={p.capSuspFactor} onChange={(v) => setP({ capSuspFactor: v })} />
+          <NumField label="Pele (2 estacas)" unit="% b·h" value={p.capSkinRatio * 100} onChange={(v) => setP({ capSkinRatio: v / 100 })} />
+          <NumField label="1 estaca: h / lado" value={p.cap1Ratio} onChange={(v) => setP({ cap1Ratio: v })} />
+        </Row>
+        <Hint>K = 1,4 / 1,75 / 2,1 para 2 / 3 / 4 estacas (Blévot, como nos livros-texto); 5 e 6 estacas por extensão do valor de 4; KR = 0,90 (efeito Rüsch, faixa usual 0,90–0,95). Todos a confirmar, inclusive a referência (Blévot, Fusco ou NBR 6118 22.7). d′ ≥ máx(valor acima; lado da estaca quadrada equivalente/5). Faixa de 1,2D, malha de 20% e suspensão Nd/(1,5·n·fyd) são valores de livro-texto, a confirmar.</Hint>
+      </Group>
+
+      <Group title="Premissas — sapatas" open={false}>
+        <Row>
+          <Select label="σadm do solo" value={p.ftSigmaMode} options={[{ v: 'spt', label: 'Estimada pelo SPT' }, { v: 'informada', label: 'Informada' }]} onChange={(v) => setP({ ftSigmaMode: v })} />
+          <NumField label="σadm informada" unit="kPa" value={p.ftSigmaAdm} disabled={p.ftSigmaMode !== 'informada'} onChange={(v) => setP({ ftSigmaAdm: v })} />
+        </Row>
+        {p.ftSigmaMode === 'spt' && <div className="tbcrow"><span>σadm ≈ N̄/{fmt(p.ftSptDiv, 0)} MPa (regra empírica)</span><Tbc /></div>}
+        <Row>
+          <NumField label="Divisor de N̄" value={p.ftSptDiv} onChange={(v) => setP({ ftSptDiv: v })} />
+          <NumField label="N̄ máximo" value={p.ftNmaxEst} onChange={(v) => setP({ ftNmaxEst: v })} />
+          <NumField label="Bulbo" unit="× lado" value={p.ftBulb} onChange={(v) => setP({ ftBulb: v })} />
+        </Row>
+        <Row>
+          <NumField label="Cota de apoio" unit="m" value={p.ftDepth} onChange={(v) => setP({ ftDepth: v })} />
+          <NumField label="Peso próprio + solo" unit="% N" value={p.ftPP} onChange={(v) => setP({ ftPP: v })} />
+          <NumField label="γ solo" unit="kN/m³" value={p.gammaSoil} onChange={(v) => setP({ gammaSoil: v })} />
+        </Row>
+        <Row>
+          <NumField label="σmáx ≤ fator·σadm" value={p.ftEdgeFactor} onChange={(v) => setP({ ftEdgeFactor: v })} />
+          <NumField label="Área comprimida mín." unit="%" value={Math.round(p.ftMinCompressed * 1000) / 10} onChange={(v) => setP({ ftMinCompressed: v / 100 })} />
+          <NumField label="A/B máx." value={p.ftMaxRatio} onChange={(v) => setP({ ftMaxRatio: v })} />
+        </Row>
+        <Row>
+          <Select label="Tipo" value={p.ftKind} options={[{ v: 'rigida', label: 'Rígida' }, { v: 'flexivel', label: 'Flexível' }]} onChange={(v) => setP({ ftKind: v })} />
+          <Select label="Flexão" value={p.ftMethod} options={[{ v: 'ceb70', label: 'CEB-70' }, { v: 'bielas', label: 'Bielas (só rígida)' }]} onChange={(v) => setP({ ftMethod: v })} />
+        </Row>
+        <Row>
+          <NumField label="ρ mín." unit="%" value={p.ftRhoMin * 100} onChange={(v) => setP({ ftRhoMin: v / 100 })} />
+          <NumField label="h0 mín." unit="cm" value={p.ftH0Min * 100} onChange={(v) => setP({ ftH0Min: v / 100 })} />
+        </Row>
+        <Hint>Planta em passos de 5 cm, lado mínimo 60 cm, balanços iguais quando possível. Base sem tração; σmáx ≤ fator·σadm; área comprimida ≥ 2/3 (a confirmar o item da NBR 6122). Rígida: h ≥ (a − ap)/3 (NBR 6118 22.6.1) e h ≥ lb + c; h0 ≥ máx(h/3; 20 cm) (prática usual). Flexível: punção em C e C′ (19.5). ρmín 0,15% (Tab. 17.3, a confirmar para sapatas). Peso próprio: o maior entre o percentual e o peso do concreto calculado; σadm tratada como líquida (o solo sobre a sapata é só informado): a confirmar.</Hint>
+      </Group>
+
+      <Group title="Premissas — tubulões" open={false}>
+        <Row>
+          <Select label="σadm na base" value={p.tbSigmaMode} options={[{ v: 'spt', label: 'Estimada pelo SPT' }, { v: 'informada', label: 'Informada' }]} onChange={(v) => setP({ tbSigmaMode: v })} />
+          <NumField label="σadm informada" unit="kPa" value={p.tbSigmaAdm} disabled={p.tbSigmaMode !== 'informada'} onChange={(v) => setP({ tbSigmaAdm: v })} />
+        </Row>
+        {p.tbSigmaMode === 'spt' && <div className="tbcrow"><span>σadm ≈ N̄/{fmt(p.tbSptDiv, 0)} MPa (regra empírica)</span><Tbc /></div>}
+        <Row>
+          <NumField label="Divisor de N̄" value={p.tbSptDiv} onChange={(v) => setP({ tbSptDiv: v })} />
+          <NumField label="N̄ máximo" value={p.tbNmaxEst} onChange={(v) => setP({ tbNmaxEst: v })} />
+          <NumField label="Cota da base (0 = auto)" unit="m" value={p.tbDepth} onChange={(v) => setP({ tbDepth: Math.max(0, v) })} />
+        </Row>
+        <Row>
+          <NumField label="Cota mínima" unit="m" value={p.tbMinDepth} onChange={(v) => setP({ tbMinDepth: v })} />
+          <NumField label="Fuste mín." unit="cm" value={p.tbDfMin * 100} onChange={(v) => setP({ tbDfMin: v / 100 })} />
+          <NumField label="Base máx." unit="cm" value={p.tbDbMax * 100} onChange={(v) => setP({ tbDbMax: v / 100 })} />
+        </Row>
+        <Row>
+          <NumField label="fck fuste" unit="MPa" value={p.tbFck} onChange={(v) => setP({ tbFck: v })} />
+          <NumField label="γc fuste" value={p.tbGc} onChange={(v) => setP({ tbGc: v })} />
+          <NumField label="H base máx." unit="cm" value={p.tbHmax * 100} onChange={(v) => setP({ tbHmax: v / 100 })} />
+          <NumField label="Rodapé" unit="cm" value={p.tbRodape * 100} onChange={(v) => setP({ tbRodape: v / 100 })} />
+        </Row>
+        <Check label="Somar o peso próprio do tubulão na base" checked={p.tbWeight} onChange={(v) => setP({ tbWeight: v })} />
+        <Hint>Fuste de concreto simples: γf·N/Af ≤ 0,85·fck/γc (C25 e γc 1,6: a confirmar). Base: Ab = (N + peso)/σadm, altura 0,866·(Db − Df) (60°) + rodapé, H ≤ 1,8 m (prática, a confirmar). Céu aberto: base acima do nível d'água. Cota automática: a de menor volume entre a cota mínima e o NA. Bulbo para N̄ igual ao das sapatas.</Hint>
+        <button type="button" className="btn ghost" onClick={reset}>Restaurar padrões (todas as premissas)</button>
+      </Group>
+    </>
+  );
+}
+
+function OptField({ label, unit, value, onChange, width }: { label: string; unit?: string; value: number | undefined; onChange: (v: number | undefined) => void; width?: number }) {
+  const show = (v: number | undefined) => (v === undefined ? '' : String(v).replace('.', ','));
+  const [t, setT] = useState(show(value));
+  useEffect(() => setT(show(value)), [value]);
+  const commit = () => { if (!t.trim()) { if (value !== undefined) onChange(undefined); return; } const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(show(value)); };
+  return (
+    <label className="field" style={width ? { width } : undefined}>
+      <span className="flabel">{label}</span>
+      <span className="finput"><input inputMode="decimal" placeholder="—" aria-label={label} value={t} onChange={(e) => setT(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />{unit && <span className="unit">{unit}</span>}</span>
+    </label>
   );
 }
 
@@ -232,8 +457,7 @@ function NumCell({ value, onChange }: { value: number; onChange: (v: number) => 
   return <input className="num" inputMode="decimal" aria-label="valor" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(String(value).replace('.', ',')); }} />;
 }
 
-function SptChart({ f, sol }: { f: FoundationData; sol: PileSolution | null }) {
-  const b = f.boring;
+function SptChart({ b, cutoff, sol }: { b: Boring; cutoff: number; sol: PileSolution | null }) {
   const n = b.meters.length;
   const W = 150, rowH = 14, top = 18, H = top + n * rowH + 10;
   const Nmax = 50;
@@ -249,17 +473,24 @@ function SptChart({ f, sol }: { f: FoundationData; sol: PileSolution | null }) {
         </g>
       ))}
       {b.water !== null && b.water <= n && <g><line x1={0} x2={W} y1={top + b.water * rowH} y2={top + b.water * rowH} className="wl" /><text x={W - 2} y={top + b.water * rowH - 2} className="axl" textAnchor="end">NA</text></g>}
-      {sol && <g><rect x={28} y={top + f.params.cutoff * rowH} width={4} height={(sol.L - f.params.cutoff) * rowH} className="pilebar" /><text x={2} y={Math.min(H - 1, top + sol.L * rowH + 10)} className="axl" textAnchor="start">ponta {sol.L} m</text></g>}
+      {sol && <g><rect x={28} y={top + cutoff * rowH} width={4} height={(sol.L - cutoff) * rowH} className="pilebar" /><text x={2} y={Math.min(H - 1, top + sol.L * rowH + 10)} className="axl" textAnchor="start">ponta {sol.L} m</text></g>}
     </svg>
   );
 }
 
-function SolutionDetail({ s, f }: { s: PileSolution; f: FoundationData }) {
+function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: SupportDesign; f: FoundationData; setLoad: SetLoad }) {
   const st = s.struct, c = s.cap, pl = s.loads;
-  const curve = useMemo(() => capacityCurve(s.type, s.D, f.boring, f.params), [s, f]);
+  const curve = useMemo(() => capacityCurve(s.type, s.D, ds.boring, f.params), [s, f, ds.boring]);
+  const cap = useMemo(() => capFor(s, ds.load, f), [s, ds.load, f]);
+  const isAdopted = ds.pile === s && ds.pileAdopted;
   return (
     <div className="fdetail">
-      <h3>{PILE_LABEL[s.type]} · Ø{Math.round(s.D * 100)} cm · {s.n} estaca{s.n > 1 ? 's' : ''} · L = {s.L} m</h3>
+      <h3>{ds.load.label} · {PILE_LABEL[s.type]} · Ø{Math.round(s.D * 100)} cm · {s.n} estaca{s.n > 1 ? 's' : ''} · L = {s.L} m</h3>
+      <div className="row wrap" style={{ marginBottom: 8, alignItems: 'center' }}>
+        {isAdopted ? <span className="pill ok">adotada para o bloco e o memorial</span> : <button type="button" className="btn" onClick={() => setLoad(ds.load.id, (l) => { l.pile = { type: s.type, D: Math.round(s.D * 100) }; }, `${ds.load.label}: estaca adotada.`)}>Adotar esta estaca</button>}
+        {ds.load.pile && <button type="button" className="btn ghost" onClick={() => setLoad(ds.load.id, (l) => { delete l.pile; }, `${ds.load.label}: volta à estaca recomendada.`)}>Voltar à recomendada</button>}
+        <span className="muted">Furo {ds.boring.name}</span>
+      </div>
       <div className="fgrid">
         <div>
           <h4>Capacidade geotécnica (Décourt-Quaresma)</h4>
@@ -279,9 +510,7 @@ function SolutionDetail({ s, f }: { s: PileSolution; f: FoundationData }) {
             <dt>H por estaca</dt><dd>{fmt(pl.H, 1)} kN</dd>
             {pl.M0 > 0 && <><dt>Momento no topo</dt><dd>{fmt(pl.M0, 1)} kN·m</dd></>}
             <dt>Espaçamento</dt><dd>{fmt(pl.s, 2)} m</dd>
-            <dt>Bloco estimado</dt><dd>{fmt(s.blockVolume, 2)} m³</dd>
           </dl>
-          <BlockSketch s={s} />
         </div>
         <div>
           <h4>Estrutural (NBR 6122)</h4>
@@ -306,7 +535,7 @@ function SolutionDetail({ s, f }: { s: PileSolution; f: FoundationData }) {
               <h4>Armadura longitudinal por bitola</h4>
               <table className="data">
                 <thead><tr><th>φ (mm)</th><th>Barras</th><th>As (cm²)</th><th>Espaç. (cm)</th><th className="l">Observação</th></tr></thead>
-                <tbody>{st.options.map((o) => <tr key={o.phi} className={recommendedOption(st.options) === o ? 'rec' : ''}><td>{fmt(o.phi, 1).replace(',0', '')}{recommendedOption(st.options) === o ? ' ★' : ''}</td><td>{o.n}</td><td>{fmt(o.As * 1e4)}</td><td>{fmt(o.spacing * 100, 1)}</td><td className="l">{o.notes.join('; ') || 'ok'}</td></tr>)}</tbody>
+                <tbody>{st.options.map((o) => <tr key={o.phi} className={recommendedOption(st.options) === o ? 'rec' : ''}><td>{phiTxt(o.phi)}{recommendedOption(st.options) === o ? ' ★' : ''}</td><td>{o.n}</td><td>{fmt(o.As * 1e4)}</td><td>{fmt(o.spacing * 100, 1)}</td><td className="l">{o.notes.join('; ') || 'ok'}</td></tr>)}</tbody>
               </table>
               <Hint>★ sugerida: menor área de aço com φ ≥ 10 mm. A lista para na primeira bitola que resolve com o mínimo de 3 barras; bitolas maiores só acrescentariam aço.</Hint>
             </>
@@ -316,20 +545,8 @@ function SolutionDetail({ s, f }: { s: PileSolution; f: FoundationData }) {
           <CapChart curve={curve} s={s} />
         </div>
       </div>
+      <CapDetail cap={cap} coords={pl.coords} D={s.D} ap={ds.ap} bp={ds.bp} p={f.params} />
     </div>
-  );
-}
-
-function BlockSketch({ s }: { s: PileSolution }) {
-  const pts = s.loads.coords, D = s.D;
-  const ext = Math.max(...pts.flatMap(([x, y]) => [Math.abs(x), Math.abs(y)])) + D;
-  const W = 160, k = (W / 2 - 10) / ext;
-  return (
-    <svg className="blocksk" viewBox={`0 0 ${W} ${W}`} role="img" aria-label="Disposição das estacas">
-      <rect x={W / 2 - (ext - D / 2 + 0.15) * k} y={W / 2 - (ext - D / 2 + 0.15) * k} width={2 * (ext - D / 2 + 0.15) * k} height={2 * (ext - D / 2 + 0.15) * k} className="blk" />
-      {pts.map(([x, y], i) => <circle key={i} cx={W / 2 + x * k} cy={W / 2 - y * k} r={(D / 2) * k} className="pile" />)}
-      <text x={W / 2} y={W - 3} className="axl" textAnchor="middle">{s.n} × Ø{Math.round(D * 100)} · s = {fmt(s.loads.s, 2)} m</text>
-    </svg>
   );
 }
 
