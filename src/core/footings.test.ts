@@ -72,6 +72,13 @@ describe('sapatas', () => {
     expect(r.punch.tauSd1!).toBeLessThanOrEqual(r.punch.tauRd1! + 1e-9);
     expect(r.punch.tauSd0).toBeCloseTo((1.4 * 1200) / 1000 / (1.6 * r.d), 9);
   });
+  it('peso próprio: o maior entre o percentual e o peso do concreto', () => {
+    const r = designFooting({ Nk: 1350, NkMin: 900, Mx: 0, My: 60, ap: 0.3, bp: 0.3 }, P({ ftSigmaMode: 'informada', ftSigmaAdm: 150 }));
+    if (!isFooting(r)) throw new Error('sem solução');
+    expect(r.W).toBeGreaterThanOrEqual(0.05 * 1350 - 1e-9);
+    expect(r.W + 0.5).toBeGreaterThanOrEqual(r.Wconc);
+    expect(r.cases[0].N).toBeCloseTo(1350 + r.W, 9);
+  });
   it('σadm pelo SPT e tração recusada', () => {
     const r = designFooting({ Nk: 600, NkMin: 400, Mx: 0, My: 0, ap: 0.3, bp: 0.3, boring: uniform(10) }, P());
     if (!isFooting(r)) throw new Error('sem solução');

@@ -125,7 +125,7 @@ export interface FlexDir { Md: number; T: number; As: number; AsMin: number; AsA
 
 export interface FootingResult {
   ok: boolean; messages: string[];
-  A: number; B: number; W: number; Wreal: number;
+  A: number; B: number; W: number; Wconc: number; Wsoil: number;
   sigmaAdm: number; sigmaSrc: string; spt?: { Nbar: number; Nused: number; from: number; to: number };
   cases: { label: string; N: number; ex: number; ey: number; sigmaMax: number; sigmaMin: number; compressed: number }[];
   kind: 'rigida' | 'flexivel'; h: number; h0: number; d: number; hRigid: number; lbCol: number;
@@ -138,10 +138,21 @@ export interface FootingResult {
 
 const kTable = (r: number) => { const t = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 0.8]]; if (r <= 0.5) return 0.45; if (r >= 3) return 0.8; for (let i = 1; i < t.length; i++) if (r <= t[i][0]) return t[i - 1][1] + ((r - t[i - 1][0]) / (t[i][0] - t[i - 1][0])) * (t[i][1] - t[i - 1][1]); return 0.8; };
 
+/**
+ * Sapata isolada. O peso próprio entra como ftPP% de Nk; se o peso do concreto calculado for maior,
+ * a sapata é refeita com o peso calculado (até convergir).
+ */
 export function designFooting(inp: FootingInput, p: FoundationParams): FootingResult | { ok: false; messages: string[] } {
+  const W0 = (p.ftPP / 100) * inp.Nk;
+  let r = sizeFooting(inp, p, W0);
+  for (let it = 0; it < 6 && isFooting(r) && r.Wconc > r.W + 0.5; it++) r = sizeFooting(inp, p, Math.ceil(r.Wconc));
+  if (isFooting(r) && r.W > W0 + 1e-6) r.messages.unshift(`Peso do concreto (${r.Wconc.toFixed(0)} kN) maior que ${p.ftPP}% de Nk (${W0.toFixed(0)} kN): usado o peso calculado, ${r.W.toFixed(0)} kN.`);
+  return r;
+}
+
+function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): FootingResult | { ok: false; messages: string[] } {
   const { ap, bp } = inp;
   const messages: string[] = [];
-  const W = (p.ftPP / 100) * inp.Nk;
   const cases = [
     { label: 'N máx + peso próprio', N: inp.Nk + W },
     { label: 'N mín + peso próprio', N: inp.NkMin + W },
@@ -278,11 +289,11 @@ export function designFooting(inp: FootingInput, p: FoundationParams): FootingRe
   if (!flex.x.bars || !flex.y.bars) messages.push('Armadura de flexão não coube com espaçamento entre 10 e 20 cm.');
   const A1 = A * B, A2 = (ap + 0.05) * (bp + 0.05);
   const volume = kind === 'rigida' ? A * B * h0 + ((h - h0) / 3) * (A1 + A2 + Math.sqrt(A1 * A2)) : A * B * h;
-  const Wreal = 25 * volume + p.gammaSoil * Math.max(0, A * B * p.ftDepth - volume);
-  if (Wreal > W + 1e-6) messages.push(`Peso real da sapata + solo (${Wreal.toFixed(0)} kN) maior que o adotado (${W.toFixed(0)} kN = ${p.ftPP}% de Nk): aumente o percentual.`);
+  const Wconc = 25 * volume, Wsoil = p.gammaSoil * Math.max(0, A * B * p.ftDepth - volume);
+  if (Wconc <= W + 0.5 && Wconc + Wsoil > W + 1e-6) messages.push(`Concreto + solo sobre a sapata somam ${(Wconc + Wsoil).toFixed(0)} kN, acima dos ${W.toFixed(0)} kN adotados: o percentual só cobre o acréscimo líquido se σadm for líquida (o solo reaterrado substitui o escavado). Confirme o critério.`);
   const ok = punch.tauSd0 <= punch.tauRd2 + 1e-9 && !(kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) && !!flex.x.bars && !!flex.y.bars;
   return {
-    ok, messages, A, B, W, Wreal, sigmaAdm: sg.s, sigmaSrc, spt: sg.spt ? { Nbar: sg.spt.Nbar, Nused: sg.spt.Nused, from: sg.spt.from, to: sg.spt.to } : undefined,
+    ok, messages, A, B, W, Wconc, Wsoil, sigmaAdm: sg.s, sigmaSrc, spt: sg.spt ? { Nbar: sg.spt.Nbar, Nused: sg.spt.Nused, from: sg.spt.from, to: sg.spt.to } : undefined,
     cases: best.chk.out, kind, h, h0, d: dOf(h), hRigid, lbCol, method: p.ftMethod === 'bielas' && kind === 'rigida' ? 'bielas' : 'ceb70', methodNotes,
     sigmaD: { max: prD.sigmaMax, min: prD.sigmaMin }, flex, punch, volume,
   };
