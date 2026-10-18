@@ -97,7 +97,7 @@ export function Library() {
   const chars = items?.filter((i) => i.kind === 'characteristics') ?? [];
   const date = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
-  const List = ({ list, empty, action }: { list: LibraryItem[]; empty: string; action: string }) => (
+  const renderList = (list: LibraryItem[], empty: string, action: string) => (
     list.length === 0 ? <p className="hint">{empty}</p> : (
       <ul className="liblist">
         {list.map((it) => (
@@ -134,9 +134,9 @@ export function Library() {
           <button type="button" className="btn" disabled={busy} onClick={saveChars}>Salvar características</button>
         </div>
         <h4>Projetos</h4>
-        {items === null ? <p className="hint">Carregando…</p> : <List list={projects} empty="Nenhum projeto salvo." action="Abrir" />}
+        {items === null ? <p className="hint">Carregando…</p> : renderList(projects, 'Nenhum projeto salvo.', 'Abrir')}
         <h4>Características salvas</h4>
-        {items === null ? null : <List list={chars} empty="Nenhuma característica salva. Use o botão acima ou o da aba Dimensionar." action="Usar nas fundações" />}
+        {items === null ? null : renderList(chars, 'Nenhuma característica salva. Use o botão acima ou o da aba Dimensionar.', 'Usar nas fundações')}
         {mode === 'local' && <p className="hint">Biblioteca e histórico ficam neste navegador e vão junto no arquivo de Arquivo › Salvar no computador. Ao abrir o arquivo em outro computador ou navegador, eles são recuperados.</p>}
         <h4>Histórico</h4>
         {history.length === 0 ? <p className="hint">Nenhuma atividade registrada.</p> : (

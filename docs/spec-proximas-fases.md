@@ -175,7 +175,7 @@ Proposta original:
 - Matriz em banda ou skyline com renumeração Cuthill-McKee, para modelos com milhares de nós.
 - Requisito para A3 a A5 continuarem rápidos.
 
-### D5. Limpeza
+### D5. Limpeza — **feito** (18/10/2026): `npm run lint` sem avisos; componentes criados durante a renderização e chamadas impuras corrigidos; regras de fast refresh e de sincronização de estado local desligadas no .oxlintrc com justificativa.
 - Dois avisos do oxlint em `Canvas.tsx`: setState dentro de effect, e export misto que quebra o fast refresh.
 
 ---

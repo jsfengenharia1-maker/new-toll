@@ -35,6 +35,18 @@ const TABS: { t: Tab; label: string }[] = [
   { t: 'dimensionar', label: 'Dimensionar' },
 ];
 
+/** Versões atuais das rotinas de arquivo, para os atalhos de teclado e os arquivos recebidos do sistema. */
+const latest = { save: (_saveAs?: boolean) => {}, open: () => {}, openText: async (_t: string, _n: string) => {} };
+
+/** Enquadra o modelo na área de desenho. */
+function fit() { useStore.getState().set({ view: fitView(useStore.getState().model, svgSize.w, svgSize.h) }); }
+
+function setTab(t: Tab) {
+  const s = useStore.getState();
+  const tool = t === 'influencia' ? 'section' : s.tool === 'section' ? 'select' : ((t === 'resultados' || t === 'dimensionar') && (s.tool === 'node' || s.tool === 'member')) ? 'select' : s.tool;
+  s.set({ tab: t, tool });
+}
+
 export default function App() {
   const st = useStore();
   const a = useAnalysis();
@@ -44,14 +56,13 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [coord, setCoord] = useState('');
 
-  const fit = () => st.set({ view: fitView(useStore.getState().model, svgSize.w, svgSize.h) });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useStore.getState();
       if ((e.ctrlKey || e.metaKey) && !e.altKey && ['s', 'o'].includes(e.key.toLowerCase())) {
         e.preventDefault();
-        if (e.key.toLowerCase() === 's') saveRef.current(e.shiftKey); else openRef.current();
+        if (e.key.toLowerCase() === 's') latest.save(e.shiftKey); else latest.open();
         return;
       }
       const tag = (e.target as HTMLElement).tagName;
@@ -82,11 +93,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  function setTab(t: Tab) {
-    const s = useStore.getState();
-    const tool = t === 'influencia' ? 'section' : s.tool === 'section' ? 'select' : ((t === 'resultados' || t === 'dimensionar') && (s.tool === 'node' || s.tool === 'member')) ? 'select' : s.tool;
-    s.set({ tab: t, tool });
-  }
 
   const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); setMenu(false); };
 
@@ -125,18 +131,17 @@ export default function App() {
       ? `Trabalho salvo em ${currentFileName() ?? name}. Ctrl+S grava de novo no mesmo arquivo.`
       : `Trabalho baixado como ${name} (pasta de downloads). Para retomar, use Arquivo › Abrir.` });
   };
-  const saveRef = useRef(saveWork); saveRef.current = saveWork;
-  const openRef = useRef(openWork); openRef.current = openWork;
 
   const openFile = (f: File) => { f.text().then((txt) => openText(txt, f.name)); };
-  const openTextRef = useRef(openText); openTextRef.current = openText;
+  // atalhos e arquivos recebidos do sistema chamam sempre a versão atual das rotinas
+  useEffect(() => { latest.save = saveWork; latest.open = openWork; latest.openText = openText; });
 
   // App instalado (PWA): .statikos aberto com duplo clique chega pela fila de abertura (File Handling API).
   useEffect(() => {
     launchQueue()?.setConsumer(async ({ files }) => {
       const h = files?.[0];
       if (!h) return;
-      try { await openTextRef.current(await adoptLaunchedFile(h), h.name); }
+      try { await latest.openText(await adoptLaunchedFile(h), h.name); }
       catch { useStore.getState().set({ message: `Não foi possível ler ${h.name}.` }); }
     });
   }, []);

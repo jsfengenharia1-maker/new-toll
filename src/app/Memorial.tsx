@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useAnalysis, getDesign, fmt, isSemi, linkText } from './results';
 import { comboResult, deltaXi, type MemberDesign } from '../core/design';
@@ -124,7 +124,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const rep = useMemo(() => getDesign(a), [a]);
   const setProj = (k: keyof ProjectInfo, v: string) => st.commit((m) => { m.project = { ...defaultProject(), ...(m.project ?? {}), [k]: v }; });
 
-  const today = new Date().toLocaleDateString('pt-BR');
+  const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const err = a.prep.error;
 
   const eluRes = useMemo(() => rep.eluResults.filter(Boolean) as CaseResult[], [rep]);
@@ -181,7 +181,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const caa = CAA_TABLE[rep.settings.caa];
   let sec = 0;
   // brk: seção principal que começa em página nova na impressão
-  const H2 = ({ children, brk }: { children: ReactNode; brk?: boolean }) => <h2 className={brk ? 'pb' : undefined}>{++sec}. {children}</h2>;
+  const h2 = (children: ReactNode, brk = false) => <h2 className={brk ? 'pb' : undefined}>{++sec}. {children}</h2>;
 
   return (
     <div className="memo-overlay" role="dialog" aria-label="Memorial de cálculo">
@@ -219,10 +219,10 @@ export function Memorial({ onClose }: { onClose: () => void }) {
             {!err && <div className="small">{rep.members.filter((m) => m.status !== 'na').length} barras verificadas · γz {rep.gammaZ.cls === 'none' ? 'não aplicável' : fmt(rep.gammaZ.max, 3)}</div>}
           </div>
 
-          <H2>Objeto e escopo</H2>
+          {h2(<>Objeto e escopo</>)}
           <p>Este memorial apresenta o modelo, as ações, as combinações, os resultados da análise e a verificação das barras do pórtico plano “{model.name}”. A análise é elástica linear pelo método da rigidez direta (elementos de barra {model.options.shearDeformation ? 'com deformação por cisalhamento, Timoshenko' : 'de Euler-Bernoulli'}{model.options.axialDeformation ? '' : ', com deformação axial desprezada'}). Os efeitos globais de 2ª ordem são avaliados pelo coeficiente γz e os locais pelo método do pilar-padrão.</p>
 
-          <H2>Normas de referência</H2>
+          {h2(<>Normas de referência</>)}
           <ul>
             <li>ABNT NBR 6118:2023 — Projeto de estruturas de concreto</li>
             <li>ABNT NBR 8681:2003 — Ações e segurança nas estruturas</li>
@@ -232,7 +232,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
             <li>ABNT NBR 6122:2022 — Projeto e execução de fundações (cargas de referência)</li>
           </ul>
 
-          <H2>Materiais e durabilidade</H2>
+          {h2(<>Materiais e durabilidade</>)}
           <table>
             <thead><tr><th className="l">Material</th><th className="l">Tipo</th><th>Resistência</th><th>E (GPa)</th><th>ν</th><th>γ (kN/m³)</th><th>α (/°C)</th></tr></thead>
             <tbody>{model.materials.map((m) => <tr key={m.id}><td className="l">{m.name}</td><td className="l">{m.kind === 'steel' ? 'Aço estrutural' : m.kind === 'other' ? 'Outro' : 'Concreto armado'}</td><td>{m.kind === 'steel' ? `fy ${m.fy ?? 345} MPa` : m.fck ? `fck ${m.fck} MPa` : '—'}</td><td>{fmt(m.E / 1e6)}</td><td>{fmt(m.nu)}</td><td>{fmt(m.gamma, 1)}</td><td>{m.alpha.toExponential(1).replace('.', ',')}</td></tr>)}</tbody>
@@ -249,7 +249,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
           )}
           {steelMats.length > 0 && <p>Aço estrutural: E = 200 GPa, G = 77 GPa, γa1 = {fmt(rep.settings.gammaA1)}.</p>}
 
-          <H2 brk>Modelo estrutural</H2>
+          {h2(<>Modelo estrutural</>, true)}
           <Fig svg={svgGeometry(model)} cap="Figura — geometria, apoios, rótulas e numeração." />
           {model.members.some((x) => isSemi(x.hingeI, x.springI) || isSemi(x.hingeJ, x.springJ)) && <p>Ligações semirrígidas (círculos cheios na figura): mola rotacional linear-elástica entre a extremidade da barra e o nó, de rigidez k (kN·m/rad) informada por barra. A flexibilidade 1/k entra na matriz de flexibilidade do elemento como rotação concentrada na extremidade; k → 0 reproduz a rótula e k → ∞ a ligação rígida. Os valores adotados estão na tabela de barras.</p>}
           <h3>Seções transversais</h3>
@@ -269,7 +269,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
             <tbody>{model.nodes.filter((n) => n.support).map((n) => { const s = n.support!; const t = (r: string, k?: number, u = 'kN/m') => r === 'fixed' ? 'fixo' : r === 'spring' ? `mola ${fmt(k ?? 0, 0)} ${u}` : 'livre'; return <tr key={n.id}><td>{n.id}</td><td>{fmt(n.x)}</td><td>{fmt(n.y)}</td><td className="l">X {t(s.ux, s.kx)} · Y {t(s.uy, s.ky)} · θ {t(s.rz, s.kr, 'kN·m/rad')}{s.angle ? ` · inclinação ${fmt(s.angle, 1)}°` : ''}</td></tr>; })}</tbody>
           </table>
 
-          <H2 brk>Ações</H2>
+          {h2(<>Ações</>, true)}
           {model.cases.map((c) => (
             <div key={c.id}>
               <h3>{c.name} — ação {c.nature === 'Q' ? 'variável' : c.nature === 'W' ? 'de vento' : 'permanente'}{c.nature && c.nature !== 'G' ? ` (ψ0 ${fmt(c.psi0 ?? (c.nature === 'W' ? 0.6 : 0.5), 1)} · ψ1 ${fmt(c.psi1 ?? (c.nature === 'W' ? 0.3 : 0.4), 1)} · ψ2 ${fmt(c.psi2 ?? (c.nature === 'W' ? 0 : 0.3), 1)}${caseGroup(c) ? ` · grupo excludente “${caseGroup(c)}”` : ''})` : ''}</h3>
@@ -290,7 +290,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
 
           {!err && (
             <>
-              <H2>Estabilidade global</H2>
+              {h2(<>Estabilidade global</>)}
               {rep.imperfection ? <p>Imperfeição geométrica global (desaprumo, NBR 6118, 11.3.3.4.1): θ1 = 1/(100·√H) com 1/300 ≤ θ1 ≤ 1/200; H = {fmt(rep.imperfection.H)} m → θ1 = 1/{Math.round(1 / rep.imperfection.theta1)}; θa = θ1·√((1 + 1/n)/2) com n = {rep.imperfection.n} prumadas → θa = 1/{Math.round(1 / rep.imperfection.thetaA)}. Aplicado como forças horizontais θa·V nos nós (V = carga vertical da combinação). Com vento: só vento quando 30% dele supera o desaprumo; só desaprumo quando o vento é menor que 30% do desaprumo; nos demais casos, ambos no mesmo sentido (comparação pelo momento de tombamento na base). Sem vento: desaprumo nos dois sentidos.</p> : <p>Desaprumo global não considerado (opção do projetista).</p>}
               {rep.secondOrder.mode === 'pdelta' && (
                 <>
@@ -312,7 +312,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
                 </>
               )}
 
-              <H2 brk>Resultados da análise</H2>
+              {h2(<>Resultados da análise</>, true)}
               {eluRes.length > 0 && (
                 <>
                   <Fig svg={svgDiagram(model, a, eluRes, 'N', 'Envoltória ELU — esforço normal N (kN), tração positiva')} cap="Figura — envoltória de esforço normal nas combinações ELU." />
@@ -323,7 +323,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
               {qpRes[0] && <Fig svg={svgDeformed(model, a, qpRes[0], `Deformada elástica — ${rep.qp[0].name}`)} cap="Figura — configuração deformada na combinação quase permanente (sem fluência e sem fissuração)." />}
               {model.cases.map((c) => a.cases.get(c.id)).filter(Boolean).slice(0, 1).map((r, i) => <Fig key={i} svg={svgReactions(model, r!, `Reações — ${model.cases[0].name} (kN, kN·m)`)} cap="Figura — reações de apoio do primeiro caso de carga." />)}
 
-              <H2 brk>Dimensionamento e verificações</H2>
+              {h2(<>Dimensionamento e verificações</>, true)}
               <Fig svg={svgDesign(model, rep)} cap="Figura — taxa de utilização (maior razão solicitação/resistência entre as verificações de cada barra)." />
               <table>
                 <thead><tr><th>Barra</th><th className="l">Função</th><th className="l">Seção</th><th className="l">Resultado</th><th>Uso</th><th className="l">Situação</th></tr></thead>
@@ -386,7 +386,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
                 </>
               )}
 
-              <H2>Cargas na fundação</H2>
+              {h2(<>Cargas na fundação</>)}
               <p>Valores característicos (por caso e envoltória das combinações raras) para a verificação geotécnica, e valores de cálculo (envoltória ELU) para o dimensionamento estrutural dos elementos de fundação. Convenção: R positiva no sentido dos eixos globais; N &gt; 0 compressão na fundação.</p>
               <table>
                 <thead><tr><th>Apoio</th><th className="l">Caso / envoltória</th><th>Rx (kN)</th><th>Ry = N (kN)</th><th>Mz (kN·m)</th></tr></thead>
@@ -408,7 +408,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
             const pp = fd.params;
             return (
               <>
-                <H2 brk>Fundações profundas</H2>
+                {h2(<>Fundações profundas</>, true)}
                 <p>Capacidade geotécnica pelo método de Décourt-Quaresma (1978), com coeficientes α e β de Décourt (1996), somada metro a metro. Padm = mín[(Rp + Rl)/2 ; Rp/4 + Rl/1,3]. Em estacas escavadas e hélice contínua, Rp ≤ Rl; na escavada, Padm ≤ 1,25·Rl. Estrutural pela NBR 6122:2019, Tabela 4 (CAA {pp.caa}): hélice C{STRUCT.helice[pp.caa].fck} (γc {fmt(STRUCT.helice[pp.caa].gc, 1)}), escavada C{STRUCT.escavada[pp.caa].fck} (γc {fmt(STRUCT.escavada[pp.caa].gc, 1)}), γf = 1,4, As,mín = 0,4%. Pré-moldadas: carga estrutural de catálogo. Carga horizontal pelo método de Miche (Mmáx = 0,79·H·T; T = (EI/nh)^(1/5)). Bloco rígido com espaçamento {fmt(pp.spacingInSitu, 1)}φ (moldadas) e {fmt(pp.spacingPrecast, 1)}φ (pré-moldadas); peso do bloco = {pp.blockWeightPct}% de N.</p>
                 <p className="small">Limites: escavada até o nível d'água ou N ≥ {pp.augerStopN}; hélice até {pp.hcMaxDepth} m; pré-moldada até N ≥ {pp.precastStopN} (estimativa da nega, a confirmar na cravação). Cota de arrasamento a {fmt(pp.cutoff)} m.</p>
                 <h3>Sondagem {fd.boring.name}{fd.boring.water !== null ? ` · NA a ${fmt(fd.boring.water)} m` : ' · NA não encontrado'}</h3>
@@ -441,7 +441,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
             );
           })()}
 
-          <H2>Conclusão</H2>
+          {h2(<>Conclusão</>)}
           {err ? <p className="bad">{err}</p> : (
             <>
               <p className={rep.ok ? 'ok' : 'bad'}>{rep.ok ? 'Todas as barras verificadas atendem aos estados-limite considerados.' : 'Há barras que não atendem. Ajustes indicados:'}</p>
