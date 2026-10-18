@@ -41,7 +41,9 @@ export type SectionShape =
   | { kind: 'tube'; d: number; t: number }
   | { kind: 'tee'; bf: number; tf: number; bw: number; h: number }
   | { kind: 'ishape'; bf: number; tf: number; tw: number; h: number }
-  | { kind: 'box'; b: number; h: number; t: number };
+  | { kind: 'box'; b: number; h: number; t: number }
+  /** Polígono qualquer (m): x = largura (fora do plano), y = altura (no plano do pórtico). */
+  | { kind: 'polygon'; pts: [number, number][] };
 
 export interface Section {
   id: number;

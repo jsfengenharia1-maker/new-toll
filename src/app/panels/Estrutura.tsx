@@ -5,6 +5,7 @@ import { nextId, joinAtNode, selectionSets, transformSelection, type Xform } fro
 import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
+import { lPolygon, polyProps, type Pt } from '../../core/fiber';
 import { fmt, linkText } from '../results';
 import { useUnits } from '../units';
 
@@ -221,6 +222,7 @@ const SHAPES: { v: SectionShape['kind']; label: string }[] = [
   { v: 'box', label: 'Caixão' },
   { v: 'circle', label: 'Circular' },
   { v: 'tube', label: 'Tubo' },
+  { v: 'polygon', label: 'Poligonal (L, qualquer)' },
   { v: 'generic', label: 'Genérica (A, I)' },
 ];
 
@@ -232,6 +234,7 @@ const DEFAULTS: Record<SectionShape['kind'], SectionShape> = {
   circle: { kind: 'circle', d: 0.4 },
   tube: { kind: 'tube', d: 0.1143, t: 0.006 },
   generic: { kind: 'generic', A: 0.01, I: 1e-4, h: 0.3 },
+  polygon: { kind: 'polygon', pts: lPolygon(0.6, 0.6, 0.2, 0.2) },
 };
 
 const DIM_LABEL: Record<string, string> = { b: 'b', h: 'h', bf: 'bf', tf: 'tf', bw: 'bw', tw: 'tw', t: 't', d: 'D' };
@@ -248,7 +251,7 @@ function SectionEditor({ id }: { id: number }) {
       <TextField label="Nome" value={sec.name} onChange={(v) => commit((m) => { m.sections.find((s) => s.id === id)!.name = v; })} />
       <Select label="Forma" value={sec.shape.kind} options={SHAPES} onChange={(k) => commit((m) => { m.sections.find((s) => s.id === id)!.shape = { ...DEFAULTS[k] }; })} />
       <div className="row wrap">
-        {sec.shape.kind === 'generic' ? (
+        {sec.shape.kind === 'polygon' ? <PolygonEditor id={id} /> : sec.shape.kind === 'generic' ? (
           <>
             <NumField label="A" unit="cm²" value={sec.shape.A * 1e4} onChange={(v) => upd((s) => { s.A = v / 1e4; })} />
             <NumField label="I" unit="cm⁴" value={sec.shape.I * 1e8} onChange={(v) => upd((s) => { s.I = v / 1e8; })} />
@@ -420,5 +423,40 @@ function TransformGroup() {
       <button type="button" className="btn primary" onClick={apply}>Aplicar</button>
       <Hint>Cópias se ligam à estrutura existente: nós coincidentes são reaproveitados e barras cruzadas são divididas. Cargas nodais não são duplicadas em nós que já existiam. No espelhamento, cargas globais são refletidas, cargas locais transversais e momentos trocam de sinal e as faces da temperatura se invertem; na translação e na rotação as cargas mantêm a direção (gravidade continua vertical).</Hint>
     </Group>
+  );
+}
+
+function PolygonEditor({ id }: { id: number }) {
+  const model = useStore((s) => s.model);
+  const commit = useStore((s) => s.commit);
+  const sh = model.sections.find((s) => s.id === id)!.shape;
+  const pts = sh.kind === 'polygon' ? sh.pts : [];
+  const txt0 = pts.map((p) => `${+(p[0] * 100).toFixed(2)} ${+(p[1] * 100).toFixed(2)}`.replace(/\./g, ',')).join('\n');
+  const [txt, setTxt] = useState(txt0);
+  useEffect(() => setTxt(txt0), [txt0]);
+  const [L, setL] = useState({ b: 60, h: 60, tw: 20, tf: 20 });
+  const apply = (list: Pt[], msg: string) => commit((m) => { m.sections.find((s) => s.id === id)!.shape = { kind: 'polygon', pts: list }; }, msg);
+  const parse = () => {
+    const list = txt.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => l.replace(/;/g, ' ').split(/\s+/).map((v) => parseFloat(v.replace(',', '.')) / 100)) as number[][];
+    if (list.length < 3 || list.some((p) => p.length < 2 || !p.every(Number.isFinite))) return useStore.getState().set({ message: 'Informe ao menos 3 vértices “x y” (cm), um por linha, em ordem ao redor da seção.' });
+    const poly = list.map((p) => [p[0], p[1]] as Pt);
+    if (polyProps(poly).A < 1e-6) return useStore.getState().set({ message: 'Polígono com área nula.' });
+    apply(poly, `Seção poligonal com ${poly.length} vértices.`);
+  };
+  return (
+    <div className="grow">
+      <label className="field grow" htmlFor={`poly${id}`}>
+        <span className="flabel">Vértices x y (cm), em ordem; y = altura no plano do pórtico</span>
+        <textarea id={`poly${id}`} rows={6} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={parse} />
+      </label>
+      <div className="row">
+        <NumField label="L: b" unit="cm" value={L.b} onChange={(v) => setL({ ...L, b: v })} />
+        <NumField label="h" unit="cm" value={L.h} onChange={(v) => setL({ ...L, h: v })} />
+        <NumField label="t alma" unit="cm" value={L.tw} onChange={(v) => setL({ ...L, tw: v })} />
+        <NumField label="t aba" unit="cm" value={L.tf} onChange={(v) => setL({ ...L, tf: v })} />
+      </div>
+      <button type="button" className="chip" onClick={() => apply(lPolygon(L.b / 100, L.h / 100, L.tw / 100, L.tf / 100), 'Seção em L gerada.')}>Gerar L</button>
+      <Hint>Pilares de concreto com seção poligonal ou circular são verificados por fibras, com flexão oblíqua pela linha neutra inclinada.</Hint>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { SectionShape } from './types';
+import { polyProps } from './fiber';
 
 export interface SectionProps {
   A: number; // m²
@@ -43,6 +44,10 @@ export function sectionProps(s: SectionShape): SectionProps {
     case 'ishape': {
       const g = stacked([{ b: s.bf, h: s.tf }, { b: s.tw, h: s.h - 2 * s.tf }, { b: s.bf, h: s.tf }]);
       return { ...g, As: s.tw * s.h };
+    }
+    case 'polygon': {
+      const p = polyProps(s.pts);
+      return { A: p.A, I: p.Ix, h: p.ymax - p.ymin, As: p.A / 1.2, yc: p.cy - p.ymin };
     }
     case 'box': {
       const g = stacked([{ b: s.b, h: s.t }, { b: 2 * s.t, h: s.h - 2 * s.t }, { b: s.b, h: s.t }]);

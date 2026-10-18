@@ -94,6 +94,7 @@ function shapeTxt(s: SectionShape) {
     case 'box': return `Caixão ${cm(s.b)} × ${cm(s.h)} · t ${cm(s.t)} cm`;
     case 'circle': return `Circular Ø ${cm(s.d)} cm`;
     case 'tube': return `Tubo Ø ${cm(s.d)} · t ${cm(s.t)} cm`;
+    case 'polygon': return `Poligonal (${s.pts.length} vértices: ${s.pts.map((p) => `${cm(p[0])};${cm(p[1])}`).join(' · ')} cm)`;
     case 'generic': return `Genérica A ${fmt(s.A * 1e4)} cm² · I ${fmt(s.I * 1e8, 0)} cm⁴`;
   }
 }
@@ -355,6 +356,7 @@ Situação 2 (flexão oblíqua): (Mx/MRd,xx)^1,2 + (Md,tot,y/MRd,yy)^1,2 ≤ 1, 
 MRd por compatibilidade de deformações (parábola-retângulo). As,mín = 0,15·Nd/fyd ≥ 0,4%·Ac; As,máx adotado 4%·Ac (8% na emenda).
 140 < λ ≤ 200: esforços finais × γn1 = 1 + 0,01·(λ − 140)/1,4 (15.8.1).
 Cortante no plano: modelo I com bw = b e d = h − c − φt − φl/2; os estribos são reduzidos quando Asw/s calculado supera o construtivo.
+Seções circulares e poligonais (ex.: em L): ELU por fibras (parábola-retângulo, aço elastoplástico) com linha neutra inclinada; S2 compara o momento resultante com a capacidade na mesma direção (sem α = 1,2); λ = le/i com i em torno dos eixos centroidais; circular com no mínimo 6 barras; cortante em seção circular com bw = D e d = 0,8·D (a confirmar).
 Estribos: φt ≥ 5 mm e φl/4; s ≤ 20 cm, menor dimensão e 12φl (CA-50).`}</div>
                   <table>
                     <thead><tr><th>Barra</th><th>b×h</th><th>Nd</th><th>NRd</th><th>λx/λ1</th><th>Md,tot,x / MRd</th><th>λy</th><th>Md,tot,y / MRd</th><th>Interação</th><th className="l">Armadura</th><th>ρ</th><th className="l">Estribos</th><th className="l">Sit.</th></tr></thead>

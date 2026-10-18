@@ -1,6 +1,7 @@
 // Orquestra o dimensionamento: combinações, estabilidade global (γz), barras de concreto e aço, flechas e cargas na fundação.
 import { analyze, combine, memberLoads, prepare, solveLoading, type Analysis, type CaseResult } from './solver';
 import { comboLoading, pDelta } from './secondorder';
+import { designColumnGeneral } from './columnGeneral';
 import { elementMatrices, noLoad } from './element';
 import { P, matVec, transpose } from './math';
 import { caseGroup, exclusiveChoices, nbrCombinations } from './edit';
@@ -400,7 +401,24 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     });
 
     if (role === 'column') {
-      if (sec.shape.kind !== 'rect') return { ...base, status: 'na', summary: 'Pilar de concreto: dimensionamento disponível para seção retangular.', messages: msgs };
+      if (sec.shape.kind === 'circle' || sec.shape.kind === 'polygon') {
+        const cover = settings.coverColumn ?? caa.cover;
+        const cd = designColumnGeneral({ poly: sec.shape.kind === 'polygon' ? sec.shape.pts : undefined, circleD: sec.shape.kind === 'circle' ? sec.shape.d : undefined, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() });
+        const out: MemberDesign = { ...base, column: cd, status: cd.status, util: cd.util, messages: [...msgs, ...cd.messages, 'ELU de seção por fibras com flexão oblíqua real (linha neutra inclinada).'], NdMax: Math.max(...colCombos().map((x) => Math.max(-x.N0, -x.NL))) };
+        if (sec.shape.kind === 'circle' && cd.layout && cd.stirrup) {
+          // cortante em seção circular: bw = D e d = 0,8·D (aproximação usual, a confirmar)
+          let V = 0, cn = '';
+          for (const { cb, r } of eluRes) for (const x of sampleXs(pm.L, [r.members[k].M])) { const v = Math.abs(P.evaluate(r.members[k].V, x)); if (v > V) { V = v; cn = cb.name; } }
+          const sh = { ...beamShear(sec.shape.d, 0.8 * sec.shape.d, V, c, settings.fywk, settings.gammaS), combo: cn };
+          out.columnShear = { ...sh, provided: (2 * barArea(cd.stirrup.phi)) / cd.stirrup.s };
+          if (!sh.ok) { out.status = 'fail'; out.messages.push(`Cortante: VSd > VRd2 (bw = D, d = 0,8·D, a confirmar).`); }
+          else if (sh.aswS > out.columnShear.provided) { const sReq = Math.max(0.05, Math.floor(((2 * barArea(cd.stirrup.phi)) / sh.aswS) * 100) / 100); cd.stirrup = { ...cd.stirrup, s: sReq }; out.columnShear.provided = (2 * barArea(cd.stirrup.phi)) / sReq; out.messages.push(`Cortante (bw = D, d = 0,8·D, a confirmar): estribos c/${Math.round(sReq * 100)} cm.`); }
+        } else if (sec.shape.kind === 'polygon') out.messages.push('Cortante não verificado para seção poligonal.');
+        if (cd.layout) out.summary = `${cd.layout.n} φ${cd.layout.phi} (ρ = ${(cd.rho * 100).toFixed(2)}%) · estribo φ${cd.stirrup?.phi} c/${Math.round((cd.stirrup?.s ?? 0) * 100)}`.replace(/(\d)\.(\d)/g, '$1,$2');
+        if (!cd.ok) out.suggestion = 'Aumente a seção ou a classe do concreto.';
+        return out;
+      }
+      if (sec.shape.kind !== 'rect') return { ...base, status: 'na', summary: 'Pilar de concreto: dimensionamento disponível para seções retangular, circular e poligonal.', messages: msgs };
       const cover = settings.coverColumn ?? caa.cover;
       const inp = { b: sec.shape.b, h: sec.shape.h, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() };
       const cd = designColumn(inp);

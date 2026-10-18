@@ -169,7 +169,7 @@ export interface ColumnDesign {
   messages: string[];
 }
 
-function gammaNFor(bMin: number): number {
+export function gammaNFor(bMin: number): number {
   const cm = bMin * 100;
   if (cm >= 19) return 1;
   return 1.95 - 0.05 * cm;

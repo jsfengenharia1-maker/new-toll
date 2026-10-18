@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 88 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test         # vitest: 93 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -28,6 +28,7 @@ Veja a tabela no `README.md`. Resumo:
   - `influence.ts`: linhas de influência por Müller-Breslau e trem-tipo.
   - `secondorder.ts`: P-Δ (matriz geométrica), flambagem global e vibração livre (iteração em subespaço).
   - `concrete.ts`: NBR 6118.
+  - `fiber.ts` + `columnGeneral.ts`: seção poligonal e pilares circulares/poligonais por fibras (flexão oblíqua real).
   - `steel.ts`: NBR 8800.
   - `design.ts`: orquestra combinações, γz, verificações e cargas na fundação.
   - `piles.ts`: Décourt-Quaresma e NBR 6122.
@@ -82,6 +83,7 @@ Veja a tabela no `README.md`. Resumo:
 - Critério de nega pelo SPT para pré-moldadas: não há critério normativo encontrado. N = 30 é ajustável.
 - Estimativas: nh de argila média/rija (0,5 MN/m³); comprimento armado até 4T com carga horizontal; tração admissível Rl/2 + 0,9W; volume do bloco (usado só para ranquear soluções).
 - Flecha com alvenaria (opção): parcela após a parede tomada como a diferida αf·f0, limite ℓ/500 e 10 mm.
+- Cortante de pilar circular: bw = D, d = 0,8·D.
 - Cargas de catálogo da pré-moldada (SCAC, menor valor da faixa); momento admissível com o fabricante.
 
 ## Publicação web (Netlify)
@@ -103,7 +105,7 @@ Veja a tabela no `README.md`. Resumo:
 
 ## Próximos passos sugeridos
 1. Blocos de coroamento (bielas e tirantes) a partir das estacas escolhidas; sapatas; tubulões; várias sondagens por obra.
-3. Pilares circulares e em L; pré-moldado NBR 9062 (consolos, ligações); abertura de fissuras.
+3. Pré-moldado NBR 9062 (consolos, ligações); abertura de fissuras.
 4. Biblioteca de perfis metálicos BR; exportação DXF/PDF.
 
 ## Notas de pesquisa

@@ -97,7 +97,7 @@ Proposta original:
 Proposta original:
 - Selecionar uma sequência de barras e gerar CSV com abscissa acumulada × N, V, M, deslocamentos e LI.
 
-### B5. Seção genérica por polígono
+### B5. Seção genérica por polígono — **feito** (18/10/2026): vértices em cm ou gerador de L; propriedades por Green; ELU por fibras com flexão oblíqua real (fiber.ts).
 - Desenhar ou colar vértices. A, I, centróide e Wsup/Winf são calculados pela fórmula de Green.
 - Para concreto, o cálculo de seção por compatibilidade de deformações passa a aceitar polígono, por faixas. Isso também atende pilares em L e circulares (Fase C).
 
@@ -126,7 +126,7 @@ Proposta original:
 | C2. Sapatas | Rígidas e flexíveis, isoladas, com momento em uma direção; tensão no solo; flexão; punção | σadm vindo de sondagem ou informado pelo usuário |
 | C3. Tubulões | Fuste e base alargada; tensão admissível na base | Método de σadm por SPT |
 | C4. Várias sondagens por obra | Cada apoio associado ao furo mais próximo ou escolhido | — |
-| C5. Pilares circulares e em L | Via seção poligonal (B5) | — |
+| C5. Pilares circulares e em L — **feito** (18/10/2026) | Fibras com linha neutra inclinada; mín. 6 barras na circular; esbeltez pelos eixos centroidais | Cortante em circular com bw = D, d = 0,8·D (a confirmar); cortante de seção poligonal não verificado |
 | C6. Fissuração (ELS-W) | wk pela NBR 6118 17.3.3 por barra de viga | Limites por CAA (Tabela 13.4) |
 | C7. Perfis metálicos BR | Biblioteca com dados próprios a partir de catálogos públicos dos fabricantes | Quais fabricantes |
 | C8. Pré-moldado NBR 9062 | Consolos e dentes Gerber; ligações | Escopo a definir com o usuário |
