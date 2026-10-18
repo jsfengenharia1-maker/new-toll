@@ -7,6 +7,8 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 - **Premissas técnicas visíveis.** O usuário (eng. civil) não aceita premissas silenciosas: toda hipótese de cálculo nova deve ser confirmada com ele antes de implementar e ficar editável no app e escrita no memorial. Valores sem fonte confirmada devem ser marcados "a confirmar".
 - **Comunicação.** Português, objetiva, sem saudações nem elogios; propor ideias factíveis de forma proativa.
 - **Repositório público.** Não commitar dados de clientes ou de obras reais.
+- **Branches/worktrees.** Toda nova branch ou worktree sai do `main` atualizado (`git fetch origin main && git worktree add -b <branch> ../<dir> origin/main`).
+- **Plugin ECC** (`affaan-m/ECC`) habilitado em `.claude/settings.json`.
 
 ## Comandos
 ```bash
