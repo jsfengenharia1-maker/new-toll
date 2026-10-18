@@ -9,7 +9,7 @@ import { sectionProps } from '../core/section';
 import { defaultProject, type Load, type ProjectInfo, type SectionShape } from '../core/types';
 import { svgDeformed, svgDesign, svgDiagram, svgGeometry, svgLoads, svgReactions } from './drawing';
 import { download } from './ui';
-import { PILE_LABEL, SOIL_LABEL, STRUCT, defaultFoundationParams, recommendedOption, solveSupport } from '../core/piles';
+import { FoundationMemorial } from './MemorialFundacoes';
 import type { CaseResult } from '../core/solver';
 import { logActivity } from './history';
 
@@ -402,44 +402,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
             </>
           )}
 
-          {model.foundation && (() => {
-            const fd = { ...model.foundation, params: { ...defaultFoundationParams(), ...model.foundation.params } };
-            const sols = fd.loads.map((ld) => solveSupport(ld, fd));
-            const pp = fd.params;
-            return (
-              <>
-                {h2(<>Fundações profundas</>, true)}
-                <p>Capacidade geotécnica pelo método de Décourt-Quaresma (1978), com coeficientes α e β de Décourt (1996), somada metro a metro. Padm = mín[(Rp + Rl)/2 ; Rp/4 + Rl/1,3]. Em estacas escavadas e hélice contínua, Rp ≤ Rl; na escavada, Padm ≤ 1,25·Rl. Estrutural pela NBR 6122:2019, Tabela 4 (CAA {pp.caa}): hélice C{STRUCT.helice[pp.caa].fck} (γc {fmt(STRUCT.helice[pp.caa].gc, 1)}), escavada C{STRUCT.escavada[pp.caa].fck} (γc {fmt(STRUCT.escavada[pp.caa].gc, 1)}), γf = 1,4, As,mín = 0,4%. Pré-moldadas: carga estrutural de catálogo. Carga horizontal pelo método de Miche (Mmáx = 0,79·H·T; T = (EI/nh)^(1/5)). Bloco rígido com espaçamento {fmt(pp.spacingInSitu, 1)}φ (moldadas) e {fmt(pp.spacingPrecast, 1)}φ (pré-moldadas); peso do bloco = {pp.blockWeightPct}% de N.</p>
-                <p className="small">Limites: escavada até o nível d'água ou N ≥ {pp.augerStopN}; hélice até {pp.hcMaxDepth} m; pré-moldada até N ≥ {pp.precastStopN} (estimativa da nega, a confirmar na cravação). Cota de arrasamento a {fmt(pp.cutoff)} m.</p>
-                <h3>Sondagem {fd.boring.name}{fd.boring.water !== null ? ` · NA a ${fmt(fd.boring.water)} m` : ' · NA não encontrado'}</h3>
-                <table>
-                  <thead><tr><th>Prof. (m)</th>{fd.boring.meters.map((_, i) => <th key={i}>{i + 1}</th>)}</tr></thead>
-                  <tbody><tr><td className="l">N_SPT</td>{fd.boring.meters.map((m, i) => <td key={i}>{m.N}</td>)}</tr></tbody>
-                </table>
-                <p className="small">{[...new Set(fd.boring.meters.map((m) => m.soil))].map((s) => `${SOIL_LABEL[s]}: metros ${fd.boring.meters.map((m, i) => (m.soil === s ? i + 1 : 0)).filter(Boolean).join(', ')}`).join(' · ')}</p>
-                <h3>Soluções por apoio</h3>
-                <table>
-                  <thead><tr><th className="l">Apoio</th><th>Nk / Nk,mín (kN)</th><th className="l">Tipo</th><th>Estacas</th><th>Ø (cm)</th><th>L (m)</th><th>Padm (kN)</th><th>N/estaca (kN)</th><th className="l">Armadura</th></tr></thead>
-                  <tbody>
-                    {sols.flatMap((r) => r.byType.map((t, i) => {
-                      const s = t.recommended;
-                      const o = s ? recommendedOption(s.struct.options) : null;
-                      return (
-                        <tr key={`${r.load.id}-${t.type}`}>
-                          <td className="l">{i === 0 ? r.load.label : ''}</td><td>{i === 0 ? `${fmt(r.load.Nk, 0)} / ${fmt(r.load.NkMin, 0)}` : ''}</td>
-                          <td className="l">{PILE_LABEL[t.type]}</td>
-                          {s ? <><td>{s.n}</td><td>{Math.round(s.D * 100)}</td><td>{s.L}</td><td>{fmt(s.cap.Padm, 0)}</td><td>{fmt(s.loads.Nmax, 0)}</td>
-                            <td className="l">{s.struct.kind === 'catalogo' ? 'de fábrica' : `${o ? `${o.n} φ${fmt(o.phi, 1).replace(',0', '')} (As ${fmt(o.As * 1e4)} cm²)` : '—'} em ${fmt(s.struct.armedLength, 1)} m · espiral φ${pp.stirrupPhi} c/${Math.round(pp.stirrupS * 100)}${o?.notes.length ? ` · ${o.notes.join('; ')}` : ''}`}</td></>
-                            : <td colSpan={6} className="l bad">sem solução dentro dos limites</td>}
-                        </tr>
-                      );
-                    }))}
-                  </tbody>
-                </table>
-                <p className="small">A solução de cada tipo minimiza o volume de concreto das estacas, o bloco estimado e o aço (convertido pela equivalência de {pp.steelPerM3} kg/m³). O dimensionamento do bloco de coroamento não faz parte deste memorial.</p>
-              </>
-            );
-          })()}
+          {model.foundation && <FoundationMemorial foundation={model.foundation} h2={h2} />}
 
           {h2(<>Conclusão</>)}
           {err ? <p className="bad">{err}</p> : (
@@ -453,7 +416,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
           <ul>
             <li>Modelo plano: efeitos fora do plano considerados apenas por momentos mínimos e pela esbeltez com o comprimento de travamento informado.</li>
             <li>Ligações, lajes, ancoragens, emendas, abertura de fissuras e detalhamento final não fazem parte deste memorial.</li>
-            <li>Os esforços na fundação não incluem o peso dos elementos de fundação nem do solo sobre eles.</li>
+            <li>Os esforços na fundação vindos do pórtico não incluem o peso dos elementos de fundação nem do solo sobre eles; no capítulo de fundações eles entram pelos percentuais e pesos indicados.</li>
             <li>Alterações de seção sugeridas exigem nova análise, pois mudam rigidez e peso próprio.</li>
           </ul>
           <div className="sign">

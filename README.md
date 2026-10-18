@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 100 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm test           # 132 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 ```
@@ -33,7 +33,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Aço | `src/core/steel.ts` | NBR 8800: Q (flambagem local), χ, FLT/FLM/FLA, cortante, interação N+M com B1 |
 | Projeto | `src/core/design.ts` | Combinações ELU/QP/raras, γz com rigidez reduzida e 0,95γz, verificação de todas as barras, sugestão de seção até 100×100, cargas na fundação |
 | Memorial | `src/app/Memorial.tsx`, `drawing.ts` | Memorial padrão (ordem TQS/ABECE 003) com figuras, tabelas, fórmulas e conclusão; exportação HTML |
-| Fundações | `src/core/piles.ts`, `src/app/Fundacoes.tsx` | Décourt-Quaresma (α/β 1996) metro a metro, limites executivos (NA, nega estimada, profundidade de equipamento), blocos de 1 a 6 estacas, Miche, NBR 6122 Tabela 4, armadura por bitola e estribo espiral |
+| Fundações | `src/core/piles.ts`, `caps.ts`, `footings.ts`, `caissons.ts`, `foundation.ts`, `src/app/Fundacoes.tsx` | Estacas: Décourt-Quaresma (α/β 1996) metro a metro, limites executivos (NA, nega estimada, profundidade de equipamento), Miche, NBR 6122 Tabela 4, armadura por bitola e estribo espiral. Blocos de 1 a 6 estacas por bielas e tirantes; sapatas rígidas e flexíveis; tubulões a céu aberto; várias sondagens por obra |
 | Biblioteca | `src/app/storage.ts`, `Library.tsx` | Projetos e características salvos na conta (capability db, subárvore privada do usuário) ou no navegador |
 | Interface | `src/app/*` | Editor SVG (snap, janela/cruzamento, arrastar nós, coordenadas), painéis, tabelas, exportação SVG/CSV/JSON |
 | Perfis | `src/core/profiles.ts` | Perfis I laminados W e HP, tubos circulares e retangulares usuais no Brasil: só dimensões nominais; A, I, Z etc. calculados pela geometria, sem raio de concordância |
@@ -77,8 +77,15 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Biblioteca: salvar/abrir projetos e "características" do dimensionamento na conta do usuário
 - Módulo de fundações profundas: SPT, cargas do pórtico ou salvas, hélice contínua, escavada e pré-moldada, Ø25–100 (pré-moldada nos diâmetros de catálogo), comprimento, número de estacas, armadura por bitola e memorial
 
+**Feito (fase C — fundações, 18/10/2026)**
+- Nd,mín da estaca com γf = 1,0 na parcela permanente e 1,4 no alívio variável e no binário (campo "N perm" por apoio)
+- Tipo de fundação por apoio: estacas + bloco, sapata ou tubulão; furo, seção do pilar e coordenadas por apoio
+- Blocos de coroamento sobre 1 a 6 estacas (bielas e tirantes): altura, tirantes, malha, suspensão, bielas no pilar e na estaca, croqui
+- Sapatas isoladas rígidas e flexíveis com momento em uma ou duas direções: σadm informada ou pelo SPT, área comprimida, CEB-70 ou bielas, punção, croqui
+- Tubulões a céu aberto: fuste, base alargada, cota automática acima do NA, croqui
+- Várias sondagens por obra (arquivos antigos com uma sondagem continuam abrindo)
+
 **Próximas fases**
-- Blocos de coroamento (bielas e tirantes), sapatas e tubulões; várias sondagens por obra
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
 - Perfis soldados (CS, CVS, VS) e conferência das propriedades calculadas com o catálogo do fabricante
 - Cotas manuais entre nós

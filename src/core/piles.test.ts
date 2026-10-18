@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capacity, defaultFoundationParams, maxDepth, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring } from './piles';
+import { boringFor, boringsOf, capacity, defaultFoundationParams, maxDepth, normalizeFoundation, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring, type FLoad, type FoundationData } from './piles';
 
 const uniform = (N: number, n = 15, soil: 'areia' | 'argila' = 'areia', water: number | null = null): Boring => ({ name: 't', water, endImpenetrable: false, meters: Array.from({ length: n }, () => ({ N, soil })) });
 
@@ -38,6 +38,33 @@ describe('limites e bloco', () => {
   });
 });
 
+describe('Nd,mín com γf favorável e desfavorável (NBR 6118 Tab. 11.1)', () => {
+  it('permanente com 1,0 e alívio variável + binário com 1,4', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 600, NkPerm: 800, Hx: 0, Hy: 0, Mx: 0, My: 120 }, 4, 0.4, 3, 0);
+    expect(pl.dN).toBeCloseTo(50, 9);
+    expect(pl.NdMin).toBeCloseTo(800 / 4 - 1.4 * (200 / 4 + 50), 9); // 60 kN
+    expect(pl.GkSource).toBe('informada');
+  });
+  it('sem parcela permanente informada adota Gk = Nk (a favor da segurança)', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 600, Hx: 0, Hy: 0, Mx: 0, My: 120 }, 4, 0.4, 3, 0);
+    expect(pl.Gk).toBe(1000);
+    expect(pl.NdMin).toBeCloseTo(250 - 1.4 * (100 + 50), 9); // 40 kN
+  });
+  it('peso do bloco entra como permanente favorável', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 800, NkPerm: 800, Hx: 0, Hy: 0, Mx: 0, My: 0 }, 2, 0.4, 3, 10);
+    expect(pl.Wb).toBeCloseTo(100, 9);
+    expect(pl.NdMin).toBeCloseTo((800 + 100) / 2, 9);
+  });
+  it('tração de cálculo Td = máx(0, −Nd,mín) e armadura de tração', () => {
+    const p = defaultFoundationParams();
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 300, NkMin: -100, NkPerm: 200, Hx: 0, Hy: 0, Mx: 0, My: 0 }, 1, 0.4, 3, 0);
+    expect(pl.NdMin).toBeCloseTo(200 - 1.4 * 300, 9); // −220 kN
+    const s = pileStructure('helice', 0.4, 12, pl, uniform(20), p);
+    expect(s.Td).toBeCloseTo(220, 9);
+    expect(s.AsTension).toBeCloseTo(0.22 / (500 / 1.15), 9);
+  });
+});
+
 describe('estrutural e solução', () => {
   it('estaca comprimida abaixo do limite: armadura mínima no comprimento mínimo', () => {
     const p = defaultFoundationParams();
@@ -57,5 +84,41 @@ describe('estrutural e solução', () => {
         console.log(ld.label, t.type, `Ø${Math.round(t.recommended!.D * 100)} n=${t.recommended!.n} L=${t.recommended!.L} Padm=${t.recommended!.cap.Padm.toFixed(0)} Nmax=${t.recommended!.loads.Nmax.toFixed(0)}`, t.recommended!.struct.options.map((o) => `${o.n}φ${o.phi}`).join(' '));
       }
     }
+  });
+});
+
+describe('várias sondagens por obra (C4)', () => {
+  const ld = (o: Partial<FLoad> = {}): FLoad => ({ id: 1, label: 'P', Nk: 500, NkMin: 400, Hx: 0, Hy: 0, Mx: 0, My: 0, ...o });
+  it('arquivo antigo (só boring) abre com um furo e id', () => {
+    const old = sampleFoundation() as FoundationData;
+    delete old.borings;
+    const f = normalizeFoundation(JSON.parse(JSON.stringify(old)));
+    expect(f.borings!.length).toBe(1);
+    expect(f.borings![0].id).toBe(1);
+    expect(f.boring.name).toBe(old.boring.name);
+    expect(f.params.colA).toBe(0.3);
+  });
+  it('escolhido > mais próximo (com coordenadas) > primeiro', () => {
+    const a = { ...uniform(10), id: 1, name: 'SP-01', x: 0, y: 0 }, b = { ...uniform(30), id: 2, name: 'SP-02', x: 20, y: 0 };
+    const f = { boring: a, borings: [a, b] };
+    expect(boringFor(ld(), f).name).toBe('SP-01');
+    expect(boringFor(ld({ x: 15, y: 1 }), f).name).toBe('SP-02');
+    expect(boringFor(ld({ x: 15, y: 1, boringId: 1 }), f).name).toBe('SP-01');
+    expect(boringFor(ld({ boringId: 99 }), f).name).toBe('SP-01');
+  });
+  it('ids repetidos ou ausentes viram únicos', () => {
+    const list = boringsOf({ boring: uniform(5), borings: [uniform(5), { ...uniform(5), id: 1 }] });
+    expect(new Set(list.map((x) => x.id)).size).toBe(2);
+  });
+  it('cada apoio dimensiona com o seu furo', () => {
+    const base = sampleFoundation();
+    const weak = { ...uniform(4, 22), id: 2, name: 'fraco' };
+    const f: FoundationData = { ...base, borings: [{ ...base.boring, id: 1 }, weak] };
+    const strong = solveSupport({ ...base.loads[0], boringId: 1 }, f);
+    const soft = solveSupport({ ...base.loads[0], boringId: 2 }, f);
+    expect(soft.boring.name).toBe('fraco');
+    const L = (r: typeof strong) => r.byType.find((t) => t.type === 'helice')?.recommended;
+    expect(L(strong)).toBeTruthy();
+    if (L(soft)) expect(L(soft)!.L * L(soft)!.n).toBeGreaterThanOrEqual(L(strong)!.L * L(strong)!.n);
   });
 });
