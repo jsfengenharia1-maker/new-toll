@@ -4,6 +4,7 @@ import { useAnalysis, getDesign, fmt, isSemi, linkText } from './results';
 import { comboResult, deltaXi, type MemberDesign } from '../core/design';
 import { caseGroup } from '../core/edit';
 import { CAA_TABLE, concrete } from '../core/concrete';
+import { PROFILE_NOTE } from '../core/profiles';
 import { sectionProps } from '../core/section';
 import { defaultProject, type Load, type ProjectInfo, type SectionShape } from '../core/types';
 import { svgDeformed, svgDesign, svgDiagram, svgGeometry, svgLoads, svgReactions } from './drawing';
@@ -255,6 +256,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
             <thead><tr><th className="l">Seção</th><th className="l">Forma</th><th>A (cm²)</th><th>I (cm⁴)</th><th>Barras</th></tr></thead>
             <tbody>{model.sections.filter((s) => model.members.some((m) => m.section === s.id)).map((s) => { const p = sectionProps(s.shape); return <tr key={s.id}><td className="l">{s.name}</td><td className="l">{shapeTxt(s.shape)}</td><td>{fmt(p.A * 1e4)}</td><td>{fmt(p.I * 1e8, 0)}</td><td>{model.members.filter((m) => m.section === s.id).map((m) => m.id).join(', ')}</td></tr>; })}</tbody>
           </table>
+          {model.sections.some((s) => s.catalog && model.members.some((m) => m.section === s.id)) && <p className="small">Perfis de catálogo ({model.sections.filter((s) => s.catalog && model.members.some((m) => m.section === s.id)).map((s) => s.catalog).join(', ')}): dimensões nominais d, bf, tw, tf (tubos: diâmetro/lados e espessura). {PROFILE_NOTE}</p>}
           <h3>Barras</h3>
           <table>
             <thead><tr><th>Barra</th><th>Nós</th><th>L (m)</th><th className="l">Seção</th><th className="l">Material</th><th className="l">Função</th><th>le plano / fora (m)</th><th className="l">Ligações</th></tr></thead>
