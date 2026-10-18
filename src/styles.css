@@ -110,6 +110,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .node.sel { fill: var(--sel); stroke: var(--sel); }
 .hinge { fill: var(--paper); stroke: var(--member); stroke-width: 1.5; }
 .hinge.semi { fill: var(--muted); }
+.member.rigid-full { stroke-width: 6; stroke-linecap: square; }
+.member.rigid-axial { stroke-dasharray: 10 3; }
 .support .supfill { fill: color-mix(in srgb, var(--member) 12%, var(--paper)); stroke: var(--member); stroke-width: 1.3; }
 .support .supline { stroke: var(--member); stroke-width: 1.5; fill: none; }
 .support .hatch { stroke: var(--member); stroke-width: 1; }

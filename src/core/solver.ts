@@ -59,6 +59,8 @@ export interface CaseResult {
 }
 
 const DOF = 3;
+/** Fator de penalidade das barras inextensíveis/rígidas. */
+export const RIGID = 1e6;
 
 /** Substituições para análises não lineares: fatoração e matrizes de elemento modificadas. */
 export interface SolveOverride {
@@ -91,9 +93,9 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
     const G = mat.E / (2 * (1 + mat.nu));
     const props: ElemProps = {
       L,
-      EA: mat.E * sp.A * (model.options.axialDeformation ? 1 : 1e4),
-      EI: mat.E * sp.I * (opts.eiFactor ? opts.eiFactor(m, (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI > 90 ? 180 - (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI : (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI) : 1),
-      GAs: model.options.shearDeformation ? G * sp.As : Infinity,
+      EA: mat.E * sp.A * (model.options.axialDeformation ? 1 : 1e4) * (m.rigid ? RIGID : 1),
+      EI: mat.E * sp.I * (opts.eiFactor ? opts.eiFactor(m, (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI > 90 ? 180 - (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI : (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI) : 1) * (m.rigid === 'full' ? RIGID : 1),
+      GAs: model.options.shearDeformation && m.rigid !== 'full' ? G * sp.As : Infinity,
       kI: m.hingeI ? undefined : m.springI,
       kJ: m.hingeJ ? undefined : m.springJ,
     };

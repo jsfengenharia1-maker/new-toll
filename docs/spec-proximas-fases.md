@@ -28,7 +28,7 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
   - limites kθ → 0 e kθ → ∞.
 - **[confirmar]:** se o usuário quer também a rigidez secante a partir de uma curva M-θ ou só linear-elástica. A proposta é só linear-elástica.
 
-### A2. Vínculos de deformação: barra inextensível e barra rígida
+### A2. Vínculos de deformação: barra inextensível e barra rígida — **feito** (18/10/2026) por penalidade (EA e/ou EI × 10⁶) em vez de mestre-escravo; erro relativo ~10⁻⁶; barras rígidas não são dimensionadas.
 - **Objetivo:** marcar barras como axialmente indeformáveis ou totalmente rígidas (trecho rígido de ligação viga-pilar).
 - **Método:** relações mestre-escravo entre gdl, ou multiplicadores de Lagrange no solver. Para barra rígida, a proposta é a transformação cinemática, que mantém a matriz positiva definida.
 - **Testes:** pórtico com viga inextensível comparado com o mesmo pórtico com EA muito grande; diferença < 1e-6.

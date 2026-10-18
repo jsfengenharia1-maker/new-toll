@@ -243,7 +243,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     const sel = st.selMembers.has(m.id);
     const inPath = showIL && st.trainPath.includes(m.id);
     const ds = statusOf.get(m.id);
-    els.push(<line key={`m${m.id}`} x1={X(p.x)} y1={Y(p.y)} x2={X(q.x)} y2={Y(q.y)} className={`member${sel ? ' sel' : ''}${inPath ? ' path' : ''}${showResults || showIL ? ' dim' : ''}${ds ? ` st-${ds.status}` : ''}`} />);
+    els.push(<line key={`m${m.id}`} x1={X(p.x)} y1={Y(p.y)} x2={X(q.x)} y2={Y(q.y)} className={`member${m.rigid ? ` rigid-${m.rigid}` : ''}${sel ? ' sel' : ''}${inPath ? ' path' : ''}${showResults || showIL ? ' dim' : ''}${ds ? ` st-${ds.status}` : ''}`} />);
     if (ds && ds.status !== 'na') {
       const mx = (X(p.x) + X(q.x)) / 2, my = (Y(p.y) + Y(q.y)) / 2;
       els.push(<text key={`du${m.id}`} x={mx + 7} y={my - 7} className={`lbl st st-${ds.status}`}>{ds.util > 9.99 ? '>999%' : `${(ds.util * 100).toFixed(0)}%`}</text>);

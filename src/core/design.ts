@@ -338,7 +338,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     const mat = model.materials.find((m) => m.id === mem.material)!;
     const sec = model.sections.find((s) => s.id === mem.section)!;
     const materialKind = mat.kind ?? (mat.fck ? 'concrete' : mat.fy ? 'steel' : mat.E < 60e6 ? 'concrete' : 'steel');
-    const role = roleOf(model, angleOf(pm.c, pm.s), mem.role);
+    const role = mem.rigid === 'full' ? 'none' : roleOf(model, angleOf(pm.c, pm.s), mem.role);
     const leIn = mem.leIn ?? pm.L, leOut = mem.leOut ?? pm.L;
     const base: MemberDesign = { id: pm.id, index: pm.index, role, materialKind, sectionName: sec.name, materialName: mat.name, L: pm.L, leIn, leOut, status: 'na', util: 0, summary: '', messages: [] };
     if (role === 'none') { base.summary = 'Não dimensionada'; return base; }

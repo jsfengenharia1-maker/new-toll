@@ -133,7 +133,13 @@ export function EstruturaPanel() {
           <button type="button" className="chip" onClick={() => setSprings(true, true)}>Ambas</button>
           <button type="button" className="chip" onClick={clearSprings}>Remover molas</button>
         </div>
-        <Hint>Mola rotacional linear-elástica entre a barra e o nó. Rótula na mesma extremidade prevalece. Referência de classificação (EN 1993-1-8, 5.2.2.5, só informativa): k·L/EI ≤ 0,5 ≈ rótula; ≥ 8 (contraventado) ou ≥ 25 (não contraventado) ≈ rígida.</Hint>
+        <div className="chips">
+          <span className="muted small">Vínculo de deformação:</span>
+          {([['', 'Normal'], ['axial', 'Inextensível'], ['full', 'Rígida']] as const).map(([v, label]) => (
+            <button type="button" key={v} className="chip" onClick={() => { if (!mSel.length) return st.set({ message: 'Selecione barras.' }); st.commit((m) => { for (const mm of m.members) if (selMembers.has(mm.id)) { if (v) mm.rigid = v; else delete mm.rigid; } }, `${mSel.length} barra(s): ${label.toLowerCase()}.`); }}>{label}</button>
+          ))}
+        </div>
+        <Hint>Inextensível: EA × 10⁶. Rígida (trecho rígido de ligação): EA e EI × 10⁶, não é dimensionada. Mola rotacional linear-elástica entre a barra e o nó; rótula na mesma extremidade prevalece. Referência de classificação (EN 1993-1-8, 5.2.2.5, só informativa): k·L/EI ≤ 0,5 ≈ rótula; ≥ 8 (contraventado) ou ≥ 25 (não contraventado) ≈ rígida.</Hint>
       </Group>
 
       <TransformGroup />

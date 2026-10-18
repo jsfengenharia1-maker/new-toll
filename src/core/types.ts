@@ -62,6 +62,8 @@ export interface Member {
   /** Ligação semirrígida (kN·m/rad) na extremidade; ignorada se houver rótula. */
   springI?: number;
   springJ?: number;
+  /** Vínculo de deformação: 'axial' = inextensível (EA × 10⁶); 'full' = trecho rígido (EA e EI × 10⁶, sem dimensionamento). */
+  rigid?: 'axial' | 'full';
   /** Papel no dimensionamento (auto: inclinação > 60° com a horizontal = pilar). */
   role?: MemberRole;
   /** Comprimento de flambagem no plano do pórtico (m). Padrão: comprimento da barra. */

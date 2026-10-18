@@ -195,3 +195,20 @@ describe('solver em banda', () => {
     console.log(`${nodes.length} nós, ${members.length} barras: ${dt.toFixed(0)} ms`);
   });
 });
+
+describe('barras inextensíveis e rígidas (penalidade 10⁶)', () => {
+  it('trecho rígido junto ao engaste: balanço equivalente de comprimento b', () => {
+    const a = 1, bL = 3, Pk = 10;
+    const nodes = [{ id: 1, x: 0, y: 0, support: FIX }, { id: 2, x: a, y: 0 }, { id: 3, x: a + bL, y: 0 }];
+    const loads: Load[] = [{ kind: 'nodal', id: 1, caseId: 1, node: 3, fx: 0, fy: -Pk, mz: 0 }];
+    const r = run(model(nodes, [{ ni: 1, nj: 2, rigid: 'full' }, { ni: 2, nj: 3 }], loads));
+    expect(r.u[2 * 3 + 1] / ((-Pk * bL ** 3) / (3 * EI))).toBeCloseTo(1, 5);
+    expect(Math.abs(r.u[1 * 3 + 1])).toBeLessThan(1e-9);
+  });
+  it('viga inextensível em pórtico: topos dos pilares com o mesmo deslocamento horizontal', () => {
+    const nodes = [{ id: 1, x: 0, y: 0, support: FIX }, { id: 2, x: 0, y: 3 }, { id: 3, x: 6, y: 3 }, { id: 4, x: 6, y: 0, support: FIX }];
+    const loads: Load[] = [{ kind: 'nodal', id: 1, caseId: 1, node: 2, fx: 20, fy: 0, mz: 0 }];
+    const r = run(model(nodes, [{ ni: 1, nj: 2 }, { ni: 2, nj: 3, rigid: 'axial' }, { ni: 3, nj: 4 }], loads));
+    expect(Math.abs(r.u[1 * 3] - r.u[2 * 3]) / Math.abs(r.u[1 * 3])).toBeLessThan(1e-5);
+  });
+});
