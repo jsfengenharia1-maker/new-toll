@@ -19,14 +19,30 @@ export const PILE_LABEL: Record<PileType, string> = {
 };
 
 export interface SptMeter { N: number; soil: SoilClass } // índice i ↔ profundidade (i + 1) m
-export interface Boring { name: string; water: number | null; meters: SptMeter[]; endImpenetrable: boolean }
+/** Furo de sondagem. id e coordenadas (m, mesmo sistema dos apoios) são opcionais (arquivos antigos não têm). */
+export interface Boring { id?: number; name: string; water: number | null; meters: SptMeter[]; endImpenetrable: boolean; x?: number; y?: number }
+
+export type FoundationKind = 'estacas' | 'sapata' | 'tubulao';
+export const KIND_LABEL: Record<FoundationKind, string> = { estacas: 'Estacas + bloco', sapata: 'Sapata', tubulao: 'Tubulão a céu aberto' };
 /**
  * Cargas características por apoio, no topo do elemento de fundação (kN, kN·m).
  * Nk: máximo da envoltória rara; NkMin: mínimo da envoltória rara (negativo = tração);
  * NkPerm: parcela permanente (soma dos casos G). Sem NkPerm, adota-se NkPerm = Nk (a favor da segurança:
  * toda a diferença Nk − NkMin é tratada como variável que alivia a compressão).
  */
-export interface FLoad { id: number; label: string; Nk: number; NkMin: number; NkPerm?: number; Hx: number; Hy: number; Mx: number; My: number; source?: string }
+export interface FLoad {
+  id: number; label: string; Nk: number; NkMin: number; NkPerm?: number; Hx: number; Hy: number; Mx: number; My: number; source?: string;
+  /** Tipo de fundação do apoio (padrão: estacas + bloco). */
+  kind?: FoundationKind;
+  /** Furo de sondagem escolhido (id); sem escolha, o mais próximo (com coordenadas) ou o primeiro. */
+  boringId?: number;
+  /** Coordenadas do apoio em planta (m), para escolher o furo mais próximo. */
+  x?: number; y?: number;
+  /** Seção do pilar (m): a ao longo de x (plano do pórtico), b ao longo de y. Padrão: params.colA × colB. */
+  ap?: number; bp?: number;
+  /** Estaca adotada para o bloco (tipo e diâmetro em cm). Padrão: a recomendada do primeiro tipo. */
+  pile?: { type: PileType; D: number };
+}
 
 export interface FoundationParams {
   types: PileType[];
@@ -50,9 +66,95 @@ export interface FoundationParams {
   steelPerM3: number; // equivalência de custo: kg de aço que custam o mesmo que 1 m³ de estaca
   gammaF: number; // γf desfavorável (NBR 6118 Tab. 11.1 / NBR 6122)
   gammaFfav: number; // γf da parcela permanente favorável
+  // pilar (quando o apoio não informa) e concreto de blocos/sapatas
+  colA: number; colB: number; // m
+  colPhi: number; // mm, bitola longitudinal do pilar (ancoragem no bloco/sapata)
+  fckFound: number; // MPa, blocos e sapatas
+  gammaC: number; gammaS: number;
+  // blocos de coroamento (C1)
+  capThetaMin: number; capThetaMax: number; // graus
+  capKR: number; capK2: number; capK3: number; capK4: number; capK5: number; capK6: number;
+  capEdge: number; // m, da face da estaca à borda do bloco
+  capDprime: number; // m, do eixo do tirante à face inferior (mínimo)
+  capBand: number; // × D, largura da faixa da armadura principal sobre as estacas
+  capDistRatio: number; // fração da armadura principal na malha de distribuição
+  capSuspFactor: number; // × D, espaçamento acima do qual se arma a suspensão
+  capSkinRatio: number; // armadura de pele por face (bloco de 2 estacas)
+  cap1Ratio: number; // h / lado do bloco sobre 1 estaca
+  // sapatas (C2)
+  ftSigmaMode: 'spt' | 'informada';
+  ftSigmaAdm: number; // kPa
+  ftDepth: number; // m, cota de apoio
+  ftPP: number; // % de N, peso próprio da sapata + solo
+  ftSptDiv: number; // σadm (MPa) = N̄/ftSptDiv
+  ftNmaxEst: number; // N̄ máximo na estimativa
+  ftBulb: number; // × menor lado: profundidade do bulbo para N̄
+  ftEdgeFactor: number; // σmáx ≤ fator·σadm
+  ftMinCompressed: number; // fração mínima da base comprimida
+  ftMaxRatio: number; // A/B máximo
+  ftKind: 'rigida' | 'flexivel';
+  ftMethod: 'ceb70' | 'bielas';
+  ftRhoMin: number;
+  ftH0Min: number; // m, altura mínima da borda
+  gammaSoil: number; // kN/m³, peso do solo sobre a sapata (conferência do peso próprio)
+  // tubulões (C3)
+  tbSigmaMode: 'spt' | 'informada';
+  tbSigmaAdm: number; // kPa
+  tbSptDiv: number; // σadm (MPa) = N̄/tbSptDiv
+  tbNmaxEst: number;
+  tbDepth: number; // m, cota da base (0 = automático)
+  tbMinDepth: number; // m
+  tbDfMin: number; // m, diâmetro mínimo do fuste
+  tbFck: number; tbGc: number;
+  tbDbMax: number; // m
+  tbHmax: number; // m, altura máxima da base alargada
+  tbRodape: number; // m
+  tbWeight: boolean; // somar o peso próprio do tubulão na base
 }
 
-export interface FoundationData { boring: Boring; loads: FLoad[]; params: FoundationParams }
+/** boring = primeiro furo (formato antigo, mantido em sincronia); borings = todos os furos (C4). */
+export interface FoundationData { boring: Boring; borings?: Boring[]; loads: FLoad[]; params: FoundationParams }
+
+/** Furos da obra com id garantido (arquivos antigos têm só `boring`). */
+export function boringsOf(f: Pick<FoundationData, 'boring' | 'borings'>): Boring[] {
+  const list = f.borings?.length ? f.borings : [f.boring];
+  const used = new Set<number>();
+  return list.map((b, i) => {
+    let id = b.id ?? i + 1;
+    while (used.has(id)) id++;
+    used.add(id);
+    return b.id === id ? b : { ...b, id };
+  });
+}
+
+/** Furo usado por um apoio: o escolhido; senão o mais próximo (se apoio e furos têm coordenadas); senão o primeiro. */
+export function boringFor(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): Boring {
+  const list = boringsOf(f);
+  const chosen = ld.boringId !== undefined ? list.find((b) => b.id === ld.boringId) : undefined;
+  if (chosen) return chosen;
+  if (ld.x !== undefined && ld.y !== undefined) {
+    const withXY = list.filter((b) => b.x !== undefined && b.y !== undefined);
+    if (withXY.length) return withXY.reduce((a, b) => (Math.hypot(b.x! - ld.x!, b.y! - ld.y!) < Math.hypot(a.x! - ld.x!, a.y! - ld.y!) ? b : a));
+  }
+  return list[0];
+}
+
+/** Como o furo do apoio foi escolhido (para o memorial). */
+export function boringChoice(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): string {
+  const list = boringsOf(f);
+  if (ld.boringId !== undefined && list.some((b) => b.id === ld.boringId)) return 'escolhido';
+  if (ld.x !== undefined && ld.y !== undefined && list.some((b) => b.x !== undefined && b.y !== undefined)) return 'mais próximo';
+  return list.length > 1 ? 'primeiro furo (sem coordenadas)' : 'único furo';
+}
+
+/** Completa parâmetros e furos de dados antigos (retrocompatível). */
+export function normalizeFoundation(f: FoundationData): FoundationData {
+  const borings = boringsOf(f);
+  return { ...f, borings, boring: borings[0], params: { ...defaultFoundationParams(), ...f.params } };
+}
+
+/** Seção do pilar do apoio (m). */
+export const columnOf = (ld: FLoad, p: FoundationParams) => ({ ap: ld.ap ?? p.colA, bp: ld.bp ?? p.colB });
 
 export const defaultFoundationParams = (): FoundationParams => ({
   types: ['helice', 'escavada', 'premoldada'],
@@ -76,6 +178,15 @@ export const defaultFoundationParams = (): FoundationParams => ({
   steelPerM3: 85,
   gammaF: 1.4,
   gammaFfav: 1.0,
+  colA: 0.3, colB: 0.3, colPhi: 16,
+  fckFound: 30, gammaC: 1.4, gammaS: 1.15,
+  capThetaMin: 45, capThetaMax: 55,
+  capKR: 0.9, capK2: 1.4, capK3: 1.75, capK4: 2.1, capK5: 2.1, capK6: 2.1,
+  capEdge: 0.15, capDprime: 0.1, capBand: 1.2, capDistRatio: 0.2, capSuspFactor: 3, capSkinRatio: 0.001, cap1Ratio: 1,
+  ftSigmaMode: 'spt', ftSigmaAdm: 200, ftDepth: 1.5, ftPP: 5, ftSptDiv: 50, ftNmaxEst: 20, ftBulb: 2,
+  ftEdgeFactor: 1, ftMinCompressed: 2 / 3, ftMaxRatio: 2.5, ftKind: 'rigida', ftMethod: 'ceb70', ftRhoMin: 0.0015, ftH0Min: 0.2, gammaSoil: 18,
+  tbSigmaMode: 'spt', tbSigmaAdm: 600, tbSptDiv: 30, tbNmaxEst: 40, tbDepth: 0, tbMinDepth: 3, tbDfMin: 0.7,
+  tbFck: 25, tbGc: 1.6, tbDbMax: 4, tbHmax: 1.8, tbRodape: 0.2, tbWeight: true,
 });
 
 export const sampleFoundation = (): FoundationData => ({
@@ -342,10 +453,10 @@ export interface PileSolution {
   type: PileType; D: number; n: number; L: number; cap: Capacity; loads: PileLoads; struct: PileStructure; volume: number; steelKg: number; blockVolume: number; cost: number; Lmax: number; LmaxReason: string;
 }
 export interface DiameterResult { type: PileType; D: number; best: PileSolution | null; reason?: string; Lmax: number; LmaxReason: string }
-export interface SupportResult { load: FLoad; byType: { type: PileType; diameters: DiameterResult[]; recommended: PileSolution | null }[] }
+export interface SupportResult { load: FLoad; boring: Boring; byType: { type: PileType; diameters: DiameterResult[]; recommended: PileSolution | null }[] }
 
 export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
-  const p = data.params, b = data.boring;
+  const p = data.params, b = boringFor(ld, data);
   const byType = p.types.map((type) => {
     const list = type === 'premoldada' ? p.precastDiameters : p.diameters.filter((d) => type !== 'helice' || d >= 30);
     const { L: Lmax, reason: LmaxReason } = maxDepth(type, b, p);
@@ -377,7 +488,7 @@ export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
     const recommended = diameters.map((d) => d.best).filter(Boolean).sort((x, y) => x!.cost - y!.cost || x!.n - y!.n)[0] ?? null;
     return { type, diameters, recommended };
   });
-  return { load: ld, byType };
+  return { load: ld, boring: b, byType };
 }
 
 /** Volume aproximado do bloco, só para comparar soluções: planta = envoltória das estacas + D + 2×15 cm; altura ≥ 0,6 m e ≥ 0,6·s. */

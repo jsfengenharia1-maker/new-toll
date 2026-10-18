@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capacity, defaultFoundationParams, maxDepth, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring } from './piles';
+import { boringFor, boringsOf, capacity, defaultFoundationParams, maxDepth, normalizeFoundation, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring, type FLoad, type FoundationData } from './piles';
 
 const uniform = (N: number, n = 15, soil: 'areia' | 'argila' = 'areia', water: number | null = null): Boring => ({ name: 't', water, endImpenetrable: false, meters: Array.from({ length: n }, () => ({ N, soil })) });
 
@@ -84,5 +84,41 @@ describe('estrutural e solução', () => {
         console.log(ld.label, t.type, `Ø${Math.round(t.recommended!.D * 100)} n=${t.recommended!.n} L=${t.recommended!.L} Padm=${t.recommended!.cap.Padm.toFixed(0)} Nmax=${t.recommended!.loads.Nmax.toFixed(0)}`, t.recommended!.struct.options.map((o) => `${o.n}φ${o.phi}`).join(' '));
       }
     }
+  });
+});
+
+describe('várias sondagens por obra (C4)', () => {
+  const ld = (o: Partial<FLoad> = {}): FLoad => ({ id: 1, label: 'P', Nk: 500, NkMin: 400, Hx: 0, Hy: 0, Mx: 0, My: 0, ...o });
+  it('arquivo antigo (só boring) abre com um furo e id', () => {
+    const old = sampleFoundation() as FoundationData;
+    delete old.borings;
+    const f = normalizeFoundation(JSON.parse(JSON.stringify(old)));
+    expect(f.borings!.length).toBe(1);
+    expect(f.borings![0].id).toBe(1);
+    expect(f.boring.name).toBe(old.boring.name);
+    expect(f.params.colA).toBe(0.3);
+  });
+  it('escolhido > mais próximo (com coordenadas) > primeiro', () => {
+    const a = { ...uniform(10), id: 1, name: 'SP-01', x: 0, y: 0 }, b = { ...uniform(30), id: 2, name: 'SP-02', x: 20, y: 0 };
+    const f = { boring: a, borings: [a, b] };
+    expect(boringFor(ld(), f).name).toBe('SP-01');
+    expect(boringFor(ld({ x: 15, y: 1 }), f).name).toBe('SP-02');
+    expect(boringFor(ld({ x: 15, y: 1, boringId: 1 }), f).name).toBe('SP-01');
+    expect(boringFor(ld({ boringId: 99 }), f).name).toBe('SP-01');
+  });
+  it('ids repetidos ou ausentes viram únicos', () => {
+    const list = boringsOf({ boring: uniform(5), borings: [uniform(5), { ...uniform(5), id: 1 }] });
+    expect(new Set(list.map((x) => x.id)).size).toBe(2);
+  });
+  it('cada apoio dimensiona com o seu furo', () => {
+    const base = sampleFoundation();
+    const weak = { ...uniform(4, 22), id: 2, name: 'fraco' };
+    const f: FoundationData = { ...base, borings: [{ ...base.boring, id: 1 }, weak] };
+    const strong = solveSupport({ ...base.loads[0], boringId: 1 }, f);
+    const soft = solveSupport({ ...base.loads[0], boringId: 2 }, f);
+    expect(soft.boring.name).toBe('fraco');
+    const L = (r: typeof strong) => r.byType.find((t) => t.type === 'helice')?.recommended;
+    expect(L(strong)).toBeTruthy();
+    if (L(soft)) expect(L(soft)!.L * L(soft)!.n).toBeGreaterThanOrEqual(L(strong)!.L * L(strong)!.n);
   });
 });
