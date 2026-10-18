@@ -1,6 +1,6 @@
 # Spec — próximas fases do Statikos
 
-Data: 18/10/2026. Status: proposta, aguardando aprovação item a item.
+Data: 18/10/2026. Status: proposta, aguardando aprovação item a item (C1–C4 feitos em 18/10/2026).
 
 Regras que valem para todos os itens:
 - **Premissas visíveis.** Toda hipótese de cálculo marcada **[confirmar]** só é implementada depois do aceite do usuário. Depois disso, fica editável no app e escrita no memorial.
@@ -100,7 +100,18 @@ Proposta original:
 ## Fase C — Dimensionamento e fundações
 
 | Item | Escopo | [confirmar] |
-|---|---|---|
+|
+### C1–C4 — o que foi feito (18/10/2026)
+- **Correção prévia (estacas):** Nd,mín = 1,0·(Gk + Wb)/n − 1,4·[(Gk − Nk,mín)/n + ΔN]; Td = máx(0, −Nd,mín). Gk (soma dos casos G) vem do pórtico no novo campo "N perm"; sem ele, Gk = Nk (a favor da segurança). γf editáveis.
+- **C1 (`src/core/caps.ts`):** bloco rígido sobre 1 a 6 estacas nas disposições de `blockCoords`. Biela parte do centróide da parte da seção do pilar voltada para cada estaca; d entre os limites de 45° e 55° e ≥ lb das barras do pilar; tirantes sobre as estacas por equilíbrio dos nós (estaca mais carregada em todas); malha (20%), armadura superior, pele e estribos no bloco de 2 estacas, suspensão para s > 3D; tensões nas bielas junto ao pilar e à estaca contra K·KR·fcd; bloco de 1 estaca por fendilhamento. Croqui em planta e corte.
+- **C2 (`src/core/footings.ts`):** planta em passos de 5 cm pela menor área com balanços iguais; base sem tração (núcleo central ou equilíbrio com área comprimida, uni e biaxial); σmáx ≤ σadm e área comprimida ≥ 2/3; rígida h ≥ (a − ap)/3 e lb; flexível pela punção; flexão CEB-70 (padrão) ou bielas; punção em C e C′; peso próprio = máx(5% de Nk; concreto calculado).
+- **C3 (`src/core/caissons.ts`):** fuste de concreto simples (0,85·fck/γc), base alargada por σadm na base, H = 0,866·(Db − Df) + rodapé de 20 cm, base acima do NA, cota automática pelo menor volume ou informada.
+- **C4:** `borings[]` no modelo (o antigo `boring` continua como o primeiro furo, retrocompatível); cada apoio escolhe o furo ou usa o mais próximo pelas coordenadas.
+- **Interface e memorial:** tipo de fundação, furo, pilar e coordenadas por apoio; "Adotar esta estaca" para o bloco; grupos de premissas com selos "a confirmar"; capítulo de fundações do memorial com fórmulas, croquis e a lista de premissas a confirmar.
+
+**Ficou de fora:** blocos sobre mais de 6 estacas e blocos com pilares excêntricos; chanfros do bloco de 3 estacas (contorno retangular envolvente); verificação do peso real do bloco na distribuição de cargas (só aviso); cisalhamento unidirecional e ancoragem das barras de sapatas; sapatas associadas e de divisa; recalques e efeito de grupo; carga horizontal e armadura de topo do tubulão; tubulão a ar comprimido; detalhamento final (comprimentos, dobras, emendas e quantitativos).
+
+---|---|---|
 | C1. Blocos de coroamento | Bielas e tirantes para 1 a 6 estacas; armadura principal, de distribuição e de suspensão; verificação das bielas no pilar e na estaca | Limites de tensão nas bielas (Blévot/Fusco/NBR 6118 22.7): qual referência adotar |
 | C2. Sapatas | Rígidas e flexíveis, isoladas, com momento em uma direção; tensão no solo; flexão; punção | σadm vindo de sondagem ou informado pelo usuário |
 | C3. Tubulões | Fuste e base alargada; tensão admissível na base | Método de σadm por SPT |
