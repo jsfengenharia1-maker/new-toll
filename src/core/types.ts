@@ -52,6 +52,7 @@ export interface Section {
 }
 
 export type ForceUnit = 'kN' | 'tf' | 'kgf' | 'N';
+export type LengthUnit = 'm' | 'cm' | 'mm';
 
 export interface Member {
   id: number;
@@ -169,7 +170,7 @@ export interface Model {
   trains: LoadTrain[];
   options: AnalysisOptions;
   /** Unidades de exibição (o cálculo é sempre em kN e m). */
-  units?: { force: ForceUnit };
+  units?: { force: ForceUnit; length?: LengthUnit };
 }
 
 export function emptyModel(): Model {

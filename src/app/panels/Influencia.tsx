@@ -84,7 +84,7 @@ export function InfluenciaPanel() {
           <>
             <div className="row">
               <Select label="Barra" value={pm.id} options={a.prep.members.map((m) => ({ v: m.id, label: `Barra ${m.id} (L = ${fmt(m.L)} m)` }))} onChange={(v) => st.set({ il: { ...il, member: v } })} />
-              <NumField label="x da seção" unit="m" value={il.x} onChange={(v) => st.set({ il: { ...il, x: Math.min(Math.max(v, 0), pm.L) } })} />
+              <NumField label="x da seção" unit={U.L.label} value={U.L.to(il.x)} onChange={(v) => st.set({ il: { ...il, x: Math.min(Math.max(U.L.from(v), 0), pm.L) } })} />
             </div>
             <input aria-label="Posição da seção" type="range" min={0} max={pm.L} step={pm.L / 200} value={il.x} onChange={(e) => st.set({ il: { ...il, x: +e.target.value } })} />
             {sectionStats && (
@@ -107,7 +107,7 @@ export function InfluenciaPanel() {
             {model.trains.length > 1 && <Select value={train.id} options={model.trains.map((t) => ({ v: t.id, label: t.name }))} onChange={(v) => st.set({ trainId: v })} />}
             <TextField label="Nome" value={train.name} onChange={(v) => updTrain((t) => { t.name = v; })} />
             <div className="row">
-              <NumField label="Comprimento" unit="m" value={train.length} onChange={(v) => updTrain((t) => { t.length = Math.max(0, v); })} />
+              <NumField label="Comprimento" unit={U.L.label} value={U.L.to(train.length)} onChange={(v) => updTrain((t) => { t.length = Math.max(0, U.L.from(v)); })} />
               <NumField label="Impacto" unit="×" value={train.impact} onChange={(v) => updTrain((t) => { t.impact = v; })} />
             </div>
             <div className="row">
@@ -115,10 +115,10 @@ export function InfluenciaPanel() {
               <NumField label="q′ sob o veículo" unit={U.q.label} value={U.q.to(train.qIn)} onChange={(v) => updTrain((t) => { t.qIn = U.q.from(v); })} />
             </div>
             <div className="trainloads">
-              <div className="tl-head"><span>Posição a partir da frente (m)</span><span>Carga ({U.F.label})</span><span /></div>
+              <div className="tl-head"><span>Posição a partir da frente ({U.L.label})</span><span>Carga ({U.F.label})</span><span /></div>
               {train.loads.map((l, i) => (
                 <div className="tl-row" key={i}>
-                  <NumField label="" value={l.d} onChange={(v) => updTrain((t) => { t.loads[i].d = Math.min(Math.max(v, 0), t.length); })} />
+                  <NumField label="" value={U.L.to(l.d)} onChange={(v) => updTrain((t) => { t.loads[i].d = Math.min(Math.max(U.L.from(v), 0), t.length); })} />
                   <NumField label="" value={U.F.to(l.P)} onChange={(v) => updTrain((t) => { t.loads[i].P = U.F.from(v); })} />
                   <button type="button" className="x" aria-label="Remover eixo" onClick={() => updTrain((t) => { t.loads.splice(i, 1); })}>×</button>
                 </div>

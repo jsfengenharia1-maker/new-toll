@@ -474,7 +474,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
   if (mouse && (tool === 'node' || tool === 'member')) {
     overlay.push(<circle key="cur" cx={X(mouse.wx)} cy={Y(mouse.wy)} r={mouse.snapped ? 7 : 4} className={`cursor${mouse.snapped ? ' snapped' : ''}`} />);
     if (start) overlay.push(<line key="rub" x1={X(start[0])} y1={Y(start[1])} x2={X(mouse.wx)} y2={Y(mouse.wy)} className="rubber" />);
-    if (start) { const L = Math.hypot(mouse.wx - start[0], mouse.wy - start[1]); overlay.push(<text key="rubl" x={X(mouse.wx) + 12} y={Y(mouse.wy) - 10} className="lbl hint">{`L = ${fmt(L)} m`}</text>); }
+    if (start) { const L = Math.hypot(mouse.wx - start[0], mouse.wy - start[1]); overlay.push(<text key="rubl" x={X(mouse.wx) + 12} y={Y(mouse.wy) - 10} className="lbl hint">{`L = ${fmt(U.L.to(L))} ${U.L.label}`}</text>); }
   }
   if (box) overlay.push(<rect key="box" x={Math.min(box.x0, box.x1)} y={Math.min(box.y0, box.y1)} width={Math.abs(box.x1 - box.x0)} height={Math.abs(box.y1 - box.y0)} className={`selbox${box.x1 < box.x0 ? ' crossing' : ''}`} />);
 
@@ -500,7 +500,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         <g>{overlay}</g>
         {tip}
       </svg>
-      <div className="coords">{mouse ? `x ${fmt(mouse.wx, 3)}   y ${fmt(mouse.wy, 3)} m` : ' '}</div>
+      <div className="coords">{mouse ? `x ${fmt(U.L.to(mouse.wx), 3)}   y ${fmt(U.L.to(mouse.wy), 3)} ${U.L.label}` : ' '}</div>
     </div>
   );
 }

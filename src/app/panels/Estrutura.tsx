@@ -76,8 +76,8 @@ export function EstruturaPanel() {
       {firstNode && nSel.length === 1 && (
         <Group title={`Nó ${firstNode.id}`}>
           <div className="row">
-            <NumField label="x" unit="m" value={firstNode.x} onChange={(v) => st.commit((m) => { m.nodes.find((n) => n.id === firstNode.id)!.x = v; })} />
-            <NumField label="y" unit="m" value={firstNode.y} onChange={(v) => st.commit((m) => { m.nodes.find((n) => n.id === firstNode.id)!.y = v; })} />
+            <NumField label="x" unit={U.L.label} value={U.L.to(firstNode.x)} onChange={(v) => st.commit((m) => { m.nodes.find((n) => n.id === firstNode.id)!.x = U.L.from(v); })} />
+            <NumField label="y" unit={U.L.label} value={U.L.to(firstNode.y)} onChange={(v) => st.commit((m) => { m.nodes.find((n) => n.id === firstNode.id)!.y = U.L.from(v); })} />
           </div>
           <button type="button" className="btn ghost" onClick={() => { const ok = { v: false }; st.commit((m) => { ok.v = joinAtNode(m, firstNode.id); }, 'Barras unidas.'); if (!ok.v) st.set({ message: 'Só é possível unir duas barras colineares, sem apoio no nó e sem cargas distribuídas.' }); }}>Unir barras colineares neste nó</button>
         </Group>
@@ -344,6 +344,7 @@ function QuickRect({ onCreated }: { onCreated: (id: number) => void }) {
 
 function MemberDesignProps({ ids }: { ids: number[] }) {
   const model = useStore((s) => s.model);
+  const U = useUnits();
   const commit = useStore((s) => s.commit);
   const set = new Set(ids);
   const first = model.members.find((m) => m.id === ids[0]);
@@ -361,8 +362,8 @@ function MemberDesignProps({ ids }: { ids: number[] }) {
     <Group title="Dimensionamento das barras" aside={<span className="muted">{ids.length} barra(s)</span>}>
       <Seg small value={first.role ?? 'auto'} onChange={(r: MemberRole) => upd((m) => { m.role = r; })} options={[{ v: 'auto', label: 'Automático' }, { v: 'beam', label: 'Viga' }, { v: 'column', label: 'Pilar' }, { v: 'none', label: 'Não dimensionar' }]} />
       <div className="row">
-        <NumField label="le no plano" unit="m" value={first.leIn ?? L} onChange={(v) => upd((m) => { m.leIn = v > 0 ? v : undefined; })} />
-        <NumField label="le fora do plano" unit="m" value={first.leOut ?? L} onChange={(v) => upd((m) => { m.leOut = v > 0 ? v : undefined; })} />
+        <NumField label="le no plano" unit={U.L.label} value={U.L.to(first.leIn ?? L)} onChange={(v) => upd((m) => { m.leIn = v > 0 ? U.L.from(v) : undefined; })} />
+        <NumField label="le fora do plano" unit={U.L.label} value={U.L.to(first.leOut ?? L)} onChange={(v) => upd((m) => { m.leOut = v > 0 ? U.L.from(v) : undefined; })} />
       </div>
       <button type="button" className="btn ghost" onClick={() => upd((m) => { delete m.leIn; delete m.leOut; })}>Usar o comprimento de cada barra</button>
       <Hint>Automático: inclinação acima de 60° é pilar. Fora do plano, informe a distância entre travamentos (vigas, terças, contraventamentos).</Hint>
@@ -399,7 +400,10 @@ function TransformGroup() {
     st.commit((m) => { out = transformSelection(m, selNodes, selMembers, t, { copy: copy === 'copy', copies: p.n, loads: p.loads, supports: p.supports }); }, `${members.length} barra(s) e ${nodes.size} nó(s) ${verb}.`);
     if (copy === 'copy') st.select(out.nodes, out.members);
   };
-  const N = (k: keyof typeof p, label: string, unit?: string) => <NumField label={label} unit={unit} value={p[k] as number} onChange={(v) => setP({ ...p, [k]: v })} />;
+  const U = useUnits();
+  const N = (k: keyof typeof p, label: string, unit?: string) => unit === 'm'
+    ? <NumField label={label} unit={U.L.label} value={U.L.to(p[k] as number)} onChange={(v) => setP({ ...p, [k]: U.L.from(v) })} />
+    : <NumField label={label} unit={unit} value={p[k] as number} onChange={(v) => setP({ ...p, [k]: v })} />;
 
   return (
     <Group title="Transformar seleção" open={false} aside={<span className="muted">{nodes.size ? `${members.length} barra(s) · ${nodes.size} nó(s)` : 'selecione'}</span>}>

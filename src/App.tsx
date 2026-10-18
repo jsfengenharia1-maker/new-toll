@@ -11,8 +11,8 @@ import { Library } from './app/Library';
 import { Fundacoes } from './app/Fundacoes';
 import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, nbrCombinations } from './core/edit';
-import { emptyModel, type ForceUnit, type Model } from './core/types';
-import { FORCE_UNITS } from './app/units';
+import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
+import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { copyText, download } from './app/ui';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
@@ -169,7 +169,8 @@ export default function App() {
 
   const submitCoord = () => {
     const s = useStore.getState();
-    const parts = coord.replace(/;/g, ' ').trim().split(/\s+/).map((p) => parseFloat(p.replace(',', '.')));
+    const lu = makeUnits('kN', s.model.units?.length ?? 'm').L;
+    const parts = coord.replace(/;/g, ' ').trim().split(/\s+/).map((p) => lu.from(parseFloat(p.replace(',', '.'))));
     if (parts.length < 2 || parts.some((p) => !Number.isFinite(p))) { s.set({ message: 'Digite coordenadas como “x y” (ex.: 6 4,5) ou “x1 y1 x2 y2” para uma barra.' }); return; }
     {
       const mat = s.model.materials[0]?.id ?? 1, sec = s.model.sections[0]?.id ?? 1;
@@ -277,8 +278,11 @@ export default function App() {
           </select>
         </label>
         <label className="gridsel" htmlFor="unitsel" title="Unidades de exibição e entrada. O cálculo, o dimensionamento e o memorial usam kN, m e MPa.">Unidades
-          <select id="unitsel" value={st.model.units?.force ?? 'kN'} onChange={(e) => st.commit((m) => { m.units = { force: e.target.value as ForceUnit }; }, `Unidades: ${FORCE_UNITS.find((u) => u.v === e.target.value)?.label}.`)}>
+          <select id="unitsel" value={st.model.units?.force ?? 'kN'} onChange={(e) => st.commit((m) => { m.units = { force: e.target.value as ForceUnit, length: m.units?.length }; }, `Força em ${FORCE_UNITS.find((u) => u.v === e.target.value)?.label}.`)}>
             {FORCE_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
+          </select>
+          <select aria-label="Unidade de comprimento" value={st.model.units?.length ?? 'm'} onChange={(e) => st.commit((m) => { m.units = { force: m.units?.force ?? 'kN', length: e.target.value as LengthUnit }; }, `Comprimento em ${e.target.value}.`)}>
+            {LENGTH_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
           </select>
         </label>
       </footer>

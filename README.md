@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 95 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test           # 96 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -49,7 +49,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Diagramas N, V, M (M no lado tracionado ou comprimido), deformada exata, reações, leitura no ponto ao passar o mouse
 - Linhas de influência de N, V e M, de reações de apoio e de deslocamentos de nó; trem-tipo com envoltória em toda a estrutura
 - 2ª ordem global por P-Δ (opção ao γz), desaprumo global (11.3.3.4.1), flambagem global (modos e fatores de carga crítica) e vibração livre (frequências e massas modais)
-- Unidades de força de exibição: kN, tf, kgf ou N (cálculo sempre em kN·m)
+- Unidades de exibição: força kN, tf, kgf ou N e comprimento m, cm ou mm (cálculo sempre em kN e m)
 - Tabelas (reações, deslocamentos, esforços) com CSV; exportação SVG; desfazer/refazer; salvamento automático local
 - Exportação DXF R12 em metros com camadas (geometria, nós, apoios, rótulas, cargas, cotas, textos, N, V, M e deformada do resultado ativo)
 - Cotas automáticas de vãos e níveis (toggle "Cotas"), no desenho, no SVG e no DXF
@@ -70,4 +70,4 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Blocos de coroamento (bielas e tirantes), sapatas e tubulões; várias sondagens por obra
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
 - Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
-- Cotas manuais entre nós, comprimento em cm/mm
+- Cotas manuais entre nós
