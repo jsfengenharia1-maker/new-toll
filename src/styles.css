@@ -328,7 +328,7 @@ td.neg { color: var(--bad); }
 .fund-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
 .spt { display: grid; grid-template-columns: 1fr 150px; gap: 10px; align-items: start; }
 .spt-table { display: grid; gap: 2px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
-.spt-h, .spt-r { display: grid; grid-template-columns: 24px 48px 1fr 20px; gap: 4px; align-items: center; font-size: 12px; }
+.spt-h, .spt-r { display: grid; grid-template-columns: 24px 48px 1fr 20px 20px; gap: 4px; align-items: center; font-size: 12px; }
 .spt-h { color: var(--muted); font-size: 11px; position: sticky; top: 0; background: var(--surface); }
 .spt-r input, .spt-r select { border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; background: var(--surface); font-size: 12px; min-width: 0; }
 .spt-r input { font-family: var(--font-num); text-align: right; }
@@ -389,3 +389,6 @@ td.l, th.l { text-align: left; }
   .modsw { order: 5; }
   .fund-in { border-right: 0; }
 }
+
+.spt-r.excl input { text-decoration: line-through; color: var(--muted); }
+.spt-r .x.on { color: var(--sel); font-weight: 600; }

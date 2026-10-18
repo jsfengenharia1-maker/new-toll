@@ -18,7 +18,8 @@ export const PILE_LABEL: Record<PileType, string> = {
   premoldada: 'Pré-moldada de concreto',
 };
 
-export interface SptMeter { N: number; soil: SoilClass } // índice i ↔ profundidade (i + 1) m
+/** Índice i ↔ profundidade (i + 1) m. `excluded`: leitura descartada pelo projetista (fora do padrão). */
+export interface SptMeter { N: number; soil: SoilClass; excluded?: boolean }
 /** Furo de sondagem. id e coordenadas (m, mesmo sistema dos apoios) são opcionais (arquivos antigos não têm). */
 export interface Boring { id?: number; name: string; water: number | null; meters: SptMeter[]; endImpenetrable: boolean; x?: number; y?: number }
 
@@ -36,6 +37,9 @@ export interface FLoad {
   kind?: FoundationKind;
   /** Furo de sondagem escolhido (id); sem escolha, o mais próximo (com coordenadas) ou o primeiro. */
   boringId?: number;
+  /** 'average': sondagem média dos furos `boringIds` (ausente = todos). */
+  boringMode?: 'single' | 'average';
+  boringIds?: number[];
   /** Coordenadas do apoio em planta (m), para escolher o furo mais próximo. */
   x?: number; y?: number;
   /** Seção do pilar (m): a ao longo de x (plano do pórtico), b ao longo de y. Padrão: params.colA × colB. */
@@ -68,6 +72,9 @@ export interface FoundationParams {
   gammaFfav: number; // γf da parcela permanente favorável
   // pilar (quando o apoio não informa) e concreto de blocos/sapatas
   colA: number; colB: number; // m
+  // sondagem média (a confirmar): profundidade comum a todos os furos ou até o mais profundo; NA mais raso ou médio
+  sptAvgDepth: 'common' | 'max';
+  sptAvgWater: 'shallowest' | 'mean';
   colPhi: number; // mm, bitola longitudinal do pilar (ancoragem no bloco/sapata)
   fckFound: number; // MPa, blocos e sapatas
   gammaC: number; gammaS: number;
@@ -127,8 +134,78 @@ export function boringsOf(f: Pick<FoundationData, 'boring' | 'borings'>): Boring
   });
 }
 
+/** Ordem do solo do menos para o mais favorável (coeficiente K de Décourt-Quaresma), para desempates. */
+const SOIL_ORDER: SoilClass[] = ['argila', 'silteArgiloso', 'silteArenoso', 'areia'];
+
+/** N de cálculo de um furo: leituras descartadas são trocadas pela interpolação linear das vizinhas válidas. */
+export function effectiveN(meters: SptMeter[]): number[] {
+  return meters.map((m, i) => {
+    if (!m.excluded) return m.N;
+    let a = i - 1, b = i + 1;
+    while (a >= 0 && meters[a].excluded) a--;
+    while (b < meters.length && meters[b].excluded) b++;
+    if (a >= 0 && b < meters.length) return meters[a].N + ((meters[b].N - meters[a].N) * (i - a)) / (b - a);
+    if (a >= 0) return meters[a].N;
+    if (b < meters.length) return meters[b].N;
+    return m.N;
+  });
+}
+
+/** Furo com as leituras descartadas já substituídas (o que entra no cálculo). */
+export function cleanBoring(b: Boring): Boring {
+  if (!b.meters.some((m) => m.excluded)) return b;
+  const N = effectiveN(b.meters);
+  return { ...b, meters: b.meters.map((m, i) => ({ N: Math.round(N[i] * 10) / 10, soil: m.soil })) };
+}
+
+/**
+ * Sondagem média de vários furos, metro a metro (critérios a confirmar, editáveis em params):
+ * N = média das leituras válidas (descartadas ficam fora); sem leitura válida no metro, interpola-se no perfil médio;
+ * solo = o mais frequente entre os furos (empate: o menos favorável); profundidade comum a todos ou até o mais profundo;
+ * NA = o mais raso (ou a média dos furos com NA); impenetrável se algum furo terminou impenetrável nessa profundidade.
+ */
+export function averageBoring(list: Boring[], p: Pick<FoundationParams, 'sptAvgDepth' | 'sptAvgWater'>): Boring {
+  if (list.length === 1) return cleanBoring(list[0]);
+  const lens = list.map((b) => b.meters.length);
+  const depth = p.sptAvgDepth === 'max' ? Math.max(...lens) : Math.min(...lens);
+  const meters: SptMeter[] = [];
+  const missing: number[] = [];
+  for (let i = 0; i < depth; i++) {
+    const present = list.filter((b) => i < b.meters.length);
+    const valid = present.filter((b) => !b.meters[i].excluded);
+    const pool = valid.length ? valid : present;
+    const count = new Map<SoilClass, number>();
+    for (const b of pool) count.set(b.meters[i].soil, (count.get(b.meters[i].soil) ?? 0) + 1);
+    const best = Math.max(...count.values());
+    const soil = SOIL_ORDER.find((s) => count.get(s) === best)!;
+    if (!valid.length) { missing.push(i); meters.push({ N: 0, soil, excluded: true }); continue; }
+    meters.push({ N: valid.reduce((s, b) => s + b.meters[i].N, 0) / valid.length, soil });
+  }
+  const N = effectiveN(meters);
+  const waters = list.map((b) => b.water).filter((w): w is number => w !== null);
+  const water = !waters.length ? null : p.sptAvgWater === 'mean' ? waters.reduce((s, w) => s + w, 0) / waters.length : Math.min(...waters);
+  return {
+    id: undefined, name: `Média de ${list.map((b) => b.name).join(', ')}`, water,
+    meters: meters.map((m, i) => ({ N: Math.round(N[i] * 10) / 10, soil: m.soil })),
+    endImpenetrable: list.some((b) => b.endImpenetrable && b.meters.length === depth),
+  };
+}
+
+/** Furos que entram na média do apoio (todos quando a lista não foi escolhida ou ficou vazia). */
+export function averageSet(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): Boring[] {
+  const list = boringsOf(f);
+  const sel = ld.boringIds?.length ? list.filter((b) => ld.boringIds!.includes(b.id!)) : list;
+  return sel.length ? sel : list;
+}
+
+/** Sondagem de cálculo do apoio: média dos furos escolhidos ou um furo (sem as leituras descartadas). */
+export function boringFor(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'> & { params?: Partial<FoundationParams> }): Boring {
+  if (ld.boringMode === 'average') return averageBoring(averageSet(ld, f), { ...defaultFoundationParams(), ...f.params });
+  return cleanBoring(rawBoringFor(ld, f));
+}
+
 /** Furo usado por um apoio: o escolhido; senão o mais próximo (se apoio e furos têm coordenadas); senão o primeiro. */
-export function boringFor(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): Boring {
+export function rawBoringFor(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): Boring {
   const list = boringsOf(f);
   const chosen = ld.boringId !== undefined ? list.find((b) => b.id === ld.boringId) : undefined;
   if (chosen) return chosen;
@@ -142,6 +219,14 @@ export function boringFor(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings
 /** Como o furo do apoio foi escolhido (para o memorial). */
 export function boringChoice(ld: FLoad, f: Pick<FoundationData, 'boring' | 'borings'>): string {
   const list = boringsOf(f);
+  const excl = (bs: Boring[]) => { const t = bs.flatMap((b) => b.meters.map((m, i) => (m.excluded ? `${b.name} a ${i + 1} m` : '')).filter(Boolean)); return t.length ? `; leituras descartadas: ${t.join(', ')}` : ''; };
+  if (ld.boringMode === 'average') { const s = averageSet(ld, f); return `média de ${s.length} furo(s)${excl(s)}`; }
+  const one = rawBoringFor(ld, f);
+  const tail = excl([one]) ? `${excl([one])} (interpoladas entre as vizinhas)` : '';
+  return baseChoice(ld, list) + tail;
+}
+
+function baseChoice(ld: FLoad, list: Boring[]): string {
   if (ld.boringId !== undefined && list.some((b) => b.id === ld.boringId)) return 'escolhido';
   if (ld.x !== undefined && ld.y !== undefined && list.some((b) => b.x !== undefined && b.y !== undefined)) return 'mais próximo';
   return list.length > 1 ? 'primeiro furo (sem coordenadas)' : 'único furo';
@@ -179,6 +264,7 @@ export const defaultFoundationParams = (): FoundationParams => ({
   gammaF: 1.4,
   gammaFfav: 1.0,
   colA: 0.3, colB: 0.3, colPhi: 16,
+  sptAvgDepth: 'common', sptAvgWater: 'shallowest',
   fckFound: 30, gammaC: 1.4, gammaS: 1.15,
   capThetaMin: 45, capThetaMax: 55,
   capKR: 0.9, capK2: 1.4, capK3: 1.75, capK4: 2.1, capK5: 2.1, capK6: 2.1,

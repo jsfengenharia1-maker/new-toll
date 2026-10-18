@@ -22,9 +22,9 @@ function BoringTable({ b }: { b: Boring }) {
       <h3>Sondagem {b.name}{b.water !== null ? ` · NA a ${fmt(b.water)} m` : ' · NA não encontrado'}{b.x !== undefined && b.y !== undefined ? ` · coordenadas (${fmt(b.x)}; ${fmt(b.y)}) m` : ''}</h3>
       <table>
         <thead><tr><th>Prof. (m)</th>{b.meters.map((_, i) => <th key={i}>{i + 1}</th>)}</tr></thead>
-        <tbody><tr><td className="l">N_SPT</td>{b.meters.map((m, i) => <td key={i}>{m.N}</td>)}</tr></tbody>
+        <tbody><tr><td className="l">N_SPT</td>{b.meters.map((m, i) => <td key={i}>{m.excluded ? `(${m.N})*` : fmt(m.N, Number.isInteger(m.N) ? 0 : 1)}</td>)}</tr></tbody>
       </table>
-      <p className="small">{[...new Set(b.meters.map((m) => m.soil))].map((s) => `${SOIL_LABEL[s]}: metros ${b.meters.map((m, i) => (m.soil === s ? i + 1 : 0)).filter(Boolean).join(', ')}`).join(' · ')}{b.endImpenetrable ? ' · terminou em impenetrável' : ''}</p>
+      <p className="small">{[...new Set(b.meters.map((m) => m.soil))].map((s) => `${SOIL_LABEL[s]}: metros ${b.meters.map((m, i) => (m.soil === s ? i + 1 : 0)).filter(Boolean).join(', ')}`).join(' · ')}{b.endImpenetrable ? ' · terminou em impenetrável' : ''}{b.meters.some((m) => m.excluded) ? ' · (N)* leitura descartada pelo projetista: fica fora da média; no furo isolado é interpolada entre as leituras vizinhas válidas' : ''}</p>
     </>
   );
 }
@@ -55,7 +55,9 @@ export function FoundationMemorial({ foundation, h2 }: { foundation: FoundationD
       {h2(<>Fundações</>, true)}
       <p>Tipo de fundação escolhido por apoio: {designs.map((d) => `${d.load.label} — ${KIND_LABEL[d.kind].toLowerCase()}`).join('; ')}. Cargas características no topo da fundação (envoltória das combinações raras), pilar a × b com a na direção x (plano do pórtico). Concreto de blocos e sapatas C{pp.fckFound}, γc = {fmt(pp.gammaC, 2)}, aço fyk = {pp.fyk} MPa, γs = {fmt(pp.gammaS, 2)}, γf = {fmt(pp.gammaF, 1)}, cobrimento {cm(pp.cover)} cm. Ancoragem das barras do pilar (φ{phiTxt(pp.colPhi)}) por lb = (φ/4)·fyd/fbd ≥ 25φ, fbd = 2,25·fctd (NBR 6118 9.4.2.4, boa aderência, sem gancho).</p>
       {fd.borings!.map((b) => <BoringTable key={b.id} b={b} />)}
-      {fd.borings!.length > 1 && <p className="small">Furo de cada apoio: o escolhido; sem escolha, o mais próximo quando apoio e furos têm coordenadas; senão o primeiro furo.</p>}
+      {fd.borings!.length > 1 && <p className="small">Furo de cada apoio: o escolhido; sem escolha, o mais próximo quando apoio e furos têm coordenadas; senão o primeiro furo; ou a sondagem média de todos os furos ou dos escolhidos.</p>}
+      {[...new Map(designs.filter((d) => d.load.boringMode === 'average').map((d) => [d.boring.name, d.boring])).values()].map((b) => <BoringTable key={b.name} b={b} />)}
+      {designs.some((d) => d.load.boringMode === 'average') && <p className="small">Sondagem média, metro a metro: N = média das leituras válidas dos furos (as descartadas ficam de fora; sem leitura válida no metro, interpola-se no perfil médio); solo = o mais frequente entre os furos, no empate o menos favorável (menor K de Décourt-Quaresma); profundidade {pp.sptAvgDepth === 'max' ? 'até o furo mais profundo' : 'comum a todos os furos'}; nível d'água {pp.sptAvgWater === 'mean' ? 'médio dos furos que o encontraram' : 'o mais raso'}. Critérios <TBC />.</p>}
 
       <h3>Resumo por apoio</h3>
       <table>

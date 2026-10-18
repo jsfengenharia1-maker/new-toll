@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boringFor, boringsOf, capacity, defaultFoundationParams, maxDepth, normalizeFoundation, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring, type FLoad, type FoundationData } from './piles';
+import { averageBoring, boringChoice, boringFor, boringsOf, capacity, cleanBoring, defaultFoundationParams, effectiveN, maxDepth, normalizeFoundation, pileLoads, pileStructure, sampleFoundation, solveSupport, type Boring, type FLoad, type FoundationData, type SoilClass, type SptMeter } from './piles';
 
 const uniform = (N: number, n = 15, soil: 'areia' | 'argila' = 'areia', water: number | null = null): Boring => ({ name: 't', water, endImpenetrable: false, meters: Array.from({ length: n }, () => ({ N, soil })) });
 
@@ -120,5 +120,37 @@ describe('várias sondagens por obra (C4)', () => {
     const L = (r: typeof strong) => r.byType.find((t) => t.type === 'helice')?.recommended;
     expect(L(strong)).toBeTruthy();
     if (L(soft)) expect(L(soft)!.L * L(soft)!.n).toBeGreaterThanOrEqual(L(strong)!.L * L(strong)!.n);
+  });
+});
+
+describe('SPT: furo único, média e leituras descartadas', () => {
+  const m = (N: number[], soil: SoilClass[] = []): SptMeter[] => N.map((n, i) => ({ N: n, soil: soil[i] ?? 'argila' }));
+  const A: Boring = { id: 1, name: 'A', water: 5, meters: m([4, 6, 8, 10]), endImpenetrable: false };
+  const B: Boring = { id: 2, name: 'B', water: 3, meters: m([6, 50, 12, 14, 20], ['areia', 'areia', 'areia', 'areia', 'areia']), endImpenetrable: true };
+  const f = { boring: A, borings: [A, B] };
+  it('leitura descartada num furo é interpolada entre as vizinhas', () => {
+    const b2 = { ...B, meters: B.meters.map((x, i) => (i === 1 ? { ...x, excluded: true } : x)) };
+    expect(effectiveN(b2.meters)).toEqual([6, 9, 12, 14, 20]);
+    expect(cleanBoring(b2).meters[1].N).toBe(9);
+  });
+  it('média: profundidade comum, NA mais raso, solo mais frequente com empate no menos favorável', () => {
+    const av = averageBoring([A, B], { sptAvgDepth: 'common', sptAvgWater: 'shallowest' });
+    expect(av.meters.map((x) => x.N)).toEqual([5, 28, 10, 12]);
+    expect(av.water).toBe(3);
+    expect(av.meters[0].soil).toBe('argila'); // empate argila × areia → argila
+    expect(av.endImpenetrable).toBe(false);
+  });
+  it('média sem a leitura fora do padrão usa só os demais furos no metro', () => {
+    const B2 = { ...B, meters: B.meters.map((x, i) => (i === 1 ? { ...x, excluded: true } : x)) };
+    const av = averageBoring([A, B2], { sptAvgDepth: 'max', sptAvgWater: 'mean' });
+    expect(av.meters.map((x) => x.N)).toEqual([5, 6, 10, 12, 20]);
+    expect(av.water).toBe(4);
+    expect(av.endImpenetrable).toBe(true);
+  });
+  it('apoio com média de furos escolhidos', () => {
+    const ld = { id: 1, label: 'P1', Nk: 100, NkMin: 80, Hx: 0, Hy: 0, Mx: 0, My: 0, boringMode: 'average' as const, boringIds: [1, 2] };
+    expect(boringFor(ld, f).name).toBe('Média de A, B');
+    expect(boringFor({ ...ld, boringIds: [2] }, f).name).toBe('B');
+    expect(boringChoice(ld, f)).toContain('média de 2');
   });
 });

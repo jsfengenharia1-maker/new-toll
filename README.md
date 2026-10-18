@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 132 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm test           # 136 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 ```
@@ -83,7 +83,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Blocos de coroamento sobre 1 a 6 estacas (bielas e tirantes): altura, tirantes, malha, suspensão, bielas no pilar e na estaca, croqui
 - Sapatas isoladas rígidas e flexíveis com momento em uma ou duas direções: σadm informada ou pelo SPT, área comprimida, CEB-70 ou bielas, punção, croqui
 - Tubulões a céu aberto: fuste, base alargada, cota automática acima do NA, croqui
-- Várias sondagens por obra (arquivos antigos com uma sondagem continuam abrindo)
+- Várias sondagens por obra (arquivos antigos com uma sondagem continuam abrindo); por apoio, um furo ou a média de todos/alguns; leituras fora do padrão podem ser descartadas
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

@@ -17,7 +17,7 @@ const SOILS = Object.keys(SOIL_LABEL) as SoilClass[];
 const SOIL_COLOR: Record<SoilClass, string> = { argila: '#b0764a', silteArgiloso: '#c9a36b', silteArenoso: '#d8c27a', areia: '#e6d58f' };
 const KINDS = Object.keys(KIND_LABEL) as FoundationKind[];
 /** Campos por apoio preservados ao reimportar cargas (casados pelo nome do apoio). */
-const KEEP: (keyof FLoad)[] = ['kind', 'boringId', 'x', 'y', 'ap', 'bp', 'pile'];
+const KEEP: (keyof FLoad)[] = ['kind', 'boringId', 'boringMode', 'boringIds', 'x', 'y', 'ap', 'bp', 'pile'];
 type Sel = { load: number; type?: PileType; D?: number } | null;
 type SetLoad = (id: number, fn: (l: FLoad) => void, msg?: string) => void;
 
@@ -128,14 +128,15 @@ export function Fundacoes() {
           <Check label="Sondagem terminou em impenetrável" checked={b.endImpenetrable} onChange={(v) => updB((x) => { x.endImpenetrable = v; })} />
           <div className="spt">
             <div className="spt-table">
-              <div className="spt-h"><span>m</span><span>N</span><span>Solo</span><span /></div>
+              <div className="spt-h"><span>m</span><span>N</span><span>Solo</span><span /><span /></div>
               {b.meters.map((m, i) => (
-                <div className={`spt-r${b.water !== null && i + 1 > b.water ? ' wet' : ''}`} key={i}>
+                <div className={`spt-r${b.water !== null && i + 1 > b.water ? ' wet' : ''}${m.excluded ? ' excl' : ''}`} key={i} title={m.excluded ? 'Leitura descartada: fica fora da média e é interpolada no furo isolado' : undefined}>
                   <span className="muted">{i + 1}</span>
                   <input aria-label={`N no metro ${i + 1}`} value={m.N} inputMode="numeric" onChange={(e) => { const v = parseInt(e.target.value || '0', 10); if (Number.isFinite(v)) updB((x) => { x.meters[i].N = v; }); }} />
                   <select aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => updB((x) => { x.meters[i].soil = e.target.value as SoilClass; })}>
                     {SOILS.map((s) => <option key={s} value={s}>{SOIL_LABEL[s]}</option>)}
                   </select>
+                  <button type="button" className={`x${m.excluded ? ' on' : ''}`} aria-label={m.excluded ? `Voltar a usar a leitura do metro ${i + 1}` : `Descartar a leitura do metro ${i + 1}`} title={m.excluded ? 'Voltar a usar esta leitura' : 'Descartar esta leitura (fora do padrão)'} onClick={() => updB((x) => { if (x.meters[i].excluded) delete x.meters[i].excluded; else x.meters[i].excluded = true; }, m.excluded ? `Leitura do metro ${i + 1} volta ao cálculo.` : `Leitura do metro ${i + 1} descartada.`)}>⊘</button>
                   <button type="button" className="x" aria-label="Remover metro" onClick={() => updB((x) => { x.meters.splice(i, 1); })}>×</button>
                 </div>
               ))}
@@ -147,7 +148,13 @@ export function Fundacoes() {
             <textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
           </label>
           <button type="button" className="btn ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT deste furo pelo texto colado</button>
-          <Hint>Cada apoio usa o furo escolhido no seu cartão; em “automático”, o mais próximo quando apoio e furos têm coordenadas, senão o primeiro.</Hint>
+          <Hint>Cada apoio usa o furo escolhido no seu cartão; em “automático”, o mais próximo quando apoio e furos têm coordenadas, senão o primeiro. Também é possível usar a média de todos os furos ou de alguns. ⊘ descarta uma leitura fora do padrão: na média, o metro usa só os demais furos; no furo isolado, a leitura é interpolada entre as vizinhas.</Hint>
+          {borings.length > 1 && (
+            <div className="row">
+              <Select label="Média: profundidade" value={p.sptAvgDepth} options={[{ v: 'common', label: 'comum a todos os furos' }, { v: 'max', label: 'até o furo mais profundo' }]} onChange={(v) => setP({ sptAvgDepth: v })} />
+              <Select label="Média: nível d'água" value={p.sptAvgWater} options={[{ v: 'shallowest', label: 'o mais raso' }, { v: 'mean', label: 'média dos furos' }]} onChange={(v) => setP({ sptAvgWater: v })} />
+            </div>
+          )}
         </Group>
 
         <Group title="Cargas por apoio (características)">
@@ -213,12 +220,24 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
       </div>
       <div className="row wrap fctl">
         <Select label="Fundação" value={ds.kind} options={KINDS.map((k) => ({ v: k, label: KIND_LABEL[k] }))} onChange={(v) => { setLoad(ld.id, (l) => { if (v === 'estacas') delete l.kind; else l.kind = v; }); setSel({ load: ld.id }); }} />
-        <Select label="Sondagem" value={ld.boringId ?? 0} options={[{ v: 0, label: 'Automático' }, ...borings.map((x) => ({ v: x.id!, label: x.name }))]} onChange={(v) => setLoad(ld.id, (l) => { if (!v) delete l.boringId; else l.boringId = v; })} />
+        <Select label="Sondagem" value={ld.boringMode === 'average' ? (ld.boringIds?.length ? -2 : -1) : ld.boringId ?? 0} options={[{ v: 0, label: 'Automático' }, ...borings.map((x) => ({ v: x.id!, label: x.name })), ...(borings.length > 1 ? [{ v: -1, label: 'Média de todos os furos' }, { v: -2, label: 'Média dos furos escolhidos' }] : [])]} onChange={(v) => setLoad(ld.id, (l) => {
+          if (v < 0) { l.boringMode = 'average'; delete l.boringId; if (v === -1) delete l.boringIds; else l.boringIds = l.boringIds?.length ? l.boringIds : borings.map((x) => x.id!); }
+          else { delete l.boringMode; delete l.boringIds; if (!v) delete l.boringId; else l.boringId = v; }
+        })} />
         <NumField label="Pilar a (x)" unit="cm" width={92} value={ds.ap * 100} onChange={(v) => setLoad(ld.id, (l) => { l.ap = Math.max(0.1, v / 100); })} />
         <NumField label="b (y)" unit="cm" width={80} value={ds.bp * 100} onChange={(v) => setLoad(ld.id, (l) => { l.bp = Math.max(0.1, v / 100); })} />
         <OptField label="x" unit="m" width={72} value={ld.x} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.x; else l.x = v; })} />
         <OptField label="y" unit="m" width={72} value={ld.y} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.y; else l.y = v; })} />
       </div>
+      {ld.boringMode === 'average' && ld.boringIds?.length ? (
+        <div className="chips">
+          <span className="muted small">Furos da média:</span>
+          {borings.map((x) => {
+            const on = ld.boringIds!.includes(x.id!);
+            return <button type="button" key={x.id} className={`chip${on ? ' on' : ''}`} aria-pressed={on} onClick={() => setLoad(ld.id, (l) => { const s = new Set(l.boringIds ?? []); if (on) s.delete(x.id!); else s.add(x.id!); l.boringIds = [...s]; if (!l.boringIds.length) l.boringIds = [x.id!]; })}>{x.name}</button>;
+          })}
+        </div>
+      ) : null}
       {ds.kind === 'estacas' && r && (
         <>
           <div className="fsum">
