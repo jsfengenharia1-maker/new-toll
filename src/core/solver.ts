@@ -60,6 +60,14 @@ export interface CaseResult {
 
 const DOF = 3;
 
+/** Substituições para análises não lineares: fatoração e matrizes de elemento modificadas. */
+export interface SolveOverride {
+  lu?: BandLDL;
+  elem?: (pm: PMember, em: ElemMatrices) => ElemMatrices;
+  /** Parcela global somada a K (mesma usada na fatoração), para os gdl prescritos. */
+  extra?: SpRows;
+}
+
 export interface PrepareOptions { eiFactor?: (m: Member, angleFromHorizontalDeg: number) => number }
 
 export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
@@ -116,18 +124,9 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
   model.nodes.forEach((n, k) => {
     const ang = (((n.support?.angle) ?? 0) * Math.PI) / 180;
     if (!n.support || Math.abs(ang) < 1e-12) return;
-    const c = Math.cos(ang), s = Math.sin(ang), b = k * DOF;
-    skew.push({ nodeIdx: k, c, s });
-    const cols = new Set([...K[b].keys(), ...K[b + 1].keys(), b, b + 1]);
-    for (const j of cols) {
-      const a0 = K[b].get(j) ?? 0, a1 = K[b + 1].get(j) ?? 0;
-      K[b].set(j, c * a0 + s * a1); K[b + 1].set(j, -s * a0 + c * a1);
-    }
-    for (const i of cols) {
-      const a0 = K[i].get(b) ?? 0, a1 = K[i].get(b + 1) ?? 0;
-      K[i].set(b, c * a0 + s * a1); K[i].set(b + 1, -s * a0 + c * a1);
-    }
+    skew.push({ nodeIdx: k, c: Math.cos(ang), s: Math.sin(ang) });
   });
+  applySkew(K, skew);
 
   const constrained = new Int8Array(ndof);
   model.nodes.forEach((n, k) => {
@@ -175,7 +174,36 @@ export function factorFree(K: SpRows, free: number[], freePos: Int32Array, hb: n
   }, scale);
 }
 
-function dofMap(pm: PMember) {
+/** Leva os gdl de translação dos nós com apoio inclinado para os eixos do apoio (linhas e colunas). */
+export function applySkew(K: SpRows, skew: Prepared['skew']) {
+  for (const { nodeIdx, c, s } of skew) {
+    const b = nodeIdx * DOF;
+    const cols = new Set([...K[b].keys(), ...K[b + 1].keys(), b, b + 1]);
+    for (const j of cols) {
+      const a0 = K[b].get(j) ?? 0, a1 = K[b + 1].get(j) ?? 0;
+      K[b].set(j, c * a0 + s * a1); K[b + 1].set(j, -s * a0 + c * a1);
+    }
+    for (const i of cols) {
+      const a0 = K[i].get(b) ?? 0, a1 = K[i].get(b + 1) ?? 0;
+      K[i].set(b, c * a0 + s * a1); K[i].set(b + 1, -s * a0 + c * a1);
+    }
+  }
+}
+
+/** Monta matrizes locais 6×6 (uma por barra, já condensadas) em uma matriz global esparsa com apoios inclinados. */
+export function assembleGlobal(prep: Prepared, local: (pm: PMember) => Mat | null): SpRows {
+  const G: SpRows = Array.from({ length: prep.ndof }, () => new Map<number, number>());
+  for (const pm of prep.members) {
+    const Kl = local(pm);
+    if (!Kl) continue;
+    const Kg = globalMatrix(pm.T, Kl), map = dofMap(pm);
+    for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) spAdd(G, map[a], map[b], Kg[a][b]);
+  }
+  applySkew(G, prep.skew);
+  return G;
+}
+
+export function dofMap(pm: PMember) {
   return [pm.i * DOF, pm.i * DOF + 1, pm.i * DOF + 2, pm.j * DOF, pm.j * DOF + 1, pm.j * DOF + 2];
 }
 
@@ -241,14 +269,17 @@ export function solveLoading(
   nodal: Float64Array,
   presc: Float64Array | null,
   dirac?: { member: number; a: number; e: [number, number, number] },
+  over?: SolveOverride,
 ): CaseResult {
-  const { ndof, K, free, freePos, lu } = prep;
+  const { ndof, K, free, freePos } = prep;
+  const lu = over?.lu ?? prep.lu;
   if (!lu && free.length) throw new Error(prep.error ?? 'Sistema singular');
   const F = Float64Array.from(nodal);
   const ems: ElemMatrices[] = prep.members.map((pm) => {
     const ld = dirac && dirac.member === pm.index ? { ...elemLoads[pm.index], dirac: { a: dirac.a, e: dirac.e } } : elemLoads[pm.index];
     const trivial = !dirac || dirac.member !== pm.index ? isTrivial(ld) : false;
-    const em = trivial ? pm.base : elementMatrices(pm.props, ld, pm.hingeI, pm.hingeJ);
+    const em0 = trivial ? pm.base : elementMatrices(pm.props, ld, pm.hingeI, pm.hingeJ);
+    const em = over?.elem ? over.elem(pm, em0) : em0;
     if (!trivial) {
       const fg = matVec(transpose(pm.T), em.fc);
       const map = dofMap(pm);
@@ -271,6 +302,7 @@ export function solveLoading(
       const r = free[a];
       let s = F[r];
       for (const [c, v] of K[r]) if (freePos[c] < 0 && u[c] !== 0) s -= v * u[c];
+      if (over?.extra) for (const [c, v] of over.extra[r]) if (freePos[c] < 0 && u[c] !== 0) s -= v * u[c];
       rhs[a] = s;
     }
     const x = lu!.solve(rhs);

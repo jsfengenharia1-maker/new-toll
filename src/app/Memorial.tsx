@@ -84,7 +84,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const today = new Date().toLocaleDateString('pt-BR');
   const err = a.prep.error;
 
-  const eluRes = useMemo(() => rep.elu.map((cb) => comboResult(a, cb.factors)).filter(Boolean) as CaseResult[], [a, rep]);
+  const eluRes = useMemo(() => rep.eluResults.filter(Boolean) as CaseResult[], [rep]);
   const qpRes = useMemo(() => rep.qp.map((cb) => comboResult(a, cb.factors)).filter(Boolean) as CaseResult[], [a, rep]);
 
   const exportHtml = async () => {
@@ -212,6 +212,16 @@ export function Memorial({ onClose }: { onClose: () => void }) {
           {!err && (
             <>
               <H2>Estabilidade global</H2>
+              {rep.imperfection ? <p>Imperfeição geométrica global (desaprumo, NBR 6118, 11.3.3.4.1): θ1 = 1/(100·√H) com 1/300 ≤ θ1 ≤ 1/200; H = {fmt(rep.imperfection.H)} m → θ1 = 1/{Math.round(1 / rep.imperfection.theta1)}; θa = θ1·√((1 + 1/n)/2) com n = {rep.imperfection.n} prumadas → θa = 1/{Math.round(1 / rep.imperfection.thetaA)}. Aplicado como forças horizontais θa·V nos nós (V = carga vertical da combinação). Com vento: só vento quando 30% dele supera o desaprumo; só desaprumo quando o vento é menor que 30% do desaprumo; nos demais casos, ambos no mesmo sentido (comparação pelo momento de tombamento na base). Sem vento: desaprumo nos dois sentidos.</p> : <p>Desaprumo global não considerado (opção do projetista).</p>}
+              {rep.secondOrder.mode === 'pdelta' && (
+                <>
+                  <p>Efeitos globais de 2ª ordem por análise P-Δ: matriz de rigidez geométrica consistente das barras com a força normal da iteração anterior, rigidez reduzida 0,4·{rep.settings.gammaZModulus === 'Ecs' ? 'Ecs' : 'Eci'}·Ic (vigas) e 0,8·{rep.settings.gammaZModulus === 'Ecs' ? 'Ecs' : 'Eci'}·Ic (pilares), até a variação dos deslocamentos ser menor que 10⁻⁴ (máx. 30 iterações). Os esforços de dimensionamento são os desta análise; a parcela local P-δ fica com o pilar-padrão. Não se aplica o 0,95·γz ao vento.</p>
+                  <table>
+                    <thead><tr><th className="l">Combinação</th><th>Amplificação δh</th><th>Iterações</th><th className="l">Situação</th></tr></thead>
+                    <tbody>{rep.secondOrder.rows.map((r) => <tr key={r.combo}><td className="l">{r.combo}</td><td>{Number.isFinite(r.amplification) ? fmt(r.amplification, 3) : '∞'}</td><td>{r.iterations}</td><td className="l">{r.converged ? 'convergiu' : r.error ?? 'não convergiu'}</td></tr>)}</tbody>
+                  </table>
+                </>
+              )}
               {rep.gammaZ.rows.length === 0 ? <p>Não há combinações ELU com ações horizontais; γz não se aplica.</p> : (
                 <>
                   <p>γz = 1 / (1 − ΔMtot,d / M1,tot,d), com ΔMtot,d obtido com rigidez reduzida (0,4·{(rep.settings.gammaZModulus ?? 'Eci') === 'Eci' ? 'Eci' : 'Ecs'}·Ic nas vigas e 0,8·{(rep.settings.gammaZModulus ?? 'Eci') === 'Eci' ? 'Eci' : 'Ecs'}·Ic nos pilares; NBR 6118, 15.7.3{(rep.settings.gammaZModulus ?? 'Eci') === 'Ecs' ? '; Ecs no lugar de Eci por opção do projetista, a favor da segurança' : ''}).</p>
@@ -219,7 +229,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
                     <thead><tr><th className="l">Combinação</th><th>M1,tot,d (kN·m)</th><th>ΔMtot,d (kN·m)</th><th>γz</th></tr></thead>
                     <tbody>{rep.gammaZ.rows.map((r) => <tr key={r.combo}><td className="l">{r.combo}</td><td>{fmt(r.M1)}</td><td>{fmt(r.dM)}</td><td>{fmt(r.gz, 3)}</td></tr>)}</tbody>
                   </table>
-                  <p>γz máximo = <b>{fmt(rep.gammaZ.max, 3)}</b>: {rep.gammaZ.cls === 'fixed' ? 'estrutura de nós fixos (γz ≤ 1,10); efeitos globais de 2ª ordem desprezáveis.' : rep.gammaZ.cls === 'mobile' ? 'estrutura de nós móveis (1,10 < γz ≤ 1,30); as ações de vento foram majoradas por 0,95·γz nas combinações ELU usadas no dimensionamento.' : 'γz > 1,30: a estrutura é excessivamente deslocável; é necessária análise de 2ª ordem refinada.'} <span className="small">O γz é definido na NBR 6118 para edificações de 4 ou mais pavimentos; para estruturas baixas o valor é indicativo.</span></p>
+                  <p>γz máximo = <b>{fmt(rep.gammaZ.max, 3)}</b>: {rep.gammaZ.cls === 'fixed' ? 'estrutura de nós fixos (γz ≤ 1,10); efeitos globais de 2ª ordem desprezáveis.' : rep.gammaZ.cls === 'mobile' ? 'estrutura de nós móveis (1,10 < γz ≤ 1,30); as ações de vento foram majoradas por 0,95·γz nas combinações ELU usadas no dimensionamento.' : 'γz > 1,30: a estrutura é excessivamente deslocável; é necessária análise de 2ª ordem refinada.'} <span className="small">O γz é definido na NBR 6118 para edificações de 4 ou mais pavimentos; para estruturas baixas o valor é indicativo. Em combinações em que a ação horizontal é só o desaprumo, a deriva lateral das cargas verticais em estruturas assimétricas distorce o γz; nesses casos a análise P-Δ é mais representativa.</span>{rep.secondOrder.mode === 'pdelta' ? ' Valores apenas informativos: o dimensionamento usa a análise P-Δ.' : ''}</p>
                 </>
               )}
 

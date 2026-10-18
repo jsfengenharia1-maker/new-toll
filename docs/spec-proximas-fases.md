@@ -33,7 +33,7 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 - **Método:** relações mestre-escravo entre gdl, ou multiplicadores de Lagrange no solver. Para barra rígida, a proposta é a transformação cinemática, que mantém a matriz positiva definida.
 - **Testes:** pórtico com viga inextensível comparado com o mesmo pórtico com EA muito grande; diferença < 1e-6.
 
-### A3. Não linearidade geométrica (2ª ordem)
+### A3. Não linearidade geométrica (2ª ordem) — **feito** (18/10/2026): P-Δ iterativo com matriz geométrica consistente, rigidez reduzida 0,4/0,8·Eci·Ic (opção Ecs), desaprumo θa com a regra dos 30% do vento, máx. 30 iterações; opção em Dimensionar › Premissas. P-δ local fica no pilar-padrão.
 - **Objetivo:** esforços de 2ª ordem globais por combinação ELU, como alternativa ao γz.
 - **Método:** matriz geométrica do elemento (Kg) com N da iteração anterior. Iteração até convergência de deslocamentos (tolerância 1e-4) ou método de dois ciclos (P-Δ simplificado). Divergência sinaliza instabilidade.
 - **[confirmar]:**
@@ -43,14 +43,14 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 - **Saída:** fator de amplificação por combinação, comparação com γz no memorial e opção "usar esforços P-Δ no dimensionamento".
 - **Testes:** pilar engastado-livre com carga axial e horizontal contra a fórmula de amplificação 1/(1−P/Pcr); pórtico de livro-texto.
 
-### A4. Flambagem global (autovalores de estabilidade)
+### A4. Flambagem global — **feito** (18/10/2026): iteração em subespaço sobre (K + λ·K_G)φ = 0, até 4 modos, desenho do modo. Uso de Le = π√(EI/Ncr) no dimensionamento não foi implementado (opcional na proposta).
 - **Objetivo:** fatores de carga crítica e modos de flambagem por combinação.
 - **Método:** problema generalizado (K + λ·Kg)·φ = 0, com N da análise linear da combinação. Resolvido por iteração inversa com deslocamento ou Lanczos, nos primeiros 3 a 5 modos.
 - **Interface:** na aba Resultados, "Modos de flambagem", com λcr e desenho do modo. Opção de usar Le = π·√(EI/Ncr) por barra no dimensionamento de pilares, no lugar de L.
 - **[confirmar]:** se Le obtido assim pode substituir o comprimento informado por barra. Proposta: opcional, desligado por padrão.
 - **Testes:** as 4 condições de Euler; pórtico simples contra valores tabelados.
 
-### A5. Vibração livre (modos naturais)
+### A5. Vibração livre — **feito** (18/10/2026): massas concentradas G + ψ2·Q (pela combinação quase permanente) / g, 6 modos, frequência, período e massa modal efetiva X/Y. Matriz de massa consistente e verificação de conforto de pisos (fcrit) ficaram de fora.
 - **Objetivo:** frequências, modos, fatores de participação e massa modal efetiva.
 - **Método:** (K − ω²·M)·φ = 0, com matriz de massa consistente do elemento.
 - **[confirmar]:**

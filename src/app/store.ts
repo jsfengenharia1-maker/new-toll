@@ -45,6 +45,8 @@ interface State {
   libraryOpen: boolean;
   module: 'portico' | 'fundacoes';
   libraryId: string | null;
+  /** Modo de flambagem ou de vibração desenhado sobre a estrutura (vetor de deslocamentos global). */
+  modeView: { title: string; shape: number[] } | null;
   /** Há alterações não gravadas no arquivo de trabalho do computador. */
   unsaved: boolean;
   setUnsaved: (v: boolean) => void;
@@ -113,6 +115,7 @@ export const useStore = create<State>((set, get) => ({
   libraryOpen: false,
   module: 'portico',
   libraryId: null,
+  modeView: null,
   unsaved: readUnsaved(),
   setUnsaved: (v) => { flagUnsaved(v); set({ unsaved: v }); },
   message: saved
@@ -124,13 +127,14 @@ export const useStore = create<State>((set, get) => ({
     if (next === cur) return;
     persist(next);
     flagUnsaved(true);
-    set({ unsaved: true, model: next, past: [...get().past.slice(-199), cur], future: [], trainResult: null, ...(msg ? { message: msg } : {}) });
+    set({ modeView: null, unsaved: true, model: next, past: [...get().past.slice(-199), cur], future: [], trainResult: null, ...(msg ? { message: msg } : {}) });
   },
   setModel: (m, resetHistory = true, fromFile = false) => {
     persist(m);
     flagUnsaved(!fromFile);
     set({
       unsaved: !fromFile,
+      modeView: null,
       model: m,
       past: resetHistory ? [] : [...get().past, get().model],
       future: [],

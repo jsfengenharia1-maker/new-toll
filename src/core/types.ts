@@ -129,6 +129,12 @@ export interface DesignSettings {
   t0Months?: number;
   /** Vigas suportam alvenaria: limita a parcela da flecha após a parede a ℓ/500 e 10 mm (Tab. 13.3). */
   masonry?: boolean;
+  /** Efeitos globais de 2ª ordem: γz (com 0,95·γz no vento) ou análise P-Δ com rigidez reduzida. */
+  secondOrder?: 'gammaZ' | 'pdelta';
+  /** Imperfeição geométrica global (desaprumo, NBR 6118 11.3.3.4.1) nas combinações ELU. */
+  imperfection?: boolean;
+  /** Número de prumadas de pilares para θa (ausente: pilares que chegam aos apoios). */
+  imperfectionColumns?: number;
 }
 
 export interface ProjectInfo {

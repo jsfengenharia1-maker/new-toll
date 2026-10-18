@@ -4,6 +4,7 @@ import { Check, Group, Hint, Seg, copyText, download } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
 import { useUnits, type Units } from '../units';
+import { ModosGroup } from './Modos';
 
 export function sourceOptions(model: { cases: { id: number; name: string }[]; combinations: { id: number; name: string }[] }) {
   const opts: { key: string; label: string; src: Source }[] = [];
@@ -93,6 +94,7 @@ export function ResultadosPanel() {
           </>
         )}
       </Group>
+      <ModosGroup />
     </div>
   );
 }

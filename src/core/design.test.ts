@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from './solver';
-import { deltaXi, runDesign } from './design';
+import { deltaXi, imperfectionOf, runDesign } from './design';
+import { defaultDesign } from './types';
 import { designSteel } from './steel';
 import { samplePortico, sampleViga } from '../app/samples';
 
@@ -71,5 +72,39 @@ describe('ajustes NBR 6118 do dimensionamento', () => {
     const m = sampleViga();
     const rep = runDesign({ ...m, design: { ...(m.design ?? {}), masonry: true } as typeof m.design }, analyze(m));
     for (const b of rep.members) expect(b.deflection?.after?.limit).toBeLessThanOrEqual(0.01);
+  });
+});
+
+describe('desaprumo e 2ª ordem global', () => {
+  it('θa = θ1·√((1+1/n)/2), com 1/300 ≤ θ1 ≤ 1/200', () => {
+    const m = samplePortico();
+    const imp = imperfectionOf(m, { ...defaultDesign() })!;
+    const ys = m.nodes.map((n) => n.y), H = Math.max(...ys) - Math.min(...ys);
+    const t1 = Math.min(1 / 200, Math.max(1 / 300, 1 / (100 * Math.sqrt(H))));
+    expect(imp.theta1).toBeCloseTo(t1, 12);
+    expect(imp.n).toBe(2);
+    expect(imp.thetaA).toBeCloseTo(t1 * Math.sqrt(0.75), 12);
+    expect(imperfectionOf(m, { ...defaultDesign(), imperfection: false })).toBeNull();
+  });
+  it('combinações sem vento recebem desaprumo nos dois sentidos', () => {
+    const m = samplePortico();
+    const rep = runDesign(m, analyze(m));
+    expect(rep.elu.some((c) => c.desap === 1)).toBe(true);
+    expect(rep.elu.some((c) => c.desap === -1 || c.desap === undefined)).toBe(true);
+    expect(rep.eluResults.length).toBe(rep.elu.length);
+  });
+  it('modo P-Δ: converge e amplifica como o γz nas combinações com vento', () => {
+    const m = samplePortico();
+    const a = analyze(m);
+    const gz = runDesign(m, a);
+    const pd = runDesign({ ...m, design: { ...(m.design ?? {}), secondOrder: 'pdelta' } as typeof m.design }, a);
+    expect(pd.secondOrder.mode).toBe('pdelta');
+    expect(pd.secondOrder.rows.every((r) => r.converged)).toBe(true);
+    // nas combinações com vento principal (M1 dominado pelo vento) a amplificação P-Δ ≈ γz
+    for (const r of pd.secondOrder.rows.filter((x) => x.combo.includes('Vento principal'))) {
+      const g = gz.gammaZ.rows.find((x) => x.combo === r.combo)!;
+      expect(r.amplification).toBeGreaterThan(1);
+      expect(Math.abs(r.amplification - g.gz)).toBeLessThan(0.01);
+    }
   });
 });

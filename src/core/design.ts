@@ -1,6 +1,7 @@
 // Orquestra o dimensionamento: combinações, estabilidade global (γz), barras de concreto e aço, flechas e cargas na fundação.
-import { analyze, combine, memberLoads, type Analysis, type CaseResult } from './solver';
-import { elementMatrices } from './element';
+import { analyze, combine, memberLoads, prepare, solveLoading, type Analysis, type CaseResult } from './solver';
+import { comboLoading, pDelta } from './secondorder';
+import { elementMatrices, noLoad } from './element';
 import { P, matVec, transpose } from './math';
 import { caseGroup, exclusiveChoices, nbrCombinations } from './edit';
 import {
@@ -10,7 +11,10 @@ import {
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
 
-export interface NamedCombo { name: string; factors: Record<number, number>; kind: ComboKind; auto?: boolean; windAmp?: number }
+export interface NamedCombo { name: string; factors: Record<number, number>; kind: ComboKind; auto?: boolean; windAmp?: number; /** desaprumo: +1 / −1 (sentido de x) ou ausente */ desap?: number }
+
+export interface Imperfection { H: number; n: number; nAuto: number; theta1: number; thetaA: number }
+export interface SecondOrderRow { combo: string; amplification: number; iterations: number; converged: boolean; error?: string }
 
 export interface BeamDesign {
   section: BeamSection; d: number; cover: number;
@@ -49,6 +53,10 @@ export interface DesignReport {
   elu: NamedCombo[]; qp: NamedCombo[]; rare: NamedCombo[];
   autoElu: boolean;
   gammaZ: { rows: GammaZRow[]; max: number; cls: 'fixed' | 'mobile' | 'excessive' | 'none' };
+  imperfection: Imperfection | null;
+  secondOrder: { mode: 'gammaZ' | 'pdelta'; rows: SecondOrderRow[] };
+  /** Resultados das combinações ELU efetivamente usadas (mesma ordem de `elu`). */
+  eluResults: (CaseResult | null)[];
   members: MemberDesign[];
   foundation: FoundationRow[];
   warnings: string[];
@@ -130,26 +138,111 @@ function equivalentNodal(a: Analysis, caseId: number): Float64Array {
   return F;
 }
 
-function gammaZ(model: Model, a: Analysis, elu: NamedCombo[], modulus: 'Eci' | 'Ecs' = 'Eci'): DesignReport['gammaZ'] {
-  const red = analyze(model, { eiFactor: (m, ang) => {
+/** Desaprumo global: θ1 = 1/(100√H), 1/300 ≤ θ1 ≤ 1/200; θa = θ1·√((1 + 1/n)/2) (11.3.3.4.1). */
+export function imperfectionOf(model: Model, settings: DesignSettings): Imperfection | null {
+  if (settings.imperfection === false || !model.nodes.length) return null;
+  const ys = model.nodes.map((n) => n.y);
+  const H = Math.max(...ys) - Math.min(...ys);
+  if (H < 1e-6) return null;
+  const sup = new Set(model.nodes.filter((n) => n.support).map((n) => n.id));
+  const nAuto = model.members.filter((m) => {
+    const a = model.nodes.find((n) => n.id === m.ni), b = model.nodes.find((n) => n.id === m.nj);
+    return !!a && !!b && roleOf(model, angleOf(b.x - a.x, b.y - a.y), m.role) === 'column' && (sup.has(m.ni) || sup.has(m.nj));
+  }).length;
+  const n = Math.max(1, Math.round(settings.imperfectionColumns ?? nAuto) || 1);
+  const theta1 = Math.min(1 / 200, Math.max(1 / 300, 1 / (100 * Math.sqrt(H))));
+  return { H, n, nAuto, theta1, thetaA: theta1 * Math.sqrt((1 + 1 / n) / 2) };
+}
+
+/** Resultados unitários do desaprumo por caso (+x): forças θa·V nos nós, V = carga vertical equivalente do caso. */
+function desapResults(a: Analysis, model: Model, thetaA: number, eq: Map<number, Float64Array>): Map<number, CaseResult> {
+  const out = new Map<number, CaseResult>();
+  if (!a.prep.lu) return out;
+  const zero = a.prep.members.map(() => noLoad());
+  for (const c of model.cases) {
+    const F = eq.get(c.id);
+    if (!F) continue;
+    const nodal = new Float64Array(a.prep.ndof);
+    let any = false;
+    for (let k = 0; k * 3 < nodal.length; k++) { const V = -F[k * 3 + 1]; if (V) { nodal[k * 3] = thetaA * V; any = true; } }
+    if (any) out.set(c.id, solveLoading(a.prep, zero, nodal, null));
+  }
+  return out;
+}
+
+/** Resultado de uma combinação ELU incluindo o desaprumo (superposição dos resultados unitários por caso). */
+export function comboResultWith(a: Analysis, cb: NamedCombo, desap: Map<number, CaseResult>): CaseResult | null {
+  const base = comboResult(a, cb.factors);
+  if (!base || !cb.desap) return base;
+  const list: CaseResult[] = [base], fs: number[] = [1];
+  for (const [id, f] of Object.entries(cb.factors)) { const d = desap.get(+id); if (d && f) { list.push(d); fs.push(f * cb.desap); } }
+  return combine(list, fs);
+}
+
+/**
+ * Aplica o desaprumo às combinações ELU pela regra do vento (11.3.3.4.1): se 30% da ação do vento supera
+ * o desaprumo, só vento; se o vento é menor que 30% do desaprumo, só desaprumo; senão, ambos no mesmo sentido.
+ * Sem vento, o desaprumo entra nos dois sentidos. A comparação usa o momento de tombamento na base.
+ */
+function withImperfection(model: Model, elu: NamedCombo[], imp: Imperfection, eq: Map<number, Float64Array>): NamedCombo[] {
+  const ybase = Math.min(...model.nodes.map((n) => n.y));
+  const momentOf = (caseId: number, horizontal: boolean) => {
+    const F = eq.get(caseId);
+    if (!F) return 0;
+    let m = 0;
+    model.nodes.forEach((n, k) => { m += (horizontal ? F[k * 3] : imp.thetaA * -F[k * 3 + 1]) * (n.y - ybase); });
+    return m;
+  };
+  const out: NamedCombo[] = [];
+  for (const cb of elu) {
+    let Mw = 0, Md = 0, hasW = false;
+    for (const [id, f] of Object.entries(cb.factors)) {
+      const c = model.cases.find((x) => x.id === +id);
+      if (!c || !f) continue;
+      Md += f * momentOf(c.id, false);
+      if (c.nature === 'W') { hasW = true; Mw += f * momentOf(c.id, true); }
+    }
+    Md = Math.abs(Md);
+    if (Md < 1e-9) { out.push(cb); continue; }
+    if (!hasW || Math.abs(Mw) < 1e-9) {
+      out.push({ ...cb, name: `${cb.name} · desaprumo +x`, desap: 1 }, { ...cb, name: `${cb.name} · desaprumo −x`, desap: -1 });
+      continue;
+    }
+    const sign = Math.sign(Mw);
+    if (0.3 * Math.abs(Mw) >= Md) out.push(cb);
+    else if (Math.abs(Mw) < 0.3 * Md) {
+      const f = { ...cb.factors };
+      for (const c of model.cases) if (c.nature === 'W') delete f[c.id];
+      out.push({ ...cb, name: `${cb.name} · só desaprumo (vento < 30%)`, factors: f, desap: sign });
+    } else out.push({ ...cb, name: `${cb.name} + desaprumo`, desap: sign });
+  }
+  return out;
+}
+
+function reducedStiffness(model: Model, modulus: 'Eci' | 'Ecs') {
+  return (m: Model['members'][number], ang: number) => {
     const mat = model.materials.find((x) => x.id === m.material);
     if (mat?.kind === 'steel') return 0.8;
-    // 15.7.3: 0,4·Eci·Ic (vigas) e 0,8·Eci·Ic (pilares); o E da análise é o do material (Ecs no concreto)
     const isConc = mat?.kind === 'concrete' || (!mat?.kind && !!mat?.fck);
     const toEci = isConc && modulus === 'Eci' && mat?.fck ? (concrete(mat.fck).Eci * 1000) / mat.E : 1;
     return (roleOf(model, ang, m.role) === 'column' ? 0.8 : 0.4) * toEci;
-  } });
+  };
+}
+
+function gammaZ(model: Model, elu: NamedCombo[], modulus: 'Eci' | 'Ecs', imp: Imperfection | null, eq: Map<number, Float64Array>): DesignReport['gammaZ'] {
+  const red = analyze(model, { eiFactor: reducedStiffness(model, modulus) });
   if (red.prep.error) return { rows: [], max: 0, cls: 'none' };
-  const eq = new Map(model.cases.map((c) => [c.id, equivalentNodal(a, c.id)]));
+  const desap = imp ? desapResults(red, model, imp.thetaA, eq) : new Map<number, CaseResult>();
   const ybase = Math.min(...model.nodes.filter((n) => n.support).map((n) => n.y), ...model.nodes.map((n) => n.y));
   const rows: GammaZRow[] = [];
   for (const cb of elu) {
-    const r = comboResult(red, cb.factors);
+    const r = comboResultWith(red, cb, desap);
     if (!r) continue;
     let M1 = 0, dM = 0, Hsum = 0;
     model.nodes.forEach((n, k) => {
       let H = 0, V = 0;
       for (const [id, f] of Object.entries(cb.factors)) { const F = eq.get(+id); if (F) { H += f * F[k * 3]; V += f * F[k * 3 + 1]; } }
+      if (cb.desap && imp) H += cb.desap * imp.thetaA * -V;
       Hsum += Math.abs(H);
       M1 += H * (n.y - ybase);
       dM += -V * r.u[k * 3];
@@ -179,26 +272,54 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   const settings = { ...defaultDesign(), ...(model.design ?? {}) };
   const warnings: string[] = [];
   const { elu: elu0, qp, rare, autoElu } = designCombos(model);
-  const empty: DesignReport = { settings, conc: new Map(), elu: elu0, qp, rare, autoElu, gammaZ: { rows: [], max: 0, cls: 'none' }, members: [], foundation: [], warnings, ok: false };
+  const empty: DesignReport = { settings, conc: new Map(), elu: elu0, qp, rare, autoElu, gammaZ: { rows: [], max: 0, cls: 'none' }, imperfection: null, secondOrder: { mode: settings.secondOrder ?? 'gammaZ', rows: [] }, eluResults: [], members: [], foundation: [], warnings, ok: false };
   if (a.prep.error) { warnings.push(a.prep.error); return empty; }
   if (autoElu) warnings.push('Nenhuma combinação ELU no modelo: usadas combinações NBR 8681 geradas automaticamente pela natureza dos casos.');
 
-  // estabilidade global
-  const gz = gammaZ(model, a, elu0, settings.gammaZModulus ?? 'Eci');
-  let elu = elu0;
-  if (gz.cls === 'mobile') {
-    elu = elu0.map((cb) => {
-      const row = gz.rows.find((r) => r.combo === cb.name);
-      if (!row || row.gz <= 1.1) return cb;
-      const amp = 0.95 * row.gz;
-      const f = { ...cb.factors };
-      for (const c of model.cases) if (c.nature === 'W' && f[c.id]) f[c.id] *= amp;
-      return { ...cb, factors: f, windAmp: amp };
+  // estabilidade global: desaprumo, γz e (opcional) P-Δ
+  const modulus = settings.gammaZModulus ?? 'Eci';
+  const mode = settings.secondOrder ?? 'gammaZ';
+  const eq = new Map(model.cases.map((c) => [c.id, equivalentNodal(a, c.id)]));
+  const imp = imperfectionOf(model, settings);
+  const elu1 = imp ? withImperfection(model, elu0, imp, eq) : elu0;
+  if (imp) warnings.push(`Desaprumo global θa = 1/${Math.round(1 / imp.thetaA)} (H = ${imp.H.toFixed(2)} m, n = ${imp.n} prumadas) nas combinações ELU (NBR 6118, 11.3.3.4.1).`);
+  const gz = gammaZ(model, elu1, modulus, imp, eq);
+  let elu = elu1;
+  const soRows: SecondOrderRow[] = [];
+  let eluResults: (CaseResult | null)[];
+  if (mode === 'pdelta') {
+    const red = prepare(model, { eiFactor: reducedStiffness(model, modulus) });
+    eluResults = elu.map((cb) => {
+      if (red.error) return null;
+      let extra: Float64Array | undefined;
+      if (cb.desap && imp) {
+        extra = new Float64Array(red.ndof);
+        for (const [id, f] of Object.entries(cb.factors)) { const F = eq.get(+id); if (F) for (let k = 0; k * 3 < extra.length; k++) extra[k * 3] += cb.desap * f * imp.thetaA * -F[k * 3 + 1]; }
+      }
+      const r = pDelta(red, comboLoading(red, cb.factors, extra));
+      soRows.push({ combo: cb.name, amplification: r.amplification, iterations: r.iterations, converged: r.converged, error: r.error });
+      return r.result;
     });
-    warnings.push(`γz = ${gz.max.toFixed(3)}: estrutura de nós móveis. Ações de vento majoradas por 0,95·γz nas combinações ELU (NBR 6118, 15.7.2).`);
-  } else if (gz.cls === 'excessive') warnings.push(`γz = ${gz.max.toFixed(3)} > 1,3: deslocabilidade excessiva. É necessária análise de 2ª ordem refinada ou enrijecer a estrutura.`);
+    const bad = soRows.filter((r) => !r.converged);
+    warnings.push(`Efeitos globais de 2ª ordem por análise P-Δ (matriz geométrica, rigidez reduzida 0,4/0,8·${modulus}·Ic). Amplificação máxima dos deslocamentos horizontais: ${Math.max(1, ...soRows.map((r) => (Number.isFinite(r.amplification) ? r.amplification : 1))).toFixed(3)}.`);
+    if (bad.length) warnings.push(`P-Δ sem convergência em ${bad.length} combinação(ões): ${bad[0].error ?? ''}`);
+  } else {
+    if (gz.cls === 'mobile') {
+      elu = elu1.map((cb) => {
+        const row = gz.rows.find((r) => r.combo === cb.name);
+        if (!row || row.gz <= 1.1) return cb;
+        const amp = 0.95 * row.gz;
+        const f = { ...cb.factors };
+        for (const c of model.cases) if (c.nature === 'W' && f[c.id]) f[c.id] *= amp;
+        return { ...cb, factors: f, windAmp: amp };
+      });
+      warnings.push(`γz = ${gz.max.toFixed(3)}: estrutura de nós móveis. Ações de vento majoradas por 0,95·γz nas combinações ELU (NBR 6118, 15.7.2).`);
+    } else if (gz.cls === 'excessive') warnings.push(`γz = ${gz.max.toFixed(3)} > 1,3: deslocabilidade excessiva. Use a análise P-Δ (Dimensionar › Efeitos de 2ª ordem) ou enrijeça a estrutura.`);
+    const desap = imp ? desapResults(a, model, imp.thetaA, eq) : new Map<number, CaseResult>();
+    eluResults = elu.map((cb) => comboResultWith(a, cb, desap));
+  }
 
-  const eluRes = elu.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
+  const eluRes = elu.map((cb, i) => ({ cb, r: eluResults[i] })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const qpRes = qp.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const rareRes = rare.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
 
@@ -449,8 +570,8 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     foundation.push({ nodeId: n.id, perCase, charMax: ch.mx, charMin: ch.mn, designMax: de.mx, designMin: de.mn, charComboMaxN: ch.comboN, designComboMaxN: de.comboN });
   });
 
-  const ok = members.every((m) => m.status !== 'fail') && gz.cls !== 'excessive';
-  return { settings, conc, elu, qp, rare, autoElu, gammaZ: gz, members, foundation, warnings, ok };
+  const ok = members.every((m) => m.status !== 'fail') && (mode === 'pdelta' ? soRows.every((r) => r.converged) : gz.cls !== 'excessive');
+  return { settings, conc, elu, qp, rare, autoElu, gammaZ: gz, imperfection: imp, secondOrder: { mode, rows: soRows }, eluResults, members, foundation, warnings, ok };
 }
 
 export { barArea, ES };

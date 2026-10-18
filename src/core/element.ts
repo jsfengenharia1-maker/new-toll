@@ -129,7 +129,7 @@ export function elementMatrices(p: ElemProps, ld: ElemLoad, releaseI: boolean, r
   return { K, f, Kc, fc, released };
 }
 
-function condense(K: Mat, f: number[], R: number[]) {
+export function condense(K: Mat, f: number[], R: number[]) {
   if (!R.length) return { Kc: K.map((r) => r.slice()), fc: f.slice() };
   const Kc = K.map((r) => r.slice());
   const fc = f.slice();

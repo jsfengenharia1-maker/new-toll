@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 61 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test         # vitest: 70 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -26,6 +26,7 @@ Veja a tabela no `README.md`. Resumo:
   - `element.ts`: elemento por flexibilidade, com rótulas por condensação e ligações semirrígidas (1/k somado à flexibilidade).
   - `solver.ts`: rigidez direta (K esparsa, Cuthill-McKee reversa, LDLᵀ em banda em `math.ts`), apoio inclinado exato, molas, recalques, combinações.
   - `influence.ts`: linhas de influência por Müller-Breslau e trem-tipo.
+  - `secondorder.ts`: P-Δ (matriz geométrica), flambagem global e vibração livre (iteração em subespaço).
   - `concrete.ts`: NBR 6118.
   - `steel.ts`: NBR 8800.
   - `design.ts`: orquestra combinações, γz, verificações e cargas na fundação.
@@ -54,6 +55,8 @@ Veja a tabela no `README.md`. Resumo:
   - λ > 90 marca "revisar".
 - γz com rigidez reduzida (0,4·Eci·Ic nas vigas, 0,8·Eci·Ic nos pilares, como na 15.7.3; opção Ecs a favor da segurança; aço 0,8EI). Entre 1,1 e 1,3, o vento (casos W) é majorado por 0,95γz nas combinações ELU.
 - Cargas na fundação, seguindo o padrão Eberick/TQS: valores característicos por caso + envoltória das combinações raras para a verificação geotécnica, e envoltória ELU para o dimensionamento estrutural do elemento de fundação.
+- Desaprumo global θa (11.3.3.4.1) nas ELU, com a regra dos 30% do vento; opção de 2ª ordem por P-Δ (rigidez reduzida) no lugar do γz.
+- Vibração: massa = cargas verticais da combinação quase permanente / g, concentrada nos nós.
 - Combinações: casos com o mesmo grupo excludente nunca atuam juntos (vento no grupo "vento" por padrão); para cada principal também a combinação sem acompanhantes.
 - Fluência: t0 editável (padrão 1 mês, Δξ = 1,32); ρ' = armadura de compressão do vão.
 - Memorial na ordem TQS / ABECE 003:2015, exportado em HTML.
@@ -98,7 +101,6 @@ Veja a tabela no `README.md`. Resumo:
 
 ## Próximos passos sugeridos
 1. Blocos de coroamento (bielas e tirantes) a partir das estacas escolhidas; sapatas; tubulões; várias sondagens por obra.
-2. Não linear geométrico (P-Δ / matriz geométrica).
 3. Pilares circulares e em L; pré-moldado NBR 9062 (consolos, ligações); abertura de fissuras.
 4. Biblioteca de perfis metálicos BR; exportação DXF/PDF.
 

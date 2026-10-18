@@ -116,12 +116,23 @@ export function DimensionarPanel() {
         </div>
         <Hint>Cobrimentos nominais da Tabela 7.2 (Δc = 10 mm). Ao trocar a CAA, os cobrimentos voltam ao valor da tabela.</Hint>
         <div className="row">
+          <Select label="Efeitos globais de 2ª ordem" value={ds.secondOrder ?? 'gammaZ'} options={[{ v: 'gammaZ', label: 'γz (vento × 0,95·γz)' }, { v: 'pdelta', label: 'Análise P-Δ (matriz geométrica)' }]} onChange={(v) => upd({ secondOrder: v })} />
+        </div>
+        <Check label="Desaprumo global nas combinações ELU (11.3.3.4.1)" checked={ds.imperfection !== false} onChange={(v) => upd({ imperfection: v })} />
+        {ds.imperfection !== false && rep.imperfection && (
+          <div className="row">
+            <NumField label="Prumadas de pilares (n)" value={ds.imperfectionColumns ?? rep.imperfection.nAuto} onChange={(v) => upd({ imperfectionColumns: Math.max(1, Math.round(v)) })} />
+            <span className="muted small">θa = 1/{Math.round(1 / rep.imperfection.thetaA)} · H = {fmt(rep.imperfection.H)} m</span>
+          </div>
+        )}
+        <div className="row">
           <Select label="Rigidez do γz (15.7.3)" value={ds.gammaZModulus ?? 'Eci'} options={[{ v: 'Eci', label: '0,4/0,8 · Eci·Ic (norma)' }, { v: 'Ecs', label: '0,4/0,8 · Ecs·Ic (a favor da segurança)' }]} onChange={(v) => upd({ gammaZModulus: v })} />
         </div>
         <div className="row">
           <NumField label="Idade do carregamento t0" unit="meses" value={ds.t0Months ?? 1} onChange={(v) => upd({ t0Months: Math.max(0, v) })} />
         </div>
         <Check label="Vigas suportam alvenaria (flecha após a parede ≤ ℓ/500 e 10 mm)" checked={!!ds.masonry} onChange={(v) => upd({ masonry: v })} />
+        <Hint>P-Δ: rigidez reduzida (0,4/0,8·E·Ic), iteração da matriz geométrica até convergir; não soma o 0,95·γz ao vento. Desaprumo: só vento se 30% dele supera o desaprumo; só desaprumo se o vento é menor que 30% do desaprumo; senão ambos.</Hint>
         <Hint>t0 define Δξ da flecha diferida (17.3.2.1.2). Com alvenaria, a parcela após a parede é tomada como a flecha diferida αf·f0 — critério simplificado, a confirmar.</Hint>
       </Group>
     </div>

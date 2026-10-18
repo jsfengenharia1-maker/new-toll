@@ -272,8 +272,32 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
   // cargas do caso ativo
   if (tab === 'estrutura' || tab === 'cargas') drawLoads(model, st.activeCase, nodePos, X, Y, view.scale, els);
 
+  // modo de flambagem / vibração (interpolação cúbica de Hermite entre os nós)
+  if (showResults && st.modeView && st.modeView.shape.length === a.prep.ndof) {
+    const sh = st.modeView.shape;
+    let maxD = 0;
+    for (let k = 0; k < sh.length; k += 3) maxD = Math.max(maxD, Math.hypot(sh[k], sh[k + 1]));
+    const amp = maxD > 0 ? (0.12 * extent * st.diagScale) / maxD : 0;
+    for (const pm of a.prep.members) {
+      const p0 = model.nodes[pm.i], L = pm.L, c = pm.c, s = pm.s;
+      const gi = [sh[pm.i * 3], sh[pm.i * 3 + 1], sh[pm.i * 3 + 2]], gj = [sh[pm.j * 3], sh[pm.j * 3 + 1], sh[pm.j * 3 + 2]];
+      const ui = c * gi[0] + s * gi[1], vi = -s * gi[0] + c * gi[1], uj = c * gj[0] + s * gj[1], vj = -s * gj[0] + c * gj[1];
+      const chord = (vj - vi) / L;
+      const ti = pm.hingeI ? chord : gi[2], tj = pm.hingeJ ? chord : gj[2];
+      const pts: string[] = [];
+      for (let q = 0; q <= 16; q++) {
+        const x = (L * q) / 16, t = x / L;
+        const v = (1 - 3 * t * t + 2 * t ** 3) * vi + L * (t - 2 * t * t + t ** 3) * ti + (3 * t * t - 2 * t ** 3) * vj + L * (t ** 3 - t * t) * tj;
+        const u = ui + (uj - ui) * t;
+        pts.push(`${X(p0.x + c * x + (c * u - s * v) * amp)},${Y(p0.y + s * x + (s * u + c * v) * amp)}`);
+      }
+      els.push(<polyline key={`mode${pm.id}`} points={pts.join(' ')} className="deformed mode" />);
+    }
+    els.push(<text key="modetitle" x={14} y={22} className="lbl vD" textAnchor="start">{st.modeView.title}</text>);
+  }
+
   // resultados
-  if (showResults && results.length) {
+  if (showResults && results.length && !st.modeView) {
     const prep = a.prep;
     if (st.diagram === 'N' || st.diagram === 'V' || st.diagram === 'M') {
       const e = st.diagram as Eff;
