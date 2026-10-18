@@ -258,7 +258,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       const xs = sampleXs(pm.L, [m.M]);
       let Ms = 0;
       for (const x of xs) if (x > 1e-9 && x < pm.L - 1e-9) Ms = Math.max(Ms, Math.abs(P.evaluate(m.M, x)));
-      return { name: cb.name, N0: P.evaluate(m.N, 0), NL: P.evaluate(m.N, pm.L), M0: P.evaluate(m.M, 0), ML: P.evaluate(m.M, pm.L), Mspan: Ms, transverse: transverse(cb, k) };
+      return { name: cb.name, N0: P.evaluate(m.N, 0), NL: P.evaluate(m.N, pm.L), M0: P.evaluate(m.M, 0), ML: P.evaluate(m.M, pm.L), Mspan: Ms, transverse: transverse(cb, k), cantilever, Mmid: P.evaluate(m.M, pm.L / 2) };
     });
 
     if (role === 'column') {

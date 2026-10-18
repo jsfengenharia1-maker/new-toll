@@ -260,9 +260,9 @@ Flecha: combinação quase permanente, inércia de Branson Ie = (Mr/Ma)³·Ic + 
                 <>
                   <h3>Pilares de concreto armado</h3>
                   <div className="formula">{`Momento mínimo: M1d,mín = Nd·(0,015 + 0,03·h) em cada direção (11.3.3.4.3).
-Esbeltez: λ = 3,46·le/h; λ1 = (25 + 12,5·e1/h)/αb, 35 ≤ λ1 ≤ 90; αb = 0,60 + 0,40·MB/MA ≥ 0,40 (15.8.2).
+Esbeltez: λ = 3,46·le/h; λ1 = (25 + 12,5·e1/h)/αb, 35 ≤ λ1 ≤ 90; αb = 0,60 + 0,40·MB/MA ≥ 0,40 (biapoiado, sem carga transversal); αb = 0,80 + 0,20·MC/MA, 0,85 ≤ αb ≤ 1,0 (balanço) (15.8.2).
 2ª ordem local (pilar-padrão com curvatura aproximada, λ ≤ 90): Md,tot = αb·M1d,A + Nd·le²/10·(1/r) ≥ M1d,A;
-  1/r = 0,005 / [h·(ν + 0,5)] ≤ 0,005/h; ν = Nd/(Ac·fcd).
+  1/r = 0,005 / [h·(ν + 0,5)] ≤ 0,005/h; ν = Nd/(Ac·fcd), com Nd sem γn; γn (b < 19 cm) majora os esforços finais (13.2.3).
 Situação 1 (plano do pórtico): Md,tot,x ≤ MRd,xx(Nd).
 Situação 2 (flexão oblíqua): (Mx/MRd,xx)^1,2 + (Md,tot,y/MRd,yy)^1,2 ≤ 1, com Md,tot,y = M1d,mín,y + M2d,y (17.2.5).
 MRd por compatibilidade de deformações (parábola-retângulo). As,mín = 0,15·Nd/fyd ≥ 0,4%·Ac; As,máx adotado 4%·Ac (8% na emenda).

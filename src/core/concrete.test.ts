@@ -66,3 +66,24 @@ describe('seção de pilar', () => {
     expect(d.ok).toBe(false);
   });
 });
+
+describe('pilares: αb do balanço e γn nos esforços finais', () => {
+  const c30 = concrete(30);
+  const base = { L: 3, cover: 0.03, conc: c30, fyk: 500, gammaS: 1.15, dmax: 0.019 };
+  it('balanço com carga no topo: αb = 0,80 + 0,20·MC/MA = 0,90 (não 0,60 de biapoiado)', () => {
+    const cb = { name: 'c', N0: -600, NL: -600, M0: 60, ML: 0, Mspan: 60, transverse: false, cantilever: true, Mmid: 30 };
+    const d = designColumn({ ...base, b: 0.3, h: 0.4, leIn: 6, leOut: 3, combos: [cb] });
+    expect(d.check?.alphaB).toBeCloseTo(0.9, 9);
+    const bi = designColumn({ ...base, b: 0.3, h: 0.4, leIn: 6, leOut: 3, combos: [{ ...cb, cantilever: false }] });
+    expect(bi.check?.alphaB).toBeCloseTo(0.6, 9);
+  });
+  it('γn não reduz a curvatura: M2d = γn·Nd·le²/10·0,005/(h(ν+0,5)), com ν sem γn', () => {
+    const b = 0.15, h = 0.4, Nd = 500, le = 6;
+    const d = designColumn({ ...base, b, h, leIn: le, leOut: 1, combos: [{ name: 'c', N0: -Nd, NL: -Nd, M0: 10, ML: 10, Mspan: 10, transverse: false }] });
+    const gn = 1.95 - 0.05 * 15;
+    const nu = Nd / 1000 / (b * h * c30.fcd);
+    const ref = ((gn * Nd * le ** 2) / 10) * Math.min(0.005 / (h * (nu + 0.5)), 0.005 / h);
+    expect(d.gammaN).toBeCloseTo(gn, 12);
+    expect(d.check?.M2dX).toBeCloseTo(ref, 6);
+  });
+});

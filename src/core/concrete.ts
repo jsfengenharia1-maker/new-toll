@@ -135,6 +135,10 @@ export interface ColumnCombo {
   M0: number; ML: number; // kN·m no plano
   Mspan: number; // |M| máximo no vão (kN·m)
   transverse: boolean; // há carga transversal na barra
+  /** Pilar em balanço (uma extremidade livre): αb pela expressão de balanço (NBR 6118, 15.8.2). */
+  cantilever?: boolean;
+  /** M a meia altura (kN·m, com sinal), usado no αb do balanço. */
+  Mmid?: number;
 }
 
 export interface ColumnInput {
@@ -204,19 +208,26 @@ function evaluateColumn(inp: ColumnInput, L: ColumnLayout, gn: number) {
     const MA = Math.max(aM0, aML), MB = Math.min(aM0, aML);
     const sameSign = m0 * mL > 0;
     const M1dMinX = Nd * (0.015 + 0.03 * h);
-    let alphaB = cb.transverse ? 1 : Math.max(0.4, Math.min(1, 0.6 + 0.4 * (MA > 0 ? (sameSign ? MB / MA : -MB / MA) : 0)));
+    let alphaB: number;
+    if (cb.cantilever) {
+      // balanço: αb = 0,80 + 0,20·MC/MA, entre 0,85 e 1,0; MA no engaste, MC a meia altura (sinal relativo a MA)
+      const MAs = aM0 >= aML ? m0 : mL, MC = (cb.Mmid ?? 0) * gn;
+      alphaB = Math.max(0.85, Math.min(1, 0.8 + 0.2 * (MA > 0 ? (MC * Math.sign(MAs)) / MA : 0)));
+    } else alphaB = cb.transverse ? 1 : Math.max(0.4, Math.min(1, 0.6 + 0.4 * (MA > 0 ? (sameSign ? MB / MA : -MB / MA) : 0)));
     if (MA < M1dMinX) alphaB = 1;
     const Mbase = Math.max(MA, M1dMinX);
     const e1 = MA / Nd;
     const lambda1X = Math.max(35, Math.min(90, (25 + (12.5 * e1) / h) / alphaB));
     const lambdaX = (Math.sqrt(12) * inp.leIn) / h;
     const nu = Nd / 1000 / (Ac * c.fcd);
+    // γn majora os esforços finais (13.2.3): a curvatura 1/r usa ν sem γn
+    const nuR = nu / gn;
     let M2dX = 0;
-    if (lambdaX > lambda1X) M2dX = ((Nd * inp.leIn ** 2) / 10) * Math.min(0.005 / (h * (nu + 0.5)), 0.005 / h);
+    if (lambdaX > lambda1X) M2dX = ((Nd * inp.leIn ** 2) / 10) * Math.min(0.005 / (h * (nuR + 0.5)), 0.005 / h);
     const MdTotX = Math.max(alphaB * Mbase + M2dX, Mbase, ms);
     const lambdaY = (Math.sqrt(12) * inp.leOut) / b;
     const M1dMinY = Nd * (0.015 + 0.03 * b);
-    const M2dY = lambdaY > 35 ? ((Nd * inp.leOut ** 2) / 10) * Math.min(0.005 / (b * (nu + 0.5)), 0.005 / b) : 0;
+    const M2dY = lambdaY > 35 ? ((Nd * inp.leOut ** 2) / 10) * Math.min(0.005 / (b * (nuR + 0.5)), 0.005 / b) : 0;
     const MdTotY = M1dMinY + M2dY;
     const MRxx = MR(true, Nd), MRyy = MR(false, Nd);
     if (MRxx === null || MRyy === null) {
