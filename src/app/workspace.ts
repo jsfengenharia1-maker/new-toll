@@ -90,3 +90,14 @@ export async function pickFromDisk(): Promise<string | null | 'unsupported'> {
 }
 
 export function forgetFile() { handle = null; }
+
+/** Arquivo recebido do sistema (duplo clique num .statikos com o app instalado — File Handling API). Ctrl+S passa a gravar nele. */
+export async function adoptLaunchedFile(h: Handle): Promise<string> {
+  const txt = await (await h.getFile()).text();
+  handle = h;
+  return txt;
+}
+
+type LaunchQueue = { setConsumer(cb: (p: { files?: readonly Handle[] }) => void): void };
+/** Fila de abertura de arquivos do app instalado (Chrome/Edge); undefined nos demais casos. */
+export const launchQueue = (): LaunchQueue | undefined => (typeof window === 'undefined' ? undefined : (window as unknown as { launchQueue?: LaunchQueue }).launchQueue);

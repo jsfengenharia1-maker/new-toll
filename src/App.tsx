@@ -17,7 +17,7 @@ import { copyText, download } from './app/ui';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
-import { buildWorkspace, canPickFiles, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
+import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
 
 const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
@@ -129,6 +129,17 @@ export default function App() {
   const openRef = useRef(openWork); openRef.current = openWork;
 
   const openFile = (f: File) => { f.text().then((txt) => openText(txt, f.name)); };
+  const openTextRef = useRef(openText); openTextRef.current = openText;
+
+  // App instalado (PWA): .statikos aberto com duplo clique chega pela fila de abertura (File Handling API).
+  useEffect(() => {
+    launchQueue()?.setConsumer(async ({ files }) => {
+      const h = files?.[0];
+      if (!h) return;
+      try { await openTextRef.current(await adoptLaunchedFile(h), h.name); }
+      catch { useStore.getState().set({ message: `Não foi possível ler ${h.name}.` }); }
+    });
+  }, []);
 
   const saveJSON = async () => {
     const txt = JSON.stringify(st.model, null, 1);
