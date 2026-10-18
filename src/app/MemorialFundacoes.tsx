@@ -218,6 +218,7 @@ Céu aberto: base acima do nível d'água. Cota ${pp.tbDepth > 0 ? `informada = 
         {sptCaisson && <li>σadm de tubulões estimada pelo SPT (N̄/{fmt(pp.tbSptDiv, 0)} MPa, N̄ ≤ {fmt(pp.tbNmaxEst, 0)}) <TBC />.</li>}
         {footings.length > 0 && <li>Sapatas: área comprimida mínima de {fmt(pp.ftMinCompressed * 100, 0)}% (item da NBR 6122), σmáx ≤ {fmt(pp.ftEdgeFactor, 2)}·σadm, peso próprio mínimo de {fmt(pp.ftPP, 0)}% de Nk e σadm tratada como líquida (solo sobre a sapata não somado), h0 ≥ máx(h/3; {cm(pp.ftH0Min)} cm), ρmín = {fmt(pp.ftRhoMin * 100, 2)}% e γsolo = {fmt(pp.gammaSoil, 0)} kN/m³ <TBC />.</li>}
         {caissons.length > 0 && <li>Tubulões: concreto do fuste C{pp.tbFck} com γc = {fmt(pp.tbGc, 2)}, fuste mínimo {cm(pp.tbDfMin)} cm, H da base ≤ {cm(pp.tbHmax)} cm, base ≤ {cm(pp.tbDbMax)} cm e peso próprio {pp.tbWeight ? 'somado' : 'desprezado'} na base <TBC />.</li>}
+        {(has('estacas') || footings.length > 0) && <li>Bitola das barras do pilar φ{phiTxt(pp.colPhi)} (define lb e a altura mínima de blocos e sapatas){fd.loads.some((l) => l.ap === undefined || l.bp === undefined) ? ` e pilar padrão ${cm(pp.colA)} × ${cm(pp.colB)} cm nos apoios sem seção informada` : ''} <TBC />.</li>}
         <li>Números de item da NBR 6118 citados seguem a numeração de 2014 <TBC />.</li>
       </ul>
       <p className="small">Não fazem parte deste memorial: detalhamento final das armaduras (comprimentos, dobras e emendas), cisalhamento das sapatas fora da punção, armadura de topo do tubulão, recalques e efeito de grupo.</p>

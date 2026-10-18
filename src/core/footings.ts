@@ -187,7 +187,9 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     if (a / b > p.ftMaxRatio + 1e-9 || b / a > p.ftMaxRatio + 1e-9) continue;
     cand.push({ A: a, B: b, area: a * b, dc: Math.abs((a - ap) - (b - bp)) });
   }
-  cand.sort((x, y) => x.area - y.area || x.dc - y.dc);
+  // empate: lado maior na direção da maior excentricidade (A ao longo de x, momento My)
+  const dirPref = Math.sign(Math.abs(inp.My) - Math.abs(inp.Mx));
+  cand.sort((x, y) => x.area - y.area || x.dc - y.dc || dirPref * ((y.A - y.B) - (x.A - x.B)));
   let best: (typeof cand)[number] & { chk: NonNullable<ReturnType<typeof check>> } | null = null;
   let firstArea = Infinity;
   for (const c of cand) {
@@ -195,7 +197,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     const chk = check(c.A, c.B);
     if (!chk) continue;
     if (firstArea === Infinity) firstArea = c.area;
-    if (!best || c.dc < best.dc - 1e-9) best = { ...c, chk };
+    if (!best || c.dc < best.dc - 1e-9 || (Math.abs(c.dc - best.dc) < 1e-9 && Math.abs(c.area - best.area) < 1e-9 && dirPref * ((c.A - c.B) - (best.A - best.B)) > 0)) best = { ...c, chk };
   }
   if (!best) {
     const sg = sigmaFor(1);
@@ -269,7 +271,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
       const pu = punching(h, flexure(h, 'flexivel'));
       if (pu.tauSd0 <= pu.tauRd2 && (!pu.applies || pu.tauSd1! <= pu.tauRd1!)) break;
     }
-    if (h >= hRigid - 1e-9) { kind = 'rigida'; messages.push(`A punção exigiu h = ${h.toFixed(2)} m ≥ (a − ap)/3: a sapata resultou rígida.`); }
+    if (h >= hRigid - 1e-9) { kind = 'rigida'; messages.push(`A altura necessária (punção e ancoragem do pilar, lb + c = ${(lbCol + p.cover).toFixed(2)} m) deu h = ${h.toFixed(2)} m ≥ (a − ap)/3: a sapata resultou rígida.`); }
   }
   const flex = flexure(h, kind);
   const punch = punching(h, flex);
