@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 37 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos)
+npm test         # vitest: 40 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -37,6 +37,7 @@ Veja a tabela no `README.md`. Resumo:
   - `Fundacoes.tsx`: módulo de fundações.
   - `Memorial.tsx` + `drawing.ts`: memorial de cálculo com figuras SVG estáticas.
   - `Library.tsx` + `storage.ts`: biblioteca de projetos e características.
+  - `workspace.ts` + `history.ts`: arquivo de trabalho `.statikos` (modelo + biblioteca + histórico) e histórico de atividades.
 - Unidades internas: kN, m, rad. E em kN/m². No cálculo de seção: MN e MPa.
 - Convenções de sinal:
   - N > 0 é tração.
@@ -74,6 +75,12 @@ Veja a tabela no `README.md`. Resumo:
 - Critério de nega pelo SPT para pré-moldadas: não há critério normativo encontrado. N = 30 é ajustável.
 - Estimativas: nh de argila média/rija (0,5 MN/m³); comprimento armado até 4T com carga horizontal; tração admissível Rl/2 + 0,9W; volume do bloco (usado só para ranquear soluções).
 - Cargas de catálogo da pré-moldada (SCAC, menor valor da faixa); momento admissível com o fabricante.
+
+## Publicação web (Netlify)
+- Sem login e sem banco: decisão do usuário (out/2026). Tudo roda no navegador.
+- `netlify.toml` roda `npm test && npm run build` e publica `dist/`. Basta conectar o repositório no Netlify; cada push no `main` publica.
+- O trabalho fica no localStorage e o usuário guarda e retoma pelo arquivo `.statikos` (Ctrl+S/Ctrl+O). No Chrome/Edge, o Ctrl+S regrava o mesmo arquivo.
+- Spec das próximas fases: `docs/spec-proximas-fases.md`.
 
 ## Publicação como artifact do claude.ai
 - O app foi publicado como artifact privado do usuário: https://claude.ai/artifact/EG1GFPozyKaHddVko8BzAw (versão 4).

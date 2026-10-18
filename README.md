@@ -7,9 +7,15 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 37 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos)
+npm test           # 40 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build      # gera dist/index.html único (offline)
 ```
+
+## Publicar
+
+Site estático: conecte o repositório no Netlify (o `netlify.toml` já define build e pasta). Não há servidor nem login; o usuário salva o trabalho em um arquivo `.statikos` (Arquivo › Salvar no computador, Ctrl+S) e o reabre depois (Ctrl+O). O arquivo leva o modelo, a biblioteca e o histórico.
+
+Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 
 ## Arquitetura
 

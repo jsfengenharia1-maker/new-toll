@@ -69,6 +69,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px; min-width: 230px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.14); display: grid; }
 .menu button { text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 5px; }
 .menu button:hover { background: var(--surface-2); }
+.menu button .kbd { float: right; margin-left: 16px; font: 11px var(--font-num); color: var(--muted); }
+.tbtn.unsaved { color: var(--sel); border-color: var(--sel); }
 .msep { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; }
 .mname { flex: 1; min-width: 60px; }
 .mname input { width: 100%; max-width: 380px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; font-weight: 500; }

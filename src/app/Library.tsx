@@ -5,6 +5,7 @@ import { getDesign, useAnalysis } from './results';
 import type { Model } from '../core/types';
 import type { DesignReport } from '../core/design';
 import { sampleFoundation } from '../core/piles';
+import { getHistory, logActivity } from './history';
 
 export function buildCharacteristics(model: Model, rep: DesignReport): SavedCharacteristics {
   return {
@@ -42,6 +43,8 @@ export function Library() {
   const [err, setErr] = useState('');
   const [name, setName] = useState(st.model.name);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [histAll, setHistAll] = useState(false);
+  const history = getHistory().slice().reverse();
 
   const refresh = async () => {
     try { const r = await listLibrary(); setItems(r.items); setMode(r.mode); setErr(''); } catch (e) { setErr(`Não foi possível ler a biblioteca (${(e as { code?: string }).code ?? 'erro'}).`); setItems([]); }
@@ -56,6 +59,7 @@ export function Library() {
     const summary = `${m.nodes.length} nós · ${m.members.length} barras · ${m.cases.length} casos${m.foundation ? ' · fundação' : ''}`;
     const r = await saveToLibrary('project', m.name, summary, m, overwrite ? st.libraryId ?? undefined : undefined);
     if (m.name !== st.model.name) st.commit((x) => { x.name = m.name; });
+    logActivity(overwrite ? 'Projeto atualizado na biblioteca' : 'Projeto salvo na biblioteca', m.name);
     st.set({ libraryId: r.id, message: r.mode === 'cloud' ? `Projeto “${m.name}” salvo na sua conta.` : `Projeto “${m.name}” salvo neste navegador.` });
     await refresh();
   });
@@ -63,6 +67,7 @@ export function Library() {
   const saveChars = () => run(async () => {
     if (a.prep.error) throw new Error('Modelo instável: corrija antes de salvar características.');
     const r = await saveCharacteristics(st.model, getDesign(a));
+    logActivity('Características do dimensionamento salvas', st.model.name);
     st.set({ message: r.mode === 'cloud' ? 'Características salvas na sua conta.' : 'Características salvas neste navegador.' });
     await refresh();
   });
@@ -73,6 +78,7 @@ export function Library() {
     if (e.kind === 'project') {
       st.setModel(e.payload as Model, false);
       st.set({ libraryId: e.id, libraryOpen: false, module: 'portico', message: `Projeto “${e.name}” aberto.` });
+      logActivity('Projeto aberto da biblioteca', e.name);
     } else {
       const ch = e.payload as SavedCharacteristics;
       st.commit((m) => {
@@ -113,7 +119,7 @@ export function Library() {
       <div className="modal">
         <div className="modal-head">
           <b>Biblioteca</b>
-          <span className={`pill ${mode === 'cloud' ? 'ok' : 'na'}`}>{mode === 'cloud' ? 'Salvo na sua conta' : 'Salvo neste navegador'}</span>
+          <span className={`pill ${mode === 'cloud' ? 'ok' : 'na'}`} title={mode === 'cloud' ? undefined : 'Limpar os dados do navegador apaga a biblioteca. Use Salvar no computador para guardar tudo num arquivo.'}>{mode === 'cloud' ? 'Salvo na sua conta' : 'Salvo neste navegador'}</span>
           <span style={{ flex: 1 }} />
           <button type="button" className="btn ghost" onClick={close}>Fechar</button>
         </div>
@@ -131,6 +137,16 @@ export function Library() {
         {items === null ? <p className="hint">Carregando…</p> : <List list={projects} empty="Nenhum projeto salvo." action="Abrir" />}
         <h4>Características salvas</h4>
         {items === null ? null : <List list={chars} empty="Nenhuma característica salva. Use o botão acima ou o da aba Dimensionar." action="Usar nas fundações" />}
+        {mode === 'local' && <p className="hint">Biblioteca e histórico ficam neste navegador e vão junto no arquivo de Arquivo › Salvar no computador. Ao abrir o arquivo em outro computador ou navegador, eles são recuperados.</p>}
+        <h4>Histórico</h4>
+        {history.length === 0 ? <p className="hint">Nenhuma atividade registrada.</p> : (
+          <ul className="liblist hist">
+            {(histAll ? history : history.slice(0, 15)).map((h, i) => (
+              <li key={`${h.at}-${i}`}><div className="libmain"><b>{h.text}</b><span className="muted">{date(h.at)} · {h.project}</span></div></li>
+            ))}
+          </ul>
+        )}
+        {history.length > 15 && <button type="button" className="btn ghost" onClick={() => setHistAll(!histAll)}>{histAll ? 'Mostrar menos' : `Mostrar tudo (${history.length})`}</button>}
       </div>
     </div>
   );

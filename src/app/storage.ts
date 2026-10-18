@@ -59,9 +59,9 @@ export async function listLibrary(): Promise<{ mode: 'cloud' | 'local'; items: L
   return { mode: 'local', items: localAll().map(({ payload: _p, ...rest }) => rest).sort((a, z) => z.savedAt.localeCompare(a.savedAt)) };
 }
 
-export async function saveToLibrary(kind: LibraryKind, name: string, summary: string, payload: Model | SavedCharacteristics, id?: string): Promise<{ id: string; mode: 'cloud' | 'local' }> {
+export async function saveToLibrary(kind: LibraryKind, name: string, summary: string, payload: Model | SavedCharacteristics, id?: string, savedAt = new Date().toISOString()): Promise<{ id: string; mode: 'cloud' | 'local' }> {
   const b = await storageBackend();
-  const body = { kind, name, summary, savedAt: new Date().toISOString(), payload: JSON.stringify(payload) };
+  const body = { kind, name, summary, savedAt, payload: JSON.stringify(payload) };
   if (body.payload.length > 240_000) throw new Error('O projeto passa de 240 KB e não cabe em um registro. Use Exportar .json.');
   if (b.mode === 'cloud') {
     const ref = b.db.collection(`data/users/${b.uid}`).doc(id);

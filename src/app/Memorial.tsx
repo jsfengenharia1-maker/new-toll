@@ -9,6 +9,8 @@ import { svgDeformed, svgDesign, svgDiagram, svgGeometry, svgLoads, svgReactions
 import { download } from './ui';
 import { PILE_LABEL, SOIL_LABEL, STRUCT, defaultFoundationParams, recommendedOption, solveSupport } from '../core/piles';
 import type { CaseResult } from '../core/solver';
+import { logActivity } from './history';
+
 
 
 const MEMO_CSS = `
@@ -88,6 +90,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
     const body = docRef.current?.outerHTML ?? '';
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Memorial de cálculo · ${model.name}</title><style>body{margin:0;background:#fff}${MEMO_CSS}</style></head><body>${body}</body></html>`;
     const r = await download(`memorial-${model.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.html`, html, 'text/html');
+    if (r !== 'declined') logActivity('Memorial de cálculo exportado', model.name);
     st.set({ message: r === 'declined' ? 'Exportação cancelada.' : 'Memorial exportado em HTML. Abra no navegador e imprima em PDF se precisar.' });
   };
 

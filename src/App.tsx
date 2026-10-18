@@ -15,6 +15,8 @@ import { emptyModel, type Model } from './core/types';
 import { copyText, download } from './app/ui';
 import { useAnalysis } from './app/results';
 import { svgExportCss } from './app/exportCss';
+import { buildWorkspace, canPickFiles, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
+import { logActivity } from './app/history';
 
 const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
   { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
@@ -44,9 +46,14 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const s = useStore.getState();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && ['s', 'o'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        if (e.key.toLowerCase() === 's') saveRef.current(e.shiftKey); else openRef.current();
+        return;
+      }
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      const s = useStore.getState();
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) s.redo(); else s.undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); s.redo(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -79,18 +86,47 @@ export default function App() {
     s.set({ tab: t, tool });
   }
 
-  const load = (m: Model) => { st.setModel(m, false); setTimeout(fit, 0); setMenu(false); };
+  const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); setMenu(false); };
 
-  const openFile = (f: File) => {
-    f.text().then((txt) => {
-      try {
-        const m = JSON.parse(txt) as Model;
-        if (m.version !== 1 || !Array.isArray(m.nodes) || !Array.isArray(m.members)) throw new Error();
-        load(m);
-        st.set({ message: `Modelo “${m.name}” aberto.` });
-      } catch { st.set({ message: 'Arquivo inválido. Use um .json salvo por este programa.' }); }
-    });
+  const openText = async (txt: string, fileName: string) => {
+    try {
+      const { model, workspace } = parseWorkspace(txt);
+      load(model, true);
+      st.set({ libraryId: null, module: 'portico' });
+      const n = workspace ? await mergeWorkspace(workspace) : 0;
+      logActivity(`Trabalho aberto do arquivo ${fileName}`, model.name);
+      st.set({ message: workspace
+        ? `Trabalho “${model.name}” aberto de ${fileName}${n ? ` · ${n} item(ns) adicionados à biblioteca` : ''}.`
+        : `Modelo “${model.name}” aberto de ${fileName}.` });
+    } catch { st.set({ message: `Arquivo inválido. Use um ${WORKSPACE_EXT} ou .json salvo por este programa.` }); }
   };
+
+  const openWork = async () => {
+    setMenu(false);
+    const r = await pickFromDisk();
+    if (r === 'unsupported') fileRef.current?.click();
+    else if (r !== null) await openText(r, currentFileName() ?? 'arquivo');
+  };
+
+  const saveWork = async (saveAs = false) => {
+    setMenu(false);
+    const s = useStore.getState();
+    const ws = await buildWorkspace(s.model);
+    const txt = JSON.stringify(ws);
+    const name = `${slug(s.model.name)}${WORKSPACE_EXT}`;
+    let r: string = await writeToDisk(name, txt, saveAs);
+    if (r === 'unsupported') r = await download(name, txt, 'application/json');
+    if (r === 'declined') { st.set({ message: 'Gravação cancelada.' }); return; }
+    s.setUnsaved(false);
+    logActivity(`Trabalho salvo no computador (${currentFileName() ?? name})`, s.model.name);
+    st.set({ message: r === 'saved'
+      ? `Trabalho salvo em ${currentFileName() ?? name}. Ctrl+S grava de novo no mesmo arquivo.`
+      : `Trabalho baixado como ${name} (pasta de downloads). Para retomar, use Arquivo › Abrir.` });
+  };
+  const saveRef = useRef(saveWork); saveRef.current = saveWork;
+  const openRef = useRef(openWork); openRef.current = openWork;
+
+  const openFile = (f: File) => { f.text().then((txt) => openText(txt, f.name)); };
 
   const saveJSON = async () => {
     const txt = JSON.stringify(st.model, null, 1);
@@ -143,16 +179,19 @@ export default function App() {
           <button type="button" className="tbtn" aria-expanded={menu} onClick={() => setMenu(!menu)}>Arquivo ▾</button>
           {menu && (
             <div className="menu" onMouseLeave={() => setMenu(false)}>
-              <button type="button" onClick={() => { const m = emptyModel(); load(m); }}>Novo modelo</button>
-              <button type="button" onClick={() => fileRef.current?.click()}>Abrir .json…</button>
-              <button type="button" onClick={() => { setMenu(false); st.set({ libraryOpen: true }); }}>Salvar / abrir na biblioteca…</button>
-              <button type="button" onClick={saveJSON}>Exportar .json</button>
+              <button type="button" onClick={() => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); }}>Novo modelo</button>
+              <button type="button" onClick={openWork}>Abrir trabalho do computador… <span className="kbd">Ctrl+O</span></button>
+              <button type="button" onClick={() => saveWork(false)}>Salvar no computador <span className="kbd">Ctrl+S</span></button>
+              {canPickFiles() && <button type="button" onClick={() => saveWork(true)}>Salvar como… <span className="kbd">Ctrl+Shift+S</span></button>}
+              <button type="button" onClick={() => { setMenu(false); st.set({ libraryOpen: true }); }}>Biblioteca e histórico…</button>
+              <div className="msep">Exportar</div>
+              <button type="button" onClick={saveJSON}>Só o modelo (.json)</button>
               <button type="button" onClick={exportSVG}>Exportar desenho (SVG)</button>
               <div className="msep">Exemplos</div>
-              {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); load(m); }}>{s.label}</button>)}
+              {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); }}>{s.label}</button>)}
             </div>
           )}
-          <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
         </div>
         <div className="mname" title="Nome do modelo">
           <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />
@@ -166,6 +205,7 @@ export default function App() {
           <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} className={st.module === 'fundacoes' ? 'on' : ''} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
         </div>
         <span className={`status ${status.cls}`}>{status.text}</span>
+        <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
