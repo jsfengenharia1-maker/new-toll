@@ -1,0 +1,189 @@
+import { useState } from 'react';
+import { useStore } from '../store';
+import { Check, Group, Hint, NumField, Select, Seg, TextField } from '../ui';
+import { nbrCombinations, nextId } from '../../core/edit';
+import type { CaseNature, ComboKind, Load, LoadSystem } from '../../core/types';
+import { fmt } from '../results';
+
+type Kind = 'nodal' | 'dist' | 'thermal' | 'endMoment' | 'presc';
+
+export function CargasPanel() {
+  const st = useStore();
+  const { model, activeCase, selNodes, selMembers } = st;
+  const cs = model.cases.find((c) => c.id === activeCase) ?? model.cases[0];
+  const [kind, setKind] = useState<Kind>('dist');
+  const [nod, setNod] = useState({ fx: 0, fy: -10, mz: 0 });
+  const [dist, setDist] = useState({ system: 'global' as LoadSystem, qxi: 0, qyi: -10, qxj: 0, qyj: -10, uniform: true });
+  const [th, setTh] = useState({ tTop: 0, tBot: 15 });
+  const [em, setEm] = useState({ mi: 0, mj: 0 });
+  const [pr, setPr] = useState({ dx: 0, dy: -10, rz: 0 });
+
+  const caseLoads = model.loads.filter((l) => l.caseId === cs?.id);
+  const sw = caseLoads.find((l) => l.kind === 'selfWeight');
+
+  const apply = () => {
+    if (!cs) return;
+    const needNodes = kind === 'nodal' || kind === 'presc';
+    const targets = needNodes ? [...selNodes] : [...selMembers];
+    if (!targets.length) return st.set({ message: needNodes ? 'Selecione nós para aplicar esta carga.' : 'Selecione barras para aplicar esta carga.' });
+    st.commit((m) => {
+      let id = nextId(m.loads);
+      for (const t of targets) {
+        let ld: Load;
+        if (kind === 'nodal') ld = { kind, id: id++, caseId: cs.id, node: t, ...nod };
+        else if (kind === 'presc') ld = { kind, id: id++, caseId: cs.id, node: t, dx: pr.dx / 1000, dy: pr.dy / 1000, rz: pr.rz };
+        else if (kind === 'dist') ld = { kind, id: id++, caseId: cs.id, member: t, system: dist.system, qxi: dist.qxi, qyi: dist.qyi, qxj: dist.uniform ? dist.qxi : dist.qxj, qyj: dist.uniform ? dist.qyi : dist.qyj };
+        else if (kind === 'thermal') ld = { kind, id: id++, caseId: cs.id, member: t, ...th };
+        else ld = { kind: 'endMoment', id: id++, caseId: cs.id, member: t, ...em };
+        m.loads.push(ld);
+      }
+    }, `Carga aplicada a ${targets.length} ${needNodes ? 'nó(s)' : 'barra(s)'} em “${cs.name}”.`);
+  };
+
+  return (
+    <div className="panel-body">
+      <Group title="Casos de carga" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.cases); st.commit((m) => { m.cases.push({ id, name: `Caso ${id}`, nature: 'Q' }); }); st.set({ activeCase: id }); }}>+ novo</button>}>
+        <div className="caselist">
+          {model.cases.map((c) => (
+            <button type="button" key={c.id} className={`caseitem${c.id === cs?.id ? ' on' : ''}`} onClick={() => st.set({ activeCase: c.id })}>
+              <span className={`nat ${c.nature ?? 'G'}`}>{c.nature ?? 'G'}</span>
+              <span className="cname">{c.name}</span>
+              <span className="muted">{model.loads.filter((l) => l.caseId === c.id).length}</span>
+            </button>
+          ))}
+        </div>
+        {cs && (
+          <>
+            <div className="row">
+              <TextField label="Nome" value={cs.name} onChange={(v) => st.commit((m) => { m.cases.find((c) => c.id === cs.id)!.name = v; })} />
+            </div>
+            <div className="row">
+              <span className="flabel">Natureza</span>
+              <Seg small value={cs.nature ?? 'G'} options={[{ v: 'G' as CaseNature, label: 'Permanente' }, { v: 'Q', label: 'Variável' }, { v: 'W', label: 'Vento' }]} onChange={(v) => st.commit((m) => { m.cases.find((c) => c.id === cs.id)!.nature = v; })} />
+            </div>
+            {(cs.nature === 'Q' || cs.nature === 'W') && (
+              <div className="row">
+                {([0, 1, 2] as const).map((k) => (
+                  <NumField key={k} label={`ψ${k}`} value={cs[`psi${k}`] ?? (cs.nature === 'W' ? [0.6, 0.3, 0][k] : [0.5, 0.4, 0.3][k])} onChange={(v) => st.commit((m) => { m.cases.find((c) => c.id === cs.id)![`psi${k}`] = v; })} />
+                ))}
+              </div>
+            )}
+            <div className="row">
+              <Check label="Peso próprio neste caso" checked={!!sw} onChange={(v) => st.commit((m) => { if (v) m.loads.push({ kind: 'selfWeight', id: nextId(m.loads), caseId: cs.id, factor: 1 }); else m.loads = m.loads.filter((l) => !(l.kind === 'selfWeight' && l.caseId === cs.id)); })} />
+              <button type="button" className="btn ghost" disabled={model.cases.length < 2} onClick={() => { st.commit((m) => { m.cases = m.cases.filter((c) => c.id !== cs.id); m.loads = m.loads.filter((l) => l.caseId !== cs.id); m.combinations.forEach((cb) => delete cb.factors[cs.id]); }, 'Caso excluído.'); st.set({ activeCase: model.cases.find((c) => c.id !== cs.id)!.id }); }}>Excluir caso</button>
+            </div>
+          </>
+        )}
+      </Group>
+
+      <Group title="Aplicar carga" aside={<span className="muted">{kind === 'nodal' || kind === 'presc' ? `${selNodes.size} nó(s)` : `${selMembers.size} barra(s)`}</span>}>
+        <Seg small value={kind} onChange={setKind} options={[
+          { v: 'dist', label: 'Distribuída' }, { v: 'nodal', label: 'Nodal' }, { v: 'thermal', label: 'Térmica' }, { v: 'endMoment', label: 'Mom. extrem.' }, { v: 'presc', label: 'Recalque' },
+        ]} />
+        {kind === 'nodal' && (
+          <div className="row">
+            <NumField label="Fx" unit="kN" value={nod.fx} onChange={(v) => setNod({ ...nod, fx: v })} />
+            <NumField label="Fy" unit="kN" value={nod.fy} onChange={(v) => setNod({ ...nod, fy: v })} />
+            <NumField label="Mz" unit="kN·m" value={nod.mz} onChange={(v) => setNod({ ...nod, mz: v })} />
+          </div>
+        )}
+        {kind === 'dist' && (
+          <>
+            <Select label="Sistema" value={dist.system} onChange={(v) => setDist({ ...dist, system: v })} options={[
+              { v: 'global', label: 'Global (por metro de barra)' }, { v: 'projected', label: 'Global projetada (por metro projetado)' }, { v: 'local', label: 'Local da barra' },
+            ]} />
+            <Check label="Uniforme" checked={dist.uniform} onChange={(v) => setDist({ ...dist, uniform: v })} />
+            <div className="row">
+              <NumField label={dist.uniform ? 'qx' : 'qx início'} unit="kN/m" value={dist.qxi} onChange={(v) => setDist({ ...dist, qxi: v })} />
+              <NumField label={dist.uniform ? 'qy' : 'qy início'} unit="kN/m" value={dist.qyi} onChange={(v) => setDist({ ...dist, qyi: v })} />
+            </div>
+            {!dist.uniform && (
+              <div className="row">
+                <NumField label="qx fim" unit="kN/m" value={dist.qxj} onChange={(v) => setDist({ ...dist, qxj: v })} />
+                <NumField label="qy fim" unit="kN/m" value={dist.qyj} onChange={(v) => setDist({ ...dist, qyj: v })} />
+              </div>
+            )}
+            <Hint>Valores negativos em Y apontam para baixo. No sistema local, x segue a barra do nó inicial ao final.</Hint>
+          </>
+        )}
+        {kind === 'thermal' && (
+          <div className="row">
+            <NumField label="ΔT fibra superior (y+)" unit="°C" value={th.tTop} onChange={(v) => setTh({ ...th, tTop: v })} />
+            <NumField label="ΔT fibra inferior (y−)" unit="°C" value={th.tBot} onChange={(v) => setTh({ ...th, tBot: v })} />
+          </div>
+        )}
+        {kind === 'endMoment' && (
+          <div className="row">
+            <NumField label="M início" unit="kN·m" value={em.mi} onChange={(v) => setEm({ ...em, mi: v })} />
+            <NumField label="M fim" unit="kN·m" value={em.mj} onChange={(v) => setEm({ ...em, mj: v })} />
+          </div>
+        )}
+        {kind === 'presc' && (
+          <>
+            <div className="row">
+              <NumField label="dx" unit="mm" value={pr.dx} onChange={(v) => setPr({ ...pr, dx: v })} />
+              <NumField label="dy" unit="mm" value={pr.dy} onChange={(v) => setPr({ ...pr, dy: v })} />
+              <NumField label="θ" unit="rad" value={pr.rz} onChange={(v) => setPr({ ...pr, rz: v })} />
+            </div>
+            <Hint>O recalque só atua nas direções em que o nó tem apoio fixo.</Hint>
+          </>
+        )}
+        <button type="button" className="btn primary" onClick={apply}>Aplicar em “{cs?.name}”</button>
+      </Group>
+
+      <Group title={`Cargas em “${cs?.name ?? ''}”`} aside={<span className="muted">{caseLoads.length}</span>}>
+        {caseLoads.length === 0 && <Hint>Nenhuma carga neste caso.</Hint>}
+        <ul className="loadlist">
+          {caseLoads.map((l) => (
+            <li key={l.id}>
+              <span>{describe(l)}</span>
+              <button type="button" className="x" aria-label="Remover carga" onClick={() => st.commit((m) => { m.loads = m.loads.filter((x) => x.id !== l.id); }, 'Carga removida.')}>×</button>
+            </li>
+          ))}
+        </ul>
+      </Group>
+
+      <Group title="Combinações" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.combinations); st.commit((m) => { m.combinations.push({ id, name: `Comb ${id}`, kind: 'ELU', factors: Object.fromEntries(m.cases.map((c) => [c.id, 1.4])) }); }); }}>+ nova</button>}>
+        <button type="button" className="btn" onClick={() => st.commit((m) => { m.combinations = nbrCombinations(m.cases, 1); }, 'Combinações NBR 8681 geradas. Revise os fatores.')}>Gerar combinações NBR 8681</button>
+        <Hint>ELU normal com γg = 1,4 / 1,0 e γq = 1,4 (demais variáveis × ψ0); ELS quase permanente e frequente. Natureza e ψ de cada caso definem os fatores.</Hint>
+        {model.combinations.length > 0 && (
+          <div className="tablewrap">
+            <table className="combo">
+              <thead><tr><th>Combinação</th><th>Tipo</th>{model.cases.map((c) => <th key={c.id} title={c.name}>{c.name.slice(0, 10)}</th>)}<th /></tr></thead>
+              <tbody>
+                {model.combinations.map((cb) => (
+                  <tr key={cb.id}>
+                    <td className="cbname">{cb.name}</td>
+                    <td><select className="factor kind" aria-label="Tipo da combinação" value={cb.kind ?? (/^ELS/i.test(cb.name) ? (/quase/i.test(cb.name) ? 'QP' : 'FREQ') : 'ELU')} onChange={(e) => st.commit((m) => { m.combinations.find((k) => k.id === cb.id)!.kind = e.target.value as ComboKind; })}>
+                      <option value="ELU">ELU</option><option value="QP">ELS-QP</option><option value="FREQ">ELS-F</option><option value="RARA">Rara</option>
+                    </select></td>
+                    {model.cases.map((c) => (
+                      <td key={c.id}><FactorInput value={cb.factors[c.id] ?? 0} onChange={(v) => st.commit((m) => { const x = m.combinations.find((k) => k.id === cb.id)!; if (v) x.factors[c.id] = v; else delete x.factors[c.id]; })} /></td>
+                    ))}
+                    <td><button type="button" className="x" aria-label="Excluir combinação" onClick={() => st.commit((m) => { m.combinations = m.combinations.filter((k) => k.id !== cb.id); })}>×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Group>
+    </div>
+  );
+}
+
+function FactorInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [t, setT] = useState(String(value).replace('.', ','));
+  return <input className="factor" aria-label="Fator" value={t} onChange={(e) => setT(e.target.value)} onFocus={() => setT(String(value).replace('.', ','))} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v)) onChange(v); else setT(String(value)); }} />;
+}
+
+function describe(l: Load): string {
+  switch (l.kind) {
+    case 'nodal': return `Nó ${l.node}: Fx ${fmt(l.fx)} · Fy ${fmt(l.fy)} kN · Mz ${fmt(l.mz)} kN·m`;
+    case 'dist': return `Barra ${l.member}: ${l.qxi === l.qxj && l.qyi === l.qyj ? `qx ${fmt(l.qxi)} · qy ${fmt(l.qyi)}` : `qx ${fmt(l.qxi)}→${fmt(l.qxj)} · qy ${fmt(l.qyi)}→${fmt(l.qyj)}`} kN/m (${l.system === 'global' ? 'global' : l.system === 'local' ? 'local' : 'projetada'})`;
+    case 'thermal': return `Barra ${l.member}: ΔT sup ${fmt(l.tTop, 1)} · inf ${fmt(l.tBot, 1)} °C`;
+    case 'endMoment': return `Barra ${l.member}: M início ${fmt(l.mi)} · fim ${fmt(l.mj)} kN·m`;
+    case 'presc': return `Nó ${l.node}: recalque dx ${fmt((l.dx ?? 0) * 1000)} · dy ${fmt((l.dy ?? 0) * 1000)} mm · θ ${fmt(l.rz ?? 0, 4)}`;
+    case 'selfWeight': return `Peso próprio × ${fmt(l.factor)}`;
+  }
+}

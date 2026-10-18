@@ -1,0 +1,152 @@
+import { create } from 'zustand';
+import { produce } from 'immer';
+import type { Model } from '../core/types';
+import { nbrCombinations } from '../core/edit';
+import { samplePortico } from './samples';
+
+export type Tool = 'select' | 'node' | 'member' | 'pan' | 'section';
+export type Tab = 'estrutura' | 'cargas' | 'resultados' | 'influencia' | 'dimensionar';
+export type Diagram = 'none' | 'N' | 'V' | 'M' | 'deformed';
+export type Source =
+  | { kind: 'case'; id: number }
+  | { kind: 'combo'; id: number }
+  | { kind: 'envCases' }
+  | { kind: 'envCombos' };
+
+export interface View { scale: number; ox: number; oy: number }
+
+export interface ILState { member: number | null; x: number; effect: 'N' | 'V' | 'M' }
+
+interface State {
+  model: Model;
+  past: Model[];
+  future: Model[];
+  selNodes: Set<number>;
+  selMembers: Set<number>;
+  tool: Tool;
+  tab: Tab;
+  view: View;
+  grid: number;
+  snap: boolean;
+  activeCase: number;
+  source: Source;
+  diagram: Diagram;
+  showReactions: boolean;
+  showValues: boolean;
+  mTension: boolean;
+  diagScale: number;
+  il: ILState;
+  trainId: number | null;
+  trainPath: number[];
+  trainStatic: Source | null;
+  trainResult: { key: string; data: unknown } | null;
+  message: string;
+  memorialOpen: boolean;
+  libraryOpen: boolean;
+  module: 'portico' | 'fundacoes';
+  libraryId: string | null;
+  commit: (fn: (m: Model) => void, msg?: string) => void;
+  setModel: (m: Model, resetHistory?: boolean) => void;
+  undo: () => void;
+  redo: () => void;
+  set: (p: Partial<State>) => void;
+  select: (nodes: number[], members: number[], additive?: boolean) => void;
+  clearSel: () => void;
+}
+
+function init(): Model {
+  const m = samplePortico();
+  m.combinations = nbrCombinations(m.cases, 1);
+  return m;
+}
+
+const STORAGE = 'statikos:model';
+function loadSaved(): Model | null {
+  try {
+    const s = localStorage.getItem(STORAGE);
+    if (!s) return null;
+    const m = JSON.parse(s);
+    return m && m.version === 1 && Array.isArray(m.nodes) ? (m as Model) : null;
+  } catch { return null; }
+}
+export function persist(m: Model) {
+  try { localStorage.setItem(STORAGE, JSON.stringify(m)); } catch { /* armazenamento indisponível */ }
+}
+
+const initial = loadSaved() ?? init();
+
+export const useStore = create<State>((set, get) => ({
+  model: initial,
+  past: [],
+  future: [],
+  selNodes: new Set(),
+  selMembers: new Set(),
+  tool: 'select',
+  tab: 'estrutura',
+  view: { scale: 60, ox: 200, oy: 500 },
+  grid: 0.5,
+  snap: true,
+  activeCase: initial.cases[0]?.id ?? 1,
+  source: { kind: 'case', id: initial.cases[0]?.id ?? 1 },
+  diagram: 'M',
+  showReactions: true,
+  showValues: true,
+  mTension: true,
+  diagScale: 1,
+  il: { member: null, x: 0, effect: 'M' },
+  trainId: initial.trains[0]?.id ?? null,
+  trainPath: [],
+  trainStatic: null,
+  trainResult: null,
+  memorialOpen: false,
+  libraryOpen: false,
+  module: 'portico',
+  libraryId: null,
+  message: 'Pronto. Exemplo carregado: edite à vontade ou abra outro em Arquivo.',
+  commit: (fn, msg) => {
+    const cur = get().model;
+    const next = produce(cur, fn);
+    if (next === cur) return;
+    persist(next);
+    set({ model: next, past: [...get().past.slice(-199), cur], future: [], trainResult: null, ...(msg ? { message: msg } : {}) });
+  },
+  setModel: (m, resetHistory = true) => {
+    persist(m);
+    set({
+      model: m,
+      past: resetHistory ? [] : [...get().past, get().model],
+      future: [],
+      selNodes: new Set(),
+      selMembers: new Set(),
+      activeCase: m.cases[0]?.id ?? 1,
+      source: { kind: 'case', id: m.cases[0]?.id ?? 1 },
+      trainId: m.trains[0]?.id ?? null,
+      trainPath: [],
+      trainResult: null,
+      il: { member: null, x: 0, effect: 'M' },
+    });
+  },
+  undo: () => {
+    const { past, model, future } = get();
+    if (!past.length) return;
+    const prev = past[past.length - 1];
+    persist(prev);
+    set({ model: prev, past: past.slice(0, -1), future: [model, ...future], message: 'Desfeito.', trainResult: null });
+  },
+  redo: () => {
+    const { past, model, future } = get();
+    if (!future.length) return;
+    persist(future[0]);
+    set({ model: future[0], past: [...past, model], future: future.slice(1), message: 'Refeito.', trainResult: null });
+  },
+  set: (p) => set(p),
+  select: (nodes, members, additive) => {
+    const s = get();
+    const n = new Set(additive ? s.selNodes : []);
+    const mm = new Set(additive ? s.selMembers : []);
+    for (const id of nodes) { if (additive && n.has(id)) n.delete(id); else n.add(id); }
+    for (const id of members) { if (additive && mm.has(id)) mm.delete(id); else mm.add(id); }
+    set({ selNodes: n, selMembers: mm });
+  },
+  clearSel: () => set({ selNodes: new Set(), selMembers: new Set() }),
+}));

@@ -1,0 +1,24 @@
+import { it, expect } from 'vitest';
+import { addMember } from './edit';
+import { emptyModel } from './types';
+import { analyze } from './solver';
+import { P } from './math';
+it('trem-tipo confere com análise estática direta', () => {
+  const m = emptyModel();
+  m.materials = [{ id: 1, name: 'c', E: 28.56e6, nu: 0.2, alpha: 1e-5, gamma: 25 }];
+  m.sections = [{ id: 1, name: 't', shape: { kind: 'tee', bf: 2.0, tf: 0.2, bw: 0.4, h: 1.4 } }];
+  const xs = [0, 10, 13, 14.5, 16, 17.5, 19, 22, 32];
+  for (let i = 0; i + 1 < xs.length; i++) addMember(m, xs[i], 0, xs[i + 1], 0, 1, 1);
+  const at = (x: number) => m.nodes.find((n) => n.x === x)!;
+  at(0).support = { ux: 'fixed', uy: 'fixed', rz: 'free' };
+  for (const x of [10, 22, 32]) at(x).support = { ux: 'free', uy: 'fixed', rz: 'free' };
+  m.loads = [14.5, 16, 17.5].map((x, k) => ({ kind: 'nodal' as const, id: k + 1, caseId: 1, node: at(x).id, fx: 0, fy: -75 * 1.25, mz: 0 }));
+  const mem = (a: number, b: number) => m.members.find((k) => m.nodes.find((n) => n.id === k.ni)!.x === a && m.nodes.find((n) => n.id === k.nj)!.x === b)!.id;
+  m.loads.push({ kind: 'dist', id: 10, caseId: 1, member: mem(10, 13), system: 'global', qxi: 0, qyi: -12.5, qxj: 0, qyj: -12.5 } as never);
+  m.loads.push({ kind: 'dist', id: 11, caseId: 1, member: mem(19, 22), system: 'global', qxi: 0, qyi: -12.5, qxj: 0, qyj: -12.5 } as never);
+  const a = analyze(m);
+  const k = a.prep.members.findIndex((p) => p.id === mem(16, 17.5));
+  const M = P.evaluate(a.cases.get(1)!.members[k].M, 0);
+  console.log('M(16) =', M);
+  expect(M).toBeCloseTo(469.34, 0);
+});
