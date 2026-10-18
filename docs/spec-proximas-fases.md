@@ -73,7 +73,7 @@ Proposta original:
 - Conversão só na interface e no memorial; o núcleo continua em kN, m e rad.
 - Preferência salva no arquivo de trabalho.
 
-### B2. Transformações
+### B2. Transformações — **feito** (18/10/2026): copiar ou mover por translação (com cópias em série), rotação e espelhamento; leva cargas e apoios. Escalar ficou de fora.
 - Copiar, espelhar, girar, escalar e repetir em série (n cópias com Δx e Δy), com cargas e apoios opcionais.
 - Usar `edit.ts`, mantendo a divisão automática em interseções.
 

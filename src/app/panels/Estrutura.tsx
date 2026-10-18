@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { Check, Group, Hint, NumField, Select, Seg, TextField } from '../ui';
-import { nextId, joinAtNode } from '../../core/edit';
+import { nextId, joinAtNode, selectionSets, transformSelection, type Xform } from '../../core/edit';
 import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
@@ -135,6 +135,8 @@ export function EstruturaPanel() {
         </div>
         <Hint>Mola rotacional linear-elástica entre a barra e o nó. Rótula na mesma extremidade prevalece. Referência de classificação (EN 1993-1-8, 5.2.2.5, só informativa): k·L/EI ≤ 0,5 ≈ rótula; ≥ 8 (contraventado) ou ≥ 25 (não contraventado) ≈ rígida.</Hint>
       </Group>
+
+      <TransformGroup />
 
       <Group title="Materiais" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.materials); st.commit((m) => { m.materials.push({ ...(mat ?? { E: 2e8, nu: 0.3, alpha: 1e-5, gamma: 78.5 }), id, name: `Material ${id}` }); }); setMatId(id); }}>+ novo</button>}>
         <Select value={mat?.id ?? 0} options={model.materials.map((m) => ({ v: m.id, label: `${m.name} · ${countUse(model.members, 'material', m.id)} barras` }))} onChange={setMatId} />
@@ -355,6 +357,62 @@ function MemberDesignProps({ ids }: { ids: number[] }) {
       </div>
       <button type="button" className="btn ghost" onClick={() => upd((m) => { delete m.leIn; delete m.leOut; })}>Usar o comprimento de cada barra</button>
       <Hint>Automático: inclinação acima de 60° é pilar. Fora do plano, informe a distância entre travamentos (vigas, terças, contraventamentos).</Hint>
+    </Group>
+  );
+}
+
+type Op = 'translate' | 'rotate' | 'mirror';
+type Axis = 'v' | 'h' | 'p';
+
+function TransformGroup() {
+  const st = useStore();
+  const { model, selNodes, selMembers } = st;
+  const [copy, setCopy] = useState<'move' | 'copy'>('copy');
+  const [op, setOp] = useState<Op>('translate');
+  const [p, setP] = useState({ dx: 5, dy: 0, cx: 0, cy: 0, deg: 90, axis: 'v' as Axis, c: 0, x1: 0, y1: 0, x2: 0, y2: 1, n: 1, loads: true, supports: true });
+  const { members, nodes } = selectionSets(model, selNodes, selMembers);
+  const first = model.nodes.find((n) => n.id === [...selNodes][0]);
+
+  const xf = (): Xform => op === 'translate' ? { kind: 'translate', dx: p.dx, dy: p.dy }
+    : op === 'rotate' ? { kind: 'rotate', cx: p.cx, cy: p.cy, deg: p.deg }
+    : p.axis === 'v' ? { kind: 'mirror', x1: p.c, y1: 0, x2: p.c, y2: 1 }
+    : p.axis === 'h' ? { kind: 'mirror', x1: 0, y1: p.c, x2: 1, y2: p.c }
+    : { kind: 'mirror', x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2 };
+
+  const apply = () => {
+    if (!nodes.size) return st.set({ message: 'Selecione nós e/ou barras para transformar.' });
+    if (op === 'mirror' && p.axis === 'p' && Math.hypot(p.x2 - p.x1, p.y2 - p.y1) < 1e-9) return st.set({ message: 'Os dois pontos do eixo de espelhamento coincidem.' });
+    const t = xf();
+    let out = { nodes: [] as number[], members: [] as number[] };
+    const verb = op === 'translate' ? (copy === 'copy' ? 'copiadas' : 'movidas') : op === 'rotate' ? (copy === 'copy' ? 'copiadas com rotação' : 'giradas') : (copy === 'copy' ? 'copiadas espelhadas' : 'espelhadas');
+    st.commit((m) => { out = transformSelection(m, selNodes, selMembers, t, { copy: copy === 'copy', copies: p.n, loads: p.loads, supports: p.supports }); }, `${members.length} barra(s) e ${nodes.size} nó(s) ${verb}.`);
+    if (copy === 'copy') st.select(out.nodes, out.members);
+  };
+  const N = (k: keyof typeof p, label: string, unit?: string) => <NumField label={label} unit={unit} value={p[k] as number} onChange={(v) => setP({ ...p, [k]: v })} />;
+
+  return (
+    <Group title="Transformar seleção" open={false} aside={<span className="muted">{nodes.size ? `${members.length} barra(s) · ${nodes.size} nó(s)` : 'selecione'}</span>}>
+      <Seg value={copy} onChange={setCopy} options={[{ v: 'copy', label: 'Copiar' }, { v: 'move', label: 'Mover' }]} />
+      <Seg value={op} onChange={setOp} options={[{ v: 'translate', label: 'Transladar' }, { v: 'rotate', label: 'Girar' }, { v: 'mirror', label: 'Espelhar' }]} />
+      {op === 'translate' && <div className="row">{N('dx', 'Δx', 'm')}{N('dy', 'Δy', 'm')}</div>}
+      {op === 'rotate' && (
+        <>
+          <div className="row">{N('cx', 'Centro x', 'm')}{N('cy', 'Centro y', 'm')}{N('deg', 'Ângulo', '°')}</div>
+          {first && <button type="button" className="chip" onClick={() => setP({ ...p, cx: first.x, cy: first.y })}>Centro no nó {first.id}</button>}
+        </>
+      )}
+      {op === 'mirror' && (
+        <>
+          <Seg small value={p.axis} onChange={(axis) => setP({ ...p, axis })} options={[{ v: 'v', label: 'Eixo vertical' }, { v: 'h', label: 'Eixo horizontal' }, { v: 'p', label: 'Dois pontos' }]} />
+          {p.axis === 'p' ? <div className="row">{N('x1', 'x₁', 'm')}{N('y1', 'y₁', 'm')}{N('x2', 'x₂', 'm')}{N('y2', 'y₂', 'm')}</div>
+            : <div className="row">{N('c', p.axis === 'v' ? 'x do eixo' : 'y do eixo', 'm')}</div>}
+        </>
+      )}
+      {copy === 'copy' && op !== 'mirror' && <div className="row">{N('n', 'Cópias em série')}</div>}
+      <Check label="Levar as cargas" checked={p.loads} onChange={(v) => setP({ ...p, loads: v })} />
+      <Check label="Levar os apoios" checked={p.supports} onChange={(v) => setP({ ...p, supports: v })} />
+      <button type="button" className="btn primary" onClick={apply}>Aplicar</button>
+      <Hint>Cópias se ligam à estrutura existente: nós coincidentes são reaproveitados e barras cruzadas são divididas. Cargas nodais não são duplicadas em nós que já existiam. No espelhamento, cargas globais são refletidas, cargas locais transversais e momentos trocam de sinal e as faces da temperatura se invertem; na translação e na rotação as cargas mantêm a direção (gravidade continua vertical).</Hint>
     </Group>
   );
 }

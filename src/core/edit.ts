@@ -1,5 +1,5 @@
 // Operações de edição do modelo (mutam um rascunho; usar com immer).
-import type { Combination, DistLoad, LoadCase, Member, Model } from './types';
+import type { Combination, DistLoad, Load, LoadCase, Member, Model, Support } from './types';
 
 export const TOL = 1e-6;
 
@@ -181,3 +181,161 @@ export function nbrCombinations(cases: LoadCase[], startId: number): Combination
 }
 
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
+
+// ---------------------------------------------------------------------------
+// Transformações da seleção: mover ou copiar (em série) por translação, rotação ou espelhamento.
+
+export type Xform =
+  | { kind: 'translate'; dx: number; dy: number }
+  | { kind: 'rotate'; cx: number; cy: number; deg: number }
+  | { kind: 'mirror'; x1: number; y1: number; x2: number; y2: number };
+
+export interface XformOptions {
+  copy: boolean;
+  /** Número de cópias em série (cada uma aplica a transformação de novo sobre a anterior). */
+  copies: number;
+  loads: boolean;
+  supports: boolean;
+}
+
+/** Parte linear [[a, b], [c, d]] e translação da transformação. */
+function affine(t: Xform): { A: [number, number, number, number]; b: [number, number] } {
+  if (t.kind === 'translate') return { A: [1, 0, 0, 1], b: [t.dx, t.dy] };
+  if (t.kind === 'rotate') {
+    const r = (t.deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+    return { A: [c, -s, s, c], b: [t.cx - c * t.cx + s * t.cy, t.cy - s * t.cx - c * t.cy] };
+  }
+  const ux = t.x2 - t.x1, uy = t.y2 - t.y1, L2 = ux * ux + uy * uy || 1;
+  const a = (ux * ux - uy * uy) / L2, bb = (2 * ux * uy) / L2, d = -a;
+  return { A: [a, bb, bb, d], b: [t.x1 - a * t.x1 - bb * t.y1, t.y1 - bb * t.x1 - d * t.y1] };
+}
+
+export function xformPoint(t: Xform, x: number, y: number, times = 1): [number, number] {
+  const { A, b } = affine(t);
+  for (let k = 0; k < times; k++) [x, y] = [A[0] * x + A[1] * y + b[0], A[2] * x + A[3] * y + b[1]];
+  return [x, y];
+}
+
+/** Barras e nós afetados: barras selecionadas, barras com os dois nós selecionados e seus nós. */
+export function selectionSets(m: Model, nodeIds: Set<number>, memberIds: Set<number>) {
+  const members = m.members.filter((mm) => memberIds.has(mm.id) || (nodeIds.has(mm.ni) && nodeIds.has(mm.nj)));
+  const nodes = new Set<number>(nodeIds);
+  for (const mm of members) { nodes.add(mm.ni); nodes.add(mm.nj); }
+  return { members, nodes };
+}
+
+/**
+ * Convenção para as cargas: no espelhamento os vetores globais são refletidos, as cargas locais
+ * transversais e os momentos trocam de sinal e as faces da temperatura se invertem; na translação
+ * e na rotação as cargas são copiadas como estão (carga global mantém a direção, ex.: gravidade).
+ */
+function mirrorLoad<T extends Load>(ld: T, A: [number, number, number, number]): T {
+  const v = (x: number, y: number): [number, number] => [A[0] * x + A[1] * y, A[2] * x + A[3] * y];
+  const c = { ...ld };
+  if (c.kind === 'nodal') { [c.fx, c.fy] = v(c.fx, c.fy); c.mz = -c.mz; }
+  else if (c.kind === 'presc') { const [dx, dy] = v(c.dx ?? 0, c.dy ?? 0); c.dx = dx; c.dy = dy; if (c.rz) c.rz = -c.rz; }
+  else if (c.kind === 'endMoment') { c.mi = -c.mi; c.mj = -c.mj; }
+  else if (c.kind === 'thermal') { [c.tTop, c.tBot] = [c.tBot, c.tTop]; }
+  else if (c.kind === 'dist') {
+    if (c.system === 'local') { c.qyi = -c.qyi; c.qyj = -c.qyj; }
+    else { [c.qxi, c.qyi] = v(c.qxi, c.qyi); [c.qxj, c.qyj] = v(c.qxj, c.qyj); }
+  }
+  return c;
+}
+
+function xformSupport(s: Support, t: Xform): Support {
+  if (t.kind === 'translate') return { ...s };
+  const ang = s.angle ?? 0;
+  if (t.kind === 'rotate') return { ...s, angle: ang + t.deg };
+  const phi = (Math.atan2(t.y2 - t.y1, t.x2 - t.x1) * 180) / Math.PI;
+  return { ...s, angle: 2 * phi - ang };
+}
+
+export function transformSelection(m: Model, nodeIds: Set<number>, memberIds: Set<number>, t: Xform, o: XformOptions): { nodes: number[]; members: number[] } {
+  const { members: src, nodes: srcNodes } = selectionSets(m, nodeIds, memberIds);
+  const { A } = affine(t);
+  const isMirror = t.kind === 'mirror';
+  const pos = new Map(m.nodes.map((n) => [n.id, n]));
+
+  if (!o.copy) {
+    for (const id of srcNodes) {
+      const n = pos.get(id)!;
+      [n.x, n.y] = xformPoint(t, n.x, n.y);
+      if (o.supports && n.support) n.support = xformSupport(n.support, t);
+    }
+    if (isMirror) {
+      const memSet = new Set(src.map((x) => x.id));
+      m.loads = m.loads.map((ld) => (('member' in ld && memSet.has(ld.member)) || ('node' in ld && srcNodes.has(ld.node)) ? mirrorLoad(ld, A) : ld));
+    }
+    return { nodes: [...srcNodes], members: src.map((x) => x.id) };
+  }
+
+  const newNodes: number[] = [], newMembers: number[] = [];
+  const srcLoads = m.loads.filter((ld) => ('member' in ld && src.some((x) => x.id === ld.member)) || ('node' in ld && srcNodes.has(ld.node)));
+  const n = isMirror ? 1 : Math.max(1, Math.floor(o.copies));
+  for (let c = 1; c <= n; c++) {
+    const map = new Map<number, number>();
+    const fresh = new Set<number>();
+    for (const id of srcNodes) {
+      const n = pos.get(id)!;
+      const [x, y] = xformPoint(t, n.x, n.y, c);
+      const before = m.nodes.length;
+      const nid = ensureNode(m, x, y);
+      if (m.nodes.length > before) fresh.add(nid);
+      map.set(id, nid);
+      newNodes.push(nid);
+      const target = m.nodes.find((k) => k.id === nid)!;
+      if (o.supports && n.support && !target.support) target.support = xformSupport(n.support, c === 1 ? t : composeTimes(t, c));
+    }
+    const mirrorNow = isMirror && c % 2 === 1;
+    for (const s of src) {
+      const a = m.nodes.find((k) => k.id === map.get(s.ni))!, b = m.nodes.find((k) => k.id === map.get(s.nj))!;
+      const created = addMember(m, a.x, a.y, b.x, b.y, s.material, s.section);
+      const pieces = created.map((id) => m.members.find((k) => k.id === id)!);
+      pieces.forEach((p, k) => {
+        if (s.role) p.role = s.role;
+        if (s.leIn !== undefined && pieces.length === 1) p.leIn = s.leIn;
+        if (s.leOut !== undefined && pieces.length === 1) p.leOut = s.leOut;
+        if (k === 0 && p.ni === a.id) { p.hingeI = s.hingeI; if (s.springI) p.springI = s.springI; }
+        if (k === pieces.length - 1 && p.nj === b.id) { p.hingeJ = s.hingeJ; if (s.springJ) p.springJ = s.springJ; }
+      });
+      newMembers.push(...created);
+      if (!o.loads) continue;
+      const L2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const tOf = (id: number) => { const n = m.nodes.find((k) => k.id === id)!; return ((n.x - a.x) * (b.x - a.x) + (n.y - a.y) * (b.y - a.y)) / L2; };
+      for (const ld of srcLoads) {
+        if (!('member' in ld) || ld.member !== s.id) continue;
+        const base = mirrorNow ? mirrorLoad(ld, A) : { ...ld };
+        pieces.forEach((p, k) => {
+          const t0 = tOf(p.ni), t1 = tOf(p.nj);
+          let cp: Load = { ...base, id: nextId(m.loads), member: p.id } as Load;
+          if (cp.kind === 'dist') {
+            const at = (vi: number, vj: number, tt: number) => vi + (vj - vi) * tt;
+            const d = base as DistLoad;
+            cp = { ...cp, qxi: at(d.qxi, d.qxj, t0), qyi: at(d.qyi, d.qyj, t0), qxj: at(d.qxi, d.qxj, t1), qyj: at(d.qyi, d.qyj, t1) };
+          } else if (cp.kind === 'endMoment') {
+            cp = { ...cp, mi: k === 0 ? cp.mi : 0, mj: k === pieces.length - 1 ? cp.mj : 0 };
+          }
+          m.loads.push(cp);
+        });
+      }
+    }
+    if (o.loads) {
+      for (const ld of srcLoads) {
+        if (!('node' in ld)) continue;
+        const nid = map.get(ld.node);
+        if (nid === undefined || !fresh.has(nid)) continue; // não duplica carga em nó que já existia
+        const base = mirrorNow ? mirrorLoad(ld, A) : { ...ld };
+        m.loads.push({ ...base, id: nextId(m.loads), node: nid } as Load);
+      }
+    }
+  }
+  return { nodes: [...new Set(newNodes)], members: newMembers };
+}
+
+/** Transformação aplicada c vezes (para o ângulo dos apoios nas cópias em série). */
+function composeTimes(t: Xform, c: number): Xform {
+  if (t.kind === 'translate') return { kind: 'translate', dx: t.dx * c, dy: t.dy * c };
+  if (t.kind === 'rotate') return { ...t, deg: t.deg * c };
+  return c % 2 === 1 ? t : { kind: 'translate', dx: 0, dy: 0 };
+}
