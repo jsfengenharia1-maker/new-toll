@@ -123,6 +123,12 @@ export interface DesignSettings {
   fywk: number; // MPa, estribos
   dmax: number; // m, diâmetro máximo do agregado
   gammaA1: number; // aço estrutural
+  /** Módulo base da rigidez reduzida do γz (NBR 6118 15.7.3 usa Eci). 'Ecs' fica a favor da segurança. */
+  gammaZModulus?: 'Eci' | 'Ecs';
+  /** Idade do carregamento para a fluência na flecha diferida (meses; NBR 6118 17.3.2.1.2). */
+  t0Months?: number;
+  /** Vigas suportam alvenaria: limita a parcela da flecha após a parede a ℓ/500 e 10 mm (Tab. 13.3). */
+  masonry?: boolean;
 }
 
 export interface ProjectInfo {

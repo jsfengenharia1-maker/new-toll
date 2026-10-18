@@ -150,6 +150,7 @@ export interface ColumnCheck {
   combo: string; Nd: number; util: number; governing: 'S1' | 'S2' | 'N' | 'T';
   lambdaX: number; lambda1X: number; alphaB: number; M1dA: number; M1dMinX: number; M2dX: number; MdTotX: number; MRxx: number;
   lambdaY: number; M1dMinY: number; M2dY: number; MdTotY: number; MRyy: number; MxS2: number; interaction: number; nu: number;
+  gn1?: number;
 }
 
 export interface ColumnDesign {
@@ -224,21 +225,24 @@ function evaluateColumn(inp: ColumnInput, L: ColumnLayout, gn: number) {
     const nuR = nu / gn;
     let M2dX = 0;
     if (lambdaX > lambda1X) M2dX = ((Nd * inp.leIn ** 2) / 10) * Math.min(0.005 / (h * (nuR + 0.5)), 0.005 / h);
-    const MdTotX = Math.max(alphaB * Mbase + M2dX, Mbase, ms);
     const lambdaY = (Math.sqrt(12) * inp.leOut) / b;
+    // 140 < λ ≤ 200: esforços finais × γn1 = 1 + 0,01·(λ − 140)/1,4 (15.8.1)
+    const lamMax = Math.max(lambdaX, lambdaY);
+    const gn1 = lamMax > 140 ? 1 + (0.01 * (lamMax - 140)) / 1.4 : 1;
+    const MdTotX = Math.max(alphaB * Mbase + M2dX, Mbase, ms) * gn1;
     const M1dMinY = Nd * (0.015 + 0.03 * b);
     const M2dY = lambdaY > 35 ? ((Nd * inp.leOut ** 2) / 10) * Math.min(0.005 / (b * (nuR + 0.5)), 0.005 / b) : 0;
-    const MdTotY = M1dMinY + M2dY;
-    const MRxx = MR(true, Nd), MRyy = MR(false, Nd);
+    const MdTotY = (M1dMinY + M2dY) * gn1;
+    const MRxx = MR(true, Nd * gn1), MRyy = MR(false, Nd * gn1);
     if (MRxx === null || MRyy === null) {
       checks.push({ ...base, util: 99, governing: 'N', lambdaX, lambda1X, alphaB, M1dA: MA, M1dMinX, M2dX, MdTotX, lambdaY, M1dMinY, M2dY, MdTotY, nu });
       continue;
     }
     const s1 = MdTotX / Math.max(MRxx, 1e-9);
-    const MxS2 = Math.max(MA, ms);
+    const MxS2 = Math.max(MA, ms) * gn1;
     const inter = (MxS2 / MRxx) ** 1.2 + (MdTotY / MRyy) ** 1.2;
     const util = Math.max(s1, inter);
-    checks.push({ ...base, util, governing: s1 >= inter ? 'S1' : 'S2', lambdaX, lambda1X, alphaB, M1dA: MA, M1dMinX, M2dX, MdTotX, MRxx, lambdaY, M1dMinY, M2dY, MdTotY, MRyy, MxS2, interaction: inter, nu });
+    checks.push({ ...base, util, governing: s1 >= inter ? 'S1' : 'S2', lambdaX, lambda1X, alphaB, M1dA: MA, M1dMinX, M2dX, MdTotX, MRxx, lambdaY, M1dMinY, M2dY, MdTotY, MRyy, MxS2, interaction: inter, nu, gn1 });
   }
   const util = checks.reduce((m, k) => Math.max(m, k.util), 0);
   return { util, checks };
@@ -401,11 +405,12 @@ export function chooseBars(As: number, bw: number, cover: number, phiT: number, 
 
 export interface ShearResult { Vsd: number; VRd2: number; Vc: number; aswS: number; aswMin: number; ok: boolean; smax: number; stirrup: { phi: number; s: number; legs: number } | null }
 
-export function beamShear(bw: number, d: number, VsdKN: number, c: Concrete, fywk: number, gammaS: number): ShearResult {
+/** Cortante modelo I. `vcOff`: seção toda tracionada (linha neutra fora da seção) → Vc = 0 (17.4.2.2). */
+export function beamShear(bw: number, d: number, VsdKN: number, c: Concrete, fywk: number, gammaS: number, vcOff = false): ShearResult {
   const Vsd = Math.abs(VsdKN) / 1000;
   const fywd = Math.min(fywk / gammaS, 435);
   const VRd2 = 0.27 * c.av2 * c.fcd * bw * d;
-  const Vc = 0.6 * c.fctd * bw * d;
+  const Vc = vcOff ? 0 : 0.6 * c.fctd * bw * d;
   const aswMin = ((0.2 * c.fctm) / fywk) * bw;
   const aswS = Math.max(aswMin, Math.max(0, Vsd - Vc) / (0.9 * d * fywd));
   const smax = Vsd <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2);

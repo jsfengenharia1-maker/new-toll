@@ -1,7 +1,7 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useAnalysis, getDesign, fmt, isSemi, linkText } from './results';
-import { comboResult, type MemberDesign } from '../core/design';
+import { comboResult, deltaXi, type MemberDesign } from '../core/design';
 import { caseGroup } from '../core/edit';
 import { CAA_TABLE, concrete } from '../core/concrete';
 import { sectionProps } from '../core/section';
@@ -214,7 +214,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
               <H2>Estabilidade global</H2>
               {rep.gammaZ.rows.length === 0 ? <p>Não há combinações ELU com ações horizontais; γz não se aplica.</p> : (
                 <>
-                  <p>γz = 1 / (1 − ΔMtot,d / M1,tot,d), com ΔMtot,d obtido com rigidez reduzida (0,4·EcI nas vigas e 0,8·EcI nos pilares; NBR 6118, 15.7.3).</p>
+                  <p>γz = 1 / (1 − ΔMtot,d / M1,tot,d), com ΔMtot,d obtido com rigidez reduzida (0,4·{(rep.settings.gammaZModulus ?? 'Eci') === 'Eci' ? 'Eci' : 'Ecs'}·Ic nas vigas e 0,8·{(rep.settings.gammaZModulus ?? 'Eci') === 'Eci' ? 'Eci' : 'Ecs'}·Ic nos pilares; NBR 6118, 15.7.3{(rep.settings.gammaZModulus ?? 'Eci') === 'Ecs' ? '; Ecs no lugar de Eci por opção do projetista, a favor da segurança' : ''}).</p>
                   <table>
                     <thead><tr><th className="l">Combinação</th><th>M1,tot,d (kN·m)</th><th>ΔMtot,d (kN·m)</th><th>γz</th></tr></thead>
                     <tbody>{rep.gammaZ.rows.map((r) => <tr key={r.combo}><td className="l">{r.combo}</td><td>{fmt(r.M1)}</td><td>{fmt(r.dM)}</td><td>{fmt(r.gz, 3)}</td></tr>)}</tbody>
@@ -245,8 +245,8 @@ export function Memorial({ onClose }: { onClose: () => void }) {
                 <>
                   <h3>Vigas de concreto armado</h3>
                   <div className="formula">{`Flexão: domínios 2/3, x/d ≤ ${rep.conc.size && [...rep.conc.values()][0].xLimRatio === 0.35 ? '0,35' : '0,45'}; bloco retangular 0,8x com σcd. As,mín por Md,mín = 0,8·W0·fctk,sup (≥ 0,15%·Ac).
-Cisalhamento (modelo I, θ = 45°): VRd2 = 0,27·αv2·fcd·bw·d; Vc = 0,6·fctd·bw·d; Asw/s = (VSd − Vc)/(0,9·d·fywd) ≥ 0,2·fctm/fywk·bw.
-Flecha: combinação quase permanente, inércia de Branson Ie = (Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III, fluência αf = Δξ/(1 + 50ρ'), Δξ = 1,32; limite L/250 (balanço L/125).`}</div>
+Cisalhamento (modelo I, θ = 45°): VRd2 = 0,27·αv2·fcd·bw·d; Vc = 0,6·fctd·bw·d (Vc = 0 com a seção toda tracionada, 17.4.2.2); Asw/s = (VSd − Vc)/(0,9·d·fywd) ≥ 0,2·fctm/fywk·bw.
+Flecha: combinação quase permanente, inércia de Branson Ie = (Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III, fluência αf = Δξ/(1 + 50ρ'), ρ' = armadura de compressão no vão, Δξ = ξ(∞) − ξ(t0) = ${fmt(deltaXi(rep.settings.t0Months ?? 1), 2)} (t0 = ${fmt(rep.settings.t0Months ?? 1, 1)} mês); limite L/250 (balanço L/125)${rep.settings.masonry ? '; vigas com alvenaria: parcela após a parede, tomada como αf·f0 (critério simplificado, a confirmar), ≤ ℓ/500 e ≤ 10 mm (Tab. 13.3)' : ''}.`}</div>
                   <table>
                     <thead><tr><th>Barra</th><th>Md+</th><th>As+ calc/mín</th><th className="l">Inferior</th><th>Md−</th><th>As− calc/mín</th><th className="l">Superior</th><th>VSd / VRd2</th><th className="l">Estribos</th><th>Flecha / lim (mm)</th><th className="l">Sit.</th></tr></thead>
                     <tbody>{beams.map((d) => { const b = d.beam!; return (
@@ -267,6 +267,8 @@ Esbeltez: λ = 3,46·le/h; λ1 = (25 + 12,5·e1/h)/αb, 35 ≤ λ1 ≤ 90; αb =
 Situação 1 (plano do pórtico): Md,tot,x ≤ MRd,xx(Nd).
 Situação 2 (flexão oblíqua): (Mx/MRd,xx)^1,2 + (Md,tot,y/MRd,yy)^1,2 ≤ 1, com Md,tot,y = M1d,mín,y + M2d,y (17.2.5).
 MRd por compatibilidade de deformações (parábola-retângulo). As,mín = 0,15·Nd/fyd ≥ 0,4%·Ac; As,máx adotado 4%·Ac (8% na emenda).
+140 < λ ≤ 200: esforços finais × γn1 = 1 + 0,01·(λ − 140)/1,4 (15.8.1).
+Cortante no plano: modelo I com bw = b e d = h − c − φt − φl/2; os estribos são reduzidos quando Asw/s calculado supera o construtivo.
 Estribos: φt ≥ 5 mm e φl/4; s ≤ 20 cm, menor dimensão e 12φl (CA-50).`}</div>
                   <table>
                     <thead><tr><th>Barra</th><th>b×h</th><th>Nd</th><th>NRd</th><th>λx/λ1</th><th>Md,tot,x / MRd</th><th>λy</th><th>Md,tot,y / MRd</th><th>Interação</th><th className="l">Armadura</th><th>ρ</th><th className="l">Estribos</th><th className="l">Sit.</th></tr></thead>

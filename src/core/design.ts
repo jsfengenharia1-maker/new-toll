@@ -22,7 +22,7 @@ export interface BeamDesign {
   asColumn?: ColumnDesign;
 }
 
-export interface Deflection { f: number; fEl: number; limit: number; ratio: number; Ie?: number; Ic?: number; alphaF?: number; combo: string; cantilever: boolean }
+export interface Deflection { f: number; fEl: number; limit: number; ratio: number; Ie?: number; Ic?: number; alphaF?: number; combo: string; cantilever: boolean; after?: { f: number; limit: number; ratio: number } }
 
 export interface MemberDesign {
   id: number; index: number; role: 'beam' | 'column' | 'none'; materialKind: 'concrete' | 'steel' | 'other';
@@ -30,6 +30,7 @@ export interface MemberDesign {
   status: 'ok' | 'fail' | 'review' | 'na'; util: number; summary: string; messages: string[];
   column?: ColumnDesign; beam?: BeamDesign; steel?: SteelDesign; deflection?: Deflection;
   suggestion?: string; suggestSection?: { b: number; h: number }; NdMax?: number;
+  columnShear?: ShearResult & { combo: string; provided: number };
 }
 
 export interface FoundationRow {
@@ -129,11 +130,14 @@ function equivalentNodal(a: Analysis, caseId: number): Float64Array {
   return F;
 }
 
-function gammaZ(model: Model, a: Analysis, elu: NamedCombo[]): DesignReport['gammaZ'] {
+function gammaZ(model: Model, a: Analysis, elu: NamedCombo[], modulus: 'Eci' | 'Ecs' = 'Eci'): DesignReport['gammaZ'] {
   const red = analyze(model, { eiFactor: (m, ang) => {
     const mat = model.materials.find((x) => x.id === m.material);
     if (mat?.kind === 'steel') return 0.8;
-    return roleOf(model, ang, m.role) === 'column' ? 0.8 : 0.4;
+    // 15.7.3: 0,4·Eci·Ic (vigas) e 0,8·Eci·Ic (pilares); o E da análise é o do material (Ecs no concreto)
+    const isConc = mat?.kind === 'concrete' || (!mat?.kind && !!mat?.fck);
+    const toEci = isConc && modulus === 'Eci' && mat?.fck ? (concrete(mat.fck).Eci * 1000) / mat.E : 1;
+    return (roleOf(model, ang, m.role) === 'column' ? 0.8 : 0.4) * toEci;
   } });
   if (red.prep.error) return { rows: [], max: 0, cls: 'none' };
   const eq = new Map(model.cases.map((c) => [c.id, equivalentNodal(a, c.id)]));
@@ -158,6 +162,12 @@ function gammaZ(model: Model, a: Analysis, elu: NamedCombo[]): DesignReport['gam
   return { rows, max, cls: !rows.length ? 'none' : max <= 1.1 ? 'fixed' : max <= 1.3 ? 'mobile' : 'excessive' };
 }
 
+/** Δξ = ξ(∞) − ξ(t0), com ξ(t) = 0,68·0,996^t·t^0,32 para t ≤ 70 meses e 2 acima (NBR 6118, 17.3.2.1.2). */
+export function deltaXi(t0: number) {
+  const xi = (t: number) => (t > 70 ? 2 : 0.68 * 0.996 ** t * t ** 0.32);
+  return 2 - xi(Math.max(0, t0));
+}
+
 function sampleXs(L: number, polys: number[][]) {
   const xs = new Set<number>();
   for (let q = 0; q <= 20; q++) xs.add((L * q) / 20);
@@ -174,7 +184,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   if (autoElu) warnings.push('Nenhuma combinação ELU no modelo: usadas combinações NBR 8681 geradas automaticamente pela natureza dos casos.');
 
   // estabilidade global
-  const gz = gammaZ(model, a, elu0);
+  const gz = gammaZ(model, a, elu0, settings.gammaZModulus ?? 'Eci');
   let elu = elu0;
   if (gz.cls === 'mobile') {
     elu = elu0.map((cb) => {
@@ -274,6 +284,31 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       const inp = { b: sec.shape.b, h: sec.shape.h, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() };
       const cd = designColumn(inp);
       const out: MemberDesign = { ...base, column: cd, status: cd.status, util: cd.util, messages: [...msgs, ...cd.messages], NdMax: Math.max(...inp.combos.map((x) => Math.max(-x.N0, -x.NL))) };
+      // cortante no plano do pórtico (modelo I, mesma rotina das vigas): bw = b, d = h − c − φt − φl/2
+      if (cd.layout && cd.stirrup) {
+        const phiT = cd.stirrup.phi / 1000, dcol = inp.h - cover - phiT - cd.layout.phi / 2000, aT = inp.h / 2 - (cover + phiT + cd.layout.phi / 2000);
+        let Vn = 0, Vt = 0, cn = '', ct = '';
+        for (const { cb, r } of eluRes) {
+          const m = r.members[k];
+          for (const x of sampleXs(pm.L, [m.M])) {
+            const V = Math.abs(P.evaluate(m.V, x)), N = P.evaluate(m.N, x), M = P.evaluate(m.M, x);
+            if (N > 1e-6 && Math.abs(M) <= N * aT) { if (V > Vt) { Vt = V; ct = cb.name; } } else if (V > Vn) { Vn = V; cn = cb.name; }
+          }
+        }
+        const shN = { ...beamShear(inp.b, dcol, Vn, c, settings.fywk, settings.gammaS), combo: cn };
+        const shT = { ...beamShear(inp.b, dcol, Vt, c, settings.fywk, settings.gammaS, true), combo: `${ct} (seção tracionada, Vc = 0)` };
+        const sh = Vt > 0 && shT.aswS > shN.aswS ? shT : shN;
+        const prov = (2 * barArea(cd.stirrup.phi)) / cd.stirrup.s;
+        out.columnShear = { ...sh, provided: prov };
+        if (!sh.ok) { out.status = 'fail'; out.util = Math.max(out.util, Math.abs(sh.Vsd) / sh.VRd2); out.messages.push(`Cortante: VSd = ${Math.abs(sh.Vsd).toFixed(1)} kN > VRd2 = ${sh.VRd2.toFixed(1)} kN.`); }
+        else if (sh.aswS > prov * 1.0001) {
+          const sReq = Math.floor(((2 * barArea(cd.stirrup.phi)) / sh.aswS) * 100) / 100;
+          out.messages.push(`Cortante (${sh.combo}): estribos φ${cd.stirrup.phi} reduzidos de c/${Math.round(cd.stirrup.s * 100)} para c/${Math.round(sReq * 100)} cm (Asw/s = ${(sh.aswS * 1e4).toFixed(2)} cm²/m).`);
+          cd.stirrup = { ...cd.stirrup, s: Math.max(0.05, sReq) };
+          out.columnShear.provided = (2 * barArea(cd.stirrup.phi)) / cd.stirrup.s;
+          if (sReq < 0.05) { out.status = out.status === 'ok' ? 'review' : out.status; out.messages.push('Espaçamento de estribo < 5 cm: aumente a bitola do estribo ou a seção.'); }
+        }
+      }
       if (cd.layout) out.summary = `${cd.layout.n} φ${cd.layout.phi} (ρ = ${(cd.rho * 100).toFixed(2)}%) · estribo φ${cd.stirrup?.phi} c/${Math.round((cd.stirrup?.s ?? 0) * 100)}`.replace(/(\d)\.(\d)/g, '$1,$2');
       if (!cd.ok || cd.status === 'review') {
         const sizes: [number, number][] = [];
@@ -294,14 +329,16 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     const bs: BeamSection = sec.shape.kind === 'rect' ? { kind: 'rect', bw: sec.shape.b, h: sec.shape.h } : { kind: 'tee', bw: sec.shape.bw, h: sec.shape.h, bf: sec.shape.bf, hf: sec.shape.tf };
     const cover = settings.coverBeam ?? caa.cover;
     const beamCheck = (bsec: BeamSection, scaleDefl = 1) => {
-      let posM = 0, negM = 0, posC = '', negC = '', Vmax = 0, Vc = '', Ncomp = 0;
+      let posM = 0, negM = 0, posC = '', negC = '', Vmax = 0, Vc = '', Ncomp = 0, VmaxT = 0, VcT = '';
+      const aT = bsec.h / 2 - (cover + 0.0063 + 0.008); // resultante de tração entre as camadas de armadura
       for (const { cb, r } of eluRes) {
         const m = r.members[k];
         for (const x of sampleXs(pm.L, [m.M])) {
-          const M = P.evaluate(m.M, x), V = Math.abs(P.evaluate(m.V, x));
+          const M = P.evaluate(m.M, x), V = Math.abs(P.evaluate(m.V, x)), N = P.evaluate(m.N, x);
           if (M > posM) { posM = M; posC = cb.name; }
           if (M < negM) { negM = M; negC = cb.name; }
-          if (V > Vmax) { Vmax = V; Vc = cb.name; }
+          if (N > 1e-6 && Math.abs(M) <= N * aT) { if (V > VmaxT) { VmaxT = V; VcT = cb.name; } }
+          else if (V > Vmax) { Vmax = V; Vc = cb.name; }
         }
         Ncomp = Math.max(Ncomp, -P.evaluate(m.N, 0), -P.evaluate(m.N, pm.L));
       }
@@ -322,7 +359,9 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       const pos = face(posM, true, posC);
       const neg = face(Math.abs(negM), false, negC);
       const d = Math.min(pos.d, neg.d);
-      const sh = { ...beamShear(bsec.bw, d, Vmax, c, settings.fywk, settings.gammaS), combo: Vc };
+      const shN = { ...beamShear(bsec.bw, d, Vmax, c, settings.fywk, settings.gammaS), combo: Vc };
+      const shT = { ...beamShear(bsec.bw, d, VmaxT, c, settings.fywk, settings.gammaS, true), combo: `${VcT} (seção tracionada, Vc = 0)` };
+      const sh = VmaxT > 0 && (shT.aswS > shN.aswS || Math.abs(shT.Vsd) > Math.abs(shN.Vsd)) ? shT : shN;
       const g = grossProps(bsec);
       const AsTotal = (pos.bars?.As ?? pos.AsAdopt) + (neg.bars?.As ?? neg.AsAdopt) + pos.As2 + neg.As2;
       const AsTotalRatio = AsTotal / g.A;
@@ -340,12 +379,21 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
         const Asd = pos.bars?.As ?? Math.max(pos.AsAdopt, 1e-6);
         const br = bransonRatio(bsec, true, Asd, pos.d, best.Ma, c);
         const Eanalysis = mat.E / 1000; // MPa
-        const rho2 = (neg.bars?.As ?? 0) / (bsec.bw * pos.d);
-        const alphaF = 1.32 / (1 + 50 * Math.min(rho2, 0.01));
+        // ρ' = armadura de compressão no vão (17.3.2.1.2); Δξ = ξ(∞) − ξ(t0)
+        const rho2 = pos.As2 / (bsec.bw * pos.d);
+        const alphaF = deltaXi(settings.t0Months ?? 1) / (1 + 50 * Math.min(rho2, 0.01));
         const stiffRatio = (Eanalysis * br.Ic) / (c.Ecs * br.Ie); // análise feita com E do material e Ic bruta
-        const fTot = best.f * stiffRatio * (1 + alphaF);
-        const limit = (cantilever ? 2 * pm.L : pm.L) / 250;
+        const fImm = best.f * stiffRatio;
+        const fTot = fImm * (1 + alphaF);
+        const span = cantilever ? 2 * pm.L : pm.L;
+        const limit = span / 250;
         defl = { f: fTot, fEl: best.f, limit, ratio: fTot / limit, Ie: br.Ie, Ic: br.Ic, alphaF, combo: best.combo, cantilever };
+        if (settings.masonry) {
+          // parcela após a parede: adotada a diferida αf·f0 (a confirmar); limite ℓ/500 e 10 mm
+          const fAfter = fImm * alphaF, limAfter = Math.min(span / 500, 0.01);
+          defl.after = { f: fAfter, limit: limAfter, ratio: fAfter / limAfter };
+          defl.ratio = Math.max(defl.ratio, defl.after.ratio);
+        }
       }
       return { pos, neg, sh, AsTotalRatio, axialNu, d, defl };
     };
@@ -355,7 +403,8 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     const fails: string[] = [];
     if (!bc.sh.ok) fails.push(`VSd = ${bc.sh.Vsd.toFixed(1)} kN > VRd2 = ${bc.sh.VRd2.toFixed(1)} kN (esmagamento da biela).`);
     if (bc.AsTotalRatio > 0.04) fails.push(`Armadura total ${(bc.AsTotalRatio * 100).toFixed(2)}% > 4% de Ac.`);
-    if (bc.defl && bc.defl.ratio > 1) fails.push(`Flecha diferida ${(bc.defl.f * 1000).toFixed(1)} mm > L/${bc.defl.cantilever ? 125 : 250} = ${(bc.defl.limit * 1000).toFixed(1)} mm.`);
+    if (bc.defl && bc.defl.f > bc.defl.limit) fails.push(`Flecha diferida ${(bc.defl.f * 1000).toFixed(1)} mm > L/${bc.defl.cantilever ? 125 : 250} = ${(bc.defl.limit * 1000).toFixed(1)} mm.`);
+    if (bc.defl?.after && bc.defl.after.ratio > 1) fails.push(`Flecha após a alvenaria ${(bc.defl.after.f * 1000).toFixed(1)} mm > ${(bc.defl.after.limit * 1000).toFixed(1)} mm (ℓ/500 e 10 mm).`);
     if (!bc.pos.bars && bc.pos.AsAdopt > 0) fails.push('Armadura positiva não cabe na largura (até 3 camadas).');
     if (!bc.neg.bars && bc.neg.AsAdopt > 0) fails.push('Armadura negativa não cabe na largura (até 3 camadas).');
     if (bc.axialNu > 0.1 && bs.kind === 'rect') {

@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 52 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test         # vitest: 60 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -52,8 +52,10 @@ Veja a tabela no `README.md`. Resumo:
   - S1, no plano: Md,tot com pilar-padrão de curvatura aproximada.
   - S2, flexão oblíqua: momento real no plano + M1d,mín + M2d fora do plano, com α = 1,2. O comprimento de travamento fora do plano é informado por barra; o padrão é L.
   - λ > 90 marca "revisar".
-- γz com rigidez reduzida (0,4EI nas vigas, 0,8EI nos pilares; aço 0,8EI). Entre 1,1 e 1,3, o vento (casos W) é majorado por 0,95γz nas combinações ELU.
+- γz com rigidez reduzida (0,4·Eci·Ic nas vigas, 0,8·Eci·Ic nos pilares, como na 15.7.3; opção Ecs a favor da segurança; aço 0,8EI). Entre 1,1 e 1,3, o vento (casos W) é majorado por 0,95γz nas combinações ELU.
 - Cargas na fundação, seguindo o padrão Eberick/TQS: valores característicos por caso + envoltória das combinações raras para a verificação geotécnica, e envoltória ELU para o dimensionamento estrutural do elemento de fundação.
+- Combinações: casos com o mesmo grupo excludente nunca atuam juntos (vento no grupo "vento" por padrão); para cada principal também a combinação sem acompanhantes.
+- Fluência: t0 editável (padrão 1 mês, Δξ = 1,32); ρ' = armadura de compressão do vão.
 - Memorial na ordem TQS / ABECE 003:2015, exportado em HTML.
 
 **Fundações:**
@@ -74,6 +76,7 @@ Veja a tabela no `README.md`. Resumo:
 - NBR 6122:2019, Tabela 4 (classe/γc, σ sem armar, comprimento mínimo da armadura, As,mín 0,4%): veio do projeto de revisão de 2018.
 - Critério de nega pelo SPT para pré-moldadas: não há critério normativo encontrado. N = 30 é ajustável.
 - Estimativas: nh de argila média/rija (0,5 MN/m³); comprimento armado até 4T com carga horizontal; tração admissível Rl/2 + 0,9W; volume do bloco (usado só para ranquear soluções).
+- Flecha com alvenaria (opção): parcela após a parede tomada como a diferida αf·f0, limite ℓ/500 e 10 mm.
 - Cargas de catálogo da pré-moldada (SCAC, menor valor da faixa); momento admissível com o fabricante.
 
 ## Publicação web (Netlify)

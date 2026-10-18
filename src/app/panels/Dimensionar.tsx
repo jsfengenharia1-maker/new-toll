@@ -1,5 +1,5 @@
 import { useStore } from '../store';
-import { Group, Hint, NumField, Select } from '../ui';
+import { Check, Group, Hint, NumField, Select } from '../ui';
 import { useDesign, fmt } from '../results';
 import { CAA_TABLE } from '../../core/concrete';
 import { nextId } from '../../core/edit';
@@ -115,6 +115,14 @@ export function DimensionarPanel() {
           <Select label="Agregado (dmáx)" value={ds.dmax} options={[{ v: 0.0095, label: 'Brita 0 · 9,5 mm' }, { v: 0.019, label: 'Brita 1 · 19 mm' }, { v: 0.025, label: 'Brita 2 · 25 mm' }]} onChange={(v) => upd({ dmax: v })} />
         </div>
         <Hint>Cobrimentos nominais da Tabela 7.2 (Δc = 10 mm). Ao trocar a CAA, os cobrimentos voltam ao valor da tabela.</Hint>
+        <div className="row">
+          <Select label="Rigidez do γz (15.7.3)" value={ds.gammaZModulus ?? 'Eci'} options={[{ v: 'Eci', label: '0,4/0,8 · Eci·Ic (norma)' }, { v: 'Ecs', label: '0,4/0,8 · Ecs·Ic (a favor da segurança)' }]} onChange={(v) => upd({ gammaZModulus: v })} />
+        </div>
+        <div className="row">
+          <NumField label="Idade do carregamento t0" unit="meses" value={ds.t0Months ?? 1} onChange={(v) => upd({ t0Months: Math.max(0, v) })} />
+        </div>
+        <Check label="Vigas suportam alvenaria (flecha após a parede ≤ ℓ/500 e 10 mm)" checked={!!ds.masonry} onChange={(v) => upd({ masonry: v })} />
+        <Hint>t0 define Δξ da flecha diferida (17.3.2.1.2). Com alvenaria, a parcela após a parede é tomada como a flecha diferida αf·f0 — critério simplificado, a confirmar.</Hint>
       </Group>
     </div>
   );
@@ -177,6 +185,16 @@ function MemberDetail({ m }: { m: MemberDesign }) {
             ['ρ / As,mín', `${fmt(cd.rho * 100)}% / ${fmt(cd.AsMin * 1e4)} cm²`],
             ['Estribos', cd.stirrup ? `φ${cd.stirrup.phi} c/${Math.round(cd.stirrup.s * 100)} cm` : '—'],
           ]} />
+          {m.columnShear && (
+            <>
+              <h4>Cortante no plano (modelo I)</h4>
+              <KV rows={[
+                ['VSd / VRd2', `${fmt(Math.abs(m.columnShear.Vsd))} / ${fmt(m.columnShear.VRd2)} kN`],
+                ['Vc', `${fmt(m.columnShear.Vc)} kN`],
+                ['Asw/s calc · adotado', `${fmt(m.columnShear.aswS * 1e4)} · ${fmt(m.columnShear.provided * 1e4)} cm²/m`],
+              ]} />
+            </>
+          )}
         </>
       )}
       {bd && (

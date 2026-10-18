@@ -12,6 +12,11 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 
 ---
 
+## Conferência NBR 6118 (18/10/2026, a partir do resumo da 6118:2014)
+- Corrigido: αb de pilar em balanço; γn só nos esforços finais; combinações com grupos excludentes e principal sozinha; γz com Eci (opção Ecs); ρ' da fluência e t0 editável; Vc = 0 com seção toda tracionada; cortante em pilares; γn1 para 140 < λ ≤ 200; flecha com alvenaria (opção).
+- Fundações: Nd,mín da estaca com γf = 1,0 na parcela permanente (ver Fase C).
+- Pendentes de menor impacto: φt ≤ bw/10 e espaçamento entre ramos; cobrimento 45 mm no pilar junto à fundação; pilar-parede (b/h > 5).
+
 ## Fase A — Análise estrutural (paridade com analisadores de pórtico 2D)
 
 ### A1. Ligações semirrígidas — **feito** (18/10/2026)

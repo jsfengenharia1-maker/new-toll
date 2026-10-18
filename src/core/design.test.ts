@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from './solver';
-import { runDesign } from './design';
+import { deltaXi, runDesign } from './design';
 import { designSteel } from './steel';
 import { samplePortico, sampleViga } from '../app/samples';
 
@@ -43,5 +43,33 @@ describe('aço NBR 8800', () => {
     const l0 = Math.sqrt(A * 250 / (Math.PI ** 2 * 200000 * I / 9));
     expect(r.chi).toBeCloseTo(0.658 ** (l0 * l0), 6);
     expect(r.NcRd).toBeCloseTo(r.chi * A * 250 / 1.1 * 1000, 3);
+  });
+});
+
+describe('ajustes NBR 6118 do dimensionamento', () => {
+  it('Δξ(t0): 1 mês → 1,32; 70 meses ou mais → 0', () => {
+    expect(deltaXi(1)).toBeCloseTo(2 - 0.68 * 0.996, 10);
+    expect(deltaXi(80)).toBe(0);
+  });
+  it('γz com Eci (norma) fica menor que com Ecs', () => {
+    const m = samplePortico();
+    const a = analyze(m);
+    const eci = runDesign(m, a).gammaZ.max;
+    const ecs = runDesign({ ...m, design: { ...(m.design ?? {}), gammaZModulus: 'Ecs' } as typeof m.design }, a).gammaZ.max;
+    expect(eci).toBeGreaterThan(1);
+    expect(eci).toBeLessThan(ecs);
+  });
+  it('pilares recebem verificação de cortante', () => {
+    const m = samplePortico();
+    const rep = runDesign(m, analyze(m));
+    for (const c of rep.members.filter((x) => x.role === 'column')) {
+      expect(c.columnShear).toBeTruthy();
+      expect(c.columnShear!.provided).toBeGreaterThanOrEqual(c.columnShear!.aswS * 0.999);
+    }
+  });
+  it('alvenaria: flecha após a parede verificada com ℓ/500 e 10 mm', () => {
+    const m = sampleViga();
+    const rep = runDesign({ ...m, design: { ...(m.design ?? {}), masonry: true } as typeof m.design }, analyze(m));
+    for (const b of rep.members) expect(b.deflection?.after?.limit).toBeLessThanOrEqual(0.01);
   });
 });
