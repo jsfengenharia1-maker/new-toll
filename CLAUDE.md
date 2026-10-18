@@ -117,8 +117,8 @@ Veja a tabela no `README.md`. Resumo:
 
 ## Próximos passos sugeridos
 1. Fundações: sapatas associadas e de divisa, cisalhamento de sapatas, recalques, tubulão com carga horizontal e armadura de topo, detalhamento e quantitativos (C1–C4 feitos em 18/10/2026).
-3. Pré-moldado NBR 9062 (consolos, ligações).
-4. Perfis metálicos: conferir as propriedades calculadas contra o catálogo do fabricante; perfis soldados (CS/CVS/VS).
+2. Pré-moldado NBR 9062 (consolos, ligações) — escopo a definir.
+3. Perfis metálicos: conferir as propriedades calculadas contra o catálogo do fabricante; perfis soldados (CS/CVS/VS).
 
 ## Notas de pesquisa
 `docs/pesquisa-memorial.md` e `docs/pesquisa-fundacoes.md` trazem os resumos das pesquisas, com URLs das fontes.

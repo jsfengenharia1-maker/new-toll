@@ -121,7 +121,16 @@ Proposta original:
 ## Fase C — Dimensionamento e fundações
 
 | Item | Escopo | [confirmar] |
-|
+|---|---|---|
+| C1. Blocos de coroamento — **feito** (18/10/2026) | Bielas e tirantes para 1 a 6 estacas; armadura principal, de distribuição e de suspensão; verificação das bielas no pilar e na estaca | Limites de tensão nas bielas (Blévot/Fusco/NBR 6118 22.7): qual referência adotar |
+| C2. Sapatas — **feito** (18/10/2026) | Rígidas e flexíveis, isoladas, com momento em uma direção; tensão no solo; flexão; punção | σadm vindo de sondagem ou informado pelo usuário |
+| C3. Tubulões — **feito** (18/10/2026) | Fuste e base alargada; tensão admissível na base | Método de σadm por SPT |
+| C4. Várias sondagens por obra — **feito** (18/10/2026) | Cada apoio associado ao furo mais próximo ou escolhido | — |
+| C5. Pilares circulares e em L — **feito** (18/10/2026) | Fibras com linha neutra inclinada; mín. 6 barras na circular; esbeltez pelos eixos centroidais | Cortante em circular com bw = D, d = 0,8·D (a confirmar); cortante de seção poligonal não verificado |
+| C6. Fissuração (ELS-W) — **feito** (18/10/2026) | wk por face de viga na combinação frequente, σs no estádio II (αe = 15) | Acr = bw·mín(h − d + 7,5φ, h/2), a confirmar |
+| C7. Perfis metálicos BR — **feito** (18/10/2026) | Ver abaixo | Conferir propriedades com o catálogo do fabricante |
+| C8. Pré-moldado NBR 9062 — **não iniciado** | Consolos e dentes Gerber; ligações | Escopo a definir com o usuário |
+
 ### C1–C4 — o que foi feito (18/10/2026)
 - **Correção prévia (estacas):** Nd,mín = 1,0·(Gk + Wb)/n − 1,4·[(Gk − Nk,mín)/n + ΔN]; Td = máx(0, −Nd,mín). Gk (soma dos casos G) vem do pórtico no novo campo "N perm"; sem ele, Gk = Nk (a favor da segurança). γf editáveis.
 - **C1 (`src/core/caps.ts`):** bloco rígido sobre 1 a 6 estacas nas disposições de `blockCoords`. Biela parte do centróide da parte da seção do pilar voltada para cada estaca; d entre os limites de 45° e 55° e ≥ lb das barras do pilar; tirantes sobre as estacas por equilíbrio dos nós (estaca mais carregada em todas); malha (20%), armadura superior, pele e estribos no bloco de 2 estacas, suspensão para s > 3D; tensões nas bielas junto ao pilar e à estaca contra K·KR·fcd; bloco de 1 estaca por fendilhamento. Croqui em planta e corte.
@@ -131,16 +140,6 @@ Proposta original:
 - **Interface e memorial:** tipo de fundação, furo, pilar e coordenadas por apoio; "Adotar esta estaca" para o bloco; grupos de premissas com selos "a confirmar"; capítulo de fundações do memorial com fórmulas, croquis e a lista de premissas a confirmar.
 
 **Ficou de fora:** blocos sobre mais de 6 estacas e blocos com pilares excêntricos; chanfros do bloco de 3 estacas (contorno retangular envolvente); verificação do peso real do bloco na distribuição de cargas (só aviso); cisalhamento unidirecional e ancoragem das barras de sapatas; sapatas associadas e de divisa; recalques e efeito de grupo; carga horizontal e armadura de topo do tubulão; tubulão a ar comprimido; detalhamento final (comprimentos, dobras, emendas e quantitativos).
-
----|---|---|
-| C1. Blocos de coroamento | Bielas e tirantes para 1 a 6 estacas; armadura principal, de distribuição e de suspensão; verificação das bielas no pilar e na estaca | Limites de tensão nas bielas (Blévot/Fusco/NBR 6118 22.7): qual referência adotar |
-| C2. Sapatas | Rígidas e flexíveis, isoladas, com momento em uma direção; tensão no solo; flexão; punção | σadm vindo de sondagem ou informado pelo usuário |
-| C3. Tubulões | Fuste e base alargada; tensão admissível na base | Método de σadm por SPT |
-| C4. Várias sondagens por obra | Cada apoio associado ao furo mais próximo ou escolhido | — |
-| C5. Pilares circulares e em L — **feito** (18/10/2026) | Fibras com linha neutra inclinada; mín. 6 barras na circular; esbeltez pelos eixos centroidais | Cortante em circular com bw = D, d = 0,8·D (a confirmar); cortante de seção poligonal não verificado |
-| C6. Fissuração (ELS-W) — **feito** (18/10/2026) | wk por face de viga na combinação frequente, σs no estádio II (αe = 15) | Acr = bw·mín(h − d + 7,5φ, h/2), a confirmar |
-| C7. Perfis metálicos BR — **feito** (18/10/2026) | Ver abaixo | Conferir propriedades com o catálogo do fabricante |
-| C8. Pré-moldado NBR 9062 | Consolos e dentes Gerber; ligações | Escopo a definir com o usuário |
 
 ### C7. Perfis metálicos BR — **feito** (18/10/2026)
 - Feito: `src/core/profiles.ts` (com teste). Perfis I laminados de abas paralelas W150×13,0 a W610×174,0 e HP200×53,0 a HP310×125,0 (série métrica ASTM A6 usual no Brasil), tubos circulares Ø33,4 a Ø323,8 (diâmetros e espessuras nominais ASME B36.10, Sch 40/80) e tubos quadrados/retangulares 50×50 a 300×200 em medidas comerciais usuais. Só as dimensões nominais (d, bf, tw, tf; D, t; h, b, t) estão registradas; A, I, Z, W, r, J e Cw são calculados pela geometria em `section.ts`/`steel.ts`. Na aba Estrutura › Seções, "Perfil de catálogo" (família + perfil) cria a seção (ou reaproveita) e aplica às barras selecionadas, avisando quando o material não é aço estrutural. A seção guarda a designação (`catalog`); editar as dimensões remove a marca. Massa linear pela geometria (ρ = 7850 kg/m³) no painel.

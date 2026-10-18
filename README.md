@@ -86,6 +86,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Várias sondagens por obra (arquivos antigos com uma sondagem continuam abrindo)
 
 **Próximas fases**
-- Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
+- Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir
+- Fundações: sapatas associadas e de divisa, recalques, tubulão com carga horizontal, detalhamento e quantitativos
 - Perfis soldados (CS, CVS, VS) e conferência das propriedades calculadas com o catálogo do fabricante
 - Cotas manuais entre nós
