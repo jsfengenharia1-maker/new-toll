@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { analyze, memberDisp, type Analysis, type CaseResult } from '../core/solver';
 import { P } from '../core/math';
-import { useStore, type Source } from './store';
+import { useStore, type ILState, type Source } from './store';
+import { displacementField, effectAt, influenceField, reactionField } from '../core/influence';
 
 const analysisCache = new WeakMap<object, Analysis>();
 export function useAnalysis(): Analysis {
@@ -97,3 +98,33 @@ export function linkText(m: { hingeI?: boolean; hingeJ?: boolean; springI?: numb
 }
 
 export const isSemi = (h?: boolean, k?: number) => !h && !!k && k > 0;
+
+/** Campo da linha de influência do alvo escolhido (seção, reação ou deslocamento). */
+export function ilFieldOf(a: Analysis, il: ILState): { field: CaseResult; pm?: Analysis['prep']['members'][number]; x?: number; nodeIndex?: number } | null {
+  if (a.prep.error) return null;
+  const t = il.target ?? 'section';
+  if (t === 'section') {
+    if (il.member === null) return null;
+    const pm = a.prep.members.find((m) => m.id === il.member);
+    if (!pm) return null;
+    const x = Math.min(Math.max(il.x, 0), pm.L);
+    return { field: influenceField(a.prep, pm.index, x, il.effect), pm, x };
+  }
+  const k = a.prep.nodeIndex.get(il.node ?? -1);
+  if (k === undefined) return null;
+  const dir = il.dir ?? 1;
+  const field = t === 'reaction' ? reactionField(a.prep, k, dir) : displacementField(a.prep, k, dir);
+  return field ? { field, nodeIndex: k } : null;
+}
+
+/** Valor do alvo da LI num resultado estático (para somar à envoltória do trem-tipo). */
+export function ilStaticValue(a: Analysis, il: ILState, r: CaseResult): number {
+  const t = il.target ?? 'section';
+  if (t === 'section') {
+    const pm = a.prep.members.find((m) => m.id === il.member);
+    return pm ? effectAt(r, pm.index, Math.min(Math.max(il.x, 0), pm.L), il.effect) : 0;
+  }
+  const k = a.prep.nodeIndex.get(il.node ?? -1);
+  if (k === undefined) return 0;
+  return t === 'reaction' ? r.reactions.get(k)?.[il.dir ?? 1] ?? 0 : r.u[k * 3 + (il.dir ?? 1)];
+}

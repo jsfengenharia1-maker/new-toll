@@ -59,7 +59,7 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 - **Saída:** tabela de modos; verificação de conforto de pisos (NBR 6118 23.3: f > 1,2·fcrit) como item opcional **[confirmar valores de fcrit]**.
 - **Testes:** viga biapoiada (fₙ = n²π/(2L²)·√(EI/m)) e engastada-livre.
 
-### A6. Linhas de influência de deslocamentos e reações
+### A6. Linhas de influência de deslocamentos e reações — **feito** (18/10/2026): reação por recalque unitário (Müller-Breslau/Betti) e deslocamento por Maxwell-Betti, com trem-tipo e soma do estático; envoltória em toda a estrutura continua só para esforços.
 - **Objetivo:** completar Müller-Breslau, que hoje cobre N, V e M.
 - **Método:** reação = deslocamento unitário na direção do vínculo; deslocamento = carga unitária pelo teorema de Maxwell-Betti.
 - **Testes:** viga contínua de 2 vãos contra tabela de livro.

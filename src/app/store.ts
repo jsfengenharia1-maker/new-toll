@@ -15,7 +15,13 @@ export type Source =
 
 export interface View { scale: number; ox: number; oy: number }
 
-export interface ILState { member: number | null; x: number; effect: 'N' | 'V' | 'M' }
+export interface ILState {
+  member: number | null; x: number; effect: 'N' | 'V' | 'M';
+  /** Alvo da LI: esforço numa seção (padrão), reação de apoio ou deslocamento de nó. */
+  target?: 'section' | 'reaction' | 'disp';
+  node?: number; // id do nó
+  dir?: 0 | 1 | 2;
+}
 
 interface State {
   model: Model;

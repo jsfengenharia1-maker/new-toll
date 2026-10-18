@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPath, effectAt, ilOrdinate, influenceField, samplePath, trainEnvelope } from './influence';
+import { buildPath, displacementField, effectAt, ilOrdinate, influenceField, reactionField, samplePath, trainEnvelope } from './influence';
 import { prepare, solveCase } from './solver';
 import type { Model } from './types';
 
@@ -73,5 +73,35 @@ describe('linha de influência com ligação semirrígida', () => {
     const direct = prepare({ ...m, loads: [{ kind: 'nodal', id: 1, caseId: 1, node: 2, fx: 0, fy: -1, mz: 0 }] });
     const res = solveCase(direct, 1);
     expect(ilOrdinate(prep, fld, 0, 5)).toBeCloseTo(effectAt(res, 0, 2, 'M'), 8);
+  });
+});
+
+describe('LI de reação e de deslocamento', () => {
+  it('viga biapoiada: LI da reação no apoio esquerdo é 1 − x/L', () => {
+    const prep = prepare(beam());
+    const f = reactionField(prep, 0, 1)!;
+    expect(ilOrdinate(prep, f, 0, 0)).toBeCloseTo(1, 9);
+    expect(ilOrdinate(prep, f, 0, 2.5)).toBeCloseTo(0.75, 9);
+    expect(ilOrdinate(prep, f, 1, 5)).toBeCloseTo(0, 9);
+  });
+  it('viga contínua de 2 vãos: LI da reação central confere com a análise direta', () => {
+    const m = beam();
+    m.nodes[1].support = { ux: 'free', uy: 'fixed', rz: 'free' };
+    const prep = prepare(m);
+    const f = reactionField(prep, 1, 1)!;
+    const direct = prepare({ ...m, loads: [{ kind: 'dist', id: 1, caseId: 1, member: 1, system: 'global', qxi: 0, qyi: -1, qxj: 0, qyj: -1 }] });
+    // carga uniforme unitária no 2º vão: reação = área da LI sob o vão
+    const r = solveCase(direct, 1).reactions.get(1)![1];
+    let area = 0;
+    for (let i = 0; i < 200; i++) area += ilOrdinate(prep, f, 1, 5 * (i + 0.5) / 200) * (5 / 200);
+    expect(area).toBeCloseTo(r, 4);
+    expect(r).toBeCloseTo(5 * 5 / 8, 6); // 5qL/8 de cada vão, metade vem do vão carregado
+  });
+  it('LI de deslocamento vertical no meio do vão = flecha por carga unitária', () => {
+    const prep = prepare(beam());
+    const f = displacementField(prep, 1, 1);
+    const EI = 2e8 * 0.2 * 0.6 ** 3 / 12;
+    // carga unitária descendente no meio (x = 5): δ = −L³/(48EI) (para cima positivo) → ordenada = δ
+    expect(ilOrdinate(prep, f, 0, 5)).toBeCloseTo(-(10 ** 3) / (48 * EI), 12);
   });
 });

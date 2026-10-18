@@ -14,6 +14,29 @@ export function influenceField(prep: Prepared, memberIndex: number, a: number, e
   return solveLoading(prep, loads, new Float64Array(prep.ndof), null, { member: memberIndex, a, e: E_VEC[effect] });
 }
 
+/**
+ * LI de reação (Müller-Breslau com deslocamento imposto): recalque −1 no gdl restringido do apoio.
+ * Pelo teorema de Betti, a reação (no sentido positivo do eixo do apoio) devida à carga unitária
+ * descendente em x é o deslocamento para cima do campo com recalque +1, ou seja, ilOrdinate do campo com −1.
+ */
+export function reactionField(prep: Prepared, nodeIndex: number, dir: 0 | 1 | 2): CaseResult | null {
+  const d = nodeIndex * 3 + dir;
+  if (!prep.constrained[d] || !prep.model.nodes[nodeIndex]?.support) return null;
+  const presc = new Float64Array(prep.ndof);
+  presc[d] = -1;
+  return solveLoading(prep, prep.members.map(() => noLoad()), new Float64Array(prep.ndof), presc);
+}
+
+/**
+ * LI de deslocamento de nó (Maxwell-Betti): o deslocamento do nó na direção `dir` devido à carga unitária
+ * descendente em x é igual ao deslocamento descendente em x devido à carga unitária no nó na direção `dir`.
+ */
+export function displacementField(prep: Prepared, nodeIndex: number, dir: 0 | 1 | 2): CaseResult {
+  const F = new Float64Array(prep.ndof);
+  F[nodeIndex * 3 + dir] = 1;
+  return solveLoading(prep, prep.members.map(() => noLoad()), F, null);
+}
+
 /** Ordenada da LI (carga unitária vertical para baixo) num ponto da barra k, posição x. */
 export function ilOrdinate(prep: Prepared, field: CaseResult, k: number, x: number): number {
   const pm = prep.members[k];

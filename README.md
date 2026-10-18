@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 83 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test           # 86 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -46,7 +46,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Cargas nodais, distribuídas lineares (global, projetada, local), momentos de extremidade, temperatura (fibras y+/y−), peso próprio
 - Casos (G/Q/W com ψ), combinações livres e NBR 8681 automáticas, envoltórias de casos e combinações
 - Diagramas N, V, M (M no lado tracionado ou comprimido), deformada exata, reações, leitura no ponto ao passar o mouse
-- Linhas de influência de N, V e M; trem-tipo com envoltória em toda a estrutura
+- Linhas de influência de N, V e M, de reações de apoio e de deslocamentos de nó; trem-tipo com envoltória em toda a estrutura
 - 2ª ordem global por P-Δ (opção ao γz), desaprumo global (11.3.3.4.1), flambagem global (modos e fatores de carga crítica) e vibração livre (frequências e massas modais)
 - Unidades de força de exibição: kN, tf, kgf ou N (cálculo sempre em kN·m)
 - Tabelas (reações, deslocamentos, esforços) com CSV; exportação SVG; desfazer/refazer; salvamento automático local
@@ -70,4 +70,3 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
 - Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
 - Cotas manuais entre nós, escalar seleção, comprimento em cm/mm
-- LI de deslocamentos e reações

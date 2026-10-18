@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { Group, Hint, NumField, Seg, Select, TextField } from '../ui';
-import { useAnalysis, resultFor, fmt } from '../results';
+import { useAnalysis, resultFor, fmt, ilFieldOf, ilStaticValue } from '../results';
 import { defaultPath } from '../pathTable';
-import { buildPath, influenceField, samplePath, trainEnvelope, trainEnvelopeAll, effectAt } from '../../core/influence';
+import { buildPath, samplePath, trainEnvelope, trainEnvelopeAll } from '../../core/influence';
 import { nextId } from '../../core/edit';
 import { sourceOptions, srcKey } from './Resultados';
 import { useUnits } from '../units';
@@ -19,10 +19,12 @@ export function InfluenciaPanel() {
   const pathIds = st.trainPath.length ? st.trainPath : defaultPath(model);
   const path = useMemo(() => (a.prep.error ? null : buildPath(a.prep, pathIds)), [a, pathIds]);
 
+  const target = il.target ?? 'section';
   const sectionStats = useMemo(() => {
-    if (!pm || !path || a.prep.error) return null;
-    const x = Math.min(Math.max(il.x, 0), pm.L);
-    const field = influenceField(a.prep, pm.index, x, il.effect);
+    if (!path || a.prep.error) return null;
+    const f = ilFieldOf(a, il);
+    if (!f) return null;
+    const field = f.field;
     const sm = samplePath(a.prep, field, path, 120);
     let pos = 0, neg = 0;
     for (let i = 1; i < sm.s.length; i++) {
@@ -31,12 +33,16 @@ export function InfluenciaPanel() {
     }
     const env = train ? trainEnvelope(sm, train) : null;
     const stat = st.trainStatic ? resultFor(a, st.trainStatic)[0] : undefined;
-    const sv = stat ? effectAt(stat, pm.index, x, il.effect) : 0;
+    const sv = stat ? ilStaticValue(a, il, stat) : 0;
     return { pos, neg, env, sv, fmax: Math.max(...sm.f), fmin: Math.min(...sm.f) };
-  }, [pm, path, a, il, train, st.trainStatic]);
+  }, [path, a, il, train, st.trainStatic]);
 
   const U = useUnits();
-  const ue = U.eff(il.effect), unit = ue.label;
+  const dir = il.dir ?? 1;
+  const ue = target === 'section' ? U.eff(il.effect) : target === 'reaction' ? (dir === 2 ? U.M : U.F) : dir === 2 ? { label: 'rad', to: (v: number) => v, from: (v: number) => v } : { label: 'mm', to: (v: number) => v * 1000, from: (v: number) => v / 1000 };
+  const unit = ue.label;
+  const effName = target === 'section' ? il.effect : target === 'reaction' ? `R${['x', 'y', 'θ'][dir]}` : `δ${['x', 'y', 'θ'][dir]}`;
+  const supNodes = model.nodes.filter((n) => n.support);
   const updTrain = (fn: (t: NonNullable<typeof train>) => void) => train && st.commit((m) => { fn(m.trains.find((t) => t.id === train.id)!); });
 
   const computeAll = () => {
@@ -56,8 +62,25 @@ export function InfluenciaPanel() {
   return (
     <div className="panel-body">
       <Group title="Linha de influência">
-        <Seg value={il.effect} onChange={(v) => st.set({ il: { ...il, effect: v } })} options={[{ v: 'N', label: 'Normal' }, { v: 'V', label: 'Cortante' }, { v: 'M', label: 'Momento' }]} />
-        {!pm ? <Hint>Clique numa barra da estrutura para escolher a seção.</Hint> : (
+        <Seg value={target} onChange={(v) => st.set({ trainResult: null, il: { ...il, target: v, node: il.node ?? (v === 'reaction' ? supNodes[0]?.id : model.nodes[0]?.id), dir: il.dir ?? 1 } })} options={[{ v: 'section', label: 'Esforço' }, { v: 'reaction', label: 'Reação' }, { v: 'disp', label: 'Deslocamento' }]} />
+        {target !== 'section' && (
+          <>
+            <div className="row">
+              <Select label="Nó" value={il.node ?? -1} options={(target === 'reaction' ? supNodes : model.nodes).map((n) => ({ v: n.id, label: `Nó ${n.id}` }))} onChange={(v) => st.set({ il: { ...il, node: v } })} />
+            </div>
+            <Seg small value={String(dir) as '0' | '1' | '2'} onChange={(v) => st.set({ il: { ...il, dir: +v as 0 | 1 | 2 } })} options={[{ v: '0', label: 'X' }, { v: '1', label: 'Y' }, { v: '2', label: 'Rotação' }]} />
+            {target === 'reaction' && !sectionStats && <Hint>Esse nó não tem restrição fixa nessa direção.</Hint>}
+            {sectionStats && (
+              <dl className="kv">
+                <dt>Ordenada máx.</dt><dd>{fmt(ue.to(sectionStats.fmax), 4)} {unit}/{U.F.label}</dd>
+                <dt>Ordenada mín.</dt><dd>{fmt(ue.to(sectionStats.fmin), 4)} {unit}/{U.F.label}</dd>
+              </dl>
+            )}
+            <Hint>{target === 'reaction' ? 'Reação no sentido positivo do eixo do apoio (eixos girados no apoio inclinado), por Müller-Breslau com recalque unitário.' : 'Deslocamento do nó nos eixos globais, pelo teorema de Maxwell-Betti.'} Carga unitária vertical para baixo.</Hint>
+          </>
+        )}
+        {target === 'section' && <Seg value={il.effect} onChange={(v) => st.set({ il: { ...il, effect: v } })} options={[{ v: 'N', label: 'Normal' }, { v: 'V', label: 'Cortante' }, { v: 'M', label: 'Momento' }]} />}
+        {target !== 'section' ? null : !pm ? <Hint>Clique numa barra da estrutura para escolher a seção.</Hint> : (
           <>
             <div className="row">
               <Select label="Barra" value={pm.id} options={a.prep.members.map((m) => ({ v: m.id, label: `Barra ${m.id} (L = ${fmt(m.L)} m)` }))} onChange={(v) => st.set({ il: { ...il, member: v } })} />
@@ -120,13 +143,13 @@ export function InfluenciaPanel() {
           onChange={(k) => st.set({ trainStatic: sourceOptions(model).find((o) => o.key === k)?.src ?? null, trainResult: null })} />
         {sectionStats?.env && (
           <dl className="kv">
-            <dt>{il.effect} máx. na seção</dt><dd>{fmt(ue.to(sectionStats.env.max + sectionStats.sv))} {unit}</dd>
-            <dt>{il.effect} mín. na seção</dt><dd>{fmt(ue.to(sectionStats.env.min + sectionStats.sv))} {unit}</dd>
+            <dt>{effName} máx.</dt><dd>{fmt(ue.to(sectionStats.env.max + sectionStats.sv))} {unit}</dd>
+            <dt>{effName} mín.</dt><dd>{fmt(ue.to(sectionStats.env.min + sectionStats.sv))} {unit}</dd>
             <dt>Frente do veículo (máx.)</dt><dd>{fmt(sectionStats.env.posMax)} m{sectionStats.env.revMax ? ' · sentido inverso' : ''}</dd>
             <dt>Frente do veículo (mín.)</dt><dd>{fmt(sectionStats.env.posMin)} m{sectionStats.env.revMin ? ' · sentido inverso' : ''}</dd>
           </dl>
         )}
-        <button type="button" className="btn primary" disabled={!path || !train || busy} onClick={computeAll}>{busy ? 'Calculando…' : 'Calcular envoltória em toda a estrutura'}</button>
+        {target === 'section' && <button type="button" className="btn primary" disabled={!path || !train || busy} onClick={computeAll}>{busy ? 'Calculando…' : 'Calcular envoltória em toda a estrutura'}</button>}
       </Group>
     </div>
   );

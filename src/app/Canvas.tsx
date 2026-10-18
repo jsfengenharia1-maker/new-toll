@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { useStore } from './store';
 import { makeUnits, useUnits } from './units';
-import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, isSemi, type Eff } from './results';
+import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, isSemi, ilFieldOf, type Eff } from './results';
 import { addMember, ensureNode } from '../core/edit';
-import { influenceField, ilOrdinate, type MemberEnvelope } from '../core/influence';
+import { ilOrdinate, type MemberEnvelope } from '../core/influence';
 import { P } from '../core/math';
 import type { Load, Model, Node, Support } from '../core/types';
 import { autoDims, dimSegments, levelText } from './dims';
@@ -368,16 +368,10 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
   }
 
   // linhas de influência
-  const ilField = useMemo(() => {
-    if (!showIL || st.il.member === null) return null;
-    const pm = a.prep.members.find((m) => m.id === st.il.member);
-    if (!pm) return null;
-    const x = Math.min(Math.max(st.il.x, 0), pm.L);
-    return { pm, x, field: influenceField(a.prep, pm.index, x, st.il.effect) };
-  }, [showIL, a, st.il]);
+  const ilField = useMemo(() => (showIL ? ilFieldOf(a, st.il) : null), [showIL, a, st.il]);
 
   const trainEnv = st.trainResult?.data as MemberEnvelope[] | undefined;
-  if (showIL && trainEnv && trainEnv.length === a.prep.members.length) {
+  if (showIL && trainEnv && trainEnv.length === a.prep.members.length && (st.il.target ?? 'section') === 'section') {
     const e = st.il.effect;
     let maxAbs = 0;
     trainEnv.forEach((m) => m.xs.forEach((_, j) => { maxAbs = Math.max(maxAbs, Math.abs(m.max[e][j]), Math.abs(m.min[e][j])); }));
@@ -404,7 +398,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
       }
     });
   } else if (ilField) {
-    const { field, pm: spm, x: sx } = ilField;
+    const { field, pm: spm, x: sx, nodeIndex } = ilField;
     let maxAbs = 0;
     const curves = a.prep.members.map((pm) => {
       const xs = Array.from({ length: 41 }, (_, q) => (pm.L * q) / 40);
@@ -431,9 +425,14 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         }
       }
     });
-    const p0 = model.nodes[spm.i];
-    const cx = X(p0.x + spm.c * sx), cy = Y(p0.y + spm.s * sx);
-    els.push(<g key="secmark" className="secmark"><line x1={cx + spm.s * 14} y1={cy + spm.c * 14} x2={cx - spm.s * 14} y2={cy - spm.c * 14} /><circle cx={cx} cy={cy} r={4} /></g>);
+    if (spm && sx !== undefined) {
+      const p0 = model.nodes[spm.i];
+      const cx = X(p0.x + spm.c * sx), cy = Y(p0.y + spm.s * sx);
+      els.push(<g key="secmark" className="secmark"><line x1={cx + spm.s * 14} y1={cy + spm.c * 14} x2={cx - spm.s * 14} y2={cy - spm.c * 14} /><circle cx={cx} cy={cy} r={4} /></g>);
+    } else if (nodeIndex !== undefined) {
+      const n = model.nodes[nodeIndex];
+      els.push(<g key="secmark" className="secmark"><circle cx={X(n.x)} cy={Y(n.y)} r={9} /></g>);
+    }
   }
 
   // dica ao passar o mouse (resultados)
