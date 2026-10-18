@@ -15,7 +15,7 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 ## Conferência NBR 6118 (18/10/2026, a partir do resumo da 6118:2014)
 - Corrigido: αb de pilar em balanço; γn só nos esforços finais; combinações com grupos excludentes e principal sozinha; γz com Eci (opção Ecs); ρ' da fluência e t0 editável; Vc = 0 com seção toda tracionada; cortante em pilares; γn1 para 140 < λ ≤ 200; flecha com alvenaria (opção).
 - Fundações: Nd,mín da estaca com γf = 1,0 na parcela permanente (ver Fase C).
-- Pendentes de menor impacto: φt ≤ bw/10 e espaçamento entre ramos; cobrimento 45 mm no pilar junto à fundação; pilar-parede (b/h > 5).
+- Avisos adicionados: φt ≤ bw/10 e espaçamento entre ramos (18.3.3.2); cobrimento 45 mm em pilar junto ao solo/fundação; pilar-parede (b/h > 5) marcado para revisão.
 
 ## Fase A — Análise estrutural (paridade com analisadores de pórtico 2D)
 
@@ -78,7 +78,7 @@ Proposta original:
 - Conversão só na interface e no memorial; o núcleo continua em kN, m e rad.
 - Preferência salva no arquivo de trabalho.
 
-### B2. Transformações — **feito** (18/10/2026): copiar ou mover por translação (com cópias em série), rotação e espelhamento; leva cargas e apoios. Escalar ficou de fora.
+### B2. Transformações — **feito** (18/10/2026): copiar ou mover por translação (com cópias em série), rotação e espelhamento; leva cargas e apoios; escalar (mover ou copiar) a partir de um ponto base.
 - Copiar, espelhar, girar, escalar e repetir em série (n cópias com Δx e Δy), com cargas e apoios opcionais.
 - Usar `edit.ts`, mantendo a divisão automática em interseções.
 

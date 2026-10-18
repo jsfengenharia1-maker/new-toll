@@ -370,7 +370,7 @@ function MemberDesignProps({ ids }: { ids: number[] }) {
   );
 }
 
-type Op = 'translate' | 'rotate' | 'mirror';
+type Op = 'translate' | 'rotate' | 'mirror' | 'scale';
 type Axis = 'v' | 'h' | 'p';
 
 function TransformGroup() {
@@ -378,12 +378,13 @@ function TransformGroup() {
   const { model, selNodes, selMembers } = st;
   const [copy, setCopy] = useState<'move' | 'copy'>('copy');
   const [op, setOp] = useState<Op>('translate');
-  const [p, setP] = useState({ dx: 5, dy: 0, cx: 0, cy: 0, deg: 90, axis: 'v' as Axis, c: 0, x1: 0, y1: 0, x2: 0, y2: 1, n: 1, loads: true, supports: true });
+  const [p, setP] = useState({ f: 2, dx: 5, dy: 0, cx: 0, cy: 0, deg: 90, axis: 'v' as Axis, c: 0, x1: 0, y1: 0, x2: 0, y2: 1, n: 1, loads: true, supports: true });
   const { members, nodes } = selectionSets(model, selNodes, selMembers);
   const first = model.nodes.find((n) => n.id === [...selNodes][0]);
 
   const xf = (): Xform => op === 'translate' ? { kind: 'translate', dx: p.dx, dy: p.dy }
     : op === 'rotate' ? { kind: 'rotate', cx: p.cx, cy: p.cy, deg: p.deg }
+    : op === 'scale' ? { kind: 'scale', cx: p.cx, cy: p.cy, f: p.f }
     : p.axis === 'v' ? { kind: 'mirror', x1: p.c, y1: 0, x2: p.c, y2: 1 }
     : p.axis === 'h' ? { kind: 'mirror', x1: 0, y1: p.c, x2: 1, y2: p.c }
     : { kind: 'mirror', x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2 };
@@ -391,9 +392,10 @@ function TransformGroup() {
   const apply = () => {
     if (!nodes.size) return st.set({ message: 'Selecione nós e/ou barras para transformar.' });
     if (op === 'mirror' && p.axis === 'p' && Math.hypot(p.x2 - p.x1, p.y2 - p.y1) < 1e-9) return st.set({ message: 'Os dois pontos do eixo de espelhamento coincidem.' });
+    if (op === 'scale' && !(p.f > 0)) return st.set({ message: 'Fator de escala deve ser positivo.' });
     const t = xf();
     let out = { nodes: [] as number[], members: [] as number[] };
-    const verb = op === 'translate' ? (copy === 'copy' ? 'copiadas' : 'movidas') : op === 'rotate' ? (copy === 'copy' ? 'copiadas com rotação' : 'giradas') : (copy === 'copy' ? 'copiadas espelhadas' : 'espelhadas');
+    const verb = op === 'scale' ? (copy === 'copy' ? 'copiadas em escala' : 'escaladas') : op === 'translate' ? (copy === 'copy' ? 'copiadas' : 'movidas') : op === 'rotate' ? (copy === 'copy' ? 'copiadas com rotação' : 'giradas') : (copy === 'copy' ? 'copiadas espelhadas' : 'espelhadas');
     st.commit((m) => { out = transformSelection(m, selNodes, selMembers, t, { copy: copy === 'copy', copies: p.n, loads: p.loads, supports: p.supports }); }, `${members.length} barra(s) e ${nodes.size} nó(s) ${verb}.`);
     if (copy === 'copy') st.select(out.nodes, out.members);
   };
@@ -402,8 +404,14 @@ function TransformGroup() {
   return (
     <Group title="Transformar seleção" open={false} aside={<span className="muted">{nodes.size ? `${members.length} barra(s) · ${nodes.size} nó(s)` : 'selecione'}</span>}>
       <Seg value={copy} onChange={setCopy} options={[{ v: 'copy', label: 'Copiar' }, { v: 'move', label: 'Mover' }]} />
-      <Seg value={op} onChange={setOp} options={[{ v: 'translate', label: 'Transladar' }, { v: 'rotate', label: 'Girar' }, { v: 'mirror', label: 'Espelhar' }]} />
+      <Seg value={op} onChange={setOp} options={[{ v: 'translate', label: 'Transladar' }, { v: 'rotate', label: 'Girar' }, { v: 'mirror', label: 'Espelhar' }, { v: 'scale', label: 'Escalar' }]} />
       {op === 'translate' && <div className="row">{N('dx', 'Δx', 'm')}{N('dy', 'Δy', 'm')}</div>}
+      {op === 'scale' && (
+        <>
+          <div className="row">{N('cx', 'Base x', 'm')}{N('cy', 'Base y', 'm')}{N('f', 'Fator')}</div>
+          {first && <button type="button" className="chip" onClick={() => setP({ ...p, cx: first.x, cy: first.y })}>Base no nó {first.id}</button>}
+        </>
+      )}
       {op === 'rotate' && (
         <>
           <div className="row">{N('cx', 'Centro x', 'm')}{N('cy', 'Centro y', 'm')}{N('deg', 'Ângulo', '°')}</div>

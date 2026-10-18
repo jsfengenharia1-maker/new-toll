@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 94 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test           # 95 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -39,7 +39,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 
 **Feito (fase 1)**
 - Nós, barras, divisão automática, mover nó, inverter orientação, unir barras, entrada por coordenadas
-- Transformar seleção: copiar ou mover por translação (cópias em série), rotação e espelhamento, levando cargas e apoios
+- Transformar seleção: copiar ou mover por translação (cópias em série), rotação, espelhamento e escala, levando cargas e apoios
 - Apoios fixos, livres ou com mola em X/Y/θ; apoio inclinado; recalques e rotações prescritas
 - Rótulas por extremidade ou em todas as barras de um nó; ligações semirrígidas (mola rotacional linear-elástica k por extremidade); barras inextensíveis e trechos rígidos
 - Materiais; seções retangular, T, I/H, caixão, circular, tubo, poligonal (ex.: L) e genérica
@@ -70,4 +70,4 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Blocos de coroamento (bielas e tirantes), sapatas e tubulões; várias sondagens por obra
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
 - Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
-- Cotas manuais entre nós, escalar seleção, comprimento em cm/mm
+- Cotas manuais entre nós, comprimento em cm/mm

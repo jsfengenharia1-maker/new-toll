@@ -233,7 +233,8 @@ const round = (v: number) => Math.round(v * 1e4) / 1e4;
 export type Xform =
   | { kind: 'translate'; dx: number; dy: number }
   | { kind: 'rotate'; cx: number; cy: number; deg: number }
-  | { kind: 'mirror'; x1: number; y1: number; x2: number; y2: number };
+  | { kind: 'mirror'; x1: number; y1: number; x2: number; y2: number }
+  | { kind: 'scale'; cx: number; cy: number; f: number };
 
 export interface XformOptions {
   copy: boolean;
@@ -246,6 +247,7 @@ export interface XformOptions {
 /** Parte linear [[a, b], [c, d]] e translação da transformação. */
 function affine(t: Xform): { A: [number, number, number, number]; b: [number, number] } {
   if (t.kind === 'translate') return { A: [1, 0, 0, 1], b: [t.dx, t.dy] };
+  if (t.kind === 'scale') return { A: [t.f, 0, 0, t.f], b: [t.cx * (1 - t.f), t.cy * (1 - t.f)] };
   if (t.kind === 'rotate') {
     const r = (t.deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
     return { A: [c, -s, s, c], b: [t.cx - c * t.cx + s * t.cy, t.cy - s * t.cx - c * t.cy] };
@@ -289,7 +291,7 @@ function mirrorLoad<T extends Load>(ld: T, A: [number, number, number, number]):
 }
 
 function xformSupport(s: Support, t: Xform): Support {
-  if (t.kind === 'translate') return { ...s };
+  if (t.kind === 'translate' || t.kind === 'scale') return { ...s };
   const ang = s.angle ?? 0;
   if (t.kind === 'rotate') return { ...s, angle: ang + t.deg };
   const phi = (Math.atan2(t.y2 - t.y1, t.x2 - t.x1) * 180) / Math.PI;
@@ -382,5 +384,6 @@ export function transformSelection(m: Model, nodeIds: Set<number>, memberIds: Se
 function composeTimes(t: Xform, c: number): Xform {
   if (t.kind === 'translate') return { kind: 'translate', dx: t.dx * c, dy: t.dy * c };
   if (t.kind === 'rotate') return { ...t, deg: t.deg * c };
+  if (t.kind === 'scale') return t;
   return c % 2 === 1 ? t : { kind: 'translate', dx: 0, dy: 0 };
 }

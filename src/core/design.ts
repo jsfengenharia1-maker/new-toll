@@ -436,6 +436,8 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       const inp = { b: sec.shape.b, h: sec.shape.h, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() };
       const cd = designColumn(inp);
       const out: MemberDesign = { ...base, column: cd, status: cd.status, util: cd.util, messages: [...msgs, ...cd.messages], NdMax: Math.max(...inp.combos.map((x) => Math.max(-x.N0, -x.NL))) };
+      if (Math.max(inp.b, inp.h) / Math.min(inp.b, inp.h) > 5) { out.status = out.status === 'fail' ? 'fail' : 'review'; out.messages.push('Seção com lado maior > 5× o menor: pilar-parede (NBR 6118, 15.9), cujos efeitos localizados de 2ª ordem não são verificados aqui.'); }
+      if ([mem.ni, mem.nj].some((id) => model.nodes.find((n) => n.id === id)?.support) && cover < 0.045) out.messages.push(`Trecho em contato com o solo ou a fundação: cobrimento mínimo 45 mm (Tab. 7.2, nota); adotado ${(cover * 1000).toFixed(0)} mm.`);
       // cortante no plano do pórtico (modelo I, mesma rotina das vigas): bw = b, d = h − c − φt − φl/2
       if (cd.layout && cd.stirrup) {
         const phiT = cd.stirrup.phi / 1000, dcol = inp.h - cover - phiT - cd.layout.phi / 2000, aT = inp.h / 2 - (cover + phiT + cd.layout.phi / 2000);
@@ -564,6 +566,13 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     if (bc.defl?.after && bc.defl.after.ratio > 1) fails.push(`Flecha após a alvenaria ${(bc.defl.after.f * 1000).toFixed(1)} mm > ${(bc.defl.after.limit * 1000).toFixed(1)} mm (ℓ/500 e 10 mm).`);
     if (!bc.pos.bars && bc.pos.AsAdopt > 0) fails.push('Armadura positiva não cabe na largura (até 3 camadas).');
     if (!bc.neg.bars && bc.neg.AsAdopt > 0) fails.push('Armadura negativa não cabe na largura (até 3 camadas).');
+    // detalhamento do estribo (18.3.3.2): φt ≤ bw/10 e espaçamento transversal entre ramos
+    if (bc.sh.stirrup) {
+      if (bc.sh.stirrup.phi / 1000 > bs.bw / 10) msgs.push(`Estribo φ${bc.sh.stirrup.phi} > bw/10 = ${(bs.bw * 100).toFixed(1)} mm: use bitola menor com espaçamento menor.`);
+      const stMax = Math.abs(bc.sh.Vsd) <= 0.2 * bc.sh.VRd2 ? Math.min(bc.d, 0.8) : Math.min(0.6 * bc.d, 0.35);
+      const st = bs.bw - 2 * cover - bc.sh.stirrup.phi / 1000;
+      if (st > stMax) msgs.push(`Distância entre ramos do estribo ${(st * 100).toFixed(0)} cm > ${(stMax * 100).toFixed(0)} cm: use estribo de 4 ramos.`);
+    }
     for (const [face, cr] of [['inferior', bc.crack?.pos], ['superior', bc.crack?.neg]] as const) if (cr && cr.wk > cr.limit) fails.push(`Fissuração (face ${face}): wk = ${cr.wk.toFixed(2)} mm > ${cr.limit.toFixed(1)} mm (${cr.combo}). Use mais barras de menor bitola ou aumente a armadura.`);
     if (bc.axialNu > 0.1 && bs.kind === 'rect') {
       const cd = designColumn({ b: bs.bw, h: bs.h, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() });

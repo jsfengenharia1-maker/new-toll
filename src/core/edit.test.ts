@@ -95,3 +95,11 @@ describe('combinações com grupos excludentes', () => {
     expect(free.some((c) => c.factors[3] && c.factors[4])).toBe(true);
   });
 });
+
+describe('escalar seleção', () => {
+  it('mover escalando ×2 a partir da base', () => {
+    const m = produce(portal(), (d) => { transformSelection(d, new Set([1, 2, 3, 4]), new Set(), { kind: 'scale', cx: 0, cy: 0, f: 2 }, { copy: false, copies: 1, loads: true, supports: true }); });
+    const n3 = m.nodes.find((n) => n.id === 3)!;
+    expect(n3.x).toBeCloseTo(10, 12); expect(n3.y).toBeCloseTo(6, 12);
+  });
+});

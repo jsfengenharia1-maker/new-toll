@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 94 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test         # vitest: 95 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
