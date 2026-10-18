@@ -11,7 +11,8 @@ import { Library } from './app/Library';
 import { Fundacoes } from './app/Fundacoes';
 import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, nbrCombinations } from './core/edit';
-import { emptyModel, type Model } from './core/types';
+import { emptyModel, type ForceUnit, type Model } from './core/types';
+import { FORCE_UNITS } from './app/units';
 import { copyText, download } from './app/ui';
 import { useAnalysis } from './app/results';
 import { svgExportCss } from './app/exportCss';
@@ -260,7 +261,11 @@ export default function App() {
             {[0.05, 0.1, 0.25, 0.5, 1, 2].map((g) => <option key={g} value={g}>{String(g).replace('.', ',')} m</option>)}
           </select>
         </label>
-        <span className="units">kN · m</span>
+        <label className="gridsel" htmlFor="unitsel" title="Unidades de exibição e entrada. O cálculo, o dimensionamento e o memorial usam kN, m e MPa.">Unidades
+          <select id="unitsel" value={st.model.units?.force ?? 'kN'} onChange={(e) => st.commit((m) => { m.units = { force: e.target.value as ForceUnit }; }, `Unidades: ${FORCE_UNITS.find((u) => u.v === e.target.value)?.label}.`)}>
+            {FORCE_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
+          </select>
+        </label>
       </footer>
     </div>
   );

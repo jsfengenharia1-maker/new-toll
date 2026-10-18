@@ -88,8 +88,8 @@ export function useDesign(): DesignReport {
 }
 
 /** Descrição das ligações de extremidade de uma barra (rótula ou semirrígida). */
-export function linkText(m: { hingeI?: boolean; hingeJ?: boolean; springI?: number; springJ?: number }) {
-  const end = (h?: boolean, k?: number) => (h ? 'rótula' : k && k > 0 ? `k = ${fmt(k, 0)} kN·m/rad` : '');
+export function linkText(m: { hingeI?: boolean; hingeJ?: boolean; springI?: number; springJ?: number }, kConv: { label: string; to: (v: number) => number } = { label: 'kN·m/rad', to: (v) => v }) {
+  const end = (h?: boolean, k?: number) => (h ? 'rótula' : k && k > 0 ? `k = ${fmt(kConv.to(k), 0)} ${kConv.label}` : '');
   const i = end(m.hingeI, m.springI), j = end(m.hingeJ, m.springJ);
   if (!i && !j) return '—';
   if (i === j) return `ambas: ${i}`;

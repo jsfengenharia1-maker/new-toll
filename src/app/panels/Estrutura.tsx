@@ -6,6 +6,7 @@ import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
 import { fmt, linkText } from '../results';
+import { useUnits } from '../units';
 
 const R_OPTS: { v: Restraint; label: string }[] = [
   { v: 'free', label: 'Livre' },
@@ -46,6 +47,7 @@ export function EstruturaPanel() {
     st.commit((m) => { for (const mm of m.members) { if (selNodes.has(mm.ni)) mm.hingeI = on; if (selNodes.has(mm.nj)) mm.hingeJ = on; } }, on ? 'Barras rotuladas nos nós selecionados.' : 'Rótulas removidas nos nós selecionados.');
   };
 
+  const U = useUnits();
   const [kLink, setKLink] = useState(10000);
   const setSprings = (i: boolean, j: boolean) => {
     if (!mSel.length) return st.set({ message: 'Selecione barras para definir ligações semirrígidas.' });
@@ -55,7 +57,7 @@ export function EstruturaPanel() {
         if (i) { mm.springI = kLink; mm.hingeI = false; }
         if (j) { mm.springJ = kLink; mm.hingeJ = false; }
       }
-    }, `Ligação semirrígida k = ${fmt(kLink, 0)} kN·m/rad em ${mSel.length} barra(s).`);
+    }, `Ligação semirrígida k = ${fmt(U.k.to(kLink), 0)} ${U.k.label} em ${mSel.length} barra(s).`);
   };
   const clearSprings = () => {
     if (!mSel.length) return st.set({ message: 'Selecione barras.' });
@@ -123,7 +125,7 @@ export function EstruturaPanel() {
           <button type="button" className="chip" onClick={() => hingeAtNodes(false)}>Remover nos nós</button>
         </div>
         <div className="row">
-          <NumField label="Ligação semirrígida k" unit="kN·m/rad" value={kLink} onChange={setKLink} />
+          <NumField label="Ligação semirrígida k" unit={U.k.label} value={U.k.to(kLink)} onChange={(v) => setKLink(U.k.from(v))} />
         </div>
         <div className="chips">
           <button type="button" className="chip" onClick={() => setSprings(true, false)}>Mola no início</button>
@@ -182,6 +184,7 @@ function countUse(members: { material: number; section: number }[], k: 'material
 
 function BarInfo({ id }: { id: number }) {
   const model = useStore((s) => s.model);
+  const U = useUnits();
   const m = model.members.find((x) => x.id === id)!;
   const a = model.nodes.find((n) => n.id === m.ni)!, b = model.nodes.find((n) => n.id === m.nj)!;
   const L = Math.hypot(b.x - a.x, b.y - a.y);
@@ -195,7 +198,7 @@ function BarInfo({ id }: { id: number }) {
         <dt>Nós</dt><dd>{m.ni} → {m.nj}</dd>
         <dt>Comprimento</dt><dd>{fmt(L, 3)} m</dd>
         <dt>Ângulo</dt><dd>{fmt(ang, 2)}°</dd>
-        <dt>Ligações</dt><dd>{linkText(m)}</dd>
+        <dt>Ligações</dt><dd>{linkText(m, U.k)}</dd>
         {EI > 0 && (m.springI || m.springJ) ? <><dt>k·L/EI</dt><dd>{[[m.hingeI, m.springI], [m.hingeJ, m.springJ]].map(([h, k]) => (!h && k ? fmt(((k as number) * L) / EI, 2) : '—')).join(' / ')}</dd></> : null}
       </dl>
       <button type="button" className="btn ghost" onClick={() => commit((md) => { const x = md.members.find((k) => k.id === id)!; [x.ni, x.nj] = [x.nj, x.ni]; [x.hingeI, x.hingeJ] = [x.hingeJ, x.hingeI]; [x.springI, x.springJ] = [x.springJ, x.springI]; }, 'Orientação da barra invertida.')}>Inverter orientação</button>

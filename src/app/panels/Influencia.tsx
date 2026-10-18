@@ -5,6 +5,7 @@ import { useAnalysis, resultFor, fmt } from '../results';
 import { buildPath, influenceField, samplePath, trainEnvelope, trainEnvelopeAll, effectAt } from '../../core/influence';
 import { nextId } from '../../core/edit';
 import { sourceOptions, srcKey } from './Resultados';
+import { useUnits } from '../units';
 
 export function InfluenciaPanel() {
   const st = useStore();
@@ -33,7 +34,8 @@ export function InfluenciaPanel() {
     return { pos, neg, env, sv, fmax: Math.max(...sm.f), fmin: Math.min(...sm.f) };
   }, [pm, path, a, il, train, st.trainStatic]);
 
-  const unit = il.effect === 'M' ? 'kN·m' : 'kN';
+  const U = useUnits();
+  const ue = U.eff(il.effect), unit = ue.label;
   const updTrain = (fn: (t: NonNullable<typeof train>) => void) => train && st.commit((m) => { fn(m.trains.find((t) => t.id === train.id)!); });
 
   const computeAll = () => {
@@ -85,21 +87,21 @@ export function InfluenciaPanel() {
               <NumField label="Impacto" unit="×" value={train.impact} onChange={(v) => updTrain((t) => { t.impact = v; })} />
             </div>
             <div className="row">
-              <NumField label="q fora do veículo" unit="kN/m" value={train.q} onChange={(v) => updTrain((t) => { t.q = v; })} />
-              <NumField label="q′ sob o veículo" unit="kN/m" value={train.qIn} onChange={(v) => updTrain((t) => { t.qIn = v; })} />
+              <NumField label="q fora do veículo" unit={U.q.label} value={U.q.to(train.q)} onChange={(v) => updTrain((t) => { t.q = U.q.from(v); })} />
+              <NumField label="q′ sob o veículo" unit={U.q.label} value={U.q.to(train.qIn)} onChange={(v) => updTrain((t) => { t.qIn = U.q.from(v); })} />
             </div>
             <div className="trainloads">
-              <div className="tl-head"><span>Posição a partir da frente (m)</span><span>Carga (kN)</span><span /></div>
+              <div className="tl-head"><span>Posição a partir da frente (m)</span><span>Carga ({U.F.label})</span><span /></div>
               {train.loads.map((l, i) => (
                 <div className="tl-row" key={i}>
                   <NumField label="" value={l.d} onChange={(v) => updTrain((t) => { t.loads[i].d = Math.min(Math.max(v, 0), t.length); })} />
-                  <NumField label="" value={l.P} onChange={(v) => updTrain((t) => { t.loads[i].P = v; })} />
+                  <NumField label="" value={U.F.to(l.P)} onChange={(v) => updTrain((t) => { t.loads[i].P = U.F.from(v); })} />
                   <button type="button" className="x" aria-label="Remover eixo" onClick={() => updTrain((t) => { t.loads.splice(i, 1); })}>×</button>
                 </div>
               ))}
               <button type="button" className="mini" onClick={() => updTrain((t) => { t.loads.push({ d: t.length, P: 50 }); })}>+ eixo</button>
             </div>
-            <TrainSketch length={train.length} loads={train.loads} />
+            <TrainSketch length={train.length} loads={train.loads.map((l) => ({ d: l.d, P: U.F.to(l.P) }))} />
             <Hint>Cargas concentradas sempre presentes; q e q′ entram só nos trechos desfavoráveis. O veículo percorre o caminho nos dois sentidos.</Hint>
           </>
         )}
@@ -117,8 +119,8 @@ export function InfluenciaPanel() {
           onChange={(k) => st.set({ trainStatic: sourceOptions(model).find((o) => o.key === k)?.src ?? null, trainResult: null })} />
         {sectionStats?.env && (
           <dl className="kv">
-            <dt>{il.effect} máx. na seção</dt><dd>{fmt(sectionStats.env.max + sectionStats.sv)} {unit}</dd>
-            <dt>{il.effect} mín. na seção</dt><dd>{fmt(sectionStats.env.min + sectionStats.sv)} {unit}</dd>
+            <dt>{il.effect} máx. na seção</dt><dd>{fmt(ue.to(sectionStats.env.max + sectionStats.sv))} {unit}</dd>
+            <dt>{il.effect} mín. na seção</dt><dd>{fmt(ue.to(sectionStats.env.min + sectionStats.sv))} {unit}</dd>
             <dt>Frente do veículo (máx.)</dt><dd>{fmt(sectionStats.env.posMax)} m{sectionStats.env.revMax ? ' · sentido inverso' : ''}</dd>
             <dt>Frente do veículo (mín.)</dt><dd>{fmt(sectionStats.env.posMin)} m{sectionStats.env.revMin ? ' · sentido inverso' : ''}</dd>
           </dl>

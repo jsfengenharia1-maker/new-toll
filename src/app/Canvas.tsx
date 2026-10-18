@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { useStore } from './store';
+import { makeUnits, useUnits } from './units';
 import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, isSemi, type Eff } from './results';
 import { addMember, ensureNode } from '../core/edit';
 import { influenceField, ilOrdinate, type MemberEnvelope } from '../core/influence';
@@ -26,6 +27,7 @@ export let svgSize = { w: 800, h: 600 };
 
 export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | null> }) {
   const st = useStore();
+  const U = useUnits();
   const { model, view, tool, tab } = st;
   const a = useAnalysis();
   const wrap = useRef<HTMLDivElement>(null);
@@ -253,8 +255,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     const ux = (X(q.x) - X(p.x)) / L, uy = (Y(q.y) - Y(p.y)) / L;
     if (m.hingeI) els.push(<circle key={`hi${m.id}`} cx={X(p.x) + ux * 7} cy={Y(p.y) + uy * 7} r={3.6} className="hinge" />);
     if (m.hingeJ) els.push(<circle key={`hj${m.id}`} cx={X(q.x) - ux * 7} cy={Y(q.y) - uy * 7} r={3.6} className="hinge" />);
-    if (isSemi(m.hingeI, m.springI)) els.push(<circle key={`ki${m.id}`} cx={X(p.x) + ux * 7} cy={Y(p.y) + uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(m.springI!, 0)} kN·m/rad`}</title></circle>);
-    if (isSemi(m.hingeJ, m.springJ)) els.push(<circle key={`kj${m.id}`} cx={X(q.x) - ux * 7} cy={Y(q.y) - uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(m.springJ!, 0)} kN·m/rad`}</title></circle>);
+    if (isSemi(m.hingeI, m.springI)) els.push(<circle key={`ki${m.id}`} cx={X(p.x) + ux * 7} cy={Y(p.y) + uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(U.k.to(m.springI!), 0)} ${U.k.label}`}</title></circle>);
+    if (isSemi(m.hingeJ, m.springJ)) els.push(<circle key={`kj${m.id}`} cx={X(q.x) - ux * 7} cy={Y(q.y) - uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(U.k.to(m.springJ!), 0)} ${U.k.label}`}</title></circle>);
   }
 
   // apoios e nós
@@ -301,7 +303,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
               if (Math.abs(v) < 1e-3 * maxAbs) continue;
               const [lx, ly] = pt(s.xs[j], v);
               const off = Math.sign(v * sign) || 1;
-              label(lx + nx * off * 10, ly - ny * off * 10 + 4, fmt(v), `v${e}`, `dv${i}${tag}${j}`);
+              label(lx + nx * off * 10, ly - ny * off * 10 + 4, fmt(U.eff(e).to(v)), `v${e}`, `dv${i}${tag}${j}`);
             }
           }
         }
@@ -330,9 +332,9 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
       r.reactions.forEach((R, k) => {
         const n = model.nodes[k];
         const px = X(n.x), py = Y(n.y);
-        if (Math.abs(R[0]) > 1e-6) { const d = Math.sign(R[0]); els.push(<Arrow key={`rx${k}`} x={px - d * 18} y={py + 26} dx={d} dy={0} len={30} cls="react" />); label(px - d * 34, py + 20, fmt(Math.abs(R[0])), 'vR', `rxl${k}`); }
-        if (Math.abs(R[1]) > 1e-6) { const d = Math.sign(R[1]); els.push(<Arrow key={`ry${k}`} x={px + 18} y={py + 22 + (d > 0 ? 0 : 30)} dx={0} dy={-d} len={30} cls="react" />); label(px + 24, py + 62, fmt(Math.abs(R[1])), 'vR', `ryl${k}`, 'start'); }
-        if (Math.abs(R[2]) > 1e-6) { els.push(<MomentGlyph key={`rm${k}`} x={px} y={py} ccw={R[2] > 0} cls="react" r={20} />); label(px - 28, py - 22, `${fmt(Math.abs(R[2]))}`, 'vR', `rml${k}`, 'end'); }
+        if (Math.abs(R[0]) > 1e-6) { const d = Math.sign(R[0]); els.push(<Arrow key={`rx${k}`} x={px - d * 18} y={py + 26} dx={d} dy={0} len={30} cls="react" />); label(px - d * 34, py + 20, fmt(U.F.to(Math.abs(R[0]))), 'vR', `rxl${k}`); }
+        if (Math.abs(R[1]) > 1e-6) { const d = Math.sign(R[1]); els.push(<Arrow key={`ry${k}`} x={px + 18} y={py + 22 + (d > 0 ? 0 : 30)} dx={0} dy={-d} len={30} cls="react" />); label(px + 24, py + 62, fmt(U.F.to(Math.abs(R[1]))), 'vR', `ryl${k}`, 'start'); }
+        if (Math.abs(R[2]) > 1e-6) { els.push(<MomentGlyph key={`rm${k}`} x={px} y={py} ccw={R[2] > 0} cls="react" r={20} />); label(px - 28, py - 22, `${fmt(U.M.to(Math.abs(R[2])))}`, 'vR', `rml${k}`, 'end'); }
       });
     }
   }
@@ -368,7 +370,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
           for (const j of new Set([0, arr.length - 1, jm])) {
             if (Math.abs(arr[j]) < 1e-3 * maxAbs) continue;
             const [lx, ly] = pt(trainEnv[i].xs[j], arr[j]);
-            label(lx, ly + (arr[j] * sign > 0 ? -6 : 14), fmt(arr[j]), `v${e}`, `tev${i}${tag}${j}`);
+            label(lx, ly + (arr[j] * sign > 0 ? -6 : 14), fmt(U.eff(e).to(arr[j])), `v${e}`, `tev${i}${tag}${j}`);
           }
         }
       }
@@ -418,11 +420,11 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         if (results.length === 1) {
           const r = results[0];
           const d = globalDisp(a, r, pm.index, x);
-          rows.push(`N = ${fmt(P.evaluate(effPoly(r, pm.index, 'N'), x))} kN`, `V = ${fmt(P.evaluate(effPoly(r, pm.index, 'V'), x))} kN`, `M = ${fmt(P.evaluate(effPoly(r, pm.index, 'M'), x))} kN·m`, `δx = ${fmt(d[0] * 1000)} mm · δy = ${fmt(d[1] * 1000)} mm`);
+          rows.push(`N = ${fmt(U.F.to(P.evaluate(effPoly(r, pm.index, 'N'), x)))} ${U.F.label}`, `V = ${fmt(U.F.to(P.evaluate(effPoly(r, pm.index, 'V'), x)))} ${U.F.label}`, `M = ${fmt(U.M.to(P.evaluate(effPoly(r, pm.index, 'M'), x)))} ${U.M.label}`, `δx = ${fmt(d[0] * 1000)} mm · δy = ${fmt(d[1] * 1000)} mm`);
         } else {
           for (const e of ['N', 'V', 'M'] as Eff[]) {
-            const vals = results.map((r) => P.evaluate(effPoly(r, pm.index, e), x));
-            rows.push(`${e}: ${fmt(Math.max(...vals))} / ${fmt(Math.min(...vals))}`);
+            const vals = results.map((r) => U.eff(e).to(P.evaluate(effPoly(r, pm.index, e), x)));
+            rows.push(`${e}: ${fmt(Math.max(...vals))} / ${fmt(Math.min(...vals))} ${U.eff(e).label}`);
           }
         }
         const p0 = model.nodes[pm.i];
@@ -541,6 +543,7 @@ function SupportGlyph({ x, y, s }: { x: number; y: number; s: Support }) {
 }
 
 function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: number) => number, Y: (y: number) => number, scale: number, els: JSX.Element[]) {
+  const U = makeUnits(m.units?.force);
   const loads = m.loads.filter((l) => l.caseId === caseId);
   const memById = new Map(m.members.map((k) => [k.id, k]));
   let qmax = 0;
@@ -552,9 +555,9 @@ function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: 
     if (l.kind === 'nodal') {
       const n = nodePos.get(l.node); if (!n) return;
       const px = X(n.x), py = Y(n.y);
-      if (l.fx) { const d = Math.sign(l.fx); els.push(<Arrow key={`lfx${l.id}`} x={px - d * 5} y={py} dx={d} dy={0} len={40} cls="load" />); els.push(<text key={`lfxt${l.id}`} x={px - d * 48} y={py - 6} className="lbl load" textAnchor="middle">{fmt(Math.abs(l.fx))}</text>); }
-      if (l.fy) { const d = -Math.sign(l.fy); els.push(<Arrow key={`lfy${l.id}`} x={px} y={py - d * 5} dx={0} dy={d} len={40} cls="load" />); els.push(<text key={`lfyt${l.id}`} x={px + 6} y={py - d * 46} className="lbl load" textAnchor="start">{fmt(Math.abs(l.fy))}</text>); }
-      if (l.mz) { els.push(<MomentGlyph key={`lm${l.id}`} x={px} y={py} ccw={l.mz > 0} cls="load" />); els.push(<text key={`lmt${l.id}`} x={px + 20} y={py - 18} className="lbl load" textAnchor="start">{fmt(Math.abs(l.mz))}</text>); }
+      if (l.fx) { const d = Math.sign(l.fx); els.push(<Arrow key={`lfx${l.id}`} x={px - d * 5} y={py} dx={d} dy={0} len={40} cls="load" />); els.push(<text key={`lfxt${l.id}`} x={px - d * 48} y={py - 6} className="lbl load" textAnchor="middle">{fmt(U.F.to(Math.abs(l.fx)))}</text>); }
+      if (l.fy) { const d = -Math.sign(l.fy); els.push(<Arrow key={`lfy${l.id}`} x={px} y={py - d * 5} dx={0} dy={d} len={40} cls="load" />); els.push(<text key={`lfyt${l.id}`} x={px + 6} y={py - d * 46} className="lbl load" textAnchor="start">{fmt(U.F.to(Math.abs(l.fy)))}</text>); }
+      if (l.mz) { els.push(<MomentGlyph key={`lm${l.id}`} x={px} y={py} ccw={l.mz > 0} cls="load" />); els.push(<text key={`lmt${l.id}`} x={px + 20} y={py - 18} className="lbl load" textAnchor="start">{fmt(U.M.to(Math.abs(l.mz)))}</text>); }
     } else if (l.kind === 'presc') {
       const n = nodePos.get(l.node); if (!n) return;
       els.push(<text key={`pr${l.id}`} x={X(n.x) + 10} y={Y(n.y) + 30} className="lbl load" textAnchor="start">{`recalque ${[l.dx ? `dx ${fmt(l.dx * 1000)} mm` : '', l.dy ? `dy ${fmt(l.dy * 1000)} mm` : '', l.rz ? `θ ${fmt(l.rz, 4)} rad` : ''].filter(Boolean).join(' ')}`}</text>);
@@ -577,8 +580,8 @@ function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: 
         pts.forEach((b, k) => { const t = tails[k]; const len = Math.hypot(b[0] - t[0], b[1] - t[1]); if (len > 3) els.push(<Arrow key={`dla${l.id}-${k}`} x={b[0]} y={b[1]} dx={(b[0] - t[0]) / len} dy={(b[1] - t[1]) / len} len={len} cls="load thin" />); });
         const mid = tails[Math.floor(tails.length / 2)];
         const same = l.qxi === l.qxj && l.qyi === l.qyj;
-        const mag = (a: number, b: number) => fmt(Math.hypot(a, b));
-        els.push(<text key={`dlx${l.id}`} x={mid[0]} y={mid[1] - 6} className="lbl load" textAnchor="middle">{same ? `${mag(l.qxi, l.qyi)} kN/m` : `${mag(l.qxi, l.qyi)} → ${mag(l.qxj, l.qyj)} kN/m`}{l.system === 'projected' ? ' (proj.)' : l.system === 'local' ? ' (local)' : ''}</text>);
+        const mag = (a: number, b: number) => fmt(U.q.to(Math.hypot(a, b)));
+        els.push(<text key={`dlx${l.id}`} x={mid[0]} y={mid[1] - 6} className="lbl load" textAnchor="middle">{same ? `${mag(l.qxi, l.qyi)} ${U.q.label}` : `${mag(l.qxi, l.qyi)} → ${mag(l.qxj, l.qyj)} ${U.q.label}`}{l.system === 'projected' ? ' (proj.)' : l.system === 'local' ? ' (local)' : ''}</text>);
       } else if (l.kind === 'thermal') {
         els.push(<text key={`th${l.id}`} x={X((p.x + q.x) / 2)} y={Y((p.y + q.y) / 2) + 16} className="lbl load" textAnchor="middle">{`ΔT sup ${fmt(l.tTop, 1)} / inf ${fmt(l.tBot, 1)} °C`}</text>);
       } else if (l.kind === 'endMoment') {

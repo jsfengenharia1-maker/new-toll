@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 44 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test           # 46 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -45,6 +45,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Casos (G/Q/W com ψ), combinações livres e NBR 8681 automáticas, envoltórias de casos e combinações
 - Diagramas N, V, M (M no lado tracionado ou comprimido), deformada exata, reações, leitura no ponto ao passar o mouse
 - Linhas de influência de N, V e M; trem-tipo com envoltória em toda a estrutura
+- Unidades de força de exibição: kN, tf, kgf ou N (cálculo sempre em kN·m)
 - Tabelas (reações, deslocamentos, esforços) com CSV; exportação SVG; desfazer/refazer; salvamento automático local
 
 **Feito (fase 2)**

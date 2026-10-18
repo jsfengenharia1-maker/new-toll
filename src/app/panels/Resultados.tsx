@@ -3,6 +3,7 @@ import { useStore, type Diagram, type Source } from '../store';
 import { Check, Group, Hint, Seg, copyText, download } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
+import { useUnits, type Units } from '../units';
 
 export function sourceOptions(model: { cases: { id: number; name: string }[]; combinations: { id: number; name: string }[] }) {
   const opts: { key: string; label: string; src: Source }[] = [];
@@ -16,6 +17,7 @@ export const srcKey = (s: Source | null) => (!s ? '' : s.kind === 'case' ? `c${s
 
 export function ResultadosPanel() {
   const st = useStore();
+  const U = useUnits();
   const a = useAnalysis();
   const { model } = st;
   const opts = sourceOptions(model);
@@ -37,7 +39,7 @@ export function ResultadosPanel() {
   let dmax = 0, dnode = 0;
   for (const r of results) model.nodes.forEach((n, k) => { const d = Math.hypot(r.u[k * 3], r.u[k * 3 + 1]); if (d > dmax) { dmax = d; dnode = n.id; } });
 
-  const rows = buildTable(table, results.length === 1 ? results[0] : null, a, model);
+  const rows = buildTable(table, results.length === 1 ? results[0] : null, a, model, U);
 
   return (
     <div className="panel-body">
@@ -68,7 +70,7 @@ export function ResultadosPanel() {
           <thead><tr><th /><th>máx.</th><th>mín.</th></tr></thead>
           <tbody>
             {summary.map((s) => (
-              <tr key={s.e} title={s.at}><th className={`v${s.e}`}>{s.e === 'N' ? 'N (kN)' : s.e === 'V' ? 'V (kN)' : 'M (kN·m)'}</th><td>{fmt(s.hi)}</td><td>{fmt(s.lo)}</td></tr>
+              <tr key={s.e} title={s.at}><th className={`v${s.e}`}>{`${s.e} (${U.eff(s.e).label})`}</th><td>{fmt(U.eff(s.e).to(s.hi))}</td><td>{fmt(U.eff(s.e).to(s.lo))}</td></tr>
             ))}
             <tr><th>Desloc. (mm)</th><td colSpan={2}>{fmt(dmax * 1000)} no nó {dnode}</td></tr>
           </tbody>
@@ -97,22 +99,22 @@ export function ResultadosPanel() {
 
 type Rows = { head: string[]; body: string[][] };
 
-function buildTable(kind: 'reac' | 'disp' | 'ends', r: ReturnType<typeof resultFor>[number] | null, a: ReturnType<typeof useAnalysis>, model: { nodes: { id: number }[] }): Rows {
+function buildTable(kind: 'reac' | 'disp' | 'ends', r: ReturnType<typeof resultFor>[number] | null, a: ReturnType<typeof useAnalysis>, model: { nodes: { id: number }[] }, U: Units): Rows {
   if (!r) return { head: [], body: [] };
   if (kind === 'reac') {
     const body: string[][] = [];
-    r.reactions.forEach((R, k) => body.push([String(model.nodes[k].id), fmt(R[0]), fmt(R[1]), fmt(R[2])]));
-    return { head: ['Nó', 'Rx (kN)', 'Ry (kN)', 'Mz (kN·m)'], body };
+    r.reactions.forEach((R, k) => body.push([String(model.nodes[k].id), fmt(U.F.to(R[0])), fmt(U.F.to(R[1])), fmt(U.M.to(R[2]))]));
+    return { head: ['Nó', `Rx (${U.F.label})`, `Ry (${U.F.label})`, `Mz (${U.M.label})`], body };
   }
   if (kind === 'disp') {
     return { head: ['Nó', 'δx (mm)', 'δy (mm)', 'θz (rad)'], body: model.nodes.map((n, k) => [String(n.id), fmt(r.u[k * 3] * 1000, 3), fmt(r.u[k * 3 + 1] * 1000, 3), fmt(r.u[k * 3 + 2], 6)]) };
   }
   return {
-    head: ['Barra', 'N i', 'V i', 'M i', 'N j', 'V j', 'M j'],
+    head: ['Barra', `N i (${U.F.label})`, `V i (${U.F.label})`, `M i (${U.M.label})`, `N j (${U.F.label})`, `V j (${U.F.label})`, `M j (${U.M.label})`],
     body: a.prep.members.map((pm) => {
       const m = r.members[pm.index];
-      const ev = (p: number[], x: number) => fmt(P.evaluate(p, x));
-      return [String(pm.id), ev(m.N, 0), ev(m.V, 0), ev(m.M, 0), ev(m.N, pm.L), ev(m.V, pm.L), ev(m.M, pm.L)];
+      const ev = (p: number[], x: number, c = U.F) => fmt(c.to(P.evaluate(p, x)));
+      return [String(pm.id), ev(m.N, 0), ev(m.V, 0), ev(m.M, 0, U.M), ev(m.N, pm.L), ev(m.V, pm.L), ev(m.M, pm.L, U.M)];
     }),
   };
 }

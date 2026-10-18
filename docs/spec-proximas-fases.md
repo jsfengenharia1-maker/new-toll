@@ -63,7 +63,12 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 
 ## Fase B — Produtividade e saída
 
-### B1. Unidades configuráveis
+### B1. Unidades configuráveis — **feito em parte** (18/10/2026)
+- Feito: unidade de força kN, tf, kgf ou N (g = 9,80665), em entradas de carga, trem-tipo, resultados, tabelas/CSV, desenho e ligações. Fica salva no modelo.
+- Comprimento continua em metros. Dimensionamento, fundações e memorial continuam em kN, m e MPa, como nas normas.
+- Falta, se o usuário quiser: comprimento em cm ou mm (kgf·cm, N·mm).
+
+Proposta original:
 - Sistemas: kN·m (atual), tf·m, kgf·cm e N·mm.
 - Conversão só na interface e no memorial; o núcleo continua em kN, m e rad.
 - Preferência salva no arquivo de trabalho.

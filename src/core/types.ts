@@ -49,6 +49,8 @@ export interface Section {
   shape: SectionShape;
 }
 
+export type ForceUnit = 'kN' | 'tf' | 'kgf' | 'N';
+
 export interface Member {
   id: number;
   ni: number; // id do nó inicial
@@ -146,6 +148,8 @@ export interface Model {
   loads: Load[];
   trains: LoadTrain[];
   options: AnalysisOptions;
+  /** Unidades de exibição (o cálculo é sempre em kN e m). */
+  units?: { force: ForceUnit };
 }
 
 export function emptyModel(): Model {

@@ -4,6 +4,7 @@ import { Check, Group, Hint, NumField, Select, Seg, TextField } from '../ui';
 import { nbrCombinations, nextId } from '../../core/edit';
 import type { CaseNature, ComboKind, Load, LoadSystem } from '../../core/types';
 import { fmt } from '../results';
+import { useUnits, type Units } from '../units';
 
 type Kind = 'nodal' | 'dist' | 'thermal' | 'endMoment' | 'presc';
 
@@ -11,6 +12,7 @@ export function CargasPanel() {
   const st = useStore();
   const { model, activeCase, selNodes, selMembers } = st;
   const cs = model.cases.find((c) => c.id === activeCase) ?? model.cases[0];
+  const U = useUnits();
   const [kind, setKind] = useState<Kind>('dist');
   const [nod, setNod] = useState({ fx: 0, fy: -10, mz: 0 });
   const [dist, setDist] = useState({ system: 'global' as LoadSystem, qxi: 0, qyi: -10, qxj: 0, qyj: -10, uniform: true });
@@ -82,9 +84,9 @@ export function CargasPanel() {
         ]} />
         {kind === 'nodal' && (
           <div className="row">
-            <NumField label="Fx" unit="kN" value={nod.fx} onChange={(v) => setNod({ ...nod, fx: v })} />
-            <NumField label="Fy" unit="kN" value={nod.fy} onChange={(v) => setNod({ ...nod, fy: v })} />
-            <NumField label="Mz" unit="kN·m" value={nod.mz} onChange={(v) => setNod({ ...nod, mz: v })} />
+            <NumField label="Fx" unit={U.F.label} value={U.F.to(nod.fx)} onChange={(v) => setNod({ ...nod, fx: U.F.from(v) })} />
+            <NumField label="Fy" unit={U.F.label} value={U.F.to(nod.fy)} onChange={(v) => setNod({ ...nod, fy: U.F.from(v) })} />
+            <NumField label="Mz" unit={U.M.label} value={U.M.to(nod.mz)} onChange={(v) => setNod({ ...nod, mz: U.M.from(v) })} />
           </div>
         )}
         {kind === 'dist' && (
@@ -94,13 +96,13 @@ export function CargasPanel() {
             ]} />
             <Check label="Uniforme" checked={dist.uniform} onChange={(v) => setDist({ ...dist, uniform: v })} />
             <div className="row">
-              <NumField label={dist.uniform ? 'qx' : 'qx início'} unit="kN/m" value={dist.qxi} onChange={(v) => setDist({ ...dist, qxi: v })} />
-              <NumField label={dist.uniform ? 'qy' : 'qy início'} unit="kN/m" value={dist.qyi} onChange={(v) => setDist({ ...dist, qyi: v })} />
+              <NumField label={dist.uniform ? 'qx' : 'qx início'} unit={U.q.label} value={U.q.to(dist.qxi)} onChange={(v) => setDist({ ...dist, qxi: U.q.from(v) })} />
+              <NumField label={dist.uniform ? 'qy' : 'qy início'} unit={U.q.label} value={U.q.to(dist.qyi)} onChange={(v) => setDist({ ...dist, qyi: U.q.from(v) })} />
             </div>
             {!dist.uniform && (
               <div className="row">
-                <NumField label="qx fim" unit="kN/m" value={dist.qxj} onChange={(v) => setDist({ ...dist, qxj: v })} />
-                <NumField label="qy fim" unit="kN/m" value={dist.qyj} onChange={(v) => setDist({ ...dist, qyj: v })} />
+                <NumField label="qx fim" unit={U.q.label} value={U.q.to(dist.qxj)} onChange={(v) => setDist({ ...dist, qxj: U.q.from(v) })} />
+                <NumField label="qy fim" unit={U.q.label} value={U.q.to(dist.qyj)} onChange={(v) => setDist({ ...dist, qyj: U.q.from(v) })} />
               </div>
             )}
             <Hint>Valores negativos em Y apontam para baixo. No sistema local, x segue a barra do nó inicial ao final.</Hint>
@@ -114,8 +116,8 @@ export function CargasPanel() {
         )}
         {kind === 'endMoment' && (
           <div className="row">
-            <NumField label="M início" unit="kN·m" value={em.mi} onChange={(v) => setEm({ ...em, mi: v })} />
-            <NumField label="M fim" unit="kN·m" value={em.mj} onChange={(v) => setEm({ ...em, mj: v })} />
+            <NumField label="M início" unit={U.M.label} value={U.M.to(em.mi)} onChange={(v) => setEm({ ...em, mi: U.M.from(v) })} />
+            <NumField label="M fim" unit={U.M.label} value={U.M.to(em.mj)} onChange={(v) => setEm({ ...em, mj: U.M.from(v) })} />
           </div>
         )}
         {kind === 'presc' && (
@@ -136,7 +138,7 @@ export function CargasPanel() {
         <ul className="loadlist">
           {caseLoads.map((l) => (
             <li key={l.id}>
-              <span>{describe(l)}</span>
+              <span>{describe(l, U)}</span>
               <button type="button" className="x" aria-label="Remover carga" onClick={() => st.commit((m) => { m.loads = m.loads.filter((x) => x.id !== l.id); }, 'Carga removida.')}>×</button>
             </li>
           ))}
@@ -177,12 +179,12 @@ function FactorInput({ value, onChange }: { value: number; onChange: (v: number)
   return <input className="factor" aria-label="Fator" value={t} onChange={(e) => setT(e.target.value)} onFocus={() => setT(String(value).replace('.', ','))} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v)) onChange(v); else setT(String(value)); }} />;
 }
 
-function describe(l: Load): string {
+function describe(l: Load, U: Units): string {
   switch (l.kind) {
-    case 'nodal': return `Nó ${l.node}: Fx ${fmt(l.fx)} · Fy ${fmt(l.fy)} kN · Mz ${fmt(l.mz)} kN·m`;
-    case 'dist': return `Barra ${l.member}: ${l.qxi === l.qxj && l.qyi === l.qyj ? `qx ${fmt(l.qxi)} · qy ${fmt(l.qyi)}` : `qx ${fmt(l.qxi)}→${fmt(l.qxj)} · qy ${fmt(l.qyi)}→${fmt(l.qyj)}`} kN/m (${l.system === 'global' ? 'global' : l.system === 'local' ? 'local' : 'projetada'})`;
+    case 'nodal': return `Nó ${l.node}: Fx ${fmt(U.F.to(l.fx))} · Fy ${fmt(U.F.to(l.fy))} ${U.F.label} · Mz ${fmt(U.M.to(l.mz))} ${U.M.label}`;
+    case 'dist': return `Barra ${l.member}: ${l.qxi === l.qxj && l.qyi === l.qyj ? `qx ${fmt(U.q.to(l.qxi))} · qy ${fmt(U.q.to(l.qyi))}` : `qx ${fmt(U.q.to(l.qxi))}→${fmt(U.q.to(l.qxj))} · qy ${fmt(U.q.to(l.qyi))}→${fmt(U.q.to(l.qyj))}`} ${U.q.label} (${l.system === 'global' ? 'global' : l.system === 'local' ? 'local' : 'projetada'})`;
     case 'thermal': return `Barra ${l.member}: ΔT sup ${fmt(l.tTop, 1)} · inf ${fmt(l.tBot, 1)} °C`;
-    case 'endMoment': return `Barra ${l.member}: M início ${fmt(l.mi)} · fim ${fmt(l.mj)} kN·m`;
+    case 'endMoment': return `Barra ${l.member}: M início ${fmt(U.M.to(l.mi))} · fim ${fmt(U.M.to(l.mj))} ${U.M.label}`;
     case 'presc': return `Nó ${l.node}: recalque dx ${fmt((l.dx ?? 0) * 1000)} · dy ${fmt((l.dy ?? 0) * 1000)} mm · θ ${fmt(l.rz ?? 0, 4)}`;
     case 'selfWeight': return `Peso próprio × ${fmt(l.factor)}`;
   }
