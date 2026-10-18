@@ -3,7 +3,8 @@ import { useStore } from './store';
 import { makeUnits, useUnits } from './units';
 import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, isSemi, ilFieldOf, type Eff } from './results';
 import { addMember, ensureNode } from '../core/edit';
-import { ilOrdinate, type MemberEnvelope } from '../core/influence';
+import { buildPath, ilOrdinate, samplePath, trainEnvelope, type MemberEnvelope } from '../core/influence';
+import { defaultPath } from './pathTable';
 import { P } from '../core/math';
 import type { Load, Model, Node, Support } from '../core/types';
 import { autoDims, dimSegments, levelText } from './dims';
@@ -38,6 +39,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [pan, setPan] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [dragNode, setDragNode] = useState<{ id: number; x: number; y: number; moved: boolean } | null>(null);
+  const [dimPts, setDimPts] = useState<V2[]>([]);
   const fitted = useRef(false);
   const lastFit = useRef<{ w: number; h: number } | null>(null);
 
@@ -55,9 +57,9 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => { if (tool !== 'member') setStart(null); }, [tool]);
+  useEffect(() => { if (tool !== 'member') setStart(null); if (tool !== 'dim') setDimPts([]); }, [tool]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setStart(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setStart(null); setDimPts([]); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -122,8 +124,20 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     const [px, py] = local(e);
     (e.target as Element).setPointerCapture?.(e.pointerId);
     if (e.button === 1 || tool === 'pan' || (e.button === 0 && e.altKey)) { setPan({ x: px, y: py, ox: view.ox, oy: view.oy }); return; }
-    if (e.button === 2) { setStart(null); return; }
+    if (e.button === 2) { setStart(null); setDimPts([]); return; }
     const sp = snapPoint(px, py);
+    if (tool === 'zoom') { setBox({ x0: px, y0: py, x1: px, y1: py }); return; }
+    if (tool === 'dim') {
+      if (dimPts.length < 2) { setDimPts([...dimPts, [sp.wx, sp.wy]]); return; }
+      const [p1, p2] = dimPts;
+      const L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+      if (L < 1e-9) { setDimPts([]); return; }
+      const [wx, wy] = toWorld(px, py);
+      const off = ((p2[0] - p1[0]) * (wy - p1[1]) - (p2[1] - p1[1]) * (wx - p1[0])) / L;
+      st.commit((m) => { const list = m.dims ?? (m.dims = []); list.push({ id: list.reduce((a, d) => Math.max(a, d.id), 0) + 1, x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], off: +off.toFixed(4) }); }, `Cota de ${fmt(U.L.to(L))} ${U.L.label} inserida.`);
+      setDimPts([]);
+      return;
+    }
     if (tool === 'node') {
       st.commit((m) => { ensureNode(m, sp.wx, sp.wy); }, `Nó inserido em (${fmt(sp.wx)}; ${fmt(sp.wy)}).`);
       return;
@@ -186,6 +200,16 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         if (clash) st.set({ message: 'Já existe um nó nessa posição. Movimento cancelado.' });
         else st.commit((m) => { const n = m.nodes.find((k) => k.id === d.id)!; n.x = d.x; n.y = d.y; }, `Nó ${d.id} movido para (${fmt(d.x)}; ${fmt(d.y)}).`);
       }
+    }
+    if (box && tool === 'zoom') {
+      const { x0, y0, x1, y1 } = box;
+      setBox(null);
+      if (Math.abs(x1 - x0) < 8 || Math.abs(y1 - y0) < 8) return;
+      const [wa, wb] = toWorld(Math.min(x0, x1), Math.max(y0, y1)), [wc, wd] = toWorld(Math.max(x0, x1), Math.min(y0, y1));
+      const scale = Math.min(5000, 0.95 * Math.min(size.w / (wc - wa), size.h / (wd - wb)));
+      const cx = (wa + wc) / 2, cy = (wb + wd) / 2;
+      st.set({ view: { scale, ox: size.w / 2 - cx * scale, oy: size.h / 2 + cy * scale } });
+      return;
     }
     if (box) {
       const { x0, y0, x1, y1 } = box;
@@ -262,7 +286,15 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
 
   // apoios e nós
   for (const n of nodePos.values()) {
-    if (n.support) els.push(<SupportGlyph key={`s${n.id}`} x={X(n.x)} y={Y(n.y)} s={n.support} />);
+    if (n.support) els.push(<g key={`s${n.id}`} transform={st.glyphScale !== 1 ? `translate(${X(n.x)} ${Y(n.y)}) scale(${st.glyphScale}) translate(${-X(n.x)} ${-Y(n.y)})` : undefined}><SupportGlyph x={X(n.x)} y={Y(n.y)} s={n.support} /></g>);
+  }
+  // eixos locais das barras (x do nó i ao j; y girado 90°)
+  if (st.showAxes) for (const m of model.members) {
+    const p = nodePos.get(m.ni), q = nodePos.get(m.nj);
+    if (!p || !q) continue;
+    const L = Math.hypot(q.x - p.x, q.y - p.y) || 1, c = (q.x - p.x) / L, s = (q.y - p.y) / L;
+    const mx = X((p.x + q.x) / 2), my = Y((p.y + q.y) / 2), k = 16 * st.glyphScale;
+    els.push(<g key={`ax${m.id}`} className="localaxis"><line x1={mx} y1={my} x2={mx + c * k} y2={my - s * k} /><line x1={mx} y1={my} x2={mx - s * k * 0.6} y2={my - c * k * 0.6} className="ly" /><text x={mx + c * (k + 6)} y={my - s * (k + 6) + 3} className="lbl axl">x</text><text x={mx - s * (k * 0.6 + 6)} y={my - c * (k * 0.6 + 6) + 3} className="lbl axl">y</text></g>);
   }
   for (const n of nodePos.values()) {
     const sel = st.selNodes.has(n.id);
@@ -270,8 +302,9 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     if (st.showValues && tab === 'estrutura') els.push(<text key={`nt${n.id}`} x={X(n.x) - 6} y={Y(n.y) + 14} className="lbl nid" textAnchor="end">{n.id}</text>);
   }
 
-  // cotas automáticas
+  // cotas automáticas e manuais
   if (st.showDims) drawDims(model, X, Y, view.scale, els);
+  for (const d of model.dims ?? []) drawManualDim([d.x1, d.y1], [d.x2, d.y2], d.off, `md${d.id}`, X, Y, view.scale, U.L, els);
 
   // cargas do caso ativo
   if (tab === 'estrutura' || tab === 'cargas') drawLoads(model, st.activeCase, nodePos, X, Y, view.scale, els);
@@ -322,7 +355,16 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
           const poly = [...pts, base(pm.L), base(0)].map((q) => q.join(',')).join(' ');
           els.push(<polygon key={`d${i}${tag}`} points={poly} className={`diag ${e}${env ? ' env ' + tag : ''}`} />);
           els.push(<polyline key={`dl${i}${tag}`} points={pts.map((q) => q.join(',')).join(' ')} className={`diagline ${e}`} />);
-          if (st.showValues) {
+          if (st.showValues && st.stepValues > 0) {
+            // valores em passos iguais ao longo da barra
+            const at = (x: number) => { let j = 1; while (j < s.xs.length - 1 && s.xs[j] < x) j++; const x0 = s.xs[j - 1], x1 = s.xs[j]; return x1 - x0 < 1e-12 ? arr[j] : arr[j - 1] + ((arr[j] - arr[j - 1]) * (x - x0)) / (x1 - x0); };
+            for (let q = 0; q <= st.stepValues; q++) {
+              const x = (pm.L * q) / st.stepValues, v = at(x);
+              const [lx, ly] = pt(x, v);
+              const off = Math.sign(v * sign) || 1;
+              label(lx + nx * off * 10, ly - ny * off * 10 + 4, fmt(U.eff(e).to(v)), `v${e}`, `dsv${i}${tag}${q}`);
+            }
+          } else if (st.showValues) {
             const idx = new Set<number>([0, s.xs.length - 1]);
             let jm = 0; arr.forEach((v, j) => { if (Math.abs(v) > Math.abs(arr[jm])) jm = j; });
             idx.add(jm);
@@ -349,9 +391,12 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
       if (st.showValues && results.length === 1) {
         const r = results[0];
         model.nodes.forEach((n, k) => {
-          const dx = r.u[k * 3], dy = r.u[k * 3 + 1];
-          if (Math.hypot(dx, dy) < 1e-3 * maxD) return;
-          label(X(n.x + dx * amp) + 8, Y(n.y + dy * amp) - 8, `${fmt(Math.hypot(dx, dy) * 1000)} mm`, 'vD', `dd${n.id}`, 'start');
+          const dx = r.u[k * 3], dy = r.u[k * 3 + 1], rz = r.u[k * 3 + 2];
+          const c = st.defComp;
+          const v = c === 'ux' ? Math.abs(dx) : c === 'uy' ? Math.abs(dy) : c === 'rz' ? Math.abs(rz) : Math.hypot(dx, dy);
+          if (c === 'rz' ? v < 1e-9 : v < 1e-3 * maxD) return;
+          const txt = c === 'rz' ? `θ ${fmt(rz, 5)} rad` : c === 'ux' ? `δx ${fmt(dx * 1000)} mm` : c === 'uy' ? `δy ${fmt(dy * 1000)} mm` : `${fmt(v * 1000)} mm`;
+          label(X(n.x + dx * amp) + 8, Y(n.y + dy * amp) - 8, txt, 'vD', `dd${n.id}`, 'start');
         });
       }
     }
@@ -425,6 +470,30 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         }
       }
     });
+    // trem-tipo nas posições críticas (máximo acima, mínimo abaixo da estrutura)
+    const train = model.trains.find((t) => t.id === st.trainId) ?? model.trains[0];
+    const path = train ? buildPath(a.prep, st.trainPath.length ? st.trainPath : defaultPath(model)) : null;
+    if (train && path) {
+      const env = trainEnvelope(samplePath(a.prep, field, path, 80), train);
+      const at = (sv: number): [number, number, number, number] | null => {
+        for (const seg of path) if (sv >= seg.s0 - 1e-9 && sv <= seg.s0 + seg.L + 1e-9) {
+          const pm = a.prep.members[seg.k], x = seg.forward ? sv - seg.s0 : seg.L - (sv - seg.s0), p0 = model.nodes[pm.i];
+          return [p0.x + pm.c * x, p0.y + pm.s * x, pm.c, pm.s];
+        }
+        return null;
+      };
+      const gs = st.glyphScale;
+      for (const [t, rev, side, tag] of [[env.posMax, env.revMax, 1, 'max'], [env.posMin, env.revMin, -1, 'min']] as const) {
+        for (const [j, l] of train.loads.entries()) {
+          const pnt = at(t - (rev ? train.length - l.d : l.d));
+          if (!pnt) continue;
+          // cargas sempre para baixo: o trem do máximo acima da estrutura, o do mínimo abaixo
+          const [wx, wy] = pnt, yEnd = side > 0 ? Y(wy) - 30 * gs : Y(wy) + 56 * gs;
+          els.push(<Arrow key={`tr${tag}${j}`} x={X(wx)} y={yEnd} dx={0} dy={1} len={24 * gs} cls={`load train ${tag}`} />);
+          if (j === 0) els.push(<text key={`trl${tag}`} x={X(wx) + 6} y={side > 0 ? yEnd - 26 * gs : yEnd + 12} className={`lbl train ${tag}`}>{tag === 'max' ? 'trem na posição do máximo' : 'trem na posição do mínimo'}</text>);
+        }
+      }
+    }
     if (spm && sx !== undefined) {
       const p0 = model.nodes[spm.i];
       const cx = X(p0.x + spm.c * sx), cy = Y(p0.y + spm.s * sx);
@@ -437,7 +506,22 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
 
   // dica ao passar o mouse (resultados)
   let tip: JSX.Element | null = null;
-  if (showResults && results.length && mouse && !box && !pan) {
+  const hnTip = showResults && results.length === 1 && mouse && !box && !pan ? hitNode(mouse.px, mouse.py) : null;
+  if (hnTip !== null && mouse) {
+    const k = a.prep.nodeIndex.get(hnTip)!, r = results[0], n = model.nodes[k];
+    const rows = [`Nó ${hnTip} · (${fmt(U.L.to(n.x))}; ${fmt(U.L.to(n.y))}) ${U.L.label}`, `δx = ${fmt(r.u[k * 3] * 1000, 3)} mm · δy = ${fmt(r.u[k * 3 + 1] * 1000, 3)} mm`, `θz = ${fmt(r.u[k * 3 + 2], 6)} rad`];
+    const R = r.reactions.get(k);
+    if (R) rows.push(`Rx = ${fmt(U.F.to(R[0]))} · Ry = ${fmt(U.F.to(R[1]))} ${U.F.label}`, `Mz = ${fmt(U.M.to(R[2]))} ${U.M.label}`);
+    const w = 230, hgt = rows.length * 16 + 10;
+    const tx = Math.min(mouse.px + 14, size.w - w - 8), ty = Math.min(mouse.py + 14, size.h - hgt - 8);
+    tip = (
+      <g className="tip" pointerEvents="none">
+        <circle cx={X(n.x)} cy={Y(n.y)} r={5} className="tipdot" />
+        <rect x={tx} y={ty} width={w} height={hgt} rx={4} />
+        {rows.map((t, j) => <text key={j} x={tx + 10} y={ty + 18 + j * 16} className={j === 0 ? 'tiph' : ''}>{t}</text>)}
+      </g>
+    );
+  } else if (showResults && results.length && mouse && !box && !pan) {
     const hm = hitMember(mouse.px, mouse.py);
     if (hm) {
       const pm = a.prep.members.find((m) => m.id === hm.id);
@@ -476,6 +560,16 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     if (start) overlay.push(<line key="rub" x1={X(start[0])} y1={Y(start[1])} x2={X(mouse.wx)} y2={Y(mouse.wy)} className="rubber" />);
     if (start) { const L = Math.hypot(mouse.wx - start[0], mouse.wy - start[1]); overlay.push(<text key="rubl" x={X(mouse.wx) + 12} y={Y(mouse.wy) - 10} className="lbl hint">{`L = ${fmt(U.L.to(L))} ${U.L.label}`}</text>); }
   }
+  if (mouse && tool === 'dim') {
+    overlay.push(<circle key="cur" cx={X(mouse.wx)} cy={Y(mouse.wy)} r={mouse.snapped ? 7 : 4} className={`cursor${mouse.snapped ? ' snapped' : ''}`} />);
+    if (dimPts.length === 1) overlay.push(<line key="dimrub" x1={X(dimPts[0][0])} y1={Y(dimPts[0][1])} x2={X(mouse.wx)} y2={Y(mouse.wy)} className="rubber" />);
+    if (dimPts.length === 2) {
+      const [p1, p2] = dimPts, L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1;
+      const [wx, wy] = toWorld(mouse.px, mouse.py);
+      const off = ((p2[0] - p1[0]) * (wy - p1[1]) - (p2[1] - p1[1]) * (wx - p1[0])) / L;
+      drawManualDim(p1, p2, off, 'dimprev', X, Y, view.scale, U.L, overlay);
+    }
+  }
   if (box) overlay.push(<rect key="box" x={Math.min(box.x0, box.x1)} y={Math.min(box.y0, box.y1)} width={Math.abs(box.x1 - box.x0)} height={Math.abs(box.y1 - box.y0)} className={`selbox${box.x1 < box.x0 ? ' crossing' : ''}`} />);
 
   const cursor = pan ? 'grabbing' : tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
@@ -486,7 +580,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         ref={svgRef}
         width={size.w}
         height={size.h}
-        style={{ cursor }}
+        style={{ cursor, fontSize: st.glyphScale !== 1 ? `${11 * st.glyphScale}px` : undefined }}
+        className={st.mono ? 'mono' : undefined}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -495,6 +590,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         xmlns="http://www.w3.org/2000/svg"
       >
         <rect width={size.w} height={size.h} className="bgfill" />
+        {st.mono && <title>Desenho em preto e branco</title>}
         <g>{grid}</g>
         <g>{els}</g>
         <g>{overlay}</g>
@@ -570,7 +666,8 @@ function SupportGlyph({ x, y, s }: { x: number; y: number; s: Support }) {
 }
 
 function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: number) => number, Y: (y: number) => number, scale: number, els: JSX.Element[]) {
-  const U = makeUnits(m.units?.force);
+  const U = makeUnits(m.units?.force, m.units?.length);
+  const gs = useStore.getState().glyphScale;
   const loads = m.loads.filter((l) => l.caseId === caseId);
   const memById = new Map(m.members.map((k) => [k.id, k]));
   let qmax = 0;
@@ -582,9 +679,9 @@ function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: 
     if (l.kind === 'nodal') {
       const n = nodePos.get(l.node); if (!n) return;
       const px = X(n.x), py = Y(n.y);
-      if (l.fx) { const d = Math.sign(l.fx); els.push(<Arrow key={`lfx${l.id}`} x={px - d * 5} y={py} dx={d} dy={0} len={40} cls="load" />); els.push(<text key={`lfxt${l.id}`} x={px - d * 48} y={py - 6} className="lbl load" textAnchor="middle">{fmt(U.F.to(Math.abs(l.fx)))}</text>); }
-      if (l.fy) { const d = -Math.sign(l.fy); els.push(<Arrow key={`lfy${l.id}`} x={px} y={py - d * 5} dx={0} dy={d} len={40} cls="load" />); els.push(<text key={`lfyt${l.id}`} x={px + 6} y={py - d * 46} className="lbl load" textAnchor="start">{fmt(U.F.to(Math.abs(l.fy)))}</text>); }
-      if (l.mz) { els.push(<MomentGlyph key={`lm${l.id}`} x={px} y={py} ccw={l.mz > 0} cls="load" />); els.push(<text key={`lmt${l.id}`} x={px + 20} y={py - 18} className="lbl load" textAnchor="start">{fmt(U.M.to(Math.abs(l.mz)))}</text>); }
+      if (l.fx) { const d = Math.sign(l.fx); els.push(<Arrow key={`lfx${l.id}`} x={px - d * 5} y={py} dx={d} dy={0} len={40 * gs} cls="load" />); els.push(<text key={`lfxt${l.id}`} x={px - d * 48} y={py - 6} className="lbl load" textAnchor="middle">{fmt(U.F.to(Math.abs(l.fx)))}</text>); }
+      if (l.fy) { const d = -Math.sign(l.fy); els.push(<Arrow key={`lfy${l.id}`} x={px} y={py - d * 5} dx={0} dy={d} len={40 * gs} cls="load" />); els.push(<text key={`lfyt${l.id}`} x={px + 6} y={py - d * 46} className="lbl load" textAnchor="start">{fmt(U.F.to(Math.abs(l.fy)))}</text>); }
+      if (l.mz) { els.push(<MomentGlyph key={`lm${l.id}`} x={px} y={py} ccw={l.mz > 0} cls="load" r={16 * gs} />); els.push(<text key={`lmt${l.id}`} x={px + 20} y={py - 18} className="lbl load" textAnchor="start">{fmt(U.M.to(Math.abs(l.mz)))}</text>); }
     } else if (l.kind === 'presc') {
       const n = nodePos.get(l.node); if (!n) return;
       els.push(<text key={`pr${l.id}`} x={X(n.x) + 10} y={Y(n.y) + 30} className="lbl load" textAnchor="start">{`recalque ${[l.dx ? `dx ${fmt(l.dx * 1000)} mm` : '', l.dy ? `dy ${fmt(l.dy * 1000)} mm` : '', l.rz ? `θ ${fmt(l.rz, 4)} rad` : ''].filter(Boolean).join(' ')}`}</text>);
@@ -654,4 +751,27 @@ function drawDims(m: Model, X: (x: number) => number, Y: (y: number) => number, 
     }
     els.push(<g key={`dim${ci}`} className="cotas">{g}</g>);
   });
+}
+
+/** Cota manual: linhas de chamada, linha de cota afastada de `off` (m) e o comprimento no meio. */
+function drawManualDim(p1: V2, p2: V2, off: number, key: string, X: (x: number) => number, Y: (y: number) => number, scale: number, L: { label: string; to: (v: number) => number }, out: JSX.Element[]) {
+  const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+  if (len < 1e-9) return;
+  const ux = (p2[0] - p1[0]) / len, uy = (p2[1] - p1[1]) / len, nx = -uy, ny = ux;
+  const a: V2 = [p1[0] + nx * off, p1[1] + ny * off], b: V2 = [p2[0] + nx * off, p2[1] + ny * off];
+  const ext = (Math.sign(off) || 1) * (4 / scale);
+  const tick = 5 / scale;
+  const mx = (a[0] + b[0]) / 2 + nx * (Math.sign(off) || 1) * (9 / scale), my = (a[1] + b[1]) / 2 + ny * (Math.sign(off) || 1) * (9 / scale);
+  let ang = (-Math.atan2(uy, ux) * 180) / Math.PI;
+  if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+  out.push(
+    <g key={key} className="dimline">
+      <line x1={X(p1[0])} y1={Y(p1[1])} x2={X(a[0] + nx * ext)} y2={Y(a[1] + ny * ext)} />
+      <line x1={X(p2[0])} y1={Y(p2[1])} x2={X(b[0] + nx * ext)} y2={Y(b[1] + ny * ext)} />
+      <line x1={X(a[0])} y1={Y(a[1])} x2={X(b[0])} y2={Y(b[1])} />
+      <line x1={X(a[0] - (ux - nx) * tick)} y1={Y(a[1] - (uy - ny) * tick)} x2={X(a[0] + (ux - nx) * tick)} y2={Y(a[1] + (uy - ny) * tick)} />
+      <line x1={X(b[0] - (ux - nx) * tick)} y1={Y(b[1] - (uy - ny) * tick)} x2={X(b[0] + (ux - nx) * tick)} y2={Y(b[1] + (uy - ny) * tick)} />
+      <text x={X(mx)} y={Y(my)} transform={`rotate(${ang} ${X(mx)} ${Y(my)})`} className="lbl dimtxt" textAnchor="middle" dominantBaseline="middle">{fmt(L.to(len))}</text>
+    </g>,
+  );
 }

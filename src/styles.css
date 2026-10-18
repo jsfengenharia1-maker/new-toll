@@ -194,6 +194,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface-2); flex-wrap: wrap; }
 .seg button { flex: 1; background: transparent; border: 0; padding: 6px 6px; font-size: 12px; color: var(--muted); border-right: 1px solid var(--line); white-space: nowrap; }
 .seg button:last-child { border-right: 0; }
@@ -392,3 +393,19 @@ td.l, th.l { text-align: left; }
 
 .spt-r.excl input { text-decoration: line-through; color: var(--muted); }
 .spt-r .x.on { color: var(--sel); font-weight: 600; }
+
+/* cotas manuais, eixos locais e desenho em preto e branco */
+.dimline line { stroke: var(--ink); stroke-width: 0.9; fill: none; }
+.lbl.dimtxt { fill: var(--ink); font-size: 11px; }
+.localaxis line { stroke: var(--accent); stroke-width: 1.4; }
+.localaxis line.ly { stroke: var(--c-react); }
+.lbl.axl { font-size: 9.5px; fill: var(--muted); }
+svg.mono .bgfill { fill: #fff; }
+svg.mono .grid, svg.mono .axis { display: none; }
+svg.mono line, svg.mono polyline, svg.mono path, svg.mono circle, svg.mono rect.node { stroke: #000 !important; }
+svg.mono .diag { fill: #d9d9d9 !important; stroke: none !important; }
+svg.mono .lbl, svg.mono text { fill: #000 !important; }
+svg.mono .hinge { fill: #fff !important; }
+.train.max line, .train.max polygon { stroke: var(--c-n); fill: var(--c-n); }
+.train.min line, .train.min polygon { stroke: var(--c-m); fill: var(--c-m); }
+.lbl.train.max { fill: var(--c-n); font-size: 10px; } .lbl.train.min { fill: var(--c-m); font-size: 10px; }

@@ -85,3 +85,28 @@ describe('modos em modelo pequeno (subespaço com B de posto baixo)', () => {
     expect(r.modes[1].factor).toBeGreaterThan(r.modes[0].factor);
   });
 });
+
+describe('vibração com massa consistente', () => {
+  it('viga biapoiada com massa distribuída: f1 = π/(2L²)·√(EI/m)', () => {
+    const L = 8, q = 9.80665 * 2, nEl = 8; // 2 t/m
+    const nodes = Array.from({ length: nEl + 1 }, (_, k) => ({ id: k + 1, x: (L * k) / nEl, y: 0 })) as Model['nodes'];
+    (nodes[0] as { support?: unknown }).support = { ux: 'fixed', uy: 'fixed', rz: 'free' };
+    (nodes[nEl] as { support?: unknown }).support = { ux: 'free', uy: 'fixed', rz: 'free' };
+    const m: Model = {
+      version: 1, name: 'v', nodes,
+      members: Array.from({ length: nEl }, (_, k) => ({ id: k + 1, ni: k + 1, nj: k + 2, material: 1, section: 1 })),
+      materials: [{ id: 1, name: 'm', E, nu: 0.2, alpha: 1e-5, gamma: 0 }],
+      sections: [{ id: 1, name: 's', shape: { kind: 'rect', b, h } }],
+      cases: [{ id: 1, name: 'c' }], combinations: [], trains: [],
+      loads: Array.from({ length: nEl }, (_, k) => ({ kind: 'dist' as const, id: k + 1, caseId: 1, member: k + 1, system: 'global' as const, qxi: 0, qyi: -q, qxj: 0, qyj: -q })),
+      options: { shearDeformation: false, axialDeformation: true },
+    };
+    const prep = prepare(m);
+    const exact = (Math.PI / (2 * L * L)) * Math.sqrt(EI / 2);
+    const cons = vibration(prep, comboLoading(prep, { 1: 1 }), new Map(), 3, 9.80665, true);
+    const lump = vibration(prep, comboLoading(prep, { 1: 1 }), new Map(), 3, 9.80665, false);
+    expect(cons.totalMass).toBeCloseTo(2 * L, 6);
+    expect(cons.modes[0].freq / exact).toBeCloseTo(1, 3);
+    expect(Math.abs(lump.modes[0].freq / exact - 1)).toBeLessThan(0.02);
+  });
+});

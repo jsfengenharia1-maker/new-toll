@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 import type { Model } from '../core/types';
-import { nbrCombinations } from '../core/edit';
+import { nbrCombinations, type Xform, type XformOptions } from '../core/edit';
 import { samplePortico } from './samples';
 
-export type Tool = 'select' | 'node' | 'member' | 'pan' | 'section';
+export type Tool = 'select' | 'node' | 'member' | 'pan' | 'section' | 'dim' | 'zoom';
 export type Tab = 'estrutura' | 'cargas' | 'resultados' | 'influencia' | 'dimensionar';
 export type Diagram = 'none' | 'N' | 'V' | 'M' | 'deformed';
 export type Source =
   | { kind: 'case'; id: number }
   | { kind: 'combo'; id: number }
   | { kind: 'envCases' }
-  | { kind: 'envCombos' };
+  | { kind: 'envCombos' }
+  /** Envoltória dos casos e combinações escolhidos. */
+  | { kind: 'envSel'; cases: number[]; combos: number[] };
 
 export interface View { scale: number; ox: number; oy: number }
 
@@ -55,6 +57,17 @@ interface State {
   libraryId: string | null;
   /** Modo de flambagem ou de vibração desenhado sobre a estrutura (vetor de deslocamentos global). */
   modeView: { title: string; shape: number[] } | null;
+  /** Valores do diagrama em n passos iguais ao longo de cada barra (0 = só extremos e máximos). */
+  stepValues: number;
+  /** Componente do deslocamento mostrada nos nós da deformada. */
+  defComp: 'res' | 'ux' | 'uy' | 'rz';
+  showAxes: boolean;
+  /** Fator de tamanho dos símbolos (apoios, cargas, textos). */
+  glyphScale: number;
+  /** Desenho em preto e branco (impressão/exportação). */
+  mono: boolean;
+  /** Última transformação aplicada (para repetir). */
+  lastXform: { t: Xform; o: XformOptions } | null;
   /** Há alterações não gravadas no arquivo de trabalho do computador. */
   unsaved: boolean;
   setUnsaved: (v: boolean) => void;
@@ -125,6 +138,12 @@ export const useStore = create<State>((set, get) => ({
   module: 'portico',
   libraryId: null,
   modeView: null,
+  stepValues: 0,
+  defComp: 'res',
+  showAxes: false,
+  glyphScale: 1,
+  mono: false,
+  lastXform: null,
   unsaved: readUnsaved(),
   setUnsaved: (v) => { flagUnsaved(v); set({ unsaved: v }); },
   message: saved

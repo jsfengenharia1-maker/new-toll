@@ -165,6 +165,21 @@ export function buildDxf(inp: DxfInput): string {
     }
   }
 
+  // cotas manuais (sempre exportadas)
+  for (const d of m.dims ?? []) {
+    const len = Math.hypot(d.x2 - d.x1, d.y2 - d.y1);
+    if (len < 1e-9) continue;
+    const ux = (d.x2 - d.x1) / len, uy = (d.y2 - d.y1) / len, nx = -uy, ny = ux, sg = Math.sign(d.off) || 1, t = 4 * px;
+    const A: V2 = [d.x1 + nx * d.off, d.y1 + ny * d.off], B: V2 = [d.x2 + nx * d.off, d.y2 + ny * d.off];
+    w.line('COTAS', [d.x1, d.y1], [A[0] + nx * sg * t, A[1] + ny * sg * t]);
+    w.line('COTAS', [d.x2, d.y2], [B[0] + nx * sg * t, B[1] + ny * sg * t]);
+    w.line('COTAS', A, B);
+    for (const P of [A, B]) w.line('COTAS', [P[0] - (ux - nx) * t, P[1] - (uy - ny) * t], [P[0] + (ux - nx) * t, P[1] + (uy - ny) * t]);
+    let ang = (Math.atan2(uy, ux) * 180) / Math.PI;
+    if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    w.text('COTAS', [(A[0] + B[0]) / 2 + nx * sg * 4 * px, (A[1] + B[1]) / 2 + ny * sg * 4 * px], th, fmt(len), 1, 0, ang);
+  }
+
   // ---------- diagramas do resultado ativo ----------
   const a = inp.analysis, results = inp.results ?? [];
   const notes: string[] = [];

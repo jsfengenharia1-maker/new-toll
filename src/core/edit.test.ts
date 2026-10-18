@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { nbrCombinations, transformSelection, xformPoint } from './edit';
+import { importTables, nbrCombinations, transformSelection, xformPoint } from './edit';
 import { analyze } from './solver';
 import type { Model } from './types';
 
@@ -101,5 +101,17 @@ describe('escalar seleção', () => {
     const m = produce(portal(), (d) => { transformSelection(d, new Set([1, 2, 3, 4]), new Set(), { kind: 'scale', cx: 0, cy: 0, f: 2 }, { copy: false, copies: 1, loads: true, supports: true }); });
     const n3 = m.nodes.find((n) => n.id === 3)!;
     expect(n3.x).toBeCloseTo(10, 12); expect(n3.y).toBeCloseTo(6, 12);
+  });
+});
+
+describe('importar materiais e seções', () => {
+  it('traz só o que é novo e renomeia nomes repetidos', () => {
+    const a = portal(), b = portal();
+    b.materials.push({ id: 2, name: 'm', E: 3e7, nu: 0.2, alpha: 1e-5, gamma: 25 });
+    b.sections.push({ id: 7, name: 'V', shape: { kind: 'rect', b: 0.15, h: 0.6 } });
+    const r = produce(a, (d) => { importTables(d, b); });
+    expect(r.materials.length).toBe(2);
+    expect(r.materials[1].name).toBe('m (importado)');
+    expect(r.sections.map((s) => s.name)).toEqual(['s', 'V']);
   });
 });

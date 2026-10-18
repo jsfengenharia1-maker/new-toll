@@ -95,7 +95,7 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
       L,
       EA: mat.E * sp.A * (model.options.axialDeformation ? 1 : 1e4) * (m.rigid ? RIGID : 1),
       EI: mat.E * sp.I * (opts.eiFactor ? opts.eiFactor(m, (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI > 90 ? 180 - (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI : (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI) : 1) * (m.rigid === 'full' ? RIGID : 1),
-      GAs: model.options.shearDeformation && m.rigid !== 'full' ? G * sp.As : Infinity,
+      GAs: (m.shear ?? model.options.shearDeformation) && m.rigid !== 'full' ? G * sp.As : Infinity,
       kI: m.hingeI ? undefined : m.springI,
       kJ: m.hingeJ ? undefined : m.springJ,
     };

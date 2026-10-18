@@ -225,10 +225,29 @@ export interface VibrationMode { omega: number; freq: number; period: number; sh
  * Vibração livre K·φ = ω²·M·φ com massas concentradas nos nós (translações x e y),
  * obtidas das cargas verticais da combinação de massa (F/g) somadas a massas nodais adicionais (t).
  */
-export function vibration(prep: Prepared, massLoading: Loading, extraMass: Map<number, number> = new Map(), nModes = 6, g = 9.80665): { modes: VibrationMode[]; totalMass: number; error?: string } {
+/** Matriz de massa consistente do elemento de pórtico (local), massa por comprimento m. */
+export function consistentMassLocal(L: number, m: number): Mat {
+  const k = (m * L) / 420;
+  return [
+    [140 * k, 0, 0, 70 * k, 0, 0],
+    [0, 156 * k, 22 * L * k, 0, 54 * k, -13 * L * k],
+    [0, 22 * L * k, 4 * L * L * k, 0, 13 * L * k, -3 * L * L * k],
+    [70 * k, 0, 0, 140 * k, 0, 0],
+    [0, 54 * k, 13 * L * k, 0, 156 * k, -22 * L * k],
+    [0, -13 * L * k, -3 * L * L * k, 0, -22 * L * k, 4 * L * L * k],
+  ];
+}
+
+/**
+ * Vibração livre. Massas a partir das cargas verticais da combinação de massa (F/g): nas barras, concentradas
+ * nos nós (padrão) ou distribuídas com matriz consistente (`consistent`, carga média da barra como massa uniforme;
+ * barras com rótula ficam concentradas); cargas nodais e massas adicionais sempre concentradas.
+ */
+export function vibration(prep: Prepared, massLoading: Loading, extraMass: Map<number, number> = new Map(), nModes = 6, g = 9.80665, consistent = false): { modes: VibrationMode[]; totalMass: number; error?: string } {
   if (!prep.lu) return { modes: [], totalMass: 0, error: prep.error };
   // cargas verticais nodais equivalentes da combinação de massa
   const Fv = Float64Array.from(massLoading.nodal);
+  const distMass = new Map<number, number>();
   prep.members.forEach((pm) => {
     const l = massLoading.elem[pm.index];
     if (l.qx.every((x) => x === 0) && l.qy.every((x) => x === 0)) return;
@@ -237,6 +256,7 @@ export function vibration(prep: Prepared, massLoading: Loading, extraMass: Map<n
     const Ay = P.evaluate(P.integrate([0, ...l.qy]), pm.L), Ax = P.evaluate(P.integrate([0, ...l.qx]), pm.L);
     const fyGlobal = pm.s * Qx + pm.c * Qy, wy = pm.s * Ax + pm.c * Ay;
     // divide a resultante vertical entre os nós pelo centro de carga
+    if (consistent && !pm.hingeI && !pm.hingeJ) { distMass.set(pm.index, Math.max(0, -fyGlobal) / g / pm.L); return; }
     const xr = Math.abs(fyGlobal) > 1e-12 ? wy / fyGlobal : pm.L / 2;
     Fv[pm.j * 3 + 1] += (fyGlobal * xr) / pm.L;
     Fv[pm.i * 3 + 1] += fyGlobal * (1 - xr / pm.L);
@@ -248,7 +268,8 @@ export function vibration(prep: Prepared, massLoading: Loading, extraMass: Map<n
     mass[k * 3] = m; mass[k * 3 + 1] = m;
     totalMass += m;
   });
-  const M: SpRows = Array.from({ length: prep.ndof }, () => new Map<number, number>());
+  const M: SpRows = distMass.size ? assembleGlobal(prep, (pm) => (distMass.has(pm.index) ? consistentMassLocal(pm.L, distMass.get(pm.index)!) : null)) : Array.from({ length: prep.ndof }, () => new Map<number, number>());
+  for (const [k, mb] of distMass) totalMass += mb * prep.members[k].L;
   for (let d = 0; d < prep.ndof; d++) if (mass[d]) spAdd(M, d, d, mass[d]);
   // massas em gdl girados (apoio inclinado): M é isotrópica nas translações, a rotação não a altera
   const raw = subspace(prep, prep.lu, M, nModes);

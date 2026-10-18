@@ -21,6 +21,7 @@ export function resultFor(a: Analysis, src: Source): CaseResult[] {
     case 'combo': return a.combos.has(src.id) ? [a.combos.get(src.id)!] : [];
     case 'envCases': return [...a.cases.values()];
     case 'envCombos': return [...a.combos.values()];
+    case 'envSel': return [...src.cases.map((id) => a.cases.get(id)), ...src.combos.map((id) => a.combos.get(id))].filter((r): r is CaseResult => !!r);
   }
 }
 
@@ -72,6 +73,7 @@ export function fmt(v: number, d = 2): string {
 export function sourceLabel(model: { cases: { id: number; name: string }[]; combinations: { id: number; name: string }[] }, s: Source): string {
   if (s.kind === 'case') return model.cases.find((c) => c.id === s.id)?.name ?? 'Caso';
   if (s.kind === 'combo') return model.combinations.find((c) => c.id === s.id)?.name ?? 'Combinação';
+  if (s.kind === 'envSel') return `Envoltória de ${s.cases.length + s.combos.length} escolhido(s)`;
   return s.kind === 'envCases' ? 'Envoltória dos casos' : 'Envoltória das combinações';
 }
 

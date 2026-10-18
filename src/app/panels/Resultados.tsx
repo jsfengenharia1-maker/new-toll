@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore, type Diagram, type Source } from '../store';
-import { Check, Group, Hint, Seg, copyText, download } from '../ui';
+import { Check, Group, Hint, Seg, Select, copyText, download } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
 import { useUnits, type Units } from '../units';
@@ -14,9 +14,10 @@ export function sourceOptions(model: { cases: { id: number; name: string }[]; co
   model.combinations.forEach((c) => opts.push({ key: `k${c.id}`, label: `Comb. · ${c.name}`, src: { kind: 'combo', id: c.id } }));
   if (model.cases.length > 1) opts.push({ key: 'ec', label: 'Envoltória dos casos', src: { kind: 'envCases' } });
   if (model.combinations.length > 1) opts.push({ key: 'ek', label: 'Envoltória das combinações', src: { kind: 'envCombos' } });
+  if (model.cases.length + model.combinations.length > 1) opts.push({ key: 'es', label: 'Envoltória escolhida…', src: { kind: 'envSel', cases: model.cases.map((c) => c.id), combos: [] } });
   return opts;
 }
-export const srcKey = (s: Source | null) => (!s ? '' : s.kind === 'case' ? `c${s.id}` : s.kind === 'combo' ? `k${s.id}` : s.kind === 'envCases' ? 'ec' : 'ek');
+export const srcKey = (s: Source | null) => (!s ? '' : s.kind === 'case' ? `c${s.id}` : s.kind === 'combo' ? `k${s.id}` : s.kind === 'envCases' ? 'ec' : s.kind === 'envSel' ? 'es' : 'ek');
 
 export function ResultadosPanel() {
   const st = useStore();
@@ -52,6 +53,16 @@ export function ResultadosPanel() {
             <button type="button" key={o.key} className={`caseitem${srcKey(st.source) === o.key ? ' on' : ''}`} onClick={() => st.set({ source: o.src })}>{o.label}</button>
           ))}
         </div>
+              {st.source.kind === 'envSel' && (() => {
+          const sel = st.source;
+          const tog = (kind: 'cases' | 'combos', id: number) => { const list = new Set(sel[kind]); if (list.has(id)) list.delete(id); else list.add(id); st.set({ source: { ...sel, [kind]: [...list] } }); };
+          return (
+            <div className="chips">
+              {model.cases.map((c) => <button type="button" key={`c${c.id}`} className={`chip${sel.cases.includes(c.id) ? ' on' : ''}`} aria-pressed={sel.cases.includes(c.id)} onClick={() => tog('cases', c.id)}>{c.name}</button>)}
+              {model.combinations.map((c) => <button type="button" key={`k${c.id}`} className={`chip${sel.combos.includes(c.id) ? ' on' : ''}`} aria-pressed={sel.combos.includes(c.id)} onClick={() => tog('combos', c.id)}>{c.name}</button>)}
+            </div>
+          );
+        })()}
       </Group>
       <Group title="Diagrama">
         <Seg value={st.diagram} onChange={(v: Diagram) => st.set({ diagram: v })} options={[
@@ -61,6 +72,10 @@ export function ResultadosPanel() {
           <span className="flabel">Escala do desenho · {fmt(st.diagScale, 1)}×</span>
           <input id="diagscale" type="range" min={0.2} max={4} step={0.1} value={st.diagScale} onChange={(e) => st.set({ diagScale: +e.target.value })} />
         </label>
+        <div className="row">
+          <Select label="Valores ao longo da barra" value={st.stepValues} options={[{ v: 0, label: 'extremos e máximos' }, { v: 2, label: '2 passos (meio)' }, { v: 4, label: '4 passos' }, { v: 5, label: '5 passos' }, { v: 10, label: '10 passos' }]} onChange={(v) => st.set({ stepValues: v })} />
+          {st.diagram === 'deformed' && <Select label="Valor nos nós" value={st.defComp} options={[{ v: 'res', label: 'deslocamento total' }, { v: 'ux', label: 'δx' }, { v: 'uy', label: 'δy' }, { v: 'rz', label: 'rotação θ' }]} onChange={(v) => st.set({ defComp: v })} />}
+        </div>
         <div className="row wrap">
           <Check label="Valores" checked={st.showValues} onChange={(v) => st.set({ showValues: v })} />
           <Check label="Reações" checked={st.showReactions} onChange={(v) => st.set({ showReactions: v })} />

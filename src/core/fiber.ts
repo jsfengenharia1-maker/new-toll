@@ -143,3 +143,23 @@ export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: num
   }
   return Math.hypot(best.r.Mx, best.r.My);
 }
+
+/** Perfil U (C) de alma vertical à esquerda: altura h, mesas b × tf, alma tw. */
+export function cPolygon(h: number, b: number, tw: number, tf: number): Pt[] {
+  return [[0, 0], [b, 0], [b, tf], [tw, tf], [tw, h - tf], [b, h - tf], [b, h], [0, h]];
+}
+
+/** Perfil Z: mesa inferior à direita, mesa superior à esquerda, alma central tw. */
+export function zPolygon(h: number, b: number, tw: number, tf: number): Pt[] {
+  const x0 = b - tw / 2;
+  return [[x0, 0], [x0 + b, 0], [x0 + b, tf], [x0 + tw, tf], [x0 + tw, h], [x0 + tw - b, h], [x0 + tw - b, h - tf], [x0, h - tf]];
+}
+
+/** Dupla cantoneira (abas iguais b × t), costas com costas e afastamento g; os dois L ligados por fenda de largura nula. */
+export function doubleAnglePolygon(b: number, t: number, g: number): Pt[] {
+  const xr = b + g; // origem do L direito
+  return [
+    [0, 0], [b, 0], [xr, 0], [xr + b, 0], [xr + b, t], [xr + t, t], [xr + t, b], [xr, b], [xr, 0], // L direito
+    [b, 0], [b, b], [b - t, b], [b - t, t], [0, t], // volta pela fenda e contorna o L esquerdo
+  ];
+}

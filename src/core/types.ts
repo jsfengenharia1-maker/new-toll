@@ -69,6 +69,8 @@ export interface Member {
   springJ?: number;
   /** Vínculo de deformação: 'axial' = inextensível (EA × 10⁶); 'full' = trecho rígido (EA e EI × 10⁶, sem dimensionamento). */
   rigid?: 'axial' | 'full';
+  /** Deformação por cortante nesta barra (Timoshenko); ausente segue a opção global do modelo. */
+  shear?: boolean;
   /** Papel no dimensionamento (auto: inclinação > 60° com a horizontal = pilar). */
   role?: MemberRole;
   /** Comprimento de flambagem no plano do pórtico (m). Padrão: comprimento da barra. */
@@ -173,6 +175,8 @@ export interface Model {
   options: AnalysisOptions;
   /** Unidades de exibição (o cálculo é sempre em kN e m). */
   units?: { force: ForceUnit; length?: LengthUnit };
+  /** Cotas manuais: dois pontos e o afastamento da linha de cota (m, positivo à esquerda de 1→2). */
+  dims?: { id: number; x1: number; y1: number; x2: number; y2: number; off: number }[];
 }
 
 export function emptyModel(): Model {

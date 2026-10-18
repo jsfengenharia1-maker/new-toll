@@ -10,7 +10,7 @@ import { Memorial } from './app/Memorial';
 import { Library } from './app/Library';
 import { Fundacoes } from './app/Fundacoes';
 import { SAMPLES } from './app/samples';
-import { addMember, deleteSelection, ensureNode, nbrCombinations } from './core/edit';
+import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { copyText, download } from './app/ui';
@@ -24,6 +24,8 @@ const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
   { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
   { t: 'node', key: 'N', label: 'Inserir nó', icon: <><rect x="7" y="7" width="8" height="8" /><path d="M11 2v3M11 17v3M2 11h3M17 11h3" /></> },
   { t: 'member', key: 'M', label: 'Inserir barra', icon: <><path d="M4 17 L18 5" /><rect x="2" y="15" width="4" height="4" /><rect x="16" y="3" width="4" height="4" /></> },
+  { t: 'dim', key: 'D', label: 'Cota (2 pontos e a posição da linha)', icon: <><path d="M3 16 L19 16" /><path d="M3 12 L3 19 M19 12 L19 19" /><path d="M6 13 L3 16 L6 19 M16 13 L19 16 L16 19" /></> },
+  { t: 'zoom', key: 'Z', label: 'Zoom por janela', icon: <><circle cx="9" cy="9" r="6" /><path d="M14 14 L20 20" /><path d="M6 9 H12 M9 6 V12" /></> },
   { t: 'pan', key: 'H', label: 'Mover vista', icon: <path d="M11 2v18M2 11h18M11 2l-3 3M11 2l3 3M11 20l-3-3M11 20l3-3M2 11l3-3M2 11l3 3M20 11l-3-3M20 11l-3 3" /> },
 ];
 
@@ -82,6 +84,8 @@ export default function App() {
       else if (k === 'n') s.set({ tool: 'node', tab: s.tab === 'resultados' || s.tab === 'influencia' ? 'estrutura' : s.tab });
       else if (k === 'm') s.set({ tool: 'member', tab: s.tab === 'resultados' || s.tab === 'influencia' ? 'estrutura' : s.tab });
       else if (k === 'h') s.set({ tool: 'pan' });
+      else if (k === 'd') s.set({ tool: 'dim', tab: s.tab === 'influencia' ? 'estrutura' : s.tab });
+      else if (k === 'z') s.set({ tool: 'zoom' });
       else if (k === 'f') fit();
       else if (k === '1') setTab('estrutura');
       else if (k === '2') setTab('cargas');
@@ -171,6 +175,56 @@ export default function App() {
     setMenu(false);
   };
 
+  /** Desenho atual como PNG (2×), com o mesmo estilo do SVG exportado. */
+  const pngBlob = async (): Promise<Blob | null> => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = svgExportCss();
+    clone.insertBefore(style, clone.firstChild);
+    const w = svg.width.baseVal.value, h = svg.height.baseVal.value;
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
+    try {
+      const img = new Image();
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('svg')); img.src = url; });
+      const cv = document.createElement('canvas');
+      cv.width = w * 2; cv.height = h * 2;
+      const ctx = cv.getContext('2d')!;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.scale(2, 2); ctx.drawImage(img, 0, 0);
+      return await new Promise<Blob | null>((res) => cv.toBlob(res, 'image/png'));
+    } finally { URL.revokeObjectURL(url); }
+  };
+  const exportPNG = async () => {
+    setMenu(false);
+    const b = await pngBlob();
+    if (!b) return;
+    const url = URL.createObjectURL(b), el = document.createElement('a');
+    el.href = url; el.download = `${slug(st.model.name)}-${st.tab}.png`; document.body.appendChild(el); el.click(); el.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    st.set({ message: 'Desenho exportado em PNG.' });
+  };
+  const copyPNG = async () => {
+    setMenu(false);
+    try {
+      const b = await pngBlob();
+      if (!b) return;
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]);
+      st.set({ message: 'Desenho copiado para a área de transferência (cole no Word, e-mail etc.).' });
+    } catch { st.set({ message: 'O navegador não permitiu copiar a imagem. Use Exportar PNG.' }); }
+  };
+
+  const tablesRef = useRef<HTMLInputElement>(null);
+  const importTablesFrom = (f: File) => f.text().then((txt) => {
+    try {
+      const { model: src } = parseWorkspace(txt);
+      let r = { materials: 0, sections: 0 };
+      st.commit((m) => { r = importTables(m, src); }, '');
+      st.set({ message: `Importados de ${f.name}: ${r.materials} material(is), ${r.sections} seção(ões) e as unidades.` });
+    } catch { st.set({ message: 'Arquivo inválido para importar materiais e seções.' }); }
+  });
+
   const exportDXF = async () => {
     setMenu(false);
     const s = useStore.getState();
@@ -218,11 +272,15 @@ export default function App() {
               <div className="msep">Exportar</div>
               <button type="button" onClick={saveJSON}>Só o modelo (.json)</button>
               <button type="button" onClick={exportSVG}>Exportar desenho (SVG)</button>
+              <button type="button" onClick={exportPNG}>Exportar desenho (PNG)</button>
+              <button type="button" onClick={copyPNG}>Copiar desenho</button>
+              <button type="button" onClick={() => { setMenu(false); tablesRef.current?.click(); }}>Importar materiais, seções e unidades de outro arquivo…</button>
               <button type="button" onClick={exportDXF}>Desenho DXF (CAD)</button>
               <div className="msep">Exemplos</div>
               {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); }}>{s.label}</button>)}
             </div>
           )}
+          <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
         </div>
         <div className="mname" title="Nome do modelo">
@@ -286,6 +344,13 @@ export default function App() {
         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
+        <label className="check small" htmlFor="axchk" title="Eixos locais das barras (x do nó inicial ao final)"><input id="axchk" type="checkbox" checked={st.showAxes} onChange={(e) => st.set({ showAxes: e.target.checked })} /> <span>Eixos</span></label>
+        <label className="check small" htmlFor="monochk" title="Desenho em preto e branco (também no SVG/PNG exportado)"><input id="monochk" type="checkbox" checked={st.mono} onChange={(e) => st.set({ mono: e.target.checked })} /> <span>P&amp;B</span></label>
+        <label className="gridsel" htmlFor="gssel" title="Tamanho de apoios, setas e textos">Símbolos
+          <select id="gssel" value={st.glyphScale} onChange={(e) => st.set({ glyphScale: +e.target.value })}>
+            <option value={0.75}>P</option><option value={1}>M</option><option value={1.4}>G</option>
+          </select>
+        </label>
         <label className="check small" htmlFor="snapchk"><input id="snapchk" type="checkbox" checked={st.snap} onChange={(e) => st.set({ snap: e.target.checked })} /> <span>Snap</span></label>
         <label className="check small" htmlFor="dimchk" title="Cotas automáticas de vãos e níveis (saem também no SVG exportado; o DXF traz sempre a camada COTAS)"><input id="dimchk" type="checkbox" checked={st.showDims} onChange={(e) => st.set({ showDims: e.target.checked })} /> <span>Cotas</span></label>
         <label className="gridsel" htmlFor="gridsel">Grade

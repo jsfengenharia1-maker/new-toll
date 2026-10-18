@@ -5,7 +5,7 @@ import { nextId, joinAtNode, selectionSets, transformSelection, type Xform } fro
 import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
-import { lPolygon, polyProps, type Pt } from '../../core/fiber';
+import { cPolygon, doubleAnglePolygon, lPolygon, polyProps, zPolygon, type Pt } from '../../core/fiber';
 import { FAMILY_LABEL, PROFILES, PROFILE_NOTE, profileMass, type ProfileFamily } from '../../core/profiles';
 import { fmt, linkText } from '../results';
 import { useUnits } from '../units';
@@ -51,6 +51,7 @@ export function EstruturaPanel() {
 
   const U = useUnits();
   const [kLink, setKLink] = useState(10000);
+  const [hv, setHv] = useState({ h: 1, v: 0 });
   const setSprings = (i: boolean, j: boolean) => {
     if (!mSel.length) return st.set({ message: 'Selecione barras para definir ligações semirrígidas.' });
     if (!(kLink > 0)) return st.set({ message: 'Informe k > 0.' });
@@ -112,6 +113,11 @@ export function EstruturaPanel() {
           <NumField label="Inclinação do apoio" unit="°" value={sup.angle ?? 0} onChange={(v) => setSup({ ...sup, angle: v })} />
           <button type="button" className="btn" onClick={() => applySupport(sup)}>Aplicar</button>
         </div>
+        <div className="row">
+          <NumField label="ou razão H" value={hv.h} onChange={(v) => setHv({ ...hv, h: v })} />
+          <NumField label="V" value={hv.v} onChange={(v) => setHv({ ...hv, v })} />
+          <button type="button" className="chip" onClick={() => { if (!hv.h && !hv.v) return; setSup({ ...sup, angle: Math.round(((Math.atan2(hv.v, hv.h) * 180) / Math.PI) * 1e6) / 1e6 }); }}>Usar H/V</button>
+        </div>
         <Hint>Em apoio inclinado, X e Y referem-se aos eixos girados do apoio.</Hint>
       </Group>
 
@@ -136,6 +142,12 @@ export function EstruturaPanel() {
           <button type="button" className="chip" onClick={clearSprings}>Remover molas</button>
         </div>
         <div className="chips">
+          <span className="muted small">Cortante (Timoshenko):</span>
+          {([['', 'Global'], ['on', 'Considerar'], ['off', 'Desprezar']] as const).map(([v, label]) => (
+            <button type="button" key={`sh${v}`} className="chip" onClick={() => { if (!mSel.length) return st.set({ message: 'Selecione barras.' }); st.commit((m) => { for (const mm of m.members) if (selMembers.has(mm.id)) { if (v === '') delete mm.shear; else mm.shear = v === 'on'; } }, `Deformação por cortante (${label.toLowerCase()}) em ${mSel.length} barra(s).`); }}>{label}</button>
+          ))}
+        </div>
+        <div className="chips">
           <span className="muted small">Vínculo de deformação:</span>
           {([['', 'Normal'], ['axial', 'Inextensível'], ['full', 'Rígida']] as const).map(([v, label]) => (
             <button type="button" key={v} className="chip" onClick={() => { if (!mSel.length) return st.set({ message: 'Selecione barras.' }); st.commit((m) => { for (const mm of m.members) if (selMembers.has(mm.id)) { if (v) mm.rigid = v; else delete mm.rigid; } }, `${mSel.length} barra(s): ${label.toLowerCase()}.`); }}>{label}</button>
@@ -145,6 +157,7 @@ export function EstruturaPanel() {
       </Group>
 
       <TransformGroup />
+      <ManualDims />
 
       <Group title="Materiais" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.materials); st.commit((m) => { m.materials.push({ ...(mat ?? { E: 2e8, nu: 0.3, alpha: 1e-5, gamma: 78.5 }), id, name: `Material ${id}` }); }); setMatId(id); }}>+ novo</button>}>
         <Select value={mat?.id ?? 0} options={model.materials.map((m) => ({ v: m.id, label: `${m.name} · ${countUse(model.members, 'material', m.id)} barras` }))} onChange={setMatId} />
@@ -299,6 +312,12 @@ function MaterialKind({ id }: { id: number }) {
         if (k === 'concrete') { const f = m.fck ?? 30; m.fck = f; m.E = concrete(f).Ecs * 1000; m.nu = 0.2; m.alpha = 1e-5; m.gamma = 25; }
         if (k === 'steel') { m.fy = m.fy ?? 345; m.fu = m.fu ?? 450; m.E = 200e6; m.nu = 0.3; m.alpha = 1.2e-5; m.gamma = 78.5; }
       })} options={[{ v: 'concrete', label: 'Concreto armado' }, { v: 'steel', label: 'Aço estrutural' }, { v: 'other', label: 'Outro' }]} />
+      {kind === 'other' && (
+        <div className="chips">
+          <button type="button" className="chip" onClick={() => upd((m) => { m.E = 70e6; m.nu = 0.33; m.alpha = 2.3e-5; m.gamma = 27; m.name = 'Alumínio'; }, 'Alumínio: E = 70 GPa, ν = 0,33, α = 2,3·10⁻⁵/°C, γ = 27 kN/m³.')}>Alumínio</button>
+          <button type="button" className="chip" onClick={() => upd((m) => { m.E = 1e8; m.nu = 0.25; m.alpha = 1e-5; m.gamma = 0; m.name = 'Genérico'; }, 'Material genérico: E = 100 GPa, sem peso próprio.')}>Genérico</button>
+        </div>
+      )}
       {kind === 'concrete' && (
         <div className="row">
           <Select label="Classe" value={mat.fck ?? 30} options={CONCRETE_CLASSES.map((f) => ({ v: f, label: `C${f}` }))} onChange={(f) => upd((m) => { m.fck = f; m.E = concrete(f).Ecs * 1000; if (/^Concreto/.test(m.name)) m.name = `Concreto C${f}`; }, `C${f}: E = Ecs = ${(concrete(f).Ecs / 1000).toFixed(2)} GPa (NBR 6118, 8.2.8).`)} />
@@ -437,6 +456,15 @@ function TransformGroup() {
     const verb = op === 'scale' ? (copy === 'copy' ? 'copiadas em escala' : 'escaladas') : op === 'translate' ? (copy === 'copy' ? 'copiadas' : 'movidas') : op === 'rotate' ? (copy === 'copy' ? 'copiadas com rotação' : 'giradas') : (copy === 'copy' ? 'copiadas espelhadas' : 'espelhadas');
     st.commit((m) => { out = transformSelection(m, selNodes, selMembers, t, { copy: copy === 'copy', copies: p.n, loads: p.loads, supports: p.supports }); }, `${members.length} barra(s) e ${nodes.size} nó(s) ${verb}.`);
     if (copy === 'copy') st.select(out.nodes, out.members);
+    st.set({ lastXform: { t, o: { copy: copy === 'copy', copies: p.n, loads: p.loads, supports: p.supports } } });
+  };
+  const repeat = () => {
+    const lx = st.lastXform;
+    if (!lx) return;
+    if (!nodes.size) return st.set({ message: 'Selecione nós e/ou barras para repetir a transformação.' });
+    let out = { nodes: [] as number[], members: [] as number[] };
+    st.commit((m) => { out = transformSelection(m, selNodes, selMembers, lx.t, lx.o); }, 'Última transformação repetida.');
+    if (lx.o.copy) st.select(out.nodes, out.members);
   };
   const U = useUnits();
   const N = (k: keyof typeof p, label: string, unit?: string) => unit === 'm'
@@ -470,7 +498,10 @@ function TransformGroup() {
       {copy === 'copy' && op !== 'mirror' && <div className="row">{N('n', 'Cópias em série')}</div>}
       <Check label="Levar as cargas" checked={p.loads} onChange={(v) => setP({ ...p, loads: v })} />
       <Check label="Levar os apoios" checked={p.supports} onChange={(v) => setP({ ...p, supports: v })} />
-      <button type="button" className="btn primary" onClick={apply}>Aplicar</button>
+      <div className="row">
+        <button type="button" className="btn primary" onClick={apply}>Aplicar</button>
+        <button type="button" className="btn" disabled={!st.lastXform} onClick={repeat} title="Aplica de novo a última transformação à seleção atual">Repetir última</button>
+      </div>
       <Hint>Cópias se ligam à estrutura existente: nós coincidentes são reaproveitados e barras cruzadas são divididas. Cargas nodais não são duplicadas em nós que já existiam. No espelhamento, cargas globais são refletidas, cargas locais transversais e momentos trocam de sinal e as faces da temperatura se invertem; na translação e na rotação as cargas mantêm a direção (gravidade continua vertical).</Hint>
     </Group>
   );
@@ -505,8 +536,40 @@ function PolygonEditor({ id }: { id: number }) {
         <NumField label="t alma" unit="cm" value={L.tw} onChange={(v) => setL({ ...L, tw: v })} />
         <NumField label="t aba" unit="cm" value={L.tf} onChange={(v) => setL({ ...L, tf: v })} />
       </div>
-      <button type="button" className="chip" onClick={() => apply(lPolygon(L.b / 100, L.h / 100, L.tw / 100, L.tf / 100), 'Seção em L gerada.')}>Gerar L</button>
+      <div className="chips">
+        <button type="button" className="chip" onClick={() => apply(lPolygon(L.b / 100, L.h / 100, L.tw / 100, L.tf / 100), 'Seção em L gerada.')}>L</button>
+        <button type="button" className="chip" title="h = altura, b = largura da mesa, t alma, t aba (mesa)" onClick={() => apply(cPolygon(L.h / 100, L.b / 100, L.tw / 100, L.tf / 100), 'Perfil U gerado.')}>U</button>
+        <button type="button" className="chip" title="h = altura, b = largura de cada mesa" onClick={() => apply(zPolygon(L.h / 100, L.b / 100, L.tw / 100, L.tf / 100), 'Perfil Z gerado.')}>Z</button>
+        <button type="button" className="chip" title="Cantoneira de abas iguais b × t aba" onClick={() => apply(lPolygon(L.b / 100, L.b / 100, L.tf / 100, L.tf / 100), 'Cantoneira gerada.')}>Cantoneira</button>
+        <button type="button" className="chip" title="Duas cantoneiras b × t aba, costas com costas, afastadas de t alma" onClick={() => apply(doubleAnglePolygon(L.b / 100, L.tf / 100, L.tw / 100), 'Dupla cantoneira gerada.')}>Dupla cantoneira</button>
+      </div>
       <Hint>Pilares de concreto com seção poligonal ou circular são verificados por fibras, com flexão oblíqua pela linha neutra inclinada.</Hint>
     </div>
+  );
+}
+
+function ManualDims() {
+  const model = useStore((s) => s.model);
+  const st = useStore();
+  const U = useUnits();
+  const dims = model.dims ?? [];
+  return (
+    <Group title="Cotas manuais" open={false} aside={<span className="muted">{dims.length}</span>}>
+      <Hint>Ferramenta Cota (D): clique nos dois pontos e depois na posição da linha de cota. As cotas saem no desenho, no SVG e no DXF.</Hint>
+      {dims.length > 0 && (
+        <ul className="loadlist">
+          {dims.map((d) => (
+            <li key={d.id}>
+              <span>{fmt(U.L.to(Math.hypot(d.x2 - d.x1, d.y2 - d.y1)))} {U.L.label} · ({fmt(U.L.to(d.x1))}; {fmt(U.L.to(d.y1))}) → ({fmt(U.L.to(d.x2))}; {fmt(U.L.to(d.y2))})</span>
+              <button type="button" className="x" aria-label="Remover cota" onClick={() => st.commit((m) => { m.dims = (m.dims ?? []).filter((x) => x.id !== d.id); }, 'Cota removida.')}>×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="row">
+        <button type="button" className="btn" onClick={() => st.set({ tool: 'dim' })}>Inserir cota</button>
+        {dims.length > 0 && <button type="button" className="btn ghost" onClick={() => st.commit((m) => { m.dims = []; }, 'Cotas manuais removidas.')}>Remover todas</button>}
+      </div>
+    </Group>
   );
 }

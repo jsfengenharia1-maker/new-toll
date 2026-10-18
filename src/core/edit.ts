@@ -387,3 +387,23 @@ function composeTimes(t: Xform, c: number): Xform {
   if (t.kind === 'scale') return t;
   return c % 2 === 1 ? t : { kind: 'translate', dx: 0, dy: 0 };
 }
+
+/** Traz de outro modelo as tabelas de materiais e seções e as unidades (sem repetir itens iguais). */
+export function importTables(m: Model, src: Model): { materials: number; sections: number } {
+  let nm = 0, ns = 0;
+  for (const mat of src.materials) {
+    const { id: _id, ...rest } = mat;
+    if (m.materials.some((x) => JSON.stringify({ ...x, id: 0 }) === JSON.stringify({ ...mat, id: 0 }))) continue;
+    const name = m.materials.some((x) => x.name === mat.name) ? `${mat.name} (importado)` : mat.name;
+    m.materials.push({ ...rest, id: nextId(m.materials), name });
+    nm++;
+  }
+  for (const sec of src.sections) {
+    if (m.sections.some((x) => JSON.stringify(x.shape) === JSON.stringify(sec.shape))) continue;
+    const name = m.sections.some((x) => x.name === sec.name) ? `${sec.name} (importada)` : sec.name;
+    m.sections.push({ ...sec, id: nextId(m.sections), name });
+    ns++;
+  }
+  if (src.units) m.units = { ...src.units };
+  return { materials: nm, sections: ns };
+}

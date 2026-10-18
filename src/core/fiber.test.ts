@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { barArea, circleWidth, concrete, momentCapacity } from './concrete';
 import { designColumnGeneral } from './columnGeneral';
-import { circlePolygon, fiberCapacity, fiberMesh, lPolygon, polyProps, type FiberSection, type Pt } from './fiber';
+import { cPolygon, circlePolygon, doubleAnglePolygon, fiberCapacity, fiberMesh, lPolygon, polyProps, zPolygon, type FiberSection, type Pt } from './fiber';
 
 const c30 = concrete(30), fyd = 500 / 1.15;
 
@@ -65,5 +65,15 @@ describe('pilares circulares e em L', () => {
     expect(L.layout).toBeTruthy();
     expect(L.util).toBeLessThanOrEqual(1);
     expect(performance.now() - t0).toBeLessThan(8000);
+  });
+});
+
+describe('perfis paramétricos por polígono', () => {
+  it('U, Z e dupla cantoneira: área pela soma das partes', () => {
+    expect(polyProps(cPolygon(0.2, 0.08, 0.006, 0.01)).A).toBeCloseTo(2 * 0.08 * 0.01 + 0.006 * 0.18, 12);
+    const z = polyProps(zPolygon(0.2, 0.08, 0.006, 0.01));
+    expect(z.A).toBeCloseTo(2 * (0.08 * 0.01) + 0.006 * 0.18, 9);
+    const d = polyProps(doubleAnglePolygon(0.1, 0.01, 0.008));
+    expect(d.A).toBeCloseTo(2 * (2 * 0.1 * 0.01 - 0.01 * 0.01), 12);
   });
 });

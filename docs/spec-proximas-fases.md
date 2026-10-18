@@ -17,6 +17,20 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 - Fundações: Nd,mín da estaca com γf = 1,0 na parcela permanente (ver Fase C).
 - Avisos adicionados: φt ≤ bw/10 e espaçamento entre ramos (18.3.3.2); cobrimento 45 mm em pilar junto ao solo/fundação; pilar-parede (b/h > 5) marcado para revisão.
 
+## Paridade com analisadores de pórtico 2D (18/10/2026)
+Conferido contra o comportamento público de programas da categoria (manuais e apostilas). Adicionado nesta etapa:
+- cotas manuais (ferramenta Cota, 3 cliques; também no SVG e no DXF); zoom por janela; repetir a última transformação;
+- importar materiais, seções e unidades de outro arquivo; preset de alumínio e material genérico;
+- seções paramétricas U, Z, cantoneira e dupla cantoneira (pelo polígono);
+- deformação por cortante por barra (sobrepõe a opção global); apoio inclinado pela razão H/V;
+- envoltória de casos e combinações escolhidos;
+- vibração com número de modos e massa consistente ou concentrada; flambagem com número de modos;
+- consulta no nó (deslocamentos, rotação, reações); valores do diagrama em passos ao longo da barra; componente da deformada (δx, δy, θ, total);
+- eixos locais das barras, tamanho dos símbolos (P/M/G) e desenho em preto e branco;
+- exportar PNG e copiar o desenho; trem-tipo desenhado nas posições críticas sobre a linha de influência.
+
+Diferenças que ficam: seleção por janela pega nós e barras juntos; cargas sem nome/listas por tipo; deslocamentos só nos eixos globais; sem importação de DXF; exportação de tela em DGN/CGM; 2ª ordem por P-Δ iterativo (não pelo método de dois ciclos); propriedades iniciais personalizáveis por arquivo de configuração.
+
 ## Fase A — Análise estrutural (paridade com analisadores de pórtico 2D)
 
 ### A1. Ligações semirrígidas — **feito** (18/10/2026)
