@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 70 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test           # 83 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -33,6 +33,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Fundações | `src/core/piles.ts`, `src/app/Fundacoes.tsx` | Décourt-Quaresma (α/β 1996) metro a metro, limites executivos (NA, nega estimada, profundidade de equipamento), blocos de 1 a 6 estacas, Miche, NBR 6122 Tabela 4, armadura por bitola e estribo espiral |
 | Biblioteca | `src/app/storage.ts`, `Library.tsx` | Projetos e características salvos na conta (capability db, subárvore privada do usuário) ou no navegador |
 | Interface | `src/app/*` | Editor SVG (snap, janela/cruzamento, arrastar nós, coordenadas), painéis, tabelas, exportação SVG/CSV/JSON |
+| Saída | `src/app/dxf.ts`, `dims.ts`, `pathTable.ts` | DXF R12 próprio com camadas, cotas automáticas de vãos e níveis, CSV ao longo de uma cadeia de barras |
 
 ## Inventário funcional
 
@@ -49,13 +50,16 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - 2ª ordem global por P-Δ (opção ao γz), desaprumo global (11.3.3.4.1), flambagem global (modos e fatores de carga crítica) e vibração livre (frequências e massas modais)
 - Unidades de força de exibição: kN, tf, kgf ou N (cálculo sempre em kN·m)
 - Tabelas (reações, deslocamentos, esforços) com CSV; exportação SVG; desfazer/refazer; salvamento automático local
+- Exportação DXF R12 em metros com camadas (geometria, nós, apoios, rótulas, cargas, cotas, textos, N, V, M e deformada do resultado ativo)
+- Cotas automáticas de vãos e níveis (toggle "Cotas"), no desenho, no SVG e no DXF
+- CSV de resultados ao longo de uma cadeia de barras (s acumulado, N, V, M, δx, δy)
 
 **Feito (fase 2)**
 - Dimensionamento NBR 6118 de vigas (retangular e T) e pilares retangulares, com sugestão de seção e aplicação em um clique
 - Verificação NBR 8800 de perfis I, tubos e caixões
 - γz, cargas na fundação (características e de cálculo), flechas com Branson e fluência
 - Biblioteca rápida de seções retangulares de 12 cm a 1,50 m; materiais por classe (C20–C90) e aços comerciais
-- Memorial de cálculo padrão exportável
+- Memorial de cálculo padrão exportável em HTML e impresso em PDF (A4, cabeçalho, rodapé com paginação, quebras por seção)
 
 **Feito (fase 3)**
 - Biblioteca: salvar/abrir projetos e "características" do dimensionamento na conta do usuário
@@ -65,5 +69,5 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Blocos de coroamento (bielas e tirantes), sapatas e tubulões; várias sondagens por obra
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
 - Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
-- Cotas, transformações (copiar, espelhar, girar, escalar), unidades configuráveis
-- Exportação DXF e PDF com memorial de cálculo; LI de deslocamentos e reações
+- Cotas manuais entre nós, escalar seleção, comprimento em cm/mm
+- LI de deslocamentos e reações

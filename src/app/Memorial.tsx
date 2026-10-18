@@ -39,8 +39,49 @@ const MEMO_CSS = `
 .memo .sign{margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
 .memo .sign div{border-top:1px solid #1b2530;padding-top:4px;text-align:center;font-size:11.5px}
 .memo .small{font-size:11px;color:#5b6876}
-@media print{.memo{padding:0;max-width:none}.memo h2{break-before:auto}}
 `;
+
+/** Texto seguro dentro de uma string CSS (content: "..."), inclusive dentro de <style>. */
+const cssStr = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\3c ').replace(/[\r\n]+/g, ' ')}"`;
+
+/**
+ * Impressão / PDF: folha A4, cabeçalho e rodapé nas margens da página (@page) com o nome do
+ * projeto e a paginação, quebra de página antes das seções principais (h2.pb) e sem quebra
+ * dentro de figuras, tabelas, fórmulas e quadros.
+ */
+function memoPrintCss(p: { title: string; obra?: string; rev?: string; date?: string }) {
+  const box = 'font:8.5pt \'IBM Plex Sans\',\'Segoe UI\',Arial,sans-serif;color:#5b6876';
+  return `
+@page{size:A4;margin:20mm 15mm 18mm 20mm;
+@top-left{content:${cssStr(`Memorial de cálculo · ${p.title}`)};${box};vertical-align:bottom;padding-bottom:3mm}
+@top-right{content:${cssStr(p.obra ?? '')};${box};vertical-align:bottom;padding-bottom:3mm}
+@bottom-left{content:${cssStr([p.rev, p.date].filter(Boolean).join(' · '))};${box};vertical-align:top;padding-top:3mm}
+@bottom-right{content:"Página " counter(page) " de " counter(pages);${box};vertical-align:top;padding-top:3mm}}
+@media print{
+html,body{background:#fff!important}
+.memo{max-width:none;margin:0;padding:0;font-size:10pt;box-shadow:none!important}
+.memo *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.memo h1{margin-top:0}
+.memo h2{margin-top:18px}
+.memo h2.pb{break-before:page;margin-top:0}
+.memo h2,.memo h3{break-after:avoid;page-break-after:avoid}
+.memo figure,.memo table,.memo .formula,.memo .verdict,.memo .id,.memo .sign,.memo ul{break-inside:avoid;page-break-inside:avoid}
+.memo tr,.memo td,.memo th{break-inside:avoid;page-break-inside:avoid}
+.memo thead{display:table-header-group}
+.memo figure svg{max-height:125mm;width:auto;max-width:100%}
+.memo p{orphans:3;widows:3}
+}`;
+}
+
+/** Na janela do app (Ctrl+P com o memorial aberto), imprime só o memorial. */
+const APP_PRINT_CSS = `@media print{
+html,body,#root{height:auto!important;overflow:visible!important;background:#fff!important}
+.app{display:block!important;height:auto!important}
+.app>:not(.memo-overlay){display:none!important}
+.memo-overlay{position:static!important;display:block!important;background:#fff!important}
+.memo-bar,.memo-form{display:none!important}
+.memo-scroll{overflow:visible!important;padding:0!important}
+}`;
 
 const STATUS_TXT: Record<MemberDesign['status'], [string, string]> = { ok: ['Atende', 'ok'], fail: ['Não atende', 'bad'], review: ['Revisar', 'warn'], na: ['Não verificada', ''] };
 
@@ -87,9 +128,42 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const eluRes = useMemo(() => rep.eluResults.filter(Boolean) as CaseResult[], [rep]);
   const qpRes = useMemo(() => rep.qp.map((cb) => comboResult(a, cb.factors)).filter(Boolean) as CaseResult[], [a, rep]);
 
-  const exportHtml = async () => {
+  const printCss = memoPrintCss({ title: model.name, obra: proj.obra, rev: proj.revisao || 'R00', date: today });
+  const memoHtml = () => {
     const body = docRef.current?.outerHTML ?? '';
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Memorial de cálculo · ${model.name}</title><style>body{margin:0;background:#fff}${MEMO_CSS}</style></head><body>${body}</body></html>`;
+    const title = `Memorial de cálculo · ${model.name}`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#fff}${MEMO_CSS}${printCss}</style></head><body>${body}</body></html>`;
+  };
+
+  /** Abre a impressão do navegador só com o memorial (iframe oculto); daí se salva em PDF. */
+  const printMemo = () => {
+    const html = memoHtml();
+    const f = document.createElement('iframe');
+    f.setAttribute('aria-hidden', 'true');
+    f.title = 'Impressão do memorial';
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    const cleanup = () => setTimeout(() => f.remove(), 1500);
+    f.onload = () => {
+      const w = f.contentWindow;
+      try {
+        if (!w) throw new Error('sem janela');
+        w.addEventListener('afterprint', cleanup);
+        w.focus();
+        w.print();
+      } catch {
+        f.remove();
+        window.print();
+      }
+      cleanup();
+    };
+    f.srcdoc = html;
+    document.body.appendChild(f);
+    logActivity('Memorial de cálculo enviado para impressão/PDF', model.name);
+    st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF” como destino para gerar o arquivo (A4, com cabeçalho e paginação).' });
+  };
+
+  const exportHtml = async () => {
+    const html = memoHtml();
     const r = await download(`memorial-${model.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.html`, html, 'text/html');
     if (r !== 'declined') logActivity('Memorial de cálculo exportado', model.name);
     st.set({ message: r === 'declined' ? 'Exportação cancelada.' : 'Memorial exportado em HTML. Abra no navegador e imprima em PDF se precisar.' });
@@ -104,16 +178,18 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const steelMats = model.materials.filter((m) => m.kind === 'steel' && model.members.some((x) => x.material === m.id));
   const caa = CAA_TABLE[rep.settings.caa];
   let sec = 0;
-  const H2 = ({ children }: { children: ReactNode }) => <h2>{++sec}. {children}</h2>;
+  // brk: seção principal que começa em página nova na impressão
+  const H2 = ({ children, brk }: { children: ReactNode; brk?: boolean }) => <h2 className={brk ? 'pb' : undefined}>{++sec}. {children}</h2>;
 
   return (
     <div className="memo-overlay" role="dialog" aria-label="Memorial de cálculo">
-      <style>{MEMO_CSS}</style>
+      <style>{MEMO_CSS + printCss + APP_PRINT_CSS}</style>
       <div className="memo-bar">
         <b>Memorial de cálculo</b>
         <span className="muted">Gerado a partir do modelo atual. Edite a identificação abaixo.</span>
         <span style={{ flex: 1 }} />
-        <button type="button" className="btn primary" onClick={exportHtml}>Exportar HTML</button>
+        <button type="button" className="btn primary" onClick={printMemo} title="Abre a impressão do navegador só com o memorial (A4, cabeçalho e paginação). Escolha “Salvar como PDF”.">Imprimir / PDF</button>
+        <button type="button" className="btn" onClick={exportHtml}>Exportar HTML</button>
         <button type="button" className="btn" onClick={onClose}>Fechar</button>
       </div>
       <div className="memo-form">
@@ -171,7 +247,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
           )}
           {steelMats.length > 0 && <p>Aço estrutural: E = 200 GPa, G = 77 GPa, γa1 = {fmt(rep.settings.gammaA1)}.</p>}
 
-          <H2>Modelo estrutural</H2>
+          <H2 brk>Modelo estrutural</H2>
           <Fig svg={svgGeometry(model)} cap="Figura — geometria, apoios, rótulas e numeração." />
           {model.members.some((x) => isSemi(x.hingeI, x.springI) || isSemi(x.hingeJ, x.springJ)) && <p>Ligações semirrígidas (círculos cheios na figura): mola rotacional linear-elástica entre a extremidade da barra e o nó, de rigidez k (kN·m/rad) informada por barra. A flexibilidade 1/k entra na matriz de flexibilidade do elemento como rotação concentrada na extremidade; k → 0 reproduz a rótula e k → ∞ a ligação rígida. Os valores adotados estão na tabela de barras.</p>}
           <h3>Seções transversais</h3>
@@ -190,7 +266,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
             <tbody>{model.nodes.filter((n) => n.support).map((n) => { const s = n.support!; const t = (r: string, k?: number, u = 'kN/m') => r === 'fixed' ? 'fixo' : r === 'spring' ? `mola ${fmt(k ?? 0, 0)} ${u}` : 'livre'; return <tr key={n.id}><td>{n.id}</td><td>{fmt(n.x)}</td><td>{fmt(n.y)}</td><td className="l">X {t(s.ux, s.kx)} · Y {t(s.uy, s.ky)} · θ {t(s.rz, s.kr, 'kN·m/rad')}{s.angle ? ` · inclinação ${fmt(s.angle, 1)}°` : ''}</td></tr>; })}</tbody>
           </table>
 
-          <H2>Ações</H2>
+          <H2 brk>Ações</H2>
           {model.cases.map((c) => (
             <div key={c.id}>
               <h3>{c.name} — ação {c.nature === 'Q' ? 'variável' : c.nature === 'W' ? 'de vento' : 'permanente'}{c.nature && c.nature !== 'G' ? ` (ψ0 ${fmt(c.psi0 ?? (c.nature === 'W' ? 0.6 : 0.5), 1)} · ψ1 ${fmt(c.psi1 ?? (c.nature === 'W' ? 0.3 : 0.4), 1)} · ψ2 ${fmt(c.psi2 ?? (c.nature === 'W' ? 0 : 0.3), 1)}${caseGroup(c) ? ` · grupo excludente “${caseGroup(c)}”` : ''})` : ''}</h3>
@@ -233,7 +309,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
                 </>
               )}
 
-              <H2>Resultados da análise</H2>
+              <H2 brk>Resultados da análise</H2>
               {eluRes.length > 0 && (
                 <>
                   <Fig svg={svgDiagram(model, a, eluRes, 'N', 'Envoltória ELU — esforço normal N (kN), tração positiva')} cap="Figura — envoltória de esforço normal nas combinações ELU." />
@@ -244,7 +320,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
               {qpRes[0] && <Fig svg={svgDeformed(model, a, qpRes[0], `Deformada elástica — ${rep.qp[0].name}`)} cap="Figura — configuração deformada na combinação quase permanente (sem fluência e sem fissuração)." />}
               {model.cases.map((c) => a.cases.get(c.id)).filter(Boolean).slice(0, 1).map((r, i) => <Fig key={i} svg={svgReactions(model, r!, `Reações — ${model.cases[0].name} (kN, kN·m)`)} cap="Figura — reações de apoio do primeiro caso de carga." />)}
 
-              <H2>Dimensionamento e verificações</H2>
+              <H2 brk>Dimensionamento e verificações</H2>
               <Fig svg={svgDesign(model, rep)} cap="Figura — taxa de utilização (maior razão solicitação/resistência entre as verificações de cada barra)." />
               <table>
                 <thead><tr><th>Barra</th><th className="l">Função</th><th className="l">Seção</th><th className="l">Resultado</th><th>Uso</th><th className="l">Situação</th></tr></thead>
@@ -327,7 +403,7 @@ Interação: NSd/NRd ≥ 0,2 → NSd/NRd + 8/9·MSd/MRd ≤ 1; caso contrário N
             const pp = fd.params;
             return (
               <>
-                <H2>Fundações profundas</H2>
+                <H2 brk>Fundações profundas</H2>
                 <p>Capacidade geotécnica pelo método de Décourt-Quaresma (1978), com coeficientes α e β de Décourt (1996), somada metro a metro. Padm = mín[(Rp + Rl)/2 ; Rp/4 + Rl/1,3]. Em estacas escavadas e hélice contínua, Rp ≤ Rl; na escavada, Padm ≤ 1,25·Rl. Estrutural pela NBR 6122:2019, Tabela 4 (CAA {pp.caa}): hélice C{STRUCT.helice[pp.caa].fck} (γc {fmt(STRUCT.helice[pp.caa].gc, 1)}), escavada C{STRUCT.escavada[pp.caa].fck} (γc {fmt(STRUCT.escavada[pp.caa].gc, 1)}), γf = 1,4, As,mín = 0,4%. Pré-moldadas: carga estrutural de catálogo. Carga horizontal pelo método de Miche (Mmáx = 0,79·H·T; T = (EI/nh)^(1/5)). Bloco rígido com espaçamento {fmt(pp.spacingInSitu, 1)}φ (moldadas) e {fmt(pp.spacingPrecast, 1)}φ (pré-moldadas); peso do bloco = {pp.blockWeightPct}% de N.</p>
                 <p className="small">Limites: escavada até o nível d'água ou N ≥ {pp.augerStopN}; hélice até {pp.hcMaxDepth} m; pré-moldada até N ≥ {pp.precastStopN} (estimativa da nega, a confirmar na cravação). Cota de arrasamento a {fmt(pp.cutoff)} m.</p>
                 <h3>Sondagem {fd.boring.name}{fd.boring.water !== null ? ` · NA a ${fmt(fd.boring.water)} m` : ' · NA não encontrado'}</h3>

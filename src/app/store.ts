@@ -33,6 +33,8 @@ interface State {
   diagram: Diagram;
   showReactions: boolean;
   showValues: boolean;
+  /** Cotas automáticas de vãos e níveis no desenho. */
+  showDims: boolean;
   mTension: boolean;
   diagScale: number;
   il: ILState;
@@ -104,6 +106,7 @@ export const useStore = create<State>((set, get) => ({
   diagram: 'M',
   showReactions: true,
   showValues: true,
+  showDims: false,
   mTension: true,
   diagScale: 1,
   il: { member: null, x: 0, effect: 'M' },

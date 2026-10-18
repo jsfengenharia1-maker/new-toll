@@ -1,5 +1,5 @@
 // Monta o CSS embutido no SVG exportado a partir das regras de desenho, com tokens resolvidos.
-const PREFIXES = ['.bgfill', '.grid', '.axis', '.member', '.node', '.hinge', '.support', '.lbl', '.load', '.loadline', '.diag', '.deformed', '.react', '.il', '.secmark', '.tip'];
+const PREFIXES = ['.bgfill', '.grid', '.axis', '.member', '.node', '.hinge', '.support', '.lbl', '.load', '.loadline', '.diag', '.deformed', '.react', '.il', '.secmark', '.tip', '.cotas'];
 
 export function svgExportCss(): string {
   const cs = getComputedStyle(document.documentElement);

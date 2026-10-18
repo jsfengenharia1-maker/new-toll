@@ -4,6 +4,8 @@ import { Check, Group, Hint, Seg, copyText, download } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
 import { useUnits, type Units } from '../units';
+import { buildPath } from '../../core/influence';
+import { defaultPath, pathTable } from '../pathTable';
 import { ModosGroup } from './Modos';
 
 export function sourceOptions(model: { cases: { id: number; name: string }[]; combinations: { id: number; name: string }[] }) {
@@ -93,6 +95,19 @@ export function ResultadosPanel() {
             </div>
           </>
         )}
+      </Group>
+      <Group title="Ao longo de um caminho">
+        <Hint>Usa as barras selecionadas (em cadeia contínua); sem seleção, o caminho do trem-tipo ou as barras horizontais mais altas. Gera s acumulado, barra, x local, N, V, M ({U.F.label}, {U.M.label}) e δx, δy (mm); em envoltória, máximos e mínimos. M no sentido do caminho.</Hint>
+        <button type="button" className="btn" onClick={() => {
+          if (!results.length) { st.set({ message: 'Escolha um caso, uma combinação ou uma envoltória com resultados.' }); return; }
+          const ids = st.selMembers.size ? [...st.selMembers] : st.trainPath.length ? st.trainPath : defaultPath(model);
+          const path = buildPath(a.prep, ids);
+          if (!path) { st.set({ message: 'As barras escolhidas não formam uma cadeia contínua (sem ramificações). Ajuste a seleção.' }); return; }
+          const rows = pathTable(a, results, path, U);
+          const name = `caminho-${sourceLabel(model, st.source).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.csv`;
+          download(name, '\ufeff' + toCSV(rows), 'text/csv');
+          st.set({ message: `CSV ao longo do caminho: barras ${path.map((p) => a.prep.members[p.k].id).join(' → ')} · ${fmt(path.reduce((s, p) => s + p.L, 0))} m · ${rows.body.length} pontos.` });
+        }}>CSV ao longo do caminho</button>
       </Group>
       <ModosGroup />
     </div>

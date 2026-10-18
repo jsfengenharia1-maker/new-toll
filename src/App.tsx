@@ -14,7 +14,8 @@ import { addMember, deleteSelection, ensureNode, nbrCombinations } from './core/
 import { emptyModel, type ForceUnit, type Model } from './core/types';
 import { FORCE_UNITS } from './app/units';
 import { copyText, download } from './app/ui';
-import { useAnalysis } from './app/results';
+import { useAnalysis, resultFor, sourceLabel } from './app/results';
+import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
 import { buildWorkspace, canPickFiles, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
@@ -154,6 +155,18 @@ export default function App() {
     setMenu(false);
   };
 
+  const exportDXF = async () => {
+    setMenu(false);
+    const s = useStore.getState();
+    const ok = !a.prep.error;
+    const txt = buildDxf({
+      model: s.model, analysis: ok ? a : null, results: ok ? resultFor(a, s.source) : [], resultLabel: sourceLabel(s.model, s.source),
+      caseId: s.activeCase, diagScale: s.diagScale, mTension: s.mTension, dims: true,
+    });
+    const r = await download(`${slug(s.model.name)}.dxf`, txt, 'application/dxf');
+    st.set({ message: r === 'declined' ? 'Download cancelado.' : `Desenho exportado em DXF R12 (metros), com camadas de geometria, apoios, cargas, cotas e diagramas${ok ? ` de “${sourceLabel(s.model, s.source)}”` : ''}.` });
+  };
+
   const submitCoord = () => {
     const s = useStore.getState();
     const parts = coord.replace(/;/g, ' ').trim().split(/\s+/).map((p) => parseFloat(p.replace(',', '.')));
@@ -188,6 +201,7 @@ export default function App() {
               <div className="msep">Exportar</div>
               <button type="button" onClick={saveJSON}>Só o modelo (.json)</button>
               <button type="button" onClick={exportSVG}>Exportar desenho (SVG)</button>
+              <button type="button" onClick={exportDXF}>Desenho DXF (CAD)</button>
               <div className="msep">Exemplos</div>
               {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); }}>{s.label}</button>)}
             </div>
@@ -256,6 +270,7 @@ export default function App() {
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
         <label className="check small" htmlFor="snapchk"><input id="snapchk" type="checkbox" checked={st.snap} onChange={(e) => st.set({ snap: e.target.checked })} /> <span>Snap</span></label>
+        <label className="check small" htmlFor="dimchk" title="Cotas automáticas de vãos e níveis (saem também no SVG exportado; o DXF traz sempre a camada COTAS)"><input id="dimchk" type="checkbox" checked={st.showDims} onChange={(e) => st.set({ showDims: e.target.checked })} /> <span>Cotas</span></label>
         <label className="gridsel" htmlFor="gridsel">Grade
           <select id="gridsel" value={st.grid} onChange={(e) => st.set({ grid: +e.target.value })}>
             {[0.05, 0.1, 0.25, 0.5, 1, 2].map((g) => <option key={g} value={g}>{String(g).replace('.', ',')} m</option>)}

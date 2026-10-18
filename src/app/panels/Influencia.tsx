@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { Group, Hint, NumField, Seg, Select, TextField } from '../ui';
 import { useAnalysis, resultFor, fmt } from '../results';
+import { defaultPath } from '../pathTable';
 import { buildPath, influenceField, samplePath, trainEnvelope, trainEnvelopeAll, effectAt } from '../../core/influence';
 import { nextId } from '../../core/edit';
 import { sourceOptions, srcKey } from './Resultados';
@@ -129,15 +130,6 @@ export function InfluenciaPanel() {
       </Group>
     </div>
   );
-}
-
-function defaultPath(model: { members: { id: number; ni: number; nj: number }[]; nodes: { id: number; y: number }[] }) {
-  // barras horizontais no nível mais alto em que existam
-  const y = (id: number) => model.nodes.find((n) => n.id === id)!.y;
-  const horiz = model.members.filter((m) => Math.abs(y(m.ni) - y(m.nj)) < 1e-9);
-  if (!horiz.length) return model.members.map((m) => m.id);
-  const top = Math.max(...horiz.map((m) => y(m.ni)));
-  return horiz.filter((m) => Math.abs(y(m.ni) - top) < 1e-9).map((m) => m.id);
 }
 
 function TrainSketch({ length, loads }: { length: number; loads: { d: number; P: number }[] }) {
