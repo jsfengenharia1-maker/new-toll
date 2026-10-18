@@ -1,5 +1,5 @@
 // Montagem e solução do sistema global (método da rigidez direta).
-import { elementMatrices, noLoad, recoverReleased, rotation, type ElemLoad, type ElemMatrices, type ElemProps } from './element';
+import { elementMatrices, noLoad, recoverReleased, rotation, springFlex, type ElemLoad, type ElemMatrices, type ElemProps } from './element';
 import { LU, P, linearPoly, matVec, transpose, type Mat, type Poly } from './math';
 import { sectionProps } from './section';
 import type { DistLoad, Member, Model } from './types';
@@ -85,6 +85,8 @@ export function prepare(model: Model, opts: PrepareOptions = {}): Prepared {
       EA: mat.E * sp.A * (model.options.axialDeformation ? 1 : 1e4),
       EI: mat.E * sp.I * (opts.eiFactor ? opts.eiFactor(m, (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI > 90 ? 180 - (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI : (Math.abs(Math.atan2(dy, dx)) * 180) / Math.PI) : 1),
       GAs: model.options.shearDeformation ? G * sp.As : Infinity,
+      kI: m.hingeI ? undefined : m.springI,
+      kJ: m.hingeJ ? undefined : m.springJ,
     };
     const c = dx / L, s = dy / L;
     members.push({
@@ -307,7 +309,8 @@ function memberFunctions(pm: PMember, ld: ElemLoad, f: number[], ul: number[]): 
   const V = P.add([f[1]], Qy);
   const M = P.add([-f[2], f[1]], P.integrate(Qy));
   const u = P.add([ul[0]], P.integrate(P.add(P.scale(N, fN), [ld.eps0])));
-  const th = P.add([ul[2]], P.integrate(P.add(P.scale(M, fM), [ld.kap0])));
+  // com mola em i, a seção x = 0⁺ gira M(0)/kI além do nó
+  const th = P.add([ul[2] + P.evaluate(M, 0) * springFlex(pm.props)[0]], P.integrate(P.add(P.scale(M, fM), [ld.kap0])));
   const v = P.add([ul[1]], P.integrate(th), P.scale(P.integrate(V), -fV));
   const r: MemberResult = { L: pm.L, f, ul, N, V, M, u, v };
   if (ld.dirac) {

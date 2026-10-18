@@ -5,7 +5,7 @@ import { nextId, joinAtNode } from '../../core/edit';
 import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
-import { fmt } from '../results';
+import { fmt, linkText } from '../results';
 
 const R_OPTS: { v: Restraint; label: string }[] = [
   { v: 'free', label: 'Livre' },
@@ -44,6 +44,22 @@ export function EstruturaPanel() {
   const hingeAtNodes = (on: boolean) => {
     if (!nSel.length) return st.set({ message: 'Selecione nós.' });
     st.commit((m) => { for (const mm of m.members) { if (selNodes.has(mm.ni)) mm.hingeI = on; if (selNodes.has(mm.nj)) mm.hingeJ = on; } }, on ? 'Barras rotuladas nos nós selecionados.' : 'Rótulas removidas nos nós selecionados.');
+  };
+
+  const [kLink, setKLink] = useState(10000);
+  const setSprings = (i: boolean, j: boolean) => {
+    if (!mSel.length) return st.set({ message: 'Selecione barras para definir ligações semirrígidas.' });
+    if (!(kLink > 0)) return st.set({ message: 'Informe k > 0.' });
+    st.commit((m) => {
+      for (const mm of m.members) if (selMembers.has(mm.id)) {
+        if (i) { mm.springI = kLink; mm.hingeI = false; }
+        if (j) { mm.springJ = kLink; mm.hingeJ = false; }
+      }
+    }, `Ligação semirrígida k = ${fmt(kLink, 0)} kN·m/rad em ${mSel.length} barra(s).`);
+  };
+  const clearSprings = () => {
+    if (!mSel.length) return st.set({ message: 'Selecione barras.' });
+    st.commit((m) => { for (const mm of m.members) if (selMembers.has(mm.id)) { delete mm.springI; delete mm.springJ; } }, `Ligações semirrígidas removidas em ${mSel.length} barra(s).`);
   };
 
   const single = mSel.length === 1 ? model.members.find((m) => m.id === mSel[0]) : undefined;
@@ -95,7 +111,7 @@ export function EstruturaPanel() {
         <Hint>Em apoio inclinado, X e Y referem-se aos eixos girados do apoio.</Hint>
       </Group>
 
-      <Group title="Rótulas" aside={<span className="muted">{mSel.length ? `${mSel.length} barra(s)` : 'selecione barras'}</span>}>
+      <Group title="Rótulas e ligações" aside={<span className="muted">{mSel.length ? `${mSel.length} barra(s)` : 'selecione barras'}</span>}>
         <div className="chips">
           <button type="button" className="chip" onClick={() => setHinges(false, false)}>Nenhuma</button>
           <button type="button" className="chip" onClick={() => setHinges(true, false)}>Início</button>
@@ -106,6 +122,16 @@ export function EstruturaPanel() {
           <button type="button" className="chip" onClick={() => hingeAtNodes(true)}>Rotular todas as barras nos nós selecionados</button>
           <button type="button" className="chip" onClick={() => hingeAtNodes(false)}>Remover nos nós</button>
         </div>
+        <div className="row">
+          <NumField label="Ligação semirrígida k" unit="kN·m/rad" value={kLink} onChange={setKLink} />
+        </div>
+        <div className="chips">
+          <button type="button" className="chip" onClick={() => setSprings(true, false)}>Mola no início</button>
+          <button type="button" className="chip" onClick={() => setSprings(false, true)}>Mola no fim</button>
+          <button type="button" className="chip" onClick={() => setSprings(true, true)}>Ambas</button>
+          <button type="button" className="chip" onClick={clearSprings}>Remover molas</button>
+        </div>
+        <Hint>Mola rotacional linear-elástica entre a barra e o nó. Rótula na mesma extremidade prevalece. Referência de classificação (EN 1993-1-8, 5.2.2.5, só informativa): k·L/EI ≤ 0,5 ≈ rótula; ≥ 8 (contraventado) ou ≥ 25 (não contraventado) ≈ rígida.</Hint>
       </Group>
 
       <Group title="Materiais" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.materials); st.commit((m) => { m.materials.push({ ...(mat ?? { E: 2e8, nu: 0.3, alpha: 1e-5, gamma: 78.5 }), id, name: `Material ${id}` }); }); setMatId(id); }}>+ novo</button>}>
@@ -160,6 +186,8 @@ function BarInfo({ id }: { id: number }) {
   const a = model.nodes.find((n) => n.id === m.ni)!, b = model.nodes.find((n) => n.id === m.nj)!;
   const L = Math.hypot(b.x - a.x, b.y - a.y);
   const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  const mat = model.materials.find((x) => x.id === m.material), sec = model.sections.find((x) => x.id === m.section);
+  const EI = mat && sec ? mat.E * sectionProps(sec.shape).I : 0;
   const commit = useStore((s) => s.commit);
   return (
     <>
@@ -167,9 +195,10 @@ function BarInfo({ id }: { id: number }) {
         <dt>Nós</dt><dd>{m.ni} → {m.nj}</dd>
         <dt>Comprimento</dt><dd>{fmt(L, 3)} m</dd>
         <dt>Ângulo</dt><dd>{fmt(ang, 2)}°</dd>
-        <dt>Rótulas</dt><dd>{m.hingeI && m.hingeJ ? 'ambas' : m.hingeI ? 'início' : m.hingeJ ? 'fim' : 'nenhuma'}</dd>
+        <dt>Ligações</dt><dd>{linkText(m)}</dd>
+        {EI > 0 && (m.springI || m.springJ) ? <><dt>k·L/EI</dt><dd>{[[m.hingeI, m.springI], [m.hingeJ, m.springJ]].map(([h, k]) => (!h && k ? fmt(((k as number) * L) / EI, 2) : '—')).join(' / ')}</dd></> : null}
       </dl>
-      <button type="button" className="btn ghost" onClick={() => commit((md) => { const x = md.members.find((k) => k.id === id)!; [x.ni, x.nj] = [x.nj, x.ni]; [x.hingeI, x.hingeJ] = [x.hingeJ, x.hingeI]; }, 'Orientação da barra invertida.')}>Inverter orientação</button>
+      <button type="button" className="btn ghost" onClick={() => commit((md) => { const x = md.members.find((k) => k.id === id)!; [x.ni, x.nj] = [x.nj, x.ni]; [x.hingeI, x.hingeJ] = [x.hingeJ, x.hingeI]; [x.springI, x.springJ] = [x.springJ, x.springI]; }, 'Orientação da barra invertida.')}>Inverter orientação</button>
     </>
   );
 }

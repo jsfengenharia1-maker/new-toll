@@ -1,6 +1,6 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { useStore } from './store';
-import { useAnalysis, getDesign, fmt } from './results';
+import { useAnalysis, getDesign, fmt, isSemi, linkText } from './results';
 import { comboResult, type MemberDesign } from '../core/design';
 import { CAA_TABLE, concrete } from '../core/concrete';
 import { sectionProps } from '../core/section';
@@ -172,6 +172,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
 
           <H2>Modelo estrutural</H2>
           <Fig svg={svgGeometry(model)} cap="Figura — geometria, apoios, rótulas e numeração." />
+          {model.members.some((x) => isSemi(x.hingeI, x.springI) || isSemi(x.hingeJ, x.springJ)) && <p>Ligações semirrígidas (círculos cheios na figura): mola rotacional linear-elástica entre a extremidade da barra e o nó, de rigidez k (kN·m/rad) informada por barra. A flexibilidade 1/k entra na matriz de flexibilidade do elemento como rotação concentrada na extremidade; k → 0 reproduz a rótula e k → ∞ a ligação rígida. Os valores adotados estão na tabela de barras.</p>}
           <h3>Seções transversais</h3>
           <table>
             <thead><tr><th className="l">Seção</th><th className="l">Forma</th><th>A (cm²)</th><th>I (cm⁴)</th><th>Barras</th></tr></thead>
@@ -179,8 +180,8 @@ export function Memorial({ onClose }: { onClose: () => void }) {
           </table>
           <h3>Barras</h3>
           <table>
-            <thead><tr><th>Barra</th><th>Nós</th><th>L (m)</th><th className="l">Seção</th><th className="l">Material</th><th className="l">Função</th><th>le plano / fora (m)</th><th className="l">Rótulas</th></tr></thead>
-            <tbody>{rep.members.map((d) => { const mm = model.members.find((x) => x.id === d.id)!; return <tr key={d.id}><td>{d.id}</td><td>{mm.ni}–{mm.nj}</td><td>{fmt(d.L)}</td><td className="l">{d.sectionName}</td><td className="l">{d.materialName}</td><td className="l">{d.role === 'column' ? 'Pilar' : d.role === 'beam' ? 'Viga' : '—'}</td><td>{fmt(d.leIn)} / {fmt(d.leOut)}</td><td className="l">{mm.hingeI && mm.hingeJ ? 'ambas' : mm.hingeI ? 'início' : mm.hingeJ ? 'fim' : '—'}</td></tr>; })}</tbody>
+            <thead><tr><th>Barra</th><th>Nós</th><th>L (m)</th><th className="l">Seção</th><th className="l">Material</th><th className="l">Função</th><th>le plano / fora (m)</th><th className="l">Ligações</th></tr></thead>
+            <tbody>{rep.members.map((d) => { const mm = model.members.find((x) => x.id === d.id)!; return <tr key={d.id}><td>{d.id}</td><td>{mm.ni}–{mm.nj}</td><td>{fmt(d.L)}</td><td className="l">{d.sectionName}</td><td className="l">{d.materialName}</td><td className="l">{d.role === 'column' ? 'Pilar' : d.role === 'beam' ? 'Viga' : '—'}</td><td>{fmt(d.leIn)} / {fmt(d.leOut)}</td><td className="l">{linkText(mm)}</td></tr>; })}</tbody>
           </table>
           <h3>Vínculos</h3>
           <table>

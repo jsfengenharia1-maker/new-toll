@@ -45,8 +45,8 @@ export function splitMember(m: Model, memberId: number, nodeId: number, t: numbe
   if (k < 0) return;
   const old = m.members[k];
   const id2 = nextId(m.members);
-  const a: Member = { ...old, nj: nodeId, hingeJ: false };
-  const b: Member = { ...old, id: id2, ni: nodeId, hingeI: false };
+  const a: Member = { ...old, nj: nodeId, hingeJ: false, springJ: undefined };
+  const b: Member = { ...old, id: id2, ni: nodeId, hingeI: false, springI: undefined };
   m.members.splice(k, 1, a, b);
   const extra = [];
   let lid = nextId(m.loads);
@@ -134,7 +134,11 @@ export function joinAtNode(m: Model, nodeId: number): boolean {
   if (Math.abs(cross) > 1e-9 * Math.hypot(b.x - a.x, b.y - a.y) ** 2) return false;
   if (m.loads.some((ld) => 'member' in ld && (ld.member === ms[0].id || ld.member === ms[1].id) && ld.kind !== 'thermal')) return false;
   const keep = ms[0];
-  keep.ni = a.id; keep.nj = b.id; keep.hingeI = false; keep.hingeJ = false;
+  // as extremidades externas mantêm rótulas e ligações semirrígidas
+  const end = (mm: Member, n: number) => (mm.ni === n ? { h: mm.hingeI, k: mm.springI } : { h: mm.hingeJ, k: mm.springJ });
+  const ea = end(ms[0], a.id), eb = end(ms[1], b.id);
+  keep.ni = a.id; keep.nj = b.id;
+  keep.hingeI = !!ea.h; keep.springI = ea.k; keep.hingeJ = !!eb.h; keep.springJ = eb.k;
   m.members = m.members.filter((x) => x.id !== ms[1].id);
   m.loads = m.loads.filter((ld) => !('member' in ld && ld.member === ms[1].id));
   m.nodes = m.nodes.filter((n) => n.id !== nodeId);

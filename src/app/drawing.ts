@@ -55,6 +55,8 @@ function skeleton(m: Model, f: Frame, opts: { ids?: boolean; color?: (id: number
     const L = Math.hypot(q.x - p.x, q.y - p.y) * f.scale, ux = (f.X(q.x) - f.X(p.x)) / L, uy = (f.Y(q.y) - f.Y(p.y)) / L;
     if (mem.hingeI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="#fff" stroke="${C.ink}"/>`;
     if (mem.hingeJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="#fff" stroke="${C.ink}"/>`;
+    if (!mem.hingeI && mem.springI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="#9aa6b2" stroke="${C.ink}"/>`;
+    if (!mem.hingeJ && mem.springJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="#9aa6b2" stroke="${C.ink}"/>`;
     if (opts.ids) s += txt((f.X(p.x) + f.X(q.x)) / 2 + 8, (f.Y(p.y) + f.Y(q.y)) / 2 - 6, String(mem.id), '#3c6fb4');
   }
   for (const n of m.nodes) {

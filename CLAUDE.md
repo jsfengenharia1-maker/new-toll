@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 40 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test         # vitest: 44 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -23,7 +23,7 @@ Testes de interface foram feitos com Playwright (Chromium em /opt/pw-browsers no
 ## Arquitetura
 Veja a tabela no `README.md`. Resumo:
 - `src/core/`: núcleo puro, sem React e testado.
-  - `element.ts`: elemento por flexibilidade, com rótulas por condensação.
+  - `element.ts`: elemento por flexibilidade, com rótulas por condensação e ligações semirrígidas (1/k somado à flexibilidade).
   - `solver.ts`: rigidez direta, apoio inclinado exato, molas, recalques, combinações.
   - `influence.ts`: linhas de influência por Müller-Breslau e trem-tipo.
   - `concrete.ts`: NBR 6118.

@@ -136,3 +136,40 @@ describe('hiperestáticas', () => {
     expect(a.prep.error).toMatch(/hipostática/);
   });
 });
+
+describe('ligações semirrígidas', () => {
+  const L = 6, q = 10;
+  const beam = (kI?: number, kJ?: number, extra: Partial<Member> = {}) =>
+    run(model([{ id: 1, x: 0, y: 0, support: FIX }, { id: 2, x: L, y: 0, support: FIX }], [{ ni: 1, nj: 2, springI: kI, springJ: kJ, ...extra }], [dist(1, -q)]));
+
+  it('viga biengastada com molas iguais: momento de extremidade e flecha', () => {
+    const k = (2 * EI) / L; // fator de fixação 1/(1 + 2EI/kL) = 1/2
+    const r = beam(k, k), m = r.members[0];
+    const Me = ((q * L * L) / 12) / (1 + (2 * EI) / (k * L));
+    expect(P.evaluate(m.M, 0)).toBeCloseTo(-Me, 8);
+    expect(P.evaluate(m.M, L)).toBeCloseTo(-Me, 8);
+    expect(P.evaluate(m.M, L / 2)).toBeCloseTo((q * L * L) / 8 - Me, 8);
+    const w = (5 * q * L ** 4) / (384 * EI) - (Me * L * L) / (8 * EI);
+    expect(memberDisp(m, L / 2)[1]).toBeCloseTo(-w, 10);
+    expect(memberDisp(m, 0)[1]).toBeCloseTo(0, 12);
+    expect(memberDisp(m, L)[1]).toBeCloseTo(0, 12);
+  });
+
+  it('limites: k → 0 equivale à rótula e k → ∞ ao engaste', () => {
+    const soft = beam(1e-6, 1e-6).members[0], stiff = beam(1e12, 1e12).members[0];
+    expect(P.evaluate(soft.M, 0)).toBeCloseTo(0, 4);
+    expect(P.evaluate(soft.M, L / 2)).toBeCloseTo((q * L * L) / 8, 4);
+    expect(P.evaluate(stiff.M, 0)).toBeCloseTo((-q * L * L) / 12, 4);
+  });
+
+  it('mola só em i; rótula prevalece sobre a mola', () => {
+    // inclinação-deflexão com mola em série: Mi = (qL²/12)/(1 + 4EI/(kL)); Mj = qL²/12 + (2EI/L)·Mi/k
+    const k = (4 * EI) / L;
+    const m = beam(k, undefined).members[0];
+    expect(P.evaluate(m.M, 0)).toBeCloseTo((-q * L * L) / 24, 8);
+    expect(P.evaluate(m.M, L)).toBeCloseTo((-5 * q * L * L) / 48, 8);
+    const h = beam(k, undefined, { hingeI: true }).members[0];
+    expect(P.evaluate(h.M, 0)).toBeCloseTo(0, 8);
+    expect(P.evaluate(h.M, L)).toBeCloseTo((-q * L * L) / 8, 8);
+  });
+});

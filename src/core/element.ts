@@ -3,7 +3,18 @@
 // concentradas (usadas nas linhas de influência por Müller-Breslau).
 import { P, gauss, inv3, matMul, transpose, type Mat, type Poly } from './math';
 
-export interface ElemProps { L: number; EA: number; EI: number; GAs: number }
+export interface ElemProps {
+  L: number; EA: number; EI: number; GAs: number;
+  /** Ligação semirrígida: rigidez rotacional da mola entre a barra e o nó (kN·m/rad). Ausente = rígida. */
+  kI?: number;
+  kJ?: number;
+}
+
+/** Flexibilidades das molas de extremidade (1/k), nulas quando a ligação é rígida. */
+export function springFlex(p: ElemProps): [number, number] {
+  const f = (k?: number) => (k !== undefined && Number.isFinite(k) && k > 0 ? 1 / k : 0);
+  return [f(p.kI), f(p.kJ)];
+}
 
 export interface ElemLoad {
   qx: Poly; // carga axial local (kN/m), função de x
@@ -74,6 +85,11 @@ export function flexibility(p: ElemProps): Mat {
         for (let k = 0; k < 3; k++) s += B[k][a] * fd[k] * B[k][b];
         return s;
       }, 0, p.L);
+  // molas de extremidade: curvatura concentrada M/k em x = 0 e x = L
+  const [fi, fj] = springFlex(p);
+  const B0 = bMat(0, p.L)[2];
+  for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) F[a][b] += fi * B0[a] * B0[b];
+  F[2][2] += fj;
   return F;
 }
 
@@ -93,6 +109,8 @@ export function elementMatrices(p: ElemProps, ld: ElemLoad, releaseI: boolean, r
       const e = [fN * li.N0(x) + ld.eps0, fV * li.V0(x), fM * li.M0(x) + ld.kap0];
       return B[0][a] * e[0] + B[1][a] * e[1] + B[2][a] * e[2];
     }, 0, L);
+  const [fi] = springFlex(p);
+  if (fi) { const B0 = bMat(0, L)[2], m0 = li.M0(0) * fi; for (let a = 0; a < 3; a++) d0[a] += B0[a] * m0; }
   if (ld.dirac) {
     const B = bMat(ld.dirac.a, L), e = ld.dirac.e;
     for (let a = 0; a < 3; a++) d0[a] += B[0][a] * e[0] + B[1][a] * e[1] + B[2][a] * e[2];

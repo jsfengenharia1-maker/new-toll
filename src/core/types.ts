@@ -57,6 +57,9 @@ export interface Member {
   section: number;
   hingeI?: boolean;
   hingeJ?: boolean;
+  /** Ligação semirrígida (kN·m/rad) na extremidade; ignorada se houver rótula. */
+  springI?: number;
+  springJ?: number;
   /** Papel no dimensionamento (auto: inclinação > 60° com a horizontal = pilar). */
   role?: MemberRole;
   /** Comprimento de flambagem no plano do pórtico (m). Padrão: comprimento da barra. */

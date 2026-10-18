@@ -14,7 +14,7 @@ A ordem segue o ganho por esforço. Cada fase pode ser entregue sozinha.
 
 ## Fase A — Análise estrutural (paridade com analisadores de pórtico 2D)
 
-### A1. Ligações semirrígidas
+### A1. Ligações semirrígidas — **feito** (18/10/2026)
 - **Objetivo:** mola rotacional entre barra e nó, em cada extremidade (kθ em kN·m/rad). Hoje existe só rótula ideal ou ligação rígida, e mola apenas nos apoios.
 - **Método:** a flexibilidade da extremidade entra na matriz do elemento por condensação estática, como as rótulas atuais em `element.ts`. kθ → 0 recupera a rótula e kθ → ∞ recupera a ligação rígida.
 - **Interface:** na aba Estrutura, em "Rótulas", a opção "Semirrígida" com campo kθ. No desenho, um símbolo de mola na extremidade.

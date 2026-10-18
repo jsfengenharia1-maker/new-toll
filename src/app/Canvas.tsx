@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { useStore } from './store';
-import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, type Eff } from './results';
+import { useAnalysis, resultFor, memberSeries, globalDisp, fmt, effPoly, getDesign, isSemi, type Eff } from './results';
 import { addMember, ensureNode } from '../core/edit';
 import { influenceField, ilOrdinate, type MemberEnvelope } from '../core/influence';
 import { P } from '../core/math';
@@ -253,6 +253,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     const ux = (X(q.x) - X(p.x)) / L, uy = (Y(q.y) - Y(p.y)) / L;
     if (m.hingeI) els.push(<circle key={`hi${m.id}`} cx={X(p.x) + ux * 7} cy={Y(p.y) + uy * 7} r={3.6} className="hinge" />);
     if (m.hingeJ) els.push(<circle key={`hj${m.id}`} cx={X(q.x) - ux * 7} cy={Y(q.y) - uy * 7} r={3.6} className="hinge" />);
+    if (isSemi(m.hingeI, m.springI)) els.push(<circle key={`ki${m.id}`} cx={X(p.x) + ux * 7} cy={Y(p.y) + uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(m.springI!, 0)} kN·m/rad`}</title></circle>);
+    if (isSemi(m.hingeJ, m.springJ)) els.push(<circle key={`kj${m.id}`} cx={X(q.x) - ux * 7} cy={Y(q.y) - uy * 7} r={3.6} className="hinge semi"><title>{`Ligação semirrígida: k = ${fmt(m.springJ!, 0)} kN·m/rad`}</title></circle>);
   }
 
   // apoios e nós
