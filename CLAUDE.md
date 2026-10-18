@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 52 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho)
+npm test         # vitest: 65 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -35,7 +35,8 @@ Veja a tabela no `README.md`. Resumo:
   - `Canvas.tsx`: editor SVG.
   - `panels/*`: abas Estrutura, Cargas, Resultados, Influência e Dimensionar.
   - `Fundacoes.tsx`: módulo de fundações.
-  - `Memorial.tsx` + `drawing.ts`: memorial de cálculo com figuras SVG estáticas.
+  - `Memorial.tsx` + `drawing.ts`: memorial de cálculo com figuras SVG estáticas; CSS de impressão A4 e botão Imprimir / PDF.
+  - `dxf.ts`: DXF R12 gerado à mão (camadas, escala real em m); `dims.ts`: cotas automáticas; `pathTable.ts`: resultados ao longo de um caminho de barras.
   - `Library.tsx` + `storage.ts`: biblioteca de projetos e características.
   - `workspace.ts` + `history.ts`: arquivo de trabalho `.statikos` (modelo + biblioteca + histórico) e histórico de atividades.
 - Unidades internas: kN, m, rad (a interface converte a força para tf/kgf/N em `src/app/units.ts`; dimensionamento, fundações e memorial ficam em kN). E em kN/m². No cálculo de seção: MN e MPa.

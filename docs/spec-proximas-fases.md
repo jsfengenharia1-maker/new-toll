@@ -77,21 +77,37 @@ Proposta original:
 - Copiar, espelhar, girar, escalar e repetir em série (n cópias com Δx e Δy), com cargas e apoios opcionais.
 - Usar `edit.ts`, mantendo a divisão automática em interseções.
 
-### B3. Exportação DXF
+### B3. Exportação DXF — **feito** (18/10/2026)
+- Feito: Arquivo › Desenho DXF (CAD). Gerador próprio de DXF R12 (AC1009) em texto (`src/app/dxf.ts`, com teste), escala real em metros nas coordenadas do modelo. Camadas GEOMETRIA (barras e numeração), NOS, APOIOS (símbolos em linhas), ROTULAS (círculos; ligação semirrígida com k), CARGAS (caso ativo, setas e valores na unidade de exibição), COTAS, TEXTOS (identificação e escala de cada diagrama) e DIAG_N, DIAG_V, DIAG_M, DEFORMADA do resultado ativo, com a mesma escala relativa e convenção do Canvas e valores nos extremos e máximos.
+- Ficou de fora: `$INSUNITS` (não existe no R12; as unidades vão escritas na camada TEXTOS), acentos e símbolos (o R12 não tem UTF-8: textos saem em ASCII, com %%p e %%d), hachura dos diagramas, reações e cargas de mais de um caso no mesmo arquivo.
+
+Proposta original:
 - Camadas: geometria, apoios, cargas, cada diagrama, cotas e textos.
 - Escala real, em metros. Gerador próprio de DXF R12 em texto, sem dependência externa.
 
-### B4. Exportar resultados ao longo de uma cadeia de barras
+### B4. Exportar resultados ao longo de uma cadeia de barras — **feito** (18/10/2026)
+- Feito: botão "CSV ao longo do caminho" na aba Resultados (`src/app/pathTable.ts`, com teste). Usa as barras selecionadas em cadeia contínua; sem seleção, o caminho do trem-tipo ou as barras horizontais mais altas. Colunas: s acumulado (m), barra, x local, N, V, M (unidade de exibição), δx, δy (mm); em envoltória, máximos e mínimos de N, V e M. Amostra em 10 divisões por barra mais os pontos de momento extremo. M segue o sentido do caminho (barra percorrida de j para i tem o sinal trocado).
+- Ficou de fora: ordenadas de LI no mesmo CSV e deslocamentos em envoltórias.
+
+Proposta original:
 - Selecionar uma sequência de barras e gerar CSV com abscissa acumulada × N, V, M, deslocamentos e LI.
 
 ### B5. Seção genérica por polígono
 - Desenhar ou colar vértices. A, I, centróide e Wsup/Winf são calculados pela fórmula de Green.
 - Para concreto, o cálculo de seção por compatibilidade de deformações passa a aceitar polígono, por faixas. Isso também atende pilares em L e circulares (Fase C).
 
-### B6. Cotas no desenho
+### B6. Cotas no desenho — **feito em parte** (18/10/2026)
+- Feito: cotas automáticas (`src/app/dims.ts`, com teste). Vãos entre nós de apoio, nós de pilares e extremidades da estrutura, abaixo do nó mais baixo, mais a cota total; níveis distintos dos nós à esquerda, com marcação de nível (±0,00, +5,00) e altura total. Toggle "Cotas" na barra de status; saem no Canvas, no SVG exportado e no DXF (camada COTAS, sempre).
+- Ficou de fora: cotas manuais entre nós.
+
+Proposta original:
 - Cotas automáticas de vãos e níveis, e cotas manuais entre nós. Saem no SVG e no DXF.
 
-### B7. Memorial em PDF
+### B7. Memorial em PDF — **feito** (18/10/2026)
+- Feito: CSS de impressão dedicado no memorial (também no HTML exportado). `@page` A4 com margens de 20/15/18/20 mm, cabeçalho com o nome do modelo e a obra, rodapé com revisão, data e "Página n de N" (caixas de margem do `@page`); quebra de página antes de Modelo estrutural, Ações, Resultados, Dimensionamento e Fundações profundas; sem quebra dentro de figuras, tabelas, fórmulas e quadros; cabeçalho de tabela repetido. Botão "Imprimir / PDF" abre a impressão só com o memorial (iframe oculto); Ctrl+P com o memorial aberto também imprime só o memorial.
+- Ficou de fora: cabeçalho e paginação no Firefox (não implementa as caixas de margem do `@page`; o conteúdo sai certo, sem cabeçalho e numeração). Dentro do artifact do claude.ai a impressão depende de o sandbox permitir `print()`; se não permitir, usar Exportar HTML e imprimir no navegador. O memorial do módulo Fundações não foi alterado.
+
+Proposta original:
 - Hoje é HTML + "imprimir em PDF" do navegador.
 - **Proposta:** CSS `@media print` dedicado (quebras de página, cabeçalho e rodapé com paginação), sem biblioteca de PDF. Mantém o build em arquivo único.
 
