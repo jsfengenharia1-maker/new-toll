@@ -115,13 +115,15 @@ export function Fundacoes() {
           </div>
           <div className="tablewrap">
             <table className="loads-ed">
-              <thead><tr><th>Apoio</th><th>N máx</th><th>N mín</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th /></tr></thead>
+              <thead><tr><th>Apoio</th><th>N máx</th><th>N mín</th><th title="Parcela permanente (soma dos casos G). Vazio: adota-se N máx, a favor da segurança.">N perm</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th /></tr></thead>
               <tbody>
                 {f.loads.map((l, i) => (
                   <tr key={l.id}>
                     <td><input value={l.label} aria-label="Apoio" onChange={(e) => upd((d) => { d.loads[i].label = e.target.value; })} /></td>
-                    {(['Nk', 'NkMin', 'Hx', 'Hy', 'Mx', 'My'] as (keyof FLoad)[]).map((k) => (
-                      <td key={k}><NumCell value={l[k] as number} onChange={(v) => upd((d) => { (d.loads[i][k] as number) = v; })} /></td>
+                    {(['Nk', 'NkMin', 'NkPerm', 'Hx', 'Hy', 'Mx', 'My'] as (keyof FLoad)[]).map((k) => (
+                      <td key={k}>{k === 'NkPerm'
+                        ? <OptCell value={l.NkPerm} placeholder={fmt(l.Nk, 0)} onChange={(v) => upd((d) => { if (v === undefined) delete d.loads[i].NkPerm; else d.loads[i].NkPerm = v; })} />
+                        : <NumCell value={l[k] as number} onChange={(v) => upd((d) => { (d.loads[i][k] as number) = v; })} />}</td>
                     ))}
                     <td><button type="button" className="x" aria-label="Remover apoio" onClick={() => upd((d) => { d.loads.splice(i, 1); })}>×</button></td>
                   </tr>
@@ -130,7 +132,7 @@ export function Fundacoes() {
             </table>
           </div>
           <button type="button" className="mini" onClick={() => upd((d) => { const id = Math.max(0, ...d.loads.map((x) => x.id)) + 1; d.loads.push({ id, label: `P${id}`, Nk: 500, NkMin: 300, Hx: 0, Hy: 0, Mx: 0, My: 0 }); })}>+ apoio</button>
-          <Hint>kN e kN·m, valores característicos no topo do bloco. N mín negativo indica tração. Do pórtico 2D: X = Rx, My = Mz; direção Y livre para você completar.</Hint>
+          <Hint>kN e kN·m, valores característicos no topo do bloco. N mín negativo indica tração. N perm é a parcela permanente (casos G); ela entra com γf = {fmt(p.gammaFfav, 1)} em Nd,mín, e o alívio variável (N perm − N mín) e o binário do momento com γf = {fmt(p.gammaF, 1)}. Vazio: adota-se N perm = N máx (a favor da segurança). Do pórtico 2D: X = Rx, My = Mz; direção Y livre para você completar.</Hint>
         </Group>
 
         <Group title="Premissas" open={false}>
@@ -164,6 +166,10 @@ export function Fundacoes() {
             <NumField label="Estribo espiral φ" unit="mm" value={p.stirrupPhi} onChange={(v) => setP({ stirrupPhi: v })} />
             <NumField label="passo" unit="cm" value={p.stirrupS * 100} onChange={(v) => setP({ stirrupS: v / 100 })} />
             <NumField label="1 m³ equivale a" unit="kg aço" value={p.steelPerM3} onChange={(v) => setP({ steelPerM3: v })} />
+          </div>
+          <div className="row">
+            <NumField label="γf desfavorável" value={p.gammaF} onChange={(v) => setP({ gammaF: v })} />
+            <NumField label="γf permanente favorável" value={p.gammaFfav} onChange={(v) => setP({ gammaFfav: v })} />
           </div>
           <Hint>Hélice: C{STRUCT.helice[p.caa].fck}, γc {STRUCT.helice[p.caa].gc}, σ sem armar {STRUCT.helice.sigmaLim} MPa, armadura mínima {STRUCT.helice.Lmin} m. Escavada: C{STRUCT.escavada[p.caa].fck}, γc {STRUCT.escavada[p.caa].gc}, {STRUCT.escavada.sigmaLim} MPa, {STRUCT.escavada.Lmin} m. As,mín 0,4%. N de parada da pré-moldada é estimativa: confirme com nega e repique na cravação. A solução escolhida minimiza concreto das estacas + bloco estimado + aço convertido pela equivalência acima.</Hint>
           <button type="button" className="btn ghost" onClick={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')}>Restaurar padrões</button>
@@ -213,6 +219,13 @@ export function Fundacoes() {
   );
 }
 
+function OptCell({ value, placeholder, onChange }: { value: number | undefined; placeholder: string; onChange: (v: number | undefined) => void }) {
+  const show = (v: number | undefined) => (v === undefined ? '' : String(v).replace('.', ','));
+  const [t, setT] = useState(show(value));
+  useEffect(() => setT(show(value)), [value]);
+  return <input className="num" inputMode="decimal" aria-label="parcela permanente" placeholder={placeholder} value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (!t.trim()) { if (value !== undefined) onChange(undefined); return; } const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(show(value)); }} />;
+}
+
 function NumCell({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [t, setT] = useState(String(value).replace('.', ','));
   useEffect(() => setT(String(value).replace('.', ',')), [value]);
@@ -260,7 +273,9 @@ function SolutionDetail({ s, f }: { s: PileSolution; f: FoundationData }) {
           </dl>
           <h4>Cargas por estaca (bloco rígido)</h4>
           <dl className="kv">
-            <dt>N máx / N mín</dt><dd>{fmt(pl.Nmax, 0)} / {fmt(pl.Nmin, 0)} kN</dd>
+            <dt>N máx / N mín (k)</dt><dd>{fmt(pl.Nmax, 0)} / {fmt(pl.Nmin, 0)} kN</dd>
+            <dt>Nd,mín = {fmt(f.params.gammaFfav, 1)}·(Gk+Wb)/n − {fmt(f.params.gammaF, 1)}·[(Gk−Nk,mín)/n + ΔN]</dt><dd>{fmt(pl.NdMin, 0)} kN{pl.NdMin < 0 ? ` → Td = ${fmt(-pl.NdMin, 0)} kN` : ''}</dd>
+            <dt>Gk (permanente)</dt><dd>{fmt(pl.Gk, 0)} kN · {pl.GkSource}</dd>
             <dt>H por estaca</dt><dd>{fmt(pl.H, 1)} kN</dd>
             {pl.M0 > 0 && <><dt>Momento no topo</dt><dd>{fmt(pl.M0, 1)} kN·m</dd></>}
             <dt>Espaçamento</dt><dd>{fmt(pl.s, 2)} m</dd>

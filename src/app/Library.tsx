@@ -16,6 +16,7 @@ export function buildCharacteristics(model: Model, rep: DesignReport): SavedChar
       label: `Apoio ${f.nodeId}`,
       Nk: Math.max(0, f.charMax[1]),
       NkMin: f.charMin[1],
+      NkPerm: f.perm[1],
       Hx: Math.max(Math.abs(f.charMax[0]), Math.abs(f.charMin[0])),
       Hy: 0,
       Mx: 0,

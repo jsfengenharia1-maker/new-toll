@@ -16,6 +16,11 @@ describe('dimensionamento integrado', () => {
     for (const b of beams) expect((b.beam?.pos.AsAdopt ?? 0) + (b.beam?.neg.AsAdopt ?? 0)).toBeGreaterThan(0);
     expect(rep.foundation.length).toBe(2);
     expect(rep.foundation[0].perCase.length).toBe(3);
+    // parcela permanente = soma dos casos G; a envoltória rara inclui "só permanentes", logo Nk,mín ≤ Gk
+    const f0 = rep.foundation[0];
+    const gIds = new Set(m.cases.filter((c) => (c.nature ?? 'G') === 'G').map((c) => c.id));
+    expect(f0.perm[1]).toBeCloseTo(f0.perCase.filter((pc) => gIds.has(pc.caseId)).reduce((s, pc) => s + pc.R[1], 0), 9);
+    expect(f0.charMin[1]).toBeLessThanOrEqual(f0.perm[1] + 1e-9);
     expect(rep.gammaZ.rows.length).toBeGreaterThan(0);
     expect(rep.gammaZ.max).toBeGreaterThan(1);
     console.log(rep.members.map((x) => `${x.id} ${x.role} ${x.status} ${x.util.toFixed(2)} ${x.summary} ${x.suggestion ?? ''}`).join('\n'), '\nγz', rep.gammaZ.max.toFixed(3), rep.warnings);

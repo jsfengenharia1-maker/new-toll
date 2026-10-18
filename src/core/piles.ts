@@ -20,7 +20,13 @@ export const PILE_LABEL: Record<PileType, string> = {
 
 export interface SptMeter { N: number; soil: SoilClass } // índice i ↔ profundidade (i + 1) m
 export interface Boring { name: string; water: number | null; meters: SptMeter[]; endImpenetrable: boolean }
-export interface FLoad { id: number; label: string; Nk: number; NkMin: number; Hx: number; Hy: number; Mx: number; My: number; source?: string }
+/**
+ * Cargas características por apoio, no topo do elemento de fundação (kN, kN·m).
+ * Nk: máximo da envoltória rara; NkMin: mínimo da envoltória rara (negativo = tração);
+ * NkPerm: parcela permanente (soma dos casos G). Sem NkPerm, adota-se NkPerm = Nk (a favor da segurança:
+ * toda a diferença Nk − NkMin é tratada como variável que alivia a compressão).
+ */
+export interface FLoad { id: number; label: string; Nk: number; NkMin: number; NkPerm?: number; Hx: number; Hy: number; Mx: number; My: number; source?: string }
 
 export interface FoundationParams {
   types: PileType[];
@@ -42,6 +48,8 @@ export interface FoundationParams {
   dmax: number; // m
   fyk: number; // MPa
   steelPerM3: number; // equivalência de custo: kg de aço que custam o mesmo que 1 m³ de estaca
+  gammaF: number; // γf desfavorável (NBR 6118 Tab. 11.1 / NBR 6122)
+  gammaFfav: number; // γf da parcela permanente favorável
 }
 
 export interface FoundationData { boring: Boring; loads: FLoad[]; params: FoundationParams }
@@ -66,6 +74,8 @@ export const defaultFoundationParams = (): FoundationParams => ({
   dmax: 0.0095,
   fyk: 500,
   steelPerM3: 85,
+  gammaF: 1.4,
+  gammaFfav: 1.0,
 });
 
 export const sampleFoundation = (): FoundationData => ({
@@ -81,8 +91,8 @@ export const sampleFoundation = (): FoundationData => ({
     ].map(([N, soil]) => ({ N: N as number, soil: soil as SoilClass })),
   },
   loads: [
-    { id: 1, label: 'P1', Nk: 650, NkMin: 420, Hx: 18, Hy: 6, Mx: 12, My: 35, source: 'exemplo' },
-    { id: 2, label: 'P2', Nk: 1350, NkMin: 900, Hx: 25, Hy: 10, Mx: 20, My: 60, source: 'exemplo' },
+    { id: 1, label: 'P1', Nk: 650, NkMin: 420, NkPerm: 420, Hx: 18, Hy: 6, Mx: 12, My: 35, source: 'exemplo' },
+    { id: 2, label: 'P2', Nk: 1350, NkMin: 900, NkPerm: 900, Hx: 25, Hy: 10, Mx: 20, My: 60, source: 'exemplo' },
   ],
   params: defaultFoundationParams(),
 });
@@ -107,7 +117,6 @@ export const PRECAST_CATALOG: Record<number, { P: number; T: number }> = {
 };
 
 export const PHI_PILE = [6.3, 8, 10, 12.5, 16, 20, 25];
-const GAMMA_F = 1.4;
 
 // ---------------------------------------------------------------- capacidade
 export interface Capacity { L: number; Rp: number; Rl: number; RpUsed: number; Padm: number; Tadm: number; Np: number; Nl: number; governs: 'global' | 'parcial' | 'ponta' }
@@ -177,9 +186,22 @@ export function blockCoords(n: number, s: number, rotate: boolean): [number, num
   return rotate ? pts.map(([x, y]) => [y, x]) : pts;
 }
 
-export interface PileLoads { n: number; coords: [number, number][]; Nmax: number; Nmin: number; H: number; M0: number; s: number }
+export interface PileLoads {
+  n: number; coords: [number, number][]; Nmax: number; Nmin: number; H: number; M0: number; s: number;
+  /** Binário do momento por estaca (característico), kN. */
+  dN: number;
+  /** Peso do bloco (característico), kN. */
+  Wb: number;
+  /** Nd,mín por estaca = γf,fav·(Gk + Wb)/n − γf·[(Gk − Nk,mín)/n + dN] (kN; negativo = tração). */
+  NdMin: number;
+  /** Parcela permanente usada e de onde veio. */
+  Gk: number; GkSource: 'informada' | 'adotada = Nk (sem dado)';
+}
 
-export function pileLoads(ld: FLoad, n: number, D: number, spacing: number, pct: number): PileLoads {
+/** Coeficientes de ponderação para Nd,mín: γf desfavorável e γf da parcela permanente favorável. */
+export interface GammaF { unf: number; fav: number }
+
+export function pileLoads(ld: FLoad, n: number, D: number, spacing: number, pct: number, gf: GammaF = { unf: 1.4, fav: 1.0 }): PileLoads {
   const s = spacing * D;
   const rotate = (n === 2 || n === 6) && Math.abs(ld.Mx) > Math.abs(ld.My);
   const c = blockCoords(n, s, rotate);
@@ -190,10 +212,14 @@ export function pileLoads(ld: FLoad, n: number, D: number, spacing: number, pct:
   let dN = 0, M0x = 0, M0y = 0;
   if (Sx > 1e-9) dN += (Math.abs(ld.My) * xmax) / Sx; else M0y = Math.abs(ld.My) / n;
   if (Sy > 1e-9) dN += (Math.abs(ld.Mx) * ymax) / Sy; else M0x = Math.abs(ld.Mx) / n;
+  const known = typeof ld.NkPerm === 'number' && Number.isFinite(ld.NkPerm);
+  const Gk = known ? ld.NkPerm! : Math.max(ld.Nk, ld.NkMin);
+  const relief = Math.max(0, Gk - ld.NkMin); // parcela variável que reduz a compressão (vento de sucção etc.)
   return {
-    n, coords: c, s,
+    n, coords: c, s, dN, Wb, Gk, GkSource: known ? 'informada' : 'adotada = Nk (sem dado)',
     Nmax: (ld.Nk + Wb) / n + dN,
     Nmin: (ld.NkMin + Wb) / n - dN,
+    NdMin: (gf.fav * (Gk + Wb)) / n - gf.unf * (relief / n + dN),
     H: Math.hypot(ld.Hx, ld.Hy) / n,
     M0: Math.hypot(M0x, M0y),
   };
@@ -220,6 +246,8 @@ export interface PileStructure {
   fck?: number; gc?: number; sigma?: number; sigmaLim?: number; NkConc?: number;
   Pcat?: number; Tcat?: number;
   needComp: boolean; AsComp: number; AsTension: number; AsMin: number; Md: number; Mk: number; T: number; nh: number; nhLabel: string;
+  /** Nd máx e mín por estaca (kN) e tração de cálculo Td = máx(0, −Nd,mín). */
+  Nd: number; NdMin: number; Td: number;
   longPile: boolean; armedLength: number; armedReason: string;
   options: SteelOption[];
   ok: boolean; messages: string[];
@@ -242,11 +270,13 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
     const Mk = pl.M0 + 0.79 * pl.H * T;
     if (Mk > 0.5) messages.push(`Momento na estaca Mk = ${Mk.toFixed(1)} kN·m (Miche): confirmar o momento admissível com o fabricante.`);
     if (!cat) messages.push('Diâmetro sem carga de catálogo cadastrada.');
-    return { kind: 'catalogo', Pcat: cat?.P, Tcat: cat?.T, needComp: false, AsComp: 0, AsTension: 0, AsMin: 0, Md: GAMMA_F * Mk, Mk, T, nh, nhLabel, longPile: L - p.cutoff > 4 * T, armedLength: 0, armedReason: 'armadura de fábrica', options: [], ok, messages };
+    const gf = p.gammaF ?? 1.4;
+    return { kind: 'catalogo', Pcat: cat?.P, Tcat: cat?.T, Nd: gf * pl.Nmax, NdMin: pl.NdMin, Td: Math.max(0, -pl.NdMin), needComp: false, AsComp: 0, AsTension: 0, AsMin: 0, Md: gf * Mk, Mk, T, nh, nhLabel, longPile: L - p.cutoff > 4 * T, armedLength: 0, armedReason: 'armadura de fábrica', options: [], ok, messages };
   }
   const st = STRUCT[type];
   const { c, fck, gc } = pileConcrete(type, p.caa);
   const fyd = p.fyk / 1.15;
+  const GAMMA_F = p.gammaF ?? 1.4;
   const Nd = GAMMA_F * pl.Nmax;
   const sigma = Nd / 1000 / Ac;
   const fcd = fck / gc;
@@ -254,7 +284,7 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
   const needComp = sigma > st.sigmaLim;
   const ss2 = Math.min(fyd, 420);
   const AsComp = needComp ? Math.max(0, (Nd / 1000 - 0.85 * fcd * Ac) / ss2) : 0;
-  const Td = GAMMA_F * Math.max(0, -pl.Nmin);
+  const Td = Math.max(0, -pl.NdMin);
   const AsTension = Td / 1000 / fyd;
   const AsMin = st.rhoMin * Ac;
   const E = c.Ecs * 1000; // kN/m²
@@ -287,7 +317,7 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
       if (As < AsMin || As < AsComp || As < AsTension || As > 0.04 * Ac) continue;
       if (Md > 0.01) {
         let ok = true;
-        for (const N of [Nd, GAMMA_F * pl.Nmin]) {
+        for (const N of [Nd, pl.NdMin]) {
           for (const rot of [0, Math.PI / n]) if (MR(circleBars(D, n, phi, rs, rot), N) < Md) ok = false;
         }
         if (!ok) continue;
@@ -304,7 +334,7 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
   }
   const ok = options.length > 0 && (Nd / 1000 <= 0.85 * fcd * Ac + 0.04 * Ac * ss2);
   if (!options.length) messages.push('Nenhuma armadura até 4% atende: aumente o diâmetro.');
-  return { kind: 'moldada', fck, gc, sigma, sigmaLim: st.sigmaLim, NkConc, needComp, AsComp, AsTension, AsMin, Md, Mk, T, nh, nhLabel, longPile, armedLength, armedReason, options, ok, messages };
+  return { kind: 'moldada', fck, gc, sigma, sigmaLim: st.sigmaLim, NkConc, Nd, NdMin: pl.NdMin, Td, needComp, AsComp, AsTension, AsMin, Md, Mk, T, nh, nhLabel, longPile, armedLength, armedReason, options, ok, messages };
 }
 
 // ---------------------------------------------------------------- solução por apoio
@@ -325,7 +355,7 @@ export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
       let reason = '';
       const Lstart = Math.max(1, Math.ceil(p.cutoff + p.minLength));
       for (let n = 1; n <= 6; n++) {
-        const pl = pileLoads(ld, n, D, type === 'premoldada' ? p.spacingPrecast : p.spacingInSitu, p.blockWeightPct);
+        const pl = pileLoads(ld, n, D, type === 'premoldada' ? p.spacingPrecast : p.spacingInSitu, p.blockWeightPct, { unf: p.gammaF ?? 1.4, fav: p.gammaFfav ?? 1 });
         for (let L = Lstart; L <= Lmax; L++) {
           const cap = capacity(type, D, L, b, p.cutoff);
           if (!cap) continue;

@@ -38,6 +38,33 @@ describe('limites e bloco', () => {
   });
 });
 
+describe('Nd,mín com γf favorável e desfavorável (NBR 6118 Tab. 11.1)', () => {
+  it('permanente com 1,0 e alívio variável + binário com 1,4', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 600, NkPerm: 800, Hx: 0, Hy: 0, Mx: 0, My: 120 }, 4, 0.4, 3, 0);
+    expect(pl.dN).toBeCloseTo(50, 9);
+    expect(pl.NdMin).toBeCloseTo(800 / 4 - 1.4 * (200 / 4 + 50), 9); // 60 kN
+    expect(pl.GkSource).toBe('informada');
+  });
+  it('sem parcela permanente informada adota Gk = Nk (a favor da segurança)', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 600, Hx: 0, Hy: 0, Mx: 0, My: 120 }, 4, 0.4, 3, 0);
+    expect(pl.Gk).toBe(1000);
+    expect(pl.NdMin).toBeCloseTo(250 - 1.4 * (100 + 50), 9); // 40 kN
+  });
+  it('peso do bloco entra como permanente favorável', () => {
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 1000, NkMin: 800, NkPerm: 800, Hx: 0, Hy: 0, Mx: 0, My: 0 }, 2, 0.4, 3, 10);
+    expect(pl.Wb).toBeCloseTo(100, 9);
+    expect(pl.NdMin).toBeCloseTo((800 + 100) / 2, 9);
+  });
+  it('tração de cálculo Td = máx(0, −Nd,mín) e armadura de tração', () => {
+    const p = defaultFoundationParams();
+    const pl = pileLoads({ id: 1, label: 'x', Nk: 300, NkMin: -100, NkPerm: 200, Hx: 0, Hy: 0, Mx: 0, My: 0 }, 1, 0.4, 3, 0);
+    expect(pl.NdMin).toBeCloseTo(200 - 1.4 * 300, 9); // −220 kN
+    const s = pileStructure('helice', 0.4, 12, pl, uniform(20), p);
+    expect(s.Td).toBeCloseTo(220, 9);
+    expect(s.AsTension).toBeCloseTo(0.22 / (500 / 1.15), 9);
+  });
+});
+
 describe('estrutural e solução', () => {
   it('estaca comprimida abaixo do limite: armadura mínima no comprimento mínimo', () => {
     const p = defaultFoundationParams();

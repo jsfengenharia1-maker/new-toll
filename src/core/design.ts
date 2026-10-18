@@ -36,6 +36,8 @@ export interface FoundationRow {
   nodeId: number;
   perCase: { caseId: number; name: string; R: [number, number, number] }[];
   charMax: [number, number, number]; charMin: [number, number, number];
+  /** Soma dos casos permanentes (G), característica. */
+  perm: [number, number, number];
   designMax: [number, number, number]; designMin: [number, number, number];
   charComboMaxN: string; designComboMaxN: string;
 }
@@ -390,7 +392,9 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
       return { mx, mn, comboN };
     };
     const ch = env(rareRes), de = env(eluRes);
-    foundation.push({ nodeId: n.id, perCase, charMax: ch.mx, charMin: ch.mn, designMax: de.mx, designMin: de.mn, charComboMaxN: ch.comboN, designComboMaxN: de.comboN });
+    const perm: [number, number, number] = [0, 0, 0];
+    model.cases.forEach((c, i) => { if ((c.nature ?? 'G') === 'G') for (let q = 0; q < 3; q++) perm[q] += perCase[i].R[q]; });
+    foundation.push({ nodeId: n.id, perCase, charMax: ch.mx, charMin: ch.mn, perm, designMax: de.mx, designMin: de.mn, charComboMaxN: ch.comboN, designComboMaxN: de.comboN });
   });
 
   const ok = members.every((m) => m.status !== 'fail') && gz.cls !== 'excessive';
