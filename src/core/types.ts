@@ -49,6 +49,8 @@ export interface Section {
   id: number;
   name: string;
   shape: SectionShape;
+  /** Designação do perfil de catálogo (`profiles.ts`) que gerou a forma; some ao editar as dimensões. */
+  catalog?: string;
 }
 
 export type ForceUnit = 'kN' | 'tf' | 'kgf' | 'N';

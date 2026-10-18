@@ -6,6 +6,7 @@ import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
 import { concrete } from '../../core/concrete';
 import { lPolygon, polyProps, type Pt } from '../../core/fiber';
+import { FAMILY_LABEL, PROFILES, PROFILE_NOTE, profileMass, type ProfileFamily } from '../../core/profiles';
 import { fmt, linkText } from '../results';
 import { useUnits } from '../units';
 
@@ -170,6 +171,7 @@ export function EstruturaPanel() {
       <Group title="Seções" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.sections); st.commit((m) => { m.sections.push({ id, name: `Seção ${id}`, shape: { kind: 'rect', b: 0.2, h: 0.5 } }); }); setSecId(id); }}>+ nova</button>}>
         <Select value={sec?.id ?? 0} options={model.sections.map((s) => ({ v: s.id, label: `${s.name} · ${countUse(model.members, 'section', s.id)} barras` }))} onChange={setSecId} />
         <QuickRect onCreated={setSecId} />
+        <CatalogProfile onCreated={setSecId} />
         {sec && <SectionEditor id={sec.id} />}
         {sec && (
           <div className="row">
@@ -244,12 +246,12 @@ function SectionEditor({ id }: { id: number }) {
   const commit = useStore((s) => s.commit);
   const sec = model.sections.find((s) => s.id === id)!;
   const sp = sectionProps(sec.shape);
-  const upd = (fn: (sh: Record<string, number | string>) => void) => commit((m) => { fn(m.sections.find((s) => s.id === id)!.shape as unknown as Record<string, number | string>); });
+  const upd = (fn: (sh: Record<string, number | string>) => void) => commit((m) => { const x = m.sections.find((s) => s.id === id)!; fn(x.shape as unknown as Record<string, number | string>); delete x.catalog; });
   const shape = sec.shape as unknown as Record<string, number | string>;
   return (
     <>
       <TextField label="Nome" value={sec.name} onChange={(v) => commit((m) => { m.sections.find((s) => s.id === id)!.name = v; })} />
-      <Select label="Forma" value={sec.shape.kind} options={SHAPES} onChange={(k) => commit((m) => { m.sections.find((s) => s.id === id)!.shape = { ...DEFAULTS[k] }; })} />
+      <Select label="Forma" value={sec.shape.kind} options={SHAPES} onChange={(k) => commit((m) => { const x = m.sections.find((s) => s.id === id)!; x.shape = { ...DEFAULTS[k] }; delete x.catalog; })} />
       <div className="row wrap">
         {sec.shape.kind === 'polygon' ? <PolygonEditor id={id} /> : sec.shape.kind === 'generic' ? (
           <>
@@ -268,7 +270,9 @@ function SectionEditor({ id }: { id: number }) {
         <dt>I</dt><dd>{fmt(sp.I * 1e8, 1)} cm⁴</dd>
         <dt>A cis.</dt><dd>{fmt(sp.As * 1e4, 2)} cm²</dd>
         <dt>y CG</dt><dd>{fmt(sp.yc * 100, 2)} cm</dd>
+        {sec.catalog && <><dt>Massa</dt><dd>{fmt(profileMass(sec.shape), 1)} kg/m</dd></>}
       </dl>
+      {sec.catalog && <Hint>Perfil de catálogo {sec.catalog}. {PROFILE_NOTE}</Hint>}
     </>
   );
 }
@@ -338,6 +342,40 @@ function QuickRect({ onCreated }: { onCreated: (id: number) => void }) {
         <button type="button" className="btn" onClick={create}>{st.selMembers.size ? 'Aplicar' : 'Criar'}</button>
       </div>
       <Hint>b = largura fora do plano; h = altura no plano do pórtico. De 12 cm a 1,50 m.</Hint>
+    </div>
+  );
+}
+
+const FAMILIES: ProfileFamily[] = ['W', 'HP', 'TC', 'TR'];
+
+function CatalogProfile({ onCreated }: { onCreated: (id: number) => void }) {
+  const st = useStore();
+  const [fam, setFam] = useState<ProfileFamily>('W');
+  const list = PROFILES.filter((p) => p.family === fam);
+  const [name, setName] = useState(list[0].name);
+  const prof = list.find((p) => p.name === name) ?? list[0];
+  const create = () => {
+    const sel = st.selMembers;
+    let id = st.model.sections.find((s) => s.catalog === prof.name)?.id;
+    st.commit((m) => {
+      if (id === undefined) { id = nextId(m.sections); m.sections.push({ id, name: prof.name, shape: { ...prof.shape }, catalog: prof.name }); }
+      m.members.forEach((x) => { if (sel.has(x.id)) x.section = id!; });
+    }, sel.size ? `${prof.name} aplicado a ${sel.size} barra(s).` : `Seção ${prof.name} criada.`);
+    const notSteel = st.model.members.some((x) => sel.has(x.id) && st.model.materials.find((mm) => mm.id === x.material)?.kind !== 'steel');
+    if (notSteel) st.set({ message: `${prof.name} aplicado a ${sel.size} barra(s). Atenção: há barras selecionadas sem material “Aço estrutural” — a verificação NBR 8800 só roda com ele.` });
+    if (id !== undefined) onCreated(id);
+  };
+  return (
+    <div className="quickrect">
+      <span className="flabel">Perfil de catálogo</span>
+      <div className="row">
+        <Select value={fam} options={FAMILIES.map((f) => ({ v: f, label: FAMILY_LABEL[f] }))} onChange={(f) => { setFam(f); setName(PROFILES.find((p) => p.family === f)!.name); }} />
+      </div>
+      <div className="row">
+        <Select value={prof.name} options={list.map((p) => ({ v: p.name, label: p.name }))} onChange={setName} />
+        <button type="button" className="btn" onClick={create}>{st.selMembers.size ? 'Aplicar' : 'Criar'}</button>
+      </div>
+      <Hint>Dimensões nominais; altura no plano do pórtico (eixo forte). {PROFILE_NOTE}</Hint>
     </div>
   );
 }

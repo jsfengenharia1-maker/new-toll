@@ -128,8 +128,14 @@ Proposta original:
 | C4. Várias sondagens por obra | Cada apoio associado ao furo mais próximo ou escolhido | — |
 | C5. Pilares circulares e em L — **feito** (18/10/2026) | Fibras com linha neutra inclinada; mín. 6 barras na circular; esbeltez pelos eixos centroidais | Cortante em circular com bw = D, d = 0,8·D (a confirmar); cortante de seção poligonal não verificado |
 | C6. Fissuração (ELS-W) — **feito** (18/10/2026) | wk por face de viga na combinação frequente, σs no estádio II (αe = 15) | Acr = bw·mín(h − d + 7,5φ, h/2), a confirmar |
-| C7. Perfis metálicos BR | Biblioteca com dados próprios a partir de catálogos públicos dos fabricantes | Quais fabricantes |
+| C7. Perfis metálicos BR — **feito** (18/10/2026) | Ver abaixo | Conferir propriedades com o catálogo do fabricante |
 | C8. Pré-moldado NBR 9062 | Consolos e dentes Gerber; ligações | Escopo a definir com o usuário |
+
+### C7. Perfis metálicos BR — **feito** (18/10/2026)
+- Feito: `src/core/profiles.ts` (com teste). Perfis I laminados de abas paralelas W150×13,0 a W610×174,0 e HP200×53,0 a HP310×125,0 (série métrica ASTM A6 usual no Brasil), tubos circulares Ø33,4 a Ø323,8 (diâmetros e espessuras nominais ASME B36.10, Sch 40/80) e tubos quadrados/retangulares 50×50 a 300×200 em medidas comerciais usuais. Só as dimensões nominais (d, bf, tw, tf; D, t; h, b, t) estão registradas; A, I, Z, W, r, J e Cw são calculados pela geometria em `section.ts`/`steel.ts`. Na aba Estrutura › Seções, "Perfil de catálogo" (família + perfil) cria a seção (ou reaproveita) e aplica às barras selecionadas, avisando quando o material não é aço estrutural. A seção guarda a designação (`catalog`); editar as dimensões remove a marca. Massa linear pela geometria (ρ = 7850 kg/m³) no painel.
+- Premissa visível (app e memorial): "propriedades calculadas pela geometria nominal, sem raio de concordância (a confirmar com o catálogo do fabricante)". Tubos retangulares com cantos vivos e espessura uniforme.
+- Teste: A e Ix de W310×38,7, HP310×125,0, W610×174,0, Ø114,3×6,02 e TR 200×100×6,3 contra as fórmulas fechadas; massa geométrica entre 90 % e 102 % da massa da designação em todos os W/HP (confere os dados digitados).
+- Ficou de fora: perfis soldados (CS, CVS, VS), cantoneiras, U e perfis formados a frio; perfil girado (eixo fraco no plano); propriedades de catálogo com concordância.
 
 ---
 
@@ -144,11 +150,24 @@ Proposta original:
   - o botão "Salvar" na barra superior marca "●" quando há alterações não gravadas no computador.
 - **Histórico:** registra novo modelo, abrir, salvar, biblioteca, características e memorial. Até 1000 eventos, visíveis na Biblioteca.
 
-### D2. Funcionamento offline (PWA)
+### D2. Funcionamento offline (PWA) — **feito** (18/10/2026)
+- Feito: `public/manifest.webmanifest` (nome "Statikos", ícones SVG/PNG próprios de 192 e 512 px e maskable, `file_handlers` para `.statikos`) e `public/sw.js` com estratégia rede primeiro: a página vem sempre da rede quando há conexão (novas publicações aparecem na hora) e a cópia em cache só é usada sem rede ou com rede lenta (> 6 s). Fontes do Google em cache à parte. O Vite copia `public/` para `dist/`, ao lado do `index.html` único.
+- Registro do service worker em `src/main.tsx` só no build, em https ou localhost e fora de iframe (no artifact do claude.ai não registra).
+- File Handling API: com o app instalado no Chrome/Edge (desktop), duplo clique num `.statikos` abre o trabalho pela mesma rotina de Arquivo › Abrir (`window.launchQueue`), e Ctrl+S grava de volta no mesmo arquivo.
+- `netlify.toml`: `Cache-Control: no-cache` em `/`, `/index.html`, `/sw.js` e no manifest (este também com `Content-Type: application/manifest+json`).
+- Limitações: Firefox e Safari não têm File Handling API (lá o arquivo abre por Arquivo › Abrir); a primeira visita precisa de internet; sem rede, as fontes só aparecem se já estiverem em cache (senão, fonte do sistema). O ícone `favicon.svg` substituiu o do modelo do Vite, e o `icons.svg` não usado foi removido.
+
+Proposta original:
 - Manifest + service worker para instalar o app e usar sem internet.
 - Combina com "abrir arquivo .statikos com duplo clique" (File Handling API, Chrome).
 
-### D3. Testes de interface no repositório
+### D3. Testes de interface no repositório — **feito** (18/10/2026)
+- Feito: `e2e/run.mjs` (runner próprio sobre a lib `playwright`, já instalada; sem @playwright/test) e `e2e/flows.mjs`. `npm run e2e` faz o build, sobe `vite preview` em 127.0.0.1 numa porta livre (4200–4209, senão qualquer uma), roda os fluxos, cada um em contexto novo, e derruba o servidor. Opções: `--no-build`, `--headed` e um filtro por nome. Em falha, salva uma captura de tela e sai com código 1.
+- Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, se não estiver instalado, /opt/pw-browsers/chromium-1194 (ambiente de nuvem).
+- Fluxos (8): barra por coordenadas → engaste → carga → diagrama de momento (confere qL²/24 e −qL²/12); exemplo do pórtico → Dimensionar → Memorial; salvar no computador (download, sem File System Access API) e abrir em contexto novo conferindo o nome; Resultados › Estabilidade e vibração › Calcular modos; DXF começando por `0`/`SECTION` (depois do comentário 999 do cabeçalho) e terminando em `EOF`; perfil de catálogo; PWA (manifest, service worker e recarga sem rede); `.statikos` recebido pela `launchQueue` simulada, com Ctrl+S gravando no mesmo arquivo.
+- Fora do `npm test` (o vitest ignora `e2e/`) e do build do Netlify.
+
+Proposta original:
 - Mover os scripts Playwright descartáveis para `e2e/`, com `npm run e2e`.
 - Fluxos: desenhar → calcular → dimensionar → memorial; salvar e abrir o arquivo de trabalho.
 

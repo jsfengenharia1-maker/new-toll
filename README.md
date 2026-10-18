@@ -7,13 +7,16 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 96 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
-npm run build      # gera dist/index.html único (offline)
+npm test           # 100 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
+npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 ```
 
 ## Publicar
 
 Site estático: conecte o repositório no Netlify (o `netlify.toml` já define build e pasta). Não há servidor nem login; o usuário salva o trabalho em um arquivo `.statikos` (Arquivo › Salvar no computador, Ctrl+S) e o reabre depois (Ctrl+O). O arquivo leva o modelo, a biblioteca e o histórico.
+
+Instalável (PWA): no Chrome/Edge, "Instalar Statikos" na barra de endereço. Depois da primeira visita, abre sem internet; com o app instalado, um `.statikos` abre com duplo clique (Chrome/Edge no desktop) e Ctrl+S grava no mesmo arquivo. O service worker busca sempre a versão publicada quando há rede.
 
 Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 
@@ -33,6 +36,9 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Fundações | `src/core/piles.ts`, `src/app/Fundacoes.tsx` | Décourt-Quaresma (α/β 1996) metro a metro, limites executivos (NA, nega estimada, profundidade de equipamento), blocos de 1 a 6 estacas, Miche, NBR 6122 Tabela 4, armadura por bitola e estribo espiral |
 | Biblioteca | `src/app/storage.ts`, `Library.tsx` | Projetos e características salvos na conta (capability db, subárvore privada do usuário) ou no navegador |
 | Interface | `src/app/*` | Editor SVG (snap, janela/cruzamento, arrastar nós, coordenadas), painéis, tabelas, exportação SVG/CSV/JSON |
+| Perfis | `src/core/profiles.ts` | Perfis I laminados W e HP, tubos circulares e retangulares usuais no Brasil: só dimensões nominais; A, I, Z etc. calculados pela geometria, sem raio de concordância |
+| PWA | `public/manifest.webmanifest`, `public/sw.js` | Instalação, funcionamento offline (rede primeiro, cache como reserva), abertura de `.statikos` pelo sistema (File Handling API) |
+| Testes de interface | `e2e/run.mjs`, `e2e/flows.mjs` | Runner próprio sobre `playwright`: desenho, memorial, salvar/abrir, modos, DXF, perfis, PWA |
 | Saída | `src/app/dxf.ts`, `dims.ts`, `pathTable.ts` | DXF R12 próprio com camadas, cotas automáticas de vãos e níveis, CSV ao longo de uma cadeia de barras |
 
 ## Inventário funcional
@@ -60,7 +66,12 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Verificação NBR 8800 de perfis I, tubos e caixões
 - γz, cargas na fundação (características e de cálculo), flechas com Branson e fluência
 - Biblioteca rápida de seções retangulares de 12 cm a 1,50 m; materiais por classe (C20–C90) e aços comerciais
+- Perfis metálicos de catálogo (W150×13,0 a W610×174,0, HP200×53,0 a HP310×125,0, tubos circulares Ø33,4 a Ø323,8 e tubos quadrados/retangulares 50×50 a 300×200): propriedades pela geometria nominal, sem raio de concordância (a confirmar com o catálogo do fabricante)
 - Memorial de cálculo padrão exportável em HTML e impresso em PDF (A4, cabeçalho, rodapé com paginação, quebras por seção)
+
+**Plataforma**
+- PWA: instalação, uso offline, abertura de `.statikos` com duplo clique (Chrome/Edge instalado)
+- Testes de interface no repositório (`npm run e2e`)
 
 **Feito (fase 3)**
 - Biblioteca: salvar/abrir projetos e "características" do dimensionamento na conta do usuário
@@ -69,5 +80,5 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 **Próximas fases**
 - Blocos de coroamento (bielas e tirantes), sapatas e tubulões; várias sondagens por obra
 - Pilares circulares e em L, pré-moldado (NBR 9062: consolos, ligações), abertura de fissuras
-- Bibliotecas de perfis metálicos BR (dados próprios, a partir de catálogos públicos dos fabricantes)
+- Perfis soldados (CS, CVS, VS) e conferência das propriedades calculadas com o catálogo do fabricante
 - Cotas manuais entre nós

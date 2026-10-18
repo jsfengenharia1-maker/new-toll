@@ -14,11 +14,12 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 96 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
-npm run build    # dist/index.html único (vite-plugin-singlefile)
+npm test         # vitest: 100 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
+npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -p tsconfig.app.json --noEmit
 ```
-Testes de interface foram feitos com Playwright (Chromium em /opt/pw-browsers no ambiente de nuvem). Os scripts eram descartáveis e não estão no repositório.
+Testes de interface em `e2e/` (`run.mjs` é um runner próprio sobre a lib `playwright`, sem @playwright/test; `flows.mjs` tem os fluxos). Ficam fora do `npm test` e do build do Netlify. Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, na falta dele, /opt/pw-browsers/chromium-1194 (nuvem). `npm run e2e -- --no-build <filtro>` roda só parte dos fluxos.
 
 ## Arquitetura
 Veja a tabela no `README.md`. Resumo:
@@ -33,6 +34,7 @@ Veja a tabela no `README.md`. Resumo:
   - `design.ts`: orquestra combinações, γz, verificações e cargas na fundação.
   - `piles.ts`: Décourt-Quaresma e NBR 6122.
   - `edit.ts`: operações de edição e combinações NBR 8681.
+  - `profiles.ts`: perfis W/HP e tubos usuais no Brasil (só dimensões nominais; propriedades calculadas pela geometria, sem raio de concordância).
 - `src/app/`: interface React + zustand (`store.ts`).
   - `Canvas.tsx`: editor SVG.
   - `panels/*`: abas Estrutura, Cargas, Resultados, Influência e Dimensionar.
@@ -91,6 +93,7 @@ Veja a tabela no `README.md`. Resumo:
 - Sem login e sem banco: decisão do usuário (out/2026). Tudo roda no navegador.
 - `netlify.toml` roda `npm test && npm run build` e publica `dist/`. Basta conectar o repositório no Netlify; cada push no `main` publica.
 - O trabalho fica no localStorage e o usuário guarda e retoma pelo arquivo `.statikos` (Ctrl+S/Ctrl+O). No Chrome/Edge, o Ctrl+S regrava o mesmo arquivo.
+- PWA: `public/manifest.webmanifest` (file_handlers para `.statikos`), `public/sw.js` (rede primeiro, cache como reserva; registrado só no build, em https/localhost e fora de iframe). O `netlify.toml` põe `Cache-Control: no-cache` em `/`, `/index.html`, `/sw.js` e no manifest.
 - Spec das próximas fases: `docs/spec-proximas-fases.md`.
 
 ## Publicação como artifact do claude.ai
@@ -103,11 +106,12 @@ Veja a tabela no `README.md`. Resumo:
 - Downloads usam `window.claude.use('downloads')` quando existe; senão, link com blob (`src/app/ui.tsx`).
 - Biblioteca: documentos em `data/users/<uid>` (privado por usuário) com `{kind, name, summary, savedAt, payload: JSON string}`. Limite de 256 KiB por documento; o app recusa acima de 240 KB. Fora do claude.ai, usa localStorage (`statikos:library`).
 - O modelo é salvo automaticamente em localStorage (`statikos:model`).
+- O service worker (PWA) não é registrado dentro do artifact (iframe); no republish, o `<head>` com manifest e ícones some, como já acontece.
 
 ## Próximos passos sugeridos
 1. Blocos de coroamento (bielas e tirantes) a partir das estacas escolhidas; sapatas; tubulões; várias sondagens por obra.
 3. Pré-moldado NBR 9062 (consolos, ligações).
-4. Biblioteca de perfis metálicos BR; exportação DXF/PDF.
+4. Perfis metálicos: conferir as propriedades calculadas contra o catálogo do fabricante; perfis soldados (CS/CVS/VS).
 
 ## Notas de pesquisa
 `docs/pesquisa-memorial.md` e `docs/pesquisa-fundacoes.md` trazem os resumos das pesquisas, com URLs das fontes.
