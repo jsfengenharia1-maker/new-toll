@@ -131,6 +131,11 @@ button:disabled { opacity: 0.45; cursor: default; }
 .diagline { fill: none; stroke-width: 1.6; }
 .diagline.N { stroke: var(--c-n); } .diagline.V { stroke: var(--c-v); } .diagline.M { stroke: var(--c-m); }
 .lbl.vN { fill: var(--c-n); } .lbl.vV { fill: var(--c-v); } .lbl.vM { fill: var(--c-m); }
+.cotas line { stroke: var(--muted); stroke-width: 1; fill: none; }
+.cotas line.ext { stroke-width: 0.7; opacity: 0.8; }
+.cotas line.tick { stroke: var(--ink); stroke-width: 1.3; }
+.lbl.dimt { fill: var(--muted); font-size: 10.5px; }
+.lbl.dimt.lvl { font-size: 10px; }
 .lbl.vD { fill: var(--c-def); } .lbl.vR { fill: var(--c-react); } .lbl.vIL { fill: var(--c-il); }
 .deformed { fill: none; stroke: var(--c-def); stroke-width: 2; stroke-dasharray: 6 3; }
 .react line, .react path { stroke: var(--c-react); stroke-width: 1.8; fill: none; }

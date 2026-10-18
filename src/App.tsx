@@ -256,6 +256,7 @@ export default function App() {
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
         <label className="check small" htmlFor="snapchk"><input id="snapchk" type="checkbox" checked={st.snap} onChange={(e) => st.set({ snap: e.target.checked })} /> <span>Snap</span></label>
+        <label className="check small" htmlFor="dimchk" title="Cotas automáticas de vãos e níveis (saem também no SVG exportado; o DXF traz sempre a camada COTAS)"><input id="dimchk" type="checkbox" checked={st.showDims} onChange={(e) => st.set({ showDims: e.target.checked })} /> <span>Cotas</span></label>
         <label className="gridsel" htmlFor="gridsel">Grade
           <select id="gridsel" value={st.grid} onChange={(e) => st.set({ grid: +e.target.value })}>
             {[0.05, 0.1, 0.25, 0.5, 1, 2].map((g) => <option key={g} value={g}>{String(g).replace('.', ',')} m</option>)}

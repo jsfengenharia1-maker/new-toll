@@ -6,6 +6,7 @@ import { addMember, ensureNode } from '../core/edit';
 import { influenceField, ilOrdinate, type MemberEnvelope } from '../core/influence';
 import { P } from '../core/math';
 import type { Load, Model, Node, Support } from '../core/types';
+import { autoDims, dimSegments, levelText } from './dims';
 
 type V2 = [number, number];
 
@@ -268,6 +269,9 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     els.push(<rect key={`n${n.id}`} x={X(n.x) - 3} y={Y(n.y) - 3} width={6} height={6} className={`node${sel ? ' sel' : ''}`} />);
     if (st.showValues && tab === 'estrutura') els.push(<text key={`nt${n.id}`} x={X(n.x) - 6} y={Y(n.y) + 14} className="lbl nid" textAnchor="end">{n.id}</text>);
   }
+
+  // cotas automáticas
+  if (st.showDims) drawDims(model, X, Y, view.scale, els);
 
   // cargas do caso ativo
   if (tab === 'estrutura' || tab === 'cargas') drawLoads(model, st.activeCase, nodePos, X, Y, view.scale, els);
@@ -589,5 +593,42 @@ function drawLoads(m: Model, caseId: number, nodePos: Map<number, Node>, X: (x: 
         if (l.mj) els.push(<MomentGlyph key={`emj${l.id}`} x={X(q.x - c * L * 0.12)} y={Y(q.y - s * L * 0.12)} ccw={l.mj > 0} cls="load" r={11} />);
       }
     }
+  });
+}
+
+/** Cotas de vãos e níveis (linhas de cota com traço oblíquo, linhas de chamada e textos em m). */
+function drawDims(m: Model, X: (x: number) => number, Y: (y: number) => number, scale: number, els: JSX.Element[]) {
+  const chains = autoDims(m, 56 / scale, 26 / scale);
+  chains.forEach((c, ci) => {
+    const g: JSX.Element[] = [];
+    const s0 = c.stops[0].v, s1 = c.stops[c.stops.length - 1].v;
+    if (c.dir === 'h') {
+      const y = Y(c.at);
+      g.push(<line key="l" x1={X(s0) - 4} y1={y} x2={X(s1) + 4} y2={y} />);
+      c.stops.forEach((p, k) => {
+        const x = X(p.v);
+        g.push(<line key={`e${k}`} x1={x} y1={Y(p.from) + 8} x2={x} y2={y + 5} className="ext" />);
+        g.push(<line key={`t${k}`} x1={x - 4} y1={y + 4} x2={x + 4} y2={y - 4} className="tick" />);
+      });
+      dimSegments(c).forEach((sg, k) => {
+        if ((sg.b - sg.a) * scale < 22) return;
+        g.push(<text key={`v${k}`} x={(X(sg.a) + X(sg.b)) / 2} y={y - 4} className="lbl dimt" textAnchor="middle">{fmt(sg.len)}</text>);
+      });
+    } else {
+      const x = X(c.at);
+      g.push(<line key="l" x1={x} y1={Y(s0) + 4} x2={x} y2={Y(s1) - 4} />);
+      c.stops.forEach((p, k) => {
+        const y = Y(p.v);
+        g.push(<line key={`e${k}`} x1={X(p.from) - 8} y1={y} x2={x - 5} y2={y} className="ext" />);
+        g.push(<line key={`t${k}`} x1={x - 4} y1={y + 4} x2={x + 4} y2={y - 4} className="tick" />);
+        if (c.kind === 'level') g.push(<text key={`n${k}`} x={x + 5} y={y - 4} className="lbl dimt lvl" textAnchor="start">{levelText(p.v)}</text>);
+      });
+      dimSegments(c).forEach((sg, k) => {
+        if ((sg.b - sg.a) * scale < 22) return;
+        const ym = (Y(sg.a) + Y(sg.b)) / 2;
+        g.push(<text key={`v${k}`} x={x - 5} y={ym} className="lbl dimt" textAnchor="middle" transform={`rotate(-90 ${x - 5} ${ym})`}>{fmt(sg.len)}</text>);
+      });
+    }
+    els.push(<g key={`dim${ci}`} className="cotas">{g}</g>);
   });
 }
