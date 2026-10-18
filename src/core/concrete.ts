@@ -456,3 +456,36 @@ export function circleBars(D: number, n: number, phiMm: number, rs: number, rot 
   const A = barArea(phiMm);
   return Array.from({ length: n }, (_, k) => ({ y: D / 2 - rs * Math.cos(rot + (2 * Math.PI * k) / n), A }));
 }
+
+// ---------------------------------------------------------------------------
+// Abertura de fissuras (ELS-W, NBR 6118 17.3.3.2), combinação frequente.
+
+export interface CrackResult { wk: number; w1: number; w2: number; sigmaS: number; rhoR: number; x: number; limit: number }
+
+/** Limite de wk (mm) por CAA para concreto armado (Tabela 13.4). */
+export const crackLimit = (caa: 1 | 2 | 3 | 4) => (caa === 1 ? 0.4 : caa === 4 ? 0.2 : 0.3);
+
+/**
+ * wk = menor de w1 = φ/(12,5·η1)·(σs/Es)·(3σs/fctm) e w2 = φ/(12,5·η1)·(σs/Es)·(4/ρr + 45), η1 = 2,25 (CA-50).
+ * σs no estádio II com αe = 15. Área de envolvimento Acr = bw·mín(h − d + 7,5·φ, h/2) para a camada tracionada
+ * (simplificação da região de 7,5φ em torno das barras, a confirmar).
+ */
+export function crackWidth(sec: BeamSection, flangeComp: boolean, As: number, phiMm: number, d: number, MkKN: number, c: Concrete, caa: 1 | 2 | 3 | 4): CrackResult {
+  const limit = crackLimit(caa);
+  const M = Math.abs(MkKN) / 1000;
+  if (M <= 0 || As <= 0) return { wk: 0, w1: 0, w2: 0, sigmaS: 0, rhoR: 0, x: 0, limit };
+  const ae = 15;
+  const wTop = sec.kind === 'tee' && flangeComp && sec.bf ? sec.bf : sec.bw;
+  const area = (x: number) => (sec.kind === 'tee' && flangeComp && sec.bf && sec.hf && x > sec.hf ? sec.bf * sec.hf * (x - sec.hf / 2) + (sec.bw * (x - sec.hf) ** 2) / 2 : (wTop * x * x) / 2);
+  let lo = 0, hi = d;
+  for (let it = 0; it < 80; it++) { const m = (lo + hi) / 2; if (area(m) < ae * As * (d - m)) lo = m; else hi = m; }
+  const x = (lo + hi) / 2;
+  const III = sec.kind === 'tee' && flangeComp && sec.bf && sec.hf && x > sec.hf ? (sec.bf * x ** 3) / 3 - ((sec.bf - sec.bw) * (x - sec.hf) ** 3) / 3 + ae * As * (d - x) ** 2 : (wTop * x ** 3) / 3 + ae * As * (d - x) ** 2;
+  const sigmaS = (ae * M * (d - x)) / III; // MPa
+  const phi = phiMm / 1000, eta1 = 2.25;
+  const hcr = Math.min(sec.h - d + 7.5 * phi, sec.h / 2);
+  const rhoR = As / (sec.bw * hcr);
+  const k = (phiMm / (12.5 * eta1)) * (sigmaS / ES);
+  const w1 = k * ((3 * sigmaS) / c.fctm), w2 = k * (4 / rhoR + 45);
+  return { wk: Math.min(w1, w2), w1, w2, sigmaS, rhoR, x, limit };
+}

@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 93 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test           # 94 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build      # gera dist/index.html único (offline)
 ```
 
@@ -56,7 +56,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - CSV de resultados ao longo de uma cadeia de barras (s acumulado, N, V, M, δx, δy)
 
 **Feito (fase 2)**
-- Dimensionamento NBR 6118 de vigas (retangular e T) e pilares retangulares, com sugestão de seção e aplicação em um clique
+- Dimensionamento NBR 6118 de vigas (retangular e T, com fissuração ELS-W) e pilares retangulares, com sugestão de seção e aplicação em um clique
 - Verificação NBR 8800 de perfis I, tubos e caixões
 - γz, cargas na fundação (características e de cálculo), flechas com Branson e fluência
 - Biblioteca rápida de seções retangulares de 12 cm a 1,50 m; materiais por classe (C20–C90) e aços comerciais

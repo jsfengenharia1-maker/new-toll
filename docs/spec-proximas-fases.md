@@ -127,7 +127,7 @@ Proposta original:
 | C3. Tubulões | Fuste e base alargada; tensão admissível na base | Método de σadm por SPT |
 | C4. Várias sondagens por obra | Cada apoio associado ao furo mais próximo ou escolhido | — |
 | C5. Pilares circulares e em L — **feito** (18/10/2026) | Fibras com linha neutra inclinada; mín. 6 barras na circular; esbeltez pelos eixos centroidais | Cortante em circular com bw = D, d = 0,8·D (a confirmar); cortante de seção poligonal não verificado |
-| C6. Fissuração (ELS-W) | wk pela NBR 6118 17.3.3 por barra de viga | Limites por CAA (Tabela 13.4) |
+| C6. Fissuração (ELS-W) — **feito** (18/10/2026) | wk por face de viga na combinação frequente, σs no estádio II (αe = 15) | Acr = bw·mín(h − d + 7,5φ, h/2), a confirmar |
 | C7. Perfis metálicos BR | Biblioteca com dados próprios a partir de catálogos públicos dos fabricantes | Quais fabricantes |
 | C8. Pré-moldado NBR 9062 | Consolos e dentes Gerber; ligações | Escopo a definir com o usuário |
 

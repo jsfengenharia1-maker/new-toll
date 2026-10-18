@@ -7,7 +7,7 @@ import { P, matVec, transpose } from './math';
 import { caseGroup, exclusiveChoices, nbrCombinations } from './edit';
 import {
   CAA_TABLE, ES, barArea, beamAsMin, beamFlexure, beamShear, bransonRatio, chooseBars, concrete, designColumn,
-  grossProps, type BarChoice, type BeamSection, type ColumnCombo, type ColumnDesign, type Concrete, type FlexureResult, type ShearResult,
+  grossProps, crackWidth, type BarChoice, type BeamSection, type ColumnCombo, type ColumnDesign, type Concrete, type CrackResult, type FlexureResult, type ShearResult,
 } from './concrete';
 import { designSteel, type SteelCombo, type SteelDesign } from './steel';
 import { defaultDesign, type ComboKind, type DesignSettings, type Model } from './types';
@@ -24,6 +24,8 @@ export interface BeamDesign {
   shear: ShearResult & { combo: string };
   AsTotalRatio: number;
   axialNu: number;
+  /** Abertura de fissuras (ELS-W, combinação frequente) nas faces inferior e superior. */
+  crack?: { pos: CrackResult & { combo: string; Mk: number }; neg: CrackResult & { combo: string; Mk: number } };
   asColumn?: ColumnDesign;
 }
 
@@ -98,7 +100,17 @@ export function designCombos(model: Model) {
     });
     if (Q.some((c) => !same(c))) rare.push({ name: `Rara · ${p.name} sozinha`, factors: { ...g1, [p.id]: 1 }, kind: 'RARA', auto: true });
   }
-  return { elu, qp, rare, autoElu };
+  const freq: NamedCombo[] = [];
+  for (const p of Q) {
+    const same = (c: Model['cases'][number]) => c === p || (!!caseGroup(p) && caseGroup(c) === caseGroup(p));
+    exclusiveChoices(Q, same).forEach((ch, i, all) => {
+      const f: Record<number, number> = { ...g1, [p.id]: psi(p, 1) };
+      ch.forEach((c) => { const v = psi(c, 2); if (v) f[c.id] = v; });
+      freq.push({ name: `Frequente · ${p.name}${all.length > 1 ? ` (${i + 1})` : ''}`, factors: f, kind: 'FREQ', auto: true });
+    });
+  }
+  if (!Q.length) freq.push({ name: 'Frequente · só permanentes', factors: { ...g1 }, kind: 'FREQ', auto: true });
+  return { elu, qp, rare, freq, autoElu };
 }
 
 export function comboResult(a: Analysis, factors: Record<number, number>): CaseResult | null {
@@ -272,7 +284,7 @@ function sampleXs(L: number, polys: number[][]) {
 export function runDesign(model: Model, a: Analysis): DesignReport {
   const settings = { ...defaultDesign(), ...(model.design ?? {}) };
   const warnings: string[] = [];
-  const { elu: elu0, qp, rare, autoElu } = designCombos(model);
+  const { elu: elu0, qp, rare, freq, autoElu } = designCombos(model);
   const empty: DesignReport = { settings, conc: new Map(), elu: elu0, qp, rare, autoElu, gammaZ: { rows: [], max: 0, cls: 'none' }, imperfection: null, secondOrder: { mode: settings.secondOrder ?? 'gammaZ', rows: [] }, eluResults: [], members: [], foundation: [], warnings, ok: false };
   if (a.prep.error) { warnings.push(a.prep.error); return empty; }
   if (autoElu) warnings.push('Nenhuma combinação ELU no modelo: usadas combinações NBR 8681 geradas automaticamente pela natureza dos casos.');
@@ -323,6 +335,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
   const eluRes = elu.map((cb, i) => ({ cb, r: eluResults[i] })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const qpRes = qp.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
   const rareRes = rare.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
+  const freqRes = freq.map((cb) => ({ cb, r: comboResult(a, cb.factors) })).filter((x) => x.r) as { cb: NamedCombo; r: CaseResult }[];
 
   // cargas transversais por caso/barra
   const transverseByCase = new Map(model.cases.map((c) => [c.id, memberLoads(a.prep, c.id).map((l) => l.qy.some((x) => Math.abs(x) > 1e-12) || l.mi !== 0 || l.mj !== 0)]));
@@ -534,10 +547,15 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
           defl.ratio = Math.max(defl.ratio, defl.after.ratio);
         }
       }
-      return { pos, neg, sh, AsTotalRatio, axialNu, d, defl };
+      // fissuração: maiores momentos positivo e negativo nas combinações frequentes
+      let mPos = 0, mNeg = 0, cPos = '', cNeg = '';
+      for (const { cb, r } of freqRes) for (const x of sampleXs(pm.L, [r.members[k].M])) { const M = P.evaluate(r.members[k].M, x); if (M > mPos) { mPos = M; cPos = cb.name; } if (M < mNeg) { mNeg = M; cNeg = cb.name; } }
+      const crackOf = (f: typeof pos, M: number, flangeComp: boolean, combo: string) => ({ ...crackWidth(bsec, flangeComp, f.bars?.As ?? f.AsAdopt, f.bars?.phi ?? 10, f.d, M, c, settings.caa), combo, Mk: M });
+      const crack = freqRes.length ? { pos: crackOf(pos, mPos, true, cPos), neg: crackOf(neg, mNeg, false, cNeg) } : undefined;
+      return { pos, neg, sh, AsTotalRatio, axialNu, d, defl, crack };
     };
     const bc = beamCheck(bs);
-    const bd: BeamDesign = { section: bs, d: bc.d, cover, pos: bc.pos, neg: bc.neg, shear: bc.sh, AsTotalRatio: bc.AsTotalRatio, axialNu: bc.axialNu };
+    const bd: BeamDesign = { section: bs, d: bc.d, cover, pos: bc.pos, neg: bc.neg, shear: bc.sh, AsTotalRatio: bc.AsTotalRatio, axialNu: bc.axialNu, crack: bc.crack };
     const out: MemberDesign = { ...base, beam: bd, deflection: bc.defl, messages: msgs };
     const fails: string[] = [];
     if (!bc.sh.ok) fails.push(`VSd = ${bc.sh.Vsd.toFixed(1)} kN > VRd2 = ${bc.sh.VRd2.toFixed(1)} kN (esmagamento da biela).`);
@@ -546,6 +564,7 @@ export function runDesign(model: Model, a: Analysis): DesignReport {
     if (bc.defl?.after && bc.defl.after.ratio > 1) fails.push(`Flecha após a alvenaria ${(bc.defl.after.f * 1000).toFixed(1)} mm > ${(bc.defl.after.limit * 1000).toFixed(1)} mm (ℓ/500 e 10 mm).`);
     if (!bc.pos.bars && bc.pos.AsAdopt > 0) fails.push('Armadura positiva não cabe na largura (até 3 camadas).');
     if (!bc.neg.bars && bc.neg.AsAdopt > 0) fails.push('Armadura negativa não cabe na largura (até 3 camadas).');
+    for (const [face, cr] of [['inferior', bc.crack?.pos], ['superior', bc.crack?.neg]] as const) if (cr && cr.wk > cr.limit) fails.push(`Fissuração (face ${face}): wk = ${cr.wk.toFixed(2)} mm > ${cr.limit.toFixed(1)} mm (${cr.combo}). Use mais barras de menor bitola ou aumente a armadura.`);
     if (bc.axialNu > 0.1 && bs.kind === 'rect') {
       const cd = designColumn({ b: bs.bw, h: bs.h, L: pm.L, leIn, leOut, cover, conc: c, fyk: settings.fyk, gammaS: settings.gammaS, dmax: settings.dmax, combos: colCombos() });
       bd.asColumn = cd;

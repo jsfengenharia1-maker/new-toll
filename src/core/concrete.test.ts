@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { axialCapacity, barArea, beamAsMin, beamFlexure, beamShear, columnBars, concrete, designColumn, momentCapacity } from './concrete';
+import { axialCapacity, barArea, beamAsMin, beamFlexure, beamShear, columnBars, concrete, crackWidth, designColumn, momentCapacity } from './concrete';
 
 const c25 = concrete(25), c30 = concrete(30);
 const fyd = 500 / 1.15;
@@ -85,5 +85,23 @@ describe('pilares: αb do balanço e γn nos esforços finais', () => {
     const ref = ((gn * Nd * le ** 2) / 10) * Math.min(0.005 / (h * (nu + 0.5)), 0.005 / h);
     expect(d.gammaN).toBeCloseTo(gn, 12);
     expect(d.check?.M2dX).toBeCloseTo(ref, 6);
+  });
+});
+
+describe('fissuração ELS-W', () => {
+  it('viga 20×50, 3φ16, M = 60 kN·m: σs no estádio II (αe = 15) e wk = mín(w1, w2)', () => {
+    const c30 = concrete(30);
+    const bw = 0.2, h = 0.5, d = 0.45, As = 3 * barArea(16), M = 0.06;
+    const ae = 15, A = bw / 2, B = ae * As, C = -ae * As * d;
+    const x = (-B + Math.sqrt(B * B - 4 * A * C)) / (2 * A);
+    const I2 = (bw * x ** 3) / 3 + ae * As * (d - x) ** 2;
+    const sig = (ae * M * (d - x)) / I2;
+    const rhoR = As / (bw * Math.min(h - d + 7.5 * 0.016, h / 2));
+    const k = (16 / (12.5 * 2.25)) * (sig / 210000);
+    const wk = Math.min(k * (3 * sig) / c30.fctm, k * (4 / rhoR + 45));
+    const r = crackWidth({ kind: 'rect', bw, h }, true, As, 16, d, 60, c30, 2);
+    expect(r.sigmaS).toBeCloseTo(sig, 6);
+    expect(r.wk).toBeCloseTo(wk, 8);
+    expect(r.limit).toBe(0.3);
   });
 });

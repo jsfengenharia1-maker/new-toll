@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 93 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
+npm test         # vitest: 94 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho)
 npm run build    # dist/index.html único (vite-plugin-singlefile)
 npx tsc -p tsconfig.app.json --noEmit
 ```
@@ -84,6 +84,7 @@ Veja a tabela no `README.md`. Resumo:
 - Estimativas: nh de argila média/rija (0,5 MN/m³); comprimento armado até 4T com carga horizontal; tração admissível Rl/2 + 0,9W; volume do bloco (usado só para ranquear soluções).
 - Flecha com alvenaria (opção): parcela após a parede tomada como a diferida αf·f0, limite ℓ/500 e 10 mm.
 - Cortante de pilar circular: bw = D, d = 0,8·D.
+- Fissuração: Acr = bw·mín(h − d + 7,5φ, h/2) (simplificação da região de 7,5φ).
 - Cargas de catálogo da pré-moldada (SCAC, menor valor da faixa); momento admissível com o fabricante.
 
 ## Publicação web (Netlify)
@@ -105,7 +106,7 @@ Veja a tabela no `README.md`. Resumo:
 
 ## Próximos passos sugeridos
 1. Blocos de coroamento (bielas e tirantes) a partir das estacas escolhidas; sapatas; tubulões; várias sondagens por obra.
-3. Pré-moldado NBR 9062 (consolos, ligações); abertura de fissuras.
+3. Pré-moldado NBR 9062 (consolos, ligações).
 4. Biblioteca de perfis metálicos BR; exportação DXF/PDF.
 
 ## Notas de pesquisa

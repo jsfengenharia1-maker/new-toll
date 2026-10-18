@@ -225,6 +225,15 @@ function MemberDetail({ m }: { m: MemberDesign }) {
             ['Asw/s (calc · mín)', `${fmt(bd.shear.aswS * 1e4)} · ${fmt(bd.shear.aswMin * 1e4)} cm²/m`],
             ['Estribos', bd.shear.stirrup ? `φ${bd.shear.stirrup.phi} c/${Math.round(bd.shear.stirrup.s * 100)} cm (2 ramos)` : '—'],
           ]} />
+          {bd.crack && (
+            <>
+              <h4>Fissuração (ELS-W, frequente)</h4>
+              <KV rows={[
+                ['wk inferior / limite', `${fmt(bd.crack.pos.wk, 3)} / ${fmt(bd.crack.pos.limit, 1)} mm (σs = ${fmt(bd.crack.pos.sigmaS, 0)} MPa)`],
+                ['wk superior / limite', `${fmt(bd.crack.neg.wk, 3)} / ${fmt(bd.crack.neg.limit, 1)} mm (σs = ${fmt(bd.crack.neg.sigmaS, 0)} MPa)`],
+              ]} />
+            </>
+          )}
         </>
       )}
       {sd && sd.check && (
