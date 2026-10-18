@@ -145,10 +145,35 @@ export function joinAtNode(m: Model, nodeId: number): boolean {
   return true;
 }
 
+/** Grupo excludente efetivo de um caso variável ('' = sem grupo). */
+export function caseGroup(c: LoadCase): string {
+  return c.group ?? (c.nature === 'W' ? 'vento' : '');
+}
+
+const LIMIT = 400;
+
 /**
- * Combinações NBR 8681 (normais, simplificadas): ELU com γg = 1,4 (desfavorável) e 1,0 (favorável),
- * γq = 1,4 com cada variável como principal e as demais reduzidas por ψ0; ELS quase permanente (ψ2)
- * e frequente (ψ1 na principal). Os fatores ficam editáveis depois.
+ * Escolhas de variáveis acompanhantes: os casos sem grupo entram sempre; de cada grupo excludente
+ * entra no máximo um (todas as alternativas são geradas). `exclude` remove casos (ex.: o grupo da principal).
+ */
+export function exclusiveChoices(Q: LoadCase[], exclude: (c: LoadCase) => boolean = () => false): LoadCase[][] {
+  const free = Q.filter((c) => !exclude(c) && !caseGroup(c));
+  const groups = new Map<string, LoadCase[]>();
+  for (const c of Q) { const g = caseGroup(c); if (g && !exclude(c)) groups.set(g, [...(groups.get(g) ?? []), c]); }
+  let out: LoadCase[][] = [free];
+  for (const list of groups.values()) {
+    const next: LoadCase[][] = [];
+    for (const base of out) for (const c of list) { next.push([...base, c]); if (next.length >= LIMIT) break; }
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * Combinações NBR 8681 / NBR 6118 (11.7, 11.8): ELU normal com γg = 1,4 (desfavorável) e 1,0 (favorável),
+ * γq = 1,4 na principal e 1,4·ψ0 nas acompanhantes; casos de um mesmo grupo excludente nunca atuam juntos.
+ * Para cada principal gera-se também a combinação sem acompanhantes (ações variáveis favoráveis = 0).
+ * ELS quase permanente (ψ2) e frequente (ψ1 na principal). Os fatores ficam editáveis depois.
  */
 export function nbrCombinations(cases: LoadCase[], startId: number): Combination[] {
   const G = cases.filter((c) => (c.nature ?? 'G') === 'G');
@@ -157,25 +182,45 @@ export function nbrCombinations(cases: LoadCase[], startId: number): Combination
   let id = startId;
   const psi = (c: LoadCase, k: 0 | 1 | 2) => c[`psi${k}`] ?? (c.nature === 'W' ? [0.6, 0.3, 0][k] : [0.5, 0.4, 0.3][k]);
   const push = (name: string, f: Record<number, number>) => out.push({ id: id++, name, factors: f, kind: name.startsWith('ELU') ? 'ELU' : name.includes('quase') ? 'QP' : 'FREQ' });
+  const sameGroup = (p: LoadCase) => (c: LoadCase) => c === p || (!!caseGroup(p) && caseGroup(c) === caseGroup(p));
+  const label = (list: LoadCase[], all: LoadCase[]) => (list.length && list.length < all.length ? ` + ${list.map((c) => c.name).join(', ')}` : '');
   for (const gg of [1.4, 1.0]) {
     const tag = gg === 1.4 ? 'G desf.' : 'G fav.';
     if (!Q.length) { push(`ELU ${tag}`, Object.fromEntries(G.map((c) => [c.id, gg]))); continue; }
     for (const p of Q) {
-      const f: Record<number, number> = {};
-      G.forEach((c) => (f[c.id] = gg));
-      Q.forEach((c) => (f[c.id] = c === p ? 1.4 : round(1.4 * psi(c, 0))));
-      push(`ELU ${tag} · ${p.name} principal`, f);
+      const others = Q.filter((c) => !sameGroup(p)(c));
+      const choices = exclusiveChoices(Q, sameGroup(p));
+      for (const ch of choices) {
+        const f: Record<number, number> = {};
+        G.forEach((c) => (f[c.id] = gg));
+        f[p.id] = 1.4;
+        ch.forEach((c) => (f[c.id] = round(1.4 * psi(c, 0))));
+        push(`ELU ${tag} · ${p.name} principal${label(ch, others)}`, f);
+      }
+      if (others.length) {
+        const f: Record<number, number> = {};
+        G.forEach((c) => (f[c.id] = gg));
+        f[p.id] = 1.4;
+        push(`ELU ${tag} · ${p.name} sozinha`, f);
+      }
     }
   }
-  const cqp: Record<number, number> = {};
-  G.forEach((c) => (cqp[c.id] = 1));
-  Q.forEach((c) => (cqp[c.id] = psi(c, 2)));
-  push('ELS quase permanente', cqp);
+  for (const ch of exclusiveChoices(Q)) {
+    const cqp: Record<number, number> = {};
+    G.forEach((c) => (cqp[c.id] = 1));
+    ch.forEach((c) => { const v = psi(c, 2); if (v) cqp[c.id] = v; });
+    const grouped = ch.filter((c) => caseGroup(c));
+    push(`ELS quase permanente${grouped.length && exclusiveChoices(Q).length > 1 ? ` (${grouped.map((c) => c.name).join(', ')})` : ''}`, cqp);
+  }
   for (const p of Q) {
-    const f: Record<number, number> = {};
-    G.forEach((c) => (f[c.id] = 1));
-    Q.forEach((c) => (f[c.id] = c === p ? psi(c, 1) : psi(c, 2)));
-    push(`ELS frequente · ${p.name}`, f);
+    for (const ch of exclusiveChoices(Q, sameGroup(p))) {
+      const f: Record<number, number> = {};
+      G.forEach((c) => (f[c.id] = 1));
+      f[p.id] = psi(p, 1);
+      ch.forEach((c) => { const v = psi(c, 2); if (v) f[c.id] = v; });
+      const others = Q.filter((c) => !sameGroup(p)(c));
+      push(`ELS frequente · ${p.name}${label(ch, others)}`, f);
+    }
   }
   return out;
 }

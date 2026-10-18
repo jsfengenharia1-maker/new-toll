@@ -2,7 +2,7 @@
 import { analyze, combine, memberLoads, type Analysis, type CaseResult } from './solver';
 import { elementMatrices } from './element';
 import { P, matVec, transpose } from './math';
-import { nbrCombinations } from './edit';
+import { caseGroup, exclusiveChoices, nbrCombinations } from './edit';
 import {
   CAA_TABLE, ES, barArea, beamAsMin, beamFlexure, beamShear, bransonRatio, chooseBars, concrete, designColumn,
   grossProps, type BarChoice, type BeamSection, type ColumnCombo, type ColumnDesign, type Concrete, type FlexureResult, type ShearResult,
@@ -67,19 +67,26 @@ export function designCombos(model: Model) {
   let qp: NamedCombo[] = model.combinations.filter((c) => c.kind === 'QP' || (!c.kind && /quase/i.test(c.name))).map((c) => ({ name: c.name, factors: c.factors, kind: 'QP' as const }));
   const G = model.cases.filter((c) => (c.nature ?? 'G') === 'G'), Q = model.cases.filter((c) => c.nature === 'Q' || c.nature === 'W');
   if (!qp.length) {
-    const f: Record<number, number> = {};
-    G.forEach((c) => (f[c.id] = 1));
-    Q.forEach((c) => { const v = psi(c, 2); if (v) f[c.id] = v; });
-    qp = [{ name: 'ELS quase permanente (automática)', factors: f, kind: 'QP', auto: true }];
+    qp = exclusiveChoices(Q).map((ch, i, all) => {
+      const f: Record<number, number> = {};
+      G.forEach((c) => (f[c.id] = 1));
+      ch.forEach((c) => { const v = psi(c, 2); if (v) f[c.id] = v; });
+      return { name: `ELS quase permanente (automática${all.length > 1 ? ` ${i + 1}` : ''})`, factors: f, kind: 'QP' as const, auto: true };
+    });
   }
   const rare: NamedCombo[] = [];
   const g1: Record<number, number> = {};
   G.forEach((c) => (g1[c.id] = 1));
   rare.push({ name: 'Rara · só permanentes', factors: { ...g1 }, kind: 'RARA', auto: true });
   for (const p of Q) {
-    const f = { ...g1 };
-    Q.forEach((c) => { const v = c === p ? 1 : psi(c, 1); if (v) f[c.id] = v; });
-    rare.push({ name: `Rara · ${p.name} principal`, factors: f, kind: 'RARA', auto: true });
+    const same = (c: Model['cases'][number]) => c === p || (!!caseGroup(p) && caseGroup(c) === caseGroup(p));
+    const choices = exclusiveChoices(Q, same);
+    choices.forEach((ch, i) => {
+      const f = { ...g1, [p.id]: 1 };
+      ch.forEach((c) => { const v = psi(c, 1); if (v) f[c.id] = v; });
+      rare.push({ name: `Rara · ${p.name} principal${choices.length > 1 ? ` (${i + 1})` : ''}`, factors: f, kind: 'RARA', auto: true });
+    });
+    if (Q.some((c) => !same(c))) rare.push({ name: `Rara · ${p.name} sozinha`, factors: { ...g1, [p.id]: 1 }, kind: 'RARA', auto: true });
   }
   return { elu, qp, rare, autoElu };
 }

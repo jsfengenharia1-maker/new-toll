@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { transformSelection, xformPoint } from './edit';
+import { nbrCombinations, transformSelection, xformPoint } from './edit';
 import { analyze } from './solver';
 import type { Model } from './types';
 
@@ -68,5 +68,30 @@ describe('transformações da seleção', () => {
     expect(n3.x).toBeCloseTo(-3, 12); expect(n3.y).toBeCloseTo(5, 12);
     expect(m.nodes[0].support?.angle).toBe(90);
     expect(m.members.length).toBe(3);
+  });
+});
+
+describe('combinações com grupos excludentes', () => {
+  const cases = [
+    { id: 1, name: 'G', nature: 'G' as const },
+    { id: 2, name: 'Q', nature: 'Q' as const },
+    { id: 3, name: 'V0', nature: 'W' as const },
+    { id: 4, name: 'V90', nature: 'W' as const },
+  ];
+  const combos = nbrCombinations(cases, 1);
+  it('ventos do mesmo grupo nunca atuam juntos', () => {
+    for (const c of combos) expect(!!c.factors[3] && !!c.factors[4]).toBe(false);
+  });
+  it('principal Q acompanha um vento por vez, e há a Q sozinha', () => {
+    const qp = combos.filter((c) => c.kind === 'ELU' && c.name.includes('G desf.') && c.factors[2] === 1.4);
+    expect(qp.map((c) => [c.factors[3] ?? 0, c.factors[4] ?? 0])).toEqual([[0.84, 0], [0, 0.84], [0, 0]]);
+  });
+  it('vento principal acompanhado de Q × ψ0 e sozinho', () => {
+    const w = combos.filter((c) => c.kind === 'ELU' && c.name.includes('G desf.') && c.factors[3] === 1.4);
+    expect(w.map((c) => c.factors[2] ?? 0)).toEqual([0.7, 0]);
+  });
+  it('grupo vazio explícito libera a combinação conjunta', () => {
+    const free = nbrCombinations(cases.map((c) => (c.nature === 'W' ? { ...c, group: '' } : c)), 1);
+    expect(free.some((c) => c.factors[3] && c.factors[4])).toBe(true);
   });
 });

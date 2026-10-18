@@ -89,7 +89,11 @@ export interface SelfWeight { kind: 'selfWeight'; id: number; caseId: number; fa
 export type Load = NodalLoad | DistLoad | EndMoment | ThermalLoad | PrescribedDisp | SelfWeight;
 
 export type CaseNature = 'G' | 'Q' | 'W';
-export interface LoadCase { id: number; name: string; nature?: CaseNature; psi0?: number; psi1?: number; psi2?: number }
+export interface LoadCase {
+  id: number; name: string; nature?: CaseNature; psi0?: number; psi1?: number; psi2?: number;
+  /** Grupo de ações excludentes (nunca atuam juntas, ex.: vento 0° e vento 90°). Ausente: vento → "vento", demais sem grupo; "" = sem grupo. */
+  group?: string;
+}
 export type ComboKind = 'ELU' | 'QP' | 'FREQ' | 'RARA';
 export interface Combination { id: number; name: string; factors: Record<number, number>; kind?: ComboKind }
 

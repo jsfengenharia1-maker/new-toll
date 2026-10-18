@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { Check, Group, Hint, NumField, Select, Seg, TextField } from '../ui';
-import { nbrCombinations, nextId } from '../../core/edit';
+import { caseGroup, nbrCombinations, nextId } from '../../core/edit';
 import type { CaseNature, ComboKind, Load, LoadSystem } from '../../core/types';
 import { fmt } from '../results';
 import { useUnits, type Units } from '../units';
@@ -69,6 +69,14 @@ export function CargasPanel() {
                   <NumField key={k} label={`ψ${k}`} value={cs[`psi${k}`] ?? (cs.nature === 'W' ? [0.6, 0.3, 0][k] : [0.5, 0.4, 0.3][k])} onChange={(v) => st.commit((m) => { m.cases.find((c) => c.id === cs.id)![`psi${k}`] = v; })} />
                 ))}
               </div>
+            )}
+            {(cs.nature === 'Q' || cs.nature === 'W') && (
+              <>
+                <div className="row">
+                  <TextField label="Grupo excludente" value={caseGroup(cs)} onChange={(v) => st.commit((m) => { m.cases.find((c) => c.id === cs.id)!.group = v.trim(); }, v.trim() ? `Caso no grupo excludente “${v.trim()}”.` : 'Caso sem grupo excludente.')} />
+                </div>
+                <Hint>Casos do mesmo grupo nunca atuam juntos nas combinações (ex.: vento 0° e vento 90°). Por padrão, os casos de vento ficam no grupo “vento”. Deixe vazio para combinar com todos.</Hint>
+              </>
             )}
             <div className="row">
               <Check label="Peso próprio neste caso" checked={!!sw} onChange={(v) => st.commit((m) => { if (v) m.loads.push({ kind: 'selfWeight', id: nextId(m.loads), caseId: cs.id, factor: 1 }); else m.loads = m.loads.filter((l) => !(l.kind === 'selfWeight' && l.caseId === cs.id)); })} />
@@ -147,7 +155,7 @@ export function CargasPanel() {
 
       <Group title="Combinações" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.combinations); st.commit((m) => { m.combinations.push({ id, name: `Comb ${id}`, kind: 'ELU', factors: Object.fromEntries(m.cases.map((c) => [c.id, 1.4])) }); }); }}>+ nova</button>}>
         <button type="button" className="btn" onClick={() => st.commit((m) => { m.combinations = nbrCombinations(m.cases, 1); }, 'Combinações NBR 8681 geradas. Revise os fatores.')}>Gerar combinações NBR 8681</button>
-        <Hint>ELU normal com γg = 1,4 / 1,0 e γq = 1,4 (demais variáveis × ψ0); ELS quase permanente e frequente. Natureza e ψ de cada caso definem os fatores.</Hint>
+        <Hint>ELU normal com γg = 1,4 / 1,0 e γq = 1,4 (acompanhantes × ψ0), uma de cada grupo excludente, e a principal sozinha; ELS quase permanente e frequente. Natureza, ψ e grupo de cada caso definem os fatores.</Hint>
         {model.combinations.length > 0 && (
           <div className="tablewrap">
             <table className="combo">

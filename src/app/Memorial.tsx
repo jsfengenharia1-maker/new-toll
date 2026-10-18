@@ -2,6 +2,7 @@ import { useMemo, useRef, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useAnalysis, getDesign, fmt, isSemi, linkText } from './results';
 import { comboResult, type MemberDesign } from '../core/design';
+import { caseGroup } from '../core/edit';
 import { CAA_TABLE, concrete } from '../core/concrete';
 import { sectionProps } from '../core/section';
 import { defaultProject, type Load, type ProjectInfo, type SectionShape } from '../core/types';
@@ -192,7 +193,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
           <H2>Ações</H2>
           {model.cases.map((c) => (
             <div key={c.id}>
-              <h3>{c.name} — ação {c.nature === 'Q' ? 'variável' : c.nature === 'W' ? 'de vento' : 'permanente'}{c.nature && c.nature !== 'G' ? ` (ψ0 ${fmt(c.psi0 ?? (c.nature === 'W' ? 0.6 : 0.5), 1)} · ψ1 ${fmt(c.psi1 ?? (c.nature === 'W' ? 0.3 : 0.4), 1)} · ψ2 ${fmt(c.psi2 ?? (c.nature === 'W' ? 0 : 0.3), 1)})` : ''}</h3>
+              <h3>{c.name} — ação {c.nature === 'Q' ? 'variável' : c.nature === 'W' ? 'de vento' : 'permanente'}{c.nature && c.nature !== 'G' ? ` (ψ0 ${fmt(c.psi0 ?? (c.nature === 'W' ? 0.6 : 0.5), 1)} · ψ1 ${fmt(c.psi1 ?? (c.nature === 'W' ? 0.3 : 0.4), 1)} · ψ2 ${fmt(c.psi2 ?? (c.nature === 'W' ? 0 : 0.3), 1)}${caseGroup(c) ? ` · grupo excludente “${caseGroup(c)}”` : ''})` : ''}</h3>
               <Fig svg={svgLoads(model, c.id, c.name)} cap={`Figura — carregamento “${c.name}”.`} />
               <ul>{model.loads.filter((l) => l.caseId === c.id).map((l) => <li key={l.id}>{loadTxt(l)}</li>)}</ul>
             </div>
@@ -206,7 +207,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
               ))}
             </tbody>
           </table>
-          <p className="small">* gerada automaticamente pelo programa a partir da natureza e dos fatores ψ de cada caso (NBR 8681). ELU normais: γg = 1,4 (desfavorável) ou 1,0 (favorável), γq = 1,4, demais variáveis reduzidas por ψ0. Raras: Σ Fg,k + Fq1,k + Σ ψ1·Fqj,k.</p>
+          <p className="small">* gerada automaticamente pelo programa a partir da natureza e dos fatores ψ de cada caso (NBR 8681). ELU normais: γg = 1,4 (desfavorável) ou 1,0 (favorável), γq = 1,4, demais variáveis reduzidas por ψ0, com no máximo um caso de cada grupo excludente e também a principal sozinha (acompanhantes favoráveis = 0). Raras: Σ Fg,k + Fq1,k + Σ ψ1·Fqj,k, com o mesmo critério de grupos.</p>
 
           {!err && (
             <>
