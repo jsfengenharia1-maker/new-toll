@@ -263,7 +263,7 @@ Esbeltez: λ = 3,46·le/h; λ1 = (25 + 12,5·e1/h)/αb, 35 ≤ λ1 ≤ 90; αb =
 2ª ordem local (pilar-padrão com curvatura aproximada, λ ≤ 90): Md,tot = αb·M1d,A + Nd·le²/10·(1/r) ≥ M1d,A;
   1/r = 0,005 / [h·(ν + 0,5)] ≤ 0,005/h; ν = Nd/(Ac·fcd).
 Situação 1 (plano do pórtico): Md,tot,x ≤ MRd,xx(Nd).
-Situação 2 (flexão oblíqua): (Mx/MRd,xx)^1,2 + (Md,tot,y/MRd,yy)^1,2 ≤ 1, com Md,tot,y = M1d,mín,y + M2d,y (17.2.5.2).
+Situação 2 (flexão oblíqua): (Mx/MRd,xx)^1,2 + (Md,tot,y/MRd,yy)^1,2 ≤ 1, com Md,tot,y = M1d,mín,y + M2d,y (17.2.5).
 MRd por compatibilidade de deformações (parábola-retângulo). As,mín = 0,15·Nd/fyd ≥ 0,4%·Ac; As,máx adotado 4%·Ac (8% na emenda).
 Estribos: φt ≥ 5 mm e φl/4; s ≤ 20 cm, menor dimensão e 12φl (CA-50).`}</div>
                   <table>
