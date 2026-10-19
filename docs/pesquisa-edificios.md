@@ -28,7 +28,8 @@ Data: 19/10/2026. Sem código. Entregável da Fase 0 do prompt do módulo Edifí
    - tema escuro estilo CAD com paleta própria editável, cores reforçadas por forma e traço, preto e branco para impressão.
 6. **IA-nativo.** Registro único de comandos (JSON Schema, `validar`, `aplicar` com `produceWithPatches` do immer, que já é dependência, para patch e inverso; risco; log). Esse registro serve à UI, aos atalhos, ao `.statikos` (replay), aos testes (aplicar + inverso = original) e ao MCP (annotations readOnly/destructive, prévia com diff e token de versão, nunca `execute_code`). CLI e MCP stdio rodam em Node com o mesmo `src/core`.
 7. **Dependências.** Código próprio para DXF, IFC (saída), 3D simples e solver. Se aprovados, carregados sob demanda: pdf.js (PDF como máscara, Apache-2.0, ~0,5 MB gz), web-ifc (entrada IFC, MPL-2.0, ~0,96 MB gz) e acad-ts (DWG, MIT, ~200 KB gz, experimental). **Não embutir libredwg (GPL-3).** O `vite-plugin-singlefile` embute todo `import()`, então módulos sob demanda precisam ir à parte em `public/vendor`. O three.js (~130 KB gz) quase dobraria o HTML atual (659 KB); a alternativa é um visualizador WebGL próprio de prismas (~20 KB).
-8. **Licença.** Apache-2.0 + CLA + marca "Statikos" (favorece adoção) × AGPL-3.0 + CLA (trava fork SaaS, mas pouco acrescenta enquanto tudo roda no navegador). Decisão do usuário.
+8. **Pranchas (pedido do usuário: saída final também em DWG e PDF).** PDF vetorial por gerador próprio (~10–25 KB gz, A0–A4, escala exata, penas, camadas OCG); jsPDF não tem camadas e pdf-lib está parada desde 2022. DXF sobe de R12 para R2000 (layouts, lineweight). DWG de escrita testado aqui: nasjidwg (MIT, ~74 KB gz, jovem, um autor) e acad-ts (MIT, ~198 KB gz) geraram a mesma prancha e foram relidos íntegros por três leitores; falta abrir no AutoCAD. LibreDWG (GPL-3, sem escrita no npm) e ODA (licença paga para distribuir) descartados.
+9. **Licença.** Apache-2.0 + CLA + marca "Statikos" (favorece adoção) × AGPL-3.0 + CLA (trava fork SaaS, mas pouco acrescenta enquanto tudo roda no navegador). Decisão do usuário.
 
 ---
 
@@ -48,7 +49,7 @@ Alvo: edifício residencial de até ~10 pavimentos, concreto armado, lajes maci�
 | Cargas | Por pavimento (G e Q por uso), pontuais, lineares, superficiais em região, alvenaria automática a partir de camada do DXF, vento NBR 6123 automático | Empuxo, sismo NBR 15421 (V3) |
 | Verificação | Contínua: pilar sem viga, viga sem apoio, pano não fechado, sobreposição, viga em viga sem ligação, pilar morrendo sem apoio, viga fora da face do pilar | Correção automática em lote |
 | Análise | Grelha por pavimento (malha 50 cm) + pórtico espacial 6 GL, diafragma mestre-escravo, trechos rígidos, multiplicador axial dos pilares nas verticais, γz com rigidez reduzida | P-Δ 3D, modelo integrado, molas viga-pilar, processo construtivo (V3), MEF de placa |
-| Saídas | Esforços e deformada por pavimento, isovalores da grelha, dimensionamento de vigas e pilares com `concrete.ts`, cargas no módulo Fundações, quantitativos (concreto, fôrma, aço por taxa), memorial, DXF de formas | Detalhamento de armaduras, IFC de saída, pranchas |
+| Saídas | Esforços e deformada por pavimento, isovalores da grelha, dimensionamento de vigas e pilares com `concrete.ts`, cargas no módulo Fundações, quantitativos (concreto, fôrma, aço por taxa), memorial; **pranchas finais** (formas por pavimento, quadro de pilares, carimbo) em **PDF vetorial** (gerador próprio, camadas OCG, escala exata) e **DXF R2000** (layouts com viewport em escala, espessura por camada); **DWG** pelo nasjidwg carregado sob demanda, se aprovado | Detalhamento de armaduras, IFC de saída, cortes nas pranchas, CTB de penas |
 | Vistas | Planta por pavimento; 3D simples (prismas, órbita) com visualizador próprio | Cortes do edifício, 3D com corte, three.js |
 | IA | Registro de comandos tipados; CLI (`statikos calc`); MCP stdio com prévia → aplicar; diagnósticos estruturados; `docs/ia.md` e `llms.txt` | WebMCP na aba aberta |
 
@@ -111,6 +112,14 @@ Cada item vira premissa editável e entra no memorial depois do aceite.
 
 **Saídas**
 42. Taxas de aço para quantitativos (vigas 100, pilares 130, lajes 70 kg/m³?) e regras de fôrma.
+
+**Pranchas (DWG, PDF, DXF)**
+43. DWG já no MVP pelo nasjidwg (MIT, ~74 KB gz, sob demanda), com acad-ts como reserva e DXF R2000 sempre disponível? Depende de teste real no AutoCAD (abrir, AUDIT, aviso de arquivo não Autodesk).
+44. Versão do DWG gravado (R2018 ou R2000).
+45. Montagem: desenho em escala real no model space e uma prancha por layout com viewport em escala (proposta), ou folha "explodida" no model space.
+46. Margens e carimbo: NBR 16752:2020 (margem esquerda 20 mm?) × skill do eng-studio (25 mm, da antiga 10068); largura da legenda (178 ou 180 mm) e campos obrigatórios.
+47. Espessuras de traço pela NBR 16861:2020 (que substituiu a 8403; série 0,13–1,40 mm?) e padrão de penas do usuário (precisa de arquivo CTB?).
+48. Status atual das NBR 7191 e 6492 para a representação das formas.
 
 ---
 
@@ -1309,3 +1318,184 @@ Pesquisa de 19/10/2026 para o lançamento em planta por pavimento (máscara DXF,
 
 ---
 
+## Pranchas do módulo Edifícios: saída em DWG, DXF e PDF
+
+Pesquisa de 19/10/2026. Os tamanhos foram medidos com esbuild (minificado, ESM, navegador) e `gzip -9`, a partir de um arquivo de entrada mínimo que usa a função de escrita. Hoje o `dist/index.html` tem 659 KB, ou 210 KB com gzip. Os scripts de teste foram descartáveis e serão refeitos como teste automatizado na fatia de pranchas.
+
+### 1. DWG de saída no navegador
+
+#### Teste feito nesta pesquisa
+Gerei um mesmo desenho com acad-ts e com nasjidwg. Ele tem duas camadas com espessura (0,50 e 0,18 mm), LINE, LWPOLYLINE, ARC, CIRCLE, TEXT com "Ação", MTEXT, HATCH sólido, bloco com INSERT, cota linear, um layout com viewport e um contorno no paper space. Depois reli cada arquivo com a própria biblioteca, com a outra biblioteca e com o LibreDWG (WASM do @mlightcad/libredwg-web).
+- **acad-ts 3.6.0.** Escreveu AC1015, AC1018, AC1024, AC1027 e AC1032, com 5 a 8 KB. A própria acad-ts, o LibreDWG e a nasjidwg leram todas as entidades, o layout e as espessuras. O LibreDWG devolveu o código 64 (`VALUEOUTOFBOUNDS`, aviso não crítico) nas versões AC1018 em diante. O exemplo do README não funciona como está: o certo é `modelSpace.entities.add`, `new Color(i)` e `doc.updateCollections(true, true)`. Os layouts "Model" e "Layout1" não são criados sozinhos, e o código precisa criá-los.
+- **nasjidwg 0.18.0.** Escreveu R2000, R2004 e R2018, com 4 a 5 KB, sem nada pulado nem rebaixado. O LibreDWG leu os três sem erro, com os layouts Model e Layout1. A espessura de linha da API é em mm (0.5), não em 1/100 mm.
+- **Não abri nada no AutoCAD, BricsCAD ou ZWCAD.** "Abre sem erro" vem da documentação de cada projeto, não de teste meu.
+
+| Opção | Licença | Versões DWG escritas | Entidades (escrita) | Tamanho gz | Maturidade | Recomendação |
+|---|---|---|---|---|---|---|
+| **nasjidwg** (TS puro, sem WASM) | MIT | R2.6 a R12, R13, R14, R2000, R2004, R2007 (o README diz que o AutoCAD ainda não aceita) e R2018 (AC1032); AC1024/27 aparecem como "R2010/2013/2018" no README (não verificado separadamente) | Todas as pedidas: LINE, LWPOLYLINE, ARC, CIRCLE, TEXT/MTEXT, as 8 cotas, HATCH (arestas exatas, padrão, gradiente), INSERT/blocos/atributos, layouts e paper space, VIEWPORT, lineweight. Plot style: só o nome da folha de estilo no layout (`plotStyleSheet`); o CTB não vai no DWG | **74 KB** (só a escrita: DWG 2018 + 2000 + DXF); 257 KB com a biblioteca inteira | Nova (criada em 08/2026, um autor, 0.x, 2 issues fechadas). O README diz que as sete famílias abrem no AutoCAD 2027 com AUDIT sem erros e descreve uma bateria de testes no `accoreconsole` (não verificado). O modelo é JSON puro (`Drawing`), fácil de gerar. Traz também `writePdf`, mas simples | **Recomendada para a V2** (DWG R2018 + R2000), com a acad-ts como reserva |
+| **@node-projects/acad-ts** (porte TS do ACadSharp) | MIT | AC1009, AC1012, AC1014, AC1015, AC1018, AC1021 (sem compressão LZ), AC1024, AC1027, AC1032 | Todas as pedidas: Line, LwPolyline, Arc, Circle, Text, MText, as 8 Dimension, Hatch, Insert/BlockRecord, Layout/PlotSettings, Viewport, LineWeight em Layer e Entity, `styleSheet` (nome do CTB) | **198 KB** (só DwgWriter); 247 KB inteira | Ativa (criada em 04/2026, versão 3.6.0 publicada em 19/10/2026, mantenedores da Kardex). A doc de interoperabilidade cita validação no ODA File Converter 27.9 com audit (60/60 na matriz). A issue #11 (DWG recusado pelo ODA, AcDbTableStyle) foi corrigida. Herda os bugs do ACadSharp: há issues abertas de arquivos recusados pelo AutoCAD (#1297 MTEXT com moldura em AC1032; #1253 DXF recusado; #1161 R14) | Reserva da V2 ou candidata para teste A/B |
+| **ACadSharp** (C#, a origem da acad-ts) | MIT | AC1014, AC1015, AC1018, AC1024, AC1027, AC1032 (não escreve AC1021) | Mesmo modelo da acad-ts | Não roda no navegador sem .NET WASM | Madura (desde 2021, 125+ issues sobre o writer) | Só como referência |
+| **LibreDWG / @mlightcad/libredwg-web** | **GPL-3.0** | O README do LibreDWG diz que a escrita "basta para tudo menos R2007" e que R2010–R2018 ainda saem com erro de CRC; o configure fala em escrita só até R2004 | Amplas, mas o writer é experimental | WASM de **2,49 MB gz** (10,8 MB). O pacote npm vem **sem a escrita**: `disable-write` está ligado no build, e seria preciso recompilar com emscripten | Leitura boa; escrita experimental | **Não usar.** A GPL-3 contaminaria o bundle único, o tamanho é grande e a escrita moderna é instável. Serve só como leitor em testes (devDependency, fora do bundle) |
+| **ODA / Teigha** (SDK) e ODA File Converter | Proprietária (sócio da ODA) | Todas | Completa | WASM grande (não medido) | Padrão da indústria | **Inviável** num app gratuito e público: distribuir exige plano Commercial ou maior, com assinatura recorrente. Pela FAQ da ODA, quem não é sócio pode usar o File Converter só para fins **não comerciais**. Não dá para indicá-lo ao engenheiro como caminho oficial [confirmar no EULA] |
+| @isopodlabs/dwg | MIT | Não escreve ("Writing is not supported") | – | 53 KB (leitura) | – | Descartada |
+| dwgdxf (acadrust WASM) | MIT | Só converte DWG→DXF | – | – | – | Descartada |
+| **DXF AC1015 (R2000) próprio**, ampliando o `src/app/dxf.ts` (hoje R12) | Própria | DXF; o usuário faz SAVEAS para DWG no AutoCAD, BricsCAD ou ZWCAD | Tudo o que for escrito: LWPOLYLINE, lineweight (370), HATCH, MTEXT, TEXT com `$DWGCODEPAGE` ANSI_1252, blocos, DIMENSION (com bloco anônimo) ou cota explodida, layouts com OBJECTS/DICTIONARY/LAYOUT | ~0 KB extra | Depende dos testes. O R2000 com layouts exige handles, dicionários e as entradas BLOCK_RECORD *Model_Space/*Paper_Space | **Recomendada para o MVP** |
+| @tarikjabiri/dxf | MIT | DXF AC1021 | Linhas, hatch, mtext, cotas alinhada/linear, insert, tabela; paper space parcial | 20 KB | Ativa | Alternativa ao gerador próprio, se o R2000 à mão ficar caro |
+
+**DXF R2000 completo × DWG para o usuário final**
+- AutoCAD, BricsCAD e ZWCAD abrem DXF R2000 direto e salvam como DWG. TQS e Eberick também importam DXF. A documentação do TQS chega a dizer que o DXF é o meio mais seguro de troca e que o "DWG-TQS" deixou de ser compatível com o AutoCAD desde a V8.
+- O que se perde ao entregar DXF:
+  1. Um passo a mais para quem precisa entregar .dwg (prefeitura, cliente ou construtora).
+  2. Arquivo 2 a 5 vezes maior, por ser texto (estimativa, não medido).
+  3. Alguns escritórios recusam DXF por costume.
+  4. No AutoCAD não há diferença técnica: lineweight, layouts, hatch e mtext existem a partir do R2000.
+- O CTB não viaja nem no DXF nem no DWG. É um arquivo à parte, que pode ser oferecido para download.
+- O R12 atual não tem lineweight, LWPOLYLINE, HATCH, MTEXT nem layouts. Para as pranchas, o R2000 é o mínimo.
+- AutoCAD e DWG de terceiros: o AutoCAD costuma avisar que o arquivo foi salvo por um programa não Autodesk (TrustedDWG). Não sei se as versões atuais ainda mostram o aviso nem se as bibliotecas gravam a marca (não verificado). Com DXF o aviso não aparece.
+
+### 2. PDF vetorial de saída
+
+| Opção | Licença | Tamanho gz | OCG (camadas liga/desliga) | Fontes / acentos | Traço, tracejado, cor, hachura | Escala exata e folhas A0–A4 | Maturidade | Recomendação |
+|---|---|---|---|---|---|---|---|---|
+| **Gerador próprio (PDF 1.5)** | Própria | Estimado entre 10 e 25 KB (referência: o `writePdf` da nasjidwg tem 13,5 KB) | Sim, à mão: `/OCProperties` no catálogo, `/OCG` por camada e `BDC /OC … EMC` no conteúdo | Helvetica/Courier padrão com `WinAnsiEncoding` cobre á, ç, ã, õ, º e ². Precisa da tabela de larguras da Helvetica para alinhar texto (cerca de 2 KB). Símbolos como φ, Ø, γ e ≥ não existem em WinAnsi: embutir uma TTF com subconjunto dá muito mais trabalho | `w`, `d` (dash), `RG`; hachura por linhas recortadas (`W n`) ou por padrão de tiling | Exata: 1 mm = 72/25,4 pt. A0 (2384 × 3370 pt) fica bem abaixo do limite de 14 400 pt | Depende de testes (abrir no Acrobat, pdf.js e Chrome) | **MVP** |
+| jsPDF 4.2.1 + svg2pdf.js 2.8.1 | MIT | 134 KB só o núcleo (sem html2canvas, dompurify e canvg); 160 KB com svg2pdf; 248 a 273 KB se o bundler puxar os opcionais | **Não.** Nada de OCG no código (grep), e um mantenedor disse "It's not unfortunately" na issue #693 | 14 fontes padrão em WinAnsi; TTF com `addFont` (Identity-H) | Sim (`setLineDash`, `setLineWidth`); hachura à mão | `format: [w, h]` em mm | Muito usada | Só se quiserem reaproveitar as figuras SVG do memorial com svg2pdf |
+| pdf-lib 1.17.1 | MIT | 208 KB (inclui métricas das fontes padrão e pako) | Sem API de alto nível (issue #907); dá para montar pela API de baixo nível (`context.obj`) | Padrão em WinAnsi; TTF com subconjunto via @pdf-lib/fontkit (soma tamanho) | Sim | Exata | **Sem release desde 2022**; o fork ativo é @pdfme/pdf-lib 6.2.6 | Não compensa para gerar do zero |
+| PDFKit 0.20.2 | MIT | 213 KB (build para navegador) | Não encontrei OCG; tem `markContent` para PDF marcado (não verificado a fundo) | Fontes padrão e TTF/OTF com subconjunto via fontkit | Sim (dash, cores, gradientes) | Exata | Ativa | Pesada para o que oferece aqui |
+| `writePdf` da nasjidwg | MIT | 13,5 KB | Não | Helvetica WinAnsi | Uma espessura só para todo o desenho (`lineWidth`), opção monocromática | Por `scale` | Nova | Só como pré-visualização, se a nasjidwg entrar |
+| Impressão do navegador (`window.print` + `@page { size: 841mm 594mm }`) | – | 0 | **Não** | As do navegador (acentos e Unicode completos) | O CSS e o SVG cobrem tudo | O "Salvar como PDF" do Chrome aceita tamanho próprio (não verifiquei limite nem o Firefox/Safari). Mas o diálogo deixa o usuário mudar a escala ("Ajustar" ou %), as margens e o cabeçalho/rodapé, então a escala exata não está garantida. A impressora física fica presa aos tamanhos do driver | Já usada no memorial A4 | Reserva; não serve para pranchas |
+
+### 3. Requisitos de prancha (resumo)
+
+**Normas**
+- **NBR 16752:2020** (folhas de desenho: formatos, elementos gráficos, espaço de desenho, legenda, dobramento e escalas).
+  - Substitui a NBR 10582:1988. A NBR 10068 consta como substituída em 01/2020, mas a fonte não nomeia a substituta; a data bate com a 16752 [confirmar].
+  - Não confirmei se ela absorveu a NBR 13142 (dobramento). Ela trata do dobramento, então é provável [confirmar].
+- **NBR 16861:2020** (linhas e escrita) substitui a NBR 8403 (01/2021) e foi reconfirmada em 2025. Não confirmei se substitui a NBR 8402 [confirmar].
+  - Espessuras na série √2: 0,13 / 0,18 / 0,25 / 0,35 / 0,50 / 0,70 / 1,00 / 1,40 mm (série ISO 128; a tabela da 16861 não foi lida).
+- **Representação:**
+  - NBR 6492 (arquitetura; revisada em 2021? [confirmar]).
+  - NBR 16636-1/-2 (elaboração de projetos).
+  - Para estrutura de concreto, a **NBR 7191** (desenhos para obras de concreto simples ou armado) é a mais específica [confirmar o status].
+  - NBR 8196 (escalas 1, 2 e 5 × 10ⁿ).
+
+**Formatos e margens**
+- Folhas A0 841 × 1189, A1 594 × 841, A2 420 × 594, A3 297 × 420 e A4 210 × 297 mm. Acima do A4, em paisagem.
+- Margens pela 16752: esquerda 20 mm, demais 10 mm (fontes secundárias). **Diverge da skill local** (`pranchas-e-carimbo`: esquerda 25 mm pela antiga 10068). Deixar editável [confirmar].
+- Legenda no canto inferior direito, com 180 mm de largura nos formatos A0–A3 (fonte secundária; a 10068 usava 178 mm) [confirmar].
+- Dobra final em A4 com a legenda visível.
+
+**Campos da legenda**
+- Pela 16752, citada em questão de concurso: proprietário legal, título, número de identificação e responsável pelo conteúdo.
+- Da skill local:
+  - obra e endereço;
+  - contratante;
+  - responsável técnico com título, CREA, assinatura e ART;
+  - conteúdo da folha;
+  - escalas;
+  - data;
+  - revisão (R00…) com tabela de revisões;
+  - folha nº/total;
+  - logo.
+- Para estrutura, somar: fck, classe de agressividade, cobrimentos, aço, f_ck,j de desforma (se for o caso) e a nota "cotas em cm".
+
+**Hierarquia de penas** (da skill `normas-representacao`, adaptada a formas)
+- Corte (pilar e viga seccionados): 0,50–0,70 mm.
+- Vista (viga abaixo, contorno da laje): 0,25–0,35 mm.
+- Hachura e eixos: 0,13–0,18 mm.
+- Projeção: tracejado.
+- Eixos: traço-ponto.
+- Tamanhos de texto: título 5 mm, rótulos 2,5–3,5 mm, cotas 2,0–2,5 mm (hábito de mercado; não verificado na 16861).
+
+**Conteúdo mínimo**
+- Planta de formas por pavimento: pilares hachurados com nome e seção (P1 30×30), vigas com nome e seção (V1 15×50), lajes com nome, espessura e nível, cotas e eixos.
+- Cortes.
+- Quadro de pilares por lance.
+- Notas gerais.
+- Legenda.
+
+**Mercado (o que se observa nos produtos)**
+- TQS: troca de desenhos com o AutoCAD por DXF (documentação TQS); plotagem por tabela própria de penas. Nomes dos menus não verificados.
+- Eberick e CYPECAD exportam pranchas em DWG/DXF. A CYPE menciona escala, espessura de linha, fonte e carimbo configuráveis. A página do CYPECAD não cita PDF direto; parece sair por impressora PDF.
+- Prática comum: a espessura é dada **pela cor** (ACI) via CTB, e o programa exporta junto o CTB ou uma tabela cor→pena. O ideCAD faz exatamente isso.
+- Os detalhes de Eberick e TQS ficaram **não verificados**: os sites de suporte não abriram ou não apareceram na busca.
+
+### 4. Paper space × model space
+
+| | Layout (paper space com viewport em escala) | Folha "explodida" no model space |
+|---|---|---|
+| Geometria | Em escala real (m ou cm), mensurável e reaproveitável por quem recebe | Reduzida pela escala: a medida não é real, salvo com DIMLFAC |
+| Várias escalas na folha (planta 1:50 + detalhe 1:20) | Natural: um viewport por escala | Cada vista escalada à mão |
+| Carimbo e quadros | Em mm, no paper space | Em mm, misturados ao desenho |
+| Plotagem no AutoCAD | É o fluxo esperado: escolher o layout e plotar 1:1 com o CTB | Plotagem por janela, com risco de erro de escala |
+| Implementação | Exige LAYOUT, BLOCK_RECORD *Paper_Space, VIEWPORT, dicionários e handles; textos e cotas do model space dimensionados pela escala do viewport (2,5 mm × 50 = 0,125 m); camadas congeladas por viewport, se houver | Simples; serve até para R12 e para qualquer visualizador |
+| Visualizadores web e importadores | Alguns ignoram o paper space e mostram só o model | Sempre mostram tudo |
+| PDF | Em ambos o PDF é gerado em coordenadas de folha; o modelo intermediário serve aos dois | – |
+
+**Recomendação.** Desenho em model space em escala real, com cada pavimento ou corte deslocado numa região própria. Cada prancha vira um layout com o(s) viewport(s) na escala e o carimbo e os quadros no paper space. Deixar a opção "folha explodida em model space" para compatibilidade com R12, visualizadores simples e o caso de uma prancha por arquivo. O PDF sai do mesmo modelo intermediário, já em coordenadas de folha.
+
+### Recomendação final por prioridade
+
+**MVP**
+1. Um modelo intermediário de prancha (folha, viewports, entidades com camada, pena e tipo de linha, textos e carimbo), testado em vitest.
+2. Um **PDF vetorial próprio** com:
+   - folhas A0–A4;
+   - escala exata;
+   - espessura por pena;
+   - tracejado;
+   - hachura;
+   - Helvetica em WinAnsi;
+   - OCG por camada (barato de fazer à mão; entra se couber).
+3. **DXF R2000 próprio** com layouts, lineweight, LWPOLYLINE, HATCH, MTEXT e blocos. O DXF R12 atual fica para pórticos.
+4. Download de uma tabela de penas (cor → espessura) em texto, e de um CTB se for viável [confirmar o formato do CTB].
+
+**V2**
+1. **DWG** por **nasjidwg** (R2018, com R2000 como opção), mapeando o mesmo modelo intermediário.
+2. Testes de leitura cruzada com nasjidwg, acad-ts e LibreDWG WASM só nos testes. Pedir ao usuário que abra um arquivo de amostra no AutoCAD, BricsCAD ou ZWCAD e rode AUDIT.
+3. Se falhar, testar a acad-ts (+198 KB gz).
+4. Carregar só ao exportar: com o `vite-plugin-singlefile` o import dinâmico também fica embutido no HTML, então o custo de +74 KB gz é inevitável, a menos que se carregue de CDN e se perca o modo offline.
+
+**V3**
+1. Fonte TTF embutida com subconjunto no PDF (φ, Ø, ≥).
+2. Cotas como DIMENSION associativas.
+3. Congelamento de camadas por viewport.
+4. Lista de pranchas com numeração e revisões.
+5. Nuvem de revisão.
+6. Exportação em lote (ZIP).
+
+### [confirmar]
+- Margem esquerda de 20 mm (NBR 16752) ou 25 mm (NBR 10068 e skill local), e legenda de 180 ou 178 mm. Lista oficial dos campos da legenda na 16752.
+- Se a NBR 16752 substituiu a NBR 10068 e a NBR 13142. Se a NBR 16861 substituiu a NBR 8402. Status da NBR 7191 e da NBR 6492 (2021?).
+- Tabela de espessuras da NBR 16861 (assumida a série ISO 0,13…1,40) e alturas de texto.
+- Padrão de penas do escritório (cor ACI → espessura) e se o usuário quer um CTB.
+- Versão de DWG pedida pelos clientes (R2018 abre no AutoCAD 2018+; R2000 abre em tudo, mas o arquivo é mais antigo).
+- Teste real no AutoCAD/BricsCAD de um DWG gerado pela nasjidwg e pela acad-ts, incluindo se aparece o aviso de "arquivo não Autodesk".
+- Termos do EULA do ODA File Converter para uso comercial do engenheiro.
+- Formato da prancha: layout + viewport (recomendado) ou model space explodido. Unidade do model space (m, como no DXF atual, ou cm, como no TQS).
+- Fluxo observável de exportação no TQS e no Eberick (não verificado).
+
+### Fontes
+**Abriram:**
+- acad-ts: npm `@node-projects/acad-ts` (README no tarball); https://github.com/node-projects/acad-ts ; https://raw.githubusercontent.com/node-projects/acad-ts/master/docs/dwg-interoperability.md ; issue https://github.com/node-projects/acad-ts/issues/11
+- ACadSharp: https://github.com/DomCR/ACadSharp (README e LICENSE via raw); issues https://github.com/DomCR/ACadSharp/issues/1297 , /1253 , /1161 , /1261 , /1234
+- nasjidwg: npm `nasjidwg` (README, NOTICE e PROVENANCE no tarball); https://github.com/NASJI-Packages/nasjidwg ; issues /1 e /2
+- LibreDWG: https://raw.githubusercontent.com/LibreDWG/libredwg/master/README ; npm `@mlightcad/libredwg-web` (README: escrita desativada no build); https://github.com/mlightcad/libredwg-web
+- @isopodlabs/dwg (npm, README); dwgdxf (npm, README); @tarikjabiri/dxf (npm)
+- ODA: https://www.opendesign.com/node/3218 ; https://www.opendesign.com/pricing/individual ; https://www.opendesign.com/join (via resumo da busca)
+- jsPDF: npm `jspdf` 4.2.1; https://github.com/parallax/jsPDF/issues/693 ; https://github.com/parallax/jsPDF/issues/107
+- pdf-lib: npm `pdf-lib` 1.17.1; https://github.com/Hopding/pdf-lib/issues/907 ; fork npm `@pdfme/pdf-lib`
+- PDFKit: npm `pdfkit` 0.20.2. svg2pdf.js: npm `svg2pdf.js` 2.8.1, https://github.com/yWorks/svg2pdf.js
+- NBR 16752: https://www.target.com.br/produtos/normas-tecnicas/45083/nbr16752-desenho-tecnico-requisitos-para-apresentacao-em-folhas-de-desenho ; https://www.normas.com.br/visualizar/abnt-nbr-nm/11569/abnt-nbr16752-desenho-tecnico-requisitos-para-apresentacao-em-folhas-de-desenho ; https://normas.com.br/visualizar/abnt-nbr-nm/6119/abnt-nbr10582-apresentacao-da-folha-para-desenho-tecnico-procedimento ; https://www.vetorial.design.ufrn.br/src/pdfs/Normas.pdf ; https://edisciplinas.usp.br/pluginfile.php/7673832/mod_resource/content/1/Normas%20auxiliar%20folha.pdf ; https://questoes.grancursosonline.com.br/questoes-de-concursos/legislacao-dos-orgaos-nbr-16752-abnt-432581
+- NBR 16861 e 8403: https://www.target.com.br/produtos/normas-tecnicas/45484/nbr16861-desenho-tecnico-requisitos-para-representacao-de-linhas-e-escrita ; https://www.normas.com.br/visualizar/abnt-nbr-nm/5820/abnt-nbr8403-aplicacao-de-linhas-em-desenhos-tipos-de-linhas-larguras-das-linhas-procedimento
+- TQS (DXF como troca; DWG-TQS incompatível desde a V8): https://docs.tqs.com.br/Docs/PrintAllReport/3270 (via resumo da busca)
+- CYPECAD: https://info.cype.com/?p=246891 ; ideCAD (CTB exportado junto): https://help.idecad.com/ideCAD/transferring-pen-thickness-to-the-autocad
+- Plot styles no AutoCAD: https://help.autodesk.com/cloudhelp/2021/ENU/AutoCAD-LT/files/GUID-EB787C57-802E-4A61-8C55-EB70A69056CD.htm
+- Skills locais: /home/user/eng-studio/.claude/skills/pranchas-e-carimbo/SKILL.md e /home/user/eng-studio/.claude/skills/normas-representacao/SKILL.md
+
+**Não abriram ou não foram encontradas:**
+- api.npmjs.org (downloads): 403 do proxy.
+- API do GitHub para node-projects/acad-ts: sem acesso na sessão; usei o raw e a busca de issues.
+- docs.tqs.com.br: DNS falhou no WebFetch.
+- Suporte AltoQI/Eberick: nada encontrado.
+- Texto integral das NBR 16752, 16861 e 7191: pago, não lido.
+- EULA do ODA File Converter: não localizado.
+- Limites de `@page` do Chrome: nada oficial encontrado.
