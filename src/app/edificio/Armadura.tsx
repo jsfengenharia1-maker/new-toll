@@ -58,7 +58,7 @@ export function contarBloqueios(b: BuildingModel) {
 export const idsBloqueados = (b: BuildingModel) => new Set([...b.vigas.filter((v) => v.armadura).map((v) => v.id), ...b.pilares.filter((p) => p.armaduras?.length).map((p) => p.id)]);
 
 /** Executa o comando e recalcula (o dimensionamento mostrado passa a refletir a armadura aplicada). */
-async function executarERecalcular(nome: string, params: Record<string, unknown>) {
+export async function executarERecalcular(nome: string, params: Record<string, unknown>) {
   const { exec, calcular } = useBuilding.getState();
   const r = exec(nome, params);
   if (r.ok) await calcular();

@@ -4,12 +4,13 @@ import { useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { useRevisao } from './revisao';
-import { Button, download, Modal, Pill, Select, KV } from '../ui';
+import { Button, download, Modal, Pill, Select, Seg, KV } from '../ui';
 import { CODIGOS_REVISAO, classificar, type TipoRevisao } from '../../core/building/revisao';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { DimEdificio } from './calculo';
 import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
+import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -158,14 +159,21 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor }: { id: 
   );
 }
 
+function AbasViga({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; onChange: (a: 'resultados' | 'detalhamento') => void }) {
+  return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }]} />;
+}
+
 function JanelaViga({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
+  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const v = dim.vigas.find((x) => x.viga === id);
   if (!v) return <p className="muted">Viga sem resultado.</p>;
+  if (aba === 'detalhamento') return <><AbasViga aba={aba} onChange={setAba} /><DetalheDaViga id={id} /></>;
   const { pontos, determinantes: d } = v.envoltoria;
   const xs = pontos.map((p) => p.s), L = Math.max(v.L, xs.at(-1) ?? 0, 0.01);
   return (
     <>
+      <AbasViga aba={aba} onChange={setAba} />
       <p className="small">Envoltória das combinações ELU em todos os pavimentos do grupo, em faixas de 0,25 m. Momento positivo desenhado para baixo (lado tracionado); abscissa s ao longo do traçado.</p>
       {pontos.length === 0 ? <p className="muted">Sem envoltória (viga sem vãos dimensionados).</p> : (
         <>
@@ -190,6 +198,7 @@ function JanelaViga({ id }: { id: string }) {
       <h4>Mensagens</h4>
       <Mensagens msgs={v.mensagens} />
       <EditorArmaduraViga key={`${v.viga}|${v.bloqueada}|${JSON.stringify(v.arranjo)}`} v={v} />
+      <CopiarArmadura v={v} />
     </>
   );
 }

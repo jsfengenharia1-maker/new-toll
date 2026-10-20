@@ -22,6 +22,7 @@ import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
 import { CasosGrupo } from './Casos';
 import { BloqueioLote } from './Armadura';
+import { ResumoAco } from './Detalhamento';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
@@ -800,8 +801,9 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
                 {totQ && <tr><td className="tl"><b>Total</b></td><td colSpan={3} className="num"><b>{fmt(totQ.c)} m³</b></td><td className="num"><b>{fmt(totQ.f, 1)}</b></td><td className="num"><b>{fmt(totQ.a, 0)}</b></td></tr>}
               </tbody>
             </table>
-            <Hint>Aço por taxas (lajes {TAXAS.lajes}, vigas {TAXAS.vigas}, pilares {TAXAS.pilares} kg/m³; a confirmar). O detalhamento e a tabela de aço real vêm nas pranchas.</Hint>
+            <Hint>Aço por taxas (lajes {TAXAS.lajes}, vigas {TAXAS.vigas}, pilares {TAXAS.pilares} kg/m³; a confirmar). Para as vigas, o resumo de aço detalhado vem abaixo; a tabela de aço dos demais elementos vem nas pranchas.</Hint>
           </div>
+          <ResumoAco dim={dim} />
         </>
       )}
     </>

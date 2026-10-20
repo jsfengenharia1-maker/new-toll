@@ -566,3 +566,49 @@ svg.mono .hinge { fill: #fff !important; }
 .dg-eixo { stroke: var(--muted); stroke-width: 1; }
 .dg-area { fill: color-mix(in srgb, var(--dg) 20%, transparent); stroke: var(--dg); stroke-width: 1.5; }
 .dg-area.alt { stroke-dasharray: 5 3; fill: color-mix(in srgb, var(--dg) 10%, transparent); }
+
+/* detalhamento das vigas (frente R3a): elevação e seção esquemáticas; as cores seguem os tokens do tema */
+:root {
+  --det-contorno: var(--member);
+  --det-pilar: var(--axis);
+  --det-inf: var(--c-m);
+  --det-sup: var(--c-v);
+  --det-pele: var(--c-n);
+  --det-estribo: var(--muted);
+  --det-emenda: var(--warn);
+  --det-cota: var(--muted);
+  --det-esp-contorno: 1.6;
+  --det-esp-barra: 1.8;
+  --det-esp-estribo: 1;
+}
+.det { width: 100%; height: auto; display: block; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
+.det-secao { max-width: 360px; }
+.det-contorno { fill: var(--surface); stroke: var(--det-contorno); stroke-width: var(--det-esp-contorno); }
+.det-pilar { fill: color-mix(in srgb, var(--det-pilar) 28%, transparent); stroke: var(--det-pilar); stroke-width: 1; }
+.det-barra { fill: none; stroke-width: var(--det-esp-barra); stroke-linecap: round; stroke-linejoin: round; }
+.det-barra.inf { stroke: var(--det-inf); }
+.det-barra.sup { stroke: var(--det-sup); }
+.det-barra.pele { stroke: var(--det-pele); }
+.det-barra.montagem { stroke-dasharray: 9 3; }
+.det-fio { stroke: var(--det-estribo); stroke-width: var(--det-esp-estribo); }
+.det-estribo-zona { fill: color-mix(in srgb, var(--det-estribo) 35%, transparent); stroke: none; }
+.det-estribo-sec { fill: none; stroke: var(--det-estribo); stroke-width: 1.4; }
+.det-emenda { fill: color-mix(in srgb, var(--det-emenda) 22%, transparent); stroke: var(--det-emenda); stroke-width: 1; stroke-dasharray: 3 2; }
+.det-cota { stroke: var(--det-cota); stroke-width: 1; fill: none; }
+.det-pt { stroke: none; }
+.det-pt.inf { fill: var(--det-inf); }
+.det-pt.sup { fill: var(--det-sup); }
+.det-pt.pele { fill: var(--det-pele); }
+.det-txt { font: 9px var(--font-num); fill: var(--ink); paint-order: stroke; stroke: var(--surface-2); stroke-width: 3px; stroke-linejoin: round; }
+.det-txt.inf { fill: var(--det-inf); }
+.det-txt.sup { fill: var(--det-sup); }
+.det-txt.pele { fill: var(--det-pele); }
+.det-txt.cota { fill: var(--det-cota); }
+.det-txt.emenda { fill: var(--det-emenda); }
+.det-leg { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); }
+.det-leg i { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--muted); vertical-align: middle; margin-right: 4px; }
+.det-leg i.inf { border-color: var(--det-inf); }
+.det-leg i.sup { border-color: var(--det-sup); }
+.det-leg i.pele { border-color: var(--det-pele); }
+.det-leg i.estribo { border-top-width: 1px; border-color: var(--det-estribo); }
+.det-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }

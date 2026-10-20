@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
 | 4. Pilares | 63 | 16 | 23 | 17 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
-| 6. Vigas | 108 | 11 | 11 | 61 | 25 |
+| 6. Vigas | 108 | 11 | 15 | 57 | 25 |
 | 7. Lajes | 195 | 5 | 19 | 110 | 61 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,13 +22,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **79** | **103** | **402** | **179** |
+| **Total** | **763** | **79** | **107** | **398** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 22 | 75 | 97 |
+| R — Revisão de resultados e detalhamento | 26 | 71 | 97 |
 | N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -325,7 +325,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.30 | Capturas DXF/DWG (mais próximo, interseção, extremo, ponto médio etc.) ao marcar os pontos da viga, sem ajuste posterior. | Feito | — | capturas |
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
 | C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | R |  |
-| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Falta | R |  |
+| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a) |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Falta | R |  |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento |
@@ -369,9 +369,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.73 | Viga inclinada de aço: verificação de outros perfis da série. | Fora | — |  |
 | C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Falta | E |  |
 | C6.75 | Redimensionar os perfis das vigas inclinadas de aço (só maiores ou toda a série). | Fora | — |  |
-| C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Falta | R | copiar armadura entre pórticos |
-| C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Falta | R |  |
-| C6.78 | Condições para copiar: todos os vãos de concreto e do mesmo tipo (plana ↔ com altura sim, treliçada não), mesmo número de vãos, diferença de vão < 25 cm e desníveis coincidentes. Quando a cópia falha, uma mensagem dá o motivo. | Falta | R |  |
+| C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Parcial | R | comando viga.copiarArmadura e botão "Copiar para…" na janela da viga, para vigas do mesmo grupo (R3a) |
+| C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Parcial | R | a cópia leva nº e bitola inferior, superior e laterais e o estribo da armadura bloqueada; comprimentos saem do detalhamento (R3a) |
+| C6.78 | Condições para copiar: todos os vãos de concreto e do mesmo tipo (plana ↔ com altura sim, treliçada não), mesmo número de vãos, diferença de vão < 25 cm e desníveis coincidentes. Quando a cópia falha, uma mensagem dá o motivo. | Parcial | R | lista pré-marca vigas de mesma seção e nº de vãos; sem bloqueio nem mensagem por motivo (R3a) |
 | C6.79 | Copiar a armadura não iguala os desenhos: isso só acontece com geometria idêntica. | Falta | R |  |
 | C6.80 | Dimensionar as vigas de aço do pavimento a qualquer momento depois do cálculo, e testar outros perfis da série sem recalcular. | Fora | — |  |
 | C6.81 | Agrupar pórticos depois do cálculo, sem verificar as condições. Aviso com o motivo quando não é possível. | Falta | R | agrupar pórticos |

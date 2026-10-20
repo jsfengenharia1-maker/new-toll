@@ -863,4 +863,82 @@ export const flows = [
       assert.match(await page.locator('[data-bloqueadas]').innerText(), /0 vigas bloqueadas/);
     },
   },
+  {
+    name: 'R3a: detalhamento da viga (elevação, tabela de barras), resumo de aço com CSV e cópia de armadura',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const pronto = () => page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await pronto();
+      // resumo de aço: total > 0 e CSV
+      const resumo = page.locator('[data-resumo-aco]');
+      await resumo.waitFor();
+      const totalTxt = await resumo.locator('tr[data-total-aco] td.num').nth(1).innerText();
+      assert.ok(num(totalTxt) > 0, `peso total ${totalTxt}`);
+      assert.match(await resumo.innerText(), /Perdas de 10,0 %/);
+      const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
+      assert.match(csv.name, /\.csv$/);
+      assert.match(csv.text, /Resumo de aço das vigas/);
+      assert.match(csv.text, /Lista de barras/);
+      assert.match(csv.text, /;N1;Passante;/);
+      assert.match(csv.text, /Total;;/);
+      // janela da viga, aba Detalhamento
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      const nVigas = await cardVigas.locator('tbody tr').count();
+      assert.equal(nVigas, 4);
+      const nomes = [];
+      for (let i = 0; i < nVigas; i++) nomes.push((await cardVigas.locator('tbody tr').nth(i).locator('td').first().innerText()).trim());
+      await cardVigas.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const svg = jan.locator('svg[data-detalhe]');
+      await svg.waitFor();
+      const nb = parseInt(await svg.getAttribute('data-barras'), 10);
+      assert.ok(nb >= 2, `barras no desenho: ${nb}`);
+      assert.equal(await svg.locator('g[data-barra]').count(), nb);
+      assert.ok(parseInt(await svg.getAttribute('data-estribos'), 10) >= 1);
+      assert.match(await svg.innerHTML(), /N1 – \d+ φ[\d,]+ – C = \d+,\d\d/);
+      assert.ok(await svg.locator('rect[data-apoio]').count() >= 2);
+      const tabela = jan.locator('table[data-tabela-barras]');
+      assert.match(await tabela.innerText(), /N1/);
+      assert.match(await tabela.innerText(), /Passante/);
+      assert.match(await tabela.innerText(), /Estribo/);
+      assert.ok(await jan.locator('svg[data-secao]').count() === 1);
+      assert.ok(parseInt(await jan.locator('svg[data-secao]').getAttribute('data-barras-secao'), 10) >= 2);
+      assert.match(await jan.innerText(), /lb inferior \(boa aderência\)\s*\d+ cm/);
+      assert.match(await jan.innerText(), /lb superior\s*\d+ cm \((boa|má) aderência\)/);
+      assert.ok(await jan.locator('[data-avisos-det]').count() === 1);
+      // copiar armadura: bloqueia esta viga e copia para as outras
+      await jan.getByRole('radio', { name: 'Resultados e armadura' }).click();
+      assert.equal(await jan.locator('[data-copiar-armadura] button', { hasText: 'Copiar para…' }).count(), 0);
+      await jan.locator('[data-editor-armadura="viga"]').getByRole('button', { name: 'Aplicar e bloquear' }).click();
+      await pronto();
+      await jan.locator('[data-editor-armadura="viga"] [data-bloqueada]').waitFor();
+      await jan.getByRole('button', { name: 'Copiar para…' }).click();
+      const lista = jan.locator('[data-lista-copia]');
+      assert.equal(await lista.getByRole('checkbox').count(), 3);
+      for (let i = 0; i < 3; i++) assert.ok(await lista.getByRole('checkbox').nth(i).isChecked(), 'mesma seção e nº de vãos pré-marcadas');
+      await lista.getByRole('checkbox').nth(2).uncheck();
+      await lista.getByRole('button', { name: /^Copiar para 2 vigas$/ }).click();
+      await pronto();
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      assert.match(await page.locator('[data-bloqueadas]').innerText(), /3 vigas bloqueadas/);
+      assert.equal(await cardVigas.locator('td[data-bloq]', { hasText: 'bloq.' }).count(), 3);
+      // memorial: detalhamento das vigas e resumo de aço
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Detalhamento das vigas/);
+      assert.match(mt, /Resumo de aço das vigas/);
+      assert.match(mt, /detalhamento-vigas|Detalhamento\.\s*Vigas: armadura necessária/);
+      assert.match(mt, new RegExp(`Viga ${nomes[0]} —`));
+    },
+  },
 ];

@@ -85,3 +85,4 @@ html,body{background:var(--m-paper)!important}
 .memo figure svg{max-height:125mm;width:auto;max-width:100%}
 .memo p{orphans:3;widows:3}
 }
+.memo .avoid{break-inside:avoid}

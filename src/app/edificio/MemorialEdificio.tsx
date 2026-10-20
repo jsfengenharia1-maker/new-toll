@@ -19,6 +19,7 @@ import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
+import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, TIPO_BARRA } from './Detalhamento';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
@@ -181,6 +182,33 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <p><b>Torção</b> (17.5): {opc.verificarTorcao ? 'verificada em todas as vigas' : 'só nas vigas com torção de equilíbrio'}; treliça espacial com θ = 45°, seção vazada com he = A/u (ou 2c1 quando A/u &lt; 2c1; a confirmar), Ae e ue pela linha média; TRd2 = 0,5·αv2·fcd·Ae·he; A90/s = Td/(2·Ae·fywd), somada ao A90/s do cortante; Asl = Td·ue/(2·Ae·fyd), repartida pelo perímetro: a parte das faces superior e inferior é somada à armadura de flexão (absorvida pelas barras adotadas quando há folga) e a das faces laterais vai em barras próprias (φ8 a φ12,5, espaçamento até 20 cm), coluna “Laterais”; biela conjunta Vsd/VRd2 + Tsd/TRd2 ≤ 1.</p>
             <p><b>Fissuração</b> (17.3.3.2): combinação frequente; wk = menor de w1 e w2 com Acr simplificado (a confirmar); armadura aumentada até atender; vale para vigas e lajes maciças (nas lajes, faixa de 1 m, bitola adotada = menor de φ6,3 a φ16 com espaçamento ≥ 10 cm, até mín(2h; 20 cm); a confirmar); limite {opc.limiteFissura > 0 ? `${fmt(opc.limiteFissura, 2)} mm (opção)` : 'pela classe de agressividade (Tabela 13.4)'}.</p>
             <p>Flecha das vigas por vão entre pilares: rigidez de Branson em cada seção com a armadura calculada, curvatura integrada ao longo do vão, flecha total = imediata da combinação quase permanente × (1 + αf) com αf = Δξ(t0) = {fmt(deltaXi(opc.t0Flecha))} (t0 = {fmt(opc.t0Flecha)} mês, ρ′ = 0, a confirmar); limite ℓ/{opc.limiteFlechaTotal} (balanço: 2ℓ/{opc.limiteFlechaTotal}); carga variável (imediata) ≤ ℓ/{opc.limiteFlechaSensorial}.</p>
+            {dim.detalhes && dim.detalhes.length > 0 && (<>
+              {h2('Detalhamento das vigas')}
+              <p>Armadura longitudinal disposta pela envoltória das combinações ELU decalada de aℓ (NBR 6118, 17.4.2.2), com ancoragem por aderência (9.4) e emendas por traspasse (9.5.2); estribos por zonas. Quantidades e pesos por viga (um pavimento); o grupo repete a armadura nos pavimentos indicados. Desenhos nas pranchas e na janela de resultados da viga.</p>
+              {dim.detalhes.map((d) => (
+                <div key={d.viga} className="avoid">
+                  <h3>Viga {d.nome} — {d.repeticoes} {d.repeticoes === 1 ? 'pavimento' : 'pavimentos'}</h3>
+                  <table>
+                    <thead><tr><th>Pos.</th><th>Tipo</th><th>Face</th><th>Quant.</th><th>φ (mm)</th><th>Trecho s (m)</th><th>C unit. (m)</th><th>C total (m)</th><th>Peso (kg)</th></tr></thead>
+                    <tbody>
+                      {linhasBarras(d).map((x) => <tr key={x.pos}><td className="l">{x.pos}</td><td className="l">{TIPO_BARRA[x.tipo]}</td><td className="l">{FACE_BARRA[x.face]}</td><td>{x.n}</td><td>{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td>{fmt(x.s0)} a {fmt(x.s1)}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.total)}</td><td>{fmt(x.peso)}</td></tr>)}
+                      {linhasEstribos(d).map((z) => <tr key={z.pos}><td className="l">{z.pos}</td><td className="l">Estribo</td><td className="l">c/{Math.round(z.s * 100)} cm</td><td>{z.n}</td><td>{fmt(z.phi, z.phi % 1 ? 1 : 0)}</td><td>{fmt(z.s0)} a {fmt(z.s1)}</td><td>{fmt(z.comprimento)}</td><td>{fmt(z.total)}</td><td>{fmt(z.peso)}</td></tr>)}
+                      <tr><td className="l" colSpan={8}><b>Total de uma viga</b></td><td><b>{fmt(d.peso)}</b></td></tr>
+                    </tbody>
+                  </table>
+                  <p>lb inferior = {fmt(d.lb.inf * 100, 0)} cm (boa aderência); lb superior = {fmt(d.lb.sup * 100, 0)} cm ({d.lb.supBoaAderencia ? 'boa' : 'má'} aderência). {d.emendas.length ? `Emendas por traspasse: ${d.emendas.map((e) => `${FACE_BARRA[e.face]} em s = ${fmt(e.s)} m (l0 = ${fmt(e.l0 * 100, 0)} cm)`).join('; ')}.` : 'Sem emendas por traspasse.'}{d.avisos.length ? ` Avisos: ${d.avisos.join(' ')}` : ''}</p>
+                </div>
+              ))}
+              <h3>Resumo de aço das vigas</h3>
+              <table>
+                <thead><tr><th>Aço</th><th>φ (mm)</th><th>Comprimento (m)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+                <tbody>
+                  {(dim.resumoAcoVigas ?? []).map((x) => <tr key={`${x.aco}-${x.phi}`}><td className="l">{x.aco}</td><td>{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.peso)}</td><td>{fmt(x.pesoComPerdas)}</td></tr>)}
+                  <tr><td className="l" colSpan={2}><b>Total</b></td><td><b>{fmt((dim.resumoAcoVigas ?? []).reduce((t, x) => t + x.comprimento, 0))}</b></td><td><b>{fmt((dim.resumoAcoVigas ?? []).reduce((t, x) => t + x.peso, 0))}</b></td><td><b>{fmt((dim.resumoAcoVigas ?? []).reduce((t, x) => t + x.pesoComPerdas, 0))}</b></td></tr>
+                </tbody>
+              </table>
+              <p>Comprimentos já multiplicados pelas repetições dos grupos. Perdas de {fmt(perdasDoResumo(dim.resumoAcoVigas ?? []), 1)} % sobre o peso (opção "perdas de aço"); barra máxima de {fmt(opc.barraMaxima, 1)} m e arredondamento de {fmt(opc.arredondamento, 0)} cm (opções de cálculo).</p>
+            </>)}
             {h2('Dimensionamento dos pilares')}
             <table>
               <thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Nd (kN)</th><th>ℓe (b / h, m)</th><th>λ (b / h)</th><th>Armadura</th><th>Estribo</th><th>Vd (kN)</th><th>Uso</th><th>Situação</th></tr></thead>

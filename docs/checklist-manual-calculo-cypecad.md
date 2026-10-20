@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 27 | 18 | 34 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 27 | 21 | 31 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 31 | 12 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
@@ -21,23 +21,23 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 30 | 23 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 14 | 23 | 60 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 18 | 34 | 45 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 4 | 1 | 36 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **139** | **154** | **257** | **111** |
+| **Total** | **661** | **143** | **168** | **239** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 72 | 30 | 102 |
-| R — Revisão de resultados e detalhamento | 46 | 75 | 121 |
+| R — Revisão de resultados e detalhamento | 60 | 57 | 117 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **154** | **257** | **411** |
+| **Total** | **168** | **239** | **407** |
 
 ## Divergências de premissa
 
@@ -239,15 +239,15 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | R | taxas mínimas aplicadas; arranques e consolos não |
 | | **Vigas (listadas, sem valores)** | | | |
 | K1.4.63 | Armadura negativa simétrica em vigas de um vão; diferença % para simetria da negativa. | Falta | R | simetria da armadura negativa |
-| K1.4.64 | Critérios de ganchos; ganchos no fim do alinhamento. | Falta | R | ganchos |
-| K1.4.65 | Comprimento mínimo de estribos; simetria de estribos; estribos de bitolas diferentes na viga; ancoragem do fechamento; estribos em U; estribos múltiplos. | Parcial | R | estribo de 2 ramos φ5–φ12,5 pelo cálculo; sem simetria, zonas, estribos múltiplos |
+| K1.4.64 | Critérios de ganchos; ganchos no fim do alinhamento. | Parcial | R | ganchos de 90° nas pontas das barras (ponta 8φ, pino 5φ/8φ) e no fim do alinhamento; sem critérios configuráveis (R3a) |
+| K1.4.65 | Comprimento mínimo de estribos; simetria de estribos; estribos de bitolas diferentes na viga; ancoragem do fechamento; estribos em U; estribos múltiplos. | Parcial | R | estribos por zonas com espaçamento do cortante e da torção em cada ponto, comprimento mínimo ρsw,mín; sem simetria, bitolas por zona, estribos múltiplos ou em U (R3a) |
 | K1.4.66 | Armadura de vigas pré-moldadas (armadas e protendidas) e propriedades; estribos de vigas protendidas. | Falta | E | vigas pré-moldadas (NBR 9062) |
 | K1.4.67 | Detalhamento de vigas sísmicas. | Fora | — | sismo |
 | K1.4.68 | Cobrimentos superior, inferior e lateral; idem para vigas de fundação. | Parcial | N | cobrimento único das vigas; sem superior, inferior e lateral separados |
 | K1.4.69 | Avaliação de erros; numeração de pórticos e de vigas. | Parcial | L | renumeração automática de vigas (`viga.renumerar`); sem pórticos |
-| K1.4.70 | Considerar armadura de montagem; emenda de montagem em balanços. | Falta | R | armadura de montagem |
+| K1.4.70 | Considerar armadura de montagem; emenda de montagem em balanços. | Parcial | R | montagem superior de 2 barras (bitola das opções, φ8) corrida, com emenda no meio dos vãos; sem opção contínua/construtiva (R3a) |
 | K1.4.71 | Envoltória de cortante contínua ou descontínua (opção geral). | Falta | R | envoltória de cortante contínua/descontínua |
-| K1.4.72 | Armadura de cortante: disposição de armadura de pele, seção de verificação ao cortante (opção geral). | Falta | R | armadura de pele (NBR 6118 17.3.5.2.3) |
+| K1.4.72 | Armadura de cortante: disposição de armadura de pele, seção de verificação ao cortante (opção geral). | Parcial | R | armadura de pele (17.3.5.2.3, h > 60 cm) somada às laterais de torção, por face; seção de verificação do cortante pela opção cortanteApoio (R3a) |
 | K1.4.73 | Seleção de estribos (opção geral); fissuração (opção geral). | Parcial | R | estribo escolhido automaticamente; fissuração só no Pórtico 2D |
 | K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Falta | FU | vigas de fundação e cintas |
 | | **Lajes maciças, mistas e nervuradas (listadas)** | | | |
@@ -611,42 +611,42 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.1 | ELU de seções de concreto: diagrama parábola-retângulo (flexão composta: normal + momentos) e retangular (flexão simples), com diagramas tensão-deformação de concreto e aço da norma. | Feito | — | fibras com parábola-retângulo (pilares) e retangular simplificado (vigas) |
 | K1.12.2 | Limites de norma aplicados: taxas e densidades mín/máx de armadura, nº mínimo de barras, bitolas mínimas, espaçamentos mín/máx; parte editável nas opções, parte em arquivos internos. | Parcial | N | limites de armadura e espaçamento no código, não editáveis |
 | | **1.12.1 Vigas horizontais e inclinadas** | | | |
-| K1.12.3 | Flexão simples calculada em no mínimo 14 pontos por vão (vão delimitado pelos elementos que tocam a viga: vigotas, maciças, nervuradas). | Parcial | R | estações a cada 25 cm, mas um único par de máximos por viga |
-| K1.12.4 | Em cada ponto: armadura superior e inferior pela envoltória (tração/compressão conforme sinal), comparada às taxas mínimas de norma; prevalece a maior. | Parcial | R | As,mín por viga, não seção a seção |
+| K1.12.3 | Flexão simples calculada em no mínimo 14 pontos por vão (vão delimitado pelos elementos que tocam a viga: vigotas, maciças, nervuradas). | Feito | — | esforços em faixas de 0,25 m na envoltória e As necessária em grade de 5 cm ao longo do traçado (R3a) |
+| K1.12.4 | Em cada ponto: armadura superior e inferior pela envoltória (tração/compressão conforme sinal), comparada às taxas mínimas de norma; prevalece a maior. | Parcial | R | As superior e inferior seção a seção pela envoltória decalada; taxa mínima do cálculo por viga, a conferir ponto a ponto (R3a) |
 | K1.12.5 | Armadura calculada para envoltórias sísmica e não sísmica; adota a maior. | Fora | — | sismo |
-| K1.12.6 | Inferior: primeira disposição da tabela de positivos que supera a necessária; até 3 comprimentos de corte; tabelas definidas por largura e altura. | Parcial | R | `chooseBars` escolhe nº e φ; sem tabelas nem comprimentos de corte |
-| K1.12.7 | Tabela em 3 grupos (bitolas podem diferir): grupo 1 passante entre apoios, ancorado construtivamente (do eixo do apoio até a face oposta menos 3 cm), salvo quando o cálculo exige ancoragem menor a partir do eixo. | Falta | R | grupos de barras e ancoragem construtiva |
-| K1.12.8 | Tabelas padrão: grupo passante sempre > 1/3 ou 1/4 da armadura total; manter a proporção ao editar. | Falta | R | proporção de barras passantes |
+| K1.12.6 | Inferior: primeira disposição da tabela de positivos que supera a necessária; até 3 comprimentos de corte; tabelas definidas por largura e altura. | Parcial | R | arranjo de n e φ escolhido pelo cálculo e comprimentos de corte pelo diagrama decalado; sem tabelas de disposições (R3a) |
+| K1.12.7 | Tabela em 3 grupos (bitolas podem diferir): grupo 1 passante entre apoios, ancorado construtivamente (do eixo do apoio até a face oposta menos 3 cm), salvo quando o cálculo exige ancoragem menor a partir do eixo. | Parcial | R | passantes corridas entre as pontas (máx(2; n/3)) com ganchos; reforços cortados pelo diagrama; sem tabelas de 3 grupos (R3a) |
+| K1.12.8 | Tabelas padrão: grupo passante sempre > 1/3 ou 1/4 da armadura total; manter a proporção ao editar. | Parcial | R | passantes = máx(2; ⌈n/3⌉) do arranjo; proporção não configurável (R3a) |
 | K1.12.9 | Grupos 2 e 3 mais curtos, sempre simétricos, com comprimentos mínimos em % do vão (opções). | Falta | R | comprimentos mínimos dos grupos |
-| K1.12.10 | Grupo 1 sempre penetra ≥ 10 diâmetros a partir da face do apoio. | Falta | R | penetração mínima no apoio |
+| K1.12.10 | Grupo 1 sempre penetra ≥ 10 diâmetros a partir da face do apoio. | Parcial | R | reforços prolongados máx(lb; 10φ); ancoragem no apoio extremo verificada com aviso (R3a) |
 | K1.12.11 | Sem combinação na tabela: usa φ25 e aviso "inferior fora de tabela". | Parcial | R | aviso "não cabe na largura"; sem arranjo forçado |
-| K1.12.12 | Superior (inferior em vigas de fundação): primeira disposição da tabela de negativos acima da necessária; até 3 grupos de comprimentos com % mínimo por grupo nas opções. | Parcial | R | armadura superior por `chooseBars`, um arranjo por viga |
-| K1.12.13 | Armadura de montagem: contínua ou construtiva, suportando estribos; montagem contínua quando a armação é feita em oficina de apoio a apoio (negativos colocados na obra). | Falta | R | armadura de montagem |
-| K1.12.14 | Opção de considerar a montagem como colaborante (superior); se precisar de compressão superior, passa a colaborante. | Falta | R | montagem colaborante |
-| K1.12.15 | Ancoragem da montagem: gancho ou prolongamento reto, a partir do extremo ou do eixo (opções). | Falta | R | ancoragem da montagem |
+| K1.12.12 | Superior (inferior em vigas de fundação): primeira disposição da tabela de negativos acima da necessária; até 3 grupos de comprimentos com % mínimo por grupo nas opções. | Parcial | R | negativos por faixa de capacidade acima da montagem, prolongados máx(lb; 10φ); sem % mínimo por grupo (R3a) |
+| K1.12.13 | Armadura de montagem: contínua ou construtiva, suportando estribos; montagem contínua quando a armação é feita em oficina de apoio a apoio (negativos colocados na obra). | Parcial | R | montagem corrida colaborante, emendas no meio dos vãos; sem opção contínua/construtiva (R3a) |
+| K1.12.14 | Opção de considerar a montagem como colaborante (superior); se precisar de compressão superior, passa a colaborante. | Parcial | R | montagem de 2 barras sempre colaborante nos negativos; sem opção de ligar/desligar (R3a) |
+| K1.12.15 | Ancoragem da montagem: gancho ou prolongamento reto, a partir do extremo ou do eixo (opções). | Parcial | R | gancho de 90° nas pontas da montagem; sem opção de prolongamento reto (R3a) |
 | K1.12.16 | Seções T: barras adicionais para apoiar as pontas dos estribos na mesa. | Falta | R | barras de canto da seção T |
 | K1.12.17 | Montagem para porta-estribos entre extremos dos negativos, bitola pequena, emenda construtiva; útil em zona sísmica para afastar emendas dos nós. | Falta | R | porta-estribos |
 | K1.12.18 | Sem disposição na tabela: nº necessário de φ25 e aviso "fora de tabela" (montagem e adicional). | Parcial | R | aviso "não cabe na largura" |
-| K1.12.19 | Negativos que se encontram dos dois lados de um trecho viram montagem colaborante automaticamente. | Falta | R | negativos que viram montagem |
+| K1.12.19 | Negativos que se encontram dos dois lados de um trecho viram montagem colaborante automaticamente. | Parcial | R | negativos cobertos pela montagem colaborante não geram barras próprias (R3a) |
 | K1.12.20 | Dentro do apoio: altura variando linearmente (1/3) reduz a armadura; o máximo fica entre as faces, normalmente na face. | Fora | — | mísula fictícia: critério interno |
 | K1.12.21 | Vigas em pilares-parede/paredes: vão de cálculo = menor entre distância entre eixos (ou ponto médio do eixo da viga cruzada) e vão livre + 2 × altura; corte de barras não excede o vão de cálculo em mais de duas alturas. | Falta | E | vigas sobre pilares-parede e paredes |
-| K1.12.22 | Armadura de pele nas faces laterais quando a altura exige (critério nas opções), com bitola e espaçamento mínimos de norma. | Falta | R | armadura de pele (NBR 6118 17.3.5.2.3) |
+| K1.12.22 | Armadura de pele nas faces laterais quando a altura exige (critério nas opções), com bitola e espaçamento mínimos de norma. | Feito | — | pele 0,10 % de Ac por face (h > 60 cm), s ≤ mín(20 cm; d/3), somada às laterais de torção; corrida com emendas (R3a) |
 | K1.12.23 | Torção: após flexão, armadura longitudinal de torção por norma em cada seção; as barras de canto existentes absorvem o acréscimo se tiverem folga; senão aumenta a longitudinal e acrescenta barras laterais (como pele). | Feito | — | Asl de torção repartida: faces horizontais somadas à flexão (absorvida pelas barras com folga), laterais em barras próprias como pele (N1e) |
 | K1.12.24 | Compressão diagonal por torção + cortante verificada com a altura útil na borda do apoio, pelas fórmulas da norma. | Feito | — | biela conjunta Vsd/VRd2 + Tsd/TRd2 ≤ 1 (N1e) |
-| K1.12.25 | Corte de barras: diagrama de capacidade necessária deslocado de d + comprimento de ancoragem reduzido (lb × As,nec/As,ef), conforme posição de aderência (I boa, II má). | Falta | R | decalagem aℓ e corte de barras (NBR 6118 17.4.2.2 e 18.3.2.3) |
-| K1.12.26 | Comprimento máximo por zona para cada grupo no sentido em que o esforço decresce; opcionalmente ajustado a mínimos em % do vão e a múltiplos de 5 cm. | Falta | R | comprimentos por zona |
-| K1.12.27 | Extremos: ancoragem com gancho, calculando o comprimento da perna vertical, com mínimo das opções se definido. | Falta | R | ganchos nos extremos |
+| K1.12.25 | Corte de barras: diagrama de capacidade necessária deslocado de d + comprimento de ancoragem reduzido (lb × As,nec/As,ef), conforme posição de aderência (I boa, II má). | Parcial | R | diagrama decalado de aℓ + ancoragem lb (boa/má aderência por posição, 9.3.1); sem a redução lb·As,calc/As,ef (a favor da segurança) (R3a) |
+| K1.12.26 | Comprimento máximo por zona para cada grupo no sentido em que o esforço decresce; opcionalmente ajustado a mínimos em % do vão e a múltiplos de 5 cm. | Parcial | R | comprimentos por trecho arredondados a 5 cm (opção); sem mínimos em % do vão (R3a) |
+| K1.12.27 | Extremos: ancoragem com gancho, calculando o comprimento da perna vertical, com mínimo das opções se definido. | Parcial | R | gancho de 90° nas pontas, perna reta 8φ fixa; sem mínimo configurável (R3a) |
 | K1.12.28 | (Texto interrompido) Tratamento do positivo nos apoios intermediários — não lido. | Fora | — | trecho truncado; continua em K1.12.1-1 |
 | | **1.12.1 Vigas de concreto, continuação: armadura longitudinal e transversal, fissuração (págs. 81–84)** | | | |
-| K1.12.1-1 | Armadura inferior nos apoios (parágrafo iniciado na pág. 80): ancorada para os dois lados do eixo do apoio, com mínimo de 10 diâmetros contados da face do apoio. | Falta | R | ancoragem da armadura inferior nos apoios (NBR 6118 18.3.2.4) |
-| K1.12.1-2 | Comprimento máximo de barra configurável: se excedido, a barra é cortada e emendada por traspasse igual a 2× o comprimento máximo de ancoragem. | Falta | R | emendas por traspasse |
+| K1.12.1-1 | Armadura inferior nos apoios (parágrafo iniciado na pág. 80): ancorada para os dois lados do eixo do apoio, com mínimo de 10 diâmetros contados da face do apoio. | Parcial | R | ancoragem no apoio extremo verificada para Rst = (aℓ/d)·Vd com aviso; passantes atravessam os apoios (R3a) |
+| K1.12.1-2 | Comprimento máximo de barra configurável: se excedido, a barra é cortada e emendada por traspasse igual a 2× o comprimento máximo de ancoragem. | Feito | — | barra máxima configurável (padrão 12 m); excedida, corta e emenda por traspasse l0t = α0t·lb (Tabela 9.4, NBR 6118) em vez de 2× lb máx. (R3a) |
 | K1.12.1-3 | Opção para sismo: ancoragens e traspasses posicionados fora da zona de confinamento junto aos apoios. | Fora | — | sismo |
 | K1.12.1-4 | Cortante: verificação da compressão na biela (diagonal comprimida) na face do apoio direto. | Feito | — | VRd2 na envoltória de cortante (`beamShear`) |
 | K1.12.1-5 | Estribos dimensionados a partir da face do apoio ou, por opção, a partir de uma distância da face dada em % da altura útil d. | Feito | — | cortante a partir da face do pilar (padrão) mais distância em % de d, ou toda a parte flexível (opções cortanteApoio e cortanteDistancia, N1e) |
-| K1.12.1-6 | Configuração dos estribos: diâmetros e espaçamentos mínimos em função das dimensões da viga, distribuição simétrica ou não, diâmetros diferentes por zona da viga. | Falta | R | configuração de estribos |
+| K1.12.1-6 | Configuração dos estribos: diâmetros e espaçamentos mínimos em função das dimensões da viga, distribuição simétrica ou não, diâmetros diferentes por zona da viga. | Parcial | R | zonas com espaçamento exigido em cada ponto e espaçamentos máximos de norma; bitola única por viga, sem configuração (R3a) |
 | K1.12.1-7 | Tipos de estribo: simples (sempre envolvendo a seção inteira), duplo, triplo e grampos verticais abertos; estribos e grampos combináveis, até 2 ou 3 na mesma seção; tabelas editáveis pelo usuário. | Parcial | R | estribo simples de 2 ramos; sem múltiplos nem grampos |
-| K1.12.1-8 | Ordem de cálculo: primeiro o estribo mínimo normativo (função da seção e da tabela) e o trecho central que ele cobre na envoltória de cortante. | Parcial | R | ρw,mín aplicado; um só estribo por viga, sem zonas |
-| K1.12.1-9 | Zonas laterais (esquerda e direita): estribos necessários até os apoios, estendidos pelo comprimento necessário + d/2; confere se os comprimentos superam os mínimos configurados. | Falta | R | zonas de estribos até os apoios |
+| K1.12.1-8 | Ordem de cálculo: primeiro o estribo mínimo normativo (função da seção e da tabela) e o trecho central que ele cobre na envoltória de cortante. | Feito | — | estribo mínimo ρsw,mín e trecho central que ele cobre; zonas do cortante e da torção a partir dele (R3a) |
+| K1.12.1-9 | Zonas laterais (esquerda e direita): estribos necessários até os apoios, estendidos pelo comprimento necessário + d/2; confere se os comprimentos superam os mínimos configurados. | Parcial | R | estribos nas zonas entre pilares pelo espaçamento exigido; sem extensão de d/2 nem mínimos configuráveis (R3a) |
 | K1.12.1-10 | Torção: armadura transversal de torção com mínimos normativos (espaçamento máximo, estribo fechado), somada à de cortante; a disposição final (diâmetro, espaçamento, comprimento) cobre a soma. | Parcial | N | A90/s da torção somado ao do cortante no estribo da viga; mínimos pela rotina de estribos (N1e) |
 | K1.12.1-11 | Verificação conjunta da biela comprimida sob tensões tangenciais de cortante + torção. | Feito | — | biela conjunta de cortante e torção (N1e) |
 | K1.12.1-12 | Pilar que nasce em viga (sem ligação externa): estribos verticais pelo cortante na face de apoio desse trecho. | Falta | E | pilar que nasce em viga (transição: apoio fixo provisório) |
