@@ -41,22 +41,22 @@ const pesoLinear = (phi: number) => barArea(phi) * 7850;
 const arred = (x: number, passo: number) => Math.ceil(x / passo - 1e-9) * passo;
 
 /** Barras de um arranjo: total e por face (retangular), para os grampos. */
-function contagem(r: ResultadoPilar): { n: number; nb: number; nh: number; circ: boolean } {
+function contagem(r: ResultadoPilar): { n: number; nb: number; nh: number; nbS: number; nhD: number; circ: boolean } {
   const a = r.arranjo!;
-  if (a.n !== undefined) return { n: a.n, nb: 0, nh: 0, circ: true };
-  const nb = a.nb ?? 2, nh = a.nh ?? 2;
-  return { n: 2 * nb + 2 * (nh - 2), nb, nh, circ: false };
+  if (a.n !== undefined) return { n: a.n, nb: 0, nh: 0, nbS: 0, nhD: 0, circ: true };
+  const nb = a.nb ?? 2, nh = a.nh ?? 2, nbS = a.nbS ?? nb, nhD = a.nhD ?? nh;
+  return { n: nb + nbS + (nh - 2) + (nhD - 2), nb, nh, nbS, nhD, circ: false };
 }
 
 /** Grampos por estribo: barras intermediárias de cada face a mais de 20φt do canto mais próximo (NBR 6118, 18.2.4). */
-export function gramposPorEstribo(w: number, h: number, a: number, nb: number, nh: number, phiT: number): number {
+export function gramposPorEstribo(w: number, h: number, a: number, nb: number, nh: number, phiT: number, nbS = nb, nhD = nh): number {
   const lim = (20 * phiT) / 1000;
   const face = (L: number, n: number) => {
     let k = 0;
     for (let i = 1; i < n - 1; i++) { const x = ((L - 2 * a) * i) / (n - 1); if (Math.min(x, L - 2 * a - x) > lim + 1e-9) k++; }
     return k;
   };
-  return 2 * face(w, nb) + 2 * face(h, nh);
+  return face(w, nb) + face(w, nbS) + face(h, nh) + face(h, nhD);
 }
 
 export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[], op: OpcoesCalculo): DetalhePilar | null {
@@ -73,7 +73,7 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
   let np = 0;
   const igual = (i: number, j: number) => {
     const a = rs[i]!.arranjo!, z = rs[j]!.arranjo!, sa = secaoNoLance(p, ls[i].id), sz = secaoNoLance(p, ls[j].id);
-    return a.phi === z.phi && a.n === z.n && a.nb === z.nb && a.nh === z.nh && JSON.stringify(sa) === JSON.stringify(sz);
+    return a.phi === z.phi && a.n === z.n && a.nb === z.nb && a.nh === z.nh && a.nbS === z.nbS && a.nhD === z.nhD && JSON.stringify(sa) === JSON.stringify(sz);
   };
   // trechos de barras corridas: lances consecutivos iguais unidos enquanto couberem no limite de união
   let i = 0;
@@ -131,7 +131,7 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
     const ganchos = 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f);
     const comprimento = arred(s.tipo === 'circ' ? Math.PI * (s.d - 2 * cob) + Math.max(30 * f, 0.1) + ganchos : 2 * (w - 2 * cob) + 2 * (h - 2 * cob) + ganchos, passo);
     const aBar = cob + f + a.phi / 2000;
-    const grampos = cnt.circ ? 0 : gramposPorEstribo(w, h, aBar, cnt.nb, cnt.nh, e.phi);
+    const grampos = cnt.circ ? 0 : gramposPorEstribo(w, h, aBar, cnt.nb, cnt.nh, e.phi, cnt.nbS, cnt.nhD);
     const comprimentoGrampo = arred(Math.max(w, h) - 2 * cob + 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f), passo);
     return { phi: e.phi, s: e.s, n, comprimento, grampos, comprimentoGrampo };
   }

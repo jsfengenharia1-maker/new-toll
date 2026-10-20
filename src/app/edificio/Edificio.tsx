@@ -22,6 +22,7 @@ import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
 import { MateriaisGrupo } from './Materiais';
+import { TabelasGrupo } from './TabelasArmadura';
 import { VinculosGrupo } from './Vinculos';
 import { CasosGrupo } from './Casos';
 import { BloqueioLote } from './Armadura';
@@ -97,6 +98,7 @@ export function Edificio() {
         <CasosGrupo b={b} />
         <OpcoesGrupo b={b} />
         <MateriaisGrupo b={b} />
+        <TabelasGrupo b={b} />
         <VinculosGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>

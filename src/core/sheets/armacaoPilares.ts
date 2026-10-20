@@ -43,7 +43,15 @@ export function gruposDePilares(b: BuildingModel, dim: Dimensionamento): GrupoPi
 /** Barras da seção retangular (u ao longo de b, v ao longo de h) ou circular, a partir do arranjo. */
 function barrasSecao(w: number, h: number, a: number, circ: boolean, ar: NonNullable<ResultadoPilar['arranjo']>): [number, number][] {
   if (circ) { const n = ar.n ?? 6, r = w / 2 - a; return Array.from({ length: n }, (_, i) => [w / 2 + r * Math.cos((2 * Math.PI * i) / n), h / 2 + r * Math.sin((2 * Math.PI * i) / n)]); }
-  const nb = ar.nb ?? 2, nh = ar.nh ?? 2, out: [number, number][] = [];
+  const nb = ar.nb ?? 2, nh = ar.nh ?? 2, out: [number, number][] = [], nbS = ar.nbS ?? nb, nhD = ar.nhD ?? nh;
+  if (nbS !== nb || nhD !== nh) { // arranjo não simétrico: cada face com o seu número de barras
+    const fx = (n: number, i: number) => a + ((w - 2 * a) * i) / Math.max(1, n - 1), fy = (n: number, j: number) => a + ((h - 2 * a) * j) / Math.max(1, n - 1);
+    for (let i = 0; i < nb; i++) out.push([fx(nb, i), a]);
+    for (let i = 0; i < nbS; i++) out.push([fx(nbS, i), h - a]);
+    for (let j = 1; j < nh - 1; j++) out.push([a, fy(nh, j)]);
+    for (let j = 1; j < nhD - 1; j++) out.push([w - a, fy(nhD, j)]);
+    return out;
+  }
   for (let i = 0; i < nb; i++) { const u = a + ((w - 2 * a) * i) / Math.max(1, nb - 1); out.push([u, a], [u, h - a]); }
   for (let j = 1; j < nh - 1; j++) { const v = a + ((h - 2 * a) * j) / (nh - 1); out.push([a, v], [w - a, v]); }
   return out;

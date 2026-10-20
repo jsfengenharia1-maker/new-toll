@@ -31,6 +31,9 @@ function base() {
     ['caso.criar', { nome: 'Empuxo', natureza: 'G' }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
   expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
+  // R7a: uma tabela de vigas criada (para restaurar e remover) e a padrão dos estribos alterada
+  expect(s.executar('tabela.definir', { tipo: 'vigas', tabela: { id: 'so16', nome: 'Só φ16', linhas: [{ bAte: 999, hAte: 999, pos: { bitolas: [16], nMin: 2, camadas: 2 }, neg: { bitolas: [16], nMin: 2, camadas: 2 }, passante: 0.5 }] } }).ok).toBe(true);
+  expect(s.executar('tabela.definir', { tipo: 'estribos', tabela: { id: 'padrao', nome: 'Padrão', linhas: [{ bAte: 999, bitolas: [5, 6.3], sMin: 8, sMax: 20, ramos: [2, 4] }] } }).ok).toBe(true);
   expect(s.executar('viga.armadura', { id: s.modelo.vigas[1].id, inf: { n: 2, phi: 10 }, estribo: { phi: 5, s: 0.2 } }).ok).toBe(true);
   expect(s.executar('sondagem.criar', { nome: 'SP-01', x: 0, y: 0, nivelAgua: 6, leituras: [5, 8, 10, 12, 15, 18, 20, 25].map((N) => ({ N, solo: 'areia' })) }).ok).toBe(true);
   expect(s.executar('fundacao.terreno', { sigmaAdm: 250, estacas: [{ tipo: 'helice', D: 40, modo: 'informada', capacidade: 600 }] }).ok).toBe(true);
@@ -58,6 +61,8 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.armadura': (b) => ({ id: b.pilares[0].id, pavimento: lancesDoPilar(b, b.pilares[0])[0].id, phi: 12.5, ...(b.pilares[0].secao.tipo === 'circ' ? { n: 6 } : { nb: 3, nh: 2 }), estribo: { phi: 5, s: 0.15 } }),
   'viga.armadura': (b) => ({ id: b.vigas[0].id, inf: { n: 3, phi: 12.5 }, sup: { n: 2, phi: 10 }, estribo: { phi: 6.3, s: 0.15 }, laterais: { n: 1, phi: 8 } }),
   'armadura.desbloquear': () => ({ tipo: 'viga' }),
+  'tabela.definir': () => ({ tipo: 'pilares', tabela: { id: 'p25', nome: 'Pilares φ ≥ 16', bitolas: [16, 20, 25], espacamentos: [30, 20, 15], estribos: [{ phiAte: 20, phiT: 6.3, sMax: 15 }] } }),
+  'tabela.restaurar': () => ({ tipos: ['estribos'] }),
   'laje.armaduraVigotas': (b) => ({ ids: [b.lajes[1].id], inf: { n: 1, phi: 8 }, sup: { n: 2, phi: 6.3 } }),
   'viga.copiarArmadura': (b) => ({ de: b.vigas[1].id, para: [b.vigas[0].id] }),
   'materiais.definir': (b) => ({ fck: { pilar: 40, fundacao: 25 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60', fundacao: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 }, cobFundacao: 4 }),

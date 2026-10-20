@@ -66,6 +66,15 @@ export function LinhaElemento({ className, title, ir, abrir, children }: { class
   return <tr className={className} title={title} {...h}>{children}</tr>;
 }
 
+/** Abre o grupo Tabelas de armadura na tabela que o elemento usa (atalho dos erros FORA_TABELA e ARM_MANUAL). */
+function abrirTabela(b: BuildingModel, tipo: TipoRevisao, id: string, codigo: string, mensagem: string) {
+  const v = tipo === 'viga' ? b.vigas.find((x) => x.id === id) : undefined, p = tipo === 'pilar' ? b.pilares.find((x) => x.id === id) : undefined, l = tipo === 'laje' ? b.lajes.find((x) => x.id === id) : undefined;
+  const estribo = codigo === 'FORA_TABELA' && /\(estribos\)/.test(mensagem);
+  const alvo = tipo === 'viga' ? { tipo: estribo ? 'estribos' as const : 'vigas' as const, id: (estribo ? v?.tabelaEstribo : v?.tabela) ?? 'padrao' }
+    : tipo === 'pilar' ? { tipo: 'pilares' as const, id: p?.tabela ?? 'padrao' } : { tipo: 'lajes' as const, id: l?.tabela ?? 'padrao' };
+  usePlanta.getState().set({ tabelaFoco: { ...alvo, n: (usePlanta.getState().tabelaFoco?.n ?? 0) + 1 } });
+}
+
 // ---------------------------------------------------------------- lista de erros e avisos
 
 export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void }) {
@@ -73,6 +82,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
   const analise = useBuilding((s) => s.analise), dim = useBuilding((s) => s.dim);
   const [nivel, setNivel] = useState<'todos' | 'erro' | 'aviso'>('todos');
   const [tipo, setTipo] = useState<'todos' | TipoRevisao>('todos');
+  const modelo = useBuilding((s) => s.sessao.modelo);
   if (!analise && !dim) return null;
   const itens = rev.itens.filter((i) => (nivel === 'todos' || i.nivel === nivel) && (tipo === 'todos' || i.tipo === tipo));
   return (
@@ -99,7 +109,10 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
                       ir={() => el && onIr(el.tipo, el.id, i.pavimento)} abrir={() => el && abrirJanela({ ...el, pavimento: i.pavimento })}>
                       <td className="tl">{TIPO_TXT[i.tipo]} {i.nome}</td><td className="tl">{i.pavimento ?? '—'}</td>
                       <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}</td>
-                      <td>{el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}</td>
+                      <td>
+                        {el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}
+                        {el && /^(FORA_TABELA|ARM_MANUAL)/.test(i.codigo) && <button type="button" className="mini" data-atalho-tabela onClick={(e) => { e.stopPropagation(); abrirTabela(modelo, el.tipo, el.id, i.codigo, i.mensagem); }}>tabela</button>}
+                      </td>
                     </LinhaElemento>
                   );
                 })}

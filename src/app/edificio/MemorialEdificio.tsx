@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
 import { valorOpcaoTxt } from './OpcoesCalculo';
+import { descreverTabela, rotuloTabela, tabelasAlteradas } from '../../core/building/tabelasArmadura';
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, padraoDe, perfilDe, vinculosAlterados } from '../../core/building/opcoes';
 import { acoDe, cobrimentoFundacao, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, download, Spacer } from '../ui';
@@ -40,6 +41,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
+  const tabelas = useMemo(() => tabelasAlteradas(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
@@ -329,6 +331,17 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 <thead><tr><th className="l">Elemento</th><th className="l">Pavimento</th><th className="l">Nível</th><th className="l">Código</th><th className="l">Mensagem</th></tr></thead>
                 <tbody>{rev.itens.map((i, k) => <tr key={k}><td className="l">{i.tipo === 'obra' ? 'Obra' : `${i.tipo === 'viga' ? 'Viga' : i.tipo === 'pilar' ? 'Pilar' : 'Laje'} ${i.nome}`}</td><td className="l">{i.pavimento ?? '—'}</td><td className="l">{i.nivel}</td><td className="l">{i.codigo}</td><td className="l">{i.mensagem}</td></tr>)}</tbody>
               </table>
+            </>)}
+
+            {tabelas.length > 0 && (<>
+              {h2('Tabelas de armadura')}
+              <p>Tabelas de bitolas, espaçamentos e tipologias que o dimensionamento e o detalhamento podem usar; só as alteradas pelo projetista ou criadas por ele. As demais seguem a tabela de fábrica (todas as bitolas comerciais da NBR 7480, com os limites da NBR 6118). Tolerância de simetria da armadura dos pilares: {opcoesEmUso(b.opcoes, perfil).pilarSimetria >= 1000 ? 'sempre simétrica' : `${String(opcoesEmUso(b.opcoes, perfil).pilarSimetria).replace('.', ',')} %`}.</p>
+              {tabelas.map((x, k) => (
+                <div key={k}>
+                  <p><b>{rotuloTabela(x)}</b> (id {x.tabela.id}). Elementos que a usam: {x.tabela.id === 'padrao' ? 'todos sem tabela própria' : `${[...b.vigas.filter((v) => v.tabela === x.tabela.id || v.tabelaEstribo === x.tabela.id), ...b.pilares.filter((p) => p.tabela === x.tabela.id), ...b.lajes.filter((l) => l.tabela === x.tabela.id)].map((e) => e.nome).join(', ') || 'nenhum'}`}.</p>
+                  <ul>{descreverTabela(x.tipo, x.tabela).map((l, i) => <li key={i}>{l}</li>)}</ul>
+                </div>
+              ))}
             </>)}
 
             {bloqueadasMemo.length > 0 && (<>
