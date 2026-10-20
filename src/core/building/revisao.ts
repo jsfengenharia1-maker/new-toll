@@ -71,6 +71,11 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_VIGA_SECAO', nivel: 'aviso', re: /^Viga de fundação: seção abaixo do mínimo/, descricao: 'Viga de fundação com seção abaixo da mínima' },
   { codigo: 'FUND_VIGA_SEM_EXC', nivel: 'aviso', re: /^Viga de fundação: viga de equilíbrio sem ponta excêntrica/, descricao: 'Viga de equilíbrio sem elemento excêntrico (calculada como travamento)' },
   { codigo: 'FUND_CARGA_FORA', nivel: 'aviso', re: /^Carga no nível de fundação fora/, descricao: 'Carga do nível de fundação fora das vigas e elementos (ignorada)' },
+  // sapatas associadas, blocos com vários pilares, limites e igualar (FU3)
+  { codigo: 'FUND_SOBREPOSTA', nivel: 'aviso', re: /^Fundação sobreposta/, descricao: 'Elementos de fundação sobrepostos em planta (una as sapatas)' },
+  { codigo: 'FUND_LIMITE_IGNORADO', nivel: 'aviso', re: /^Limite .* ignorado/, descricao: 'Limite de fundação ignorado (corta pilar, isola pilar ou sapata de altura variável)' },
+  { codigo: 'FUND_IGUAL_MODELO', nivel: 'erro', re: /^Fundação igualada a /, descricao: 'Fundação igualada a um modelo inexistente ou sem solução' },
+  { codigo: 'FUND_VIGA_CRUZA', nivel: 'aviso', re: /^Viga de fundação: .* cruza /, descricao: 'Viga de fundação apoiada em outra no cruzamento (apoio intermediário)' },
   // avisos da análise (obra)
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },

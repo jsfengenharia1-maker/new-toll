@@ -1,15 +1,25 @@
 // Blocos de coroamento rígidos sobre 1 a 6 estacas — método das bielas e tirantes (Blévot; NBR 6118, item 22.7).
 // Disposições iguais às de piles.ts (blockCoords). Unidades: kN, m; tensões em MPa.
-import { concrete } from './concrete';
+import { barArea, concrete } from './concrete';
 import { anchorageLength, bandBars, bestBars, ceil05, spacedBars, type BarSet } from './rebar';
 import type { FoundationParams } from './piles';
+
+/** Pilar de um bloco com vários pilares: centro relativo ao centro do estaqueamento (m), seção e carga característica (kN) da combinação de projeto. */
+export interface CapCol { label: string; x: number; y: number; ap: number; bp: number; Nk: number }
 
 export interface CapInput {
   n: number; coords: [number, number][]; D: number; s: number;
   Nk: number; Mx: number; My: number; // característicos no topo do bloco
   ap: number; bp: number; // pilar (m), ap ao longo de x
   WbAssumed?: number; // peso do bloco adotado na distribuição das cargas (kN)
+  /** Vários pilares (FU3): bielas e tirantes por pilar, com as estacas pela resultante. */
+  cols?: CapCol[];
+  /** Dimensões impostas (m): o bloco só é verificado. `bars`: φ (mm) e n barras por tirante (direção x, y ou oblíqua). */
+  fixed?: { lx: number; ly: number; h: number; bars?: { phi: number; n: number } };
 }
+
+/** Biela de um pilar a uma estaca (bloco com vários pilares). */
+export interface CapStrut { col: number; pile: number; F: number; top: [number, number]; arm: number; theta: number }
 
 export interface CapTie {
   a: number; b: number; // índices das estacas
@@ -35,6 +45,10 @@ export interface CapResult {
   skin?: { AsFace: number; bars: BarSet | null };
   stirrups?: { aswS: number; phi: number; s: number; legs: number };
   susp: { need: boolean; AsTot: number };
+  /** Bloco com vários pilares: bielas por pilar e a verificação de cada pilar. */
+  multi?: { struts: CapStrut[]; cols: { label: string; Nd: number; NdEq: number; sigma: number; thetaMin: number; ok: boolean }[]; residuo: number };
+  /** Dimensões impostas (só verificadas). */
+  fixed?: boolean;
   single?: { a: number; Rst: [number, number]; As: [number, number]; bars: [BarSet | null, BarSet | null]; colLim: number; colSigma: number; pileLim: number; pileSigma: number };
   ok: boolean; messages: string[];
 }
@@ -111,10 +125,22 @@ export function designCap(inp: CapInput, p: FoundationParams): CapResult {
   let lx = Math.max(...xs) - Math.min(...xs) + D + 2 * p.capEdge;
   let ly = Math.max(...ys) - Math.min(...ys) + D + 2 * p.capEdge;
   lx = Math.max(ceil05(lx), ceil05(ap + 0.1)); ly = Math.max(ceil05(ly), ceil05(bp + 0.1));
+  const cols = inp.cols && inp.cols.length > 1 ? inp.cols : null;
+  if (cols) {
+    // o bloco cobre todos os pilares (centrado no estaqueamento)
+    lx = Math.max(lx, ceil05(2 * Math.max(...cols.map((q) => Math.abs(q.x) + q.ap / 2)) + 0.1));
+    ly = Math.max(ly, ceil05(2 * Math.max(...cols.map((q) => Math.abs(q.y) + q.bp / 2)) + 0.1));
+  }
+  const fx = inp.fixed;
+  if (fx) {
+    if (fx.lx < Math.max(...xs) - Math.min(...xs) + D - 1e-9) messages.push(`Bloco imposto ${fx.lx.toFixed(2)} m menor que o estaqueamento (${(Math.max(...xs) - Math.min(...xs) + D).toFixed(2)} m em x).`);
+    if (fx.ly < Math.max(...ys) - Math.min(...ys) + D - 1e-9) messages.push(`Bloco imposto ${fx.ly.toFixed(2)} m menor que o estaqueamento (${(Math.max(...ys) - Math.min(...ys) + D).toFixed(2)} m em y).`);
+    lx = fx.lx; ly = fx.ly;
+  }
 
   if (n === 1) {
     const a = Math.max(lx, ly);
-    const h = ceil05(Math.max(p.cap1Ratio * a, lbCol + p.cover));
+    const h = fx?.h ? fx.h : ceil05(Math.max(p.cap1Ratio * a, lbCol + p.cover));
     const Rst: [number, number] = [0.25 * Nd * Math.max(0, a - ap) / a, 0.25 * Nd * Math.max(0, a - bp) / a];
     const As: [number, number] = [Rst[0] / 1000 / fyd, Rst[1] / 1000 / fyd];
     // estribos horizontais fechados (2 ramos por direção) distribuídos na altura
@@ -140,31 +166,103 @@ export function designCap(inp: CapInput, p: FoundationParams): CapResult {
     };
   }
 
-  const tops = strutTops(coords, ap, bp);
-  const arms = coords.map(([x, y], i) => (tops[i] ? Math.hypot(x - tops[i]![0], y - tops[i]![1]) : 0));
-  const outer = arms.filter((v) => v > 1e-9);
+  // bielas: cada uma de um pilar a uma estaca; pilar único: a estaca mais carregada em todas (Nd,eq = n·Rd)
+  const sz = coords.length;
+  type Strut = { col: number; pile: number; F: number; top: [number, number] | null; arm: number };
+  let struts: Strut[];
+  let colDims: { ap: number; bp: number; label: string; Nd: number; NdEq: number }[];
+  if (!cols) {
+    const t0 = strutTops(coords, ap, bp);
+    struts = coords.map(([x, y], j) => ({ col: 0, pile: j, F: Rd, top: t0[j], arm: t0[j] ? Math.hypot(x - t0[j]![0], y - t0[j]![1]) : 0 }));
+    colDims = [{ ap, bp, label: '', Nd, NdEq }];
+  } else {
+    // cargas dos pilares (ELU) levadas às estacas por ajuste bi-proporcional ao inverso do quadrado da distância,
+    // com as reações das estacas R (momentos em módulo) e os pilares escalados para o mesmo total (a confirmar)
+    const Nc = cols.map((q) => gf * q.Nk), somaN = Nc.reduce((a, v) => a + v, 0), somaR = R.reduce((a, v) => a + v, 0);
+    const Nesc = Nc.map((v) => (v * somaR) / somaN);
+    const w = cols.map((q) => coords.map(([x, y]) => 1 / ((q.x - x) ** 2 + (q.y - y) ** 2 + 0.0625) ** 2));
+    for (let it = 0; it < 200; it++) {
+      for (let i = 0; i < cols.length; i++) { const t = w[i].reduce((a, v) => a + v, 0); w[i] = w[i].map((v) => (v * Nesc[i]) / t); }
+      for (let j = 0; j < sz; j++) { const t = w.reduce((a, r) => a + r[j], 0); for (let i = 0; i < cols.length; i++) w[i][j] = (w[i][j] * R[j]) / t; }
+    }
+    struts = [];
+    cols.forEach((q, i) => {
+      // bielas pequenas (< 5 % da carga do pilar) somam-se às demais do pilar
+      const usadas = coords.map((_, j) => j).filter((j) => w[i][j] >= 0.05 * Nesc[i]);
+      const mant = usadas.reduce((a, j) => a + w[i][j], 0);
+      for (const j of usadas) w[i][j] = (w[i][j] * Nesc[i]) / mant;
+      const rel = usadas.map((j) => [coords[j][0] - q.x, coords[j][1] - q.y] as [number, number]);
+      const tp = strutTops(rel, q.ap, q.bp);
+      usadas.forEach((j, k) => {
+        const top: [number, number] | null = tp[k] ? [q.x + tp[k]![0], q.y + tp[k]![1]] : null;
+        struts.push({ col: i, pile: j, F: w[i][j], top, arm: top ? Math.hypot(coords[j][0] - top[0], coords[j][1] - top[1]) : 0 });
+      });
+    });
+    colDims = cols.map((q, i) => ({ ap: q.ap, bp: q.bp, label: q.label, Nd: Nc[i], NdEq: Nesc[i] }));
+  }
+  const outer = struts.filter((q) => q.arm > 1e-9);
   const tmin = (p.capThetaMin * Math.PI) / 180, tmax = (p.capThetaMax * Math.PI) / 180;
-  const dMin = Math.max(...outer) * Math.tan(tmin), dMax = Math.min(...outer) * Math.tan(tmax);
+  const dMin = Math.max(...outer.map((q) => q.arm)) * Math.tan(tmin), dMax = Math.min(...outer.map((q) => q.arm)) * Math.tan(tmax);
   const dPrime = Math.max(p.capDprime, (0.886 * D) / 5);
   const dReq = Math.max(dMin, lbCol);
-  const h = ceil05(dReq + dPrime);
+  const h = fx?.h ? fx.h : ceil05(dReq + dPrime);
   const d = h - dPrime;
   if (d > dMax + 1e-9) messages.push(`d = ${d.toFixed(2)} m > ${dMax.toFixed(2)} m: biela mais inclinada que ${p.capThetaMax}°${lbCol > dMin ? ' (altura governada pela ancoragem das barras do pilar)' : ''}.`);
-  const theta = arms.map((L) => (L > 1e-9 ? (Math.atan(d / L) * 180) / Math.PI : 90));
-  const thOuter = theta.filter((_, i) => arms[i] > 1e-9);
+  if (fx?.h && d < dMin - 1e-9) messages.push(`Bloco imposto: d = ${d.toFixed(2)} m < ${dMin.toFixed(2)} m — biela com inclinação menor que ${p.capThetaMin}°.`);
+  const thetaOf = (q: Strut) => (q.arm > 1e-9 ? (Math.atan(d / q.arm) * 180) / Math.PI : 90);
+  // por estaca: menor inclinação das bielas que chegam; arm e topo da biela mais carregada
+  const theta = coords.map((_, j) => Math.min(90, ...struts.filter((q) => q.pile === j).map(thetaOf)));
+  const arms = coords.map((_, j) => { const q = struts.filter((u) => u.pile === j).sort((a, b) => b.F - a.F)[0]; return q ? q.arm : 0; });
+  const tops = coords.map((_, j) => { const q = struts.filter((u) => u.pile === j).sort((a, b) => b.F - a.F)[0]; return q ? q.top : null; });
+  const thOuter = outer.map(thetaOf);
   const thetaMin = Math.min(...thOuter), thetaMax = Math.max(...thOuter);
   const sin2 = (deg: number) => Math.sin((deg * Math.PI) / 180) ** 2;
   const sigmaLim = K * KR * fcd;
-  const strutCol = NdEq / 1000 / (ap * bp * sin2(thetaMin));
-  const strutPile = Math.max(...theta.map((t) => Rd / 1000 / (Ae * sin2(t))));
-  if (strutCol > sigmaLim) messages.push(`Biela junto ao pilar: ${strutCol.toFixed(1)} MPa > ${sigmaLim.toFixed(1)} MPa. Aumente o pilar, o fck ou a altura.`);
+  let strutCol: number, strutPile: number;
+  let multi: CapResult['multi'];
+  if (!cols) {
+    strutCol = NdEq / 1000 / (ap * bp * sin2(thetaMin));
+    strutPile = Math.max(...theta.map((t) => Rd / 1000 / (Ae * sin2(t))));
+  } else {
+    const porCol = colDims.map((cd, i) => {
+      const th = Math.min(90, ...struts.filter((q) => q.col === i).map(thetaOf));
+      const sigma = cd.NdEq / 1000 / (cd.ap * cd.bp * sin2(th));
+      return { label: cd.label, Nd: cd.Nd, NdEq: cd.NdEq, sigma, thetaMin: th, ok: sigma <= sigmaLim + 1e-9 };
+    });
+    strutCol = Math.max(...porCol.map((q) => q.sigma));
+    strutPile = Math.max(...coords.map((_, j) => Math.max(R[j], struts.filter((q) => q.pile === j).reduce((a, q) => a + q.F, 0)) / 1000 / (Ae * sin2(theta[j]))));
+    multi = { struts: struts.map((q) => ({ col: q.col, pile: q.pile, F: q.F, top: q.top ?? [cols[q.col].x, cols[q.col].y], arm: q.arm, theta: thetaOf(q) })), cols: porCol, residuo: 0 };
+    const ruim = porCol.find((q) => !q.ok);
+    if (ruim) messages.push(`Biela junto ao pilar ${ruim.label}: ${ruim.sigma.toFixed(1)} MPa > ${sigmaLim.toFixed(1)} MPa. Aumente o pilar, o fck ou a altura.`);
+  }
+  if (!cols && strutCol > sigmaLim) messages.push(`Biela junto ao pilar: ${strutCol.toFixed(1)} MPa > ${sigmaLim.toFixed(1)} MPa. Aumente o pilar, o fck ou a altura.`);
   if (strutPile > sigmaLim) messages.push(`Biela junto à estaca: ${strutPile.toFixed(1)} MPa > ${sigmaLim.toFixed(1)} MPa. Aumente o diâmetro da estaca ou o fck.`);
 
-  // tirantes: força horizontal das bielas com a estaca mais carregada em todas (Nd,eq = n·Rd)
-  const hv: [number, number][] = coords.map(([x, y], i) => (tops[i] ? [(Rd * (x - tops[i]![0])) / d, (Rd * (y - tops[i]![1])) / d] : [0, 0]));
+  // tirantes: força horizontal das bielas em cada estaca (pilar único: a estaca mais carregada em todas)
+  const hv: [number, number][] = coords.map(([x, y], j) => {
+    let hx = 0, hy = 0;
+    for (const q of struts) if (q.pile === j && q.top) { hx += (q.F * (x - q.top[0])) / d; hy += (q.F * (y - q.top[1])) / d; }
+    return [hx, hy];
+  });
   const edges = CAP_TIES[n] ?? [];
   const T = solveTies(coords, edges, hv);
+  if (multi) {
+    // resíduo do equilíbrio horizontal dos nós pelos tirantes (kN): a malha de tirantes é fixa por nº de estacas
+    const res = hv.map(([hx, hy], j) => {
+      let rx = hx, ry = hy;
+      edges.forEach(([a, b], e) => {
+        const dx = coords[b][0] - coords[a][0], dy = coords[b][1] - coords[a][1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+        if (a === j) { rx += T[e] * ux; ry += T[e] * uy; }
+        if (b === j) { rx -= T[e] * ux; ry -= T[e] * uy; }
+      });
+      return Math.hypot(rx, ry);
+    });
+    multi.residuo = Math.max(...res);
+    const tot = hv.reduce((a, [hx, hy]) => a + Math.hypot(hx, hy), 0);
+    if (tot > 0 && multi.residuo > 0.1 * tot / sz) messages.push(`Equilíbrio horizontal dos tirantes aproximado (resíduo ${multi.residuo.toFixed(0)} kN): verifique a disposição pilares × estacas.`);
+  }
   const band = p.capBand * D;
+  let impOk = true;
   const lb = (phi: number) => anchorageLength(phi, c, fyd);
   const ties: CapTie[] = edges.map(([a, b], e) => {
     const dx = coords[b][0] - coords[a][0], dy = coords[b][1] - coords[a][1], L = Math.hypot(dx, dy);
@@ -173,10 +271,17 @@ export function designCap(inp: CapInput, p: FoundationParams): CapResult {
     if (T[e] < -1e-6) messages.push(`Tirante ${a + 1}–${b + 1} comprimido no modelo (${T[e].toFixed(1)} kN): revisar.`);
     const As = Te / 1000 / fyd;
     const options = bandBars(As, band, p.dmax);
-    const bars = bestBars(options.filter((o) => o.phi >= 10).length ? options.filter((o) => o.phi >= 10) : options);
+    let bars = bestBars(options.filter((o) => o.phi >= 10).length ? options.filter((o) => o.phi >= 10) : options);
+    if (fx?.bars && As > 0) {
+      // armadura imposta: n barras φ por tirante; só verificada
+      const Aprov = fx.bars.n * barArea(fx.bars.phi);
+      if (Aprov < As - 1e-9) { impOk = false; messages.push(`Armadura imposta insuficiente no tirante ${a + 1}–${b + 1}: ${fx.bars.n}φ${String(fx.bars.phi).replace('.', ',')} = ${(Aprov * 1e4).toFixed(2)} cm² < ${(As * 1e4).toFixed(2)} cm² necessários.`); }
+      bars = { phi: fx.bars.phi, n: fx.bars.n, As: Aprov, spacing: fx.bars.n > 1 ? (band - fx.bars.phi / 1000) / (fx.bars.n - 1) : 0 };
+    }
     const lbAvail = D + p.capEdge - p.cover;
     const lbNec = bars ? Math.max(0.7 * lb(bars.phi) * (As / bars.As), 0.3 * lb(bars.phi), (10 * bars.phi) / 1000, 0.1) : 0;
-    if (!bars) messages.push(`Tirante ${a + 1}–${b + 1}: As = ${(As * 1e4).toFixed(2)} cm² não cabe na faixa de ${(band * 100).toFixed(0)} cm.`);
+    if (!bars && As <= 1e-9) { /* tirante descarregado (bloco com vários pilares): sem armadura calculada */ }
+    else if (!bars) messages.push(`Tirante ${a + 1}–${b + 1}: As = ${(As * 1e4).toFixed(2)} cm² não cabe na faixa de ${(band * 100).toFixed(0)} cm.`);
     else if (lbNec > lbAvail + 1e-9) messages.push(`Tirante ${a + 1}–${b + 1}: ancoragem com gancho ${(lbNec * 100).toFixed(0)} cm > ${(lbAvail * 100).toFixed(0)} cm disponíveis além da face interna da estaca.`);
     return { a, b, T: Te, As, dir, options, bars, lbNec, lbAvail };
   });
@@ -203,6 +308,7 @@ export function designCap(inp: CapInput, p: FoundationParams): CapResult {
   const susp = { need: suspNeed, AsTot: suspNeed ? Nd / 1000 / (1.5 * n * fyd) : 0 };
   const volume = lx * ly * h, weight = 25 * volume;
   if (inp.WbAssumed !== undefined && weight > inp.WbAssumed + 1e-6) messages.push(`Peso real do bloco (${weight.toFixed(0)} kN) maior que o adotado na distribuição (${inp.WbAssumed.toFixed(0)} kN): aumente o % de peso do bloco.`);
-  const ok = strutCol <= sigmaLim + 1e-9 && strutPile <= sigmaLim + 1e-9 && ties.every((t) => t.bars);
-  return { n, lx, ly, h, d, dPrime, volume, weight, WbAssumed: inp.WbAssumed, Nd, NdEq, Rd, R, K, KR, fcd, sigmaLim, strutCol, strutPile, theta, thetaMin, thetaMax, arms, tops, dMin, dMax, lbCol, ties, mesh, top, skin, stirrups, susp, ok, messages };
+  const impGeom = !fx || ((!fx.h || (d >= dMin - 1e-9 && d <= dMax + 1e-9)) && lx >= Math.max(...xs) - Math.min(...xs) + D - 1e-9 && ly >= Math.max(...ys) - Math.min(...ys) + D - 1e-9);
+  const ok = strutCol <= sigmaLim + 1e-9 && strutPile <= sigmaLim + 1e-9 && ties.every((t) => t.bars || t.As <= 1e-9) && impOk && impGeom && !(multi && multi.cols.some((q) => !q.ok));
+  return { n, lx, ly, h, d, dPrime, volume, weight, WbAssumed: inp.WbAssumed, Nd, NdEq, Rd, R, K, KR, fcd, sigmaLim, strutCol, strutPile, theta, thetaMin, thetaMax, arms, tops, dMin, dMax, lbCol, ties, mesh, top, skin, stirrups, susp, ...(multi ? { multi } : {}), ...(fx ? { fixed: true } : {}), ok, messages };
 }

@@ -2,9 +2,9 @@
 // Planta pela tensão admissível do solo (informada ou estimada pelo SPT), base sem tração (área comprimida),
 // altura rígida h ≥ (a − ap)/3, flexão pelo CEB-70 (padrão) ou bielas (Lebelle), punção nas flexíveis.
 // x ao longo de A (lado do momento My), y ao longo de B (momento Mx). Unidades: kN, m, kPa; tensões de cálculo em MPa.
-import { beamFlexure, concrete } from './concrete';
+import { barArea, beamFlexure, concrete } from './concrete';
 import { anchorageLength, bestBars, ceil05, spacedBars, type BarSet } from './rebar';
-import type { Boring, FoundationParams } from './piles';
+import type { Boring, FGroup, FixedDims, FoundationParams } from './piles';
 
 // ---------------------------------------------------------------- tensões na base (sem tração)
 export interface Pressure { s0: number; sx: number; sy: number; sigmaMax: number; sigmaMin: number; compressed: number }
@@ -28,13 +28,13 @@ function simpson(f: (x: number) => number, a: number, b: number, n = 400): numbe
   return (s * h) / 3;
 }
 
-/** Retângulo A × B recortado pelo semiplano s0 + sx·x + sy·y ≥ 0 e suas propriedades geométricas (exatas). */
-function contact(A: number, B: number, v: [number, number, number]) {
+/** Polígono recortado pelo semiplano s0 + sx·x + sy·y ≥ 0 e suas propriedades geométricas (exatas). */
+export function contactPoly(rect: Pt[], v: [number, number, number]) {
   const f = (x: number, y: number) => v[0] + v[1] * x + v[2] * y;
-  const rect: [number, number][] = [[-A / 2, -B / 2], [A / 2, -B / 2], [A / 2, B / 2], [-A / 2, B / 2]];
-  const poly: [number, number][] = [];
-  for (let i = 0; i < 4; i++) {
-    const P = rect[i], Q = rect[(i + 1) % 4];
+  const poly: Pt[] = [];
+  const m = rect.length;
+  for (let i = 0; i < m; i++) {
+    const P = rect[i], Q = rect[(i + 1) % m];
     const fp = f(P[0], P[1]), fq = f(Q[0], Q[1]);
     if (fp >= 0) poly.push(P);
     if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); poly.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); }
@@ -49,7 +49,34 @@ function contact(A: number, B: number, v: [number, number, number]) {
   }
   const J = [[a, sx, sy], [sx, ixx, ixy], [sy, ixy, iyy]];
   const F = J.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
-  return { area: a, J, F };
+  return { area: a, J, F, poly };
+}
+
+export type Pt = [number, number];
+const rectPoly = (A: number, B: number): Pt[] => [[-A / 2, -B / 2], [A / 2, -B / 2], [A / 2, B / 2], [-A / 2, B / 2]];
+
+/** Retângulo A × B recortado pelo semiplano s0 + sx·x + sy·y ≥ 0 e suas propriedades geométricas (exatas). */
+function contact(A: number, B: number, v: [number, number, number]) { return contactPoly(rectPoly(A, B), v); }
+
+/** Newton do plano de tensões sem tração: F(v) = alvo [N, N·ex, N·ey] para a área de contato exata. null: não convergiu. */
+function solvePlane(ct: (v: [number, number, number]) => ReturnType<typeof contactPoly>, v0: [number, number, number], target: number[], N: number) {
+  let v = v0;
+  let c = ct(v);
+  let r = c.F.map((x, i) => x - target[i]), nr = Math.hypot(...r);
+  for (let it = 0; it < 100 && nr > 1e-10 * N; it++) {
+    const dv = solve3(c.J, r.map((x) => -x));
+    if (!dv) return null;
+    let t = 1, ok = false;
+    for (let ls = 0; ls < 40; ls++) {
+      const w: [number, number, number] = [v[0] + t * dv[0], v[1] + t * dv[1], v[2] + t * dv[2]];
+      const cw = ct(w);
+      const rw = cw.F.map((x, i) => x - target[i]), nw = Math.hypot(...rw);
+      if (nw < nr) { v = w; c = cw; r = rw; nr = nw; ok = true; break; }
+      t /= 2;
+    }
+    if (!ok) break;
+  }
+  return nr > 1e-6 * N ? null : { v, c };
 }
 
 /**
@@ -67,24 +94,45 @@ export function basePressure(A: number, B: number, N: number, ex: number, ey: nu
     return { s0: v[0], sx: v[1], sy: v[2], sigmaMax: mx, sigmaMin: Math.max(0, mn), compressed: 1 };
   }
   const target = [N, N * ex, N * ey];
-  let ct = contact(A, B, v);
-  let r = ct.F.map((x, i) => x - target[i]), nr = Math.hypot(...r);
-  for (let it = 0; it < 100 && nr > 1e-10 * N; it++) {
-    const dv = solve3(ct.J, r.map((x) => -x));
-    if (!dv) return null;
-    let t = 1, ok = false;
-    for (let ls = 0; ls < 40; ls++) {
-      const w: [number, number, number] = [v[0] + t * dv[0], v[1] + t * dv[1], v[2] + t * dv[2]];
-      const cw = contact(A, B, w);
-      const rw = cw.F.map((x, i) => x - target[i]), nw = Math.hypot(...rw);
-      if (nw < nr) { v = w; ct = cw; r = rw; nr = nw; ok = true; break; }
-      t /= 2;
-    }
-    if (!ok) break;
+  const sol = solvePlane((w) => contact(A, B, w), v, target, N);
+  if (!sol) return null;
+  const [mn, mx] = corner(sol.v);
+  return { s0: sol.v[0], sx: sol.v[1], sy: sol.v[2], sigmaMax: mx, sigmaMin: Math.max(0, mn), compressed: sol.c.area / (A * B) };
+}
+
+/** Tensões sem tração numa região poligonal convexa (m) sob N com excentricidades ex, ey em relação à origem (com sinal). */
+export interface PolyPressure extends Pressure { v: [number, number, number]; contato: Pt[] }
+
+export function polyPressure(poly: Pt[], N: number, ex: number, ey: number): PolyPressure | null {
+  if (N <= 0 || poly.length < 3) return null;
+  const full = contactPoly(poly, [1, 0, 0]);
+  if (full.area <= 1e-9) return null;
+  const target = [N, N * ex, N * ey];
+  const v0 = solve3(full.J, target) as [number, number, number] | null;
+  const area = full.area;
+  const fv = (w: [number, number, number], q: Pt) => w[0] + w[1] * q[0] + w[2] * q[1];
+  const ext = (w: [number, number, number]) => { const f = poly.map((q) => fv(w, q)); return [Math.min(...f), Math.max(...f)]; };
+  if (v0) {
+    const [mn, mx] = ext(v0);
+    if (mn >= -1e-12) return { s0: v0[0], sx: v0[1], sy: v0[2], sigmaMax: mx, sigmaMin: Math.max(0, mn), compressed: 1, v: v0, contato: poly };
   }
-  if (nr > 1e-6 * N) return null;
-  const [mn, mx] = corner(v);
-  return { s0: v[0], sx: v[1], sy: v[2], sigmaMax: mx, sigmaMin: Math.max(0, mn), compressed: ct.area / (A * B) };
+  if (!dentroConvexo(poly, [ex, ey])) return null;
+  const start: [number, number, number] = v0 ?? [N / area, 0, 0];
+  const sol = solvePlane((w) => contactPoly(poly, w), start, target, N);
+  if (!sol) return null;
+  const [mn, mx] = ext(sol.v);
+  return { s0: sol.v[0], sx: sol.v[1], sy: sol.v[2], sigmaMax: mx, sigmaMin: Math.max(0, mn), compressed: sol.c.area / area, v: sol.v, contato: sol.c.poly };
+}
+
+/** Ponto estritamente dentro de polígono convexo (qualquer orientação). */
+export function dentroConvexo(poly: Pt[], q: Pt, tol = 1e-9): boolean {
+  let pos = 0, neg = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const c = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]);
+    if (c > tol) pos++; else if (c < -tol) neg++; else return false;
+  }
+  return pos === 0 || neg === 0;
 }
 
 function solve3(J: number[][], b: number[]): number[] | null {
@@ -122,6 +170,26 @@ export function sptSigma(b: Boring, z0: number, bulb: number, div: number, Nmax:
   return { sigma: (Nused / div) * 1000, Nbar, Nused, from: sel[0].z, to: sel[sel.length - 1].z };
 }
 
+/** Peso mínimo do concreto de uma sapata com dimensões impostas (kN): prisma A·B·h0 (limite inferior do tronco), 0 sem altura imposta. */
+export function pesoMinimoImposto(fixed: FixedDims | undefined, p: Pick<FoundationParams, 'ftH0Min'>, constH: boolean): number {
+  if (!fixed?.h) return 0;
+  const h0 = constH ? fixed.h : fixed.h0 ? Math.min(fixed.h, fixed.h0) : Math.min(fixed.h, ceil05(Math.max(fixed.h / 3, p.ftH0Min)));
+  return 25 * fixed.A * fixed.B * h0;
+}
+
+/** σadm da sapata em função do menor lado (informada ou estimada pelo SPT, com cache por lado em cm). */
+export function sigmaProvider(boring: Boring | undefined, p: FoundationParams) {
+  const cache = new Map<number, ReturnType<typeof sptSigma>>();
+  return (Bmin: number): { s: number; spt?: NonNullable<ReturnType<typeof sptSigma>> } | null => {
+    if (p.ftSigmaMode === 'informada') return { s: p.ftSigmaAdm };
+    if (!boring) return null;
+    const key = Math.round(Bmin * 100);
+    if (!cache.has(key)) cache.set(key, sptSigma(boring, p.ftDepth, p.ftBulb * Bmin, p.ftSptDiv, p.ftNmaxEst));
+    const r = cache.get(key);
+    return r ? { s: r.sigma, spt: r } : null;
+  };
+}
+
 // ---------------------------------------------------------------- sapata
 export interface FootingInput {
   Nk: number; NkMin: number; Mx: number; My: number; ap: number; bp: number; boring?: Boring;
@@ -132,8 +200,14 @@ export interface FootingInput {
    * base, e a excentricidade (A − ap)/2 cresce com a base. Prevalece sobre `offset` na direção em que não é 0.
    */
   edge?: [number, number];
-  /** Dimensões impostas (m): a base A × B (e a altura h, se dada) só é verificada. */
-  fixed?: { A: number; B: number; h?: number };
+  /** Dimensões impostas (m): a base A × B (e a altura h, h0 e a armadura, se dadas) só é verificada. */
+  fixed?: FixedDims;
+  /** Sapata de concreto simples: sem armadura de flexão; a altura vem da tração na flexão (NBR 6118, cap. 24). */
+  simples?: boolean;
+  /** Altura constante (h0 = h). */
+  constH?: boolean;
+  /** Vários pilares (sapata associada) ou limites: usado por `designFootingGroup` (footingsGroup.ts). */
+  group?: FGroup;
 }
 
 /** Posição do centro do pilar em relação ao centro da base A × B (m). */
@@ -143,7 +217,15 @@ export function columnOffset(inp: Pick<FootingInput, 'ap' | 'bp' | 'offset' | 'e
   return [ex, ey];
 }
 
-export interface FlexDir { Md: number; T: number; As: number; AsMin: number; AsAdopt: number; dEff: number; bars: BarSet | null; width: number }
+export interface FlexDir {
+  Md: number; T: number; As: number; AsMin: number; AsAdopt: number; dEff: number; bars: BarSet | null; width: number;
+  /** Concreto simples: tensão de tração na flexão e resistência (MPa). */
+  sigmaT?: number; fctd?: number;
+  /** Armadura imposta pelo usuário (φ, espaçamento): área fornecida (m²) e se atende. */
+  imposed?: { phi: number; s: number; As: number; ok: boolean };
+  /** Associada: momento negativo entre pilares (kN·m, tração em cima) e malha superior (só se a tração passar de fctd). */
+  top?: { Md: number; sigmaT: number; fctd: number; As: number; AsMin: number; bars: BarSet | null; needed: boolean };
+}
 
 export interface FootingResult {
   ok: boolean; messages: string[];
@@ -157,6 +239,22 @@ export interface FootingResult {
   colOffset: [number, number];
   /** Dimensões impostas (só verificadas). */
   fixed?: boolean;
+  /** Concreto simples; altura constante. */
+  simples?: boolean; constH?: boolean;
+  /** Descolamento permitido (sem a área comprimida mínima). */
+  levantamento?: boolean;
+  /** Sapata associada ou aparada por limites: pilares nos eixos do elemento (relativos ao centro da base), contorno em planta (relativo ao centro da base) e relações de rigidez. */
+  grupo?: {
+    cols: { label: string; x: number; y: number; ap: number; bp: number }[]; contorno: [number, number][];
+    /** Maior vão entre pilares vizinhos (m), v/h, maior balanço (m) e b/h. */
+    vao: number; vaoAltura: number; balanco: number; balancoAltura: number;
+    /** Punção/compressão diagonal por pilar (MPa). */
+    pilares: { label: string; Nd: number; tauSd0: number; tauRd2: number }[];
+    /** Limites que atuaram (índices dos segmentos em `FGroup.limits`) e os ignorados com o motivo. */
+    limitesUsados: number[]; limitesIgnorados: { indice: number; motivo: string }[];
+    /** Posição da resultante em relação ao centro da base (m). */
+    resultante: [number, number];
+  };
   flex: { x: FlexDir; y: FlexDir };
   punch: { tauSd0: number; tauRd2: number; applies: boolean; tauSd1?: number; tauRd1?: number; Fred?: number; u1?: number };
   volume: number;
@@ -171,6 +269,9 @@ const kTable = (r: number) => { const t = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 
 export function designFooting(inp: FootingInput, p: FoundationParams): FootingResult | { ok: false; messages: string[] } {
   const W0 = (p.ftPP / 100) * inp.Nk;
   let r = sizeFooting(inp, p, W0);
+  // dimensões impostas: o peso do concreto é conhecido; o percentual pode ser pouco (o peso também estabiliza a base)
+  const Wi = pesoMinimoImposto(inp.fixed, p, !!inp.constH);
+  if (!isFooting(r) && Wi > W0 + 1e-6) r = sizeFooting(inp, p, Math.ceil(Wi));
   for (let it = 0; it < 6 && isFooting(r) && r.Wconc > r.W + 0.5; it++) r = sizeFooting(inp, p, Math.ceil(r.Wconc));
   if (isFooting(r) && r.W > W0 + 1e-6) r.messages.unshift(`Peso do concreto (${r.Wconc.toFixed(0)} kN) maior que ${p.ftPP}% de Nk (${W0.toFixed(0)} kN): usado o peso calculado, ${r.W.toFixed(0)} kN.`);
   return r;
@@ -184,15 +285,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     { label: 'N mín + peso próprio', N: inp.NkMin + W },
   ];
   if (cases[1].N <= 0) return { ok: false, messages: ['N mín + peso próprio ≤ 0: a sapata não resiste à tração. Use estacas ou tubulão.'] };
-  const sigmaCache = new Map<number, ReturnType<typeof sptSigma>>();
-  const sigmaFor = (Bmin: number): { s: number; spt?: ReturnType<typeof sptSigma> } | null => {
-    if (p.ftSigmaMode === 'informada') return { s: p.ftSigmaAdm };
-    if (!inp.boring) return null;
-    const key = Math.round(Bmin * 100);
-    if (!sigmaCache.has(key)) sigmaCache.set(key, sptSigma(inp.boring, p.ftDepth, p.ftBulb * Bmin, p.ftSptDiv, p.ftNmaxEst));
-    const r = sigmaCache.get(key);
-    return r ? { s: r.sigma, spt: r } : null;
-  };
+  const sigmaFor = sigmaProvider(inp.boring, p);
   // momentos em relação ao centro da base: os do pilar mais N do pilar × excentricidade do pilar (a favor da segurança, somados em módulo)
   const momentsAt = (A: number, B: number, Ncol: number) => { const [ex, ey] = columnOffset(inp, A, B); return { My: Math.abs(inp.My) + Math.abs(Ncol * ex), Mx: Math.abs(inp.Mx) + Math.abs(Ncol * ey) }; };
   const Ncols = [inp.Nk, inp.NkMin];
@@ -204,7 +297,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     for (const [i, cs] of cases.entries()) {
       const M = momentsAt(A, B, Ncols[i]);
       const pr = basePressure(A, B, cs.N, M.My / cs.N, M.Mx / cs.N);
-      if (!pr || pr.sigmaMax > p.ftEdgeFactor * sg.s + 1e-6 || pr.compressed < p.ftMinCompressed - 1e-6) return null;
+      if (!pr || pr.sigmaMax > p.ftEdgeFactor * sg.s + 1e-6 || pr.compressed < (p.ftLevantamento ? 0 : p.ftMinCompressed) - 1e-6) return null;
       out.push({ label: cs.label, N: cs.N, ex: M.My / cs.N, ey: M.Mx / cs.N, sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed });
     }
     return { sg, out };
@@ -245,12 +338,13 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
 
   // altura
   const c = concrete(p.fckFound, p.gammaC);
+  const cSimples = concrete(p.fckFound, p.gammaC * p.ftSimplesGamma);
   const fyd = p.fyk / p.gammaS;
   const lbCol = anchorageLength(p.colPhi, c, fyd);
   const colOffset = columnOffset(inp, A, B);
   // balanços: o maior de cada direção (centrada: (A − ap)/2)
   const [cA, cB] = over(A, B);
-  const hRigid = (2 * Math.max(cA, cB)) / 3;
+  const hRigid = ((2 * Math.max(cA, cB)) / 3) * (1.5 / p.ftBalancoAltura);
   const gf = p.gammaF;
   const M0 = momentsAt(A, B, inp.Nk);
   const Nd = gf * inp.Nk, Mdx = gf * M0.Mx, Mdy = gf * M0.My;
@@ -258,7 +352,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   if (!prD) return { ok: false, messages: ['Excentricidade de cálculo fora da base.'] };
   const methodNotes: string[] = [];
   const centered = Math.abs(colOffset[0]) < 1e-9 && Math.abs(colOffset[1]) < 1e-9;
-  const bielas = p.ftMethod === 'bielas' && centered;
+  const bielas = p.ftMethod === 'bielas' && centered && !inp.simples;
   if (p.ftMethod === 'bielas' && !centered) methodNotes.push('Método das bielas só vale para pilar centrado: usado o CEB-70.');
 
   const dOf = (h: number) => h - p.cover - 0.01;
@@ -280,7 +374,18 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
         dEff = Math.min(d, 1.5 * cc);
         As = beamFlexure({ kind: 'rect', bw: Wd, h: dEff + p.cover + 0.01 }, false, Md, dEff, 0.05, c, fyd).As;
       }
-      const AsAdopt = Math.max(As, AsMin);
+      if (inp.simples) {
+        // concreto simples (NBR 6118, cap. 24): sem armadura; a tração na flexão não passa de fctd
+        const sigmaT = (6 * (Md / 1000)) / (Wd * h * h);
+        return { Md, T: 0, As: 0, AsMin: 0, AsAdopt: 0, dEff: h, bars: null, width, sigmaT, fctd: cSimples.fctd };
+      }
+      const AsAdopt = Math.max(As, p.ftRhoMinReduz ? Math.min(AsMin, (4 / 3) * As) : AsMin);
+      const imp = inp.fixed?.bars?.[axis];
+      if (imp) {
+        // armadura imposta: n = largura útil/s + 1 barras; só verificada
+        const ab = barArea(imp.phi), s = imp.s ?? 0.15, n = imp.n ?? Math.max(2, Math.floor(width / s + 1e-9) + 1), Aprov = n * ab;
+        return { Md, T, As, AsMin, AsAdopt, dEff, bars: { phi: imp.phi, n, As: Aprov, spacing: n > 1 ? width / (n - 1) : 0 }, width, imposed: { phi: imp.phi, s, As: Aprov, ok: Aprov >= AsAdopt - 1e-9 } };
+      }
       return { Md, T, As, AsMin, AsAdopt, dEff, bars: bestBars(spacedBars(AsAdopt, width)), width };
     };
     return { x: dir('x'), y: dir('y') };
@@ -306,7 +411,16 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
 
   let kind = p.ftKind;
   let h: number;
-  if (inp.fixed?.h) {
+  if (inp.simples && kind !== 'rigida') { kind = 'rigida'; messages.push('Concreto simples: a sapata é rígida (sem armadura de flexão).'); }
+  if (inp.simples && !inp.fixed?.h) {
+    // altura pela tração na flexão: σt = 6·Md/(b·h²) ≤ fctd; Md independe de h no CEB-70
+    const mom = (axis: 'x' | 'y') => {
+      const [Wd, a0] = axis === 'x' ? [B, ap] : [A, bp];
+      return { Md: overhangMoment(prD, A, B, a0 / 2 - 0.15 * a0, axis, Math.abs(axis === 'x' ? colOffset[0] : colOffset[1])), Wd };
+    };
+    const hT = Math.max(...(['x', 'y'] as const).map((ax) => { const m = mom(ax); return Math.sqrt((6 * (m.Md / 1000)) / (m.Wd * cSimples.fctd)); }));
+    h = ceil05(Math.max(hRigid, lbCol + p.cover, hT));
+  } else if (inp.fixed?.h) {
     h = inp.fixed.h;
     kind = h >= hRigid - 1e-9 ? 'rigida' : 'flexivel';
     if (h < lbCol + p.cover - 1e-9) messages.push(`Altura imposta ${h.toFixed(2)} m < lb + c = ${(lbCol + p.cover).toFixed(2)} m (ancoragem das barras do pilar).`);
@@ -321,7 +435,7 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   }
   const flex = flexure(h, kind);
   const punch = punching(h, flex);
-  const h0 = kind === 'rigida' ? Math.min(h, ceil05(Math.max(h / 3, p.ftH0Min))) : h;
+  const h0 = inp.constH || kind !== 'rigida' ? h : inp.fixed?.h0 ? Math.min(h, inp.fixed.h0) : Math.min(h, ceil05(Math.max(h / 3, p.ftH0Min)));
   if (bielas && kind === 'rigida') {
     const d = dOf(h);
     if (d < Math.max(A - ap, B - bp) / 4 - 1e-9) methodNotes.push(`Bielas: d = ${d.toFixed(2)} m < (a − ap)/4 = ${(Math.max(A - ap, B - bp) / 4).toFixed(2)} m — fora do campo do método.`);
@@ -334,18 +448,28 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   }
   if (punch.tauSd0 > punch.tauRd2 + 1e-9) messages.push(`Compressão diagonal no contorno do pilar: τSd = ${punch.tauSd0.toFixed(2)} > τRd2 = ${punch.tauRd2.toFixed(2)} MPa. Aumente h ou o pilar.`);
   if (kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) messages.push(`Punção no contorno C′: τSd = ${punch.tauSd1!.toFixed(2)} > τRd1 = ${punch.tauRd1!.toFixed(2)} MPa.`);
-  if (!flex.x.bars || !flex.y.bars) messages.push('Armadura de flexão não coube com espaçamento entre 10 e 20 cm.');
+  if (!inp.simples && (!flex.x.bars || !flex.y.bars)) messages.push('Armadura de flexão não coube com espaçamento entre 10 e 20 cm.');
+  for (const [ax, f] of [['x', flex.x], ['y', flex.y]] as const) {
+    if (f.imposed && !f.imposed.ok) messages.push(`Armadura imposta insuficiente na direção ${ax}: φ${fmtN(f.imposed.phi)} c/${(f.imposed.s * 100).toFixed(0)} dá ${(f.imposed.As * 1e4).toFixed(2)} cm² < ${(f.AsAdopt * 1e4).toFixed(2)} cm² necessários.`);
+    if (inp.simples && f.sigmaT! > f.fctd! + 1e-9) messages.push(`Concreto simples: tração na flexão ${f.sigmaT!.toFixed(2)} MPa > fctd = ${f.fctd!.toFixed(2)} MPa na direção ${ax}. Aumente h.`);
+  }
+  if (p.ftLevantamento) methodNotes.push(`Descolamento permitido: área comprimida mínima dispensada (menor encontrada ${(Math.min(...best.chk.out.map((o) => o.compressed)) * 100).toFixed(0)} %); a tensão máxima limita.`);
   const A1 = A * B, A2 = (ap + 0.05) * (bp + 0.05);
   const volume = kind === 'rigida' ? A * B * h0 + ((h - h0) / 3) * (A1 + A2 + Math.sqrt(A1 * A2)) : A * B * h;
   const Wconc = 25 * volume, Wsoil = p.gammaSoil * Math.max(0, A * B * p.ftDepth - volume);
   if (Wconc <= W + 0.5 && Wconc + Wsoil > W + 1e-6) messages.push(`Concreto + solo sobre a sapata somam ${(Wconc + Wsoil).toFixed(0)} kN, acima dos ${W.toFixed(0)} kN adotados: o percentual só cobre o acréscimo líquido se σadm for líquida (o solo reaterrado substitui o escavado). Confirme o critério.`);
   const anchOk = !inp.fixed?.h || h >= lbCol + p.cover - 1e-9;
-  const ok = anchOk && punch.tauSd0 <= punch.tauRd2 + 1e-9 && !(kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) && !!flex.x.bars && !!flex.y.bars;
+  const impOk = [flex.x, flex.y].every((f) => !f.imposed || f.imposed.ok);
+  const simplesOk = !inp.simples || [flex.x, flex.y].every((f) => f.sigmaT! <= f.fctd! + 1e-9);
+  const ok = anchOk && impOk && simplesOk && punch.tauSd0 <= punch.tauRd2 + 1e-9 && !(kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) && (inp.simples || (!!flex.x.bars && !!flex.y.bars));
   return {
     ok, messages, A, B, W, Wconc, Wsoil, sigmaAdm: sg.s, sigmaSrc, spt: sg.spt ? { Nbar: sg.spt.Nbar, Nused: sg.spt.Nused, from: sg.spt.from, to: sg.spt.to } : undefined,
     cases: best.chk.out, kind, h, h0, d: dOf(h), hRigid, lbCol, method: bielas && kind === 'rigida' ? 'bielas' : 'ceb70', methodNotes,
-    sigmaD: { max: prD.sigmaMax, min: prD.sigmaMin }, colOffset, ...(inp.fixed ? { fixed: true } : {}), flex, punch, volume,
+    sigmaD: { max: prD.sigmaMax, min: prD.sigmaMin }, colOffset, ...(inp.fixed ? { fixed: true } : {}),
+    ...(inp.simples ? { simples: true } : {}), ...(inp.constH ? { constH: true } : {}), ...(p.ftLevantamento ? { levantamento: true } : {}), flex, punch, volume,
   };
 }
+
+const fmtN = (v: number) => String(v).replace('.', ',');
 
 export const isFooting = (r: ReturnType<typeof designFooting>): r is FootingResult => 'A' in r;
