@@ -16,16 +16,19 @@ Base: 228 itens Parcial/Falta com frente R nos dois checklists (105 do manual do
 
 O grupo 16 (itens gerais) fecha com o ciclo.
 
-## Premissas a decidir (antes da fatia indicada)
+## Premissas (decididas ou a decidir antes da fatia indicada)
+
+Aprovada pelo usuário em 20/10/2026.
 
 - R1: limites de deslocamento lateral (NBR 6118, Tabela 13.3: H/1700 no topo e h/850 entre pavimentos) e o que conta como erro (vermelho) e como aviso (amarelo).
 - R3: barra máxima 12 m (padrão do programa de referência) e perdas de aço 10 %; comprimentos arredondados a 5 cm; ancoragem em boa/má aderência pela posição da barra (9.3.1).
-- R5: unidades e formatos nas pranchas (kgf/cm² ou MPa, vírgula decimal, cargas características ou de cálculo, estilo dos eixos) — pendentes desde a 6b.
+- R5 (decidido em 20/10/2026): tensões sempre em MPa; vírgula decimal com duas casas; cargas características e de cálculo; eixos conforme o projeto. Referência visual: as 6 pranchas de exemplo enviadas pelo usuário (Drive; fora do repositório).
+- R1 (aprovado em 20/10/2026): deslocamento lateral pela NBR 6118, Tabela 13.3 (H/1700 no topo e hi/850 entre pavimentos, vento na combinação frequente ψ1 = 0,3), limites editáveis; reprovação de cálculo = erro (vermelho), o resto = aviso (amarelo).
 
 ## Aceite por fatia
 
 Testes numéricos contra cálculo manual (ancoragem, emendas, decalagem, corte de barras); fluxo e2e de cada tela; memorial e checklist atualizados; nenhuma regressão nos resultados das frentes N.
 
-## Referências visuais necessárias (para R5)
+## Referências visuais (para R5)
 
-Armação de viga (elevação, cortes, lista de barras), pilares (quadro e detalhe de estribos), lajes (positivas e negativas), tabela e resumo de aço. Sem dados de clientes no repositório.
+As 6 pranchas de exemplo do usuário (Drive): armação de viga, pilares, lajes, tabela e resumo de aço. Pelo conector só vêm como texto; para vê-las como imagem é preciso liberar `drive.usercontent.google.com` na rede do ambiente ou receber prints. Sem dados de clientes no repositório.

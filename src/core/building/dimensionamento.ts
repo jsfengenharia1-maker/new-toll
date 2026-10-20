@@ -65,6 +65,8 @@ export interface ResultadoViga {
   /** Maior flecha total (quase permanente, Branson por seção, com fluência) e da carga variável, e limites (m). */
   flecha: number; limite: number; flechaQ: number; limiteQ: number;
   Mpos: number; Mneg: number; V: number;
+  /** Envoltória ELU ao longo da viga (todos os pavimentos do grupo), em faixas de 0,25 m, com as combinações determinantes. */
+  envoltoria: EnvoltoriaViga;
   /** Maior torçor de cálculo (kN·m), armadura longitudinal de torção (m², no perímetro) e maior Vsd/VRd2 + Tsd/TRd2. */
   T: number; AslTorcao: number; biela: number;
   /** Armadura longitudinal de torção em cada face lateral (m²) e as barras adotadas; decalagem aℓ (m). */
@@ -75,6 +77,49 @@ export interface ResultadoViga {
   wk: [number, number]; wkLim: number;
   AsInf: number; AsSup: number; barrasInf: string; barrasSup: string; estribo: string;
   status: 'ok' | 'fail'; mensagens: string[];
+}
+
+export interface EnvoltoriaViga {
+  /** Abscissa ao longo do traçado (m) e extremos de M (kN·m; + traciona embaixo), V (kN) e |T| (kN·m) na faixa. */
+  pontos: { s: number; Mmax: number; Mmin: number; Vmax: number; Vmin: number; T: number }[];
+  /** Combinação que dá cada extremo global. */
+  determinantes: { Mmax: string; Mmin: string; V: string; T: string };
+}
+
+/** Abscissa (m) da projeção de P no traçado da viga, a partir do primeiro ponto. */
+function abscissa(pts: [number, number][], P: number[]): number {
+  let melhor = Infinity, s = 0, acum = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], z = pts[i + 1], dx = z[0] - a[0], dy = z[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    const t = Math.max(0, Math.min(L, ((P[0] - a[0]) * dx + (P[1] - a[1]) * dy) / L));
+    const d = Math.hypot(a[0] + (dx * t) / L - P[0], a[1] + (dy * t) / L - P[1]);
+    if (d < melhor - 1e-9) { melhor = d; s = acum + t; }
+    acum += L;
+  }
+  return s;
+}
+
+/** Envoltória ELU de uma viga (com a redistribuição δ aplicada nos apoios internos), por faixas de 0,25 m. */
+function envoltoriaViga(vaos: { L: number; xs: number[]; s: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; T: Float64Array[]; ini: number; fim: number }[], elu: CombinacaoEd[], delta: number, interno: (n: number) => boolean): EnvoltoriaViga {
+  const faixas = new Map<number, EnvoltoriaViga['pontos'][number]>();
+  const det = { Mmax: '', Mmin: '', V: '', T: '' }, ext = { Mmax: -Infinity, Mmin: Infinity, V: -Infinity, T: -Infinity };
+  for (const vo of vaos) for (let k = 0; k < elu.length; k++) {
+    const M = vo.M[k], Mv = vo.Mv[k], n = M.length;
+    const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0, dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
+    for (let i = 0; i < n; i++) {
+      const t = vo.xs[i] / vo.L, m = M[i] + dA * (1 - t) + dZ * t, vv = vo.V[k][i] - (dZ - dA) / vo.L, tt = Math.abs(vo.T[k][i]);
+      const key = Math.round(vo.s[i] / 0.25);
+      const f = faixas.get(key) ?? { s: key * 0.25, Mmax: -Infinity, Mmin: Infinity, Vmax: -Infinity, Vmin: Infinity, T: 0 };
+      f.Mmax = Math.max(f.Mmax, m); f.Mmin = Math.min(f.Mmin, m); f.Vmax = Math.max(f.Vmax, vv); f.Vmin = Math.min(f.Vmin, vv); f.T = Math.max(f.T, tt);
+      faixas.set(key, f);
+      if (m > ext.Mmax) { ext.Mmax = m; det.Mmax = elu[k].nome; }
+      if (m < ext.Mmin) { ext.Mmin = m; det.Mmin = elu[k].nome; }
+      if (Math.abs(vv) > ext.V) { ext.V = Math.abs(vv); det.V = elu[k].nome; }
+      if (tt > ext.T) { ext.T = tt; det.T = elu[k].nome; }
+    }
+  }
+  const r = (x: number) => Math.round(x * 100) / 100;
+  return { pontos: [...faixas.values()].sort((a, z) => a.s - z.s).map((f) => ({ s: r(f.s), Mmax: r(f.Mmax), Mmin: r(f.Mmin), Vmax: r(f.Vmax), Vmin: r(f.Vmin), T: r(f.T) })), determinantes: det };
 }
 
 /** Cadeias de barras do pórtico de uma viga, na ordem, cortadas nos pilares (os vãos). */
@@ -133,10 +178,10 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const interno = (n: number) => noPilar.has(n) && (membrosNo.get(n) ?? 0) >= 2;
     const recuo = op.trechoRigido * v.secao.h, depoisFace = op.cortanteApoio ? (op.cortanteDistancia / 100) * d : 0;
     // estações por vão: M e V por combinação (total e parte vertical), T e se a seção entra no cortante
-    type Vao = { L: number; xs: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; Vv: Float64Array[]; T: Float64Array[]; Mk: Float64Array[]; corte: boolean[]; ini: number; fim: number; balanco: boolean };
+    type Vao = { L: number; xs: number[]; s: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; Vv: Float64Array[]; T: Float64Array[]; Mk: Float64Array[]; corte: boolean[]; ini: number; fim: number; balanco: boolean };
     const vaos: Vao[] = [];
     for (const cad of cadeiasViga(an, membros, noPilar)) {
-      const xs: number[] = [], corte: boolean[] = [], M = elu.map(() => [] as number[]), Mv = elu.map(() => [] as number[]), V = elu.map(() => [] as number[]), Vv = elu.map(() => [] as number[]), T = elu.map(() => [] as number[]), Mk = freq.map(() => [] as number[]);
+      const xs: number[] = [], sAbs: number[] = [], corte: boolean[] = [], M = elu.map(() => [] as number[]), Mv = elu.map(() => [] as number[]), V = elu.map(() => [] as number[]), Vv = elu.map(() => [] as number[]), T = elu.map(() => [] as number[]), Mk = freq.map(() => [] as number[]);
       let x0 = 0;
       for (const bi of cad) {
         const { L } = baseBarra(pm.modelo, mb[bi]);
@@ -148,8 +193,12 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         const rI = mb[bi].offI && noPilar.has(mb[bi].i) ? recuo : null, rJ = mb[bi].offJ && noPilar.has(mb[bi].j) ? recuo : null;
         const marcados = xl.map((x) => !op.cortanteApoio || ((rI === null || x - rI >= depoisFace - 1e-9) && (rJ === null || L - x - rJ >= depoisFace - 1e-9)));
         if (!marcados.some(Boolean)) marcados[Math.floor(xl.length / 2)] = true;
+        // posição em planta de cada estação (início da parte flexível + u·x) para a abscissa ao longo da viga
+        const nI = pm.modelo.nos[mb[bi].i], nJ = pm.modelo.nos[mb[bi].j], oI = mb[bi].offI ?? [0, 0, 0], oJ = mb[bi].offJ ?? [0, 0, 0];
+        const ini = [nI[0] + oI[0], nI[1] + oI[1]], fim = [nJ[0] + oJ[0], nJ[1] + oJ[1]], Lf = Math.hypot(fim[0] - ini[0], fim[1] - ini[1]) || 1;
         xl.forEach((x, i) => {
           xs.push(x0 + x); corte.push(marcados[i]);
+          sAbs.push(abscissa(v.pontos, [ini[0] + ((fim[0] - ini[0]) * x) / Lf, ini[1] + ((fim[1] - ini[1]) * x) / Lf]));
           elu.forEach((cb, k) => { M[k].push(comb(pc, cb, i, 'Mz')); Mv[k].push(comb(pc, eluV[k], i, 'Mz')); V[k].push(comb(pc, cb, i, 'Vy')); Vv[k].push(comb(pc, eluV[k], i, 'Vy')); T[k].push(comb(pc, cb, i, 'T')); });
           freq.forEach((cb, k) => Mk[k].push(comb(pc, cb, i, 'Mz')));
         });
@@ -158,7 +207,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       const ini = mb[cad[0]].i, fim = mb[cad.at(-1)!].j;
       const livre = (no: number) => !noPilar.has(no) && (usoNo.get(no) ?? 0) <= 1;
       const f64 = (a: number[][]) => a.map((r) => Float64Array.from(r));
-      vaos.push({ L: x0, xs, M: f64(M), Mv: f64(Mv), V: f64(V), Vv: f64(Vv), T: f64(T), Mk: f64(Mk), corte, ini, fim, balanco: livre(ini) !== livre(fim) });
+      vaos.push({ L: x0, xs, s: sAbs, M: f64(M), Mv: f64(Mv), V: f64(V), Vv: f64(Vv), T: f64(T), Mk: f64(Mk), corte, ini, fim, balanco: livre(ini) !== livre(fim) });
     }
     // envoltória ELU: momentos mínimos (p·ℓ²/x, p = (V1 + V2)/ℓ das cargas verticais) e depois a
     // redistribuição δ nos apoios internos, que também reduz o negativo mínimo ali
@@ -197,6 +246,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       delta = Math.min(1, req + 0.005); env = envoltoria(delta);
     }
     const { Mpos, Mneg, V } = env;
+    const envolt = envoltoriaViga(vaos, elu, delta, interno);
     const msgs: string[] = [];
     if (op.redistribuicao > 0 && vaos.some((vo) => interno(vo.ini) || interno(vo.fim))) msgs.push(`Redistribuição nos apoios internos: δ = ${delta.toFixed(2).replace('.', ',')}${delta > 1 - op.redistribuicao / 100 + 1e-6 ? ` (limitado: ${deltaMin === 0.9 ? 'nós móveis, δ ≥ 0,90' : 'δ ≥ 0,75'} e δ ≥ ${deltaX.toFixed(2).replace('.', ',')} + 1,25·x/d)` : ''}.`);
     let AsInf = Math.max(flx(Mpos, dI, d2I, aPos.fyd), beamAsMin(sec, false, dI, c, aPos.fyd)), AsSup = Mneg < 0 ? flx(-Mneg, dS, d2S, aNeg.fyd) : 0;
@@ -247,7 +297,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
       flecha, limite, flechaQ: fl.q, limiteQ,
-      Mpos, Mneg, V, T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
+      Mpos, Mneg, V, envoltoria: envolt, T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
       AsInf, AsSup, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : '—',
       status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
@@ -306,6 +356,8 @@ export interface ResultadoPilar {
   pilar: string; nome: string; pavimento: string; secao: string; Nd: number; util: number; lambda: [number, number];
   /** Maior cortante de cálculo (kN). */
   Vd?: number;
+  /** Combinações determinantes: Nd (kN, + compressão), momentos de 1ª ordem nas pontas (base, topo) por direção e de cálculo com 2ª ordem (kN·m). */
+  determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean }[];
   /** Comprimentos de flambagem (m) nas direções u (ao longo de b) e v. */
   le: [number, number];
   armadura: string; As: number; estribo: string; status: 'ok' | 'fail' | 'review'; mensagens: string[];
@@ -447,7 +499,12 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const estV = asw > 0 ? chooseStirrup(asw, sT, estC.phi) : null;
     const est = estV && estV.s < estC.s ? estV : estC;
     if (estV && est === estV) msgs.push(`Estribos pelo cortante: Vsd = ${Vd.toFixed(1)} kN.`);
-    out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    const determinantes = [
+      ...solD.map((x) => { const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV); return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false }; }),
+      ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true })),
+    ];
+    out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
   }
   return out;
 }

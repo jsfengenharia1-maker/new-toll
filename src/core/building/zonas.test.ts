@@ -68,7 +68,7 @@ describe('zonas independentes e vento (N1c)', () => {
     ok('lote', { comandos: [[0, 0], [3, 0], [3, 3], [0, 3]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } })) });
     ok('lote', { comandos: [[[0, 0], [3, 0]], [[0, 3], [3, 3]], [[0, 0], [0, 3]], [[3, 0], [3, 3]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
     ok('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
-    const acima = () => analisarEdificio(s.modelo).avisos.some((a) => a.includes('acima do limite'));
+    const acima = () => analisarEdificio(s.modelo).avisos.some((a) => a.startsWith('γz') && a.includes('acima do limite'));
     const gz = Math.max(...analisarEdificio(s.modelo).vento!.gamaZ.map((g) => g.max));
     expect(gz).toBeGreaterThan(1.1);
     expect(gz).toBeLessThan(1.3);

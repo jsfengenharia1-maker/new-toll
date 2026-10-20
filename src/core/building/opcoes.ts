@@ -46,6 +46,10 @@ export interface OpcoesCalculo {
   verificarTorcao: number;
   /** Abertura de fissuras máxima (mm); 0 = pela classe de agressividade (Tabela 13.4). */
   limiteFissura: number;
+  /** Deslocamento lateral do topo (vento, frequente): H / este valor. */
+  limiteDeslocTopo: number;
+  /** Deslocamento lateral entre pavimentos (vento, frequente): hi / este valor. */
+  limiteDeslocPavimento: number;
 }
 
 export interface OpcaoInfo {
@@ -120,6 +124,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Td do pórtico (com a rigidez à torção das opções) somado ao cortante nos estribos (A90/s) e na biela (Vsd/VRd2 + Tsd/TRd2 ≤ 1), mais a armadura longitudinal de torção. Desligada, só as vigas marcadas com torção de equilíbrio são verificadas.' },
   { chave: 'limiteFissura', rotulo: 'Abertura de fissuras máxima', unidade: 'mm', min: 0, max: 0.5, passo: 0.05, padrao: 0, fonte: 'NBR 6118, Tabela 13.4 (0 = pela CAA: I 0,4; II e III 0,3; IV 0,2 mm)', aConfirmar: false,
     descricao: 'wk das vigas na combinação frequente (17.3.3.2); onde passa, o app aumenta a armadura até atender.' },
+  { chave: 'limiteDeslocTopo', rotulo: 'Deslocamento lateral do topo (H / …)', min: 500, max: 5000, passo: 100, padrao: 1700, fonte: 'NBR 6118, Tabela 13.3 (vento, combinação frequente ψ1 = 0,30)', aConfirmar: false,
+    descricao: 'Maior deslocamento horizontal do topo dos pilares pelo vento na combinação frequente ≤ altura total / este valor.' },
+  { chave: 'limiteDeslocPavimento', rotulo: 'Deslocamento lateral entre pavimentos (hi / …)', min: 200, max: 3000, passo: 50, padrao: 850, fonte: 'NBR 6118, Tabela 13.3 (vento, combinação frequente ψ1 = 0,30)', aConfirmar: false,
+    descricao: 'Maior deslocamento horizontal relativo entre dois pavimentos de um mesmo pilar ≤ pé-direito / este valor.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

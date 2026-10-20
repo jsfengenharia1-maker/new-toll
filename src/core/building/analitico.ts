@@ -179,6 +179,17 @@ export interface GrelhaPavimento {
 /** Zona independente de um pavimento no pórtico: nó de aplicação (mestre, ou o próprio nó isolado) e nós da zona. */
 export interface ZonaPortico extends ZonaVento { no: number; nos: number[] }
 
+/**
+ * Deslocamentos laterais por direção do vento (NBR 6118, 13.3, Tabela 13.3): combinação frequente ψ1·W,
+ * com a rigidez do pórtico (Ecs, seção bruta). Por pavimento, o maior deslocamento dos topos dos pilares
+ * na direção do vento (m) e o maior deslocamento relativo entre pavimentos de um mesmo pilar.
+ */
+export interface DeslocamentosVento {
+  direcao: number; caso: string; psi1: number;
+  pavimentos: { pavimento: string; z: number; u: number; drift: number; hi: number; limDrift: number }[];
+  H: number; topo: number; limTopo: number; ok: boolean;
+}
+
 export interface BarraPortico { tipo: 'viga' | 'pilar'; ref: string; pavimento: string }
 export interface AnaliseEdificio {
   erro?: string;
@@ -189,7 +200,7 @@ export interface AnaliseEdificio {
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
-  vento: { classe: Classe; altura: number; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[] } | null;
+  vento: { classe: Classe; altura: number; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[]; deslocamentos?: DeslocamentosVento[] } | null;
   /** Carga vertical característica por pavimento (kN), usada no γz. */
   cargasPavimento: Record<string, Record<CasoAnalise, number>>;
   /** Carga vertical total por caso (kN). */
@@ -622,8 +633,34 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const vp = M1 ? gz(dV / M1) : 1, up = M1 ? gz(dU / M1) : 1, max = Math.max(vp, up);
       return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1 };
     });
+    // deslocamentos laterais na combinação frequente (ψ1 = 0,3 do vento): topo ≤ H/limite e entre pavimentos ≤ hi/limite
+    const psi1W = 0.3, zBase = Math.min(...[...noPilar.entries()].filter(([k]) => k.endsWith('|base')).map(([, n]) => pm.nos[n][2]));
+    const deslocamentos: DeslocamentosVento[] = resVento.erro ? [] : centrados.map((cv) => {
+      const ic = ven.casos.indexOf(cv), ix = cv.direcao === 0 || cv.direcao === 180 ? 0 : 1;
+      const u = (k: number) => Math.abs(resVento!.desloc[ic][k * 6 + ix]) * psi1W;
+      const pavs: DeslocamentosVento['pavimentos'] = [];
+      let zAnt = zBase;
+      for (const p of ps) {
+        let um = 0, dm = 0, n = 0;
+        for (const pil of b.pilares) {
+          const k = noPilar.get(`${pil.id}|${p.id}`);
+          if (k === undefined) continue;
+          n++;
+          const i = ps.indexOf(p), kb = i === 0 ? noPilar.get(`${pil.id}|base`) : noPilar.get(`${pil.id}|${ps[i - 1].id}`) ?? noPilar.get(`${pil.id}|base`);
+          um = Math.max(um, u(k));
+          if (kb !== undefined) dm = Math.max(dm, Math.abs(resVento!.desloc[ic][k * 6 + ix] - resVento!.desloc[ic][kb * 6 + ix]) * psi1W);
+        }
+        if (!n) continue;
+        const hi = p.cota - zAnt;
+        pavs.push({ pavimento: p.id, z: p.cota - zBase, u: um, drift: dm, hi, limDrift: hi / op.limiteDeslocPavimento });
+        zAnt = p.cota;
+      }
+      const H = pavs.length ? pavs.at(-1)!.z : 0, topo = pavs.length ? pavs.at(-1)!.u : 0, limTopo = H / op.limiteDeslocTopo;
+      return { direcao: cv.direcao, caso: cv.nome, psi1: psi1W, pavimentos: pavs, H, topo, limTopo, ok: topo <= limTopo + 1e-12 && pavs.every((x) => x.drift <= x.limDrift + 1e-12) };
+    });
+    for (const d of deslocamentos) if (!d.ok) avisos.push(`Deslocamento lateral do vento a ${d.direcao}° (frequente, ψ1 = 0,3) acima do limite: topo ${(d.topo * 1000).toFixed(1).replace('.', ',')} mm (H/${op.limiteDeslocTopo} = ${(d.limTopo * 1000).toFixed(1).replace('.', ',')} mm)${d.pavimentos.some((x) => x.drift > x.limDrift) ? '; entre pavimentos acima de hi/' + op.limiteDeslocPavimento : ''}.`);
     for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
-    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ };
+    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos };
   }
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: pmV, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };

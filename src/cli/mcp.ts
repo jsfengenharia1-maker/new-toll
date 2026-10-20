@@ -175,8 +175,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
   const maisBaixo = pavimentosOrdenados(b)[0]?.id;
   return {
     ...(pav ? { pavimento: { id: pav.id, nome: pav.nome, cota: pav.cota } } : {}),
-    vigas: prob(pav ? d.vigas.filter((v) => v.grupo === pav.grupo) : d.vigas),
-    pilares: prob(pav ? d.pilares.filter((p) => p.pavimento === pav.nome) : d.pilares),
+    // envoltórias ao longo da viga e combinações dos pilares ficam fora (volume); a combinação determinante da viga fica
+    vigas: prob(pav ? d.vigas.filter((v) => v.grupo === pav.grupo) : d.vigas).map(({ envoltoria, ...v }) => ({ ...v, determinantes: envoltoria.determinantes })),
+    pilares: prob(pav ? d.pilares.filter((p) => p.pavimento === pav.nome) : d.pilares).map(({ determinantes: _d, ...p }) => p),
     lajes: prob(pav ? d.lajes.filter((l) => l.pavimento === pav.nome) : d.lajes),
     quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
     ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao } : {}),
