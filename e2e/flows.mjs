@@ -941,4 +941,60 @@ export const flows = [
       assert.match(mt, new RegExp(`Viga ${nomes[0]} —`));
     },
   },
+  {
+    name: 'R3b: prédio de 3 pavimentos-tipo, detalhamento do pilar (elevação, tabelas), resumo geral de aço e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('pavimento.repetir {"id": "pav_6", "vezes": 2}');
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      // resumo de aço: vigas, pilares e total geral
+      const resumo = page.locator('[data-resumo-aco]');
+      await resumo.waitFor();
+      const peso = async (m) => num(await resumo.locator(`tr[data-total-aco="${m}"] td.num`).nth(1).innerText());
+      const pv = await peso('vigas'), pp = await peso('pilares'), pg = await peso('geral');
+      assert.ok(pp > 0, `peso dos pilares ${pp}`);
+      assert.ok(Math.abs(pg - (pv + pp)) < 0.02, `geral ${pg} = vigas ${pv} + pilares ${pp}`);
+      const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
+      assert.match(csv.text, /Resumo de aço dos pilares/);
+      assert.match(csv.text, /Resumo geral de aço/);
+      assert.match(csv.text, /Lista de barras dos pilares/);
+      // janela do pilar, aba Detalhamento
+      const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      await cardP.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const svg = jan.locator('svg[data-detalhe-pilar]');
+      await svg.waitFor();
+      const nb = parseInt(await svg.getAttribute('data-barras'), 10), nl = parseInt(await svg.getAttribute('data-lances'), 10);
+      assert.ok(nb >= 1, `barras no desenho: ${nb}`);
+      assert.ok(nl >= 3, `lances: ${nl}`);
+      assert.equal(await svg.locator('g[data-barra]').count(), nb);
+      assert.equal(await svg.locator('g[data-lance]').count(), nl);
+      assert.match(await svg.innerHTML(), /N1 – \d+ φ[\d,]+ – C = \d+,\d\d/);
+      assert.equal(await jan.locator('svg[data-barras-secao]').count(), nl);
+      const tb = jan.locator('table[data-tabela-barras-pilar]');
+      assert.match(await tb.innerText(), /N1/);
+      assert.match(await tb.innerText(), /Longitudinal/);
+      assert.equal(await jan.locator('table[data-tabela-estribos-pilar] tbody tr').count(), nl + 1);
+      assert.match(await jan.innerText(), /lb – .* \(boa aderência\)\s*\d+ cm/);
+      assert.ok(await jan.locator('[data-avisos-det]').count() === 1);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Detalhamento dos pilares/);
+      assert.match(mt, /Resumo geral de aço/);
+      assert.match(mt, /Total geral \(vigas e pilares\)/);
+      assert.match(mt, /detalhamento-pilares|Detalhamento\.\s*Pilares/);
+    },
+  },
 ];

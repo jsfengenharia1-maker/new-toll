@@ -19,7 +19,8 @@ import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
-import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, TIPO_BARRA } from './Detalhamento';
+import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
+import { emendasPilar, linhasBarrasPilar, linhasEstribosPilar, TRANSICAO } from './DetalhamentoPilar';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
@@ -215,6 +216,48 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <tbody>{dim.pilares.map((x) => <tr key={`${x.pilar}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td>{x.secao}</td><td>{fmt(x.Nd, 0)}</td><td>{fmt(x.le[0])} / {fmt(x.le[1])}</td><td>{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td>{x.estribo}</td><td>{x.Vd === undefined ? '—' : fmt(x.Vd, 1)}</td><td>{x.util >= 99 ? '>1' : fmt(x.util)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
             <p>Cortante nos pilares (17.4.2, modelo I): na flexo-compressão Vc = Vc0·(1 + M0/Msd,máx) ≤ 2·Vc0 (17.4.2.2 c), com M0 = N·W/A (momento de descompressão; N com γf = 1,0 tomado como Nd/γg, a confirmar) e Msd,máx o maior momento das pontas na direção do cortante; Vc = 0 com tração; dispensa do estribo mínimo quando Vsd ≤ Vc em pilar comprimido; seção circular com bw = D e d = 0,8·D. Quando o cortante manda, o estribo vem da mensagem "Estribos pelo cortante".</p>
+            {dim.detalhesPilares && dim.detalhesPilares.length > 0 && (<>
+              {h2('Detalhamento dos pilares')}
+              <p>Barras longitudinais de baixo para cima: espera na fundação e ancoragem no topo com ganchos de 90°, emenda por traspasse de comprimento lb (boa aderência) na passagem de um lance a outro, união de lances curtos (até {fmt(opc.pilarUniaoLances, 1)} m) com a mesma armadura, dobra (inclinação ≤ 1:6) ou arranque na mudança de seção, barra máxima de {fmt(opc.pilarBarraMaxima, 1)} m; continuidade da armadura entre lances {opc.continuidadePilares ? 'ligada (a armadura não diminui de cima para baixo)' : 'desligada (cada lance pela sua necessidade)'}; ancoragem reduzida no topo {opc.ancoragemReduzidaTopo ? 'ligada (As,calc/As,ef)' : 'desligada'}. Estribos ao longo de cada lance e grampos nas barras a mais de 20φt de um canto (NBR 6118, 18.2.4). Comprimentos arredondados para cima a {fmt(opc.arredondamento, 0)} cm. Desenhos na janela de resultados do pilar.</p>
+              {dim.detalhesPilares.map((d) => {
+                const barras = linhasBarrasPilar(d), est = linhasEstribosPilar(d), nome = new Map(d.lances.map((l) => [l.pavimento, l.nome]));
+                return (
+                  <div key={d.pilar} className="avoid">
+                    <h3>Pilar {d.nome}</h3>
+                    <table>
+                      <thead><tr><th>Pos.</th><th>Tipo</th><th>Lances</th><th>Quant.</th><th>φ (mm)</th><th>Cotas (m)</th><th>C unit. (m)</th><th>C total (m)</th><th>Peso (kg)</th></tr></thead>
+                      <tbody>
+                        {barras.map((x) => <tr key={x.pos}><td className="l">{x.pos}</td><td className="l">{x.tipo === 'arranque' ? 'Arranque' : 'Longitudinal'}</td><td className="l">{x.lances.map((l) => nome.get(l) ?? l).join(', ')}</td><td>{x.n}</td><td>{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td>{fmt(x.z0)} a {fmt(x.z1)}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.total)}</td><td>{fmt(x.peso)}</td></tr>)}
+                      </tbody>
+                    </table>
+                    <table>
+                      <thead><tr><th>Lance</th><th>Seção (cm)</th><th>Passagem ao lance de cima</th><th>Estribos</th><th>C estribo (m)</th><th>Grampos por estribo</th><th>C grampo (m)</th><th>Peso (kg)</th></tr></thead>
+                      <tbody>
+                        {est.map((z, i) => <tr key={z.pavimento}><td className="l">{z.nome}</td><td>{d.lances[i].secao}</td><td className="l">{TRANSICAO[d.lances[i].transicao]}</td><td>{z.n} {`φ${String(z.phi).replace('.', ',')}`} c/{Math.round(z.s * 100)}</td><td>{fmt(z.comprimento)}</td><td>{z.grampos}</td><td>{z.grampos ? fmt(z.comprimentoGrampo) : '—'}</td><td>{fmt(z.peso)}</td></tr>)}
+                        <tr><td className="l" colSpan={7}><b>Total do pilar</b></td><td><b>{fmt(d.peso)}</b></td></tr>
+                      </tbody>
+                    </table>
+                    <p>lb: {d.lances.map((l) => `${l.nome} ${fmt((d.lb[l.pavimento] ?? 0) * 100, 0)} cm`).join('; ')}. Emendas/sobreposições: {emendasPilar(d).length ? emendasPilar(d).map((e) => `${fmt(e.z0)} a ${fmt(e.z1)} m`).join('; ') : 'nenhuma'}.{d.avisos.length ? ` Avisos: ${d.avisos.join(' ')}` : ''}</p>
+                  </div>
+                );
+              })}
+            </>)}
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0) && (<>
+              {h2('Resumo geral de aço')}
+              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Total geral (vigas e pilares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [])]] as const).map(([tit, rs]) => (
+                <div key={tit} className="avoid">
+                  <h3>{tit}</h3>
+                  <table>
+                    <thead><tr><th>Aço</th><th>φ (mm)</th><th>Comprimento (m)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+                    <tbody>
+                      {rs.map((x) => <tr key={`${x.aco}-${x.phi}`}><td className="l">{x.aco}</td><td>{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.peso)}</td><td>{fmt(x.pesoComPerdas)}</td></tr>)}
+                      <tr><td className="l" colSpan={2}><b>Total</b></td><td><b>{fmt(rs.reduce((s, x) => s + x.comprimento, 0))}</b></td><td><b>{fmt(rs.reduce((s, x) => s + x.peso, 0))}</b></td><td><b>{fmt(rs.reduce((s, x) => s + x.pesoComPerdas, 0))}</b></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes: aço estimado por taxa na tabela de quantitativos (detalhamento nas pranchas).</p>
+            </>)}
             {h2('Lajes')}
             <table>
               <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>wk / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>

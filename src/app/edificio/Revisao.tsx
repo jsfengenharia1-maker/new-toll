@@ -11,6 +11,7 @@ import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { DimEdificio } from './calculo';
 import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
+import { DetalheDoPilar } from './DetalhamentoPilar';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -159,7 +160,7 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor }: { id: 
   );
 }
 
-function AbasViga({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; onChange: (a: 'resultados' | 'detalhamento') => void }) {
+function AbasDetalhe({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; onChange: (a: 'resultados' | 'detalhamento') => void }) {
   return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }]} />;
 }
 
@@ -168,12 +169,12 @@ function JanelaViga({ id }: { id: string }) {
   const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const v = dim.vigas.find((x) => x.viga === id);
   if (!v) return <p className="muted">Viga sem resultado.</p>;
-  if (aba === 'detalhamento') return <><AbasViga aba={aba} onChange={setAba} /><DetalheDaViga id={id} /></>;
+  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaViga id={id} /></>;
   const { pontos, determinantes: d } = v.envoltoria;
   const xs = pontos.map((p) => p.s), L = Math.max(v.L, xs.at(-1) ?? 0, 0.01);
   return (
     <>
-      <AbasViga aba={aba} onChange={setAba} />
+      <AbasDetalhe aba={aba} onChange={setAba} />
       <p className="small">Envoltória das combinações ELU em todos os pavimentos do grupo, em faixas de 0,25 m. Momento positivo desenhado para baixo (lado tracionado); abscissa s ao longo do traçado.</p>
       {pontos.length === 0 ? <p className="muted">Sem envoltória (viga sem vãos dimensionados).</p> : (
         <>
@@ -205,10 +206,13 @@ function JanelaViga({ id }: { id: string }) {
 
 function JanelaPilar({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
+  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const lances = dim.pilares.filter((x) => x.pilar === id);
   if (!lances.length) return <p className="muted">Pilar sem resultado.</p>;
+  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDoPilar id={id} /></>;
   return (
     <>
+      <AbasDetalhe aba={aba} onChange={setAba} />
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>

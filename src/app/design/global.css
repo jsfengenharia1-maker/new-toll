@@ -575,6 +575,9 @@ svg.mono .hinge { fill: #fff !important; }
   --det-sup: var(--c-v);
   --det-pele: var(--c-n);
   --det-estribo: var(--muted);
+  --det-pilar-barra: var(--c-m);
+  --det-arranque: var(--c-load);
+  --det-fund: var(--line);
   --det-emenda: var(--warn);
   --det-cota: var(--muted);
   --det-esp-contorno: 1.6;
@@ -599,6 +602,17 @@ svg.mono .hinge { fill: #fff !important; }
 .det-pt.inf { fill: var(--det-inf); }
 .det-pt.sup { fill: var(--det-sup); }
 .det-pt.pele { fill: var(--det-pele); }
+.det-barra.pilar { stroke: var(--det-pilar-barra); }
+.det-barra.arranque { stroke: var(--det-arranque); stroke-dasharray: 6 2; }
+.det-pt.pilar { fill: var(--det-pilar-barra); }
+.det-txt.pilar { fill: var(--det-pilar-barra); }
+.det-txt.arranque { fill: var(--det-arranque); }
+.det-nivel { stroke: var(--det-cota); stroke-width: 1; stroke-dasharray: 4 3; }
+.det-fund { fill: color-mix(in srgb, var(--det-fund) 60%, transparent); stroke: var(--det-cota); stroke-width: 1; }
+.det-grampo { stroke: var(--det-estribo); stroke-width: 1.2; }
+.det-secoes { display: flex; flex-wrap: wrap; gap: 12px; }
+.det-fig { margin: 0; }
+.det-fig .det-secao { max-width: 190px; }
 .det-txt { font: 9px var(--font-num); fill: var(--ink); paint-order: stroke; stroke: var(--surface-2); stroke-width: 3px; stroke-linejoin: round; }
 .det-txt.inf { fill: var(--det-inf); }
 .det-txt.sup { fill: var(--det-sup); }
@@ -610,5 +624,8 @@ svg.mono .hinge { fill: #fff !important; }
 .det-leg i.inf { border-color: var(--det-inf); }
 .det-leg i.sup { border-color: var(--det-sup); }
 .det-leg i.pele { border-color: var(--det-pele); }
+.det-leg i.pilar { border-color: var(--det-pilar-barra); }
+.det-leg i.arranque { border-color: var(--det-arranque); }
+.det-leg i.emenda { border-color: var(--det-emenda); border-top-style: dashed; }
 .det-leg i.estribo { border-top-width: 1px; border-color: var(--det-estribo); }
 .det-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }

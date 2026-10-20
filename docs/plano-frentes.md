@@ -7,7 +7,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 | Frente | Manual do usuário | Manual de cálculo | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 32 | 102 | 134 |
-| R — Revisão de resultados e detalhamento (R1, R2 e R3a feitas em 20/10/2026) | 97 | 117 | 214 |
+| R — Revisão de resultados e detalhamento (R1, R2, R3a e R3b feitas em 20/10/2026) | 97 | 110 | 207 |
 | E — Elementos estruturais | 200 | 141 | 341 |
 | FU — Fundações integradas | 67 | 23 | 90 |
 | L — Produtividade de lançamento | 71 | 5 | 76 |
