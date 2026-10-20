@@ -6,7 +6,8 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 - **Reconstrução limpa.** A especificação veio só do comportamento observável do programa original (menus e funções). Nunca descompilar, copiar código, textos, ícones ou o nome do programa original. Métodos de livro-texto e normas ABNT podem ser usados livremente.
 - **Premissas técnicas visíveis.** O usuário (eng. civil) não aceita premissas silenciosas: toda hipótese de cálculo nova deve ser confirmada com ele antes de implementar e ficar editável no app e escrita no memorial. Valores sem fonte confirmada devem ser marcados "a confirmar".
 - **Comunicação.** Português, objetiva, sem saudações nem elogios; propor ideias factíveis de forma proativa.
-- **Subagentes (decisão do usuário, 20/10/2026).** Usar modelo mais barato (Sonnet) para tarefas de rotina com spec pronta (interface, documentação, checklists); núcleo de cálculo e critérios novos ficam com o modelo principal.
+- **Subagentes (decisão do usuário, 20/10/2026).** Toda etapa é executada por subagente; a sessão principal só orquestra (briefing, revisão dos relatórios, verificação final, commit e push). Núcleo de cálculo com o modelo principal; interface, documentação e checklists com modelo mais barato (Sonnet).
+- **Premissas das próximas fatias (decisão do usuário, 20/10/2026).** Seguir o padrão do CYPECAD onde ele define (perfil do sistema) e a NBR 6118 onde não define (e no perfil NBR), sem parar para confirmar cada uma; valores sem fonte ficam "a confirmar" no app e no memorial.
 - **Repositório público.** Não commitar dados de clientes ou de obras reais.
 - **Branches/worktrees.** Toda nova branch ou worktree sai do `main` atualizado (`git fetch origin main && git worktree add -b <branch> ../<dir> origin/main`).
 - **Plugin ECC** (`affaan-m/ECC`) habilitado em `.claude/settings.json`.
