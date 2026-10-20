@@ -139,13 +139,13 @@ const proximoNumero = (b: BuildingModel) => Math.max(0, ...b.pilares.map((p) => 
 
 registrar<PilarIn>({
   nome: 'pilar.inserir',
-  descricao: 'Insere um pilar no ponto (x, y) do ponto fixo, com seção, ângulo e os pavimentos em que nasce (padrão: fundação) e morre (padrão: o mais alto).',
+  descricao: 'Insere um pilar no ponto (x, y) do ponto fixo, com seção, ângulo e os pavimentos em que nasce (padrão: fundação) e morre (padrão: o mais alto). Arranque (pilar de altura zero, só para levar cargas à fundação): nasce e morre "fundacao"; vale mesmo sem pavimentos.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['x', 'y', 'secao'], properties: {
     x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema, ajuste: { ...ajusteSchema, default: 'c' },
     angulo: { type: 'number', default: 0, description: 'graus, anti-horário' },
     nasce: { type: 'string', default: 'fundacao', description: '"fundacao" ou id do pavimento' },
-    morre: { type: 'string', description: 'id do pavimento mais alto; padrão: o mais alto da obra' },
+    morre: { type: 'string', description: 'id do pavimento mais alto; padrão: o mais alto da obra; "fundacao" (com nasce "fundacao") = arranque' },
     nome: { type: 'string', minLength: 1, description: 'padrão: próximo P<n>' },
   } },
   validar(b, p) {
@@ -326,14 +326,20 @@ registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
 
 registrar<{ ids: string[] }>({
   nome: 'pilar.remover',
-  descricao: 'Remove pilares.',
+  descricao: 'Remove pilares (e os elementos de fundação lançados sob eles).',
   risco: 'destrutivo',
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
   validar(b, p) {
     const falta = p.ids.filter((id) => !b.pilares.some((x) => x.id === id));
     return falta.length ? err('PILAR_INEXISTENTE', `Pilar(es) inexistente(s): ${falta.join(', ')}.`) : [];
   },
-  aplicar(d, p) { const s = new Set(p.ids); d.pilares = d.pilares.filter((q) => !s.has(q.id)); return `${p.ids.length} pilar(es) removido(s).`; },
+  aplicar(d, p) {
+    const s = new Set(p.ids);
+    d.pilares = d.pilares.filter((q) => !s.has(q.id));
+    // elementos de fundação dos pilares removidos saem junto
+    if (d.fundacao?.elementos.some((e) => e.pilares.some((x) => s.has(x)))) d.fundacao.elementos = d.fundacao.elementos.filter((e) => !e.pilares.some((x) => s.has(x)));
+    return `${p.ids.length} pilar(es) removido(s).`;
+  },
 });
 
 registrar<{ tolerancia: number }>({

@@ -9,7 +9,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 | N — Cálculo e normas | 26 | 93 | 119 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 41 | 68 | 109 |
 | E — Elementos estruturais | 227 | 142 | 369 |
-| FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026) | 67 | 23 | 90 |
+| FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 no núcleo em 20/10/2026, interface pendente) | 67 | 23 | 90 |
 | L — Produtividade de lançamento | 71 | 4 | 75 |
 | V — Visualização | 42 | 20 | 62 |
 

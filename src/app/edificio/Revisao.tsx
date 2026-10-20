@@ -17,7 +17,7 @@ import { JanelaVigotas } from './Vigotas';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
-const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', obra: 'Obra' };
+const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra' };
 
 export type Alvo = { tipo: 'viga' | 'pilar' | 'laje'; id: string; pavimento?: string };
 
@@ -84,7 +84,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', i
               <thead><tr><th>Elemento</th><th>Pavimento</th><th>Código</th><th>Mensagem</th><th /></tr></thead>
               <tbody>
                 {itens.map((i, k) => {
-                  const el = i.tipo !== 'obra' && i.id ? { tipo: i.tipo, id: i.id } : null;
+                  const el = i.tipo !== 'obra' && i.tipo !== 'fundacao' && i.id ? { tipo: i.tipo, id: i.id } : null;
                   return (
                     <LinhaElemento key={k} className={`${el ? 'click' : ''} ${i.nivel === 'erro' ? 'bad' : 'warn'}`} title={el ? 'Clique: ver na planta. Duplo clique: resultados do elemento.' : undefined}
                       ir={() => el && onIr(el.tipo, el.id, i.pavimento)} abrir={() => el && abrirJanela({ ...el, pavimento: i.pavimento })}>

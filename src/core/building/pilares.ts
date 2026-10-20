@@ -17,6 +17,8 @@ export function pilaresSobrepostos(b: BuildingModel, p: Pilar, ignorar: Set<stri
 }
 
 export function refsPilar(b: BuildingModel, nasce: string, morre: string): Diagnostico[] {
+  // arranque (pilar de altura zero na fundação): permitido mesmo sem pavimentos
+  if (nasce === 'fundacao' && morre === 'fundacao') return [];
   const ps = pavimentosOrdenados(b);
   if (!ps.length) return err('OBRA_SEM_PAVIMENTO', 'Crie os pavimentos antes de lançar pilares.');
   const i1 = ps.findIndex((x) => x.id === morre);
