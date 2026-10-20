@@ -6,7 +6,7 @@ import { edificioVazio } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
-import { abrirSessao, dimensionar, resumo, salvarSessao, type Io } from './run';
+import { abrirSessao, dimensionar, gravarPranchas, resumo, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
 const PROTOCOLOS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -56,6 +56,12 @@ export class ServidorMcp {
         executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
       { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha); quantitativos por pavimento e cargas características por pilar para o módulo Fundações.', inputSchema: vazio, annotations: ro(),
         executar: () => dimensionar(this.sessao.modelo) },
+      { name: 'pranchas', title: 'Gerar pranchas', description: 'Gera as pranchas de formas (uma por grupo com vigas ou lajes): PDF com todas as páginas, DXF R2000 e DWG R2018 (uma prancha por arquivo). Carimbo pelo comando prancha.definir. Grava nos caminhos informados (sobrescreve).',
+        inputSchema: { type: 'object', additionalProperties: false, properties: {
+          pdf: { type: 'string' }, dxf: { type: 'string' }, dwg: { type: 'string' }, grupo: { type: 'string', description: 'id ou nome do grupo (padrão: todos)' },
+          formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] }, escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
+        } }, annotations: rw(true),
+        executar: (a) => gravarPranchas(this.sessao.modelo, a as OpcoesSaidaPranchas, this.io) },
       { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, annotations: rw(true),
         executar: (a) => this.saida(this.sessao.aplicar(String(a.token), 'ia')) },
       { name: 'comandos', title: 'Comandos disponíveis', description: 'Lista todos os comandos do registro (nome, risco, descrição e JSON Schema dos parâmetros), inclusive os sem ferramenta própria.', inputSchema: vazio, annotations: ro(),

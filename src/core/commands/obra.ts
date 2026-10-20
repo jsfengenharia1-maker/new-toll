@@ -1,6 +1,6 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import type { Draft } from 'immer';
-import { COBRIMENTOS, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma } from '../building/types';
+import { COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -54,6 +54,31 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
     d.vento ??= { ...VENTO_PADRAO };
     for (const k of ['ativo', 'v0', 's1', 's3', 'categoria', 'caX', 'caY', 'excentricidade'] as const) if (p[k] !== undefined) (d.vento as Record<string, unknown>)[k] = p[k];
     return 'Vento alterado.';
+  },
+});
+
+const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'desenho', 'revisao', 'data'] as const;
+
+registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number }>({
+  nome: 'prancha.definir',
+  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática). Campos de texto vazios voltam ao padrão.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, properties: {
+    carimbo: { type: 'object', additionalProperties: false, properties: Object.fromEntries(CAMPOS_CARIMBO.map((k) => [k, { type: 'string', maxLength: 120 }])) },
+    formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
+    escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
+  } },
+  aplicar(d, p) {
+    d.prancha ??= { ...PRANCHA_PADRAO, carimbo: {} };
+    for (const k of CAMPOS_CARIMBO) {
+      const v = p.carimbo?.[k];
+      if (v === undefined) continue;
+      if (v.trim()) d.prancha.carimbo[k] = v.trim(); else delete d.prancha.carimbo[k];
+    }
+    if (p.formato !== undefined) d.prancha.formato = p.formato;
+    if (p.escala !== undefined) d.prancha.escala = p.escala;
+    return 'Pranchas: dados alterados.';
   },
 });
 

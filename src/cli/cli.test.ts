@@ -4,13 +4,14 @@ import { nomeFerramenta, ServidorMcp } from './mcp';
 import { listarComandos, replay } from '../core/commands';
 
 function memIo(files: Record<string, string> = {}) {
-  const out: string[] = [], err: string[] = [];
+  const out: string[] = [], err: string[] = [], bin: Record<string, Uint8Array> = {};
   const io: Io = {
     ler: (c) => { if (!(c in files)) throw new Error(`não encontrado: ${c}`); return files[c]; },
     gravar: (c, t) => { files[c] = t; },
+    gravarBytes: (c, d) => { bin[c] = d; },
     out: (t) => out.push(t), err: (t) => err.push(t),
   };
-  return { io, files, out, err };
+  return { io, files, out, err, bin };
 }
 
 describe('linha de comando', () => {
@@ -73,6 +74,12 @@ describe('linha de comando', () => {
     expect(d.vigas).toHaveLength(4);
     expect(d.fundacao).toHaveLength(4);
     expect(d.pilares.every((p: { armadura: string }) => /φ/.test(p.armadura))).toBe(true);
+    expect(runCli(['prancha', 'a.statikos', '--pdf', 'f.pdf', '--dxf', 'f.dxf', '--escala', '50'], m.io)).toBe(0);
+    expect(m.out.at(-1)).toBe('Gravado: f.pdf, f.dxf');
+    expect(new TextDecoder().decode(m.bin['f.pdf'].slice(0, 8))).toBe('%PDF-1.5');
+    expect(new TextDecoder().decode(m.bin['f.dxf'])).toContain('AC1015');
+    expect(runCli(['prancha', 'a.statikos', '--dwg', 'f.dwg'], m.io)).toBe(2);
+    expect(m.err.at(-1)).toMatch(/DWG não carregado/);
   });
 
   it('uso inválido devolve 64 e a ajuda', () => {

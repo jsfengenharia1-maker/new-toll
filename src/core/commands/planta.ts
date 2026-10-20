@@ -119,6 +119,7 @@ registrar<{ id: string }>({
   nome: 'mascara.remover',
   descricao: 'Remove a máscara.',
   risco: 'destrutivo',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
   validar: (b, p) => (mascara(b, p.id) ? [] : err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`)),
   aplicar(d, p) { d.mascaras = d.mascaras.filter((m) => m.id !== p.id); return 'Máscara removida.'; },

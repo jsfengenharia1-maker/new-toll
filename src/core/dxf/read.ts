@@ -68,6 +68,9 @@ function entidades(p: Par[], i0: number, fim: (par: Par) => boolean): { ents: En
 const num = (g: Par[], c: number, d = 0) => { const x = g.find((q) => q[0] === c); return x ? parseFloat(x[1]) : d; };
 const str = (g: Par[], c: number, d = '') => g.find((q) => q[0] === c)?.[1].trim() ?? d;
 
+/** Códigos de caractere do DXF: \U+XXXX (Unicode) e %%c/%%d/%%p (diâmetro, grau, ±). */
+const unicode = (t: string) => t.replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/%%[cC]/g, 'ø').replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±');
+
 function limparMtext(t: string) {
   return t.replace(/\\P/g, ' ').replace(/\\[ACFHLOQTWfp][^;\\{}]*;/g, '').replace(/\\[LlOoKk]/g, '').replace(/\\S([^;]*)[#^/]([^;]*);/g, '$1/$2').replace(/[{}]/g, '').replace(/\\\\/g, '\\').trim();
 }
@@ -186,7 +189,7 @@ export function lerDxf(txt: string): DxfLido {
         const s = Math.sqrt(Math.abs(T[0] * T[3] - T[1] * T[2]));
         const dirx = e.g.some((q) => q[0] === 11) && e.tipo === 'MTEXT' ? (Math.atan2(num(e.g, 21), num(e.g, 11)) * 180) / Math.PI : num(e.g, 50);
         const raw = e.tipo === 'MTEXT' ? limparMtext(e.g.filter((q) => q[0] === 3).map((q) => q[1]).join('') + str(e.g, 1)) : str(e.g, 1);
-        if (raw) camada(L).textos.push({ x, y, h: num(e.g, 40, 0.2) * s, rot: dirx + (Math.atan2(T[1], T[0]) * 180) / Math.PI, t: raw });
+        if (raw) camada(L).textos.push({ x, y, h: num(e.g, 40, 0.2) * s, rot: dirx + (Math.atan2(T[1], T[0]) * 180) / Math.PI, t: unicode(raw) });
         break;
       }
       case 'INSERT': case 'DIMENSION': {

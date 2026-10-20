@@ -14,6 +14,7 @@ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
 import { Group, Hint, NumField, Select, TextField } from '../ui';
 import { MemorialEdificio } from './MemorialEdificio';
+import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 
 
@@ -26,7 +27,7 @@ export function Edificio() {
   const { sessao, exec, novo, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'premissas'>('planta');
+  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
 
@@ -118,7 +119,7 @@ export function Edificio() {
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
@@ -129,6 +130,7 @@ export function Edificio() {
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
             {aba === 'dimensionamento' && <DimensionamentoAba onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
+            {aba === 'pranchas' && <Pranchas />}
             {aba === 'premissas' && (
               <div className="card">
                 <h3>Premissas em uso</h3>

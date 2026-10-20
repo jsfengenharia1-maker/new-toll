@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 215 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 220 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -58,7 +58,8 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Saída | `src/app/dxf.ts`, `dims.ts`, `pathTable.ts` | DXF R12 próprio com camadas, cotas automáticas de vãos e níveis, CSV ao longo de uma cadeia de barras |
 | Edifício (modelo) | `src/core/building/` | Modelo físico versionado (obra, norma, pavimentos, grupos, eixos), verificação de lançamento com correção sugerida, premissas em uso, parte do edifício no `.statikos` v2 |
 | Comandos | `src/core/commands/` | Registro tipado (JSON Schema próprio), aplicação com patches do immer (desfazer), log que reproduz o modelo (replay), prévia com token |
-| CLI e MCP | `src/cli/` | `statikos` em Node (novo, info, verificar, exec, comandos) e servidor MCP stdio (JSON-RPC próprio, sem SDK) |
+| CLI e MCP | `src/cli/` | `statikos` em Node (novo, info, verificar, exec, calc, dim, prancha, comandos) e servidor MCP stdio (JSON-RPC próprio, sem SDK) |
+| Pranchas | `src/core/sheets/` | Planta de formas por grupo, quadro de pilares, carimbo, folhas A0–A4; um modelo de prancha e quatro saídas: PDF vetorial próprio (camadas OCG), DXF R2000 próprio (modelo em m + layout com janela em escala), DWG R2018 pelo nasjidwg (MIT, `public/vendor`, sob demanda) e SVG (prévia) |
 | DXF (entrada) | `src/core/dxf/read.ts` | Leitor próprio: LINE, LWPOLYLINE com bulge, POLYLINE, ARC, CIRCLE, ELLIPSE, SPLINE (aproximada), TEXT, MTEXT, INSERT/DIMENSION com blocos aninhados, escala, rotação e matriz; $INSUNITS |
 | Capturas | `src/core/geom/snap.ts` | Índice espacial (Flatbush) sobre segmentos e arcos: extremidade, interseção, meio, centro, quadrante, perpendicular e próximo; entrada digitada (x;y, @dx;dy, @d<ângulo, distância); ortogonal e polar |
 | Barras 3D | `src/core/fe3d.ts` | Pórtico espacial e grelha (12 gdl por barra), trechos rígidos, liberações por condensação, molas, diafragma rígido mestre-escravo, cargas distribuídas e concentradas; validado contra o OpenSees (`validation/opensees/`) |
@@ -156,6 +157,14 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Memorial do edifício (materiais, geometria com planta de fôrma esquemática, ações, modelo, γz, dimensionamento, fundação, quantitativos e premissas), imprimível em PDF e exportável em HTML
 - `statikos dim` e ferramenta `dimensionar` no MCP
 - Fora desta fatia: torção de vigas, detalhamento (pranchas na 6b), resultados coloridos e visualização 3D
+
+**Módulo Edifícios — fatia 6b (20/10/2026)**
+- Pranchas de formas por grupo: pilares hachurados (os que nascem no pavimento, tracejados), faces das vigas interrompidas nos pilares e cruzamentos, rótulos de vigas, pilares e lajes, eixos com bolhas, cotas em cadeia entre pilares, quadro de pilares (com as armaduras do último dimensionamento) e carimbo editável
+- Formato (A0–A4) e escala automáticos ou fixos; margens, legenda de 178 mm e marcas de dobra
+- PDF vetorial próprio em escala exata (penas, tracejados, Helvetica com acentos, uma camada OCG por tipo de elemento), várias páginas
+- DXF R2000 próprio: planta em metros no modelo, folha num layout com janela na escala, camadas com cor, tipo de linha e espessura; auditado sem erros pelo ezdxf (`validation/dxf/auditar.py`) e relido pelo nasjidwg
+- DWG R2018 pelo nasjidwg (MIT), carregado sob demanda de `public/vendor` (192 KB, fora do HTML único); a mesma prancha relida do DXF e do DWG é comparada entidade a entidade nos testes
+- Aba Pranchas com prévia, `statikos prancha` (`--pdf`, `--dxf`, `--dwg`) e ferramenta `pranchas` no MCP; no artifact do claude.ai, arquivos de extensão não aceita (DXF, DWG, `.statikos`) saem dentro de um `.zip`
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

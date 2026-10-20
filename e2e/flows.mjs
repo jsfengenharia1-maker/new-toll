@@ -450,4 +450,40 @@ export const flows = [
       assert.equal(await page.locator('table.loads-ed tbody tr').first().locator('input').first().inputValue(), 'P1');
     },
   },
+  {
+    name: 'pranchas: prévia, carimbo e downloads em PDF, DXF e DWG',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('eixo.malha {"dx": [6], "dy": [5]}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const prev = page.locator('.prancha-prev');
+      await prev.locator('svg').waitFor();
+      assert.equal(await prev.getAttribute('data-escala'), '50');
+      assert.match(await prev.textContent(), /V1 \(15×40\).*QUADRO DE PILARES.*PLANTA DE FORMAS — TIPO/s);
+      await page.getByLabel('Responsável técnico').fill('Eng. Teste');
+      await page.getByLabel('Responsável técnico').press('Enter');
+      await prev.getByText('Eng. Teste').waitFor();
+      // formato fixo pelo comando: a prévia acompanha
+      await page.getByLabel('Formato').selectOption('A1');
+      assert.equal(await prev.getAttribute('data-formato'), 'A1');
+      const baixar = async (rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: rot }).click()]);
+        return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
+      };
+      const pdf = await baixar('PDF (todas)');
+      assert.match(pdf.nome, /pranchas\.pdf$/);
+      assert.equal(pdf.dados.subarray(0, 8).toString('latin1'), '%PDF-1.5');
+      const dxf = await baixar('DXF R2000');
+      assert.match(dxf.nome, /\.dxf$/);
+      assert.match(dxf.dados.toString('latin1'), /AC1015[\s\S]*Eng\. Teste/);
+      const dwg = await baixar('DWG R2018');
+      assert.match(dwg.nome, /\.dwg$/);
+      assert.equal(dwg.dados.subarray(0, 6).toString('latin1'), 'AC1032');
+    },
+  },
 ];

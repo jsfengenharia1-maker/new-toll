@@ -1,3 +1,4 @@
+import { zip } from '../core/zip';
 import { useEffect, useState, type ReactNode } from 'react';
 
 let uid = 0;
@@ -98,7 +99,9 @@ export async function copyText(text: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 }
 
-type DL = { save: (r: { filename: string; data: string }) => Promise<unknown> } | null;
+type DL = { save: (r: { filename: string; data: string | Uint8Array }) => Promise<unknown> } | null;
+/** Extensões que o salvamento do visualizador de artifacts aceita; as outras vão dentro de um .zip. */
+const PERMITIDAS = /\.(gif|png|jpe?g|webp|mp4|webm|txt|json|md|docx|pptx|epub|csv|ttf|html|svg|pdf|xlsx|zip)$/i;
 let dlPromise: Promise<DL> | null = null;
 function viewerDownloads(): Promise<DL> {
   const c = (window as unknown as { claude?: { use?: (n: string) => Promise<DL> } }).claude;
@@ -108,13 +111,14 @@ function viewerDownloads(): Promise<DL> {
 }
 
 /** Oferece um arquivo: pelo visualizador de artifacts quando disponível, senão download direto. */
-export async function download(name: string, content: string, type: string): Promise<'saved' | 'declined' | 'fallback'> {
+export async function download(name: string, content: string | Uint8Array, type: string): Promise<'saved' | 'declined' | 'fallback'> {
   const dl = await viewerDownloads();
   if (dl) {
-    try { await dl.save({ filename: name, data: content }); return 'saved'; } catch { return 'declined'; }
+    const [nome, dados] = PERMITIDAS.test(name) ? [name, content] : [`${name}.zip`, zip([{ nome: name, dados: typeof content === 'string' ? new TextEncoder().encode(content) : content }])];
+    try { await dl.save({ filename: nome, data: dados }); return 'saved'; } catch { return 'declined'; }
   }
   try {
-    const url = URL.createObjectURL(new Blob([content], { type }));
+    const url = URL.createObjectURL(new Blob([content as BlobPart], { type }));
     const a = document.createElement('a');
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();

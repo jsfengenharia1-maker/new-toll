@@ -294,7 +294,7 @@ Pasta `validation/` com casos em JSON (`entrada.statikos`, `esperado.json`, `fon
 |---|---|---|---|---|
 | 1 | flatbush | ISC | ~3 KB | bundle |
 | 1 | rbush | MIT | ~2 KB | não usado (o índice do modelo é refeito por Flatbush a cada alteração) |
-| 6b | nasjidwg | MIT | ~74 KB | `public/vendor` (sob demanda) |
+| 6b | nasjidwg 0.18.0 | MIT | 54 KB gz (192 KB, só o escritor R2018) | `public/vendor` (sob demanda); devDependency para os testes |
 | V2 | acad-ts | MIT | ~198 KB | `public/vendor` |
 | V2 | pdfjs-dist | Apache-2.0 | ~0,5 MB | `public/vendor` |
 | V3 | web-ifc | MPL-2.0 | ~0,96 MB | `public/vendor` |
@@ -335,7 +335,7 @@ Cada fatia entrega: núcleo puro com testes, comandos no registro, ferramenta na
 | nasjidwg jovem (um autor) | acad-ts de reserva; DXF R2000 sempre disponível; teste real no AutoCAD |
 | Canvas 2D sem GPU em máquinas fracas | Cache da máscara, DPR ≤ 2, benchmark no CI |
 | Modelo separado ignora a interação laje-pórtico no vento | Documentado no memorial; modelo integrado por condensação na V2 |
-| Bundle crescer | Orçamento: HTML único ≤ 900 KB (hoje 659 KB); pesados em `public/vendor` |
+| Bundle crescer | Orçamento: HTML único ≤ 1 MB (900 KB até a fatia 6a; elevado pelo usuário em 20/10/2026); pesados em `public/vendor` |
 | Escopo grande | Fatias verticais; cada uma utilizável sozinha |
 
 ---
@@ -350,6 +350,6 @@ Cada fatia entrega: núcleo puro com testes, comandos no registro, ferramenta na
 6. Cálculo em Web Worker.
 7. Edifícios como segunda área do app ("Pórtico 2D" | "Edifício").
 8. Bibliotecas sob demanda em `public/vendor`, desativadas no artifact.
-9. Orçamento do HTML único: 900 KB.
+9. Orçamento do HTML único: 1 MB (era 900 KB; elevado pelo usuário em 20/10/2026).
 10. Fatia 0 nova (fundação do registro/CLI/MCP) e fatia 6 dividida em 6a (resultados) e 6b (pranchas).
 11. CLA via CLA Assistant.

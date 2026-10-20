@@ -183,7 +183,23 @@ export interface BuildingModel {
   lajes: Laje[];
   cargas: Carga[];
   vento?: Vento;
+  /** Pranchas: dados do carimbo (definidos pelo usuário), formato e escala. */
+  prancha?: ConfigPrancha;
 }
+
+export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+export interface Carimbo {
+  empresa: string; obra: string; cliente: string; local: string;
+  responsavel: string; registro: string; desenho: string; revisao: string; data: string;
+}
+export interface ConfigPrancha {
+  carimbo: Partial<Carimbo>;
+  /** 'auto' escolhe o menor formato em que a planta cabe na escala. */
+  formato: Formato | 'auto';
+  /** Denominador da escala (50 = 1:50); 0 = automática. */
+  escala: number;
+}
+export const PRANCHA_PADRAO: ConfigPrancha = { carimbo: {}, formato: 'auto', escala: 0 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },
