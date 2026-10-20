@@ -1549,4 +1549,135 @@ export const flows = [
       assert.match(await grupo.locator('[data-cargas-fundacao]').innerText(), /Cargas no nível de fundação \(1\)/);
     },
   },
+  {
+    webgl: true,
+    name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
+    async run({ newPage, baseURL }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const cena = async () => JSON.parse(await cv.getAttribute('data-cena'));
+      const status = await cv.getAttribute('data-status');
+      const inicial = await cena();
+      console.log(`        (vista 3D em modo ${status}; cena ${JSON.stringify(inicial)})`);
+      assert.ok(inicial.total > 0 && inicial.pilar > 0 && inicial.viga > 0 && inicial.laje > 0, JSON.stringify(inicial));
+      // o three.js não entra no HTML único: vem de /vendor, sob demanda
+      const html = await (await page.request.get(baseURL)).text();
+      assert.ok(!html.includes('THREE.WebGLRenderer'), 'o HTML único não pode conter o three.js');
+      assert.equal((await page.request.get(baseURL + 'vendor/three-0.186.1.mjs')).status(), 200);
+
+      if (status === 'pronto') {
+        assert.equal(await cv.locator('canvas').count(), 1);
+        await page.waitForFunction(() => Number(document.querySelector('.v3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+        // girar arrastando muda o azimute exibido
+        const az = async () => page.locator('.v3d-barra .slider', { hasText: 'Azimute' }).locator('input').inputValue();
+        const az0 = await az();
+        const box = await cv.boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 20, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForFunction((a) => [...document.querySelectorAll('.slider')].find((l) => l.textContent.startsWith('Azimute')).querySelector('input').value !== a, az0);
+        // perspectiva <-> isométrica
+        assert.equal(await cv.getAttribute('data-projecao'), 'perspectiva');
+        await page.getByRole('radio', { name: 'Isométrica' }).click();
+        assert.equal(await cv.getAttribute('data-projecao'), 'isometrica');
+        await page.getByRole('radio', { name: 'Perspectiva' }).click();
+        assert.equal(await cv.getAttribute('data-projecao'), 'perspectiva');
+        // transparência das lajes
+        await page.locator('.v3d-barra .slider', { hasText: 'Lajes' }).locator('input').fill('80');
+        assert.match(await page.locator('.slider', { hasText: 'Lajes' }).locator('output').innerText(), /80/);
+        // caminhar: liga o modo, anda com W e volta
+        await page.getByRole('button', { name: 'Caminhar' }).click();
+        assert.equal(await cv.getAttribute('data-caminhar'), '1');
+        await cv.focus();
+        await page.keyboard.down('w');
+        await page.waitForTimeout(250);
+        await page.keyboard.up('w');
+        await page.getByRole('button', { name: 'Caminhar' }).click();
+        assert.equal(await cv.getAttribute('data-caminhar'), '0');
+      } else {
+        // sem WebGL: o isométrico em SVG da mesma cena
+        assert.equal(await cv.getAttribute('data-projecao'), 'svg');
+        assert.ok(await cv.locator('svg.v3d-iso path').count() > 0);
+      }
+
+      // filtro por pavimento: a contagem exposta muda e fica só naquele pavimento
+      await page.locator('.v3d-barra').getByLabel('Escopo da vista 3D').selectOption('pavimento');
+      const sel = page.locator('.v3d-barra').getByLabel('Pavimento', { exact: true });
+      const opcoes = await sel.locator('option').allInnerTexts();
+      assert.ok(opcoes.includes('Tipo 2'), opcoes.join(','));
+      await sel.selectOption({ label: 'Tipo 2' });
+      await page.waitForFunction((t) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).total < t, inicial.total);
+      const um = await cena();
+      assert.equal(Object.keys(um.pavimentos).length, 1);
+      assert.ok(um.laje >= 1 && um.viga >= 4, JSON.stringify(um));
+      // tipo oculto sai da contagem
+      await page.getByRole('button', { name: 'Pilares' }).click();
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).pilar === undefined);
+      await page.getByRole('button', { name: 'Pilares' }).click();
+      // edifício completo de volta
+      await page.locator('.v3d-barra').getByLabel('Escopo da vista 3D').selectOption('edificio');
+      await page.waitForFunction((t) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).total === t, inicial.total);
+
+      // seleção sincronizada com a planta: o que a planta seleciona aparece na barra de estado da vista
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('s');
+      const v = JSON.parse(await page.locator('.planta-cv').getAttribute('data-vista'));
+      const caixa = await page.locator('canvas.int').boundingBox();
+      await page.mouse.click(caixa.x + v.ox, caixa.y + v.oy);
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      await page.locator('.v3d-sel-info').waitFor();
+      assert.match(await page.locator('.v3d-sel-info').innerText(), /Selecionado:\s+P\d/);
+
+      // memorial do edifício: a vista isométrica (mesma geometria) é opcional e sai como figura SVG
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.equal(await memo.locator('figure[data-isometrico]').count(), 0);
+      await memo.getByLabel('Incluir vista isométrica').check();
+      assert.ok(await memo.locator('figure[data-isometrico] svg path[fill]').count() > 20);
+    },
+  },
+  {
+    name: 'V1: sem o three.js (artifact do claude.ai) a vista 3D cai para o isométrico em SVG, com barras de rotação e seleção',
+    async run({ newPage }) {
+      // sem service worker para a rota abortar o vendor de verdade (o worker responderia por ele)
+      const page = await newPage(undefined, { serviceWorkers: 'block' });
+      await page.context().route('**/vendor/three-*', (r) => r.abort());
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') === 'sem-vendor');
+      assert.equal(await cv.getAttribute('data-projecao'), 'svg');
+      assert.match(await page.locator('.v3d-aviso').first().innerText(), /three\.js não está disponível/);
+      assert.ok(await cv.locator('svg.v3d-iso path').count() > 20);
+      assert.equal(await cv.locator('canvas').count(), 0);
+      // as barras de azimute e elevação refazem o desenho
+      const antes = await cv.locator('svg.v3d-iso').innerHTML();
+      await page.locator('.v3d-barra .slider', { hasText: 'Azimute' }).locator('input').fill('40');
+      assert.notEqual(await cv.locator('svg.v3d-iso').innerHTML(), antes);
+      // o filtro por tipo vale no fallback
+      const total = JSON.parse(await cv.getAttribute('data-cena')).total;
+      await page.getByRole('button', { name: 'Lajes' }).click();
+      await page.waitForFunction((t) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).total < t, total);
+      await page.getByRole('button', { name: 'Lajes' }).click();
+      // clique no desenho seleciona o elemento (o mesmo estado da planta)
+      await cv.locator('svg.v3d-iso path[data-id^="pilar:"]').first().click({ force: true });
+      await page.locator('.v3d-sel-info').waitFor();
+      assert.match(await page.locator('.v3d-sel-info').innerText(), /Selecionado:\s+P\d/);
+    },
+  },
 ];

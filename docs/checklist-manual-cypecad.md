@@ -11,18 +11,18 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 16 | 8 | 14 | 3 |
+| 3. Grupos e pavimentos | 41 | 23 | 8 | 7 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 13 | 17 | 53 | 25 |
-| 7. Lajes | 195 | 20 | 32 | 76 | 67 |
+| 7. Lajes | 195 | 21 | 32 | 75 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
 | 11. Fundações | 70 | 24 | 13 | 28 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **126** | **121** | **331** | **185** |
+| **Total** | **763** | **134** | **121** | **323** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026) | 14 | 31 | 45 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 35 | 42 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
 ## 0. Apresentação do programa
 
@@ -174,13 +174,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Falta | V | [V2] |
 | C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2] |
 | C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Falta | V | linhas de seção no pavimento [V2] |
-| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Falta | V | vista 3D [V1] |
-| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Falta | V | [V1] |
-| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Falta | V | [V1] |
-| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Falta | V | [V1] |
-| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Falta | V | [V1] |
-| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Falta | V | [V1] |
-| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Falta | V | [V1] |
+| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Feito | — | vista 3D por grupo, intervalo de pavimentos ou um pavimento: `construirCena` (`src/core/vista3d/cena.ts`), aba 3D (`src/app/vista3d/Vista3D.tsx`) [V1] |
+| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Feito | — | edifício completo na vista 3D (pilares, vigas, lajes e fundações); aço fora [V1] |
+| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Feito | — | cor por tipo (tokens `--v3d-*` nos três temas) e textura procedural opcional [V1] |
+| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Feito | — | barras de azimute e elevação e arrastar (`camera.ts`, `controles.ts`) [V1] |
+| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Feito | — | perspectiva e isométrica preservando o enquadramento (`alternarProjecao`) [V1] |
+| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Feito | — | modo caminhar: altura do olho 1,6 m, W A S D e setas, velocidade ajustável, limites do edifício [V1] |
+| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Feito | — | transparência de lajes e paredes de 0 a 100 %; as paredes entram com a E1 (gerador registrado em `GERADORES_3D`) [V1] |
 
 ## 4. Pilares
 
@@ -427,7 +427,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano [E3f] |
 | C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação [E3f] |
 | C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Falta | L | bloquear o cálculo com pano sem tipo [L5] |
-| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Falta | V | 3D [V1] |
+| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Feito | — | pano fechado por vigas sem laje: polígono translúcido tracejado com "?" na vista 3D [V1] |
 | | **7.1.2.2 Lajes de vigotas** | | | |
 | C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] [E3a] |
 | C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Falta | E | vigotas protendidas; catálogo de fabricante [E3a] |
@@ -956,4 +956,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 113 → 126; Parcial 133 → 121; Falta 332 → 331; Fora 185 → 185.
   - Pendências por frente: FU 58 → 45 (Parcial 26 → 14, Falta 32 → 31); demais sem mudança.
 - **20/10/2026 — specs E3, E4, L e V (só documentação).** Pendências E restantes (146 neste manual) alocadas às fatias E3a–E3f de `spec-frente-E3.md` (cap. 7: 77) e E4a–E4e de `spec-frente-E4.md` (cap. 8, C0.1, C1.33, C1.34 e C10.26: 69); pendências L (71) às fatias L1–L5 de `spec-frente-L.md`; pendências V (42) às fatias V1–V5 de `spec-frente-V.md`. A fatia vai na nota de cada item (ex. "[E3b]", "[L2]", "[V1]"); a frente continua a letra. Conferido por script: cada id em uma só fatia, sem sobra. Previstas reclassificações no fechamento da E4e (C0.1 Feito com "aço fora", C1.34 Fora). Situação e contagens sem mudança.
+- **20/10/2026 — fatia V1 (vista 3D do modelo), núcleo e interface.** `src/core/vista3d/` (`cena.ts`: `construirCena` com escopo por grupos, intervalo ou pavimentos e filtro de tipos; geradores registrados em `GERADORES_3D` para pilares por lance, vigas, lajes com furos triangulados (`triangular.ts`, ear clipping próprio), panos a definir e fundações da FU1/FU2; `malha.ts`; `camera.ts`: órbita, enquadramento, troca de projeção e caminhar; `isometrico.ts`: SVG estático) e `src/app/vista3d/` (three.js 0.186.1 vendorizado em `public/vendor` por `scripts/vendor-three.mjs`, carregado sob demanda; `renderizador.ts`, `controles.ts`, `Vista3D.tsx`, aba 3D do Edifício, seleção sincronizada com a planta, captura PNG, fallback em SVG sem o vendor ou sem WebGL, figura isométrica no memorial do edifício). C3.35 a C3.41 e C7.18 fechados como Feito (aço fora na C3.36; paredes entram com a E1 na C3.41). Premissas a confirmar: altura do olho 1,6 m, velocidade inicial 2 m/s, toco do arranque 0,4 m, estaca nominal de 5 m sem comprimento calculado, viga invertida sobe a partir da cota da laje, detalhe alto = capa e vigotas em linhas.
+  - Situação: Feito 126 → 134; Parcial 121 → 121; Falta 331 → 323; Fora 185 → 185.
+  - Pendências por frente: V 42 → 34 (Parcial 7 → 7, Falta 35 → 27); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

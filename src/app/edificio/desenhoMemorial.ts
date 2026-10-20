@@ -1,6 +1,8 @@
 // Planta de fôrma esquemática de um grupo, em SVG estático (cores do papel: design/memorial.css).
 import { contornoPilar, geometriaViga, lancesDoPilar, secaoNoLance, type BuildingModel } from '../../core/building/types';
 import { memo } from '../design/tokens';
+import { construirCena, type OpcoesCena } from '../../core/vista3d/cena';
+import { isometricoSvg } from '../../core/vista3d/isometrico';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -41,4 +43,19 @@ export function svgPlantaGrupo(b: BuildingModel, grupo: string, falhas: Set<stri
   }
   out.push('</svg>');
   return out.join('');
+}
+
+/** Cor misturada com preto (fator 1 = a própria cor), a partir de um `#rrggbb` do papel. */
+const escurecer = (hex: string, f: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `#${[16, 8, 0].map((s) => Math.round(((n >> s) & 255) * f).toString(16).padStart(2, '0')).join('')}`;
+};
+
+/** Figura isométrica do edifício (a mesma `Cena3D` da vista 3D), com as cores do papel; vazio se não há elementos. */
+export function svgIsometrico(b: BuildingModel, o: Pick<OpcoesCena, 'fundacoes' | 'vigasFundacao'> = {}): string {
+  const cena = construirCena(b, { ...o, tipos: ['pilar', 'viga', 'laje', 'fundacao', 'parede', 'escada'] });
+  if (!cena.objetos.length) return '';
+  const tons = (n: string) => [1, 0.88, 0.74, 0.58].map((f) => escurecer(memo(`iso-${n}`), f));
+  const cores = Object.fromEntries(['pilar', 'viga', 'laje', 'fundacao', 'parede', 'escada', 'pendente', 'sel'].map((n) => [n, tons(n)]));
+  return isometricoSvg(cena, { cores, maxFaces: 8000 }).svg.replace('<svg ', '<svg width="100%" style="max-height:130mm" ');
 }
