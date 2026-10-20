@@ -54,3 +54,51 @@ describe('dimensionamento do edifício', () => {
     fl.forEach((f, i) => { expect(f.Nk).toBeGreaterThanOrEqual(nG[i].N + nQ[i].N - 1e-6); expect(f.NkPerm).toBeCloseTo(nG[i].N, 1); expect(f.ap).toBe(0.25); });
   });
 });
+
+describe('correções da conferência com o manual de cálculo', () => {
+  it('furos da laje: a grelha não carrega a abertura e continua em equilíbrio', () => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    s.executar('lote', { comandos: [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    const v = (p: number[][]) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } });
+    s.executar('lote', { comandos: [v([[0, 0], [6, 0]]), v([[0, 5], [6, 5]]), v([[0, 0], [0, 5]]), v([[6, 0], [6, 5]])] });
+    s.executar('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const cheia = analisarEdificio(s.modelo);
+    expect(s.executar('laje.abertura', { id: s.modelo.lajes[0].id, contorno: [[2, 2], [4, 2], [4, 3], [2, 3]] }).ok).toBe(true);
+    const furada = analisarEdificio(s.modelo);
+    expect(furada.erro).toBeUndefined();
+    // Q: 1,5 kN/m² × 2 m² de abertura × 3 pavimentos a menos
+    expect(cheia.totais.Q - furada.totais.Q).toBeCloseTo(1.5 * 2 * 3, 6);
+    const soma = (c: 'G' | 'Q') => furada.fundacao.filter((f) => f.caso === c).reduce((t, f) => t + f.N, 0);
+    expect(soma('G')).toBeCloseTo(furada.totais.G, 3);
+    expect(soma('Q')).toBeCloseTo(furada.totais.Q, 3);
+  });
+
+  it('aço da norma: CA-60 reduz a armadura das vigas na razão dos fyd', () => {
+    const b = predio();
+    const an = analisarEdificio(b);
+    const d50 = dimensionarEdificio(b, an);
+    const d60 = dimensionarEdificio({ ...b, norma: { ...b.norma, aco: 'CA-60' } }, an);
+    const v50 = d50.vigas[0], v60 = d60.vigas[0];
+    expect(v60.AsInf).toBeLessThan(v50.AsInf);
+    expect(v60.AsInf / v50.AsInf).toBeGreaterThan(0.8);
+  });
+
+  it('pilar tracionado é verificado (torre esbelta com vento forte)', { timeout: 60000 }, () => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    s.executar('pavimento.repetir', { id: 'pav_6', vezes: 8 });
+    s.executar('vento.definir', { v0: 50, categoria: 'II' });
+    s.executar('lote', { comandos: [[0, 0], [3, 0], [3, 3], [0, 3]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.3, h: 0.3 } } })) });
+    const v = (p: number[][]) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } });
+    s.executar('lote', { comandos: [v([[0, 0], [3, 0]]), v([[0, 3], [3, 3]]), v([[0, 0], [0, 3]]), v([[3, 0], [3, 3]])] });
+    s.executar('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.1 } });
+    const d = dimensionarEdificio(s.modelo, analisarEdificio(s.modelo));
+    const tr = d.pilares.filter((p) => p.mensagens.some((m) => m.startsWith('Tração')));
+    expect(tr.length).toBeGreaterThan(0);
+    // na base, a tração de ~800 kN não cabe em 30 × 30 com 4 %: tem de reprovar
+    expect(tr.some((p) => p.pavimento === 'Térreo' && p.status === 'fail')).toBe(true);
+    for (const p of d.pilares) expect(Number(p.armadura.match(/φ([\d,]+)/)?.[1].replace(',', '.') ?? 0)).toBeLessThanOrEqual(25);
+  });
+});
+

@@ -13,7 +13,10 @@ import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
 export { TAXAS };
 
-const FYK = 500, GS = 1.15, FYD = FYK / GS;
+const GS = 1.15;
+/** Aço da obra (norma.aco): fyk e fyd em MPa. O aço por posição (longitudinal, estribos, lajes) vem na frente N1. */
+const acoDe = (b: BuildingModel) => { const FYK = b.norma.aco === 'CA-60' ? 600 : 500; return { FYK, FYD: FYK / GS }; };
+const AVISO_CA60 = 'CA-60 só existe até φ10: confira as bitolas maiores.';
 
 // ---------------- esforços ao longo da barra ----------------
 
@@ -62,6 +65,7 @@ export interface ResultadoViga {
 }
 
 function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], c: Concrete): ResultadoViga[] {
+  const { FYK, FYD } = acoDe(b);
   const out: ResultadoViga[] = [];
   const pm = an.portico;
   for (const v of b.vigas) {
@@ -92,6 +96,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const bi = chooseBars(AsInf, v.secao.b, cob, 0.005, 0.019), bs = chooseBars(AsSup, v.secao.b, cob, 0.005, 0.019);
     const txt = (x: ReturnType<typeof chooseBars>) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}${x.layers > 1 ? ` (${x.layers} camadas)` : ''}` : '—');
     if (!bi && AsInf > 0) msgs.push('Armadura inferior não cabe na largura.');
+    if (b.norma.aco === 'CA-60' && Math.max(bi?.phi ?? 0, bs?.phi ?? 0) > 10) msgs.push(AVISO_CA60);
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
       Mpos, Mneg, V, AsInf, AsSup, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
@@ -121,6 +126,7 @@ function barrasPerimetro(poly: Pt[], circ: number | null, a: number, s: number, 
 }
 
 function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], c: Concrete): ResultadoPilar[] {
+  const { FYD } = acoDe(b);
   const pm = an.portico, out: ResultadoPilar[] = [];
   const cob = b.norma.cobrimento.pilar / 100;
   for (const p of b.pilares) for (const lance of lancesDoPilar(b, p)) {
@@ -140,7 +146,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     // solicitações por combinação: Nd (compressão +), momentos nas duas direções nas duas pontas (u: flexão com deslocamento ao longo de b → Mz local)
     const sol = elu.map((cb) => {
       const N0 = -comb(pc, cb, 0, 'N') * gn, NL = -comb(pc, cb, 1, 'N') * gn;
-      return { nome: cb.nome, Nd: Math.max(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn] };
+      return { nome: cb.nome, Nd: Math.max(N0, NL), Nt: Math.min(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn] };
     });
     const NdMax = Math.max(0, ...sol.map((x) => x.Nd));
     const AsMin = Math.max((0.15 * NdMax) / 1000 / FYD, 0.004 * Ac), AsMax = 0.04 * Ac;
@@ -150,6 +156,11 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const arg = (f: (x: (typeof sol)[number]) => number) => comp.reduce((bi, x, i) => (f(x) > f(comp[bi]) ? i : bi), 0);
     if (comp.length) for (const f of [(x: (typeof sol)[number]) => x.Nd, (x: (typeof sol)[number]) => -x.Nd, (x: (typeof sol)[number]) => am(x.Mu), (x: (typeof sol)[number]) => am(x.Mv), (x: (typeof sol)[number]) => am(x.Mu) / w + am(x.Mv) / h]) pick.add(arg(f));
     const solD = [...pick].map((i) => comp[i]);
+    // tração (N < 0 numa das pontas): mais tracionada e maiores momentos; sem efeitos de 2ª ordem nem M1d,mín
+    const tra = sol.filter((x) => x.Nt < 0), pickT = new Set<number>();
+    const argT = (f: (x: (typeof sol)[number]) => number) => tra.reduce((bi, x, i) => (f(x) > f(tra[bi]) ? i : bi), 0);
+    if (tra.length) for (const f of [(x: (typeof sol)[number]) => -x.Nt, (x: (typeof sol)[number]) => am(x.Mu), (x: (typeof sol)[number]) => am(x.Mv)]) pickT.add(argT(f));
+    const traD = [...pickT].map((i) => tra[i]);
     const mesh = fiberMesh(poly, circ ? 24 : 16);
     const direcao = (Nd: number, M: number[], hDir: number, lam: number) => {
       const MA = Math.max(Math.abs(M[0]), Math.abs(M[1])), MB = Math.min(Math.abs(M[0]), Math.abs(M[1]));
@@ -165,8 +176,15 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     };
     const avaliar = (bars: RBar[]) => {
       const S: FiberSection = { mesh, bars, cx: P.cx, cy: P.cy, c, fyd: FYD, poly };
-      const { NRc } = fiberAxialRange(S);
+      const { NRc, NRt } = fiberAxialRange(S);
       let util = 0;
+      for (const x of traD) {
+        if (x.Nt / 1000 < NRt) { util = Math.max(util, 99); continue; }
+        const mu = am(x.Mu), mv = am(x.Mv);
+        if (Math.hypot(mu, mv) < 1e-9) { util = Math.max(util, x.Nt / 1000 / NRt); continue; }
+        const R = fiberCapacity(S, x.Nt / 1000, mu, mv);
+        util = Math.max(util, R === null ? 99 : Math.hypot(mu, mv) / 1000 / R);
+      }
       for (const x of solD) {
         if (x.Nd / 1000 > NRc) { util = Math.max(util, 99); continue; }
         const du = direcao(x.Nd, x.Mu, w, lamU), dv = direcao(x.Nd, x.Mv, h, lamV);
@@ -181,7 +199,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     let melhor: { util: number; txt: string; As: number; phi: number } | null = null;
     const tMin = circ ?? Math.min(w, h);
     busca: for (const phi of PHI_L) {
-      if (phi < 10 || phi / 1000 > tMin / 8) continue;
+      if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8) continue; // φ10 a φ25 (premissa dim-pilares)
       const a = cob + 0.005 + phi / 2000;
       for (const sp of [0.3, 0.25, 0.2, 0.15, 0.12, 0.1]) {
         const bars = barrasPerimetro(poly, circ, a, sp, barArea(phi));
@@ -196,6 +214,8 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     let status: ResultadoPilar['status'] = melhor.util <= 1 ? 'ok' : 'fail';
     if (Math.max(lamU, lamV) > 90) { status = 'review'; msgs.push('λ > 90: exige método mais refinado.'); }
     if (gn > 1) msgs.push(`γn = ${gn.toFixed(2)} (menor dimensão < 19 cm).`);
+    if (tra.length) msgs.push(`Tração em ${tra.length} combinação(ões): até ${(-Math.min(...tra.map((x) => x.Nt))).toFixed(0)} kN (verificada sem 2ª ordem).`);
+    if (b.norma.aco === 'CA-60' && melhor.phi > 10) msgs.push(AVISO_CA60);
     if (melhor.util > 1) msgs.push('Não atende com até 4 % de armadura: aumente a seção.');
     const phiT = Math.max(5, melhor.phi / 4), sT = Math.min(0.2, Math.min(w, h), (12 * melhor.phi) / 1000);
     out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: melhor.util, lambda: [lamU, lamV], armadura: melhor.txt, As: melhor.As, estribo: `φ${String(phiT === 5 ? 5 : 6.3).replace('.', ',')} c/${Math.floor(sT * 100)}`, status, mensagens: msgs });
@@ -215,6 +235,7 @@ export interface ResultadoLaje {
 }
 
 function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio, c: Concrete): ResultadoLaje[] {
+  const { FYD } = acoDe(b);
   const out: ResultadoLaje[] = [];
   const [, , psi2] = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const af = 1.32; // fluência com t0 = 1 mês (premissa do pórtico)

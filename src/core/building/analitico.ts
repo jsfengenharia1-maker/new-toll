@@ -33,11 +33,12 @@ export const CASOS: CasoAnalise[] = ['G', 'Q'];
 // ---------------- malha da laje ----------------
 
 /** Malha de uma laje: linhas paralelas às direções da laje, recortadas pelo contorno. */
-export function malhaLaje(contorno: P[], direcao: number, s: number) {
+export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][] = []) {
   const a = (direcao * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
   const loc = (p: P): P => [p[0] * c + p[1] * sn, -p[0] * sn + p[1] * c];
   const glob = (p: P): P => [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c];
   const pol = contorno.map(loc);
+  const aneis = [pol, ...furos.map((f) => f.map(loc))]; // contorno e aberturas: a regra par-ímpar deixa os furos de fora
   const xs = pol.map((p) => p[0]), ys = pol.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const nx = Math.max(2, Math.round((x1 - x0) / s)), ny = Math.max(2, Math.round((y1 - y0) / s));
@@ -46,8 +47,8 @@ export function malhaLaje(contorno: P[], direcao: number, s: number) {
   /** Trechos internos da reta (coordenada fixa `v` no eixo `eixo`) dentro do polígono. */
   const cortes = (eixo: 0 | 1, v: number): [number, number][] => {
     const t: number[] = [];
-    for (let i = 0; i < pol.length; i++) {
-      const p = pol[i], q = pol[(i + 1) % pol.length];
+    for (const anel of aneis) for (let i = 0; i < anel.length; i++) {
+      const p = anel[i], q = anel[(i + 1) % anel.length];
       if ((p[eixo] > v) !== (q[eixo] > v)) t.push(p[1 - eixo] + ((v - p[eixo]) * (q[1 - eixo] - p[1 - eixo])) / (q[eixo] - p[eixo]));
     }
     t.sort((u, w) => u - w);
@@ -66,13 +67,13 @@ export function malhaLaje(contorno: P[], direcao: number, s: number) {
     linhas.push({ dir: 1, largura: sx, pontos: ps.map((y) => glob([x, y])), borda: [true, true] });
   }
   // faixas junto ao contorno (meia malha) que as linhas internas não cobrem: área por direção
-  const A = Math.abs(areaPoligono(contorno));
+  const A = Math.abs(areaPoligono(contorno)) - furos.reduce((t, f) => t + Math.abs(areaPoligono(f)), 0);
   const banda = [0, 1].map((d) => Math.max(0, A - linhas.filter((l) => l.dir === d).reduce((s1, l) => s1 + l.largura * comp(l.pontos), 0)));
   // contorno dividido nas pontas das linhas (nós de borda)
   const pontasBorda = linhas.flatMap((l) => [l.pontos[0], l.pontos[l.pontos.length - 1]]);
   const bordas: { a: P; z: P }[] = [];
-  for (let i = 0; i < contorno.length; i++) {
-    const a = contorno[i], z = contorno[(i + 1) % contorno.length], L = Math.hypot(z[0] - a[0], z[1] - a[1]);
+  for (const anel of [contorno, ...furos]) for (let i = 0; i < anel.length; i++) {
+    const a = anel[i], z = anel[(i + 1) % anel.length], L = Math.hypot(z[0] - a[0], z[1] - a[1]);
     if (L < 1e-9) continue;
     const ts = [0, 1, ...pontasBorda.map((p) => {
       const t = ((p[0] - a[0]) * (z[0] - a[0]) + (p[1] - a[1]) * (z[1] - a[1])) / (L * L);
@@ -228,7 +229,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const lajes = b.lajes.filter((l) => l.grupo === grupo.id);
     const cargas = b.cargas.filter((c) => c.grupo === grupo.id);
     const pilares = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav.id));
-    const malhas = lajes.map((l) => ({ l, m: malhaLaje(l.contorno, l.tipo.tipo === 'trelicada' ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha) }));
+    const malhas = lajes.map((l) => ({ l, m: malhaLaje(l.contorno, l.tipo.tipo === 'trelicada' ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? []) }));
     // pontos das bordas das malhas e apoios dos pilares dividem as vigas
     const eixos = eixosDasVigas(b, grupo.id) as [P, P][];
     const extras: P[] = [];

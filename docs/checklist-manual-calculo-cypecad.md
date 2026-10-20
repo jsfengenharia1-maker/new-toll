@@ -64,11 +64,11 @@ Itens em que o critério do manual difere de uma premissa nossa (confirmada ou "
 - **Momentos das lajes maciças** (K1.13.2.2-2, K1.13.2.2-3): nós momento das barras da grelha dividido pela largura da malha, torçor desprezado. Manual: Wood-Armer com o torçor e redistribuição transversal em faixa de 1 m.
 - **Cortante das vigas** (K1.12.1-5): nós cortante máximo da parte flexível. Manual: estribos a partir da face do apoio ou de uma distância em % de d.
 
-Lacunas de código encontradas na conferência (não são premissas, mas afetam resultados):
+Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente 0):
 
-- `dimensionamento.ts` usa fyk = 500 MPa fixo, mesmo com CA-60 escolhido na norma da obra (K1.6.4).
-- Pilares do edifício descartam as combinações com Nd ≤ 0: pilar tracionado não é verificado (K1.12.4-16).
-- Os furos das lajes (`laje.abertura`) entram nos quantitativos, mas a grelha os ignora: a laje é calculada e carregada cheia (K1.9.103).
+- ~~`dimensionamento.ts` usa fyk = 500 MPa fixo, mesmo com CA-60 escolhido na norma da obra (K1.6.4).~~ Corrigido: fyk do aço da obra, com aviso de bitola > φ10 em CA-60; aço por posição fica na frente N1.
+- ~~Pilares do edifício descartam as combinações com Nd ≤ 0: pilar tracionado não é verificado (K1.12.4-16).~~ Corrigido: tração verificada por fibras, sem 2ª ordem.
+- ~~Os furos das lajes (`laje.abertura`) entram nos quantitativos, mas a grelha os ignora: a laje é calculada e carregada cheia (K1.9.103).~~ Corrigido: a malha exclui as aberturas e as bordas delas viram faixas livres.
 
 ## 1.1 Problema a resolver e escopo (pág. 4)
 
