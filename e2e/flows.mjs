@@ -1267,4 +1267,169 @@ export const flows = [
       assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
     },
   },
+  {
+    name: 'FU1: fundação no edifício — divisa e centrada lançadas na planta, cálculo, janela do elemento, FUND_EXC_SEM_VIGA, σadm sem refazer a análise e aba Fundações em leitura',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // arranque (nasce e morre na fundação): linha da tabela de pilares e opção "fundação (arranque)" do seletor "Morre"
+      await cmd('pilar.inserir {"x": 3.5, "y": 2.5, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}, "nasce": "fundacao", "morre": "fundacao"}');
+      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      const linhaArr = page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last();
+      assert.match(await linhaArr.innerText(), /arranque/);
+      assert.equal(await linhaArr.locator('select[aria-label^="Morre"] option[value="fundacao"]').count(), 1);
+
+      // grupo Fundação: terreno (σadm informada) e planta do nível de fundação
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+      // P1 (0;0): sapata de divisa, clicando na face −x do pilar; P2 (7;0): sapata centrada
+      await grupo.getByLabel('Posição no pilar').selectOption('divisa');
+      const [x1, y1] = await telaDe(page, -0.07, 0);
+      await page.mouse.click(x1, y1);
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata) lançado sob P1' }).waitFor();
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      const [x2, y2] = await telaDe(page, 7, 0);
+      await page.mouse.click(x2, y2);
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P2' }).waitFor();
+      const linhas = grupo.locator('table[data-fundacoes] tbody tr');
+      assert.equal(await linhas.count(), 2);
+      assert.match(await linhas.first().innerText(), /de divisa/);
+      assert.match(await linhas.nth(1).innerText(), /centrada/);
+      // desfazer e refazer pelo histórico do edifício (um passo por lançamento)
+      await page.keyboard.press('Control+z');
+      await page.locator('.statusbar .msg', { hasText: 'Desfeito: fundacao.criar' }).waitFor();
+      assert.equal(await linhas.count(), 1);
+      await page.keyboard.press('Control+y');
+      await page.locator('.statusbar .msg', { hasText: 'Refeito: fundacao.criar' }).waitFor();
+      assert.equal(await linhas.count(), 2);
+
+      // calcular o edifício (as fundações vão junto) e ver os erros: divisa sem viga de equilíbrio
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const lista = page.locator('[data-lista-erros]');
+      await lista.getByLabel('Tipo').selectOption('fundacao');
+      const erroDivisa = lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' });
+      assert.equal(await erroDivisa.count(), 1);
+      assert.match(await erroDivisa.innerText(), /Fundação S1/);
+      assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: /Fundação S2/ }).count(), 0, 'a sapata centrada atende');
+      const cardF = page.locator('[data-card-fundacoes]');
+      assert.equal(await cardF.locator('tbody tr').count(), 2);
+      // um clique leva à planta de fundação com o elemento selecionado; "Resultados do elemento" abre a janela
+      await erroDivisa.click();
+      await page.locator('.planta-barra').waitFor();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+      assert.equal(await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).click();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S1/ });
+      await jan.waitFor();
+      const jt = await jan.innerText();
+      assert.match(jt, /FUND_EXC_SEM_VIGA/);
+      assert.match(jt, /de divisa/);
+      assert.match(jt, /Excentricidade do pilar/);
+      assert.match(jt, /FUND_SEM_SOLUCAO/, 'sapata de divisa sem viga de equilíbrio não tem solução');
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // sapata centrada: janela pelo duplo clique na tabela do dimensionamento
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await cardF.locator('tbody tr', { hasText: 'S2' }).dblclick();
+      const jan2 = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S2/ });
+      await jan2.waitFor();
+      assert.match(await jan2.innerText(), /σadm.*300/);
+      assert.ok(await jan2.locator('.fsketch svg').count() >= 1, 'desenho da sapata do módulo Fundações');
+      assert.match(await jan2.innerText(), /Dimensionamento da sapata|Armadura|Flexão/i);
+      await jan2.getByRole('button', { name: 'Fechar' }).click();
+
+      // muda σadm: as fundações ficam desatualizadas e a análise NÃO é refeita ao recalcular só as fundações
+      const bloco = grupo.locator('[data-fundacao-calculo]');
+      const idAntes = await bloco.getAttribute('data-fundacao-calculo');
+      assert.ok(idAntes);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      // o arranque aparece na planta de fundação; selecionado, o grupo oferece as cargas no arranque
+      await page.keyboard.press('s');
+      const [x5, y5] = await telaDe(page, 3.5, 2.5);
+      await page.mouse.click(x5, y5);
+      await grupo.getByText('Cargas no arranque P5').waitFor();
+      await sigma.fill('250');
+      await sigma.press('Enter');
+      await grupo.locator('[data-fundacao-velha]').waitFor();
+      await grupo.getByRole('button', { name: 'Calcular fundações' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Fundações calculadas' }).waitFor({ timeout: 60000 });
+      assert.match(await page.locator('.statusbar .msg').innerText(), /a análise da estrutura não foi refeita/);
+      assert.equal(await bloco.getAttribute('data-fundacao-calculo'), idAntes, 'o cálculo da estrutura (worker) não mudou');
+      assert.equal(await grupo.locator('[data-fundacao-velha]').count(), 0);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await cardF.locator('tbody tr', { hasText: 'S2' }).dblclick();
+      const jan3 = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S2/ });
+      await jan3.waitFor();
+      assert.match(await jan3.innerText(), /σadm.*250/);
+      await jan3.getByRole('button', { name: 'Fechar' }).click();
+
+      // aba Fundações em leitura: aviso, elementos do edifício listados e controles desabilitados
+      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
+      const aviso = page.locator('[data-fundacoes-edificio]');
+      await aviso.waitFor();
+      assert.match(await aviso.innerText(), /modo leitura/);
+      assert.equal(await aviso.locator('tbody tr').count(), 2);
+      assert.equal(await page.locator('[data-somente-leitura]').evaluate((f) => f.disabled), true);
+      assert.equal(await page.getByRole('button', { name: '+ furo' }).isDisabled(), true);
+    },
+  },
+  {
+    name: 'FU1: obra vazia só com arranques — arranque pela planta de fundação, cargas, sapata e cálculo só da fundação',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('button', { name: 'Novo vazio' }).click();
+      assert.match(await page.locator('header .status').innerText(), /^0 pavimentos/);
+      // ferramenta Pilar com "Arranque": a planta vai para o nível de fundação e o pilar nasce e morre na fundação
+      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      await page.getByLabel('Arranque (pilar de altura zero, só leva cargas à fundação)').check();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('eixo.criar {"nome": "A", "p1": [0, 0], "p2": [6, 0]}');
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('f');
+      const [x1, y1] = await telaDe(page, 2, 0.6);
+      await page.mouse.click(x1, y1);
+      await page.locator('select[aria-label="Morre P1"]').waitFor();
+      assert.match(await page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last().innerText(), /arranque/);
+      // terreno, sapata automática (clique no centro do pilar = centrada) e cargas no arranque
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('250');
+      await sigma.press('Enter');
+      await page.keyboard.press('u');
+      const [x2, y2] = await telaDe(page, 2, 0.6);
+      await page.mouse.click(x2, y2);
+      await page.locator('.statusbar .msg', { hasText: /S1 \(sapata\) lançado sob P1/ }).waitFor();
+      assert.match(await grupo.locator('table[data-fundacoes] tbody tr').first().innerText(), /centrada/);
+      await page.keyboard.press('s');
+      await page.mouse.click(x2, y2);
+      await grupo.getByText('Cargas no arranque P1').waitFor();
+      await grupo.getByLabel('N (kN)').fill('400');
+      await grupo.getByLabel('N (kN)').press('Enter');
+      await grupo.getByRole('button', { name: 'Adicionar carga no lance' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Carga no pilar P1' }).waitFor();
+      // sem estrutura para analisar, o cálculo traz só as fundações
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Obra só com arranques: 1 fundação' }).waitFor({ timeout: 60000 });
+      const cardF = page.locator('[data-card-fundacoes]');
+      assert.equal(await cardF.locator('tbody tr').count(), 1);
+      assert.match(await cardF.innerText(), /S1: \d,\d\d × \d,\d\d m/);
+      // as duas formas de calcular: sem fundação e com fundação
+      await page.getByRole('button', { name: 'Calcular sem fundação' }).click();
+      await page.locator('.statusbar .msg', { hasText: /Análise|Obra só/ }).waitFor();
+    },
+  },
 ];

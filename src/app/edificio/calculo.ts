@@ -7,11 +7,12 @@ import type { BuildingModel } from '../../core/building/types';
 import type { OpcoesConjunto } from '../../core/sheets/conjunto';
 import type { Prancha } from '../../core/sheets/prancha';
 import type { FLoad } from '../../core/piles';
+import type { ResultadoFundacao } from '../../core/building/fundacao';
 
 /** Dimensionamento + cargas para o módulo Fundações (null se a análise falhou). */
 export type DimEdificio = Dimensionamento & { fundacao: FLoad[]; ms: number };
 export interface Conjunto { pranchas: Prancha[]; avisos: string[] }
-type Msg = { id: number; r?: AnaliseEdificio; dim?: DimEdificio | null; conjunto?: Conjunto; obsoleto?: boolean; erro?: string };
+type Msg = { id: number; r?: AnaliseEdificio; dim?: DimEdificio | null; conjunto?: Conjunto; fundacoes?: ResultadoFundacao[]; obsoleto?: boolean; erro?: string };
 
 /** Pedido substituído por um mais novo antes de ser montado (quem pediu deve ignorá-lo). */
 export class Obsoleto extends Error { constructor() { super('Pedido substituído por um mais novo.'); } }
@@ -36,8 +37,8 @@ function pedir<T>(m: object, ler: (r: Msg) => T): Promise<T> {
 }
 
 /** Analisa e dimensiona; `id` identifica o cálculo no worker (as pranchas de armação são montadas com ele). */
-export function calcular(modelo: BuildingModel): Promise<{ analise: AnaliseEdificio; dim: DimEdificio | null; id: number }> {
-  return pedir({ tipo: 'calcular', modelo }, (m) => {
+export function calcular(modelo: BuildingModel, o: { anteriores?: ResultadoFundacao[]; semFundacao?: boolean } = {}): Promise<{ analise: AnaliseEdificio; dim: DimEdificio | null; id: number }> {
+  return pedir({ tipo: 'calcular', modelo, anteriores: o.anteriores, semFundacao: o.semFundacao }, (m) => {
     if (!m.r) throw new Error(m.erro ?? 'Falha no cálculo.');
     return { analise: m.r, dim: m.dim ?? null, id: m.id };
   });
@@ -52,5 +53,16 @@ export function montarConjuntoNoWorker(modelo: BuildingModel, calculo: number | 
     if (m.obsoleto) throw new Obsoleto();
     if (!m.conjunto) throw new Error(m.erro ?? 'Falha ao montar as pranchas.');
     return m.conjunto;
+  });
+}
+
+/**
+ * Calcula só as fundações com a análise que o worker já guarda (`calculo` = id do cálculo em vigor): a análise não volta a rodar.
+ * `anteriores`: resultados anteriores, para os modos "só verificar" e "redimensionar só os com erro".
+ */
+export function calcularFundacoesNoWorker(modelo: BuildingModel, calculo: number, anteriores?: ResultadoFundacao[]): Promise<ResultadoFundacao[]> {
+  return pedir({ tipo: 'fundacao', modelo, calculo, anteriores }, (m) => {
+    if (!m.fundacoes) throw new Error(m.erro ?? 'Falha no cálculo das fundações.');
+    return m.fundacoes;
   });
 }

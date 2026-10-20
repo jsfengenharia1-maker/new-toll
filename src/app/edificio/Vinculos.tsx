@@ -11,11 +11,46 @@ const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
 const VAZIA = { N: 0, Hx: 0, Hy: 0, Mx: 0, My: 0 };
 type Esforcos = typeof VAZIA;
 
-export function VinculosGrupo({ b }: { b: BuildingModel }) {
+/** Cargas concentradas no pilar (ou no arranque, com `pavId` = "fundacao"): tabela e campos para adicionar. */
+export function CargasNoPilar({ b, p0, pavId, pavNome }: { b: BuildingModel; p0: { id: string; nome: string }; pavId: string; pavNome: string }) {
   const { exec } = useBuilding();
   const [caso, setCaso] = useState('Q');
   const [alt, setAlt] = useState<number | undefined>(undefined);
   const [esf, setEsf] = useState<Esforcos>(VAZIA);
+  const pav = { id: pavId, nome: pavNome };
+  const cps = (b.cargasPilar ?? []).filter((c) => c.pilar === p0.id);
+  const nomeCaso = (id: string) => b.casos?.find((x) => x.id === id)?.nome ?? id;
+  const nomePav = (id: string) => b.pavimentos.find((x) => x.id === id)?.nome ?? id;
+  return (
+    <>
+      <p className="small"><b>Cargas no pilar {p0.nome}</b> (eixos globais; N &gt; 0 = compressão)</p>
+      {cps.length > 0 && (
+        <table className="data quadro">
+          <thead><tr><th>Lance</th><th>Caso</th><th>Altura (m)</th><th>N</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th /></tr></thead>
+          <tbody>{cps.map((c) => (
+            <tr key={c.id}><td className="tl">{nomePav(c.pavimento)}</td><td className="tl">{nomeCaso(c.caso)}</td><td className="num">{c.altura === undefined ? 'topo' : fmt(c.altura)}</td>
+              <td className="num">{fmt(c.N)}</td><td className="num">{fmt(c.Hx)}</td><td className="num">{fmt(c.Hy)}</td><td className="num">{fmt(c.Mx)}</td><td className="num">{fmt(c.My)}</td>
+              <td><Button variant="danger" aria-label={`Remover carga ${c.id}`} onClick={() => exec('carga.pilarRemover', { ids: [c.id] })}>×</Button></td></tr>
+          ))}</tbody>
+        </table>
+      )}
+      <div className="row wrap">
+        <Select label={`Caso (lance ${pav.nome})`} value={caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.nome }))} onChange={setCaso} />
+        <OptNumField label="Altura da base (vazio = topo)" unit="m" width={150} value={alt} onChange={setAlt} />
+      </div>
+      <div className="row wrap">
+        {(['N', 'Hx', 'Hy', 'Mx', 'My'] as const).map((k) => <NumField key={k} label={k === 'N' ? 'N (kN)' : k.startsWith('H') ? `${k} (kN)` : `${k} (kN·m)`} width={86} value={esf[k]} onChange={(v) => setEsf({ ...esf, [k]: v })} />)}
+      </div>
+      <div className="row wrap">
+        <Button disabled={!Object.values(esf).some((v) => v)} onClick={() => { exec('carga.pilar', { pilar: p0.id, pavimento: pav.id, caso, ...(alt !== undefined ? { altura: alt } : {}), ...esf }); setEsf(VAZIA); }}>Adicionar carga no lance</Button>
+      </div>
+      <Hint>Carga concentrada no topo do lance de {pav.nome} ou a uma altura da base; entra no pórtico espacial como ação do caso escolhido.</Hint>
+    </>
+  );
+}
+
+export function VinculosGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
   const pl = usePlanta();
   const ps = pavimentosOrdenados(b);
   const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
@@ -42,37 +77,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
         <div className="row wrap">
           <Button onClick={() => exec('pilar.engaste', { ids: pilares.map((p) => p.id), topo: e0.topo, base: e0.base })}>Aplicar a todos os lances</Button>
         </div>
-        {p0 && pilares.length === 1 && doLance && (() => {
-          const cps = (b.cargasPilar ?? []).filter((c) => c.pilar === p0.id);
-          const nomeCaso = (id: string) => b.casos?.find((x) => x.id === id)?.nome ?? id;
-          const nomePav = (id: string) => b.pavimentos.find((x) => x.id === id)?.nome ?? id;
-          return (
-            <>
-              <p className="small"><b>Cargas no pilar {p0.nome}</b> (eixos globais; N &gt; 0 = compressão)</p>
-              {cps.length > 0 && (
-                <table className="data quadro">
-                  <thead><tr><th>Lance</th><th>Caso</th><th>Altura (m)</th><th>N</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th /></tr></thead>
-                  <tbody>{cps.map((c) => (
-                    <tr key={c.id}><td className="tl">{nomePav(c.pavimento)}</td><td className="tl">{nomeCaso(c.caso)}</td><td className="num">{c.altura === undefined ? 'topo' : fmt(c.altura)}</td>
-                      <td className="num">{fmt(c.N)}</td><td className="num">{fmt(c.Hx)}</td><td className="num">{fmt(c.Hy)}</td><td className="num">{fmt(c.Mx)}</td><td className="num">{fmt(c.My)}</td>
-                      <td><Button variant="danger" aria-label={`Remover carga ${c.id}`} onClick={() => exec('carga.pilarRemover', { ids: [c.id] })}>×</Button></td></tr>
-                  ))}</tbody>
-                </table>
-              )}
-              <div className="row wrap">
-                <Select label={`Caso (lance ${pav.nome})`} value={caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.nome }))} onChange={setCaso} />
-                <OptNumField label="Altura da base (vazio = topo)" unit="m" width={150} value={alt} onChange={setAlt} />
-              </div>
-              <div className="row wrap">
-                {(['N', 'Hx', 'Hy', 'Mx', 'My'] as const).map((k) => <NumField key={k} label={k === 'N' ? 'N (kN)' : k.startsWith('H') ? `${k} (kN)` : `${k} (kN·m)`} width={86} value={esf[k]} onChange={(v) => setEsf({ ...esf, [k]: v })} />)}
-              </div>
-              <div className="row wrap">
-                <Button disabled={!Object.values(esf).some((v) => v)} onClick={() => { exec('carga.pilar', { pilar: p0.id, pavimento: pav.id, caso, ...(alt !== undefined ? { altura: alt } : {}), ...esf }); setEsf(VAZIA); }}>Adicionar carga no lance</Button>
-              </div>
-              <Hint>Carga concentrada no topo do lance de {pav.nome} ou a uma altura da base; entra no pórtico espacial como ação do caso escolhido.</Hint>
-            </>
-          );
-        })()}
+        {p0 && pilares.length === 1 && doLance && <CargasNoPilar b={b} p0={p0} pavId={pav.id} pavNome={pav.nome} />}
         <Hint>No topo do último lance o coeficiente multiplica o das opções de cálculo. Base 0 na fundação = pilar articulado.</Hint>
         <div className="row wrap">
           <NumField label="α flambagem (b)" width={110} value={fl0?.au ?? 1} onChange={(v) => exec('pilar.flambagem', { ids: pilares.map((p) => p.id), pavimentos: [pav.id], au: v })} disabled={!doLance} />

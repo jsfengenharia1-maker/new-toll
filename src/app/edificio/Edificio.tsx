@@ -8,11 +8,11 @@ import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { casosDaObra, comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
+import { casosDaObra, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, download, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
+import { Button, Check, download, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { Pranchas } from './Pranchas';
@@ -22,6 +22,8 @@ import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
 import { CasosGrupo } from './Casos';
 import { BloqueioLote } from './Armadura';
+import { FundacaoGrupo } from './Fundacao';
+import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
@@ -86,6 +88,7 @@ export function Edificio() {
         <PilaresGrupo b={b} />
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
+        <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
         <CasosGrupo b={b} />
@@ -274,16 +277,20 @@ export function NomeObra() {
 
 const FERRAMENTAS: { f: Ferramenta; tecla: string; rot: string }[] = [
   { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'viga', tecla: 'V', rot: 'Viga' }, { f: 'laje', tecla: 'L', rot: 'Laje' }, { f: 'carga', tecla: 'C', rot: 'Carga' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
-  { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
+  { f: 'fundacao', tecla: 'U', rot: 'Fundação' }, { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
 ];
 
 function PlantaBarra({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
   const ps = pavimentosOrdenados(b);
+  const nivelFund = pl.pavimento === 'fundacao';
   const atual = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const dim = useBuilding((s) => s.dim);
+  const { exec, calcularFundacao, calculandoFund } = useBuilding();
+  const elementosSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
   const alvo = ((): Alvo | null => {
     for (const id of pl.selecao) {
+      if (b.fundacao?.elementos.some((x) => x.id === id)) return { tipo: 'fundacao', id };
       if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
       if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
       if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
@@ -293,12 +300,13 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
-        <select aria-label="Pavimento da planta" value={atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set() })}>
+        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : pl.ferramenta === 'fundacao' ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
+          <option value="fundacao">Fundação ({fmt(cotaFundacao(b))})</option>
         </select>
       </label>
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
-        {FERRAMENTAS.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
+        {FERRAMENTAS.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...(t.f === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set() } : {}) })}>{t.rot}</button>)}
       </div>
       <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
@@ -308,6 +316,12 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
       </select>
       {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
+      {nivelFund && (<>
+        <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
+        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados em 90° (R)" onClick={() => exec('lote', { comandos: elementosSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })}>Girar 90°</Button>
+        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados para o ângulo do pilar" onClick={() => exec('fundacao.girar', { ids: elementosSel.map((e) => e.id), doPilar: true })}>Ao pilar</Button>
+        <Button variant="danger" disabled={!elementosSel.length} title="Remove os elementos selecionados (Del)" onClick={() => { exec('fundacao.remover', { ids: elementosSel.map((e) => e.id) }); pl.set({ selecao: new Set() }); }}>Remover</Button>
+      </>)}
       <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
@@ -418,6 +432,7 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
         <Select label="Ponto fixo (A)" value={pl.ajuste} options={AJUSTES} onChange={(v) => pl.set({ ajuste: v })} />
         <NumField label="Ângulo (R: +90°)" unit="°" width={110} value={pl.angulo} onChange={(v) => pl.set({ angulo: v })} />
       </div>
+      <Check label="Arranque (pilar de altura zero, só leva cargas à fundação)" checked={pl.arranque} onChange={(v) => pl.set({ arranque: v, ...(v ? { pavimento: 'fundacao', ferramenta: 'pilar' as Ferramenta } : {}) })} />
       <div className="row"><Button variant={pl.ferramenta === 'pilar' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'pilar' })}>Lançar pilares (P)</Button>
         <Button disabled={!b.pilares.length} onClick={() => exec('pilar.renumerar', {})}>Renumerar</Button></div>
       {b.pilares.length > 0 && (
@@ -442,9 +457,9 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
                       <option value="fundacao">fundação</option>{ps.slice(0, -1).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
                     </select>
                     <select aria-label={`Morre ${p.nome}`} value={p.morre} onChange={(e) => exec('pilar.editar', { id: p.id, morre: e.target.value })}>
-                      {ps.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                      <option value="fundacao" disabled={p.nasce !== 'fundacao'}>fundação (arranque)</option>{ps.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
                     </select>
-                    <span className="muted"> {l.length}</span>
+                    <span className="muted"> {ehArranque(p) ? 'arranque' : l.length}</span>
                   </td>
                 </tr>
               );
@@ -736,7 +751,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
 
 const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 
-function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', id: string, pavimento?: string) => void; onMemorial: () => void }) {
+function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void; onMemorial: () => void }) {
   const { dim, analise, revAnalise, sessao, calculando, calcular } = useBuilding();
   const [so, setSo] = useState(false);
   const velha = analise && revAnalise !== sessao.revCalculo;
@@ -750,6 +765,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
         <h3>Dimensionamento (NBR 6118)</h3>
         <div className="row wrap">
           <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : dim ? 'Recalcular' : 'Calcular e dimensionar'}</Button>
+          {!!sessao.modelo.fundacao?.elementos.length && <Button disabled={calculando} title="Analisa e dimensiona a estrutura sem calcular as fundações lançadas" onClick={() => calcular(true)}>Calcular sem fundação</Button>}
           <Button disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</Button>
           <Button onClick={onMemorial}>Memorial do edifício</Button>
           {dim && <BotaoExportar dim={dim} />}
@@ -796,6 +812,20 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
             </table>
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>
+          {!!dim.fundacoes?.length && (
+            <div className="card" data-card-fundacoes>
+              <h3>Fundações</h3>
+              <table className="data quadro">
+                <thead><tr><th>Elemento</th><th>Tipo</th><th>Pilar</th><th>Posição</th><th>Resultado</th><th>Volume (m³)</th><th>Situação</th></tr></thead>
+                <tbody>{filtro(dim.fundacoes).map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('fundacao', x.id)} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
+                    <td className="tl">{x.nome}</td><td className="tl">{TIPO_FUNDACAO_LABEL[x.tipo]}</td><td className="tl">{x.pilares.join(', ')}</td><td className="tl">{POSICAO_LABEL[x.posicao]}</td>
+                    <td className="tl small">{x.resumo}</td><td className="num">{fmt(x.volume)}</td><td>{x.status === 'ok' ? 'ok' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              <Hint>Fundações calculadas pelo módulo Fundações com as reações da análise (raras para o solo, ELU para o elemento). Duplo clique abre os desenhos e as verificações.</Hint>
+            </div>
+          )}
           <div className="card">
             <h3>Quantitativos</h3>
             <table className="data quadro">

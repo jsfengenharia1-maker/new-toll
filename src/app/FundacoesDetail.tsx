@@ -3,10 +3,12 @@ import type { CapResult } from '../core/caps';
 import type { FootingResult } from '../core/footings';
 import type { CaissonResult } from '../core/caissons';
 import type { BarSet } from '../core/rebar';
-import type { FoundationParams } from '../core/piles';
+import { useMemo } from 'react';
+import { PILE_LABEL, capacityCurve, recommendedOption, type FLoad, type FoundationData, type FoundationParams, type PileSolution } from '../core/piles';
+import { capFor, type SupportDesign } from '../core/foundation';
 import { fmt } from './results';
 import { svgCaisson, svgCap, svgFooting } from './foundationDrawing';
-import { Note, Pill } from './ui';
+import { Button, Hint, Note, Pill } from './ui';
 
 export const Tbc = () => <Pill tone="warn" title="Premissa sem fonte normativa clara: confirme antes de usar.">a confirmar</Pill>;
 export const phiTxt = (phi: number) => fmt(phi, 1).replace(',0', '');
@@ -140,5 +142,98 @@ export function CaissonDetail({ r, water, p }: { r: CaissonResult; water: number
         {r.messages.map((m, i) => <Note key={i}>{m}</Note>)}
       </div>
     </div>
+  );
+}
+
+export function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: SupportDesign; f: FoundationData; setLoad?: (id: number, fn: (l: FLoad) => void, msg?: string) => void }) {
+  const st = s.struct, c = s.cap, pl = s.loads;
+  const curve = useMemo(() => capacityCurve(s.type, s.D, ds.boring, f.params), [s, f, ds.boring]);
+  const cap = useMemo(() => capFor(s, ds.load, f), [s, ds.load, f]);
+  const isAdopted = ds.pile === s && ds.pileAdopted;
+  return (
+    <div className="fdetail">
+      <h3>{ds.load.label} · {PILE_LABEL[s.type]} · Ø{Math.round(s.D * 100)} cm · {s.n} estaca{s.n > 1 ? 's' : ''} · L = {s.L} m</h3>
+      <div className="row wrap u-mb-8 u-items-center">
+        {!setLoad ? null : isAdopted ? <Pill tone="ok">adotada para o bloco e o memorial</Pill> : <Button onClick={() => setLoad(ds.load.id, (l) => { l.pile = { type: s.type, D: Math.round(s.D * 100) }; }, `${ds.load.label}: estaca adotada.`)}>Adotar esta estaca</Button>}
+        {setLoad && ds.load.pile && <Button variant="ghost" onClick={() => setLoad(ds.load.id, (l) => { delete l.pile; }, `${ds.load.label}: volta à estaca recomendada.`)}>Voltar à recomendada</Button>}
+        <span className="muted">Furo {ds.boring.name}</span>
+      </div>
+      <div className="fgrid">
+        <div>
+          <h4>Capacidade geotécnica (Décourt-Quaresma)</h4>
+          <dl className="kv">
+            <dt>Np / Nl</dt><dd>{fmt(c.Np, 1)} / {fmt(c.Nl, 1)}</dd>
+            <dt>Rp (ponta{s.type !== 'premoldada' ? ', ≤ Rl' : ''})</dt><dd>{fmt(c.RpUsed, 0)} kN{c.RpUsed < c.Rp ? ` (de ${fmt(c.Rp, 0)})` : ''}</dd>
+            <dt>Rl (fuste)</dt><dd>{fmt(c.Rl, 0)} kN</dd>
+            <dt>Padm</dt><dd>{fmt(c.Padm, 0)} kN ({c.governs === 'global' ? '(Rp+Rl)/2' : c.governs === 'parcial' ? 'Rp/4 + Rl/1,3' : '1,25·Rl'})</dd>
+            <dt>Tração admissível</dt><dd>{fmt(c.Tadm, 0)} kN</dd>
+            <dt>Limite de profundidade</dt><dd>{s.Lmax} m · {s.LmaxReason}</dd>
+          </dl>
+          <h4>Cargas por estaca (bloco rígido)</h4>
+          <dl className="kv">
+            <dt>N máx / N mín (k)</dt><dd>{fmt(pl.Nmax, 0)} / {fmt(pl.Nmin, 0)} kN</dd>
+            <dt>Nd,mín = {fmt(f.params.gammaFfav, 1)}·(Gk+Wb)/n − {fmt(f.params.gammaF, 1)}·[(Gk−Nk,mín)/n + ΔN]</dt><dd>{fmt(pl.NdMin, 0)} kN{pl.NdMin < 0 ? ` → Td = ${fmt(-pl.NdMin, 0)} kN` : ''}</dd>
+            <dt>Gk (permanente)</dt><dd>{fmt(pl.Gk, 0)} kN · {pl.GkSource}</dd>
+            <dt>H por estaca</dt><dd>{fmt(pl.H, 1)} kN</dd>
+            {pl.M0 > 0 && <><dt>Momento no topo</dt><dd>{fmt(pl.M0, 1)} kN·m</dd></>}
+            <dt>Espaçamento</dt><dd>{fmt(pl.s, 2)} m</dd>
+          </dl>
+        </div>
+        <div>
+          <h4>Estrutural (NBR 6122)</h4>
+          {st.kind === 'catalogo' ? (
+            <dl className="kv">
+              <dt>Carga estrutural (catálogo)</dt><dd>{st.Pcat ? `${st.Pcat} kN` : '—'}</dd>
+              <dt>Tração (catálogo)</dt><dd>{st.Tcat ? `${st.Tcat} kN` : '—'}</dd>
+              <dt>Miche: T / Mk</dt><dd>{fmt(st.T, 2)} m / {fmt(st.Mk, 1)} kN·m</dd>
+              <dt>nh</dt><dd>{fmt(st.nh, 2)} MN/m³ · {st.nhLabel}</dd>
+            </dl>
+          ) : (
+            <>
+              <dl className="kv">
+                <dt>Concreto</dt><dd>C{st.fck} · γc {fmt(st.gc!, 1)}</dd>
+                <dt>σ = Nd/Ac</dt><dd>{fmt(st.sigma!, 2)} MPa (limite {st.sigmaLim} MPa)</dd>
+                <dt>Miche: T / Mk / Md</dt><dd>{fmt(st.T, 2)} m / {fmt(st.Mk, 1)} / {fmt(st.Md, 1)} kN·m</dd>
+                <dt>nh</dt><dd>{fmt(st.nh, 2)} MN/m³ · {st.nhLabel}</dd>
+                <dt>As mín / compr. / tração</dt><dd>{fmt(st.AsMin * 1e4)} / {fmt(st.AsComp * 1e4)} / {fmt(st.AsTension * 1e4)} cm²</dd>
+                <dt>Comprimento armado</dt><dd>{fmt(st.armedLength, 1)} m · {st.armedReason}</dd>
+                <dt>Estribo</dt><dd>espiral φ{f.params.stirrupPhi} c/{Math.round(f.params.stirrupS * 100)}</dd>
+              </dl>
+              <h4>Armadura longitudinal por bitola</h4>
+              <table className="data">
+                <thead><tr><th>φ (mm)</th><th>Barras</th><th>As (cm²)</th><th>Espaç. (cm)</th><th className="l">Observação</th></tr></thead>
+                <tbody>{st.options.map((o) => <tr key={o.phi} className={recommendedOption(st.options) === o ? 'rec' : ''}><td>{phiTxt(o.phi)}{recommendedOption(st.options) === o ? ' ★' : ''}</td><td>{o.n}</td><td>{fmt(o.As * 1e4)}</td><td>{fmt(o.spacing * 100, 1)}</td><td className="l">{o.notes.join('; ') || 'ok'}</td></tr>)}</tbody>
+              </table>
+              <Hint>★ sugerida: menor área de aço com φ ≥ 10 mm. A lista para na primeira bitola que resolve com o mínimo de 3 barras; bitolas maiores só acrescentariam aço.</Hint>
+            </>
+          )}
+          {st.messages.map((m, i) => <Note key={i}>{m}</Note>)}
+          <h4>Capacidade × profundidade</h4>
+          <CapChart curve={curve} s={s} />
+        </div>
+      </div>
+      <CapDetail cap={cap} coords={pl.coords} D={s.D} ap={ds.ap} bp={ds.bp} p={f.params} />
+    </div>
+  );
+}
+
+function CapChart({ curve, s }: { curve: { L: number; Padm: number; Rp: number; Rl: number }[]; s: PileSolution }) {
+  if (!curve.length) return null;
+  const W = 320, H = 200, l = 40, r = 10, t = 10, bt = 26;
+  const maxP = Math.max(...curve.map((c) => c.Padm), s.loads.Nmax) * 1.1;
+  const maxL = curve[curve.length - 1].L;
+  const X = (v: number) => l + (v / maxP) * (W - l - r);
+  const Y = (z: number) => t + (z / maxL) * (H - t - bt);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((q) => q * maxP);
+  return (
+    <svg className="capchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Capacidade admissível por profundidade">
+      {ticks.map((v) => <g key={v}><line x1={X(v)} x2={X(v)} y1={t} y2={H - bt} className="gl" /><text x={X(v)} y={H - bt + 12} className="axl" textAnchor="middle">{fmt(v, 0)}</text></g>)}
+      {[0, Math.round(maxL / 2), maxL].map((z) => <text key={z} x={l - 4} y={Y(z) + 3} className="axl" textAnchor="end">{z} m</text>)}
+      <text x={(l + W) / 2} y={H - 2} className="axl" textAnchor="middle">Padm (kN) por estaca</text>
+      <line x1={X(s.loads.Nmax)} x2={X(s.loads.Nmax)} y1={t} y2={H - bt} className="nline" />
+      <line x1={l} x2={W - r} y1={Y(s.Lmax)} y2={Y(s.Lmax)} className="lmax" />
+      <polyline points={curve.map((c) => `${X(c.Padm)},${Y(c.L)}`).join(' ')} className="pcurve" />
+      <circle cx={X(s.cap.Padm)} cy={Y(s.L)} r={4} className="pdot" />
+    </svg>
   );
 }

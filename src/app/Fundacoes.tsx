@@ -6,28 +6,21 @@ import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
 import {
-  KIND_LABEL, PILE_LABEL, PRECAST_CATALOG, SOIL_LABEL, STRUCT, boringsOf, capacityCurve, defaultFoundationParams, normalizeFoundation, recommendedOption, sampleFoundation,
-  type Boring, type FLoad, type FoundationData, type FoundationKind, type FoundationParams, type PileSolution, type PileType, type SoilClass,
+  KIND_LABEL, PILE_LABEL, PRECAST_CATALOG, STRUCT, boringsOf, defaultFoundationParams, normalizeFoundation, recommendedOption, sampleFoundation,
+  type Boring, type FLoad, type FoundationData, type FoundationKind, type FoundationParams, type PileSolution, type PileType,
 } from '../core/piles';
-import { capFor, designSupport, type SupportDesign } from '../core/foundation';
+import { designSupport, type SupportDesign } from '../core/foundation';
 import { isFooting } from '../core/footings';
 import { isCaisson } from '../core/caissons';
-import { CaissonDetail, CapDetail, FootingDetail, Tbc, barTxt, phiTxt } from './FundacoesDetail';
+import { CaissonDetail, FootingDetail, SolutionDetail, Tbc, barTxt, phiTxt } from './FundacoesDetail';
+import { SondagemEditor } from './SondagemEditor';
+import { FundacoesDoEdificio } from './edificio/Fundacao';
 
-const SOILS = Object.keys(SOIL_LABEL) as SoilClass[];
 const KINDS = Object.keys(KIND_LABEL) as FoundationKind[];
 /** Campos por apoio preservados ao reimportar cargas (casados pelo nome do apoio). */
 const KEEP: (keyof FLoad)[] = ['kind', 'boringId', 'boringMode', 'boringIds', 'x', 'y', 'ap', 'bp', 'pile'];
 type Sel = { load: number; type?: PileType; D?: number } | null;
 type SetLoad = (id: number, fn: (l: FLoad) => void, msg?: string) => void;
-
-function parseSoil(t: string): SoilClass {
-  const s = t.toLowerCase();
-  if (s.includes('silte') && s.includes('are')) return 'silteArenoso';
-  if (s.includes('silte')) return 'silteArgiloso';
-  if (s.startsWith('are') || s.includes('areia')) return 'areia';
-  return 'argila';
-}
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
@@ -63,14 +56,9 @@ export function Fundacoes() {
   const setLoad: SetLoad = (id, fn, msg) => upd((d) => { const l = d.loads.find((x) => x.id === id); if (l) fn(l); }, msg);
 
   const borings = f.borings!;
-  const [bi, setBi] = useState(0);
-  const bIdx = Math.min(bi, borings.length - 1);
-  const b = borings[bIdx];
-  const updB = (fn: (x: Boring) => void, msg?: string) => upd((d) => fn(d.borings![bIdx]), msg);
 
   const designs = useMemo(() => f.loads.map((ld) => designSupport(ld, f)), [f]);
   const [sel, setSel] = useState<Sel>(null);
-  const [paste, setPaste] = useState('');
   const [saved, setSaved] = useState<LibraryItem[]>([]);
   useEffect(() => { listLibrary().then((r) => setSaved(r.items.filter((i) => i.kind === 'characteristics'))).catch(() => {}); }, []);
 
@@ -92,84 +80,29 @@ export function Fundacoes() {
     const ch = e.payload as SavedCharacteristics;
     upd((d) => mergeLoads(d, ch.supports.map((s, i) => ({ ...s, id: i + 1, source: e.name }))), `Cargas de “${e.name}” importadas.`);
   };
-  const applyPaste = () => {
-    const rows = paste.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[;\t,]+|\s{2,}/).map((x) => x.trim()));
-    const meters = rows.map((r) => {
-      const nums = r.map((x) => parseFloat(x.replace(',', '.'))).filter((x) => Number.isFinite(x));
-      const N = nums.length >= 2 ? nums[1] : nums[0];
-      const soilTxt = r.find((x) => /[a-zA-Z]/.test(x)) ?? '';
-      return { N: Math.max(0, Math.round(N ?? 0)), soil: soilTxt ? parseSoil(soilTxt) : 'argila' as SoilClass };
-    }).filter((m) => Number.isFinite(m.N));
-    if (!meters.length) { st.set({ message: 'Nada reconhecido. Cole uma linha por metro: “N” ou “prof; N; solo”.' }); return; }
-    updB((x) => { x.meters = meters; }, `${meters.length} metros de SPT colados em ${b.name}.`);
-    setPaste('');
-  };
-  const addBoring = () => {
-    upd((d) => {
-      const list = boringsOf(d);
-      const id = Math.max(0, ...list.map((x) => x.id ?? 0)) + 1;
-      d.borings = [...list, { id, name: `SP-${String(id).padStart(2, '0')}`, water: b.water, endImpenetrable: false, meters: clone(b.meters) }];
-    }, 'Furo de sondagem adicionado (cópia do atual; edite os valores).');
-    setBi(borings.length);
-  };
-  const removeBoring = () => {
-    upd((d) => {
-      const gone = d.borings![bIdx].id;
-      d.borings!.splice(bIdx, 1);
-      for (const l of d.loads) if (l.boringId === gone) delete l.boringId;
-    }, 'Furo de sondagem removido.');
-    setBi(0);
-  };
+
+  const addBoring = (b?: Boring) => upd((d) => {
+    const list = boringsOf(d);
+    const id = Math.max(0, ...list.map((x) => x.id ?? 0)) + 1;
+    d.borings = [...list, { id, name: `SP-${String(id).padStart(2, '0')}`, water: b?.water ?? null, endImpenetrable: false, meters: clone(b?.meters ?? []) }];
+  }, 'Furo de sondagem adicionado (cópia do atual; edite os valores).');
+  const removeBoring = (i: number) => upd((d) => {
+    const gone = d.borings![i].id;
+    d.borings!.splice(i, 1);
+    for (const l of d.loads) if (l.boringId === gone) delete l.boringId;
+  }, 'Furo de sondagem removido.');
 
   const p = f.params;
+  // edifício com fundações lançadas: esta aba fica só para leitura (o dimensionamento está na aba Edifício)
+  const elementos = useBuilding((s) => s.sessao.modelo.fundacao?.elementos.length ?? 0);
+  const leitura = elementos > 0;
   return (
-    <div className="fund">
+    <div className="fund-wrap">
+      {leitura ? <FundacoesDoEdificio /> : <div />}
+    <fieldset className="fund" disabled={leitura} data-somente-leitura={leitura || undefined}>
       <aside className="fund-in">
-        <Group title={`Sondagens SPT (${borings.length})`}>
-          <div className="row wrap">
-            <Select label="Furo" value={bIdx} options={borings.map((x, i) => ({ v: i, label: `${x.name}${x.x !== undefined && x.y !== undefined ? ` (${fmt(x.x, 1)}; ${fmt(x.y, 1)})` : ''}` }))} onChange={(v) => setBi(v)} />
-            <button type="button" className="mini" onClick={addBoring}>+ furo</button>
-            {borings.length > 1 && <button type="button" className="mini" onClick={removeBoring}>remover furo</button>}
-          </div>
-          <div className="row">
-            <TextField label="Identificação" value={b.name} onChange={(v) => updB((x) => { x.name = v; })} />
-            <NumField label="Nível d'água" unit="m" value={b.water ?? 0} onChange={(v) => updB((x) => { x.water = v > 0 ? v : null; })} />
-          </div>
-          <div className="row">
-            <OptNumField label="x do furo" unit="m" value={b.x} onChange={(v) => updB((x) => { if (v === undefined) delete x.x; else x.x = v; })} />
-            <OptNumField label="y do furo" unit="m" value={b.y} onChange={(v) => updB((x) => { if (v === undefined) delete x.y; else x.y = v; })} />
-          </div>
-          <Check label="Sondagem terminou em impenetrável" checked={b.endImpenetrable} onChange={(v) => updB((x) => { x.endImpenetrable = v; })} />
-          <div className="spt">
-            <div className="spt-table">
-              <div className="spt-h"><span>m</span><span>N</span><span>Solo</span><span /><span /></div>
-              {b.meters.map((m, i) => (
-                <div className={`spt-r${b.water !== null && i + 1 > b.water ? ' wet' : ''}${m.excluded ? ' excl' : ''}`} key={i} title={m.excluded ? 'Leitura descartada: fica fora da média e é interpolada no furo isolado' : undefined}>
-                  <span className="muted">{i + 1}</span>
-                  <input aria-label={`N no metro ${i + 1}`} value={m.N} inputMode="numeric" onChange={(e) => { const v = parseInt(e.target.value || '0', 10); if (Number.isFinite(v)) updB((x) => { x.meters[i].N = v; }); }} />
-                  <select aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => updB((x) => { x.meters[i].soil = e.target.value as SoilClass; })}>
-                    {SOILS.map((s) => <option key={s} value={s}>{SOIL_LABEL[s]}</option>)}
-                  </select>
-                  <button type="button" className={`x${m.excluded ? ' on' : ''}`} aria-label={m.excluded ? `Voltar a usar a leitura do metro ${i + 1}` : `Descartar a leitura do metro ${i + 1}`} title={m.excluded ? 'Voltar a usar esta leitura' : 'Descartar esta leitura (fora do padrão)'} onClick={() => updB((x) => { if (x.meters[i].excluded) delete x.meters[i].excluded; else x.meters[i].excluded = true; }, m.excluded ? `Leitura do metro ${i + 1} volta ao cálculo.` : `Leitura do metro ${i + 1} descartada.`)}>⊘</button>
-                  <button type="button" className="x" aria-label="Remover metro" onClick={() => updB((x) => { x.meters.splice(i, 1); })}>×</button>
-                </div>
-              ))}
-              <button type="button" className="mini" onClick={() => updB((x) => { const last = x.meters.at(-1) ?? { N: 10, soil: 'argila' as SoilClass }; x.meters.push({ ...last }); })}>+ metro</button>
-            </div>
-            <SptChart b={b} cutoff={p.cutoff} sol={selDesign && selDesign.boring.id === b.id ? selPile : null} />
-          </div>
-          <label className="field" htmlFor="sptpaste"><span className="flabel">Colar do boletim (uma linha por metro: “N” ou “prof; N; solo”)</span>
-            <textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
-          </label>
-          <Button variant="ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT deste furo pelo texto colado</Button>
-          <Hint>Cada apoio usa o furo escolhido no seu cartão; em “automático”, o mais próximo quando apoio e furos têm coordenadas, senão o primeiro. Também é possível usar a média de todos os furos ou de alguns. ⊘ descarta uma leitura fora do padrão: na média, o metro usa só os demais furos; no furo isolado, a leitura é interpolada entre as vizinhas.</Hint>
-          {borings.length > 1 && (
-            <div className="row">
-              <Select label="Média: profundidade" value={p.sptAvgDepth} options={[{ v: 'common', label: 'comum a todos os furos' }, { v: 'max', label: 'até o furo mais profundo' }]} onChange={(v) => setP({ sptAvgDepth: v })} />
-              <Select label="Média: nível d'água" value={p.sptAvgWater} options={[{ v: 'shallowest', label: 'o mais raso' }, { v: 'mean', label: 'média dos furos' }]} onChange={(v) => setP({ sptAvgWater: v })} />
-            </div>
-          )}
-        </Group>
+        <SondagemEditor furos={borings} cutoff={p.cutoff} sol={(x) => (selDesign && selDesign.boring.id === x.id ? selPile : null)} onEdit={(i, fn, msg) => upd((d) => fn(d.borings![i]), msg)} onAdd={addBoring} onRemove={removeBoring}
+          onMessage={(m) => st.set({ message: m })} media={{ depth: p.sptAvgDepth, water: p.sptAvgWater, onChange: setP }} />
 
         <Group title="Cargas por apoio (características)">
           <div className="row wrap">
@@ -219,6 +152,7 @@ export function Fundacoes() {
           </div>
         )}
       </section>
+    </fieldset>
     </div>
   );
 }
@@ -467,117 +401,3 @@ function Premissas({ p, setP, reset }: { p: FoundationParams; setP: (x: Partial<
 
 
 
-
-function SptChart({ b, cutoff, sol }: { b: Boring; cutoff: number; sol: PileSolution | null }) {
-  const n = b.meters.length;
-  const W = 150, rowH = 14, top = 18, H = top + n * rowH + 10;
-  const Nmax = 50;
-  return (
-    <svg className="sptchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Perfil SPT">
-      <text x={34} y={11} className="axl">N_SPT</text>
-      {[0, 10, 20, 30, 40, 50].map((v) => <line key={v} x1={34 + (v / Nmax) * (W - 44)} x2={34 + (v / Nmax) * (W - 44)} y1={top} y2={H - 10} className="gl" />)}
-      {b.meters.map((m, i) => (
-        <g key={i}>
-          <rect x={0} y={top + i * rowH} width={26} height={rowH} className={`solo-${m.soil}`} />
-          <rect x={34} y={top + i * rowH + 2} width={(Math.min(m.N, Nmax) / Nmax) * (W - 44)} height={rowH - 4} className="nbar" />
-          <text x={36 + (Math.min(m.N, Nmax) / Nmax) * (W - 44)} y={top + i * rowH + rowH - 4} className="nval">{m.N}</text>
-        </g>
-      ))}
-      {b.water !== null && b.water <= n && <g><line x1={0} x2={W} y1={top + b.water * rowH} y2={top + b.water * rowH} className="wl" /><text x={W - 2} y={top + b.water * rowH - 2} className="axl" textAnchor="end">NA</text></g>}
-      {sol && <g><rect x={28} y={top + cutoff * rowH} width={4} height={(sol.L - cutoff) * rowH} className="pilebar" /><text x={2} y={Math.min(H - 1, top + sol.L * rowH + 10)} className="axl" textAnchor="start">ponta {sol.L} m</text></g>}
-    </svg>
-  );
-}
-
-function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: SupportDesign; f: FoundationData; setLoad: SetLoad }) {
-  const st = s.struct, c = s.cap, pl = s.loads;
-  const curve = useMemo(() => capacityCurve(s.type, s.D, ds.boring, f.params), [s, f, ds.boring]);
-  const cap = useMemo(() => capFor(s, ds.load, f), [s, ds.load, f]);
-  const isAdopted = ds.pile === s && ds.pileAdopted;
-  return (
-    <div className="fdetail">
-      <h3>{ds.load.label} · {PILE_LABEL[s.type]} · Ø{Math.round(s.D * 100)} cm · {s.n} estaca{s.n > 1 ? 's' : ''} · L = {s.L} m</h3>
-      <div className="row wrap u-mb-8 u-items-center">
-        {isAdopted ? <Pill tone="ok">adotada para o bloco e o memorial</Pill> : <Button onClick={() => setLoad(ds.load.id, (l) => { l.pile = { type: s.type, D: Math.round(s.D * 100) }; }, `${ds.load.label}: estaca adotada.`)}>Adotar esta estaca</Button>}
-        {ds.load.pile && <Button variant="ghost" onClick={() => setLoad(ds.load.id, (l) => { delete l.pile; }, `${ds.load.label}: volta à estaca recomendada.`)}>Voltar à recomendada</Button>}
-        <span className="muted">Furo {ds.boring.name}</span>
-      </div>
-      <div className="fgrid">
-        <div>
-          <h4>Capacidade geotécnica (Décourt-Quaresma)</h4>
-          <dl className="kv">
-            <dt>Np / Nl</dt><dd>{fmt(c.Np, 1)} / {fmt(c.Nl, 1)}</dd>
-            <dt>Rp (ponta{s.type !== 'premoldada' ? ', ≤ Rl' : ''})</dt><dd>{fmt(c.RpUsed, 0)} kN{c.RpUsed < c.Rp ? ` (de ${fmt(c.Rp, 0)})` : ''}</dd>
-            <dt>Rl (fuste)</dt><dd>{fmt(c.Rl, 0)} kN</dd>
-            <dt>Padm</dt><dd>{fmt(c.Padm, 0)} kN ({c.governs === 'global' ? '(Rp+Rl)/2' : c.governs === 'parcial' ? 'Rp/4 + Rl/1,3' : '1,25·Rl'})</dd>
-            <dt>Tração admissível</dt><dd>{fmt(c.Tadm, 0)} kN</dd>
-            <dt>Limite de profundidade</dt><dd>{s.Lmax} m · {s.LmaxReason}</dd>
-          </dl>
-          <h4>Cargas por estaca (bloco rígido)</h4>
-          <dl className="kv">
-            <dt>N máx / N mín (k)</dt><dd>{fmt(pl.Nmax, 0)} / {fmt(pl.Nmin, 0)} kN</dd>
-            <dt>Nd,mín = {fmt(f.params.gammaFfav, 1)}·(Gk+Wb)/n − {fmt(f.params.gammaF, 1)}·[(Gk−Nk,mín)/n + ΔN]</dt><dd>{fmt(pl.NdMin, 0)} kN{pl.NdMin < 0 ? ` → Td = ${fmt(-pl.NdMin, 0)} kN` : ''}</dd>
-            <dt>Gk (permanente)</dt><dd>{fmt(pl.Gk, 0)} kN · {pl.GkSource}</dd>
-            <dt>H por estaca</dt><dd>{fmt(pl.H, 1)} kN</dd>
-            {pl.M0 > 0 && <><dt>Momento no topo</dt><dd>{fmt(pl.M0, 1)} kN·m</dd></>}
-            <dt>Espaçamento</dt><dd>{fmt(pl.s, 2)} m</dd>
-          </dl>
-        </div>
-        <div>
-          <h4>Estrutural (NBR 6122)</h4>
-          {st.kind === 'catalogo' ? (
-            <dl className="kv">
-              <dt>Carga estrutural (catálogo)</dt><dd>{st.Pcat ? `${st.Pcat} kN` : '—'}</dd>
-              <dt>Tração (catálogo)</dt><dd>{st.Tcat ? `${st.Tcat} kN` : '—'}</dd>
-              <dt>Miche: T / Mk</dt><dd>{fmt(st.T, 2)} m / {fmt(st.Mk, 1)} kN·m</dd>
-              <dt>nh</dt><dd>{fmt(st.nh, 2)} MN/m³ · {st.nhLabel}</dd>
-            </dl>
-          ) : (
-            <>
-              <dl className="kv">
-                <dt>Concreto</dt><dd>C{st.fck} · γc {fmt(st.gc!, 1)}</dd>
-                <dt>σ = Nd/Ac</dt><dd>{fmt(st.sigma!, 2)} MPa (limite {st.sigmaLim} MPa)</dd>
-                <dt>Miche: T / Mk / Md</dt><dd>{fmt(st.T, 2)} m / {fmt(st.Mk, 1)} / {fmt(st.Md, 1)} kN·m</dd>
-                <dt>nh</dt><dd>{fmt(st.nh, 2)} MN/m³ · {st.nhLabel}</dd>
-                <dt>As mín / compr. / tração</dt><dd>{fmt(st.AsMin * 1e4)} / {fmt(st.AsComp * 1e4)} / {fmt(st.AsTension * 1e4)} cm²</dd>
-                <dt>Comprimento armado</dt><dd>{fmt(st.armedLength, 1)} m · {st.armedReason}</dd>
-                <dt>Estribo</dt><dd>espiral φ{f.params.stirrupPhi} c/{Math.round(f.params.stirrupS * 100)}</dd>
-              </dl>
-              <h4>Armadura longitudinal por bitola</h4>
-              <table className="data">
-                <thead><tr><th>φ (mm)</th><th>Barras</th><th>As (cm²)</th><th>Espaç. (cm)</th><th className="l">Observação</th></tr></thead>
-                <tbody>{st.options.map((o) => <tr key={o.phi} className={recommendedOption(st.options) === o ? 'rec' : ''}><td>{phiTxt(o.phi)}{recommendedOption(st.options) === o ? ' ★' : ''}</td><td>{o.n}</td><td>{fmt(o.As * 1e4)}</td><td>{fmt(o.spacing * 100, 1)}</td><td className="l">{o.notes.join('; ') || 'ok'}</td></tr>)}</tbody>
-              </table>
-              <Hint>★ sugerida: menor área de aço com φ ≥ 10 mm. A lista para na primeira bitola que resolve com o mínimo de 3 barras; bitolas maiores só acrescentariam aço.</Hint>
-            </>
-          )}
-          {st.messages.map((m, i) => <Note key={i}>{m}</Note>)}
-          <h4>Capacidade × profundidade</h4>
-          <CapChart curve={curve} s={s} />
-        </div>
-      </div>
-      <CapDetail cap={cap} coords={pl.coords} D={s.D} ap={ds.ap} bp={ds.bp} p={f.params} />
-    </div>
-  );
-}
-
-function CapChart({ curve, s }: { curve: { L: number; Padm: number; Rp: number; Rl: number }[]; s: PileSolution }) {
-  if (!curve.length) return null;
-  const W = 320, H = 200, l = 40, r = 10, t = 10, bt = 26;
-  const maxP = Math.max(...curve.map((c) => c.Padm), s.loads.Nmax) * 1.1;
-  const maxL = curve[curve.length - 1].L;
-  const X = (v: number) => l + (v / maxP) * (W - l - r);
-  const Y = (z: number) => t + (z / maxL) * (H - t - bt);
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((q) => q * maxP);
-  return (
-    <svg className="capchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Capacidade admissível por profundidade">
-      {ticks.map((v) => <g key={v}><line x1={X(v)} x2={X(v)} y1={t} y2={H - bt} className="gl" /><text x={X(v)} y={H - bt + 12} className="axl" textAnchor="middle">{fmt(v, 0)}</text></g>)}
-      {[0, Math.round(maxL / 2), maxL].map((z) => <text key={z} x={l - 4} y={Y(z) + 3} className="axl" textAnchor="end">{z} m</text>)}
-      <text x={(l + W) / 2} y={H - 2} className="axl" textAnchor="middle">Padm (kN) por estaca</text>
-      <line x1={X(s.loads.Nmax)} x2={X(s.loads.Nmax)} y1={t} y2={H - bt} className="nline" />
-      <line x1={l} x2={W - r} y1={Y(s.Lmax)} y2={Y(s.Lmax)} className="lmax" />
-      <polyline points={curve.map((c) => `${X(c.Padm)},${Y(c.L)}`).join(' ')} className="pcurve" />
-      <circle cx={X(s.cap.Padm)} cy={Y(s.L)} r={4} className="pdot" />
-    </svg>
-  );
-}

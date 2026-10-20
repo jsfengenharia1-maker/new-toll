@@ -397,7 +397,8 @@ td.neg { color: var(--bad); }
 .btn.danger { color: var(--bad); border-color: var(--bad); }
 
 /* fundações */
-.fund { display: grid; grid-template-columns: 440px 1fr; min-height: 0; }
+.fund-wrap { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.fund { display: grid; grid-template-columns: 440px 1fr; min-height: 0; border: 0; margin: 0; padding: 0; min-width: 0; }
 .fund-in { background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto; padding-bottom: 30px; }
 .fund-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
 .spt { display: grid; grid-template-columns: 1fr 150px; gap: 10px; align-items: start; }

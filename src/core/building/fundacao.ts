@@ -78,6 +78,10 @@ export const cotaElemento = (b: BuildingModel, e: Pick<ElementoFundacao, 'cota'>
 /** Níveis de fundação (cotas de assentamento distintas, de baixo para cima). */
 export const niveisFundacao = (b: BuildingModel) => [...new Set((b.fundacao?.elementos ?? []).map((e) => +cotaElemento(b, e).toFixed(3)))].sort((a, z) => a - z);
 
+/** Parâmetros do módulo para um elemento: cota de apoio (profundidade abaixo do terreno) e arrasamento das estacas. */
+export const parametrosElemento = (P0: FoundationParams, el: Pick<ElementoFundacao, 'tipo' | 'cota'>, prof: number): FoundationParams =>
+  ({ ...P0, ftDepth: prof, cutoff: el.tipo === 'bloco' ? prof : P0.cutoff, tbDepth: el.cota !== undefined ? prof : P0.tbDepth });
+
 const SEM_FURO: Boring = { name: '(sem sondagem)', water: null, meters: [], endImpenetrable: false };
 
 /** Lado da divisa sugerido pelo ponto fixo do pilar (face ou canto inserido na divisa). */
@@ -208,7 +212,7 @@ function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto):
 
   // σadm (sapatas e tubulões): o do elemento, o do terreno (informado) ou pelo SPT
   const kind = KIND[el.tipo];
-  const P: FoundationParams = { ...cx.P0, ftDepth: prof, cutoff: el.tipo === 'bloco' ? prof : cx.P0.cutoff, tbDepth: el.cota !== undefined ? prof : cx.P0.tbDepth };
+  const P: FoundationParams = parametrosElemento(cx.P0, el, prof);
   let sigmaFonte: string | undefined;
   if (el.tipo !== 'bloco') {
     const s = el.sigmaAdm ?? (fe.terreno.sigmaModo === 'informada' ? fe.terreno.sigmaAdm : undefined);

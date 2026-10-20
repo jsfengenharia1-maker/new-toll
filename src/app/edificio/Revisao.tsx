@@ -14,12 +14,13 @@ import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
+import { JanelaFundacao } from './Fundacao';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra' };
 
-export type Alvo = { tipo: 'viga' | 'pilar' | 'laje'; id: string; pavimento?: string };
+export type Alvo = { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao'; id: string; pavimento?: string };
 
 /** Abre a janela de resultados do elemento. */
 export const abrirJanela = (a: Alvo) => usePlanta.getState().set({ janela: a });
@@ -28,10 +29,16 @@ export const abrirJanela = (a: Alvo) => usePlanta.getState().set({ janela: a });
  * Seleciona o elemento na planta e pede para centralizá-lo. Pilares e lajes vão para o pavimento do resultado;
  * vigas valem para o grupo (mantém o pavimento atual se ele for do grupo da viga).
  */
-export function irParaElemento(b: BuildingModel, tipo: 'viga' | 'pilar' | 'laje', id: string, pavimentoNome?: string) {
+export function irParaElemento(b: BuildingModel, tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimentoNome?: string) {
   const P = usePlanta.getState(), ps = pavimentosOrdenados(b);
   let pav = P.pavimento;
-  if (tipo === 'viga') {
+  if (tipo === 'fundacao') {
+    pav = 'fundacao';
+  } else if (tipo === 'pilar' && !pavimentoNome) {
+    // pilar que nasce na fundação sem elemento lançado (aviso FUND_PILAR_SEM_ELEMENTO): vai para a planta de fundação
+    const q = b.pilares.find((x) => x.id === id);
+    if (q?.nasce === 'fundacao' && b.fundacao?.elementos.length && !b.fundacao.elementos.some((e) => e.pilares.includes(id))) pav = 'fundacao';
+  } else if (tipo === 'viga') {
     const v = b.vigas.find((x) => x.id === id);
     const atual = ps.find((p) => p.id === pav);
     if (v && atual?.grupo !== v.grupo) pav = ps.find((p) => p.grupo === v.grupo)?.id ?? pav;
@@ -59,7 +66,7 @@ export function LinhaElemento({ className, title, ir, abrir, children }: { class
 
 // ---------------------------------------------------------------- lista de erros e avisos
 
-export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', id: string, pavimento?: string) => void }) {
+export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void }) {
   const rev = useRevisao();
   const analise = useBuilding((s) => s.analise), dim = useBuilding((s) => s.dim);
   const [nivel, setNivel] = useState<'todos' | 'erro' | 'aviso'>('todos');
@@ -74,7 +81,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', i
       </p>
       <div className="row wrap">
         <Select label="Nível" value={nivel} options={[{ v: 'todos', label: 'Todos' }, { v: 'erro', label: 'Só erros' }, { v: 'aviso', label: 'Só avisos' }]} onChange={setNivel} />
-        <Select label="Tipo" value={tipo} options={[{ v: 'todos', label: 'Todos' }, { v: 'viga', label: 'Vigas' }, { v: 'pilar', label: 'Pilares' }, { v: 'laje', label: 'Lajes' }, { v: 'obra', label: 'Obra' }]} onChange={setTipo} />
+        <Select label="Tipo" value={tipo} options={[{ v: 'todos', label: 'Todos' }, { v: 'viga', label: 'Vigas' }, { v: 'pilar', label: 'Pilares' }, { v: 'laje', label: 'Lajes' }, { v: 'fundacao', label: 'Fundações' }, { v: 'obra', label: 'Obra' }]} onChange={setTipo} />
       </div>
       {itens.length === 0
         ? <p className="muted small">{rev.itens.length ? 'Nenhum item neste filtro.' : 'Nenhum erro ou aviso.'}</p>
@@ -84,7 +91,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', i
               <thead><tr><th>Elemento</th><th>Pavimento</th><th>Código</th><th>Mensagem</th><th /></tr></thead>
               <tbody>
                 {itens.map((i, k) => {
-                  const el = i.tipo !== 'obra' && i.tipo !== 'fundacao' && i.id ? { tipo: i.tipo, id: i.id } : null;
+                  const el = i.tipo !== 'obra' && i.id ? { tipo: i.tipo, id: i.id } : null;
                   return (
                     <LinhaElemento key={k} className={`${el ? 'click' : ''} ${i.nivel === 'erro' ? 'bad' : 'warn'}`} title={el ? 'Clique: ver na planta. Duplo clique: resultados do elemento.' : undefined}
                       ir={() => el && onIr(el.tipo, el.id, i.pavimento)} abrir={() => el && abrirJanela({ ...el, pavimento: i.pavimento })}>
@@ -295,11 +302,11 @@ export function JanelaElemento() {
   const j = usePlanta((s) => s.janela), dim = useBuilding((s) => s.dim), b = useBuilding((s) => s.sessao.modelo);
   if (!j) return null;
   const fechar = () => usePlanta.getState().set({ janela: null });
-  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
+  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'fundacao' ? b.fundacao?.elementos ?? [] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
   return (
     <Modal titulo={`Resultados do elemento — ${TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
       {!dim ? <p className="muted">Calcule o dimensionamento para ver os resultados do elemento.</p>
-        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : <JanelaLaje id={j.id} />}
+        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? <JanelaFundacao id={j.id} /> : <JanelaLaje id={j.id} />}
     </Modal>
   );
 }

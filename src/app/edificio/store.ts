@@ -6,7 +6,7 @@ import { edificioVazio } from '../../core/building/types';
 import type { Diagnostico } from '../../core/building/verify';
 import { useStore } from '../store';
 import type { AnaliseEdificio } from '../../core/building/analitico';
-import { calcular as calcularNoWorker, type DimEdificio } from './calculo';
+import { calcular as calcularNoWorker, calcularFundacoesNoWorker, type DimEdificio } from './calculo';
 
 const KEY = 'statikos:building';
 
@@ -53,8 +53,17 @@ interface BState {
   /** Identificador do cálculo no worker (as pranchas de armação são montadas lá, com estes resultados). */
   idCalculo: number | null;
   calculando: boolean;
-  calcular(): Promise<void>;
+  /** Analisa e dimensiona; `semFundacao` deixa as fundações de fora (a obra sem fundação). */
+  calcular(semFundacao?: boolean): Promise<void>;
+  /** `Sessao.revFundacao` em que as fundações foram calculadas (difere = fundações desatualizadas). */
+  revFund: number;
+  calculandoFund: boolean;
+  /** Calcula só as fundações com a análise em vigor (a estrutura não é refeita). */
+  calcularFundacao(): Promise<void>;
 }
+
+/** As fundações calculadas valem para o modelo atual (estrutura e dados de fundação)? */
+export const fundacaoAtual = (st: Pick<BState, 'dim' | 'analise' | 'revAnalise' | 'revFund' | 'sessao'>): boolean => !!st.dim && calculoAtual(st) && st.revFund === st.sessao.revFundacao;
 
 /** A análise e o dimensionamento valem para o modelo atual? */
 export const calculoAtual = (st: Pick<BState, 'analise' | 'revAnalise' | 'sessao'>): boolean => !!st.analise && st.revAnalise === st.sessao.revCalculo;
@@ -67,7 +76,7 @@ export const useBuilding = create<BState>((set, get) => {
     if (sujo) useStore.getState().setUnsaved(true);
     set({ sessao: s, rev: s.rev + Math.random(), diags: s.verificar() });
   };
-  const semCalculo = { analise: null, dim: null, revAnalise: -1, idCalculo: null };
+  const semCalculo = { analise: null, dim: null, revAnalise: -1, idCalculo: null, revFund: -1 };
   const inicial = carregarLocal();
   return {
     sessao: inicial,
@@ -89,19 +98,38 @@ export const useBuilding = create<BState>((set, get) => {
     revAnalise: -1,
     idCalculo: null,
     calculando: false,
-    async calcular() {
-      const s = get().sessao, rev = s.revCalculo;
+    revFund: -1,
+    calculandoFund: false,
+    async calcular(semFundacao = false) {
+      const s = get().sessao, rev = s.revCalculo, revF = s.revFundacao;
       set({ calculando: true });
       msg('Calculando…');
       try {
-        const { analise: a, dim, id } = await calcularNoWorker(s.modelo);
+        const { analise: a, dim, id } = await calcularNoWorker(s.modelo, { anteriores: get().dim?.fundacoes, semFundacao });
         // a sessão pode ter sido trocada (abrir, novo) durante o cálculo: o resultado não vale para ela
         if (get().sessao !== s) { set({ calculando: false }); return; }
-        set({ analise: a, dim, revAnalise: rev, idCalculo: id, calculando: false });
-        msg(a.erro ? `Análise: ${a.erro}` : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
+        set({ analise: a, dim, revAnalise: rev, revFund: semFundacao ? -1 : revF, idCalculo: id, calculando: false });
+        msg(a.erro ? (dim && dim.fundacoes ? `Obra só com arranques: ${dim.fundacoes.length} fundação(ões) calculada(s) em ${Math.round(dim.ms)} ms.` : `Análise: ${a.erro}`) : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
       } catch (e) {
         set({ calculando: false });
         msg(`Falha no cálculo: ${(e as Error).message}`);
+      }
+    },
+    async calcularFundacao() {
+      const s = get().sessao, { dim, idCalculo } = get(), revF = s.revFundacao;
+      if (!dim || idCalculo === null || !calculoAtual(get())) { msg('Calcule o edifício (aba Dimensionamento) antes das fundações: elas usam as reações da análise em vigor.'); return; }
+      set({ calculandoFund: true });
+      msg('Calculando as fundações…');
+      try {
+        const t0 = performance.now();
+        const fundacoes = await calcularFundacoesNoWorker(s.modelo, idCalculo, dim.fundacoes);
+        if (get().sessao !== s || get().idCalculo !== idCalculo) { set({ calculandoFund: false }); return; }
+        set({ dim: { ...dim, fundacoes }, revFund: revF, calculandoFund: false });
+        const falhas = fundacoes.filter((f) => f.status === 'fail').length;
+        msg(`Fundações calculadas: ${fundacoes.length} elemento(s)${falhas ? `, ${falhas} com erro` : ''}, em ${Math.round(performance.now() - t0)} ms (a análise da estrutura não foi refeita).`);
+      } catch (e) {
+        set({ calculandoFund: false });
+        msg(`Falha no cálculo das fundações: ${(e as Error).message}`);
       }
     },
   };

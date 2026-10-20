@@ -1,10 +1,10 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
 import { create } from 'zustand';
-import type { Ajuste, Alinhamento, TipoLaje } from '../../core/building/types';
+import type { Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
-export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar';
+export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao';
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -25,9 +25,16 @@ interface PState {
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
-  janela: { tipo: 'viga' | 'pilar' | 'laje'; id: string; pavimento?: string } | null;
+  janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao'; id: string; pavimento?: string } | null;
   /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
   foco: { id: string; n: number } | null;
+  /** Ferramenta Fundação (planta do nível de fundação): tipo, posição em relação ao pilar e tipo de estaca do bloco. */
+  tipoFund: TipoFundacao;
+  /** 'auto': a posição sai do ponto do clique no pilar (centro = centrada, face = divisa, canto = canto). */
+  posFund: PosicaoFundacao | 'auto';
+  estacaFund: string | null;
+  /** Ferramenta Pilar: lança arranque (pilar de altura zero que só leva cargas à fundação). */
+  arranque: boolean;
   secao: { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
   ajuste: Ajuste;
   angulo: number;
@@ -62,6 +69,10 @@ export const usePlanta = create<PState>((set) => ({
   vigotasTodas: false,
   janela: null,
   foco: null,
+  tipoFund: 'sapata',
+  posFund: 'auto',
+  estacaFund: null,
+  arranque: false,
   secao: { tipo: 'ret', b: 0.2, h: 0.4 },
   ajuste: 'c',
   angulo: 0,
