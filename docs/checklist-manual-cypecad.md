@@ -30,16 +30,16 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 12 | 14 | 26 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; o restante fica para E3 e E4) | 29 | 198 | 227 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026) | 14 | 31 | 45 |
-| L — Produtividade de lançamento | 40 | 31 | 71 |
-| V — Visualização | 7 | 35 | 42 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 35 | 42 |
 
 ## 0. Apresentação do programa
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício |
+| C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício [E4e] |
 | C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | N | grelha por pavimento + pórtico espacial (não é um modelo único: frente N); fundação em módulo à parte (FU) [N2b] |
 | C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Feito | — | concreto armado dimensionado no edifício (NBR 6118); aço no edifício fora do escopo (o Pórtico 2D dimensiona aço pela NBR 8800) |
 | C0.4 | Normas de vários países à escolha do usuário. | Fora | — | só normas brasileiras, por decisão de escopo |
@@ -54,52 +54,52 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.3 | Primeira barra de ferramentas, comum a todas as abas, com opções de visualização e de gabarito. | Feito | — | barra da planta (vista, capturas, eixos, cotas, grade, unidades) |
 | C1.4 | Desfazer e refazer a última alteração nas abas de pilares, de vigas e de resultados. | Feito | — | desfazer/refazer por comando (200 passos) |
 | C1.5 | Segunda barra de ferramentas com atalhos para opções dos menus. | Feito | — | barra de ferramentas da planta com atalhos de teclado |
-| C1.6 | Barra de atalhos configurável: o usuário põe e tira botões. | Falta | L | barra configurável pelo usuário |
+| C1.6 | Barra de atalhos configurável: o usuário põe e tira botões. | Falta | L | barra configurável pelo usuário [L4] |
 | C1.7 | Cor de fundo da área de desenho à escolha entre branco, cinza e preto, para contraste com os elementos. | Feito | — | temas escuro, claro e preto e branco |
 | | **1.2 Ajuda na tela** | | | |
-| C1.8 | Ajuda contextual por tecla de função (F1): destaca os itens que têm ajuda e mostra a explicação do item clicado, inclusive de itens dentro de menus. | Falta | L | ajuda contextual (F1) por item |
-| C1.9 | Botão de ajuda na barra de título que liga o mesmo modo de ajuda, válido também para os ícones das barras. | Falta | L | modo de ajuda |
-| C1.10 | O modo de ajuda se desliga com o botão direito, com um novo clique no botão ou com Esc. | Falta | L |  |
-| C1.11 | As janelas de diálogo têm botão de ajuda próprio na barra de título. | Parcial | L | dicas fixas nos painéis |
-| C1.12 | Botão de informação geral sobre o conteúdo da janela, presente em várias janelas. | Parcial | L | dicas e aba Premissas |
-| C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Parcial | L | README e docs/ia.md; sem guia rápido imprimível na interface |
+| C1.8 | Ajuda contextual por tecla de função (F1): destaca os itens que têm ajuda e mostra a explicação do item clicado, inclusive de itens dentro de menus. | Falta | L | ajuda contextual (F1) por item [L4] |
+| C1.9 | Botão de ajuda na barra de título que liga o mesmo modo de ajuda, válido também para os ícones das barras. | Falta | L | modo de ajuda [L4] |
+| C1.10 | O modo de ajuda se desliga com o botão direito, com um novo clique no botão ou com Esc. | Falta | L | [L4] |
+| C1.11 | As janelas de diálogo têm botão de ajuda próprio na barra de título. | Parcial | L | dicas fixas nos painéis [L4] |
+| C1.12 | Botão de informação geral sobre o conteúdo da janela, presente em várias janelas. | Parcial | L | dicas e aba Premissas [L4] |
+| C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Parcial | L | README e docs/ia.md; sem guia rápido imprimível na interface [L4] |
 | | **1.3 Criação de obra** | | | |
-| C1.14 | Obra nova com pasta, nome e descrição. | Parcial | L | nome e cidade da obra; sem descrição longa |
-| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | novo padrão ou vazio; sem lançamento automático por DXF/IFC |
-| C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Falta | L | assistente de nova obra (pavimentos, alturas, cargas) |
-| C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Falta | L | lançamento automático |
-| C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Falta | L | lançamento automático por DXF |
-| C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Parcial | L | cores/visibilidade de camadas existem na máscara, não em assistente |
-| C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Parcial | L | uma máscara por grupo |
-| C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Falta | L | camada → tipo de elemento (pilar, contorno, abertura) |
-| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Falta | L | IFC |
-| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Falta | L | IFC |
-| C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Falta | L |  |
+| C1.14 | Obra nova com pasta, nome e descrição. | Parcial | L | nome e cidade da obra; sem descrição longa [L1] |
+| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | novo padrão ou vazio; sem lançamento automático por DXF/IFC [L1] |
+| C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Falta | L | assistente de nova obra (pavimentos, alturas, cargas) [L1] |
+| C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Falta | L | lançamento automático [L2] |
+| C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Falta | L | lançamento automático por DXF [L2] |
+| C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Parcial | L | cores/visibilidade de camadas existem na máscara, não em assistente [L2] |
+| C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Parcial | L | uma máscara por grupo [L2] |
+| C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Falta | L | camada → tipo de elemento (pilar, contorno, abertura) [L2] |
+| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Falta | L | IFC [L3] |
+| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Falta | L | IFC [L3] |
+| C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Falta | L | [L1] |
 | C1.25 | Depois do lançamento automático, todos os dados ficam editáveis. Lajes, cargas adicionais, fundações e dados particulares são completados à mão. | Fora | — | depende do lançamento automático |
 | C1.26 | Roteiro recomendado, passo 1: dados gerais (nome, descrição, materiais e opções, nível de controle de execução). | Feito | — | obra + norma (fck, aço, CAA, cobrimentos, ψ) |
 | C1.27 | Passo 2: pavimentos (níveis, grupos, alturas, cargas variáveis e permanentes). | Feito | — | pavimentos, grupos, uso, cargas |
-| C1.28 | Passo 3: pilares e pilares-parede (geometria e posição). | Parcial | L | pilares sim; pilar-parede só aviso |
-| C1.29 | Passo 4: muros e paredes de apoio. | Falta | L | muros e paredes estruturais |
+| C1.28 | Passo 3: pilares e pilares-parede (geometria e posição). | Parcial | L | pilares sim; pilar-parede só aviso [L1] |
+| C1.29 | Passo 4: muros e paredes de apoio. | Falta | L | muros e paredes estruturais [L1] |
 | C1.30 | Passo 5: vigas. | Feito | — | vigas |
 | C1.31 | Passo 6: lajes. | Feito | — | lajes |
 | C1.32 | Passo 7: cargas especiais, como as de paredes divisórias. As cargas gerais vêm dos pavimentos, e o peso próprio de pilares, muros, vigas e lajes é gerado automaticamente. | Feito | — | cargas especiais, alvenaria da máscara; peso próprio automático |
-| C1.33 | Passo 8: escadas. | Falta | E | escadas |
-| C1.34 | Passo 9: estruturas 3D integradas, definidas no módulo de barras metálicas 3D. | Falta | E | estruturas 3D integradas |
+| C1.33 | Passo 8: escadas. | Falta | E | escadas [E4b] |
+| C1.34 | Passo 9: estruturas 3D integradas, definidas no módulo de barras metálicas 3D. | Falta | E | estruturas 3D integradas [E4e] |
 | C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Parcial | FU | FU1: sapatas, blocos e tubulões lançados no edifício, na planta de fundação e no grupo Fundação (`src/core/building/fundacao.ts`, `Fundacao.tsx`, comandos `fundacao.*`); faltam vigas de equilíbrio e travamento (FU2) e radier (FU6) |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
 | C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
 | C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Parcial | R | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis antes das pranchas (R2, R6) e pilares iguais agrupados no quadro (R5); sem editar/uniformizar a armadura das lajes maciças nem reposicionar textos [R7e] |
 | C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Feito | — | memorial e pranchas de formas, locação e armação de vigas, pilares e lajes em PDF/DXF/DWG (R5) |
 | | **1.3.3 Gestão de arquivos** | | | |
-| C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício |
-| C1.41 | Importação de arquivo texto ASCII, em colunas ou separado por vírgulas (planilhas ou outros programas), para gerar fundações. | Falta | L | importar cargas de fundação por texto/CSV |
-| C1.42 | A importação ASCII traz as hipóteses de carga, os esforços nos arranques por hipótese simples e as dimensões da base dos pilares. | Falta | L |  |
-| C1.43 | Fluxo da importação ASCII: nome da obra a criar, escolha do arquivo e depois cálculo. | Falta | L |  |
-| C1.44 | Obras de exemplo acessíveis pelo gerenciador de arquivos. | Parcial | L | edifício padrão; sem obras de exemplo completas |
-| C1.45 | Busca de obras na pasta por palavra no nome ou na descrição. | Parcial | L | busca na biblioteca do Pórtico; edifício não vai à biblioteca |
+| C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício [L1] |
+| C1.41 | Importação de arquivo texto ASCII, em colunas ou separado por vírgulas (planilhas ou outros programas), para gerar fundações. | Falta | L | importar cargas de fundação por texto/CSV [L1] |
+| C1.42 | A importação ASCII traz as hipóteses de carga, os esforços nos arranques por hipótese simples e as dimensões da base dos pilares. | Falta | L | [L1] |
+| C1.43 | Fluxo da importação ASCII: nome da obra a criar, escolha do arquivo e depois cálculo. | Falta | L | [L1] |
+| C1.44 | Obras de exemplo acessíveis pelo gerenciador de arquivos. | Parcial | L | edifício padrão; sem obras de exemplo completas [L1] |
+| C1.45 | Busca de obras na pasta por palavra no nome ou na descrição. | Parcial | L | busca na biblioteca do Pórtico; edifício não vai à biblioteca [L1] |
 | C1.46 | Compactação de todos os arquivos da obra num único arquivo de formato próprio. | Feito | — | arquivo único .statikos com modelo, log e histórico |
 | C1.47 | Envio da obra compactada por e-mail ou só gravação do compactado numa pasta. | Fora | — | e-mail fora do app (arquivo único) |
-| C1.48 | Opção de incluir no compactado as cópias de segurança de versões anteriores e os arquivos associados (resultados do último cálculo). | Parcial | L | log de comandos no arquivo; sem cópias de versões |
+| C1.48 | Opção de incluir no compactado as cópias de segurança de versões anteriores e os arquivos associados (resultados do último cálculo). | Parcial | L | log de comandos no arquivo; sem cópias de versões [L1] |
 | C1.49 | Descompactação da obra compactada. | Fora | — | não há compactação |
 | C1.50 | Compartilhamento da obra compactada: publica num servidor com link privado, com título e comentário. | Fora | — | sem servidor (decisão: sem login); artifact do claude.ai pode compartilhar |
 | C1.51 | Janela com o link para copiar e para abrir a página publicada. | Fora | — |  |
@@ -115,25 +115,25 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | C2.1 | Recomendação de preparo: pilares, vigas de contorno e vigas de borda de abertura em camadas distintas. | Fora | — | recomendação de preparo do DXF (vale para o usuário) |
 | C2.2 | Recomendação: contorno externo e bordas de aberturas desenhados como polígonos fechados. | Fora | — |  |
-| C2.3 | Ponto fixo dos pilares marcado numa camada própria, por polígono fechado que contém o ponto a usar como fixo. | Falta | L | ponto fixo por camada no lançamento automático |
+| C2.3 | Ponto fixo dos pilares marcado numa camada própria, por polígono fechado que contém o ponto a usar como fixo. | Falta | L | ponto fixo por camada no lançamento automático [L2] |
 | C2.4 | Recomendação: gabaritos ou camadas diferentes para cada grupo quando o desenho da obra é completo (térreo, tipo, cobertura...). | Fora | — |  |
-| C2.5 | Gerenciador de vistas de gabarito acessível pela barra principal. | Parcial | L | grupo Máscara por grupo de pavimentos |
-| C2.6 | Anexação de gabaritos DXF/DWG à obra, com lista dos importados. | Parcial | L | DXF importado por grupo; DWG não |
-| C2.7 | Gerenciador de camadas por gabarito: ligar/desligar, renomear, mudar cor. | Parcial | L | ligar/desligar e cor; sem renomear |
-| C2.8 | Espessura de linha por camada, com valor digitado quando a espessura vem do tamanho. | Falta | L | espessura de linha por camada da máscara |
-| C2.9 | Mostrar ou ocultar os textos de cada camada. | Parcial | L | textos da máscara aparecem; sem ligar/desligar só os textos |
+| C2.5 | Gerenciador de vistas de gabarito acessível pela barra principal. | Parcial | L | grupo Máscara por grupo de pavimentos [L2] |
+| C2.6 | Anexação de gabaritos DXF/DWG à obra, com lista dos importados. | Parcial | L | DXF importado por grupo; DWG não [L2] |
+| C2.7 | Gerenciador de camadas por gabarito: ligar/desligar, renomear, mudar cor. | Parcial | L | ligar/desligar e cor; sem renomear [L2] |
+| C2.8 | Espessura de linha por camada, com valor digitado quando a espessura vem do tamanho. | Falta | L | espessura de linha por camada da máscara [L2] |
+| C2.9 | Mostrar ou ocultar os textos de cada camada. | Parcial | L | textos da máscara aparecem; sem ligar/desligar só os textos [L2] |
 | C2.10 | Permitir ou não capturas (snap) nas entidades de cada camada. | Feito | — | camada capturável |
-| C2.11 | Pré-visualização do resultado da configuração de camadas ao lado da lista. | Falta | L | prévia da configuração de camadas |
-| C2.12 | Conceito de vista: conjunto de camadas, escala e origem de um desenho. Em geral uma vista por grupo, cada uma ligada a um gabarito com seleção própria de camadas. | Parcial | L | máscara por grupo com camadas e transformação; uma por grupo |
-| C2.13 | Operações sobre vistas: adicionar, apagar, copiar, deslocar, transformar, associar a grupos, abrir e salvar configuração. | Parcial | L | importar, alinhar, editar, remover; sem copiar vista nem salvar configuração |
+| C2.11 | Pré-visualização do resultado da configuração de camadas ao lado da lista. | Falta | L | prévia da configuração de camadas [L2] |
+| C2.12 | Conceito de vista: conjunto de camadas, escala e origem de um desenho. Em geral uma vista por grupo, cada uma ligada a um gabarito com seleção própria de camadas. | Parcial | L | máscara por grupo com camadas e transformação; uma por grupo [L2] |
+| C2.13 | Operações sobre vistas: adicionar, apagar, copiar, deslocar, transformar, associar a grupos, abrir e salvar configuração. | Parcial | L | importar, alinhar, editar, remover; sem copiar vista nem salvar configuração [L2] |
 | C2.14 | Transformação do gabarito (deslocamento e escala) por valores digitados ou graficamente. | Feito | — | escala, origem e rotação numéricas e por 2 pontos |
 | C2.15 | Mudança gráfica da origem de coordenadas do gabarito. | Feito | — | alinhar por pontos |
-| C2.16 | Retorno à origem original do desenho, desfazendo todas as mudanças de origem. | Parcial | L | editar volta valores; sem botão “origem original” |
+| C2.16 | Retorno à origem original do desenho, desfazendo todas as mudanças de origem. | Parcial | L | editar volta valores; sem botão “origem original” [L2] |
 | C2.17 | Ajuste de escala desconhecida: marcar os dois pontos de um segmento e informar sua medida real. | Feito | — | escala por segmento de medida conhecida |
-| C2.18 | Escolha dos grupos em que cada vista aparece. | Parcial | L | uma máscara ligada a um grupo |
-| C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento |
+| C2.18 | Escolha dos grupos em que cada vista aparece. | Parcial | L | uma máscara ligada a um grupo [L2] |
+| C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento [L2] |
 | C2.20 | Janela de seleção dos modos de captura de objetos (snap) do DXF/DWG. | Feito | — | tipos de captura |
-| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir |
+| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir [L2] |
 | C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Falta | R | máscara nas pranchas (fora da R5) [R7g] |
 
 ## 3. Grupos e pavimentos
@@ -146,12 +146,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Parcial | N | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na tela por pavimento [N2d] |
 | C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Feito | — | vigas, lajes maciças e vigotas dimensionadas uma vez pela envoltória do grupo (R3a, R4, R6); pilares por lance |
 | C3.6 | Desenho único por grupo (uma planta de formas, um desenho de vigas etc.). | Feito | — | uma prancha de formas por grupo |
-| C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre |
+| C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre [L4] |
 | C3.8 | Sem pavimentos, só existe a criação. Depois aparecem apagar pavimentos, editar pavimentos, editar grupos, unir grupos e dividir grupos. | Feito | — | pavimento criar/editar/remover/repetir; grupo criar/editar/remover/desvincular |
 | C3.9 | Novos pavimentos criados agrupados ou isolados. | Feito | — |  |
 | C3.10 | Dados dos novos pavimentos: quantidade, alturas, carga variável, carga permanente (revestimento etc.) e nome de cada pavimento. | Feito | — | cota, nome, grupo; cargas por grupo |
 | C3.11 | Categoria de uso do grupo escolhida entre as já definidas. Sem categorias definidas, fica a padrão e pode ser trocada depois. | Feito | — | uso NBR 6120 por grupo |
-| C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Parcial | L | usos da NBR 6120 (6 categorias) |
+| C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Parcial | L | usos da NBR 6120 (6 categorias) [L1] |
 | C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Parcial | N | hipóteses variáveis adicionais (Q) com ψ próprio (N1c); a categoria de uso continua uma só [N2a] |
 | C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Falta | N | [N2a] |
 | C3.15 | As categorias da obra são escolhidas nos dados gerais, junto das hipóteses adicionais. | Feito | — | grupo Casos de carga na aba Edifício (N1c) |
@@ -161,26 +161,26 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.19 | Aviso: cada categoria a mais aumenta o número de combinações e o tempo de cálculo. | Fora | — |  |
 | C3.20 | Cota do plano de fundação definida na edição de pavimentos, com reajuste automático das cotas de todos os pavimentos. | Feito | — | profundidade da fundação |
 | C3.21 | Renomear pavimentos na edição de pavimentos. | Feito | — |  |
-| C3.22 | Unir pavimentos num grupo, selecionando-os. | Parcial | L | mudar o grupo do pavimento; sem “unir grupos” em lote |
+| C3.22 | Unir pavimentos num grupo, selecionando-os. | Parcial | L | mudar o grupo do pavimento; sem “unir grupos” em lote [L4] |
 | C3.23 | Editar grupos (nome, cargas, categoria de uso), com destaque no esquema dos pavimentos selecionados. | Feito | — | grupo.editar |
 | C3.24 | Dividir um grupo, separando seus pavimentos. | Feito | — | grupo.desvincular |
-| C3.25 | Copiar para o grupo atual o conteúdo de outro grupo escolhido no esquema, com origem e destino em cores diferentes. | Parcial | L | viga.copiarParaGrupos (só vigas) |
+| C3.25 | Copiar para o grupo atual o conteúdo de outro grupo escolhido no esquema, com origem e destino em cores diferentes. | Parcial | L | viga.copiarParaGrupos (só vigas) [L4] |
 | C3.26 | Recarregar o grupo da última gravação, perdendo as alterações posteriores, com confirmação. | Fora | — | desfazer cobre isso |
-| C3.27 | Informação de áreas do grupo: total (inclui a área de pilares e muros), vigas e lajes. | Parcial | L | área de lajes e quantitativos; sem quadro de áreas do grupo |
+| C3.27 | Informação de áreas do grupo: total (inclui a área de pilares e muros), vigas e lajes. | Parcial | L | área de lajes e quantitativos; sem quadro de áreas do grupo [L4] |
 | C3.28 | Consulta das cotas relativas e absolutas de cada pavimento. | Feito | — | cotas e pé-direito |
-| C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Falta | L | mover textos de referência na planta |
-| C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Parcial | L | camadas de exibição na planta; sem escolher tipos de texto |
-| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Falta | V | cortes verticais do edifício |
-| C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Falta | V |  |
-| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V |  |
-| C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Falta | V | linhas de seção no pavimento |
-| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Falta | V | vista 3D |
-| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Falta | V |  |
-| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Falta | V |  |
-| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Falta | V |  |
-| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Falta | V |  |
-| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Falta | V |  |
-| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Falta | V |  |
+| C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Falta | L | mover textos de referência na planta [L4] |
+| C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Parcial | L | camadas de exibição na planta; sem escolher tipos de texto [L4] |
+| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Falta | V | cortes verticais do edifício [V2] |
+| C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Falta | V | [V2] |
+| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2] |
+| C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Falta | V | linhas de seção no pavimento [V2] |
+| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Falta | V | vista 3D [V1] |
+| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Falta | V | [V1] |
+| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Falta | V | [V1] |
+| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Falta | V | [V1] |
+| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Falta | V | [V1] |
+| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Falta | V | [V1] |
+| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Falta | V | [V1] |
 
 ## 4. Pilares
 
@@ -212,11 +212,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos [N2c] |
 | C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E | [E1a] |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |
-| C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote |
+| C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote [L4] |
 | C4.27 | Ponto fixo dos pilares visível durante o lançamento de vigas e lajes. | Feito | — | ponto fixo visível |
-| C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Falta | L | copiar dados de um pilar (conta-gotas) |
+| C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Falta | L | copiar dados de um pilar (conta-gotas) [L4] |
 | C4.29 | O formulário de pilar novo guarda os dados do último pilar lançado. | Feito | — | ferramenta guarda a última seção |
-| C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L |  |
+| C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L | [L4] |
 | C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Falta | E | pilar-parede de retângulos [E1b] |
 | C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E | [E1b] |
 | C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário [N2c] |
@@ -247,7 +247,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem janela própria nem cores de seleção (pilares de aço fora) [R7f] |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação [V5] |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R | ponto fixo nas pranchas (fora da R5) [R7g] |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos [E1d] |
@@ -294,16 +294,16 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **6.1 Lançamento** | | | |
 | C6.1 | Lançamento do contorno do pavimento combinando gabarito DXF/DWG e ferramentas de viga. | Feito | — | vigas sobre a máscara com capturas |
-| C6.2 | Ajudas genérica e específica durante o lançamento. | Parcial | L | dicas e mensagens |
-| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral |
+| C6.2 | Ajudas genérica e específica durante o lançamento. | Parcial | L | dicas e mensagens [L4] |
+| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral [L5] |
 | C6.4 | Troca do tipo de viga atual a partir do painel. | Feito | — |  |
 | C6.5 | Modo contínuo: o fim de uma viga é o início da próxima. A sequência só vale depois de encerrada pelo menu de contexto. | Feito | — | polilinha contínua; Enter encerra |
-| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Parcial | L | Enter/Esc; apagar último ponto a conferir |
-| C6.7 | Modo simples: cada viga com início e fim independentes. | Parcial | L | polilinha de 2 pontos |
+| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Parcial | L | Enter/Esc; apagar último ponto a conferir [L5] |
+| C6.7 | Modo simples: cada viga com início e fim independentes. | Parcial | L | polilinha de 2 pontos [L5] |
 | C6.8 | Linha de ajuste da viga: eixo ou uma das faces. | Feito | — | eixo ou face |
-| C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Falta | L | deslocamento configurável entre linha clicada e linha de ajuste |
+| C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Falta | L | deslocamento configurável entre linha clicada e linha de ajuste [L5] |
 | C6.10 | Troca cíclica do ajuste (eixo/faces) por atalho (Ctrl+E) durante o lançamento. | Feito | — | tecla A |
-| C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Falta | L |  |
+| C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Falta | L | [L5] |
 | C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Falta | E | viga curva [E2b] |
 | C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Falta | E | [E2b] |
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
@@ -343,9 +343,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Falta | E | [E2b] |
 | C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Falta | E | [E2b] |
 | C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E | [E2b] |
-| C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular |
+| C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular [L5] |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
-| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga (só por CLI/MCP: sem ferramenta na planta, R7-0); sem comprimento fixo |
+| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga (só por CLI/MCP: sem ferramenta na planta, R7-0); sem comprimento fixo [L5] |
 | C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos [E2e] |
 | C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E | [E2e] |
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
@@ -355,7 +355,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
 | C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Falta | R | referências-base de juntas [R7f] |
-| C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara |
+| C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara [L2] |
 | | **6.2 Cálculo e resultados de vigas** | | | |
 | C6.64 | Vigas de aço no cálculo: dimensionar a partir do perfil inicial (só maiores ou iguais) ou de toda a série (pode reduzir). | Fora | — | aço |
 | C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita no edifício (existe no Pórtico 2D, `src/core/design.ts`, como aviso: reaproveitar) [R7b] |
@@ -398,7 +398,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.102 | Editar a armadura de vigas inclinadas. | Falta | E | [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Parcial | R | editor de armadura na janela da viga (R2) e aba Detalhamento com elevação (inferior, superior, pele, estribos por zona) e seção (R3a); sem escolher o que mostrar [R7b] |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Falta | R | fator do comprimento de emenda no editor [R7b] |
-| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação |
+| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação [V5] |
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
 | C6.107 | Desenho da armadura de vigas inclinadas. | Falta | E | vigas inclinadas (E2) [E2c] |
@@ -409,61 +409,61 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.1.1 Gestão de panos** | | | |
-| C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | maciça e treliçada; sem alveolar, steel deck, nervurada bidirecional, radier |
-| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | panos detectados; pano sem laje gera aviso |
+| C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | maciça e treliçada; sem alveolar, steel deck, nervurada bidirecional, radier [E3f] |
+| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | panos detectados; pano sem laje gera aviso [L5] |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
-| C7.5 | Mudar o ponto de inserção do pano. | Falta | L |  |
-| C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos |
+| C7.5 | Mudar o ponto de inserção do pano. | Falta | L | [L5] |
+| C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
-| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar |
-| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) |
-| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | momentos mínimos das vigotas p·ℓ²/16 por obra (opções, R6); sem valor por pano |
-| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Falta | E | classe de exposição por pano (vigotas protendidas e alveolares: E3) |
+| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] |
+| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) [E3c] |
+| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | momentos mínimos das vigotas p·ℓ²/16 por obra (opções, R6); sem valor por pano [E3b] |
+| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Falta | E | classe de exposição por pano (vigotas protendidas e alveolares: E3) [E3b] |
 | C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Feito | — | coeficiente de engaste por borda da laje (laje.editar engasteBordas, Vínculos; N1a), também nas treliçadas |
 | C7.13 | Processo construtivo das alveolares: com ou sem escoramento. | Fora | — |  |
-| C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Falta | E |  |
+| C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Falta | E | [E3b] |
 | | **7.1.2.1 Pano a definir** | | | |
-| C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano |
-| C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação |
-| C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Falta | L | bloquear o cálculo com pano sem tipo |
-| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Falta | V | 3D |
+| C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano [E3f] |
+| C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação [E3f] |
+| C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Falta | L | bloquear o cálculo com pano sem tipo [L5] |
+| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Falta | V | 3D [V1] |
 | | **7.1.2.2 Lajes de vigotas** | | | |
-| C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] |
-| C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Falta | E | vigotas protendidas; catálogo de fabricante |
-| C7.21 | Tipos genéricos por geometria (criar, copiar, apagar) para quando a vigota final não é conhecida, ajudando a decidir entre armada e protendida pela flecha. | Falta | E |  |
-| C7.22 | Dados geométricos: referência, espessura da capa, altura do enchimento, intereixo e largura mínima da nervura. | Parcial | E | capa, enchimento, intereixo, nervura do catálogo; não editáveis |
-| C7.23 | Acréscimo de largura da nervura, usado só na rigidez e no momento de fissuração para a flecha (enchimento de concreto). | Falta | E |  |
+| C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] [E3a] |
+| C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Falta | E | vigotas protendidas; catálogo de fabricante [E3a] |
+| C7.21 | Tipos genéricos por geometria (criar, copiar, apagar) para quando a vigota final não é conhecida, ajudando a decidir entre armada e protendida pela flecha. | Falta | E | [E3a] |
+| C7.22 | Dados geométricos: referência, espessura da capa, altura do enchimento, intereixo e largura mínima da nervura. | Parcial | E | capa, enchimento, intereixo, nervura do catálogo; não editáveis [E3a] |
+| C7.23 | Acréscimo de largura da nervura, usado só na rigidez e no momento de fissuração para a flecha (enchimento de concreto). | Falta | E | [E3a] |
 | C7.24 | Volume de concreto por m² calculado e editável. | Feito | — | volume de concreto nos quantitativos |
-| C7.25 | Tipo de enchimento: concreto, cerâmica, EPS ou genérico (genérico pede o peso por m²). Peso total por m² calculado. | Parcial | E | só EPS |
-| C7.26 | Escolha entre vigota armada e protendida para o cálculo da flecha (relação rigidez fissurada/bruta a confirmar com o fabricante). | Falta | E |  |
-| C7.27 | Exportar a laje definida para uma biblioteca interna e reutilizar em outras obras. | Falta | E | biblioteca de lajes |
-| C7.28 | Biblioteca de fichas de fabricantes. Os dados são do fabricante, o programa só faz um controle lógico. Novas fichas podem ser criadas num editor à parte. | Falta | E |  |
-| C7.29 | Seleção na biblioteca: referência opcional (padrão ficha + laje), ficha/fabricante e laje da série (altura e intereixo), com resumo das propriedades (concretos, aço de protensão etc.). | Falta | E |  |
-| C7.30 | Ficha técnica para vigota simples e dupla, com dados obrigatórios e recomendados. | Falta | E |  |
-| C7.31 | Vigota armada, positivo (meio do vão): tipo, armadura (base + adicional em todo o comprimento + adicional mais curta), área de aço, momento último, momento de fissuração, rigidez total e rigidez fissurada (flecha por Branson). | Parcial | E | treliça do modelo, adicional, área de aço e momento resistente da nervura no diagrama (R6); sem momento de fissuração nem rigidez fissurada da vigota |
-| C7.32 | Vigota armada, negativo (apoio): armadura superior adicional (duas parcelas com comprimentos calculados), área de aço, momento último da seção típica e da seção maciça (sem enchimento), momento de fissuração e rigidezes. | Parcial | E | negativos na capa com área, comprimento e momento resistente da nervura e da faixa maciçada (R6); uma parcela só, sem momento de fissuração nem rigidezes |
+| C7.25 | Tipo de enchimento: concreto, cerâmica, EPS ou genérico (genérico pede o peso por m²). Peso total por m² calculado. | Parcial | E | só EPS [E3a] |
+| C7.26 | Escolha entre vigota armada e protendida para o cálculo da flecha (relação rigidez fissurada/bruta a confirmar com o fabricante). | Falta | E | [E3a] |
+| C7.27 | Exportar a laje definida para uma biblioteca interna e reutilizar em outras obras. | Falta | E | biblioteca de lajes [E3a] |
+| C7.28 | Biblioteca de fichas de fabricantes. Os dados são do fabricante, o programa só faz um controle lógico. Novas fichas podem ser criadas num editor à parte. | Falta | E | [E3a] |
+| C7.29 | Seleção na biblioteca: referência opcional (padrão ficha + laje), ficha/fabricante e laje da série (altura e intereixo), com resumo das propriedades (concretos, aço de protensão etc.). | Falta | E | [E3a] |
+| C7.30 | Ficha técnica para vigota simples e dupla, com dados obrigatórios e recomendados. | Falta | E | [E3a] |
+| C7.31 | Vigota armada, positivo (meio do vão): tipo, armadura (base + adicional em todo o comprimento + adicional mais curta), área de aço, momento último, momento de fissuração, rigidez total e rigidez fissurada (flecha por Branson). | Parcial | E | treliça do modelo, adicional, área de aço e momento resistente da nervura no diagrama (R6); sem momento de fissuração nem rigidez fissurada da vigota [E3b] |
+| C7.32 | Vigota armada, negativo (apoio): armadura superior adicional (duas parcelas com comprimentos calculados), área de aço, momento último da seção típica e da seção maciça (sem enchimento), momento de fissuração e rigidezes. | Parcial | E | negativos na capa com área, comprimento e momento resistente da nervura e da faixa maciçada (R6); uma parcela só, sem momento de fissuração nem rigidezes [E3b] |
 | C7.33 | Cortante último da seção, com valores por tipo de treliça. O tipo usado aparece na tela e no desenho. | Feito | — | VRd1 e VRd2 da nervura calculados (19.4.1) com a treliça do modelo, mostrada na janela e na prancha de lajes (R6, R5) |
-| C7.34 | Vigota protendida: momentos de serviço por classe de ambiente/exposição, comparados com o de cálculo. Se não passa, procura outra vigota, e sem solução emite erro no fim do cálculo. | Falta | E |  |
-| C7.35 | Vigota protendida sem armadura de cortante. | Falta | E |  |
-| C7.36 | Laje nervurada moldada no local (nervuras como vigas) com armadura de base atribuível. | Falta | E | nervurada moldada no local |
-| C7.37 | Dados da nervurada moldada no local: referência, tipo de enchimento (biblioteca: criar, copiar, apagar), espessura da capa e intereixo. | Falta | E |  |
+| C7.34 | Vigota protendida: momentos de serviço por classe de ambiente/exposição, comparados com o de cálculo. Se não passa, procura outra vigota, e sem solução emite erro no fim do cálculo. | Falta | E | [E3b] |
+| C7.35 | Vigota protendida sem armadura de cortante. | Falta | E | [E3b] |
+| C7.36 | Laje nervurada moldada no local (nervuras como vigas) com armadura de base atribuível. | Falta | E | nervurada moldada no local [E3a] |
+| C7.37 | Dados da nervurada moldada no local: referência, tipo de enchimento (biblioteca: criar, copiar, apagar), espessura da capa e intereixo. | Falta | E | [E3a] |
 | C7.38 | Laje com vigotas de perfil I laminado: referência, enchimento, capa, intereixo e série de perfis. | Fora | — |  |
 | C7.39 | Nas vigotas de aço, escolhe-se a série e o perfil é dimensionado automaticamente, sempre biapoiado (engastamento 0 fixo). | Fora | — |  |
 | C7.40 | Laje com vigotas treliçadas de aço biapoiadas: tipo (banzos com um ou dois perfis), série de perfis, altura nominal, ângulo das diagonais entre 30° e 60°, intereixo e espessura da capa (não colaborante). | Fora | — |  |
 | C7.41 | Coeficiente de redução da rigidez à torção das lajes de vigotas, consultável e editável nas opções gerais. | Feito | — | redutor da torção das lajes editável nas opções (torcaoLaje, N1a), vale para as treliçadas |
 | | **7.1.2.3 Lajes nervuradas bidirecionais** | | | |
-| C7.42 | Forma perdida ou recuperável. | Falta | E | nervurada bidirecional |
-| C7.43 | Formas importadas da biblioteca ou definidas pelo usuário, e editáveis. | Falta | E |  |
-| C7.44 | Disposição das formas visível na tela. | Falta | E |  |
-| C7.45 | Pano lançado paralelo a uma viga ou por dois pontos. | Falta | E |  |
-| C7.46 | Copiar panos nervurados no mesmo grupo e atribuir armadura de base aos panos do grupo. | Falta | E |  |
-| C7.47 | Geração automática de ábacos (capitéis), com parâmetros configuráveis. | Falta | E | ábacos/capitéis |
-| C7.48 | Ábaco, ângulo de visão: cone de busca a partir de cada face do pilar. O pilar mais próximo dentro do cone dá o vão de referência, e sem pilar vale o mínimo. | Falta | E |  |
-| C7.49 | Ábaco, extensão maciça: porcentagem da distância ao pilar vizinho, medida da face do pilar à borda do ábaco. | Falta | E |  |
-| C7.50 | Ábaco, comprimentos mínimo e máximo da face do pilar à borda, em relação à altura do ábaco. | Falta | E |  |
+| C7.42 | Forma perdida ou recuperável. | Falta | E | nervurada bidirecional [E3c] |
+| C7.43 | Formas importadas da biblioteca ou definidas pelo usuário, e editáveis. | Falta | E | [E3c] |
+| C7.44 | Disposição das formas visível na tela. | Falta | E | [E3c] |
+| C7.45 | Pano lançado paralelo a uma viga ou por dois pontos. | Falta | E | [E3c] |
+| C7.46 | Copiar panos nervurados no mesmo grupo e atribuir armadura de base aos panos do grupo. | Falta | E | [E3c] |
+| C7.47 | Geração automática de ábacos (capitéis), com parâmetros configuráveis. | Falta | E | ábacos/capitéis [E3d] |
+| C7.48 | Ábaco, ângulo de visão: cone de busca a partir de cada face do pilar. O pilar mais próximo dentro do cone dá o vão de referência, e sem pilar vale o mínimo. | Falta | E | [E3d] |
+| C7.49 | Ábaco, extensão maciça: porcentagem da distância ao pilar vizinho, medida da face do pilar à borda do ábaco. | Falta | E | [E3d] |
+| C7.50 | Ábaco, comprimentos mínimo e máximo da face do pilar à borda, em relação à altura do ábaco. | Falta | E | [E3d] |
 | | **7.1.2.4 Lajes alveolares** | | | |
-| C7.51 | Lajes alveolares da biblioteca ou criadas pelo usuário, com ajuda sobre os dados pedidos. | Falta | E | alveolares |
+| C7.51 | Lajes alveolares da biblioteca ou criadas pelo usuário, com ajuda sobre os dados pedidos. | Falta | E | alveolares [E3e] |
 | | **7.1.2.5 Lajes mistas (steel deck)** | | | |
 | C7.52 | Laje com chapa de aço perfilada, concreto e armaduras superior e inferior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.53 | Chapa só como forma: resiste ao peso próprio, ao concreto fresco e às cargas de execução, e em serviço só a laje de concreto armado trabalha. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
@@ -474,90 +474,90 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.58 | Uso para cargas predominantemente estáticas, incluindo galpões com cargas móveis. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.59 | Limites verificados: espessura total da laje, espessura de concreto sobre as nervuras da chapa e altura mínima dos conectores (vigas mistas). | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.1.3 Lajes inclinadas e desníveis** | | | |
-| C7.60 | Fluxo: lançar tudo na horizontal e depois atribuir inclinações ou desníveis. | Falta | E | lajes inclinadas |
-| C7.61 | Lista de planos com nome editável, indicação de plano já atribuído, cor por plano e valores (cota ou inclinação). | Falta | E | lajes inclinadas e planos |
-| C7.62 | Atribuir um plano a panos do grupo, que passam a ter a cor do plano. | Falta | E | lajes inclinadas e planos |
-| C7.63 | Plano inclinado por três pontos com desnível de cada um em relação ao pavimento. | Falta | E | lajes inclinadas e planos |
-| C7.64 | Plano por reta horizontal (dois pontos com a mesma cota) e inclinação perpendicular a ela. | Falta | E | lajes inclinadas e planos |
-| C7.65 | Plano por linha de máxima declividade (dois pontos), desnível do primeiro e inclinação. | Falta | E | lajes inclinadas e planos |
-| C7.66 | Definição numérica ou gráfica sobre a planta, com captura do gabarito. O cursor muda de cor sobre eixo ou face de viga. | Falta | E | lajes inclinadas e planos |
-| C7.67 | Editar plano na planta: arrastar pontos e reescrever cotas/inclinações sobre o texto. | Falta | E | lajes inclinadas e planos |
-| C7.68 | Editar plano numericamente. | Falta | E | lajes inclinadas e planos |
-| C7.69 | Seta indicando o sentido descendente da máxima declividade no pano. Aviso quando as nervuras não são paralelas ou perpendiculares a ela. | Falta | E | lajes inclinadas e planos |
-| C7.70 | Incoerência de inclinação entre vigas e pano adjacente detectada (vigas em vermelho) e corrigida por clique, copiando a inclinação do pano. | Falta | E | lajes inclinadas e planos |
-| C7.71 | Casos-guia: só panos inclinados (desníveis positivos), pano horizontal numa extremidade (desníveis negativos no grupo superior com vigas comuns), horizontais nas duas extremidades (rampa num grupo intermediário) e sobreposições na projeção (um grupo por cota). | Falta | E | lajes inclinadas e planos |
-| C7.72 | Sequência recomendada: grupos, panos horizontais, vigas comuns, panos a inclinar (vigas de transição ajustadas às interseções do gabarito), planos e atribuição. | Falta | E | lajes inclinadas e planos |
-| C7.73 | Projeção horizontal da viga pelo eixo ou pela face, com a face superior desenhada em linha contínua (cumeeira mais larga, rincão mais estreito). | Falta | E | lajes inclinadas e planos |
-| C7.74 | Rotação da seção de vigas horizontais (cumeeira, borda) para acompanhar o pano, só em vigas planas. Sem coincidência com a interseção, não gira e ganha altura para os dois panos. | Falta | E | lajes inclinadas e planos |
-| C7.75 | Limitações: pano inclinado não se apoia em muro, e não há viga comum com o coroamento de muro. | Falta | E | lajes inclinadas e planos |
-| C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Falta | E | lajes inclinadas e planos |
-| C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Falta | E | lajes inclinadas e planos |
+| C7.60 | Fluxo: lançar tudo na horizontal e depois atribuir inclinações ou desníveis. | Falta | E | lajes inclinadas [E3f] |
+| C7.61 | Lista de planos com nome editável, indicação de plano já atribuído, cor por plano e valores (cota ou inclinação). | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.62 | Atribuir um plano a panos do grupo, que passam a ter a cor do plano. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.63 | Plano inclinado por três pontos com desnível de cada um em relação ao pavimento. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.64 | Plano por reta horizontal (dois pontos com a mesma cota) e inclinação perpendicular a ela. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.65 | Plano por linha de máxima declividade (dois pontos), desnível do primeiro e inclinação. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.66 | Definição numérica ou gráfica sobre a planta, com captura do gabarito. O cursor muda de cor sobre eixo ou face de viga. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.67 | Editar plano na planta: arrastar pontos e reescrever cotas/inclinações sobre o texto. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.68 | Editar plano numericamente. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.69 | Seta indicando o sentido descendente da máxima declividade no pano. Aviso quando as nervuras não são paralelas ou perpendiculares a ela. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.70 | Incoerência de inclinação entre vigas e pano adjacente detectada (vigas em vermelho) e corrigida por clique, copiando a inclinação do pano. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.71 | Casos-guia: só panos inclinados (desníveis positivos), pano horizontal numa extremidade (desníveis negativos no grupo superior com vigas comuns), horizontais nas duas extremidades (rampa num grupo intermediário) e sobreposições na projeção (um grupo por cota). | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.72 | Sequência recomendada: grupos, panos horizontais, vigas comuns, panos a inclinar (vigas de transição ajustadas às interseções do gabarito), planos e atribuição. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.73 | Projeção horizontal da viga pelo eixo ou pela face, com a face superior desenhada em linha contínua (cumeeira mais larga, rincão mais estreito). | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.74 | Rotação da seção de vigas horizontais (cumeeira, borda) para acompanhar o pano, só em vigas planas. Sem coincidência com a interseção, não gira e ganha altura para os dois panos. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.75 | Limitações: pano inclinado não se apoia em muro, e não há viga comum com o coroamento de muro. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Falta | E | lajes inclinadas e planos [E3f] |
+| C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Falta | E | lajes inclinadas e planos [E3f] |
 | | **7.1.4 Aberturas** | | | |
-| C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Parcial | L | abertura em laje (polígono); sem viga de borda automática |
-| C7.79 | Abertura retangular paralela a uma viga escolhida (dois cantos internos opostos). | Falta | L |  |
-| C7.80 | Abertura retangular com ângulo zero (dois cantos). | Parcial | L | abertura por contorno |
-| C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L |  |
-| C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L |  |
+| C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Parcial | L | abertura em laje (polígono); sem viga de borda automática [L5] |
+| C7.79 | Abertura retangular paralela a uma viga escolhida (dois cantos internos opostos). | Falta | L | [L5] |
+| C7.80 | Abertura retangular com ângulo zero (dois cantos). | Parcial | L | abertura por contorno [L5] |
+| C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L | [L5] |
+| C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L | [L5] |
 | | **7.1.5 Opções de lajes** | | | |
 | C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limites ℓ/250 (total) e ℓ/350 (variável) editáveis, comuns a todas as lajes (N1d); sem flecha ativa nem padrões próprios das vigotas [N2f] |
 | C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
 | | **7.2 Resultados de lajes (lido só o começo)** | | | |
-| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta (R6); sem as vistas de momentos/tipos combinadas com esforços na planta |
+| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta (R6); sem as vistas de momentos/tipos combinadas com esforços na planta [V5] |
 
 ## 7. Lajes (continuação)
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.2.1.1 Vistas de resultados das lajes de vigotas (continuação)** | | | |
-| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); sem a vista de tipos na planta (protendida e moldada no local: E3; aço fora) |
-| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo) (R6); sem o valor junto a cada vigota na planta |
-| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); sem vista na planta com o tipo de treliça |
-| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | E | vigotas moldadas no local (E3) |
-| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | V | chave geral de exibição de esforços das vigotas |
+| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); sem a vista de tipos na planta (protendida e moldada no local: E3; aço fora) [V5] |
+| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo) (R6); sem o valor junto a cada vigota na planta [V5] |
+| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); sem vista na planta com o tipo de treliça [V5] |
+| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | E | vigotas moldadas no local (E3) [E3b] |
+| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | V | chave geral de exibição de esforços das vigotas [V5] |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
-| C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E |  |
-| C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Falta | E |  |
+| C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E | [E3f] |
+| C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Falta | E | [E3f] |
 | | **7.2.1.2 Igualar vigotas** | | | |
 | C7.96 | Agrupamento automático de vigotas quando (Mmáx − Mmín) do grupo < percentual × Mmáx, com o percentual dado pelo usuário. | Feito | — | agrupamento por (Mmáx − Mmín) < percentual × Mmáx (opção vigotaIgualacaoDif) (R6) |
-| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Parcial | E | igualação pelos valores de pico da envoltória (todas as combinações e pavimentos do grupo), não ponto a ponto (R6) |
+| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Parcial | E | igualação pelos valores de pico da envoltória (todas as combinações e pavimentos do grupo), não ponto a ponto (R6) [E3b] |
 | C7.98 | Momentos igualados pelo máximo de cada ponto ou pela média de cada ponto, à escolha. | Feito | — | igualação pelo máximo ou pela média (opção vigotaIgualacao) (R6) |
 | C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Feito | — | cortante igualada sempre pelo máximo do grupo (R6) |
-| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | E | igualação dos momentos (e não da área de aço) com percentual e critério editáveis; negativos pelo mesmo grupo (R6) |
+| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | E | igualação dos momentos (e não da área de aço) com percentual e critério editáveis; negativos pelo mesmo grupo (R6) [E3b] |
 | | **7.2.1.3 Erros de vigotas** | | | |
-| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | E | erros VIGOTA_* por laje em vermelho na planta e na lista; vigota individual não |
-| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | E | flecha da laje treliçada verificada (total e da variável, limites editáveis); sem flecha por vigota nem de montagem |
+| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | E | erros VIGOTA_* por laje em vermelho na planta e na lista; vigota individual não [E3b] |
+| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | E | flecha da laje treliçada verificada (total e da variável, limites editáveis); sem flecha por vigota nem de montagem [E3b] |
 | C7.103 | Erro: momento positivo no apoio da vigota; sugere mudar o coeficiente de engastamento do pano ou rever a continuidade da armadura inferior. | Feito | — | aviso VIGOTA_APOIO (momento positivo na ponta da vigota; rever engaste ou continuidade) (R6) |
 | C7.104 | Erro: altura da laje insuficiente para a flexão. | Feito | — | erro VIGOTA_ALTURA (flexão positiva exige armadura de compressão: aumentar a altura) (R6) |
-| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Parcial | E | erro VIGOTA_POS quando treliça + 2φ12,5 não cobre o momento; sem série de fabricante (R6) |
-| C7.106 | Erro: a armadura inferior da vigota moldada no local não cabe na largura da nervura (espaçamento e cobrimento); sugere aumentar altura ou largura da nervura. | Falta | E | vigotas moldadas no local (E3) |
+| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Parcial | E | erro VIGOTA_POS quando treliça + 2φ12,5 não cobre o momento; sem série de fabricante (R6) [E3b] |
+| C7.106 | Erro: a armadura inferior da vigota moldada no local não cabe na largura da nervura (espaçamento e cobrimento); sugere aumentar altura ou largura da nervura. | Falta | E | vigotas moldadas no local (E3) [E3b] |
 | C7.107 | Erro de vigota de aço: nenhum perfil da série serve para a geometria do pano e da forma (intereixo excessivo para apoiar a forma nas abas). | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
 | C7.108 | Erro de vigota de aço/treliça: nenhum perfil da série resiste aos esforços; sugere trocar de série. | Fora | — | vigotas de aço e treliças metálicas (aço no edifício fora do escopo, como C7.40) |
 | C7.109 | Erro de armadura superior: zona comprimida insuficiente para o momento negativo, sem solução por maciçamento; exige laje mais alta. | Feito | — | erro VIGOTA_NEG: momento negativo acima do resistente mesmo com a faixa maciçada, exige laje mais alta (R6) |
-| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Parcial | E | momento negativo comparado ao resistente calculado (nervura e faixa maciçada), sem ficha do fabricante nem vigota dupla (R6) |
+| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Parcial | E | momento negativo comparado ao resistente calculado (nervura e faixa maciçada), sem ficha do fabricante nem vigota dupla (R6) [E3b] |
 | C7.111 | Erro: área de armadura superior exigida no apoio (face interna da viga) excessiva, armadura não dimensionada. | Feito | — | erro VIGOTA_NEG_AS (armadura negativa > 2φ12,5 por nervura) (R6) |
-| C7.112 | Aviso: armadura negativa fora da tabela (lajes genéricas e moldadas no local); o programa calcula assim mesmo e sugere laje mais alta ou vigota dupla. | Falta | E | aviso de negativa fora da tabela (tabelas de vigotas: E3) |
+| C7.112 | Aviso: armadura negativa fora da tabela (lajes genéricas e moldadas no local); o programa calcula assim mesmo e sugere laje mais alta ou vigota dupla. | Falta | E | aviso de negativa fora da tabela (tabelas de vigotas: E3) [E3b] |
 | C7.113 | Aviso: maciçamento maior que duas vezes a altura (o maciçamento evita armadura inferior comprimida). | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que duas vezes a altura (R6) |
 | C7.114 | Aviso: maciçamento maior que 20 % do vão livre. | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que 20 % do vão (R6) |
 | C7.115 | Aviso: extremidades engastadas/contínuas não dimensionadas em vigotas de aço (articuladas nas bordas; em balanço o pano interno dá continuidade só para equilíbrio local, sem dimensionar o negativo). | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
-| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Parcial | E | erro VIGOTA_CORTANTE contra VRd1 e VRd2 calculados (19.4.1), com a faixa maciçada necessária; sem ficha do fabricante nem vigota dupla (R6) |
+| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Parcial | E | erro VIGOTA_CORTANTE contra VRd1 e VRd2 calculados (19.4.1), com a faixa maciçada necessária; sem ficha do fabricante nem vigota dupla (R6) [E3b] |
 | | **7.2.1.4 Informação da vigota** | | | |
-| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | E | clique na vigota mostra os diagramas por nervura; a flecha continua por laje (R6) |
+| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | E | clique na vigota mostra os diagramas por nervura; a flecha continua por laje (R6) [E3b] |
 | | **7.2.1.5 Atribuição manual** | | | |
-| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Falta | E | edição de vigotas selecionadas (E3) |
-| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Falta | E | igualação manual de esforços (E3) |
-| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Falta | E | série de vigotas armadas (E3) |
-| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Falta | E | armaduras parciais das vigotas (E3) |
-| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Falta | E | vigotas protendidas (E3) |
-| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Falta | E | vigotas moldadas no local (E3) |
+| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Falta | E | edição de vigotas selecionadas (E3) [E3b] |
+| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Falta | E | igualação manual de esforços (E3) [E3b] |
+| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Falta | E | série de vigotas armadas (E3) [E3b] |
+| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Falta | E | armaduras parciais das vigotas (E3) [E3b] |
+| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Falta | E | vigotas protendidas (E3) [E3b] |
+| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Falta | E | vigotas moldadas no local (E3) [E3b] |
 | C7.124 | Vigota de aço: trocar o perfil dentro da série. | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
 | C7.125 | Treliça metálica: trocar o perfil dos banzos ou das diagonais dentro da série. | Fora | — | treliças metálicas (aço no edifício fora do escopo, como C7.40) |
 | | **7.2.2 Lajes maciças e nervuradas (cogumelo/ábacos)** | | | |
 | C7.126 | Aviso pós-cálculo: flecha de lajes nervuradas e maciças não é verificada automaticamente; o usuário consulta a flecha elástica entre dois pontos e compara com o limite da norma. | Feito | — | flecha de lajes maciças estimada e comparada com L/250 (o manual não verifica) |
 | C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Fora | — | perfis de aço nas lajes (aço no edifício fora do escopo) |
 | C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Falta | R | armadura das lajes sem cálculo completo [R7e] |
-| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | E | lajes inclinadas (E3) |
+| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | E | lajes inclinadas (E3) [E3f] |
 | C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Parcial | R | rótulos "Nk – n φ c/s – C = x,xx" junto às barras na planta da laje (R4) e nas pranchas (R5); sem siglas de reforço [R7e] |
 | C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Falta | R | linhas de dobra [R7e] |
 | C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Falta | R | tabelas de armadura das lajes [R7e] |
@@ -571,8 +571,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Falta | N | [N2d] |
 | C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Falta | N | [N2d] |
 | | **7.2.3 Lajes alveolares** | | | |
-| C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Falta | E |  |
-| C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Falta | E |  |
+| C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Falta | E | [E3f] |
+| C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Falta | E | [E3e] |
 | | **7.2.4 Lajes mistas (steel deck)** | | | |
 | C7.144 | Cálculo em duas fases: construção e serviço. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.145 | Construção: resistência da fôrma de aço com peso do concreto, peso da fôrma e cargas de construção (operários, equipamentos). | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
@@ -618,94 +618,94 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.185 | Apagar armadura superior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.186 | Consulta/edição dos dados do pano também na aba de resultados. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.2.5 Diagramas de esforços** | | | |
-| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); sem torção nem por hipótese ou combinação (alveolares e mistas: E/fora) |
+| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); sem torção nem por hipótese ou combinação (alveolares e mistas: E/fora) [V5] |
 | C7.188 | Para hipótese sísmica dinâmica, escolha do modo de vibração. | Fora | — | sismo |
 | C7.189 | Consulta clicando nos alinhamentos de vigas, vigotas, alveolares ou lajes mistas. | Feito | — | clique duplo em vigas (R1) e clique na vigota da aba Vigotas (R6) abre os diagramas |
 | | **7.3 Desenhos e relatórios de lajes** | | | |
 | C7.190 | Relatórios de lajes mistas: esforços, quantitativo das lajes e quantitativo de armadura. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.191 | Dados das lajes mistas no relatório de dados da obra e quantidades no quantitativo geral. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.192 | Configuração própria dos elementos de laje mista no desenho da planta de formas. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
-| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | E | diagramas de momento e cortante por nervura na janela e tabela por grupo no memorial, com a combinação determinante do grupo de pavimentos; sem torção nem croqui do grupo (R6) |
-| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | comprimento e peso das treliças por tipo e das barras adicionais, negativos e distribuição, com perdas, no resumo de aço, CSV e memorial; sem vigotas moldadas no local (R6) |
-| C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Falta | E |  |
+| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | E | diagramas de momento e cortante por nervura na janela e tabela por grupo no memorial, com a combinação determinante do grupo de pavimentos; sem torção nem croqui do grupo (R6) [E3b] |
+| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | comprimento e peso das treliças por tipo e das barras adicionais, negativos e distribuição, com perdas, no resumo de aço, CSV e memorial; sem vigotas moldadas no local (R6) [E3b] |
+| C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Falta | E | [E3f] |
 
 ## 8. Escadas
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **8.1 Generalidades** | | | |
-| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Falta | E |  |
-| C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Falta | E |  |
-| C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Falta | E |  |
-| C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Falta | E |  |
+| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Falta | E | [E4c] |
+| C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Falta | E | [E4c] |
+| C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Falta | E | [E4a] |
+| C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Falta | E | [E4a] |
 | | **8.2 Acesso ao módulo** | | | |
-| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Falta | E |  |
+| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Falta | E | [E4b] |
 | | **8.3.1 Criar escada** | | | |
-| C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Falta | E |  |
-| C8.7 | A escada nova começa no grupo atual, indicado na janela. | Falta | E |  |
-| C8.8 | Dados comuns valem para todos os lances; partes com dados diferentes (ex.: outra carga) devem virar escadas separadas. | Falta | E |  |
-| C8.9 | Geometria comum: largura da escada (comprimento dos degraus). | Falta | E |  |
-| C8.10 | Geometria comum: piso (passo em planta) e espelho (altura do degrau). | Falta | E |  |
-| C8.11 | Geometria comum: sentido de giro ao subir (esquerda ou direita). | Falta | E |  |
-| C8.12 | Geometria comum: posição do último degrau do lance — formado pelo patamar ou sobre a laje inclinada. | Falta | E |  |
-| C8.13 | Cargas comuns: modo de execução dos degraus (concretados com a laje ou em alvenaria), que afeta o peso próprio e o volume de concreto. | Falta | E |  |
-| C8.14 | Cargas comuns: peso de corrimãos (total, considerando um ou dois), revestimento e sobrecarga. | Falta | E |  |
-| C8.15 | Lances (trechos entre pavimentos) podem ter dados diferentes entre si: espessura, cota inicial, tipologia, número de degraus. | Falta | E |  |
-| C8.16 | Escolha do tipo de lance numa lista de tipos predefinidos ou criação de tipo novo. | Falta | E |  |
-| C8.17 | Tipos de lance ficam na biblioteca da obra, reutilizáveis em vários lances e escadas; importação/exportação entre obras pelo gerenciador de biblioteca. | Falta | E |  |
-| C8.18 | Tipo de lance: referência (nome). | Falta | E |  |
-| C8.19 | Tipo de lance: espessura da laje dada pelo usuário ou pré-dimensionada pelo programa como 1/30 do maior vão real entre apoios. | Falta | E |  |
-| C8.20 | Tipo de lance: desnível no início do lance (≥ 10 cm), ex.: escada que nasce na fundação e atravessa contrapiso. | Falta | E |  |
-| C8.21 | Tipo de lance: número de degraus iniciais construídos sobre o piso; gera reação uniforme de superfície (carga permanente média dos degraus), sem sobrecarga, pois o piso já tem a sua. | Falta | E |  |
-| C8.22 | Tipo de lance: tipologia de lances e patamares. | Falta | E |  |
-| C8.23 | Tipo de lance: número de degraus de cada trecho, conforme a tipologia. | Falta | E |  |
-| C8.24 | Tipo de lance: largura do vão central (poço), só com patamares de meia-volta. | Falta | E |  |
-| C8.25 | Tipo de lance: número de degraus construídos sobre o patamar intermediário. | Falta | E |  |
-| C8.26 | Patamar intermediário apoiado ou livre; apoio frontal, lateral ou ambos, com tipo e largura. | Falta | E |  |
-| C8.27 | Apoio do patamar por tirante pendurado em elemento do piso de cima; a largura serve para somar o peso da alvenaria entre o patamar e o piso superior. | Falta | E |  |
-| C8.28 | Apoio do patamar em parede de alvenaria (15,70 kN/m³) ou de concreto (24,53 kN/m³): peso de parede de largura dada e altura entre patamar e piso de baixo, aplicado no elemento sob a borda apoiada. | Falta | E |  |
-| C8.29 | Parede entre o patamar e o piso de cima (ou outra divisória) deve ser lançada pelo usuário como carga linear. | Falta | E |  |
-| C8.30 | Apoio do patamar por conectores de cisalhamento em viga ou muro, que recebem a reação de extremidade. | Falta | E |  |
-| C8.31 | Número de lances iguais consecutivos (pavimentos seguidos com o mesmo tipo de lance). | Falta | E |  |
-| C8.32 | Número ilimitado de lances por escada. | Falta | E |  |
+| C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Falta | E | [E4b] |
+| C8.7 | A escada nova começa no grupo atual, indicado na janela. | Falta | E | [E4b] |
+| C8.8 | Dados comuns valem para todos os lances; partes com dados diferentes (ex.: outra carga) devem virar escadas separadas. | Falta | E | [E4a] |
+| C8.9 | Geometria comum: largura da escada (comprimento dos degraus). | Falta | E | [E4a] |
+| C8.10 | Geometria comum: piso (passo em planta) e espelho (altura do degrau). | Falta | E | [E4a] |
+| C8.11 | Geometria comum: sentido de giro ao subir (esquerda ou direita). | Falta | E | [E4a] |
+| C8.12 | Geometria comum: posição do último degrau do lance — formado pelo patamar ou sobre a laje inclinada. | Falta | E | [E4a] |
+| C8.13 | Cargas comuns: modo de execução dos degraus (concretados com a laje ou em alvenaria), que afeta o peso próprio e o volume de concreto. | Falta | E | [E4a] |
+| C8.14 | Cargas comuns: peso de corrimãos (total, considerando um ou dois), revestimento e sobrecarga. | Falta | E | [E4a] |
+| C8.15 | Lances (trechos entre pavimentos) podem ter dados diferentes entre si: espessura, cota inicial, tipologia, número de degraus. | Falta | E | [E4a] |
+| C8.16 | Escolha do tipo de lance numa lista de tipos predefinidos ou criação de tipo novo. | Falta | E | [E4a] |
+| C8.17 | Tipos de lance ficam na biblioteca da obra, reutilizáveis em vários lances e escadas; importação/exportação entre obras pelo gerenciador de biblioteca. | Falta | E | [E4b] |
+| C8.18 | Tipo de lance: referência (nome). | Falta | E | [E4a] |
+| C8.19 | Tipo de lance: espessura da laje dada pelo usuário ou pré-dimensionada pelo programa como 1/30 do maior vão real entre apoios. | Falta | E | [E4a] |
+| C8.20 | Tipo de lance: desnível no início do lance (≥ 10 cm), ex.: escada que nasce na fundação e atravessa contrapiso. | Falta | E | [E4a] |
+| C8.21 | Tipo de lance: número de degraus iniciais construídos sobre o piso; gera reação uniforme de superfície (carga permanente média dos degraus), sem sobrecarga, pois o piso já tem a sua. | Falta | E | [E4a] |
+| C8.22 | Tipo de lance: tipologia de lances e patamares. | Falta | E | [E4a] |
+| C8.23 | Tipo de lance: número de degraus de cada trecho, conforme a tipologia. | Falta | E | [E4a] |
+| C8.24 | Tipo de lance: largura do vão central (poço), só com patamares de meia-volta. | Falta | E | [E4a] |
+| C8.25 | Tipo de lance: número de degraus construídos sobre o patamar intermediário. | Falta | E | [E4a] |
+| C8.26 | Patamar intermediário apoiado ou livre; apoio frontal, lateral ou ambos, com tipo e largura. | Falta | E | [E4a] |
+| C8.27 | Apoio do patamar por tirante pendurado em elemento do piso de cima; a largura serve para somar o peso da alvenaria entre o patamar e o piso superior. | Falta | E | [E4a] |
+| C8.28 | Apoio do patamar em parede de alvenaria (15,70 kN/m³) ou de concreto (24,53 kN/m³): peso de parede de largura dada e altura entre patamar e piso de baixo, aplicado no elemento sob a borda apoiada. | Falta | E | [E4a] |
+| C8.29 | Parede entre o patamar e o piso de cima (ou outra divisória) deve ser lançada pelo usuário como carga linear. | Falta | E | [E4a] |
+| C8.30 | Apoio do patamar por conectores de cisalhamento em viga ou muro, que recebem a reação de extremidade. | Falta | E | [E4a] |
+| C8.31 | Número de lances iguais consecutivos (pavimentos seguidos com o mesmo tipo de lance). | Falta | E | [E4a] |
+| C8.32 | Número ilimitado de lances por escada. | Falta | E | [E4a] |
 | | **8.3.1.3 Inserção na obra** | | | |
-| C8.33 | Inserção no pavimento atual: o primeiro lance acompanha o cursor; clique fixa o início, a escada gira em torno dele e o segundo clique define a direção. | Falta | E |  |
-| C8.34 | Capturas a gabarito DXF/DWG e modo ortogonal para posicionar. | Falta | E |  |
-| C8.35 | Inserção repetida de escadas iguais com referências numeradas em sequência; botão direito encerra. | Falta | E |  |
-| C8.36 | Mensagem de erro geométrico na inserção. | Falta | E |  |
-| C8.37 | Conferência das escadas na vista 3D do edifício ou do pavimento (forma, interferências). | Falta | E | depende da vista 3D |
+| C8.33 | Inserção no pavimento atual: o primeiro lance acompanha o cursor; clique fixa o início, a escada gira em torno dele e o segundo clique define a direção. | Falta | E | [E4b] |
+| C8.34 | Capturas a gabarito DXF/DWG e modo ortogonal para posicionar. | Falta | E | [E4b] |
+| C8.35 | Inserção repetida de escadas iguais com referências numeradas em sequência; botão direito encerra. | Falta | E | [E4b] |
+| C8.36 | Mensagem de erro geométrico na inserção. | Falta | E | [E4b] |
+| C8.37 | Conferência das escadas na vista 3D do edifício ou do pavimento (forma, interferências). | Falta | E | depende da vista 3D [E4e] |
 | | **8.3.1.4 Ferramentas de apoio** | | | |
-| C8.38 | Dados da última escada lançada mantidos enquanto a obra não muda e o programa não fecha. | Falta | E |  |
-| C8.39 | Copiar dados de uma escada visível no pavimento atual (inclusive lances) ao criar uma nova, para depois ajustar (ex.: escada simétrica trocando o sentido de giro). | Falta | E |  |
-| C8.40 | Lista de tipos de lance com predefinidos e do usuário, escolhível na janela do lance e na de nova escada. | Falta | E |  |
-| C8.41 | Duplicar um lance da mesma escada, colocado no topo da lista (fisicamente acima dos demais). | Falta | E |  |
-| C8.42 | Copiar tipo de lance com nova referência. | Falta | E |  |
-| C8.43 | Editar tipo de lance, bloqueado quando usado em outro lance para evitar alteração involuntária; desbloqueio manual. | Falta | E |  |
-| C8.44 | Biblioteca de tipos de lance do usuário: exportar da obra e importar em outras obras. | Falta | E |  |
+| C8.38 | Dados da última escada lançada mantidos enquanto a obra não muda e o programa não fecha. | Falta | E | [E4b] |
+| C8.39 | Copiar dados de uma escada visível no pavimento atual (inclusive lances) ao criar uma nova, para depois ajustar (ex.: escada simétrica trocando o sentido de giro). | Falta | E | [E4b] |
+| C8.40 | Lista de tipos de lance com predefinidos e do usuário, escolhível na janela do lance e na de nova escada. | Falta | E | [E4b] |
+| C8.41 | Duplicar um lance da mesma escada, colocado no topo da lista (fisicamente acima dos demais). | Falta | E | [E4b] |
+| C8.42 | Copiar tipo de lance com nova referência. | Falta | E | [E4b] |
+| C8.43 | Editar tipo de lance, bloqueado quando usado em outro lance para evitar alteração involuntária; desbloqueio manual. | Falta | E | [E4b] |
+| C8.44 | Biblioteca de tipos de lance do usuário: exportar da obra e importar em outras obras. | Falta | E | [E4b] |
 | | **8.3.2–8.3.5 Editar, apagar, mover, girar** | | | |
-| C8.45 | Editar dados de escada existente clicando nela. | Falta | E |  |
-| C8.46 | Apagar uma ou várias escadas, por clique ou janela de captura. | Falta | E |  |
-| C8.47 | Mover escada por ponto de referência, com capturas a gabarito. | Falta | E |  |
-| C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Falta | E |  |
+| C8.45 | Editar dados de escada existente clicando nela. | Falta | E | [E4b] |
+| C8.46 | Apagar uma ou várias escadas, por clique ou janela de captura. | Falta | E | [E4b] |
+| C8.47 | Mover escada por ponto de referência, com capturas a gabarito. | Falta | E | [E4b] |
+| C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Falta | E | [E4b] |
 | | **8.4 Resultados, relatórios e desenhos** | | | |
-| C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Falta | E |  |
-| C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Falta | E |  |
-| C8.51 | Vista 3D do lance com isovalores de esforços e deslocamentos. | Falta | E |  |
-| C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Falta | E |  |
-| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Falta | E |  |
-| C8.54 | Relatório de escadas: dados gerais (materiais, norma), dados comuns (geometria, cargas) e por lance (reações, armaduras, esforços em cada seção). | Falta | E |  |
-| C8.55 | Desenho de detalhe de cada escada: cortes longitudinais e transversais, quadro de propriedades por lance (geometria, cargas, materiais) e quadros de aço por escada, por lance e total. | Falta | E |  |
+| C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Falta | E | [E4d] |
+| C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Falta | E | [E4c] |
+| C8.51 | Vista 3D do lance com isovalores de esforços e deslocamentos. | Falta | E | [E4e] |
+| C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Falta | E | [E4c] |
+| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Falta | E | [E4c] |
+| C8.54 | Relatório de escadas: dados gerais (materiais, norma), dados comuns (geometria, cargas) e por lance (reações, armaduras, esforços em cada seção). | Falta | E | [E4e] |
+| C8.55 | Desenho de detalhe de cada escada: cortes longitudinais e transversais, quadro de propriedades por lance (geometria, cargas, materiais) e quadros de aço por escada, por lance e total. | Falta | E | [E4e] |
 | | **8.5 Configuração** | | | |
-| C8.56 | Concreto das escadas igual ao das lajes, dos dados gerais. | Falta | E |  |
-| C8.57 | Escolha do aço e gestão das tabelas de armadura das escadas. | Falta | E |  |
-| C8.58 | Opção: igualar armaduras superior e inferior pelo maior valor. | Falta | E |  |
-| C8.59 | Opção: espaçamentos das armaduras superior e inferior múltiplos entre si. | Falta | E |  |
-| C8.60 | Opção: igualar a armadura de todas as seções (longitudinais e transversais) do lance, superior e depois inferior. | Falta | E |  |
-| C8.61 | Opção: arranques (esperas) no início. | Falta | E |  |
-| C8.62 | Opção: barras de ligação (passadores) no fim da laje. | Falta | E |  |
-| C8.63 | Dado: comprimento disponível para ancorar as esperas do primeiro lance em viga chata; se maior que o necessário dobra as barras; prevalece a largura da viga se maior. | Falta | E |  |
-| C8.64 | Dado: cobrimento nominal conforme a agressividade do ambiente. | Falta | E |  |
-| C8.65 | Dado: profundidade de fundação para ancorar o início do lance quando não há elemento de fundação sob ele. | Falta | E |  |
+| C8.56 | Concreto das escadas igual ao das lajes, dos dados gerais. | Falta | E | [E4c] |
+| C8.57 | Escolha do aço e gestão das tabelas de armadura das escadas. | Falta | E | [E4d] |
+| C8.58 | Opção: igualar armaduras superior e inferior pelo maior valor. | Falta | E | [E4d] |
+| C8.59 | Opção: espaçamentos das armaduras superior e inferior múltiplos entre si. | Falta | E | [E4d] |
+| C8.60 | Opção: igualar a armadura de todas as seções (longitudinais e transversais) do lance, superior e depois inferior. | Falta | E | [E4d] |
+| C8.61 | Opção: arranques (esperas) no início. | Falta | E | [E4d] |
+| C8.62 | Opção: barras de ligação (passadores) no fim da laje. | Falta | E | [E4d] |
+| C8.63 | Dado: comprimento disponível para ancorar as esperas do primeiro lance em viga chata; se maior que o necessário dobra as barras; prevalece a largura da viga se maior. | Falta | E | [E4d] |
+| C8.64 | Dado: cobrimento nominal conforme a agressividade do ambiente. | Falta | E | [E4d] |
+| C8.65 | Dado: profundidade de fundação para ancorar o início do lance quando não há elemento de fundação sob ele. | Falta | E | [E4d] |
 
 ## 9. Estruturas de aço, madeira e alumínio
 
@@ -796,10 +796,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Falta | FU | radier |
 | C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Falta | FU |  |
 | | **10.3 Menu de cargas** | | | |
-| C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje |
-| C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” |
+| C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje [L5] |
+| C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” [L5] |
 | | **10.4 Desenhos e relatórios** | | | |
-| C10.26 | Desenho de distribuição de cargas especiais com as cargas permanentes e variáveis por grupo; nos demais desenhos as cargas aparecem só se o usuário configurar. | Parcial | E | prancha de locação com as cargas características e de cálculo por pilar (R5); sem cargas especiais por grupo |
+| C10.26 | Desenho de distribuição de cargas especiais com as cargas permanentes e variáveis por grupo; nos demais desenhos as cargas aparecem só se o usuário configurar. | Parcial | E | prancha de locação com as cargas características e de cálculo por pilar (R5); sem cargas especiais por grupo [E4e] |
 
 ## 11. Fundações
 
@@ -890,29 +890,29 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **12.1 Mapas de isovalores** | | | |
-| C12.1 | Aba própria de isovalores: esforços e deslocamentos em cores com escala de valores, e opção de isolinhas. | Falta | V |  |
-| C12.2 | Legenda de cores no rodapé com os valores e os extremos máximo e mínimo. | Falta | V |  |
-| C12.3 | Isolinhas como curvas de nível: lugar dos pontos com o mesmo valor. | Falta | V |  |
-| C12.4 | Mapas e isolinhas anexáveis a desenhos e imprimíveis. | Falta | V |  |
-| C12.5 | Painel para ligar/desligar isolinhas e valores e escolher hipótese/combinação e grandeza. | Falta | V |  |
-| C12.6 | Mapas por pavimento para lajes nervuradas, maciças e cogumelo: deslocamentos, esforços e áreas de aço. | Falta | V |  |
-| C12.7 | Deslocamentos por hipótese ou combinação: vertical z (mm, negativo para baixo), giro em x e giro em y da malha. | Falta | V |  |
-| C12.8 | Esforços por hipótese ou combinação: cortante total (√(Qx² + Qy²)), cortante X, cortante Y, momento X, momento Y e momento XY (torção). | Falta | V |  |
-| C12.9 | Esforços de cálculo (envoltória mais desfavorável para armar): cortante total, X e Y; momentos X e Y para armadura inferior e para armadura superior. | Falta | V |  |
-| C12.10 | Áreas de aço necessárias para o esforço de cálculo: superior ou inferior, em X ou Y. | Falta | V |  |
-| C12.11 | Radier: tensão máxima no terreno, levantamento (mm) e tensão por hipótese/combinação. | Falta | V |  |
-| C12.12 | Limites de valor máximo e/ou mínimo para restringir a faixa exibida (a ordem das cores se mantém); um limite só localiza o ponto extremo. | Falta | V |  |
-| C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Falta | V |  |
-| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V |  |
-| C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Falta | V |  |
-| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Falta | V |  |
-| C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Falta | V |  |
+| C12.1 | Aba própria de isovalores: esforços e deslocamentos em cores com escala de valores, e opção de isolinhas. | Falta | V | [V4] |
+| C12.2 | Legenda de cores no rodapé com os valores e os extremos máximo e mínimo. | Falta | V | [V4] |
+| C12.3 | Isolinhas como curvas de nível: lugar dos pontos com o mesmo valor. | Falta | V | [V4] |
+| C12.4 | Mapas e isolinhas anexáveis a desenhos e imprimíveis. | Falta | V | [V4] |
+| C12.5 | Painel para ligar/desligar isolinhas e valores e escolher hipótese/combinação e grandeza. | Falta | V | [V4] |
+| C12.6 | Mapas por pavimento para lajes nervuradas, maciças e cogumelo: deslocamentos, esforços e áreas de aço. | Falta | V | [V4] |
+| C12.7 | Deslocamentos por hipótese ou combinação: vertical z (mm, negativo para baixo), giro em x e giro em y da malha. | Falta | V | [V4] |
+| C12.8 | Esforços por hipótese ou combinação: cortante total (√(Qx² + Qy²)), cortante X, cortante Y, momento X, momento Y e momento XY (torção). | Falta | V | [V4] |
+| C12.9 | Esforços de cálculo (envoltória mais desfavorável para armar): cortante total, X e Y; momentos X e Y para armadura inferior e para armadura superior. | Falta | V | [V4] |
+| C12.10 | Áreas de aço necessárias para o esforço de cálculo: superior ou inferior, em X ou Y. | Falta | V | [V4] |
+| C12.11 | Radier: tensão máxima no terreno, levantamento (mm) e tensão por hipótese/combinação. | Falta | V | [V4] |
+| C12.12 | Limites de valor máximo e/ou mínimo para restringir a faixa exibida (a ordem das cores se mantém); um limite só localiza o ponto extremo. | Falta | V | [V4] |
+| C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Falta | V | [V4] |
+| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V | [V4] |
+| C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Falta | V | [V4] |
+| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Falta | V | [V3] |
+| C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Falta | V | [V4] |
 | | **12.2 Deformada** | | | |
-| C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Falta | V |  |
-| C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Falta | V |  |
-| C12.20 | Animação da deformada para identificar comportamento anômalo. | Falta | V |  |
-| C12.21 | Elementos deformados coloridos pelo deslocamento resultante (vetor de Δx, Δy, Δz), com legenda no rodapé. | Falta | V |  |
-| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Falta | V |  |
+| C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Falta | V | [V3] |
+| C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Falta | V | [V3] |
+| C12.20 | Animação da deformada para identificar comportamento anômalo. | Falta | V | [V3] |
+| C12.21 | Elementos deformados coloridos pelo deslocamento resultante (vetor de Δx, Δy, Δz), com legenda no rodapé. | Falta | V | [V3] |
+| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Falta | V | [V3] |
 
 ## 13. Tabelas e bibliotecas
 
@@ -955,4 +955,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia FU2, interface (vigas de equilíbrio e de travamento).** Ferramenta Viga de fundação (B) na planta de fundação (clique entre dois elementos ou arranques, com seta curva na ponta equilibrada, seleção, remoção e janela por duplo clique), grupo Fundação com lançamento, lista e editor da viga (tipo, pontas, equilíbrio por ponta, seção e "fixa", igualar, verificações), janela da viga com detalhe longitudinal e transversal (`VigaFundacao.tsx`), alavanca e alívio na janela do elemento, ferramenta Carga no nível de fundação (grupo "fundacao"), escolha dos níveis calculados e giro por dois pontos (G), erros FUND_VIGA_* clicáveis na lista de revisão e card de vigas no Dimensionamento. C11.25, C11.35, C11.39–C11.43, C11.46–C11.48 e C11.50–C11.52 passam a Feito; C11.27, C11.38, C11.44, C11.45 e C11.53 seguem pendentes (cruzamento de vigas, sapata corrida, desenho nas pranchas e ancoragem editável).
   - Situação: Feito 113 → 126; Parcial 133 → 121; Falta 332 → 331; Fora 185 → 185.
   - Pendências por frente: FU 58 → 45 (Parcial 26 → 14, Falta 32 → 31); demais sem mudança.
+- **20/10/2026 — specs E3, E4, L e V (só documentação).** Pendências E restantes (146 neste manual) alocadas às fatias E3a–E3f de `spec-frente-E3.md` (cap. 7: 77) e E4a–E4e de `spec-frente-E4.md` (cap. 8, C0.1, C1.33, C1.34 e C10.26: 69); pendências L (71) às fatias L1–L5 de `spec-frente-L.md`; pendências V (42) às fatias V1–V5 de `spec-frente-V.md`. A fatia vai na nota de cada item (ex. "[E3b]", "[L2]", "[V1]"); a frente continua a letra. Conferido por script: cada id em uma só fatia, sem sobra. Previstas reclassificações no fechamento da E4e (C0.1 Feito com "aço fora", C1.34 Fora). Situação e contagens sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

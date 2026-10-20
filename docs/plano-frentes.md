@@ -8,10 +8,10 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 26 | 93 | 119 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 41 | 68 | 109 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; o restante fica para E3 e E4) | 227 | 142 | 369 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 227 | 142 | 369 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026) | 45 | 21 | 66 |
-| L — Produtividade de lançamento | 71 | 4 | 75 |
-| V — Visualização | 42 | 20 | 62 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 71 | 4 | 75 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 42 | 20 | 62 |
 
 Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de funções descritas no do usuário); os totais não são somas de funcionalidades distintas. Contagens conferidas em 20/10/2026 após a frente R (histórico no fim de cada checklist); `src/core/checklists.test.ts` reprova quando esta tabela ou os resumos dos checklists não batem com as linhas.
 
@@ -23,10 +23,10 @@ A frente E é grande demais para uma spec só e se divide em quatro:
 |---|---|---|
 | E1 | Pilares sobre pilares e transições, pilar-parede de verdade, muros e paredes estruturais, alvenaria estrutural, contenção com empuxo. Spec: `spec-frente-E1.md` (E1a–E1e; 80 itens: 40 do manual do usuário — cap. 4, cap. 5, C6.19 e C6.59 — e 40 do de cálculo) | cap. 4 (13) + cap. 5 (25) + 2 do cap. 6 |
 | E2 | Vigas T, chatas, curvas e inclinadas; vigas entre pavimentos; diagonais; consolos; viga comum a dois grupos; vínculo externo; pré-moldadas. Spec: `spec-frente-E2.md` (E2a–E2e; 61 itens: 41 do manual do usuário e 20 do de cálculo) | cap. 6 (41) |
-| E3 | Lajes nervuradas bidirecionais com ábacos, alveolares, inclinadas e rampas; vigotas completas (catálogo, igualação, erros) | cap. 7 (56) |
-| E4 | Escadas | cap. 8 (65) |
+| E3 | Lajes nervuradas bidirecionais com ábacos, alveolares, inclinadas e rampas; vigotas completas (catálogo, igualação, erros). Spec: `spec-frente-E3.md` (E3a–E3f; 148 itens: 77 do manual do usuário, todos do cap. 7, e 71 do de cálculo) | cap. 7 (77) |
+| E4 | Escadas, mais os itens gerais C0.1, C1.33, C1.34, C10.26 e K1.11.58. Spec: `spec-frente-E4.md` (E4a–E4e; 80 itens: 69 do manual do usuário e 11 do de cálculo) | cap. 8 (65) + 4 gerais |
 
-Os itens E que não estão nas specs da E1 e da E2 (228, entre eles os gerais C0.1, C1.34, C10.26, K1.1.1 e K1.11.58) ficam para as specs da E3 e da E4.
+Os itens E que não estão nas specs da E1 e da E2 (228) foram alocados em 20/10/2026 às specs da E3 (148, fatias E3a–E3f) e da E4 (80, fatias E4a–E4e); os gerais C0.1, C1.34, C10.26, K1.11.58 ficam na E4e (fechamento da frente E) e K1.1.1 na E3f.
 
 ## Ordem proposta
 
@@ -35,10 +35,10 @@ Os itens E que não estão nas specs da E1 e da E2 (228, entre eles os gerais C0
 2. **R — Revisão e detalhamento.** O que fecha o ciclo até a entrega: elemento com erro na planta, janela de dimensionamento por elemento, editor de armaduras (vigas, pilares, lajes), bloqueio de armadura no recálculo, agrupar pórticos e copiar armadura, diagramas e envoltórias por clique, flecha de vigas, cortante e torção verificados; pranchas de armação de vigas, pilares e lajes, tabela e resumo de aço reais, relatórios. Precisa de referências visuais do padrão de desenho.
 3. **FU — Fundações no edifício.** Sapatas e blocos lançados na planta (centradas, de divisa, de canto, associadas), vigas de equilíbrio e de travamento, geração automática, verificação conjunta, planta de locação e cargas, plantas de armadura de fundação. Reaproveita o módulo Fundações. Spec: `docs/spec-frente-FU.md` (fatias FU1–FU7; a FU7, sapata corrida, depois da E1).
 3a. **R7 — Resíduo da R.** R7-0 (pendências das fatias já executadas, achadas na auditoria de 20/10/2026: ferramentas da planta para dividir, unir, prolongar e copiar, quadro de vigas colado, momento na face na janela, logo do carimbo, regressão e desempenho, entre outras), depois tabelas de armadura editáveis, opções de detalhamento de vigas e pilares, armadura base, tela, uniformização e linhas de dobra das lajes, cópia e agrupamento de armaduras, rearmar só os alterados e opções de desenho das pranchas. Spec: seção R7 de `docs/spec-frente-R.md` (R7-0, R7a–R7g).
-4. **E1 a E4**, nessa ordem (pilar-parede e muros mudam o modelo; escadas são quase independentes). Specs da E1 (`spec-frente-E1.md`, E1a–E1e) e da E2 (`spec-frente-E2.md`, E2a–E2e) escritas em 20/10/2026.
+4. **E1 a E4**, nessa ordem (pilar-parede e muros mudam o modelo; escadas são quase independentes). Specs da E1 (`spec-frente-E1.md`, E1a–E1e), da E2 (`spec-frente-E2.md`, E2a–E2e), da E3 (`spec-frente-E3.md`, E3a–E3f) e da E4 (`spec-frente-E4.md`, E4a–E4e) escritas em 20/10/2026.
 5. **N2 — Verificações complementares.** Spec: `spec-frente-N2.md` (N2a–N2g, todos os 119 itens N): ações e combinações (categorias de uso como casos, estados-limite, situações do usuário, empuxo), modelo integrado e casca, pilares e P-Δ 3D, punção e cortante das lajes, vigas e lajes (arredondamento, suspensão, avisos de modelagem), flechas por etapas e ativa, fogo (NBR 15200). N2a–N2c vêm antes da E1, que usa o empuxo, a casca e os trechos rígidos dos pilares.
-6. **L — Produtividade.** Assistente de nova obra, lançamento automático por DXF (camada → pilar, contorno, abertura) e IFC, copiar grupo inteiro, viga por clique na máscara, ajudas.
-7. **V — Visualização.** Vista 3D do modelo (por pavimento e por tipo de elemento) e das armaduras, cortes do edifício, isovalores, deformada. Os diagramas entram antes, na frente R; a vista 3D simples pode ser antecipada se ajudar a conferir as frentes E.
+6. **L — Produtividade.** Assistente de nova obra, lançamento automático por DXF (camada → pilar, contorno, abertura) e IFC, copiar grupo inteiro, viga por clique na máscara, ajudas. Spec: `spec-frente-L.md` (L1–L5; 75 itens), escrita em 20/10/2026; o IFC usa o web-ifc (decisão do usuário de 20/10/2026), vendorizado e sob demanda.
+7. **V — Visualização.** Vista 3D do modelo (por pavimento e por tipo de elemento) e das armaduras, cortes do edifício, isovalores, deformada. Os diagramas entram antes, na frente R; a vista 3D simples pode ser antecipada se ajudar a conferir as frentes E. Spec: `spec-frente-V.md` (V1–V5; 62 itens), escrita em 20/10/2026; three.js (decisão do usuário de 20/10/2026), vendorizado e sob demanda.
 
 ## Fora do escopo (decidido)
 
