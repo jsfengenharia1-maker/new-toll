@@ -21,23 +21,23 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 25 | 21 | 57 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 19 | 21 | 19 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 33 | 32 | 32 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 34 | 31 | 32 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 8 | 3 | 30 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **199** | **157** | **194** | **111** |
+| **Total** | **661** | **200** | **156** | **194** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 63 | 30 | 93 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas) | 50 | 19 | 69 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 49 | 19 | 68 |
 | E — Elementos estruturais | 23 | 119 | 142 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 4 | 0 | 4 |
 | V — Visualização | 9 | 11 | 20 |
-| **Total** | **157** | **194** | **351** |
+| **Total** | **156** | **194** | **350** |
 
 ## Divergências de premissa
 
@@ -570,7 +570,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.31 | Momentos ampliados por excentricidade acidental e de 2ª ordem (flambagem) destacados. | Feito | — | janela do pilar com momentos de 1ª ordem na base e no topo e Md,tot com M1d,mín e 2ª ordem por combinação determinante (R1) |
 | K1.11.32 | Código de motivo quando não atende (ex.: taxa excessiva acima do máximo de norma — armadura mantida); sinal de limite excedido após edição. | Feito | — | código do motivo por lance (ARMADURA, ESBELTEZ, GAMA_N, TRACAO…) e ARM_BLOQ quando a armadura editada não atende (R1, R2) |
 | K1.11.33 | Recalcular se mudanças significativas (rigidez mudou). | Feito | — | aviso "o modelo mudou: recalcule" |
-| K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Parcial | R | λ > 200 não dimensiona; seção insuficiente marcada "não atende", mas ainda desenhada [R7c] |
+| K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Parcial | R | λ > 200 ou nenhuma armadura entre As,mín e 4 % cabendo: sem arranjo, sem detalhamento nem desenho (`detalharPilar` devolve null); com armadura de 4 % que não atende ("aumente a seção"), marcado "não atende", mas ainda desenhado e medido [R7c] |
 | K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Feito | — | quadro de pilares agrupa pilares iguais (P1=P3, R5); os que não atendem em vermelho (R1); armadura travável (R2) |
 | | **Pilares-parede e paredes** | | | |
 | K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) |
@@ -616,7 +616,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5 | Armadura calculada para envoltórias sísmica e não sísmica; adota a maior. | Fora | — | sismo |
 | K1.12.6 | Inferior: primeira disposição da tabela de positivos que supera a necessária; até 3 comprimentos de corte; tabelas definidas por largura e altura. | Parcial | R | arranjo de n e φ escolhido pelo cálculo e comprimentos de corte pelo diagrama decalado; sem tabelas de disposições (R3a) [R7a] |
 | K1.12.7 | Tabela em 3 grupos (bitolas podem diferir): grupo 1 passante entre apoios, ancorado construtivamente (do eixo do apoio até a face oposta menos 3 cm), salvo quando o cálculo exige ancoragem menor a partir do eixo. | Parcial | R | passantes corridas entre as pontas (máx(2; n/3)) com ganchos; reforços cortados pelo diagrama; sem tabelas de 3 grupos (R3a) [R7a] |
-| K1.12.8 | Tabelas padrão: grupo passante sempre > 1/3 ou 1/4 da armadura total; manter a proporção ao editar. | Parcial | R | passantes = máx(2; ⌈n/3⌉) do arranjo; proporção não configurável (R3a) [R7a] |
+| K1.12.8 | Tabelas padrão: grupo passante sempre > 1/3 ou 1/4 da armadura total; manter a proporção ao editar. | Feito | — | passantes = máx(2; ⌈n/3⌉) do arranjo calculado ou editado/bloqueado, recalculadas a cada detalhamento (`detalharViga`, `detalhamento.ts`), logo sempre ≥ 1/3 do total e mantidas ao editar (R3a); as tabelas da R7a seguem a mesma regra (auditoria de 20/10/2026) |
 | K1.12.9 | Grupos 2 e 3 mais curtos, sempre simétricos, com comprimentos mínimos em % do vão (opções). | Falta | R | comprimentos mínimos dos grupos em % do vão [R7b] |
 | K1.12.10 | Grupo 1 sempre penetra ≥ 10 diâmetros a partir da face do apoio. | Feito | — | passantes atravessam os apoios internos; reforços prolongados máx(lb; 10φ); ancoragem no apoio extremo verificada (R3a) |
 | K1.12.11 | Sem combinação na tabela: usa φ25 e aviso "inferior fora de tabela". | Parcial | R | aviso "não cabe na largura"; sem arranjo forçado [R7a] |
@@ -633,7 +633,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.22 | Armadura de pele nas faces laterais quando a altura exige (critério nas opções), com bitola e espaçamento mínimos de norma. | Feito | — | pele 0,10 % de Ac por face (h > 60 cm), s ≤ mín(20 cm; d/3), somada às laterais de torção; corrida com emendas (R3a) |
 | K1.12.23 | Torção: após flexão, armadura longitudinal de torção por norma em cada seção; as barras de canto existentes absorvem o acréscimo se tiverem folga; senão aumenta a longitudinal e acrescenta barras laterais (como pele). | Feito | — | Asl de torção repartida: faces horizontais somadas à flexão (absorvida pelas barras com folga), laterais em barras próprias como pele (N1e) |
 | K1.12.24 | Compressão diagonal por torção + cortante verificada com a altura útil na borda do apoio, pelas fórmulas da norma. | Feito | — | biela conjunta Vsd/VRd2 + Tsd/TRd2 ≤ 1 (N1e) |
-| K1.12.25 | Corte de barras: diagrama de capacidade necessária deslocado de d + comprimento de ancoragem reduzido (lb × As,nec/As,ef), conforme posição de aderência (I boa, II má). | Parcial | R | diagrama decalado de aℓ + ancoragem lb (boa/má aderência por posição, 9.3.1); sem a redução lb·As,calc/As,ef (a favor da segurança) (R3a) [R7b] |
+| K1.12.25 | Corte de barras: diagrama de capacidade necessária deslocado de d + comprimento de ancoragem reduzido (lb × As,nec/As,ef), conforme posição de aderência (I boa, II má). | Parcial | R | diagrama decalado de aℓ + ancoragem lb (boa/má aderência por posição, 9.3.1); sem a redução lb·As,calc/As,ef no corte das barras (a favor da segurança; só a ancoragem no apoio extremo usa 0,7·lb·As,calc/As,ef, 18.3.2.4.1) (R3a) [R7b] |
 | K1.12.26 | Comprimento máximo por zona para cada grupo no sentido em que o esforço decresce; opcionalmente ajustado a mínimos em % do vão e a múltiplos de 5 cm. | Parcial | R | comprimentos por trecho arredondados a 5 cm (opção); sem mínimos em % do vão (R3a) [R7b] |
 | K1.12.27 | Extremos: ancoragem com gancho, calculando o comprimento da perna vertical, com mínimo das opções se definido. | Parcial | R | gancho de 90° nas pontas, perna reta 8φ fixa; sem mínimo configurável (R3a) [R7b] |
 | K1.12.28 | (Texto interrompido) Tratamento do positivo nos apoios intermediários — não lido. | Fora | — | trecho truncado; continua em K1.12.1-1 |
@@ -875,4 +875,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: Feito 158 → 199; Parcial 183 → 157; Falta 209 → 194; Fora 111 → 111.
   - Pendências por frente (antes → depois): N 101 → 93; R 104 → 69; E 141 → 142; FU 23 → 23; L 5 → 4; V 18 → 20 (total 392 → 351).
 - **20/10/2026 — resíduo da R especificado como fatia R7** (`docs/spec-frente-R.md`, aprovada a criação pelo usuário). A marca `[resíduo R]` foi trocada pela subfatia dona (R7a tabelas de armadura; R7b detalhamento de vigas; R7c detalhamento de pilares; R7d armadura base, tela e predefinida das lajes; R7e edição, uniformização e linhas de dobra das lajes; R7f cópia, agrupamento e rearmar; R7g revisão, relatórios e pranchas). Situações e contagens não mudam.
+- **20/10/2026 — auditoria da R7 contra o código** (seção "Auditoria de 20/10/2026" em `docs/spec-frente-R.md`). Os 69 itens R7 deste manual foram reconferidos no código: K1.12.8 passa a Feito (passantes ≥ 1/3 recalculadas também na armadura editada); notas de K1.12.25 (redução As,calc/As,ef já usada na ancoragem do apoio extremo) e K1.11.34 (pilar sem armadura possível já fica fora do detalhamento) precisadas. Os demais 68 confirmados como estavam.
+  - Situação: Feito 199 → 200; Parcial 157 → 156; Falta 194 → 194; Fora 111 → 111.
+  - Pendências por frente (antes → depois): R 69 → 68; demais sem mudança (total 351 → 350).
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

@@ -7,7 +7,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 | Frente | Manual do usuário | Manual de cálculo | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 26 | 93 | 119 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7a–R7g, depois da FU) | 42 | 69 | 111 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 41 | 68 | 109 |
 | E — Elementos estruturais | 227 | 142 | 369 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026) | 67 | 23 | 90 |
 | L — Produtividade de lançamento | 71 | 4 | 75 |
@@ -32,7 +32,7 @@ A frente E é grande demais para uma spec só e se divide em quatro:
 1. **N1 — Modelo e premissas.** O que muda os esforços vem antes do detalhamento: coeficientes de engaste por lance e por borda, comprimento de flambagem por pilar e direção (altura livre × α), torção e rigidez axial editáveis, trecho rígido, malha da grelha configurável, redistribuição e momentos mínimos, Wood-Armer nas lajes maciças, flecha relativa com fatores por tipo, hipóteses adicionais e categorias de uso nas combinações, lista de combinações visível, fissuração no edifício.
 2. **R — Revisão e detalhamento.** O que fecha o ciclo até a entrega: elemento com erro na planta, janela de dimensionamento por elemento, editor de armaduras (vigas, pilares, lajes), bloqueio de armadura no recálculo, agrupar pórticos e copiar armadura, diagramas e envoltórias por clique, flecha de vigas, cortante e torção verificados; pranchas de armação de vigas, pilares e lajes, tabela e resumo de aço reais, relatórios. Precisa de referências visuais do padrão de desenho.
 3. **FU — Fundações no edifício.** Sapatas e blocos lançados na planta (centradas, de divisa, de canto, associadas), vigas de equilíbrio e de travamento, geração automática, verificação conjunta, planta de locação e cargas, plantas de armadura de fundação. Reaproveita o módulo Fundações. Spec: `docs/spec-frente-FU.md` (fatias FU1–FU7; a FU7, sapata corrida, depois da E1).
-3a. **R7 — Resíduo da R.** Tabelas de armadura editáveis, opções de detalhamento de vigas e pilares, armadura base, tela, uniformização e linhas de dobra das lajes, cópia e agrupamento de armaduras, rearmar só os alterados e opções de desenho das pranchas. Spec: seção R7 de `docs/spec-frente-R.md` (R7a–R7g).
+3a. **R7 — Resíduo da R.** R7-0 (pendências das fatias já executadas, achadas na auditoria de 20/10/2026: ferramentas da planta para dividir, unir, prolongar e copiar, quadro de vigas colado, momento na face na janela, logo do carimbo, regressão e desempenho, entre outras), depois tabelas de armadura editáveis, opções de detalhamento de vigas e pilares, armadura base, tela, uniformização e linhas de dobra das lajes, cópia e agrupamento de armaduras, rearmar só os alterados e opções de desenho das pranchas. Spec: seção R7 de `docs/spec-frente-R.md` (R7-0, R7a–R7g).
 4. **E1 a E4**, nessa ordem (pilar-parede e muros mudam o modelo; escadas são quase independentes).
 5. **N2 — Verificações complementares.** Fogo (NBR 15200), punção completa com armadura, P-Δ 3D, demais itens de norma que sobrarem.
 6. **L — Produtividade.** Assistente de nova obra, lançamento automático por DXF (camada → pilar, contorno, abertura) e IFC, copiar grupo inteiro, viga por clique na máscara, ajudas.

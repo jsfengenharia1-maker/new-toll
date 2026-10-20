@@ -12,9 +12,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 16 | 8 | 14 | 3 |
-| 4. Pilares | 63 | 20 | 21 | 15 | 7 |
+| 4. Pilares | 63 | 21 | 20 | 15 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
-| 6. Vigas | 108 | 13 | 16 | 54 | 25 |
+| 6. Vigas | 108 | 13 | 17 | 53 | 25 |
 | 7. Lajes | 195 | 20 | 32 | 76 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,13 +22,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **103** | **119** | **356** | **185** |
+| **Total** | **763** | **104** | **119** | **355** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas) | 19 | 23 | 42 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
 | N — Cálculo e normas | 12 | 14 | 26 |
 | E — Elementos estruturais | 29 | 198 | 227 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -242,7 +242,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Parcial | R | planta do pavimento com pilares em vermelho/amarelo e botão "Resultados do elemento" (R1); sem planta de situação dentro da janela nem navegação pilar a pilar [R7g] |
 | C4.53 | Bloqueio da armadura de pilares: recalcula a estrutura sem mudar a armadura bloqueada (preserva edições manuais). | Feito | — | armadura do pilar editada e bloqueada por lance (pilar.armadura; janela do elemento e bloqueio em lote), só verificada no recálculo (R2) |
 | C4.54 | Pilares bloqueados passam pela verificação completa da norma a cada recálculo, e os que falham ficam em vermelho. | Feito | — | verificação completa por fibras a cada recálculo; reprovado = ARM_BLOQ (erro), vermelho na planta e na lista |
-| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Parcial | R | desbloquear todos, selecionados ou o pilar (Restaurar calculada) e recalcular; sem redimensionar só o alterado sem recálculo geral [R7f] |
+| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Feito | — | desbloquear todos (`BloqueioLote`) e recalcular, ou desbloquear só o pilar ("Restaurar calculada" em `Armadura.tsx`) e recalcular: os demais continuam bloqueados e só verificados (`dimensionamento.ts`); rearmar sem nova análise é o C6.87 (auditoria de 20/10/2026) |
 | C4.56 | Desbloqueio automático quando muda o número de pavimentos que o pilar sustenta. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de lances; o desbloqueio não é gravado no modelo [R7f] |
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
@@ -326,7 +326,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
 | C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) |
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a); sem tramo predefinido entre vigas consecutivas [R7b] |
-| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Falta | R | compor/decompor pórticos [R7f] |
+| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Parcial | R | comandos `viga.unir` e `viga.dividir` (`src/core/commands/vigas.ts`) compõem e decompõem o pórtico e o recálculo redimensiona (bloqueio desconsiderado com BLOQ_IGNORADO); sem ferramenta na planta (R7-0) nem desbloqueio gravado [R7f] |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento |
 | C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E |  |
@@ -345,7 +345,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E |  |
 | C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
-| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | prolongar até ponto/elemento; sem comprimento fixo |
+| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga (só por CLI/MCP: sem ferramenta na planta, R7-0); sem comprimento fixo |
 | C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos |
 | C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E |  |
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E |  |
@@ -358,7 +358,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara |
 | | **6.2 Cálculo e resultados de vigas** | | | |
 | C6.64 | Vigas de aço no cálculo: dimensionar a partir do perfil inicial (só maiores ou iguais) ou de toda a série (pode reduzir). | Fora | — | aço |
-| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita [R7b] |
+| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita no edifício (existe no Pórtico 2D, `src/core/design.ts`, como aviso: reaproveitar) [R7b] |
 | C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Falta | R | aviso de desnível longitudinal [R7b] |
 | C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Feito | — | aviso no detalhamento quando a barra passa do comprimento máximo e não cabe a emenda (opção barraMaxima, padrão 12 m; R3a) |
 | C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E |  |
@@ -938,4 +938,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 90 → 103; Parcial 119 → 119; Falta 375 → 356; Fora 179 → 185.
   - Pendências por frente (antes → depois): R 83 → 42; N 32 → 26; E 203 → 227; FU 67 → 67; L 71 → 71; V 38 → 42 (total 494 → 475).
 - **20/10/2026 — resíduo da R especificado como fatia R7** (`docs/spec-frente-R.md`, aprovada a criação pelo usuário). A marca `[resíduo R]` foi trocada pela subfatia dona (R7a tabelas de armadura; R7b detalhamento de vigas; R7c detalhamento de pilares; R7d armadura base, tela e predefinida das lajes; R7e edição, uniformização e linhas de dobra das lajes; R7f cópia, agrupamento e rearmar; R7g revisão, relatórios e pranchas). Situações e contagens não mudam.
+- **20/10/2026 — auditoria da R7 contra o código** (seção "Auditoria de 20/10/2026" em `docs/spec-frente-R.md`). Os 42 itens R7 deste manual foram reconferidos em `src/core/building`, `src/core/commands`, `src/core/sheets` e `src/app/edificio`: C4.55 passa a Feito (desbloquear o pilar e recalcular mantém os demais bloqueados); C6.34 passa de Falta a Parcial (`viga.unir`/`viga.dividir` existem no núcleo, sem ferramenta na planta); notas de C6.53 (prolongar só por comando) e C6.65 (aviso φt ≤ bw/10 já existe no Pórtico 2D) corrigidas. Os demais 40 confirmados como estavam.
+  - Situação: Feito 103 → 104; Parcial 119 → 119; Falta 356 → 355; Fora 185 → 185.
+  - Pendências por frente (antes → depois): R 42 → 41; demais sem mudança (total 475 → 474).
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
