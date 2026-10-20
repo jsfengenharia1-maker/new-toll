@@ -1,6 +1,6 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import type { Draft } from 'immer';
-import { COBRIMENTOS, USOS, qDoUso, type BuildingModel, type CategoriaUso, type Norma } from '../building/types';
+import { COBRIMENTOS, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -39,9 +39,27 @@ registrar<{ nome?: string; cidade?: string; profundidadeFundacao?: number }>({
   },
 });
 
-registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento'] }>({
+registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: CategoriaVento; caX?: number; caY?: number; excentricidade?: number }>({
+  nome: 'vento.definir',
+  descricao: 'Define o vento (NBR 6123): ativo, V0 (m/s), S1, S3, categoria de rugosidade (I a V), coeficientes de arrasto Ca nas direções X e Y e excentricidade relativa (0,075 = edificação comum). Gera 12 casos: 4 direções × (centrado, +e, −e).',
+  risco: 'escrita',
+  schema: { type: 'object', additionalProperties: false, properties: {
+    ativo: { type: 'boolean' }, v0: { type: 'number', minimum: 20, maximum: 60, description: 'm/s (isopletas)' },
+    s1: { type: 'number', minimum: 0.5, maximum: 2 }, s3: { type: 'number', minimum: 0.5, maximum: 1.5 },
+    categoria: { type: 'string', enum: ['I', 'II', 'III', 'IV', 'V'] },
+    caX: { type: 'number', minimum: 0.3, maximum: 3 }, caY: { type: 'number', minimum: 0.3, maximum: 3 },
+    excentricidade: { type: 'number', minimum: 0, maximum: 0.3 },
+  } },
+  aplicar(d, p) {
+    d.vento ??= { ...VENTO_PADRAO };
+    for (const k of ['ativo', 'v0', 's1', 's3', 'categoria', 'caX', 'caY', 'excentricidade'] as const) if (p[k] !== undefined) (d.vento as Record<string, unknown>)[k] = p[k];
+    return 'Vento alterado.';
+  },
+});
+
+registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento']; psiQ?: [number, number, number] }>({
   nome: 'norma.definir',
-  descricao: 'Define fck, aço, classe de agressividade ambiental e cobrimentos (NBR 6118). Ao mudar a CAA sem informar cobrimentos, aplica os da Tabela 7.2.',
+  descricao: 'Define fck, aço, classe de agressividade ambiental, cobrimentos e ψ da carga de uso (NBR 6118). Ao mudar a CAA sem informar cobrimentos, aplica os da Tabela 7.2.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, properties: {
     fck: { type: 'number', minimum: 20, maximum: 90, description: 'MPa' },
@@ -50,8 +68,10 @@ registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: N
     cobrimento: { type: 'object', additionalProperties: false, required: ['laje', 'viga', 'pilar'], properties: {
       laje: { type: 'number', minimum: 1 }, viga: { type: 'number', minimum: 1 }, pilar: { type: 'number', minimum: 1 },
     }, description: 'cm' },
+    psiQ: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3, description: 'ψ0, ψ1, ψ2 da carga de uso (residencial 0,5/0,4/0,3; escritórios 0,7/0,6/0,4)' },
   } },
   aplicar(d, p) {
+    if (p.psiQ) d.norma.psiQ = [...p.psiQ];
     if (p.fck !== undefined) d.norma.fck = p.fck;
     if (p.aco) d.norma.aco = p.aco;
     if (p.caa) { d.norma.caa = p.caa; if (!p.cobrimento) d.norma.cobrimento = { ...COBRIMENTOS[p.caa] }; }

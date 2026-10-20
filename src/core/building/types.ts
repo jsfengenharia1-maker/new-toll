@@ -19,7 +19,27 @@ export interface Norma {
   caa: 'I' | 'II' | 'III' | 'IV';
   /** Cobrimentos nominais (cm). */
   cobrimento: { laje: number; viga: number; pilar: number };
+  /** ψ0, ψ1, ψ2 da carga variável de uso (NBR 6118, Tabela 11.2). */
+  psiQ?: [number, number, number];
 }
+
+export type CategoriaVento = 'I' | 'II' | 'III' | 'IV' | 'V';
+
+/** Vento (NBR 6123): velocidade básica, fatores e coeficientes de arrasto por direção. */
+export interface Vento {
+  ativo: boolean;
+  v0: number; // m/s
+  s1: number;
+  s3: number;
+  categoria: CategoriaVento;
+  /** Coeficiente de arrasto com vento na direção X (0° e 180°) e Y (90° e 270°). */
+  caX: number;
+  caY: number;
+  /** Excentricidade relativa à largura da fachada (0,075 para edificação comum). */
+  excentricidade: number;
+}
+
+export const VENTO_PADRAO: Vento = { ativo: true, v0: 35, s1: 1, s3: 1, categoria: 'IV', caX: 1.3, caY: 1.3, excentricidade: 0.075 };
 
 export interface Pavimento {
   id: string;
@@ -162,6 +182,7 @@ export interface BuildingModel {
   vigas: Viga[];
   lajes: Laje[];
   cargas: Carga[];
+  vento?: Vento;
 }
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
@@ -197,6 +218,7 @@ export function edificioVazio(): BuildingModel {
     vigas: [],
     lajes: [],
     cargas: [],
+    vento: { ...VENTO_PADRAO },
   };
 }
 
@@ -214,7 +236,7 @@ export const cotaFundacao = (b: BuildingModel) => (b.pavimentos.length ? Math.mi
 
 /** Modelos gravados antes de um campo existir ganham o valor vazio. */
 export function normalizarEdificio(b: BuildingModel): BuildingModel {
-  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [], lajes: b.lajes ?? [], cargas: b.cargas ?? [] };
+  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [], lajes: b.lajes ?? [], cargas: b.cargas ?? [], vento: b.vento ?? { ...VENTO_PADRAO } };
 }
 
 /** Pavimentos atravessados pelo pilar (topos dos lances), de baixo para cima. */

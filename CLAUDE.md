@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 209 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test         # vitest: 213 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
@@ -98,7 +98,7 @@ Veja a tabela no `README.md`. Resumo:
 - SPT: por apoio, um furo (automático ou escolhido) ou a sondagem média de todos/alguns furos; leitura descartada (⊘) fica fora da média e, no furo isolado, é interpolada entre as vizinhas. Média: N médio das leituras válidas; solo mais frequente (empate: o menos favorável); profundidade comum (ou até o mais profundo); NA mais raso (ou médio).
 - Pilar padrão 30 × 30 cm quando o apoio não informa (na importação, vem da seção retangular da barra mais vertical ligada ao apoio).
 
-## Módulo Edifícios (Fase 2 em andamento; fatias 0 a 4 feitas em 20/10/2026)
+## Módulo Edifícios (Fase 2 em andamento; fatias 0 a 5 feitas em 20/10/2026)
 - Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1, aprovada): `docs/spec-edificios.md`.
 - Código:
   - `src/core/building/`: modelo físico, verificação de lançamento e premissas em uso (`premissas.ts`, que alimenta a interface e o MCP);
@@ -111,6 +111,7 @@ Veja a tabela no `README.md`. Resumo:
 - MCP: comandos com `mcp: false` não têm ferramenta própria (limite de 20–40 ferramentas); ficam acessíveis pelas ferramentas `comandos` e `previa`.
 - Comando novo exige: schema, `validar` para referências, mensagem, exemplo em `EXEMPLOS` do `commands.test.ts` (o teste genérico confere aplicar + inverso) e ferramenta no MCP (automática).
 - O núcleo não pode usar `window`, `document`, `localStorage` nem `navigator` (há teste).
+- Fatia 5: `src/core/building/vento.ts` (NBR 6123), γz em `analitico.ts` (modelo com rigidez reduzida), `combinacoes.ts` (reaproveita `nbrCombinations` do pórtico). Premissas a confirmar: Tabela 1 de S2, Ca padrão 1,3 (ábaco não digitalizado), z medido a partir do pavimento mais baixo, edição da NBR 6123 (1988).
 - Fatia 4: `src/core/fe3d.ts` (barras 3D, diafragma, cargas concentradas na barra) e `src/core/building/analitico.ts` (grelha + pórtico, função pura). O pórtico usa a divisão "grossa" das vigas (cruzamentos e apoios) e recebe as forças das lajes como cargas concentradas; a grelha usa a divisão fina (pontos da malha). A análise roda num Web Worker inline (`calculo.worker.ts`); o código de cálculo só existe dentro dele. Validação contra o OpenSees: `python3 validation/opensees/portico3d.py` regenera o JSON de referência.
 - Fatia 4, premissas a confirmar: torção das lajes 15 % de 2I e das vigas 15 %; molas 4EI/L dos pilares na grelha; mestre no centro geométrico das lajes; área dos pilares × 2 nas verticais; Ecs e ν = 0,2; peso das vigas b × h sem descontar a laje.
 - Fatia 3, premissas a confirmar: catálogo das treliçadas (H8–H25, intereixo, nervura, capa, γ do EPS 0,2 kN/m³); alvenaria (γ 13/14 kN/m³ com revestimento, altura até o pavimento de cima menos a viga, 0,5 m sem vigas, platibanda 1,0 m, aberturas não descontadas). Panos e alvenaria em `src/core/building/lajes.ts`; faces em `src/core/geom/faces.ts`.

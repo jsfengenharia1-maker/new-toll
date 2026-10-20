@@ -8,7 +8,7 @@ import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type Norma, type TipoLaje } from '../../core/building/types';
+import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
@@ -74,6 +74,7 @@ export function Edificio() {
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
         <CargasGrupo b={b} />
+        <VentoGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -600,7 +601,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
           {nErr > 0 && <span className="hint bad">Há {nErr} erro(s) de lançamento: o resultado pode não ter sentido.</span>}
           {velha && <span className="hint bad">O modelo mudou depois do cálculo: calcule de novo.</span>}
         </div>
-        <Hint>Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais. Casos G e Q; vento e combinações na próxima fatia.</Hint>
+        <Hint>Casos G, Q e 12 de vento (4 direções × centrado/±e); γz com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic). Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</Hint>
         {r && !r.erro && (
           <p className="small">{r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
         )}
@@ -609,16 +610,35 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
       </div>
       {r && !r.erro && (
         <>
+          {r.vento && (
+            <div className="card">
+              <h3>Vento e estabilidade global</h3>
+              <p className="small">Classe {r.vento.classe} (altura {fmt(r.vento.altura, 1)} m) · {r.combinacoes} combinações</p>
+              <table className="data quadro">
+                <thead><tr><th>Direção</th><th>γz</th><th>vento principal</th><th>uso principal</th><th>vento nas ELU ×</th></tr></thead>
+                <tbody>{r.vento.gamaZ.map((g) => <tr key={g.direcao} className={g.gamaZ > 1.3 ? 'bad' : ''}><td className="tl">{g.direcao}°</td><td className="num">{fmt(g.gamaZ, 3)}</td><td className="num">{fmt(g.ventoPrincipal, 3)}</td><td className="num">{fmt(g.usoPrincipal, 3)}</td><td className="num">{fmt(g.ampliacaoVento, 3)}</td></tr>)}</tbody>
+              </table>
+              {r.vento.forcas.map((c) => (
+                <details key={c.caso} className="small"><summary>Forças {c.caso} por pavimento</summary>
+                  <table className="data quadro">
+                    <thead><tr><th>Pavimento</th><th>z (m)</th><th>Largura (m)</th><th>Vk (m/s)</th><th>F (kN)</th></tr></thead>
+                    <tbody>{c.pavimentos.map((f) => <tr key={f.pavimento}><td className="tl">{f.pavimento}</td><td className="num">{fmt(f.z)}</td><td className="num">{fmt(f.largura)}</td><td className="num">{fmt(f.vk)}</td><td className="num">{fmt(f.F)}</td></tr>)}</tbody>
+                  </table>
+                </details>
+              ))}
+            </div>
+          )}
           <div className="card">
-            <h3>Cargas na fundação (características, kN e kN·m)</h3>
+            <h3>Cargas na fundação (kN e kN·m)</h3>
             <table className="data quadro">
-              <thead><tr><th>Pilar</th><th>N G</th><th>N Q</th><th>N G+Q</th><th>Mx G</th><th>My G</th><th>Hx G</th><th>Hy G</th></tr></thead>
+              <thead><tr><th>Pilar</th><th>N G</th><th>N Q</th><th>N vento (máx.)</th><th>N rara máx.</th><th>Nd máx.</th><th>Nd mín.</th><th>Mx G</th><th>My G</th></tr></thead>
               <tbody>
                 {r.fundacao.map((f) => (
-                  <tr key={f.pilar}><td className="tl">{f.pilar}</td><td className="num">{fmt(f.NG, 1)}</td><td className="num">{fmt(f.NQ, 1)}</td><td className="num">{fmt(f.NG + f.NQ, 1)}</td><td className="num">{fmt(f.MxG, 2)}</td><td className="num">{fmt(f.MyG, 2)}</td><td className="num">{fmt(f.HxG, 2)}</td><td className="num">{fmt(f.HyG, 2)}</td></tr>
+                  <tr key={f.pilar}><td className="tl">{f.pilar}</td><td className="num">{fmt(f.NG, 1)}</td><td className="num">{fmt(f.NQ, 1)}</td><td className="num">{fmt(f.NW, 1)}</td><td className="num">{fmt(f.NraraMax, 1)}</td><td className="num">{fmt(f.NdMax, 1)}</td><td className="num">{fmt(f.NdMin, 1)}</td><td className="num">{fmt(f.MxG, 2)}</td><td className="num">{fmt(f.MyG, 2)}</td></tr>
                 ))}
               </tbody>
             </table>
+            <Hint>Rara: verificação geotécnica (G + principal + ψ1 das demais). Nd: envoltória das ELU, para o elemento de fundação.</Hint>
           </div>
           <div className="card">
             <h3>Lajes por pavimento (flecha elástica imediata, sem fissuração nem fluência)</h3>
@@ -630,5 +650,36 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
         </>
       )}
     </>
+  );
+}
+
+function VentoGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const v = b.vento ?? VENTO_PADRAO;
+  const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
+  return (
+    <Group title="Vento e combinações" open={false}>
+      <div className="row wrap">
+        <label className="check small"><input type="checkbox" checked={v.ativo} onChange={(e) => exec('vento.definir', { ativo: e.target.checked })} /> <span>considerar vento (NBR 6123)</span></label>
+      </div>
+      <div className="row wrap">
+        <NumField label="V0" unit="m/s" width={90} value={v.v0} onChange={(x) => exec('vento.definir', { v0: x })} />
+        <NumField label="S1" width={70} value={v.s1} onChange={(x) => exec('vento.definir', { s1: x })} />
+        <NumField label="S3" width={70} value={v.s3} onChange={(x) => exec('vento.definir', { s3: x })} />
+        <Select label="Categoria" value={v.categoria} options={(['I', 'II', 'III', 'IV', 'V'] as CategoriaVento[]).map((c) => ({ v: c, label: c }))} onChange={(c) => exec('vento.definir', { categoria: c })} />
+      </div>
+      <div className="row wrap">
+        <NumField label="Ca (vento em X)" width={110} value={v.caX} onChange={(x) => exec('vento.definir', { caX: x })} />
+        <NumField label="Ca (vento em Y)" width={110} value={v.caY} onChange={(x) => exec('vento.definir', { caY: x })} />
+        <NumField label="Excentricidade" width={110} value={v.excentricidade} onChange={(x) => exec('vento.definir', { excentricidade: x })} />
+      </div>
+      <Hint>Classe (A/B/C) pela maior dimensão; S2 pela Tabela 1 (a confirmar); Ca do ábaco da norma informado à mão (padrão 1,3, a confirmar); forças no centro do diafragma de cada pavimento, com ± e·largura.</Hint>
+      <div className="row wrap">
+        <NumField label="ψ0 uso" width={80} value={psi[0]} onChange={(x) => exec('norma.definir', { psiQ: [x, psi[1], psi[2]] })} />
+        <NumField label="ψ1" width={70} value={psi[1]} onChange={(x) => exec('norma.definir', { psiQ: [psi[0], x, psi[2]] })} />
+        <NumField label="ψ2" width={70} value={psi[2]} onChange={(x) => exec('norma.definir', { psiQ: [psi[0], psi[1], x] })} />
+      </div>
+      <Hint>ψ da carga de uso (NBR 6118, Tabela 11.2): residencial 0,5/0,4/0,3; escritórios e comércio 0,7/0,6/0,4. Vento: 0,6/0,3/0.</Hint>
+    </Group>
   );
 }

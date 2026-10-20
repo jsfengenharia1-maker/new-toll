@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 209 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 213 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -142,6 +142,12 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Validação: placas apoiada e engastada de Timoshenko (erro < 5 % com malha de 50/25 cm) e pórtico espacial idêntico ao OpenSees (10⁻⁶)
 - Cálculo num Web Worker; aba Análise com cargas na fundação, flechas elásticas e verificação de equilíbrio; `statikos calc` e ferramenta `calcular` no MCP
 - Porte: 10 pavimentos com 3 × 2 vãos (≈ 16 mil gdl) em < 1 s no Node
+
+**Módulo Edifícios — fatia 5 (20/10/2026)**
+- Vento pela NBR 6123: V0, S1, S2 (categoria e classe), S3, Ca por direção; forças por pavimento pela largura da fachada e altura de influência; 4 direções × (centrado, ± excentricidade), aplicadas no centro do diafragma
+- γz por direção com rigidez reduzida (0,4/0,8·Eci·Ic), com vento principal e uso principal; vento das ELU ampliado por 0,95·γz entre 1,1 e 1,3; aviso acima de 1,3
+- Combinações ELU, frequentes, quase permanentes e raras (grupo excludente do vento); cargas na fundação com envoltórias rara (geotécnica) e ELU (estrutural)
+- Comandos `vento.definir` e ψ da carga de uso em `norma.definir`
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

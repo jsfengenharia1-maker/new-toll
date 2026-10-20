@@ -398,7 +398,7 @@ export const flows = [
     },
   },
 {
-    name: 'análise do edifício no worker: cargas na fundação em equilíbrio',
+    name: 'análise do edifício no worker: cargas na fundação em equilíbrio, vento e γz',
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
@@ -411,7 +411,11 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
       const txt = await page.locator('.edif-out').textContent();
       assert.match(txt, /equilíbrio \(reações − cargas\): G -?0,000, Q -?0,000 kN/);
-      assert.equal(await page.locator('.edif-out table').first().locator('tbody tr').count(), 4);
+      // vento ligado por padrão: γz nas 4 direções e cargas na fundação dos 4 pilares
+      const tabelas = page.locator('.edif-out table.quadro');
+      assert.equal(await tabelas.nth(0).locator('tbody tr').count(), 4);
+      assert.match(await tabelas.nth(0).textContent(), /0°.*90°.*180°.*270°/s);
+      assert.equal(await page.locator('.edif-out .card', { hasText: 'Cargas na fundação' }).locator('tbody tr').count(), 4);
     },
   },
 ];

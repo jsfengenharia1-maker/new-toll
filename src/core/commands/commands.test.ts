@@ -35,7 +35,8 @@ function base() {
 /** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
-  'norma.definir': () => ({ fck: 35, caa: 'III' }),
+  'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4] }),
+  'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2 }),
   'grupo.criar': () => ({ nome: 'Garagem', uso: 'garagem' }),
   'grupo.editar': () => ({ id: 'g_3', uso: 'escritorio' }),
   'grupo.remover': (b) => ({ id: b.grupos.find((g) => g.nome === 'Vazio')!.id }),
