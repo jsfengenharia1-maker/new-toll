@@ -220,7 +220,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
           <div className="row wrap">
             <Button disabled={!b.fundacao?.params} onClick={() => exec('fundacao.opcoes', { padrao: true })}>Restaurar os padrões</Button>
           </div>
-          <Hint>Parâmetros do módulo Fundações aplicados ao edifício (cobrimento, fck, peso próprio, espaçamento das estacas, limites de sapatas e tubulões, estimativas pelo SPT). Os demais (bielas de Blévot, armadura das estacas) seguem os padrões do módulo; fck e aço vêm da obra. Estimativas pelo SPT: a confirmar.</Hint>
+          <Hint>Parâmetros do módulo Fundações aplicados ao edifício (cobrimento, fck, peso próprio, espaçamento das estacas, limites de sapatas e tubulões, estimativas pelo SPT). Os demais (bielas de Blévot, armadura das estacas) seguem os padrões do módulo; concreto, aço e cobrimento da fundação ficam em “Materiais e segurança”. Estimativas pelo SPT: a confirmar.</Hint>
       </Group>
     </Group>
   );

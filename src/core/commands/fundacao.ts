@@ -242,9 +242,7 @@ registrar<{ sigmaAdm?: number; sigmaModo?: 'informada' | 'sondagem'; fatorVento?
 
 /** Parâmetros editáveis pelo comando (os do módulo Fundações), com faixa. */
 export const PARAMS_FUNDACAO: Partial<Record<keyof FoundationParams, JsonSchema>> = {
-  cover: { type: 'number', minimum: 0.02, maximum: 0.1, description: 'cobrimento (m)' },
   colPhi: { type: 'number', minimum: 10, maximum: 32, description: 'bitola do pilar para a ancoragem (mm)' },
-  fckFound: { type: 'number', minimum: 20, maximum: 50, description: 'fck de sapatas e blocos (MPa); padrão: o da obra' },
   blockWeightPct: { type: 'number', minimum: 0, maximum: 20, description: 'peso do bloco (% de Nk)' },
   spacingInSitu: { type: 'number', minimum: 2, maximum: 5, description: '× D (moldadas)' },
   spacingPrecast: { type: 'number', minimum: 2, maximum: 5, description: '× D (pré-moldadas)' },
@@ -264,7 +262,7 @@ export const PARAMS_FUNDACAO: Partial<Record<keyof FoundationParams, JsonSchema>
 
 registrar<{ valores?: Record<string, number | string>; padrao?: boolean | string[] }>({
   nome: 'fundacao.opcoes',
-  descricao: 'Opções gerais do cálculo de sapatas, blocos e tubulões (parâmetros do módulo Fundações: cobrimento, fck, peso próprio, espaçamento das estacas, limites das sapatas e tubulões, estimativas pelo SPT). `valores` altera; `padrao: true` (ou lista de chaves) volta ao padrão. O padrão de fck, aço e γ é o da obra.',
+  descricao: 'Opções gerais do cálculo de sapatas, blocos e tubulões (parâmetros do módulo Fundações: peso próprio, espaçamento das estacas, limites das sapatas e tubulões, estimativas pelo SPT). `valores` altera; `padrao: true` (ou lista de chaves) volta ao padrão. fck, aço e cobrimento das fundações ficam nos materiais (materiais.definir); γ é o da obra.',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',

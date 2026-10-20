@@ -11,7 +11,7 @@ import { defaultFoundationParams, PILE_LABEL, type Boring, type FLoad, type Foun
 import type { AnaliseEdificio } from './analitico';
 import { reacoesArranques } from './analitico';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
-import { gamas } from './materiais';
+import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe } from './opcoes';
 import {
   casosDaObra, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
@@ -65,10 +65,13 @@ export const secaoBase = (b: BuildingModel, p: Pilar) => { const l = lancesDoPil
 
 // ---------------- parâmetros e terreno ----------------
 
-/** Parâmetros do núcleo de fundações para o edifício: padrão do módulo, materiais da obra e o que o usuário alterou. */
+/**
+ * Parâmetros do núcleo de fundações para o edifício: padrão do módulo, o que o usuário alterou (fundacao.opcoes) e os
+ * materiais da fundação (materiais.definir: fck, aço e cobrimento próprios, padrão = os da obra e 5 cm), com γ da obra.
+ */
 export function parametrosFundacao(b: BuildingModel): FoundationParams {
   const g = gamas(b);
-  return { ...defaultFoundationParams(), fckFound: b.norma.fck, fyk: b.norma.aco === 'CA-60' ? 600 : 500, gammaC: g.c, gammaS: g.s, gammaF: g.g, ...b.fundacao?.params };
+  return { ...defaultFoundationParams(), gammaC: g.c, gammaS: g.s, gammaF: g.g, ...b.fundacao?.params, fckFound: fckDe(b, 'fundacao'), fyk: acoDe(b, 'fundacao').fyk, cover: cobrimentoFundacao(b) };
 }
 
 /** Cota do terreno (boca dos furos): a informada ou a do pavimento mais baixo. */
@@ -291,7 +294,7 @@ function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto):
       const ra = projetar(a), rw = projetar(w, cx.fv);
       const tam = (x: typeof ra) => { const f = x.d.footing, t = x.d.caisson; return f && isFooting(f) ? f.A * f.B : t && isCaisson(t) ? t.Db : Infinity; };
       r = tam(rw) > tam(ra) ? rw : ra;
-      notas.push(`Combinações com vento verificadas com σadm × ${fmt(cx.fv)} (a confirmar); adotado o maior elemento.`);
+      notas.push(`Combinações raras sem vento verificadas com σadm e com vento com σadm × ${fmt(cx.fv)}, em separado (critério do programa de referência); adotado o maior elemento.`);
     }
   }
   const { ld, d, e } = r;

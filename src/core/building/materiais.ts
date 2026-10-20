@@ -6,22 +6,28 @@ import { vigaTocaPilar } from './vigas';
 import { dentroPoligono } from '../geom/faces';
 
 export type Aco = Norma['aco'];
-export type TipoElemento = 'laje' | 'viga' | 'pilar';
+/** Tipos de elemento com concreto próprio (fundacao = sapatas e blocos do edifício). */
+export type TipoElemento = 'laje' | 'viga' | 'pilar' | 'fundacao';
 /** Posições de armadura com aço próprio (as que o dimensionamento calcula). */
-export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup';
+export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'fundacao';
 export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
   { k: 'pilarLong', rotulo: 'Pilares: longitudinal' }, { k: 'pilarEstribo', rotulo: 'Pilares: estribos' },
   { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
   { k: 'lajeInf', rotulo: 'Lajes: inferior' }, { k: 'lajeSup', rotulo: 'Lajes: superior' },
+  { k: 'fundacao', rotulo: 'Fundações (sapatas, blocos, tubulões)' },
 ];
 
 /** γ padrão (NBR 6118, Tabelas 11.1 e 12.1, combinações normais). */
 export const GAMAS_PADRAO = { c: 1.4, s: 1.15, g: 1.4, q: 1.4 };
 export const gamas = (b: BuildingModel) => ({ ...GAMAS_PADRAO, ...b.norma.gamas });
 
-/** fck (MPa) do tipo de elemento; nos pilares, o do lance que chega ao pavimento quando informado. */
+/**
+ * fck (MPa) do tipo de elemento; nos pilares, o do lance que chega ao pavimento quando informado. Fundação: o dos
+ * materiais, o das opções das fundações (arquivos anteriores) ou o da obra.
+ */
 export function fckDe(b: BuildingModel, tipo: TipoElemento, pavimento?: string): number {
   if (tipo === 'pilar' && pavimento) { const f = b.norma.fckPilarPav?.find((x) => x.pavimento === pavimento)?.fck; if (f) return f; }
+  if (tipo === 'fundacao') return b.norma.fckElem?.fundacao ?? b.fundacao?.params?.fckFound ?? b.norma.fck;
   return b.norma.fckElem?.[tipo] ?? b.norma.fck;
 }
 
@@ -43,6 +49,10 @@ export function cobrimentoLaje(b: BuildingModel, cob?: number) {
   const base = cob ?? b.norma.cobrimento.laje, f = b.norma.cobFaces ?? {};
   return { inf: (f.lajeInf ?? base) / 100, sup: (f.lajeSup ?? base) / 100 };
 }
+/** Cobrimento das fundações (m): o dos materiais, o das opções das fundações (legado) ou o padrão do módulo (5 cm). */
+export const cobrimentoFundacao = (b: BuildingModel) => (b.norma.cobFundacao ? b.norma.cobFundacao / 100 : b.fundacao?.params?.cover ?? COBRIMENTO_FUNDACAO);
+/** Padrão do cobrimento das fundações (m), o do módulo Fundações. */
+export const COBRIMENTO_FUNDACAO = 0.05;
 export const cobrimentoPilar = (b: BuildingModel, cob?: number) => (cob ?? b.norma.cobrimento.pilar) / 100;
 
 /**

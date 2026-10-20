@@ -5,6 +5,7 @@ import { dimensionarEdificio } from './dimensionamento';
 import { calcularFundacoes, cargasPorPilar, cotaTerreno, niveisFundacao, parametrosFundacao, resumoFundacao } from './fundacao';
 import { revisarEdificio } from './revisao';
 import { edificioVazio } from './types';
+import { cobrimentoFundacao, fckDe } from './materiais';
 import { designSupport } from '../foundation';
 import { basePressure, designFooting, isFooting, sptSigma, type FootingResult } from '../footings';
 import { isCaisson } from '../caissons';
@@ -233,6 +234,36 @@ describe('fundações do edifício (FU1): adaptador', () => {
     const [w] = calcularFundacoes(s.modelo, an);
     expect(w.notas.some((n) => /vento/.test(n))).toBe(true);
     expect(w.dims.A! * w.dims.B!).toBeLessThanOrEqual(a.dims.A! * a.dims.B! + 1e-9);
+  });
+});
+
+describe('fundações do edifício (FU1): materiais da fundação', () => {
+  it('fck, aço e cobrimento próprios (padrão: os da obra e 5 cm), usados no cálculo; valores antigos das opções descartados', () => {
+    const { s, ok, P } = predio();
+    ok('fundacao.criar', { pilar: P[0].id, tipo: 'sapata' });
+    const b0 = s.modelo;
+    expect(fckDe(b0, 'fundacao')).toBe(b0.norma.fck);
+    expect(cobrimentoFundacao(b0)).toBe(0.05);
+    expect(parametrosFundacao(b0)).toMatchObject({ fckFound: b0.norma.fck, fyk: 500, cover: 0.05 });
+    const an = analisarEdificio(b0);
+    const [r30] = calcularFundacoes(b0, an);
+    ok('materiais.definir', { fck: { fundacao: 20 }, aco: { fundacao: 'CA-60' }, cobFundacao: 4 });
+    const b = s.modelo;
+    expect(fckDe(b, 'fundacao')).toBe(20);
+    expect(fckDe(b, 'viga')).toBe(b.norma.fck); // os demais elementos não mudam
+    expect(parametrosFundacao(b)).toMatchObject({ fckFound: 20, fyk: 600, cover: 0.04 });
+    const [r20] = calcularFundacoes(b, an);
+    const f30 = r30.projeto!.footing as FootingResult, f20 = r20.projeto!.footing as FootingResult;
+    expect(r20.status, r20.mensagens.join(' ')).toBe('ok');
+    expect([f20.A, f20.B, f20.h]).not.toEqual([f30.A, f30.B, f30.h]); // o cálculo usou o concreto, o aço e o cobrimento da fundação
+    // arquivo anterior com fck e cobrimento nas opções das fundações: valem até a definição nos materiais
+    const leg = structuredClone(b0);
+    leg.fundacao!.params = { fckFound: 25, cover: 0.06 };
+    expect(fckDe(leg, 'fundacao')).toBe(25);
+    expect(parametrosFundacao(leg)).toMatchObject({ fckFound: 25, cover: 0.06 });
+    ok('materiais.definir', { padrao: true });
+    expect(fckDe(s.modelo, 'fundacao')).toBe(s.modelo.norma.fck);
+    expect(s.modelo.norma.cobFundacao).toBeUndefined();
   });
 });
 

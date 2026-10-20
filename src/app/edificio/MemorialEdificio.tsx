@@ -7,7 +7,7 @@ import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial
 import { memo } from '../design/tokens';
 import { valorOpcaoTxt } from './OpcoesCalculo';
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, padraoDe, perfilDe, vinculosAlterados } from '../../core/building/opcoes';
-import { acoDe, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
+import { acoDe, cobrimentoFundacao, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { deltaXi } from '../../core/design';
@@ -109,6 +109,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <tr><td className="l">Lajes</td><td>{fckDe(b, 'laje')}</td><td className="l">inferior {acoDe(b, 'lajeInf').aco}; superior {acoDe(b, 'lajeSup').aco}</td><td className="l">inferior {fmt(cobrimentoLaje(b).inf * 100, 1)}; superior {fmt(cobrimentoLaje(b).sup * 100, 1)}</td></tr>
               <tr><td className="l">Vigas</td><td>{fckDe(b, 'viga')}</td><td className="l">positiva {acoDe(b, 'vigaPos').aco}; negativa {acoDe(b, 'vigaNeg').aco}; estribos {acoDe(b, 'vigaEstribo').aco}</td><td className="l">inferior {fmt(cobrimentoViga(b).inf * 100, 1)}; superior {fmt(cobrimentoViga(b).sup * 100, 1)}; lateral {fmt(cobrimentoViga(b).lat * 100, 1)}</td></tr>
               <tr><td className="l">Pilares</td><td>{fckDe(b, 'pilar')}{b.norma.fckPilarPav?.length ? ` (lances: ${b.norma.fckPilarPav.map((x) => `${b.pavimentos.find((p) => p.id === x.pavimento)?.nome ?? x.pavimento} ${x.fck}`).join('; ')})` : ''}</td><td className="l">longitudinal {acoDe(b, 'pilarLong').aco}; estribos {acoDe(b, 'pilarEstribo').aco}</td><td className="l">{fmt(b.norma.cobrimento.pilar, 1)}</td></tr>
+              {!!b.fundacao?.elementos.length && <tr><td className="l">Fundações</td><td>{fckDe(b, 'fundacao')}</td><td className="l">{acoDe(b, 'fundacao').aco}</td><td className="l">{fmt(cobrimentoFundacao(b) * 100, 1)}</td></tr>}
             </tbody>
           </table>
           <p>γc = {fmt(gamas(b).c)}; γs = {fmt(gamas(b).s)}; γg = {fmt(gamas(b).g)} (favorável 1,0); γq = {fmt(gamas(b).q)}. Elementos com cobrimento próprio: {[...b.pilares, ...b.vigas, ...b.lajes].filter((x) => x.cobrimento).map((x) => `${x.nome} ${fmt(x.cobrimento!, 1)} cm`).join('; ') || 'nenhum'}. Comprimento de flambagem dos pilares: ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6){[...b.pavimentos.filter((p) => p.alfaFlambagem).map((p) => `${p.nome}: α ${fmt(p.alfaFlambagem!)}`), ...b.pilares.flatMap((p) => (p.flambagem ?? []).map((f) => `${p.nome} até ${b.pavimentos.find((x) => x.id === f.pavimento)?.nome ?? f.pavimento}: α ${fmt(f.au ?? 1)} (b) / ${fmt(f.av ?? 1)} (h)`))].map((t, i) => (i ? '; ' : ' — ') + t).join('')}.</p>

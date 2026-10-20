@@ -5,7 +5,9 @@
 import type { AnaliseEdificio } from '../building/analitico';
 import { combinacoesEdificio, type CombinacaoEd } from '../building/combinacoes';
 import { cargasParaFundacao } from '../building/dimensionamento';
-import { acoDe, fckDe, gamas } from '../building/materiais';
+import { acoDe, cobrimentoFundacao, fckDe, gamas } from '../building/materiais';
+
+const ROTULO = { laje: 'lajes', viga: 'vigas', pilar: 'pilares', fundacao: 'fundações' } as const;
 import { contornoPilar, lancesDoPilar, type BuildingModel, type SecaoPilar } from '../building/types';
 import { caixa, eixosECotas, type P, type Prancha, type Prim } from './prancha';
 import { montarFolha, nf, notas, ordemNome, plantaNaFolha, type BlocoTabela } from './armacao';
@@ -45,12 +47,13 @@ export function cargasDosPilares(b: BuildingModel, an: AnaliseEdificio): CargaPi
 
 /** Notas gerais geradas do modelo (materiais, cobrimentos, CAA, γ e normas). */
 export function notasGerais(b: BuildingModel): string[] {
-  const g = gamas(b), fcks = (['laje', 'viga', 'pilar'] as const).map((t) => `${t === 'laje' ? 'lajes' : t === 'viga' ? 'vigas' : 'pilares'} C${fckDe(b, t)}`);
-  const acos = [...new Set((['pilarLong', 'vigaPos', 'vigaEstribo', 'lajeInf'] as const).map((k) => acoDe(b, k).aco))];
+  const fund = !!b.fundacao?.elementos.length;
+  const g = gamas(b), fcks = (['laje', 'viga', 'pilar', ...(fund ? ['fundacao' as const] : [])] as const).map((t) => `${ROTULO[t]} C${fckDe(b, t)}`);
+  const acos = [...new Set((['pilarLong', 'vigaPos', 'vigaEstribo', 'lajeInf', ...(fund ? ['fundacao' as const] : [])] as const).map((k) => acoDe(b, k).aco))];
   const c = b.norma.cobrimento;
   return [
     `Concreto: ${fcks.join(', ')} (fck em MPa). Aço: ${acos.join(' e ')}.`,
-    `Classe de agressividade ambiental ${b.norma.caa}; cobrimentos nominais: lajes ${nf(c.laje, 1)} cm, vigas ${nf(c.viga, 1)} cm, pilares ${nf(c.pilar, 1)} cm.`,
+    `Classe de agressividade ambiental ${b.norma.caa}; cobrimentos nominais: lajes ${nf(c.laje, 1)} cm, vigas ${nf(c.viga, 1)} cm, pilares ${nf(c.pilar, 1)} cm${fund ? `, fundações ${nf(cobrimentoFundacao(b) * 100, 1)} cm` : ''}.`,
     `Coeficientes de ponderação: γc ${nf(g.c)}, γs ${nf(g.s)}, γg ${nf(g.g)}, γq ${nf(g.q)}.`,
     'Normas: ABNT NBR 6118 (concreto), NBR 6120 (cargas), NBR 6123 (vento), NBR 8681 (ações e combinações).',
     'Cargas na fundação por pilar em kN e kN·m: característica = combinação rara de maior N (M e H da mesma); cálculo = ELU de maior Nd. Momentos e forças nos eixos globais.',

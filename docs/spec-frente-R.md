@@ -58,6 +58,11 @@ Regras de toda a R7:
 - Aceite de cada subfatia: testes numéricos contra cálculo manual, regressão (sem edição do usuário os resultados do edifício de `exemplo.ts` não mudam), fluxo e2e próprio (`R7-0`, `R7a` … `R7g`), memorial, pranchas e checklists atualizados; `checklists.test.ts` verde.
 - Cada subfatia lista em "Já existe" o que a auditoria achou pronto no código, para não refazer.
 
+Decisões do usuário (20/10/2026), manter o padrão do programa de referência:
+- Tolerância de simetria da armadura dos pilares (R7a): 0 % no perfil do sistema (armadura não simétrica, registro K1.4.50); sempre simétrica no perfil NBR (comportamento atual).
+- Redução do comprimento de ancoragem por As,calc/As,ef (R7b): ligada no perfil do sistema (registro K1.12.25); desligada no perfil NBR (comportamento atual, a favor da segurança).
+- Telas soldadas (R7d): catálogo pelas designações da NBR 7481.
+
 ### R7-0 — Pendências das fatias executadas (11 itens, sem linha nos checklists)
 
 Lacunas reais da spec do módulo Edifícios (fatias 0–7), da N1 e da R1–R6 sem outra frente dona (evidências na seção "Auditoria de 20/10/2026", no fim deste arquivo):
@@ -88,7 +93,7 @@ Itens: C13.1, C13.2, C13.3, C13.5; K1.4.50, K1.4.73, K1.12.4-2, K1.12.4-3, K1.12
 - Memorial: seção "Tabelas de armadura" só com as alteradas e criadas; tolerância de simetria.
 - Pranchas: sem mudança (o desenho segue a armadura escolhida).
 - Testes: as tabelas padrão reproduzem os arranjos atuais do `exemplo.ts` (regressão); tabela restrita força a bitola; tabela vazia gera FORA_TABELA/ARM_MANUAL; tolerância 0 % × 300 % na simetria; restaurar mantém as do usuário; e2e `R7a`.
-- Premissas: tolerância de simetria dos pilares — sistema 0 % (não simétrica, registrado em K1.4.50), perfil NBR = sempre simétrica (comportamento atual; a NBR não fixa) [a confirmar]; passante ≥ 1/3 do total (comportamento atual; registro K1.12.8 admite 1/3 ou 1/4; NBR 18.3.2.4 exige ao menos 2 barras e a parcela do apoio); φ25 como bitola forçada fora de tabela (registrado); estribo perimetral + grampos 18.2.4 quando a tabela não define tipologia; faixas de espessura das tabelas de lajes [a confirmar], com φ ≤ h/8 e s ≤ mín(2h; 20 cm) da NBR.
+- Premissas: tolerância de simetria dos pilares — sistema 0 % (não simétrica, registrado em K1.4.50), perfil NBR = sempre simétrica (comportamento atual; a NBR não fixa) (decisão do usuário, 20/10/2026); passante ≥ 1/3 do total (comportamento atual; registro K1.12.8 admite 1/3 ou 1/4; NBR 18.3.2.4 exige ao menos 2 barras e a parcela do apoio); φ25 como bitola forçada fora de tabela (registrado); estribo perimetral + grampos 18.2.4 quando a tabela não define tipologia; faixas de espessura das tabelas de lajes [a confirmar], com φ ≤ h/8 e s ≤ mín(2h; 20 cm) da NBR.
 
 ### R7b — Opções e edição fina do detalhamento de vigas (21 itens)
 
@@ -101,7 +106,7 @@ Itens: C6.33, C6.65, C6.66, C6.103, C6.104; K1.4.63, K1.4.64, K1.4.65, K1.4.70, 
 - Memorial: opções alteradas; posições editadas por viga; avisos novos.
 - Pranchas (`armacaoVigas.ts`): porta-estribos, estribos múltiplos e grampos na seção, comprimentos editados, tramo predefinido sem emenda.
 - Testes: lb reduzido e perna contra cálculo manual; mínimos em % do vão; simetria; montagem reta × gancho; φt > bw/10; Asw com estribo de 4 ramos; regressão; e2e `R7b`.
-- Premissas: redução lb·As,calc/As,ef — sistema ligada (registro K1.12.25), perfil NBR desligada (comportamento atual, a favor da segurança; a NBR permite); extensão das zonas de estribos necessário + d/2 (registro K1.12.1-9); perna reta mínima 8φ (9.4.2.3); mínimos dos grupos em % do vão e tolerância de simetria dos negativos [a confirmar] (perfil NBR 0); montagem contínua, colaborante e com gancho (comportamento atual) [a confirmar]; limite do desnível longitudinal [a confirmar].
+- Premissas: redução lb·As,calc/As,ef — sistema ligada (registro K1.12.25), perfil NBR desligada (comportamento atual, a favor da segurança; a NBR permite) (decisão do usuário, 20/10/2026); extensão das zonas de estribos necessário + d/2 (registro K1.12.1-9); perna reta mínima 8φ (9.4.2.3); mínimos dos grupos em % do vão e tolerância de simetria dos negativos [a confirmar] (perfil NBR 0); montagem contínua, colaborante e com gancho (comportamento atual) [a confirmar]; limite do desnível longitudinal [a confirmar].
 
 ### R7c — Opções do detalhamento de pilares (8 itens)
 
@@ -126,7 +131,7 @@ Itens: K1.4.75, K1.4.76, K1.9.86, K1.9.88, K1.9.102, K1.11.16, K1.13.2.1-1, K1.1
 - Memorial: armadura base por laje; predefinidas; telas usadas.
 - Pranchas (`armacaoLajes.ts`): base desenhada só quando detalhada; nota com φ c/ s ou designação da tela quando não; quantitativo de telas por designação.
 - Testes: reforço descontado; base insuficiente aumentada; predefinida reduz o reforço só na faixa; quantitativo com e sem detalhar; regressão sem base; e2e `R7d`.
-- Premissas: base não detalhada por padrão (registro K1.4.76); catálogo de telas pelas designações da NBR 7481 [a confirmar]; faixa de influência da predefinida = nº de barras × espaçamento [a confirmar]; redução de densidade desligada [a confirmar].
+- Premissas: base não detalhada por padrão (registro K1.4.76); catálogo de telas pelas designações da NBR 7481 (decisão do usuário, 20/10/2026); faixa de influência da predefinida = nº de barras × espaçamento [a confirmar]; redução de densidade desligada [a confirmar].
 
 ### R7e — Edição, uniformização e linhas de dobra das lajes (18 itens)
 
