@@ -2,6 +2,7 @@
 import type { Draft } from 'immer';
 import { COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
+import { OPCOES_INFO, type OpcoesCalculo } from '../building/opcoes';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -79,6 +80,28 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     if (p.formato !== undefined) d.prancha.formato = p.formato;
     if (p.escala !== undefined) d.prancha.escala = p.escala;
     return 'Pranchas: dados alterados.';
+  },
+});
+
+registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] | boolean }>({
+  nome: 'opcoes.definir',
+  descricao: `Define as opções de cálculo do edifício (padrão NBR 6118; onde a norma não fixa, o critério de referência "a confirmar"): ${OPCOES_INFO.map((o) => `${o.chave} = ${o.rotulo.toLowerCase()} (padrão ${o.padrao}${o.unidade ? ` ${o.unidade}` : ''})`).join('; ')}. "padrao": true volta tudo ao padrão; uma lista de chaves volta só essas.`,
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, properties: {
+    valores: { type: 'object', additionalProperties: false, properties: Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, { type: 'number', minimum: o.min, maximum: o.max, description: `${o.rotulo}${o.unidade ? ` (${o.unidade})` : ''}; padrão ${o.padrao}` }])) },
+    padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: OPCOES_INFO.map((o) => o.chave) } }] },
+  } },
+  aplicar(d, p) {
+    if (p.padrao === true) delete d.opcoes;
+    else if (Array.isArray(p.padrao)) for (const k of p.padrao) delete d.opcoes?.[k];
+    if (p.valores) {
+      d.opcoes ??= {};
+      for (const o of OPCOES_INFO) { const v = p.valores[o.chave]; if (v === undefined) continue; if (v === o.padrao) delete d.opcoes[o.chave]; else d.opcoes[o.chave] = v; }
+    }
+    if (d.opcoes && !Object.keys(d.opcoes).length) delete d.opcoes;
+    const n = Object.keys(d.opcoes ?? {}).length;
+    return n ? `Opções de cálculo: ${n} diferente(s) do padrão.` : 'Opções de cálculo no padrão.';
   },
 });
 

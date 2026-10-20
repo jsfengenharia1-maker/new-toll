@@ -16,6 +16,7 @@ import { Button, Group, Hint, NumField, Select, TextCell, TextField } from '../u
 import { MemorialEdificio } from './MemorialEdificio';
 import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
+import { OpcoesGrupo } from './OpcoesCalculo';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -80,6 +81,7 @@ export function Edificio() {
         <LajesGrupo b={b} />
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
+        <OpcoesGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">

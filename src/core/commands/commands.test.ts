@@ -37,6 +37,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4] }),
   'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2 }),
+  'opcoes.definir': () => ({ valores: { malha: 0.5, engasteTopoUltimo: 1 }, padrao: ['torcaoViga'] }),
   'prancha.definir': () => ({ carimbo: { empresa: 'Escritório Exemplo', responsavel: 'Eng. Fulano' }, formato: 'A1', escala: 50 }),
   'grupo.criar': () => ({ nome: 'Garagem', uso: 'garagem' }),
   'grupo.editar': () => ({ id: 'g_3', uso: 'escritorio' }),

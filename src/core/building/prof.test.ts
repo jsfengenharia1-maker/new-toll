@@ -2,7 +2,8 @@ import { it } from 'vitest';
 import { analisarEdificio } from './analitico';
 import { resolver3 } from '../fe3d';
 import { comandosEdificioPadrao, Sessao } from '../commands';
-it('prof', () => {
+// Perfil de tempo (sem asserção): PERFIL=1 npx vitest run src/core/building/prof.test.ts
+it.skipIf(!(globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.PERFIL)('prof', () => {
   const s = new Sessao(); for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   s.executar('pavimento.repetir', { id: 'pav_6', vezes: 6 });
   const xs = [0, 5, 10, 15], ys = [0, 4.5, 9];

@@ -107,3 +107,41 @@ describe('modelo analítico do edifício', () => {
     expect(an.ms).toBeLessThan(10000);
   });
 });
+
+describe('opções de cálculo (N1a)', () => {
+  it('opcoes.definir guarda só o que difere do padrão e volta ao padrão', () => {
+    const s = padrao();
+    ok(s, 'opcoes.definir', { valores: { malha: 0.5, trechoRigido: 0.3 } });
+    expect(s.modelo.opcoes).toEqual({ malha: 0.5 });
+    ok(s, 'opcoes.definir', { valores: { engasteTopoUltimo: 1 } });
+    ok(s, 'opcoes.definir', { padrao: ['malha'] });
+    expect(s.modelo.opcoes).toEqual({ engasteTopoUltimo: 1 });
+    ok(s, 'opcoes.definir', { padrao: true });
+    expect(s.modelo.opcoes).toBeUndefined();
+    expect(s.executar('opcoes.definir', { valores: { malha: 0.01 } }).ok).toBe(false);
+  });
+
+  it('a análise lê as opções do modelo: malha e engaste no topo do último lance', () => {
+    const s = padrao();
+    const cob = s.modelo.pavimentos.at(-1)!.grupo;
+    ok(s, 'lote', { comandos: [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    for (const g of ['g_3', cob]) ok(s, 'lote', { comandos: [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: g, pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
+    for (const g of ['g_3', cob]) ok(s, 'laje.detectarPanos', { grupo: g, tipo: { tipo: 'macica', h: 0.12 } });
+    const b = s.modelo;
+    const topo = (o: Record<string, number>) => {
+      const an = analisarEdificio({ ...b, opcoes: o });
+      expect(an.erro).toBeUndefined();
+      const ult = b.pavimentos.at(-1)!.id;
+      const bi = an.portico.barras.findIndex((t) => t.tipo === 'pilar' && t.pavimento === ult);
+      const f = an.portico.res!.esforcos[0][bi];
+      return { M: Math.hypot(f[10], f[11]), nos: an.grelhas.find((g) => g.pavimento === ult)!.modelo.nos.length, an };
+    };
+    const rot = topo({ engasteTopoUltimo: 0 }), eng = topo({ engasteTopoUltimo: 1 }), pad = topo({});
+    expect(rot.M).toBeLessThan(1e-6); // rótula no topo do último lance
+    expect(eng.M).toBeGreaterThan(1);
+    expect(pad.M).toBeGreaterThan(rot.M);
+    expect(pad.M).toBeLessThan(eng.M);
+    expect(pad.an.opcoes.malha).toBe(0.25);
+    expect(topo({ malha: 0.5 }).nos).toBeLessThan(pad.nos);
+  });
+});

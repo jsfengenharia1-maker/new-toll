@@ -12,8 +12,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 4 | 2 | 3 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 7 | 15 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 7 | 19 | 51 | 15 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 8 | 14 | 27 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 13 | 15 | 50 | 14 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 28 | 8 | 9 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 2 | 2 | 4 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 1 | 4 | 0 | 0 |
@@ -25,29 +25,29 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 2 | 2 | 37 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 1 | 15 | 8 | 19 |
-| **Total** | **661** | **83** | **154** | **311** | **113** |
+| **Total** | **661** | **90** | **149** | **310** | **112** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 74 | 78 | 152 |
+| N — Cálculo e normas | 69 | 77 | 146 |
 | R — Revisão de resultados e detalhamento | 44 | 81 | 125 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **154** | **311** | **465** |
+| **Total** | **149** | **310** | **459** |
 
 ## Divergências de premissa
 
 Itens em que o critério do manual difere de uma premissa nossa (confirmada ou "a confirmar"). Servem para o usuário decidir se mantém a premissa, torna o valor editável ou adota o critério do manual.
 
-- **Torção das vigas e lajes** (K1.4.33, K1.4.24): nós 15 % fixo (vigas: rigidez elástica; lajes: 15 % de 2I); pilares sem redução. Manual: coeficiente redutor configurável, inclusive nos pilares, e seção bruta na torção de equilíbrio.
-- **Rigidez axial dos pilares** (K1.4.36): nós área × 2 fixa. Manual: multiplicador de 1 a 99,99, mesmo padrão 2.
+- **Torção das vigas e lajes** (K1.4.33, K1.4.24) — *resolvido na N1a: redutores editáveis por tipo (vigas 15 %, lajes 15 %, pilares 1); falta a seção bruta na torção de equilíbrio (K1.4.35)*: nós 15 % fixo (vigas: rigidez elástica; lajes: 15 % de 2I); pilares sem redução. Manual: coeficiente redutor configurável, inclusive nos pilares, e seção bruta na torção de equilíbrio.
+- **Rigidez axial dos pilares** (K1.4.36) — *resolvido na N1a: multiplicador editável 1 a 99,99, padrão 2*: nós área × 2 fixa. Manual: multiplicador de 1 a 99,99, mesmo padrão 2.
 - **Trecho rígido no nó** (K1.3.45, K1.3.51, K1.3.57): nós até a face do pilar − 0,3h (NBR 6118 14.6.2.1) e dimensionamento na parte flexível. Manual: trecho rígido até a face, arredondamento cúbico do diagrama dentro do apoio e mísula fictícia 1:3.
-- **Malha da grelha** (K1.3.21): nós 0,5 m fixa. Manual: no máximo 25 cm (nervuradas: 1/3 do intereixo).
-- **Engaste no topo do último lance** (K1.4.9, K1.4.11): nós ligação monolítica plena em todos os nós. Manual: coeficiente de engaste 0,3 no topo do último lance e 0–1 por lance, topo e base.
+- **Malha da grelha** (K1.3.21) — *resolvido na N1a: editável, padrão 0,25 m*: nós 0,5 m fixa. Manual: no máximo 25 cm (nervuradas: 1/3 do intereixo).
+- **Engaste no topo do último lance** (K1.4.9, K1.4.11) — *topo do último lance resolvido na N1a (padrão 0,3); por lance fica na N1a-2*: nós ligação monolítica plena em todos os nós. Manual: coeficiente de engaste 0,3 no topo do último lance e 0–1 por lance, topo e base.
 - **Engaste parcial de bordas** (K1.4.14, K1.4.15, K1.9.40): nós continuidade plena laje–viga (só rótula na ponta da viga). Manual: coeficiente 0–1 por borda de laje e por borda de viga.
 - **Redistribuição e momentos mínimos** (K1.4.2, K1.4.3, K1.4.38): nós nenhuma redistribuição nem momento mínimo. Manual: redistribuição padrão 15 % (vigas) e 25 % (vigotas), até 30 %; momentos mínimos opcionais pl²/x.
 - **Rigidez no γz** (K1.5.46, K1.5.52, K1.5.53): nós 0,4·Eci·Ic nas vigas e 0,8·Eci·Ic nos pilares (NBR 6118 15.7.3). Manual: multiplicador de deslocamentos, padrão 1,00 e recomendado 2,0 (NB-1: 1/0,7).
@@ -122,7 +122,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Parcial | E | treliçadas como faixas T na grelha (`propriedadesLaje`); vigotas não são barras individuais |
 | K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) |
 | K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Falta | E | fase construtiva das alveolares |
-| K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Parcial | N | nós: malha 0,5 m fixa; manual: até 25 cm |
+| K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Feito | — | opções de cálculo: malha configurável, padrão 0,25 m (N1a) |
 | K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Parcial | N | grelha Euler-Bernoulli (sem cortante); torção 15 % de 2I; diafragma só no pórtico |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
 | K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Falta | FU | radier |
@@ -177,8 +177,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.6 | 25 % nas lajes ≈ igualar momentos negativos e positivos. | Fora | — | comentário do manual |
 | K1.4.7 | Redistribuição aplicada aos momentos negativos nas bordas dos apoios (faces dos pilares), afetando o vão livre; momentos dentro do apoio recalculados a partir da face com o arredondamento de 1.3.2. | Falta | N | redistribuição nas faces dos apoios |
 | K1.4.8 | Em vigas e lajes de vigotas, além da redistribuição, pode-se impor momentos mínimos positivos e negativos de norma. | Falta | N | momentos mínimos de norma em vigas |
-| K1.4.9 | Coeficiente de engaste no topo do último lance de pilar (ligação com a viga): 0 (rótula) a 1 (engaste); padrão 0,3. | Falta | N | nós: ligação monolítica plena no topo; manual: engaste 0,3 no último lance |
-| K1.4.10 | Implementação: interpolação linear das matrizes de rigidez engaste-engaste e engaste-rótula: K = α·Kee + (1−α)·Ker, afetando os termos EI/L do último lance. | Fora | — | detalhe de implementação do coeficiente de engaste |
+| K1.4.9 | Coeficiente de engaste no topo do último lance de pilar (ligação com a viga): 0 (rótula) a 1 (engaste); padrão 0,3. | Feito | — | opções de cálculo: engaste no topo do último lance 0–1, padrão 0,3 (N1a) |
+| K1.4.10 | Implementação: interpolação linear das matrizes de rigidez engaste-engaste e engaste-rótula: K = α·Kee + (1−α)·Ker, afetando os termos EI/L do último lance. | Feito | — | fe3d: engaste parcial por interpolação K = α·Kee + (1 − α)·Ker (N1a) |
 | K1.4.11 | Coeficiente de engaste por lance de pilar, no topo e/ou na base (0 = rótula, 1 = engaste, padrão 1); os do topo do último lance multiplicam o anterior. | Falta | N | coeficientes de engaste por lance de pilar |
 | K1.4.12 | Rótula plástica do pilar fica fisicamente na ligação topo/base com viga ou laje maciça/nervurada que toca o nó. | Fora | — | detalhe de implementação |
 | K1.4.13 | Alerta: coeficientes muito baixos no extremo de viga e no topo do último pilar com rótula na viga podem gerar resultados absurdos ou mecanismo (duas rótulas ligadas por trechos rígidos). | Fora | — | alerta do manual |
@@ -193,21 +193,21 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.4.2 Rigidezes consideradas (págs. 18–19)** | | | |
 | K1.4.22 | Termos da matriz com seção bruta de todos os elementos de concreto. | Feito | — | seção bruta em todos os elementos (Ecs) |
 | K1.4.23 | Termos: EI/L (flexão), GJ/L (torção), EA/L (axial). | Feito | — | EA, EI e GJ nas barras 3D (`fe3d.ts`) |
-| K1.4.24 | Pilares: EIy, EIz bruto; GJ bruto × coeficiente de redução de torção; EA bruto × coeficiente de rigidez axial. | Parcial | N | pilares: EI e GJ brutos; EA × 2 fixo; sem redutor de torção |
+| K1.4.24 | Pilares: EIy, EIz bruto; GJ bruto × coeficiente de redução de torção; EA bruto × coeficiente de rigidez axial. | Feito | — | opções: GJ dos pilares × coeficiente (padrão 1) e EA × coeficiente (padrão 2) (N1a) |
 | K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Falta | E | vigas inclinadas |
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Parcial | E | treliçadas: seção T por nervura na grelha; GJ 15 % de 2I |
 | K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Falta | E | vigas de amarração sem rigidez à flexão |
 | K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro |
 | K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Falta | E | paredes e pilares-parede |
-| K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Parcial | N | lajes maciças: EI bruto, J = 15 % de 2I fixo |
+| K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
 | K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Falta | E | lajes alveolares (mistas fora) |
 | | **1.4.3 Coeficientes de rigidez à torção (pág. 19)** | | | |
-| K1.4.33 | Coeficiente redutor da rigidez à torção configurável (não se aplica a perfis de aço). | Parcial | N | nós: torção 15 % fixa (vigas e lajes); manual: configurável |
+| K1.4.33 | Coeficiente redutor da rigidez à torção configurável (não se aplica a perfis de aço). | Feito | — | opções: redutores de torção de vigas, lajes e pilares editáveis (N1a) |
 | K1.4.34 | Barras com dimensão ≤ ao limite de "barra curta" usam o valor definido nas opções para elas. | Falta | N | rigidez própria para barras curtas |
 | K1.4.35 | Seção bruta (sem redução) usada na torção quando necessária ao equilíbrio da estrutura (torção de equilíbrio). | Falta | N | torção de compatibilidade × equilíbrio (NBR 6118 17.5.1.2) |
 | | **1.4.4 Coeficientes de rigidez axial (pág. 19)** | | | |
-| K1.4.36 | Encurtamento axial de pilares, paredes e pilares-parede considerado com coeficiente multiplicador de EA entre 1 e 99,99, para simular o processo construtivo. | Parcial | N | nós: área dos pilares × 2 fixa; manual: 1 a 99,99 configurável |
+| K1.4.36 | Encurtamento axial de pilares, paredes e pilares-parede considerado com coeficiente multiplicador de EA entre 1 e 99,99, para simular o processo construtivo. | Feito | — | opções: multiplicador de EA dos pilares de 1 a 99,99, padrão 2 (N1a) |
 | K1.4.37 | Recomendado 2 a 3; padrão 2. | Feito | — | mesmo padrão 2 (premissa 25) |
 | | **1.4.5 Momentos mínimos (págs. 19–20)** | | | |
 | K1.4.38 | Vigas: momento mínimo como fração do isostático pl²/8, na forma pl²/x com x inteiro > 8, para negativo e positivo; padrão 0 (não aplica). | Falta | N | momentos mínimos em vigas |

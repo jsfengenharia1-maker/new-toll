@@ -16,6 +16,12 @@ export interface Barra3 {
   offI?: V3; offJ?: V3;
   /** Liberações por extremidade (gdl locais 3 = torção, 4 = My, 5 = Mz). */
   libI?: number[]; libJ?: number[];
+  /**
+   * Engaste parcial por extremidade: [gdl local, α] com 0 ≤ α ≤ 1 (0 = rótula, 1 = engaste).
+   * Rigidez e forças de engastamento interpoladas entre a barra engastada e a liberada,
+   * K = α·Kee + (1 − α)·Ker; com vários gdl, os pesos se multiplicam (interpolação multilinear).
+   */
+  engI?: [number, number][]; engJ?: [number, number][];
 }
 
 /** Gdl do nó: 0 ux, 1 uy, 2 uz, 3 rx, 4 ry, 5 rz. */
@@ -125,6 +131,35 @@ function condensar(k: number[][], f0: number[], lib: number[]) {
   }
 }
 
+/** Gdl com engaste parcial (0 < α < 1); α ≤ 0 vira liberação e α ≥ 1, engaste. */
+function parciais(b: Barra3): { gdl: number; a: number }[] {
+  const out: { gdl: number; a: number }[] = [];
+  for (const [lista, d] of [[b.engI, 0], [b.engJ, 6]] as const) for (const [g, a] of lista ?? []) out.push({ gdl: g + d, a: Math.min(1, Math.max(0, a)) });
+  return out;
+}
+
+/**
+ * Condensa as liberações e interpola os engastes parciais: soma, sobre cada combinação de gdl
+ * parciais liberados (S), a barra com S liberado, com peso Π(1 − α) nos liberados × Π α nos demais.
+ */
+function condensarParcial(k: number[][], f0s: number[][], lib: number[], parc: { gdl: number; a: number }[]) {
+  const sempre = [...lib, ...parc.filter((p) => p.a <= 0).map((p) => p.gdl)];
+  const mistos = parc.filter((p) => p.a > 0 && p.a < 1);
+  const kc = Array.from({ length: 12 }, () => new Array(12).fill(0));
+  const fc = f0s.map(() => new Array(12).fill(0));
+  for (let m = 0; m < 1 << mistos.length; m++) {
+    let w = 1;
+    const sub = [...sempre];
+    mistos.forEach((p, i) => { if (m & (1 << i)) { w *= 1 - p.a; sub.push(p.gdl); } else w *= p.a; });
+    if (!w) continue;
+    const kk = k.map((r) => r.slice());
+    condensar(kk, new Array(12).fill(0), sub);
+    for (let r = 0; r < 12; r++) for (let c = 0; c < 12; c++) kc[r][c] += w * kk[r][c];
+    f0s.forEach((f0, ic) => { const ff = f0.slice(), k2 = k.map((r) => r.slice()); condensar(k2, ff, sub); for (let r = 0; r < 12; r++) fc[ic][r] += w * ff[r]; });
+  }
+  return { k: kc, f0s: fc };
+}
+
 /** Matriz que leva os 12 gdl dos nós (globais) aos 12 gdl locais das extremidades flexíveis. */
 function transformacao(R: [V3, V3, V3], oi: V3, oj: V3): number[][] {
   const T = Array.from({ length: 12 }, () => new Array(12).fill(0));
@@ -192,10 +227,8 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
       return f0;
     });
     // condensação: a rigidez é a mesma para todos os casos; as forças de engastamento, uma por caso
-    const kc = k.map((r) => r.slice());
-    for (const f0 of f0s) { const kk = k.map((r) => r.slice()); condensar(kk, f0, lib); }
-    condensar(kc, new Array(12).fill(0), lib);
-    return { b, L, R, T, k: kc, f0s, dofs: [b.i, b.j].flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)) };
+    const { k: kc, f0s: fc } = condensarParcial(k, f0s, lib, parciais(b));
+    return { b, L, R, T, k: kc, f0s: fc, dofs: [b.i, b.j].flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)) };
   });
   for (const e of elem) {
     // Kg = Tᵀ k T

@@ -1,5 +1,6 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
+import type { OpcoesCalculo } from './opcoes';
 
 export const BUILDING_VERSION = 1;
 
@@ -185,6 +186,8 @@ export interface BuildingModel {
   vento?: Vento;
   /** Pranchas: dados do carimbo (definidos pelo usuário), formato e escala. */
   prancha?: ConfigPrancha;
+  /** Opções de cálculo alteradas pelo usuário (o resto segue o padrão de opcoes.ts). */
+  opcoes?: Partial<OpcoesCalculo>;
 }
 
 export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';

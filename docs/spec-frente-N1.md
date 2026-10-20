@@ -26,7 +26,14 @@ Fora desta frente (vão para N2): punção e cortante em lajes, fogo (NBR 15200)
 - Memorial e premissas atualizados; checklist com os itens fechados; fluxo e2e da aba de opções.
 - MCP: opções acessíveis por `previa` e documentadas em `docs/ia.md`.
 
+## Andamento
+
+- **N1a, parte 1 (feita em 20/10/2026):** `opcoes` no modelo e comando `opcoes.definir` (padrão NBR, "voltar ao padrão"), grupo "Opções de cálculo" na barra lateral, tabela no memorial e premissa `opcoes`. Opções: malha da grelha (0,25 m), torção de vigas (15 %), lajes (15 % de 2I) e pilares (1), rigidez axial dos pilares (× 2), trecho rígido (face − 0,3h), engaste no topo do último lance (0,3). Engaste parcial no `fe3d` por interpolação K = α·Kee + (1 − α)·Ker (critério do manual de referência), sem efeito onde não há vigas no topo (evita mecanismo). Grelhas iguais no mesmo grupo resolvidas uma vez só.
+- **N1a, parte 2 (próxima):** por elemento — engaste por lance de pilar (topo/base), coeficientes nas bordas das lajes e nos extremos das vigas, rótulas em qualquer trecho de viga, torção de equilíbrio com seção bruta, vigas livres e zonas independentes.
+
 ## Decisões em aberto (marcadas [a confirmar])
+
+Decididas pela regra geral do usuário (padrão do programa de referência onde a NBR não fixa, tudo editável): malha 0,25 m, engaste 0,3 no topo do último lance, torção 15 % e EA × 2. Continuam "a confirmar" no app e no memorial por não terem fonte normativa.
 
 1. Malha da grelha passa a 0,25 m por padrão (CYPECAD) ou fica 0,5 m (desempenho)?
 2. Engaste 0,3 no topo do último lance por padrão (CYPECAD; a NBR não fixa)?

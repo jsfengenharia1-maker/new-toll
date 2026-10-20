@@ -5,6 +5,7 @@ import { useBuilding } from './store';
 import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
+import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso } from '../../core/building/opcoes';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
@@ -23,6 +24,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && revAnalise !== sessao.rev;
+  const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
@@ -86,7 +88,13 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <p>Vento: {v.ativo ? `V0 = ${fmt(v.v0, 0)} m/s, S1 = ${fmt(v.s1)}, S3 = ${fmt(v.s3)}, categoria ${v.categoria}, Ca = ${fmt(v.caX)} (X) / ${fmt(v.caY)} (Y), excentricidade ${fmt(v.excentricidade, 3)} × largura${r?.vento ? `, classe ${r.vento.classe} (altura ${fmt(r.vento.altura, 1)} m)` : ''}.` : 'não considerado.'}</p>
 
           {h2('Modelo de análise')}
-          <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m) e pórtico espacial com diafragma rígido por pavimento; as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
+          <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(opc.malha)} m) e pórtico espacial com diafragma rígido por pavimento; as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
+          <h3>Opções de cálculo</h3>
+          <table>
+            <thead><tr><th className="l">Opção</th><th>Valor</th><th>Padrão</th><th className="l">Fonte</th></tr></thead>
+            <tbody>{OPCOES_INFO.map((o) => { const alt = opc[o.chave] !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{fmt(opc[o.chave])}</td><td>{fmt(o.padrao)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}</td></tr>; })}</tbody>
+          </table>
+          {opcoesAlteradas(b.opcoes).length > 0 && <p className="warn">Opções diferentes do padrão: {opcoesAlteradas(b.opcoes).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
           {r?.erro && <p className="warn">{r.erro}</p>}
           {r && r.avisos.length > 0 && <ul>{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
 

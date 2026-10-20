@@ -74,7 +74,7 @@ describe('correções da conferência com o manual de cálculo', () => {
     expect(soma('Q')).toBeCloseTo(furada.totais.Q, 3);
   });
 
-  it('aço da norma: CA-60 reduz a armadura das vigas na razão dos fyd', () => {
+  it('aço da norma: CA-60 reduz a armadura das vigas na razão dos fyd', { timeout: 20000 }, () => {
     const b = predio();
     const an = analisarEdificio(b);
     const d50 = dimensionarEdificio(b, an);

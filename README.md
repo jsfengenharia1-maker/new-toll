@@ -174,6 +174,10 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Guia para agentes em [`docs/ia.md`](docs/ia.md) e `llms.txt` na raiz do site
 - Agente de exemplo (`npm run agente`): lança um edifício, verifica, dimensiona, aumenta os pilares que não passam, loca o contorno na face externa e gera as pranchas
 
+**Edifícios — opções de cálculo (frente N1a, 20/10/2026)**
+- Opções editáveis com padrão pela NBR 6118 (o que a norma não fixa fica marcado "a confirmar"): malha da grelha (0,25 m), torção de vigas, lajes e pilares, rigidez axial dos pilares, trecho rígido no nó e engaste no topo do último lance (0,3)
+- Engaste parcial nas barras 3D por interpolação entre as rigidezes engastada e articulada; tabela das opções no memorial
+
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir
 - Fundações: sapatas associadas e de divisa, recalques, tubulão com carga horizontal, detalhamento e quantitativos

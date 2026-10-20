@@ -506,4 +506,20 @@ export const flows = [
       assert.doesNotMatch(await page.locator('.edif-out').textContent(), /VIGA_/);
     },
   },
+  {
+    name: 'opções de cálculo do edifício: alterar, marcar e voltar ao padrão',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      const malha = page.getByLabel('Malha da grelha das lajes');
+      assert.equal(await malha.inputValue(), '0,25');
+      await malha.fill('0,5');
+      await malha.press('Enter');
+      await page.locator('summary', { hasText: 'Opções de cálculo (1 alterada)' }).waitFor();
+      await page.getByRole('button', { name: 'Voltar ao padrão' }).click();
+      await page.locator('summary', { hasText: /^Opções de cálculo$/ }).waitFor();
+      assert.equal(await malha.inputValue(), '0,25');
+    },
+  },
 ];

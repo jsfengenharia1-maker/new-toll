@@ -31,6 +31,25 @@ describe('barras 3D', () => {
     expect(f[5]).toBeCloseTo(0, 9); // liberado
   });
 
+  it('engaste parcial α na ponta: interpola biengastada e engaste-rótula (K = α·Kee + (1 − α)·Ker)', () => {
+    const q = -10, L = 5, a = 0.3;
+    const m: Modelo3 = { nos: [[0, 0, 0], [L, 0, 0]], barras: [barra(0, 1, undefined, { engJ: [[5, a]] })], apoios: new Map([[0, [0, 1, 2, 3, 4, 5]], [1, [0, 1, 2, 3, 4, 5]]]) };
+    const f = resolver3(m, [{ nodais: [], distribuidas: [{ barra: 0, q: [0, 0, q] }] }]).esforcos[0][0];
+    const ql2 = -q * L * L;
+    expect(Math.abs(f[11])).toBeCloseTo((a * ql2) / 12, 6); // ponta parcialmente engastada
+    expect(Math.abs(f[5])).toBeCloseTo((a * ql2) / 12 + ((1 - a) * ql2) / 8, 6); // ponta engastada
+    // giro com momento aplicado no nó j livre para girar (ry global = θz local): rigidez α·4EIz/L
+    const s = ret(0.2, 0.5), M = 7;
+    const m2: Modelo3 = { nos: [[0, 0, 0], [L, 0, 0]], barras: [barra(0, 1, s, { engJ: [[5, a]] })], apoios: new Map([[0, [0, 1, 2, 3, 4, 5]], [1, [0, 1, 2, 3, 5]]]) };
+    const u = resolver3(m2, [{ nodais: [{ no: 1, f: [0, 0, 0, 0, M, 0] }], distribuidas: [] }]);
+    expect(u.erro).toBeUndefined();
+    expect(Math.abs(u.desloc[0][10])).toBeCloseTo((M * L) / (4 * a * E * s.Iz), 12);
+    // α = 1 e α = 0 coincidem com a barra engastada e com a liberação
+    const ext = (eng: [number, number][] | undefined, lib?: number[]) => resolver3({ ...m, barras: [barra(0, 1, undefined, { engJ: eng, libJ: lib })] }, [{ nodais: [], distribuidas: [{ barra: 0, q: [0, 0, q] }] }]).esforcos[0][0][5];
+    expect(ext([[5, 1]])).toBeCloseTo(ext(undefined), 9);
+    expect(ext([[5, 0]])).toBeCloseTo(ext(undefined, [5]), 9);
+  });
+
   it('trecho rígido: carga na ponta de um braço rígido equivale a força + momento', () => {
     const s = ret(0.3, 0.3), L = 3, P = 20, e = 0.5;
     // pilar em balanço vertical; a carga está num nó a 0,5 m em x, ligado por trecho rígido

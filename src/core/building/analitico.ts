@@ -6,26 +6,14 @@ import { resolver3, type Barra3, type Caso3, type Modelo3, type Resultado3, type
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { casosVento, type CasoVento, type Classe } from './vento';
+import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import {
   centroPilar, contornoPilar, cotaFundacao, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
   type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga,
 } from './types';
 
-export interface OpcoesAnalise {
-  /** Espaçamento da malha da grelha (m). */
-  malha: number;
-  /** Fator sobre J = 2I das barras de laje (premissa 23). */
-  torcaoLaje: number;
-  /** Fator sobre a rigidez à torção elástica das vigas (NBR 6118: 15 %). */
-  torcaoViga: number;
-  /** Multiplicador da área dos pilares nas ações verticais (premissa 25). */
-  axialPilares: number;
-  /** Trecho rígido da viga: até a face do pilar menos `trechoRigido` × h (premissa 22). */
-  trechoRigido: number;
-  nu: number;
-}
-
-export const OPCOES_PADRAO: OpcoesAnalise = { malha: 0.5, torcaoLaje: 0.15, torcaoViga: 0.15, axialPilares: 2, trechoRigido: 0.3, nu: 0.2 };
+/** Opções de cálculo em uso + coeficiente de Poisson (NBR 6118, 8.2.9). */
+export type OpcoesAnalise = OpcoesCalculo & { nu: number };
 
 export type CasoAnalise = 'G' | 'Q';
 export const CASOS: CasoAnalise[] = ['G', 'Q'];
@@ -209,7 +197,7 @@ export interface AnaliseEdificio {
 
 export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}): AnaliseEdificio {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
-  const op = { ...OPCOES_PADRAO, ...o };
+  const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes), nu: 0.2, ...o };
   const cc = concrete(b.norma.fck);
   const E = cc.Ecs * 1000, G = E / (2 * (1 + op.nu)); // kN/m²
   const avisos: string[] = [];
@@ -223,6 +211,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>> }>();
   const totais: Record<CasoAnalise, number> = { G: 0, Q: 0 };
   const cargasPavimento: Record<string, Record<CasoAnalise, number>> = Object.fromEntries(ps.map((p) => [p.id, { G: 0, Q: 0 }]));
+  const cacheGrelha = new Map<string, Resultado3>();
   for (const [ip, pav] of ps.entries()) {
     const grupo = b.grupos.find((g) => g.id === pav.grupo)!;
     const vigas = b.vigas.filter((v) => v.grupo === grupo.id);
@@ -333,9 +322,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       let kx = 0, ky = 0;
       const abaixo = ip > 0 ? ps[ip - 1].cota : cotaFundacao(b);
       const hBaixo = pav.cota - abaixo, sb = inerciasPilar(secaoNoLance(pil, pav.id), pil.angulo);
-      kx += (4 * E * sb.Ix) / hBaixo; ky += (4 * E * sb.Iy) / hBaixo;
-      const acima = ps[ip + 1];
-      if (acima && lancesDoPilar(b, pil).some((x) => x.id === acima.id)) { const sa = inerciasPilar(secaoNoLance(pil, acima.id), pil.angulo); kx += (4 * E * sa.Ix) / (acima.cota - pav.cota); ky += (4 * E * sa.Iy) / (acima.cota - pav.cota); }
+      const acima = ps[ip + 1], continua = !!acima && lancesDoPilar(b, pil).some((x) => x.id === acima.id);
+      // topo do último lance: α·4EI/L (interpolação engaste-engaste × engaste-rótula)
+      const aTopo = continua ? 1 : op.engasteTopoUltimo;
+      kx += (aTopo * 4 * E * sb.Ix) / hBaixo; ky += (aTopo * 4 * E * sb.Iy) / hBaixo;
+      if (continua) { const sa = inerciasPilar(secaoNoLance(pil, acima.id), pil.angulo); kx += (4 * E * sa.Ix) / (acima.cota - pav.cota); ky += (4 * E * sa.Iy) / (acima.cota - pav.cota); }
       m.molas!.push({ no: gi, gdl: 3, k: kx }, { no: gi, gdl: 4, k: ky });
     }
     const carga: Record<CasoAnalise, number> = { G: 0, Q: 0 };
@@ -349,7 +340,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const reacoes: Record<string, Record<CasoAnalise, number>> = {};
     const transf: Record<CasoAnalise, Map<number, number[]>> = { G: new Map(), Q: new Map() };
     if (m.barras.length) {
-      res = resolver3(m, casos);
+      // pavimentos do mesmo grupo têm a mesma grelha; reaproveita a solução quando apoios e molas coincidem
+      const chave = `${grupo.id}|${m.nos.length}|${m.barras.length}|${[...m.apoios].filter(([, g]) => g.includes(2)).map(([n]) => n).join(',')}|${m.molas!.map((x) => `${x.no}:${x.gdl}:${x.k.toPrecision(12)}`).join(',')}`;
+      res = cacheGrelha.get(chave) ?? resolver3(m, casos);
+      cacheGrelha.set(chave, res);
       if (res.erro) avisos.push(`${pav.nome}: ${res.erro}`);
       else {
         for (const [i, pid] of apoio) {
@@ -415,7 +409,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const sx = secaoNoLance(p, x.id), inr = inerciasPilar(sx, p.angulo), j = noPilar.get(`${p.id}|${x.id}`)!;
       const a = (p.angulo * Math.PI) / 180;
       // eixo local y = direção b da seção (Iz: deslocamento em y local)
-      pm.barras.push({ i: ant!, j, E, G, A: inr.A, Iz: inr.Iu, Iy: inr.Iv, J: inr.J, ref: [Math.cos(a), Math.sin(a), 0] });
+      const barra: Barra3 = { i: ant!, j, E, G, A: inr.A, Iz: inr.Iu, Iy: inr.Iv, J: op.torcaoPilar * inr.J, ref: [Math.cos(a), Math.sin(a), 0] };
+      // topo do último lance: engaste parcial com as vigas (flexão nas duas direções)
+      if (x === l.at(-1) && op.engasteTopoUltimo < 1) barra.engJ = [[4, op.engasteTopoUltimo], [5, op.engasteTopoUltimo]];
+      pm.barras.push(barra);
       ptags.push({ tipo: 'pilar', ref: p.id, pavimento: x.id });
       // peso próprio do lance no nó de cima
       const [w, h] = dimsSecao(sx), area = sx.tipo === 'circ' ? (Math.PI * w * w) / 4 : w * h;
@@ -505,6 +502,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       for (const [, i] of nivel) pm.escravos!.push({ no: i, mestre: mi });
     }
   }
+  // engaste parcial no topo só onde há vigas no nó: sem elas o giro ficaria sem rigidez (mecanismo)
+  const nBarras = new Map<number, number>();
+  for (const br of pm.barras) { nBarras.set(br.i, (nBarras.get(br.i) ?? 0) + 1); nBarras.set(br.j, (nBarras.get(br.j) ?? 0) + 1); }
+  pm.barras.forEach((br, i) => { if (ptags[i].tipo === 'pilar' && br.engJ && (nBarras.get(br.j) ?? 0) < 2) delete br.engJ; });
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
   const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)) };
   const res = resolver3(pmV, casosV);
