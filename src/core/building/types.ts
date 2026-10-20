@@ -23,16 +23,18 @@ export interface Norma {
   cobrimento: { laje: number; viga: number; pilar: number };
   /** ψ0, ψ1, ψ2 da carga variável de uso (NBR 6118, Tabela 11.2). */
   psiQ?: [number, number, number];
-  /** fck por tipo de elemento (MPa); ausente = fck da obra. */
-  fckElem?: { laje?: number; viga?: number; pilar?: number };
+  /** fck por tipo de elemento (MPa; fundacao = sapatas e blocos do edifício); ausente = fck da obra. */
+  fckElem?: { laje?: number; viga?: number; pilar?: number; fundacao?: number };
   /** fck dos pilares por lance (pavimento do topo do lance). */
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
-  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup', 'CA-50' | 'CA-60'>>;
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'fundacao', 'CA-50' | 'CA-60'>>;
   /** Coeficientes de ponderação (padrão γc 1,4; γs 1,15; γg 1,4; γq 1,4). */
   gamas?: Partial<{ c: number; s: number; g: number; q: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
   cobFaces?: Partial<{ vigaInf: number; vigaSup: number; vigaLat: number; lajeInf: number; lajeSup: number }>;
+  /** Cobrimento das fundações (sapatas, blocos e tubulões; cm); ausente = o das opções das fundações (padrão 5 cm). */
+  cobFundacao?: number;
 }
 
 export type CategoriaVento = 'I' | 'II' | 'III' | 'IV' | 'V';

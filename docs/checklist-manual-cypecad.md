@@ -824,7 +824,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.15 | Girar em torno do centro: por ângulo digitado, por dois pontos (vetor de direção) ou pelo ângulo de um pilar apoiado (com vários, o do primeiro). | Parcial | FU | FU1 no núcleo: `fundacao.girar` por ângulo, dois pontos ou ângulo do pilar (o do primeiro); falta a interface |
 | C11.16 | Unir várias sapatas numa só (não vale para blocos). | Falta | FU |  |
 | C11.17 | Igualar sapatas: copiar geometria, tipo e armadura de uma sapata mestre para outras. | Falta | FU |  |
-| C11.18 | Informação: materiais (inclusive tensão admissível do solo nas sapatas), geometria, resultados, avisos e erros. | Feito | — | resultados, avisos e memorial de fundações |
+| C11.18 | Informação: materiais (inclusive tensão admissível do solo nas sapatas), geometria, resultados, avisos e erros. | Feito | — | resultados, avisos e memorial de fundações; no edifício, fck, aço e cobrimento da fundação nos materiais (`materiais.definir`, FU1) e σadm no terreno |
 | | **11.2.3 Opções avançadas de sapatas (módulo adicional)** | | | |
 | C11.19 | Limites poligonais que as sapatas de concreto não podem invadir (divisa, poço de elevador, reservatórios), também úteis para gerar sapatas poligonais irregulares. | Falta | FU |  |
 | C11.20 | Limites por polilinhas digitadas ou capturadas de gabarito DXF/DWG; valem só para o grupo onde foram lançados; uma sapata pode ser cortada por vários limites. | Falta | FU |  |
@@ -944,4 +944,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia FU1 no núcleo (fundações por pilar e dados do terreno).** Elementos de fundação no modelo do edifício (`ElementoFundacao`, `FundacaoEdificio` em `types.ts`), adaptador `src/core/building/fundacao.ts` sobre o núcleo do módulo Fundações (sapata com pilar fora do centro, de divisa e de canto em `footings.ts`; estacas por capacidade informada em `piles.ts`), comandos `fundacao.*` e `sondagem.*`, arranques, códigos FUND_* na revisão e resultados em `dimensionarEdificio`. Itens da FU1 reconferidos: todos seguem Parcial até a interface da FU1 (C4.2, C11.10, C11.14, C11.15, C11.61, C11.62 e C11.64 saíram de Falta).
   - Situação: Feito 104 → 104; Parcial 119 → 126; Falta 355 → 348; Fora 185 → 185.
   - Pendências por frente: FU 67 → 67 (Parcial 12 → 19, Falta 55 → 48); demais sem mudança.
+- **20/10/2026 — FU1: materiais da fundação e itens "a confirmar".** C11.18 com o concreto, o aço e o cobrimento próprios da fundação do edifício (padrão os da obra, `materiais.definir`); cota do terreno, N·e em módulo e raras sem e com vento em separado conferidos contra o cap. 11 (sem registro em contrário) e adotados como padrão do programa de referência. Situação sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
