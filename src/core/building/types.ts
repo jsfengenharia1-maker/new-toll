@@ -346,7 +346,7 @@ export interface ConfigArmacao {
   /** Quadro de pilares (seção, armadura e estribos por lance) no fim das pranchas de pilares. */
   quadroPilares: 0 | 1;
 }
-export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 50, escalaSecao: 25, escalaPilares: 50, escalaLajes: 0, escalaLocacao: 0, lajesSeparadas: 1, quadroPilares: 1 };
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, lajesSeparadas: 1, quadroPilares: 1 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

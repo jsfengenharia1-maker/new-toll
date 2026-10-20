@@ -55,7 +55,7 @@ describe('pranchas de armação (R5)', () => {
     expect(pr.avisos).toEqual([]);
     expect(pr.elementos).toEqual(['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7']);
     const t = textos(pr);
-    for (const x of ['V1', 'SEÇÃO', 'P1', 'TABELA DE AÇO', 'RESUMO DE AÇO', 'ARMAÇÃO DAS VIGAS — TIPO', 'ARV', 'INDICADA']) expect(t).toContain(x);
+    for (const x of ['V1', 'SEÇÃO', 'P1', 'TABELA DE AÇO', 'RESUMO DE AÇO', 'ARMAÇÃO DAS VIGAS — TIPO', 'SCV', 'INDICADA']) expect(t).toContain(x);
     expect(t.filter((x) => /^3×\d+ N\d+ φ\d+,\d C=\d+$/.test(x)).length).toBeGreaterThan(20); // barras: repetições × n
     expect(t.some((x) => /^3×\d+ N\d+ c\/\d+$/.test(x))).toBe(true); // zonas de estribos
     expect(t).toContain('480'); // vão livre 5 m − 20 cm de pilar
@@ -70,14 +70,14 @@ describe('pranchas de armação (R5)', () => {
 
   it('vigas: paginação em várias folhas no formato fixo pequeno, posições por folha', () => {
     const s2 = edificioExemplo();
-    expect(s2.executar('prancha.definir', { armacao: { formato: 'A3', escalaVigas: 75 } }).ok).toBe(true);
+    expect(s2.executar('prancha.definir', { armacao: { formato: 'A3', escalaVigas: 50 } }).ok).toBe(true);
     const an2 = analisarEdificio(s2.modelo), d2 = dimensionarEdificio(s2.modelo, an2);
     const prs = montarPranchasVigas(s2.modelo, an2, d2);
     expect(prs.length).toBeGreaterThan(1);
     expect(prs.flatMap((p) => p.elementos)).toHaveLength(7);
     expect(pesoFolhas(prs)).toBeCloseTo(soma(d2.resumoAcoVigas!), 6);
     for (const p of prs) expect(p.aco!.tabela[0].pos).toBe('N1');
-    expect(textos(prs[0])).toContain('ESC 1:75 · 15×50 · 3× (Tipo 1 a Tipo 3)');
+    expect(textos(prs[0])).toContain('ESC 1:50 · 15×50 · 3× (Tipo 1 a Tipo 3)');
   });
 
   it('pilares: grupos de iguais, níveis, seções; peso igual ao detalhamento; quadro opcional', () => {
@@ -125,7 +125,7 @@ describe('pranchas de armação (R5)', () => {
   it('locação: pilares, eixos, cargas características e de cálculo e notas gerais', () => {
     const pr = montarPranchaLocacao(s.modelo, an)!;
     const t = textos(pr);
-    for (const x of ['P1', '20×50', 'A', '1', 'Nk,máx', 'Nd,máx', 'Hyd', 'NOTAS GERAIS', 'LOC']) expect(t).toContain(x);
+    for (const x of ['P1', '20×50', 'A', '1', 'Nk,máx', 'Nd,máx', 'Hyd', 'NOTAS GERAIS', 'SFN']) expect(t).toContain(x);
     expect(t.some((x) => /C30/.test(x) && /pilares/.test(x))).toBe(true);
     // valores com vírgula e duas casas; Nd > Nk no pilar
     const tp = pr.papel.flatMap((q) => (q.t === 'txt' ? [q.s] : [])), i5 = tp.indexOf('P5');

@@ -293,11 +293,12 @@ export function numerarPrancha(pr: Prancha, n: number, total: number) {
   if (v && v.t === 'txt') v.s = `${String(n).padStart(2, '0')}/${String(total).padStart(2, '0')}`;
 }
 
-const ESCALAS_PLANTA = [50, 75, 100, 125, 200, 250];
+// escala automática das plantas a partir de 1:75 (folhas de referência); 1:50 só quando escolhida
+const ESCALAS_PLANTA = [75, 100, 125, 200, 250];
 
 /**
  * Formato e escala de uma planta (caixa em m) na área das pranchas de armação: os fixos; senão o menor formato
- * (A3 a A0) em que cabe em 1:50, depois 1:75, 1:100… Devolve também a janela centrada na geometria.
+ * (A3 a A0) em que cabe em 1:75, depois 1:100, 1:125… Devolve também a janela centrada na geometria.
  */
 export function plantaNaFolha(cx: [number, number, number, number], formato: Formato | 'auto', escala: number, folga = 28) {
   const [gx0, gy0, gx1, gy1] = cx;

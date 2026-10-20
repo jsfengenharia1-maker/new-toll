@@ -7,7 +7,8 @@ import { TRELICADAS } from '../building/lajes';
 
 export type { P };
 
-/** Camadas com cor (índice ACI) e pena (mm, série da NBR 16861 [a confirmar]). */
+/** Camadas com cor (índice ACI) e pena (mm, série da NBR 16861 [a confirmar]). Hierarquia das folhas de referência:
+ * concreto e moldura grossos, barras médias, cotas, eixos e linhas de chamada finos em cinza. */
 export const CAMADAS = {
   'FOLHA': { cor: 7, pena: 0.5, tipo: 'cont' },
   'FOLHA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
@@ -19,7 +20,7 @@ export const CAMADAS = {
   'LAJE': { cor: 4, pena: 0.25, tipo: 'cont' },
   'TEXTO': { cor: 7, pena: 0.25, tipo: 'cont' },
   'EIXO': { cor: 9, pena: 0.13, tipo: 'eixo' },
-  'COTA': { cor: 2, pena: 0.18, tipo: 'cont' },
+  'COTA': { cor: 8, pena: 0.18, tipo: 'cont' },
   'QUADRO': { cor: 7, pena: 0.25, tipo: 'cont' },
   // armação (R5): contorno do concreto nas elevações e seções, barras (inferiores/positivas e superiores/negativas) e planta de fundo fina
   'CONCRETO': { cor: 7, pena: 0.5, tipo: 'cont' },
@@ -40,14 +41,17 @@ export type Prim =
   | { t: 'hach'; c: Camada; pts: P[] };
 
 export const FORMATOS: Record<Formato, [number, number]> = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210] };
-/** Margens (mm) [a confirmar na NBR 16752]: esquerda 20; demais 10 (A0, A1) ou 7 (A2–A4). Legenda com 178 mm de largura. */
+/** Margens (mm) [a confirmar na NBR 16752]: esquerda 20 (maior, para furação, como nas folhas de referência); demais 10
+ * (A0, A1) ou 7 (A2–A4). Legenda com 178 mm de largura (175–180 mm nas folhas de referência). */
 export const margens = (f: Formato) => ({ esq: 20, outras: f === 'A0' || f === 'A1' ? 10 : 7 });
 export const LARGURA_LEGENDA = 178;
-export const ESCALAS = [50, 75, 100, 125, 200, 250];
+/** Escalas da planta de formas automática: a partir de 1:75, como nas folhas de referência (1:50 só quando escolhida). */
+export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
 export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes';
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'FOR', locacao: 'LOC', vigas: 'ARV', pilares: 'ARP', lajes: 'ARL' };
+/** Siglas das folhas de referência (fundação SFN, formas SCF, vigas SCV, pilares SCP); lajes SCL por extensão [a confirmar]. */
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SFN', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL' };
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */
 export interface LinhaTabelaAco { pos: string; aco: string; phi: number; quant: number; cUnit: number; cTotal: number }
@@ -204,7 +208,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     const a = areaDesenho(f), k = 1000 / e;
     return (gx1 - gx0) * k + 2 * FOLGA_PAPEL <= a.x1 - a.x0 && (gy1 - gy0) * k + 2 * FOLGA_PAPEL <= a.y1 - a.y0;
   };
-  // formato e escala: os informados; senão o menor formato que cabe em 1:50 (depois 1:75, 1:100...)
+  // formato e escala: os informados; senão o menor formato que cabe em 1:75 (depois 1:100, 1:125...)
   const fFix = (o.formato ?? cfg.formato) !== 'auto' ? (o.formato ?? cfg.formato) as Formato : null;
   const eFix = (o.escala ?? cfg.escala) || 0;
   const forms: Formato[] = fFix ? [fFix] : ['A4', 'A3', 'A2', 'A1', 'A0'];
@@ -249,7 +253,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     const inv = ang > 90.01 || ang < -89.99;
     if (inv) ang += ang > 0 ? -180 : 180;
     const off = 1.2 * k;
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [a[0] + ux * tm + nx * off, a[1] + uy * tm + ny * off], h: 2.5 * k, s: `${v.nome} (${cm(v.secao.b)}×${cm(v.secao.h)})`, ang, ah: 'c', av: inv ? 'topo' : 'base' });
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [a[0] + ux * tm + nx * off, a[1] + uy * tm + ny * off], h: 2.5 * k, s: `${v.nome} ${cm(v.secao.b)}×${cm(v.secao.h)}`, ang, ah: 'c', av: inv ? 'topo' : 'base' });
   }
   const rotPilar = (p: Pilar, s: SecaoPilar, c: P[]) => {
     const [, , x1, y1] = caixa(c);

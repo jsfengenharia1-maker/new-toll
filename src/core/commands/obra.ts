@@ -69,7 +69,7 @@ const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'r
 
 registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao> }>({
   nome: 'prancha.definir',
-  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 50, escalaSecao 25, escalaPilares 50, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.',
+  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 75, escalaSecao 25, escalaPilares 40, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
@@ -78,7 +78,7 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
     armacao: { type: 'object', additionalProperties: false, properties: {
       formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
-      escalaVigas: { type: 'number', enum: [20, 25, 50, 75, 100] }, escalaSecao: { type: 'number', enum: [10, 20, 25, 50] }, escalaPilares: { type: 'number', enum: [20, 25, 50, 75, 100] },
+      escalaVigas: { type: 'number', enum: [20, 25, 50, 75, 100] }, escalaSecao: { type: 'number', enum: [10, 20, 25, 50] }, escalaPilares: { type: 'number', enum: [20, 25, 40, 50, 75, 100] },
       escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] },
       lajesSeparadas: { type: 'number', enum: [0, 1] }, quadroPilares: { type: 'number', enum: [0, 1] },
     } },

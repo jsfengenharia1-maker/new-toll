@@ -58,7 +58,7 @@ export function Pranchas() {
   const pr = prs[i];
   const svg = useMemo(() => (pr ? svgPrancha(pr) : ''), [pr]);
   const base = slug(b.obra.nome || 'edificio');
-  const nome = (p: (typeof prs)[number], k: number) => `${base}-${p.tipo ? SIGLAS[p.tipo] : 'FOR'}-${String(k + 1).padStart(2, '0')}`;
+  const nome = (p: (typeof prs)[number], k: number) => `${base}-${SIGLAS[p.tipo ?? 'formas']}-${String(k + 1).padStart(2, '0')}`;
   const pa = (patch: Partial<ConfigArmacao>) => exec('prancha.definir', { armacao: patch });
   const salvar = async (arquivo: string, dados: Uint8Array, mime: string) => {
     const r = await download(arquivo, dados, mime);
@@ -114,7 +114,7 @@ export function Pranchas() {
                 {prs.map((p, k) => (
                   <tr key={k} className={k === i ? 'on' : ''} onClick={() => setSel(k)} data-folha-item={k + 1}>
                     <td className="tl">{String(k + 1).padStart(2, '0')}/{String(prs.length).padStart(2, '0')}</td>
-                    <td className="tl">{p.tipo ? SIGLAS[p.tipo] : 'FOR'}</td>
+                    <td className="tl">{SIGLAS[p.tipo ?? 'formas']}</td>
                     <td className="tl">{p.titulo}</td><td className="num">{p.formato}</td><td className="num">1:{p.escala}</td>
                   </tr>
                 ))}
@@ -157,14 +157,14 @@ export function Pranchas() {
           <Select label="Folha de armação" value={arm.formato} options={FORMATOS} onChange={(f) => pa({ formato: f })} />
           <Select label="Escala das vigas" value={arm.escalaVigas} options={escalas([25, 50, 75, 100], arm.escalaVigas)} onChange={(e) => pa({ escalaVigas: e })} />
           <Select label="Escala das seções" value={arm.escalaSecao} options={escalas([10, 20, 25, 50], arm.escalaSecao)} onChange={(e) => pa({ escalaSecao: e })} />
-          <Select label="Escala dos pilares" value={arm.escalaPilares} options={escalas([50, 75, 100, 125], arm.escalaPilares)} onChange={(e) => pa({ escalaPilares: e })} />
+          <Select label="Escala dos pilares" value={arm.escalaPilares} options={escalas([25, 40, 50, 75, 100, 125], arm.escalaPilares)} onChange={(e) => pa({ escalaPilares: e })} />
           <Select label="Escala das lajes" value={arm.escalaLajes} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLajes, 'a das formas')} onChange={(e) => pa({ escalaLajes: e })} />
           <Select label="Escala da locação" value={arm.escalaLocacao} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLocacao, 'a das formas')} onChange={(e) => pa({ escalaLocacao: e })} />
         </div>
         <Check label="Lajes: positivas e negativas em folhas separadas" checked={arm.lajesSeparadas === 1} onChange={(v) => pa({ lajesSeparadas: v ? 1 : 0 })} />
         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
         <Hint>
-          Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:75, 1:100… quando não cabem na altura), lajes e locação na escala das formas, lajes em folhas separadas e quadro de pilares ligado. A confirmar (premissa pranchas-armacao): escalas, formato, siglas (LOC, FOR, ARV, ARP, ARL), penas e cores das camadas e a representação das lajes. As perdas do aço vêm das opções de cálculo.
+          Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
         </Hint>
       </Group>
       <div className="card">

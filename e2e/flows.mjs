@@ -466,8 +466,8 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
       const prev = page.locator('.prancha-prev');
       await prev.locator('svg').waitFor();
-      assert.equal(await prev.getAttribute('data-escala'), '50');
-      assert.match(await prev.textContent(), /V1 \(15×40\).*QUADRO DE PILARES.*PLANTA DE FORMAS — TIPO/s);
+      assert.equal(await prev.getAttribute('data-escala'), '75'); // automática a partir de 1:75 (folhas de referência)
+      assert.match(await prev.textContent(), /V1 15×40.*QUADRO DE PILARES.*PLANTA DE FORMAS — TIPO/s);
       await page.getByLabel('Responsável técnico').fill('Eng. Teste');
       await page.getByLabel('Responsável técnico').press('Enter');
       await prev.getByText('Eng. Teste').waitFor();
@@ -1098,32 +1098,32 @@ export const flows = [
       assert.equal(await prev.getAttribute('data-tipo'), 'vigas');
       assert.match(await prev.textContent(), /N1/);
       assert.ok((await peso()) > 0, 'peso de aço da folha de vigas');
-      assert.match(await lista.innerText(), /ARV/);
+      assert.match(await lista.innerText(), /SCV/);
       // armação de pilares
       await tipo.selectOption({ label: 'Armação de pilares' });
       await prev.locator('svg').waitFor();
       assert.equal(await prev.getAttribute('data-tipo'), 'pilares');
       assert.match(await prev.textContent(), /N1/);
-      assert.match(await lista.innerText(), /ARP/);
+      assert.match(await lista.innerText(), /SCP/);
       assert.ok((await peso()) > 0, 'peso de aço da folha de pilares');
       // armação de lajes
       await tipo.selectOption({ label: 'Armação de lajes' });
       await prev.locator('svg').waitFor();
       assert.equal(await prev.getAttribute('data-tipo'), 'lajes');
       assert.match(await prev.textContent(), /N1/);
-      assert.match(await lista.innerText(), /ARL/);
+      assert.match(await lista.innerText(), /SCL/);
       // locação e cargas
       await tipo.selectOption({ label: 'Locação e cargas' });
       await prev.locator('svg').waitFor();
       assert.equal(await prev.getAttribute('data-tipo'), 'locacao');
       assert.match(await prev.textContent(), /kN/);
-      assert.match(await lista.innerText(), /LOC/);
+      assert.match(await lista.innerText(), /SFN/);
       // opção de armação: escala das vigas muda a folha
       await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await tipo.selectOption({ label: 'Armação de vigas' });
-      await page.getByLabel('Escala das vigas').selectOption({ label: '1:75' });
-      await page.waitForFunction(() => /1:75/.test(document.querySelector('[data-lista-folhas]')?.textContent ?? ''));
       await page.getByLabel('Escala das vigas').selectOption({ label: '1:50' });
+      await page.waitForFunction(() => /1:50/.test(document.querySelector('[data-lista-folhas]')?.textContent ?? ''));
+      await page.getByLabel('Escala das vigas').selectOption({ label: '1:75' });
       // conjunto completo, numerado
       await tipo.selectOption({ label: 'Conjunto completo' });
       await prev.locator('svg').waitFor();
@@ -1131,7 +1131,7 @@ export const flows = [
       assert.ok(n >= 5, `folhas do conjunto: ${n}`);
       assert.equal(await page.locator('[data-folha-item]').count(), n);
       assert.match(await prev.textContent(), /01\//);
-      for (const sg of ['LOC', 'FOR', 'ARV', 'ARP', 'ARL']) assert.match(await lista.innerText(), new RegExp(sg));
+      for (const sg of ['SFN', 'SCF', 'SCV', 'SCP', 'SCL']) assert.match(await lista.innerText(), new RegExp(sg));
       await page.getByRole('button', { name: 'Próxima folha' }).click();
       assert.equal(await prev.getAttribute('data-folha'), '2');
       assert.match(await prev.textContent(), /02\//);
@@ -1141,7 +1141,7 @@ export const flows = [
         return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
       };
       const pdf = await baixar('PDF da folha');
-      assert.match(pdf.nome, /-FOR-02\.pdf$/);
+      assert.match(pdf.nome, /-SCF-02\.pdf$/);
       assert.equal(pdf.dados.subarray(0, 5).toString('latin1'), '%PDF-');
       const todas = await baixar('PDF (todas)');
       assert.match(todas.nome, /-conjunto\.pdf$/);

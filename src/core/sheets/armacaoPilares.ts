@@ -16,7 +16,7 @@ import {
 } from './armacao';
 import type { OpcoesArmacao } from './armacaoVigas';
 
-const ESCALAS_ELEV = [20, 25, 50, 75, 100, 125, 150, 200, 250];
+const ESCALAS_ELEV = [20, 25, 40, 50, 75, 100, 125, 150, 200, 250];
 
 export interface GrupoPilares { pilares: Pilar[]; det: DetalhePilar; res: (ResultadoPilar | undefined)[] }
 

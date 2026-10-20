@@ -51,13 +51,13 @@ function conferirRelido(d: Drawing, pr: Prancha) {
 describe('pranchas', () => {
   it('planta de formas do grupo Tipo: formato e escala automáticos, elementos, quadro e carimbo', () => {
     const pr = prancha();
-    expect([pr.formato, pr.escala]).toEqual(['A2', 50]);
+    expect([pr.formato, pr.escala]).toEqual(['A2', 75]); // automática a partir de 1:75 (folhas de referência)
     expect(pr.avisos).toEqual([]);
     const txt = textosPr(pr, false);
-    for (const t of ['V1 (15×50)', 'P1', '20×50', 'L1', 'h=12', '500', '1500', 'A', '1']) expect(txt).toContain(t);
+    for (const t of ['V1 15×50', 'P1', '20×50', 'L1', 'h=12', '500', '1500', 'A', '1']) expect(txt).toContain(t);
     expect(pr.modelo.filter((q) => q.t === 'hach')).toHaveLength(12); // pilares que chegam ao pavimento
     const pap = textosPr(pr, true);
-    for (const t of ['QUADRO DE PILARES', 'PLANTA DE FORMAS — TIPO', 'Escritório Exemplo', 'CREA 000000/D', '1:50', '01/01', 'Fundação', 'Cobertura']) expect(pap).toContain(t);
+    for (const t of ['QUADRO DE PILARES', 'PLANTA DE FORMAS — TIPO', 'Escritório Exemplo', 'CREA 000000/D', '1:75', '01/01', 'Fundação', 'Cobertura']) expect(pap).toContain(t);
     // tudo do modelo cabe na janela
     const s = 1000 / pr.escala, j = pr.janela!;
     for (const q of pr.modelo) for (const [x, y] of q.t === 'pl' || q.t === 'hach' ? q.pts : q.t === 'circ' ? [q.centro] : [q.p]) {
@@ -93,7 +93,7 @@ describe('pranchas', () => {
     expect(t).toContain('/MediaBox [0 0 1683.7795 1190.5512]');
     expect((t.match(/\/Type \/Page\b/g) ?? []).length).toBe(2);
     expect((t.match(/\/Type \/OCG/g) ?? []).length).toBe(Object.keys(CAMADAS).length - 5); // PILAR-NASCE e as camadas de armação não aparecem
-    expect(t).toContain('(V1 \\(15\\32750\\)) Tj'); // × em WinAnsi (0xD7)
+    expect(t).toContain('(V1 15\\32750) Tj'); // × em WinAnsi (0xD7)
     expect(t).toContain('(Escrit\\363rio Exemplo) Tj');
   });
 
@@ -109,7 +109,7 @@ describe('pranchas', () => {
     const own = lerDxf(t);
     expect(own.insunits).toBe(6);
     expect(own.camadas.VIGA.linhas.length / 4).toBeGreaterThan(20);
-    expect(own.camadas.TEXTO.textos.map((x) => x.t)).toContain('V1 (15×50)');
+    expect(own.camadas.TEXTO.textos.map((x) => x.t)).toContain('V1 15×50');
     expect(own.camadas['FOLHA-TEXTO'].textos.map((x) => x.t)).toContain('PLANTA DE FORMAS — TIPO');
   });
 
