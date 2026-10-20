@@ -1,7 +1,7 @@
 // Grupo "Opções de cálculo" da barra lateral do edifício (frente N1a): cada opção com padrão, fonte e "a confirmar".
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso } from '../../core/building/opcoes';
 import type { BuildingModel } from '../../core/building/types';
-import { Button, Group, Hint, NumField } from '../ui';
+import { Button, Check, Group, Hint, NumField } from '../ui';
 import { useBuilding } from './store';
 
 const num = (v: number) => String(v).replace('.', ',');
@@ -14,9 +14,11 @@ export function OpcoesGrupo({ b }: { b: BuildingModel }) {
     <Group title={`Opções de cálculo${alteradas.length ? ` (${alteradas.length} alterada${alteradas.length > 1 ? 's' : ''})` : ''}`} open={false}>
       {OPCOES_INFO.map((o) => (
         <div key={o.chave} className="row wrap u-items-end">
-          <NumField label={o.rotulo} unit={o.unidade} width={190} value={op[o.chave]} onChange={(v) => exec('opcoes.definir', { valores: { [o.chave]: v } })} />
+          {o.booleana
+            ? <Check label={o.rotulo} checked={!!op[o.chave]} onChange={(c) => exec('opcoes.definir', { valores: { [o.chave]: c ? 1 : 0 } })} />
+            : <NumField label={o.rotulo} unit={o.unidade} width={190} value={op[o.chave]} onChange={(v) => exec('opcoes.definir', { valores: { [o.chave]: v } })} />}
           <span className="muted small" title={o.descricao}>
-            padrão {num(o.padrao)} · {o.fonte}{o.aConfirmar ? ' · a confirmar' : ''}
+            padrão {o.booleana ? (o.padrao ? 'sim' : 'não') : num(o.padrao)} · {o.fonte}{o.aConfirmar ? ' · a confirmar' : ''}
             {op[o.chave] !== o.padrao && <> · <b>alterada</b></>}
           </span>
         </div>

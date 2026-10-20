@@ -304,7 +304,7 @@ export function Planta() {
     for (const c of cargas) {
       const sel = pl.selecao.has(c.id), cor = sel ? cores.selecao : c.origem ? cores.parede : cores.carga;
       const pts = c.pontos.map((q) => paraTela(q[0], q[1]));
-      const rot = `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${c.caso}`;
+      const rot = `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${b.casos?.find((x) => x.id === c.caso)?.nome ?? c.caso}`;
       ctx.strokeStyle = cor; ctx.fillStyle = cor;
       if (c.tipo === 'ponto') {
         const [x, y] = pts[0];

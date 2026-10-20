@@ -38,7 +38,7 @@ function base() {
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4] }),
-  'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2 }),
+  'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2, sentido: { xn: 0.33 }, vizinhanca: 1.1, platibanda: 1 }),
   'caso.criar': () => ({ nome: 'Água', natureza: 'Q', grupo: 'reservatório', psi: [0.5, 0.4, 0.3] }),
   'caso.editar': (b) => ({ id: b.casos![0].id, natureza: 'Q', grupo: 'g1', simultaneo: 'Q' }),
   'caso.remover': (b) => ({ id: b.casos![0].id }),

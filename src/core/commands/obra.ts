@@ -41,9 +41,10 @@ registrar<{ nome?: string; cidade?: string; profundidadeFundacao?: number }>({
   },
 });
 
-registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: CategoriaVento; caX?: number; caY?: number; excentricidade?: number }>({
+registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: CategoriaVento; caX?: number; caY?: number; excentricidade?: number;
+  sentido?: Partial<{ xp: number; xn: number; yp: number; yn: number }>; vizinhanca?: number; platibanda?: number }>({
   nome: 'vento.definir',
-  descricao: 'Define o vento (NBR 6123): ativo, V0 (m/s), S1, S3, categoria de rugosidade (I a V), coeficientes de arrasto Ca nas direções X e Y e excentricidade relativa (0,075 = edificação comum). Gera 12 casos: 4 direções × (centrado, +e, −e).',
+  descricao: 'Define o vento (NBR 6123): ativo, V0 (m/s), S1, S3, categoria de rugosidade (I a V), coeficientes de arrasto Ca nas direções X e Y, excentricidade relativa (0,075 = edificação comum), coeficiente por sentido (+X, −X, +Y, −Y; edifício abrigado por vizinho; 1 = padrão), fator de vizinhança (NBR 6123, 6.4) e altura da platibanda (m, somada à faixa do último pavimento). Gera 12 casos: 4 direções × (centrado, +e, −e).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, properties: {
     ativo: { type: 'boolean' }, v0: { type: 'number', minimum: 20, maximum: 60, description: 'm/s (isopletas)' },
@@ -51,10 +52,15 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
     categoria: { type: 'string', enum: ['I', 'II', 'III', 'IV', 'V'] },
     caX: { type: 'number', minimum: 0.3, maximum: 3 }, caY: { type: 'number', minimum: 0.3, maximum: 3 },
     excentricidade: { type: 'number', minimum: 0, maximum: 0.3 },
+    sentido: { type: 'object', additionalProperties: false, properties: Object.fromEntries(['xp', 'xn', 'yp', 'yn'].map((k) => [k, { type: 'number', minimum: 0, maximum: 2 }])) },
+    vizinhanca: { type: 'number', minimum: 1, maximum: 1.3 }, platibanda: { type: 'number', minimum: 0, maximum: 5 },
   } },
   aplicar(d, p) {
     d.vento ??= { ...VENTO_PADRAO };
     for (const k of ['ativo', 'v0', 's1', 's3', 'categoria', 'caX', 'caY', 'excentricidade'] as const) if (p[k] !== undefined) (d.vento as Record<string, unknown>)[k] = p[k];
+    if (p.sentido) { const s0 = { ...d.vento.sentido, ...p.sentido }; for (const k of ['xp', 'xn', 'yp', 'yn'] as const) if (s0[k] === 1) delete s0[k]; if (Object.keys(s0).length) d.vento.sentido = s0; else delete d.vento.sentido; }
+    if (p.vizinhanca !== undefined) { if (p.vizinhanca === 1) delete d.vento.vizinhanca; else d.vento.vizinhanca = p.vizinhanca; }
+    if (p.platibanda !== undefined) { if (!p.platibanda) delete d.vento.platibanda; else d.vento.platibanda = p.platibanda; }
     return 'Vento alterado.';
   },
 });

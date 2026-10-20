@@ -13,6 +13,9 @@ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
 import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
 import { svgPlantaGrupo } from './desenhoMemorial';
+import { casosDaObra } from '../../core/building/types';
+import { combinacoesEdificio } from '../../core/building/combinacoes';
+import { naturezaTexto, psiDoCaso } from './Casos';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
@@ -32,6 +35,12 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const falhas = new Set([...(dim?.vigas ?? []).filter((x) => x.status !== 'ok').map((x) => x.viga), ...(dim?.pilares ?? []).filter((x) => x.status === 'fail').map((x) => x.pilar)]);
   const nome = b.obra.nome || 'Edifício';
+  const casos = casosDaObra(b);
+  const nomeCaso = (id: string) => casos.find((c) => c.id === id)?.nome ?? id;
+  const cps = b.cargasPilar ?? [];
+  const combs = useMemo(() => (analise ? combinacoesEdificio(b, analise) : []), [b, analise]);
+  const porTipo = (t: string) => combs.filter((c) => c.tipo === t).length;
+  const excepcionais = combs.filter((c) => c.nome.startsWith('ELU excepcional'));
 
   const printCss = memoPrintCss({ title: nome, obra: b.obra.nome, rev: 'R00', date: today });
   const html = () => {
@@ -97,6 +106,22 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>{b.grupos.map((g) => <tr key={g.id}><td className="l">{g.nome}</td><td className="l">{USOS.find((u) => u.v === g.uso)?.label ?? g.uso}</td><td>{fmt(g.gRev)}</td><td>{fmt(g.q)}</td></tr>)}</tbody>
           </table>
           <p>Peso próprio com γ = 25 kN/m³. {b.cargas.length} carga(s) adicional(is) lançada(s) (pontuais, lineares, por área e alvenarias).{r && !r.erro ? ` Totais: G = ${fmt(r.totais.G, 1)} kN; Q = ${fmt(r.totais.Q, 1)} kN.` : ''}</p>
+          <h3>Casos de carga</h3>
+          <table>
+            <thead><tr><th className="l">Caso</th><th className="l">Natureza</th><th className="l">Grupo (incompatíveis)</th><th className="l">Simultâneo com</th><th>ψ0</th><th>ψ1</th><th>ψ2</th></tr></thead>
+            <tbody>{casos.map((c) => { const ps0 = c.id === 'Q' ? c.psi ?? null : psiDoCaso(b, c); return <tr key={c.id}><td className="l">{c.nome}</td><td className="l">{naturezaTexto(c.natureza)}</td><td className="l">{c.grupo ?? '—'}</td><td className="l">{c.simultaneo ? nomeCaso(c.simultaneo) : '—'}</td>{[0, 1, 2].map((i) => <td key={i}>{ps0 ? fmt(ps0[i], 2) : '—'}</td>)}</tr>; })}</tbody>
+          </table>
+          {cps.length > 0 && (<>
+            <h3>Cargas nos pilares</h3>
+            <table>
+              <thead><tr><th className="l">Pilar</th><th className="l">Lance</th><th className="l">Caso</th><th>Altura (m)</th><th>N (kN)</th><th>Hx (kN)</th><th>Hy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>
+              <tbody>{cps.map((c) => <tr key={c.id}><td className="l">{b.pilares.find((p) => p.id === c.pilar)?.nome ?? c.pilar}</td><td className="l">{b.pavimentos.find((p) => p.id === c.pavimento)?.nome ?? c.pavimento}</td><td className="l">{nomeCaso(c.caso)}</td><td>{c.altura === undefined ? 'topo' : fmt(c.altura)}</td><td>{fmt(c.N, 1)}</td><td>{fmt(c.Hx, 1)}</td><td>{fmt(c.Hy, 1)}</td><td>{fmt(c.Mx, 1)}</td><td>{fmt(c.My, 1)}</td></tr>)}</tbody>
+            </table>
+            <p>Eixos globais; N &gt; 0 = compressão.</p>
+          </>)}
+          {analise && !analise.erro && (
+            <p>Combinações geradas: {combs.length} ({porTipo('ELU')} ELU, {porTipo('RARA')} raras, {porTipo('FREQ')} frequentes, {porTipo('QP')} quase permanentes).{excepcionais.length ? ` Excepcionais: ${excepcionais.map((c) => c.nome.replace('ELU excepcional ', '')).join('; ')}.` : ''} A lista completa, com os fatores por caso, pode ser exportada em CSV na aba Análise.</p>
+          )}
           <p>Vento: {v.ativo ? `V0 = ${fmt(v.v0, 0)} m/s, S1 = ${fmt(v.s1)}, S3 = ${fmt(v.s3)}, categoria ${v.categoria}, Ca = ${fmt(v.caX)} (X) / ${fmt(v.caY)} (Y), excentricidade ${fmt(v.excentricidade, 3)} × largura${r?.vento ? `, classe ${r.vento.classe} (altura ${fmt(r.vento.altura, 1)} m)` : ''}.` : 'não considerado.'}</p>
 
           {h2('Modelo de análise')}

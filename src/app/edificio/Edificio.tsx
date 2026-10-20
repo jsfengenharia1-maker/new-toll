@@ -8,17 +8,19 @@ import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
+import { casosDaObra, comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
+import { Button, download, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
+import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
 import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
+import { CasosGrupo } from './Casos';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -83,6 +85,7 @@ export function Edificio() {
         <LajesGrupo b={b} />
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
+        <CasosGrupo b={b} />
         <OpcoesGrupo b={b} />
         <MateriaisGrupo b={b} />
         <VinculosGrupo b={b} />
@@ -582,7 +585,7 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
       {grupo && <Hint>Em toda a planta: revestimento {fmt(grupo.gRev)} kN/m² (G) e uso {fmt(grupo.q)} kN/m² (Q), além do peso próprio — edite em Grupos.</Hint>}
       <div className="row wrap">
         <Select label="Tipo" value={pl.tipoCarga} options={[{ v: 'ponto', label: 'Ponto' }, { v: 'linha', label: 'Linha' }, { v: 'area', label: 'Área' }]} onChange={(v) => pl.set({ tipoCarga: v })} />
-        <Select label="Caso" value={pl.caso} options={[{ v: 'G', label: 'G (permanente)' }, { v: 'Q', label: 'Q (variável)' }] as { v: CasoFisico; label: string }[]} onChange={(v) => pl.set({ caso: v })} />
+        <Select label="Caso" value={pl.caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : `${c.nome} (${c.natureza})` }))} onChange={(v) => pl.set({ caso: v })} />
         <NumField label="Valor" unit={unid} width={110} value={pl.valorCarga} onChange={(v) => pl.set({ valorCarga: v })} />
       </div>
       <div className="row"><Button variant={pl.ferramenta === 'carga' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'carga' })}>Lançar cargas (C)</Button></div>
@@ -602,6 +605,37 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
         ) : <Hint>Importe a máscara do grupo para gerar as cargas de alvenaria.</Hint>}
       </div>
     </Group>
+  );
+}
+
+const TIPO_COMB = { ELU: 'ELU', QP: 'ELS quase perm.', FREQ: 'ELS freq.', RARA: 'Rara' } as const;
+
+/** Quadro recolhível com as combinações da última análise (casos como colunas) e exportação em CSV. */
+function CombinacoesCard({ b }: { b: BuildingModel }) {
+  const { analise } = useBuilding();
+  const combs = analise ? combinacoesEdificio(b, analise) : [];
+  const nomes = new Map(casosDaObra(b).map((c) => [c.id, c.nome]));
+  const usados = [...new Set(combs.flatMap((c) => Object.keys(c.fatores)))];
+  const rot = (k: string) => nomes.get(k) ?? k;
+  const f = (v: number | undefined) => (v === undefined ? '' : String(+v.toFixed(4)).replace('.', ','));
+  const csv = () => {
+    const lin = [['Combinação', 'Tipo', ...usados.map(rot)], ...combs.map((c) => [c.nome, TIPO_COMB[c.tipo], ...usados.map((k) => f(c.fatores[k]))])];
+    return '\ufeff' + lin.map((l) => l.map((x) => (/[;"\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x)).join(';')).join('\r\n') + '\r\n';
+  };
+  return (
+    <div className="card">
+      <details className="small">
+        <summary>Combinações ({combs.length})</summary>
+        <div className="row wrap"><Button onClick={() => download('combinacoes-edificio.csv', csv(), 'text/csv')}>Exportar CSV</Button></div>
+        <div className="tablewrap">
+          <table className="data quadro">
+            <thead><tr><th>Combinação</th><th>Tipo</th>{usados.map((k) => <th key={k}>{rot(k)}</th>)}</tr></thead>
+            <tbody>{combs.map((c, i) => <tr key={i}><td className="tl">{c.nome}</td><td className="tl">{TIPO_COMB[c.tipo]}</td>{usados.map((k) => <td key={k} className="num">{f(c.fatores[k])}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+        <Hint>Fatores por caso, incluindo as combinações excepcionais e as raras da fundação. Vento das ELU já ampliado por 0,95·γz quando aplicável.</Hint>
+      </details>
+    </div>
   );
 }
 
@@ -666,6 +700,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
           </div>
         </>
       )}
+      {analise && !analise.erro && <CombinacoesCard b={b} />}
     </>
   );
 }

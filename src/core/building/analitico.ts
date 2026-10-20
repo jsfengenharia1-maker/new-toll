@@ -4,7 +4,7 @@
 import { resolver3, type Barra3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
-import { casosVento, type CasoVento, type Classe } from './vento';
+import { casosVento, type CasoVento, type Classe, type ZonaVento } from './vento';
 import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import { concretoDe, gamas } from './materiais';
 import {
@@ -176,13 +176,16 @@ export interface GrelhaPavimento {
   carga: Record<CasoAnalise, number>;
 }
 
+/** Zona independente de um pavimento no pórtico: nó de aplicação (mestre, ou o próprio nó isolado) e nós da zona. */
+export interface ZonaPortico extends ZonaVento { no: number; nos: number[] }
+
 export interface BarraPortico { tipo: 'viga' | 'pilar'; ref: string; pavimento: string }
 export interface AnaliseEdificio {
   erro?: string;
   avisos: string[];
   opcoes: OpcoesAnalise;
   grelhas: GrelhaPavimento[];
-  portico: { modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[] };
+  portico: { modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; zonas: Record<string, ZonaPortico[]>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[] };
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
@@ -205,7 +208,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const Ev = Em('viga'), Gv = Gm(Ev), El = Em('laje'), Gl = Gm(El);
   const avisos: string[] = [];
   const ps = pavimentosOrdenados(b);
-  const vazio: AnaliseEdificio = { avisos, opcoes: op, casos: casosDaObra(b).map((c) => c.id), grelhas: [], portico: { modelo: { nos: [], barras: [], apoios: new Map() }, barras: [], mestres: {}, res: null }, fundacao: [], vento: null, cargasPavimento: {}, totais: { G: 0, Q: 0 }, gdl: 0, ms: 0 };
+  const vazio: AnaliseEdificio = { avisos, opcoes: op, casos: casosDaObra(b).map((c) => c.id), grelhas: [], portico: { modelo: { nos: [], barras: [], apoios: new Map() }, barras: [], mestres: {}, zonas: {}, res: null }, fundacao: [], vento: null, cargasPavimento: {}, totais: { G: 0, Q: 0 }, gdl: 0, ms: 0 };
   if (!ps.length) return { ...vazio, erro: 'A obra não tem pavimentos.' };
   if (!b.pilares.length) return { ...vazio, erro: 'A obra não tem pilares.' };
 
@@ -398,6 +401,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const pm: Modelo3 = { nos: [], barras: [], apoios: new Map(), escravos: [] };
   const ptags: BarraPortico[] = [];
   const mestres: Record<string, number> = {};
+  const zonas: Record<string, ZonaPortico[]> = {};
   const zf = cotaFundacao(b);
   // nós dos pilares por nível (base na fundação)
   const noPilar = new Map<string, number>(); // `${pilar}|${pav ou 'base'}`
@@ -518,20 +522,46 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         (casosV[ic].pontuais ??= []).push({ barra: bd.bi, a, f });
       }
     });
-    // diafragma: mestre no centro geométrico das lajes do grupo (ou dos nós do nível)
+    // diafragma por zona independente: nós ligados por vigas do diafragma formam uma zona (corpo rígido próprio);
+    // nó isolado (pilar sem vigas no nível) é zona sem diafragma. Sem a opção, um diafragma só por pavimento.
     const soLivre = (i: number) => { const u = usoNo.get(i); return !!u && u.livre > 0 && !u.diafragma; };
     const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i) && !soLivre(i));
-    if (nivel.length >= 2) {
-      const lajes = b.lajes.filter((l) => l.grupo === pav.grupo);
+    const pos = new Map(nivel.map(([, i], k) => [i, k]));
+    const pai = nivel.map((_, k) => k);
+    const raiz = (k: number): number => (pai[k] === k ? k : (pai[k] = raiz(pai[k])));
+    if (op.zonasIndependentes) {
+      pm.barras.forEach((br, bi) => {
+        const t = ptags[bi];
+        if (t.tipo !== 'viga' || t.pavimento !== pav.id || b.vigas.find((v) => v.id === t.ref)?.foraDiafragma) return;
+        const a = pos.get(br.i), c = pos.get(br.j);
+        if (a !== undefined && c !== undefined) pai[raiz(a)] = raiz(c);
+      });
+    } else nivel.forEach((_, k) => (pai[raiz(k)] = raiz(0)));
+    const grupos = new Map<number, number[]>();
+    nivel.forEach(([, i], k) => grupos.set(raiz(k), [...(grupos.get(raiz(k)) ?? []), i]));
+    const lajesPav = b.lajes.filter((l) => l.grupo === pav.grupo);
+    const zs: ZonaPortico[] = [];
+    for (const nos of [...grupos.values()].sort((a, c) => c.length - a.length)) {
+      const xs = nos.map((i) => pm.nos[i][0]), ys = nos.map((i) => pm.nos[i][1]);
+      const bb = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+      if (nos.length < 2) { zs.push({ ...bb, cx: xs[0], cy: ys[0], no: nos[0], nos }); continue; }
+      // mestre no centro geométrico das lajes da zona (ou dos nós)
       let cx = 0, cy = 0, A = 0;
-      for (const l of lajes) { const a = Math.abs(areaPoligono(l.contorno)), c = centroide(l.contorno); cx += c[0] * a; cy += c[1] * a; A += a; }
-      if (!A) { for (const [n] of nivel) { cx += n[0]; cy += n[1]; } A = nivel.length; }
+      for (const l of lajesPav) {
+        const c = centroide(l.contorno);
+        if (c[0] < bb.x0 - 0.01 || c[0] > bb.x1 + 0.01 || c[1] < bb.y0 - 0.01 || c[1] > bb.y1 + 0.01) continue;
+        const a = Math.abs(areaPoligono(l.contorno)); cx += c[0] * a; cy += c[1] * a; A += a;
+      }
+      if (!A) { for (const i of nos) { cx += pm.nos[i][0]; cy += pm.nos[i][1]; } A = nos.length; }
       const mi = pm.nos.length;
       pm.nos.push([cx / A, cy / A, z]);
       pm.apoios.set(mi, [2, 3, 4]);
-      mestres[pav.id] = mi;
-      for (const [, i] of nivel) pm.escravos!.push({ no: i, mestre: mi });
+      for (const i of nos) pm.escravos!.push({ no: i, mestre: mi });
+      zs.push({ ...bb, cx: cx / A, cy: cy / A, no: mi, nos });
     }
+    zonas[pav.id] = zs;
+    const principal = zs.find((x) => x.nos.length > 1);
+    if (principal) mestres[pav.id] = principal.no;
   }
   // engaste parcial no topo só onde há vigas no nó: sem elas o giro ficaria sem rigidez (mecanismo)
   const nBarras = new Map<number, number>();
@@ -544,19 +574,17 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
   const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)) };
   const res = resolver3(pmV, casosV);
-  if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: pm, barras: ptags, mestres, res: null } };
+  if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: pm, barras: ptags, mestres, zonas, res: null } };
   const fundacao: AnaliseEdificio['fundacao'] = [];
   const bases = b.pilares.map((p) => [p.id, noPilar.get(`${p.id}|base`)] as const).filter((x): x is readonly [string, number] => x[1] !== undefined);
   for (const [pid, k] of bases) CASOS.forEach((c, ic) => { const r = res.reacoes[ic].get(k)!; fundacao.push({ pilar: pid, caso: c, N: r[2], Vx: r[0], Vy: r[1], Mx: r[3], My: r[4] }); });
 
   // ---- vento: forças nos mestres, pórtico com a área real dos pilares ----
-  const pontoAplicacao = (pav: string): number | undefined => mestres[pav] ?? pm.nos.findIndex((n, i) => Math.abs(n[2] - (ps.find((x) => x.id === pav)?.cota ?? NaN)) < 1e-6 && !pm.apoios.has(i));
-  const centro = (pav: string): [number, number] => { const i = pontoAplicacao(pav); return i !== undefined && i >= 0 ? [pm.nos[i][0], pm.nos[i][1]] : [0, 0]; };
-  const ven = casosVento(b, centro);
+  const ven = casosVento(b, (pav) => zonas[pav] ?? []);
   let resVento: Resultado3 | null = null, vento: AnaliseEdificio['vento'] = null, casosW: Caso3[] = [];
   if (ven.casos.length) {
     casosW = ven.casos.map((cv) => ({
-      nodais: cv.forcas.flatMap((f) => { const i = pontoAplicacao(f.pavimento); return i !== undefined && i >= 0 ? [{ no: i, f: cv.direcao === 0 || cv.direcao === 180 ? [f.F, 0, 0, 0, 0, f.Mz] : [0, f.F, 0, 0, 0, f.Mz] }] : []; }),
+      nodais: cv.forcas.flatMap((f) => { const zn = zonas[f.pavimento]?.[f.zona]; return zn ? [{ no: zn.no, f: cv.direcao === 0 || cv.direcao === 180 ? [f.F, 0, 0, 0, 0, f.Mz] : [0, f.F, 0, 0, 0, f.Mz] }] : []; }),
       distribuidas: [],
     }));
     resVento = resolver3(pm, casosW);
@@ -574,9 +602,18 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       let M1 = 0, dV = 0, dU = 0;
       for (const f of cv.forcas) M1 += Math.abs(f.F) * f.z;
       for (const p of ps) {
-        const i = pontoAplicacao(p.id);
-        if (i === undefined || i < 0) continue;
-        const d = sg * rR.desloc[ic][i * 6 + ix], c = cargasPavimento[p.id];
+        // deslocamento do pavimento: média dos nós dos pilares ponderada pelas reações verticais da grelha
+        // (com zonas independentes cada zona desloca diferente; com um diafragma só, todos iguais)
+        const g = grelhas.find((x) => x.pavimento === p.id);
+        let sw = 0, sd = 0;
+        for (const pil of b.pilares) {
+          const k = noPilar.get(`${pil.id}|${p.id}`);
+          if (k === undefined) continue;
+          const w = g?.reacoes[pil.id] ? Object.values(g.reacoes[pil.id]).reduce((t, x) => t + Math.abs(x), 0) || 1 : 1;
+          sw += w; sd += w * rR.desloc[ic][k * 6 + ix];
+        }
+        if (!sw) continue;
+        const d = (sg * sd) / sw, c = cargasPavimento[p.id];
         let G = 0, Q = 0, Qpsi = 0;
         for (const k of casosOb) { const v = c[k.id] ?? 0; if (k.natureza === 'G') G += v; else if (k.natureza === 'Q') { Q += v; Qpsi += (k.id === 'Q' ? psi0 : k.psi?.[0] ?? psi0) * v; } }
         dV += (gm.g * G + gm.q * Qpsi) * d; dU += (gm.g * G + gm.q * Q) * d;
@@ -585,11 +622,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const vp = M1 ? gz(dV / M1) : 1, up = M1 ? gz(dU / M1) : 1, max = Math.max(vp, up);
       return { direcao: cv.direcao, ventoPrincipal: vp, usoPrincipal: up, max, ampliacao: max > 1.1 ? 0.95 * max : 1 };
     });
-    for (const g of gamaZ) if (g.max > 1.3) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima de 1,3 (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
+    for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
     vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ };
   }
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: pmV, barras: ptags, mestres, res, resVento, casos: casosV, casosVento: casosW }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: pmV, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };
 }
 
 // ---------------- auxiliares ----------------

@@ -179,6 +179,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Engaste parcial nas barras 3D por interpolação entre as rigidezes engastada e articulada; tabela das opções no memorial
 - Por elemento: engaste por lance de pilar (topo e base), pontas e apoios articulados de vigas, engaste das bordas das lajes, torção de equilíbrio e vigas fora do diafragma
 - Materiais e segurança (frente N1b): fck por tipo de elemento e por lance de pilar, aço por posição, γc/γs/γg/γq, cobrimentos por face e por elemento; comprimento de flambagem ℓe = mín(ℓ0 + h; ℓ) × α por pavimento, pilar e direção (NBR 6118, 15.6)
+- Casos de carga (frente N1c, parte A): casos adicionais G, Q, W (ação horizontal) e E (excepcional) com grupo de incompatíveis, caso simultâneo e ψ; cargas da planta em qualquer caso; cargas nos pilares (N, Hx, Hy, Mx, My, no topo ou a uma altura do lance); combinações excepcionais; lista das combinações (fatores por caso) na aba Análise, exportável em CSV, e resumo no memorial
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

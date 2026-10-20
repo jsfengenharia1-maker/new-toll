@@ -14,30 +14,30 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 4 | 3 | 2 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 19 | 15 | 45 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 28 | 8 | 9 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 29 | 11 | 5 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 15 | 21 | 67 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 7 | 0 | 2 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 3 | 28 | 28 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 4 | 28 | 27 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 8 | 23 | 66 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 2 | 2 | 37 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 1 | 15 | 8 | 19 |
-| **Total** | **661** | **107** | **149** | **294** | **111** |
+| **Total** | **661** | **111** | **154** | **285** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 69 | 61 | 130 |
-| R — Revisão de resultados e detalhamento | 44 | 81 | 125 |
+| N — Cálculo e normas | 74 | 53 | 127 |
+| R — Revisão de resultados e detalhamento | 44 | 80 | 124 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **149** | **294** | **443** |
+| **Total** | **154** | **285** | **439** |
 
 ## Divergências de premissa
 
@@ -289,15 +289,15 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.8 | Peso próprio + permanentes adicionais = caso permanente, aplicado automaticamente às barras. | Feito | — | caso G automático |
 | K1.5.9 | Sobrecarga de uso uniforme no pavimento, aplicada automaticamente às barras de cada grupo de pavimentos. | Feito | — | q por grupo, caso Q automático |
 | K1.5.10 | Casos gerados automaticamente: permanente, sobrecarga, vento (X e Y conforme norma e larguras de fachada) e sismo (conforme norma). | Feito | — | G, Q e vento (4 direções × centrado/±e); sismo fora |
-| K1.5.11 | Casos adicionais (antes "cargas especiais") pontuais, lineares ou superficiais, de natureza permanente, sobrecarga, vento, neve, sismo; combináveis com os automáticos (exceto com vento e sismo automáticos). | Parcial | N | ponto, linha e área só nos casos G ou Q; sem casos adicionais nem outras naturezas |
-| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Falta | N | empuxo de terra e ações excepcionais |
-| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Falta | N | arranjos e compatibilidade de casos adicionais (vento usa grupo excludente) |
+| K1.5.11 | Casos adicionais (antes "cargas especiais") pontuais, lineares ou superficiais, de natureza permanente, sobrecarga, vento, neve, sismo; combináveis com os automáticos (exceto com vento e sismo automáticos). | Feito | — | casos adicionais G, Q, W e E com cargas de ponto, linha e área e nos pilares (N1c); sismo fora do escopo |
+| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | N | ações excepcionais (natureza E) com combinações próprias (N1c); sem empuxo de terra |
+| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Parcial | N | grupo de incompatíveis e caso simultâneo entre casos adicionais (N1c); sem arranjos dentro do mesmo caso nem tabela de compatibilidade |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Parcial | N | ELU, QP, frequente e rara automáticas (NBR 8681); sem grupo de deslocamentos |
 | K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
-| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Falta | N | cargas no topo de pilares no edifício |
+| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Parcial | N | carga.pilar: N, Hx, Hy, Mx, My em eixos globais, por caso e lance (N1c); sem torção T |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Falta | FU | arranques sobre radier ou viga de fundação |
-| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Falta | N | cargas horizontais ao longo do pilar |
+| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais |
 | | **1.5.2 Cargas horizontais — vento (págs. 29–32)** | | | |
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
 | K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Parcial | N | Ca por direção (X/Y), não por sentido |
@@ -408,10 +408,10 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.19 | Coeficientes parciais conforme materiais e ações presentes; casos adicionais com origem atribuída. | Parcial | N | γ por natureza; sem casos adicionais com origem |
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
-| K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Falta | N | vento em casos manuais |
+| K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Feito | — | vento e ações horizontais manuais: caso adicional de natureza W, ampliado por 0,95·γz (N1c) |
 | K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Falta | N | incêndio (NBR 15200) |
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
-| K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Falta | N | alternância de sobrecargas |
+| K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Parcial | N | combinações automáticas; cargas lançadas só em G ou Q |
 | K1.9.27 | Grupos de combinações selecionáveis: concreto, fundações, aço frio, aço laminado, madeira, alumínio, tensões no solo, deslocamentos. | Parcial | N | ELU e raras para fundação; sem seleção de grupos |
 | | **1.9.8 Pavimentos/grupos, pilares, arranques e pilares-parede (págs. 47–50)** | | | |
@@ -423,8 +423,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
 | K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede |
 | K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) |
-| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Falta | N | cargas horizontais em pilares |
-| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Falta | N | cargas no topo do pilar |
+| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Parcial | N | cargas horizontais concentradas em qualquer altura do lance, eixos globais, por caso (N1c); sem uniformes, faixa nem eixos locais |
+| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Parcial | N | cargas no topo do lance por caso, eixos globais (N1c); sem torção T |
 | K1.9.38 | Vinculação de apoio, engastes e flambagem consultáveis e editáveis. | Parcial | L | `pilar.editar` (seção, nasce/morre); sem engastes nem flambagem |
 | | **1.9.9 Dados das lajes (págs. 50–65)** | | | |
 | K1.9.39 | Geometria em planta por grupo; ordem lógica: vigas, apoios em muro e vigas de fundação primeiro. | Feito | — | planta por grupo; panos detectados pelas vigas (`laje.detectarPanos`) |
@@ -584,7 +584,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.43 | Deformada 3D por caso e combinação, com animação. | Falta | V | deformada 3D animada (o Pórtico 2D tem deformada) |
 | | **1.11.2 Relatórios (págs. 73–75)** | | | |
 | K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Parcial | R | memorial com obra, pavimentos, ações, vento e materiais; sem coordenadas de pilares nem pesos por laje |
-| K1.11.45 | Listagem das combinações usadas. | Falta | R | listagem das combinações (só a contagem) |
+| K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
 | K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | R | vigas no memorial (M, V, armadura); sem envoltórias, flecha, etiquetas |
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Parcial | R | concreto, fôrma e aço por taxa por pavimento; sem itens por tipo de laje |
 | K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas |

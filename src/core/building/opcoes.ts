@@ -18,6 +18,20 @@ export interface OpcoesCalculo {
   trechoRigido: number;
   /** Coeficiente de engaste no topo do último lance de cada pilar (0 = rótula, 1 = engaste). */
   engasteTopoUltimo: number;
+  /** 1 = zonas independentes do pavimento como diafragmas separados; 0 = um diafragma por pavimento. */
+  zonasIndependentes: number;
+  /** Limite do γz para a ampliação por 0,95·γz (acima dele, aviso). */
+  limiteGamaZ: number;
+  /** 1 = momentos das lajes maciças por Wood-Armer (com o torçor) e média em faixa de 1 m; 0 = extremos das barras. */
+  woodArmer: number;
+  /** Idade no carregamento (meses) para a fluência: αf = Δξ(t0) (NBR 6118, 17.3.2.1.2). */
+  t0Flecha: number;
+  /** Fator simplificado da flecha total das lajes (× elástica); 0 = método da NBR (1 + αf). */
+  fatorFlechaLaje: number;
+  /** Limite da flecha total: vão / este valor (NBR 6118, Tabela 13.3: aceitabilidade visual ℓ/250). */
+  limiteFlechaTotal: number;
+  /** Limite da flecha imediata da carga variável: vão / este valor (vibrações sentidas, ℓ/350). */
+  limiteFlechaSensorial: number;
 }
 
 export interface OpcaoInfo {
@@ -31,6 +45,8 @@ export interface OpcaoInfo {
   fonte: string;
   aConfirmar: boolean;
   descricao: string;
+  /** Opção sim/não (0 ou 1). */
+  booleana?: boolean;
 }
 
 export const OPCOES_INFO: OpcaoInfo[] = [
@@ -48,6 +64,20 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'O trecho da viga dentro do pilar é rígido até a face menos este fator × h da viga; 0 = rígido até a face.' },
   { chave: 'engasteTopoUltimo', rotulo: 'Engaste no topo do último lance', min: 0, max: 1, passo: 0.05, padrao: 0.3, fonte: 'NBR 6118 não fixa; padrão 0,3 do programa de referência', aConfirmar: true,
     descricao: 'Ligação do topo do último lance de cada pilar com as vigas: 0 = rótula, 1 = engaste. Interpola as rigidezes engaste-engaste e engaste-rótula do lance.' },
+  { chave: 'zonasIndependentes', rotulo: 'Zonas independentes como diafragmas separados', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (cada zona ligada por vigas é um diafragma; pilar isolado, sem diafragma)', aConfirmar: true,
+    descricao: 'Partes do pavimento sem vigas entre si (blocos separados por junta) têm diafragmas próprios, e o vento do pavimento é repartido entre elas pela largura de cada uma.' },
+  { chave: 'limiteGamaZ', rotulo: 'Limite do γz', min: 1.1, max: 1.5, passo: 0.05, padrao: 1.3, fonte: 'NBR 6118, 15.5.3 e 15.7.2 (ampliação por 0,95·γz até 1,3)', aConfirmar: false,
+    descricao: 'Entre 1,1 e o limite, as ações horizontais das ELU são ampliadas por 0,95·γz; acima do limite, aviso (exige análise de 2ª ordem mais rigorosa).' },
+  { chave: 'woodArmer', rotulo: 'Lajes maciças: Wood-Armer com média em faixa de 1 m', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Wood (1968) e Armer (1968); faixa de 1 m do programa de referência', aConfirmar: true,
+    descricao: 'Momentos de dimensionamento nos nós da grelha somando o momento volvente (mx* = mx + |mxy|), com média numa faixa transversal de 1 m. Sem a opção: extremos dos momentos nas pontas das barras.' },
+  { chave: 't0Flecha', rotulo: 'Idade no carregamento (fluência)', unidade: 'meses', min: 0.25, max: 70, passo: 0.25, padrao: 1, fonte: 'NBR 6118, 17.3.2.1.2 (Tabela 17.1); padrão 1 mês confirmado no pórtico', aConfirmar: false,
+    descricao: 'αf = Δξ = ξ(70) − ξ(t0), sem armadura de compressão (ρ′ = 0).' },
+  { chave: 'fatorFlechaLaje', rotulo: 'Fator simplificado da flecha das lajes', unidade: '× elástica', min: 0, max: 5, passo: 0.1, padrao: 0, fonte: 'Opção do programa de referência (padrão dele 2,5); 0 = NBR 6118, 17.3.2.1.2', aConfirmar: true,
+    descricao: 'Flecha total = elástica relativa aos apoios × este fator. 0 usa o método da NBR (1 + αf), sem fissuração.' },
+  { chave: 'limiteFlechaTotal', rotulo: 'Limite da flecha total (vão / …)', min: 100, max: 1000, passo: 10, padrao: 250, fonte: 'NBR 6118, Tabela 13.3 (aceitabilidade sensorial, visual)', aConfirmar: false,
+    descricao: 'Lajes e vigas: flecha total (quase permanente com fluência) ≤ vão / este valor; balanço: 2 × vão.' },
+  { chave: 'limiteFlechaSensorial', rotulo: 'Limite da flecha da carga variável (vão / …)', min: 100, max: 1000, passo: 10, padrao: 350, fonte: 'NBR 6118, Tabela 13.3 (vibrações sentidas no piso)', aConfirmar: false,
+    descricao: 'Flecha imediata só das cargas variáveis ≤ vão / este valor.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

@@ -48,6 +48,12 @@ export interface Vento {
   caY: number;
   /** Excentricidade relativa à largura da fachada (0,075 para edificação comum). */
   excentricidade: number;
+  /** Coeficiente por sentido (multiplica a força; edifício abrigado por vizinho): +X, −X, +Y, −Y; padrão 1. */
+  sentido?: Partial<{ xp: number; xn: number; yp: number; yn: number }>;
+  /** Fator de vizinhança (NBR 6123, 6.4); padrão 1. */
+  vizinhanca?: number;
+  /** Altura da platibanda (m) somada à faixa de exposição do último pavimento; padrão 0. */
+  platibanda?: number;
 }
 
 export const VENTO_PADRAO: Vento = { ativo: true, v0: 35, s1: 1, s3: 1, categoria: 'IV', caX: 1.3, caY: 1.3, excentricidade: 0.075 };

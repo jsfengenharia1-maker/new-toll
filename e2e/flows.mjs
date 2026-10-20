@@ -573,4 +573,44 @@ export const flows = [
       assert.equal(await gc.inputValue(), '1,4');
     },
   },
+  {
+    name: 'casos de carga: caso adicional, carga no pilar e lista de combinações',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // caso adicional pelo grupo "Casos de carga"
+      await page.locator('summary', { hasText: 'Casos de carga' }).click();
+      await page.getByLabel('Novo caso').fill('Neve');
+      await page.getByLabel('Novo caso').press('Enter');
+      await page.getByRole('button', { name: 'Criar caso' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Caso Neve (Q) criado' }).waitFor();
+      assert.equal(await page.getByLabel('Natureza de Neve').inputValue(), 'Q');
+      // carga no pilar selecionado
+      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await page.locator('table.quadro tbody tr').filter({ has: page.locator('input[aria-label^="Nome de P1"]') }).first().click();
+      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await page.getByLabel(/^Caso \(lance/).selectOption({ label: 'Neve' });
+      const n = page.getByLabel('N (kN)');
+      await n.fill('25');
+      await n.press('Enter');
+      await page.getByRole('button', { name: 'Adicionar carga no lance' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Carga no pilar P1' }).waitFor();
+      assert.equal(await page.getByRole('button', { name: /^Remover carga/ }).count(), 1);
+      // análise: o quadro de combinações lista o novo caso
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
+      await page.locator('summary', { hasText: /^Combinações \(\d+\)$/ }).click();
+      const quadro = page.locator('.edif-out .card', { hasText: 'Exportar CSV' });
+      assert.match(await quadro.locator('thead').textContent(), /Neve/);
+      assert.ok(await quadro.locator('tbody tr').count() > 4);
+      const col = (await quadro.locator('thead th').allTextContents()).indexOf('Neve');
+      const celulas = await quadro.locator(`tbody tr td:nth-child(${col + 1})`).allTextContents();
+      assert.ok(celulas.some((t) => t.trim() !== ''), 'o caso Neve entra em alguma combinação');
+    },
+  },
 ];

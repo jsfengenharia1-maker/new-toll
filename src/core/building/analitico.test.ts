@@ -72,8 +72,10 @@ describe('modelo analítico do edifício', () => {
       const sr = Object.values(g.reacoes).reduce((s, r) => s + r.G, 0);
       expect(sr).toBeCloseTo(g.carga.G, 4);
     }
-    // diafragma em todos os níveis com mais de um nó
-    expect(Object.keys(an.portico.mestres)).toHaveLength(5);
+    // diafragma só nos níveis com vigas (zonas independentes: pilares soltos no térreo e na cobertura não formam diafragma)
+    expect(Object.keys(an.portico.mestres)).toHaveLength(3);
+    // sem zonas independentes: um diafragma por pavimento com mais de um nó
+    expect(Object.keys(analisarEdificio({ ...b, opcoes: { zonasIndependentes: 0 } }).portico.mestres)).toHaveLength(5);
   });
 
   it('vigas pela face e pilares retangulares: modelo monta e equilibra', () => {

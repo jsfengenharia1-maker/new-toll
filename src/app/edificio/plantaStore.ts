@@ -1,6 +1,6 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
 import { create } from 'zustand';
-import type { Ajuste, Alinhamento, CasoFisico, TipoLaje } from '../../core/building/types';
+import type { Ajuste, Alinhamento, TipoLaje } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
@@ -27,7 +27,8 @@ interface PState {
   invertida: boolean;
   tipoLaje: TipoLaje;
   tipoCarga: 'ponto' | 'linha' | 'area';
-  caso: CasoFisico;
+  /** G, Q ou id de caso adicional. */
+  caso: string;
   valorCarga: number;
   set(p: Partial<Omit<PState, 'set'>>): void;
 }
