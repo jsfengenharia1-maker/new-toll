@@ -55,6 +55,21 @@ describe('linha de comando', () => {
     expect(m.out.at(-1)).toMatch(/GRUPO_PE_DIREITO/);
   });
 
+  it('calc: análise do edifício em JSON, com equilíbrio', () => {
+    const m = memIo({ 'c.jsonl': [
+      JSON.stringify({ nome: 'lote', params: { comandos: [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } })) } }),
+      JSON.stringify({ nome: 'lote', params: { comandos: [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) } }),
+      JSON.stringify({ nome: 'laje.detectarPanos', params: { grupo: 'g_3' } }),
+    ].join('\n') });
+    runCli(['novo', 'a.statikos'], m.io);
+    expect(runCli(['exec', 'a.statikos', 'c.jsonl'], m.io)).toBe(0);
+    expect(runCli(['calc', 'a.statikos', '--json'], m.io)).toBe(0);
+    const r = JSON.parse(m.out.at(-1)!);
+    expect(r.fundacao).toHaveLength(4);
+    expect(Math.abs(r.equilibrio.G)).toBeLessThan(1e-3);
+    expect(r.totais.Q).toBeCloseTo(1.5 * 20 * 3, 1);
+  });
+
   it('uso inválido devolve 64 e a ajuda', () => {
     const m = memIo();
     expect(runCli(['xyz'], m.io)).toBe(64);

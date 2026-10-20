@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 195 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 209 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -21,6 +21,7 @@ Tudo o que a aba **Edifício** faz passa por comandos tipados (`src/core/command
 node dist-cli/statikos.mjs novo obra.statikos            # edifício padrão (térreo, 3 tipos, cobertura)
 node dist-cli/statikos.mjs exec obra.statikos cmds.jsonl  # uma linha JSON por comando: {"nome": "pavimento.repetir", "params": {"id": "pav_6", "vezes": 5}}
 node dist-cli/statikos.mjs verificar obra.statikos        # verificação de lançamento (código 1 se houver erro)
+node dist-cli/statikos.mjs calc obra.statikos             # análise: cargas na fundação, flechas, equilíbrio
 node dist-cli/statikos.mjs comandos --json                # comandos e parâmetros
 node dist-cli/statikos.mjs mcp                            # servidor MCP em stdio
 ```
@@ -60,6 +61,8 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | CLI e MCP | `src/cli/` | `statikos` em Node (novo, info, verificar, exec, comandos) e servidor MCP stdio (JSON-RPC próprio, sem SDK) |
 | DXF (entrada) | `src/core/dxf/read.ts` | Leitor próprio: LINE, LWPOLYLINE com bulge, POLYLINE, ARC, CIRCLE, ELLIPSE, SPLINE (aproximada), TEXT, MTEXT, INSERT/DIMENSION com blocos aninhados, escala, rotação e matriz; $INSUNITS |
 | Capturas | `src/core/geom/snap.ts` | Índice espacial (Flatbush) sobre segmentos e arcos: extremidade, interseção, meio, centro, quadrante, perpendicular e próximo; entrada digitada (x;y, @dx;dy, @d<ângulo, distância); ortogonal e polar |
+| Barras 3D | `src/core/fe3d.ts` | Pórtico espacial e grelha (12 gdl por barra), trechos rígidos, liberações por condensação, molas, diafragma rígido mestre-escravo, cargas distribuídas e concentradas; validado contra o OpenSees (`validation/opensees/`) |
+| Modelo analítico | `src/core/building/analitico.ts`, `resumo.ts` | Grelha de lajes e vigas por pavimento (malha de 0,5 m, validada com as placas de Timoshenko) e pórtico espacial com diafragma; cargas na fundação por pilar |
 | Edifício (interface) | `src/app/edificio/` | Aba Edifício: obra, pavimentos, grupos, máscara, pilares (quadro e colagem do Excel), eixos, linha de comando; planta em Canvas 2D (máscara em cache, modelo, interação), elevação, verificação e premissas |
 
 ## Inventário funcional
@@ -132,6 +135,13 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Lajes maciças e treliçadas (catálogo H8–H25 com EPS, peso próprio, vigotas no menor vão com seta na planta), por clique no pano, por contorno (balanços) ou preenchendo todos os panos; aberturas, desnível, renumeração
 - Cargas por grupo (revestimento e uso), pontuais, lineares e de área (G/Q); alvenaria gerada das paredes de uma camada da máscara (pares de linhas paralelas)
 - Verificação: lajes sobrepostas, treliçada fora de região fechada por vigas
+
+**Módulo Edifícios — fatia 4 (20/10/2026)**
+- Motor de barras 3D próprio: pórtico espacial e grelha, trechos rígidos, liberações, molas, diafragma rígido (mestre-escravo), cargas distribuídas e concentradas
+- Gerador do modelo analítico (função pura): grelha de lajes e vigas por pavimento, transferência das lajes para as vigas e pórtico espacial com trechos rígidos até a face − 0,3h; casos G e Q
+- Validação: placas apoiada e engastada de Timoshenko (erro < 5 % com malha de 50/25 cm) e pórtico espacial idêntico ao OpenSees (10⁻⁶)
+- Cálculo num Web Worker; aba Análise com cargas na fundação, flechas elásticas e verificação de equilíbrio; `statikos calc` e ferramenta `calcular` no MCP
+- Porte: 10 pavimentos com 3 × 2 vãos (≈ 16 mil gdl) em < 1 s no Node
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

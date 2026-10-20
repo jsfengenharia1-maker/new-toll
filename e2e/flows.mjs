@@ -397,4 +397,21 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: '1 trecho(s) de alvenaria (3 m, altura 2,5 m)' }).waitFor();
     },
   },
+{
+    name: 'análise do edifício no worker: cargas na fundação em equilíbrio',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
+      const txt = await page.locator('.edif-out').textContent();
+      assert.match(txt, /equilíbrio \(reações − cargas\): G -?0,000, Q -?0,000 kN/);
+      assert.equal(await page.locator('.edif-out table').first().locator('tbody tr').count(), 4);
+    },
+  },
 ];

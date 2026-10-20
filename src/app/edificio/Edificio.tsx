@@ -7,6 +7,7 @@ import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
+import { resumoAnalise } from '../../core/building/resumo';
 import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS } from '../../core/building/premissas';
@@ -22,7 +23,7 @@ export function Edificio() {
   const { sessao, exec, novo, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'premissas'>('planta');
+  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'premissas'>('planta');
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
 
   return (
@@ -112,7 +113,7 @@ export function Edificio() {
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
@@ -121,6 +122,7 @@ export function Edificio() {
           <div className="edif-out">
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
+            {aba === 'analise' && <Analise b={b} nErr={nErr} />}
             {aba === 'premissas' && (
               <div className="card">
                 <h3>Premissas em uso</h3>
@@ -582,5 +584,51 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
         ) : <Hint>Importe a máscara do grupo para gerar as cargas de alvenaria.</Hint>}
       </div>
     </Group>
+  );
+}
+
+function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
+  const { analise, revAnalise, calculando, calcular, sessao } = useBuilding();
+  const r = analise ? resumoAnalise(b, analise) : null;
+  const velha = analise && revAnalise !== sessao.rev;
+  return (
+    <>
+      <div className="card">
+        <h3>Análise do edifício</h3>
+        <div className="row wrap">
+          <button type="button" className="btn primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : 'Calcular'}</button>
+          {nErr > 0 && <span className="hint bad">Há {nErr} erro(s) de lançamento: o resultado pode não ter sentido.</span>}
+          {velha && <span className="hint bad">O modelo mudou depois do cálculo: calcule de novo.</span>}
+        </div>
+        <Hint>Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais. Casos G e Q; vento e combinações na próxima fatia.</Hint>
+        {r && !r.erro && (
+          <p className="small">{r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
+        )}
+        {r?.erro && <p className="hint bad">{r.erro}</p>}
+        {r && r.avisos.length > 0 && <ul className="prem">{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+      </div>
+      {r && !r.erro && (
+        <>
+          <div className="card">
+            <h3>Cargas na fundação (características, kN e kN·m)</h3>
+            <table className="data quadro">
+              <thead><tr><th>Pilar</th><th>N G</th><th>N Q</th><th>N G+Q</th><th>Mx G</th><th>My G</th><th>Hx G</th><th>Hy G</th></tr></thead>
+              <tbody>
+                {r.fundacao.map((f) => (
+                  <tr key={f.pilar}><td className="tl">{f.pilar}</td><td className="num">{fmt(f.NG, 1)}</td><td className="num">{fmt(f.NQ, 1)}</td><td className="num">{fmt(f.NG + f.NQ, 1)}</td><td className="num">{fmt(f.MxG, 2)}</td><td className="num">{fmt(f.MyG, 2)}</td><td className="num">{fmt(f.HxG, 2)}</td><td className="num">{fmt(f.HyG, 2)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="card">
+            <h3>Lajes por pavimento (flecha elástica imediata, sem fissuração nem fluência)</h3>
+            <table className="data quadro">
+              <thead><tr><th>Pavimento</th><th>Carga G (kN)</th><th>Carga Q (kN)</th><th>Flecha G (mm)</th><th>Flecha Q (mm)</th></tr></thead>
+              <tbody>{r.flechasElasticas.map((f) => <tr key={f.pavimento}><td className="tl">{f.pavimento}</td><td className="num">{fmt(f.cargaG, 1)}</td><td className="num">{fmt(f.cargaQ, 1)}</td><td className="num">{fmt(f.flechaG_mm, 2)}</td><td className="num">{fmt(f.flechaQ_mm, 2)}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </>
   );
 }

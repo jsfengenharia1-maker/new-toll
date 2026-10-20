@@ -4,6 +4,8 @@ import { compactarLog, lerEdificio, WORKSPACE_FORMAT } from '../core/building/fi
 import { edificioVazio, pavimentosOrdenados, peDireito } from '../core/building/types';
 import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
+import { analisarEdificio } from '../core/building/analitico';
+import { resumoAnalise } from '../core/building/resumo';
 
 export interface Io {
   ler(caminho: string): string;
@@ -20,6 +22,7 @@ Uso:
   statikos verificar <arquivo.statikos> [--json]   verificação de lançamento (sai com código 1 se houver erro)
   statikos exec <arquivo.statikos> <comandos.jsonl> [--previa] [--saida <outro.statikos>]
                                                    executa comandos (uma linha JSON por comando: {"nome": ..., "params": {...}})
+  statikos calc <arquivo.statikos> [--json]        análise (grelhas + pórtico espacial): cargas na fundação, flechas e equilíbrio
   statikos comandos [--json]                       lista os comandos e seus parâmetros (JSON Schema)
   statikos mcp                                     servidor MCP em stdio (para agentes de IA)
 `;
@@ -110,6 +113,19 @@ export function runCli(args: string[], io: Io): number {
         io.gravar(destino, salvarSessao(sessao, arquivo));
         if (!json) io.out(`Gravado em ${destino}.`);
         return 0;
+      }
+      case 'calc': {
+        if (!pos[0]) break;
+        const { sessao } = abrirSessao(io.ler(pos[0]));
+        const r = resumoAnalise(sessao.modelo, analisarEdificio(sessao.modelo));
+        if (json) io.out(JSON.stringify(r, null, 1));
+        else if (r.erro) io.err(r.erro);
+        else {
+          io.out(`${r.gdl} gdl em ${r.ms} ms · cargas G ${r.totais.G} kN, Q ${r.totais.Q} kN · equilíbrio ΔG ${r.equilibrio.G} ΔQ ${r.equilibrio.Q}`);
+          for (const f of r.fundacao) io.out(`  ${String(f.pilar).padEnd(6)} NG ${String(f.NG).padStart(9)}  NQ ${String(f.NQ).padStart(9)} kN`);
+          for (const a of r.avisos) io.out(`aviso: ${a}`);
+        }
+        return r.erro ? 1 : 0;
       }
       case 'comandos': {
         const cs = listarComandos().map((c) => ({ nome: c.nome, risco: c.risco, descricao: c.descricao, schema: c.schema }));
