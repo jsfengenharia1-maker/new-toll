@@ -38,8 +38,10 @@ export interface OpcoesCalculo {
   momentoMinPositivo: number;
   /** Momento negativo mínimo nos apoios das vigas: ℓ²·p/este valor (0 = desligado). */
   momentoMinNegativo: number;
-  /** Cortante de cálculo das vigas junto aos pilares: 0 = toda a parte flexível; 1 = a partir da face; 2 = a d/2 da face. */
+  /** Cortante de cálculo das vigas junto aos pilares: 0 = toda a parte flexível; 1 = a partir da face do pilar (mais `cortanteDistancia`). */
   cortanteApoio: number;
+  /** Distância da face do pilar à primeira seção de cortante das vigas, em % de d (com `cortanteApoio` = 1). */
+  cortanteDistancia: number;
   /** 1 = verifica a torção das vigas (NBR 6118, 17.5); 0 = despreza a de compatibilidade (vigas de equilíbrio seguem verificadas). */
   verificarTorcao: number;
   /** Abertura de fissuras máxima (mm); 0 = pela classe de agressividade (Tabela 13.4). */
@@ -84,20 +86,22 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Momentos de dimensionamento nos nós da grelha somando o momento volvente (mx* = mx + |mxy|), com média numa faixa transversal de 1 m. Sem a opção: extremos dos momentos nas pontas das barras.' },
   { chave: 't0Flecha', rotulo: 'Idade no carregamento (fluência)', unidade: 'meses', min: 0.25, max: 70, passo: 0.25, padrao: 1, fonte: 'NBR 6118, 17.3.2.1.2 (Tabela 17.1); padrão 1 mês confirmado no pórtico', aConfirmar: false,
     descricao: 'αf = Δξ = ξ(70) − ξ(t0), sem armadura de compressão (ρ′ = 0).' },
-  { chave: 'fatorFlechaLaje', rotulo: 'Fator simplificado da flecha das lajes', unidade: '× elástica', min: 0, max: 5, passo: 0.1, padrao: 0, fonte: 'Opção do programa de referência (padrão dele 2,5); 0 = NBR 6118, 17.3.2.1.2', aConfirmar: true,
+  { chave: 'fatorFlechaLaje', rotulo: 'Fator simplificado da flecha das lajes', unidade: '× elástica', min: 0, max: 5, passo: 0.1, padrao: 2.5, fonte: 'Padrão 2,5 do programa de referência (faixa 2,5 a 3,0); 0 = método da NBR 6118, 17.3.2.1.2 (1 + αf)', aConfirmar: true,
     descricao: 'Flecha total = elástica relativa aos apoios × este fator. 0 usa o método da NBR (1 + αf), sem fissuração.' },
   { chave: 'limiteFlechaTotal', rotulo: 'Limite da flecha total (vão / …)', min: 100, max: 1000, passo: 10, padrao: 250, fonte: 'NBR 6118, Tabela 13.3 (aceitabilidade sensorial, visual)', aConfirmar: false,
     descricao: 'Lajes e vigas: flecha total (quase permanente com fluência) ≤ vão / este valor; balanço: 2 × vão.' },
   { chave: 'limiteFlechaSensorial', rotulo: 'Limite da flecha da carga variável (vão / …)', min: 100, max: 1000, passo: 10, padrao: 350, fonte: 'NBR 6118, Tabela 13.3 (vibrações sentidas no piso)', aConfirmar: false,
     descricao: 'Flecha imediata só das cargas variáveis ≤ vão / este valor.' },
-  { chave: 'redistribuicao', rotulo: 'Redistribuição de negativos das vigas', unidade: '%', min: 0, max: 25, passo: 5, padrao: 0, fonte: 'NBR 6118, 14.6.4.3 (δ ≥ 0,75 nós fixos, 0,90 nós móveis; δ ≥ 0,44 + 1,25·x/d)', aConfirmar: false,
-    descricao: 'Reduz o momento negativo das cargas verticais nos apoios internos das vigas contínuas (δ = 1 − valor) e aumenta o positivo do vão por equilíbrio. O app respeita os limites de δ da norma (estrutura de nós móveis quando γz > 1,1) e diminui a redistribuição onde x/d não permite.' },
+  { chave: 'redistribuicao', rotulo: 'Redistribuição de negativos das vigas', unidade: '%', min: 0, max: 25, passo: 5, padrao: 15, fonte: 'Padrão 15 % do programa de referência (vigas); limites da NBR 6118, 14.6.4.3 (δ ≥ 0,75 nós fixos, 0,90 nós móveis; δ ≥ 0,44 + 1,25·x/d)', aConfirmar: false,
+    descricao: 'Reduz o momento negativo das cargas verticais nos apoios internos das vigas contínuas (δ = 1 − valor), depois dos momentos mínimos, e aumenta o positivo do vão por equilíbrio. O app respeita os limites de δ da norma (estrutura de nós móveis quando γz > 1,1) e diminui a redistribuição onde x/d não permite. 0 = desligada.' },
   { chave: 'momentoMinPositivo', rotulo: 'Momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 0, fonte: 'Opção do programa de referência; a NBR não exige (0 = desligado)', aConfirmar: true,
-    descricao: 'Momento positivo de cálculo de cada vão de viga ≥ p·ℓ²/este valor, com p·ℓ² = 8 × o momento isostático das cargas verticais da combinação. Ex.: 24.' },
+    descricao: 'Momento positivo de cálculo de cada vão de viga ≥ p·ℓ²/este valor, com a carga equivalente p = (V1 + V2)/ℓ dos cortantes das cargas verticais nas pontas do vão. Recomendado pelo programa de referência: 20.' },
   { chave: 'momentoMinNegativo', rotulo: 'Momento negativo mínimo nos apoios (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 0, fonte: 'Opção do programa de referência; a NBR não exige (0 = desligado)', aConfirmar: true,
-    descricao: 'Momento negativo de cálculo nas extremidades de vão sobre pilares ≥ p·ℓ²/este valor (p·ℓ² como no positivo). Ex.: 24 nos apoios extremos com rótula.' },
-  { chave: 'cortanteApoio', rotulo: 'Cortante das vigas junto ao pilar (0 parte flexível, 1 face, 2 d/2)', min: 0, max: 2, passo: 1, padrao: 0, fonte: 'NBR 6118, 17.4.1.2.1 (carga distribuída: cortante constante entre o apoio e d/2 da face)', aConfirmar: false,
-    descricao: '0 = maior cortante em toda a parte flexível da viga (a favor da segurança); 1 = a partir da face do pilar; 2 = a partir de d/2 da face (permitido para carga distribuída e apoio direto).' },
+    descricao: 'Momento negativo de cálculo nas extremidades de vão sobre pilares ≥ p·ℓ²/este valor (p como no positivo), antes da redistribuição. Recomendado pelo programa de referência: 32.' },
+  { chave: 'cortanteApoio', rotulo: 'Cortante das vigas a partir da face do pilar', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (estribos a partir da face do apoio); NBR 6118, 17.4.1.2.1', aConfirmar: false,
+    descricao: 'Ligada: o cortante de cálculo das vigas é o da face do pilar em diante (mais a distância abaixo). Desligada: maior cortante em toda a parte flexível (a favor da segurança).' },
+  { chave: 'cortanteDistancia', rotulo: 'Distância da face à seção de cortante', unidade: '% de d', min: 0, max: 50, passo: 5, padrao: 0, fonte: 'Opção do programa de referência (% de d); NBR 6118, 17.4.1.2.1 permite até d/2 com carga distribuída e apoio direto', aConfirmar: false,
+    descricao: 'Primeira seção de verificação do cortante a esta distância da face do pilar (50 % = d/2). Só vale com o cortante a partir da face.' },
   { chave: 'verificarTorcao', rotulo: 'Verificar torção das vigas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.5 (treliça espacial, θ = 45°, biela conjunta com o cortante 17.7.2.2)', aConfirmar: false,
     descricao: 'Td do pórtico (com a rigidez à torção das opções) somado ao cortante nos estribos (A90/s) e na biela (Vsd/VRd2 + Tsd/TRd2 ≤ 1), mais a armadura longitudinal de torção. Desligada, só as vigas marcadas com torção de equilíbrio são verificadas.' },
   { chave: 'limiteFissura', rotulo: 'Abertura de fissuras máxima', unidade: 'mm', min: 0, max: 0.5, passo: 0.05, padrao: 0, fonte: 'NBR 6118, Tabela 13.4 (0 = pela CAA: I 0,4; II e III 0,3; IV 0,2 mm)', aConfirmar: false,

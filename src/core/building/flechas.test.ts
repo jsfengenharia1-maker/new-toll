@@ -56,12 +56,12 @@ describe('Wood-Armer e flecha das lajes', () => {
     const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
     const l = d.lajes[0], g = an.grelhas.find((x) => x.res)!;
     const absMax = Math.max(...g.modelo.nos.map((_, n) => -(g.res!.desloc[0][n * 6 + 2] + 0.3 * g.res!.desloc[1][n * 6 + 2])));
-    const fat = 1 + deltaXi(1);
+    const fat = 2.5; // padrão: fator simplificado do programa de referência
     expect(l.flecha / fat).toBeLessThan(absMax);
     expect(l.flecha).toBeGreaterThan(0);
     expect(l.mPos[0]).toBeGreaterThan(0);
-    const d2 = dimensionarEdificio({ ...s.modelo, opcoes: { fatorFlechaLaje: 2.5 } }, analisarEdificio({ ...s.modelo, opcoes: { fatorFlechaLaje: 2.5 } }));
-    expect(d2.lajes[0].flecha / 2.5).toBeCloseTo(l.flecha / fat, 9);
+    const nbr = { ...s.modelo, opcoes: { fatorFlechaLaje: 0 } }, d2 = dimensionarEdificio(nbr, analisarEdificio(nbr));
+    expect(d2.lajes[0].flecha / (1 + deltaXi(1))).toBeCloseTo(l.flecha / fat, 9);
     expect(d.vigas[0].flecha).toBeGreaterThan(0);
     expect(d.vigas[0].limite).toBeCloseTo(6 / 250, 3);
   });

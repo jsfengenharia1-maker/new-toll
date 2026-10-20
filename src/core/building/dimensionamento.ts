@@ -67,6 +67,8 @@ export interface ResultadoViga {
   Mpos: number; Mneg: number; V: number;
   /** Maior torçor de cálculo (kN·m), armadura longitudinal de torção (m², no perímetro) e maior Vsd/VRd2 + Tsd/TRd2. */
   T: number; AslTorcao: number; biela: number;
+  /** Armadura longitudinal de torção em cada face lateral (m²) e as barras adotadas; decalagem aℓ (m). */
+  AsLateral: number; barrasLaterais: string; al: number;
   /** Coeficiente de redistribuição adotado nos apoios internos (1 = sem redistribuição). */
   delta: number;
   /** Abertura de fissuras na combinação frequente (mm): face inferior e superior, e limite. */
@@ -86,6 +88,13 @@ function cadeiasViga(an: AnaliseEdificio, membros: number[], noPilar: Set<number
 }
 
 const CAA_NUM = { I: 1, II: 2, III: 3, IV: 4 } as const;
+
+/** Barras longitudinais de uma face lateral (torção) para As (m²): φ8 a φ12,5, espaçadas até 20 cm na altura. */
+function barrasLaterais(As: number, h: number) {
+  const nMin = Math.max(1, Math.ceil(h / 0.2) - 1);
+  for (const phi of [8, 10, 12.5]) { const n = Math.max(nMin, Math.ceil(As / barArea(phi))); if (n <= nMin + 2 || phi === 12.5) return { phi, n }; }
+  return { phi: 12.5, n: nMin };
+}
 
 function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], freq: CombinacaoEd[]): ResultadoViga[] {
   const c = concretoDe(b, 'viga'), aPos = acoDe(b, 'vigaPos'), aNeg = acoDe(b, 'vigaNeg'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s;
@@ -122,12 +131,12 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const membrosNo = new Map<number, number>();
     for (const bi of membros) for (const n of [mb[bi].i, mb[bi].j]) membrosNo.set(n, (membrosNo.get(n) ?? 0) + 1);
     const interno = (n: number) => noPilar.has(n) && (membrosNo.get(n) ?? 0) >= 2;
-    const recuo = op.trechoRigido * v.secao.h, depoisFace = op.cortanteApoio === 2 ? d / 2 : 0;
+    const recuo = op.trechoRigido * v.secao.h, depoisFace = op.cortanteApoio ? (op.cortanteDistancia / 100) * d : 0;
     // estações por vão: M e V por combinação (total e parte vertical), T e se a seção entra no cortante
-    type Vao = { L: number; xs: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; T: Float64Array[]; Mk: Float64Array[]; corte: boolean[]; ini: number; fim: number; balanco: boolean };
+    type Vao = { L: number; xs: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; Vv: Float64Array[]; T: Float64Array[]; Mk: Float64Array[]; corte: boolean[]; ini: number; fim: number; balanco: boolean };
     const vaos: Vao[] = [];
     for (const cad of cadeiasViga(an, membros, noPilar)) {
-      const xs: number[] = [], corte: boolean[] = [], M = elu.map(() => [] as number[]), Mv = elu.map(() => [] as number[]), V = elu.map(() => [] as number[]), T = elu.map(() => [] as number[]), Mk = freq.map(() => [] as number[]);
+      const xs: number[] = [], corte: boolean[] = [], M = elu.map(() => [] as number[]), Mv = elu.map(() => [] as number[]), V = elu.map(() => [] as number[]), Vv = elu.map(() => [] as number[]), T = elu.map(() => [] as number[]), Mk = freq.map(() => [] as number[]);
       let x0 = 0;
       for (const bi of cad) {
         const { L } = baseBarra(pm.modelo, mb[bi]);
@@ -141,7 +150,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         if (!marcados.some(Boolean)) marcados[Math.floor(xl.length / 2)] = true;
         xl.forEach((x, i) => {
           xs.push(x0 + x); corte.push(marcados[i]);
-          elu.forEach((cb, k) => { M[k].push(comb(pc, cb, i, 'Mz')); Mv[k].push(comb(pc, eluV[k], i, 'Mz')); V[k].push(comb(pc, cb, i, 'Vy')); T[k].push(comb(pc, cb, i, 'T')); });
+          elu.forEach((cb, k) => { M[k].push(comb(pc, cb, i, 'Mz')); Mv[k].push(comb(pc, eluV[k], i, 'Mz')); V[k].push(comb(pc, cb, i, 'Vy')); Vv[k].push(comb(pc, eluV[k], i, 'Vy')); T[k].push(comb(pc, cb, i, 'T')); });
           freq.forEach((cb, k) => Mk[k].push(comb(pc, cb, i, 'Mz')));
         });
         x0 += L;
@@ -149,20 +158,19 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       const ini = mb[cad[0]].i, fim = mb[cad.at(-1)!].j;
       const livre = (no: number) => !noPilar.has(no) && (usoNo.get(no) ?? 0) <= 1;
       const f64 = (a: number[][]) => a.map((r) => Float64Array.from(r));
-      vaos.push({ L: x0, xs, M: f64(M), Mv: f64(Mv), V: f64(V), T: f64(T), Mk: f64(Mk), corte, ini, fim, balanco: livre(ini) !== livre(fim) });
+      vaos.push({ L: x0, xs, M: f64(M), Mv: f64(Mv), V: f64(V), Vv: f64(Vv), T: f64(T), Mk: f64(Mk), corte, ini, fim, balanco: livre(ini) !== livre(fim) });
     }
-    // envoltória ELU com redistribuição δ nos apoios internos e momentos mínimos
+    // envoltória ELU: momentos mínimos (p·ℓ²/x, p = (V1 + V2)/ℓ das cargas verticais) e depois a
+    // redistribuição δ nos apoios internos, que também reduz o negativo mínimo ali
     const envoltoria = (delta: number) => {
       let Mpos = 0, Mneg = 0, V = 0, T = 0, biela = 0, asw = 0, Asl = 0;
       for (const vo of vaos) for (let k = 0; k < elu.length; k++) {
         const M = vo.M[k], Mv = vo.Mv[k], n = M.length, L = vo.L;
         const dA = delta < 1 && interno(vo.ini) && Mv[0] < 0 ? (1 - delta) * -Mv[0] : 0;
         const dZ = delta < 1 && interno(vo.fim) && Mv[n - 1] < 0 ? (1 - delta) * -Mv[n - 1] : 0;
-        // momento isostático das cargas verticais do vão (p·ℓ² = 8·M0)
-        let M0 = 0;
-        if (!vo.balanco && (op.momentoMinPositivo || op.momentoMinNegativo)) for (let i = 0; i < n; i++) { const t = vo.xs[i] / L; M0 = Math.max(M0, Mv[i] - (Mv[0] * (1 - t) + Mv[n - 1] * t)); }
-        if (op.momentoMinPositivo && M0 > 0) Mpos = Math.max(Mpos, (8 * M0) / op.momentoMinPositivo);
-        if (op.momentoMinNegativo && M0 > 0) for (const no of [vo.ini, vo.fim]) if (noPilar.has(no)) Mneg = Math.min(Mneg, (-8 * M0) / op.momentoMinNegativo);
+        const pl2 = vo.balanco ? 0 : (Math.abs(vo.Vv[k][0]) + Math.abs(vo.Vv[k][n - 1])) * L;
+        if (op.momentoMinPositivo && pl2 > 0) Mpos = Math.max(Mpos, pl2 / op.momentoMinPositivo);
+        if (op.momentoMinNegativo && pl2 > 0) for (const no of [vo.ini, vo.fim]) if (noPilar.has(no)) Mneg = Math.min(Mneg, (-pl2 / op.momentoMinNegativo) * (interno(no) ? delta : 1));
         for (let i = 0; i < n; i++) {
           const t = vo.xs[i] / L, m = M[i] + dA * (1 - t) + dZ * t;
           Mpos = Math.max(Mpos, m); Mneg = Math.min(Mneg, m);
@@ -199,7 +207,20 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const smax = V <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2);
     const est = chooseStirrup(aswS, smax);
     if (env.biela > 1) msgs.push(env.T > 0 ? `Biela comprimida: Vsd/VRd2 + Tsd/TRd2 = ${env.biela.toFixed(2).replace('.', ',')} > 1.` : `Biela comprimida: Vsd ${V.toFixed(1)} > VRd2 ${VRd2.toFixed(1)} kN.`);
-    if (env.Asl > 0 && env.T > 0) msgs.push(`Torção Td = ${env.T.toFixed(1)} kN·m: armadura longitudinal ${(env.Asl * 1e4).toFixed(2).replace('.', ',')} cm² no perímetro (somar às faces).`);
+    // armadura longitudinal de torção pelo perímetro da seção vazada: faces inferior e superior somadas à de
+    // flexão (absorvida pelas barras se a bitola adotada tiver folga), faces laterais como barras de pele
+    let AsLateral = 0;
+    if (env.Asl > 0 && env.T > 0) {
+      const tr = torsionRect(v.secao.b, v.secao.h, cob.lat + 0.005 + 0.008, env.T, c, fywd, fydL);
+      const face = (env.Asl * (v.secao.b - tr.he)) / tr.ue;
+      AsLateral = (env.Asl * (v.secao.h - tr.he)) / tr.ue;
+      const soma = (As: number) => { const bb = chooseBars(As, v.secao.b, cob.lat, 0.005, 0.019); return bb && bb.As - As >= face ? As : As + face; };
+      AsInf = soma(AsInf); AsSup = soma(AsSup);
+      msgs.push(`Torção Td = ${env.T.toFixed(1)} kN·m: armadura longitudinal ${(env.Asl * 1e4).toFixed(2).replace('.', ',')} cm² (${(face * 1e4).toFixed(2).replace('.', ',')} cm² em cada face horizontal, ${(AsLateral * 1e4).toFixed(2).replace('.', ',')} cm² em cada face lateral).`);
+    }
+    const lat = AsLateral > 0 ? barrasLaterais(AsLateral, v.secao.h) : null;
+    // decalagem do diagrama (NBR 6118, 17.4.2.2, modelo I, estribos verticais): aℓ = d·Vmáx/[2(Vmáx − Vc)], entre 0,5d e d
+    const al = V > Vc0 ? Math.min(d, Math.max(0.5 * d, (d * V) / (2 * (V - Vc0)))) : d;
     // fissuração na combinação frequente (17.3.3.2): aumenta a armadura até wk ≤ limite
     let MkPos = 0, MkNeg = 0;
     for (const vo of vaos) for (const r of vo.Mk) for (const m of r) { MkPos = Math.max(MkPos, m); MkNeg = Math.min(MkNeg, m); }
@@ -226,7 +247,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
       flecha, limite, flechaQ: fl.q, limiteQ,
-      Mpos, Mneg, V, T: env.T, AslTorcao: env.Asl, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
+      Mpos, Mneg, V, T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
       AsInf, AsSup, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : '—',
       status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
@@ -403,16 +424,19 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     if (tra.length) msgs.push(`Tração em ${tra.length} combinação(ões): até ${(-Math.min(...tra.map((x) => x.Nt))).toFixed(0)} kN (verificada sem 2ª ordem).`);
     if (acoLong === 'CA-60' && melhor.phi > 10) msgs.push(AVISO_CA60);
     if (melhor.util > 1) msgs.push('Não atende com até 4 % de armadura: aumente a seção.');
-    // cortante (17.4, modelo I com θ = 45°): Vc = Vc0 com compressão (a favor da segurança) e 0 com tração;
-    // pilar comprimido com Vsd ≤ Vc dispensa o mínimo de 17.4.1.1.1 e fica com o estribo construtivo (18.4.3)
-    const a = cob + 0.005 + melhor.phi / 2000;
-    const dirs: { bw: number; d: number }[] = circ ? [{ bw: circ, d: 0.8 * circ }] : [{ bw: h, d: w - a }, { bw: w, d: h - a }];
+    // cortante (17.4, modelo I com θ = 45°): na flexo-compressão Vc = Vc0·(1 + M0/Msd,máx) ≤ 2·Vc0 (17.4.2.2 c),
+    // M0 = momento de descompressão com N de γf = 1,0 (Nd/γg) e W/A da seção; com tração Vc = 0; pilar comprimido
+    // com Vsd ≤ Vc dispensa o mínimo de 17.4.1.1.1 e fica com o estribo construtivo (18.4.3)
+    const a = cob + 0.005 + melhor.phi / 2000, gg = gamas(b).g;
+    const dirs: { bw: number; d: number; WA: number; M: 'Mz' | 'My' }[] = circ ? [{ bw: circ, d: 0.8 * circ, WA: circ / 8, M: 'Mz' }] : [{ bw: h, d: w - a, WA: w / 6, M: 'Mz' }, { bw: w, d: h - a, WA: h / 6, M: 'My' }];
     let asw = 0, Vd = 0, biela = 0;
     for (const cb of elu) for (const i of [0, 1]) {
-      const Vy = comb(pc, cb, i, 'Vy') * gn, Vz = comb(pc, cb, i, 'Vz') * gn, comp = -comb(pc, cb, i, 'N') > 0;
+      const Vy = comb(pc, cb, i, 'Vy') * gn, Vz = comb(pc, cb, i, 'Vz') * gn, Nc = -comb(pc, cb, i, 'N'), comp = Nc > 0;
       const Vs = circ ? [Math.hypot(Vy, Vz)] : [Math.abs(Vy), Math.abs(Vz)];
       Vs.forEach((V, k) => {
-        const { bw, d } = dirs[k], Vc = comp ? 0.6 * c.fctd * bw * d * 1000 : 0, VRd2 = 0.27 * c.av2 * c.fcd * bw * d * 1000;
+        const { bw, d, WA } = dirs[k], Vc0 = 0.6 * c.fctd * bw * d * 1000, VRd2 = 0.27 * c.av2 * c.fcd * bw * d * 1000;
+        const Msd = circ ? Math.max(Math.hypot(comb(pc, cb, 0, 'Mz'), comb(pc, cb, 0, 'My')), Math.hypot(comb(pc, cb, 1, 'Mz'), comb(pc, cb, 1, 'My'))) * gn : Math.max(Math.abs(comb(pc, cb, 0, dirs[k].M)), Math.abs(comb(pc, cb, 1, dirs[k].M))) * gn;
+        const Vc = comp ? Math.min(2 * Vc0, Vc0 * (1 + (Msd > 1e-9 ? ((Nc / gg) * WA) / Msd : 1))) : 0;
         Vd = Math.max(Vd, V); biela = Math.max(biela, V / VRd2);
         if (V > Vc) asw = Math.max(asw, ((0.2 * c.fctm) / acoDe(b, 'pilarEstribo').fyk) * bw, (V - Vc) / 1000 / (0.9 * d * Math.min(acoDe(b, 'pilarEstribo').fyk / gamas(b).s, 435)));
       });

@@ -34,10 +34,10 @@ describe('verificações das vigas e pilares (N1e)', () => {
 
   it('redistribuição: negativo do apoio interno × δ, positivo aumenta; δ limitado a 0,75', () => {
     const { ok, dim, v1 } = grade();
+    const r1 = v1(dim()); // padrão 15 %
+    ok('opcoes.definir', { valores: { redistribuicao: 0 } });
     const r0 = v1(dim());
     expect(r0.delta).toBe(1);
-    ok('opcoes.definir', { valores: { redistribuicao: 15 } });
-    const r1 = v1(dim());
     expect(r1.delta).toBeGreaterThanOrEqual(0.85 - 1e-9);
     expect(r1.Mneg / r0.Mneg).toBeCloseTo(r1.delta, 1);
     expect(r1.Mpos).toBeGreaterThan(r0.Mpos);
@@ -48,6 +48,7 @@ describe('verificações das vigas e pilares (N1e)', () => {
 
   it('momentos mínimos p·ℓ²/x', () => {
     const { ok, dim, v1 } = grade();
+    ok('opcoes.definir', { valores: { redistribuicao: 0 } });
     const r0 = v1(dim());
     ok('opcoes.definir', { valores: { momentoMinPositivo: 8 } }); // ≥ momento isostático do vão
     const r1 = v1(dim());
@@ -58,10 +59,10 @@ describe('verificações das vigas e pilares (N1e)', () => {
 
   it('cortante a partir da face e de d/2 da face', () => {
     const { ok, dim, v1 } = grade();
+    const V1 = v1(dim()).V; // padrão: a partir da face
+    ok('opcoes.definir', { valores: { cortanteApoio: 0 } });
     const V0 = v1(dim()).V;
-    ok('opcoes.definir', { valores: { cortanteApoio: 1 } });
-    const V1 = v1(dim()).V;
-    ok('opcoes.definir', { valores: { cortanteApoio: 2 } });
+    ok('opcoes.definir', { valores: { cortanteApoio: 1, cortanteDistancia: 50 } });
     const V2 = v1(dim()).V;
     expect(V1).toBeLessThanOrEqual(V0);
     expect(V2).toBeLessThan(V1);
@@ -85,7 +86,13 @@ describe('verificações das vigas e pilares (N1e)', () => {
   it('torção de compatibilidade: verificada por padrão e desprezada com a opção', () => {
     const { ok, dim } = grade(true);
     const T = (d: ReturnType<typeof dim>) => Math.max(...d.vigas.map((v) => v.T));
-    expect(T(dim())).toBeGreaterThan(0);
+    const d0 = dim();
+    expect(T(d0)).toBeGreaterThan(0);
+    // longitudinal de torção nas faces: laterais com barras próprias, soma das faces = Asl
+    const vt = d0.vigas.find((v) => v.T > 0 && v.AslTorcao > 0)!;
+    expect(vt.AsLateral).toBeGreaterThan(0);
+    expect(vt.AsLateral).toBeLessThan(vt.AslTorcao / 2);
+    expect(vt.barrasLaterais).toMatch(/por face/);
     ok('opcoes.definir', { valores: { verificarTorcao: 0 } });
     expect(T(dim())).toBe(0);
   });
@@ -99,5 +106,12 @@ describe('verificações das vigas e pilares (N1e)', () => {
     expect(est1.Vd!).toBeGreaterThan(50);
     const sp = (e: string) => +e.split('c/')[1];
     expect(sp(est1.estribo) < sp(est0.estribo) || +est1.estribo.slice(1).split(' ')[0].replace(',', '.') > +est0.estribo.slice(1).split(' ')[0].replace(',', '.')).toBe(true);
+  });
+
+  it('decalagem aℓ entre 0,5d e d', () => {
+    const { dim, v1 } = grade();
+    const r = v1(dim()), d = r.h - 0.03 - 0.013;
+    expect(r.al).toBeGreaterThanOrEqual(0.5 * d - 1e-9);
+    expect(r.al).toBeLessThanOrEqual(d + 1e-9);
   });
 });

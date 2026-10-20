@@ -657,7 +657,7 @@ export const flows = [
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
       const red = page.getByLabel('Redistribuição de negativos das vigas');
-      await red.fill('15');
+      await red.fill('20');
       await red.press('Enter');
       const fis = page.getByLabel('Abertura de fissuras máxima');
       await fis.fill('0,2');
@@ -675,7 +675,7 @@ export const flows = [
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       const txt = await memo.textContent();
-      assert.match(txt, /Redistribuição \(NBR 6118, 14\.6\.4\.3\): 15 %/);
+      assert.match(txt, /Redistribuição \(NBR 6118, 14\.6\.4\.3\): 20 %/);
       assert.match(txt, /limite 0,20 mm \(opção\)/);
     },
   },
