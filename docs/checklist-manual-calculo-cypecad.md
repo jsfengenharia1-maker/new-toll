@@ -31,9 +31,9 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 63 | 30 | 93 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 63 | 30 | 93 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 49 | 19 | 68 |
-| E — Elementos estruturais | 23 | 119 | 142 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; o restante fica para E3 e E4) | 23 | 119 | 142 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 4 | 0 | 4 |
 | V — Visualização | 9 | 11 | 20 |
@@ -76,22 +76,22 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.1.1 | Análise de esforços e dimensionamento de estruturas de concreto armado e aço que suportam lajes de vigotas (comuns, armadas, protendidas, moldadas in loco, de aço, alma vazada), alveolares, mistas, nervuradas e maciças, em edifícios sob cargas verticais e horizontais. | Parcial | E | lajes maciças e treliçadas; faltam nervuradas e alveolares (mistas fora) |
 | K1.1.2 | Vigas de apoio das lajes podem ser de concreto armado, aço ou mistas (aço + concreto). | Feito | — | vigas de concreto armado; aço e mistas fora do escopo do edifício |
-| K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Parcial | E | pilares de concreto retangulares e circulares; faltam pilares-parede, paredes de concreto e alvenaria estrutural |
+| K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Parcial | E | pilares de concreto retangulares e circulares; faltam pilares-parede, paredes de concreto e alvenaria estrutural [E1c] |
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Parcial | FU | sapatas isoladas, blocos de 1 a 6 estacas e tubulões, no módulo Fundações e lançados no edifício (FU1: `src/core/building/fundacao.ts`, grupo Fundação e planta de fundação); faltam corridas, vigas de fundação e radier |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
 | K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas |
-| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares e lajes (PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML (R5); sem pilares-parede e paredes |
+| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares e lajes (PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML (R5); sem pilares-parede e paredes [E1d] |
 | K1.1.8 | Com módulo 3D adicional: barras de aço, madeira e alumínio integradas ao edifício. | Fora | — | barras de aço, madeira e alumínio no edifício |
 
 ## 1.2 Análise realizada (págs. 4–5)
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.2.1 | Análise espacial 3D por matriz de rigidez de todos os elementos (pilares, pilares-parede, vigas, lajes). | Parcial | N | modelo separado: grelha por pavimento + pórtico espacial; lajes não entram na matriz do pórtico |
+| K1.2.1 | Análise espacial 3D por matriz de rigidez de todos os elementos (pilares, pilares-parede, vigas, lajes). | Parcial | N | modelo separado: grelha por pavimento + pórtico espacial; lajes não entram na matriz do pórtico [N2b] |
 | K1.2.2 | Compatibilidade de deslocamentos em todos os nós com 6 graus de liberdade. | Feito | — | `fe3d.ts`: 6 GL por nó no pórtico espacial |
 | K1.2.3 | Hipótese de diafragma rígido por pavimento: plano indeformável; cada pavimento só translada e gira como corpo rígido (3 GL no plano). | Feito | — | diafragma rígido mestre-escravo por pavimento (`analitico.ts`) |
 | K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Feito | — | cada zona de nós ligada por vigas do diafragma é um diafragma, mesmo só com vigas (opção zonasIndependentes, N1c) |
-| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | N | vigas fora do diafragma (viga.editar foraDiafragma, N1a); paredes fora do diafragma dependem das paredes (E) |
+| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | N | vigas fora do diafragma (viga.editar foraDiafragma, N1a); paredes fora do diafragma dependem das paredes (E) [N2b] |
 | K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Feito | — | zonas independentes são diafragmas separados; pilar isolado fica sem diafragma (N1c) |
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
@@ -102,42 +102,42 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.3.1 | Estrutura discretizada em barras, grelhas de barras e nós, e elementos finitos triangulares. | Parcial | N | só barras (pórtico e grelha); sem elementos finitos de casca |
+| K1.3.1 | Estrutura discretizada em barras, grelhas de barras e nós, e elementos finitos triangulares. | Parcial | N | só barras (pórtico e grelha); sem elementos finitos de casca [N2b] |
 | K1.3.2 | Pilares: barras verticais entre pavimentos, nó na base (fundação, viga ou laje) e nó em cada pavimento; eixo = eixo da seção. | Feito | — | lance entre pavimentos, nó na base e em cada pavimento, no centro da seção |
-| K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Parcial | N | nó de cada lance no centro da sua seção: barra levemente inclinada, sem trecho rígido de excentricidade |
-| K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Parcial | N | comprimento = distância entre cotas; distância livre entre faces não usada |
+| K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Parcial | N | nó de cada lance no centro da sua seção: barra levemente inclinada, sem trecho rígido de excentricidade [N2c] |
+| K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Parcial | N | comprimento = distância entre cotas; distância livre entre faces não usada [N2c] |
 | K1.3.5 | Vigas: definidas em planta; nós nas interseções com faces dos apoios (pilares, pilares-parede, paredes), com elementos de laje e com outras vigas; nós ao longo do eixo, nas extremidades, nos balanços e extremos livres. | Feito | — | nós nos cruzamentos e apoios (`dividirVigas`); no pórtico o nó fica no eixo do pilar com trecho rígido |
 | K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
-| K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | só concreto retangular; sem seção T colaborante nem biblioteca (aço/madeira fora) |
+| K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | só concreto retangular; sem seção T colaborante nem biblioteca (aço/madeira fora) [E2a] |
 | K1.3.8 | Eixo da barra de viga no plano médio vertical da alma, na altura do centro de gravidade. | Feito | — | eixo da viga no plano do pavimento (prática usual com diafragma) |
-| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Falta | E | apoio contínuo em muro |
-| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Falta | E | tipos de vínculo do apoio em muro |
+| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Falta | E | apoio contínuo em muro [E2e] |
+| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Falta | E | tipos de vínculo do apoio em muro [E2e] |
 | K1.3.11 | Alerta: pilares que tocam esses apoios podem ficar "pendurados" — a carga não chega à fundação e podem surgir reações negativas. | Fora | — | alerta ligado a recurso inexistente (apoio em muro) |
 | K1.3.12 | Alerta: na articulação deslizante, viga contínua ou alinhada ao eixo do apoio gera engaste por continuidade (momentos negativos na borda); conferir se a obra garante isso; viga desalinhada comporta-se como articulada. | Fora | — | alerta ligado a recurso inexistente |
 | K1.3.13 | Para evitar engaste por continuidade: rótula na extremidade da viga junto ao apoio. | Fora | — | conselho de modelagem; rótula de extremidade já existe |
 | K1.3.14 | Limitação: não se obtêm as reações desses apoios em muro. | Fora | — | limitação do outro programa |
 | K1.3.15 | Vigas de fundação: vigas "flutuantes" sobre meio elástico; molas nos nós a partir do coeficiente de reação (módulo de reação do solo). | Falta | FU | vigas de fundação sobre base elástica (Winkler) |
-| K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Falta | E | vigas inclinadas |
-| K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Falta | E | consolos curtos (NBR 6118 22.5) |
+| K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Falta | E | vigas inclinadas [E2c] |
+| K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Falta | E | consolos curtos (NBR 6118 22.5) [E2e] |
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Parcial | E | treliçadas como faixas T na grelha (`propriedadesLaje`); vigotas não são barras individuais |
 | K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) |
 | K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Falta | E | fase construtiva das alveolares |
 | K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Feito | — | opções de cálculo: malha configurável, padrão 0,25 m (N1a) |
-| K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Parcial | N | grelha Euler-Bernoulli (sem cortante); torção das lajes com redutor editável (torcaoLaje, N1a); diafragma só no pórtico |
+| K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Parcial | N | grelha Euler-Bernoulli (sem cortante); torção das lajes com redutor editável (torcaoLaje, N1a); diafragma só no pórtico [N2b] |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
 | K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Falta | FU | radier |
 | K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Falta | E | lajes nervuradas bidirecionais |
 | K1.3.26 | Lajes nervuradas: inércia à flexão das barras = metade da da zona maciça (tanto na zona maciça quanto na aliviada, como média); inércia à torção = 2 × a de flexão. | Falta | E | lajes nervuradas (inércias da malha) |
 | K1.3.27 | Lajes nervuradas: malha igual nas zonas maciça e aliviada; considera cortante, diafragma e rigidez à torção. | Falta | E | lajes nervuradas |
-| K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Falta | E | pilares-parede de seção composta |
-| K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Parcial | E | lado > 5 × o menor gera aviso de pilar-parede; segue como barra (mesmo limite do manual; premissa resolvida em 20/10/2026) |
-| K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Falta | E | ligação de vigas e lajes ao pilar-parede |
-| K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Falta | E | paredes de concreto e de alvenaria estrutural |
-| K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Falta | E | paredes (regra de esbeltez) |
-| K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Falta | E | paredes (ligação com vigas e lajes) |
-| K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Falta | N | elemento finito de casca espessa |
-| K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Falta | N | malha triangular adaptativa |
-| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Falta | N | paredes fora do diafragma |
+| K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Falta | E | pilares-parede de seção composta [E1b] |
+| K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Parcial | E | lado > 5 × o menor gera aviso de pilar-parede; segue como barra (mesmo limite do manual; premissa resolvida em 20/10/2026) [E1b] |
+| K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Falta | E | ligação de vigas e lajes ao pilar-parede [E1b] |
+| K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Falta | E | paredes de concreto e de alvenaria estrutural [E1c] |
+| K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Falta | E | paredes (regra de esbeltez) [E1c] |
+| K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Falta | E | paredes (ligação com vigas e lajes) [E1c] |
+| K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Falta | N | elemento finito de casca espessa [N2b] |
+| K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Falta | N | malha triangular adaptativa [N2b] |
+| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Falta | N | paredes fora do diafragma [N2b] |
 | K1.3.37 | Escadas: elementos finitos triangulares de casca espessa nos lances inclinados e patamares. | Falta | E | escadas |
 | K1.3.38 | Escadas: apoios inicial e final simulados como laje por viga de rigidez elevada; apoios intermediários por apoios elásticos (alvenaria ou tirantes). | Falta | E | escadas (apoios) |
 | K1.3.39 | Escadas: só casos gravitacionais (permanente e variável). | Falta | E | escadas (casos) |
@@ -145,37 +145,37 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.41 | Escadas não entram na análise global (justificativa: grande influência das forças horizontais sobre elas). | Falta | E | escadas fora da análise global |
 | | **1.3.1 Dimensão dos nós (págs. 10–12)** | | | |
 | K1.3.42 | Nós gerais de dimensão finita no eixo dos pilares e nas interseções laje × eixo de viga; cada nó geral tem zero ou mais nós associados. | Feito | — | nó no eixo do pilar ligado à face por trecho rígido (`offsetFace`, offI/offJ) |
-| K1.3.43 | Nós associados: interseções de elementos de laje com faces de vigas e pilares, e de eixos de vigas com faces de pilares. | Parcial | N | grelha: nó da viga dentro do pilar com w preso; sem trechos rígidos laje–face |
+| K1.3.43 | Nós associados: interseções de elementos de laje com faces de vigas e pilares, e de eixos de vigas com faces de pilares. | Parcial | N | grelha: nó da viga dentro do pilar com w preso; sem trechos rígidos laje–face [N2b] |
 | K1.3.44 | Nós associados ligados ao geral por compatibilidade de deformação plana (corpo rígido): δz2 = δz1 − Ax·θy1 + Ay·θx1 (forma do texto), θx2 = θx1, θy2 = θy1. | Feito | — | compatibilidade de corpo rígido pelos offsets das barras |
 | K1.3.45 | Barras entre o eixo do pilar e suas faces são infinitamente rígidas (trechos rígidos). | Feito | — | trecho rígido editável de 0 (até a face) a 0,5h; padrão NBR 6118 14.6.2.1 (face − 0,3h) (opção trechoRigido, N1a) |
-| K1.3.46 | Dimensão das vigas considerada da mesma forma (deformação plana). | Parcial | N | viga apoiada em viga sem dimensão do nó |
-| K1.3.47 | Alerta de modelagem: elementos tratados como lineares (pilares, vigas, vigotas) que na realidade são 2D/3D — consolos curtos, vigas-parede, lajes que são vigas, pilares e pilares-parede curtos — exigem correções manuais do usuário. | Falta | N | avisos de viga-parede, consolo, pilar curto (NBR 6118, 22; frente N2) |
+| K1.3.46 | Dimensão das vigas considerada da mesma forma (deformação plana). | Parcial | N | viga apoiada em viga sem dimensão do nó [N2e] |
+| K1.3.47 | Alerta de modelagem: elementos tratados como lineares (pilares, vigas, vigotas) que na realidade são 2D/3D — consolos curtos, vigas-parede, lajes que são vigas, pilares e pilares-parede curtos — exigem correções manuais do usuário. | Falta | N | avisos de viga-parede, consolo, pilar curto (NBR 6118, 22; frente N2) [N2e] |
 | | **1.3.2 Envoltórias de esforços nos apoios (págs. 12–15)** | | | |
 | K1.3.48 | Referência ao CEB-FIP MC 1990 art. 5.2.3.2: vão efetivo entre eixos; quando a reação está longe do eixo, considerar a posição real; na análise de pórtico, trechos rígidos entre eixo do pilar e extremidade da viga. | Feito | — | vão entre eixos com trechos rígidos no pórtico |
 | K1.3.49 | Dimensão do nó modelada por trechos rígidos entre eixo do apoio e extremo da viga (reação excêntrica). | Feito | — | trechos rígidos entre eixo do pilar e viga |
 | K1.3.50 | Dentro do apoio, reação admitida com variação linear. | Fora | — | critério interno de distribuição da reação no apoio |
-| K1.3.51 | Dentro do apoio, momento como parábola cúbica M = ax³+bx²+cx+d e cortante Q = 3ax²+2bx+c, com 4 condições de contorno (Q e M nas duas faces) — "arredondamento" do diagrama. | Parcial | N | dimensiona na parte flexível (face − 0,3h); sem arredondamento (NBR 6118 14.6.3) |
+| K1.3.51 | Dentro do apoio, momento como parábola cúbica M = ax³+bx²+cx+d e cortante Q = 3ax²+2bx+c, com 4 condições de contorno (Q e M nas duas faces) — "arredondamento" do diagrama. | Parcial | N | dimensiona na parte flexível (face − 0,3h); sem arredondamento (NBR 6118 14.6.3) [N2e] |
 | K1.3.52 | Referência a Branson (1977) sobre vão teórico × vão livre e momento no eixo × na face. | Fora | — | referência bibliográfica |
-| K1.3.53 | Critério para tratar como elemento linear: vão/comprimento > 1/3 da altura média e > 4 × a largura média (texto como no manual). | Falta | N | aviso de elemento linear × não linear (NBR 6118 14.4.1) |
-| K1.3.54 | EC2: redução do momento no apoio ΔM = reação × largura do apoio / 8. | Parcial | N | ΔM = R·t/8 (NBR 6118 14.6.3) não aplicado; trecho rígido faz papel parecido |
-| K1.3.55 | EC2: em ligação monolítica, momento de cálculo na face do apoio, não menor que 65 % do momento no eixo (engaste perfeito nas faces). | Parcial | N | momento na face − 0,3h; sem mínimo em % do momento no eixo |
+| K1.3.53 | Critério para tratar como elemento linear: vão/comprimento > 1/3 da altura média e > 4 × a largura média (texto como no manual). | Falta | N | aviso de elemento linear × não linear (NBR 6118 14.4.1) [N2e] |
+| K1.3.54 | EC2: redução do momento no apoio ΔM = reação × largura do apoio / 8. | Parcial | N | ΔM = R·t/8 (NBR 6118 14.6.3) não aplicado; trecho rígido faz papel parecido [N2e] |
+| K1.3.55 | EC2: em ligação monolítica, momento de cálculo na face do apoio, não menor que 65 % do momento no eixo (engaste perfeito nas faces). | Parcial | N | momento na face − 0,3h; sem mínimo em % do momento no eixo [N2e] |
 | K1.3.56 | Referência a CIRSOC (Argentina) / DIN: arredondamento parabólico conforme dimensão dos apoios. | Fora | — | referência a norma estrangeira |
 | K1.3.57 | Dentro do apoio, altura da viga cresce linearmente com inclinação 1:3 até o eixo (mísula fictícia para dimensionamento). | Fora | — | mísula fictícia 1:3: critério interno; nós dimensionamos na face − 0,3h |
 | K1.3.58 | Resultado: armadura máxima fica entre a face e o eixo, em geral na face — economia de armadura longitudinal. | Fora | — | consequência do critério interno anterior |
-| K1.3.59 | Viga apoiada em apoio longitudinal (pilar-parede ou parede): diagrama prolongado a partir da face por um comprimento = altura da viga; armadura dimensionada só nesse trecho; viga e armadura interrompidas depois disso, mesmo que a viga seja mais larga que o apoio. | Falta | E | viga apoiada em pilar-parede ou parede |
+| K1.3.59 | Viga apoiada em apoio longitudinal (pilar-parede ou parede): diagrama prolongado a partir da face por um comprimento = altura da viga; armadura dimensionada só nesse trecho; viga e armadura interrompidas depois disso, mesmo que a viga seja mais larga que o apoio. | Falta | E | viga apoiada em pilar-parede ou parede [E1b] |
 
 ## 1.4 Opções de cálculo (págs. 15–27)
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Parcial | N | opções de cálculo editáveis com dois perfis de padrão (análise, vigas, lajes, vigotas, detalhamento; opcoes.ts) e opções por elemento (engastes, flambagem, cobrimento, armadura bloqueada); sem tabelas de armadura (R7a) |
+| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Parcial | N | opções de cálculo editáveis com dois perfis de padrão (análise, vigas, lajes, vigotas, detalhamento; opcoes.ts) e opções por elemento (engastes, flambagem, cobrimento, armadura bloqueada); sem tabelas de armadura (R7a) [N2e] |
 | | **1.4.1 Redistribuições (págs. 15–18)** | | | |
 | K1.4.2 | Redistribuição de momentos negativos em vigas e vigotas até 30 % (configurável). | Parcial | E | redistribuição dos negativos das vigas, padrão 15 % (perfil NBR 0), 0 a 25 % com os limites de δ da NBR 6118 14.6.4.3 (N1e); vigotas sem redistribuição (E3) |
 | K1.4.3 | Valores recomendados/padrão: 15 % para vigas e 25 % para vigotas (padrão). | Feito | — | redistribuição padrão 15 % nas vigas (opção 0 a 25 %, limites da NBR 14.6.4.3); vigotas fora (N1e) |
 | K1.4.4 | Redistribuição feita após o cálculo (pós-processamento). | Feito | — | aplicada depois da análise, sobre as envoltórias das cargas verticais (N1e) |
 | K1.4.5 | Alerta: redistribuição excessiva gera flechas e fissuração grandes, inadequadas com paredes divisórias. | Fora | — | alerta do manual |
 | K1.4.6 | 25 % nas lajes ≈ igualar momentos negativos e positivos. | Fora | — | comentário do manual |
-| K1.4.7 | Redistribuição aplicada aos momentos negativos nas bordas dos apoios (faces dos pilares), afetando o vão livre; momentos dentro do apoio recalculados a partir da face com o arredondamento de 1.3.2. | Parcial | N | redistribuição nos negativos de apoio da parte flexível; sem recálculo a partir da face com arredondamento (N1e) |
+| K1.4.7 | Redistribuição aplicada aos momentos negativos nas bordas dos apoios (faces dos pilares), afetando o vão livre; momentos dentro do apoio recalculados a partir da face com o arredondamento de 1.3.2. | Parcial | N | redistribuição nos negativos de apoio da parte flexível; sem recálculo a partir da face com arredondamento (N1e) [N2e] |
 | K1.4.8 | Em vigas e lajes de vigotas, além da redistribuição, pode-se impor momentos mínimos positivos e negativos de norma. | Feito | — | momentos mínimos p·ℓ²/x positivo e negativo nas vigas (N1e) e nas vigotas (R6), além da redistribuição |
 | K1.4.9 | Coeficiente de engaste no topo do último lance de pilar (ligação com a viga): 0 (rótula) a 1 (engaste); padrão 0,3. | Feito | — | opções de cálculo: engaste no topo do último lance 0–1, padrão 0,3 (N1a) |
 | K1.4.10 | Implementação: interpolação linear das matrizes de rigidez engaste-engaste e engaste-rótula: K = α·Kee + (1−α)·Ker, afetando os termos EI/L do último lance. | Feito | — | fe3d: engaste parcial por interpolação K = α·Kee + (1 − α)·Ker (N1a) |
@@ -194,17 +194,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.22 | Termos da matriz com seção bruta de todos os elementos de concreto. | Feito | — | seção bruta em todos os elementos (Ecs) |
 | K1.4.23 | Termos: EI/L (flexão), GJ/L (torção), EA/L (axial). | Feito | — | EA, EI e GJ nas barras 3D (`fe3d.ts`) |
 | K1.4.24 | Pilares: EIy, EIz bruto; GJ bruto × coeficiente de redução de torção; EA bruto × coeficiente de rigidez axial. | Feito | — | opções: GJ dos pilares × coeficiente (padrão 1) e EA × coeficiente (padrão 2) (N1a) |
-| K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Falta | E | vigas inclinadas |
+| K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Falta | E | vigas inclinadas [E2c] |
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
-| K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Falta | E | vigas de amarração sem rigidez à flexão |
-| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro |
-| K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Falta | E | paredes e pilares-parede |
+| K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Falta | E | vigas de amarração sem rigidez à flexão [E2a] |
+| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro [E2e] |
+| K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Falta | E | paredes e pilares-parede [E1b] |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
 | K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Falta | E | lajes alveolares (mistas fora) |
 | | **1.4.3 Coeficientes de rigidez à torção (pág. 19)** | | | |
 | K1.4.33 | Coeficiente redutor da rigidez à torção configurável (não se aplica a perfis de aço). | Feito | — | opções: redutores de torção de vigas, lajes e pilares editáveis (N1a) |
-| K1.4.34 | Barras com dimensão ≤ ao limite de "barra curta" usam o valor definido nas opções para elas. | Falta | N | rigidez própria para barras curtas |
+| K1.4.34 | Barras com dimensão ≤ ao limite de "barra curta" usam o valor definido nas opções para elas. | Falta | N | rigidez própria para barras curtas [N2e] |
 | K1.4.35 | Seção bruta (sem redução) usada na torção quando necessária ao equilíbrio da estrutura (torção de equilíbrio). | Feito | — | viga.editar torcaoEquilibrio: GJ da seção bruta (N1a) |
 | | **1.4.4 Coeficientes de rigidez axial (pág. 19)** | | | |
 | K1.4.36 | Encurtamento axial de pilares, paredes e pilares-parede considerado com coeficiente multiplicador de EA entre 1 e 99,99, para simular o processo construtivo. | Feito | — | opções: multiplicador de EA dos pilares de 1 a 99,99, padrão 2 (N1a) |
@@ -233,20 +233,20 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.56 | Arredondamento de comprimentos de barras: múltiplo de 5 cm (padrão). | Feito | — | comprimentos arredondados para cima ao múltiplo de 5 cm (opção arredondamento), também nos pilares (R3b) |
 | K1.4.57 | Símbolos gráficos para pilar que nasce, passa ou morre no pavimento (selecionáveis). | Parcial | V | prancha: pilar que chega hachurado, que nasce tracejado; símbolos fixos |
 | K1.4.58 | Emendas no terço central do lance (zona sísmica): padrão desativado; recomendado em alta sismicidade. | Fora | — | sismo |
-| K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Falta | E | emendas em paredes e pilares-parede |
-| K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Falta | E | grau de cumprimento em paredes |
+| K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Falta | E | emendas em paredes e pilares-parede [E1d] |
+| K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Falta | E | grau de cumprimento em paredes [E1d] |
 | K1.4.61 | Estribos: na interseção com laje/viga (padrão ativo) e adensamento no topo e base numa altura definida (padrão inativo; recomendado em zona sísmica). | Parcial | R | estribos também na interseção com vigas e lajes (nó incluído na contagem); sem adensamento no topo e na base (R3b) [R7c] |
-| K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos (E2) |
+| K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos (E2) [E2e] |
 | | **Vigas (listadas, sem valores)** | | | |
 | K1.4.63 | Armadura negativa simétrica em vigas de um vão; diferença % para simetria da negativa. | Falta | R | simetria da armadura negativa [R7b] |
 | K1.4.64 | Critérios de ganchos; ganchos no fim do alinhamento. | Parcial | R | ganchos de 90° nas pontas das barras (ponta 8φ, pino 5φ/8φ) e no fim do alinhamento; sem critérios configuráveis (R3a) [R7b] |
 | K1.4.65 | Comprimento mínimo de estribos; simetria de estribos; estribos de bitolas diferentes na viga; ancoragem do fechamento; estribos em U; estribos múltiplos. | Parcial | R | estribos por zonas com espaçamento do cortante e da torção em cada ponto, comprimento mínimo ρsw,mín; sem simetria, bitolas por zona, estribos múltiplos ou em U (R3a) [R7b] |
-| K1.4.66 | Armadura de vigas pré-moldadas (armadas e protendidas) e propriedades; estribos de vigas protendidas. | Falta | E | vigas pré-moldadas (NBR 9062) |
+| K1.4.66 | Armadura de vigas pré-moldadas (armadas e protendidas) e propriedades; estribos de vigas protendidas. | Falta | E | vigas pré-moldadas (NBR 9062) [E2e] |
 | K1.4.67 | Detalhamento de vigas sísmicas. | Fora | — | sismo |
 | K1.4.68 | Cobrimentos superior, inferior e lateral; idem para vigas de fundação. | Feito | — | cobrimentos inferior, superior e lateral das vigas (Norma.cobFaces, N1b); vigas de fundação (FU) |
 | K1.4.69 | Avaliação de erros; numeração de pórticos e de vigas. | Parcial | L | renumeração automática de vigas (`viga.renumerar`); sem pórticos |
 | K1.4.70 | Considerar armadura de montagem; emenda de montagem em balanços. | Parcial | R | montagem superior de 2 barras (bitola das opções, φ8) corrida, com emenda no meio dos vãos; sem opção contínua/construtiva (R3a) [R7b] |
-| K1.4.71 | Envoltória de cortante contínua ou descontínua (opção geral). | Falta | N | envoltória de cortante contínua/descontínua |
+| K1.4.71 | Envoltória de cortante contínua ou descontínua (opção geral). | Falta | N | envoltória de cortante contínua/descontínua [N2e] |
 | K1.4.72 | Armadura de cortante: disposição de armadura de pele, seção de verificação ao cortante (opção geral). | Feito | — | armadura de pele (17.3.5.2.3, h > 60 cm) somada às laterais de torção, por face (R3a); seção de verificação do cortante pelas opções cortanteApoio e cortanteDistancia (N1e) |
 | K1.4.73 | Seleção de estribos (opção geral); fissuração (opção geral). | Parcial | R | estribo escolhido automaticamente, sem opções de seleção; fissuração no edifício pela opção limiteFissura (N1e) [R7a] |
 | K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Falta | FU | vigas de fundação e cintas |
@@ -259,14 +259,14 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
 | K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Feito | — | perdas de aço e barra máxima (opções perdasAco e barraMaxima, R3a) e opções de desenho das pranchas de armação (formato, escalas, lajes separadas, quadro de pilares) (R5) |
 | K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Parcial | E | negativos com ρmín e comprimento mínimo em % do vão (opção; NBR 0) nas treliçadas (R6); alveolares (E3) |
-| K1.4.81 | Momentos mínimos a resistir em lajes e vigas; armadura de vigas mestras. | Parcial | N | momentos mínimos nas vigas (N1e) e nas vigotas (R6); sem mínimos nas lajes maciças nem armadura de vigas mestras |
+| K1.4.81 | Momentos mínimos a resistir em lajes e vigas; armadura de vigas mestras. | Parcial | N | momentos mínimos nas vigas (N1e) e nas vigotas (R6); sem mínimos nas lajes maciças nem armadura de vigas mestras [N2e] |
 | K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Feito | — | redutor de rigidez à flexão das treliçadas na grelha (opção vigotaRigidez) (R6) |
 | K1.4.83 | Considerar armadura de torção em vigas. | Feito | — | torção das vigas verificada (NBR 6118 17.5), opção verificarTorcao (N1e) |
 | K1.4.84 | Opções de vigas de aço e vigotas. | Fora | — | vigas de aço; vigotas ver K1.4.40 |
-| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | limites total ℓ/250 e sensorial ℓ/350 editáveis para lajes e vigas (N1d); sem limites por tipo, alveolares nem mistas |
-| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida por αf(t0) editável em lajes e vigas (N1d); sem etapas de carga do processo construtivo |
+| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | limites total ℓ/250 e sensorial ℓ/350 editáveis para lajes e vigas (N1d); sem limites por tipo, alveolares nem mistas [N2f] |
+| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida por αf(t0) editável em lajes e vigas (N1d); sem etapas de carga do processo construtivo [N2f] |
 | K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Parcial | E | cortante das nervuras sem armadura transversal (19.4.1, VRd1 e VRd2) com faixa maciçada (R6); vigotas moldadas no local (E3) |
-| K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos |
+| K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos [E2c] |
 | | **Fundações (listadas)** | | | |
 | K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Parcial | FU | opções gerais de sapatas, blocos e tubulões no edifício: comando `fundacao.opcoes` (`PARAMS_FUNDACAO`; editor "Parâmetros do cálculo" do grupo Fundação), terreno em `fundacao.terreno`, particulares por elemento (σadm, cota, sondagem, estaca, dimensões impostas); vigas de equilíbrio e travamento faltam (FU2) |
 | | **Desenho** | | | |
@@ -290,25 +290,25 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.9 | Sobrecarga de uso uniforme no pavimento, aplicada automaticamente às barras de cada grupo de pavimentos. | Feito | — | q por grupo, caso Q automático |
 | K1.5.10 | Casos gerados automaticamente: permanente, sobrecarga, vento (X e Y conforme norma e larguras de fachada) e sismo (conforme norma). | Feito | — | G, Q e vento (4 direções × centrado/±e); sismo fora |
 | K1.5.11 | Casos adicionais (antes "cargas especiais") pontuais, lineares ou superficiais, de natureza permanente, sobrecarga, vento, neve, sismo; combináveis com os automáticos (exceto com vento e sismo automáticos). | Feito | — | casos adicionais G, Q, W e E com cargas de ponto, linha e área e nos pilares (N1c); sismo fora do escopo |
-| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | N | ações excepcionais (natureza E) com combinações próprias (N1c); sem empuxo de terra |
-| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Parcial | N | grupo de incompatíveis e caso simultâneo entre casos adicionais (N1c); sem arranjos dentro do mesmo caso nem tabela de compatibilidade |
+| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | N | ações excepcionais (natureza E) com combinações próprias (N1c); sem empuxo de terra [N2a] |
+| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Parcial | N | grupo de incompatíveis e caso simultâneo entre casos adicionais (N1c); sem arranjos dentro do mesmo caso nem tabela de compatibilidade [N2a] |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
-| K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) |
+| K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) [N2g] |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
-| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Parcial | N | carga.pilar: N, Hx, Hy, Mx, My em eixos globais, por caso e lance (N1c); sem torção T |
+| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Parcial | N | carga.pilar: N, Hx, Hy, Mx, My em eixos globais, por caso e lance (N1c); sem torção T [N2c] |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Falta | FU | arranques sobre radier ou viga de fundação |
-| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais |
+| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais [N2c] |
 | | **1.5.2 Cargas horizontais — vento (págs. 29–32)** | | | |
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
 | K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Feito | — | vento.definir: Ca por direção e coeficiente por sentido (+X, −X, +Y, −Y), multiplicando a força (N1c) |
 | K1.5.22 | Edifício isolado: pressão ≈ 2/3 (0,66) a barlavento + sucção ≈ 1/3 (0,33) a sotavento → coeficiente 1. | Feito | — | o Ca da NBR 6123 já soma pressão e sucção |
-| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Parcial | N | coeficiente por sentido (abrigo por vizinho) e fator de vizinhança 1 a 1,3 (NBR 6123, 6.4), informados pelo usuário; sem ábaco automático (N1c) |
+| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Parcial | N | coeficiente por sentido (abrigo por vizinho) e fator de vizinhança 1 a 1,3 (NBR 6123, 6.4), informados pelo usuário; sem ábaco automático (N1c) [N2a] |
 | K1.5.24 | Largura de banda = comprimento da fachada perpendicular ao vento, por pavimento (pode variar). | Feito | — | largura da fachada por pavimento pela extensão em planta |
 | K1.5.25 | Zonas independentes num pavimento: carga repartida na proporção da largura de cada zona (b1, b2 pelas coordenadas dos pilares extremos): Bi = bi/(b1+b2)·B. | Feito | — | vento do pavimento repartido entre zonas independentes: Bi = bi/Σb·B, aplicado no centro de cada zona (N1c) |
 | K1.5.26 | Área exposta = semissoma das alturas dos pavimentos acima e abaixo × largura de banda; força = área × pressão na cota × coeficiente de carga. | Feito | — | altura de influência = semissoma; F = Ca·q·largura·altura |
-| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Parcial | N | platibanda (m) somada à faixa de exposição do último pavimento; sem a largura corrigida b' pela forma do texto (N1c) |
+| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Parcial | N | platibanda (m) somada à faixa de exposição do último pavimento; sem a largura corrigida b' pela forma do texto (N1c) [N2a] |
 | K1.5.28 | Método geral: curva altura–pressão de biblioteca (editável), interpolada nas cotas dos pavimentos. | Feito | — | perfil S2(z) da NBR 6123 nas cotas dos pavimentos |
-| K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado à mão (padrão 1,3); ábaco não digitalizado |
+| K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado à mão (padrão 1,3); ábaco não digitalizado [N2a] |
 | K1.5.30 | Coeficiente de rajada para locais expostos (vales, encostas). | Feito | — | S1 (topográfico) e S3 editáveis |
 | K1.5.31 | Força total por pavimento = pressão × área × coef. de forma × coef. de rajada; aplicada no centro geométrico do contorno do pavimento. | Feito | — | força no mestre (centro das lajes) com excentricidade ± 0,075·largura |
 | K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Parcial | V | forças por pavimento na aba Análise; não no memorial nem em planta |
@@ -337,7 +337,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.53 | Padrão do programa: multiplicador de deslocamentos 1,00 (fachadas, escadas e alvenarias enrijecem); mudança fica a cargo do projetista. | Fora | — | padrão 1,00 do outro programa; nós: rigidez reduzida da NBR |
 | K1.5.54 | Saídas: fatores de ampliação por combinação e relatório com γz máximo por direção. | Feito | — | γz e ampliação por direção na aba Análise e no memorial |
 | K1.5.55 | Instabilidade global: aviso antes do fim do cálculo quando Σ(γfg·Ci + γfq·Cj) ≥ 1 (γz → ∞ ou negativo). | Feito | — | ΔM ≥ M1 dá γz infinito e cai no aviso de γz > 1,3 |
-| K1.5.56 | Recomendado como método alternativo de 2ª ordem, sobretudo para estruturas deslocáveis ou pouco deslocáveis. | Parcial | N | P-Δ só no Pórtico 2D (`secondorder.ts`); edifício só γz |
+| K1.5.56 | Recomendado como método alternativo de 2ª ordem, sobretudo para estruturas deslocáveis ou pouco deslocáveis. | Parcial | N | P-Δ só no Pórtico 2D (`secondorder.ts`); edifício só γz [N2c] |
 | K1.5.57 | Limitação: a sobrecarga entra integralmente (sem redução automática); recomenda-se recalcular com sobrecarga reduzida só para pilares. | Feito | — | nós: ψ0·Q com vento principal e Q integral com uso principal; manual: Q integral |
 | K1.5.58 | ACI 318: após a estabilidade, redução de rigidez para dimensionar pilares pela fórmula do anexo de normas. | Fora | — | ACI 318 |
 | K1.5.59 | Recomendação: adotar coeficiente de flambagem = 1 nos pilares, somando a excentricidade adicional/fictícia de 2ª ordem de barra isolada ao efeito P-Δ global; decisão do usuário. | Feito | — | nós: le = altura do lance, M2 local do pilar-padrão + γz global |
@@ -346,13 +346,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.6.1 | Materiais escolhidos de listas; propriedades em arquivo. | Parcial | N | fck, aço e CAA por obra; sem biblioteca de materiais |
+| K1.6.1 | Materiais escolhidos de listas; propriedades em arquivo. | Parcial | N | fck, aço e CAA por obra; sem biblioteca de materiais [N2a] |
 | K1.6.2 | Concreto: resistência característica, coeficiente redutor, módulo secante, ν = 0,2, conforme norma. | Feito | — | fck, γc 1,4, Ecs (NBR 8.2.8) e ν 0,2 |
 | K1.6.3 | Concreto pode diferir por elemento e, nos pilares, por pavimento. | Feito | — | materiais.definir: fck por tipo de elemento e dos pilares por lance; Ecs de cada barra pelo seu fck (N1b) |
 | K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Feito | — | aço por posição com fyk 500/600 e γs da obra no dimensionamento (N1b) |
 | K1.6.5 | Aço de armadura distinto para pilares/paredes/pilares-parede/consolos (longitudinal; estribos). | Feito | — | pilares: longitudinal e estribos (N1b) |
-| K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Parcial | N | vigas: positiva, negativa e estribos (N1b); montagem e pele usam o aço da positiva |
-| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | N | lajes maciças: inferior e superior (N1b); punção, cortante e nervuradas com as próprias verificações |
+| K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Parcial | N | vigas: positiva, negativa e estribos (N1b); montagem e pele usam o aço da positiva [N2e] |
+| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | N | lajes maciças: inferior e superior (N1b); punção, cortante e nervuradas com as próprias verificações [N2d] |
 | K1.6.8 | Aço distinto em sapatas, sapatas corridas e blocos. | Feito | — | módulo Fundações tem fck e fyk próprios (`piles.ts`: fckFound, fyk); no edifício, aço da posição `fundacao` em `materiais.definir` (`acoDe`, padrão o da obra, FU1) |
 | K1.6.9 | Aço estrutural de pilares, vigas e placas de base: biblioteca não editável (módulo, escoamento, Poisson etc.); perfis laminados, formados a frio e soldados. | Fora | — | aço estrutural |
 | K1.6.10 | Placas de base: aço da placa e enrijecedores, aço e tipo de chumbadores; bitolas pré-definidas não editáveis. | Fora | — | placas de base |
@@ -364,17 +364,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.7.1 | Coeficientes parciais conforme materiais, ações e método de cálculo da norma escolhida. | Feito | — | γc, γs, γg e γq editáveis no edifício (N1b) |
 | K1.7.2 | Método dos estados-limites (ou o método próprio de cada norma). | Feito | — | método dos estados-limites |
-| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Parcial | N | γc e γs editáveis (N1b); sem nível de controle de execução que os escolha |
-| K1.7.4 | Coeficientes das ações conforme nível de controle, danos previsíveis e uso; distinção entre efeito favorável/desfavorável e origem da ação. | Parcial | N | G favorável 1,0 / desfavorável 1,4; sem γ por origem (Tabela 11.1 completa) |
-| K1.7.5 | Coeficientes parciais e de simultaneidade lidos de arquivo de combinações por norma (não editável); o usuário pode criar combinações próprias. | Parcial | N | ψ da carga de uso editável; combinações próprias só no Pórtico 2D |
+| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Parcial | N | γc e γs editáveis (N1b); sem nível de controle de execução que os escolha [N2a] |
+| K1.7.4 | Coeficientes das ações conforme nível de controle, danos previsíveis e uso; distinção entre efeito favorável/desfavorável e origem da ação. | Parcial | N | G favorável 1,0 / desfavorável 1,4; sem γ por origem (Tabela 11.1 completa) [N2a] |
+| K1.7.5 | Coeficientes parciais e de simultaneidade lidos de arquivo de combinações por norma (não editável); o usuário pode criar combinações próprias. | Parcial | N | ψ da carga de uso editável; combinações próprias só no Pórtico 2D [N2a] |
 
 ## 1.8 Combinações (págs. 39–41)
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.8.1 | Estados-limite verificados conforme a norma: equilíbrio, tensões, ruptura, fissuração, deformações; podem depender do material. | Parcial | N | ELU, fissuração de vigas e lajes maciças, flecha (N1d/N1e) e deslocamentos laterais (R1); sem equilíbrio (tombamento) |
+| K1.8.1 | Estados-limite verificados conforme a norma: equilíbrio, tensões, ruptura, fissuração, deformações; podem depender do material. | Parcial | N | ELU, fissuração de vigas e lajes maciças, flecha (N1d/N1e) e deslocamentos laterais (R1); sem equilíbrio (tombamento) [N2a] |
 | K1.8.2 | Grupos de combinações gerados automaticamente: ELU concreto (seções); ELU concreto de fundações; tensões no solo; deslocamentos (máximos da estrutura); ELU aço laminado e soldado; ELU aço formado a frio; ELU madeira; ELU alumínio. | Feito | — | ELU de concreto, raras para fundação e tensões no solo, frequente para deslocamentos (R1); aço, madeira e alumínio fora |
-| K1.8.3 | Usuário ativa os estados a verificar e os coeficientes por norma ativa. | Falta | N | escolha dos estados-limite a verificar |
+| K1.8.3 | Usuário ativa os estados a verificar e os coeficientes por norma ativa. | Falta | N | escolha dos estados-limite a verificar [N2a] |
 | K1.8.4 | ELU não se aplicam em normas de tensões admissíveis. | Fora | — | normas de tensões admissíveis |
 | K1.8.5 | Situação não sísmica com coeficientes de combinação: Σγg·Gk + γQ1·ψp1·Qk1 + Σ γQi·ψai·Qki (i>1). | Feito | — | ELU normais com ψ0 (`nbrCombinations`, NBR 8681) |
 | K1.8.6 | Situação não sísmica sem coeficientes de combinação: Σγg·Gk + Σγq·Qk. | Fora | — | formato sem coeficientes de combinação de outras normas |
@@ -389,16 +389,16 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.1 | Normas por material: concreto, aço (formado a frio e laminado), madeira, alumínio, alvenaria, lajes mistas. | Fora | — | normas por material; só NBR de concreto no edifício |
 | K1.9.2 | Descrição da obra (2 linhas). | Parcial | L | nome e cidade da obra; sem descrição |
 | K1.9.3 | Concreto separado para lajes, fundações (com dados de fundação), pilares/pilares-parede (pode variar por pavimento) e paredes (pode variar por pavimento). | Feito | — | fck por tipo de elemento (laje, viga, pilar, fundação) e dos pilares por lance (Norma.fckElem, fckPilarPav, N1b); fundação do edifício com fck, aço e cobrimento próprios, padrão os da obra (`fckDe(b, 'fundacao')`, `cobrimentoFundacao`, `parametrosFundacao`, FU1); paredes (E) |
-| K1.9.4 | Alvenaria estrutural: E, G, peso específico, tensão de cálculo à compressão e à tração, opção de considerar rigidez ao cortante. | Falta | E | alvenaria estrutural (NBR 16868) |
-| K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Falta | E | blocos de concreto estrutural |
+| K1.9.4 | Alvenaria estrutural: E, G, peso específico, tensão de cálculo à compressão e à tração, opção de considerar rigidez ao cortante. | Falta | E | alvenaria estrutural (NBR 16868) [E1e] |
+| K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Falta | E | blocos de concreto estrutural [E1e] |
 | K1.9.6 | Aço de armadura em pilares/pilares-parede/consolos (longitudinal e estribos), com abas separadas para estrutura e fundação. | Feito | — | aço dos pilares por posição: longitudinal e estribos (acoPos, N1b); aço da fundação do edifício na posição `fundacao` (FU1) |
-| K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Parcial | N | aço por posição: positiva, negativa e estribos das vigas (acoPos, N1b); montagem e pele usam o da positiva |
-| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | N | aço por posição: inferior e superior das lajes maciças e treliçadas (acoPos, N1b); punção e cortante sem armadura no edifício; nervuradas (E) |
+| K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Parcial | N | aço por posição: positiva, negativa e estribos das vigas (acoPos, N1b); montagem e pele usam o da positiva [N2e] |
+| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | N | aço por posição: inferior e superior das lajes maciças e treliçadas (acoPos, N1b); punção e cortante sem armadura no edifício; nervuradas (E) [N2d] |
 | K1.9.9 | Aço de perfis de vigas e pilares: formado a frio e laminado a quente. | Fora | — | perfis de aço |
-| K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento, ψ, casos adicionais (N1c) e opções; sem incêndio nem escolha de estados |
+| K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento, ψ, casos adicionais (N1c) e opções; sem incêndio nem escolha de estados [N2g] |
 | K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
 | K1.9.12 | Padrão α (β) = 1; o usuário muda conforme tipo de estrutura e ligação do pilar às vigas/lajes nas duas direções. | Feito | — | α padrão 1, editável nas duas direções (N1b) |
-| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Parcial | N | pilar destravado por α > 1 no lance; sem soma automática dos lances desligados |
+| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Parcial | N | pilar destravado por α > 1 no lance; sem soma automática dos lances desligados [N2c] |
 | K1.9.14 | Pilar desligado em uma só direção: o programa usa l0 = αi·li em cada lance sem saber do desligamento; o usuário deve dar αi = α·Σlj/li para obter o comprimento total. | Feito | — | mesmo critério: α por direção informado pelo usuário (N1b) |
 | K1.9.15 | Altura para flambagem = altura livre: altura do pavimento menos a altura da viga ou laje mais alta que chega ao pilar. | Feito | — | ℓe = mín(ℓ0 + h; ℓ), ℓ0 = altura do lance − viga mais alta no topo (NBR 6118, 15.6) (N1b) |
 | K1.9.16 | α final do pilar = α do pavimento × α do lance. | Feito | — | α final = α do pavimento × α do lance (N1b) |
@@ -409,32 +409,32 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
 | K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Feito | — | vento e ações horizontais manuais: caso adicional de natureza W, ampliado por 0,95·γz (N1c) |
-| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Falta | N | incêndio (NBR 15200) |
+| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Falta | N | incêndio (NBR 15200) [N2g] |
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
 | K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Feito | — | combinações automáticas pelos casos e grupos de incompatíveis (N1c); cada carga vinculada a G, Q ou a um caso adicional |
-| K1.9.27 | Grupos de combinações selecionáveis: concreto, fundações, aço frio, aço laminado, madeira, alumínio, tensões no solo, deslocamentos. | Parcial | N | ELU e raras para fundação; sem seleção de grupos |
+| K1.9.27 | Grupos de combinações selecionáveis: concreto, fundações, aço frio, aço laminado, madeira, alumínio, tensões no solo, deslocamentos. | Parcial | N | ELU e raras para fundação; sem seleção de grupos [N2a] |
 | | **1.9.8 Pavimentos/grupos, pilares, arranques e pilares-parede (págs. 47–50)** | | | |
 | K1.9.28 | Grupos: nome, permanente e sobrecarga; cota de fundação, nome do pavimento e alturas entre pavimentos. | Feito | — | grupos (nome, uso, gRev, q), pavimentos com cota e nível de fundação |
 | K1.9.29 | Altura do pavimento = diferença entre faces superiores das lajes (plano de referência superior médio); cotas calculadas. | Feito | — | cota = topo da laje; pé-direito calculado |
-| K1.9.30 | Pilar: tipo (concreto/metálico), seção por pavimento, referência (ponto fixo), ângulo, início (fundação com vinculação externa ou apoiado sem vinculação) e pavimento final. | Parcial | E | pilar ret/circ, seção por lance, ponto fixo, ângulo, nasce/morre; nascer em laje = apoio fixo provisório |
+| K1.9.30 | Pilar: tipo (concreto/metálico), seção por pavimento, referência (ponto fixo), ângulo, início (fundação com vinculação externa ou apoiado sem vinculação) e pavimento final. | Parcial | E | pilar ret/circ, seção por lance, ponto fixo, ângulo, nasce/morre; nascer em laje = apoio fixo provisório [E1a] |
 | K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Falta | FU | pilar sobre viga de fundação ou radier |
-| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Parcial | N | engaste de topo e base por lance (N1a) e flambagem por pavimento, pilar e direção (N1b); sem desnível e altura de apoio; perfil metálico fora |
+| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Parcial | N | engaste de topo e base por lance (N1a) e flambagem por pavimento, pilar e direção (N1b); sem desnível e altura de apoio; perfil metálico fora [N2c] |
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
-| K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede |
-| K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) |
-| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Parcial | N | cargas horizontais concentradas em qualquer altura do lance, eixos globais, por caso (N1c); sem uniformes, faixa nem eixos locais |
-| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Parcial | N | cargas no topo do lance por caso, eixos globais (N1c); sem torção T |
+| K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede [E1b] |
+| K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) [E1b] |
+| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Parcial | N | cargas horizontais concentradas em qualquer altura do lance, eixos globais, por caso (N1c); sem uniformes, faixa nem eixos locais [N2c] |
+| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Parcial | N | cargas no topo do lance por caso, eixos globais (N1c); sem torção T [N2c] |
 | K1.9.38 | Vinculação de apoio, engastes e flambagem consultáveis e editáveis. | Feito | — | vínculo da base, engastes por lance (pilar.engaste) e flambagem (pilar.flambagem) editáveis em Vínculos e no grupo de seleção (N1a, N1b) |
 | | **1.9.9 Dados das lajes (págs. 50–65)** | | | |
 | K1.9.39 | Geometria em planta por grupo; ordem lógica: vigas, apoios em muro e vigas de fundação primeiro. | Feito | — | planta por grupo; panos detectados pelas vigas (`laje.detectarPanos`) |
 | K1.9.40 | Coeficiente de engaste nas bordas de vigas (0–1), afetando as lajes que chegam à borda. | Feito | — | viga.editar engasteLajes, multiplicado pelo engaste da borda da laje (N1a) |
-| K1.9.41 | Rótulas nos extremos de qualquer trecho de viga (com pilares, pilares-parede ou outras vigas). | Parcial | N | rótula ou engaste parcial nas pontas da viga (engasteIni/Fim) e articulação em pilares intermediários (N1a); sem rótula em cruzamentos com outras vigas |
+| K1.9.41 | Rótulas nos extremos de qualquer trecho de viga (com pilares, pilares-parede ou outras vigas). | Parcial | N | rótula ou engaste parcial nas pontas da viga (engasteIni/Fim) e articulação em pilares intermediários (N1a); sem rótula em cruzamentos com outras vigas [N2e] |
 | K1.9.42 | Viga de fundação exige coeficiente de reação e tensão admissível do solo. | Falta | FU | viga de fundação (coeficiente de reação e σadm) |
 | K1.9.43 | Vigas mistas remetidas a capítulo próprio. | Fora | — | vigas mistas |
-| K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Falta | E | paredes de concreto e de alvenaria portante (alvenaria só como carga) |
-| K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Falta | E | paredes (pavimentos e espessuras) |
-| K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Falta | N | empuxo de terra em paredes de subsolo |
+| K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Falta | E | paredes de concreto e de alvenaria portante (alvenaria só como carga) [E1c] |
+| K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Falta | E | paredes (pavimentos e espessuras) [E1c] |
+| K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Falta | N | empuxo de terra em paredes de subsolo [N2a] |
 | K1.9.47 | Base da parede: viga de fundação (sem vínculo externo), sapata corrida (sem vínculo externo), com vínculo externo (com ou sem sapata), viga sem vínculo externo. | Falta | FU | base da parede (viga, sapata corrida) |
 | K1.9.48 | Sapata da parede: tensão admissível e coeficiente de reação; padrão alto 100 000 kN/m³ para evitar recalque diferencial com pilares de vinculação externa. | Falta | FU | sapata corrida com coeficiente de reação |
 | K1.9.49 | Fundação toda flutuante: usar coeficiente compatível com solo e dimensões. | Falta | FU | fundação flutuante (Winkler) |
@@ -443,7 +443,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.52 | Vigotas armadas/protendidas: dados do fabricante (não editáveis), de biblioteca (fabricantes e usuários, editor de fichas) ou geometria do usuário (editável); para flecha, vigota calculada com armadura ou protensão. | Parcial | E | catálogo fixo de treliçadas (a confirmar); sem editor de fichas nem fabricante |
 | K1.9.53 | Vigotas definidas por tipo, conforme momento último por metro de largura (em daN·m/m, já com coeficiente de segurança). | Falta | E | tipo de vigota por momento resistente |
 | K1.9.54 | Direção das vigotas por pano: perpendicular à viga, paralela à viga ou por dois pontos. | Parcial | L | direção das vigotas por laje (ângulo; padrão menor vão) |
-| K1.9.55 | Continuidade entre vigotas de panos vizinhos opcional (exceto metálicas e "joist", sempre biapoiadas); copiar panos dá continuidade. | Parcial | N | treliçadas sempre contínuas na grelha; sem opção biapoiada |
+| K1.9.55 | Continuidade entre vigotas de panos vizinhos opcional (exceto metálicas e "joist", sempre biapoiadas); copiar panos dá continuidade. | Parcial | N | treliçadas sempre contínuas na grelha; sem opção biapoiada [N2e] |
 | K1.9.56 | Continuidade eliminada quando a distância entre extremos de vigotas vizinhas > comprimento de barra curta (padrão 0,20 m); continuidade também se outra vigota/trimmer estiver a menos que esse comprimento. | Fora | — | critério interno de continuidade |
 | K1.9.57 | Desníveis entre panos (desenho e detalhamento; afetam altura de elementos de apoio); limitação: não calcula flexão transversal da viga — conferir estribos e ancoragens manualmente. | Parcial | E | desnível da laje guardado (`nivel`), não entra no cálculo |
 | K1.9.58 | Momentos mínimos negativos/positivos das vigotas consultáveis e editáveis. | Feito | — | momentos mínimos positivo e negativo das vigotas nas opções (vigotaMomentoMinPositivo/Negativo, R6) |
@@ -475,7 +475,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.83 | Flecha das alveolares com propriedades da ficha e diagrama de momentos médio do estado final; comparada aos limites das opções. | Falta | E | lajes alveolares (flecha) |
 | | **Lajes maciças** | | | |
 | K1.9.84 | Espessura e direção de armadura por pano (espessura pode variar por pano). | Feito | — | espessura e direção da malha por laje (`laje.editar`) |
-| K1.9.85 | Engaste de borda com vigas de apoio 0–1 (inclui engaste parcial); desníveis entre panos como nas vigotas. | Parcial | N | engaste de borda 0–1 por aresta e por viga de apoio (N1a); desnível entre panos não entra no cálculo |
+| K1.9.85 | Engaste de borda com vigas de apoio 0–1 (inclui engaste parcial); desníveis entre panos como nas vigotas. | Parcial | N | engaste de borda 0–1 por aresta e por viga de apoio (N1a); desnível entre panos não entra no cálculo [N2e] |
 | K1.9.86 | Armadura base (superior e inferior, em cada direção) ou tela soldada atribuível por pano; considerada no cálculo e descontada da armadura adicional. | Falta | R | armadura base ou tela por pano [R7d] |
 | K1.9.87 | Alerta: se a opção de detalhar armadura base estiver desligada, ela não aparece em desenhos, quantitativos e tabelas, embora entre no cálculo — indicar no desenho emendas e zonas. | Fora | — | alerta do manual |
 | K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Parcial | R | positiva contínua com emenda por traspasse acima da barra máxima e negativos só onde o diagrama pede; sem armadura base nem emendas nas zonas de máximo negativo (R4) [R7d] |
@@ -498,8 +498,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | L | `laje.abertura` cria furo e aviso de região sem laje; a grelha ignora os furos |
 | K1.9.104 | Vigas chatas entre duas aberturas ou abertura e contorno, sem laje lateral, ficam sem altura: trocar por viga alta com dimensões. | Fora | — | regra interna de vigas chatas |
 | K1.9.105 | Blocos de menor altura ao lado de abertura são desconsiderados, com aviso de dado incorreto. | Fora | — | regra interna de nervuradas |
-| K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Falta | N | diafragma com aberturas grandes (flexível ou por zonas) |
-| K1.9.107 | Paredes de subsolo com empuxo e panos de vigotas paralelos à parede: rigidez deve garantir diafragma (enchimento de concreto e detalhes), não feito automaticamente. | Falta | E | paredes com empuxo e diafragma |
+| K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Falta | N | diafragma com aberturas grandes (flexível ou por zonas) [N2b] |
+| K1.9.107 | Paredes de subsolo com empuxo e panos de vigotas paralelos à parede: rigidez deve garantir diafragma (enchimento de concreto e detalhes), não feito automaticamente. | Falta | E | paredes com empuxo e diafragma [E1c] |
 | K1.9.108 | Versões < 2012.a: vigas livres perpendiculares à parede junto a vazios devem virar vigas inclinadas para dimensionar à flexo-compressão (vigas e lajes comuns só à flexão simples); ≥ 2012.a ver capítulo de diafragma rígido. | Fora | — | versões antigas do outro programa |
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
 | | **Fundações (na entrada de lajes)** | | | |
@@ -508,7 +508,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.112 | Vigas centradoras absorvem os momentos transmitidos à sapata/bloco; várias numa direção dividem o momento proporcionalmente às rigidezes. | Falta | FU | vigas de equilíbrio (alavanca) |
 | | **1.9.10–1.9.11 Cargas, vigas inclinadas, contraventamentos, escadas (pág. 65)** | | | |
 | K1.9.113 | Cargas concentradas, lineares e superficiais lançadas graficamente, com cor por caso. | Feito | — | ponto, linha e área na planta por caso (`carga.*`); cor única |
-| K1.9.114 | Vigas inclinadas: dimensões, cargas (concentrada, linear, faixa, triangular…), grupos inicial e final; sempre 6 GL; concreto retangular ou metálica; biengastadas ou biarticuladas. | Falta | E | vigas inclinadas |
+| K1.9.114 | Vigas inclinadas: dimensões, cargas (concentrada, linear, faixa, triangular…), grupos inicial e final; sempre 6 GL; concreto retangular ou metálica; biengastadas ou biarticuladas. | Falta | E | vigas inclinadas [E2c] |
 | K1.9.115 | Contraventamentos em X: vigas inclinadas cruzadas entre dois apoios e dois pavimentos; sempre perfis metálicos. | Fora | — | contraventamento metálico |
 | K1.9.116 | Escadas remetidas a capítulo próprio. | Falta | E | escadas |
 
@@ -536,7 +536,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.2 | Fundações com vinculação externa (sapatas, blocos, vigas centradoras e de travamento) calculadas junto ou depois; editáveis e redimensionáveis/verificáveis independentemente. | Parcial | FU | FU1: elementos com vínculo externo calculados depois da estrutura (`calcularFundacoes`), editáveis e redimensionáveis/verificáveis à parte (`fundModo`, `revFundacao`, botão "Calcular fundações" sem refazer a análise); sem vigas de equilíbrio e travamento (FU2) |
 | K1.11.3 | Dados gerais consultáveis; opções e tabelas especiais salvas com a obra; mudar opções/tabelas pode alterar resultados; recalcular após mudanças; permite reformar armaduras com novas opções. | Feito | — | premissas e opções visíveis e salvas com a obra, aviso de modelo alterado; o recálculo refaz a armadura com as novas opções (bloqueadas só verificadas, R2) |
 | | **Vigas** | | | |
-| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); momentos mínimos (N1e); sem flecha ativa |
+| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); momentos mínimos (N1e); sem flecha ativa [N2f] |
 | K1.11.5 | Envoltórias com e sem sismo de momento, cortante e torção (gráficas e numéricas). | Feito | — | diagramas de M, V e T da envoltória ELU na janela da viga, com valores (R1); sismo fora |
 | K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Parcial | R | nº e bitola inferior, superior e laterais e estribo editáveis e bloqueáveis (R2); comprimentos e áreas necessárias × efetivas no detalhamento (R3a); sem editar o comprimento por posição [R7b] |
 | K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Feito | — | erros e avisos com código em vermelho/amarelo (R1): flecha, espaçamento (LARGURA), armadura comprimida (ARM_DUPLA), biela (cortante e torção), seção insuficiente; ancoragens e emendas avisadas no detalhamento (R3a) |
@@ -556,7 +556,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Falta | V | deslocamentos e esforços por nó e caso na tela |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | flecha elástica máxima por pavimento (G, Q) na aba Análise e flecha por laje; sem deslocamento por pano e caso |
-| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Falta | N | punção e cortante em lajes (NBR 6118 19.4 e 19.5) |
+| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Falta | N | punção e cortante em lajes (NBR 6118 19.4 e 19.5) [N2d] |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Falta | R | uniformização e edição de barras das lajes [R7e] |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Falta | FU | tensões no radier |
 | K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Falta | V | isovalores e isolinhas |
@@ -573,9 +573,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Parcial | R | λ > 200 ou nenhuma armadura entre As,mín e 4 % cabendo: sem arranjo, sem detalhamento nem desenho (`detalharPilar` devolve null); com armadura de 4 % que não atende ("aumente a seção"), marcado "não atende", mas ainda desenhado e medido [R7c] |
 | K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Feito | — | quadro de pilares agrupa pilares iguais (P1=P3, R5); os que não atendem em vermelho (R1); armadura travável (R2) |
 | | **Pilares-parede e paredes** | | | |
-| K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) |
-| K1.11.37 | Armadura e espessura editáveis; incompatibilidades em vermelho; rearmar. | Falta | E | pilares-parede e paredes (edição) |
-| K1.11.38 | Mensagens codificadas de estado; grau de cumprimento (%) da armadura e zonas a reforçar; esforços mais desfavoráveis do trecho e resultantes por caso. | Falta | E | pilares-parede e paredes (mensagens) |
+| K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) [E1d] |
+| K1.11.37 | Armadura e espessura editáveis; incompatibilidades em vermelho; rearmar. | Falta | E | pilares-parede e paredes (edição) [E1d] |
+| K1.11.38 | Mensagens codificadas de estado; grau de cumprimento (%) da armadura e zonas a reforçar; esforços mais desfavoráveis do trecho e resultantes por caso. | Falta | E | pilares-parede e paredes (mensagens) [E1d] |
 | | **2ª ordem, vento, sismo, outros** | | | |
 | K1.11.39 | Fatores de ampliação por combinação e fator resultante da ação horizontal; relatório. | Feito | — | ampliação por direção (0,95·γz) na aba Análise e no memorial |
 | K1.11.40 | Forças de vento X e Y por pavimento. | Feito | — | forças de vento por pavimento (aba Análise) |
@@ -587,7 +587,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
 | K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | R | envoltórias de M, V e T em gráficos com combinações determinantes (R1), armadura colocada no detalhamento (R3a), resumo de aço e etiquetas nas pranchas (R5); sem diagrama de capacidade nem flecha ativa (N) [R7g] |
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Parcial | R | concreto e fôrma por pavimento, resumo de aço por elemento e bitola, treliças por tipo (R3–R6); sem áreas por pano, blocos de enchimento nem índices por m² [R7g] |
-| K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas |
+| K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas [E2c] |
 | K1.11.49 | Pilares e pilares-parede: barras, esforços na base, por caso e mais desfavoráveis. | Feito | — | barras do pilar no detalhamento (R3b), esforços na base por caso e envoltórias em "Cargas na fundação" |
 | K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | V | deslocamento do vento por direção e pavimento (máximo entre os pilares) e distorção entre pavimentos (R1); sem deslocamento por caso simples e por pilar |
 | K1.11.51 | Efeitos de 2ª ordem; cargas de vento; participação sísmica (períodos, massas, coeficiente sísmico por direção). | Parcial | R | γz e deslocamentos laterais no memorial; forças de vento só na tela; sismo fora [R7g] |
@@ -601,7 +601,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.58 | Quadro de pilares e placas de base: seções, número, posição, trecho de estribos, tipos, bitolas, comprimentos, perfis; agrupados por tipos iguais; placas com dimensões, chumbadores e geometria; por pavimento, com resumo. | Parcial | E | quadro de pilares com seção, armadura longitudinal, estribos e grampos por lance, agrupado por pilares iguais (P1=P3), na prancha de pilares (R5); sem placas de base (aço) |
 | K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Feito | — | prancha de armação de pilares: elevação com níveis, emendas e arranques, seções por arranjo com grampos e tabela de aço (R5); pilares-parede inexistentes no módulo |
 | K1.11.60 | Cargas na fundação: arranques com cargas por caso em eixos globais (pilares e pilares-parede). | Parcial | FU | arranques com cargas por caso em eixos globais (FU1: `carga.pilar` no arranque, `CargasNoPilar` na interface, `reacoesArranques`); cargas na fundação em tabela e envio às Fundações; falta o desenho (FU5) |
-| K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Falta | E | paredes de subsolo e portantes |
+| K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Falta | E | paredes de subsolo e portantes [E1d] |
 | K1.11.62 | Desenho de cargas especiais por caso e grupo; consolos curtos; isolinhas de lajes; estrutura 3D. | Falta | V | desenho de cargas, isolinhas e vista 3D |
 
 ## 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90)
@@ -609,7 +609,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | K1.12.1 | ELU de seções de concreto: diagrama parábola-retângulo (flexão composta: normal + momentos) e retangular (flexão simples), com diagramas tensão-deformação de concreto e aço da norma. | Feito | — | fibras com parábola-retângulo (pilares) e retangular simplificado (vigas) |
-| K1.12.2 | Limites de norma aplicados: taxas e densidades mín/máx de armadura, nº mínimo de barras, bitolas mínimas, espaçamentos mín/máx; parte editável nas opções, parte em arquivos internos. | Parcial | N | limites de norma no código; editáveis: bitola e espaçamento mínimos das lajes, barra máxima, arredondamento (R3/R4); taxas mínimas não editáveis |
+| K1.12.2 | Limites de norma aplicados: taxas e densidades mín/máx de armadura, nº mínimo de barras, bitolas mínimas, espaçamentos mín/máx; parte editável nas opções, parte em arquivos internos. | Parcial | N | limites de norma no código; editáveis: bitola e espaçamento mínimos das lajes, barra máxima, arredondamento (R3/R4); taxas mínimas não editáveis [N2e] |
 | | **1.12.1 Vigas horizontais e inclinadas** | | | |
 | K1.12.3 | Flexão simples calculada em no mínimo 14 pontos por vão (vão delimitado pelos elementos que tocam a viga: vigotas, maciças, nervuradas). | Feito | — | esforços em faixas de 0,25 m na envoltória e As necessária em grade de 5 cm ao longo do traçado (R3a) |
 | K1.12.4 | Em cada ponto: armadura superior e inferior pela envoltória (tração/compressão conforme sinal), comparada às taxas mínimas de norma; prevalece a maior. | Parcial | R | As superior e inferior seção a seção pela envoltória decalada; taxa mínima do cálculo por viga, a conferir ponto a ponto (R3a) [R7b] |
@@ -624,12 +624,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.13 | Armadura de montagem: contínua ou construtiva, suportando estribos; montagem contínua quando a armação é feita em oficina de apoio a apoio (negativos colocados na obra). | Parcial | R | montagem corrida colaborante, emendas no meio dos vãos; sem opção contínua/construtiva (R3a) [R7b] |
 | K1.12.14 | Opção de considerar a montagem como colaborante (superior); se precisar de compressão superior, passa a colaborante. | Parcial | R | montagem de 2 barras sempre colaborante nos negativos; sem opção de ligar/desligar (R3a) [R7b] |
 | K1.12.15 | Ancoragem da montagem: gancho ou prolongamento reto, a partir do extremo ou do eixo (opções). | Parcial | R | gancho de 90° nas pontas da montagem; sem opção de prolongamento reto (R3a) [R7b] |
-| K1.12.16 | Seções T: barras adicionais para apoiar as pontas dos estribos na mesa. | Falta | E | barras de canto da seção T (vigas T: E2) |
+| K1.12.16 | Seções T: barras adicionais para apoiar as pontas dos estribos na mesa. | Falta | E | barras de canto da seção T (vigas T: E2) [E2a] |
 | K1.12.17 | Montagem para porta-estribos entre extremos dos negativos, bitola pequena, emenda construtiva; útil em zona sísmica para afastar emendas dos nós. | Falta | R | porta-estribos [R7b] |
 | K1.12.18 | Sem disposição na tabela: nº necessário de φ25 e aviso "fora de tabela" (montagem e adicional). | Parcial | R | aviso "não cabe na largura" [R7a] |
 | K1.12.19 | Negativos que se encontram dos dois lados de um trecho viram montagem colaborante automaticamente. | Parcial | R | negativos cobertos pela montagem colaborante não geram barras próprias (R3a); negativos dos dois lados não viram montagem [R7b] |
 | K1.12.20 | Dentro do apoio: altura variando linearmente (1/3) reduz a armadura; o máximo fica entre as faces, normalmente na face. | Fora | — | mísula fictícia: critério interno |
-| K1.12.21 | Vigas em pilares-parede/paredes: vão de cálculo = menor entre distância entre eixos (ou ponto médio do eixo da viga cruzada) e vão livre + 2 × altura; corte de barras não excede o vão de cálculo em mais de duas alturas. | Falta | E | vigas sobre pilares-parede e paredes |
+| K1.12.21 | Vigas em pilares-parede/paredes: vão de cálculo = menor entre distância entre eixos (ou ponto médio do eixo da viga cruzada) e vão livre + 2 × altura; corte de barras não excede o vão de cálculo em mais de duas alturas. | Falta | E | vigas sobre pilares-parede e paredes [E1b] |
 | K1.12.22 | Armadura de pele nas faces laterais quando a altura exige (critério nas opções), com bitola e espaçamento mínimos de norma. | Feito | — | pele 0,10 % de Ac por face (h > 60 cm), s ≤ mín(20 cm; d/3), somada às laterais de torção; corrida com emendas (R3a) |
 | K1.12.23 | Torção: após flexão, armadura longitudinal de torção por norma em cada seção; as barras de canto existentes absorvem o acréscimo se tiverem folga; senão aumenta a longitudinal e acrescenta barras laterais (como pele). | Feito | — | Asl de torção repartida: faces horizontais somadas à flexão (absorvida pelas barras com folga), laterais em barras próprias como pele (N1e) |
 | K1.12.24 | Compressão diagonal por torção + cortante verificada com a altura útil na borda do apoio, pelas fórmulas da norma. | Feito | — | biela conjunta Vsd/VRd2 + Tsd/TRd2 ≤ 1 (N1e) |
@@ -647,29 +647,29 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.1-7 | Tipos de estribo: simples (sempre envolvendo a seção inteira), duplo, triplo e grampos verticais abertos; estribos e grampos combináveis, até 2 ou 3 na mesma seção; tabelas editáveis pelo usuário. | Parcial | R | estribo simples de 2 ramos; sem múltiplos nem grampos nas vigas [R7a] |
 | K1.12.1-8 | Ordem de cálculo: primeiro o estribo mínimo normativo (função da seção e da tabela) e o trecho central que ele cobre na envoltória de cortante. | Feito | — | estribo mínimo ρsw,mín e trecho central que ele cobre; zonas do cortante e da torção a partir dele (R3a) |
 | K1.12.1-9 | Zonas laterais (esquerda e direita): estribos necessários até os apoios, estendidos pelo comprimento necessário + d/2; confere se os comprimentos superam os mínimos configurados. | Parcial | R | estribos nas zonas entre pilares pelo espaçamento exigido; sem extensão de d/2 nem mínimos configuráveis (R3a) [R7b] |
-| K1.12.1-10 | Torção: armadura transversal de torção com mínimos normativos (espaçamento máximo, estribo fechado), somada à de cortante; a disposição final (diâmetro, espaçamento, comprimento) cobre a soma. | Parcial | N | A90/s da torção somado ao do cortante no estribo da viga; mínimos pela rotina de estribos (N1e) |
+| K1.12.1-10 | Torção: armadura transversal de torção com mínimos normativos (espaçamento máximo, estribo fechado), somada à de cortante; a disposição final (diâmetro, espaçamento, comprimento) cobre a soma. | Parcial | N | A90/s da torção somado ao do cortante no estribo da viga; mínimos pela rotina de estribos (N1e) [N2e] |
 | K1.12.1-11 | Verificação conjunta da biela comprimida sob tensões tangenciais de cortante + torção. | Feito | — | biela conjunta de cortante e torção (N1e) |
-| K1.12.1-12 | Pilar que nasce em viga (sem ligação externa): estribos verticais pelo cortante na face de apoio desse trecho. | Falta | E | pilar que nasce em viga (transição: apoio fixo provisório) |
-| K1.12.1-13 | Limitação: carga concentrada (ou pilar apoiado) a distância ≤ d do apoio forma bielas e tirantes e exige armadura horizontal, como num consolo curto; esse critério não é implementado → verificação, armadura e detalhe manuais (ou barras inclinadas). | Falta | N | carga próxima ao apoio (biela-tirante) |
+| K1.12.1-12 | Pilar que nasce em viga (sem ligação externa): estribos verticais pelo cortante na face de apoio desse trecho. | Falta | E | pilar que nasce em viga (transição: apoio fixo provisório) [E1a] |
+| K1.12.1-13 | Limitação: carga concentrada (ou pilar apoiado) a distância ≤ d do apoio forma bielas e tirantes e exige armadura horizontal, como num consolo curto; esse critério não é implementado → verificação, armadura e detalhe manuais (ou barras inclinadas). | Falta | N | carga próxima ao apoio (biela-tirante) [N2e] |
 | K1.12.1-14 | Recomendação de cuidado especial no projeto e na execução de apoios desse tipo (sensíveis a danos). | Fora | — | recomendação do manual |
-| K1.12.1-15 | Verificação do espaçamento dos estribos quando a armadura longitudinal está comprimida: diâmetro e espaçamento máximo dependem do grau de compressão. | Falta | N | estribos com armadura longitudinal comprimida (NBR 6118, 18.3.3) |
-| K1.12.1-16 | Arranques de pilar apoiado em viga: conferir a ancoragem na viga; recomenda-se limitar o coeficiente de engaste na base do pilar no primeiro lance para evitar barras grossas e arranques longos. | Falta | E | arranques de pilar sobre viga |
-| K1.12.1-17 | Limitação: trecho com vão < 2× a altura (viga alta/viga-parede) não tem critério de dimensionamento → verificação e armadura manuais. | Falta | N | aviso de viga-parede (NBR 6118 22.4) |
-| K1.12.1-18 | Limitação: largura > 2× o vão → elemento de placa; deve ser discretizado e lançado como laje, não viga. | Falta | N | aviso de elemento de placa |
-| K1.12.1-19 | Viga chata mais larga que o apoio em mais de uma altura: punção e estribos no apoio verificados manualmente, com armadura transversal adicional se necessário. | Falta | N | punção e estribos em viga chata larga |
-| K1.12.1-20 | Limitação: cargas penduradas abaixo da linha neutra ou cargas concentradas de vigas apoiadas em vigas → armadura de suspensão não calculada; acrescentar manualmente. | Falta | N | armadura de suspensão (NBR 6118 18.3.6) |
+| K1.12.1-15 | Verificação do espaçamento dos estribos quando a armadura longitudinal está comprimida: diâmetro e espaçamento máximo dependem do grau de compressão. | Falta | N | estribos com armadura longitudinal comprimida (NBR 6118, 18.3.3) [N2e] |
+| K1.12.1-16 | Arranques de pilar apoiado em viga: conferir a ancoragem na viga; recomenda-se limitar o coeficiente de engaste na base do pilar no primeiro lance para evitar barras grossas e arranques longos. | Falta | E | arranques de pilar sobre viga [E1a] |
+| K1.12.1-17 | Limitação: trecho com vão < 2× a altura (viga alta/viga-parede) não tem critério de dimensionamento → verificação e armadura manuais. | Falta | N | aviso de viga-parede (NBR 6118 22.4) [N2e] |
+| K1.12.1-18 | Limitação: largura > 2× o vão → elemento de placa; deve ser discretizado e lançado como laje, não viga. | Falta | N | aviso de elemento de placa [N2e] |
+| K1.12.1-19 | Viga chata mais larga que o apoio em mais de uma altura: punção e estribos no apoio verificados manualmente, com armadura transversal adicional se necessário. | Falta | N | punção e estribos em viga chata larga [N2d] |
+| K1.12.1-20 | Limitação: cargas penduradas abaixo da linha neutra ou cargas concentradas de vigas apoiadas em vigas → armadura de suspensão não calculada; acrescentar manualmente. | Falta | N | armadura de suspensão (NBR 6118 18.3.6) [N2e] |
 | K1.12.1-21 | Fissuração (opcional): limite de abertura de fissura definido pelo usuário; expressão do CEB-FIP Model Code: wk = 1,7·sm·εsm. | Feito | — | wk pela NBR 6118 17.3.3.2 (equivalente ao CEB-FIP) nas vigas e lajes maciças, limite editável ou pela CAA (N1e) |
 | K1.12.1-22 | sm = 2c + 0,2s + K1·K2·φ·Ac,ef/As; c = cobrimento da armadura tracionada; s = espaçamento das barras (se s > 15φ, usa 15φ); K1 = 0,4 (barras nervuradas); K2 = 0,125 (flexão simples); As = área das barras dentro de Ac,ef; Ac,ef = área efetiva em torno das barras, com altura de 1/4 da altura da viga. | Fora | — | fórmula do CEB; usamos a da NBR 6118 |
 | K1.12.1-23 | εsm = (σs/Es)·[1 − K3/(2,5·K1)·(σsr/σs)²] ≥ 0,4·σs/Es; σs = tensão em serviço; σsr = tensão na armadura no instante da fissuração; Es = módulo do aço; K3 = 0,5 (reconstruída). | Fora | — | fórmula do CEB |
 | K1.12.1-24 | Essa expressão vale para as normas em geral; NB-1 e Eurocódigo 2 usam fórmulas próprias. | Feito | — | fórmula da NBR 6118 no edifício (vigas e lajes maciças) (N1e) |
 | K1.12.1-25 | Verificação ativa e não atendida: o programa alonga barras ou aumenta a taxa até atender e emite aviso (não erro) entre os erros da viga. | Feito | — | armadura aumentada até atender wk, com mensagem (N1e) |
 | | **1.12.2 Vigas inclinadas (pág. 84)** | | | |
-| K1.12.2-1 | Podem ser de concreto armado ou de aço. | Falta | E | vigas inclinadas de concreto |
-| K1.12.2-2 | Dimensionadas à flexo-compressão oblíqua pela envoltória de momentos e esforço normal; estribos por cortante. | Falta | E | vigas inclinadas (flexo-compressão) |
-| K1.12.2-3 | Armadura dimensionada para dois planos paralelos às faces: vertical e horizontal. | Falta | E | vigas inclinadas (dois planos) |
-| K1.12.2-4 | Armadura longitudinal superior e inferior apresentada = máximo (envoltória) de todas as seções ao longo da barra. | Falta | E | vigas inclinadas (envoltória) |
-| K1.12.2-5 | A armadura entra nos desenhos, mas a consulta é só em tela; o detalhe dos nós de extremidade (cruzamentos) fica a cargo do projetista. | Falta | E | vigas inclinadas (desenho) |
-| K1.12.2-6 | Saída opcional: envoltória de esforços em listagem, para estudo das seções e dos nós de ligação. | Falta | E | vigas inclinadas (listagem) |
+| K1.12.2-1 | Podem ser de concreto armado ou de aço. | Falta | E | vigas inclinadas de concreto [E2c] |
+| K1.12.2-2 | Dimensionadas à flexo-compressão oblíqua pela envoltória de momentos e esforço normal; estribos por cortante. | Falta | E | vigas inclinadas (flexo-compressão) [E2c] |
+| K1.12.2-3 | Armadura dimensionada para dois planos paralelos às faces: vertical e horizontal. | Falta | E | vigas inclinadas (dois planos) [E2c] |
+| K1.12.2-4 | Armadura longitudinal superior e inferior apresentada = máximo (envoltória) de todas as seções ao longo da barra. | Falta | E | vigas inclinadas (envoltória) [E2c] |
+| K1.12.2-5 | A armadura entra nos desenhos, mas a consulta é só em tela; o detalhe dos nós de extremidade (cruzamentos) fica a cargo do projetista. | Falta | E | vigas inclinadas (desenho) [E2c] |
+| K1.12.2-6 | Saída opcional: envoltória de esforços em listagem, para estudo das seções e dos nós de ligação. | Falta | E | vigas inclinadas (listagem) [E2c] |
 | K1.12.2-7 | Viga inclinada de aço segue os critérios dos pilares de aço. | Fora | — | aço |
 | | **1.12.3 Vigas de aço (pág. 85)** | | | |
 | K1.12.3-1 | Dimensionadas pela norma e tipo de aço escolhidos; o programa propõe o perfil ótimo da série. | Fora | — | aço no edifício (o Pórtico 2D faz NBR 8800) |
@@ -686,7 +686,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-4 | A armadura escolhida deve atender todas as combinações. | Feito | — | atende as combinações determinantes (Nd máx./mín., maiores momentos) |
 | K1.12.4-5 | Verifica compatibilidade esforços × deformações e que tensões e deformações-limite do concreto e do aço não são excedidas. | Feito | — | fibras com deformações-limite da NBR 6118 |
 | K1.12.4-6 | Considera excentricidade mínima ou acidental e excentricidade adicional de flambagem (2ª ordem) conforme a norma. | Feito | — | M1d,mín e M2d do pilar-padrão com curvatura aproximada |
-| K1.12.4-7 | Esbeltez mecânica limitada pela norma; acima do limite das fórmulas, a seção é dada como insuficiente (armadura manual ainda permitida) com aviso de esbeltez excessiva. | Parcial | N | λ > 90 "revisar", λ > 200 recusa; sem método geral entre 90 e 200 |
+| K1.12.4-7 | Esbeltez mecânica limitada pela norma; acima do limite das fórmulas, a seção é dada como insuficiente (armadura manual ainda permitida) com aviso de esbeltez excessiva. | Parcial | N | λ > 90 "revisar", λ > 200 recusa; sem método geral entre 90 e 200 [N2c] |
 | K1.12.4-8 | Taxas geométricas/mecânicas mínimas e máximas por norma num arquivo interno; acima do máximo, aviso de taxa excessiva (em tela e listagem) → aumentar a seção. | Feito | — | As entre máx(0,15Nd/fyd; 0,4 %) e 4 % |
 | K1.12.4-9 | Se nenhuma armadura da tabela resolve, o programa gera armaduras próprias até não caberem em uma camada no perímetro; então aviso de armadura manual → ampliar a tabela e recalcular só os pilares, ou aumentar a seção (que redimensiona automaticamente). | Parcial | R | uma camada no contorno; sem armadura própria além da busca [R7a] |
 | K1.12.4-10 | Grande mudança de dimensões: recomendado recalcular a estrutura toda (rigidez muda). | Feito | — | cálculo sempre global; aviso de modelo alterado |
@@ -697,8 +697,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-15 | Opção: reduzir o comprimento de ancoragem pela relação armadura necessária/efetiva, com limite inferior (texto ambíguo); comprimentos editáveis. | Parcial | R | redução só na ancoragem do topo do último lance (opção ancoragemReduzidaTopo); emendas com lb pleno; comprimentos não editáveis (R3b) [R7c] |
 | K1.12.4-16 | Hipótese: pilar predominantemente comprimido; pilar tracionado (tirante) exige alongar ancoragens e detalhar ligações manualmente. | Feito | — | pilar tracionado verificado por fibras sem 2ª ordem, com aviso TRACAO (frente 0) |
 | K1.12.4-17 | Armadura vertical: último e penúltimo lances armados pelos seus esforços; depois, lance a lance de cima para baixo, sem que o inferior tenha menos armadura que o superior (critério de continuidade opcional). | Feito | — | último e penúltimo lances pelos seus esforços e, de cima para baixo, o inferior não tem menos armadura que o superior (opção continuidadePilares) (R3b) |
-| K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Parcial | N | topo e base do lance; sem seções intermediárias |
-| K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | pilar com desnível |
+| K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Parcial | N | topo e base do lance; sem seções intermediárias [N2c] |
+| K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | pilar com desnível [E1a] |
 | K1.12.4-20 | Estribos dispostos não atendem o cortante → aviso; correções sugeridas: reduzir espaçamento, aumentar diâmetro, outra disposição de estribos/grampos (via tabelas e recálculo dos pilares) ou aumentar armadura vertical. | Feito | — | estribo pelo cortante verificado (aviso ESTRIBO_V) e estribo editado reprovado com o motivo (Asw/s, φt, s) e ARM_BLOQ (N1e, R2) |
 | K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Parcial | R | opção continuidadePilares liga/desliga a continuidade (armadura e bitola de canto); sem manter número e diâmetro das faces separadamente (R3b) [R7c] |
 | K1.12.4-22 | Edição: alterar seção (rearma), armadura vertical e tipo de estribo. | Feito | — | seção editável (pilar.editar, recalcula e rearma); armadura vertical e estribo editáveis por lance com bloqueio (R2) |
@@ -711,19 +711,19 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4.1-6 | Pilar apoiado em elemento que não é fundação: comprimento dos chumbadores e ancoragem conferidos manualmente. | Fora | — | aço |
 | K1.12.4.1-7 | Limitação: ligações do pilar em cada pavimento com vigas/lajes não são calculadas; verificar manualmente. | Fora | — | ligações de aço |
 | | **1.12.4.2 Pilares-parede e paredes de concreto (págs. 88–89)** | | | |
-| K1.12.4.2-1 | Com o estado de tensões, para cada combinação verifica armadura vertical e horizontal de cada pano, e tensões/deformações no concreto e no aço com a armadura das tabelas. | Falta | E | pilares-parede e paredes (armadura por pano) |
-| K1.12.4.2-2 | Aumento sequencial da armadura até atender todas as combinações. | Falta | E | pilares-parede e paredes |
-| K1.12.4.2-3 | Verificação também na direção transversal, com armadura adicional se necessário; repetido em cada pano. | Falta | E | pilares-parede e paredes (direção transversal) |
-| K1.12.4.2-4 | Verifica taxas mínimas e máximas, espaçamentos mínimos e máximos e proporções (ex.: lado > 5× a espessura); não atendendo, aviso e aplicação das limitações de pilar. | Falta | E | pilares-parede e paredes (taxas) |
-| K1.12.4.2-5 | Esbeltez verificada por pano; excedida → aviso. | Falta | E | pilares-parede e paredes (esbeltez) |
-| K1.12.4.2-6 | Consulta em tela de armaduras e erros; alterar armadura ou espessura dispara reverificação; redimensionamento disponível. | Falta | E | pilares-parede e paredes (edição) |
-| K1.12.4.2-7 | Fator de cumprimento (fração da área do pano que atende) padrão 90 %, editável; valor menor (ex.: 80 %) dá armadura menor e marca em vermelho os pontos que não atendem (20 % da área). | Falta | E | fator de cumprimento |
-| K1.12.4.2-8 | Saída: para cada ponto vermelho, consulta da armadura adicional necessária; colocá-la é decisão do projetista, edição manual nos desenhos. | Falta | E | armadura adicional local |
-| K1.12.4.2-9 | Edição direta da armadura recalcula o fator de cumprimento. | Falta | E | fator de cumprimento |
-| K1.12.4.2-10 | Armadura não atendida: aviso e texto em vermelho. | Falta | E | aviso de armadura |
-| K1.12.4.2-11 | Comprimentos de emenda por pavimento, editáveis, diferentes para tração e compressão. | Falta | E | emendas em paredes |
+| K1.12.4.2-1 | Com o estado de tensões, para cada combinação verifica armadura vertical e horizontal de cada pano, e tensões/deformações no concreto e no aço com a armadura das tabelas. | Falta | E | pilares-parede e paredes (armadura por pano) [E1d] |
+| K1.12.4.2-2 | Aumento sequencial da armadura até atender todas as combinações. | Falta | E | pilares-parede e paredes [E1d] |
+| K1.12.4.2-3 | Verificação também na direção transversal, com armadura adicional se necessário; repetido em cada pano. | Falta | E | pilares-parede e paredes (direção transversal) [E1d] |
+| K1.12.4.2-4 | Verifica taxas mínimas e máximas, espaçamentos mínimos e máximos e proporções (ex.: lado > 5× a espessura); não atendendo, aviso e aplicação das limitações de pilar. | Falta | E | pilares-parede e paredes (taxas) [E1d] |
+| K1.12.4.2-5 | Esbeltez verificada por pano; excedida → aviso. | Falta | E | pilares-parede e paredes (esbeltez) [E1d] |
+| K1.12.4.2-6 | Consulta em tela de armaduras e erros; alterar armadura ou espessura dispara reverificação; redimensionamento disponível. | Falta | E | pilares-parede e paredes (edição) [E1d] |
+| K1.12.4.2-7 | Fator de cumprimento (fração da área do pano que atende) padrão 90 %, editável; valor menor (ex.: 80 %) dá armadura menor e marca em vermelho os pontos que não atendem (20 % da área). | Falta | E | fator de cumprimento [E1d] |
+| K1.12.4.2-8 | Saída: para cada ponto vermelho, consulta da armadura adicional necessária; colocá-la é decisão do projetista, edição manual nos desenhos. | Falta | E | armadura adicional local [E1d] |
+| K1.12.4.2-9 | Edição direta da armadura recalcula o fator de cumprimento. | Falta | E | fator de cumprimento [E1d] |
+| K1.12.4.2-10 | Armadura não atendida: aviso e texto em vermelho. | Falta | E | aviso de armadura [E1d] |
+| K1.12.4.2-11 | Comprimentos de emenda por pavimento, editáveis, diferentes para tração e compressão. | Falta | E | emendas em paredes [E1d] |
 | | **1.12.4.3 Paredes de alvenaria (pág. 89)** | | | |
-| K1.12.4.3-1 | Verificação das tensões-limite de compressão e de tração (tração = 10 % da compressão), com fator de cumprimento de 80 %; falha gera aviso no relatório final. | Falta | E | alvenaria estrutural (NBR 16868) |
+| K1.12.4.3-1 | Verificação das tensões-limite de compressão e de tração (tração = 10 % da compressão), com fator de cumprimento de 80 %; falha gera aviso no relatório final. | Falta | E | alvenaria estrutural (NBR 16868) [E1e] |
 | | **1.12.5 Lajes de vigotas (unidirecionais) (págs. 89–90)** | | | |
 | K1.12.5-1 | Cálculo vigota a vigota, em flexão simples. | Parcial | E | alinhamentos de vigotas = linhas da grelha na direção das vigotas, esforços por nervura (R6); não vigota a vigota |
 | K1.12.5-2 | Saída: momento positivo máximo em kN·m por metro de largura, majorado. | Feito | — | momento positivo de cálculo por metro (núcleo) e por nervura (tela) (R6) |
@@ -736,7 +736,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Parcial | E | momentos mínimos das vigotas configuráveis para toda a obra (vigotaMomentoMin*, R6); sem valor por pano |
 | K1.12.5-10 | Limitação: não verifica necessidade de armadura comprimida no vão. | Fora | — | limitação do outro programa |
 | K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Parcial | E | cortantes das pontas por nervura (por metro no núcleo) na tabela e nos diagramas; pranchas de lajes treliçadas listam as posições, sem os cortantes desenhados (R6/R5) |
-| K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | N | flecha elástica × (1 + αf) sem fissuração; sem distinção protendida |
+| K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | N | flecha elástica × (1 + αf) sem fissuração; sem distinção protendida [N2f] |
 
 ## 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95)
 
@@ -765,16 +765,16 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Falta | R | armadura predefinida [R7d] |
 | K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Falta | FU | radier |
 | | **1.13.2.4 Armadura transversal** | | | |
-| K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Falta | N | punção em lajes (NBR 6118 19.5); só sapatas têm (`footings.ts`) |
-| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Falta | N | tensões de punção no perímetro |
+| K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Falta | N | punção em lajes (NBR 6118 19.5); só sapatas têm (`footings.ts`) [N2d] |
+| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Falta | N | tensões de punção no perímetro [N2d] |
 | K1.13.2.4-3 | O manual registra que a abordagem é geral e difere das normas (fórmulas simplificadas com normal e momento desequilibrado). | Fora | — | comentário do manual |
-| K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Falta | N | marcação de punção excedida (punção em lajes: N2) |
-| K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Falta | N | armadura de punção |
-| K1.13.2.4-6 | Disposição dos grampos pelo usuário, com espaçamento ≤ 0,75d e entre as armaduras superior e inferior. | Falta | N | disposição dos grampos de punção (N2) |
+| K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Falta | N | marcação de punção excedida (punção em lajes: N2) [N2d] |
+| K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Falta | N | armadura de punção [N2d] |
+| K1.13.2.4-6 | Disposição dos grampos pelo usuário, com espaçamento ≤ 0,75d e entre as armaduras superior e inferior. | Falta | N | disposição dos grampos de punção (N2) [N2d] |
 | K1.13.2.4-7 | Junto a vigas (chatas ou altas), as tensões tangenciais vão para os estribos das vigas; na laje só se calculam tensões em superfícies paralelas às faces das vigas. | Fora | — | critério interno |
-| K1.13.2.4-8 | Cortante: a partir do perímetro de punção e em superfícies paralelas a cada 0,75d, verifica toda a laje até esgotar as superfícies que irradiam do apoio. | Falta | N | cortante em lajes (NBR 6118 19.4) |
-| K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Falta | N | armadura de cortante em lajes |
-| K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Falta | N | marcação de cortante excedido nas lajes (N2) |
+| K1.13.2.4-8 | Cortante: a partir do perímetro de punção e em superfícies paralelas a cada 0,75d, verifica toda a laje até esgotar as superfícies que irradiam do apoio. | Falta | N | cortante em lajes (NBR 6118 19.4) [N2d] |
+| K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Falta | N | armadura de cortante em lajes [N2d] |
+| K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Falta | N | marcação de cortante excedido nas lajes (N2) [N2d] |
 | K1.13.2.4-11 | Radiers: mesmas regras das lajes maciças. | Falta | FU | radier |
 | K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Falta | R | uniformização por zonas [R7e] |
 | K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Falta | R | uniformização sobre pilares [R7e] |
@@ -802,17 +802,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **1.14 Flechas de vigas (págs. 95–97)** | | | |
-| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Parcial | N | vigas do edifício: total ℓ/250 e variável ℓ/350 editáveis (N1d); sem instantânea por caso nem ativa |
-| K1.14-2 | Cada limite: relativo L/xxx, L/xxx + xx cm, ou absoluto em cm. | Parcial | N | limites relativos ℓ/xxx editáveis (N1d); sem forma ℓ/xxx + cm nem absoluta |
+| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Parcial | N | vigas do edifício: total ℓ/250 e variável ℓ/350 editáveis (N1d); sem instantânea por caso nem ativa [N2f] |
+| K1.14-2 | Cada limite: relativo L/xxx, L/xxx + xx cm, ou absoluto em cm. | Parcial | N | limites relativos ℓ/xxx editáveis (N1d); sem forma ℓ/xxx + cm nem absoluta [N2f] |
 | K1.14-3 | Limites dependem da norma; o usuário define os que considera relevantes. | Feito | — | limites da NBR 6118 13.3 editáveis nas opções (total e da variável) (N1d) |
-| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Parcial | N | total a longo prazo nas vigas e lajes do edifício (N1d); sem flecha ativa |
-| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Parcial | N | αf por t0 editável no edifício e no Pórtico 2D; sem coeficientes separados para permanente e variável |
+| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Parcial | N | total a longo prazo nas vigas e lajes do edifício (N1d); sem flecha ativa [N2f] |
+| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Parcial | N | αf por t0 editável no edifício e no Pórtico 2D; sem coeficientes separados para permanente e variável [N2f] |
 | K1.14-6 | Flecha total de cada caso = instantânea + diferida. | Feito | — | total = imediata × (1 + αf) (N1d) |
-| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Parcial | N | vigas do edifício: Branson em cada seção com a armadura calculada e integração da curvatura (vão e balanço); sem inércia homogeneizada nem rotações por caso (N1d) |
-| K1.14-8 | Esforços e deslocamentos por caso com módulo secante do concreto; correções (clima, cura etc.) pelos coeficientes do processo construtivo, nas flechas instantâneas e diferidas. | Parcial | N | Ecs; correções só por αf e t0 |
-| K1.14-9 | Flecha ativa = instantânea + diferida de permanentes e variáveis após a execução das paredes: fA = αg·fg + αq·fq (αg, αq coeficientes de carga permanente e variável). | Parcial | N | nós: após alvenaria ≈ αf·f0 (a confirmar); manual: αg·fg + αq·fq |
-| K1.14-10 | αg e αq variam com as frações de carga definidas como permanentes/variáveis e os coeficientes instantâneo/diferido. | Falta | N | frações de carga por etapa |
-| K1.14-11 | Flecha total a longo prazo = ativa + a parcela ocorrida até a execução do elemento danificável (paredes). | Parcial | N | total = ativa + anterior: no Pórtico 2D de forma aproximada |
+| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Parcial | N | vigas do edifício: Branson em cada seção com a armadura calculada e integração da curvatura (vão e balanço); sem inércia homogeneizada nem rotações por caso (N1d) [N2f] |
+| K1.14-8 | Esforços e deslocamentos por caso com módulo secante do concreto; correções (clima, cura etc.) pelos coeficientes do processo construtivo, nas flechas instantâneas e diferidas. | Parcial | N | Ecs; correções só por αf e t0 [N2f] |
+| K1.14-9 | Flecha ativa = instantânea + diferida de permanentes e variáveis após a execução das paredes: fA = αg·fg + αq·fq (αg, αq coeficientes de carga permanente e variável). | Parcial | N | nós: após alvenaria ≈ αf·f0 (a confirmar); manual: αg·fg + αq·fq [N2f] |
+| K1.14-10 | αg e αq variam com as frações de carga definidas como permanentes/variáveis e os coeficientes instantâneo/diferido. | Falta | N | frações de carga por etapa [N2f] |
+| K1.14-11 | Flecha total a longo prazo = ativa + a parcela ocorrida até a execução do elemento danificável (paredes). | Parcial | N | total = ativa + anterior: no Pórtico 2D de forma aproximada [N2f] |
 | K1.14-12 | Valores padrão do programa são indicativos (condições favoráveis usuais); processo, umidade, temperatura, cura, desforma e idade de carregamento podem dobrar ou reduzir à metade a flecha. | Fora | — | comentário do manual |
 
 ## 1.15 Deformações de lajes e fundações (págs. 97–111)
@@ -821,7 +821,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | | **1.15 Deformações de lajes (págs. 97–111)** | | | |
 | | **1.15.1 Lajes de vigotas (pág. 97)** | | | |
-| K1.15.1-1 | Lajes aliviadas e de vigotas seguem as regras das vigas, com opções independentes de processo construtivo por tipo de laje. | Parcial | N | treliçadas: flecha elástica × (1 + αf), igual à maciça |
+| K1.15.1-1 | Lajes aliviadas e de vigotas seguem as regras das vigas, com opções independentes de processo construtivo por tipo de laje. | Parcial | N | treliçadas: flecha elástica × (1 + αf), igual à maciça [N2f] |
 | K1.15.1-2 | Pré-fabricados: rigidez das fichas técnicas; demais: inércias equivalentes calculadas. | Parcial | E | seção T do catálogo; sem ficha do fabricante |
 | | **1.15.2 Lajes mistas (pág. 97)** | | | |
 | K1.15.2-1 | Remetidas ao capítulo de lajes mistas. | Fora | — | lajes mistas |
@@ -844,16 +844,16 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-10 | Caso 1, maciça h = 26 cm: L/h = 25 > 23 (EHE-08, Tab. 50.2.2.1.a, pouco armada) → flecha a verificar. | Fora | — | critério L/h da EHE-08 |
 | K1.15.4-11 | Faixa de 1 m com distribuição uniforme (simplificação); Ig = b·h³/12 = 146 466,67 cm⁴ é a inércia do modelo. | Fora | — | exemplo numérico |
 | K1.15.4-12 | Cálculo: 1,35·8,5 + 1,5·2 = 14,475 kN/m²; fator 0,76 na faixa de apoio e 0,6 na central; Md− esq. 93,02 kN·m/m (As 10,2 cm²/m), Md+ 43,16 (4,8 cm²/m), Md− dir. 31 (3,4 cm²/m). | Fora | — | exemplo numérico |
-| K1.15.4-13 | Momento de fissuração: Mcr = fct,m,fl·Wb, com fct,m,fl = máx[(1,6 − h/1000)·fct,m; fct,m] (h em mm) e fct,m = 0,3·fck^(2/3); no exemplo 2,565 → 3,437 MPa, Wb = 11 266 667 mm³, Mcr = 38,72 kN·m. | Parcial | N | Mr da NBR 6118 17.3.1 no Pórtico 2D (`bransonRatio`); lajes do edifício não |
+| K1.15.4-13 | Momento de fissuração: Mcr = fct,m,fl·Wb, com fct,m,fl = máx[(1,6 − h/1000)·fct,m; fct,m] (h em mm) e fct,m = 0,3·fck^(2/3); no exemplo 2,565 → 3,437 MPa, Wb = 11 266 667 mm³, Mcr = 38,72 kN·m. | Parcial | N | Mr da NBR 6118 17.3.1 no Pórtico 2D (`bransonRatio`); lajes do edifício não [N2f] |
 | K1.15.4-14 | Momentos de serviço com carga total 10,5 kN/m²: esq. 67,4 > Mcr (fissura), centro 31,3 < Mcr, dir. 22,48 < Mcr. | Fora | — | exemplo numérico |
-| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Parcial | N | Branson por seção nas vigas do edifício (N1d) e no Pórtico 2D; lajes do edifício sem fissuração |
-| K1.15.4-16 | Inércia média do vão: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2; Ie,esq = 51 744 cm⁴ (Icr = 29 584), dir. = centro = Ig → 122 768 cm⁴ = 0,84·Ig. | Parcial | N | Pórtico 2D: Ie com o Ma máximo; sem média apoios/vão |
+| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Parcial | N | Branson por seção nas vigas do edifício (N1d) e no Pórtico 2D; lajes do edifício sem fissuração [N2f] |
+| K1.15.4-16 | Inércia média do vão: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2; Ie,esq = 51 744 cm⁴ (Icr = 29 584), dir. = centro = Ig → 122 768 cm⁴ = 0,84·Ig. | Parcial | N | Pórtico 2D: Ie com o Ma máximo; sem média apoios/vão [N2f] |
 | K1.15.4-17 | A favor da segurança adota Ie ≈ 0,66·Ig → fator de fissuração Ke = 1/0,66 ≈ 1,50 aplicado à flecha elástica do programa. | Fora | — | exemplo numérico |
-| K1.15.4-18 | Flecha diferida pela EHE-08 (análoga ao ACI-08): λ = ξ/(1 + 50ρ'), ρ' = taxa média de armadura comprimida; com malhas de 1 ‰ (ρ' = 0,001) → λ = 0,95·ξ (reconstruída). | Parcial | N | αf = Δξ/(1 + 50ρ′) no Pórtico 2D; no edifício ρ′ = 0 [a confirmar] com t0 editável (N1d) |
+| K1.15.4-18 | Flecha diferida pela EHE-08 (análoga ao ACI-08): λ = ξ/(1 + 50ρ'), ρ' = taxa média de armadura comprimida; com malhas de 1 ‰ (ρ' = 0,001) → λ = 0,95·ξ (reconstruída). | Parcial | N | αf = Δξ/(1 + 50ρ′) no Pórtico 2D; no edifício ρ′ = 0 [a confirmar] com t0 editável (N1d) [N2f] |
 | K1.15.4-19 | ξ por duração: ≥ 5 anos 2,0; 1 ano 1,4; 6 meses 1,2; 1 mês 0,7; 2 semanas 0,5 (o exemplo usa também 0,8 aos 60 dias e 1,0 aos 120 dias). | Feito | — | ξ(t) da NBR 6118 (Tabela 17.1) com t0 editável no edifício (t0Flecha, N1d) e no Pórtico 2D |
-| K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Falta | N | ξ ponderado por etapas de carga (NBR 6118 17.3.2.1.2) |
-| K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Falta | N | fator total por etapas |
-| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | Pórtico 2D: parcela após alvenaria ≈ αf·f0; lajes do edifício não |
+| K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Falta | N | ξ ponderado por etapas de carga (NBR 6118 17.3.2.1.2) [N2f] |
+| K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Falta | N | fator total por etapas [N2f] |
+| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | Pórtico 2D: parcela após alvenaria ≈ αf·f0; lajes do edifício não [N2f] |
 | K1.15.4-23 | Conclusão maciça: ativa ≈ 2,0× e total ≈ 3,0× a flecha elástica com seção bruta. | Fora | — | conclusão do exemplo (ver divergências) |
 | K1.15.4-24 | Caso 2, nervurada com caixões perdidos: Ig da zona aliviada 61 567 cm⁴; do ábaco (maciça 30 cm × 82 cm) 184 500 cm⁴; média ao longo do vão 123 033,5 cm⁴. | Fora | — | exemplo numérico |
 | K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Falta | E | nervuradas: inércia única na malha |
@@ -864,7 +864,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-30 | ρ' = 0 a favor da segurança → λ = ξ; ξ médio total ≈ 1 → δtotal = 2,5·δi; ativa: ξ médio 0,94 e fração sem peso próprio 4/8,6 ≈ 0,47 → δativa ≈ 1,75·δi. | Fora | — | exemplo numérico |
 | K1.15.4-31 | Os fatores valem para casos usuais (vãos, espessuras, cargas, processo, ambiente, desforma, idade de carregamento); mudando as condições, corrigir. | Fora | — | comentário do manual |
 | K1.15.4-32 | Conforto: basta a flecha do caso de carga variável. | Feito | — | flecha imediata das variáveis ≤ ℓ/350 (limite editável) em lajes e vigas (N1d) |
-| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | total (ℓ/250) e conforto (variável, ℓ/350) com limites editáveis; falta a flecha ativa (etapas de carga) (N1d) |
+| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | total (ℓ/250) e conforto (variável, ℓ/350) com limites editáveis; falta a flecha ativa (etapas de carga) (N1d) [N2f] |
 | | **1.15.5 Elementos de fundação (pág. 111)** | | | |
 | K1.15.5-1 | Remete à parte do manual sobre sapatas corridas e isoladas, blocos sobre estacas, vigas de equilíbrio e vigas de travamento. | Parcial | FU | sapatas, blocos e tubulões no módulo Fundações; corridas e vigas de equilíbrio faltam |
 | K1.15.5-2 | Fim do texto: remete à versão completa em inglês (learning.cype.com, CYPECAD calculations manual). | Fora | — | remissão ao manual em inglês |
@@ -881,4 +881,5 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **20/10/2026 — fatia FU1 no núcleo.** K1.1.4, K1.4.89, K1.11.2 e K1.11.60 atualizados (fundações lançadas no edifício, `src/core/building/fundacao.ts`; opções `fundacao.opcoes` e `fundModo`; arranques com cargas por caso); seguem Parcial (interface, vigas de equilíbrio, radier e desenho nas fatias seguintes). Contagens sem mudança.
 - **20/10/2026 — fatia FU1, interface.** Notas de K1.1.4, K1.4.89, K1.11.2 e K1.11.60 atualizadas (grupo Fundação, planta de fundação, janela do elemento, "Calcular fundações" no worker sem refazer a análise, arranques e cargas no arranque); seguem Parcial (vigas de equilíbrio e travamento, radier, desenho de locação). Contagens sem mudança.
 - **20/10/2026 — FU1: materiais da fundação e itens "a confirmar".** K1.6.8, K1.9.3 e K1.9.6 com o concreto, o aço e o cobrimento próprios da fundação do edifício (`Norma.fckElem.fundacao`, `acoPos.fundacao`, `cobFundacao`; `materiais.definir`), padrão os da obra; cota do terreno no pavimento mais baixo, N·e em módulo e raras sem e com vento em separado adotados como padrão do programa de referência (sem registro em contrário em 1.9 e 1.15). Situação sem mudança.
+- **20/10/2026 — specs N2, E1 e E2 (só documentação).** Pendências N (93) alocadas às fatias N2a–N2g de `spec-frente-N2.md`; pendências E de pilar-parede, paredes, alvenaria, transições e empuxo (40) às fatias E1a–E1e de `spec-frente-E1.md`; de vigas T, inclinadas, consolos e vínculo externo (20) às fatias E2a–E2e de `spec-frente-E2.md`. A fatia vai na nota de cada item (ex. "[N2d]"); a frente continua "N" ou "E", porque `checklists.test.ts` só aceita a letra. Conferido por script: cada id em uma só fatia, sem sobra. Situação e contagens sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
