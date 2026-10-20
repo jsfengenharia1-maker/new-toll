@@ -12,7 +12,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 13 | 15 | 18 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
-| 4. Pilares | 63 | 11 | 18 | 27 | 7 |
+| 4. Pilares | 63 | 11 | 20 | 25 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 9 | 8 | 66 | 25 |
 | 7. Lajes | 195 | 5 | 19 | 110 | 61 |
@@ -22,14 +22,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **71** | **96** | **417** | **179** |
+| **Total** | **763** | **71** | **98** | **415** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento | 17 | 88 | 105 |
-| N — Cálculo e normas | 11 | 21 | 32 |
+| N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
@@ -227,8 +227,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.37 | Seção em vermelho na tela, no pavimento onde está o erro. | Falta | R | seção em vermelho na planta |
 | C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | status e mensagens; sem sugestões detalhadas |
 | C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Parcial | R | limite de 4% na busca |
-| C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Falta | N | cortante em pilares |
-| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Falta | N |  |
+| C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Parcial | N | Vd e estribo pelo cortante nos pilares do edifício; biela não detalhada (N1e) |
+| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção |
 | C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Falta | N |  |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
 | C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) |

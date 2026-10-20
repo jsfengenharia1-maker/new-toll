@@ -6,7 +6,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 
 | Frente | Manual do usuário | Manual de cálculo | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 32 | 116 | 148 |
+| N — Cálculo e normas | 32 | 110 | 142 |
 | R — Revisão de resultados e detalhamento | 105 | 125 | 230 |
 | E — Elementos estruturais | 200 | 141 | 341 |
 | FU — Fundações integradas | 67 | 23 | 90 |
