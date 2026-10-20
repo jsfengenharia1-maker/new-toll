@@ -10,7 +10,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "e2e": "node e2e/run.mjs",
-    "cli": "vite build --config vite.cli.config.ts"
+    "cli": "vite build --config vite.cli.config.ts",
+    "agente": "node docs/exemplos/agente-mcp.mjs"
   },
   "dependencies": {
     "flatbush": "^4.6.2",

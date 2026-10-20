@@ -1,0 +1,20 @@
+# Statikos
+
+> Aplicativo web (roda no navegador, sem login) de análise e dimensionamento estrutural em concreto armado pelas normas brasileiras: pórtico plano 2D, fundações profundas e rasas, e edifícios lançados por pavimentos (grelha de lajes e vigas + pórtico espacial com diafragma rígido, vento NBR 6123, γz, dimensionamento NBR 6118, pranchas em PDF, DXF e DWG). Interface em português.
+
+O módulo Edifícios também é operável por agentes: linha de comando em Node e servidor MCP (stdio) com o mesmo registro de comandos da interface. Toda alteração é feita em dois passos (prévia com diff e token, depois aplicar), fica no log do arquivo `.statikos` e pode ser desfeita. Unidades: m, kN, graus. Premissas sem fonte normativa conferida são marcadas "a confirmar".
+
+## Documentação
+
+- [Guia para agentes de IA (CLI e MCP)](https://github.com/jsfengenharia1-maker/new-toll/blob/main/docs/ia.md): ferramentas, recursos, convenções, fluxo prévia → aplicar
+- [Especificação do módulo Edifícios](https://github.com/jsfengenharia1-maker/new-toll/blob/main/docs/spec-edificios.md): modelo de dados, comandos, solver, pranchas
+- [README](https://github.com/jsfengenharia1-maker/new-toll/blob/main/README.md): arquitetura, comandos de build e testes
+
+## Exemplos
+
+- [Agente de exemplo pelo MCP](https://github.com/jsfengenharia1-maker/new-toll/blob/main/docs/exemplos/agente-mcp.mjs): lança, verifica, calcula, revisa pilares e gera pranchas
+
+## Opcional
+
+- [Pesquisa do módulo Edifícios](https://github.com/jsfengenharia1-maker/new-toll/blob/main/docs/pesquisa-edificios.md)
+- [Validação contra o OpenSees](https://github.com/jsfengenharia1-maker/new-toll/tree/main/validation/opensees)

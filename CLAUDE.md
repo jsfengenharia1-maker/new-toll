@@ -14,11 +14,12 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 223 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test         # vitest: 225 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
 npm run cli      # dist-cli/statikos.mjs: linha de comando + servidor MCP (Node ≥ 20)
+npm run agente   # exemplo de agente pelo MCP (docs/exemplos/agente-mcp.mjs), depois do npm run cli
 ```
 Testes de interface em `e2e/` (`run.mjs` é um runner próprio sobre a lib `playwright`, sem @playwright/test; `flows.mjs` tem os fluxos). Ficam fora do `npm test` e do build do Netlify. Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, na falta dele, /opt/pw-browsers/chromium-1194 (nuvem). `npm run e2e -- --no-build <filtro>` roda só parte dos fluxos.
 
@@ -98,7 +99,7 @@ Veja a tabela no `README.md`. Resumo:
 - SPT: por apoio, um furo (automático ou escolhido) ou a sondagem média de todos/alguns furos; leitura descartada (⊘) fica fora da média e, no furo isolado, é interpolada entre as vizinhas. Média: N médio das leituras válidas; solo mais frequente (empate: o menos favorável); profundidade comum (ou até o mais profundo); NA mais raso (ou médio).
 - Pilar padrão 30 × 30 cm quando o apoio não informa (na importação, vem da seção retangular da barra mais vertical ligada ao apoio).
 
-## Módulo Edifícios (Fase 2 em andamento; fatias 0 a 6b feitas em 20/10/2026)
+## Módulo Edifícios (Fase 2 concluída em 20/10/2026: fatias 0 a 7; aguardando aprovação do usuário)
 - Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1, aprovada): `docs/spec-edificios.md`.
 - Código:
   - `src/core/building/`: modelo físico, verificação de lançamento e premissas em uso (`premissas.ts`, que alimenta a interface e o MCP);
@@ -115,6 +116,7 @@ Veja a tabela no `README.md`. Resumo:
 - DWG: `nasjidwg@0.18.0` (MIT) é devDependency fixa; `node scripts/vendor-nasjidwg.mjs` gera `public/vendor/nasjidwg-0.18.0.mjs` só com o escritor (192 KB, 54 KB gz) e copia LICENSE/NOTICE. O app importa por URL (`import(/* @vite-ignore */ …)`), a CLI pelo caminho relativo a `dist-cli/`. Os leitores do pacote só entram nos testes. No artifact do claude.ai o vendor não existe: o botão avisa e sugere o DXF.
 - Downloads no artifact: a capability `downloads` só aceita algumas extensões (pdf, html, svg, csv, json, zip…); `download()` em `src/app/ui.tsx` empacota as outras num `.zip` (escritor próprio em `src/core/zip.ts`, sem compressão).
 - Validação externa do DXF: `validation/dxf/auditar.py` (ezdxf, fora do npm test). Validação manual pendente com o usuário: abrir DXF e DWG no AutoCAD, AUDIT e aviso de arquivo não Autodesk.
+- Fatia 7: MCP com `outputSchema` em todas as ferramentas, `dimensionar` com filtros (`pavimento`, `so_problemas`) e cache por revisão, recursos `statikos://resultados` e o modelo `statikos://resultados/{pavimento}` (`resources/templates/list`). Guia `docs/ia.md` (um teste exige que ele cite toda ferramenta e recurso do servidor) e `public/llms.txt` (vai para a raiz do site). Exemplo de agente `docs/exemplos/agente-mcp.mjs` (stdio; o mesmo roteiro roda em `src/cli/agente.test.ts`). Ferramenta nova ou renomeada exige atualizar `docs/ia.md`.
 - Ajustes pedidos após a 6b (20/10/2026): carimbo com ART/RRT e etapa (todos os campos editáveis na aba Pranchas › Carimbo, comando `prancha.definir`; data de hoje quando vazia); comando `viga.alinharFace` (lado `externa` = contorno pela face externa dos pilares, ou `esq`/`dir` do traçado; a linha traçada vira essa face, então mudar a largura mantém a face). `viga.ajustarFaces` saiu do MCP. O aviso VIGA_FORA_FACE não dispara quando uma face da viga já coincide com a do pilar.
 - Fatia 6b, premissas a confirmar: margens (esq. 20 mm; 10 mm A0/A1; 7 mm A2–A4) e legenda de 178 mm (NBR 16752); marcas de dobra (NBR 13142); penas por camada (NBR 16861: pilar 0,50, viga 0,35, texto 0,25, cota 0,18, eixo 0,13); alturas de texto 2–3 mm; cotas em cm; pilares que chegam hachurados e que nascem tracejados; seções do pavimento de referência (o primeiro do grupo); logo do carimbo ainda não suportado.
 - Fatia 6a: `src/core/building/dimensionamento.ts` (esforços ao longo da barra, vigas, pilares, lajes, quantitativos, cargas para Fundações); roda no worker junto com a análise (`calculo.worker.ts` devolve `{ r, dim }`). Interface: aba Dimensionamento e `MemorialEdificio.tsx` (reaproveita `MEMO_CSS`, `memoPrintCss`, `APP_PRINT_CSS` e `printHtmlDoc` do memorial do pórtico). `importarCargasDoEdificio` em `Fundacoes.tsx`. CLI `dim` e ferramenta MCP `dimensionar` (`grupo.desvincular` saiu do MCP para caber no limite de 40 ferramentas). Pilares: só as combinações determinantes (Nd máx./mín., maiores momentos em cada direção, maior soma relativa) e um quadrante (seção e armadura duplamente simétricas), malha de fibras 16 (24 no círculo).

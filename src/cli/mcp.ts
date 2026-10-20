@@ -2,7 +2,7 @@
 // Cada comando de escrita é exposto como ferramenta que só faz a PRÉVIA (diff + token);
 // a alteração acontece em `aplicar`, com o token. Nunca há execução de código livre.
 import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '../core/commands';
-import { edificioVazio } from '../core/building/types';
+import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
@@ -19,6 +19,7 @@ interface Ferramenta {
   title: string;
   description: string;
   inputSchema: object;
+  outputSchema?: object;
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: false };
   executar(args: Record<string, unknown>): unknown;
 }
@@ -29,7 +30,8 @@ export const nomeFerramenta = (comando: string) => comando.replace(/\./g, '_');
 const INSTRUCOES = `Statikos: lançamento de edifícios de concreto armado.
 Fluxo: abrir (ou novo) → ferramentas de comando (cada uma devolve só a PRÉVIA: diff e token) → aplicar {token} → verificar → salvar.
 Unidades: m, kN, graus. Cotas são do topo da laje estrutural. Ids são estáveis (ex.: pav_4); nomes são só rótulos.
-Consulte o recurso statikos://premissas antes de propor valores de cálculo.`;
+Consulte o recurso statikos://premissas antes de propor valores de cálculo; itens "a confirmar" não são norma conferida.
+Resultados: dimensionar (filtros pavimento e so_problemas) ou statikos://resultados/{pavimento}. Guia: docs/ia.md.`;
 
 export class ServidorMcp {
   sessao = new Sessao(edificioVazio());
@@ -51,22 +53,24 @@ export class ServidorMcp {
         executar: (a) => { const destino = (a.arquivo as string | undefined) ?? this.arquivo; if (!destino) throw new Error('Informe o arquivo.'); this.io.gravar(destino, salvarSessao(this.sessao, this.bruto)); this.arquivo = destino; return { gravado: destino }; } },
       { name: 'resumo', title: 'Resumo da obra', description: 'Obra, norma, pavimentos (com pé-direito e grupo), grupos e contagens.', inputSchema: vazio, annotations: ro(), executar: () => resumo(this.sessao) },
       { name: 'modelo', title: 'Modelo completo', description: 'O modelo físico do edifício em JSON.', inputSchema: vazio, annotations: ro(), executar: () => this.sessao.modelo },
-      { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
+      { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, outputSchema: { type: 'object', properties: { diagnosticos: { type: 'array', items: DIAG } } }, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
       { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G, Q e vento NBR 6123; γz). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
         executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
-      { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha); quantitativos por pavimento e cargas características por pilar para o módulo Fundações.', inputSchema: vazio, annotations: ro(),
-        executar: () => dimensionar(this.sessao.modelo) },
+      { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha); quantitativos por pavimento e cargas características por pilar para o módulo Fundações. Filtros opcionais: um pavimento (id ou nome) e só os elementos que não atendem ou pedem revisão. status: ok | review (revisar) | fail (não atende).',
+        inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false } } },
+        outputSchema: SAIDA_DIM, annotations: ro(),
+        executar: (a) => filtrarDim(this.sessao.modelo, this.resultados(), a.pavimento as string | undefined, !!a.so_problemas) },
       { name: 'pranchas', title: 'Gerar pranchas', description: 'Gera as pranchas de formas (uma por grupo com vigas ou lajes): PDF com todas as páginas, DXF R2000 e DWG R2018 (uma prancha por arquivo). Carimbo pelo comando prancha.definir. Grava nos caminhos informados (sobrescreve).',
         inputSchema: { type: 'object', additionalProperties: false, properties: {
           pdf: { type: 'string' }, dxf: { type: 'string' }, dwg: { type: 'string' }, grupo: { type: 'string', description: 'id ou nome do grupo (padrão: todos)' },
           formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] }, escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
-        } }, annotations: rw(true),
+        } }, outputSchema: { type: 'object', properties: { pranchas: { type: 'array', items: { type: 'object', properties: { titulo: { type: 'string' }, formato: { type: 'string' }, escala: { type: 'string' }, avisos: { type: 'array', items: { type: 'string' } } } } }, gravados: { type: 'array', items: { type: 'string' } } } }, annotations: rw(true),
         executar: (a) => gravarPranchas(this.sessao.modelo, a as OpcoesSaidaPranchas, this.io) },
-      { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, annotations: rw(true),
+      { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, outputSchema: SAIDA_ALTERACAO, annotations: rw(true),
         executar: (a) => this.saida(this.sessao.aplicar(String(a.token), 'ia')) },
       { name: 'comandos', title: 'Comandos disponíveis', description: 'Lista todos os comandos do registro (nome, risco, descrição e JSON Schema dos parâmetros), inclusive os sem ferramenta própria.', inputSchema: vazio, annotations: ro(),
         executar: () => ({ comandos: listarComandos().map((c) => ({ nome: c.nome, risco: c.risco, descricao: c.descricao, schema: c.schema })) }) },
-      { name: 'previa', title: 'Prévia de qualquer comando', description: 'Prévia genérica: {comando, params}. Devolve o diff e um token para a ferramenta aplicar. Use para comandos sem ferramenta própria (veja `comandos`).', inputSchema: { type: 'object', required: ['comando'], properties: { comando: { type: 'string' }, params: { type: 'object' } }, additionalProperties: false }, annotations: ro(),
+      { name: 'previa', title: 'Prévia de qualquer comando', description: 'Prévia genérica: {comando, params}. Devolve o diff e um token para a ferramenta aplicar. Use para comandos sem ferramenta própria (veja `comandos`).', inputSchema: { type: 'object', required: ['comando'], properties: { comando: { type: 'string' }, params: { type: 'object' } }, additionalProperties: false }, outputSchema: SAIDA_ALTERACAO, annotations: ro(),
         executar: (a) => this.saida(this.sessao.previa(String(a.comando), a.params ?? {})) },
       { name: 'desfazer', title: 'Desfazer', description: 'Desfaz o último comando aplicado.', inputSchema: vazio, annotations: rw(false), executar: () => ({ desfeito: this.sessao.desfazer()?.nome ?? null }) },
       { name: 'refazer', title: 'Refazer', description: 'Refaz o último comando desfeito.', inputSchema: vazio, annotations: rw(false), executar: () => ({ refeito: this.sessao.refazer()?.nome ?? null }) },
@@ -74,10 +78,17 @@ export class ServidorMcp {
     const cmds: Ferramenta[] = listarComandos().filter((c) => c.risco !== 'leitura' && c.mcp !== false).map((c) => ({
       name: nomeFerramenta(c.nome), title: c.nome,
       description: `${c.descricao} PRÉVIA: não altera o modelo; devolve o diff e um token para a ferramenta aplicar.${c.risco === 'destrutivo' ? ' Remove dados: confirme com o usuário antes de aplicar.' : ''}`,
-      inputSchema: c.schema, annotations: ro(c.risco === 'destrutivo'),
+      inputSchema: c.schema, outputSchema: SAIDA_ALTERACAO, annotations: ro(c.risco === 'destrutivo'),
       executar: (a) => this.saida(this.sessao.previa(c.nome, a)),
     }));
     this.ferramentas = [...base, ...cmds];
+  }
+
+  private cache: { rev: number; modelo: unknown; dim: ReturnType<typeof dimensionar> } | null = null;
+  /** Dimensionamento do modelo atual (refeito só se o modelo mudou). */
+  private resultados() {
+    if (!this.cache || this.cache.rev !== this.sessao.rev || this.cache.modelo !== this.sessao.modelo) this.cache = { rev: this.sessao.rev, modelo: this.sessao.modelo, dim: dimensionar(this.sessao.modelo) };
+    return this.cache.dim;
   }
 
   private saida(r: Resultado) {
@@ -104,7 +115,7 @@ export class ServidorMcp {
       }
       case 'ping': return ok({});
       case 'tools/list':
-        return ok({ tools: this.ferramentas.map(({ name, title, description, inputSchema, annotations }) => ({ name, title, description, inputSchema, annotations })) });
+        return ok({ tools: this.ferramentas.map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({ name, title, description, inputSchema, outputSchema: outputSchema ?? SAIDA_LIVRE, annotations })) });
       case 'tools/call': {
         const f = this.ferramentas.find((x) => x.name === p.name);
         if (!f) return fail(-32602, `Ferramenta desconhecida: ${String(p.name)}`);
@@ -118,10 +129,14 @@ export class ServidorMcp {
       }
       case 'resources/list':
         return ok({ resources: RECURSOS.map(([uri, name, description]) => ({ uri, name, description, mimeType: 'application/json' })) });
+      case 'resources/templates/list':
+        return ok({ resourceTemplates: [{ uriTemplate: 'statikos://resultados/{pavimento}', name: 'resultados-pavimento', description: 'Dimensionamento de um pavimento (id ou nome): vigas do grupo, lances de pilar que chegam a ele, lajes e quantitativos', mimeType: 'application/json' }] });
       case 'resources/read': {
         const uri = String(p.uri);
         const dados = uri === 'statikos://modelo' ? this.sessao.modelo : uri === 'statikos://diagnosticos' ? this.sessao.verificar()
-          : uri === 'statikos://premissas' ? PREMISSAS : uri === 'statikos://log' ? this.sessao.log : undefined;
+          : uri === 'statikos://premissas' ? PREMISSAS : uri === 'statikos://log' ? this.sessao.log
+          : uri === 'statikos://resultados' ? filtrarDim(this.sessao.modelo, this.resultados())
+          : uri.startsWith('statikos://resultados/') ? filtrarDim(this.sessao.modelo, this.resultados(), decodeURIComponent(uri.slice('statikos://resultados/'.length))) : undefined;
         if (dados === undefined) return fail(-32002, `Recurso desconhecido: ${uri}`);
         return ok({ contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(dados) }] });
       }
@@ -148,4 +163,38 @@ const RECURSOS: [string, string, string][] = [
   ['statikos://diagnosticos', 'diagnosticos', 'Verificação de lançamento'],
   ['statikos://premissas', 'premissas', 'Premissas de cálculo em uso (fonte e "a confirmar")'],
   ['statikos://log', 'log', 'Log de comandos (reproduz o modelo)'],
+  ['statikos://resultados', 'resultados', 'Dimensionamento de todo o edifício (calcula se o modelo mudou)'],
 ];
+
+/** Recorte do dimensionamento por pavimento (id ou nome) e/ou só o que não atende. */
+export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, pavimento?: string, soProblemas = false) {
+  if ('erro' in d) return d;
+  const pav = pavimento ? b.pavimentos.find((p) => p.id === pavimento || p.nome.toLowerCase() === pavimento.toLowerCase()) : undefined;
+  if (pavimento && !pav) throw new Error(`Pavimento ${pavimento} não existe.`);
+  const prob = <T extends { status: string }>(xs: T[]) => (soProblemas ? xs.filter((x) => x.status !== 'ok') : xs);
+  const maisBaixo = pavimentosOrdenados(b)[0]?.id;
+  return {
+    ...(pav ? { pavimento: { id: pav.id, nome: pav.nome, cota: pav.cota } } : {}),
+    vigas: prob(pav ? d.vigas.filter((v) => v.grupo === pav.grupo) : d.vigas),
+    pilares: prob(pav ? d.pilares.filter((p) => p.pavimento === pav.nome) : d.pilares),
+    lajes: prob(pav ? d.lajes.filter((l) => l.pavimento === pav.nome) : d.lajes),
+    quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
+    ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao } : {}),
+    combinacoes: d.combinacoes,
+    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes) },
+  };
+}
+const contaStatus = (xs: { status: string }[]) => ({ total: xs.length, ok: xs.filter((x) => x.status === 'ok').length, revisar: xs.filter((x) => x.status === 'review').length, naoAtende: xs.filter((x) => x.status === 'fail').length });
+
+const SAIDA_LIVRE = { type: 'object' };
+const DIAG = { type: 'object', properties: { codigo: { type: 'string' }, severidade: { type: 'string', enum: ['erro', 'aviso', 'info'] }, elementos: { type: 'array', items: { type: 'string' } }, mensagem: { type: 'string' }, sugestao: { type: 'object' } } };
+const SAIDA_ALTERACAO = { type: 'object', properties: {
+  ok: { type: 'boolean' }, mensagem: { type: 'string' }, token: { type: 'string', description: 'passe para a ferramenta aplicar' },
+  diff: { type: 'object', properties: { criados: { type: 'array', items: { type: 'string' } }, alterados: { type: 'array', items: { type: 'string' } }, removidos: { type: 'array', items: { type: 'string' } }, resumo: { type: 'array', items: { type: 'string' } } } },
+  erros: { type: 'array', items: DIAG }, diagnosticos: { type: 'array', items: DIAG },
+} };
+const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
+const SAIDA_DIM = { type: 'object', properties: {
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, combinacoes: { type: 'number' },
+  resumo: { type: 'object' }, erro: { type: 'string' },
+} };

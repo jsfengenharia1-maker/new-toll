@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 223 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 225 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -167,6 +167,11 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Carimbo com empresa, obra, cliente, local, responsável técnico, registro, ART/RRT, etapa, desenho, revisão e data, todos editáveis na aba Pranchas
 - Locação da viga pela face do pilar (`viga.alinharFace`): contorno na face externa ou face esquerda/direita escolhida; viga mais estreita que o pilar fica para dentro
 - Aba Pranchas com prévia, `statikos prancha` (`--pdf`, `--dxf`, `--dwg`) e ferramenta `pranchas` no MCP; no artifact do claude.ai, arquivos de extensão não aceita (DXF, DWG, `.statikos`) saem dentro de um `.zip`
+
+**Módulo Edifícios — fatia 7 (20/10/2026)**
+- Servidor MCP completo: `outputSchema` em todas as ferramentas, resultados filtrados por pavimento e por situação, recursos `statikos://resultados` e `statikos://resultados/{pavimento}`
+- Guia para agentes em [`docs/ia.md`](docs/ia.md) e `llms.txt` na raiz do site
+- Agente de exemplo (`npm run agente`): lança um edifício, verifica, dimensiona, aumenta os pilares que não passam, loca o contorno na face externa e gera as pranchas
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir
