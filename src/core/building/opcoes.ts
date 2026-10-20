@@ -92,6 +92,8 @@ export interface OpcoesCalculo {
   vigotaNegativoVao: number;
   /** Vigotas: fator redutor da rigidez à flexão das nervuras na grelha (1 = seção T bruta). */
   vigotaRigidez: number;
+  /** 1 = cargas de uso das classes B (escritórios) e C (garagens) como casos próprios, com o ψ da classe; 0 = um caso Q com o ψ da obra. */
+  categoriasUso: number;
   /** Fundações: 0 = dimensionar tudo; 1 = só verificar as dimensões impostas (ou as do cálculo anterior); 2 = redimensionar só os elementos com erro. */
   fundModo: number;
 }
@@ -214,6 +216,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Cada lado do negativo sobre um apoio vai, a partir do eixo, até o maior entre esta % do vão da vigota e o ponto de momento nulo + decalagem (a das lajes) + ancoragem. 0 = só o diagrama.' },
   { chave: 'vigotaRigidez', rotulo: 'Vigotas: redutor da rigidez à flexão', unidade: '× EI', min: 0.1, max: 1, passo: 0.05, padrao: 1, fonte: 'Opção do programa de referência; NBR 6118 não fixa (seção T bruta da nervura)', aConfirmar: true,
     descricao: 'Multiplica a inércia das nervuras das treliçadas na grelha (fissuração das nervuras). Menor rigidez manda mais carga para as vigas e aumenta a flecha.' },
+  { chave: 'categoriasUso', rotulo: 'Categorias de uso como casos próprios', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 8681 (ações variáveis distintas combinadas como principal e secundárias) e NBR 6118, Tabela 11.2 (ψ por local); casos por categoria de uso do programa de referência', aConfirmar: false,
+    descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'fundModo', rotulo: 'Fundações: modo (0 dimensionar, 1 só verificar, 2 só os com erro)', min: 0, max: 2, passo: 1, padrao: 0, fonte: 'Três modos de dimensionamento do programa de referência (padrão: dimensionar tudo)', aConfirmar: false,
     descricao: 'Dimensionar tudo; só verificar as dimensões impostas (sapatas; sem imposição, as do cálculo anterior); ou manter os elementos que atendiam no cálculo anterior e redimensionar só os com erro.' },
 ];

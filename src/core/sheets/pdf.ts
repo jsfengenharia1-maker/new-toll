@@ -3,6 +3,7 @@
 // opcional (OCG) por camada da prancha, que o leitor de PDF liga e desliga.
 import { CAMADAS, TRACOS, type Camada, type Prancha, type Prim } from './prancha';
 import { camadasUsadas, dyBase, primitivasNoPapel } from './papel';
+import { base64Bytes, infoJpeg } from './logo';
 
 // Larguras da Helvetica (unidades de 1/1000 do corpo) dos caracteres 32 a 126 — métricas padrão da fonte.
 const W_ASCII = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
@@ -74,13 +75,29 @@ export function escreverPdf(pranchas: Prancha[], info: { titulo?: string; autor?
   const ocgs = new Map<Camada, number>(todas.map((c) => [c, add(`<< /Type /OCG /Name ${strPdf(c)} >>`)]));
   const nomes = new Map<Camada, string>(todas.map((c, i) => [c, `oc${i + 1}`]));
   const kids: number[] = [];
+  // logo do carimbo: um XObject de imagem (JPEG, DCTDecode) por imagem distinta, compartilhado entre as páginas
+  const imagens = new Map<string, number>();
+  const imagem = (dados: string) => {
+    const ja = imagens.get(dados);
+    if (ja) return ja;
+    const b = base64Bytes(dados), info = b && infoJpeg(b);
+    if (!b || !info) return 0;
+    let bin = '';
+    for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+    const cor = info.comp === 1 ? '/DeviceGray' : info.comp === 4 ? '/DeviceCMYK /Decode [1 0 1 0 1 0 1 0]' : '/DeviceRGB';
+    const id = add(`<< /Type /XObject /Subtype /Image /Width ${info.w} /Height ${info.h} /ColorSpace ${cor} /BitsPerComponent 8 /Filter /DCTDecode /Length ${b.length} >>\nstream\n${bin}\nendstream`);
+    imagens.set(dados, id);
+    return id;
+  };
   for (const pr of pranchas) {
     const prims = primitivasNoPapel(pr);
-    const cs = conteudo(prims, nomes);
+    let cs = conteudo(prims, nomes);
+    const im = pr.logo ? imagem(pr.logo.dados) : 0;
+    if (im && pr.logo) { const k = 72 / 25.4, L = pr.logo; cs += `\nq ${n((L.x1 - L.x0) * k)} 0 0 ${n((L.y1 - L.y0) * k)} ${n(L.x0 * k)} ${n(L.y0 * k)} cm /Logo Do Q`; }
     const stream = add(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
     const props = camadasUsadas(prims).map((c) => `/${nomes.get(c)} ${ocgs.get(c)} 0 R`).join(' ');
     const wpt = n((pr.W * 72) / 25.4), hpt = n((pr.H * 72) / 25.4);
-    kids.push(add(`<< /Type /Page /Parent ${paginas} 0 R /MediaBox [0 0 ${wpt} ${hpt}] /Resources << /Font << /F1 ${fonte} 0 R >> /Properties << ${props} >> >> /Contents ${stream} 0 R >>`));
+    kids.push(add(`<< /Type /Page /Parent ${paginas} 0 R /MediaBox [0 0 ${wpt} ${hpt}] /Resources << /Font << /F1 ${fonte} 0 R >>${im ? ` /XObject << /Logo ${im} 0 R >>` : ''} /Properties << ${props} >> >> /Contents ${stream} 0 R >>`));
   }
   const refs = [...ocgs.values()].map((i) => `${i} 0 R`).join(' ');
   objs[catalogo - 1] = `<< /Type /Catalog /Pages ${paginas} 0 R /PageMode /UseOC /OCProperties << /OCGs [${refs}] /D << /Order [${refs}] /ON [${refs}] >> >> >>`;

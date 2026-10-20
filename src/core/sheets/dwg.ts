@@ -18,7 +18,7 @@ function entidade(q: Prim, ltScale: number): Entity {
   return { ...base, type: 'text', position: p3(q.p), ...(alinhado ? { alignmentPoint: p3(q.p) } : {}), text: q.s, height: q.h, rotation: ((q.ang ?? 0) * Math.PI) / 180, style: 'Standard', halign, valign };
 }
 
-export function desenhoDwg(pr: Prancha): Drawing {
+export function desenhoDwg(pr: Prancha, arquivoLogo = 'logo.jpg'): Drawing {
   const k = pr.escala / 1000, j = pr.janela;
   const camadas = Object.keys(CAMADAS) as Camada[];
   const vp = (id: number, c: [number, number], w: number, h: number, vc: [number, number], vh: number): Entity => ({
@@ -44,6 +44,8 @@ export function desenhoDwg(pr: Prancha): Drawing {
       vp(1, [pr.W / 2, pr.H / 2], pr.W * 1.05, pr.H * 1.05, [pr.W / 2, pr.H / 2], pr.H * 1.05),
       ...(j ? [vp(2, [(j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2], j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * k)] : []),
       ...pr.papel.map((q) => entidade(q, 1)),
+      // logo do carimbo: imagem externa (o arquivo vai ao lado do DWG)
+      ...(pr.logo ? [{ type: 'image', layer: 'FOLHA', color: { kind: 'byLayer' }, position: { x: pr.logo.x0, y: pr.logo.y0, z: 0 }, uVector: { x: (pr.logo.x1 - pr.logo.x0) / pr.logo.largura, y: 0, z: 0 }, vVector: { x: 0, y: (pr.logo.y1 - pr.logo.y0) / pr.logo.altura, z: 0 }, widthPx: pr.logo.largura, heightPx: pr.logo.altura, path: arquivoLogo } as Entity] : []),
     ],
     layouts: [
       { name: 'Model', tabOrder: 0 },

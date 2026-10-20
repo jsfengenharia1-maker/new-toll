@@ -5,6 +5,7 @@ import './vigas';
 import './lajes';
 import './armaduras';
 import './fundacao';
+import './edicao';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';

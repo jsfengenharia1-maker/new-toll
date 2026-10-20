@@ -283,7 +283,7 @@ export function montarFolha(m: MontagemFolha): Prancha {
   }
   const papel: Prim[] = [...fc.papel, ...col.prims, ...m.desenho,
     txt('FOLHA-TEXTO', area.x0, fc.moldura.y0 + 9, 4.5, m.conteudo), txt('FOLHA-TEXTO', area.x0, fc.moldura.y0 + 4, 2.5, m.legenda)];
-  return { tipo: m.tipo, titulo: m.titulo, formato: m.formato, W, H, escala: m.escalaNum, modelo: m.modelo ?? [], papel, janela: m.janela, avisos, aco: m.aco, elementos: m.elementos };
+  return { tipo: m.tipo, titulo: m.titulo, formato: m.formato, W, H, escala: m.escalaNum, modelo: m.modelo ?? [], papel, janela: m.janela, avisos, aco: m.aco, elementos: m.elementos, ...(fc.logo ? { logo: fc.logo } : {}) };
 }
 
 /** Numera a prancha ("folha n de N" no carimbo). */

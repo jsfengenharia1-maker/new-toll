@@ -18,7 +18,8 @@ function cp1252(s: string): string {
 
 const TIPO_LINHA: Record<'cont' | 'trac' | 'eixo', string> = { cont: 'Continuous', trac: 'TRACEJADA', eixo: 'EIXO' };
 
-export function escreverDxf(pr: Prancha): Uint8Array {
+/** `arquivoLogo`: nome do arquivo da imagem do logo, gravada ao lado do DXF (o DXF só referencia imagens externas). */
+export function escreverDxf(pr: Prancha, o: { arquivoLogo?: string } = {}): Uint8Array {
   const L: string[] = [];
   const inteiro = (c: number) => (c >= 60 && c < 100) || (c >= 170 && c < 180) || (c >= 270 && c < 300) || (c >= 370 && c < 390);
   const g = (code: number, v: string | number) => { L.push(String(code), typeof v === 'number' ? (inteiro(code) ? String(Math.round(v)) : n(v)) : v); };
@@ -31,7 +32,9 @@ export function escreverDxf(pr: Prancha): Uint8Array {
     dGroup: h(), dLayout: h(), dPlot: h(), placeholder: h(), layModel: h(), layPaper: h(),
     vpActive: h(), ltByBlock: h(), ltByLayer: h(), ltCont: h(), ltTrac: h(), ltEixo: h(), styStd: h(), appAcad: h(), dimStd: h(),
     vp1: h(), vp2: h(),
+    dImg: h(), imgVars: h(), imgDef: h(), imgReactor: h(), imgEnt: h(),
   };
+  const logo = pr.logo;
   const kModelo = pr.escala / 1000; // escala dos tipos de linha no modelo (padrões definidos em mm de papel)
   const mods = pr.modelo, pap = pr.papel;
   const ext = (prims: Prim[]) => {
@@ -59,6 +62,9 @@ export function escreverDxf(pr: Prancha): Uint8Array {
   g(0, 'SECTION'); g(2, 'CLASSES');
   for (const [nome, cpp] of [['ACDBDICTIONARYWDFLT', 'AcDbDictionaryWithDefault'], ['ACDBPLACEHOLDER', 'AcDbPlaceHolder'], ['LAYOUT', 'AcDbLayout']]) {
     g(0, 'CLASS'); g(1, nome); g(2, cpp); g(3, 'ObjectDBX Classes'); g(90, 0); g(280, 0); g(281, 0);
+  }
+  if (logo) for (const [nome, cpp, flags, ent] of [['IMAGE', 'AcDbRasterImage', 127, 1], ['IMAGEDEF', 'AcDbRasterImageDef', 0, 0], ['IMAGEDEF_REACTOR', 'AcDbRasterImageDefReactor', 1, 0], ['RASTERVARIABLES', 'AcDbRasterVariables', 0, 0]] as const) {
+    g(0, 'CLASS'); g(1, nome); g(2, cpp); g(3, 'ISM'); g(90, flags); g(280, 0); g(281, ent);
   }
   g(0, 'ENDSEC');
 
@@ -155,6 +161,14 @@ export function escreverDxf(pr: Prancha): Uint8Array {
   vp(H.vp1, 1, pr.W / 2, pr.H / 2, pr.W * 1.05, pr.H * 1.05, [pr.W / 2, pr.H / 2], pr.H * 1.05);
   if (j) vp(H.vp2, 2, (j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2, j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * kModelo);
   for (const q of pap) escrever(q, true);
+  // logo do carimbo: IMAGE no papel, referenciando a imagem externa (IMAGEDEF)
+  if (logo) {
+    g(0, 'IMAGE'); g(5, H.imgEnt); g(330, H.brPaper); g(100, 'AcDbEntity'); g(67, 1); g(8, 'FOLHA'); g(100, 'AcDbRasterImage'); g(90, 0);
+    g(10, logo.x0); g(20, logo.y0); g(30, 0);
+    g(11, (logo.x1 - logo.x0) / logo.largura); g(21, 0); g(31, 0); g(12, 0); g(22, (logo.y1 - logo.y0) / logo.altura); g(32, 0);
+    g(13, logo.largura); g(23, logo.altura); g(340, H.imgDef); g(70, 7); g(280, 0); g(281, 50); g(282, 50); g(283, 0); g(360, H.imgReactor);
+    g(71, 1); g(91, 2); g(14, -0.5); g(24, -0.5); g(14, logo.largura - 0.5); g(24, logo.altura - 0.5);
+  }
   g(0, 'ENDSEC');
 
   // ---------- OBJECTS ----------
@@ -163,8 +177,15 @@ export function escreverDxf(pr: Prancha): Uint8Array {
     g(0, tipo); g(5, hh); if (dono !== '0') { g(102, '{ACAD_REACTORS'); g(330, dono); g(102, '}'); } g(330, dono); g(100, 'AcDbDictionary'); g(281, 1);
     for (const [k, v] of itens) { g(3, k); g(350, v); }
   };
-  dic(H.raiz, '0', [['ACAD_GROUP', H.dGroup], ['ACAD_LAYOUT', H.dLayout], ['ACAD_PLOTSTYLENAME', H.dPlot]]);
+  dic(H.raiz, '0', [['ACAD_GROUP', H.dGroup], ...(logo ? [['ACAD_IMAGE_DICT', H.dImg], ['ACAD_IMAGE_VARS', H.imgVars]] as [string, string][] : []), ['ACAD_LAYOUT', H.dLayout], ['ACAD_PLOTSTYLENAME', H.dPlot]]);
   dic(H.dGroup, H.raiz, []);
+  if (logo) {
+    dic(H.dImg, H.raiz, [['LOGO', H.imgDef]]);
+    g(0, 'IMAGEDEF'); g(5, H.imgDef); g(102, '{ACAD_REACTORS'); g(330, H.dImg); g(330, H.imgReactor); g(102, '}'); g(330, H.dImg);
+    g(100, 'AcDbRasterImageDef'); g(90, 0); g(1, o.arquivoLogo ?? 'logo.jpg'); g(10, logo.largura); g(20, logo.altura); g(11, 1); g(21, 1); g(280, 1); g(281, 0);
+    g(0, 'IMAGEDEF_REACTOR'); g(5, H.imgReactor); g(330, H.imgEnt); g(100, 'AcDbRasterImageDefReactor'); g(90, 2); g(330, H.imgEnt);
+    g(0, 'RASTERVARIABLES'); g(5, H.imgVars); g(102, '{ACAD_REACTORS'); g(330, H.raiz); g(102, '}'); g(330, H.raiz); g(100, 'AcDbRasterVariables'); g(90, 0); g(70, 0); g(71, 1); g(72, 0);
+  }
   const nomeLayout = pr.titulo.replace(/[<>/\\":;?*|=`]/g, '-').slice(0, 60) || 'Prancha';
   dic(H.dLayout, H.raiz, [['Model', H.layModel], [nomeLayout, H.layPaper]]);
   dic(H.dPlot, H.raiz, [['Normal', H.placeholder]], 'ACDBDICTIONARYWDFLT'); g(100, 'AcDbDictionaryWithDefault'); g(340, H.placeholder);

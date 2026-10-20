@@ -21,6 +21,7 @@ export function svgPrancha(pr: Prancha): string {
       out.push(`<text ${attr} x="${n(x)}" y="${Y(y)}" font-size="${n(q.h / 0.718)}" text-anchor="${anchor}"${a ? ` transform="rotate(${n(-a)} ${n(x)} ${Y(y)})"` : ''}>${esc(q.s)}</text>`);
     }
   }
+  if (pr.logo) { const L = pr.logo; out.push(`<image data-camada="LOGO" x="${n(L.x0)}" y="${Y(L.y1)}" width="${n(L.x1 - L.x0)}" height="${n(L.y1 - L.y0)}" preserveAspectRatio="none" href="data:image/jpeg;base64,${L.dados}"/>`); }
   out.push('</svg>');
   return out.join('\n');
 }

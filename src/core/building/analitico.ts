@@ -9,7 +9,7 @@ import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, gamas } from './materiais';
 import {
   centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
-  casosDaObra, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga,
+  casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga,
 } from './types';
 
 /** Opções de cálculo em uso + coeficiente de Poisson (NBR 6118, 8.2.9). */
@@ -286,7 +286,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const idx = new Map<number, number>(); // nó da planta → nó da grelha
     const no = (i: number) => { if (!idx.has(i)) { idx.set(i, m.nos.length); m.nos.push([nos[i].p[0], nos[i].p[1], 0]); } return idx.get(i)!; };
     const casos: Caso3[] = CASOS.map(() => ({ nodais: [], distribuidas: [] }));
-    const carregar = (c: CasoAnalise, f: (cs: Caso3) => void) => { const i = CASOS.indexOf(c); if (i >= 0) f(casos[i]); };
+    // a carga de uso do grupo (e as lançadas como Q) vai para o caso da classe de uso (Q, QB ou QC)
+    const casoQ = casoUsoDoGrupo(b, grupo.id);
+    const carregar = (c: CasoAnalise, f: (cs: Caso3) => void) => { const i = CASOS.indexOf(c === 'Q' ? casoQ : c); if (i >= 0) f(casos[i]); };
     const ppBarra = new Map<number, number>(); // barra de viga → peso próprio (kN/m)
     for (const t of trechos) {
       const v = t.viga, s = ret(v.secao.b, v.secao.h);

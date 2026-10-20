@@ -119,8 +119,11 @@ function stateForces(S: FiberSection, theta: number, t: number) {
   // ε(s) = top + (bot − top)·(sMax − s)/h = e0 + e1·s
   const e1 = -(bot - top) / h, e0 = top + (bot - top) * sMax / h;
   let N = 0, Mx = 0, My = 0;
+  // fibras tracionadas (ε ≤ 0) têm σ = 0: somariam +0, que não muda nenhuma soma (que nunca chega a −0)
   for (let k = 0; k < V.fx.length; k++) {
-    const x = V.fx[k], y = V.fy[k], F = sigmaC(e0 + e1 * (x * ux + y * uy), c) * V.fa[k];
+    const x = V.fx[k], y = V.fy[k], e = e0 + e1 * (x * ux + y * uy);
+    if (e <= 0) continue;
+    const F = sigmaC(e, c) * V.fa[k];
     N += F; Mx += F * x; My += F * y;
   }
   for (let k = 0; k < V.bx.length; k++) {

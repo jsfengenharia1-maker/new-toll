@@ -1,6 +1,6 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
-import type { OpcoesCalculo } from './opcoes';
+import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 
 export const BUILDING_VERSION = 1;
@@ -23,6 +23,8 @@ export interface Norma {
   cobrimento: { laje: number; viga: number; pilar: number };
   /** ψ0, ψ1, ψ2 da carga variável de uso (NBR 6118, Tabela 11.2). */
   psiQ?: [number, number, number];
+  /** ψ0, ψ1, ψ2 das classes de uso B (escritórios) e C (garagens) quando são casos próprios; ausente = Tabela 11.2. */
+  psiUso?: { B?: [number, number, number]; C?: [number, number, number] };
   /** fck por tipo de elemento (MPa; fundacao = sapatas e blocos do edifício); ausente = fck da obra. */
   fckElem?: { laje?: number; viga?: number; pilar?: number; fundacao?: number };
   /** fck dos pilares por lance (pavimento do topo do lance). */
@@ -403,6 +405,8 @@ export interface ConfigPrancha {
   escala: number;
   /** Pranchas de armação e locação (R5): o que difere do padrão (`ARMACAO_PADRAO`). */
   armacao?: Partial<ConfigArmacao>;
+  /** Logo do carimbo: JPEG em base64 (limite `LIMITE_LOGO`), dimensões em px e nome do arquivo de origem. */
+  logo?: { dados: string; largura: number; altura: number; nome?: string };
 }
 export const PRANCHA_PADRAO: ConfigPrancha = { carimbo: {}, formato: 'auto', escala: 0 };
 
@@ -572,7 +576,32 @@ export const comprimentoPolilinha = (pts: [number, number][]) => pts.slice(1).re
 /** Pavimentos que usam a planta do grupo. */
 export const pavimentosDoGrupo = (b: BuildingModel, grupo: string) => pavimentosOrdenados(b).filter((p) => p.grupo === grupo);
 
-/** Casos de carga da obra: G e Q (padrão) + os adicionais. */
+/**
+ * Classes de ψ da carga de uso (NBR 6118, Tabela 11.2): A = locais sem predominância de equipamentos fixos nem
+ * elevada concentração de pessoas (residencial e similares); B = escritórios, comércio e edifícios públicos;
+ * C = garagens, bibliotecas, arquivos e oficinas. Enquadramento das categorias [a confirmar].
+ */
+export type ClasseUso = 'A' | 'B' | 'C';
+export const CLASSE_DO_USO: Record<CategoriaUso, ClasseUso> = { residencial: 'A', servico: 'A', comum: 'A', cobertura: 'A', escritorio: 'B', garagem: 'C' };
+export const PSI_CLASSE: Record<ClasseUso, [number, number, number]> = { A: [0.5, 0.4, 0.3], B: [0.7, 0.6, 0.4], C: [0.8, 0.7, 0.6] };
+/** Caso de carga de cada classe (a classe A usa o caso Q da obra). */
+export const CASO_DA_CLASSE: Record<ClasseUso, { id: string; nome: string }> = { A: { id: 'Q', nome: 'Q' }, B: { id: 'QB', nome: 'Q escritórios (classe B)' }, C: { id: 'QC', nome: 'Q garagens (classe C)' } };
+
+/** Classes de uso B e C que viram casos próprios (grupos com pavimentos; opção `categoriasUso`). */
+export function classesProprias(b: BuildingModel): ClasseUso[] {
+  if (!opcoesEmUso(b.opcoes, b.perfilOpcoes ?? 'sistema').categoriasUso) return [];
+  const usados = new Set(b.pavimentos.map((p) => b.grupos.find((g) => g.id === p.grupo)).filter(Boolean).map((g) => CLASSE_DO_USO[g!.uso] ?? 'A'));
+  return (['B', 'C'] as const).filter((c) => usados.has(c));
+}
+
+/** Caso da carga variável de uso de um grupo: Q (classe A ou opção desligada) ou o da classe (QB, QC). */
+export function casoUsoDoGrupo(b: BuildingModel, grupo: string): string {
+  const g = b.grupos.find((x) => x.id === grupo), cl = g ? CLASSE_DO_USO[g.uso] ?? 'A' : 'A';
+  return cl !== 'A' && classesProprias(b).includes(cl) ? CASO_DA_CLASSE[cl].id : 'Q';
+}
+
+/** Casos de carga da obra: G e Q (padrão), Q das classes de uso B e C (casos próprios) + os adicionais. */
 export function casosDaObra(b: BuildingModel): { id: string; nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }[] {
-  return [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...(b.casos ?? [])];
+  const usos = classesProprias(b).map((cl) => ({ ...CASO_DA_CLASSE[cl], natureza: 'Q' as const, psi: b.norma.psiUso?.[cl as 'B' | 'C'] ?? PSI_CLASSE[cl] }));
+  return [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...usos, ...(b.casos ?? [])];
 }

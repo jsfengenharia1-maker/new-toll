@@ -41,7 +41,9 @@ function base() {
 /** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
-  'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4] }),
+  'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
+  'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
+  'editar.espelhar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], eixo: [[5, -10], [5, 10]], copiar: true }),
   'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2, sentido: { xn: 0.33 }, vizinhanca: 1.1, platibanda: 1 }),
   'caso.criar': () => ({ nome: 'Água', natureza: 'Q', grupo: 'reservatório', psi: [0.5, 0.4, 0.3] }),
   'caso.editar': (b) => ({ id: b.casos![0].id, natureza: 'Q', grupo: 'g1', simultaneo: 'Q' }),

@@ -4,6 +4,7 @@
 import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar } from '../building/types';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { TRELICADAS } from '../building/lajes';
+import { encaixar } from './logo';
 
 export type { P };
 
@@ -75,7 +76,11 @@ export interface Prancha {
   aco?: AcoPrancha;
   /** Elementos desenhados na folha (nomes). */
   elementos?: string[];
+  /** Logo do carimbo (papel, mm): retângulo e o JPEG em base64 com as dimensões em px. */
+  logo?: LogoPrancha;
 }
+
+export interface LogoPrancha { x0: number; y0: number; x1: number; y1: number; dados: string; largura: number; altura: number }
 
 export interface OpcoesPrancha {
   formato?: Formato | 'auto';
@@ -317,7 +322,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   if (jx1 < area.x1 - 1 && !cabeEm(jx1)) avisos.push('O quadro de pilares invade a área do desenho: use um formato maior.');
   function cabeEm(x1: number) { return (gx1 - gx0) / k + 2 * FOLGA_PAPEL <= x1 - area.x0; }
   const janela = { x0: area.x0, y0: area.y0, x1: Math.max(jx1, area.x0 + 40), y1: area.y1, centro: [(gx0 + gx1) / 2 - 4 * k, (gy0 + gy1) / 2 - 4 * k] as P };
-  return { tipo: 'formas', titulo: `Formas — ${g?.nome ?? grupo}`, formato, W, H, escala, modelo, papel, janela, avisos };
+  return { tipo: 'formas', titulo: `Formas — ${g?.nome ?? grupo}`, formato, W, H, escala, modelo, papel, janela, avisos, ...(fc.logo ? { logo: fc.logo } : {}) };
 }
 
 export const ret = (c: Camada, x0: number, y0: number, x1: number, y1: number): Prim => ({ t: 'pl', c, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], fechada: true });
@@ -343,8 +348,10 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
   const cb = { ...cfg.carimbo, ...(o.carimbo ?? {}) };
   const lx0 = fx1 - LARGURA_LEGENDA, lx1 = fx1;
   const wCont = 0.56 * LARGURA_LEGENDA - 4;
+  // logo opcional à esquerda da célula da empresa (30 % da largura da legenda)
+  const lg = cfg.logo, wLogo = lg ? 0.3 : 0;
   const linhas: { h: number; cel: { w: number; rot: string; val: string; hv?: number }[] }[] = [
-    { h: 14, cel: [{ w: 1, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
+    { h: 14, cel: [...(lg ? [{ w: wLogo, rot: '', val: '' }] : []), { w: 1 - wLogo, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
     { h: 10, cel: [{ w: 1, rot: 'OBRA', val: cb.obra ?? b.obra.nome ?? '' }] },
     { h: 9, cel: [{ w: 0.5, rot: 'CLIENTE', val: cb.cliente ?? '' }, { w: 0.5, rot: 'LOCAL', val: cb.local ?? b.obra.cidade ?? '' }] },
     { h: 12, cel: [{ w: 0.56, rot: 'CONTEÚDO', val: o.conteudo, hv: Math.min(3.5, wCont / (Math.max(1, o.conteudo.length) * 1.0)) }, { w: 0.12, rot: 'SIGLA', val: SIGLAS[o.tipo], hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
@@ -352,7 +359,7 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
     { h: 10, cel: [{ w: 0.17, rot: 'ESCALA', val: o.escala }, { w: 0.2, rot: 'DATA', val: cb.data ?? '' }, { w: 0.25, rot: 'DESENHO', val: cb.desenho ?? '' }, { w: 0.14, rot: 'REVISÃO', val: cb.revisao ?? 'R00' }, { w: 0.24, rot: 'FOLHA', val: `${String(o.numero ?? 1).padStart(2, '0')}/${String(o.total ?? 1).padStart(2, '0')}`, hv: 4 }] },
   ];
   const hLeg = linhas.reduce((s, l) => s + l.h, 0);
-  let y = fy0 + hLeg;
+  let y = fy0 + hLeg, logo: LogoPrancha | undefined;
   papel.push(ret('FOLHA', lx0, fy0, lx1, y));
   for (const l of linhas) {
     const yb = y - l.h;
@@ -361,14 +368,15 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
     l.cel.forEach((c, i) => {
       const w = c.w * LARGURA_LEGENDA;
       if (i) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, yb], [x, y]] });
-      papel.push(txt('FOLHA-TEXTO', x + 1.5, y - 1.5, 1.6, c.rot, 'e', 'topo'));
+      if (lg && l === linhas[0] && i === 0) logo = { ...encaixar({ x0: x, y0: yb, x1: x + w, y1: y }, lg.largura, lg.altura), dados: lg.dados, largura: lg.largura, altura: lg.altura };
+      if (c.rot) papel.push(txt('FOLHA-TEXTO', x + 1.5, y - 1.5, 1.6, c.rot, 'e', 'topo'));
       if (c.val) papel.push(txt('FOLHA-TEXTO', x + 2, yb + 2, c.hv ?? 2.8, c.val));
       x += w;
     });
     y = yb;
   }
   papel.push(txt('FOLHA-FINA', lx1 - 1, fy0 + hLeg + 1.2, 1.6, 'Gerado pelo Statikos — conferir antes de emitir', 'd'));
-  return { papel, hLeg, moldura: { x0: fx0, y0: fy0, x1: fx1, y1: fy1 } };
+  return { papel, hLeg, moldura: { x0: fx0, y0: fy0, x1: fx1, y1: fy1 }, logo };
 }
 
 /** Uma prancha por grupo com elementos lançados, numeradas na ordem dos pavimentos. */

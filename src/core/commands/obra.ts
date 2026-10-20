@@ -1,4 +1,5 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
+import { base64Bytes, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import type { Draft } from 'immer';
 import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
@@ -67,10 +68,10 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
 
 const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'art', 'etapa', 'desenho', 'revisao', 'data'] as const;
 
-registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao> }>({
+registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao>; logo?: { dados: string; nome?: string }; removerLogo?: boolean }>({
   nome: 'prancha.definir',
   calculo: false,
-  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 75, escalaSecao 25, escalaPilares 40, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.',
+  descricao: `Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 75, escalaSecao 25, escalaPilares 40, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1) e o logo do carimbo ("logo": JPEG em base64, até ${Math.round(LIMITE_LOGO / 1024)} KB em base64; "removerLogo" o retira). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.`,
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
@@ -83,9 +84,19 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
       escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] },
       lajesSeparadas: { type: 'number', enum: [0, 1] }, quadroPilares: { type: 'number', enum: [0, 1] },
     } },
+    logo: { type: 'object', additionalProperties: false, required: ['dados'], properties: { dados: { type: 'string', minLength: 8, description: 'JPEG em base64 (sem o prefixo data:)' }, nome: { type: 'string' } } },
+    removerLogo: { type: 'boolean' },
   } },
+  validar(_b, p) {
+    if (!p.logo) return [];
+    if (p.logo.dados.length > LIMITE_LOGO) return [{ codigo: 'LOGO_GRANDE', severidade: 'erro', elementos: [], mensagem: `Logo com ${Math.round(p.logo.dados.length / 1024)} KB em base64: o limite é ${Math.round(LIMITE_LOGO / 1024)} KB (reduza a imagem).` }];
+    const bytes = base64Bytes(p.logo.dados), info = bytes && infoJpeg(bytes);
+    return info ? [] : [{ codigo: 'LOGO_INVALIDO', severidade: 'erro', elementos: [], mensagem: 'O logo precisa ser uma imagem JPEG em base64.' }];
+  },
   aplicar(d, p) {
     d.prancha ??= { ...PRANCHA_PADRAO, carimbo: {} };
+    if (p.removerLogo) delete d.prancha.logo;
+    if (p.logo) { const info = infoJpeg(base64Bytes(p.logo.dados)!)!; d.prancha.logo = { dados: p.logo.dados.replace(/\s+/g, ''), largura: info.w, altura: info.h, ...(p.logo.nome ? { nome: p.logo.nome } : {}) }; }
     if (p.armacao) {
       const a: Partial<ConfigArmacao> = { ...(d.prancha.armacao ?? {}) };
       for (const [k, v] of Object.entries(p.armacao) as [keyof ConfigArmacao, never][]) { if (v === undefined) continue; if (ARMACAO_PADRAO[k] === v) delete a[k]; else a[k] = v; }
@@ -171,7 +182,7 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
   },
 });
 
-registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento']; psiQ?: [number, number, number] }>({
+registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento']; psiQ?: [number, number, number]; psiUso?: Norma['psiUso'] }>({
   nome: 'norma.definir',
   descricao: 'Define fck, aço, classe de agressividade ambiental, cobrimentos e ψ da carga de uso (NBR 6118). Ao mudar a CAA sem informar cobrimentos, aplica os da Tabela 7.2.',
   risco: 'escrita',
@@ -183,9 +194,14 @@ registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: N
       laje: { type: 'number', minimum: 1 }, viga: { type: 'number', minimum: 1 }, pilar: { type: 'number', minimum: 1 },
     }, description: 'cm' },
     psiQ: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3, description: 'ψ0, ψ1, ψ2 da carga de uso (residencial 0,5/0,4/0,3; escritórios 0,7/0,6/0,4)' },
+    psiUso: { type: 'object', additionalProperties: false, properties: {
+      B: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3 },
+      C: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3 },
+    }, description: 'ψ0, ψ1, ψ2 das classes de uso com caso próprio: B escritórios (padrão 0,7/0,6/0,4), C garagens (0,8/0,7/0,6)' },
   } },
   aplicar(d, p) {
     if (p.psiQ) d.norma.psiQ = [...p.psiQ];
+    if (p.psiUso) d.norma.psiUso = { ...d.norma.psiUso, ...p.psiUso };
     if (p.fck !== undefined) d.norma.fck = p.fck;
     if (p.aco) d.norma.aco = p.aco;
     if (p.caa) { d.norma.caa = p.caa; if (!p.cobrimento) d.norma.cobrimento = { ...COBRIMENTOS[p.caa] }; }
