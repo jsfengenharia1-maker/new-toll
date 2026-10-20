@@ -669,11 +669,20 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
                 <thead><tr><th>Direção</th><th>γz</th><th>vento principal</th><th>uso principal</th><th>vento nas ELU ×</th></tr></thead>
                 <tbody>{r.vento.gamaZ.map((g) => <tr key={g.direcao} className={g.gamaZ > 1.3 ? 'bad' : ''}><td className="tl">{g.direcao}°</td><td className="num">{fmt(g.gamaZ, 3)}</td><td className="num">{fmt(g.ventoPrincipal, 3)}</td><td className="num">{fmt(g.usoPrincipal, 3)}</td><td className="num">{fmt(g.ampliacaoVento, 3)}</td></tr>)}</tbody>
               </table>
-              {r.vento.forcas.map((c) => (
-                <details key={c.caso} className="small"><summary>Forças {c.caso} por pavimento</summary>
+              {r.zonas.some((z) => z.zonas > 1) && (
+                <>
                   <table className="data quadro">
-                    <thead><tr><th>Pavimento</th><th>z (m)</th><th>Largura (m)</th><th>Vk (m/s)</th><th>F (kN)</th></tr></thead>
-                    <tbody>{c.pavimentos.map((f) => <tr key={f.pavimento}><td className="tl">{f.pavimento}</td><td className="num">{fmt(f.z)}</td><td className="num">{fmt(f.largura)}</td><td className="num">{fmt(f.vk)}</td><td className="num">{fmt(f.F)}</td></tr>)}</tbody>
+                    <thead><tr><th>Pavimento</th><th>Zonas independentes</th><th>Com diafragma</th><th>Pilares soltos</th></tr></thead>
+                    <tbody>{r.zonas.filter((z) => z.zonas > 1).map((z) => <tr key={z.pavimento}><td className="tl">{z.pavimento}</td><td className="num">{z.zonas}</td><td className="num">{z.diafragmas}</td><td className="num">{z.pilaresSoltos}</td></tr>)}</tbody>
+                  </table>
+                  <Hint>Cada zona ligada por vigas é um diafragma próprio; o vento do pavimento é repartido entre as zonas pela largura (Bi = bi/Σb·B). Pilar isolado fica sem diafragma.</Hint>
+                </>
+              )}
+              {r.vento.forcas.map((c) => (
+                <details key={c.caso} className="small"><summary>Forças {c.caso} por pavimento{r.vento!.forcas.some((x) => x.pavimentos.some((f) => f.zona > 0)) ? ' e zona' : ''}</summary>
+                  <table className="data quadro">
+                    <thead><tr><th>Pavimento</th><th>Zona</th><th>z (m)</th><th>Largura (m)</th><th>Vk (m/s)</th><th>F (kN)</th></tr></thead>
+                    <tbody>{c.pavimentos.map((f, i) => <tr key={`${f.pavimento}-${f.zona}-${i}`}><td className="tl">{f.pavimento}</td><td className="num">{f.zona + 1}</td><td className="num">{fmt(f.z)}</td><td className="num">{fmt(f.largura)}</td><td className="num">{fmt(f.vk)}</td><td className="num">{fmt(f.F)}</td></tr>)}</tbody>
                   </table>
                 </details>
               ))}
@@ -734,12 +743,13 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <div className="card">
             <h3>Vigas</h3>
             <table className="data quadro">
-              <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Flecha / lim. (mm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.vigas).map((x) => (
                 <tr key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.viga])}>
-                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
+            <Hint>Flecha total por vão entre pilares (quase permanente, Branson por seção, × (1 + αf)); em balanço, o limite é 2ℓ/…. A flecha da carga variável (ℓ/350) é verificada e aparece nas mensagens da linha.</Hint>
           </div>
           <div className="card">
             <h3>Pilares (por lance)</h3>
@@ -755,13 +765,13 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <div className="card">
             <h3>Lajes</h3>
             <table className="data quadro">
-              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha (mm)</th><th>Limite (mm)</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.lajes).map((x) => (
                 <tr key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.laje])}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className="num">{fmt(x.flecha * 1000, 1)}</td><td className="num">{fmt(x.limite * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={`num ${x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : ''}`}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
-            <Hint>Duas direções da malha (x / y). Flecha = elástica (G + ψ2·Q) × (1 + αf), sem fissuração.</Hint>
+            <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>
           <div className="card">
             <h3>Quantitativos</h3>
@@ -800,6 +810,16 @@ function VentoGrupo({ b }: { b: BuildingModel }) {
         <NumField label="Ca (vento em Y)" width={110} value={v.caY} onChange={(x) => exec('vento.definir', { caY: x })} />
         <NumField label="Excentricidade" width={110} value={v.excentricidade} onChange={(x) => exec('vento.definir', { excentricidade: x })} />
       </div>
+      <div className="row wrap">
+        {([['xp', '+X'], ['xn', '−X'], ['yp', '+Y'], ['yn', '−Y']] as const).map(([k, rot]) => (
+          <NumField key={k} label={`Coef. sentido ${rot}`} width={110} value={v.sentido?.[k] ?? 1} onChange={(x) => exec('vento.definir', { sentido: { [k]: x } })} />
+        ))}
+      </div>
+      <div className="row wrap">
+        <NumField label="Fator de vizinhança" width={130} value={v.vizinhanca ?? 1} onChange={(x) => exec('vento.definir', { vizinhanca: x })} />
+        <NumField label="Platibanda" unit="m" width={110} value={v.platibanda ?? 0} onChange={(x) => exec('vento.definir', { platibanda: x })} />
+      </div>
+      <Hint>Edifício abrigado por vizinho: reduza o coeficiente do sentido abrigado (1 = sem redução). Fator de vizinhança de 1 a 1,3 (NBR 6123, 6.4). A platibanda soma-se à faixa de exposição do último pavimento.</Hint>
       <Hint>Classe (A/B/C) pela maior dimensão; S2 pela Tabela 1 (a confirmar); Ca do ábaco da norma informado à mão (padrão 1,3, a confirmar); forças no centro do diafragma de cada pavimento, com ± e·largura.</Hint>
       <div className="row wrap">
         <NumField label="ψ0 uso" width={80} value={psi[0]} onChange={(x) => exec('norma.definir', { psiQ: [x, psi[1], psi[2]] })} />

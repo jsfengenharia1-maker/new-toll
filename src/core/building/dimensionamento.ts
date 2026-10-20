@@ -44,15 +44,19 @@ export function esforcosAoLongo(m: Modelo3, bi: number, f: ArrayLike<number>, ca
 }
 
 /** Esforços por caso de uma barra do pórtico: { G: estações, Q: …, W0°: … }. */
-function porCaso(an: AnaliseEdificio, bi: number, xs: number[]): Record<string, Estacao[]> {
+function porCaso(an: AnaliseEdificio, bi: number, xs: number[], semVento = false): Record<string, Estacao[]> {
   const pm = an.portico, out: Record<string, Estacao[]> = {};
   if (!pm.res) return out;
   an.casos.forEach((c, ic) => (out[c] = esforcosAoLongo(pm.modelo, bi, pm.res!.esforcos[ic][bi], pm.casos?.[ic], xs)));
-  (an.vento?.casos ?? []).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
+  if (!semVento) (an.vento?.casos ?? []).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
   return out;
 }
 
-const comb = (pc: Record<string, Estacao[]>, c: CombinacaoEd, i: number, k: keyof Estacao) => Object.entries(c.fatores).reduce((s, [nome, f]) => s + f * (pc[nome]?.[i]?.[k] ?? 0), 0);
+const comb = (pc: Record<string, Estacao[]>, c: CombinacaoEd, i: number, k: keyof Estacao) => {
+  let s = 0;
+  for (const nome in c.fatores) { const e = pc[nome]; if (e) s += c.fatores[nome] * e[i][k]; }
+  return s;
+};
 
 // ---------------- vigas ----------------
 
@@ -148,7 +152,7 @@ export function flechasViga(an: AnaliseEdificio, membros: number[], noPilar: Set
     for (const bi of cad) {
       const { L } = baseBarra(pm.modelo, mb[bi]);
       const n = Math.max(8, Math.ceil(L / 0.1)), xs = Array.from({ length: n }, (_, k) => ((k + 0.5) * L) / n);
-      const pc = porCaso(an, bi, xs);
+      const pc = porCaso(an, bi, xs, true);
       xs.forEach((x, k) => {
         const Mqp = Object.entries(fQP).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0), Mq = Object.entries(fQ).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0);
         const ei = EI(Mqp);
@@ -247,7 +251,8 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       const base = Math.max(MA, M1min);
       return { tot: Math.max(ab * base + M2, base), M1: base };
     };
-    const avaliar = (bars: RBar[]) => {
+    /** Maior utilização da armadura; com `parar`, devolve assim que passar de 1 (só interessa se atende). */
+    const avaliar = (bars: RBar[], parar = false) => {
       const S: FiberSection = { mesh, bars, cx: P.cx, cy: P.cy, c, fyd: FYD, poly };
       const { NRc, NRt } = fiberAxialRange(S);
       let util = 0;
@@ -257,6 +262,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
         if (Math.hypot(mu, mv) < 1e-9) { util = Math.max(util, x.Nt / 1000 / NRt); continue; }
         const R = fiberCapacity(S, x.Nt / 1000, mu, mv);
         util = Math.max(util, R === null ? 99 : Math.hypot(mu, mv) / 1000 / R);
+        if (parar && util > 1) return util;
       }
       for (const x of solD) {
         if (x.Nd / 1000 > NRc) { util = Math.max(util, 99); continue; }
@@ -265,23 +271,30 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
         for (const [mu, mv] of [[du.tot, dv.M1], [du.M1, dv.tot]]) {
           const R = fiberCapacity(S, x.Nd / 1000, mu, mv);
           util = Math.max(util, R === null ? 99 : Math.hypot(mu, mv) / 1000 / R);
+          if (parar && util > 1) return util;
         }
       }
       return util;
     };
-    let melhor: { util: number; txt: string; As: number; phi: number } | null = null;
+    type Escolha = { util: number; txt: string; As: number; phi: number };
+    let melhor = null as Escolha | null;
     const tMin = circ ?? Math.min(w, h);
     busca: for (const phi of PHI_L) {
       if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8) continue; // φ10 a φ25 (premissa dim-pilares)
       const a = cob + 0.005 + phi / 2000;
-      for (const sp of [0.3, 0.25, 0.2, 0.15, 0.12, 0.1]) {
-        const bars = barrasPerimetro(poly, circ, a, sp, barArea(phi));
-        const As = bars.length * barArea(phi);
-        if (As < AsMin || As > AsMax) continue;
-        const u = avaliar(bars);
-        if (!melhor || u < melhor.util || (u <= 1 && melhor.util <= 1 && As < melhor.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi };
+      const cands = [0.3, 0.25, 0.2, 0.15, 0.12, 0.1].map((sp) => barrasPerimetro(poly, circ, a, sp, barArea(phi))).filter((bars) => { const As = bars.length * barArea(phi); return As >= AsMin && As <= AsMax; });
+      const anota = (bars: RBar[], u: number) => { const As = bars.length * barArea(phi), m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi }; };
+      if (!cands.length) continue;
+      // a mais densa primeiro: se nem ela atende, a bitola inteira não atende (capacidade cresce com As)
+      const uMax = avaliar(cands.at(-1)!);
+      anota(cands.at(-1)!, uMax);
+      if (uMax > 1) continue;
+      for (const bars of cands.slice(0, -1)) {
+        const u = avaliar(bars, true);
+        anota(bars, u);
         if (u <= 1) break busca;
       }
+      break busca;
     }
     if (!melhor) { out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['Nenhuma armadura entre As,mín e 4 % cabe na seção.'] }); continue; }
     let status: ResultadoPilar['status'] = melhor.util <= 1 ? 'ok' : 'fail';
@@ -407,10 +420,16 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
   const af = deltaXi(op.t0Flecha); // fluência (NBR 6118, 17.3.2.1.2), ρ′ = 0
   const fatorTotal = op.fatorFlechaLaje > 0 ? op.fatorFlechaLaje : 1 + af;
   const out: ResultadoLaje[] = [];
+  // pavimentos do mesmo grupo com a mesma grelha (resultado reaproveitado na análise) dão o mesmo resultado
+  const memo = new Map<unknown, Map<string, ResultadoLaje>>();
   for (const g of an.grelhas) {
     if (!g.res) continue;
     const pav = b.pavimentos.find((p) => p.id === g.pavimento)!;
+    const ja = memo.get(g.res) ?? new Map<string, ResultadoLaje>();
+    memo.set(g.res, ja);
     for (const l of b.lajes.filter((x) => x.grupo === pav.grupo)) {
+      const r0 = ja.get(l.id);
+      if (r0) { out.push({ ...r0, pavimento: pav.nome, mensagens: [...r0.mensagens] }); continue; }
       let mPos: [number, number] = [0, 0], mNeg: [number, number] = [0, 0];
       let tem = false;
       g.modelo.barras.forEach((_, i) => {
@@ -444,7 +463,9 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), sem fissuração`;
       if (fl > lim) msgs.push(`Flecha total ${(fl * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaTotal} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
       if (fq > limQ) msgs.push(`Flecha das variáveis ${(fq * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limQ * 1000).toFixed(1)} mm (vibrações).`);
-      out.push({ laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, status: fl > lim || fq > limQ ? 'fail' : 'ok', mensagens: msgs });
+      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, status: fl > lim || fq > limQ ? 'fail' : 'ok', mensagens: msgs };
+      ja.set(l.id, r);
+      out.push(r);
     }
   }
   return out;

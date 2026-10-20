@@ -434,6 +434,9 @@ export const flows = [
       assert.equal(await card(/^Vigas$/).locator('tbody tr').count(), 4);
       assert.equal(await card('Pilares (por lance)').locator('tbody tr').count(), 20);
       assert.match(await card('Pilares (por lance)').textContent(), /\d+ φ\d/);
+      assert.match(await card(/^Vigas$/).locator('thead').textContent(), /Flecha \/ lim\. \(mm\)/);
+      assert.match(await card(/^Lajes$/).locator('thead').textContent(), /Flecha Q \/ lim\. \(mm\)/);
+      assert.match(await card(/^Vigas$/).locator('tbody tr').first().locator('td').nth(9).textContent(), /^\d+,\d \/ \d+,\d$/);
       assert.match(await page.locator('.edif-out').textContent(), /Vigas 4\/4 ok/);
       // clicar numa viga seleciona o elemento na planta
       await card(/^Vigas$/).locator('tbody tr').first().click();
@@ -611,6 +614,36 @@ export const flows = [
       const col = (await quadro.locator('thead th').allTextContents()).indexOf('Neve');
       const celulas = await quadro.locator(`tbody tr td:nth-child(${col + 1})`).allTextContents();
       assert.ok(celulas.some((t) => t.trim() !== ''), 'o caso Neve entra em alguma combinação');
+    },
+  },
+  {
+    name: 'vento: coeficiente por sentido e platibanda no grupo, estado e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('summary', { hasText: 'Vento e combinações' }).click();
+      const xn = page.getByLabel('Coef. sentido −X');
+      assert.equal(await xn.inputValue(), '1');
+      await xn.fill('0,5');
+      await xn.press('Enter');
+      const plat = page.getByLabel('Platibanda');
+      await plat.fill('1');
+      await plat.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'Vento alterado' }).waitFor();
+      assert.equal(await page.getByLabel('Coef. sentido −X').inputValue(), '0,5');
+      assert.equal(await page.getByLabel('Platibanda').inputValue(), '1');
+      assert.equal(await page.getByLabel('Coef. sentido +X').inputValue(), '1');
+      // o estado vai para o memorial
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const txt = await memo.textContent();
+      assert.match(txt, /coeficiente por sentido: −X 0,50/);
+      assert.match(txt, /platibanda 1,00 m/);
     },
   },
 ];

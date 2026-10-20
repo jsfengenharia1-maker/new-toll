@@ -37,8 +37,9 @@ export function resumoAnalise(b: BuildingModel, an: AnaliseEdificio) {
     vento: an.vento ? {
       classe: an.vento.classe, altura: +an.vento.altura.toFixed(2),
       gamaZ: an.vento.gamaZ.map((g) => ({ direcao: g.direcao, gamaZ: +g.max.toFixed(3), ventoPrincipal: +g.ventoPrincipal.toFixed(3), usoPrincipal: +g.usoPrincipal.toFixed(3), ampliacaoVento: +g.ampliacao.toFixed(3) })),
-      forcas: an.vento.casos.filter((c) => c.exc === 0 && (c.direcao === 0 || c.direcao === 90)).map((c) => ({ caso: c.nome, pavimentos: c.forcas.map((f) => ({ pavimento: nomePav(f.pavimento), z: +f.z.toFixed(2), largura: +f.largura.toFixed(2), vk: +f.vk.toFixed(2), F: +Math.abs(f.F).toFixed(2) })) })),
+      forcas: an.vento.casos.filter((c) => c.exc === 0 && (c.direcao === 0 || c.direcao === 90)).map((c) => ({ caso: c.nome, pavimentos: c.forcas.map((f) => ({ pavimento: nomePav(f.pavimento), zona: f.zona, z: +f.z.toFixed(2), largura: +f.largura.toFixed(2), vk: +f.vk.toFixed(2), F: +Math.abs(f.F).toFixed(2) })) })),
     } : null,
+    zonas: Object.entries(an.portico.zonas).map(([pav, zs]) => ({ pavimento: nomePav(pav), zonas: zs.length, diafragmas: zs.filter((z) => z.nos.length > 1).length, pilaresSoltos: zs.filter((z) => z.nos.length <= 1).length })),
     combinacoes: combs.length,
     flechasElasticas: flechas,
     opcoes: an.opcoes,

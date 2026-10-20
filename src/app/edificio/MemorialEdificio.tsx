@@ -9,6 +9,7 @@ import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, vinculosAlterados } from '..
 import { acoDe, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
+import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
 import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
@@ -34,6 +35,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const falhas = new Set([...(dim?.vigas ?? []).filter((x) => x.status !== 'ok').map((x) => x.viga), ...(dim?.pilares ?? []).filter((x) => x.status === 'fail').map((x) => x.pilar)]);
+  const sent = v.sentido ?? {};
+  const sentAlt = ([['xp', '+X'], ['xn', '−X'], ['yp', '+Y'], ['yn', '−Y']] as const).filter(([k]) => (sent[k] ?? 1) !== 1).map(([k, t]) => `${t} ${fmt(sent[k]!)}`);
+  const ventoExtra = `${sentAlt.length ? `; coeficiente por sentido: ${sentAlt.join(', ')} (demais 1,00)` : '; coeficiente por sentido 1,00 nos quatro sentidos'}; fator de vizinhança ${fmt(v.vizinhanca ?? 1)}; platibanda ${fmt(v.platibanda ?? 0)} m (somada à faixa do último pavimento)`;
+  const zonasTxt = r?.zonas.some((z) => z.zonas > 1) ? ` Pavimentos com várias zonas: ${r.zonas.filter((z) => z.zonas > 1).map((z) => `${z.pavimento} (${z.zonas} zonas, ${z.diafragmas} com diafragma, ${z.pilaresSoltos} pilar(es) solto(s))`).join('; ')}; o vento é repartido entre elas pela largura (Bi = bi/Σb·B).` : '';
   const nome = b.obra.nome || 'Edifício';
   const casos = casosDaObra(b);
   const nomeCaso = (id: string) => casos.find((c) => c.id === id)?.nome ?? id;
@@ -122,14 +127,14 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {analise && !analise.erro && (
             <p>Combinações geradas: {combs.length} ({porTipo('ELU')} ELU, {porTipo('RARA')} raras, {porTipo('FREQ')} frequentes, {porTipo('QP')} quase permanentes).{excepcionais.length ? ` Excepcionais: ${excepcionais.map((c) => c.nome.replace('ELU excepcional ', '')).join('; ')}.` : ''} A lista completa, com os fatores por caso, pode ser exportada em CSV na aba Análise.</p>
           )}
-          <p>Vento: {v.ativo ? `V0 = ${fmt(v.v0, 0)} m/s, S1 = ${fmt(v.s1)}, S3 = ${fmt(v.s3)}, categoria ${v.categoria}, Ca = ${fmt(v.caX)} (X) / ${fmt(v.caY)} (Y), excentricidade ${fmt(v.excentricidade, 3)} × largura${r?.vento ? `, classe ${r.vento.classe} (altura ${fmt(r.vento.altura, 1)} m)` : ''}.` : 'não considerado.'}</p>
+          <p>Vento: {v.ativo ? `V0 = ${fmt(v.v0, 0)} m/s, S1 = ${fmt(v.s1)}, S3 = ${fmt(v.s3)}, categoria ${v.categoria}, Ca = ${fmt(v.caX)} (X) / ${fmt(v.caY)} (Y), excentricidade ${fmt(v.excentricidade, 3)} × largura${ventoExtra}${r?.vento ? `, classe ${r.vento.classe} (altura ${fmt(r.vento.altura, 1)} m)` : ''}.` : 'não considerado.'}</p>
 
           {h2('Modelo de análise')}
-          <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(opc.malha)} m) e pórtico espacial com diafragma rígido por pavimento; as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
+          <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(opc.malha)} m) e pórtico espacial com diafragma rígido por pavimento (zonas do pavimento ligadas por vigas são diafragmas independentes, cada uma com seu mestre; pilar isolado, sem diafragma; vigas fora do diafragma não o integram); as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{opc.zonasIndependentes ? '' : ' Zonas independentes desligadas: um diafragma por pavimento.'}{zonasTxt}{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
           <h3>Opções de cálculo</h3>
           <table>
             <thead><tr><th className="l">Opção</th><th>Valor</th><th>Padrão</th><th className="l">Fonte</th></tr></thead>
-            <tbody>{OPCOES_INFO.map((o) => { const alt = opc[o.chave] !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{fmt(opc[o.chave])}</td><td>{fmt(o.padrao)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}</td></tr>; })}</tbody>
+            <tbody>{OPCOES_INFO.map((o) => { const alt = opc[o.chave] !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{o.booleana ? (opc[o.chave] ? 'sim' : 'não') : fmt(opc[o.chave])}</td><td>{o.booleana ? (o.padrao ? 'sim' : 'não') : fmt(o.padrao)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}</td></tr>; })}</tbody>
           </table>
           {vinculos.length > 0 && <><h3>Vínculos e engastes alterados por elemento</h3><ul>{vinculos.map((t, i) => <li key={i}>{t}</li>)}</ul></>}
           {opcoesAlteradas(b.opcoes).length > 0 && <p className="warn">Opções diferentes do padrão: {opcoesAlteradas(b.opcoes).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
@@ -148,9 +153,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {dim && (<>
             {h2('Dimensionamento das vigas', true)}
             <table>
-              <thead><tr><th>Viga</th><th>b×h (cm)</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Situação</th></tr></thead>
-              <tbody>{dim.vigas.map((x) => <tr key={x.viga}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td>{fmt(x.Mpos, 1)}</td><td>{fmt(x.Mneg, 1)}</td><td>{fmt(x.V, 1)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td>{ST[x.status]}</td></tr>)}</tbody>
+              <thead><tr><th>Viga</th><th>b×h (cm)</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
+              <tbody>{dim.vigas.map((x) => <tr key={x.viga}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td>{fmt(x.Mpos, 1)}</td><td>{fmt(x.Mneg, 1)}</td><td>{fmt(x.V, 1)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className={x.flecha > x.limite + 1e-9 ? 'bad' : undefined}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : undefined}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
+            <p>Flecha das vigas por vão entre pilares: rigidez de Branson em cada seção com a armadura calculada, curvatura integrada ao longo do vão, flecha total = imediata da combinação quase permanente × (1 + αf) com αf = Δξ(t0) = {fmt(deltaXi(opc.t0Flecha))} (t0 = {fmt(opc.t0Flecha)} mês, ρ′ = 0, a confirmar); limite ℓ/{opc.limiteFlechaTotal} (balanço: 2ℓ/{opc.limiteFlechaTotal}); carga variável (imediata) ≤ ℓ/{opc.limiteFlechaSensorial}.</p>
             {h2('Dimensionamento dos pilares')}
             <table>
               <thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Nd (kN)</th><th>ℓe (b / h, m)</th><th>λ (b / h)</th><th>Armadura</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
@@ -158,9 +164,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             </table>
             {h2('Lajes')}
             <table>
-              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha (mm)</th><th>Limite (mm)</th><th>Situação</th></tr></thead>
-              <tbody>{dim.lajes.map((x) => <tr key={`${x.laje}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td className="l">{x.tipo}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td>{fmt(x.flecha * 1000, 1)}</td><td>{fmt(x.limite * 1000, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
+              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
+              <tbody>{dim.lajes.map((x) => <tr key={`${x.laje}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td className="l">{x.tipo}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={x.flecha > x.limite + 1e-9 ? 'bad' : undefined}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : undefined}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
+            <p>Lajes maciças: momentos por {opc.woodArmer ? 'Wood-Armer (mx* = mx + |mxy|; mx*′ = mx − |mxy|, torçor somando |γ·mxy| por caso) com média numa faixa transversal de 1 m' : 'extremos dos momentos nas barras da grelha (Wood-Armer desligado)'}. Flecha relativa aos apoios (descontado o deslocamento das vigas e pilares), {opc.fatorFlechaLaje ? `fator simplificado ${fmt(opc.fatorFlechaLaje, 1)} × elástica` : `elástica (G + ψ2·Q) × (1 + αf), αf = Δξ(t0) = ${fmt(deltaXi(opc.t0Flecha))}, sem fissuração (a confirmar)`}; limite ℓ/{opc.limiteFlechaTotal} do menor vão; carga variável ≤ ℓ/{opc.limiteFlechaSensorial}.</p>
             {[...dim.vigas, ...dim.pilares, ...dim.lajes].some((x) => x.mensagens.length) && (
               <ul>{[...dim.vigas.map((x) => [x.nome, x.mensagens] as const), ...dim.pilares.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const), ...dim.lajes.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const)].filter(([, m]) => m.length).map(([n, m], i) => <li key={i}><b>{n}:</b> {m.join(' ')}</li>)}</ul>
             )}

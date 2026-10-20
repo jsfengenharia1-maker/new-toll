@@ -11,33 +11,33 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | Seção | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
-| 1.2 Análise realizada (págs. 4–5) | 10 | 4 | 3 | 2 | 1 |
+| 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 19 | 15 | 45 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 29 | 11 | 5 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 31 | 12 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 7 | 0 | 2 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 4 | 28 | 27 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 5 | 29 | 25 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 8 | 23 | 66 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 2 | 2 | 37 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 4 | 1 | 36 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 1 | 15 | 8 | 19 |
-| **Total** | **661** | **111** | **154** | **285** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 5 | 12 | 7 | 19 |
+| **Total** | **661** | **122** | **151** | **277** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 74 | 53 | 127 |
+| N — Cálculo e normas | 71 | 45 | 116 |
 | R — Revisão de resultados e detalhamento | 44 | 80 | 124 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **154** | **285** | **439** |
+| **Total** | **151** | **277** | **428** |
 
 ## Divergências de premissa
 
@@ -51,17 +51,17 @@ Itens em que o critério do manual difere de uma premissa nossa (confirmada ou "
 - **Engaste parcial de bordas** (K1.4.14, K1.4.15, K1.9.40): nós continuidade plena laje–viga (só rótula na ponta da viga). Manual: coeficiente 0–1 por borda de laje e por borda de viga.
 - **Redistribuição e momentos mínimos** (K1.4.2, K1.4.3, K1.4.38): nós nenhuma redistribuição nem momento mínimo. Manual: redistribuição padrão 15 % (vigas) e 25 % (vigotas), até 30 %; momentos mínimos opcionais pl²/x.
 - **Rigidez no γz** (K1.5.46, K1.5.52, K1.5.53): nós 0,4·Eci·Ic nas vigas e 0,8·Eci·Ic nos pilares (NBR 6118 15.7.3). Manual: multiplicador de deslocamentos, padrão 1,00 e recomendado 2,0 (NB-1: 1/0,7).
-- **Limite e uso do γz** (K1.5.45, K1.5.48, K1.5.52): nós limite 1,3 com aviso e vento das ELU × 0,95·γz entre 1,1 e 1,3. Manual: aceita até 1,5 e amplia os esforços pelo próprio γz nas combinações com ação horizontal.
+- **Limite e uso do γz** (K1.5.45, K1.5.48, K1.5.52) — *limite editável na N1c (padrão 1,3; até 1,5)*: nós limite 1,3 por padrão com aviso e vento das ELU × 0,95·γz entre 1,1 e 1,3. Manual: aceita até 1,5 e amplia os esforços pelo próprio γz nas combinações com ação horizontal.
 - **Carga variável no ΔM do γz** (K1.5.57): nós ψ0·Q quando o vento é principal e Q integral quando o uso é principal. Manual: sobrecarga integral sempre.
 - **Comprimento de flambagem** (K1.9.11, K1.9.15, K1.9.16) — *resolvido na N1b: ℓe = mín(ℓ0 + h; ℓ) × α do pavimento × α do lance, editável por direção*: nós le = altura entre cotas, β = 1 fixo. Manual: altura livre (pé-direito − viga ou laje mais alta) × α editável por pavimento, pilar e direção; a NBR 6118 15.6 também permite ℓ0 + h ≤ ℓ.
 - **Simetria da armadura dos pilares** (K1.4.50, K1.12.4-3): nós sempre simétrica no contorno. Manual: padrão não simétrico, com tolerância % configurável para forçar simetria.
 - **Estribos dos pilares** (K1.12.4-11): nós φ5 ou φ6,3 c/ mín(20 cm; menor lado; 12φ), fixo. Manual: tipologias e tabelas editáveis com grampos.
-- **Vento** (K1.5.21, K1.5.27, K1.5.25): nós Ca único por direção (X/Y), força no mestre com ± 0,075·largura, sem platibanda nem repartição por zona. Manual: coeficiente por sentido, largura corrigida pela platibanda e repartição por zona independente.
-- **Fator de flecha das lajes** (K1.15.3-2, K1.15.3-4, K1.15.4-7, K1.15.4-33): nós elástica (G + ψ2·Q) × (1 + αf) = × 2,32, sem fissuração, só limite total L/250. Manual: fator editável, padrão 2,5; quadro de 2,0/1,75 (ativa), 3,0/2,5 (total) e 1,5/1,25 (conforto) para maciça/nervurada.
-- **Flecha relativa ou absoluta** (K1.15.3-3): nós deslocamento total, incluindo o das vigas. Manual: flecha relativa aos apoios ou pontos de inflexão, descontando o encurtamento dos pilares.
+- **Vento** (K1.5.21, K1.5.27, K1.5.25) — *resolvido na N1c: coeficiente por sentido, fator de vizinhança, platibanda somada à faixa e repartição entre zonas independentes Bi = bi/Σb·B; sem a largura corrigida b′ do manual*: nós Ca por direção (X/Y) e força no centro de cada zona com ± 0,075·largura. Manual: coeficiente por sentido, largura corrigida pela platibanda e repartição por zona independente.
+- **Fator de flecha das lajes** (K1.15.3-2, K1.15.3-4, K1.15.4-7, K1.15.4-33) — *fator simplificado editável e limites total ℓ/250 e sensorial ℓ/350 na N1d; padrão continua o método da NBR (1 + αf)*: nós elástica (G + ψ2·Q) × (1 + αf) = × 2,32, sem fissuração, só limite total L/250. Manual: fator editável, padrão 2,5; quadro de 2,0/1,75 (ativa), 3,0/2,5 (total) e 1,5/1,25 (conforto) para maciça/nervurada.
+- **Flecha relativa ou absoluta** (K1.15.3-3) — *resolvido na N1d: relativa aos apoios*: nós deslocamento total, incluindo o das vigas. Manual: flecha relativa aos apoios ou pontos de inflexão, descontando o encurtamento dos pilares.
 - **Flecha ativa de vigas** (K1.14-9): nós (Pórtico 2D) parcela após a alvenaria ≈ αf·f0, a confirmar. Manual: fA = αg·fg + αq·fq com frações de carga por etapa construtiva.
 - **Fissuração** (K1.12.1-21 a K1.12.1-25): nós NBR 6118 17.3.3 só no Pórtico 2D, com aviso. Manual: expressão do CEB-FIP MC90 e aumento automático da armadura até atender.
-- **Momentos das lajes maciças** (K1.13.2.2-2, K1.13.2.2-3): nós momento das barras da grelha dividido pela largura da malha, torçor desprezado. Manual: Wood-Armer com o torçor e redistribuição transversal em faixa de 1 m.
+- **Momentos das lajes maciças** (K1.13.2.2-2, K1.13.2.2-3) — *resolvido na N1d: Wood-Armer com faixa de 1 m (opção, padrão ligado)*: nós momento das barras da grelha dividido pela largura da malha, torçor desprezado. Manual: Wood-Armer com o torçor e redistribuição transversal em faixa de 1 m.
 - **Cortante das vigas** (K1.12.1-5): nós cortante máximo da parte flexível. Manual: estribos a partir da face do apoio ou de uma distância em % de d.
 
 Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente 0):
@@ -90,9 +90,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.2.1 | Análise espacial 3D por matriz de rigidez de todos os elementos (pilares, pilares-parede, vigas, lajes). | Parcial | N | modelo separado: grelha por pavimento + pórtico espacial; lajes não entram na matriz do pórtico |
 | K1.2.2 | Compatibilidade de deslocamentos em todos os nós com 6 graus de liberdade. | Feito | — | `fe3d.ts`: 6 GL por nó no pórtico espacial |
 | K1.2.3 | Hipótese de diafragma rígido por pavimento: plano indeformável; cada pavimento só translada e gira como corpo rígido (3 GL no plano). | Feito | — | diafragma rígido mestre-escravo por pavimento (`analitico.ts`) |
-| K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Parcial | N | um diafragma por pavimento com todos os nós do nível; zonas independentes não separadas |
+| K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Feito | — | cada zona de nós ligada por vigas do diafragma é um diafragma, mesmo só com vigas (opção zonasIndependentes, N1c) |
 | K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | N | vigas fora do diafragma (viga.editar foraDiafragma, N1a); paredes fora do diafragma dependem das paredes (E) |
-| K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Falta | N | diafragmas separados por zona independente no mesmo pavimento |
+| K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Feito | — | zonas independentes são diafragmas separados; pilar isolado fica sem diafragma (N1c) |
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
 | K1.2.9 | Estruturas 3D integradas: sempre 6 GL por nó (sem diafragma). | Fora | — | estruturas 3D integradas (barras genéricas de aço/madeira) |
@@ -263,8 +263,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Falta | N | redutor de rigidez das treliçadas; nós: seção T bruta |
 | K1.4.83 | Considerar armadura de torção em vigas. | Falta | N | torção em vigas não verificada (premissa) |
 | K1.4.84 | Opções de vigas de aço e vigotas. | Fora | — | vigas de aço; vigotas ver K1.4.40 |
-| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | lajes L/250 fixo; vigas do edifício sem flecha; limites não editáveis |
-| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida (t0) e após alvenaria só no Pórtico 2D |
+| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | limites total ℓ/250 e sensorial ℓ/350 editáveis para lajes e vigas (N1d); sem limites por tipo, alveolares nem mistas |
+| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida por αf(t0) editável em lajes e vigas (N1d); sem etapas de carga do processo construtivo |
 | K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Falta | E | cortante em lajes treliçadas |
 | K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos |
 | | **Fundações (listadas)** | | | |
@@ -300,13 +300,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais |
 | | **1.5.2 Cargas horizontais — vento (págs. 29–32)** | | | |
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
-| K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Parcial | N | Ca por direção (X/Y), não por sentido |
+| K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Feito | — | vento.definir: Ca por direção e coeficiente por sentido (+X, −X, +Y, −Y), multiplicando a força (N1c) |
 | K1.5.22 | Edifício isolado: pressão ≈ 2/3 (0,66) a barlavento + sucção ≈ 1/3 (0,33) a sotavento → coeficiente 1. | Feito | — | o Ca da NBR 6123 já soma pressão e sucção |
-| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Falta | N | fator de vizinhança (NBR 6123, Anexo G) |
+| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Parcial | N | coeficiente por sentido (abrigo por vizinho) e fator de vizinhança 1 a 1,3 (NBR 6123, 6.4), informados pelo usuário; sem ábaco automático (N1c) |
 | K1.5.24 | Largura de banda = comprimento da fachada perpendicular ao vento, por pavimento (pode variar). | Feito | — | largura da fachada por pavimento pela extensão em planta |
-| K1.5.25 | Zonas independentes num pavimento: carga repartida na proporção da largura de cada zona (b1, b2 pelas coordenadas dos pilares extremos): Bi = bi/(b1+b2)·B. | Falta | N | repartição entre zonas independentes |
+| K1.5.25 | Zonas independentes num pavimento: carga repartida na proporção da largura de cada zona (b1, b2 pelas coordenadas dos pilares extremos): Bi = bi/(b1+b2)·B. | Feito | — | vento do pavimento repartido entre zonas independentes: Bi = bi/Σb·B, aplicado no centro de cada zona (N1c) |
 | K1.5.26 | Área exposta = semissoma das alturas dos pavimentos acima e abaixo × largura de banda; força = área × pressão na cota × coeficiente de carga. | Feito | — | altura de influência = semissoma; F = Ca·q·largura·altura |
-| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Falta | N | platibanda e ático na cobertura |
+| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Parcial | N | platibanda (m) somada à faixa de exposição do último pavimento; sem a largura corrigida b' pela forma do texto (N1c) |
 | K1.5.28 | Método geral: curva altura–pressão de biblioteca (editável), interpolada nas cotas dos pavimentos. | Feito | — | perfil S2(z) da NBR 6123 nas cotas dos pavimentos |
 | K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado à mão (padrão 1,3); ábaco não digitalizado |
 | K1.5.30 | Coeficiente de rajada para locais expostos (vales, encostas). | Feito | — | S1 (topográfico) e S3 editáveis |
@@ -324,12 +324,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.40 | Opcional por caso de vento ou sismo: ampliação dos esforços por 2ª ordem; recomendado ativar. | Feito | — | γz sempre calculado por direção; nós: vento × 0,95·γz se 1,1 < γz ≤ 1,3 |
 | K1.5.41 | Método simplificado a partir da análise de 1ª ordem, linear, seção bruta e módulo secante. | Feito | — | γz a partir da 1ª ordem linear |
 | K1.5.42 | Momento de tombamento MH = Σ Hi·zi em relação ao nível 0 (ou sem deslocamento horizontal), por direção. | Feito | — | M1 = Σ F·z por direção |
-| K1.5.43 | Momento P-Δ por caso gravitacional k: MPΔk = Σi Σj Pij·Δi (carga da laje no pilar j no pavimento i × deslocamento horizontal). | Feito | — | ΔM = Σ P·δ por pavimento (mestre do diafragma) |
+| K1.5.43 | Momento P-Δ por caso gravitacional k: MPΔk = Σi Σj Pij·Δi (carga da laje no pilar j no pavimento i × deslocamento horizontal). | Feito | — | ΔM = Σ P·δ por pavimento; δ pelos nós dos pilares ponderados pelas reações (N1c) |
 | K1.5.44 | Índice de estabilidade Ck = MPΔk / MH, por caso gravitacional e direção. | Feito | — | ΔM por combinação (vento ou uso principal), equivalente aos Ck por caso |
-| K1.5.45 | γz = 1 / [1 − (Σ γfgi·Ci + Σ γfqj·Cj)], com coeficientes de ponderação das permanentes e variáveis; aplicado como fator de ampliação nas combinações com ação horizontal. | Feito | — | γz = 1/(1 − ΔM/M1); nós ampliamos o vento por 0,95·γz, manual por γz |
+| K1.5.45 | γz = 1 / [1 − (Σ γfgi·Ci + Σ γfqj·Cj)], com coeficientes de ponderação das permanentes e variáveis; aplicado como fator de ampliação nas combinações com ação horizontal. | Feito | — | γz = 1/(1 − ΔM/M1); limite editável (padrão 1,3); nós ampliamos o vento por 0,95·γz, manual por γz |
 | K1.5.46 | Multiplicador de deslocamentos para representar redução de rigidez (fissuração), inverso da rigidez reduzida; critério deixado ao projetista. | Feito | — | nós: rigidez 0,4·EI vigas e 0,8·EI pilares (NBR 15.7.3); manual: multiplicador de deslocamentos |
 | K1.5.47 | Prática brasileira citada: E × 0,90 e I × 0,70 → 0,63 → multiplicador 1,59; γz > 1,20 → enrijecer; γz < 1,1 → efeito desprezível. | Fora | — | prática citada pelo manual |
-| K1.5.48 | NB-1/2000 (Brasil): multiplicar deslocamentos por 1/0,7 = 1,43 e limitar γz a 1,3. | Feito | — | limite 1,3 com aviso (NBR 6118:2014); rigidez reduzida no lugar de 1/0,7 |
+| K1.5.48 | NB-1/2000 (Brasil): multiplicar deslocamentos por 1/0,7 = 1,43 e limitar γz a 1,3. | Feito | — | limite do γz editável nas opções (padrão 1,3; até 1,5) com aviso; rigidez reduzida no lugar de 1/0,7 (N1c) |
 | K1.5.49 | CEB-FIP MC 1990: reduzir rigidez 50 % → multiplicador 2,00; γz > 1,50 → enrijecer; < 1,1 dispensável (mas recomenda-se ativar sempre). | Fora | — | CEB-FIP |
 | K1.5.50 | ACI 318-95: índice Q por pavimento; γz ≈ 1/(1−Q); limite Q = 0,05 (γz ≈ 1,05) para pavimento indeslocável. | Fora | — | ACI 318 |
 | K1.5.51 | Alternativa: inércia × ~0,7 por ação horizontal curta e E reduzido (15100/19000 ≈ 0,8) → multiplicador 1,78; γz razoável ≤ 1,35. | Fora | — | alternativa do manual |
@@ -536,7 +536,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.2 | Fundações com vinculação externa (sapatas, blocos, vigas centradoras e de travamento) calculadas junto ou depois; editáveis e redimensionáveis/verificáveis independentemente. | Parcial | FU | Fundações em módulo à parte, recebe cargas do edifício; sem vigas de equilíbrio |
 | K1.11.3 | Dados gerais consultáveis; opções e tabelas especiais salvas com a obra; mudar opções/tabelas pode alterar resultados; recalcular após mudanças; permite reformar armaduras com novas opções. | Parcial | R | premissas visíveis e aviso de modelo alterado; sem refazer armadura com novas opções |
 | | **Vigas** | | | |
-| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Falta | N | flecha de vigas no edifício (o Pórtico 2D tem Branson + αf) |
+| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); sem flecha ativa nem momentos mínimos |
 | K1.11.5 | Envoltórias com e sem sismo de momento, cortante e torção (gráficas e numéricas). | Parcial | V | só máximos por viga; diagramas de M, V, T só no Pórtico 2D |
 | K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Parcial | R | um As e um arranjo por face e um estribo por viga; sem edição |
 | K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Parcial | R | biela, armadura dupla e largura; sem flecha, espaçamento, ancoragem, torção |
@@ -554,7 +554,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Falta | R | armadura base das lajes |
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | R | As por metro (máximo por laje e direção), sem mapa |
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Falta | V | deslocamentos e esforços por nó e caso na tela |
-| K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Falta | N | Wood-Armer; nós: momentos da grelha por direção, torçor ignorado |
+| K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | R | flecha elástica máxima por pavimento (G, Q) na aba Análise |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Falta | N | punção e cortante em lajes (NBR 6118 19.4 e 19.5) |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Falta | R | uniformização e edição de barras das lajes |
@@ -754,8 +754,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.1-4 | Não detalhada: só diâmetro e espaçamento indicados, sem desenho nem quantitativo; o usuário completa planta e quantitativos. | Falta | R | armadura base não detalhada |
 | | **1.13.2.2 Reforço longitudinal** | | | |
 | K1.13.2.2-1 | Em cada nó da malha conhecem-se os momentos fletores nas duas direções e o momento torçor. | Parcial | N | barras da grelha dão momentos por direção; torçor não usado |
-| K1.13.2.2-2 | Método de Wood (inclui a torção) dá o momento de dimensionamento em cada direção de armadura, que em geral não coincide com as direções principais. | Falta | N | Wood-Armer |
-| K1.13.2.2-3 | Distribuição transversal: cada nó com os vizinhos à esquerda e à direita numa faixa de 1 m; soma-se no nó o esforço próprio e o redistribuído. | Parcial | N | nós: momento da barra / largura da malha (0,5 m), sem média em 1 m |
+| K1.13.2.2-2 | Método de Wood (inclui a torção) dá o momento de dimensionamento em cada direção de armadura, que em geral não coincide com as direções principais. | Feito | — | Wood-Armer: mx* = mx + |mxy| e mx*′ = mx − |mxy|; torçor conservador somando |γ·mxy| por caso (N1d) |
+| K1.13.2.2-3 | Distribuição transversal: cada nó com os vizinhos à esquerda e à direita numa faixa de 1 m; soma-se no nó o esforço próprio e o redistribuído. | Feito | — | média dos nós da grelha numa faixa transversal de 1 m (N1d) |
 | K1.13.2.2-4 | Área necessária superior e inferior por direção, por metro, dividindo pelo tamanho da malha (distância entre nós) para valor uniforme e comparável. | Feito | — | As por metro superior e inferior por direção (cm²/m) |
 | K1.13.2.2-5 | Confere taxas mínimas por direção e por metro; reforço escolhido nas tabelas. | Feito | — | ρmín 0,15 % por direção (premissa a confirmar) |
 | K1.13.2.2-6 | Ponto de corte = comprimento necessário + ancoragem líquida reduzida conforme a posição (I ou II) + decalagem do diagrama conforme d e a norma. | Falta | R | corte das barras das lajes |
@@ -802,13 +802,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **1.14 Flechas de vigas (págs. 95–97)** | | | |
-| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Parcial | N | flecha de vigas só no Pórtico 2D (L/250; após alvenaria ℓ/500 e 10 mm) |
+| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Parcial | N | vigas do edifício: total ℓ/250 e variável ℓ/350 editáveis (N1d); sem instantânea por caso nem ativa |
 | K1.14-2 | Cada limite: relativo L/xxx, L/xxx + xx cm, ou absoluto em cm. | Parcial | N | limites fixos da Tabela 13.3, não configuráveis |
 | K1.14-3 | Limites dependem da norma; o usuário define os que considera relevantes. | Parcial | N | limites da NBR 6118 13.3, sem escolha do usuário |
-| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Parcial | N | total e após alvenaria no Pórtico 2D; lajes só total |
-| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Parcial | N | αf por t0 editável no Pórtico 2D; edifício 1,32 fixo |
-| K1.14-6 | Flecha total de cada caso = instantânea + diferida. | Feito | — | total = imediata × (1 + αf) |
-| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Parcial | N | Pórtico 2D: Branson com o Ma máximo, sem integrar curvaturas |
+| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Parcial | N | total a longo prazo nas vigas e lajes do edifício (N1d); sem flecha ativa |
+| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Parcial | N | αf por t0 editável no edifício e no Pórtico 2D; sem coeficientes separados para permanente e variável |
+| K1.14-6 | Flecha total de cada caso = instantânea + diferida. | Feito | — | total = imediata × (1 + αf) (N1d) |
+| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Parcial | N | vigas do edifício: Branson em cada seção com a armadura calculada e integração da curvatura (vão e balanço); sem inércia homogeneizada nem rotações por caso (N1d) |
 | K1.14-8 | Esforços e deslocamentos por caso com módulo secante do concreto; correções (clima, cura etc.) pelos coeficientes do processo construtivo, nas flechas instantâneas e diferidas. | Parcial | N | Ecs; correções só por αf e t0 |
 | K1.14-9 | Flecha ativa = instantânea + diferida de permanentes e variáveis após a execução das paredes: fA = αg·fg + αq·fq (αg, αq coeficientes de carga permanente e variável). | Parcial | N | nós: após alvenaria ≈ αf·f0 (a confirmar); manual: αg·fg + αq·fq |
 | K1.14-10 | αg e αq variam com as frações de carga definidas como permanentes/variáveis e os coeficientes instantâneo/diferido. | Falta | N | frações de carga por etapa |
@@ -827,9 +827,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.2-1 | Remetidas ao capítulo de lajes mistas. | Fora | — | lajes mistas |
 | | **1.15.3 Lajes maciças e nervuradas (págs. 97–98)** | | | |
 | K1.15.3-1 | Saída: deslocamentos de cada caso simples (permanente/peso próprio, variável, vento, sismo) em cada nó da malha de todos os pavimentos; máximo por caso e por pano. | Parcial | R | flecha máxima por laje e por pavimento; sem deslocamento por nó, caso e vento |
-| K1.15.3-2 | Flecha ativa avaliada pelo projetista, com os coeficientes de fluência que julgar, a partir das flechas instantâneas. | Parcial | N | nós: fator fixo (1 + αf) = 2,32 automático; manual: a critério do projetista |
-| K1.15.3-3 | Deslocamentos verticais são absolutos (incluem o do apoio); a flecha é relativa aos apoios extremos ou pontos de inflexão → subtrair o deslocamento dos apoios; efeito maior nos pavimentos altos (encurtamento elástico dos pilares). | Parcial | N | nós: deslocamento total (inclui vigas), não relativo aos apoios |
-| K1.15.3-4 | Estimativa prática: deslocamentos de peso próprio + uso × fator de 1,5 a 4, conforme processo construtivo e tipo de flecha. | Parcial | N | nós: × 2,32 fixo; manual: 1,5 a 4 |
+| K1.15.3-2 | Flecha ativa avaliada pelo projetista, com os coeficientes de fluência que julgar, a partir das flechas instantâneas. | Feito | — | fator simplificado editável ou αf = Δξ(t0) editável (N1d) |
+| K1.15.3-3 | Deslocamentos verticais são absolutos (incluem o do apoio); a flecha é relativa aos apoios extremos ou pontos de inflexão → subtrair o deslocamento dos apoios; efeito maior nos pavimentos altos (encurtamento elástico dos pilares). | Feito | — | flecha das lajes relativa aos apoios (descontado o deslocamento das vigas e pilares); sem pontos de inflexão (N1d) |
+| K1.15.3-4 | Estimativa prática: deslocamentos de peso próprio + uso × fator de 1,5 a 4, conforme processo construtivo e tipo de flecha. | Feito | — | fator simplificado das lajes editável (0 a 5; 0 = método da NBR) (N1d) |
 | K1.15.3-5 | Flecha relativa L/xxx: usar o menor dos vãos adjacentes ao ponto de máximo deslocamento absoluto. | Feito | — | limite pelo menor vão da laje (L/250) |
 | | **1.15.4 Flecha entre dois pontos (págs. 98–111)** | | | |
 | K1.15.4-1 | Ferramenta: dois pontos em laje maciça ou nervurada; linha entre eles e perfil dos deslocamentos verticais ao longo dela, por caso, por combinação e pela combinação gravitacional mais desfavorável (peso próprio + permanentes + variável). | Falta | V | flecha entre dois pontos (perfil de deslocamentos) |
@@ -838,7 +838,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-4 | Flecha medida em relação à reta pelos pontos inicial e final (secante) ou à tangente no ponto inicial (opção). | Falta | V | referência pela secante ou pela tangente |
 | K1.15.4-5 | Saídas: vão L, flecha absoluta, flecha relativa a L (secante) ou a 2L (tangente). | Falta | V | saídas da ferramenta (vão, flecha, relação) |
 | K1.15.4-6 | Combinação usada por padrão: a mais desfavorável de peso próprio + permanentes + variável entre as combinações de deslocamento do projeto, só casos gravitacionais; também por caso ou combinação escolhidos. | Falta | V | combinação gravitacional padrão da ferramenta |
-| K1.15.4-7 | Fator de amplificação de deslocamentos, padrão 2,5, multiplica os deslocamentos dos casos; deve englobar desforma, processo construtivo, efeitos térmicos e reológicos (fluência, retração). | Parcial | N | nós: 1 + αf = 2,32 fixo, sem fissuração; manual: 2,5 editável |
+| K1.15.4-7 | Fator de amplificação de deslocamentos, padrão 2,5, multiplica os deslocamentos dos casos; deve englobar desforma, processo construtivo, efeitos térmicos e reológicos (fluência, retração). | Parcial | N | fator editável (padrão 0 = (1 + αf) da NBR, não o 2,5 do manual); sem fissuração (N1d) |
 | K1.15.4-8 | Faixa citada para o fator: 2,5 a 3,0 conforme o processo construtivo. | Fora | — | faixa citada pelo manual |
 | K1.15.4-9 | Exemplo, dados: vão médio 6,50 m, vão extremo; momentos aproximados pl²/10 (negativo interno), pl²/17 (positivo), pl²/30 (negativo externo); paredes 1 kN/m² aos 60 dias; revestimento 1 kN/m² aos 120 dias; variável 2 kN/m²; HA-25 e B500; condições médias de temperatura e umidade. | Fora | — | exemplo numérico do manual |
 | K1.15.4-10 | Caso 1, maciça h = 26 cm: L/h = 25 > 23 (EHE-08, Tab. 50.2.2.1.a, pouco armada) → flecha a verificar. | Fora | — | critério L/h da EHE-08 |
@@ -846,7 +846,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-12 | Cálculo: 1,35·8,5 + 1,5·2 = 14,475 kN/m²; fator 0,76 na faixa de apoio e 0,6 na central; Md− esq. 93,02 kN·m/m (As 10,2 cm²/m), Md+ 43,16 (4,8 cm²/m), Md− dir. 31 (3,4 cm²/m). | Fora | — | exemplo numérico |
 | K1.15.4-13 | Momento de fissuração: Mcr = fct,m,fl·Wb, com fct,m,fl = máx[(1,6 − h/1000)·fct,m; fct,m] (h em mm) e fct,m = 0,3·fck^(2/3); no exemplo 2,565 → 3,437 MPa, Wb = 11 266 667 mm³, Mcr = 38,72 kN·m. | Parcial | N | Mr da NBR 6118 17.3.1 no Pórtico 2D (`bransonRatio`); lajes do edifício não |
 | K1.15.4-14 | Momentos de serviço com carga total 10,5 kN/m²: esq. 67,4 > Mcr (fissura), centro 31,3 < Mcr, dir. 22,48 < Mcr. | Fora | — | exemplo numérico |
-| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Parcial | N | Branson (NBR 6118 17.3.2.1.1) no Pórtico 2D; lajes do edifício não |
+| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Parcial | N | Branson por seção nas vigas do edifício (N1d) e no Pórtico 2D; lajes do edifício sem fissuração |
 | K1.15.4-16 | Inércia média do vão: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2; Ie,esq = 51 744 cm⁴ (Icr = 29 584), dir. = centro = Ig → 122 768 cm⁴ = 0,84·Ig. | Parcial | N | Pórtico 2D: Ie com o Ma máximo; sem média apoios/vão |
 | K1.15.4-17 | A favor da segurança adota Ie ≈ 0,66·Ig → fator de fissuração Ke = 1/0,66 ≈ 1,50 aplicado à flecha elástica do programa. | Fora | — | exemplo numérico |
 | K1.15.4-18 | Flecha diferida pela EHE-08 (análoga ao ACI-08): λ = ξ/(1 + 50ρ'), ρ' = taxa média de armadura comprimida; com malhas de 1 ‰ (ρ' = 0,001) → λ = 0,95·ξ (reconstruída). | Parcial | N | αf = Δξ/(1 + 50ρ′) no Pórtico 2D; lajes ρ′ = 0 e t0 = 1 mês fixos |
@@ -863,8 +863,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-29 | Ie,dir ≈ Ig do ábaco; Ie,esq = 145 530 cm⁴; Ie médio 98 380 > inércia do modelo 92 250 → sem correção; por segurança Ie = 0,8·Imodelo → Ke = 1,25. | Fora | — | exemplo numérico |
 | K1.15.4-30 | ρ' = 0 a favor da segurança → λ = ξ; ξ médio total ≈ 1 → δtotal = 2,5·δi; ativa: ξ médio 0,94 e fração sem peso próprio 4/8,6 ≈ 0,47 → δativa ≈ 1,75·δi. | Fora | — | exemplo numérico |
 | K1.15.4-31 | Os fatores valem para casos usuais (vãos, espessuras, cargas, processo, ambiente, desforma, idade de carregamento); mudando as condições, corrigir. | Fora | — | comentário do manual |
-| K1.15.4-32 | Conforto: basta a flecha do caso de carga variável. | Falta | N | aceitação sensorial (NBR 6118 Tab. 13.3, L/350 da variável) |
-| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | lajes: só total (× 2,32, L/250); faltam ativa e conforto |
+| K1.15.4-32 | Conforto: basta a flecha do caso de carga variável. | Feito | — | flecha imediata das variáveis ≤ ℓ/350 (limite editável) em lajes e vigas (N1d) |
+| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | total (ℓ/250) e conforto (variável, ℓ/350) com limites editáveis; falta a flecha ativa (etapas de carga) (N1d) |
 | | **1.15.5 Elementos de fundação (pág. 111)** | | | |
 | K1.15.5-1 | Remete à parte do manual sobre sapatas corridas e isoladas, blocos sobre estacas, vigas de equilíbrio e vigas de travamento. | Parcial | FU | sapatas, blocos e tubulões no módulo Fundações; corridas e vigas de equilíbrio faltam |
 | K1.15.5-2 | Fim do texto: remete à versão completa em inglês (learning.cype.com, CYPECAD calculations manual). | Fora | — | remissão ao manual em inglês |

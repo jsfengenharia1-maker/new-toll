@@ -771,7 +771,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **10.1 Ações nos dados gerais** | | | |
-| C10.1 | Vento ativável nos dados gerais, com escolha da norma e dados próprios dela; todas pedem larguras de faixa e coeficientes de carga em X e Y. | Feito | — | vento NBR 6123 (V0, S1, S2, S3, Ca em X e Y) |
+| C10.1 | Vento ativável nos dados gerais, com escolha da norma e dados próprios dela; todas pedem larguras de faixa e coeficientes de carga em X e Y. | Feito | — | vento NBR 6123 (V0, S1, S2, S3, Ca em X e Y, coeficiente por sentido, fator de vizinhança, platibanda; N1c) |
 | C10.2 | Vento com ou sem efeitos de 2ª ordem. | Parcial | N | γz com ampliação do vento; P-Δ 3D não |
 | C10.3 | Norma genérica de vento quando a desejada não existe. | Fora | — | só NBR 6123 |
 | C10.4 | Sismo ativável com escolha da norma e dados próprios, e opção de 2ª ordem. | Fora | — | sismo |
