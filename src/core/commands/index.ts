@@ -3,6 +3,7 @@ import './obra';
 import './planta';
 import './vigas';
 import './lajes';
+import './armaduras';
 
 export * from './registry';
 export { comandosEdificioPadrao } from './obra';

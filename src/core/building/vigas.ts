@@ -188,3 +188,10 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
 /** Nome V<n> seguinte no grupo. */
 export const proximaViga = (b: BuildingModel, grupo: string) => Math.max(0, ...vigasDoGrupo(b, grupo).map((v) => { const m = /^V(\d+)$/.exec(v.nome); return m ? +m[1] : 0; })) + 1;
 
+
+/** Número de vãos da viga entre pilares (no primeiro pavimento do grupo), para conferir o bloqueio da armadura. */
+export function vaosDaViga(b: BuildingModel, v: Viga): number {
+  const pav = pavimentosDoGrupo(b, v.grupo)[0];
+  if (!pav) return 1;
+  return Math.max(1, pilaresQueChegam(b, pav.id).filter((p) => vigaTocaPilar(v, p, pav.id)).length - 1);
+}

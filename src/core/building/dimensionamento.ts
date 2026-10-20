@@ -10,6 +10,7 @@ import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
+import { vaosDaViga } from './vigas';
 import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
@@ -77,6 +78,9 @@ export interface ResultadoViga {
   wk: [number, number]; wkLim: number;
   AsInf: number; AsSup: number; barrasInf: string; barrasSup: string; estribo: string;
   status: 'ok' | 'fail'; mensagens: string[];
+  /** Armadura editada e bloqueada (só verificada) e o arranjo adotado (para o editor). */
+  bloqueada: boolean;
+  arranjo: { inf: { n: number; phi: number } | null; sup: { n: number; phi: number } | null; estribo: { phi: number; s: number } | null; laterais: { n: number; phi: number } | null };
 }
 
 export interface EnvoltoriaViga {
@@ -255,7 +259,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     // estribos: cortante + torção, com mínimo e espaçamento máximo pelo cortante (17.4.1.1.1 e 18.3.3.2)
     const aswMin = ((0.2 * c.fctm) / aEst.fyk) * v.secao.b, aswS = Math.max(aswMin, env.asw);
     const smax = V <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2);
-    const est = chooseStirrup(aswS, smax);
+    let est = chooseStirrup(aswS, smax);
     if (env.biela > 1) msgs.push(env.T > 0 ? `Biela comprimida: Vsd/VRd2 + Tsd/TRd2 = ${env.biela.toFixed(2).replace('.', ',')} > 1.` : `Biela comprimida: Vsd ${V.toFixed(1)} > VRd2 ${VRd2.toFixed(1)} kN.`);
     // armadura longitudinal de torção pelo perímetro da seção vazada: faces inferior e superior somadas à de
     // flexão (absorvida pelas barras se a bitola adotada tiver folga), faces laterais como barras de pele
@@ -266,9 +270,9 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       AsLateral = (env.Asl * (v.secao.h - tr.he)) / tr.ue;
       const soma = (As: number) => { const bb = chooseBars(As, v.secao.b, cob.lat, 0.005, 0.019); return bb && bb.As - As >= face ? As : As + face; };
       AsInf = soma(AsInf); AsSup = soma(AsSup);
-      msgs.push(`Torção Td = ${env.T.toFixed(1)} kN·m: armadura longitudinal ${(env.Asl * 1e4).toFixed(2).replace('.', ',')} cm² (${(face * 1e4).toFixed(2).replace('.', ',')} cm² em cada face horizontal, ${(AsLateral * 1e4).toFixed(2).replace('.', ',')} cm² em cada face lateral).`);
+      msgs.push(`Torção Td = ${env.T.toFixed(1).replace('.', ',')} kN·m: armadura longitudinal ${(env.Asl * 1e4).toFixed(2).replace('.', ',')} cm² (${(face * 1e4).toFixed(2).replace('.', ',')} cm² em cada face horizontal, ${(AsLateral * 1e4).toFixed(2).replace('.', ',')} cm² em cada face lateral).`);
     }
-    const lat = AsLateral > 0 ? barrasLaterais(AsLateral, v.secao.h) : null;
+    let lat = AsLateral > 0 ? barrasLaterais(AsLateral, v.secao.h) : null;
     // decalagem do diagrama (NBR 6118, 17.4.2.2, modelo I, estribos verticais): aℓ = d·Vmáx/[2(Vmáx − Vc)], entre 0,5d e d
     const al = V > Vc0 ? Math.min(d, Math.max(0.5 * d, (d * V) / (2 * (V - Vc0)))) : d;
     // fissuração na combinação frequente (17.3.3.2): aumenta a armadura até wk ≤ limite
@@ -276,13 +280,36 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     for (const vo of vaos) for (const r of vo.Mk) for (const m of r) { MkPos = Math.max(MkPos, m); MkNeg = Math.min(MkNeg, m); }
     const larg = (As: number) => chooseBars(As, v.secao.b, cob.lat, 0.005, 0.019);
     const fissura = (As: number, Mk: number, dd: number) => { const bb = larg(As); return bb && Mk ? crackWidth(sec, false, bb.As, bb.phi, dd, Mk, c, caa).wk : 0; };
-    let wkI = fissura(AsInf, MkPos, dI), wkS = AsSup ? fissura(AsSup, -MkNeg, dS) : 0;
-    let aumentou = false;
-    for (let it = 0; it < 20 && wkI > wkLim && larg(AsInf * 1.1); it++) { AsInf *= 1.1; wkI = fissura(AsInf, MkPos, dI); aumentou = true; }
-    for (let it = 0; it < 20 && wkS > wkLim && larg(AsSup * 1.1); it++) { AsSup *= 1.1; wkS = fissura(AsSup, -MkNeg, dS); aumentou = true; }
-    if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${wkLim.toFixed(2).replace('.', ',')} mm.`);
-    if (Math.max(wkI, wkS) > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${Math.max(wkI, wkS).toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
-    const bi = larg(AsInf), bs = larg(AsSup);
+    // armadura bloqueada (editada): só verificada — área de aço, estribos, laterais, fissuras e flecha com as barras dadas
+    const arm = v.armadura, bloq = !!arm && arm.vaos === vaosDaViga(b, v);
+    if (arm && !bloq) msgs.push('Armadura bloqueada desconsiderada: o número de vãos mudou e a viga foi redimensionada.');
+    let wkI = 0, wkS = 0, bi: ReturnType<typeof chooseBars>, bs: ReturnType<typeof chooseBars>;
+    if (arm && bloq) {
+      const fixa = (x?: { n: number; phi: number }) => (x ? { n: x.n, phi: x.phi, As: x.n * barArea(x.phi), layers: 1 } : null);
+      const cm2 = (x: number) => (x * 1e4).toFixed(2).replace('.', ',');
+      bi = fixa(arm.inf); bs = fixa(arm.sup);
+      if (bi!.As < AsInf - 1e-9) msgs.push(`Armadura bloqueada insuficiente: inferior ${cm2(bi!.As)} cm² < ${cm2(AsInf)} cm² necessários.`);
+      if (AsSup > 0 && (bs?.As ?? 0) < AsSup - 1e-9) msgs.push(`Armadura bloqueada insuficiente: superior ${cm2(bs?.As ?? 0)} cm² < ${cm2(AsSup)} cm² necessários.`);
+      const aswP = (2 * barArea(arm.estribo.phi)) / arm.estribo.s;
+      if (aswP < aswS - 1e-9) msgs.push(`Armadura bloqueada insuficiente: estribos ${cm2(aswP)} cm²/m < ${cm2(aswS)} cm²/m necessários.`);
+      if (arm.estribo.s > smax + 1e-9) msgs.push(`Armadura bloqueada insuficiente: espaçamento dos estribos ${Math.round(arm.estribo.s * 100)} cm > ${Math.floor(smax * 100)} cm.`);
+      const latP = arm.laterais ? arm.laterais.n * barArea(arm.laterais.phi) : 0;
+      if (AsLateral > latP + 1e-9) msgs.push(`Armadura bloqueada insuficiente: laterais de torção ${cm2(latP)} cm² < ${cm2(AsLateral)} cm² por face.`);
+      AsInf = bi!.As; AsSup = bs?.As ?? 0;
+      est = { phi: arm.estribo.phi, s: arm.estribo.s, legs: 2 };
+      lat = arm.laterais ? { ...arm.laterais } : null;
+      wkI = MkPos ? crackWidth(sec, false, bi!.As, bi!.phi, dI, MkPos, c, caa).wk : 0;
+      wkS = bs && MkNeg ? crackWidth(sec, false, bs.As, bs.phi, dS, -MkNeg, c, caa).wk : 0;
+      if (Math.max(wkI, wkS) > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${Math.max(wkI, wkS).toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
+    } else {
+      let wkI = fissura(AsInf, MkPos, dI), wkS = AsSup ? fissura(AsSup, -MkNeg, dS) : 0;
+      let aumentou = false;
+      for (let it = 0; it < 20 && wkI > wkLim && larg(AsInf * 1.1); it++) { AsInf *= 1.1; wkI = fissura(AsInf, MkPos, dI); aumentou = true; }
+      for (let it = 0; it < 20 && wkS > wkLim && larg(AsSup * 1.1); it++) { AsSup *= 1.1; wkS = fissura(AsSup, -MkNeg, dS); aumentou = true; }
+      if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${wkLim.toFixed(2).replace('.', ',')} mm.`);
+      if (Math.max(wkI, wkS) > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${Math.max(wkI, wkS).toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
+      bi = larg(AsInf); bs = larg(AsSup);
+    }
     // flechas por vão (cadeias de barras entre pilares), curvatura M/(Ecs·Ie) com Branson em cada seção
     const fl = flechasViga(an, membros, noPilar, usoNo, (M) => {
       const r = M >= 0 ? bransonRatio(sec, false, AsInf, dI, M, c) : bransonRatio(sec, false, Math.max(AsSup, 1e-6), dS, M, c);
@@ -300,7 +327,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       Mpos, Mneg, V, envoltoria: envolt, T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
       AsInf, AsSup, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : '—',
-      status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
+      status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
+      bloqueada: bloq, arranjo: { inf: bi ? { n: bi.n, phi: bi.phi } : null, sup: AsSup && bs ? { n: bs.n, phi: bs.phi } : null, estribo: est ? { phi: est.phi, s: est.s } : null, laterais: lat ? { n: lat.n, phi: lat.phi } : null },
     });
   }
   return out;
@@ -356,6 +384,11 @@ export interface ResultadoPilar {
   pilar: string; nome: string; pavimento: string; secao: string; Nd: number; util: number; lambda: [number, number];
   /** Maior cortante de cálculo (kN). */
   Vd?: number;
+  /** Id do lance (pavimento do topo). */
+  pavimentoId?: string;
+  /** Armadura editada e bloqueada (só verificada) e o arranjo adotado (para o editor). */
+  bloqueada?: boolean;
+  arranjo?: { phi: number; n?: number; nb?: number; nh?: number; estribo: { phi: number; s: number } };
   /** Combinações determinantes: Nd (kN, + compressão), momentos de 1ª ordem nas pontas (base, topo) por direção e de cálculo com 2ª ordem (kN·m). */
   determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean }[];
   /** Comprimentos de flambagem (m) nas direções u (ao longo de b) e v. */
@@ -364,10 +397,20 @@ export interface ResultadoPilar {
 }
 
 /** Barras no contorno interno do retângulo b × h (u ao longo de b) ou do círculo, com espaçamento até `s`. */
-function barrasPerimetro(poly: Pt[], circ: number | null, a: number, s: number, Ab: number): RBar[] {
-  if (circ) { const rs = circ / 2 - a, n = Math.max(6, Math.ceil((2 * Math.PI * rs) / s)); return Array.from({ length: n }, (_, k) => ({ x: circ / 2 + rs * Math.cos((2 * Math.PI * k) / n), y: circ / 2 + rs * Math.sin((2 * Math.PI * k) / n), A: Ab })); }
+type ArranjoPilar = { n: number } | { nb: number; nh: number };
+
+/** Arranjo com espaçamento até `s`: n barras no círculo ou barras por face (com os cantos) no retângulo. */
+function arranjoPorEspacamento(poly: Pt[], circ: number | null, a: number, s: number): ArranjoPilar {
+  if (circ) return { n: Math.max(6, Math.ceil((2 * Math.PI * (circ / 2 - a)) / s)) };
   const [w, h] = [poly[1][0], poly[2][1]];
-  const nx = Math.max(1, Math.ceil((w - 2 * a) / s - 1e-9)), ny = Math.max(1, Math.ceil((h - 2 * a) / s - 1e-9));
+  return { nb: Math.max(1, Math.ceil((w - 2 * a) / s - 1e-9)) + 1, nh: Math.max(1, Math.ceil((h - 2 * a) / s - 1e-9)) + 1 };
+}
+
+/** Barras no contorno interno do retângulo b × h (u ao longo de b) ou do círculo para um arranjo dado. */
+function barrasDoArranjo(poly: Pt[], circ: number | null, a: number, arr: ArranjoPilar, Ab: number): RBar[] {
+  if (circ || 'n' in arr) { const D = circ ?? 0, rs = D / 2 - a, n = 'n' in arr ? arr.n : 6; return Array.from({ length: n }, (_, k) => ({ x: D / 2 + rs * Math.cos((2 * Math.PI * k) / n), y: D / 2 + rs * Math.sin((2 * Math.PI * k) / n), A: Ab })); }
+  const [w, h] = [poly[1][0], poly[2][1]];
+  const nx = Math.max(1, arr.nb - 1), ny = Math.max(1, arr.nh - 1);
   const out: RBar[] = [];
   for (let i = 0; i <= nx; i++) { const x = a + ((w - 2 * a) * i) / nx; out.push({ x, y: a, A: Ab }, { x, y: h - a, A: Ab }); }
   for (let j = 1; j < ny; j++) { const y = a + ((h - 2 * a) * j) / ny; out.push({ x: a, y, A: Ab }, { x: w - a, y, A: Ab }); }
@@ -449,22 +492,33 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       }
       return util;
     };
-    type Escolha = { util: number; txt: string; As: number; phi: number };
+    type Escolha = { util: number; txt: string; As: number; phi: number; arr: ArranjoPilar };
     let melhor = null as Escolha | null;
     const tMin = circ ?? Math.min(w, h);
-    busca: for (const phi of PHI_L) {
+    // armadura bloqueada (editada): verificação completa com as barras dadas, sem redimensionar
+    const nLances = lancesDoPilar(b, p).length, armB = p.armaduras?.find((x) => x.pavimento === lance.id);
+    const bloq = !!armB && armB.lances === nLances;
+    if (armB && !bloq) msgs.push('Armadura bloqueada desconsiderada: o número de lances do pilar mudou e o lance foi redimensionado.');
+    if (armB && bloq) {
+      const arr: ArranjoPilar = armB.n !== undefined ? { n: armB.n } : { nb: armB.nb ?? 2, nh: armB.nh ?? 2 };
+      const bars = barrasDoArranjo(poly, circ, cob + 0.005 + armB.phi / 2000, arr, barArea(armB.phi)), As = bars.length * barArea(armB.phi);
+      if (As < AsMin - 1e-9) msgs.push(`Armadura bloqueada insuficiente: As ${(As * 1e4).toFixed(2).replace('.', ',')} cm² < As,mín ${(AsMin * 1e4).toFixed(2).replace('.', ',')} cm².`);
+      if (As > AsMax + 1e-9) msgs.push(`Armadura bloqueada acima de 4 % (${(As * 1e4).toFixed(2).replace('.', ',')} cm²).`);
+      melhor = { util: avaliar(bars), txt: `${bars.length} φ${String(armB.phi).replace('.', ',')}`, As, phi: armB.phi, arr };
+    }
+    busca: for (const phi of bloq ? [] : PHI_L) {
       if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8) continue; // φ10 a φ25 (premissa dim-pilares)
       const a = cob + 0.005 + phi / 2000;
-      const cands = [0.3, 0.25, 0.2, 0.15, 0.12, 0.1].map((sp) => barrasPerimetro(poly, circ, a, sp, barArea(phi))).filter((bars) => { const As = bars.length * barArea(phi); return As >= AsMin && As <= AsMax; });
-      const anota = (bars: RBar[], u: number) => { const As = bars.length * barArea(phi), m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi }; };
+      const cands = [0.3, 0.25, 0.2, 0.15, 0.12, 0.1].map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, barArea(phi)) }; }).filter(({ bars }) => { const As = bars.length * barArea(phi); return As >= AsMin && As <= AsMax; });
+      const anota = ({ bars, arr }: (typeof cands)[number], u: number) => { const As = bars.length * barArea(phi), m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr }; };
       if (!cands.length) continue;
       // a mais densa primeiro: se nem ela atende, a bitola inteira não atende (capacidade cresce com As)
-      const uMax = avaliar(cands.at(-1)!);
+      const uMax = avaliar(cands.at(-1)!.bars);
       anota(cands.at(-1)!, uMax);
       if (uMax > 1) continue;
-      for (const bars of cands.slice(0, -1)) {
-        const u = avaliar(bars, true);
-        anota(bars, u);
+      for (const cd of cands.slice(0, -1)) {
+        const u = avaliar(cd.bars, true);
+        anota(cd, u);
         if (u <= 1) break busca;
       }
       break busca;
@@ -475,7 +529,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     if (gn > 1) msgs.push(`γn = ${gn.toFixed(2)} (menor dimensão < 19 cm).`);
     if (tra.length) msgs.push(`Tração em ${tra.length} combinação(ões): até ${(-Math.min(...tra.map((x) => x.Nt))).toFixed(0)} kN (verificada sem 2ª ordem).`);
     if (acoLong === 'CA-60' && melhor.phi > 10) msgs.push(AVISO_CA60);
-    if (melhor.util > 1) msgs.push('Não atende com até 4 % de armadura: aumente a seção.');
+    if (melhor.util > 1) msgs.push(bloq ? `Armadura bloqueada insuficiente: utilização ${melhor.util.toFixed(2).replace('.', ',')} > 1.` : 'Não atende com até 4 % de armadura: aumente a seção.');
     // cortante (17.4, modelo I com θ = 45°): na flexo-compressão Vc = Vc0·(1 + M0/Msd,máx) ≤ 2·Vc0 (17.4.2.2 c),
     // M0 = momento de descompressão com N de γf = 1,0 (Nd/γg) e W/A da seção; com tração Vc = 0; pilar comprimido
     // com Vsd ≤ Vc dispensa o mínimo de 17.4.1.1.1 e fica com o estribo construtivo (18.4.3)
@@ -497,14 +551,23 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const phiT = Math.max(5, melhor.phi / 4), sT = Math.min(0.2, Math.min(w, h), (12 * melhor.phi) / 1000);
     const estC = { phi: phiT === 5 ? 5 : 6.3, s: Math.floor(sT * 100) / 100 };
     const estV = asw > 0 ? chooseStirrup(asw, sT, estC.phi) : null;
-    const est = estV && estV.s < estC.s ? estV : estC;
-    if (estV && est === estV) msgs.push(`Estribos pelo cortante: Vsd = ${Vd.toFixed(1)} kN.`);
+    let est: { phi: number; s: number } = estV && estV.s < estC.s ? estV : estC;
+    if (armB && bloq) {
+      // estribo bloqueado: φt ≥ máx(5; φℓ/4), s ≤ mín(20 cm; menor lado; 12φℓ) (18.4.2 e 18.4.3) e cortante
+      est = armB.estribo;
+      const falta: string[] = [];
+      if (est.phi < Math.max(5, armB.phi / 4) - 1e-9) falta.push(`φt ${String(est.phi).replace('.', ',')} < φℓ/4`);
+      if (est.s > sT + 1e-9) falta.push(`s ${Math.round(est.s * 100)} cm > ${Math.floor(sT * 100)} cm`);
+      if (asw > 0 && (2 * barArea(est.phi)) / est.s < asw - 1e-9) falta.push(`Asw/s ${((2 * barArea(est.phi)) / est.s * 1e4).toFixed(2).replace('.', ',')} < ${(asw * 1e4).toFixed(2).replace('.', ',')} cm²/m do cortante`);
+      if (falta.length) msgs.push(`Armadura bloqueada insuficiente: estribo (${falta.join('; ')}).`);
+    } else if (estV && est === estV) msgs.push(`Estribos pelo cortante: Vsd = ${Vd.toFixed(1)} kN.`);
+    if (msgs.some((x) => x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Armadura bloqueada acima'))) status = 'fail';
     const r2 = (x: number) => Math.round(x * 100) / 100;
     const determinantes = [
       ...solD.map((x) => { const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV); return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false }; }),
       ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true })),
     ];
-    out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+    out.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
   }
   return out;
 }
