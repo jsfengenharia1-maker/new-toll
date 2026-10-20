@@ -46,6 +46,15 @@
   --m-laje-line: #9fb3bf;
   --m-laje-ink: #3d5866;
   --m-falha: #c0392b;
+  /* isométrico do edifício (vista 3D estática) */
+  --m-iso-pilar: #8a94a0;
+  --m-iso-viga: #6fa6cf;
+  --m-iso-laje: #e3c88e;
+  --m-iso-fundacao: #9bb590;
+  --m-iso-parede: #b19a8f;
+  --m-iso-escada: #aa9fd0;
+  --m-iso-pendente: #c2379f;
+  --m-iso-sel: #d97706;
 }
 .memo{font:12.5px/1.55 var(--m-font-ui);color:var(--m-ink);background:var(--m-paper);max-width:820px;margin:0 auto;padding:40px 48px 64px}
 .memo h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em}

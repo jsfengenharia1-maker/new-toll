@@ -19,6 +19,7 @@ import { PaletaComandos } from './PaletaComandos';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { CoresPlanta } from './CoresPlanta';
 import { Pranchas } from './Pranchas';
+import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
 import { MateriaisGrupo } from './Materiais';
@@ -41,7 +42,7 @@ export function Edificio() {
   const { sessao, exec, novo, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
+  const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
 
@@ -139,12 +140,13 @@ export function Edificio() {
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+          {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /></>}
-        {aba !== 'planta' && (
+        {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
+        {aba !== 'planta' && aba !== 'vista3d' && (
           <div className="edif-out">
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}

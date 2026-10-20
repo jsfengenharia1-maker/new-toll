@@ -372,7 +372,7 @@ export interface ElementoFundacao {
   id: string;
   nome: string;
   tipo: TipoFundacao;
-  /** Pilares apoiados (FU1: um). */
+  /** Pilares apoiados: um (isolado) ou vários (sapata associada, bloco com vários pilares; FU3). */
   pilares: string[];
   /** Ponto de inserção (m): centro do elemento em 'livre'; nas demais posições, o centro do pilar (o centro real sai do cálculo). */
   x: number;
@@ -390,8 +390,40 @@ export interface ElementoFundacao {
   sondagem?: { modo: 'furo' | 'media'; ids?: number[] };
   /** Bloco: tipo de estaca do terreno e número de estacas fixo (opcional). */
   estaca?: { id: string; n?: number };
-  /** Sapata: dimensões impostas (m), só verificadas. */
-  impostas?: { A: number; B: number; h?: number };
+  /**
+   * Dimensões e armadura impostas (m), só verificadas. Sapata: base A × B, alturas h e h0, armadura por direção
+   * (φ mm, espaçamento `s` m); bloco: A × B = lx × ly, h e armadura dos tirantes (φ, `n` barras); tubulão: A = B = base Db e fuste Df.
+   */
+  impostas?: ImpostasFundacao;
+  /** Sapata de concreto simples (sem armadura de flexão; NBR 6118, cap. 24) (FU3). */
+  simples?: boolean;
+  /** Sapata de altura constante (h0 = h): só ela é aparada por limites (FU3). */
+  alturaConstante?: boolean;
+  /**
+   * Igualar (FU3): este elemento copia do elemento `igualA` o tipo, a geometria e a armadura calculados; fica só verificado
+   * (com erro se não atender). O modelo é calculado antes.
+   */
+  igualA?: string;
+}
+
+export interface ImpostasFundacao {
+  A: number; B: number; h?: number; h0?: number;
+  armadura?: { x?: { phi: number; s?: number; n?: number }; y?: { phi: number; s?: number; n?: number } };
+  /** Tubulão: diâmetro do fuste (m). */
+  Df?: number;
+}
+
+/**
+ * Limite poligonal (divisa, poço de elevador, reservatório): as sapatas de altura constante do nível não o invadem; a parte
+ * com o(s) pilar(es) fica (FU3). Polilinha aberta (divisa) ou fechada.
+ */
+export interface LimiteFundacao {
+  id: string;
+  nome: string;
+  pontos: [number, number][];
+  fechado?: boolean;
+  /** Cota de assentamento do nível a que vale (m); ausente = todos os níveis. */
+  cota?: number;
 }
 
 export interface FundacaoEdificio {
@@ -403,6 +435,8 @@ export interface FundacaoEdificio {
   elementos: ElementoFundacao[];
   /** Vigas de equilíbrio e de travamento (FU2). */
   vigas?: VigaFundacao[];
+  /** Limites poligonais que aparam as sapatas de altura constante (FU3). */
+  limites?: LimiteFundacao[];
   /** Níveis de fundação calculados (cotas de assentamento, m); ausente = todos. Os demais mantêm o cálculo anterior. */
   niveis?: number[];
 }

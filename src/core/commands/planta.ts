@@ -342,9 +342,12 @@ registrar<{ ids: string[] }>({
     const s = new Set(p.ids);
     d.pilares = d.pilares.filter((q) => !s.has(q.id));
     // elementos de fundação dos pilares removidos saem junto
+    // (elemento de vários pilares: só o pilar sai; o elemento some quando não resta nenhum)
     if (d.fundacao?.elementos.some((e) => e.pilares.some((x) => s.has(x)))) {
-      const sai = new Set(d.fundacao.elementos.filter((e) => e.pilares.some((x) => s.has(x))).map((e) => e.id));
+      const sai = new Set(d.fundacao.elementos.filter((e) => e.pilares.every((x) => s.has(x))).map((e) => e.id));
+      for (const e of d.fundacao.elementos) if (!sai.has(e.id) && e.pilares.some((x) => s.has(x))) { e.pilares = e.pilares.filter((x) => !s.has(x)); delete e.impostas; }
       d.fundacao.elementos = d.fundacao.elementos.filter((e) => !sai.has(e.id));
+      for (const e of d.fundacao.elementos) if (e.igualA && sai.has(e.igualA)) delete e.igualA;
       for (const id of sai) s.add(id);
     }
     // vigas de fundação com ponta no pilar ou no elemento removido

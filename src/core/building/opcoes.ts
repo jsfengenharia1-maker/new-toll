@@ -110,6 +110,16 @@ export interface OpcoesCalculo {
   vigaFundHMin: number;
   /** Vigas de fundação: estribos prolongados até as esperas dos pilares (1) ou só entre as faces (0). */
   vigaFundEstribosEsperas: number;
+  /** Sapatas: permitir descolamento (1: sem a área comprimida mínima; a tensão máxima limita) ou exigir 2/3 da base comprimida (0). */
+  fundDescolamento: number;
+  /** Sapatas associadas: vão máximo entre pilares vizinhos em múltiplos da altura, para considerá-las rígidas. */
+  fundVaoAltura: number;
+  /** Sapatas: balanço máximo em múltiplos da altura, para considerá-las rígidas (NBR 6118 22.6.1: h ≥ (a − ap)/3 ⇒ 1,5). */
+  fundBalancoAltura: number;
+  /** Sapatas de concreto simples: fator sobre γc (NBR 6118, cap. 24). */
+  fundSimplesGamma: number;
+  /** Sapatas: reduzir a armadura mínima de flexão a 4/3 da calculada (1) ou manter ρmín (0). */
+  fundReducaoTaxa: number;
 }
 
 export interface OpcaoInfo {
@@ -248,6 +258,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Altura mínima das vigas de equilíbrio e de travamento. Sem seção imposta, a altura cresce em passos de 5 cm (até 1,60 m) e depois a largura, até atender.' },
   { chave: 'vigaFundEstribosEsperas', rotulo: 'Vigas de fundação: estribos até as esperas dos pilares', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Opção do programa de referência (prolongar os estribos até as esperas dos pilares); padrão ligado a confirmar', aConfirmar: true,
     descricao: 'Ligada: estribos ao longo de toda a viga, de eixo a eixo dos pilares. Desligada: só entre as faces dos pilares.' },
+  { chave: 'fundDescolamento', rotulo: 'Sapatas: permitir descolamento', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (permitir ou não o levantamento); padrão: não, com a regra atual de área comprimida ≥ 2/3 [a confirmar]', aConfirmar: true,
+    descricao: 'Desligada: a base fica comprimida em pelo menos 2/3 (item da NBR 6122 a confirmar). Ligada: só a tensão máxima (σmáx ≤ 1,0·σadm) limita; a área comprimida resultante vai nas observações.' },
+  { chave: 'fundVaoAltura', rotulo: 'Sapatas associadas: vão máximo / altura (rigidez)', unidade: '× h', min: 1, max: 6, passo: 0.1, padrao: 2, fonte: 'Programa de referência (relação máxima vão/altura da sapata rígida); valor 2 sem fonte normativa aberta', aConfirmar: true,
+    descricao: 'Maior distância entre eixos de pilares vizinhos da sapata ≤ este valor × h. Sem isso a sapata não é rígida e o método não se aplica: a altura sobe.' },
+  { chave: 'fundBalancoAltura', rotulo: 'Sapatas: balanço máximo / altura (rigidez)', unidade: '× h', min: 0.5, max: 3, passo: 0.1, padrao: 1.5, fonte: 'NBR 6118 22.6.1: sapata rígida se h ≥ (a − ap)/3, isto é, balanço ≤ 1,5·h (item a confirmar)', aConfirmar: true,
+    descricao: 'Maior balanço da base além das faces dos pilares extremos ≤ este valor × h. Vale também para a sapata isolada.' },
+  { chave: 'fundSimplesGamma', rotulo: 'Sapatas de concreto simples: fator sobre γc', min: 1, max: 2, passo: 0.05, padrao: 1.2, fonte: 'NBR 6118, cap. 24 (resistência de cálculo do concreto simples com γc majorado em 1,2; item a confirmar)', aConfirmar: true,
+    descricao: 'fctd = fctk,inf/(fator·γc). A tração na flexão da sapata de concreto simples (σt = 6M/(b·h²)) não passa de fctd; também decide se a sapata armada precisa de malha superior entre pilares.' },
+  { chave: 'fundReducaoTaxa', rotulo: 'Sapatas: reduzir a taxa mínima de flexão', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência; NBR 6118 17.3.5.2.1 admite As,mín = 4/3·As,calc (item a confirmar)', aConfirmar: true,
+    descricao: 'Ligada: a armadura de flexão da sapata é o maior entre a calculada e o menor valor entre ρmín·b·h e 4/3 da calculada. Desligada: ρmín·b·h.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

@@ -5,7 +5,11 @@ import { sptSigma } from './footings';
 import { ceil05 } from './rebar';
 import type { Boring, FoundationParams } from './piles';
 
-export interface CaissonInput { Nk: number; NkMin: number; Mx: number; My: number; Hx?: number; Hy?: number; boring?: Boring }
+export interface CaissonInput {
+  Nk: number; NkMin: number; Mx: number; My: number; Hx?: number; Hy?: number; boring?: Boring;
+  /** Dimensões impostas (m): base Db e fuste Df (opcional); só verificadas (FU3). */
+  fixed?: { Db: number; Df?: number };
+}
 
 export interface CaissonTry {
   depth: number; Df: number; Db: number; Hcone: number; H: number; rodape: number;
@@ -35,7 +39,7 @@ export function caissonShaft(Nk: number, p: FoundationParams) {
 
 export function tryCaisson(inp: CaissonInput, depth: number, p: FoundationParams): CaissonTry {
   const reasons: string[] = [];
-  const { Df } = caissonShaft(inp.Nk, p);
+  const Df = inp.fixed?.Df ?? caissonShaft(inp.Nk, p).Df;
   const M = Math.hypot(inp.Mx, inp.My);
   const L = depth - p.cutoff;
   const b = inp.boring;
@@ -47,7 +51,8 @@ export function tryCaisson(inp: CaissonInput, depth: number, p: FoundationParams
     return r ? { s: r.sigma, spt: { Nbar: r.Nbar, Nused: r.Nused, from: r.from, to: r.to } } : null;
   };
   let best: CaissonTry | null = null;
-  for (let Db = Df; Db <= p.tbDbMax + 1e-9; Db = Math.round((Db + 0.05) * 100) / 100) {
+  const Dbs = inp.fixed ? [inp.fixed.Db] : null;
+  for (let Db = Dbs ? Dbs[0] : Df; Dbs ? Db === Dbs[0] : Db <= p.tbDbMax + 1e-9; Db = Dbs ? NaN : Math.round((Db + 0.05) * 100) / 100) {
     const sg = sigmaOf(Db);
     if (!sg) { reasons.push('sem SPT abaixo da base para estimar σadm'); break; }
     const Hcone = Db > Df + 1e-9 ? 0.866 * (Db - Df) : 0;
@@ -62,7 +67,7 @@ export function tryCaisson(inp: CaissonInput, depth: number, p: FoundationParams
     break;
   }
   if (!best) {
-    if (!reasons.length) reasons.push(`base maior que ${p.tbDbMax} m`);
+    if (!reasons.length) reasons.push(inp.fixed ? `base imposta φ${inp.fixed.Db.toFixed(2)} m não atende σadm na cota ${depth} m` : `base maior que ${p.tbDbMax} m`);
     return { depth, Df, Db: NaN, Hcone: NaN, H: NaN, rodape: p.tbRodape, sigmaAdm: NaN, W: NaN, Nbase: NaN, sigmaBaseMax: NaN, volume: Infinity, ok: false, reasons };
   }
   if (best.H > p.tbHmax + 1e-9) reasons.push(`altura da base ${best.H.toFixed(2)} m > ${p.tbHmax} m`);
@@ -74,7 +79,8 @@ export function tryCaisson(inp: CaissonInput, depth: number, p: FoundationParams
 export function designCaisson(inp: CaissonInput, p: FoundationParams): CaissonResult | { ok: false; messages: string[]; tries: CaissonTry[] } {
   const messages: string[] = [];
   if (inp.NkMin < 0) return { ok: false, messages: ['N mín < 0: tubulão de concreto simples não resiste à tração.'], tries: [] };
-  const sh = caissonShaft(inp.Nk, p);
+  const sh0 = caissonShaft(inp.Nk, p);
+  const sh = inp.fixed?.Df ? { ...sh0, Df: inp.fixed.Df, sigma: (p.gammaF * inp.Nk) / 1000 / ((Math.PI * inp.fixed.Df ** 2) / 4) } : sh0;
   const sigmaSrc = p.tbSigmaMode === 'informada' ? 'informada' : `estimada pelo SPT: N̄/${p.tbSptDiv} MPa (a confirmar)`;
   let tries: CaissonTry[];
   let mode: CaissonResult['depthMode'];

@@ -7,3 +7,5 @@ O nome "Statikos" e a identidade visual não são licenciados pela Apache-2.0: o
 Componentes de terceiros distribuídos junto:
 - public/vendor/nasjidwg-0.18.0.mjs: nasjidwg (escritor de DWG), Copyright 2026 Ahmed Elhagar, licença MIT
   (public/vendor/nasjidwg-LICENSE.txt e nasjidwg-NOTICE.txt).
+- public/vendor/three-0.186.1.mjs: three.js (renderizador WebGL e classes da vista 3D, gerado por scripts/vendor-three.mjs), Copyright 2010-2026 three.js authors, licença MIT
+  (public/vendor/three-LICENSE.txt).

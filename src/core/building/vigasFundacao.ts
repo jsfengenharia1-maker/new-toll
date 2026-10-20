@@ -61,10 +61,11 @@ export function geometriaVF(b: BuildingModel, v: VigaFundacao): GeometriaVF {
 /** Ponta equilibrada? ('auto': a que chega a sapata ou bloco de divisa, canto ou posição livre.) */
 export function pontasEquilibradas(v: VigaFundacao, g: Pick<GeometriaVF, 'ini' | 'fim'>): { ini: boolean; fim: boolean } {
   if (v.tipo !== 'equilibrio') return { ini: false, fim: false };
-  const exc = (pt: PontaVF | null) => !!pt?.elemento && pt.elemento.tipo !== 'tubulao' && pt.elemento.posicao !== 'centrada';
+  const exc = (pt: PontaVF | null) => !!pt?.elemento && pt.elemento.pilares.length === 1 && pt.elemento.tipo !== 'tubulao' && pt.elemento.posicao !== 'centrada';
   const eq = v.equilibrio ?? 'auto';
   if (eq === 'auto') return { ini: exc(g.ini), fim: exc(g.fim) };
-  return { ini: eq.ini && !!g.ini?.elemento && g.ini.elemento.tipo !== 'tubulao', fim: eq.fim && !!g.fim?.elemento && g.fim.elemento.tipo !== 'tubulao' };
+  const ok = (pt: PontaVF | null) => !!pt?.elemento && pt.elemento.pilares.length === 1 && pt.elemento.tipo !== 'tubulao';
+  return { ini: eq.ini && ok(g.ini), fim: eq.fim && ok(g.fim) };
 }
 
 // ---------------- alavanca ----------------
@@ -179,6 +180,57 @@ export function diagramaBiapoiada(L: number, cs: { s: number; P: number }[], xs:
   };
 }
 
+/**
+ * Reações de uma viga com apoios intermediários rígidos (cruzamento com outra viga, C11.53): viga contínua de EI constante,
+ * pelo método das forças (apoios intermediários como redundantes, flexibilidade da biapoiada). Devolve as reações nas pontas
+ * e nos apoios `ss` (kN, mesma ordem).
+ */
+export function reacoesComApoios(L: number, cs: { s: number; P: number }[], ss: number[]): { ini: number; fim: number; R: number[] } {
+  if (!ss.length) { const r = reacoesBiapoiada(L, cs); return { ini: r.ini, fim: r.fim, R: [] }; }
+  const G = (x: number, a: number) => { const u = Math.min(x, a), v = Math.max(x, a); return ((L - v) * u * (L * L - (L - v) ** 2 - u * u)) / (6 * L); };
+  const m = ss.length;
+  const A = ss.map((sk) => ss.map((sl) => G(sk, sl)));
+  const rhs = ss.map((sk) => cs.reduce((t, c) => t + c.P * G(sk, c.s), 0));
+  const M = A.map((row, i) => [...row, rhs[i]]);
+  for (let c = 0; c < m; c++) {
+    let p = c;
+    for (let r = c + 1; r < m; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < m; r++) { if (r === c || Math.abs(M[c][c]) < 1e-300) continue; const f = M[r][c] / M[c][c]; for (let k = c; k <= m; k++) M[r][k] -= f * M[c][k]; }
+  }
+  const R = M.map((row, i) => (Math.abs(row[i]) < 1e-300 ? 0 : row[m] / row[i]));
+  const fim = cs.reduce((t, c) => t + (c.P * c.s) / L, 0) - R.reduce((t, r, k) => t + (r * ss[k]) / L, 0);
+  const ini = cs.reduce((t, c) => t + c.P, 0) - R.reduce((t, r) => t + r, 0) - fim;
+  return { ini, fim, R };
+}
+
+/** Cruzamento de duas vigas de fundação em planta: abscissas (m, a partir da ponta inicial de cada uma). */
+export interface CruzamentoVF { apoiada: string; apoio: string; sApoiada: number; sApoio: number; ponto: P }
+
+/**
+ * Vigas que se cruzam fora das pontas (C11.53). A de maior prioridade serve de apoio à outra: equilíbrio sobre travamento;
+ * mesmo tipo, a de maior seção; empate, a lançada antes. A apoiada passa a viga contínua com o apoio no cruzamento (suas
+ * cargas vão em parte à viga cruzada). Cruzamentos a menos de 15 cm de uma ponta ou com ângulo menor que 10° não contam.
+ */
+export function cruzamentosVF(geos: GeometriaVF[]): CruzamentoVF[] {
+  const prio = (g: GeometriaVF, i: number): [number, number, number] => [g.viga.tipo === 'equilibrio' ? 1 : 0, g.viga.b * g.viga.h, -i];
+  const maior = (a: [number, number, number], z: [number, number, number]) => a[0] - z[0] || a[1] - z[1] || a[2] - z[2];
+  const out: CruzamentoVF[] = [];
+  for (let i = 0; i < geos.length; i++) for (let j = i + 1; j < geos.length; j++) {
+    const g = geos[i], h = geos[j];
+    if (g.erro || h.erro) continue;
+    const den = g.u[0] * h.u[1] - g.u[1] * h.u[0];
+    if (Math.abs(den) < Math.sin((10 * Math.PI) / 180)) continue;
+    const dx = h.a[0] - g.a[0], dy = h.a[1] - g.a[1];
+    const si = (dx * h.u[1] - dy * h.u[0]) / den, sj = (dx * g.u[1] - dy * g.u[0]) / den;
+    if (si < 0.15 || si > g.L - 0.15 || sj < 0.15 || sj > h.L - 0.15) continue;
+    const ponto: P = [g.a[0] + si * g.u[0], g.a[1] + si * g.u[1]];
+    const gSup = maior(prio(g, i), prio(h, j)) > 0;
+    out.push(gSup ? { apoiada: h.viga.id, apoio: g.viga.id, sApoiada: sj, sApoio: si, ponto } : { apoiada: g.viga.id, apoio: h.viga.id, sApoiada: si, sApoio: sj, ponto });
+  }
+  return out;
+}
+
 // ---------------- resultado e dimensionamento ----------------
 
 export interface ArmaduraVF { As: number; AsMin: number; barras: BarChoice | null; dupla?: boolean }
@@ -198,6 +250,8 @@ export interface ResultadoVigaFundacao {
   cargas: { ini: number; fim: number };
   /** Momento da excentricidade de execução das estacas em cada ponta (característico, kN·m). */
   travamento: { ini: number; fim: number };
+  /** Cruzamentos com outras vigas (C11.53): a apoiada tem apoio intermediário no cruzamento; o apoio recebe a reação (kN, soma dos casos sem vento). */
+  cruzamentos?: { com: string; papel: 'apoiada' | 'apoio'; s: number; R: number }[];
   /** Envoltória característica: momento que traciona a face superior e a inferior (kN·m) e cortante (kN). */
   Mk: { sup: number; inf: number }; Vk: number;
   Md: { sup: number; inf: number }; Vd: number;
@@ -223,6 +277,10 @@ export interface EntradaVF {
   travamento: { ini: number; fim: number };
   /** Alívio levado a cada ponta (kN). */
   alivio: { ini: number; fim: number };
+  /** Apoios intermediários (cruzamento com viga de maior prioridade): reação por caso (kN, para cima) na abscissa s. */
+  apoios?: { caso: string; s: number; R: number; com: string }[];
+  /** Cruzamentos para exibição. */
+  cruzamentos?: ResultadoVigaFundacao['cruzamentos'];
   mensagens: string[]; notas: string[];
 }
 
@@ -268,7 +326,8 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   }
   // cargas sobre a viga (biapoiada entre os pilares), soma dos casos sem vento
   const vento = new Set(casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.id));
-  const cs = cargasDaViga(g, ent.cargas).filter((c) => !vento.has(c.caso));
+  const ap = (ent.apoios ?? []).filter((a) => !vento.has(a.caso)).map((a) => ({ s: a.s, P: -a.R }));
+  const cs = [...cargasDaViga(g, ent.cargas).filter((c) => !vento.has(c.caso)), ...ap];
   const bi = diagramaBiapoiada(L, cs, xs), rq = reacoesBiapoiada(L, cs);
   const Mtr = Math.max(ent.travamento.ini, ent.travamento.fim), Vtr = (ent.travamento.ini + ent.travamento.fim) / L;
   const Msup = xs.map((_, i) => Math.max(0, Mlev[i]) + Math.max(0, -bi.M[i]) + Mtr);
@@ -326,7 +385,7 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd,
     diagrama: { s: xs, Msup, Minf, V },
     armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d },
-    volume: bw * h * Lc, aco: aco_, status,
+    volume: bw * h * Lc, aco: aco_, status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),
     resumo: `${v.nome} ${Math.round(bw * 100)}×${Math.round(h * 100)}: sup. ${txt(r.sup.barras)}, inf. ${txt(r.inf.barras)}${est ? `, estribo φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : ''} (Md ${fmt(Md.sup, 1)}/${fmt(Md.inf, 1)} kN·m; Vd ${fmt(Vd, 1)} kN)`,
   };
 }
@@ -336,6 +395,7 @@ export function resumoVigaFundacao(r: ResultadoVigaFundacao) {
   return {
     id: r.id, nome: r.nome, tipo: r.tipo, ini: r.ini, fim: r.fim, L: +r.L.toFixed(3), secao: [r.bAdot, r.hAdot], equilibrio: r.equilibrio,
     alivio: { ini: +r.alivio.ini.toFixed(1), fim: +r.alivio.fim.toFixed(1) }, Md: { sup: +r.Md.sup.toFixed(1), inf: +r.Md.inf.toFixed(1) }, Vd: +r.Vd.toFixed(1),
+    ...(r.cruzamentos?.length ? { cruzamentos: r.cruzamentos.map((c) => ({ com: c.com, papel: c.papel, s: +c.s.toFixed(3), R: +c.R.toFixed(1) })) } : {}),
     status: r.status, mensagens: r.mensagens, resumo: r.resumo,
   };
 }

@@ -11,18 +11,18 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 18 | 7 | 13 | 3 |
+| 3. Grupos e pavimentos | 41 | 25 | 7 | 6 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 13 | 17 | 53 | 25 |
-| 7. Lajes | 195 | 20 | 32 | 76 | 67 |
+| 7. Lajes | 195 | 21 | 32 | 75 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
-| 11. Fundações | 70 | 24 | 13 | 28 | 5 |
+| 11. Fundações | 70 | 31 | 19 | 15 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **132** | **119** | **327** | **185** |
+| **Total** | **763** | **147** | **125** | **306** | **185** |
 
 ## Pendências por frente
 
@@ -31,9 +31,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 19 | 37 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026) | 14 | 31 | 45 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026) | 20 | 18 | 38 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 35 | 42 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
 ## 0. Apresentação do programa
 
@@ -174,13 +174,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Falta | V | [V2] |
 | C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2] |
 | C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Falta | V | linhas de seção no pavimento [V2] |
-| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Falta | V | vista 3D [V1] |
-| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Falta | V | [V1] |
-| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Falta | V | [V1] |
-| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Falta | V | [V1] |
-| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Falta | V | [V1] |
-| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Falta | V | [V1] |
-| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Falta | V | [V1] |
+| C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Feito | — | vista 3D por grupo, intervalo de pavimentos ou um pavimento: `construirCena` (`src/core/vista3d/cena.ts`), aba 3D (`src/app/vista3d/Vista3D.tsx`) [V1] |
+| C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Feito | — | edifício completo na vista 3D (pilares, vigas, lajes e fundações); aço fora [V1] |
+| C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Feito | — | cor por tipo (tokens `--v3d-*` nos três temas) e textura procedural opcional [V1] |
+| C3.38 | Rotação da vista 3D por barras: em torno de z e em torno de x. | Feito | — | barras de azimute e elevação e arrastar (`camera.ts`, `controles.ts`) [V1] |
+| C3.39 | Alternância entre projeção cônica (perspectiva) e isométrica. | Feito | — | perspectiva e isométrica preservando o enquadramento (`alternarProjecao`) [V1] |
+| C3.40 | Na perspectiva, navegação livre por dentro da estrutura. | Feito | — | modo caminhar: altura do olho 1,6 m, W A S D e setas, velocidade ajustável, limites do edifício [V1] |
+| C3.41 | Lajes e paredes com transparência na vista 3D, para mostrar os elementos ocultos. | Feito | — | transparência de lajes e paredes de 0 a 100 %; as paredes entram com a E1 (gerador registrado em `GERADORES_3D`) [V1] |
 
 ## 4. Pilares
 
@@ -427,7 +427,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano [E3f] |
 | C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação [E3f] |
 | C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Falta | L | bloquear o cálculo com pano sem tipo [L5] |
-| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Falta | V | 3D [V1] |
+| C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Feito | — | pano fechado por vigas sem laje: polígono translúcido tracejado com "?" na vista 3D [V1] |
 | | **7.1.2.2 Lajes de vigotas** | | | |
 | C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] [E3a] |
 | C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Falta | E | vigotas protendidas; catálogo de fabricante [E3a] |
@@ -812,26 +812,26 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.4 | Editar placa: dimensionamento automático, verificação e consulta da disposição. | Fora | — |  |
 | C11.5 | Igualar placas: copiar as propriedades de uma placa para outras após o cálculo, para reduzir a variedade; a placa copiada é verificada e fica em vermelho se falhar. | Fora | — |  |
 | | **11.2 Sapatas e blocos** | | | |
-| C11.6 | Número ilimitado de pilares, muros ou pilares-parede apoiados numa sapata ou bloco, em qualquer posição em relação aos eixos dela. | Parcial | FU | um pilar por elemento no módulo Fundações |
+| C11.6 | Número ilimitado de pilares, muros ou pilares-parede apoiados numa sapata ou bloco, em qualquer posição em relação aos eixos dela. | Parcial | FU | FU3 núcleo: `ElementoFundacao.pilares` com vários pilares em qualquer posição (sapata associada e bloco; `fundacao.criar { pilares }`, `calcularGrupo` em `fundacao.ts`, resultante no centro); seleção dos pilares na interface pendente |
 | C11.7 | Cálculo como fundação rígida; cabe ao usuário garantir a rigidez. | Feito | — | bloco/sapata rígidos |
-| C11.8 | Novo elemento: sapata de concreto armado, sapata de concreto simples ou bloco sobre estacas. | Parcial | FU | FU1: sapata armada, bloco sobre estacas e tubulão lançados pela ferramenta Fundação (`fundacao.criar`); sapata de concreto simples na FU3 |
+| C11.8 | Novo elemento: sapata de concreto armado, sapata de concreto simples ou bloco sobre estacas. | Parcial | FU | FU1: sapata armada, bloco sobre estacas e tubulão lançados pela ferramenta Fundação (`fundacao.criar`); FU3 núcleo: sapata de concreto simples (`simples`, `footings.ts` e `footingsGroup.ts`, NBR 6118 cap. 24, a confirmar); interface do tipo pendente |
 | C11.9 | Bloco: escolha do tipo (forma e número de estacas) e definição da estaca — descrição, seção circular ou quadrada, capacidade de carga característica e distância entre eixos. | Feito | — | tipos de bloco (1 a 6 estacas), estaca e capacidade (Décourt-Quaresma) |
 | C11.10 | Elemento de um pilar: pilar destacado ao aproximar e prévia da posição relativa pilar/sapata conforme o ponto do cursor (centrada, de divisa, de canto etc.); ângulo padrão igual ao do pilar. | Feito | — | FU1: ferramenta Fundação (U) na planta de fundação: pilar destacado ao aproximar, posição automática pelo ponto do clique (perto do centro: centrada; de uma face: de divisa, com a face realçada; de um canto: de canto) ou escolhida (livre: clique no pilar e no centro), ângulo padrão = o do pilar (`Planta.tsx`, `posicaoPeloClique`, `ladoPeloClique`) |
-| C11.11 | Elemento de vários pilares (sapata associada): seleção dos pilares/pilares-parede; ponto de inserção na média das coordenadas dos pilares, movível depois; ângulo do primeiro pilar. | Falta | FU | sapata associada |
-| C11.12 | Editar: dimensionar automaticamente ou verificar dimensões e armadura impostas pelo usuário. | Parcial | FU | FU1: dimensiona automaticamente; sapata com dimensões impostas só verificada (`ElementoFundacao.impostas`, campos A, B, h do grupo Fundação e "Impor as calculadas"); blocos e armadura impostos na FU3 |
+| C11.11 | Elemento de vários pilares (sapata associada): seleção dos pilares/pilares-parede; ponto de inserção na média das coordenadas dos pilares, movível depois; ângulo do primeiro pilar. | Parcial | FU | FU3 núcleo: sapata associada (`footingsGroup.ts`: base centrada na resultante, tensões sem tração em polígono, faixas pelo diagrama de momentos; ponto de inserção na média dos pilares e ângulo do primeiro, `fundacao.criar`/`fundacao.unir`); seleção dos pilares e ponto de inserção movível na interface pendentes |
+| C11.12 | Editar: dimensionar automaticamente ou verificar dimensões e armadura impostas pelo usuário. | Parcial | FU | FU1: dimensiona automaticamente; sapata com dimensões impostas só verificada. FU3 núcleo: impostas de sapata (A, B, h, h0 e armadura por direção), de bloco (lx, ly, h e tirantes) e de tubulão (base e fuste), `fundacao.impor` e modo só verificar (`impostasDoResultado`); editor de blocos, tubulões e armadura na interface pendente |
 | C11.13 | Apagar sapata ou bloco. | Feito | — | FU1: `fundacao.remover` pela tecla Del, botão Remover da barra da planta e grupo Fundação (e em cascata no `pilar.remover`) |
 | C11.14 | Mover elemento de fundação. | Feito | — | FU1: ferramenta Mover da planta de fundação aplica `fundacao.mover` (o elemento passa a posição livre, pilar excêntrico) |
 | C11.15 | Girar em torno do centro: por ângulo digitado, por dois pontos (vetor de direção) ou pelo ângulo de um pilar apoiado (com vários, o do primeiro). | Parcial | FU | FU1: `fundacao.girar` por ângulo digitado, pelo ângulo do pilar (o do primeiro) e em 90° (R), no grupo Fundação e na barra da planta; falta o giro por dois pontos na interface (só pela linha de comando) |
-| C11.16 | Unir várias sapatas numa só (não vale para blocos). | Falta | FU |  |
-| C11.17 | Igualar sapatas: copiar geometria, tipo e armadura de uma sapata mestre para outras. | Falta | FU |  |
+| C11.16 | Unir várias sapatas numa só (não vale para blocos). | Parcial | FU | FU3 núcleo: `fundacao.unir` (só sapatas da mesma cota; blocos não; o primeiro fica, vigas das pontas removidas passam ao unido); interface pendente |
+| C11.17 | Igualar sapatas: copiar geometria, tipo e armadura de uma sapata mestre para outras. | Parcial | FU | FU3 núcleo: `fundacao.igualar` (tipo, geometria e armadura calculadas do modelo; as cópias só são verificadas e ficam em erro se não atenderem, FUND_IGUAL_MODELO quando o modelo não tem solução); interface pendente |
 | C11.18 | Informação: materiais (inclusive tensão admissível do solo nas sapatas), geometria, resultados, avisos e erros. | Feito | — | resultados, avisos e memorial de fundações; no edifício, fck, aço e cobrimento da fundação nos materiais (`materiais.definir`, FU1) e σadm no terreno |
 | | **11.2.3 Opções avançadas de sapatas (módulo adicional)** | | | |
-| C11.19 | Limites poligonais que as sapatas de concreto não podem invadir (divisa, poço de elevador, reservatórios), também úteis para gerar sapatas poligonais irregulares. | Falta | FU |  |
-| C11.20 | Limites por polilinhas digitadas ou capturadas de gabarito DXF/DWG; valem só para o grupo onde foram lançados; uma sapata pode ser cortada por vários limites. | Falta | FU |  |
-| C11.21 | A sapata é aparada pelo limite, conserva-se a parte com o(s) pilar(es) e o dimensionamento nunca ultrapassa o limite. | Falta | FU |  |
-| C11.22 | Edição dos limites: apagar, mover, inserir vértice, eliminar trecho. | Falta | FU |  |
-| C11.23 | Restrições do limite: não cortar pilar; cortar o contorno da sapata antes e depois do dimensionamento; não isolar um pilar dos demais numa sapata associada; se violadas, o limite é ignorado. | Falta | FU |  |
-| C11.24 | Limites não afetam vigas de equilíbrio/travamento, blocos, sapatas de altura variável nem sapatas corridas; só sapatas de altura constante. | Falta | FU |  |
+| C11.19 | Limites poligonais que as sapatas de concreto não podem invadir (divisa, poço de elevador, reservatórios), também úteis para gerar sapatas poligonais irregulares. | Parcial | FU | FU3 núcleo: `LimiteFundacao` e `limite.criar/editar/remover` (polilinha aberta ou fechada, por cota de nível); sapata poligonal por recorte do retângulo (`recorteLimites`); interface (desenho do limite) pendente |
+| C11.20 | Limites por polilinhas digitadas ou capturadas de gabarito DXF/DWG; valem só para o grupo onde foram lançados; uma sapata pode ser cortada por vários limites. | Parcial | FU | FU3 núcleo: limites por polilinha digitada, válidos por nível (`cota`), vários cortando a mesma sapata; captura da máscara DXF/DWG na interface pendente |
+| C11.21 | A sapata é aparada pelo limite, conserva-se a parte com o(s) pilar(es) e o dimensionamento nunca ultrapassa o limite. | Parcial | FU | FU3 núcleo: a sapata de altura constante é aparada, fica a parte com o(s) pilar(es) e `designFootingGroup` dimensiona sobre a região aparada (pressões em polígono, momentos por faixa); desenho do contorno aparado na interface pendente |
+| C11.22 | Edição dos limites: apagar, mover, inserir vértice, eliminar trecho. | Parcial | FU | FU3 núcleo: `limite.editar` (`pontos` substitui a polilinha: mover, inserir vértice, eliminar trecho) e `limite.remover`; edição gráfica pendente |
+| C11.23 | Restrições do limite: não cortar pilar; cortar o contorno da sapata antes e depois do dimensionamento; não isolar um pilar dos demais numa sapata associada; se violadas, o limite é ignorado. | Feito | — | FU3: limite que corta pilar ou isola pilar da associada é ignorado com aviso (FUND_LIMITE_IGNORADO); limite que não atravessa a base não tem efeito (`footingsGroup.ts`) |
+| C11.24 | Limites não afetam vigas de equilíbrio/travamento, blocos, sapatas de altura variável nem sapatas corridas; só sapatas de altura constante. | Feito | — | FU3: só sapatas de altura constante (`alturaConstante`) são aparadas; sapata de altura variável ignora o limite com aviso; blocos, tubulões e vigas não o usam |
 | C11.25 | Cargas pontuais, lineares e de superfície aplicadas sobre sapatas, blocos e vigas de fundação, consideradas no dimensionamento. | Feito | — | FU2: cargas pontuais, lineares e de superfície do grupo "fundacao" lançadas na planta de fundação (ferramenta Carga; grupo Fundação › Cargas no nível de fundação) sobre vigas (biapoiadas entre os pilares, levadas às pontas por caso) e sobre elementos (somadas ao pilar, sem momento); fora deles, aviso FUND_CARGA_FORA; núcleo em `vigasFundacao.ts` e `fundacao.ts` |
 | C11.26 | Reconhecimento das cargas de apoios de escadas sobre elementos de fundação. | Falta | FU |  |
 | C11.27 | Solo sob vigas de equilíbrio/travamento desconsiderado: as vigas resistem às cargas sobre elas e transmitem às sapatas, blocos ou vigas que cruzam. | Parcial | FU | FU2: vigas sem apoio no solo, peso próprio e cargas sobre elas levados às pontas (`cargasDaViga`, `reacoesBiapoiada`); lançamento e janela na interface; cruzamento de vigas pendente |
@@ -841,12 +841,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Falta | FU |  |
 | C11.31 | Atribuir sapata a muro lançado sem ela, pelo menu de elementos de fundação. | Falta | FU |  |
 | | **11.2.5 Opções de fundação (dados gerais)** | | | |
-| C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Falta | FU |  |
-| C11.33 | Permitir ou não levantamento (descolamento) da sapata; sem permissão, a resultante deve cair no núcleo central. | Parcial | FU | área comprimida ≥ 2/3 [a confirmar] |
-| C11.34 | Não colocar malha superior se a sapata passar como concreto simples (malha só se falhar à flexão com resistência à tração do concreto). | Falta | FU |  |
+| C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Feito | — | FU3: opção `fundReducaoTaxa` (As,mín = menor entre ρmín·b·h e 4/3 da calculada, NBR 6118 17.3.5.2.1, a confirmar); desligada por padrão |
+| C11.33 | Permitir ou não levantamento (descolamento) da sapata; sem permissão, a resultante deve cair no núcleo central. | Feito | — | FU3: opção `fundDescolamento` (ligada: só σmáx limita; desligada: área comprimida ≥ 2/3 [a confirmar]) em sapatas isoladas e associadas |
+| C11.34 | Não colocar malha superior se a sapata passar como concreto simples (malha só se falhar à flexão com resistência à tração do concreto). | Feito | — | FU3: malha superior da sapata associada só quando a tração do concreto simples 6M/(b·h²) passa de fctd (γc × 1,2) no momento negativo entre pilares (`FlexDir.top`) |
 | C11.35 | Tipo de equilíbrio sob sapata com viga de equilíbrio: distribuição retangular (equilíbrio perfeito) ou trapezoidal (giro da sapata, momento na viga ~10 % menor). | Feito | — | FU2: opção `vigaEqDistribuicao` (0 retangular, equilíbrio total; 1 trapezoidal, equilibrada só a excentricidade além do núcleo central) em Opções de cálculo; a janela do elemento mostra a distribuição, a alavanca (R/N) e o alívio |
-| C11.36 | Relação máxima entre o maior vão entre pilares da sapata e a altura, para considerá-la rígida. | Parcial | FU | h0 e rigidez [a confirmar] |
-| C11.37 | Relação máxima entre o maior balanço e a altura. | Falta | FU |  |
+| C11.36 | Relação máxima entre o maior vão entre pilares da sapata e a altura, para considerá-la rígida. | Feito | — | FU3: opção `fundVaoAltura` (vão máximo entre pilares vizinhos ≤ 2·h, a confirmar): a altura da associada sobe até a sapata ser rígida |
+| C11.37 | Relação máxima entre o maior balanço e a altura. | Feito | — | FU3: opção `fundBalancoAltura` (balanço ≤ 1,5·h, NBR 6118 22.6.1) na sapata isolada e na associada |
 | | **11.3 Vigas de equilíbrio e de travamento** | | | |
 | C11.38 | Viga de travamento e sapata corrida sem flexão rígida; viga de equilíbrio com flexão, absorvendo o momento da excentricidade entre pilar e eixo da sapata. | Parcial | FU | FU2: viga de equilíbrio com o momento da alavanca (`alavanca`, `diagramaAlavanca`) e travamento com Nk × excentricidade de execução (opção `vigaTravExc`, a confirmar), com editor e janela; sapata corrida (sem flexão rígida) na FU6 |
 | C11.39 | Vigas não consideradas apoiadas no solo. | Feito | — | FU2: vigas não apoiadas no solo (só pontas); peso próprio e cargas do nível levados às pontas |
@@ -863,7 +863,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.50 | Apagar viga. | Feito | — | FU2: Remover no editor, Del e botão da barra da planta (`vigaFundacao.remover`); as vigas saem junto com o elemento ou o pilar das pontas |
 | C11.51 | Ativar/desativar o equilíbrio em cada extremidade, indicado por seta curva. | Feito | — | FU2: equilíbrio por ponta no editor, indicado na planta por seta curva (anel aberto sobre o pilar da ponta equilibrada) |
 | C11.52 | Igualar vigas: copiar o tipo de uma viga de equilíbrio ou travamento para outras; se a seção copiada for insuficiente, a viga fica em vermelho; ancoragens redimensionadas; a mestre não muda. | Feito | — | FU2: "Igualar esta ao modelo" e "Igualar as selecionadas a esta" (`vigaFundacao.igualar`): copia a seção e a fixa (copiada só verificada, em vermelho se não atender); a mestre não muda |
-| C11.53 | Módulo avançado: cargas sobre vigas de fundação (como C11.25) e cruzamento de vigas de equilíbrio e travamento. | Parcial | FU | FU2: cargas sobre vigas de fundação como C11.25 (lançadas na planta); cruzamento de vigas de equilíbrio e de travamento pendente |
+| C11.53 | Módulo avançado: cargas sobre vigas de fundação (como C11.25) e cruzamento de vigas de equilíbrio e travamento. | Parcial | FU | FU2: cargas sobre vigas de fundação como C11.25 (lançadas na planta); FU3 núcleo: cruzamento de vigas (`cruzamentosVF`, `reacoesComApoios`: a de maior prioridade apoia a outra, que passa a contínua com apoio no cruzamento; reação como carga concentrada; FUND_VIGA_CRUZA); interface do cruzamento pendente |
 | | **11.4 Geração automática** | | | |
 | C11.54 | Geração automática de sapatas e vigas segundo parâmetros dados numa janela. | Falta | FU |  |
 | C11.55 | Balanço nulo numa direção quando há pilar em frente só de um lado. | Falta | FU |  |
@@ -871,13 +871,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.57 | Distância máxima entre eixos de pilares para criar sapata associada: padrão 1 m, máximo 3 m. | Falta | FU |  |
 | C11.58 | Elementos gerados editáveis depois. | Falta | FU |  |
 | | **11.5 Cálculo e resultados** | | | |
-| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`; janela com os desenhos e verificações do módulo Fundações); sem sapatas corridas, vigas de fundação e placas |
+| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`; janela com os desenhos e verificações do módulo Fundações), sapatas associadas e blocos com vários pilares (FU3 núcleo); sem sapatas corridas e placas |
 | C11.60 | Aviso de erros/avisos ao fim do cálculo, a consultar depois. | Feito | — |  |
 | C11.61 | Vários níveis de fundação; escolha dos grupos cuja fundação será calculada. | Parcial | FU | FU1: cota de assentamento por elemento (`cota`, padrão `cotaFundacao`) editável no grupo Fundação, níveis em `niveisFundacao` e cálculo por nível (`calcularFundacoes`, opção `niveis`); falta a escolha dos níveis calculados na interface |
 | C11.62 | Três modos de dimensionamento (descritos na ajuda do programa). | Feito | — | FU1: opção `fundModo` (0 dimensionar, 1 só verificar com as dimensões impostas ou as anteriores, 2 só os com erro) escolhida no grupo Fundação e executada no worker com os resultados anteriores (`calcularFundacoes`) |
 | C11.63 | Exige o cálculo completo da estrutura para ter os esforços nas bases dos pilares. | Feito | — | cargas importadas do edifício |
 | C11.64 | Elementos com erro em vermelho e mensagem por clique. | Feito | — | FU1: erros e avisos FUND_* (`revisao.ts`) em vermelho/amarelo na planta de fundação, na lista de erros (clique leva ao elemento; duplo clique abre a janela com as mensagens) e na janela do elemento (`Fundacao.tsx`, `JanelaFundacao`) |
-| C11.65 | Aviso de sapatas sobrepostas e opção de eliminar sobreposições, que reorganiza e cria sapata associada sob os pilares. | Falta | FU |  |
+| C11.65 | Aviso de sapatas sobrepostas e opção de eliminar sobreposições, que reorganiza e cria sapata associada sob os pilares. | Parcial | FU | FU3 núcleo: aviso FUND_SOBREPOSTA (`sobreposicoes`, `gruposSobrepostos`) e `fundacao.eliminarSobreposicoes` (une as sapatas sobrepostas numa associada); botão na interface pendente |
 | | **11.6 Relatórios e desenhos** | | | |
 | C11.66 | Relatório de fundação: dados de sapatas, blocos, vigas e placas de base com dimensões e verificações. | Feito | — | memorial de fundações |
 | C11.67 | Planta de locação da fundação: elementos, arranques de pilares, armaduras e dimensões, e quadros de sapatas e de vigas de fundação. | Falta | FU |  |
@@ -956,4 +956,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 113 → 126; Parcial 133 → 121; Falta 332 → 331; Fora 185 → 185.
   - Pendências por frente: FU 58 → 45 (Parcial 26 → 14, Falta 32 → 31); demais sem mudança.
 - **20/10/2026 — specs E3, E4, L e V (só documentação).** Pendências E restantes (146 neste manual) alocadas às fatias E3a–E3f de `spec-frente-E3.md` (cap. 7: 77) e E4a–E4e de `spec-frente-E4.md` (cap. 8, C0.1, C1.33, C1.34 e C10.26: 69); pendências L (71) às fatias L1–L5 de `spec-frente-L.md`; pendências V (42) às fatias V1–V5 de `spec-frente-V.md`. A fatia vai na nota de cada item (ex. "[E3b]", "[L2]", "[V1]"); a frente continua a letra. Conferido por script: cada id em uma só fatia, sem sobra. Previstas reclassificações no fechamento da E4e (C0.1 Feito com "aço fora", C1.34 Fora). Situação e contagens sem mudança.
+- **20/10/2026 — fatia FU3 no núcleo (sapatas associadas, blocos com vários pilares, limites e edição).** `src/core/footingsGroup.ts` (sapata de vários pilares e/ou aparada por limites: base centrada na resultante, tensões sem tração em polígono, faixas pelo diagrama de momentos com negativo entre pilares e malha superior só se a tração passar de fctd, compressão diagonal por pilar), `footings.ts` (concreto simples, altura constante, descolamento, armadura imposta, taxa mínima reduzida, balanço/altura), `caps.ts` (bielas por pilar, tirantes pelo equilíbrio dos nós, bloco imposto), `caissons.ts` (tubulão imposto), `fundacao.ts` (`calcularGrupo`, igualar, sobreposição, cruzamento) e `vigasFundacao.ts` (`cruzamentosVF`, `reacoesComApoios`). Comandos `fundacao.unir/igualar/impor/eliminarSobreposicoes` e `limite.criar/editar/remover`; opções `fundDescolamento`, `fundVaoAltura`, `fundBalancoAltura`, `fundSimplesGamma`, `fundReducaoTaxa`; códigos FUND_SOBREPOSTA, FUND_LIMITE_IGNORADO, FUND_IGUAL_MODELO e FUND_VIGA_CRUZA; premissa `fundacoes-grupo`. Falta → Feito: C11.23, C11.24, C11.32, C11.34, C11.37; Parcial → Feito: C11.33, C11.36; Falta → Parcial (interface pendente): C11.11, C11.16, C11.17, C11.19–C11.22, C11.65; notas de C11.6, C11.8, C11.12, C11.53 e C11.59 atualizadas.
+  - Situação: Feito 113 → 120; Parcial 133 → 139; Falta 332 → 319; Fora 185 → 185.
+  - Pendências por frente: FU 58 → 51 (Parcial 26 → 32, Falta 32 → 19); demais sem mudança.
+- **20/10/2026 — fatia V1 (vista 3D do modelo), núcleo e interface.** `src/core/vista3d/` (`cena.ts`: `construirCena` com escopo por grupos, intervalo ou pavimentos e filtro de tipos; geradores registrados em `GERADORES_3D` para pilares por lance, vigas, lajes com furos triangulados (`triangular.ts`, ear clipping próprio), panos a definir e fundações da FU1/FU2; `malha.ts`; `camera.ts`: órbita, enquadramento, troca de projeção e caminhar; `isometrico.ts`: SVG estático) e `src/app/vista3d/` (three.js 0.186.1 vendorizado em `public/vendor` por `scripts/vendor-three.mjs`, carregado sob demanda; `renderizador.ts`, `controles.ts`, `Vista3D.tsx`, aba 3D do Edifício, seleção sincronizada com a planta, captura PNG, fallback em SVG sem o vendor ou sem WebGL, figura isométrica no memorial do edifício). C3.35 a C3.41 e C7.18 fechados como Feito (aço fora na C3.36; paredes entram com a E1 na C3.41). Premissas a confirmar: altura do olho 1,6 m, velocidade inicial 2 m/s, toco do arranque 0,4 m, estaca nominal de 5 m sem comprimento calculado, viga invertida sobe a partir da cota da laje, detalhe alto = capa e vigotas em linhas.
+  - Situação: Feito 126 → 134; Parcial 121 → 121; Falta 331 → 323; Fora 185 → 185.
+  - Pendências por frente: V 42 → 34 (Parcial 7 → 7, Falta 35 → 27); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

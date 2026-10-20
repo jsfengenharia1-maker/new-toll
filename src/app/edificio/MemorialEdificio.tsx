@@ -9,13 +9,13 @@ import { valorOpcaoTxt } from './OpcoesCalculo';
 import { descreverTabela, rotuloTabela, tabelasAlteradas } from '../../core/building/tabelasArmadura';
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, padraoDe, perfilDe, vinculosAlterados } from '../../core/building/opcoes';
 import { acoDe, cobrimentoFundacao, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
-import { Button, download, Spacer } from '../ui';
+import { Button, Check, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
 import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
-import { svgPlantaGrupo } from './desenhoMemorial';
+import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
@@ -36,6 +36,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const b = sessao.modelo;
   const docRef = useRef<HTMLDivElement>(null);
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
+  const [iso, setIso] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && revAnalise !== sessao.revCalculo;
   const perfil = perfilDe(b);
@@ -86,6 +87,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
         <b>Memorial do edifício</b>
         <span className="muted">{!analise ? 'Sem cálculo: só geometria e premissas.' : velha ? 'O modelo mudou depois do cálculo: calcule de novo.' : 'Gerado a partir do último cálculo.'}</span>
         <Spacer />
+        <Check label="Incluir vista isométrica" checked={iso} onChange={setIso} />
         <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
         <Button onClick={exportar}>Exportar HTML</Button>
         <Button onClick={onClose}>Fechar</Button>
@@ -123,6 +125,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           </table>
           <p>Fundação na cota {fmt(cotaFundacao(b))} m. {b.pilares.length} pilares, {b.vigas.length} vigas e {b.lajes.length} lajes lançadas.</p>
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
+
+          {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
 
           {h2('Ações')}
           <table>

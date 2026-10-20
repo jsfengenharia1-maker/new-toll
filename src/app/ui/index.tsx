@@ -128,6 +128,18 @@ export function Select<T extends string | number>({ label, value, options, onCha
   );
 }
 
+/** Barra deslizante com o valor ao lado (transparência, velocidade, ângulos). */
+export function Slider({ label, value, min, max, step = 1, unit, onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void }) {
+  const id = useId('sld');
+  return (
+    <label className="slider" htmlFor={id}>
+      <span>{label}</span>
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} />
+      <output htmlFor={id}>{Math.round(value * 10) / 10}{unit}</output>
+    </label>
+  );
+}
+
 export function Hint({ children }: { children: ReactNode }) {
   return <p className="hint">{children}</p>;
 }

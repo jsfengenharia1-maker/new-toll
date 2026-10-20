@@ -47,12 +47,13 @@ async function waitHttp(url, ms = 30000) {
   throw new Error(`servidor não respondeu em ${url}`);
 }
 
-async function launch() {
-  const opts = { headless: !headed };
+/** `webgl`: Chromium com WebGL por software (SwiftShader), para a vista 3D funcionar sem GPU. Fica num navegador à parte porque os flags mudam o tempo de renderização dos demais fluxos. */
+async function launch(webgl = false) {
+  const opts = { headless: !headed, args: webgl ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] };
   if (process.env.PW_CHROMIUM) return chromium.launch({ ...opts, executablePath: process.env.PW_CHROMIUM });
   try { return await chromium.launch(opts); } catch (e) {
     if (!existsSync(FALLBACK_CHROME)) throw e;
-    console.log(`(Chromium padrão do Playwright indisponível; usando ${FALLBACK_CHROME})`);
+    if (!webgl) console.log(`(Chromium padrão do Playwright indisponível; usando ${FALLBACK_CHROME})`);
     return chromium.launch({ ...opts, executablePath: FALLBACK_CHROME });
   }
 }
@@ -76,7 +77,7 @@ async function main() {
   process.on('SIGINT', () => { stop(); process.exit(130); });
 
   const tmp = mkdtempSync(join(tmpdir(), 'statikos-e2e-'));
-  let browser;
+  let browser, browserGL;
   let failed = 0;
   try {
     await waitHttp(baseURL);
@@ -87,8 +88,9 @@ async function main() {
       const t0 = Date.now();
       const contexts = [];
       const errors = [];
-      const newPage = async (init) => {
-        const ctx = await browser.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 900 }, locale: 'pt-BR' });
+      const newPage = async (init, ctxOpts = {}) => {
+        const navegador = f.webgl ? (browserGL ??= await launch(true)) : browser;
+        const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 900 }, locale: 'pt-BR', ...ctxOpts });
         contexts.push(ctx);
         if (init) await ctx.addInitScript(init);
         const page = await ctx.newPage();
@@ -117,6 +119,7 @@ async function main() {
     if (serverLog) console.error(serverLog);
   } finally {
     await browser?.close().catch(() => {});
+    await browserGL?.close().catch(() => {});
     stop();
     if (!failed) rmSync(tmp, { recursive: true, force: true });
   }

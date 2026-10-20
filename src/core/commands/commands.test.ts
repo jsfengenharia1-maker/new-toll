@@ -40,6 +40,9 @@ function base() {
   expect(s.executar('fundacao.criar', { pilar: s.modelo.pilares[0].id, tipo: 'sapata', posicao: 'divisa', lado: [-1, 0] }).ok).toBe(true);
   // FU2: terceiro pilar e duas vigas de fundação (equilíbrio do elemento de P1 até P2; travamento P2–P3)
   expect(s.executar('pilar.inserir', { x: 0, y: 6, secao: { tipo: 'ret', b: 0.2, h: 0.2 } }).ok).toBe(true);
+  // FU3: sapata sob P3 (para unir e igualar) e um limite poligonal
+  expect(s.executar('fundacao.criar', { pilares: [s.modelo.pilares[2].id], tipo: 'sapata', posicao: 'centrada' }).ok).toBe(true);
+  expect(s.executar('limite.criar', { pontos: [[-3, -3], [-3, 9]], nome: 'Divisa' }).ok).toBe(true);
   expect(s.executar('vigaFundacao.criar', { tipo: 'equilibrio', ini: s.modelo.fundacao!.elementos[0].id, fim: s.modelo.pilares[1].id }).ok).toBe(true);
   expect(s.executar('vigaFundacao.criar', { tipo: 'travamento', ini: s.modelo.pilares[1].id, fim: s.modelo.pilares[2].id, b: 0.2, h: 0.5 }).ok).toBe(true);
   return s.modelo;
@@ -121,6 +124,13 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'carga.alvenariaDaMascara': () => ({ grupo: 'g_3', camada: 'ALV' }),
   'fundacao.criar': (b) => ({ pilar: b.pilares[1].id, tipo: 'bloco', posicao: 'canto', lado: [1, 1], cota: -2, sondagem: { modo: 'media' } }),
   'fundacao.editar': (b) => ({ id: b.fundacao!.elementos[0].id, posicao: 'centrada', sigmaAdm: 300, impostas: { A: 1.6, B: 1.4, h: 0.5 }, sondagem: { modo: 'furo', ids: [1] } }),
+  'fundacao.unir': (b) => ({ ids: [b.fundacao!.elementos[0].id, b.fundacao!.elementos[1].id] }),
+  'fundacao.eliminarSobreposicoes': (b) => ({ grupos: [[b.fundacao!.elementos[0].id, b.fundacao!.elementos[1].id]] }),
+  'fundacao.igualar': (b) => ({ modelo: b.fundacao!.elementos[0].id, ids: [b.fundacao!.elementos[1].id] }),
+  'fundacao.impor': (b) => ({ ids: [b.fundacao!.elementos[0].id], impostas: { A: 1.6, B: 1.4, h: 0.5, h0: 0.25, armadura: { x: { phi: 10, s: 0.15 }, y: { phi: 10, n: 9 } } } }),
+  'limite.criar': () => ({ pontos: [[2, -1], [2, 8]], cota: -1.5, nome: 'Poço' }),
+  'limite.editar': (b) => ({ id: b.fundacao!.limites![0].id, pontos: [[-3, -3], [-3, 10]], nome: 'Divisa A' }),
+  'limite.remover': (b) => ({ ids: [b.fundacao!.limites![0].id] }),
   'fundacao.mover': (b) => ({ ids: [b.fundacao!.elementos[0].id], dx: 0.2, dy: 0 }),
   'fundacao.girar': (b) => ({ ids: [b.fundacao!.elementos[0].id], pontos: [[0, 0], [1, 1]] }),
   'fundacao.remover': (b) => ({ ids: [b.fundacao!.elementos[0].id] }),
