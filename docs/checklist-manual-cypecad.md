@@ -11,7 +11,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 16 | 8 | 14 | 3 |
+| 3. Grupos e pavimentos | 41 | 18 | 7 | 13 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 13 | 17 | 53 | 25 |
@@ -22,14 +22,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 11 | 9 | 45 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **113** | **117** | **348** | **185** |
+| **Total** | **763** | **115** | **116** | **347** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
-| N — Cálculo e normas | 12 | 14 | 26 |
+| N — Cálculo e normas | 11 | 13 | 24 |
 | E — Elementos estruturais | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface, em 20/10/2026) | 10 | 48 | 58 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
@@ -152,8 +152,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.10 | Dados dos novos pavimentos: quantidade, alturas, carga variável, carga permanente (revestimento etc.) e nome de cada pavimento. | Feito | — | cota, nome, grupo; cargas por grupo |
 | C3.11 | Categoria de uso do grupo escolhida entre as já definidas. Sem categorias definidas, fica a padrão e pode ser trocada depois. | Feito | — | uso NBR 6120 por grupo |
 | C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Parcial | L | usos da NBR 6120 (6 categorias) |
-| C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Parcial | N | hipóteses variáveis adicionais (Q) com ψ próprio (N1c); a categoria de uso continua uma só |
-| C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Falta | N |  |
+| C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Feito | — | R7-0: classes de uso da NBR 6118 (Tabela 11.2) como casos próprios QB (escritórios) e QC (garagens) com ψ da classe, editável (`norma.definir psiUso`); `casosDaObra`/`casoUsoDoGrupo` em `types.ts`, opção `categoriasUso`; residencial, serviço, áreas comuns e cobertura no caso Q |
+| C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Feito | — | R7-0: carga de uso de cada grupo no caso da sua classe (`analitico.ts`), combinados como variáveis distintas (principal e acompanhante, cada uma sozinha) em `combinacoes.ts`; teste `r70.test.ts` |
 | C3.15 | As categorias da obra são escolhidas nos dados gerais, junto das hipóteses adicionais. | Feito | — | grupo Casos de carga na aba Edifício (N1c) |
 | C3.16 | A categoria é atribuída a cada grupo na edição de grupos, pelo menu de cargas ou pelo de pavimentos. | Feito | — |  |
 | C3.17 | As categorias podem ser definidas antes ou depois dos grupos. No lançamento automático, sempre depois. | Feito | — |  |
@@ -326,7 +326,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
 | C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) |
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a); sem tramo predefinido entre vigas consecutivas [R7b] |
-| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Parcial | R | comandos `viga.unir` e `viga.dividir` (`src/core/commands/vigas.ts`) compõem e decompõem o pórtico e o recálculo redimensiona (bloqueio desconsiderado com BLOQ_IGNORADO); sem ferramenta na planta (R7-0) nem desbloqueio gravado [R7f] |
+| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Parcial | R | comandos `viga.unir` e `viga.dividir` (`src/core/commands/vigas.ts`) compõem e decompõem o pórtico e o recálculo redimensiona (bloqueio desconsiderado com BLOQ_IGNORADO); ferramentas Dividir viga (I) e Unir vigas (J) na planta (R7-0, `Planta.tsx`); sem desbloqueio gravado [R7f] |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento |
 | C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E |  |
@@ -345,7 +345,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E |  |
 | C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
-| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga (só por CLI/MCP: sem ferramenta na planta, R7-0); sem comprimento fixo |
+| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga, com a ferramenta Prolongar viga (O) na planta (R7-0); sem comprimento fixo nem arraste da extremidade |
 | C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos |
 | C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E |  |
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E |  |
@@ -948,4 +948,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 104 → 113; Parcial 126 → 117; Falta 348 → 348; Fora 185 → 185.
   - Pendências por frente: FU 67 → 58 (Parcial 19 → 10, Falta 48 → 48); demais sem mudança.
 - **20/10/2026 — FU1: materiais da fundação e itens "a confirmar".** C11.18 com o concreto, o aço e o cobrimento próprios da fundação do edifício (padrão os da obra, `materiais.definir`); cota do terreno, N·e em módulo e raras sem e com vento em separado conferidos contra o cap. 11 (sem registro em contrário) e adotados como padrão do programa de referência. Situação sem mudança.
+- **20/10/2026 — subfatia R7-0 (pendências das fatias executadas).** C3.13 e C3.14 viram Feito (categorias de uso como casos próprios QB/QC com ψ da classe, NBR 6118 Tabela 11.2; opção `categoriasUso`); notas de C6.34 e C6.53 com as ferramentas Dividir viga, Unir vigas e Prolongar viga da planta. Sem linha nos checklists (R7-0): ferramentas Copiar, Girar e Espelhar a seleção (`editar.girar`, `editar.espelhar`), quadro de vigas colado do Excel, paleta Ctrl+K e Enter repetindo o último comando, tabela de cores da planta por tema, aviso MASCARA_DESALINHADA, origem (combinação, fórmula e item da NBR) e momento na face do pilar na janela do elemento, logo no carimbo (PDF, SVG, DXF e DWG), regressão do edifício de 10 pavimentos e teste de desempenho (13 pavimentos ≤ 3 s). Resumo: capítulo 3 com 18 Feito, 7 Parcial e 13 Falta; frente N com 11 Parcial e 13 Falta.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

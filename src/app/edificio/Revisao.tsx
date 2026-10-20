@@ -1,5 +1,6 @@
 // Revisão de resultados do edifício (frente R1): lista de erros e avisos, janela de resultados por elemento
 // (diagramas de envoltória das vigas, combinações determinantes dos pilares, lajes), deslocamentos laterais e listagem em CSV.
+import type { Origem } from '../../core/building/origem';
 import { useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
@@ -175,6 +176,22 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs }: 
   );
 }
 
+/** Origem de cada grandeza: combinação determinante, fórmula e item da NBR 6118. */
+function Origens({ o }: { o?: Origem[] }) {
+  if (!o?.length) return null;
+  return (
+    <>
+      <h4>Origem dos resultados</h4>
+      <div className="tablewrap">
+        <table className="data quadro" data-origens={o.length}>
+          <thead><tr><th>Grandeza</th><th>Combinação</th><th>Fórmula</th><th>Item</th></tr></thead>
+          <tbody>{o.map((x, i) => <tr key={i}><td className="tl">{x.grandeza}</td><td className="tl small">{x.combinacao}</td><td className="tl small">{x.formula}</td><td className="tl small">{x.item}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 function AbasDetalhe({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; onChange: (a: 'resultados' | 'detalhamento') => void }) {
   return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }]} />;
 }
@@ -200,6 +217,19 @@ function JanelaViga({ id }: { id: string }) {
           <KV rows={[['Mmax (positivo)', d.Mmax || '—'], ['Mmin (negativo)', d.Mmin || '—'], ['Cortante', d.V || '—'], ['Torção', d.T || '—']]} />
         </>
       )}
+      {v.facesPilar?.length > 0 && (
+        <>
+          <h4>Momento na face dos pilares</h4>
+          <div className="tablewrap">
+            <table className="data quadro" data-faces={v.facesPilar.length}>
+              <thead><tr><th>Pilar</th><th>s (m)</th><th>M− (kN·m)</th><th>Combinação</th><th>M+ (kN·m)</th><th>Combinação</th></tr></thead>
+              <tbody>{v.facesPilar.map((f, i) => <tr key={i}><td className="tl">{f.nomePilar || '—'}</td><td className="num">{fmt(f.s)}</td><td className="num">{fmt(Math.min(0, f.Mmin), 1)}</td><td className="tl small">{f.Mmin < 0 ? f.combinacaoMin : '—'}</td><td className="num">{fmt(Math.max(0, f.Mmax), 1)}</td><td className="tl small">{f.Mmax > 0 ? f.combinacaoMax : '—'}</td></tr>)}</tbody>
+            </table>
+          </div>
+          <p className="muted small">Valores na face do pilar (o cálculo usa o trecho rígido até a face − 0,3h, opção “Trecho rígido”), com a mesma redistribuição dos negativos.</p>
+        </>
+      )}
+      <Origens o={v.origens} />
       <h4>Resumo</h4>
       <KV rows={[
         ['Seção b × h (cm)', `${Math.round(v.b * 100)} × ${Math.round(v.h * 100)}`], ['Comprimento (m)', fmt(v.L)],
@@ -244,6 +274,7 @@ function JanelaPilar({ id }: { id: string }) {
             ['ℓe u / v (m)', `${fmt(x.le[0])} / ${fmt(x.le[1])}`], ['λ u / v', `${fmt(x.lambda[0], 0)} / ${fmt(x.lambda[1], 0)}`], ['Utilização', x.util >= 99 ? '> 1' : fmt(x.util)],
             ['Vd (kN)', x.Vd === undefined ? '—' : fmt(x.Vd, 1)], ['Armadura', `${x.armadura} (As ${fmt(x.As * 1e4)} cm²)`], ['Estribo', x.estribo],
           ]} />
+          <Origens o={x.origens} />
           <Mensagens msgs={x.mensagens} />
           <EditorArmaduraPilar key={`${x.pavimentoId}|${x.bloqueada}|${JSON.stringify(x.arranjo)}`} p={x} />
         </section>
@@ -265,6 +296,7 @@ function JanelaLajeResultados({ ls }: { ls: DimEdificio['lajes'] }) {
             ['Flecha total / limite (mm)', `${fmt(x.flecha * 1000, 1)} / ${fmt(x.limite * 1000, 1)}`], ['Flecha das variáveis / limite (mm)', `${fmt(x.flechaQ * 1000, 1)} / ${fmt(x.limiteQ * 1000, 1)}`],
             ['wk / limite (mm)', `${fmt(x.wk, 2)} / ${fmt(x.wkLim, 2)}`],
           ]} />
+          <Origens o={x.origens} />
           <Mensagens msgs={x.mensagens} />
         </section>
       ))}

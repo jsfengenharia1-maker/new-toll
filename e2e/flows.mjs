@@ -54,6 +54,9 @@ function dxfPlanta(extra = 0) {
   return L.join('\n');
 }
 
+/** JPEG 8 × 4 px (vermelho) para o logo do carimbo. */
+const JPEG_TESTE = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAAEAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDHooorhPqD/9k=';
+
 /** Ponto do mundo (m) na tela, pela vista publicada pela planta. */
 async function telaDe(page, x, y) {
   const v = JSON.parse(await page.locator('.planta-cv').getAttribute('data-vista'));
@@ -1430,6 +1433,132 @@ export const flows = [
       // as duas formas de calcular: sem fundação e com fundação
       await page.getByRole('button', { name: 'Calcular sem fundação' }).click();
       await page.locator('.statusbar .msg', { hasText: /Análise|Obra só/ }).waitFor();
+    },
+  },
+  {
+    name: 'R7-0: dividir, unir e prolongar viga pela planta e desfazer; copiar e espelhar; quadro de vigas colado; Ctrl+K e Enter repete; cores da planta; janela da viga com origem e face do pilar; logo no carimbo',
+    async run({ newPage, tmp }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      const solta = () => page.evaluate(() => document.activeElement?.blur?.());
+      const abrir = async (t) => { const d = page.locator('.edif-in details', { has: page.locator('summary', { hasText: t }) }).first(); if (!(await d.evaluate((x) => x.open))) await d.locator('summary').click(); return d; };
+      await solta();
+      const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
+      const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };
+      await vigas(5);
+      // dividir a viga de 10 m no meio (tecla I) e desfazer/refazer
+      await page.keyboard.press('i');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'dividir');
+      await clicar(2.5, 0.02);
+      await vigas(6);
+      await page.keyboard.press('Control+z');
+      await vigas(5);
+      await page.keyboard.press('Control+y');
+      await vigas(6);
+      // unir as duas metades (tecla J): primeira e segunda viga
+      await page.keyboard.press('j');
+      await clicar(2, 0.02);
+      await clicar(8, 0.02);
+      await vigas(5);
+      // prolongar (tecla O): viga de 4 m em y = 6 até x = 10 (ponto), e desfazer
+      await cmd('viga.tracar {"grupo": "g_3", "pontos": [[0, 6], [4, 6]], "secao": {"b": 0.15, "h": 0.4}}');
+      await vigas(6);
+      await solta();
+      await page.keyboard.press('o');
+      await clicar(3.9, 6.02);
+      await clicar(10, 6.5);
+      await page.locator('.statusbar .msg', { hasText: 'ajustada' }).waitFor();
+      const g = await abrir('Vigas — Tipo');
+      const ultima = g.locator('table.quadro tbody tr').last();
+      assert.equal((await ultima.locator('td.num').first().innerText()).trim(), '10,00');
+      await solta();
+      await page.keyboard.press('Control+z');
+      await page.waitForFunction(() => [...document.querySelectorAll('details.group table.quadro tbody tr')].some((tr) => tr.textContent.includes('4,00')));
+      // copiar o pilar P1 (tecla Y) com deslocamento digitado
+      await page.keyboard.press('Escape');
+      await abrir('Pilares');
+      await page.getByLabel('x de P1').click();
+      await solta();
+      await page.keyboard.press('y');
+      await page.keyboard.type('0;0'); await page.keyboard.press('Enter');
+      await page.keyboard.type('@0;8'); await page.keyboard.press('Enter');
+      await page.locator('summary', { hasText: 'Pilares (7)' }).waitFor();
+      // espelhar (tecla H) o pilar selecionado pelo eixo x = 20: vai para x = 40
+      await page.keyboard.press('h');
+      await page.keyboard.type('20;0'); await page.keyboard.press('Enter');
+      await page.keyboard.type('20;1'); await page.keyboard.press('Enter');
+      await page.waitForFunction(() => document.querySelector('input[aria-label="x de P1"]')?.value === '40,000');
+      await page.keyboard.press('Control+z');
+      await page.waitForFunction(() => document.querySelector('input[aria-label="x de P1"]')?.value === '0,000');
+      // quadro de vigas colado do Excel (Tab entre colunas): uma nova e a V1 atualizada
+      await page.getByLabel('Colar vigas do Excel').fill('V20\t15\t50\t0\t9\t10\t9\nV1\t20\t50\t0\t0\t10\t0');
+      await page.getByRole('button', { name: 'Aplicar quadro de vigas' }).click();
+      await vigas(7);
+      assert.equal(await page.getByLabel('Seção de V1').inputValue(), '20x50');
+      await solta();
+      // Ctrl+K: ferramenta Pilar pela paleta; Esc volta a Selecionar; Enter repete a última
+      await page.locator('canvas.int').hover();
+      await page.keyboard.press('Control+k');
+      const pal = page.getByRole('dialog', { name: 'Paleta de comandos' });
+      await pal.waitFor();
+      await pal.getByLabel('Buscar comando, pavimento ou elemento').fill('ferramenta pilar');
+      await pal.getByLabel('Buscar comando, pavimento ou elemento').press('Enter');
+      await pal.waitFor({ state: 'detached' });
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'selecionar');
+      await page.keyboard.press('Enter');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
+      await page.keyboard.press('Escape');
+      // Ctrl+K executa um comando: detectar as lajes do grupo
+      await page.keyboard.press('Control+k');
+      await pal.getByLabel('Buscar comando, pavimento ou elemento').fill('detectar lajes');
+      await pal.getByLabel('Buscar comando, pavimento ou elemento').press('Enter');
+      await page.locator('summary', { hasText: /^Lajes — Tipo \([1-9]/ }).waitFor();
+      // cores da planta editáveis (tema atual) e restaurar
+      await page.locator('.planta-barra').getByRole('button', { name: /^Cores/ }).click();
+      const cores = page.getByRole('dialog', { name: /Cores da planta/ });
+      await cores.getByLabel('Cor: Vigas').fill('#ff0000');
+      await page.locator('.planta-barra').getByRole('button', { name: 'Cores (1)' }).waitFor();
+      await cores.getByRole('button', { name: 'Restaurar as cores do tema' }).click();
+      await page.locator('.planta-barra').getByRole('button', { name: 'Cores', exact: true }).waitFor();
+      await cores.getByRole('button', { name: 'Fechar' }).click();
+      // remove as vigas soltas (y > 5) e a cópia do pilar por janela de cruzamento antes do cálculo
+      await solta();
+      await page.keyboard.press('s');
+      const [ax, ay] = await telaDe(page, 12, 9.6), [zx, zy] = await telaDe(page, -1, 5.5);
+      await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(zx, zy, { steps: 4 }); await page.mouse.up();
+      await page.locator('.statusbar .msg', { hasText: '3 elemento(s) selecionado(s)' }).waitFor();
+      await page.keyboard.press('Delete');
+      await vigas(5);
+      // janela da viga: origem dos resultados e momento na face dos pilares
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      assert.ok(+(await jv.locator('[data-origens]').first().getAttribute('data-origens')) >= 4);
+      assert.match(await jv.locator('[data-origens]').first().innerText(), /17\.2\.2/);
+      assert.ok(+(await jv.locator('[data-faces]').getAttribute('data-faces')) >= 2);
+      await page.keyboard.press('Escape');
+      // logo no carimbo: aparece na prévia e vai no PDF como imagem JPEG
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const logo = join(tmp, 'logo.jpg');
+      writeFileSync(logo, Buffer.from(JPEG_TESTE, 'base64'));
+      await page.setInputFiles('input[aria-label="Imagem do logo"]', logo);
+      await page.locator('[data-logo]:not([data-logo=""])').waitFor();
+      await page.locator('.prancha-prev[data-estado="pronto"] svg image').waitFor();
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'PDF da folha' }).click()]);
+      assert.match(readFileSync(await dl.path()).toString('latin1'), /\/Filter \/DCTDecode[\s\S]*\/Logo Do/);
+      const [dz] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'DXF R2000' }).click()]);
+      assert.match(dz.suggestedFilename(), /\.zip$/); // DXF + logo.jpg
+      await page.getByRole('button', { name: 'Remover logo' }).click();
+      await page.locator('[data-logo=""]').waitFor();
     },
   },
 ];

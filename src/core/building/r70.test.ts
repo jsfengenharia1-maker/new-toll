@@ -17,6 +17,7 @@ import { svgPrancha } from '../sheets/svg';
 import { edificioExemplo } from '../sheets/exemplo';
 import { base64Bytes, bytesBase64, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import { montarConjunto } from '../sheets/conjunto';
+import { lerQuadroVigas } from './quadros';
 
 function sessao() {
   const s = new Sessao();
@@ -269,5 +270,21 @@ describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes 
     const l1 = d.lajes.find((x) => x.nome === 'L1')!;
     expect(l1.mPos[0]).toBeCloseTo(6.6033, 3);
     expect(l1.mNeg[0]).toBeCloseTo(-11.093, 2);
+  });
+});
+
+describe('quadro de vigas colado do Excel', () => {
+  it('Tab ou ponto e vírgula, vírgula decimal, polilinha; mesmo nome edita, cabeçalho é ignorado', () => {
+    const { s, ok } = sessao();
+    ok('viga.tracar', { grupo: 'g_3', pontos: [[0, 0], [5, 0]], secao: { b: 0.15, h: 0.4 } });
+    const q = lerQuadroVigas('Viga\tb\th\tx1\ty1\tx2\ty2\nV1\t20\t50\t0\t0\t6\t0\nV9;14;40;0;3;2,5;3;2,5;6\n', s.modelo, 'g_3');
+    expect(q.ignoradas).toBe(1);
+    expect(q.comandos).toEqual([
+      { nome: 'viga.editar', params: { id: s.modelo.vigas[0].id, secao: { b: 0.2, h: 0.5 }, pontos: [[0, 0], [6, 0]] } },
+      { nome: 'viga.tracar', params: { grupo: 'g_3', nome: 'V9', secao: { b: 0.14, h: 0.4 }, pontos: [[0, 3], [2.5, 3], [2.5, 6]] } },
+    ]);
+    ok('lote', { comandos: q.comandos });
+    expect(s.modelo.vigas.map((v) => v.nome)).toEqual(['V1', 'V9']);
+    expect(s.modelo.vigas[1].pontos).toHaveLength(3);
   });
 });

@@ -4,7 +4,8 @@ import type { Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje } fro
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
-export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao';
+export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao'
+  | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -47,7 +48,21 @@ interface PState {
   /** G, Q ou id de caso adicional. */
   caso: string;
   valorCarga: number;
+  /** Copiar a seleção: número de cópias em série. */
+  copias: number;
+  /** Girar a seleção: ângulo (graus, anti-horário) em torno do ponto clicado. */
+  anguloGiro: number;
+  /** Espelhar a seleção: mantém os originais (cópia espelhada de pilares e vigas). */
+  espelharCopia: boolean;
+  /** Cores da planta alteradas pelo usuário, por tema (só neste navegador). */
+  cores: Partial<Record<Tema, Partial<Paleta>>>;
+  /** Última ação repetível (Enter com a ferramenta Selecionar e nada pendente): ferramenta ou item da paleta. */
+  ultimaAcao: { tipo: 'ferramenta'; f: Ferramenta } | { tipo: 'paleta'; rotulo: string; executar: () => void } | null;
   set(p: Partial<Omit<PState, 'set'>>): void;
+}
+
+function coresSalvas(): PState['cores'] {
+  try { const t = localStorage.getItem('statikos:cores-planta'); const o = t ? JSON.parse(t) : {}; return o && typeof o === 'object' ? o : {}; } catch { return {}; }
 }
 
 function temaSalvo(): Tema {
@@ -84,8 +99,16 @@ export const usePlanta = create<PState>((set) => ({
   tipoCarga: 'area',
   caso: 'Q',
   valorCarga: 2,
+  copias: 1,
+  anguloGiro: 90,
+  espelharCopia: false,
+  cores: coresSalvas(),
+  ultimaAcao: null,
   set(p) {
     if (p.tema) try { localStorage.setItem('statikos:tema-planta', p.tema); } catch { /* sem armazenamento */ }
+    if (p.cores) try { localStorage.setItem('statikos:cores-planta', JSON.stringify(p.cores)); } catch { /* sem armazenamento */ }
+    // a última ferramenta usada (além de Selecionar) fica para o Enter repetir
+    if (p.ferramenta && p.ferramenta !== 'selecionar' && p.ultimaAcao === undefined) p = { ...p, ultimaAcao: { tipo: 'ferramenta', f: p.ferramenta } };
     set(p);
   },
 }));
@@ -95,13 +118,32 @@ export type Paleta = {
   fundo: string; mascara: string; eixo: string; viga: string; laje: string; carga: string; parede: string; pilar: string; pilarBorda: string; texto: string; cota: string;
   selecao: string; captura: string; guia: string; erro: string; aviso: string; janela: string; cruzamento: string; fantasma: string;
 };
-const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma'] as const;
+export const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma'] as const;
 const cache = new Map<Tema, Paleta>();
-export function paleta(t: Tema): Paleta {
+/** Paleta do tema no design system (global.css), sem as alterações do usuário. */
+export function paletaBase(t: Tema): Paleta {
   let p = cache.get(t);
   if (!p) {
     p = Object.fromEntries(CHAVES.map((k) => [k, cssVar(`pl-${t}-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`)])) as Paleta;
     if (p.fundo) cache.set(t, p);
   }
   return p;
+}
+/** Paleta em uso: a do tema com as cores que o usuário alterou (tabela de cores editável). */
+export function paleta(t: Tema, alteradas: Partial<Paleta> = usePlanta.getState().cores[t] ?? {}): Paleta {
+  const base = paletaBase(t);
+  return Object.keys(alteradas).length ? { ...base, ...alteradas } : base;
+}
+
+/** Cor CSS (#rgb, #rrggbb, #rrggbbaa ou rgb[a](…)) → #rrggbb (para o seletor de cor) e o sufixo de opacidade (aa ou ''). */
+export function hexDaCor(c: string): { hex: string; alfa: string } {
+  const h2 = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  if (c.startsWith('#')) {
+    const t = c.slice(1);
+    if (t.length === 3 || t.length === 4) return { hex: '#' + [...t.slice(0, 3)].map((x) => x + x).join('').toLowerCase(), alfa: t.length === 4 ? t[3] + t[3] : '' };
+    return { hex: '#' + t.slice(0, 6).toLowerCase(), alfa: t.length === 8 ? t.slice(6).toLowerCase() : '' };
+  }
+  const n = (c.match(/[\d.]+/g) ?? []).map(Number);
+  if (n.length < 3) return { hex: '#' + '0'.repeat(6), alfa: '' };
+  return { hex: '#' + n.slice(0, 3).map(h2).join(''), alfa: n.length > 3 && n[3] < 1 ? h2(n[3] * 255) : '' };
 }

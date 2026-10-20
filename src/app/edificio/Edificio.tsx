@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { usePlanta, type Ferramenta, type Tema } from './plantaStore';
-import { Planta } from './Planta';
+import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
@@ -15,6 +15,9 @@ import type { Diagnostico } from '../../core/building/verify';
 import { Button, Check, download, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
+import { PaletaComandos } from './PaletaComandos';
+import { lerQuadroVigas } from '../../core/building/quadros';
+import { CoresPlanta } from './CoresPlanta';
 import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
@@ -159,6 +162,7 @@ export function Edificio() {
       </section>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
       <JanelaElemento />
+      <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );
 }
@@ -275,10 +279,10 @@ export function NomeObra() {
   return <input aria-label="Nome da obra no cabeçalho" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (t.trim() && t !== nome) exec('obra.definir', { nome: t }); else setT(nome); }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />;
 }
 
-const FERRAMENTAS: { f: Ferramenta; tecla: string; rot: string }[] = [
-  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'viga', tecla: 'V', rot: 'Viga' }, { f: 'laje', tecla: 'L', rot: 'Laje' }, { f: 'carga', tecla: 'C', rot: 'Carga' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
-  { f: 'fundacao', tecla: 'U', rot: 'Fundação' }, { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
-];
+const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
+const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'mover', 'medir']);
+/** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
+const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
 function PlantaBarra({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
@@ -308,6 +312,12 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
         {FERRAMENTAS.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...(t.f === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set() } : {}) })}>{t.rot}</button>)}
       </div>
+      <div className="seg small" role="radiogroup" aria-label="Edição">
+        {EDICAO.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
+      </div>
+      {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
+      {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
+      {pl.ferramenta === 'espelhar' && <label className="check small"><input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
       <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
@@ -326,6 +336,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
       </select>
+      <CoresPlanta />
     </div>
   );
 }
@@ -485,8 +496,15 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
   const vs = b.vigas.filter((v) => v.grupo === grupo?.id);
   const sel = vs.filter((v) => pl.selecao.has(v.id)).map((v) => v.id);
   const [destinos, setDestinos] = useState<string[]>([]);
+  const [colaV, setColaV] = useState('');
   const cm = (v: number) => +(v * 100).toFixed(2);
   const sv = pl.secaoViga;
+  const colarVigas = () => {
+    if (!grupo) return;
+    const { comandos, ignoradas } = lerQuadroVigas(colaV, b, grupo.id);
+    if (!comandos.length) { useStore.getState().set({ message: 'Cole linhas com: nome, b (cm), h (cm), x1, y1, x2, y2 [, x3, y3 …] (m).' }); return; }
+    if (exec('lote', { comandos }).ok) { setColaV(''); if (ignoradas) useStore.getState().set({ message: `${comandos.length} viga(s) aplicada(s); ${ignoradas} linha(s) ignorada(s) (cabeçalho ou incompleta).` }); }
+  };
   return (
     <Group title={`Vigas — ${grupo?.nome ?? '—'} (${vs.length})`} open={false}>
       <div className="row wrap">
@@ -535,7 +553,9 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
           </tbody>
         </table>
       )}
-      <Hint>As vigas pertencem à planta do grupo (todos os pavimentos do grupo). Clique os pontos na planta; Enter, duplo clique ou botão direito termina.</Hint>
+      <textarea rows={3} aria-label="Colar vigas do Excel" placeholder="Colar do Excel: nome, b (cm), h (cm), x1, y1, x2, y2 [, x3, y3 …] (m) — uma linha por viga" value={colaV} onChange={(e) => setColaV(e.target.value)} />
+      <div className="row"><Button disabled={!colaV.trim() || !grupo} onClick={colarVigas}>Aplicar quadro de vigas</Button></div>
+      <Hint>As vigas pertencem à planta do grupo (todos os pavimentos do grupo). Clique os pontos na planta; Enter, duplo clique ou botão direito termina. No quadro colado, viga com o mesmo nome no grupo é atualizada (seção e pontos); as demais são traçadas, num passo só (Ctrl+Z desfaz).</Hint>
     </Group>
   );
 }

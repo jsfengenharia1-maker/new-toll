@@ -84,6 +84,13 @@ const distSeg = (p: P2, a: P2, z: P2) => {
   return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]);
 };
 
+/** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
+export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
+  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar',
+};
+export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H' };
+
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function proximoEixo(b: BuildingModel, horizontal: boolean) {
   if (horizontal) { const usadas = new Set(b.eixos.map((e) => e.nome)); for (let i = 0; i < 26 * 27; i++) { const n = i < 26 ? LETRAS[i] : LETRAS[Math.floor(i / 26) - 1] + LETRAS[i % 26]; if (!usadas.has(n)) return n; } }
@@ -101,6 +108,12 @@ const PASSOS: Record<Ferramenta, string[]> = {
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   fundacao: ['Clique num pilar para lançar o elemento de fundação (tipo e posição no grupo Fundação; em divisa e canto o clique indica a face ou o canto). R gira 90°.', 'Posição livre: clique no centro do elemento.'],
+  dividir: ['Clique na viga, no ponto em que ela deve ser dividida em duas.'],
+  unir: ['Clique na primeira viga.', 'Clique na viga a unir (mesma seção e alinhamento, com uma ponta em comum).'],
+  prolongar: ['Clique perto da extremidade da viga a prolongar ou aparar.', 'Clique no alvo: outra viga, um eixo ou um ponto (a viga segue a direção do trecho).'],
+  copiar: ['Ponto base da cópia da seleção (pilares e vigas).', 'Ponto de destino (cópias em série pelo número da barra).'],
+  girar: ['Clique o centro do giro da seleção (ângulo na barra da planta; digite x;y e Enter para coordenadas).'],
+  espelhar: ['1º ponto do eixo de espelhamento da seleção.', '2º ponto do eixo.'],
 };
 
 export function Planta() {
@@ -111,7 +124,7 @@ export function Planta() {
   const nivelFund = pl.pavimento === 'fundacao';
   const pav = nivelFund ? pavs[0] ?? null : pavs.find((p) => p.id === pl.pavimento) ?? pavs[Math.min(1, pavs.length - 1)] ?? null;
   const grupo = pav?.grupo ?? '';
-  const cores = paleta(pl.tema);
+  const cores = paleta(pl.tema, pl.cores[pl.tema]);
 
   const wrap = useRef<HTMLDivElement>(null);
   const cvM = useRef<HTMLCanvasElement>(null), cvE = useRef<HTMLCanvasElement>(null), cvI = useRef<HTMLCanvasElement>(null);
@@ -125,7 +138,7 @@ export function Planta() {
   const it = useRef({
     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
-    fundPilar: null as string | null, cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
+    fundPilar: null as string | null, vigaRef: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
   });
 
   // ---- dados derivados ----
@@ -615,6 +628,13 @@ export function Planta() {
     return naPlanta.find((q) => dentro(w, q.contorno) || q.contorno.some((c, i) => distSeg(w, c, q.contorno[(i + 1) % q.contorno.length]) < tol));
   };
 
+  /** Viga do grupo sob o ponto (dentro do contorno ou a até `px` pixels do eixo). */
+  const vigaSob = (w: P2, px = 6) => {
+    const tol = px / (vista?.k || 1);
+    for (const { v, t, g } of [...vigas].reverse()) if (t.some((r) => dentro(w, r)) || g.eixo.some((q, i) => i > 0 && distSeg(w, g.eixo[i - 1], q) < tol)) return v;
+    return null;
+  };
+
   // ---- ações das ferramentas ----
   const selecionados = () => ({ fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
   const agir = (p: P2) => {
@@ -676,6 +696,59 @@ export function Planta() {
       ];
       if (cmds.length) exec('lote', { comandos: cmds });
       setPontos([]); return;
+    }
+    if (f === 'dividir') {
+      const v = vigaSob(p);
+      if (!v) { msg('Clique sobre uma viga.'); return; }
+      exec('viga.dividir', { id: v.id, ponto: [+p[0].toFixed(4), +p[1].toFixed(4)] });
+      return;
+    }
+    if (f === 'unir') {
+      const v = vigaSob(it.current.cursor) ?? vigaSob(p);
+      if (!v) { msg('Clique sobre uma viga.'); return; }
+      if (!pontos.length) { it.current.vigaRef = v.id; usePlanta.getState().set({ selecao: new Set([v.id]) }); setPontos([p]); return; }
+      const a = it.current.vigaRef; it.current.vigaRef = null; setPontos([]);
+      if (a && a !== v.id) { const r = exec('viga.unir', { ids: [a, v.id] }); if (r.ok) usePlanta.getState().set({ selecao: new Set([a]) }); }
+      return;
+    }
+    if (f === 'prolongar') {
+      if (!pontos.length) {
+        const v = vigaSob(it.current.cursor, 12) ?? vigaSob(p, 12);
+        if (!v) { msg('Clique perto da extremidade de uma viga.'); return; }
+        const w = it.current.cursor, a = v.pontos[0], z = v.pontos[v.pontos.length - 1];
+        it.current.vigaRef = v.id; it.current.extremidade = Math.hypot(w[0] - a[0], w[1] - a[1]) <= Math.hypot(w[0] - z[0], w[1] - z[1]) ? 'ini' : 'fim';
+        usePlanta.getState().set({ selecao: new Set([v.id]) });
+        setPontos([it.current.extremidade === 'ini' ? a : z]); return;
+      }
+      const id = it.current.vigaRef, ext = it.current.extremidade;
+      it.current.vigaRef = null; setPontos([]);
+      if (!id) return;
+      const alvo = vigaSob(it.current.cursor);
+      const eixo = b.eixos.find((e) => distSeg(it.current.cursor, e.p1, e.p2) < 6 / (vista?.k || 1));
+      const ate = alvo && alvo.id !== id ? { viga: alvo.id } : eixo ? { eixo: eixo.id } : { ponto: [+p[0].toFixed(4), +p[1].toFixed(4)] };
+      exec('viga.prolongar', { id, extremidade: ext, ate });
+      return;
+    }
+    if (f === 'copiar' && novos.length === 2) {
+      const dx = +(novos[1][0] - novos[0][0]).toFixed(4), dy = +(novos[1][1] - novos[0][1]).toFixed(4), vezes = Math.max(1, Math.round(pl.copias));
+      const sel = selecionados();
+      const cmds = [...(sel.pilares.length ? [{ nome: 'pilar.copiar', params: { ids: sel.pilares, dx, dy, vezes } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.copiar', params: { ids: sel.vigas, dx, dy, vezes } }] : [])];
+      if (cmds.length) exec('lote', { comandos: cmds }); else msg('Selecione pilares ou vigas para copiar.');
+      setPontos([]); return;
+    }
+    if (f === 'girar') {
+      const sel = selecionados();
+      if (!sel.pilares.length && !sel.vigas.length && !sel.lajes.length && !sel.cargas.length) { msg('Selecione os elementos a girar.'); return; }
+      exec('editar.girar', { pilares: sel.pilares, vigas: sel.vigas, lajes: sel.lajes, cargas: sel.cargas, centro: [+p[0].toFixed(4), +p[1].toFixed(4)], angulo: pl.anguloGiro });
+      return;
+    }
+    if (f === 'espelhar' && novos.length === 2) {
+      const sel = selecionados();
+      setPontos([]);
+      if (!sel.pilares.length && !sel.vigas.length && !sel.lajes.length && !sel.cargas.length) { msg('Selecione os elementos a espelhar.'); return; }
+      const q = novos.map((x) => [+x[0].toFixed(4), +x[1].toFixed(4)]);
+      exec('editar.espelhar', pl.espelharCopia ? { pilares: sel.pilares, vigas: sel.vigas, eixo: q, copiar: true } : { pilares: sel.pilares, vigas: sel.vigas, lajes: sel.lajes, cargas: sel.cargas, eixo: q });
+      return;
     }
     if (f === 'alinhar' && novos.length === 4) {
       const m = b.mascaras.find((x) => x.grupo === grupo);
@@ -798,10 +871,17 @@ export function Planta() {
       if (e.type !== 'keydown') return;
       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }
       if (k === 'Enter' && ['viga', 'laje', 'carga'].includes(P.ferramenta)) { terminar(); return; }
+      // Enter sem nada pendente repete o último comando (ferramenta ou item da paleta Ctrl+K)
+      if (k === 'Enter' && P.ferramenta === 'selecionar' && !pontos.length && P.ultimaAcao) {
+        const u = P.ultimaAcao;
+        if (u.tipo === 'ferramenta') { P.set({ ferramenta: u.f, ...(u.f === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set<string>() } : {}) }); msg(`Repetindo: ${ROTULO_FERRAMENTA[u.f]}.`); }
+        else { u.executar(); msg(`Repetindo: ${u.rotulo}.`); }
+        return;
+      }
       if (P.ferramenta === 'viga' && k.toLowerCase() === 'a') { const o = ['centro', 'esq', 'dir'] as const; P.set({ alinhamento: o[(o.indexOf(P.alinhamento) + 1) % 3] }); msg(`Alinhamento: ${({ centro: 'eixo', esq: 'face esquerda', dir: 'face direita' })[o[(o.indexOf(P.alinhamento) + 1) % 3]]}.`); return; }
-      const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao' };
+      const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao', i: 'dividir', j: 'unir', o: 'prolongar', y: 'copiar', g: 'girar', h: 'espelhar' };
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...(fe === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set<string>() } : {}) }); it.current.fundPilar = null; setPontos([]); return; }
-      if (k === 'Escape') { it.current.fundPilar = null; if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
+      if (k === 'Escape') { it.current.fundPilar = null; it.current.vigaRef = null; if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
       if (k === 'F8') { e.preventDefault(); P.set({ orto: !P.orto }); msg(`Ortogonal ${P.orto ? 'desligado' : 'ligado'}.`); return; }
       if (k === 'F10') { e.preventDefault(); P.set({ polar: !P.polar }); msg(`Polar ${P.polar ? 'desligado' : 'ligado'}.`); return; }

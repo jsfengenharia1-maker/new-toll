@@ -34,7 +34,7 @@ Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as v
 |---|---|---|---|---|
 | FU | 81 | `spec-frente-FU.md` | FU2 a FU6, FU7a, FU7b | 0 + 7 + 7 + 1 = 15 |
 | R7 | 109 + 11 | `spec-frente-R.md` (R7) | R7-0, R7a a R7g | 0 + 8 + 8 + 1 = 17 |
-| N2 | 119 | a escrever | ~5 (punção e cortante de lajes, estados-limite e categorias de uso como casos, P-Δ 3D, fogo NBR 15200, demais) | 1 + 5 + 5 + 1 = 12 |
+| N2 | 117 | a escrever | ~5 (punção e cortante de lajes, estados-limite, P-Δ 3D, fogo NBR 15200, demais; categorias de uso como casos entraram na R7-0) | 1 + 5 + 5 + 1 = 12 |
 | E1 | ~37 | a escrever | ~4 (pilar-parede, muros, paredes, empuxo) | 1 + 4 + 4 = 9 |
 | E2 | ~40 | a escrever | ~4 (vigas T e chatas, inclinadas e curvas, entre pavimentos e diagonais, consolos e vínculo externo) | 1 + 4 + 4 = 9 |
 | E3 | ~56 | a escrever | ~4 (nervuradas bidirecionais com ábacos, alveolares, inclinadas e rampas, vigotas completas) | 1 + 4 + 4 = 9 |
@@ -53,3 +53,4 @@ Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as v
 ## Andamento
 
 - 20/10/2026: plano criado; FU1 concluída; FU2 (núcleo) em andamento.
+- 20/10/2026: R7-0 concluída (núcleo e interface): ferramentas da planta para dividir, unir e prolongar vigas e copiar, girar e espelhar a seleção; quadro de vigas colado; paleta Ctrl+K e Enter repetindo; cores da planta editáveis; aviso de máscara desalinhada; origem e momento na face na janela; logo no carimbo; categorias de uso como casos próprios; regressão de 10 pavimentos e desempenho (13 pavimentos ≤ 3 s, otimização do núcleo sem mudar resultados). Próximo na lane 2: R7a.

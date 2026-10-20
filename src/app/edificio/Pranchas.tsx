@@ -1,5 +1,5 @@
 // Aba Pranchas: planta de formas por grupo, prévia em SVG e saída em PDF, DXF R2000 e DWG R2018.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculoAtual, useBuilding } from './store';
 import { montarConjuntoNoWorker, Obsoleto, type Conjunto } from './calculo';
 import { useStore } from '../store';
@@ -8,6 +8,8 @@ import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../c
 import { SIGLAS } from '../../core/sheets/prancha';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
+import { ARQUIVO_LOGO, base64Bytes, LIMITE_LOGO } from '../../core/sheets/logo';
+import { memo } from '../design/tokens';
 import { svgPrancha } from '../../core/sheets/svg';
 import { escreverPdf } from '../../core/sheets/pdf';
 import { escreverDxf } from '../../core/sheets/dxf';
@@ -26,6 +28,29 @@ const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] as const).map((f) => ({
 /** Opções de escala (denominador); inclui o valor em uso, mesmo que fora da lista. */
 const escalas = (base: number[], atual: number, auto?: string) => [...new Set([...base, atual])].sort((x, y) => x - y).map((e) => ({ v: e, label: e ? `1:${e}` : auto ?? 'automática' }));
 const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+
+/**
+ * Imagem (qualquer formato que o navegador desenhe) → JPEG em base64 com fundo branco (cor do papel), até `limite`
+ * caracteres: começa em 600 px na maior dimensão e qualidade 0,9, e reduz qualidade e tamanho até caber.
+ */
+async function imagemParaJpeg(f: File, limite: number): Promise<string | null> {
+  const url = URL.createObjectURL(f);
+  try {
+    const img = new Image();
+    await new Promise<void>((ok, falha) => { img.onload = () => ok(); img.onerror = () => falha(new Error('imagem')); img.src = url; });
+    const w0 = img.naturalWidth || img.width || 300, h0 = img.naturalHeight || img.height || 150;
+    for (let lado = 600, q = 0.9; lado >= 60; ) {
+      const k = Math.min(1, lado / Math.max(w0, h0)), w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d'); if (!ctx) return null;
+      ctx.fillStyle = memo('paper'); ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+      const d = cv.toDataURL('image/jpeg', q).split(',')[1] ?? '';
+      if (d && d.length <= limite) return d;
+      if (q > 0.55) q -= 0.15; else { lado = Math.round(lado * 0.75); q = 0.85; }
+    }
+    return null;
+  } catch { return null; } finally { URL.revokeObjectURL(url); }
+}
 
 let escritor: Promise<EscritorDwg> | null = null;
 /** Carrega o escritor de DWG de public/vendor (fora do HTML único). */
@@ -82,20 +107,33 @@ export function Pranchas() {
   const escritorDwg = async (): Promise<EscritorDwg | null> => {
     try { return await carregarDwg(); } catch { msg('DWG indisponível neste ambiente (o escritor fica em vendor/, fora do arquivo único). Use o DXF: o AutoCAD abre e salva como DWG.'); return null; }
   };
-  const dwgDe = (w: EscritorDwg, p: (typeof prs)[number]) => w(desenhoDwg(p));
+  const dwgDe = (w: EscritorDwg, p: (typeof prs)[number]) => w(desenhoDwg(p, ARQUIVO_LOGO));
+  // o DXF e o DWG só referenciam imagens externas: com logo, o arquivo da imagem vai junto (zip)
+  const logoArq = () => { const d = cfg.logo ? base64Bytes(cfg.logo.dados) : null; return d ? [{ nome: ARQUIVO_LOGO, dados: d }] : []; };
+  const comLogo = async (arquivo: string, dados: Uint8Array, mime: string) => {
+    const l = logoArq();
+    if (!l.length) return salvar(arquivo, dados, mime);
+    await salvar(arquivo.replace(/\.(dxf|dwg)$/, '.zip'), zip([{ nome: arquivo, dados }, ...l]), 'application/zip');
+  };
   const dwg = async () => {
     if (!pr) return;
     const w = await escritorDwg(); if (!w) return;
     const r = dwgDe(w, pr);
     if (r.skipped.length) { msg(`DWG: não gravado: ${r.skipped.join(', ')}`); return; }
-    await salvar(`${nome(pr, i)}.dwg`, r.data, 'application/acad');
+    await comLogo(`${nome(pr, i)}.dwg`, r.data, 'application/acad');
   };
-  const zipDxf = () => salvar(`${base}-${tipo === 'todas' ? 'conjunto' : tipo}-dxf.zip`, zip(prs.map((p, k) => ({ nome: `${nome(p, k)}.dxf`, dados: escreverDxf(p) }))), 'application/zip');
+  const zipDxf = () => salvar(`${base}-${tipo === 'todas' ? 'conjunto' : tipo}-dxf.zip`, zip([...prs.map((p, k) => ({ nome: `${nome(p, k)}.dxf`, dados: escreverDxf(p, { arquivoLogo: ARQUIVO_LOGO }) })), ...logoArq()]), 'application/zip');
   const zipDwg = async () => {
     const w = await escritorDwg(); if (!w) return;
     const arq: { nome: string; dados: Uint8Array }[] = [];
     for (const [k, p] of prs.entries()) { const r = dwgDe(w, p); if (r.skipped.length) { msg(`DWG da folha ${k + 1}: não gravado: ${r.skipped.join(', ')}`); return; } arq.push({ nome: `${nome(p, k)}.dwg`, dados: r.data }); }
-    await salvar(`${base}-${tipo === 'todas' ? 'conjunto' : tipo}-dwg.zip`, zip(arq), 'application/zip');
+    await salvar(`${base}-${tipo === 'todas' ? 'conjunto' : tipo}-dwg.zip`, zip([...arq, ...logoArq()]), 'application/zip');
+  };
+  const refLogo = useRef<HTMLInputElement>(null);
+  const carregarLogo = async (f: File) => {
+    const r = await imagemParaJpeg(f, LIMITE_LOGO);
+    if (!r) { msg(`${f.name}: não foi possível ler a imagem.`); return; }
+    if (exec('prancha.definir', { logo: { dados: r, nome: f.name } }).ok) msg(`Logo ${f.name} aplicado ao carimbo.`);
   };
   const pdfInfo = { titulo: `${b.obra.nome} — pranchas`, autor: cfg.carimbo.responsavel };
   const fmt = (v: number) => nf(v, 2);
@@ -144,7 +182,7 @@ export function Pranchas() {
             <div className="row wrap">
               <Button variant="primary" onClick={() => salvar(`${nome(pr, i)}.pdf`, escreverPdf([pr], pdfInfo), 'application/pdf')}>PDF da folha</Button>
               <Button onClick={() => salvar(`${base}-${tipo === 'todas' ? 'conjunto' : tipo === 'formas' ? 'pranchas' : tipo}.pdf`, escreverPdf(prs, pdfInfo), 'application/pdf')}>PDF (todas)</Button>
-              <Button onClick={() => salvar(`${nome(pr, i)}.dxf`, escreverDxf(pr), 'application/dxf')}>DXF R2000</Button>
+              <Button onClick={() => comLogo(`${nome(pr, i)}.dxf`, escreverDxf(pr, { arquivoLogo: ARQUIVO_LOGO }), 'application/dxf')}>DXF R2000</Button>
               <Button onClick={dwg}>DWG R2018</Button>
               {prs.length > 1 && <Button onClick={zipDxf}>DXF (zip de todas)</Button>}
               {prs.length > 1 && <Button onClick={zipDwg}>DWG (zip de todas)</Button>}
@@ -191,7 +229,13 @@ export function Pranchas() {
             <TextField key={k} label={rot} value={cfg.carimbo[k] ?? ''} onChange={(v) => exec('prancha.definir', { carimbo: { [k]: v } })} />
           ))}
         </div>
-        <Hint>Dados do carimbo ficam no arquivo de trabalho. Campos vazios: obra e local vêm dos dados da obra (grupo Obra), revisão R00 e data de hoje. Escala, conteúdo e número da prancha são automáticos.</Hint>
+        <div className="row wrap u-mt-6" data-logo={cfg.logo ? `${cfg.logo.largura}x${cfg.logo.altura}` : ''}>
+          <Button onClick={() => refLogo.current?.click()}>{cfg.logo ? 'Trocar logo…' : 'Logo do carimbo…'}</Button>
+          <input ref={refLogo} type="file" accept="image/*" hidden aria-label="Imagem do logo" onChange={(e) => { const f = e.target.files?.[0]; if (f) void carregarLogo(f); e.target.value = ''; }} />
+          {cfg.logo && <span className="small">{cfg.logo.nome ?? 'logo'} · {cfg.logo.largura} × {cfg.logo.altura} px · {Math.round(cfg.logo.dados.length / 1024)} KB</span>}
+          {cfg.logo && <Button variant="danger" onClick={() => exec('prancha.definir', { removerLogo: true })}>Remover logo</Button>}
+        </div>
+        <Hint>Dados do carimbo ficam no arquivo de trabalho. Campos vazios: obra e local vêm dos dados da obra (grupo Obra), revisão R00 e data de hoje. Escala, conteúdo e número da prancha são automáticos. O logo (PNG, JPEG ou SVG) é convertido para JPEG com fundo branco e reduzido até caber no limite de {Math.round(LIMITE_LOGO / 1024)} KB; no DXF e no DWG ele vai como imagem externa ({ARQUIVO_LOGO}, no mesmo .zip).</Hint>
       </div>
     </>
   );
