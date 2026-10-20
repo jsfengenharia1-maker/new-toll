@@ -5,7 +5,7 @@ import { usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { Planta } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
-import { cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type BuildingModel, type CategoriaUso, type Norma } from '../../core/building/types';
+import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type Norma } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
@@ -68,6 +68,7 @@ export function Edificio() {
 
         <MascaraGrupo b={b} />
         <PilaresGrupo b={b} />
+        <VigasGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -115,7 +116,7 @@ export function Edificio() {
         {aba !== 'planta' && (
           <div className="edif-out">
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
-            {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} /></div>}
+            {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'premissas' && (
               <div className="card">
                 <h3>Premissas em uso</h3>
@@ -199,7 +200,7 @@ function LinhaComando() {
   );
 }
 
-function Diagnosticos({ diags }: { diags: Diagnostico[] }) {
+function Diagnosticos({ diags, onIr }: { diags: Diagnostico[]; onIr?: (ids: string[]) => void }) {
   const exec = useBuilding((s) => s.exec);
   if (!diags.length) return <p className="muted">Nenhum problema encontrado.</p>;
   return (
@@ -207,6 +208,7 @@ function Diagnosticos({ diags }: { diags: Diagnostico[] }) {
       {diags.map((d, i) => (
         <li key={i} className={d.severidade}>
           <span className="sev">{d.severidade === 'erro' ? '⚠ erro' : d.severidade === 'aviso' ? '! aviso' : 'i'}</span> {d.mensagem}
+          {onIr && d.elementos.length > 0 && <button type="button" className="mini" onClick={() => onIr(d.elementos)}>ver na planta</button>}
           {d.sugestao && <button type="button" className="mini" onClick={() => exec(d.sugestao!.comando, d.sugestao!.params)}>{d.sugestao.texto}</button>}
         </li>
       ))}
@@ -249,7 +251,7 @@ export function NomeObra() {
 }
 
 const FERRAMENTAS: { f: Ferramenta; tecla: string; rot: string }[] = [
-  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
+  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'viga', tecla: 'V', rot: 'Viga' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
   { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
 ];
 
@@ -416,6 +418,63 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
       <textarea rows={3} aria-label="Colar pilares do Excel" placeholder="Colar do Excel: nome, x (m), y (m), b (cm), h (cm) [, ângulo] — uma linha por pilar; só b = circular" value={cola} onChange={(e) => setCola(e.target.value)} />
       <div className="row"><button type="button" className="btn" disabled={!cola.trim()} onClick={colar}>Aplicar quadro colado</button></div>
       <Hint>Pilar com o mesmo nome é atualizado; os demais são inseridos. Tudo vira um passo só (Ctrl+Z desfaz).</Hint>
+    </Group>
+  );
+}
+
+const ALINHAMENTOS: { v: Alinhamento; label: string }[] = [{ v: 'centro', label: 'eixo' }, { v: 'esq', label: 'face esquerda' }, { v: 'dir', label: 'face direita' }];
+
+function VigasGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const ps = pavimentosOrdenados(b);
+  const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  const grupo = b.grupos.find((g) => g.id === pav?.grupo);
+  const vs = b.vigas.filter((v) => v.grupo === grupo?.id);
+  const sel = vs.filter((v) => pl.selecao.has(v.id)).map((v) => v.id);
+  const [destinos, setDestinos] = useState<string[]>([]);
+  const cm = (v: number) => +(v * 100).toFixed(2);
+  const sv = pl.secaoViga;
+  return (
+    <Group title={`Vigas — ${grupo?.nome ?? '—'} (${vs.length})`} open={false}>
+      <div className="row wrap">
+        <NumField label="b" unit="cm" width={80} value={cm(sv.b)} onChange={(v) => v > 0 && pl.set({ secaoViga: { ...sv, b: v / 100 } })} />
+        <NumField label="h" unit="cm" width={80} value={cm(sv.h)} onChange={(v) => v > 0 && pl.set({ secaoViga: { ...sv, h: v / 100 } })} />
+        <Select label="Linha traçada (A)" value={pl.alinhamento} options={ALINHAMENTOS} onChange={(v) => pl.set({ alinhamento: v })} />
+      </div>
+      <div className="row wrap">
+        <label className="check small"><input type="checkbox" checked={pl.invertida} onChange={(e) => pl.set({ invertida: e.target.checked })} /> <span>invertida</span></label>
+        <button type="button" className={`btn${pl.ferramenta === 'viga' ? ' primary' : ''}`} onClick={() => pl.set({ ferramenta: 'viga' })}>Traçar vigas (V)</button>
+        <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.ajustarFaces', { grupo: grupo.id })}>Encostar nas faces</button>
+        <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.renumerar', { grupo: grupo.id })}>Renumerar</button>
+      </div>
+      {sel.length > 0 && (
+        <div className="row wrap">
+          <button type="button" className="btn" onClick={() => exec('viga.atribuir', { ids: sel, campo: 'secao', valor: sv })}>Aplicar {cm(sv.b)}x{cm(sv.h)} às {sel.length} selecionada(s)</button>
+          <span className="muted small">Copiar para:</span>
+          {b.grupos.filter((g) => g.id !== grupo?.id).map((g) => (
+            <label key={g.id} className="check small"><input type="checkbox" checked={destinos.includes(g.id)} onChange={(e) => setDestinos(e.target.checked ? [...destinos, g.id] : destinos.filter((x) => x !== g.id))} /> <span>{g.nome}</span></label>
+          ))}
+          <button type="button" className="btn" disabled={!destinos.length} onClick={() => exec('viga.copiarParaGrupos', { ids: sel, grupos: destinos })}>Copiar</button>
+        </div>
+      )}
+      {vs.length > 0 && (
+        <table className="data loads-ed quadro">
+          <thead><tr><th>Viga</th><th>b x h (cm)</th><th>Linha</th><th>L (m)</th><th>Desnível (m)</th></tr></thead>
+          <tbody>
+            {vs.map((v) => (
+              <tr key={v.id} className={pl.selecao.has(v.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([v.id]) })}>
+                <td><Cell value={v.nome} label={`Nome de ${v.nome}`} onCommit={(t) => exec('viga.editar', { id: v.id, nome: t })} /></td>
+                <td><Cell value={`${cm(v.secao.b)}x${cm(v.secao.h)}`} label={`Seção de ${v.nome}`} onCommit={(t) => { const r = /^\s*([\d.,]+)\s*[x×*]\s*([\d.,]+)\s*$/i.exec(t); if (r) exec('viga.editar', { id: v.id, secao: { b: num(r[1]) / 100, h: num(r[2]) / 100 } }); }} /></td>
+                <td><select aria-label={`Alinhamento de ${v.nome}`} value={v.alinhamento} onChange={(e) => exec('viga.editar', { id: v.id, alinhamento: e.target.value })}>{ALINHAMENTOS.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}</select></td>
+                <td className="num">{fmt(comprimentoPolilinha(v.pontos))}</td>
+                <td><Cell value={fmt(v.nivel ?? 0, 2)} num label={`Desnível de ${v.nome}`} onCommit={(t) => { const x = num(t); if (Number.isFinite(x)) exec('viga.editar', { id: v.id, nivel: x }); }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <Hint>As vigas pertencem à planta do grupo (todos os pavimentos do grupo). Clique os pontos na planta; Enter, duplo clique ou botão direito termina.</Hint>
     </Group>
   );
 }

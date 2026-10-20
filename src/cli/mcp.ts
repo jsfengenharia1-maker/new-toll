@@ -52,10 +52,14 @@ export class ServidorMcp {
       { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
       { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, annotations: rw(true),
         executar: (a) => this.saida(this.sessao.aplicar(String(a.token), 'ia')) },
+      { name: 'comandos', title: 'Comandos disponíveis', description: 'Lista todos os comandos do registro (nome, risco, descrição e JSON Schema dos parâmetros), inclusive os sem ferramenta própria.', inputSchema: vazio, annotations: ro(),
+        executar: () => ({ comandos: listarComandos().map((c) => ({ nome: c.nome, risco: c.risco, descricao: c.descricao, schema: c.schema })) }) },
+      { name: 'previa', title: 'Prévia de qualquer comando', description: 'Prévia genérica: {comando, params}. Devolve o diff e um token para a ferramenta aplicar. Use para comandos sem ferramenta própria (veja `comandos`).', inputSchema: { type: 'object', required: ['comando'], properties: { comando: { type: 'string' }, params: { type: 'object' } }, additionalProperties: false }, annotations: ro(),
+        executar: (a) => this.saida(this.sessao.previa(String(a.comando), a.params ?? {})) },
       { name: 'desfazer', title: 'Desfazer', description: 'Desfaz o último comando aplicado.', inputSchema: vazio, annotations: rw(false), executar: () => ({ desfeito: this.sessao.desfazer()?.nome ?? null }) },
       { name: 'refazer', title: 'Refazer', description: 'Refaz o último comando desfeito.', inputSchema: vazio, annotations: rw(false), executar: () => ({ refeito: this.sessao.refazer()?.nome ?? null }) },
     ];
-    const cmds: Ferramenta[] = listarComandos().filter((c) => c.risco !== 'leitura').map((c) => ({
+    const cmds: Ferramenta[] = listarComandos().filter((c) => c.risco !== 'leitura' && c.mcp !== false).map((c) => ({
       name: nomeFerramenta(c.nome), title: c.nome,
       description: `${c.descricao} PRÉVIA: não altera o modelo; devolve o diff e um token para a ferramenta aplicar.${c.risco === 'destrutivo' ? ' Remove dados: confirme com o usuário antes de aplicar.' : ''}`,
       inputSchema: c.schema, annotations: ro(c.risco === 'destrutivo'),

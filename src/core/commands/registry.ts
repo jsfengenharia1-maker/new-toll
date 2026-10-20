@@ -15,6 +15,8 @@ export interface Comando<P = Record<string, unknown>> {
   descricao: string;
   schema: JsonSchema;
   risco: Risco;
+  /** false: sem ferramenta própria no MCP (continua acessível pela ferramenta genérica `previa`). */
+  mcp?: boolean;
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -65,7 +67,7 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
 type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' },
-  { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' },
+  { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' }, { k: 'vigas', rot: 'viga' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */

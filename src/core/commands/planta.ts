@@ -80,6 +80,7 @@ registrar<{ id: string; nome?: string; escala?: number; rotacao?: number; dx?: n
   nome: 'mascara.editar',
   descricao: 'Altera nome, escala (m por unidade), rotação (graus) ou deslocamento (m) da máscara.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, escala: { type: 'number', exclusiveMinimum: 0 },
     rotacao: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' },
@@ -96,6 +97,7 @@ registrar<{ id: string; camadas: string[]; visivel?: boolean; capturavel?: boole
   nome: 'mascara.camadas',
   descricao: 'Liga/desliga a visibilidade e a captura de camadas da máscara.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'camadas'], properties: {
     id: { type: 'string' }, camadas: ids, visivel: { type: 'boolean' }, capturavel: { type: 'boolean' },
   } },
@@ -188,6 +190,7 @@ registrar<{ id: string; pavimento: string; secao?: SecaoPilar }>({
   nome: 'pilar.secaoLance',
   descricao: 'Define a seção de um lance do pilar (o lance que chega ao pavimento indicado). Sem `secao`, o lance volta à seção geral.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento'], properties: { id: { type: 'string' }, pavimento: { type: 'string' }, secao: secaoSchema } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.id);
@@ -264,6 +267,7 @@ registrar<{ tolerancia: number }>({
   nome: 'pilar.renumerar',
   descricao: 'Renumera os pilares P1, P2... da esquerda para a direita e de cima para baixo (linhas agrupadas pela tolerância em y, m). Os ids não mudam.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: { tolerancia: { type: 'number', minimum: 0, default: 0.3 } } },
   aplicar(d, p) {
     const cs = d.pilares.map((q) => ({ q, c: centroPilar(q, q.secao) })).sort((a, z) => z.c[1] - a.c[1]);

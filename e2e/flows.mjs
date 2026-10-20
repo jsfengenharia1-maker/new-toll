@@ -251,7 +251,7 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
       await page.locator('.topbar .status.bad').waitFor();
-      await page.locator('.diags li.erro').getByRole('button').click();
+      await page.locator('.diags li.erro').getByRole('button', { name: /Criar um grupo próprio/ }).click();
       await page.locator('.diags', { hasText: 'Tipo 4' }).waitFor({ state: 'detached' });
 
       // desfazer pelo teclado (fora dos campos) volta o erro
@@ -340,6 +340,37 @@ export const flows = [
       assert.ok(+d.frameMs < 16, `quadro médio ${d.frameMs} ms`); // pan/zoom e cursor reaproveitam o cache da máscara
       assert.ok(+d.mascaraMs < 250, `máscara completa ${d.mascaraMs} ms`); // redesenho ao parar o gesto (headless, sem GPU)
       assert.ok(+d.snapMs < 2, `captura ${d.snapMs} ms`);
+    },
+  },
+{
+    name: 'planta: vigas por clique com captura no centro dos pilares, verificação e desfazer',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.locator('#edcmd').fill('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await page.locator('#edcmd').press('Enter');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await page.keyboard.press('f');
+      await page.waitForTimeout(100);
+      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' }); // foco na planta, sem ação
+      await page.keyboard.press('v');
+      for (const [x, y] of [[0, 0], [5, 0], [5, 4]]) { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy); }
+      await page.keyboard.press('Enter');
+      for (const [x, y] of [[5, 4], [0, 4], [0, 0]]) { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy); }
+      await page.keyboard.press('Enter');
+      await page.locator('summary', { hasText: 'Vigas — Tipo (2)' }).waitFor();
+      await page.locator('summary', { hasText: 'Vigas' }).click();
+      assert.equal(await page.getByLabel('Seção de V1').inputValue(), '15x40');
+      await page.locator('.topbar .status.ok').waitFor();
+      // viga solta digitada: erro de verificação; desfazer volta ao estado sem erro
+      await page.keyboard.type('2;2'); await page.keyboard.press('Enter');
+      await page.keyboard.type('3;2'); await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.locator('.topbar .status.bad', { hasText: '1 erro' }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
+      await page.locator('.diags li.erro', { hasText: 'V3 não se apoia' }).waitFor();
+      await page.keyboard.press('Control+z');
+      await page.locator('.topbar .status.ok').waitFor();
     },
   },
 ];

@@ -12,7 +12,7 @@ function padrao(): Sessao {
 
 const GEO = { PAREDE: { linhas: [0, 0, 1000, 0, 1000, 0, 1000, 800], arcos: [500, 400, 50, 0, 360], textos: [{ x: 10, y: 10, h: 20, rot: 0, t: 'SALA' }] }, PORTA: { linhas: [0, 0, 90, 0], arcos: [], textos: [] } };
 
-/** Modelo base dos testes genéricos: padrão + eixos + grupo vazio + máscara (cm) + pilares P1 (0; 0) e P2 (4; 3). */
+/** Modelo base dos testes genéricos: padrão + eixos + grupo vazio + máscara (cm) + pilares P1 (0; 0) e P2 (4; 3) + vigas V1 (vertical) e V2 (horizontal) no Tipo. */
 function base() {
   const s = padrao();
   for (const [n, p] of [
@@ -21,6 +21,9 @@ function base() {
     ['mascara.importar', { grupo: 'g_3', nome: 'Arquitetura', geo: GEO, escala: 0.01 }],
     ['pilar.inserir', { x: 0, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }],
     ['pilar.inserir', { x: 4, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }],
+    ['viga.tracar', { grupo: 'g_3', pontos: [[4, 0], [4, 3]], secao: { b: 0.15, h: 0.4 } }],
+    ['viga.tracar', { grupo: 'g_3', pontos: [[0, 0], [4, 0]], secao: { b: 0.15, h: 0.4 }, alinhamento: 'esq' }],
+    ['viga.tracar', { grupo: 'g_3', pontos: [[4, 0], [6, 0]], secao: { b: 0.15, h: 0.4 }, alinhamento: 'esq' }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
   return s.modelo;
 }
@@ -53,6 +56,18 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.copiar': (b) => ({ ids: [b.pilares[0].id], dx: 4, dy: 0, vezes: 2 }),
   'pilar.remover': (b) => ({ ids: [b.pilares[0].id] }),
   'pilar.renumerar': () => ({}),
+  'viga.tracar': () => ({ grupo: 'g_3', pontos: [[0, 3], [4, 3]], secao: { b: 0.15, h: 0.4 } }),
+  'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado' }),
+  'viga.atribuir': (b) => ({ ids: b.vigas.map((v) => v.id), campo: 'alinhamento', valor: 'dir' }),
+  'viga.dividir': (b) => ({ id: b.vigas[1].id, ponto: [2, 0.1] }),
+  'viga.unir': (b) => ({ ids: [b.vigas[1].id, b.vigas.find((v) => v.nome === 'V3')!.id] }),
+  'viga.prolongar': (b) => ({ id: b.vigas[1].id, extremidade: 'ini', ate: { ponto: [-1, 0] } }),
+  'viga.mover': (b) => ({ ids: [b.vigas[1].id], dx: 0, dy: 1 }),
+  'viga.copiar': (b) => ({ ids: [b.vigas[1].id], dx: 0, dy: 3 }),
+  'viga.copiarParaGrupos': (b) => ({ ids: b.vigas.map((v) => v.id), grupos: ['g_1'] }),
+  'viga.remover': (b) => ({ ids: [b.vigas[0].id] }),
+  'viga.renumerar': () => ({ grupo: 'g_3' }),
+  'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 

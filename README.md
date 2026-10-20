@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 178 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 186 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -120,6 +120,12 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Pilares: inserir por clique ou coordenada, ponto fixo (centro, faces, cantos), ângulo, nasce/morre, seção por lance, mover, copiar em série, renumerar, quadro editável e colagem do Excel; verificação de sobreposição, seção mínima e pilar-parede
 - Eixos por dois pontos ou por malha; ferramentas Selecionar (janela/cruzamento), Mover e Medir
 - Comando `lote` (vários comandos, um desfazer); no arquivo, a geometria da máscara vai uma vez só
+
+**Módulo Edifícios — fatia 2 (20/10/2026)**
+- Vigas por polilinha na planta do grupo, com a linha traçada no eixo ou numa face (tecla A), invertidas e com desnível; seção, alinhamento e desnível editáveis no quadro
+- Dividir, unir, prolongar/aparar até outra viga ou eixo, mover, copiar em série, copiar para outros grupos sem apagar o que existe, atribuir em lote, renumerar e encostar nas faces dos pilares
+- Verificação de lançamento contínua: viga sem apoio, viga em balanço, vigas sobrepostas, viga fora da face do pilar (com correção), pilar sem viga, pilar nascendo sem apoio e transição (V2); “ver na planta” seleciona os elementos
+- MCP: ferramentas genéricas `comandos` e `previa` para os comandos sem ferramenta própria
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

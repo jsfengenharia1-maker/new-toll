@@ -17,5 +17,9 @@ export const PREMISSAS: Premissa[] = [
   { id: 'pilar-parede', tema: 'Pilares', texto: 'Seção com lado maior > 5 × o menor é pilar-parede (aviso; modelo próprio na V2).', fonte: 'NBR 6118, 14.4.2.4 (item a confirmar)', aConfirmar: true },
   { id: 'renumerar', tema: 'Pilares', texto: 'Renumeração da esquerda para a direita e de cima para baixo; pilares com centros a até 0,3 m em y ficam na mesma linha.', fonte: 'Spec, item 5', aConfirmar: true },
   { id: 'unidade-dxf', tema: 'Máscara', texto: 'Unidade do DXF por $INSUNITS; sem ela, estimada pela maior dimensão do desenho (> 5000 → mm; > 300 → cm; senão m), editável.', fonte: 'Critério do app', aConfirmar: true },
+  { id: 'viga-apoio', tema: 'Vigas', texto: 'Apoio da viga = pilar que chega ao pavimento e toca o corpo da viga, ou outra viga cujo eixo ela cruza ou em cujo corpo ela termina (folga de 1 cm). Sem apoio é erro; um apoio só é aviso de balanço.', fonte: 'Critério do app', aConfirmar: true },
+  { id: 'viga-face', tema: 'Vigas', texto: 'Face da viga a até 5 cm da face paralela do pilar (viga não centrada) gera aviso com a correção “encostar na face”.', fonte: 'Critério do app', aConfirmar: true },
+  { id: 'viga-numeracao', tema: 'Vigas', texto: 'Vigas numeradas por grupo: horizontais de cima para baixo e da esquerda para a direita; depois verticais e inclinadas da esquerda para a direita.', fonte: 'Spec, item 5', aConfirmar: false },
+  { id: 'transicao', tema: 'Pilares', texto: 'Pilar que nasce sobre viga (transição) é erro até a V2; pilar que nasce sem viga embaixo é erro.', fonte: 'Spec, item 8', aConfirmar: false },
   { id: 'capturas', tema: 'Desenho', texto: 'Capturas num raio de 12 px; prioridade: extremidade > interseção > meio > centro > quadrante > perpendicular > próximo; polar a cada 15°.', fonte: 'Spec, itens 32', aConfirmar: false },
 ];

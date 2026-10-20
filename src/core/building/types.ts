@@ -96,6 +96,25 @@ export interface Pilar {
   secoes?: { pavimento: string; secao: SecaoPilar }[];
 }
 
+/** Linha traçada da viga em relação ao corpo: eixo (centro) ou face esquerda/direita, olhando do 1º para o último ponto. */
+export type Alinhamento = 'esq' | 'centro' | 'dir';
+export type Vinculo = 'auto' | 'engaste' | 'articulado';
+
+export interface Viga {
+  id: string;
+  nome: string;
+  grupo: string;
+  /** Polilinha traçada (m), com 2 ou mais pontos. */
+  pontos: [number, number][];
+  secao: { b: number; h: number }; // m
+  alinhamento: Alinhamento;
+  invertida?: boolean;
+  /** Desnível do topo em relação ao topo da laje do pavimento (m; negativo = rebaixada). */
+  nivel?: number;
+  vinculoIni?: Vinculo;
+  vinculoFim?: Vinculo;
+}
+
 export interface BuildingModel {
   version: typeof BUILDING_VERSION;
   /** Contador para ids determinísticos (o replay do log gera os mesmos ids). */
@@ -107,6 +126,7 @@ export interface BuildingModel {
   eixos: Eixo[];
   mascaras: Mascara[];
   pilares: Pilar[];
+  vigas: Viga[];
 }
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
@@ -139,6 +159,7 @@ export function edificioVazio(): BuildingModel {
     eixos: [],
     mascaras: [],
     pilares: [],
+    vigas: [],
   };
 }
 
@@ -156,7 +177,7 @@ export const cotaFundacao = (b: BuildingModel) => (b.pavimentos.length ? Math.mi
 
 /** Modelos gravados antes de um campo existir ganham o valor vazio. */
 export function normalizarEdificio(b: BuildingModel): BuildingModel {
-  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [] };
+  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [] };
 }
 
 /** Pavimentos atravessados pelo pilar (topos dos lances), de baixo para cima. */
@@ -197,3 +218,49 @@ export function mascaraParaMundo(m: Pick<Mascara, 'escala' | 'rotacao' | 'dx' | 
   const u = x * m.escala, v = y * m.escala;
   return [u * c - v * s + m.dx, u * s + v * c + m.dy];
 }
+
+/** Deslocamentos (à esquerda do traçado) da face esquerda, do eixo e da face direita da viga. */
+export function offsetsViga(v: Pick<Viga, 'secao' | 'alinhamento'>): { esq: number; eixo: number; dir: number } {
+  const b = v.secao.b;
+  return v.alinhamento === 'esq' ? { esq: 0, eixo: -b / 2, dir: -b } : v.alinhamento === 'dir' ? { esq: b, eixo: b / 2, dir: 0 } : { esq: b / 2, eixo: 0, dir: -b / 2 };
+}
+
+/** Polilinha deslocada de `d` para a esquerda, com cantos em esquadria (vértices intermediários pela interseção). */
+export function deslocarPolilinha(pts: [number, number][], d: number): [number, number][] {
+  const n = pts.length;
+  const nrm = (a: [number, number], z: [number, number]): [number, number] => { const L = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1; return [-(z[1] - a[1]) / L, (z[0] - a[0]) / L]; };
+  const out: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    if (i === 0 || i === n - 1) { const m = i === 0 ? nrm(pts[0], pts[1]) : nrm(pts[n - 2], pts[n - 1]); out.push([pts[i][0] + d * m[0], pts[i][1] + d * m[1]]); continue; }
+    const m1 = nrm(pts[i - 1], pts[i]), m2 = nrm(pts[i], pts[i + 1]);
+    const bx = m1[0] + m2[0], by = m1[1] + m2[1], c = (bx * m1[0] + by * m1[1]);
+    const k = Math.abs(c) < 0.2 ? d : d / c; // ângulos muito agudos: sem esquadria longa
+    out.push([pts[i][0] + bx * k, pts[i][1] + by * k]);
+  }
+  return out;
+}
+
+/** Faces esquerda e direita e eixo da viga. */
+export function geometriaViga(v: Pick<Viga, 'pontos' | 'secao' | 'alinhamento'>) {
+  const o = offsetsViga(v);
+  return { esq: deslocarPolilinha(v.pontos, o.esq), eixo: deslocarPolilinha(v.pontos, o.eixo), dir: deslocarPolilinha(v.pontos, o.dir) };
+}
+
+/** Retângulos (quadriláteros convexos) de cada trecho da viga, prolongados de `folga` nas pontas. */
+export function trechosViga(v: Pick<Viga, 'pontos' | 'secao' | 'alinhamento'>, folga = 0): [number, number][][] {
+  const o = offsetsViga(v);
+  const r: [number, number][][] = [];
+  for (let i = 0; i + 1 < v.pontos.length; i++) {
+    const a = v.pontos[i], z = v.pontos[i + 1], L = Math.hypot(z[0] - a[0], z[1] - a[1]);
+    if (!L) continue;
+    const ux = (z[0] - a[0]) / L, uy = (z[1] - a[1]) / L, nx = -uy, ny = ux;
+    const A: [number, number] = [a[0] - ux * folga, a[1] - uy * folga], Z: [number, number] = [z[0] + ux * folga, z[1] + uy * folga];
+    r.push([[A[0] + nx * o.dir, A[1] + ny * o.dir], [Z[0] + nx * o.dir, Z[1] + ny * o.dir], [Z[0] + nx * o.esq, Z[1] + ny * o.esq], [A[0] + nx * o.esq, A[1] + ny * o.esq]]);
+  }
+  return r;
+}
+
+export const comprimentoPolilinha = (pts: [number, number][]) => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+
+/** Pavimentos que usam a planta do grupo. */
+export const pavimentosDoGrupo = (b: BuildingModel, grupo: string) => pavimentosOrdenados(b).filter((p) => p.grupo === grupo);

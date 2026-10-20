@@ -36,7 +36,7 @@ describe('pilares', () => {
     // pilar que nasce no Tipo 2 não colide com um que morre no Tipo 1
     ok(s, 'pilar.inserir', { x: 5, y: 0, secao: ret(0.3, 0.3), morre: 'pav_4' });
     ok(s, 'pilar.inserir', { x: 5, y: 0, secao: ret(0.3, 0.3), nasce: 'pav_5' });
-    expect(verificar(s.modelo).filter((d) => d.severidade === 'erro')).toEqual([]);
+    expect(verificar(s.modelo).filter((d) => d.severidade === 'erro').map((d) => d.codigo)).toEqual(['PILAR_NASCE_SEM_APOIO']); // sem viga embaixo
   });
 
   it('seção mínima, pilar-parede e lance com seção própria', () => {

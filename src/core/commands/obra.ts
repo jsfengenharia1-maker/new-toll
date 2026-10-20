@@ -100,6 +100,7 @@ registrar<{ id: string }>({
   nome: 'grupo.remover',
   descricao: 'Remove um grupo sem pavimentos.',
   risco: 'destrutivo',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
   validar(b, p) {
     if (!grp(b, p.id)) return err('GRUPO_INEXISTENTE', `Grupo ${p.id} não existe.`);
@@ -250,6 +251,7 @@ registrar<{ id: string; nome?: string; p1?: [number, number]; p2?: [number, numb
   nome: 'eixo.editar',
   descricao: 'Altera o nome ou os pontos de um eixo.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, p1: ponto, p2: ponto } },
   validar(b, p) {
     const e = b.eixos.find((x) => x.id === p.id);

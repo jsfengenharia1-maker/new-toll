@@ -75,7 +75,7 @@ describe('servidor MCP', () => {
     const tools = rpc(s, 'tools/list').result.tools;
     expect(tools.length).toBeGreaterThanOrEqual(20);
     expect(tools.length).toBeLessThanOrEqual(40);
-    for (const c of listarComandos()) {
+    for (const c of listarComandos().filter((x) => x.mcp !== false)) {
       const t = tools.find((x: { name: string }) => x.name === nomeFerramenta(c.nome));
       expect(t, c.nome).toBeDefined();
       expect(t.name).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
@@ -83,6 +83,12 @@ describe('servidor MCP', () => {
       expect(t.annotations.destructiveHint).toBe(c.risco === 'destrutivo');
     }
     expect(tools.find((x: { name: string }) => x.name === 'aplicar').annotations.readOnlyHint).toBe(false);
+    // comandos sem ferramenta própria: pela prévia genérica
+    const s2 = call(s, 'novo');
+    expect(s2.isError).toBeUndefined();
+    const pv = call(s, 'previa', { comando: 'pilar.renumerar', params: {} });
+    expect(pv.structuredContent.ok).toBe(true);
+    expect(call(s, 'comandos').structuredContent.comandos.length).toBe(listarComandos().length);
   });
 
   it('prévia → aplicar → verificar → desfazer; erros vêm como isError', () => {
