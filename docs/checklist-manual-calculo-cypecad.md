@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 2 | 1 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 25 | 22 | 56 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 26 | 21 | 56 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 19 | 21 | 19 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 34 | 31 | 32 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 8 | 3 | 30 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **200** | **158** | **192** | **111** |
+| **Total** | **661** | **201** | **157** | **192** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -34,10 +34,10 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 63 | 30 | 93 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 49 | 19 | 68 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; o restante fica para E3 e E4) | 23 | 119 | 142 |
-| FU — Fundações | 10 | 13 | 23 |
+| FU — Fundações | 9 | 13 | 22 |
 | L — Lançamento e produtividade | 4 | 0 | 4 |
 | V — Visualização | 9 | 11 | 20 |
-| **Total** | **158** | **192** | **350** |
+| **Total** | **157** | **192** | **349** |
 
 ## Divergências de premissa
 
@@ -504,7 +504,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
 | | **Fundações (na entrada de lajes)** | | | |
 | K1.9.110 | Pilares e pilares-parede com vinculação externa podem ter sapatas e blocos sobre estacas; entre eles vigas de equilíbrio (centradoras) e vigas de travamento, que também ligam sapatas corridas de paredes. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1) e vigas de equilíbrio e de travamento no núcleo (FU2: `vigasFundacao.ts`, comandos `vigaFundacao.*`); interface das vigas e sapatas corridas faltam |
-| K1.9.111 | Sapatas retangulares calculadas como sólido rígido; podem receber vários pilares e/ou pilares-parede; blocos idem conforme tipologia. | Parcial | FU | sapata rígida isolada de um pilar; associadas faltam |
+| K1.9.111 | Sapatas retangulares calculadas como sólido rígido; podem receber vários pilares e/ou pilares-parede; blocos idem conforme tipologia. | Feito | — | FU3: sapata associada rígida (faixas pelo diagrama de momentos, `footingsGroup.ts`) e bloco com vários pilares (bielas e tirantes por pilar, `caps.ts`, extensão de Blévot a confirmar); pilares-parede com a E1 |
 | K1.9.112 | Vigas centradoras absorvem os momentos transmitidos à sapata/bloco; várias numa direção dividem o momento proporcionalmente às rigidezes. | Parcial | FU | FU2 núcleo: alavanca com várias vigas repartindo o momento pela rigidez EI/ℓ (`alavanca` em `vigasFundacao.ts`); componente que nenhuma viga equilibra fica no elemento; momentos do pilar ficam no elemento (a confirmar); interface pendente |
 | | **1.9.10–1.9.11 Cargas, vigas inclinadas, contraventamentos, escadas (pág. 65)** | | | |
 | K1.9.113 | Cargas concentradas, lineares e superficiais lançadas graficamente, com cor por caso. | Feito | — | ponto, linha e área na planta por caso (`carga.*`); cor única |
@@ -885,4 +885,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: Feito 200 → 200; Parcial 156 → 158; Falta 194 → 192; Fora 111 → 111.
   - Pendências por frente: FU 23 → 23 (Parcial 8 → 10, Falta 15 → 13); demais sem mudança.
 - **20/10/2026 — specs N2, E1 e E2 (só documentação).** Pendências N (93) alocadas às fatias N2a–N2g de `spec-frente-N2.md`; pendências E de pilar-parede, paredes, alvenaria, transições e empuxo (40) às fatias E1a–E1e de `spec-frente-E1.md`; de vigas T, inclinadas, consolos e vínculo externo (20) às fatias E2a–E2e de `spec-frente-E2.md`. A fatia vai na nota de cada item (ex. "[N2d]"); a frente continua "N" ou "E", porque `checklists.test.ts` só aceita a letra. Conferido por script: cada id em uma só fatia, sem sobra. Situação e contagens sem mudança.
+- **20/10/2026 — fatia FU3 no núcleo.** K1.9.111 (sapatas rígidas com vários pilares e blocos idem) passa de Parcial a Feito: sapata associada (`footingsGroup.ts`) e bloco com vários pilares (`caps.ts`, bielas e tirantes por pilar, extensão de Blévot a confirmar); pilares-parede com a E1.
+  - Situação: Feito 200 → 201; Parcial 158 → 157; Falta 192 → 192; Fora 111 → 111.
+  - Pendências por frente: FU 23 → 22 (Parcial 10 → 9, Falta 13 → 13); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

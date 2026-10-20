@@ -10,8 +10,11 @@
 import { designSupport, type SupportDesign } from '../foundation';
 import { columnOffset, isFooting } from '../footings';
 import { dentroPoligono, type P } from '../geom/faces';
+import { sobrepoe } from '../geom/poly';
+import { segmentoCortaPoligono } from '../footingsGroup';
+import type { Pt } from '../footings';
 import { isCaisson } from '../caissons';
-import { defaultFoundationParams, PILE_LABEL, type Boring, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
+import { defaultFoundationParams, PILE_LABEL, type Boring, type FCol, type FCombo, type FixedDims, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
 import type { AnaliseEdificio } from './analitico';
 import { reacoesArranques } from './analitico';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
@@ -19,12 +22,12 @@ import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
 import {
-  abscissaNaViga, alavanca, cargasDaViga, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesBiapoiada,
+  abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
   type AlavancaNaViga, type CargaPontualVF, type GeometriaVF, type ResultadoVigaFundacao, type VigaAlavanca,
 } from './vigasFundacao';
 import {
   casosDaObra, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
-  type BuildingModel, type ElementoFundacao, type Pilar, type PosicaoFundacao, type TipoFundacao,
+  type BuildingModel, type ElementoFundacao, type ImpostasFundacao, type Pilar, type PosicaoFundacao, type TipoFundacao,
 } from './types';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -38,7 +41,7 @@ export const POSICAO_LABEL: Record<PosicaoFundacao, string> = { centrada: 'centr
 type Reacao = AnaliseEdificio['fundacao'][number];
 
 /** Cargas características por pilar (id → FLoad): rara máx./mín., permanente, H e M da rara de maior N (eixos globais). */
-export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fundacao' | 'vento'>, filtro?: (c: CombinacaoEd) => boolean): Map<string, FLoad> {
+export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fundacao' | 'vento'>, filtro?: (c: CombinacaoEd) => boolean, comCombos = false): Map<string, FLoad> {
   const combs = combinacoesEdificio(b, an as AnaliseEdificio).filter((x) => x.tipo === 'RARA' && (!filtro || filtro(x)));
   const porPilar = new Map<string, Record<string, Reacao>>();
   const permanentes = casosDaObra(b).filter((c) => c.natureza === 'G').map((c) => c.id);
@@ -64,6 +67,7 @@ export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fund
       id: ++id, label: p.nome, Nk: +ns[iMax].toFixed(2), NkMin: +Math.min(...ns).toFixed(2), NkPerm: +permanentes.reduce((t, c) => t + (r[c]?.N ?? 0), 0).toFixed(2),
       Hx: +v(cMax, 'Vx').toFixed(2), Hy: +v(cMax, 'Vy').toFixed(2), Mx: +v(cMax, 'Mx').toFixed(2), My: +v(cMax, 'My').toFixed(2),
       x: +cx.toFixed(3), y: +cy.toFixed(3), ap: rot ? h : w, bp: rot ? w : h, source: `Edifício · ${cMax.nome}`,
+      ...(comCombos ? { combos: combs.map((cb) => ({ label: cb.nome, N: v(cb, 'N'), Vx: v(cb, 'Vx'), Vy: v(cb, 'Vy'), Mx: v(cb, 'Mx'), My: v(cb, 'My') })) } : {}),
     });
   }
   return out;
@@ -84,8 +88,12 @@ export const secaoBase = (b: BuildingModel, p: Pilar) => { const l = lancesDoPil
  * materiais da fundação (materiais.definir: fck, aço e cobrimento próprios, padrão = os da obra e 5 cm), com γ da obra.
  */
 export function parametrosFundacao(b: BuildingModel): FoundationParams {
-  const g = gamas(b);
-  return { ...defaultFoundationParams(), gammaC: g.c, gammaS: g.s, gammaF: g.g, ...b.fundacao?.params, fckFound: fckDe(b, 'fundacao'), fyk: acoDe(b, 'fundacao').fyk, cover: cobrimentoFundacao(b) };
+  const g = gamas(b), op = opcoesEmUso(b.opcoes, perfilDe(b));
+  return {
+    ...defaultFoundationParams(), gammaC: g.c, gammaS: g.s, gammaF: g.g,
+    ftLevantamento: op.fundDescolamento === 1, ftVaoAltura: op.fundVaoAltura, ftBalancoAltura: op.fundBalancoAltura, ftSimplesGamma: op.fundSimplesGamma, ftRhoMinReduz: op.fundReducaoTaxa === 1,
+    ...b.fundacao?.params, fckFound: fckDe(b, 'fundacao'), fyk: acoDe(b, 'fundacao').fyk, cover: cobrimentoFundacao(b),
+  };
 }
 
 /** Cota do terreno (boca dos furos): a informada ou a do pavimento mais baixo. */
@@ -154,6 +162,18 @@ export interface ResultadoFundacao {
   alivio?: { total: number; considerado: number; minimo: number; vigas: string[] };
   /** Cargas do nível de fundação aplicadas diretamente sobre o elemento (kN, soma dos casos). */
   cargaDireta?: number;
+  /** Elemento de vários pilares (sapata associada, bloco com vários pilares) ou aparado por limites (FU3). */
+  grupo?: {
+    /** Pilares (centro global, seção nos eixos do elemento) e ponto de referência (a resultante, ou o ponto informado). */
+    pilares: { id: string; nome: string; centro: [number, number]; ap: number; bp: number }[];
+    referencia: [number, number];
+    /** Limites que aparam o elemento (ids) e os ignorados, com o motivo. */
+    limitesUsados: string[]; limitesIgnorados: { id: string; nome: string; motivo: string }[];
+  };
+  /** Sapata de concreto simples; altura constante. */
+  simples?: boolean; alturaConstante?: boolean;
+  /** Igualado ao elemento (id e nome do modelo). */
+  igualA?: { id: string; nome: string };
 }
 
 export interface OpcoesFundacao {
@@ -176,7 +196,9 @@ const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
 /** Carga global → eixos do elemento (forças e momentos girados de −θ). */
 function cargaLocal(ld: FLoad, graus: number): FLoad {
   const [Hx, Hy] = rot([ld.Hx, ld.Hy], -graus), [Mx, My] = rot([ld.Mx, ld.My], -graus);
-  return { ...ld, Hx: +Hx.toFixed(3), Hy: +Hy.toFixed(3), Mx: +Mx.toFixed(3), My: +My.toFixed(3) };
+  const { combos: _combos, ...resto } = ld;
+  void _combos;
+  return { ...resto, Hx: +Hx.toFixed(3), Hy: +Hy.toFixed(3), Mx: +Mx.toFixed(3), My: +My.toFixed(3) };
 }
 
 /** Pilar nos eixos do elemento: retângulo envolvente da seção (ap ao longo de x local) e centro (m). */
@@ -229,14 +251,34 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
     if (g) { const l = naViga.get(g.viga.id) ?? []; l.push({ caso: pc.caso, s: abscissaNaViga(g, pc.pt)!, P: pc.P }); naViga.set(g.viga.id, l); }
     else resto.push(pc);
   }
+  // cruzamentos de vigas (C11.53): a viga apoiada é contínua com apoio no cruzamento; a reação vai à viga de apoio
+  const cruzs = cruzamentosVF(geos);
+  const ventoCasos = new Set(casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.id));
+  const apoiosDe = new Map<string, { caso: string; s: number; R: number; com: string }[]>();
+  const filhas = new Map<string, string[]>();
+  for (const c of cruzs) filhas.set(c.apoio, [...(filhas.get(c.apoio) ?? []), c.apoiada]);
+  const ordemVigas: GeometriaVF[] = [];
+  const visitada = new Set<string>();
+  const visita = (g: GeometriaVF) => {
+    if (visitada.has(g.viga.id)) return;
+    visitada.add(g.viga.id);
+    for (const f of filhas.get(g.viga.id) ?? []) visita(geos.find((x) => x.viga.id === f)!);
+    ordemVigas.push(g);
+  };
+  geos.forEach(visita);
   // reações das vigas (peso próprio + cargas sobre elas) nas pontas, por caso → somadas às cargas dos pilares
   const extra: Reacao[] = [];
   const somar = (pilar: string, caso: string, N: number) => { if (N) extra.push({ pilar, caso, N, Vx: 0, Vy: 0, Mx: 0, My: 0 }); };
-  for (const g of geos) if (!g.erro) {
+  for (const g of ordemVigas) if (!g.erro) {
+    const meus = cruzs.filter((c) => c.apoiada === g.viga.id);
     const cs = cargasDaViga(g, naViga.get(g.viga.id) ?? []);
     for (const caso of new Set(cs.map((c) => c.caso))) {
-      const r = reacoesBiapoiada(g.L, cs.filter((c) => c.caso === caso));
+      const r = reacoesComApoios(g.L, cs.filter((c) => c.caso === caso), meus.map((c) => c.sApoiada));
       somar(g.ini!.pilar.id, caso, r.ini); somar(g.fim!.pilar.id, caso, r.fim);
+      meus.forEach((c, k) => {
+        const l = naViga.get(c.apoio) ?? []; l.push({ caso, s: c.sApoio, P: r.R[k] }); naViga.set(c.apoio, l);
+        const a = apoiosDe.get(g.viga.id) ?? []; a.push({ caso, s: c.sApoiada, R: r.R[k], com: geos.find((x) => x.viga.id === c.apoio)!.viga.nome }); apoiosDe.set(g.viga.id, a);
+      });
     }
   }
   const ge: Geral = { o, op, modo, niveis, P0: parametrosFundacao(b), zt: cotaTerreno(b), furos: fe.sondagens };
@@ -259,6 +301,22 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
       }
     }
     if (fora.length) avisos.push(`Carga no nível de fundação fora das vigas e dos elementos de fundação: ${fmt(fora.reduce((t, x) => t + x.P, 0), 1)} kN ignorados (só vigas de fundação e elementos recebem cargas nesse nível).`);
+  }
+
+  // sobreposições em planta (mesmo nível) e limites que não valem para sapata de altura variável
+  for (const [a, z] of sobreposicoes(res)) {
+    for (const [r, o] of [[a, z], [z, a]] as const) r.mensagens.push(`Fundação sobreposta: ${r.nome} e ${o.nome} se sobrepõem em planta; una as sapatas (associada) ou afaste os elementos.`);
+  }
+  for (const r of res) {
+    if (r.tipo !== 'sapata' || r.alturaConstante || r.contorno.length < 3 || r.mantido) continue;
+    for (const l of fe.limites ?? []) {
+      if (l.cota !== undefined && Math.abs(l.cota - r.cota) > 1e-3) continue;
+      const pts = l.fechado && l.pontos.length > 2 ? [...l.pontos, l.pontos[0]] : l.pontos;
+      if (pts.some((q, i) => i + 1 < pts.length && segmentoCortaPoligono(r.contorno as Pt[], q as Pt, pts[i + 1] as Pt))) {
+        r.mensagens.push(`Limite ${l.nome} ignorado: só vale para sapata de altura constante (${r.nome} tem altura variável).`);
+        break;
+      }
+    }
   }
 
   // vigas de fundação
@@ -295,7 +353,21 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
       // ponta aliviada sem elemento (pilar sem fundação lançada): tração não verificada no elemento
       for (const ponta of ['ini', 'fim'] as const) if (alivio[ponta] && !g[ponta]?.elemento) notas.push(`Alívio de ${fmt(alivio[ponta], 1)} kN em ${g[ponta]!.nome}, que não tem elemento de fundação lançado.`);
     }
-    vigas.push(dimensionarVigaFundacao(b, { g, equilibrio: eq, alavancas, cargas: naViga.get(v.id) ?? [], travamento, alivio, mensagens: msgs, notas }, op));
+    // cruzamentos: apoiada (apoio intermediário) e apoio (recebe a reação)
+    const cruzamentos: NonNullable<ResultadoVigaFundacao['cruzamentos']> = [];
+    const nomeVF = (id: string) => geos.find((x) => x.viga.id === id)!.viga.nome;
+    const somaNV = (l: { caso: string; R: number }[]) => l.filter((a) => !ventoCasos.has(a.caso)).reduce((t, a) => t + a.R, 0);
+    for (const c of cruzs) {
+      if (c.apoiada === v.id) {
+        cruzamentos.push({ com: nomeVF(c.apoio), papel: 'apoiada', s: c.sApoiada, R: somaNV((apoiosDe.get(v.id) ?? []).filter((a) => Math.abs(a.s - c.sApoiada) < 1e-9)) });
+        msgs.push(`Viga de fundação: ${v.nome} cruza ${nomeVF(c.apoio)} em s = ${fmt(c.sApoiada)} m: apoiada nela (apoio intermediário; viga contínua).`);
+      } else if (c.apoio === v.id) {
+        const outra = apoiosDe.get(c.apoiada)?.filter((a) => Math.abs(a.s - c.sApoiada) < 1e-9) ?? [];
+        cruzamentos.push({ com: nomeVF(c.apoiada), papel: 'apoio', s: c.sApoio, R: somaNV(outra) });
+        notas.push(`Recebe a reação de ${nomeVF(c.apoiada)} em s = ${fmt(c.sApoio)} m (${fmt(somaNV(outra), 1)} kN, soma dos casos sem vento).`);
+      }
+    }
+    vigas.push(dimensionarVigaFundacao(b, { g, equilibrio: eq, alavancas, cargas: naViga.get(v.id) ?? [], travamento, alivio, apoios: apoiosDe.get(v.id), cruzamentos, mensagens: msgs, notas }, op));
   }
   // travamento obrigatório dos blocos de 1 e 2 estacas (NBR 6122)
   for (const r of res) {
@@ -307,20 +379,41 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
   return { elementos: res, vigas, avisos };
 }
 
+/** Pares de elementos do mesmo nível cujos contornos em planta se sobrepõem (encostar não conta). */
+export function sobreposicoes(res: ResultadoFundacao[]): [ResultadoFundacao, ResultadoFundacao][] {
+  const out: [ResultadoFundacao, ResultadoFundacao][] = [];
+  for (let i = 0; i < res.length; i++) for (let j = i + 1; j < res.length; j++) {
+    const a = res[i], z = res[j];
+    if (a.contorno.length < 3 || z.contorno.length < 3 || Math.abs(a.cota - z.cota) > 1e-3) continue;
+    if (sobrepoe(a.contorno, z.contorno, 1e-4)) out.push([a, z]);
+  }
+  return out;
+}
+
+/** Grupos de elementos que se sobrepõem direta ou indiretamente (ids): entrada de `fundacao.eliminarSobreposicoes`. */
+export function gruposSobrepostos(res: ResultadoFundacao[]): string[][] {
+  const pai = new Map(res.map((r) => [r.id, r.id]));
+  const raiz = (x: string): string => (pai.get(x) === x ? x : (pai.set(x, raiz(pai.get(x)!)), pai.get(x)!));
+  for (const [a, z] of sobreposicoes(res)) pai.set(raiz(a.id), raiz(z.id));
+  const grupos = new Map<string, string[]>();
+  for (const r of res) { const k = raiz(r.id); grupos.set(k, [...(grupos.get(k) ?? []), r.id]); }
+  return [...grupos.values()].filter((g) => g.length > 1);
+}
+
 interface Geral { o: OpcoesFundacao; op: OpcoesCalculo; modo: number; niveis?: number[]; P0: FoundationParams; zt: number; furos: Boring[] }
 
 /** Um passo do cálculo dos elementos (com as reações extras das cargas do nível de fundação). */
 function passo(b: BuildingModel, base: Pick<AnaliseEdificio, 'fundacao' | 'vento'>, extra: Reacao[], geos: GeometriaVF[], ge: Geral): ResultadoFundacao[] {
   const fe = b.fundacao!;
   const bb = extra.length ? { fundacao: [...base.fundacao, ...extra], vento: base.vento } : base;
-  const cargas = cargasPorPilar(b, bb);
+  const cargas = cargasPorPilar(b, bb, undefined, true);
   // combinações com vento (majoração de σadm)
   const ventos = new Set([...(base.vento?.casos ?? []).map((c) => c.nome), ...casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.id)]);
   const comVento = (c: CombinacaoEd) => Object.entries(c.fatores).some(([k, f]) => f !== 0 && ventos.has(k));
   const fv = fe.terreno.fatorVento ?? 1;
   const separar = Math.abs(fv - 1) > 1e-9 && ventos.size > 0;
-  const cargasSemVento = separar ? cargasPorPilar(b, bb, (c) => !comVento(c)) : null;
-  const cargasComVento = separar ? cargasPorPilar(b, bb, comVento) : null;
+  const cargasSemVento = separar ? cargasPorPilar(b, bb, (c) => !comVento(c), true) : null;
+  const cargasComVento = separar ? cargasPorPilar(b, bb, comVento, true) : null;
   const anteriores = new Map((ge.o.anteriores ?? []).map((r) => [r.id, r]));
   // pontas equilibradas por elemento
   const eqPorEl = new Map<string, Ponta[]>();
@@ -338,19 +431,36 @@ function passo(b: BuildingModel, base: Pick<AnaliseEdificio, 'fundacao' | 'vento
   };
   const out = new Map<string, ResultadoFundacao>();
   // os equilibrados primeiro (a alavanca define o alívio das pontas opostas)
-  const ordem = [...fe.elementos.filter((e) => eqPorEl.has(e.id)), ...fe.elementos.filter((e) => !eqPorEl.has(e.id))];
-  for (const el of ordem) {
-    const cota = cotaElemento(b, el);
-    if (ge.o.ids && !ge.o.ids.includes(el.id)) continue;
-    const ant = anteriores.get(el.id);
-    if (ge.niveis && !ge.niveis.some((z) => Math.abs(z - cota) < 1e-3)) { if (ant) { out.set(el.id, { ...ant, mantido: true }); registrarAlivio(ant); } continue; }
-    if (ge.modo === 2 && ant && ant.status === 'ok') { out.set(el.id, { ...ant, mantido: true }); registrarAlivio(ant); continue; }
-    const r = calcularElemento(b, el, {
+  // (os igualados por último: o modelo é calculado antes e dá a geometria)
+  const normais = fe.elementos.filter((e) => !e.igualA);
+  const ordem = [...normais.filter((e) => eqPorEl.has(e.id)), ...normais.filter((e) => !eqPorEl.has(e.id)), ...fe.elementos.filter((e) => e.igualA)];
+  for (const el0 of ordem) {
+    const cota = cotaElemento(b, el0);
+    if (ge.o.ids && !ge.o.ids.includes(el0.id)) continue;
+    const ant = anteriores.get(el0.id);
+    if (ge.niveis && !ge.niveis.some((z) => Math.abs(z - cota) < 1e-3)) { if (ant) { out.set(el0.id, { ...ant, mantido: true }); registrarAlivio(ant); } continue; }
+    if (ge.modo === 2 && ant && ant.status === 'ok') { out.set(el0.id, { ...ant, mantido: true }); registrarAlivio(ant); continue; }
+    // igualar: tipo, geometria e armadura do modelo, só verificados
+    let el = el0, erroModelo = '';
+    const modelo = el0.igualA ? fe.elementos.find((x) => x.id === el0.igualA) : undefined;
+    if (el0.igualA) {
+      const rm = modelo ? out.get(modelo.id) ?? anteriores.get(modelo.id) : undefined;
+      const imp = rm ? impostasDoResultado(rm) : undefined;
+      if (!modelo) erroModelo = `Fundação igualada a um elemento que não existe (${el0.igualA}).`;
+      else if (!imp) erroModelo = `Fundação igualada a ${modelo.nome}, que não tem solução: calcule o modelo.`;
+      else el = { ...el0, tipo: modelo.tipo, simples: modelo.simples, alturaConstante: modelo.alturaConstante, estaca: modelo.estaca, impostas: imp };
+    }
+    const ctx: Contexto = {
       cargas, cargasSemVento, cargasComVento, fv, P0: ge.P0, zt: ge.zt, furos: ge.furos, cota, ant: ge.modo === 1 ? ant : undefined,
       op: ge.op, eq: eqPorEl.get(el.id), alivio: alivios.get(el.pilares[0]),
-    });
+    };
+    const r = usaGrupo(b, el, cota) ? calcularGrupo(b, el, ctx) : calcularElemento(b, el, ctx);
+    if (modelo) r.igualA = { id: modelo.id, nome: modelo.nome };
+    if (el.tipo === 'sapata' && el.simples) r.simples = true;
+    if (el.tipo === 'sapata' && el.alturaConstante) r.alturaConstante = true;
+    if (erroModelo) { r.mensagens.push(erroModelo); r.status = 'fail'; }
     registrarAlivio(r);
-    out.set(el.id, r);
+    out.set(el0.id, r);
   }
   return fe.elementos.filter((e) => out.has(e.id)).map((e) => out.get(e.id)!);
 }
@@ -367,6 +477,226 @@ interface Contexto {
 
 type Alav = NonNullable<ReturnType<typeof alavanca>>;
 type Projeto = { ld: FLoad; d: SupportDesign; e: [number, number]; lev?: { al: Alav; RMin: number; eC: P; eRes: [number, number]; vigas: VigaAlavanca[]; nucleo: boolean } | null };
+
+/** Dimensões impostas do modelo no formato do núcleo de fundações. */
+export const fixedDe = (i: ImpostasFundacao): FixedDims => ({
+  A: i.A, B: i.B, ...(i.h ? { h: i.h } : {}), ...(i.h0 ? { h0: i.h0 } : {}), ...(i.armadura ? { bars: i.armadura } : {}), ...(i.Df ? { Df: i.Df } : {}),
+});
+
+/**
+ * Geometria e armadura calculadas de um resultado, como dimensões impostas (igualar, "impor as calculadas", modo só verificar).
+ * Sapata: A, B, h, h0 e as barras de cada direção (φ, n e espaçamento); bloco: lx, ly, h e a maior bitola dos tirantes
+ * (n barras); tubulão: base e fuste.
+ */
+export function impostasDoResultado(r: ResultadoFundacao): ImpostasFundacao | undefined {
+  const d = r.projeto;
+  if (r.tipo === 'sapata' && r.dims.A && r.dims.B) {
+    const f = d?.footing && isFooting(d.footing) ? d.footing : null;
+    const bars = f && !f.simples ? { x: f.flex.x.bars ? { phi: f.flex.x.bars.phi, s: f.flex.x.bars.spacing, n: f.flex.x.bars.n } : undefined, y: f.flex.y.bars ? { phi: f.flex.y.bars.phi, s: f.flex.y.bars.spacing, n: f.flex.y.bars.n } : undefined } : undefined;
+    return { A: r.dims.A, B: r.dims.B, ...(r.dims.h ? { h: r.dims.h } : {}), ...(r.dims.h0 ? { h0: r.dims.h0 } : {}), ...(bars && (bars.x || bars.y) ? { armadura: bars } : {}) };
+  }
+  if (r.tipo === 'bloco' && r.dims.A && r.dims.B) {
+    const t = d?.cap?.ties.filter((q) => q.bars).sort((a, z) => z.As - a.As)[0];
+    return { A: r.dims.A, B: r.dims.B, ...(r.dims.h ? { h: r.dims.h } : {}), ...(t?.bars ? { armadura: { x: { phi: t.bars.phi, n: t.bars.n } } } : {}) };
+  }
+  if (r.tipo === 'tubulao' && r.dims.Db) return { A: r.dims.Db, B: r.dims.Db, ...(r.dims.Df ? { Df: r.dims.Df } : {}) };
+  return undefined;
+}
+
+/** Parâmetros de solo do elemento: σadm (do elemento, do terreno ou pelo SPT), estaca do bloco e sondagem. */
+interface Solo { erro?: string; kind: FoundationKind; P: FoundationParams; sigmaFonte?: string; pile?: FLoad['pile']; furo: Partial<FLoad> }
+
+function prepararSolo(b: BuildingModel, el: ElementoFundacao, cx: Contexto, prof: number, notas: string[]): Solo {
+  const fe = b.fundacao!;
+  const kind = KIND[el.tipo];
+  const P: FoundationParams = parametrosElemento(cx.P0, el, prof);
+  let sigmaFonte: string | undefined;
+  let pile: FLoad['pile'];
+  const falha = (erro: string): Solo => ({ erro, kind, P, furo: {} });
+  if (el.tipo !== 'bloco') {
+    const s = el.sigmaAdm ?? (fe.terreno.sigmaModo === 'informada' ? fe.terreno.sigmaAdm : undefined);
+    if (el.sigmaAdm !== undefined || fe.terreno.sigmaModo === 'informada') {
+      if (!s) return falha('Fundação sem σadm: informe a tensão admissível do terreno ou do elemento.');
+      P.ftSigmaMode = 'informada'; P.ftSigmaAdm = s; P.tbSigmaMode = 'informada'; P.tbSigmaAdm = s;
+      sigmaFonte = el.sigmaAdm !== undefined ? 'informada no elemento' : 'informada (terreno)';
+    } else {
+      if (!cx.furos.length) return falha('Fundação sem sondagem: σadm estimada pelo SPT exige furos de sondagem.');
+      P.ftSigmaMode = 'spt'; P.tbSigmaMode = 'spt';
+    }
+  }
+  if (el.tipo === 'bloco') {
+    const est = fe.terreno.estacas.find((x) => x.id === el.estaca?.id);
+    if (!est) return falha('Fundação sem estaca: escolha um tipo de estaca do terreno.');
+    if (est.modo === 'informada') {
+      if (!est.capacidade) return falha(`Fundação sem capacidade da estaca: informe a carga admissível de ${est.nome}.`);
+      pile = { type: est.tipo, D: est.D, capacity: est.capacidade, ...(est.s ? { spacing: est.s } : {}), ...(el.estaca?.n ? { n: el.estaca.n } : {}) };
+    } else {
+      if (!cx.furos.length) return falha('Fundação sem sondagem: estaca calculada pela sondagem exige furos de sondagem.');
+      pile = { type: est.tipo, D: est.D };
+      P.types = [est.tipo];
+      P.diameters = [est.D]; P.precastDiameters = [est.D];
+      if (est.s) { if (est.tipo === 'premoldada') P.spacingPrecast = est.s / (est.D / 100); else P.spacingInSitu = est.s / (est.D / 100); }
+      if (el.estaca?.n) notas.push('Número de estacas fixo só vale com capacidade informada; pela sondagem, o número sai do cálculo.');
+    }
+  }
+  const furo = el.sondagem ? (el.sondagem.modo === 'furo' ? { boringId: el.sondagem.ids?.[0] } : { boringMode: 'average' as const, boringIds: el.sondagem.ids }) : {};
+  return { kind, P, sigmaFonte, pile, furo };
+}
+
+/** Mensagens da sapata que são erros (as demais são observações do método). */
+const ERROS_SAPATA = /^(Compressão diagonal|Punção|Armadura de flexão não coube|Altura imposta|Sapata associada não rígida|Armadura imposta insuficiente|Concreto simples: tração)/;
+
+type Dir = [number, number];
+const argmax = (v: number[]) => v.reduce((bi, x, i) => (x > v[bi] ? i : bi), 0);
+
+/** Segmentos dos limites do nível, nos eixos do elemento (origem em `O`), com o índice do limite de origem. */
+function limitesLocais(b: BuildingModel, el: ElementoFundacao, cota: number, O: P) {
+  const out: { a: Dir; b: Dir; limite: number }[] = [];
+  (b.fundacao?.limites ?? []).forEach((l, k) => {
+    if (l.cota !== undefined && Math.abs(l.cota - cota) > 1e-3) return;
+    const pts = l.fechado && l.pontos.length > 2 ? [...l.pontos, l.pontos[0]] : l.pontos;
+    for (let i = 0; i + 1 < pts.length; i++) out.push({ a: rot([pts[i][0] - O[0], pts[i][1] - O[1]], -el.angulo), b: rot([pts[i + 1][0] - O[0], pts[i + 1][1] - O[1]], -el.angulo), limite: k });
+  });
+  return out;
+}
+
+/** O elemento vai pelo caminho de grupo (vários pilares, ou sapata de altura constante com limites)? */
+export const usaGrupo = (b: BuildingModel, el: ElementoFundacao, cota: number) =>
+  el.pilares.length > 1 || (el.tipo === 'sapata' && !!el.alturaConstante && el.posicao !== 'divisa' && el.posicao !== 'canto'
+    && (b.fundacao?.limites ?? []).some((l) => l.cota === undefined || Math.abs(l.cota - cota) < 1e-3));
+
+/**
+ * Elemento sob vários pilares (sapata associada ou bloco com vários pilares) ou sapata de altura constante aparada por
+ * limites. O ponto de referência é a resultante dos pilares na combinação de maior carga (posição centrada) ou o ponto
+ * informado (livre); cada combinação rara entra com a carga de cada pilar (footingsGroup.ts, caps.ts). Sem viga de
+ * equilíbrio (divisa por limites).
+ */
+function calcularGrupo(b: BuildingModel, el: ElementoFundacao, cx: Contexto): ResultadoFundacao {
+  const fe = b.fundacao!;
+  const msgs: string[] = [], notas: string[] = [];
+  const prof = +(cx.zt - cx.cota).toFixed(3);
+  const pils = el.pilares.map((id) => b.pilares.find((x) => x.id === id));
+  const vazio = (c: [number, number], extra: Partial<ResultadoFundacao> = {}): ResultadoFundacao => ({
+    id: el.id, nome: el.nome, tipo: el.tipo, posicao: el.posicao, pilarIds: el.pilares, pilares: el.pilares.map((id) => b.pilares.find((x) => x.id === id)?.nome ?? id),
+    cota: cx.cota, profundidade: prof, centro: c, angulo: el.angulo, contorno: [], ap: 0, bp: 0, excentricidade: [0, 0], carga: null, dims: {}, volume: 0,
+    status: 'fail', mensagens: msgs, notas, resumo: `${el.nome}: não calculado`, projeto: null, ...(el.simples ? { simples: true } : {}), ...(el.alturaConstante ? { alturaConstante: true } : {}), ...extra,
+  });
+  const falta = pils.findIndex((q) => !q);
+  if (falta >= 0) { msgs.push(`Fundação sem pilar: o pilar ${el.pilares[falta]} não existe.`); return vazio([el.x, el.y]); }
+  const ps = pils as Pilar[];
+  const sem = ps.find((q) => q.nasce !== 'fundacao');
+  if (sem) { msgs.push(`Fundação sob pilar que não nasce na fundação (${sem.nome}).`); return vazio([el.x, el.y]); }
+  const loc = ps.map((q) => pilarLocal(b, q, el.angulo));
+  const centroMedio: [number, number] = [loc.reduce((a, q) => a + q.c[0], 0) / loc.length, loc.reduce((a, q) => a + q.c[1], 0) / loc.length];
+  const lds = ps.map((q) => cx.cargas.get(q.id));
+  const semCarga = ps.find((_, i) => !lds[i]);
+  if (semCarga) { msgs.push(`Fundação sem cargas: ${ehArranque(semCarga) ? `o arranque ${semCarga.nome} não tem cargas lançadas` : 'calcule a estrutura antes (análise sem resultado)'}.`); return vazio(centroMedio, { ap: loc[0].ap, bp: loc[0].bp }); }
+  if (prof <= 0) { msgs.push(`Fundação acima do terreno: cota de assentamento ${fmt(cx.cota)} m ≥ cota do terreno ${fmt(cx.zt)} m.`); return vazio(centroMedio, { ap: loc[0].ap, bp: loc[0].bp }); }
+  if (el.tipo === 'tubulao') { msgs.push('Fundação sem solução: tubulão só sob um pilar, centrado.'); return vazio(centroMedio); }
+  const sp = prepararSolo(b, el, cx, prof, notas);
+  if (sp.erro) { msgs.push(sp.erro); return vazio(centroMedio, { ap: loc[0].ap, bp: loc[0].bp }); }
+  const { kind, P, sigmaFonte, pile, furo } = sp;
+  if (cx.alivio?.length) notas.push('Alívio de vigas de equilíbrio sobre elemento de vários pilares não considerado (a favor da segurança).');
+
+  // ponto de referência: resultante da combinação de maior carga total (centrada) ou o ponto informado (livre)
+  const K0 = lds[0]!.combos?.length ?? 0;
+  if (!K0 || lds.some((l) => l!.combos?.length !== K0)) { msgs.push('Fundação sem cargas: combinações raras ausentes nos pilares do elemento.'); return vazio(centroMedio); }
+  const totais = Array.from({ length: K0 }, (_, k) => lds.reduce((a, l) => a + l!.combos![k].N, 0));
+  const kMax = argmax(totais);
+  const O: [number, number] = el.posicao === 'livre' ? [el.x, el.y]
+    : totais[kMax] > 1e-9 ? [lds.reduce((a, l, i) => a + l!.combos![kMax].N * loc[i].c[0], 0) / totais[kMax], lds.reduce((a, l, i) => a + l!.combos![kMax].N * loc[i].c[1], 0) / totais[kMax]] : centroMedio;
+  const lim = el.tipo === 'sapata' && el.alturaConstante ? limitesLocais(b, el, cx.cota, O) : [];
+  const cols: FCol[] = loc.map((q, i) => { const v = rot([q.c[0] - O[0], q.c[1] - O[1]], -el.angulo); return { label: ps[i].nome, x: +v[0].toFixed(4), y: +v[1].toFixed(4), ap: q.ap, bp: q.bp }; });
+
+  /** Carga equivalente do grupo (um FLoad com as combinações de cada pilar) a partir de um mapa de cargas por pilar. */
+  const montar = (mapa: Map<string, FLoad>): FLoad | null => {
+    const l = ps.map((q) => mapa.get(q.id));
+    if (l.some((x) => !x?.combos?.length || x.combos.length !== l[0]!.combos!.length)) return null;
+    const combos: FCombo[] = l[0]!.combos!.map((cb, k) => ({
+      label: cb.label,
+      cols: l.map((x) => { const c = x!.combos![k]; const [Hx, Hy] = rot([c.Vx, c.Vy], -el.angulo), [Mx, My] = rot([c.Mx, c.My], -el.angulo); return { N: c.N, Mx, My, Hx, Hy }; }),
+    }));
+    const tt = combos.map((cb) => cb.cols.reduce((a, c) => a + c.N, 0));
+    const cm = combos[argmax(tt)];
+    const Mxs = cm.cols.reduce((a, c) => a + Math.abs(c.Mx), 0) + Math.abs(cm.cols.reduce((a, c, i) => a + c.N * cols[i].y, 0));
+    const Mys = cm.cols.reduce((a, c) => a + Math.abs(c.My), 0) + Math.abs(cm.cols.reduce((a, c, i) => a + c.N * cols[i].x, 0));
+    return {
+      id: 1, label: el.nome, Nk: +Math.max(...tt).toFixed(2), NkMin: +Math.min(...tt).toFixed(2), NkPerm: +l.reduce((a, x) => a + (x!.NkPerm ?? x!.Nk), 0).toFixed(2),
+      Hx: +cm.cols.reduce((a, c) => a + c.Hx, 0).toFixed(3), Hy: +cm.cols.reduce((a, c) => a + c.Hy, 0).toFixed(3), Mx: +Mxs.toFixed(3), My: +Mys.toFixed(3),
+      x: O[0], y: O[1], ap: cols[0].ap, bp: cols[0].bp, source: l[0]!.source, kind, ...furo, ...(pile ? { pile } : {}),
+      group: { cols, combos, ...(lim.length ? { limits: lim.map((q) => ({ a: q.a, b: q.b })) } : {}) },
+      ...(el.tipo === 'sapata' && el.simples ? { simples: true } : {}), ...(el.tipo === 'sapata' && el.alturaConstante ? { constH: true } : {}),
+    };
+  };
+  const ld0 = montar(cx.cargas)!;
+  const impostas = el.impostas ?? (cx.ant ? impostasDoResultado(cx.ant) : undefined);
+  const data = (ld: FLoad, Pv: FoundationParams) => ({ boring: cx.furos[0] ?? SEM_FURO, borings: cx.furos.length ? cx.furos : [SEM_FURO], loads: [ld], params: Pv });
+  const proj = (mapa: Map<string, FLoad>, fator = 1) => {
+    const ld = montar(mapa)!;
+    if (impostas) ld.fixed = fixedDe(impostas);
+    const Pv = fator === 1 ? P : { ...P, ftSigmaAdm: P.ftSigmaAdm * fator, tbSigmaAdm: P.tbSigmaAdm * fator };
+    return { d: designSupport(ld, data(ld, Pv)) };
+  };
+  let r = proj(cx.cargas);
+  if (cx.cargasSemVento && cx.cargasComVento && el.tipo !== 'bloco' && montar(cx.cargasSemVento) && montar(cx.cargasComVento)) {
+    const ra = proj(cx.cargasSemVento), rw = proj(cx.cargasComVento, cx.fv);
+    const tam = (x: typeof ra) => { const f = x.d.footing; return f && isFooting(f) ? f.A * f.B : Infinity; };
+    r = tam(rw) > tam(ra) ? rw : ra;
+    notas.push(`Combinações raras sem vento verificadas com σadm e com vento com σadm × ${fmt(cx.fv)}, em separado (critério do programa de referência); adotado o maior elemento.`);
+  }
+  const { d } = r;
+  const global = (q: Dir): [number, number] => { const v = rot(q, el.angulo); return [+(O[0] + v[0]).toFixed(4), +(O[1] + v[1]).toFixed(4)]; };
+  const ldRes: FLoad = { ...ld0 };
+  delete ldRes.combos;
+  const res = vazio(O, {
+    ap: loc[0].ap, bp: loc[0].bp, carga: ldRes, projeto: d, sigmaFonte,
+    grupo: { pilares: ps.map((q, i) => ({ id: q.id, nome: q.nome, centro: loc[i].c, ap: loc[i].ap, bp: loc[i].bp })), referencia: O, limitesUsados: [], limitesIgnorados: [] },
+  });
+  const modelos = b.fundacao?.limites ?? [];
+  if (el.tipo === 'sapata') {
+    const f = d.footing!;
+    if (!isFooting(f)) {
+      msgs.push(`Fundação sem solução: ${f.messages.join(' ')}`);
+      // dimensões impostas que não atendem: mostra a base imposta (em vermelho na planta)
+      if (impostas) Object.assign(res, { contorno: retangulo(O, impostas.A, impostas.B, el.angulo), dims: { A: impostas.A, B: impostas.B, ...(impostas.h ? { h: impostas.h } : {}) } });
+      return res;
+    }
+    const g = f.grupo!;
+    const idDo = (i: number) => modelos[lim[i].limite];
+    const usados = [...new Set(g.limitesUsados.map((i) => idDo(i).id))];
+    const ignorados = [...new Map(g.limitesIgnorados.map((x) => [idDo(x.indice).id, { id: idDo(x.indice).id, nome: idDo(x.indice).nome, motivo: x.motivo }])).values()];
+    res.grupo!.limitesUsados = usados; res.grupo!.limitesIgnorados = ignorados;
+    for (const ig of ignorados) msgs.push(`Limite ${ig.nome} ignorado: ${ig.motivo}.`);
+    Object.assign(res, {
+      centro: O, contorno: g.contorno.map(global), excentricidade: [0, 0], dims: { A: f.A, B: f.B, h: f.h, h0: f.h0 }, sigmaAdm: f.sigmaAdm, sigmaFonte: sigmaFonte ?? f.sigmaSrc, volume: f.volume,
+      resumo: `${el.nome}: ${ps.map((q) => q.nome).join(' + ')}; ${fmt(f.A)} × ${fmt(f.B)} m, h = ${fmt(f.h)} m (h0 = ${fmt(f.h0)} m)${f.fixed ? ', impostas' : ''}${f.simples ? ', concreto simples' : ''}${usados.length ? `, aparada por ${usados.length} limite(s)` : ''}`,
+    });
+    notas.push(...f.messages.filter((m) => f.ok || !ERROS_SAPATA.test(m)), ...f.methodNotes);
+    if (!f.ok) msgs.push(`Fundação não atende: ${f.messages.filter((m) => ERROS_SAPATA.test(m)).join(' ') || 'verificações estruturais.'}`);
+  } else {
+    const cap = d.cap;
+    const n = d.pileFixed?.n ?? d.pile?.n;
+    if (!cap || !n) {
+      const motivo = d.pileFixed?.messages.join(' ') || d.piles?.byType.flatMap((t) => t.diameters.map((x) => x.reason)).filter(Boolean).join(' ') || 'nenhuma estaca atende.';
+      msgs.push(`Fundação sem solução: ${motivo}`);
+      return res;
+    }
+    if (d.pileFixed && !d.pileFixed.ok) msgs.push(`Fundação não atende: ${d.pileFixed.messages.join(' ')}`);
+    if (!cap.ok) msgs.push(`Fundação não atende: ${cap.messages.join(' ')}`);
+    else notas.push(...cap.messages);
+    const est = fe.terreno.estacas.find((x) => x.id === el.estaca?.id)!;
+    const L = d.pile?.L;
+    Object.assign(res, {
+      centro: O, contorno: retangulo(O, cap.lx, cap.ly, el.angulo), dims: { A: cap.lx, B: cap.ly, h: cap.h, n, D: est.D, estaca: `${PILE_LABEL[est.tipo]} φ${est.D}`, ...(L ? { L } : {}) }, volume: cap.volume,
+      resumo: `${el.nome}: ${ps.map((q) => q.nome).join(' + ')}; ${n} × ${PILE_LABEL[est.tipo].toLowerCase()} φ${est.D} cm${L ? `, L = ${fmt(L, 1)} m` : ''}; bloco ${fmt(cap.lx)} × ${fmt(cap.ly)} × ${fmt(cap.h)} m`,
+    });
+    if (d.pileFixed) notas.push(`Estacas pela capacidade informada (${fmt(est.capacidade!, 0)} kN): Nmáx = ${fmt(d.pileFixed.loads.Nmax, 0)} kN, Nmín = ${fmt(d.pileFixed.loads.Nmin, 0)} kN.`);
+    notas.push('Bloco com vários pilares: estacas pela resultante dos pilares (momentos dos pilares somados em módulo), bielas de cada pilar às estacas (distribuição bi-proporcional ao inverso do quadrado da distância) e tirantes pelo equilíbrio dos nós (a confirmar; extensão do método de Blévot).');
+  }
+  notas.push(`Ponto de referência (${el.posicao === 'livre' ? 'informado' : 'resultante dos pilares na combinação de maior carga'}): (${fmt(O[0], 3)}; ${fmt(O[1], 3)}) m.`);
+  res.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
+  return res;
+}
 
 function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto): ResultadoFundacao {
   const fe = b.fundacao!;
@@ -402,51 +732,22 @@ function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto):
     } else notas.push(`Alívio de ${fmt(tot, 1)} kN (${nomes.join(', ')}) não considerado: o elemento também é equilibrado por viga (a favor da segurança).`);
   }
 
-  // σadm (sapatas e tubulões): o do elemento, o do terreno (informado) ou pelo SPT
-  const kind = KIND[el.tipo];
-  const P: FoundationParams = parametrosElemento(cx.P0, el, prof);
-  let sigmaFonte: string | undefined;
-  if (el.tipo !== 'bloco') {
-    const s = el.sigmaAdm ?? (fe.terreno.sigmaModo === 'informada' ? fe.terreno.sigmaAdm : undefined);
-    if (el.sigmaAdm !== undefined || fe.terreno.sigmaModo === 'informada') {
-      if (!s) { msgs.push('Fundação sem σadm: informe a tensão admissível do terreno ou do elemento.'); return vazio(c, { ap, bp }); }
-      P.ftSigmaMode = 'informada'; P.ftSigmaAdm = s; P.tbSigmaMode = 'informada'; P.tbSigmaAdm = s;
-      sigmaFonte = el.sigmaAdm !== undefined ? 'informada no elemento' : 'informada (terreno)';
-    } else {
-      if (!cx.furos.length) { msgs.push('Fundação sem sondagem: σadm estimada pelo SPT exige furos de sondagem.'); return vazio(c, { ap, bp }); }
-      P.ftSigmaMode = 'spt'; P.tbSigmaMode = 'spt';
-    }
-  }
-  // estacas
-  let pile: FLoad['pile'];
-  if (el.tipo === 'bloco') {
-    const est = fe.terreno.estacas.find((x) => x.id === el.estaca?.id);
-    if (!est) { msgs.push('Fundação sem estaca: escolha um tipo de estaca do terreno.'); return vazio(c, { ap, bp }); }
-    if (est.modo === 'informada') {
-      if (!est.capacidade) { msgs.push(`Fundação sem capacidade da estaca: informe a carga admissível de ${est.nome}.`); return vazio(c, { ap, bp }); }
-      pile = { type: est.tipo, D: est.D, capacity: est.capacidade, ...(est.s ? { spacing: est.s } : {}), ...(el.estaca?.n ? { n: el.estaca.n } : {}) };
-    } else {
-      if (!cx.furos.length) { msgs.push('Fundação sem sondagem: estaca calculada pela sondagem exige furos de sondagem.'); return vazio(c, { ap, bp }); }
-      pile = { type: est.tipo, D: est.D };
-      P.types = [est.tipo];
-      P.diameters = [est.D]; P.precastDiameters = [est.D];
-      if (est.s) { if (est.tipo === 'premoldada') P.spacingPrecast = est.s / (est.D / 100); else P.spacingInSitu = est.s / (est.D / 100); }
-      if (el.estaca?.n) notas.push('Número de estacas fixo só vale com capacidade informada; pela sondagem, o número sai do cálculo.');
-    }
-  }
-  const furo = el.sondagem ? (el.sondagem.modo === 'furo' ? { boringId: el.sondagem.ids?.[0] } : { boringMode: 'average' as const, boringIds: el.sondagem.ids }) : {};
+  const sp = prepararSolo(b, el, cx, prof, notas);
+  if (sp.erro) { msgs.push(sp.erro); return vazio(c, { ap, bp }); }
+  const { kind, P, sigmaFonte, pile, furo } = sp;
   const divisa = el.posicao === 'divisa' || el.posicao === 'canto';
   const livreOff: [number, number] = el.posicao === 'livre' ? rot([c[0] - el.x, c[1] - el.y], -el.angulo) : [0, 0];
   const geom = (ld: FLoad, centrada = false): FLoad => ({
     ...cargaLocal(ld, el.angulo), kind, ap, bp, x: c[0], y: c[1], ...furo, ...(pile ? { pile } : {}),
     ...(!centrada && el.tipo === 'sapata' && divisa ? { edge: el.lado ?? [0, 0] } : {}),
     ...(!centrada && el.tipo === 'sapata' && el.posicao === 'livre' ? { offset: livreOff } : {}),
+    ...(el.tipo === 'sapata' && el.simples ? { simples: true } : {}), ...(el.tipo === 'sapata' && el.alturaConstante ? { constH: true } : {}),
   });
   const data = (ld: FLoad) => ({ boring: cx.furos[0] ?? SEM_FURO, borings: cx.furos.length ? cx.furos : [SEM_FURO], loads: [ld], params: P });
 
   // sapata com dimensões impostas (ou as do cálculo anterior, no modo "só verificar")
-  const imp = el.tipo === 'sapata' ? el.impostas ?? (cx.ant?.dims.A && cx.ant.dims.B ? { A: cx.ant.dims.A, B: cx.ant.dims.B, h: cx.ant.dims.h } : undefined) : undefined;
-  if (cx.ant && el.tipo !== 'sapata') notas.push('Verificação de blocos e tubulões com dimensões impostas ainda não disponível: elemento redimensionado.');
+  const impostas = el.impostas ?? (cx.ant ? impostasDoResultado(cx.ant) : undefined);
+  const imp = impostas ? fixedDe(impostas) : undefined;
 
   const paramsV = (sigmaFator: number) => (sigmaFator === 1 ? P : { ...P, ftSigmaAdm: P.ftSigmaAdm * sigmaFator, tbSigmaAdm: P.tbSigmaAdm * sigmaFator });
   const projetarSem = (ldIn: FLoad, sigmaFator = 1): Projeto => {
@@ -491,7 +792,7 @@ function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto):
   let alavancaImpossivel = false;
   const projetarAlavanca = (ldIn: FLoad, sigmaFator = 1): Projeto => {
     const Pv = paramsV(sigmaFator);
-    const centrado = (ldC: FLoad, fixo?: { A: number; B: number; h?: number }) => { const l: FLoad = { ...ldC, ...(fixo ? { fixed: fixo } : imp ? { fixed: imp } : {}) }; return { l, d: designSupport(l, { ...data(l), params: Pv }) }; };
+    const centrado = (ldC: FLoad, fixo?: FixedDims) => { const l: FLoad = { ...ldC, ...(fixo ? { fixed: fixo } : imp ? { fixed: imp } : {}) }; return { l, d: designSupport(l, { ...data(l), params: Pv }) }; };
     let { l: ldC, d } = centrado(geom(ldIn, true));
     let dm = dimsDe(d);
     if (!dm) return { ld: ldC, d, e: [0, 0], lev: null };
@@ -553,7 +854,15 @@ function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto):
 
   if (el.tipo === 'sapata') {
     const f = d.footing!;
-    if (!isFooting(f)) { msgs.push(`Fundação sem solução: ${f.messages.join(' ')}`); return res; }
+    if (!isFooting(f)) {
+      msgs.push(`Fundação sem solução: ${f.messages.join(' ')}`);
+      // dimensões impostas que não atendem: mostra a base imposta (em vermelho na planta)
+      if (impostas) {
+        const off = columnOffset({ ap, bp, ...(divisa ? { edge: el.lado ?? [0, 0] } : {}), ...(el.posicao === 'livre' ? { offset: livreOff } : {}) }, impostas.A, impostas.B);
+        Object.assign(res, { contorno: retangulo(centro(off), impostas.A, impostas.B, el.angulo), excentricidade: off, dims: { A: impostas.A, B: impostas.B, ...(impostas.h ? { h: impostas.h } : {}) } });
+      }
+      return res;
+    }
     // com alavanca, a sapata é calculada centrada: a posição do pilar é a geométrica
     const off = lev ? e : f.colOffset;
     const cc = centro(off);
@@ -617,6 +926,8 @@ export function resumoFundacao(r: ResultadoFundacao) {
     ...(r.carga ? { carga: { Nk: r.carga.Nk, NkMin: r.carga.NkMin, Mx: r.carga.Mx, My: r.carga.My, Hx: r.carga.Hx, Hy: r.carga.Hy } } : {}),
     ...(r.alavanca ? { alavanca: { R: +r.alavanca.R.toFixed(1), fator: +r.alavanca.fator.toFixed(4), alivios: r.alavanca.vigas.map((v) => ({ viga: v.id, dN: +v.dN.toFixed(1) })) } } : {}),
     ...(r.alivio ? { alivio: { total: +r.alivio.total.toFixed(1), considerado: +r.alivio.considerado.toFixed(1) } } : {}),
+    ...(r.grupo ? { grupo: { pilares: r.grupo.pilares.map((q) => q.nome), referencia: r.grupo.referencia.map((v) => +v.toFixed(3)), limitesUsados: r.grupo.limitesUsados, limitesIgnorados: r.grupo.limitesIgnorados.map((x) => `${x.nome}: ${x.motivo}`) } } : {}),
+    ...(r.simples ? { simples: true } : {}), ...(r.alturaConstante ? { alturaConstante: true } : {}), ...(r.igualA ? { igualA: r.igualA.nome } : {}),
     status: r.status, mensagens: r.mensagens, resumo: r.resumo, ...(r.mantido ? { mantido: true } : {}),
   };
 }

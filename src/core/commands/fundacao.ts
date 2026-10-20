@@ -1,9 +1,10 @@
-// Fundações do edifício (frente FU, fatias FU1 e FU2): elementos sob pilares (sapata, bloco sobre estacas, tubulão;
-// centrados, de divisa, de canto ou em posição livre), vigas de equilíbrio e de travamento, dados do terreno (σadm,
-// estacas), sondagens, parâmetros do cálculo e níveis calculados.
+// Fundações do edifício (frente FU, fatias FU1 a FU3): elementos sob pilares (sapata, bloco sobre estacas, tubulão;
+// centrados, de divisa, de canto ou em posição livre; sapata associada e bloco com vários pilares), unir, igualar e
+// impor dimensões, limites poligonais, vigas de equilíbrio e de travamento, dados do terreno (σadm, estacas),
+// sondagens, parâmetros do cálculo e níveis calculados.
 // Todos sem ferramenta própria no MCP (`mcp: false`) e fora da revisão de cálculo da estrutura (`calculo: 'fundacao'`).
 import type { Draft } from 'immer';
-import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type PosicaoFundacao, type TipoFundacao, type VigaFundacao } from '../building/types';
+import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type ImpostasFundacao, type LimiteFundacao, type PosicaoFundacao, type TipoFundacao, type VigaFundacao } from '../building/types';
 import { nomeVigaFundacao, pontaVF } from '../building/vigasFundacao';
 import type { Diagnostico } from '../building/verify';
 import { ladoDoAjuste, nomeFundacao } from '../building/fundacao';
@@ -25,15 +26,24 @@ const fund = (d: Draft<BuildingModel>): Draft<FundacaoEdificio> => (d.fundacao ?
 
 // ---------------- validação comum dos elementos ----------------
 
-interface ElementoIn { pilar?: string; tipo?: TipoFundacao; posicao?: PosicaoFundacao; lado?: [number, number]; estaca?: { id: string; n?: number }; sondagem?: { modo: 'furo' | 'media'; ids?: number[] } }
+interface ElementoIn { pilares?: string[]; tipo?: TipoFundacao; posicao?: PosicaoFundacao; lado?: [number, number]; estaca?: { id: string; n?: number }; sondagem?: { modo: 'furo' | 'media'; ids?: number[] }; simples?: boolean; alturaConstante?: boolean }
 
-function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilar' | 'tipo' | 'posicao'>> & ElementoIn, proprio?: string): Diagnostico[] {
-  const p = b.pilares.find((x) => x.id === e.pilar);
-  if (!p) return err('PILAR_INEXISTENTE', `Pilar ${e.pilar} não existe.`);
-  if (p.nasce !== 'fundacao') return err('PILAR_NAO_NASCE_FUNDACAO', `${p.nome} não nasce na fundação.`, [p.id]);
-  const outro = b.fundacao?.elementos.find((x) => x.id !== proprio && x.pilares.includes(p.id));
-  if (outro) return err('PILAR_COM_FUNDACAO', `${p.nome} já tem o elemento ${outro.nome}.`, [p.id, outro.id]);
+function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilares' | 'tipo' | 'posicao'>> & ElementoIn, proprio?: string): Diagnostico[] {
+  if (!e.pilares.length) return err('SEM_PILAR', 'Informe ao menos um pilar (`pilar` ou `pilares`).');
+  if (new Set(e.pilares).size !== e.pilares.length) return err('PILAR_REPETIDO', 'Pilar repetido na lista.');
+  for (const id of e.pilares) {
+    const p = b.pilares.find((x) => x.id === id);
+    if (!p) return err('PILAR_INEXISTENTE', `Pilar ${id} não existe.`);
+    if (p.nasce !== 'fundacao') return err('PILAR_NAO_NASCE_FUNDACAO', `${p.nome} não nasce na fundação.`, [p.id]);
+    const outro = b.fundacao?.elementos.find((x) => x.id !== proprio && x.pilares.includes(p.id));
+    if (outro) return err('PILAR_COM_FUNDACAO', `${p.nome} já tem o elemento ${outro.nome}.`, [p.id, outro.id]);
+  }
   if (e.tipo === 'tubulao' && e.posicao !== 'centrada') return err('TUBULAO_CENTRADO', 'Tubulão só centrado sob o pilar (divisa por viga de equilíbrio).');
+  if (e.pilares.length > 1) {
+    if (e.tipo === 'tubulao') return err('GRUPO_TUBULAO', 'Tubulão só sob um pilar.');
+    if (e.posicao === 'divisa' || e.posicao === 'canto') return err('GRUPO_POSICAO', 'Elemento de vários pilares: posição centrada (na resultante dos pilares) ou livre (centro informado); a divisa vem dos limites poligonais.');
+  }
+  if ((e.simples || e.alturaConstante) && e.tipo !== 'sapata') return err('SO_SAPATA', 'Concreto simples e altura constante valem só para sapatas.');
   if (e.posicao === 'divisa' || e.posicao === 'canto') {
     const l = e.lado ?? [0, 0], nz = l.filter((v) => v !== 0).length;
     if (e.posicao === 'divisa' && nz !== 1) return err('LADO_DIVISA', 'Divisa: informe o lado da divisa com um só valor não nulo em `lado` (ou use um pilar com o ponto fixo numa face).');
@@ -61,72 +71,93 @@ function ladoPadrao(b: BuildingModel, pilar: string, posicao: PosicaoFundacao, l
 
 // ---------------- elementos ----------------
 
-type CriarIn = { pilar: string; tipo: TipoFundacao; posicao: PosicaoFundacao; lado?: [number, number]; angulo?: number; x?: number; y?: number; cota?: number; sigmaAdm?: number; sondagem?: ElementoFundacao['sondagem']; estaca?: { id: string; n?: number }; nome?: string };
+const impostasSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['A', 'B'], description: 'dimensões e armadura impostas (só verificadas): sapata A × B × h (h0), armadura por direção (φ mm, espaçamento s m ou n barras); bloco lx × ly × h e tirantes (φ, n); tubulão base A = B = Db e fuste Df', properties: {
+  A: { type: 'number', minimum: 0.3, maximum: 14 }, B: { type: 'number', minimum: 0.3, maximum: 14 }, h: { type: 'number', minimum: 0.15, maximum: 3 }, h0: { type: 'number', minimum: 0.1, maximum: 3 }, Df: { type: 'number', minimum: 0.4, maximum: 3 },
+  armadura: { type: 'object', additionalProperties: false, properties: {
+    x: { type: 'object', additionalProperties: false, required: ['phi'], properties: { phi: { type: 'number', minimum: 5, maximum: 32 }, s: { type: 'number', minimum: 0.05, maximum: 0.4 }, n: { type: 'integer', minimum: 2, maximum: 80 } } },
+    y: { type: 'object', additionalProperties: false, required: ['phi'], properties: { phi: { type: 'number', minimum: 5, maximum: 32 }, s: { type: 'number', minimum: 0.05, maximum: 0.4 }, n: { type: 'integer', minimum: 2, maximum: 80 } } },
+  } },
+} };
+const copiarImpostas = (i: ImpostasFundacao): ImpostasFundacao => ({
+  A: i.A, B: i.B, ...(i.h !== undefined ? { h: i.h } : {}), ...(i.h0 !== undefined ? { h0: i.h0 } : {}), ...(i.Df !== undefined ? { Df: i.Df } : {}),
+  ...(i.armadura ? { armadura: { ...(i.armadura.x ? { x: { ...i.armadura.x } } : {}), ...(i.armadura.y ? { y: { ...i.armadura.y } } : {}) } } : {}),
+});
+const listaPilares = (p: { pilar?: string; pilares?: string[] }) => p.pilares ?? (p.pilar ? [p.pilar] : []);
+
+type CriarIn = { pilar?: string; pilares?: string[]; tipo: TipoFundacao; posicao: PosicaoFundacao; lado?: [number, number]; angulo?: number; x?: number; y?: number; cota?: number; sigmaAdm?: number; sondagem?: ElementoFundacao['sondagem']; estaca?: { id: string; n?: number }; nome?: string; simples?: boolean; alturaConstante?: boolean; impostas?: ImpostasFundacao };
 
 registrar<CriarIn>({
   nome: 'fundacao.criar',
-  descricao: 'Lança um elemento de fundação sob um pilar que nasce na fundação: sapata, bloco sobre estacas (tipo de estaca do terreno) ou tubulão; posição centrada, de divisa (`lado` [x, y] com um valor ±1: a face do pilar desse lado fica na borda), de canto (os dois) ou livre (centro em x, y). Ângulo padrão: o do pilar. Cota de assentamento, σadm e sondagem próprios opcionais. Sem `lado`, vale o ponto fixo do pilar (face ou canto).',
+  descricao: 'Lança um elemento de fundação sob um ou mais pilares que nascem na fundação: sapata (isolada, ou associada com `pilares` ≥ 2), bloco sobre estacas (tipo de estaca do terreno; com vários pilares as estacas saem da resultante e as bielas e os tirantes de cada pilar) ou tubulão (um pilar, centrado). Posição centrada (com vários pilares, na resultante da combinação de maior carga), de divisa (`lado` [x, y] com um valor ±1: a face do pilar desse lado fica na borda), de canto (os dois) ou livre (centro em x, y; padrão: média dos pilares); divisa e canto só com um pilar (a divisa de associada vem dos limites). Ângulo padrão: o do primeiro pilar. `simples`: sapata de concreto simples; `alturaConstante`: sapata de altura constante (a única aparada por limites). Cota de assentamento, σadm, sondagem e dimensões impostas próprios opcionais. Sem tipo de estaca no bloco, usa o único do terreno.',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
-  schema: { type: 'object', additionalProperties: false, required: ['pilar', 'tipo'], properties: {
-    pilar: { type: 'string' }, tipo: { type: 'string', enum: TIPOS }, posicao: { type: 'string', enum: POSICOES, default: 'centrada' }, lado,
-    angulo: { type: 'number', description: 'graus; padrão: o do pilar' }, x: { type: 'number' }, y: { type: 'number' },
+  schema: { type: 'object', additionalProperties: false, required: ['tipo'], properties: {
+    pilar: { type: 'string' }, pilares: ids, tipo: { type: 'string', enum: TIPOS }, posicao: { type: 'string', enum: POSICOES, default: 'centrada' }, lado,
+    angulo: { type: 'number', description: 'graus; padrão: o do primeiro pilar' }, x: { type: 'number' }, y: { type: 'number' },
     cota: { type: 'number', description: 'cota de assentamento (m); padrão: a de fundação da obra' }, sigmaAdm: { type: 'number', exclusiveMinimum: 0, description: 'kN/m²' },
     sondagem: sondagemSchema, estaca: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, n: { type: 'integer', minimum: 1, maximum: 6 } } },
-    nome: { type: 'string', minLength: 1 },
+    nome: { type: 'string', minLength: 1 }, simples: { type: 'boolean' }, alturaConstante: { type: 'boolean' }, impostas: impostasSchema,
   } },
   validar(b, p) {
+    const pilares = listaPilares(p);
     const est = p.estaca ?? (p.tipo === 'bloco' && b.fundacao?.terreno.estacas.length === 1 ? { id: b.fundacao.terreno.estacas[0].id } : undefined);
-    return validarElemento(b, { ...p, estaca: est, lado: ladoPadrao(b, p.pilar, p.posicao, p.lado) });
+    return validarElemento(b, { ...p, pilares, estaca: est, lado: ladoPadrao(b, pilares[0], p.posicao, p.lado) });
   },
   aplicar(d, p) {
-    const b = d as BuildingModel, pil = b.pilares.find((x) => x.id === p.pilar)!;
+    const b = d as BuildingModel, pilares = listaPilares(p), pils = pilares.map((id) => b.pilares.find((x) => x.id === id)!);
     const f = fund(d);
     const nome = p.nome?.trim() || nomeFundacao(b, p.tipo);
-    const l = ladoPadrao(b, p.pilar, p.posicao, p.lado);
+    const l = ladoPadrao(b, pilares[0], p.posicao, p.lado);
     const est = p.estaca ?? (p.tipo === 'bloco' ? { id: f.terreno.estacas[0].id } : undefined);
+    const mx = pils.reduce((a, q) => a + q.x, 0) / pils.length, my = pils.reduce((a, q) => a + q.y, 0) / pils.length;
     const e: ElementoFundacao = {
-      id: novoId(d, 'f'), nome, tipo: p.tipo, pilares: [p.pilar], x: p.x ?? pil.x, y: p.y ?? pil.y, angulo: p.angulo ?? pil.angulo, posicao: p.posicao,
+      id: novoId(d, 'f'), nome, tipo: p.tipo, pilares: [...pilares], x: p.x ?? +mx.toFixed(6), y: p.y ?? +my.toFixed(6), angulo: p.angulo ?? pils[0].angulo, posicao: p.posicao,
       ...(l ? { lado: [...l] as [number, number] } : {}), ...(p.cota !== undefined ? { cota: p.cota } : {}), ...(p.sigmaAdm !== undefined ? { sigmaAdm: p.sigmaAdm } : {}),
       ...(p.sondagem ? { sondagem: { modo: p.sondagem.modo, ...(p.sondagem.ids ? { ids: [...p.sondagem.ids] } : {}) } } : {}), ...(est ? { estaca: { ...est } } : {}),
+      ...(p.simples ? { simples: true } : {}), ...(p.alturaConstante ? { alturaConstante: true } : {}), ...(p.impostas ? { impostas: copiarImpostas(p.impostas) } : {}),
     };
     f.elementos.push(e);
-    return `${nome} (${p.tipo}) lançado sob ${pil.nome}.`;
+    return `${nome} (${p.tipo}${pilares.length > 1 ? `, ${pilares.length} pilares` : ''}) lançado sob ${pils.map((q) => q.nome).join(', ')}.`;
   },
 });
 
-type EditarIn = Omit<Partial<CriarIn>, 'pilar'> & { id: string; impostas?: { A: number; B: number; h?: number }; limpar?: ('cota' | 'sigmaAdm' | 'sondagem' | 'impostas')[] };
+type EditarIn = Omit<Partial<CriarIn>, 'pilar'> & { id: string; limpar?: ('cota' | 'sigmaAdm' | 'sondagem' | 'impostas')[] };
 
 registrar<EditarIn>({
   nome: 'fundacao.editar',
-  descricao: 'Altera um elemento de fundação: nome, tipo, posição (centrada, divisa, canto, livre) e lado, ângulo, centro (livre), cota de assentamento, σadm próprio, sondagem, estaca e dimensões impostas da sapata (A, B e h em m, só verificadas). `limpar` volta ao padrão: cota, sigmaAdm, sondagem, impostas.',
+  descricao: 'Altera um elemento de fundação: nome, tipo, pilares apoiados (`pilares` substitui a lista; com vários, sapata associada ou bloco com vários pilares), posição (centrada, divisa, canto, livre) e lado, ângulo, centro (livre), cota de assentamento, σadm próprio, sondagem, estaca, sapata de concreto simples (`simples`), altura constante (`alturaConstante`) e dimensões e armadura impostas (só verificadas). `limpar` volta ao padrão: cota, sigmaAdm, sondagem, impostas.',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
-    id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { type: 'string', enum: TIPOS }, posicao: { type: 'string', enum: POSICOES }, lado,
+    id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { type: 'string', enum: TIPOS }, pilares: ids, posicao: { type: 'string', enum: POSICOES }, lado,
     angulo: { type: 'number' }, x: { type: 'number' }, y: { type: 'number' }, cota: { type: 'number' }, sigmaAdm: { type: 'number', exclusiveMinimum: 0 },
     sondagem: sondagemSchema, estaca: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, n: { type: 'integer', minimum: 1, maximum: 6 } } },
-    impostas: { type: 'object', additionalProperties: false, required: ['A', 'B'], properties: { A: { type: 'number', minimum: 0.3, maximum: 10 }, B: { type: 'number', minimum: 0.3, maximum: 10 }, h: { type: 'number', minimum: 0.15, maximum: 3 } } },
+    impostas: impostasSchema, simples: { type: 'boolean' }, alturaConstante: { type: 'boolean' },
     limpar: { type: 'array', items: { type: 'string', enum: ['cota', 'sigmaAdm', 'sondagem', 'impostas'] } },
   } },
   validar(b, p) {
     const e = b.fundacao?.elementos.find((x) => x.id === p.id);
     if (!e) return err('FUNDACAO_INEXISTENTE', `Elemento de fundação ${p.id} não existe.`);
-    const tipo = p.tipo ?? e.tipo, posicao = p.posicao ?? e.posicao;
-    if (p.impostas && tipo !== 'sapata') return err('IMPOSTAS_SAPATA', 'Dimensões impostas: só sapatas nesta versão.', [e.id]);
-    return validarElemento(b, { pilar: e.pilares[0], tipo, posicao, lado: ladoPadrao(b, e.pilares[0], posicao, p.lado ?? (p.posicao ? undefined : e.lado)), estaca: p.estaca ?? e.estaca, sondagem: p.sondagem ?? e.sondagem }, e.id);
+    const tipo = p.tipo ?? e.tipo, posicao = p.posicao ?? e.posicao, pilares = p.pilares ?? e.pilares;
+    return validarElemento(b, {
+      pilares, tipo, posicao, lado: ladoPadrao(b, pilares[0], posicao, p.lado ?? (p.posicao ? undefined : e.lado)), estaca: p.estaca ?? e.estaca, sondagem: p.sondagem ?? e.sondagem,
+      simples: p.simples ?? e.simples, alturaConstante: p.alturaConstante ?? e.alturaConstante,
+    }, e.id);
   },
   aplicar(d, p) {
     const e = d.fundacao!.elementos.find((x) => x.id === p.id)!;
     for (const k of ['nome', 'tipo', 'posicao', 'angulo', 'x', 'y', 'cota', 'sigmaAdm'] as const) if (p[k] !== undefined) (e as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
+    if (p.pilares) { e.pilares = [...p.pilares]; if (p.pilares.length > 1 && (e.posicao === 'divisa' || e.posicao === 'canto')) e.posicao = 'centrada'; }
     if (p.sondagem) e.sondagem = { modo: p.sondagem.modo, ...(p.sondagem.ids ? { ids: [...p.sondagem.ids] } : {}) };
     if (p.estaca) e.estaca = { ...p.estaca };
-    if (p.impostas) e.impostas = { ...p.impostas };
+    if (p.impostas) e.impostas = copiarImpostas(p.impostas);
+    if (p.simples !== undefined) { if (p.simples) e.simples = true; else delete e.simples; }
+    if (p.alturaConstante !== undefined) { if (p.alturaConstante) e.alturaConstante = true; else delete e.alturaConstante; }
     if (p.tipo === 'bloco' && !e.estaca) e.estaca = { id: d.fundacao!.terreno.estacas[0].id };
     if (e.tipo !== 'bloco') delete e.estaca;
-    if (e.tipo !== 'sapata') delete e.impostas;
+    if (e.tipo !== 'sapata') { delete e.simples; delete e.alturaConstante; }
     const l = ladoPadrao(d as BuildingModel, e.pilares[0], e.posicao, p.lado ?? (p.posicao ? undefined : (e.lado as [number, number] | undefined)));
     if (l) e.lado = [...l] as [number, number]; else delete e.lado;
     for (const k of p.limpar ?? []) delete e[k];
@@ -193,9 +224,217 @@ registrar<{ ids: string[] }>({
   aplicar(d, p) {
     const s = new Set(p.ids), f = d.fundacao!;
     f.elementos = f.elementos.filter((e) => !s.has(e.id));
+    for (const e of f.elementos) if (e.igualA && s.has(e.igualA)) delete e.igualA;
     // vigas de fundação com ponta no elemento removido saem junto
     if (f.vigas?.some((v) => s.has(v.ini) || s.has(v.fim))) { f.vigas = f.vigas.filter((v) => !s.has(v.ini) && !s.has(v.fim)); if (!f.vigas.length) delete f.vigas; }
     return `${p.ids.length} elemento(s) de fundação removido(s).`;
+  },
+});
+
+// ---------------- unir, igualar, impor, eliminar sobreposições (FU3) ----------------
+
+/** Elementos pelo id, na ordem dada; erro se faltar algum. */
+function elementosPorId(b: BuildingModel, idsEl: string[]) {
+  const els = idsEl.map((id) => b.fundacao?.elementos.find((x) => x.id === id));
+  const falta = idsEl.filter((_, i) => !els[i]);
+  return { els: els as ElementoFundacao[], falta };
+}
+
+/** Une sapatas num só elemento (o primeiro): pilares somados, ponto de inserção na média dos pilares, ângulo do primeiro pilar. */
+function unirSapatas(b: BuildingModel, idsEl: string[]): Diagnostico[] {
+  const { els, falta } = elementosPorId(b, idsEl);
+  if (falta.length) return err('FUNDACAO_INEXISTENTE', `Elemento(s) de fundação inexistente(s): ${falta.join(', ')}.`);
+  if (new Set(idsEl).size !== idsEl.length || idsEl.length < 2) return err('UNIR_MINIMO', 'Informe ao menos duas sapatas distintas.');
+  const naoSapata = els.filter((e) => e.tipo !== 'sapata');
+  if (naoSapata.length) return err('UNIR_SO_SAPATAS', `Unir vale só para sapatas (${naoSapata.map((e) => e.nome).join(', ')} não é); o bloco com vários pilares nasce de fundacao.criar com \`pilares\`.`, naoSapata.map((e) => e.id));
+  const cotas = new Set(els.map((e) => e.cota ?? 'padrao'));
+  if (cotas.size > 1) return err('UNIR_COTAS', 'Sapatas de cotas de assentamento diferentes não podem ser unidas.', idsEl);
+  return [];
+}
+
+function aplicarUniao(d: Draft<BuildingModel>, idsEl: string[]): string {
+  const f = d.fundacao!;
+  const els = idsEl.map((id) => f.elementos.find((x) => x.id === id)!);
+  const base = els[0];
+  const pilares = [...new Set(els.flatMap((e) => e.pilares))];
+  const pils = pilares.map((id) => d.pilares.find((x) => x.id === id)!);
+  const todosSimples = els.every((e) => e.simples);
+  const sai = new Set(idsEl.slice(1));
+  base.pilares = pilares;
+  base.x = +(pils.reduce((a, q) => a + q.x, 0) / pils.length).toFixed(6);
+  base.y = +(pils.reduce((a, q) => a + q.y, 0) / pils.length).toFixed(6);
+  base.angulo = pils[0].angulo;
+  base.posicao = 'centrada';
+  delete base.lado; delete base.impostas; delete base.igualA;
+  if (todosSimples) base.simples = true; else delete base.simples;
+  f.elementos = f.elementos.filter((e) => !sai.has(e.id));
+  for (const e of f.elementos) if (e.igualA && sai.has(e.igualA)) e.igualA = base.id;
+  // vigas das pontas removidas passam ao elemento unido; as que ligam o elemento a ele mesmo saem
+  if (f.vigas) {
+    for (const v of f.vigas) { if (sai.has(v.ini)) v.ini = base.id; if (sai.has(v.fim)) v.fim = base.id; }
+    const elemDe = (id: string) => f.elementos.find((e) => e.id === id || e.pilares.includes(id))?.id ?? id;
+    f.vigas = f.vigas.filter((v) => elemDe(v.ini) !== elemDe(v.fim));
+    if (!f.vigas.length) delete f.vigas;
+  }
+  return `${base.nome} (${pils.map((q) => q.nome).join(' + ')})`;
+}
+
+registrar<{ ids: string[] }>({
+  nome: 'fundacao.unir',
+  descricao: 'Une sapatas numa só (sapata associada): a primeira da lista fica, com os pilares de todas, ponto de inserção na média dos pilares e ângulo do primeiro pilar; as dimensões impostas se perdem. Só sapatas, da mesma cota de assentamento (blocos não se unem). As vigas de fundação das pontas removidas passam ao elemento unido.',
+  risco: 'destrutivo',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 2 } } },
+  validar: (b, p) => unirSapatas(b, p.ids),
+  aplicar: (d, p) => `Sapatas unidas: ${aplicarUniao(d, p.ids)}.`,
+});
+
+registrar<{ grupos: string[][] }>({
+  nome: 'fundacao.eliminarSobreposicoes',
+  descricao: 'Elimina sobreposições unindo as sapatas de cada grupo de elementos sobrepostos (sapata associada); os grupos vêm do aviso FUND_SOBREPOSTA do cálculo (`gruposSobrepostos`). Cada grupo vale como `fundacao.unir`; blocos e tubulões sobrepostos não se unem (o comando recusa o grupo).',
+  risco: 'destrutivo',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['grupos'], properties: { grupos: { type: 'array', minItems: 1, items: { type: 'array', items: { type: 'string' }, minItems: 2 } } } },
+  validar(b, p) {
+    const vistos = new Set<string>();
+    for (const g of p.grupos) {
+      const e = unirSapatas(b, g);
+      if (e.length) return e;
+      for (const id of g) { if (vistos.has(id)) return err('UNIR_REPETIDO', `O elemento ${id} está em mais de um grupo.`); vistos.add(id); }
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const r = p.grupos.map((g) => aplicarUniao(d, g));
+    return `${r.length} sobreposição(ões) eliminada(s): ${r.join('; ')}.`;
+  },
+});
+
+registrar<{ modelo: string; ids: string[] }>({
+  nome: 'fundacao.igualar',
+  descricao: 'Iguala elementos de fundação ao elemento `modelo`: copiam o tipo (sapata ou bloco; sapata simples e altura constante), a estaca e a geometria e a armadura calculadas do modelo, e passam a ser só verificados (ficam com erro se não atenderem). Mesmo número de pilares; o tubulão só se iguala a tubulão. As dimensões impostas anteriores se perdem.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['modelo', 'ids'], properties: { modelo: { type: 'string' }, ids } },
+  validar(b, p) {
+    const { els, falta } = elementosPorId(b, [p.modelo, ...p.ids]);
+    if (falta.length) return err('FUNDACAO_INEXISTENTE', `Elemento(s) de fundação inexistente(s): ${falta.join(', ')}.`);
+    const [m, ...alvos] = els;
+    if (!alvos.some((e) => e.id !== m.id)) return err('SEM_VALOR', 'Informe elementos além do modelo.');
+    for (const e of alvos) {
+      if (e.id === m.id) continue;
+      if (e.pilares.length !== m.pilares.length) return err('IGUALAR_PILARES', `${e.nome} tem ${e.pilares.length} pilar(es) e o modelo ${m.nome}, ${m.pilares.length}: não se igualam.`, [e.id, m.id]);
+      if ((e.tipo === 'tubulao') !== (m.tipo === 'tubulao')) return err('IGUALAR_TUBULAO', 'Tubulão só se iguala a tubulão.', [e.id, m.id]);
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const f = d.fundacao!;
+    const m = f.elementos.find((x) => x.id === p.modelo)!;
+    const raiz = m.igualA ?? m.id;
+    let n = 0;
+    for (const e of f.elementos) {
+      if (!p.ids.includes(e.id) || e.id === m.id) continue;
+      e.tipo = m.tipo;
+      if (m.simples) e.simples = true; else delete e.simples;
+      if (m.alturaConstante) e.alturaConstante = true; else delete e.alturaConstante;
+      if (m.estaca) e.estaca = { ...m.estaca }; else delete e.estaca;
+      delete e.impostas;
+      e.igualA = raiz;
+      n++;
+    }
+    // elementos que eram igualados a um dos alvos passam ao novo modelo
+    for (const e of f.elementos) if (e.igualA && p.ids.includes(e.igualA) && e.igualA !== raiz) e.igualA = raiz;
+    return `${n} elemento(s) de fundação igualado(s) a ${f.elementos.find((x) => x.id === raiz)!.nome}.`;
+  },
+});
+
+registrar<{ ids: string[]; impostas?: ImpostasFundacao; limpar?: boolean }>({
+  nome: 'fundacao.impor',
+  descricao: 'Impõe dimensões e armadura a elementos de fundação (só verificados, não redimensionados): sapata A × B × h (h0) e barras por direção; bloco lx × ly × h e tirantes; tubulão base e fuste. `limpar: true` volta ao dimensionamento automático. Uso típico: "impor as calculadas" com os valores do resultado.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids, impostas: impostasSchema, limpar: { type: 'boolean' } } },
+  validar(b, p) {
+    const { falta } = elementosPorId(b, p.ids);
+    if (falta.length) return err('FUNDACAO_INEXISTENTE', `Elemento(s) de fundação inexistente(s): ${falta.join(', ')}.`);
+    return p.impostas || p.limpar ? [] : err('SEM_VALOR', 'Informe `impostas` ou `limpar`.');
+  },
+  aplicar(d, p) {
+    for (const e of d.fundacao!.elementos) if (p.ids.includes(e.id)) {
+      if (p.limpar) delete e.impostas;
+      else if (p.impostas) { e.impostas = copiarImpostas(p.impostas); delete e.igualA; }
+    }
+    return p.limpar ? `Dimensões impostas removidas de ${p.ids.length} elemento(s).` : `Dimensões impostas em ${p.ids.length} elemento(s).`;
+  },
+});
+
+// ---------------- limites poligonais (FU3) ----------------
+
+const polilinha: JsonSchema = { type: 'array', items: ponto, minItems: 2, description: 'vértices [x, y] em m' };
+
+registrar<{ pontos: [number, number][]; fechado?: boolean; cota?: number; nome?: string }>({
+  nome: 'limite.criar',
+  descricao: 'Cria um limite poligonal (divisa, poço de elevador, reservatório): as sapatas de altura constante do nível não o invadem. A sapata é aparada pelo limite e fica a parte com o(s) pilar(es); o dimensionamento nunca o ultrapassa. O limite é ignorado, com aviso, se cortar um pilar, isolar um pilar da sapata associada ou cortar sapata de altura variável. Não vale para blocos, tubulões nem vigas. Polilinha aberta (divisa) ou `fechado`; `cota` restringe a um nível (cota de assentamento, m).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['pontos'], properties: { pontos: polilinha, fechado: { type: 'boolean' }, cota: { type: 'number' }, nome: { type: 'string', minLength: 1 } } },
+  validar: (_b, p) => (p.fechado && p.pontos.length < 3 ? err('LIMITE_FECHADO', 'Limite fechado exige ao menos 3 vértices.') : []),
+  aplicar(d, p) {
+    const f = fund(d);
+    const l: LimiteFundacao = { id: novoId(d, 'lim'), nome: p.nome?.trim() || nomeLimite(f.limites), pontos: p.pontos.map((q) => [q[0], q[1]] as [number, number]), ...(p.fechado ? { fechado: true } : {}), ...(p.cota !== undefined ? { cota: p.cota } : {}) };
+    (f.limites ??= []).push(l);
+    return `Limite ${l.nome} criado (${l.pontos.length} vértices).`;
+  },
+});
+
+const nomeLimite = (ls?: LimiteFundacao[]) => `L${Math.max(0, ...(ls ?? []).map((l) => { const m = /^L(\d+)$/.exec(l.nome); return m ? +m[1] : 0; })) + 1}`;
+
+registrar<{ id: string; pontos?: [number, number][]; fechado?: boolean; cota?: number; nome?: string; limpar?: 'cota'[] }>({
+  nome: 'limite.editar',
+  descricao: 'Altera um limite poligonal: vértices (`pontos` substitui a polilinha: mover, inserir vértice ou eliminar trecho), aberto ou fechado, nível (`cota`; `limpar: ["cota"]` vale a todos) e nome.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, pontos: polilinha, fechado: { type: 'boolean' }, cota: { type: 'number' }, nome: { type: 'string', minLength: 1 }, limpar: { type: 'array', items: { type: 'string', enum: ['cota'] } } } },
+  validar(b, p) {
+    const l = b.fundacao?.limites?.find((x) => x.id === p.id);
+    if (!l) return err('LIMITE_INEXISTENTE', `Limite ${p.id} não existe.`);
+    const n = (p.pontos ?? l.pontos).length, fechado = p.fechado ?? l.fechado;
+    return fechado && n < 3 ? err('LIMITE_FECHADO', 'Limite fechado exige ao menos 3 vértices.') : [];
+  },
+  aplicar(d, p) {
+    const l = d.fundacao!.limites!.find((x) => x.id === p.id)!;
+    if (p.nome) l.nome = p.nome.trim();
+    if (p.pontos) l.pontos = p.pontos.map((q) => [q[0], q[1]] as [number, number]);
+    if (p.fechado !== undefined) { if (p.fechado) l.fechado = true; else delete l.fechado; }
+    if (p.cota !== undefined) l.cota = p.cota;
+    if (p.limpar?.includes('cota')) delete l.cota;
+    return `Limite ${l.nome} alterado.`;
+  },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'limite.remover',
+  descricao: 'Remove limites poligonais.',
+  risco: 'destrutivo',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
+  validar(b, p) {
+    const f = p.ids.filter((id) => !b.fundacao?.limites?.some((x) => x.id === id));
+    return f.length ? err('LIMITE_INEXISTENTE', `Limite(s) inexistente(s): ${f.join(', ')}.`) : [];
+  },
+  aplicar(d, p) {
+    const s = new Set(p.ids), f = d.fundacao!;
+    f.limites = f.limites!.filter((l) => !s.has(l.id));
+    if (!f.limites.length) delete f.limites;
+    return `${p.ids.length} limite(s) removido(s).`;
   },
 });
 

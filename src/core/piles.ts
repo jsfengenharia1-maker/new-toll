@@ -54,8 +54,42 @@ export interface FLoad {
   offset?: [number, number];
   /** Sapata de divisa ou de canto: lado da divisa em x e em y (−1, 0, 1); ver `FootingInput.edge`. */
   edge?: [number, number];
-  /** Sapata com dimensões impostas (m), só verificadas. */
-  fixed?: { A: number; B: number; h?: number };
+  /**
+   * Dimensões impostas (m), só verificadas. Sapata: base A × B, alturas h e h0 e armadura (φ mm e espaçamento m por direção);
+   * bloco: A × B = lx × ly, h e armadura dos tirantes (φ mm e n barras por faixa); tubulão: A = B = base Db, `Df` do fuste e
+   * altura H da base.
+   */
+  fixed?: FixedDims;
+  /** Combinações raras do pilar (eixos globais): usadas na sapata associada e no bloco com vários pilares. */
+  combos?: { label: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
+  /** Vários pilares no mesmo elemento (sapata associada, bloco com vários pilares) ou sapata com limites (FU3). */
+  group?: FGroup;
+  /** Sapata de concreto simples (sem armadura de flexão; NBR 6118, cap. 24). */
+  simples?: boolean;
+  /** Sapata de altura constante (h0 = h); só ela é aparada por limites. */
+  constH?: boolean;
+}
+
+/** Dimensões e armadura impostas pelo usuário (FU3): o elemento só é verificado. */
+export interface FixedDims {
+  A: number; B: number; h?: number; h0?: number;
+  /** Armadura de flexão por direção (φ em mm; `s` = espaçamento em m nas sapatas; `n` = barras por faixa nos blocos). */
+  bars?: { x?: { phi: number; s?: number; n?: number }; y?: { phi: number; s?: number; n?: number } };
+  /** Tubulão: diâmetro do fuste (m) e altura da base (m). */
+  Df?: number; H?: number;
+}
+
+/** Pilar de um grupo, nos eixos do elemento e relativo ao ponto de referência do elemento (m). */
+export interface FCol { label: string; x: number; y: number; ap: number; bp: number }
+/** Carga de um pilar numa combinação (nos eixos do elemento): N > 0 compressão; M em kN·m. */
+export interface FColLoad { N: number; Mx: number; My: number; Hx: number; Hy: number }
+/** Combinação rara: a carga de cada pilar (mesma ordem de `FGroup.cols`). */
+export interface FCombo { label: string; cols: FColLoad[] }
+/** Vários pilares sobre o mesmo elemento de fundação, com a carga de cada um por combinação rara. */
+export interface FGroup {
+  cols: FCol[]; combos: FCombo[];
+  /** Limites que aparam a sapata: segmentos nos eixos do elemento (m). */
+  limits?: { a: [number, number]; b: [number, number] }[];
 }
 
 export interface FoundationParams {
@@ -127,6 +161,12 @@ export interface FoundationParams {
   tbHmax: number; // m, altura máxima da base alargada
   tbRodape: number; // m
   tbWeight: boolean; // somar o peso próprio do tubulão na base
+  // FU3: sapatas associadas, descolamento e relações de rigidez
+  ftLevantamento: boolean; // permitir descolamento (sem a área comprimida mínima; a tensão máxima limita)
+  ftVaoAltura: number; // vão entre pilares ≤ n·h para sapata associada rígida
+  ftBalancoAltura: number; // balanço ≤ n·h (NBR 6118 22.6.1: h ≥ (a − ap)/3 ⇒ 1,5)
+  ftSimplesGamma: number; // fator sobre γc do concreto simples (NBR 6118, cap. 24)
+  ftRhoMinReduz: boolean; // As,mín reduzida a 4/3 da calculada
 }
 
 /** boring = primeiro furo (formato antigo, mantido em sincronia); borings = todos os furos (C4). */
@@ -283,6 +323,7 @@ export const defaultFoundationParams = (): FoundationParams => ({
   ftEdgeFactor: 1, ftMinCompressed: 2 / 3, ftMaxRatio: 2.5, ftKind: 'rigida', ftMethod: 'ceb70', ftRhoMin: 0.0015, ftH0Min: 0.2, gammaSoil: 18,
   tbSigmaMode: 'spt', tbSigmaAdm: 600, tbSptDiv: 30, tbNmaxEst: 40, tbDepth: 0, tbMinDepth: 3, tbDfMin: 0.7,
   tbFck: 25, tbGc: 1.6, tbDbMax: 4, tbHmax: 1.8, tbRodape: 0.2, tbWeight: true,
+  ftLevantamento: false, ftVaoAltura: 2, ftBalancoAltura: 1.5, ftSimplesGamma: 1.2, ftRhoMinReduz: false,
 });
 
 export const sampleFoundation = (): FoundationData => ({
@@ -551,6 +592,9 @@ export interface PileSolution {
 export interface DiameterResult { type: PileType; D: number; best: PileSolution | null; reason?: string; Lmax: number; LmaxReason: string }
 export interface SupportResult { load: FLoad; boring: Boring; byType: { type: PileType; diameters: DiameterResult[]; recommended: PileSolution | null }[] }
 
+/** Número mínimo de estacas: bloco com vários pilares não cabe sobre uma estaca só. */
+export const minPiles = (ld: Pick<FLoad, 'group'>) => ((ld.group?.cols.length ?? 1) > 1 ? 2 : 1);
+
 export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
   const p = data.params, b = boringFor(ld, data);
   const byType = p.types.map((type) => {
@@ -561,7 +605,7 @@ export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
       let best: PileSolution | null = null;
       let reason = '';
       const Lstart = Math.max(1, Math.ceil(p.cutoff + p.minLength));
-      for (let n = 1; n <= 6; n++) {
+      for (let n = minPiles(ld); n <= 6; n++) {
         const pl = pileLoads(ld, n, D, type === 'premoldada' ? p.spacingPrecast : p.spacingInSitu, p.blockWeightPct, { unf: p.gammaF ?? 1.4, fav: p.gammaFfav ?? 1 });
         for (let L = Lstart; L <= Lmax; L++) {
           const cap = capacity(type, D, L, b, p.cutoff);
@@ -594,7 +638,7 @@ export function pilesByCapacity(ld: FLoad, p: FoundationParams): PileByCapacity 
   const pile = ld.pile!, D = pile.D / 100, cap = pile.capacity!;
   const factor = pile.spacing ? pile.spacing / D : pile.type === 'premoldada' ? p.spacingPrecast : p.spacingInSitu;
   const gf = { unf: p.gammaF ?? 1.4, fav: p.gammaFfav ?? 1 };
-  const ns = pile.n ? [pile.n] : [1, 2, 3, 4, 5, 6];
+  const ns = pile.n ? [Math.max(pile.n, minPiles(ld))] : [1, 2, 3, 4, 5, 6].filter((n) => n >= minPiles(ld));
   let last: PileLoads | null = null;
   for (const n of ns) {
     const pl = pileLoads(ld, n, D, factor, p.blockWeightPct, gf);
