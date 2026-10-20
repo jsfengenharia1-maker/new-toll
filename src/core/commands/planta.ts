@@ -163,13 +163,14 @@ registrar<PilarIn>({
   },
 });
 
-registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string }>({
+registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cobrimento?: number }>({
   nome: 'pilar.editar',
-  descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento ou morte de um pilar.',
+  descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte ou cobrimento próprio (cm) de um pilar.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
     ajuste: ajusteSchema, angulo: { type: 'number' }, nasce: { type: 'string' }, morre: { type: 'string' },
+    cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cm; 0 volta ao da obra' },
   } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.id);
@@ -184,7 +185,41 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string }>({
     const q = d.pilares.find((x) => x.id === p.id)!;
     for (const k of ['nome', 'x', 'y', 'ajuste', 'angulo', 'nasce', 'morre'] as const) if (p[k] !== undefined) (q as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
     if (p.secao) q.secao = { ...p.secao };
+    if (p.cobrimento !== undefined) { if (p.cobrimento) q.cobrimento = p.cobrimento; else delete q.cobrimento; }
     return `${q.nome} alterado.`;
+  },
+});
+
+registrar<{ ids: string[]; pavimentos?: string[]; au?: number; av?: number }>({
+  nome: 'pilar.flambagem',
+  descricao: 'Define o α de flambagem dos lances de pilares por direção (au: deslocamento ao longo de b; av: ao longo de h): ℓe = mín(ℓ0 + h; ℓ) × α do pavimento × α do lance (NBR 6118, 15.6). Pilar destravado por vários pavimentos: α > 1. Sem `pavimentos`, vale para todos os lances; 1 volta ao padrão.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, pavimentos: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    au: { type: 'number', minimum: 0.1, maximum: 10 }, av: { type: 'number', minimum: 0.1, maximum: 10 },
+  } },
+  validar(b, p) {
+    const sp = p.ids.filter((id) => !b.pilares.some((x) => x.id === id)), sv = (p.pavimentos ?? []).filter((id) => !b.pavimentos.some((x) => x.id === id));
+    if (sp.length) return err('PILAR_INEXISTENTE', `Pilar ${sp.join(', ')} não existe.`);
+    if (sv.length) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${sv.join(', ')} não existe.`);
+    return p.au === undefined && p.av === undefined ? err('SEM_VALOR', 'Informe au e/ou av.') : [];
+  },
+  aplicar(d, p) {
+    let n = 0;
+    for (const id of p.ids) {
+      const q = d.pilares.find((x) => x.id === id)!;
+      for (const pav of lancesDoPilar(d as BuildingModel, q as Pilar).map((x) => x.id).filter((x) => !p.pavimentos || p.pavimentos.includes(x))) {
+        q.flambagem ??= [];
+        let e = q.flambagem.find((x) => x.pavimento === pav);
+        if (!e) { e = { pavimento: pav }; q.flambagem.push(e); }
+        for (const k of ['au', 'av'] as const) if (p[k] !== undefined) { if (p[k] === 1) delete e[k]; else e[k] = p[k]; }
+        n++;
+      }
+      q.flambagem = q.flambagem?.filter((e) => e.au !== undefined || e.av !== undefined);
+      if (!q.flambagem?.length) delete q.flambagem;
+    }
+    return `Flambagem de ${n} lance(s) de pilar alterada.`;
   },
 });
 

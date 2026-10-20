@@ -42,7 +42,7 @@ O servidor trabalha sobre um edifício em memória. Abra um arquivo com `abrir` 
 
 Comandos sem ferramenta própria (o limite é de 40 ferramentas) passam pela prévia genérica: `previa { comando: "prancha.definir", params: {...} }`. A lista completa, com schemas, sai da ferramenta `comandos`.
 
-Opções de cálculo (malha da grelha, torção de vigas, lajes e pilares, rigidez axial dos pilares, trecho rígido, engaste no topo do último lance): `previa { comando: "opcoes.definir", params: { valores: { malha: 0.25 } } }`; `{ padrao: true }` volta tudo ao padrão. Vínculos por elemento: `pilar.engaste { ids, pavimentos?, topo?, base? }` (pela `previa`), `viga_editar` com `engasteIni`, `engasteFim`, `articulacoes`, `torcaoEquilibrio`, `engasteLajes`, `foraDiafragma`, e `laje.editar` com `engasteBordas` (um coeficiente por aresta do contorno). O padrão segue a NBR 6118; os valores sem norma são "a confirmar" (ver `statikos://premissas`).
+Opções de cálculo (malha da grelha, torção de vigas, lajes e pilares, rigidez axial dos pilares, trecho rígido, engaste no topo do último lance): `previa { comando: "opcoes.definir", params: { valores: { malha: 0.25 } } }`; `{ padrao: true }` volta tudo ao padrão. Vínculos por elemento: `pilar.engaste { ids, pavimentos?, topo?, base? }` (pela `previa`), `viga_editar` com `engasteIni`, `engasteFim`, `articulacoes`, `torcaoEquilibrio`, `engasteLajes`, `foraDiafragma`, e `laje.editar` com `engasteBordas` (um coeficiente por aresta do contorno). Materiais e segurança: `materiais.definir { fck, fckPilarPav, aco, gamas, cobFaces, padrao }` e flambagem `pilar.flambagem { ids, pavimentos?, au?, av? }` (ambos pela `previa`). O padrão segue a NBR 6118; os valores sem norma são "a confirmar" (ver `statikos://premissas`).
 
 ## Ferramentas
 

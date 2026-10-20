@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, vinculosAlterados } from '../../core/building/opcoes';
+import { acoDe, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
@@ -71,6 +72,16 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {h2('Normas e materiais')}
           <p>NBR 6118 (concreto), NBR 6120 (ações), NBR 6123 (vento), NBR 8681 (combinações). Concreto C{b.norma.fck}, aço {b.norma.aco}, classe de agressividade {b.norma.caa}; cobrimentos: lajes {fmt(b.norma.cobrimento.laje, 1)} cm, vigas {fmt(b.norma.cobrimento.viga, 1)} cm, pilares {fmt(b.norma.cobrimento.pilar, 1)} cm. ψ da carga de uso: {psi.map((x) => fmt(x, 1)).join(' / ')}.</p>
+          <h3>Materiais por elemento e coeficientes de ponderação</h3>
+          <table>
+            <thead><tr><th className="l">Elemento</th><th>fck (MPa)</th><th className="l">Aço</th><th className="l">Cobrimentos (cm)</th></tr></thead>
+            <tbody>
+              <tr><td className="l">Lajes</td><td>{fckDe(b, 'laje')}</td><td className="l">inferior {acoDe(b, 'lajeInf').aco}; superior {acoDe(b, 'lajeSup').aco}</td><td className="l">inferior {fmt(cobrimentoLaje(b).inf * 100, 1)}; superior {fmt(cobrimentoLaje(b).sup * 100, 1)}</td></tr>
+              <tr><td className="l">Vigas</td><td>{fckDe(b, 'viga')}</td><td className="l">positiva {acoDe(b, 'vigaPos').aco}; negativa {acoDe(b, 'vigaNeg').aco}; estribos {acoDe(b, 'vigaEstribo').aco}</td><td className="l">inferior {fmt(cobrimentoViga(b).inf * 100, 1)}; superior {fmt(cobrimentoViga(b).sup * 100, 1)}; lateral {fmt(cobrimentoViga(b).lat * 100, 1)}</td></tr>
+              <tr><td className="l">Pilares</td><td>{fckDe(b, 'pilar')}{b.norma.fckPilarPav?.length ? ` (lances: ${b.norma.fckPilarPav.map((x) => `${b.pavimentos.find((p) => p.id === x.pavimento)?.nome ?? x.pavimento} ${x.fck}`).join('; ')})` : ''}</td><td className="l">longitudinal {acoDe(b, 'pilarLong').aco}; estribos {acoDe(b, 'pilarEstribo').aco}</td><td className="l">{fmt(b.norma.cobrimento.pilar, 1)}</td></tr>
+            </tbody>
+          </table>
+          <p>γc = {fmt(gamas(b).c)}; γs = {fmt(gamas(b).s)}; γg = {fmt(gamas(b).g)} (favorável 1,0); γq = {fmt(gamas(b).q)}. Elementos com cobrimento próprio: {[...b.pilares, ...b.vigas, ...b.lajes].filter((x) => x.cobrimento).map((x) => `${x.nome} ${fmt(x.cobrimento!, 1)} cm`).join('; ') || 'nenhum'}. Comprimento de flambagem dos pilares: ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6){[...b.pavimentos.filter((p) => p.alfaFlambagem).map((p) => `${p.nome}: α ${fmt(p.alfaFlambagem!)}`), ...b.pilares.flatMap((p) => (p.flambagem ?? []).map((f) => `${p.nome} até ${b.pavimentos.find((x) => x.id === f.pavimento)?.nome ?? f.pavimento}: α ${fmt(f.au ?? 1)} (b) / ${fmt(f.av ?? 1)} (h)`))].map((t, i) => (i ? '; ' : ' — ') + t).join('')}.</p>
 
           {h2('Geometria')}
           <table>
@@ -117,8 +128,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             </table>
             {h2('Dimensionamento dos pilares')}
             <table>
-              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Nd (kN)</th><th>λ (b / h)</th><th>Armadura</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
-              <tbody>{dim.pilares.map((x) => <tr key={`${x.pilar}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td>{x.secao}</td><td>{fmt(x.Nd, 0)}</td><td>{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td>{x.estribo}</td><td>{x.util >= 99 ? '>1' : fmt(x.util)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
+              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Nd (kN)</th><th>ℓe (b / h, m)</th><th>λ (b / h)</th><th>Armadura</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
+              <tbody>{dim.pilares.map((x) => <tr key={`${x.pilar}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td>{x.secao}</td><td>{fmt(x.Nd, 0)}</td><td>{fmt(x.le[0])} / {fmt(x.le[1])}</td><td>{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td>{x.estribo}</td><td>{x.util >= 99 ? '>1' : fmt(x.util)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
             {h2('Lajes')}
             <table>

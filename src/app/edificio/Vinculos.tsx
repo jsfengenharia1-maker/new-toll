@@ -1,6 +1,7 @@
 // Grupo "Vínculos e engastes" da barra lateral (frente N1a): coeficientes por elemento da seleção da planta.
 import { pavimentosOrdenados, engasteNoLance, lancesDoPilar, type BuildingModel } from '../../core/building/types';
 import { vigaTocaPilar } from '../../core/building/vigas';
+import { flambagemLance } from '../../core/building/materiais';
 import { Button, Check, Group, Hint, NumField } from '../ui';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
@@ -20,8 +21,10 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
   const p0 = pilares[0], v0 = vigas[0], l0 = lajes[0];
   const e0 = p0 && pav ? engasteNoLance(p0, pav.id) : { topo: 1, base: 1 };
   const doLance = p0 && pav && lancesDoPilar(b, p0).some((x) => x.id === pav.id);
+  const fl0 = p0 && pav ? p0.flambagem?.find((x) => x.pavimento === pav.id) : undefined;
+  const le = doLance ? flambagemLance(b, p0, pav.id) : null;
   return (
-    <Group title="Vínculos e engastes (seleção)" open={false}>
+    <Group title="Vínculos, flambagem e cobrimento (seleção)" open={false}>
       {nada && <Hint>Selecione pilares, vigas ou lajes na planta para editar os coeficientes de engaste (0 = rótula, 1 = engaste).</Hint>}
 
       {p0 && pav && (<>
@@ -34,6 +37,13 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
           <Button onClick={() => exec('pilar.engaste', { ids: pilares.map((p) => p.id), topo: e0.topo, base: e0.base })}>Aplicar a todos os lances</Button>
         </div>
         <Hint>No topo do último lance o coeficiente multiplica o das opções de cálculo. Base 0 na fundação = pilar articulado.</Hint>
+        <div className="row wrap">
+          <NumField label="α flambagem (b)" width={110} value={fl0?.au ?? 1} onChange={(v) => exec('pilar.flambagem', { ids: pilares.map((p) => p.id), pavimentos: [pav.id], au: v })} disabled={!doLance} />
+          <NumField label="α flambagem (h)" width={110} value={fl0?.av ?? 1} onChange={(v) => exec('pilar.flambagem', { ids: pilares.map((p) => p.id), pavimentos: [pav.id], av: v })} disabled={!doLance} />
+          <NumField label={`α do pavimento ${pav.nome}`} width={130} value={pav.alfaFlambagem ?? 1} onChange={(v) => exec('pavimento.editar', { id: pav.id, alfaFlambagem: v })} />
+          <NumField label="Cobrimento" unit="cm" width={100} value={p0.cobrimento ?? b.norma.cobrimento.pilar} onChange={(v) => lote(pilares.map((p) => ({ nome: 'pilar.editar', params: { id: p.id, cobrimento: v === b.norma.cobrimento.pilar ? 0 : v } })))} />
+        </div>
+        {le && <Hint>ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6): {fmt(le.leU)} m (b) e {fmt(le.leV)} m (h), com ℓ = {fmt(le.l)} m e ℓ0 = {fmt(le.l0)} m. Pilar destravado em vários pavimentos: α &gt; 1.</Hint>}
       </>)}
 
       {v0 && (<>
@@ -42,6 +52,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
           <NumField label="Engaste no início" width={110} value={v0.engasteIni ?? (v0.vinculoIni === 'articulado' ? 0 : 1)} onChange={(v) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, engasteIni: v } })))} />
           <NumField label="Engaste no fim" width={110} value={v0.engasteFim ?? (v0.vinculoFim === 'articulado' ? 0 : 1)} onChange={(v) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, engasteFim: v } })))} />
           <NumField label="Engaste das lajes" width={110} value={v0.engasteLajes ?? 1} onChange={(v) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, engasteLajes: v } })))} />
+          <NumField label="Cobrimento" unit="cm" width={100} value={v0.cobrimento ?? b.norma.cobrimento.viga} onChange={(v) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, cobrimento: v === b.norma.cobrimento.viga ? 0 : v } })))} />
         </div>
         <div className="row wrap">
           <Check label="Torção de equilíbrio (seção bruta)" checked={!!v0.torcaoEquilibrio} onChange={(c) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, torcaoEquilibrio: c } })))} />
@@ -66,6 +77,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
         <p className="small"><b>{lajes.length > 1 ? `${lajes.length} lajes` : l0.nome}</b> — engaste das bordas</p>
         <div className="row wrap">
           <NumField label="Todas as bordas" width={110} value={l0.engasteBordas?.[0] ?? 1} onChange={(v) => lote(lajes.map((l) => ({ nome: 'laje.editar', params: { id: l.id, engasteBordas: l.contorno.map(() => v) } })))} />
+          <NumField label="Cobrimento" unit="cm" width={100} value={l0.cobrimento ?? b.norma.cobrimento.laje} onChange={(v) => lote(lajes.map((l) => ({ nome: 'laje.editar', params: { id: l.id, cobrimento: v === b.norma.cobrimento.laje ? 0 : v } })))} />
         </div>
         {lajes.length === 1 && (
           <div className="row wrap">

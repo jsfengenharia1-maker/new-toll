@@ -3,6 +3,7 @@ import type { Draft } from 'immer';
 import { COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { OPCOES_INFO, type OpcoesCalculo } from '../building/opcoes';
+import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -102,6 +103,39 @@ registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] |
     if (d.opcoes && !Object.keys(d.opcoes).length) delete d.opcoes;
     const n = Object.keys(d.opcoes ?? {}).length;
     return n ? `Opções de cálculo: ${n} diferente(s) do padrão.` : 'Opções de cálculo no padrão.';
+  },
+});
+
+type Elem = 'laje' | 'viga' | 'pilar';
+registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: string; fck: number }[]; aco?: Partial<Record<PosicaoAco, Norma['aco']>>; gamas?: Partial<{ c: number; s: number; g: number; q: number }>; cobFaces?: NonNullable<Norma['cobFaces']>; padrao?: boolean }>({
+  nome: 'materiais.definir',
+  descricao: 'Materiais e segurança por elemento (padrão: o da obra e a NBR 6118): fck por tipo (laje, viga, pilar, MPa) e dos pilares por lance (fckPilarPav; fck 0 volta ao do tipo), aço por posição (pilarLong, pilarEstribo, vigaPos, vigaNeg, vigaEstribo, lajeInf, lajeSup), γc, γs, γg, γq e cobrimentos por face (vigaInf, vigaSup, vigaLat, lajeInf, lajeSup, cm; 0 volta ao do tipo). "padrao": true volta tudo ao padrão.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, properties: {
+    fck: { type: 'object', additionalProperties: false, properties: { laje: { type: 'number', minimum: 20, maximum: 90 }, viga: { type: 'number', minimum: 20, maximum: 90 }, pilar: { type: 'number', minimum: 20, maximum: 90 } } },
+    fckPilarPav: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pavimento', 'fck'], properties: { pavimento: { type: 'string' }, fck: { type: 'number', minimum: 0, maximum: 90 } } } },
+    aco: { type: 'object', additionalProperties: false, properties: Object.fromEntries(POSICOES_ACO.map((x) => [x.k, { type: 'string', enum: ['CA-50', 'CA-60'], description: x.rotulo }])) },
+    gamas: { type: 'object', additionalProperties: false, properties: { c: { type: 'number', minimum: 1, maximum: 2 }, s: { type: 'number', minimum: 1, maximum: 1.5 }, g: { type: 'number', minimum: 1, maximum: 2 }, q: { type: 'number', minimum: 1, maximum: 2 } } },
+    cobFaces: { type: 'object', additionalProperties: false, properties: Object.fromEntries(['vigaInf', 'vigaSup', 'vigaLat', 'lajeInf', 'lajeSup'].map((k) => [k, { type: 'number', minimum: 0, maximum: 10 }])) },
+    padrao: { type: 'boolean' },
+  } },
+  validar(b, p) {
+    const sv = (p.fckPilarPav ?? []).filter((x) => !pav(b, x.pavimento)).map((x) => x.pavimento);
+    if (sv.length) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${sv.join(', ')} não existe.`);
+    return (p.fckPilarPav ?? []).some((x) => x.fck && x.fck < 20) ? err('FCK_INVALIDO', 'fck do lance entre 20 e 90 MPa (0 volta ao do tipo).') : [];
+  },
+  aplicar(d, p) {
+    const n = d.norma;
+    if (p.padrao) { delete n.fckElem; delete n.fckPilarPav; delete n.acoPos; delete n.gamas; delete n.cobFaces; }
+    if (p.fck) { n.fckElem ??= {}; for (const k of ['laje', 'viga', 'pilar'] as const) { const v = p.fck[k]; if (v === undefined) continue; if (v === n.fck) delete n.fckElem[k]; else n.fckElem[k] = v; } }
+    for (const x of p.fckPilarPav ?? []) { n.fckPilarPav = (n.fckPilarPav ?? []).filter((y) => y.pavimento !== x.pavimento); if (x.fck) n.fckPilarPav.push({ ...x }); }
+    if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) { const v = p.aco[x.k]; if (!v) continue; if (v === n.aco) delete n.acoPos[x.k]; else n.acoPos[x.k] = v; } }
+    if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === GAMAS_PADRAO[k]) delete n.gamas[k]; else n.gamas[k] = v; } }
+    if (p.cobFaces) { n.cobFaces ??= {}; for (const [k, v] of Object.entries(p.cobFaces) as [keyof NonNullable<Norma['cobFaces']>, number][]) { if (!v) delete n.cobFaces[k]; else n.cobFaces[k] = v; } }
+    for (const k of ['fckElem', 'acoPos', 'gamas', 'cobFaces'] as const) if (n[k] && !Object.keys(n[k]!).length) delete n[k];
+    if (n.fckPilarPav && !n.fckPilarPav.length) delete n.fckPilarPav;
+    return 'Materiais e segurança alterados.';
   },
 });
 
@@ -223,12 +257,13 @@ registrar<{ nome: string; cota: number; grupo?: string; uso: CategoriaUso }>({
   },
 });
 
-registrar<{ id: string; nome?: string; cota?: number; grupo?: string }>({
+registrar<{ id: string; nome?: string; cota?: number; grupo?: string; alfaFlambagem?: number }>({
   nome: 'pavimento.editar',
-  descricao: 'Altera nome, cota ou grupo de um pavimento.',
+  descricao: 'Altera nome, cota, grupo ou α de flambagem dos lances de pilar que chegam ao pavimento (multiplica o de cada pilar; 1 = padrão).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, cota: { type: 'number' }, grupo: { type: 'string' },
+    alfaFlambagem: { type: 'number', minimum: 0.1, maximum: 10 },
   } },
   validar(b, p) {
     if (!pav(b, p.id)) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${p.id} não existe.`);
@@ -241,6 +276,7 @@ registrar<{ id: string; nome?: string; cota?: number; grupo?: string }>({
     if (p.nome !== undefined) x.nome = p.nome.trim();
     if (p.cota !== undefined) x.cota = p.cota;
     if (p.grupo) x.grupo = p.grupo;
+    if (p.alfaFlambagem !== undefined) { if (p.alfaFlambagem === 1) delete x.alfaFlambagem; else x.alfaFlambagem = p.alfaFlambagem; }
     d.pavimentos.sort((a, z) => a.cota - z.cota);
     return `Pavimento “${x.nome}” alterado.`;
   },

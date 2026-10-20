@@ -51,14 +51,15 @@ registrar<{ grupo: string; pontos: P[]; secao: { b: number; h: number }; alinham
 });
 
 registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
-  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean }>({
+  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number }>({
   nome: 'viga.editar',
-  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga ou viga fora do diafragma rígido.',
+  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido ou cobrimento próprio (cm).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, secao: secaoSchema,
     alinhamento: alinSchema, invertida: { type: 'boolean' }, nivel: { type: 'number', minimum: -5, maximum: 5 }, vinculoIni: vincSchema, vinculoFim: vincSchema,
     engasteIni: coefSchema, engasteFim: coefSchema, engasteLajes: coefSchema, torcaoEquilibrio: { type: 'boolean' }, foraDiafragma: { type: 'boolean' },
+    cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
     articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários com rótula na viga' },
   } },
   validar(b, p) {
@@ -78,6 +79,7 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     for (const k of ['vinculoIni', 'vinculoFim'] as const) if (p[k]) { if (p[k] === 'auto') delete v[k]; else v[k] = p[k]; }
     for (const k of ['engasteIni', 'engasteFim', 'engasteLajes'] as const) if (p[k] !== undefined) { if (p[k] === 1) delete v[k]; else v[k] = p[k]; }
     for (const k of ['torcaoEquilibrio', 'foraDiafragma'] as const) if (p[k] !== undefined) { if (p[k]) v[k] = true; else delete v[k]; }
+    if (p.cobrimento !== undefined) { if (p.cobrimento) v.cobrimento = p.cobrimento; else delete v.cobrimento; }
     if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
     return `${v.nome} alterada.`;
   },

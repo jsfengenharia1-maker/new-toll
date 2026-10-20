@@ -22,6 +22,16 @@ export interface Norma {
   cobrimento: { laje: number; viga: number; pilar: number };
   /** ψ0, ψ1, ψ2 da carga variável de uso (NBR 6118, Tabela 11.2). */
   psiQ?: [number, number, number];
+  /** fck por tipo de elemento (MPa); ausente = fck da obra. */
+  fckElem?: { laje?: number; viga?: number; pilar?: number };
+  /** fck dos pilares por lance (pavimento do topo do lance). */
+  fckPilarPav?: { pavimento: string; fck: number }[];
+  /** Aço por posição de armadura; ausente = aço da obra. */
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup', 'CA-50' | 'CA-60'>>;
+  /** Coeficientes de ponderação (padrão γc 1,4; γs 1,15; γg 1,4; γq 1,4). */
+  gamas?: Partial<{ c: number; s: number; g: number; q: number }>;
+  /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
+  cobFaces?: Partial<{ vigaInf: number; vigaSup: number; vigaLat: number; lajeInf: number; lajeSup: number }>;
 }
 
 export type CategoriaVento = 'I' | 'II' | 'III' | 'IV' | 'V';
@@ -48,6 +58,8 @@ export interface Pavimento {
   /** Cota do topo da laje estrutural (m). */
   cota: number;
   grupo: string;
+  /** α de flambagem dos lances que chegam a este pavimento (multiplica o de cada pilar; ausente = 1). */
+  alfaFlambagem?: number;
 }
 
 /** Grupo de pavimentos iguais: todos compartilham a mesma planta (pavimento-tipo vinculado). */
@@ -117,6 +129,10 @@ export interface Pilar {
   secoes?: { pavimento: string; secao: SecaoPilar }[];
   /** Coeficientes de engaste por lance (0 = rótula, 1 = engaste; ausente = 1). No topo do último lance, multiplica o das opções. */
   engastes?: { pavimento: string; topo?: number; base?: number }[];
+  /** α de flambagem por lance e direção (u: ao longo de b; v: ao longo de h); ausente = 1. */
+  flambagem?: { pavimento: string; au?: number; av?: number }[];
+  /** Cobrimento próprio (cm); ausente = o da obra. */
+  cobrimento?: number;
 }
 
 /** Linha traçada da viga em relação ao corpo: eixo (centro) ou face esquerda/direita, olhando do 1º para o último ponto. */
@@ -147,6 +163,8 @@ export interface Viga {
   engasteLajes?: number;
   /** Fora do diafragma rígido: os nós só dela não seguem o corpo rígido do pavimento (passarela, viga solta). */
   foraDiafragma?: boolean;
+  /** Cobrimento próprio (cm); ausente = o da obra (faces da obra continuam valendo). */
+  cobrimento?: number;
 }
 
 export type TipoLaje =
@@ -168,6 +186,8 @@ export interface Laje {
   nivel?: number;
   /** Coeficiente de engaste por borda do contorno (índice k = aresta k → k+1; ausente = 1). Bordas em pilares ficam engastadas. */
   engasteBordas?: number[];
+  /** Cobrimento próprio (cm); ausente = o da obra. */
+  cobrimento?: number;
 }
 
 export type CasoFisico = 'G' | 'Q';

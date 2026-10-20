@@ -531,7 +531,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await page.locator('summary', { hasText: 'Pilares (4)' }).click();
       await page.locator('table.quadro tbody tr').first().click();
-      await page.locator('summary', { hasText: 'Vínculos e engastes' }).click();
+      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
       const base = page.getByLabel('Engaste na base');
       assert.equal(await base.inputValue(), '1');
       await base.fill('0');
@@ -550,6 +550,27 @@ export const flows = [
       assert.doesNotMatch(await memo.textContent(), /Vínculos e engastes alterados/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Engaste na base'))?.querySelector('input')?.value === '1');
+    },
+  },
+  {
+    name: 'materiais e segurança: fck das vigas, γc e voltar ao padrão',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.locator('summary', { hasText: 'Materiais e segurança' }).click();
+      const fck = page.getByLabel('fck vigas');
+      assert.equal(await fck.inputValue(), '30');
+      await fck.fill('35');
+      await fck.press('Enter');
+      await page.locator('summary', { hasText: 'Materiais e segurança (alterados)' }).waitFor();
+      const gc = page.getByLabel('γc', { exact: true });
+      await gc.fill('1,5');
+      await gc.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'Materiais e segurança alterados' }).waitFor();
+      await page.getByRole('button', { name: 'Voltar ao padrão' }).click();
+      await page.locator('summary', { hasText: /^Materiais e segurança$/ }).waitFor();
+      assert.equal(await fck.inputValue(), '30');
+      assert.equal(await gc.inputValue(), '1,4');
     },
   },
 ];

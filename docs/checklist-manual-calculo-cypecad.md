@@ -15,29 +15,29 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 19 | 15 | 45 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 28 | 8 | 9 | 14 |
-| 1.6 Materiais (págs. 37–38) | 11 | 2 | 2 | 4 | 3 |
-| 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 1 | 4 | 0 | 0 |
+| 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
+| 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 10 | 22 | 71 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 15 | 21 | 67 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 7 | 0 | 2 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 3 | 28 | 28 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 8 | 23 | 66 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 2 | 2 | 37 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 1 | 15 | 8 | 19 |
-| **Total** | **661** | **98** | **150** | **302** | **111** |
+| **Total** | **661** | **107** | **149** | **294** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 70 | 69 | 139 |
+| N — Cálculo e normas | 69 | 61 | 130 |
 | R — Revisão de resultados e detalhamento | 44 | 81 | 125 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **150** | **302** | **452** |
+| **Total** | **149** | **294** | **443** |
 
 ## Divergências de premissa
 
@@ -53,7 +53,7 @@ Itens em que o critério do manual difere de uma premissa nossa (confirmada ou "
 - **Rigidez no γz** (K1.5.46, K1.5.52, K1.5.53): nós 0,4·Eci·Ic nas vigas e 0,8·Eci·Ic nos pilares (NBR 6118 15.7.3). Manual: multiplicador de deslocamentos, padrão 1,00 e recomendado 2,0 (NB-1: 1/0,7).
 - **Limite e uso do γz** (K1.5.45, K1.5.48, K1.5.52): nós limite 1,3 com aviso e vento das ELU × 0,95·γz entre 1,1 e 1,3. Manual: aceita até 1,5 e amplia os esforços pelo próprio γz nas combinações com ação horizontal.
 - **Carga variável no ΔM do γz** (K1.5.57): nós ψ0·Q quando o vento é principal e Q integral quando o uso é principal. Manual: sobrecarga integral sempre.
-- **Comprimento de flambagem** (K1.9.11, K1.9.15, K1.9.16): nós le = altura entre cotas, β = 1 fixo. Manual: altura livre (pé-direito − viga ou laje mais alta) × α editável por pavimento, pilar e direção; a NBR 6118 15.6 também permite ℓ0 + h ≤ ℓ.
+- **Comprimento de flambagem** (K1.9.11, K1.9.15, K1.9.16) — *resolvido na N1b: ℓe = mín(ℓ0 + h; ℓ) × α do pavimento × α do lance, editável por direção*: nós le = altura entre cotas, β = 1 fixo. Manual: altura livre (pé-direito − viga ou laje mais alta) × α editável por pavimento, pilar e direção; a NBR 6118 15.6 também permite ℓ0 + h ≤ ℓ.
 - **Simetria da armadura dos pilares** (K1.4.50, K1.12.4-3): nós sempre simétrica no contorno. Manual: padrão não simétrico, com tolerância % configurável para forçar simetria.
 - **Estribos dos pilares** (K1.12.4-11): nós φ5 ou φ6,3 c/ mín(20 cm; menor lado; 12φ), fixo. Manual: tipologias e tabelas editáveis com grampos.
 - **Vento** (K1.5.21, K1.5.27, K1.5.25): nós Ca único por direção (X/Y), força no mestre com ± 0,075·largura, sem platibanda nem repartição por zona. Manual: coeficiente por sentido, largura corrigida pela platibanda e repartição por zona independente.
@@ -348,11 +348,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.6.1 | Materiais escolhidos de listas; propriedades em arquivo. | Parcial | N | fck, aço e CAA por obra; sem biblioteca de materiais |
 | K1.6.2 | Concreto: resistência característica, coeficiente redutor, módulo secante, ν = 0,2, conforme norma. | Feito | — | fck, γc 1,4, Ecs (NBR 8.2.8) e ν 0,2 |
-| K1.6.3 | Concreto pode diferir por elemento e, nos pilares, por pavimento. | Falta | N | fck por elemento e por pavimento nos pilares |
-| K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Parcial | N | CA-50/CA-60 por obra, mas o dimensionamento usa fyk 500 fixo |
-| K1.6.5 | Aço de armadura distinto para pilares/paredes/pilares-parede/consolos (longitudinal; estribos). | Falta | N | aço por posição em pilares |
-| K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Falta | N | aço por posição em vigas |
-| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Falta | N | aço por posição em lajes (ex.: CA-60 em telas) |
+| K1.6.3 | Concreto pode diferir por elemento e, nos pilares, por pavimento. | Feito | — | materiais.definir: fck por tipo de elemento e dos pilares por lance; Ecs de cada barra pelo seu fck (N1b) |
+| K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Feito | — | aço por posição com fyk 500/600 e γs da obra no dimensionamento (N1b) |
+| K1.6.5 | Aço de armadura distinto para pilares/paredes/pilares-parede/consolos (longitudinal; estribos). | Feito | — | pilares: longitudinal e estribos (N1b) |
+| K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Parcial | N | vigas: positiva, negativa e estribos (N1b); montagem e pele quando forem dimensionadas |
+| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | N | lajes maciças: inferior e superior (N1b); punção, cortante e nervuradas com as próprias verificações |
 | K1.6.8 | Aço distinto em sapatas, sapatas corridas e blocos. | Feito | — | módulo Fundações tem fck e fyk próprios (`piles.ts`: fckFound, fyk) |
 | K1.6.9 | Aço estrutural de pilares, vigas e placas de base: biblioteca não editável (módulo, escoamento, Poisson etc.); perfis laminados, formados a frio e soldados. | Fora | — | aço estrutural |
 | K1.6.10 | Placas de base: aço da placa e enrijecedores, aço e tipo de chumbadores; bitolas pré-definidas não editáveis. | Fora | — | placas de base |
@@ -362,9 +362,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.7.1 | Coeficientes parciais conforme materiais, ações e método de cálculo da norma escolhida. | Parcial | N | γf 1,4/1,0 e γc, γs fixos no edifício; editáveis no Pórtico 2D |
+| K1.7.1 | Coeficientes parciais conforme materiais, ações e método de cálculo da norma escolhida. | Feito | — | γc, γs, γg e γq editáveis no edifício (N1b) |
 | K1.7.2 | Método dos estados-limites (ou o método próprio de cada norma). | Feito | — | método dos estados-limites |
-| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Parcial | N | γc 1,4 e γs 1,15 fixos (NBR 12.4.1); sem casos especiais |
+| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Parcial | N | γc e γs editáveis (N1b); sem nível de controle de execução que os escolha |
 | K1.7.4 | Coeficientes das ações conforme nível de controle, danos previsíveis e uso; distinção entre efeito favorável/desfavorável e origem da ação. | Parcial | N | G favorável 1,0 / desfavorável 1,4; sem γ por origem (Tabela 11.1 completa) |
 | K1.7.5 | Coeficientes parciais e de simultaneidade lidos de arquivo de combinações por norma (não editável); o usuário pode criar combinações próprias. | Parcial | N | ψ da carga de uso editável; combinações próprias só no Pórtico 2D |
 
@@ -396,12 +396,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Falta | N | aço por posição em lajes |
 | K1.9.9 | Aço de perfis de vigas e pilares: formado a frio e laminado a quente. | Fora | — | perfis de aço |
 | K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento e ψ; sem incêndio, casos adicionais e escolha de estados |
-| K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Falta | N | coeficientes de flambagem por pavimento, pilar e direção |
-| K1.9.12 | Padrão α (β) = 1; o usuário muda conforme tipo de estrutura e ligação do pilar às vigas/lajes nas duas direções. | Parcial | N | β = 1 fixo (le = altura do lance), não editável |
-| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Falta | N | pilar sem travamento em vários pavimentos |
-| K1.9.14 | Pilar desligado em uma só direção: o programa usa l0 = αi·li em cada lance sem saber do desligamento; o usuário deve dar αi = α·Σlj/li para obter o comprimento total. | Falta | N | pilar destravado numa direção |
-| K1.9.15 | Altura para flambagem = altura livre: altura do pavimento menos a altura da viga ou laje mais alta que chega ao pilar. | Parcial | N | nós: le = altura entre cotas; manual e NBR 15.6: vão livre + h ≤ ℓ |
-| K1.9.16 | α final do pilar = α do pavimento × α do lance. | Falta | N | α do pavimento × α do lance |
+| K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
+| K1.9.12 | Padrão α (β) = 1; o usuário muda conforme tipo de estrutura e ligação do pilar às vigas/lajes nas duas direções. | Feito | — | α padrão 1, editável nas duas direções (N1b) |
+| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Parcial | N | pilar destravado por α > 1 no lance; sem soma automática dos lances desligados |
+| K1.9.14 | Pilar desligado em uma só direção: o programa usa l0 = αi·li em cada lance sem saber do desligamento; o usuário deve dar αi = α·Σlj/li para obter o comprimento total. | Feito | — | mesmo critério: α por direção informado pelo usuário (N1b) |
+| K1.9.15 | Altura para flambagem = altura livre: altura do pavimento menos a altura da viga ou laje mais alta que chega ao pilar. | Feito | — | ℓe = mín(ℓ0 + h; ℓ), ℓ0 = altura do lance − viga mais alta no topo (NBR 6118, 15.6) (N1b) |
+| K1.9.16 | α final do pilar = α do pavimento × α do lance. | Feito | — | α final = α do pavimento × α do lance (N1b) |
 | K1.9.17 | Valores de α deixados ao projetista: as normas só os definem para pórticos planos e o comportamento espacial não corresponde a esses modos. | Fora | — | comentário do manual |
 | | **1.9.2–1.9.7 Ações, grupos, vento, sismo, incêndio, casos adicionais, estados-limite (págs. 45–47)** | | | |
 | K1.9.18 | Escolha de considerar ou não vento e/ou sismo e as normas de cada um; combinatória interna por estado-limite. | Parcial | N | vento liga e desliga (NBR 6123); sismo fora |

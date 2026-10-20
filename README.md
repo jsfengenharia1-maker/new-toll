@@ -178,6 +178,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Opções editáveis com padrão pela NBR 6118 (o que a norma não fixa fica marcado "a confirmar"): malha da grelha (0,25 m), torção de vigas, lajes e pilares, rigidez axial dos pilares, trecho rígido no nó e engaste no topo do último lance (0,3)
 - Engaste parcial nas barras 3D por interpolação entre as rigidezes engastada e articulada; tabela das opções no memorial
 - Por elemento: engaste por lance de pilar (topo e base), pontas e apoios articulados de vigas, engaste das bordas das lajes, torção de equilíbrio e vigas fora do diafragma
+- Materiais e segurança (frente N1b): fck por tipo de elemento e por lance de pilar, aço por posição, γc/γs/γg/γq, cobrimentos por face e por elemento; comprimento de flambagem ℓe = mín(ℓ0 + h; ℓ) × α por pavimento, pilar e direção (NBR 6118, 15.6)
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

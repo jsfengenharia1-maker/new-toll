@@ -4,6 +4,7 @@ import { nbrCombinations } from '../edit';
 import type { LoadCase } from '../types';
 import type { AnaliseEdificio } from './analitico';
 import type { BuildingModel } from './types';
+import { gamas } from './materiais';
 
 export interface CombinacaoEd { nome: string; tipo: 'ELU' | 'QP' | 'FREQ' | 'RARA'; fatores: Record<string, number> }
 
@@ -17,7 +18,8 @@ export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): Comb
   ];
   const nome = new Map(casos.map((c) => [c.id, c.name]));
   const amp = new Map(W.map((c) => [c.nome, an.vento?.gamaZ.find((g) => g.direcao === c.direcao)?.ampliacao ?? 1]));
-  const out: CombinacaoEd[] = nbrCombinations(casos, 1).map((c) => {
+  const gm = gamas(b);
+  const out: CombinacaoEd[] = nbrCombinations(casos, 1, { g: gm.g, gFav: 1, q: gm.q }).map((c) => {
     const f: Record<string, number> = {};
     for (const [id, v] of Object.entries(c.factors)) { const n = nome.get(+id)!; f[n] = c.kind === 'ELU' && amp.has(n) ? +(v * amp.get(n)!).toFixed(4) : v; }
     return { nome: c.name, tipo: c.kind === 'ELU' ? 'ELU' : c.kind === 'QP' ? 'QP' : 'FREQ', fatores: f };

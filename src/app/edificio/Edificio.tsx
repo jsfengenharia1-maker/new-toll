@@ -17,6 +17,7 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
+import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
 
 
@@ -83,6 +84,7 @@ export function Edificio() {
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
         <OpcoesGrupo b={b} />
+        <MateriaisGrupo b={b} />
         <VinculosGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
@@ -707,10 +709,10 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <div className="card">
             <h3>Pilares (por lance)</h3>
             <table className="data quadro">
-              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>ℓe b / h (m)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.pilares).map((x) => (
                 <tr key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.pilar])}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
             <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes.</Hint>

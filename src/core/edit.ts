@@ -175,7 +175,8 @@ export function exclusiveChoices(Q: LoadCase[], exclude: (c: LoadCase) => boolea
  * Para cada principal gera-se também a combinação sem acompanhantes (ações variáveis favoráveis = 0).
  * ELS quase permanente (ψ2) e frequente (ψ1 na principal). Os fatores ficam editáveis depois.
  */
-export function nbrCombinations(cases: LoadCase[], startId: number): Combination[] {
+/** Combinações NBR 8681/6118; γ (desfavorável, favorável das permanentes e das variáveis) editáveis, padrão 1,4 / 1,0 / 1,4. */
+export function nbrCombinations(cases: LoadCase[], startId: number, gm: { g: number; gFav: number; q: number } = { g: 1.4, gFav: 1, q: 1.4 }): Combination[] {
   const G = cases.filter((c) => (c.nature ?? 'G') === 'G');
   const Q = cases.filter((c) => c.nature === 'Q' || c.nature === 'W');
   const out: Combination[] = [];
@@ -184,8 +185,7 @@ export function nbrCombinations(cases: LoadCase[], startId: number): Combination
   const push = (name: string, f: Record<number, number>) => out.push({ id: id++, name, factors: f, kind: name.startsWith('ELU') ? 'ELU' : name.includes('quase') ? 'QP' : 'FREQ' });
   const sameGroup = (p: LoadCase) => (c: LoadCase) => c === p || (!!caseGroup(p) && caseGroup(c) === caseGroup(p));
   const label = (list: LoadCase[], all: LoadCase[]) => (list.length && list.length < all.length ? ` + ${list.map((c) => c.name).join(', ')}` : '');
-  for (const gg of [1.4, 1.0]) {
-    const tag = gg === 1.4 ? 'G desf.' : 'G fav.';
+  for (const [gg, tag] of [[gm.g, 'G desf.'], [gm.gFav, 'G fav.']] as const) {
     if (!Q.length) { push(`ELU ${tag}`, Object.fromEntries(G.map((c) => [c.id, gg]))); continue; }
     for (const p of Q) {
       const others = Q.filter((c) => !sameGroup(p)(c));
@@ -193,14 +193,14 @@ export function nbrCombinations(cases: LoadCase[], startId: number): Combination
       for (const ch of choices) {
         const f: Record<number, number> = {};
         G.forEach((c) => (f[c.id] = gg));
-        f[p.id] = 1.4;
-        ch.forEach((c) => (f[c.id] = round(1.4 * psi(c, 0))));
+        f[p.id] = gm.q;
+        ch.forEach((c) => (f[c.id] = round(gm.q * psi(c, 0))));
         push(`ELU ${tag} · ${p.name} principal${label(ch, others)}`, f);
       }
       if (others.length) {
         const f: Record<number, number> = {};
         G.forEach((c) => (f[c.id] = gg));
-        f[p.id] = 1.4;
+        f[p.id] = gm.q;
         push(`ELU ${tag} · ${p.name} sozinha`, f);
       }
     }
