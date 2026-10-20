@@ -50,9 +50,14 @@ interface BState {
   dim: DimEdificio | null;
   /** Revisão do modelo em que a análise foi feita (difere de sessao.rev = desatualizada). */
   revAnalise: number;
+  /** Modelo sem os dados de prancha (carimbo, formato, escalas) no momento do cálculo: mudar só a prancha não invalida o cálculo. */
+  chaveCalculo: string;
   calculando: boolean;
   calcular(): Promise<void>;
 }
+
+/** Chave do que influi no cálculo: o modelo sem `prancha`. */
+export const chaveDeCalculo = (m: object): string => JSON.stringify({ ...m, prancha: undefined });
 
 const msg = (m: string) => useStore.getState().set({ message: m });
 
@@ -77,10 +82,11 @@ export const useBuilding = create<BState>((set, get) => {
     desfazer() { const e = get().sessao.desfazer(); if (e) { atualizar(get().sessao); msg(`Desfeito: ${e.nome}.`); } },
     refazer() { const e = get().sessao.refazer(); if (e) { atualizar(get().sessao); msg(`Refeito: ${e.nome}.`); } },
     novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
-    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set({ analise: null, dim: null, revAnalise: -1 }); },
+    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set({ analise: null, dim: null, revAnalise: -1, chaveCalculo: '' }); },
     analise: null,
     dim: null,
     revAnalise: -1,
+    chaveCalculo: '',
     calculando: false,
     async calcular() {
       const s = get().sessao, rev = s.rev;
@@ -88,7 +94,7 @@ export const useBuilding = create<BState>((set, get) => {
       msg('Calculando…');
       try {
         const { analise: a, dim } = await calcularNoWorker(s.modelo);
-        set({ analise: a, dim, revAnalise: rev, calculando: false });
+        set({ analise: a, dim, revAnalise: rev, chaveCalculo: chaveDeCalculo(s.modelo), calculando: false });
         msg(a.erro ? `Análise: ${a.erro}` : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
       } catch (e) {
         set({ calculando: false });

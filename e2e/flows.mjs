@@ -1069,6 +1069,93 @@ export const flows = [
     },
   },
   {
+    name: 'R5: pranchas de armação (vigas, pilares, lajes), locação com cargas e conjunto numerado; aviso sem cálculo; PDF',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('eixo.malha {"dx": [4, 4], "dy": [4]}');
+      // sem cálculo: aviso claro nas pranchas de armação
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      await tipo.selectOption({ label: 'Armação de vigas' });
+      await page.locator('[data-aviso-calculo="sem"]').waitFor();
+      assert.equal(await page.locator('[data-lista-folhas]').count(), 0);
+      // calcular e dimensionar
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const prev = page.locator('.prancha-prev');
+      const lista = page.locator('[data-lista-folhas]');
+      const peso = async () => parseFloat(await page.locator('[data-aco-folha]').getAttribute('data-aco-peso'));
+      // armação de vigas
+      await tipo.selectOption({ label: 'Armação de vigas' });
+      await prev.locator('svg').waitFor();
+      assert.equal(await prev.getAttribute('data-tipo'), 'vigas');
+      assert.match(await prev.textContent(), /N1/);
+      assert.ok((await peso()) > 0, 'peso de aço da folha de vigas');
+      assert.match(await lista.innerText(), /ARV/);
+      // armação de pilares
+      await tipo.selectOption({ label: 'Armação de pilares' });
+      await prev.locator('svg').waitFor();
+      assert.equal(await prev.getAttribute('data-tipo'), 'pilares');
+      assert.match(await prev.textContent(), /N1/);
+      assert.match(await lista.innerText(), /ARP/);
+      assert.ok((await peso()) > 0, 'peso de aço da folha de pilares');
+      // armação de lajes
+      await tipo.selectOption({ label: 'Armação de lajes' });
+      await prev.locator('svg').waitFor();
+      assert.equal(await prev.getAttribute('data-tipo'), 'lajes');
+      assert.match(await prev.textContent(), /N1/);
+      assert.match(await lista.innerText(), /ARL/);
+      // locação e cargas
+      await tipo.selectOption({ label: 'Locação e cargas' });
+      await prev.locator('svg').waitFor();
+      assert.equal(await prev.getAttribute('data-tipo'), 'locacao');
+      assert.match(await prev.textContent(), /kN/);
+      assert.match(await lista.innerText(), /LOC/);
+      // opção de armação: escala das vigas muda a folha
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await tipo.selectOption({ label: 'Armação de vigas' });
+      await page.getByLabel('Escala das vigas').selectOption({ label: '1:75' });
+      await page.waitForFunction(() => /1:75/.test(document.querySelector('[data-lista-folhas]')?.textContent ?? ''));
+      await page.getByLabel('Escala das vigas').selectOption({ label: '1:50' });
+      // conjunto completo, numerado
+      await tipo.selectOption({ label: 'Conjunto completo' });
+      await prev.locator('svg').waitFor();
+      const n = parseInt(await prev.getAttribute('data-total'), 10);
+      assert.ok(n >= 5, `folhas do conjunto: ${n}`);
+      assert.equal(await page.locator('[data-folha-item]').count(), n);
+      assert.match(await prev.textContent(), /01\//);
+      for (const sg of ['LOC', 'FOR', 'ARV', 'ARP', 'ARL']) assert.match(await lista.innerText(), new RegExp(sg));
+      await page.getByRole('button', { name: 'Próxima folha' }).click();
+      assert.equal(await prev.getAttribute('data-folha'), '2');
+      assert.match(await prev.textContent(), /02\//);
+      // exportar
+      const baixar = async (rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: rot }).click()]);
+        return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
+      };
+      const pdf = await baixar('PDF da folha');
+      assert.match(pdf.nome, /-FOR-02\.pdf$/);
+      assert.equal(pdf.dados.subarray(0, 5).toString('latin1'), '%PDF-');
+      const todas = await baixar('PDF (todas)');
+      assert.match(todas.nome, /-conjunto\.pdf$/);
+      assert.ok(todas.dados.length > pdf.dados.length);
+      const dxf = await baixar('DXF (zip de todas)');
+      assert.match(dxf.nome, /-dxf\.zip$/);
+      assert.equal(dxf.dados.subarray(0, 2).toString('latin1'), 'PK');
+      // modelo alterado: dimensionamento desatualizado, aviso
+      await cmd('eixo.malha {"dx": [4, 4, 1], "dy": [4]}');
+      await tipo.selectOption({ label: 'Armação de lajes' });
+      await page.locator('[data-aviso-calculo="desatualizado"]').waitFor();
+    },
+  },
+  {
     name: 'R6: duas lajes treliçadas H12 contínuas, janela Vigotas (planta SVG, diagramas, tabela de grupos), bloqueio da armadura, resumo de aço com treliças e memorial',
     async run({ newPage }) {
       const page = await newPage();

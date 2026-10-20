@@ -13,31 +13,31 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 33 | 29 | 17 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 34 | 29 | 16 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 31 | 12 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 24 | 62 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 31 | 22 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 9 | 29 | 21 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 21 | 38 | 38 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 6 | 4 | 31 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **154** | **185** | **211** | **111** |
+| **Total** | **661** | **158** | **183** | **209** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 72 | 29 | 101 |
-| R — Revisão de resultados e detalhamento | 77 | 33 | 110 |
-| E — Elementos estruturais | 16 | 122 | 138 |
+| R — Revisão de resultados e detalhamento | 73 | 31 | 104 |
+| E — Elementos estruturais | 19 | 122 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
-| V — Visualização | 7 | 12 | 19 |
-| **Total** | **185** | **211** | **396** |
+| V — Visualização | 6 | 12 | 18 |
+| **Total** | **183** | **209** | **392** |
 
 ## Divergências de premissa
 
@@ -80,7 +80,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Parcial | FU | sapatas isoladas, blocos de 1 a 6 estacas e tubulões (módulo Fundações); faltam corridas, vigas de fundação e radier |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
 | K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas |
-| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | R | pranchas de formas PDF/DXF/DWG e memorial HTML; faltam desenhos de armadura |
+| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares e lajes (PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML (R5); sem pilares-parede e paredes |
 | K1.1.8 | Com módulo 3D adicional: barras de aço, madeira e alumínio integradas ao edifício. | Fora | — | barras de aço, madeira e alumínio no edifício |
 
 ## 1.2 Análise realizada (págs. 4–5)
@@ -257,7 +257,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Escadas (listadas)** | | | |
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
-| K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Falta | R | perdas de aço e comprimento de corte |
+| K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Feito | — | perdas de aço e barra máxima (opções perdasAco e barraMaxima, R3a) e opções de desenho das pranchas de armação (formato, escalas, lajes separadas, quadro de pilares) (R5) |
 | K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Parcial | R | negativos com ρmín e comprimento mínimo em % do vão (opção; NBR 0) nas treliçadas; alveolares fora (R6) |
 | K1.4.81 | Momentos mínimos a resistir em lajes e vigas; armadura de vigas mestras. | Falta | N | momentos mínimos |
 | K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Feito | — | redutor de rigidez à flexão das treliçadas na grelha (opção vigotaRigidez) (R6) |
@@ -595,11 +595,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.53 | Consolos curtos; estruturas 3D integradas; verificações ELU de pilares e vigas. | Parcial | R | verificações ELU de pilares e vigas no memorial; sem detalhe por combinação |
 | | **1.11.3 Desenhos (págs. 75–76)** | | | |
 | K1.11.54 | Formatos padrão ou do usuário; impressora, plotter, DXF/DWG, PDF; detalhes DXF/DWG inseríveis; escala, espessuras, textos, moldura, modelo DXF/DWG; elementos por camadas. | Parcial | V | PDF, DXF R2000, DWG; A0–A4, carimbo, camadas; sem formato ou moldura do usuário |
-| K1.11.55 | Planta de locação: elementos cotados por pavimento em relação a eixos; opcionalmente áreas, volumes e aço em quadro. | Parcial | V | cotas entre centros de pilares e eixos na prancha de formas; sem planta de locação própria |
-| K1.11.56 | Plantas de fôrma/estrutura: vigas, pilares, pilares-parede, paredes, panos de vigotas (positivos, cortantes extremas, comprimentos de negativos), armaduras de maciças e nervuradas, quadro de armadura base, ábacos e nervuras, punção, zonas maciças/aliviadas, quadro de quantitativos; desenhos de fundação. | Parcial | R | planta de formas com quadro de pilares; sem armaduras de lajes nem fundações |
-| K1.11.57 | Detalhamento de vigas (pórticos): nome, escala, dimensões, barras (nº, bitola, comprimentos, posição), estribos (tipo, bitola, espaçamento), quadro resumo. | Falta | R | detalhamento de vigas |
-| K1.11.58 | Quadro de pilares e placas de base: seções, número, posição, trecho de estribos, tipos, bitolas, comprimentos, perfis; agrupados por tipos iguais; placas com dimensões, chumbadores e geometria; por pavimento, com resumo. | Parcial | R | quadro de pilares com seção e armadura; sem estribos, comprimentos, agrupamento |
-| K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Parcial | R | elevação do pilar (lances, níveis, barras, emendas, estribos), seção por lance e tabela de barras na janela do pilar e no memorial (R3b); sem desenho nas pranchas (R5) |
+| K1.11.55 | Planta de locação: elementos cotados por pavimento em relação a eixos; opcionalmente áreas, volumes e aço em quadro. | Feito | — | prancha de locação e cargas: pilares cotados entre centros e eixos, tabela de cargas características e de cálculo e notas gerais (R5); áreas e volumes por folha nas pranchas de armação |
+| K1.11.56 | Plantas de fôrma/estrutura: vigas, pilares, pilares-parede, paredes, panos de vigotas (positivos, cortantes extremas, comprimentos de negativos), armaduras de maciças e nervuradas, quadro de armadura base, ábacos e nervuras, punção, zonas maciças/aliviadas, quadro de quantitativos; desenhos de fundação. | Parcial | E | plantas de formas, locação e armação de lajes maciças e treliçadas (barra representativa, distribuição, sentido das vigotas); sem fundações, ábacos, punção, zonas maciças/aliviadas e quadro de armadura base (R5) |
+| K1.11.57 | Detalhamento de vigas (pórticos): nome, escala, dimensões, barras (nº, bitola, comprimentos, posição), estribos (tipo, bitola, espaçamento), quadro resumo. | Feito | — | prancha de armação de vigas por grupo: elevação com barras (n Nk φ C=), estribos por zona, apoios, cotas, seção e estribo à parte, tabela de aço e resumo com perdas (R5); sem corte A-A nem 2ª camada |
+| K1.11.58 | Quadro de pilares e placas de base: seções, número, posição, trecho de estribos, tipos, bitolas, comprimentos, perfis; agrupados por tipos iguais; placas com dimensões, chumbadores e geometria; por pavimento, com resumo. | Parcial | E | quadro de pilares com seção, armadura longitudinal, estribos e grampos por lance, agrupado por pilares iguais (P1=P3), na prancha de pilares (R5); sem placas de base (aço) |
+| K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Feito | — | prancha de armação de pilares: elevação com níveis, emendas e arranques, seções por arranjo com grampos e tabela de aço (R5); pilares-parede inexistentes no módulo |
 | K1.11.60 | Cargas na fundação: arranques com cargas por caso em eixos globais (pilares e pilares-parede). | Parcial | FU | cargas na fundação em tabela e envio às Fundações; sem desenho |
 | K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Falta | E | paredes de subsolo e portantes |
 | K1.11.62 | Desenho de cargas especiais por caso e grupo; consolos curtos; isolinhas de lajes; estrutura 3D. | Falta | V | desenho de cargas, isolinhas e vista 3D |
@@ -735,7 +735,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5-8 | Extremidades das vigotas: mesmo com negativo nulo, arma para momento = % do positivo máximo do vão (configurável). | Falta | E | momento mínimo nas extremidades |
 | K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Falta | N | momentos mínimos |
 | K1.12.5-10 | Limitação: não verifica necessidade de armadura comprimida no vão. | Fora | — | limitação do outro programa |
-| K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Parcial | R | cortantes das pontas por nervura (por metro no núcleo) na tabela e nos diagramas; sem os desenhos de armação (R6/R5) |
+| K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Parcial | R | cortantes das pontas por nervura (por metro no núcleo) na tabela e nos diagramas; pranchas de lajes treliçadas listam as posições, sem os cortantes desenhados (R6/R5) |
 | K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | N | flecha elástica × (1 + αf) sem fissuração; sem distinção protendida |
 
 ## 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95)

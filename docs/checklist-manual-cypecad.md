@@ -9,28 +9,28 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 0 | 3 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 14 | 14 | 18 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 13 | 18 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
-| 4. Pilares | 63 | 16 | 23 | 17 | 7 |
+| 4. Pilares | 63 | 16 | 24 | 16 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 11 | 15 | 57 | 25 |
 | 7. Lajes | 195 | 15 | 30 | 89 | 61 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 7 | 7 | 9 | 3 |
+| 10. Cargas | 26 | 7 | 8 | 8 | 3 |
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **89** | **118** | **377** | **179** |
+| **Total** | **763** | **90** | **119** | **375** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 37 | 50 | 87 |
+| R — Revisão de resultados e detalhamento | 35 | 48 | 83 |
 | N — Cálculo e normas | 13 | 19 | 32 |
-| E — Elementos estruturais | 15 | 185 | 200 |
+| E — Elementos estruturais | 18 | 185 | 203 |
 | FU — Fundações integradas | 12 | 55 | 67 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
 | V — Visualização | 1 | 37 | 38 |
@@ -39,7 +39,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | R | análise espacial, dimensionamento e pranchas de formas; sem desenhos de armadura nem aço no edifício |
+| C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício |
 | C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | R | grelha por pavimento + pórtico espacial (não é um modelo único); fundação em módulo à parte |
 | C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Parcial | R | concreto armado sim (NBR 6118); aço só no módulo Pórtico |
 | C0.4 | Normas de vários países à escolha do usuário. | Fora | — | só normas brasileiras, por decisão de escopo |
@@ -89,7 +89,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
 | C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
 | C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Falta | R | edição/uniformização de armaduras antes dos desenhos |
-| C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Parcial | R | memorial e pranchas de formas; sem desenhos de armadura |
+| C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Feito | — | memorial e pranchas de formas, locação e armação de vigas, pilares e lajes em PDF/DXF/DWG (R5) |
 | | **1.3.3 Gestão de arquivos** | | | |
 | C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício |
 | C1.41 | Importação de arquivo texto ASCII, em colunas ou separado por vírgulas (planilhas ou outros programas), para gerar fundações. | Falta | L | importar cargas de fundação por texto/CSV |
@@ -250,7 +250,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | R | combinações determinantes por lance na janela do pilar (R1); sem tela de envoltória por hipótese |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R |  |
-| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Falta | R | detalhe de estribos no quadro |
+| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos |
 | C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1); sem relatório por esforço |
 
 ## 5. Muros e paredes estruturais
@@ -799,7 +799,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje |
 | C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” |
 | | **10.4 Desenhos e relatórios** | | | |
-| C10.26 | Desenho de distribuição de cargas especiais com as cargas permanentes e variáveis por grupo; nos demais desenhos as cargas aparecem só se o usuário configurar. | Falta | R | prancha de cargas |
+| C10.26 | Desenho de distribuição de cargas especiais com as cargas permanentes e variáveis por grupo; nos demais desenhos as cargas aparecem só se o usuário configurar. | Parcial | E | prancha de locação com as cargas características e de cálculo por pilar (R5); sem cargas especiais por grupo |
 
 ## 11. Fundações
 
