@@ -139,6 +139,35 @@ export interface Pilar {
   flambagem?: { pavimento: string; au?: number; av?: number }[];
   /** Cobrimento próprio (cm); ausente = o da obra. */
   cobrimento?: number;
+  /** Armaduras editadas e bloqueadas por lance: o recálculo só as verifica. */
+  armaduras?: ArmaduraPilar[];
+}
+
+/** Armadura bloqueada de um lance de pilar (barras iguais no contorno; estribo). */
+export interface ArmaduraPilar {
+  /** Lance (pavimento do topo). */
+  pavimento: string;
+  /** Bitola longitudinal (mm). */
+  phi: number;
+  /** Retangular: barras por face ao longo de b e de h (com os cantos). */
+  nb?: number;
+  nh?: number;
+  /** Circular: número de barras. */
+  n?: number;
+  estribo: { phi: number; s: number };
+  /** Número de lances do pilar quando foi bloqueada (se mudar, o bloqueio deixa de valer). */
+  lances: number;
+}
+
+/** Armadura editada e bloqueada de uma viga (vale para todos os vãos e pavimentos do grupo). */
+export interface ArmaduraViga {
+  inf: { n: number; phi: number };
+  sup?: { n: number; phi: number };
+  estribo: { phi: number; s: number };
+  /** Barras longitudinais em cada face lateral (torção). */
+  laterais?: { n: number; phi: number };
+  /** Número de vãos quando foi bloqueada (se mudar, o bloqueio deixa de valer). */
+  vaos: number;
 }
 
 /** Linha traçada da viga em relação ao corpo: eixo (centro) ou face esquerda/direita, olhando do 1º para o último ponto. */
@@ -171,6 +200,8 @@ export interface Viga {
   foraDiafragma?: boolean;
   /** Cobrimento próprio (cm); ausente = o da obra (faces da obra continuam valendo). */
   cobrimento?: number;
+  /** Armadura editada e bloqueada: o recálculo só a verifica (área de aço, estribos e flecha). */
+  armadura?: ArmaduraViga;
 }
 
 export type TipoLaje =

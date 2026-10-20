@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
-import { edificioVazio, peDireito } from '../building/types';
+import { edificioVazio, lancesDoPilar, peDireito } from '../building/types';
 import { verificar } from '../building/verify';
 import { lerEdificio } from '../building/file';
 
@@ -31,6 +31,7 @@ function base() {
     ['caso.criar', { nome: 'Empuxo', natureza: 'G' }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
   expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
+  expect(s.executar('viga.armadura', { id: s.modelo.vigas[1].id, inf: { n: 2, phi: 10 }, estribo: { phi: 5, s: 0.2 } }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -45,6 +46,9 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'carga.pilar': (b) => ({ pilar: b.pilares[1].id, caso: b.casos![0].id, altura: 1, Hx: 3, My: 2 }),
   'carga.pilarRemover': (b) => ({ ids: [b.cargasPilar![0].id] }),
   'pilar.flambagem': (b) => ({ ids: [b.pilares[0].id], au: 2 }),
+  'pilar.armadura': (b) => ({ id: b.pilares[0].id, pavimento: lancesDoPilar(b, b.pilares[0])[0].id, phi: 12.5, ...(b.pilares[0].secao.tipo === 'circ' ? { n: 6 } : { nb: 3, nh: 2 }), estribo: { phi: 5, s: 0.15 } }),
+  'viga.armadura': (b) => ({ id: b.vigas[0].id, inf: { n: 3, phi: 12.5 }, sup: { n: 2, phi: 10 }, estribo: { phi: 6.3, s: 0.15 }, laterais: { n: 1, phi: 8 } }),
+  'armadura.desbloquear': () => ({ tipo: 'viga' }),
   'materiais.definir': (b) => ({ fck: { pilar: 40 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 } }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),
   'opcoes.definir': () => ({ valores: { malha: 0.5, engasteTopoUltimo: 1 }, padrao: ['torcaoViga'] }),
