@@ -97,6 +97,14 @@ Veja a tabela no `README.md`. Resumo:
 - SPT: por apoio, um furo (automático ou escolhido) ou a sondagem média de todos/alguns furos; leitura descartada (⊘) fica fora da média e, no furo isolado, é interpolada entre as vizinhas. Média: N médio das leituras válidas; solo mais frequente (empate: o menos favorável); profundidade comum (ou até o mais profundo); NA mais raso (ou médio).
 - Pilar padrão 30 × 30 cm quando o apoio não informa (na importação, vem da seção retangular da barra mais vertical ligada ao apoio).
 
+## Módulo Edifícios (em especificação)
+- Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1): `docs/spec-edificios.md`.
+- O usuário aceitou os padrões dos itens 1–48 da pesquisa em 20/10/2026; a tabela "Premissas adotadas" da spec é a referência. Valores sem fonte aberta continuam "a confirmar".
+- Regras extras do módulo:
+  - paridade de funcionalidade com o CYPECAD, nunca de implementação (sem nomes de comandos, ícones, layout ou formatos proprietários);
+  - dependência nova só com aceite (licença, tamanho, alternativa);
+  - parar para aprovação ao fim de cada fase.
+
 ## Publicação web (Netlify)
 - Sem login e sem banco: decisão do usuário (out/2026). Tudo roda no navegador.
 - `netlify.toml` roda `npm test && npm run build` e publica `dist/`. Basta conectar o repositório no Netlify; cada push no `main` publica.
