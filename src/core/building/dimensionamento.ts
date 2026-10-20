@@ -302,7 +302,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       wkS = bs && MkNeg ? crackWidth(sec, false, bs.As, bs.phi, dS, -MkNeg, c, caa).wk : 0;
       if (Math.max(wkI, wkS) > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${Math.max(wkI, wkS).toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
     } else {
-      let wkI = fissura(AsInf, MkPos, dI), wkS = AsSup ? fissura(AsSup, -MkNeg, dS) : 0;
+      wkI = fissura(AsInf, MkPos, dI); wkS = AsSup ? fissura(AsSup, -MkNeg, dS) : 0;
       let aumentou = false;
       for (let it = 0; it < 20 && wkI > wkLim && larg(AsInf * 1.1); it++) { AsInf *= 1.1; wkI = fissura(AsInf, MkPos, dI); aumentou = true; }
       for (let it = 0; it < 20 && wkS > wkLim && larg(AsSup * 1.1); it++) { AsSup *= 1.1; wkS = fissura(AsSup, -MkNeg, dS); aumentou = true; }
