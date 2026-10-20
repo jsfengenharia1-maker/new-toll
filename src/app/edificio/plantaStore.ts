@@ -18,6 +18,12 @@ interface PState {
   capturas: Set<TipoCaptura>;
   inferior: boolean;
   tema: Tema;
+  /** Mostra em vermelho/amarelo os elementos com erro/aviso da revisão do dimensionamento. */
+  mostrarErros: boolean;
+  /** Elemento aberto na janela de resultados (não vai para o arquivo). */
+  janela: { tipo: 'viga' | 'pilar' | 'laje'; id: string; pavimento?: string } | null;
+  /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
+  foco: { id: string; n: number } | null;
   secao: { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
   ajuste: Ajuste;
   angulo: number;
@@ -47,6 +53,9 @@ export const usePlanta = create<PState>((set) => ({
   capturas: new Set(TODAS),
   inferior: true,
   tema: temaSalvo(),
+  mostrarErros: true,
+  janela: null,
+  foco: null,
   secao: { tipo: 'ret', b: 0.2, h: 0.4 },
   ajuste: 'c',
   angulo: 0,

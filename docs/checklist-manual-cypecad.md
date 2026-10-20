@@ -9,10 +9,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 0 | 3 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 13 | 15 | 18 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 14 | 14 | 18 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
-| 4. Pilares | 63 | 11 | 20 | 25 | 7 |
+| 4. Pilares | 63 | 13 | 20 | 23 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 9 | 8 | 66 | 25 |
 | 7. Lajes | 195 | 5 | 19 | 110 | 61 |
@@ -22,13 +22,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **71** | **98** | **415** | **179** |
+| **Total** | **763** | **74** | **97** | **413** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 17 | 88 | 105 |
+| R — Revisão de resultados e detalhamento | 16 | 86 | 102 |
 | N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -87,7 +87,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.34 | Passo 9: estruturas 3D integradas, definidas no módulo de barras metálicas 3D. | Falta | E | estruturas 3D integradas |
 | C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Parcial | FU | fundações no módulo Fundações (cargas importadas do edifício); sem vigas de equilíbrio, radier |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
-| C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Parcial | R | status por elemento e revisão manual; peso próprio recalculado a cada cálculo |
+| C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
 | C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Falta | R | edição/uniformização de armaduras antes dos desenhos |
 | C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Parcial | R | memorial e pranchas de formas; sem desenhos de armadura |
 | | **1.3.3 Gestão de arquivos** | | | |
@@ -221,11 +221,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E |  |
 | C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário |
 | | **4.2 Resultados de pilares** | | | |
-| C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Parcial | R | status em tabela; clique leva à planta; planta não colore |
-| C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Falta | R | janela de dimensionamento do pilar |
+| C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Parcial | R | pilares com erro em vermelho e com aviso em amarelo na planta (R1); a revisão pela edição da armadura vem na R2 |
+| C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Feito | — | janela de resultados do pilar por clique duplo (tabela, lista de erros ou botão na planta) com as combinações determinantes de cada lance (R1) |
 | C4.36 | O relatório do cálculo lista os pilares com erro de dimensionamento e indica onde revisá-los. | Feito | — | mensagens por lance |
-| C4.37 | Seção em vermelho na tela, no pavimento onde está o erro. | Falta | R | seção em vermelho na planta |
-| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | status e mensagens; sem sugestões detalhadas |
+| C4.37 | Seção em vermelho na tela, no pavimento onde está o erro. | Feito | — | contorno e rótulo do pilar em vermelho (erro) ou amarelo (aviso) no pavimento do lance, com chave Mostrar erros (R1) |
+| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção |
 | C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Parcial | R | limite de 4% na busca |
 | C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Parcial | N | Vd e estribo pelo cortante nos pilares do edifício; biela não detalhada (N1e) |
 | C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção |
@@ -247,11 +247,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Falta | R |  |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Falta | R |  |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | R | esforços calculados; sem tela de envoltórias por pilar |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | R | combinações determinantes por lance na janela do pilar (R1); sem tela de envoltória por hipótese |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R |  |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Falta | R | detalhe de estribos no quadro |
-| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício (Nd, armadura, estribo) |
+| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1); sem relatório por esforço |
 
 ## 5. Muros e paredes estruturais
 

@@ -21,6 +21,7 @@ import { OpcoesGrupo } from './OpcoesCalculo';
 import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
 import { CasosGrupo } from './Casos';
+import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -138,7 +139,7 @@ export function Edificio() {
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
-            {aba === 'dimensionamento' && <DimensionamentoAba onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
+            {aba === 'dimensionamento' && <DimensionamentoAba onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
             {aba === 'pranchas' && <Pranchas />}
             {aba === 'premissas' && (
               <div className="card">
@@ -152,6 +153,7 @@ export function Edificio() {
         )}
       </section>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
+      <JanelaElemento />
     </div>
   );
 }
@@ -277,6 +279,15 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
   const ps = pavimentosOrdenados(b);
   const atual = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  const dim = useBuilding((s) => s.dim);
+  const alvo = ((): Alvo | null => {
+    for (const id of pl.selecao) {
+      if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
+      if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
+      if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
+    }
+    return null;
+  })();
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
@@ -290,6 +301,8 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
+      <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
+      <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
       </select>
@@ -686,6 +699,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
                   </table>
                 </details>
               ))}
+              {analise && <Deslocamentos b={b} analise={analise} />}
             </div>
           )}
           <div className="card">
@@ -716,7 +730,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
 
 const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 
-function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => void; onMemorial: () => void }) {
+function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', id: string, pavimento?: string) => void; onMemorial: () => void }) {
   const { dim, analise, revAnalise, sessao, calculando, calcular } = useBuilding();
   const [so, setSo] = useState(false);
   const velha = analise && revAnalise !== sessao.rev;
@@ -732,12 +746,14 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <Button variant="primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : dim ? 'Recalcular' : 'Calcular e dimensionar'}</Button>
           <Button disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</Button>
           <Button onClick={onMemorial}>Memorial do edifício</Button>
+          {dim && <BotaoExportar dim={dim} />}
           <label className="check small"><input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
         </div>
         {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule.</p>}
         {!dim && <Hint>{analise?.erro ? `A análise falhou: ${analise.erro}` : 'Calcule para dimensionar vigas, pilares e lajes com a envoltória das combinações ELU.'}</Hint>}
-        {dim && <p className="small">Vigas {conta(dim.vigas)} · pilares {conta(dim.pilares)} · lajes {conta(dim.lajes)} · {dim.combinacoes} combinações · {Math.round(dim.ms)} ms. Clique numa linha para ver o elemento na planta.</p>}
+        {dim && <p className="small">Vigas {conta(dim.vigas)} · pilares {conta(dim.pilares)} · lajes {conta(dim.lajes)} · {dim.combinacoes} combinações · {Math.round(dim.ms)} ms. Clique numa linha para ver o elemento na planta; duplo clique abre os resultados do elemento.</p>}
       </div>
+      <ListaErros onIr={onIr} />
       {dim && (
         <>
           <div className="card">
@@ -745,9 +761,9 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
             <table className="data quadro">
               <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Td (kN·m)</th><th>δ</th><th>wk inf / sup / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Laterais (torção)</th><th>aℓ (cm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.vigas).map((x) => (
-                <tr key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.viga])}>
+                <LinhaElemento key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('viga', x.viga)} abrir={() => abrirJanela({ tipo: 'viga', id: x.viga })}>
                   <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className="num">{fmt(x.T, 1)}</td><td className="num">{x.delta < 1 ? fmt(x.delta, 2) : '—'}</td><td className={`num ${Math.max(x.wk[0], x.wk[1]) > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk[0], 2)} / {fmt(x.wk[1], 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{x.barrasLaterais}</td><td className="num">{fmt(x.al * 100, 1)}</td><td>{ST_TXT[x.status]}</td>
-                </tr>))}</tbody>
+                </LinhaElemento>))}</tbody>
             </table>
             <Hint>Td = torção de cálculo máxima (A90/s somada ao cortante nos estribos; Asl repartida: faces horizontais somadas à flexão, laterais em barras próprias); aℓ = decalagem do diagrama (17.4.2.2), para o corte das barras; δ = redistribuição aplicada aos negativos (— sem redistribuição); wk = abertura de fissuras na combinação frequente (face inferior / superior), limite pela CAA ou o das opções. Flecha total por vão entre pilares (quase permanente, Branson por seção, × (1 + αf)); em balanço, o limite é 2ℓ/…. A flecha da carga variável (ℓ/350) é verificada e aparece nas mensagens da linha.</Hint>
           </div>
@@ -756,9 +772,9 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
             <table className="data quadro">
               <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>ℓe b / h (m)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Vd (kN)</th><th>Uso</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.pilares).map((x) => (
-                <tr key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.pilar])}>
+                <LinhaElemento key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('pilar', x.pilar, x.pavimento)} abrir={() => abrirJanela({ tipo: 'pilar', id: x.pilar, pavimento: x.pavimento })}>
                   <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.Vd === undefined ? '—' : fmt(x.Vd, 1)}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
-                </tr>))}</tbody>
+                </LinhaElemento>))}</tbody>
             </table>
             <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes.</Hint>
           </div>
@@ -767,9 +783,9 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
             <table className="data quadro">
               <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>wk / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.lajes).map((x) => (
-                <tr key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.laje])}>
+                <LinhaElemento key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('laje', x.laje, x.pavimento)} abrir={() => abrirJanela({ tipo: 'laje', id: x.laje, pavimento: x.pavimento })}>
                   <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={`num ${x.wk > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk, 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={`num ${x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : ''}`}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
-                </tr>))}</tbody>
+                </LinhaElemento>))}</tbody>
             </table>
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>

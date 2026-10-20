@@ -2,6 +2,7 @@
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
+import { useRevisao } from './revisao';
 import { paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara } from '../../core/building/pilares';
@@ -122,7 +123,15 @@ export function Planta() {
   const lajes = useMemo(() => todasLajes.filter((l) => l.grupo === grupo).map((l) => ({ l, c: pontoInterno(l.contorno) })), [todasLajes, grupo]);
   const cargas = useMemo(() => todasCargas.filter((c) => c.grupo === grupo), [todasCargas, grupo]);
   const panos = useMemo(() => (pl.ferramenta === 'laje' ? panosDoGrupo({ vigas: todasVigas } as BuildingModel, grupo) : []), [todasVigas, grupo, pl.ferramenta]);
-  const comErro = useMemo(() => new Set(diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos)), [diags]);
+  // erros de lançamento (sempre) e, com resultado de dimensionamento, erros e avisos da revisão (calculados uma vez por resultado)
+  const rev = useRevisao();
+  const niveisRev = useMemo(() => {
+    const e = new Set<string>(), a = new Set<string>();
+    for (const [k, n] of rev.porElemento) (n === 'erro' ? e : a).add(k.slice(k.indexOf('|') + 1));
+    return { e, a };
+  }, [rev]);
+  const comErro = useMemo(() => new Set([...diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos), ...(pl.mostrarErros ? niveisRev.e : [])]), [diags, niveisRev, pl.mostrarErros]);
+  const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
   // ---- vista ----
   const enquadrar = () => {
@@ -152,6 +161,20 @@ export function Planta() {
   const grupoVisto = useRef<string | null>(null);
   useEffect(() => {
     if (!vista || grupoVisto.current !== grupo) { grupoVisto.current = grupo; enquadrar(); }
+  });
+  // centraliza no elemento pedido pela lista de erros / janela de resultados (mantém o zoom se o elemento couber)
+  const focoFeito = useRef<unknown>(null);
+  useEffect(() => {
+    const f = pl.foco;
+    if (!f || focoFeito.current === f || !wrap.current) return;
+    const pts: P2[] = naPlanta.find((q) => q.p.id === f.id)?.contorno ?? vigas.find((x) => x.v.id === f.id)?.v.pontos ?? lajes.find((x) => x.l.id === f.id)?.l.contorno ?? [];
+    if (!pts.length) return;
+    focoFeito.current = f;
+    const W = wrap.current.clientWidth || tam[0], H = wrap.current.clientHeight || tam[1];
+    const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const kAjuste = Math.min((W - 160) / Math.max(x1 - x0, 0.5), (H - 160) / Math.max(y1 - y0, 0.5));
+    const k = vista && vista.k <= kAjuste ? vista.k : Math.min(kAjuste, 200);
+    pl.set({ vista: { k, ox: W / 2 - ((x0 + x1) / 2) * k, oy: H / 2 + ((y0 + y1) / 2) * k } });
   });
 
   // ---- desenho ----
@@ -231,16 +254,16 @@ export function Planta() {
     }
     // lajes
     for (const { l, c } of lajes) {
-      const sel = pl.selecao.has(l.id), erro = comErro.has(l.id);
+      const sel = pl.selecao.has(l.id), erro = comErro.has(l.id), avi = comAviso.has(l.id), cAlerta = erro ? cores.erro : avi ? cores.aviso : null;
       const path = new Path2D();
       l.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); });
       path.closePath();
       for (const f of l.furos ?? []) { f.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); }); path.closePath(); }
-      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = erro ? cores.erro : sel ? cores.selecao : cores.laje; ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
-      ctx.strokeStyle = erro ? cores.erro : cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
+      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = cAlerta ?? (sel ? cores.selecao : cores.laje); ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
+      ctx.strokeStyle = cAlerta ?? cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
       const [tx, ty] = paraTela(c[0], c[1]);
-      ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = erro ? cores.erro : cores.laje;
-      ctx.fillText(`${l.nome}${erro ? ' ⚠' : ''}`, tx, ty - 8);
+      ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
+      ctx.fillText(`${l.nome}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx, ty - 8);
       ctx.font = '10px system-ui, sans-serif'; ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx, ty + 6);
       if (l.tipo.tipo === 'trelicada') { // seta dupla na direção das vigotas
         const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
@@ -252,10 +275,10 @@ export function Planta() {
     }
     // vigas
     for (const { v, g, t } of vigas) {
-      const sel = pl.selecao.has(v.id), erro = comErro.has(v.id), cor = erro ? cores.erro : sel ? cores.selecao : cores.viga;
+      const sel = pl.selecao.has(v.id), erro = comErro.has(v.id), avi = comAviso.has(v.id), cor = erro ? cores.erro : avi ? cores.aviso : sel ? cores.selecao : cores.viga;
       ctx.fillStyle = cor; ctx.globalAlpha = 0.12;
       for (const r of t) { ctx.beginPath(); r.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.fill(); }
-      ctx.globalAlpha = 1; ctx.strokeStyle = cor; ctx.lineWidth = erro ? 2.5 : sel ? 2.5 : 1.5;
+      ctx.globalAlpha = 1; ctx.strokeStyle = cor; ctx.lineWidth = erro || avi ? 2.5 : sel ? 2.5 : 1.5;
       if (v.invertida) ctx.setLineDash([6, 3]);
       for (const lado of [g.esq, g.dir]) { ctx.beginPath(); lado.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
       ctx.setLineDash([]);
@@ -267,8 +290,8 @@ export function Planta() {
       let ang = Math.atan2(z[1] - a[1], z[0] - a[0]);
       if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
       ctx.save(); ctx.translate((a[0] + z[0]) / 2, (a[1] + z[1]) / 2); ctx.rotate(ang);
-      ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : cores.viga;
-      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${erro ? ' ⚠' : ''}`, 0, -3);
+      ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.viga;
+      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, 0, -3);
       ctx.restore();
     }
     // pilares
@@ -288,13 +311,13 @@ export function Planta() {
         const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
         ctx.beginPath(); for (let x = x0 - (y1 - y0); x < x1; x += 5) { ctx.moveTo(x, y1); ctx.lineTo(x + (y1 - y0), y0); } ctx.stroke(); ctx.restore();
       }
-      const sel = pl.selecao.has(q.p.id), erro = comErro.has(q.p.id);
-      ctx.strokeStyle = erro ? cores.erro : sel ? cores.selecao : cores.pilarBorda; ctx.lineWidth = erro ? 3 : sel ? 2.5 : 1.5;
+      const sel = pl.selecao.has(q.p.id), erro = comErro.has(q.p.id), avi = comAviso.has(q.p.id);
+      ctx.strokeStyle = erro ? cores.erro : avi ? cores.aviso : sel ? cores.selecao : cores.pilarBorda; ctx.lineWidth = erro || avi ? 3 : sel ? 2.5 : 1.5;
       ctx.stroke(path);
       if (sel) { ctx.save(); ctx.globalAlpha = 0.25; ctx.lineWidth = 8; ctx.strokeStyle = cores.selecao; ctx.stroke(path); ctx.restore(); }
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-      ctx.fillStyle = erro ? cores.erro : cores.texto;
-      ctx.fillText(q.p.nome + (erro ? ' ⚠' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
+      ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.texto;
+      ctx.fillText(q.p.nome + (erro ? ' ⚠' : avi ? ' !' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
     }
     desenharCargas(ctx);
   };

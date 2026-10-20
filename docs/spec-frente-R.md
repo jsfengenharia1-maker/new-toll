@@ -25,6 +25,11 @@ Aprovada pelo usuário em 20/10/2026.
 - R5 (decidido em 20/10/2026): tensões sempre em MPa; vírgula decimal com duas casas; cargas características e de cálculo; eixos conforme o projeto. Referência visual: as 6 pranchas de exemplo enviadas pelo usuário (Drive; fora do repositório).
 - R1 (aprovado em 20/10/2026): deslocamento lateral pela NBR 6118, Tabela 13.3 (H/1700 no topo e hi/850 entre pavimentos, vento na combinação frequente ψ1 = 0,3), limites editáveis; reprovação de cálculo = erro (vermelho), o resto = aviso (amarelo).
 
+## Andamento
+
+- **R1 feita em 20/10/2026.** Núcleo: `revisao.ts` (códigos), deslocamentos laterais, envoltória das vigas e combinações determinantes dos pilares. Interface: erros (vermelho) e avisos (amarelo) na planta com a chave "Mostrar erros" (mapa de níveis calculado uma vez por resultado, sem custo extra por quadro); lista de erros e avisos na aba Dimensionamento (contagem, filtros por nível e tipo, legenda dos códigos, clique centraliza o elemento na planta); janela de resultados por elemento (duplo clique nas tabelas ou na lista, botão "Resultados do elemento" na planta) com diagramas SVG de M, V e T, combinações determinantes de pilares e resultados de lajes; tabela de deslocamentos laterais na aba Análise e resumo no memorial, que também ganha a seção "Erros e avisos"; exportação CSV (vigas, pilares, lajes); fluxo e2e `R1`.
+- Ficou de fora da R1: sugestões de correção por erro; envoltória por hipótese (só por combinação ELU); envoltórias de pilares como diagrama contínuo (só as combinações determinantes); deslocamento por caso simples e por pilar; capacidade resistente nos diagramas das vigas (vem com o detalhamento, R3); momento na face do pilar; relatórios por esforço; erros de vigotas (R6). Um clique numa linha das tabelas agora espera ~230 ms para distinguir do duplo clique.
+
 ## Aceite por fatia
 
 Testes numéricos contra cálculo manual (ancoragem, emendas, decalagem, corte de barras); fluxo e2e de cada tela; memorial e checklist atualizados; nenhuma regressão nos resultados das frentes N.

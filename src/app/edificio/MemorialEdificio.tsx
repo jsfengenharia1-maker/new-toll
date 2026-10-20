@@ -17,6 +17,7 @@ import { svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
+import { useRevisao } from './revisao';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
@@ -40,6 +41,9 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const sentAlt = ([['xp', '+X'], ['xn', '−X'], ['yp', '+Y'], ['yn', '−Y']] as const).filter(([k]) => (sent[k] ?? 1) !== 1).map(([k, t]) => `${t} ${fmt(sent[k]!)}`);
   const ventoExtra = `${sentAlt.length ? `; coeficiente por sentido: ${sentAlt.join(', ')} (demais 1,00)` : '; coeficiente por sentido 1,00 nos quatro sentidos'}; fator de vizinhança ${fmt(v.vizinhanca ?? 1)}; platibanda ${fmt(v.platibanda ?? 0)} m (somada à faixa do último pavimento)`;
   const zonasTxt = r?.zonas.some((z) => z.zonas > 1) ? ` Pavimentos com várias zonas: ${r.zonas.filter((z) => z.zonas > 1).map((z) => `${z.pavimento} (${z.zonas} zonas, ${z.diafragmas} com diafragma, ${z.pilaresSoltos} pilar(es) solto(s))`).join('; ')}; o vento é repartido entre elas pela largura (Bi = bi/Σb·B).` : '';
+  const rev = useRevisao();
+  const desloc = analise?.vento?.deslocamentos ?? [];
+  const nomePav = (id: string) => b.pavimentos.find((p) => p.id === id)?.nome ?? id;
   const nome = b.obra.nome || 'Edifício';
   const casos = casosDaObra(b);
   const nomeCaso = (id: string) => casos.find((c) => c.id === id)?.nome ?? id;
@@ -150,6 +154,14 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <tbody>{r.vento.gamaZ.map((g) => <tr key={g.direcao}><td>{g.direcao}°</td><td>{fmt(g.gamaZ, 3)}</td><td>{fmt(g.ampliacaoVento, 3)}</td></tr>)}</tbody>
             </table>
             <p>γz com rigidez reduzida (vigas 0,4·Eci·Ic; pilares 0,8·Eci·Ic). Entre 1,1 e 1,3, o vento das ELU é majorado por 0,95·γz.</p>
+            {desloc.length > 0 && (<>
+              <h3>Deslocamentos laterais do vento</h3>
+              <table>
+                <thead><tr><th>Direção</th><th>Topo u (mm)</th><th>Limite H/{fmt(opc.limiteDeslocTopo, 0)} (mm)</th><th>Maior entre pavimentos (mm)</th><th>Limite hi/{fmt(opc.limiteDeslocPavimento, 0)} (mm)</th><th>Situação</th></tr></thead>
+                <tbody>{desloc.map((d) => { const m = d.pavimentos.reduce((a, p) => (p.drift / p.limDrift > a.drift / a.limDrift ? p : a), d.pavimentos[0]); return <tr key={d.direcao}><td>{d.direcao}°</td><td>{fmt(d.topo * 1000, 1)}</td><td>{fmt(d.limTopo * 1000, 1)}</td><td>{m ? `${fmt(m.drift * 1000, 1)} (${nomePav(m.pavimento)})` : '—'}</td><td>{m ? fmt(m.limDrift * 1000, 1) : '—'}</td><td>{d.ok ? 'ok' : 'NÃO ATENDE'}</td></tr>; })}</tbody>
+              </table>
+              <p>Combinação frequente do vento com ψ1 = 0,3 (NBR 6118, Tabela 13.3): topo ≤ H/{fmt(opc.limiteDeslocTopo, 0)} e deslocamento entre pavimentos ≤ hi/{fmt(opc.limiteDeslocPavimento, 0)} (limites editáveis nas opções de cálculo). Maior razão deslocamento/limite entre os pavimentos; tabela completa na aba Análise.</p>
+            </>)}
           </>)}
 
           {dim && (<>
@@ -179,6 +191,15 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             {[...dim.vigas, ...dim.pilares, ...dim.lajes].some((x) => x.mensagens.length) && (
               <ul>{[...dim.vigas.map((x) => [x.nome, x.mensagens] as const), ...dim.pilares.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const), ...dim.lajes.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const)].filter(([, m]) => m.length).map(([n, m], i) => <li key={i}><b>{n}:</b> {m.join(' ')}</li>)}</ul>
             )}
+
+            {h2('Erros e avisos')}
+            {rev.itens.length === 0 ? <p>Nenhum erro ou aviso.</p> : (<>
+              <p>{rev.erros} {rev.erros === 1 ? 'erro' : 'erros'} e {rev.avisos} {rev.avisos === 1 ? 'aviso' : 'avisos'}. Erro: o elemento não atende ao cálculo; aviso: atende, mas pede atenção.</p>
+              <table>
+                <thead><tr><th className="l">Elemento</th><th className="l">Pavimento</th><th className="l">Nível</th><th className="l">Código</th><th className="l">Mensagem</th></tr></thead>
+                <tbody>{rev.itens.map((i, k) => <tr key={k}><td className="l">{i.tipo === 'obra' ? 'Obra' : `${i.tipo === 'viga' ? 'Viga' : i.tipo === 'pilar' ? 'Pilar' : 'Laje'} ${i.nome}`}</td><td className="l">{i.pavimento ?? '—'}</td><td className="l">{i.nivel}</td><td className="l">{i.codigo}</td><td className="l">{i.mensagem}</td></tr>)}</tbody>
+              </table>
+            </>)}
 
             {h2('Cargas na fundação')}
             <table>

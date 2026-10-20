@@ -440,7 +440,7 @@ export const flows = [
       assert.match(await page.locator('.edif-out').textContent(), /Vigas 4\/4 ok/);
       // clicar numa viga seleciona o elemento na planta
       await card(/^Vigas$/).locator('tbody tr').first().click();
-      assert.equal(await page.locator('.edif-tabs [aria-selected="true"]').textContent(), 'Planta');
+      await page.locator('.edif-tabs [aria-selected="true"]', { hasText: 'Planta' }).waitFor(); // um clique espera o duplo clique (230 ms)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -695,6 +695,100 @@ export const flows = [
       await page.getByLabel('Perfil dos padrões').selectOption('sistema');
       await page.getByText('Padrão do sistema em uso').waitFor();
       assert.equal(await red.inputValue(), '15');
+    },
+  },
+  {
+    name: 'R1: erros na planta, lista clicável, janela do elemento com diagramas, deslocamentos e CSV',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      // lista de erros: contagem e filtro por nível
+      const lista = page.locator('[data-lista-erros]');
+      const cont = await lista.locator('[data-contagem]').innerText();
+      const nErros = parseInt(/(\d+) erro/.exec(cont)?.[1] ?? '0', 10);
+      assert.ok(nErros > 0, `esperava erros, veio: ${cont}`);
+      const linhasErro = await lista.locator('tbody tr.bad').count();
+      assert.equal(linhasErro, nErros);
+      await lista.getByLabel('Nível').selectOption('aviso');
+      assert.equal(await lista.locator('tbody tr.bad').count(), 0);
+      await lista.getByLabel('Nível').selectOption('erro');
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /BIELA|FLECHA|ARMADURA/);
+      // clicar numa linha leva à planta com o elemento selecionado
+      const alvo = lista.locator('tbody tr.click').first();
+      const nomeAlvo = (await alvo.locator('td').first().innerText()).trim();
+      await alvo.click();
+      await page.locator('.planta-barra').waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      // a planta marca os reprovados (chave Mostrar erros ligada) e a chave desliga
+      const chave = page.getByLabel('Mostrar erros');
+      assert.equal(await chave.isChecked(), true);
+      await chave.uncheck();
+      await chave.check();
+      // janela do elemento pela planta
+      await page.getByRole('button', { name: 'Resultados do elemento' }).click();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento/ });
+      await jan.waitFor();
+      assert.match(await jan.getAttribute('aria-label'), new RegExp(nomeAlvo.split(' ').at(-1)));
+      const txt = await jan.innerText();
+      if (/^Viga/.test(nomeAlvo)) {
+        for (const d of ['M', 'V', 'T']) assert.equal(await jan.locator(`svg[data-diagrama="${d}"]`).count(), 1);
+        assert.ok(await jan.locator('svg[data-diagrama="M"] [data-extremo]').count() >= 1);
+        assert.match(txt, /Combinações determinantes/i);
+        assert.match(txt, /Mensagens/i);
+      } else {
+        assert.match(txt, /Mensagens/i);
+      }
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      assert.equal(await jan.count(), 0);
+      // duplo clique numa linha da tabela de vigas abre a janela de uma viga, com diagramas e cabeçalhos
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      for (const d of ['M', 'V', 'T']) assert.equal(await jv.locator(`svg[data-diagrama="${d}"]`).count(), 1);
+      assert.match(await jv.innerText(), /Momento fletor Md/i);
+      await page.keyboard.press('Escape');
+      assert.equal(await jv.count(), 0);
+      // pilar: tabela das combinações determinantes
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr').first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      const cab = await jp.locator('thead').first().innerText();
+      assert.match(cab, /Nd \(kN\)/);
+      assert.match(cab, /Md,tot u \/ v/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // exportar CSV com separador ";" e vírgula decimal
+      const csv = await downloadText(page, () => page.getByRole('button', { name: 'Exportar CSV' }).first().click());
+      assert.match(csv.name, /listagem-edificio\.csv$/);
+      const linhas = csv.text.replace('\ufeff', '').split(/\r?\n/).filter(Boolean);
+      assert.match(linhas[0], /^Tipo;Elemento;Pavimento;/);
+      assert.ok(linhas.some((l) => l.startsWith('Viga;')) && linhas.some((l) => l.startsWith('Pilar;')) && linhas.some((l) => l.startsWith('Laje;')));
+      // deslocamentos na aba Análise
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      const dl = page.locator('[data-deslocamentos]');
+      await dl.waitFor({ timeout: 60000 });
+      assert.match(await dl.innerText(), /ψ1 = 0,3/);
+      assert.match(await dl.innerText(), /Tabela 13\.3/);
+      assert.ok(await dl.locator('table[data-direcao]').count() >= 1);
+      assert.match(await dl.locator('table').first().locator('thead').innerText(), /Entre pavimentos \(mm\)/);
+      assert.ok(await dl.locator('tr[data-topo]').count() >= 1);
+      // memorial: deslocamentos e erros e avisos
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Deslocamentos laterais do vento/);
+      assert.match(mt, /Erros e avisos/);
+      assert.match(mt, new RegExp(`${nErros} ${nErros === 1 ? 'erro' : 'erros'} e`));
     },
   },
 ];

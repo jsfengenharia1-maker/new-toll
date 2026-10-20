@@ -19,25 +19,25 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
-| 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 7 | 0 | 2 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 5 | 29 | 25 | 3 |
+| 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 29 | 24 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 14 | 22 | 61 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 4 | 1 | 36 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **137** | **152** | **261** | **111** |
+| **Total** | **661** | **139** | **152** | **259** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 72 | 30 | 102 |
-| R — Revisão de resultados e detalhamento | 44 | 79 | 123 |
+| R — Revisão de resultados e detalhamento | 44 | 77 | 121 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **152** | **261** | **413** |
+| **Total** | **152** | **259** | **411** |
 
 ## Divergências de premissa
 
@@ -519,7 +519,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.10.1 | Mensagens informativas por fase e de erro para dados incompatíveis. | Feito | — | aba Verificação (diagnósticos) e avisos/erros da análise |
 | K1.10.2 | Fase 1: geração da geometria e da matriz de rigidez; dados incorretos param o processo; pode rodar por grupo ou obra inteira. | Feito | — | modelo gerado do lançamento, obra inteira; erros de lançamento sinalizados |
 | K1.10.3 | Fase 2: inversão da matriz por método frontal; matriz singular → aviso de mecanismo e parada. | Feito | — | LDLᵀ em banda; linha singular vira erro (`fe3d.ts`) |
-| K1.10.4 | Fase 3: deslocamentos por caso; aviso de deslocamentos excessivos acima de limite (má concepção ou rigidez à torção). | Falta | R | aviso de deslocamentos excessivos (NBR 6118 13.3, H/1700) |
+| K1.10.4 | Fase 3: deslocamentos por caso; aviso de deslocamentos excessivos acima de limite (má concepção ou rigidez à torção). | Feito | — | deslocamentos do vento por direção e pavimento na combinação frequente (ψ1 = 0,3), topo H/1700 e entre pavimentos hi/850 (NBR Tabela 13.3, limites editáveis), tabela na aba Análise e no memorial, aviso e erro DESLOC (R1) |
 | K1.10.5 | Problemas de estabilidade global → verificar com 2ª ordem. | Feito | — | aviso de γz > 1,3 |
 | K1.10.6 | Fase 4: combinações e envoltórias por elemento e por estado-limite. | Feito | — | combinações e envoltórias por elemento |
 | K1.10.7 | Fase 5: dimensionamento e armação conforme envoltórias, geometria, materiais e tabelas; aviso se exceder limites de norma; processo continua até o fim e gera relatório. | Feito | — | dimensionamento no worker; status ok/não atende/revisar com mensagens |
@@ -532,14 +532,14 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.11.1 | Resultados na tela, listagens em arquivo/impressora; cópia da obra. | Parcial | R | tabelas na tela e memorial HTML/PDF; sem listagens detalhadas; cópia = arquivo .statikos |
+| K1.11.1 | Resultados na tela, listagens em arquivo/impressora; cópia da obra. | Parcial | R | tabelas na tela, memorial HTML/PDF e listagem CSV de vigas, pilares e lajes (R1); sem listagens detalhadas por seção; cópia = arquivo .statikos |
 | K1.11.2 | Fundações com vinculação externa (sapatas, blocos, vigas centradoras e de travamento) calculadas junto ou depois; editáveis e redimensionáveis/verificáveis independentemente. | Parcial | FU | Fundações em módulo à parte, recebe cargas do edifício; sem vigas de equilíbrio |
 | K1.11.3 | Dados gerais consultáveis; opções e tabelas especiais salvas com a obra; mudar opções/tabelas pode alterar resultados; recalcular após mudanças; permite reformar armaduras com novas opções. | Parcial | R | premissas visíveis e aviso de modelo alterado; sem refazer armadura com novas opções |
 | | **Vigas** | | | |
 | K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); sem flecha ativa nem momentos mínimos |
 | K1.11.5 | Envoltórias com e sem sismo de momento, cortante e torção (gráficas e numéricas). | Parcial | V | só máximos por viga; diagramas de M, V, T só no Pórtico 2D |
 | K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Parcial | R | um As e um arranjo por face e um estribo por viga; sem edição |
-| K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Parcial | R | biela (cortante + torção), armadura dupla, largura e fissuras; sem espaçamento nem ancoragem |
+| K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Parcial | R | erros e avisos com código (flecha, biela, armadura dupla, fissuração, largura) em vermelho/amarelo na planta e lista clicável (R1); faltam espaçamento de barras e ancoragens (R3) |
 | K1.11.8 | Coeficiente de engaste nas bordas consultável. | Falta | N | coeficiente de engaste de bordas |
 | K1.11.9 | Vigas de aço: perfil dimensionado e perfis da série que atendem; vigas mistas: dimensionamento dos conectores. | Fora | — | vigas de aço e mistas |
 | K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Falta | R | editar seção/armadura e refazer só a armadura; travar armadura |
@@ -565,13 +565,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Pilares** | | | |
 | K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Parcial | R | armadura calculada por lance; não editável; nova seção recalcula tudo |
 | K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Falta | V | esforços ao longo do pilar e diagramas (só no Pórtico 2D) |
-| K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Parcial | R | combinações determinantes escolhidas, mas não listadas ao usuário |
+| K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Feito | — | janela do pilar com as combinações determinantes por lance: Nd, momentos de base e topo por direção, Md,tot e tração (R1) |
 | K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Falta | V | diagrama de deformações e tensões da seção |
 | K1.11.31 | Momentos ampliados por excentricidade acidental e de 2ª ordem (flambagem) destacados. | Parcial | R | M1d,mín e M2d calculados, não exibidos |
 | K1.11.32 | Código de motivo quando não atende (ex.: taxa excessiva acima do máximo de norma — armadura mantida); sinal de limite excedido após edição. | Parcial | R | mensagens (λ > 90, γn, 4 %) e status por lance |
 | K1.11.33 | Recalcular se mudanças significativas (rigidez mudou). | Feito | — | aviso "o modelo mudou: recalcule" |
 | K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Parcial | R | λ > 200 não dimensiona; seção insuficiente marcada "não atende" |
-| K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Parcial | R | quadro de pilares na prancha; sem agrupar iguais, cores ou travamento |
+| K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Parcial | R | pilares que não atendem em vermelho na planta e na lista de erros (R1); sem agrupar iguais nem travar armadura (R2) |
 | | **Pilares-parede e paredes** | | | |
 | K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) |
 | K1.11.37 | Armadura e espessura editáveis; incompatibilidades em vermelho; rearmar. | Falta | E | pilares-parede e paredes (edição) |
@@ -585,11 +585,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.11.2 Relatórios (págs. 73–75)** | | | |
 | K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Parcial | R | memorial com obra, pavimentos, ações, vento e materiais; sem coordenadas de pilares nem pesos por laje |
 | K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
-| K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | R | vigas no memorial (M, V, armadura); sem envoltórias, flecha, etiquetas |
+| K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | R | janela da viga com envoltórias de M, V e T em gráficos, combinações determinantes e resumo (R1); sem armadura colocada nem etiquetas de detalhamento (R3) |
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Parcial | R | concreto, fôrma e aço por taxa por pavimento; sem itens por tipo de laje |
 | K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas |
 | K1.11.49 | Pilares e pilares-parede: barras, esforços na base, por caso e mais desfavoráveis. | Parcial | R | armadura e Nd por lance; esforços por caso na base em "Cargas na fundação" |
-| K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Falta | R | deslocamentos e distorções por pilar e pavimento |
+| K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | R | deslocamento do vento por direção e pavimento (máximo entre os pilares) e distorção entre pavimentos (R1); sem deslocamento por caso simples e por pilar |
 | K1.11.51 | Efeitos de 2ª ordem; cargas de vento; participação sísmica (períodos, massas, coeficiente sísmico por direção). | Parcial | R | γz no memorial; forças de vento só na tela; sismo fora |
 | K1.11.52 | Fundações: materiais, ações, geometria de sapatas, blocos, vigas centradoras e de travamento, quantitativos e verificações realizadas. | Parcial | FU | memorial de sapatas, blocos e tubulões no módulo Fundações; vigas de equilíbrio faltam |
 | K1.11.53 | Consolos curtos; estruturas 3D integradas; verificações ELU de pilares e vigas. | Parcial | R | verificações ELU de pilares e vigas no memorial; sem detalhe por combinação |

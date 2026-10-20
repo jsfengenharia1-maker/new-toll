@@ -213,3 +213,20 @@ export function UseBar({ v, na }: { v: number; na: boolean }) {
 export function KV({ rows }: { rows: [string, string][] }) {
   return <dl className="kv">{rows.map(([k, v]) => [<dt key={k + 't'}>{k}</dt>, <dd key={k + 'd'}>{v}</dd>])}</dl>;
 }
+
+/** Janela sobre a tela (fecha com Esc, clique fora ou o botão). `larga` para tabelas e diagramas. */
+export function Modal({ titulo, onClose, larga, children }: { titulo: string; onClose: () => void; larga?: boolean; children: ReactNode }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [onClose]);
+  return (
+    <div className="modal-back" role="dialog" aria-label={titulo} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={cx('modal', larga && 'larga')}>
+        <div className="modal-head"><b>{titulo}</b><Spacer /><Button variant="ghost" onClick={onClose}>Fechar</Button></div>
+        {children}
+      </div>
+    </div>
+  );
+}
