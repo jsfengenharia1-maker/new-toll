@@ -710,7 +710,7 @@ function distSeg(p: P, a: P, z: P) {
 }
 
 /** Direção principal da laje maciça (a da maior aresta), para alinhar a malha. */
-function direcaoPrincipal(c: P[]) {
+export function direcaoPrincipal(c: P[]) {
   let best = 0, L = 0;
   for (let i = 0; i < c.length; i++) { const a = c[i], z = c[(i + 1) % c.length], l = Math.hypot(z[0] - a[0], z[1] - a[1]); if (l > L) { L = l; best = (Math.atan2(z[1] - a[1], z[0] - a[0]) * 180) / Math.PI; } }
   return best;

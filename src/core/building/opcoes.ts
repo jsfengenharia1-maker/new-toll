@@ -66,6 +66,20 @@ export interface OpcoesCalculo {
   pilarUniaoLances: number;
   /** 1 = ancoragem no topo do último lance reduzida por As,calc/As,ef (9.4.2.5). */
   ancoragemReduzidaTopo: number;
+  /** Lajes: comprimento mínimo dos negativos sobre bordas contínuas, de cada lado do eixo, em % do maior vão adjacente (0 = só o diagrama). */
+  lajeNegativoVao: number;
+  /** Lajes: negativa de borda sem continuidade até esta % do menor vão a partir da face (0 = sem). */
+  lajeNegativoBorda: number;
+  /** Lajes: decalagem do diagrama de momentos (× d). */
+  lajeDecalagem: number;
+  /** Lajes: menor bitola (mm). */
+  lajeBitolaMinima: number;
+  /** Lajes: menor espaçamento entre barras (cm). */
+  lajeEspacamentoMinimo: number;
+  /** Lajes: 1 = malha superior nos cantos entre bordas apoiadas sem continuidade. */
+  lajeArmaduraCanto: number;
+  /** Lajes: 1 = negativos com pernas (dobras até a face inferior) nas pontas dentro da laje. */
+  lajePernasNegativos: number;
 }
 
 export interface OpcaoInfo {
@@ -160,6 +174,20 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Lances consecutivos com a mesma armadura têm barras corridas, sem emenda intermediária, enquanto o comprimento somado couber neste limite.' },
   { chave: 'ancoragemReduzidaTopo', rotulo: 'Ancoragem reduzida no topo do último lance', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 9.4.2.5 (lb,nec = α·lb·As,calc/As,ef); padrão do programa de referência: ligada no último pavimento', aConfirmar: false,
     descricao: 'No topo do último lance, a ancoragem das barras é reduzida pela utilização da seção (≥ lb,mín).' },
+  { chave: 'lajeNegativoVao', rotulo: 'Lajes: comprimento mínimo dos negativos', unidade: '% do vão', min: 0, max: 50, passo: 1, padrao: 25, padraoNBR: 0, fonteNBR: 'NBR 6118 não fixa: só o diagrama decalado mais a ancoragem (9.4.2.5 e 19.4)', fonte: 'Prática usual brasileira (ℓ/4 do maior vão adjacente, de cada lado do eixo); o programa de referência também impõe porcentagens mínimas do vão', aConfirmar: true,
+    descricao: 'Cada lado do negativo sobre uma borda contínua vai, a partir do eixo do apoio, até o maior entre esta % do maior vão adjacente (perpendicular à borda) e o ponto de momento nulo do diagrama da grelha + decalagem + ancoragem. 0 = só o diagrama.' },
+  { chave: 'lajeNegativoBorda', rotulo: 'Lajes: negativa de borda sem continuidade', unidade: '% do menor vão', min: 0, max: 50, passo: 1, padrao: 15, fonte: 'NBR 6118, 19.3.3.2 (≥ 0,15 do menor vão a partir da face; ρs ≥ 0,67·ρmín, Tabela 19.1)', aConfirmar: false,
+    descricao: 'Bordas apoiadas em viga sem laje vizinha recebem negativo de borda (área mínima ou a do momento da grelha junto à borda) até esta % do menor vão a partir da face, ancorado com gancho na viga. 0 = sem.' },
+  { chave: 'lajeDecalagem', rotulo: 'Lajes: decalagem do diagrama de momentos', unidade: '× d', min: 0.5, max: 2, passo: 0.1, padrao: 1.5, fonte: 'NBR 6118, 19.4.1 (lajes sem armadura transversal: aℓ = 1,5d; item a confirmar)', aConfirmar: true,
+    descricao: 'Deslocamento aℓ do diagrama no corte dos negativos das lajes.' },
+  { chave: 'lajeBitolaMinima', rotulo: 'Lajes: bitola mínima', unidade: 'mm', min: 5, max: 10, passo: 0.1, padrao: 5, fonte: 'Prática de mercado (φ5 em CA-60; com CA-50, a menor é φ6,3)', aConfirmar: true,
+    descricao: 'Menor bitola usada nas lajes (lista φ5, φ6,3, φ8, φ10, φ12,5 e φ16, com φ ≤ h/8 pela NBR 6118, 20.1). φ5 só com aço CA-60.' },
+  { chave: 'lajeEspacamentoMinimo', rotulo: 'Lajes: espaçamento mínimo', unidade: 'cm', min: 5, max: 20, passo: 1, padrao: 10, fonte: 'Prática de mercado (concretagem e vibração); a NBR 6118, 20.1, fixa só o máximo (2h e 20 cm; 33 cm na secundária)', aConfirmar: true,
+    descricao: 'Abaixo dele, a bitola sobe. Máximo: mín(2h; 20 cm) na armadura principal, 33 cm na secundária e na de distribuição.' },
+  { chave: 'lajeArmaduraCanto', rotulo: 'Lajes: armadura superior de canto', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática usual (malha superior quadrada de lado ℓ/5 do menor vão, As = maior positiva); a NBR 6118 não detalha', aConfirmar: true,
+    descricao: 'Nos cantos entre duas bordas apoiadas sem continuidade, malha superior nas duas direções para os momentos volventes.' },
+  { chave: 'lajePernasNegativos', rotulo: 'Lajes: pernas nos negativos', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática construtiva (dobra até a face inferior para apoiar o negativo na fôrma); ganchos construtivos do programa de referência', aConfirmar: true,
+    descricao: 'Pontas dos negativos dentro da laje dobradas até a face inferior (h − cobrimentos).' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

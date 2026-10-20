@@ -184,6 +184,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     combinacoes: d.combinacoes,
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
+    ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
     resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes) },
   };
 }
