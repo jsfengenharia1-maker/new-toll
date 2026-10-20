@@ -9,6 +9,7 @@ import { CODIGOS_REVISAO, classificar, type TipoRevisao } from '../../core/build
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { DimEdificio } from './calculo';
+import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -188,6 +189,7 @@ function JanelaViga({ id }: { id: string }) {
       ]} />
       <h4>Mensagens</h4>
       <Mensagens msgs={v.mensagens} />
+      <EditorArmaduraViga key={`${v.viga}|${v.bloqueada}|${JSON.stringify(v.arranjo)}`} v={v} />
     </>
   );
 }
@@ -201,7 +203,7 @@ function JanelaPilar({ id }: { id: string }) {
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>
-          <h4>Lance {x.pavimento} · {x.secao} cm · <Pill tone={x.status === 'ok' ? 'ok' : x.status === 'fail' ? 'bad' : 'warn'}>{ST_TXT[x.status]}</Pill></h4>
+          <h4>Lance {x.pavimento} · {x.secao} cm · <Pill tone={x.status === 'ok' ? 'ok' : x.status === 'fail' ? 'bad' : 'warn'}>{ST_TXT[x.status]}</Pill>{x.bloqueada && <> <Pill tone="warn">bloqueada</Pill></>}</h4>
           {x.determinantes?.length ? (
             <div className="tablewrap">
               <table className="data quadro">
@@ -215,6 +217,7 @@ function JanelaPilar({ id }: { id: string }) {
             ['Vd (kN)', x.Vd === undefined ? '—' : fmt(x.Vd, 1)], ['Armadura', `${x.armadura} (As ${fmt(x.As * 1e4)} cm²)`], ['Estribo', x.estribo],
           ]} />
           <Mensagens msgs={x.mensagens} />
+          <EditorArmaduraPilar key={`${x.pavimentoId}|${x.bloqueada}|${JSON.stringify(x.arranjo)}`} p={x} />
         </section>
       ))}
     </>

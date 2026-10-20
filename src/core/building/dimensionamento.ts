@@ -80,6 +80,8 @@ export interface ResultadoViga {
   status: 'ok' | 'fail'; mensagens: string[];
   /** Armadura editada e bloqueada (só verificada) e o arranjo adotado (para o editor). */
   bloqueada: boolean;
+  /** Áreas necessárias inferior e superior (m²), antes do bloqueio e do aumento por fissuração. */
+  AsNec: [number, number];
   arranjo: { inf: { n: number; phi: number } | null; sup: { n: number; phi: number } | null; estribo: { phi: number; s: number } | null; laterais: { n: number; phi: number } | null };
 }
 
@@ -284,6 +286,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const arm = v.armadura, bloq = !!arm && arm.vaos === vaosDaViga(b, v);
     if (arm && !bloq) msgs.push('Armadura bloqueada desconsiderada: o número de vãos mudou e a viga foi redimensionada.');
     let wkI = 0, wkS = 0, bi: ReturnType<typeof chooseBars>, bs: ReturnType<typeof chooseBars>;
+    const AsNec: [number, number] = [AsInf, AsSup];
     if (arm && bloq) {
       const fixa = (x?: { n: number; phi: number }) => (x ? { n: x.n, phi: x.phi, As: x.n * barArea(x.phi), layers: 1 } : null);
       const cm2 = (x: number) => (x * 1e4).toFixed(2).replace('.', ',');
@@ -325,7 +328,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
       flecha, limite, flechaQ: fl.q, limiteQ,
       Mpos, Mneg, V, envoltoria: envolt, T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
-      AsInf, AsSup, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
+      AsInf, AsSup, AsNec, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : '—',
       status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
       bloqueada: bloq, arranjo: { inf: bi ? { n: bi.n, phi: bi.phi } : null, sup: AsSup && bs ? { n: bs.n, phi: bs.phi } : null, estribo: est ? { phi: est.phi, s: est.s } : null, laterais: lat ? { n: lat.n, phi: lat.phi } : null },

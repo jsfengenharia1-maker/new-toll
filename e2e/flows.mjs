@@ -791,4 +791,76 @@ export const flows = [
       assert.match(mt, new RegExp(`${nErros} ${nErros === 1 ? 'erro' : 'erros'} e`));
     },
   },
+  {
+    name: 'R2: edita a armadura de uma viga (2 φ8 reprova), restaura, bloqueia em lote e conta',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const calcular = async (nome) => {
+        await page.getByRole('button', { name: nome }).click();
+        await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      };
+      await calcular('Calcular e dimensionar');
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      const linhaOk = cardVigas.locator('tbody tr', { hasText: /ok$/ }).first();
+      assert.ok(await linhaOk.count() >= 1, 'esperava uma viga que atende');
+      const nome = (await linhaOk.locator('td').first().innerText()).trim();
+      await linhaOk.dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jan.waitFor();
+      const ed = jan.locator('[data-editor-armadura="viga"]');
+      assert.equal(await ed.locator('[data-bloqueada]').count(), 0);
+      // arranjo calculado pré-preenchido (> 2 φ8) e área necessária visível
+      const inf = ed.locator('[data-armadura="Inferior"]');
+      assert.match(await inf.innerText(), /necessária/);
+      await inf.getByLabel('Inferior (nº barras)').fill('2');
+      await inf.getByLabel('Inferior (nº barras)').press('Enter');
+      await inf.getByLabel('Bitola').selectOption('8');
+      assert.match(await inf.locator('[data-as]').innerText(), /As efetiva 1,01 cm²/);
+      await ed.getByRole('button', { name: 'Aplicar e bloquear' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await jan.locator('[data-editor-armadura="viga"] [data-bloqueada]').waitFor();
+      assert.match(await jan.innerText(), /Armadura bloqueada insuficiente: inferior/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // a lista de erros mostra ARM_BLOQ e a tabela marca "bloq."
+      const lista = page.locator('[data-lista-erros]');
+      assert.ok(await lista.locator('tbody tr.bad', { hasText: 'ARM_BLOQ' }).count() >= 1);
+      assert.ok(await cardVigas.locator('td[data-bloq]', { hasText: 'bloq.' }).count() >= 1);
+      assert.match(await page.locator('[data-bloqueadas]').innerText(), /1 viga bloqueada/);
+      // restaurar a calculada: volta a atender
+      await cardVigas.locator('tbody tr', { hasText: nome }).first().dblclick();
+      await jan.waitFor();
+      await jan.getByRole('button', { name: 'Restaurar calculada' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await jan.locator('[data-editor-armadura="viga"]').waitFor();
+      assert.equal(await jan.locator('[data-bloqueada]').count(), 0);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      assert.equal(await lista.locator('tbody tr.bad', { hasText: 'ARM_BLOQ' }).count(), 0);
+      assert.match(await cardVigas.locator('tbody tr', { hasText: nome }).first().innerText(), /ok$/);
+      // bloqueio em lote de todos e contagem
+      await page.getByRole('button', { name: 'Bloquear todos', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const nVigas = await cardVigas.locator('tbody tr').count();
+      const txt = await page.locator('[data-bloqueadas]').innerText();
+      assert.match(txt, new RegExp(`${nVigas} vigas bloqueadas`));
+      const nLances = await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr').count();
+      assert.match(txt, new RegExp(`${nLances} lances de pilar bloqueados`));
+      assert.equal(await cardVigas.locator('td[data-bloq]', { hasText: 'bloq.' }).count(), nVigas);
+      // memorial lista as armaduras bloqueadas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /Armaduras bloqueadas/);
+      assert.match(await memo.textContent(), /só as verifica/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // desbloquear todos
+      await page.getByRole('button', { name: 'Desbloquear todos', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      assert.match(await page.locator('[data-bloqueadas]').innerText(), /0 vigas bloqueadas/);
+    },
+  },
 ];

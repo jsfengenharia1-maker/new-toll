@@ -10,6 +10,7 @@ import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno } from '../../core/geom/faces';
 import { contornoPilar, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, secaoNoLance, trechosViga, type BuildingModel, type Pilar } from '../../core/building/types';
 import { useStore } from '../store';
+import { idsBloqueados } from './Armadura';
 
 type P2 = [number, number];
 const RAIO_PX = 12;
@@ -131,6 +132,7 @@ export function Planta() {
     return { e, a };
   }, [rev]);
   const comErro = useMemo(() => new Set([...diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos), ...(pl.mostrarErros ? niveisRev.e : [])]), [diags, niveisRev, pl.mostrarErros]);
+  const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
   // ---- vista ----
@@ -291,7 +293,7 @@ export function Planta() {
       if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
       ctx.save(); ctx.translate((a[0] + z[0]) / 2, (a[1] + z[1]) / 2); ctx.rotate(ang);
       ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.viga;
-      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, 0, -3);
+      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
       ctx.restore();
     }
     // pilares
@@ -317,7 +319,7 @@ export function Planta() {
       if (sel) { ctx.save(); ctx.globalAlpha = 0.25; ctx.lineWidth = 8; ctx.strokeStyle = cores.selecao; ctx.stroke(path); ctx.restore(); }
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.texto;
-      ctx.fillText(q.p.nome + (erro ? ' ⚠' : avi ? ' !' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
+      ctx.fillText(q.p.nome + (erro ? ' ⚠' : avi ? ' !' : '') + (bloqueados.has(q.p.id) ? ' ▣' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
     }
     desenharCargas(ctx);
   };

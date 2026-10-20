@@ -12,9 +12,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 14 | 14 | 18 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
-| 4. Pilares | 63 | 13 | 20 | 23 | 7 |
+| 4. Pilares | 63 | 16 | 23 | 17 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
-| 6. Vigas | 108 | 9 | 8 | 66 | 25 |
+| 6. Vigas | 108 | 11 | 11 | 61 | 25 |
 | 7. Lajes | 195 | 5 | 19 | 110 | 61 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,13 +22,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **74** | **97** | **413** | **179** |
+| **Total** | **763** | **79** | **103** | **402** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 16 | 86 | 102 |
+| R — Revisão de resultados e detalhamento | 22 | 75 | 97 |
 | N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -240,13 +240,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.50 | Botão para voltar ao perfil ótimo proposto pelo dimensionamento. | Fora | — |  |
 | C4.51 | Dados do pilar no dimensionamento: ângulo, engastamento, desnível e profundidade do apoio. | Falta | R |  |
 | C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Falta | R | planta de situação no dimensionamento |
-| C4.53 | Bloqueio da armadura de pilares: recalcula a estrutura sem mudar a armadura bloqueada (preserva edições manuais). | Falta | R | bloqueio de armadura |
-| C4.54 | Pilares bloqueados passam pela verificação completa da norma a cada recálculo, e os que falham ficam em vermelho. | Falta | R |  |
-| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Falta | R |  |
-| C4.56 | Desbloqueio automático quando muda o número de pavimentos que o pilar sustenta. | Falta | R |  |
-| C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Falta | R |  |
+| C4.53 | Bloqueio da armadura de pilares: recalcula a estrutura sem mudar a armadura bloqueada (preserva edições manuais). | Feito | — | armadura do pilar editada e bloqueada por lance (pilar.armadura; janela do elemento e bloqueio em lote), só verificada no recálculo (R2) |
+| C4.54 | Pilares bloqueados passam pela verificação completa da norma a cada recálculo, e os que falham ficam em vermelho. | Feito | — | verificação completa por fibras a cada recálculo; reprovado = ARM_BLOQ (erro), vermelho na planta e na lista |
+| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Parcial | R | desbloquear todos, selecionados ou o pilar (Restaurar calculada) e recalcular; sem redimensionar só o alterado sem recálculo geral |
+| C4.56 | Desbloqueio automático quando muda o número de pavimentos que o pilar sustenta. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de lances; o desbloqueio não é gravado no modelo |
+| C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
-| C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Falta | R |  |
+| C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem janela própria, cores de seleção nem pilares de aço |
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | R | combinações determinantes por lance na janela do pilar (R1); sem tela de envoltória por hipótese |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R |  |
@@ -377,11 +377,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.81 | Agrupar pórticos depois do cálculo, sem verificar as condições. Aviso com o motivo quando não é possível. | Falta | R | agrupar pórticos |
 | C6.82 | Em pórticos agrupados, a mudança em um vale para todos, e sai um único desenho com todas as referências. | Falta | R |  |
 | C6.83 | Desagrupar pórticos e acrescentar pórtico a um agrupamento existente. | Falta | R |  |
-| C6.84 | Bloquear a armadura de pórticos para preservar edições manuais nos recálculos. | Falta | R | bloquear armadura |
-| C6.85 | Pórticos bloqueados só são verificados quanto à área de aço e à flecha. Os que falham aparecem na cor de erro. | Falta | R |  |
-| C6.86 | Desbloqueio automático quando muda o número de vãos do pórtico. | Falta | R |  |
-| C6.87 | Redimensionar todos os pórticos ou só os alterados (desbloqueados ou com seção modificada). | Falta | R |  |
-| C6.88 | Seleção de bloqueio por grupo: todos, nenhum ou seleção gráfica (contorno vermelho), com a contagem de selecionados. | Falta | R |  |
+| C6.84 | Bloquear a armadura de pórticos para preservar edições manuais nos recálculos. | Feito | — | viga.armadura bloqueia nº, bitola, estribo e laterais (R2) |
+| C6.85 | Pórticos bloqueados só são verificados quanto à área de aço e à flecha. Os que falham aparecem na cor de erro. | Feito | — | bloqueadas verificadas quanto à área de aço, estribos, laterais, fissuração e flecha; reprovada em vermelho (ARM_BLOQ) |
+| C6.86 | Desbloqueio automático quando muda o número de vãos do pórtico. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de vãos; o desbloqueio não é gravado no modelo |
+| C6.87 | Redimensionar todos os pórticos ou só os alterados (desbloqueados ou com seção modificada). | Parcial | R | desbloquear todos ou selecionados e recalcular; sem rearmar só os alterados sem recálculo geral |
+| C6.88 | Seleção de bloqueio por grupo: todos, nenhum ou seleção gráfica (contorno vermelho), com a contagem de selecionados. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem seleção por grupo nem contorno vermelho |
 | C6.89 | Erro de conector: diâmetro nominal pequeno. | Fora | — | conectores de vigas mistas |
 | C6.90 | Erro de conector: comprimento total insuficiente. | Fora | — | conectores de vigas mistas |
 | C6.91 | Erro de conector: não ancorado na laje. | Fora | — | conectores de vigas mistas |

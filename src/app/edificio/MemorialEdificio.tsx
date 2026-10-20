@@ -18,6 +18,7 @@ import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
+import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
@@ -37,6 +38,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const falhas = new Set([...(dim?.vigas ?? []).filter((x) => x.status !== 'ok').map((x) => x.viga), ...(dim?.pilares ?? []).filter((x) => x.status === 'fail').map((x) => x.pilar)]);
+  const bloqueadasMemo = [
+    ...(dim?.vigas ?? []).filter((x) => x.bloqueada).map((x) => ({ elemento: `Viga ${x.nome}`, lance: 'todos os vãos', arranjo: arranjoVigaTxt(x), status: x.status === 'ok' ? 'atende' : 'NÃO ATENDE', msgs: x.mensagens.filter((m) => /^(Armadura bloqueada|Flecha|Abertura)/.test(m)).join(' ') || '—' })),
+    ...(dim?.pilares ?? []).filter((x) => x.bloqueada).map((x) => ({ elemento: `Pilar ${x.nome}`, lance: x.pavimento, arranjo: arranjoPilarTxt(x), status: x.status === 'fail' ? 'NÃO ATENDE' : x.status === 'review' ? 'revisar' : 'atende', msgs: x.mensagens.filter((m) => m.startsWith('Armadura bloqueada')).join(' ') || '—' })),
+  ];
   const sent = v.sentido ?? {};
   const sentAlt = ([['xp', '+X'], ['xn', '−X'], ['yp', '+Y'], ['yn', '−Y']] as const).filter(([k]) => (sent[k] ?? 1) !== 1).map(([k, t]) => `${t} ${fmt(sent[k]!)}`);
   const ventoExtra = `${sentAlt.length ? `; coeficiente por sentido: ${sentAlt.join(', ')} (demais 1,00)` : '; coeficiente por sentido 1,00 nos quatro sentidos'}; fator de vizinhança ${fmt(v.vizinhanca ?? 1)}; platibanda ${fmt(v.platibanda ?? 0)} m (somada à faixa do último pavimento)`;
@@ -198,6 +203,15 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <table>
                 <thead><tr><th className="l">Elemento</th><th className="l">Pavimento</th><th className="l">Nível</th><th className="l">Código</th><th className="l">Mensagem</th></tr></thead>
                 <tbody>{rev.itens.map((i, k) => <tr key={k}><td className="l">{i.tipo === 'obra' ? 'Obra' : `${i.tipo === 'viga' ? 'Viga' : i.tipo === 'pilar' ? 'Pilar' : 'Laje'} ${i.nome}`}</td><td className="l">{i.pavimento ?? '—'}</td><td className="l">{i.nivel}</td><td className="l">{i.codigo}</td><td className="l">{i.mensagem}</td></tr>)}</tbody>
+              </table>
+            </>)}
+
+            {bloqueadasMemo.length > 0 && (<>
+              {h2('Armaduras bloqueadas')}
+              <p>Armaduras editadas pelo projetista e bloqueadas: o recálculo não as redimensiona, só as verifica (vigas: área de aço, estribos, barras laterais, fissuração e flecha; pilares: verificação completa do lance, por fibras). Situação "não atende" indica armadura insuficiente; a mensagem traz o necessário.</p>
+              <table>
+                <thead><tr><th className="l">Elemento</th><th className="l">Lance</th><th className="l">Arranjo adotado</th><th className="l">Situação</th><th className="l">Verificação</th></tr></thead>
+                <tbody>{bloqueadasMemo.map((x, k) => <tr key={k}><td className="l">{x.elemento}</td><td className="l">{x.lance}</td><td className="l">{x.arranjo}</td><td className="l">{x.status}</td><td className="l">{x.msgs}</td></tr>)}</tbody>
               </table>
             </>)}
 

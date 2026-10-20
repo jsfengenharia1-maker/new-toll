@@ -20,24 +20,24 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 29 | 24 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 14 | 22 | 61 | 23 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 30 | 23 | 3 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 14 | 23 | 60 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 4 | 1 | 36 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **139** | **152** | **259** | **111** |
+| **Total** | **661** | **139** | **154** | **257** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 72 | 30 | 102 |
-| R — Revisão de resultados e detalhamento | 44 | 77 | 121 |
+| R — Revisão de resultados e detalhamento | 46 | 75 | 121 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **152** | **259** | **411** |
+| **Total** | **154** | **257** | **411** |
 
 ## Divergências de premissa
 
@@ -538,11 +538,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Vigas** | | | |
 | K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); sem flecha ativa nem momentos mínimos |
 | K1.11.5 | Envoltórias com e sem sismo de momento, cortante e torção (gráficas e numéricas). | Parcial | V | só máximos por viga; diagramas de M, V, T só no Pórtico 2D |
-| K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Parcial | R | um As e um arranjo por face e um estribo por viga; sem edição |
+| K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Parcial | R | armadura editável na janela do elemento: nº e bitola inferior, superior e laterais, estribo; As efetiva × necessária; bloqueio verificado no recálculo (R2); sem comprimento por posição (R3a) |
 | K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Parcial | R | erros e avisos com código (flecha, biela, armadura dupla, fissuração, largura) em vermelho/amarelo na planta e lista clicável (R1); faltam espaçamento de barras e ancoragens (R3) |
 | K1.11.8 | Coeficiente de engaste nas bordas consultável. | Falta | N | coeficiente de engaste de bordas |
 | K1.11.9 | Vigas de aço: perfil dimensionado e perfis da série que atendem; vigas mistas: dimensionamento dos conectores. | Fora | — | vigas de aço e mistas |
-| K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Falta | R | editar seção/armadura e refazer só a armadura; travar armadura |
+| K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Parcial | R | travamento da armadura para verificação posterior, em lote ou por elemento, com reprovação em vermelho (R2); sem rearmar só os alterados sem recálculo geral |
 | K1.11.11 | Cargas exibidas graficamente por caso (cores). | Parcial | V | cargas desenhadas na planta com cor única, não por caso |
 | | **Lajes de vigotas** | | | |
 | K1.11.12 | Envoltórias de momento e cortante por vigota (majoradas), negativos (nº, bitola, comprimento), momentos e cortantes nos extremos por metro. | Parcial | E | treliçadas: momento por nervura informado; sem envoltórias nem negativos |
@@ -563,7 +563,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Falta | R | linhas de dobra e emendas |
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Falta | R | refazer armadura das lajes |
 | | **Pilares** | | | |
-| K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Parcial | R | armadura calculada por lance; não editável; nova seção recalcula tudo |
+| K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Parcial | R | armadura do pilar editável por lance (bitola, barras por face, estribo) e bloqueável (R2); mudança de seção recalcula tudo |
 | K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Falta | V | esforços ao longo do pilar e diagramas (só no Pórtico 2D) |
 | K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Feito | — | janela do pilar com as combinações determinantes por lance: Nd, momentos de base e topo por direção, Md,tot e tração (R1) |
 | K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Falta | V | diagrama de deformações e tensões da seção |
@@ -690,7 +690,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-8 | Taxas geométricas/mecânicas mínimas e máximas por norma num arquivo interno; acima do máximo, aviso de taxa excessiva (em tela e listagem) → aumentar a seção. | Feito | — | As entre máx(0,15Nd/fyd; 0,4 %) e 4 % |
 | K1.12.4-9 | Se nenhuma armadura da tabela resolve, o programa gera armaduras próprias até não caberem em uma camada no perímetro; então aviso de armadura manual → ampliar a tabela e recalcular só os pilares, ou aumentar a seção (que redimensiona automaticamente). | Parcial | R | uma camada no contorno; sem armadura própria além da busca |
 | K1.12.4-10 | Grande mudança de dimensões: recomendado recalcular a estrutura toda (rigidez muda). | Feito | — | cálculo sempre global; aviso de modelo alterado |
-| K1.12.4-11 | Estribos: diâmetro e espaçamento pela norma, a partir de tipologias predefinidas editáveis, dependentes da armadura vertical (também editável). | Parcial | R | estribo φ5/φ6,3 c/ mín(20; menor lado; 12φ) fixo; sem tipologias |
+| K1.12.4-11 | Estribos: diâmetro e espaçamento pela norma, a partir de tipologias predefinidas editáveis, dependentes da armadura vertical (também editável). | Parcial | R | estribo editável por lance (φ e espaçamento, R2); sem tipologias predefinidas |
 | K1.12.4-12 | Tabelas de estribos e grampos por armadura vertical e dimensões da seção, podendo variar por projeto; sem definição na tabela, só estribo perimetral. | Falta | R | grampos e estribos suplementares (NBR 6118 18.2.4) |
 | K1.12.4-13 | Cortante: verificação da biela comprimida e da tração na alma com a armadura disposta; falha → aviso na coluna dos estribos. | Parcial | N | Vd, biela e estribo pelo cortante nos pilares, Vc por flexo-compressão (17.4.2.2 c); sem tabelas de estribos e grampos (R) (N1e) |
 | K1.12.4-14 | Emendas: comprimento = ancoragem em posição I (boa aderência), função do aço, do concreto e de cargas dinâmicas. | Falta | R | emendas de pilares |
@@ -701,7 +701,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | pilar com desnível |
 | K1.12.4-20 | Estribos dispostos não atendem o cortante → aviso; correções sugeridas: reduzir espaçamento, aumentar diâmetro, outra disposição de estribos/grampos (via tabelas e recálculo dos pilares) ou aumentar armadura vertical. | Parcial | R | mensagem sugere aumentar a seção; sem verificação de estribos |
 | K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Falta | R | opções de continuidade |
-| K1.12.4-22 | Edição: alterar seção (rearma), armadura vertical e tipo de estribo. | Falta | R | edição de seção, armadura e estribos no resultado |
+| K1.12.4-22 | Edição: alterar seção (rearma), armadura vertical e tipo de estribo. | Parcial | R | edição da armadura vertical e do estribo por lance, com bloqueio (R2); a seção se altera nas tabelas e rearma tudo |
 | | **1.12.4.1 Pilares de aço (pág. 88)** | | | |
 | K1.12.4.1-1 | Dimensionados pela norma escolhida para aço laminado ou formado a frio. | Fora | — | pilares de aço |
 | K1.12.4.1-2 | Coeficientes de flambagem informados pelo usuário. | Fora | — | aço |
