@@ -19,6 +19,8 @@ import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
 import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
+import { Edificio, NomeObra } from './app/edificio/Edificio';
+import { edificioParaArquivo, useBuilding } from './app/edificio/store';
 
 const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
   { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
@@ -52,6 +54,7 @@ function setTab(t: Tab) {
 export default function App() {
   const st = useStore();
   const a = useAnalysis();
+  const bd = useBuilding();
   const svgRef = useRef<SVGSVGElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState(false);
@@ -69,9 +72,11 @@ export default function App() {
       }
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) s.redo(); else s.undo(); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); s.redo(); return; }
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const ed = s.module === 'edificio' ? useBuilding.getState() : null;
+      const undo = ed ? ed.desfazer : s.undo, redo = ed ? ed.refazer : s.redo;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey || ed) return;
       const k = e.key.toLowerCase();
       if (k === 'escape') { s.set({ tool: s.tab === 'influencia' ? 'section' : 'select' }); s.clearSel(); }
       else if (k === 'delete' || k === 'backspace') {
@@ -102,13 +107,14 @@ export default function App() {
 
   const openText = async (txt: string, fileName: string) => {
     try {
-      const { model, workspace } = parseWorkspace(txt);
+      const { model, workspace, edificio } = parseWorkspace(txt);
       load(model, true);
+      useBuilding.getState().carregar(edificio);
       st.set({ libraryId: null, module: 'portico' });
       const n = workspace ? await mergeWorkspace(workspace) : 0;
       logActivity(`Trabalho aberto do arquivo ${fileName}`, model.name);
       st.set({ message: workspace
-        ? `Trabalho “${model.name}” aberto de ${fileName}${n ? ` · ${n} item(ns) adicionados à biblioteca` : ''}.`
+        ? `Trabalho “${model.name}” aberto de ${fileName}${edificio ? ` · edifício com ${edificio.building.pavimentos.length} pavimento(s)` : ''}${n ? ` · ${n} item(ns) adicionados à biblioteca` : ''}.`
         : `Modelo “${model.name}” aberto de ${fileName}.` });
     } catch { st.set({ message: `Arquivo inválido. Use um ${WORKSPACE_EXT} ou .json salvo por este programa.` }); }
   };
@@ -123,7 +129,7 @@ export default function App() {
   const saveWork = async (saveAs = false) => {
     setMenu(false);
     const s = useStore.getState();
-    const ws = await buildWorkspace(s.model);
+    const ws = await buildWorkspace(s.model, edificioParaArquivo());
     const txt = JSON.stringify(ws);
     const name = `${slug(s.model.name)}${WORKSPACE_EXT}`;
     let r: string = await writeToDisk(name, txt, saveAs);
@@ -250,7 +256,8 @@ export default function App() {
     }
   };
 
-  const status = a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
+  const nErr = bd.diags.filter((d) => d.severidade === 'erro').length;
+  const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
   return (
     <div className="app">
@@ -283,15 +290,16 @@ export default function App() {
           <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
         </div>
-        <div className="mname" title="Nome do modelo">
-          <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />
+        <div className="mname" title={st.module === 'edificio' ? 'Nome da obra' : 'Nome do modelo'}>
+          {st.module === 'edificio' ? <NomeObra /> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
         </div>
         <div className="tgroup">
-          <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={!st.past.length} onClick={st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
-          <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={!st.future.length} onClick={st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
+          <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
+          <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
         </div>
         <div className="modsw" role="tablist" aria-label="Módulo">
           <button type="button" role="tab" aria-selected={st.module === 'portico'} className={st.module === 'portico' ? 'on' : ''} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
+          <button type="button" role="tab" aria-selected={st.module === 'edificio'} className={st.module === 'edificio' ? 'on' : ''} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
           <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} className={st.module === 'fundacoes' ? 'on' : ''} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
         </div>
         <span className={`status ${status.cls}`}>{status.text}</span>
@@ -301,7 +309,7 @@ export default function App() {
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
 
-      {st.module === 'fundacoes' ? <Fundacoes /> : (
+      {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
         <nav className="toolbar" aria-label="Ferramentas">
           {TOOLS.map((t) => (

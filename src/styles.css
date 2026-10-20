@@ -409,3 +409,22 @@ svg.mono .hinge { fill: #fff !important; }
 .train.max line, .train.max polygon { stroke: var(--c-n); fill: var(--c-n); }
 .train.min line, .train.min polygon { stroke: var(--c-m); fill: var(--c-m); }
 .lbl.train.max { fill: var(--c-n); font-size: 10px; } .lbl.train.min { fill: var(--c-m); font-size: 10px; }
+
+/* edifício */
+.edif .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.edif .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+.edif table.edpav select, .edif table.loads-ed select { width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; background: var(--surface); color: var(--ink); font-size: 11.5px; }
+.edif td.num { font-family: var(--font-num); text-align: right; font-size: 11.5px; }
+.edif td.acts { white-space: nowrap; display: flex; gap: 3px; }
+.elev { width: 100%; max-width: 620px; height: auto; display: block; }
+.elev .lbl { font: 11px var(--font-ui); fill: var(--ink); }
+.elev .lbl.num { font-family: var(--font-num); }
+.elev .fnd { stroke: var(--muted); stroke-dasharray: 6 4; stroke-width: 1.5; }
+.diags { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12.5px; }
+.diags li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); }
+.diags .sev { font-weight: 600; font-size: 11px; text-transform: uppercase; }
+.diags li.erro .sev { color: var(--bad); }
+.diags li.aviso .sev { color: var(--warn, #c27c00); }
+.prem { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; }
+.cmdline { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px var(--font-num); background: var(--surface); color: var(--ink); }
+.hint.bad { color: var(--bad); }

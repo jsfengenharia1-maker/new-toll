@@ -197,4 +197,56 @@ export const flows = [
       }
     },
   },
+{
+    name: 'edifício: pavimentos por comando, verificação, desfazer, salvar e reabrir',
+    async run({ newPage, tmp }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const linhas = page.locator('table.edpav tbody tr');
+      await linhas.first().waitFor();
+      assert.equal(await linhas.count(), 5); // edifício padrão
+      assert.equal(await linhas.first().locator('input').first().inputValue(), 'Cobertura');
+
+      // "+1" no Tipo 3: insere Tipo 4 e sobe a cobertura
+      await page.getByRole('button', { name: '+1' }).nth(1).click();
+      await page.waitForFunction(() => document.querySelectorAll('table.edpav tbody tr').length === 6);
+      assert.equal(await page.getByLabel('Cota de Cobertura').inputValue(), '15,00');
+
+      // linha de comando: pé-direito diferente no grupo gera erro com correção sugerida
+      await page.locator('#edcmd').fill('pavimento.editar {"id": "pav_9", "cota": 12.5}');
+      await page.locator('#edcmd').press('Enter');
+      await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
+      await page.locator('.topbar .status.bad').waitFor();
+      await page.locator('.diags li.erro').getByRole('button').click();
+      await page.locator('.diags', { hasText: 'Tipo 4' }).waitFor({ state: 'detached' });
+
+      // desfazer pelo teclado (fora dos campos) volta o erro
+      await page.locator('.edif .card h3').first().click();
+      await page.keyboard.press('Control+z');
+      await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
+      await page.keyboard.press('Control+y');
+      await page.locator('.diags li.erro').waitFor({ state: 'detached' });
+
+      // comando inválido não altera e mostra o motivo
+      await page.locator('#edcmd').fill('pavimento.criar {"nome": "X", "cota": 3}');
+      await page.locator('#edcmd').press('Enter');
+      await page.locator('.hint.bad', { hasText: 'cota 3' }).waitFor();
+
+      const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
+      const ws = JSON.parse(f.text);
+      assert.equal(ws.version, 2);
+      assert.equal(ws.building.pavimentos.length, 6);
+      assert.ok(ws.buildingLog.length >= 7);
+      const file = join(tmp, 'edificio.statikos');
+      writeFileSync(file, f.text);
+
+      const page2 = await newPage(NO_PICKERS);
+      const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
+      await chooser.setFiles(file);
+      await page2.locator('.statusbar .msg', { hasText: 'edifício com 6 pavimento(s)' }).waitFor();
+      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page2.waitForFunction(() => document.querySelectorAll('table.edpav tbody tr').length === 6);
+      assert.equal(await page2.getByLabel('Cota de Tipo 4').inputValue(), '12,50');
+    },
+  },
 ];

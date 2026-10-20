@@ -53,7 +53,7 @@ interface State {
   message: string;
   memorialOpen: boolean;
   libraryOpen: boolean;
-  module: 'portico' | 'fundacoes';
+  module: 'portico' | 'fundacoes' | 'edificio';
   libraryId: string | null;
   /** Modo de flambagem ou de vibração desenhado sobre a estrutura (vetor de deslocamentos global). */
   modeView: { title: string; shape: number[] } | null;

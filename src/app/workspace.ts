@@ -1,19 +1,23 @@
-// Arquivo de trabalho (.statikos): modelo atual + biblioteca + histórico, num único JSON
-// que o usuário guarda no computador e reabre depois. Sem servidor.
+// Arquivo de trabalho (.statikos): modelo atual + biblioteca + histórico (+ edifício e log de comandos, v2),
+// num único JSON que o usuário guarda no computador e reabre depois. Sem servidor.
 import type { Model } from '../core/types';
+import { lerEdificio, WORKSPACE_FORMAT, type BuildingFile } from '../core/building/file';
 import { listLibrary, loadFromLibrary, saveToLibrary, type LibraryEntry } from './storage';
 import { getHistory, mergeHistory, type Activity } from './history';
 
-export const WORKSPACE_FORMAT = 'statikos-workspace';
+export { WORKSPACE_FORMAT };
 export const WORKSPACE_EXT = '.statikos';
 
 export interface Workspace {
   format: typeof WORKSPACE_FORMAT;
-  version: 1;
+  version: 1 | 2;
   savedAt: string;
   model: Model;
   library: LibraryEntry[];
   history: Activity[];
+  /** Edifício (v2): modelo físico atual e log de comandos que o reproduz. */
+  building?: BuildingFile['building'];
+  buildingLog?: BuildingFile['buildingLog'];
 }
 
 export function isModel(x: unknown): x is Model {
@@ -21,17 +25,17 @@ export function isModel(x: unknown): x is Model {
   return !!m && m.version === 1 && Array.isArray(m.nodes) && Array.isArray(m.members);
 }
 
-export async function buildWorkspace(model: Model): Promise<Workspace> {
+export async function buildWorkspace(model: Model, edificio?: BuildingFile | null): Promise<Workspace> {
   const { items } = await listLibrary();
   const library = (await Promise.all(items.map((i) => loadFromLibrary(i.id)))).filter((e): e is LibraryEntry => !!e);
-  return { format: WORKSPACE_FORMAT, version: 1, savedAt: new Date().toISOString(), model, library, history: getHistory() };
+  return { format: WORKSPACE_FORMAT, version: 2, savedAt: new Date().toISOString(), model, library, history: getHistory(), ...(edificio ?? {}) };
 }
 
-/** Lê um arquivo de trabalho ou um modelo .json avulso. */
-export function parseWorkspace(txt: string): { model: Model; workspace: Workspace | null } {
+/** Lê um arquivo de trabalho (v1 ou v2) ou um modelo .json avulso. */
+export function parseWorkspace(txt: string): { model: Model; workspace: Workspace | null; edificio: BuildingFile | null } {
   const x = JSON.parse(txt);
-  if (x?.format === WORKSPACE_FORMAT && isModel(x.model)) return { model: x.model, workspace: x as Workspace };
-  if (isModel(x)) return { model: x, workspace: null };
+  if (x?.format === WORKSPACE_FORMAT && isModel(x.model)) return { model: x.model, workspace: x as Workspace, edificio: lerEdificio(x) };
+  if (isModel(x)) return { model: x, workspace: null, edificio: null };
   throw new Error('Arquivo inválido.');
 }
 

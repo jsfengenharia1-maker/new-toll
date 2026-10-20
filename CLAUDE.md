@@ -14,10 +14,11 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 139 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm test         # vitest: 158 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
-npx tsc -p tsconfig.app.json --noEmit
+npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
+npm run cli      # dist-cli/statikos.mjs: linha de comando + servidor MCP (Node ≥ 20)
 ```
 Testes de interface em `e2e/` (`run.mjs` é um runner próprio sobre a lib `playwright`, sem @playwright/test; `flows.mjs` tem os fluxos). Ficam fora do `npm test` e do build do Netlify. Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, na falta dele, /opt/pw-browsers/chromium-1194 (nuvem). `npm run e2e -- --no-build <filtro>` roda só parte dos fluxos.
 
@@ -97,8 +98,16 @@ Veja a tabela no `README.md`. Resumo:
 - SPT: por apoio, um furo (automático ou escolhido) ou a sondagem média de todos/alguns furos; leitura descartada (⊘) fica fora da média e, no furo isolado, é interpolada entre as vizinhas. Média: N médio das leituras válidas; solo mais frequente (empate: o menos favorável); profundidade comum (ou até o mais profundo); NA mais raso (ou médio).
 - Pilar padrão 30 × 30 cm quando o apoio não informa (na importação, vem da seção retangular da barra mais vertical ligada ao apoio).
 
-## Módulo Edifícios (em especificação)
-- Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1): `docs/spec-edificios.md`.
+## Módulo Edifícios (Fase 2 em andamento; fatia 0 feita em 20/10/2026)
+- Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1, aprovada): `docs/spec-edificios.md`.
+- Código:
+  - `src/core/building/`: modelo físico, verificação de lançamento e premissas em uso (`premissas.ts`, que alimenta a interface e o MCP);
+  - `src/core/commands/`: registro de comandos (toda alteração do edifício é um comando com schema, desfazer e log; ids determinísticos por `seq`, para o replay);
+  - `src/cli/`: linha de comando e MCP;
+  - `src/app/edificio/`: aba Edifício.
+- Comando novo exige: schema, `validar` para referências, mensagem, exemplo em `EXEMPLOS` do `commands.test.ts` (o teste genérico confere aplicar + inverso) e ferramenta no MCP (automática).
+- O núcleo não pode usar `window`, `document`, `localStorage` nem `navigator` (há teste).
+- Fatia 0, premissas a confirmar: pé-direito mínimo para aviso 2,2 m; cargas variáveis por uso da NBR 6120 (residencial 1,5; serviço 2,0; áreas comuns 3,0; escritório 2,5; garagem 3,0; cobertura 1,0 kN/m²); revestimento padrão 1,0 kN/m².
 - O usuário aceitou os padrões dos itens 1–48 da pesquisa em 20/10/2026; a tabela "Premissas adotadas" da spec é a referência. Valores sem fonte aberta continuam "a confirmar".
 - Regras extras do módulo:
   - paridade de funcionalidade com o CYPECAD, nunca de implementação (sem nomes de comandos, ícones, layout ou formatos proprietários);

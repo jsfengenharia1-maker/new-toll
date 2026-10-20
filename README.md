@@ -7,10 +7,25 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 139 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis)
+npm test           # 158 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
+npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
 ```
+
+## Linha de comando e IA (módulo Edifícios)
+
+Tudo o que a aba **Edifício** faz passa por comandos tipados (`src/core/commands`), com JSON Schema, desfazer e log. Os mesmos comandos servem à interface, à linha de comando e a agentes de IA:
+
+```bash
+node dist-cli/statikos.mjs novo obra.statikos            # edifício padrão (térreo, 3 tipos, cobertura)
+node dist-cli/statikos.mjs exec obra.statikos cmds.jsonl  # uma linha JSON por comando: {"nome": "pavimento.repetir", "params": {"id": "pav_6", "vezes": 5}}
+node dist-cli/statikos.mjs verificar obra.statikos        # verificação de lançamento (código 1 se houver erro)
+node dist-cli/statikos.mjs comandos --json                # comandos e parâmetros
+node dist-cli/statikos.mjs mcp                            # servidor MCP em stdio
+```
+
+No servidor MCP, cada comando de escrita é uma ferramenta que só devolve a **prévia** (diff e token). A alteração acontece na ferramenta `aplicar`, com o token. Não há execução de código livre. Exemplo de configuração num cliente MCP: `{"command": "node", "args": ["<repo>/dist-cli/statikos.mjs", "mcp"]}`.
 
 ## Publicar
 
@@ -40,6 +55,10 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | PWA | `public/manifest.webmanifest`, `public/sw.js` | Instalação, funcionamento offline (rede primeiro, cache como reserva), abertura de `.statikos` pelo sistema (File Handling API) |
 | Testes de interface | `e2e/run.mjs`, `e2e/flows.mjs` | Runner próprio sobre `playwright`: desenho, memorial, salvar/abrir, modos, DXF, perfis, PWA |
 | Saída | `src/app/dxf.ts`, `dims.ts`, `pathTable.ts` | DXF R12 próprio com camadas, cotas automáticas de vãos e níveis, CSV ao longo de uma cadeia de barras |
+| Edifício (modelo) | `src/core/building/` | Modelo físico versionado (obra, norma, pavimentos, grupos, eixos), verificação de lançamento com correção sugerida, premissas em uso, parte do edifício no `.statikos` v2 |
+| Comandos | `src/core/commands/` | Registro tipado (JSON Schema próprio), aplicação com patches do immer (desfazer), log que reproduz o modelo (replay), prévia com token |
+| CLI e MCP | `src/cli/` | `statikos` em Node (novo, info, verificar, exec, comandos) e servidor MCP stdio (JSON-RPC próprio, sem SDK) |
+| Edifício (interface) | `src/app/edificio/` | Aba Edifício: obra, pavimentos, grupos, eixos, linha de comando, elevação, diagnósticos e premissas |
 
 ## Inventário funcional
 
@@ -85,6 +104,12 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Sapatas isoladas rígidas e flexíveis com momento em uma ou duas direções: σadm informada ou pelo SPT, área comprimida, CEB-70 ou bielas, punção, croqui
 - Tubulões a céu aberto: fuste, base alargada, cota automática acima do NA, croqui
 - Várias sondagens por obra (arquivos antigos com uma sondagem continuam abrindo); por apoio, um furo ou a média de todos/alguns; leituras fora do padrão podem ser descartadas
+
+**Módulo Edifícios — fatia 0 (20/10/2026)**
+- Licença Apache-2.0; modelo físico do edifício; registro de comandos com desfazer, log e prévia; `.statikos` v2 (v1 continua abrindo)
+- Aba Edifício: obra e norma (cobrimentos pela CAA), pavimentos com cota e pé-direito, grupos (pavimento-tipo vinculado) com uso e cargas da NBR 6120, “+1” para repetir pavimento, malha de eixos, linha de comando, verificação de lançamento contínua com correção em um clique
+- Linha de comando `statikos` e servidor MCP com prévia → aplicar
+- Spec e fatias seguintes: [`docs/spec-edificios.md`](docs/spec-edificios.md)
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir
