@@ -44,11 +44,11 @@ Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as v
 | Fechamento | — | — | 2 | 2 |
 | **Total** | | | ~46 fatias | **~101 agentes** |
 
-## Decisões prévias do usuário (únicas paradas previstas)
+## Decisões do usuário (20/10/2026)
 
-1. **Vista 3D (V):** biblioteca de 3D (three.js, MIT, ~150 KB gz, carregada sob demanda em `public/vendor` como o DWG) ou WebGL próprio (sem dependência, mais trabalho e menos recursos).
-2. **Importação IFC (L):** biblioteca web-ifc (MPL-2.0, WASM ~1 MB, sob demanda) ou deixar IFC fora e fazer só DXF.
-3. Pendências já registradas: AUDIT do DXF/DWG no AutoCAD; exemplos de prancha de viga de equilíbrio, tubulão, radier e armação de lajes (sem eles seguem o padrão das pranchas de armação, "a confirmar").
+1. **Vista 3D (V):** three.js (MIT), vendorizado em `public/vendor` e carregado sob demanda, como o DWG.
+2. **Importação IFC (L):** web-ifc (MPL-2.0, WASM), vendorizado e carregado sob demanda.
+3. Exemplos de prancha de viga de equilíbrio, tubulão, radier e lajes: enviados pelo usuário em 20/10/2026 (resumo fora do repositório, `padrao-desenho.md` §11). Pendente: AUDIT do DXF/DWG no AutoCAD.
 
 ## Andamento
 
