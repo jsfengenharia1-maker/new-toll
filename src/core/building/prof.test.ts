@@ -1,5 +1,6 @@
 import { it } from 'vitest';
 import { analisarEdificio } from './analitico';
+import { dimensionarEdificio } from './dimensionamento';
 import { resolver3 } from '../fe3d';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 // Perfil de tempo (sem asserção): PERFIL=1 npx vitest run src/core/building/prof.test.ts
@@ -16,5 +17,6 @@ it.skipIf(!(globalThis as { process?: { env: Record<string, string | undefined> 
   const t1 = performance.now();
   let tg = 0; for (const g of an.grelhas) if (g.res) { const a = performance.now(); resolver3(g.modelo, [{ nodais: [], distribuidas: [] }, { nodais: [], distribuidas: [] }]); tg += performance.now() - a; }
   const a = performance.now(); resolver3(an.portico.modelo, [{ nodais: [], distribuidas: [] }, { nodais: [], distribuidas: [] }]); const tp = performance.now() - a;
-  console.log('total', (t1 - t0).toFixed(0), 'grelhas', tg.toFixed(0), 'portico', tp.toFixed(0), 'neq portico', an.portico.res?.neq, 'hb', an.portico.res?.hb, 'grelha neq', an.grelhas.find((g) => g.res)?.res?.neq, 'hb', an.grelhas.find((g) => g.res)?.res?.hb);
-});
+  const d0 = performance.now(); dimensionarEdificio(s.modelo, an); const td = performance.now() - d0;
+  console.log('dimensionamento', td.toFixed(0), 'total', (t1 - t0).toFixed(0), 'grelhas', tg.toFixed(0), 'portico', tp.toFixed(0), 'neq portico', an.portico.res?.neq, 'hb', an.portico.res?.hb, 'grelha neq', an.grelhas.find((g) => g.res)?.res?.neq, 'hb', an.grelhas.find((g) => g.res)?.res?.hb);
+}, 120000);

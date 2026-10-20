@@ -414,13 +414,33 @@ export function beamShear(bw: number, d: number, VsdKN: number, c: Concrete, fyw
   const aswMin = ((0.2 * c.fctm) / fywk) * bw;
   const aswS = Math.max(aswMin, Math.max(0, Vsd - Vc) / (0.9 * d * fywd));
   const smax = Vsd <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2);
-  let stirrup: ShearResult['stirrup'] = null;
+  return { Vsd: VsdKN, VRd2: VRd2 * 1000, Vc: Vc * 1000, aswS, aswMin, ok: Vsd <= VRd2, smax, stirrup: chooseStirrup(aswS, smax) };
+}
+
+/** Estribo de 2 ramos para Asw/s (m²/m, os dois ramos), com espaçamento até smax e mínimo de 10 cm. */
+export function chooseStirrup(aswS: number, smax: number, phiMin = 0): ShearResult['stirrup'] {
   for (const phi of PHI_T) {
+    if (phi < phiMin) continue;
     const s = (2 * barArea(phi)) / aswS;
     const sAdopt = Math.floor(Math.min(s, smax) * 100) / 100;
-    if (sAdopt >= 0.1 || phi === PHI_T[PHI_T.length - 1]) { stirrup = { phi, s: sAdopt, legs: 2 }; break; }
+    if (sAdopt >= 0.1 || phi === PHI_T[PHI_T.length - 1]) return { phi, s: sAdopt, legs: 2 };
   }
-  return { Vsd: VsdKN, VRd2: VRd2 * 1000, Vc: Vc * 1000, aswS, aswMin, ok: Vsd <= VRd2, smax, stirrup };
+  return null;
+}
+
+/**
+ * Torção (NBR 6118, 17.5, modelo de treliça espacial com θ = 45°) numa seção retangular b × h: seção vazada
+ * equivalente com he = A/u (≥ 2c1 quando cabe), Ae e ue pela linha média da parede. Devolve TRd2 (kN·m), a
+ * armadura transversal de um ramo por metro A90/s e a longitudinal total Asl (m²) para Td (kN·m).
+ */
+export function torsionRect(b: number, h: number, c1: number, TdKN: number, c: Concrete, fywd: number, fyd: number) {
+  const A = b * h, u = 2 * (b + h);
+  let he = A / u;
+  if (he < 2 * c1 && 2 * c1 <= Math.min(b, h) / 2) he = 2 * c1;
+  const Ae = (b - he) * (h - he), ue = 2 * (b - he + h - he);
+  const TRd2 = 0.5 * c.av2 * c.fcd * Ae * he * 1000; // sen 2θ = 1
+  const T = Math.abs(TdKN) / 1000;
+  return { TRd2, he, Ae, ue, a90S: T / (2 * Ae * fywd), Asl: (T * ue) / (2 * Ae * fyd) };
 }
 
 /** Inércia equivalente de Branson (NBR 6118 17.3.2.1.1) para a seção sob momento Ma (kN·m). */
