@@ -29,8 +29,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
-| N — Cálculo e normas | 12 | 14 | 26 |
-| E — Elementos estruturais | 29 | 198 | 227 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 12 | 14 | 26 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; o restante fica para E3 e E4) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 no núcleo, em 20/10/2026) | 26 | 32 | 58 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
 | V — Visualização | 7 | 35 | 42 |
@@ -40,7 +40,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício |
-| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | N | grelha por pavimento + pórtico espacial (não é um modelo único: frente N); fundação em módulo à parte (FU) |
+| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | N | grelha por pavimento + pórtico espacial (não é um modelo único: frente N); fundação em módulo à parte (FU) [N2b] |
 | C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Feito | — | concreto armado dimensionado no edifício (NBR 6118); aço no edifício fora do escopo (o Pórtico 2D dimensiona aço pela NBR 8800) |
 | C0.4 | Normas de vários países à escolha do usuário. | Fora | — | só normas brasileiras, por decisão de escopo |
 
@@ -143,7 +143,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.1 | Até 5 pavimentos por grupo. | Fora | — | sem limite de pavimentos por grupo (escolha) |
 | C3.2 | Grupo: conjunto de pavimentos iguais e consecutivos, com a mesma armadura. | Feito | — | grupo = pavimentos iguais |
 | C3.3 | Num grupo, os dados são lançados uma vez para todos os pavimentos. | Feito | — |  |
-| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Parcial | N | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na tela por pavimento |
+| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Parcial | N | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na tela por pavimento [N2d] |
 | C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Feito | — | vigas, lajes maciças e vigotas dimensionadas uma vez pela envoltória do grupo (R3a, R4, R6); pilares por lance |
 | C3.6 | Desenho único por grupo (uma planta de formas, um desenho de vigas etc.). | Feito | — | uma prancha de formas por grupo |
 | C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre |
@@ -152,12 +152,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.10 | Dados dos novos pavimentos: quantidade, alturas, carga variável, carga permanente (revestimento etc.) e nome de cada pavimento. | Feito | — | cota, nome, grupo; cargas por grupo |
 | C3.11 | Categoria de uso do grupo escolhida entre as já definidas. Sem categorias definidas, fica a padrão e pode ser trocada depois. | Feito | — | uso NBR 6120 por grupo |
 | C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Parcial | L | usos da NBR 6120 (6 categorias) |
-| C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Parcial | N | hipóteses variáveis adicionais (Q) com ψ próprio (N1c); a categoria de uso continua uma só |
-| C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Falta | N |  |
+| C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Parcial | N | hipóteses variáveis adicionais (Q) com ψ próprio (N1c); a categoria de uso continua uma só [N2a] |
+| C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Falta | N | [N2a] |
 | C3.15 | As categorias da obra são escolhidas nos dados gerais, junto das hipóteses adicionais. | Feito | — | grupo Casos de carga na aba Edifício (N1c) |
 | C3.16 | A categoria é atribuída a cada grupo na edição de grupos, pelo menu de cargas ou pelo de pavimentos. | Feito | — |  |
 | C3.17 | As categorias podem ser definidas antes ou depois dos grupos. No lançamento automático, sempre depois. | Feito | — |  |
-| C3.18 | Várias categorias no mesmo grupo: sem carga variável geral, com cargas lançadas em posições diferentes, cada uma ligada à sua hipótese e categoria. | Falta | N | várias categorias no mesmo grupo |
+| C3.18 | Várias categorias no mesmo grupo: sem carga variável geral, com cargas lançadas em posições diferentes, cada uma ligada à sua hipótese e categoria. | Falta | N | várias categorias no mesmo grupo [N2a] |
 | C3.19 | Aviso: cada categoria a mais aumenta o número de combinações e o tempo de cálculo. | Fora | — |  |
 | C3.20 | Cota do plano de fundação definida na edição de pavimentos, com reajuste automático das cotas de todos os pavimentos. | Feito | — | profundidade da fundação |
 | C3.21 | Renomear pavimentos na edição de pavimentos. | Feito | — |  |
@@ -187,7 +187,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **4.1 Lançamento** | | | |
-| C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não |
+| C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não [E1b] |
 | C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Feito | — | FU1: arranque (nasce e morre "fundacao") aceito sem pavimentos (`refsPilar`, `pilares.ts`); na interface, "Novo vazio", opção Arranque da ferramenta Pilar (a planta vai para o nível de fundação) e cálculo só da fundação (`calculo.worker.ts`; e2e FU1 "obra vazia"); pilar comum segue recusado |
 | C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Feito | — | editar, mover, ponto fixo, ângulo, engaste por lance (N1a), flambagem (N1b) e cargas no lance (N1c) |
 | C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Feito | — | FU1: arranque (`ehArranque`, types.ts) lançado pela opção Arranque da ferramenta Pilar (`Edificio.tsx`, `Planta.tsx`), hachurado só na planta de fundação, com cargas levadas à fundação (`reacoesArranques`, analitico.ts); obra só de arranques calcula só a fundação (worker, `dimensionar` da CLI) |
@@ -196,30 +196,30 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.7 | Pilar novo: grupo inicial e grupo final. | Feito | — | nasce/morre |
 | C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Feito | — | engaste (pilar.engaste, N1a) e flambagem (pilar.flambagem, N1b) por lance |
 | C4.9 | Pilar novo: ângulo. | Feito | — |  |
-| C4.10 | Pilar novo: vinculação exterior. | Parcial | N | base articulada ou com engaste parcial na fundação (pilar.engaste base, N1a); molas e outros vínculos externos ainda não |
-| C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Parcial | E | seção por lance; só concreto |
+| C4.10 | Pilar novo: vinculação exterior. | Parcial | N | base articulada ou com engaste parcial na fundação (pilar.engaste base, N1a); molas e outros vínculos externos ainda não [N2c] |
+| C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Parcial | E | seção por lance; só concreto [E1a] |
 | C4.12 | Posicionamento do pilar por clique. | Feito | — | clique, coordenada digitada, captura |
-| C4.13 | Pilar que nasce sobre outro pilar. | Parcial | E | pilar que nasce num pavimento; sem checar apoio em pilar de baixo |
-| C4.14 | Tramos superiores com ponto fixo, ângulo ou dimensões diferentes, podendo parte deles ficar fora da projeção do pilar de baixo. | Parcial | E | seção por lance; ponto fixo/ângulo por lance não |
-| C4.15 | Empilhamento sem limite de pilares sobre pilares, e mais de um pilar nascendo no mesmo pilar. | Falta | E | vários pilares nascendo sobre um pilar |
-| C4.16 | Pilar que admite outro por cima (termina antes do último pavimento) muda de cor sob o cursor e mostra um círculo de referência no eixo. | Falta | E |  |
-| C4.17 | Coordenadas do ponto fixo do novo pilar relativas às do pilar de baixo. | Falta | E |  |
-| C4.18 | Captura DXF/DWG de eixo, cantos ou ponto médio das faces do pilar de baixo, sem pedir coordenadas. | Parcial | E | capturas no contorno do pilar existente |
-| C4.19 | Referência automática do pilar que nasce: referência do pilar de baixo seguida de letra sequencial (a, b, ...). | Falta | E | nome automático com sufixo para pilar que nasce |
+| C4.13 | Pilar que nasce sobre outro pilar. | Parcial | E | pilar que nasce num pavimento; sem checar apoio em pilar de baixo [E1a] |
+| C4.14 | Tramos superiores com ponto fixo, ângulo ou dimensões diferentes, podendo parte deles ficar fora da projeção do pilar de baixo. | Parcial | E | seção por lance; ponto fixo/ângulo por lance não [E1a] |
+| C4.15 | Empilhamento sem limite de pilares sobre pilares, e mais de um pilar nascendo no mesmo pilar. | Falta | E | vários pilares nascendo sobre um pilar [E1a] |
+| C4.16 | Pilar que admite outro por cima (termina antes do último pavimento) muda de cor sob o cursor e mostra um círculo de referência no eixo. | Falta | E | [E1a] |
+| C4.17 | Coordenadas do ponto fixo do novo pilar relativas às do pilar de baixo. | Falta | E | [E1a] |
+| C4.18 | Captura DXF/DWG de eixo, cantos ou ponto médio das faces do pilar de baixo, sem pedir coordenadas. | Parcial | E | capturas no contorno do pilar existente [E1a] |
+| C4.19 | Referência automática do pilar que nasce: referência do pilar de baixo seguida de letra sequencial (a, b, ...). | Falta | E | nome automático com sufixo para pilar que nasce [E1a] |
 | C4.20 | Pilares que não se sobrepõem são lançados como pilares comuns. | Feito | — |  |
 | C4.21 | O topo do pilar de baixo não usa o coeficiente de engastamento do último pavimento. Os elementos apoiados nele são tidos como engastados por padrão. | Feito | — | lances intermediários usam o próprio coeficiente; o das opções vale só no topo do último lance (N1a) |
 | C4.22 | Engastamento parcial só no topo do último tramo. Pode-se articular o pilar que chega a uma viga ou definir engaste parcial na base do pilar novo. | Feito | — | engaste parcial ou rótula no topo e na base de qualquer lance (N1a) |
-| C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos |
-| C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E |  |
+| C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos [N2c] |
+| C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E | [E1a] |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |
 | C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote |
 | C4.27 | Ponto fixo dos pilares visível durante o lançamento de vigas e lajes. | Feito | — | ponto fixo visível |
 | C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Falta | L | copiar dados de um pilar (conta-gotas) |
 | C4.29 | O formulário de pilar novo guarda os dados do último pilar lançado. | Feito | — | ferramenta guarda a última seção |
 | C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L |  |
-| C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Falta | E | pilar-parede de retângulos |
-| C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E |  |
-| C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário |
+| C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Falta | E | pilar-parede de retângulos [E1b] |
+| C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E | [E1b] |
+| C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário [N2c] |
 | | **4.2 Resultados de pilares** | | | |
 | C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Feito | — | pilares com erro em vermelho e aviso em amarelo na planta (R1), revisados pelo editor de armadura da janela do elemento com recálculo (R2) |
 | C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Feito | — | janela de resultados do pilar por clique duplo (tabela, lista de erros ou botão na planta) com as combinações determinantes de cada lance (R1) |
@@ -228,10 +228,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção por erro [R7g] |
 | C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Feito | — | erro ARMADURA quando nem 4 % de armadura atende (limite da NBR 6118, 17.3.5.3.2), equivalente à taxa máxima; sem taxa mecânica |
 | C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Feito | — | biela (Vsd/VRd2, erro BIELA) e estribo pelo cortante nos pilares (N1e); espaçamento do estribo verificado na armadura bloqueada (R2) |
-| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção |
-| C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Falta | N |  |
+| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção [N2c] |
+| C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Falta | N | [N2c] |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
-| C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) |
+| C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) [N2g] |
 | C4.45 | Taxa As/Ac (%) mostrada por tramo. | Parcial | R | As por lance na tabela e na janela do pilar; taxa As/Ac não exibida [R7g] |
 | C4.46 | Pilares de aço: ao calcular, opções de dimensionar ou não os perfis. | Fora | — | pilar de aço no edifício |
 | C4.47 | Dimensionamento de perfis por toda a série (pode trocar por menor) ou só por perfis maiores ou iguais ao atual. | Fora | — |  |
@@ -250,43 +250,43 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R | ponto fixo nas pranchas (fora da R5) [R7g] |
-| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos |
+| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos [E1d] |
 | C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício (detalhamento dos pilares) e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1, R3b); sem relatório por esforço [R7g] |
 
 ## 5. Muros e paredes estruturais
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| C5.1 | Tipos de muro: concreto armado, alvenaria de blocos de concreto genéricos (armada), blocos de catálogo de fabricante e alvenaria genérica. | Falta | E | muros de concreto e alvenaria (V2); blocos de catálogo fora |
-| C5.2 | Dados comuns a todos os tipos: geometria, existência de empuxos laterais e tipo de fundação de apoio. | Falta | E | muros e paredes estruturais (V2) |
-| C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Falta | E | muros e paredes estruturais (V2) |
-| C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Falta | E | muros e paredes estruturais (V2) |
+| C5.1 | Tipos de muro: concreto armado, alvenaria de blocos de concreto genéricos (armada), blocos de catálogo de fabricante e alvenaria genérica. | Falta | E | muros de concreto e alvenaria (V2); blocos de catálogo fora [E1e] |
+| C5.2 | Dados comuns a todos os tipos: geometria, existência de empuxos laterais e tipo de fundação de apoio. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.5 | Muros de blocos de fabricante: dimensionamento e verificação pelo Eurocódigo 6, com armadura vertical e/ou horizontal opcional. | Fora | — | Eurocódigo 6 |
-| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Falta | E | muros e paredes estruturais (V2) |
+| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.7 | Escolha de fabricante e modelo de bloco. Peças especiais de canto usadas automaticamente quando o fabricante as tem. | Fora | — | catálogo de fabricante europeu |
-| C5.8 | Alvenaria genérica: módulo de elasticidade, módulo de cisalhamento, peso específico, resistência de cálculo à compressão e à tração, e opção de considerar a rigidez ao cisalhamento. | Falta | E | muros e paredes estruturais (V2) |
-| C5.9 | Aberturas (portas e janelas) em muros de concreto, de alvenaria genérica e de blocos. | Falta | E | muros e paredes estruturais (V2) |
-| C5.10 | A abertura é lançada no pavimento de baixo dos dois entre os quais fica. | Falta | E | muros e paredes estruturais (V2) |
-| C5.11 | Em muros de blocos, a abertura se ajusta à modulação dos blocos para evitar peças especiais. | Falta | E | muros e paredes estruturais (V2) |
-| C5.12 | Verga: em muros de subsolo e de alvenaria genérica não há aviso de tensões excessivas. Em blocos, a verga é verificada e armada. | Falta | E | muros e paredes estruturais (V2) |
-| C5.13 | Edição da armadura de uma abertura, destacada sob o cursor. | Falta | E | muros e paredes estruturais (V2) |
-| C5.14 | Armadura padrão de portas, copiada de uma porta e aplicada a várias. | Falta | E | muros e paredes estruturais (V2) |
-| C5.15 | Armadura padrão de janelas, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) |
-| C5.16 | Armadura de vergas em muros de blocos, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) |
-| C5.17 | Relatório das verificações da armadura de uma abertura escolhida. | Falta | E | muros e paredes estruturais (V2) |
-| C5.18 | A armadura das aberturas de muros de concreto é dimensionada para empuxos e para os esforços em vergas e peitoris. | Falta | E | muros e paredes estruturais (V2) |
+| C5.8 | Alvenaria genérica: módulo de elasticidade, módulo de cisalhamento, peso específico, resistência de cálculo à compressão e à tração, e opção de considerar a rigidez ao cisalhamento. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.9 | Aberturas (portas e janelas) em muros de concreto, de alvenaria genérica e de blocos. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.10 | A abertura é lançada no pavimento de baixo dos dois entre os quais fica. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.11 | Em muros de blocos, a abertura se ajusta à modulação dos blocos para evitar peças especiais. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.12 | Verga: em muros de subsolo e de alvenaria genérica não há aviso de tensões excessivas. Em blocos, a verga é verificada e armada. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.13 | Edição da armadura de uma abertura, destacada sob o cursor. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.14 | Armadura padrão de portas, copiada de uma porta e aplicada a várias. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.15 | Armadura padrão de janelas, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.16 | Armadura de vergas em muros de blocos, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.17 | Relatório das verificações da armadura de uma abertura escolhida. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.18 | A armadura das aberturas de muros de concreto é dimensionada para empuxos e para os esforços em vergas e peitoris. | Falta | E | muros e paredes estruturais (V2) [E1d] |
 | C5.19 | Sismo com aceleração acima de 0,16 g: armadura inclinada em verga e peitoril. | Fora | — | sismo |
 | C5.20 | Com vão livre/altura da verga < 1,5 e tração acima da resistência do concreto, as barras do quadro fazem o papel da armadura inclinada. | Fora | — | sismo |
-| C5.21 | Prolongar muro (como as vigas), em todos os grupos onde ele existe. | Falta | E | muros e paredes estruturais (V2) |
-| C5.22 | Atribuir as propriedades de um tipo de muro a outros muros, um a um ou por janela, inclusive copiando de um muro de outro tipo. | Falta | E | muros e paredes estruturais (V2) |
-| C5.23 | Vigas embutidas e de coroamento aparecem sobrepostas ao muro em planta e são editáveis junto com ele. | Falta | E | muros e paredes estruturais (V2) |
-| C5.24 | Opção de armadura: aço da armadura horizontal dos muros de blocos. | Falta | E | muros e paredes estruturais (V2) |
-| C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Falta | E | muros e paredes estruturais (V2) |
-| C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Falta | E | muros e paredes estruturais (V2) |
-| C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Falta | E | muros e paredes estruturais (V2) |
+| C5.21 | Prolongar muro (como as vigas), em todos os grupos onde ele existe. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.22 | Atribuir as propriedades de um tipo de muro a outros muros, um a um ou por janela, inclusive copiando de um muro de outro tipo. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.23 | Vigas embutidas e de coroamento aparecem sobrepostas ao muro em planta e são editáveis junto com ele. | Falta | E | muros e paredes estruturais (V2) [E1c] |
+| C5.24 | Opção de armadura: aço da armadura horizontal dos muros de blocos. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.28 | Sapata isolada equivalente para cada pilar sobre sapata corrida, dimensionada com os esforços do pilar e do trecho de muro apoiado. | Falta | FU | muros e paredes estruturais (V2) |
-| C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Falta | E | muros e paredes estruturais (V2) |
-| C5.30 | Lacuna: o texto do item sobre muros de concreto armado (5.1.2.1) não veio na extração. Só há o título. | Falta | E | pendente: texto não veio na leitura (muros de concreto) |
+| C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.30 | Lacuna: o texto do item sobre muros de concreto armado (5.1.2.1) não veio na extração. Só há o título. | Falta | E | pendente: texto não veio na leitura (muros de concreto) [E1c] |
 
 ## 6. Vigas
 
@@ -304,17 +304,17 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Falta | L | deslocamento configurável entre linha clicada e linha de ajuste |
 | C6.10 | Troca cíclica do ajuste (eixo/faces) por atalho (Ctrl+E) durante o lançamento. | Feito | — | tecla A |
 | C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Falta | L |  |
-| C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Falta | E | viga curva |
-| C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Falta | E |  |
+| C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Falta | E | viga curva [E2b] |
+| C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Falta | E | [E2b] |
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
-| C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Falta | E | viga chata (faixa) |
-| C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | retangular; sem T/mesa colaborante |
-| C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Falta | E | treliçadas/protendidas pré-fabricadas |
-| C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Falta | E | viga de vínculo externo |
-| C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Falta | E |  |
+| C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Falta | E | viga chata (faixa) [E2a] |
+| C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | retangular; sem T/mesa colaborante [E2a] |
+| C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Falta | E | treliçadas/protendidas pré-fabricadas [E2e] |
+| C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Falta | E | viga de vínculo externo [E2e] |
+| C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Falta | E | [E1e] |
 | C6.20 | A viga de coroamento do topo do muro não é especificada pelo programa. O detalhe fica com o usuário, com apoio da biblioteca de detalhes construtivos. | Fora | — |  |
-| C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Falta | E | viga não estrutural de contorno |
-| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas no térreo funcionam como baldrame; sem tipo próprio |
+| C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Falta | E | viga não estrutural de contorno [E2a] |
+| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas no térreo funcionam como baldrame; sem tipo próprio [E2a] |
 | C6.23 | Vigas de aço: perfil simples, caixão soldado, perfis afastados com chapas de ligação, perfis unidos. Usam a mesma biblioteca dos pilares de aço. | Fora | — | vigas de aço no edifício |
 | C6.24 | Vigas alveoladas (não mistas): furos hexagonais, octogonais ou circulares, proporções e número de furos preenchidos nas extremidades. | Fora | — |  |
 | C6.25 | Vigas mistas: perfil sob a laje com concreto colaborante ligado por conectores de geometria definível. | Fora | — | mistas |
@@ -324,34 +324,34 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.29 | Largura efetiva própria para verificar os positivos. A armadura de negativo sobre o apoio não é dimensionada. | Fora | — |  |
 | C6.30 | Capturas DXF/DWG (mais próximo, interseção, extremo, ponto médio etc.) ao marcar os pontos da viga, sem ajuste posterior. | Feito | — | capturas |
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
-| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) |
+| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) [E2b] |
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a); sem tramo predefinido entre vigas consecutivas [R7b] |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Parcial | R | comandos `viga.unir` e `viga.dividir` (`src/core/commands/vigas.ts`) compõem e decompõem o pórtico e o recálculo redimensiona (bloqueio desconsiderado com BLOQ_IGNORADO); sem ferramenta na planta (R7-0) nem desbloqueio gravado [R7f] |
-| C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos |
-| C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento |
-| C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E |  |
-| C6.38 | Diagonal de concreto (largura e altura) ou de aço (perfil da biblioteca, em posição normal ou girada). | Falta | E |  |
-| C6.39 | Ligação das extremidades da diagonal: engastada ou articulada. | Falta | E |  |
-| C6.40 | Coeficientes de flambagem vertical e transversal aplicados ao comprimento total entre nós, em planos globais (não nos eixos locais). O cruzamento entre barras inclinadas não reduz o comprimento. | Falta | E |  |
-| C6.41 | Copiar os dados de uma diagonal existente. | Falta | E |  |
-| C6.42 | Diagonal lançada por clique em dois pontos (ex.: viga de partida e viga oposta), sem trocar de pavimento. Setas indicam a diagonal na planta. | Falta | E |  |
-| C6.43 | Nó gerado no cruzamento de diagonais. Elas são dimensionadas à tração e à compressão, com verificação da esbeltez máxima da norma. | Falta | E |  |
-| C6.44 | Apagar diagonal: em todos os grupos, se for múltipla. | Falta | E |  |
-| C6.45 | Informação da diagonal (tipo, grupos, comprimento real, seção, ligações, flambagem), também desenhada na prancha de vigas do grupo inicial. | Falta | E |  |
-| C6.46 | Editar, mover extremos e atribuir propriedades a diagonais existentes: a operação vale só no grupo atual. | Falta | E |  |
-| C6.47 | Viga comum a dois grupos (ex.: borda entre laje horizontal e laje inclinada), lançada uma vez e criada automaticamente no outro grupo. | Falta | E | viga comum a dois grupos |
-| C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Falta | E |  |
-| C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Falta | E |  |
-| C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E |  |
+| C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos [E2c] |
+| C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento [E2d] |
+| C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E | [E2d] |
+| C6.38 | Diagonal de concreto (largura e altura) ou de aço (perfil da biblioteca, em posição normal ou girada). | Falta | E | [E2d] |
+| C6.39 | Ligação das extremidades da diagonal: engastada ou articulada. | Falta | E | [E2d] |
+| C6.40 | Coeficientes de flambagem vertical e transversal aplicados ao comprimento total entre nós, em planos globais (não nos eixos locais). O cruzamento entre barras inclinadas não reduz o comprimento. | Falta | E | [E2d] |
+| C6.41 | Copiar os dados de uma diagonal existente. | Falta | E | [E2d] |
+| C6.42 | Diagonal lançada por clique em dois pontos (ex.: viga de partida e viga oposta), sem trocar de pavimento. Setas indicam a diagonal na planta. | Falta | E | [E2d] |
+| C6.43 | Nó gerado no cruzamento de diagonais. Elas são dimensionadas à tração e à compressão, com verificação da esbeltez máxima da norma. | Falta | E | [E2d] |
+| C6.44 | Apagar diagonal: em todos os grupos, se for múltipla. | Falta | E | [E2d] |
+| C6.45 | Informação da diagonal (tipo, grupos, comprimento real, seção, ligações, flambagem), também desenhada na prancha de vigas do grupo inicial. | Falta | E | [E2d] |
+| C6.46 | Editar, mover extremos e atribuir propriedades a diagonais existentes: a operação vale só no grupo atual. | Falta | E | [E2d] |
+| C6.47 | Viga comum a dois grupos (ex.: borda entre laje horizontal e laje inclinada), lançada uma vez e criada automaticamente no outro grupo. | Falta | E | viga comum a dois grupos [E2b] |
+| C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Falta | E | [E2b] |
+| C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Falta | E | [E2b] |
+| C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E | [E2b] |
 | C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
 | C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga (só por CLI/MCP: sem ferramenta na planta, R7-0); sem comprimento fixo |
-| C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos |
-| C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E |  |
-| C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E |  |
-| C6.57 | Edição de consolos. | Falta | E |  |
-| C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Falta | E |  |
-| C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Falta | E |  |
+| C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos [E2e] |
+| C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E | [E2e] |
+| C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
+| C6.57 | Edição de consolos. | Falta | E | [E2e] |
+| C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Falta | E | [E2b] |
+| C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Falta | E | [E1e] |
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
 | C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Falta | R | referências-base de juntas [R7f] |
@@ -361,13 +361,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita no edifício (existe no Pórtico 2D, `src/core/design.ts`, como aviso: reaproveitar) [R7b] |
 | C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Falta | R | aviso de desnível longitudinal [R7b] |
 | C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Feito | — | aviso no detalhamento quando a barra passa do comprimento máximo e não cabe a emenda (opção barraMaxima, padrão 12 m; R3a) |
-| C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E |  |
-| C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Falta | E |  |
-| C6.70 | Listagem da viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento (aço), resultado do dimensionamento e erros. | Falta | E |  |
-| C6.71 | Vigas inclinadas com erro em vermelho, com detalhe por clique. | Falta | E |  |
-| C6.72 | Edição de viga inclinada de concreto: geometria (largura e altura), armadura (estribos, superior, inferior, pele), verificação, dimensionamento, detalhamento e vista 3D. | Falta | E |  |
+| C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E | [E2c] |
+| C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Falta | E | [E2c] |
+| C6.70 | Listagem da viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento (aço), resultado do dimensionamento e erros. | Falta | E | [E2c] |
+| C6.71 | Vigas inclinadas com erro em vermelho, com detalhe por clique. | Falta | E | [E2c] |
+| C6.72 | Edição de viga inclinada de concreto: geometria (largura e altura), armadura (estribos, superior, inferior, pele), verificação, dimensionamento, detalhamento e vista 3D. | Falta | E | [E2c] |
 | C6.73 | Viga inclinada de aço: verificação de outros perfis da série. | Fora | — |  |
-| C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Falta | E |  |
+| C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Falta | E | [E2c] |
 | C6.75 | Redimensionar os perfis das vigas inclinadas de aço (só maiores ou toda a série). | Fora | — |  |
 | C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Parcial | R | comando viga.copiarArmadura e botão "Copiar para…" na janela da viga, para vigas do mesmo grupo (R3a); entre grupos só pelo comando [R7f] |
 | C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Parcial | R | a cópia leva nº e bitola inferior, superior e laterais e o estribo da armadura bloqueada; comprimentos saem do detalhamento (R3a) [R7f] |
@@ -393,16 +393,16 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.97 | Erro de conector: número excessivo para o comprimento da viga. | Fora | — | conectores de vigas mistas |
 | C6.98 | Erro de conector: mesa do perfil fina demais para soldar o conector (espessura mínima depende do diâmetro). | Fora | — | conectores de vigas mistas |
 | C6.99 | Erro de conector: mesa estreita demais para dois conectores (distâncias mínimas entre conectores e à borda). | Fora | — | conectores de vigas mistas |
-| C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E |  |
-| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E |  |
-| C6.102 | Editar a armadura de vigas inclinadas. | Falta | E |  |
+| C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E | [E2e] |
+| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E | [E2e] |
+| C6.102 | Editar a armadura de vigas inclinadas. | Falta | E | [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Parcial | R | editor de armadura na janela da viga (R2) e aba Detalhamento com elevação (inferior, superior, pele, estribos por zona) e seção (R3a); sem escolher o que mostrar [R7b] |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Falta | R | fator do comprimento de emenda no editor [R7b] |
 | C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação |
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
-| C6.107 | Desenho da armadura de vigas inclinadas. | Falta | E | vigas inclinadas (E2) |
-| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | E | consolos (E2) |
+| C6.107 | Desenho da armadura de vigas inclinadas. | Falta | E | vigas inclinadas (E2) [E2c] |
+| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | E | consolos (E2) [E2e] |
 
 ## 7. Lajes
 
@@ -499,7 +499,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L |  |
 | C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L |  |
 | | **7.1.5 Opções de lajes** | | | |
-| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limites ℓ/250 (total) e ℓ/350 (variável) editáveis, comuns a todas as lajes (N1d); sem flecha ativa nem padrões próprios das vigotas |
+| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limites ℓ/250 (total) e ℓ/350 (variável) editáveis, comuns a todas as lajes (N1d); sem flecha ativa nem padrões próprios das vigotas [N2f] |
 | C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
@@ -567,9 +567,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R | [R7f] |
 | C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R | [R7f] |
 | C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R | [R7f] |
-| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Falta | N |  |
-| C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Falta | N |  |
-| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Falta | N |  |
+| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Falta | N | [N2d] |
+| C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Falta | N | [N2d] |
+| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Falta | N | [N2d] |
 | | **7.2.3 Lajes alveolares** | | | |
 | C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Falta | E |  |
 | C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Falta | E |  |
@@ -772,25 +772,25 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **10.1 Ações nos dados gerais** | | | |
 | C10.1 | Vento ativável nos dados gerais, com escolha da norma e dados próprios dela; todas pedem larguras de faixa e coeficientes de carga em X e Y. | Feito | — | vento NBR 6123 (V0, S1, S2, S3, Ca em X e Y, coeficiente por sentido, fator de vizinhança, platibanda; N1c) |
-| C10.2 | Vento com ou sem efeitos de 2ª ordem. | Parcial | N | γz com ampliação do vento; P-Δ 3D não |
+| C10.2 | Vento com ou sem efeitos de 2ª ordem. | Parcial | N | γz com ampliação do vento; P-Δ 3D não [N2c] |
 | C10.3 | Norma genérica de vento quando a desejada não existe. | Fora | — | só NBR 6123 |
 | C10.4 | Sismo ativável com escolha da norma e dados próprios, e opção de 2ª ordem. | Fora | — | sismo |
 | C10.5 | Sismo por norma genérica: análise modal espectral ou coeficientes por pavimento. | Fora | — | sismo |
-| C10.6 | Verificação de resistência ao fogo (só pela norma espanhola), com dados dos revestimentos de proteção dos elementos. | Falta | N | fogo pela NBR 15200 |
+| C10.6 | Verificação de resistência ao fogo (só pela norma espanhola), com dados dos revestimentos de proteção dos elementos. | Falta | N | fogo pela NBR 15200 [N2g] |
 | C10.7 | Lista de todas as hipóteses da obra com edição e criação de hipóteses adicionais (permanente, variável, vento, sismo, neve). | Feito | — | grupo Casos de carga: G e Q fixos e adicionais G/Q/W/E editáveis (N1c) |
-| C10.8 | Hipótese adicional com referência e descrição. | Parcial | N | nome do caso; sem descrição (N1c) |
+| C10.8 | Hipótese adicional com referência e descrição. | Parcial | N | nome do caso; sem descrição (N1c) [N2a] |
 | C10.9 | Hipótese com várias disposições de carga: compatíveis (atuam sozinhas ou juntas com outras da mesma hipótese). | Feito | — | casos sem grupo são compatíveis e atuam sozinhos ou juntos (N1c) |
 | C10.10 | Disposições incompatíveis: nunca combinadas entre si (ex.: vento em direções diferentes). | Feito | — | grupo de incompatíveis por caso adicional; vento em grupo próprio (N1c) |
 | C10.11 | Disposições simultâneas: sempre atuam juntas; servem para dividir uma hipótese em grupos de cargas mais fáceis de editar e visualizar. | Feito | — | campo Simultâneo com: recebe o mesmo fator do caso ligado (N1c) |
-| C10.12 | Uso das disposições para cargas alternadas e móveis. | Parcial | N | cargas alternadas por casos no mesmo grupo (N1c); sem cargas móveis |
-| C10.13 | Com duas ou mais hipóteses adicionais, tabela de compatibilidade entre hipóteses de mesma natureza. | Parcial | N | grupo único entre casos substitui a tabela de compatibilidade (N1c) |
-| C10.14 | Estados-limite: controle de execução, categoria de uso e altitude/nível de neve. | Parcial | N | CAA e ψ editáveis |
+| C10.12 | Uso das disposições para cargas alternadas e móveis. | Parcial | N | cargas alternadas por casos no mesmo grupo (N1c); sem cargas móveis [N2a] |
+| C10.13 | Com duas ou mais hipóteses adicionais, tabela de compatibilidade entre hipóteses de mesma natureza. | Parcial | N | grupo único entre casos substitui a tabela de compatibilidade (N1c) [N2a] |
+| C10.14 | Estados-limite: controle de execução, categoria de uso e altitude/nível de neve. | Parcial | N | CAA e ψ editáveis [N2a] |
 | C10.15 | Consulta das combinações geradas com os coeficientes de ponderação e de combinação. | Feito | — | quadro Combinações na aba Análise, com fatores por caso e exportação em CSV (N1c) |
-| C10.16 | Configuração das combinações por estado-limite e por material: concreto, fundações, aço dobrado a frio, aço laminado, madeira, tensões no terreno e deslocamentos. | Falta | N |  |
-| C10.17 | Situações de projeto definidas pelo usuário: criar, apagar, copiar, editar, biblioteca para outras obras e criar a partir das situações da norma. | Falta | N | combinações do usuário (existe no Pórtico, não no edifício) |
-| C10.18 | Situação nova: referência e lista de combinações, definidas por coeficientes de segurança ou por coeficientes de segurança e de combinação. | Falta | N |  |
-| C10.19 | Importar as situações da norma e ajustá-las, reduzindo erros de digitação. | Falta | N |  |
-| C10.20 | Alerta de responsabilidade: situações do usuário não devem resultar em segurança menor que a da norma. | Falta | N |  |
+| C10.16 | Configuração das combinações por estado-limite e por material: concreto, fundações, aço dobrado a frio, aço laminado, madeira, tensões no terreno e deslocamentos. | Falta | N | [N2a] |
+| C10.17 | Situações de projeto definidas pelo usuário: criar, apagar, copiar, editar, biblioteca para outras obras e criar a partir das situações da norma. | Falta | N | combinações do usuário (existe no Pórtico, não no edifício) [N2a] |
+| C10.18 | Situação nova: referência e lista de combinações, definidas por coeficientes de segurança ou por coeficientes de segurança e de combinação. | Falta | N | [N2a] |
+| C10.19 | Importar as situações da norma e ajustá-las, reduzindo erros de digitação. | Falta | N | [N2a] |
+| C10.20 | Alerta de responsabilidade: situações do usuário não devem resultar em segurança menor que a da norma. | Falta | N | [N2a] |
 | | **10.2 Cargas por grupo e na fundação** | | | |
 | C10.21 | Sobrecarga de uso definida por grupo ao criar grupos, aplicada nos pavimentos, sem atuar nos furos. | Feito | — | sobrecarga por grupo, fora dos furos |
 | C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Falta | FU | radier |
@@ -951,4 +951,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia FU2 no núcleo (vigas de equilíbrio e de travamento).** `src/core/building/vigasFundacao.ts` (alavanca com várias vigas pela rigidez, diagrama da alavanca, viga biapoiada para as cargas, dimensionamento da viga) e integração em `fundacao.ts` (`calcularFundacaoEdificio`: elementos equilibrados primeiro, centrados pela alavanca; alívio de 50 % no elemento oposto; travamento obrigatório dos blocos de 1 e 2 estacas; cargas do grupo "fundacao"); comandos `vigaFundacao.criar/editar/remover/igualar`; opções `vigaEqAlivio`, `vigaEqDistribuicao`, `vigaTravExc`, `vigaFundBMin`, `vigaFundHMin`, `vigaFundEstribosEsperas`. C11.25, C11.27, C11.35, C11.38–C11.44, C11.46, C11.47, C11.50–C11.53 passam de Falta a Parcial (interface pendente); C11.45 e C11.48 seguem Falta (ancoragem editável e desenho: interface e FU5).
   - Situação: Feito 113 → 113; Parcial 117 → 133; Falta 348 → 332; Fora 185 → 185.
   - Pendências por frente: FU 58 → 58 (Parcial 10 → 26, Falta 48 → 32); demais sem mudança.
+- **20/10/2026 — specs N2, E1 e E2 (só documentação).** Pendências N (26) alocadas às fatias N2a–N2g de `spec-frente-N2.md`; pendências E dos cap. 4 e 5 e C6.19/C6.59 (40) às fatias E1a–E1e de `spec-frente-E1.md`; demais do cap. 6 (41) às fatias E2a–E2e de `spec-frente-E2.md`. A fatia vai na nota de cada item (ex. "[E1b]"); a frente continua "N" ou "E", porque `checklists.test.ts` só aceita a letra. Conferido por script: cada id em uma só fatia, sem sobra. Situação e contagens sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
