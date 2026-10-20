@@ -28,7 +28,9 @@ function base() {
     ['laje.criar', { grupo: 'g_3', contorno: [[10, 0], [12, 0], [12, 2], [10, 2]] }],
     ['laje.criar', { grupo: 'g_3', contorno: [[10, 3], [12, 3], [12, 5], [10, 5]] }],
     ['carga.ponto', { grupo: 'g_3', ponto: [1, 1], valor: 10 }],
+    ['caso.criar', { nome: 'Empuxo', natureza: 'G' }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
+  expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -37,6 +39,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4] }),
   'vento.definir': () => ({ v0: 40, categoria: 'III', caX: 1.2 }),
+  'caso.criar': () => ({ nome: 'Água', natureza: 'Q', grupo: 'reservatório', psi: [0.5, 0.4, 0.3] }),
+  'caso.editar': (b) => ({ id: b.casos![0].id, natureza: 'Q', grupo: 'g1', simultaneo: 'Q' }),
+  'caso.remover': (b) => ({ id: b.casos![0].id }),
+  'carga.pilar': (b) => ({ pilar: b.pilares[1].id, caso: b.casos![0].id, altura: 1, Hx: 3, My: 2 }),
+  'carga.pilarRemover': (b) => ({ ids: [b.cargasPilar![0].id] }),
   'pilar.flambagem': (b) => ({ ids: [b.pilares[0].id], au: 2 }),
   'materiais.definir': (b) => ({ fck: { pilar: 40 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 } }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),

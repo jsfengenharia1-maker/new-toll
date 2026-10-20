@@ -1,6 +1,6 @@
 // Comandos de lajes (panos, tipos, aberturas) e de cargas (ponto, linha, área e alvenaria da máscara).
 import type { Draft } from 'immer';
-import { pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type TipoLaje } from '../building/types';
+import { casosDaObra, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
@@ -158,42 +158,44 @@ registrar<{ grupo: string; tolerancia: number }>({
 
 // ---- cargas ----
 
-const casoSchema = (padrao: CasoFisico): JsonSchema => ({ type: 'string', enum: ['G', 'Q'], default: padrao, description: 'G permanente, Q variável' });
+const casoSchema = (padrao: CasoFisico): JsonSchema => ({ type: 'string', minLength: 1, default: padrao, description: 'G permanente, Q variável ou id de um caso adicional (caso.criar)' });
+/** O caso existe na obra (G, Q ou adicional)? */
+const casoOk = (b: BuildingModel, caso?: string) => (!caso || casosDaObra(b).some((c) => c.id === caso) ? [] : err('CASO_INEXISTENTE', `Caso ${caso} não existe.`));
 
-registrar<{ grupo: string; ponto: P; valor: number; caso: CasoFisico }>({
+registrar<{ grupo: string; ponto: P; valor: number; caso: string }>({
   nome: 'carga.ponto',
   descricao: 'Carga concentrada vertical (kN, para baixo) na planta do grupo.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'ponto', 'valor'], properties: { grupo: { type: 'string' }, ponto, valor: { type: 'number', description: 'kN' }, caso: casoSchema('Q') } },
-  validar: (b, p) => grupoOk(b, p.grupo),
+  validar: (b, p) => [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)],
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'ponto', valor: p.valor, pontos: [[r6(p.ponto[0]), r6(p.ponto[1])]] }); return `Carga de ${fmt(p.valor)} kN (${p.caso}).`; },
 });
 
-registrar<{ grupo: string; pontos: P[]; valor: number; caso: CasoFisico }>({
+registrar<{ grupo: string; pontos: P[]; valor: number; caso: string }>({
   nome: 'carga.linha',
   descricao: 'Carga linear vertical (kN/m) ao longo de uma polilinha da planta do grupo.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'pontos', 'valor'], properties: { grupo: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, valor: { type: 'number', description: 'kN/m' }, caso: casoSchema('G') } },
-  validar: (b, p) => grupoOk(b, p.grupo),
+  validar: (b, p) => [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)],
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'linha', valor: p.valor, pontos: p.pontos.map((q) => [r6(q[0]), r6(q[1])] as P) }); return `Carga linear de ${fmt(p.valor)} kN/m (${p.caso}).`; },
 });
 
-registrar<{ grupo: string; contorno: P[]; valor: number; caso: CasoFisico }>({
+registrar<{ grupo: string; contorno: P[]; valor: number; caso: string }>({
   nome: 'carga.area',
   descricao: 'Carga superficial (kN/m²) numa região da planta do grupo, além das cargas do grupo (revestimento e uso).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'contorno', 'valor'], properties: { grupo: { type: 'string' }, contorno: { type: 'array', items: ponto, minItems: 3 }, valor: { type: 'number', description: 'kN/m²' }, caso: casoSchema('Q') } },
-  validar: (b, p) => { const g = grupoOk(b, p.grupo); return g.length ? g : Math.abs(areaPoligono(p.contorno)) < 1e-4 ? err('AREA_NULA', 'Contorno sem área.') : []; },
+  validar: (b, p) => { const g = [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)]; return g.length ? g : Math.abs(areaPoligono(p.contorno)) < 1e-4 ? err('AREA_NULA', 'Contorno sem área.') : []; },
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'area', valor: p.valor, pontos: anti(p.contorno) }); return `Carga de ${fmt(p.valor)} kN/m² (${p.caso}) em ${fmt(Math.abs(areaPoligono(p.contorno)))} m².`; },
 });
 
-registrar<{ id: string; valor?: number; caso?: CasoFisico; pontos?: P[] }>({
+registrar<{ id: string; valor?: number; caso?: string; pontos?: P[] }>({
   nome: 'carga.editar',
   descricao: 'Altera valor, caso ou geometria de uma carga.',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, valor: { type: 'number' }, caso: { type: 'string', enum: ['G', 'Q'] }, pontos: { type: 'array', items: ponto, minItems: 1 } } },
-  validar: (b, p) => (b.cargas.some((c) => c.id === p.id) ? [] : err('CARGA_INEXISTENTE', `Carga ${p.id} não existe.`)),
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, valor: { type: 'number' }, caso: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 1 } } },
+  validar: (b, p) => (b.cargas.some((c) => c.id === p.id) ? casoOk(b, p.caso) : err('CARGA_INEXISTENTE', `Carga ${p.id} não existe.`)),
   aplicar(d, p) {
     const c = d.cargas.find((x) => x.id === p.id)!;
     if (p.valor !== undefined) c.valor = p.valor;
@@ -212,6 +214,105 @@ registrar<{ ids: string[] }>({
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
   validar(b, p) { const f = p.ids.filter((id) => !b.cargas.some((c) => c.id === id)); return f.length ? err('CARGA_INEXISTENTE', `Carga(s) inexistente(s): ${f.join(', ')}.`) : []; },
   aplicar(d, p) { const s = new Set(p.ids); d.cargas = d.cargas.filter((c) => !s.has(c.id)); return `${p.ids.length} carga(s) removida(s).`; },
+});
+
+// ---- casos de carga adicionais ----
+
+const naturezaSchema: JsonSchema = { type: 'string', enum: ['G', 'Q', 'W', 'E'], description: 'G permanente, Q variável, W vento ou ação horizontal, E excepcional' };
+const psiSchema: JsonSchema = { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3, description: 'ψ0, ψ1, ψ2' };
+const casoAd = (b: BuildingModel, id: string) => b.casos?.find((c) => c.id === id);
+
+registrar<{ nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }>({
+  nome: 'caso.criar',
+  descricao: 'Cria um caso de carga adicional com natureza (G, Q, W ou E). Casos com o mesmo `grupo` são incompatíveis (nunca atuam juntos); `simultaneo` liga o caso a outro que atua sempre junto (mesmo fator). ψ das variáveis: padrão o da carga de uso (Q) ou 0,6/0,3/0 (W).',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['nome', 'natureza'], properties: { nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema } },
+  validar(b, p) {
+    if (casosDaObra(b).some((c) => c.nome === p.nome.trim() || c.id === p.nome.trim())) return err('CASO_REPETIDO', `Já existe o caso ${p.nome}.`);
+    return p.simultaneo && !casosDaObra(b).some((c) => c.id === p.simultaneo) ? err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`) : [];
+  },
+  aplicar(d, p) {
+    (d.casos ??= []).push({ id: novoId(d, 'cs'), nome: p.nome.trim(), natureza: p.natureza, ...(p.grupo?.trim() ? { grupo: p.grupo.trim() } : {}), ...(p.simultaneo ? { simultaneo: p.simultaneo } : {}), ...(p.psi ? { psi: [...p.psi] as [number, number, number] } : {}) });
+    return `Caso ${p.nome.trim()} (${p.natureza}) criado.`;
+  },
+});
+
+registrar<{ id: string; nome?: string; natureza?: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }>({
+  nome: 'caso.editar',
+  descricao: 'Altera nome, natureza, grupo de incompatibilidade (texto vazio = nenhum), caso simultâneo (vazio = nenhum) ou ψ de um caso adicional.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema } },
+  validar(b, p) {
+    if (!casoAd(b, p.id)) return err('CASO_INEXISTENTE', `Caso adicional ${p.id} não existe.`);
+    if (p.simultaneo === p.id) return err('CASO_SIMULTANEO', 'Um caso não pode ser simultâneo a si mesmo.');
+    return p.simultaneo && !casosDaObra(b).some((c) => c.id === p.simultaneo) ? err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`) : [];
+  },
+  aplicar(d, p) {
+    const c = d.casos!.find((x) => x.id === p.id)!;
+    if (p.nome !== undefined) c.nome = p.nome.trim();
+    if (p.natureza) c.natureza = p.natureza;
+    if (p.grupo !== undefined) { if (p.grupo.trim()) c.grupo = p.grupo.trim(); else delete c.grupo; }
+    if (p.simultaneo !== undefined) { if (p.simultaneo) c.simultaneo = p.simultaneo; else delete c.simultaneo; }
+    if (p.psi) c.psi = [...p.psi] as [number, number, number];
+    return `Caso ${c.nome} alterado.`;
+  },
+});
+
+registrar<{ id: string }>({
+  nome: 'caso.remover',
+  descricao: 'Remove um caso adicional e as cargas lançadas nele (na planta e nos pilares); casos ligados a ele deixam de ser simultâneos.',
+  risco: 'destrutivo',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
+  validar: (b, p) => (casoAd(b, p.id) ? [] : err('CASO_INEXISTENTE', `Caso adicional ${p.id} não existe.`)),
+  aplicar(d, p) {
+    const n0 = d.cargas.length + (d.cargasPilar?.length ?? 0);
+    d.casos = d.casos!.filter((c) => c.id !== p.id);
+    for (const c of d.casos) if (c.simultaneo === p.id) delete c.simultaneo;
+    if (!d.casos.length) delete d.casos;
+    d.cargas = d.cargas.filter((c) => c.caso !== p.id);
+    if (d.cargasPilar) { d.cargasPilar = d.cargasPilar.filter((c) => c.caso !== p.id); if (!d.cargasPilar.length) delete d.cargasPilar; }
+    return `Caso removido (${n0 - d.cargas.length - (d.cargasPilar?.length ?? 0)} carga(s) junto).`;
+  },
+});
+
+// ---- cargas nos pilares ----
+
+registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; N?: number; Hx?: number; Hy?: number; Mx?: number; My?: number }>({
+  nome: 'carga.pilar',
+  descricao: 'Carga num lance de pilar (eixos globais): N (kN, compressão +), Hx, Hy (kN), Mx, My (kN·m), no topo do lance ou a `altura` m acima da base. Sem `pavimento`, o último lance do pilar.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['pilar', 'caso'], properties: {
+    pilar: { type: 'string' }, pavimento: { type: 'string' }, caso: casoSchema('Q'), altura: { type: 'number', minimum: 0 },
+    N: { type: 'number' }, Hx: { type: 'number' }, Hy: { type: 'number' }, Mx: { type: 'number' }, My: { type: 'number' },
+  } },
+  validar(b, p) {
+    const q = b.pilares.find((x) => x.id === p.pilar);
+    if (!q) return err('PILAR_INEXISTENTE', `Pilar ${p.pilar} não existe.`);
+    const l = lancesDoPilar(b, q as Pilar);
+    if (p.pavimento && !l.some((x) => x.id === p.pavimento)) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lance até ${p.pavimento}.`);
+    if (![p.N, p.Hx, p.Hy, p.Mx, p.My].some((v) => v)) return err('SEM_VALOR', 'Informe ao menos um esforço.');
+    return casoOk(b, p.caso);
+  },
+  aplicar(d, p) {
+    const q = d.pilares.find((x) => x.id === p.pilar)!;
+    const pav = p.pavimento ?? lancesDoPilar(d as BuildingModel, q as Pilar).at(-1)!.id;
+    (d.cargasPilar ??= []).push({ id: novoId(d, 'cp'), pilar: p.pilar, pavimento: pav, caso: p.caso, ...(p.altura !== undefined ? { altura: p.altura } : {}), N: p.N ?? 0, Hx: p.Hx ?? 0, Hy: p.Hy ?? 0, Mx: p.Mx ?? 0, My: p.My ?? 0 });
+    return `Carga no pilar ${q.nome} (${p.caso}).`;
+  },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'carga.pilarRemover',
+  descricao: 'Remove cargas lançadas em pilares.',
+  risco: 'destrutivo',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
+  validar(b, p) { const f = p.ids.filter((id) => !b.cargasPilar?.some((c) => c.id === id)); return f.length ? err('CARGA_INEXISTENTE', `Carga(s) inexistente(s): ${f.join(', ')}.`) : []; },
+  aplicar(d, p) { const s = new Set(p.ids); d.cargasPilar = d.cargasPilar!.filter((c) => !s.has(c.id)); if (!d.cargasPilar.length) delete d.cargasPilar; return `${p.ids.length} carga(s) de pilar removida(s).`; },
 });
 
 /** Altura padrão da alvenaria do grupo: do pavimento até o seguinte, menos a viga mais comum do grupo de cima (m). */

@@ -82,7 +82,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'casos', 'cargasPilar'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }

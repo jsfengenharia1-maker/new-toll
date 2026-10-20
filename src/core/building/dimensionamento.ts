@@ -9,7 +9,7 @@ import type { FLoad } from '../piles';
 import type { AnaliseEdificio } from './analitico';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
-import { centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
+import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
 export { TAXAS };
@@ -46,7 +46,7 @@ export function esforcosAoLongo(m: Modelo3, bi: number, f: ArrayLike<number>, ca
 function porCaso(an: AnaliseEdificio, bi: number, xs: number[]): Record<string, Estacao[]> {
   const pm = an.portico, out: Record<string, Estacao[]> = {};
   if (!pm.res) return out;
-  ['G', 'Q'].forEach((c, ic) => (out[c] = esforcosAoLongo(pm.modelo, bi, pm.res!.esforcos[ic][bi], pm.casos?.[ic], xs)));
+  an.casos.forEach((c, ic) => (out[c] = esforcosAoLongo(pm.modelo, bi, pm.res!.esforcos[ic][bi], pm.casos?.[ic], xs)));
   (an.vento?.casos ?? []).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
   return out;
 }
@@ -239,8 +239,10 @@ export interface ResultadoLaje {
 
 function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[] {
   const c = concretoDe(b, 'laje'), fInf = acoDe(b, 'lajeInf').fyd, fSup = acoDe(b, 'lajeSup').fyd, gm = gamas(b);
+  // natureza e ψ2 de cada caso, na ordem dos resultados da grelha
+  const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((c) => c.id === id)?.natureza ?? 'G');
+  const psiQP = an.casos.map((id) => { const c = obra.find((x) => x.id === id); return c?.natureza === 'Q' ? (c.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3) : 0; });
   const out: ResultadoLaje[] = [];
-  const [, , psi2] = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const af = 1.32; // fluência com t0 = 1 mês (premissa do pórtico)
   for (const g of an.grelhas) {
     if (!g.res) continue;
@@ -253,16 +255,17 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         if (t.tipo !== 'laje' || t.ref !== l.id || t.dir === undefined || !t.largura) return;
         nos.add(br.i); nos.add(br.j);
         for (const k of [0, 6]) {
-          // momento interno nas pontas (sinal de viga: + traciona embaixo); γg·G + γq·Q
+          // momento interno nas pontas (sinal de viga: + traciona embaixo); γg·ΣG + γq·ΣQ (casos verticais da grelha)
           const Mi = (ic: number) => (k === 0 ? -g.res!.esforcos[ic][i][5] : g.res!.esforcos[ic][i][11]);
-          const md = (gm.g * Mi(0) + gm.q * Mi(1)) / t.largura;
+          const md = nat.reduce((t, n, ic) => t + (n === 'G' ? gm.g : n === 'Q' ? gm.q : 0) * Mi(ic), 0) / t.largura;
           mPos[t.dir] = Math.max(mPos[t.dir], md); mNeg[t.dir] = Math.min(mNeg[t.dir], md);
         }
       });
       if (!nos.size) continue;
       const pr = propriedadesLaje(l.tipo), msgs: string[] = [];
       let As = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
-      const fl = Math.max(...[...nos].map((n) => -(g.res!.desloc[0][n * 6 + 2] + psi2 * g.res!.desloc[1][n * 6 + 2]))) * (1 + af);
+      // quase permanente: permanentes + ψ2 das variáveis
+      const fl = Math.max(...[...nos].map((n) => -nat.reduce((t, k, ic) => t + (k === 'G' ? 1 : k === 'Q' ? psiQP[ic] : 0) * g.res!.desloc[ic][n * 6 + 2], 0))) * (1 + af);
       const lim = Math.min(...vaos(l)) / 250;
       if (l.tipo.tipo === 'macica') {
         const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
@@ -312,6 +315,7 @@ export function quantitativos(b: BuildingModel): Quantitativo[] {
 export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio): FLoad[] {
   const combs = combinacoesEdificio(b, an).filter((x) => x.tipo === 'RARA');
   const porPilar = new Map<string, Record<string, AnaliseEdificio['fundacao'][number]>>();
+  const permanentes = casosDaObra(b).filter((c) => c.natureza === 'G').map((c) => c.id);
   for (const f of an.fundacao) { const r = porPilar.get(f.pilar) ?? {}; r[f.caso] = f; porPilar.set(f.pilar, r); }
   let id = 0;
   return b.pilares.filter((p) => porPilar.has(p.id)).map((p) => {
@@ -322,7 +326,7 @@ export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio): FLoad
     const [cx, cy] = centroPilar(p, p.secao), [w, h] = dimsSecao(p.secao);
     const rot = Math.abs(Math.sin((p.angulo * Math.PI) / 180)) > 0.7;
     return {
-      id: ++id, label: p.nome, Nk: +ns[iMax].toFixed(2), NkMin: +Math.min(...ns).toFixed(2), NkPerm: +(r.G?.N ?? 0).toFixed(2),
+      id: ++id, label: p.nome, Nk: +ns[iMax].toFixed(2), NkMin: +Math.min(...ns).toFixed(2), NkPerm: +permanentes.reduce((t, c) => t + (r[c]?.N ?? 0), 0).toFixed(2),
       Hx: +v(cMax, 'Vx').toFixed(2), Hy: +v(cMax, 'Vy').toFixed(2), Mx: +v(cMax, 'Mx').toFixed(2), My: +v(cMax, 'My').toFixed(2),
       x: +cx.toFixed(3), y: +cy.toFixed(3), ap: rot ? h : w, bp: rot ? w : h, source: `Edifício · ${cMax.nome}`,
     };

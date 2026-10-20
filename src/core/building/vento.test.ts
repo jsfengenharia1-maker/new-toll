@@ -50,7 +50,8 @@ describe('vento (NBR 6123)', () => {
     for (const g of gz) { expect(g.max).toBeGreaterThan(1); expect(g.usoPrincipal).toBeGreaterThanOrEqual(g.ventoPrincipal); }
     expect(gz[0].max).toBeCloseTo(gz[2].max, 9); // 0° e 180° simétricos
     const combs = combinacoesEdificio(b, an);
-    expect(combs.filter((c) => c.tipo === 'RARA')).toHaveLength(1 + 2 * 12);
+    // Q sozinha + Q com cada vento; cada vento sozinho (N mínimo na fundação) e com ψ1·Q
+    expect(combs.filter((c) => c.tipo === 'RARA')).toHaveLength(1 + 12 + 2 * 12);
     const elu = combs.filter((c) => c.tipo === 'ELU');
     expect(elu.some((c) => c.fatores.G === 1.4 && c.fatores.Q === 1.4 && Object.keys(c.fatores).length === 2)).toBe(true);
     const r = resumoAnalise(b, an);

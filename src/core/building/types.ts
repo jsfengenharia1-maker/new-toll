@@ -193,10 +193,42 @@ export interface Laje {
 export type CasoFisico = 'G' | 'Q';
 
 /** Carga lançada na planta de um grupo: ponto (kN), linha (kN/m) ou área (kN/m²). */
+/** Natureza do caso de carga: permanente, variável, vento (ação horizontal) ou excepcional. */
+export type Natureza = 'G' | 'Q' | 'W' | 'E';
+
+/**
+ * Caso de carga adicional (além de G e Q da obra). `grupo`: casos do mesmo grupo são incompatíveis (nunca juntos);
+ * `simultaneo`: id de outro caso que atua sempre junto com este (mesmo fator).
+ */
+export interface CasoAdicional {
+  id: string;
+  nome: string;
+  natureza: Natureza;
+  grupo?: string;
+  simultaneo?: string;
+  /** ψ0, ψ1, ψ2 (variáveis e vento). */
+  psi?: [number, number, number];
+}
+
+/** Carga aplicada num lance de pilar (eixos globais): no topo ou a `altura` m acima da base do lance. */
+export interface CargaPilar {
+  id: string;
+  pilar: string;
+  /** Lance (pavimento do topo). */
+  pavimento: string;
+  /** G, Q ou id de caso adicional. */
+  caso: string;
+  /** Ausente = topo do lance. */
+  altura?: number;
+  /** kN (N > 0 = compressão, para baixo); kN·m. */
+  N: number; Hx: number; Hy: number; Mx: number; My: number;
+}
+
 export interface Carga {
   id: string;
   grupo: string;
-  caso: CasoFisico;
+  /** G, Q ou id de caso adicional. */
+  caso: string;
   tipo: 'ponto' | 'linha' | 'area';
   valor: number;
   pontos: [number, number][]; // ponto: 1; linha: polilinha; área: contorno
@@ -223,6 +255,10 @@ export interface BuildingModel {
   prancha?: ConfigPrancha;
   /** Opções de cálculo alteradas pelo usuário (o resto segue o padrão de opcoes.ts). */
   opcoes?: Partial<OpcoesCalculo>;
+  /** Casos de carga adicionais. */
+  casos?: CasoAdicional[];
+  /** Cargas nos pilares. */
+  cargasPilar?: CargaPilar[];
 }
 
 export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
@@ -383,3 +419,8 @@ export const comprimentoPolilinha = (pts: [number, number][]) => pts.slice(1).re
 
 /** Pavimentos que usam a planta do grupo. */
 export const pavimentosDoGrupo = (b: BuildingModel, grupo: string) => pavimentosOrdenados(b).filter((p) => p.grupo === grupo);
+
+/** Casos de carga da obra: G e Q (padrão) + os adicionais. */
+export function casosDaObra(b: BuildingModel): { id: string; nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }[] {
+  return [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...(b.casos ?? [])];
+}
