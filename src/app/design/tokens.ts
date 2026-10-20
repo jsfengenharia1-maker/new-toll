@@ -23,7 +23,7 @@ export function memo(nome: string): string {
 }
 
 /** Valor resolvido de uma custom property da interface (global.css), lido do documento. */
-export function cssVar(nome: string): string {
+export function cssVar(nome: string, el?: Element | null): string {
   if (typeof document === 'undefined') return '';
-  return getComputedStyle(document.documentElement).getPropertyValue(`--${nome}`).trim();
+  return getComputedStyle(el ?? document.documentElement).getPropertyValue(`--${nome}`).trim();
 }

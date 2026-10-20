@@ -94,6 +94,13 @@
   --pl-pb-janela: #000000;
   --pl-pb-cruzamento: #000000;
   --pl-pb-fantasma: rgba(0,0,0,0.35);
+  /* vista 3D (V1): cores por tipo de elemento nos três temas da planta; o contêiner .v3d-cv[data-tema] liga o tema às variáveis --v3d-<chave> */
+  --v3d-escuro-fundo: #11151A; --v3d-escuro-pilar: #C9D1D9; --v3d-escuro-viga: #4FA3D9; --v3d-escuro-laje: #D9B66A; --v3d-escuro-parede: #A1887F;
+  --v3d-escuro-escada: #9C8CD1; --v3d-escuro-fundacao: #7FA37A; --v3d-escuro-pendente: #FF8FD8; --v3d-escuro-linha: #0A0D10; --v3d-escuro-selecao: #00E5C8; --v3d-escuro-destaque: #FFD54F;
+  --v3d-claro-fundo: #F4F5F2; --v3d-claro-pilar: #6B7480; --v3d-claro-viga: #2A7DB5; --v3d-claro-laje: #C99B3B; --v3d-claro-parede: #8A6A5C;
+  --v3d-claro-escada: #7B68B8; --v3d-claro-fundacao: #5E8A57; --v3d-claro-pendente: #B5179E; --v3d-claro-linha: #1B1F24; --v3d-claro-selecao: #00897B; --v3d-claro-destaque: #C27C00;
+  --v3d-pb-fundo: #FFFFFF; --v3d-pb-pilar: #222222; --v3d-pb-viga: #6A6A6A; --v3d-pb-laje: #BDBDBD; --v3d-pb-parede: #8A8A8A;
+  --v3d-pb-escada: #4A4A4A; --v3d-pb-fundacao: #999999; --v3d-pb-pendente: #000000; --v3d-pb-linha: #000000; --v3d-pb-selecao: #000000; --v3d-pb-destaque: #555555;
   /* grupos de pavimentos (marca de cor por grupo; classe .grupo-c<i>) */
   --grupo-0: #5b8def; --grupo-1: #e6a23c; --grupo-2: #3fb27f; --grupo-3: #c86bdc;
   --grupo-4: #e05d5d; --grupo-5: #4fb3c8; --grupo-6: #a3a83a; --grupo-7: #8c7ae6;
@@ -697,3 +704,42 @@ text.vig-g0, text.vig-g1, text.vig-g2, text.vig-g3, text.vig-g4, text.vig-g5 { f
 tr.sel td { background: var(--accent-soft); }
 .dg-ref { stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 6 3; }
 .dg-reftxt { fill: var(--bad); }
+
+/* vista 3D (V1): contêiner, barra, dica e o isométrico estático (SVG). Cores: --v3d-<chave> do tema do contêiner. */
+.v3d { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.v3d-barra { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12px; }
+.v3d-barra select { border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; background: var(--surface); color: var(--ink); font-size: 12px; max-width: 150px; }
+.v3d-barra .row { align-items: center; flex-wrap: wrap; }
+.v3d-barra .rot { display: flex; gap: 6px; align-items: center; color: var(--muted); white-space: nowrap; }
+.v3d-barra .chip { padding: 2px 9px; font-size: 11.5px; }
+.v3d-barra .chip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; background: var(--muted); }
+.v3d-barra .chip.t-pilar::before { background: var(--v3d-pilar); } .v3d-barra .chip.t-viga::before { background: var(--v3d-viga); } .v3d-barra .chip.t-laje::before { background: var(--v3d-laje); }
+.v3d-barra .chip.t-parede::before { background: var(--v3d-parede); } .v3d-barra .chip.t-escada::before { background: var(--v3d-escada); } .v3d-barra .chip.t-fundacao::before { background: var(--v3d-fundacao); }
+.v3d-cv { position: relative; flex: 1; min-height: 320px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; background: var(--v3d-fundo); outline: none; }
+.v3d-cv canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.v3d-iso-box { position: absolute; inset: 0; }
+.v3d-cv svg.v3d-iso { position: absolute; inset: 0; width: 100%; height: 100%; }
+.v3d[data-tema='escuro'] { --v3d-fundo: var(--v3d-escuro-fundo); --v3d-pilar: var(--v3d-escuro-pilar); --v3d-viga: var(--v3d-escuro-viga); --v3d-laje: var(--v3d-escuro-laje); --v3d-parede: var(--v3d-escuro-parede); --v3d-escada: var(--v3d-escuro-escada); --v3d-fundacao: var(--v3d-escuro-fundacao); --v3d-pendente: var(--v3d-escuro-pendente); --v3d-linha: var(--v3d-escuro-linha); --v3d-selecao: var(--v3d-escuro-selecao); --v3d-destaque: var(--v3d-escuro-destaque); }
+.v3d[data-tema='claro'] { --v3d-fundo: var(--v3d-claro-fundo); --v3d-pilar: var(--v3d-claro-pilar); --v3d-viga: var(--v3d-claro-viga); --v3d-laje: var(--v3d-claro-laje); --v3d-parede: var(--v3d-claro-parede); --v3d-escada: var(--v3d-claro-escada); --v3d-fundacao: var(--v3d-claro-fundacao); --v3d-pendente: var(--v3d-claro-pendente); --v3d-linha: var(--v3d-claro-linha); --v3d-selecao: var(--v3d-claro-selecao); --v3d-destaque: var(--v3d-claro-destaque); }
+.v3d[data-tema='pb'] { --v3d-fundo: var(--v3d-pb-fundo); --v3d-pilar: var(--v3d-pb-pilar); --v3d-viga: var(--v3d-pb-viga); --v3d-laje: var(--v3d-pb-laje); --v3d-parede: var(--v3d-pb-parede); --v3d-escada: var(--v3d-pb-escada); --v3d-fundacao: var(--v3d-pb-fundacao); --v3d-pendente: var(--v3d-pb-pendente); --v3d-linha: var(--v3d-pb-linha); --v3d-selecao: var(--v3d-pb-selecao); --v3d-destaque: var(--v3d-pb-destaque); }
+.v3d-dica { position: absolute; z-index: 2; pointer-events: none; padding: 3px 7px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 11.5px; white-space: nowrap; }
+.v3d-aviso { position: absolute; left: 10px; top: 10px; right: 10px; z-index: 2; max-width: 520px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; }
+.v3d-st { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 4px 10px; font-size: 11.5px; border-top: 1px solid var(--line); background: var(--surface); }
+.v3d-st .num { font-family: var(--font-num); }
+.v3d-sel-info { display: flex; gap: 8px; align-items: center; }
+.slider { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.slider input[type='range'] { width: 96px; accent-color: var(--accent); }
+.slider output { font-family: var(--font-num); min-width: 34px; color: var(--ink); font-size: 11.5px; }
+/* isométrico estático: classes da cena (o mesmo SVG vai para o memorial com o prefixo m3d, em memorial.css) */
+.v3d-iso { --c: var(--v3d-pilar); }
+.v3d-iso .v3d-f { fill: var(--c); stroke: var(--c); stroke-width: 0.6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.v3d-iso .v3d-pilar { --c: var(--v3d-pilar); } .v3d-iso .v3d-viga { --c: var(--v3d-viga); } .v3d-iso .v3d-laje { --c: var(--v3d-laje); }
+.v3d-iso .v3d-parede { --c: var(--v3d-parede); } .v3d-iso .v3d-escada { --c: var(--v3d-escada); } .v3d-iso .v3d-fundacao { --c: var(--v3d-fundacao); }
+.v3d-iso .v3d-pendente { --c: var(--v3d-pendente); }
+.v3d-iso .v3d-pend { fill-opacity: 0.35; stroke-dasharray: 4 3; }
+.v3d-iso .v3d-laje { fill-opacity: 0.8; }
+.v3d-iso .v3d-sh1 { fill: color-mix(in srgb, var(--c) 88%, black); stroke: color-mix(in srgb, var(--c) 88%, black); }
+.v3d-iso .v3d-sh2 { fill: color-mix(in srgb, var(--c) 74%, black); stroke: color-mix(in srgb, var(--c) 74%, black); }
+.v3d-iso .v3d-sh3 { fill: color-mix(in srgb, var(--c) 58%, black); stroke: color-mix(in srgb, var(--c) 58%, black); }
+.v3d-iso .v3d-f.v3d-sel { fill: var(--v3d-selecao); stroke: var(--v3d-selecao); fill-opacity: 1; }
+.v3d-iso .v3d-rotulo { fill: var(--v3d-pendente); font: 700 40px var(--font-ui); }
