@@ -10,6 +10,7 @@ import type { ResultadoViga } from '../../core/building/dimensionamento';
 import type { DimEdificio } from './calculo';
 import { executarERecalcular } from './Armadura';
 import { linhasBarrasPilar, linhasEstribosPilar } from './DetalhamentoPilar';
+import { FACE_POS_LAJE, linhasPosicoesLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 
 export const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ACO_KG_M3 = 7850;
@@ -251,9 +252,9 @@ export function somarResumosAco(...rs: LinhaAco[][]): LinhaAco[] {
 }
 const totalAco = (r: LinhaAco[]) => ({ comprimento: r.reduce((s, x) => s + x.comprimento, 0), peso: r.reduce((s, x) => s + x.peso, 0), pesoComPerdas: r.reduce((s, x) => s + x.pesoComPerdas, 0) });
 
-/** Resumo de aço e lista de barras (vigas e pilares; separador ";", vírgula decimal). */
+/** Resumo de aço e lista de barras (vigas, pilares e lajes; separador ";", vírgula decimal). */
 export function csvAco(dim: DimEdificio): string {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [];
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [], detsL = dim.detalhesLajes ?? [];
   const cab = (t: string, p: number) => [[t], ['Aço', 'φ (mm)', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(p, 1)} % (kg)`]];
   const tabela = (t: string, r: LinhaAco[]) => {
     const l = cab(t, perdasDoResumo(r)), tt = totalAco(r);
@@ -261,7 +262,7 @@ export function csvAco(dim: DimEdificio): string {
     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
     return l;
   };
-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo geral de aço (vigas e pilares)', somarResumosAco(res, resP))];
+  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo geral de aço (vigas, pilares e lajes)', somarResumosAco(res, resP, resL))];
   lin.push(['Lista de barras'], ['Viga', 'Pos.', 'Tipo', 'Quant.', 'φ (mm)', 'C unit. (m)', 'Repetições', 'C total (m)', 'Peso (kg)']);
   for (const d of dets) {
     for (const x of linhasBarras(d)) lin.push([d.nome, x.pos, TIPO_BARRA[x.tipo], String(x.n), fmt(x.phi, x.phi % 1 ? 1 : 0), fmt(x.comprimento), String(d.repeticoes), fmt(x.total * d.repeticoes), fmt(x.peso * d.repeticoes)]);
@@ -272,6 +273,8 @@ export function csvAco(dim: DimEdificio): string {
     for (const x of linhasBarrasPilar(d)) lin.push([d.nome, x.pos, x.tipo === 'arranque' ? 'Arranque' : 'Longitudinal', String(x.n), fmt(x.phi, x.phi % 1 ? 1 : 0), fmt(x.comprimento), fmt(x.total), fmt(x.peso)]);
     for (const z of linhasEstribosPilar(d)) lin.push([d.nome, `Estribo ${z.nome}`, z.grampos ? `Estribo + ${z.grampos} grampo(s)` : 'Estribo', String(z.n), fmt(z.phi, z.phi % 1 ? 1 : 0), fmt(z.comprimento), fmt(z.total), fmt(z.peso)]);
   }
+  lin.push([], ['Lista de posições das lajes'], ['Laje', 'Pos.', 'Face', 'Tipo', 'Quant.', 'φ (mm)', 'Espaç. (cm)', 'C unit. (m)', 'Repetições', 'C total (m)', 'Peso (kg)']);
+  for (const d of detsL) for (const x of linhasPosicoesLaje(d)) lin.push([d.nome, x.pos, FACE_POS_LAJE[x.face], TIPO_POS_LAJE[x.tipo], String(x.n), fmt(x.phi, x.phi % 1 ? 1 : 0), x.s > 0 ? fmt(x.s * 100, 0) : '', fmt(x.comprimento), String(d.repeticoes), fmt(x.total * d.repeticoes), fmt(x.peso * d.repeticoes)]);
   return '﻿' + lin.map((l) => l.map(aspas).join(';')).join('\r\n') + '\r\n';
 }
 
@@ -294,19 +297,20 @@ function TabelaAco({ titulo, res, marca }: { titulo: string; res: LinhaAco[]; ma
 }
 
 export function ResumoAco({ dim }: { dim: DimEdificio }) {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [];
-  if (!res.length && !resP.length) return null;
-  const perdas = perdasDoResumo(somarResumosAco(res, resP));
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [];
+  if (!res.length && !resP.length && !resL.length) return null;
+  const perdas = perdasDoResumo(somarResumosAco(res, resP, resL));
   return (
     <div className="card" data-resumo-aco>
       <h3>Resumo de aço</h3>
       <TabelaAco titulo="Vigas" res={res} marca="vigas" />
       <TabelaAco titulo="Pilares" res={resP} marca="pilares" />
-      <TabelaAco titulo="Total geral (vigas e pilares)" res={somarResumosAco(res, resP)} marca="geral" />
+      <TabelaAco titulo="Lajes maciças" res={resL} marca="lajes" />
+      <TabelaAco titulo="Total geral (vigas, pilares e lajes)" res={somarResumosAco(res, resP, resL)} marca="geral" />
       <div className="row wrap">
-        <Button onClick={() => download('aco-vigas-pilares.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
+        <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
       </div>
-      <Hint>Comprimentos das vigas já multiplicados pelas repetições dos grupos de pavimentos; pilares pelo lance de cada pavimento. Perdas de {fmt(perdas, 1)} % (opção "perdas de aço"). O CSV traz os resumos e a lista de barras e estribos de cada viga e de cada pilar.</Hint>
+      <Hint>Comprimentos das vigas já multiplicados pelas repetições dos grupos de pavimentos; pilares pelo lance de cada pavimento; lajes maciças pelas repetições do grupo. Perdas de {fmt(perdas, 1)} % (opção "perdas de aço"). O CSV traz os resumos e a lista de barras e estribos de cada viga e de cada pilar e de posições de cada laje.</Hint>
     </div>
   );
 }

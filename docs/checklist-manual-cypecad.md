@@ -15,20 +15,20 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 16 | 23 | 17 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 11 | 15 | 57 | 25 |
-| 7. Lajes | 195 | 5 | 19 | 110 | 61 |
+| 7. Lajes | 195 | 5 | 21 | 108 | 61 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 7 | 9 | 3 |
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **79** | **107** | **398** | **179** |
+| **Total** | **763** | **79** | **109** | **396** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 26 | 71 | 97 |
+| R — Revisão de resultados e detalhamento | 28 | 69 | 97 |
 | N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -558,12 +558,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Falta | R |  |
 | C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Falta | R |  |
 | C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | R |  |
-| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Falta | R |  |
+| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Parcial | R | rótulos "Nk – n φ c/s – C = x,xx" junto às barras na planta da laje; sem siglas de reforço (R4) |
 | C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Falta | R |  |
 | C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Falta | R |  |
 | C7.133 | Janela de armadura pode ficar aberta enquanto se edita (edição contínua). | Falta | R |  |
 | C7.134 | Desfazer o agrupamento de barras clicando no grupo, que mostra todas as barras dele. | Falta | R |  |
-| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Falta | R |  |
+| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Parcial | R | camadas inferior e superior ligáveis na planta da laje e na planta do pavimento; sem edição (R4) |
 | C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R |  |
 | C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R |  |
 | C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R |  |

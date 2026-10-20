@@ -13,31 +13,31 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 32 | 24 | 23 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 32 | 26 | 21 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 31 | 12 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 23 | 63 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 24 | 62 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 31 | 22 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 20 | 37 | 40 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 4 | 1 | 36 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 6 | 4 | 31 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **150** | **175** | **225** | **111** |
+| **Total** | **661** | **152** | **181** | **217** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas | 72 | 30 | 102 |
-| R — Revisão de resultados e detalhamento | 67 | 43 | 110 |
+| R — Revisão de resultados e detalhamento | 73 | 35 | 108 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **175** | **225** | **400** |
+| **Total** | **181** | **217** | **398** |
 
 ## Divergências de premissa
 
@@ -251,9 +251,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.73 | Seleção de estribos (opção geral); fissuração (opção geral). | Parcial | R | estribo escolhido automaticamente; fissuração só no Pórtico 2D |
 | K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Falta | FU | vigas de fundação e cintas |
 | | **Lajes maciças, mistas e nervuradas (listadas)** | | | |
-| K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Parcial | R | ρmín 0,15 % e As por metro; sem armadura de torção nem comprimentos |
-| K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Falta | R | detalhamento de lajes |
-| K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Falta | R | detalhamento de lajes (comprimentos, ganchos, numeração) |
+| K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Parcial | R | ρmín e mínimos de distribuição (Tabela 19.1), negativo de borda (19.3.3.2) e comprimentos mínimos em % do vão; sem armadura de torção nem redução de densidade (R4) |
+| K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Parcial | R | ponta das barras a cobrimento da borda; sem armadura base nos desenhos (R4) |
+| K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Parcial | R | arredondamento de comprimentos (opção), ganchos de 90° e numeração N1…; sem critérios de disposição editáveis nem armadura de lajes retangulares (R4) |
 | | **Escadas (listadas)** | | | |
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
@@ -478,7 +478,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.85 | Engaste de borda com vigas de apoio 0–1 (inclui engaste parcial); desníveis entre panos como nas vigotas. | Parcial | N | sem engaste parcial; desnível não entra no cálculo |
 | K1.9.86 | Armadura base (superior e inferior, em cada direção) ou tela soldada atribuível por pano; considerada no cálculo e descontada da armadura adicional. | Falta | R | armadura base ou tela por pano |
 | K1.9.87 | Alerta: se a opção de detalhar armadura base estiver desligada, ela não aparece em desenhos, quantitativos e tabelas, embora entre no cálculo — indicar no desenho emendas e zonas. | Fora | — | alerta do manual |
-| K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Falta | R | armadura base contínua e emendas |
+| K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Parcial | R | positiva contínua com emenda por traspasse acima da barra máxima e negativos só onde o diagrama pede; sem armadura base nem emendas nas zonas de máximo negativo (R4) |
 | K1.9.89 | Lajes maciças podem ser radier: espessura, coeficiente de reação e tensão admissível; armadura base do radier pela taxa mínima automática das opções. | Falta | FU | radier |
 | | **Lajes nervuradas** | | | |
 | K1.9.90 | Zona aliviada e zona maciça; fôrma recuperável ou perdida (biblioteca editável). | Falta | E | lajes nervuradas |
@@ -750,7 +750,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.13.2.1 Armadura base** | | | |
 | K1.13.2.1-1 | Opcional: armadura base superior e inferior, longitudinal e transversal, podendo diferir entre si; escolhida da tabela e editável. | Falta | R | armadura base das lajes |
 | K1.13.2.1-2 | Quando definida, é sempre colaborante; aumentada se o cálculo exigir (flexão, armadura comprimida ou taxas mínimas configuradas). | Falta | R | armadura base colaborante |
-| K1.13.2.1-3 | Detalhada: desenhada com os reforços, cortes e emendas, com quantitativo e comprimentos de corte. | Falta | R | detalhamento da armadura base |
+| K1.13.2.1-3 | Detalhada: desenhada com os reforços, cortes e emendas, com quantitativo e comprimentos de corte. | Parcial | R | desenho (planta da laje) com as posições, comprimentos e quantitativo da armadura calculada; sem armadura base (R4) |
 | K1.13.2.1-4 | Não detalhada: só diâmetro e espaçamento indicados, sem desenho nem quantitativo; o usuário completa planta e quantitativos. | Falta | R | armadura base não detalhada |
 | | **1.13.2.2 Reforço longitudinal** | | | |
 | K1.13.2.2-1 | Em cada nó da malha conhecem-se os momentos fletores nas duas direções e o momento torçor. | Parcial | N | barras da grelha dão momentos por direção; torçor não usado |
@@ -758,8 +758,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.2-3 | Distribuição transversal: cada nó com os vizinhos à esquerda e à direita numa faixa de 1 m; soma-se no nó o esforço próprio e o redistribuído. | Feito | — | média dos nós da grelha numa faixa transversal de 1 m (N1d) |
 | K1.13.2.2-4 | Área necessária superior e inferior por direção, por metro, dividindo pelo tamanho da malha (distância entre nós) para valor uniforme e comparável. | Feito | — | As por metro superior e inferior por direção (cm²/m) |
 | K1.13.2.2-5 | Confere taxas mínimas por direção e por metro; reforço escolhido nas tabelas. | Feito | — | ρmín 0,15 % por direção (premissa a confirmar) |
-| K1.13.2.2-6 | Ponto de corte = comprimento necessário + ancoragem líquida reduzida conforme a posição (I ou II) + decalagem do diagrama conforme d e a norma. | Falta | R | corte das barras das lajes |
-| K1.13.2.2-7 | Diâmetros e espaçamentos máximos garantidos pelas tabelas, definidas por faixa de espessura da laje. | Falta | R | escolha de φ e espaçamento (NBR 6118 20.1) |
+| K1.13.2.2-6 | Ponto de corte = comprimento necessário + ancoragem líquida reduzida conforme a posição (I ou II) + decalagem do diagrama conforme d e a norma. | Feito | — | comprimento do negativo = diagrama da grelha + decalagem (1,5·d) + lb,nec reduzida por As,calc/As,ef, com a aderência (boa ou má) pela posição (R4) |
+| K1.13.2.2-7 | Diâmetros e espaçamentos máximos garantidos pelas tabelas, definidas por faixa de espessura da laje. | Parcial | R | bitola ≤ h/8, espaçamento máximo mín(2h; 20 cm) e mínimos editáveis (bitola e espaçamento); sem tabelas por faixa de espessura (R4) |
 | K1.13.2.2-8 | Consideração da torção opcional, recomendada sempre. | Falta | N | torção no dimensionamento das lajes |
 | | **1.13.2.3 Armadura predefinida** | | | |
 | K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Falta | R | armadura predefinida |
@@ -779,9 +779,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Falta | R | uniformização por zonas |
 | K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Falta | R | uniformização sobre pilares |
 | K1.13.2.4-14 | Linhas de dobra (definidas antes do cálculo, pelas direções de apoio): tratadas como pontos de negativo máximo e locais preferenciais de emenda da armadura inferior. | Falta | R | linhas de dobra |
-| K1.13.2.4-15 | Comprimento dos reforços negativos por porcentagens mínimas do vão entre linhas de dobra; emendas dos positivos nessas linhas quando possível. | Falta | R | comprimentos de negativos |
+| K1.13.2.4-15 | Comprimento dos reforços negativos por porcentagens mínimas do vão entre linhas de dobra; emendas dos positivos nessas linhas quando possível. | Parcial | R | mínimo em % do maior vão (opção; NBR 0) aplicado aos negativos; sem linhas de dobra nem emendas dos positivos nelas (R4) |
 | K1.13.2.4-16 | Edição final de diâmetro e espaçamento dos reforços e dos ganchos superiores e inferiores. | Falta | R | edição de barras |
-| K1.13.2.4-17 | Ancoragem na laje medida a partir da face do apoio; com vigas largas, conferir se a barra atravessa a viga e alongar a ancoragem se necessário. | Falta | R | ancoragem a partir da face |
+| K1.13.2.4-17 | Ancoragem na laje medida a partir da face do apoio; com vigas largas, conferir se a barra atravessa a viga e alongar a ancoragem se necessário. | Feito | — | ponta ancorada além da face: atravessa a viga até a face oposta menos o cobrimento e usa gancho/aviso quando a viga é estreita (R4) |
 | K1.13.2.4-18 | Opção: armadura média uniforme por direção em lajes retangulares apoiadas em vigas. | Falta | R | armadura média em lajes retangulares |
 | | **1.13.3 Lajes nervuradas (págs. 94–95)** | | | |
 | K1.13.3-1 | Critérios iguais aos das lajes maciças, salvo as diferenças abaixo. | Falta | E | lajes nervuradas |

@@ -958,9 +958,9 @@ export const flows = [
       const resumo = page.locator('[data-resumo-aco]');
       await resumo.waitFor();
       const peso = async (m) => num(await resumo.locator(`tr[data-total-aco="${m}"] td.num`).nth(1).innerText());
-      const pv = await peso('vigas'), pp = await peso('pilares'), pg = await peso('geral');
+      const pv = await peso('vigas'), pp = await peso('pilares'), pl = await peso('lajes'), pg = await peso('geral');
       assert.ok(pp > 0, `peso dos pilares ${pp}`);
-      assert.ok(Math.abs(pg - (pv + pp)) < 0.02, `geral ${pg} = vigas ${pv} + pilares ${pp}`);
+      assert.ok(Math.abs(pg - (pv + pp + pl)) < 0.03, `geral ${pg} = vigas ${pv} + pilares ${pp} + lajes ${pl}`);
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Resumo de aço dos pilares/);
       assert.match(csv.text, /Resumo geral de aço/);
@@ -993,8 +993,79 @@ export const flows = [
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento dos pilares/);
       assert.match(mt, /Resumo geral de aço/);
-      assert.match(mt, /Total geral \(vigas e pilares\)/);
+      assert.match(mt, /Total geral \(vigas, pilares e lajes\)/);
       assert.match(mt, /detalhamento-pilares|Detalhamento\.\s*Pilares/);
+    },
+  },
+  {
+    name: 'R4: duas lajes contínuas, detalhamento da laje (planta SVG, tabela de posições), resumo geral de aço com lajes e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      // resumo de aço com lajes
+      const resumo = page.locator('[data-resumo-aco]');
+      await resumo.waitFor();
+      const peso = async (m) => num(await resumo.locator(`tr[data-total-aco="${m}"] td.num`).nth(1).innerText());
+      const pv = await peso('vigas'), pp = await peso('pilares'), pl = await peso('lajes'), pg = await peso('geral');
+      assert.ok(pl > 0, `peso das lajes ${pl}`);
+      assert.ok(Math.abs(pg - (pv + pp + pl)) < 0.03, `geral ${pg} = ${pv} + ${pp} + ${pl}`);
+      const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
+      assert.match(csv.text, /Resumo de aço das lajes/);
+      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares e lajes\)/);
+      assert.match(csv.text, /Lista de posições das lajes/);
+      // janela da laje, aba Detalhamento
+      const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
+      assert.ok(await cardL.locator('tbody tr').count() >= 2);
+      await cardL.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const svg = jan.locator('svg[data-detalhe-laje]');
+      await svg.waitFor();
+      const np = parseInt(await svg.getAttribute('data-posicoes'), 10);
+      assert.ok(np >= 3, `posições no desenho: ${np}`);
+      assert.equal(await svg.locator('g[data-pos]').count(), np);
+      assert.ok(await svg.locator('g[data-pos][data-tipo="positiva"]').count() >= 2);
+      assert.ok(await svg.locator('g[data-pos][data-tipo="negativa"]').count() >= 1, 'negativa sobre a borda contínua');
+      assert.match(await svg.innerHTML(), /N1 – \d+ φ[\d,]+ c\/\d+ – C = \d+,\d\d/);
+      assert.ok(await svg.locator('g[data-borda="continua"]').count() >= 1);
+      const tb = jan.locator('table[data-tabela-posicoes-laje]');
+      assert.match(await tb.innerText(), /Positiva/);
+      assert.match(await tb.innerText(), /Negativa/);
+      assert.equal(await tb.locator('tbody tr').count(), np + 1);
+      // camadas: desligar as superiores deixa só as inferiores
+      await jan.getByLabel('Superiores (negativas)').uncheck();
+      assert.equal(await svg.locator('g[data-face="sup"]').count(), 0);
+      assert.equal(parseInt(await svg.getAttribute('data-posicoes'), 10), await svg.locator('g[data-face="inf"]').count());
+      await jan.getByLabel('Superiores (negativas)').check();
+      assert.match(await jan.innerText(), /lb inferior \(boa aderência\)\s*\d+ cm/);
+      assert.ok(await jan.locator('table[data-tabela-positivas-laje] tbody tr').count() === 2);
+      assert.ok(await jan.locator('[data-avisos-det]').count() === 1);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // camada de armadura das lajes na planta
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      const camada = page.getByLabel('Armadura das lajes na planta');
+      await camada.selectOption('inf');
+      await page.waitForTimeout(300);
+      await camada.selectOption('sup');
+      await page.waitForTimeout(300);
+      assert.ok(parseFloat(await page.locator('[data-frame-ms]').first().getAttribute('data-frame-ms')) < 50, 'quadro da planta com a camada de armadura');
+      await camada.selectOption('nenhuma');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      // memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Detalhamento das lajes/);
+      assert.match(mt, /Total geral \(vigas, pilares e lajes\)/);
+      assert.match(mt, /detalhamento-lajes|Detalhamento\.\s*Lajes/);
     },
   },
 ];

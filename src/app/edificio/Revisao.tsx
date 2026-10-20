@@ -12,6 +12,7 @@ import type { DimEdificio } from './calculo';
 import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
+import { DetalheDaLaje } from './DetalhamentoLaje';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -239,10 +240,14 @@ function JanelaPilar({ id }: { id: string }) {
 
 function JanelaLaje({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
+  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const ls = dim.lajes.filter((x) => x.laje === id);
   if (!ls.length) return <p className="muted">Laje sem resultado.</p>;
+  const temDetalhe = !!dim.detalhesLajes?.some((x) => x.laje === id);
+  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaLaje id={id} /></>;
   return (
     <>
+      {temDetalhe && <AbasDetalhe aba={aba} onChange={setAba} />}
       <p className="small">Momentos de cálculo por metro nas duas direções da malha (x / y).</p>
       {ls.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>

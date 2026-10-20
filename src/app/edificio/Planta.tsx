@@ -132,6 +132,13 @@ export function Planta() {
     return { e, a };
   }, [rev]);
   const comErro = useMemo(() => new Set([...diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos), ...(pl.mostrarErros ? niveisRev.e : [])]), [diags, niveisRev, pl.mostrarErros]);
+  // armadura das lajes do pavimento (camada opcional): posições das lajes do grupo, calculadas uma vez por resultado
+  const dimLajes = useBuilding((st) => st.dim?.detalhesLajes);
+  const armLajes = useMemo(() => {
+    if (pl.armaduraLajes === 'nenhuma' || !dimLajes) return [];
+    const ids = new Set(lajes.map(({ l }) => l.id));
+    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => d.posicoes.filter((x) => x.face === pl.armaduraLajes).map((x) => ({ x, mx: (x.faixa[0][0] + x.faixa[1][0]) / 2, my: (x.faixa[0][1] + x.faixa[1][1]) / 2 })));
+  }, [dimLajes, lajes, pl.armaduraLajes]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -273,6 +280,17 @@ export function Planta() {
         ctx.moveTo(tx - ux * L, cy - uy * L); ctx.lineTo(tx + ux * L, cy + uy * L);
         for (const sgn of [1, -1]) { const ex = tx + sgn * ux * L, ey = cy + sgn * uy * L; ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 - uy * 4), ey - sgn * (uy * 7 + ux * 4)); ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 + uy * 4), ey - sgn * (uy * 7 - ux * 4)); }
         ctx.stroke();
+      }
+    }
+    // armadura das lajes (barra representativa de cada posição, com ganchos e rótulo)
+    if (armLajes.length) {
+      const cor = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga, rotulos = v.k > 40;
+      ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = 2; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      for (const { x, mx, my } of armLajes) {
+        const a = paraTela(x.a[0], x.a[1]), z = paraTela(x.z[0], x.z[1]);
+        ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...z); ctx.stroke();
+        for (const [pt, g] of [[a, x.ganchos[0]], [z, x.ganchos[1]]] as const) if (g > 0) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 3, 0, 2 * Math.PI); ctx.stroke(); }
+        if (rotulos) { const [tx, ty] = paraTela(mx, my); ctx.fillText(`${x.pos} ${x.n}φ${String(x.phi).replace('.', ',')}${x.s > 0 ? ` c/${Math.round(x.s * 100)}` : ''}`, tx + 4, ty - 6); }
       }
     }
     // vigas

@@ -304,6 +304,9 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
       <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
+      <select aria-label="Armadura das lajes na planta" title="Camada com as barras representativas das lajes maciças do pavimento (calcule o dimensionamento primeiro)" value={pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length} onChange={(e) => pl.set({ armaduraLajes: e.target.value as 'nenhuma' | 'inf' | 'sup' })}>
+        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
+      </select>
       <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>

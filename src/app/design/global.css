@@ -580,6 +580,9 @@ svg.mono .hinge { fill: #fff !important; }
   --det-fund: var(--line);
   --det-emenda: var(--warn);
   --det-cota: var(--muted);
+  --det-borda-continua: var(--c-v);
+  --det-borda-apoiada: var(--ok);
+  --det-borda-livre: var(--bad);
   --det-esp-contorno: 1.6;
   --det-esp-barra: 1.8;
   --det-esp-estribo: 1;
@@ -628,4 +631,21 @@ svg.mono .hinge { fill: #fff !important; }
 .det-leg i.arranque { border-color: var(--det-arranque); }
 .det-leg i.emenda { border-color: var(--det-emenda); border-top-style: dashed; }
 .det-leg i.estribo { border-top-width: 1px; border-color: var(--det-estribo); }
+.det-leg i.continua { border-color: var(--det-borda-continua); }
+.det-leg i.apoiada { border-color: var(--det-borda-apoiada); }
+.det-leg i.livre { border-color: var(--det-borda-livre); }
+/* detalhamento das lajes (frente R4) */
+.det-laje { max-width: 100%; }
+.det-furo { fill: var(--surface-2); stroke: var(--det-contorno); stroke-width: 1.2; stroke-dasharray: 4 2; }
+.det-borda { stroke-width: 3.5; stroke-linecap: butt; opacity: 0.75; }
+.det-borda.continua { stroke: var(--det-borda-continua); }
+.det-borda.apoiada { stroke: var(--det-borda-apoiada); }
+.det-borda.livre { stroke: var(--det-borda-livre); }
+.det-barra.distribuicao { stroke-dasharray: 5 3; }
+.det-faixa { stroke-width: 1; stroke-dasharray: 2 3; fill: none; }
+.det-faixa.inf { stroke: var(--det-inf); }
+.det-faixa.sup { stroke: var(--det-sup); }
+.det-gancho { fill: none; stroke-width: 1.4; }
+.det-gancho.inf { stroke: var(--det-inf); }
+.det-gancho.sup { stroke: var(--det-sup); }
 .det-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }

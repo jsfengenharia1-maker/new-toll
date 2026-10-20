@@ -19,6 +19,7 @@ import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
+import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
 import { emendasPilar, linhasBarrasPilar, linhasEstribosPilar, TRANSICAO } from './DetalhamentoPilar';
 
@@ -242,9 +243,30 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 );
               })}
             </>)}
-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0) && (<>
+            {dim.detalhesLajes && dim.detalhesLajes.length > 0 && (<>
+              {h2('Detalhamento das lajes')}
+              <p>Lajes maciças: positivas em malha nas duas direções, recortadas pelo contorno e pelos furos e ancoradas além da face dos apoios; negativos sobre as bordas contínuas (diagrama de momentos da grelha decalado em {fmt(opc.lajeDecalagem, 1)}·d mais o comprimento de ancoragem, com mínimo de {fmt(opc.lajeNegativoVao, 0)} % do maior vão) e negativos de borda sem continuidade ({fmt(opc.lajeNegativoBorda, 0)} % do menor vão; NBR 6118, 19.3.3.2); armadura de distribuição sob os negativos; borda livre em U (20.1); malha superior de canto {opc.lajeArmaduraCanto ? 'ligada' : 'desligada'}; reforço junto aos furos. Bitola mínima φ{fmt(opc.lajeBitolaMinima, 1)}, espaçamento mínimo de {fmt(opc.lajeEspacamentoMinimo, 0)} cm, barra máxima de {fmt(opc.barraMaxima, 1)} m (emenda por traspasse acima disso) e comprimentos arredondados para cima a {fmt(opc.arredondamento, 0)} cm. Desenhos na janela de resultados da laje.</p>
+              {dim.detalhesLajes.map((d) => (
+                <div key={d.laje} className="avoid">
+                  <h3>Laje {d.nome} · h = {fmt(d.h * 100, 0)} cm{d.repeticoes > 1 ? ` · ${d.repeticoes} pavimentos` : ''}</h3>
+                  <table>
+                    <thead><tr><th>Direção</th><th>Adotada</th><th>As adotada (cm²/m)</th><th>As necessária (cm²/m)</th></tr></thead>
+                    <tbody>{d.positivas.map((p, k) => <tr key={k}><td className="l">{k === 0 ? 'principal' : 'perpendicular'}{p.secundaria ? ' (secundária)' : ''}</td><td className="l">{`φ${String(p.phi).replace('.', ',')}`} c/{fmt(p.s * 100, 0)}</td><td>{fmt(p.As)}</td><td>{fmt(p.AsNec)}</td></tr>)}</tbody>
+                  </table>
+                  <table>
+                    <thead><tr><th>Pos.</th><th>Face</th><th>Tipo</th><th>Quant.</th><th>φ (mm)</th><th>Espaç. (cm)</th><th>C unit. (m)</th><th>C total (m)</th><th>Peso (kg)</th></tr></thead>
+                    <tbody>
+                      {linhasPosicoesLaje(d).map((x) => <tr key={x.pos}><td className="l" title={rotuloPosicaoLaje(x)}>{x.pos}</td><td className="l">{FACE_POS_LAJE[x.face]}</td><td className="l">{TIPO_POS_LAJE[x.tipo]}</td><td>{x.n}</td><td>{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td>{x.s > 0 ? fmt(x.s * 100, 0) : '—'}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.total)}</td><td>{fmt(x.peso)}</td></tr>)}
+                      <tr><td className="l" colSpan={8}><b>Total de uma laje</b></td><td><b>{fmt(d.peso)}</b></td></tr>
+                    </tbody>
+                  </table>
+                  <p>lb inferior = {fmt(d.lb.inf * 100, 0)} cm (boa aderência); lb superior = {fmt(d.lb.sup * 100, 0)} cm ({d.lb.supBoaAderencia ? 'boa' : 'má'} aderência). {d.emendas.length ? `Emendas por traspasse: ${d.emendas.map((e) => `direção ${e.dir} (l0 = ${fmt(e.l0 * 100, 0)} cm, ${e.linhas} ${e.linhas === 1 ? 'linha' : 'linhas'})`).join('; ')}.` : 'Sem emendas por traspasse.'}{d.avisos.length ? ` Avisos: ${d.avisos.join(' ')}` : ''}</p>
+                </div>
+              ))}
+            </>)}
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Total geral (vigas e pilares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [])]] as const).map(([tit, rs]) => (
+              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Total geral (vigas, pilares e lajes)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [])]] as const).map(([tit, rs]) => (
                 <div key={tit} className="avoid">
                   <h3>{tit}</h3>
                   <table>
@@ -256,7 +278,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   </table>
                 </div>
               ))}
-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes: aço estimado por taxa na tabela de quantitativos (detalhamento nas pranchas).</p>
+              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes de outros tipos (treliçadas, nervuradas) seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
             </>)}
             {h2('Lajes')}
             <table>
