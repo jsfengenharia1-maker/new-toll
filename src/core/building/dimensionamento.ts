@@ -63,6 +63,32 @@ const comb = (pc: Record<string, Estacao[]>, c: CombinacaoEd, i: number, k: keyo
   return s;
 };
 
+/** Combinação compilada: índices dos casos na ordem dos fatores (a mesma soma de `comb`) e os fatores. */
+type CombC = { idx: number[]; f: number[] };
+function compilarComb(c: CombinacaoEd, nomes: Map<string, number>): CombC {
+  const idx: number[] = [], f: number[] = [];
+  for (const nome in c.fatores) { const i = nomes.get(nome); if (i !== undefined) { idx.push(i); f.push(c.fatores[nome]); } }
+  return { idx, f };
+}
+/** Um esforço de todas as estações por caso (na ordem de `nomes`); caso ausente fica vazio. */
+function vetorCasos(pc: Record<string, Estacao[]>, nomes: Map<string, number>, k: keyof Estacao): Float64Array[] {
+  const out: Float64Array[] = [];
+  for (const [nome, i] of nomes) { const e = pc[nome]; const a = new Float64Array(e ? e.length : 0); if (e) for (let j = 0; j < e.length; j++) a[j] = e[j][k]; out[i] = a; }
+  return out;
+}
+/** dst[o + i] = Σ fator·caso[i], somando na ordem dos fatores (resultado idêntico ao de `comb`). */
+function combinarEm(dst: Float64Array, o: number, n: number, c: CombC, casos: Float64Array[]) {
+  for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < c.idx.length; j++) s += c.f[j] * casos[c.idx[j]][i]; dst[o + i] = s; }
+}
+/** Nomes dos casos que `porCaso` devolve, com o índice usado nos vetores. */
+function nomesDosCasos(an: AnaliseEdificio): Map<string, number> {
+  const m = new Map<string, number>();
+  if (!an.portico.res) return m;
+  for (const c of an.casos) if (!m.has(c)) m.set(c, m.size);
+  if (an.portico.resVento) for (const cv of an.vento?.casos ?? []) if (!m.has(cv.nome)) m.set(cv.nome, m.size);
+  return m;
+}
+
 // ---------------- vigas ----------------
 
 export interface ResultadoViga {
@@ -164,6 +190,9 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   const horiz = new Set([...(an.vento?.casos ?? []).map((x) => x.nome), ...obra.filter((x) => x.natureza === 'W').map((x) => x.id)]);
   const vert = (cb: CombinacaoEd): CombinacaoEd => ({ ...cb, fatores: Object.fromEntries(Object.entries(cb.fatores).filter(([k]) => !horiz.has(k))) });
   const eluV = elu.map(vert);
+  const nomesCasos = nomesDosCasos(an), eluC = elu.map((cb) => compilarComb(cb, nomesCasos)), eluVC = eluV.map((cb) => compilarComb(cb, nomesCasos)), freqC = freq.map((cb) => compilarComb(cb, nomesCasos));
+  const pontuais = new Map<number, { a: number }[]>();
+  for (const cs of an.portico.casos ?? []) for (const p of cs.pontuais ?? []) { const l = pontuais.get(p.barra); if (l) l.push(p); else pontuais.set(p.barra, [p]); }
   // nós de estrutura móvel quando γz > 1,1 (δ ≥ 0,90); nós fixos δ ≥ 0,75 (NBR 6118, 14.6.4.3)
   const gz = Math.max(1, ...(an.vento?.gamaZ ?? []).map((g) => g.max));
   const deltaMin = gz > 1.1 ? 0.9 : 0.75, deltaX = c.fck > 50 ? 0.56 : 0.44;
@@ -191,15 +220,23 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     type Vao = { L: number; xs: number[]; s: number[]; M: Float64Array[]; Mv: Float64Array[]; V: Float64Array[]; Vv: Float64Array[]; T: Float64Array[]; Mk: Float64Array[]; corte: boolean[]; ini: number; fim: number; balanco: boolean };
     const vaos: Vao[] = [];
     for (const cad of cadeiasViga(an, membros, noPilar)) {
-      const xs: number[] = [], sAbs: number[] = [], corte: boolean[] = [], M = elu.map(() => [] as number[]), Mv = elu.map(() => [] as number[]), V = elu.map(() => [] as number[]), Vv = elu.map(() => [] as number[]), T = elu.map(() => [] as number[]), Mk = freq.map(() => [] as number[]);
-      let x0 = 0;
-      for (const bi of cad) {
+      const xs: number[] = [], sAbs: number[] = [], corte: boolean[] = [];
+      // estações de cada barra da cadeia (primeiro passo: total de estações para alocar os vetores)
+      const estacoes = cad.map((bi) => {
         const { L } = baseBarra(pm.modelo, mb[bi]);
         const n = Math.max(4, Math.ceil(L / 0.25));
         const xl = Array.from({ length: n + 1 }, (_, k) => (k * L) / n);
-        for (const p of pm.casos?.flatMap((cs) => cs.pontuais ?? []) ?? []) if (p.barra === bi) xl.push(Math.max(0, p.a - 1e-6), Math.min(L, p.a + 1e-6));
+        for (const p of pontuais.get(bi) ?? []) xl.push(Math.max(0, p.a - 1e-6), Math.min(L, p.a + 1e-6));
         xl.sort((a, z) => a - z);
+        return { L, xl };
+      });
+      const tot = estacoes.reduce((t, e) => t + e.xl.length, 0);
+      const M = elu.map(() => new Float64Array(tot)), Mv = elu.map(() => new Float64Array(tot)), V = elu.map(() => new Float64Array(tot)), Vv = elu.map(() => new Float64Array(tot)), T = elu.map(() => new Float64Array(tot)), Mk = freq.map(() => new Float64Array(tot));
+      let x0 = 0, o = 0;
+      for (let ib = 0; ib < cad.length; ib++) {
+        const bi = cad[ib], { L, xl } = estacoes[ib];
         const pc = porCaso(an, bi, xl);
+        const ne = xl.length, ez = vetorCasos(pc, nomesCasos, 'Mz'), ey = vetorCasos(pc, nomesCasos, 'Vy'), et = vetorCasos(pc, nomesCasos, 'T');
         const rI = mb[bi].offI && noPilar.has(mb[bi].i) ? recuo : null, rJ = mb[bi].offJ && noPilar.has(mb[bi].j) ? recuo : null;
         const marcados = xl.map((x) => !op.cortanteApoio || ((rI === null || x - rI >= depoisFace - 1e-9) && (rJ === null || L - x - rJ >= depoisFace - 1e-9)));
         if (!marcados.some(Boolean)) marcados[Math.floor(xl.length / 2)] = true;
@@ -209,15 +246,17 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         xl.forEach((x, i) => {
           xs.push(x0 + x); corte.push(marcados[i]);
           sAbs.push(abscissa(v.pontos, [ini[0] + ((fim[0] - ini[0]) * x) / Lf, ini[1] + ((fim[1] - ini[1]) * x) / Lf]));
-          elu.forEach((cb, k) => { M[k].push(comb(pc, cb, i, 'Mz')); Mv[k].push(comb(pc, eluV[k], i, 'Mz')); V[k].push(comb(pc, cb, i, 'Vy')); Vv[k].push(comb(pc, eluV[k], i, 'Vy')); T[k].push(comb(pc, cb, i, 'T')); });
-          freq.forEach((cb, k) => Mk[k].push(comb(pc, cb, i, 'Mz')));
         });
-        x0 += L;
+        for (let k = 0; k < elu.length; k++) {
+          combinarEm(M[k], o, ne, eluC[k], ez); combinarEm(Mv[k], o, ne, eluVC[k], ez); combinarEm(V[k], o, ne, eluC[k], ey);
+          combinarEm(Vv[k], o, ne, eluVC[k], ey); combinarEm(T[k], o, ne, eluC[k], et);
+        }
+        for (let k = 0; k < freq.length; k++) combinarEm(Mk[k], o, ne, freqC[k], ez);
+        x0 += L; o += xl.length;
       }
       const ini = mb[cad[0]].i, fim = mb[cad.at(-1)!].j;
       const livre = (no: number) => !noPilar.has(no) && (usoNo.get(no) ?? 0) <= 1;
-      const f64 = (a: number[][]) => a.map((r) => Float64Array.from(r));
-      vaos.push({ L: x0, xs, s: sAbs, M: f64(M), Mv: f64(Mv), V: f64(V), Vv: f64(Vv), T: f64(T), Mk: f64(Mk), corte, ini, fim, balanco: livre(ini) !== livre(fim) });
+      vaos.push({ L: x0, xs, s: sAbs, M, Mv, V, Vv, T, Mk, corte, ini, fim, balanco: livre(ini) !== livre(fim) });
     }
     // envoltória ELU: momentos mínimos (p·ℓ²/x, p = (V1 + V2)/ℓ das cargas verticais) e depois a
     // redistribuição δ nos apoios internos, que também reduz o negativo mínimo ali
@@ -643,12 +682,19 @@ function momentosWoodArmer(g: GrelhaPavimento, lajeId: string, fat: number[]): {
   const nos = [...acc.keys()], uu = u as [number, number], vv: [number, number] = [-uu[1], uu[0]];
   const val = new Map(nos.map((n) => { const x = acc.get(n)!; return [n, { mx: media(x.mx), my: media(x.my), t: media(x.t), tem: [x.mx.length > 0, x.my.length > 0] }]; }));
   const pos: [number, number] = [0, 0], neg: [number, number] = [0, 0];
+  // grade de busca: a faixa (|d·ax| < s/2, |d·tr| ≤ 0,5) cabe no círculo de raio R; candidatos na ordem de `nos`
+  const R = Math.hypot(s / 2, 0.5) + 1e-3, cel = new Map<string, number[]>();
+  const chave = (x: number, y: number) => `${Math.floor(x / R)}:${Math.floor(y / R)}`;
+  nos.forEach((q, iq) => { const k = chave(m.nos[q][0], m.nos[q][1]); const l = cel.get(k); if (l) l.push(iq); else cel.set(k, [iq]); });
   for (const n of nos) {
-    const p = m.nos[n];
+    const p = m.nos[n], gx = Math.floor(p[0] / R), gy = Math.floor(p[1] / R), cand: number[] = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const iq of cel.get(`${gx + dx}:${gy + dy}`) ?? []) cand.push(iq);
+    cand.sort((a, z) => a - z);
+    const perto = cand.map((iq) => nos[iq]);
     // faixa de 1 m transversal a cada direção (mesma posição longitudinal, ± meia malha)
     const faixa = (dir: 0 | 1) => {
       const ax = dir === 0 ? uu : vv, tr = dir === 0 ? vv : uu;
-      const ns = nos.filter((q) => { const d = [m.nos[q][0] - p[0], m.nos[q][1] - p[1]]; return val.get(q)!.tem[dir] && Math.abs(d[0] * ax[0] + d[1] * ax[1]) < s / 2 + 1e-6 && Math.abs(d[0] * tr[0] + d[1] * tr[1]) <= 0.5 + 1e-6; });
+      const ns = perto.filter((q) => { const d = [m.nos[q][0] - p[0], m.nos[q][1] - p[1]]; return val.get(q)!.tem[dir] && Math.abs(d[0] * ax[0] + d[1] * ax[1]) < s / 2 + 1e-6 && Math.abs(d[0] * tr[0] + d[1] * tr[1]) <= 0.5 + 1e-6; });
       return { M: media(ns.map((q) => (dir === 0 ? val.get(q)!.mx : val.get(q)!.my))), t: media(ns.map((q) => val.get(q)!.t)) };
     };
     const fx = faixa(0), fy = faixa(1), w = woodArmer(fx.M, fy.M, Math.max(fx.t, fy.t));

@@ -207,8 +207,8 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
 
   const K: SpRows = Array.from({ length: neq }, () => new Map<number, number>());
   const P = casos.map(() => new Float64Array(neq));
-  const porBarra = casos.map((c) => { const mp = new Map<number, V3[]>(); for (const q of c.distribuidas) mp.set(q.barra, [...(mp.get(q.barra) ?? []), q.q]); return mp; });
-  const pontBarra = casos.map((c) => { const mp = new Map<number, { a: number; f: number[] }[]>(); for (const q of c.pontuais ?? []) mp.set(q.barra, [...(mp.get(q.barra) ?? []), q]); return mp; });
+  const porBarra = casos.map((c) => { const mp = new Map<number, V3[]>(); for (const q of c.distribuidas) { const l = mp.get(q.barra); if (l) l.push(q.q); else mp.set(q.barra, [q.q]); } return mp; });
+  const pontBarra = casos.map((c) => { const mp = new Map<number, { a: number; f: number[] }[]>(); for (const q of c.pontuais ?? []) { const l = mp.get(q.barra); if (l) l.push(q); else mp.set(q.barra, [q]); } return mp; });
   const elem = m.barras.map((b, bi) => {
     const { L, R, oi, oj } = baseBarra(m, b);
     const k = rigidezLocal(b, L);
@@ -232,8 +232,13 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   });
   for (const e of elem) {
     // Kg = Tᵀ k T
-    const kT = e.k.map((r) => e.T[0].map((_, c) => r.reduce((s, v, a) => s + v * e.T[a][c], 0)));
-    const Kg = e.T[0].map((_, r) => e.T[0].map((__, c) => e.T.reduce((s, row, a) => s + row[r] * kT[a][c], 0)));
+    // laços explícitos na mesma ordem de soma, pulando os termos de T nulos (somariam ±0: os valores não nulos
+    // de Kg ficam idênticos aos dos map/reduce; os nulos não entram na montagem)
+    const nzT: number[][] = [];
+    for (let c = 0; c < 12; c++) { const l: number[] = []; for (let a = 0; a < 12; a++) if (e.T[a][c] !== 0) l.push(a); nzT.push(l); }
+    const kT: number[][] = [], Kg: number[][] = [];
+    for (let r = 0; r < 12; r++) { const kr = e.k[r], row = new Array<number>(12); for (let c = 0; c < 12; c++) { const l = nzT[c]; let s = 0; for (let j = 0; j < l.length; j++) s += kr[l[j]] * e.T[l[j]][c]; row[c] = s; } kT.push(row); }
+    for (let r = 0; r < 12; r++) { const row = new Array<number>(12), l = nzT[r]; for (let c = 0; c < 12; c++) { let s = 0; for (let j = 0; j < l.length; j++) s += e.T[l[j]][r] * kT[l[j]][c]; row[c] = s; } Kg.push(row); }
     for (let a = 0; a < 12; a++) for (const [ea, ca] of mapa[e.dofs[a]]) for (let c = 0; c < 12; c++) {
       const v = Kg[a][c];
       if (!v) continue;
@@ -261,6 +266,8 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
     const eq = order[ldl.singularRow], d = eqDe.indexOf(eq);
     return { ...vazio, hb, erro: `Estrutura instável (gdl ${['ux', 'uy', 'uz', 'rx', 'ry', 'rz'][d % 6]} do nó ${(d - (d % 6)) / 6}).` };
   }
+  const molasNo = new Map<number, NonNullable<Modelo3['molas']>>();
+  for (const s of m.molas ?? []) { const l = molasNo.get(s.no); if (l) l.push(s); else molasNo.set(s.no, [s]); }
   const desloc: Float64Array[] = [], esforcos: Float64Array[][] = [], reacoes: Map<number, number[]>[] = [];
   casos.forEach((caso, ic) => {
     const b = new Float64Array(neq);
@@ -270,19 +277,23 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
     for (let d = 0; d < nn * 6; d++) for (const [e, c] of mapa[d]) u[d] += c * x[pos[e]];
     desloc.push(u);
     const forcasNo = new Float64Array(nn * 6); // forças que as barras fazem nos nós (sinal: ação dos nós sobre as barras)
+    const ug = new Float64Array(12), ul = new Float64Array(12);
     const ef = elem.map((e) => {
-      const ug = e.dofs.map((d) => u[d]);
-      const ul = e.T.map((row) => row.reduce((s, v, a) => s + v * ug[a], 0));
-      const f = e.k.map((row, r) => row.reduce((s, v, a) => s + v * ul[a], 0) + e.f0s[ic][r]);
+      for (let a = 0; a < 12; a++) ug[a] = u[e.dofs[a]];
+      for (let r = 0; r < 12; r++) { const row = e.T[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ug[a]; ul[r] = s; }
+      const f = new Float64Array(12), f0 = e.f0s[ic];
+      for (let r = 0; r < 12; r++) { const row = e.k[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ul[a]; f[r] = s + f0[r]; }
       for (let a = 0; a < 12; a++) { let s = 0; for (let r = 0; r < 12; r++) s += e.T[r][a] * f[r]; forcasNo[e.dofs[a]] += s; }
-      return Float64Array.from(f);
+      return f;
     });
     esforcos.push(ef);
     const rc = new Map<number, number[]>();
+    const nodaisNo = new Map<number, Caso3['nodais']>();
+    for (const n of caso.nodais) { const l = nodaisNo.get(n.no); if (l) l.push(n); else nodaisNo.set(n.no, [n]); }
     for (const [no] of m.apoios) {
       const r = [0, 1, 2, 3, 4, 5].map((g) => forcasNo[no * 6 + g]);
-      for (const n of caso.nodais) if (n.no === no) n.f.forEach((v, g) => (r[g] -= v));
-      for (const s of m.molas ?? []) if (s.no === no) r[s.gdl] += s.k * u[no * 6 + s.gdl];
+      for (const n of nodaisNo.get(no) ?? []) n.f.forEach((v, g) => (r[g] -= v));
+      for (const s of molasNo.get(no) ?? []) r[s.gdl] += s.k * u[no * 6 + s.gdl];
       rc.set(no, r);
     }
     reacoes.push(rc);

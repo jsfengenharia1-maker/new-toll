@@ -131,9 +131,16 @@ function stateForces(S: FiberSection, theta: number, t: number) {
   return { N, Mx, My };
 }
 
+const nUniforme = new WeakMap<FiberSection, number>();
+function compressaoUniforme(S: FiberSection) {
+  let n = nUniforme.get(S);
+  if (n === undefined) { n = stateForces(S, Math.PI / 2, 3).N; nUniforme.set(S, n); }
+  return n;
+}
+
 /** Faixa de normal resistente (MN, compressão +). */
 export function fiberAxialRange(S: FiberSection) {
-  return { NRc: stateForces(S, Math.PI / 2, 3).N, NRt: stateForces(S, Math.PI / 2, 0).N };
+  return { NRc: compressaoUniforme(S), NRt: stateForces(S, Math.PI / 2, 0).N };
 }
 
 /**
@@ -145,9 +152,10 @@ export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: num
   // raiz de N(m) = Nd por falsa posição modificada (Illinois): converge em poucas iterações, tolerância 1e-9 MN
   const atN = (theta: number) => {
     let a = 0, b = 3;
-    let fa = stateForces(S, theta, a).N - NdMN, fb = stateForces(S, theta, b).N - NdMN;
+    // t = 3 é a compressão uniforme (ε = εc2 em toda a seção): N não depende de θ, calculado uma vez por seção
+    let fa = stateForces(S, theta, a).N - NdMN, fb = compressaoUniforme(S) - NdMN;
     if (fa > 0 || fb < 0) return null;
-    let lado = 0, m = a, r = stateForces(S, theta, a);
+    let lado = 0, m = a, r = null as unknown as { N: number; Mx: number; My: number };
     for (let it = 0; it < 80; it++) {
       m = fb !== fa ? (a * fb - b * fa) / (fb - fa) : (a + b) / 2;
       if (!(m > a && m < b)) m = (a + b) / 2;

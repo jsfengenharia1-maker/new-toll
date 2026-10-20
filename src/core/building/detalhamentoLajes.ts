@@ -167,9 +167,12 @@ function faixasELU(b: BuildingModel, an: AnaliseEdificio): [number, number][] {
  */
 export function negativoJuntoBorda(grs: GrelhaPavimento[], lajeId: string, k: 0 | 1, P0: P, e: P, nrm: P, s0: number, s1: number, lim: number, perto: number, fx: [number, number][]): { x0: number; Mmin: number } {
   let x0 = 0, Mmin = 0;
+  const vistos = new Set<unknown>();
   for (const g of grs) {
     const m = g.modelo, res = g.res;
-    if (!res) continue;
+    // grelhas iguais do grupo compartilham a solução (cache da análise): contribuem igual ao máximo e ao mínimo
+    if (!res || vistos.has(res)) continue;
+    vistos.add(res);
     m.barras.forEach((br, i) => {
       const tg = g.barras[i];
       if (tg.tipo !== 'laje' || tg.ref !== lajeId || tg.dir !== k || !tg.largura) return;

@@ -120,7 +120,7 @@ function dividirVigas(vigas: Viga[], eixos: [P, P][], extras: P[], tol = 0.005) 
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const i of hash.get(`${gx + dx}:${gy + dy}`) ?? []) if (Math.hypot(nos[i].p[0] - p[0], nos[i].p[1] - p[1]) <= tol) return i;
     nos.push({ p: [p[0], p[1]], viga });
     const k = `${gx}:${gy}`;
-    hash.set(k, [...(hash.get(k) ?? []), nos.length - 1]);
+    const l = hash.get(k); if (l) l.push(nos.length - 1); else hash.set(k, [nos.length - 1]);
     return nos.length - 1;
   };
   // eixos já ajustados (pontas no eixo da viga de apoio): uma entrada por trecho de viga, na mesma ordem
@@ -328,7 +328,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
       if (!mm.linhas.length) avisos.push(`${l.nome}: malha vazia.`);
       // bordas: a faixa junto ao contorno vai para os nós da borda; borda livre (sem viga) ganha barra de meia faixa
-      const sobreViga = (p: P) => trechos.some((t) => { const a = nos[t.a].p, z = nos[t.z].p, dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy; const u = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]) < 0.01; });
+      const sobreViga = (p: P) => trechos.some((t) => { const a = nos[t.a].p, z = nos[t.z].p; if (p[0] < Math.min(a[0], z[0]) - 0.02 || p[0] > Math.max(a[0], z[0]) + 0.02 || p[1] < Math.min(a[1], z[1]) - 0.02 || p[1] > Math.max(a[1], z[1]) + 0.02) return false; const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy; const u = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]) < 0.01; });
       mm.bordas.forEach((e, k) => {
         const L = Math.hypot(e.z[0] - e.a[0], e.z[1] - e.a[1]), mid: P = [(e.a[0] + e.z[0]) / 2, (e.a[1] + e.z[1]) / 2];
         const sh = l.tipo.tipo === 'trelicada' ? [1, 0] : [0.5, 0.5];
@@ -719,6 +719,7 @@ function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[]) {
   const a = c[k], z = c[(k + 1) % n], ux = z[0] - a[0], uy = z[1] - a[1], L = Math.hypot(ux, uy) || 1;
   let cv = 1;
   for (const t of trechos) {
+    if ((t.viga.engasteLajes ?? 1) >= cv) continue; // não muda o mínimo
     const pa = nos[t.a].p, pz = nos[t.z].p, vx = pz[0] - pa[0], vy = pz[1] - pa[1], Lv = Math.hypot(vx, vy) || 1;
     if (distSeg(p, pa, pz) < 0.01 && Math.abs(ux * vy - uy * vx) / (L * Lv) < 0.05) cv = Math.min(cv, t.viga.engasteLajes ?? 1);
   }
