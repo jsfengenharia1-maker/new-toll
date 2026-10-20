@@ -12,7 +12,8 @@ import { PRANCHA_PADRAO, type Carimbo, type Formato } from '../../core/building/
 
 const CAMPOS: [keyof Carimbo, string][] = [
   ['empresa', 'Empresa / profissional'], ['obra', 'Obra'], ['cliente', 'Cliente'], ['local', 'Local'],
-  ['responsavel', 'Responsável técnico'], ['registro', 'Registro profissional'], ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
+  ['responsavel', 'Responsável técnico'], ['registro', 'Registro profissional'], ['art', 'ART / RRT'], ['etapa', 'Etapa (ex.: projeto para execução)'],
+  ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
 ];
 const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
@@ -36,7 +37,8 @@ export function Pranchas() {
     const idPav = new Map(b.pavimentos.map((p) => [p.nome, p.id]));
     return Object.fromEntries(dim.pilares.map((p) => [`${p.pilar}|${idPav.get(p.pavimento)}`, p.armadura]));
   }, [dim, revAnalise, sessao.rev, b.pavimentos]);
-  const prs = useMemo(() => montarPranchas(b, { armaduras }), [b, armaduras]);
+  const [hoje] = useState(() => new Date().toLocaleDateString('pt-BR'));
+  const prs = useMemo(() => montarPranchas(b, { armaduras, carimbo: { data: b.prancha?.carimbo.data || hoje } }), [b, armaduras, hoje]);
   const [sel, setSel] = useState(0);
   const pr = prs[Math.min(sel, prs.length - 1)];
   const svg = useMemo(() => (pr ? svgPrancha(pr) : ''), [pr]);
@@ -84,7 +86,7 @@ export function Pranchas() {
             <TextField key={k} label={rot} value={cfg.carimbo[k] ?? ''} onChange={(v) => exec('prancha.definir', { carimbo: { [k]: v } })} />
           ))}
         </div>
-        <Hint>Dados do carimbo ficam no arquivo de trabalho. Campos vazios: obra e local vêm dos dados da obra; revisão R00.</Hint>
+        <Hint>Dados do carimbo ficam no arquivo de trabalho. Campos vazios: obra e local vêm dos dados da obra (grupo Obra), revisão R00 e data de hoje. Escala, conteúdo e número da prancha são automáticos.</Hint>
       </div>
     </>
   );

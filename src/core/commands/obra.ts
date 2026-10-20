@@ -57,11 +57,11 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
   },
 });
 
-const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'desenho', 'revisao', 'data'] as const;
+const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'art', 'etapa', 'desenho', 'revisao', 'data'] as const;
 
 registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number }>({
   nome: 'prancha.definir',
-  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática). Campos de texto vazios voltam ao padrão.',
+  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática). Campos de texto vazios voltam ao padrão.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {

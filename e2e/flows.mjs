@@ -468,6 +468,10 @@ export const flows = [
       await page.getByLabel('Responsável técnico').fill('Eng. Teste');
       await page.getByLabel('Responsável técnico').press('Enter');
       await prev.getByText('Eng. Teste').waitFor();
+      await page.getByLabel('ART / RRT').fill('ART 2026-001');
+      await page.getByLabel('ART / RRT').press('Enter');
+      await prev.getByText('ART 2026-001').waitFor();
+      assert.match(await prev.textContent(), /\d{2}\/\d{2}\/\d{4}/); // data de hoje quando vazia
       // formato fixo pelo comando: a prévia acompanha
       await page.getByLabel('Formato').selectOption('A1');
       assert.equal(await prev.getAttribute('data-formato'), 'A1');
@@ -484,6 +488,22 @@ export const flows = [
       const dwg = await baixar('DWG R2018');
       assert.match(dwg.nome, /\.dwg$/);
       assert.equal(dwg.dados.subarray(0, 6).toString('latin1'), 'AC1032');
+    },
+  },
+  {
+    name: 'vigas: contorno locado na face externa dos pilares',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Vigas — Tipo' }).click();
+      await page.getByRole('button', { name: 'Contorno na face externa' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'alinhada(s) à face externa' }).waitFor();
+      for (const v of ['V1', 'V2', 'V3', 'V4']) assert.notEqual(await page.getByLabel(`Alinhamento de ${v}`).inputValue(), 'centro');
+      await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
+      assert.doesNotMatch(await page.locator('.edif-out').textContent(), /VIGA_/);
     },
   },
 ];

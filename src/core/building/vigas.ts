@@ -1,6 +1,6 @@
 // Regras das vigas na planta: apoios (pilares e outras vigas), sobreposição, face do pilar e diagnósticos de lançamento.
 import {
-  contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, trechosViga,
+  contornoPilar, geometriaViga, lancesDoPilar, offsetsViga, pavimentosDoGrupo, secaoNoLance, trechosViga,
   type BuildingModel, type Pilar, type Viga,
 } from './types';
 import type { Diagnostico } from './verify';
@@ -87,9 +87,55 @@ export function ajusteFaceTrecho(v: Viga, i: number, pilares: { p: Pilar; pav: s
     // Viga centrada no pilar (folgas iguais dos dois lados) é intencional: não ajusta.
     const dE = pMax - fEsq, dD = pMin - fDir;
     if (Math.abs(dE + dD) < 1e-3) continue;
+    // uma face já alinhada com a do pilar (viga locada pela face, mais estreita que o pilar) também é intencional
+    if (Math.abs(dE) < 1e-4 || Math.abs(dD) < 1e-4) continue;
     for (const d of [dE, dD]) if (Math.abs(d) > 1e-4 && Math.abs(d) <= tol && (!melhor || Math.abs(d) < Math.abs(melhor))) melhor = d;
   }
   return melhor;
+}
+
+export type LadoFace = 'externa' | 'esq' | 'dir';
+
+/**
+ * Locação da viga pela face do pilar: o lado escolhido (esquerda/direita do traçado, ou o externo à planta,
+ * oposto ao ponto `interior`) fica alinhado com a face mais externa dos pilares em que cada trecho se apoia.
+ * Devolve o novo alinhamento (a linha traçada passa a ser essa face, para que mudar a largura mantenha a face)
+ * e o deslocamento à esquerda de cada trecho; null se nenhum trecho toca pilar. Trecho sem pilar acompanha
+ * o vizinho colinear (senão a face fica onde está).
+ */
+export function alinhamentoNaFace(v: Viga, pilares: { p: Pilar; pav: string }[], lado: LadoFace, interior: [number, number] | null): { alinhamento: 'esq' | 'dir'; desloc: number[] } | null {
+  const n = v.pontos.length - 1;
+  const nrm = (i: number) => { const a = v.pontos[i], z = v.pontos[i + 1], L = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1; return { a, z, L, nx: -(z[1] - a[1]) / L, ny: (z[0] - a[0]) / L }; };
+  let s: 1 | -1;
+  if (lado === 'esq') s = 1;
+  else if (lado === 'dir') s = -1;
+  else {
+    if (!interior) return null;
+    let im = 0;
+    for (let i = 1; i < n; i++) if (nrm(i).L > nrm(im).L) im = i;
+    const t = nrm(im), mx = (t.a[0] + t.z[0]) / 2, my = (t.a[1] + t.z[1]) / 2;
+    s = (interior[0] - mx) * t.nx + (interior[1] - my) * t.ny > 0 ? -1 : 1; // interior à esquerda → externa é a direita
+  }
+  const off = offsetsViga(v), offFace = s > 0 ? off.esq : off.dir;
+  const corpos = trechosViga(v, FOLGA_APOIO);
+  const delta: (number | null)[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = nrm(i);
+    let f: number | null = null;
+    for (const { p, pav } of pilares) {
+      const c = contornoPilar(p, secaoNoLance(p, pav));
+      if (!sobrepoe(corpos[i], c)) continue;
+      for (const q of c) { const d = s * ((q[0] - t.a[0]) * t.nx + (q[1] - t.a[1]) * t.ny); if (f === null || d > f) f = d; }
+    }
+    delta.push(f === null ? null : f - s * offFace);
+  }
+  if (delta.every((d) => d === null)) return null;
+  const colinear = (i: number, j: number) => { const a = nrm(i), b = nrm(j); return Math.abs(a.nx * b.ny - a.ny * b.nx) < 1e-6 && a.nx * b.nx + a.ny * b.ny > 0; };
+  for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) if (delta[i] === null) {
+    const viz = [i - 1, i + 1].find((j) => j >= 0 && j < n && delta[j] !== null && colinear(i, j));
+    if (viz !== undefined) delta[i] = delta[viz];
+  }
+  return { alinhamento: s > 0 ? 'esq' : 'dir', desloc: delta.map((d) => offFace + s * (d ?? 0)) };
 }
 
 /** Diagnósticos das vigas e da ligação viga-pilar, por grupo e pavimento. */

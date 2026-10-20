@@ -74,6 +74,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'viga.remover': (b) => ({ ids: [b.vigas[0].id] }),
   'viga.renumerar': () => ({ grupo: 'g_3' }),
   'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
+  'viga.alinharFace': (b) => ({ grupo: 'g_3', ids: [b.vigas[1].id], lado: 'esq' }),
   'laje.detectarPanos': () => ({ grupo: 'g_3' }),
   'laje.criar': () => ({ grupo: 'g_3', ponto: [2, 1.5], tipo: { tipo: 'trelicada', modelo: 'H12', capa: 0.04 } }),
   'laje.editar': (b) => ({ id: b.lajes[0].id, tipo: { tipo: 'macica', h: 0.12 } }),

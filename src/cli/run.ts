@@ -27,7 +27,8 @@ export interface OpcoesSaidaPranchas { pdf?: string; dxf?: string; dwg?: string;
 
 /** Monta as pranchas (todas ou a de um grupo, por id ou nome) e grava os arquivos pedidos. DXF e DWG: uma prancha por arquivo (sufixo -2, -3...). */
 export function gravarPranchas(b: BuildingModel, o: OpcoesSaidaPranchas, io: Io, armaduras?: Record<string, string>) {
-  let prs = montarPranchas(b, { formato: o.formato, escala: o.escala, armaduras });
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  let prs = montarPranchas(b, { formato: o.formato, escala: o.escala, armaduras, carimbo: { data: b.prancha?.carimbo.data || hoje } });
   if (o.grupo) {
     const g = b.grupos.find((x) => x.id === o.grupo || x.nome.toLowerCase() === o.grupo!.toLowerCase());
     if (!g) throw new Error(`Grupo ${o.grupo} não existe.`);

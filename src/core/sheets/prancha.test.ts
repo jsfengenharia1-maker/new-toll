@@ -70,6 +70,17 @@ describe('pranchas', () => {
     expect(svgPrancha(pr)).toMatch(/^<svg[^>]+viewBox="0 0 594 420"/);
   });
 
+  it('carimbo: todo campo lançado pelo comando sai na legenda', () => {
+    const s = edificioExemplo();
+    const campos = { empresa: 'Empresa X', obra: 'Residencial Y', cliente: 'Cliente Z', local: 'Rua A, 10 — Cidade', responsavel: 'Eng. W', registro: 'CREA 1/D', art: 'ART 123', etapa: 'Projeto para execução', desenho: 'Desenhista K', revisao: 'R02', data: '01/11/2026' };
+    expect(s.executar('prancha.definir', { carimbo: campos }).ok).toBe(true);
+    const pap = textosPr(montarPranchas(s.modelo)[0], true);
+    for (const v of Object.values(campos)) expect(pap).toContain(v);
+    // vazio volta ao padrão: obra e local dos dados da obra
+    expect(s.executar('prancha.definir', { carimbo: { obra: '', local: '' } }).ok).toBe(true);
+    expect(textosPr(montarPranchas(s.modelo)[0], true)).toContain(s.modelo.obra.nome);
+  });
+
   it('PDF: estrutura (xref), página no tamanho da folha, camadas OCG e texto em WinAnsi', () => {
     const pr = prancha();
     const b = escreverPdf([pr, pr]);

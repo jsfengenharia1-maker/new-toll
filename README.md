@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 220 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 223 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -164,6 +164,8 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - PDF vetorial próprio em escala exata (penas, tracejados, Helvetica com acentos, uma camada OCG por tipo de elemento), várias páginas
 - DXF R2000 próprio: planta em metros no modelo, folha num layout com janela na escala, camadas com cor, tipo de linha e espessura; auditado sem erros pelo ezdxf (`validation/dxf/auditar.py`) e relido pelo nasjidwg
 - DWG R2018 pelo nasjidwg (MIT), carregado sob demanda de `public/vendor` (192 KB, fora do HTML único); a mesma prancha relida do DXF e do DWG é comparada entidade a entidade nos testes
+- Carimbo com empresa, obra, cliente, local, responsável técnico, registro, ART/RRT, etapa, desenho, revisão e data, todos editáveis na aba Pranchas
+- Locação da viga pela face do pilar (`viga.alinharFace`): contorno na face externa ou face esquerda/direita escolhida; viga mais estreita que o pilar fica para dentro
 - Aba Pranchas com prévia, `statikos prancha` (`--pdf`, `--dxf`, `--dwg`) e ferramenta `pranchas` no MCP; no artifact do claude.ai, arquivos de extensão não aceita (DXF, DWG, `.statikos`) saem dentro de um `.zip`
 
 **Próximas fases**

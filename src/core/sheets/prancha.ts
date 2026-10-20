@@ -261,8 +261,8 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     { h: 14, cel: [{ w: 1, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
     { h: 10, cel: [{ w: 1, rot: 'OBRA', val: cb.obra ?? b.obra.nome ?? '' }] },
     { h: 9, cel: [{ w: 0.5, rot: 'CLIENTE', val: cb.cliente ?? '' }, { w: 0.5, rot: 'LOCAL', val: cb.local ?? b.obra.cidade ?? '' }] },
-    { h: 12, cel: [{ w: 1, rot: 'CONTEÚDO', val: `PLANTA DE FORMAS — ${(g?.nome ?? grupo).toUpperCase()}`, hv: 3.5 }] },
-    { h: 9, cel: [{ w: 0.62, rot: 'RESPONSÁVEL TÉCNICO', val: cb.responsavel ?? '' }, { w: 0.38, rot: 'REGISTRO PROFISSIONAL', val: cb.registro ?? '' }] },
+    { h: 12, cel: [{ w: 0.68, rot: 'CONTEÚDO', val: `PLANTA DE FORMAS — ${(g?.nome ?? grupo).toUpperCase()}`, hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
+    { h: 9, cel: [{ w: 0.46, rot: 'RESPONSÁVEL TÉCNICO', val: cb.responsavel ?? '' }, { w: 0.27, rot: 'REGISTRO PROFISSIONAL', val: cb.registro ?? '' }, { w: 0.27, rot: 'ART / RRT', val: cb.art ?? '' }] },
     { h: 10, cel: [{ w: 0.17, rot: 'ESCALA', val: `1:${escala}` }, { w: 0.2, rot: 'DATA', val: cb.data ?? '' }, { w: 0.25, rot: 'DESENHO', val: cb.desenho ?? '' }, { w: 0.14, rot: 'REVISÃO', val: cb.revisao ?? 'R00' }, { w: 0.24, rot: 'PRANCHA', val: `${String(o.numero ?? 1).padStart(2, '0')}/${String(o.total ?? 1).padStart(2, '0')}`, hv: 4 }] },
   ];
   const hLeg = linhas.reduce((s, l) => s + l.h, 0);

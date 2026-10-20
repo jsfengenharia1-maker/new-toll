@@ -1,9 +1,9 @@
 // Comandos de vigas: traçar, editar, dividir, unir, prolongar/aparar, mover, copiar (no grupo e para outros grupos),
 // remover, renumerar e ajustar às faces dos pilares.
 import type { Draft } from 'immer';
-import { comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, type Alinhamento, type BuildingModel, type Viga, type Vinculo } from '../building/types';
+import { centroPilar, comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
-import { ajusteFaceTrecho, pilaresQueChegam, proximaViga, TOL_FACE } from '../building/vigas';
+import { ajusteFaceTrecho, alinhamentoNaFace, pilaresQueChegam, proximaViga, TOL_FACE, type LadoFace } from '../building/vigas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -300,6 +300,7 @@ registrar<{ grupo: string; ids?: string[]; tolerancia: number }>({
   nome: 'viga.ajustarFaces',
   descricao: 'Encosta a face das vigas na face paralela dos pilares em que se apoiam quando a distância entre as faces é pequena (até `tolerancia`, m).',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['grupo'], properties: { grupo: { type: 'string' }, ids: { type: 'array', items: { type: 'string' } }, tolerancia: { type: 'number', exclusiveMinimum: 0, maximum: 0.5, default: TOL_FACE } } },
   validar: (b, p) => (b.grupos.some((g) => g.id === p.grupo) ? [] : err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`)),
   aplicar(d, p) {
@@ -315,6 +316,47 @@ registrar<{ grupo: string; ids?: string[]; tolerancia: number }>({
       n++;
     }
     return n ? `${n} viga(s) encostada(s) na face dos pilares.` : 'Nenhuma viga a ajustar.';
+  },
+});
+
+registrar<{ grupo: string; ids?: string[]; lado: LadoFace }>({
+  nome: 'viga.alinharFace',
+  descricao: 'Loca vigas pela face dos pilares: o lado escolhido da viga fica na face mais externa dos pilares em que ela se apoia, mesmo com viga mais estreita que o pilar. lado "externa" = o lado de fora da planta (sem `ids`, só as vigas de contorno do grupo); "esq"/"dir" = lado do traçado. A linha traçada passa a ser essa face (mudar a largura mantém a face).',
+  risco: 'escrita',
+  schema: { type: 'object', additionalProperties: false, required: ['grupo'], properties: {
+    grupo: { type: 'string' }, ids: { type: 'array', items: { type: 'string' } },
+    lado: { type: 'string', enum: ['externa', 'esq', 'dir'], default: 'externa' },
+  } },
+  validar(b, p) {
+    if (!b.grupos.some((g) => g.id === p.grupo)) return err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`);
+    const f = faltam(b, p.ids ?? []);
+    return f.length ? err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`) : [];
+  },
+  aplicar(d, p) {
+    const b = d as BuildingModel;
+    const ps = pavimentosDoGrupo(b, p.grupo).flatMap((pav) => pilaresQueChegam(b, pav.id).map((x) => ({ p: JSON.parse(JSON.stringify(x)) as Pilar, pav: pav.id })));
+    const centros = [...new Map(ps.map((x) => [x.p.id, centroPilar(x.p, secaoNoLance(x.p, x.pav))])).values()];
+    const interior: P | null = centros.length ? [centros.reduce((t, c) => t + c[0], 0) / centros.length, centros.reduce((t, c) => t + c[1], 0) / centros.length] : null;
+    // vigas de contorno: todos os pilares do grupo do lado de dentro da viga (folga de 0,3 m)
+    const contorno = (v: Viga) => {
+      const L = (i: number) => Math.hypot(v.pontos[i + 1][0] - v.pontos[i][0], v.pontos[i + 1][1] - v.pontos[i][1]);
+      let im = 0;
+      for (let i = 1; i + 1 < v.pontos.length; i++) if (L(i) > L(im)) im = i;
+      const a = v.pontos[im], z = v.pontos[im + 1], l = L(im) || 1, nx = -(z[1] - a[1]) / l, ny = (z[0] - a[0]) / l;
+      const lado = centros.map((c) => (c[0] - a[0]) * nx + (c[1] - a[1]) * ny);
+      return lado.every((x) => x <= 0.3) || lado.every((x) => x >= -0.3);
+    };
+    const nomes: string[] = [];
+    for (const v of d.vigas) {
+      if (v.grupo !== p.grupo || (p.ids ? !p.ids.includes(v.id) : p.lado !== 'externa' || !contorno(v as Viga))) continue;
+      const vv = JSON.parse(JSON.stringify(v)) as Viga;
+      const r = alinhamentoNaFace(vv, ps, p.lado, interior);
+      if (!r) continue;
+      v.pontos = deslocarTrechos(vv.pontos, r.desloc);
+      v.alinhamento = r.alinhamento;
+      nomes.push(v.nome);
+    }
+    return nomes.length ? `${nomes.join(', ')} alinhada(s) à face ${p.lado === 'externa' ? 'externa' : p.lado === 'esq' ? 'esquerda' : 'direita'} dos pilares. Se o contorno das lajes mudou, detecte os panos de novo.` : 'Nenhuma viga apoiada em pilar para alinhar.';
   },
 });
 

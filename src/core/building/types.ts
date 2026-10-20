@@ -190,7 +190,7 @@ export interface BuildingModel {
 export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
 export interface Carimbo {
   empresa: string; obra: string; cliente: string; local: string;
-  responsavel: string; registro: string; desenho: string; revisao: string; data: string;
+  responsavel: string; registro: string; art: string; etapa: string; desenho: string; revisao: string; data: string;
 }
 export interface ConfigPrancha {
   carimbo: Partial<Carimbo>;

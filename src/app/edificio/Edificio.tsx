@@ -460,9 +460,18 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
       <div className="row wrap">
         <label className="check small"><input type="checkbox" checked={pl.invertida} onChange={(e) => pl.set({ invertida: e.target.checked })} /> <span>invertida</span></label>
         <button type="button" className={`btn${pl.ferramenta === 'viga' ? ' primary' : ''}`} onClick={() => pl.set({ ferramenta: 'viga' })}>Traçar vigas (V)</button>
-        <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.ajustarFaces', { grupo: grupo.id })}>Encostar nas faces</button>
+        <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.alinharFace', { grupo: grupo.id, lado: 'externa' })} title="Vigas de contorno: a face externa da viga vai para a face externa dos pilares (viga mais estreita que o pilar fica para dentro)">Contorno na face externa</button>
+        <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.ajustarFaces', { grupo: grupo.id })} title="Corrige folgas de até 5 cm entre a face da viga e a do pilar">Encostar nas faces</button>
         <button type="button" className="btn" disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.renumerar', { grupo: grupo.id })}>Renumerar</button>
       </div>
+      {sel.length > 0 && grupo && (
+        <div className="row wrap">
+          <span className="muted small">Locar {sel.length} selecionada(s) pela face do pilar:</span>
+          <button type="button" className="btn" onClick={() => exec('viga.alinharFace', { grupo: grupo.id, ids: sel, lado: 'externa' })}>externa</button>
+          <button type="button" className="btn" onClick={() => exec('viga.alinharFace', { grupo: grupo.id, ids: sel, lado: 'esq' })}>esquerda</button>
+          <button type="button" className="btn" onClick={() => exec('viga.alinharFace', { grupo: grupo.id, ids: sel, lado: 'dir' })}>direita</button>
+        </div>
+      )}
       {sel.length > 0 && (
         <div className="row wrap">
           <button type="button" className="btn" onClick={() => exec('viga.atribuir', { ids: sel, campo: 'secao', valor: sv })}>Aplicar {cm(sv.b)}x{cm(sv.h)} às {sel.length} selecionada(s)</button>
