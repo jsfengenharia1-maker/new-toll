@@ -8,13 +8,18 @@ import { useBuilding } from './store';
 
 const num = (v: number) => String(v).replace('.', ',');
 
+/** Opções de divisor ("p·ℓ² / …"): 0 = desligado. */
+export const desligadaEmZero = (o: { rotulo: string }) => o.rotulo.includes('/ …');
+/** Valor de uma opção para exibição: sim/não, "desligado" (divisor 0) ou número com vírgula. */
+export const valorOpcaoTxt = (o: { rotulo: string; booleana?: boolean }, v: number, fmtNum: (v: number) => string = num) => (o.booleana ? (v ? 'sim' : 'não') : desligadaEmZero(o) && v === 0 ? 'desligado' : fmtNum(v));
+
 export function OpcoesGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
   const perfil = perfilDe(b);
   const op = opcoesEmUso(b.opcoes, perfil);
   const alteradas = opcoesAlteradas(b.opcoes, perfil);
   const outro: PerfilOpcoes = perfil === 'nbr' ? 'sistema' : 'nbr';
-  const val = (o: (typeof OPCOES_INFO)[number], v: number) => (o.booleana ? (v ? 'sim' : 'não') : num(v));
+  const val = (o: (typeof OPCOES_INFO)[number], v: number) => valorOpcaoTxt(o, v);
   return (
     <Group title={`Opções de cálculo${alteradas.length ? ` (${alteradas.length} alterada${alteradas.length > 1 ? 's' : ''})` : ''}`} open={false}>
       <div className="row wrap u-items-end">
@@ -32,6 +37,7 @@ export function OpcoesGrupo({ b }: { b: BuildingModel }) {
             {o.booleana
               ? <Check label={o.rotulo} checked={!!op[o.chave]} onChange={(c) => exec('opcoes.definir', { valores: { [o.chave]: c ? 1 : 0 } })} />
               : <NumField label={o.rotulo} unit={o.unidade} width={190} value={op[o.chave]} onChange={(v) => exec('opcoes.definir', { valores: { [o.chave]: v } })} />}
+            {desligadaEmZero(o) && op[o.chave] === 0 && <span className="muted small" data-opcao-desligada={o.chave}>desligado</span>}
             <span className="muted small" title={o.descricao}>
               padrão {perfil === 'nbr' ? 'NBR' : 'do sistema'} {val(o, pad)} · {perfil === 'nbr' && o.fonteNBR ? o.fonteNBR : o.fonte}{o.aConfirmar && !(perfil === 'nbr' && o.fonteNBR) ? ' · a confirmar' : ''}
               {dif && <> · <b>{perfil === 'nbr' ? 'sistema' : 'NBR'}: {val(o, padraoDe(o, outro))}</b></>}

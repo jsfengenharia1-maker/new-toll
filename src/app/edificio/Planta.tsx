@@ -1,5 +1,6 @@
 // Planta do pavimento em Canvas 2D, em três camadas: máscara (com cache durante pan/zoom), modelo e interação.
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
+import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useRevisao } from './revisao';
@@ -148,15 +149,15 @@ export function Planta() {
     for (const r of dimVigotas) {
       if (!ids.has(r.laje)) continue;
       const vistos = new Set<number>();
-      for (const f of r.faixas) {
-        const g = r.grupos[f.grupo], ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), ao = (c: number): P => [f.a[0] + ux * c, f.a[1] + uy * c];
-        const rot = vistos.has(f.grupo) ? undefined : (vistos.add(f.grupo), g.positiva.barras?.n ? `${g.positiva.barras.n}φ${String(g.positiva.barras.phi).replace('.', ',')}` : 'treliça');
+      for (const i of faixasVisiveis(r, pl.vigotasTodas)) {
+        const f = r.faixas[i], g = r.grupos[f.grupo], ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), ao = (c: number): P => [f.a[0] + ux * c, f.a[1] + uy * c];
+        const rot = vistos.has(f.grupo) ? undefined : (vistos.add(f.grupo), `G${f.grupo + 1} · ${g.vigotas} vigotas · ${larguraGrupo(r, f.grupo).toFixed(2).replace('.', ',')} m`);
         if (face === 'inf') out.push({ a: f.a, z: f.z, rot });
         else g.negativos.forEach((n, k) => { if (n) out.push(k ? { a: ao(Math.max(0, f.L - n.comprimento)), z: f.z } : { a: f.a, z: ao(Math.min(f.L, n.comprimento)) }); });
       }
     }
     return out;
-  }, [dimVigotas, lajes, pl.armaduraLajes]);
+  }, [dimVigotas, lajes, pl.armaduraLajes, pl.vigotasTodas]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 

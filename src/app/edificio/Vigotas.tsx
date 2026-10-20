@@ -5,7 +5,8 @@ import { useBuilding } from './store';
 import { executarERecalcular } from './Armadura';
 import { fmt, phiTxt } from './Detalhamento';
 import { Diagrama, Mensagens, ST_TXT } from './Revisao';
-import { Button, Hint, KV, NumField, Pill, Select } from '../ui';
+import { Button, Check, Hint, KV, NumField, Pill, Select } from '../ui';
+import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import type { GrupoVigotas, ResultadoVigotas } from '../../core/building/vigotas';
 
 const NCORES = 6;
@@ -28,7 +29,7 @@ export function linhasGruposVigotas(r: ResultadoVigotas) {
 
 // ---------------------------------------------------------------- planta da laje com as vigotas
 
-function PlantaVigotas({ r, sel, onSel }: { r: ResultadoVigotas; sel: number; onSel: (i: number) => void }) {
+function PlantaVigotas({ r, sel, onSel, todas }: { r: ResultadoVigotas; sel: number; onSel: (i: number) => void; todas: boolean }) {
   const l = useBuilding((s) => s.sessao.modelo.lajes.find((x) => x.id === r.laje));
   if (!l) return null;
   const W = 960, m = 40, xs = l.contorno.map((p) => p[0]), ys = l.contorno.map((p) => p[1]);
@@ -37,27 +38,33 @@ function PlantaVigotas({ r, sel, onSel }: { r: ResultadoVigotas; sel: number; on
   const X = (v: number) => +(m + (v - x0) * esc).toFixed(1), Y = (v: number) => +(m + (y1 - v) * esc).toFixed(1);
   const anel = (rg: [number, number][]) => rg.map((p, i) => `${i ? 'L' : 'M'}${X(p[0])},${Y(p[1])}`).join('') + 'Z';
   const grupoDe = (i: number) => r.faixas[i].grupo;
-  const primeiras = new Map<number, number>();
-  r.faixas.forEach((f, i) => { if (!primeiras.has(f.grupo)) primeiras.set(f.grupo, i); });
+  const visiveis = faixasVisiveis(r, todas, sel), primeiras = new Map<number, number>();
+  visiveis.forEach((i) => { const g = r.faixas[i].grupo; if (!primeiras.has(g)) primeiras.set(g, i); });
+  const bandaDe = (f: (typeof r.faixas)[number]) => {
+    const ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), hw = f.largura / 2, nx = -uy * hw, ny = ux * hw;
+    return `M${X(f.a[0] + nx)},${Y(f.a[1] + ny)}L${X(f.z[0] + nx)},${Y(f.z[1] + ny)}L${X(f.z[0] - nx)},${Y(f.z[1] - ny)}L${X(f.a[0] - nx)},${Y(f.a[1] - ny)}Z`;
+  };
   const ult = r.faixas.at(-1), pri = r.faixas[0];
   const mid = (f: typeof pri) => [(f.a[0] + f.z[0]) / 2, (f.a[1] + f.z[1]) / 2];
   return (
     <svg className="det det-laje" viewBox={`0 0 ${W} ${H.toFixed(0)}`} role="img" aria-label={`Planta das vigotas da laje ${r.nome}`}
-      data-vigotas-laje={r.laje} data-faixas={r.faixas.length} data-grupos={r.grupos.length}>
+      data-vigotas-laje={r.laje} data-faixas={r.faixas.length} data-faixas-visiveis={visiveis.length} data-grupos={r.grupos.length}>
       <path d={anel(l.contorno)} className="det-contorno" />
       {(l.furos ?? []).map((f, i) => <path key={i} d={anel(f)} className="det-furo" />)}
-      {r.faixas.map((f, i) => {
+      {!todas && r.faixas.map((f, i) => <path key={`s${i}`} d={bandaDe(f)} className={`vig-grupo vig-g${f.grupo % NCORES}`} data-grupo-sombra={f.grupo} onClick={() => onSel(visiveis.find((j) => r.faixas[j].grupo === f.grupo) ?? 0)} />)}
+      {visiveis.map((i) => {
+        const f = r.faixas[i];
         const ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), g = grupoDe(i), gr = r.grupos[g];
         const at = (s: number) => [f.a[0] + ux * s, f.a[1] + uy * s];
         const seg = (s0: number, s1: number, cls: string, k: string) => {
           const A = at(s0), B = at(s1);
           return <line key={k} x1={X(A[0])} y1={Y(A[1])} x2={X(B[0])} y2={Y(B[1])} className={cls} />;
         };
-        const hw = f.largura / 2, nx = -uy * hw, ny = ux * hw; // meia largura representada, perpendicular às vigotas
-        const banda = `M${X(f.a[0] + nx)},${Y(f.a[1] + ny)}L${X(f.z[0] + nx)},${Y(f.z[1] + ny)}L${X(f.z[0] - nx)},${Y(f.z[1] - ny)}L${X(f.a[0] - nx)},${Y(f.a[1] - ny)}Z`;
+        const banda = bandaDe(f);
         return (
           <g key={i} data-faixa={i} data-grupo={g} data-selecionada={sel === i ? 'sim' : 'nao'} className={`vig-faixa vig-g${g % NCORES}${sel === i ? ' sel' : ''}`} onClick={() => onSel(i)}>
-            <path d={banda} className="vig-banda" />
+            {todas && <path d={banda} className="vig-banda" />}
+            {!todas && <line x1={X(f.a[0])} y1={Y(f.a[1])} x2={X(f.z[0])} y2={Y(f.z[1])} className="vig-eixo" />}
             {gr.macico[0] > 0 && seg(0, Math.min(f.L, gr.macico[0]), 'vig-macico', 'm0')}
             {gr.macico[1] > 0 && seg(Math.max(0, f.L - gr.macico[1]), f.L, 'vig-macico', 'm1')}
             {gr.negativos[0] && seg(0, Math.min(f.L, gr.negativos[0].comprimento), 'vig-neg', 'n0')}
@@ -67,7 +74,9 @@ function PlantaVigotas({ r, sel, onSel }: { r: ResultadoVigotas; sel: number; on
       })}
       {[...primeiras.entries()].map(([g, i]) => {
         const c = mid(r.faixas[i]);
-        return <text key={g} x={X(c[0]) + 4} y={Y(c[1]) - 6} className={`det-txt vig-g${g % NCORES}`} data-rotulo-grupo={g + 1}>G{g + 1} · {r.grupos[g].vigotas} vigotas</text>;
+        return <g key={g}><text x={X(c[0]) + 4} y={Y(c[1]) - 6} className={`det-txt vig-g${g % NCORES}`} data-rotulo-grupo={g + 1}>G{g + 1} · {r.grupos[g].vigotas} vigotas</text>
+          <text x={X(c[0]) + 4} y={Y(c[1]) + 8} className="det-txt cota" data-largura-grupo={g + 1}>largura {num(larguraGrupo(r, g))} m</text>
+        </g>;
       })}
       {ult && pri && (() => {
         const c0 = mid(pri), c1 = mid(ult), ux = (pri.z[0] - pri.a[0]) / (pri.L || 1), uy = (pri.z[1] - pri.a[1]) / (pri.L || 1);
@@ -79,7 +88,7 @@ function PlantaVigotas({ r, sel, onSel }: { r: ResultadoVigotas; sel: number; on
           </g>
         );
       })()}
-      <text x={W - 8} y={H - 4} textAnchor="end" className="det-txt cota">cotas em m · escala {num(esc, 0)} px/m · clique numa vigota para ver os diagramas</text>
+      <text x={W - 8} y={H - 4} textAnchor="end" className="det-txt cota">cotas em m · escala {num(esc, 0)} px/m · clique numa vigota para ver os diagramas{todas ? '' : ' · uma vigota representativa por grupo'}</text>
     </svg>
   );
 }
@@ -141,13 +150,15 @@ export function JanelaVigotas({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim);
   const r = dim?.vigotas?.find((x) => x.laje === id);
   const [sel, setSel] = useState(0);
+  const [todas, setTodas] = useState(false);
   if (!r) return <p className="muted">Laje sem resultado de vigotas.</p>;
   const linhas = linhasGruposVigotas(r), i = Math.min(sel, r.faixas.length - 1);
   return (
     <div data-vigotas={id}>
       <p className="small">Alinhamentos de vigotas na direção das nervuras: esforços por nervura (grelha × intereixo), momentos mínimos e igualação entre vizinhas, armadura positiva adicional ao banzo inferior da treliça, negativos na capa sobre os apoios, cortante sem armadura transversal (NBR 6118, 19.4.1) e faixa maciçada. Repete-se em {r.repeticoes} {r.repeticoes === 1 ? 'pavimento' : 'pavimentos'}.</p>
       <div className="det-leg"><span><i className="vig-leg banda" />vigota (cor = grupo de igualação)</span><span><i className="vig-leg neg" />negativos</span><span><i className="vig-leg macico" />faixa maciçada</span><span><i className="vig-leg dist" />distribuição</span></div>
-      {r.faixas.length > 0 && <PlantaVigotas r={r} sel={i} onSel={setSel} />}
+      {r.faixas.length > 0 && <Check label="Mostrar todas as faixas" checked={todas} onChange={setTodas} />}
+      {r.faixas.length > 0 && <PlantaVigotas r={r} sel={i} onSel={setSel} todas={todas} />}
       {r.faixas.length > 0 && <DiagramasVigota r={r} i={i} />}
       <h4>Grupos de igualação (esforços e armadura por nervura)</h4>
       <div className="tablewrap">

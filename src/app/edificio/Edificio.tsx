@@ -307,6 +307,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <select aria-label="Armadura das lajes na planta" title="Camada com as barras representativas das lajes maciças e as vigotas das treliçadas do pavimento (calcule o dimensionamento primeiro)" value={pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length && !dim?.vigotas?.length} onChange={(e) => pl.set({ armaduraLajes: e.target.value as 'nenhuma' | 'inf' | 'sup' })}>
         <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
       </select>
+      {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
       <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>

@@ -1107,6 +1107,13 @@ export const flows = [
       const nf = parseInt(await svg.getAttribute('data-faixas'), 10), ng = parseInt(await svg.getAttribute('data-grupos'), 10);
       assert.ok(nf >= 3, `faixas no desenho: ${nf}`);
       assert.ok(ng >= 1 && ng <= nf);
+      // padrão: uma faixa representativa por grupo; a chave mostra todas
+      assert.equal(parseInt(await svg.getAttribute('data-faixas-visiveis'), 10), ng, 'uma faixa por grupo');
+      assert.equal(await svg.locator('g[data-faixa]').count(), ng);
+      assert.ok(await svg.locator('[data-largura-grupo]').count() >= 1, 'largura do grupo indicada');
+      assert.equal(await svg.locator('text[data-rotulo-grupo]').count(), ng);
+      await jan.getByLabel('Mostrar todas as faixas').check();
+      assert.equal(parseInt(await svg.getAttribute('data-faixas-visiveis'), 10), nf);
       assert.equal(await svg.locator('g[data-faixa]').count(), nf);
       assert.equal(await svg.locator('text[data-rotulo-grupo]').count(), ng);
       assert.ok(await svg.locator('line.vig-neg').count() >= 1, 'negativos sobre o apoio contínuo');

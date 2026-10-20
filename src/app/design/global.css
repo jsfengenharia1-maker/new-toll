@@ -667,6 +667,9 @@ svg.mono .hinge { fill: #fff !important; }
 .vig-g4 { --vig: var(--vig-g4); }
 .vig-g5 { --vig: var(--vig-g5); }
 .vig-faixa { cursor: pointer; }
+.vig-grupo { fill: var(--vig); stroke: var(--vig); stroke-width: 1; opacity: 0.18; cursor: pointer; }
+.vig-eixo { stroke: var(--vig); stroke-width: 3; stroke-linecap: butt; }
+.vig-faixa:hover .vig-eixo, .vig-faixa.sel .vig-eixo { stroke-width: 5; }
 .vig-banda { fill: var(--vig); stroke: var(--surface); stroke-width: 1; opacity: 0.35; }
 .vig-faixa:hover .vig-banda, .vig-faixa.sel .vig-banda { opacity: 0.75; }
 .vig-faixa.sel .vig-neg { stroke-width: 3; }
