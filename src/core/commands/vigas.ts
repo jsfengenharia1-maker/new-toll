@@ -114,6 +114,7 @@ registrar<{ id: string; ponto: P }>({
   nome: 'viga.dividir',
   descricao: 'Divide a viga em duas no ponto da polilinha mais próximo de `ponto`.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'ponto'], properties: { id: { type: 'string' }, ponto } },
   validar(b, p) {
     const v = viga(b, p.id);
@@ -212,6 +213,7 @@ registrar<{ ids: string[]; dx: number; dy: number }>({
   nome: 'viga.mover',
   descricao: 'Desloca vigas de (dx, dy) metros.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' } } },
   validar(b, p) { const f = faltam(b, p.ids); return f.length ? err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`) : []; },
   aplicar(d, p) {
@@ -224,6 +226,7 @@ registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
   nome: 'viga.copiar',
   descricao: 'Copia vigas no mesmo grupo com deslocamento (dx, dy), repetido `vezes` (cópias em série).',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' }, vezes: { type: 'integer', minimum: 1, maximum: 100, default: 1 } } },
   validar(b, p) {
     const f = faltam(b, p.ids);

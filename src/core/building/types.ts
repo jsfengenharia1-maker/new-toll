@@ -115,6 +115,39 @@ export interface Viga {
   vinculoFim?: Vinculo;
 }
 
+export type TipoLaje =
+  | { tipo: 'macica'; h: number }
+  /** Treliçada unidirecional (vigotas + enchimento de EPS); `modelo` do catálogo (lajes.ts). */
+  | { tipo: 'trelicada'; modelo: string; capa: number };
+
+export interface Laje {
+  id: string;
+  nome: string;
+  grupo: string;
+  /** Contorno pelo eixo das vigas (anti-horário), m. */
+  contorno: [number, number][];
+  furos?: [number, number][][];
+  tipo: TipoLaje;
+  /** Direção das vigotas (graus, anti-horário a partir de +x); padrão: menor vão. */
+  direcao?: number;
+  /** Desnível do topo em relação ao pavimento (m; negativo = rebaixada). */
+  nivel?: number;
+}
+
+export type CasoFisico = 'G' | 'Q';
+
+/** Carga lançada na planta de um grupo: ponto (kN), linha (kN/m) ou área (kN/m²). */
+export interface Carga {
+  id: string;
+  grupo: string;
+  caso: CasoFisico;
+  tipo: 'ponto' | 'linha' | 'area';
+  valor: number;
+  pontos: [number, number][]; // ponto: 1; linha: polilinha; área: contorno
+  /** Origem automática (ex.: alvenaria da camada X da máscara), para regenerar. */
+  origem?: { tipo: 'alvenaria'; camada: string; bloco: string; espessura: number; altura: number };
+}
+
 export interface BuildingModel {
   version: typeof BUILDING_VERSION;
   /** Contador para ids determinísticos (o replay do log gera os mesmos ids). */
@@ -127,6 +160,8 @@ export interface BuildingModel {
   mascaras: Mascara[];
   pilares: Pilar[];
   vigas: Viga[];
+  lajes: Laje[];
+  cargas: Carga[];
 }
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
@@ -160,6 +195,8 @@ export function edificioVazio(): BuildingModel {
     mascaras: [],
     pilares: [],
     vigas: [],
+    lajes: [],
+    cargas: [],
   };
 }
 
@@ -177,7 +214,7 @@ export const cotaFundacao = (b: BuildingModel) => (b.pavimentos.length ? Math.mi
 
 /** Modelos gravados antes de um campo existir ganham o valor vazio. */
 export function normalizarEdificio(b: BuildingModel): BuildingModel {
-  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [] };
+  return { ...b, mascaras: b.mascaras ?? [], pilares: b.pilares ?? [], vigas: b.vigas ?? [], lajes: b.lajes ?? [], cargas: b.cargas ?? [] };
 }
 
 /** Pavimentos atravessados pelo pilar (topos dos lances), de baixo para cima. */

@@ -2,6 +2,7 @@
 import './obra';
 import './planta';
 import './vigas';
+import './lajes';
 
 export * from './registry';
 export { comandosEdificioPadrao } from './obra';

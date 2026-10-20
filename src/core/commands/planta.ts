@@ -53,6 +53,7 @@ registrar<{ id: string; de: [number, number][]; para: [number, number][]; escala
   nome: 'mascara.alinhar',
   descricao: 'Alinha a máscara por dois pares de pontos: os pontos `de` (posição atual no mundo) vão para `para`. Gira e desloca; com `escalar`, também ajusta a escala.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'de', 'para'], properties: {
     id: { type: 'string' }, de: { type: 'array', items: ponto, minItems: 2, maxItems: 2 }, para: { type: 'array', items: ponto, minItems: 2, maxItems: 2 },
     escalar: { type: 'boolean', default: false },
@@ -210,6 +211,7 @@ registrar<{ ids: string[]; dx: number; dy: number }>({
   nome: 'pilar.mover',
   descricao: 'Desloca pilares de (dx, dy) metros.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' } } },
   validar(b, p) {
     const falta = p.ids.filter((id) => !b.pilares.some((x) => x.id === id));
@@ -232,6 +234,7 @@ registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
   nome: 'pilar.copiar',
   descricao: 'Copia pilares com deslocamento (dx, dy), repetido `vezes` (cópias em série). As cópias recebem os próximos números.',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' }, vezes: { type: 'integer', minimum: 1, maximum: 100, default: 1 } } },
   validar(b, p) {
     const falta = p.ids.filter((id) => !b.pilares.some((x) => x.id === id));

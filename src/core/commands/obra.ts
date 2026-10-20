@@ -242,6 +242,7 @@ registrar<{ nome: string; p1: [number, number]; p2: [number, number] }>({
   nome: 'eixo.criar',
   descricao: 'Cria um eixo de referência pela reta p1–p2 (m).',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['nome', 'p1', 'p2'], properties: { nome: { type: 'string', minLength: 1 }, p1: ponto, p2: ponto } },
   validar: (_b, p) => (Math.hypot(p.p2[0] - p.p1[0], p.p2[1] - p.p1[1]) < TOL ? err('EIXO_DEGENERADO', 'Os dois pontos do eixo coincidem.') : []),
   aplicar(d, p) { d.eixos.push({ id: novoId(d, 'e'), nome: p.nome.trim(), p1: [...p.p1], p2: [...p.p2] }); return `Eixo ${p.nome.trim()} criado.`; },
@@ -272,6 +273,7 @@ registrar<{ ids: string[] }>({
   nome: 'eixo.remover',
   descricao: 'Remove eixos de referência.',
   risco: 'destrutivo',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
   validar(b, p) {
     const falta = p.ids.filter((id) => !b.eixos.some((e) => e.id === id));

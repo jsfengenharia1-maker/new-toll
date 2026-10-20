@@ -3,6 +3,7 @@
 import { peDireito, pavimentosOrdenados, type BuildingModel } from './types';
 import { diagnosticosPilares } from './pilares';
 import { diagnosticosVigas } from './vigas';
+import { diagnosticosLajes } from './lajes';
 
 export type Severidade = 'erro' | 'aviso' | 'info';
 
@@ -54,7 +55,7 @@ export function verificar(b: BuildingModel): Diagnostico[] {
   for (const e of b.eixos) nomes.set(e.nome, [...(nomes.get(e.nome) ?? []), e.id]);
   for (const [n, ids] of nomes) if (ids.length > 1) d.push({ codigo: 'EIXO_NOME_DUPLICADO', severidade: 'aviso', elementos: ids, mensagem: `Há ${ids.length} eixos com o nome “${n}”.` });
 
-  d.push(...diagnosticosPilares(b), ...diagnosticosVigas(b));
+  d.push(...diagnosticosPilares(b), ...diagnosticosVigas(b), ...diagnosticosLajes(b));
   return d;
 }
 

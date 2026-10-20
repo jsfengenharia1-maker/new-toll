@@ -10,7 +10,7 @@ function padrao(): Sessao {
 }
 const ok = (s: Sessao, n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); return r; };
 const sec = { b: 0.15, h: 0.4 };
-const codigos = (s: Sessao) => verificar(s.modelo).map((d) => d.codigo).sort();
+const codigos = (s: Sessao) => verificar(s.modelo).map((d) => d.codigo).filter((c) => c !== 'PANO_SEM_LAJE').sort(); // lajes: lajes.test.ts
 
 /** Pórtico de 4 pilares 20 × 40 nos cantos de 5 × 4 m e 4 vigas nos eixos, no grupo Tipo. */
 function quadro() {

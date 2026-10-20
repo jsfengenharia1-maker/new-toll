@@ -46,6 +46,7 @@ function dxfPlanta(extra = 0) {
   rect(0, 0, 1500, 1000, 'PAREDE'); rect(15, 15, 1485, 985, 'PAREDE'); rect(500, 15, 515, 985, 'PAREDE');
   p(0, 'ARC', 8, 'PORTA', 10, 515, 20, 300, 40, 80, 50, 0, 51, 90);
   p(0, 'TEXT', 8, 'TEXTO', 10, 200, 20, 750, 40, 25, 1, 'SALA');
+  p(0, 'LINE', 8, 'ALVENARIA', 10, 100, 20, 100, 11, 400, 21, 100, 0, 'LINE', 8, 'ALVENARIA', 10, 100, 20, 115, 11, 400, 21, 115);
   let s = 3;
   const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < extra; i++) { const x = r() * 1500, y = r() * 1000; p(0, 'LINE', 8, 'HACHURA', 10, x.toFixed(2), 20, y.toFixed(2), 11, (x + r() * 40).toFixed(2), 21, (y + r() * 40).toFixed(2)); }
@@ -371,6 +372,29 @@ export const flows = [
       await page.locator('.diags li.erro', { hasText: 'V3 não se apoia' }).waitFor();
       await page.keyboard.press('Control+z');
       await page.locator('.topbar .status.ok').waitFor();
+    },
+  },
+{
+    name: 'planta: laje no pano por clique, preencher panos e alvenaria gerada da máscara',
+    async run({ newPage, tmp }) {
+      const page = await newPage();
+      await importarMascara(page, tmp);
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Vigas — Tipo (5)' }).waitFor();
+      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' });
+      await page.keyboard.press('l');
+      const [sx, sy] = await telaDe(page, 2.5, 2);
+      await page.mouse.move(sx, sy); await page.mouse.click(sx, sy);
+      await page.locator('summary', { hasText: 'Lajes — Tipo (1)' }).waitFor();
+      await page.locator('summary', { hasText: 'Lajes' }).click();
+      await page.getByRole('button', { name: 'Preencher todos os panos' }).click();
+      await page.locator('summary', { hasText: 'Lajes — Tipo (2)' }).waitFor();
+      await page.locator('summary', { hasText: 'Cargas' }).click();
+      await page.getByRole('button', { name: 'Gerar 1 trecho(s) de parede' }).click();
+      await page.locator('summary', { hasText: 'Cargas — Tipo (1)' }).waitFor();
+      await page.locator('.statusbar .msg', { hasText: '1 trecho(s) de alvenaria (3 m, altura 2,5 m)' }).waitFor();
     },
   },
 ];

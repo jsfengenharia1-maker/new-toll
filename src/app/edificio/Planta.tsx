@@ -5,6 +5,8 @@ import { useBuilding } from './store';
 import { PALETAS, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara } from '../../core/building/pilares';
+import { panosDoGrupo } from '../../core/building/lajes';
+import { dentroPoligono, pontoInterno } from '../../core/geom/faces';
 import { contornoPilar, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, secaoNoLance, trechosViga, type BuildingModel, type Pilar } from '../../core/building/types';
 import { useStore } from '../store';
 
@@ -59,6 +61,8 @@ const PASSOS: Record<Ferramenta, string[]> = {
   selecionar: ['Clique num elemento ou arraste: da esquerda para a direita seleciona o que está todo dentro; da direita para a esquerda, o que cruza. Del remove.'],
   pilar: ['Clique para inserir o pilar (A muda o ponto fixo, R gira 90°). Digite x;y e Enter para coordenadas.'],
   viga: ['Primeiro ponto da viga (A alterna eixo/face esquerda/face direita).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela.'],
+  laje: ['Clique dentro de uma região fechada por vigas (ou desenhe o contorno de um balanço: pontos e Enter).', 'Próximo ponto do contorno; Enter fecha.'],
+  carga: ['Carga: clique o ponto (ou os pontos da linha/área; Enter termina).', 'Próximo ponto; Enter termina.'],
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
@@ -114,6 +118,10 @@ export function Planta() {
     }
     return new IndiceCaptura(segs, arcos);
   }, [b.eixos, naPlanta, vigas]);
+  const todasLajes = b.lajes, todasCargas = b.cargas;
+  const lajes = useMemo(() => todasLajes.filter((l) => l.grupo === grupo).map((l) => ({ l, c: pontoInterno(l.contorno) })), [todasLajes, grupo]);
+  const cargas = useMemo(() => todasCargas.filter((c) => c.grupo === grupo), [todasCargas, grupo]);
+  const panos = useMemo(() => (pl.ferramenta === 'laje' ? panosDoGrupo({ vigas: todasVigas } as BuildingModel, grupo) : []), [todasVigas, grupo, pl.ferramenta]);
   const comErro = useMemo(() => new Set(diags.filter((d) => d.severidade === 'erro').flatMap((d) => d.elementos)), [diags]);
 
   // ---- vista ----
@@ -221,6 +229,27 @@ export function Planta() {
         ctx.fillStyle = cores.eixo; ctx.fillText(e.nome, cx, cy + 0.5);
       }
     }
+    // lajes
+    for (const { l, c } of lajes) {
+      const sel = pl.selecao.has(l.id), erro = comErro.has(l.id);
+      const path = new Path2D();
+      l.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); });
+      path.closePath();
+      for (const f of l.furos ?? []) { f.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); }); path.closePath(); }
+      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = erro ? cores.erro : sel ? cores.selecao : cores.laje; ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
+      ctx.strokeStyle = erro ? cores.erro : cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
+      const [tx, ty] = paraTela(c[0], c[1]);
+      ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = erro ? cores.erro : cores.laje;
+      ctx.fillText(`${l.nome}${erro ? ' ⚠' : ''}`, tx, ty - 8);
+      ctx.font = '10px system-ui, sans-serif'; ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx, ty + 6);
+      if (l.tipo.tipo === 'trelicada') { // seta dupla na direção das vigotas
+        const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
+        ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
+        ctx.moveTo(tx - ux * L, cy - uy * L); ctx.lineTo(tx + ux * L, cy + uy * L);
+        for (const sgn of [1, -1]) { const ex = tx + sgn * ux * L, ey = cy + sgn * uy * L; ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 - uy * 4), ey - sgn * (uy * 7 + ux * 4)); ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 + uy * 4), ey - sgn * (uy * 7 - ux * 4)); }
+        ctx.stroke();
+      }
+    }
     // vigas
     for (const { v, g, t } of vigas) {
       const sel = pl.selecao.has(v.id), erro = comErro.has(v.id), cor = erro ? cores.erro : sel ? cores.selecao : cores.viga;
@@ -267,6 +296,30 @@ export function Planta() {
       ctx.fillStyle = erro ? cores.erro : cores.texto;
       ctx.fillText(q.p.nome + (erro ? ' ⚠' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
     }
+    desenharCargas(ctx);
+  };
+
+  const desenharCargas = (ctx: CanvasRenderingContext2D) => {
+    ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    for (const c of cargas) {
+      const sel = pl.selecao.has(c.id), cor = sel ? cores.selecao : c.origem ? cores.parede : cores.carga;
+      const pts = c.pontos.map((q) => paraTela(q[0], q[1]));
+      const rot = `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${c.caso}`;
+      ctx.strokeStyle = cor; ctx.fillStyle = cor;
+      if (c.tipo === 'ponto') {
+        const [x, y] = pts[0];
+        ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI); ctx.moveTo(x - 3.5, y - 3.5); ctx.lineTo(x + 3.5, y + 3.5); ctx.moveTo(x + 3.5, y - 3.5); ctx.lineTo(x - 3.5, y + 3.5); ctx.stroke();
+        ctx.fillText(rot, x + 8, y - 4);
+      } else if (c.tipo === 'linha') {
+        ctx.globalAlpha = c.origem ? 0.55 : 0.8; ctx.lineWidth = c.origem ? 4 : 2.5; ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q))); ctx.stroke(); ctx.globalAlpha = 1;
+        if (!c.origem || sel) { const m = Math.floor((pts.length - 1) / 2); ctx.fillText(rot, (pts[m][0] + pts[m + 1][0]) / 2 + 4, (pts[m][1] + pts[m + 1][1]) / 2 - 4); }
+      } else {
+        ctx.setLineDash([6, 3]); ctx.lineWidth = 1.5; ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q))); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+        ctx.globalAlpha = 0.08; ctx.fill(); ctx.globalAlpha = 1;
+        const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+        ctx.fillText(rot, Math.min(...xs) + 4, Math.max(...ys) - 4);
+      }
+    }
   };
 
   const glifo = (ctx: CanvasRenderingContext2D, c: Captura) => {
@@ -311,6 +364,15 @@ export function Planta() {
     if (s.guia && ult) { // linha-guia do polar/ortogonal
       const [ux, uy] = paraTela(...ult), L = Math.hypot(px - ux, py - uy) || 1;
       ctx.strokeStyle = cores.guia; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(ux + ((px - ux) / L) * 3000, uy + ((py - uy) / L) * 3000); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // pano sob o cursor (ferramenta laje)
+    if (pl.ferramenta === 'laje' && !pontos.length) {
+      const pano = panos.find((q) => dentroPoligono(s.cursor, q));
+      if (pano) { ctx.beginPath(); pano.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.globalAlpha = 0.3; ctx.fillStyle = cores.laje; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = cores.laje; ctx.lineWidth = 2; ctx.stroke(); }
+    }
+    if ((pl.ferramenta === 'laje' || (pl.ferramenta === 'carga' && pl.tipoCarga === 'area')) && pontos.length >= 2) {
+      const [ax, ay] = paraTela(...pontos[0]);
+      ctx.strokeStyle = pl.ferramenta === 'laje' ? cores.laje : cores.carga; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, ay); ctx.stroke(); ctx.setLineDash([]);
     }
     // prévia da viga
     if (pl.ferramenta === 'viga' && pontos.length && !s.pan) {
@@ -375,13 +437,25 @@ export function Planta() {
   };
 
   // ---- ações das ferramentas ----
-  const selecionados = () => ({ pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id) });
+  const selecionados = () => ({ pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
   const agir = (p: P2) => {
     const f = pl.ferramenta;
     const novos = [...pontos, p];
     if (f === 'pilar') { exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), secao: pl.secao, ajuste: pl.ajuste, angulo: pl.angulo }); return; }
     if (f === 'selecionar') return;
     if (f === 'viga') { setPontos(novos); return; }
+    if (f === 'laje') {
+      if (!pontos.length) {
+        const r = exec('laje.criar', { grupo, ponto: [+p[0].toFixed(4), +p[1].toFixed(4)], tipo: pl.tipoLaje });
+        if (!r.ok && r.erros[0]?.codigo === 'PANO_NAO_ENCONTRADO') { setPontos([p]); msg('Fora de região fechada: desenhe o contorno da laje (pontos e Enter).'); }
+        return;
+      }
+      setPontos(novos); return;
+    }
+    if (f === 'carga') {
+      if (pl.tipoCarga === 'ponto') { exec('carga.ponto', { grupo, ponto: [+p[0].toFixed(4), +p[1].toFixed(4)], valor: pl.valorCarga, caso: pl.caso }); return; }
+      setPontos(novos); return;
+    }
     if (f === 'eixo' && novos.length === 2) {
       const [a, z] = novos;
       if (Math.hypot(z[0] - a[0], z[1] - a[1]) < 1e-3) return;
@@ -412,6 +486,16 @@ export function Planta() {
     setPontos(novos);
   };
 
+  /** Enter/duplo clique: termina a polilinha da ferramenta atual. */
+  const terminar = (pts: P2[] = pontos) => {
+    const f = usePlanta.getState().ferramenta, tc = usePlanta.getState().tipoCarga;
+    const q = pts.map((x) => [+x[0].toFixed(4), +x[1].toFixed(4)]);
+    if (f === 'viga') { terminarViga(pts); return; }
+    if (f === 'laje' && pts.length >= 3) exec('laje.criar', { grupo, contorno: q, tipo: pl.tipoLaje });
+    if (f === 'carga' && tc === 'linha' && pts.length >= 2) exec('carga.linha', { grupo, pontos: q, valor: pl.valorCarga, caso: pl.caso });
+    if (f === 'carga' && tc === 'area' && pts.length >= 3) exec('carga.area', { grupo, contorno: q, valor: pl.valorCarga, caso: pl.caso });
+    setPontos([]);
+  };
   const terminarViga = (pts: P2[] = pontos) => {
     if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida });
     setPontos([]);
@@ -422,7 +506,10 @@ export function Planta() {
     let id: string | null = null;
     for (const q of [...naPlanta].reverse()) if (q.estado !== 'inferior' && dentro(w, q.contorno)) { id = q.p.id; break; }
     if (!id) for (const { v, t } of [...vigas].reverse()) if (t.some((r) => dentro(w, r))) { id = v.id; break; }
+    if (!id) for (const c of cargas) if (c.tipo === 'ponto' ? Math.hypot(w[0] - c.pontos[0][0], w[1] - c.pontos[0][1]) < tol * 1.5 : c.tipo === 'linha' ? c.pontos.some((q, i) => i > 0 && distSeg(w, c.pontos[i - 1], q) < tol) : false) { id = c.id; break; }
     if (!id) for (const e of b.eixos) if (distSeg(w, e.p1, e.p2) < tol) { id = e.id; break; }
+    if (!id) for (const c of cargas) if (c.tipo === 'area' && dentro(w, c.pontos)) { id = c.id; break; }
+    if (!id) for (const { l } of lajes) if (dentro(w, l.contorno)) { id = l.id; break; }
     const s = new Set(aditivo ? pl.selecao : []);
     if (id) { if (aditivo && s.has(id)) s.delete(id); else s.add(id); }
     pl.set({ selecao: s });
@@ -435,6 +522,8 @@ export function Planta() {
     const s = new Set<string>();
     for (const q of naPlanta) if (q.estado !== 'inferior' && (cruz ? q.contorno.some(inside) || dentro([x0, y0], q.contorno) : q.contorno.every(inside))) s.add(q.p.id);
     for (const e of b.eixos) if (cruz ? inside(e.p1) || inside(e.p2) || cruzaRet(e.p1, e.p2, x0, y0, x1, y1) : inside(e.p1) && inside(e.p2)) s.add(e.id);
+    for (const { l } of lajes) if (cruz ? l.contorno.some(inside) : l.contorno.every(inside)) s.add(l.id);
+    for (const c of cargas) if (cruz ? c.pontos.some(inside) : c.pontos.every(inside)) s.add(c.id);
     for (const { v, t } of vigas) {
       const cantos = t.flat();
       const cr = v.pontos.some((q, i) => i > 0 && cruzaRet(v.pontos[i - 1], q, x0, y0, x1, y1));
@@ -451,7 +540,7 @@ export function Planta() {
     (document.activeElement as HTMLElement | null)?.blur?.();
     cvI.current!.setPointerCapture(e.pointerId);
     if (e.button === 1 || (e.button === 0 && it.current.espaco)) { it.current.pan = { x: sx, y: sy, v: { ...vista! } }; return; }
-    if (e.button === 2) { if (pl.ferramenta === 'viga') terminarViga(); else setPontos([]); return; }
+    if (e.button === 2) { if (['viga', 'laje', 'carga'].includes(pl.ferramenta)) terminar(); else setPontos([]); return; }
     if (e.button !== 0) return;
     capturar(sx, sy);
     if (pl.ferramenta === 'selecionar') { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
@@ -507,9 +596,9 @@ export function Planta() {
       if (k === ' ') { it.current.espaco = e.type === 'keydown'; e.preventDefault(); return; }
       if (e.type !== 'keydown') return;
       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }
-      if (k === 'Enter' && P.ferramenta === 'viga') { terminarViga(); return; }
+      if (k === 'Enter' && ['viga', 'laje', 'carga'].includes(P.ferramenta)) { terminar(); return; }
       if (P.ferramenta === 'viga' && k.toLowerCase() === 'a') { const o = ['centro', 'esq', 'dir'] as const; P.set({ alinhamento: o[(o.indexOf(P.alinhamento) + 1) % 3] }); msg(`Alinhamento: ${({ centro: 'eixo', esq: 'face esquerda', dir: 'face direita' })[o[(o.indexOf(P.alinhamento) + 1) % 3]]}.`); return; }
-      const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', e: 'eixo', m: 'mover', d: 'medir' };
+      const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir' };
       if (ferr[k.toLowerCase()]) { P.set({ ferramenta: ferr[k.toLowerCase()] }); setPontos([]); return; }
       if (k === 'Escape') { if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
@@ -520,7 +609,8 @@ export function Planta() {
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
       if ((k === 'Delete' || k === 'Backspace') && P.selecao.size) {
         const sel = selecionados();
-        const cmds = [...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : [])];
+        const cmds = [...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : []),
+          ...(sel.lajes.length ? [{ nome: 'laje.remover', params: { ids: sel.lajes } }] : []), ...(sel.cargas.length ? [{ nome: 'carga.remover', params: { ids: sel.cargas } }] : [])];
         if (cmds.length) exec('lote', { comandos: cmds });
         P.set({ selecao: new Set() });
       }
@@ -546,7 +636,7 @@ export function Planta() {
         <canvas ref={cvE} />
         <canvas ref={cvI} className={`int f-${pl.ferramenta}`} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
-          onDoubleClick={() => { if (pl.ferramenta === 'viga') terminarViga(pontos.slice(0, -1).length >= 2 ? pontos.slice(0, -1) : pontos); }} />
+          onDoubleClick={() => { if (['viga', 'laje', 'carga'].includes(pl.ferramenta)) terminar(pontos.slice(0, -1).length >= 2 ? pontos.slice(0, -1) : pontos); }} />
         {digitando !== null && (
           <input className="digita" autoFocus aria-label="Valor digitado" style={{ left: posDig[0] + 16, top: posDig[1] + 12 }} value={digitando}
             onChange={(e) => setDigitando(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirmarDigitado(); if (e.key === 'Escape') setDigitando(null); e.stopPropagation(); }} onBlur={() => setDigitando(null)} />

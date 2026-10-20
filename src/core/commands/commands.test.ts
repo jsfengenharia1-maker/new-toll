@@ -10,7 +10,7 @@ function padrao(): Sessao {
   return s;
 }
 
-const GEO = { PAREDE: { linhas: [0, 0, 1000, 0, 1000, 0, 1000, 800], arcos: [500, 400, 50, 0, 360], textos: [{ x: 10, y: 10, h: 20, rot: 0, t: 'SALA' }] }, PORTA: { linhas: [0, 0, 90, 0], arcos: [], textos: [] } };
+const GEO = { PAREDE: { linhas: [0, 0, 1000, 0, 1000, 0, 1000, 800], arcos: [500, 400, 50, 0, 360], textos: [{ x: 10, y: 10, h: 20, rot: 0, t: 'SALA' }] }, PORTA: { linhas: [0, 0, 90, 0], arcos: [], textos: [] }, ALV: { linhas: [0, 300, 400, 300, 0, 315, 400, 315], arcos: [], textos: [] } };
 
 /** Modelo base dos testes genéricos: padrão + eixos + grupo vazio + máscara (cm) + pilares P1 (0; 0) e P2 (4; 3) + vigas V1 (vertical) e V2 (horizontal) no Tipo. */
 function base() {
@@ -24,6 +24,10 @@ function base() {
     ['viga.tracar', { grupo: 'g_3', pontos: [[4, 0], [4, 3]], secao: { b: 0.15, h: 0.4 } }],
     ['viga.tracar', { grupo: 'g_3', pontos: [[0, 0], [4, 0]], secao: { b: 0.15, h: 0.4 }, alinhamento: 'esq' }],
     ['viga.tracar', { grupo: 'g_3', pontos: [[4, 0], [6, 0]], secao: { b: 0.15, h: 0.4 }, alinhamento: 'esq' }],
+    ['viga.tracar', { grupo: 'g_3', pontos: [[0, 0], [0, 3], [4, 3]], secao: { b: 0.15, h: 0.4 } }],
+    ['laje.criar', { grupo: 'g_3', contorno: [[10, 0], [12, 0], [12, 2], [10, 2]] }],
+    ['laje.criar', { grupo: 'g_3', contorno: [[10, 3], [12, 3], [12, 5], [10, 5]] }],
+    ['carga.ponto', { grupo: 'g_3', ponto: [1, 1], valor: 10 }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
   return s.modelo;
 }
@@ -68,6 +72,19 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'viga.remover': (b) => ({ ids: [b.vigas[0].id] }),
   'viga.renumerar': () => ({ grupo: 'g_3' }),
   'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
+  'laje.detectarPanos': () => ({ grupo: 'g_3' }),
+  'laje.criar': () => ({ grupo: 'g_3', ponto: [2, 1.5], tipo: { tipo: 'trelicada', modelo: 'H12', capa: 0.04 } }),
+  'laje.editar': (b) => ({ id: b.lajes[0].id, tipo: { tipo: 'macica', h: 0.12 } }),
+  'laje.atribuir': (b) => ({ ids: b.lajes.map((l) => l.id), tipo: { tipo: 'trelicada', modelo: 'H16', capa: 0.04 } }),
+  'laje.abertura': (b) => ({ id: b.lajes[0].id, contorno: [[10.5, 0.5], [11, 0.5], [11, 1]] }),
+  'laje.remover': (b) => ({ ids: [b.lajes[0].id] }),
+  'laje.renumerar': () => ({ grupo: 'g_3' }),
+  'carga.ponto': () => ({ grupo: 'g_3', ponto: [1, 1], valor: 10 }),
+  'carga.linha': () => ({ grupo: 'g_3', pontos: [[0, 1], [4, 1]], valor: 5 }),
+  'carga.area': () => ({ grupo: 'g_3', contorno: [[0, 0], [1, 0], [1, 1]], valor: 2 }),
+  'carga.editar': (b) => ({ id: b.cargas[0].id, valor: 12 }),
+  'carga.remover': (b) => ({ ids: [b.cargas[0].id] }),
+  'carga.alvenariaDaMascara': () => ({ grupo: 'g_3', camada: 'ALV' }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 

@@ -5,7 +5,9 @@ import { usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { Planta } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
-import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type Norma } from '../../core/building/types';
+import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
+import { alturaAlvenaria } from '../../core/commands/lajes';
+import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
@@ -69,6 +71,8 @@ export function Edificio() {
         <MascaraGrupo b={b} />
         <PilaresGrupo b={b} />
         <VigasGrupo b={b} />
+        <LajesGrupo b={b} />
+        <CargasGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -251,7 +255,7 @@ export function NomeObra() {
 }
 
 const FERRAMENTAS: { f: Ferramenta; tecla: string; rot: string }[] = [
-  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'viga', tecla: 'V', rot: 'Viga' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
+  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'viga', tecla: 'V', rot: 'Viga' }, { f: 'laje', tecla: 'L', rot: 'Laje' }, { f: 'carga', tecla: 'C', rot: 'Carga' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
   { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
 ];
 
@@ -475,6 +479,108 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
         </table>
       )}
       <Hint>As vigas pertencem à planta do grupo (todos os pavimentos do grupo). Clique os pontos na planta; Enter, duplo clique ou botão direito termina.</Hint>
+    </Group>
+  );
+}
+
+/** Grupo da planta atual (pavimento escolhido na barra da planta). */
+function grupoAtual(b: BuildingModel, pavimento: string | null) {
+  const ps = pavimentosOrdenados(b);
+  const pav = ps.find((p) => p.id === pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  return b.grupos.find((g) => g.id === pav?.grupo);
+}
+
+function TipoLajeCampos({ tipo, onChange }: { tipo: TipoLaje; onChange: (t: TipoLaje) => void }) {
+  return (
+    <div className="row wrap">
+      <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }]} onChange={(v) => onChange(v === 'macica' ? { tipo: 'macica', h: 0.1 } : { tipo: 'trelicada', modelo: 'H12', capa: TRELICADAS.H12.capa })} />
+      {tipo.tipo === 'macica'
+        ? <NumField label="h" unit="cm" width={80} value={+(tipo.h * 100).toFixed(1)} onChange={(v) => v >= 7 && onChange({ tipo: 'macica', h: v / 100 })} />
+        : <>
+          <Select label="Enchimento" value={tipo.modelo} options={Object.keys(TRELICADAS).map((k) => ({ v: k, label: k }))} onChange={(v) => onChange({ tipo: 'trelicada', modelo: v, capa: TRELICADAS[v].capa })} />
+          <NumField label="Capa" unit="cm" width={80} value={+(tipo.capa * 100).toFixed(1)} onChange={(v) => v >= 3 && onChange({ ...tipo, capa: v / 100 })} />
+        </>}
+    </div>
+  );
+}
+
+function LajesGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const grupo = grupoAtual(b, pl.pavimento);
+  const ls = b.lajes.filter((l) => l.grupo === grupo?.id);
+  const sel = ls.filter((l) => pl.selecao.has(l.id)).map((l) => l.id);
+  const pp = propriedadesLaje(pl.tipoLaje);
+  return (
+    <Group title={`Lajes — ${grupo?.nome ?? '—'} (${ls.length})`} open={false}>
+      <TipoLajeCampos tipo={pl.tipoLaje} onChange={(t) => pl.set({ tipoLaje: t })} />
+      <Hint>{pp.descricao}: altura {fmt(pp.h)} m, peso próprio {fmt(pp.pp)} kN/m²{pl.tipoLaje.tipo === 'trelicada' ? ' (catálogo a confirmar com o fabricante)' : ''}.</Hint>
+      <div className="row wrap">
+        <button type="button" className={`btn${pl.ferramenta === 'laje' ? ' primary' : ''}`} onClick={() => pl.set({ ferramenta: 'laje' })}>Lançar lajes (L)</button>
+        <button type="button" className="btn" disabled={!grupo} onClick={() => grupo && exec('laje.detectarPanos', { grupo: grupo.id, tipo: pl.tipoLaje })}>Preencher todos os panos</button>
+        <button type="button" className="btn" disabled={!ls.length || !grupo} onClick={() => grupo && exec('laje.renumerar', { grupo: grupo.id })}>Renumerar</button>
+        {sel.length > 0 && <button type="button" className="btn" onClick={() => exec('laje.atribuir', { ids: sel, tipo: pl.tipoLaje })}>Aplicar às {sel.length} selecionada(s)</button>}
+      </div>
+      {ls.length > 0 && (
+        <table className="data loads-ed quadro">
+          <thead><tr><th>Laje</th><th>Tipo</th><th>Área (m²)</th><th>Vãos (m)</th><th>Dir. (°)</th></tr></thead>
+          <tbody>
+            {ls.map((l) => {
+              const [v1, v2] = vaos(l);
+              return (
+                <tr key={l.id} className={pl.selecao.has(l.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([l.id]) })}>
+                  <td><Cell value={l.nome} label={`Nome de ${l.nome}`} onCommit={(t) => exec('laje.editar', { id: l.id, nome: t })} /></td>
+                  <td className="tl small">{propriedadesLaje(l.tipo).descricao}</td>
+                  <td className="num">{fmt(areaLaje(l))}</td>
+                  <td className="num">{fmt(v1)} × {fmt(v2)}</td>
+                  <td>{l.tipo.tipo === 'trelicada' ? <Cell value={fmt(l.direcao ?? 0, 0)} num label={`Direção de ${l.nome}`} onCommit={(t) => { const a = num(t); if (Number.isFinite(a)) exec('laje.editar', { id: l.id, direcao: a }); }} /> : <span className="muted">—</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <Hint>Contorno pelo eixo das vigas. Treliçada: vigotas no menor vão (seta na planta); fora de região fechada por vigas é erro.</Hint>
+    </Group>
+  );
+}
+
+function CargasGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const grupo = grupoAtual(b, pl.pavimento);
+  const cs = b.cargas.filter((c) => c.grupo === grupo?.id);
+  const camadas = [...new Set(b.mascaras.filter((m) => m.grupo === grupo?.id).flatMap((m) => m.camadas.map((c) => c.nome)))];
+  const [camada, setCamada] = useState('');
+  const [bloco, setBloco] = useState('ceramico');
+  const cam = camadas.includes(camada) ? camada : (camadas.find((c) => /alv|par|wall/i.test(c)) ?? camadas[0] ?? '');
+  const H = grupo ? alturaAlvenaria(b, grupo.id) : 0;
+  const nPar = grupo && cam ? paredesDaMascara(b, grupo.id, cam).length : 0;
+  const unid = pl.tipoCarga === 'ponto' ? 'kN' : pl.tipoCarga === 'linha' ? 'kN/m' : 'kN/m²';
+  return (
+    <Group title={`Cargas — ${grupo?.nome ?? '—'} (${cs.length})`} open={false}>
+      {grupo && <Hint>Em toda a planta: revestimento {fmt(grupo.gRev)} kN/m² (G) e uso {fmt(grupo.q)} kN/m² (Q), além do peso próprio — edite em Grupos.</Hint>}
+      <div className="row wrap">
+        <Select label="Tipo" value={pl.tipoCarga} options={[{ v: 'ponto', label: 'Ponto' }, { v: 'linha', label: 'Linha' }, { v: 'area', label: 'Área' }]} onChange={(v) => pl.set({ tipoCarga: v })} />
+        <Select label="Caso" value={pl.caso} options={[{ v: 'G', label: 'G (permanente)' }, { v: 'Q', label: 'Q (variável)' }] as { v: CasoFisico; label: string }[]} onChange={(v) => pl.set({ caso: v })} />
+        <NumField label="Valor" unit={unid} width={110} value={pl.valorCarga} onChange={(v) => pl.set({ valorCarga: v })} />
+      </div>
+      <div className="row"><button type="button" className={`btn${pl.ferramenta === 'carga' ? ' primary' : ''}`} onClick={() => pl.set({ ferramenta: 'carga' })}>Lançar cargas (C)</button></div>
+      <div className="masc">
+        <b>Alvenaria a partir da máscara</b>
+        {camadas.length ? (
+          <>
+            <div className="row wrap">
+              <Select label="Camada das paredes" value={cam} options={camadas.map((c) => ({ v: c, label: c }))} onChange={setCamada} />
+              <Select label="Bloco" value={bloco} options={Object.entries(BLOCOS).map(([k, v]) => ({ v: k, label: `${v.rotulo} (${v.gama} kN/m³)` }))} onChange={setBloco} />
+            </div>
+            <div className="row wrap">
+              <button type="button" className="btn" disabled={!nPar} onClick={() => grupo && exec('carga.alvenariaDaMascara', { grupo: grupo.id, camada: cam, bloco })}>Gerar {nPar} trecho(s) de parede</button>
+            </div>
+            <Hint>Paredes = pares de linhas paralelas a 5–35 cm. Peso = γ × espessura × altura ({fmt(H)} m: até o pavimento de cima menos a viga). Gerar de novo substitui as anteriores da camada.</Hint>
+          </>
+        ) : <Hint>Importe a máscara do grupo para gerar as cargas de alvenaria.</Hint>}
+      </div>
     </Group>
   );
 }

@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 186 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 195 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -126,6 +126,12 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Dividir, unir, prolongar/aparar até outra viga ou eixo, mover, copiar em série, copiar para outros grupos sem apagar o que existe, atribuir em lote, renumerar e encostar nas faces dos pilares
 - Verificação de lançamento contínua: viga sem apoio, viga em balanço, vigas sobrepostas, viga fora da face do pilar (com correção), pilar sem viga, pilar nascendo sem apoio e transição (V2); “ver na planta” seleciona os elementos
 - MCP: ferramentas genéricas `comandos` e `previa` para os comandos sem ferramenta própria
+
+**Módulo Edifícios — fatia 3 (20/10/2026)**
+- Detecção de panos pelo eixo das vigas (arranjo planar com divisão nas interseções e semiarestas); pano sem laje vira aviso com correção
+- Lajes maciças e treliçadas (catálogo H8–H25 com EPS, peso próprio, vigotas no menor vão com seta na planta), por clique no pano, por contorno (balanços) ou preenchendo todos os panos; aberturas, desnível, renumeração
+- Cargas por grupo (revestimento e uso), pontuais, lineares e de área (G/Q); alvenaria gerada das paredes de uma camada da máscara (pares de linhas paralelas)
+- Verificação: lajes sobrepostas, treliçada fora de região fechada por vigas
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir
