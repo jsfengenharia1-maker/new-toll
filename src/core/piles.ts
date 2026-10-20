@@ -44,8 +44,18 @@ export interface FLoad {
   x?: number; y?: number;
   /** Seção do pilar (m): a ao longo de x (plano do pórtico), b ao longo de y. Padrão: params.colA × colB. */
   ap?: number; bp?: number;
-  /** Estaca adotada para o bloco (tipo e diâmetro em cm). Padrão: a recomendada do primeiro tipo. */
-  pile?: { type: PileType; D: number };
+  /**
+   * Estaca adotada para o bloco (tipo e diâmetro em cm). Padrão: a recomendada do primeiro tipo.
+   * `capacity` (kN, carga admissível característica por estaca): estaca informada, sem sondagem; o número de estacas sai
+   * dessa capacidade, com o espaçamento `spacing` entre eixos (m; padrão: o da tabela × D) e, se dado, `n` fixo.
+   */
+  pile?: { type: PileType; D: number; capacity?: number; spacing?: number; n?: number };
+  /** Pilar fora do centro da sapata (posição fixa do centro do pilar em relação ao centro da base, m). */
+  offset?: [number, number];
+  /** Sapata de divisa ou de canto: lado da divisa em x e em y (−1, 0, 1); ver `FootingInput.edge`. */
+  edge?: [number, number];
+  /** Sapata com dimensões impostas (m), só verificadas. */
+  fixed?: { A: number; B: number; h?: number };
 }
 
 export interface FoundationParams {
@@ -575,6 +585,25 @@ export function solveSupport(ld: FLoad, data: FoundationData): SupportResult {
     return { type, diameters, recommended };
   });
   return { load: ld, boring: b, byType };
+}
+
+/** Estacas pela capacidade informada (sem sondagem): menor n de 1 a 6 (ou o n fixo) com Nmáx ≤ capacidade e sem tração. */
+export interface PileByCapacity { type: PileType; D: number; capacity: number; n: number; loads: PileLoads; ok: boolean; messages: string[] }
+
+export function pilesByCapacity(ld: FLoad, p: FoundationParams): PileByCapacity {
+  const pile = ld.pile!, D = pile.D / 100, cap = pile.capacity!;
+  const factor = pile.spacing ? pile.spacing / D : pile.type === 'premoldada' ? p.spacingPrecast : p.spacingInSitu;
+  const gf = { unf: p.gammaF ?? 1.4, fav: p.gammaFfav ?? 1 };
+  const ns = pile.n ? [pile.n] : [1, 2, 3, 4, 5, 6];
+  let last: PileLoads | null = null;
+  for (const n of ns) {
+    const pl = pileLoads(ld, n, D, factor, p.blockWeightPct, gf);
+    last = pl;
+    if (pl.Nmax <= cap + 1e-9 && pl.Nmin >= -1e-9) return { type: pile.type, D: pile.D, capacity: cap, n, loads: pl, ok: true, messages: [] };
+  }
+  const pl = last!;
+  const msgs = [pl.Nmax > cap + 1e-9 ? `Carga máxima por estaca ${pl.Nmax.toFixed(0)} kN > capacidade ${cap.toFixed(0)} kN com ${pl.n} estaca(s).` : `Tração na estaca (Nmín = ${pl.Nmin.toFixed(0)} kN) sem capacidade à tração informada.`];
+  return { type: pile.type, D: pile.D, capacity: cap, n: pl.n, loads: pl, ok: false, messages: msgs };
 }
 
 /** Volume aproximado do bloco, só para comparar soluções: planta = envoltória das estacas + D + 2×15 cm; altura ≥ 0,6 m e ≥ 0,6·s. */

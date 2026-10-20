@@ -2,11 +2,13 @@
 import { designCap, type CapResult } from './caps';
 import { designFooting } from './footings';
 import { designCaisson } from './caissons';
-import { boringChoice, boringFor, columnOf, solveSupport, type Boring, type FLoad, type FoundationData, type FoundationKind, type PileSolution, type SupportResult } from './piles';
+import { boringChoice, boringFor, columnOf, pilesByCapacity, solveSupport, type Boring, type FLoad, type FoundationData, type FoundationKind, type PileByCapacity, type PileSolution, type SupportResult } from './piles';
 
 export interface SupportDesign {
   load: FLoad; kind: FoundationKind; boring: Boring; boringChoice: string; ap: number; bp: number;
   piles?: SupportResult; pile?: PileSolution | null; pileAdopted?: boolean; cap?: CapResult | null;
+  /** Estacas com capacidade informada (sem sondagem). */
+  pileFixed?: PileByCapacity;
   footing?: ReturnType<typeof designFooting>;
   caisson?: ReturnType<typeof designCaisson>;
 }
@@ -30,13 +32,17 @@ export function designSupport(ld: FLoad, f: FoundationData): SupportDesign {
   const boring = boringFor(ld, f);
   const { ap, bp } = columnOf(ld, f.params);
   const out: SupportDesign = { load: ld, kind, boring, boringChoice: boringChoice(ld, f), ap, bp };
-  if (kind === 'estacas') {
+  if (kind === 'estacas' && ld.pile?.capacity) {
+    const pf = pilesByCapacity(ld, f.params);
+    out.pileFixed = pf;
+    out.cap = designCap({ n: pf.n, coords: pf.loads.coords, D: pf.D / 100, s: pf.loads.s, Nk: ld.Nk, Mx: ld.Mx, My: ld.My, ap, bp, WbAssumed: pf.loads.Wb }, f.params);
+  } else if (kind === 'estacas') {
     out.piles = solveSupport(ld, f);
     const { sol, adopted } = adoptedPile(out.piles, ld);
     out.pile = sol; out.pileAdopted = adopted;
     out.cap = sol ? capFor(sol, ld, f) : null;
   } else if (kind === 'sapata') {
-    out.footing = designFooting({ Nk: ld.Nk, NkMin: ld.NkMin, Mx: ld.Mx, My: ld.My, ap, bp, boring }, f.params);
+    out.footing = designFooting({ Nk: ld.Nk, NkMin: ld.NkMin, Mx: ld.Mx, My: ld.My, ap, bp, boring, offset: ld.offset, edge: ld.edge, fixed: ld.fixed }, f.params);
   } else {
     out.caisson = designCaisson({ Nk: ld.Nk, NkMin: ld.NkMin, Mx: ld.Mx, My: ld.My, Hx: ld.Hx, Hy: ld.Hy, boring }, f.params);
   }

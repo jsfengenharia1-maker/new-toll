@@ -99,12 +99,16 @@ function solve3(J: number[][], b: number[]): number[] | null {
   return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
 }
 
-/** Momento das tensões além da seção x = x1 (balanço ao longo de A), por unidade de largura total B. */
-function overhangMoment(pr: Pressure, A: number, B: number, x1: number, axis: 'x' | 'y'): number {
+/**
+ * Momento das tensões além das seções xc ± x1 (balanços ao longo de A), por unidade de largura total B.
+ * xc: centro do pilar em relação ao centro da base (0 = centrado).
+ */
+function overhangMoment(pr: Pressure, A: number, B: number, x1: number, axis: 'x' | 'y', xc = 0): number {
   const [L, W] = axis === 'x' ? [A, B] : [B, A];
   const lin = axis === 'x' ? (t: number) => strip(pr.s0 + pr.sx * t, pr.sy, W)[0] : (t: number) => strip(pr.s0 + pr.sy * t, pr.sx, W)[0];
-  const pos = simpson((t) => lin(t) * (t - x1), x1, L / 2);
-  const neg = simpson((t) => lin(t) * (-x1 - t), -L / 2, -x1);
+  const a = xc + x1, z = xc - x1;
+  const pos = a < L / 2 ? simpson((t) => lin(t) * (t - a), a, L / 2) : 0;
+  const neg = z > -L / 2 ? simpson((t) => lin(t) * (z - t), -L / 2, z) : 0;
   return Math.max(pos, neg);
 }
 
@@ -119,7 +123,25 @@ export function sptSigma(b: Boring, z0: number, bulb: number, div: number, Nmax:
 }
 
 // ---------------------------------------------------------------- sapata
-export interface FootingInput { Nk: number; NkMin: number; Mx: number; My: number; ap: number; bp: number; boring?: Boring }
+export interface FootingInput {
+  Nk: number; NkMin: number; Mx: number; My: number; ap: number; bp: number; boring?: Boring;
+  /** Pilar fora do centro: posição fixa do centro do pilar em relação ao centro da base (m; x ao longo de A). */
+  offset?: [number, number];
+  /**
+   * Divisa e canto: lado da divisa em cada direção (−1, 0 ou 1). A face do pilar desse lado coincide com a borda da
+   * base, e a excentricidade (A − ap)/2 cresce com a base. Prevalece sobre `offset` na direção em que não é 0.
+   */
+  edge?: [number, number];
+  /** Dimensões impostas (m): a base A × B (e a altura h, se dada) só é verificada. */
+  fixed?: { A: number; B: number; h?: number };
+}
+
+/** Posição do centro do pilar em relação ao centro da base A × B (m). */
+export function columnOffset(inp: Pick<FootingInput, 'ap' | 'bp' | 'offset' | 'edge'>, A: number, B: number): [number, number] {
+  const ex = inp.edge?.[0] ? Math.sign(inp.edge[0]) * (A - inp.ap) / 2 : inp.offset?.[0] ?? 0;
+  const ey = inp.edge?.[1] ? Math.sign(inp.edge[1]) * (B - inp.bp) / 2 : inp.offset?.[1] ?? 0;
+  return [ex, ey];
+}
 
 export interface FlexDir { Md: number; T: number; As: number; AsMin: number; AsAdopt: number; dEff: number; bars: BarSet | null; width: number }
 
@@ -131,6 +153,10 @@ export interface FootingResult {
   kind: 'rigida' | 'flexivel'; h: number; h0: number; d: number; hRigid: number; lbCol: number;
   method: 'ceb70' | 'bielas'; methodNotes: string[];
   sigmaD: { max: number; min: number };
+  /** Centro do pilar em relação ao centro da base (m); [0, 0] = centrada. */
+  colOffset: [number, number];
+  /** Dimensões impostas (só verificadas). */
+  fixed?: boolean;
   flex: { x: FlexDir; y: FlexDir };
   punch: { tauSd0: number; tauRd2: number; applies: boolean; tauSd1?: number; tauRd1?: number; Fred?: number; u1?: number };
   volume: number;
@@ -167,25 +193,32 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     const r = sigmaCache.get(key);
     return r ? { s: r.sigma, spt: r } : null;
   };
+  // momentos em relação ao centro da base: os do pilar mais N do pilar × excentricidade do pilar (a favor da segurança, somados em módulo)
+  const momentsAt = (A: number, B: number, Ncol: number) => { const [ex, ey] = columnOffset(inp, A, B); return { My: Math.abs(inp.My) + Math.abs(Ncol * ex), Mx: Math.abs(inp.Mx) + Math.abs(Ncol * ey) }; };
+  const Ncols = [inp.Nk, inp.NkMin];
   const check = (A: number, B: number) => {
     const sg = sigmaFor(Math.min(A, B));
     if (!sg) return null;
     if (cases[0].N / (A * B) > sg.s + 1e-9) return null;
     const out = [];
-    for (const cs of cases) {
-      const pr = basePressure(A, B, cs.N, inp.My / cs.N, inp.Mx / cs.N);
+    for (const [i, cs] of cases.entries()) {
+      const M = momentsAt(A, B, Ncols[i]);
+      const pr = basePressure(A, B, cs.N, M.My / cs.N, M.Mx / cs.N);
       if (!pr || pr.sigmaMax > p.ftEdgeFactor * sg.s + 1e-6 || pr.compressed < p.ftMinCompressed - 1e-6) return null;
-      out.push({ label: cs.label, N: cs.N, ex: Math.abs(inp.My) / cs.N, ey: Math.abs(inp.Mx) / cs.N, sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed });
+      out.push({ label: cs.label, N: cs.N, ex: M.My / cs.N, ey: M.Mx / cs.N, sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed });
     }
     return { sg, out };
   };
   // busca em passos de 5 cm: menor área; entre as de área até 3% maior, balanços mais próximos
   const lmin = 0.6, step = 0.05, lmax = 8;
   const cand: { A: number; B: number; area: number; dc: number }[] = [];
-  for (let A = Math.max(lmin, ceil05(ap + 0.1)); A <= lmax + 1e-9; A += step) for (let B = Math.max(lmin, ceil05(bp + 0.1)); B <= lmax + 1e-9; B += step) {
+  const over = (A: number, B: number) => { const [ex, ey] = columnOffset(inp, A, B); return [A / 2 + Math.abs(ex) - ap / 2, B / 2 + Math.abs(ey) - bp / 2]; };
+  if (inp.fixed) cand.push({ A: inp.fixed.A, B: inp.fixed.B, area: inp.fixed.A * inp.fixed.B, dc: 0 });
+  else for (let A = Math.max(lmin, ceil05(ap + 0.1)); A <= lmax + 1e-9; A += step) for (let B = Math.max(lmin, ceil05(bp + 0.1)); B <= lmax + 1e-9; B += step) {
     const a = Math.round(A * 100) / 100, b = Math.round(B * 100) / 100;
     if (a / b > p.ftMaxRatio + 1e-9 || b / a > p.ftMaxRatio + 1e-9) continue;
-    cand.push({ A: a, B: b, area: a * b, dc: Math.abs((a - ap) - (b - bp)) });
+    const [ca, cb] = over(a, b);
+    cand.push({ A: a, B: b, area: a * b, dc: Math.abs(ca - cb) });
   }
   // empate: lado maior na direção da maior excentricidade (A ao longo de x, momento My)
   const dirPref = Math.sign(Math.abs(inp.My) - Math.abs(inp.Mx));
@@ -200,8 +233,9 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
     if (!best || c.dc < best.dc - 1e-9 || (Math.abs(c.dc - best.dc) < 1e-9 && Math.abs(c.area - best.area) < 1e-9 && dirPref * ((c.A - c.B) - (best.A - best.B)) > 0)) best = { ...c, chk };
   }
   if (!best) {
-    const sg = sigmaFor(1);
-    return { ok: false, messages: [sg ? `Nenhuma sapata até ${lmax} × ${lmax} m atende σadm, área comprimida e excentricidade.` : `Sem SPT abaixo da cota de apoio (${p.ftDepth} m) para estimar σadm.`] };
+    const sg = sigmaFor(inp.fixed ? Math.min(inp.fixed.A, inp.fixed.B) : 1);
+    if (!sg) return { ok: false, messages: [`Sem SPT abaixo da cota de apoio (${p.ftDepth} m) para estimar σadm.`] };
+    return { ok: false, messages: [inp.fixed ? `As dimensões impostas ${inp.fixed.A.toFixed(2)} × ${inp.fixed.B.toFixed(2)} m não atendem σadm, área comprimida e excentricidade.` : `Nenhuma sapata até ${lmax} × ${lmax} m atende σadm, área comprimida e excentricidade.`] };
   }
   const { A, B } = best;
   const sg = best.chk.sg;
@@ -213,13 +247,19 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   const c = concrete(p.fckFound, p.gammaC);
   const fyd = p.fyk / p.gammaS;
   const lbCol = anchorageLength(p.colPhi, c, fyd);
-  const cA = (A - ap) / 2, cB = (B - bp) / 2;
-  const hRigid = Math.max(A - ap, B - bp) / 3;
+  const colOffset = columnOffset(inp, A, B);
+  // balanços: o maior de cada direção (centrada: (A − ap)/2)
+  const [cA, cB] = over(A, B);
+  const hRigid = (2 * Math.max(cA, cB)) / 3;
   const gf = p.gammaF;
-  const Nd = gf * inp.Nk, Mdx = gf * Math.abs(inp.Mx), Mdy = gf * Math.abs(inp.My);
+  const M0 = momentsAt(A, B, inp.Nk);
+  const Nd = gf * inp.Nk, Mdx = gf * M0.Mx, Mdy = gf * M0.My;
   const prD = basePressure(A, B, Nd, Mdy / Nd, Mdx / Nd);
   if (!prD) return { ok: false, messages: ['Excentricidade de cálculo fora da base.'] };
   const methodNotes: string[] = [];
+  const centered = Math.abs(colOffset[0]) < 1e-9 && Math.abs(colOffset[1]) < 1e-9;
+  const bielas = p.ftMethod === 'bielas' && centered;
+  if (p.ftMethod === 'bielas' && !centered) methodNotes.push('Método das bielas só vale para pilar centrado: usado o CEB-70.');
 
   const dOf = (h: number) => h - p.cover - 0.01;
   const flexure = (h: number, kind: 'rigida' | 'flexivel') => {
@@ -229,13 +269,14 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
       const width = Wd - 2 * p.cover;
       const AsMin = p.ftRhoMin * Wd * h;
       let Md = 0, T = 0, As = 0, dEff = d;
-      if (p.ftMethod === 'bielas' && kind === 'rigida') {
+      if (bielas && kind === 'rigida') {
         const NdEq = prD.sigmaMax * A * B;
         T = (NdEq * (L - a0)) / (8 * d);
         As = T / 1000 / fyd;
       } else {
         const x1 = a0 / 2 - 0.15 * a0;
-        Md = overhangMoment(prD, A, B, x1, axis);
+        // a pressão máxima fica do lado +: o pilar excêntrico vai para esse lado (a carga excêntrica comprime o lado do pilar)
+        Md = overhangMoment(prD, A, B, x1, axis, Math.abs(axis === 'x' ? colOffset[0] : colOffset[1]));
         dEff = Math.min(d, 1.5 * cc);
         As = beamFlexure({ kind: 'rect', bw: Wd, h: dEff + p.cover + 0.01 }, false, Md, dEff, 0.05, c, fyd).As;
       }
@@ -246,7 +287,8 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   };
   const punching = (h: number, flex: { x: FlexDir; y: FlexDir }) => {
     const d = dOf(h);
-    const u0 = 2 * (ap + bp);
+    // pilar na divisa: a face junto à borda não entra no contorno C
+    const u0 = 2 * (ap + bp) - (inp.edge?.[0] ? bp : 0) - (inp.edge?.[1] ? ap : 0);
     const tauSd0 = Nd / 1000 / (u0 * d);
     const tauRd2 = 0.27 * (1 - p.fckFound / 250) * c.fcd;
     const applies = cA >= 2 * d && cB >= 2 * d;
@@ -264,7 +306,11 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
 
   let kind = p.ftKind;
   let h: number;
-  if (kind === 'rigida') h = ceil05(Math.max(hRigid, lbCol + p.cover));
+  if (inp.fixed?.h) {
+    h = inp.fixed.h;
+    kind = h >= hRigid - 1e-9 ? 'rigida' : 'flexivel';
+    if (h < lbCol + p.cover - 1e-9) messages.push(`Altura imposta ${h.toFixed(2)} m < lb + c = ${(lbCol + p.cover).toFixed(2)} m (ancoragem das barras do pilar).`);
+  } else if (kind === 'rigida') h = ceil05(Math.max(hRigid, lbCol + p.cover));
   else {
     h = ceil05(Math.max(0.3, lbCol + p.cover));
     for (; h < 3; h = Math.round((h + 0.05) * 100) / 100) {
@@ -276,12 +322,12 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   const flex = flexure(h, kind);
   const punch = punching(h, flex);
   const h0 = kind === 'rigida' ? Math.min(h, ceil05(Math.max(h / 3, p.ftH0Min))) : h;
-  if (p.ftMethod === 'bielas' && kind === 'rigida') {
+  if (bielas && kind === 'rigida') {
     const d = dOf(h);
     if (d < Math.max(A - ap, B - bp) / 4 - 1e-9) methodNotes.push(`Bielas: d = ${d.toFixed(2)} m < (a − ap)/4 = ${(Math.max(A - ap, B - bp) / 4).toFixed(2)} m — fora do campo do método.`);
     methodNotes.push('Bielas com a tensão de cálculo máxima aplicada em toda a base (Nd,eq = σd,máx·A·B), a favor da segurança com momento.');
   } else {
-    if (p.ftMethod === 'bielas') methodNotes.push('Método das bielas só vale para sapata rígida: usado o CEB-70.');
+    if (bielas) methodNotes.push('Método das bielas só vale para sapata rígida: usado o CEB-70.');
     const cmax = Math.max(cA, cB);
     if (cmax < 0.5 * h - 1e-9) methodNotes.push(`CEB-70: balanço ${cmax.toFixed(2)} m < h/2 — sapata muito rígida, fora do campo do método (preferir bielas).`);
     if (cmax > 2 * h + 1e-9) methodNotes.push(`CEB-70: balanço ${cmax.toFixed(2)} m > 2h — fora do campo do método (calcular como placa).`);
@@ -293,11 +339,12 @@ function sizeFooting(inp: FootingInput, p: FoundationParams, W: number): Footing
   const volume = kind === 'rigida' ? A * B * h0 + ((h - h0) / 3) * (A1 + A2 + Math.sqrt(A1 * A2)) : A * B * h;
   const Wconc = 25 * volume, Wsoil = p.gammaSoil * Math.max(0, A * B * p.ftDepth - volume);
   if (Wconc <= W + 0.5 && Wconc + Wsoil > W + 1e-6) messages.push(`Concreto + solo sobre a sapata somam ${(Wconc + Wsoil).toFixed(0)} kN, acima dos ${W.toFixed(0)} kN adotados: o percentual só cobre o acréscimo líquido se σadm for líquida (o solo reaterrado substitui o escavado). Confirme o critério.`);
-  const ok = punch.tauSd0 <= punch.tauRd2 + 1e-9 && !(kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) && !!flex.x.bars && !!flex.y.bars;
+  const anchOk = !inp.fixed?.h || h >= lbCol + p.cover - 1e-9;
+  const ok = anchOk && punch.tauSd0 <= punch.tauRd2 + 1e-9 && !(kind === 'flexivel' && punch.applies && punch.tauSd1! > punch.tauRd1! + 1e-9) && !!flex.x.bars && !!flex.y.bars;
   return {
     ok, messages, A, B, W, Wconc, Wsoil, sigmaAdm: sg.s, sigmaSrc, spt: sg.spt ? { Nbar: sg.spt.Nbar, Nused: sg.spt.Nused, from: sg.spt.from, to: sg.spt.to } : undefined,
-    cases: best.chk.out, kind, h, h0, d: dOf(h), hRigid, lbCol, method: p.ftMethod === 'bielas' && kind === 'rigida' ? 'bielas' : 'ceb70', methodNotes,
-    sigmaD: { max: prD.sigmaMax, min: prD.sigmaMin }, flex, punch, volume,
+    cases: best.chk.out, kind, h, h0, d: dOf(h), hRigid, lbCol, method: bielas && kind === 'rigida' ? 'bielas' : 'ceb70', methodNotes,
+    sigmaD: { max: prD.sigmaMax, min: prD.sigmaMin }, colOffset, ...(inp.fixed ? { fixed: true } : {}), flex, punch, volume,
   };
 }
 

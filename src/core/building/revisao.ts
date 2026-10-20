@@ -6,7 +6,7 @@ import type { Dimensionamento } from './dimensionamento';
 import type { BuildingModel } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'obra';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;
@@ -50,6 +50,17 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'VIGOTA_MACICO', nivel: 'aviso', re: /^Vigotas: maciçamento/, descricao: 'Vigotas: maciçamento extenso (> 2h ou > 20 % do vão)' },
   { codigo: 'VIGOTA_APOIO', nivel: 'aviso', re: /^Vigotas: tração inferior/, descricao: 'Vigotas: momento positivo no apoio' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
+  // fundações do edifício (FU1)
+  { codigo: 'FUND_EXC_SEM_VIGA', nivel: 'erro', re: /^Fundação excêntrica sem viga de equilíbrio/, descricao: 'Fundação de divisa ou de canto sem viga de equilíbrio' },
+  { codigo: 'FUND_SEM_SOLUCAO', nivel: 'erro', re: /^Fundação sem solução/, descricao: 'Fundação: nenhuma solução atende' },
+  { codigo: 'FUND_NAO_ATENDE', nivel: 'erro', re: /^Fundação não atende/, descricao: 'Fundação: verificação estrutural ou geotécnica não atende' },
+  { codigo: 'FUND_SEM_SIGMA', nivel: 'erro', re: /^Fundação sem σadm/, descricao: 'Fundação sem tensão admissível' },
+  { codigo: 'FUND_SEM_SONDAGEM', nivel: 'erro', re: /^Fundação sem sondagem/, descricao: 'Fundação pelo SPT sem furos de sondagem' },
+  { codigo: 'FUND_SEM_ESTACA', nivel: 'erro', re: /^Fundação sem (estaca|capacidade da estaca)/, descricao: 'Bloco sem tipo ou capacidade de estaca' },
+  { codigo: 'FUND_SEM_CARGA', nivel: 'erro', re: /^Fundação sem cargas/, descricao: 'Fundação sem cargas (estrutura não calculada ou arranque sem cargas)' },
+  { codigo: 'FUND_PILAR', nivel: 'erro', re: /^Fundação (sem pilar|sob pilar que não nasce)/, descricao: 'Fundação sem pilar válido' },
+  { codigo: 'FUND_COTA', nivel: 'erro', re: /^Fundação acima do terreno/, descricao: 'Cota de assentamento acima do terreno' },
+  { codigo: 'FUND_PILAR_SEM_ELEMENTO', nivel: 'aviso', re: /^Pilar sem elemento de fundação/, descricao: 'Pilar que nasce na fundação sem elemento lançado' },
   // avisos da análise (obra)
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },
@@ -72,6 +83,10 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const v of dim?.vigas ?? []) add('viga', v.viga, v.nome, undefined, v.mensagens);
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
+  for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
+  // com fundações lançadas, pilar que nasce na fundação sem elemento
+  if (dim?.fundacoes && b.fundacao?.elementos.length) for (const p of b.pilares)
+    if (p.nasce === 'fundacao' && !b.fundacao.elementos.some((e) => e.pilares.includes(p.id))) add('pilar', p.id, p.nome, undefined, ['Pilar sem elemento de fundação lançado.']);
   // pilar reprovado pela utilização sem mensagem própria
   for (const p of dim?.pilares ?? []) if (p.status === 'fail' && !itens.some((x) => x.tipo === 'pilar' && x.id === p.pilar && x.pavimento === p.pavimento && x.nivel === 'erro'))
     itens.push({ tipo: 'pilar', id: p.pilar, nome: p.nome, pavimento: p.pavimento, nivel: 'erro', codigo: 'ARMADURA', mensagem: `Utilização ${p.util.toFixed(2).replace('.', ',')} > 1.` });

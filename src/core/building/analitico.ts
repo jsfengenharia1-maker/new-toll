@@ -8,7 +8,7 @@ import { casosVento, type CasoVento, type Classe, type ZonaVento } from './vento
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, gamas } from './materiais';
 import {
-  centroPilar, contornoPilar, cotaFundacao, dimsSecao, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
+  centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
   casosDaObra, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga,
 } from './types';
 
@@ -211,6 +211,26 @@ export interface AnaliseEdificio {
   ms: number;
 }
 
+/**
+ * Cargas dos arranques (pilares que nascem e morrem na fundação) por caso, como reações na base (N > 0 compressão):
+ * as cargas lançadas no topo do arranque, com sinal de reação nos esforços horizontais e momentos.
+ */
+export function reacoesArranques(b: BuildingModel): AnaliseEdificio['fundacao'] {
+  const out: AnaliseEdificio['fundacao'] = [];
+  const casos = casosDaObra(b).map((c) => c.id);
+  for (const p of b.pilares) {
+    if (!ehArranque(p)) continue;
+    const cps = (b.cargasPilar ?? []).filter((c) => c.pilar === p.id);
+    if (!cps.length) continue;
+    for (const c of casos) {
+      const xs = cps.filter((x) => x.caso === c);
+      const s = (k: 'N' | 'Hx' | 'Hy' | 'Mx' | 'My') => xs.reduce((t, x) => t + x[k], 0);
+      out.push({ pilar: p.id, caso: c, N: s('N'), Vx: -s('Hx'), Vy: -s('Hy'), Mx: -s('Mx'), My: -s('My') });
+    }
+  }
+  return out;
+}
+
 export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}): AnaliseEdificio {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
   const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes, perfilDe(b)), nu: 0.2, ...o };
@@ -220,8 +240,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const avisos: string[] = [];
   const ps = pavimentosOrdenados(b);
   const vazio: AnaliseEdificio = { avisos, opcoes: op, casos: casosDaObra(b).map((c) => c.id), grelhas: [], portico: { modelo: { nos: [], barras: [], apoios: new Map() }, barras: [], mestres: {}, zonas: {}, res: null }, fundacao: [], vento: null, cargasPavimento: {}, totais: { G: 0, Q: 0 }, gdl: 0, ms: 0 };
-  if (!ps.length) return { ...vazio, erro: 'A obra não tem pavimentos.' };
+  if (!ps.length) return { ...vazio, erro: 'A obra não tem pavimentos.', fundacao: reacoesArranques(b) };
   if (!b.pilares.length) return { ...vazio, erro: 'A obra não tem pilares.' };
+  if (b.pilares.every(ehArranque)) return { ...vazio, erro: 'A obra só tem arranques: calcule só a fundação.', fundacao: reacoesArranques(b) };
 
   // ---- grelhas (uma por pavimento) e geometria das vigas reaproveitada no pórtico ----
   const grelhas: GrelhaPavimento[] = [];
@@ -589,6 +610,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const fundacao: AnaliseEdificio['fundacao'] = [];
   const bases = b.pilares.map((p) => [p.id, noPilar.get(`${p.id}|base`)] as const).filter((x): x is readonly [string, number] => x[1] !== undefined);
   for (const [pid, k] of bases) CASOS.forEach((c, ic) => { const r = res.reacoes[ic].get(k)!; fundacao.push({ pilar: pid, caso: c, N: r[2], Vx: r[0], Vy: r[1], Mx: r[3], My: r[4] }); });
+  fundacao.push(...reacoesArranques(b));
 
   // ---- vento: forças nos mestres, pórtico com a área real dos pilares ----
   const ven = casosVento(b, (pav) => zonas[pav] ?? []);

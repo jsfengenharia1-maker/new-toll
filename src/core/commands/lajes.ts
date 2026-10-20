@@ -1,6 +1,6 @@
 // Comandos de lajes (panos, tipos, aberturas) e de cargas (ponto, linha, área e alvenaria da máscara).
 import type { Draft } from 'immer';
-import { casosDaObra, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
+import { casosDaObra, ehArranque, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
@@ -282,7 +282,7 @@ registrar<{ id: string }>({
 
 registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; N?: number; Hx?: number; Hy?: number; Mx?: number; My?: number }>({
   nome: 'carga.pilar',
-  descricao: 'Carga num lance de pilar (eixos globais): N (kN, compressão +), Hx, Hy (kN), Mx, My (kN·m), no topo do lance ou a `altura` m acima da base. Sem `pavimento`, o último lance do pilar.',
+  descricao: 'Carga num lance de pilar (eixos globais): N (kN, compressão +), Hx, Hy (kN), Mx, My (kN·m), no topo do lance ou a `altura` m acima da base. Sem `pavimento`, o último lance do pilar. Num arranque (pilar que nasce e morre na fundação), a carga vai no topo do arranque e chega direto à fundação.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['pilar', 'caso'], properties: {
@@ -293,13 +293,16 @@ registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; N?
     const q = b.pilares.find((x) => x.id === p.pilar);
     if (!q) return err('PILAR_INEXISTENTE', `Pilar ${p.pilar} não existe.`);
     const l = lancesDoPilar(b, q as Pilar);
-    if (p.pavimento && !l.some((x) => x.id === p.pavimento)) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lance até ${p.pavimento}.`);
+    const arr = ehArranque(q);
+    if (arr ? p.pavimento && p.pavimento !== 'fundacao' : p.pavimento && !l.some((x) => x.id === p.pavimento)) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lance até ${p.pavimento}.`);
+    if (!arr && !l.length) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lances.`);
     if (![p.N, p.Hx, p.Hy, p.Mx, p.My].some((v) => v)) return err('SEM_VALOR', 'Informe ao menos um esforço.');
     return casoOk(b, p.caso);
   },
   aplicar(d, p) {
     const q = d.pilares.find((x) => x.id === p.pilar)!;
-    const pav = p.pavimento ?? lancesDoPilar(d as BuildingModel, q as Pilar).at(-1)!.id;
+    // arranque: carga no topo, lance "fundacao"
+    const pav = ehArranque(q) ? 'fundacao' : p.pavimento ?? lancesDoPilar(d as BuildingModel, q as Pilar).at(-1)!.id;
     (d.cargasPilar ??= []).push({ id: novoId(d, 'cp'), pilar: p.pilar, pavimento: pav, caso: p.caso, ...(p.altura !== undefined ? { altura: p.altura } : {}), N: p.N ?? 0, Hx: p.Hx ?? 0, Hy: p.Hy ?? 0, Mx: p.Mx ?? 0, My: p.My ?? 0 });
     return `Carga no pilar ${q.nome} (${p.caso}).`;
   },

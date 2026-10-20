@@ -1,12 +1,14 @@
 // Linha de comando do Statikos (Node): mesmo núcleo do app, sem navegador.
 import { comandosEdificioPadrao, listarComandos, Sessao, type Entrada } from '../core/commands';
 import { compactarLog, lerEdificio, WORKSPACE_FORMAT } from '../core/building/file';
-import { edificioVazio, pavimentosOrdenados, peDireito, type BuildingModel, type Formato } from '../core/building/types';
+import { edificioVazio, ehArranque, pavimentosOrdenados, peDireito, type BuildingModel, type Formato } from '../core/building/types';
 import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
-import { analisarEdificio } from '../core/building/analitico';
+import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
-import { cargasParaFundacao, dimensionarEdificio } from '../core/building/dimensionamento';
+import { cargasParaFundacao, dimensionarEdificio, type Dimensionamento } from '../core/building/dimensionamento';
+import { calcularFundacoes } from '../core/building/fundacao';
+import type { FLoad } from '../core/piles';
 export { TIPOS_PRANCHA };
 import { montarConjunto, PRECISA_CALCULO, tiposDe, TIPOS_PRANCHA, type TipoSaida } from '../core/sheets/conjunto';
 import { escreverPdf } from '../core/sheets/pdf';
@@ -94,10 +96,16 @@ export function novoTrabalho(vazio: boolean): Sessao {
   return s;
 }
 
-/** Análise + dimensionamento + cargas para o módulo Fundações (para a linha de comando e o MCP). */
-export function dimensionar(b: BuildingModel) {
-  const an = analisarEdificio(b);
-  if (an.erro || !an.portico.res) return { erro: an.erro ?? 'Análise sem resultado.' };
+/**
+ * Análise + dimensionamento + cargas para o módulo Fundações + fundações lançadas (para a linha de comando e o MCP).
+ * Obra só com arranques: calcula só a fundação.
+ */
+export function dimensionar(b: BuildingModel, an: AnaliseEdificio = analisarEdificio(b)) {
+  if (an.erro || !an.portico.res) {
+    if (b.pilares.length && b.pilares.every(ehArranque) && b.fundacao?.elementos.length)
+      return { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacao: cargasParaFundacao(b, an), fundacoes: calcularFundacoes(b, an) } as Dimensionamento & { fundacao: FLoad[] };
+    return { erro: an.erro ?? 'Análise sem resultado.' };
+  }
   return { ...dimensionarEdificio(b, an), fundacao: cargasParaFundacao(b, an) };
 }
 
@@ -196,6 +204,10 @@ export function runCli(args: string[], io: Io): number {
           for (const v of r.vigas) io.out(`  ${v.nome.padEnd(6)} ${`${Math.round(v.b * 100)}×${Math.round(v.h * 100)}`.padEnd(7)} inf ${v.barrasInf.padEnd(10)} sup ${v.barrasSup.padEnd(10)} ${v.estribo.padEnd(9)} ${v.status}`);
           for (const p of r.pilares) io.out(`  ${p.nome.padEnd(6)} ${p.pavimento.padEnd(12)} ${p.secao.padEnd(7)} Nd ${p.Nd.toFixed(0).padStart(6)}  ${p.armadura.padEnd(9)} ${p.status}`);
           for (const l of r.lajes) if (l.status !== 'ok') io.out(`  ${l.nome} (${l.pavimento}): ${l.mensagens.join(' ')}`);
+          if (r.fundacoes?.length) {
+            io.out(linha('fundações', r.fundacoes));
+            for (const f of r.fundacoes) io.out(`  ${f.resumo}${f.pilares.length ? ` (${f.pilares.join(', ')})` : ''} · ${f.status}${f.mensagens.length ? ` · ${f.mensagens.join(' ')}` : ''}`);
+          }
         }
         return 'erro' in r ? 1 : 0;
       }

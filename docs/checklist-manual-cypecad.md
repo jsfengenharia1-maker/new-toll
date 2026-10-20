@@ -12,17 +12,17 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 16 | 8 | 14 | 3 |
-| 4. Pilares | 63 | 20 | 21 | 15 | 7 |
+| 4. Pilares | 63 | 20 | 22 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 13 | 16 | 54 | 25 |
 | 7. Lajes | 195 | 20 | 32 | 76 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
-| 11. Fundações | 70 | 6 | 8 | 51 | 5 |
+| 11. Fundações | 70 | 6 | 14 | 45 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **103** | **119** | **356** | **185** |
+| **Total** | **763** | **103** | **126** | **349** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (resíduo: R1–R6 concluídas; itens deixados de fora, marcados [resíduo R]) | 19 | 23 | 42 |
 | N — Cálculo e normas | 12 | 14 | 26 |
 | E — Elementos estruturais | 29 | 198 | 227 |
-| FU — Fundações integradas | 12 | 55 | 67 |
+| FU — Fundações integradas (FU1 no núcleo em 20/10/2026; interface pendente) | 19 | 48 | 67 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
 | V — Visualização | 7 | 35 | 42 |
 
@@ -85,7 +85,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.32 | Passo 7: cargas especiais, como as de paredes divisórias. As cargas gerais vêm dos pavimentos, e o peso próprio de pilares, muros, vigas e lajes é gerado automaticamente. | Feito | — | cargas especiais, alvenaria da máscara; peso próprio automático |
 | C1.33 | Passo 8: escadas. | Falta | E | escadas |
 | C1.34 | Passo 9: estruturas 3D integradas, definidas no módulo de barras metálicas 3D. | Falta | E | estruturas 3D integradas |
-| C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Parcial | FU | fundações no módulo Fundações (cargas importadas do edifício); sem vigas de equilíbrio, radier |
+| C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Parcial | FU | FU1 no núcleo: sapatas, blocos e tubulões lançados no edifício (`src/core/building/fundacao.ts`, `calcularFundacoes`; comandos `fundacao.*` em `src/core/commands/fundacao.ts`); faltam interface, vigas de equilíbrio e travamento (FU2) e radier (FU6) |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
 | C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
 | C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Parcial | R | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis antes das pranchas (R2, R6) e pilares iguais agrupados no quadro (R5); sem editar/uniformizar a armadura das lajes maciças nem reposicionar textos [resíduo R] |
@@ -188,11 +188,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **4.1 Lançamento** | | | |
 | C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não |
-| C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Falta | FU | arranques sem pavimentos |
+| C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Parcial | FU | FU1 no núcleo: arranque (nasce e morre "fundacao") aceito sem pavimentos (`refsPilar`, `pilares.ts`); pilar comum segue recusado; falta a interface |
 | C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Feito | — | editar, mover, ponto fixo, ângulo, engaste por lance (N1a), flambagem (N1b) e cargas no lance (N1c) |
-| C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Parcial | FU | módulo Fundações aceita cargas diretas por apoio |
-| C4.5 | Cargas no topo do arranque, que representam as cargas transmitidas à fundação. | Parcial | FU | carga pontual no pavimento; sem carga no topo do pilar |
-| C4.6 | Dois comandos de cálculo: a obra sem fundação e a obra com fundação. | Parcial | FU | cálculo do edifício + módulo Fundações separado |
+| C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Parcial | FU | FU1 no núcleo: arranque (`ehArranque`, types.ts) com cargas levadas à fundação (`reacoesArranques`, analitico.ts); obra só de arranques calcula só a fundação (`dimensionar`, cli/run.ts); falta a interface |
+| C4.5 | Cargas no topo do arranque, que representam as cargas transmitidas à fundação. | Parcial | FU | FU1 no núcleo: `carga.pilar` no arranque vai para o topo (lance "fundacao"), por caso e em eixos globais; falta a interface |
+| C4.6 | Dois comandos de cálculo: a obra sem fundação e a obra com fundação. | Parcial | FU | FU1 no núcleo: `dimensionarEdificio(b, an, { fundacao })` (com ou sem fundação) e `calcularFundacoes` à parte; revisão própria `Sessao.revFundacao` (comandos com `calculo: fundacao`); falta o comando na interface e no worker |
 | C4.7 | Pilar novo: grupo inicial e grupo final. | Feito | — | nasce/morre |
 | C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Feito | — | engaste (pilar.engaste, N1a) e flambagem (pilar.flambagem, N1b) por lance |
 | C4.9 | Pilar novo: ângulo. | Feito | — |  |
@@ -814,14 +814,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **11.2 Sapatas e blocos** | | | |
 | C11.6 | Número ilimitado de pilares, muros ou pilares-parede apoiados numa sapata ou bloco, em qualquer posição em relação aos eixos dela. | Parcial | FU | um pilar por elemento no módulo Fundações |
 | C11.7 | Cálculo como fundação rígida; cabe ao usuário garantir a rigidez. | Feito | — | bloco/sapata rígidos |
-| C11.8 | Novo elemento: sapata de concreto armado, sapata de concreto simples ou bloco sobre estacas. | Parcial | FU | sapata armada e bloco sobre estacas; sem sapata de concreto simples |
+| C11.8 | Novo elemento: sapata de concreto armado, sapata de concreto simples ou bloco sobre estacas. | Parcial | FU | sapata armada, bloco sobre estacas e tubulão como elementos do edifício (FU1, `fundacao.criar`); sapata de concreto simples na FU3 |
 | C11.9 | Bloco: escolha do tipo (forma e número de estacas) e definição da estaca — descrição, seção circular ou quadrada, capacidade de carga característica e distância entre eixos. | Feito | — | tipos de bloco (1 a 6 estacas), estaca e capacidade (Décourt-Quaresma) |
-| C11.10 | Elemento de um pilar: pilar destacado ao aproximar e prévia da posição relativa pilar/sapata conforme o ponto do cursor (centrada, de divisa, de canto etc.); ângulo padrão igual ao do pilar. | Falta | FU | sapata de divisa/canto |
+| C11.10 | Elemento de um pilar: pilar destacado ao aproximar e prévia da posição relativa pilar/sapata conforme o ponto do cursor (centrada, de divisa, de canto etc.); ângulo padrão igual ao do pilar. | Parcial | FU | FU1 no núcleo: posição centrada, de divisa, de canto ou livre (`fundacao.criar`, lado padrão pelo ponto fixo do pilar, `ladoDoAjuste`), ângulo padrão = o do pilar; falta a prévia ao aproximar do pilar (interface) |
 | C11.11 | Elemento de vários pilares (sapata associada): seleção dos pilares/pilares-parede; ponto de inserção na média das coordenadas dos pilares, movível depois; ângulo do primeiro pilar. | Falta | FU | sapata associada |
-| C11.12 | Editar: dimensionar automaticamente ou verificar dimensões e armadura impostas pelo usuário. | Parcial | FU | dimensiona automaticamente; impor dimensões só em parte |
-| C11.13 | Apagar sapata ou bloco. | Parcial | FU | por apoio no módulo |
-| C11.14 | Mover elemento de fundação. | Falta | FU | fundação lançada na planta |
-| C11.15 | Girar em torno do centro: por ângulo digitado, por dois pontos (vetor de direção) ou pelo ângulo de um pilar apoiado (com vários, o do primeiro). | Falta | FU |  |
+| C11.12 | Editar: dimensionar automaticamente ou verificar dimensões e armadura impostas pelo usuário. | Parcial | FU | FU1 no núcleo: dimensiona automaticamente; sapata com dimensões impostas só verificada (`ElementoFundacao.impostas`, `FootingInput.fixed`); blocos e armadura impostos na FU3 |
+| C11.13 | Apagar sapata ou bloco. | Parcial | FU | FU1 no núcleo: `fundacao.remover` (e em cascata no `pilar.remover`); falta a interface |
+| C11.14 | Mover elemento de fundação. | Parcial | FU | FU1 no núcleo: `fundacao.mover` (o elemento passa a posição livre, pilar excêntrico); falta a interface |
+| C11.15 | Girar em torno do centro: por ângulo digitado, por dois pontos (vetor de direção) ou pelo ângulo de um pilar apoiado (com vários, o do primeiro). | Parcial | FU | FU1 no núcleo: `fundacao.girar` por ângulo, dois pontos ou ângulo do pilar (o do primeiro); falta a interface |
 | C11.16 | Unir várias sapatas numa só (não vale para blocos). | Falta | FU |  |
 | C11.17 | Igualar sapatas: copiar geometria, tipo e armadura de uma sapata mestre para outras. | Falta | FU |  |
 | C11.18 | Informação: materiais (inclusive tensão admissível do solo nas sapatas), geometria, resultados, avisos e erros. | Feito | — | resultados, avisos e memorial de fundações |
@@ -871,12 +871,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.57 | Distância máxima entre eixos de pilares para criar sapata associada: padrão 1 m, máximo 3 m. | Falta | FU |  |
 | C11.58 | Elementos gerados editáveis depois. | Falta | FU |  |
 | | **11.5 Cálculo e resultados** | | | |
-| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos, tubulões; sem vigas de fundação e placas |
+| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`); sem sapatas corridas, vigas de fundação e placas |
 | C11.60 | Aviso de erros/avisos ao fim do cálculo, a consultar depois. | Feito | — |  |
-| C11.61 | Vários níveis de fundação; escolha dos grupos cuja fundação será calculada. | Falta | FU |  |
-| C11.62 | Três modos de dimensionamento (descritos na ajuda do programa). | Falta | FU |  |
+| C11.61 | Vários níveis de fundação; escolha dos grupos cuja fundação será calculada. | Parcial | FU | FU1 no núcleo: cota de assentamento por elemento (`cota`, padrão `cotaFundacao`), níveis em `niveisFundacao` e cálculo por nível (`calcularFundacoes`, opção `niveis`); falta a escolha na interface |
+| C11.62 | Três modos de dimensionamento (descritos na ajuda do programa). | Parcial | FU | FU1 no núcleo: opção `fundModo` (0 dimensionar, 1 só verificar com as dimensões impostas ou as anteriores, 2 só os com erro; `calcularFundacoes`); falta a interface |
 | C11.63 | Exige o cálculo completo da estrutura para ter os esforços nas bases dos pilares. | Feito | — | cargas importadas do edifício |
-| C11.64 | Elementos com erro em vermelho e mensagem por clique. | Falta | FU |  |
+| C11.64 | Elementos com erro em vermelho e mensagem por clique. | Parcial | FU | FU1 no núcleo: erros e avisos FUND_* em `revisao.ts` (tipo "fundacao"); falta o vermelho na planta e a janela do elemento |
 | C11.65 | Aviso de sapatas sobrepostas e opção de eliminar sobreposições, que reorganiza e cria sapata associada sob os pilares. | Falta | FU |  |
 | | **11.6 Relatórios e desenhos** | | | |
 | C11.66 | Relatório de fundação: dados de sapatas, blocos, vigas e placas de base com dimensões e verificações. | Feito | — | memorial de fundações |
@@ -937,4 +937,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — conferência após a frente R (R1–R6) e as frentes 0 e N1 (N1a–N1e).** Itens R e N reconferidos no código (`src/core/building/`, `src/core/sheets/`, `src/app/edificio/`, comandos e memorial). Fechados como Feito, entre outros: pilares revisados pela edição (C4.34), biela dos pilares (C4.40), taxa máxima (C4.39), edição pós-lançamento do pilar (C4.3), dimensionamento único por grupo (C3.5), barra acima do máximo (C6.67), diagramas por clique (C6.106, C7.189), engaste de borda por pano (C7.12), redutor de torção das lajes (C7.41), cortante e treliça das vigotas (C7.33). Vigotas de aço e treliças metálicas passaram a Fora, como C7.39/C7.40 (C7.107, C7.108, C7.115, C7.124, C7.125, C7.127). O que a spec da R deixou de fora foi para a frente que vai assumi-lo (E3 vigotas de fabricante, E2 consolos e vigas inclinadas e curvas, V vistas e diagramas por hipótese, N modelo único); o restante ficou como resíduo da R, marcado `[resíduo R]`.
   - Situação: Feito 90 → 103; Parcial 119 → 119; Falta 375 → 356; Fora 179 → 185.
   - Pendências por frente (antes → depois): R 83 → 42; N 32 → 26; E 203 → 227; FU 67 → 67; L 71 → 71; V 38 → 42 (total 494 → 475).
+- **20/10/2026 — fatia FU1 no núcleo (fundações por pilar e dados do terreno).** Elementos de fundação no modelo do edifício (`ElementoFundacao`, `FundacaoEdificio` em `types.ts`), adaptador `src/core/building/fundacao.ts` sobre o núcleo do módulo Fundações (sapata com pilar fora do centro, de divisa e de canto em `footings.ts`; estacas por capacidade informada em `piles.ts`), comandos `fundacao.*` e `sondagem.*`, arranques, códigos FUND_* na revisão e resultados em `dimensionarEdificio`. Itens da FU1 reconferidos: todos seguem Parcial até a interface da FU1 (C4.2, C11.10, C11.14, C11.15, C11.61, C11.62 e C11.64 saíram de Falta).
+  - Situação: Feito 103 → 103; Parcial 119 → 126; Falta 356 → 349; Fora 185 → 185.
+  - Pendências por frente: FU 67 → 67 (Parcial 12 → 19, Falta 55 → 48); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

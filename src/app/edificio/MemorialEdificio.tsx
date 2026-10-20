@@ -17,6 +17,7 @@ import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from
 import { svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
+import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
@@ -344,6 +345,20 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <tbody>{dim.fundacao.map((f) => <tr key={f.id}><td className="l">{f.label}</td><td>{fmt(f.Nk, 1)}</td><td>{fmt(f.NkMin, 1)}</td><td>{fmt(f.NkPerm ?? f.Nk, 1)}</td><td>{fmt(f.Hx, 1)}</td><td>{fmt(f.Hy, 1)}</td><td>{fmt(f.Mx, 1)}</td><td>{fmt(f.My, 1)}</td><td className="l">{f.source?.replace('Edifício · ', '')}</td></tr>)}</tbody>
             </table>
             <p>Valores característicos (kN, kN·m). Nd das ELU na tabela da aba Análise.</p>
+
+            {!!dim.fundacoes?.length && (<>
+              {h2('Fundações')}
+              <p>
+                Elementos lançados no nível de fundação, calculados depois da estrutura com as cargas na base dos pilares (vínculo externo) pelo mesmo núcleo do módulo Fundações.
+                Terreno: σadm {b.fundacao?.terreno.sigmaModo === 'sondagem' ? 'estimada pelo SPT (N̄/50 nas sapatas, N̄/30 nos tubulões; a confirmar)' : `informada, ${fmt(b.fundacao?.terreno.sigmaAdm ?? NaN, 0)} kN/m²`}
+                {' '}(majoração com vento × {fmt(b.fundacao?.terreno.fatorVento ?? 1)}; a confirmar); cota do terreno {fmt(cotaTerreno(b))} m; {b.fundacao?.sondagens.length ?? 0} furo(s) de sondagem.
+                {b.fundacao?.terreno.estacas.length ? ` Estacas: ${b.fundacao.terreno.estacas.map((e) => `${e.nome} (${e.modo === 'informada' ? `${fmt(e.capacidade ?? NaN, 0)} kN por estaca` : 'pela sondagem'})`).join('; ')}.` : ''}
+              </p>
+              <table>
+                <thead><tr><th className="l">Elemento</th><th className="l">Pilar</th><th className="l">Tipo</th><th>Cota (m)</th><th className="l">Dimensões</th><th>σadm (kN/m²)</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.fundacoes.map((f) => <tr key={f.id}><td className="l">{f.nome}</td><td className="l">{f.pilares.join(', ')}</td><td className="l">{TIPO_FUNDACAO_LABEL[f.tipo]} {POSICAO_LABEL[f.posicao]}</td><td>{fmt(f.cota)}</td><td className="l">{f.resumo.replace(`${f.nome}: `, '')}</td><td>{f.sigmaAdm !== undefined ? fmt(f.sigmaAdm, 0) : '—'}</td><td>{fmt(f.volume, 3)}</td><td className="l">{f.status === 'ok' ? 'atende' : 'não atende'}</td><td className="l">{[...f.mensagens, ...f.notas].join(' ')}</td></tr>)}</tbody>
+              </table>
+            </>)}
 
             {h2('Quantitativos')}
             <table>

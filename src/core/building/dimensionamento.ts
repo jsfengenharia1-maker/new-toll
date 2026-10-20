@@ -5,7 +5,6 @@ import { baseBarra, type Caso3, type Modelo3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, bransonRatio, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, PHI_L, torsionRect } from '../concrete';
 import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, flambagemLance, gamas } from './materiais';
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
-import type { FLoad } from '../piles';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
@@ -15,8 +14,9 @@ import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento'
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, resumoAcoLajes, type DetalheLaje } from './detalhamentoLajes';
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
-import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
+import { casosDaObra, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
+import { calcularFundacoes, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import { TAXAS } from './premissas';
 export { TAXAS };
 
@@ -804,27 +804,8 @@ export function quantitativos(b: BuildingModel): Quantitativo[] {
 
 // ---------------- fundação ----------------
 
-/** Cargas características por pilar para o módulo Fundações (rara máx./mín., permanente, H e M da rara máx.). */
-export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio): FLoad[] {
-  const combs = combinacoesEdificio(b, an).filter((x) => x.tipo === 'RARA');
-  const porPilar = new Map<string, Record<string, AnaliseEdificio['fundacao'][number]>>();
-  const permanentes = casosDaObra(b).filter((c) => c.natureza === 'G').map((c) => c.id);
-  for (const f of an.fundacao) { const r = porPilar.get(f.pilar) ?? {}; r[f.caso] = f; porPilar.set(f.pilar, r); }
-  let id = 0;
-  return b.pilares.filter((p) => porPilar.has(p.id)).map((p) => {
-    const r = porPilar.get(p.id)!;
-    const v = (cb: CombinacaoEd, k: 'N' | 'Vx' | 'Vy' | 'Mx' | 'My') => Object.entries(cb.fatores).reduce((s, [n, f]) => s + f * (r[n]?.[k] ?? 0), 0);
-    const ns = combs.map((cb) => v(cb, 'N'));
-    const iMax = ns.indexOf(Math.max(...ns)), cMax = combs[iMax];
-    const [cx, cy] = centroPilar(p, p.secao), [w, h] = dimsSecao(p.secao);
-    const rot = Math.abs(Math.sin((p.angulo * Math.PI) / 180)) > 0.7;
-    return {
-      id: ++id, label: p.nome, Nk: +ns[iMax].toFixed(2), NkMin: +Math.min(...ns).toFixed(2), NkPerm: +permanentes.reduce((t, c) => t + (r[c]?.N ?? 0), 0).toFixed(2),
-      Hx: +v(cMax, 'Vx').toFixed(2), Hy: +v(cMax, 'Vy').toFixed(2), Mx: +v(cMax, 'Mx').toFixed(2), My: +v(cMax, 'My').toFixed(2),
-      x: +cx.toFixed(3), y: +cy.toFixed(3), ap: rot ? h : w, bp: rot ? w : h, source: `Edifício · ${cMax.nome}`,
-    };
-  });
-}
+// Cargas por pilar para o módulo Fundações: em fundacao.ts (adaptador das fundações do edifício).
+export { cargasParaFundacao } from './fundacao';
 
 // ---------------- tudo ----------------
 
@@ -841,9 +822,15 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
    */
   vigotas?: ResultadoVigotas[];
   /** Aço das vigotas (adicionais, negativos e distribuição da capa) por bitola e treliças por tipo (m, kg). */
-  resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas> }
+  resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas>;
+  /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
+  fundacoes?: ResultadoFundacao[] }
 
-export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dimensionamento {
+/**
+ * Dimensiona a estrutura e, se houver fundações lançadas e `fundacao` não for false ("calcular com fundação"), as fundações.
+ * `fundacao`: opções do cálculo das fundações (modo, resultados anteriores, níveis).
+ */
+export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combs.filter((x) => x.tipo === 'ELU'), freq = combs.filter((x) => x.tipo === 'FREQ');
   const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   d.detalhes = detalharVigas(b, d, an.opcoes);
@@ -855,5 +842,6 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dime
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
+  if (o.fundacao !== false && b.fundacao?.elementos.length) d.fundacoes = calcularFundacoes(b, an, o.fundacao || {});
   return d;
 }

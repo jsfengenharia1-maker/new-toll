@@ -20,8 +20,10 @@ export interface Comando<P = Record<string, unknown>> {
   /**
    * false: só dados de apresentação (carimbo, formato e escalas das pranchas). Não muda a revisão de cálculo
    * (`Sessao.revCalculo`), então não invalida a análise nem o dimensionamento. Padrão: true.
+   * 'fundacao': só dados das fundações (elementos, terreno, sondagens). Não muda `revCalculo` (a estrutura é calculada
+   * com vínculo externo na base dos pilares), só `revFundacao`.
    */
-  calculo?: boolean;
+  calculo?: boolean | 'fundacao';
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -40,6 +42,15 @@ export function afetaCalculo(nome: string, params?: Record<string, unknown>): bo
   if (nome === 'lote') {
     const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
     return cs.some((c) => afetaCalculo(c.nome, c.params));
+  }
+  const c = REGISTRO.get(nome)?.calculo;
+  return c === undefined || c === true;
+}
+/** O comando altera o cálculo das fundações? (tudo que altera o cálculo, mais os comandos só de fundação.) */
+export function afetaFundacao(nome: string, params?: Record<string, unknown>): boolean {
+  if (nome === 'lote') {
+    const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
+    return cs.some((c) => afetaFundacao(c.nome, c.params));
   }
   return REGISTRO.get(nome)?.calculo !== false;
 }
@@ -95,7 +106,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'cargasPilar'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'cargasPilar', 'fundacao'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }
@@ -133,7 +144,7 @@ registrar<{ comandos: { nome: string; params?: Record<string, unknown> }[] }>({
 
 export interface Resultado { ok: boolean; erros: Diagnostico[]; diff?: Diff; mensagem?: string; token?: string }
 
-interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[]; calculo: boolean }
+interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[]; calculo: boolean; fundacao: boolean }
 
 /** Estado de edição: modelo atual, desfazer/refazer, log e prévias pendentes. */
 export class Sessao {
@@ -145,6 +156,8 @@ export class Sessao {
    * dimensionamento e caches comparam esta revisão; mudar só dados de prancha não os invalida.
    */
   revCalculo = 0;
+  /** Revisão do cálculo das fundações: muda com tudo que muda `revCalculo` e com os comandos só de fundação. */
+  revFundacao = 0;
   log: Entrada[];
   private feitos: Passo[] = [];
   private desfeitos: Passo[] = [];
@@ -162,11 +175,12 @@ export class Sessao {
     if (REGISTRO.get(nome)!.risco === 'leitura') return { ok: true, erros: [], mensagem: r.mensagem };
     const entrada: Entrada = { t: new Date().toISOString(), nome, params: r.params!, autor };
     this.modelo = r.modelo;
-    const calculo = afetaCalculo(nome, r.params);
+    const calculo = afetaCalculo(nome, r.params), fundacao = afetaFundacao(nome, r.params);
     this.rev++;
     if (calculo) this.revCalculo++;
+    if (fundacao) this.revFundacao++;
     this.log.push(entrada);
-    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos!, calculo }];
+    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos!, calculo, fundacao }];
     this.desfeitos = [];
     this.previas.clear();
     return { ok: true, erros: [], diff: r.diff, mensagem: r.mensagem };
@@ -200,6 +214,7 @@ export class Sessao {
     this.desfeitos.push(p);
     this.rev++;
     if (p.calculo) this.revCalculo++;
+    if (p.fundacao) this.revFundacao++;
     this.previas.clear();
     return p.entrada;
   }
@@ -212,6 +227,7 @@ export class Sessao {
     this.feitos.push(p);
     this.rev++;
     if (p.calculo) this.revCalculo++;
+    if (p.fundacao) this.revFundacao++;
     this.previas.clear();
     return p.entrada;
   }

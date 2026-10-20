@@ -1,6 +1,7 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
 import type { OpcoesCalculo } from './opcoes';
+import type { Boring, FoundationParams, PileType } from '../piles';
 
 export const BUILDING_VERSION = 1;
 
@@ -309,7 +310,83 @@ export interface BuildingModel {
   casos?: CasoAdicional[];
   /** Cargas nos pilares. */
   cargasPilar?: CargaPilar[];
+  /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
+  fundacao?: FundacaoEdificio;
 }
+
+// ---------------- fundações (frente FU) ----------------
+
+/** Tipo de estaca do terreno (escolhido por bloco). */
+export interface EstacaTerreno {
+  id: string;
+  nome: string;
+  tipo: PileType;
+  /** Diâmetro (cm). */
+  D: number;
+  /** 'informada': capacidade característica por estaca (kN); 'sondagem': comprimento e capacidade pelo SPT (Décourt-Quaresma). */
+  modo: 'informada' | 'sondagem';
+  /** kN, carga admissível característica por estaca (modo informado). */
+  capacidade?: number;
+  /** Distância entre eixos (m); ausente = a dos parâmetros (× D). */
+  s?: number;
+}
+
+export interface TerrenoFundacao {
+  /** σadm (kN/m²) de sapatas e tubulões no modo informado. */
+  sigmaAdm?: number;
+  /** 'informada' (padrão) ou 'sondagem' (estimada pelo SPT: N̄/50 nas sapatas e N̄/30 nos tubulões, a confirmar). */
+  sigmaModo: 'informada' | 'sondagem';
+  /** Majoração de σadm nas combinações com vento (padrão 1,0; a confirmar). */
+  fatorVento?: number;
+  /** Cota da boca dos furos de sondagem = nível do terreno (m); ausente = cota do pavimento mais baixo. */
+  cotaTerreno?: number;
+  estacas: EstacaTerreno[];
+}
+
+export type TipoFundacao = 'sapata' | 'bloco' | 'tubulao';
+/** Posição relativa pilar × elemento: centrada, de divisa (uma face na borda), de canto (duas faces) ou livre (centro informado). */
+export type PosicaoFundacao = 'centrada' | 'divisa' | 'canto' | 'livre';
+
+/** Elemento de fundação sob um pilar (FU1; associadas e blocos com vários pilares na FU3). */
+export interface ElementoFundacao {
+  id: string;
+  nome: string;
+  tipo: TipoFundacao;
+  /** Pilares apoiados (FU1: um). */
+  pilares: string[];
+  /** Ponto de inserção (m): centro do elemento em 'livre'; nas demais posições, o centro do pilar (o centro real sai do cálculo). */
+  x: number;
+  y: number;
+  /** Giro do elemento (graus, anti-horário); padrão: o do pilar. */
+  angulo: number;
+  posicao: PosicaoFundacao;
+  /** Divisa e canto: lado da divisa nos eixos do elemento (−1, 0 ou 1 em x e em y). */
+  lado?: [number, number];
+  /** Cota de assentamento (m); ausente = cota de fundação da obra. */
+  cota?: number;
+  /** σadm próprio (kN/m²); sobrepõe o do terreno. */
+  sigmaAdm?: number;
+  /** Sondagem do elemento: um furo (`ids[0]`) ou a média dos furos `ids` (todos, se vazio); ausente = o furo mais próximo. */
+  sondagem?: { modo: 'furo' | 'media'; ids?: number[] };
+  /** Bloco: tipo de estaca do terreno e número de estacas fixo (opcional). */
+  estaca?: { id: string; n?: number };
+  /** Sapata: dimensões impostas (m), só verificadas. */
+  impostas?: { A: number; B: number; h?: number };
+}
+
+export interface FundacaoEdificio {
+  terreno: TerrenoFundacao;
+  /** Furos de sondagem (mesmo formato do módulo Fundações). */
+  sondagens: Boring[];
+  /** Parâmetros do módulo Fundações que diferem do padrão. */
+  params?: Partial<FoundationParams>;
+  elementos: ElementoFundacao[];
+}
+
+export const FUNDACAO_VAZIA = (): FundacaoEdificio => ({ terreno: { sigmaModo: 'informada', estacas: [] }, sondagens: [], elementos: [] });
+
+/** Arranque: pilar de altura zero (nasce e morre na fundação), só para levar cargas à fundação. */
+export const ehArranque = (p: Pick<Pilar, 'nasce' | 'morre'>) => p.nasce === 'fundacao' && p.morre === 'fundacao';
 
 export type Formato = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
 export interface Carimbo {
