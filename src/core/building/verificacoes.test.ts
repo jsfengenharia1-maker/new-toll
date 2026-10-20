@@ -69,13 +69,17 @@ describe('verificações das vigas e pilares (N1e)', () => {
 
   it('fissuração: limite menor aumenta a armadura', () => {
     const { ok, dim, v1 } = grade();
-    const r0 = v1(dim());
+    const dimL0 = dim(), r0 = v1(dimL0);
     expect(r0.wkLim).toBeCloseTo(0.3, 9); // CAA II
     expect(r0.wk[0]).toBeGreaterThan(0);
     ok('opcoes.definir', { valores: { limiteFissura: 0.05 } });
-    const r1 = v1(dim());
+    const d1 = dim(), r1 = v1(d1);
     expect(r1.AsInf).toBeGreaterThan(r0.AsInf);
     expect(r1.mensagens.some((m) => m.includes('fissuras'))).toBe(true);
+    // lajes maciças: wk na combinação frequente e armadura aumentada com o limite menor
+    const l0 = dimL0.lajes[0], l1 = d1.lajes.find((x) => x.laje === l0.laje && x.pavimento === l0.pavimento)!;
+    expect(l0.wk).toBeGreaterThan(0);
+    expect(l1.As.pos[0] + l1.As.pos[1]).toBeGreaterThan(l0.As.pos[0] + l0.As.pos[1]);
   });
 
   it('torção de compatibilidade: verificada por padrão e desprezada com a opção', () => {

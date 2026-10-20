@@ -439,7 +439,16 @@ export interface ResultadoLaje {
   flecha: number; limite: number;
   /** Flecha imediata só das variáveis e o limite sensorial (m). */
   flechaQ: number; limiteQ: number;
+  /** Maior abertura de fissuras na combinação frequente (mm; maciças) e limite. */
+  wk: number; wkLim: number;
   status: 'ok' | 'fail'; mensagens: string[];
+}
+
+/** Bitola e espaçamento de laje para As (m²/m): a menor bitola com espaçamento ≥ 10 cm, até mín(2h; 20 cm). */
+function barrasLaje(As: number, h: number) {
+  const smax = Math.min(2 * h, 0.2);
+  for (const phi of [6.3, 8, 10, 12.5, 16]) { const s = Math.min(smax, barArea(phi) / As); if (s >= 0.1 || phi === 16) return { phi, s, As: barArea(phi) / s }; }
+  return { phi: 16, s: 0.1, As: barArea(16) / 0.1 };
 }
 
 /**
@@ -536,6 +545,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
   const psiQP = an.casos.map((id) => { const c = obra.find((x) => x.id === id); return c?.natureza === 'Q' ? (c.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3) : 0; });
   const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'Q' ? gm.q : 0));
   const fQP = nat.map((n, ic) => (n === 'G' ? 1 : n === 'Q' ? psiQP[ic] : 0)), fQ = nat.map((n) => (n === 'Q' ? 1 : 0));
+  const fFreq = an.casos.map((id, ic) => { const c = obra.find((x) => x.id === id); return nat[ic] === 'G' ? 1 : nat[ic] === 'Q' ? (c?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
+  const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
   const af = deltaXi(op.t0Flecha); // fluência (NBR 6118, 17.3.2.1.2), ρ′ = 0
   const fatorTotal = op.fatorFlechaLaje > 0 ? op.fatorFlechaLaje : 1 + af;
   const out: ResultadoLaje[] = [];
@@ -549,21 +560,27 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
     for (const l of b.lajes.filter((x) => x.grupo === pav.grupo)) {
       const r0 = ja.get(l.id);
       if (r0) { out.push({ ...r0, pavimento: pav.nome, mensagens: [...r0.mensagens] }); continue; }
-      let mPos: [number, number] = [0, 0], mNeg: [number, number] = [0, 0];
-      let tem = false;
-      g.modelo.barras.forEach((_, i) => {
-        const t = g.barras[i];
-        if (t.tipo !== 'laje' || t.ref !== l.id || t.dir === undefined || !t.largura) return;
-        tem = true;
-        if (op.woodArmer && l.tipo.tipo === 'macica') return;
-        for (const k of [0, 6]) {
-          // momento interno nas pontas (sinal de viga: + traciona embaixo); γg·ΣG + γq·ΣQ (casos verticais da grelha)
-          const md = fELU.reduce((s, f, ic) => s + f * (k === 0 ? -g.res!.esforcos[ic][i][5] : g.res!.esforcos[ic][i][11]), 0) / t.largura;
-          mPos[t.dir] = Math.max(mPos[t.dir], md); mNeg[t.dir] = Math.min(mNeg[t.dir], md);
-        }
-      });
-      if (!tem) continue;
-      if (op.woodArmer && l.tipo.tipo === 'macica') ({ pos: mPos, neg: mNeg } = momentosWoodArmer(g, l.id, fELU));
+      /** Momentos por metro (pos/neg nas duas direções) para os fatores dados por caso. */
+      const momentos = (fat: number[]) => {
+        let pos: [number, number] = [0, 0], neg: [number, number] = [0, 0], tem = false;
+        g.modelo.barras.forEach((_, i) => {
+          const t = g.barras[i];
+          if (t.tipo !== 'laje' || t.ref !== l.id || t.dir === undefined || !t.largura) return;
+          tem = true;
+          if (op.woodArmer && l.tipo.tipo === 'macica') return;
+          for (const k of [0, 6]) {
+            // momento interno nas pontas (sinal de viga: + traciona embaixo); Σ fator·caso (casos verticais da grelha)
+            const md = fat.reduce((s, f, ic) => s + f * (k === 0 ? -g.res!.esforcos[ic][i][5] : g.res!.esforcos[ic][i][11]), 0) / t.largura;
+            pos[t.dir] = Math.max(pos[t.dir], md); neg[t.dir] = Math.min(neg[t.dir], md);
+          }
+        });
+        if (tem && op.woodArmer && l.tipo.tipo === 'macica') ({ pos, neg } = momentosWoodArmer(g, l.id, fat));
+        return { pos, neg, tem };
+      };
+      const mELU = momentos(fELU);
+      if (!mELU.tem) continue;
+      const { pos: mPos, neg: mNeg } = mELU;
+      let wk = 0;
       const pr = propriedadesLaje(l.tipo), msgs: string[] = [];
       let As = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
       // flecha relativa aos apoios: quase permanente × fator (fluência); sensorial: só as variáveis, imediata
@@ -575,6 +592,17 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         const amin = 0.0015 * h; // ρmín 0,15 % (fck ≤ 30) [a confirmar por fck]
         const a = (M: number, dd: number, fyd: number) => Math.max(amin, M ? beamFlexure(sec, false, Math.abs(M), dd, 0.02, c, fyd).As : 0) * 1e4;
         As = { pos: [a(mPos[0], dI, fInf), a(mPos[1], dI, fInf)], neg: [mNeg[0] < 0 ? a(mNeg[0], dS, fSup) : 0, mNeg[1] < 0 ? a(mNeg[1], dS, fSup) : 0] };
+        // fissuração na combinação frequente (17.3.3.2), faixa de 1 m; aumenta a armadura até wk ≤ limite
+        const mk = momentos(fFreq);
+        let aumentou = false;
+        const w = (Ascm: number, M: number, dd: number) => { if (!Ascm || !M) return 0; const br = barrasLaje(Ascm / 1e4, h); return crackWidth(sec, false, br.As, br.phi, dd, Math.abs(M), c, caa).wk; };
+        for (const [lado, dd, ms] of [['pos', dI, mk.pos], ['neg', dS, mk.neg]] as const) for (const k of [0, 1]) {
+          let wi = w(As[lado][k], ms[k], dd);
+          for (let it = 0; it < 20 && wi > wkLim; it++) { As[lado][k] *= 1.1; wi = w(As[lado][k], ms[k], dd); aumentou = true; }
+          wk = Math.max(wk, wi);
+        }
+        if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${wkLim.toFixed(2).replace('.', ',')} mm.`);
+        if (wk > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${wk.toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
       } else {
         const cat = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12;
         msgs.push(`Treliçada: momento por nervura (intereixo ${Math.round(cat.intereixo * 100)} cm) = ${(mPos[0] * cat.intereixo).toFixed(2)} kN·m; conferir armadura das vigotas com o fabricante.`);
@@ -582,7 +610,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), sem fissuração`;
       if (fl > lim) msgs.push(`Flecha total ${(fl * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaTotal} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
       if (fq > limQ) msgs.push(`Flecha das variáveis ${(fq * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limQ * 1000).toFixed(1)} mm (vibrações).`);
-      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, status: fl > lim || fq > limQ ? 'fail' : 'ok', mensagens: msgs };
+      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, wk, wkLim, status: fl > lim || fq > limQ || wk > wkLim + 1e-9 ? 'fail' : 'ok', mensagens: msgs };
       ja.set(l.id, r);
       out.push(r);
     }
