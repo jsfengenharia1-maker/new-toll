@@ -160,32 +160,39 @@ registrar<{ grupo: string; tolerancia: number }>({
 
 const casoSchema = (padrao: CasoFisico): JsonSchema => ({ type: 'string', minLength: 1, default: padrao, description: 'G permanente, Q variável ou id de um caso adicional (caso.criar)' });
 /** O caso existe na obra (G, Q ou adicional)? */
+/** Grupo da carga: um grupo da obra ou 'fundacao' (nível de fundação: cargas sobre vigas e elementos de fundação). */
+const grupoCargaOk = (b: BuildingModel, g: string) => (g === 'fundacao' ? [] : grupoOk(b, g));
+/** Carga no nível de fundação só muda o cálculo das fundações. */
+const calculoCarga = (p: Record<string, unknown>) => (p.grupo === 'fundacao' ? 'fundacao' as const : true);
 const casoOk = (b: BuildingModel, caso?: string) => (!caso || casosDaObra(b).some((c) => c.id === caso) ? [] : err('CASO_INEXISTENTE', `Caso ${caso} não existe.`));
 
 registrar<{ grupo: string; ponto: P; valor: number; caso: string }>({
   nome: 'carga.ponto',
-  descricao: 'Carga concentrada vertical (kN, para baixo) na planta do grupo.',
+  descricao: 'Carga concentrada vertical (kN, para baixo) na planta do grupo (grupo "fundacao" = nível de fundação: sobre vigas e elementos de fundação).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'ponto', 'valor'], properties: { grupo: { type: 'string' }, ponto, valor: { type: 'number', description: 'kN' }, caso: casoSchema('Q') } },
-  validar: (b, p) => [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)],
+  calculo: calculoCarga,
+  validar: (b, p) => [...grupoCargaOk(b, p.grupo), ...casoOk(b, p.caso)],
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'ponto', valor: p.valor, pontos: [[r6(p.ponto[0]), r6(p.ponto[1])]] }); return `Carga de ${fmt(p.valor)} kN (${p.caso}).`; },
 });
 
 registrar<{ grupo: string; pontos: P[]; valor: number; caso: string }>({
   nome: 'carga.linha',
-  descricao: 'Carga linear vertical (kN/m) ao longo de uma polilinha da planta do grupo.',
+  descricao: 'Carga linear vertical (kN/m) ao longo de uma polilinha da planta do grupo (grupo "fundacao" = nível de fundação: sobre vigas e elementos de fundação).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'pontos', 'valor'], properties: { grupo: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, valor: { type: 'number', description: 'kN/m' }, caso: casoSchema('G') } },
-  validar: (b, p) => [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)],
+  calculo: calculoCarga,
+  validar: (b, p) => [...grupoCargaOk(b, p.grupo), ...casoOk(b, p.caso)],
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'linha', valor: p.valor, pontos: p.pontos.map((q) => [r6(q[0]), r6(q[1])] as P) }); return `Carga linear de ${fmt(p.valor)} kN/m (${p.caso}).`; },
 });
 
 registrar<{ grupo: string; contorno: P[]; valor: number; caso: string }>({
   nome: 'carga.area',
-  descricao: 'Carga superficial (kN/m²) numa região da planta do grupo, além das cargas do grupo (revestimento e uso).',
+  descricao: 'Carga superficial (kN/m²) numa região da planta do grupo, além das cargas do grupo (revestimento e uso); grupo "fundacao" = nível de fundação (sobre vigas e elementos de fundação).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'contorno', 'valor'], properties: { grupo: { type: 'string' }, contorno: { type: 'array', items: ponto, minItems: 3 }, valor: { type: 'number', description: 'kN/m²' }, caso: casoSchema('Q') } },
-  validar: (b, p) => { const g = [...grupoOk(b, p.grupo), ...casoOk(b, p.caso)]; return g.length ? g : Math.abs(areaPoligono(p.contorno)) < 1e-4 ? err('AREA_NULA', 'Contorno sem área.') : []; },
+  calculo: calculoCarga,
+  validar: (b, p) => { const g = [...grupoCargaOk(b, p.grupo), ...casoOk(b, p.caso)]; return g.length ? g : Math.abs(areaPoligono(p.contorno)) < 1e-4 ? err('AREA_NULA', 'Contorno sem área.') : []; },
   aplicar(d, p) { d.cargas.push({ id: novoId(d, 'c'), grupo: p.grupo, caso: p.caso, tipo: 'area', valor: p.valor, pontos: anti(p.contorno) }); return `Carga de ${fmt(p.valor)} kN/m² (${p.caso}) em ${fmt(Math.abs(areaPoligono(p.contorno)))} m².`; },
 });
 

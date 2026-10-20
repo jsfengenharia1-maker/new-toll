@@ -337,7 +337,13 @@ registrar<{ ids: string[] }>({
     const s = new Set(p.ids);
     d.pilares = d.pilares.filter((q) => !s.has(q.id));
     // elementos de fundação dos pilares removidos saem junto
-    if (d.fundacao?.elementos.some((e) => e.pilares.some((x) => s.has(x)))) d.fundacao.elementos = d.fundacao.elementos.filter((e) => !e.pilares.some((x) => s.has(x)));
+    if (d.fundacao?.elementos.some((e) => e.pilares.some((x) => s.has(x)))) {
+      const sai = new Set(d.fundacao.elementos.filter((e) => e.pilares.some((x) => s.has(x))).map((e) => e.id));
+      d.fundacao.elementos = d.fundacao.elementos.filter((e) => !sai.has(e.id));
+      for (const id of sai) s.add(id);
+    }
+    // vigas de fundação com ponta no pilar ou no elemento removido
+    if (d.fundacao?.vigas?.some((v) => s.has(v.ini) || s.has(v.fim))) { d.fundacao.vigas = d.fundacao.vigas.filter((v) => !s.has(v.ini) && !s.has(v.fim)); if (!d.fundacao.vigas.length) delete d.fundacao.vigas; }
     return `${p.ids.length} pilar(es) removido(s).`;
   },
 });

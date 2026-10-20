@@ -19,10 +19,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
-| 11. Fundações | 70 | 11 | 9 | 45 | 5 |
+| 11. Fundações | 70 | 11 | 25 | 29 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **113** | **117** | **348** | **185** |
+| **Total** | **763** | **113** | **133** | **332** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
 | N — Cálculo e normas | 12 | 14 | 26 |
 | E — Elementos estruturais | 29 | 198 | 227 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface, em 20/10/2026) | 10 | 48 | 58 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 no núcleo, em 20/10/2026) | 26 | 32 | 58 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
 | V — Visualização | 7 | 35 | 42 |
 
@@ -832,9 +832,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.22 | Edição dos limites: apagar, mover, inserir vértice, eliminar trecho. | Falta | FU |  |
 | C11.23 | Restrições do limite: não cortar pilar; cortar o contorno da sapata antes e depois do dimensionamento; não isolar um pilar dos demais numa sapata associada; se violadas, o limite é ignorado. | Falta | FU |  |
 | C11.24 | Limites não afetam vigas de equilíbrio/travamento, blocos, sapatas de altura variável nem sapatas corridas; só sapatas de altura constante. | Falta | FU |  |
-| C11.25 | Cargas pontuais, lineares e de superfície aplicadas sobre sapatas, blocos e vigas de fundação, consideradas no dimensionamento. | Falta | FU |  |
+| C11.25 | Cargas pontuais, lineares e de superfície aplicadas sobre sapatas, blocos e vigas de fundação, consideradas no dimensionamento. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): cargas pontuais, lineares e de superfície com `grupo: "fundacao"` (`carga.ponto/linha/area`) sobre vigas (biapoiadas entre os pilares, levadas às pontas por caso) e sobre elementos (somadas ao pilar); fora deles, aviso FUND_CARGA_FORA; interface pendente (lançamento na planta de fundação) |
 | C11.26 | Reconhecimento das cargas de apoios de escadas sobre elementos de fundação. | Falta | FU |  |
-| C11.27 | Solo sob vigas de equilíbrio/travamento desconsiderado: as vigas resistem às cargas sobre elas e transmitem às sapatas, blocos ou vigas que cruzam. | Falta | FU |  |
+| C11.27 | Solo sob vigas de equilíbrio/travamento desconsiderado: as vigas resistem às cargas sobre elas e transmitem às sapatas, blocos ou vigas que cruzam. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): vigas sem apoio no solo, peso próprio e cargas sobre elas levados às pontas (`cargasDaViga`, `reacoesBiapoiada`); cruzamento de vigas pendente; interface pendente |
 | | **11.2.4 Sapatas corridas sob muros** | | | |
 | C11.28 | Ao lançar um muro, definição da sua fundação: sem vinculação, engastado ou sobre sapata corrida (aba à esquerda, à direita ou ambas). | Falta | FU |  |
 | C11.29 | Sapata corrida dimensionada automaticamente. | Falta | FU |  |
@@ -844,26 +844,26 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Falta | FU |  |
 | C11.33 | Permitir ou não levantamento (descolamento) da sapata; sem permissão, a resultante deve cair no núcleo central. | Parcial | FU | área comprimida ≥ 2/3 [a confirmar] |
 | C11.34 | Não colocar malha superior se a sapata passar como concreto simples (malha só se falhar à flexão com resistência à tração do concreto). | Falta | FU |  |
-| C11.35 | Tipo de equilíbrio sob sapata com viga de equilíbrio: distribuição retangular (equilíbrio perfeito) ou trapezoidal (giro da sapata, momento na viga ~10 % menor). | Falta | FU |  |
+| C11.35 | Tipo de equilíbrio sob sapata com viga de equilíbrio: distribuição retangular (equilíbrio perfeito) ou trapezoidal (giro da sapata, momento na viga ~10 % menor). | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): opção `vigaEqDistribuicao` (0 retangular, equilíbrio total; 1 trapezoidal, equilibrada só a excentricidade além do núcleo central); interface pendente |
 | C11.36 | Relação máxima entre o maior vão entre pilares da sapata e a altura, para considerá-la rígida. | Parcial | FU | h0 e rigidez [a confirmar] |
 | C11.37 | Relação máxima entre o maior balanço e a altura. | Falta | FU |  |
 | | **11.3 Vigas de equilíbrio e de travamento** | | | |
-| C11.38 | Viga de travamento e sapata corrida sem flexão rígida; viga de equilíbrio com flexão, absorvendo o momento da excentricidade entre pilar e eixo da sapata. | Falta | FU |  |
-| C11.39 | Vigas não consideradas apoiadas no solo. | Falta | FU |  |
-| C11.40 | Equilíbrio atribuível a uma ou às duas extremidades (ex.: equilibra só a ponta da sapata excêntrica, a outra funciona como travamento). | Falta | FU |  |
-| C11.41 | Nova viga: de travamento, de equilíbrio (qualquer tipo de sapata) ou com equilíbrio automático nas pontas que chegam a sapatas excêntricas (divisa, canto). | Falta | FU |  |
-| C11.42 | Edição pós-cálculo da viga; sapata pode ser dimensionada antes e a viga depois. | Falta | FU |  |
-| C11.43 | Edição: trocar o tipo de viga numa lista do mesmo tipo. | Falta | FU |  |
-| C11.44 | Edição: prolongar os estribos da viga de equilíbrio dentro da fundação até as esperas do pilar. | Falta | FU |  |
-| C11.45 | Edição: alterar comprimentos de ancoragem. | Falta | FU |  |
-| C11.46 | Edição: verificar a viga atual e listar as verificações feitas. | Falta | FU |  |
-| C11.47 | Edição: dimensionar a viga pela norma, listando as verificações. | Falta | FU |  |
-| C11.48 | Edição: detalhe com cortes transversal e longitudinal, armadura e dimensões. | Falta | FU |  |
+| C11.38 | Viga de travamento e sapata corrida sem flexão rígida; viga de equilíbrio com flexão, absorvendo o momento da excentricidade entre pilar e eixo da sapata. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): viga de equilíbrio com o momento da alavanca (`alavanca`, `diagramaAlavanca`); travamento com Nk × excentricidade de execução (opção `vigaTravExc`, a confirmar); interface pendente |
+| C11.39 | Vigas não consideradas apoiadas no solo. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): vigas não apoiadas no solo (só pontas); interface pendente |
+| C11.40 | Equilíbrio atribuível a uma ou às duas extremidades (ex.: equilibra só a ponta da sapata excêntrica, a outra funciona como travamento). | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `equilibrio: { ini, fim }` por ponta; a ponta não equilibrada funciona como travamento/apoio da alavanca; interface pendente |
+| C11.41 | Nova viga: de travamento, de equilíbrio (qualquer tipo de sapata) ou com equilíbrio automático nas pontas que chegam a sapatas excêntricas (divisa, canto). | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `vigaFundacao.criar` com tipo travamento ou equilíbrio, equilíbrio "auto" nas pontas que chegam a sapata ou bloco de divisa, canto ou posição livre (`pontasEquilibradas`); interface pendente |
+| C11.42 | Edição pós-cálculo da viga; sapata pode ser dimensionada antes e a viga depois. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): vigas calculadas depois dos elementos (alavanca) e editáveis por comando com recálculo só das fundações (`calculo: "fundacao"`); interface pendente |
+| C11.43 | Edição: trocar o tipo de viga numa lista do mesmo tipo. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `vigaFundacao.editar` troca tipo, pontas, equilíbrio e seção; interface pendente |
+| C11.44 | Edição: prolongar os estribos da viga de equilíbrio dentro da fundação até as esperas do pilar. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): opção `vigaFundEstribosEsperas` (estribos de eixo a eixo dos pilares ou só entre as faces, no aço estimado); desenho na FU5 |
+| C11.45 | Edição: alterar comprimentos de ancoragem. | Falta | FU | FU2 núcleo calcula lb das barras superiores (nota da viga); edição dos comprimentos de ancoragem fica para a interface e o desenho (FU5) |
+| C11.46 | Edição: verificar a viga atual e listar as verificações feitas. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): seção fixa (`fixa`, igualada ou imposta) só verificada, com mensagens FUND_VIGA_* e notas; interface pendente |
+| C11.47 | Edição: dimensionar a viga pela norma, listando as verificações. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `dimensionarVigaFundacao` (flexão com As,mín 17.3.5.2.1, cortante modelo I, pele, ancoragem; altura e depois largura crescentes a partir de 20 × 40 cm); interface pendente |
+| C11.48 | Edição: detalhe com cortes transversal e longitudinal, armadura e dimensões. | Falta | FU | FU2 núcleo devolve diagramas, armadura e estribos (`ResultadoVigaFundacao`); desenho longitudinal e transversal na interface da FU2 e na FU5 |
 | C11.49 | Edição: vista 3D da viga. | Falta | FU |  |
-| C11.50 | Apagar viga. | Falta | FU |  |
-| C11.51 | Ativar/desativar o equilíbrio em cada extremidade, indicado por seta curva. | Falta | FU |  |
-| C11.52 | Igualar vigas: copiar o tipo de uma viga de equilíbrio ou travamento para outras; se a seção copiada for insuficiente, a viga fica em vermelho; ancoragens redimensionadas; a mestre não muda. | Falta | FU |  |
-| C11.53 | Módulo avançado: cargas sobre vigas de fundação (como C11.25) e cruzamento de vigas de equilíbrio e travamento. | Falta | FU |  |
+| C11.50 | Apagar viga. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `vigaFundacao.remover`; vigas saem junto com o elemento ou o pilar das pontas; interface pendente |
+| C11.51 | Ativar/desativar o equilíbrio em cada extremidade, indicado por seta curva. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): equilíbrio por ponta (`equilibrio`); seta curva na planta pendente (interface) |
+| C11.52 | Igualar vigas: copiar o tipo de uma viga de equilíbrio ou travamento para outras; se a seção copiada for insuficiente, a viga fica em vermelho; ancoragens redimensionadas; a mestre não muda. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): `vigaFundacao.igualar` copia a seção e a fixa (copiada só verificada, com erro se não atender); a mestre não muda; interface pendente |
+| C11.53 | Módulo avançado: cargas sobre vigas de fundação (como C11.25) e cruzamento de vigas de equilíbrio e travamento. | Parcial | FU | FU2 núcleo (`src/core/building/vigasFundacao.ts`, `fundacao.ts`, comandos `vigaFundacao.*`): cargas sobre vigas de fundação como C11.25; cruzamento de vigas de equilíbrio e de travamento pendente |
 | | **11.4 Geração automática** | | | |
 | C11.54 | Geração automática de sapatas e vigas segundo parâmetros dados numa janela. | Falta | FU |  |
 | C11.55 | Balanço nulo numa direção quando há pilar em frente só de um lado. | Falta | FU |  |
@@ -948,4 +948,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 104 → 113; Parcial 126 → 117; Falta 348 → 348; Fora 185 → 185.
   - Pendências por frente: FU 67 → 58 (Parcial 19 → 10, Falta 48 → 48); demais sem mudança.
 - **20/10/2026 — FU1: materiais da fundação e itens "a confirmar".** C11.18 com o concreto, o aço e o cobrimento próprios da fundação do edifício (padrão os da obra, `materiais.definir`); cota do terreno, N·e em módulo e raras sem e com vento em separado conferidos contra o cap. 11 (sem registro em contrário) e adotados como padrão do programa de referência. Situação sem mudança.
+- **20/10/2026 — fatia FU2 no núcleo (vigas de equilíbrio e de travamento).** `src/core/building/vigasFundacao.ts` (alavanca com várias vigas pela rigidez, diagrama da alavanca, viga biapoiada para as cargas, dimensionamento da viga) e integração em `fundacao.ts` (`calcularFundacaoEdificio`: elementos equilibrados primeiro, centrados pela alavanca; alívio de 50 % no elemento oposto; travamento obrigatório dos blocos de 1 e 2 estacas; cargas do grupo "fundacao"); comandos `vigaFundacao.criar/editar/remover/igualar`; opções `vigaEqAlivio`, `vigaEqDistribuicao`, `vigaTravExc`, `vigaFundBMin`, `vigaFundHMin`, `vigaFundEstribosEsperas`. C11.25, C11.27, C11.35, C11.38–C11.44, C11.46, C11.47, C11.50–C11.53 passam de Falta a Parcial (interface pendente); C11.45 e C11.48 seguem Falta (ancoragem editável e desenho: interface e FU5).
+  - Situação: Feito 113 → 113; Parcial 117 → 133; Falta 348 → 332; Fora 185 → 185.
+  - Pendências por frente: FU 58 → 58 (Parcial 10 → 26, Falta 48 → 32); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

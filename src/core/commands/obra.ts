@@ -107,6 +107,8 @@ registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] |
   descricao: `Define as opções de cálculo do edifício. Dois perfis de padrões: "sistema" (critério de mercado do programa de referência, padrão) e "nbr" (NBR 6118); "perfil" troca o perfil e mantém só os valores que diferem do novo padrão. ${OPCOES_INFO.map((o) => `${o.chave} = ${o.rotulo.toLowerCase()} (padrão ${o.padrao}${o.padraoNBR !== undefined ? `; NBR ${o.padraoNBR}` : ''}${o.unidade ? ` ${o.unidade}` : ''})`).join('; ')}. "padrao": true volta tudo ao padrão do perfil; uma lista de chaves volta só essas.`,
   risco: 'escrita',
   mcp: false,
+  // só opções das fundações: não refaz a análise da estrutura
+  calculo: (p) => { const v = p.valores as Record<string, unknown> | undefined; return !p.padrao && !p.perfil && v && Object.keys(v).length && Object.keys(v).every((k) => /^(fund|viga(Eq|Trav|Fund))/.test(k)) ? 'fundacao' : true; },
   schema: { type: 'object', additionalProperties: false, properties: {
     valores: { type: 'object', additionalProperties: false, properties: Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, { type: 'number', minimum: o.min, maximum: o.max, description: `${o.rotulo}${o.unidade ? ` (${o.unidade})` : ''}; padrão ${o.padrao}` }])) },
     padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: OPCOES_INFO.map((o) => o.chave) } }] },

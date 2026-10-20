@@ -2,12 +2,12 @@
 // O mesmo worker monta as pranchas (formas, locação e armação) com o último cálculo, que fica guardado aqui:
 // a análise não volta a atravessar a fronteira a cada prévia.
 import { analisarEdificio, type AnaliseEdificio } from '../../core/building/analitico';
-import { cargasParaFundacao, dimensionarEdificio, type Dimensionamento } from '../../core/building/dimensionamento';
+import { cargasParaFundacao, comFundacao, dimensionarEdificio, type Dimensionamento } from '../../core/building/dimensionamento';
 import { ehArranque } from '../../core/building/types';
 import type { FLoad } from '../../core/piles';
 import { montarConjunto, type OpcoesConjunto } from '../../core/sheets/conjunto';
 import type { BuildingModel } from '../../core/building/types';
-import { calcularFundacoes, type ResultadoFundacao } from '../../core/building/fundacao';
+import type { ResultadoFundacao } from '../../core/building/fundacao';
 import type { DimEdificio } from './calculo';
 
 type PedidoConjunto = { tipo: 'conjunto'; id: number; modelo: BuildingModel; calculo: number | null; opcoes: OpcoesConjunto };
@@ -46,9 +46,9 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     // só as fundações, com a análise do último cálculo (a estrutura não é refeita)
     try {
       if (!ultimo || ultimo.id !== m.calculo) { responder({ id: m.id, erro: 'Resultados do cálculo indisponíveis em segundo plano; recalcule na aba Dimensionamento.' }); return; }
-      const fundacoes = calcularFundacoes(m.modelo, ultimo.r, { anteriores: m.anteriores });
-      if (ultimo.dim) ultimo.dim.fundacoes = fundacoes;
-      responder({ id: m.id, fundacoes });
+      const f = comFundacao(m.modelo, ultimo.r, { anteriores: m.anteriores });
+      if (ultimo.dim) { delete ultimo.dim.vigasFundacao; delete ultimo.dim.avisosFundacao; Object.assign(ultimo.dim, f); }
+      responder({ id: m.id, fundacoes: f });
     } catch (err) {
       responder({ id: m.id, erro: (err as Error).message });
     }
@@ -60,7 +60,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     // obra só com arranques (sem estrutura para analisar): calcula só as fundações, com as cargas lançadas nos arranques
     const soArranques = b.pilares.length > 0 && b.pilares.every(ehArranque) && !!b.fundacao?.elementos.length;
     const dim = r.erro || !r.portico.res ? (soArranques ? {
-      ...({ vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacoes: m.semFundacao ? undefined : calcularFundacoes(b, r, { anteriores: m.anteriores }) } as Dimensionamento),
+      ...({ vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, ...(m.semFundacao ? {} : comFundacao(b, r, { anteriores: m.anteriores })) } as Dimensionamento),
       fundacao: cargasParaFundacao(b, r) as FLoad[], ms: 0,
     } as DimEdificio : null) : { ...dimensionarEdificio(b, r, { fundacao: m.semFundacao ? false : { anteriores: m.anteriores } }), fundacao: cargasParaFundacao(b, r), ms: 0 };
     if (dim) dim.ms = performance.now() - t0;

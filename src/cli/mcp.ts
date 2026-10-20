@@ -5,7 +5,9 @@ import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '
 import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
-import { calcularFundacoes, resumoFundacao, type ResultadoFundacao } from '../core/building/fundacao';
+import { resumoFundacao, type ResultadoFundacao } from '../core/building/fundacao';
+import { comFundacao } from '../core/building/dimensionamento';
+import { resumoVigaFundacao, type ResultadoVigaFundacao } from '../core/building/vigasFundacao';
 import { resumoAnalise } from '../core/building/resumo';
 import { resumoVigotas } from '../core/building/vigotas';
 import { abrirSessao, dimensionar, gravarPranchas, resumo, TIPOS_PRANCHA, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
@@ -59,7 +61,7 @@ export class ServidorMcp {
       { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G, Q e vento NBR 6123; γz). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
         executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
       { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha) e treliçadas (resumo das vigotas por laje: grupos, adicional, negativos, maciçamento; aço e treliças); quantitativos por pavimento e cargas características por pilar para o módulo Fundações; fundações lançadas no edifício (sapatas, blocos sobre estacas, tubulões: dimensões, σadm, volume, situação e mensagens FUND_*). Filtros opcionais: um pavimento (id ou nome), só os elementos que não atendem ou pedem revisão e só a fundação. status: ok | review (revisar) | fail (não atende).',
-        inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false }, fundacao: { type: 'boolean', default: false, description: 'só as fundações lançadas (resumo por elemento) e as cargas por pilar' } } },
+        inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false }, fundacao: { type: 'boolean', default: false, description: 'só as fundações lançadas (resumo por elemento, vigas de equilíbrio e de travamento) e as cargas por pilar' } } },
         outputSchema: SAIDA_DIM, annotations: ro(),
         executar: (a) => filtrarDim(this.sessao.modelo, this.resultados(), a.pavimento as string | undefined, !!a.so_problemas, !!a.fundacao) },
       { name: 'pranchas', title: 'Gerar pranchas', description: 'Gera pranchas pelo tipo: formas (padrão; uma por grupo), locacao (eixos, pilares e tabela de cargas características e de cálculo), vigas, pilares (com o quadro de pilares) e lajes (armação, com tabela de aço e resumo com perdas por folha) ou todas (conjunto numerado). Armação e cargas calculam e dimensionam o edifício antes. PDF com todas as páginas, DXF R2000 e DWG R2018 (uma prancha por arquivo). Carimbo e opções das pranchas de armação pelo comando prancha.definir. Grava nos caminhos informados (sobrescreve).',
@@ -96,7 +98,7 @@ export class ServidorMcp {
     const s = this.sessao, c = this.cache;
     if (!c || c.sessao !== s || c.revCalculo !== s.revCalculo) { const an = analisarEdificio(s.modelo); this.cache = { sessao: s, revCalculo: s.revCalculo, revFundacao: s.revFundacao, an, dim: dimensionar(s.modelo, an) }; }
     else if (c.revFundacao !== s.revFundacao) {
-      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, fundacoes: calcularFundacoes(s.modelo, c.an) };
+      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, vigasFundacao: undefined, avisosFundacao: undefined, ...comFundacao(s.modelo, c.an) };
       this.cache = { ...c, revFundacao: s.revFundacao, dim };
     }
     return this.cache!.dim;
@@ -181,7 +183,10 @@ const RECURSOS: [string, string, string][] = [
 export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, pavimento?: string, soProblemas = false, soFundacao = false) {
   if ('erro' in d) return d;
   const fprob = (xs: ResultadoFundacao[]) => (soProblemas ? xs.filter((x) => x.status !== 'ok') : xs).map(resumoFundacao);
-  if (soFundacao) return { fundacoes: fprob(d.fundacoes ?? []), fundacao: d.fundacao, resumo: { fundacoes: contaStatus(d.fundacoes ?? []) } };
+  const vprob = (xs: ResultadoVigaFundacao[]) => (soProblemas ? xs.filter((x) => x.status !== 'ok') : xs).map(resumoVigaFundacao);
+  // vigas de equilíbrio e de travamento (FU2): resumo sem diagramas; avisos gerais das fundações
+  const vigasF = () => ({ ...(d.vigasFundacao?.length ? { vigasFundacao: vprob(d.vigasFundacao) } : {}), ...(d.avisosFundacao?.length ? { avisosFundacao: d.avisosFundacao } : {}) });
+  if (soFundacao) return { fundacoes: fprob(d.fundacoes ?? []), ...vigasF(), fundacao: d.fundacao, resumo: { fundacoes: contaStatus(d.fundacoes ?? []), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) } };
   const pav = pavimento ? b.pavimentos.find((p) => p.id === pavimento || p.nome.toLowerCase() === pavimento.toLowerCase()) : undefined;
   if (pavimento && !pav) throw new Error(`Pavimento ${pavimento} não existe.`);
   const prob = <T extends { status: string }>(xs: T[]) => (soProblemas ? xs.filter((x) => x.status !== 'ok') : xs);
@@ -193,7 +198,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     pilares: prob(pav ? d.pilares.filter((p) => p.pavimento === pav.nome) : d.pilares).map(({ determinantes: _d, ...p }) => p),
     lajes: prob(pav ? d.lajes.filter((l) => l.pavimento === pav.nome) : d.lajes),
     quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
-    ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao, ...(d.fundacoes?.length ? { fundacoes: fprob(d.fundacoes) } : {}) } : {}),
+    ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao, ...(d.fundacoes?.length ? { fundacoes: fprob(d.fundacoes) } : {}), ...vigasF() } : {}),
     combinacoes: d.combinacoes,
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
@@ -201,7 +206,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
-    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}) },
+    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
   };
 }
 const contaStatus = (xs: { status: string }[]) => ({ total: xs.length, ok: xs.filter((x) => x.status === 'ok').length, revisar: xs.filter((x) => x.status === 'review').length, naoAtende: xs.filter((x) => x.status === 'fail').length });
@@ -215,6 +220,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, avisosFundacao: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

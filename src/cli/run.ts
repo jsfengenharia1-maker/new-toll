@@ -6,8 +6,7 @@ import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
 import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
-import { cargasParaFundacao, dimensionarEdificio, type Dimensionamento } from '../core/building/dimensionamento';
-import { calcularFundacoes } from '../core/building/fundacao';
+import { cargasParaFundacao, comFundacao, dimensionarEdificio, type Dimensionamento } from '../core/building/dimensionamento';
 import type { FLoad } from '../core/piles';
 export { TIPOS_PRANCHA };
 import { montarConjunto, PRECISA_CALCULO, tiposDe, TIPOS_PRANCHA, type TipoSaida } from '../core/sheets/conjunto';
@@ -103,7 +102,7 @@ export function novoTrabalho(vazio: boolean): Sessao {
 export function dimensionar(b: BuildingModel, an: AnaliseEdificio = analisarEdificio(b)) {
   if (an.erro || !an.portico.res) {
     if (b.pilares.length && b.pilares.every(ehArranque) && b.fundacao?.elementos.length)
-      return { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacao: cargasParaFundacao(b, an), fundacoes: calcularFundacoes(b, an) } as Dimensionamento & { fundacao: FLoad[] };
+      return { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacao: cargasParaFundacao(b, an), ...comFundacao(b, an) } as Dimensionamento & { fundacao: FLoad[] };
     return { erro: an.erro ?? 'Análise sem resultado.' };
   }
   return { ...dimensionarEdificio(b, an), fundacao: cargasParaFundacao(b, an) };
@@ -208,6 +207,11 @@ export function runCli(args: string[], io: Io): number {
             io.out(linha('fundações', r.fundacoes));
             for (const f of r.fundacoes) io.out(`  ${f.resumo}${f.pilares.length ? ` (${f.pilares.join(', ')})` : ''} · ${f.status}${f.mensagens.length ? ` · ${f.mensagens.join(' ')}` : ''}`);
           }
+          if (r.vigasFundacao?.length) {
+            io.out(linha('vigas de fundação', r.vigasFundacao));
+            for (const v of r.vigasFundacao) io.out(`  ${v.resumo} (${v.ini}–${v.fim}) · ${v.status}${v.mensagens.length ? ` · ${v.mensagens.join(' ')}` : ''}`);
+          }
+          for (const a of r.avisosFundacao ?? []) io.out(`  ${a}`);
         }
         return 'erro' in r ? 1 : 0;
       }

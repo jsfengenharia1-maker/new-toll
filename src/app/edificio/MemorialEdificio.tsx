@@ -359,6 +359,19 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 <thead><tr><th className="l">Elemento</th><th className="l">Pilar</th><th className="l">Tipo</th><th>Cota (m)</th><th className="l">Dimensões</th><th>σadm (kN/m²)</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
                 <tbody>{dim.fundacoes.map((f) => <tr key={f.id}><td className="l">{f.nome}</td><td className="l">{f.pilares.join(', ')}</td><td className="l">{TIPO_FUNDACAO_LABEL[f.tipo]} {POSICAO_LABEL[f.posicao]}</td><td>{fmt(f.cota)}</td><td className="l">{f.resumo.replace(`${f.nome}: `, '')}</td><td>{f.sigmaAdm !== undefined ? fmt(f.sigmaAdm, 0) : '—'}</td><td>{fmt(f.volume, 3)}</td><td className="l">{f.status === 'ok' ? 'atende' : 'não atende'}</td><td className="l">{[...f.mensagens, ...f.notas].join(' ')}</td></tr>)}</tbody>
               </table>
+              {!!dim.vigasFundacao?.length && (<>
+                <p>
+                  Vigas de fundação (sem apoio no solo): as de equilíbrio centram o elemento excêntrico pela alavanca, R = N·ℓ/(ℓ − e), e aliviam a ponta oposta
+                  ({fmt(opcoesEmUso(b.opcoes, perfilDe(b)).vigaEqAlivio, 0)} % do alívio no Nk; tração verificada com o alívio total e a carga mínima); tensões sob o elemento {opcoesEmUso(b.opcoes, perfilDe(b)).vigaEqDistribuicao ? 'trapezoidais (núcleo central)' : 'uniformes'}.
+                  As de travamento dos blocos de 1 e 2 estacas recebem Nk × {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).vigaTravExc, 0)} cm (excentricidade de execução, a confirmar). Peso próprio e cargas do nível de fundação
+                  biapoiados entre os pilares; ELU = 1,4 × característico; dimensionamento como as vigas (NBR 6118, 17.3 e 17.4).
+                </p>
+                <table>
+                  <thead><tr><th className="l">Viga</th><th className="l">Tipo</th><th className="l">Pontas</th><th>ℓ (m)</th><th>b × h (cm)</th><th>Alívio (kN)</th><th>Md sup./inf. (kN·m)</th><th>Vd (kN)</th><th className="l">Armadura</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                  <tbody>{dim.vigasFundacao.map((v) => <tr key={v.id}><td className="l">{v.nome}</td><td className="l">{v.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}{v.equilibrio.ini || v.equilibrio.fim ? ` (${[v.equilibrio.ini && v.ini, v.equilibrio.fim && v.fim].filter(Boolean).join(', ')})` : ''}</td><td className="l">{v.ini}–{v.fim}</td><td>{fmt(v.L)}</td><td>{Math.round(v.bAdot * 100)} × {Math.round(v.hAdot * 100)}</td><td>{fmt(Math.max(v.alivio.ini, v.alivio.fim), 1)}</td><td>{fmt(v.Md.sup, 1)} / {fmt(v.Md.inf, 1)}</td><td>{fmt(v.Vd, 1)}</td><td className="l">{v.resumo.replace(/^[^:]*: /, '')}</td><td className="l">{v.status === 'ok' ? 'atende' : 'não atende'}</td><td className="l">{[...v.mensagens, ...v.notas].join(' ')}</td></tr>)}</tbody>
+                </table>
+              </>)}
+              {dim.avisosFundacao?.map((a, i) => <p key={i}>{a}</p>)}
             </>)}
 
             {h2('Quantitativos')}
