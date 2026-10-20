@@ -11,33 +11,33 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | Seção | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
-| 1.2 Análise realizada (págs. 4–5) | 10 | 4 | 2 | 3 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 8 | 14 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 13 | 15 | 50 | 14 |
+| 1.2 Análise realizada (págs. 4–5) | 10 | 4 | 3 | 2 | 1 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 19 | 15 | 45 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 28 | 8 | 9 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 2 | 2 | 4 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 1 | 4 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 1 | 2 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 9 | 21 | 73 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 10 | 22 | 71 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 7 | 0 | 2 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 3 | 28 | 28 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 8 | 23 | 66 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 2 | 2 | 37 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 1 | 15 | 8 | 19 |
-| **Total** | **661** | **90** | **149** | **310** | **112** |
+| **Total** | **661** | **98** | **150** | **302** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 69 | 77 | 146 |
+| N — Cálculo e normas | 70 | 69 | 139 |
 | R — Revisão de resultados e detalhamento | 44 | 81 | 125 |
 | E — Elementos estruturais | 16 | 125 | 141 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **149** | **310** | **459** |
+| **Total** | **150** | **302** | **452** |
 
 ## Divergências de premissa
 
@@ -91,7 +91,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.2.2 | Compatibilidade de deslocamentos em todos os nós com 6 graus de liberdade. | Feito | — | `fe3d.ts`: 6 GL por nó no pórtico espacial |
 | K1.2.3 | Hipótese de diafragma rígido por pavimento: plano indeformável; cada pavimento só translada e gira como corpo rígido (3 GL no plano). | Feito | — | diafragma rígido mestre-escravo por pavimento (`analitico.ts`) |
 | K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Parcial | N | um diafragma por pavimento com todos os nós do nível; zonas independentes não separadas |
-| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Falta | N | vigas desligadas do diafragma e elementos fora dele |
+| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | N | vigas fora do diafragma (viga.editar foraDiafragma, N1a); paredes fora do diafragma dependem das paredes (E) |
 | K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Falta | N | diafragmas separados por zona independente no mesmo pavimento |
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
@@ -107,7 +107,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Parcial | N | nó de cada lance no centro da sua seção: barra levemente inclinada, sem trecho rígido de excentricidade |
 | K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Parcial | N | comprimento = distância entre cotas; distância livre entre faces não usada |
 | K1.3.5 | Vigas: definidas em planta; nós nas interseções com faces dos apoios (pilares, pilares-parede, paredes), com elementos de laje e com outras vigas; nós ao longo do eixo, nas extremidades, nos balanços e extremos livres. | Feito | — | nós nos cruzamentos e apoios (`dividirVigas`); no pórtico o nó fica no eixo do pilar com trecho rígido |
-| K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Parcial | N | vigas sempre no diafragma; não há opção de desligar |
+| K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
 | K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | só concreto retangular; sem seção T colaborante nem biblioteca (aço/madeira fora) |
 | K1.3.8 | Eixo da barra de viga no plano médio vertical da alma, na altura do centro de gravidade. | Feito | — | eixo da viga no plano do pavimento (prática usual com diafragma) |
 | K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Falta | E | apoio contínuo em muro |
@@ -179,13 +179,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.8 | Em vigas e lajes de vigotas, além da redistribuição, pode-se impor momentos mínimos positivos e negativos de norma. | Falta | N | momentos mínimos de norma em vigas |
 | K1.4.9 | Coeficiente de engaste no topo do último lance de pilar (ligação com a viga): 0 (rótula) a 1 (engaste); padrão 0,3. | Feito | — | opções de cálculo: engaste no topo do último lance 0–1, padrão 0,3 (N1a) |
 | K1.4.10 | Implementação: interpolação linear das matrizes de rigidez engaste-engaste e engaste-rótula: K = α·Kee + (1−α)·Ker, afetando os termos EI/L do último lance. | Feito | — | fe3d: engaste parcial por interpolação K = α·Kee + (1 − α)·Ker (N1a) |
-| K1.4.11 | Coeficiente de engaste por lance de pilar, no topo e/ou na base (0 = rótula, 1 = engaste, padrão 1); os do topo do último lance multiplicam o anterior. | Falta | N | coeficientes de engaste por lance de pilar |
+| K1.4.11 | Coeficiente de engaste por lance de pilar, no topo e/ou na base (0 = rótula, 1 = engaste, padrão 1); os do topo do último lance multiplicam o anterior. | Feito | — | pilar.engaste: coeficiente por lance no topo e na base; no último lance multiplica o das opções (N1a) |
 | K1.4.12 | Rótula plástica do pilar fica fisicamente na ligação topo/base com viga ou laje maciça/nervurada que toca o nó. | Fora | — | detalhe de implementação |
 | K1.4.13 | Alerta: coeficientes muito baixos no extremo de viga e no topo do último pilar com rótula na viga podem gerar resultados absurdos ou mecanismo (duas rótulas ligadas por trechos rígidos). | Fora | — | alerta do manual |
-| K1.4.14 | Lajes maciças, de vigotas e nervuradas: coeficiente de engaste variável 0–1 (padrão 1) em todas as bordas de apoio. | Falta | N | engaste parcial nas bordas das lajes |
-| K1.4.15 | Bordas de vigas: coeficiente de engaste 0–1 (padrão 1), por borda, uma ou mais por viga. | Falta | N | coeficiente de engaste por borda de viga |
-| K1.4.16 | Coeficientes de laje e de borda de viga simultâneos são multiplicados. | Falta | N | composição de coeficientes laje × borda |
-| K1.4.17 | Rótula de borda atua na borda da laje e em bordas de apoio em vigas e paredes; não atua em bordas em contato com pilares e pilares-parede (sempre engaste). | Fora | — | regra interna do outro programa |
+| K1.4.14 | Lajes maciças, de vigotas e nervuradas: coeficiente de engaste variável 0–1 (padrão 1) em todas as bordas de apoio. | Feito | — | laje.editar engasteBordas: coeficiente 0–1 por aresta do contorno (N1a) |
+| K1.4.15 | Bordas de vigas: coeficiente de engaste 0–1 (padrão 1), por borda, uma ou mais por viga. | Feito | — | viga.editar engasteLajes: coeficiente das lajes apoiadas na viga (N1a) |
+| K1.4.16 | Coeficientes de laje e de borda de viga simultâneos são multiplicados. | Feito | — | coeficiente da borda da laje × o da viga de apoio (N1a) |
+| K1.4.17 | Rótula de borda atua na borda da laje e em bordas de apoio em vigas e paredes; não atua em bordas em contato com pilares e pilares-parede (sempre engaste). | Feito | — | bordas em pilares ficam sempre engastadas (N1a) |
 | K1.4.18 | Trecho rígido entre borda e eixo do apoio: sempre há momento no eixo gerado pela cortante na borda; vira torção se não houver continuidade de armadura com panos vizinhos. | Fora | — | comentário do manual |
 | K1.4.19 | Alerta: borda articulada sobre viga com rigidez à torção muito reduzida pode dar deslocamentos/esforços absurdos. | Fora | — | alerta do manual |
 | K1.4.20 | Rótulas em extremos de vigas: ficam fisicamente na face do apoio (pilar, parede, pilar-parede ou apoio em muro). | Feito | — | vínculo articulado na ponta da viga (libI/libJ no pórtico), após o trecho rígido |
@@ -205,7 +205,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.4.3 Coeficientes de rigidez à torção (pág. 19)** | | | |
 | K1.4.33 | Coeficiente redutor da rigidez à torção configurável (não se aplica a perfis de aço). | Feito | — | opções: redutores de torção de vigas, lajes e pilares editáveis (N1a) |
 | K1.4.34 | Barras com dimensão ≤ ao limite de "barra curta" usam o valor definido nas opções para elas. | Falta | N | rigidez própria para barras curtas |
-| K1.4.35 | Seção bruta (sem redução) usada na torção quando necessária ao equilíbrio da estrutura (torção de equilíbrio). | Falta | N | torção de compatibilidade × equilíbrio (NBR 6118 17.5.1.2) |
+| K1.4.35 | Seção bruta (sem redução) usada na torção quando necessária ao equilíbrio da estrutura (torção de equilíbrio). | Feito | — | viga.editar torcaoEquilibrio: GJ da seção bruta (N1a) |
 | | **1.4.4 Coeficientes de rigidez axial (pág. 19)** | | | |
 | K1.4.36 | Encurtamento axial de pilares, paredes e pilares-parede considerado com coeficiente multiplicador de EA entre 1 e 99,99, para simular o processo construtivo. | Feito | — | opções: multiplicador de EA dos pilares de 1 a 99,99, padrão 2 (N1a) |
 | K1.4.37 | Recomendado 2 a 3; padrão 2. | Feito | — | mesmo padrão 2 (premissa 25) |
@@ -419,7 +419,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.29 | Altura do pavimento = diferença entre faces superiores das lajes (plano de referência superior médio); cotas calculadas. | Feito | — | cota = topo da laje; pé-direito calculado |
 | K1.9.30 | Pilar: tipo (concreto/metálico), seção por pavimento, referência (ponto fixo), ângulo, início (fundação com vinculação externa ou apoiado sem vinculação) e pavimento final. | Parcial | E | pilar ret/circ, seção por lance, ponto fixo, ângulo, nasce/morre; nascer em laje = apoio fixo provisório |
 | K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Falta | FU | pilar sobre viga de fundação ou radier |
-| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Falta | N | engaste de topo/base, flambagem e desnível por pilar |
+| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Parcial | N | engaste de topo e base por lance feito (N1a); flambagem por pavimento e direção na N1b; perfil metálico fora |
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
 | K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede |
 | K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) |
@@ -428,7 +428,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.38 | Vinculação de apoio, engastes e flambagem consultáveis e editáveis. | Parcial | L | `pilar.editar` (seção, nasce/morre); sem engastes nem flambagem |
 | | **1.9.9 Dados das lajes (págs. 50–65)** | | | |
 | K1.9.39 | Geometria em planta por grupo; ordem lógica: vigas, apoios em muro e vigas de fundação primeiro. | Feito | — | planta por grupo; panos detectados pelas vigas (`laje.detectarPanos`) |
-| K1.9.40 | Coeficiente de engaste nas bordas de vigas (0–1), afetando as lajes que chegam à borda. | Falta | N | engaste da laje na borda da viga |
+| K1.9.40 | Coeficiente de engaste nas bordas de vigas (0–1), afetando as lajes que chegam à borda. | Feito | — | viga.editar engasteLajes, multiplicado pelo engaste da borda da laje (N1a) |
 | K1.9.41 | Rótulas nos extremos de qualquer trecho de viga (com pilares, pilares-parede ou outras vigas). | Parcial | N | rótula só nas pontas da viga (`vinculoIni/Fim`), não em trechos internos |
 | K1.9.42 | Viga de fundação exige coeficiente de reação e tensão admissível do solo. | Falta | FU | viga de fundação (coeficiente de reação e σadm) |
 | K1.9.43 | Vigas mistas remetidas a capítulo próprio. | Fora | — | vigas mistas |

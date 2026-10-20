@@ -29,7 +29,8 @@ Fora desta frente (vão para N2): punção e cortante em lajes, fogo (NBR 15200)
 ## Andamento
 
 - **N1a, parte 1 (feita em 20/10/2026):** `opcoes` no modelo e comando `opcoes.definir` (padrão NBR, "voltar ao padrão"), grupo "Opções de cálculo" na barra lateral, tabela no memorial e premissa `opcoes`. Opções: malha da grelha (0,25 m), torção de vigas (15 %), lajes (15 % de 2I) e pilares (1), rigidez axial dos pilares (× 2), trecho rígido (face − 0,3h), engaste no topo do último lance (0,3). Engaste parcial no `fe3d` por interpolação K = α·Kee + (1 − α)·Ker (critério do manual de referência), sem efeito onde não há vigas no topo (evita mecanismo). Grelhas iguais no mesmo grupo resolvidas uma vez só.
-- **N1a, parte 2 (próxima):** por elemento — engaste por lance de pilar (topo/base), coeficientes nas bordas das lajes e nos extremos das vigas, rótulas em qualquer trecho de viga, torção de equilíbrio com seção bruta, vigas livres e zonas independentes.
+- **N1a, parte 2 (feita em 20/10/2026):** por elemento — `pilar.engaste` (topo/base por lance; base 0 na fundação = pilar articulado), `viga.editar` com `engasteIni`/`engasteFim` (prevalecem sobre o vínculo), `articulacoes` (rótula da viga sobre pilares escolhidos), `torcaoEquilibrio` (GJ bruto), `engasteLajes` e `foraDiafragma`; `laje.editar` com `engasteBordas` (por aresta; × o da viga; bordas em pilares sempre engastadas). Grupo "Vínculos e engastes (seleção)" na barra lateral e lista no memorial. Na grelha, as pontas e rótulas das vigas valem só para a flexão vertical.
+- **Zonas independentes como diafragmas separados:** passam para a N1c, junto com a repartição do vento entre zonas (o vento hoje entra no mestre único de cada pavimento).
 
 ## Decisões em aberto (marcadas [a confirmar])
 

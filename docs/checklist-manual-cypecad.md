@@ -12,7 +12,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 13 | 15 | 18 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 14 | 7 | 17 | 3 |
-| 4. Pilares | 63 | 8 | 17 | 31 | 7 |
+| 4. Pilares | 63 | 10 | 19 | 27 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 9 | 8 | 66 | 25 |
 | 7. Lajes | 195 | 5 | 19 | 110 | 61 |
@@ -22,14 +22,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **62** | **93** | **429** | **179** |
+| **Total** | **763** | **64** | **95** | **425** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento | 17 | 88 | 105 |
-| N — Cálculo e normas | 8 | 33 | 41 |
+| N — Cálculo e normas | 10 | 29 | 39 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
@@ -189,14 +189,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **4.1 Lançamento** | | | |
 | C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não |
 | C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Falta | FU | arranques sem pavimentos |
-| C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Parcial | N | editar, mover, ponto fixo, ângulo; sem coeficientes de engastamento/flambagem nem cargas no pilar |
+| C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Parcial | N | editar, mover, ponto fixo, ângulo e engaste por lance (N1a); flambagem na N1b |
 | C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Parcial | FU | módulo Fundações aceita cargas diretas por apoio |
 | C4.5 | Cargas no topo do arranque, que representam as cargas transmitidas à fundação. | Parcial | FU | carga pontual no pavimento; sem carga no topo do pilar |
 | C4.6 | Dois comandos de cálculo: a obra sem fundação e a obra com fundação. | Parcial | FU | cálculo do edifício + módulo Fundações separado |
 | C4.7 | Pilar novo: grupo inicial e grupo final. | Feito | — | nasce/morre |
-| C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Falta | N | coeficientes de engastamento e flambagem por pilar |
+| C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Parcial | N | engaste por lance (pilar.engaste, N1a); flambagem na N1b |
 | C4.9 | Pilar novo: ângulo. | Feito | — |  |
-| C4.10 | Pilar novo: vinculação exterior. | Falta | N | vínculo externo (hoje sempre engastado) |
+| C4.10 | Pilar novo: vinculação exterior. | Parcial | N | base articulada ou com engaste parcial na fundação (pilar.engaste base, N1a); molas e outros vínculos externos ainda não |
 | C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Parcial | E | seção por lance; só concreto |
 | C4.12 | Posicionamento do pilar por clique. | Feito | — | clique, coordenada digitada, captura |
 | C4.13 | Pilar que nasce sobre outro pilar. | Parcial | E | pilar que nasce num pavimento; sem checar apoio em pilar de baixo |
@@ -207,8 +207,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.18 | Captura DXF/DWG de eixo, cantos ou ponto médio das faces do pilar de baixo, sem pedir coordenadas. | Parcial | E | capturas no contorno do pilar existente |
 | C4.19 | Referência automática do pilar que nasce: referência do pilar de baixo seguida de letra sequencial (a, b, ...). | Falta | E | nome automático com sufixo para pilar que nasce |
 | C4.20 | Pilares que não se sobrepõem são lançados como pilares comuns. | Feito | — |  |
-| C4.21 | O topo do pilar de baixo não usa o coeficiente de engastamento do último pavimento. Os elementos apoiados nele são tidos como engastados por padrão. | Falta | N |  |
-| C4.22 | Engastamento parcial só no topo do último tramo. Pode-se articular o pilar que chega a uma viga ou definir engaste parcial na base do pilar novo. | Falta | N | engaste parcial / articulação de pilar |
+| C4.21 | O topo do pilar de baixo não usa o coeficiente de engastamento do último pavimento. Os elementos apoiados nele são tidos como engastados por padrão. | Feito | — | lances intermediários usam o próprio coeficiente; o das opções vale só no topo do último lance (N1a) |
+| C4.22 | Engastamento parcial só no topo do último tramo. Pode-se articular o pilar que chega a uma viga ou definir engaste parcial na base do pilar novo. | Feito | — | engaste parcial ou rótula no topo e na base de qualquer lance (N1a) |
 | C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos |
 | C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E |  |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |

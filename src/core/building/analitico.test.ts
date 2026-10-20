@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analisarEdificio, malhaLaje } from './analitico';
+import { vinculosAlterados } from './opcoes';
 import { resolver3, type Modelo3, type Caso3 } from '../fe3d';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import type { P } from '../geom/faces';
@@ -143,5 +144,110 @@ describe('opções de cálculo (N1a)', () => {
     expect(pad.M).toBeLessThan(eng.M);
     expect(pad.an.opcoes.malha).toBe(0.25);
     expect(topo({ malha: 0.5 }).nos).toBeLessThan(pad.nos);
+  });
+
+  it('engaste por lance: base articulada na fundação zera os momentos na base do pilar', () => {
+    const s = padrao();
+    ok(s, 'lote', { comandos: [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    ok(s, 'lote', { comandos: [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
+    ok(s, 'laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const p0 = s.modelo.pilares[0], prim = s.modelo.pavimentos[0].id;
+    const momBase = () => { const an = analisarEdificio(s.modelo); expect(an.erro).toBeUndefined(); const f = an.fundacao.find((x) => x.pilar === p0.id && x.caso === 'G')!; return Math.hypot(f.Mx, f.My); };
+    const antes = momBase();
+    ok(s, 'pilar.engaste', { ids: [p0.id], pavimentos: [prim], base: 0 });
+    expect(s.modelo.pilares[0].engastes).toEqual([{ pavimento: prim, base: 0 }]);
+    expect(antes).toBeGreaterThan(0.1);
+    expect(momBase()).toBeLessThan(1e-6);
+    ok(s, 'pilar.engaste', { ids: [p0.id], base: 1 });
+    expect(s.modelo.pilares[0].engastes).toBeUndefined();
+  });
+
+  it('viga: ponta articulada por coeficiente, apoio intermediário articulado e torção de equilíbrio', () => {
+    const s = padrao();
+    ok(s, 'lote', { comandos: [[0, 0], [4, 0], [8, 0], [0, 5], [4, 5], [8, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    ok(s, 'lote', { comandos: [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]], [[8, 0], [8, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
+    ok(s, 'laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const v = s.modelo.vigas.find((x) => x.pontos[0][1] === 0 && x.pontos[1][1] === 0)!;
+    const meio = s.modelo.pilares.find((p) => p.x === 4 && p.y === 0)!;
+    const pav = s.modelo.pavimentos.find((p) => p.grupo === 'g_3')!.id;
+    /** Momento vertical da viga v nas pontas dos trechos do pórtico junto ao ponto x. */
+    const Mjunto = (x: number) => {
+      const an = analisarEdificio(s.modelo);
+      expect(an.erro).toBeUndefined();
+      const m = an.portico.modelo;
+      let M = 0;
+      an.portico.barras.forEach((t, bi) => {
+        if (t.tipo !== 'viga' || t.ref !== v.id || t.pavimento !== pav) return;
+        const br = m.barras[bi], f = an.portico.res!.esforcos[0][bi];
+        if (Math.abs(m.nos[br.i][0] - x) < 0.01) M = Math.max(M, Math.abs(f[5]));
+        if (Math.abs(m.nos[br.j][0] - x) < 0.01) M = Math.max(M, Math.abs(f[11]));
+      });
+      return { M, an };
+    };
+    expect(Mjunto(4).M).toBeGreaterThan(1);
+    expect(Mjunto(0).M).toBeGreaterThan(0.5);
+    ok(s, 'viga.editar', { id: v.id, engasteIni: 0, articulacoes: [meio.id], torcaoEquilibrio: true });
+    expect(vinculosAlterados(s.modelo)).toEqual([`Viga ${v.nome}: início 0; rótula sobre ${meio.nome}; torção de equilíbrio (seção bruta).`]);
+    const r = Mjunto(4);
+    expect(r.M).toBeLessThan(1e-6);
+    expect(Mjunto(0).M).toBeLessThan(1e-6);
+    // torção de equilíbrio: J da seção bruta na grelha
+    const g = r.an.grelhas.find((x) => x.pavimento === pav)!;
+    const bi = g.barras.findIndex((t) => t.tipo === 'viga' && t.ref === v.id);
+    const outra = g.barras.findIndex((t) => t.tipo === 'viga' && t.ref !== v.id);
+    expect(g.modelo.barras[bi].J / g.modelo.barras[outra].J).toBeCloseTo(1 / 0.15, 6);
+  });
+
+  it('laje: borda articulada sobre a viga intermediária zera o momento da laje nessa borda', () => {
+    const s = padrao();
+    ok(s, 'lote', { comandos: [[0, 0], [4, 0], [8, 0], [0, 5], [4, 5], [8, 5]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    ok(s, 'lote', { comandos: [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]], [[8, 0], [8, 5]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
+    ok(s, 'laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const pav = s.modelo.pavimentos.find((p) => p.grupo === 'g_3')!.id;
+    const Mborda = () => {
+      const an = analisarEdificio(s.modelo);
+      expect(an.erro).toBeUndefined();
+      const g = an.grelhas.find((x) => x.pavimento === pav)!, m = g.modelo;
+      let M = 0;
+      g.barras.forEach((t, bi) => {
+        if (t.tipo !== 'laje') return;
+        const br = m.barras[bi], f = g.res!.esforcos[0][bi];
+        if (Math.abs(m.nos[br.i][0] - 4) < 0.01 && Math.abs(m.nos[br.i][1] - 2.5) < 1) M = Math.max(M, Math.abs(f[5]));
+        if (Math.abs(m.nos[br.j][0] - 4) < 0.01 && Math.abs(m.nos[br.j][1] - 2.5) < 1) M = Math.max(M, Math.abs(f[11]));
+      });
+      return M;
+    };
+    expect(Mborda()).toBeGreaterThan(0.5);
+    for (const l of s.modelo.lajes) ok(s, 'laje.editar', { id: l.id, engasteBordas: l.contorno.map(() => 0) });
+    expect(Mborda()).toBeLessThan(1e-6);
+    // o mesmo pelo coeficiente da viga de apoio
+    for (const l of s.modelo.lajes) ok(s, 'laje.editar', { id: l.id, engasteBordas: [] });
+    const vm = s.modelo.vigas.find((x) => x.pontos[0][0] === 4 && x.pontos[1][0] === 4)!;
+    ok(s, 'viga.editar', { id: vm.id, engasteLajes: 0 });
+    expect(Mborda()).toBeLessThan(1e-6);
+  });
+
+  it('viga fora do diafragma: os nós só dela deixam o corpo rígido e a viga passa a ter esforço normal no vento', () => {
+    const s = padrao();
+    ok(s, 'lote', { comandos: [[0, 0], [6, 0], [6, 5], [0, 5], [12, 0]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.25, h: 0.25 } } })) });
+    ok(s, 'lote', { comandos: [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]], [[6, 0], [12, 0]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) });
+    ok(s, 'laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
+    const passarela = s.modelo.vigas.find((v) => v.pontos[1][0] === 12)!;
+    const pav = s.modelo.pavimentos.find((p) => p.grupo === 'g_3')!.id;
+    const N = () => {
+      const an = analisarEdificio(s.modelo);
+      expect(an.erro).toBeUndefined();
+      const bi = an.portico.barras.findIndex((t) => t.tipo === 'viga' && t.ref === passarela.id && t.pavimento === pav);
+      const escravos = new Set(an.portico.modelo.escravos!.map((e) => e.no));
+      const br = an.portico.modelo.barras[bi];
+      return { N: Math.max(...an.portico.resVento!.esforcos.map((e) => Math.abs(e[bi][0]))), presoJ: escravos.has(br.j) };
+    };
+    const a = N();
+    expect(a.presoJ).toBe(true);
+    expect(a.N).toBeLessThan(1e-3);
+    ok(s, 'viga.editar', { id: passarela.id, foraDiafragma: true });
+    const b = N();
+    expect(b.presoJ).toBe(false);
+    expect(b.N).toBeGreaterThan(0.1);
   });
 });

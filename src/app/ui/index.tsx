@@ -60,7 +60,7 @@ export function NumField({ label, value, onChange, unit, step = 'any', width, di
       <span className="finput">
         <input id={id} inputMode="decimal" value={txt} step={step} disabled={disabled}
           onChange={(e) => setTxt(e.target.value)} onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') { commit(); (e.target as HTMLInputElement).blur(); } }} />
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
         {unit && <span className="unit">{unit}</span>}
       </span>
     </label>

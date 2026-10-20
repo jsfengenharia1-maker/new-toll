@@ -1,6 +1,7 @@
 // Opções de cálculo do edifício (frente N1a): padrão configurado pela NBR 6118 e, onde a norma não
 // fixa valor, pelo critério de referência de mercado (CYPECAD), marcado "a confirmar". Todas editáveis
 // pelo comando `opcoes.definir`; o memorial lista os valores em uso e destaca o que difere do padrão.
+import type { BuildingModel } from './types';
 
 export interface OpcoesCalculo {
   /** Espaçamento máximo da malha da grelha das lajes (m). */
@@ -59,4 +60,29 @@ export function opcoesEmUso(o?: Partial<OpcoesCalculo>): OpcoesCalculo {
 /** Opções que diferem do padrão. */
 export function opcoesAlteradas(o?: Partial<OpcoesCalculo>): OpcaoInfo[] {
   return OPCOES_INFO.filter((i) => o?.[i.chave] !== undefined && o[i.chave] !== i.padrao);
+}
+
+/** Texto dos vínculos por elemento que diferem do padrão (engaste pleno), para o memorial. */
+export function vinculosAlterados(b: BuildingModel): string[] {
+  const f = (v: number) => String(+v.toFixed(3)).replace('.', ',');
+  const pav = (id: string) => b.pavimentos.find((p) => p.id === id)?.nome ?? id;
+  const pil = (id: string) => b.pilares.find((p) => p.id === id)?.nome ?? id;
+  const out: string[] = [];
+  for (const p of b.pilares) for (const e of p.engastes ?? []) {
+    const partes = [e.topo !== undefined && `topo ${f(e.topo)}`, e.base !== undefined && `base ${f(e.base)}`].filter(Boolean);
+    if (partes.length) out.push(`Pilar ${p.nome}, lance até ${pav(e.pavimento)}: engaste ${partes.join(', ')}.`);
+  }
+  for (const v of b.vigas) {
+    const partes = [
+      (v.engasteIni !== undefined || v.vinculoIni === 'articulado') && `início ${f(v.engasteIni ?? 0)}`,
+      (v.engasteFim !== undefined || v.vinculoFim === 'articulado') && `fim ${f(v.engasteFim ?? 0)}`,
+      v.articulacoes?.length && `rótula sobre ${v.articulacoes.map(pil).join(', ')}`,
+      v.engasteLajes !== undefined && `lajes apoiadas ${f(v.engasteLajes)}`,
+      v.torcaoEquilibrio && 'torção de equilíbrio (seção bruta)',
+      v.foraDiafragma && 'fora do diafragma',
+    ].filter(Boolean);
+    if (partes.length) out.push(`Viga ${v.nome}: ${partes.join('; ')}.`);
+  }
+  for (const l of b.lajes) if (l.engasteBordas?.some((a) => a !== 1)) out.push(`Laje ${l.nome}: engaste das bordas ${l.contorno.map((_, k) => f(l.engasteBordas?.[k] ?? 1)).join(' / ')} (a partir do primeiro vértice).`);
+  return out;
 }

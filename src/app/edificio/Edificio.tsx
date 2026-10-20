@@ -17,6 +17,7 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { Pranchas } from './Pranchas';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
+import { VinculosGrupo } from './Vinculos';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -82,6 +83,7 @@ export function Edificio() {
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
         <OpcoesGrupo b={b} />
+        <VinculosGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">

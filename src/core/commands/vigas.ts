@@ -14,6 +14,7 @@ const ponto: JsonSchema = { type: 'array', items: { type: 'number' }, minItems: 
 const ids: JsonSchema = { type: 'array', items: { type: 'string' }, minItems: 1 };
 const secaoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['b', 'h'], properties: { b: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'largura (m)' }, h: { type: 'number', exclusiveMinimum: 0, maximum: 5, description: 'altura (m)' } } };
 const alinSchema: JsonSchema = { type: 'string', enum: ['esq', 'centro', 'dir'], description: 'Linha traçada = face esquerda, eixo ou face direita (olhando do 1º ao último ponto)' };
+const coefSchema: JsonSchema = { type: 'number', minimum: 0, maximum: 1, description: 'coeficiente de engaste (0 = rótula, 1 = engaste)' };
 const vincSchema: JsonSchema = { type: 'string', enum: ['auto', 'engaste', 'articulado'] };
 const r6 = (v: number) => +v.toFixed(6);
 const viga = (b: BuildingModel, id: string) => b.vigas.find((v) => v.id === id);
@@ -49,16 +50,21 @@ registrar<{ grupo: string; pontos: P[]; secao: { b: number; h: number }; alinham
   },
 });
 
-registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo }>({
+registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
+  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean }>({
   nome: 'viga.editar',
-  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m) ou vínculos das extremidades de uma viga.',
+  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga ou viga fora do diafragma rígido.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, secao: secaoSchema,
     alinhamento: alinSchema, invertida: { type: 'boolean' }, nivel: { type: 'number', minimum: -5, maximum: 5 }, vinculoIni: vincSchema, vinculoFim: vincSchema,
+    engasteIni: coefSchema, engasteFim: coefSchema, engasteLajes: coefSchema, torcaoEquilibrio: { type: 'boolean' }, foraDiafragma: { type: 'boolean' },
+    articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários com rótula na viga' },
   } },
   validar(b, p) {
     if (!viga(b, p.id)) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
+    const sem = (p.articulacoes ?? []).filter((id) => !b.pilares.some((x) => x.id === id));
+    if (sem.length) return err('PILAR_INEXISTENTE', `Pilar ${sem.join(', ')} não existe.`);
     return p.pontos && limpar(p.pontos).length < 2 ? err('VIGA_DEGENERADA', 'A viga precisa de dois pontos distintos.') : [];
   },
   aplicar(d, p) {
@@ -70,6 +76,9 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     if (p.invertida !== undefined) { if (p.invertida) v.invertida = true; else delete v.invertida; }
     if (p.nivel !== undefined) { if (p.nivel) v.nivel = p.nivel; else delete v.nivel; }
     for (const k of ['vinculoIni', 'vinculoFim'] as const) if (p[k]) { if (p[k] === 'auto') delete v[k]; else v[k] = p[k]; }
+    for (const k of ['engasteIni', 'engasteFim', 'engasteLajes'] as const) if (p[k] !== undefined) { if (p[k] === 1) delete v[k]; else v[k] = p[k]; }
+    for (const k of ['torcaoEquilibrio', 'foraDiafragma'] as const) if (p[k] !== undefined) { if (p[k]) v[k] = true; else delete v[k]; }
+    if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
     return `${v.nome} alterada.`;
   },
 });

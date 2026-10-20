@@ -5,7 +5,7 @@ import { useBuilding } from './store';
 import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
-import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso } from '../../core/building/opcoes';
+import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, vinculosAlterados } from '../../core/building/opcoes';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
@@ -25,6 +25,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && revAnalise !== sessao.rev;
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes);
+  const vinculos = useMemo(() => vinculosAlterados(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
@@ -94,6 +95,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <thead><tr><th className="l">Opção</th><th>Valor</th><th>Padrão</th><th className="l">Fonte</th></tr></thead>
             <tbody>{OPCOES_INFO.map((o) => { const alt = opc[o.chave] !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{fmt(opc[o.chave])}</td><td>{fmt(o.padrao)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}</td></tr>; })}</tbody>
           </table>
+          {vinculos.length > 0 && <><h3>Vínculos e engastes alterados por elemento</h3><ul>{vinculos.map((t, i) => <li key={i}>{t}</li>)}</ul></>}
           {opcoesAlteradas(b.opcoes).length > 0 && <p className="warn">Opções diferentes do padrão: {opcoesAlteradas(b.opcoes).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
           {r?.erro && <p className="warn">{r.erro}</p>}
           {r && r.avisos.length > 0 && <ul>{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}

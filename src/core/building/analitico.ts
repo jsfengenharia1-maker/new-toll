@@ -8,7 +8,7 @@ import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { casosVento, type CasoVento, type Classe } from './vento';
 import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import {
-  centroPilar, contornoPilar, cotaFundacao, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
+  centroPilar, contornoPilar, cotaFundacao, dimsSecao, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
   type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga,
 } from './types';
 
@@ -251,7 +251,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const ppBarra = new Map<number, number>(); // barra de viga → peso próprio (kN/m)
     for (const t of trechos) {
       const v = t.viga, s = ret(v.secao.b, v.secao.h);
-      m.barras.push({ i: no(t.a), j: no(t.z), E, G, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: op.torcaoViga * s.J });
+      const bv: Barra3 = { i: no(t.a), j: no(t.z), E, G, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
+      vincularPontas(bv, t, trechos, nos, [5]);
+      m.barras.push(bv);
       tags.push({ tipo: 'viga', ref: v.id });
       const pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
       ppBarra.set(m.barras.length - 1, pp);
@@ -267,7 +269,13 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         for (let j = 0; j + 1 < ids.length; j++) {
           if (ids[j] === ids[j + 1]) continue;
           const pr = prop[k];
-          m.barras.push({ i: no(ids[j]), j: no(ids[j + 1]), E, G, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J });
+          const bl: Barra3 = { i: no(ids[j]), j: no(ids[j + 1]), E, G, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J };
+          // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)
+          for (const [ponta, id] of [['engI', ids[j]], ['engJ', ids[j + 1]]] as const) {
+            const a = nos[id].viga && !nos[id].pilar ? engasteBorda(l, nos[id].p, trechos, nos) : 1;
+            if (a < 1) bl[ponta] = [[5, a]];
+          }
+          m.barras.push(bl);
           tags.push({ tipo: 'laje', ref: l.id, dir: k, largura: ln.largura });
           const bi = m.barras.length - 1, w = ln.largura * share;
           if (!w) continue;
@@ -323,10 +331,13 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const abaixo = ip > 0 ? ps[ip - 1].cota : cotaFundacao(b);
       const hBaixo = pav.cota - abaixo, sb = inerciasPilar(secaoNoLance(pil, pav.id), pil.angulo);
       const acima = ps[ip + 1], continua = !!acima && lancesDoPilar(b, pil).some((x) => x.id === acima.id);
-      // topo do último lance: α·4EI/L (interpolação engaste-engaste × engaste-rótula)
-      const aTopo = continua ? 1 : op.engasteTopoUltimo;
+      // engaste parcial: α·4EI/L (interpolação engaste-engaste × engaste-rótula); topo do lance de baixo e base do de cima
+      const aTopo = engasteNoLance(pil, pav.id).topo * (continua ? 1 : op.engasteTopoUltimo);
       kx += (aTopo * 4 * E * sb.Ix) / hBaixo; ky += (aTopo * 4 * E * sb.Iy) / hBaixo;
-      if (continua) { const sa = inerciasPilar(secaoNoLance(pil, acima.id), pil.angulo); kx += (4 * E * sa.Ix) / (acima.cota - pav.cota); ky += (4 * E * sa.Iy) / (acima.cota - pav.cota); }
+      if (continua) {
+        const sa = inerciasPilar(secaoNoLance(pil, acima.id), pil.angulo), aBase = engasteNoLance(pil, acima.id).base;
+        kx += (aBase * 4 * E * sa.Ix) / (acima.cota - pav.cota); ky += (aBase * 4 * E * sa.Iy) / (acima.cota - pav.cota);
+      }
       m.molas!.push({ no: gi, gdl: 3, k: kx }, { no: gi, gdl: 4, k: ky });
     }
     const carga: Record<CasoAnalise, number> = { G: 0, Q: 0 };
@@ -410,8 +421,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const a = (p.angulo * Math.PI) / 180;
       // eixo local y = direção b da seção (Iz: deslocamento em y local)
       const barra: Barra3 = { i: ant!, j, E, G, A: inr.A, Iz: inr.Iu, Iy: inr.Iv, J: op.torcaoPilar * inr.J, ref: [Math.cos(a), Math.sin(a), 0] };
-      // topo do último lance: engaste parcial com as vigas (flexão nas duas direções)
-      if (x === l.at(-1) && op.engasteTopoUltimo < 1) barra.engJ = [[4, op.engasteTopoUltimo], [5, op.engasteTopoUltimo]];
+      // engaste por lance (topo/base); no topo do último lance multiplica o das opções (flexão nas duas direções)
+      const eg = engasteNoLance(p, x.id), aTopo = eg.topo * (x === l.at(-1) ? op.engasteTopoUltimo : 1);
+      if (aTopo < 1) barra.engJ = [[4, aTopo], [5, aTopo]];
+      if (eg.base < 1) barra.engI = [[4, eg.base], [5, eg.base]];
       pm.barras.push(barra);
       ptags.push({ tipo: 'pilar', ref: p.id, pavimento: x.id });
       // peso próprio do lance no nó de cima
@@ -436,12 +449,14 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     };
     /** Barra do pórtico de cada trecho grosso: índice, início da parte flexível e direção (para cargas concentradas). */
     const barraDe = new Map<number, { bi: number; ini: P; u: P; L: number } | { no: number }>();
+    /** Vigas que chegam a cada nó: as de fora do diafragma não prendem o nó ao corpo rígido do pavimento. */
+    const usoNo = new Map<number, { livre: number; diafragma: number }>();
     g.trechos.forEach((t, ti) => {
       const v = t.viga, s = ret(v.secao.b, v.secao.h), pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
       const ni = noViga(t.a), nj = noViga(t.z);
       const Lt = Math.hypot(g.nos[t.z].p[0] - g.nos[t.a].p[0], g.nos[t.z].p[1] - g.nos[t.a].p[1]);
       if (ni === nj) { casosV[0].nodais.push({ no: ni, f: [0, 0, -pp * Lt, 0, 0, 0] }); barraDe.set(ti, { no: ni }); return; } // dentro do pilar
-      const barra: Barra3 = { i: ni, j: nj, E, G, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: op.torcaoViga * s.J };
+      const barra: Barra3 = { i: ni, j: nj, E, G, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
       for (const [k, i, outro] of [['I', t.a, t.z], ['J', t.z, t.a]] as const) {
         const pid = g.nos[i].pilar;
         if (!pid) continue;
@@ -449,11 +464,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         const off = offsetFace(g.nos[i].p, g.nos[outro].p, pil, secaoNoLance(pil, pav.id), op.trechoRigido * v.secao.h, pm.nos[k === 'I' ? ni : nj]);
         if (off) { if (k === 'I') barra.offI = off; else barra.offJ = off; }
       }
-      const daViga = g.trechos.filter((x) => x.viga === v);
-      if (v.vinculoIni === 'articulado' && t === daViga[0]) barra.libI = [4, 5];
-      if (v.vinculoFim === 'articulado' && t === daViga.at(-1)) barra.libJ = [4, 5];
+      vincularPontas(barra, t, g.trechos, g.nos, [4, 5]);
       pm.barras.push(barra);
       ptags.push({ tipo: 'viga', ref: v.id, pavimento: pav.id });
+      for (const n of [ni, nj]) { const u = usoNo.get(n) ?? { livre: 0, diafragma: 0 }; u[v.foraDiafragma ? 'livre' : 'diafragma']++; usoNo.set(n, u); }
       const bi = pm.barras.length - 1;
       casosV[0].distribuidas.push({ barra: bi, q: [0, 0, -pp] });
       // a carga distribuída atua só na parte flexível: o peso dos trechos rígidos vai para o nó do pilar
@@ -489,7 +503,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
     });
     // diafragma: mestre no centro geométrico das lajes do grupo (ou dos nós do nível)
-    const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i));
+    const soLivre = (i: number) => { const u = usoNo.get(i); return !!u && u.livre > 0 && !u.diafragma; };
+    const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i) && !soLivre(i));
     if (nivel.length >= 2) {
       const lajes = b.lajes.filter((l) => l.grupo === pav.grupo);
       let cx = 0, cy = 0, A = 0;
@@ -505,7 +520,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // engaste parcial no topo só onde há vigas no nó: sem elas o giro ficaria sem rigidez (mecanismo)
   const nBarras = new Map<number, number>();
   for (const br of pm.barras) { nBarras.set(br.i, (nBarras.get(br.i) ?? 0) + 1); nBarras.set(br.j, (nBarras.get(br.j) ?? 0) + 1); }
-  pm.barras.forEach((br, i) => { if (ptags[i].tipo === 'pilar' && br.engJ && (nBarras.get(br.j) ?? 0) < 2) delete br.engJ; });
+  pm.barras.forEach((br, i) => {
+    if (ptags[i].tipo !== 'pilar') return;
+    if (br.engJ && (nBarras.get(br.j) ?? 0) < 2 && !pm.apoios.has(br.j)) delete br.engJ;
+    if (br.engI && (nBarras.get(br.i) ?? 0) < 2 && !pm.apoios.has(br.i)) delete br.engI;
+  });
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
   const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)) };
   const res = resolver3(pmV, casosV);
@@ -555,6 +574,47 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
 }
 
 // ---------------- auxiliares ----------------
+
+/** Fator de torção da viga: seção bruta na torção de equilíbrio, senão o redutor das opções. */
+const torcaoDe = (v: Viga, op: OpcoesAnalise) => (v.torcaoEquilibrio ? 1 : op.torcaoViga);
+
+/** Coeficiente de engaste da ponta inicial e final da viga (prevalece sobre o vínculo; articulado = 0). */
+const engastePonta = (v: Viga, fim: boolean) => (fim ? v.engasteFim ?? (v.vinculoFim === 'articulado' ? 0 : 1) : v.engasteIni ?? (v.vinculoIni === 'articulado' ? 0 : 1));
+
+/**
+ * Pontas do trecho de viga: engaste parcial nas pontas da viga e rótula nos pilares de `articulacoes`.
+ * `gdl`: rotações locais afetadas (pórtico: 4 e 5; grelha: só a flexão vertical, 5).
+ */
+function vincularPontas(br: Barra3, t: TrechoViga, trechos: TrechoViga[], nos: NoPlanta[], gdl: number[]) {
+  const v = t.viga, daViga = trechos.filter((x) => x.viga === v);
+  for (const [ponta, no, extremo, fim] of [['engI', t.a, t === daViga[0], false], ['engJ', t.z, t === daViga.at(-1), true]] as const) {
+    let a = extremo ? engastePonta(v, fim) : 1;
+    const pid = nos[no].pilar;
+    if (pid && v.articulacoes?.includes(pid)) a = 0;
+    if (a < 1) br[ponta] = gdl.map((g) => [g, a] as [number, number]);
+  }
+}
+
+/** Engaste da laje no ponto p da sua borda: coeficiente da aresta do contorno × o da viga paralela a ela. */
+function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[]) {
+  const c = l.contorno, n = c.length;
+  let k = -1, dm = 0.01;
+  for (let i = 0; i < n; i++) { const d = distSeg(p, c[i], c[(i + 1) % n]); if (d < dm) { dm = d; k = i; } }
+  if (k < 0) return 1;
+  const a = c[k], z = c[(k + 1) % n], ux = z[0] - a[0], uy = z[1] - a[1], L = Math.hypot(ux, uy) || 1;
+  let cv = 1;
+  for (const t of trechos) {
+    const pa = nos[t.a].p, pz = nos[t.z].p, vx = pz[0] - pa[0], vy = pz[1] - pa[1], Lv = Math.hypot(vx, vy) || 1;
+    if (distSeg(p, pa, pz) < 0.01 && Math.abs(ux * vy - uy * vx) / (L * Lv) < 0.05) cv = Math.min(cv, t.viga.engasteLajes ?? 1);
+  }
+  return (l.engasteBordas?.[k] ?? 1) * cv;
+}
+
+function distSeg(p: P, a: P, z: P) {
+  const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy;
+  const u = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]);
+}
 
 /** Direção principal da laje maciça (a da maior aresta), para alinhar a malha. */
 function direcaoPrincipal(c: P[]) {

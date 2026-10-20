@@ -115,6 +115,8 @@ export interface Pilar {
   secao: SecaoPilar;
   /** Seção diferente por lance (o lance é identificado pelo pavimento do seu topo). */
   secoes?: { pavimento: string; secao: SecaoPilar }[];
+  /** Coeficientes de engaste por lance (0 = rótula, 1 = engaste; ausente = 1). No topo do último lance, multiplica o das opções. */
+  engastes?: { pavimento: string; topo?: number; base?: number }[];
 }
 
 /** Linha traçada da viga em relação ao corpo: eixo (centro) ou face esquerda/direita, olhando do 1º para o último ponto. */
@@ -134,6 +136,17 @@ export interface Viga {
   nivel?: number;
   vinculoIni?: Vinculo;
   vinculoFim?: Vinculo;
+  /** Coeficiente de engaste nas pontas (0 = rótula, 1 = engaste); prevalece sobre o vínculo. */
+  engasteIni?: number;
+  engasteFim?: number;
+  /** Pilares intermediários em que a viga é articulada (rótula dos dois lados do apoio). */
+  articulacoes?: string[];
+  /** Torção de equilíbrio: rigidez à torção da seção bruta, sem o redutor das opções. */
+  torcaoEquilibrio?: boolean;
+  /** Coeficiente de engaste das lajes que se apoiam nesta viga (multiplica o da borda da laje). */
+  engasteLajes?: number;
+  /** Fora do diafragma rígido: os nós só dela não seguem o corpo rígido do pavimento (passarela, viga solta). */
+  foraDiafragma?: boolean;
 }
 
 export type TipoLaje =
@@ -153,6 +166,8 @@ export interface Laje {
   direcao?: number;
   /** Desnível do topo em relação ao pavimento (m; negativo = rebaixada). */
   nivel?: number;
+  /** Coeficiente de engaste por borda do contorno (índice k = aresta k → k+1; ausente = 1). Bordas em pilares ficam engastadas. */
+  engasteBordas?: number[];
 }
 
 export type CasoFisico = 'G' | 'Q';
@@ -267,6 +282,12 @@ export function lancesDoPilar(b: BuildingModel, p: Pilar) {
 }
 
 /** Seção do lance que chega ao pavimento `pav`. */
+/** Coeficientes de engaste do lance do pilar cujo topo é o pavimento dado (1 = engaste). */
+export function engasteNoLance(p: Pilar, pavimento: string): { topo: number; base: number } {
+  const e = p.engastes?.find((x) => x.pavimento === pavimento);
+  return { topo: e?.topo ?? 1, base: e?.base ?? 1 };
+}
+
 export const secaoNoLance = (p: Pilar, pav: string) => p.secoes?.find((s) => s.pavimento === pav)?.secao ?? p.secao;
 
 /** Dimensões (m) da seção nos eixos locais: largura em x, altura em y. */

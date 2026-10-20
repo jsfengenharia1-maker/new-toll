@@ -522,4 +522,34 @@ export const flows = [
       assert.equal(await malha.inputValue(), '0,25');
     },
   },
+  {
+    name: 'vínculos: engaste na base do pilar selecionado, desfazer e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await page.locator('table.quadro tbody tr').first().click();
+      await page.locator('summary', { hasText: 'Vínculos e engastes' }).click();
+      const base = page.getByLabel('Engaste na base');
+      assert.equal(await base.inputValue(), '1');
+      await base.fill('0');
+      await base.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'Engaste de 1 lance(s) de pilar alterado' }).waitFor();
+      assert.equal(await base.inputValue(), '0');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /Vínculos e engastes alterados por elemento.*Pilar P1, lance até Tipo 1: engaste base 0\./s);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      assert.doesNotMatch(await memo.textContent(), /Vínculos e engastes alterados/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Engaste na base'))?.querySelector('input')?.value === '1');
+    },
+  },
 ];

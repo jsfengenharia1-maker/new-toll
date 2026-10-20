@@ -188,6 +188,40 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string }>({
   },
 });
 
+registrar<{ ids: string[]; pavimentos?: string[]; topo?: number; base?: number }>({
+  nome: 'pilar.engaste',
+  descricao: 'Define os coeficientes de engaste dos lances de pilares (0 = rótula, 1 = engaste) no topo e/ou na base. O lance é o que chega ao pavimento indicado; sem `pavimentos`, vale para todos os lances. No topo do último lance multiplica o engaste das opções de cálculo.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, pavimentos: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    topo: { type: 'number', minimum: 0, maximum: 1 }, base: { type: 'number', minimum: 0, maximum: 1 },
+  } },
+  validar(b, p) {
+    const sp = p.ids.filter((id) => !b.pilares.some((x) => x.id === id)), sv = (p.pavimentos ?? []).filter((id) => !b.pavimentos.some((x) => x.id === id));
+    if (sp.length) return err('PILAR_INEXISTENTE', `Pilar ${sp.join(', ')} não existe.`);
+    if (sv.length) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${sv.join(', ')} não existe.`);
+    return p.topo === undefined && p.base === undefined ? err('SEM_VALOR', 'Informe topo e/ou base.') : [];
+  },
+  aplicar(d, p) {
+    let n = 0;
+    for (const id of p.ids) {
+      const q = d.pilares.find((x) => x.id === id)!;
+      const lances = lancesDoPilar(d as BuildingModel, q as Pilar).map((x) => x.id).filter((x) => !p.pavimentos || p.pavimentos.includes(x));
+      for (const pav of lances) {
+        q.engastes ??= [];
+        let e = q.engastes.find((x) => x.pavimento === pav);
+        if (!e) { e = { pavimento: pav }; q.engastes.push(e); }
+        for (const k of ['topo', 'base'] as const) if (p[k] !== undefined) { if (p[k] === 1) delete e[k]; else e[k] = p[k]; }
+        n++;
+      }
+      q.engastes = q.engastes?.filter((e) => e.topo !== undefined || e.base !== undefined);
+      if (!q.engastes?.length) delete q.engastes;
+    }
+    return `Engaste de ${n} lance(s) de pilar alterado.`;
+  },
+});
+
 registrar<{ id: string; pavimento: string; secao?: SecaoPilar }>({
   nome: 'pilar.secaoLance',
   descricao: 'Define a seção de um lance do pilar (o lance que chega ao pavimento indicado). Sem `secao`, o lance volta à seção geral.',
