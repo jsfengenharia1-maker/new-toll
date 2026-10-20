@@ -12,6 +12,7 @@ import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
+import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
@@ -423,8 +424,14 @@ function barrasDoArranjo(poly: Pt[], circ: number | null, a: number, arr: Arranj
 
 function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[]): ResultadoPilar[] {
   const FYD = acoDe(b, 'pilarLong').fyd, acoLong = acoDe(b, 'pilarLong').aco;
-  const pm = an.portico, out: ResultadoPilar[] = [];
-  for (const p of b.pilares) for (const lance of lancesDoPilar(b, p)) {
+  const pm = an.portico, out: ResultadoPilar[] = [], op = an.opcoes;
+  for (const p of b.pilares) {
+  // de cima para baixo: o último e o penúltimo lances pelos seus esforços; abaixo, com a opção de continuidade,
+  // nenhum lance com menos armadura nem bitola de canto menor que o de cima (critério do programa de referência)
+  const ls = lancesDoPilar(b, p), res: ResultadoPilar[] = [];
+  let acima: { As: number; phi: number } | null = null;
+  for (let li = ls.length - 1; li >= 0; li--) {
+    const lance = ls[li], cont = op.continuidadePilares && li <= ls.length - 3 && acima ? acima : null;
     const c = concretoDe(b, 'pilar', lance.id), cob = cobrimentoPilar(b, p.cobrimento);
     const bi = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === p.id && t.pavimento === lance.id);
     if (bi < 0) continue;
@@ -439,7 +446,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const fl = flambagemLance(b, p, lance.id), lamU = fl.leU / iu, lamV = fl.leV / iv, le: [number, number] = [fl.leU, fl.leV];
     const gn = gammaNFor(Math.min(w, h));
     const msgs: string[] = [];
-    if (Math.max(lamU, lamV) > 200) { out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: 0, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['λ > 200.'] }); continue; }
+    if (Math.max(lamU, lamV) > 200) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: 0, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['λ > 200.'] }); continue; }
     // solicitações por combinação: Nd (compressão +), momentos nas duas direções nas duas pontas (u: flexão com deslocamento ao longo de b → Mz local)
     const sol = elu.map((cb) => {
       const N0 = -comb(pc, cb, 0, 'N') * gn, NL = -comb(pc, cb, 1, 'N') * gn;
@@ -511,9 +518,9 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       melhor = { util: avaliar(bars), txt: `${bars.length} φ${String(armB.phi).replace('.', ',')}`, As, phi: armB.phi, arr };
     }
     busca: for (const phi of bloq ? [] : PHI_L) {
-      if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8) continue; // φ10 a φ25 (premissa dim-pilares)
+      if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8 || (cont && phi < cont.phi)) continue; // φ10 a φ25 (premissa dim-pilares); continuidade
       const a = cob + 0.005 + phi / 2000;
-      const cands = [0.3, 0.25, 0.2, 0.15, 0.12, 0.1].map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, barArea(phi)) }; }).filter(({ bars }) => { const As = bars.length * barArea(phi); return As >= AsMin && As <= AsMax; });
+      const cands = [0.3, 0.25, 0.2, 0.15, 0.12, 0.1].map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, barArea(phi)) }; }).filter(({ bars }) => { const As = bars.length * barArea(phi); return As >= Math.max(AsMin, cont?.As ?? 0) - 1e-12 && As <= AsMax; });
       const anota = ({ bars, arr }: (typeof cands)[number], u: number) => { const As = bars.length * barArea(phi), m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr }; };
       if (!cands.length) continue;
       // a mais densa primeiro: se nem ela atende, a bitola inteira não atende (capacidade cresce com As)
@@ -527,7 +534,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       }
       break busca;
     }
-    if (!melhor) { out.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['Nenhuma armadura entre As,mín e 4 % cabe na seção.'] }); continue; }
+    if (!melhor) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['Nenhuma armadura entre As,mín e 4 % cabe na seção.'] }); continue; }
     let status: ResultadoPilar['status'] = melhor.util <= 1 ? 'ok' : 'fail';
     if (Math.max(lamU, lamV) > 90) { status = 'review'; msgs.push('λ > 90: exige método mais refinado.'); }
     if (gn > 1) msgs.push(`γn = ${gn.toFixed(2)} (menor dimensão < 19 cm).`);
@@ -571,7 +578,11 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       ...solD.map((x) => { const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV); return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false }; }),
       ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true })),
     ];
-    out.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+    res.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util, lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+    const ult = res.at(-1);
+    if (ult && ult.pavimentoId === lance.id && ult.As > 0) acima = { As: ult.As, phi: ult.arranjo?.phi ?? 0 };
+  }
+  out.push(...res.reverse());
   }
   return out;
 }
@@ -819,12 +830,16 @@ export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio): FLoad
 
 export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
   /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
-  detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas> }
+  detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
+  /** Detalhamento dos pilares (barras por lance, emendas, arranques, estribos e grampos) e resumo do aço dos pilares. */
+  detalhesPilares?: DetalhePilar[]; resumoAcoPilares?: ReturnType<typeof resumoAcoPilares> }
 
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combs.filter((x) => x.tipo === 'ELU'), freq = combs.filter((x) => x.tipo === 'FREQ');
   const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   d.detalhes = detalharVigas(b, d, an.opcoes);
   d.resumoAcoVigas = resumoAcoVigas(b, d.detalhes, an.opcoes.perdasAco);
+  d.detalhesPilares = detalharPilares(b, d, an.opcoes);
+  d.resumoAcoPilares = resumoAcoPilares(b, d.detalhesPilares, an.opcoes.perdasAco);
   return d;
 }

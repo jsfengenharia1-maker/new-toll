@@ -58,6 +58,14 @@ export interface OpcoesCalculo {
   perdasAco: number;
   /** Bitola da armadura de montagem superior das vigas (mm), colaborante nos negativos. */
   bitolaMontagem: number;
+  /** 1 = continuidade nos pilares: abaixo do penúltimo lance, nenhum lance com menos armadura nem bitola menor que o de cima. */
+  continuidadePilares: number;
+  /** Comprimento máximo de barra dos pilares (m). */
+  pilarBarraMaxima: number;
+  /** União de lances curtos dos pilares: barras corridas sem emenda até este comprimento (m), se a armadura for idêntica. */
+  pilarUniaoLances: number;
+  /** 1 = ancoragem no topo do último lance reduzida por As,calc/As,ef (9.4.2.5). */
+  ancoragemReduzidaTopo: number;
 }
 
 export interface OpcaoInfo {
@@ -144,6 +152,14 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Acréscimo sobre o peso do resumo de aço (pontas e cortes).' },
   { chave: 'bitolaMontagem', rotulo: 'Bitola da armadura de montagem das vigas', unidade: 'mm', min: 5, max: 12.5, passo: 0.5, padrao: 8, fonte: 'Prática de mercado (porta-estribos φ8), colaborante nos negativos', aConfirmar: true,
     descricao: '2 barras superiores corridas (porta-estribos), contadas na armadura negativa onde existem; limitadas à bitola dos negativos.' },
+  { chave: 'continuidadePilares', rotulo: 'Continuidade da armadura dos pilares', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: cada lance pelos seus esforços', fonte: 'Padrão do programa de referência (taxa e bitola de canto a partir do penúltimo pavimento)', aConfirmar: false,
+    descricao: 'Último e penúltimo lances pelos seus esforços; daí para baixo, cada lance com armadura e bitola de canto não menores que as do lance de cima.' },
+  { chave: 'pilarBarraMaxima', rotulo: 'Comprimento máximo de barra dos pilares', unidade: 'm', min: 3, max: 12, passo: 0.5, padrao: 8, fonte: 'Padrão do programa de referência (8 m)', aConfirmar: false,
+    descricao: 'Barra longitudinal de pilar mais longa que isto é emendada.' },
+  { chave: 'pilarUniaoLances', rotulo: 'União de lances curtos dos pilares', unidade: 'm', min: 0, max: 8, passo: 0.5, padrao: 4, fonte: 'Padrão do programa de referência (4 m)', aConfirmar: false,
+    descricao: 'Lances consecutivos com a mesma armadura têm barras corridas, sem emenda intermediária, enquanto o comprimento somado couber neste limite.' },
+  { chave: 'ancoragemReduzidaTopo', rotulo: 'Ancoragem reduzida no topo do último lance', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 9.4.2.5 (lb,nec = α·lb·As,calc/As,ef); padrão do programa de referência: ligada no último pavimento', aConfirmar: false,
+    descricao: 'No topo do último lance, a ancoragem das barras é reduzida pela utilização da seção (≥ lb,mín).' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
