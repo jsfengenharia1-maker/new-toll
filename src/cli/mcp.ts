@@ -86,10 +86,11 @@ export class ServidorMcp {
     this.ferramentas = [...base, ...cmds];
   }
 
-  private cache: { rev: number; modelo: unknown; dim: ReturnType<typeof dimensionar> } | null = null;
-  /** Dimensionamento do modelo atual (refeito só se o modelo mudou). */
+  private cache: { sessao: Sessao; revCalculo: number; dim: ReturnType<typeof dimensionar> } | null = null;
+  /** Dimensionamento do modelo atual (refeito só se a revisão de cálculo mudou: dados de prancha não contam). */
   private resultados() {
-    if (!this.cache || this.cache.rev !== this.sessao.rev || this.cache.modelo !== this.sessao.modelo) this.cache = { rev: this.sessao.rev, modelo: this.sessao.modelo, dim: dimensionar(this.sessao.modelo) };
+    const s = this.sessao;
+    if (!this.cache || this.cache.sessao !== s || this.cache.revCalculo !== s.revCalculo) this.cache = { sessao: s, revCalculo: s.revCalculo, dim: dimensionar(s.modelo) };
     return this.cache.dim;
   }
 

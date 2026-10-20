@@ -477,7 +477,8 @@ export const flows = [
       assert.match(await prev.textContent(), /\d{2}\/\d{2}\/\d{4}/); // data de hoje quando vazia
       // formato fixo pelo comando: a prévia acompanha
       await page.getByLabel('Formato').selectOption('A1');
-      assert.equal(await prev.getAttribute('data-formato'), 'A1');
+      // o conjunto é montado no worker: a prévia anterior fica com data-estado="carregando" até a resposta
+      await page.locator('.prancha-prev[data-estado="pronto"][data-formato="A1"]').waitFor();
       const baixar = async (rot) => {
         const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: rot }).click()]);
         return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
@@ -1149,6 +1150,12 @@ export const flows = [
       const dxf = await baixar('DXF (zip de todas)');
       assert.match(dxf.nome, /-dxf\.zip$/);
       assert.equal(dxf.dados.subarray(0, 2).toString('latin1'), 'PK');
+      // só dados de prancha: a revisão de cálculo não muda e as folhas de armação continuam
+      await cmd('prancha.definir {"carimbo": {"responsavel": "Eng. Z"}}');
+      await tipo.selectOption({ label: 'Armação de lajes' });
+      await prev.getByText('Eng. Z').waitFor();
+      assert.equal(await page.locator('[data-aviso-calculo]').count(), 0);
+      assert.equal(await prev.getAttribute('data-tipo'), 'lajes');
       // modelo alterado: dimensionamento desatualizado, aviso
       await cmd('eixo.malha {"dx": [4, 4, 1], "dy": [4]}');
       await tipo.selectOption({ label: 'Armação de lajes' });

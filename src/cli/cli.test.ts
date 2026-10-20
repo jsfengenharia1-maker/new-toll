@@ -141,6 +141,26 @@ describe('servidor MCP', () => {
     expect(s.sessao.modelo.pavimentos).toHaveLength(5);
   });
 
+  it('dimensionar: cache pela revisão de cálculo (dados de prancha não refazem o cálculo)', () => {
+    const s = new ServidorMcp(memIo().io);
+    call(s, 'novo');
+    const cache = () => (s as unknown as { cache: { dim: unknown } | null }).cache?.dim;
+    call(s, 'dimensionar');
+    const d0 = cache();
+    expect(d0).toBeDefined();
+    const pv = call(s, 'previa', { comando: 'prancha.definir', params: { carimbo: { responsavel: 'Eng. Y' } } });
+    call(s, 'aplicar', { token: pv.structuredContent.token });
+    call(s, 'dimensionar');
+    expect(cache()).toBe(d0);
+    call(s, 'aplicar', { token: call(s, 'eixo_malha', { dx: [4], dy: [4] }).structuredContent.token });
+    call(s, 'dimensionar');
+    expect(cache()).not.toBe(d0);
+    const d1 = cache();
+    call(s, 'novo'); // sessão nova: revisão de cálculo recomeça, o cache não serve
+    call(s, 'dimensionar');
+    expect(cache()).not.toBe(d1);
+  });
+
   it('abrir e salvar arquivo; recursos; método desconhecido', () => {
     const m = memIo();
     runCli(['novo', 'o.statikos'], m.io);

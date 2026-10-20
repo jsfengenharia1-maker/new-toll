@@ -17,6 +17,11 @@ export interface Comando<P = Record<string, unknown>> {
   risco: Risco;
   /** false: sem ferramenta própria no MCP (continua acessível pela ferramenta genérica `previa`). */
   mcp?: boolean;
+  /**
+   * false: só dados de apresentação (carimbo, formato e escalas das pranchas). Não muda a revisão de cálculo
+   * (`Sessao.revCalculo`), então não invalida a análise nem o dimensionamento. Padrão: true.
+   */
+  calculo?: boolean;
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -30,6 +35,14 @@ export function registrar<P>(c: Comando<P>) {
   REGISTRO.set(c.nome, c as unknown as Comando);
 }
 export const comando = (nome: string) => REGISTRO.get(nome);
+/** O comando altera algo que entra no cálculo? (`lote`: se algum item altera; comando desconhecido: sim.) */
+export function afetaCalculo(nome: string, params?: Record<string, unknown>): boolean {
+  if (nome === 'lote') {
+    const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
+    return cs.some((c) => afetaCalculo(c.nome, c.params));
+  }
+  return REGISTRO.get(nome)?.calculo !== false;
+}
 export const listarComandos = () => [...REGISTRO.values()].sort((a, z) => a.nome.localeCompare(z.nome));
 
 export interface Entrada { t: string; nome: string; params: Record<string, unknown>; autor: Autor }
@@ -120,13 +133,18 @@ registrar<{ comandos: { nome: string; params?: Record<string, unknown> }[] }>({
 
 export interface Resultado { ok: boolean; erros: Diagnostico[]; diff?: Diff; mensagem?: string; token?: string }
 
-interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[] }
+interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[]; calculo: boolean }
 
 /** Estado de edição: modelo atual, desfazer/refazer, log e prévias pendentes. */
 export class Sessao {
   modelo: BuildingModel;
   /** Revisão: muda a cada alteração; uma prévia só pode ser aplicada na revisão em que foi feita. */
   rev = 0;
+  /**
+   * Revisão de cálculo: muda só com os comandos que alteram o cálculo (e com o desfazer/refazer deles). Análise,
+   * dimensionamento e caches comparam esta revisão; mudar só dados de prancha não os invalida.
+   */
+  revCalculo = 0;
   log: Entrada[];
   private feitos: Passo[] = [];
   private desfeitos: Passo[] = [];
@@ -144,9 +162,11 @@ export class Sessao {
     if (REGISTRO.get(nome)!.risco === 'leitura') return { ok: true, erros: [], mensagem: r.mensagem };
     const entrada: Entrada = { t: new Date().toISOString(), nome, params: r.params!, autor };
     this.modelo = r.modelo;
+    const calculo = afetaCalculo(nome, r.params);
     this.rev++;
+    if (calculo) this.revCalculo++;
     this.log.push(entrada);
-    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos! }];
+    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos!, calculo }];
     this.desfeitos = [];
     this.previas.clear();
     return { ok: true, erros: [], diff: r.diff, mensagem: r.mensagem };
@@ -179,6 +199,7 @@ export class Sessao {
     this.log.pop();
     this.desfeitos.push(p);
     this.rev++;
+    if (p.calculo) this.revCalculo++;
     this.previas.clear();
     return p.entrada;
   }
@@ -190,6 +211,7 @@ export class Sessao {
     this.log.push(p.entrada);
     this.feitos.push(p);
     this.rev++;
+    if (p.calculo) this.revCalculo++;
     this.previas.clear();
     return p.entrada;
   }

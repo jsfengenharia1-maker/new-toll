@@ -35,7 +35,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const docRef = useRef<HTMLDivElement>(null);
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
-  const velha = !!analise && revAnalise !== sessao.rev;
+  const velha = !!analise && revAnalise !== sessao.revCalculo;
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);

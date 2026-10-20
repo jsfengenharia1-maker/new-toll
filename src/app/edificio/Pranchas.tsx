@@ -1,9 +1,10 @@
 // Aba Pranchas: planta de formas por grupo, prévia em SVG e saída em PDF, DXF R2000 e DWG R2018.
-import { useMemo, useState } from 'react';
-import { chaveDeCalculo, useBuilding } from './store';
+import { useEffect, useMemo, useState } from 'react';
+import { calculoAtual, useBuilding } from './store';
+import { montarConjuntoNoWorker, Obsoleto, type Conjunto } from './calculo';
 import { useStore } from '../store';
 import { Button, Check, download, Group, Hint, Select, TextField } from '../ui';
-import { montarConjunto, PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
+import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
 import { SIGLAS } from '../../core/sheets/prancha';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
@@ -36,23 +37,37 @@ function carregarDwg(): Promise<EscritorDwg> {
 }
 
 export function Pranchas() {
-  const { sessao, exec, dim, analise, revAnalise, chaveCalculo } = useBuilding();
+  const { sessao, exec, dim, analise, revAnalise, idCalculo } = useBuilding();
   const msg = (m: string) => useStore.getState().set({ message: m });
   const b = sessao.modelo;
   const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
   const arm: ConfigArmacao = { ...ARMACAO_PADRAO, ...(cfg.armacao ?? {}) };
   const [tipo, setTipo] = useState<TipoSaida>('formas');
   const [grupo, setGrupo] = useState('');
-  // cálculo válido = feito na revisão atual do modelo
-  // (mudar só dados de prancha, como carimbo e escalas, não invalida o cálculo)
-  const atual = useMemo(() => !!dim && (revAnalise === sessao.rev || chaveDeCalculo(b) === chaveCalculo), [dim, revAnalise, sessao.rev, b, chaveCalculo]);
+  // cálculo válido = feito na revisão de cálculo atual (mudar só dados de prancha, como carimbo e escalas, não o invalida)
+  const atual = !!dim && calculoAtual({ analise, revAnalise, sessao });
   const precisa = tiposDe(tipo).some((t) => PRECISA_CALCULO.includes(t));
   const porGrupo = tipo === 'todas' || tipo === 'formas' || tipo === 'vigas' || tipo === 'lajes';
   const [hoje] = useState(() => new Date().toLocaleDateString('pt-BR'));
-  const { pranchas: prs, avisos } = useMemo(
-    () => montarConjunto(b, atual ? analise : null, atual ? dim : null, { tipos: tipo, grupo: porGrupo && grupo ? grupo : undefined, carimbo: { data: b.prancha?.carimbo.data || hoje } }),
-    [b, atual, analise, dim, tipo, grupo, porGrupo, hoje],
+  // o conjunto é montado no worker do cálculo (que guarda a análise); respostas de pedidos antigos são descartadas
+  const calc = atual ? idCalculo : null;
+  const pedido = useMemo(
+    () => ({ b, calc, tipos: tipo, grupo: porGrupo && grupo ? grupo : undefined, data: b.prancha?.carimbo.data || hoje }),
+    [b, calc, tipo, grupo, porGrupo, hoje],
   );
+  const [res, setRes] = useState<{ pedido: typeof pedido; cj?: Conjunto; erro?: string } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    montarConjuntoNoWorker(pedido.b, pedido.calc, { tipos: pedido.tipos, grupo: pedido.grupo, carimbo: { data: pedido.data } })
+      .then((cj) => { if (vivo) setRes({ pedido, cj }); })
+      .catch((e: Error) => { if (vivo && !(e instanceof Obsoleto)) setRes({ pedido, erro: e.message }); });
+    return () => { vivo = false; };
+  }, [pedido]);
+  const carregando = res?.pedido !== pedido;
+  // durante a montagem, continua mostrando a resposta anterior se for do mesmo tipo e grupo (edição do carimbo, escalas)
+  const visivel = res && (!carregando || (res.pedido.tipos === pedido.tipos && res.pedido.grupo === pedido.grupo)) ? res : null;
+  const prs = useMemo(() => visivel?.cj?.pranchas ?? [], [visivel]);
+  const avisos = visivel?.cj?.avisos ?? [];
   const [sel, setSel] = useState(0);
   const i = Math.min(sel, Math.max(0, prs.length - 1));
   const pr = prs[i];
@@ -106,7 +121,9 @@ export function Pranchas() {
         {!precisa && tipo === 'locacao' && !atual && <Hint>Sem cálculo atualizado, a locação sai sem a tabela de cargas.</Hint>}
         {!precisa && tipo === 'formas' && !atual && <Hint>Quadro de pilares sem armaduras (calcule e dimensione).</Hint>}
         {avisos.map((a, k) => <p key={k} className="hint bad">{a}</p>)}
-        {!prs.length ? <Hint>{precisa && !atual ? 'Nenhuma folha: falta o cálculo.' : 'Lance vigas ou lajes em algum grupo para gerar as pranchas.'}</Hint> : (
+        {visivel?.erro && <p className="hint bad">Pranchas: {visivel.erro}</p>}
+        {carregando && <Hint><span data-pranchas-carregando>Montando as pranchas…</span></Hint>}
+        {!visivel ? null : !prs.length ? <Hint>{precisa && !atual ? 'Nenhuma folha: falta o cálculo.' : 'Lance vigas ou lajes em algum grupo para gerar as pranchas.'}</Hint> : (
           <>
             <table className="design data" data-lista-folhas={prs.length}>
               <thead><tr><th className="tl">Folha</th><th className="tl">Sigla</th><th className="tl">Título</th><th>Formato</th><th>Escala</th></tr></thead>
@@ -151,7 +168,7 @@ export function Pranchas() {
           </>
         )}
       </div>
-      {pr && <div className="card prancha-prev" data-formato={pr.formato} data-escala={pr.escala} data-tipo={pr.tipo ?? 'formas'} data-folha={i + 1} data-total={prs.length} dangerouslySetInnerHTML={{ __html: svg }} />}
+      {pr && <div className="card prancha-prev" data-estado={carregando ? 'carregando' : 'pronto'} data-formato={pr.formato} data-escala={pr.escala} data-tipo={pr.tipo ?? 'formas'} data-folha={i + 1} data-total={prs.length} dangerouslySetInnerHTML={{ __html: svg }} />}
       <Group title="Opções de armação e locação" open={false}>
         <div className="row wrap">
           <Select label="Folha de armação" value={arm.formato} options={FORMATOS} onChange={(f) => pa({ formato: f })} />

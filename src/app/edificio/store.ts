@@ -48,16 +48,16 @@ interface BState {
   analise: AnaliseEdificio | null;
   /** Dimensionamento feito com a mesma análise. */
   dim: DimEdificio | null;
-  /** Revisão do modelo em que a análise foi feita (difere de sessao.rev = desatualizada). */
+  /** Revisão de cálculo em que a análise foi feita (difere de sessao.revCalculo = desatualizada; dados de prancha não contam). */
   revAnalise: number;
-  /** Modelo sem os dados de prancha (carimbo, formato, escalas) no momento do cálculo: mudar só a prancha não invalida o cálculo. */
-  chaveCalculo: string;
+  /** Identificador do cálculo no worker (as pranchas de armação são montadas lá, com estes resultados). */
+  idCalculo: number | null;
   calculando: boolean;
   calcular(): Promise<void>;
 }
 
-/** Chave do que influi no cálculo: o modelo sem `prancha`. */
-export const chaveDeCalculo = (m: object): string => JSON.stringify({ ...m, prancha: undefined });
+/** A análise e o dimensionamento valem para o modelo atual? */
+export const calculoAtual = (st: Pick<BState, 'analise' | 'revAnalise' | 'sessao'>): boolean => !!st.analise && st.revAnalise === st.sessao.revCalculo;
 
 const msg = (m: string) => useStore.getState().set({ message: m });
 
@@ -67,6 +67,7 @@ export const useBuilding = create<BState>((set, get) => {
     if (sujo) useStore.getState().setUnsaved(true);
     set({ sessao: s, rev: s.rev + Math.random(), diags: s.verificar() });
   };
+  const semCalculo = { analise: null, dim: null, revAnalise: -1, idCalculo: null };
   const inicial = carregarLocal();
   return {
     sessao: inicial,
@@ -81,20 +82,22 @@ export const useBuilding = create<BState>((set, get) => {
     },
     desfazer() { const e = get().sessao.desfazer(); if (e) { atualizar(get().sessao); msg(`Desfeito: ${e.nome}.`); } },
     refazer() { const e = get().sessao.refazer(); if (e) { atualizar(get().sessao); msg(`Refeito: ${e.nome}.`); } },
-    novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
-    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set({ analise: null, dim: null, revAnalise: -1, chaveCalculo: '' }); },
+    novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); set(semCalculo); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
+    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set(semCalculo); },
     analise: null,
     dim: null,
     revAnalise: -1,
-    chaveCalculo: '',
+    idCalculo: null,
     calculando: false,
     async calcular() {
-      const s = get().sessao, rev = s.rev;
+      const s = get().sessao, rev = s.revCalculo;
       set({ calculando: true });
       msg('Calculando…');
       try {
-        const { analise: a, dim } = await calcularNoWorker(s.modelo);
-        set({ analise: a, dim, revAnalise: rev, chaveCalculo: chaveDeCalculo(s.modelo), calculando: false });
+        const { analise: a, dim, id } = await calcularNoWorker(s.modelo);
+        // a sessão pode ter sido trocada (abrir, novo) durante o cálculo: o resultado não vale para ela
+        if (get().sessao !== s) { set({ calculando: false }); return; }
+        set({ analise: a, dim, revAnalise: rev, idCalculo: id, calculando: false });
         msg(a.erro ? `Análise: ${a.erro}` : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
       } catch (e) {
         set({ calculando: false });

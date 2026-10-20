@@ -661,7 +661,7 @@ function CombinacoesCard({ b }: { b: BuildingModel }) {
 function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
   const { analise, revAnalise, calculando, calcular, sessao } = useBuilding();
   const r = analise ? resumoAnalise(b, analise) : null;
-  const velha = analise && revAnalise !== sessao.rev;
+  const velha = analise && revAnalise !== sessao.revCalculo;
   return (
     <>
       <div className="card">
@@ -739,7 +739,7 @@ const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', id: string, pavimento?: string) => void; onMemorial: () => void }) {
   const { dim, analise, revAnalise, sessao, calculando, calcular } = useBuilding();
   const [so, setSo] = useState(false);
-  const velha = analise && revAnalise !== sessao.rev;
+  const velha = analise && revAnalise !== sessao.revCalculo;
   const filtro = <T extends { status: string }>(xs: T[]) => (so ? xs.filter((x) => x.status !== 'ok') : xs);
   const conta = (xs: { status: string }[]) => `${xs.filter((x) => x.status === 'ok').length}/${xs.length} ok`;
   const cls = (st: string) => (st === 'fail' ? 'bad' : st === 'review' ? 'warn' : '');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
+import { afetaCalculo, aplicarComando, comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
 import { edificioVazio, lancesDoPilar, peDireito } from '../building/types';
 import { verificar } from '../building/verify';
 import { lerEdificio } from '../building/file';
@@ -179,6 +179,51 @@ describe('registro de comandos', () => {
     expect(r.ok).toBe(false);
     expect(r.erros[0].codigo).toBe('PREVIA_INVALIDA'); // prévias anteriores são descartadas ao alterar
     expect(s.log.at(-1)!.autor).toBe('ia');
+  });
+});
+
+describe('revisão de cálculo', () => {
+  it('prancha.definir muda a revisão geral, não a de cálculo; geometria muda as duas; desfazer e refazer acompanham', () => {
+    const s = padrao();
+    const r0 = s.rev, c0 = s.revCalculo;
+    expect(s.executar('prancha.definir', { carimbo: { responsavel: 'Eng. X' }, armacao: { escalaVigas: 75 } }).ok).toBe(true);
+    expect(s.rev).toBe(r0 + 1);
+    expect(s.revCalculo).toBe(c0);
+    expect(s.executar('pilar.inserir', { x: 0, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }).ok).toBe(true);
+    expect(s.revCalculo).toBe(c0 + 1);
+    s.desfazer(); // pilar
+    expect(s.revCalculo).toBe(c0 + 2);
+    s.desfazer(); // prancha
+    expect(s.revCalculo).toBe(c0 + 2);
+    expect(s.modelo.prancha?.carimbo.responsavel).toBeUndefined();
+    s.refazer(); // prancha
+    expect(s.revCalculo).toBe(c0 + 2);
+    s.refazer(); // pilar
+    expect(s.revCalculo).toBe(c0 + 3);
+    expect(s.rev).toBe(r0 + 6);
+  });
+
+  it('lote altera o cálculo quando algum item altera; comando desconhecido conta como cálculo', () => {
+    expect(afetaCalculo('prancha.definir')).toBe(false);
+    expect(afetaCalculo('lote', { comandos: [{ nome: 'prancha.definir', params: { escala: 50 } }] })).toBe(false);
+    expect(afetaCalculo('lote', { comandos: [{ nome: 'prancha.definir' }, { nome: 'eixo.malha', params: { dx: [4], dy: [3] } }] })).toBe(true);
+    expect(afetaCalculo('norma.definir')).toBe(true);
+    expect(afetaCalculo('nao.existe')).toBe(true);
+    const s = padrao(), c0 = s.revCalculo;
+    expect(s.executar('lote', { comandos: [{ nome: 'prancha.definir', params: { formato: 'A1' } }, { nome: 'prancha.definir', params: { escala: 50 } }] }).ok).toBe(true);
+    expect(s.revCalculo).toBe(c0);
+  });
+
+  it('comandos fora do cálculo só alteram b.prancha, e o cálculo não lê b.prancha', () => {
+    const b0 = base();
+    for (const c of listarComandos().filter((x) => x.calculo === false)) {
+      const r = aplicarComando(b0, c.nome, EXEMPLOS[c.nome](b0));
+      expect(r.ok, c.nome).toBe(true);
+      expect(r.patches!.every((p) => p.path[0] === 'prancha'), c.nome).toBe(true);
+    }
+    const src = import.meta.glob(['../building/*.ts', '!../building/*.test.ts', '!../building/types.ts', '!../building/file.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    expect(Object.keys(src).length).toBeGreaterThan(10);
+    expect(Object.keys(src).filter((f) => /\.prancha\b/.test(src[f]))).toEqual([]);
   });
 });
 

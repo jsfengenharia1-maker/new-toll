@@ -51,7 +51,7 @@ export function importarCargasDoEdificio(loads: FLoad[]) {
 export function Fundacoes() {
   const st = useStore();
   const a = useAnalysis();
-  const edDim = useBuilding((s) => s.dim), edVelha = useBuilding((s) => s.revAnalise !== s.sessao.rev);
+  const edDim = useBuilding((s) => s.dim), edVelha = useBuilding((s) => s.revAnalise !== s.sessao.revCalculo);
   const f: FoundationData = useMemo(() => normalizeFoundation(clone(st.model.foundation ?? sampleFoundation())), [st.model.foundation]);
   const upd = (fn: (d: FoundationData) => void, msg?: string) => st.commit((m) => {
     const d = normalizeFoundation(clone(m.foundation ?? f));
