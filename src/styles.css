@@ -450,4 +450,5 @@ svg.mono .hinge { fill: #fff !important; }
 .cmdline { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px var(--font-num); background: var(--surface); color: var(--ink); }
 .hint.bad { color: var(--bad); }
 .edif table.quadro tr.bad td { color: var(--bad); font-weight: 600; }
+.edif table.quadro tr.warn td { color: var(--warn, #b7791f); }
 @media (max-width: 900px) { .edif { grid-template-columns: 1fr; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }

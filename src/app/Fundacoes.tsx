@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
+import { useBuilding } from './edificio/store';
 import { Check, Group, Hint, NumField, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
@@ -31,9 +32,27 @@ function parseSoil(t: string): SoilClass {
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
+/** Troca as cargas pelas novas, preservando (pelo nome do apoio) os campos de `keep` que o usuário já ajustou. */
+function mergeLoads(d: FoundationData, incoming: FLoad[], keep: (keyof FLoad)[] = KEEP) {
+  const old = new Map(d.loads.map((l) => [l.label, l]));
+  d.loads = incoming.map((s) => { const o = old.get(s.label); const k: Partial<FLoad> = {}; if (o) for (const c of keep) if (o[c] !== undefined) (k as Record<string, unknown>)[c] = o[c]; return { ...s, ...k }; });
+}
+
+/** Cargas do módulo Edifícios (posição e seção do pilar vêm do edifício; tipo de fundação e sondagem ficam). */
+export function importarCargasDoEdificio(loads: FLoad[]) {
+  const st = useStore.getState();
+  st.commit((m) => {
+    const d = normalizeFoundation(clone(m.foundation ?? sampleFoundation()));
+    mergeLoads(d, loads, ['kind', 'boringId', 'boringMode', 'boringIds', 'pile']);
+    d.boring = d.borings![0];
+    m.foundation = d;
+  }, `${loads.length} pilar(es) importados do edifício (valores característicos).`);
+}
+
 export function Fundacoes() {
   const st = useStore();
   const a = useAnalysis();
+  const edDim = useBuilding((s) => s.dim), edVelha = useBuilding((s) => s.revAnalise !== s.sessao.rev);
   const f: FoundationData = useMemo(() => normalizeFoundation(clone(st.model.foundation ?? sampleFoundation())), [st.model.foundation]);
   const upd = (fn: (d: FoundationData) => void, msg?: string) => st.commit((m) => {
     const d = normalizeFoundation(clone(m.foundation ?? f));
@@ -63,10 +82,6 @@ export function Fundacoes() {
     return selDesign.pile ?? null;
   }, [sel, selDesign]);
 
-  const mergeLoads = (d: FoundationData, incoming: FLoad[]) => {
-    const old = new Map(d.loads.map((l) => [l.label, l]));
-    d.loads = incoming.map((s) => { const o = old.get(s.label); const keep: Partial<FLoad> = {}; if (o) for (const k of KEEP) if (o[k] !== undefined) (keep as Record<string, unknown>)[k] = o[k]; return { ...s, ...keep }; });
-  };
   const importModel = () => {
     if (a.prep.error) { st.set({ message: 'O pórtico está instável: não há reações para importar.' }); return; }
     const ch = buildCharacteristics(st.model, getDesign(a));
@@ -160,6 +175,7 @@ export function Fundacoes() {
         <Group title="Cargas por apoio (características)">
           <div className="row wrap">
             <button type="button" className="btn" onClick={importModel}>Importar do pórtico atual</button>
+            <button type="button" className="btn" disabled={!edDim?.fundacao.length} title={edDim ? (edVelha ? 'O edifício mudou depois do cálculo: as cargas são do último cálculo.' : 'Cargas do último cálculo do edifício.') : 'Calcule o edifício (aba Edifício › Análise) para importar.'} onClick={() => edDim && importarCargasDoEdificio(edDim.fundacao)}>Importar do edifício</button>
             {saved.length > 0 && <Select value="" options={[{ v: '', label: 'Características salvas…' }, ...saved.map((s) => ({ v: s.id, label: s.name }))]} onChange={(id) => id && importSaved(id)} />}
           </div>
           <div className="tablewrap">

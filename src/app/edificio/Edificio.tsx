@@ -10,9 +10,12 @@ import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
 import { comprimentoPolilinha, cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CasoFisico, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
-import { PREMISSAS } from '../../core/building/premissas';
+import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
 import { Group, Hint, NumField, Select, TextField } from '../ui';
+import { MemorialEdificio } from './MemorialEdificio';
+import { importarCargasDoEdificio } from '../Fundacoes';
+
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const CORES = ['#5b8def', '#e6a23c', '#3fb27f', '#c86bdc', '#e05d5d', '#4fb3c8', '#a3a83a', '#8c7ae6'];
@@ -23,7 +26,8 @@ export function Edificio() {
   const { sessao, exec, novo, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'premissas'>('planta');
+  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'premissas'>('planta');
+  const [memo, setMemo] = useState(false);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
 
   return (
@@ -114,7 +118,7 @@ export function Edificio() {
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
@@ -124,6 +128,7 @@ export function Edificio() {
             {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
+            {aba === 'dimensionamento' && <DimensionamentoAba onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
             {aba === 'premissas' && (
               <div className="card">
                 <h3>Premissas em uso</h3>
@@ -135,6 +140,7 @@ export function Edificio() {
           </div>
         )}
       </section>
+      {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
     </div>
   );
 }
@@ -646,6 +652,81 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
               <thead><tr><th>Pavimento</th><th>Carga G (kN)</th><th>Carga Q (kN)</th><th>Flecha G (mm)</th><th>Flecha Q (mm)</th></tr></thead>
               <tbody>{r.flechasElasticas.map((f) => <tr key={f.pavimento}><td className="tl">{f.pavimento}</td><td className="num">{fmt(f.cargaG, 1)}</td><td className="num">{fmt(f.cargaQ, 1)}</td><td className="num">{fmt(f.flechaG_mm, 2)}</td><td className="num">{fmt(f.flechaQ_mm, 2)}</td></tr>)}</tbody>
             </table>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
+
+function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => void; onMemorial: () => void }) {
+  const { dim, analise, revAnalise, sessao, calculando, calcular } = useBuilding();
+  const [so, setSo] = useState(false);
+  const velha = analise && revAnalise !== sessao.rev;
+  const filtro = <T extends { status: string }>(xs: T[]) => (so ? xs.filter((x) => x.status !== 'ok') : xs);
+  const conta = (xs: { status: string }[]) => `${xs.filter((x) => x.status === 'ok').length}/${xs.length} ok`;
+  const cls = (st: string) => (st === 'fail' ? 'bad' : st === 'review' ? 'warn' : '');
+  const totQ = dim?.quantitativos.reduce((t, q) => ({ c: t.c + q.concreto.lajes + q.concreto.vigas + q.concreto.pilares, f: t.f + q.forma.lajes + q.forma.vigas + q.forma.pilares, a: t.a + q.aco }), { c: 0, f: 0, a: 0 });
+  return (
+    <>
+      <div className="card">
+        <h3>Dimensionamento (NBR 6118)</h3>
+        <div className="row wrap">
+          <button type="button" className="btn primary" disabled={calculando} onClick={() => calcular()}>{calculando ? 'Calculando…' : dim ? 'Recalcular' : 'Calcular e dimensionar'}</button>
+          <button type="button" className="btn" disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</button>
+          <button type="button" className="btn" onClick={onMemorial}>Memorial do edifício</button>
+          <label className="check small"><input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
+        </div>
+        {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule.</p>}
+        {!dim && <Hint>{analise?.erro ? `A análise falhou: ${analise.erro}` : 'Calcule para dimensionar vigas, pilares e lajes com a envoltória das combinações ELU.'}</Hint>}
+        {dim && <p className="small">Vigas {conta(dim.vigas)} · pilares {conta(dim.pilares)} · lajes {conta(dim.lajes)} · {dim.combinacoes} combinações · {Math.round(dim.ms)} ms. Clique numa linha para ver o elemento na planta.</p>}
+      </div>
+      {dim && (
+        <>
+          <div className="card">
+            <h3>Vigas</h3>
+            <table className="data quadro">
+              <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Situação</th></tr></thead>
+              <tbody>{filtro(dim.vigas).map((x) => (
+                <tr key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.viga])}>
+                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td>{ST_TXT[x.status]}</td>
+                </tr>))}</tbody>
+            </table>
+          </div>
+          <div className="card">
+            <h3>Pilares (por lance)</h3>
+            <table className="data quadro">
+              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
+              <tbody>{filtro(dim.pilares).map((x) => (
+                <tr key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.pilar])}>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
+                </tr>))}</tbody>
+            </table>
+            <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes.</Hint>
+          </div>
+          <div className="card">
+            <h3>Lajes</h3>
+            <table className="data quadro">
+              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha (mm)</th><th>Limite (mm)</th><th>Situação</th></tr></thead>
+              <tbody>{filtro(dim.lajes).map((x) => (
+                <tr key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.laje])}>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className="num">{fmt(x.flecha * 1000, 1)}</td><td className="num">{fmt(x.limite * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
+                </tr>))}</tbody>
+            </table>
+            <Hint>Duas direções da malha (x / y). Flecha = elástica (G + ψ2·Q) × (1 + αf), sem fissuração.</Hint>
+          </div>
+          <div className="card">
+            <h3>Quantitativos</h3>
+            <table className="data quadro">
+              <thead><tr><th>Pavimento</th><th>Concreto lajes</th><th>vigas</th><th>pilares (m³)</th><th>Fôrma (m²)</th><th>Aço estimado (kg)</th></tr></thead>
+              <tbody>
+                {dim.quantitativos.map((q) => <tr key={q.pavimento}><td className="tl">{q.pavimento}</td><td className="num">{fmt(q.concreto.lajes)}</td><td className="num">{fmt(q.concreto.vigas)}</td><td className="num">{fmt(q.concreto.pilares)}</td><td className="num">{fmt(q.forma.lajes + q.forma.vigas + q.forma.pilares, 1)}</td><td className="num">{fmt(q.aco, 0)}</td></tr>)}
+                {totQ && <tr><td className="tl"><b>Total</b></td><td colSpan={3} className="num"><b>{fmt(totQ.c)} m³</b></td><td className="num"><b>{fmt(totQ.f, 1)}</b></td><td className="num"><b>{fmt(totQ.a, 0)}</b></td></tr>}
+              </tbody>
+            </table>
+            <Hint>Aço por taxas (lajes {TAXAS.lajes}, vigas {TAXAS.vigas}, pilares {TAXAS.pilares} kg/m³; a confirmar). O detalhamento e a tabela de aço real vêm nas pranchas.</Hint>
           </div>
         </>
       )}

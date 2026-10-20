@@ -6,7 +6,7 @@ import { edificioVazio } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
-import { abrirSessao, resumo, salvarSessao, type Io } from './run';
+import { abrirSessao, dimensionar, resumo, salvarSessao, type Io } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
 const PROTOCOLOS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -52,8 +52,10 @@ export class ServidorMcp {
       { name: 'resumo', title: 'Resumo da obra', description: 'Obra, norma, pavimentos (com pé-direito e grupo), grupos e contagens.', inputSchema: vazio, annotations: ro(), executar: () => resumo(this.sessao) },
       { name: 'modelo', title: 'Modelo completo', description: 'O modelo físico do edifício em JSON.', inputSchema: vazio, annotations: ro(), executar: () => this.sessao.modelo },
       { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
-      { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G e Q). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
+      { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G, Q e vento NBR 6123; γz). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
         executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
+      { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha); quantitativos por pavimento e cargas características por pilar para o módulo Fundações.', inputSchema: vazio, annotations: ro(),
+        executar: () => dimensionar(this.sessao.modelo) },
       { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, annotations: rw(true),
         executar: (a) => this.saida(this.sessao.aplicar(String(a.token), 'ia')) },
       { name: 'comandos', title: 'Comandos disponíveis', description: 'Lista todos os comandos do registro (nome, risco, descrição e JSON Schema dos parâmetros), inclusive os sem ferramenta própria.', inputSchema: vazio, annotations: ro(),

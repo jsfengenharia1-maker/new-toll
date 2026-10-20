@@ -418,4 +418,36 @@ export const flows = [
       assert.equal(await page.locator('.edif-out .card', { hasText: 'Cargas na fundação' }).locator('tbody tr').count(), 4);
     },
   },
+  {
+    name: 'dimensionamento do edifício: tabelas, cargas enviadas ao módulo Fundações e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const card = (t) => page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: t }) });
+      assert.equal(await card(/^Vigas$/).locator('tbody tr').count(), 4);
+      assert.equal(await card('Pilares (por lance)').locator('tbody tr').count(), 20);
+      assert.match(await card('Pilares (por lance)').textContent(), /\d+ φ\d/);
+      assert.match(await page.locator('.edif-out').textContent(), /Vigas 4\/4 ok/);
+      // clicar numa viga seleciona o elemento na planta
+      await card(/^Vigas$/).locator('tbody tr').first().click();
+      assert.equal(await page.locator('.edif-tabs [aria-selected="true"]').textContent(), 'Planta');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /Dimensionamento dos pilares.*Cargas na fundação.*Quantitativos/s);
+      assert.equal(await memo.locator('figure svg').count(), 1); // só grupos com vigas ou lajes
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.getByRole('button', { name: 'Enviar cargas ao módulo Fundações' }).click();
+      await page.locator('.statusbar .msg', { hasText: '4 pilar(es) importados do edifício' }).waitFor();
+      assert.equal(await page.locator('table.loads-ed tbody tr').count(), 4);
+      assert.equal(await page.locator('table.loads-ed tbody tr').first().locator('input').first().inputValue(), 'P1');
+    },
+  },
 ];

@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 213 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 215 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -148,6 +148,14 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - γz por direção com rigidez reduzida (0,4/0,8·Eci·Ic), com vento principal e uso principal; vento das ELU ampliado por 0,95·γz entre 1,1 e 1,3; aviso acima de 1,3
 - Combinações ELU, frequentes, quase permanentes e raras (grupo excludente do vento); cargas na fundação com envoltórias rara (geotécnica) e ELU (estrutural)
 - Comandos `vento.definir` e ψ da carga de uso em `norma.definir`
+
+**Módulo Edifícios — fatia 6a (20/10/2026)**
+- Dimensionamento NBR 6118 no mesmo Web Worker da análise: vigas (envoltória ELU de momentos e cortantes, armaduras e estribos), pilares por lance (pilar-padrão com curvatura aproximada nas duas direções + flexão oblíqua por fibras nas combinações determinantes) e lajes maciças (As por metro nas duas direções e flecha com fluência)
+- Aba Dimensionamento: tabelas com situação por elemento, filtro "só o que não atende", clique leva ao elemento na planta; quantitativos de concreto, fôrma e aço estimado por pavimento
+- Cargas por pilar enviadas ao módulo Fundações (botão na aba e "Importar do edifício" no módulo Fundações; tipo de fundação e sondagem já escolhidos são mantidos)
+- Memorial do edifício (materiais, geometria com planta de fôrma esquemática, ações, modelo, γz, dimensionamento, fundação, quantitativos e premissas), imprimível em PDF e exportável em HTML
+- `statikos dim` e ferramenta `dimensionar` no MCP
+- Fora desta fatia: torção de vigas, detalhamento (pranchas na 6b), resultados coloridos e visualização 3D
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

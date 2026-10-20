@@ -15,7 +15,7 @@ import { logActivity } from './history';
 
 
 
-const MEMO_CSS = `
+export const MEMO_CSS = `
 .memo{font:12.5px/1.55 'IBM Plex Sans','Segoe UI',Arial,sans-serif;color:#1b2530;background:#fff;max-width:820px;margin:0 auto;padding:40px 48px 64px}
 .memo h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em}
 .memo h2{font-size:15px;margin:30px 0 8px;padding-bottom:4px;border-bottom:2px solid #0e6a72;color:#0e3f45;break-after:avoid}
@@ -50,7 +50,7 @@ const cssStr = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').
  * projeto e a paginação, quebra de página antes das seções principais (h2.pb) e sem quebra
  * dentro de figuras, tabelas, fórmulas e quadros.
  */
-function memoPrintCss(p: { title: string; obra?: string; rev?: string; date?: string }) {
+export function memoPrintCss(p: { title: string; obra?: string; rev?: string; date?: string }) {
   const box = 'font:8.5pt \'IBM Plex Sans\',\'Segoe UI\',Arial,sans-serif;color:#5b6876';
   return `
 @page{size:A4;margin:20mm 15mm 18mm 20mm;
@@ -75,7 +75,7 @@ html,body{background:#fff!important}
 }
 
 /** Na janela do app (Ctrl+P com o memorial aberto), imprime só o memorial. */
-const APP_PRINT_CSS = `@media print{
+export const APP_PRINT_CSS = `@media print{
 html,body,#root{height:auto!important;overflow:visible!important;background:#fff!important}
 .app{display:block!important;height:auto!important}
 .app>:not(.memo-overlay){display:none!important}
@@ -115,6 +115,30 @@ const Fig = ({ svg, cap }: { svg: string; cap: string }) => (
   <figure><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>{cap}</figcaption></figure>
 );
 
+/** Abre a impressão do navegador só com o documento (iframe oculto); daí se salva em PDF. */
+export function printHtmlDoc(html: string) {
+  const f = document.createElement('iframe');
+  f.setAttribute('aria-hidden', 'true');
+  f.title = 'Impressão do memorial';
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  const cleanup = () => setTimeout(() => f.remove(), 1500);
+  f.onload = () => {
+    const w = f.contentWindow;
+    try {
+      if (!w) throw new Error('sem janela');
+      w.addEventListener('afterprint', cleanup);
+      w.focus();
+      w.print();
+    } catch {
+      f.remove();
+      window.print();
+    }
+    cleanup();
+  };
+  f.srcdoc = html;
+  document.body.appendChild(f);
+}
+
 export function Memorial({ onClose }: { onClose: () => void }) {
   const st = useStore();
   const a = useAnalysis();
@@ -137,29 +161,8 @@ export function Memorial({ onClose }: { onClose: () => void }) {
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#fff}${MEMO_CSS}${printCss}</style></head><body>${body}</body></html>`;
   };
 
-  /** Abre a impressão do navegador só com o memorial (iframe oculto); daí se salva em PDF. */
   const printMemo = () => {
-    const html = memoHtml();
-    const f = document.createElement('iframe');
-    f.setAttribute('aria-hidden', 'true');
-    f.title = 'Impressão do memorial';
-    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-    const cleanup = () => setTimeout(() => f.remove(), 1500);
-    f.onload = () => {
-      const w = f.contentWindow;
-      try {
-        if (!w) throw new Error('sem janela');
-        w.addEventListener('afterprint', cleanup);
-        w.focus();
-        w.print();
-      } catch {
-        f.remove();
-        window.print();
-      }
-      cleanup();
-    };
-    f.srcdoc = html;
-    document.body.appendChild(f);
+    printHtmlDoc(memoHtml());
     logActivity('Memorial de cálculo enviado para impressão/PDF', model.name);
     st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF” como destino para gerar o arquivo (A4, com cabeçalho e paginação).' });
   };

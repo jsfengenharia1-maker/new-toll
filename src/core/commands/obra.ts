@@ -134,6 +134,7 @@ registrar<{ pavimento: string }>({
   nome: 'grupo.desvincular',
   descricao: 'Cria um grupo próprio para o pavimento, copiando uso e cargas do grupo atual (a planta passa a ser independente).',
   risco: 'escrita',
+  mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['pavimento'], properties: { pavimento: { type: 'string' } } },
   validar(b, p) {
     const x = pav(b, p.pavimento);

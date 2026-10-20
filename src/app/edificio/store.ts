@@ -6,7 +6,7 @@ import { edificioVazio } from '../../core/building/types';
 import type { Diagnostico } from '../../core/building/verify';
 import { useStore } from '../store';
 import type { AnaliseEdificio } from '../../core/building/analitico';
-import { calcular as calcularNoWorker } from './calculo';
+import { calcular as calcularNoWorker, type DimEdificio } from './calculo';
 
 const KEY = 'statikos:building';
 
@@ -46,6 +46,8 @@ interface BState {
   /** Troca pelo edifício de um arquivo (null = edifício vazio). */
   carregar(f: BuildingFile | null): void;
   analise: AnaliseEdificio | null;
+  /** Dimensionamento feito com a mesma análise. */
+  dim: DimEdificio | null;
   /** Revisão do modelo em que a análise foi feita (difere de sessao.rev = desatualizada). */
   revAnalise: number;
   calculando: boolean;
@@ -75,8 +77,9 @@ export const useBuilding = create<BState>((set, get) => {
     desfazer() { const e = get().sessao.desfazer(); if (e) { atualizar(get().sessao); msg(`Desfeito: ${e.nome}.`); } },
     refazer() { const e = get().sessao.refazer(); if (e) { atualizar(get().sessao); msg(`Refeito: ${e.nome}.`); } },
     novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
-    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set({ analise: null, revAnalise: -1 }); },
+    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set({ analise: null, dim: null, revAnalise: -1 }); },
     analise: null,
+    dim: null,
     revAnalise: -1,
     calculando: false,
     async calcular() {
@@ -84,9 +87,9 @@ export const useBuilding = create<BState>((set, get) => {
       set({ calculando: true });
       msg('Calculando…');
       try {
-        const a = await calcularNoWorker(s.modelo);
-        set({ analise: a, revAnalise: rev, calculando: false });
-        msg(a.erro ? `Análise: ${a.erro}` : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms.`);
+        const { analise: a, dim } = await calcularNoWorker(s.modelo);
+        set({ analise: a, dim, revAnalise: rev, calculando: false });
+        msg(a.erro ? `Análise: ${a.erro}` : `Análise concluída: ${a.gdl} gdl em ${Math.round(a.ms)} ms${dim ? `; dimensionamento em ${Math.round(dim.ms)} ms` : ''}.`);
       } catch (e) {
         set({ calculando: false });
         msg(`Falha no cálculo: ${(e as Error).message}`);

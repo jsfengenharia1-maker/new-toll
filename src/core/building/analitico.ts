@@ -176,7 +176,7 @@ function pontoApoio(trechos: TrechoViga[], nos: NoPlanta[], pil: Pilar, sec: Sec
 
 // ---------------- análise ----------------
 
-export interface BarraGrelha { tipo: 'laje' | 'viga'; ref: string; dir?: 0 | 1 }
+export interface BarraGrelha { tipo: 'laje' | 'viga'; ref: string; dir?: 0 | 1; largura?: number }
 export interface GrelhaPavimento {
   pavimento: string;
   modelo: Modelo3;
@@ -193,7 +193,7 @@ export interface AnaliseEdificio {
   avisos: string[];
   opcoes: OpcoesAnalise;
   grelhas: GrelhaPavimento[];
-  portico: { modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; res: Resultado3 | null; resVento?: Resultado3 | null };
+  portico: { modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[] };
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
@@ -278,7 +278,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (ids[j] === ids[j + 1]) continue;
           const pr = prop[k];
           m.barras.push({ i: no(ids[j]), j: no(ids[j + 1]), E, G, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J });
-          tags.push({ tipo: 'laje', ref: l.id, dir: k });
+          tags.push({ tipo: 'laje', ref: l.id, dir: k, largura: ln.largura });
           const bi = m.barras.length - 1, w = ln.largura * share;
           if (!w) continue;
           // cargas de área: grupo + regiões de carga que contêm o meio da barra
@@ -304,7 +304,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         if (!sobreViga(mid)) {
           const w = Math.min(mm.sx, mm.sy) / 2, h = l.tipo.tipo === 'macica' ? l.tipo.h : l.tipo.capa, I = (w * h ** 3) / 12;
           m.barras.push({ i: ia, j: iz, E, G, A: w * h, Iz: I, Iy: I, J: op.torcaoLaje * 2 * I });
-          tags.push({ tipo: 'laje', ref: l.id });
+          tags.push({ tipo: 'laje', ref: l.id, largura: w });
         }
       });
     }
@@ -516,9 +516,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const pontoAplicacao = (pav: string): number | undefined => mestres[pav] ?? pm.nos.findIndex((n, i) => Math.abs(n[2] - (ps.find((x) => x.id === pav)?.cota ?? NaN)) < 1e-6 && !pm.apoios.has(i));
   const centro = (pav: string): [number, number] => { const i = pontoAplicacao(pav); return i !== undefined && i >= 0 ? [pm.nos[i][0], pm.nos[i][1]] : [0, 0]; };
   const ven = casosVento(b, centro);
-  let resVento: Resultado3 | null = null, vento: AnaliseEdificio['vento'] = null;
+  let resVento: Resultado3 | null = null, vento: AnaliseEdificio['vento'] = null, casosW: Caso3[] = [];
   if (ven.casos.length) {
-    const casosW: Caso3[] = ven.casos.map((cv) => ({
+    casosW = ven.casos.map((cv) => ({
       nodais: cv.forcas.flatMap((f) => { const i = pontoAplicacao(f.pavimento); return i !== undefined && i >= 0 ? [{ no: i, f: cv.direcao === 0 || cv.direcao === 180 ? [f.F, 0, 0, 0, 0, f.Mz] : [0, f.F, 0, 0, 0, f.Mz] }] : []; }),
       distribuidas: [],
     }));
@@ -549,7 +549,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ };
   }
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
-  return { avisos, opcoes: op, grelhas, portico: { modelo: pm, barras: ptags, mestres, res, resVento }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };
+  return { avisos, opcoes: op, grelhas, portico: { modelo: pmV, barras: ptags, mestres, res, resVento, casos: casosV, casosVento: casosW }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };
 }
 
 // ---------------- auxiliares ----------------

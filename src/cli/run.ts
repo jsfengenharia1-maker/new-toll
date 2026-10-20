@@ -1,11 +1,12 @@
 // Linha de comando do Statikos (Node): mesmo núcleo do app, sem navegador.
 import { comandosEdificioPadrao, listarComandos, Sessao, type Entrada } from '../core/commands';
 import { compactarLog, lerEdificio, WORKSPACE_FORMAT } from '../core/building/file';
-import { edificioVazio, pavimentosOrdenados, peDireito } from '../core/building/types';
+import { edificioVazio, pavimentosOrdenados, peDireito, type BuildingModel } from '../core/building/types';
 import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
+import { cargasParaFundacao, dimensionarEdificio } from '../core/building/dimensionamento';
 
 export interface Io {
   ler(caminho: string): string;
@@ -23,6 +24,7 @@ Uso:
   statikos exec <arquivo.statikos> <comandos.jsonl> [--previa] [--saida <outro.statikos>]
                                                    executa comandos (uma linha JSON por comando: {"nome": ..., "params": {...}})
   statikos calc <arquivo.statikos> [--json]        análise (grelhas + pórtico espacial): cargas na fundação, flechas e equilíbrio
+  statikos dim <arquivo.statikos> [--json]         dimensionamento NBR 6118 (vigas, pilares, lajes), quantitativos e cargas para Fundações
   statikos comandos [--json]                       lista os comandos e seus parâmetros (JSON Schema)
   statikos mcp                                     servidor MCP em stdio (para agentes de IA)
 `;
@@ -44,6 +46,13 @@ export function novoTrabalho(vazio: boolean): Sessao {
   const s = new Sessao();
   if (!vazio) for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   return s;
+}
+
+/** Análise + dimensionamento + cargas para o módulo Fundações (para a linha de comando e o MCP). */
+export function dimensionar(b: BuildingModel) {
+  const an = analisarEdificio(b);
+  if (an.erro || !an.portico.res) return { erro: an.erro ?? 'Análise sem resultado.' };
+  return { ...dimensionarEdificio(b, an), fundacao: cargasParaFundacao(b, an) };
 }
 
 export function resumo(s: Sessao) {
@@ -126,6 +135,21 @@ export function runCli(args: string[], io: Io): number {
           for (const a of r.avisos) io.out(`aviso: ${a}`);
         }
         return r.erro ? 1 : 0;
+      }
+      case 'dim': {
+        if (!pos[0]) break;
+        const { sessao } = abrirSessao(io.ler(pos[0]));
+        const r = dimensionar(sessao.modelo);
+        if (json) io.out(JSON.stringify(r, null, 1));
+        else if ('erro' in r) io.err(r.erro ?? 'Falha.');
+        else {
+          const linha = (n: string, xs: { status: string }[]) => `${n}: ${xs.filter((x) => x.status === 'ok').length}/${xs.length} ok`;
+          io.out([linha('vigas', r.vigas), linha('pilares', r.pilares), linha('lajes', r.lajes)].join(' · '));
+          for (const v of r.vigas) io.out(`  ${v.nome.padEnd(6)} ${`${Math.round(v.b * 100)}×${Math.round(v.h * 100)}`.padEnd(7)} inf ${v.barrasInf.padEnd(10)} sup ${v.barrasSup.padEnd(10)} ${v.estribo.padEnd(9)} ${v.status}`);
+          for (const p of r.pilares) io.out(`  ${p.nome.padEnd(6)} ${p.pavimento.padEnd(12)} ${p.secao.padEnd(7)} Nd ${p.Nd.toFixed(0).padStart(6)}  ${p.armadura.padEnd(9)} ${p.status}`);
+          for (const l of r.lajes) if (l.status !== 'ok') io.out(`  ${l.nome} (${l.pavimento}): ${l.mensagens.join(' ')}`);
+        }
+        return 'erro' in r ? 1 : 0;
       }
       case 'comandos': {
         const cs = listarComandos().map((c) => ({ nome: c.nome, risco: c.risco, descricao: c.descricao, schema: c.schema }));

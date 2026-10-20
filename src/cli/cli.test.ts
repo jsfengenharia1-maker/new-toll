@@ -68,6 +68,11 @@ describe('linha de comando', () => {
     expect(r.fundacao).toHaveLength(4);
     expect(Math.abs(r.equilibrio.G)).toBeLessThan(1e-3);
     expect(r.totais.Q).toBeCloseTo(1.5 * 20 * 3, 1);
+    expect(runCli(['dim', 'a.statikos', '--json'], m.io)).toBe(0);
+    const d = JSON.parse(m.out.at(-1)!);
+    expect(d.vigas).toHaveLength(4);
+    expect(d.fundacao).toHaveLength(4);
+    expect(d.pilares.every((p: { armadura: string }) => /φ/.test(p.armadura))).toBe(true);
   });
 
   it('uso inválido devolve 64 e a ajuda', () => {
