@@ -6,6 +6,7 @@ import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
+import { resumoVigotas } from '../core/building/vigotas';
 import { abrirSessao, dimensionar, gravarPranchas, resumo, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
@@ -56,7 +57,7 @@ export class ServidorMcp {
       { name: 'verificar', title: 'Verificar lançamento', description: 'Diagnósticos (código, severidade, elementos, mensagem e correção sugerida executável).', inputSchema: vazio, outputSchema: { type: 'object', properties: { diagnosticos: { type: 'array', items: DIAG } } }, annotations: ro(), executar: () => ({ diagnosticos: this.sessao.verificar() }) },
       { name: 'calcular', title: 'Calcular o edifício', description: 'Análise do modelo atual: grelha de lajes e vigas por pavimento + pórtico espacial com diafragma rígido (casos G, Q e vento NBR 6123; γz). Devolve cargas na fundação por pilar, flechas elásticas das lajes, equilíbrio e avisos.', inputSchema: vazio, annotations: ro(),
         executar: () => resumoAnalise(this.sessao.modelo, analisarEdificio(this.sessao.modelo)) },
-      { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha); quantitativos por pavimento e cargas características por pilar para o módulo Fundações. Filtros opcionais: um pavimento (id ou nome) e só os elementos que não atendem ou pedem revisão. status: ok | review (revisar) | fail (não atende).',
+      { name: 'dimensionar', title: 'Dimensionar o edifício', description: 'Analisa e dimensiona pela NBR 6118: vigas (flexão e cortante), pilares por lance (pilar-padrão + flexão oblíqua por fibras), lajes maciças (As por metro e flecha) e treliçadas (resumo das vigotas por laje: grupos, adicional, negativos, maciçamento; aço e treliças); quantitativos por pavimento e cargas características por pilar para o módulo Fundações. Filtros opcionais: um pavimento (id ou nome) e só os elementos que não atendem ou pedem revisão. status: ok | review (revisar) | fail (não atende).',
         inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false } } },
         outputSchema: SAIDA_DIM, annotations: ro(),
         executar: (a) => filtrarDim(this.sessao.modelo, this.resultados(), a.pavimento as string | undefined, !!a.so_problemas) },
@@ -185,6 +186,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
+    // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
+    ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
+    ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
     resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes) },
   };
 }
@@ -199,6 +203,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

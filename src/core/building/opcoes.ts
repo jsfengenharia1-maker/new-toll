@@ -80,6 +80,18 @@ export interface OpcoesCalculo {
   lajeArmaduraCanto: number;
   /** Lajes: 1 = negativos com pernas (dobras até a face inferior) nas pontas dentro da laje. */
   lajePernasNegativos: number;
+  /** Vigotas (treliçadas): momento positivo mínimo p·ℓ²/este valor por nervura (0 = desligado). */
+  vigotaMomentoMinPositivo: number;
+  /** Vigotas: momento negativo mínimo nas pontas p·ℓ²/este valor por nervura (0 = desligado). */
+  vigotaMomentoMinNegativo: number;
+  /** Vigotas: igualação das vigotas vizinhas da laje (0 = desligada, 1 = pelo máximo, 2 = pela média). */
+  vigotaIgualacao: number;
+  /** Vigotas: diferença máxima (% do maior momento positivo do grupo) para igualar vigotas vizinhas. */
+  vigotaIgualacaoDif: number;
+  /** Vigotas: comprimento mínimo dos negativos, de cada lado do eixo do apoio, em % do vão da vigota (0 = só o diagrama). */
+  vigotaNegativoVao: number;
+  /** Vigotas: fator redutor da rigidez à flexão das nervuras na grelha (1 = seção T bruta). */
+  vigotaRigidez: number;
 }
 
 export interface OpcaoInfo {
@@ -188,6 +200,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Nos cantos entre duas bordas apoiadas sem continuidade, malha superior nas duas direções para os momentos volventes.' },
   { chave: 'lajePernasNegativos', rotulo: 'Lajes: pernas nos negativos', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática construtiva (dobra até a face inferior para apoiar o negativo na fôrma); ganchos construtivos do programa de referência', aConfirmar: true,
     descricao: 'Pontas dos negativos dentro da laje dobradas até a face inferior (h − cobrimentos).' },
+  { chave: 'vigotaMomentoMinPositivo', rotulo: 'Vigotas: momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige momento mínimo nas nervuras: só o da análise', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16)', aConfirmar: true,
+    descricao: 'Momento positivo de cálculo de cada vigota ≥ p·ℓ²/este valor, com p = (V1 + V2)/ℓ dos cortantes das pontas (carga por nervura) e ℓ = comprimento da vigota. 0 = desligado.' },
+  { chave: 'vigotaMomentoMinNegativo', rotulo: 'Vigotas: momento negativo mínimo nas pontas (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: só o momento da análise (bordas sem continuidade ficam sem negativo de cálculo)', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16), em todas as pontas', aConfirmar: true,
+    descricao: 'Momento negativo de cálculo nas duas pontas de cada vigota ≥ p·ℓ²/este valor (p como no positivo), mesmo onde a análise dá zero. 0 = desligado.' },
+  { chave: 'vigotaIgualacao', rotulo: 'Vigotas: igualação (0 desligada, 1 máximo, 2 média)', min: 0, max: 2, passo: 1, padrao: 1, fonte: 'Opção do programa de referência (igualar pelo máximo ou pela média; cortante sempre pelo máximo)', aConfirmar: false,
+    descricao: 'Vigotas vizinhas da mesma laje formam um grupo enquanto (Mmáx − Mmín) do grupo < diferença × Mmáx; no grupo, momentos pelo maior valor (1) ou pela média (2), cortante sempre pelo maior. Cada grupo tem a mesma armadura.' },
+  { chave: 'vigotaIgualacaoDif', rotulo: 'Vigotas: diferença para igualar', unidade: '%', min: 0, max: 100, passo: 5, padrao: 100, fonte: 'Prática usual das treliçadas (uma armadura por laje); o programa de referência pede o valor ao usuário', aConfirmar: true,
+    descricao: 'Diferença máxima entre o maior e o menor momento positivo do grupo, em % do maior. 100 % = todas as vigotas da laje iguais.' },
+  { chave: 'vigotaNegativoVao', rotulo: 'Vigotas: comprimento mínimo dos negativos', unidade: '% do vão', min: 0, max: 50, passo: 1, padrao: 25, padraoNBR: 0, fonteNBR: 'NBR 6118 não fixa: só o diagrama decalado mais a ancoragem (9.4.2.5 e 19.4)', fonte: 'Prática usual brasileira (ℓ/4 do vão da vigota, de cada lado do eixo); o programa de referência impõe porcentagens mínimas do vão', aConfirmar: true,
+    descricao: 'Cada lado do negativo sobre um apoio vai, a partir do eixo, até o maior entre esta % do vão da vigota e o ponto de momento nulo + decalagem (a das lajes) + ancoragem. 0 = só o diagrama.' },
+  { chave: 'vigotaRigidez', rotulo: 'Vigotas: redutor da rigidez à flexão', unidade: '× EI', min: 0.1, max: 1, passo: 0.05, padrao: 1, fonte: 'Opção do programa de referência; NBR 6118 não fixa (seção T bruta da nervura)', aConfirmar: true,
+    descricao: 'Multiplica a inércia das nervuras das treliçadas na grelha (fissuração das nervuras). Menor rigidez manda mais carga para as vigas e aumenta a flecha.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

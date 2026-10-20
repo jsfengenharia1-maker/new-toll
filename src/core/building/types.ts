@@ -225,6 +225,17 @@ export interface Laje {
   engasteBordas?: number[];
   /** Cobrimento próprio (cm); ausente = o da obra. */
   cobrimento?: number;
+  /** Treliçadas: armadura adicional das vigotas editada e bloqueada (o recálculo só a verifica). */
+  armaduraVigotas?: ArmaduraVigotas;
+}
+
+/**
+ * Armadura bloqueada das vigotas de uma laje treliçada, por nervura: positiva adicional (além do banzo inferior da
+ * treliça; n = 0 = sem adicional) e, se informada, a negativa sobre os apoios contínuos (barras na capa).
+ */
+export interface ArmaduraVigotas {
+  inf: { n: number; phi: number };
+  sup?: { n: number; phi: number };
 }
 
 export type CasoFisico = 'G' | 'Q';

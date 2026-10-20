@@ -1,6 +1,6 @@
 // Revisão de resultados (frente R1): erros e avisos por elemento com código do motivo, a partir das mensagens do
 // dimensionamento e dos avisos da análise. Erro = o elemento não atende (vermelho na planta); aviso = atende, mas
-// pede atenção (amarelo); informação (redistribuição aplicada, treliçada) fica só na linha do elemento.
+// pede atenção (amarelo); informação (redistribuição aplicada, resumo das vigotas) fica só na linha do elemento.
 import type { AnaliseEdificio } from './analitico';
 import type { Dimensionamento } from './dimensionamento';
 import type { BuildingModel } from './types';
@@ -40,7 +40,16 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'TORCAO', nivel: 'aviso', re: /^Torção Td/, descricao: 'Torção: armadura longitudinal adicional' },
   { codigo: 'ESTRIBO_V', nivel: 'aviso', re: /^Estribos pelo cortante/, descricao: 'Estribo do pilar pelo cortante' },
   { codigo: 'REDISTRIB', nivel: 'info', re: /^Redistribuição/, descricao: 'Redistribuição aplicada' },
-  { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Conferir vigotas com o fabricante' },
+  // lajes treliçadas (R6)
+  { codigo: 'VIGOTA_ALTURA', nivel: 'erro', re: /^Vigotas: altura insuficiente/, descricao: 'Vigotas: altura insuficiente para a flexão' },
+  { codigo: 'VIGOTA_POS', nivel: 'erro', re: /^Vigotas: momento positivo/, descricao: 'Vigotas: momento positivo acima do resistente' },
+  { codigo: 'VIGOTA_NEG', nivel: 'erro', re: /^Vigotas: momento negativo/, descricao: 'Vigotas: momento negativo acima do resistente (maciçar ou laje mais alta)' },
+  { codigo: 'VIGOTA_NEG_AS', nivel: 'erro', re: /^Vigotas: armadura negativa excessiva/, descricao: 'Vigotas: armadura negativa excessiva' },
+  { codigo: 'VIGOTA_CORTANTE', nivel: 'erro', re: /^Vigotas: cortante/, descricao: 'Vigotas: cortante acima de VRd1 (maciçar ou laje mais alta)' },
+  { codigo: 'VIGOTA_CAPA', nivel: 'erro', re: /^Vigotas: capa/, descricao: 'Vigotas: capa abaixo do mínimo' },
+  { codigo: 'VIGOTA_MACICO', nivel: 'aviso', re: /^Vigotas: maciçamento/, descricao: 'Vigotas: maciçamento extenso (> 2h ou > 20 % do vão)' },
+  { codigo: 'VIGOTA_APOIO', nivel: 'aviso', re: /^Vigotas: tração inferior/, descricao: 'Vigotas: momento positivo no apoio' },
+  { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
   // avisos da análise (obra)
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },

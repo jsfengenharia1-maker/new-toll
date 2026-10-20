@@ -1,6 +1,6 @@
 // Armaduras editadas e bloqueadas (frente R2): o recálculo não redimensiona, só verifica (pilares: verificação
 // completa; vigas: área de aço, estribos e flecha). O bloqueio deixa de valer quando muda o número de lances do
-// pilar ou de vãos da viga.
+// pilar ou de vãos da viga. Lajes treliçadas (R6): armadura adicional e negativa das vigotas por nervura.
 import { lancesDoPilar, type BuildingModel, type Pilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { vaosDaViga } from '../building/vigas';
@@ -8,7 +8,7 @@ import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
-const BITOLA_L = [8, 10, 12.5, 16, 20, 25, 32], BITOLA_T = [5, 6.3, 8, 10, 12.5];
+const BITOLA_L = [8, 10, 12.5, 16, 20, 25, 32], BITOLA_T = [5, 6.3, 8, 10, 12.5], BITOLA_VIGOTA = [6.3, 8, 10, 12.5];
 const barras = (bitolas: number[]): JsonSchema => ({ type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 40 }, phi: { type: 'number', enum: bitolas } } });
 const estribo: JsonSchema = { type: 'object', additionalProperties: false, required: ['phi', 's'], properties: { phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5, description: 'espaçamento (m)' } } };
 
@@ -54,21 +54,44 @@ registrar<{ id: string; inf: { n: number; phi: number }; sup?: { n: number; phi:
   },
 });
 
-registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' }>({
-  nome: 'armadura.desbloquear',
-  descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares e vigas, ou todos de um `tipo`, ou todos sem parâmetros.',
+registrar<{ ids: string[]; inf: { n: number; phi: number }; sup?: { n: number; phi: number } }>({
+  nome: 'laje.armaduraVigotas',
+  descricao: 'Edita e bloqueia a armadura das vigotas de lajes treliçadas, por nervura: positiva adicional ao banzo inferior da treliça `inf` { n (0 = sem adicional, até 2), phi (mm) } e, opcional, a negativa na capa sobre os apoios `sup` { n, phi }. O recálculo só verifica essa armadura (erro se insuficiente).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar'] } } },
+  schema: { type: 'object', additionalProperties: false, required: ['ids', 'inf'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    inf: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 0, maximum: 2 }, phi: { type: 'number', enum: BITOLA_VIGOTA } } },
+    sup: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 2 }, phi: { type: 'number', enum: BITOLA_VIGOTA } } },
+  } },
   validar(b, p) {
-    const sem = (p.ids ?? []).filter((id) => !b.pilares.some((x) => x.id === id) && !b.vigas.some((x) => x.id === id));
+    const sem = p.ids.filter((id) => !b.lajes.some((x) => x.id === id));
+    if (sem.length) return err('LAJE_INEXISTENTE', `Laje ${sem.join(', ')} não existe.`);
+    const mac = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'trelicada');
+    return mac.length ? err('LAJE_NAO_TRELICADA', `${mac.map((x) => x.nome).join(', ')} não é treliçada.`, mac.map((x) => x.id)) : [];
+  },
+  aplicar(d, p) {
+    for (const l of d.lajes) if (p.ids.includes(l.id)) l.armaduraVigotas = { inf: { ...p.inf }, ...(p.sup ? { sup: { ...p.sup } } : {}) };
+    return `Armadura das vigotas de ${p.ids.length} laje(s) editada e bloqueada.`;
+  },
+});
+
+registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
+  nome: 'armadura.desbloquear',
+  descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares, vigas e lajes treliçadas, ou todos de um `tipo`, ou todos sem parâmetros.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar', 'laje'] } } },
+  validar(b, p) {
+    const sem = (p.ids ?? []).filter((id) => !b.pilares.some((x) => x.id === id) && !b.vigas.some((x) => x.id === id) && !b.lajes.some((x) => x.id === id));
     return sem.length ? err('ELEMENTO_INEXISTENTE', `Elemento ${sem.join(', ')} não existe.`) : [];
   },
   aplicar(d, p) {
     let n = 0;
-    const alvo = (id: string, t: 'viga' | 'pilar') => (p.ids ? p.ids.includes(id) : !p.tipo || p.tipo === t);
+    const alvo = (id: string, t: 'viga' | 'pilar' | 'laje') => (p.ids ? p.ids.includes(id) : !p.tipo || p.tipo === t);
     for (const q of d.pilares) if (q.armaduras && alvo(q.id, 'pilar')) { n += q.armaduras.length; delete q.armaduras; }
     for (const v of d.vigas) if (v.armadura && alvo(v.id, 'viga')) { n++; delete v.armadura; }
+    for (const l of d.lajes) if (l.armaduraVigotas && alvo(l.id, 'laje')) { n++; delete l.armaduraVigotas; }
     return n ? `${n} armadura(s) desbloqueada(s).` : 'Nenhuma armadura bloqueada.';
   },
 });

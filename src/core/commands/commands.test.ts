@@ -26,7 +26,7 @@ function base() {
     ['viga.tracar', { grupo: 'g_3', pontos: [[4, 0], [6, 0]], secao: { b: 0.15, h: 0.4 }, alinhamento: 'esq' }],
     ['viga.tracar', { grupo: 'g_3', pontos: [[0, 0], [0, 3], [4, 3]], secao: { b: 0.15, h: 0.4 } }],
     ['laje.criar', { grupo: 'g_3', contorno: [[10, 0], [12, 0], [12, 2], [10, 2]] }],
-    ['laje.criar', { grupo: 'g_3', contorno: [[10, 3], [12, 3], [12, 5], [10, 5]] }],
+    ['laje.criar', { grupo: 'g_3', contorno: [[10, 3], [12, 3], [12, 5], [10, 5]], tipo: { tipo: 'trelicada', modelo: 'H12', capa: 0.04 } }],
     ['carga.ponto', { grupo: 'g_3', ponto: [1, 1], valor: 10 }],
     ['caso.criar', { nome: 'Empuxo', natureza: 'G' }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
@@ -49,6 +49,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.armadura': (b) => ({ id: b.pilares[0].id, pavimento: lancesDoPilar(b, b.pilares[0])[0].id, phi: 12.5, ...(b.pilares[0].secao.tipo === 'circ' ? { n: 6 } : { nb: 3, nh: 2 }), estribo: { phi: 5, s: 0.15 } }),
   'viga.armadura': (b) => ({ id: b.vigas[0].id, inf: { n: 3, phi: 12.5 }, sup: { n: 2, phi: 10 }, estribo: { phi: 6.3, s: 0.15 }, laterais: { n: 1, phi: 8 } }),
   'armadura.desbloquear': () => ({ tipo: 'viga' }),
+  'laje.armaduraVigotas': (b) => ({ ids: [b.lajes[1].id], inf: { n: 1, phi: 8 }, sup: { n: 2, phi: 6.3 } }),
   'viga.copiarArmadura': (b) => ({ de: b.vigas[1].id, para: [b.vigas[0].id] }),
   'materiais.definir': (b) => ({ fck: { pilar: 40 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 } }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),

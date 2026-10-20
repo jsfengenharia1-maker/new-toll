@@ -14,6 +14,7 @@ import { vaosDaViga } from './vigas';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, resumoAcoLajes, type DetalheLaje } from './detalhamentoLajes';
+import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
 import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
@@ -763,10 +764,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         }
         if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${wkLim.toFixed(2).replace('.', ',')} mm.`);
         if (wk > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${wk.toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
-      } else {
-        const cat = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12;
-        msgs.push(`Treliçada: momento por nervura (intereixo ${Math.round(cat.intereixo * 100)} cm) = ${(mPos[0] * cat.intereixo).toFixed(2)} kN·m; conferir armadura das vigotas com o fabricante.`);
       }
+      // treliçadas: resultados por vigota em vigotas.ts (mensagens acrescentadas em dimensionarEdificio)
       const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), sem fissuração`;
       if (fl > lim) msgs.push(`Flecha total ${(fl * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaTotal} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
       if (fq > limQ) msgs.push(`Flecha das variáveis ${(fq * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limQ * 1000).toFixed(1)} mm (vibrações).`);
@@ -835,7 +834,14 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Detalhamento dos pilares (barras por lance, emendas, arranques, estribos e grampos) e resumo do aço dos pilares. */
   detalhesPilares?: DetalhePilar[]; resumoAcoPilares?: ReturnType<typeof resumoAcoPilares>;
   /** Detalhamento das lajes maciças (posições de barras, bordas, avisos) e resumo do aço das lajes. */
-  detalhesLajes?: DetalheLaje[]; resumoAcoLajes?: ReturnType<typeof resumoAcoLajes> }
+  detalhesLajes?: DetalheLaje[]; resumoAcoLajes?: ReturnType<typeof resumoAcoLajes>;
+  /**
+   * Lajes treliçadas (R6): um resultado por laje (envoltória dos pavimentos do grupo) com alinhamentos de vigotas,
+   * grupos de igualação, armaduras e verificações; erros e avisos também vão para `lajes[].mensagens`.
+   */
+  vigotas?: ResultadoVigotas[];
+  /** Aço das vigotas (adicionais, negativos e distribuição da capa) por bitola e treliças por tipo (m, kg). */
+  resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas> }
 
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combs.filter((x) => x.tipo === 'ELU'), freq = combs.filter((x) => x.tipo === 'FREQ');
@@ -846,5 +852,8 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dime
   d.resumoAcoPilares = resumoAcoPilares(b, d.detalhesPilares, an.opcoes.perdasAco);
   d.detalhesLajes = detalharLajes(b, d, an, an.opcoes);
   d.resumoAcoLajes = resumoAcoLajes(b, d.detalhesLajes, an.opcoes.perdasAco);
+  d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
+  d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
+  d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
   return d;
 }

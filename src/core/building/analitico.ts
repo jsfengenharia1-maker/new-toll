@@ -739,7 +739,7 @@ function propLaje(l: Laje, sx: number, sy: number, op: OpcoesAnalise): [{ A: num
   }
   const c = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12, h = c.hEnch + l.tipo.capa;
   const IT = inerciaT(c.intereixo, l.tipo.capa, c.bw, h);
-  const nerv = { A: (sy / c.intereixo) * (c.intereixo * l.tipo.capa + c.bw * c.hEnch), I: (sy / c.intereixo) * IT, J: op.torcaoLaje * 2 * (sy / c.intereixo) * IT };
+  const nerv = { A: (sy / c.intereixo) * (c.intereixo * l.tipo.capa + c.bw * c.hEnch), I: (sy / c.intereixo) * IT * (op.vigotaRigidez ?? 1), J: op.torcaoLaje * 2 * (sy / c.intereixo) * IT };
   const Icapa = (sx * l.tipo.capa ** 3) / 12;
   return [nerv, { A: sx * l.tipo.capa, I: Icapa, J: op.torcaoLaje * 2 * Icapa }];
 }
