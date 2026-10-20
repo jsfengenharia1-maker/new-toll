@@ -8,39 +8,13 @@ import { PROFILE_NOTE } from '../core/profiles';
 import { sectionProps } from '../core/section';
 import { defaultProject, type Load, type ProjectInfo, type SectionShape } from '../core/types';
 import { svgDeformed, svgDesign, svgDiagram, svgGeometry, svgLoads, svgReactions } from './drawing';
-import { download } from './ui';
+import { Button, download, Spacer } from './ui';
 import { FoundationMemorial } from './MemorialFundacoes';
 import type { CaseResult } from '../core/solver';
 import { logActivity } from './history';
+import { IMPRESSAO_APP_CSS, MEMORIAL_CSS, memo } from './design/tokens';
 
-
-
-export const MEMO_CSS = `
-.memo{font:12.5px/1.55 'IBM Plex Sans','Segoe UI',Arial,sans-serif;color:#1b2530;background:#fff;max-width:820px;margin:0 auto;padding:40px 48px 64px}
-.memo h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em}
-.memo h2{font-size:15px;margin:30px 0 8px;padding-bottom:4px;border-bottom:2px solid #0e6a72;color:#0e3f45;break-after:avoid}
-.memo h3{font-size:13px;margin:18px 0 6px;color:#26323e;break-after:avoid}
-.memo p{margin:6px 0}
-.memo .sub{color:#5b6876;margin:0}
-.memo table{border-collapse:collapse;width:100%;margin:8px 0 12px;font-size:11.5px;break-inside:auto}
-.memo th,.memo td{border:1px solid #d3d9df;padding:3px 6px;text-align:right;vertical-align:top;white-space:normal}
-.memo th{background:#eef2f5;font-weight:600;color:#33404c}
-.memo td.l,.memo th.l{text-align:left}
-.memo td{font-family:'IBM Plex Mono',Consolas,monospace;font-variant-numeric:tabular-nums}
-.memo td.l{font-family:inherit}
-.memo .id{display:grid;grid-template-columns:150px 1fr;gap:2px 12px;border:1px solid #d3d9df;padding:10px 12px;margin:14px 0}
-.memo .id dt{color:#5b6876}.memo .id dd{margin:0;font-weight:500}
-.memo figure{margin:10px 0 14px;break-inside:avoid}
-.memo figcaption{font-size:11px;color:#5b6876;margin-top:2px}
-.memo .ok{color:#2a7a46;font-weight:600}.memo .bad{color:#b42318;font-weight:600}.memo .warn{color:#b7791f;font-weight:600}
-.memo .verdict{border:1px solid #d3d9df;border-left:4px solid #2a7a46;padding:8px 12px;margin:10px 0;background:#f6faf7}
-.memo .verdict.fail{border-left-color:#b42318;background:#fdf5f4}
-.memo .formula{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;background:#f5f7f9;border:1px solid #e3e8ec;padding:6px 10px;margin:6px 0;white-space:pre-wrap}
-.memo ul{margin:6px 0;padding-left:20px}
-.memo .sign{margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
-.memo .sign div{border-top:1px solid #1b2530;padding-top:4px;text-align:center;font-size:11.5px}
-.memo .small{font-size:11px;color:#5b6876}
-`;
+export const MEMO_CSS = MEMORIAL_CSS;
 
 /** Texto seguro dentro de uma string CSS (content: "..."), inclusive dentro de <style>. */
 const cssStr = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '\\3c ').replace(/[\r\n]+/g, ' ')}"`;
@@ -51,38 +25,18 @@ const cssStr = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').
  * dentro de figuras, tabelas, fórmulas e quadros.
  */
 export function memoPrintCss(p: { title: string; obra?: string; rev?: string; date?: string }) {
-  const box = 'font:8.5pt \'IBM Plex Sans\',\'Segoe UI\',Arial,sans-serif;color:#5b6876';
+  const box = `font:8.5pt ${memo('font-ui')};color:${memo('muted')}`;
   return `
 @page{size:A4;margin:20mm 15mm 18mm 20mm;
 @top-left{content:${cssStr(`Memorial de cálculo · ${p.title}`)};${box};vertical-align:bottom;padding-bottom:3mm}
 @top-right{content:${cssStr(p.obra ?? '')};${box};vertical-align:bottom;padding-bottom:3mm}
 @bottom-left{content:${cssStr([p.rev, p.date].filter(Boolean).join(' · '))};${box};vertical-align:top;padding-top:3mm}
 @bottom-right{content:"Página " counter(page) " de " counter(pages);${box};vertical-align:top;padding-top:3mm}}
-@media print{
-html,body{background:#fff!important}
-.memo{max-width:none;margin:0;padding:0;font-size:10pt;box-shadow:none!important}
-.memo *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.memo h1{margin-top:0}
-.memo h2{margin-top:18px}
-.memo h2.pb{break-before:page;margin-top:0}
-.memo h2,.memo h3{break-after:avoid;page-break-after:avoid}
-.memo figure,.memo table,.memo .formula,.memo .verdict,.memo .id,.memo .sign,.memo ul{break-inside:avoid;page-break-inside:avoid}
-.memo tr,.memo td,.memo th{break-inside:avoid;page-break-inside:avoid}
-.memo thead{display:table-header-group}
-.memo figure svg{max-height:125mm;width:auto;max-width:100%}
-.memo p{orphans:3;widows:3}
-}`;
+`;
 }
 
 /** Na janela do app (Ctrl+P com o memorial aberto), imprime só o memorial. */
-export const APP_PRINT_CSS = `@media print{
-html,body,#root{height:auto!important;overflow:visible!important;background:#fff!important}
-.app{display:block!important;height:auto!important}
-.app>:not(.memo-overlay){display:none!important}
-.memo-overlay{position:static!important;display:block!important;background:#fff!important}
-.memo-bar,.memo-form{display:none!important}
-.memo-scroll{overflow:visible!important;padding:0!important}
-}`;
+export const APP_PRINT_CSS = IMPRESSAO_APP_CSS;
 
 const STATUS_TXT: Record<MemberDesign['status'], [string, string]> = { ok: ['Atende', 'ok'], fail: ['Não atende', 'bad'], review: ['Revisar', 'warn'], na: ['Não verificada', ''] };
 
@@ -158,7 +112,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
   const memoHtml = () => {
     const body = docRef.current?.outerHTML ?? '';
     const title = `Memorial de cálculo · ${model.name}`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#fff}${MEMO_CSS}${printCss}</style></head><body>${body}</body></html>`;
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:${memo('paper')}}${MEMO_CSS}${printCss}</style></head><body>${body}</body></html>`;
   };
 
   const printMemo = () => {
@@ -192,10 +146,10 @@ export function Memorial({ onClose }: { onClose: () => void }) {
       <div className="memo-bar">
         <b>Memorial de cálculo</b>
         <span className="muted">Gerado a partir do modelo atual. Edite a identificação abaixo.</span>
-        <span style={{ flex: 1 }} />
-        <button type="button" className="btn primary" onClick={printMemo} title="Abre a impressão do navegador só com o memorial (A4, cabeçalho e paginação). Escolha “Salvar como PDF”.">Imprimir / PDF</button>
-        <button type="button" className="btn" onClick={exportHtml}>Exportar HTML</button>
-        <button type="button" className="btn" onClick={onClose}>Fechar</button>
+        <Spacer />
+        <Button variant="primary" onClick={printMemo} title="Abre a impressão do navegador só com o memorial (A4, cabeçalho e paginação). Escolha “Salvar como PDF”.">Imprimir / PDF</Button>
+        <Button onClick={exportHtml}>Exportar HTML</Button>
+        <Button onClick={onClose}>Fechar</Button>
       </div>
       <div className="memo-form">
         {(['obra', 'cliente', 'local', 'responsavel', 'registro', 'revisao'] as (keyof ProjectInfo)[]).map((k) => (

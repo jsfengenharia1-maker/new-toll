@@ -1,11 +1,12 @@
-// Figuras SVG estáticas (cores fixas para impressão) usadas no memorial.
+// Figuras SVG estáticas usadas no memorial (cores do papel: design/memorial.css).
 import type { Analysis, CaseResult } from '../core/solver';
 import type { DesignReport } from '../core/design';
 import type { Model, Support } from '../core/types';
 import { P } from '../core/math';
 import { memberSeries, globalDisp, fmt, type Eff } from './results';
+import { memo } from './design/tokens';
 
-const C = { ink: '#1b2530', muted: '#6b7785', load: '#a35a00', N: '#2a8a49', V: '#2c67c9', M: '#c33d2a', def: '#b8337a', react: '#7a47c6', ok: '#2a7a46', bad: '#b42318', warn: '#b7791f', grid: '#e7ebef' };
+const C = { ink: memo('ink'), muted: memo('muted-fig'), load: memo('load'), N: memo('n'), V: memo('v'), M: memo('m'), def: memo('def'), react: memo('react'), ok: memo('ok'), bad: memo('bad'), warn: memo('warn'), grid: memo('grid'), paper: memo('paper'), support: memo('support'), faint: memo('faint'), spring: memo('spring'), id: memo('id'), na: memo('na'), fontNum: memo('font-num') };
 
 interface Frame { X: (x: number) => number; Y: (y: number) => number; w: number; h: number; ext: number; scale: number }
 
@@ -21,7 +22,7 @@ function frame(m: Model, W = 680, maxH = 400, pad = 70): Frame {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const txt = (x: number, y: number, s: string, color = C.ink, anchor = 'middle', size = 10) =>
-  `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" fill="${color}" font-size="${size}" font-family="IBM Plex Mono, Consolas, monospace" text-anchor="${anchor}" paint-order="stroke" stroke="#fff" stroke-width="3">${esc(s)}</text>`;
+  `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" fill="${color}" font-size="${size}" font-family="${C.fontNum.replace(/'/g, '')}" text-anchor="${anchor}" paint-order="stroke" stroke="${C.paper}" stroke-width="3">${esc(s)}</text>`;
 
 function arrow(x: number, y: number, dx: number, dy: number, len: number, color: string, w = 1.4) {
   const tx = x - dx * len, ty = y - dy * len, hx = -dx * 7, hy = -dy * 7, px = -dy * 3.5, py = dx * 3.5;
@@ -35,7 +36,7 @@ function support(x: number, y: number, s: Support) {
     g += `<line x1="-14" y1="0" x2="14" y2="0" stroke="${C.ink}" stroke-width="2"/>`;
     for (let k = -12; k <= 12; k += 6) g += `<line x1="${k}" y1="0" x2="${k - 5}" y2="7" stroke="${C.ink}"/>`;
   } else {
-    const tri = (rot: number, roller: boolean) => `<g transform="rotate(${rot})"><polygon points="0,0 -8,13 8,13" fill="#f1f3f5" stroke="${C.ink}"/><line x1="-11" y1="${roller ? 17 : 13}" x2="11" y2="${roller ? 17 : 13}" stroke="${C.ink}" stroke-width="1.4"/></g>`;
+    const tri = (rot: number, roller: boolean) => `<g transform="rotate(${rot})"><polygon points="0,0 -8,13 8,13" fill="${C.support}" stroke="${C.ink}"/><line x1="-11" y1="${roller ? 17 : 13}" x2="11" y2="${roller ? 17 : 13}" stroke="${C.ink}" stroke-width="1.4"/></g>`;
     if (s.ux === 'fixed' && s.uy === 'fixed') g += tri(0, false);
     else { if (s.uy === 'fixed') g += tri(0, true); if (s.ux === 'fixed') g += tri(90, true); }
     if (s.uy === 'spring') g += `<polyline points="0,0 0,4 -5,6 5,10 -5,14 5,18 0,20 0,24" fill="none" stroke="${C.ink}"/>`;
@@ -50,25 +51,25 @@ function skeleton(m: Model, f: Frame, opts: { ids?: boolean; color?: (id: number
   const node = new Map(m.nodes.map((n) => [n.id, n]));
   for (const mem of m.members) {
     const p = node.get(mem.ni)!, q = node.get(mem.nj)!;
-    const col = opts.color?.(mem.id) ?? (opts.faint ? '#8b96a3' : C.ink);
+    const col = opts.color?.(mem.id) ?? (opts.faint ? C.faint : C.ink);
     s += `<line x1="${f.X(p.x)}" y1="${f.Y(p.y)}" x2="${f.X(q.x)}" y2="${f.Y(q.y)}" stroke="${col}" stroke-width="${opts.color ? 3.2 : 2.2}" stroke-linecap="round"/>`;
     const L = Math.hypot(q.x - p.x, q.y - p.y) * f.scale, ux = (f.X(q.x) - f.X(p.x)) / L, uy = (f.Y(q.y) - f.Y(p.y)) / L;
-    if (mem.hingeI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="#fff" stroke="${C.ink}"/>`;
-    if (mem.hingeJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="#fff" stroke="${C.ink}"/>`;
-    if (!mem.hingeI && mem.springI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="#9aa6b2" stroke="${C.ink}"/>`;
-    if (!mem.hingeJ && mem.springJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="#9aa6b2" stroke="${C.ink}"/>`;
-    if (opts.ids) s += txt((f.X(p.x) + f.X(q.x)) / 2 + 8, (f.Y(p.y) + f.Y(q.y)) / 2 - 6, String(mem.id), '#3c6fb4');
+    if (mem.hingeI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="${C.paper}" stroke="${C.ink}"/>`;
+    if (mem.hingeJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="${C.paper}" stroke="${C.ink}"/>`;
+    if (!mem.hingeI && mem.springI) s += `<circle cx="${f.X(p.x) + ux * 7}" cy="${f.Y(p.y) + uy * 7}" r="3.4" fill="${C.spring}" stroke="${C.ink}"/>`;
+    if (!mem.hingeJ && mem.springJ) s += `<circle cx="${f.X(q.x) - ux * 7}" cy="${f.Y(q.y) - uy * 7}" r="3.4" fill="${C.spring}" stroke="${C.ink}"/>`;
+    if (opts.ids) s += txt((f.X(p.x) + f.X(q.x)) / 2 + 8, (f.Y(p.y) + f.Y(q.y)) / 2 - 6, String(mem.id), C.id);
   }
   for (const n of m.nodes) {
     if (n.support) s += support(f.X(n.x), f.Y(n.y), n.support);
-    s += `<rect x="${f.X(n.x) - 2.5}" y="${f.Y(n.y) - 2.5}" width="5" height="5" fill="#fff" stroke="${C.ink}"/>`;
+    s += `<rect x="${f.X(n.x) - 2.5}" y="${f.Y(n.y) - 2.5}" width="5" height="5" fill="${C.paper}" stroke="${C.ink}"/>`;
     if (opts.ids) s += txt(f.X(n.x) - 7, f.Y(n.y) + 15, String(n.id), C.muted, 'end', 9);
   }
   return s;
 }
 
 const wrap = (f: Frame, body: string, caption?: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f.w} ${f.h.toFixed(0)}" width="100%" style="max-width:${f.w}px;background:#fff">${body}${caption ? txt(10, 16, caption, C.muted, 'start', 10) : ''}</svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f.w} ${f.h.toFixed(0)}" width="100%" style="max-width:${f.w}px;background:${C.paper}">${body}${caption ? txt(10, 16, caption, C.muted, 'start', 10) : ''}</svg>`;
 
 export function svgGeometry(m: Model) {
   const f = frame(m);
@@ -181,7 +182,7 @@ export function svgDeformed(m: Model, a: Analysis, r: CaseResult, title: string)
 export function svgDesign(m: Model, rep: DesignReport) {
   const f = frame(m);
   const st = new Map(rep.members.map((d) => [d.id, d]));
-  const color = (id: number) => { const d = st.get(id); return !d || d.status === 'na' ? '#9aa4ae' : d.status === 'ok' ? C.ok : d.status === 'review' ? C.warn : C.bad; };
+  const color = (id: number) => { const d = st.get(id); return !d || d.status === 'na' ? C.na : d.status === 'ok' ? C.ok : d.status === 'review' ? C.warn : C.bad; };
   let s = skeleton(m, f, { color });
   const node = new Map(m.nodes.map((n) => [n.id, n]));
   for (const mem of m.members) {

@@ -9,12 +9,13 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 - **Repositório público.** Não commitar dados de clientes ou de obras reais.
 - **Branches/worktrees.** Toda nova branch ou worktree sai do `main` atualizado (`git fetch origin main && git worktree add -b <branch> ../<dir> origin/main`).
 - **Plugin ECC** (`affaan-m/ECC`) habilitado em `.claude/settings.json`.
+- **Design system obrigatório (decisão do usuário, 20/10/2026).** Toda interface nova usa a biblioteca `src/app/ui` e as classes/tokens de `src/app/design/global.css` (papel: `memorial.css`), para que uma mudança de design num lugar valha no app inteiro. Sem cor literal em TS/TSX, sem CSS fora de `src/app/design`, toda classe definida no CSS, estilo inline só para valores calculados; `design.test.ts` reprova quem quebrar. Guia: `docs/design-system.md`. Prioridade atual: funcionalidades; o redesenho visual (proposta no artifact https://claude.ai/artifact/XkWi2JtGrgPQka5Rk7G389) fica para depois.
 
 ## Comandos
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 228 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test         # vitest: 235 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
@@ -39,6 +40,7 @@ Veja a tabela no `README.md`. Resumo:
   - `edit.ts`: operações de edição e combinações NBR 8681.
   - `profiles.ts`: perfis W/HP e tubos usuais no Brasil (só dimensões nominais; propriedades calculadas pela geometria, sem raio de concordância).
 - `src/app/`: interface React + zustand (`store.ts`).
+  - `design/`: design system (`global.css`, `memorial.css`, `tokens.ts`, `design.test.ts`); `ui/`: biblioteca de componentes.
   - `Canvas.tsx`: editor SVG.
   - `panels/*`: abas Estrutura, Cargas, Resultados, Influência e Dimensionar.
   - `Fundacoes.tsx`: módulo de fundações.
@@ -114,7 +116,7 @@ Veja a tabela no `README.md`. Resumo:
 - O núcleo não pode usar `window`, `document`, `localStorage` nem `navigator` (há teste).
 - Fatia 6b: `src/core/sheets/` — `prancha.ts` (montagem pura: modelo em m, papel em mm, janela), `papel.ts` (modelo → papel com recorte), `pdf.ts`, `dxf.ts` (R2000; handles, CLASSES, BLOCK_RECORD, LAYOUT e VIEWPORT 1/2), `dwg.ts` (adaptador para o `Drawing` do nasjidwg), `svg.ts` (prévia); `exemplo.ts` é o edifício fictício dos testes. Carimbo e formato/escala no modelo (`prancha?`, comando `prancha.definir`, sem ferramenta MCP própria; `mascara.remover` também saiu do MCP para caber a ferramenta `pranchas`). Interface em `src/app/edificio/Pranchas.tsx`.
 - DWG: `nasjidwg@0.18.0` (MIT) é devDependency fixa; `node scripts/vendor-nasjidwg.mjs` gera `public/vendor/nasjidwg-0.18.0.mjs` só com o escritor (192 KB, 54 KB gz) e copia LICENSE/NOTICE. O app importa por URL (`import(/* @vite-ignore */ …)`), a CLI pelo caminho relativo a `dist-cli/`. Os leitores do pacote só entram nos testes. No artifact do claude.ai o vendor não existe: o botão avisa e sugere o DXF.
-- Downloads no artifact: a capability `downloads` só aceita algumas extensões (pdf, html, svg, csv, json, zip…); `download()` em `src/app/ui.tsx` empacota as outras num `.zip` (escritor próprio em `src/core/zip.ts`, sem compressão).
+- Downloads no artifact: a capability `downloads` só aceita algumas extensões (pdf, html, svg, csv, json, zip…); `download()` em `src/app/ui` empacota as outras num `.zip` (escritor próprio em `src/core/zip.ts`, sem compressão).
 - Validação externa do DXF: `validation/dxf/auditar.py` (ezdxf, fora do npm test). Validação manual pendente com o usuário: abrir DXF e DWG no AutoCAD, AUDIT e aviso de arquivo não Autodesk.
 - Fatia 7: MCP com `outputSchema` em todas as ferramentas, `dimensionar` com filtros (`pavimento`, `so_problemas`) e cache por revisão, recursos `statikos://resultados` e o modelo `statikos://resultados/{pavimento}` (`resources/templates/list`). Guia `docs/ia.md` (um teste exige que ele cite toda ferramenta e recurso do servidor) e `public/llms.txt` (vai para a raiz do site). Exemplo de agente `docs/exemplos/agente-mcp.mjs` (stdio; o mesmo roteiro roda em `src/cli/agente.test.ts`). Ferramenta nova ou renomeada exige atualizar `docs/ia.md`.
 - Ajustes pedidos após a 6b (20/10/2026): carimbo com ART/RRT e etapa (todos os campos editáveis na aba Pranchas › Carimbo, comando `prancha.definir`; data de hoje quando vazia); comando `viga.alinharFace` (lado `externa` = contorno pela face externa dos pilares, ou `esq`/`dir` do traçado; a linha traçada vira essa face, então mudar a largura mantém a face). `viga.ajustarFaces` saiu do MCP. O aviso VIGA_FORA_FACE não dispara quando uma face da viga já coincide com a do pilar.
@@ -152,7 +154,7 @@ Veja a tabela no `README.md`. Resumo:
   1. Rodar `npm run build`.
   2. Gerar um HTML sem `<!doctype>`, `<html>`, `<head>` e `<body>`: manter `<title>`, links de fonte, `<style>`, o `<script type="module">` e `<div id="root">`.
   3. Publicar com o mesmo URL (é preciso ler o artifact antes, numa sessão nova).
-- Downloads usam `window.claude.use('downloads')` quando existe; senão, link com blob (`src/app/ui.tsx`).
+- Downloads usam `window.claude.use('downloads')` quando existe; senão, link com blob (`src/app/ui`).
 - Biblioteca: documentos em `data/users/<uid>` (privado por usuário) com `{kind, name, summary, savedAt, payload: JSON string}`. Limite de 256 KiB por documento; o app recusa acima de 240 KB. Fora do claude.ai, usa localStorage (`statikos:library`).
 - O modelo é salvo automaticamente em localStorage (`statikos:model`).
 - O service worker (PWA) não é registrado dentro do artifact (iframe); no republish, o `<head>` com manifest e ícones some, como já acontece.

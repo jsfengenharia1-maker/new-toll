@@ -2,7 +2,7 @@
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
-import { PALETAS, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara } from '../../core/building/pilares';
 import { panosDoGrupo } from '../../core/building/lajes';
@@ -76,7 +76,7 @@ export function Planta() {
   const pavs = pavimentosOrdenados(b);
   const pav = pavs.find((p) => p.id === pl.pavimento) ?? pavs[Math.min(1, pavs.length - 1)] ?? null;
   const grupo = pav?.grupo ?? '';
-  const cores = PALETAS[pl.tema];
+  const cores = paleta(pl.tema);
 
   const wrap = useRef<HTMLDivElement>(null);
   const cvM = useRef<HTMLCanvasElement>(null), cvE = useRef<HTMLCanvasElement>(null), cvI = useRef<HTMLCanvasElement>(null);
@@ -631,10 +631,10 @@ export function Planta() {
   const passo = PASSOS[pl.ferramenta][Math.min(pontos.length, PASSOS[pl.ferramenta].length - 1)];
   return (
     <div className="planta">
-      <div ref={wrap} className="planta-cv" style={{ background: cores.fundo }} onContextMenu={(e) => e.preventDefault()}>
+      <div ref={wrap} className="planta-cv" data-tema={pl.tema} onContextMenu={(e) => e.preventDefault()}>
         <canvas ref={cvM} />
         <canvas ref={cvE} />
-        <canvas ref={cvI} className={`int f-${pl.ferramenta}`} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+        <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => { if (['viga', 'laje', 'carga'].includes(pl.ferramenta)) terminar(pontos.slice(0, -1).length >= 2 ? pontos.slice(0, -1) : pontos); }} />
         {digitando !== null && (

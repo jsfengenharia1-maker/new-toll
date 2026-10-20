@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { Group, Hint, NumField, Seg, Select } from '../ui';
+import { Button, Group, Hint, NumField, Seg, Select } from '../ui';
 import { fmt, useAnalysis } from '../results';
 import { buckling, comboLoading, vibration } from '../../core/secondorder';
 import { sourceOptions } from './Resultados';
@@ -54,7 +54,7 @@ export function ModosGroup() {
         <NumField label="Número de modos" value={nModes} onChange={(v) => setNModes(Math.max(1, Math.min(20, Math.round(v))))} />
         {kind === 'vibration' && <Seg small value={consistent ? 'c' : 'l'} onChange={(v) => setConsistent(v === 'c')} options={[{ v: 'l', label: 'Massa concentrada' }, { v: 'c', label: 'Massa consistente' }]} />}
       </div>
-      <button type="button" className="btn primary" disabled={!!a.prep.error} onClick={run}>Calcular modos</button>
+      <Button variant="primary" disabled={!!a.prep.error} onClick={run}>Calcular modos</Button>
       {rows && rows.kind === kind && (
         <>
           {stale && <Hint>O modelo mudou: recalcule.</Hint>}
@@ -69,7 +69,7 @@ export function ModosGroup() {
               </table>
             </div>
           )}
-          {st.modeView && <button type="button" className="btn ghost" onClick={() => st.set({ modeView: null })}>Ocultar modo</button>}
+          {st.modeView && <Button variant="ghost" onClick={() => st.set({ modeView: null })}>Ocultar modo</Button>}
         </>
       )}
       <Hint>{kind === 'buckling' ? 'Resolve (K + λ·K_G)·φ = 0 com os esforços normais da análise linear. λ < 1: a estrutura flamba antes de atingir o carregamento escolhido.' : 'Resolve K·φ = ω²·M·φ. Massas das cargas verticais da combinação quase permanente divididas por g.'}</Hint>

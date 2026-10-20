@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { Check, Group, Hint, NumField, Select, Seg, TextField } from '../ui';
+import { Button, Check, Group, Hint, NumField, Seg, Select, TextField } from '../ui';
 import { caseGroup, nbrCombinations, nextId } from '../../core/edit';
 import type { CaseNature, ComboKind, Load, LoadSystem } from '../../core/types';
 import { fmt } from '../results';
@@ -80,7 +80,7 @@ export function CargasPanel() {
             )}
             <div className="row">
               <Check label="Peso próprio neste caso" checked={!!sw} onChange={(v) => st.commit((m) => { if (v) m.loads.push({ kind: 'selfWeight', id: nextId(m.loads), caseId: cs.id, factor: 1 }); else m.loads = m.loads.filter((l) => !(l.kind === 'selfWeight' && l.caseId === cs.id)); })} />
-              <button type="button" className="btn ghost" disabled={model.cases.length < 2} onClick={() => { st.commit((m) => { m.cases = m.cases.filter((c) => c.id !== cs.id); m.loads = m.loads.filter((l) => l.caseId !== cs.id); m.combinations.forEach((cb) => delete cb.factors[cs.id]); }, 'Caso excluído.'); st.set({ activeCase: model.cases.find((c) => c.id !== cs.id)!.id }); }}>Excluir caso</button>
+              <Button variant="ghost" disabled={model.cases.length < 2} onClick={() => { st.commit((m) => { m.cases = m.cases.filter((c) => c.id !== cs.id); m.loads = m.loads.filter((l) => l.caseId !== cs.id); m.combinations.forEach((cb) => delete cb.factors[cs.id]); }, 'Caso excluído.'); st.set({ activeCase: model.cases.find((c) => c.id !== cs.id)!.id }); }}>Excluir caso</Button>
             </div>
           </>
         )}
@@ -138,7 +138,7 @@ export function CargasPanel() {
             <Hint>O recalque só atua nas direções em que o nó tem apoio fixo.</Hint>
           </>
         )}
-        <button type="button" className="btn primary" onClick={apply}>Aplicar em “{cs?.name}”</button>
+        <Button variant="primary" onClick={apply}>Aplicar em “{cs?.name}”</Button>
       </Group>
 
       <Group title={`Cargas em “${cs?.name ?? ''}”`} aside={<span className="muted">{caseLoads.length}</span>}>
@@ -154,7 +154,7 @@ export function CargasPanel() {
       </Group>
 
       <Group title="Combinações" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.combinations); st.commit((m) => { m.combinations.push({ id, name: `Comb ${id}`, kind: 'ELU', factors: Object.fromEntries(m.cases.map((c) => [c.id, 1.4])) }); }); }}>+ nova</button>}>
-        <button type="button" className="btn" onClick={() => st.commit((m) => { m.combinations = nbrCombinations(m.cases, 1); }, 'Combinações NBR 8681 geradas. Revise os fatores.')}>Gerar combinações NBR 8681</button>
+        <Button onClick={() => st.commit((m) => { m.combinations = nbrCombinations(m.cases, 1); }, 'Combinações NBR 8681 geradas. Revise os fatores.')}>Gerar combinações NBR 8681</Button>
         <Hint>ELU normal com γg = 1,4 / 1,0 e γq = 1,4 (acompanhantes × ψ0), uma de cada grupo excludente, e a principal sozinha; ELS quase permanente e frequente. Natureza, ψ e grupo de cada caso definem os fatores.</Hint>
         {model.combinations.length > 0 && (
           <div className="tablewrap">

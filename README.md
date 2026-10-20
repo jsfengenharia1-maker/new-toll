@@ -52,6 +52,7 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Fundações | `src/core/piles.ts`, `caps.ts`, `footings.ts`, `caissons.ts`, `foundation.ts`, `src/app/Fundacoes.tsx` | Estacas: Décourt-Quaresma (α/β 1996) metro a metro, limites executivos (NA, nega estimada, profundidade de equipamento), Miche, NBR 6122 Tabela 4, armadura por bitola e estribo espiral. Blocos de 1 a 6 estacas por bielas e tirantes; sapatas rígidas e flexíveis; tubulões a céu aberto; várias sondagens por obra |
 | Biblioteca | `src/app/storage.ts`, `Library.tsx` | Projetos e características salvos na conta (capability db, subárvore privada do usuário) ou no navegador |
 | Interface | `src/app/*` | Editor SVG (snap, janela/cruzamento, arrastar nós, coordenadas), painéis, tabelas, exportação SVG/CSV/JSON |
+| Design system | `src/app/design/`, `src/app/ui/` | Tokens e classes em `global.css` (papel: `memorial.css`), biblioteca de componentes e teste que reprova cor, CSS ou classe fora do sistema (`docs/design-system.md`) |
 | Perfis | `src/core/profiles.ts` | Perfis I laminados W e HP, tubos circulares e retangulares usuais no Brasil: só dimensões nominais; A, I, Z etc. calculados pela geometria, sem raio de concordância |
 | PWA | `public/manifest.webmanifest`, `public/sw.js` | Instalação, funcionamento offline (rede primeiro, cache como reserva), abertura de `.statikos` pelo sistema (File Handling API) |
 | Testes de interface | `e2e/run.mjs`, `e2e/flows.mjs` | Runner próprio sobre `playwright`: desenho, memorial, salvar/abrir, modos, DXF, perfis, PWA |

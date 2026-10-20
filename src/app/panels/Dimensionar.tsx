@@ -1,5 +1,5 @@
 import { useStore } from '../store';
-import { Check, Group, Hint, NumField, Select } from '../ui';
+import { type Tone, Button, Check, Group, Hint, KV, Note, NumField, Pill, Select, UseBar } from '../ui';
 import { useDesign, fmt } from '../results';
 import { CAA_TABLE } from '../../core/concrete';
 import { nextId } from '../../core/edit';
@@ -7,7 +7,7 @@ import { defaultDesign, type DesignSettings } from '../../core/types';
 import type { MemberDesign } from '../../core/design';
 import { saveCharacteristics } from '../Library';
 
-const STATUS: Record<MemberDesign['status'], { label: string; cls: string }> = {
+const STATUS: Record<MemberDesign['status'], { label: string; cls: Tone }> = {
   ok: { label: 'Atende', cls: 'ok' },
   fail: { label: 'Não atende', cls: 'bad' },
   review: { label: 'Revisar', cls: 'warn' },
@@ -26,7 +26,7 @@ export function DimensionarPanel() {
 
   if (st.model.members.length === 0) return <div className="panel-body"><Hint>Crie a estrutura para dimensionar.</Hint></div>;
   const unstable = rep.members.length === 0;
-  if (unstable) return <div className="panel-body"><div className="verdict bad"><b>Modelo instável</b><span>Corrija apoios e rótulas antes de dimensionar.</span></div>{rep.warnings.map((w, i) => <div key={i} className="note">{w}</div>)}</div>;
+  if (unstable) return <div className="panel-body"><div className="verdict bad"><b>Modelo instável</b><span>Corrija apoios e rótulas antes de dimensionar.</span></div>{rep.warnings.map((w, i) => <Note key={i}>{w}</Note>)}</div>;
 
   return (
     <div className="panel-body">
@@ -34,12 +34,12 @@ export function DimensionarPanel() {
         <b>{rep.ok ? (reviews ? 'Atende, com itens a revisar' : 'Estrutura atende') : `${fails} barra(s) não atendem`}</b>
         <span>{rep.members.filter((m) => m.status !== 'na').length} barras verificadas · γz {rep.gammaZ.cls === 'none' ? '— (sem ações horizontais)' : fmt(rep.gammaZ.max, 3)}</span>
       </div>
-      {rep.warnings.map((w, i) => <div key={i} className="note">{w}</div>)}
-      <div className="gbody" style={{ paddingTop: 10 }}>
-        <button type="button" className="btn primary" onClick={() => st.set({ memorialOpen: true })}>Abrir memorial de cálculo</button>
+      {rep.warnings.map((w, i) => <Note key={i}>{w}</Note>)}
+      <div className="gbody u-pt-10">
+        <Button variant="primary" onClick={() => st.set({ memorialOpen: true })}>Abrir memorial de cálculo</Button>
         <div className="row">
-          <button type="button" className="btn" onClick={async () => { try { const r = await saveCharacteristics(st.model, rep); st.set({ message: r.mode === 'cloud' ? 'Características salvas na sua conta. Use em Fundações ou na Biblioteca.' : 'Características salvas neste navegador.' }); } catch (e) { st.set({ message: (e as Error).message }); } }}>Salvar características</button>
-          <button type="button" className="btn ghost" onClick={() => st.set({ module: 'fundacoes' })}>Dimensionar fundações →</button>
+          <Button onClick={async () => { try { const r = await saveCharacteristics(st.model, rep); st.set({ message: r.mode === 'cloud' ? 'Características salvas na sua conta. Use em Fundações ou na Biblioteca.' : 'Características salvas neste navegador.' }); } catch (e) { st.set({ message: (e as Error).message }); } }}>Salvar características</Button>
+          <Button variant="ghost" onClick={() => st.set({ module: 'fundacoes' })}>Dimensionar fundações →</Button>
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export function DimensionarPanel() {
                   <td className="tl">{m.role === 'column' ? 'Pilar' : m.role === 'beam' ? 'Viga' : '—'}{m.materialKind === 'steel' ? ' (aço)' : ''}</td>
                   <td className="tl">{m.sectionName}</td>
                   <td><UseBar v={m.util} na={m.status === 'na'} /></td>
-                  <td><span className={`pill ${STATUS[m.status].cls}`}>{STATUS[m.status].label}</span></td>
+                  <td><Pill tone={STATUS[m.status].cls}>{STATUS[m.status].label}</Pill></td>
                 </tr>
               ))}
             </tbody>
@@ -139,16 +139,7 @@ export function DimensionarPanel() {
   );
 }
 
-function UseBar({ v, na }: { v: number; na: boolean }) {
-  if (na) return <span className="muted">—</span>;
-  const pct = Math.min(v, 1.5) / 1.5;
-  const cls = v > 1 ? 'bad' : v > 0.9 ? 'warn' : 'ok';
-  return <span className="usebar" title={`Taxa de utilização ${(v * 100).toFixed(0)}%`}><span className={cls} style={{ width: `${pct * 100}%` }} /><em>{v > 9.99 ? '>999%' : `${(v * 100).toFixed(0)}%`}</em></span>;
-}
 
-function KV({ rows }: { rows: [string, string][] }) {
-  return <dl className="kv">{rows.map(([k, v]) => [<dt key={k + 't'}>{k}</dt>, <dd key={k + 'd'}>{v}</dd>])}</dl>;
-}
 
 function MemberDetail({ m }: { m: MemberDesign }) {
   const st = useStore();
@@ -164,7 +155,7 @@ function MemberDetail({ m }: { m: MemberDesign }) {
   const cd = m.column, bd = m.beam, sd = m.steel;
   return (
     <Group title={`Barra ${m.id} · ${m.role === 'column' ? 'pilar' : 'viga'} · ${m.sectionName}`}>
-      <div className={`pill big ${STATUS[m.status].cls}`}>{STATUS[m.status].label} · uso {m.util > 9.99 ? '>999' : (m.util * 100).toFixed(0)}%</div>
+      <Pill big tone={STATUS[m.status].cls}>{STATUS[m.status].label} · uso {m.util > 9.99 ? '>999' : (m.util * 100).toFixed(0)}%</Pill>
       {m.summary && <p className="detail-sum">{m.summary}</p>}
       {cd && cd.check && (
         <>
@@ -260,11 +251,11 @@ function MemberDetail({ m }: { m: MemberDesign }) {
           ]} />
         </>
       )}
-      {m.messages.map((t, i) => <div key={i} className="note">{t}</div>)}
+      {m.messages.map((t, i) => <Note key={i}>{t}</Note>)}
       {m.suggestion && (
         <div className="suggest">
           <span>{m.suggestion}</span>
-          {m.suggestSection && <button type="button" className="btn primary" onClick={applySuggestion}>Aplicar seção</button>}
+          {m.suggestSection && <Button variant="primary" onClick={applySuggestion}>Aplicar seção</Button>}
         </div>
       )}
     </Group>

@@ -270,7 +270,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
     els.push(<line key={`m${m.id}`} x1={X(p.x)} y1={Y(p.y)} x2={X(q.x)} y2={Y(q.y)} className={`member${m.rigid ? ` rigid-${m.rigid}` : ''}${sel ? ' sel' : ''}${inPath ? ' path' : ''}${showResults || showIL ? ' dim' : ''}${ds ? ` st-${ds.status}` : ''}`} />);
     if (ds && ds.status !== 'na') {
       const mx = (X(p.x) + X(q.x)) / 2, my = (Y(p.y) + Y(q.y)) / 2;
-      els.push(<text key={`du${m.id}`} x={mx + 7} y={my - 7} className={`lbl st st-${ds.status}`}>{ds.util > 9.99 ? '>999%' : `${(ds.util * 100).toFixed(0)}%`}</text>);
+      els.push(<text key={`du${m.id}`} x={mx + 7} y={my - 7} className={`lbl st-${ds.status}`}>{ds.util > 9.99 ? '>999%' : `${(ds.util * 100).toFixed(0)}%`}</text>);
     }
     if (st.showValues && tab === 'estrutura') {
       const mx = (X(p.x) + X(q.x)) / 2, my = (Y(p.y) + Y(q.y)) / 2;
@@ -328,7 +328,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | nul
         const u = ui + (uj - ui) * t;
         pts.push(`${X(p0.x + c * x + (c * u - s * v) * amp)},${Y(p0.y + s * x + (s * u + c * v) * amp)}`);
       }
-      els.push(<polyline key={`mode${pm.id}`} points={pts.join(' ')} className="deformed mode" />);
+      els.push(<polyline key={`mode${pm.id}`} points={pts.join(' ')} className="deformed" />);
     }
     els.push(<text key="modetitle" x={14} y={22} className="lbl vD" textAnchor="start">{st.modeView.title}</text>);
   }

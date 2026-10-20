@@ -6,6 +6,7 @@ import type { Model } from '../core/types';
 import type { DesignReport } from '../core/design';
 import { sampleFoundation } from '../core/piles';
 import { getHistory, logActivity } from './history';
+import { Alert, Button, Pill, Spacer } from './ui';
 
 export function buildCharacteristics(model: Model, rep: DesignReport): SavedCharacteristics {
   return {
@@ -113,9 +114,9 @@ export function Library() {
           <li key={it.id}>
             <div className="libmain"><b>{it.name}</b><span className="muted">{date(it.savedAt)} · {it.summary}</span></div>
             {confirmDel === it.id ? (
-              <span className="libact"><button type="button" className="btn danger" disabled={busy} onClick={() => del(it.id)}>Excluir</button><button type="button" className="btn ghost" onClick={() => setConfirmDel(null)}>Cancelar</button></span>
+              <span className="libact"><Button variant="danger" disabled={busy} onClick={() => del(it.id)}>Excluir</Button><Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancelar</Button></span>
             ) : (
-              <span className="libact"><button type="button" className="btn" disabled={busy} onClick={() => open(it)}>{action}</button><button type="button" className="x" aria-label="Excluir" onClick={() => setConfirmDel(it.id)}>×</button></span>
+              <span className="libact"><Button disabled={busy} onClick={() => open(it)}>{action}</Button><button type="button" className="x" aria-label="Excluir" onClick={() => setConfirmDel(it.id)}>×</button></span>
             )}
           </li>
         ))}
@@ -128,19 +129,19 @@ export function Library() {
       <div className="modal">
         <div className="modal-head">
           <b>Biblioteca</b>
-          <span className={`pill ${mode === 'cloud' ? 'ok' : 'na'}`} title={mode === 'cloud' ? undefined : 'Limpar os dados do navegador apaga a biblioteca. Use Salvar no computador para guardar tudo num arquivo.'}>{mode === 'cloud' ? 'Salvo na sua conta' : 'Salvo neste navegador'}</span>
-          <span style={{ flex: 1 }} />
-          <button type="button" className="btn ghost" onClick={close}>Fechar</button>
+          <Pill tone={mode === 'cloud' ? 'ok' : 'na'} title={mode === 'cloud' ? undefined : 'Limpar os dados do navegador apaga a biblioteca. Use Salvar no computador para guardar tudo num arquivo.'}>{mode === 'cloud' ? 'Salvo na sua conta' : 'Salvo neste navegador'}</Pill>
+          <Spacer />
+          <Button variant="ghost" onClick={close}>Fechar</Button>
         </div>
-        {err && <div className="alert" style={{ margin: '0 0 10px' }}>{err}</div>}
+        {err && <Alert compact>{err}</Alert>}
         <div className="libsave">
           <label className="field grow" htmlFor="libname"><span className="flabel">Nome do projeto</span><span className="finput"><input id="libname" value={name} onChange={(e) => setName(e.target.value)} /></span></label>
-          {st.libraryId && <button type="button" className="btn" disabled={busy} onClick={() => saveProject(true)}>Atualizar salvo</button>}
-          <button type="button" className="btn primary" disabled={busy} onClick={() => saveProject(false)}>Salvar como novo</button>
+          {st.libraryId && <Button disabled={busy} onClick={() => saveProject(true)}>Atualizar salvo</Button>}
+          <Button variant="primary" disabled={busy} onClick={() => saveProject(false)}>Salvar como novo</Button>
         </div>
         <div className="libsave">
           <span className="muted grow">Características do dimensionamento atual: cargas por apoio, seções e resultados, para reutilizar nas fundações.</span>
-          <button type="button" className="btn" disabled={busy} onClick={saveChars}>Salvar características</button>
+          <Button disabled={busy} onClick={saveChars}>Salvar características</Button>
         </div>
         <h4>Projetos</h4>
         {items === null ? <p className="hint">Carregando…</p> : renderList(projects, 'Nenhum projeto salvo.', 'Abrir')}
@@ -149,13 +150,13 @@ export function Library() {
         {mode === 'local' && <p className="hint">Biblioteca e histórico ficam neste navegador e vão junto no arquivo de Arquivo › Salvar no computador. Ao abrir o arquivo em outro computador ou navegador, eles são recuperados.</p>}
         <h4>Histórico</h4>
         {history.length === 0 ? <p className="hint">Nenhuma atividade registrada.</p> : (
-          <ul className="liblist hist">
+          <ul className="liblist">
             {(histAll ? history : history.slice(0, 15)).map((h, i) => (
               <li key={`${h.at}-${i}`}><div className="libmain"><b>{h.text}</b><span className="muted">{date(h.at)} · {h.project}</span></div></li>
             ))}
           </ul>
         )}
-        {history.length > 15 && <button type="button" className="btn ghost" onClick={() => setHistAll(!histAll)}>{histAll ? 'Mostrar menos' : `Mostrar tudo (${history.length})`}</button>}
+        {history.length > 15 && <Button variant="ghost" onClick={() => setHistAll(!histAll)}>{histAll ? 'Mostrar menos' : `Mostrar tudo (${history.length})`}</Button>}
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFi
 import { logActivity } from './app/history';
 import { Edificio, NomeObra } from './app/edificio/Edificio';
 import { edificioParaArquivo, useBuilding } from './app/edificio/store';
+import { memo } from './app/design/tokens';
 
 const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
   { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
@@ -197,7 +198,7 @@ export default function App() {
       const cv = document.createElement('canvas');
       cv.width = w * 2; cv.height = h * 2;
       const ctx = cv.getContext('2d')!;
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = memo('paper'); ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.scale(2, 2); ctx.drawImage(img, 0, 0);
       return await new Promise<Blob | null>((res) => cv.toBlob(res, 'image/png'));
     } finally { URL.revokeObjectURL(url); }

@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useBuilding } from './store';
 import { useStore } from '../store';
-import { download, Hint, Select, TextField } from '../ui';
+import { Button, download, Hint, Select, TextField } from '../ui';
 import { montarPranchas } from '../../core/sheets/prancha';
 import { svgPrancha } from '../../core/sheets/svg';
 import { escreverPdf } from '../../core/sheets/pdf';
@@ -68,9 +68,9 @@ export function Pranchas() {
               <Select label="Escala" value={String(cfg.escala)} options={[0, 20, 25, 50, 75, 100, 125, 200, 250].map((e) => ({ v: String(e), label: e ? `1:${e}` : 'automática' }))} onChange={(e) => exec('prancha.definir', { escala: +e })} />
             </div>
             <div className="row wrap">
-              <button type="button" className="btn primary" onClick={() => salvar(`${base}-pranchas.pdf`, escreverPdf(prs, { titulo: `${b.obra.nome} — pranchas`, autor: cfg.carimbo.responsavel }), 'application/pdf')}>PDF (todas)</button>
-              <button type="button" className="btn" onClick={() => pr && salvar(`${base}-${slug(pr.titulo)}.dxf`, escreverDxf(pr), 'application/dxf')}>DXF R2000</button>
-              <button type="button" className="btn" onClick={dwg}>DWG R2018</button>
+              <Button variant="primary" onClick={() => salvar(`${base}-pranchas.pdf`, escreverPdf(prs, { titulo: `${b.obra.nome} — pranchas`, autor: cfg.carimbo.responsavel }), 'application/pdf')}>PDF (todas)</Button>
+              <Button onClick={() => pr && salvar(`${base}-${slug(pr.titulo)}.dxf`, escreverDxf(pr), 'application/dxf')}>DXF R2000</Button>
+              <Button onClick={dwg}>DWG R2018</Button>
             </div>
             <p className="small">{pr.formato} · 1:{pr.escala} · {prs.length} prancha(s){armaduras ? ' · armaduras do último dimensionamento no quadro' : ' · quadro sem armaduras (calcule e dimensione)'}</p>
             {pr.avisos.map((a, i) => <p key={i} className="hint bad">{a}</p>)}

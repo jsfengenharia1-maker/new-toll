@@ -1,0 +1,9 @@
+/* Na janela do app (Ctrl+P com um memorial aberto), imprime só o memorial. Injetado só enquanto o memorial está aberto. */
+@media print{
+html,body,#root{height:auto!important;overflow:visible!important;background:var(--m-paper)!important}
+.app{display:block!important;height:auto!important}
+.app>:not(.memo-overlay){display:none!important}
+.memo-overlay{position:static!important;display:block!important;background:var(--m-paper)!important}
+.memo-bar,.memo-form{display:none!important}
+.memo-scroll{overflow:visible!important;padding:0!important}
+}

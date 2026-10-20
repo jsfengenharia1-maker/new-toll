@@ -4,7 +4,8 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useBuilding } from './store';
 import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
-import { download } from '../ui';
+import { memo } from '../design/tokens';
+import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
@@ -31,7 +32,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const printCss = memoPrintCss({ title: nome, obra: b.obra.nome, rev: 'R00', date: today });
   const html = () => {
     const title = `Memorial de cálculo · ${nome}`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#fff}${MEMO_CSS}${printCss}</style></head><body>${docRef.current?.outerHTML ?? ''}</body></html>`;
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:${memo('paper')}}${MEMO_CSS}${printCss}</style></head><body>${docRef.current?.outerHTML ?? ''}</body></html>`;
   };
   const exportar = async () => {
     const res = await download(`memorial-edificio-${nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.html`, html(), 'text/html');
@@ -48,10 +49,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
       <div className="memo-bar">
         <b>Memorial do edifício</b>
         <span className="muted">{!analise ? 'Sem cálculo: só geometria e premissas.' : velha ? 'O modelo mudou depois do cálculo: calcule de novo.' : 'Gerado a partir do último cálculo.'}</span>
-        <span style={{ flex: 1 }} />
-        <button type="button" className="btn primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</button>
-        <button type="button" className="btn" onClick={exportar}>Exportar HTML</button>
-        <button type="button" className="btn" onClick={onClose}>Fechar</button>
+        <Spacer />
+        <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
+        <Button onClick={exportar}>Exportar HTML</Button>
+        <Button onClick={onClose}>Fechar</Button>
       </div>
       <div />
       <div className="memo-scroll">
@@ -69,7 +70,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <p>NBR 6118 (concreto), NBR 6120 (ações), NBR 6123 (vento), NBR 8681 (combinações). Concreto C{b.norma.fck}, aço {b.norma.aco}, classe de agressividade {b.norma.caa}; cobrimentos: lajes {fmt(b.norma.cobrimento.laje, 1)} cm, vigas {fmt(b.norma.cobrimento.viga, 1)} cm, pilares {fmt(b.norma.cobrimento.pilar, 1)} cm. ψ da carga de uso: {psi.map((x) => fmt(x, 1)).join(' / ')}.</p>
 
           {h2('Geometria')}
-          <table className="t">
+          <table>
             <thead><tr><th>Pavimento</th><th>Cota (m)</th><th>Pé-direito (m)</th><th>Grupo</th></tr></thead>
             <tbody>{[...ps].reverse().map((p) => <tr key={p.id}><td className="l">{p.nome}</td><td>{fmt(p.cota)}</td><td>{fmt(peDireito(b, p.id))}</td><td className="l">{b.grupos.find((g) => g.id === p.grupo)?.nome ?? '—'}</td></tr>)}</tbody>
           </table>
@@ -77,7 +78,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
 
           {h2('Ações')}
-          <table className="t">
+          <table>
             <thead><tr><th>Grupo</th><th>Uso</th><th>Revestimento (kN/m²)</th><th>Variável (kN/m²)</th></tr></thead>
             <tbody>{b.grupos.map((g) => <tr key={g.id}><td className="l">{g.nome}</td><td className="l">{USOS.find((u) => u.v === g.uso)?.label ?? g.uso}</td><td>{fmt(g.gRev)}</td><td>{fmt(g.q)}</td></tr>)}</tbody>
           </table>
@@ -91,7 +92,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {r?.vento && (<>
             {h2('Estabilidade global')}
-            <table className="t">
+            <table>
               <thead><tr><th>Direção</th><th>γz</th><th>Vento nas ELU ×</th></tr></thead>
               <tbody>{r.vento.gamaZ.map((g) => <tr key={g.direcao}><td>{g.direcao}°</td><td>{fmt(g.gamaZ, 3)}</td><td>{fmt(g.ampliacaoVento, 3)}</td></tr>)}</tbody>
             </table>
@@ -100,17 +101,17 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {dim && (<>
             {h2('Dimensionamento das vigas', true)}
-            <table className="t">
+            <table>
               <thead><tr><th>Viga</th><th>b×h (cm)</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Situação</th></tr></thead>
               <tbody>{dim.vigas.map((x) => <tr key={x.viga}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td>{fmt(x.Mpos, 1)}</td><td>{fmt(x.Mneg, 1)}</td><td>{fmt(x.V, 1)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
             {h2('Dimensionamento dos pilares')}
-            <table className="t">
+            <table>
               <thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Nd (kN)</th><th>λ (b / h)</th><th>Armadura</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
               <tbody>{dim.pilares.map((x) => <tr key={`${x.pilar}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td>{x.secao}</td><td>{fmt(x.Nd, 0)}</td><td>{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td>{x.estribo}</td><td>{x.util >= 99 ? '>1' : fmt(x.util)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
             {h2('Lajes')}
-            <table className="t">
+            <table>
               <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha (mm)</th><th>Limite (mm)</th><th>Situação</th></tr></thead>
               <tbody>{dim.lajes.map((x) => <tr key={`${x.laje}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td className="l">{x.tipo}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td>{fmt(x.flecha * 1000, 1)}</td><td>{fmt(x.limite * 1000, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
@@ -119,14 +120,14 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             )}
 
             {h2('Cargas na fundação')}
-            <table className="t">
+            <table>
               <thead><tr><th>Pilar</th><th>Nk rara máx.</th><th>Nk rara mín.</th><th>N perm.</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th>Combinação</th></tr></thead>
               <tbody>{dim.fundacao.map((f) => <tr key={f.id}><td className="l">{f.label}</td><td>{fmt(f.Nk, 1)}</td><td>{fmt(f.NkMin, 1)}</td><td>{fmt(f.NkPerm ?? f.Nk, 1)}</td><td>{fmt(f.Hx, 1)}</td><td>{fmt(f.Hy, 1)}</td><td>{fmt(f.Mx, 1)}</td><td>{fmt(f.My, 1)}</td><td className="l">{f.source?.replace('Edifício · ', '')}</td></tr>)}</tbody>
             </table>
             <p>Valores característicos (kN, kN·m). Nd das ELU na tabela da aba Análise.</p>
 
             {h2('Quantitativos')}
-            <table className="t">
+            <table>
               <thead><tr><th>Pavimento</th><th>Concreto (m³)</th><th>Fôrma (m²)</th><th>Aço estimado (kg)</th></tr></thead>
               <tbody>
                 {dim.quantitativos.map((q) => <tr key={q.pavimento}><td className="l">{q.pavimento}</td><td>{fmt(q.concreto.lajes + q.concreto.vigas + q.concreto.pilares)}</td><td>{fmt(q.forma.lajes + q.forma.vigas + q.forma.pilares, 1)}</td><td>{fmt(q.aco, 0)}</td></tr>)}

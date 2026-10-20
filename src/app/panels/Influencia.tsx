@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
-import { Group, Hint, NumField, Seg, Select, TextField } from '../ui';
+import { Alert, Button, Group, Hint, NumField, Seg, Select, TextField } from '../ui';
 import { useAnalysis, resultFor, fmt, ilFieldOf, ilStaticValue } from '../results';
 import { defaultPath } from '../pathTable';
 import { buildPath, samplePath, trainEnvelope, trainEnvelopeAll } from '../../core/influence';
@@ -57,7 +57,7 @@ export function InfluenciaPanel() {
     }, 20);
   };
 
-  if (a.prep.error) return <div className="panel-body"><div className="alert">{a.prep.error}</div></div>;
+  if (a.prep.error) return <div className="panel-body"><Alert>{a.prep.error}</Alert></div>;
 
   return (
     <div className="panel-body">
@@ -98,7 +98,7 @@ export function InfluenciaPanel() {
             <Hint>Carga unitária vertical para baixo percorrendo o caminho do trem-tipo. Ordenadas positivas desenhadas para cima.</Hint>
           </>
         )}
-        {st.trainResult && <button type="button" className="btn ghost" onClick={() => st.set({ trainResult: null })}>Voltar à linha de influência</button>}
+        {st.trainResult && <Button variant="ghost" onClick={() => st.set({ trainResult: null })}>Voltar à linha de influência</Button>}
       </Group>
 
       <Group title="Trem-tipo" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.trains); st.commit((m) => { m.trains.push({ id, name: `Veículo ${id}`, length: 6, loads: [{ d: 1.5, P: 100 }, { d: 4.5, P: 100 }], q: 5, qIn: 0, impact: 1 }); }); st.set({ trainId: id }); }}>+ novo</button>}>
@@ -136,8 +136,8 @@ export function InfluenciaPanel() {
           <span className="muted">{path ? `Caminho: ${pathIds.length} barra(s), ${fmt(path.reduce((s, p) => s + p.L, 0))} m` : 'As barras escolhidas não formam um caminho contínuo.'}</span>
         </div>
         <div className="row">
-          <button type="button" className="btn" onClick={() => { if (!st.selMembers.size) { st.set({ tool: 'select', message: 'Selecione as barras do caminho (ferramenta Selecionar) e clique de novo.' }); return; } st.set({ trainPath: [...st.selMembers], trainResult: null, message: 'Caminho definido pelas barras selecionadas.' }); }}>Usar barras selecionadas</button>
-          <button type="button" className="btn ghost" onClick={() => st.set({ trainPath: [], trainResult: null })}>Automático</button>
+          <Button onClick={() => { if (!st.selMembers.size) { st.set({ tool: 'select', message: 'Selecione as barras do caminho (ferramenta Selecionar) e clique de novo.' }); return; } st.set({ trainPath: [...st.selMembers], trainResult: null, message: 'Caminho definido pelas barras selecionadas.' }); }}>Usar barras selecionadas</Button>
+          <Button variant="ghost" onClick={() => st.set({ trainPath: [], trainResult: null })}>Automático</Button>
         </div>
         <Select label="Somar resultado estático" value={srcKey(st.trainStatic)} options={[{ v: '', label: 'Nenhum' }, ...sourceOptions(model).filter((o) => o.src.kind === 'case' || o.src.kind === 'combo').map((o) => ({ v: o.key, label: o.label }))]}
           onChange={(k) => st.set({ trainStatic: sourceOptions(model).find((o) => o.key === k)?.src ?? null, trainResult: null })} />
@@ -149,7 +149,7 @@ export function InfluenciaPanel() {
             <dt>Frente do veículo (mín.)</dt><dd>{fmt(sectionStats.env.posMin)} m{sectionStats.env.revMin ? ' · sentido inverso' : ''}</dd>
           </dl>
         )}
-        {target === 'section' && <button type="button" className="btn primary" disabled={!path || !train || busy} onClick={computeAll}>{busy ? 'Calculando…' : 'Calcular envoltória em toda a estrutura'}</button>}
+        {target === 'section' && <Button variant="primary" disabled={!path || !train || busy} onClick={computeAll}>{busy ? 'Calculando…' : 'Calcular envoltória em toda a estrutura'}</Button>}
       </Group>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore, type Diagram, type Source } from '../store';
-import { Check, Group, Hint, Seg, Select, copyText, download } from '../ui';
+import { Alert, Button, Check, Chip, copyText, download, Group, Hint, Seg, Select } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
 import { useUnits, type Units } from '../units';
@@ -29,7 +29,7 @@ export function ResultadosPanel() {
   const [table, setTable] = useState<'reac' | 'disp' | 'ends'>('reac');
 
   if (a.prep.error) {
-    return <div className="panel-body"><div className="alert">{a.prep.error}</div><Hint>Corrija na aba Estrutura (apoios, rótulas) e os resultados aparecem na hora.</Hint></div>;
+    return <div className="panel-body"><Alert>{a.prep.error}</Alert><Hint>Corrija na aba Estrutura (apoios, rótulas) e os resultados aparecem na hora.</Hint></div>;
   }
 
   const summary = (['N', 'V', 'M'] as Eff[]).map((e) => {
@@ -58,8 +58,8 @@ export function ResultadosPanel() {
           const tog = (kind: 'cases' | 'combos', id: number) => { const list = new Set(sel[kind]); if (list.has(id)) list.delete(id); else list.add(id); st.set({ source: { ...sel, [kind]: [...list] } }); };
           return (
             <div className="chips">
-              {model.cases.map((c) => <button type="button" key={`c${c.id}`} className={`chip${sel.cases.includes(c.id) ? ' on' : ''}`} aria-pressed={sel.cases.includes(c.id)} onClick={() => tog('cases', c.id)}>{c.name}</button>)}
-              {model.combinations.map((c) => <button type="button" key={`k${c.id}`} className={`chip${sel.combos.includes(c.id) ? ' on' : ''}`} aria-pressed={sel.combos.includes(c.id)} onClick={() => tog('combos', c.id)}>{c.name}</button>)}
+              {model.cases.map((c) => <Chip key={`c${c.id}`} on={sel.cases.includes(c.id)} aria-pressed={sel.cases.includes(c.id)} onClick={() => tog('cases', c.id)}>{c.name}</Chip>)}
+              {model.combinations.map((c) => <Chip key={`k${c.id}`} on={sel.combos.includes(c.id)} aria-pressed={sel.combos.includes(c.id)} onClick={() => tog('combos', c.id)}>{c.name}</Chip>)}
             </div>
           );
         })()}
@@ -105,15 +105,15 @@ export function ResultadosPanel() {
               </table>
             </div>
             <div className="row">
-              <button type="button" className="btn" onClick={async () => { const csv = toCSV(rows); const ok = await copyText(csv); st.set({ message: ok ? 'Tabela copiada (CSV com ;). Cole no Excel.' : 'Não foi possível copiar.' }); }}>Copiar</button>
-              <button type="button" className="btn ghost" onClick={() => { download(`${table}.csv`, '﻿' + toCSV(rows), 'text/csv'); }}>Baixar CSV</button>
+              <Button onClick={async () => { const csv = toCSV(rows); const ok = await copyText(csv); st.set({ message: ok ? 'Tabela copiada (CSV com ;). Cole no Excel.' : 'Não foi possível copiar.' }); }}>Copiar</Button>
+              <Button variant="ghost" onClick={() => { download(`${table}.csv`, '﻿' + toCSV(rows), 'text/csv'); }}>Baixar CSV</Button>
             </div>
           </>
         )}
       </Group>
       <Group title="Ao longo de um caminho">
         <Hint>Usa as barras selecionadas (em cadeia contínua); sem seleção, o caminho do trem-tipo ou as barras horizontais mais altas. Gera s acumulado, barra, x local, N, V, M ({U.F.label}, {U.M.label}) e δx, δy (mm); em envoltória, máximos e mínimos. M no sentido do caminho.</Hint>
-        <button type="button" className="btn" onClick={() => {
+        <Button onClick={() => {
           if (!results.length) { st.set({ message: 'Escolha um caso, uma combinação ou uma envoltória com resultados.' }); return; }
           const ids = st.selMembers.size ? [...st.selMembers] : st.trainPath.length ? st.trainPath : defaultPath(model);
           const path = buildPath(a.prep, ids);
@@ -122,7 +122,7 @@ export function ResultadosPanel() {
           const name = `caminho-${sourceLabel(model, st.source).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.csv`;
           download(name, '\ufeff' + toCSV(rows), 'text/csv');
           st.set({ message: `CSV ao longo do caminho: barras ${path.map((p) => a.prep.members[p.k].id).join(' → ')} · ${fmt(path.reduce((s, p) => s + p.L, 0))} m · ${rows.body.length} pontos.` });
-        }}>CSV ao longo do caminho</button>
+        }}>CSV ao longo do caminho</Button>
       </Group>
       <ModosGroup />
     </div>

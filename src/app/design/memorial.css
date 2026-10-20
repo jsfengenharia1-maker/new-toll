@@ -1,0 +1,87 @@
+/*
+ * Statikos — design do papel: memoriais (pórtico, edifício, fundações) e figuras SVG estáticas.
+ * Fonte única de cor e tipo dos documentos impressos/exportados. As figuras (drawing.ts,
+ * foundationDrawing.ts, desenhoMemorial.ts) leem estes tokens por `memo()` em tokens.ts;
+ * o texto deste arquivo vai inteiro no HTML exportado.
+ */
+:root {
+  --m-font-ui: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  --m-font-num: 'IBM Plex Mono', Consolas, monospace;
+  --m-font-fig: Arial;
+  --m-paper: #fff;
+  --m-ink: #1b2530;
+  --m-ink-2: #26323e;
+  --m-muted: #5b6876;
+  --m-muted-fig: #6b7785;
+  --m-faint: #8b96a3;
+  --m-line: #d3d9df;
+  --m-line-soft: #e3e8ec;
+  --m-grid: #e7ebef;
+  --m-th-bg: #eef2f5;
+  --m-th-ink: #33404c;
+  --m-accent: #0e6a72;
+  --m-accent-ink: #0e3f45;
+  --m-ok: #2a7a46;
+  --m-ok-soft: #f6faf7;
+  --m-bad: #b42318;
+  --m-bad-soft: #fdf5f4;
+  --m-warn: #b7791f;
+  --m-formula-bg: #f5f7f9;
+  /* figuras */
+  --m-load: #a35a00;
+  --m-n: #2a8a49;
+  --m-v: #2c67c9;
+  --m-m: #c33d2a;
+  --m-def: #b8337a;
+  --m-react: #7a47c6;
+  --m-na: #9aa4ae;
+  --m-support: #f1f3f5;
+  --m-spring: #9aa6b2;
+  --m-id: #3c6fb4;
+  --m-conc: #eef1f4;
+  --m-pile: #d6e7e9;
+  --m-col: #c9d1d8;
+  --m-soil: #b0764a;
+  --m-laje: #eef3f6;
+  --m-laje-line: #9fb3bf;
+  --m-laje-ink: #3d5866;
+  --m-falha: #c0392b;
+}
+.memo{font:12.5px/1.55 var(--m-font-ui);color:var(--m-ink);background:var(--m-paper);max-width:820px;margin:0 auto;padding:40px 48px 64px}
+.memo h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em}
+.memo h2{font-size:15px;margin:30px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--m-accent);color:var(--m-accent-ink);break-after:avoid}
+.memo h3{font-size:13px;margin:18px 0 6px;color:var(--m-ink-2);break-after:avoid}
+.memo p{margin:6px 0}
+.memo .sub{color:var(--m-muted);margin:0}
+.memo table{border-collapse:collapse;width:100%;margin:8px 0 12px;font-size:11.5px;break-inside:auto}
+.memo th,.memo td{border:1px solid var(--m-line);padding:3px 6px;text-align:right;vertical-align:top;white-space:normal}
+.memo th{background:var(--m-th-bg);font-weight:600;color:var(--m-th-ink)}
+.memo td.l,.memo th.l{text-align:left}
+.memo td{font-family:var(--m-font-num);font-variant-numeric:tabular-nums}
+.memo td.l{font-family:inherit}
+.memo .id{display:grid;grid-template-columns:150px 1fr;gap:2px 12px;border:1px solid var(--m-line);padding:10px 12px;margin:14px 0}
+.memo .id dt{color:var(--m-muted)}.memo .id dd{margin:0;font-weight:500}
+.memo figure{margin:10px 0 14px;break-inside:avoid}
+.memo figcaption{font-size:11px;color:var(--m-muted);margin-top:2px}
+.memo .ok{color:var(--m-ok);font-weight:600}.memo .bad{color:var(--m-bad);font-weight:600}.memo .warn{color:var(--m-warn);font-weight:600}
+.memo .verdict{border:1px solid var(--m-line);border-left:4px solid var(--m-ok);padding:8px 12px;margin:10px 0;background:var(--m-ok-soft)}
+.memo .verdict.fail{border-left-color:var(--m-bad);background:var(--m-bad-soft)}
+.memo .formula{font-family:var(--m-font-num);font-size:11.5px;background:var(--m-formula-bg);border:1px solid var(--m-line-soft);padding:6px 10px;margin:6px 0;white-space:pre-wrap}
+.memo ul{margin:6px 0;padding-left:20px}
+.memo .sign{margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.memo .sign div{border-top:1px solid var(--m-ink);padding-top:4px;text-align:center;font-size:11.5px}
+.memo .small{font-size:11px;color:var(--m-muted)}
+@media print{
+html,body{background:var(--m-paper)!important}
+.memo{max-width:none;margin:0;padding:0;font-size:10pt;box-shadow:none!important}
+.memo *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.memo h1{margin-top:0}
+.memo h2{margin-top:18px}
+.memo h2.pb{break-before:page;margin-top:0}
+.memo h2,.memo h3{break-after:avoid;page-break-after:avoid}
+.memo figure,.memo table,.memo .formula,.memo .verdict,.memo .id,.memo .sign,.memo ul{break-inside:avoid;page-break-inside:avoid}
+.memo tr,.memo td,.memo th{break-inside:avoid;page-break-inside:avoid}
+.memo thead{display:table-header-group}
+.memo figure svg{max-height:125mm;width:auto;max-width:100%}
+.memo p{orphans:3;widows:3}
+}

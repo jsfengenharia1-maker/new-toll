@@ -6,14 +6,15 @@ import type { BarSet } from '../core/rebar';
 import type { FoundationParams } from '../core/piles';
 import { fmt } from './results';
 import { svgCaisson, svgCap, svgFooting } from './foundationDrawing';
+import { Note, Pill } from './ui';
 
-export const Tbc = () => <span className="pill warn" title="Premissa sem fonte normativa clara: confirme antes de usar.">a confirmar</span>;
+export const Tbc = () => <Pill tone="warn" title="Premissa sem fonte normativa clara: confirme antes de usar.">a confirmar</Pill>;
 export const phiTxt = (phi: number) => fmt(phi, 1).replace(',0', '');
 export const barTxt = (b: BarSet | null | undefined, spaced = true) => (b ? `${b.n} φ${phiTxt(b.phi)}${spaced && b.n > 1 ? ` c/${fmt(b.spacing * 100, 0)}` : ''}` : '—');
 const cm2 = (v: number) => fmt(v * 1e4);
 const cm = (v: number) => fmt(v * 100, 0);
 const Svg = ({ svg }: { svg: string }) => <div className="fsketch" dangerouslySetInnerHTML={{ __html: svg }} />;
-const Ok = ({ ok }: { ok: boolean }) => <span className={`pill ${ok ? 'ok' : 'bad'}`}>{ok ? 'atende' : 'não atende'}</span>;
+const Ok = ({ ok }: { ok: boolean }) => <Pill tone={ok ? 'ok' : 'bad'}>{ok ? 'atende' : 'não atende'}</Pill>;
 
 export function CapDetail({ cap, coords, D, ap, bp, p }: { cap: CapResult; coords: [number, number][]; D: number; ap: number; bp: number; p: FoundationParams }) {
   return (
@@ -62,7 +63,7 @@ export function CapDetail({ cap, coords, D, ap, bp, p }: { cap: CapResult; coord
           </dl>
         </div>
       </div>
-      {cap.messages.map((m, i) => <div className="note" key={i}>{m}</div>)}
+      {cap.messages.map((m, i) => <Note key={i}>{m}</Note>)}
     </div>
   );
 }
@@ -106,7 +107,7 @@ export function FootingDetail({ r, ap, bp, p }: { r: FootingResult; ap: number; 
           </dl>
         </div>
       </div>
-      {[...r.methodNotes, ...r.messages].map((m, i) => <div className="note" key={i}>{m}</div>)}
+      {[...r.methodNotes, ...r.messages].map((m, i) => <Note key={i}>{m}</Note>)}
     </>
   );
 }
@@ -136,7 +137,7 @@ export function CaissonDetail({ r, water, p }: { r: CaissonResult; water: number
             </table>
           </details>
         )}
-        {r.messages.map((m, i) => <div className="note" key={i}>{m}</div>)}
+        {r.messages.map((m, i) => <Note key={i}>{m}</Note>)}
       </div>
     </div>
   );

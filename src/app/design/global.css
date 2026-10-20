@@ -1,4 +1,13 @@
-/* Layout: bancada de CAD — barra superior, ferramentas à esquerda, prancha central, painel de propriedades à direita. */
+/*
+ * Statikos — design system da interface (fonte única).
+ * 1. Tokens: custom properties em :root (cores, tipos, cores dos diagramas, paletas da planta,
+ *    grupos e solos), redefinidas para o tema escuro.
+ * 2. Componentes: classes usadas pela biblioteca src/app/ui (botão, campo, grupo, etiqueta…).
+ * 3. Telas: arranjo de cada módulo (pórtico, edifício, fundações, memorial).
+ * Regras (testadas em design/design.test.ts): cor só aqui (nunca no TS/TSX), CSS só nesta pasta,
+ * toda classe usada no JSX definida aqui, estilo inline só para valores calculados.
+ * Layout original: bancada de CAD — barra superior, ferramentas à esquerda, prancha central, painel de propriedades à direita.
+ */
 :root {
   --bg: #eef1f4;
   --surface: #ffffff;
@@ -27,6 +36,69 @@
   --warn: #b7791f;
   --font-ui: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --font-num: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  /* planta do edifício (Canvas 2D): uma paleta por tema da planta, lida por paleta() em plantaStore.ts */
+  --pl-escuro-fundo: #11151A;
+  --pl-escuro-mascara: #5C6672;
+  --pl-escuro-eixo: #8FA3B8;
+  --pl-escuro-viga: #4FC3F7;
+  --pl-escuro-laje: #E6C27A;
+  --pl-escuro-carga: #FF8FD8;
+  --pl-escuro-parede: #A1887F;
+  --pl-escuro-pilar: #F2F4F7;
+  --pl-escuro-pilar-borda: #F2F4F7;
+  --pl-escuro-texto: #E6EAEF;
+  --pl-escuro-cota: #B8C2CC;
+  --pl-escuro-selecao: #00E5C8;
+  --pl-escuro-captura: #C6FF00;
+  --pl-escuro-guia: rgba(198,255,0,0.6);
+  --pl-escuro-erro: #FF4D4D;
+  --pl-escuro-aviso: #FFC21A;
+  --pl-escuro-janela: #4FC3F7;
+  --pl-escuro-cruzamento: #00E5C8;
+  --pl-escuro-fantasma: rgba(242,244,247,0.35);
+  --pl-claro-fundo: #FAFAF7;
+  --pl-claro-mascara: #B3B9C0;
+  --pl-claro-eixo: #5E7085;
+  --pl-claro-viga: #0072B2;
+  --pl-claro-laje: #B8860B;
+  --pl-claro-carga: #B5179E;
+  --pl-claro-parede: #6D4C41;
+  --pl-claro-pilar: #1B1F24;
+  --pl-claro-pilar-borda: #1B1F24;
+  --pl-claro-texto: #1B1F24;
+  --pl-claro-cota: #4A5561;
+  --pl-claro-selecao: #00897B;
+  --pl-claro-captura: #2E7D00;
+  --pl-claro-guia: rgba(46,125,0,0.6);
+  --pl-claro-erro: #A3001B;
+  --pl-claro-aviso: #C27C00;
+  --pl-claro-janela: #0072B2;
+  --pl-claro-cruzamento: #00897B;
+  --pl-claro-fantasma: rgba(27,31,36,0.35);
+  --pl-pb-fundo: #FFFFFF;
+  --pl-pb-mascara: #9A9A9A;
+  --pl-pb-eixo: #555555;
+  --pl-pb-viga: #000000;
+  --pl-pb-laje: #777777;
+  --pl-pb-carga: #000000;
+  --pl-pb-parede: #555555;
+  --pl-pb-pilar: #000000;
+  --pl-pb-pilar-borda: #000000;
+  --pl-pb-texto: #000000;
+  --pl-pb-cota: #333333;
+  --pl-pb-selecao: #000000;
+  --pl-pb-captura: #000000;
+  --pl-pb-guia: rgba(0,0,0,0.5);
+  --pl-pb-erro: #000000;
+  --pl-pb-aviso: #000000;
+  --pl-pb-janela: #000000;
+  --pl-pb-cruzamento: #000000;
+  --pl-pb-fantasma: rgba(0,0,0,0.35);
+  /* grupos de pavimentos (marca de cor por grupo; classe .grupo-c<i>) */
+  --grupo-0: #5b8def; --grupo-1: #e6a23c; --grupo-2: #3fb27f; --grupo-3: #c86bdc;
+  --grupo-4: #e05d5d; --grupo-5: #4fb3c8; --grupo-6: #a3a83a; --grupo-7: #8c7ae6;
+  /* solos no perfil de sondagem (classe .solo-<tipo>) */
+  --solo-argila: #b0764a; --solo-silte-argiloso: #c9a36b; --solo-silte-arenoso: #d8c27a; --solo-areia: #e6d58f;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -455,3 +527,24 @@ svg.mono .hinge { fill: #fff !important; }
 .carimbo-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .edif table.quadro tr.warn td { color: var(--warn, #b7791f); }
 @media (max-width: 900px) { .edif { grid-template-columns: 1fr; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }
+.planta-cv[data-tema='escuro'] { background: var(--pl-escuro-fundo); }
+.planta-cv[data-tema='claro'] { background: var(--pl-claro-fundo); }
+.planta-cv[data-tema='pb'] { background: var(--pl-pb-fundo); }
+
+/* grupos de pavimentos e solos: cor vem dos tokens --grupo-<i> e --solo-<tipo> */
+.grupo-c0 { --grupo: var(--grupo-0); } .grupo-c1 { --grupo: var(--grupo-1); } .grupo-c2 { --grupo: var(--grupo-2); } .grupo-c3 { --grupo: var(--grupo-3); }
+.grupo-c4 { --grupo: var(--grupo-4); } .grupo-c5 { --grupo: var(--grupo-5); } .grupo-c6 { --grupo: var(--grupo-6); } .grupo-c7 { --grupo: var(--grupo-7); }
+.grupo-marca, .edif table select.grupo-marca, .edif table td.grupo-marca { border-left: 4px solid var(--grupo); }
+.grupo-faixa { fill: var(--grupo); fill-opacity: 0.18; }
+.grupo-linha { stroke: var(--grupo); stroke-width: 3; }
+.solo-argila { fill: var(--solo-argila); } .solo-silteArgiloso { fill: var(--solo-silte-argiloso); }
+.solo-silteArenoso { fill: var(--solo-silte-arenoso); } .solo-areia { fill: var(--solo-areia); }
+
+/* utilitários de layout (sem cor): usar só quando nenhum componente resolve */
+.spacer { flex: 1; }
+.alert.compact { margin: 0 0 10px; }
+.u-mt-6 { margin-top: 6px; }
+.u-mb-8 { margin-bottom: 8px; }
+.u-pt-10 { padding-top: 10px; }
+.u-items-center { align-items: center; }
+.u-items-end { align-items: flex-end; }

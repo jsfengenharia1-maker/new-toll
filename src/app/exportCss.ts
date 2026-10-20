@@ -11,5 +11,5 @@ export function svgExportCss(): string {
       if (r instanceof CSSStyleRule && PREFIXES.some((p) => r.selectorText.split(',').some((s) => s.trim().startsWith(p)))) out.push(r.cssText);
     }
   }
-  return out.join('\n').replace(/var\((--[\w-]+)\)/g, (_, name: string) => cs.getPropertyValue(name).trim() || '#000');
+  return out.join('\n').replace(/var\((--[\w-]+)\)/g, (_, name: string) => cs.getPropertyValue(name).trim() || 'currentColor');
 }

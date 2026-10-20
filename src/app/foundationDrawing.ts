@@ -1,20 +1,21 @@
-// Croquis SVG estáticos (cores fixas, fundo branco) de blocos, sapatas e tubulões — usados no módulo e no memorial.
+// Croquis SVG estáticos (cores do papel: design/memorial.css) de blocos, sapatas e tubulões — usados no módulo e no memorial.
 import type { CapResult } from '../core/caps';
 import type { FootingResult } from '../core/footings';
 import type { CaissonResult } from '../core/caissons';
 import { fmt } from './results';
+import { memo } from './design/tokens';
 
-const C = { ink: '#1b2530', muted: '#6b7785', conc: '#eef1f4', pile: '#d6e7e9', pileLine: '#0e6a72', tie: '#c33d2a', strut: '#2c67c9', col: '#c9d1d8', soil: '#b0764a', water: '#2c67c9', press: '#a35a00' };
+const C = { ink: memo('ink'), muted: memo('muted-fig'), conc: memo('conc'), pile: memo('pile'), pileLine: memo('accent'), tie: memo('m'), strut: memo('v'), col: memo('col'), soil: memo('soil'), water: memo('v'), press: memo('load'), paper: memo('paper'), fontNum: memo('font-num').replace(/'/g, '') };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const t = (x: number, y: number, s: string, anchor = 'middle', color = C.ink, size = 10) =>
-  `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" fill="${color}" font-size="${size}" font-family="IBM Plex Mono, Consolas, monospace" text-anchor="${anchor}">${esc(s)}</text>`;
+  `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" fill="${color}" font-size="${size}" font-family="${C.fontNum}" text-anchor="${anchor}">${esc(s)}</text>`;
 const line = (x1: number, y1: number, x2: number, y2: number, color = C.ink, w = 1, dash = '') =>
   `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${color}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
 const rect = (x: number, y: number, w: number, h: number, fill: string, stroke = C.ink, sw = 1) =>
   `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
 const cm = (v: number) => fmt(v * 100, 0);
 const wrap = (W: number, H: number, body: string, label: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;background:#fff" role="img" aria-label="${esc(label)}"><rect width="${W}" height="${H}" fill="#fff"/>${body}</svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;background:${C.paper}" role="img" aria-label="${esc(label)}"><rect width="${W}" height="${H}" fill="${C.paper}"/>${body}</svg>`;
 
 /** Bloco de coroamento: planta (estacas, pilar e tirantes) e corte (bielas e tirante). */
 export function svgCap(cap: CapResult, coords: [number, number][], D: number, ap: number, bp: number): string {

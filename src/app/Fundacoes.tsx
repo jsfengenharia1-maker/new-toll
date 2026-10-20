@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useBuilding } from './edificio/store';
-import { Check, Group, Hint, NumField, Select, TextField } from './ui';
+import { Button, Check, Chip, Group, Hint, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
@@ -15,7 +15,6 @@ import { isCaisson } from '../core/caissons';
 import { CaissonDetail, CapDetail, FootingDetail, Tbc, barTxt, phiTxt } from './FundacoesDetail';
 
 const SOILS = Object.keys(SOIL_LABEL) as SoilClass[];
-const SOIL_COLOR: Record<SoilClass, string> = { argila: '#b0764a', silteArgiloso: '#c9a36b', silteArenoso: '#d8c27a', areia: '#e6d58f' };
 const KINDS = Object.keys(KIND_LABEL) as FoundationKind[];
 /** Campos por apoio preservados ao reimportar cargas (casados pelo nome do apoio). */
 const KEEP: (keyof FLoad)[] = ['kind', 'boringId', 'boringMode', 'boringIds', 'x', 'y', 'ap', 'bp', 'pile'];
@@ -137,8 +136,8 @@ export function Fundacoes() {
             <NumField label="Nível d'água" unit="m" value={b.water ?? 0} onChange={(v) => updB((x) => { x.water = v > 0 ? v : null; })} />
           </div>
           <div className="row">
-            <OptField label="x do furo" unit="m" value={b.x} onChange={(v) => updB((x) => { if (v === undefined) delete x.x; else x.x = v; })} />
-            <OptField label="y do furo" unit="m" value={b.y} onChange={(v) => updB((x) => { if (v === undefined) delete x.y; else x.y = v; })} />
+            <OptNumField label="x do furo" unit="m" value={b.x} onChange={(v) => updB((x) => { if (v === undefined) delete x.x; else x.x = v; })} />
+            <OptNumField label="y do furo" unit="m" value={b.y} onChange={(v) => updB((x) => { if (v === undefined) delete x.y; else x.y = v; })} />
           </div>
           <Check label="Sondagem terminou em impenetrável" checked={b.endImpenetrable} onChange={(v) => updB((x) => { x.endImpenetrable = v; })} />
           <div className="spt">
@@ -162,7 +161,7 @@ export function Fundacoes() {
           <label className="field" htmlFor="sptpaste"><span className="flabel">Colar do boletim (uma linha por metro: “N” ou “prof; N; solo”)</span>
             <textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
           </label>
-          <button type="button" className="btn ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT deste furo pelo texto colado</button>
+          <Button variant="ghost" disabled={!paste.trim()} onClick={applyPaste}>Substituir SPT deste furo pelo texto colado</Button>
           <Hint>Cada apoio usa o furo escolhido no seu cartão; em “automático”, o mais próximo quando apoio e furos têm coordenadas, senão o primeiro. Também é possível usar a média de todos os furos ou de alguns. ⊘ descarta uma leitura fora do padrão: na média, o metro usa só os demais furos; no furo isolado, a leitura é interpolada entre as vizinhas.</Hint>
           {borings.length > 1 && (
             <div className="row">
@@ -174,8 +173,8 @@ export function Fundacoes() {
 
         <Group title="Cargas por apoio (características)">
           <div className="row wrap">
-            <button type="button" className="btn" onClick={importModel}>Importar do pórtico atual</button>
-            <button type="button" className="btn" disabled={!edDim?.fundacao.length} title={edDim ? (edVelha ? 'O edifício mudou depois do cálculo: as cargas são do último cálculo.' : 'Cargas do último cálculo do edifício.') : 'Calcule o edifício (aba Edifício › Análise) para importar.'} onClick={() => edDim && importarCargasDoEdificio(edDim.fundacao)}>Importar do edifício</button>
+            <Button onClick={importModel}>Importar do pórtico atual</Button>
+            <Button disabled={!edDim?.fundacao.length} title={edDim ? (edVelha ? 'O edifício mudou depois do cálculo: as cargas são do último cálculo.' : 'Cargas do último cálculo do edifício.') : 'Calcule o edifício (aba Edifício › Análise) para importar.'} onClick={() => edDim && importarCargasDoEdificio(edDim.fundacao)}>Importar do edifício</Button>
             {saved.length > 0 && <Select value="" options={[{ v: '', label: 'Características salvas…' }, ...saved.map((s) => ({ v: s.id, label: s.name }))]} onChange={(id) => id && importSaved(id)} />}
           </div>
           <div className="tablewrap">
@@ -187,7 +186,7 @@ export function Fundacoes() {
                     <td><input value={l.label} aria-label="Apoio" onChange={(e) => upd((d) => { d.loads[i].label = e.target.value; })} /></td>
                     {(['Nk', 'NkMin', 'NkPerm', 'Hx', 'Hy', 'Mx', 'My'] as (keyof FLoad)[]).map((k) => (
                       <td key={k}>{k === 'NkPerm'
-                        ? <OptCell value={l.NkPerm} placeholder={fmt(l.Nk, 0)} onChange={(v) => upd((d) => { if (v === undefined) delete d.loads[i].NkPerm; else d.loads[i].NkPerm = v; })} />
+                        ? <OptNumCell value={l.NkPerm} placeholder={fmt(l.Nk, 0)} onChange={(v) => upd((d) => { if (v === undefined) delete d.loads[i].NkPerm; else d.loads[i].NkPerm = v; })} />
                         : <NumCell value={l[k] as number} onChange={(v) => upd((d) => { (d.loads[i][k] as number) = v; })} />}</td>
                     ))}
                     <td><button type="button" className="x" aria-label="Remover apoio" onClick={() => upd((d) => { d.loads.splice(i, 1); })}>×</button></td>
@@ -210,13 +209,13 @@ export function Fundacoes() {
         {selDesign && selDesign.kind === 'sapata' && selDesign.footing && (
           <div className="fdetail">
             <h3>{selDesign.load.label} · sapata{isFooting(selDesign.footing) ? ` ${fmt(selDesign.footing.A * 100, 0)} × ${fmt(selDesign.footing.B * 100, 0)} × ${fmt(selDesign.footing.h * 100, 0)} cm` : ''} · furo {selDesign.boring.name}</h3>
-            {isFooting(selDesign.footing) ? <FootingDetail r={selDesign.footing} ap={selDesign.ap} bp={selDesign.bp} p={p} /> : selDesign.footing.messages.map((m, i) => <div className="note bad" key={i}>{m}</div>)}
+            {isFooting(selDesign.footing) ? <FootingDetail r={selDesign.footing} ap={selDesign.ap} bp={selDesign.bp} p={p} /> : selDesign.footing.messages.map((m, i) => <Note tone="bad" key={i}>{m}</Note>)}
           </div>
         )}
         {selDesign && selDesign.kind === 'tubulao' && selDesign.caisson && (
           <div className="fdetail">
             <h3>{selDesign.load.label} · tubulão a céu aberto · furo {selDesign.boring.name}</h3>
-            {isCaisson(selDesign.caisson) ? <CaissonDetail r={selDesign.caisson} water={selDesign.boring.water} p={p} /> : selDesign.caisson.messages.map((m, i) => <div className="note bad" key={i}>{m}</div>)}
+            {isCaisson(selDesign.caisson) ? <CaissonDetail r={selDesign.caisson} water={selDesign.boring.water} p={p} /> : selDesign.caisson.messages.map((m, i) => <Note tone="bad" key={i}>{m}</Note>)}
           </div>
         )}
       </section>
@@ -242,15 +241,15 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
         })} />
         <NumField label="Pilar a (x)" unit="cm" width={92} value={ds.ap * 100} onChange={(v) => setLoad(ld.id, (l) => { l.ap = Math.max(0.1, v / 100); })} />
         <NumField label="b (y)" unit="cm" width={80} value={ds.bp * 100} onChange={(v) => setLoad(ld.id, (l) => { l.bp = Math.max(0.1, v / 100); })} />
-        <OptField label="x" unit="m" width={72} value={ld.x} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.x; else l.x = v; })} />
-        <OptField label="y" unit="m" width={72} value={ld.y} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.y; else l.y = v; })} />
+        <OptNumField label="x" unit="m" width={72} value={ld.x} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.x; else l.x = v; })} />
+        <OptNumField label="y" unit="m" width={72} value={ld.y} onChange={(v) => setLoad(ld.id, (l) => { if (v === undefined) delete l.y; else l.y = v; })} />
       </div>
       {ld.boringMode === 'average' && ld.boringIds?.length ? (
         <div className="chips">
           <span className="muted small">Furos da média:</span>
           {borings.map((x) => {
             const on = ld.boringIds!.includes(x.id!);
-            return <button type="button" key={x.id} className={`chip${on ? ' on' : ''}`} aria-pressed={on} onClick={() => setLoad(ld.id, (l) => { const s = new Set(l.boringIds ?? []); if (on) s.delete(x.id!); else s.add(x.id!); l.boringIds = [...s]; if (!l.boringIds.length) l.boringIds = [x.id!]; })}>{x.name}</button>;
+            return <Chip key={x.id} on={on} aria-pressed={on} onClick={() => setLoad(ld.id, (l) => { const s = new Set(l.boringIds ?? []); if (on) s.delete(x.id!); else s.add(x.id!); l.boringIds = [...s]; if (!l.boringIds.length) l.boringIds = [x.id!]; })}>{x.name}</Chip>;
           })}
         </div>
       ) : null}
@@ -268,8 +267,8 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
           </div>
           {ds.pile && ds.cap && (
             <div className="fadopt">
-              <span className="pill na">{ds.pileAdopted ? 'adotada' : 'recomendada'}</span>
-              <span className={`pill ${ds.cap.ok ? 'ok' : 'bad'}`}>{ds.cap.ok ? 'bloco atende' : 'bloco não atende'}</span>
+              <Pill tone="na">{ds.pileAdopted ? 'adotada' : 'recomendada'}</Pill>
+              <Pill tone={ds.cap.ok ? 'ok' : 'bad'}>{ds.cap.ok ? 'bloco atende' : 'bloco não atende'}</Pill>
               <span>{PILE_LABEL[ds.pile.type].split(' ')[0]} Ø{Math.round(ds.pile.D * 100)} · {ds.pile.n} estaca{ds.pile.n > 1 ? 's' : ''} · L {ds.pile.L} m · bloco {fmt(ds.cap.lx * 100, 0)} × {fmt(ds.cap.ly * 100, 0)} × {fmt(ds.cap.h * 100, 0)} cm{ds.cap.ties[0]?.bars ? ` · tirante ${barTxt(ds.cap.ties[0].bars, false)}` : ''}</span>
               <button type="button" className="mini" onClick={() => setSel({ load: ld.id, type: ds.pile!.type, D: Math.round(ds.pile!.D * 100) })}>ver bloco</button>
             </div>
@@ -460,37 +459,14 @@ function Premissas({ p, setP, reset }: { p: FoundationParams; setP: (x: Partial<
         </Row>
         <Check label="Somar o peso próprio do tubulão na base" checked={p.tbWeight} onChange={(v) => setP({ tbWeight: v })} />
         <Hint>Fuste de concreto simples: γf·N/Af ≤ 0,85·fck/γc (C25 e γc 1,6: a confirmar). Base: Ab = (N + peso)/σadm, altura 0,866·(Db − Df) (60°) + rodapé, H ≤ 1,8 m (prática, a confirmar). Céu aberto: base acima do nível d'água. Cota automática: a de menor volume entre a cota mínima e o NA. Bulbo para N̄ igual ao das sapatas.</Hint>
-        <button type="button" className="btn ghost" onClick={reset}>Restaurar padrões (todas as premissas)</button>
+        <Button variant="ghost" onClick={reset}>Restaurar padrões (todas as premissas)</Button>
       </Group>
     </>
   );
 }
 
-function OptField({ label, unit, value, onChange, width }: { label: string; unit?: string; value: number | undefined; onChange: (v: number | undefined) => void; width?: number }) {
-  const show = (v: number | undefined) => (v === undefined ? '' : String(v).replace('.', ','));
-  const [t, setT] = useState(show(value));
-  useEffect(() => setT(show(value)), [value]);
-  const commit = () => { if (!t.trim()) { if (value !== undefined) onChange(undefined); return; } const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(show(value)); };
-  return (
-    <label className="field" style={width ? { width } : undefined}>
-      <span className="flabel">{label}</span>
-      <span className="finput"><input inputMode="decimal" placeholder="—" aria-label={label} value={t} onChange={(e) => setT(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />{unit && <span className="unit">{unit}</span>}</span>
-    </label>
-  );
-}
 
-function OptCell({ value, placeholder, onChange }: { value: number | undefined; placeholder: string; onChange: (v: number | undefined) => void }) {
-  const show = (v: number | undefined) => (v === undefined ? '' : String(v).replace('.', ','));
-  const [t, setT] = useState(show(value));
-  useEffect(() => setT(show(value)), [value]);
-  return <input className="num" inputMode="decimal" aria-label="parcela permanente" placeholder={placeholder} value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (!t.trim()) { if (value !== undefined) onChange(undefined); return; } const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(show(value)); }} />;
-}
 
-function NumCell({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [t, setT] = useState(String(value).replace('.', ','));
-  useEffect(() => setT(String(value).replace('.', ',')), [value]);
-  return <input className="num" inputMode="decimal" aria-label="valor" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(String(value).replace('.', ',')); }} />;
-}
 
 function SptChart({ b, cutoff, sol }: { b: Boring; cutoff: number; sol: PileSolution | null }) {
   const n = b.meters.length;
@@ -502,7 +478,7 @@ function SptChart({ b, cutoff, sol }: { b: Boring; cutoff: number; sol: PileSolu
       {[0, 10, 20, 30, 40, 50].map((v) => <line key={v} x1={34 + (v / Nmax) * (W - 44)} x2={34 + (v / Nmax) * (W - 44)} y1={top} y2={H - 10} className="gl" />)}
       {b.meters.map((m, i) => (
         <g key={i}>
-          <rect x={0} y={top + i * rowH} width={26} height={rowH} fill={SOIL_COLOR[m.soil]} />
+          <rect x={0} y={top + i * rowH} width={26} height={rowH} className={`solo-${m.soil}`} />
           <rect x={34} y={top + i * rowH + 2} width={(Math.min(m.N, Nmax) / Nmax) * (W - 44)} height={rowH - 4} className="nbar" />
           <text x={36 + (Math.min(m.N, Nmax) / Nmax) * (W - 44)} y={top + i * rowH + rowH - 4} className="nval">{m.N}</text>
         </g>
@@ -521,9 +497,9 @@ function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: SupportDes
   return (
     <div className="fdetail">
       <h3>{ds.load.label} · {PILE_LABEL[s.type]} · Ø{Math.round(s.D * 100)} cm · {s.n} estaca{s.n > 1 ? 's' : ''} · L = {s.L} m</h3>
-      <div className="row wrap" style={{ marginBottom: 8, alignItems: 'center' }}>
-        {isAdopted ? <span className="pill ok">adotada para o bloco e o memorial</span> : <button type="button" className="btn" onClick={() => setLoad(ds.load.id, (l) => { l.pile = { type: s.type, D: Math.round(s.D * 100) }; }, `${ds.load.label}: estaca adotada.`)}>Adotar esta estaca</button>}
-        {ds.load.pile && <button type="button" className="btn ghost" onClick={() => setLoad(ds.load.id, (l) => { delete l.pile; }, `${ds.load.label}: volta à estaca recomendada.`)}>Voltar à recomendada</button>}
+      <div className="row wrap u-mb-8 u-items-center">
+        {isAdopted ? <Pill tone="ok">adotada para o bloco e o memorial</Pill> : <Button onClick={() => setLoad(ds.load.id, (l) => { l.pile = { type: s.type, D: Math.round(s.D * 100) }; }, `${ds.load.label}: estaca adotada.`)}>Adotar esta estaca</Button>}
+        {ds.load.pile && <Button variant="ghost" onClick={() => setLoad(ds.load.id, (l) => { delete l.pile; }, `${ds.load.label}: volta à estaca recomendada.`)}>Voltar à recomendada</Button>}
         <span className="muted">Furo {ds.boring.name}</span>
       </div>
       <div className="fgrid">
@@ -575,7 +551,7 @@ function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: SupportDes
               <Hint>★ sugerida: menor área de aço com φ ≥ 10 mm. A lista para na primeira bitola que resolve com o mínimo de 3 barras; bitolas maiores só acrescentariam aço.</Hint>
             </>
           )}
-          {st.messages.map((m, i) => <div className="note" key={i}>{m}</div>)}
+          {st.messages.map((m, i) => <Note key={i}>{m}</Note>)}
           <h4>Capacidade × profundidade</h4>
           <CapChart curve={curve} s={s} />
         </div>
