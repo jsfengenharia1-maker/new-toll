@@ -743,21 +743,21 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <div className="card">
             <h3>Vigas</h3>
             <table className="data quadro">
-              <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Flecha / lim. (mm)</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Td (kN·m)</th><th>δ</th><th>wk inf / sup / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.vigas).map((x) => (
                 <tr key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.viga])}>
-                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className="num">{fmt(x.T, 1)}</td><td className="num">{x.delta < 1 ? fmt(x.delta, 2) : '—'}</td><td className={`num ${Math.max(x.wk[0], x.wk[1]) > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk[0], 2)} / {fmt(x.wk[1], 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
-            <Hint>Flecha total por vão entre pilares (quase permanente, Branson por seção, × (1 + αf)); em balanço, o limite é 2ℓ/…. A flecha da carga variável (ℓ/350) é verificada e aparece nas mensagens da linha.</Hint>
+            <Hint>Td = torção de cálculo máxima (A90/s somada ao cortante nos estribos; Asl nas mensagens); δ = redistribuição aplicada aos negativos (— sem redistribuição); wk = abertura de fissuras na combinação frequente (face inferior / superior), limite pela CAA ou o das opções. Flecha total por vão entre pilares (quase permanente, Branson por seção, × (1 + αf)); em balanço, o limite é 2ℓ/…. A flecha da carga variável (ℓ/350) é verificada e aparece nas mensagens da linha.</Hint>
           </div>
           <div className="card">
             <h3>Pilares (por lance)</h3>
             <table className="data quadro">
-              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>ℓe b / h (m)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Uso</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>ℓe b / h (m)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Vd (kN)</th><th>Uso</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.pilares).map((x) => (
                 <tr key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.pilar])}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.Vd === undefined ? '—' : fmt(x.Vd, 1)}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
             <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes.</Hint>
@@ -765,10 +765,10 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (ids: string[]) => voi
           <div className="card">
             <h3>Lajes</h3>
             <table className="data quadro">
-              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Laje</th><th>Pavimento</th><th>Tipo</th><th>md+ (kN·m/m)</th><th>md− (kN·m/m)</th><th>As+ (cm²/m)</th><th>As− (cm²/m)</th><th>wk / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.lajes).map((x) => (
                 <tr key={`${x.laje}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} onClick={() => onIr([x.laje])}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={`num ${x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : ''}`}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}</td><td className="num">{fmt(x.mPos[0], 1)} / {fmt(x.mPos[1], 1)}</td><td className="num">{fmt(x.mNeg[0], 1)} / {fmt(x.mNeg[1], 1)}</td><td className="num">{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td className="num">{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={`num ${x.wk > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk, 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={`num ${x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : ''}`}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST_TXT[x.status]}</td>
                 </tr>))}</tbody>
             </table>
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>

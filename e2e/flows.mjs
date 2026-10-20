@@ -436,7 +436,7 @@ export const flows = [
       assert.match(await card('Pilares (por lance)').textContent(), /\d+ φ\d/);
       assert.match(await card(/^Vigas$/).locator('thead').textContent(), /Flecha \/ lim\. \(mm\)/);
       assert.match(await card(/^Lajes$/).locator('thead').textContent(), /Flecha Q \/ lim\. \(mm\)/);
-      assert.match(await card(/^Vigas$/).locator('tbody tr').first().locator('td').nth(9).textContent(), /^\d+,\d \/ \d+,\d$/);
+      assert.match(await card(/^Vigas$/).locator('tbody tr').first().locator('td').nth(12).textContent(), /^\d+,\d \/ \d+,\d$/);
       assert.match(await page.locator('.edif-out').textContent(), /Vigas 4\/4 ok/);
       // clicar numa viga seleciona o elemento na planta
       await card(/^Vigas$/).locator('tbody tr').first().click();
@@ -644,6 +644,39 @@ export const flows = [
       const txt = await memo.textContent();
       assert.match(txt, /coeficiente por sentido: −X 0,50/);
       assert.match(txt, /platibanda 1,00 m/);
+    },
+  },
+  {
+    name: 'N1e: redistribuição e limite de fissura nas opções, colunas Td/wk e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      const red = page.getByLabel('Redistribuição de negativos das vigas');
+      await red.fill('15');
+      await red.press('Enter');
+      const fis = page.getByLabel('Abertura de fissuras máxima');
+      await fis.fill('0,2');
+      await fis.press('Enter');
+      await page.locator('summary', { hasText: 'Opções de cálculo (2 alteradas)' }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const card = (t) => page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: t }) });
+      const cab = await card(/^Vigas$/).locator('thead').textContent();
+      assert.match(cab, /Td \(kN·m\)/);
+      assert.match(cab, /wk inf \/ sup \/ lim\./);
+      assert.match(await card('Pilares (por lance)').locator('thead').textContent(), /Vd \(kN\)/);
+      assert.match(await card(/^Lajes$/).locator('thead').textContent(), /wk \/ lim\./);
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const txt = await memo.textContent();
+      assert.match(txt, /Redistribuição \(NBR 6118, 14\.6\.4\.3\): 15 %/);
+      assert.match(txt, /limite 0,20 mm \(opção\)/);
     },
   },
 ];
