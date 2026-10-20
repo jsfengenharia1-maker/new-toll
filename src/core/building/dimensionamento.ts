@@ -16,7 +16,8 @@ import { detalharLajes, resumoAcoLajes, type DetalheLaje } from './detalhamentoL
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
 import { casosDaObra, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
-import { calcularFundacoes, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
+import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
+import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 export { TAXAS };
@@ -934,7 +935,15 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Aço das vigotas (adicionais, negativos e distribuição da capa) por bitola e treliças por tipo (m, kg). */
   resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas>;
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
-  fundacoes?: ResultadoFundacao[] }
+  fundacoes?: ResultadoFundacao[];
+  /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
+  vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[] }
+
+/** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
+export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao'> {
+  const f = calcularFundacaoEdificio(b, an, o);
+  return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}) };
+}
 
 /**
  * Dimensiona a estrutura e, se houver fundações lançadas e `fundacao` não for false ("calcular com fundação"), as fundações.
@@ -952,6 +961,6 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
-  if (o.fundacao !== false && b.fundacao?.elementos.length) d.fundacoes = calcularFundacoes(b, an, o.fundacao || {});
+  if (o.fundacao !== false && b.fundacao?.elementos.length) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
   return d;
 }

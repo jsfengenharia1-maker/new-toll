@@ -16,6 +16,7 @@ import { DetalheDoPilar } from './DetalhamentoPilar';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
 import { JanelaFundacao } from './Fundacao';
+import { JanelaVigaFundacao } from './VigaFundacao';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -334,11 +335,13 @@ export function JanelaElemento() {
   const j = usePlanta((s) => s.janela), dim = useBuilding((s) => s.dim), b = useBuilding((s) => s.sessao.modelo);
   if (!j) return null;
   const fechar = () => usePlanta.getState().set({ janela: null });
-  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'fundacao' ? b.fundacao?.elementos ?? [] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
+  // viga de fundação (FU2) usa o tipo 'fundacao', distinguida pelo id
+  const ehVF = j.tipo === 'fundacao' && !!b.fundacao?.vigas?.some((x) => x.id === j.id);
+  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'fundacao' ? [...(b.fundacao?.elementos ?? []), ...(b.fundacao?.vigas ?? [])] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
   return (
-    <Modal titulo={`Resultados do elemento — ${TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
+    <Modal titulo={`Resultados do elemento — ${ehVF ? 'Viga de fundação' : TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
       {!dim ? <p className="muted">Calcule o dimensionamento para ver os resultados do elemento.</p>
-        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? <JanelaFundacao id={j.id} /> : <JanelaLaje id={j.id} />}
+        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
     </Modal>
   );
 }

@@ -35,6 +35,10 @@ function base() {
   expect(s.executar('sondagem.criar', { nome: 'SP-01', x: 0, y: 0, nivelAgua: 6, leituras: [5, 8, 10, 12, 15, 18, 20, 25].map((N) => ({ N, solo: 'areia' })) }).ok).toBe(true);
   expect(s.executar('fundacao.terreno', { sigmaAdm: 250, estacas: [{ tipo: 'helice', D: 40, modo: 'informada', capacidade: 600 }] }).ok).toBe(true);
   expect(s.executar('fundacao.criar', { pilar: s.modelo.pilares[0].id, tipo: 'sapata', posicao: 'divisa', lado: [-1, 0] }).ok).toBe(true);
+  // FU2: terceiro pilar e duas vigas de fundação (equilíbrio do elemento de P1 até P2; travamento P2–P3)
+  expect(s.executar('pilar.inserir', { x: 0, y: 6, secao: { tipo: 'ret', b: 0.2, h: 0.2 } }).ok).toBe(true);
+  expect(s.executar('vigaFundacao.criar', { tipo: 'equilibrio', ini: s.modelo.fundacao!.elementos[0].id, fim: s.modelo.pilares[1].id }).ok).toBe(true);
+  expect(s.executar('vigaFundacao.criar', { tipo: 'travamento', ini: s.modelo.pilares[1].id, fim: s.modelo.pilares[2].id, b: 0.2, h: 0.5 }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -116,7 +120,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'fundacao.girar': (b) => ({ ids: [b.fundacao!.elementos[0].id], pontos: [[0, 0], [1, 1]] }),
   'fundacao.remover': (b) => ({ ids: [b.fundacao!.elementos[0].id] }),
   'fundacao.terreno': (b) => ({ sigmaModo: 'sondagem', fatorVento: 1.3, cotaTerreno: 0.5, estacas: [{ id: b.fundacao!.terreno.estacas[0].id, tipo: 'helice', D: 40, modo: 'sondagem' }, { tipo: 'premoldada', D: 33, modo: 'informada', capacidade: 400, s: 0.9 }] }),
-  'fundacao.opcoes': () => ({ valores: { colPhi: 20, ftMethod: 'bielas', tbFck: 20 } }),
+  'fundacao.opcoes': () => ({ valores: { colPhi: 20, ftMethod: 'bielas', tbFck: 20 }, niveis: [-1.5] }),
+  'vigaFundacao.criar': (b) => ({ tipo: 'travamento', ini: b.fundacao!.elementos[0].id, fim: b.pilares[2].id, b: 0.25, h: 0.5, fixa: true, nome: 'VT1' }),
+  'vigaFundacao.editar': (b) => ({ id: b.fundacao!.vigas![0].id, equilibrio: { ini: true, fim: false }, h: 0.6, nome: 'VF9' }),
+  'vigaFundacao.remover': (b) => ({ ids: [b.fundacao!.vigas![1].id] }),
+  'vigaFundacao.igualar': (b) => ({ modelo: b.fundacao!.vigas![0].id, ids: [b.fundacao!.vigas![1].id] }),
   'sondagem.criar': () => ({ nome: 'SP-02', x: 4, y: 3, leituras: [{ N: 3, solo: 'argila' }, { N: 6, solo: 'silteArgiloso', descartada: true }, { N: 9, solo: 'silteArenoso' }], impenetravel: true }),
   'sondagem.editar': (b) => ({ id: b.fundacao!.sondagens[0].id!, nome: 'SP-1A', semAgua: true }),
   'sondagem.remover': (b) => ({ ids: [b.fundacao!.sondagens[0].id!] }),

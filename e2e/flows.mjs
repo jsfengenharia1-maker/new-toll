@@ -1561,4 +1561,121 @@ export const flows = [
       await page.locator('[data-logo=""]').waitFor();
     },
   },
+  {
+    name: 'FU2: sapata de divisa + viga de equilíbrio até um pilar interno — lançada pela planta, cálculo, FUND_EXC_SEM_VIGA some, janela da viga, giro por 2 pontos e cargas do nível',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      // P1 (0;0): sapata de divisa pela face −x; P2 (7;0): sapata centrada
+      await grupo.getByLabel('Posição no pilar').selectOption('divisa');
+      const [x1, y1] = await telaDe(page, -0.07, 0);
+      await page.mouse.click(x1, y1);
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata) lançado sob P1' }).waitFor();
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      const [x2, y2] = await telaDe(page, 7, 0);
+      await page.mouse.click(x2, y2);
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P2' }).waitFor();
+      // as ferramentas de viga de fundação e de giro só existem no nível de fundação
+      assert.equal(await page.getByRole('radio', { name: 'Viga de fundação' }).count(), 1);
+      // viga de equilíbrio: clique em S1 e depois em S2 (ferramenta Viga de fundação, tecla B)
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('b');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'vigaFund');
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'VF1 (equilíbrio) lançada' }).waitFor();
+      const tabV = grupo.locator('table[data-vigas-fundacao-tabela] tbody tr');
+      assert.equal(await tabV.count(), 1);
+      assert.match(await tabV.first().innerText(), /VF1.*equilíbrio.*S1 — S2/s);
+      // um segundo clique igual duplica: a viga entre os mesmos pilares é recusada
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: /Já existe a viga VF1/ }).waitFor();
+      assert.equal(await tabV.count(), 1);
+      // selecionada na planta (clique no meio da viga): editor com tipo, pontas equilibradas, seção e igualar
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 3.5, 0)));
+      const ed = grupo.locator('[data-editor-viga-fundacao]');
+      await ed.waitFor();
+      assert.equal(await ed.getByLabel('Pontas equilibradas').inputValue(), 'auto');
+      assert.equal(await ed.getByRole('button', { name: 'Igualar esta ao modelo' }).isDisabled(), true, 'sem outra viga para igualar');
+
+      // calcular: a divisa passa a ter viga de equilíbrio
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const lista = page.locator('[data-lista-erros]');
+      await lista.getByLabel('Tipo').selectOption('fundacao');
+      assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' }).count(), 0, 'o erro FUND_EXC_SEM_VIGA some com a viga de equilíbrio');
+      const cardV = page.locator('[data-card-vigas-fundacao]');
+      await cardV.waitFor();
+      assert.equal(await cardV.locator('tbody tr').count(), 1);
+      assert.match(await cardV.innerText(), /VF1.*equilíbrio.*S1 — S2/s);
+      // janela da viga pelo duplo clique: ações, detalhe longitudinal e transversal
+      await cardV.locator('tbody tr', { hasText: 'VF1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga de fundação VF1/ });
+      await jan.waitFor();
+      const jt = await jan.innerText();
+      assert.match(jt, /Alívio levado a cada ponta/);
+      assert.match(jt, /Armadura superior/);
+      assert.match(jt, /Estribo/);
+      assert.equal(await jan.locator('svg[data-detalhe-vf]').count(), 1, 'detalhe longitudinal');
+      assert.equal(await jan.locator('svg[data-secao-vf]').count(), 1, 'seção transversal');
+      assert.ok(await jan.locator('[data-diagrama-vf]').count() >= 3, 'diagramas de momento e cortante');
+      assert.ok(await jan.locator('[data-ponta-vf]').count() === 2, 'pilares das pontas');
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // janela do elemento equilibrado: alavanca e alívio
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const cardF = page.locator('[data-card-fundacoes]');
+      await cardF.locator('tbody tr', { hasText: 'S1' }).dblclick();
+      const jan1 = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S1/ });
+      await jan1.waitFor();
+      assert.match(await jan1.innerText(), /Alavanca: carga do pilar/);
+      await jan1.getByRole('button', { name: 'Fechar' }).click();
+      await cardF.locator('tbody tr', { hasText: 'S2' }).dblclick();
+      const jan2 = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S2/ });
+      await jan2.waitFor();
+      assert.match(await jan2.innerText(), /Alívio recebido de vigas de equilíbrio/);
+      await jan2.getByRole('button', { name: 'Fechar' }).click();
+
+      // planta: a viga aparece selecionável e abre a janela pelo duplo clique
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('s');
+      const [mx, my] = await telaDe(page, 3.5, 0);
+      await page.mouse.dblclick(mx, my);
+      await page.getByRole('dialog', { name: /Viga de fundação VF1/ }).waitFor();
+      await page.getByRole('dialog', { name: /Viga de fundação VF1/ }).getByRole('button', { name: 'Fechar' }).click();
+
+      // giro por dois pontos: S2 selecionada gira para a direção de (2;1) a (2;3) = 90°
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 7.3, 0.3)));
+      await page.keyboard.press('k');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'girarFund');
+      await page.mouse.click(...(await telaDe(page, 2, 1)));
+      await page.mouse.click(...(await telaDe(page, 2, 3)));
+      await page.locator('.statusbar .msg', { hasText: /girado/ }).waitFor();
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'selecionar');
+
+      // cargas no nível de fundação: parede sobre a viga (linha, grupo "fundação")
+      await grupo.locator('[data-cargas-fundacao]').getByLabel('Tipo').selectOption('linha');
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('c');
+      await page.mouse.click(...(await telaDe(page, 2, 0)));
+      await page.mouse.click(...(await telaDe(page, 5, 0)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /Carga linear de/ }).waitFor();
+      assert.match(await grupo.locator('[data-cargas-fundacao]').innerText(), /Cargas no nível de fundação \(1\)/);
+    },
+  },
 ];

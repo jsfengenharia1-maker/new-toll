@@ -96,6 +96,18 @@ export interface OpcoesCalculo {
   categoriasUso: number;
   /** Fundações: 0 = dimensionar tudo; 1 = só verificar as dimensões impostas (ou as do cálculo anterior); 2 = redimensionar só os elementos com erro. */
   fundModo: number;
+  /** Vigas de equilíbrio: parcela do alívio considerada no elemento aliviado (%). */
+  vigaEqAlivio: number;
+  /** Vigas de equilíbrio: distribuição das tensões sob o elemento equilibrado (0 = retangular, equilíbrio total; 1 = trapezoidal, resultante até o limite do núcleo central). */
+  vigaEqDistribuicao: number;
+  /** Vigas de travamento: excentricidade de execução das estacas dos blocos de 1 e 2 estacas (cm). */
+  vigaTravExc: number;
+  /** Vigas de fundação: largura mínima (cm). */
+  vigaFundBMin: number;
+  /** Vigas de fundação: altura mínima (cm). */
+  vigaFundHMin: number;
+  /** Vigas de fundação: estribos prolongados até as esperas dos pilares (1) ou só entre as faces (0). */
+  vigaFundEstribosEsperas: number;
 }
 
 export interface OpcaoInfo {
@@ -220,6 +232,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'fundModo', rotulo: 'Fundações: modo (0 dimensionar, 1 só verificar, 2 só os com erro)', min: 0, max: 2, passo: 1, padrao: 0, fonte: 'Três modos de dimensionamento do programa de referência (padrão: dimensionar tudo)', aConfirmar: false,
     descricao: 'Dimensionar tudo; só verificar as dimensões impostas (sapatas; sem imposição, as do cálculo anterior); ou manter os elementos que atendiam no cálculo anterior e redimensionar só os com erro.' },
+  { chave: 'vigaEqAlivio', rotulo: 'Vigas de equilíbrio: alívio considerado', unidade: '%', min: 0, max: 100, passo: 5, padrao: 50, fonte: 'NBR 6122:2019 (só metade do alívio da viga de equilíbrio pode ser considerada no elemento aliviado; item a confirmar)', aConfirmar: true,
+    descricao: 'O elemento da ponta oposta à equilibrada é dimensionado com Nk − esta parcela do alívio ΔN = R − N. A tração no elemento aliviado é verificada com o alívio total e a carga mínima (erro).' },
+  { chave: 'vigaEqDistribuicao', rotulo: 'Vigas de equilíbrio: tensões sob o elemento (0 retangular, 1 trapezoidal)', min: 0, max: 1, passo: 1, padrao: 0, fonte: 'Opção do programa de referência (padrão: distribuição retangular, equilíbrio total)', aConfirmar: false,
+    descricao: 'Retangular: a viga leva a resultante ao centro do elemento (pressão uniforme). Trapezoidal: a viga equilibra só a excentricidade além do núcleo central (A/6) e o resto fica como momento no elemento.' },
+  { chave: 'vigaTravExc', rotulo: 'Vigas de travamento: excentricidade de execução', unidade: 'cm', min: 0, max: 30, passo: 1, padrao: 10, fonte: 'Critério usual de projeto (desvio de locação da estaca); valor sem fonte normativa aberta', aConfirmar: true,
+    descricao: 'Nos blocos de 1 e 2 estacas, a viga de travamento recebe o momento Nk × esta excentricidade (repartido entre as vigas que travam o bloco na mesma direção), nas duas faces.' },
+  { chave: 'vigaFundBMin', rotulo: 'Vigas de fundação: largura mínima', unidade: 'cm', min: 12, max: 60, passo: 1, padrao: 20, fonte: 'Prática usual; sem fonte normativa aberta', aConfirmar: true,
+    descricao: 'Largura mínima das vigas de equilíbrio e de travamento. Seção imposta menor: aviso.' },
+  { chave: 'vigaFundHMin', rotulo: 'Vigas de fundação: altura mínima', unidade: 'cm', min: 20, max: 150, passo: 5, padrao: 40, fonte: 'Prática usual; sem fonte normativa aberta', aConfirmar: true,
+    descricao: 'Altura mínima das vigas de equilíbrio e de travamento. Sem seção imposta, a altura cresce em passos de 5 cm (até 1,60 m) e depois a largura, até atender.' },
+  { chave: 'vigaFundEstribosEsperas', rotulo: 'Vigas de fundação: estribos até as esperas dos pilares', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Opção do programa de referência (prolongar os estribos até as esperas dos pilares); padrão ligado a confirmar', aConfirmar: true,
+    descricao: 'Ligada: estribos ao longo de toda a viga, de eixo a eixo dos pilares. Desligada: só entre as faces dos pilares.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

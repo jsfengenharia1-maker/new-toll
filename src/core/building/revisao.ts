@@ -61,6 +61,16 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_PILAR', nivel: 'erro', re: /^Fundação (sem pilar|sob pilar que não nasce)/, descricao: 'Fundação sem pilar válido' },
   { codigo: 'FUND_COTA', nivel: 'erro', re: /^Fundação acima do terreno/, descricao: 'Cota de assentamento acima do terreno' },
   { codigo: 'FUND_PILAR_SEM_ELEMENTO', nivel: 'aviso', re: /^Pilar sem elemento de fundação/, descricao: 'Pilar que nasce na fundação sem elemento lançado' },
+  // vigas de equilíbrio e de travamento (FU2)
+  { codigo: 'FUND_SEM_TRAVA', nivel: 'aviso', re: /^Bloco sem travamento/, descricao: 'Bloco de 1 ou 2 estacas sem viga de travamento obrigatória' },
+  { codigo: 'FUND_VIGA_PONTA', nivel: 'erro', re: /^Viga de fundação sem ponta/, descricao: 'Viga de fundação sem ponta válida (elemento ou pilar que nasce na fundação)' },
+  { codigo: 'FUND_VIGA_ALAVANCA', nivel: 'erro', re: /^Viga de fundação: alavanca impossível/, descricao: 'Alavanca impossível: excentricidade grande para o comprimento da viga' },
+  { codigo: 'FUND_VIGA_TRACAO', nivel: 'erro', re: /^Viga de fundação: tração no elemento aliviado/, descricao: 'Alívio da viga de equilíbrio maior que a carga mínima do elemento aliviado' },
+  { codigo: 'FUND_VIGA_FLEXAO', nivel: 'erro', re: /^Viga de fundação: flexão/, descricao: 'Viga de fundação: flexão não atende na seção' },
+  { codigo: 'FUND_VIGA_CORTANTE', nivel: 'erro', re: /^Viga de fundação: (biela|cortante)/, descricao: 'Viga de fundação: cortante não atende' },
+  { codigo: 'FUND_VIGA_SECAO', nivel: 'aviso', re: /^Viga de fundação: seção abaixo do mínimo/, descricao: 'Viga de fundação com seção abaixo da mínima' },
+  { codigo: 'FUND_VIGA_SEM_EXC', nivel: 'aviso', re: /^Viga de fundação: viga de equilíbrio sem ponta excêntrica/, descricao: 'Viga de equilíbrio sem elemento excêntrico (calculada como travamento)' },
+  { codigo: 'FUND_CARGA_FORA', nivel: 'aviso', re: /^Carga no nível de fundação fora/, descricao: 'Carga do nível de fundação fora das vigas e elementos (ignorada)' },
   // avisos da análise (obra)
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },
@@ -84,6 +94,8 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
+  for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
+  for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento
   if (dim?.fundacoes && b.fundacao?.elementos.length) for (const p of b.pilares)
     if (p.nasce === 'fundacao' && !b.fundacao.elementos.some((e) => e.pilares.includes(p.id))) add('pilar', p.id, p.nome, undefined, ['Pilar sem elemento de fundação lançado.']);

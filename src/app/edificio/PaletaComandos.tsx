@@ -34,7 +34,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
   const out: ItemPaleta[] = [];
   for (const f of Object.keys(ROTULO_FERRAMENTA) as Ferramenta[]) {
     if (f === 'alinhar' && !b.mascaras.length) continue;
-    out.push({ id: `f:${f}`, tipo: 'Ferramenta', rotulo: ROTULO_FERRAMENTA[f], detalhe: TECLA_FERRAMENTA[f] ? `tecla ${TECLA_FERRAMENTA[f]}` : undefined, repetivel: true, executar: () => naPlanta({ ferramenta: f, ...(f === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set<string>() } : {}) }) });
+    out.push({ id: `f:${f}`, tipo: 'Ferramenta', rotulo: ROTULO_FERRAMENTA[f], detalhe: TECLA_FERRAMENTA[f] ? `tecla ${TECLA_FERRAMENTA[f]}` : undefined, repetivel: true, executar: () => naPlanta({ ferramenta: f, ...(f === 'fundacao' || f === 'vigaFund' ? { pavimento: 'fundacao', selecao: new Set<string>() } : f === 'girarFund' ? { pavimento: 'fundacao' } : {}) }) });
   }
   out.push(
     { id: 'a:calcular', tipo: 'Ação', rotulo: 'Calcular e dimensionar', repetivel: true, executar: ctx.calcular },

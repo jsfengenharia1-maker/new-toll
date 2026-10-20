@@ -109,7 +109,7 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
     for (const l of ls) if (l.tipo.tipo === 'trelicada' && !ehPano(l, panos))
       d.push({ codigo: 'TRELICADA_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é treliçada e não está fechada por vigas (balanço ou contorno livre não é permitido).` });
   }
-  for (const c of b.cargas) if (!b.grupos.some((g) => g.id === c.grupo)) d.push({ codigo: 'CARGA_SEM_GRUPO', severidade: 'erro', elementos: [c.id], mensagem: 'Carga em grupo inexistente.' });
+  for (const c of b.cargas) if (c.grupo !== 'fundacao' && !b.grupos.some((g) => g.id === c.grupo)) d.push({ codigo: 'CARGA_SEM_GRUPO', severidade: 'erro', elementos: [c.id], mensagem: 'Carga em grupo inexistente.' });
   return d;
 }
 

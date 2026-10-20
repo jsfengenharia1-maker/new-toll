@@ -12,7 +12,7 @@ import { casosDaObra, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPi
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, download, Group, Hint, NumField, Select, TextCell, TextField } from '../ui';
+import { Button, Check, download, Group, Hint, Note, NumField, Select, TextCell, TextField } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -280,7 +280,7 @@ export function NomeObra() {
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
-const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'mover', 'medir']);
+const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'mover', 'medir']);
 /** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
 const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
@@ -292,9 +292,10 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const dim = useBuilding((s) => s.dim);
   const { exec, calcularFundacao, calculandoFund } = useBuilding();
   const elementosSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
+  const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
   const alvo = ((): Alvo | null => {
     for (const id of pl.selecao) {
-      if (b.fundacao?.elementos.some((x) => x.id === id)) return { tipo: 'fundacao', id };
+      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
       if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
       if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
       if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
@@ -304,13 +305,13 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
-        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : pl.ferramenta === 'fundacao' ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
+        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : pl.ferramenta === 'fundacao' || pl.ferramenta === 'vigaFund' || pl.ferramenta === 'girarFund' ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
           <option value="fundacao">Fundação ({fmt(cotaFundacao(b))})</option>
         </select>
       </label>
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
-        {FERRAMENTAS.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...(t.f === 'fundacao' ? { pavimento: 'fundacao', selecao: new Set() } : {}) })}>{t.rot}</button>)}
+        {FERRAMENTAS.filter((t) => nivelFund || (t.f !== 'vigaFund' && t.f !== 'girarFund')).map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...(t.f === 'fundacao' || t.f === 'vigaFund' ? { pavimento: 'fundacao', selecao: new Set() } : {}) })}>{t.rot}</button>)}
       </div>
       <div className="seg small" role="radiogroup" aria-label="Edição">
         {EDICAO.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
@@ -330,7 +331,10 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
         <Button disabled={!elementosSel.length} title="Gira os elementos selecionados em 90° (R)" onClick={() => exec('lote', { comandos: elementosSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })}>Girar 90°</Button>
         <Button disabled={!elementosSel.length} title="Gira os elementos selecionados para o ângulo do pilar" onClick={() => exec('fundacao.girar', { ids: elementosSel.map((e) => e.id), doPilar: true })}>Ao pilar</Button>
-        <Button variant="danger" disabled={!elementosSel.length} title="Remove os elementos selecionados (Del)" onClick={() => { exec('fundacao.remover', { ids: elementosSel.map((e) => e.id) }); pl.set({ selecao: new Set() }); }}>Remover</Button>
+        <Button variant="danger" disabled={!elementosSel.length && !vigasFundSel.length} title="Remove os elementos e as vigas de fundação selecionados (Del)" onClick={() => {
+          const cmds = [...(vigasFundSel.length ? [{ nome: 'vigaFundacao.remover', params: { ids: vigasFundSel.map((v) => v.id) } }] : []), ...(elementosSel.length ? [{ nome: 'fundacao.remover', params: { ids: elementosSel.map((e) => e.id) } }] : [])];
+          exec('lote', { comandos: cmds }); pl.set({ selecao: new Set() });
+        }}>Remover</Button>
       </>)}
       <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
       <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
@@ -643,6 +647,7 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
         <NumField label="Valor" unit={unid} width={110} value={pl.valorCarga} onChange={(v) => pl.set({ valorCarga: v })} />
       </div>
       <div className="row"><Button variant={pl.ferramenta === 'carga' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'carga' })}>Lançar cargas (C)</Button></div>
+      {pl.pavimento === 'fundacao' && <Hint>Planta de fundação aberta: as cargas lançadas vão para o grupo “fundação” (sobre as vigas e os elementos de fundação; ver o grupo Fundação).</Hint>}
       <div className="masc">
         <b>Alvenaria a partir da máscara</b>
         {camadas.length ? (
@@ -844,6 +849,22 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
                   </LinhaElemento>))}</tbody>
               </table>
               <Hint>Fundações calculadas pelo módulo Fundações com as reações da análise (raras para o solo, ELU para o elemento). Duplo clique abre os desenhos e as verificações.</Hint>
+            </div>
+          )}
+          {!!dim.vigasFundacao?.length && (
+            <div className="card" data-card-vigas-fundacao>
+              <h3>Vigas de fundação</h3>
+              <table className="data quadro">
+                <thead><tr><th>Viga</th><th>Tipo</th><th>Pontas</th><th>Seção (cm)</th><th>Alívio (kN)</th><th>Md sup. / inf. (kN·m)</th><th>Vd (kN)</th><th>Situação</th></tr></thead>
+                <tbody>{filtro(dim.vigasFundacao).map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('fundacao', x.id)} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
+                    <td className="tl">{x.nome}</td><td className="tl">{x.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}</td><td className="tl">{x.ini} — {x.fim}</td>
+                    <td className="num">{Math.round(x.bAdot * 100)}×{Math.round(x.hAdot * 100)}</td><td className="num">{fmt(x.alivio.ini + x.alivio.fim, 1)}</td>
+                    <td className="num">{fmt(x.Md.sup, 1)} / {fmt(x.Md.inf, 1)}</td><td className="num">{fmt(x.Vd, 1)}</td><td>{x.status === 'ok' ? 'ok' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              {dim.avisosFundacao?.map((m, i) => <Note key={i}>{m}</Note>)}
+              <Hint>Vigas de equilíbrio (alavanca) e de travamento entre elementos do nível de fundação. Duplo clique abre o detalhe longitudinal e transversal.</Hint>
             </div>
           )}
           <div className="card">
