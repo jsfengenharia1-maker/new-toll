@@ -19,7 +19,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 
 | Ordem | Lane 1 — Fundações e elementos | Lane 2 — Detalhamento e produtividade | Lane 3 — Normas e visualização | Lane D — Specs (só docs) |
 |---|---|---|---|---|
-| Onda 1 | FU2 (em andamento) → FU3 → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
+| Onda 1 | FU2 (concluída) → FU3 → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3 | L (fatias da spec) | V (fatias da spec) | auditoria N |
@@ -44,7 +44,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 
 | Fatia | Núcleo | Interface |
 |---|---|---|
-| FU2 | (feito, O) | S2 |
+| FU2 | (feito, O) | (feito, S2) |
 | FU3 associadas e blocos com vários pilares | S3 | S2 |
 | FU4 geração automática | S2 | S1 |
 | FU5 pranchas e memorial | S2 | S1 |
@@ -100,4 +100,5 @@ Estimativa: ~8 agentes Opus (7 %), ~92 Sonnet, ~10 Haiku.
 ## Andamento
 
 - 20/10/2026: plano criado; FU1 concluída; FU2 (núcleo) em andamento.
+- 20/10/2026: FU2 concluída (núcleo e interface): vigas de equilíbrio e de travamento lançadas na planta de fundação, editor, janela com detalhe longitudinal e transversal, alavanca e alívio na janela do elemento, cargas do nível de fundação, níveis calculados e giro por dois pontos; e2e `FU2`. Pendências de interface da FU1 também fechadas (giro por dois pontos e níveis). Seguem FU3 (núcleo em paralelo) e FU4.
 - 20/10/2026: specs da lane D escritas: `spec-frente-N2.md` (N2a–N2g, 119 itens), `spec-frente-E1.md` (E1a–E1e, 80 itens) e `spec-frente-E2.md` (E2a–E2e, 61 itens); fatia marcada na nota de cada item dos checklists (a frente segue "N"/"E": o teste só aceita a letra). Os 228 itens E restantes ficam para as specs E3 e E4. Ordem: N2a–N2c na onda 2 (a E1 depende delas), E1 na onda 3, E2 na onda 4.

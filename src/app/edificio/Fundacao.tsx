@@ -1,14 +1,14 @@
 // Fundações do edifício (frente FU1, interface): grupo "Fundação" da aba Edifício (terreno, estacas, sondagens, parâmetros,
 // lançamento e edição do elemento selecionado), janela do elemento (desenhos do módulo Fundações) e o aviso da aba Fundações.
 // Toda alteração é comando do registro (`fundacao.*`, `sondagem.*`); o cálculo roda no worker, sem refazer a análise.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBuilding, fundacaoAtual, calculoAtual } from './store';
 import { usePlanta } from './plantaStore';
 import { classificar } from '../../core/building/revisao';
 import { CargasNoPilar } from './Vinculos';
 import { SondagemEditor } from '../SondagemEditor';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
-import { Button, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select } from '../ui';
+import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
 import { useStore } from '../store';
 import { PARAMS_FUNDACAO } from '../../core/commands';
 import { PILE_LABEL, type Boring, type FoundationData, type PileType } from '../../core/piles';
@@ -17,7 +17,8 @@ import { isCaisson } from '../../core/caissons';
 import {
   POSICAO_LABEL, TIPO_FUNDACAO_LABEL, cotaElemento, cotaTerreno, ladoDoAjuste, niveisFundacao, parametrosElemento, parametrosFundacao, secaoBase, type ResultadoFundacao,
 } from '../../core/building/fundacao';
-import { FUNDACAO_VAZIA, cotaFundacao, dimsSecao, ehArranque, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type PosicaoFundacao, type TipoFundacao } from '../../core/building/types';
+import { FUNDACAO_VAZIA, casosDaObra, cotaFundacao, dimsSecao, ehArranque, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type PosicaoFundacao, type TipoFundacao, type TipoVigaFundacao, type VigaFundacao } from '../../core/building/types';
+import type { ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -172,6 +173,8 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
       </div>
       <Hint>Na planta de fundação, escolha a ferramenta Fundação e clique no pilar: em “automática” o ponto do clique define a posição (perto do centro: centrada; perto de uma face: de divisa; perto de um canto: de canto) e, em divisa e canto, a face ou o canto (nos eixos do pilar). Posição livre: clique no pilar e depois no centro do elemento. Arranque: marque “Arranque” na ferramenta Pilar; ele só aparece na planta de fundação.</Hint>
 
+      <NiveisCalculados b={b} />
+
       {fe.elementos.length > 0 && (
         <div className="tablewrap">
           <table className="data loads-ed quadro" data-fundacoes>
@@ -194,7 +197,10 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
         </div>
       )}
 
-      {sel && <ElementoEditor b={b} el={sel} r={resultados.find((x) => x.id === sel.id)} />}
+      {sel && <ElementoEditor b={b} el={sel} r={resultados.find((x) => x.id === sel.id)} onPlanta={onPlanta} />}
+
+      <VigasFundacaoBloco b={b} onPlanta={onPlanta} />
+      <CargasNoNivel b={b} onPlanta={onPlanta} />
 
       {(() => {
         const ar = arranques.find((p) => pl.selecao.has(p.id));
@@ -228,7 +234,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
 
 // ---------------------------------------------------------------- edição do elemento selecionado
 
-function ElementoEditor({ b, el, r }: { b: BuildingModel; el: ElementoFundacao; r?: ResultadoFundacao }) {
+function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: ElementoFundacao; r?: ResultadoFundacao; onPlanta: () => void }) {
   const { exec } = useBuilding();
   const fe = b.fundacao!;
   const pil = b.pilares.find((p) => p.id === el.pilares[0]);
@@ -265,6 +271,7 @@ function ElementoEditor({ b, el, r }: { b: BuildingModel; el: ElementoFundacao; 
         <NumField label="Ângulo" unit="°" width={90} value={el.angulo} onChange={(v) => exec('fundacao.editar', { id: el.id, angulo: v })} />
         <Button onClick={() => exec('fundacao.girar', { ids: [el.id], angulo: el.angulo + 90 })}>Girar 90°</Button>
         <Button onClick={() => exec('fundacao.girar', { ids: [el.id], doPilar: true })}>Ângulo do pilar</Button>
+        <Button title="Na planta, clique dois pontos: o elemento gira para a direção deles (G)" onClick={() => { usePlanta.getState().set({ pavimento: 'fundacao', ferramenta: 'girarFund', selecao: new Set([el.id]) }); onPlanta(); }}>Girar por 2 pontos</Button>
       </div>
       <div className="row wrap u-items-end">
         <OptNumField label={`Cota de assentamento (vazio = ${fmt(cotaFundacao(b))} m)`} unit="m" width={200} value={el.cota} onChange={(v) => exec('fundacao.editar', v === undefined ? { id: el.id, limpar: ['cota'] } : { id: el.id, cota: v })} />
@@ -292,6 +299,171 @@ function ElementoEditor({ b, el, r }: { b: BuildingModel; el: ElementoFundacao; 
         <Button disabled={!r} onClick={() => abrirJanelaFundacao(el.id)}>Resultados do elemento</Button>
         <Button variant="danger" onClick={() => exec('fundacao.remover', { ids: [el.id] })}>Remover</Button>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- níveis calculados (FU2)
+
+/** Escolha dos níveis de fundação (cotas de assentamento) calculados; os não marcados mantêm o resultado anterior. */
+function NiveisCalculados({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const niveis = niveisFundacao(b);
+  if (niveis.length < 2) return null;
+  const ativos = b.fundacao?.niveis?.length ? b.fundacao.niveis : niveis;
+  const marcado = (z: number) => ativos.some((a) => Math.abs(a - z) < 1e-6);
+  const alternar = (z: number, on: boolean) => {
+    const novos = on ? [...ativos.filter((a) => Math.abs(a - z) > 1e-6), z] : ativos.filter((a) => Math.abs(a - z) > 1e-6);
+    if (!novos.length) { useStore.getState().set({ message: 'Deixe ao menos um nível calculado.' }); return; }
+    exec('fundacao.opcoes', { niveis: novos.length >= niveis.length ? [] : novos });
+  };
+  return (
+    <div data-niveis-fundacao>
+      <p className="small"><b>Níveis de fundação calculados</b></p>
+      <div className="row wrap">{niveis.map((z) => <Check key={z} label={`${fmt(z)} m`} checked={marcado(z)} onChange={(v) => alternar(z, v)} />)}</div>
+      <Hint>Só os elementos dos níveis marcados são recalculados; os demais mantêm o resultado do cálculo anterior (marcados como “mantido”). Útil para refazer só um nível depois de alterá-lo.</Hint>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- vigas de fundação (FU2)
+
+const TIPOS_VF: { v: TipoVigaFundacao; label: string }[] = [{ v: 'equilibrio', label: 'Equilíbrio (alavanca)' }, { v: 'travamento', label: 'Travamento' }];
+type EqOpcao = 'auto' | 'ini' | 'fim' | 'ambas' | 'nenhuma';
+const eqDe = (v: VigaFundacao): EqOpcao => {
+  const e = v.equilibrio;
+  if (!e || e === 'auto') return 'auto';
+  return e.ini && e.fim ? 'ambas' : e.ini ? 'ini' : e.fim ? 'fim' : 'nenhuma';
+};
+const eqParam = (o: EqOpcao) => (o === 'auto' ? 'auto' as const : { ini: o === 'ini' || o === 'ambas', fim: o === 'fim' || o === 'ambas' });
+
+/** Nome de uma ponta (elemento ou pilar). */
+function nomePonta(b: BuildingModel, id: string) {
+  return b.fundacao?.elementos.find((e) => e.id === id)?.nome ?? b.pilares.find((p) => p.id === id)?.nome ?? id;
+}
+
+/** Lançamento, lista e edição das vigas de fundação (equilíbrio e travamento). */
+function VigasFundacaoBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () => void }) {
+  const pl = usePlanta();
+  const dim = useBuilding((s) => s.dim);
+  const vs = b.fundacao?.vigas ?? [];
+  const rs = dim?.vigasFundacao ?? [];
+  const sel = vs.find((v) => pl.selecao.has(v.id));
+  const nSel = vs.filter((v) => pl.selecao.has(v.id)).length;
+  return (
+    <div data-vigas-fundacao>
+      <p className="small"><b>Vigas de fundação ({vs.length})</b></p>
+      <div className="row wrap u-items-end">
+        <Select label="Tipo" value={pl.tipoVigaFund} options={TIPOS_VF} onChange={(v) => pl.set({ tipoVigaFund: v })} />
+        <NumField label="Largura b" unit="cm" width={96} value={+(pl.secaoVigaFund.b * 100).toFixed(2)} onChange={(v) => pl.set({ secaoVigaFund: { ...pl.secaoVigaFund, b: v / 100 } })} />
+        <NumField label="Altura h" unit="cm" width={96} value={+(pl.secaoVigaFund.h * 100).toFixed(2)} onChange={(v) => pl.set({ secaoVigaFund: { ...pl.secaoVigaFund, h: v / 100 } })} />
+      </div>
+      <div className="row wrap">
+        <Button variant={pl.ferramenta === 'vigaFund' ? 'primary' : 'default'} onClick={() => { pl.set({ ferramenta: 'vigaFund', pavimento: 'fundacao', selecao: new Set() }); onPlanta(); }}>Lançar viga de fundação (B)</Button>
+      </div>
+      <Hint>Na planta de fundação, clique no primeiro elemento (ou pilar de arranque) e depois no segundo. A viga não se apoia no solo: leva o peso próprio e as cargas do nível de fundação às pontas. Equilíbrio: centra a sapata ou o bloco excêntrico da ponta equilibrada (em “auto”, a de divisa ou de canto) e alivia a outra; travamento: recebe o momento da excentricidade de execução dos blocos. A seção parte do mínimo e cresce até atender, salvo se fixa.</Hint>
+      {vs.length > 0 && (
+        <div className="tablewrap">
+          <table className="data loads-ed quadro" data-vigas-fundacao-tabela>
+            <thead><tr><th>Viga</th><th>Tipo</th><th>Pontas</th><th>Seção (cm)</th><th>Resultado</th><th /></tr></thead>
+            <tbody>{vs.map((v) => {
+              const r = rs.find((x) => x.id === v.id);
+              return (
+                <tr key={v.id} className={`click ${pl.selecao.has(v.id) ? 'on ' : ''}${r ? cls(r.status) : ''}`} data-viga-fundacao-id={v.id} onClick={() => irParaFundacao(v.id)} onDoubleClick={() => abrirJanelaFundacao(v.id)} title="Clique: ver na planta. Duplo clique: resultados da viga.">
+                  <td className="tl">{v.nome}</td>
+                  <td className="tl">{v.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}</td>
+                  <td className="tl">{r ? `${r.ini} — ${r.fim}` : `${nomePonta(b, v.ini)} — ${nomePonta(b, v.fim)}`}</td>
+                  <td className="num">{r ? `${Math.round(r.bAdot * 100)}×${Math.round(r.hAdot * 100)}` : `${Math.round(v.b * 100)}×${Math.round(v.h * 100)}`}{v.fixa ? ' fixa' : ''}</td>
+                  <td className="tl small">{r ? r.resumo : <span className="muted">não calculada</span>}</td>
+                  <td>{r && <Pill tone={r.status === 'ok' ? 'ok' : 'bad'}>{r.status === 'ok' ? 'ok' : 'erro'}</Pill>}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      )}
+      {sel && <VigaFundacaoEditor b={b} v={sel} r={rs.find((x) => x.id === sel.id)} nSel={nSel} />}
+    </div>
+  );
+}
+
+function VigaFundacaoEditor({ b, v, r, nSel }: { b: BuildingModel; v: VigaFundacao; r?: ResultadoVigaFundacao; nSel: number }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const fe = b.fundacao!;
+  const outras = (fe.vigas ?? []).filter((x) => x.id !== v.id);
+  const [modelo, setModelo] = useState<string>('');
+  const modeloEf = outras.some((x) => x.id === modelo) ? modelo : outras[0]?.id ?? '';
+  const pontas = [
+    ...fe.elementos.map((e) => ({ v: e.id, label: `${e.nome} (${b.pilares.find((p) => p.id === e.pilares[0])?.nome ?? '—'})` })),
+    ...b.pilares.filter((p) => p.nasce === 'fundacao' && !fe.elementos.some((e) => e.pilares.includes(p.id))).map((p) => ({ v: p.id, label: `${p.nome} (sem elemento)` })),
+  ];
+  const ed = (patch: Record<string, unknown>) => exec('vigaFundacao.editar', { id: v.id, ...patch });
+  const outrasSel = (fe.vigas ?? []).filter((x) => pl.selecao.has(x.id) && x.id !== v.id).map((x) => x.id);
+  return (
+    <div className="card" data-editor-viga-fundacao={v.id}>
+      <h4>{v.nome} — {v.tipo === 'equilibrio' ? 'viga de equilíbrio' : 'viga de travamento'}</h4>
+      <div className="row wrap u-items-end">
+        <TextField label="Nome" value={v.nome} onChange={(t) => t.trim() && t.trim() !== v.nome && ed({ nome: t.trim() })} />
+        <Select label="Tipo" value={v.tipo} options={TIPOS_VF} onChange={(t) => ed({ tipo: t })} />
+      </div>
+      <div className="row wrap u-items-end">
+        <Select label="Ponta inicial" value={v.ini} options={pontas.some((o) => o.v === v.ini) ? pontas : [{ v: v.ini, label: v.ini }, ...pontas]} onChange={(t) => ed({ ini: t })} />
+        <Select label="Ponta final" value={v.fim} options={pontas.some((o) => o.v === v.fim) ? pontas : [{ v: v.fim, label: v.fim }, ...pontas]} onChange={(t) => ed({ fim: t })} />
+      </div>
+      {v.tipo === 'equilibrio' && (
+        <div className="row wrap u-items-end">
+          <Select label="Pontas equilibradas" value={eqDe(v)} options={[
+            { v: 'auto', label: 'Automático (a de divisa ou canto)' }, { v: 'ini', label: `Só ${nomePonta(b, v.ini)}` }, { v: 'fim', label: `Só ${nomePonta(b, v.fim)}` },
+            { v: 'ambas', label: 'As duas pontas' }, { v: 'nenhuma', label: 'Nenhuma (calculada como travamento)' }] as { v: EqOpcao; label: string }[]}
+            onChange={(o) => ed({ equilibrio: eqParam(o) })} />
+          {r && <span className="muted small">efetivo: {[r.equilibrio.ini ? r.ini : '', r.equilibrio.fim ? r.fim : ''].filter(Boolean).join(' e ') || 'nenhuma'}</span>}
+        </div>
+      )}
+      <div className="row wrap u-items-end">
+        <NumField label="Largura b" unit="cm" width={96} value={+(v.b * 100).toFixed(2)} onChange={(x) => ed({ b: x / 100 })} />
+        <NumField label="Altura h" unit="cm" width={96} value={+(v.h * 100).toFixed(2)} onChange={(x) => ed({ h: x / 100 })} />
+        <Check label="Seção fixa (só verificada)" checked={!!v.fixa} onChange={(x) => ed({ fixa: x })} />
+        <Button disabled={!r || (r.bAdot === v.b && r.hAdot === v.h && !!v.fixa)} title="Fixa a seção que o cálculo adotou" onClick={() => r && ed({ b: r.bAdot, h: r.hAdot, fixa: true })}>Impor a seção calculada</Button>
+      </div>
+      <div className="row wrap u-items-end">
+        <Select label="Igualar a" value={modeloEf} options={outras.length ? outras.map((x) => ({ v: x.id, label: x.nome })) : [{ v: '', label: '(sem outra viga)' }]} onChange={setModelo} />
+        <Button disabled={!outras.length} title="Copia a seção da viga modelo para esta e a fixa: se não atender, a viga fica com erro" onClick={() => exec('vigaFundacao.igualar', { modelo: modeloEf, ids: [v.id] })}>Igualar esta ao modelo</Button>
+        <Button disabled={!outrasSel.length} title="Copia a seção desta viga para as outras vigas selecionadas na planta" onClick={() => exec('vigaFundacao.igualar', { modelo: v.id, ids: outrasSel })}>Igualar as {outrasSel.length} selecionadas a esta</Button>
+      </div>
+      {nSel > 1 && <Hint>{nSel} vigas selecionadas: use “Igualar as selecionadas a esta” para copiar esta seção às demais (ficam fixas e em vermelho se não atenderem).</Hint>}
+      {r && (<>
+        <p className="small"><b>Verificações</b></p>
+        <Mensagens msgs={r.mensagens} />
+        {r.notas.length > 0 && <details className="small"><summary>Observações do cálculo ({r.notas.length})</summary><ul>{r.notas.map((n, i) => <li key={i}>{n}</li>)}</ul></details>}
+      </>)}
+      <div className="row wrap">
+        <Button disabled={!r} onClick={() => abrirJanelaFundacao(v.id)}>Resultados da viga</Button>
+        <Button variant="danger" onClick={() => { exec('vigaFundacao.remover', { ids: [v.id] }); pl.set({ selecao: new Set() }); }}>Remover</Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- cargas no nível de fundação (FU2)
+
+/** Cargas sobre as vigas e os elementos de fundação (grupo "fundacao"): a ferramenta Carga na planta de fundação. */
+function CargasNoNivel({ b, onPlanta }: { b: BuildingModel; onPlanta: () => void }) {
+  const pl = usePlanta();
+  const n = b.cargas.filter((c) => c.grupo === 'fundacao').length;
+  const unid = pl.tipoCarga === 'ponto' ? 'kN' : pl.tipoCarga === 'linha' ? 'kN/m' : 'kN/m²';
+  return (
+    <div data-cargas-fundacao>
+      <p className="small"><b>Cargas no nível de fundação ({n})</b></p>
+      <div className="row wrap u-items-end">
+        <Select label="Tipo" value={pl.tipoCarga} options={[{ v: 'ponto', label: 'Ponto' }, { v: 'linha', label: 'Linha' }, { v: 'area', label: 'Área' }] as { v: 'ponto' | 'linha' | 'area'; label: string }[]} onChange={(v) => pl.set({ tipoCarga: v })} />
+        <Select label="Caso" value={pl.caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : `${c.nome} (${c.natureza})` }))} onChange={(v) => pl.set({ caso: v })} />
+        <NumField label="Valor" unit={unid} width={110} value={pl.valorCarga} onChange={(v) => pl.set({ valorCarga: v })} />
+      </div>
+      <div className="row wrap">
+        <Button variant={pl.ferramenta === 'carga' && pl.pavimento === 'fundacao' ? 'primary' : 'default'} onClick={() => { pl.set({ ferramenta: 'carga', pavimento: 'fundacao', selecao: new Set() }); onPlanta(); }}>Lançar cargas no nível de fundação (C)</Button>
+      </div>
+      <Hint>Cargas do grupo “fundação” (alvenaria do térreo, paredes sobre vigas de fundação, equipamentos): as pontuais, lineares e de superfície sobre uma viga de fundação vão às pontas dela; as que caem sobre um elemento vão ao elemento (sem momento). Fora das vigas e dos elementos, são ignoradas com aviso (FUND_CARGA_FORA). Selecione e use Del para remover.</Hint>
     </div>
   );
 }
@@ -332,6 +504,7 @@ export function JanelaFundacao({ id }: { id: string }) {
         ['Volume de concreto', `${fmt(r.volume, 2)} m³`],
         ...(c ? [['Carga característica no elemento', `Nk ${fmt(c.Nk, 0)} · Nk,mín ${fmt(c.NkMin, 0)} kN · Mx ${fmt(c.Mx, 1)} · My ${fmt(c.My, 1)} kN·m · Hx ${fmt(c.Hx, 1)} · Hy ${fmt(c.Hy, 1)} kN (${c.source ?? ''})`] as [string, string]] : []),
       ]} />
+      {(r.alavanca || r.alivio || r.cargaDireta !== undefined) && <AlavancaDoElemento b={b} r={r} />}
       <h4>Mensagens</h4>
       <Mensagens msgs={r.mensagens} />
       {r.notas.length > 0 && <details className="small"><summary>Observações do cálculo ({r.notas.length})</summary><ul>{r.notas.map((n, i) => <li key={i}>{n}</li>)}</ul></details>}
@@ -347,6 +520,28 @@ export function JanelaFundacao({ id }: { id: string }) {
             : pr.cap ? <div className="fdetail"><CapDetail cap={pr.cap} coords={[]} D={0.4} ap={pr.ap} bp={pr.bp} p={p} /></div> : null
       )}
       <p className="hint">Cálculo do módulo Fundações (NBR 6122, NBR 6118); σadm e demais estimativas pelo SPT são a confirmar. Veja também o memorial do edifício (seção Fundações).</p>
+    </div>
+  );
+}
+
+/** Alavanca (elemento centrado por viga de equilíbrio), alívio recebido e cargas diretas sobre o elemento (FU2). */
+function AlavancaDoElemento({ b, r }: { b: BuildingModel; r: ResultadoFundacao }) {
+  const nomeViga = (id: string) => b.fundacao?.vigas?.find((x) => x.id === id)?.nome ?? id;
+  const a = r.alavanca;
+  return (
+    <div data-alavanca-elemento={r.id}>
+      <h4>Viga de equilíbrio, alívio e cargas do nível</h4>
+      <KV rows={[
+        ...(a ? [
+          ['Alavanca: carga do pilar → reação no centro', `N = ${fmt(a.N, 0)} kN → R = ${fmt(a.R, 0)} kN (R/N = ${fmt(a.fator, 3)}); com a carga mínima R = ${fmt(a.RMin, 0)} kN`] as [string, string],
+          ['Excentricidade equilibrada (do pilar ao centro)', `x ${fmt(a.e[0], 3)} m · y ${fmt(a.e[1], 3)} m${Math.hypot(a.eRes[0], a.eRes[1]) > 1e-6 ? ` — não equilibrada: ${fmt(a.eRes[0], 3)} · ${fmt(a.eRes[1], 3)} m (momento R·e fica no elemento)` : ''}`] as [string, string],
+          ['Distribuição sob o elemento', a.distribuicao === 'trapezoidal' ? 'trapezoidal (equilíbrio só além do núcleo central)' : 'retangular (uniforme)'] as [string, string],
+          ...a.vigas.map((x) => [`Viga ${nomeViga(x.id)}`, `alívio na ponta oposta ΔN = ${fmt(x.dN, 1)} kN (com a mínima ${fmt(x.dNMin, 1)} kN) · ℓ = ${fmt(x.l)} m · eᵢ = ${fmt(x.ei, 3)} m · extensão do elemento ${fmt(x.a)} m`] as [string, string]),
+        ] : []),
+        ...(r.alivio ? [['Alívio recebido de vigas de equilíbrio', `${fmt(r.alivio.total, 1)} kN (${r.alivio.vigas.join(', ')}): ${fmt(r.alivio.considerado, 1)} kN considerado no Nk; ${fmt(r.alivio.minimo, 1)} kN na carga mínima e na permanente`] as [string, string]] : []),
+        ...(r.cargaDireta !== undefined ? [['Cargas do nível de fundação sobre o elemento', `${fmt(r.cargaDireta, 1)} kN (soma dos casos, sem momento)`] as [string, string]] : []),
+      ]} />
+      <div className="row wrap">{(a?.vigas ?? []).map((x) => <Button key={x.id} onClick={() => abrirJanelaFundacao(x.id)}>Abrir viga {nomeViga(x.id)}</Button>)}</div>
     </div>
   );
 }

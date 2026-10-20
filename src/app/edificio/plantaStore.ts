@@ -1,10 +1,10 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
 import { create } from 'zustand';
-import type { Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje } from '../../core/building/types';
+import type { Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
-export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao';
+export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund';
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -33,6 +33,9 @@ interface PState {
   /** 'auto': a posição sai do ponto do clique no pilar (centro = centrada, face = divisa, canto = canto). */
   posFund: PosicaoFundacao | 'auto';
   estacaFund: string | null;
+  /** Ferramenta Viga de fundação (FU2): tipo e seção (m) das vigas lançadas por clique entre dois elementos. */
+  tipoVigaFund: TipoVigaFundacao;
+  secaoVigaFund: { b: number; h: number };
   /** Ferramenta Pilar: lança arranque (pilar de altura zero que só leva cargas à fundação). */
   arranque: boolean;
   secao: { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
@@ -73,6 +76,8 @@ export const usePlanta = create<PState>((set) => ({
   posFund: 'auto',
   estacaFund: null,
   arranque: false,
+  tipoVigaFund: 'equilibrio',
+  secaoVigaFund: { b: 0.2, h: 0.4 },
   secao: { tipo: 'ret', b: 0.2, h: 0.4 },
   ajuste: 'c',
   angulo: 0,
