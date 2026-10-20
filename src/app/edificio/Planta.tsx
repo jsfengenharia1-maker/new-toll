@@ -7,7 +7,7 @@ import { paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara } from '../../core/building/pilares';
 import { panosDoGrupo } from '../../core/building/lajes';
-import { dentroPoligono, pontoInterno } from '../../core/geom/faces';
+import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
 import { contornoPilar, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, secaoNoLance, trechosViga, type BuildingModel, type Pilar } from '../../core/building/types';
 import { useStore } from '../store';
 import { idsBloqueados } from './Armadura';
@@ -139,6 +139,24 @@ export function Planta() {
     const ids = new Set(lajes.map(({ l }) => l.id));
     return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => d.posicoes.filter((x) => x.face === pl.armaduraLajes).map((x) => ({ x, mx: (x.faixa[0][0] + x.faixa[1][0]) / 2, my: (x.faixa[0][1] + x.faixa[1][1]) / 2 })));
   }, [dimLajes, lajes, pl.armaduraLajes]);
+  // lajes treliçadas na mesma camada: vigotas (inferior: adicional ao longo do vão) e negativos nas pontas (superior)
+  const dimVigotas = useBuilding((st) => st.dim?.vigotas);
+  const armVigotas = useMemo(() => {
+    if (pl.armaduraLajes === 'nenhuma' || !dimVigotas) return [];
+    const ids = new Set(lajes.map(({ l }) => l.id)), face = pl.armaduraLajes;
+    const out: { a: P; z: P; rot?: string }[] = [];
+    for (const r of dimVigotas) {
+      if (!ids.has(r.laje)) continue;
+      const vistos = new Set<number>();
+      for (const f of r.faixas) {
+        const g = r.grupos[f.grupo], ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), ao = (c: number): P => [f.a[0] + ux * c, f.a[1] + uy * c];
+        const rot = vistos.has(f.grupo) ? undefined : (vistos.add(f.grupo), g.positiva.barras?.n ? `${g.positiva.barras.n}φ${String(g.positiva.barras.phi).replace('.', ',')}` : 'treliça');
+        if (face === 'inf') out.push({ a: f.a, z: f.z, rot });
+        else g.negativos.forEach((n, k) => { if (n) out.push(k ? { a: ao(Math.max(0, f.L - n.comprimento)), z: f.z } : { a: f.a, z: ao(Math.min(f.L, n.comprimento)) }); });
+      }
+    }
+    return out;
+  }, [dimVigotas, lajes, pl.armaduraLajes]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -292,6 +310,13 @@ export function Planta() {
         for (const [pt, g] of [[a, x.ganchos[0]], [z, x.ganchos[1]]] as const) if (g > 0) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 3, 0, 2 * Math.PI); ctx.stroke(); }
         if (rotulos) { const [tx, ty] = paraTela(mx, my); ctx.fillText(`${x.pos} ${x.n}φ${String(x.phi).replace('.', ',')}${x.s > 0 ? ` c/${Math.round(x.s * 100)}` : ''}`, tx + 4, ty - 6); }
       }
+    }
+    if (armVigotas.length) {
+      ctx.strokeStyle = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.beginPath();
+      for (const x of armVigotas) { const a = paraTela(x.a[0], x.a[1]), z = paraTela(x.z[0], x.z[1]); ctx.moveTo(...a); ctx.lineTo(...z); }
+      ctx.stroke();
+      if (v.k > 40) for (const x of armVigotas) if (x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
     }
     // vigas
     for (const { v, g, t } of vigas) {

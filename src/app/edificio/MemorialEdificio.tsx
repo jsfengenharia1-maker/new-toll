@@ -19,6 +19,7 @@ import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
+import { linhasGruposVigotas } from './Vigotas';
 import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
 import { emendasPilar, linhasBarrasPilar, linhasEstribosPilar, TRANSICAO } from './DetalhamentoPilar';
@@ -264,9 +265,25 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </>)}
-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0) && (<>
+            {dim.vigotas && dim.vigotas.length > 0 && (<>
+              {h2('Lajes treliçadas')}
+              <p>Esforços por nervura (alinhamentos da grelha na direção das vigotas × intereixo), na envoltória ELU dos pavimentos do grupo, com momentos mínimos p·ℓ²/{fmt(opc.vigotaMomentoMinPositivo, 0)} (positivo) e p·ℓ²/{fmt(opc.vigotaMomentoMinNegativo, 0)} (negativo) e igualação entre vigotas vizinhas ({opc.vigotaIgualacao === 0 ? 'desligada' : opc.vigotaIgualacao === 1 ? 'pelo máximo' : 'pela média'}, diferença de {fmt(opc.vigotaIgualacaoDif, 0)} %). Positiva em seção T com o banzo inferior da treliça (CA-60) descontado e adicional de 1 a 2 barras por nervura; negativos na capa sobre os apoios, com comprimento pelo diagrama decalado mais lb (mínimo de {fmt(opc.vigotaNegativoVao, 0)} % do vão); cortante sem armadura transversal (NBR 6118, 19.4.1) com faixa maciçada quando necessário; capa conforme 13.2.4.2; distribuição pela Tabela 19.1. Treliça por modelo, peso pela geometria, adicional no comprimento eixo a eixo e igualação de 100 % a confirmar.</p>
+              {dim.vigotas.map((r) => (
+                <div key={r.laje} className="avoid">
+                  <h3>Laje {r.nome} · {r.modelo}+{fmt(r.capa * 100, 0)} · {r.trelica} · {r.vigotas} vigotas{r.repeticoes > 1 ? ` · ${r.repeticoes} pavimentos` : ''} · {ST[r.status]}{r.bloqueada ? ' · armadura bloqueada' : ''}</h3>
+                  <table>
+                    <thead><tr><th>Grupo</th><th>Vigotas</th><th>L (m)</th><th>Md+ (kN·m)</th><th>Md− ini / fim (kN·m)</th><th>Vsd / VRd1 ini (kN)</th><th>Vsd / VRd1 fim (kN)</th><th>As nec. (cm²)</th><th>Treliça (cm²)</th><th>Adicional</th><th>Negativo ini</th><th>Negativo fim</th><th>Maciço ini / fim (cm)</th></tr></thead>
+                    <tbody>
+                      {linhasGruposVigotas(r).map((x) => <tr key={x.grupo}><td className="l">G{x.grupo}</td><td>{x.vigotas}</td><td>{fmt(x.L)}</td><td>{fmt(x.mPos)}</td><td>{fmt(x.mNeg[0])} / {fmt(x.mNeg[1])}</td><td>{fmt(x.v[0].Vsd, 1)} / {fmt(x.v[0].VRd1, 1)}</td><td>{fmt(x.v[1].Vsd, 1)} / {fmt(x.v[1].VRd1, 1)}</td><td>{fmt(x.AsNec)}</td><td>{fmt(x.AsTrelica)}</td><td className="l">{x.adicional}{x.adicional !== '—' ? ` (C = ${fmt(x.comprimento)} m)` : ''}</td><td className="l">{x.negativos[0]}</td><td className="l">{x.negativos[1]}</td><td>{fmt(x.macico[0] * 100, 0)} / {fmt(x.macico[1] * 100, 0)}</td></tr>)}
+                    </tbody>
+                  </table>
+                  <p>Altura h = {fmt(r.h * 100, 0)} cm (capa {fmt(r.capa * 100, 1)} cm; mínimo {fmt(r.verificacaoCapa.minima * 100, 1)} cm: {r.verificacaoCapa.ok ? 'atende' : 'não atende'}); intereixo {fmt(r.intereixo * 100, 0)} cm. Distribuição na capa: φ{String(r.distribuicao.phi).replace('.', ',')} c/{fmt(r.distribuicao.s * 100, 0)} cm. Peso das barras {fmt(r.peso)} kg e da treliça {fmt(r.pesoTrelica)} kg por pavimento.</p>
+                </div>
+              ))}
+            </>)}
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Total geral (vigas, pilares e lajes)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [])]] as const).map(([tit, rs]) => (
+              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]] as const).map(([tit, rs]) => (
                 <div key={tit} className="avoid">
                   <h3>{tit}</h3>
                   <table>
@@ -278,7 +295,19 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   </table>
                 </div>
               ))}
-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes de outros tipos (treliçadas, nervuradas) seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+              {(dim.trelicas?.length ?? 0) > 0 && (
+                <div className="avoid">
+                  <h3>Treliças eletrossoldadas (por tipo)</h3>
+                  <table>
+                    <thead><tr><th>Treliça</th><th>Comprimento (m)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+                    <tbody>
+                      {dim.trelicas!.map((t) => <tr key={t.trelica}><td className="l">{t.trelica}</td><td>{fmt(t.comprimento)}</td><td>{fmt(t.peso)}</td><td>{fmt(t.pesoComPerdas)}</td></tr>)}
+                      <tr><td className="l"><b>Total</b></td><td><b>{fmt(dim.trelicas!.reduce((a, t) => a + t.comprimento, 0))}</b></td><td><b>{fmt(dim.trelicas!.reduce((a, t) => a + t.peso, 0))}</b></td><td><b>{fmt(dim.trelicas!.reduce((a, t) => a + t.pesoComPerdas, 0))}</b></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>)}
             {h2('Lajes')}
             <table>

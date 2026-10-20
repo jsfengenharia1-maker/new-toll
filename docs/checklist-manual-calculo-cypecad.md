@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 9 | 13 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 32 | 26 | 21 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 33 | 29 | 17 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 31 | 12 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
@@ -21,23 +21,23 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 17 | 24 | 62 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 6 | 31 | 22 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 20 | 37 | 40 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 21 | 38 | 38 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 6 | 4 | 31 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 1 | 9 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 6 | 11 | 7 | 19 |
-| **Total** | **661** | **152** | **181** | **217** | **111** |
+| **Total** | **661** | **154** | **185** | **211** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 72 | 30 | 102 |
-| R — Revisão de resultados e detalhamento | 73 | 35 | 108 |
-| E — Elementos estruturais | 16 | 125 | 141 |
+| N — Cálculo e normas | 72 | 29 | 101 |
+| R — Revisão de resultados e detalhamento | 77 | 33 | 110 |
+| E — Elementos estruturais | 16 | 122 | 138 |
 | FU — Fundações | 8 | 15 | 23 |
 | L — Lançamento e produtividade | 5 | 0 | 5 |
 | V — Visualização | 7 | 12 | 19 |
-| **Total** | **181** | **217** | **398** |
+| **Total** | **185** | **211** | **396** |
 
 ## Divergências de premissa
 
@@ -212,7 +212,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.4.5 Momentos mínimos (págs. 19–20)** | | | |
 | K1.4.38 | Vigas: momento mínimo como fração do isostático pl²/8, na forma pl²/x com x inteiro > 8, para negativo e positivo; padrão 0 (não aplica). | Feito | — | opções momentoMinPositivo e momentoMinNegativo (p·ℓ²/x, 0 = desligado), p·ℓ² = 8 × isostático das cargas verticais (N1e) |
 | K1.4.39 | Recomendação: armadura para negativo pl²/32 e positivo pl²/20; pode valer para toda a estrutura, parte ou cada viga. | Feito | — | recomendados p·ℓ²/20 (positivo) e p·ℓ²/32 (negativo) citados na opção; padrão desligado como no manual (N1e) |
-| K1.4.40 | Vigotas e alveolares: momentos mínimos por obra ou por pano; recomendado ½ do momento isostático (wl²/16) para positivo e negativo. | Falta | E | momentos mínimos de vigotas |
+| K1.4.40 | Vigotas e alveolares: momentos mínimos por obra ou por pano; recomendado ½ do momento isostático (wl²/16) para positivo e negativo. | Parcial | R | momentos mínimos p·ℓ²/16 (padrão do sistema; NBR 0) por obra, positivo e negativo; sem edição por pano (R6) |
 | K1.4.41 | Envoltórias deslocadas para atender aos mínimos e depois aplicada a redistribuição de negativos. | Feito | — | mínimos aplicados antes e depois a redistribuição, que também reduz o negativo mínimo nos apoios internos (N1e) |
 | K1.4.42 | Carga linear equivalente obtida das cortantes: p = (V1+V2)/l; com mínimo positivo, verifica Mv ≥ pl²/8. | Feito | — | carga equivalente p = (V1 + V2)/ℓ dos cortantes das cargas verticais nas pontas do vão (N1e) |
 | K1.4.43 | Se o mínimo for menor que o de cálculo, prevalece o maior. | Feito | — | prevalece o maior entre o mínimo e o de cálculo (N1e) |
@@ -258,14 +258,14 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
 | K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Falta | R | perdas de aço e comprimento de corte |
-| K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Falta | E | negativos de treliçadas |
+| K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Parcial | R | negativos com ρmín e comprimento mínimo em % do vão (opção; NBR 0) nas treliçadas; alveolares fora (R6) |
 | K1.4.81 | Momentos mínimos a resistir em lajes e vigas; armadura de vigas mestras. | Falta | N | momentos mínimos |
-| K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Falta | N | redutor de rigidez das treliçadas; nós: seção T bruta |
+| K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Feito | — | redutor de rigidez à flexão das treliçadas na grelha (opção vigotaRigidez) (R6) |
 | K1.4.83 | Considerar armadura de torção em vigas. | Feito | — | torção das vigas verificada (NBR 6118 17.5), opção verificarTorcao (N1e) |
 | K1.4.84 | Opções de vigas de aço e vigotas. | Fora | — | vigas de aço; vigotas ver K1.4.40 |
 | K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | limites total ℓ/250 e sensorial ℓ/350 editáveis para lajes e vigas (N1d); sem limites por tipo, alveolares nem mistas |
 | K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida por αf(t0) editável em lajes e vigas (N1d); sem etapas de carga do processo construtivo |
-| K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Falta | E | cortante em lajes treliçadas |
+| K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Parcial | R | cortante das nervuras sem armadura transversal (19.4.1, VRd1 e VRd2) com faixa maciçada; sem vigotas moldadas no local (R6) |
 | K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos |
 | | **Fundações (listadas)** | | | |
 | K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Parcial | FU | opções de sapatas e blocos editáveis no módulo Fundações; vigas de equilíbrio e travamento faltam |
@@ -727,7 +727,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.12.5 Lajes de vigotas (unidirecionais) (págs. 89–90)** | | | |
 | K1.12.5-1 | Cálculo vigota a vigota, em flexão simples. | Parcial | E | treliçadas na grelha com nervura T |
 | K1.12.5-2 | Saída: momento positivo máximo em kN·m por metro de largura, majorado. | Parcial | E | momento por nervura (majorado) informado |
-| K1.12.5-3 | Uniformização dos momentos por pano: ao máximo ou à média, conforme a diferença percentual entre vigotas vizinhas. | Falta | R | uniformização de momentos por pano |
+| K1.12.5-3 | Uniformização dos momentos por pano: ao máximo ou à média, conforme a diferença percentual entre vigotas vizinhas. | Feito | — | igualação dos momentos por pano ao máximo ou à média conforme a diferença percentual entre vigotas vizinhas (R6) |
 | K1.12.5-4 | Com momentos admissíveis por tipo de vigota definidos, o resultado sai pelo nome do tipo; excedida a tabela → aviso de insuficiente → ampliar a tabela de tipos. | Falta | E | tipo de vigota por momento admissível |
 | K1.12.5-5 | Negativos também em flexão simples, armados pela tabela; comprimentos mínimos e taxas mínimas das opções; editáveis e uniformizáveis por diferença % de comprimento. | Falta | E | negativos das treliçadas |
 | K1.12.5-6 | Necessidade de armadura comprimida no negativo → retirada dos blocos de enchimento (maciçamento) até onde deixa de ser necessária, indicada em planta por uma linha. | Falta | E | maciçamento junto aos apoios |
@@ -735,7 +735,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5-8 | Extremidades das vigotas: mesmo com negativo nulo, arma para momento = % do positivo máximo do vão (configurável). | Falta | E | momento mínimo nas extremidades |
 | K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Falta | N | momentos mínimos |
 | K1.12.5-10 | Limitação: não verifica necessidade de armadura comprimida no vão. | Fora | — | limitação do outro programa |
-| K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Falta | R | cortante das vigotas nos desenhos |
+| K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Parcial | R | cortantes das pontas por nervura (por metro no núcleo) na tabela e nos diagramas; sem os desenhos de armação (R6/R5) |
 | K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | N | flecha elástica × (1 + αf) sem fissuração; sem distinção protendida |
 
 ## 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95)

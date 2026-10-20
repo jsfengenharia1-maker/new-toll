@@ -11,6 +11,7 @@ import type { DimEdificio } from './calculo';
 import { executarERecalcular } from './Armadura';
 import { linhasBarrasPilar, linhasEstribosPilar } from './DetalhamentoPilar';
 import { FACE_POS_LAJE, linhasPosicoesLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
+import { linhasGruposVigotas } from './Vigotas';
 
 export const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const ACO_KG_M3 = 7850;
@@ -254,7 +255,7 @@ const totalAco = (r: LinhaAco[]) => ({ comprimento: r.reduce((s, x) => s + x.com
 
 /** Resumo de aço e lista de barras (vigas, pilares e lajes; separador ";", vírgula decimal). */
 export function csvAco(dim: DimEdificio): string {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [], detsL = dim.detalhesLajes ?? [];
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [], detsL = dim.detalhesLajes ?? [];
   const cab = (t: string, p: number) => [[t], ['Aço', 'φ (mm)', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(p, 1)} % (kg)`]];
   const tabela = (t: string, r: LinhaAco[]) => {
     const l = cab(t, perdasDoResumo(r)), tt = totalAco(r);
@@ -262,7 +263,17 @@ export function csvAco(dim: DimEdificio): string {
     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
     return l;
   };
-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo geral de aço (vigas, pilares e lajes)', somarResumosAco(res, resP, resL))];
+  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo geral de aço (vigas, pilares, lajes e vigotas)', somarResumosAco(res, resP, resL, resV))];
+  if (dim.trelicas?.length) {
+    lin.push(['Treliças eletrossoldadas por tipo'], ['Treliça', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
+    for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
+    lin.push(['Total', fmt(dim.trelicas.reduce((a, t) => a + t.comprimento, 0)), fmt(dim.trelicas.reduce((a, t) => a + t.peso, 0)), fmt(dim.trelicas.reduce((a, t) => a + t.pesoComPerdas, 0))], []);
+  }
+  if (dim.vigotas?.length) {
+    lin.push(['Lajes treliçadas por grupo de igualação (esforços e armadura por nervura)'], ['Laje', 'Grupo', 'Vigotas', 'L (m)', 'Md+ (kN·m)', 'Md− ini (kN·m)', 'Md− fim (kN·m)', 'As nec. (cm²)', 'Adicional', 'Negativo ini', 'Negativo fim', 'Maciço ini (cm)', 'Maciço fim (cm)']);
+    for (const r of dim.vigotas) for (const x of linhasGruposVigotas(r)) lin.push([r.nome, `G${x.grupo}`, String(x.vigotas), fmt(x.L), fmt(x.mPos), fmt(x.mNeg[0]), fmt(x.mNeg[1]), fmt(x.AsNec), x.adicional, x.negativos[0], x.negativos[1], fmt(x.macico[0] * 100, 0), fmt(x.macico[1] * 100, 0)]);
+    lin.push([]);
+  }
   lin.push(['Lista de barras'], ['Viga', 'Pos.', 'Tipo', 'Quant.', 'φ (mm)', 'C unit. (m)', 'Repetições', 'C total (m)', 'Peso (kg)']);
   for (const d of dets) {
     for (const x of linhasBarras(d)) lin.push([d.nome, x.pos, TIPO_BARRA[x.tipo], String(x.n), fmt(x.phi, x.phi % 1 ? 1 : 0), fmt(x.comprimento), String(d.repeticoes), fmt(x.total * d.repeticoes), fmt(x.peso * d.repeticoes)]);
@@ -297,20 +308,35 @@ function TabelaAco({ titulo, res, marca }: { titulo: string; res: LinhaAco[]; ma
 }
 
 export function ResumoAco({ dim }: { dim: DimEdificio }) {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [];
-  if (!res.length && !resP.length && !resL.length) return null;
-  const perdas = perdasDoResumo(somarResumosAco(res, resP, resL));
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], tre = dim.trelicas ?? [];
+  if (!res.length && !resP.length && !resL.length && !resV.length) return null;
+  const perdas = perdasDoResumo(somarResumosAco(res, resP, resL, resV));
   return (
     <div className="card" data-resumo-aco>
       <h3>Resumo de aço</h3>
       <TabelaAco titulo="Vigas" res={res} marca="vigas" />
       <TabelaAco titulo="Pilares" res={resP} marca="pilares" />
       <TabelaAco titulo="Lajes maciças" res={resL} marca="lajes" />
-      <TabelaAco titulo="Total geral (vigas, pilares e lajes)" res={somarResumosAco(res, resP, resL)} marca="geral" />
+      {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
+      {tre.length > 0 && (
+        <>
+          <h4>Treliças eletrossoldadas (por tipo)</h4>
+          <div className="tablewrap">
+            <table className="data quadro" data-tabela-trelicas>
+              <thead><tr><th>Treliça</th><th>Comprimento (m)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+              <tbody>
+                {tre.map((t) => <tr key={t.trelica} data-trelica={t.trelica}><td className="tl">{t.trelica}</td><td className="num">{fmt(t.comprimento)}</td><td className="num">{fmt(t.peso)}</td><td className="num">{fmt(t.pesoComPerdas)}</td></tr>)}
+                <tr data-total-trelicas><td className="tl"><b>Total</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.comprimento, 0))}</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.peso, 0))}</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.pesoComPerdas, 0))}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <TabelaAco titulo="Total geral (vigas, pilares, lajes e vigotas)" res={somarResumosAco(res, resP, resL, resV)} marca="geral" />
       <div className="row wrap">
         <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
       </div>
-      <Hint>Comprimentos das vigas já multiplicados pelas repetições dos grupos de pavimentos; pilares pelo lance de cada pavimento; lajes maciças pelas repetições do grupo. Perdas de {fmt(perdas, 1)} % (opção "perdas de aço"). O CSV traz os resumos e a lista de barras e estribos de cada viga e de cada pilar e de posições de cada laje.</Hint>
+      <Hint>Comprimentos das vigas já multiplicados pelas repetições dos grupos de pavimentos; pilares pelo lance de cada pavimento; lajes maciças pelas repetições do grupo. Perdas de {fmt(perdas, 1)} % (opção "perdas de aço"). As treliças (peso da geometria, fora do total de barras) vêm em tabela própria. O CSV traz os resumos e a lista de barras e estribos de cada viga e de cada pilar e de posições de cada laje.</Hint>
     </div>
   );
 }

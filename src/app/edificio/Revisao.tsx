@@ -13,6 +13,7 @@ import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { DetalheDaLaje } from './DetalhamentoLaje';
+import { JanelaVigotas } from './Vigotas';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -111,7 +112,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje', i
 
 // ---------------------------------------------------------------- janela de resultados por elemento
 
-function Mensagens({ msgs }: { msgs: string[] }) {
+export function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
   return (
     <ul className="revmsg">
@@ -129,9 +130,9 @@ function passoEixo(L: number) {
 }
 
 /** Diagrama SVG ao longo de s. `baixo`: valores positivos desenhados para baixo (momento, lado tracionado). */
-export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor }: { id: string; titulo: string; unid: string; xs: number[]; L: number; series: Serie[]; baixo?: boolean; cor: 'dg-m' | 'dg-v' | 'dg-t' }) {
+export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs }: { id: string; titulo: string; unid: string; xs: number[]; L: number; series: Serie[]; baixo?: boolean; cor: 'dg-m' | 'dg-v' | 'dg-t'; refs?: { v: number; rot: string }[] }) {
   const W = 640, H = 170, ml = 54, mr = 16, mt = 28, mb = 30, hh = H - mt - mb, ww = W - ml - mr;
-  const todos = series.flatMap((s) => s.ys);
+  const todos = [...series.flatMap((s) => s.ys), ...(refs ?? []).map((r) => r.v)];
   const vmax = Math.max(0, ...todos), vmin = Math.min(0, ...todos), span = Math.max(vmax - vmin, 1e-9);
   const X = (s: number) => ml + (L > 0 ? s / L : 0) * ww;
   const Y = (v: number) => mt + (baixo ? (v - vmin) / span : (vmax - v) / span) * hh;
@@ -156,6 +157,12 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor }: { id: 
           </g>
         );
       })}
+      {(refs ?? []).map((r, k) => (
+        <g key={`r${k}`} data-ref={r.rot}>
+          <line x1={ml} x2={W - mr} y1={Y(r.v)} y2={Y(r.v)} className="dg-ref" />
+          <text x={W - mr - 2} y={Y(r.v) + (baixo ? (r.v < 0 ? -3 : 10) : (r.v >= 0 ? -3 : 10))} textAnchor="end" className="dg-txt dg-reftxt">{r.rot} = {fmt(r.v, 1)}</text>
+        </g>
+      ))}
       <line x1={ml} x2={W - mr} y1={y0} y2={y0} className="dg-eixo" />
     </svg>
   );
@@ -238,16 +245,9 @@ function JanelaPilar({ id }: { id: string }) {
   );
 }
 
-function JanelaLaje({ id }: { id: string }) {
-  const dim = useBuilding((s) => s.dim)!;
-  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
-  const ls = dim.lajes.filter((x) => x.laje === id);
-  if (!ls.length) return <p className="muted">Laje sem resultado.</p>;
-  const temDetalhe = !!dim.detalhesLajes?.some((x) => x.laje === id);
-  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaLaje id={id} /></>;
+function JanelaLajeResultados({ ls }: { ls: DimEdificio['lajes'] }) {
   return (
     <>
-      {temDetalhe && <AbasDetalhe aba={aba} onChange={setAba} />}
       <p className="small">Momentos de cálculo por metro nas duas direções da malha (x / y).</p>
       {ls.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>
@@ -261,6 +261,31 @@ function JanelaLaje({ id }: { id: string }) {
           <Mensagens msgs={x.mensagens} />
         </section>
       ))}
+    </>
+  );
+}
+
+function JanelaLaje({ id }: { id: string }) {
+  const dim = useBuilding((s) => s.dim)!;
+  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
+  const ls = dim.lajes.filter((x) => x.laje === id);
+  if (!ls.length) return <p className="muted">Laje sem resultado.</p>;
+  const temDetalhe = !!dim.detalhesLajes?.some((x) => x.laje === id);
+  const temVigotas = !!dim.vigotas?.some((x) => x.laje === id);
+  if (temVigotas) {
+    const aV = aba === 'detalhamento' ? 'vigotas' : 'resultados';
+    return (
+      <>
+        <Seg value={aV} onChange={(a) => setAba(a === 'vigotas' ? 'detalhamento' : 'resultados')} options={[{ v: 'resultados', label: 'Resultados' }, { v: 'vigotas', label: 'Vigotas' }]} />
+        {aV === 'vigotas' ? <JanelaVigotas id={id} /> : <JanelaLajeResultados ls={ls} />}
+      </>
+    );
+  }
+  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaLaje id={id} /></>;
+  return (
+    <>
+      {temDetalhe && <AbasDetalhe aba={aba} onChange={setAba} />}
+      <JanelaLajeResultados ls={ls} />
     </>
   );
 }

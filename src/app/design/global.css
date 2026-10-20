@@ -649,3 +649,35 @@ svg.mono .hinge { fill: #fff !important; }
 .det-gancho.inf { stroke: var(--det-inf); }
 .det-gancho.sup { stroke: var(--det-sup); }
 .det-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+/* lajes treliçadas (frente R6): vigotas por grupo de igualação */
+:root {
+  --vig-g0: var(--c-v);
+  --vig-g1: var(--c-m);
+  --vig-g2: var(--c-n);
+  --vig-g3: var(--c-react);
+  --vig-g4: var(--c-load);
+  --vig-g5: var(--c-def);
+  --vig-neg: var(--ink);
+  --vig-macico: var(--muted);
+}
+.vig-g0 { --vig: var(--vig-g0); }
+.vig-g1 { --vig: var(--vig-g1); }
+.vig-g2 { --vig: var(--vig-g2); }
+.vig-g3 { --vig: var(--vig-g3); }
+.vig-g4 { --vig: var(--vig-g4); }
+.vig-g5 { --vig: var(--vig-g5); }
+.vig-faixa { cursor: pointer; }
+.vig-banda { fill: var(--vig); stroke: var(--surface); stroke-width: 1; opacity: 0.35; }
+.vig-faixa:hover .vig-banda, .vig-faixa.sel .vig-banda { opacity: 0.75; }
+.vig-faixa.sel .vig-neg { stroke-width: 3; }
+.vig-neg { stroke: var(--vig-neg); stroke-width: 2; stroke-linecap: butt; }
+.vig-macico { stroke: var(--vig-macico); stroke-width: 7; stroke-dasharray: 2 2; stroke-linecap: butt; opacity: 0.8; }
+.vig-dist { stroke: var(--det-cota); stroke-width: 1.2; stroke-dasharray: 5 3; }
+text.vig-g0, text.vig-g1, text.vig-g2, text.vig-g3, text.vig-g4, text.vig-g5 { fill: var(--vig); }
+.det-leg i.vig-leg.banda { border-color: var(--vig-g0); }
+.det-leg i.vig-leg.neg { border-color: var(--vig-neg); }
+.det-leg i.vig-leg.macico { border-color: var(--vig-macico); border-top-style: dotted; border-top-width: 5px; }
+.det-leg i.vig-leg.dist { border-color: var(--det-cota); border-top-style: dashed; border-top-width: 1px; }
+tr.sel td { background: var(--accent-soft); }
+.dg-ref { stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 6 3; }
+.dg-reftxt { fill: var(--bad); }

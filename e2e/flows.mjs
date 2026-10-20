@@ -993,7 +993,7 @@ export const flows = [
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento dos pilares/);
       assert.match(mt, /Resumo geral de aço/);
-      assert.match(mt, /Total geral \(vigas, pilares e lajes\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
       assert.match(mt, /detalhamento-pilares|Detalhamento\.\s*Pilares/);
     },
   },
@@ -1018,7 +1018,7 @@ export const flows = [
       assert.ok(Math.abs(pg - (pv + pp + pl)) < 0.03, `geral ${pg} = ${pv} + ${pp} + ${pl}`);
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Resumo de aço das lajes/);
-      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares e lajes\)/);
+      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares, lajes e vigotas\)/);
       assert.match(csv.text, /Lista de posições das lajes/);
       // janela da laje, aba Detalhamento
       const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
@@ -1064,8 +1064,106 @@ export const flows = [
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento das lajes/);
-      assert.match(mt, /Total geral \(vigas, pilares e lajes\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
       assert.match(mt, /detalhamento-lajes|Detalhamento\.\s*Lajes/);
+    },
+  },
+  {
+    name: 'R6: duas lajes treliçadas H12 contínuas, janela Vigotas (planta SVG, diagramas, tabela de grupos), bloqueio da armadura, resumo de aço com treliças e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "trelicada", "modelo": "H12", "capa": 0.04}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      // resumo de aço: vigotas e treliças
+      const resumo = page.locator('[data-resumo-aco]');
+      await resumo.waitFor();
+      const peso = async (m) => num(await resumo.locator(`tr[data-total-aco="${m}"] td.num`).nth(1).innerText());
+      const pv = await peso('vigas'), pp = await peso('pilares'), pl = await peso('lajes'), pz = await peso('vigotas'), pg = await peso('geral');
+      assert.ok(pz > 0, `peso das vigotas ${pz}`);
+      assert.ok(Math.abs(pg - (pv + pp + pl + pz)) < 0.05, `geral ${pg} = ${pv} + ${pp} + ${pl} + ${pz}`);
+      const tre = resumo.locator('table[data-tabela-trelicas]');
+      assert.match(await tre.innerText(), /TR 12645/);
+      assert.ok(num(await tre.locator('tr[data-total-trelicas] td.num').nth(0).innerText()) > 10, 'comprimento de treliça');
+      assert.ok(num(await tre.locator('tr[data-total-trelicas] td.num').nth(1).innerText()) > 5, 'peso da treliça');
+      const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
+      assert.match(csv.text, /Treliças eletrossoldadas por tipo/);
+      assert.match(csv.text, /Resumo de aço das lajes treliçadas/);
+      assert.match(csv.text, /Lajes treliçadas por grupo de igualação/);
+      // janela da laje, aba Vigotas
+      const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
+      assert.ok(await cardL.locator('tbody tr').count() >= 2);
+      await cardL.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Vigotas' }).click();
+      const svg = jan.locator('svg[data-vigotas-laje]');
+      await svg.waitFor();
+      const nf = parseInt(await svg.getAttribute('data-faixas'), 10), ng = parseInt(await svg.getAttribute('data-grupos'), 10);
+      assert.ok(nf >= 3, `faixas no desenho: ${nf}`);
+      assert.ok(ng >= 1 && ng <= nf);
+      assert.equal(await svg.locator('g[data-faixa]').count(), nf);
+      assert.equal(await svg.locator('text[data-rotulo-grupo]').count(), ng);
+      assert.ok(await svg.locator('line.vig-neg').count() >= 1, 'negativos sobre o apoio contínuo');
+      const tb = jan.locator('table[data-tabela-grupos-vigotas]');
+      assert.equal(await tb.locator('tbody tr').count(), ng);
+      assert.match(await tb.innerText(), /G1/);
+      // diagramas da vigota selecionada
+      await svg.locator('g[data-faixa="1"]').click();
+      const dg = jan.locator('[data-diagrama-vigota="1"]');
+      await dg.waitFor();
+      assert.equal(await dg.locator('svg[data-diagrama]').count(), 2);
+      assert.ok(await dg.locator('g[data-ref="VRd1"]').count() >= 1, 'linha de VRd1');
+      assert.match(await dg.innerText(), /VRd1 = \d+,\d/);
+      assert.match(await jan.innerText(), /Peso da treliça \(por pavimento\)\s*\d+,\d\d kg/);
+      assert.match(await jan.innerText(), /Distribuição na capa\s*φ[\d,]+ c\/\d+ cm/);
+      // bloqueio com armadura adicional insuficiente reprova; desbloquear volta
+      const ed = jan.locator('[data-editor-armadura="vigotas"]');
+      const adicional = await tb.locator('tbody tr').first().locator('td').nth(10).innerText();
+      await ed.getByRole('button', { name: 'Aplicar e bloquear' }).click();
+      await jan.locator('[data-bloqueada]').first().waitFor({ timeout: 90000 });
+      await ed.getByRole('button', { name: 'Desbloquear' }).click();
+      await page.waitForFunction(() => !document.querySelector('[data-editor-armadura="vigotas"] [data-bloqueada]'), null, { timeout: 90000 });
+      assert.ok(adicional.length > 0);
+      // bloquear com 0 barras adicionais: ou atende (treliça basta) ou reprova com código na lista de erros
+      const nInf = ed.locator('[data-armadura="Inferior"] input').first();
+      await nInf.fill('0'); await nInf.press('Enter');
+      await ed.getByRole('button', { name: 'Aplicar e bloquear' }).click();
+      await jan.locator('[data-bloqueada]').first().waitFor({ timeout: 90000 });
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros] [data-contagem]').waitFor();
+      const lista = await page.locator('[data-lista-erros]').innerText();
+      const reprovou = /ARM_BLOQ|VIGOTA_POS/.test(lista);
+      // desbloquear de novo
+      await cardL.locator('tbody tr').first().dblclick();
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Vigotas' }).click();
+      await jan.locator('[data-editor-armadura="vigotas"]').getByRole('button', { name: 'Desbloquear' }).click();
+      await page.waitForFunction(() => !document.querySelector('[data-editor-armadura="vigotas"] [data-bloqueada]'), null, { timeout: 90000 });
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      assert.ok(reprovou, 'bloqueio com 0 barras adicionais deve reprovar (ARM_BLOQ ou VIGOTA_POS) na lista de erros');
+      // camada de armadura das lajes na planta (inclui as treliçadas)
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      const camada = page.getByLabel('Armadura das lajes na planta');
+      await camada.selectOption('inf');
+      await page.waitForTimeout(300);
+      await camada.selectOption('sup');
+      await page.waitForTimeout(300);
+      assert.ok(parseFloat(await page.locator('[data-frame-ms]').first().getAttribute('data-frame-ms')) < 50, 'quadro da planta com a camada de armadura');
+      await camada.selectOption('nenhuma');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      // memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Lajes treliçadas/);
+      assert.match(mt, /Treliças eletrossoldadas \(por tipo\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
     },
   },
 ];

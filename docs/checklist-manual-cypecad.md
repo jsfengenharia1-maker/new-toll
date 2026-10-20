@@ -15,20 +15,20 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 16 | 23 | 17 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 11 | 15 | 57 | 25 |
-| 7. Lajes | 195 | 5 | 21 | 108 | 61 |
+| 7. Lajes | 195 | 15 | 30 | 89 | 61 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 7 | 9 | 3 |
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **79** | **109** | **396** | **179** |
+| **Total** | **763** | **89** | **118** | **377** | **179** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 28 | 69 | 97 |
+| R — Revisão de resultados e detalhamento | 37 | 50 | 87 |
 | N — Cálculo e normas | 13 | 19 | 32 |
 | E — Elementos estruturais | 15 | 185 | 200 |
 | FU — Fundações integradas | 12 | 55 | 67 |
@@ -504,46 +504,46 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
 | | **7.2 Resultados de lajes (lido só o começo)** | | | |
-| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Falta | R | vistas de resultados das lajes |
+| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | R | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta; sem as vistas de momentos/tipos combinadas com esforços (R6) |
 
 ## 7. Lajes (continuação)
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.2.1.1 Vistas de resultados das lajes de vigotas (continuação)** | | | |
-| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Falta | R | vistas de resultado das vigotas |
-| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | R | momento por nervura informado na mensagem |
-| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Falta | R |  |
+| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | R | rótulo do grupo e armadura adicional por nervura na planta; sem tipos protendida, perfil de aço ou moldada no local (R6) |
+| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | R | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo); sem o valor junto a cada vigota na planta (R6) |
+| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | R | cortante por nervura com VRd1 na tabela e nos diagramas; sem vista na planta com o tipo de treliça (R6) |
 | C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | R |  |
 | C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | R |  |
-| C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Falta | R |  |
+| C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
 | C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E |  |
 | C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Falta | E |  |
 | | **7.2.1.2 Igualar vigotas** | | | |
-| C7.96 | Agrupamento automático de vigotas quando (Mmáx − Mmín) do grupo < percentual × Mmáx, com o percentual dado pelo usuário. | Falta | R |  |
-| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Falta | R |  |
-| C7.98 | Momentos igualados pelo máximo de cada ponto ou pela média de cada ponto, à escolha. | Falta | R |  |
-| C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Falta | R |  |
-| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Falta | R |  |
+| C7.96 | Agrupamento automático de vigotas quando (Mmáx − Mmín) do grupo < percentual × Mmáx, com o percentual dado pelo usuário. | Feito | — | agrupamento por (Mmáx − Mmín) < percentual × Mmáx (opção vigotaIgualacaoDif) (R6) |
+| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Parcial | R | igualação pelos valores de pico da envoltória (todas as combinações e pavimentos do grupo), não ponto a ponto (R6) |
+| C7.98 | Momentos igualados pelo máximo de cada ponto ou pela média de cada ponto, à escolha. | Feito | — | igualação pelo máximo ou pela média (opção vigotaIgualacao) (R6) |
+| C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Feito | — | cortante igualada sempre pelo máximo do grupo (R6) |
+| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | R | igualação dos momentos (e não da área de aço) com percentual e critério editáveis; negativos pelo mesmo grupo (R6) |
 | | **7.2.1.3 Erros de vigotas** | | | |
 | C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | R | status por laje; vigota individual não |
 | C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | R | flecha da laje verificada (aproximada) |
-| C7.103 | Erro: momento positivo no apoio da vigota; sugere mudar o coeficiente de engastamento do pano ou rever a continuidade da armadura inferior. | Falta | R |  |
-| C7.104 | Erro: altura da laje insuficiente para a flexão. | Falta | R |  |
-| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Falta | R |  |
+| C7.103 | Erro: momento positivo no apoio da vigota; sugere mudar o coeficiente de engastamento do pano ou rever a continuidade da armadura inferior. | Feito | — | aviso VIGOTA_APOIO (momento positivo na ponta da vigota; rever engaste ou continuidade) (R6) |
+| C7.104 | Erro: altura da laje insuficiente para a flexão. | Feito | — | erro VIGOTA_ALTURA (flexão positiva exige armadura de compressão: aumentar a altura) (R6) |
+| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Parcial | R | erro VIGOTA_POS quando treliça + 2φ12,5 não cobre o momento; sem série de fabricante (R6) |
 | C7.106 | Erro: a armadura inferior da vigota moldada no local não cabe na largura da nervura (espaçamento e cobrimento); sugere aumentar altura ou largura da nervura. | Falta | R |  |
 | C7.107 | Erro de vigota de aço: nenhum perfil da série serve para a geometria do pano e da forma (intereixo excessivo para apoiar a forma nas abas). | Falta | R |  |
 | C7.108 | Erro de vigota de aço/treliça: nenhum perfil da série resiste aos esforços; sugere trocar de série. | Falta | R |  |
-| C7.109 | Erro de armadura superior: zona comprimida insuficiente para o momento negativo, sem solução por maciçamento; exige laje mais alta. | Falta | R |  |
-| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Falta | R |  |
-| C7.111 | Erro: área de armadura superior exigida no apoio (face interna da viga) excessiva, armadura não dimensionada. | Falta | R |  |
+| C7.109 | Erro de armadura superior: zona comprimida insuficiente para o momento negativo, sem solução por maciçamento; exige laje mais alta. | Feito | — | erro VIGOTA_NEG: momento negativo acima do resistente mesmo com a faixa maciçada, exige laje mais alta (R6) |
+| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Parcial | R | momento negativo comparado ao resistente calculado (nervura e faixa maciçada), sem ficha do fabricante nem vigota dupla (R6) |
+| C7.111 | Erro: área de armadura superior exigida no apoio (face interna da viga) excessiva, armadura não dimensionada. | Feito | — | erro VIGOTA_NEG_AS (armadura negativa > 2φ12,5 por nervura) (R6) |
 | C7.112 | Aviso: armadura negativa fora da tabela (lajes genéricas e moldadas no local); o programa calcula assim mesmo e sugere laje mais alta ou vigota dupla. | Falta | R |  |
-| C7.113 | Aviso: maciçamento maior que duas vezes a altura (o maciçamento evita armadura inferior comprimida). | Falta | R |  |
-| C7.114 | Aviso: maciçamento maior que 20 % do vão livre. | Falta | R |  |
+| C7.113 | Aviso: maciçamento maior que duas vezes a altura (o maciçamento evita armadura inferior comprimida). | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que duas vezes a altura (R6) |
+| C7.114 | Aviso: maciçamento maior que 20 % do vão livre. | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que 20 % do vão (R6) |
 | C7.115 | Aviso: extremidades engastadas/contínuas não dimensionadas em vigotas de aço (articuladas nas bordas; em balanço o pano interno dá continuidade só para equilíbrio local, sem dimensionar o negativo). | Falta | R |  |
-| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Falta | R |  |
+| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Parcial | R | erro VIGOTA_CORTANTE contra VRd1 e VRd2 calculados (19.4.1), com a faixa maciçada necessária; sem ficha do fabricante nem vigota dupla (R6) |
 | | **7.2.1.4 Informação da vigota** | | | |
-| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Falta | R |  |
+| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | R | clique na vigota mostra os diagramas por nervura; a flecha continua por laje (R6) |
 | | **7.2.1.5 Atribuição manual** | | | |
 | C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Falta | R |  |
 | C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Falta | R |  |
@@ -625,8 +625,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.190 | Relatórios de lajes mistas: esforços, quantitativo das lajes e quantitativo de armadura. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.191 | Dados das lajes mistas no relatório de dados da obra e quantidades no quantitativo geral. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.192 | Configuração própria dos elementos de laje mista no desenho da planta de formas. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
-| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | R | memorial traz momentos das lajes |
-| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | R | quantitativos por taxa; sem quantitativo de vigotas |
+| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | R | diagramas de momento e cortante por nervura na janela e tabela por grupo no memorial, com a combinação determinante do grupo de pavimentos; sem torção nem croqui do grupo (R6) |
+| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | R | comprimento e peso das treliças por tipo e das barras adicionais, negativos e distribuição, com perdas, no resumo de aço, CSV e memorial; sem vigotas moldadas no local (R6) |
 | C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Falta | E |  |
 
 ## 8. Escadas
