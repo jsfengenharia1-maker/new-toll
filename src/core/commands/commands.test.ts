@@ -49,6 +49,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.armadura': (b) => ({ id: b.pilares[0].id, pavimento: lancesDoPilar(b, b.pilares[0])[0].id, phi: 12.5, ...(b.pilares[0].secao.tipo === 'circ' ? { n: 6 } : { nb: 3, nh: 2 }), estribo: { phi: 5, s: 0.15 } }),
   'viga.armadura': (b) => ({ id: b.vigas[0].id, inf: { n: 3, phi: 12.5 }, sup: { n: 2, phi: 10 }, estribo: { phi: 6.3, s: 0.15 }, laterais: { n: 1, phi: 8 } }),
   'armadura.desbloquear': () => ({ tipo: 'viga' }),
+  'viga.copiarArmadura': (b) => ({ de: b.vigas[1].id, para: [b.vigas[0].id] }),
   'materiais.definir': (b) => ({ fck: { pilar: 40 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 } }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),
   'opcoes.definir': () => ({ valores: { malha: 0.5, engasteTopoUltimo: 1 }, padrao: ['torcaoViga'] }),

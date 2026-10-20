@@ -72,3 +72,23 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' }>({
     return n ? `${n} armadura(s) desbloqueada(s).` : 'Nenhuma armadura bloqueada.';
   },
 });
+
+registrar<{ de: string; para: string[] }>({
+  nome: 'viga.copiarArmadura',
+  descricao: 'Copia a armadura bloqueada de uma viga para outras (mesma armadura e bloqueio; o recálculo verifica cada uma). A viga de origem precisa ter armadura bloqueada.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['de', 'para'], properties: { de: { type: 'string' }, para: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
+  validar(b, p) {
+    const o = b.vigas.find((x) => x.id === p.de);
+    if (!o) return err('VIGA_INEXISTENTE', `Viga ${p.de} não existe.`);
+    if (!o.armadura) return err('SEM_ARMADURA', `${o.nome} não tem armadura bloqueada para copiar.`, [p.de]);
+    const sem = p.para.filter((id) => !b.vigas.some((x) => x.id === id));
+    return sem.length ? err('VIGA_INEXISTENTE', `Viga ${sem.join(', ')} não existe.`) : [];
+  },
+  aplicar(d, p) {
+    const o = d.vigas.find((x) => x.id === p.de)!;
+    for (const id of p.para) { const v = d.vigas.find((x) => x.id === id)!; v.armadura = { ...JSON.parse(JSON.stringify(o.armadura)), vaos: vaosDaViga(d as BuildingModel, v) }; }
+    return `Armadura de ${o.nome} copiada para ${p.para.length} viga(s).`;
+  },
+});

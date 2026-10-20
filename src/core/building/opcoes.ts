@@ -50,6 +50,14 @@ export interface OpcoesCalculo {
   limiteDeslocTopo: number;
   /** Deslocamento lateral entre pavimentos (vento, frequente): hi / este valor. */
   limiteDeslocPavimento: number;
+  /** Comprimento máximo de barra (m); acima, emenda por traspasse. */
+  barraMaxima: number;
+  /** Arredondamento dos comprimentos de barras (cm, para cima). */
+  arredondamento: number;
+  /** Perdas de aço no resumo (%). */
+  perdasAco: number;
+  /** Bitola da armadura de montagem superior das vigas (mm), colaborante nos negativos. */
+  bitolaMontagem: number;
 }
 
 export interface OpcaoInfo {
@@ -128,6 +136,14 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Maior deslocamento horizontal do topo dos pilares pelo vento na combinação frequente ≤ altura total / este valor.' },
   { chave: 'limiteDeslocPavimento', rotulo: 'Deslocamento lateral entre pavimentos (hi / …)', min: 200, max: 3000, passo: 50, padrao: 850, fonte: 'NBR 6118, Tabela 13.3 (vento, combinação frequente ψ1 = 0,30)', aConfirmar: false,
     descricao: 'Maior deslocamento horizontal relativo entre dois pavimentos de um mesmo pilar ≤ pé-direito / este valor.' },
+  { chave: 'barraMaxima', rotulo: 'Comprimento máximo de barra', unidade: 'm', min: 6, max: 24, passo: 0.5, padrao: 12, fonte: 'Barra comercial de 12 m (padrão do programa de referência)', aConfirmar: false,
+    descricao: 'Barras mais longas são divididas com emenda por traspasse (NBR 6118, 9.5.2): passantes inferiores sobre os apoios internos, montagem e pele no meio dos vãos.' },
+  { chave: 'arredondamento', rotulo: 'Arredondamento dos comprimentos de barras', unidade: 'cm', min: 1, max: 10, passo: 1, padrao: 5, fonte: 'Padrão do programa de referência (múltiplo de 5 cm)', aConfirmar: false,
+    descricao: 'Comprimentos de barras e estribos arredondados para cima neste múltiplo.' },
+  { chave: 'perdasAco', rotulo: 'Perdas de aço no resumo', unidade: '%', min: 0, max: 30, passo: 1, padrao: 10, fonte: 'Padrão do programa de referência (10 %)', aConfirmar: false,
+    descricao: 'Acréscimo sobre o peso do resumo de aço (pontas e cortes).' },
+  { chave: 'bitolaMontagem', rotulo: 'Bitola da armadura de montagem das vigas', unidade: 'mm', min: 5, max: 12.5, passo: 0.5, padrao: 8, fonte: 'Prática de mercado (porta-estribos φ8), colaborante nos negativos', aConfirmar: true,
+    descricao: '2 barras superiores corridas (porta-estribos), contadas na armadura negativa onde existem; limitadas à bitola dos negativos.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

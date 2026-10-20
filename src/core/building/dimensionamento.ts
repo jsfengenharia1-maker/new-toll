@@ -11,6 +11,7 @@ import { deltaXi } from '../design';
 import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
+import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
 import { casosDaObra, centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
 import { TAXAS } from './premissas';
@@ -816,9 +817,14 @@ export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio): FLoad
 
 // ---------------- tudo ----------------
 
-export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number }
+export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
+  /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
+  detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas> }
 
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combs.filter((x) => x.tipo === 'ELU'), freq = combs.filter((x) => x.tipo === 'FREQ');
-  return { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  d.detalhes = detalharVigas(b, d, an.opcoes);
+  d.resumoAcoVigas = resumoAcoVigas(b, d.detalhes, an.opcoes.perdasAco);
+  return d;
 }

@@ -182,6 +182,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
     ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao } : {}),
     combinacoes: d.combinacoes,
+    ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes) },
   };
 }
