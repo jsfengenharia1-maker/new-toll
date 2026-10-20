@@ -126,6 +126,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'limite.criar': () => ({ pontos: [[2, -1], [2, 8]], cota: -1.5, nome: 'Poço' }),
   'limite.editar': (b) => ({ id: b.fundacao!.limites![0].id, pontos: [[-3, -3], [-3, 10]], nome: 'Divisa A' }),
   'limite.remover': (b) => ({ ids: [b.fundacao!.limites![0].id] }),
+  'fundacao.gerar': (b) => ({ pilares: [b.pilares[1].id], tipo: 'sapata', vigasEquilibrio: true, cargas: [{ pilar: b.pilares[1].id, Nk: 400 }] }),
   'fundacao.mover': (b) => ({ ids: [b.fundacao!.elementos[0].id], dx: 0.2, dy: 0 }),
   'fundacao.girar': (b) => ({ ids: [b.fundacao!.elementos[0].id], pontos: [[0, 0], [1, 1]] }),
   'fundacao.remover': (b) => ({ ids: [b.fundacao!.elementos[0].id] }),

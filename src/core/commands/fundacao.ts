@@ -3,14 +3,15 @@
 // impor dimensões, limites poligonais, vigas de equilíbrio e de travamento, dados do terreno (σadm, estacas),
 // sondagens, parâmetros do cálculo e níveis calculados.
 // Todos sem ferramenta própria no MCP (`mcp: false`) e fora da revisão de cálculo da estrutura (`calculo: 'fundacao'`).
-import type { Draft } from 'immer';
+import { current, type Draft } from 'immer';
 import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type ImpostasFundacao, type LimiteFundacao, type PosicaoFundacao, type TipoFundacao, type VigaFundacao } from '../building/types';
 import { nomeVigaFundacao, pontaVF } from '../building/vigasFundacao';
 import type { Diagnostico } from '../building/verify';
 import { ladoDoAjuste, nomeFundacao } from '../building/fundacao';
 import type { FoundationParams, SoilClass } from '../piles';
-import { registrar } from './registry';
-import type { JsonSchema } from './schema';
+import { planejarFundacoes, resumoPlano, type PassoGerar } from '../building/fundacaoGerar';
+import { aplicarComando, comando, registrar } from './registry';
+import { comDefaults, type JsonSchema } from './schema';
 
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
 const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
@@ -370,6 +371,56 @@ registrar<{ ids: string[]; impostas?: ImpostasFundacao; limpar?: boolean }>({
       else if (p.impostas) { e.impostas = copiarImpostas(p.impostas); delete e.igualA; }
     }
     return p.limpar ? `Dimensões impostas removidas de ${p.ids.length} elemento(s).` : `Dimensões impostas em ${p.ids.length} elemento(s).`;
+  },
+});
+
+// ---------------- geração automática (FU4) ----------------
+
+/** Resolve as pontas das vigas planejadas (pilares) para o elemento que já os cobre no modelo intermediário. */
+function resolverPasso(b: BuildingModel, passo: PassoGerar): Record<string, unknown> {
+  if (passo.nome !== 'vigaFundacao.criar') return passo.params;
+  const el = (id: unknown) => b.fundacao?.elementos.find((e) => e.pilares.includes(String(id)))?.id ?? String(id);
+  return { ...passo.params, ini: el(passo.params.ini), fim: el(passo.params.fim) };
+}
+
+type GerarIn = { pilares?: string[]; tipo?: 'auto' | TipoFundacao; estaca?: string; distanciaVisao?: number; anguloVisao?: number; distanciaAssociada?: number; associadas?: boolean; vigasEquilibrio?: boolean; vigasTravamento?: boolean; camadasDivisa?: string[]; cargas?: { pilar: string; Nk: number }[] };
+
+registrar<GerarIn>({
+  nome: 'fundacao.gerar',
+  descricao: 'Gera as fundações dos pilares que nascem na fundação e ainda não têm elemento (ou só dos `pilares` indicados), num passo só (um desfazer); tudo continua editável. Tipo: `tipo` (sapata, bloco, tubulao) ou "auto" (bloco se a σadm do terreno, informada ou pelo SPT, for menor que a opção gerarSigmaMin e houver estaca; senão sapata). Posição: o pilar "em frente" de cada face é o que tem o eixo desalinhado menos que a distância de visão D (opção gerarDistVisao, 3 m) e está dentro do cone de abertura A (gerarAnguloVisao, 30°); a face sem pilar em frente (ou com limite poligonal / camada de divisa a menos de gerarDistLimite) tem balanço nulo: elemento de divisa (uma face) ou de canto (duas). Pilares com bordas a menos de `distanciaAssociada` (gerarDistAssociada, 1 m, máximo 3 m), ou com elementos estimados sobrepostos (pelas `cargas`), viram sapata associada ou bloco com vários pilares (`associadas`). Vigas de equilíbrio (`vigasEquilibrio`) dos elementos de divisa e de canto até o pilar em frente mais próximo do lado oposto; vigas de travamento (`vigasTravamento`) dos blocos de 1 e 2 estacas, estimadas por `cargas` ([{ pilar, Nk }] característicos, da última análise) e pela capacidade informada da estaca. `camadasDivisa`: camadas das máscaras tratadas como divisa. Reaproveita fundacao.criar e vigaFundacao.criar.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, properties: {
+    pilares: ids, tipo: { type: 'string', enum: ['auto', ...TIPOS], default: 'auto' }, estaca: { type: 'string', description: 'id da estaca do terreno para os blocos; padrão: a primeira' },
+    distanciaVisao: { type: 'number', minimum: 0.5, maximum: 10, description: 'm; padrão: opção gerarDistVisao' }, anguloVisao: { type: 'number', minimum: 5, maximum: 180, description: 'graus; padrão: opção gerarAnguloVisao' },
+    distanciaAssociada: { type: 'number', minimum: 0, maximum: 3, description: 'm; padrão: opção gerarDistAssociada' },
+    associadas: { type: 'boolean', default: true }, vigasEquilibrio: { type: 'boolean', default: true }, vigasTravamento: { type: 'boolean', default: true },
+    camadasDivisa: { type: 'array', items: { type: 'string' } },
+    cargas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pilar', 'Nk'], properties: { pilar: { type: 'string' }, Nk: { type: 'number', minimum: 0 } } } },
+  } },
+  validar(b, p) {
+    const falta = (p.pilares ?? []).filter((id) => !b.pilares.some((x) => x.id === id));
+    if (falta.length) return err('PILAR_INEXISTENTE', `Pilar(es) inexistente(s): ${falta.join(', ')}.`);
+    const nao = (p.pilares ?? []).map((id) => b.pilares.find((x) => x.id === id)!).filter((q) => q.nasce !== 'fundacao');
+    if (nao.length) return err('PILAR_NAO_NASCE_FUNDACAO', `${nao.map((q) => q.nome).join(', ')} não nasce(m) na fundação.`, nao.map((q) => q.id));
+    const pl = planejarFundacoes(b, p);
+    if (!pl.passos.length) return err('NADA_A_GERAR', 'Nenhum pilar sem fundação: todos os pilares que nascem na fundação já têm elemento (ou nenhum nasce nela).');
+    let m = b;
+    for (const [i, passo] of pl.passos.entries()) {
+      const r = aplicarComando(m, passo.nome, resolverPasso(m, passo));
+      if (!r.ok) return r.erros.map((e) => ({ ...e, mensagem: `Passo ${i + 1} (${passo.nome}): ${e.mensagem}` }));
+      m = r.modelo;
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const pl = planejarFundacoes(current(d) as BuildingModel, p);
+    for (const passo of pl.passos) {
+      const c = comando(passo.nome)!;
+      c.aplicar(d, comDefaults(c.schema, resolverPasso(current(d) as BuildingModel, passo)) as Record<string, unknown>);
+    }
+    return resumoPlano(pl);
   },
 });
 

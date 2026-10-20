@@ -19,7 +19,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 
 | Ordem | Lane 1 — Fundações e elementos | Lane 2 — Detalhamento e produtividade | Lane 3 — Normas e visualização | Lane D — Specs (só docs) |
 |---|---|---|---|---|
-| Onda 1 | FU2 (concluída) → FU3 (núcleo feito) → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
+| Onda 1 | FU2 (concluída) → FU3 (núcleo feito) → FU4 (concluída) | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
@@ -46,7 +46,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 |---|---|---|
 | FU2 | (feito, O) | (feito, S2) |
 | FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 |
-| FU4 geração automática | S2 | S1 |
+| FU4 geração automática | S2 (feito em 20/10/2026) | S1 (feito em 20/10/2026) |
 | FU5 pranchas e memorial | S2 | S1 |
 | FU6 radier e vigas sobre base elástica | O | S2 |
 | FU7a sapata corrida | S3 | S1 |
@@ -125,3 +125,4 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 - 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 pendente (agente de interface da FU2/FU3).
 
 - 20/10/2026: V1 concluída (núcleo e interface): vista 3D do edifício com three.js 0.186.1 vendorizado (`scripts/vendor-three.mjs`, `public/vendor/three-0.186.1.mjs`, 623 KB, sob demanda, fora do `dist/index.html`), cena por função pura em `src/core/vista3d/` com geradores registrados (`GERADORES_3D`), aba 3D com escopo por grupo, intervalo ou pavimento, tipos, transparência, perspectiva/isométrica, caminhar, seleção sincronizada com a planta, captura PNG e fallback em SVG isométrico (artifact do claude.ai ou sem WebGL); figura isométrica no memorial; C3.35–C3.41 e C7.18 fechados; e2e `V1`. Seguem V2 e V3 (podem rodar em paralelo), depois V4 e V5.
+- 20/10/2026: FU4 concluída (núcleo e interface mínima): comando `fundacao.gerar` (`mcp: false`, `calculo: 'fundacao'`) sobre `src/core/building/fundacaoGerar.ts` (`planejarFundacoes`): tipo pela σadm, posição de divisa e de canto pelos pilares em frente (D 3 m, A 30°) e pelos limites, sapata associada ou bloco com vários pilares (bordas a menos de 1 m ou sobreposição estimada pelas cargas), vigas de equilíbrio e de travamento dos blocos de 1 e 2 estacas, tudo em um passo só (um desfazer); opções `gerarDistVisao/AnguloVisao/DistAssociada/DistLimite/SigmaMin`, premissa `fundacoes-gerar`, memorial, `docs/ia.md`, botão e diálogo "Gerar fundações…" no grupo Fundação e e2e `FU4`. C11.54 a C11.58 Feito. Detalhes no Andamento de `spec-frente-FU.md`.

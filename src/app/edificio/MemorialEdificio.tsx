@@ -359,6 +359,11 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 {' '}(majoração com vento × {fmt(b.fundacao?.terreno.fatorVento ?? 1)}; a confirmar); cota do terreno {fmt(cotaTerreno(b))} m; {b.fundacao?.sondagens.length ?? 0} furo(s) de sondagem.
                 {b.fundacao?.terreno.estacas.length ? ` Estacas: ${b.fundacao.terreno.estacas.map((e) => `${e.nome} (${e.modo === 'informada' ? `${fmt(e.capacidade ?? NaN, 0)} kN por estaca` : 'pela sondagem'})`).join('; ')}.` : ''}
               </p>
+              <p>
+                Geração automática (quando usada): distância de visão D = {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistVisao, 1)} m, ângulo de visão A = {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarAnguloVisao, 0)}°
+                (cone de abertura total A), associação de pilares com bordas a menos de {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistAssociada, 1)} m, elemento de divisa com limite a menos de {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistLimite, 2)} m da face
+                e bloco sobre estacas se σadm &lt; {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarSigmaMin, 0)} kN/m² (a confirmar); os elementos gerados são editáveis como os lançados à mão.
+              </p>
               <table>
                 <thead><tr><th className="l">Elemento</th><th className="l">Pilar</th><th className="l">Tipo</th><th>Cota (m)</th><th className="l">Dimensões</th><th>σadm (kN/m²)</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
                 <tbody>{dim.fundacoes.map((f) => <tr key={f.id}><td className="l">{f.nome}</td><td className="l">{f.pilares.join(', ')}</td><td className="l">{TIPO_FUNDACAO_LABEL[f.tipo]} {POSICAO_LABEL[f.posicao]}</td><td>{fmt(f.cota)}</td><td className="l">{f.resumo.replace(`${f.nome}: `, '')}</td><td>{f.sigmaAdm !== undefined ? fmt(f.sigmaAdm, 0) : '—'}</td><td>{fmt(f.volume, 3)}</td><td className="l">{f.status === 'ok' ? 'atende' : 'não atende'}</td><td className="l">{[...f.mensagens, ...f.notas].join(' ')}</td></tr>)}</tbody>

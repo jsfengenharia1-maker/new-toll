@@ -119,7 +119,7 @@ registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] |
   risco: 'escrita',
   mcp: false,
   // só opções das fundações: não refaz a análise da estrutura
-  calculo: (p) => { const v = p.valores as Record<string, unknown> | undefined; return !p.padrao && !p.perfil && v && Object.keys(v).length && Object.keys(v).every((k) => /^(fund|viga(Eq|Trav|Fund))/.test(k)) ? 'fundacao' : true; },
+  calculo: (p) => { const v = p.valores as Record<string, unknown> | undefined; return !p.padrao && !p.perfil && v && Object.keys(v).length && Object.keys(v).every((k) => /^(fund|gerar|viga(Eq|Trav|Fund))/.test(k)) ? 'fundacao' : true; },
   schema: { type: 'object', additionalProperties: false, properties: {
     valores: { type: 'object', additionalProperties: false, properties: Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, { type: 'number', minimum: o.min, maximum: o.max, description: `${o.rotulo}${o.unidade ? ` (${o.unidade})` : ''}; padrão ${o.padrao}` }])) },
     padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: OPCOES_INFO.map((o) => o.chave) } }] },

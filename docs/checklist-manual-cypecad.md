@@ -19,10 +19,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
-| 11. Fundações | 70 | 31 | 19 | 15 | 5 |
+| 11. Fundações | 70 | 36 | 19 | 10 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **143** | **126** | **309** | **185** |
+| **Total** | **763** | **148** | **126** | **304** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026) | 20 | 18 | 38 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU4 concluída em 20/10/2026) | 20 | 13 | 33 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
@@ -865,11 +865,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.52 | Igualar vigas: copiar o tipo de uma viga de equilíbrio ou travamento para outras; se a seção copiada for insuficiente, a viga fica em vermelho; ancoragens redimensionadas; a mestre não muda. | Feito | — | FU2: "Igualar esta ao modelo" e "Igualar as selecionadas a esta" (`vigaFundacao.igualar`): copia a seção e a fixa (copiada só verificada, em vermelho se não atender); a mestre não muda |
 | C11.53 | Módulo avançado: cargas sobre vigas de fundação (como C11.25) e cruzamento de vigas de equilíbrio e travamento. | Parcial | FU | FU2: cargas sobre vigas de fundação como C11.25 (lançadas na planta); FU3 núcleo: cruzamento de vigas (`cruzamentosVF`, `reacoesComApoios`: a de maior prioridade apoia a outra, que passa a contínua com apoio no cruzamento; reação como carga concentrada; FUND_VIGA_CRUZA); interface do cruzamento pendente |
 | | **11.4 Geração automática** | | | |
-| C11.54 | Geração automática de sapatas e vigas segundo parâmetros dados numa janela. | Falta | FU |  |
-| C11.55 | Balanço nulo numa direção quando há pilar em frente só de um lado. | Falta | FU |  |
-| C11.56 | Pilares "em frente": eixo desalinhado do pilar gerador menos que a distância de visão D e dentro do ângulo de visão A. | Falta | FU |  |
-| C11.57 | Distância máxima entre eixos de pilares para criar sapata associada: padrão 1 m, máximo 3 m. | Falta | FU |  |
-| C11.58 | Elementos gerados editáveis depois. | Falta | FU |  |
+| C11.54 | Geração automática de sapatas e vigas segundo parâmetros dados numa janela. | Feito | — | comando `fundacao.gerar` (`src/core/building/fundacaoGerar.ts`, `planejarFundacoes`): um passo só, reaproveita `fundacao.criar` e `vigaFundacao.criar`; diálogo "Gerar fundações…" no grupo Fundação (tipo, pilares, D, A, associação, vigas) |
+| C11.55 | Balanço nulo numa direção quando há pilar em frente só de um lado. | Feito | — | face sem pilar em frente (ou com limite a menos de `gerarDistLimite`) tem balanço nulo: elemento de divisa ou de canto, com `lado` nos eixos do pilar (FU4) |
+| C11.56 | Pilares "em frente": eixo desalinhado do pilar gerador menos que a distância de visão D e dentro do ângulo de visão A. | Feito | — | pilar em frente = eixo desalinhado menos que `gerarDistVisao` (3 m) dentro do cone `gerarAnguloVisao` (30°, abertura total; a confirmar) (FU4) |
+| C11.57 | Distância máxima entre eixos de pilares para criar sapata associada: padrão 1 m, máximo 3 m. | Feito | — | `gerarDistAssociada` (1 m, máx. 3 m) entre as bordas dos pilares (o programa fala em eixos; a confirmar) e elementos estimados sobrepostos pelas cargas: sapata associada ou bloco com vários pilares (FU4) |
+| C11.58 | Elementos gerados editáveis depois. | Feito | — | os elementos gerados são os mesmos de `fundacao.criar`/`vigaFundacao.criar`: editáveis, movíveis e removíveis; um desfazer desfaz a geração (FU4) |
 | | **11.5 Cálculo e resultados** | | | |
 | C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`; janela com os desenhos e verificações do módulo Fundações), sapatas associadas e blocos com vários pilares (FU3 núcleo); sem sapatas corridas e placas |
 | C11.60 | Aviso de erros/avisos ao fim do cálculo, a consultar depois. | Feito | — |  |
@@ -962,4 +962,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia V1 (vista 3D do modelo), núcleo e interface.** `src/core/vista3d/` (`cena.ts`: `construirCena` com escopo por grupos, intervalo ou pavimentos e filtro de tipos; geradores registrados em `GERADORES_3D` para pilares por lance, vigas, lajes com furos triangulados (`triangular.ts`, ear clipping próprio), panos a definir e fundações da FU1/FU2; `malha.ts`; `camera.ts`: órbita, enquadramento, troca de projeção e caminhar; `isometrico.ts`: SVG estático) e `src/app/vista3d/` (three.js 0.186.1 vendorizado em `public/vendor` por `scripts/vendor-three.mjs`, carregado sob demanda; `renderizador.ts`, `controles.ts`, `Vista3D.tsx`, aba 3D do Edifício, seleção sincronizada com a planta, captura PNG, fallback em SVG sem o vendor ou sem WebGL, figura isométrica no memorial do edifício). C3.35 a C3.41 e C7.18 fechados como Feito (aço fora na C3.36; paredes entram com a E1 na C3.41). Premissas a confirmar: altura do olho 1,6 m, velocidade inicial 2 m/s, toco do arranque 0,4 m, estaca nominal de 5 m sem comprimento calculado, viga invertida sobe a partir da cota da laje, detalhe alto = capa e vigotas em linhas.
   - Situação: Feito 126 → 134; Parcial 121 → 121; Falta 331 → 323; Fora 185 → 185.
   - Pendências por frente: V 42 → 34 (Parcial 7 → 7, Falta 35 → 27); demais sem mudança.
+- **20/10/2026 — fatia FU4 (geração automática de fundações).** `src/core/building/fundacaoGerar.ts` (`planejarFundacoes`: tipo por pilar — escolhido ou, em automático, bloco se σadm (informada ou N̄/50 do furo mais próximo) < `gerarSigmaMin` e houver estaca; posição pelo pilar "em frente" de cada face (eixo desalinhado < D e dentro do cone A) ou por limite poligonal / camada de máscara a menos de `gerarDistLimite`; associação por bordas a menos de `gerarDistAssociada` ou sobreposição estimada pelas cargas; vigas de equilíbrio até o pilar em frente do lado oposto; travamento dos blocos de 1 e 2 estacas pelo número de estacas estimado) e comando `fundacao.gerar` (`mcp: false`, `calculo: 'fundacao'`; executa `fundacao.criar` e `vigaFundacao.criar` num passo só, validado passo a passo como o `lote`). Opções `gerarDistVisao` (3 m), `gerarAnguloVisao` (30°), `gerarDistAssociada` (1 m), `gerarDistLimite` (0,5 m), `gerarSigmaMin` (150 kN/m²); premissa `fundacoes-gerar`; parágrafo no memorial; diálogo "Gerar fundações…" no grupo Fundação (`GerarFundacoesDialogo`, usa as cargas da análise em vigor). Testes `fundacaoGerar.test.ts` (grade 3 × 3 com 4 cantos, 4 divisas e 12 vigas; cone e distância de visão; limite e máscara; tipo automático; associadas; bloco de 1 e de 2 estacas com travamento e sem FUND_SEM_TRAVA; um desfazer e replay) e e2e `FU4`. C11.54 a C11.58 passam a Feito. A confirmar: A como abertura total do cone, associação pela distância entre bordas (a spec fala em eixos), distância de 0,5 m à divisa, σadm mínima de 150 kN/m², sobreposição e número de estacas estimados sem análise.
+  - Situação: Feito 143 → 148; Parcial 126 → 126; Falta 309 → 304; Fora 185 → 185.
+  - Pendências por frente: FU 38 → 33 (Parcial 20 → 20, Falta 18 → 13); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

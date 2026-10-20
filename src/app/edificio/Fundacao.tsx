@@ -15,7 +15,7 @@ import { PILE_LABEL, type Boring, type FoundationData, type PileType } from '../
 import { isFooting } from '../../core/footings';
 import { isCaisson } from '../../core/caissons';
 import {
-  POSICAO_LABEL, TIPO_FUNDACAO_LABEL, cotaElemento, cotaTerreno, ladoDoAjuste, niveisFundacao, parametrosElemento, parametrosFundacao, secaoBase, type ResultadoFundacao,
+  POSICAO_LABEL, TIPO_FUNDACAO_LABEL, cargasPorPilar, cotaElemento, cotaTerreno, ladoDoAjuste, niveisFundacao, parametrosElemento, parametrosFundacao, secaoBase, type ResultadoFundacao,
 } from '../../core/building/fundacao';
 import { FUNDACAO_VAZIA, casosDaObra, cotaFundacao, dimsSecao, ehArranque, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type PosicaoFundacao, type TipoFundacao, type TipoVigaFundacao, type VigaFundacao } from '../../core/building/types';
 import type { ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
@@ -57,6 +57,74 @@ const ENUMS: Record<string, { v: string; label: string }[]> = {
   sptAvgDepth: [{ v: 'common', label: 'comum a todos os furos' }, { v: 'max', label: 'até o furo mais profundo' }], sptAvgWater: [{ v: 'shallowest', label: 'o mais raso' }, { v: 'mean', label: 'média dos furos' }],
 };
 
+// ---------------------------------------------------------------- geração automática (FU4)
+
+/** Diálogo de parâmetros do comando `fundacao.gerar`: tipo, escopo, associação, vigas e os parâmetros de visão. */
+function GerarFundacoesDialogo({ b, semElemento, onClose }: { b: BuildingModel; semElemento: string[]; onClose: () => void }) {
+  const exec = useBuilding((st) => st.exec);
+  const analise = useBuilding((st) => st.analise);
+  const atual = useBuilding((st) => calculoAtual(st));
+  const selecao = usePlanta((st) => st.selecao);
+  const op = opcoesEmUso(b.opcoes, perfilDe(b));
+  const estacas = b.fundacao?.terreno.estacas ?? [];
+  const selecionados = semElemento.filter((id) => selecao.has(id));
+  const [tipo, setTipo] = useState<'auto' | TipoFundacao>('auto');
+  const [escopo, setEscopo] = useState<'todos' | 'selecionados'>(selecionados.length ? 'selecionados' : 'todos');
+  const [estaca, setEstaca] = useState(estacas[0]?.id ?? '');
+  const [assoc, setAssoc] = useState(true);
+  const [eq, setEq] = useState(true);
+  const [trav, setTrav] = useState(true);
+  const [D, setD] = useState(op.gerarDistVisao);
+  const [A, setA] = useState(op.gerarAnguloVisao);
+  const [gap, setGap] = useState(op.gerarDistAssociada);
+  const cargas = useMemo(() => {
+    if (!analise || !atual) return [];
+    try { return [...cargasPorPilar(b, analise)].map(([pilar, l]) => ({ pilar, Nk: l.Nk })); } catch { return []; }
+  }, [b, analise, atual]);
+  const gerarAgora = () => {
+    const params: Record<string, unknown> = { tipo, associadas: assoc, vigasEquilibrio: eq, vigasTravamento: trav };
+    if (escopo === 'selecionados' && selecionados.length) params.pilares = selecionados;
+    if (estaca && (tipo === 'bloco' || tipo === 'auto')) params.estaca = estaca;
+    if (D !== op.gerarDistVisao) params.distanciaVisao = D;
+    if (A !== op.gerarAnguloVisao) params.anguloVisao = A;
+    if (gap !== op.gerarDistAssociada) params.distanciaAssociada = gap;
+    if (cargas.length) params.cargas = cargas;
+    const r = exec('fundacao.gerar', params);
+    if (r.ok) onClose();
+  };
+  return (
+    <Modal titulo="Gerar fundações" onClose={onClose}>
+      <div data-gerar-dialogo>
+        <div className="row wrap u-items-end">
+          <Select label="Tipo" value={tipo} options={[{ v: 'auto', label: 'Automático (pela σadm)' }, ...TIPOS]} onChange={(v) => setTipo(v)} />
+          <Select label="Pilares" value={escopo} options={[{ v: 'todos', label: `Todos sem elemento (${semElemento.length})` }, { v: 'selecionados', label: `Só os selecionados (${selecionados.length})` }]} onChange={(v) => setEscopo(v)} />
+          {estacas.length > 0 && (tipo === 'bloco' || tipo === 'auto') && <Select label="Estaca dos blocos" value={estaca} options={estacas.map((e) => ({ v: e.id, label: e.nome }))} onChange={(v) => setEstaca(v)} />}
+        </div>
+        <div className="row wrap u-items-end">
+          <NumField label="Distância de visão D" unit="m" width={140} value={D} onChange={setD} />
+          <NumField label="Ângulo de visão A" unit="°" width={140} value={A} onChange={setA} />
+          <NumField label="Associar se bordas a menos de" unit="m" width={190} value={gap} onChange={setGap} />
+        </div>
+        <div className="row wrap">
+          <Check label="Sapata associada / bloco com vários pilares" checked={assoc} onChange={setAssoc} />
+          <Check label="Vigas de equilíbrio" checked={eq} onChange={setEq} />
+          <Check label="Vigas de travamento (blocos de 1 e 2 estacas)" checked={trav} onChange={setTrav} />
+        </div>
+        <Hint>
+          Pilar “em frente” de uma face: eixo desalinhado menos que D e dentro do cone de abertura A. A face sem pilar em frente (ou com limite a menos de {fmt(op.gerarDistLimite)} m) fica com balanço nulo: elemento de divisa ou de canto,
+          com viga de equilíbrio até o pilar em frente do lado oposto. Valores iniciais das opções de cálculo (a confirmar); mudar aqui vale só para esta geração.
+          {cargas.length ? ` Cargas da última análise (${cargas.length} pilares) estimam sobreposições e o número de estacas para o travamento.` : ' Sem análise em vigor: sobreposição por cargas e travamento dos blocos não são gerados (calcule o edifício antes; o cálculo avisa FUND_SEM_TRAVA e FUND_SOBREPOSTA).'}
+          {' '}Um desfazer desfaz tudo; os elementos gerados são editáveis como os lançados à mão.
+        </Hint>
+        <div className="row wrap">
+          <Button variant="primary" data-gerar-confirmar onClick={gerarAgora} disabled={escopo === 'selecionados' && !selecionados.length}>Gerar</Button>
+          <Button onClick={onClose}>Cancelar</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /** Item de mensagem de um elemento (código FUND_* e texto). */
 function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
@@ -71,6 +139,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
   const atual = useBuilding((s) => fundacaoAtual(s));
   const revFund = useBuilding((s) => s.revFund);
   const pl = usePlanta();
+  const [gerar, setGerar] = useState(false);
   const fe = b.fundacao ?? FUNDACAO_VAZIA();
   const t = fe.terreno;
   const op = opcoesEmUso(b.opcoes, perfilDe(b));
@@ -170,7 +239,9 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
       </div>
       <div className="row wrap">
         <Button disabled={!semElemento.length || (pl.tipoFund === 'bloco' && !estacaSel)} onClick={lancarTodos}>Lançar centrados em {semElemento.length} pilar{semElemento.length === 1 ? '' : 'es'} sem elemento</Button>
+        <Button variant="primary" disabled={!semElemento.length} data-gerar-fundacoes onClick={() => setGerar(true)} title="Tipo, posição, associadas e vigas pelos parâmetros de visão (um passo só, editável depois)">Gerar fundações…</Button>
       </div>
+      {gerar && <GerarFundacoesDialogo b={b} semElemento={semElemento.map((p) => p.id)} onClose={() => setGerar(false)} />}
       <Hint>Na planta de fundação, escolha a ferramenta Fundação e clique no pilar: em “automática” o ponto do clique define a posição (perto do centro: centrada; perto de uma face: de divisa; perto de um canto: de canto) e, em divisa e canto, a face ou o canto (nos eixos do pilar). Posição livre: clique no pilar e depois no centro do elemento. Arranque: marque “Arranque” na ferramenta Pilar; ele só aparece na planta de fundação.</Hint>
 
       <NiveisCalculados b={b} />

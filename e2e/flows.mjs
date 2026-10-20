@@ -1679,6 +1679,47 @@ export const flows = [
     },
   },
   {
+    name: 'FU4: Gerar fundações — diálogo, 4 sapatas de canto com as vigas de equilíbrio num passo só, cálculo sem FUND_EXC_SEM_VIGA e um desfazer',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      // diálogo de parâmetros com os valores das opções (D = 3 m, A = 30°, associação a 1 m)
+      await grupo.locator('[data-gerar-fundacoes]').click();
+      const dlg = page.getByRole('dialog', { name: 'Gerar fundações' });
+      await dlg.waitFor();
+      assert.equal(await dlg.getByLabel('Distância de visão D').inputValue(), '3');
+      assert.equal(await dlg.getByLabel('Ângulo de visão A').inputValue(), '30');
+      assert.match(await dlg.innerText(), /Sem análise em vigor/);
+      await dlg.locator('[data-gerar-confirmar]').click();
+      await page.locator('.statusbar .msg', { hasText: /Fundações geradas: 4 sapatas \(4 de canto\); vigas: 4 de equilíbrio/ }).waitFor();
+      assert.equal(await grupo.locator('table[data-fundacoes] tbody tr').count(), 4);
+      assert.equal(await grupo.locator('table[data-vigas-fundacao-tabela] tbody tr').count(), 4);
+      // sem elemento a gerar, o botão fica desligado
+      assert.equal(await grupo.locator('[data-gerar-fundacoes]').isDisabled(), true);
+      // calcular: nenhum elemento fica excêntrico sem viga
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const lista = page.locator('[data-lista-erros]');
+      await lista.getByLabel('Tipo').selectOption('fundacao');
+      assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' }).count(), 0);
+      assert.equal(await page.locator('[data-card-vigas-fundacao] tbody tr').count(), 4);
+      // um desfazer remove elementos e vigas
+      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      assert.match(await grupo.locator('summary').first().innerText(), /Fundação \(0 elementos\)/i);
+    },
+  },
+  {
     webgl: true,
     name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
     async run({ newPage, baseURL }) {

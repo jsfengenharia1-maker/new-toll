@@ -118,6 +118,16 @@ export interface OpcoesCalculo {
   fundSimplesGamma: number;
   /** Sapatas: reduzir a armadura mínima de flexão a 4/3 da calculada (1) ou manter ρmín (0). */
   fundReducaoTaxa: number;
+  /** Geração automática: distância de visão D (m): desalinhamento máximo do eixo do pilar "em frente" em relação ao eixo do pilar gerador. */
+  gerarDistVisao: number;
+  /** Geração automática: ângulo de visão A (graus): abertura total do cone de busca de pilares em frente, a partir de cada face do pilar. */
+  gerarAnguloVisao: number;
+  /** Geração automática: distância máxima (m) entre as bordas de dois pilares para criar sapata associada ou bloco com vários pilares. */
+  gerarDistAssociada: number;
+  /** Geração automática: distância (m) de uma face do pilar a um limite (divisa) abaixo da qual o elemento fica de divisa. */
+  gerarDistLimite: number;
+  /** Geração automática: σadm (kN/m²) abaixo da qual o tipo automático passa de sapata a bloco sobre estacas. */
+  gerarSigmaMin: number;
 }
 
 export interface OpcaoInfo {
@@ -264,6 +274,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'fctd = fctk,inf/(fator·γc). A tração na flexão da sapata de concreto simples (σt = 6M/(b·h²)) não passa de fctd; também decide se a sapata armada precisa de malha superior entre pilares.' },
   { chave: 'fundReducaoTaxa', rotulo: 'Sapatas: reduzir a taxa mínima de flexão', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência; NBR 6118 17.3.5.2.1 admite As,mín = 4/3·As,calc (item a confirmar)', aConfirmar: true,
     descricao: 'Ligada: a armadura de flexão da sapata é o maior entre a calculada e o menor valor entre ρmín·b·h e 4/3 da calculada. Desligada: ρmín·b·h.' },
+  { chave: 'gerarDistVisao', rotulo: 'Geração automática: distância de visão D', unidade: 'm', min: 0.5, max: 10, passo: 0.5, padrao: 3, fonte: 'Programa de referência (geração automática de fundações: eixo do pilar em frente desalinhado menos que a distância de visão); padrão 3 m a confirmar', aConfirmar: true,
+    descricao: 'Um pilar está “em frente” de uma face do pilar gerador quando o desalinhamento lateral do seu eixo é menor que D e ele está dentro do ângulo de visão. A face sem pilar em frente tem balanço nulo: o elemento fica de divisa (uma face) ou de canto (duas faces).' },
+  { chave: 'gerarAnguloVisao', rotulo: 'Geração automática: ângulo de visão A', unidade: '°', min: 5, max: 180, passo: 5, padrao: 30, fonte: 'Programa de referência (ângulo de visão); padrão 30° a confirmar; aqui é a abertura total do cone, A/2 para cada lado do eixo', aConfirmar: true,
+    descricao: 'Abertura total do cone de busca a partir de cada face do pilar (A/2 para cada lado do eixo da face, interpretação a confirmar). Pilar fora do cone não conta como “em frente”.' },
+  { chave: 'gerarDistAssociada', rotulo: 'Geração automática: distância máxima para associar pilares', unidade: 'm', min: 0, max: 3, passo: 0.1, padrao: 1, fonte: 'Programa de referência (distância máxima para sapata associada: padrão 1 m, máximo 3 m); medida entre as bordas dos pilares (o programa fala em eixos; a confirmar)', aConfirmar: true,
+    descricao: 'Pilares com bordas a menos desta distância (ou cujos elementos estimados se sobrepõem, quando se informam as cargas) viram uma sapata associada ou um bloco com vários pilares.' },
+  { chave: 'gerarDistLimite', rotulo: 'Geração automática: distância à divisa para elemento de divisa', unidade: 'm', min: 0, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): a sapata centrada precisa de balanço; abaixo desta distância o elemento é de divisa', aConfirmar: true,
+    descricao: 'Limites poligonais (e as camadas da máscara escolhidas como divisa) a menos desta distância da face do pilar tornam o elemento de divisa naquela face, mesmo com pilar em frente.' },
+  { chave: 'gerarSigmaMin', rotulo: 'Geração automática: σadm mínima para sapata', unidade: 'kN/m²', min: 0, max: 1000, passo: 10, padrao: 150, fonte: 'Critério do Statikos (sem fonte): terreno fraco pede fundação profunda', aConfirmar: true,
+    descricao: 'No tipo automático, o pilar vai para bloco sobre estacas quando a σadm (informada ou estimada pelo SPT, N̄/50) é menor que este valor e há estaca cadastrada; senão, sapata.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
