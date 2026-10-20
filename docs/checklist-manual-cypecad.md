@@ -8,40 +8,40 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
-| 0. Apresentação do programa | 4 | 0 | 3 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 13 | 18 | 10 |
+| 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 15 | 8 | 15 | 3 |
-| 4. Pilares | 63 | 16 | 24 | 16 | 7 |
+| 3. Grupos e pavimentos | 41 | 16 | 8 | 14 | 3 |
+| 4. Pilares | 63 | 20 | 21 | 15 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
-| 6. Vigas | 108 | 11 | 15 | 57 | 25 |
-| 7. Lajes | 195 | 15 | 30 | 89 | 61 |
+| 6. Vigas | 108 | 13 | 16 | 54 | 25 |
+| 7. Lajes | 195 | 20 | 32 | 76 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
 | 11. Fundações | 70 | 6 | 8 | 51 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **90** | **119** | **375** | **179** |
+| **Total** | **763** | **103** | **119** | **356** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento | 35 | 48 | 83 |
-| N — Cálculo e normas | 13 | 19 | 32 |
-| E — Elementos estruturais | 18 | 185 | 203 |
+| R — Revisão de resultados e detalhamento (resíduo: R1–R6 concluídas; itens deixados de fora, marcados [resíduo R]) | 19 | 23 | 42 |
+| N — Cálculo e normas | 12 | 14 | 26 |
+| E — Elementos estruturais | 29 | 198 | 227 |
 | FU — Fundações integradas | 12 | 55 | 67 |
 | L — Produtividade de lançamento | 40 | 31 | 71 |
-| V — Visualização | 1 | 37 | 38 |
+| V — Visualização | 7 | 35 | 42 |
 
 ## 0. Apresentação do programa
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício |
-| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | R | grelha por pavimento + pórtico espacial (não é um modelo único); fundação em módulo à parte |
-| C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Parcial | R | concreto armado sim (NBR 6118); aço só no módulo Pórtico |
+| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | N | grelha por pavimento + pórtico espacial (não é um modelo único: frente N); fundação em módulo à parte (FU) |
+| C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Feito | — | concreto armado dimensionado no edifício (NBR 6118); aço no edifício fora do escopo (o Pórtico 2D dimensiona aço pela NBR 8800) |
 | C0.4 | Normas de vários países à escolha do usuário. | Fora | — | só normas brasileiras, por decisão de escopo |
 
 ## 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos
@@ -88,7 +88,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Parcial | FU | fundações no módulo Fundações (cargas importadas do edifício); sem vigas de equilíbrio, radier |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
 | C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
-| C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Falta | R | edição/uniformização de armaduras antes dos desenhos |
+| C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Parcial | R | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis antes das pranchas (R2, R6) e pilares iguais agrupados no quadro (R5); sem editar/uniformizar a armadura das lajes maciças nem reposicionar textos [resíduo R] |
 | C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Feito | — | memorial e pranchas de formas, locação e armação de vigas, pilares e lajes em PDF/DXF/DWG (R5) |
 | | **1.3.3 Gestão de arquivos** | | | |
 | C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício |
@@ -134,7 +134,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento |
 | C2.20 | Janela de seleção dos modos de captura de objetos (snap) do DXF/DWG. | Feito | — | tipos de captura |
 | C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir |
-| C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Falta | R | máscara nas pranchas |
+| C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Falta | R | máscara nas pranchas (fora da R5) [resíduo R] |
 
 ## 3. Grupos e pavimentos
 
@@ -143,8 +143,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.1 | Até 5 pavimentos por grupo. | Fora | — | sem limite de pavimentos por grupo (escolha) |
 | C3.2 | Grupo: conjunto de pavimentos iguais e consecutivos, com a mesma armadura. | Feito | — | grupo = pavimentos iguais |
 | C3.3 | Num grupo, os dados são lançados uma vez para todos os pavimentos. | Feito | — |  |
-| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Falta | N | envoltória dos pavimentos do grupo nos resultados (hoje lajes saem por pavimento; vigas pela envoltória do grupo) |
-| C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Parcial | N | vigas por grupo; pilares por lance |
+| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Parcial | N | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na tela por pavimento |
+| C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Feito | — | vigas, lajes maciças e vigotas dimensionadas uma vez pela envoltória do grupo (R3a, R4, R6); pilares por lance |
 | C3.6 | Desenho único por grupo (uma planta de formas, um desenho de vigas etc.). | Feito | — | uma prancha de formas por grupo |
 | C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre |
 | C3.8 | Sem pavimentos, só existe a criação. Depois aparecem apagar pavimentos, editar pavimentos, editar grupos, unir grupos e dividir grupos. | Feito | — | pavimento criar/editar/remover/repetir; grupo criar/editar/remover/desvincular |
@@ -189,7 +189,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **4.1 Lançamento** | | | |
 | C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não |
 | C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Falta | FU | arranques sem pavimentos |
-| C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Parcial | N | editar, mover, ponto fixo, ângulo, engaste (N1a) e flambagem (N1b) por lance; cargas no topo do pilar na N1c |
+| C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Feito | — | editar, mover, ponto fixo, ângulo, engaste por lance (N1a), flambagem (N1b) e cargas no lance (N1c) |
 | C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Parcial | FU | módulo Fundações aceita cargas diretas por apoio |
 | C4.5 | Cargas no topo do arranque, que representam as cargas transmitidas à fundação. | Parcial | FU | carga pontual no pavimento; sem carga no topo do pilar |
 | C4.6 | Dois comandos de cálculo: a obra sem fundação e a obra com fundação. | Parcial | FU | cálculo do edifício + módulo Fundações separado |
@@ -221,37 +221,37 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E |  |
 | C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário |
 | | **4.2 Resultados de pilares** | | | |
-| C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Parcial | R | pilares com erro em vermelho e com aviso em amarelo na planta (R1); a revisão pela edição da armadura vem na R2 |
+| C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Feito | — | pilares com erro em vermelho e aviso em amarelo na planta (R1), revisados pelo editor de armadura da janela do elemento com recálculo (R2) |
 | C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Feito | — | janela de resultados do pilar por clique duplo (tabela, lista de erros ou botão na planta) com as combinações determinantes de cada lance (R1) |
 | C4.36 | O relatório do cálculo lista os pilares com erro de dimensionamento e indica onde revisá-los. | Feito | — | mensagens por lance |
 | C4.37 | Seção em vermelho na tela, no pavimento onde está o erro. | Feito | — | contorno e rótulo do pilar em vermelho (erro) ou amarelo (aviso) no pavimento do lance, com chave Mostrar erros (R1) |
-| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção |
-| C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Parcial | R | limite de 4% na busca |
-| C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Parcial | N | Vd e estribo pelo cortante nos pilares do edifício; biela não detalhada (N1e) |
+| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção por erro [resíduo R] |
+| C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Feito | — | erro ARMADURA quando nem 4 % de armadura atende (limite da NBR 6118, 17.3.5.3.2), equivalente à taxa máxima; sem taxa mecânica |
+| C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Feito | — | biela (Vsd/VRd2, erro BIELA) e estribo pelo cortante nos pilares (N1e); espaçamento do estribo verificado na armadura bloqueada (R2) |
 | C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção |
 | C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Falta | N |  |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
 | C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) |
-| C4.45 | Taxa As/Ac (%) mostrada por tramo. | Parcial | R | As por lance; taxa não exibida |
+| C4.45 | Taxa As/Ac (%) mostrada por tramo. | Parcial | R | As por lance na tabela e na janela do pilar; taxa As/Ac não exibida [resíduo R] |
 | C4.46 | Pilares de aço: ao calcular, opções de dimensionar ou não os perfis. | Fora | — | pilar de aço no edifício |
 | C4.47 | Dimensionamento de perfis por toda a série (pode trocar por menor) ou só por perfis maiores ou iguais ao atual. | Fora | — |  |
 | C4.48 | Testar outro perfil da série com verificação imediata. | Fora | — |  |
 | C4.49 | Lista dos perfis da série com peso por metro, aproveitamento (%) e erros. | Fora | — |  |
 | C4.50 | Botão para voltar ao perfil ótimo proposto pelo dimensionamento. | Fora | — |  |
-| C4.51 | Dados do pilar no dimensionamento: ângulo, engastamento, desnível e profundidade do apoio. | Falta | R |  |
-| C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Falta | R | planta de situação no dimensionamento |
+| C4.51 | Dados do pilar no dimensionamento: ângulo, engastamento, desnível e profundidade do apoio. | Falta | R | ângulo, engaste e desnível não aparecem na janela do pilar (estão nos grupos de seleção e Vínculos) [resíduo R] |
+| C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Parcial | R | planta do pavimento com pilares em vermelho/amarelo e botão "Resultados do elemento" (R1); sem planta de situação dentro da janela nem navegação pilar a pilar [resíduo R] |
 | C4.53 | Bloqueio da armadura de pilares: recalcula a estrutura sem mudar a armadura bloqueada (preserva edições manuais). | Feito | — | armadura do pilar editada e bloqueada por lance (pilar.armadura; janela do elemento e bloqueio em lote), só verificada no recálculo (R2) |
 | C4.54 | Pilares bloqueados passam pela verificação completa da norma a cada recálculo, e os que falham ficam em vermelho. | Feito | — | verificação completa por fibras a cada recálculo; reprovado = ARM_BLOQ (erro), vermelho na planta e na lista |
-| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Parcial | R | desbloquear todos, selecionados ou o pilar (Restaurar calculada) e recalcular; sem redimensionar só o alterado sem recálculo geral |
-| C4.56 | Desbloqueio automático quando muda o número de pavimentos que o pilar sustenta. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de lances; o desbloqueio não é gravado no modelo |
+| C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Parcial | R | desbloquear todos, selecionados ou o pilar (Restaurar calculada) e recalcular; sem redimensionar só o alterado sem recálculo geral [resíduo R] |
+| C4.56 | Desbloqueio automático quando muda o número de pavimentos que o pilar sustenta. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de lances; o desbloqueio não é gravado no modelo [resíduo R] |
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
-| C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem janela própria, cores de seleção nem pilares de aço |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | R | combinações determinantes por lance na janela do pilar (R1); sem tela de envoltória por hipótese |
+| C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem janela própria nem cores de seleção (pilares de aço fora) [resíduo R] |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
-| C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R |  |
+| C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R | ponto fixo nas pranchas (fora da R5) [resíduo R] |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos |
-| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1); sem relatório por esforço |
+| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício (detalhamento dos pilares) e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1, R3b); sem relatório por esforço [resíduo R] |
 
 ## 5. Muros e paredes estruturais
 
@@ -324,9 +324,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.29 | Largura efetiva própria para verificar os positivos. A armadura de negativo sobre o apoio não é dimensionada. | Fora | — |  |
 | C6.30 | Capturas DXF/DWG (mais próximo, interseção, extremo, ponto médio etc.) ao marcar os pontos da viga, sem ajuste posterior. | Feito | — | capturas |
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
-| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | R |  |
-| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a) |
-| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Falta | R |  |
+| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) |
+| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a); sem tramo predefinido entre vigas consecutivas [resíduo R] |
+| C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Falta | R | compor/decompor pórticos [resíduo R] |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento |
 | C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E |  |
@@ -354,13 +354,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Falta | E |  |
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
-| C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Falta | R |  |
+| C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Falta | R | referências-base de juntas [resíduo R] |
 | C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara |
 | | **6.2 Cálculo e resultados de vigas** | | | |
 | C6.64 | Vigas de aço no cálculo: dimensionar a partir do perfil inicial (só maiores ou iguais) ou de toda a série (pode reduzir). | Fora | — | aço |
-| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificações de detalhamento de estribo |
-| C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Falta | R |  |
-| C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Falta | R | barra acima de 12 m |
+| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita [resíduo R] |
+| C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Falta | R | aviso de desnível longitudinal [resíduo R] |
+| C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Feito | — | aviso no detalhamento quando a barra passa do comprimento máximo e não cabe a emenda (opção barraMaxima, padrão 12 m; R3a) |
 | C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E |  |
 | C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Falta | E |  |
 | C6.70 | Listagem da viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento (aço), resultado do dimensionamento e erros. | Falta | E |  |
@@ -369,19 +369,19 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.73 | Viga inclinada de aço: verificação de outros perfis da série. | Fora | — |  |
 | C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Falta | E |  |
 | C6.75 | Redimensionar os perfis das vigas inclinadas de aço (só maiores ou toda a série). | Fora | — |  |
-| C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Parcial | R | comando viga.copiarArmadura e botão "Copiar para…" na janela da viga, para vigas do mesmo grupo (R3a) |
-| C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Parcial | R | a cópia leva nº e bitola inferior, superior e laterais e o estribo da armadura bloqueada; comprimentos saem do detalhamento (R3a) |
-| C6.78 | Condições para copiar: todos os vãos de concreto e do mesmo tipo (plana ↔ com altura sim, treliçada não), mesmo número de vãos, diferença de vão < 25 cm e desníveis coincidentes. Quando a cópia falha, uma mensagem dá o motivo. | Parcial | R | lista pré-marca vigas de mesma seção e nº de vãos; sem bloqueio nem mensagem por motivo (R3a) |
-| C6.79 | Copiar a armadura não iguala os desenhos: isso só acontece com geometria idêntica. | Falta | R |  |
+| C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Parcial | R | comando viga.copiarArmadura e botão "Copiar para…" na janela da viga, para vigas do mesmo grupo (R3a); entre grupos só pelo comando [resíduo R] |
+| C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Parcial | R | a cópia leva nº e bitola inferior, superior e laterais e o estribo da armadura bloqueada; comprimentos saem do detalhamento (R3a) [resíduo R] |
+| C6.78 | Condições para copiar: todos os vãos de concreto e do mesmo tipo (plana ↔ com altura sim, treliçada não), mesmo número de vãos, diferença de vão < 25 cm e desníveis coincidentes. Quando a cópia falha, uma mensagem dá o motivo. | Parcial | R | lista pré-marca vigas de mesma seção e nº de vãos; sem bloqueio nem mensagem por motivo (R3a) [resíduo R] |
+| C6.79 | Copiar a armadura não iguala os desenhos: isso só acontece com geometria idêntica. | Falta | R | sem agrupamento de desenhos de vigas iguais nas pranchas [resíduo R] |
 | C6.80 | Dimensionar as vigas de aço do pavimento a qualquer momento depois do cálculo, e testar outros perfis da série sem recalcular. | Fora | — |  |
-| C6.81 | Agrupar pórticos depois do cálculo, sem verificar as condições. Aviso com o motivo quando não é possível. | Falta | R | agrupar pórticos |
-| C6.82 | Em pórticos agrupados, a mudança em um vale para todos, e sai um único desenho com todas as referências. | Falta | R |  |
-| C6.83 | Desagrupar pórticos e acrescentar pórtico a um agrupamento existente. | Falta | R |  |
+| C6.81 | Agrupar pórticos depois do cálculo, sem verificar as condições. Aviso com o motivo quando não é possível. | Falta | R | agrupar pórticos [resíduo R] |
+| C6.82 | Em pórticos agrupados, a mudança em um vale para todos, e sai um único desenho com todas as referências. | Falta | R | [resíduo R] |
+| C6.83 | Desagrupar pórticos e acrescentar pórtico a um agrupamento existente. | Falta | R | [resíduo R] |
 | C6.84 | Bloquear a armadura de pórticos para preservar edições manuais nos recálculos. | Feito | — | viga.armadura bloqueia nº, bitola, estribo e laterais (R2) |
 | C6.85 | Pórticos bloqueados só são verificados quanto à área de aço e à flecha. Os que falham aparecem na cor de erro. | Feito | — | bloqueadas verificadas quanto à área de aço, estribos, laterais, fissuração e flecha; reprovada em vermelho (ARM_BLOQ) |
-| C6.86 | Desbloqueio automático quando muda o número de vãos do pórtico. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de vãos; o desbloqueio não é gravado no modelo |
-| C6.87 | Redimensionar todos os pórticos ou só os alterados (desbloqueados ou com seção modificada). | Parcial | R | desbloquear todos ou selecionados e recalcular; sem rearmar só os alterados sem recálculo geral |
-| C6.88 | Seleção de bloqueio por grupo: todos, nenhum ou seleção gráfica (contorno vermelho), com a contagem de selecionados. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem seleção por grupo nem contorno vermelho |
+| C6.86 | Desbloqueio automático quando muda o número de vãos do pórtico. | Parcial | R | bloqueio desconsiderado no recálculo (aviso BLOQ_IGNORADO) quando muda o nº de vãos; o desbloqueio não é gravado no modelo [resíduo R] |
+| C6.87 | Redimensionar todos os pórticos ou só os alterados (desbloqueados ou com seção modificada). | Parcial | R | desbloquear todos ou selecionados e recalcular; sem rearmar só os alterados sem recálculo geral [resíduo R] |
+| C6.88 | Seleção de bloqueio por grupo: todos, nenhum ou seleção gráfica (contorno vermelho), com a contagem de selecionados. | Parcial | R | bloquear/desbloquear selecionados na planta (com contagem) ou todos; sem seleção por grupo nem contorno vermelho [resíduo R] |
 | C6.89 | Erro de conector: diâmetro nominal pequeno. | Fora | — | conectores de vigas mistas |
 | C6.90 | Erro de conector: comprimento total insuficiente. | Fora | — | conectores de vigas mistas |
 | C6.91 | Erro de conector: não ancorado na laje. | Fora | — | conectores de vigas mistas |
@@ -396,13 +396,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E |  |
 | C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E |  |
 | C6.102 | Editar a armadura de vigas inclinadas. | Falta | E |  |
-| C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Falta | R | editor de armaduras de vigas |
-| C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Falta | R |  |
-| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | envoltórias calculadas (M+, M−, V); sem diagrama na tela |
-| C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Falta | V | diagramas por clique |
+| C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Parcial | R | editor de armadura na janela da viga (R2) e aba Detalhamento com elevação (inferior, superior, pele, estribos por zona) e seção (R3a); sem escolher o que mostrar [resíduo R] |
+| C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Falta | R | fator do comprimento de emenda no editor [resíduo R] |
+| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação |
+| C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
-| C6.107 | Desenho da armadura de vigas inclinadas. | Falta | R |  |
-| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | R |  |
+| C6.107 | Desenho da armadura de vigas inclinadas. | Falta | E | vigas inclinadas (E2) |
+| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | E | consolos (E2) |
 
 ## 7. Lajes
 
@@ -417,10 +417,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar |
-| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | R | desenho das nervuras |
-| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Falta | N | momentos mínimos por pano |
-| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Falta | N |  |
-| C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Falta | N | engastamento de borda por pano |
+| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) |
+| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | momentos mínimos das vigotas p·ℓ²/16 por obra (opções, R6); sem valor por pano |
+| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Falta | E | classe de exposição por pano (vigotas protendidas e alveolares: E3) |
+| C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Feito | — | coeficiente de engaste por borda da laje (laje.editar engasteBordas, Vínculos; N1a), também nas treliçadas |
 | C7.13 | Processo construtivo das alveolares: com ou sem escoramento. | Fora | — |  |
 | C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Falta | E |  |
 | | **7.1.2.1 Pano a definir** | | | |
@@ -441,9 +441,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.28 | Biblioteca de fichas de fabricantes. Os dados são do fabricante, o programa só faz um controle lógico. Novas fichas podem ser criadas num editor à parte. | Falta | E |  |
 | C7.29 | Seleção na biblioteca: referência opcional (padrão ficha + laje), ficha/fabricante e laje da série (altura e intereixo), com resumo das propriedades (concretos, aço de protensão etc.). | Falta | E |  |
 | C7.30 | Ficha técnica para vigota simples e dupla, com dados obrigatórios e recomendados. | Falta | E |  |
-| C7.31 | Vigota armada, positivo (meio do vão): tipo, armadura (base + adicional em todo o comprimento + adicional mais curta), área de aço, momento último, momento de fissuração, rigidez total e rigidez fissurada (flecha por Branson). | Parcial | E | momento por nervura informado; armadura com o fabricante |
-| C7.32 | Vigota armada, negativo (apoio): armadura superior adicional (duas parcelas com comprimentos calculados), área de aço, momento último da seção típica e da seção maciça (sem enchimento), momento de fissuração e rigidezes. | Falta | E |  |
-| C7.33 | Cortante último da seção, com valores por tipo de treliça. O tipo usado aparece na tela e no desenho. | Falta | E |  |
+| C7.31 | Vigota armada, positivo (meio do vão): tipo, armadura (base + adicional em todo o comprimento + adicional mais curta), área de aço, momento último, momento de fissuração, rigidez total e rigidez fissurada (flecha por Branson). | Parcial | E | treliça do modelo, adicional, área de aço e momento resistente da nervura no diagrama (R6); sem momento de fissuração nem rigidez fissurada da vigota |
+| C7.32 | Vigota armada, negativo (apoio): armadura superior adicional (duas parcelas com comprimentos calculados), área de aço, momento último da seção típica e da seção maciça (sem enchimento), momento de fissuração e rigidezes. | Parcial | E | negativos na capa com área, comprimento e momento resistente da nervura e da faixa maciçada (R6); uma parcela só, sem momento de fissuração nem rigidezes |
+| C7.33 | Cortante último da seção, com valores por tipo de treliça. O tipo usado aparece na tela e no desenho. | Feito | — | VRd1 e VRd2 da nervura calculados (19.4.1) com a treliça do modelo, mostrada na janela e na prancha de lajes (R6, R5) |
 | C7.34 | Vigota protendida: momentos de serviço por classe de ambiente/exposição, comparados com o de cálculo. Se não passa, procura outra vigota, e sem solução emite erro no fim do cálculo. | Falta | E |  |
 | C7.35 | Vigota protendida sem armadura de cortante. | Falta | E |  |
 | C7.36 | Laje nervurada moldada no local (nervuras como vigas) com armadura de base atribuível. | Falta | E | nervurada moldada no local |
@@ -451,7 +451,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.38 | Laje com vigotas de perfil I laminado: referência, enchimento, capa, intereixo e série de perfis. | Fora | — |  |
 | C7.39 | Nas vigotas de aço, escolhe-se a série e o perfil é dimensionado automaticamente, sempre biapoiado (engastamento 0 fixo). | Fora | — |  |
 | C7.40 | Laje com vigotas treliçadas de aço biapoiadas: tipo (banzos com um ou dois perfis), série de perfis, altura nominal, ângulo das diagonais entre 30° e 60°, intereixo e espessura da capa (não colaborante). | Fora | — |  |
-| C7.41 | Coeficiente de redução da rigidez à torção das lajes de vigotas, consultável e editável nas opções gerais. | Parcial | E | torção 15% fixa (premissa); não editável na tela |
+| C7.41 | Coeficiente de redução da rigidez à torção das lajes de vigotas, consultável e editável nas opções gerais. | Feito | — | redutor da torção das lajes editável nas opções (torcaoLaje, N1a), vale para as treliçadas |
 | | **7.1.2.3 Lajes nervuradas bidirecionais** | | | |
 | C7.42 | Forma perdida ou recuperável. | Falta | E | nervurada bidirecional |
 | C7.43 | Formas importadas da biblioteca ou definidas pelo usuário, e editáveis. | Falta | E |  |
@@ -499,74 +499,74 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L |  |
 | C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L |  |
 | | **7.1.5 Opções de lajes** | | | |
-| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limite L/250 fixo |
-| C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Falta | N |  |
+| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limites ℓ/250 (total) e ℓ/350 (variável) editáveis, comuns a todas as lajes (N1d); sem flecha ativa nem padrões próprios das vigotas |
+| C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
 | | **7.2 Resultados de lajes (lido só o começo)** | | | |
-| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | R | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta; sem as vistas de momentos/tipos combinadas com esforços (R6) |
+| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta (R6); sem as vistas de momentos/tipos combinadas com esforços na planta |
 
 ## 7. Lajes (continuação)
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.2.1.1 Vistas de resultados das lajes de vigotas (continuação)** | | | |
-| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | R | rótulo do grupo e armadura adicional por nervura na planta; sem tipos protendida, perfil de aço ou moldada no local (R6) |
-| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | R | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo); sem o valor junto a cada vigota na planta (R6) |
-| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | R | cortante por nervura com VRd1 na tabela e nos diagramas; sem vista na planta com o tipo de treliça (R6) |
-| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | R |  |
-| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | R |  |
+| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); sem a vista de tipos na planta (protendida e moldada no local: E3; aço fora) |
+| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo) (R6); sem o valor junto a cada vigota na planta |
+| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); sem vista na planta com o tipo de treliça |
+| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | E | vigotas moldadas no local (E3) |
+| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | V | chave geral de exibição de esforços das vigotas |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
 | C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E |  |
 | C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Falta | E |  |
 | | **7.2.1.2 Igualar vigotas** | | | |
 | C7.96 | Agrupamento automático de vigotas quando (Mmáx − Mmín) do grupo < percentual × Mmáx, com o percentual dado pelo usuário. | Feito | — | agrupamento por (Mmáx − Mmín) < percentual × Mmáx (opção vigotaIgualacaoDif) (R6) |
-| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Parcial | R | igualação pelos valores de pico da envoltória (todas as combinações e pavimentos do grupo), não ponto a ponto (R6) |
+| C7.97 | Igualação feita ponto a ponto da discretização da vigota, considerando todas as combinações de todas as vigotas do grupo. | Parcial | E | igualação pelos valores de pico da envoltória (todas as combinações e pavimentos do grupo), não ponto a ponto (R6) |
 | C7.98 | Momentos igualados pelo máximo de cada ponto ou pela média de cada ponto, à escolha. | Feito | — | igualação pelo máximo ou pela média (opção vigotaIgualacao) (R6) |
 | C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Feito | — | cortante igualada sempre pelo máximo do grupo (R6) |
-| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | R | igualação dos momentos (e não da área de aço) com percentual e critério editáveis; negativos pelo mesmo grupo (R6) |
+| C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | E | igualação dos momentos (e não da área de aço) com percentual e critério editáveis; negativos pelo mesmo grupo (R6) |
 | | **7.2.1.3 Erros de vigotas** | | | |
-| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | R | status por laje; vigota individual não |
-| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | R | flecha da laje verificada (aproximada) |
+| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | E | erros VIGOTA_* por laje em vermelho na planta e na lista; vigota individual não |
+| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | E | flecha da laje treliçada verificada (total e da variável, limites editáveis); sem flecha por vigota nem de montagem |
 | C7.103 | Erro: momento positivo no apoio da vigota; sugere mudar o coeficiente de engastamento do pano ou rever a continuidade da armadura inferior. | Feito | — | aviso VIGOTA_APOIO (momento positivo na ponta da vigota; rever engaste ou continuidade) (R6) |
 | C7.104 | Erro: altura da laje insuficiente para a flexão. | Feito | — | erro VIGOTA_ALTURA (flexão positiva exige armadura de compressão: aumentar a altura) (R6) |
-| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Parcial | R | erro VIGOTA_POS quando treliça + 2φ12,5 não cobre o momento; sem série de fabricante (R6) |
-| C7.106 | Erro: a armadura inferior da vigota moldada no local não cabe na largura da nervura (espaçamento e cobrimento); sugere aumentar altura ou largura da nervura. | Falta | R |  |
-| C7.107 | Erro de vigota de aço: nenhum perfil da série serve para a geometria do pano e da forma (intereixo excessivo para apoiar a forma nas abas). | Falta | R |  |
-| C7.108 | Erro de vigota de aço/treliça: nenhum perfil da série resiste aos esforços; sugere trocar de série. | Falta | R |  |
+| C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Parcial | E | erro VIGOTA_POS quando treliça + 2φ12,5 não cobre o momento; sem série de fabricante (R6) |
+| C7.106 | Erro: a armadura inferior da vigota moldada no local não cabe na largura da nervura (espaçamento e cobrimento); sugere aumentar altura ou largura da nervura. | Falta | E | vigotas moldadas no local (E3) |
+| C7.107 | Erro de vigota de aço: nenhum perfil da série serve para a geometria do pano e da forma (intereixo excessivo para apoiar a forma nas abas). | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
+| C7.108 | Erro de vigota de aço/treliça: nenhum perfil da série resiste aos esforços; sugere trocar de série. | Fora | — | vigotas de aço e treliças metálicas (aço no edifício fora do escopo, como C7.40) |
 | C7.109 | Erro de armadura superior: zona comprimida insuficiente para o momento negativo, sem solução por maciçamento; exige laje mais alta. | Feito | — | erro VIGOTA_NEG: momento negativo acima do resistente mesmo com a faixa maciçada, exige laje mais alta (R6) |
-| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Parcial | R | momento negativo comparado ao resistente calculado (nervura e faixa maciçada), sem ficha do fabricante nem vigota dupla (R6) |
+| C7.110 | Erro: momento negativo acima do máximo da ficha do fabricante, com o valor mostrado; sugere laje mais alta ou vigota dupla. | Parcial | E | momento negativo comparado ao resistente calculado (nervura e faixa maciçada), sem ficha do fabricante nem vigota dupla (R6) |
 | C7.111 | Erro: área de armadura superior exigida no apoio (face interna da viga) excessiva, armadura não dimensionada. | Feito | — | erro VIGOTA_NEG_AS (armadura negativa > 2φ12,5 por nervura) (R6) |
-| C7.112 | Aviso: armadura negativa fora da tabela (lajes genéricas e moldadas no local); o programa calcula assim mesmo e sugere laje mais alta ou vigota dupla. | Falta | R |  |
+| C7.112 | Aviso: armadura negativa fora da tabela (lajes genéricas e moldadas no local); o programa calcula assim mesmo e sugere laje mais alta ou vigota dupla. | Falta | E | aviso de negativa fora da tabela (tabelas de vigotas: E3) |
 | C7.113 | Aviso: maciçamento maior que duas vezes a altura (o maciçamento evita armadura inferior comprimida). | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que duas vezes a altura (R6) |
 | C7.114 | Aviso: maciçamento maior que 20 % do vão livre. | Feito | — | aviso VIGOTA_MACICO: maciçamento maior que 20 % do vão (R6) |
-| C7.115 | Aviso: extremidades engastadas/contínuas não dimensionadas em vigotas de aço (articuladas nas bordas; em balanço o pano interno dá continuidade só para equilíbrio local, sem dimensionar o negativo). | Falta | R |  |
-| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Parcial | R | erro VIGOTA_CORTANTE contra VRd1 e VRd2 calculados (19.4.1), com a faixa maciçada necessária; sem ficha do fabricante nem vigota dupla (R6) |
+| C7.115 | Aviso: extremidades engastadas/contínuas não dimensionadas em vigotas de aço (articuladas nas bordas; em balanço o pano interno dá continuidade só para equilíbrio local, sem dimensionar o negativo). | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
+| C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Parcial | E | erro VIGOTA_CORTANTE contra VRd1 e VRd2 calculados (19.4.1), com a faixa maciçada necessária; sem ficha do fabricante nem vigota dupla (R6) |
 | | **7.2.1.4 Informação da vigota** | | | |
-| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | R | clique na vigota mostra os diagramas por nervura; a flecha continua por laje (R6) |
+| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | E | clique na vigota mostra os diagramas por nervura; a flecha continua por laje (R6) |
 | | **7.2.1.5 Atribuição manual** | | | |
-| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Falta | R |  |
-| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Falta | R |  |
-| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Falta | R |  |
-| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Falta | R |  |
-| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Falta | R |  |
-| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Falta | R |  |
-| C7.124 | Vigota de aço: trocar o perfil dentro da série. | Falta | R |  |
-| C7.125 | Treliça metálica: trocar o perfil dos banzos ou das diagonais dentro da série. | Falta | R |  |
+| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Falta | E | edição de vigotas selecionadas (E3) |
+| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Falta | E | igualação manual de esforços (E3) |
+| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Falta | E | série de vigotas armadas (E3) |
+| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Falta | E | armaduras parciais das vigotas (E3) |
+| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Falta | E | vigotas protendidas (E3) |
+| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Falta | E | vigotas moldadas no local (E3) |
+| C7.124 | Vigota de aço: trocar o perfil dentro da série. | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
+| C7.125 | Treliça metálica: trocar o perfil dos banzos ou das diagonais dentro da série. | Fora | — | treliças metálicas (aço no edifício fora do escopo, como C7.40) |
 | | **7.2.2 Lajes maciças e nervuradas (cogumelo/ábacos)** | | | |
 | C7.126 | Aviso pós-cálculo: flecha de lajes nervuradas e maciças não é verificada automaticamente; o usuário consulta a flecha elástica entre dois pontos e compara com o limite da norma. | Feito | — | flecha de lajes maciças estimada e comparada com L/250 (o manual não verifica) |
-| C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Falta | R |  |
-| C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Falta | R |  |
-| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | R |  |
-| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Parcial | R | rótulos "Nk – n φ c/s – C = x,xx" junto às barras na planta da laje; sem siglas de reforço (R4) |
-| C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Falta | R |  |
-| C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Falta | R |  |
-| C7.133 | Janela de armadura pode ficar aberta enquanto se edita (edição contínua). | Falta | R |  |
-| C7.134 | Desfazer o agrupamento de barras clicando no grupo, que mostra todas as barras dele. | Falta | R |  |
-| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Parcial | R | camadas inferior e superior ligáveis na planta da laje e na planta do pavimento; sem edição (R4) |
-| C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R |  |
-| C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R |  |
-| C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R |  |
+| C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Fora | — | perfis de aço nas lajes (aço no edifício fora do escopo) |
+| C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Falta | R | armadura das lajes sem cálculo completo [resíduo R] |
+| C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | E | lajes inclinadas (E3) |
+| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Parcial | R | rótulos "Nk – n φ c/s – C = x,xx" junto às barras na planta da laje (R4) e nas pranchas (R5); sem siglas de reforço [resíduo R] |
+| C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Falta | R | linhas de dobra [resíduo R] |
+| C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Falta | R | tabelas de armadura das lajes [resíduo R] |
+| C7.133 | Janela de armadura pode ficar aberta enquanto se edita (edição contínua). | Falta | R | edição da armadura das lajes [resíduo R] |
+| C7.134 | Desfazer o agrupamento de barras clicando no grupo, que mostra todas as barras dele. | Falta | R | [resíduo R] |
+| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Parcial | R | camadas inferior e superior ligáveis na planta da laje e na planta do pavimento; sem edição (R4) [resíduo R] |
+| C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R | [resíduo R] |
+| C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R | [resíduo R] |
+| C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R | [resíduo R] |
 | C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Falta | N |  |
 | C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Falta | N |  |
 | C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Falta | N |  |
@@ -618,15 +618,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.185 | Apagar armadura superior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.186 | Consulta/edição dos dados do pano também na aba de resultados. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.2.5 Diagramas de esforços** | | | |
-| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Falta | V | diagramas de esforços em lajes |
+| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); sem torção nem por hipótese ou combinação (alveolares e mistas: E/fora) |
 | C7.188 | Para hipótese sísmica dinâmica, escolha do modo de vibração. | Fora | — | sismo |
-| C7.189 | Consulta clicando nos alinhamentos de vigas, vigotas, alveolares ou lajes mistas. | Falta | V |  |
+| C7.189 | Consulta clicando nos alinhamentos de vigas, vigotas, alveolares ou lajes mistas. | Feito | — | clique duplo em vigas (R1) e clique na vigota da aba Vigotas (R6) abre os diagramas |
 | | **7.3 Desenhos e relatórios de lajes** | | | |
 | C7.190 | Relatórios de lajes mistas: esforços, quantitativo das lajes e quantitativo de armadura. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.191 | Dados das lajes mistas no relatório de dados da obra e quantidades no quantitativo geral. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.192 | Configuração própria dos elementos de laje mista no desenho da planta de formas. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
-| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | R | diagramas de momento e cortante por nervura na janela e tabela por grupo no memorial, com a combinação determinante do grupo de pavimentos; sem torção nem croqui do grupo (R6) |
-| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | R | comprimento e peso das treliças por tipo e das barras adicionais, negativos e distribuição, com perdas, no resumo de aço, CSV e memorial; sem vigotas moldadas no local (R6) |
+| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | E | diagramas de momento e cortante por nervura na janela e tabela por grupo no memorial, com a combinação determinante do grupo de pavimentos; sem torção nem croqui do grupo (R6) |
+| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | comprimento e peso das treliças por tipo e das barras adicionais, negativos e distribuição, com perdas, no resumo de aço, CSV e memorial; sem vigotas moldadas no local (R6) |
 | C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Falta | E |  |
 
 ## 8. Escadas
@@ -919,11 +919,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **13.1 Tabelas de armadura** | | | |
-| C13.1 | Tabelas de armadura predefinidas para todos os elementos de concreto, todas editáveis, e criação de tabelas novas independentes. | Falta | R | tabelas de armadura editáveis |
-| C13.2 | Gestão das tabelas na janela de tipos de aço por posição, acessível nos dados gerais. | Falta | R |  |
-| C13.3 | No cálculo, a armadura é escolhida na tabela; sem solução, aviso para revisar a tabela. | Parcial | R | bitolas fixas na busca |
+| C13.1 | Tabelas de armadura predefinidas para todos os elementos de concreto, todas editáveis, e criação de tabelas novas independentes. | Falta | R | tabelas de armadura editáveis [resíduo R] |
+| C13.2 | Gestão das tabelas na janela de tipos de aço por posição, acessível nos dados gerais. | Falta | R | [resíduo R] |
+| C13.3 | No cálculo, a armadura é escolhida na tabela; sem solução, aviso para revisar a tabela. | Parcial | R | bitolas fixas na busca (mínimos de lajes editáveis); sem tabela nem aviso para revisá-la [resíduo R] |
 | C13.4 | Recomendação de conferir a coerência de tabelas criadas ou alteradas. | Fora | — |  |
-| C13.5 | Restaurar as tabelas originais, perguntando quais alteradas salvar; tabelas acrescentadas pelo usuário são mantidas. | Falta | R |  |
+| C13.5 | Restaurar as tabelas originais, perguntando quais alteradas salvar; tabelas acrescentadas pelo usuário são mantidas. | Falta | R | [resíduo R] |
 | | **13.2 Biblioteca de perfis** | | | |
 | C13.6 | Bibliotecas de perfis predefinidas de fabricantes, com dimensões e propriedades prontas. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
 | C13.7 | Perfil individual editável: todas as dimensões e propriedades alteráveis. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
@@ -931,3 +931,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C13.9 | Biblioteca padrão exibida e importação de outras bibliotecas. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
 | C13.10 | Edição da biblioteca da obra: acrescentar, copiar, editar e apagar perfis. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
 | C13.11 | Criar biblioteca nova diretamente (importando perfis) ou exportando perfis da obra. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
+
+## Histórico de conferência
+
+- **20/10/2026 — conferência após a frente R (R1–R6) e as frentes 0 e N1 (N1a–N1e).** Itens R e N reconferidos no código (`src/core/building/`, `src/core/sheets/`, `src/app/edificio/`, comandos e memorial). Fechados como Feito, entre outros: pilares revisados pela edição (C4.34), biela dos pilares (C4.40), taxa máxima (C4.39), edição pós-lançamento do pilar (C4.3), dimensionamento único por grupo (C3.5), barra acima do máximo (C6.67), diagramas por clique (C6.106, C7.189), engaste de borda por pano (C7.12), redutor de torção das lajes (C7.41), cortante e treliça das vigotas (C7.33). Vigotas de aço e treliças metálicas passaram a Fora, como C7.39/C7.40 (C7.107, C7.108, C7.115, C7.124, C7.125, C7.127). O que a spec da R deixou de fora foi para a frente que vai assumi-lo (E3 vigotas de fabricante, E2 consolos e vigas inclinadas e curvas, V vistas e diagramas por hipótese, N modelo único); o restante ficou como resíduo da R, marcado `[resíduo R]`.
+  - Situação: Feito 90 → 103; Parcial 119 → 119; Falta 375 → 356; Fora 179 → 185.
+  - Pendências por frente (antes → depois): R 83 → 42; N 32 → 26; E 203 → 227; FU 67 → 67; L 71 → 71; V 38 → 42 (total 494 → 475).
+- Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.

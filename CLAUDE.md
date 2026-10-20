@@ -8,6 +8,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 - **Comunicação.** Português, objetiva, sem saudações nem elogios; propor ideias factíveis de forma proativa.
 - **Subagentes (decisão do usuário, 20/10/2026).** Toda etapa é executada por subagente; a sessão principal só orquestra (briefing, revisão dos relatórios, verificação final, commit e push). Núcleo de cálculo com o modelo principal; interface, documentação e checklists com modelo mais barato (Sonnet).
 - **Itens "a confirmar" (decisão do usuário, 20/10/2026):** seguir o padrão do CYPECAD e o das folhas de referência existentes (projeto-padrão público no Drive do usuário, pasta CYPECAD; padrão de desenho resumido fora do repositório); onde isso definir o valor, deixa de ser "a confirmar".
+- **Checklists de paridade (20/10/2026).** Toda fatia atualiza as linhas que tocou em `docs/checklist-manual-cypecad.md` e `docs/checklist-manual-calculo-cypecad.md` (situação, frente e nota com arquivo/função), as tabelas de resumo e a de `docs/plano-frentes.md`, e registra o histórico de conferência; `src/core/checklists.test.ts` reprova contagens divergentes e itens Parcial ou Falta sem frente.
 - **Retomada (20/10/2026):** frente R concluída (R1–R6); revisão de cálculo separada da de prancha (`Comando.calculo`, `afetaCalculo`, `Sessao.revCalculo`; store, worker e cache do MCP usam `revCalculo`) e conjunto de pranchas montado no worker (`montarConjuntoNoWorker`; pedidos antigos respondem "obsoleto"). Itens "a confirmar" revisados (`docs/revisao-a-confirmar.md`: 22 resolvidos, 9 parciais, 35 mantidos; a tabela prevalece sobre as listas "a confirmar" abaixo; planta automática a partir de 1:75, cotas em cinza, rótulo "V1 15×50"). Spec da FU em `docs/spec-frente-FU.md`, aguardando aprovação. Pendências do usuário: AUDIT do DXF/DWG no AutoCAD; exemplo de prancha de armação de lajes e de fundação.
 - **Premissas das próximas fatias (decisão do usuário, 20/10/2026).** Seguir o padrão do CYPECAD onde ele define (perfil do sistema) e a NBR 6118 onde não define (e no perfil NBR), sem parar para confirmar cada uma; valores sem fonte ficam "a confirmar" no app e no memorial.
 - **Repositório público.** Não commitar dados de clientes ou de obras reais.
@@ -19,7 +20,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 299 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
+npm test         # vitest: 304 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)

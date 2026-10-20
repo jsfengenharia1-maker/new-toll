@@ -6,14 +6,16 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 
 | Frente | Manual do usuário | Manual de cálculo | Total |
 |---|---|---|---|
-| N — Cálculo e normas | 32 | 101 | 133 |
-| R — Revisão de resultados e detalhamento (R1, R2, R3a, R3b, R4, R5 e R6 feitas em 20/10/2026) | 83 | 104 | 187 |
-| E — Elementos estruturais | 203 | 141 | 344 |
-| FU — Fundações integradas (spec: `spec-frente-FU.md`, aguardando aprovação) | 67 | 23 | 90 |
-| L — Produtividade de lançamento | 71 | 5 | 76 |
-| V — Visualização | 38 | 18 | 56 |
+| N — Cálculo e normas | 26 | 93 | 119 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; resta o resíduo marcado [resíduo R], sem fatia) | 42 | 69 | 111 |
+| E — Elementos estruturais | 227 | 142 | 369 |
+| FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026) | 67 | 23 | 90 |
+| L — Produtividade de lançamento | 71 | 4 | 75 |
+| V — Visualização | 42 | 20 | 62 |
 
-Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de funções descritas no do usuário); os totais não são somas de funcionalidades distintas.
+Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de funções descritas no do usuário); os totais não são somas de funcionalidades distintas. Contagens conferidas em 20/10/2026 após a frente R (histórico no fim de cada checklist); `src/core/checklists.test.ts` reprova quando esta tabela ou os resumos dos checklists não batem com as linhas.
+
+O resíduo da R (itens marcados `[resíduo R]` nos checklists) reúne o que a spec da R deixou de fora e não cabe em outra frente: tabelas de armadura editáveis, armadura base e tela das lajes, uniformização e linhas de dobra, edição fina das barras (comprimentos, ganchos, simetria, estribos múltiplos), cópias de armadura entre grupos, agrupar pórticos, rearmar só os alterados e opções de desenho das pranchas (máscara, ponto fixo). Precisa de decisão do usuário: nova fatia R7 ou absorção pela L. Os demais itens deixados de fora pela R foram para E3 (vigotas de fabricante, protendidas, moldadas no local, duplas), E2 (vigas T, consolos, curvas e inclinadas), N (punção e cortante das lajes, avisos de viga-parede e elemento linear, suspensão, arredondamento no apoio) e V (vistas de esforços na planta, deslocamentos por caso e nó, mapas).
 
 A frente E é grande demais para uma spec só e se divide em quatro:
 
