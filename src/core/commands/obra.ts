@@ -2,7 +2,7 @@
 import type { Draft } from 'immer';
 import { COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
-import { OPCOES_INFO, type OpcoesCalculo } from '../building/opcoes';
+import { OPCOES_INFO, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
 import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -90,25 +90,32 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
   },
 });
 
-registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] | boolean }>({
+registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] | boolean; perfil?: PerfilOpcoes }>({
   nome: 'opcoes.definir',
-  descricao: `Define as opções de cálculo do edifício (padrão NBR 6118; onde a norma não fixa, o critério de referência "a confirmar"): ${OPCOES_INFO.map((o) => `${o.chave} = ${o.rotulo.toLowerCase()} (padrão ${o.padrao}${o.unidade ? ` ${o.unidade}` : ''})`).join('; ')}. "padrao": true volta tudo ao padrão; uma lista de chaves volta só essas.`,
+  descricao: `Define as opções de cálculo do edifício. Dois perfis de padrões: "sistema" (critério de mercado do programa de referência, padrão) e "nbr" (NBR 6118); "perfil" troca o perfil e mantém só os valores que diferem do novo padrão. ${OPCOES_INFO.map((o) => `${o.chave} = ${o.rotulo.toLowerCase()} (padrão ${o.padrao}${o.padraoNBR !== undefined ? `; NBR ${o.padraoNBR}` : ''}${o.unidade ? ` ${o.unidade}` : ''})`).join('; ')}. "padrao": true volta tudo ao padrão do perfil; uma lista de chaves volta só essas.`,
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
     valores: { type: 'object', additionalProperties: false, properties: Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, { type: 'number', minimum: o.min, maximum: o.max, description: `${o.rotulo}${o.unidade ? ` (${o.unidade})` : ''}; padrão ${o.padrao}` }])) },
     padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: OPCOES_INFO.map((o) => o.chave) } }] },
+    perfil: { type: 'string', enum: ['sistema', 'nbr'], description: 'Perfil dos padrões: sistema (critério de mercado) ou nbr (NBR 6118)' },
   } },
   aplicar(d, p) {
+    if (p.perfil) {
+      if (p.perfil === 'nbr') d.perfilOpcoes = 'nbr'; else delete d.perfilOpcoes;
+      for (const o of OPCOES_INFO) if (d.opcoes?.[o.chave] === padraoDe(o, p.perfil)) delete d.opcoes[o.chave];
+    }
+    const perfil = perfilDe(d);
     if (p.padrao === true) delete d.opcoes;
     else if (Array.isArray(p.padrao)) for (const k of p.padrao) delete d.opcoes?.[k];
     if (p.valores) {
       d.opcoes ??= {};
-      for (const o of OPCOES_INFO) { const v = p.valores[o.chave]; if (v === undefined) continue; if (v === o.padrao) delete d.opcoes[o.chave]; else d.opcoes[o.chave] = v; }
+      for (const o of OPCOES_INFO) { const v = p.valores[o.chave]; if (v === undefined) continue; if (v === padraoDe(o, perfil)) delete d.opcoes[o.chave]; else d.opcoes[o.chave] = v; }
     }
     if (d.opcoes && !Object.keys(d.opcoes).length) delete d.opcoes;
     const n = Object.keys(d.opcoes ?? {}).length;
-    return n ? `Opções de cálculo: ${n} diferente(s) do padrão.` : 'Opções de cálculo no padrão.';
+    const nome = perfil === 'nbr' ? 'padrão NBR 6118' : 'padrão do sistema';
+    return n ? `Opções de cálculo (${nome}): ${n} diferente(s) do padrão.` : `Opções de cálculo no ${nome}.`;
   },
 });
 

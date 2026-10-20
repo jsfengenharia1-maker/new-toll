@@ -5,7 +5,7 @@ import { resolver3, type Barra3, type Caso3, type Modelo3, type Resultado3, type
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { casosVento, type CasoVento, type Classe, type ZonaVento } from './vento';
-import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
+import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, gamas } from './materiais';
 import {
   centroPilar, contornoPilar, cotaFundacao, dimsSecao, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
@@ -202,7 +202,7 @@ export interface AnaliseEdificio {
 
 export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}): AnaliseEdificio {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
-  const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes), nu: 0.2, ...o };
+  const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes, perfilDe(b)), nu: 0.2, ...o };
   // módulo Ecs (kN/m²) por tipo de elemento e, nos pilares, por lance (fck por elemento: materiais.ts)
   const Em = (t: 'laje' | 'viga' | 'pilar', pav?: string) => concretoDe(b, t, pav).Ecs * 1000, Gm = (e: number) => e / (2 * (1 + op.nu));
   const Ev = Em('viga'), Gv = Gm(Ev), El = Em('laje'), Gl = Gm(El);

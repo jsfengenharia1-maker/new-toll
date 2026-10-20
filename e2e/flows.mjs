@@ -679,4 +679,22 @@ export const flows = [
       assert.match(txt, /limite 0,20 mm \(opção\)/);
     },
   },
+  {
+    name: 'perfis de padrões: sistema × NBR 6118 nas opções, com o outro padrão ao lado',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      const red = page.getByLabel('Redistribuição de negativos das vigas');
+      assert.equal(await red.inputValue(), '15');
+      await page.getByLabel('Perfil dos padrões').selectOption('nbr');
+      await page.getByText('Padrão NBR 6118 em uso.').waitFor();
+      assert.equal(await red.inputValue(), '0');
+      const linha = page.locator('.row', { has: red });
+      assert.match(await linha.innerText(), /sistema: 15/);
+      await page.getByLabel('Perfil dos padrões').selectOption('sistema');
+      await page.getByText('Padrão do sistema em uso').waitFor();
+      assert.equal(await red.inputValue(), '15');
+    },
+  },
 ];

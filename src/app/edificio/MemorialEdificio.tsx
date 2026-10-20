@@ -5,7 +5,7 @@ import { useBuilding } from './store';
 import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
-import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, vinculosAlterados } from '../../core/building/opcoes';
+import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, padraoDe, perfilDe, vinculosAlterados } from '../../core/building/opcoes';
 import { acoDe, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, download, Spacer } from '../ui';
 import { resumoAnalise } from '../../core/building/resumo';
@@ -29,7 +29,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && revAnalise !== sessao.rev;
-  const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes);
+  const perfil = perfilDe(b);
+  const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
@@ -132,12 +133,13 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {h2('Modelo de análise')}
           <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(opc.malha)} m) e pórtico espacial com diafragma rígido por pavimento (zonas do pavimento ligadas por vigas são diafragmas independentes, cada uma com seu mestre; pilar isolado, sem diafragma; vigas fora do diafragma não o integram); as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{opc.zonasIndependentes ? '' : ' Zonas independentes desligadas: um diafragma por pavimento.'}{zonasTxt}{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
           <h3>Opções de cálculo</h3>
+          <p>Perfil dos padrões: <b>{perfil === 'nbr' ? 'padrão NBR 6118' : 'padrão do sistema (critério de mercado; NBR 6118 onde ele não fixa valor)'}</b>. As colunas mostram o padrão dos dois perfis; os valores que diferem estão destacados.</p>
           <table>
-            <thead><tr><th className="l">Opção</th><th>Valor</th><th>Padrão</th><th className="l">Fonte</th></tr></thead>
-            <tbody>{OPCOES_INFO.map((o) => { const alt = opc[o.chave] !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{o.booleana ? (opc[o.chave] ? 'sim' : 'não') : fmt(opc[o.chave])}</td><td>{o.booleana ? (o.padrao ? 'sim' : 'não') : fmt(o.padrao)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}</td></tr>; })}</tbody>
+            <thead><tr><th className="l">Opção</th><th>Em uso</th><th>Padrão do sistema</th><th>Padrão NBR 6118</th><th className="l">Fonte</th></tr></thead>
+            <tbody>{OPCOES_INFO.map((o) => { const sim = (v: number) => (o.booleana ? (v ? 'sim' : 'não') : fmt(v)), nbr = padraoDe(o, 'nbr'), alt = opc[o.chave] !== padraoDe(o, perfil), dif = nbr !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{sim(opc[o.chave])}</td><td className={dif ? 'warn' : undefined}>{sim(o.padrao)}</td><td className={dif ? 'warn' : undefined}>{sim(nbr)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}{dif && o.fonteNBR ? `. NBR: ${o.fonteNBR}` : ''}</td></tr>; })}</tbody>
           </table>
           {vinculos.length > 0 && <><h3>Vínculos e engastes alterados por elemento</h3><ul>{vinculos.map((t, i) => <li key={i}>{t}</li>)}</ul></>}
-          {opcoesAlteradas(b.opcoes).length > 0 && <p className="warn">Opções diferentes do padrão: {opcoesAlteradas(b.opcoes).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
+          {opcoesAlteradas(b.opcoes, perfil).length > 0 && <p className="warn">Opções diferentes do padrão do perfil: {opcoesAlteradas(b.opcoes, perfil).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
           {r?.erro && <p className="warn">{r.erro}</p>}
           {r && r.avisos.length > 0 && <ul>{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
 

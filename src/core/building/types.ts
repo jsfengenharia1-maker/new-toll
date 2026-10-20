@@ -261,6 +261,8 @@ export interface BuildingModel {
   prancha?: ConfigPrancha;
   /** Opções de cálculo alteradas pelo usuário (o resto segue o padrão de opcoes.ts). */
   opcoes?: Partial<OpcoesCalculo>;
+  /** Perfil dos padrões das opções: ausente = padrão do sistema; 'nbr' = padrão NBR 6118. */
+  perfilOpcoes?: 'nbr';
   /** Casos de carga adicionais. */
   casos?: CasoAdicional[];
   /** Cargas nos pilares. */

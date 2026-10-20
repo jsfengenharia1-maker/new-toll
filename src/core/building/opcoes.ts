@@ -61,7 +61,21 @@ export interface OpcaoInfo {
   descricao: string;
   /** Opção sim/não (0 ou 1). */
   booleana?: boolean;
+  /** Valor do perfil "Padrão NBR 6118" quando difere do padrão do sistema (critério de mercado). */
+  padraoNBR?: number;
+  /** Fonte do valor NBR. */
+  fonteNBR?: string;
 }
+
+/** Perfil dos padrões: o do sistema (critério de mercado, programa de referência) ou o da NBR 6118. */
+export type PerfilOpcoes = 'sistema' | 'nbr';
+export const PERFIS: { v: PerfilOpcoes; rotulo: string }[] = [
+  { v: 'sistema', rotulo: 'Padrão do sistema' },
+  { v: 'nbr', rotulo: 'Padrão NBR 6118' },
+];
+export const perfilDe = (b: { perfilOpcoes?: 'nbr' }): PerfilOpcoes => b.perfilOpcoes ?? 'sistema';
+/** Padrão de uma opção no perfil. */
+export const padraoDe = (o: OpcaoInfo, perfil: PerfilOpcoes = 'sistema') => (perfil === 'nbr' ? o.padraoNBR ?? o.padrao : o.padrao);
 
 export const OPCOES_INFO: OpcaoInfo[] = [
   { chave: 'malha', rotulo: 'Malha da grelha das lajes', unidade: 'm', min: 0.1, max: 1, passo: 0.05, padrao: 0.25, fonte: 'NBR 6118 não fixa; malha máxima de 25 cm do programa de referência', aConfirmar: true,
@@ -72,11 +86,11 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Fator sobre J = 2I das barras de laje da grelha.' },
   { chave: 'torcaoPilar', rotulo: 'Rigidez à torção dos pilares', min: 0, max: 1, passo: 0.05, padrao: 1, fonte: 'NBR 6118 não fixa; seção bruta', aConfirmar: true,
     descricao: 'Fator sobre GJ da seção bruta dos pilares no pórtico.' },
-  { chave: 'axialPilares', rotulo: 'Rigidez axial dos pilares (cargas verticais)', unidade: '× EA', min: 1, max: 99.99, passo: 0.5, padrao: 2, fonte: 'NBR 6118 não fixa; padrão 2 (recomendado 2 a 3) do programa de referência', aConfirmar: true,
+  { chave: 'axialPilares', rotulo: 'Rigidez axial dos pilares (cargas verticais)', unidade: '× EA', min: 1, max: 99.99, passo: 0.5, padrao: 2, padraoNBR: 1, fonteNBR: 'NBR 6118 não prevê multiplicador: EA da seção bruta', fonte: 'NBR 6118 não fixa; padrão 2 (recomendado 2 a 3) do programa de referência', aConfirmar: true,
     descricao: 'Multiplica EA dos pilares nas ações verticais para simular o processo construtivo (encurtamento dos pilares compensado a cada pavimento). Não vale para vento nem γz.' },
   { chave: 'trechoRigido', rotulo: 'Trecho rígido da viga no pilar', unidade: '× h', min: 0, max: 0.5, passo: 0.05, padrao: 0.3, fonte: 'NBR 6118, 14.6.2.1 e Figura 14.7 (face do apoio menos 0,3h)', aConfirmar: false,
     descricao: 'O trecho da viga dentro do pilar é rígido até a face menos este fator × h da viga; 0 = rígido até a face.' },
-  { chave: 'engasteTopoUltimo', rotulo: 'Engaste no topo do último lance', min: 0, max: 1, passo: 0.05, padrao: 0.3, fonte: 'NBR 6118 não fixa; padrão 0,3 do programa de referência', aConfirmar: true,
+  { chave: 'engasteTopoUltimo', rotulo: 'Engaste no topo do último lance', min: 0, max: 1, passo: 0.05, padrao: 0.3, padraoNBR: 1, fonteNBR: 'NBR 6118 não fixa: ligação monolítica (engaste pleno)', fonte: 'NBR 6118 não fixa; padrão 0,3 do programa de referência', aConfirmar: true,
     descricao: 'Ligação do topo do último lance de cada pilar com as vigas: 0 = rótula, 1 = engaste. Interpola as rigidezes engaste-engaste e engaste-rótula do lance.' },
   { chave: 'zonasIndependentes', rotulo: 'Zonas independentes como diafragmas separados', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (cada zona ligada por vigas é um diafragma; pilar isolado, sem diafragma)', aConfirmar: true,
     descricao: 'Partes do pavimento sem vigas entre si (blocos separados por junta) têm diafragmas próprios, e o vento do pavimento é repartido entre elas pela largura de cada uma.' },
@@ -86,13 +100,13 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Momentos de dimensionamento nos nós da grelha somando o momento volvente (mx* = mx + |mxy|), com média numa faixa transversal de 1 m. Sem a opção: extremos dos momentos nas pontas das barras.' },
   { chave: 't0Flecha', rotulo: 'Idade no carregamento (fluência)', unidade: 'meses', min: 0.25, max: 70, passo: 0.25, padrao: 1, fonte: 'NBR 6118, 17.3.2.1.2 (Tabela 17.1); padrão 1 mês confirmado no pórtico', aConfirmar: false,
     descricao: 'αf = Δξ = ξ(70) − ξ(t0), sem armadura de compressão (ρ′ = 0).' },
-  { chave: 'fatorFlechaLaje', rotulo: 'Fator simplificado da flecha das lajes', unidade: '× elástica', min: 0, max: 5, passo: 0.1, padrao: 2.5, fonte: 'Padrão 2,5 do programa de referência (faixa 2,5 a 3,0); 0 = método da NBR 6118, 17.3.2.1.2 (1 + αf)', aConfirmar: true,
+  { chave: 'fatorFlechaLaje', rotulo: 'Fator simplificado da flecha das lajes', unidade: '× elástica', min: 0, max: 5, passo: 0.1, padrao: 2.5, padraoNBR: 0, fonteNBR: 'NBR 6118, 17.3.2.1.2: elástica × (1 + αf)', fonte: 'Padrão 2,5 do programa de referência (faixa 2,5 a 3,0); 0 = método da NBR 6118, 17.3.2.1.2 (1 + αf)', aConfirmar: true,
     descricao: 'Flecha total = elástica relativa aos apoios × este fator. 0 usa o método da NBR (1 + αf), sem fissuração.' },
   { chave: 'limiteFlechaTotal', rotulo: 'Limite da flecha total (vão / …)', min: 100, max: 1000, passo: 10, padrao: 250, fonte: 'NBR 6118, Tabela 13.3 (aceitabilidade sensorial, visual)', aConfirmar: false,
     descricao: 'Lajes e vigas: flecha total (quase permanente com fluência) ≤ vão / este valor; balanço: 2 × vão.' },
   { chave: 'limiteFlechaSensorial', rotulo: 'Limite da flecha da carga variável (vão / …)', min: 100, max: 1000, passo: 10, padrao: 350, fonte: 'NBR 6118, Tabela 13.3 (vibrações sentidas no piso)', aConfirmar: false,
     descricao: 'Flecha imediata só das cargas variáveis ≤ vão / este valor.' },
-  { chave: 'redistribuicao', rotulo: 'Redistribuição de negativos das vigas', unidade: '%', min: 0, max: 25, passo: 5, padrao: 15, fonte: 'Padrão 15 % do programa de referência (vigas); limites da NBR 6118, 14.6.4.3 (δ ≥ 0,75 nós fixos, 0,90 nós móveis; δ ≥ 0,44 + 1,25·x/d)', aConfirmar: false,
+  { chave: 'redistribuicao', rotulo: 'Redistribuição de negativos das vigas', unidade: '%', min: 0, max: 25, passo: 5, padrao: 15, padraoNBR: 0, fonteNBR: 'NBR 6118 permite (14.6.4.3), não exige: sem redistribuição', fonte: 'Padrão 15 % do programa de referência (vigas); limites da NBR 6118, 14.6.4.3 (δ ≥ 0,75 nós fixos, 0,90 nós móveis; δ ≥ 0,44 + 1,25·x/d)', aConfirmar: false,
     descricao: 'Reduz o momento negativo das cargas verticais nos apoios internos das vigas contínuas (δ = 1 − valor), depois dos momentos mínimos, e aumenta o positivo do vão por equilíbrio. O app respeita os limites de δ da norma (estrutura de nós móveis quando γz > 1,1) e diminui a redistribuição onde x/d não permite. 0 = desligada.' },
   { chave: 'momentoMinPositivo', rotulo: 'Momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 0, fonte: 'Opção do programa de referência; a NBR não exige (0 = desligado)', aConfirmar: true,
     descricao: 'Momento positivo de cálculo de cada vão de viga ≥ p·ℓ²/este valor, com a carga equivalente p = (V1 + V2)/ℓ dos cortantes das cargas verticais nas pontas do vão. Recomendado pelo programa de referência: 20.' },
@@ -109,15 +123,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
+export const OPCOES_PADRAO_NBR: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, padraoDe(o, 'nbr')])) as unknown as OpcoesCalculo;
+/** Opções cujo padrão do sistema difere do da NBR 6118. */
+export const OPCOES_DIFERENTES_NBR = OPCOES_INFO.filter((o) => o.padraoNBR !== undefined && o.padraoNBR !== o.padrao);
 
-/** Opções em uso: padrão + o que o modelo alterou. */
-export function opcoesEmUso(o?: Partial<OpcoesCalculo>): OpcoesCalculo {
-  return { ...OPCOES_PADRAO_CALCULO, ...o };
+/** Opções em uso: padrão do perfil + o que o modelo alterou. */
+export function opcoesEmUso(o?: Partial<OpcoesCalculo>, perfil: PerfilOpcoes = 'sistema'): OpcoesCalculo {
+  return { ...(perfil === 'nbr' ? OPCOES_PADRAO_NBR : OPCOES_PADRAO_CALCULO), ...o };
 }
 
-/** Opções que diferem do padrão. */
-export function opcoesAlteradas(o?: Partial<OpcoesCalculo>): OpcaoInfo[] {
-  return OPCOES_INFO.filter((i) => o?.[i.chave] !== undefined && o[i.chave] !== i.padrao);
+/** Opções que diferem do padrão do perfil. */
+export function opcoesAlteradas(o?: Partial<OpcoesCalculo>, perfil: PerfilOpcoes = 'sistema'): OpcaoInfo[] {
+  return OPCOES_INFO.filter((i) => o?.[i.chave] !== undefined && o[i.chave] !== padraoDe(i, perfil));
 }
 
 /** Texto dos vínculos por elemento que diferem do padrão (engaste pleno), para o memorial. */
