@@ -1,8 +1,10 @@
-// Fundações do edifício (frente FU, fatia FU1): elementos sob pilares (sapata, bloco sobre estacas, tubulão; centrados,
-// de divisa, de canto ou em posição livre), dados do terreno (σadm, estacas), sondagens e parâmetros do cálculo.
+// Fundações do edifício (frente FU, fatias FU1 e FU2): elementos sob pilares (sapata, bloco sobre estacas, tubulão;
+// centrados, de divisa, de canto ou em posição livre), vigas de equilíbrio e de travamento, dados do terreno (σadm,
+// estacas), sondagens, parâmetros do cálculo e níveis calculados.
 // Todos sem ferramenta própria no MCP (`mcp: false`) e fora da revisão de cálculo da estrutura (`calculo: 'fundacao'`).
 import type { Draft } from 'immer';
-import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type PosicaoFundacao, type TipoFundacao } from '../building/types';
+import { FUNDACAO_VAZIA, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type FundacaoEdificio, type PosicaoFundacao, type TipoFundacao, type VigaFundacao } from '../building/types';
+import { nomeVigaFundacao, pontaVF } from '../building/vigasFundacao';
 import type { Diagnostico } from '../building/verify';
 import { ladoDoAjuste, nomeFundacao } from '../building/fundacao';
 import type { FoundationParams, SoilClass } from '../piles';
@@ -188,7 +190,13 @@ registrar<{ ids: string[] }>({
     const f = p.ids.filter((id) => !b.fundacao?.elementos.some((x) => x.id === id));
     return f.length ? err('FUNDACAO_INEXISTENTE', `Elemento(s) de fundação inexistente(s): ${f.join(', ')}.`) : [];
   },
-  aplicar(d, p) { const s = new Set(p.ids); d.fundacao!.elementos = d.fundacao!.elementos.filter((e) => !s.has(e.id)); return `${p.ids.length} elemento(s) de fundação removido(s).`; },
+  aplicar(d, p) {
+    const s = new Set(p.ids), f = d.fundacao!;
+    f.elementos = f.elementos.filter((e) => !s.has(e.id));
+    // vigas de fundação com ponta no elemento removido saem junto
+    if (f.vigas?.some((v) => s.has(v.ini) || s.has(v.fim))) { f.vigas = f.vigas.filter((v) => !s.has(v.ini) && !s.has(v.fim)); if (!f.vigas.length) delete f.vigas; }
+    return `${p.ids.length} elemento(s) de fundação removido(s).`;
+  },
 });
 
 // ---------------- terreno ----------------
@@ -260,19 +268,21 @@ export const PARAMS_FUNDACAO: Partial<Record<keyof FoundationParams, JsonSchema>
   sptAvgDepth: { type: 'string', enum: ['common', 'max'] }, sptAvgWater: { type: 'string', enum: ['shallowest', 'mean'] },
 };
 
-registrar<{ valores?: Record<string, number | string>; padrao?: boolean | string[] }>({
+registrar<{ valores?: Record<string, number | string>; padrao?: boolean | string[]; niveis?: number[] }>({
   nome: 'fundacao.opcoes',
-  descricao: 'Opções gerais do cálculo de sapatas, blocos e tubulões (parâmetros do módulo Fundações: peso próprio, espaçamento das estacas, limites das sapatas e tubulões, estimativas pelo SPT). `valores` altera; `padrao: true` (ou lista de chaves) volta ao padrão. fck, aço e cobrimento das fundações ficam nos materiais (materiais.definir); γ é o da obra.',
+  descricao: 'Opções gerais do cálculo de sapatas, blocos e tubulões (parâmetros do módulo Fundações: peso próprio, espaçamento das estacas, limites das sapatas e tubulões, estimativas pelo SPT). `valores` altera; `padrao: true` (ou lista de chaves) volta ao padrão. `niveis`: cotas de assentamento (m) dos níveis de fundação calculados (os demais mantêm o cálculo anterior); lista vazia = todos. fck, aço e cobrimento das fundações ficam nos materiais (materiais.definir); γ é o da obra.',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
   schema: { type: 'object', additionalProperties: false, properties: {
     valores: { type: 'object', additionalProperties: false, properties: PARAMS_FUNDACAO as Record<string, JsonSchema> },
     padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: Object.keys(PARAMS_FUNDACAO) } }] },
+    niveis: { type: 'array', items: { type: 'number' }, description: 'cotas de assentamento (m) calculadas; vazia = todas' },
   } },
-  validar(_b, p) { return p.valores && Object.keys(p.valores).length || p.padrao ? [] : err('SEM_VALOR', 'Informe `valores` ou `padrao`.'); },
+  validar(_b, p) { return p.valores && Object.keys(p.valores).length || p.padrao || p.niveis ? [] : err('SEM_VALOR', 'Informe `valores`, `padrao` ou `niveis`.'); },
   aplicar(d, p) {
     const f = fund(d);
+    if (p.niveis) { if (p.niveis.length) f.niveis = [...new Set(p.niveis.map((z) => +z.toFixed(3)))].sort((a, z) => a - z); else delete f.niveis; }
     if (p.padrao === true) delete f.params;
     else if (Array.isArray(p.padrao) && f.params) for (const k of p.padrao) delete (f.params as Record<string, unknown>)[k];
     if (p.valores && Object.keys(p.valores).length) f.params = { ...f.params, ...p.valores } as Partial<FoundationParams>;
@@ -349,5 +359,113 @@ registrar<{ ids: number[] }>({
       else if (e.sondagem.ids) e.sondagem.ids = ids;
     }
     return `${p.ids.length} furo(s) de sondagem removido(s).`;
+  },
+});
+
+// ---------------- vigas de equilíbrio e de travamento (FU2) ----------------
+
+const equilibrioSchema: JsonSchema = { oneOf: [{ type: 'string', enum: ['auto'] }, { type: 'object', additionalProperties: false, required: ['ini', 'fim'], properties: { ini: { type: 'boolean' }, fim: { type: 'boolean' } } }],
+  description: '"auto" (padrão) = as pontas em sapata ou bloco excêntrico; ou { ini, fim } explícito' };
+const TIPOS_VF = ['equilibrio', 'travamento'] as const;
+type VFIn = { tipo: VigaFundacao['tipo']; ini: string; fim: string; equilibrio?: VigaFundacao['equilibrio']; b?: number; h?: number; fixa?: boolean; nome?: string };
+
+function validarVF(b: BuildingModel, v: Pick<VigaFundacao, 'ini' | 'fim'>, proprio?: string): Diagnostico[] {
+  const a = pontaVF(b, v.ini), z = pontaVF(b, v.fim);
+  if (!a || !z) return err('PONTA_INVALIDA', `Ponta ${!a ? v.ini : v.fim} não é elemento de fundação nem pilar que nasce na fundação.`);
+  if (a.pilar.id === z.pilar.id) return err('PONTA_INVALIDA', 'As duas pontas são o mesmo pilar.');
+  const par = [a.pilar.id, z.pilar.id].sort().join('|');
+  const dup = b.fundacao?.vigas?.find((x) => x.id !== proprio && [x.ini, x.fim].map((id) => pontaVF(b, id)?.pilar.id).sort().join('|') === par);
+  if (dup) return err('VIGA_DUPLICADA', `Já existe a viga ${dup.nome} entre ${a.nome} e ${z.nome}.`, [dup.id]);
+  return [];
+}
+
+registrar<VFIn>({
+  nome: 'vigaFundacao.criar',
+  descricao: 'Lança uma viga de fundação entre dois elementos de fundação (ou elemento e pilar que nasce na fundação): de equilíbrio (alavanca que centra a sapata ou o bloco excêntrico da ponta equilibrada e alivia a outra; `equilibrio` "auto" ou { ini, fim }) ou de travamento (blocos de 1 e 2 estacas). Não se apoia no solo: leva peso próprio e cargas do nível de fundação (grupo "fundacao") às pontas. Seção b × h (m; padrão 20 × 40 cm, cresce até atender) ou `fixa` (só verificada).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['tipo', 'ini', 'fim'], properties: {
+    tipo: { type: 'string', enum: TIPOS_VF }, ini: { type: 'string', description: 'id do elemento de fundação ou do pilar' }, fim: { type: 'string' },
+    equilibrio: equilibrioSchema, b: { type: 'number', minimum: 0.1, maximum: 1.5, default: 0.2 }, h: { type: 'number', minimum: 0.2, maximum: 3, default: 0.4 },
+    fixa: { type: 'boolean' }, nome: { type: 'string', minLength: 1 },
+  } },
+  validar: (b, p) => validarVF(b, p),
+  aplicar(d, p) {
+    const f = fund(d);
+    const nome = p.nome?.trim() || nomeVigaFundacao(d as BuildingModel);
+    const v: VigaFundacao = {
+      id: novoId(d, 'vf'), nome, tipo: p.tipo, ini: p.ini, fim: p.fim, b: p.b ?? 0.2, h: p.h ?? 0.4,
+      ...(p.tipo === 'equilibrio' && p.equilibrio && p.equilibrio !== 'auto' ? { equilibrio: { ...p.equilibrio } } : {}), ...(p.fixa ? { fixa: true } : {}),
+    };
+    (f.vigas ??= []).push(v);
+    return `${nome} (${p.tipo === 'equilibrio' ? 'equilíbrio' : 'travamento'}) lançada.`;
+  },
+});
+
+registrar<Partial<VFIn> & { id: string }>({
+  nome: 'vigaFundacao.editar',
+  descricao: 'Altera uma viga de fundação: nome, tipo, pontas, pontas equilibradas ("auto" ou { ini, fim }), seção b × h (m) e `fixa` (seção só verificada).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+    id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { type: 'string', enum: TIPOS_VF }, ini: { type: 'string' }, fim: { type: 'string' },
+    equilibrio: equilibrioSchema, b: { type: 'number', minimum: 0.1, maximum: 1.5 }, h: { type: 'number', minimum: 0.2, maximum: 3 }, fixa: { type: 'boolean' },
+  } },
+  validar(b, p) {
+    const v = b.fundacao?.vigas?.find((x) => x.id === p.id);
+    if (!v) return err('VIGA_FUNDACAO_INEXISTENTE', `Viga de fundação ${p.id} não existe.`);
+    return validarVF(b, { ini: p.ini ?? v.ini, fim: p.fim ?? v.fim }, v.id);
+  },
+  aplicar(d, p) {
+    const v = d.fundacao!.vigas!.find((x) => x.id === p.id)!;
+    if (p.nome) v.nome = p.nome.trim();
+    for (const k of ['tipo', 'ini', 'fim', 'b', 'h'] as const) if (p[k] !== undefined) (v as Record<string, unknown>)[k] = p[k];
+    if (p.fixa !== undefined) { if (p.fixa) v.fixa = true; else delete v.fixa; }
+    if (p.equilibrio !== undefined) { if (p.equilibrio === 'auto') delete v.equilibrio; else v.equilibrio = { ...p.equilibrio }; }
+    if (v.tipo !== 'equilibrio') delete v.equilibrio;
+    return `${v.nome} alterada.`;
+  },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'vigaFundacao.remover',
+  descricao: 'Remove vigas de fundação.',
+  risco: 'destrutivo',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
+  validar(b, p) {
+    const f = p.ids.filter((id) => !b.fundacao?.vigas?.some((x) => x.id === id));
+    return f.length ? err('VIGA_FUNDACAO_INEXISTENTE', `Viga(s) de fundação inexistente(s): ${f.join(', ')}.`) : [];
+  },
+  aplicar(d, p) {
+    const s = new Set(p.ids), f = d.fundacao!;
+    f.vigas = f.vigas!.filter((v) => !s.has(v.id));
+    if (!f.vigas.length) delete f.vigas;
+    return `${p.ids.length} viga(s) de fundação removida(s).`;
+  },
+});
+
+registrar<{ modelo: string; ids: string[] }>({
+  nome: 'vigaFundacao.igualar',
+  descricao: 'Iguala vigas de fundação à viga `modelo`: copia a seção (b × h) e a fixa nas copiadas, que passam a ser só verificadas (ficam com erro se não atenderem).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['modelo', 'ids'], properties: { modelo: { type: 'string' }, ids } },
+  validar(b, p) {
+    const vs = b.fundacao?.vigas ?? [];
+    if (!vs.some((x) => x.id === p.modelo)) return err('VIGA_FUNDACAO_INEXISTENTE', `Viga de fundação ${p.modelo} não existe.`);
+    const f = p.ids.filter((id) => !vs.some((x) => x.id === id));
+    if (f.length) return err('VIGA_FUNDACAO_INEXISTENTE', `Viga(s) de fundação inexistente(s): ${f.join(', ')}.`);
+    return p.ids.every((id) => id === p.modelo) ? err('SEM_VALOR', 'Informe vigas além do modelo.') : [];
+  },
+  aplicar(d, p) {
+    const vs = d.fundacao!.vigas!, m = vs.find((x) => x.id === p.modelo)!;
+    let n = 0;
+    for (const v of vs) if (p.ids.includes(v.id) && v.id !== m.id) { v.b = m.b; v.h = m.h; v.fixa = true; n++; }
+    return `${n} viga(s) de fundação igualada(s) a ${m.nome} (${Math.round(m.b * 100)}×${Math.round(m.h * 100)}).`;
   },
 });

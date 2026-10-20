@@ -277,6 +277,7 @@ export interface CargaPilar {
 
 export interface Carga {
   id: string;
+  /** Id do grupo; 'fundacao' = nível de fundação (cargas sobre vigas e elementos de fundação, FU2). */
   grupo: string;
   /** G, Q ou id de caso adicional. */
   caso: string;
@@ -383,6 +384,33 @@ export interface FundacaoEdificio {
   /** Parâmetros do módulo Fundações que diferem do padrão. */
   params?: Partial<FoundationParams>;
   elementos: ElementoFundacao[];
+  /** Vigas de equilíbrio e de travamento (FU2). */
+  vigas?: VigaFundacao[];
+  /** Níveis de fundação calculados (cotas de assentamento, m); ausente = todos. Os demais mantêm o cálculo anterior. */
+  niveis?: number[];
+}
+
+/** Viga de equilíbrio (alavanca: centra a fundação excêntrica) ou de travamento (bloco de 1 e 2 estacas). */
+export type TipoVigaFundacao = 'equilibrio' | 'travamento';
+
+/**
+ * Viga de fundação entre dois elementos (ou elemento e pilar) do nível de fundação, sem apoio no solo: leva as cargas
+ * sobre ela às pontas e, se for de equilíbrio, centra o elemento excêntrico da ponta equilibrada (FU2).
+ */
+export interface VigaFundacao {
+  id: string;
+  nome: string;
+  tipo: TipoVigaFundacao;
+  /** Pontas: id de elemento de fundação ou de pilar que nasce na fundação. */
+  ini: string;
+  fim: string;
+  /** Equilíbrio: pontas equilibradas; 'auto' (padrão) = as que chegam a sapata ou bloco excêntrico. */
+  equilibrio?: { ini: boolean; fim: boolean } | 'auto';
+  /** Seção (m). */
+  b: number;
+  h: number;
+  /** Seção imposta (igualada ou fixada pelo usuário): só verificada. Sem ela, a altura (e depois a largura) cresce até atender. */
+  fixa?: boolean;
 }
 
 export const FUNDACAO_VAZIA = (): FundacaoEdificio => ({ terreno: { sigmaModo: 'informada', estacas: [] }, sondagens: [], elementos: [] });

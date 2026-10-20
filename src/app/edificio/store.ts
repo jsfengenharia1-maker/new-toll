@@ -122,11 +122,12 @@ export const useBuilding = create<BState>((set, get) => {
       msg('Calculando as fundações…');
       try {
         const t0 = performance.now();
-        const fundacoes = await calcularFundacoesNoWorker(s.modelo, idCalculo, dim.fundacoes);
+        const f = await calcularFundacoesNoWorker(s.modelo, idCalculo, dim.fundacoes);
         if (get().sessao !== s || get().idCalculo !== idCalculo) { set({ calculandoFund: false }); return; }
-        set({ dim: { ...dim, fundacoes }, revFund: revF, calculandoFund: false });
-        const falhas = fundacoes.filter((f) => f.status === 'fail').length;
-        msg(`Fundações calculadas: ${fundacoes.length} elemento(s)${falhas ? `, ${falhas} com erro` : ''}, em ${Math.round(performance.now() - t0)} ms (a análise da estrutura não foi refeita).`);
+        const fundacoes = f.fundacoes ?? [], vigasF = f.vigasFundacao ?? [];
+        set({ dim: { ...dim, vigasFundacao: undefined, avisosFundacao: undefined, ...f }, revFund: revF, calculandoFund: false });
+        const falhas = fundacoes.filter((x) => x.status === 'fail').length + vigasF.filter((x) => x.status === 'fail').length;
+        msg(`Fundações calculadas: ${fundacoes.length} elemento(s)${vigasF.length ? ` e ${vigasF.length} viga(s) de fundação` : ''}${falhas ? `, ${falhas} com erro` : ''}, em ${Math.round(performance.now() - t0)} ms (a análise da estrutura não foi refeita).`);
       } catch (e) {
         set({ calculandoFund: false });
         msg(`Falha no cálculo das fundações: ${(e as Error).message}`);

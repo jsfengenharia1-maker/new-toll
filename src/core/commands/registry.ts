@@ -22,8 +22,9 @@ export interface Comando<P = Record<string, unknown>> {
    * (`Sessao.revCalculo`), então não invalida a análise nem o dimensionamento. Padrão: true.
    * 'fundacao': só dados das fundações (elementos, terreno, sondagens). Não muda `revCalculo` (a estrutura é calculada
    * com vínculo externo na base dos pilares), só `revFundacao`.
+   * Função: decide pelos parâmetros (ex.: carga lançada no nível de fundação só muda as fundações).
    */
-  calculo?: boolean | 'fundacao';
+  calculo?: boolean | 'fundacao' | ((p: Record<string, unknown>) => boolean | 'fundacao');
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -43,16 +44,17 @@ export function afetaCalculo(nome: string, params?: Record<string, unknown>): bo
     const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
     return cs.some((c) => afetaCalculo(c.nome, c.params));
   }
-  const c = REGISTRO.get(nome)?.calculo;
+  const c = calculoDe(nome, params);
   return c === undefined || c === true;
 }
+const calculoDe = (nome: string, params?: Record<string, unknown>) => { const c = REGISTRO.get(nome)?.calculo; return typeof c === 'function' ? c(params ?? {}) : c; };
 /** O comando altera o cálculo das fundações? (tudo que altera o cálculo, mais os comandos só de fundação.) */
 export function afetaFundacao(nome: string, params?: Record<string, unknown>): boolean {
   if (nome === 'lote') {
     const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
     return cs.some((c) => afetaFundacao(c.nome, c.params));
   }
-  return REGISTRO.get(nome)?.calculo !== false;
+  return calculoDe(nome, params) !== false;
 }
 export const listarComandos = () => [...REGISTRO.values()].sort((a, z) => a.nome.localeCompare(z.nome));
 
