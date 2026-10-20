@@ -15,7 +15,7 @@ function recortarSeg(a: P, z: P, x0: number, y0: number, x1: number, y1: number)
 }
 
 /** Polilinhas recortadas pela janela (as partes de dentro, em sequência). */
-function recortarPl(pts: P[], fechada: boolean, j: Prancha['janela']): P[][] {
+function recortarPl(pts: P[], fechada: boolean, j: NonNullable<Prancha['janela']>): P[][] {
   const seq = fechada ? [...pts, pts[0]] : pts, out: P[][] = [];
   let atual: P[] = [];
   for (let i = 0; i + 1 < seq.length; i++) {
@@ -29,12 +29,12 @@ function recortarPl(pts: P[], fechada: boolean, j: Prancha['janela']): P[][] {
   return out;
 }
 
-const dentro = (p: P, j: Prancha['janela']) => p[0] >= j.x0 && p[0] <= j.x1 && p[1] >= j.y0 && p[1] <= j.y1;
+const dentro = (p: P, j: NonNullable<Prancha['janela']>) => p[0] >= j.x0 && p[0] <= j.x1 && p[1] >= j.y0 && p[1] <= j.y1;
 
 /** Todas as primitivas no papel, na ordem de desenho: modelo (recortado) e depois folha. */
 export function primitivasNoPapel(pr: Prancha): Prim[] {
   const T = modeloParaPapel(pr), s = 1000 / pr.escala, j = pr.janela, out: Prim[] = [];
-  for (const q of pr.modelo) {
+  if (j) for (const q of pr.modelo) {
     if (q.t === 'pl') {
       const pts = q.pts.map(T);
       if (pts.every((p) => dentro(p, j))) out.push({ ...q, pts });

@@ -7,7 +7,7 @@ import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
 import { resumoVigotas } from '../core/building/vigotas';
-import { abrirSessao, dimensionar, gravarPranchas, resumo, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
+import { abrirSessao, dimensionar, gravarPranchas, resumo, TIPOS_PRANCHA, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
 const PROTOCOLOS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -61,11 +61,12 @@ export class ServidorMcp {
         inputSchema: { type: 'object', additionalProperties: false, properties: { pavimento: { type: 'string', description: 'id ou nome do pavimento' }, so_problemas: { type: 'boolean', default: false } } },
         outputSchema: SAIDA_DIM, annotations: ro(),
         executar: (a) => filtrarDim(this.sessao.modelo, this.resultados(), a.pavimento as string | undefined, !!a.so_problemas) },
-      { name: 'pranchas', title: 'Gerar pranchas', description: 'Gera as pranchas de formas (uma por grupo com vigas ou lajes): PDF com todas as páginas, DXF R2000 e DWG R2018 (uma prancha por arquivo). Carimbo pelo comando prancha.definir. Grava nos caminhos informados (sobrescreve).',
+      { name: 'pranchas', title: 'Gerar pranchas', description: 'Gera pranchas pelo tipo: formas (padrão; uma por grupo), locacao (eixos, pilares e tabela de cargas características e de cálculo), vigas, pilares (com o quadro de pilares) e lajes (armação, com tabela de aço e resumo com perdas por folha) ou todas (conjunto numerado). Armação e cargas calculam e dimensionam o edifício antes. PDF com todas as páginas, DXF R2000 e DWG R2018 (uma prancha por arquivo). Carimbo e opções das pranchas de armação pelo comando prancha.definir. Grava nos caminhos informados (sobrescreve).',
         inputSchema: { type: 'object', additionalProperties: false, properties: {
           pdf: { type: 'string' }, dxf: { type: 'string' }, dwg: { type: 'string' }, grupo: { type: 'string', description: 'id ou nome do grupo (padrão: todos)' },
+          tipo: { type: 'string', enum: TIPOS_PRANCHA, default: 'formas', description: 'formas | locacao | vigas | pilares | lajes | todas' },
           formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] }, escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
-        } }, outputSchema: { type: 'object', properties: { pranchas: { type: 'array', items: { type: 'object', properties: { titulo: { type: 'string' }, formato: { type: 'string' }, escala: { type: 'string' }, avisos: { type: 'array', items: { type: 'string' } } } } }, gravados: { type: 'array', items: { type: 'string' } } } }, annotations: rw(true),
+        } }, outputSchema: { type: 'object', properties: { pranchas: { type: 'array', items: { type: 'object', properties: { titulo: { type: 'string' }, tipo: { type: 'string' }, formato: { type: 'string' }, escala: { type: 'string' }, avisos: { type: 'array', items: { type: 'string' } }, pesoAco: { type: 'number' }, pesoComPerdas: { type: 'number' } } } }, avisos: { type: 'array', items: { type: 'string' } }, gravados: { type: 'array', items: { type: 'string' } } } }, annotations: rw(true),
         executar: (a) => gravarPranchas(this.sessao.modelo, a as OpcoesSaidaPranchas, this.io) },
       { name: 'aplicar', title: 'Aplicar prévia', description: 'Aplica a alteração de uma prévia pelo token. Falha se o modelo mudou depois da prévia.', inputSchema: { type: 'object', required: ['token'], properties: { token: { type: 'string' } }, additionalProperties: false }, outputSchema: SAIDA_ALTERACAO, annotations: rw(true),
         executar: (a) => this.saida(this.sessao.aplicar(String(a.token), 'ia')) },

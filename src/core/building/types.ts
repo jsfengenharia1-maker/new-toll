@@ -322,8 +322,31 @@ export interface ConfigPrancha {
   formato: Formato | 'auto';
   /** Denominador da escala (50 = 1:50); 0 = automática. */
   escala: number;
+  /** Pranchas de armação e locação (R5): o que difere do padrão (`ARMACAO_PADRAO`). */
+  armacao?: Partial<ConfigArmacao>;
 }
 export const PRANCHA_PADRAO: ConfigPrancha = { carimbo: {}, formato: 'auto', escala: 0 };
+
+/** Pranchas de armação e de locação (R5). Escalas são denominadores (50 = 1:50); 0 = a regra da planta de formas. */
+export interface ConfigArmacao {
+  /** Formato das pranchas de armação de vigas e pilares; 'auto' = A1, ou A0 quando um elemento não cabe. */
+  formato: Formato | 'auto';
+  /** Elevação das vigas (horizontal e vertical). */
+  escalaVigas: number;
+  /** Seções transversais e estribos desenhados à parte (vigas e pilares). */
+  escalaSecao: number;
+  /** Elevação dos pilares (aumenta automaticamente quando o pilar não cabe na altura da folha). */
+  escalaPilares: number;
+  /** Planta das lajes (0 = a das formas). */
+  escalaLajes: number;
+  /** Planta de locação (0 = a das formas). */
+  escalaLocacao: number;
+  /** Lajes: positivas e negativas em folhas separadas (1) ou na mesma folha, em camadas distintas (0). */
+  lajesSeparadas: 0 | 1;
+  /** Quadro de pilares (seção, armadura e estribos por lance) no fim das pranchas de pilares. */
+  quadroPilares: 0 | 1;
+}
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 50, escalaSecao: 25, escalaPilares: 50, escalaLajes: 0, escalaLocacao: 0, lajesSeparadas: 1, quadroPilares: 1 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

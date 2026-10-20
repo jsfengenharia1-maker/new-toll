@@ -59,7 +59,7 @@ describe('pranchas', () => {
     const pap = textosPr(pr, true);
     for (const t of ['QUADRO DE PILARES', 'PLANTA DE FORMAS — TIPO', 'Escritório Exemplo', 'CREA 000000/D', '1:50', '01/01', 'Fundação', 'Cobertura']) expect(pap).toContain(t);
     // tudo do modelo cabe na janela
-    const s = 1000 / pr.escala, j = pr.janela;
+    const s = 1000 / pr.escala, j = pr.janela!;
     for (const q of pr.modelo) for (const [x, y] of q.t === 'pl' || q.t === 'hach' ? q.pts : q.t === 'circ' ? [q.centro] : [q.p]) {
       const px = (j.x0 + j.x1) / 2 + (x - j.centro[0]) * s, py = (j.y0 + j.y1) / 2 + (y - j.centro[1]) * s;
       expect(px).toBeGreaterThanOrEqual(j.x0); expect(px).toBeLessThanOrEqual(j.x1); expect(py).toBeGreaterThanOrEqual(j.y0); expect(py).toBeLessThanOrEqual(j.y1);
@@ -92,7 +92,7 @@ describe('pranchas', () => {
     for (let i = 1; i < tot; i++) { const off = +linhas[2 + i].slice(0, 10); expect(t.slice(off).startsWith(`${i} 0 obj`)).toBe(true); }
     expect(t).toContain('/MediaBox [0 0 1683.7795 1190.5512]');
     expect((t.match(/\/Type \/Page\b/g) ?? []).length).toBe(2);
-    expect((t.match(/\/Type \/OCG/g) ?? []).length).toBe(Object.keys(CAMADAS).length - 1); // PILAR-NASCE não aparece
+    expect((t.match(/\/Type \/OCG/g) ?? []).length).toBe(Object.keys(CAMADAS).length - 5); // PILAR-NASCE e as camadas de armação não aparecem
     expect(t).toContain('(V1 \\(15\\32750\\)) Tj'); // × em WinAnsi (0xD7)
     expect(t).toContain('(Escrit\\363rio Exemplo) Tj');
   });

@@ -7,7 +7,8 @@ import type { Diagnostico } from '../core/building/verify';
 import { analisarEdificio } from '../core/building/analitico';
 import { resumoAnalise } from '../core/building/resumo';
 import { cargasParaFundacao, dimensionarEdificio } from '../core/building/dimensionamento';
-import { montarPranchas } from '../core/sheets/prancha';
+export { TIPOS_PRANCHA };
+import { montarConjunto, PRECISA_CALCULO, tiposDe, TIPOS_PRANCHA, type TipoSaida } from '../core/sheets/conjunto';
 import { escreverPdf } from '../core/sheets/pdf';
 import { escreverDxf } from '../core/sheets/dxf';
 import { desenhoDwg, type EscritorDwg } from '../core/sheets/dwg';
@@ -23,18 +24,23 @@ export interface Io {
   dwg?: EscritorDwg;
 }
 
-export interface OpcoesSaidaPranchas { pdf?: string; dxf?: string; dwg?: string; grupo?: string; formato?: Formato | 'auto'; escala?: number }
+export interface OpcoesSaidaPranchas { pdf?: string; dxf?: string; dwg?: string; grupo?: string; formato?: Formato | 'auto'; escala?: number;
+  /** formas (padrão) | locacao | vigas | pilares | lajes | todas; armação e cargas calculam o edifício antes. */
+  tipo?: TipoSaida | TipoSaida[] }
 
-/** Monta as pranchas (todas ou a de um grupo, por id ou nome) e grava os arquivos pedidos. DXF e DWG: uma prancha por arquivo (sufixo -2, -3...). */
+/**
+ * Monta as pranchas do tipo pedido (padrão: formas; 'todas' = conjunto completo, numerado) e grava os arquivos.
+ * DXF e DWG: uma prancha por arquivo (sufixo -2, -3...). Armação, locação e cargas calculam e dimensionam antes.
+ */
 export function gravarPranchas(b: BuildingModel, o: OpcoesSaidaPranchas, io: Io, armaduras?: Record<string, string>) {
   const hoje = new Date().toLocaleDateString('pt-BR');
-  let prs = montarPranchas(b, { formato: o.formato, escala: o.escala, armaduras, carimbo: { data: b.prancha?.carimbo.data || hoje } });
-  if (o.grupo) {
-    const g = b.grupos.find((x) => x.id === o.grupo || x.nome.toLowerCase() === o.grupo!.toLowerCase());
-    if (!g) throw new Error(`Grupo ${o.grupo} não existe.`);
-    prs = prs.filter((p) => p.titulo === `Formas — ${g.nome}`);
-  }
-  if (!prs.length) throw new Error('Nenhuma prancha: lance vigas ou lajes em algum grupo.');
+  const tipos = tiposDe(o.tipo);
+  if (o.grupo && !b.grupos.some((x) => x.id === o.grupo || x.nome.toLowerCase() === o.grupo!.toLowerCase())) throw new Error(`Grupo ${o.grupo} não existe.`);
+  const calc = tipos.some((t) => PRECISA_CALCULO.includes(t) || t === 'locacao');
+  const an = calc ? analisarEdificio(b) : null, dim = an && tipos.some((t) => PRECISA_CALCULO.includes(t) || t === 'formas') ? dimensionarEdificio(b, an) : null;
+  const cj = montarConjunto(b, an, dim, { tipos, grupo: o.grupo, formato: o.formato, escala: o.escala, armaduras, carimbo: { data: b.prancha?.carimbo.data || hoje } });
+  const prs = cj.pranchas;
+  if (!prs.length) throw new Error(`Nenhuma prancha: ${cj.avisos.join(' ') || 'lance vigas ou lajes em algum grupo.'}`);
   if (!io.gravarBytes) throw new Error('Gravação de arquivos indisponível.');
   const gravados: string[] = [];
   const nomeN = (base: string, i: number) => (prs.length === 1 || i === 0 ? base : base.replace(/(\.[^.]+)?$/, (ext) => `-${i + 1}${ext}`));
@@ -48,7 +54,7 @@ export function gravarPranchas(b: BuildingModel, o: OpcoesSaidaPranchas, io: Io,
       const c = nomeN(o.dwg!, i); io.gravarBytes!(c, r.data); gravados.push(c);
     });
   }
-  return { pranchas: prs.map((p) => ({ titulo: p.titulo, formato: p.formato, escala: `1:${p.escala}`, avisos: p.avisos })), gravados };
+  return { pranchas: prs.map((p) => ({ titulo: p.titulo, tipo: p.tipo ?? 'formas', formato: p.formato, escala: p.janela ? `1:${p.escala}` : 'indicada', avisos: p.avisos, ...(p.aco ? { pesoAco: +p.aco.peso.toFixed(2), pesoComPerdas: +p.aco.pesoComPerdas.toFixed(2) } : {}) })), avisos: cj.avisos, gravados };
 }
 
 export const AJUDA = `statikos — linha de comando do Statikos (módulo Edifícios)
@@ -61,8 +67,10 @@ Uso:
                                                    executa comandos (uma linha JSON por comando: {"nome": ..., "params": {...}})
   statikos calc <arquivo.statikos> [--json]        análise (grelhas + pórtico espacial): cargas na fundação, flechas e equilíbrio
   statikos dim <arquivo.statikos> [--json]         dimensionamento NBR 6118 (vigas, pilares, lajes), quantitativos e cargas para Fundações
-  statikos prancha <arquivo.statikos> [--pdf <saida.pdf>] [--dxf <saida.dxf>] [--dwg <saida.dwg>] [--grupo <nome>] [--formato A0..A4] [--escala 50]
-                                                   pranchas de formas (PDF com todas; DXF R2000 e DWG R2018, uma por arquivo)
+  statikos prancha <arquivo.statikos> [--pdf <saida.pdf>] [--dxf <saida.dxf>] [--dwg <saida.dwg>] [--tipo formas|locacao|vigas|pilares|lajes|todas]
+                   [--grupo <nome>] [--formato A0..A4] [--escala 50]
+                                                   pranchas (padrão: formas; locação e cargas e armação calculam antes; PDF com todas;
+                                                   DXF R2000 e DWG R2018, uma por arquivo)
   statikos comandos [--json]                       lista os comandos e seus parâmetros (JSON Schema)
   statikos mcp                                     servidor MCP em stdio (para agentes de IA)
 `;
@@ -195,7 +203,9 @@ export function runCli(args: string[], io: Io): number {
         if (!pos[0] || !(valor('--pdf') || valor('--dxf') || valor('--dwg'))) break;
         const { sessao } = abrirSessao(io.ler(pos[0]));
         const esc = valor('--escala');
-        const r = gravarPranchas(sessao.modelo, { pdf: valor('--pdf'), dxf: valor('--dxf'), dwg: valor('--dwg'), grupo: valor('--grupo'), formato: valor('--formato') as Formato | undefined, escala: esc ? +esc : undefined }, io);
+        const tp = valor('--tipo');
+        if (tp && !tp.split(',').every((x) => (TIPOS_PRANCHA as string[]).includes(x))) { io.err(`Tipo de prancha inválido: ${tp}`); return 2; }
+        const r = gravarPranchas(sessao.modelo, { tipo: tp ? (tp.split(',') as TipoSaida[]) : undefined, pdf: valor('--pdf'), dxf: valor('--dxf'), dwg: valor('--dwg'), grupo: valor('--grupo'), formato: valor('--formato') as Formato | undefined, escala: esc ? +esc : undefined }, io);
         if (json) io.out(JSON.stringify(r, null, 1));
         else {
           for (const p of r.pranchas) io.out(`${p.titulo}: ${p.formato} ${p.escala}${p.avisos.length ? ` — ${p.avisos.join(' ')}` : ''}`);

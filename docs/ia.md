@@ -61,7 +61,7 @@ Perfil dos padrões: `opcoes.definir { perfil: "sistema" | "nbr" }` (padrão do 
 | `verificar` | diagnósticos de lançamento, com correção sugerida executável (`sugestao: { comando, params }`) |
 | `calcular` | análise: grelha por pavimento + pórtico espacial, vento NBR 6123, γz, cargas na fundação, flechas, equilíbrio |
 | `dimensionar` | NBR 6118: vigas, pilares por lance, lajes; quantitativos; cargas para Fundações; `resumoAcoVigas`, `resumoAcoPilares`, `resumoAcoLajes` e `resumoAcoVigotas` (aço, φ, comprimento, peso e peso com perdas, kg); `vigotas` (resumo por laje treliçada) e `trelicas`. Filtros `pavimento` e `so_problemas` |
-| `pranchas` | planta de formas por grupo: PDF (todas), DXF R2000 e DWG R2018 (uma por arquivo) |
+| `pranchas` | por `tipo`: `formas` (padrão, uma por grupo), `locacao` (eixos, pilares e cargas características e de cálculo por pilar), `vigas`, `pilares` (com quadro de pilares) e `lajes` (armação: posições "n Nk φ C=", tabela de aço e resumo com perdas por folha) ou `todas` (conjunto numerado "folha n de N"); PDF (todas), DXF R2000 e DWG R2018 (uma por arquivo). Opções de armação (escalas, folhas de lajes, quadro) pelo comando `prancha.definir` (`armacao`) |
 | `aplicar`, `previa`, `comandos`, `desfazer`, `refazer` | fluxo de alteração |
 | `obra_definir`, `norma_definir`, `vento_definir` | dados da obra, materiais e CAA, vento |
 | `grupo_criar`, `grupo_editar` | grupos de pavimentos iguais (uso e cargas) |
@@ -129,7 +129,7 @@ O mesmo roteiro roda no `npm test` (`src/cli/agente.test.ts`).
 ## Limites desta versão
 
 - Análise linear com γz; sem P-Δ 3D.
-- Sem torção de vigas e sem detalhamento de armaduras nas pranchas.
+- Pranchas de armação sem detalhes de blocos/sapatas, sem corte A-A por trecho e com as barras das lajes por barra representativa.
 - Pilar-parede só é sinalizado.
 - Máscara só em DXF.
 - No artifact do claude.ai não há DWG (o escritor fica fora do arquivo único).

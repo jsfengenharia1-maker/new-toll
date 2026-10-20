@@ -1,6 +1,6 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import type { Draft } from 'immer';
-import { COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigPrancha, type Norma } from '../building/types';
+import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { OPCOES_INFO, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
 import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
@@ -67,18 +67,29 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
 
 const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'art', 'etapa', 'desenho', 'revisao', 'data'] as const;
 
-registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number }>({
+registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao> }>({
   nome: 'prancha.definir',
-  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática). Campos de texto vazios voltam ao padrão.',
+  descricao: 'Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 50, escalaSecao 25, escalaPilares 50, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
     carimbo: { type: 'object', additionalProperties: false, properties: Object.fromEntries(CAMPOS_CARIMBO.map((k) => [k, { type: 'string', maxLength: 120 }])) },
     formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
     escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
+    armacao: { type: 'object', additionalProperties: false, properties: {
+      formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
+      escalaVigas: { type: 'number', enum: [20, 25, 50, 75, 100] }, escalaSecao: { type: 'number', enum: [10, 20, 25, 50] }, escalaPilares: { type: 'number', enum: [20, 25, 50, 75, 100] },
+      escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] },
+      lajesSeparadas: { type: 'number', enum: [0, 1] }, quadroPilares: { type: 'number', enum: [0, 1] },
+    } },
   } },
   aplicar(d, p) {
     d.prancha ??= { ...PRANCHA_PADRAO, carimbo: {} };
+    if (p.armacao) {
+      const a: Partial<ConfigArmacao> = { ...(d.prancha.armacao ?? {}) };
+      for (const [k, v] of Object.entries(p.armacao) as [keyof ConfigArmacao, never][]) { if (v === undefined) continue; if (ARMACAO_PADRAO[k] === v) delete a[k]; else a[k] = v; }
+      if (Object.keys(a).length) d.prancha.armacao = a; else delete d.prancha.armacao;
+    }
     for (const k of CAMPOS_CARIMBO) {
       const v = p.carimbo?.[k];
       if (v === undefined) continue;

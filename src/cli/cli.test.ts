@@ -78,6 +78,11 @@ describe('linha de comando', () => {
     expect(m.out.at(-1)).toBe('Gravado: f.pdf, f.dxf');
     expect(new TextDecoder().decode(m.bin['f.pdf'].slice(0, 8))).toBe('%PDF-1.5');
     expect(new TextDecoder().decode(m.bin['f.dxf'])).toContain('AC1015');
+    expect(runCli(['prancha', 'a.statikos', '--tipo', 'todas', '--pdf', 't.pdf', '--json'], m.io)).toBe(0);
+    const pt = JSON.parse(m.out.at(-1)!);
+    expect(pt.pranchas.map((p: { tipo: string }) => p.tipo)).toEqual(['locacao', 'formas', 'vigas', 'pilares', 'pilares', 'lajes', 'lajes']);
+    expect(pt.pranchas[2].pesoAco).toBeGreaterThan(0);
+    expect(runCli(['prancha', 'a.statikos', '--tipo', 'xyz', '--pdf', 'x.pdf'], m.io)).toBe(2);
     expect(runCli(['prancha', 'a.statikos', '--dwg', 'f.dwg'], m.io)).toBe(2);
     expect(m.err.at(-1)).toMatch(/DWG não carregado/);
   });

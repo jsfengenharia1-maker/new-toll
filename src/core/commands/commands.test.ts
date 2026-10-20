@@ -54,7 +54,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'materiais.definir': (b) => ({ fck: { pilar: 40 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 } }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),
   'opcoes.definir': () => ({ valores: { malha: 0.5, engasteTopoUltimo: 1 }, padrao: ['torcaoViga'] }),
-  'prancha.definir': () => ({ carimbo: { empresa: 'Escritório Exemplo', responsavel: 'Eng. Fulano' }, formato: 'A1', escala: 50 }),
+  'prancha.definir': () => ({ carimbo: { empresa: 'Escritório Exemplo', responsavel: 'Eng. Fulano' }, formato: 'A1', escala: 50, armacao: { escalaVigas: 75, quadroPilares: 0 } }),
   'grupo.criar': () => ({ nome: 'Garagem', uso: 'garagem' }),
   'grupo.editar': () => ({ id: 'g_3', uso: 'escritorio' }),
   'grupo.remover': (b) => ({ id: b.grupos.find((g) => g.nome === 'Vazio')!.id }),

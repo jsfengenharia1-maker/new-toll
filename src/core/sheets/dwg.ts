@@ -42,7 +42,7 @@ export function desenhoDwg(pr: Prancha): Drawing {
     entities: pr.modelo.map((q) => entidade(q, k)),
     paperSpace: [
       vp(1, [pr.W / 2, pr.H / 2], pr.W * 1.05, pr.H * 1.05, [pr.W / 2, pr.H / 2], pr.H * 1.05),
-      vp(2, [(j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2], j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * k),
+      ...(j ? [vp(2, [(j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2], j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * k)] : []),
       ...pr.papel.map((q) => entidade(q, 1)),
     ],
     layouts: [

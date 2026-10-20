@@ -21,6 +21,11 @@ export const CAMADAS = {
   'EIXO': { cor: 9, pena: 0.13, tipo: 'eixo' },
   'COTA': { cor: 2, pena: 0.18, tipo: 'cont' },
   'QUADRO': { cor: 7, pena: 0.25, tipo: 'cont' },
+  // armação (R5): contorno do concreto nas elevações e seções, barras (inferiores/positivas e superiores/negativas) e planta de fundo fina
+  'CONCRETO': { cor: 7, pena: 0.5, tipo: 'cont' },
+  'ARMADURA': { cor: 1, pena: 0.35, tipo: 'cont' },
+  'ARMADURA-NEG': { cor: 5, pena: 0.35, tipo: 'cont' },
+  'FORMA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
 } as const;
 export type Camada = keyof typeof CAMADAS;
 /** Padrões de traço no papel (mm): traço, espaço, ... */
@@ -40,7 +45,18 @@ export const margens = (f: Formato) => ({ esq: 20, outras: f === 'A0' || f === '
 export const LARGURA_LEGENDA = 178;
 export const ESCALAS = [50, 75, 100, 125, 200, 250];
 
+/** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes';
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'FOR', locacao: 'LOC', vigas: 'ARV', pilares: 'ARP', lajes: 'ARL' };
+
+/** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */
+export interface LinhaTabelaAco { pos: string; aco: string; phi: number; quant: number; cUnit: number; cTotal: number }
+/** Linha do resumo de aço por aço e bitola (m, kg). */
+export interface LinhaResumoAco { aco: string; phi: number; comprimento: number; peso: number; pesoComPerdas: number }
+export interface AcoPrancha { tabela: LinhaTabelaAco[]; resumo: LinhaResumoAco[]; peso: number; pesoComPerdas: number; perdas: number; concreto: number; forma: number }
+
 export interface Prancha {
+  tipo?: TipoPrancha;
   titulo: string;
   formato: Formato;
   /** Largura e altura da folha (mm, paisagem). */
@@ -48,9 +64,13 @@ export interface Prancha {
   escala: number;
   modelo: Prim[];
   papel: Prim[];
-  /** Janela (viewport): retângulo no papel (mm) e ponto do modelo (m) no centro dela. */
-  janela: { x0: number; y0: number; x1: number; y1: number; centro: P };
+  /** Janela (viewport): retângulo no papel (mm) e ponto do modelo (m) no centro dela; ausente quando tudo está no papel. */
+  janela?: { x0: number; y0: number; x1: number; y1: number; centro: P };
   avisos: string[];
+  /** Pranchas de armação: tabela de aço e resumo da folha. */
+  aco?: AcoPrancha;
+  /** Elementos desenhados na folha (nomes). */
+  elementos?: string[];
 }
 
 export interface OpcoesPrancha {
@@ -77,7 +97,7 @@ function elementos(b: BuildingModel, grupo: string) {
   return { ps, pavs, ref, lajes, vigas, chegam, nascem, eixos };
 }
 
-function caixa(pts: P[]): [number, number, number, number] {
+export function caixa(pts: P[]): [number, number, number, number] {
   if (!pts.length) return [0, 0, 1, 1];
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
@@ -129,6 +149,46 @@ function visiveis(a: P, z: P, polys: P[][]): P[][] {
 /** Folga em volta da geometria para cotas e eixos (mm no papel). */
 const FOLGA_PAPEL = 28;
 
+/** Eixos (fora da planta, com bolha) e cotas em cadeia pelos centros dos pilares (cm), abaixo e à esquerda. */
+export function eixosECotas(modelo: Prim[], eixos: BuildingModel['eixos'], centros: P[], [gx0, gy0, gx1, gy1]: [number, number, number, number], k: number) {
+  // eixos: só fora da planta (a geometria já marca a posição), com bolha no início
+  const [bx0, by0, bx1, by1] = [gx0 - 3 * k, gy0 - 3 * k, gx1 + 3 * k, gy1 + 3 * k];
+  for (const e of eixos) {
+    const [x1, y1] = e.p1, [x2, y2] = e.p2, L = Math.hypot(x2 - x1, y2 - y1);
+    if (L < 1e-6) continue;
+    const ux = (x2 - x1) / L, uy = (y2 - y1) / L, ext = 12 * k, r = 4 * k;
+    const a: P = [x1 - ux * ext, y1 - uy * ext], z: P = [x2 + ux * ext, y2 + uy * ext];
+    const ts = cruzamentos(a, z, [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]]);
+    if (ts.length >= 2) {
+      const pt = (t: number): P => [a[0] + (z[0] - a[0]) * t, a[1] + (z[1] - a[1]) * t];
+      modelo.push({ t: 'pl', c: 'EIXO', pts: [a, pt(ts[0])] }, { t: 'pl', c: 'EIXO', pts: [pt(ts.at(-1)!), z] });
+    } else modelo.push({ t: 'pl', c: 'EIXO', pts: [a, z] });
+    const cb: P = [a[0] - ux * r, a[1] - uy * r];
+    modelo.push({ t: 'circ', c: 'EIXO', centro: cb, r }, { t: 'txt', c: 'EIXO', p: cb, h: 3 * k, s: e.nome, ah: 'c', av: 'meio' });
+  }
+  // cotas em cadeia pelos centros dos pilares (cm), abaixo e à esquerda, e total
+  const cota = (horiz: boolean, vals: number[], base: number) => {
+    if (vals.length < 2) return;
+    const tick = 1.2 * k, th = 2 * k;
+    const P2 = (s: number, t: number): P => (horiz ? [s, t] : [t, s]);
+    modelo.push({ t: 'pl', c: 'COTA', pts: [P2(vals[0], base), P2(vals.at(-1)!, base)] });
+    for (const v of vals) {
+      modelo.push({ t: 'pl', c: 'COTA', pts: [P2(v - tick, base - tick), P2(v + tick, base + tick)] });
+      modelo.push({ t: 'pl', c: 'COTA', pts: [P2(v, base - 2 * k), P2(v, base + 2 * k)] });
+    }
+    for (let i = 0; i + 1 < vals.length; i++) {
+      const m = (vals[i] + vals[i + 1]) / 2;
+      modelo.push({ t: 'txt', c: 'COTA', p: P2(m, base + (horiz ? 0.8 * k : -0.8 * k)), h: th, s: cm(vals[i + 1] - vals[i]), ang: horiz ? 0 : 90, ah: 'c', av: 'base' });
+    }
+  };
+  if (centros.length) {
+    const xs = distintos(centros.map((c) => c[0])), ys = distintos(centros.map((c) => c[1]));
+    cota(true, xs, gy0 - 10 * k); if (xs.length > 2) cota(true, [xs[0], xs.at(-1)!], gy0 - 18 * k);
+    cota(false, ys, gx0 - 10 * k); if (ys.length > 2) cota(false, [ys[0], ys.at(-1)!], gx0 - 18 * k);
+  }
+
+}
+
 export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha = {}): Prancha {
   const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
   const el = elementos(b, grupo);
@@ -152,7 +212,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   let formato: Formato = fFix ?? 'A0', escala = eFix || ESCALAS[ESCALAS.length - 1], ok = false;
   busca: for (const e of escs) for (const f of forms) if (cabe(f, e)) { formato = f; escala = e; ok = true; break busca; }
   if (!ok) avisos.push(`A planta não cabe na folha ${formato} em 1:${escala}: escolha um formato maior ou outra escala.`);
-  const [W, H] = FORMATOS[formato], mg = margens(formato), area = areaDesenho(formato);
+  const [W, H] = FORMATOS[formato], area = areaDesenho(formato);
   const k = escala / 1000; // m no modelo por mm no papel
 
   // ---------- espaço do modelo ----------
@@ -206,82 +266,15 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: c, fechada: true });
     rotPilar(p, p.secao, c);
   }
-  // eixos: só fora da planta (a geometria já marca a posição), com bolha no início
-  const [bx0, by0, bx1, by1] = [gx0 - 3 * k, gy0 - 3 * k, gx1 + 3 * k, gy1 + 3 * k];
-  for (const e of el.eixos) {
-    const [x1, y1] = e.p1, [x2, y2] = e.p2, L = Math.hypot(x2 - x1, y2 - y1);
-    if (L < 1e-6) continue;
-    const ux = (x2 - x1) / L, uy = (y2 - y1) / L, ext = 12 * k, r = 4 * k;
-    const a: P = [x1 - ux * ext, y1 - uy * ext], z: P = [x2 + ux * ext, y2 + uy * ext];
-    const ts = cruzamentos(a, z, [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]]);
-    if (ts.length >= 2) {
-      const pt = (t: number): P => [a[0] + (z[0] - a[0]) * t, a[1] + (z[1] - a[1]) * t];
-      modelo.push({ t: 'pl', c: 'EIXO', pts: [a, pt(ts[0])] }, { t: 'pl', c: 'EIXO', pts: [pt(ts.at(-1)!), z] });
-    } else modelo.push({ t: 'pl', c: 'EIXO', pts: [a, z] });
-    const cb: P = [a[0] - ux * r, a[1] - uy * r];
-    modelo.push({ t: 'circ', c: 'EIXO', centro: cb, r }, { t: 'txt', c: 'EIXO', p: cb, h: 3 * k, s: e.nome, ah: 'c', av: 'meio' });
-  }
-  // cotas em cadeia pelos centros dos pilares (cm), abaixo e à esquerda, e total
   const centros = [...el.chegam.map((p) => contornoPilar(p, secaoNoLance(p, ref!.id))), ...el.nascem.map((p) => contornoPilar(p, p.secao))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
-  const cota = (horiz: boolean, vals: number[], base: number) => {
-    if (vals.length < 2) return;
-    const tick = 1.2 * k, th = 2 * k;
-    const P2 = (s: number, t: number): P => (horiz ? [s, t] : [t, s]);
-    modelo.push({ t: 'pl', c: 'COTA', pts: [P2(vals[0], base), P2(vals.at(-1)!, base)] });
-    for (const v of vals) {
-      modelo.push({ t: 'pl', c: 'COTA', pts: [P2(v - tick, base - tick), P2(v + tick, base + tick)] });
-      modelo.push({ t: 'pl', c: 'COTA', pts: [P2(v, base - 2 * k), P2(v, base + 2 * k)] });
-    }
-    for (let i = 0; i + 1 < vals.length; i++) {
-      const m = (vals[i] + vals[i + 1]) / 2;
-      modelo.push({ t: 'txt', c: 'COTA', p: P2(m, base + (horiz ? 0.8 * k : -0.8 * k)), h: th, s: cm(vals[i + 1] - vals[i]), ang: horiz ? 0 : 90, ah: 'c', av: 'base' });
-    }
-  };
-  if (centros.length) {
-    const xs = distintos(centros.map((c) => c[0])), ys = distintos(centros.map((c) => c[1]));
-    cota(true, xs, gy0 - 10 * k); if (xs.length > 2) cota(true, [xs[0], xs.at(-1)!], gy0 - 18 * k);
-    cota(false, ys, gx0 - 10 * k); if (ys.length > 2) cota(false, [ys[0], ys.at(-1)!], gx0 - 18 * k);
-  }
+  eixosECotas(modelo, el.eixos, centros, [gx0, gy0, gx1, gy1], k);
 
   // ---------- espaço do papel ----------
   const papel: Prim[] = [];
-  const ret = (c: Camada, x0: number, y0: number, x1: number, y1: number): Prim => ({ t: 'pl', c, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], fechada: true });
-  const txt = (c: Camada, x: number, y: number, h: number, s: string, ah: 'e' | 'c' | 'd' = 'e', av: 'base' | 'meio' | 'topo' = 'base'): Prim => ({ t: 'txt', c, p: [x, y], h, s, ah, av });
-  const fx0 = mg.esq, fy0 = mg.outras, fx1 = W - mg.outras, fy1 = H - mg.outras;
-  papel.push(ret('FOLHA-FINA', 0, 0, W, H), ret('FOLHA', fx0, fy0, fx1, fy1));
-  // marcas de dobra para o formato A4 (dobras verticais a 185 mm da direita e depois a cada 190 mm; horizontais a cada 297 mm) [a confirmar na NBR 13142]
-  if (formato !== 'A4') {
-    for (let x = W - 185; x > 210; x -= 190) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, 0], [x, 5]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[x, H - 5], [x, H]] });
-    for (let y = 297; y < H - 1; y += 297) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[0, y], [5, y]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[W - 5, y], [W, y]] });
-  }
-  // legenda (carimbo) no canto inferior direito
-  const cb = { ...cfg.carimbo, ...(o.carimbo ?? {}) };
-  const lx0 = fx1 - LARGURA_LEGENDA, lx1 = fx1;
-  const linhas: { h: number; cel: { w: number; rot: string; val: string; hv?: number }[] }[] = [
-    { h: 14, cel: [{ w: 1, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
-    { h: 10, cel: [{ w: 1, rot: 'OBRA', val: cb.obra ?? b.obra.nome ?? '' }] },
-    { h: 9, cel: [{ w: 0.5, rot: 'CLIENTE', val: cb.cliente ?? '' }, { w: 0.5, rot: 'LOCAL', val: cb.local ?? b.obra.cidade ?? '' }] },
-    { h: 12, cel: [{ w: 0.68, rot: 'CONTEÚDO', val: `PLANTA DE FORMAS — ${(g?.nome ?? grupo).toUpperCase()}`, hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
-    { h: 9, cel: [{ w: 0.46, rot: 'RESPONSÁVEL TÉCNICO', val: cb.responsavel ?? '' }, { w: 0.27, rot: 'REGISTRO PROFISSIONAL', val: cb.registro ?? '' }, { w: 0.27, rot: 'ART / RRT', val: cb.art ?? '' }] },
-    { h: 10, cel: [{ w: 0.17, rot: 'ESCALA', val: `1:${escala}` }, { w: 0.2, rot: 'DATA', val: cb.data ?? '' }, { w: 0.25, rot: 'DESENHO', val: cb.desenho ?? '' }, { w: 0.14, rot: 'REVISÃO', val: cb.revisao ?? 'R00' }, { w: 0.24, rot: 'PRANCHA', val: `${String(o.numero ?? 1).padStart(2, '0')}/${String(o.total ?? 1).padStart(2, '0')}`, hv: 4 }] },
-  ];
-  const hLeg = linhas.reduce((s, l) => s + l.h, 0);
-  let y = fy0 + hLeg;
-  papel.push(ret('FOLHA', lx0, fy0, lx1, y));
-  for (const l of linhas) {
-    const yb = y - l.h;
-    if (yb > fy0) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[lx0, yb], [lx1, yb]] });
-    let x = lx0;
-    l.cel.forEach((c, i) => {
-      const w = c.w * LARGURA_LEGENDA;
-      if (i) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, yb], [x, y]] });
-      papel.push(txt('FOLHA-TEXTO', x + 1.5, y - 1.5, 1.6, c.rot, 'e', 'topo'));
-      if (c.val) papel.push(txt('FOLHA-TEXTO', x + 2, yb + 2, c.hv ?? 2.8, c.val));
-      x += w;
-    });
-    y = yb;
-  }
-  papel.push(txt('FOLHA-FINA', lx1 - 1, fy0 + hLeg + 1.2, 1.6, 'Gerado pelo Statikos — conferir antes de emitir', 'd'));
+  const fc = folhaECarimbo(b, formato, { tipo: 'formas', conteudo: `PLANTA DE FORMAS — ${(g?.nome ?? grupo).toUpperCase()}`, escala: `1:${escala}`, numero: o.numero, total: o.total, carimbo: o.carimbo });
+  papel.push(...fc.papel);
+  const { x0: fx0, y0: fy0, x1: fx1, y1: fy1 } = fc.moldura, hLeg = fc.hLeg, lx1 = fx1;
+  void fx0;
   // quadro de pilares acima da legenda (colunas para a esquerda quando não cabe)
   const todos = [...el.chegam, ...el.nascem.filter((p) => !el.chegam.includes(p))].sort((a, z) => a.nome.localeCompare(z.nome, 'pt-BR', { numeric: true }));
   const nomePav = (id: string) => (id === 'fundacao' ? 'Fundação' : el.ps.find((x) => x.id === id)?.nome ?? id);
@@ -320,7 +313,58 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   if (jx1 < area.x1 - 1 && !cabeEm(jx1)) avisos.push('O quadro de pilares invade a área do desenho: use um formato maior.');
   function cabeEm(x1: number) { return (gx1 - gx0) / k + 2 * FOLGA_PAPEL <= x1 - area.x0; }
   const janela = { x0: area.x0, y0: area.y0, x1: Math.max(jx1, area.x0 + 40), y1: area.y1, centro: [(gx0 + gx1) / 2 - 4 * k, (gy0 + gy1) / 2 - 4 * k] as P };
-  return { titulo: `Formas — ${g?.nome ?? grupo}`, formato, W, H, escala, modelo, papel, janela, avisos };
+  return { tipo: 'formas', titulo: `Formas — ${g?.nome ?? grupo}`, formato, W, H, escala, modelo, papel, janela, avisos };
+}
+
+export const ret = (c: Camada, x0: number, y0: number, x1: number, y1: number): Prim => ({ t: 'pl', c, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], fechada: true });
+export const txt = (c: Camada, x: number, y: number, h: number, s: string, ah: 'e' | 'c' | 'd' = 'e', av: 'base' | 'meio' | 'topo' = 'base'): Prim => ({ t: 'txt', c, p: [x, y], h, s, ah, av });
+
+export interface OpcoesFolha { tipo: TipoPrancha; conteudo: string; escala: string; numero?: number; total?: number; carimbo?: Partial<Carimbo> }
+
+/**
+ * Folha (moldura, marcas de dobra) e legenda (carimbo) no canto inferior direito, comuns a todas as pranchas.
+ * Devolve as primitivas, a altura da legenda e a moldura (mm).
+ */
+export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha) {
+  const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
+  const [W, H] = FORMATOS[formato], mg = margens(formato);
+  const papel: Prim[] = [];
+  const fx0 = mg.esq, fy0 = mg.outras, fx1 = W - mg.outras, fy1 = H - mg.outras;
+  papel.push(ret('FOLHA-FINA', 0, 0, W, H), ret('FOLHA', fx0, fy0, fx1, fy1));
+  // marcas de dobra para o formato A4 (dobras verticais a 185 mm da direita e depois a cada 190 mm; horizontais a cada 297 mm) [a confirmar na NBR 13142]
+  if (formato !== 'A4') {
+    for (let x = W - 185; x > 210; x -= 190) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, 0], [x, 5]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[x, H - 5], [x, H]] });
+    for (let y = 297; y < H - 1; y += 297) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[0, y], [5, y]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[W - 5, y], [W, y]] });
+  }
+  const cb = { ...cfg.carimbo, ...(o.carimbo ?? {}) };
+  const lx0 = fx1 - LARGURA_LEGENDA, lx1 = fx1;
+  const wCont = 0.56 * LARGURA_LEGENDA - 4;
+  const linhas: { h: number; cel: { w: number; rot: string; val: string; hv?: number }[] }[] = [
+    { h: 14, cel: [{ w: 1, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
+    { h: 10, cel: [{ w: 1, rot: 'OBRA', val: cb.obra ?? b.obra.nome ?? '' }] },
+    { h: 9, cel: [{ w: 0.5, rot: 'CLIENTE', val: cb.cliente ?? '' }, { w: 0.5, rot: 'LOCAL', val: cb.local ?? b.obra.cidade ?? '' }] },
+    { h: 12, cel: [{ w: 0.56, rot: 'CONTEÚDO', val: o.conteudo, hv: Math.min(3.5, wCont / (Math.max(1, o.conteudo.length) * 1.0)) }, { w: 0.12, rot: 'SIGLA', val: SIGLAS[o.tipo], hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
+    { h: 9, cel: [{ w: 0.46, rot: 'RESPONSÁVEL TÉCNICO', val: cb.responsavel ?? '' }, { w: 0.27, rot: 'REGISTRO PROFISSIONAL', val: cb.registro ?? '' }, { w: 0.27, rot: 'ART / RRT', val: cb.art ?? '' }] },
+    { h: 10, cel: [{ w: 0.17, rot: 'ESCALA', val: o.escala }, { w: 0.2, rot: 'DATA', val: cb.data ?? '' }, { w: 0.25, rot: 'DESENHO', val: cb.desenho ?? '' }, { w: 0.14, rot: 'REVISÃO', val: cb.revisao ?? 'R00' }, { w: 0.24, rot: 'FOLHA', val: `${String(o.numero ?? 1).padStart(2, '0')}/${String(o.total ?? 1).padStart(2, '0')}`, hv: 4 }] },
+  ];
+  const hLeg = linhas.reduce((s, l) => s + l.h, 0);
+  let y = fy0 + hLeg;
+  papel.push(ret('FOLHA', lx0, fy0, lx1, y));
+  for (const l of linhas) {
+    const yb = y - l.h;
+    if (yb > fy0) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[lx0, yb], [lx1, yb]] });
+    let x = lx0;
+    l.cel.forEach((c, i) => {
+      const w = c.w * LARGURA_LEGENDA;
+      if (i) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, yb], [x, y]] });
+      papel.push(txt('FOLHA-TEXTO', x + 1.5, y - 1.5, 1.6, c.rot, 'e', 'topo'));
+      if (c.val) papel.push(txt('FOLHA-TEXTO', x + 2, yb + 2, c.hv ?? 2.8, c.val));
+      x += w;
+    });
+    y = yb;
+  }
+  papel.push(txt('FOLHA-FINA', lx1 - 1, fy0 + hLeg + 1.2, 1.6, 'Gerado pelo Statikos — conferir antes de emitir', 'd'));
+  return { papel, hLeg, moldura: { x0: fx0, y0: fy0, x1: fx1, y1: fy1 } };
 }
 
 /** Uma prancha por grupo com elementos lançados, numeradas na ordem dos pavimentos. */
@@ -331,7 +375,9 @@ export function montarPranchas(b: BuildingModel, o: Omit<OpcoesPrancha, 'numero'
 
 /** Transformação do modelo (m) para o papel (mm) pela janela da prancha. */
 export function modeloParaPapel(pr: Prancha): (p: P) => P {
-  const s = 1000 / pr.escala, cx = (pr.janela.x0 + pr.janela.x1) / 2, cy = (pr.janela.y0 + pr.janela.y1) / 2;
-  return ([x, y]) => [cx + (x - pr.janela.centro[0]) * s, cy + (y - pr.janela.centro[1]) * s];
+  const j = pr.janela;
+  if (!j) return (p) => p;
+  const s = 1000 / pr.escala, cx = (j.x0 + j.x1) / 2, cy = (j.y0 + j.y1) / 2;
+  return ([x, y]) => [cx + (x - j.centro[0]) * s, cy + (y - j.centro[1]) * s];
 }
 

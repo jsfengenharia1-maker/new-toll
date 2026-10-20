@@ -153,7 +153,7 @@ export function escreverDxf(pr: Prancha): Uint8Array {
   };
   const j = pr.janela;
   vp(H.vp1, 1, pr.W / 2, pr.H / 2, pr.W * 1.05, pr.H * 1.05, [pr.W / 2, pr.H / 2], pr.H * 1.05);
-  vp(H.vp2, 2, (j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2, j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * kModelo);
+  if (j) vp(H.vp2, 2, (j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2, j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * kModelo);
   for (const q of pap) escrever(q, true);
   g(0, 'ENDSEC');
 
