@@ -13,6 +13,7 @@ Base: 228 itens Parcial/Falta com frente R nos dois checklists (105 do manual do
 | R4 Lajes | Armadura base e reforços, linhas de dobra, comprimentos mínimos, edição e cópia (6, 11) | 35 | só o desenho |
 | R5 Pranchas e aço | Pranchas de armação de vigas, pilares e lajes (PDF/DXF/DWG), tabela de barras, resumo de aço com perdas (12, 13) | 17 | **sim** |
 | R6 Vigotas | Resultados, erros e edição de lajes treliçadas (15). Feita em 20/10/2026 | 42 | pouco |
+| R7 Resíduo (R7a–R7g) | Tabelas de armadura editáveis, opções e edição fina do detalhamento de vigas e pilares, armadura base, tela, uniformização e linhas de dobra das lajes, cópia e agrupamento, rearmar só o alterado, relatórios e opções de desenho das pranchas. Depois da FU; ver a seção R7 | 111 | não (só a máscara e o ponto fixo) |
 
 O grupo 16 (itens gerais) fecha com o ciclo.
 
@@ -42,6 +43,106 @@ Aprovada pelo usuário em 20/10/2026.
 - **R5 feita em 20/10/2026.** Núcleo (`src/core/sheets/`): `conjunto.ts` (`montarConjunto`, ordem locação, formas, vigas, pilares e lajes, "folha n de N"), `armacao.ts` (posições por folha, tabela de aço, resumo com perdas, paginação), `armacaoVigas.ts`, `armacaoPilares.ts` (com o quadro de pilares), `armacaoLajes.ts`, `locacao.ts` (cargas características e de cálculo, notas gerais), carimbo com SIGLA e FOLHA, opções `b.prancha.armacao` (`prancha.definir { armacao }`), CLI `prancha --tipo` e ferramenta MCP `pranchas`, premissa `pranchas-armacao`. Interface (`src/app/edificio/Pranchas.tsx`): seletor do tipo (Formas, Locação e cargas, Armação de vigas, de pilares, de lajes e Conjunto completo) e do grupo; aviso quando a armação ou a locação exige cálculo (sem dimensionamento, ou dimensionamento de revisão anterior do modelo; mudar só dados de prancha, como carimbo e escalas, não invalida o cálculo: `Sessao.revCalculo`, ver abaixo); lista de folhas (número "n/N", sigla, título, formato, escala) com prévia SVG da folha escolhida, navegação anterior/próxima e dados da folha (aço, aço com perdas, concreto e forma); grupo "Opções de armação e locação" (formato, escalas de vigas, seções, pilares, lajes e locação, lajes separadas, quadro de pilares) com os padrões e o "a confirmar" indicados; exportação em PDF da folha, PDF de todas as folhas da seleção (o `escreverPdf` aceita várias pranchas), DXF e DWG da folha e zip de DXF ou de DWG com todas as folhas; nomes `<obra>-<SIGLA>-<nn>`; fluxo e2e `R5`.
 - **Pós-R (20/10/2026): revisão de cálculo e pranchas no worker.** O registro de comandos marca os que não entram no cálculo (`Comando.calculo: false`; hoje só `prancha.definir`; `afetaCalculo` trata o `lote`). A `Sessao` tem `rev` (toda alteração) e `revCalculo` (só as que alteram o cálculo; desfazer/refazer acompanham). O store compara `revAnalise` com `revCalculo` (`calculoAtual`; o contorno `chaveCalculo` saiu), e o cache do `dimensionar` no MCP usa a sessão + `revCalculo`. Um teste garante que esses comandos só tocam `b.prancha` e que `src/core/building` não lê `b.prancha`. O conjunto de pranchas é montado no worker do cálculo (`calculo.worker.ts`, que guarda o último cálculo por id): a aba Pranchas pede por `montarConjuntoNoWorker`, mostra "Montando as pranchas…" (`data-estado` na prévia), descarta respostas de pedidos antigos e o worker atende só o pedido mais novo da fila.
 - Ficou de fora da R5: corte A-A e 2ª camada de armadura nas vigas, "C=VAR" (comprimento variável) nas barras, detalhes de blocos e sapatas na locação, tabelas de armadura editáveis (C13.1–C13.5), gabarito DXF e ponto fixo nas pranchas (C2.22, C4.61), desenho das nervuras e cubetas (C7.9), cargas especiais por grupo (C10.26), placas de base e pilares-parede, ábacos e punção nas lajes.
+
+## Fatia R7 — resíduo da R (aprovada a criação em 20/10/2026; feita depois da FU)
+
+Objetivo: fechar os 111 itens Parcial/Falta que a R1–R6 deixou de fora (42 do manual do usuário, 69 do de cálculo), antes marcados `[resíduo R]` e agora marcados nas notas com a subfatia dona. Tema comum: o usuário passa a controlar como a armadura é escolhida (tabelas), detalhada (opções e edição fina de vigas, pilares e lajes), reaproveitada (cópia, agrupamento, rearmar só o alterado) e apresentada (relatórios e pranchas).
+
+Regras de toda a R7:
+- Paridade de função com o programa de referência, nunca de implementação: nomes de comandos, textos, tabelas, ícones e disposição de tela são próprios. As tabelas padrão são geradas por regra a partir das bitolas comerciais (NBR 7480) e dos limites da NBR 6118, não transcritas.
+- Premissas: padrão do sistema = critério do programa de referência onde o checklist o registra; NBR 6118 onde não registra; `padraoNBR`/`fonteNBR` em `OPCOES_INFO` quando diferem; sem fonte = "a confirmar" no app e no memorial. Toda opção nova entra em `opcoes.ts` (padrão, faixa, fonte) e aparece em `opcoesAlteradas` no memorial.
+- Comandos novos com `mcp: false` (limite de 40 ferramentas do MCP; ficam acessíveis por `comandos` e `previa`), schema, `validar`, mensagem e exemplo em `EXEMPLOS` do `commands.test.ts`. Nenhuma ferramenta MCP nova; o `dimensionar` continua devolvendo só resumos (ganha, quando houver, a contagem de "fora de tabela" e de elementos rearmados).
+- Dados guardados só quando diferem do padrão (como `opcoes`), para o arquivo `.statikos` e o limite de 240 KB da biblioteca.
+- Revisão em três níveis: hoje a `Sessao` separa `rev` (tudo) e `revCalculo` (análise). A R7 acrescenta `revDetalhe`: comandos que mudam só a armadura ou o detalhamento (tabelas, armadura base, edição de barras, agrupamentos, cópias) marcam `Comando.calculo: 'detalhe'` e refazem o dimensionamento/detalhamento no worker com os esforços guardados, sem nova análise.
+- Interface só com `src/app/ui` e as classes/tokens de `src/app/design/global.css` (tokens novos `--det-*` lá); componente novo na biblioteca quando faltar (painel não modal para edição contínua). Atalhos e estado de vista no `plantaStore`, fora do arquivo.
+- Aceite de cada subfatia: testes numéricos contra cálculo manual, regressão (sem edição do usuário os resultados do edifício de `exemplo.ts` não mudam), fluxo e2e próprio (`R7a` … `R7g`), memorial, pranchas e checklists atualizados; `checklists.test.ts` verde.
+
+### R7a — Tabelas de armadura editáveis (20 itens)
+
+Itens: C13.1, C13.2, C13.3, C13.5; K1.4.50, K1.4.73, K1.12.4-2, K1.12.4-3, K1.12.4-9, K1.12.4-11, K1.12.4-12, K1.12.6, K1.12.7, K1.12.8, K1.12.11, K1.12.12, K1.12.18, K1.12.1-6, K1.12.1-7, K1.13.2.2-7.
+
+- Núcleo: `src/core/building/tabelasArmadura.ts`. Tabelas por elemento: vigas (positivos e negativos em 3 grupos por largura × altura, passante ≥ fração do total), estribos de vigas (bitola e espaçamento mínimos por dimensão, simples, duplo, triplo e grampos combináveis), pilares (disposições por seção ordenadas por taxa, simétricas em 2 ou 4 faces ou com faces diferentes; tipologias de estribos e grampos por armadura vertical e seção) e lajes (bitola × espaçamento por faixa de espessura). `tabelasPadrao(norma)` gera as tabelas pelas regras que o cálculo usa hoje; `vigas.ts`, `detalhamento*.ts` e o dimensionamento de pilares e lajes passam a percorrer a tabela em ordem crescente de taxa e a escolher a primeira que atende. Sem solução: vigas e montagem com o nº necessário de φ25 e erro FORA_TABELA; pilares geram armadura própria em uma camada no contorno até não caber e então erro ARM_MANUAL (ampliar a tabela ou a seção); lajes com aviso. Simetria dos pilares por tolerância % entre a melhor disposição e a primeira simétrica. Tabelas novas do usuário, independentes, atribuíveis por elemento.
+- Comandos: `tabela.definir` (criar, editar ou remover tabela ou linha), `tabela.restaurar` (volta às originais as tabelas escolhidas; as criadas pelo usuário ficam), atribuição pela ampliação de `viga.editar`, `pilar.editar` e `laje.editar` (`tabela?`). Todos `mcp: false`.
+- Interface: `src/app/edificio/TabelasArmadura.tsx`, grupo nos dados gerais da obra (junto de Materiais), com abas por elemento, linhas editáveis, "Restaurar" com a lista das alteradas para escolher; erro FORA_TABELA na lista de revisão com o atalho para a tabela.
+- Memorial: seção "Tabelas de armadura" só com as alteradas e criadas; tolerância de simetria.
+- Pranchas: sem mudança (o desenho segue a armadura escolhida).
+- Testes: as tabelas padrão reproduzem os arranjos atuais do `exemplo.ts` (regressão); tabela restrita força a bitola; tabela vazia gera FORA_TABELA/ARM_MANUAL; tolerância 0 % × 300 % na simetria; restaurar mantém as do usuário; e2e `R7a`.
+- Premissas: tolerância de simetria dos pilares — sistema 0 % (não simétrica, registrado em K1.4.50), perfil NBR = sempre simétrica (comportamento atual; a NBR não fixa) [a confirmar]; passante ≥ 1/3 do total (registro K1.12.8 admite 1/3 ou 1/4; NBR 18.3.2.4 exige ao menos 2 barras e a parcela do apoio); φ25 como bitola forçada fora de tabela (registrado); estribo perimetral + grampos 18.2.4 quando a tabela não define tipologia; faixas de espessura das tabelas de lajes [a confirmar], com φ ≤ h/8 e s ≤ mín(2h; 20 cm) da NBR.
+
+### R7b — Opções e edição fina do detalhamento de vigas (21 itens)
+
+Itens: C6.33, C6.65, C6.66, C6.103, C6.104; K1.4.63, K1.4.64, K1.4.65, K1.4.70, K1.11.6, K1.12.4, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27, K1.12.1-9.
+
+- Núcleo (`detalhamento.ts`): mínimos dos grupos 2 e 3 e dos negativos em % do vão; negativos simétricos em vigas de um vão por tolerância %; montagem contínua ou construtiva, colaborante ou não (passa a colaborante quando há compressão superior), ancorada com gancho ou reta, a partir da ponta ou do eixo; emenda da montagem em balanços; porta-estribos entre pontas dos negativos; negativos dos dois lados de um trecho viram montagem colaborante; redução da ancoragem por As,calc/As,ef (9.4.2.5, com lb,mín); perna mínima dos ganchos; ganchos no fim do alinhamento; estribos por zona com bitolas diferentes, simetria, comprimento mínimo de zona, extensão de d/2 além do necessário, múltiplos, em U e grampos (da R7a); taxa mínima verificada seção a seção; erro ESTRIBO_BITOLA (φt ≤ bw/10, 18.3.3.2); aviso DESNIVEL_LONG quando faces de vãos consecutivos não coincidem; tramo predefinido (barra inferior corrida entre vigas consecutivas alinhadas até a barra máxima); fator do comprimento de emenda.
+- Comandos: `viga.detalhe` (comprimento, ganchos e pernas por posição; bloqueia o detalhamento, verificado a cada recálculo, com BLOQ_IGNORADO quando mudam os vãos), `viga.tramo` (cria/remove tramo predefinido). `mcp: false`.
+- Interface: `Detalhamento.tsx` ganha modo de edição (campos por posição, fator de emenda) e "Mostrar" (inferior, superior, pele, zonas de estribos, seção; estado no `plantaStore`); grupo "Detalhamento de vigas" em `OpcoesCalculo.tsx`.
+- Memorial: opções alteradas; posições editadas por viga; avisos novos.
+- Pranchas (`armacaoVigas.ts`): porta-estribos, estribos múltiplos e grampos na seção, comprimentos editados, tramo predefinido sem emenda.
+- Testes: lb reduzido e perna contra cálculo manual; mínimos em % do vão; simetria; montagem reta × gancho; φt > bw/10; Asw com estribo de 4 ramos; regressão; e2e `R7b`.
+- Premissas: redução lb·As,calc/As,ef — sistema ligada (registro K1.12.25), perfil NBR desligada (comportamento atual, a favor da segurança; a NBR permite); extensão das zonas de estribos necessário + d/2 (registro K1.12.1-9); perna reta mínima 8φ (9.4.2.3); mínimos dos grupos em % do vão e tolerância de simetria dos negativos [a confirmar] (perfil NBR 0); montagem contínua, colaborante e com gancho (comportamento atual) [a confirmar]; limite do desnível longitudinal [a confirmar].
+
+### R7c — Opções do detalhamento de pilares (8 itens)
+
+Itens: K1.4.47, K1.4.48, K1.4.49, K1.4.52, K1.4.61, K1.11.34, K1.12.4-15, K1.12.4-21.
+
+- Núcleo (`detalhamentoPilares.ts`): níveis sem vigas chegando ao pilar (prolongar sem emenda até o nível seguinte ou emendar em todos); corte das barras no topo do último lance (só desenho e quantitativo, com aviso); ancoragem reduzida também nos arranques e nas emendas, com mínimo; continuidade com escolha do lance inicial (último ou penúltimo) e manutenção do nº e da bitola das faces separadamente; adensamento de estribos no topo e na base numa altura dada; seção insuficiente fica fora do desenho e do quantitativo (erro na lista).
+- Comandos: `pilar.detalhe` (comprimentos de arranque e emenda por lance, bloqueados; `mcp: false`). Opções pelo `opcoes.definir`.
+- Interface: grupo "Detalhamento de pilares" em `OpcoesCalculo.tsx`; edição de comprimentos em `DetalhamentoPilar.tsx`.
+- Memorial e pranchas (`armacaoPilares.ts`): adensamento, topo cortado, arranques reduzidos; pilar com seção insuficiente listado sem desenho.
+- Testes: comprimentos com e sem redução; adensamento conta estribos; continuidade das faces; regressão; e2e `R7c`.
+- Premissas (registradas): corte no topo desligado; redução desligada nos intermediários e ligada no último (topo já feito); continuidade de taxa e bitola de canto a partir do penúltimo; estribos na interseção ligados e adensamento desligado. Sem registro: prolongar nos níveis sem vigas [a confirmar], altura do adensamento [a confirmar].
+
+### R7d — Armadura base, tela soldada e armadura predefinida das lajes (11 itens)
+
+Itens: K1.4.75, K1.4.76, K1.9.86, K1.9.88, K1.9.102, K1.11.16, K1.13.2.1-1, K1.13.2.1-2, K1.13.2.1-3, K1.13.2.1-4, K1.13.2.3-1.
+
+- Núcleo (`detalhamentoLajes.ts`): armadura base por pano (superior e inferior, cada direção, φ e espaçamento da tabela da R7a ou tela soldada), sempre colaborante e aumentada quando o cálculo exige; reforço = necessária − base; inferior contínua com emendas nas zonas de máximo negativo, superior só onde necessária (posições invertidas no radier, quando a FU o trouxer); base detalhada (desenhada e medida) ou só indicada (φ c/ s, fora do quantitativo); armadura predefinida (face, direção, φ, comprimento e posição livres) descontada do reforço na sua faixa de influência; redução de densidade do reforço (barras alternadas) como opção.
+- Comandos: `laje.armaduraBase` (por pano ou seleção), `laje.armaduraPredefinida` (criar/editar/remover). `mcp: false`, `calculo: 'detalhe'`.
+- Interface: grupo "Armadura base" na janela da laje; ferramenta de lançamento da predefinida na planta (capturas e entrada digitada existentes); camada da planta com base e predefinidas.
+- Memorial: armadura base por laje; predefinidas; telas usadas.
+- Pranchas (`armacaoLajes.ts`): base desenhada só quando detalhada; nota com φ c/ s ou designação da tela quando não; quantitativo de telas por designação.
+- Testes: reforço descontado; base insuficiente aumentada; predefinida reduz o reforço só na faixa; quantitativo com e sem detalhar; regressão sem base; e2e `R7d`.
+- Premissas: base não detalhada por padrão (registro K1.4.76); catálogo de telas pelas designações da NBR 7481 [a confirmar]; faixa de influência da predefinida = nº de barras × espaçamento [a confirmar]; redução de densidade desligada [a confirmar].
+
+### R7e — Edição, uniformização e linhas de dobra das lajes (18 itens)
+
+Itens: C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134, C7.135; K1.4.77, K1.11.22, K1.11.25, K1.11.26, K1.13.2.4-12, K1.13.2.4-13, K1.13.2.4-14, K1.13.2.4-15, K1.13.2.4-16, K1.13.2.4-18.
+
+- Núcleo: zonas de uniformização (linha ou retângulo, face, direção; antes ou depois do cálculo) que igualam taxa e comprimento ao máximo da zona; uniformização automática em faixas junto a pilares indicados; linhas de dobra (definidas antes do cálculo pelas direções de apoio) tratadas como pontos de negativo máximo e locais preferenciais de emenda da inferior, com mínimos em % do vão entre linhas; depois do cálculo, emenda construtiva de 30 cm sem recálculo; edição de nº, φ, espaçamento, comprimento e ganchos por posição, troca por conjunto da tabela, agrupar/desagrupar barras e igualação por máximos, bloqueada e verificada no recálculo (ARM_BLOQ); refazer a armadura com os esforços iniciais mantendo as zonas; geração da armadura só com a geometria (mínimos e base, sem cálculo) para edição manual, que substitui a existente; armadura média uniforme por direção em lajes retangulares apoiadas em vigas (opção); critérios de numeração das posições.
+- Comandos: `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras` (editar, agrupar, desagrupar, aplicar conjunto), `lajes.gerarArmadura` (pede confirmação na interface). `mcp: false`; os de armadura com `calculo: 'detalhe'`, `laje.linhaDobra` antes do cálculo com `calculo: true`.
+- Interface: painel de edição não modal (fica aberto enquanto se edita; camadas inferior e superior visíveis ao mesmo tempo) na planta do pavimento; siglas de reforço junto às barras; ferramentas de zona e de linha de dobra na planta; posição dos rótulos editável na prévia da prancha (dado de prancha, `calculo: false`).
+- Memorial: zonas, linhas de dobra e posições editadas.
+- Pranchas: siglas de reforço, emendas nas linhas de dobra, rótulos reposicionados.
+- Testes: uniformização igual ao máximo da zona; emenda na linha de dobra; edição bloqueada reprova quando insuficiente; refazer mantém zonas; geração sem cálculo apaga e recria; e2e `R7e`.
+- Premissas: emenda construtiva de 30 cm (registro K1.11.25); uniformização sobre pilares desligada e largura da faixa [a confirmar]; armadura média em lajes retangulares desligada [a confirmar].
+
+### R7f — Cópia, agrupamento e rearmar só o alterado (20 itens)
+
+Itens: C4.55, C4.56, C4.59, C6.34, C6.62, C6.76, C6.77, C6.78, C6.79, C6.81, C6.82, C6.83, C6.86, C6.87, C6.88, C7.136, C7.137, C7.138; K1.11.10, K1.11.27.
+
+- Núcleo: rearmar só os elementos alterados (seção modificada ou desbloqueados) com os esforços guardados da última análise (`revDetalhe`), ou todos; aviso ESFORCO_ANTIGO quando a rigidez de um elemento mudou além de um limite, pedindo nova análise; desbloqueio gravado no modelo, dentro do próprio comando que muda o nº de lances ou de vãos (`viga.unir`/`viga.dividir` compõem e decompõem pórticos), desfazível; agrupamento de pórticos sem verificar condições (envoltória do grupo, uma mudança vale para todos, um desenho com todas as referências; aviso com o motivo quando o nº de vãos difere), desagrupar e acrescentar; cópia de armadura entre grupos com condições (todos os vãos de concreto, tipos compatíveis, mesmo nº de vãos, diferença de vão < 25 cm, desníveis coincidentes) e mensagem com o motivo; a cópia leva comprimentos (R7b) e não avisa armadura menor (o recálculo reprova); desenhos iguais só com geometria idêntica; modelos de armadura de pórtico gravados na biblioteca do usuário (`storage.ts`, tipo novo) para outras obras; lajes: salvar cópia da armadura de todos os grupos, recuperá-la só onde a geometria não mudou (barras cortadas na borda de furos novos, sem gancho) e copiar de outro grupo (só onde há laje, mesmo ângulo e origem da malha).
+- Comandos: `vigas.agrupar` (criar, acrescentar, desagrupar), `lajes.copiaArmadura` (salvar, recuperar, copiar de grupo); `viga.copiarArmadura` ampliado (entre grupos, motivo da recusa). Rearmar é pedido ao worker, não comando. `mcp: false`.
+- Interface: botões "Rearmar alterados" e "Rearmar todos" na aba Dimensionamento com a contagem; janela de seleção para bloqueio por grupo (todos, nenhum, seleção gráfica, cores por token, contagem); "Copiar para…" com vigas de todos os grupos e motivo por destino; agrupar pela seleção da planta; biblioteca com os modelos de pórtico.
+- Memorial: elementos rearmados com esforços da revisão n; agrupamentos; cópias aplicadas.
+- Pranchas: um desenho por agrupamento, com todas as referências no título.
+- Testes: rearmar alterados = dimensionamento completo quando a rigidez não muda; desbloqueio gravado e desfeito; agrupamento usa a envoltória; recusas de cópia por motivo; recuperar cópia após furo novo; e2e `R7f`.
+- Premissas: diferença de vão < 25 cm (registro C6.78); limite de variação de rigidez para ESFORCO_ANTIGO [a confirmar].
+
+### R7g — Revisão, relatórios e opções de desenho das pranchas (13 itens)
+
+Itens: C2.22, C4.38, C4.45, C4.51, C4.52, C4.61, C4.63; K1.11.1, K1.11.44, K1.11.46, K1.11.47, K1.11.51, K1.11.53.
+
+- Núcleo: `CODIGOS_REVISAO` ganha sugestão de correção por código (texto próprio); taxa As/Ac por lance; diagrama de capacidade resistente das vigas a partir da armadura colocada; arquivo de intercâmbio da armadura em formato próprio (CSV/JSON de barras); quantitativos por pano e viga (área, volume), blocos de enchimento, índices por m² (kg/m², m³/m², m²/m²); listagem geral com coordenadas e dimensões dos pilares, vínculos e pesos por laje; forças de vento por pavimento; verificações ELU por combinação (opção detalhada).
+- Comandos: nenhum de cálculo; opções de desenho em `prancha.definir { armacao }` (`mascara`, `pontoFixo`), `calculo: false`.
+- Interface: sugestão na lista de erros e na janela; janela do pilar com taxa, ângulo, engaste, desnível e profundidade do apoio, planta de situação e navegação anterior/próximo; relatórios de pilares e listagens por esforço (HTML e CSV); capacidade nos diagramas das vigas.
+- Memorial: listagem geral ampliada, vento por pavimento, quantitativos e índices, ELU por combinação quando pedido.
+- Pranchas: máscara DXF/DWG do pavimento nas formas e lajes (camada própria, pena fina), ponto fixo dos pilares (mostrar/ocultar).
+- Testes: sugestões para todo código de erro; índices por m² contra soma manual; prancha com e sem máscara e ponto fixo (DXF auditado pelo `validation/dxf`); e2e `R7g`.
+- Premissas: pena e camada da máscara pela NBR 16861 (pena mais fina das existentes) [a confirmar]; flecha ativa nas envoltórias fica com a N2; sismo fora do escopo.
+
+### Ordem dentro da R7
+
+R7a primeiro (as demais escolhem pela tabela), depois R7b, R7c, R7d, R7e, R7f e R7g. R7d e R7e dependem da tabela de lajes; R7f depende da edição de comprimentos (R7b, R7e) para copiar tudo. Total: 20 + 21 + 8 + 11 + 18 + 20 + 13 = 111.
 
 ## Aceite por fatia
 
