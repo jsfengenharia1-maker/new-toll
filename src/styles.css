@@ -411,6 +411,27 @@ svg.mono .hinge { fill: #fff !important; }
 .lbl.train.max { fill: var(--c-n); font-size: 10px; } .lbl.train.min { fill: var(--c-m); font-size: 10px; }
 
 /* edifício */
+.edif { display: grid; grid-template-columns: 400px 1fr; min-height: 0; }
+.edif-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.edif-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--line); background: var(--surface); }
+.edif-tabs button { border: 1px solid transparent; border-bottom: none; background: none; padding: 6px 12px; border-radius: 6px 6px 0 0; font-size: 12.5px; color: var(--muted); }
+.edif-tabs button.on { background: var(--bg, var(--surface-2)); border-color: var(--line); color: var(--ink); font-weight: 600; }
+.edif-tabs button.bad { color: var(--bad); }
+.edif-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
+.planta-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12px; }
+.planta-barra select { border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; background: var(--surface); color: var(--ink); font-size: 12px; }
+.planta-barra .pavsel { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.planta { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.planta-cv { position: relative; flex: 1; min-height: 240px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.planta-cv canvas { position: absolute; left: 0; top: 0; }
+.planta-cv canvas.int { cursor: none; }
+.planta-cv .digita { position: absolute; width: 130px; padding: 3px 6px; border: 1px solid var(--accent); border-radius: 4px; font: 12px var(--font-num); background: var(--surface); color: var(--ink); z-index: 2; }
+.planta-st { display: flex; gap: 16px; padding: 4px 10px; font-size: 11.5px; border-top: 1px solid var(--line); background: var(--surface); white-space: nowrap; overflow: hidden; }
+.planta-st .num { font-family: var(--font-num); min-width: 220px; }
+.edif .masc { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 6px; display: grid; gap: 4px; }
+.edif table.camadas td { text-align: center; padding: 1px 4px; } .edif table.camadas td.tl { text-align: left; }
+.edif table.quadro { margin: 6px 0; } .edif table.quadro tr.on td { background: var(--accent-soft); }
+.edif table.quadro select { width: auto; max-width: 84px; }
 .edif .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
 .edif .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
 .edif table.edpav select, .edif table.loads-ed select { width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; background: var(--surface); color: var(--ink); font-size: 11.5px; }
@@ -428,3 +449,4 @@ svg.mono .hinge { fill: #fff !important; }
 .prem { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; }
 .cmdline { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px var(--font-num); background: var(--surface); color: var(--ink); }
 .hint.bad { color: var(--bad); }
+@media (max-width: 900px) { .edif { grid-template-columns: 1fr; } .edif-in { max-height: 45vh; } .planta-cv { min-height: 360px; } }

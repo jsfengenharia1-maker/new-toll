@@ -1,6 +1,6 @@
 // Linha de comando do Statikos (Node): mesmo núcleo do app, sem navegador.
 import { comandosEdificioPadrao, listarComandos, Sessao, type Entrada } from '../core/commands';
-import { lerEdificio, WORKSPACE_FORMAT } from '../core/building/file';
+import { compactarLog, lerEdificio, WORKSPACE_FORMAT } from '../core/building/file';
 import { edificioVazio, pavimentosOrdenados, peDireito } from '../core/building/types';
 import { emptyModel } from '../core/types';
 import type { Diagnostico } from '../core/building/verify';
@@ -34,7 +34,7 @@ export function abrirSessao(texto: string): { sessao: Sessao; arquivo: Record<st
 /** Grava o edifício no arquivo de trabalho, preservando o resto (pórtico, biblioteca, histórico). */
 export function salvarSessao(sessao: Sessao, arquivo: Record<string, unknown> | null): string {
   const base = arquivo && arquivo.format === WORKSPACE_FORMAT ? arquivo : { format: WORKSPACE_FORMAT, model: { ...emptyModel(), name: sessao.modelo.obra.nome }, library: [], history: [] };
-  return JSON.stringify({ ...base, version: 2, savedAt: new Date().toISOString(), building: sessao.modelo, buildingLog: sessao.log });
+  return JSON.stringify({ ...base, version: 2, savedAt: new Date().toISOString(), building: sessao.modelo, buildingLog: compactarLog(sessao.modelo, sessao.log) });
 }
 
 export function novoTrabalho(vazio: boolean): Sessao {

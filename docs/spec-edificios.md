@@ -293,7 +293,7 @@ Pasta `validation/` com casos em JSON (`entrada.statikos`, `esperado.json`, `fon
 | Fatia | Pacote | Licença | Tamanho gz | Onde |
 |---|---|---|---|---|
 | 1 | flatbush | ISC | ~3 KB | bundle |
-| 1 | rbush | MIT | ~2 KB | bundle |
+| 1 | rbush | MIT | ~2 KB | não usado (o índice do modelo é refeito por Flatbush a cada alteração) |
 | 6b | nasjidwg | MIT | ~74 KB | `public/vendor` (sob demanda) |
 | V2 | acad-ts | MIT | ~198 KB | `public/vendor` |
 | V2 | pdfjs-dist | Apache-2.0 | ~0,5 MB | `public/vendor` |

@@ -7,7 +7,7 @@ Reconstrução limpa de um analisador de pórticos 2D. A especificação veio do
 ```bash
 npm i
 npm run dev        # desenvolvimento
-npm test           # 158 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test           # 178 testes (soluções analíticas, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build      # gera dist/index.html único + manifest, service worker e ícones (public/)
 npm run e2e        # testes de interface (Playwright): build, vite preview numa porta livre e fluxos de e2e/flows.mjs
 npm run cli        # gera dist-cli/statikos.mjs (linha de comando + servidor MCP, Node ≥ 20)
@@ -58,7 +58,9 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 | Edifício (modelo) | `src/core/building/` | Modelo físico versionado (obra, norma, pavimentos, grupos, eixos), verificação de lançamento com correção sugerida, premissas em uso, parte do edifício no `.statikos` v2 |
 | Comandos | `src/core/commands/` | Registro tipado (JSON Schema próprio), aplicação com patches do immer (desfazer), log que reproduz o modelo (replay), prévia com token |
 | CLI e MCP | `src/cli/` | `statikos` em Node (novo, info, verificar, exec, comandos) e servidor MCP stdio (JSON-RPC próprio, sem SDK) |
-| Edifício (interface) | `src/app/edificio/` | Aba Edifício: obra, pavimentos, grupos, eixos, linha de comando, elevação, diagnósticos e premissas |
+| DXF (entrada) | `src/core/dxf/read.ts` | Leitor próprio: LINE, LWPOLYLINE com bulge, POLYLINE, ARC, CIRCLE, ELLIPSE, SPLINE (aproximada), TEXT, MTEXT, INSERT/DIMENSION com blocos aninhados, escala, rotação e matriz; $INSUNITS |
+| Capturas | `src/core/geom/snap.ts` | Índice espacial (Flatbush) sobre segmentos e arcos: extremidade, interseção, meio, centro, quadrante, perpendicular e próximo; entrada digitada (x;y, @dx;dy, @d<ângulo, distância); ortogonal e polar |
+| Edifício (interface) | `src/app/edificio/` | Aba Edifício: obra, pavimentos, grupos, máscara, pilares (quadro e colagem do Excel), eixos, linha de comando; planta em Canvas 2D (máscara em cache, modelo, interação), elevação, verificação e premissas |
 
 ## Inventário funcional
 
@@ -110,6 +112,14 @@ Próximas fases: [`docs/spec-proximas-fases.md`](docs/spec-proximas-fases.md).
 - Aba Edifício: obra e norma (cobrimentos pela CAA), pavimentos com cota e pé-direito, grupos (pavimento-tipo vinculado) com uso e cargas da NBR 6120, “+1” para repetir pavimento, malha de eixos, linha de comando, verificação de lançamento contínua com correção em um clique
 - Linha de comando `statikos` e servidor MCP com prévia → aplicar
 - Spec e fatias seguintes: [`docs/spec-edificios.md`](docs/spec-edificios.md)
+
+**Módulo Edifícios — fatia 1 (20/10/2026)**
+- Planta do pavimento em Canvas 2D: zoom no cursor, pan (botão do meio ou espaço), temas escuro/claro/P&B, pavimento inferior esmaecido
+- Máscara DXF por grupo de pavimentos: leitor próprio, unidade por $INSUNITS, camadas visível/capturável, alinhamento por 2 pares de pontos (com ou sem escala)
+- Capturas com glifos e Tab para alternar; ortogonal (F8) e polar 15° (F10); valores digitados durante o traço
+- Pilares: inserir por clique ou coordenada, ponto fixo (centro, faces, cantos), ângulo, nasce/morre, seção por lance, mover, copiar em série, renumerar, quadro editável e colagem do Excel; verificação de sobreposição, seção mínima e pilar-parede
+- Eixos por dois pontos ou por malha; ferramentas Selecionar (janela/cruzamento), Mover e Medir
+- Comando `lote` (vários comandos, um desfazer); no arquivo, a geometria da máscara vai uma vez só
 
 **Próximas fases**
 - Pré-moldado (NBR 9062: consolos, ligações) — escopo a definir

@@ -178,15 +178,31 @@ registrar<{ id: string; nome?: string; cota?: number; grupo?: string }>({
 
 registrar<{ id: string }>({
   nome: 'pavimento.remover',
-  descricao: 'Remove um pavimento. O grupo que ficar sem pavimentos também é removido.',
+  descricao: 'Remove um pavimento. O grupo que ficar sem pavimentos também é removido (com suas máscaras); pilares que nasciam ou morriam nele passam ao pavimento de baixo.',
   risco: 'destrutivo',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
   validar: (b, p) => (pav(b, p.id) ? [] : err('PAVIMENTO_INEXISTENTE', `Pavimento ${p.id} não existe.`)),
   aplicar(d, p) {
-    const x = d.pavimentos.find((y) => y.id === p.id)!;
+    const ps = [...d.pavimentos].sort((a, z) => a.cota - z.cota);
+    const i = ps.findIndex((y) => y.id === p.id);
+    const x = ps[i], abaixo = i > 0 ? ps[i - 1].id : 'fundacao';
     d.pavimentos = d.pavimentos.filter((y) => y.id !== p.id);
-    if (!d.pavimentos.some((y) => y.grupo === x.grupo)) d.grupos = d.grupos.filter((g) => g.id !== x.grupo);
-    return `Pavimento “${x.nome}” removido.`;
+    if (!d.pavimentos.some((y) => y.grupo === x.grupo)) {
+      d.grupos = d.grupos.filter((g) => g.id !== x.grupo);
+      d.mascaras = d.mascaras.filter((m) => m.grupo !== x.grupo);
+    }
+    // pilares: quem nascia no pavimento passa a nascer no de baixo; quem morria nele morre no de baixo (ou some)
+    const removidos: string[] = [];
+    d.pilares = d.pilares.filter((q) => {
+      if (q.nasce === p.id) q.nasce = abaixo;
+      if (q.morre === p.id) {
+        if (abaixo === 'fundacao' || abaixo === q.nasce) { removidos.push(q.nome); return false; }
+        q.morre = abaixo;
+      }
+      if (q.secoes) { q.secoes = q.secoes.filter((s) => s.pavimento !== p.id); if (!q.secoes.length) delete q.secoes; }
+      return true;
+    });
+    return `Pavimento “${x.nome}” removido${removidos.length ? `; pilares sem lance removidos: ${removidos.join(', ')}` : ''}.`;
   },
 });
 

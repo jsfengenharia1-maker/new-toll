@@ -13,4 +13,9 @@ export const PREMISSAS: Premissa[] = [
   { id: 'uso', tema: 'Cargas', texto: `Carga variável padrão por uso: ${USOS.map((u) => `${u.label.split(' (')[0].toLowerCase()} ${String(u.q).replace('.', ',')}`).join('; ')} kN/m².`, fonte: 'NBR 6120:2019, Tabela 10', aConfirmar: true },
   { id: 'cobrimento', tema: 'Norma', texto: `Cobrimentos nominais pela CAA (laje/viga/pilar, cm): ${Object.entries(COBRIMENTOS).map(([k, c]) => `${k} ${c.laje}/${c.viga}/${c.pilar}`).join('; ').replace(/\./g, ',')}.`, fonte: 'NBR 6118, Tabela 7.2', aConfirmar: false },
   { id: 'padroes', tema: 'Norma', texto: 'Padrões: fck 30 MPa, CA-50, CAA II.', fonte: 'CLAUDE.md (premissas confirmadas)', aConfirmar: false },
+  { id: 'pilar-min', tema: 'Pilares', texto: 'Menor dimensão ≥ 19 cm; entre 14 e 19 cm exige γn (aviso); abaixo de 14 cm ou área < 360 cm² é erro.', fonte: 'NBR 6118, 13.2.3 (item a confirmar na edição de 2023)', aConfirmar: true },
+  { id: 'pilar-parede', tema: 'Pilares', texto: 'Seção com lado maior > 5 × o menor é pilar-parede (aviso; modelo próprio na V2).', fonte: 'NBR 6118, 14.4.2.4 (item a confirmar)', aConfirmar: true },
+  { id: 'renumerar', tema: 'Pilares', texto: 'Renumeração da esquerda para a direita e de cima para baixo; pilares com centros a até 0,3 m em y ficam na mesma linha.', fonte: 'Spec, item 5', aConfirmar: true },
+  { id: 'unidade-dxf', tema: 'Máscara', texto: 'Unidade do DXF por $INSUNITS; sem ela, estimada pela maior dimensão do desenho (> 5000 → mm; > 300 → cm; senão m), editável.', fonte: 'Critério do app', aConfirmar: true },
+  { id: 'capturas', tema: 'Desenho', texto: 'Capturas num raio de 12 px; prioridade: extremidade > interseção > meio > centro > quadrante > perpendicular > próximo; polar a cada 15°.', fonte: 'Spec, itens 32', aConfirmar: false },
 ];

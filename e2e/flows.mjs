@@ -36,6 +36,39 @@ async function downloadText(page, action) {
 
 const num = (s) => parseFloat(String(s).replace(/\s/g, '').replace('−', '-').replace(/\./g, '').replace(',', '.'));
 
+
+/** DXF de planta 15 × 10 m em cm (paredes de 15 cm, porta, textos) com `extra` segmentos aleatórios. */
+function dxfPlanta(extra = 0) {
+  const L = [];
+  const p = (...a) => L.push(...a.map(String));
+  p(0, 'SECTION', 2, 'HEADER', 9, '$INSUNITS', 70, 5, 0, 'ENDSEC', 0, 'SECTION', 2, 'ENTITIES');
+  const rect = (x0, y0, x1, y1, lay) => p(0, 'LWPOLYLINE', 8, lay, 90, 4, 70, 1, 10, x0, 20, y0, 10, x1, 20, y0, 10, x1, 20, y1, 10, x0, 20, y1);
+  rect(0, 0, 1500, 1000, 'PAREDE'); rect(15, 15, 1485, 985, 'PAREDE'); rect(500, 15, 515, 985, 'PAREDE');
+  p(0, 'ARC', 8, 'PORTA', 10, 515, 20, 300, 40, 80, 50, 0, 51, 90);
+  p(0, 'TEXT', 8, 'TEXTO', 10, 200, 20, 750, 40, 25, 1, 'SALA');
+  let s = 3;
+  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < extra; i++) { const x = r() * 1500, y = r() * 1000; p(0, 'LINE', 8, 'HACHURA', 10, x.toFixed(2), 20, y.toFixed(2), 11, (x + r() * 40).toFixed(2), 21, (y + r() * 40).toFixed(2)); }
+  p(0, 'ENDSEC', 0, 'EOF');
+  return L.join('\n');
+}
+
+/** Ponto do mundo (m) na tela, pela vista publicada pela planta. */
+async function telaDe(page, x, y) {
+  const v = JSON.parse(await page.locator('.planta-cv').getAttribute('data-vista'));
+  const box = await page.locator('canvas.int').boundingBox();
+  return [box.x + v.ox + x * v.k, box.y + v.oy - y * v.k];
+}
+
+async function importarMascara(page, tmp, extra = 0) {
+  const f = join(tmp, `planta-${extra}.dxf`);
+  writeFileSync(f, dxfPlanta(extra));
+  await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+  await page.locator('summary', { hasText: 'Máscara' }).click();
+  await page.setInputFiles('input[aria-label="Arquivo DXF da máscara"]', f);
+  await page.locator('.statusbar .msg', { hasText: 'unidade cm ($INSUNITS)' }).waitFor();
+}
+
 export const flows = [
   {
     name: 'desenho por coordenadas, apoio, carga e diagrama de momento',
@@ -215,6 +248,7 @@ export const flows = [
       // linha de comando: pé-direito diferente no grupo gera erro com correção sugerida
       await page.locator('#edcmd').fill('pavimento.editar {"id": "pav_9", "cota": 12.5}');
       await page.locator('#edcmd').press('Enter');
+      await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
       await page.locator('.topbar .status.bad').waitFor();
       await page.locator('.diags li.erro').getByRole('button').click();
@@ -247,6 +281,65 @@ export const flows = [
       await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
       await page2.waitForFunction(() => document.querySelectorAll('table.edpav tbody tr').length === 6);
       assert.equal(await page2.getByLabel('Cota de Tipo 4').inputValue(), '12,50');
+    },
+  },
+{
+    name: 'planta: máscara DXF, capturas, pilar por clique e por coordenada, janela, desfazer',
+    async run({ newPage, tmp }) {
+      const page = await newPage();
+      await importarMascara(page, tmp);
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.keyboard.press('p');
+      // canto interno da parede (0,15; 0,15): captura de extremidade a ~1 px
+      const [sx, sy] = await telaDe(page, 0.16, 0.16);
+      await page.mouse.move(sx, sy);
+      await page.locator('.planta-st', { hasText: 'extremidade' }).waitFor();
+      assert.match(await page.locator('.planta-st .num').textContent(), /x 0,15 {2}y 0,15/);
+      await page.mouse.click(sx, sy);
+      await page.locator('summary', { hasText: 'Pilares (1)' }).waitFor();
+      // coordenada digitada
+      await page.keyboard.type('7,5;5');
+      await page.keyboard.press('Enter');
+      await page.locator('summary', { hasText: 'Pilares (2)' }).waitFor();
+      await page.locator('summary', { hasText: 'Pilares' }).click();
+      assert.equal(await page.getByLabel('x de P2').inputValue(), '7,500');
+      // sobreposição recusada
+      await page.keyboard.type('7,55;5');
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'sobrepõe' }).waitFor();
+      await page.keyboard.press('Control+z');
+      await page.locator('summary', { hasText: 'Pilares (1)' }).waitFor();
+      // janela da esquerda para a direita em volta do P1 e Del
+      await page.keyboard.press('s');
+      const [ax, ay] = await telaDe(page, 0.02, 1), [zx, zy] = await telaDe(page, 1, -0.3);
+      await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(zx, zy, { steps: 4 }); await page.mouse.up();
+      await page.locator('.statusbar .msg', { hasText: '1 elemento(s) selecionado(s)' }).waitFor();
+      await page.keyboard.press('Delete');
+      await page.locator('summary', { hasText: 'Pilares (0)' }).waitFor();
+      await page.keyboard.press('Control+z');
+      await page.locator('summary', { hasText: 'Pilares (1)' }).waitFor();
+    },
+  },
+  {
+    name: 'planta: desempenho com 20 mil segmentos de máscara',
+    async run({ newPage, tmp }) {
+      const page = await newPage();
+      await importarMascara(page, tmp, 20000);
+      await page.waitForFunction(() => +document.querySelector('.planta-cv')?.dataset.segmentos >= 20000);
+      const box = await page.locator('canvas.int').boundingBox();
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      await page.mouse.move(cx, cy);
+      for (let i = 0; i < 15; i++) { await page.mouse.wheel(0, i < 8 ? -120 : 120); }
+      await page.mouse.down({ button: 'middle' });
+      await page.mouse.move(cx + 200, cy + 80, { steps: 30 });
+      await page.mouse.up({ button: 'middle' });
+      await page.waitForTimeout(300);
+      for (let i = 0; i < 20; i++) await page.mouse.move(cx + i * 7, cy + i * 3);
+      const d = await page.locator('.planta-cv').evaluate((e) => ({ ...e.dataset }));
+      console.log(`        quadro médio ${d.frameMs} ms · máscara completa ${d.mascaraMs} ms · captura ${d.snapMs} ms · ${d.segmentos} segmentos`);
+      assert.ok(+d.frameMs < 16, `quadro médio ${d.frameMs} ms`); // pan/zoom e cursor reaproveitam o cache da máscara
+      assert.ok(+d.mascaraMs < 250, `máscara completa ${d.mascaraMs} ms`); // redesenho ao parar o gesto (headless, sem GPU)
+      assert.ok(+d.snapMs < 2, `captura ${d.snapMs} ms`);
     },
   },
 ];

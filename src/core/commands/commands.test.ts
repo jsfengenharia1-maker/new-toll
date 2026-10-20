@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aplicarComando, comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
+import { comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
 import { edificioVazio, peDireito } from '../building/types';
 import { verificar } from '../building/verify';
 import { lerEdificio } from '../building/file';
@@ -10,22 +10,50 @@ function padrao(): Sessao {
   return s;
 }
 
-/** Parâmetros válidos de exemplo para cada comando, sobre o edifício padrão. */
-const EXEMPLOS: Record<string, Record<string, unknown>> = {
-  'obra.definir': { nome: 'Outro', profundidadeFundacao: 2 },
-  'norma.definir': { fck: 35, caa: 'III' },
-  'grupo.criar': { nome: 'Garagem', uso: 'garagem' },
-  'grupo.editar': { id: 'g_3', uso: 'escritorio' },
-  'grupo.remover': { id: 'g_x' },
-  'grupo.desvincular': { pavimento: 'pav_5' },
-  'pavimento.criar': { nome: 'Ático', cota: 15 },
-  'pavimento.editar': { id: 'pav_8', cota: 12.5 },
-  'pavimento.remover': { id: 'pav_6' },
-  'pavimento.repetir': { id: 'pav_6', vezes: 3 },
-  'eixo.criar': { nome: 'A', p1: [0, 0], p2: [10, 0] },
-  'eixo.editar': { id: 'e_x', nome: 'B' },
-  'eixo.remover': { ids: ['e_x'] },
-  'eixo.malha': { dx: [4, 5], dy: [3] },
+const GEO = { PAREDE: { linhas: [0, 0, 1000, 0, 1000, 0, 1000, 800], arcos: [500, 400, 50, 0, 360], textos: [{ x: 10, y: 10, h: 20, rot: 0, t: 'SALA' }] }, PORTA: { linhas: [0, 0, 90, 0], arcos: [], textos: [] } };
+
+/** Modelo base dos testes genéricos: padrão + eixos + grupo vazio + máscara (cm) + pilares P1 (0; 0) e P2 (4; 3). */
+function base() {
+  const s = padrao();
+  for (const [n, p] of [
+    ['eixo.malha', { dx: [4], dy: [3] }],
+    ['grupo.criar', { nome: 'Vazio' }],
+    ['mascara.importar', { grupo: 'g_3', nome: 'Arquitetura', geo: GEO, escala: 0.01 }],
+    ['pilar.inserir', { x: 0, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }],
+    ['pilar.inserir', { x: 4, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.5 } }],
+  ] as const) expect(s.executar(n, p).ok, n).toBe(true);
+  return s.modelo;
+}
+
+/** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
+const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
+  'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
+  'norma.definir': () => ({ fck: 35, caa: 'III' }),
+  'grupo.criar': () => ({ nome: 'Garagem', uso: 'garagem' }),
+  'grupo.editar': () => ({ id: 'g_3', uso: 'escritorio' }),
+  'grupo.remover': (b) => ({ id: b.grupos.find((g) => g.nome === 'Vazio')!.id }),
+  'grupo.desvincular': () => ({ pavimento: 'pav_5' }),
+  'pavimento.criar': () => ({ nome: 'Ático', cota: 15 }),
+  'pavimento.editar': () => ({ id: 'pav_8', cota: 12.5 }),
+  'pavimento.remover': () => ({ id: 'pav_6' }),
+  'pavimento.repetir': () => ({ id: 'pav_6', vezes: 3 }),
+  'eixo.criar': () => ({ nome: 'A', p1: [0, 0], p2: [10, 0] }),
+  'eixo.editar': (b) => ({ id: b.eixos[0].id, nome: 'B' }),
+  'eixo.remover': (b) => ({ ids: [b.eixos[0].id] }),
+  'eixo.malha': () => ({ dx: [4, 5], dy: [3] }),
+  'mascara.importar': () => ({ grupo: 'g_1', nome: 'Térreo', geo: GEO, escala: 0.01, centralizar: false }),
+  'mascara.alinhar': (b) => ({ id: b.mascaras[0].id, de: [[0, 0], [10, 0]], para: [[1, 1], [1, 11]] }),
+  'mascara.editar': (b) => ({ id: b.mascaras[0].id, rotacao: 30 }),
+  'mascara.camadas': (b) => ({ id: b.mascaras[0].id, camadas: ['PORTA'], visivel: false }),
+  'mascara.remover': (b) => ({ id: b.mascaras[0].id }),
+  'pilar.inserir': () => ({ x: 4, y: 0, secao: { tipo: 'circ', d: 0.4 }, nasce: 'pav_2', morre: 'pav_6' }),
+  'pilar.editar': (b) => ({ id: b.pilares[0].id, ajuste: 'so', angulo: 90 }),
+  'pilar.secaoLance': (b) => ({ id: b.pilares[0].id, pavimento: 'pav_8', secao: { tipo: 'ret', b: 0.2, h: 0.3 } }),
+  'pilar.mover': (b) => ({ ids: [b.pilares[0].id], dx: 1, dy: 0 }),
+  'pilar.copiar': (b) => ({ ids: [b.pilares[0].id], dx: 4, dy: 0, vezes: 2 }),
+  'pilar.remover': (b) => ({ ids: [b.pilares[0].id] }),
+  'pilar.renumerar': () => ({}),
+  'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 
 describe('registro de comandos', () => {
@@ -37,22 +65,18 @@ describe('registro de comandos', () => {
     }
   });
 
-  it('aplicar + inverso devolve o modelo original (todos os comandos aplicáveis)', () => {
-    const base = padrao().modelo;
-    const comEixo = aplicarComando(base, 'eixo.malha', { dx: [4], dy: [3] }).modelo;
-    const comGrupoVazio = aplicarComando(comEixo, 'grupo.criar', { nome: 'Vazio' }).modelo;
+  it('aplicar + inverso devolve o modelo original (todos os comandos)', () => {
+    const b0 = base();
     for (const c of listarComandos()) {
-      const p = { ...EXEMPLOS[c.nome] };
-      if (c.nome === 'grupo.remover') p.id = comGrupoVazio.grupos.find((g) => g.nome === 'Vazio')!.id;
-      if (c.nome.startsWith('eixo.') && c.nome !== 'eixo.criar' && c.nome !== 'eixo.malha') { if ('ids' in p) p.ids = [comEixo.eixos[0].id]; else p.id = comEixo.eixos[0].id; }
-      const s = new Sessao(comGrupoVazio);
-      const r = s.executar(c.nome, p);
+      const s = new Sessao(b0);
+      const r = s.executar(c.nome, EXEMPLOS[c.nome](b0));
       expect(r.ok, `${c.nome}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true);
       expect(r.diff!.resumo.length, c.nome).toBeGreaterThan(0);
       s.desfazer();
-      expect(s.modelo).toEqual(comGrupoVazio);
+      expect(s.modelo, c.nome).toEqual(b0);
       s.refazer();
-      expect(s.modelo).not.toEqual(comGrupoVazio);
+      expect(s.modelo, c.nome).not.toEqual(b0);
+      expect(replay(s.log, b0), c.nome).toEqual(s.modelo);
     }
   });
 

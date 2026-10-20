@@ -14,7 +14,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 ```bash
 npm i
 npm run dev      # Vite
-npm test         # vitest: 158 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
+npm test         # vitest: 178 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI e MCP)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
@@ -98,15 +98,19 @@ Veja a tabela no `README.md`. Resumo:
 - SPT: por apoio, um furo (automático ou escolhido) ou a sondagem média de todos/alguns furos; leitura descartada (⊘) fica fora da média e, no furo isolado, é interpolada entre as vizinhas. Média: N médio das leituras válidas; solo mais frequente (empate: o menos favorável); profundidade comum (ou até o mais profundo); NA mais raso (ou médio).
 - Pilar padrão 30 × 30 cm quando o apoio não informa (na importação, vem da seção retangular da barra mais vertical ligada ao apoio).
 
-## Módulo Edifícios (Fase 2 em andamento; fatia 0 feita em 20/10/2026)
+## Módulo Edifícios (Fase 2 em andamento; fatias 0 e 1 feitas em 20/10/2026)
 - Pesquisa (Fase 0): `docs/pesquisa-edificios.md`. Spec (Fase 1, aprovada): `docs/spec-edificios.md`.
 - Código:
   - `src/core/building/`: modelo físico, verificação de lançamento e premissas em uso (`premissas.ts`, que alimenta a interface e o MCP);
   - `src/core/commands/`: registro de comandos (toda alteração do edifício é um comando com schema, desfazer e log; ids determinísticos por `seq`, para o replay);
   - `src/cli/`: linha de comando e MCP;
-  - `src/app/edificio/`: aba Edifício.
+  - `src/core/dxf/read.ts`: leitor de DXF; `src/core/geom/`: capturas (Flatbush), entrada digitada, polígonos;
+  - `src/app/edificio/`: aba Edifício; `Planta.tsx` em Canvas 2D com três camadas (máscara em cache durante o gesto, modelo, interação); `plantaStore.ts` guarda vista, ferramenta e tema (não vão para o arquivo).
+- A planta publica `data-vista`, `data-frame-ms`, `data-mascara-ms`, `data-snap-ms` e `data-segmentos` no contêiner, para os testes de interface.
+- Dependência aprovada em uso: `flatbush` (ISC). O `rbush` da spec não foi necessário (o índice do modelo é refeito a cada alteração, barato).
 - Comando novo exige: schema, `validar` para referências, mensagem, exemplo em `EXEMPLOS` do `commands.test.ts` (o teste genérico confere aplicar + inverso) e ferramenta no MCP (automática).
 - O núcleo não pode usar `window`, `document`, `localStorage` nem `navigator` (há teste).
+- Fatia 1, premissas a confirmar: seção mínima de pilar 19 cm (14 cm com γn; área ≥ 360 cm²) e pilar-parede com lado > 5 × o menor, com os itens da NBR 6118 a conferir; unidade do DXF sem $INSUNITS estimada pelo tamanho do desenho; tolerância de 0,3 m na renumeração. Atalhos da planta: S, P, E, M, D (medir), F, Tab, F8, F10, A (ponto fixo), R (girar 90°), Del.
 - Fatia 0, premissas a confirmar: pé-direito mínimo para aviso 2,2 m; cargas variáveis por uso da NBR 6120 (residencial 1,5; serviço 2,0; áreas comuns 3,0; escritório 2,5; garagem 3,0; cobertura 1,0 kN/m²); revestimento padrão 1,0 kN/m².
 - O usuário aceitou os padrões dos itens 1–48 da pesquisa em 20/10/2026; a tabela "Premissas adotadas" da spec é a referência. Valores sem fonte aberta continuam "a confirmar".
 - Regras extras do módulo:

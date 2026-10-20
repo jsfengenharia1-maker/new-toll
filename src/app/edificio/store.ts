@@ -1,7 +1,7 @@
 // Estado do módulo Edifícios na interface: uma Sessao do núcleo (comandos, desfazer, log) + persistência local.
 import { create } from 'zustand';
 import { comandosEdificioPadrao, Sessao, type Resultado } from '../../core/commands';
-import { lerEdificio, type BuildingFile } from '../../core/building/file';
+import { compactarLog, lerEdificio, type BuildingFile } from '../../core/building/file';
 import { edificioVazio } from '../../core/building/types';
 import type { Diagnostico } from '../../core/building/verify';
 import { useStore } from '../store';
@@ -22,8 +22,14 @@ function carregarLocal(): Sessao {
   return padrao();
 }
 
+let gravacao: ReturnType<typeof setTimeout> | undefined;
+/** Grava no navegador com um pequeno atraso (máscaras grandes custam alguns ms para serializar). */
 function persistir(s: Sessao) {
-  try { localStorage.setItem(KEY, JSON.stringify({ building: s.modelo, buildingLog: s.log })); } catch { /* cheio ou indisponível */ }
+  clearTimeout(gravacao);
+  gravacao = setTimeout(() => persistirJa(s), 250);
+}
+function persistirJa(s: Sessao) {
+  try { localStorage.setItem(KEY, JSON.stringify({ building: s.modelo, buildingLog: compactarLog(s.modelo, s.log) })); } catch { /* cheio ou indisponível: o arquivo .statikos continua sendo a cópia completa */ }
 }
 
 interface BState {
@@ -69,5 +75,5 @@ export const useBuilding = create<BState>((set, get) => {
 /** Edifício para gravar no arquivo de trabalho (null se ainda não houver nada lançado). */
 export function edificioParaArquivo(): BuildingFile | null {
   const s = useBuilding.getState().sessao;
-  return s.modelo.pavimentos.length || s.log.length ? { building: s.modelo, buildingLog: s.log } : null;
+  return s.modelo.pavimentos.length || s.log.length ? { building: s.modelo, buildingLog: compactarLog(s.modelo, s.log) } : null;
 }

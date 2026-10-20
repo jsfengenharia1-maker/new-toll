@@ -13,6 +13,7 @@
     "cli": "vite build --config vite.cli.config.ts"
   },
   "dependencies": {
+    "flatbush": "^4.6.2",
     "immer": "^11.1.21",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

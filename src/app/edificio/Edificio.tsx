@@ -1,8 +1,12 @@
-// Módulo Edifícios (fatia 0): obra, norma, pavimentos, grupos e eixos, tudo por comandos do registro.
-import { useEffect, useState } from 'react';
+// Módulo Edifícios: obra, pavimentos, grupos, máscara, pilares e eixos, tudo por comandos do registro; planta em Canvas.
+import { useEffect, useRef, useState } from 'react';
 import { useBuilding } from './store';
+import { usePlanta, type Ferramenta, type Tema } from './plantaStore';
+import { Planta } from './Planta';
 import { listarComandos } from '../../core/commands';
-import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, type BuildingModel, type CategoriaUso, type Norma } from '../../core/building/types';
+import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
+import { cotaFundacao, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, type Ajuste, type BuildingModel, type CategoriaUso, type Norma } from '../../core/building/types';
+import { useStore } from '../store';
 import { PREMISSAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
 import { Group, Hint, NumField, Select, TextField } from '../ui';
@@ -16,10 +20,12 @@ export function Edificio() {
   const { sessao, exec, novo, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
+  const [aba, setAba] = useState<'planta' | 'elevacao' | 'verificacao' | 'premissas'>('planta');
+  const nErr = diags.filter((d) => d.severidade === 'erro').length;
 
   return (
-    <div className="fund edif">
-      <aside className="fund-in">
+    <div className="edif">
+      <aside className="fund-in edif-in">
         <Group title="Obra" aside={<span className="row"><button type="button" className="mini" onClick={() => novo(false)}>Novo padrão</button><button type="button" className="mini" onClick={() => novo(true)}>Novo vazio</button></span>}>
           <div className="row"><TextField label="Nome da obra" value={b.obra.nome} onChange={(v) => exec('obra.definir', { nome: v })} /></div>
           <div className="row wrap">
@@ -60,6 +66,9 @@ export function Edificio() {
           <Hint>Cota = topo da laje estrutural. Pavimentos do mesmo grupo compartilham a planta; “+1” repete o pavimento logo acima e sobe os de cima.</Hint>
         </Group>
 
+        <MascaraGrupo b={b} />
+        <PilaresGrupo b={b} />
+
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
             <thead><tr><th>Grupo</th><th>Uso (NBR 6120)</th><th>Rev. kN/m²</th><th>q kN/m²</th></tr></thead>
@@ -96,21 +105,27 @@ export function Edificio() {
         </Group>
       </aside>
 
-      <section className="fund-out">
-        <div className="card">
-          <h3>Elevação esquemática</h3>
-          <Elevacao b={b} />
+      <section className="edif-main">
+        <div className="edif-tabs" role="tablist">
+          {([['planta', 'Planta'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
+          ))}
         </div>
-        <div className="card">
-          <h3>Verificação de lançamento {diags.length ? `(${diags.length})` : ''}</h3>
-          <Diagnosticos diags={diags} />
-        </div>
-        <div className="card">
-          <h3>Premissas em uso</h3>
-          <ul className="prem">
-            {PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <span className="muted">({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</span></li>)}
-          </ul>
-        </div>
+        {aba === 'planta' && <><PlantaBarra b={b} /><Planta /></>}
+        {aba !== 'planta' && (
+          <div className="edif-out">
+            {aba === 'elevacao' && <div className="card"><h3>Elevação esquemática</h3><Elevacao b={b} /></div>}
+            {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} /></div>}
+            {aba === 'premissas' && (
+              <div className="card">
+                <h3>Premissas em uso</h3>
+                <ul className="prem">
+                  {PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <span className="muted">({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</span></li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
@@ -231,4 +246,176 @@ export function NomeObra() {
   const [t, setT] = useState(nome);
   useEffect(() => setT(nome), [nome]);
   return <input aria-label="Nome da obra no cabeçalho" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (t.trim() && t !== nome) exec('obra.definir', { nome: t }); else setT(nome); }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />;
+}
+
+const FERRAMENTAS: { f: Ferramenta; tecla: string; rot: string }[] = [
+  { f: 'selecionar', tecla: 'S', rot: 'Selecionar' }, { f: 'pilar', tecla: 'P', rot: 'Pilar' }, { f: 'eixo', tecla: 'E', rot: 'Eixo' },
+  { f: 'mover', tecla: 'M', rot: 'Mover' }, { f: 'medir', tecla: 'D', rot: 'Medir' },
+];
+
+function PlantaBarra({ b }: { b: BuildingModel }) {
+  const pl = usePlanta();
+  const ps = pavimentosOrdenados(b);
+  const atual = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  return (
+    <div className="planta-barra">
+      <label className="pavsel">Pavimento
+        <select aria-label="Pavimento da planta" value={atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set() })}>
+          {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
+        </select>
+      </label>
+      <div className="seg small" role="radiogroup" aria-label="Ferramenta">
+        {FERRAMENTAS.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
+      </div>
+      <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
+      <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
+      <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
+      <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
+        <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
+      </select>
+    </div>
+  );
+}
+
+const UNIDADES = [{ v: 1, label: 'm' }, { v: 0.01, label: 'cm' }, { v: 0.001, label: 'mm' }];
+
+/** Unidade provável do desenho quando o DXF não informa (maior dimensão do desenho) [a confirmar]. */
+export function unidadeProvavel(bbox: [number, number, number, number] | null): number {
+  if (!bbox) return 1;
+  const D = Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]);
+  return D > 5000 ? 0.001 : D > 300 ? 0.01 : 1;
+}
+
+function MascaraGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const ref = useRef<HTMLInputElement>(null);
+  const ps = pavimentosOrdenados(b);
+  const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  const grupo = b.grupos.find((g) => g.id === pav?.grupo);
+  const ms = b.mascaras.filter((m) => m.grupo === grupo?.id);
+  const importar = async (f: File) => {
+    if (!grupo) return;
+    const txt = await f.text();
+    const r = lerDxf(txt);
+    const escala = metrosPorUnidade(r.insunits) ?? unidadeProvavel(r.bbox);
+    const res = exec('mascara.importar', { grupo: grupo.id, nome: f.name.replace(/\.dxf$/i, ''), geo: r.camadas, escala });
+    if (res.ok) {
+      const ign = Object.entries(r.ignoradas).map(([k, n]) => `${n} ${k}`).join(', ');
+      useStore.getState().set({ message: `${f.name}: ${r.segmentos} segmento(s) em ${Object.keys(r.camadas).length} camada(s), unidade ${UNIDADES.find((u) => u.v === escala)?.label ?? escala} ${metrosPorUnidade(r.insunits) ? '($INSUNITS)' : '(estimada pelo tamanho; confira)'}${ign ? ` · ignoradas: ${ign}` : ''}.` });
+      usePlanta.getState().set({ vista: null });
+    }
+  };
+  return (
+    <Group title={`Máscara — ${grupo?.nome ?? '—'} (${ms.length})`} open={false}>
+      <div className="row wrap">
+        <button type="button" className="btn" disabled={!grupo} onClick={() => ref.current?.click()}>Importar DXF…</button>
+        <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ''; }} />
+        {ms.length > 0 && <button type="button" className="btn" onClick={() => pl.set({ ferramenta: 'alinhar' })}>Alinhar por 2 pontos</button>}
+        {ms.length > 0 && <label className="check small"><input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
+      </div>
+      {ms.map((m) => (
+        <div key={m.id} className="masc">
+          <div className="row wrap">
+            <b className="grow">{m.nome}</b>
+            <select aria-label={`Unidade de ${m.nome}`} value={UNIDADES.find((u) => Math.abs(u.v - m.escala) < 1e-12)?.v ?? ''} onChange={(e) => exec('mascara.editar', { id: m.id, escala: +e.target.value })}>
+              {!UNIDADES.some((u) => Math.abs(u.v - m.escala) < 1e-12) && <option value="">{`${fmt(m.escala, 5)} m/un`}</option>}
+              {UNIDADES.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
+            </select>
+            <button type="button" className="mini" onClick={() => exec('mascara.remover', { id: m.id })}>remover</button>
+          </div>
+          <table className="data camadas">
+            <thead><tr><th>Camada</th><th title="Visível">vis.</th><th title="Capturável">capt.</th></tr></thead>
+            <tbody>
+              {m.camadas.map((c) => (
+                <tr key={c.nome}>
+                  <td className="tl">{c.nome}</td>
+                  <td><input type="checkbox" aria-label={`Camada ${c.nome} visível`} checked={c.visivel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], visivel: e.target.checked })} /></td>
+                  <td><input type="checkbox" aria-label={`Camada ${c.nome} capturável`} checked={c.capturavel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], capturavel: e.target.checked })} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+      <Hint>A máscara pertence ao grupo do pavimento da planta. Escala pela unidade do DXF ($INSUNITS); sem ela, estimada pelo tamanho do desenho.</Hint>
+    </Group>
+  );
+}
+
+const AJUSTES: { v: Ajuste; label: string }[] = [
+  { v: 'c', label: 'centro' }, { v: 'so', label: 'canto inf. esq.' }, { v: 's', label: 'face inferior' }, { v: 'se', label: 'canto inf. dir.' }, { v: 'l', label: 'face direita' },
+  { v: 'ne', label: 'canto sup. dir.' }, { v: 'n', label: 'face superior' }, { v: 'no', label: 'canto sup. esq.' }, { v: 'o', label: 'face esquerda' },
+];
+
+function PilaresGrupo({ b }: { b: BuildingModel }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const ps = pavimentosOrdenados(b);
+  const [cola, setCola] = useState('');
+  const sec = pl.secao;
+  const cm = (v: number) => +(v * 100).toFixed(2);
+  const colar = () => {
+    const linhas = cola.split(/\r?\n/).map((l) => l.split(/\t|;/).map((c) => c.trim())).filter((c) => c.length >= 4 && c.slice(1, 4).every((x) => Number.isFinite(parseFloat(x.replace(',', '.')))));
+    if (!linhas.length) { useStore.getState().set({ message: 'Cole linhas com: nome, x (m), y (m), b (cm), h (cm) [, ângulo].' }); return; }
+    const n = (x: string) => parseFloat(x.replace(',', '.'));
+    const cmds = linhas.map((c) => {
+      const exist = b.pilares.find((p) => p.nome === c[0]);
+      const secao = c[4] ? { tipo: 'ret', b: n(c[3]) / 100, h: n(c[4]) / 100 } : { tipo: 'circ', d: n(c[3]) / 100 };
+      const base = { x: n(c[1]), y: n(c[2]), secao, ...(c[5] ? { angulo: n(c[5]) } : {}) };
+      return exist ? { nome: 'pilar.editar', params: { id: exist.id, ...base } } : { nome: 'pilar.inserir', params: { ...base, nome: c[0] } };
+    });
+    if (exec('lote', { comandos: cmds }).ok) setCola('');
+  };
+  return (
+    <Group title={`Pilares (${b.pilares.length})`} open={false}>
+      <div className="row wrap">
+        <Select label="Seção" value={sec.tipo} options={[{ v: 'ret', label: 'Retangular' }, { v: 'circ', label: 'Circular' }]} onChange={(v) => pl.set({ secao: v === 'ret' ? { tipo: 'ret', b: 0.2, h: 0.4 } : { tipo: 'circ', d: 0.3 } })} />
+        {sec.tipo === 'ret'
+          ? <><NumField label="b (x local)" unit="cm" width={86} value={cm(sec.b)} onChange={(v) => v > 0 && pl.set({ secao: { ...sec, b: v / 100 } })} /><NumField label="h (y local)" unit="cm" width={86} value={cm(sec.h)} onChange={(v) => v > 0 && pl.set({ secao: { ...sec, h: v / 100 } })} /></>
+          : <NumField label="Diâmetro" unit="cm" width={100} value={cm(sec.d)} onChange={(v) => v > 0 && pl.set({ secao: { tipo: 'circ', d: v / 100 } })} />}
+      </div>
+      <div className="row wrap">
+        <Select label="Ponto fixo (A)" value={pl.ajuste} options={AJUSTES} onChange={(v) => pl.set({ ajuste: v })} />
+        <NumField label="Ângulo (R: +90°)" unit="°" width={110} value={pl.angulo} onChange={(v) => pl.set({ angulo: v })} />
+      </div>
+      <div className="row"><button type="button" className={`btn${pl.ferramenta === 'pilar' ? ' primary' : ''}`} onClick={() => pl.set({ ferramenta: 'pilar' })}>Lançar pilares (P)</button>
+        <button type="button" className="btn" disabled={!b.pilares.length} onClick={() => exec('pilar.renumerar', {})}>Renumerar</button></div>
+      {b.pilares.length > 0 && (
+        <table className="data loads-ed quadro">
+          <thead><tr><th>Pilar</th><th>x (m)</th><th>y (m)</th><th>Seção (cm)</th><th>Âng.</th><th>Lances</th></tr></thead>
+          <tbody>
+            {b.pilares.map((p) => {
+              const l = lancesDoPilar(b, p);
+              return (
+                <tr key={p.id} className={pl.selecao.has(p.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([p.id]) })}>
+                  <td><Cell value={p.nome} label={`Nome de ${p.nome}`} onCommit={(v) => exec('pilar.editar', { id: p.id, nome: v })} /></td>
+                  <td><Cell value={fmt(p.x, 3)} num label={`x de ${p.nome}`} onCommit={(v) => { const x = num(v); if (Number.isFinite(x)) exec('pilar.editar', { id: p.id, x }); }} /></td>
+                  <td><Cell value={fmt(p.y, 3)} num label={`y de ${p.nome}`} onCommit={(v) => { const y = num(v); if (Number.isFinite(y)) exec('pilar.editar', { id: p.id, y }); }} /></td>
+                  <td><Cell value={p.secao.tipo === 'ret' ? `${cm(p.secao.b)}x${cm(p.secao.h)}` : `ø${cm(p.secao.d)}`} label={`Seção de ${p.nome}`} onCommit={(v) => {
+                    const m = /^\s*(?:ø|o|d)\s*([\d.,]+)\s*$/i.exec(v), r = /^\s*([\d.,]+)\s*[x×*]\s*([\d.,]+)\s*$/i.exec(v);
+                    if (m) exec('pilar.editar', { id: p.id, secao: { tipo: 'circ', d: num(m[1]) / 100 } });
+                    else if (r) exec('pilar.editar', { id: p.id, secao: { tipo: 'ret', b: num(r[1]) / 100, h: num(r[2]) / 100 } });
+                  }} /></td>
+                  <td><Cell value={fmt(p.angulo, 0)} num label={`Ângulo de ${p.nome}`} onCommit={(v) => { const a = num(v); if (Number.isFinite(a)) exec('pilar.editar', { id: p.id, angulo: a }); }} /></td>
+                  <td className="tl small">
+                    <select aria-label={`Nasce ${p.nome}`} value={p.nasce} onChange={(e) => exec('pilar.editar', { id: p.id, nasce: e.target.value })}>
+                      <option value="fundacao">fundação</option>{ps.slice(0, -1).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                    </select>
+                    <select aria-label={`Morre ${p.nome}`} value={p.morre} onChange={(e) => exec('pilar.editar', { id: p.id, morre: e.target.value })}>
+                      {ps.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                    </select>
+                    <span className="muted"> {l.length}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <textarea rows={3} aria-label="Colar pilares do Excel" placeholder="Colar do Excel: nome, x (m), y (m), b (cm), h (cm) [, ângulo] — uma linha por pilar; só b = circular" value={cola} onChange={(e) => setCola(e.target.value)} />
+      <div className="row"><button type="button" className="btn" disabled={!cola.trim()} onClick={colar}>Aplicar quadro colado</button></div>
+      <Hint>Pilar com o mesmo nome é atualizado; os demais são inseridos. Tudo vira um passo só (Ctrl+Z desfaz).</Hint>
+    </Group>
+  );
 }

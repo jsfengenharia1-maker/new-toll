@@ -1,6 +1,6 @@
 // Registro de comandos tipados: toda alteração do modelo do edifício passa por aqui.
 // A interface, os atalhos, o arquivo (replay do log), os testes, a linha de comando e o MCP usam o mesmo registro.
-import { enablePatches, produceWithPatches, applyPatches, type Draft, type Patch } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches, current, type Draft, type Patch } from 'immer';
 import { edificioVazio, type BuildingModel } from '../building/types';
 import { verificar, type Diagnostico } from '../building/verify';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
@@ -65,6 +65,7 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
 type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' },
+  { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */
@@ -83,6 +84,37 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }
+
+/** Vários comandos como um passo só (um desfazer). Valida cada um no estado intermediário. */
+registrar<{ comandos: { nome: string; params?: Record<string, unknown> }[] }>({
+  nome: 'lote',
+  descricao: 'Executa uma lista de comandos como um passo só (um único desfazer). Para no primeiro erro, sem alterar nada.',
+  risco: 'escrita',
+  schema: { type: 'object', additionalProperties: false, required: ['comandos'], properties: {
+    comandos: { type: 'array', minItems: 1, items: { type: 'object', additionalProperties: false, required: ['nome'], properties: { nome: { type: 'string' }, params: { type: 'object' } } } },
+  } },
+  validar(b, p) {
+    let m = b;
+    for (const [i, c] of p.comandos.entries()) {
+      if (c.nome === 'lote') return [erro('LOTE_ANINHADO', 'Lote dentro de lote não é permitido.')];
+      const r = aplicarComando(m, c.nome, c.params ?? {});
+      if (!r.ok) return r.erros.map((e) => ({ ...e, mensagem: `Item ${i + 1} (${c.nome}): ${e.mensagem}` }));
+      m = r.modelo;
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const msgs: string[] = [];
+    for (const c of p.comandos) {
+      const cmd = REGISTRO.get(c.nome)!;
+      const par = comDefaults(cmd.schema, c.params ?? {}) as Record<string, unknown>;
+      cmd.validar?.(current(d) as BuildingModel, par);
+      const m = cmd.aplicar(d, par);
+      if (m) msgs.push(m);
+    }
+    return msgs.length > 3 ? `${p.comandos.length} comandos aplicados.` : msgs.join(' ');
+  },
+});
 
 export interface Resultado { ok: boolean; erros: Diagnostico[]; diff?: Diff; mensagem?: string; token?: string }
 
