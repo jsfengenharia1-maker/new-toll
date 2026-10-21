@@ -3,12 +3,16 @@
 import { enablePatches, produceWithPatches, applyPatches, current, type Draft, type Patch } from 'immer';
 import { edificioVazio, type BuildingModel } from '../building/types';
 import { verificar, type Diagnostico } from '../building/verify';
+import { desbloquearObsoletos, mudouEstrutura, temBloqueioDependente } from '../building/desbloqueio';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
 
 export type Risco = 'leitura' | 'escrita' | 'destrutivo';
 export type Autor = 'usuario' | 'ia' | 'arquivo' | 'sistema';
+
+/** O que um comando altera do cálculo: tudo (`true`, padrão), nada (`false`, só prancha), só fundações, só detalhe ou só seções. */
+export type NivelCalculo = boolean | 'fundacao' | 'detalhe' | 'secao';
 
 export interface Comando<P = Record<string, unknown>> {
   nome: string;
@@ -22,10 +26,16 @@ export interface Comando<P = Record<string, unknown>> {
    * (`Sessao.revCalculo`), então não invalida a análise nem o dimensionamento. Padrão: true.
    * 'fundacao': só dados das fundações (elementos, terreno, sondagens). Não muda `revCalculo` (a estrutura é calculada
    * com vínculo externo na base dos pilares), só `revFundacao`.
+   * 'detalhe' (R7f): só dimensionamento e detalhamento (tabelas de armadura, armadura bloqueada, edições de barras,
+   * opções de detalhamento). Não muda `revCalculo` nem `revEsforcos`: a análise vale, só o dimensionamento é refeito
+   * (`rearmar`), sem nova análise; muda `revDetalhe`.
+   * 'secao' (R7f): muda seção de elemento existente (rigidez e peso), sem mudar a topologia. A análise fica
+   * desatualizada (`revCalculo`), mas o dimensionamento pode ser refeito com os esforços guardados ("rearmar alterados"),
+   * enquanto nenhum comando de cálculo pleno (`true`) vier depois (`revEsforcos` não muda).
    * Função: decide pelos parâmetros e pelo modelo resultante (ex.: carga lançada no nível de fundação só muda as
    * fundações, a menos que haja base elástica, FU6, que entra na análise global).
    */
-  calculo?: boolean | 'fundacao' | ((p: Record<string, unknown>, b?: BuildingModel) => boolean | 'fundacao');
+  calculo?: NivelCalculo | ((p: Record<string, unknown>, b?: BuildingModel) => NivelCalculo);
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -39,24 +49,21 @@ export function registrar<P>(c: Comando<P>) {
   REGISTRO.set(c.nome, c as unknown as Comando);
 }
 export const comando = (nome: string) => REGISTRO.get(nome);
-/** O comando altera algo que entra no cálculo? (`lote`: se algum item altera; comando desconhecido: sim.) */
-export function afetaCalculo(nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean {
-  if (nome === 'lote') {
-    const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
-    return cs.some((c) => afetaCalculo(c.nome, c.params, b));
-  }
-  const c = calculoDe(nome, params, b);
-  return c === undefined || c === true;
+const calculoDe = (nome: string, params?: Record<string, unknown>, b?: BuildingModel): NivelCalculo => { const c = REGISTRO.get(nome)?.calculo; const v = typeof c === 'function' ? c(params ?? {}, b) : c; return v === undefined ? true : v; };
+type Item = { nome: string; params?: Record<string, unknown> };
+/** Aplica o teste a cada nível de cálculo do comando (`lote`: algum item atende; comando desconhecido: nível pleno). */
+function algum(nome: string, params: Record<string, unknown> | undefined, b: BuildingModel | undefined, f: (n: NivelCalculo) => boolean): boolean {
+  if (nome === 'lote') return ((params?.comandos ?? []) as Item[]).some((c) => algum(c.nome, c.params, b, f));
+  return f(calculoDe(nome, params, b));
 }
-const calculoDe = (nome: string, params?: Record<string, unknown>, b?: BuildingModel) => { const c = REGISTRO.get(nome)?.calculo; return typeof c === 'function' ? c(params ?? {}, b) : c; };
+/** O comando altera a análise ou o peso/rigidez de algum elemento? (análise e dimensionamento deixam de valer.) */
+export const afetaCalculo = (nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean => algum(nome, params, b, (n) => n === true || n === 'secao');
+/** O comando invalida os esforços guardados (qualquer coisa além de seções, detalhe, fundações e prancha)? */
+export const afetaEsforcos = (nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean => algum(nome, params, b, (n) => n === true);
 /** O comando altera o cálculo das fundações? (tudo que altera o cálculo, mais os comandos só de fundação.) */
-export function afetaFundacao(nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean {
-  if (nome === 'lote') {
-    const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
-    return cs.some((c) => afetaFundacao(c.nome, c.params, b));
-  }
-  return calculoDe(nome, params, b) !== false;
-}
+export const afetaFundacao = (nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean => algum(nome, params, b, (n) => n === true || n === 'secao' || n === 'fundacao');
+/** O comando altera o dimensionamento ou o detalhamento da estrutura? (tudo que altera o cálculo, mais os comandos só de detalhe.) */
+export const afetaDetalhe = (nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean => algum(nome, params, b, (n) => n === true || n === 'secao' || n === 'detalhe');
 export const listarComandos = () => [...REGISTRO.values()].sort((a, z) => a.nome.localeCompare(z.nome));
 
 export interface Entrada { t: string; nome: string; params: Record<string, unknown>; autor: Autor }
@@ -87,7 +94,13 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
   const ve = (c.validar?.(b, p) ?? []).filter((d) => d.severidade === 'erro');
   if (ve.length) return { ok: false, modelo: b, erros: ve, params: p };
   let mensagem: string | undefined;
-  const [modelo, patches, inversos] = produceWithPatches(b, (d) => { mensagem = c.aplicar(d, p) ?? undefined; });
+  let [modelo, patches, inversos] = produceWithPatches(b, (d) => { mensagem = c.aplicar(d, p) ?? undefined; });
+  // armadura bloqueada e detalhe editado que não valem mais (vãos ou lances mudaram) saem no mesmo passo (R7f)
+  if (mudouEstrutura(b, modelo) && temBloqueioDependente(modelo)) {
+    let avisos: string[] = [];
+    const [m2, p2, i2] = produceWithPatches(modelo, (d) => { avisos = desbloquearObsoletos(d); });
+    if (p2.length) { modelo = m2; patches = [...patches, ...p2]; inversos = [...i2, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
+  }
   return { ok: true, erros: [], modelo, params: p, patches, inversos, diff: diffModelos(b, modelo), mensagem };
 }
 
@@ -109,7 +122,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }
@@ -147,7 +160,7 @@ registrar<{ comandos: { nome: string; params?: Record<string, unknown> }[] }>({
 
 export interface Resultado { ok: boolean; erros: Diagnostico[]; diff?: Diff; mensagem?: string; token?: string }
 
-interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[]; calculo: boolean; fundacao: boolean }
+interface Passo { entrada: Entrada; patches: Patch[]; inversos: Patch[]; calculo: boolean; fundacao: boolean; detalhe: boolean; esforcos: boolean }
 
 /** Estado de edição: modelo atual, desfazer/refazer, log e prévias pendentes. */
 export class Sessao {
@@ -161,6 +174,16 @@ export class Sessao {
   revCalculo = 0;
   /** Revisão do cálculo das fundações: muda com tudo que muda `revCalculo` e com os comandos só de fundação. */
   revFundacao = 0;
+  /**
+   * Revisão do dimensionamento e do detalhamento: muda com tudo que muda `revCalculo` e com os comandos só de detalhe
+   * (tabelas, armadura bloqueada, opções de detalhamento). Só `revDetalhe` mudou = a análise vale e basta rearmar.
+   */
+  revDetalhe = 0;
+  /**
+   * Revisão dos esforços: muda só com os comandos de cálculo pleno. Quando só `revCalculo` mudou (seções alteradas),
+   * os esforços da última análise ainda servem para "rearmar" os elementos alterados (com aviso ESFORCO_ANTIGO).
+   */
+  revEsforcos = 0;
   log: Entrada[];
   private feitos: Passo[] = [];
   private desfeitos: Passo[] = [];
@@ -178,12 +201,14 @@ export class Sessao {
     if (REGISTRO.get(nome)!.risco === 'leitura') return { ok: true, erros: [], mensagem: r.mensagem };
     const entrada: Entrada = { t: new Date().toISOString(), nome, params: r.params!, autor };
     this.modelo = r.modelo;
-    const calculo = afetaCalculo(nome, r.params, r.modelo), fundacao = afetaFundacao(nome, r.params, r.modelo);
+    const calculo = afetaCalculo(nome, r.params, r.modelo), fundacao = afetaFundacao(nome, r.params, r.modelo), detalhe = afetaDetalhe(nome, r.params, r.modelo), esforcos = afetaEsforcos(nome, r.params, r.modelo);
     this.rev++;
     if (calculo) this.revCalculo++;
     if (fundacao) this.revFundacao++;
+    if (detalhe) this.revDetalhe++;
+    if (esforcos) this.revEsforcos++;
     this.log.push(entrada);
-    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos!, calculo, fundacao }];
+    this.feitos = [...this.feitos.slice(-(Sessao.LIMITE_DESFAZER - 1)), { entrada, patches: r.patches!, inversos: r.inversos!, calculo, fundacao, detalhe, esforcos }];
     this.desfeitos = [];
     this.previas.clear();
     return { ok: true, erros: [], diff: r.diff, mensagem: r.mensagem };
@@ -218,6 +243,8 @@ export class Sessao {
     this.rev++;
     if (p.calculo) this.revCalculo++;
     if (p.fundacao) this.revFundacao++;
+    if (p.detalhe) this.revDetalhe++;
+    if (p.esforcos) this.revEsforcos++;
     this.previas.clear();
     return p.entrada;
   }
@@ -231,6 +258,8 @@ export class Sessao {
     this.rev++;
     if (p.calculo) this.revCalculo++;
     if (p.fundacao) this.revFundacao++;
+    if (p.detalhe) this.revDetalhe++;
+    if (p.esforcos) this.revEsforcos++;
     this.previas.clear();
     return p.entrada;
   }

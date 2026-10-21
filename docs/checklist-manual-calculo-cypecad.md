@@ -20,24 +20,24 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 41 | 16 | 46 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 29 | 17 | 13 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 31 | 15 | 13 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 53 | 15 | 29 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **304** | **101** | **145** | **111** |
+| **Total** | **661** | **306** | **99** | **145** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 36 | 14 | 50 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 0 | 18 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 0 | 16 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 119 | 150 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **101** | **145** | **246** |
+| **Total** | **99** | **145** | **244** |
 
 ## Divergências de premissa
 
@@ -542,7 +542,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Feito | — | erros e avisos com código em vermelho/amarelo (R1): flecha, espaçamento (LARGURA), armadura comprimida (ARM_DUPLA), biela (cortante e torção), seção insuficiente; ancoragens e emendas avisadas no detalhamento (R3a) |
 | K1.11.8 | Coeficiente de engaste nas bordas consultável. | Feito | — | coeficientes de engaste das bordas consultáveis em Vínculos e listados no memorial (N1a) |
 | K1.11.9 | Vigas de aço: perfil dimensionado e perfis da série que atendem; vigas mistas: dimensionamento dos conectores. | Fora | — | vigas de aço e mistas |
-| K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Parcial | R | travamento da armadura para verificação posterior, em lote ou por elemento, com reprovação em vermelho (R2); sem rearmar só os alterados sem recálculo geral [R7f] |
+| K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Feito | — | seção alterada (`calculo: 'secao'`) + “Rearmar alterados” ou “todos” com os mesmos esforços, sem nova análise; travamento da armadura com verificação em vermelho (R2); aviso ESFORCO_ANTIGO pede nova análise quando a rigidez variou muito (R7f) |
 | K1.11.11 | Cargas exibidas graficamente por caso (cores). | Parcial | V | cargas desenhadas na planta com cor única, não por caso [V5] |
 | | **Lajes de vigotas** | | | |
 | K1.11.12 | Envoltórias de momento e cortante por vigota (majoradas), negativos (nº, bitola, comprimento), momentos e cortantes nos extremos por metro. | Feito | — | diagramas de M e V por vigota com MRd/VRd1, negativos (n, φ, comprimento) e cortantes das pontas por grupo na janela da laje treliçada (R6) |
@@ -563,7 +563,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Feito | — | linhas de dobra centram a emenda por traspasse da inferior (`detalharLaje`, `gerarMalha`) e o mínimo em % do vão dos negativos usa o vão até a linha seguinte; depois do cálculo, `laje.barras` com `emendar` corta a barra com traspasse de 30 cm (opção `lajeEmendaConstrutiva`) sem recalcular (R7e) |
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Feito | — | `laje.barras` com `refazer`: descarta edição e geração sem cálculo e refaz com os esforços da análise, mantendo `zonasLaje` e `linhasDobra` (R7e) |
 | | **Pilares** | | | |
-| K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Parcial | R | armadura do pilar editável por lance (bitola, barras por face, estribo) e bloqueável (R2); mudança de seção recalcula tudo [R7f] |
+| K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Feito | — | armadura do pilar editável por lance (R2); mudar a seção do elemento solta a armadura bloqueada no mesmo passo (desfazível) e o recálculo gera a nova (R7f) |
 | K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Falta | V | esforços ao longo do pilar e diagramas (só no Pórtico 2D) [V5] |
 | K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Feito | — | janela do pilar com as combinações determinantes por lance: Nd, momentos de base e topo por direção, Md,tot e tração (R1) |
 | K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Falta | V | diagrama de deformações e tensões da seção [V5] |
@@ -922,6 +922,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança.
 - **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** K1.4.77, K1.11.22, K1.11.25, K1.11.26, K1.13.2.4-12, -13, -14, -15, -16 e -18 (manual de cálculo) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
+- **21/10/2026 — fatia R7f (cópia, agrupamento e rearmar só o alterado, núcleo e interface).** K1.11.10 e K1.11.27 passam a Feito: terceiro nível de revisão (`calculo: 'detalhe'`, `Sessao.revDetalhe`; `'secao'` e `Sessao.revEsforcos`), `rearmar.ts` (rearmar todos ou alterados com os esforços guardados; ESFORCO_ANTIGO), desbloqueio gravado (`desbloqueio.ts`), seção alterada solta a armadura bloqueada, agrupamento de pórticos (`agrupamento.ts`, `vigas.agrupar`), cópia entre pórticos com condições (`copiaArmadura.ts`) e cópia da armadura das lajes (`lajes.copiaArmadura`). Mudar tabelas, armadura, edições de barras e opções de detalhamento não refaz mais a análise (store, worker e cache do MCP). A confirmar: limite de 15 % de inércia (ESFORCO_ANTIGO), tolerância de 1 cm da geometria idêntica.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 10 itens (manual de cálculo); demais sem mudança.
 - **21/10/2026 — fatia N2c (pilares e 2ª ordem, núcleo e interface).** K1.3.3, K1.3.4, K1.5.17, K1.5.19, K1.5.56, K1.9.13, K1.9.32, K1.9.36, K1.9.37, K1.12.4-7 e K1.12.4-18 passam a Feito: P-Δ 3D (validado contra o `pDelta` do Pórtico 2D e o OpenSees, `validation/opensees/pdelta3d.py`), excentricidade entre lances, comprimento entre faces (`pilarComprimento`), cargas no pilar com torção, uniformes, em faixa e em eixos locais, lances desligados (`pilarLancesDesligados`), cota da base e travamento intermediário, método geral e fluência por esbeltez (`metodoGeral.ts`, `pilarFluencia`) e seções intermediárias. K1.9.32 fica Feito com perfil metálico fora do escopo do edifício.

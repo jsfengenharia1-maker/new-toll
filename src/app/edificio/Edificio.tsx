@@ -1,7 +1,7 @@
 // Módulo Edifícios: obra, pavimentos, grupos, máscara, pilares e eixos, tudo por comandos do registro; planta em Canvas.
 import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { useEffect, useRef, useState } from 'react';
-import { useBuilding } from './store';
+import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
@@ -31,6 +31,7 @@ import { AbacosVentoGrupo } from './AbacosVento';
 import { EmpuxoGrupo } from './Empuxo';
 import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote, executarERecalcular } from './Armadura';
+import { AgrupamentosCard, CopiaLajesCard, RearmarCard, SelecaoBloqueio } from './Rearmar';
 import { FundacaoGrupo } from './Fundacao';
 import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
@@ -839,9 +840,12 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
 const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 
 function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void; onMemorial: () => void }) {
-  const { dim, analise, revAnalise, sessao, calculando, calcular } = useBuilding();
+  const st = useBuilding();
+  const { dim, analise, sessao, calculando, calcular } = st;
   const [so, setSo] = useState(false);
-  const velha = analise && revAnalise !== sessao.revCalculo;
+  const [selBloq, setSelBloq] = useState(false);
+  const velha = analise && !calculoAtual(st);
+  const desatualizado = !!dim && !dimAtual(st);
   const filtro = <T extends { status: string }>(xs: T[]) => (so ? xs.filter((x) => x.status !== 'ok') : xs);
   const conta = (xs: { status: string }[]) => `${xs.filter((x) => x.status === 'ok').length}/${xs.length} ok`;
   const cls = (st: string) => (st === 'fail' ? 'bad' : st === 'review' ? 'warn' : '');
@@ -858,12 +862,17 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
           {dim && <BotaoExportar dim={dim} />}
           <label className="check small"><input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
         </div>
-        {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule.</p>}
+        {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule{dim && podeRearm(st) ? ' ou rearme os elementos alterados (esforços guardados)' : ''}.</p>}
+        {!velha && desatualizado && <p className="hint bad" data-dim-velho>O detalhamento mudou depois do dimensionamento: rearme.</p>}
         {!dim && <Hint>{analise?.erro ? `A análise falhou: ${analise.erro}` : 'Calcule para dimensionar vigas, pilares e lajes com a envoltória das combinações ELU.'}</Hint>}
         {dim && <p className="small">Vigas {conta(dim.vigas)} · pilares {conta(dim.pilares)} · lajes {conta(dim.lajes)} · {dim.combinacoes} combinações · {Math.round(dim.ms)} ms. Clique numa linha para ver o elemento na planta; duplo clique abre os resultados do elemento.</p>}
       </div>
+      {dim && <div className="card"><RearmarCard /></div>}
       <ListaErros onIr={onIr} />
-      {dim && <div className="card"><BloqueioLote dim={dim} velha={!!velha} /></div>}
+      {dim && <div className="card"><BloqueioLote dim={dim} velha={!!velha} /><div className="row wrap"><Button data-abrir-selecao-bloqueio onClick={() => setSelBloq(true)}>Seleção para bloqueio…</Button></div></div>}
+      {selBloq && <SelecaoBloqueio onClose={() => setSelBloq(false)} />}
+      {dim && <AgrupamentosCard />}
+      {dim && <CopiaLajesCard />}
       {dim && (
         <>
           <div className="card">
@@ -872,7 +881,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
               <thead><tr><th>Viga</th><th>b×h</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>As inf (cm²)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Td (kN·m)</th><th>δ</th><th>wk inf / sup / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Laterais (torção)</th><th>aℓ (cm)</th><th>Bloq.</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.vigas).map((x) => (
                 <LinhaElemento key={x.viga} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('viga', x.viga)} abrir={() => abrirJanela({ tipo: 'viga', id: x.viga })}>
-                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className="num">{fmt(x.T, 1)}</td><td className="num">{x.delta < 1 ? fmt(x.delta, 2) : '—'}</td><td className={`num ${Math.max(x.wk[0], x.wk[1]) > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk[0], 2)} / {fmt(x.wk[1], 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{x.barrasLaterais}</td><td className="num">{fmt(x.al * 100, 1)}</td><td data-bloq>{x.bloqueada ? 'bloq.' : ''}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td className="num">{fmt(x.Mpos, 1)}</td><td className="num">{fmt(x.Mneg, 1)}</td><td className="num">{fmt(x.V, 1)}</td><td className="num">{fmt(x.AsInf * 1e4)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td className="num">{fmt(x.T, 1)}</td><td className="num">{x.delta < 1 ? fmt(x.delta, 2) : '—'}</td><td className={`num ${Math.max(x.wk[0], x.wk[1]) > x.wkLim + 1e-9 ? 'bad' : ''}`}>{fmt(x.wk[0], 2)} / {fmt(x.wk[1], 2)} / {fmt(x.wkLim, 2)}</td><td className={`num ${x.flecha > x.limite + 1e-9 ? 'bad' : ''}`}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td>{x.barrasLaterais}</td><td className="num">{fmt(x.al * 100, 1)}</td><td data-bloq>{sessao.modelo.vigas.find((v) => v.id === x.viga)?.armadura ? 'bloq.' : x.agrupada ? `agrup. ${x.agrupada}` : x.bloqueada ? 'bloq.' : ''}</td><td>{ST_TXT[x.status]}</td>
                 </LinhaElemento>))}</tbody>
             </table>
             <Hint>Td = torção de cálculo máxima (A90/s somada ao cortante nos estribos; Asl repartida: faces horizontais somadas à flexão, laterais em barras próprias); aℓ = decalagem do diagrama (17.4.2.2), para o corte das barras; δ = redistribuição aplicada aos negativos (— sem redistribuição); wk = abertura de fissuras na combinação frequente (face inferior / superior), limite pela CAA ou o das opções. Flecha total por vão entre pilares (quase permanente, Branson por seção, × (1 + αf)); em balanço, o limite é 2ℓ/…. A flecha da carga variável (ℓ/350) é verificada e aparece nas mensagens da linha.</Hint>

@@ -57,11 +57,14 @@ export function contarBloqueios(b: BuildingModel) {
 /** Ids de vigas e pilares com armadura bloqueada (marcador na planta). */
 export const idsBloqueados = (b: BuildingModel) => new Set([...b.vigas.filter((v) => v.armadura).map((v) => v.id), ...b.pilares.filter((p) => p.armaduras?.length).map((p) => p.id)]);
 
-/** Executa o comando e recalcula (o dimensionamento mostrado passa a refletir a armadura aplicada). */
+/**
+ * Executa o comando e atualiza o dimensionamento mostrado: comandos de detalhe (armadura, tabelas, edições) só
+ * rearmam, sem refazer a análise (R7f); os que mudam o cálculo refazem a análise.
+ */
 export async function executarERecalcular(nome: string, params: Record<string, unknown>) {
-  const { exec, calcular } = useBuilding.getState();
+  const { exec, atualizar } = useBuilding.getState();
   const r = exec(nome, params);
-  if (r.ok) await calcular();
+  if (r.ok) await atualizar();
   return r.ok;
 }
 

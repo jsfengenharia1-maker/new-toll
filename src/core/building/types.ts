@@ -550,7 +550,23 @@ export interface BuildingModel {
   zonasLaje?: ZonaUniformizacao[];
   /** Linhas de dobra das lajes (R7e). */
   linhasDobra?: LinhaDobra[];
+  /** Agrupamentos de pórticos (R7f): vigas armadas com a mesma armadura (a do pórtico que governa) e um só desenho nas pranchas. */
+  agrupamentos?: AgrupamentoPorticos[];
+  /** Cópias da armadura das lajes (R7f), guardadas para recuperar depois (ex.: antes de abrir um furo imprevisto). */
+  copiasLaje?: CopiaArmaduraLajes[];
 }
+
+/** Agrupamento de pórticos: vigas que levam a mesma armadura (a envoltória do grupo). Uma viga pertence a um só agrupamento. */
+export interface AgrupamentoPorticos { id: string; nome: string; vigas: string[] }
+
+/** Dados de armadura de uma laje guardados numa cópia (R7f) junto com a geometria em que valiam. */
+export interface CopiaLaje {
+  laje: string; nome: string; grupo: string;
+  contorno: [number, number][]; furos?: [number, number][][];
+  base?: ArmaduraBaseLaje; predefinidas?: ArmaduraPredefinida[]; edicao?: EdicaoLaje; semCalculo?: boolean; armaduraVigotas?: ArmaduraVigotas; puncao?: GrupoPuncao[]; tabela?: string;
+}
+/** Cópia da armadura das lajes de todos os grupos (ou de um): dados das lajes, zonas de uniformização e linhas de dobra. */
+export interface CopiaArmaduraLajes { id: string; nome: string; data: string; lajes: CopiaLaje[]; zonas: ZonaUniformizacao[]; linhas: LinhaDobra[] }
 
 // ---------------- fundações (frente FU) ----------------
 

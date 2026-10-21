@@ -1,10 +1,12 @@
 // Armaduras editadas e bloqueadas (frente R2): o recálculo não redimensiona, só verifica (pilares: verificação
 // completa; vigas: área de aço, estribos e flecha). O bloqueio deixa de valer quando muda o número de lances do
 // pilar ou de vãos da viga. Lajes treliçadas (R6): armadura adicional e negativa das vigotas por nervura.
-import { lancesDoPilar, type BuildingModel, type Pilar } from '../building/types';
+import { lancesDoPilar, type ArmaduraViga, type BuildingModel, type Pilar, type Viga } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { vaosDaViga } from '../building/vigas';
 import { motivoTramo } from '../building/detalhamento';
+import { agrupamentoDe, geometriaIdentica } from '../building/agrupamento';
+import { ehModeloPortico, motivoCopia, perfilDaViga, type ModeloPortico } from '../building/copiaArmadura';
 import { linhaLajes, tabelaDe } from '../building/tabelasArmadura';
 import { TELAS } from '../building/telasSoldadas';
 import { registrar } from './registry';
@@ -20,6 +22,7 @@ registrar<{ id: string; pavimento: string; phi: number; nb?: number; nh?: number
   nome: 'pilar.armadura',
   descricao: 'Edita e bloqueia a armadura de um lance de pilar: bitola longitudinal `phi` (mm), barras por face ao longo de b (`nb`) e de h (`nh`), com os cantos, ou `n` barras no pilar circular, e o estribo { phi (mm), s (m) }. O recálculo verifica essa armadura (verificação completa) sem redimensioná-la.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento', 'phi', 'estribo'], properties: {
     id: { type: 'string' }, pavimento: { type: 'string', description: 'lance (pavimento do topo)' }, phi: { type: 'number', enum: BITOLA_L },
@@ -48,6 +51,7 @@ registrar<{ id: string; inf: { n: number; phi: number }; sup?: { n: number; phi:
   nome: 'viga.armadura',
   descricao: 'Edita e bloqueia a armadura de uma viga (todos os vãos e pavimentos do grupo): inferior e superior { n, phi (mm) }, estribo { phi (mm), s (m) } e barras laterais por face { n, phi }. O recálculo só verifica a área de aço, os estribos e a flecha.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'inf', 'estribo'], properties: {
     id: { type: 'string' }, inf: barras(BITOLA_L), sup: barras(BITOLA_L), estribo, laterais: barras(BITOLA_L),
@@ -55,8 +59,11 @@ registrar<{ id: string; inf: { n: number; phi: number }; sup?: { n: number; phi:
   validar(b, p) { return b.vigas.some((x) => x.id === p.id) ? [] : err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`); },
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.id)!;
-    v.armadura = { inf: { ...p.inf }, ...(p.sup ? { sup: { ...p.sup } } : {}), estribo: { ...p.estribo }, ...(p.laterais ? { laterais: { ...p.laterais } } : {}), vaos: vaosDaViga(d as BuildingModel, v) };
-    return `Armadura de ${v.nome} editada e bloqueada.`;
+    // pórticos agrupados: a mudança num vale para todos (R7f)
+    const g = agrupamentoDe(d as BuildingModel, p.id);
+    const alvo = (g ? g.vigas : [p.id]).map((id) => d.vigas.find((x) => x.id === id)).filter((x): x is typeof v => !!x);
+    for (const w of alvo) w.armadura = { inf: { ...p.inf }, ...(p.sup ? { sup: { ...p.sup } } : {}), estribo: { ...p.estribo }, ...(p.laterais ? { laterais: { ...p.laterais } } : {}), vaos: vaosDaViga(d as BuildingModel, w) };
+    return alvo.length > 1 ? `Armadura de ${v.nome} editada e bloqueada; vale para o agrupamento ${g!.nome} (${alvo.map((w) => w.nome).join(', ')}).` : `Armadura de ${v.nome} editada e bloqueada.`;
   },
 });
 
@@ -64,6 +71,7 @@ registrar<{ ids: string[]; inf: { n: number; phi: number }; sup?: { n: number; p
   nome: 'laje.armaduraVigotas',
   descricao: 'Edita e bloqueia a armadura das vigotas de lajes treliçadas, por nervura: positiva adicional ao banzo inferior da treliça `inf` { n (0 = sem adicional, até 2), phi (mm) } e, opcional, a negativa na capa sobre os apoios `sup` { n, phi }. O recálculo só verifica essa armadura (erro se insuficiente).',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'inf'], properties: {
     ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
@@ -86,6 +94,7 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
   nome: 'armadura.desbloquear',
   descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares, vigas e lajes (treliçadas; maciças com edição ou geradas sem cálculo, R7e), ou todos de um `tipo`, ou todos sem parâmetros.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar', 'laje'] } } },
   validar(b, p) {
@@ -94,7 +103,9 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
   },
   aplicar(d, p) {
     let n = 0;
-    const alvo = (id: string, t: 'viga' | 'pilar' | 'laje') => (p.ids ? p.ids.includes(id) : !p.tipo || p.tipo === t);
+    // pórticos agrupados: desbloquear um desbloqueia o agrupamento inteiro
+    const ids = p.ids ? new Set(p.ids.flatMap((id) => agrupamentoDe(d as BuildingModel, id)?.vigas ?? [id])) : null;
+    const alvo = (id: string, t: 'viga' | 'pilar' | 'laje') => (ids ? ids.has(id) : !p.tipo || p.tipo === t);
     for (const q of d.pilares) if (q.armaduras && alvo(q.id, 'pilar')) { n += q.armaduras.length; delete q.armaduras; }
     for (const v of d.vigas) if (v.armadura && alvo(v.id, 'viga')) { n++; delete v.armadura; }
     for (const l of d.lajes) if (l.armaduraVigotas && alvo(l.id, 'laje')) { n++; delete l.armaduraVigotas; }
@@ -103,23 +114,47 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
   },
 });
 
-registrar<{ de: string; para: string[] }>({
+registrar<{ de?: string; modelo?: ModeloPortico; para: string[] }>({
   nome: 'viga.copiarArmadura',
-  descricao: 'Copia a armadura bloqueada de uma viga para outras (mesma armadura e bloqueio; o recálculo verifica cada uma). A viga de origem precisa ter armadura bloqueada.',
+  descricao: 'Copia a armadura bloqueada (e o detalhe editado, com os comprimentos) de uma viga `de`, ou de um `modelo` de pórtico da biblioteca, para outras vigas, do mesmo grupo ou de grupos diferentes. Condições: mesmo número de vãos, vãos correspondentes com diferença menor que 25 cm e desníveis coincidentes; se alguma viga de destino não atende, nada é copiado e a mensagem diz o motivo de cada uma. O recálculo verifica cada viga (não há aviso de armadura menor que a necessária: ela é reprovada).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['de', 'para'], properties: { de: { type: 'string' }, para: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
+  calculo: 'detalhe',
+  schema: { type: 'object', additionalProperties: false, required: ['para'], properties: {
+    de: { type: 'string' }, para: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    modelo: { type: 'object', description: 'modelo de pórtico guardado na biblioteca (armadura, detalhe e perfil de vãos); em vez de `de`' },
+  } },
   validar(b, p) {
-    const o = b.vigas.find((x) => x.id === p.de);
-    if (!o) return err('VIGA_INEXISTENTE', `Viga ${p.de} não existe.`);
-    if (!o.armadura) return err('SEM_ARMADURA', `${o.nome} não tem armadura bloqueada para copiar.`, [p.de]);
+    if (!!p.de === !!p.modelo) return err('ORIGEM', 'Informe a viga de origem (`de`) ou um `modelo` de pórtico (um só).');
     const sem = p.para.filter((id) => !b.vigas.some((x) => x.id === id));
-    return sem.length ? err('VIGA_INEXISTENTE', `Viga ${sem.join(', ')} não existe.`) : [];
+    if (sem.length) return err('VIGA_INEXISTENTE', `Viga ${sem.join(', ')} não existe.`);
+    let perfil: { vaos: number[]; nivel: number };
+    if (p.modelo) {
+      if (!ehModeloPortico(p.modelo)) return err('MODELO_INVALIDO', 'O modelo de pórtico não tem a forma esperada (versão 1, vãos, armadura e estribo).');
+      perfil = p.modelo;
+    } else {
+      const o = b.vigas.find((x) => x.id === p.de);
+      if (!o) return err('VIGA_INEXISTENTE', `Viga ${p.de} não existe.`);
+      if (!o.armadura) return err('SEM_ARMADURA', `${o.nome} não tem armadura bloqueada para copiar.`, [p.de!]);
+      perfil = perfilDaViga(b, o);
+    }
+    const alvos = p.para.filter((id) => id !== p.de).map((id) => b.vigas.find((x) => x.id === id)!);
+    const motivos = alvos.flatMap((v) => { const m = motivoCopia(b, perfil, v); return m ? [`${v.nome}: ${m}`] : []; });
+    return motivos.length ? err('COPIA_RECUSADA', `Não é possível copiar a armadura — ${motivos.join('; ')}.`, alvos.map((v) => v.id)) : [];
   },
   aplicar(d, p) {
-    const o = d.vigas.find((x) => x.id === p.de)!;
-    for (const id of p.para) { const v = d.vigas.find((x) => x.id === id)!; v.armadura = { ...JSON.parse(JSON.stringify(o.armadura)), vaos: vaosDaViga(d as BuildingModel, v) }; }
-    return `Armadura de ${o.nome} copiada para ${p.para.length} viga(s).`;
+    const b = d as BuildingModel;
+    const o = p.de ? d.vigas.find((x) => x.id === p.de)! : null;
+    const arm = p.modelo ? p.modelo.armadura : o!.armadura!;
+    const det = p.modelo ? p.modelo.detalhe : o!.detalhe && o!.detalhe.vaos === vaosDaViga(b, o as Viga) ? (({ vaos: _v, ...r }) => r)(o!.detalhe) : undefined;
+    const alvos = p.para.filter((id) => id !== p.de);
+    for (const id of alvos) {
+      const v = d.vigas.find((x) => x.id === id)!, vaos = vaosDaViga(b, v as Viga);
+      const { vaos: _a, ...resto } = arm as ArmaduraViga;
+      v.armadura = { ...JSON.parse(JSON.stringify(resto)), vaos };
+      if (det) v.detalhe = { ...JSON.parse(JSON.stringify(det)), vaos }; else delete v.detalhe;
+    }
+    return `Armadura${det ? ' e detalhe' : ''} de ${o ? o.nome : `“${p.modelo!.nome}”`} copiada para ${alvos.length} viga(s).`;
   },
 });
 
@@ -127,6 +162,7 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
   nome: 'viga.detalhe',
   descricao: 'Edita o detalhamento de uma viga (R7b): por posição de barra (N1, N2, …) os extremos `s0`/`s1` ao longo do traçado (m), os `ganchos` de 90° nas pontas e a `perna` reta (× φ); por zona de estribos (índice 0, 1, …) bitola `phi`, espaçamento `s` (m) e `ramos`; e o `fatorEmenda` do comprimento de traspasse. O recálculo aplica as edições e verifica a cobertura da armadura necessária, os estribos e a barra máxima (DETALHE_INSUF); vale enquanto o número de vãos não muda. `remover: true` volta ao detalhamento calculado.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' },
@@ -151,13 +187,19 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
   },
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.id)!;
-    if (p.remover) { delete v.detalhe; return `Detalhamento de ${v.nome} volta ao calculado.`; }
-    const antes = v.detalhe && v.detalhe.vaos === vaosDaViga(d as BuildingModel, v) ? v.detalhe : undefined;
-    const barras = [...(antes?.barras ?? []).filter((x) => !p.barras?.some((y) => y.pos === x.pos)), ...(p.barras ?? []).map((x) => ({ ...x, ...(x.ganchos ? { ganchos: [x.ganchos[0], x.ganchos[1]] as [boolean, boolean] } : {}) }))];
-    const zonas = [...(antes?.zonas ?? []).filter((x) => !p.zonas?.some((y) => y.zona === x.zona)), ...(p.zonas ?? [])];
-    const fator = p.fatorEmenda ?? antes?.fatorEmenda;
-    v.detalhe = { vaos: vaosDaViga(d as BuildingModel, v), ...(barras.length ? { barras } : {}), ...(zonas.length ? { zonas } : {}), ...(fator !== undefined ? { fatorEmenda: fator } : {}) };
-    return `Detalhamento de ${v.nome} editado.`;
+    // pórticos agrupados: a mudança vale para os membros de geometria idêntica (as posições N1, N2… coincidem) (R7f)
+    const g = agrupamentoDe(d as BuildingModel, p.id);
+    const alvo = (g ? g.vigas : [p.id]).map((id) => d.vigas.find((x) => x.id === id)).filter((w): w is typeof v => !!w && (w.id === v.id || geometriaIdentica(d as BuildingModel, v as Viga, w as Viga)));
+    for (const w of alvo) {
+      if (p.remover) { delete w.detalhe; continue; }
+      const antes = w.detalhe && w.detalhe.vaos === vaosDaViga(d as BuildingModel, w) ? w.detalhe : undefined;
+      const barras = [...(antes?.barras ?? []).filter((x) => !p.barras?.some((y) => y.pos === x.pos)), ...(p.barras ?? []).map((x) => ({ ...x, ...(x.ganchos ? { ganchos: [x.ganchos[0], x.ganchos[1]] as [boolean, boolean] } : {}) }))];
+      const zonas = [...(antes?.zonas ?? []).filter((x) => !p.zonas?.some((y) => y.zona === x.zona)), ...(p.zonas ?? [])];
+      const fator = p.fatorEmenda ?? antes?.fatorEmenda;
+      w.detalhe = { vaos: vaosDaViga(d as BuildingModel, w), ...(barras.length ? { barras } : {}), ...(zonas.length ? { zonas } : {}), ...(fator !== undefined ? { fatorEmenda: fator } : {}) };
+    }
+    const ext = alvo.length > 1 ? ` Vale para o agrupamento ${g!.nome} (${alvo.map((w) => w.nome).join(', ')}).` : '';
+    return p.remover ? `Detalhamento de ${v.nome} volta ao calculado.${ext}` : `Detalhamento de ${v.nome} editado.${ext}`;
   },
 });
 
@@ -165,6 +207,7 @@ registrar<{ id: string; espera?: number; passagens?: { pavimento: string; emenda
   nome: 'pilar.detalhe',
   descricao: 'Edita os comprimentos do detalhamento de um pilar (R7c): `espera` na fundação (m, abaixo da base) e, por passagem de lance (`pavimento` do topo do lance de baixo), o traspasse `emenda` acima do topo e, nos arranques, a `ancoragem` das barras novas abaixo do topo (m). Verificado a cada recálculo (traspasse mínimo das opções, ancoragem mínima de 0,3·lb) e desconsiderado quando muda o número de lances do pilar. Com `remover`, volta ao calculado.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' },
@@ -209,6 +252,7 @@ registrar<{ ids: string[]; remover?: boolean }>({
   nome: 'viga.tramo',
   descricao: 'Cria (ou, com `remover`, desfaz) um tramo predefinido: vigas consecutivas e alinhadas do mesmo grupo cuja armadura inferior passante corre sem emenda nem gancho no apoio comum, enquanto o comprimento total não passa da barra máxima (R7b). `ids` na ordem do alinhamento.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 2 }, remover: { type: 'boolean' } } },
   validar(b, p) {
@@ -237,6 +281,7 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
   nome: 'laje.armaduraBase',
   descricao: 'Define a armadura base de lajes maciças (R7d), por pano ou seleção: face `inf` e/ou `sup` com tela soldada (`tela` pela designação da NBR 7481, `giro` troca a direção dos fios principais) ou `barras` por direção da malha (`dir` 0 = maior aresta, `phi` mm da tabela da laje, `s` cm). A base é sempre colaborante: o reforço é a armadura necessária menos a base. `detalhada` (desenhada e medida) sobrepõe a opção lajeBaseDetalhada; `detalhadaPadrao` volta a opção; `remover` apaga faces.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
     ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, inf: faceBase, sup: faceBase, detalhada: { type: 'boolean' }, detalhadaPadrao: { type: 'boolean' },
@@ -283,6 +328,7 @@ registrar<{ id: string; acao: 'criar' | 'editar' | 'remover'; predefinida?: stri
   nome: 'laje.armaduraPredefinida',
   descricao: 'Cria, edita ou remove uma armadura predefinida de uma laje maciça (R7d): barra representativa de `a` (m, planta) na direção `angulo` (graus) com `comprimento` (m), `n` barras φ `phi` (mm) espaçadas de `s` (m) à esquerda da representativa, na `face` inf ou sup. É medida como lançada e descontada do reforço calculado na faixa n × s. `predefinida` = id, para editar ou remover.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'acao'], properties: {
     id: { type: 'string' }, acao: { type: 'string', enum: ['criar', 'editar', 'remover'] }, predefinida: { type: 'string' },

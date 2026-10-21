@@ -35,11 +35,18 @@ describe('armadura editada e bloqueada (R2)', () => {
     expect(r2.mensagens.some((m) => m.startsWith('Armadura bloqueada insuficiente: inferior'))).toBe(true);
     expect(r2.barrasInf).toBe('2 φ8');
     expect(revisarEdificio(s.modelo, null, d2).itens.some((x) => x.codigo === 'ARM_BLOQ' && x.id === v.id)).toBe(true);
-    // novo pilar no meio de um vão muda o nº de vãos: bloqueio desconsiderado e viga redimensionada
+    // novo pilar no meio de um vão muda o nº de vãos: o bloqueio sai do modelo no mesmo passo (R7f) e a viga é redimensionada
     ok('pilar.inserir', { x: 2.5, y: 0, secao: { tipo: 'ret', b: 0.25, h: 0.25 } });
+    expect(s.modelo.vigas[0].armadura).toBeUndefined();
     const r3 = dim().vigas.find((x) => x.viga === v.id)!;
     expect(r3.bloqueada).toBe(false);
-    expect(r3.mensagens.some((m) => m.startsWith('Armadura bloqueada desconsiderada'))).toBe(true);
+    s.desfazer();
+    expect(s.modelo.vigas[0].armadura?.inf).toEqual({ n: 2, phi: 8 }); // desfazer devolve a armadura
+    // arquivo antigo: bloqueio com número de vãos fora de uso continua sendo desconsiderado, com aviso
+    const velho = { ...s.modelo, vigas: s.modelo.vigas.map((x) => (x.id === v.id ? { ...x, armadura: { ...x.armadura!, vaos: 9 } } : x)) };
+    const r4 = dimensionarEdificio(velho, analisarEdificio(velho)).vigas.find((x) => x.viga === v.id)!;
+    expect(r4.bloqueada).toBe(false);
+    expect(r4.mensagens.some((m) => m.startsWith('Armadura bloqueada desconsiderada'))).toBe(true);
     ok('armadura.desbloquear', {});
     expect(s.modelo.vigas.every((x) => !x.armadura)).toBe(true);
   });

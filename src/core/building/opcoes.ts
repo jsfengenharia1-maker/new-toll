@@ -215,6 +215,8 @@ export interface OpcoesCalculo {
   corridaDistribuicao: number;
   /** Sapata corrida sob parede (FU7a): comprimento da janela em que a carga linear é somada para obter a carga por metro (m). */
   corridaJanela: number;
+  /** Rearmar com os esforços guardados (R7f): variação da rigidez à flexão (%) de um elemento, desde a análise, acima da qual os esforços são tidos como antigos (aviso ESFORCO_ANTIGO). */
+  rearmarLimiteRigidez: number;
   /** Sapata corrida de aba única (FU8a): espaçamento máximo entre cintas (m); acima dele, aviso (flexão longitudinal entre cintas não verificada). */
   corridaCintaEspac: number;
   /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
@@ -521,9 +523,56 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'φ usado na excentricidade de fluência e_cc = (MSg/NSg + ea)·(2,718^(φNSg/(Ne − NSg)) − 1), Ne = 10·Eci·Ic/ℓe², com NSg e MSg da combinação quase permanente, nos pilares com 90 < λ ≤ 200.' },
   { chave: 'pilarTaxaMin', rotulo: 'Pilares: taxa geométrica mínima', unidade: '%', min: 0, max: 4, passo: 0.05, padrao: 0, fonte: 'NBR 6118, 17.3.5.3.1 (As,mín = 0,15·Nd/fyd ≥ 0,4 %·Ac); valor do usuário substitui os 0,4 % (programa de referência)', aConfirmar: false,
     descricao: '0 = taxa da norma (0,4 % da seção). Outro valor substitui a taxa geométrica mínima; o mínimo mecânico 0,15·Nd/fyd continua valendo.' },
+  { chave: 'rearmarLimiteRigidez', rotulo: 'Rearmar: variação de rigidez que torna os esforços antigos', unidade: '%', min: 1, max: 200, passo: 1, padrao: 15, fonte: 'Critério do Statikos (sem fonte): o programa de referência manda recalcular se as variações forem grandes, sem dar o limite; 15 % da inércia da seção (a confirmar)', aConfirmar: true,
+    descricao: 'Ao rearmar com os esforços da última análise depois de mudar seções, o elemento cuja inércia (b·h³/12) variou mais que este percentual desde a análise recebe o aviso ESFORCO_ANTIGO: refaça a análise para esforços corretos.' },
   { chave: 'corridaCintaEspac', rotulo: 'Sapata corrida de aba única: espaçamento máximo entre cintas', unidade: 'm', min: 1, max: 12, passo: 0.5, padrao: 5, fonte: 'Critério do Statikos (sem fonte): a sapata entre cintas funciona como viga contínua apoiada nelas e não é verificada na flexão longitudinal; o programa de referência não fixa valor', aConfirmar: true,
     descricao: 'Distância entre cintas (vigas de equilíbrio da aba de um lado só) acima da qual o programa avisa que a flexão longitudinal da sapata entre elas não é verificada; o balanço além da última cinta aceita metade.' },
 ];
+
+// ---- o que cada opção refaz (R7f) ----
+/** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
+export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
+  'malha', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+  // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
+  'segundaOrdem', 'pilarComprimento',
+]);
+/**
+ * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
+ * `pilarTaxaMin` são lidas só por `dimensionarPilares`/`flambagemLance` sobre a análise vigente). Mudar uma refaz o
+ * dimensionamento sem nova análise (R7f). Toda opção nova precisa estar em OPCOES_ANALISE, aqui ou nos prefixos de
+ * fundação/base elástica abaixo (`rearmar.test.ts` reprova opção sem classificação).
+ */
+export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
+  'woodArmer', 't0Flecha', 'fatorFlechaLaje', 'limiteFlechaTotal', 'limiteFlechaSensorial', 'redistribuicao', 'momentoMinPositivo',
+  'momentoMinNegativo', 'cortanteApoio', 'cortanteDistancia', 'verificarTorcao', 'limiteFissura', 'barraMaxima', 'arredondamento', 'perdasAco',
+  'bitolaMontagem', 'vigaReducaoLb', 'vigaNegativoVao', 'vigaReforcoVao', 'vigaSimetriaNegativos', 'vigaNegativosUnir', 'vigaMontagemContinua',
+  'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
+  'vigaEstriboSimetria', 'vigaFatorEmenda', 'vigaDesnivelLimite', 'continuidadePilares', 'pilarSimetria', 'pilarBarraMaxima', 'pilarUniaoLances',
+  'ancoragemReduzidaTopo', 'pilarContinuidadeInicio', 'pilarContinuidadeFaces', 'pilarProlongarSemViga', 'pilarCorteTopo',
+  'pilarReducaoIntermediarios', 'pilarReducaoMinimo', 'pilarAdensamento', 'pilarAdensamentoAltura', 'pilarAdensamentoEspacamento',
+  'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
+  'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
+  'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'equGamaFav', 'equGamaVento',
+  'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
+  'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
+]);
+const RE_BASE_ELASTICA = /^(corrida|radier)/;
+const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
+/**
+ * O que mudar a opção refaz: `true` = a análise (e tudo depois); `'fundacao'` = só as fundações; `'detalhe'` = só o
+ * dimensionamento e o detalhamento sobre a análise vigente. Opções das sapatas corridas e dos radiers, que entram na
+ * base elástica da análise, contam como análise.
+ */
+export function efeitoDaOpcao(chave: string): true | 'fundacao' | 'detalhe' {
+  if (OPCOES_ANALISE.has(chave as keyof OpcoesCalculo)) return true;
+  if (RE_FUNDACAO.test(chave)) return 'fundacao';
+  if (RE_BASE_ELASTICA.test(chave)) return true;
+  return 'detalhe';
+}
+/** A opção tem classificação explícita (análise, detalhe, fundação ou base elástica)? */
+export const opcaoClassificada = (chave: string): boolean => OPCOES_ANALISE.has(chave as keyof OpcoesCalculo) || OPCOES_DETALHE.has(chave) || RE_FUNDACAO.test(chave) || RE_BASE_ELASTICA.test(chave);
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
 export const OPCOES_PADRAO_NBR: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, padraoDe(o, 'nbr')])) as unknown as OpcoesCalculo;

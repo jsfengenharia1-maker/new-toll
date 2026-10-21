@@ -182,6 +182,20 @@ describe('servidor MCP', () => {
     expect(cache()).not.toBe(d1);
   });
 
+  it('dimensionar: comando só de detalhe não refaz a análise (R7f)', () => {
+    const s = new ServidorMcp(memIo().io);
+    call(s, 'novo');
+    const cache = () => (s as unknown as { cache: { an: unknown; revDetalhe: number } | null }).cache;
+    call(s, 'dimensionar');
+    const an0 = cache()!.an, r0 = cache()!.revDetalhe;
+    const pv = call(s, 'previa', { comando: 'tabela.restaurar', params: { tipos: ['vigas'] } });
+    call(s, 'aplicar', { token: pv.structuredContent.token });
+    call(s, 'dimensionar');
+    expect(cache()!.an).toBe(an0);
+    expect(cache()!.revDetalhe).toBe(s.sessao.revDetalhe);
+    expect(s.sessao.revDetalhe).toBeGreaterThan(r0);
+  });
+
   it('abrir e salvar arquivo; recursos; método desconhecido', () => {
     const m = memIo();
     runCli(['novo', 'o.statikos'], m.io);

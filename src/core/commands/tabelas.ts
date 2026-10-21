@@ -47,6 +47,7 @@ registrar<{ tipo: TipoTabela; tabela?: Tabela; remover?: string }>({
   nome: 'tabela.definir',
   descricao: 'Cria ou substitui uma tabela de armadura (tipo vigas, estribos, pilares ou lajes) pelo `id`; o id "padrao" altera a tabela padrão da obra. Vigas: linhas { bAte, hAte (cm), pos e neg { bitolas, nMin, camadas }, passante (fração) }; estribos: linhas { bAte, bitolas, sMin, sMax (cm; 0 = norma), ramos 2/4/6 }; pilares: { bitolas, espacamentos (cm), estribos [{ phiAte, phiT, sMax }] }; lajes: linhas { hAte, bitolas, sMin, sMax }. `remover` apaga a tabela criada (a padrão volta à de fábrica) e solta os elementos que a usavam.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['tipo'], properties: { tipo: { type: 'string', enum: TIPOS }, tabela: tabelaSchema, remover: { type: 'string' } } },
   validar(b, p) {
@@ -78,6 +79,7 @@ registrar<{ tipos?: TipoTabela[] }>({
   nome: 'tabela.restaurar',
   descricao: 'Volta às tabelas de fábrica as tabelas padrão dos tipos indicados (todos se omitido). As tabelas criadas pelo usuário ficam.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: { tipos: { type: 'array', items: { type: 'string', enum: TIPOS }, minItems: 1 } } },
   aplicar(d, p) {
@@ -92,3 +94,16 @@ registrar<{ tipos?: TipoTabela[] }>({
     return n ? `${n} tabela(s) padrão restaurada(s) à de fábrica.` : 'Nenhuma tabela padrão alterada.';
   },
 });
+
+/**
+ * Nível de cálculo de um comando de edição de elemento (`*.editar`): só campos de dimensionamento e detalhamento
+ * (`detalhe`) = 'detalhe'; com `secao` além deles = 'secao' (se o comando aceita rearmar com os esforços guardados);
+ * qualquer outro campo = cálculo pleno.
+ */
+export function nivelEdicao(p: Record<string, unknown>, detalhe: string[], secao?: 'secao'): true | 'detalhe' | 'secao' {
+  const ks = Object.keys(p).filter((k) => k !== 'id' && p[k] !== undefined);
+  if (!ks.length) return true;
+  if (ks.every((k) => detalhe.includes(k))) return 'detalhe';
+  if (secao && ks.every((k) => k === 'secao' || detalhe.includes(k))) return 'secao';
+  return true;
+}

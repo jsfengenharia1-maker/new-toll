@@ -5,18 +5,19 @@ import { analisarEdificio, type AnaliseEdificio } from '../../core/building/anal
 import { cargasParaFundacao, comFundacao, dimensionarEdificio, type Dimensionamento } from '../../core/building/dimensionamento';
 import { ehArranque } from '../../core/building/types';
 import type { FLoad } from '../../core/piles';
+import { rearmar } from '../../core/building/rearmar';
 import { montarConjunto, type OpcoesConjunto } from '../../core/sheets/conjunto';
 import type { BuildingModel } from '../../core/building/types';
 import type { ResultadoFundacao } from '../../core/building/fundacao';
 import type { DimEdificio } from './calculo';
 
 type PedidoConjunto = { tipo: 'conjunto'; id: number; modelo: BuildingModel; calculo: number | null; opcoes: OpcoesConjunto };
-type Pedido = { tipo: 'calcular'; id: number; modelo: BuildingModel; anteriores?: ResultadoFundacao[]; semFundacao?: boolean } | PedidoConjunto | { tipo: 'fundacao'; id: number; modelo: BuildingModel; calculo: number; anteriores?: ResultadoFundacao[] };
+type Pedido = { tipo: 'calcular'; id: number; modelo: BuildingModel; anteriores?: ResultadoFundacao[]; semFundacao?: boolean; esforcosRev?: number } | PedidoConjunto | { tipo: 'rearmar'; id: number; modelo: BuildingModel; calculo: number; modo: 'todos' | 'alterados' } | { tipo: 'fundacao'; id: number; modelo: BuildingModel; calculo: number; anteriores?: ResultadoFundacao[] };
 
 const responder = (m: object) => (self as unknown as Worker).postMessage(m);
 
 /** Último cálculo concluído (as pranchas de armação usam este, pelo id). */
-let ultimo: { id: number; r: AnaliseEdificio; dim: DimEdificio | null } | null = null;
+let ultimo: { id: number; r: AnaliseEdificio; dim: DimEdificio | null; /** modelo analisado, modelo do último dimensionamento e revisão de cálculo da análise (rearmar, R7f) */ modeloAnalise: BuildingModel; modeloDim: BuildingModel; esforcosRev: number } | null = null;
 /** Pedido de pranchas ainda não atendido: um mais novo substitui o anterior (que responde "obsoleto"). */
 let pendente: PedidoConjunto | null = null;
 
@@ -42,6 +43,21 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     setTimeout(montar, 0);
     return;
   }
+  if (m.tipo === 'rearmar') {
+    // só o dimensionamento e o detalhamento, com a análise do último cálculo (a análise não é refeita)
+    try {
+      if (!ultimo || ultimo.id !== m.calculo || !ultimo.dim) { responder({ id: m.id, erro: 'Resultados do cálculo indisponíveis em segundo plano; recalcule na aba Dimensionamento.' }); return; }
+      const t0 = performance.now();
+      const r = rearmar(m.modelo, ultimo.r, { modo: m.modo, anterior: ultimo.dim, modeloAnterior: ultimo.modeloDim, modeloAnalise: ultimo.modeloAnalise, esforcosRev: ultimo.esforcosRev });
+      if ('erro' in r) { responder({ id: m.id, erro: r.erro }); return; }
+      const dim = { ...r.dim, fundacao: ultimo.dim.fundacao, ms: performance.now() - t0 } as DimEdificio;
+      ultimo = { ...ultimo, id: m.id, dim, modeloDim: m.modelo };
+      responder({ id: m.id, dim });
+    } catch (err) {
+      responder({ id: m.id, erro: (err as Error).message });
+    }
+    return;
+  }
   if (m.tipo === 'fundacao') {
     // só as fundações, com a análise do último cálculo (a estrutura não é refeita)
     try {
@@ -64,7 +80,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
       fundacao: cargasParaFundacao(b, r) as FLoad[], ms: 0,
     } as DimEdificio : null) : { ...dimensionarEdificio(b, r, { fundacao: m.semFundacao ? false : { anteriores: m.anteriores } }), fundacao: cargasParaFundacao(b, r), ms: 0 };
     if (dim) dim.ms = performance.now() - t0;
-    ultimo = { id: m.id, r, dim };
+    ultimo = { id: m.id, r, dim, modeloAnalise: b, modeloDim: b, esforcosRev: m.esforcosRev ?? 0 };
     responder({ id: m.id, r, dim });
   } catch (err) {
     responder({ id: m.id, erro: (err as Error).message });

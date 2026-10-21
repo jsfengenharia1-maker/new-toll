@@ -152,8 +152,24 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
 }
 
 /** Vigas detalhadas de um grupo, na ordem dos nomes. */
+/**
+ * Vigas do grupo para desenhar. Pórticos agrupados (R7f) com geometria idêntica saem num só desenho, com todas as
+ * referências no título ("V1=V3"); `membros` traz as vigas que o desenho representa (a primeira é o representante).
+ */
 function vigasDoGrupo(b: BuildingModel, dim: Dimensionamento, grupo: string) {
-  return (dim.detalhes ?? []).map((d) => ({ d, v: b.vigas.find((x) => x.id === d.viga)! })).filter((x) => x.v && x.v.grupo === grupo).sort((p, q) => ordemNome(p.v.nome, q.v.nome));
+  const todas = (dim.detalhes ?? []).map((d) => ({ d, v: b.vigas.find((x) => x.id === d.viga)! })).filter((x) => x.v && x.v.grupo === grupo).sort((p, q) => ordemNome(p.v.nome, q.v.nome));
+  const rep = new Map<string, string[]>(), outras = new Set<string>();
+  for (const g of dim.agrupamentos ?? []) if (g.efetivo) for (const des of g.desenhos) {
+    const ids = des.filter((id) => todas.some((x) => x.v.id === id));
+    if (ids.length < 2) continue;
+    const ordem = ids.map((id) => todas.find((x) => x.v.id === id)!).sort((p, q) => ordemNome(p.v.nome, q.v.nome)).map((x) => x.v.id);
+    rep.set(ordem[0], ordem);
+    for (const id of ordem.slice(1)) outras.add(id);
+  }
+  return todas.filter((x) => !outras.has(x.v.id)).map((x) => {
+    const ids = rep.get(x.v.id) ?? [x.v.id], membros = ids.map((id) => b.vigas.find((y) => y.id === id)!);
+    return { d: ids.length > 1 ? { ...x.d, repeticoes: x.d.repeticoes * ids.length } : x.d, v: ids.length > 1 ? { ...x.v, nome: membros.map((m) => m.nome).join('=') } : x.v, membros, rep: x.d.repeticoes };
+  });
 }
 
 /** Grupos na ordem dos pavimentos. */
@@ -188,18 +204,17 @@ export function montarPranchasVigas(b: BuildingModel, _an: AnaliseEdificio | nul
       const reg = new Posicoes(), desenho: Prim[] = [];
       let concreto = 0, forma = 0;
       for (const i of idx) {
-        const { d, v } = lista[i], c = col[i];
+        const { d, v, membros, rep } = lista[i], c = col[i];
         const bl = bloco(blocoViga(b, d, v, (k, a, p, cc, q) => reg.pos(k, a, p, cc, q)), new Set(), v.nome);
         desenho.push(...mover(bl.prims, area.x0 + c.x, area.y1 - c.y));
-        const L = comprimentoPolilinha(v.pontos);
-        concreto += v.secao.b * v.secao.h * L * d.repeticoes; forma += (v.secao.b + 2 * v.secao.h) * L * d.repeticoes;
+        for (const m of membros) { const L = comprimentoPolilinha(m.pontos); concreto += m.secao.b * m.secao.h * L * rep; forma += (m.secao.b + 2 * m.secao.h) * L * rep; }
       }
       const aco = acoDaFolha(reg.tabela, perdas, concreto, forma);
       const sufixo = nFolhas > 1 ? ` (${f + 1}/${nFolhas})` : '';
       out.push(montarFolha({
         b, formato, tipo: 'vigas', titulo: `Armação das vigas — ${nomeG}${sufixo}`, conteudo: `ARMAÇÃO DAS VIGAS — ${nomeG.toUpperCase()}${sufixo}`,
         escala: 'INDICADA', escalaNum: cfg.escalaVigas, carimbo: o.carimbo, desenho, tabelas: [nts, tabelaAco(aco.tabela), resumoAco(aco, fck)],
-        legenda: `Elevações 1:${cfg.escalaVigas} · seções 1:${cfg.escalaSecao} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: f === 0 ? avisos : [], aco, elementos: idx.map((i) => lista[i].v.nome),
+        legenda: `Elevações 1:${cfg.escalaVigas} · seções 1:${cfg.escalaSecao} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: f === 0 ? avisos : [], aco, elementos: idx.flatMap((i) => lista[i].membros.map((m) => m.nome)),
       }));
     }
   }

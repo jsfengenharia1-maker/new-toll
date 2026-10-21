@@ -4,7 +4,7 @@ import type { Draft } from 'immer';
 import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
-import { OPCOES_INFO, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
+import { OPCOES_INFO, efeitoDaOpcao, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
 import { gamaCDoControle } from '../building/acoes';
 import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { registrar } from './registry';
@@ -146,8 +146,14 @@ registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] |
   descricao: `Define as opções de cálculo do edifício. Dois perfis de padrões: "sistema" (critério de mercado do programa de referência, padrão) e "nbr" (NBR 6118); "perfil" troca o perfil e mantém só os valores que diferem do novo padrão. ${OPCOES_INFO.map((o) => `${o.chave} = ${o.rotulo.toLowerCase()} (padrão ${o.padrao}${o.padraoNBR !== undefined ? `; NBR ${o.padraoNBR}` : ''}${o.unidade ? ` ${o.unidade}` : ''})`).join('; ')}. "padrao": true volta tudo ao padrão do perfil; uma lista de chaves volta só essas.`,
   risco: 'escrita',
   mcp: false,
-  // só opções das fundações: não refaz a análise da estrutura
-  calculo: (p) => { const v = p.valores as Record<string, unknown> | undefined; return !p.padrao && !p.perfil && v && Object.keys(v).length && Object.keys(v).every((k) => /^(fund|gerar|viga(Eq|Trav|Fund))/.test(k)) ? 'fundacao' : true; },
+  // só opções das fundações: não refaz a análise da estrutura; só opções de dimensionamento e detalhamento: não refaz a análise (rearmar)
+  calculo: (p) => {
+    if (p.perfil || p.padrao === true) return true;
+    const chaves = [...Object.keys((p.valores as Record<string, unknown> | undefined) ?? {}), ...(Array.isArray(p.padrao) ? (p.padrao as string[]) : [])];
+    if (!chaves.length) return true;
+    const ef = chaves.map(efeitoDaOpcao);
+    return ef.every((e) => e === 'detalhe') ? 'detalhe' : ef.every((e) => e === 'fundacao') ? 'fundacao' : true;
+  },
   schema: { type: 'object', additionalProperties: false, properties: {
     valores: { type: 'object', additionalProperties: false, properties: Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, { type: 'number', minimum: o.min, maximum: o.max, description: `${o.rotulo}${o.unidade ? ` (${o.unidade})` : ''}; padrão ${o.padrao}` }])) },
     padrao: { oneOf: [{ type: 'boolean' }, { type: 'array', items: { type: 'string', enum: OPCOES_INFO.map((o) => o.chave) } }] },
@@ -177,6 +183,12 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
   nome: 'materiais.definir',
   descricao: 'Materiais e segurança por elemento (padrão: o da obra e a NBR 6118): fck por tipo (laje, viga, pilar, fundacao = sapatas e blocos, MPa) e dos pilares por lance (fckPilarPav; fck 0 volta ao do tipo), aço por posição (pilarLong, pilarEstribo, vigaPos, vigaNeg, vigaEstribo, lajeInf, lajeSup, fundacao), γc, γs, γg, γq, cobrimentos por face (vigaInf, vigaSup, vigaLat, lajeInf, lajeSup, cm; 0 volta ao do tipo) e cobrimento das fundações (cobFundacao, cm; 0 volta ao padrão de 5 cm). "padrao": true volta tudo ao padrão.',
   risco: 'escrita',
+  // aço por posição (exceto fundação) e cobrimentos por face só mudam o dimensionamento e o detalhamento
+  calculo: (p) => {
+    const ks = Object.keys(p).filter((k) => p[k] !== undefined);
+    if (ks.length && ks.every((k) => k === 'cobFaces' || (k === 'aco' && !Object.keys(p.aco as object).some((x) => x === 'fundacao')))) return 'detalhe';
+    return ks.length && ks.every((k) => k === 'cobFundacao') ? 'fundacao' : true;
+  },
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
     fck: { type: 'object', additionalProperties: false, properties: { laje: { type: 'number', minimum: 20, maximum: 90 }, viga: { type: 'number', minimum: 20, maximum: 90 }, pilar: { type: 'number', minimum: 20, maximum: 90 }, fundacao: { type: 'number', minimum: 20, maximum: 90 } } },

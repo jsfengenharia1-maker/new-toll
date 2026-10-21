@@ -2,7 +2,7 @@
 // Com as opções novas desligadas e sem zonas, linhas nem edição, o detalhamento é o do baseline (`detalhamentoLajes.base.json`).
 import { describe, expect, it } from 'vitest';
 import base from './detalhamentoLajes.base.json';
-import { afetaCalculo, comandosEdificioPadrao, Sessao } from '../commands';
+import { afetaCalculo, afetaDetalhe, comandosEdificioPadrao, Sessao } from '../commands';
 import { barArea } from '../concrete';
 import { analisarEdificio } from './analitico';
 import type { DetalheLaje, PosicaoLaje } from './detalhamentoLajes';
@@ -418,7 +418,8 @@ describe('R7e: pranchas das lajes', () => {
     t.ok('prancha.rotulo', { chave: `${L.id}|${p.pos}`, remover: true });
     expect(t.s.modelo.prancha?.rotulos).toBeUndefined();
     expect(afetaCalculo('prancha.rotulo')).toBe(false);
-    expect(afetaCalculo('laje.barras')).toBe(true);
+    expect(afetaCalculo('laje.barras')).toBe(false); // só detalhe (R7f): a análise vale
+    expect(afetaDetalhe('laje.barras')).toBe(true);
   }, 120000);
   it('rótulo de laje inexistente é recusado', () => {
     const t = lajes([4, 4]);
