@@ -190,6 +190,28 @@ export interface ArmaduraPilar {
   lances: number;
 }
 
+/** Edição fina de uma posição de barra do detalhamento (R7b); os campos ausentes ficam como calculados. */
+export interface EdicaoBarra {
+  /** Posição (N1, N2, …) do detalhamento calculado. */
+  pos: string;
+  /** Extremos ao longo do traçado (m). */
+  s0?: number; s1?: number;
+  /** Ganchos de 90° nas pontas. */
+  ganchos?: [boolean, boolean];
+  /** Perna reta do gancho (× φ), no lugar do mínimo das opções. */
+  perna?: number;
+}
+/** Edição de uma zona de estribos (índice na ordem do detalhamento calculado). */
+export interface EdicaoZona { zona: number; phi?: number; s?: number; ramos?: number }
+/** Detalhamento editado de uma viga (R7b): verificado a cada recálculo; vale enquanto o número de vãos não muda. */
+export interface DetalheEditado {
+  barras?: EdicaoBarra[];
+  zonas?: EdicaoZona[];
+  /** Fator do comprimento de emenda desta viga (sobre a opção). */
+  fatorEmenda?: number;
+  vaos: number;
+}
+
 /** Armadura editada e bloqueada de uma viga (vale para todos os vãos e pavimentos do grupo). */
 export interface ArmaduraViga {
   inf: { n: number; phi: number };
@@ -238,6 +260,8 @@ export interface Viga {
   tabela?: string;
   /** Tabela de estribos (R7a); ausente = a padrão da obra. */
   tabelaEstribo?: string;
+  /** Detalhamento editado (comprimentos, ganchos, posições, zonas de estribos; R7b). */
+  detalhe?: DetalheEditado;
 }
 
 export type TipoLaje =
@@ -421,6 +445,8 @@ export interface BuildingModel {
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */
   tabelas?: TabelasArmadura;
+  /** Tramos predefinidos (R7b): vigas consecutivas alinhadas cuja armadura inferior passante corre sem emenda no apoio comum. */
+  tramos?: string[][];
 }
 
 // ---------------- fundações (frente FU) ----------------

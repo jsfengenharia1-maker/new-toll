@@ -21,8 +21,8 @@ export interface OpcoesArmacao {
 }
 
 /** Pernas (ganchos de 90°) em cm, inteiras, e trecho reto = C − pernas. */
-function pernas(x: { ganchos: [boolean, boolean]; phi: number; comprimento: number }) {
-  const g = cmInt(ganchoNoventa(x.phi));
+function pernas(x: { ganchos: [boolean, boolean]; phi: number; comprimento: number; perna?: number }) {
+  const g = cmInt(ganchoNoventa(x.phi, x.perna ?? 8));
   const L0 = x.ganchos[0] ? g : 0, L1 = x.ganchos[1] ? g : 0, C = cmInt(x.comprimento);
   return { L0, L1, C, reto: C - L0 - L1 };
 }
@@ -72,9 +72,10 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   const y1 = -d - 7.5, y2 = y1 - 8;
   out.push(...cotaHorizontal(y1, pts.map(X), pts.slice(1).map((s, i) => cotaCm(s - pts[i]))));
   // ---- barras em níveis: superiores acima da elevação, inferiores e pele abaixo das cotas ----
+  const nomeViga = (id: string) => b.vigas.find((q) => q.id === id)?.nome ?? id;
   const desenhar = (bs: BarraViga[], yBase: number, sobe: boolean) => {
     const its = bs.map((x) => {
-      const p = pernas(x), m = (X(x.s0) + X(x.s1)) / 2, w = larguraTxt(`${qtd(rep, x.n)} N99 ${phiTxt(x.phi)} C=${p.C}`, 2.2);
+      const p = pernas(x), m = (X(x.s0) + X(x.s1)) / 2, w = larguraTxt(`${qtd(rep, x.n)} N99 ${phiTxt(x.phi)} C=${p.C}${x.continuaCom ? ` (contínua com ${nomeViga(x.continuaCom)})` : ''}`, 2.2);
       return [Math.min(X(x.s0) - (p.L0 ? 4 : 0), m - w / 2) - 2, Math.max(X(x.s1) + (p.L1 ? 4 : 0), m + w / 2) + 2] as [number, number];
     });
     const nv = faixas(its);
@@ -87,7 +88,7 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
       linha.push([xa, y], [xz, y]);
       if (p.L1) linha.push([xz, y + (sinal * p.L1 * kE) / 100]);
       out.push({ t: 'pl', c: x.face === 'sup' ? 'ARMADURA-NEG' : 'ARMADURA', pts: linha });
-      out.push(txt('TEXTO', (xa + xz) / 2, y + 0.8, 2.2, `${qtd(rep, x.n)} ${pos} ${phiTxt(x.phi)} C=${p.C}`, 'c', 'base'));
+      out.push(txt('TEXTO', (xa + xz) / 2, y + 0.8, 2.2, `${qtd(rep, x.n)} ${pos} ${phiTxt(x.phi)} C=${p.C}${x.continuaCom ? ` (contínua com ${nomeViga(x.continuaCom)})` : ''}`, 'c', 'base'));
       if (p.L0 || p.L1) out.push(txt('COTA', (xa + xz) / 2, y - 0.8, 1.8, String(p.reto), 'c', 'topo'));
       const ym = (L: number) => y + (sinal * L * kE) / 200;
       if (p.L0) out.push(txt('COTA', xa - 0.8, ym(p.L0), 1.8, String(p.L0), 'd', 'meio'));

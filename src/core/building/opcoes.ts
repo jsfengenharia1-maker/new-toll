@@ -58,6 +58,22 @@ export interface OpcoesCalculo {
   perdasAco: number;
   /** Bitola da armadura de montagem superior das vigas (mm), colaborante nos negativos. */
   bitolaMontagem: number;
+  /** Detalhamento das vigas (R7b). */
+  vigaReducaoLb: number;
+  vigaNegativoVao: number;
+  vigaReforcoVao: number;
+  vigaSimetriaNegativos: number;
+  vigaNegativosUnir: number;
+  vigaMontagemContinua: number;
+  vigaMontagemColaborante: number;
+  vigaMontagemGancho: number;
+  vigaMontagemEixo: number;
+  vigaPernaGancho: number;
+  vigaEstriboExtensao: number;
+  vigaEstriboZonaMin: number;
+  vigaEstriboSimetria: number;
+  vigaFatorEmenda: number;
+  vigaDesnivelLimite: number;
   /** 1 = continuidade nos pilares: abaixo do penúltimo lance, nenhum lance com menos armadura nem bitola menor que o de cima. */
   continuidadePilares: number;
   /** Pilares: tolerância (%) para preferir a disposição simétrica à de menor armadura; 0 = menor armadura (pode ser não simétrica); 1000 = sempre simétrica. */
@@ -220,6 +236,36 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Acréscimo sobre o peso do resumo de aço (pontas e cortes).' },
   { chave: 'bitolaMontagem', rotulo: 'Bitola da armadura de montagem das vigas', unidade: 'mm', min: 5, max: 12.5, passo: 0.5, padrao: 8, fonte: 'Prática de mercado (porta-estribos φ8), colaborante nos negativos', aConfirmar: true,
     descricao: '2 barras superiores corridas (porta-estribos), contadas na armadura negativa onde existem; limitadas à bitola dos negativos.' },
+  { chave: 'vigaReducaoLb', rotulo: 'Vigas: reduzir lb por As,calc/As,ef', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118, 9.4.2.5 permite, mas o app mantém lb pleno no corte das barras (a favor da segurança; comportamento anterior)', fonte: 'Programa de referência: corte das barras pelo diagrama deslocado de aℓ + lb·As,calc/As,ef (K1.12.25); decisão do usuário (20/10/2026)', aConfirmar: false,
+    descricao: 'Ligada: o prolongamento dos reforços e negativos além do ponto de corte é lb,nec = lb·As,calc/As,ef ≥ lb,mín = máx(0,3·lb; 10φ; 10 cm), com As,calc = maior necessária no trecho e As,ef = área das barras ali (passantes ou montagem + reforço). Desligada: lb pleno (≥ 10φ).' },
+  { chave: 'vigaNegativoVao', rotulo: 'Vigas: comprimento mínimo dos negativos', unidade: '% do vão', min: 0, max: 50, passo: 1, padrao: 25, padraoNBR: 0, fonteNBR: 'NBR 6118 não fixa: só o diagrama decalado mais a ancoragem (9.4.2.5)', fonte: 'Prática usual brasileira (ℓ/4 do vão adjacente a partir da face do apoio) e opção de % mínima do vão do programa de referência (K1.12.9); valor a confirmar', aConfirmar: true,
+    descricao: 'Cada lado do negativo sobre um pilar interno vai, a partir da face do apoio, até o maior entre esta % do vão adjacente e o ponto do diagrama decalado + ancoragem. 0 = só o diagrama.' },
+  { chave: 'vigaReforcoVao', rotulo: 'Vigas: comprimento mínimo dos reforços inferiores', unidade: '% do vão', min: 0, max: 100, passo: 5, padrao: 0, fonte: 'Opção do programa de referência (K1.12.9), padrão desligado; a NBR não fixa', aConfirmar: false,
+    descricao: 'O reforço inferior de um vão cobre ao menos esta % do vão (centrado onde a armadura é exigida). 0 = só o diagrama decalado + ancoragem.' },
+  { chave: 'vigaSimetriaNegativos', rotulo: 'Vigas de um vão: simetria dos negativos (tolerância)', unidade: '%', min: 0, max: 100, passo: 5, padrao: 25, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige simetria: cada extremo pelo seu momento (comportamento anterior)', fonte: 'Programa de referência (K1.4.63: armadura negativa simétrica em vigas de um vão, com diferença % para simetria); 25 % a confirmar', aConfirmar: true,
+    descricao: 'Em viga de um só vão, os dois negativos ganham o maior número de barras quando a diferença relativa entre eles não passa desta %. 0 = desligado.' },
+  { chave: 'vigaNegativosUnir', rotulo: 'Vigas: unir negativos vizinhos', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não trata: negativos separados (comportamento anterior)', fonte: 'Programa de referência (K1.12.19: negativos que se encontram viram barra corrida)', aConfirmar: false,
+    descricao: 'Dois negativos separados por um trecho menor que um comprimento de ancoragem viram uma barra só, com o maior número de barras.' },
+  { chave: 'vigaMontagemContinua', rotulo: 'Vigas: montagem contínua', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (K1.12.13: contínua ou construtiva); padrão contínua a confirmar', aConfirmar: true,
+    descricao: 'Ligada: 2 barras de montagem de ponta a ponta. Desligada: porta-estribos só nos trechos entre as pontas dos negativos, emendados com traspasse construtivo (15φ, ≥ 20 cm).' },
+  { chave: 'vigaMontagemColaborante', rotulo: 'Vigas: montagem colaborante', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (K1.12.14: considerar a montagem como colaborante; se há compressão superior, passa a colaborante)', aConfirmar: true,
+    descricao: 'Ligada: a montagem entra na área dos negativos. Desligada: os negativos levam toda a área, exceto onde o cálculo exige armadura de compressão superior (aí a montagem passa a colaborante, com aviso).' },
+  { chave: 'vigaMontagemGancho', rotulo: 'Vigas: ancoragem da montagem com gancho', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (K1.12.15: gancho ou prolongamento reto); padrão com gancho (comportamento anterior)', aConfirmar: true,
+    descricao: 'Ligada: gancho de 90° nas pontas da montagem. Desligada: prolongamento reto.' },
+  { chave: 'vigaMontagemEixo', rotulo: 'Vigas: montagem reta medida do eixo do apoio', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.12.15: a partir do extremo ou do eixo); padrão a partir do extremo', aConfirmar: true,
+    descricao: 'Com a montagem reta, ligada: a barra termina no eixo do apoio extremo; desligada: vai até o cobrimento da ponta.' },
+  { chave: 'vigaPernaGancho', rotulo: 'Vigas: perna reta mínima dos ganchos', unidade: '× φ', min: 8, max: 20, passo: 1, padrao: 8, fonte: 'NBR 6118, 9.4.2.3 (ponta reta ≥ 8φ no gancho de 90°)', aConfirmar: false,
+    descricao: 'Perna reta dos ganchos de 90° das barras longitudinais das vigas.' },
+  { chave: 'vigaEstriboExtensao', rotulo: 'Vigas: estender zonas de estribos em d/2', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não pede extensão: a zona termina onde o espaçamento exigido permite abrir (comportamento anterior)', fonte: 'Programa de referência (K1.12.1-9: necessário + d/2)', aConfirmar: false,
+    descricao: 'Cada zona de estribos mais densa é estendida de d/2 para o lado da zona menos exigida.' },
+  { chave: 'vigaEstriboZonaMin', rotulo: 'Vigas: comprimento mínimo da zona de estribos', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 0, fonte: 'Opção do programa de referência (K1.4.65); padrão desligado (resta a regra de 2 espaçamentos)', aConfirmar: false,
+    descricao: 'Zonas mais curtas que este valor são absorvidas pela vizinha mais densa. 0 = só a regra de 2 espaçamentos.' },
+  { chave: 'vigaEstriboSimetria', rotulo: 'Vigas: estribos simétricos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.65: simetria de estribos); padrão desligado', aConfirmar: true,
+    descricao: 'O espaçamento em cada ponto é o menor entre ele e o simétrico em relação ao meio da viga.' },
+  { chave: 'vigaFatorEmenda', rotulo: 'Vigas: fator do comprimento de emenda', unidade: '×', min: 0.5, max: 2, passo: 0.1, padrao: 1, fonte: 'Opção do programa de referência (C6.104); 1 = l0t da NBR 6118 (9.5.2.2)', aConfirmar: false,
+    descricao: 'Multiplica o comprimento de traspasse das emendas de todas as vigas (cada viga pode ter o seu fator na edição do detalhamento).' },
+  { chave: 'vigaDesnivelLimite', rotulo: 'Vigas: desnível longitudinal para aviso', unidade: 'cm', min: 0, max: 20, passo: 0.5, padrao: 2, fonte: 'Critério do app (sem fonte): faces superior ou inferior de vigas consecutivas alinhadas diferindo mais que isto', aConfirmar: true,
+    descricao: 'Vigas consecutivas alinhadas cujas faces não coincidem pedem detalhe especial (estribos adicionais, continuidade da armadura).' },
   { chave: 'continuidadePilares', rotulo: 'Continuidade da armadura dos pilares', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: cada lance pelos seus esforços', fonte: 'Padrão do programa de referência (taxa e bitola de canto a partir do penúltimo pavimento)', aConfirmar: false,
     descricao: 'Último e penúltimo lances pelos seus esforços; daí para baixo, cada lance com armadura e bitola de canto não menores que as do lance de cima.' },
   { chave: 'pilarSimetria', rotulo: 'Simetria da armadura dos pilares (tolerância)', unidade: '%', min: 0, max: 1000, passo: 5, padrao: 0, padraoNBR: 1000, fonteNBR: 'NBR 6118 não fixa: armadura simétrica nas faces opostas (comportamento anterior do app)', fonte: 'Programa de referência: armadura não simétrica por padrão (tolerância 0 %); decisão do usuário (20/10/2026)', aConfirmar: false,

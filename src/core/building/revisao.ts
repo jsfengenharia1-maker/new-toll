@@ -31,6 +31,11 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'ARM_BLOQ', nivel: 'erro', re: /^Armadura bloqueada (insuficiente|acima)/, descricao: 'Armadura bloqueada não atende' },
   { codigo: 'BLOQ_IGNORADO', nivel: 'aviso', re: /^Armadura bloqueada desconsiderada/, descricao: 'Bloqueio desconsiderado (vãos ou lances mudaram)' },
   { codigo: 'ARMADURA', nivel: 'erro', re: /^(Nenhuma armadura|Não atende com até 4)/, descricao: 'Seção insuficiente com a armadura máxima' },
+  { codigo: 'ESTRIBO_BITOLA', nivel: 'erro', re: /^Estribo φ.* acima de bw\/10/, descricao: 'Viga: bitola do estribo acima de bw/10 (18.3.3.2)' },
+  { codigo: 'DESNIVEL_LONG', nivel: 'aviso', re: /^Desnível longitudinal/, descricao: 'Vigas alinhadas com faces desniveladas: detalhe especial' },
+  { codigo: 'TRAMO_IGNORADO', nivel: 'aviso', re: /^Tramo predefinido desconsiderado/, descricao: 'Tramo predefinido não aplicado (vigas, bitola ou barra máxima)' },
+  { codigo: 'DETALHE_INSUF', nivel: 'erro', re: /^Detalhe editado insuficiente/, descricao: 'Viga: detalhamento editado não cobre a armadura necessária ou os estribos' },
+  { codigo: 'DETALHE_IGNORADO', nivel: 'aviso', re: /^Detalhe editado (desconsiderado|:)/, descricao: 'Viga: edição do detalhamento desconsiderada ou fora da barra máxima' },
   { codigo: 'FORA_TABELA', nivel: 'erro', re: /^Fora de tabela \((barras|estribos)\)/, descricao: 'Viga: armadura sem solução na tabela (φ25 ou estribo fora do mínimo da tabela)' },
   { codigo: 'ARM_MANUAL', nivel: 'erro', re: /^Armadura manual necessária/, descricao: 'Pilar: nem a tabela nem a armadura própria atendem (amplie a tabela ou a seção)' },
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
@@ -107,6 +112,8 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const a of an?.avisos ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   if (an?.erro) itens.push({ tipo: 'obra', nome: b.obra?.nome || 'Obra', nivel: 'erro', codigo: 'ANALISE', mensagem: an.erro });
   for (const v of dim?.vigas ?? []) add('viga', v.viga, v.nome, undefined, v.mensagens);
+  // avisos do detalhamento com código próprio (os demais ficam só na aba Detalhamento)
+  for (const d of dim?.detalhes ?? []) add('viga', d.viga, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
