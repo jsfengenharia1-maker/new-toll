@@ -12,32 +12,32 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 12 | 12 | 25 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 51 | 16 | 12 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 17 | 10 | 22 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 52 | 15 | 12 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 35 | 9 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 36 | 20 | 47 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 37 | 20 | 46 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 26 | 17 | 16 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 29 | 17 | 13 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 51 | 17 | 29 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 24 | 1 | 16 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **277** | **116** | **157** | **111** |
+| **Total** | **661** | **293** | **112** | **145** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 52 | 18 | 70 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 20 | 8 | 28 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 119 | 147 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 47 | 14 | 61 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 0 | 18 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 119 | 150 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **116** | **157** | **273** |
+| **Total** | **112** | **145** | **257** |
 
 ## Divergências de premissa
 
@@ -87,11 +87,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.2.1 | Análise espacial 3D por matriz de rigidez de todos os elementos (pilares, pilares-parede, vigas, lajes). | Parcial | N | modelo separado: grelha por pavimento + pórtico espacial; lajes não entram na matriz do pórtico [N2b] |
+| K1.2.1 | Análise espacial 3D por matriz de rigidez de todos os elementos (pilares, pilares-parede, vigas, lajes). | Parcial | E | modelo integrado (N2b, padrão): pilares, vigas e lajes na mesma matriz (grelhas como superelementos do pórtico, condensação estática exata em `condensacao.ts`; separado como opção `modeloGlobal`); pilares-parede e paredes como cascas na E1 [E1c] |
 | K1.2.2 | Compatibilidade de deslocamentos em todos os nós com 6 graus de liberdade. | Feito | — | `fe3d.ts`: 6 GL por nó no pórtico espacial |
 | K1.2.3 | Hipótese de diafragma rígido por pavimento: plano indeformável; cada pavimento só translada e gira como corpo rígido (3 GL no plano). | Feito | — | diafragma rígido mestre-escravo por pavimento (`analitico.ts`) |
 | K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Feito | — | cada zona de nós ligada por vigas do diafragma é um diafragma, mesmo só com vigas (opção zonasIndependentes, N1c) |
-| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | N | vigas fora do diafragma (viga.editar foraDiafragma, N1a); paredes fora do diafragma dependem das paredes (E) [N2b] |
+| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | E | vigas fora do diafragma (N1a; no integrado, só no plano XY no pórtico); regra das cascas verticais escravas só no nível em que tocam laje pronta no núcleo (`escravosVerticais`, `diafragma.ts`, N2b); fecha quando a E1c ligar as paredes [E1c] |
 | K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Feito | — | zonas independentes são diafragmas separados; pilar isolado fica sem diafragma (N1c) |
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
@@ -102,7 +102,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.3.1 | Estrutura discretizada em barras, grelhas de barras e nós, e elementos finitos triangulares. | Parcial | N | só barras (pórtico e grelha); sem elementos finitos de casca [N2b] |
+| K1.3.1 | Estrutura discretizada em barras, grelhas de barras e nós, e elementos finitos triangulares. | Feito | — | barras (pórtico e grelhas), grelhas condensadas como superelementos (N2b) e elementos finitos triangulares de casca de 6 nós (`casca.ts`, `Casca3` no `fe3d`) com malha triangular própria (`malhaTri.ts`); aplicação às paredes na E1 |
 | K1.3.2 | Pilares: barras verticais entre pavimentos, nó na base (fundação, viga ou laje) e nó em cada pavimento; eixo = eixo da seção. | Feito | — | lance entre pavimentos, nó na base e em cada pavimento, no centro da seção |
 | K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Parcial | N | nó de cada lance no centro da sua seção: barra levemente inclinada, sem trecho rígido de excentricidade [N2c] |
 | K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Parcial | N | comprimento = distância entre cotas; distância livre entre faces não usada [N2c] |
@@ -123,7 +123,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) [E3e] |
 | K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Falta | E | fase construtiva das alveolares [E3e] |
 | K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Feito | — | opções de cálculo: malha configurável, padrão 0,25 m (N1a) |
-| K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Parcial | N | grelha Euler-Bernoulli (sem cortante); torção das lajes com redutor editável (torcaoLaje, N1a); diafragma só no pórtico [N2b] |
+| K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Feito | — | condensação estática exata (complemento de Schur) das grelhas no modelo integrado (`condensacao.ts`, N2b); barras de laje de Timoshenko (área 5/6·b·h, opção `cortanteBarrasLaje`, padrão do sistema 1, NBR 0); diafragma rígido mantido; torção com redutor editável (`torcaoLaje`) |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
 | K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Feito | — | radier como grelha de barras com a rigidez à flexão e à torção das lajes maciças, malha das opções passando pelos pilares (`gradeRadier`), molas k × área de influência; k por radier ou o padrão `radierK` (`src/core/building/baseElastica.ts`); placa contra o OpenSees (`validation/opensees/radier.py`, ±3 %) |
 | K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Falta | E | lajes nervuradas bidirecionais [E3c] |
@@ -135,9 +135,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Falta | E | paredes de concreto e de alvenaria estrutural [E1c] |
 | K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Falta | E | paredes (regra de esbeltez) [E1c] |
 | K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Falta | E | paredes (ligação com vigas e lajes) [E1c] |
-| K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Falta | N | elemento finito de casca espessa [N2b] |
-| K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Falta | N | malha triangular adaptativa [N2b] |
-| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Falta | N | paredes fora do diafragma [N2b] |
+| K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Feito | — | casca espessa plana de 6 nós, 6 gdl por nó (`src/core/casca.ts`, `Casca3` no `fe3d`): membrana LST e placa de Mindlin com cortante por interpolação mista (Raviart-Thomas girado, família MITC); testes de membrana e placa, placa apoiada contra Mindlin e parede em balanço contra Timoshenko (N2b); paredes do edifício na E1 |
+| K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Feito | — | malha triangular própria (`src/core/geom/malhaTri.ts`): Delaunay restrita com contorno e aberturas preservados, pontos obrigatórios e refino à metade junto a cantos, aberturas e pontos; tamanho alvo `malhaCasca` (0,5 m, a confirmar); `paraT6` gera os nós dos meios (N2b) |
+| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Parcial | E | regra pronta no núcleo (`escravosVerticais` em `diafragma.ts`, teste com parede de cascas no `fe3d`, N2b); fecha quando a E1c ligar as paredes ao modelo [E1c] |
 | K1.3.37 | Escadas: elementos finitos triangulares de casca espessa nos lances inclinados e patamares. | Falta | E | escadas [E4c] |
 | K1.3.38 | Escadas: apoios inicial e final simulados como laje por viga de rigidez elevada; apoios intermediários por apoios elásticos (alvenaria ou tirantes). | Falta | E | escadas (apoios) [E4c] |
 | K1.3.39 | Escadas: só casos gravitacionais (permanente e variável). | Falta | E | escadas (casos) [E4c] |
@@ -145,7 +145,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.41 | Escadas não entram na análise global (justificativa: grande influência das forças horizontais sobre elas). | Falta | E | escadas fora da análise global [E4c] |
 | | **1.3.1 Dimensão dos nós (págs. 10–12)** | | | |
 | K1.3.42 | Nós gerais de dimensão finita no eixo dos pilares e nas interseções laje × eixo de viga; cada nó geral tem zero ou mais nós associados. | Feito | — | nó no eixo do pilar ligado à face por trecho rígido (`offsetFace`, offI/offJ) |
-| K1.3.43 | Nós associados: interseções de elementos de laje com faces de vigas e pilares, e de eixos de vigas com faces de pilares. | Parcial | N | grelha: nó da viga dentro do pilar com w preso; sem trechos rígidos laje–face [N2b] |
+| K1.3.43 | Nós associados: interseções de elementos de laje com faces de vigas e pilares, e de eixos de vigas com faces de pilares. | Feito | — | modelo integrado (N2b): nós da grelha dentro da seção do pilar (apoios das vigas, chegadas de lajes, pilar sem viga) ligados ao nó do pilar por trecho rígido até o eixo; eixo da viga com a face do pilar por trecho rígido até a face − 0,3h também na grelha; a laje vai até o eixo da viga, como na grelha |
 | K1.3.44 | Nós associados ligados ao geral por compatibilidade de deformação plana (corpo rígido): δz2 = δz1 − Ax·θy1 + Ay·θx1 (forma do texto), θx2 = θx1, θy2 = θy1. | Feito | — | compatibilidade de corpo rígido pelos offsets das barras |
 | K1.3.45 | Barras entre o eixo do pilar e suas faces são infinitamente rígidas (trechos rígidos). | Feito | — | trecho rígido editável de 0 (até a face) a 0,5h; padrão NBR 6118 14.6.2.1 (face − 0,3h) (opção trechoRigido, N1a) |
 | K1.3.46 | Dimensão das vigas considerada da mesma forma (deformação plana). | Parcial | N | viga apoiada em viga sem dimensão do nó [N2e] |
@@ -253,7 +253,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Lajes maciças, mistas e nervuradas (listadas)** | | | |
 | K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Feito | — | ρmín e mínimos de distribuição (Tabela 19.1), negativo de borda (19.3.3.2), comprimentos mínimos em % do vão, torção por Wood-Armer (N1d) e redução de densidade do reforço (opção `lajeReforcoReducao`, desligada: bitola da base em espaçamento múltiplo; `detalhamentoLajes.ts`, R7d) |
 | K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Feito | — | ponta das barras a cobrimento da borda; opção `lajeBaseDetalhada` (padrão desligada, como no registro) e escolha por laje em `laje.armaduraBase`: não detalhada só indica φ c/ s ou a tela (desenho e notas da prancha), fora do quantitativo (R7d) |
-| K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Parcial | R | arredondamento de comprimentos (opção), ganchos de 90° e numeração N1…; sem critérios de disposição editáveis nem armadura de lajes retangulares (R4) [R7e] |
+| K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Feito | — | arredondamento (opção), ganchos de 90° e editáveis por posição, numeração N1… com opção `lajeNumeracao` (inferiores primeiro), disposição editável (`laje.barras`), armadura média de lajes retangulares (`lajeArmaduraMedia`) e cobrimentos de fundação (N1b); lajes alveolares e mistas fora do escopo do app (R7e) |
 | | **Escadas (listadas)** | | | |
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas [E4d] |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
@@ -498,7 +498,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | L | `laje.abertura` cria furo e aviso de região sem laje; a grelha ignora os furos [L5] |
 | K1.9.104 | Vigas chatas entre duas aberturas ou abertura e contorno, sem laje lateral, ficam sem altura: trocar por viga alta com dimensões. | Fora | — | regra interna de vigas chatas |
 | K1.9.105 | Blocos de menor altura ao lado de abertura são desconsiderados, com aviso de dado incorreto. | Fora | — | regra interna de nervuradas |
-| K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Falta | N | diafragma com aberturas grandes (flexível ou por zonas) [N2b] |
+| K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Feito | — | aviso DIAFRAGMA_ABERTURA (`aberturasDiafragma` em `diafragma.ts`, na verificação de lançamento): zona fechada por vigas com abertura interna acima de `aberturaDiafragma` (33 % da área, a confirmar) ou pavimento com aberturas acima do limite, sugerindo vigas fora do diafragma (N1a) (N2b) |
 | K1.9.107 | Paredes de subsolo com empuxo e panos de vigotas paralelos à parede: rigidez deve garantir diafragma (enchimento de concreto e detalhes), não feito automaticamente. | Falta | E | paredes com empuxo e diafragma [E1c] |
 | K1.9.108 | Versões < 2012.a: vigas livres perpendiculares à parede junto a vazios devem virar vigas inclinadas para dimensionar à flexo-compressão (vigas e lajes comuns só à flexão simples); ≥ 2012.a ver capítulo de diafragma rígido. | Fora | — | versões antigas do outro programa |
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
@@ -557,11 +557,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | flecha elástica máxima por pavimento (G, Q) na aba Análise e flecha por laje; sem deslocamento por pano e caso [V3] |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); nervuras com as nervuradas (E3d) [N2d] |
-| K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Falta | R | uniformização e edição de barras das lajes [R7e] |
+| K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Feito | — | `igualarPosicoes`/`maximosDe` (lajesEdicao.ts): φ, espaçamento e comprimento da posição de maior taxa e o maior comprimento; edição de n, φ, espaçamento, comprimento e ganchos por posição (`laje.barras`), bloqueada e verificada no recálculo (ARM_BLOQ, BLOQ_IGNORADO) (R7e) |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |
 | K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Falta | V | isovalores e isolinhas [V4] |
-| K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Falta | R | linhas de dobra e emendas construtivas [R7e] |
-| K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Falta | R | refazer armadura das lajes com os esforços iniciais [R7e] |
+| K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Feito | — | linhas de dobra centram a emenda por traspasse da inferior (`detalharLaje`, `gerarMalha`) e o mínimo em % do vão dos negativos usa o vão até a linha seguinte; depois do cálculo, `laje.barras` com `emendar` corta a barra com traspasse de 30 cm (opção `lajeEmendaConstrutiva`) sem recalcular (R7e) |
+| K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Feito | — | `laje.barras` com `refazer`: descarta edição e geração sem cálculo e refaz com os esforços da análise, mantendo `zonasLaje` e `linhasDobra` (R7e) |
 | | **Pilares** | | | |
 | K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Parcial | R | armadura do pilar editável por lance (bitola, barras por face, estribo) e bloqueável (R2); mudança de seção recalcula tudo [R7f] |
 | K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Falta | V | esforços ao longo do pilar e diagramas (só no Pórtico 2D) [V5] |
@@ -776,13 +776,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Feito | — | armadura transversal de cortante pela 19.4.2 (Vc interpolado entre VRd1 e 0,6·fctd·d pela espessura), do mesmo tipo da punção e somada aos anéis da punção [N2d] |
 | K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Feito | — | cortante acima de VRd2 ou laje com h < 15 cm acima de VRd1: erro CORTANTE_LAJE (superfície em vermelho); com armadura possível, aviso CORTANTE_LAJE_ARM [N2d] |
 | K1.13.2.4-11 | Radiers: mesmas regras das lajes maciças. | Feito | — | detalhamento do radier pelas regras das lajes (R4): malhas inferior e superior corridas, recortadas pelo contorno e pelos furos, perna nas bordas (a confirmar) e emenda α0t = 2 (`detalharRadier`); pranchas no tipo fundação (`src/core/sheets/fundacaoRadier.ts`) |
-| K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Falta | R | uniformização por zonas [R7e] |
-| K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Falta | R | uniformização sobre pilares [R7e] |
-| K1.13.2.4-14 | Linhas de dobra (definidas antes do cálculo, pelas direções de apoio): tratadas como pontos de negativo máximo e locais preferenciais de emenda da armadura inferior. | Falta | R | linhas de dobra [R7e] |
-| K1.13.2.4-15 | Comprimento dos reforços negativos por porcentagens mínimas do vão entre linhas de dobra; emendas dos positivos nessas linhas quando possível. | Parcial | R | mínimo em % do maior vão (opção; NBR 0) aplicado aos negativos; sem linhas de dobra nem emendas dos positivos nelas (R4) [R7e] |
-| K1.13.2.4-16 | Edição final de diâmetro e espaçamento dos reforços e dos ganchos superiores e inferiores. | Falta | R | edição de barras [R7e] |
+| K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Feito | — | `laje.uniformizacao` (linha com largura ou retângulo, face e direção opcionais; `uniformizarLajes`): maior taxa (φ e espaçamento de maior As/m) e maior comprimento entre as barras que passam pela zona, em todo detalhamento; zona sem barras gera LAJE_ZONA_VAZIA (R7e) |
+| K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Feito | — | opção `lajeUniformizarPilares` (padrão desligada) com faixa `lajeUniformizarPilaresLargura` (100 cm, a confirmar): zona retangular na face superior em torno de cada pilar do grupo (`zonasDosPilares`); pilares indicados = zonas lançadas à mão (R7e) |
+| K1.13.2.4-14 | Linhas de dobra (definidas antes do cálculo, pelas direções de apoio): tratadas como pontos de negativo máximo e locais preferenciais de emenda da armadura inferior. | Feito | — | linhas de dobra no grupo: emenda preferencial da inferior (peças dentro da barra máxima) e vão dos mínimos em % do vão; a linha no interior do pano só limita o vão (a confirmar) (R7e) |
+| K1.13.2.4-15 | Comprimento dos reforços negativos por porcentagens mínimas do vão entre linhas de dobra; emendas dos positivos nessas linhas quando possível. | Feito | — | mínimo em % do maior vão (`lajeNegativoVao`) passa a usar o vão entre a borda e a linha de dobra paralela seguinte de cada lado; emendas dos positivos centradas nas linhas quando possível (R7e) |
+| K1.13.2.4-16 | Edição final de diâmetro e espaçamento dos reforços e dos ganchos superiores e inferiores. | Feito | — | edição de φ, espaçamento, comprimento e ganchos das posições superiores e inferiores no painel e na janela da laje (`laje.barras`) (R7e) |
 | K1.13.2.4-17 | Ancoragem na laje medida a partir da face do apoio; com vigas largas, conferir se a barra atravessa a viga e alongar a ancoragem se necessário. | Feito | — | ponta ancorada além da face: atravessa a viga até a face oposta menos o cobrimento e usa gancho/aviso quando a viga é estreita (R4) |
-| K1.13.2.4-18 | Opção: armadura média uniforme por direção em lajes retangulares apoiadas em vigas. | Falta | R | armadura média em lajes retangulares [R7e] |
+| K1.13.2.4-18 | Opção: armadura média uniforme por direção em lajes retangulares apoiadas em vigas. | Feito | — | opção `lajeArmaduraMedia` (padrão desligada): lajes de quatro lados apoiados em vigas, sem furos nem borda livre, usam a média dos momentos positivos máximos das linhas da grelha (`momentosPositivosPorLinha`), nunca menos que a mínima (R7e) |
 | | **1.13.3 Lajes nervuradas (págs. 94–95)** | | | |
 | K1.13.3-1 | Critérios iguais aos das lajes maciças, salvo as diferenças abaixo. | Falta | E | lajes nervuradas [E3c] |
 | K1.13.3.1-1 | Armadura base pode distinguir zona maciça (ábaco) e zona aliviada. | Falta | E | lajes nervuradas (armadura base) [E3c] |
@@ -921,3 +921,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — subfatias FU8a a FU8d.** K1.9.111 segue Feito, agora com conferência numérica (cálculo manual e OpenSees: sapata associada com placa sobre molas, erros ≤ 1,5 %; bloco com dois pilares sobre 4 estacas por modelo sólido, tirante do Statikos a favor da segurança em +14 a +16 % com pilares iguais). K1.4.74 e K1.9.110 seguem Parcial com as cintas feitas (faltam as vigas embutidas em paredes e os pilares-parede, FU7b).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança.
+- **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** K1.4.77, K1.11.22, K1.11.25, K1.11.26, K1.13.2.4-12, -13, -14, -15, -16 e -18 (manual de cálculo) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: R reduz em 10 itens (manual de cálculo); demais sem mudança.

@@ -4,7 +4,8 @@ import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useRevisao } from './revisao';
-import { aoEscolher, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { poligonoZona, siglaReforco } from '../../core/building/lajesEdicao';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { corridaEfetiva } from '../../core/building/baseElastica';
 import { geometriasCintas } from '../../core/building/cintasCorrida';
@@ -104,7 +105,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', linhaDobra: 'Linha de dobra',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
 
@@ -129,6 +130,8 @@ const PASSOS: Record<Ferramenta, string[]> = {
   insFund: ['Clique no elemento de fundação (sapata ou bloco) cujo ponto de inserção quer mover.', 'Clique no novo centro do elemento (posição livre; o pilar fica excêntrico).'],
   limite: ['Primeiro vértice do limite (divisa, poço, reservatório); “Limite fechado” na barra fecha a polilinha.', 'Próximo vértice; Enter ou botão direito termina; Esc cancela.'],
   limiteMascara: ['Clique sobre uma linha da máscara DXF: a polilinha ligada a ela vira o limite da fundação.'],
+  zonaLaje: ['Primeiro ponto da zona de uniformização das armaduras das lajes (linha ou canto do retângulo; forma, face e direção na barra).', 'Segundo ponto (outro canto, ou o fim da linha).'],
+  linhaDobra: ['Primeiro ponto da linha de dobra das lajes (negativo máximo e emenda preferencial da armadura inferior).', 'Segundo ponto da linha.'],
   puncao: ['Clique num pilar que apoia a laje sem viga: adiciona (ou apaga, conforme o modo da barra) o grupo de armadura de punção informado. Calcule o dimensionamento antes; Esc volta a Selecionar.'],
   radier: ['Primeiro vértice do contorno do radier (placa sobre base elástica; os pilares dentro dele nascem na malha).', 'Próximo vértice; Enter, duplo clique ou botão direito fecha o contorno; Esc cancela.'],
   corrida: ['Primeiro ponto do eixo da sapata corrida (sob parede, viga de fundação ou alinhamento de pilares; largura do apoio, aba e opções no grupo Fundação).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela.'],
@@ -241,27 +244,27 @@ export function Planta() {
   const armLajes = useMemo(() => {
     if (pl.armaduraLajes === 'nenhuma' || !dimLajes) return [];
     const ids = new Set(lajes.map(({ l }) => l.id));
-    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => d.posicoes.filter((x) => x.face === pl.armaduraLajes).map((x) => ({ x, mx: (x.faixa[0][0] + x.faixa[1][0]) / 2, my: (x.faixa[0][1] + x.faixa[1][1]) / 2 })));
+    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => d.posicoes.filter((x) => facesLaje(pl.armaduraLajes).includes(x.face)).map((x) => ({ x, laje: d.laje, mx: (x.faixa[0][0] + x.faixa[1][0]) / 2, my: (x.faixa[0][1] + x.faixa[1][1]) / 2 })));
   }, [dimLajes, lajes, pl.armaduraLajes]);
   const painelLajes = useMemo(() => {
     if (pl.armaduraLajes === 'nenhuma' || !dimLajes) return [];
     const ids = new Set(lajes.map(({ l }) => l.id));
-    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => (d.paineis ?? []).filter((p) => p.face === pl.armaduraLajes));
+    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => (d.paineis ?? []).filter((p) => facesLaje(pl.armaduraLajes).includes(p.face)));
   }, [dimLajes, lajes, pl.armaduraLajes]);
   // lajes treliçadas na mesma camada: vigotas (inferior: adicional ao longo do vão) e negativos nas pontas (superior)
   const dimVigotas = useBuilding((st) => st.dim?.vigotas);
   const armVigotas = useMemo(() => {
     if (pl.armaduraLajes === 'nenhuma' || !dimVigotas) return [];
-    const ids = new Set(lajes.map(({ l }) => l.id)), face = pl.armaduraLajes;
-    const out: { a: P; z: P; rot?: string }[] = [];
-    for (const r of dimVigotas) {
+    const ids = new Set(lajes.map(({ l }) => l.id));
+    const out: { a: P; z: P; rot?: string; face: 'inf' | 'sup' }[] = [];
+    for (const face of facesLaje(pl.armaduraLajes)) for (const r of dimVigotas) {
       if (!ids.has(r.laje)) continue;
       const vistos = new Set<number>();
       for (const i of faixasVisiveis(r, pl.vigotasTodas)) {
         const f = r.faixas[i], g = r.grupos[f.grupo], ux = (f.z[0] - f.a[0]) / (f.L || 1), uy = (f.z[1] - f.a[1]) / (f.L || 1), ao = (c: number): P => [f.a[0] + ux * c, f.a[1] + uy * c];
         const rot = vistos.has(f.grupo) ? undefined : (vistos.add(f.grupo), `G${f.grupo + 1} · ${g.vigotas} vigotas · ${larguraGrupo(r, f.grupo).toFixed(2).replace('.', ',')} m`);
-        if (face === 'inf') out.push({ a: f.a, z: f.z, rot });
-        else g.negativos.forEach((n, k) => { if (n) out.push(k ? { a: ao(Math.max(0, f.L - n.comprimento)), z: f.z } : { a: f.a, z: ao(Math.min(f.L, n.comprimento)) }); });
+        if (face === 'inf') out.push({ a: f.a, z: f.z, rot, face });
+        else g.negativos.forEach((n, k) => { if (n) out.push(k ? { a: ao(Math.max(0, f.L - n.comprimento)), z: f.z, face } : { a: f.a, z: ao(Math.min(f.L, n.comprimento)), face }); });
       }
     }
     return out;
@@ -420,9 +423,10 @@ export function Planta() {
     }
     // painéis de tela soldada da base detalhada (retângulo com diagonais e designação)
     if (painelLajes.length) {
-      const cor = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga;
-      ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const pn of painelLajes) {
+        const cor = pn.face === 'inf' ? cores.viga : cores.carga;
+        ctx.strokeStyle = cor; ctx.fillStyle = cor;
         const q = pn.poligono.map((pt) => paraTela(pt[0], pt[1]));
         ctx.beginPath(); ctx.moveTo(...q[0]); for (const pt of q.slice(1)) ctx.lineTo(...pt); ctx.closePath(); ctx.moveTo(...q[0]); ctx.lineTo(...q[2]); ctx.stroke();
         if (v.k > 40) ctx.fillText(`${pn.n} ${pn.designacao}`, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2);
@@ -431,21 +435,44 @@ export function Planta() {
     }
     // armadura das lajes (barra representativa de cada posição, com ganchos e rótulo)
     if (armLajes.length) {
-      const cor = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga, rotulos = v.k > 40;
-      ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = 2; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      for (const { x, mx, my } of armLajes) {
+      const rotulos = v.k > 40, sigla = opcoesEmUso(b.opcoes, perfilDe(b)).lajeSiglaReforco === 1;
+      ctx.lineWidth = 2; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      for (const { x, laje, mx, my } of armLajes) {
+        const sel = pl.selecao.has(laje), cor = x.face === 'inf' ? cores.viga : cores.carga;
+        ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = sel ? 3 : 2;
         const a = paraTela(x.a[0], x.a[1]), z = paraTela(x.z[0], x.z[1]);
         ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...z); ctx.stroke();
         for (const [pt, g] of [[a, x.ganchos[0]], [z, x.ganchos[1]]] as const) if (g > 0) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 3, 0, 2 * Math.PI); ctx.stroke(); }
-        if (rotulos) { const [tx, ty] = paraTela(mx, my); ctx.fillText(`${x.pos} ${x.n}φ${String(x.phi).replace('.', ',')}${x.s > 0 ? ` c/${Math.round(x.s * 100)}` : ''}`, tx + 4, ty - 6); }
+        if (rotulos) { const [tx, ty] = paraTela(mx, my), sg = sigla ? siglaReforco(x) : ''; ctx.fillText(`${x.pos} ${x.n}φ${String(x.phi).replace('.', ',')}${x.s > 0 ? ` c/${Math.round(x.s * 100)}` : ''}${sg ? ` ${sg}` : ''}${x.editada ? ' ✎' : ''}`, tx + 4, ty - 6); }
       }
     }
+    // zonas de uniformização e linhas de dobra do grupo (R7e): com a camada de armadura, o painel de edição ou uma das ferramentas
+    if (pl.armaduraLajes !== 'nenhuma' || pl.painelLajes || pl.ferramenta === 'zonaLaje' || pl.ferramenta === 'linhaDobra') {
+      ctx.lineWidth = 1.5; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      (b.zonasLaje ?? []).forEach((z, i) => {
+        if (z.grupo !== grupo) return;
+        const poly = poligonoZona(z).map((q) => paraTela(q[0], q[1]));
+        ctx.strokeStyle = cores.janela; ctx.fillStyle = cores.janela; ctx.setLineDash([8, 3]);
+        ctx.beginPath(); poly.forEach((q, k) => (k ? ctx.lineTo(...q) : ctx.moveTo(...q))); ctx.closePath();
+        ctx.globalAlpha = 0.1; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillText(`Z${i + 1} ${z.face === 'inf' ? 'inf.' : 'sup.'}`, poly[0][0] + 4, poly[0][1] - 8);
+      });
+      (b.linhasDobra ?? []).forEach((ln, i) => {
+        if (ln.grupo !== grupo) return;
+        const a = paraTela(ln.a[0], ln.a[1]), z = paraTela(ln.z[0], ln.z[1]);
+        ctx.strokeStyle = cores.guia; ctx.fillStyle = cores.guia; ctx.setLineDash([14, 4, 2, 4]); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...z); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1.5;
+        ctx.fillText(`LD${i + 1}`, (a[0] + z[0]) / 2 + 4, (a[1] + z[1]) / 2 - 8);
+      });
+    }
     if (armVigotas.length) {
-      ctx.strokeStyle = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.beginPath();
-      for (const x of armVigotas) { const a = paraTela(x.a[0], x.a[1]), z = paraTela(x.z[0], x.z[1]); ctx.moveTo(...a); ctx.lineTo(...z); }
-      ctx.stroke();
-      if (v.k > 40) for (const x of armVigotas) if (x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
+      ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      for (const x of armVigotas) {
+        ctx.strokeStyle = x.face === 'inf' ? cores.viga : cores.carga; ctx.fillStyle = ctx.strokeStyle;
+        const a = paraTela(x.a[0], x.a[1]), z = paraTela(x.z[0], x.z[1]);
+        ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...z); ctx.stroke();
+        if (v.k > 40 && x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
+      }
     }
     // punção e cortante: contornos C, C′ e C″ (vermelho onde a tensão excede a resistência) e a armadura de punção
     if (wrap.current) wrap.current.dataset.puncao = String(puncaoPlanta.length);
@@ -1057,6 +1084,14 @@ export function Planta() {
       if (Math.hypot(z[0] - a[0], z[1] - a[1]) < 1e-3) return;
       exec('eixo.criar', { nome: proximoEixo(b, Math.abs(z[0] - a[0]) >= Math.abs(z[1] - a[1])), p1: a.map((v) => +v.toFixed(4)), p2: z.map((v) => +v.toFixed(4)) });
       setPontos([]); return;
+    }
+    if ((f === 'zonaLaje' || f === 'linhaDobra') && novos.length === 2) {
+      setPontos([]);
+      if (nivelFund) { msg('Zonas e linhas de dobra valem para as lajes: abra um pavimento.'); return; }
+      const [a, z] = novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), P = usePlanta.getState();
+      if (f === 'linhaDobra') void executarERecalcular('laje.linhaDobra', { acao: 'criar', grupo, a, z });
+      else void executarERecalcular('laje.uniformizacao', { acao: 'criar', grupo, forma: P.zonaForma, pontos: [a, z], face: P.zonaFace, ...(P.zonaForma === 'linha' ? { largura: P.zonaLargura } : {}), ...(P.zonaAngulo !== null ? { angulo: P.zonaAngulo } : {}) });
+      return;
     }
     if (f === 'medir' && novos.length === 2) {
       const [a, z] = novos, d = Math.hypot(z[0] - a[0], z[1] - a[1]);

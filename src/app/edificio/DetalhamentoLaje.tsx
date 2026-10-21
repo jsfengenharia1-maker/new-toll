@@ -9,6 +9,9 @@ import { acoDe } from '../../core/building/materiais';
 import type { BordaLaje, DetalheLaje, PosicaoLaje, TipoBarraLaje } from '../../core/building/detalhamentoLajes';
 import { fmt, phiTxt } from './Detalhamento';
 import { BaseLaje } from './BaseLaje';
+import { EdicaoPosicoes, ZonasELinhas } from './EdicaoLajes';
+import { poligonoZona, siglaReforco } from '../../core/building/lajesEdicao';
+import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 
 export const TIPO_POS_LAJE: Record<TipoBarraLaje, string> = {
   positiva: 'Positiva', negativa: 'Negativa', 'negativa-borda': 'Negativa de borda', distribuicao: 'Distribuição',
@@ -41,10 +44,20 @@ function PlantaLaje({ d, mostrar }: { d: DetalheLaje; mostrar: { inf: boolean; s
   const vis = d.posicoes.filter((x) => mostrar[x.face]);
   const nomeLaje = (id?: string) => b.lajes.find((x) => x.id === id)?.nome ?? id ?? '';
   const usados = new Map<string, number>(); // rótulos no mesmo ponto ficam empilhados
+  const sigla = opcoesEmUso(b.opcoes, perfilDe(b)).lajeSiglaReforco === 1;
   return (
     <svg className="det det-laje" viewBox={`0 0 ${W} ${H.toFixed(0)}`} role="img" aria-label={`Planta de armação da laje ${d.nome}`} data-detalhe-laje={d.laje} data-posicoes={vis.length} data-total-posicoes={d.posicoes.length}>
       <path d={anel(l.contorno)} className="det-contorno" />
       {(l.furos ?? []).map((f, i) => <path key={i} d={anel(f)} className="det-furo" data-furo={i} />)}
+      {(b.zonasLaje ?? []).map((z, i) => z.grupo === l.grupo && (
+        <path key={z.id} d={anel(poligonoZona(z))} className="det-zona" data-zona-planta={z.id}><title>{`Zona de uniformização Z${i + 1}`}</title></path>
+      ))}
+      {(b.linhasDobra ?? []).map((ln, i) => ln.grupo === l.grupo && (
+        <g key={ln.id} data-linha-dobra-planta={ln.id}>
+          <line x1={X(ln.a[0])} y1={Y(ln.a[1])} x2={X(ln.z[0])} y2={Y(ln.z[1])} className="det-dobra" />
+          <text x={+X(ln.a[0]) + 3} y={+Y(ln.a[1]) - 3} className="det-txt cota">{`LD${i + 1}`}</text>
+        </g>
+      ))}
       {d.bordas.map((bd, i) => {
         const P0 = l.contorno[bd.aresta], Q = l.contorno[(bd.aresta + 1) % l.contorno.length], Le = Math.hypot(Q[0] - P0[0], Q[1] - P0[1]) || 1;
         const e = [(Q[0] - P0[0]) / Le, (Q[1] - P0[1]) / Le], A = [P0[0] + e[0] * bd.s0, P0[1] + e[1] * bd.s0], Z = [P0[0] + e[0] * bd.s1, P0[1] + e[1] * bd.s1];
@@ -75,9 +88,9 @@ function PlantaLaje({ d, mostrar }: { d: DetalheLaje; mostrar: { inf: boolean; s
         return (
           <g key={x.pos} data-pos={x.pos} data-tipo={x.tipo} data-face={x.face}>
             {(f0[0] !== f1[0] || f0[1] !== f1[1]) && <line x1={X(f0[0])} y1={Y(f0[1])} x2={X(f1[0])} y2={Y(f1[1])} className={`det-faixa ${x.face}`} />}
-            <line x1={X(x.a[0])} y1={Y(x.a[1])} x2={X(x.z[0])} y2={Y(x.z[1])} className={`det-barra ${x.face}${x.tipo === 'distribuicao' ? ' distribuicao' : ''}`} />
+            <line x1={X(x.a[0])} y1={Y(x.a[1])} x2={X(x.z[0])} y2={Y(x.z[1])} className={`det-barra ${x.face}${x.tipo === 'distribuicao' ? ' distribuicao' : ''}${x.editada ? ' editada' : ''}`} />
             {ponta(x.a, x.ganchos[0])}{ponta(x.z, x.ganchos[1])}
-            <text x={+X(mx) + 4} y={+Y(my) - 4 + k * 10} className={`det-txt ${x.face}`}>{rotuloPosicaoLaje(x)}</text>
+            <text x={+X(mx) + 4} y={+Y(my) - 4 + k * 10} className={`det-txt ${x.face}`}>{rotuloPosicaoLaje(x)}{sigla && siglaReforco(x) ? ` ${siglaReforco(x)}` : ''}{x.editada ? ' ✎' : ''}</text>
           </g>
         );
       })}
@@ -103,7 +116,7 @@ export function DetalheDaLaje({ id }: { id: string }) {
         <Check label="Inferiores (positivas)" checked={inf} onChange={setInf} />
         <Check label="Superiores (negativas)" checked={sup} onChange={setSup} />
       </div>
-      <div className="det-leg"><span><i className="inf" />armadura inferior</span><span><i className="sup" />armadura superior</span><span><i className="continua" />borda contínua</span><span><i className="apoiada" />borda apoiada</span><span><i className="livre" />borda livre</span></div>
+      <div className="det-leg"><span><i className="inf" />armadura inferior</span><span><i className="sup" />armadura superior</span><span><i className="continua" />borda contínua</span><span><i className="apoiada" />borda apoiada</span><span><i className="livre" />borda livre</span><span><i className="zona" />zona de uniformização</span><span><i className="dobra" />linha de dobra</span></div>
       <PlantaLaje d={d} mostrar={{ inf, sup }} />
       {d.base && (
         <div data-base-indicada>
@@ -139,6 +152,14 @@ export function DetalheDaLaje({ id }: { id: string }) {
         </table>
       </div>
       {b.lajes.find((x) => x.id === id)?.tipo.tipo === 'macica' && <BaseLaje l={b.lajes.find((x) => x.id === id)!} />}
+      {b.lajes.find((x) => x.id === id)?.tipo.tipo === 'macica' && (
+        <section data-edicao-laje={id}>
+          <h4>Edição das posições, zonas e linhas de dobra</h4>
+          <p className="small">Edição bloqueada das posições calculadas, igualação por máximos, grupos, emenda construtiva e conjunto da tabela de armadura. O painel “Editar armadura das lajes” da planta faz o mesmo sem fechar esta janela.</p>
+          <EdicaoPosicoes l={b.lajes.find((x) => x.id === id)!} d={d} />
+          <ZonasELinhas b={b} grupo={b.lajes.find((x) => x.id === id)!.grupo} laje={b.lajes.find((x) => x.id === id)} />
+        </section>
+      )}
       <h4>Bordas</h4>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-bordas-laje>

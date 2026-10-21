@@ -109,7 +109,7 @@ describe('pranchas de armação (R5)', () => {
     const total = soma(dim.resumoAcoLajes!) + soma(dim.resumoAcoVigotas!);
     expect(pesoFolhas(prs)).toBeCloseTo(total, 6);
     const t0 = textos(prs[0]), t1 = textos(prs[1]);
-    expect(t0.some((x) => /^3×\d+ N\d+ φ\d+,\d c\/\d+ C=\d+$/.test(x))).toBe(true);
+    expect(t0.some((x) => /^3×\d+ N\d+ φ\d+,\d c\/\d+ C=\d+( R[IS])?$/.test(x))).toBe(true);
     expect(t0.some((x) => /^TR 16745 · \d+ vigotas/.test(x))).toBe(true);
     expect(t0.some((x) => /— adicional$/.test(x)) || dim.vigotas![0].posicoes.every((p) => p.tipo !== 'adicional')).toBe(true);
     expect(t1.some((x) => /— (negativos|distribuição \(capa\))$/.test(x))).toBe(true);

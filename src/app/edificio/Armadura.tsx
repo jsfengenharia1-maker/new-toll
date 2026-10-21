@@ -51,7 +51,7 @@ export function comandosBloquear(dim: DimEdificio, ids?: Set<string>): { cmds: C
 
 /** Armaduras bloqueadas no modelo: vigas e lances de pilar. */
 export function contarBloqueios(b: BuildingModel) {
-  return { vigas: b.vigas.filter((v) => v.armadura).length, lances: b.pilares.reduce((t, p) => t + (p.armaduras?.length ?? 0), 0) };
+  return { vigas: b.vigas.filter((v) => v.armadura).length, lances: b.pilares.reduce((t, p) => t + (p.armaduras?.length ?? 0), 0), lajes: b.lajes.filter((l) => l.edicao || l.semCalculo).length };
 }
 
 /** Ids de vigas e pilares com armadura bloqueada (marcador na planta). */
@@ -87,13 +87,13 @@ export function BloqueioLote({ dim, velha }: { dim: DimEdificio | null; velha: b
     <div data-bloqueio-lote>
       <h4>Armaduras bloqueadas</h4>
       <p className="small" data-bloqueadas>
-        <b>{c.vigas}</b> {c.vigas === 1 ? 'viga bloqueada' : 'vigas bloqueadas'} · <b>{c.lances}</b> {c.lances === 1 ? 'lance de pilar bloqueado' : 'lances de pilar bloqueados'}. O recálculo só verifica essas armaduras; as demais são dimensionadas.
+        <b>{c.vigas}</b> {c.vigas === 1 ? 'viga bloqueada' : 'vigas bloqueadas'} · <b>{c.lances}</b> {c.lances === 1 ? 'lance de pilar bloqueado' : 'lances de pilar bloqueados'}{c.lajes > 0 && <> · <b>{c.lajes}</b> {c.lajes === 1 ? 'laje com armadura editada ou gerada sem cálculo' : 'lajes com armadura editada ou gerada sem cálculo'}</>}. O recálculo só verifica essas armaduras; as demais são dimensionadas.
       </p>
       <div className="row wrap">
         <Button disabled={!pode || !sel.size} title="Bloqueia o arranjo calculado das vigas e pilares selecionados na planta" onClick={() => bloquear(sel)}>Bloquear selecionados ({sel.size})</Button>
         <Button disabled={!pode} onClick={() => bloquear()}>Bloquear todos</Button>
         <Button disabled={calculando || !sel.size} onClick={() => desbloquear(sel)}>Desbloquear selecionados</Button>
-        <Button disabled={calculando || (!c.vigas && !c.lances)} onClick={() => desbloquear()}>Desbloquear todos</Button>
+        <Button disabled={calculando || (!c.vigas && !c.lances && !c.lajes)} onClick={() => desbloquear()}>Desbloquear todos</Button>
       </div>
       {velha && <Hint>Recalcule antes de bloquear: o arranjo bloqueado é o do último cálculo.</Hint>}
     </div>

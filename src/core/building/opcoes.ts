@@ -117,6 +117,18 @@ export interface OpcoesCalculo {
   lajeReforcoReducao: number;
   /** Lajes (R7d): traspasse entre painéis de tela soldada (cm). */
   lajeTelaTraspasse: number;
+  /** Lajes (R7e): traspasse da emenda construtiva feita depois do cálculo, sem recálculo (cm). */
+  lajeEmendaConstrutiva: number;
+  /** Lajes (R7e): 1 = uniformização automática dos negativos em faixas junto aos pilares (sem zonas lançadas). */
+  lajeUniformizarPilares: number;
+  /** Lajes (R7e): largura da faixa de uniformização junto a cada face do pilar (cm). */
+  lajeUniformizarPilaresLargura: number;
+  /** Lajes (R7e): 1 = armadura média uniforme por direção em lajes retangulares apoiadas em vigas (no lugar da máxima). */
+  lajeArmaduraMedia: number;
+  /** Lajes (R7e): 1 = siglas de reforço (RI inferior, RS superior) junto às barras nas plantas e nas pranchas. */
+  lajeSiglaReforco: number;
+  /** Lajes (R7e): numeração das posições de cada laje — 0 = ordem de geração (positivas e bases por direção, depois bordas), 1 = inferiores primeiro e superiores depois, agrupadas por tipo e direção. */
+  lajeNumeracao: number;
   /** Vigotas (treliçadas): momento positivo mínimo p·ℓ²/este valor por nervura (0 = desligado). */
   vigotaMomentoMinPositivo: number;
   /** Vigotas: momento negativo mínimo nas pontas p·ℓ²/este valor por nervura (0 = desligado). */
@@ -205,6 +217,14 @@ export interface OpcoesCalculo {
   corridaJanela: number;
   /** Sapata corrida de aba única (FU8a): espaçamento máximo entre cintas (m); acima dele, aviso (flexão longitudinal entre cintas não verificada). */
   corridaCintaEspac: number;
+  /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
+  modeloGlobal: number;
+  /** 1 = barras de laje com deformação por cortante (Timoshenko, área 5/6·b·h). */
+  cortanteBarrasLaje: number;
+  /** Tamanho alvo da malha triangular das cascas (m). */
+  malhaCasca: number;
+  /** Abertura interna de uma zona fechada por vigas acima da qual o diafragma rígido é questionado (% da área). */
+  aberturaDiafragma: number;
 }
 
 export interface OpcaoInfo {
@@ -373,6 +393,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'O reforço usa a bitola da base com espaçamento múltiplo do espaçamento da base (uma barra a cada k da base), em vez de uma bitola e espaçamento próprios.' },
   { chave: 'lajeTelaTraspasse', rotulo: 'Lajes: traspasse entre painéis de tela soldada', unidade: 'cm', min: 10, max: 60, passo: 1, padrao: 20, fonte: 'NBR 6118, 9.5.4 (emenda de telas por traspasse; valor inicial do app, sem fonte aberta)', aConfirmar: true,
     descricao: 'Sobreposição entre painéis vizinhos de tela, nas duas direções; os painéis seguem a largura de 2,45 m e o comprimento de 6,00 m.' },
+  { chave: 'lajeEmendaConstrutiva', rotulo: 'Lajes: traspasse da emenda construtiva (sem recálculo)', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 30, fonte: 'Programa de referência (K1.11.25): emendas construtivas de 30 cm feitas depois do cálculo, sem recalcular', aConfirmar: false,
+    descricao: 'Traspasse das emendas feitas na edição das posições (cortar uma barra numa linha de dobra ou num ponto) sem refazer o dimensionamento; o comprimento do traspasse não é verificado contra l0t.' },
+  { chave: 'lajeUniformizarPilares', rotulo: 'Lajes: uniformizar os negativos junto aos pilares', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.13.2.4-13): uniformização automática sobre pilares, em faixas adjacentes a pilares indicados; padrão desligado', aConfirmar: true,
+    descricao: 'Em cada pilar do grupo, as barras superiores que passam pela faixa em torno do pilar recebem a maior taxa e o maior comprimento entre elas (zona retangular automática).' },
+  { chave: 'lajeUniformizarPilaresLargura', rotulo: 'Lajes: largura da faixa de uniformização junto aos pilares', unidade: 'cm', min: 20, max: 300, passo: 5, padrao: 100, fonte: 'Valor inicial do app, sem fonte aberta (a faixa em torno do pilar)', aConfirmar: true,
+    descricao: 'Folga da zona retangular automática a partir de cada face do pilar.' },
+  { chave: 'lajeArmaduraMedia', rotulo: 'Lajes: armadura positiva média uniforme em lajes retangulares', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.13.2.4-18): opção de armadura média uniforme por direção em lajes retangulares apoiadas em vigas; padrão desligado', aConfirmar: true,
+    descricao: 'Lajes de quatro lados apoiados em vigas (sem furos, sem borda livre): a armadura positiva de cada direção usa a média dos momentos positivos máximos das linhas da grelha (nunca menos que a mínima), em vez do máximo.' },
+  { chave: 'lajeSiglaReforco', rotulo: 'Lajes: siglas de reforço junto às barras', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (C7.130): vista com siglas de reforço superior e inferior junto às barras de reforço', aConfirmar: false,
+    descricao: 'RI (reforço inferior) e RS (reforço superior) nos rótulos das barras de reforço das lajes, nas plantas e nas pranchas; barras da base, predefinidas, distribuição e demais ficam sem sigla.' },
+  { chave: 'lajeNumeracao', rotulo: 'Lajes: numeração das posições por face e tipo', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.77: critérios de disposição e numeração); padrão desligado, a ordem de geração do app', aConfirmar: true,
+    descricao: 'Ligada, as posições de cada laje são numeradas com as inferiores primeiro (positivas, reforços, bordas livres, furos) e depois as superiores (negativos, negativas de borda, distribuição, cantos), por direção; desligada, N1… na ordem em que o detalhamento as gera. A edição bloqueada acompanha a numeração em uso: trocar a opção desconsidera as edições (BLOQ_IGNORADO).' },
   { chave: 'vigotaMomentoMinPositivo', rotulo: 'Vigotas: momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige momento mínimo nas nervuras: só o da análise', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16)', aConfirmar: false,
     descricao: 'Momento positivo de cálculo de cada vigota ≥ p·ℓ²/este valor, com p = (V1 + V2)/ℓ dos cortantes das pontas (carga por nervura) e ℓ = comprimento da vigota. 0 = desligado.' },
   { chave: 'vigotaMomentoMinNegativo', rotulo: 'Vigotas: momento negativo mínimo nas pontas (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: só o momento da análise (bordas sem continuidade ficam sem negativo de cálculo)', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16), em todas as pontas', aConfirmar: false,
@@ -445,6 +477,14 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Distância entre as superfícies verificadas, em múltiplos de d, a partir do contorno C′.' },
   { chave: 'radierK', rotulo: 'Base elástica: coeficiente de reação vertical padrão (k)', unidade: 'kN/m³', min: 1000, max: 1000000, passo: 1000, padrao: 100000, fonte: 'Sem fonte normativa (NBR 6122 não fixa); valor da sapata corrida da spec da FU (10 kgf/cm³); tabela orientativa de Bowles (1996) no memorial; deve vir do geotécnico', aConfirmar: true,
     descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
+  { chave: 'modeloGlobal', rotulo: 'Modelo integrado (lajes no pórtico)', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige o modelo único: grelha das lajes e vigas e pórtico espacial separados (modelo clássico, 14.6.6 e 14.7; itens a confirmar)', booleana: true, fonte: 'Programa de referência: modelo único com pilares, vigas e lajes resolvidos juntos; a NBR 6118 admite os dois', aConfirmar: false,
+    descricao: 'Ligado: a grelha de cada pavimento (lajes e vigas) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto; os esforços das vigas e das lajes incluem o vento, e o γz usa também as lajes (0,3·Eci·Ic). Desligado (modelo anterior): grelha por pavimento com molas nos pilares e forças da grelha aplicadas nas vigas do pórtico.' },
+  { chave: 'cortanteBarrasLaje', rotulo: 'Deformação por cortante nas barras de laje', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a deformação por cortante nas barras da grelha (Euler-Bernoulli)', booleana: true, fonte: 'Programa de referência (barras da grelha das lajes com deformação por cortante); área de cisalhamento 5/6 da seção (Timoshenko)', aConfirmar: false,
+    descricao: 'Barras da grelha das lajes como vigas de Timoshenko (área de cisalhamento 5/6·b·h; nas treliçadas, a alma das nervuras e a capa). Aumenta um pouco as flechas das lajes espessas.' },
+  { chave: 'malhaCasca', rotulo: 'Malha das cascas (tamanho alvo)', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Sem fonte (critério do app); a casca de 6 nós entra nas paredes e pilares-parede com a E1', aConfirmar: true,
+    descricao: 'Tamanho alvo dos lados da malha triangular das cascas (Delaunay restrita), refinada à metade junto a cantos, aberturas e pontos de chegada de vigas e lajes.' },
+  { chave: 'aberturaDiafragma', rotulo: 'Aviso de abertura grande no diafragma', unidade: '% da zona', min: 5, max: 100, passo: 1, padrao: 33, fonte: 'Sem fonte (critério do app: 1/3 da área da zona); a hipótese de diafragma rígido é do programa de referência e da NBR 6118, 14.7.2.1 (item a confirmar)', aConfirmar: true,
+    descricao: 'Zona fechada por vigas com laje e com abertura interna (furos ou parte sem laje) acima desta fração da área recebe o aviso DIAFRAGMA_ABERTURA, sugerindo marcar as vigas da zona fora do diafragma.' },
   { chave: 'radierMalha', rotulo: 'Base elástica: malha do radier e divisão das vigas', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): malha mais grossa que a das lajes para limitar o tamanho do pórtico', aConfirmar: true,
     descricao: 'Espaçamento máximo das barras da grelha do radier (as linhas passam também pelos pilares) e dos nós das vigas sobre base elástica.' },
   { chave: 'corridaBMin', rotulo: 'Sapata corrida: largura mínima da base', unidade: 'm', min: 0.3, max: 3, passo: 0.05, padrao: 0.6, fonte: 'Mesmo mínimo das sapatas do módulo Fundações (lado ≥ 60 cm; a confirmar)', aConfirmar: true,

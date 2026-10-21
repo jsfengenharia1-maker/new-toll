@@ -1768,12 +1768,12 @@ export const flows = [
       const linhas = grupo.locator('table[data-fundacoes] tbody tr');
       assert.equal(await linhas.count(), 3);
 
-      // limite: divisa vertical a 30 cm do eixo de P1, à esquerda dele (tecla T)
+      // limite: divisa vertical a 15 cm do eixo de P1 (com o modelo integrado a resultante P1 + P2 fica mais perto de P2 e a sapata, mais curta à esquerda), à esquerda dele (tecla T)
       await page.locator('.planta-st').click();
       await page.keyboard.press('t');
       assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'limite');
-      await page.mouse.click(...(await telaDe(page, -0.3, 0.9)));
-      await page.mouse.click(...(await telaDe(page, -0.3, -0.2)));
+      await page.mouse.click(...(await telaDe(page, -0.15, 0.9)));
+      await page.mouse.click(...(await telaDe(page, -0.15, -0.2)));
       await page.keyboard.press('Enter');
       await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (2 vértices)' }).waitFor();
       const tabL = grupo.locator('table[data-limites-tabela] tbody tr');
@@ -2941,6 +2941,164 @@ export const flows = [
       assert.match(t, /Punção e cortante das lajes/);
       assert.match(t, /Punção por pilar/);
       assert.match(t, /Cortante das lajes nos apoios em vigas/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'R7e: edição das armaduras das lajes (painel não modal, edição bloqueada com ARM_BLOQ, agrupar, zona, linha de dobra, geração sem cálculo e refazer, rótulos da prancha, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      // painel de edição não modal sob a planta, com as camadas inferior e superior juntas
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.getByLabel('Armadura das lajes na planta').selectOption('editar');
+      const painel = page.locator('[data-painel-edicao-lajes]');
+      await painel.waitFor();
+      assert.equal(await page.getByLabel('Armadura das lajes na planta').inputValue(), 'editar');
+      const tab = painel.locator('[data-tabela-edicao-laje]');
+      await tab.waitFor();
+      const linhaPos = painel.locator('tr[data-pos-edicao][data-tipo="positiva"][data-face="inf"]');
+      assert.ok(await linhaPos.count() >= 2, 'positivas nas duas direções');
+      assert.ok(await painel.locator('tr[data-pos-edicao][data-face="sup"]').count() >= 1, 'negativos visíveis junto das positivas');
+      const pos0 = (await linhaPos.first().locator('td').nth(1).innerText()).trim();
+      const phi0 = await linhaPos.first().getByLabel(`Bitola de ${pos0}`).inputValue();
+      const row = (p) => painel.locator(`tr[data-pos-edicao="${p}"]`);
+      // 1) edição com mais armadura: bloqueada e marcada; o painel segue aberto
+      await row(pos0).getByLabel(`Bitola de ${pos0}`).selectOption('16');
+      await livre();
+      await row(pos0).getByText('editada', { exact: true }).waitFor({ timeout: 60000 });
+      assert.match(await painel.locator('[data-edicao-bloqueada]').innerText(), /1 posição editada/);
+      assert.ok(await painel.isVisible());
+      // 2) edição insuficiente: φ5 reprova com ARM_BLOQ na lista de erros
+      await row(pos0).getByLabel(`Bitola de ${pos0}`).selectOption('5');
+      await livre();
+      await row(pos0).getByText('editada', { exact: true }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('tbody tr.bad', { hasText: 'ARM_BLOQ' }).first().waitFor({ timeout: 30000 });
+      assert.match(await lista.innerText(), /Armadura bloqueada insuficiente \(laje/);
+      assert.match(await page.locator('[data-bloqueadas]').innerText(), /1 laje com armadura editada/);
+      // reverter a posição: o erro some
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await row(pos0).getByLabel(`Selecionar ${pos0}`).check();
+      await painel.getByRole('button', { name: 'Reverter marcadas' }).click();
+      await livre();
+      // o painel só volta a mostrar a tabela depois do recálculo: espera a tabela com a bitola original e sem posição editada
+      await page.waitForFunction(([p, v]) => document.querySelector(`[data-painel-edicao-lajes] tr[data-pos-edicao="${p}"] select`)?.value === v && !document.querySelector('[data-painel-edicao-lajes] [data-edicao-bloqueada]'), [pos0, phi0], { timeout: 60000 });
+      // 3) agrupar as duas positivas (iguala φ, espaçamento e comprimento) e desagrupar
+      const pos1 = (await linhaPos.nth(1).locator('td').nth(1).innerText()).trim();
+      await row(pos0).getByLabel(`Selecionar ${pos0}`).check();
+      await row(pos1).getByLabel(`Selecionar ${pos1}`).check();
+      await painel.locator('[data-agrupar]').click();
+      await livre();
+      await row(pos1).getByText('grupo 1').waitFor({ timeout: 60000 });
+      assert.equal(await row(pos0).getByLabel(`Bitola de ${pos0}`).inputValue(), await row(pos1).getByLabel(`Bitola de ${pos1}`).inputValue());
+      assert.equal(await row(pos0).getByLabel(`Comprimento de ${pos0}`).inputValue(), await row(pos1).getByLabel(`Comprimento de ${pos1}`).inputValue());
+      await painel.locator('[data-desagrupar]').click();
+      await livre();
+      await page.waitForFunction(() => document.querySelector('[data-painel-edicao-lajes] tr[data-pos-edicao]') && ![...document.querySelectorAll('[data-painel-edicao-lajes] tr[data-pos-edicao] .pill')].some((q) => /grupo/.test(q.textContent)), null, { timeout: 60000 });
+      // 4) zona de uniformização (formulário) e linha de dobra (ferramenta da planta)
+      const det = painel.locator('details').filter({ hasText: 'Zonas de uniformização e linhas de dobra' }).first();
+      await det.locator('summary').click();
+      await det.locator('[data-criar-zona]').click();
+      await livre();
+      await det.locator('table[data-tabela-zonas] tbody tr').first().waitFor({ timeout: 60000 });
+      await det.locator('[data-ferramenta-dobra]').click();
+      // o painel reduz o quadro da planta: enquadra (F) e espera a vista caber nele antes de clicar
+      await page.keyboard.press('f');
+      await page.waitForFunction(() => { const c = document.querySelector('canvas.int'), v = JSON.parse(document.querySelector('.planta-cv').dataset.vista); return c && v && v.oy < c.getBoundingClientRect().height; }, null, { timeout: 20000 });
+      const [x1, y1] = await telaDe(page, 2, 1), [x2, y2] = await telaDe(page, 2, 3);
+      await page.mouse.move(x1, y1); await page.mouse.click(x1, y1);
+      await page.mouse.move(x2, y2); await page.mouse.click(x2, y2);
+      await livre();
+      await det.locator('table[data-tabela-linhas-dobra] tbody tr').first().waitFor({ timeout: 60000 });
+      // 5) memorial: zonas, linhas de dobra e posições editadas (edita uma posição para constar)
+      await row(pos0).getByLabel(`Bitola de ${pos0}`).selectOption('12.5');
+      await livre();
+      await painel.locator('[data-edicao-bloqueada]').waitFor({ timeout: 60000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.innerText();
+      assert.match(mt, /Zonas de uniformização e linhas de dobra/);
+      assert.ok(await memo.locator('[data-memorial-zonas-lajes] tbody tr').count() >= 2);
+      assert.match(mt, /posi(ção|ções) editad(a|as) e bloquead(a|as)/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 6) rótulo da barra na prancha: deslocamento em mm (dado de prancha, sem recalcular)
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Armação de lajes' });
+      const gr = page.locator('details', { has: page.locator('summary', { hasText: 'Rótulos das barras das lajes' }) }).first();
+      await gr.locator('summary').click();
+      const ro = gr.locator('[data-rotulos-lajes]');
+      await ro.getByRole('button', { name: 'Rótulo à direita' }).click();
+      await ro.locator('[data-rotulos-reposicionados]').waitFor();
+      assert.match(await ro.locator('[data-rotulo-deslocamento]').innerText(), /5,0 ; 0,0 mm/);
+      // 7) geração só com a geometria: confirmação, aviso e refazer
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await painel.locator('[data-gerar]').click();
+      await painel.locator('[data-confirmar-gerar]').waitFor();
+      assert.match(await painel.locator('[data-confirmar-gerar]').innerText(), /apaga a edição/);
+      await painel.locator('[data-confirmar-gerar-ok]').click();
+      await livre();
+      await painel.locator('[data-sem-calculo]').waitFor({ timeout: 60000 });
+      assert.equal(await painel.locator('[data-edicao-bloqueada]').count(), 0, 'a geração apaga a edição existente');
+      await painel.locator('[data-refazer-laje]').click();
+      await livre();
+      await page.waitForFunction(() => document.querySelector('[data-painel-edicao-lajes] tr[data-pos-edicao]') && !document.querySelector('[data-sem-calculo]'), null, { timeout: 60000 });
+      assert.ok(await painel.locator('tr[data-pos-edicao]').count() >= 3);
+      // zona e linha de dobra permanecem depois do refazer
+      assert.equal(await det.locator('table[data-tabela-zonas] tbody tr').count(), 1);
+      assert.equal(await det.locator('table[data-tabela-linhas-dobra] tbody tr').count(), 1);
+      await painel.locator('[data-fechar-painel-lajes]').click();
+      assert.equal(await page.locator('[data-painel-edicao-lajes]').count(), 0);
+    },
+  },
+  {
+    name: 'N2b: modelo integrado (lajes condensadas no pórtico) em uso, opção no grupo Opções e volta ao modelo separado',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // opção no grupo Opções de cálculo, ligada por padrão (padrão do sistema)
+      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      const opcao = page.getByLabel('Modelo integrado (lajes no pórtico)');
+      assert.equal(await opcao.isChecked(), true);
+      assert.equal(await page.getByLabel('Deformação por cortante nas barras de laje').isChecked(), true);
+      assert.equal(await page.getByLabel('Malha das cascas (tamanho alvo)').inputValue(), '0,5');
+      // análise: indicação do modelo em uso, gdl e tempo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      const linha = page.locator('[data-modelo]');
+      await linha.waitFor();
+      assert.equal(await linha.getAttribute('data-modelo'), 'integrado');
+      assert.match(await linha.textContent(), /Modelo integrado \(\d+ pavimento\(s\) condensados no pórtico\) · \d+ gdl em \d+ ms/);
+      assert.match(await page.locator('.edif-out').textContent(), /superelemento/);
+      // desliga: volta ao modelo separado (comportamento anterior)
+      await opcao.uncheck();
+      await page.locator('summary', { hasText: 'Opções de cálculo (1 alterada)' }).waitFor();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('[data-modelo]')?.getAttribute('data-modelo') === 'separado', null, { timeout: 120000 });
+      assert.match(await page.locator('[data-modelo]').textContent(), /Modelo separado/);
+      // memorial descreve o modelo em uso
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /modelo separado/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },

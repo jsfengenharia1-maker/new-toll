@@ -31,6 +31,7 @@ import { EmpuxoGrupo } from './Empuxo';
 import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote, executarERecalcular } from './Armadura';
 import { FundacaoGrupo } from './Fundacao';
+import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
@@ -150,7 +151,7 @@ export function Edificio() {
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
-        {aba === 'planta' && <><PlantaBarra b={b} /><Planta /></>}
+        {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
         {aba !== 'planta' && aba !== 'vista3d' && (
           <div className="edif-out">
@@ -355,9 +356,14 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
       <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro" value={pl.camadaPuncao ? 'puncao' : pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length && !dim?.vigotas?.length && !dim?.puncao?.length}
-        onChange={(e) => { const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'puncao'; pl.set(v === 'puncao' ? { camadaPuncao: true, armaduraLajes: 'nenhuma' } : { camadaPuncao: false, armaduraLajes: v }); }}>
-        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
+      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
+        onChange={(e) => {
+          const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
+          if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
+          else if (v === 'editar') pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes });
+          else pl.set({ camadaPuncao: false, painelLajes: false, armaduraLajes: v });
+        }}>
+        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
         {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
       </select>
       {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
@@ -747,6 +753,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
   const { analise, revAnalise, calculando, calcular, sessao } = useBuilding();
   const r = analise ? resumoAnalise(b, analise) : null;
   const velha = analise && revAnalise !== sessao.revCalculo;
+  const integradoEmUso = (analise?.opcoes.modeloGlobal ?? 1) === 1;
   return (
     <>
       <div className="card">
@@ -756,9 +763,11 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
           {nErr > 0 && <span className="hint bad">Há {nErr} erro(s) de lançamento: o resultado pode não ter sentido.</span>}
           {velha && <span className="hint bad">O modelo mudou depois do cálculo: calcule de novo.</span>}
         </div>
-        <Hint>Casos G, Q e 12 de vento (4 direções × centrado/±e); γz com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic). Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</Hint>
+        <Hint>Casos G, Q e 12 de vento (4 direções × centrado/±e); γz com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic{integradoEmUso ? ', lajes 0,3·Eci·Ic' : ''}). {integradoEmUso
+          ? <>Modelo integrado: a grelha de lajes e vigas de cada pavimento (malha {fmt(analise?.opcoes.malha ?? 0.25)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %{analise?.opcoes.cortanteBarrasLaje ? ', barras de laje de Timoshenko' : ''}) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto, com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</>
+          : <>Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.25)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</>}</Hint>
         {r && !r.erro && (
-          <p className="small">{r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
+          <p className="small" data-modelo={integradoEmUso ? 'integrado' : 'separado'}>Modelo {integradoEmUso ? `integrado (${analise!.grelhas.filter((g) => g.integrado).length} pavimento(s) condensados no pórtico)` : 'separado (grelhas + pórtico)'} · {r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
         )}
         {r?.erro && <p className="hint bad">{r.erro}</p>}
         {r && r.avisos.length > 0 && <ul className="prem">{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}

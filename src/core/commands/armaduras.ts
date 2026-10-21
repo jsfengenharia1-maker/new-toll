@@ -84,7 +84,7 @@ registrar<{ ids: string[]; inf: { n: number; phi: number }; sup?: { n: number; p
 
 registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
   nome: 'armadura.desbloquear',
-  descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares, vigas e lajes treliçadas, ou todos de um `tipo`, ou todos sem parâmetros.',
+  descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares, vigas e lajes (treliçadas; maciças com edição ou geradas sem cálculo, R7e), ou todos de um `tipo`, ou todos sem parâmetros.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar', 'laje'] } } },
@@ -98,6 +98,7 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' }>({
     for (const q of d.pilares) if (q.armaduras && alvo(q.id, 'pilar')) { n += q.armaduras.length; delete q.armaduras; }
     for (const v of d.vigas) if (v.armadura && alvo(v.id, 'viga')) { n++; delete v.armadura; }
     for (const l of d.lajes) if (l.armaduraVigotas && alvo(l.id, 'laje')) { n++; delete l.armaduraVigotas; }
+    for (const l of d.lajes) if ((l.edicao || l.semCalculo) && alvo(l.id, 'laje')) { n++; delete l.edicao; delete l.semCalculo; }
     return n ? `${n} armadura(s) desbloqueada(s).` : 'Nenhuma armadura bloqueada.';
   },
 });

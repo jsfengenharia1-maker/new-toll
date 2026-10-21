@@ -9,28 +9,28 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 16 | 13 | 17 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 18 | 15 | 50 | 25 |
-| 7. Lajes | 195 | 22 | 34 | 72 | 67 |
+| 7. Lajes | 195 | 29 | 32 | 67 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 18 | 4 | 1 | 3 |
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **197** | **100** | **281** | **185** |
+| **Total** | **763** | **205** | **97** | **276** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 4 | 10 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 199 | 230 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 13 | 11 | 24 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 4 | 9 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 199 | 231 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -40,7 +40,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | C0.1 | Programa para edifícios de concreto armado e aço que reúne análise espacial, dimensionamento dos elementos, edição de armaduras e seções e desenhos de execução. | Parcial | E | análise espacial, dimensionamento, pranchas de formas, locação e armação (R5); sem aço no edifício [E4e] |
-| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | N | grelha por pavimento + pórtico espacial (não é um modelo único: frente N); fundação em módulo à parte (FU) [N2b] |
+| C0.2 | Análise tridimensional da estrutura completa (elementos verticais e lajes), incluindo as fundações. | Parcial | E | modelo integrado (N2b, padrão): pilares, vigas e lajes num modelo só, com as grelhas condensadas no pórtico espacial (`analitico.ts`, `condensacao.ts`) e radier e vigas sobre base elástica no mesmo pórtico (FU6); paredes e pilares-parede como cascas entram com a E1 [E1c] |
 | C0.3 | Dimensionamento automático dos elementos de concreto armado e de aço. | Feito | — | concreto armado dimensionado no edifício (NBR 6118); aço no edifício fora do escopo (o Pórtico 2D dimensiona aço pela NBR 8800) |
 | C0.4 | Normas de vários países à escolha do usuário. | Fora | — | só normas brasileiras, por decisão de escopo |
 
@@ -88,7 +88,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Feito | — | FU1–FU7a: sapatas, blocos e tubulões (`fundacao.ts`), vigas de equilíbrio e de travamento (`vigasFundacao.ts`), radier e vigas sobre base elástica (`baseElastica.ts`, lançados por contorno ou polilinha na planta de fundação, no lugar de laje no nível) e sapatas corridas (`sapataCorrida.ts`), no grupo Fundação e na planta do nível de fundação |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
 | C1.37 | Passo 12: conferir os erros e corrigir as dimensões, recalculando até não restar erro que peça mudança de dimensão. A cada ciclo o peso próprio é reajustado. | Feito | — | lista de erros e avisos com contagem, filtros e clique para o elemento na planta; janela de resultados por elemento; peso próprio recalculado (R1) |
-| C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Parcial | R | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis antes das pranchas (R2, R6) e pilares iguais agrupados no quadro (R5); sem editar/uniformizar a armadura das lajes maciças nem reposicionar textos [R7e] |
+| C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Feito | — | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis (R2, R6), pilares iguais agrupados no quadro (R5), lajes maciças com edição bloqueada, uniformização por zonas e posições agrupadas (`src/core/building/lajesEdicao.ts`, comandos `laje.barras` e `laje.uniformizacao`, painel `EdicaoLajes.tsx`) e rótulos das barras reposicionáveis nas pranchas (`prancha.rotulo`, grupo "Rótulos das barras das lajes" em `Pranchas.tsx`) (R7e) |
 | C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Feito | — | memorial e pranchas de formas, locação e armação de vigas, pilares e lajes em PDF/DXF/DWG (R5) |
 | | **1.3.3 Gestão de arquivos** | | | |
 | C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício [L1] |
@@ -556,14 +556,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **7.2.2 Lajes maciças e nervuradas (cogumelo/ábacos)** | | | |
 | C7.126 | Aviso pós-cálculo: flecha de lajes nervuradas e maciças não é verificada automaticamente; o usuário consulta a flecha elástica entre dois pontos e compara com o limite da norma. | Feito | — | flecha de lajes maciças estimada e comparada com L/250 (o manual não verifica) |
 | C7.127 | Aviso pós-cálculo recomendando recalcular quando há perfis de aço maiores que os lançados. | Fora | — | perfis de aço nas lajes (aço no edifício fora do escopo) |
-| C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Falta | R | armadura das lajes sem cálculo completo [R7e] |
+| C7.128 | Geração da armadura de lajes maciças/nervuradas sem cálculo completo, com a geometria atual, para editar à mão; apaga toda a armadura existente da obra. | Feito | — | `lajes.gerarArmadura` (`mcp: false`): mínimos e base sem os esforços da análise (`Laje.semCalculo`, `detalharLaje`), apaga a edição e as predefinidas; confirmação no painel (`GerarArmadura`); `laje.barras` com `refazer` volta ao cálculo mantendo zonas e linhas de dobra; aviso LAJE_SEM_CALCULO (R7e) |
 | C7.129 | Vista da armadura em lajes inclinadas: desenho do dobramento, comprimentos parciais de cada lado da dobra e marca do ponto de dobra. | Falta | E | lajes inclinadas (E3) [E3f] |
-| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Parcial | R | rótulos "Nk – n φ c/s – C = x,xx" junto às barras na planta da laje (R4) e nas pranchas (R5); sem siglas de reforço [R7e] |
-| C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Falta | R | linhas de dobra [R7e] |
-| C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Falta | R | tabelas de armadura das lajes [R7e] |
-| C7.133 | Janela de armadura pode ficar aberta enquanto se edita (edição contínua). | Falta | R | edição da armadura das lajes [R7e] |
-| C7.134 | Desfazer o agrupamento de barras clicando no grupo, que mostra todas as barras dele. | Falta | R | [R7e] |
-| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Parcial | R | camadas inferior e superior ligáveis na planta da laje e na planta do pavimento; sem edição (R4) [R7e] |
+| C7.130 | Vista com siglas de reforço superior e inferior junto às barras de reforço. | Feito | — | siglas RI (inferior) e RS (superior) junto às barras calculadas na planta, na janela da laje e nas pranchas (opção `lajeSiglaReforco`, `siglaReforco`); base, predefinidas e distribuição sem sigla (R7e) |
+| C7.131 | Vista das linhas de flexão (linhas de corte para armadura) definidas pelo usuário. | Feito | — | linhas de dobra (`laje.linhaDobra`, `BuildingModel.linhasDobra`, ferramenta na planta e pela aresta da laje): desenhadas na planta, na janela da laje e nas pranchas ("LD1…") (R7e) |
+| C7.132 | Troca de diâmetro/espaçamento escolhendo um conjunto de armadura de uma tabela, atribuível às lajes; a tabela é editável. | Feito | — | conjunto φ/espaçamento da tabela de armadura da laje (R7a) aplicado às posições marcadas (`laje.barras` com `conjunto`, validado pela tabela; erro FORA_TABELA_LAJE) (R7e) |
+| C7.133 | Janela de armadura pode ficar aberta enquanto se edita (edição contínua). | Feito | — | painel de edição não modal sob a planta do pavimento (`PainelEdicaoLajes`), aberto enquanto se edita; recálculo após cada ação (R7e) |
+| C7.134 | Desfazer o agrupamento de barras clicando no grupo, que mostra todas as barras dele. | Feito | — | `laje.barras` com `agrupar` e `desagrupar`: posições do grupo editam juntas e mostram "grupo n" na tabela (R7e) |
+| C7.135 | Manter visível a armadura das vistas ativas enquanto se edita outra (ex.: ver a inferior ao editar a superior). | Feito | — | camada da planta "inferior e superior" (`armaduraLajes: ambas`) e painel com as duas faces visíveis ao mesmo tempo (R7e) |
 | C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R | [R7f] |
 | C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R | [R7f] |
 | C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R | [R7f] |
@@ -993,3 +993,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — subfatias FU8a a FU8d (pendências da auditoria da frente FU).** C10.23 e C11.30 (manual do usuário) passam a Feito: radier sem carga com definição da carga na hora (`radier.carga`, botão "Definir carga e seguir") e sapata corrida de aba única com cintas (`src/core/building/cintasCorrida.ts`, comandos `cinta.criar/editar/remover`, alavanca por trecho tributário com reação majorada por R/N sob a base e alívio no elemento interno; dimensionamento por `dimensionarVigaFundacao`; elevação longitudinal da corrida e cintas nas pranchas). Ligação com o módulo Fundações: `sondagem.copiar`, copiar nos dois sentidos e "Abrir no Edifício" (`LigacaoEdificio`). Validação externa: `validation/opensees/sapata_associada.py` e `bloco_multi.py`. e2e FU8.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: FU reduz em 2 itens; demais sem mudança.
+- **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134 e C7.135 (manual do usuário) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: R reduz em 8 itens (manual do usuário); demais sem mudança.

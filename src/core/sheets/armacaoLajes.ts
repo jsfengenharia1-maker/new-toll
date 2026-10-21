@@ -9,6 +9,8 @@ import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
 import { TRELICADAS } from '../building/lajes';
 import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
+import { siglaReforco } from '../building/lajesEdicao';
+import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel } from '../building/types';
 import { areaPoligono } from '../geom/faces';
 import { pontoInterno } from '../geom/faces';
@@ -28,6 +30,7 @@ function angLegivel(a: P, z: P) {
 
 export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | null, dim: Dimensionamento, o: OpcoesArmacao = {}): Prancha[] {
   const cfg = cfgArmacao(b), cfgP = { formato: b.prancha?.formato ?? 'auto', escala: b.prancha?.escala ?? 0 };
+  const sigla = opcoesEmUso(b.opcoes, perfilDe(b)).lajeSiglaReforco === 1, rotulos = b.prancha?.rotulos ?? {};
   const perdas = perdasDe(b), fck = fckDe(b, 'laje'), acoI = acoDe(b, 'lajeInf').aco, acoS = acoDe(b, 'lajeSup').aco;
   const gSel = acharGrupo(b, o.grupo);
   const out: Prancha[] = [];
@@ -52,6 +55,10 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       const pi = pontoInterno(l.contorno);
       fundo.push({ t: 'txt', c: 'TEXTO', p: [pi[0] + 3 * k, pi[1] + 3 * k], h: 3 * k, s: l.nome, ah: 'e', av: 'base' });
     }
+    // linhas de dobra do grupo (R7e): traço e ponto, rotuladas LD1…
+    (b.linhasDobra ?? []).filter((ln) => ln.grupo === g).forEach((ln, i) => {
+      fundo.push({ t: 'pl', c: 'EIXO', pts: [ln.a, ln.z] }, { t: 'txt', c: 'TEXTO', p: ln.a, h: 1.8 * k, s: `LD${i + 1}`, ah: 'e', av: 'base' });
+    });
     for (const v of vigas) { const gv = geometriaViga(v); fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: [...gv.esq, ...[...gv.dir].reverse()], fechada: true }); }
     for (const p of pilares) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: contornoPilar(p, secaoNoLance(p, ref!.id)), fechada: true });
     // concreto e forma das lajes do grupo (todas as repetições)
@@ -64,7 +71,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     const folhas: { faces: Face[]; rot: string }[] = cfg.lajesSeparadas ? [{ faces: ['inf'], rot: 'POSITIVAS' }, { faces: ['sup'], rot: 'NEGATIVAS' }] : [{ faces: ['inf', 'sup'], rot: 'POSITIVAS E NEGATIVAS' }];
     for (const fl of folhas) {
       const reg = new Posicoes(), modelo: Prim[] = [...fundo];
-      const barra = (x: PosicaoLaje, rep: number) => {
+      const barra = (x: PosicaoLaje, rep: number, laje: string) => {
         const face = x.face as Face, aco = face === 'inf' ? acoI : acoS, C = cmInt(x.comprimento);
         const L0 = cmInt(x.ganchos[0]), L1 = cmInt(x.ganchos[1]);
         const pos = reg.pos(`L|${face}|${Math.min(L0, L1)}|${Math.max(L0, L1)}`, aco, x.phi, C, x.n * rep);
@@ -86,11 +93,15 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         }
         // texto a 35 % da barra (a linha de distribuição costuma cruzar o meio)
         const t = L / k > 70 ? 0.35 : 0.5;
-        const m: P = [x.a[0] + (x.z[0] - x.a[0]) * t + n[0] * 0.8 * k, x.a[1] + (x.z[1] - x.a[1]) * t + n[1] * 0.8 * k];
-        const s = x.s > 0 ? ` c/${cmInt(x.s)}` : '';
-        modelo.push({ t: 'txt', c: 'TEXTO', p: m, h: 2 * k, s: `${qtd(rep, x.n)} ${pos} ${phiTxt(x.phi)}${s} C=${C}`, ang, ah: 'c', av: 'base' });
+        // rótulo reposicionado pelo usuário (R7e): deslocamento no papel (mm)
+        const off = rotulos[`${laje}|${x.pos}`] ?? [0, 0];
+        const m: P = [x.a[0] + (x.z[0] - x.a[0]) * t + n[0] * 0.8 * k + off[0] * k, x.a[1] + (x.z[1] - x.a[1]) * t + n[1] * 0.8 * k + off[1] * k];
+        const s = x.s > 0 ? ` c/${cmInt(x.s)}` : '', sg = sigla && siglaReforco(x) ? ` ${siglaReforco(x)}` : '';
+        modelo.push({ t: 'txt', c: 'TEXTO', p: m, h: 2 * k, s: `${qtd(rep, x.n)} ${pos} ${phiTxt(x.phi)}${s} C=${C}${sg}`, ang, ah: 'c', av: 'base' });
+        // rótulo afastado: traço fino até a barra
+        if (off[0] || off[1]) modelo.push({ t: 'pl', c: 'COTA', pts: [[x.a[0] + (x.z[0] - x.a[0]) * t, x.a[1] + (x.z[1] - x.a[1]) * t], m] });
       };
-      for (const d of dets) for (const x of d.posicoes) if (fl.faces.includes(x.face)) barra(x, d.repeticoes);
+      for (const d of dets) for (const x of d.posicoes) if (fl.faces.includes(x.face)) barra(x, d.repeticoes, d.laje);
       // base em tela soldada detalhada: painel com diagonais e "T1 – Q138 – 2,45 × 6,00" (m), traspasse pelos retângulos sobrepostos
       const telas = new Map<string, { n: number; area: number; peso: number }>();
       const relacao: string[][] = [];
