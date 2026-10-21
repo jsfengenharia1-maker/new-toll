@@ -14,7 +14,7 @@ export type DimEdificio = Dimensionamento & { fundacao: FLoad[]; ms: number };
 export interface Conjunto { pranchas: Prancha[]; avisos: string[] }
 /** Resultado só das fundações (elementos, vigas de fundação e avisos). */
 export type FundacoesEdificio = Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'>;
-type Msg = { id: number; r?: AnaliseEdificio; dim?: DimEdificio | null; conjunto?: Conjunto; fundacoes?: FundacoesEdificio; obsoleto?: boolean; erro?: string };
+type Msg = { id: number; r?: AnaliseEdificio; dim?: DimEdificio | null; rearmado?: boolean; conjunto?: Conjunto; fundacoes?: FundacoesEdificio; obsoleto?: boolean; erro?: string };
 
 /** Pedido substituído por um mais novo antes de ser montado (quem pediu deve ignorá-lo). */
 export class Obsoleto extends Error { constructor() { super('Pedido substituído por um mais novo.'); } }
@@ -39,8 +39,8 @@ function pedir<T>(m: object, ler: (r: Msg) => T): Promise<T> {
 }
 
 /** Analisa e dimensiona; `id` identifica o cálculo no worker (as pranchas de armação são montadas com ele). */
-export function calcular(modelo: BuildingModel, o: { anteriores?: ResultadoFundacao[]; semFundacao?: boolean } = {}): Promise<{ analise: AnaliseEdificio; dim: DimEdificio | null; id: number }> {
-  return pedir({ tipo: 'calcular', modelo, anteriores: o.anteriores, semFundacao: o.semFundacao }, (m) => {
+export function calcular(modelo: BuildingModel, o: { anteriores?: ResultadoFundacao[]; semFundacao?: boolean; esforcosRev?: number } = {}): Promise<{ analise: AnaliseEdificio; dim: DimEdificio | null; id: number }> {
+  return pedir({ tipo: 'calcular', modelo, anteriores: o.anteriores, semFundacao: o.semFundacao, esforcosRev: o.esforcosRev }, (m) => {
     if (!m.r) throw new Error(m.erro ?? 'Falha no cálculo.');
     return { analise: m.r, dim: m.dim ?? null, id: m.id };
   });
@@ -66,5 +66,17 @@ export function calcularFundacoesNoWorker(modelo: BuildingModel, calculo: number
   return pedir({ tipo: 'fundacao', modelo, calculo, anteriores }, (m) => {
     if (!m.fundacoes) throw new Error(m.erro ?? 'Falha no cálculo das fundações.');
     return m.fundacoes;
+  });
+}
+
+/**
+ * Refaz só o dimensionamento e o detalhamento com a análise que o worker já guarda (`calculo` = id do cálculo em vigor):
+ * a análise não volta a rodar. `alterados`: só os elementos que mudaram desde o último dimensionamento. O resultado
+ * ganha um id novo (as pranchas de armação passam a ser montadas com ele).
+ */
+export function rearmarNoWorker(modelo: BuildingModel, calculo: number, modo: 'todos' | 'alterados'): Promise<{ dim: DimEdificio; id: number }> {
+  return pedir({ tipo: 'rearmar', modelo, calculo, modo }, (m) => {
+    if (!m.dim) throw new Error(m.erro ?? 'Falha ao rearmar.');
+    return { dim: m.dim, id: m.id };
   });
 }

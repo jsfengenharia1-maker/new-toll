@@ -6,6 +6,7 @@ import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '
 import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
+import { rearmar } from '../core/building/rearmar';
 import { resumoFundacao, type ResultadoFundacao } from '../core/building/fundacao';
 import { resumoBaseElastica } from '../core/building/baseElastica';
 import { resumoCorrida } from '../core/building/sapataCorrida';
@@ -92,19 +93,25 @@ export class ServidorMcp {
     this.ferramentas = [...base, ...cmds];
   }
 
-  private cache: { sessao: Sessao; revCalculo: number; revFundacao: number; an: AnaliseEdificio; dim: ReturnType<typeof dimensionar> } | null = null;
+  private cache: { sessao: Sessao; revCalculo: number; revFundacao: number; revDetalhe: number; an: AnaliseEdificio; dim: ReturnType<typeof dimensionar> } | null = null;
   /**
    * Dimensionamento do modelo atual: refeito só se a revisão de cálculo mudou (dados de prancha não contam); se só a
-   * fundação mudou, recalcula só as fundações com a análise guardada.
+   * fundação mudou, recalcula só as fundações com a análise guardada; se só o detalhe mudou (tabelas, armadura,
+   * opções de detalhamento), rearma com a análise guardada (R7f).
    */
   private resultados() {
-    const s = this.sessao, c = this.cache;
-    if (!c || c.sessao !== s || c.revCalculo !== s.revCalculo) { const an = analisarEdificio(s.modelo); this.cache = { sessao: s, revCalculo: s.revCalculo, revFundacao: s.revFundacao, an, dim: dimensionar(s.modelo, an) }; }
-    else if (c.revFundacao !== s.revFundacao) {
-      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, ...comFundacao(s.modelo, c.an) };
-      this.cache = { ...c, revFundacao: s.revFundacao, dim };
+    const s = this.sessao;
+    let c = this.cache;
+    if (!c || c.sessao !== s || c.revCalculo !== s.revCalculo) { const an = analisarEdificio(s.modelo); c = this.cache = { sessao: s, revCalculo: s.revCalculo, revFundacao: s.revFundacao, revDetalhe: s.revDetalhe, an, dim: dimensionar(s.modelo, an) }; }
+    if (c.revDetalhe !== s.revDetalhe) {
+      const ant = c.dim, r = 'erro' in ant ? null : rearmar(s.modelo, c.an, { modo: 'todos', anterior: ant });
+      c = this.cache = { ...c, revDetalhe: s.revDetalhe, dim: r && 'dim' in r && !('erro' in ant) ? { ...r.dim, fundacao: ant.fundacao } : dimensionar(s.modelo, c.an) };
     }
-    return this.cache!.dim;
+    if (c.revFundacao !== s.revFundacao) {
+      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, ...comFundacao(s.modelo, c.an) };
+      c = this.cache = { ...c, revFundacao: s.revFundacao, dim };
+    }
+    return c.dim;
   }
 
   private saida(r: Resultado) {

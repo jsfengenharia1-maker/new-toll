@@ -1,10 +1,13 @@
 // Detalhamento das vigas (frente R3a): elevação e seção esquemáticas, tabela de barras e estribos, resumo de aço
 // com perdas, exportação CSV e cópia da armadura bloqueada para outras vigas do grupo.
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBuilding } from './store';
 import { Button, Check, Hint, KV, NumField, Pill, Select, download } from '../ui';
 import { usePlanta } from './plantaStore';
 import { motivoTramo } from '../../core/building/detalhamento';
+import { COPIA_DIF_VAO, ehModeloPortico, modeloDaViga, motivoCopia, perfilDaViga } from '../../core/building/copiaArmadura';
+import { useStore } from '../store';
+import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import type { Viga } from '../../core/building/types';
 import { barArea } from '../../core/concrete';
@@ -297,18 +300,22 @@ export function DetalheDaViga({ id }: { id: string }) {
 
 // ---------------------------------------------------------------- copiar armadura
 
-/** Botão "Copiar para…" da viga com armadura bloqueada: lista as vigas do grupo (mesma seção e nº de vãos pré-marcadas). */
+/**
+ * "Copiar para…" da viga com armadura bloqueada: lista as vigas de todos os grupos, com o motivo quando a cópia não é
+ * possível (número de vãos, diferença de vão de 25 cm ou mais, desnível), e guarda o pórtico como modelo na biblioteca.
+ */
 export function CopiarArmadura({ v }: { v: ResultadoViga }) {
-  const dim = useBuilding((s) => s.dim), b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
+  const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
   const [aberto, setAberto] = useState(false);
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
   const o = b.vigas.find((x) => x.id === v.viga);
-  if (!o || !v.bloqueada) return null;
-  const vaos = (id: string) => Math.max(0, (dim?.detalhes?.find((x) => x.viga === id)?.apoios.length ?? 1) - 1);
-  const mesma = (x: { secao: { b: number; h: number } }) => Math.abs(x.secao.b - o.secao.b) < 1e-6 && Math.abs(x.secao.h - o.secao.h) < 1e-6;
-  const outras = b.vigas.filter((x) => x.grupo === o.grupo && x.id !== o.id);
+  const perfil = useMemo(() => (o ? perfilDaViga(b, o) : null), [b, o]);
+  if (!o || !v.bloqueada || !perfil) return null;
+  const outras = b.vigas.filter((x) => x.id !== o.id);
+  const motivo = (x: (typeof outras)[number]) => motivoCopia(b, perfil, x);
+  const grupoDe = (id: string) => b.grupos.find((g) => g.id === id)?.nome ?? id;
   const abrir = () => {
-    setMarcadas(new Set(outras.filter((x) => mesma(x) && vaos(x.id) === vaos(o.id)).map((x) => x.id)));
+    setMarcadas(new Set(outras.filter((x) => x.grupo === o.grupo && !motivo(x) && x.secao.b === o.secao.b && x.secao.h === o.secao.h).map((x) => x.id)));
     setAberto(true);
   };
   const copiar = async () => {
@@ -319,26 +326,68 @@ export function CopiarArmadura({ v }: { v: ResultadoViga }) {
   return (
     <section data-copiar-armadura>
       <div className="row wrap">
-        <Button disabled={calculando || !outras.length} title="Copia a armadura bloqueada desta viga para outras do mesmo grupo" onClick={() => (aberto ? setAberto(false) : abrir())}>Copiar para…</Button>
-        {!outras.length && <span className="muted small">Não há outras vigas neste grupo.</span>}
+        <Button disabled={calculando || !outras.length} title="Copia a armadura bloqueada desta viga para outras, do mesmo grupo ou de outros grupos" onClick={() => (aberto ? setAberto(false) : abrir())}>Copiar para…</Button>
+        {!outras.length && <span className="muted small">Não há outras vigas.</span>}
+        <ModelosPortico o={o} />
       </div>
       {aberto && (
         <div className="card" data-lista-copia>
-          <p className="small">Vigas do grupo. Estão marcadas as de mesma seção ({Math.round(o.secao.b * 100)}×{Math.round(o.secao.h * 100)} cm) e mesmo número de vãos ({vaos(o.id)}); as demais exigem conferência.</p>
-          {outras.map((x) => (
-            <div key={x.id} className="row wrap">
-              <Check label={`${x.nome} — ${Math.round(x.secao.b * 100)}×${Math.round(x.secao.h * 100)} cm, ${vaos(x.id)} ${vaos(x.id) === 1 ? 'vão' : 'vãos'}${x.armadura ? ' (já bloqueada)' : ''}`} checked={marcadas.has(x.id)}
-                onChange={(on) => setMarcadas((m) => { const n = new Set(m); if (on) n.add(x.id); else n.delete(x.id); return n; })} />
-            </div>
-          ))}
+          <p className="small">Vigas de todos os grupos. Condições da cópia: mesmo número de vãos ({perfil.vaos.length}), diferença menor que {Math.round(COPIA_DIF_VAO * 100)} cm em cada vão e desníveis coincidentes; a armadura e o detalhe editado (comprimentos) vão juntos. Estão marcadas as do mesmo grupo e seção.</p>
+          {outras.map((x) => {
+            const m = motivo(x);
+            return (
+              <div key={x.id} className="row wrap" data-destino-copia={x.nome}>
+                <Check label={`${x.nome} (${grupoDe(x.grupo)}) — ${Math.round(x.secao.b * 100)}×${Math.round(x.secao.h * 100)} cm${x.armadura ? ' (já bloqueada)' : ''}`} checked={marcadas.has(x.id) && !m}
+                  onChange={(on) => { if (m) return; setMarcadas((s) => { const n = new Set(s); if (on) n.add(x.id); else n.delete(x.id); return n; }); }} />
+                {m && <span className="hint bad small" data-motivo-copia>{m}</span>}
+              </div>
+            );
+          })}
           <div className="row wrap">
             <Button variant="primary" disabled={calculando || !marcadas.size} onClick={copiar}>Copiar para {marcadas.size} {marcadas.size === 1 ? 'viga' : 'vigas'}</Button>
             <Button onClick={() => setAberto(false)}>Cancelar</Button>
           </div>
-          <Hint>A armadura copiada fica bloqueada nas vigas de destino e o recálculo a verifica (pode reprovar onde o esforço for maior).</Hint>
+          <Hint>A armadura copiada fica bloqueada nas vigas de destino e o recálculo a verifica (pode reprovar onde o esforço for maior; não há aviso de armadura menor que a necessária).</Hint>
         </div>
       )}
     </section>
+  );
+}
+
+/** Modelos de armadura de pórtico na biblioteca do usuário (reaproveitar em outras obras). */
+function ModelosPortico({ o }: { o: Viga }) {
+  const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
+  const [itens, setItens] = useState<LibraryItem[]>([]);
+  const [sel, setSel] = useState('');
+  const [msg, setMsg] = useState('');
+  const recarregar = () => listLibrary().then((r) => setItens(r.items.filter((i) => i.kind === 'portico'))).catch(() => {});
+  useEffect(() => { recarregar(); }, []);
+  const gravar = async () => {
+    const m = modeloDaViga(b, o);
+    if (!m) { setMsg('A viga não tem armadura bloqueada.'); return; }
+    try {
+      await saveToLibrary('portico', m.nome, `${Math.round(m.secao.b * 100)}×${Math.round(m.secao.h * 100)} · ${m.vaos.length} vão(s) · ${m.armadura.inf.n}φ${m.armadura.inf.phi}`, m);
+      setMsg(`Modelo “${m.nome}” gravado na biblioteca.`); recarregar();
+    } catch (e) { setMsg((e as Error).message); }
+  };
+  const aplicar = async () => {
+    const e = sel ? await loadFromLibrary(sel) : null;
+    if (!e || !ehModeloPortico(e.payload)) { setMsg('Modelo inválido.'); return; }
+    const ok = await executarERecalcular('viga.copiarArmadura', { modelo: e.payload, para: [o.id] });
+    setMsg(ok ? `Modelo “${e.name}” aplicado a ${o.nome}.` : useStore.getState().message);
+  };
+  return (
+    <details className="small" data-modelos-portico>
+      <summary>Modelos de pórtico (biblioteca)</summary>
+      <div className="row wrap">
+        <Button disabled={calculando} data-modelo-gravar onClick={gravar}>Gravar a armadura desta viga como modelo</Button>
+        <Select label="Modelos gravados" value={sel} options={[{ v: '', label: itens.length ? '— escolha —' : '(vazia)' }, ...itens.map((i) => ({ v: i.id, label: `${i.name} · ${i.summary}` }))]} onChange={setSel} />
+        <Button disabled={calculando || !sel} onClick={aplicar}>Aplicar a {o.nome}</Button>
+        <Button variant="danger" disabled={!sel} onClick={async () => { await deleteFromLibrary(sel); setSel(''); recarregar(); }}>Excluir</Button>
+        {msg && <span className="hint">{msg}</span>}
+      </div>
+      <Hint>O modelo guarda a seção, os vãos, o desnível, a armadura e o detalhe editado; só se aplica a uma viga que atenda às condições da cópia.</Hint>
+    </details>
   );
 }
 

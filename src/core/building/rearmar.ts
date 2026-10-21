@@ -11,82 +11,10 @@ import { dimensionarEdificio, type Dimensionamento } from './dimensionamento';
 import { resumoAcoVigas } from './detalhamento';
 import { resumoAcoPilares } from './detalhamentoPilares';
 import { opcoesEmUso, perfilDe } from './opcoes';
-import type { BuildingModel, Pilar, SecaoPilar, Viga } from './types';
+import type { BuildingModel } from './types';
+import { elementosAlterados, mesmosElementos, variacoesRigidez, type InfoRearme } from './rearmarAlterados';
 
-export interface ElementoAlterado { tipo: 'viga' | 'pilar' | 'laje'; id: string; nome: string; motivo: string }
-
-/** O que foi feito no rearme: vai para o memorial ("elementos rearmados com os esforços da revisão n"). */
-export interface InfoRearme {
-  modo: 'todos' | 'alterados';
-  /** `Sessao.revCalculo` da análise cujos esforços foram usados. */
-  esforcosRev: number;
-  /** Os esforços são de uma estrutura com seções diferentes das atuais? */
-  antigos: boolean;
-  /** Elementos refeitos (modo "alterados"; em "todos", os que mudaram desde o último dimensionamento). */
-  refeitos: ElementoAlterado[];
-  /** Elementos que guardaram o resultado anterior (só no modo "alterados"). */
-  mantidos: number;
-  /** Motivo de todos terem entrado no modo "alterados" (mudança global), quando for o caso. */
-  global?: string;
-  /** Variação de inércia desde a análise, dos elementos acima do limite. */
-  variacoes: { tipo: 'viga' | 'pilar'; id: string; nome: string; variacao: number }[];
-}
-
-const iguais = (a: unknown, z: unknown) => a === z || JSON.stringify(a) === JSON.stringify(z);
-
-/** Campos do modelo que valem para a obra toda: se mudaram, todos os elementos precisam ser refeitos. */
-const GLOBAIS = ['opcoes', 'perfilOpcoes', 'norma', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'agrupamentos'] as const;
-
-/** Elementos cuja entrada mudou entre dois modelos, e os campos globais que mudaram. */
-export function elementosAlterados(antes: BuildingModel, agora: BuildingModel) {
-  const out: ElementoAlterado[] = [];
-  const motivoViga = (a: Viga, z: Viga) => (!iguais(a.secao, z.secao) ? 'seção modificada' : !iguais(a.armadura, z.armadura) ? (z.armadura ? 'armadura editada' : 'armadura desbloqueada') : !iguais(a.detalhe, z.detalhe) ? 'detalhe editado' : a.tabela !== z.tabela || a.tabelaEstribo !== z.tabelaEstribo ? 'tabela' : a.cobrimento !== z.cobrimento ? 'cobrimento' : 'dados da viga');
-  const A = new Map(antes.vigas.map((v) => [v.id, v]));
-  for (const v of agora.vigas) { const a = A.get(v.id); if (!a) out.push({ tipo: 'viga', id: v.id, nome: v.nome, motivo: 'nova' }); else if (!iguais(a, v)) out.push({ tipo: 'viga', id: v.id, nome: v.nome, motivo: motivoViga(a, v) }); }
-  const P = new Map(antes.pilares.map((p) => [p.id, p]));
-  for (const p of agora.pilares) {
-    const a = P.get(p.id);
-    if (!a) out.push({ tipo: 'pilar', id: p.id, nome: p.nome, motivo: 'novo' });
-    else if (!iguais(a, p)) out.push({ tipo: 'pilar', id: p.id, nome: p.nome, motivo: !iguais(a.secao, p.secao) || !iguais(a.secoes, p.secoes) ? 'seção modificada' : !iguais(a.armaduras, p.armaduras) ? (p.armaduras?.length ? 'armadura editada' : 'armadura desbloqueada') : !iguais(a.detalhe, p.detalhe) ? 'detalhe editado' : 'dados do pilar' });
-  }
-  const L = new Map(antes.lajes.map((l) => [l.id, l]));
-  for (const l of agora.lajes) { const a = L.get(l.id); if (!a) out.push({ tipo: 'laje', id: l.id, nome: l.nome, motivo: 'nova' }); else if (!iguais(a, l)) out.push({ tipo: 'laje', id: l.id, nome: l.nome, motivo: 'dados da laje' }); }
-  const globais = GLOBAIS.filter((k) => !iguais(antes[k], agora[k]));
-  return { elementos: out, globais: globais as string[] };
-}
-
-/** A estrutura analisada e a atual têm os mesmos elementos? (rearmar com esforços antigos exige isso). */
-export function mesmosElementos(analise: BuildingModel, agora: BuildingModel): string | null {
-  const ids = (xs: { id: string }[]) => xs.map((x) => x.id).sort().join('|');
-  for (const [rot, k] of [['vigas', 'vigas'], ['pilares', 'pilares'], ['lajes', 'lajes'], ['pavimentos', 'pavimentos']] as const)
-    if (ids(analise[k]) !== ids(agora[k])) return `os ${rot} mudaram depois da análise`;
-  return null;
-}
-
-const inercia = (s: SecaoPilar) => (s.tipo === 'circ' ? Math.PI * s.d ** 4 / 64 : Math.min(s.b * s.h ** 3, s.h * s.b ** 3) / 12);
-const secaoPilar = (p: Pilar, pav: string) => p.secoes?.find((x) => x.pavimento === pav)?.secao ?? p.secao;
-
-/** Variação relativa da inércia (b·h³/12) de cada viga e pilar entre o modelo analisado e o atual (só os que variaram). */
-export function variacoesRigidez(analise: BuildingModel, agora: BuildingModel) {
-  const out: InfoRearme['variacoes'] = [];
-  const A = new Map(analise.vigas.map((v) => [v.id, v]));
-  for (const v of agora.vigas) {
-    const a = A.get(v.id);
-    if (!a) continue;
-    const I0 = a.secao.b * a.secao.h ** 3, I1 = v.secao.b * v.secao.h ** 3;
-    if (Math.abs(I1 / I0 - 1) > 1e-9) out.push({ tipo: 'viga', id: v.id, nome: v.nome, variacao: I1 / I0 - 1 });
-  }
-  const P = new Map(analise.pilares.map((p) => [p.id, p]));
-  for (const p of agora.pilares) {
-    const a = P.get(p.id);
-    if (!a) continue;
-    const pavs = new Set(['', ...(p.secoes ?? []).map((x) => x.pavimento), ...(a.secoes ?? []).map((x) => x.pavimento)]);
-    let pior = 0;
-    for (const pav of pavs) { const r = inercia(secaoPilar(p, pav)) / inercia(secaoPilar(a, pav)) - 1; if (Math.abs(r) > Math.abs(pior)) pior = r; }
-    if (Math.abs(pior) > 1e-9) out.push({ tipo: 'pilar', id: p.id, nome: p.nome, variacao: pior });
-  }
-  return out;
-}
+export { elementosAlterados, mesmosElementos, variacoesRigidez, type ElementoAlterado, type InfoRearme } from './rearmarAlterados';
 
 export interface OpcoesRearmar {
   modo: 'todos' | 'alterados';

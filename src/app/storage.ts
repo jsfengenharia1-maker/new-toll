@@ -3,6 +3,7 @@
 import type { Model } from '../core/types';
 import type { FLoad } from '../core/piles';
 import type { ListaSituacoes, PerfilMateriais } from '../core/building/acoes';
+import type { ModeloPortico } from '../core/building/copiaArmadura';
 
 export interface SavedCharacteristics {
   projectName: string;
@@ -12,9 +13,9 @@ export interface SavedCharacteristics {
   settings: Record<string, unknown>;
 }
 
-export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes';
-/** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício ou situações de projeto (N2a). */
-export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes;
+export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico';
+/** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício, situações de projeto (N2a) ou modelo de armadura de pórtico (R7f). */
+export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico;
 export interface LibraryItem { id: string; kind: LibraryKind; name: string; savedAt: string; summary: string }
 export interface LibraryEntry extends LibraryItem { payload: LibraryPayload }
 

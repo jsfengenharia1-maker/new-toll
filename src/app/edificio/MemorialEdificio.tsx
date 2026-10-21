@@ -2,7 +2,7 @@
 // dimensionamento, cargas na fundação, quantitativos e premissas. Mesmo CSS e impressão do memorial do pórtico.
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { useBuilding } from './store';
+import { calculoAtual, dimAtual, useBuilding } from './store';
 import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
@@ -35,14 +35,15 @@ const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.'
 const ST = { ok: 'ok', fail: 'NÃO ATENDE', review: 'revisar' } as const;
 
 export function MemorialEdificio({ onClose }: { onClose: () => void }) {
-  const { sessao, analise, dim, revAnalise } = useBuilding();
+  const { sessao, analise, dim } = useBuilding();
+  const estado = useBuilding();
   const st = useStore();
   const b = sessao.modelo;
   const docRef = useRef<HTMLDivElement>(null);
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const [iso, setIso] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
-  const velha = !!analise && revAnalise !== sessao.revCalculo;
+  const velha = !!analise && (!calculoAtual(estado) || !dimAtual(estado));
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
@@ -52,7 +53,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
   const falhas = new Set([...(dim?.vigas ?? []).filter((x) => x.status !== 'ok').map((x) => x.viga), ...(dim?.pilares ?? []).filter((x) => x.status === 'fail').map((x) => x.pilar)]);
   const bloqueadasMemo = [
-    ...(dim?.vigas ?? []).filter((x) => x.bloqueada).map((x) => ({ elemento: `Viga ${x.nome}`, lance: 'todos os vãos', arranjo: arranjoVigaTxt(x), status: x.status === 'ok' ? 'atende' : 'NÃO ATENDE', msgs: x.mensagens.filter((m) => /^(Armadura bloqueada|Flecha|Abertura)/.test(m)).join(' ') || '—' })),
+    ...(dim?.vigas ?? []).filter((x) => x.bloqueada && !(x.agrupada && !b.vigas.find((v) => v.id === x.viga)?.armadura)).map((x) => ({ elemento: `Viga ${x.nome}`, lance: 'todos os vãos', arranjo: arranjoVigaTxt(x), status: x.status === 'ok' ? 'atende' : 'NÃO ATENDE', msgs: x.mensagens.filter((m) => /^(Armadura bloqueada|Flecha|Abertura)/.test(m)).join(' ') || '—' })),
     ...(dim?.pilares ?? []).filter((x) => x.bloqueada).map((x) => ({ elemento: `Pilar ${x.nome}`, lance: x.pavimento, arranjo: arranjoPilarTxt(x), status: x.status === 'fail' ? 'NÃO ATENDE' : x.status === 'review' ? 'revisar' : 'atende', msgs: x.mensagens.filter((m) => m.startsWith('Armadura bloqueada')).join(' ') || '—' })),
   ];
   const sent = v.sentido ?? {};
@@ -426,6 +427,21 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 <thead><tr><th className="l">Elemento</th><th className="l">Lance</th><th className="l">Arranjo adotado</th><th className="l">Situação</th><th className="l">Verificação</th></tr></thead>
                 <tbody>{bloqueadasMemo.map((x, k) => <tr key={k}><td className="l">{x.elemento}</td><td className="l">{x.lance}</td><td className="l">{x.arranjo}</td><td className="l">{x.status}</td><td className="l">{x.msgs}</td></tr>)}</tbody>
               </table>
+            </>)}
+
+            {!!dim.agrupamentos?.length && (<>
+              {h2('Pórticos agrupados')}
+              <p>Vigas agrupadas levam a mesma armadura: a do pórtico que governa (maior área inferior, superior, barras laterais e armadura de estribos entre os membros), verificada em cada viga. Desenho único quando a geometria dos membros é idêntica (mesma seção, comprimento e vãos eixo a eixo, tolerância de 1 cm). Sem o mesmo número de vãos e a mesma seção o agrupamento é desconsiderado e cada viga é dimensionada sozinha.</p>
+              <table data-memorial-agrupamentos>
+                <thead><tr><th className="l">Agrupamento</th><th className="l">Vigas</th><th className="l">Situação</th><th className="l">Pórtico de referência</th><th className="l">Desenhos</th></tr></thead>
+                <tbody>{dim.agrupamentos.map((g) => <tr key={g.id}><td className="l">{g.nome}</td><td className="l">{g.vigas.map((id) => b.vigas.find((v) => v.id === id)?.nome ?? id).join(', ')}</td><td className="l">{g.efetivo ? 'vale' : `desconsiderado: ${g.motivo}`}</td><td className="l">{g.referencia ? b.vigas.find((v) => v.id === g.referencia)?.nome : '—'}</td><td className="l">{g.efetivo ? g.desenhos.map((d) => d.map((id) => b.vigas.find((v) => v.id === id)?.nome ?? id).join(' = ')).join('; ') : '—'}</td></tr>)}</tbody>
+              </table>
+            </>)}
+
+            {(dim.rearme || !!b.copiasLaje?.length) && (<>
+              {h2('Rearme e cópias de armadura')}
+              {dim.rearme && <p data-memorial-rearme>Dimensionamento e detalhamento refeitos sobre a análise já feita, sem nova análise (modo “{dim.rearme.modo === 'alterados' ? 'alterados' : 'todos'}”), com os esforços da revisão de cálculo {dim.rearme.esforcosRev}.{dim.rearme.antigos ? ` As seções diferem das analisadas; elementos com a inércia variando mais de ${fmt(opc.rearmarLimiteRigidez, 0)} % têm o aviso de esforços antigos: ${dim.rearme.variacoes.map((x) => `${x.nome} (${x.variacao >= 0 ? '+' : '−'}${fmt(Math.abs(x.variacao) * 100, 0)} %)`).join(', ') || 'nenhum'}.` : ''}{dim.rearme.modo === 'alterados' ? ` Elementos refeitos: ${dim.rearme.refeitos.map((x) => `${x.nome} (${x.motivo})`).join(', ') || 'nenhum'}; ${dim.rearme.mantidos} mantido(s).${dim.rearme.global ? ` Todos entraram porque ${dim.rearme.global}.` : ''}` : ''}</p>}
+              {!!b.copiasLaje?.length && <p data-memorial-copias>Cópias da armadura das lajes guardadas: {b.copiasLaje.map((c) => `“${c.nome}” (${c.lajes.length} laje(s)${c.data ? `, ${c.data}` : ''})`).join('; ')}.</p>}
             </>)}
 
             {h2('Cargas na fundação')}

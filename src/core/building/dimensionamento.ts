@@ -1,7 +1,7 @@
 // Dimensionamento do edifício (NBR 6118) a partir da análise: vigas (flexão e cortante pela envoltória ELU),
 // pilares (pilar-padrão com curvatura aproximada nas duas direções e flexão oblíqua por fibras), lajes maciças
 // (momentos por metro da grelha) e quantitativos. Cargas para o módulo Fundações.
-import type { InfoRearme } from './rearmar';
+import type { InfoRearme } from './rearmarAlterados';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, type Caso3, type Modelo3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, bransonRatio, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';

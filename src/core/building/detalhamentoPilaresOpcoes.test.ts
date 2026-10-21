@@ -210,8 +210,12 @@ describe('R7c: comprimentos editados (pilar.detalhe)', () => {
     t.ok('pilar.detalhe', { id: p.id, espera: 0.9 });
     t.ok('pavimento.repetir', { id: 'pav_6', vezes: 1 });
     t.ok('pilar.editar', { id: p.id, morre: t.s.modelo.pavimentos.at(-3)!.id });
+    // o detalhe editado sai do modelo no mesmo passo (R7f) e volta com o desfazer
+    expect(t.s.modelo.pilares[0].detalhe).toBeUndefined();
     const d3 = t.dim().detalhesPilares!.find((x) => x.pilar === p.id);
-    if (d3) expect(d3.avisos.some((m) => /detalhe editado desconsiderado/.test(m))).toBe(true);
+    if (d3) expect(d3.avisos.some((m) => /detalhe editado/.test(m))).toBe(false);
+    t.s.desfazer(); t.s.desfazer(); // editar e repetir pavimento: o detalhe volta
+    expect(t.s.modelo.pilares[0].detalhe?.espera).toBe(0.9);
   });
   it('rejeita lance inexistente, último lance e edição vazia', () => {
     const t = predio(2);

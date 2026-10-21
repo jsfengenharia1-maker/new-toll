@@ -941,13 +941,15 @@ export const flows = [
       await jan.getByRole('button', { name: 'Copiar para…' }).click();
       const lista = jan.locator('[data-lista-copia]');
       assert.equal(await lista.getByRole('checkbox').count(), 3);
-      for (let i = 0; i < 3; i++) assert.ok(await lista.getByRole('checkbox').nth(i).isChecked(), 'mesma seção e nº de vãos pré-marcadas');
-      await lista.getByRole('checkbox').nth(2).uncheck();
-      await lista.getByRole('button', { name: /^Copiar para 2 vigas$/ }).click();
+      // R7f: só a viga paralela (mesmo vão) é elegível; as perpendiculares têm vão diferente e mostram o motivo da recusa
+      assert.equal(await lista.locator('[data-motivo-copia]').count(), 2);
+      assert.match(await lista.locator('[data-motivo-copia]').first().innerText(), /difere em \d+ cm/);
+      assert.equal(await lista.locator('input:checked').count(), 1, 'só a elegível do mesmo grupo e seção vem marcada');
+      await lista.getByRole('button', { name: /^Copiar para 1 viga$/ }).click();
       await pronto();
       await jan.getByRole('button', { name: 'Fechar' }).click();
-      assert.match(await page.locator('[data-bloqueadas]').innerText(), /3 vigas bloqueadas/);
-      assert.equal(await cardVigas.locator('td[data-bloq]', { hasText: 'bloq.' }).count(), 3);
+      assert.match(await page.locator('[data-bloqueadas]').innerText(), /2 vigas bloqueadas/);
+      assert.equal(await cardVigas.locator('td[data-bloq]', { hasText: 'bloq.' }).count(), 2);
       // memorial: detalhamento das vigas e resumo de aço
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
@@ -2998,6 +3000,122 @@ export const flows = [
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       assert.match(await memo.textContent(), /modelo separado/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'R7f: mudar tabela não refaz a análise (contadores de revisão), agrupar pórticos, seleção para bloqueio, seção alterada com esforços antigos e rearmar alterados, cópia das lajes, memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const rev = () => page.locator('[data-rearmar]').evaluate((el) => ({ ...el.dataset }));
+      const espera = (f, arg) => page.waitForFunction(([src, a]) => { const el = document.querySelector('[data-rearmar]'); return !!el && new Function('d', 'a', `return (${src})(d, a)`)({ ...el.dataset }, a); }, [f.toString(), arg], { timeout: 90000 });
+      const r0 = await rev();
+      assert.equal(r0.analises, '1');
+      assert.equal(r0.rearmes, '0');
+      assert.equal(r0.dimAtual, '1');
+      await page.waitForTimeout(500);
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const m0 = await modelo();
+      const horiz = m0.vigas.filter((v) => v.pontos[0][1] === v.pontos[1][1]);
+      assert.equal(horiz.length, 2);
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      // 1) tabela de estribos só com φ6,3: só o detalhe muda — revisão de detalhe sobe, a de cálculo e a análise não
+      await cmd('tabela.definir {"tipo": "estribos", "tabela": {"id": "padrao", "nome": "Padrão", "linhas": [{"bAte": 999, "bitolas": [6.3], "sMin": 8, "sMax": 20, "ramos": [2]}]}}');
+      await espera((d) => d.rearmes === '1' && d.dimAtual === '1');
+      const r1 = await rev();
+      assert.equal(r1.analises, '1', 'a análise não foi refeita');
+      assert.equal(r1.revCalculo, r0.revCalculo);
+      assert.equal(r1.revAnalise, r0.revAnalise);
+      assert.equal(Number(r1.revDetalhe), Number(r0.revDetalhe) + 1);
+      assert.equal(r1.revDim, r1.revDetalhe);
+      assert.match(await cardVigas.locator('tbody tr').first().innerText(), /φ6,3/);
+      // 2) opção de dimensionamento (redistribuição) também só rearma
+      await cmd('opcoes.definir {"valores": {"redistribuicao": 0}}');
+      await espera((d) => d.rearmes === '2' && d.dimAtual === '1');
+      assert.equal((await rev()).analises, '1');
+      // 3) agrupar as duas vigas horizontais (mesmos vãos e seção): a armadura do pórtico que governa vale para as duas
+      await cmd(`vigas.agrupar {"acao": "criar", "ids": ${JSON.stringify(horiz.map((v) => v.id))}}`);
+      await espera((d) => d.rearmes === '3' && d.dimAtual === '1');
+      const ag = page.locator('[data-card-agrupamentos] tr[data-agrupamento="G1"]');
+      await ag.waitFor();
+      assert.match(await ag.innerText(), /vale/);
+      assert.equal(await cardVigas.locator('td[data-bloq]', { hasText: 'agrup. G1' }).count(), 2);
+      const arr = async () => (await cardVigas.locator('tbody tr').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('td')].slice(0, 9).map((t) => t.textContent).join('|'))));
+      const linhasAg = (await arr()).filter((t) => /^V[12]\|/.test(t));
+      assert.equal(linhasAg.length, 2);
+      assert.equal(linhasAg[0].split('|').slice(5).join('|'), linhasAg[1].split('|').slice(5).join('|'), 'mesma armadura no agrupamento');
+      assert.equal((await rev()).analises, '1');
+      // 4) seleção para bloqueio: todos, nenhum, contagem; bloquear e desbloquear
+      await page.locator('[data-abrir-selecao-bloqueio]').click();
+      const jsel = page.locator('[data-selecao-bloqueio]');
+      await jsel.waitFor();
+      assert.match(await jsel.locator('[data-sel-contagem]').innerText(), /^0 selecionado/);
+      await jsel.locator('[data-sel-todos]').click();
+      assert.match(await jsel.locator('[data-sel-contagem]').innerText(), /^11 selecionado\(s\): 5 viga\(s\), 6 pilar/);
+      await jsel.locator('[data-sel-nenhum]').click();
+      assert.match(await jsel.locator('[data-sel-contagem]').innerText(), /^0 selecionado/);
+      await jsel.locator('[data-sel-todos]').click();
+      await jsel.locator('[data-sel-bloquear]').click();
+      await livre();
+      await page.waitForFunction(() => /\b3 vigas bloqueadas/.test(document.querySelector('[data-bloqueadas]')?.textContent ?? ''), null, { timeout: 60000 });
+      assert.equal((await rev()).analises, '1', 'bloquear não refaz a análise');
+      await jsel.locator('[data-sel-desbloquear]').click();
+      await livre();
+      await page.waitForFunction(() => /\b0 vigas bloqueadas/.test(document.querySelector('[data-bloqueadas]')?.textContent ?? ''), null, { timeout: 60000 });
+      await page.getByRole('dialog', { name: 'Seleção para bloqueio de armaduras' }).getByRole('button', { name: 'Fechar' }).click();
+      // 5) seção alterada (viga vertical central 20×70): análise desatualizada, esforços guardados servem para rearmar
+      const vert = m0.vigas.find((v) => v.pontos[0][0] === 5 && v.pontos[1][0] === 5);
+      const rAntes = await rev();
+      await cmd(`viga.editar {"id": "${vert.id}", "secao": {"b": 0.2, "h": 0.7}}`);
+      await page.locator('[data-esforcos-antigos]').waitFor();
+      const r2 = await rev();
+      assert.equal(r2.analiseAtual, '0');
+      assert.equal(r2.revEsforcos, rAntes.revEsforcos, 'seção não invalida os esforços guardados');
+      assert.equal(Number(r2.revCalculo), Number(rAntes.revCalculo) + 1);
+      await page.getByRole('button', { name: /^Rearmar alterados \(1\)$/ }).click();
+      await livre();
+      await espera((d, a) => Number(d.rearmes) === a, Number(r2.rearmes) + 1);
+      const r3 = await rev();
+      assert.equal(r3.analises, '1', 'rearmar alterados não refaz a análise');
+      assert.equal(r3.analiseAtual, '0');
+      const nomeVert = m0.vigas.find((v) => v.id === vert.id).nome;
+      assert.match(await cardVigas.locator('tbody tr', { hasText: nomeVert }).first().innerText(), /20×70/);
+      await page.locator('[data-lista-erros] tbody tr.warn', { hasText: 'ESFORCO_ANTIGO' }).first().waitFor({ timeout: 30000 });
+      assert.match(await page.locator('[data-rearme-info]').innerText(), /modo “alterados”.*1 elemento\(s\) refeito\(s\)/);
+      // refazer a análise: a nota some e a análise roda uma segunda vez
+      await page.getByRole('button', { name: 'Refazer a análise' }).click();
+      await page.waitForFunction(() => document.querySelector('[data-rearmar]')?.dataset.analises === '2' && document.querySelector('[data-rearmar]')?.dataset.analiseAtual === '1', null, { timeout: 120000 });
+      assert.equal(await page.locator('[data-esforcos-antigos]').count(), 0);
+      // 6) cópia da armadura das lajes: salvar, apagar a base, recuperar
+      await cmd(`laje.armaduraBase {"ids": ["${m0.lajes[0].id}"], "inf": {"barras": [{"dir": 0, "phi": 6.3, "s": 15}]}}`);
+      await livre();
+      const copia = page.locator('[data-card-copia-lajes]');
+      await copia.getByLabel('Nome da cópia').fill('Antes do furo');
+      await copia.locator('[data-copia-salvar]').click();
+      await copia.locator('tr[data-copia="Antes do furo"]').waitFor();
+      await cmd(`laje.armaduraBase {"ids": ["${m0.lajes[0].id}"], "remover": ["inf"]}`);
+      await livre();
+      await copia.locator('tr[data-copia="Antes do furo"] [data-copia-recuperar]').click();
+      await page.waitForFunction((id) => JSON.parse(localStorage.getItem('statikos:building')).building.lajes.find((l) => l.id === id)?.base?.inf?.barras?.[0]?.s === 15, m0.lajes[0].id, { timeout: 60000 });
+      await livre();
+      // 7) memorial: agrupamentos, rearme e cópias
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Pórticos agrupados/);
+      assert.match(mt, /Rearme e cópias de armadura/);
+      assert.match(mt, /Cópias da armadura das lajes guardadas: “Antes do furo”/);
+      assert.match(mt, /rearmar-agrupar-copiar|Rearmar, agrupar e copiar \(R7f\)/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },

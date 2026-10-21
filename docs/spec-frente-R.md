@@ -167,6 +167,7 @@ Itens: C4.56, C4.59, C6.34, C6.62, C6.76, C6.77, C6.78, C6.79, C6.81, C6.82, C6.
 - Pranchas: um desenho por agrupamento, com todas as referências no título.
 - Testes: rearmar alterados = dimensionamento completo quando a rigidez não muda; desbloqueio gravado e desfeito; agrupamento usa a envoltória; recusas de cópia por motivo; recuperar cópia após furo novo; e2e `R7f`.
 - Premissas: diferença de vão < 25 cm (registro C6.78); limite de variação de rigidez para ESFORCO_ANTIGO [a confirmar].
+- **R7f feita em 21/10/2026 (núcleo e interface).** `calculo: 'detalhe'` e `'secao'` no registro, `Sessao.revDetalhe`/`revEsforcos`, `rearmar.ts`/`rearmarAlterados.ts`, `desbloqueio.ts`, `agrupamento.ts`, `copiaArmadura.ts`, comandos `vigas.agrupar` e `lajes.copiaArmadura` (`mcp: false`), `viga.copiarArmadura` ampliado (entre grupos, `modelo`, motivo da recusa), opção `rearmarLimiteRigidez` (15 %), códigos ESFORCO_ANTIGO, AGRUP_IGNORADO e AGRUP_BLOQ, `BuildingModel.agrupamentos/copiasLaje`, `Rearmar.tsx`, premissa `rearmar-agrupar-copiar`, testes `rearmar.test.ts` e e2e `R7f`. Rearmar é pedido ao worker (não comando) e roda sozinho quando só o detalhe mudou. Fora: contorno vermelho próprio na planta para a seleção de bloqueio; biblioteca de tramos (juntas); a cópia entre lajes de contornos diferentes (recorte parcial).
 
 ### R7g — Revisão, relatórios e opções de desenho das pranchas (13 itens)
 
