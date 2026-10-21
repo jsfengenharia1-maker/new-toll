@@ -4,6 +4,7 @@
 import { lancesDoPilar, type BuildingModel, type Pilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { vaosDaViga } from '../building/vigas';
+import { motivoTramo } from '../building/detalhamento';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -116,5 +117,63 @@ registrar<{ de: string; para: string[] }>({
     const o = d.vigas.find((x) => x.id === p.de)!;
     for (const id of p.para) { const v = d.vigas.find((x) => x.id === id)!; v.armadura = { ...JSON.parse(JSON.stringify(o.armadura)), vaos: vaosDaViga(d as BuildingModel, v) }; }
     return `Armadura de ${o.nome} copiada para ${p.para.length} viga(s).`;
+  },
+});
+
+registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; ganchos?: [boolean, boolean]; perna?: number }[]; zonas?: { zona: number; phi?: number; s?: number; ramos?: number }[]; fatorEmenda?: number; remover?: boolean }>({
+  nome: 'viga.detalhe',
+  descricao: 'Edita o detalhamento de uma viga (R7b): por posição de barra (N1, N2, …) os extremos `s0`/`s1` ao longo do traçado (m), os `ganchos` de 90° nas pontas e a `perna` reta (× φ); por zona de estribos (índice 0, 1, …) bitola `phi`, espaçamento `s` (m) e `ramos`; e o `fatorEmenda` do comprimento de traspasse. O recálculo aplica as edições e verifica a cobertura da armadura necessária, os estribos e a barra máxima (DETALHE_INSUF); vale enquanto o número de vãos não muda. `remover: true` volta ao detalhamento calculado.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+    id: { type: 'string' },
+    barras: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pos'], properties: {
+      pos: { type: 'string' }, s0: { type: 'number' }, s1: { type: 'number' },
+      ganchos: { type: 'array', items: { type: 'boolean' }, minItems: 2, maxItems: 2 }, perna: { type: 'number', minimum: 8, maximum: 20 },
+    } } },
+    zonas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['zona'], properties: {
+      zona: { type: 'integer', minimum: 0, maximum: 60 }, phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5 }, ramos: { type: 'integer', enum: [2, 4, 6] },
+    } } },
+    fatorEmenda: { type: 'number', minimum: 0.5, maximum: 2 },
+    remover: { type: 'boolean' },
+  } },
+  validar(b, p) {
+    const v = b.vigas.find((x) => x.id === p.id);
+    if (!v) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
+    if (p.remover) return [];
+    if (!p.barras?.length && !p.zonas?.length && p.fatorEmenda === undefined) return err('SEM_EDICAO', 'Informe barras, zonas ou fatorEmenda.', [p.id]);
+    for (const e of p.barras ?? []) if (!/^N[0-9]+$/.test(e.pos)) return err('POSICAO_INVALIDA', `Posição ${e.pos} inválida (use N1, N2, …).`, [p.id]);
+    for (const e of p.barras ?? []) if (e.s0 !== undefined && e.s1 !== undefined && e.s1 <= e.s0) return err('BARRA_INVERTIDA', `Posição ${e.pos}: s1 deve ser maior que s0.`, [p.id]);
+    return [];
+  },
+  aplicar(d, p) {
+    const v = d.vigas.find((x) => x.id === p.id)!;
+    if (p.remover) { delete v.detalhe; return `Detalhamento de ${v.nome} volta ao calculado.`; }
+    const antes = v.detalhe && v.detalhe.vaos === vaosDaViga(d as BuildingModel, v) ? v.detalhe : undefined;
+    const barras = [...(antes?.barras ?? []).filter((x) => !p.barras?.some((y) => y.pos === x.pos)), ...(p.barras ?? []).map((x) => ({ ...x, ...(x.ganchos ? { ganchos: [x.ganchos[0], x.ganchos[1]] as [boolean, boolean] } : {}) }))];
+    const zonas = [...(antes?.zonas ?? []).filter((x) => !p.zonas?.some((y) => y.zona === x.zona)), ...(p.zonas ?? [])];
+    const fator = p.fatorEmenda ?? antes?.fatorEmenda;
+    v.detalhe = { vaos: vaosDaViga(d as BuildingModel, v), ...(barras.length ? { barras } : {}), ...(zonas.length ? { zonas } : {}), ...(fator !== undefined ? { fatorEmenda: fator } : {}) };
+    return `Detalhamento de ${v.nome} editado.`;
+  },
+});
+
+registrar<{ ids: string[]; remover?: boolean }>({
+  nome: 'viga.tramo',
+  descricao: 'Cria (ou, com `remover`, desfaz) um tramo predefinido: vigas consecutivas e alinhadas do mesmo grupo cuja armadura inferior passante corre sem emenda nem gancho no apoio comum, enquanto o comprimento total não passa da barra máxima (R7b). `ids` na ordem do alinhamento.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 2 }, remover: { type: 'boolean' } } },
+  validar(b, p) {
+    if (p.remover) return (b.tramos ?? []).some((t) => t.length === p.ids.length && t.every((x, i) => x === p.ids[i])) ? [] : err('TRAMO_INEXISTENTE', 'Esse tramo não existe.');
+    const motivo = motivoTramo(b, p.ids);
+    if (motivo) return err('TRAMO_INVALIDO', motivo, p.ids);
+    const outro = p.ids.find((id) => (b.tramos ?? []).some((t) => t.includes(id)));
+    return outro ? err('TRAMO_EXISTENTE', `A viga ${b.vigas.find((x) => x.id === outro)?.nome ?? outro} já está em um tramo.`, [outro]) : [];
+  },
+  aplicar(d, p) {
+    if (p.remover) { d.tramos = (d.tramos ?? []).filter((t) => !(t.length === p.ids.length && t.every((x, i) => x === p.ids[i]))); if (!d.tramos.length) delete d.tramos; return 'Tramo desfeito.'; }
+    d.tramos = [...(d.tramos ?? []), [...p.ids]];
+    return `Tramo predefinido criado com ${p.ids.length} vigas.`;
   },
 });

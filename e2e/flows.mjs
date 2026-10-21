@@ -2151,4 +2151,76 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'R7b: detalhamento de vigas (mostrar/ocultar, edição de posição com verificação DETALHE_INSUF, restaurar, opções no perfil do sistema, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      await cardVigas.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const svg = jan.locator('svg[data-detalhe]');
+      await svg.waitFor();
+      // mostrar / ocultar: sem estribos o desenho perde as zonas; sem seção some a seção; sem a face inferior perde barras
+      const mostrar = jan.locator('[data-mostrar-detalhe]');
+      assert.ok(await svg.locator('[data-zona]').count() > 0);
+      await mostrar.getByLabel('estribos').uncheck();
+      assert.equal(await svg.locator('[data-zona]').count(), 0);
+      await mostrar.getByLabel('estribos').check();
+      await mostrar.getByLabel('seção').uncheck();
+      assert.equal(await jan.locator('svg[data-secao]').count(), 0);
+      await mostrar.getByLabel('seção').check();
+      await jan.locator('svg[data-secao]').waitFor();
+      const nb = await svg.locator('g[data-barra]').count();
+      await mostrar.getByLabel('inferior').uncheck();
+      assert.ok((await svg.locator('g[data-barra]').count()) < nb);
+      await mostrar.getByLabel('inferior').check();
+      // edição: encurta demais a passante N1 (não cobre a necessária) e o recálculo reprova com DETALHE_INSUF
+      const ed = jan.locator('[data-edicao-detalhe]');
+      await ed.waitFor();
+      assert.equal(await jan.locator('[data-detalhe-editado]').count(), 0);
+      const fim = ed.getByLabel('N1 fim', { exact: true });
+      const v0 = parseFloat((await fim.inputValue()).replace(',', '.'));
+      await fim.fill(String(v0 - 1.5).replace('.', ',')); await fim.press('Enter');
+      await ed.getByRole('button', { name: 'Aplicar edição' }).click();
+      await livre();
+      await jan.locator('[data-detalhe-editado]').waitFor();
+      assert.match(await jan.locator('[data-avisos-det]').innerText(), /Detalhe editado insuficiente: armadura inferior/);
+      assert.match(await jan.locator('table[data-tabela-barras]').innerText(), /N1 ✎/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros]').locator('tbody tr.bad', { hasText: 'DETALHE_INSUF' }).first().waitFor();
+      // restaurar o calculado: o erro some
+      await cardVigas.locator('tbody tr').first().dblclick();
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      await jan.locator('[data-edicao-detalhe]').getByRole('button', { name: 'Restaurar calculado' }).click();
+      await livre();
+      await page.waitForFunction(() => !document.querySelector('[data-detalhe-editado]'));
+      assert.equal(await jan.locator('[data-avisos-det]').getByText('Detalhe editado insuficiente').count(), 0);
+      // tramo: o pórtico retangular não tem viga consecutiva e alinhada
+      assert.match(await jan.locator('[data-tramo-viga]').innerText(), /Não há viga consecutiva e alinhada/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // opções do perfil do sistema: redução de lb ligada e negativos mínimos
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      assert.ok(await g.getByLabel('Vigas: reduzir lb por As,calc/As,ef').isChecked());
+      assert.match(await g.innerText(), /Vigas: comprimento mínimo dos negativos/);
+      // memorial: critérios do detalhamento das vigas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-det-vigas]').innerText(), /prolongamento dos cortes lb·As,calc\/As,ef/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];

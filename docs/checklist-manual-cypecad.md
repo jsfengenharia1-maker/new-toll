@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 25 | 7 | 6 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
-| 6. Vigas | 108 | 13 | 17 | 53 | 25 |
+| 6. Vigas | 108 | 18 | 15 | 50 | 25 |
 | 7. Lajes | 195 | 21 | 32 | 75 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,13 +22,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 48 | 7 | 10 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **164** | **113** | **301** | **185** |
+| **Total** | **763** | **169** | **111** | **298** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 19 | 37 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 8 | 13 | 21 |
@@ -325,7 +325,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.30 | Capturas DXF/DWG (mais próximo, interseção, extremo, ponto médio etc.) ao marcar os pontos da viga, sem ajuste posterior. | Feito | — | capturas |
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
 | C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) [E2b] |
-| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Parcial | R | barras inferiores corridas sem emenda intermediária enquanto não passam da barra máxima, dentro da viga (R3a); sem tramo predefinido entre vigas consecutivas [R7b] |
+| C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Feito | — | comando `viga.tramo` e `resolverTramos` (`detalhamento.ts`): vigas consecutivas e alinhadas do mesmo grupo com a mesma bitola e nº de passantes têm a barra inferior corrida do eixo do apoio comum, sem emenda nem gancho, até a barra máxima (senão TRAMO_IGNORADO); botão "Tramo com…" na aba Detalhamento da viga (R7b) |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Parcial | R | comandos `viga.unir` e `viga.dividir` (`src/core/commands/vigas.ts`) compõem e decompõem o pórtico e o recálculo redimensiona (bloqueio desconsiderado com BLOQ_IGNORADO); ferramentas Dividir viga (I) e Unir vigas (J) na planta (R7-0, `Planta.tsx`); sem desbloqueio gravado [R7f] |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos [E2c] |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento [E2d] |
@@ -358,8 +358,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara [L2] |
 | | **6.2 Cálculo e resultados de vigas** | | | |
 | C6.64 | Vigas de aço no cálculo: dimensionar a partir do perfil inicial (só maiores ou iguais) ou de toda a série (pode reduzir). | Fora | — | aço |
-| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Falta | R | verificação φt ≤ bw/10 do estribo (NBR 6118, 18.3.3.2) não feita no edifício (existe no Pórtico 2D, `src/core/design.ts`, como aviso: reaproveitar) [R7b] |
-| C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Falta | R | aviso de desnível longitudinal [R7b] |
+| C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Feito | — | erro ESTRIBO_BITOLA (φt ≤ bw/10, NBR 6118 18.3.3.2) no detalhamento das vigas, também para a bitola editada de uma zona; lista de erros e planta (R7b) |
+| C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Feito | — | `desniveisLongitudinais` (`detalhamento.ts`): aviso DESNIVEL_LONG para vigas consecutivas alinhadas com faces superior ou inferior diferindo mais que a opção `vigaDesnivelLimite` (2 cm, a confirmar) (R7b) |
 | C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Feito | — | aviso no detalhamento quando a barra passa do comprimento máximo e não cabe a emenda (opção barraMaxima, padrão 12 m; R3a) |
 | C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E | [E2c] |
 | C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Falta | E | [E2c] |
@@ -396,8 +396,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E | [E2e] |
 | C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E | [E2e] |
 | C6.102 | Editar a armadura de vigas inclinadas. | Falta | E | [E2c] |
-| C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Parcial | R | editor de armadura na janela da viga (R2) e aba Detalhamento com elevação (inferior, superior, pele, estribos por zona) e seção (R3a); sem escolher o que mostrar [R7b] |
-| C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Falta | R | fator do comprimento de emenda no editor [R7b] |
+| C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Feito | — | "Mostrar" na aba Detalhamento da viga: inferior, superior, pele, estribos (zonas) e seção, no `plantaStore.detMostrar` (R7b); zonas de confinamento não se aplicam a vigas no perfil NBR |
+| C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Feito | — | fator do comprimento de emenda por viga (campo na edição do detalhamento, `viga.detalhe`) e opção `vigaFatorEmenda` para a obra (R7b) |
 | C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação [V5] |
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
@@ -972,3 +972,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia R7a (tabelas de armadura editáveis, núcleo e interface).** C13.1, C13.2, C13.3 e C13.5 passam a Feito: tabelas de vigas, estribos, pilares e lajes (`src/core/building/tabelasArmadura.ts`, comandos `tabela.definir` e `tabela.restaurar`, grupo Tabelas de armadura, importar e exportar JSON, atalho da lista de erros), erros FORA_TABELA e ARM_MANUAL e avisos FORA_TABELA_PILAR e FORA_TABELA_LAJE.
   - Situação: Feito 143 → 147; Parcial 126 → 125; Falta 309 → 306; Fora 185 → 185.
   - Pendências por frente: R 41 → 37; demais sem mudança.
+- **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: R reduz em 19 itens; demais sem mudança.

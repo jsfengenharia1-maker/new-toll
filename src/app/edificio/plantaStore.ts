@@ -29,6 +29,8 @@ interface PState {
   mostrarErros: boolean;
   /** Camada de armadura das lajes na planta: barras representativas inferiores, superiores ou nenhuma (não vai para o arquivo). */
   armaduraLajes: 'nenhuma' | 'inf' | 'sup';
+  /** O que mostrar na elevação do detalhamento das vigas (R7b; não vai para o arquivo). */
+  detMostrar: { inf: boolean; sup: boolean; pele: boolean; estribos: boolean; secao: boolean };
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
@@ -98,6 +100,7 @@ export const usePlanta = create<PState>((set) => ({
   tema: temaSalvo(),
   mostrarErros: true,
   armaduraLajes: 'nenhuma',
+  detMostrar: { inf: true, sup: true, pele: true, estribos: true, secao: true },
   vigotasTodas: false,
   janela: null,
   foco: null,
