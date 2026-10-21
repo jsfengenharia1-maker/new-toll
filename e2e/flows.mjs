@@ -64,6 +64,19 @@ async function telaDe(page, x, y) {
   return [box.x + v.ox + x * v.k, box.y + v.oy - y * v.k];
 }
 
+/** Reenquadra (F) até todos os pontos do modelo caírem dentro da área de desenho: a barra da ferramenta muda a altura da planta e o
+ *  reenquadramento pode correr antes do layout assentar; um clique fora da área não vira ponto. */
+async function reenquadrarAte(page, pontos) {
+  for (let t = 0; ; t++) {
+    await page.keyboard.press('f');
+    await page.waitForTimeout(150);
+    const caixa = await page.locator('canvas.int').boundingBox();
+    const tela = await Promise.all(pontos.map(([x, y]) => telaDe(page, x, y)));
+    if (tela.every(([px, py]) => px > caixa.x + 5 && px < caixa.x + caixa.width - 5 && py > caixa.y + 5 && py < caixa.y + caixa.height - 5)) return;
+    assert.ok(t < 20, 'planta não reenquadrou os pontos na área de desenho');
+  }
+}
+
 async function importarMascara(page, tmp, extra = 0) {
   const f = join(tmp, `planta-${extra}.dxf`);
   writeFileSync(f, dxfPlanta(extra));
@@ -2023,8 +2036,9 @@ export const flows = [
       await page.locator('.planta-st').click();
       await page.keyboard.press('w');
       assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'radier');
-      await page.keyboard.press('f'); // a barra da ferramenta muda a altura da planta: reenquadra
-      for (const [x, y] of [[-0.4, -0.4], [7.4, -0.4], [7.4, 5.4], [-0.4, 5.4]]) await page.mouse.click(...(await telaDe(page, x, y)));
+      const vertRad = [[-0.4, -0.4], [7.4, -0.4], [7.4, 5.4], [-0.4, 5.4]];
+      await reenquadrarAte(page, vertRad);
+      for (const [x, y] of vertRad) await page.mouse.click(...(await telaDe(page, x, y)));
       await page.keyboard.press('Enter');
       await page.locator('.statusbar .msg', { hasText: /Radier R1 lançado .*4 pilar\(es\) sobre ele/ }).waitFor();
       const tab = grupo.locator('table[data-bases-elasticas] tbody tr');
@@ -2066,7 +2080,7 @@ export const flows = [
       await page.locator('.planta-st').click();
       await page.keyboard.press('x');
       assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'vigaElastica');
-      await page.keyboard.press('f');
+      await reenquadrarAte(page, [[-0.3, 5.9], [7.3, 5.9]]);
       await page.mouse.click(...(await telaDe(page, -0.3, 5.9)));
       await page.mouse.click(...(await telaDe(page, 7.3, 5.9)));
       await page.keyboard.press('Enter');
@@ -2076,7 +2090,8 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Recalcular' }).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
-      assert.match(await card.innerText(), /VE1/);
+      // a mensagem “dimensionamento em” da primeira rodada ainda pode estar na barra: espera o estado (VE1 no card) em vez do texto transitório
+      await page.waitForFunction(() => /VE1/.test(document.querySelector('[data-card-base-elastica]')?.textContent ?? ''), null, { timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
       await page.getByLabel('Tipo de prancha').selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
       await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'fundacao');

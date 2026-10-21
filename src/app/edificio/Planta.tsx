@@ -159,7 +159,10 @@ export function Planta() {
   const [tam, setTam] = useState<[number, number]>([800, 500]);
   const [digitando, setDigitando] = useState<string | null>(null);
   const [posDig, setPosDig] = useState<P2>([0, 0]);
-  const [pontos, setPontos] = useState<P2[]>([]);
+  const [pontos, setPontosEstado] = useState<P2[]>([]);
+  // espelho síncrono dos vértices em lançamento: cliques e Enter em sequência rápida chegam antes da nova renderização e leriam o estado antigo
+  const pontosRef = useRef<P2[]>([]);
+  const setPontos = (v: P2[]) => { pontosRef.current = v; setPontosEstado(v); };
 
   // estado de interação fora do React (muda a cada movimento do mouse)
   const it = useRef({
@@ -936,7 +939,7 @@ export function Planta() {
   const selecionados = () => ({ corridas: corridasP.filter((x) => pl.selecao.has(x.c.id)).map((x) => x.c.id), radiers: radiers.filter((r) => pl.selecao.has(r.id)).map((r) => r.id), vigasEl: vigasEl.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), limites: limites.filter((l) => pl.selecao.has(l.id)).map((l) => l.id), vigasFund: vigasFund.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
   const agir = (p: P2) => {
     const f = pl.ferramenta;
-    const novos = [...pontos, p];
+    const novos = [...pontosRef.current, p];
     if (f === 'pilar') { exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), secao: pl.secao, ajuste: pl.ajuste, angulo: pl.angulo, ...(pl.arranque ? { nasce: 'fundacao', morre: 'fundacao' } : {}) }); return; }
     if (f === 'selecionar') return;
     if (f === 'puncao') {
@@ -1133,7 +1136,7 @@ export function Planta() {
   };
 
   /** Enter/duplo clique: termina a polilinha da ferramenta atual. */
-  const terminar = (pts: P2[] = pontos) => {
+  const terminar = (pts: P2[] = pontosRef.current) => {
     const f = usePlanta.getState().ferramenta, tc = usePlanta.getState().tipoCarga;
     const q = pts.map((x) => [+x[0].toFixed(4), +x[1].toFixed(4)]);
     if (f === 'viga') { terminarViga(pts); return; }
@@ -1318,7 +1321,7 @@ export function Planta() {
         <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => {
-            if (POLILINHAS.includes(pl.ferramenta)) terminar(pontos.slice(0, -1).length >= 2 ? pontos.slice(0, -1) : pontos);
+            if (POLILINHAS.includes(pl.ferramenta)) terminar(pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
           }} />
         {digitando !== null && (
