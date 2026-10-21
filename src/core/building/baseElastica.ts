@@ -6,7 +6,9 @@
 // não é iterada, vira erro. Verificações: tensão no solo σ = k·w nas combinações raras contra σadm e armadura do radier
 // por Wood-Armer (regras das lajes maciças, R4) e da viga pelas regras das vigas de fundação.
 // Unidades: kN, m, kN/m² (tensões), kN/m³ (k).
-import { barArea, beamAsMin, beamFlexure, beamShear, chooseBars, crackLimit, crackWidth, type BarChoice } from '../concrete';
+import { barArea, beamAsMin, beamFlexure, beamShear, chooseBars, crackLimit, crackWidth, type BarChoice, type BeamSection } from '../concrete';
+import { defaultFoundationParams } from '../piles';
+import { ceil05 } from '../rebar';
 import { baseBarra, type Barra3, type Modelo3, type Resultado3 } from '../fe3d';
 import { areaPoligono, dentroPoligono, type P } from '../geom/faces';
 import type { AnaliseEdificio, BarraGrelha, GrelhaPavimento } from './analitico';
@@ -17,9 +19,9 @@ import { cortesLaje, escolherBarrasLaje, RHO_MIN_LAJE, type DetalheLaje, type Po
 import { GAMA_CONCRETO } from './lajes';
 import { classificar } from './revisao';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
-import type { OpcoesCalculo } from './opcoes';
+import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import type { ResultadoPuncao } from './puncao';
-import { casosDaObra, centroPilar, contornoPilar, ehArranque, secaoNoLance, lancesDoPilar, type BuildingModel, type Pilar, type Radier, type VigaElastica } from './types';
+import { casosDaObra, centroPilar, contornoPilar, ehArranque, secaoNoLance, lancesDoPilar, type BuildingModel, type Pilar, type Radier, type SapataCorrida, type VigaElastica } from './types';
 
 const fmt = (v: number, d = 1) => v.toFixed(d).replace('.', ',');
 
@@ -38,6 +40,83 @@ export const TABELA_K: { solo: string; min: number; max: number }[] = [
   { solo: 'Argila média (200 < qu ≤ 800 kPa)', min: 24000, max: 48000 },
   { solo: 'Argila rija (qu > 800 kPa)', min: 48000, max: 96000 },
 ];
+
+// ---------------- sapata corrida sob pilares (FU7a) como viga sobre base elástica ----------------
+
+/**
+ * Viga sobre base elástica equivalente de uma sapata corrida sob pilares (FU7a): largura da base `b` = B (molas), seção
+ * de rigidez em T invertido (aba h0 × B e nervura bw × (h − h0)) e a largura do elemento apoiado `bApoio` (onde os
+ * pilares nascem). O id e o nome são os da sapata corrida.
+ */
+export interface VigaElasticaEf extends VigaElastica {
+  corrida?: true;
+  bApoio?: number;
+  /** Espessura da aba (m). */
+  h0?: number;
+  secao?: { A: number; Iz: number; Iy: number; J: number };
+}
+
+/** Largura da base, altura no eixo e espessura da aba da sapata corrida na análise (os valores informados ou os padrões das opções; a aba pela regra de rigidez). */
+export function corridaEfetiva(b: BuildingModel, c: SapataCorrida, op: OpcoesCalculo = opcoesEmUso(b.opcoes, perfilDe(b))) {
+  const B = c.B ?? Math.max(op.corridaBPadrao, c.bw + 0.2), bw = c.bw;
+  const balanco = Math.max(0, c.aba === 'ambas' ? (B - bw) / 2 : B - bw);
+  const hRig = ((2 * balanco) / 3) * (1.5 / op.fundBalancoAltura);
+  const h = c.h ?? Math.max(op.corridaHPadrao, c.h0 ?? 0);
+  const ftH0Min = b.fundacao?.params?.ftH0Min ?? defaultFoundationParams().ftH0Min;
+  const h0 = Math.min(h, c.h0 ?? ceil05(Math.max(hRig, ftH0Min)));
+  return { B, bw, h, h0, balanco, hRig };
+}
+
+/** Seção em T invertido da sapata corrida: área, inércia em torno da horizontal (pelo centroide), da vertical e torção. */
+export function secaoCorrida(B: number, bw: number, h: number, h0: number, torcao: number) {
+  const A1 = B * h0, A2 = bw * (h - h0), A = A1 + A2, y1 = h0 / 2, y2 = h0 + (h - h0) / 2, yc = (A1 * y1 + A2 * y2) / A;
+  const Iz = (B * h0 ** 3) / 12 + A1 * (y1 - yc) ** 2 + (bw * (h - h0) ** 3) / 12 + A2 * (y2 - yc) ** 2;
+  return { A, Iz, Iy: (h0 * B ** 3) / 12 + ((h - h0) * bw ** 3) / 12, J: torcao * (torcaoRet(B, h0) + (h > h0 ? torcaoRet(bw, h - h0) : 0)) };
+}
+
+/** Pilares que nascem na fundação sobre o eixo da sapata corrida (centro a menos de bw/2 + 5 cm do eixo, ou eixo passando pela seção). */
+export function pilaresDaCorrida(b: BuildingModel, c: Pick<SapataCorrida, 'pontos' | 'bw'>): { pilar: Pilar; c: P }[] {
+  const out: { pilar: Pilar; c: P }[] = [];
+  for (const p of b.pilares) {
+    if (p.nasce !== 'fundacao') continue;
+    const sec = secaoBase(b, p), ct = centroPilar(p, sec), pr = projecaoNaViga(c, ct);
+    if (pr.d <= c.bw / 2 + 0.05 || dentroPoligono(pr.q, contornoPilar(p, sec))) out.push({ pilar: p, c: ct });
+  }
+  return out;
+}
+
+/** O ponto de uma carga do nível de fundação cai sobre a sapata corrida (distância ao eixo ≤ meia largura do apoio + 5 cm; área: meia base)? */
+export function pontoNaCorrida(c: Pick<SapataCorrida, 'pontos' | 'bw' | 'B'>, pt: P, tipo: 'ponto' | 'linha' | 'area' = 'linha'): boolean {
+  const lim = tipo === 'area' ? (c.B ?? c.bw + 0.5) / 2 : Math.max(c.bw / 2, 0.1) + 0.05;
+  return projecaoNaViga(c, pt).d <= lim + 1e-9;
+}
+
+/** Sapatas corridas que apoiam pilares (modo "pilares": entram na análise global como viga sobre base elástica). */
+export const corridasSobPilares = (b: BuildingModel) => (b.fundacao?.corridas ?? []).filter((c) => pilaresDaCorrida(b, c).length > 0);
+
+const CACHE_VIGAS = new WeakMap<BuildingModel, VigaElasticaEf[]>();
+/** Vigas sobre base elástica da obra: as lançadas (FU6) e as equivalentes das sapatas corridas sob pilares (FU7a). */
+export function vigasElasticasEf(b: BuildingModel): VigaElasticaEf[] {
+  const reais: VigaElasticaEf[] = b.fundacao?.vigasElasticas ?? [];
+  const cs = b.fundacao?.corridas ?? [];
+  if (!cs.length) return reais;
+  const c0 = CACHE_VIGAS.get(b);
+  if (c0) return c0;
+  const out = vigasElasticasEfCalc(b, reais, cs);
+  CACHE_VIGAS.set(b, out);
+  return out;
+}
+
+function vigasElasticasEfCalc(b: BuildingModel, reais: VigaElasticaEf[], cs: SapataCorrida[]): VigaElasticaEf[] {
+  const op = opcoesEmUso(b.opcoes, perfilDe(b));
+  const reaisIds = new Set(reais.map((v) => v.id));
+  const virtuais: VigaElasticaEf[] = cs.filter((c) => !reaisIds.has(c.id) && pilaresDaCorrida(b, c).length > 0).map((c) => {
+    const g = corridaEfetiva(b, c, op);
+    return { id: c.id, nome: c.nome, pontos: c.pontos, b: g.B, h: g.h, ...(c.k ? { k: c.k } : {}), ...(c.sigmaAdm ? { sigmaAdm: c.sigmaAdm } : {}),
+      corrida: true as const, bApoio: g.bw, h0: g.h0, secao: secaoCorrida(g.B, g.bw, g.h, g.h0, op.torcaoViga) };
+  });
+  return [...reais, ...virtuais];
+}
 
 // ---------------- geometria: pilares sobre a base elástica ----------------
 
@@ -74,26 +153,28 @@ const secaoBase = (b: BuildingModel, p: Pilar) => { const l = lancesDoPilar(b, p
  */
 export function pilaresNaBase(b: BuildingModel): PilarNaBase[] {
   const fe = b.fundacao, out: PilarNaBase[] = [];
-  if (!fe?.radiers?.length && !fe?.vigasElasticas?.length) return out;
+  const vigas = vigasElasticasEf(b);
+  const radiers = fe?.radiers ?? [];
+  if (!radiers.length && !vigas.length) return out;
   for (const p of b.pilares) {
     if (p.nasce !== 'fundacao') continue;
     const sec = secaoBase(b, p), c = centroPilar(p, sec);
-    const r = (fe.radiers ?? []).find((x) => noRadier(x, c));
+    const r = radiers.find((x) => noRadier(x, c));
     if (r) { out.push({ pilar: p.id, tipo: 'radier', ref: r.id, c }); continue; }
     const cont = contornoPilar(p, sec);
-    const v = (fe.vigasElasticas ?? []).find((x) => { const pr = projecaoNaViga(x, c); return pr.d <= x.b / 2 + 1e-6 || dentroPoligono(pr.q, cont); });
+    const v = vigas.find((x) => { const pr = projecaoNaViga(x, c); return pr.d <= (x.bApoio ?? x.b) / 2 + (x.bApoio !== undefined ? 0.05 : 1e-6) || dentroPoligono(pr.q, cont); });
     if (v) out.push({ pilar: p.id, tipo: 'viga', ref: v.id, c });
   }
   return out;
 }
 
 /** Há base elástica (radier ou viga sobre base elástica) no modelo? */
-export const temBaseElastica = (b: BuildingModel) => !!(b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length);
+export const temBaseElastica = (b: BuildingModel) => !!(b.fundacao?.radiers?.length || vigasElasticasEf(b).length);
 
 /** Carga no nível de fundação (ponto) sobre a base elástica? (as que caem nela não vão para vigas e elementos de fundação) */
 export function pontoNaBase(b: BuildingModel, p: P): boolean {
   const fe = b.fundacao;
-  return !!fe && ((fe.radiers ?? []).some((r) => noRadier(r, p)) || (fe.vigasElasticas ?? []).some((v) => projecaoNaViga(v, p).d <= v.b / 2 + 1e-6));
+  return !!fe && ((fe.radiers ?? []).some((r) => noRadier(r, p)) || vigasElasticasEf(b).some((v) => projecaoNaViga(v, p).d <= v.b / 2 + 1e-6));
 }
 
 // ---------------- malha do radier ----------------
@@ -273,7 +354,7 @@ export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: n
   }
 
   // ---- vigas sobre base elástica ----
-  for (const v of fe!.vigasElasticas ?? []) {
+  for (const v of vigasElasticasEf(b)) {
     const k = v.k ?? op.radierK;
     const meus = naBase.filter((x) => x.tipo === 'viga' && x.ref === v.id);
     // abscissas: vértices, divisão ≤ s e projeções dos pilares
@@ -288,7 +369,7 @@ export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: n
     const lista = [...ss].sort((a, zz) => a - zz).filter((t, j, arr) => j === 0 || t - arr[j - 1] > 0.02 || proj.some((q) => Math.abs(q.pr.s - t) < 1e-9));
     const ponto = (t: number): { p: P; u: P } => { const sg = segs.find((x) => t <= x.s0 + x.L + 1e-9) ?? segs.at(-1)!, f = Math.min(1, Math.max(0, (t - sg.s0) / sg.L)); return { p: [sg.a[0] + f * (sg.z[0] - sg.a[0]), sg.a[1] + f * (sg.z[1] - sg.a[1])], u: [(sg.z[0] - sg.a[0]) / sg.L, (sg.z[1] - sg.a[1]) / sg.L] }; };
     const nos = lista.map((t) => { const { p, u } = ponto(t); pm.nos.push([p[0], p[1], z]); return { g: pm.nos.length - 1, t, p, u }; });
-    const sec = { A: v.b * v.h, Iz: (v.b * v.h ** 3) / 12, Iy: (v.h * v.b ** 3) / 12, J: op.torcaoViga * torcaoRet(v.b, v.h) };
+    const sec = v.secao ?? { A: v.b * v.h, Iz: (v.b * v.h ** 3) / 12, Iy: (v.h * v.b ** 3) / 12, J: op.torcaoViga * torcaoRet(v.b, v.h) };
     for (let j = 0; j + 1 < nos.length; j++) {
       pm.barras.push({ i: nos[j].g, j: nos[j + 1].g, E, G, ...sec });
       info.barras.push({ bi: pm.barras.length - 1, tipo: 'viga', ref: v.id });
@@ -299,7 +380,7 @@ export function montarBaseElastica(b: BuildingModel, op: OpcoesCalculo & { nu: n
       pm.apoios.set(n.g, [0, 1, 5]);
       const kr = (k * v.b ** 3 * Lt) / 12; // giro em torno do eixo: molas distribuídas na largura
       (pm.molas ??= []).push({ no: n.g, gdl: 2, k: k * A }, { no: n.g, gdl: 3, k: kr * n.u[0] ** 2 + 1e-9 * kr }, { no: n.g, gdl: 4, k: kr * n.u[1] ** 2 + 1e-9 * kr });
-      somar('G', n.g, GAMA_CONCRETO * v.b * v.h * Lt);
+      somar('G', n.g, GAMA_CONCRETO * sec.A * Lt);
       for (const c of cargasF) if (c.tipo === 'area' && dentroPoligono(n.p, c.pontos)) { somar(c.caso, n.g, c.valor * A); usadas.add(c.id); }
     });
     for (const c of cargasF) {
@@ -402,7 +483,7 @@ function temVento(b: BuildingModel, an: AnaliseEdificio, c: CombinacaoEd) {
 }
 
 /** Tensões no solo nos nós de um elemento: envoltória das raras, levantamento e verificação contra σadm. */
-function tensoes(b: BuildingModel, an: AnaliseEdificio, raras: CombinacaoEd[], nos: NoBase[], sigmaAdm: number | null, nome: string, msgs: string[], notas: string[]) {
+export function tensoes(b: BuildingModel, an: AnaliseEdificio, raras: CombinacaoEd[], nos: NoBase[], sigmaAdm: number | null, nome: string, msgs: string[], notas: string[]) {
   const desl = deslocPorCaso(an), fv = b.fundacao?.terreno.fatorVento ?? 1;
   const out: NoResultadoBase[] = nos.map((n) => ({ x: n.x, y: n.y, sigma: -Infinity, sigmaMin: Infinity, w: 0 }));
   let max = -Infinity, min = Infinity, cMax = '', cMin = '', rec = 0, pior = 0, cPior = '';
@@ -431,7 +512,7 @@ function tensoes(b: BuildingModel, an: AnaliseEdificio, raras: CombinacaoEd[], n
 }
 
 /** σadm do elemento: a própria ou a informada do terreno (no modo pelo SPT sem valor do elemento: sem σadm). */
-const sigmaDe = (b: BuildingModel, s?: number) => s ?? (b.fundacao?.terreno.sigmaModo !== 'sondagem' ? b.fundacao?.terreno.sigmaAdm ?? null : null);
+export const sigmaDe = (b: BuildingModel, s?: number) => s ?? (b.fundacao?.terreno.sigmaModo !== 'sondagem' ? b.fundacao?.terreno.sigmaAdm ?? null : null);
 
 /**
  * Verifica e dimensiona a base elástica: tensões no solo (raras), radier por Wood-Armer (ELU, faixa de 1 m; armadura
@@ -487,52 +568,73 @@ export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, c
     });
   }
   const vigasElasticas: ResultadoVigaElastica[] = [];
-  const gs = gamas(b).s;
   for (const v of b.fundacao?.vigasElasticas ?? []) {
-    const nos = be.nos.filter((n) => n.ref === v.id), barras = be.barras.filter((x) => x.ref === v.id);
-    if (!nos.length) continue;
-    const msgs: string[] = [], notas: string[] = [], sAdm = sigmaDe(b, v.sigmaAdm);
-    const t = tensoes(b, an, raras, nos, sAdm, `viga ${v.nome}`, msgs, notas);
-    // envoltória ELU nas pontas das barras (momento interno: + traciona embaixo)
-    const s: number[] = [], Minf: number[] = [], Msup: number[] = [], V: number[] = [];
-    let s0 = 0;
-    for (const x of barras) {
-      const br = pm.modelo.barras[x.bi], L = baseBarra(pm.modelo, br).L;
-      for (const [k, sx] of [[0, s0], [6, s0 + L]] as const) {
-        let mi = 0, ms = 0, vv = 0;
-        for (const cb of elu) {
-          const f = fat(cb);
-          let M = 0, Vy = 0;
-          f.forEach((fi, ic) => { if (fi) { const e = esforcos[ic][x.bi]; M += fi * (k === 0 ? -e[5] : e[11]); Vy += fi * e[k + 1]; } });
-          mi = Math.max(mi, M); ms = Math.max(ms, -M); vv = Math.max(vv, Math.abs(Vy));
-        }
-        s.push(+sx.toFixed(4)); Minf.push(mi); Msup.push(ms); V.push(vv);
-      }
-      s0 += L;
-    }
-    const Md = { inf: Math.max(0, ...Minf), sup: Math.max(0, ...Msup) }, Vd = Math.max(0, ...V);
-    const dd = v.h - cob - 0.013, sec = { kind: 'rect' as const, bw: v.b, h: v.h };
-    const AsMin = beamAsMin(sec, false, dd, c, aco.fyd);
-    const fi = beamFlexure(sec, false, Md.inf, dd, cob + 0.013, c, aco.fyd), fs = beamFlexure(sec, false, Md.sup, dd, cob + 0.013, c, aco.fyd);
-    const inf = { As: Math.max(fi.As + fs.As2, AsMin), barras: null as BarChoice | null }, sup = { As: Math.max(fs.As + fi.As2, AsMin), barras: null as BarChoice | null };
-    inf.barras = chooseBars(inf.As, v.b, cob, 0.005, 0.019); sup.barras = chooseBars(sup.As, v.b, cob, 0.005, 0.019);
-    const sh = beamShear(v.b, dd, Vd, c, aco.fyk, gs);
-    const pele = v.h > 0.6 ? (() => { const n = Math.max(2, Math.ceil((0.001 * v.b * v.h) / barArea(8) - 1e-9)); return { phi: 8, n, As: n * barArea(8), layers: 1 }; })() : undefined;
-    if (fi.double || fs.double) msgs.push(`Viga de fundação: flexão com armadura dupla (x limitado) na seção ${Math.round(v.b * 100)}×${Math.round(v.h * 100)} cm; aumente a altura.`);
-    if (!inf.barras || !sup.barras) msgs.push(`Viga de fundação: flexão — armadura não cabe na largura (${Math.round(v.b * 100)} cm).`);
-    if (!sh.ok) msgs.push(`Viga de fundação: biela comprimida, Vd = ${fmt(Vd)} > VRd2 = ${fmt(sh.VRd2)} kN.`);
-    else if (!sh.stirrup) msgs.push('Viga de fundação: cortante — estribo não encontrado.');
-    const L = s0, est = sh.stirrup, perim = 2 * (v.b - 2 * cob + v.h - 2 * cob) + 0.2;
-    const kg = (A: number, len: number) => A * len * 7850;
-    const acoKg = (inf.barras ? kg(inf.barras.As, L) : 0) + (sup.barras ? kg(sup.barras.As, L) : 0) + (est ? kg(barArea(est.phi), perim) * (Math.ceil(L / est.s) + 1) : 0) + (pele ? 2 * kg(pele.As, L) : 0);
-    notas.push(`Molas k × b × comprimento de influência (k = ${fmt(v.k ?? op.radierK, 0)} kN/m³); giro em torno do eixo com k·b³/12 por metro; envoltória ELU nas pontas das barras.`);
-    vigasElasticas.push({
-      id: v.id, nome: v.nome, b: v.b, h: v.h, k: v.k ?? op.radierK, sigmaAdm: sAdm, L, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
-      Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, estribo: est, ...(pele ? { pele } : {}) }, nos: t.out,
-      volume: v.b * v.h * L, aco: acoKg, status: msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok', mensagens: msgs, notas,
-    });
+    const r = dimensionarVigaElastica(b, an, v, combs);
+    if (r) vigasElasticas.push(r);
   }
   return { radiers, vigasElasticas };
+}
+
+/**
+ * Viga sobre base elástica (ou sapata corrida sob pilares, FU7a): tensões no solo nas raras, envoltória ELU nas pontas
+ * das barras, flexão, cortante e pele. Na sapata corrida a seção é um T invertido: o momento que traciona a face superior
+ * (entre os pilares) comprime a aba (mesa de largura B) e o que traciona a inferior comprime a nervura (bw); cortante e
+ * armadura superior pela nervura, armadura inferior na largura da aba [a confirmar]. `null`: elemento sem nós na análise.
+ */
+export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v: VigaElasticaEf, combs: { raras: CombinacaoEd[]; elu: CombinacaoEd[]; freq: CombinacaoEd[] }): ResultadoVigaElastica | null {
+  const be = an.baseElastica, pm = an.portico;
+  if (!be || !pm.res) return null;
+  const raras = combs.raras.filter((c) => c.tipo === 'RARA'), elu = combs.elu.filter((c) => c.tipo === 'ELU');
+  const nomes: string[] = [...an.casos], esforcos = [...pm.res.esforcos];
+  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => { nomes.push(cv.nome); esforcos.push(pm.resVento!.esforcos[ic]); });
+  const fat = (c: CombinacaoEd) => nomes.map((n) => c.fatores[n] ?? 0);
+  const c = concretoDe(b, 'fundacao'), aco = acoDe(b, 'fundacao'), cob = cobrimentoFundacao(b), op = an.opcoes, gs = gamas(b).s;
+  const nos = be.nos.filter((n) => n.ref === v.id), barras = be.barras.filter((x) => x.ref === v.id);
+  if (!nos.length) return null;
+  const msgs: string[] = [], notas: string[] = [], sAdm = sigmaDe(b, v.sigmaAdm);
+  const t = tensoes(b, an, raras, nos, sAdm, `${v.corrida ? 'sapata corrida' : 'viga'} ${v.nome}`, msgs, notas);
+  // envoltória ELU nas pontas das barras (momento interno: + traciona embaixo)
+  const s: number[] = [], Minf: number[] = [], Msup: number[] = [], V: number[] = [];
+  let s0 = 0;
+  for (const x of barras) {
+    const br = pm.modelo.barras[x.bi], L = baseBarra(pm.modelo, br).L;
+    for (const [k, sx] of [[0, s0], [6, s0 + L]] as const) {
+      let mi = 0, ms = 0, vv = 0;
+      for (const cb of elu) {
+        const f = fat(cb);
+        let M = 0, Vy = 0;
+        f.forEach((fi, ic) => { if (fi) { const e = esforcos[ic][x.bi]; M += fi * (k === 0 ? -e[5] : e[11]); Vy += fi * e[k + 1]; } });
+        mi = Math.max(mi, M); ms = Math.max(ms, -M); vv = Math.max(vv, Math.abs(Vy));
+      }
+      s.push(+sx.toFixed(4)); Minf.push(mi); Msup.push(ms); V.push(vv);
+    }
+    s0 += L;
+  }
+  const Md = { inf: Math.max(0, ...Minf), sup: Math.max(0, ...Msup) }, Vd = Math.max(0, ...V);
+  const dd = v.h - cob - 0.013, bw = v.bApoio ?? v.b;
+  // seção que comprime na face inferior (tração em cima: mesa = aba) e na superior (tração embaixo: nervura)
+  const secSup: BeamSection = v.corrida && v.h0 && v.h0 < v.h ? { kind: 'tee', bw, h: v.h, bf: v.b, hf: v.h0 } : { kind: 'rect', bw, h: v.h };
+  const secInf: BeamSection = { kind: 'rect', bw, h: v.h };
+  const AsMin = beamAsMin(secInf, false, dd, c, aco.fyd);
+  const fi = beamFlexure(secInf, false, Md.inf, dd, cob + 0.013, c, aco.fyd), fs = beamFlexure(secSup, secSup.kind === 'tee', Md.sup, dd, cob + 0.013, c, aco.fyd);
+  const inf = { As: Math.max(fi.As + fs.As2, AsMin), barras: null as BarChoice | null }, sup = { As: Math.max(fs.As + fi.As2, AsMin), barras: null as BarChoice | null };
+  inf.barras = chooseBars(inf.As, v.b, cob, 0.005, 0.019); sup.barras = chooseBars(sup.As, bw, cob, 0.005, 0.019);
+  const sh = beamShear(bw, dd, Vd, c, aco.fyk, gs);
+  const pele = v.h > 0.6 ? (() => { const n = Math.max(2, Math.ceil((0.001 * bw * v.h) / barArea(8) - 1e-9)); return { phi: 8, n, As: n * barArea(8), layers: 1 }; })() : undefined;
+  if (fi.double || fs.double) msgs.push(`Viga de fundação: flexão com armadura dupla (x limitado) na seção ${Math.round(bw * 100)}×${Math.round(v.h * 100)} cm; aumente a altura.`);
+  if (!inf.barras || !sup.barras) msgs.push(`Viga de fundação: flexão — armadura não cabe na largura (${Math.round(bw * 100)} cm).`);
+  if (!sh.ok) msgs.push(`Viga de fundação: biela comprimida, Vd = ${fmt(Vd)} > VRd2 = ${fmt(sh.VRd2)} kN.`);
+  else if (!sh.stirrup) msgs.push('Viga de fundação: cortante — estribo não encontrado.');
+  const L = s0, est = sh.stirrup, perim = 2 * (bw - 2 * cob + v.h - 2 * cob) + 0.2;
+  const kg = (A: number, len: number) => A * len * 7850;
+  const acoKg = (inf.barras ? kg(inf.barras.As, L) : 0) + (sup.barras ? kg(sup.barras.As, L) : 0) + (est ? kg(barArea(est.phi), perim) * (Math.ceil(L / est.s) + 1) : 0) + (pele ? 2 * kg(pele.As, L) : 0);
+  notas.push(`Molas k × b × comprimento de influência (k = ${fmt(v.k ?? op.radierK, 0)} kN/m³); giro em torno do eixo com k·b³/12 por metro; envoltória ELU nas pontas das barras.`);
+  const volume = v.secao ? v.secao.A * L : v.b * v.h * L;
+  return {
+    id: v.id, nome: v.nome, b: v.b, h: v.h, k: v.k ?? op.radierK, sigmaAdm: sAdm, L, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
+    Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, estribo: est, ...(pele ? { pele } : {}) }, nos: t.out,
+    volume, aco: acoKg, status: msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok', mensagens: msgs, notas,
+  };
 }
 
 /** Avisos de modelo da base elástica: apoios mistos e radier sem carga no nível de fundação. */

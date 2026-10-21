@@ -52,6 +52,8 @@ function base() {
   // FU6: um radier e uma viga sobre base elástica longe dos pilares
   expect(s.executar('radier.criar', { contorno: [[20, 0], [24, 0], [24, 4], [20, 4]], h: 0.35 }).ok).toBe(true);
   expect(s.executar('vigaElastica.criar', { pontos: [[20, 10], [26, 10]] }).ok).toBe(true);
+  // FU7a: uma sapata corrida sob parede longe dos pilares
+  expect(s.executar('corrida.criar', { pontos: [[40, 0], [46, 0]], bw: 0.2 }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -168,6 +170,9 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'vigaElastica.criar': () => ({ pontos: [[30, 0], [36, 0], [36, 4]], b: 0.6, h: 1, k: 50000, nome: 'VE9' }),
   'vigaElastica.editar': (b) => ({ id: b.fundacao!.vigasElasticas![0].id, b: 0.7, sigmaAdm: 200, nome: 'VE5' }),
   'vigaElastica.remover': (b) => ({ ids: [b.fundacao!.vigasElasticas![0].id] }),
+  'corrida.criar': () => ({ pontos: [[50, 0], [58, 0], [58, 6]], bw: 0.25, aba: 'esq', equilibrio: true, h: 0.5, h0: 0.25, alvenaria: true, sigmaAdm: 180, nome: 'SC9' }),
+  'corrida.editar': (b) => ({ id: b.fundacao!.corridas![0].id, B: 1.2, aba: 'dir', bw: 0.3, equilibrio: true, nome: 'SCA', limpar: ['h'] }),
+  'corrida.remover': (b) => ({ ids: [b.fundacao!.corridas![0].id] }),
   'sondagem.criar': () => ({ nome: 'SP-02', x: 4, y: 3, leituras: [{ N: 3, solo: 'argila' }, { N: 6, solo: 'silteArgiloso', descartada: true }, { N: 9, solo: 'silteArenoso' }], impenetravel: true }),
   'sondagem.editar': (b) => ({ id: b.fundacao!.sondagens[0].id!, nome: 'SP-1A', semAgua: true }),
   'sondagem.remover': (b) => ({ ids: [b.fundacao!.sondagens[0].id!] }),

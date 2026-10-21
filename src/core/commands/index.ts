@@ -8,6 +8,7 @@ import './armaduras';
 import './tabelas';
 import './fundacao';
 import './baseElastica';
+import './corrida';
 import './edicao';
 
 export * from './registry';

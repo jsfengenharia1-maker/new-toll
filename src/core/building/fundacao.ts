@@ -22,7 +22,7 @@ import { combinacoesDoEstado, type CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
-import { pontoNaBase } from './baseElastica';
+import { pilaresDaCorrida, pontoNaBase, pontoNaCorrida } from './baseElastica';
 import {
   abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
   type AlavancaNaViga, type CargaPontualVF, type GeometriaVF, type ResultadoVigaFundacao, type VigaAlavanca,
@@ -247,7 +247,9 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
 
   // cargas do nível de fundação: primeiro nas vigas (faixa da largura entre os pilares), depois nos elementos
   // as que caem sobre a base elástica (radier, viga sobre base elástica; FU6) já entraram na análise global
-  const parcelas = b.cargas.filter((c) => c.grupo === 'fundacao').flatMap((c) => parcelasDaCarga(c).map((x) => ({ ...x, caso: c.caso }))).filter((x) => !pontoNaBase(b, x.pt));
+  // as que caem sobre uma sapata corrida sob parede (FU7a) são dela (calcularCorridas)
+  const corridasParede = (fe.corridas ?? []).filter((c) => !pilaresDaCorrida(b, c).length);
+  const parcelas = b.cargas.filter((c) => c.grupo === 'fundacao').flatMap((c) => parcelasDaCarga(c).map((x) => ({ ...x, caso: c.caso, tipo: c.tipo }))).filter((x) => !pontoNaBase(b, x.pt) && !corridasParede.some((c) => pontoNaCorrida(c, x.pt, x.tipo)));
   const naViga = new Map<string, CargaPontualVF[]>();
   const resto: typeof parcelas = [];
   for (const pc of parcelas) {

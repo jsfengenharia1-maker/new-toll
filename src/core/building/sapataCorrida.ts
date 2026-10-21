@@ -1,0 +1,417 @@
+// Sapata corrida (frente FU, fatia FU7a): base contínua lançada por polilinha sob uma parede (carga linear) ou sob um
+// alinhamento de pilares / viga de fundação.
+// - Sob parede (sem pilares sobre o eixo): dimensionamento rígido por metro. Largura B pela σadm (busca em passos de 5 cm,
+//   como as sapatas do módulo Fundações, com o peso próprio e a pressão sem tração quando a aba é de um lado só), altura
+//   pela rigidez (balanço ≤ 1,5·h, NBR 6118 22.6.1), flexão transversal da aba pelo CEB-70 numa faixa de 1 m (seção de
+//   referência a 15 % de bw dentro da face; 25 % na alvenaria) ou pelas bielas, e armadura de distribuição longitudinal.
+// - Sob pilares: a sapata entra na análise global como viga sobre base elástica (FU6, `baseElastica.ts`: molas de Winkler
+//   k × B × comprimento, seção em T invertido, pilares sem vínculo externo); a flexão longitudinal e o cortante saem da
+//   viga e a flexão transversal da aba da pressão máxima do solo. Aba de um lado só exige viga de equilíbrio (cintas).
+// Reaproveita `footings.ts` (pressão sem tração, σadm pelo SPT), `concrete.ts`, `baseElastica.ts` e `vigasFundacao.ts`.
+// Unidades: kN, m, kN/m² (tensões), kN/m³ (k), por metro de comprimento da sapata quando indicado.
+import { barArea, beamFlexure, concrete } from '../concrete';
+import { basePressure, sigmaProvider } from '../footings';
+import { rawBoringFor, type Boring, type FLoad, type FoundationParams } from '../piles';
+import { ceil05 } from '../rebar';
+import { dentroPoligono, type P } from '../geom/faces';
+import type { AnaliseEdificio } from './analitico';
+import { estadoEmUso } from './acoes';
+import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
+import {
+  corridaEfetiva, dimensionarVigaElastica, pilaresDaCorrida, pontoNaCorrida, projecaoNaViga, vigasElasticasEf, type ResultadoVigaElastica,
+} from './baseElastica';
+import { cotaElemento, cotaTerreno, parametrosElemento, parametrosFundacao } from './fundacao';
+import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
+import { vrd1 } from './vigotas';
+import { classificar } from './revisao';
+import { parcelasDaCarga } from './vigasFundacao';
+import { casosDaObra, deslocarPolilinha, type AbaCorrida, type BuildingModel, type SapataCorrida } from './types';
+
+const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
+const cm = (v: number) => Math.round(v * 100);
+const GAMA_CONC = 25;
+
+// ---------------- geometria ----------------
+
+/** Distâncias (m) da base para a esquerda e para a direita do eixo, pelo lado da aba (esquerda = lado + do sentido do traçado). */
+export function ladosDaBase(aba: AbaCorrida, B: number, bw: number): { esq: number; dir: number } {
+  return aba === 'ambas' ? { esq: B / 2, dir: B / 2 } : aba === 'esq' ? { esq: B - bw / 2, dir: bw / 2 } : { esq: bw / 2, dir: B - bw / 2 };
+}
+
+/** Contorno da base (polilinha deslocada de cada lado do eixo), m. */
+export function contornoCorrida(c: Pick<SapataCorrida, 'pontos' | 'aba' | 'bw'>, B: number): P[] {
+  const l = ladosDaBase(c.aba, B, c.bw), e = deslocarPolilinha(c.pontos, l.esq), d = deslocarPolilinha(c.pontos, -l.dir);
+  return [...e, ...[...d].reverse()];
+}
+
+/** Contorno do elemento apoiado (parede, viga ou nervura) sobre a base, m. */
+export function contornoApoio(c: Pick<SapataCorrida, 'pontos' | 'bw'>): P[] {
+  const e = deslocarPolilinha(c.pontos, c.bw / 2), d = deslocarPolilinha(c.pontos, -c.bw / 2);
+  return [...e, ...[...d].reverse()];
+}
+
+export const comprimentoCorrida = (pts: P[]) => pts.slice(1).reduce((t, q, i) => t + Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]), 0);
+/** Próximo nome livre (SC1, SC2…). */
+export function nomeCorrida(b: BuildingModel) { return `SC${Math.max(0, ...(b.fundacao?.corridas ?? []).map((x) => { const m = /^SC(\d+)$/.exec(x.nome); return m ? +m[1] : 0; })) + 1}`; }
+
+/** Sapata corrida sob pilares (modo "pilares", na análise global) ou sob parede (modo "parede")? */
+export const modoCorrida = (b: BuildingModel, c: SapataCorrida): 'parede' | 'pilares' => (pilaresDaCorrida(b, c).length ? 'pilares' : 'parede');
+
+// ---------------- resultado ----------------
+
+export interface BarrasPorMetro { phi: number; s: number; As: number }
+
+export interface FlexaoTransversal {
+  /** Método: CEB-70 (momento da pressão do solo) ou bielas. */
+  metodo: 'ceb70' | 'bielas';
+  /** Balanço da aba além da face (m), distância da borda à seção de referência (m), d e d efetivo (m). */
+  balanco: number; l: number; d: number; dEff: number;
+  /** Momento de cálculo por metro (kN·m/m); tração das bielas (kN/m). */
+  Md: number; T?: number;
+  /** Armadura transversal calculada, mínima e adotada (cm²/m) e as barras (φ mm, s m). */
+  As: number; AsMin: number; AsAdot: number; barras: BarrasPorMetro | null;
+  /** Armadura de distribuição (paralela ao eixo; cm²/m) e as barras. */
+  distribuicao: { As: number; barras: BarrasPorMetro | null };
+  /** Cortante a d da face (só quando a sapata é flexível; kN/m). */
+  cortante?: { Vd: number; VRd1: number; ok: boolean };
+}
+
+export interface ResultadoCorrida {
+  id: string; nome: string; modo: 'parede' | 'pilares';
+  pontos: [number, number][]; L: number;
+  cota: number; profundidade: number;
+  aba: AbaCorrida; equilibrio: boolean; alvenaria: boolean;
+  /** Largura da base, do apoio, altura no eixo, espessura da aba (m). */
+  B: number; bw: number; h: number; h0: number;
+  balanco: number; hRigido: number; rigida: boolean;
+  /** Dimensões impostas (só verificadas). */
+  fixa: boolean;
+  /** Base e elemento apoiado em planta (m). */
+  contorno: P[]; apoio: P[];
+  /** Carga por metro (kN/m): rara máxima e mínima, de cálculo (γf·Nk) e peso próprio; combinação determinante. */
+  carga: { Nk: number; NkMin: number; Nd: number; W: number; comb: string } | null;
+  sigmaAdm?: number; sigmaFonte?: string;
+  /** Pressão sob a base na combinação rara mais desfavorável (kN/m²) e fração comprimida; excentricidade da carga (m). */
+  pressao: { sigmaMax: number; sigmaMin: number; compressed: number; e: number } | null;
+  transversal: FlexaoTransversal | null;
+  /** Momento por metro que as cintas (vigas de equilíbrio) absorvem na aba de um lado só (kN·m/m). */
+  cinta?: number;
+  /** Modo pilares: a viga sobre base elástica (esforços longitudinais, armadura e tensões por nó). */
+  longitudinal?: ResultadoVigaElastica;
+  /** Concreto (m³), forma (m²) e aço estimado (kg). */
+  volume: number; forma: number; aco: number;
+  status: 'ok' | 'fail'; mensagens: string[]; notas: string[]; resumo: string;
+}
+
+// ---------------- flexão transversal ----------------
+
+const PHIS_PRINCIPAL = [8, 10, 12.5, 16, 20, 25];
+const PHIS_DIST = [6.3, 8, 10, 12.5, 16];
+
+/** Barras por metro: menor área efetiva com espaçamento entre smin e smax (m), arredondado para baixo ao cm. */
+export function barrasPorMetro(As: number, smin: number, smax: number, phis: number[], hMax?: number): BarrasPorMetro | null {
+  let melhor: BarrasPorMetro | null = null;
+  for (const phi of phis) {
+    if (hMax && phi > (hMax * 1000) / 8 + 1e-9) continue;
+    const a = barArea(phi);
+    const s = Math.floor(Math.min(smax, As > 0 ? a / As : smax) * 100 + 1e-6) / 100;
+    if (s < smin - 1e-9) continue;
+    const ef = a / s;
+    if (!melhor || ef < melhor.As - 1e-12) melhor = { phi, s, As: ef };
+  }
+  return melhor;
+}
+
+/** Pressão sob a base (faixa de 1 m) para a carga N (kN/m) com excentricidade e (m); `equilibrio`: reação uniforme (cintas absorvem o momento). */
+export function pressaoCorrida(B: number, N: number, e: number, equilibrio: boolean) {
+  if (N <= 0) return null;
+  if (equilibrio || e < 1e-9) return { s0: N / B, sx: 0, sigmaMax: N / B, sigmaMin: N / B, compressed: 1 };
+  const pr = basePressure(B, 1, N, e, 0);
+  return pr ? { s0: pr.s0, sx: pr.sx, sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed } : null;
+}
+
+/** Momento (kN·m/m) das tensões entre a borda da aba e a seção a l dela; σ(t) = s0 + sx·(t − B/2), t da borda da aba (sem tração). */
+export function momentoAba(pr: { s0: number; sx: number }, B: number, l: number): number {
+  const n = 200, h = l / n;
+  const f = (t: number) => Math.max(0, pr.s0 + pr.sx * (t - B / 2)) * (l - t);
+  let s = f(0) + f(l);
+  for (let i = 1; i < n; i++) s += f(i * h) * (i % 2 ? 4 : 2);
+  return (s * h) / 3;
+}
+
+export interface EntradaFlexao {
+  B: number; bw: number; aba: AbaCorrida; equilibrio: boolean; alvenaria: boolean; h: number; h0: number; hRigido: number;
+  /** Carga de cálculo por metro, líquida do peso próprio da sapata (kN/m). */
+  Nd: number;
+}
+
+/**
+ * Flexão transversal da aba por metro (CEB-70 ou bielas), armadura de distribuição e, na sapata flexível, o cortante a d da
+ * face. A seção de referência fica a `corridaRefConcreto` (ou `corridaRefAlvenaria`) % de bw dentro da face do apoio.
+ */
+export function flexaoTransversal(s: EntradaFlexao, P: FoundationParams, op: OpcoesCalculo, msgs: string[], nome: string): FlexaoTransversal {
+  const c = concrete(P.fckFound, P.gammaC), fyd = P.fyk / P.gammaS;
+  const balanco = Math.max(0, s.aba === 'ambas' ? (s.B - s.bw) / 2 : s.B - s.bw);
+  const ref = ((s.alvenaria ? op.corridaRefAlvenaria : op.corridaRefConcreto) / 100) * s.bw;
+  const l = balanco + ref;
+  const e = s.aba === 'ambas' ? 0 : (s.B - s.bw) / 2;
+  const d = s.h - P.cover - 0.01, dEff = Math.min(d, 1.5 * Math.max(balanco, 1e-6));
+  const pr = pressaoCorrida(s.B, s.Nd, e, s.equilibrio) ?? { s0: s.Nd / s.B, sx: 0 };
+  const bielas = P.ftMethod === 'bielas' && s.aba === 'ambas' && s.h >= s.hRigido - 1e-9;
+  let Md = 0, T: number | undefined, As: number;
+  if (bielas) {
+    T = (s.Nd * (s.B - s.bw)) / (8 * d);
+    As = T / 1000 / fyd;
+  } else {
+    Md = momentoAba(pr, s.B, l);
+    As = Md > 0 ? beamFlexure({ kind: 'rect', bw: 1, h: dEff + P.cover + 0.01 }, false, Md, dEff, 0.05, c, fyd).As : 0;
+  }
+  const AsMin = P.ftRhoMin * 1 * s.h;
+  const AsAdot = Math.max(As, P.ftRhoMinReduz ? Math.min(AsMin, (4 / 3) * As) : AsMin);
+  const barras = barrasPorMetro(AsAdot, 0.1, 0.2, PHIS_PRINCIPAL, s.h);
+  if (!barras) msgs.push(`Sapata corrida ${nome}: armadura transversal não coube com espaçamento entre 10 e 20 cm (${fmt(AsAdot * 1e4)} cm²/m).`);
+  const AsDist = Math.max((op.corridaDistribuicao / 100) * (barras?.As ?? AsAdot), 0.9e-4, 0.5 * P.ftRhoMin * s.h);
+  const dist = barrasPorMetro(AsDist, 0.08, 0.33, PHIS_DIST, s.h);
+  const out: FlexaoTransversal = { metodo: bielas ? 'bielas' : 'ceb70', balanco, l, d, dEff, Md, ...(T !== undefined ? { T } : {}), As: As * 1e4, AsMin: AsMin * 1e4, AsAdot: AsAdot * 1e4, barras, distribuicao: { As: AsDist * 1e4, barras: dist } };
+  if (s.h < s.hRigido - 1e-9) {
+    const Vd = (s.Nd / s.B) * Math.max(0, balanco - d), R = vrd1(c, 1, dEff, barras?.As ?? AsAdot);
+    out.cortante = { Vd, VRd1: R, ok: Vd <= R + 1e-9 };
+    msgs.push(`Sapata corrida ${nome}: altura ${fmt(s.h * 100, 0)} cm menor que a rígida (${fmt(s.hRigido * 100, 0)} cm): sapata flexível, cisalhamento verificado a d da face (a confirmar).`);
+    if (!out.cortante.ok) msgs.push(`Sapata corrida ${nome}: cisalhamento a d da face, Vd = ${fmt(Vd, 1)} > VRd1 = ${fmt(R, 1)} kN/m.`);
+  }
+  return out;
+}
+
+// ---------------- geometria da seção por metro ----------------
+
+/** Área da seção transversal (m²) da sapata sob parede: apoio bw × h mais as abas com a face superior inclinada (h na face, h0 na borda). */
+const areaSecaoParede = (B: number, bw: number, h: number, h0: number) => bw * h + (B - bw) * ((h + h0) / 2);
+/** Forma lateral por metro (m²/m) sob parede: borda (h0) e face inclinada de cada aba; o lado rente à divisa (aba de um lado) vai até h. */
+function formaPorMetroParede(aba: AbaCorrida, B: number, bw: number, h: number, h0: number): number {
+  const abas = aba === 'ambas' ? [(B - bw) / 2, (B - bw) / 2] : [B - bw];
+  return abas.reduce((t, bal) => t + h0 + Math.hypot(bal, h - h0), 0) + (aba === 'ambas' ? 0 : h);
+}
+
+// ---------------- cargas e combinações ----------------
+
+interface Contexto {
+  b: BuildingModel; an: AnaliseEdificio | null; op: OpcoesCalculo; P0: FoundationParams; zt: number;
+  raras: CombinacaoEd[]; ventos: Set<string>; fv: number;
+  /** Combinações normativas do edifício (calculadas uma vez, sob pilares). */
+  combs?: CombinacaoEd[];
+}
+
+const comVento = (cx: Contexto, cb: CombinacaoEd) => Object.entries(cb.fatores).some(([k, f]) => f !== 0 && cx.ventos.has(k));
+
+/** Furo de sondagem mais próximo do ponto médio do eixo (ou o primeiro). */
+function furoMaisProximo(b: BuildingModel, c: SapataCorrida): Boring | undefined {
+  const lista = b.fundacao?.sondagens ?? [];
+  if (!lista.length) return undefined;
+  const mid = (() => { let s = 0; const L = comprimentoCorrida(c.pontos); for (let i = 0; i + 1 < c.pontos.length; i++) { const l = Math.hypot(c.pontos[i + 1][0] - c.pontos[i][0], c.pontos[i + 1][1] - c.pontos[i][1]); if (s + l >= L / 2) { const t = (L / 2 - s) / (l || 1); return [c.pontos[i][0] + t * (c.pontos[i + 1][0] - c.pontos[i][0]), c.pontos[i][1] + t * (c.pontos[i + 1][1] - c.pontos[i][1])]; } s += l; } return c.pontos[0]; })();
+  return rawBoringFor({ x: mid[0], y: mid[1] } as FLoad, { boring: lista[0], borings: lista });
+}
+
+/** Cargas do nível de fundação sobre o eixo, por caso e por janela ao longo do comprimento (kN/m). */
+function cargasPorJanela(b: BuildingModel, c: SapataCorrida, op: OpcoesCalculo, L: number): { casos: Map<string, number[]>; total: number; nJan: number } {
+  const nJan = Math.max(1, Math.floor(L / op.corridaJanela + 1e-9)), wj = L / nJan;
+  const casos = new Map<string, number[]>();
+  let total = 0;
+  for (const cg of b.cargas) {
+    if (cg.grupo !== 'fundacao') continue;
+    for (const pc of parcelasDaCarga(cg)) {
+      if (!pontoNaCorrida(c, pc.pt, cg.tipo)) continue;
+      const pr = projecaoNaViga(c, pc.pt), j = Math.min(nJan - 1, Math.max(0, Math.floor(pr.s / wj)));
+      const v = casos.get(cg.caso) ?? new Array<number>(nJan).fill(0);
+      v[j] += pc.P / wj; casos.set(cg.caso, v); total += pc.P;
+    }
+  }
+  return { casos, total, nJan };
+}
+
+// ---------------- sapata corrida sob parede ----------------
+
+function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
+  const { b, op } = cx, fe = b.fundacao!;
+  const msgs: string[] = [], notas: string[] = [];
+  const L = comprimentoCorrida(c.pontos), cota = cotaElemento(b, c), prof = +(cx.zt - cota).toFixed(3);
+  const fixa = c.B !== undefined;
+  const base = (B: number, extra: Partial<ResultadoCorrida> = {}): ResultadoCorrida => ({
+    id: c.id, nome: c.nome, modo: 'parede', pontos: c.pontos, L, cota, profundidade: prof, aba: c.aba, equilibrio: !!c.equilibrio, alvenaria: !!c.alvenaria,
+    B, bw: c.bw, h: c.h ?? 0, h0: c.h0 ?? 0, balanco: 0, hRigido: 0, rigida: true, fixa, contorno: contornoCorrida(c, B), apoio: contornoApoio(c), carga: null, pressao: null, transversal: null,
+    volume: 0, forma: 0, aco: 0, status: 'fail', mensagens: msgs, notas, resumo: `${c.nome}: não calculada`, ...extra,
+  });
+  const pCad = cx.P0;
+  if (prof <= 0) { msgs.push(`Fundação acima do terreno: sapata corrida ${c.nome} com cota de assentamento ${fmt(cota)} m ≥ cota do terreno ${fmt(cx.zt)} m.`); return base(c.B ?? op.corridaBMin); }
+  // σadm: própria, informada do terreno ou pelo SPT do furo mais próximo
+  const P: FoundationParams = parametrosElemento(pCad, { tipo: 'sapata', cota: c.cota }, prof);
+  let sigmaFonte = '';
+  if (c.sigmaAdm !== undefined || fe.terreno.sigmaModo === 'informada') {
+    const s = c.sigmaAdm ?? fe.terreno.sigmaAdm;
+    if (!s) { msgs.push(`Fundação sem σadm: sapata corrida ${c.nome} (informe a tensão admissível do terreno ou da sapata).`); return base(c.B ?? op.corridaBMin); }
+    P.ftSigmaMode = 'informada'; P.ftSigmaAdm = s; sigmaFonte = c.sigmaAdm !== undefined ? 'informada na sapata' : 'informada (terreno)';
+  } else {
+    if (!fe.sondagens.length) { msgs.push(`Fundação sem sondagem: σadm da sapata corrida ${c.nome} estimada pelo SPT exige furos de sondagem.`); return base(c.B ?? op.corridaBMin); }
+    P.ftSigmaMode = 'spt';
+  }
+  const sigmaFor = sigmaProvider(furoMaisProximo(b, c), P);
+  // cargas por metro nas combinações raras (a maior soma em janelas ao longo do eixo)
+  const cj = cargasPorJanela(b, c, op, L);
+  if (cj.total <= 0) { msgs.push(`Sapata corrida ${c.nome}: sem carga — lance cargas lineares (alvenaria), pontuais ou de área no nível de fundação sobre o eixo, ou apoie pilares nela.`); return base(c.B ?? op.corridaBMin); }
+  const cargas = cx.raras.map((cb) => {
+    let q = 0, qMin = Infinity;
+    for (let j = 0; j < cj.nJan; j++) { const v = [...cj.casos].reduce((t, [k, arr]) => t + (cb.fatores[k] ?? 0) * arr[j], 0); q = Math.max(q, v); qMin = Math.min(qMin, v); }
+    return { cb, q, qMin: Number.isFinite(qMin) ? qMin : 0, vento: comVento(cx, cb) };
+  }).filter((x) => x.q > 1e-9);
+  if (!cargas.length) { msgs.push(`Sapata corrida ${c.nome}: sem carga nas combinações raras (os casos lançados não entram em nenhuma).`); return base(c.B ?? op.corridaBMin); }
+  const Nk = Math.max(...cargas.map((x) => x.q)), NkMin = Math.min(...cargas.map((x) => x.qMin)), cMax = cargas.find((x) => x.q === Nk)!.cb.nome;
+  const W0 = (P.ftPP / 100) * Nk;
+  const ecc = (B: number) => (c.aba === 'ambas' ? 0 : (B - c.bw) / 2);
+  const hFor = (B: number) => {
+    const bal = Math.max(0, c.aba === 'ambas' ? (B - c.bw) / 2 : B - c.bw), hRig = ((2 * bal) / 3) * (1.5 / P.ftBalancoAltura);
+    const h = c.h ?? ceil05(Math.max(hRig, P.ftH0Min)), h0 = Math.min(h, c.h0 ?? ceil05(Math.max(h / 3, P.ftH0Min)));
+    return { h, h0, hRig, bal };
+  };
+  const verifica = (B: number) => {
+    const g = hFor(B), sg = sigmaFor(B);
+    if (!sg) return null;
+    const W = Math.max(W0, GAMA_CONC * areaSecaoParede(B, c.bw, g.h, g.h0));
+    let pior: { sigmaMax: number; sigmaMin: number; compressed: number; e: number } | null = null;
+    for (const x of cargas) {
+      const pr = pressaoCorrida(B, x.q + W, ecc(B), !!c.equilibrio);
+      if (!pr || pr.sigmaMax > P.ftEdgeFactor * sg.s * (x.vento ? cx.fv : 1) + 1e-6 || pr.compressed < (P.ftLevantamento ? 0 : P.ftMinCompressed) - 1e-6) return null;
+      if (!pior || pr.sigmaMax > pior.sigmaMax) pior = { sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed, e: ecc(B) };
+    }
+    return { g, sg, W, pior: pior! };
+  };
+  let B = 0, ok: NonNullable<ReturnType<typeof verifica>> | null = null;
+  if (fixa) { B = c.B!; ok = verifica(B); }
+  else for (let t = Math.max(op.corridaBMin, ceil05(c.bw + 0.1)); t <= 8 + 1e-9; t += 0.05) { const r = verifica(Math.round(t * 100) / 100); if (r) { B = Math.round(t * 100) / 100; ok = r; break; } }
+  if (!ok) {
+    const B0 = fixa ? c.B! : op.corridaBMin;
+    msgs.push(c.aba !== 'ambas' && !c.equilibrio
+      ? `Sapata corrida ${c.nome}: aba de um lado exige viga de equilíbrio (cintas até sapatas internas): sem elas, a pressão excêntrica sem tração não atende a σadm até B = 8 m. Marque "equilibrada por cintas" ou use abas dos dois lados.`
+      : fixa ? `Sapata corrida ${c.nome}: nenhuma largura atende — a largura imposta B = ${fmt(B0)} m não atende a σadm, a área comprimida e a excentricidade.`
+        : `Sapata corrida ${c.nome}: nenhuma largura até 8 m atende a σadm, a área comprimida e a excentricidade.`);
+    return base(B0, { carga: { Nk, NkMin, Nd: P.gammaF * Nk, W: W0, comb: cMax }, sigmaAdm: sigmaFor(B0)?.s, sigmaFonte });
+  }
+  const { g, sg, W, pior } = ok;
+  if (c.aba !== 'ambas' && !c.equilibrio && pior.e > 0) notas.push(`Aba de um lado sem cintas: pressão excêntrica (e = ${fmt(pior.e)} m) com σmáx = ${fmt(pior.sigmaMax, 1)} kN/m² e ${fmt(pior.compressed * 100, 0)} % comprimida.`);
+  const eq = c.aba !== 'ambas' && !!c.equilibrio;
+  const cinta = eq ? Nk * ecc(B) : undefined;
+  if (eq) notas.push(`Aba de um lado: reação uniforme (equilíbrio por vigas de equilíbrio/cintas até sapatas internas, NBR 6122 — item a confirmar); momento a equilibrar N·e = ${fmt(Nk)} × ${fmt(ecc(B))} = ${fmt(cinta!, 1)} kN·m por metro. As cintas não são dimensionadas aqui.`);
+  const Nd = P.gammaF * Nk;
+  const tr = flexaoTransversal({ B, bw: c.bw, aba: c.aba, equilibrio: !!c.equilibrio, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd }, P, op, msgs, c.nome);
+  if (tr.cortante && !tr.cortante.ok) { /* mensagem já incluída */ }
+  const sec = areaSecaoParede(B, c.bw, g.h, g.h0), volume = sec * L, forma = L * formaPorMetroParede(c.aba, B, c.bw, g.h, g.h0) + 2 * sec;
+  if (c.h !== undefined && c.h < g.hRig - 1e-9) notas.push('Altura imposta menor que a rígida: sapata flexível.');
+  if (W > W0 + 1e-6) notas.push(`Peso do concreto (${fmt(W)} kN/m) maior que ${P.ftPP}% da carga (${fmt(W0)} kN/m): usado o peso calculado.`);
+  notas.push(`Carga por metro: maior soma em janelas de ${fmt(op.corridaJanela)} m ao longo de ${fmt(L)} m (${cj.nJan} janela(s)); a largura é única ao longo do eixo.`);
+  notas.push(`σadm ${fmt(sg.s, 0)} kN/m² (${sigmaFonte || 'estimada pelo SPT: N̄/' + P.ftSptDiv + ' MPa (a confirmar)'}); método ${tr.metodo === 'bielas' ? 'das bielas' : 'CEB-70'}, seção de referência a ${fmt(tr.l - tr.balanco, 2)} m dentro da face.`);
+  const Nlinear = tr.barras ? (barArea(tr.barras.phi) / tr.barras.s) : 0;
+  const aco = (Nlinear * (B - 2 * P.cover) * L + (tr.distribuicao.barras ? (barArea(tr.distribuicao.barras.phi) / tr.distribuicao.barras.s) * (L - 2 * P.cover) * (B - 2 * P.cover) : 0)) * 7850;
+  const r: ResultadoCorrida = {
+    ...base(B), h: g.h, h0: g.h0, balanco: g.bal, hRigido: g.hRig, rigida: g.h >= g.hRig - 1e-9,
+    carga: { Nk, NkMin, Nd, W, comb: cMax }, sigmaAdm: sg.s, sigmaFonte, pressao: pior, transversal: tr, ...(cinta !== undefined ? { cinta } : {}),
+    volume, forma, aco, notas, mensagens: msgs, resumo: '',
+  };
+  r.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
+  r.resumo = resumoTexto(r);
+  return r;
+}
+
+// ---------------- sapata corrida sob pilares ----------------
+
+function calcularSobPilares(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
+  const { b, an, op } = cx;
+  const msgs: string[] = [], notas: string[] = [];
+  const g = corridaEfetiva(b, c, op), L = comprimentoCorrida(c.pontos), cota = cotaElemento(b, c), prof = +(cx.zt - cota).toFixed(3);
+  const P: FoundationParams = parametrosElemento(cx.P0, { tipo: 'sapata', cota: c.cota }, prof);
+  const vazio = (): ResultadoCorrida => ({
+    id: c.id, nome: c.nome, modo: 'pilares', pontos: c.pontos, L, cota, profundidade: prof, aba: c.aba, equilibrio: !!c.equilibrio, alvenaria: !!c.alvenaria,
+    B: g.B, bw: g.bw, h: g.h, h0: g.h0, balanco: g.balanco, hRigido: g.hRig, rigida: g.h0 >= g.hRig - 1e-9, fixa: c.B !== undefined, contorno: contornoCorrida(c, g.B), apoio: contornoApoio(c),
+    carga: null, pressao: null, transversal: null, volume: 0, forma: 0, aco: 0, status: 'fail', mensagens: msgs, notas, resumo: `${c.nome}: não calculada`,
+  });
+  const v = vigasElasticasEf(b).find((x) => x.id === c.id && x.corrida);
+  if (!an || an.erro || !an.baseElastica || !v) {
+    msgs.push(`Fundação sem cargas: calcule a estrutura antes (sapata corrida ${c.nome} sob pilares entra na análise global).`);
+    return vazio();
+  }
+  const combs = (cx.combs ??= combinacoesEdificio(b, an));
+  const elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs), raras = combinacoesDoEstado(b, an, 'solo', combs);
+  const lg = dimensionarVigaElastica(b, an, v, { raras, elu, freq });
+  if (!lg) { msgs.push(`Fundação sem cargas: sapata corrida ${c.nome} sem nós na análise (recalcule o edifício).`); return vazio(); }
+  msgs.push(...lg.mensagens);
+  notas.push(...lg.notas);
+  if (c.B === undefined) notas.push(`Largura B não informada: adotada ${fmt(g.B)} m na análise (opção "largura padrão"); a verificação da σadm dá a largura necessária.`);
+  if (c.h === undefined) notas.push(`Altura não informada: adotada ${fmt(g.h * 100, 0)} cm no eixo (opção "altura padrão"); aba de ${fmt(g.h0 * 100, 0)} cm pela rigidez.`);
+  const secArea = v.secao!.A, pesoPressao = (GAMA_CONC * secArea) / g.B;
+  const pMax = lg.sigmaMax, qMax = pMax * g.B;
+  const eq = c.aba !== 'ambas' && !!c.equilibrio, ecc = c.aba === 'ambas' ? 0 : (g.B - g.bw) / 2;
+  let cinta: number | undefined;
+  if (c.aba !== 'ambas') {
+    if (eq) { cinta = qMax * ecc; notas.push(`Aba de um lado: reação uniforme (equilíbrio por vigas de equilíbrio/cintas até sapatas internas, NBR 6122 — item a confirmar); momento a equilibrar N·e = ${fmt(qMax)} × ${fmt(ecc)} = ${fmt(cinta, 1)} kN·m por metro, no máximo. As cintas não são dimensionadas aqui.`); }
+    else {
+      const pr = pressaoCorrida(g.B, qMax, ecc, false);
+      if (!pr || (lg.sigmaAdm !== null && pr.sigmaMax > lg.sigmaAdm + 1e-6) || pr.compressed < P.ftMinCompressed - 1e-6)
+        msgs.push(`Sapata corrida ${c.nome}: aba de um lado exige viga de equilíbrio (cintas até sapatas internas): a pressão excêntrica sem tração (e = ${fmt(ecc)} m) não atende a σadm. Marque "equilibrada por cintas" ou use abas dos dois lados.`);
+    }
+  }
+  const netoK = Math.max(0, pMax - pesoPressao);
+  const tr = flexaoTransversal({ B: g.B, bw: g.bw, aba: c.aba, equilibrio: eq, alvenaria: !!c.alvenaria, h: g.h0, h0: g.h0, hRigido: g.hRig, Nd: P.gammaF * netoK * g.B }, P, op, msgs, c.nome);
+  if (lg.sigmaAdm !== null && lg.sigmaMax > lg.sigmaAdm + 1e-6) msgs.push(`Sapata corrida ${c.nome}: largura necessária ≈ ${fmt((lg.sigmaMax * g.B) / lg.sigmaAdm)} m (σmáx·B/σadm) para a σadm.`);
+  const volume = lg.volume, forma = L * (2 * g.h) + 2 * secArea;
+  const aco = lg.aco + ((tr.barras ? barArea(tr.barras.phi) / tr.barras.s : 0) * (g.B - 2 * P.cover) * L + (tr.distribuicao.barras ? (barArea(tr.distribuicao.barras.phi) / tr.distribuicao.barras.s) * (L - 2 * P.cover) * (g.B - 2 * P.cover) : 0)) * 7850;
+  const r: ResultadoCorrida = {
+    id: c.id, nome: c.nome, modo: 'pilares', pontos: c.pontos, L, cota, profundidade: prof, aba: c.aba, equilibrio: eq, alvenaria: !!c.alvenaria,
+    B: g.B, bw: g.bw, h: g.h, h0: g.h0, balanco: g.balanco, hRigido: g.hRig, rigida: g.h0 >= g.hRig - 1e-9, fixa: c.B !== undefined,
+    contorno: contornoCorrida(c, g.B), apoio: contornoApoio(c),
+    carga: { Nk: qMax, NkMin: lg.sigmaMin * g.B, Nd: P.gammaF * netoK * g.B, W: GAMA_CONC * secArea, comb: lg.combMax },
+    sigmaAdm: lg.sigmaAdm ?? undefined, sigmaFonte: c.sigmaAdm !== undefined ? 'informada na sapata' : 'informada (terreno)',
+    pressao: { sigmaMax: lg.sigmaMax, sigmaMin: lg.sigmaMin, compressed: lg.sigmaMin >= 0 ? 1 : 0, e: ecc },
+    transversal: tr, ...(cinta !== undefined ? { cinta } : {}), longitudinal: lg, volume, forma, aco, status: 'ok', mensagens: msgs, notas, resumo: '',
+  };
+  r.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
+  r.resumo = resumoTexto(r);
+  return r;
+}
+
+// ---------------- conjunto ----------------
+
+function resumoTexto(r: ResultadoCorrida): string {
+  const t = r.transversal;
+  return `${r.nome}: B = ${fmt(r.B)} m · h = ${cm(r.h)}/${cm(r.h0)} cm${t?.barras ? ` · φ${fmt(t.barras.phi, 1)} c/${cm(t.barras.s)}` : ''}${r.sigmaAdm ? ` · σadm ${fmt(r.sigmaAdm, 0)} kN/m²` : ''}`;
+}
+
+/**
+ * Calcula as sapatas corridas do edifício: sob parede (carga linear, dimensionamento rígido) ou sob pilares (viga sobre
+ * base elástica na análise global; `an` com os resultados). Os grupos de estados "Fundações" e "Tensões no solo"
+ * desativados deixam a lista vazia.
+ */
+export function calcularCorridas(b: BuildingModel, an: AnaliseEdificio | null): ResultadoCorrida[] {
+  const cs = b.fundacao?.corridas ?? [];
+  if (!cs.length) return [];
+  if (!estadoEmUso(b, 'fundacoes').ativo && !estadoEmUso(b, 'solo').ativo) return [];
+  const op = opcoesEmUso(b.opcoes, perfilDe(b));
+  const vento = an?.vento ?? null;
+  const base = { vento } as AnaliseEdificio;
+  const raras = combinacoesDoEstado(b, base, 'solo').filter((x) => x.tipo === 'RARA');
+  const ventos = new Set([...(vento?.casos ?? []).map((c) => c.nome), ...casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.id)]);
+  const cx: Contexto = { b, an, op, P0: parametrosFundacao(b), zt: cotaTerreno(b), raras, ventos, fv: b.fundacao?.terreno.fatorVento ?? 1 };
+  return cs.map((c) => (pilaresDaCorrida(b, c).length ? calcularSobPilares(cx, c) : calcularParede(cx, c)));
+}
+
+/** Resumo para o MCP e a linha de comando (sem o contorno nem os nós). */
+export function resumoCorrida(r: ResultadoCorrida) {
+  const t = r.transversal;
+  return {
+    id: r.id, nome: r.nome, modo: r.modo, aba: r.aba, B: +r.B.toFixed(3), bw: r.bw, h: r.h, h0: r.h0, L: +r.L.toFixed(3), sigmaAdm: r.sigmaAdm ?? null,
+    sigmaMax: r.pressao ? +r.pressao.sigmaMax.toFixed(1) : null, carga_kN_m: r.carga ? { Nk: +r.carga.Nk.toFixed(1), Nd: +r.carga.Nd.toFixed(1) } : null,
+    transversal: t ? { metodo: t.metodo, Md_kNm_m: +t.Md.toFixed(2), As_cm2_m: +t.AsAdot.toFixed(2), barras: t.barras ? `φ${t.barras.phi} c/${cm(t.barras.s)}` : null, distribuicao: t.distribuicao.barras ? `φ${t.distribuicao.barras.phi} c/${cm(t.distribuicao.barras.s)}` : null } : null,
+    ...(r.longitudinal ? { longitudinal: { Md: { inf: +r.longitudinal.Md.inf.toFixed(1), sup: +r.longitudinal.Md.sup.toFixed(1) }, Vd: +r.longitudinal.Vd.toFixed(1), recalque_mm: +(r.longitudinal.recalque * 1000).toFixed(2) } } : {}),
+    ...(r.cinta !== undefined ? { cinta_kNm_m: +r.cinta.toFixed(1) } : {}),
+    volume: +r.volume.toFixed(3), forma: +r.forma.toFixed(2), aco: +r.aco.toFixed(1), status: r.status, mensagens: r.mensagens,
+  };
+}
+
+/** A sapata corrida abrange o ponto (em planta)? Para seleção e posicionamento. */
+export function pontoNaBaseCorrida(c: SapataCorrida, B: number, pt: P): boolean { return dentroPoligono(pt, contornoCorrida(c, B)); }

@@ -19,10 +19,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 17 | 5 | 1 | 3 |
-| 11. Fundações | 70 | 53 | 6 | 6 | 5 |
+| 11. Fundações | 70 | 54 | 7 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **187** | **108** | **283** | **185** |
+| **Total** | **763** | **188** | **109** | **281** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 4 | 10 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 198 | 229 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 8 | 7 | 15 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 9 | 5 | 14 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
@@ -837,8 +837,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.27 | Solo sob vigas de equilíbrio/travamento desconsiderado: as vigas resistem às cargas sobre elas e transmitem às sapatas, blocos ou vigas que cruzam. | Parcial | FU | FU2: vigas sem apoio no solo, peso próprio e cargas sobre elas levados às pontas (`cargasDaViga`, `reacoesBiapoiada`); lançamento e janela na interface; cruzamento de vigas pendente |
 | | **11.2.4 Sapatas corridas sob muros** | | | |
 | C11.28 | Ao lançar um muro, definição da sua fundação: sem vinculação, engastado ou sobre sapata corrida (aba à esquerda, à direita ou ambas). | Falta | FU |  |
-| C11.29 | Sapata corrida dimensionada automaticamente. | Falta | FU |  |
-| C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Falta | FU |  |
+| C11.29 | Sapata corrida dimensionada automaticamente. | Feito | — | FU7a: `src/core/building/sapataCorrida.ts` (`calcularCorridas`, `flexaoTransversal`): sob parede, largura pela σadm (passos de 5 cm, peso próprio, pressão sem tração), altura rígida (balanço ≤ 1,5·h), flexão transversal CEB-70 numa faixa de 1 m (ou bielas) e armadura de distribuição; sob pilares, viga sobre base elástica na análise global com B e h informados ou padrão (a largura necessária sai na mensagem); comandos `corrida.criar/editar/remover`, ferramenta A na planta de fundação, janela com corte transversal, pranchas do tipo fundação |
+| C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Parcial | FU | FU7a: aba à esquerda ou à direita (apoio rente à divisa); sem a marca "equilibrada por cintas" a pressão excêntrica sem tração tem de atender a σadm (em geral não atende: erro FUND_CORRIDA_EXC); com a marca a reação é uniforme e o momento N·e por metro das cintas fica registrado; as vigas de equilíbrio até sapatas internas não são lançadas nem dimensionadas (ligação com a FU2 pendente) |
 | C11.31 | Atribuir sapata a muro lançado sem ela, pelo menu de elementos de fundação. | Falta | FU |  |
 | | **11.2.5 Opções de fundação (dados gerais)** | | | |
 | C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Feito | — | FU3: opção `fundReducaoTaxa` (As,mín = menor entre ρmín·b·h e 4/3 da calculada, NBR 6118 17.3.5.2.1, a confirmar); desligada por padrão |
@@ -871,7 +871,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.57 | Distância máxima entre eixos de pilares para criar sapata associada: padrão 1 m, máximo 3 m. | Feito | — | `gerarDistAssociada` (1 m, máx. 3 m) entre as bordas dos pilares (o programa fala em eixos; a confirmar) e elementos estimados sobrepostos pelas cargas: sapata associada ou bloco com vários pilares (FU4) |
 | C11.58 | Elementos gerados editáveis depois. | Feito | — | os elementos gerados são os mesmos de `fundacao.criar`/`vigaFundacao.criar`: editáveis, movíveis e removíveis; um desfazer desfaz a geração (FU4) |
 | | **11.5 Cálculo e resultados** | | | |
-| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`; janela com os desenhos e verificações do módulo Fundações), sapatas associadas e blocos com vários pilares (FU3, núcleo e interface); sem sapatas corridas e placas |
+| C11.59 | Cálculo e dimensionamento de sapatas, sapatas corridas, blocos, placas de base e vigas de fundação. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1, `calcularFundacoes` sobre `designSupport`; janela com os desenhos e verificações do módulo Fundações), sapatas associadas e blocos com vários pilares (FU3, núcleo e interface), sapatas corridas sob parede e sob pilares (FU7a, `sapataCorrida.ts`); sem placas de base |
 | C11.60 | Aviso de erros/avisos ao fim do cálculo, a consultar depois. | Feito | — |  |
 | C11.61 | Vários níveis de fundação; escolha dos grupos cuja fundação será calculada. | Parcial | FU | FU1: cota de assentamento por elemento (`cota`, padrão `cotaFundacao`) editável no grupo Fundação, níveis em `niveisFundacao` e cálculo por nível (`calcularFundacoes`, opção `niveis`); falta a escolha dos níveis calculados na interface |
 | C11.62 | Três modos de dimensionamento (descritos na ajuda do programa). | Feito | — | FU1: opção `fundModo` (0 dimensionar, 1 só verificar com as dimensões impostas ou as anteriores, 2 só os com erro) escolhida no grupo Fundação e executada no worker com os resultados anteriores (`calcularFundacoes`) |
@@ -985,3 +985,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia N2d (punção e cortante das lajes, núcleo e interface).** C3.4 e C7.140 passam a Feito: resultados das lajes na janela com seletor por pavimento ou envoltória do grupo, e grupos de armadura de punção informados que se somam à calculada (`src/core/building/puncao.ts`, `Laje.puncao`, comando `laje.puncao`). C7.139 e C7.141 ficam Parcial na frente E (E3d): os grupos valem para os pilares das lajes maciças (ferramenta Armadura de punção, editor na aba Punção e cortante, apagar por pilar e pela seleção por janela); nervuras que chegam a ábaco e lajes cogumelo entram com as nervuradas. Interface: aba Punção e cortante da janela da laje (contornos C, C′ e C″ em SVG, τSd × resistências, armadura, varredura de cortante, editor de grupos), camada Punção e cortante e ferramenta na planta, cartão no Dimensionamento, memorial, armadura de punção na prancha de lajes (folha das negativas, com posições na tabela de aço); e2e N2d.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: N 96 → 80 (junto com as demais fatias do lote); E 371 → 376 (C7.139 e C7.141 passam à E3d).
+- **21/10/2026 — fatia FU7a (sapata corrida sob parede e sob pilares).** `src/core/building/sapataCorrida.ts` (`calcularCorridas`, `flexaoTransversal`, `contornoCorrida`; reaproveita `footings.ts` para a pressão sem tração e o σadm pelo SPT, `concrete.ts` e `baseElastica.ts`): sob parede, carga por metro (maior soma em janelas de 1 m das cargas do nível de fundação sobre o eixo), largura pela σadm, altura rígida, flexão transversal CEB-70 numa faixa de 1 m (ou bielas) e armadura de distribuição; sob pilares, a sapata é uma viga sobre base elástica em T invertido na análise global (`vigasElasticasEf`, `dimensionarVigaElastica`) com flexão transversal da aba; aba de um lado só com a marca de cintas (reação uniforme e momento N·e) ou erro. Comandos `corrida.criar/editar/remover` (`mcp: false`; `calculo` pelo modo), opções `corridaBMin/BPadrao/HPadrao/RefConcreto/RefAlvenaria/Distribuicao/Janela`, códigos FUND_CORRIDA_*, premissa `sapata-corrida`, memorial, resumo `corridas` no MCP e na CLI. Interface: ferramenta A na planta de fundação, bloco no grupo Fundação (`CorridaUI.tsx`), janela com o corte transversal, card no Dimensionamento, pranchas do tipo fundação (`fundacaoCorrida.ts`: locação e detalhamento com planta de um trecho e corte), e2e `FU7a`. C11.29 passa de Falta a Feito; C11.30 de Falta a Parcial (cintas até sapatas internas não lançadas); C11.59 segue Parcial (placas de base).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: FU reduz em 1 item; demais sem mudança.

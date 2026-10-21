@@ -13,7 +13,7 @@ import type { ResultadoFundacao } from '../../core/building/fundacao';
 export type DimEdificio = Dimensionamento & { fundacao: FLoad[]; ms: number };
 export interface Conjunto { pranchas: Prancha[]; avisos: string[] }
 /** Resultado só das fundações (elementos, vigas de fundação e avisos). */
-export type FundacoesEdificio = Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao'>;
+export type FundacoesEdificio = Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'>;
 type Msg = { id: number; r?: AnaliseEdificio; dim?: DimEdificio | null; conjunto?: Conjunto; fundacoes?: FundacoesEdificio; obsoleto?: boolean; erro?: string };
 
 /** Pedido substituído por um mais novo antes de ser montado (quem pediu deve ignorá-lo). */

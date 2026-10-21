@@ -476,6 +476,23 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <p>Tabela orientativa do coeficiente de reação vertical (Bowles, 1996; a confirmar com o geotécnico): {TABELA_K.map((x) => `${x.solo.toLowerCase()} ${fmt(x.min / 1000, 0)}–${fmt(x.max / 1000, 0)} MN/m³`).join('; ')}.</p>
             </>)}
 
+            {!!dim.corridas?.length && (<>
+              {h2('Sapatas corridas')}
+              <p>
+                Sapatas corridas lançadas por polilinha sob parede (sem pilares sobre o eixo) ou sob pilares. Sob parede: a carga por metro é a maior soma, em janelas de {fmt(opc.corridaJanela)} m ao longo do eixo, das cargas do nível de fundação sobre ela, nas combinações raras;
+                a largura B sai da σadm (passos de 5 cm, com o peso próprio, pressão sem tração e área comprimida mínima), a altura da rigidez (balanço ≤ 1,5·h) e a flexão transversal da aba, numa faixa de 1 m, do CEB-70 com a seção de referência a {fmt(opc.corridaRefConcreto, 0)} % de bw dentro da face
+                ({fmt(opc.corridaRefAlvenaria, 0)} % em alvenaria), com ρmín e armadura de distribuição mínima de {fmt(opc.corridaDistribuicao, 0)} % da principal (a confirmar). Sob pilares: viga sobre base elástica na análise global (k padrão {fmt(opc.radierK, 0)} kN/m³, a confirmar),
+                seção em T invertido, e flexão transversal da aba com a pressão máxima do solo. Aba de um lado só: apoio rente à divisa; o momento N·e fica para as vigas de equilíbrio (cintas), que não são dimensionadas aqui.
+              </p>
+              <table data-memorial-corridas>
+                <thead><tr><th className="l">Sapata</th><th className="l">Modo</th><th>L (m)</th><th>B (cm)</th><th>bw (cm)</th><th>h / h0 (cm)</th><th>Nk (kN/m)</th><th>σmáx (kN/m²)</th><th>σadm (kN/m²)</th><th>Md (kN·m/m)</th><th className="l">Transversal</th><th className="l">Distribuição</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.corridas.map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td className="l">{x.modo === 'pilares' ? 'sob pilares' : 'sob parede'}</td><td>{fmt(x.L)}</td><td>{fmt(x.B * 100, 0)}</td><td>{fmt(x.bw * 100, 0)}</td><td>{fmt(x.h * 100, 0)} / {fmt(x.h0 * 100, 0)}</td>
+                  <td>{x.carga ? fmt(x.carga.Nk, 1) : '—'}</td><td>{x.pressao ? fmt(x.pressao.sigmaMax, 1) : '—'}</td><td>{x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td>{x.transversal ? fmt(x.transversal.Md, 1) : '—'}</td>
+                  <td className="l">{x.transversal?.barras ? `φ${fmt(x.transversal.barras.phi, 1)} c/${Math.round(x.transversal.barras.s * 100)}` : '—'}</td><td className="l">{x.transversal?.distribuicao.barras ? `φ${fmt(x.transversal.distribuicao.barras.phi, 1)} c/${Math.round(x.transversal.distribuicao.barras.s * 100)}` : '—'}</td>
+                  <td>{fmt(x.volume, 2)}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>)}</tbody>
+              </table>
+            </>)}
+
             {quantFund && quantFund.linhas.length > 0 && (<>
               {h2('Quantitativos da fundação')}
               <table data-memorial-quant-fundacao>
