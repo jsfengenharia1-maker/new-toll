@@ -19,7 +19,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 
 | Ordem | Lane 1 — Fundações e elementos | Lane 2 — Detalhamento e produtividade | Lane 3 — Normas e visualização | Lane D — Specs (só docs) |
 |---|---|---|---|---|
-| Onda 1 | FU2 (concluída) → FU3 (núcleo feito) → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
+| Onda 1 | FU2 (concluída) → FU3 (concluída, núcleo e interface em 21/10/2026) → FU4 (concluída) | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
@@ -45,14 +45,14 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | Fatia | Núcleo | Interface |
 |---|---|---|
 | FU2 | (feito, O) | (feito, S2) |
-| FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 |
-| FU4 geração automática | S2 | S1 |
+| FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 (interface feita em 21/10/2026) |
+| FU4 geração automática | S2 (feito em 20/10/2026) | S1 (feito em 20/10/2026) |
 | FU5 pranchas e memorial | S2 | S1 |
 | FU6 radier e vigas sobre base elástica | O | S2 |
 | FU7a sapata corrida | S3 | S1 |
 | FU7b fundação de muros | S3 | S1 |
-| R7-0 (em andamento, O) | — | — |
-| R7a, R7b, R7c, R7d, R7f, R7g | S2 | S1 |
+| R7-0 (concluída em 20/10/2026) | — | — |
+| R7a (concluída em 20/10/2026), R7b, R7c, R7d, R7f, R7g | S2 | S1 |
 | R7e uniformização e linhas de dobra | S3 | S2 |
 | N2a ações e combinações | S3 | S1 |
 | N2b modelo integrado e casca | O | S1 |
@@ -122,6 +122,11 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 - 20/10/2026: FU2 concluída (núcleo e interface): vigas de equilíbrio e de travamento lançadas na planta de fundação, editor, janela com detalhe longitudinal e transversal, alavanca e alívio na janela do elemento, cargas do nível de fundação, níveis calculados e giro por dois pontos; e2e `FU2`. Pendências de interface da FU1 também fechadas (giro por dois pontos e níveis). Seguem FU3 (núcleo em paralelo) e FU4.
 - 20/10/2026: specs da lane D escritas: `spec-frente-N2.md` (N2a–N2g, 119 itens), `spec-frente-E1.md` (E1a–E1e, 80 itens) e `spec-frente-E2.md` (E2a–E2e, 61 itens); fatia marcada na nota de cada item dos checklists (a frente segue "N"/"E": o teste só aceita a letra). Os 228 itens E restantes ficam para as specs E3 e E4. Ordem: N2a–N2c na onda 2 (a E1 depende delas), E1 na onda 3, E2 na onda 4.
 - 20/10/2026: specs E3, E4, L e V escritas (lane D): `spec-frente-E3.md` (E3a–E3f, 148 itens), `spec-frente-E4.md` (E4a–E4e, 80 itens), `spec-frente-L.md` (L1–L5, 75 itens) e `spec-frente-V.md` (V1–V5, 62 itens); 365 itens alocados, cada um em uma só fatia (conferido por script), fatia marcada na nota de cada item dos checklists. Classes por fatia na tabela acima; Opus só na E3f (núcleo). Dependências three.js (V) e web-ifc (L3) já aceitas, vendorizadas sob demanda; sem bloqueio. Dependências entre frentes: E3b/E3e esperam N2f para a flecha ativa; E3c/E3d esperam N2b e N2d; E3f espera N2b, N2c, E2b e E2c; E4c espera a casca da N2b; E4e espera V1, V4 e V5; L1 espera E1b e E1c para fechar C1.28 e C1.29; L4 espera R7f e E3f para K1.4.69 e C7.8.
-- 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 pendente (agente de interface da FU2/FU3).
+- 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 concluída em 21/10/2026 (ver a linha seguinte).
+
+- 21/10/2026: FU3 concluída (interface): ferramenta Fundação em modo “vários pilares” (Enter cria a sapata associada ou o bloco com vários pilares), ponto de inserção movível (N), pilares do elemento, concreto simples, altura constante, unir, igualar, impor as calculadas e editor de dimensões e armadura impostas de sapata, bloco e tubulão, opções `fund*`, limites (desenhar T, capturar da máscara DXF Q, editor de vértices, mover e Del), aviso FUND_SOBREPOSTA com botão de eliminar, contorno poligonal, pilares, faixas, malha superior, bielas por pilar e cruzamentos de vigas na planta e nos croquis da janela; e2e `FU3` (3 fluxos). Resta a validação externa (OpenSees) da associada e do bloco multi-pilar. Próximo na lane 1: FU4 (núcleo em paralelo).
 
 - 20/10/2026: V1 concluída (núcleo e interface): vista 3D do edifício com three.js 0.186.1 vendorizado (`scripts/vendor-three.mjs`, `public/vendor/three-0.186.1.mjs`, 623 KB, sob demanda, fora do `dist/index.html`), cena por função pura em `src/core/vista3d/` com geradores registrados (`GERADORES_3D`), aba 3D com escopo por grupo, intervalo ou pavimento, tipos, transparência, perspectiva/isométrica, caminhar, seleção sincronizada com a planta, captura PNG e fallback em SVG isométrico (artifact do claude.ai ou sem WebGL); figura isométrica no memorial; C3.35–C3.41 e C7.18 fechados; e2e `V1`. Seguem V2 e V3 (podem rodar em paralelo), depois V4 e V5.
+- 20/10/2026: FU4 concluída (núcleo e interface mínima): comando `fundacao.gerar` (`mcp: false`, `calculo: 'fundacao'`) sobre `src/core/building/fundacaoGerar.ts` (`planejarFundacoes`): tipo pela σadm, posição de divisa e de canto pelos pilares em frente (D 3 m, A 30°) e pelos limites, sapata associada ou bloco com vários pilares (bordas a menos de 1 m ou sobreposição estimada pelas cargas), vigas de equilíbrio e de travamento dos blocos de 1 e 2 estacas, tudo em um passo só (um desfazer); opções `gerarDistVisao/AnguloVisao/DistAssociada/DistLimite/SigmaMin`, premissa `fundacoes-gerar`, memorial, `docs/ia.md`, botão e diálogo "Gerar fundações…" no grupo Fundação e e2e `FU4`. C11.54 a C11.58 Feito. Detalhes no Andamento de `spec-frente-FU.md`.
+- 21/10/2026: N2a concluída (núcleo e interface S1): `src/core/building/acoes.ts` (estados-limite `ESTADOS_INFO`/`estadoEmUso`, γ por origem `GAMA_ORIGEM`, controle de execução, situações do usuário e `alertasSituacoes`, equilíbrio global `equilibrioGlobal`, perfil de materiais), `empuxo.ts` (K0, Rankine, Coulomb, `diagramaEmpuxo`), `abacosVento.ts` (tabelas de pontos e interpolação; vazias por padrão), comandos `caso.compatibilidade`, `caso.arranjos`, `empuxo.tipo`, `estados.definir`, `situacao.criar/editar/remover/importar` (`mcp: false`), natureza H, grupo de uso misto, opções `equGamaFav/equGamaVento`, códigos COMB_USUARIO e EQU_TOMBAMENTO, premissas `n2a-*`, interface (Casos, CasosArranjos, EstadosLimite, Empuxo, AbacosVento, MateriaisBiblioteca, MemorialAcoes) e e2e `N2a`. Pendente do usuário: pontos dos ábacos da NBR 6123 (Ca e vizinhança). Aplicação do empuxo às paredes na E1c. 25 itens: 21 Feito; K1.5.12, K1.5.23, K1.5.29 e K1.9.46 Parcial.
+- 20/10/2026: R7a concluída (núcleo e interface): tabelas de armadura editáveis para vigas, estribos, pilares e lajes (fábrica + do usuário, atribuição por elemento, importar e exportar JSON, atalho da lista de erros, memorial), erros FORA_TABELA e ARM_MANUAL e avisos de fora de tabela, simetria dos pilares por tolerância (opção `pilarSimetria`: sistema 0 %, perfil NBR sempre simétrica) e estribos de 2, 4 e 6 ramos; e2e `R7a`. Resultados de pilares do perfil do sistema mudam (menos aço); o do perfil NBR reproduz os anteriores. Fica para a R7f o `calculo: 'detalhe'` (rearmar sem nova análise). Próxima: R7b.

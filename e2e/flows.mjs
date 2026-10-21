@@ -1679,6 +1679,257 @@ export const flows = [
     },
   },
   {
+    name: 'FU4: Gerar fundações — diálogo, 4 sapatas de canto com as vigas de equilíbrio num passo só, cálculo sem FUND_EXC_SEM_VIGA e um desfazer',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      // diálogo de parâmetros com os valores das opções (D = 3 m, A = 30°, associação a 1 m)
+      await grupo.locator('[data-gerar-fundacoes]').click();
+      const dlg = page.getByRole('dialog', { name: 'Gerar fundações' });
+      await dlg.waitFor();
+      assert.equal(await dlg.getByLabel('Distância de visão D').inputValue(), '3');
+      assert.equal(await dlg.getByLabel('Ângulo de visão A').inputValue(), '30');
+      assert.match(await dlg.innerText(), /Sem análise em vigor/);
+      await dlg.locator('[data-gerar-confirmar]').click();
+      await page.locator('.statusbar .msg', { hasText: /Fundações geradas: 4 sapatas \(4 de canto\); vigas: 4 de equilíbrio/ }).waitFor();
+      assert.equal(await grupo.locator('table[data-fundacoes] tbody tr').count(), 4);
+      assert.equal(await grupo.locator('table[data-vigas-fundacao-tabela] tbody tr').count(), 4);
+      // sem elemento a gerar, o botão fica desligado
+      assert.equal(await grupo.locator('[data-gerar-fundacoes]').isDisabled(), true);
+      // calcular: nenhum elemento fica excêntrico sem viga
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const lista = page.locator('[data-lista-erros]');
+      await lista.getByLabel('Tipo').selectOption('fundacao');
+      assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' }).count(), 0);
+      assert.equal(await page.locator('[data-card-vigas-fundacao] tbody tr').count(), 4);
+      // um desfazer remove elementos e vigas
+      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      assert.match(await grupo.locator('summary').first().innerText(), /Fundação \(0 elementos\)/i);
+    },
+  },
+  {
+    name: 'FU3: sapata associada de 2 pilares pela planta, limite que apara, altura constante, igualar, impor as calculadas e eliminar sobreposição',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      // P1 (0;0) e P2 (3;0) formam a associada; P3 (7;0) e P4 (8;0), a 1 m um do outro, se sobrepõem; P5 e P6 fecham o pórtico
+      await cmd('lote {"comandos": [' + [[0, 0], [3, 0], [7, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('120');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      // as ferramentas novas só existem no nível de fundação
+      for (const n of ['Limite da fundação', 'Limite pela máscara', 'Ponto de inserção']) assert.equal(await page.getByRole('radio', { name: n }).count(), 1, n);
+
+      // associada: ferramenta Fundação em modo "vários pilares" (clique em cada pilar, Enter cria)
+      await page.getByLabel('Vários pilares (Enter cria)').check();
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 3, 0)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata, 2 pilares) lançado sob P1, P2' }).waitFor();
+      await page.getByLabel('Vários pilares (Enter cria)').uncheck();
+      // sapatas isoladas de P3 e P4
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P3' }).waitFor();
+      await page.mouse.click(...(await telaDe(page, 8, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S3 (sapata) lançado sob P4' }).waitFor();
+      const linhas = grupo.locator('table[data-fundacoes] tbody tr');
+      assert.equal(await linhas.count(), 3);
+
+      // limite: divisa vertical a 30 cm do eixo de P1, à esquerda dele (tecla T)
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('t');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'limite');
+      await page.mouse.click(...(await telaDe(page, -0.3, 0.9)));
+      await page.mouse.click(...(await telaDe(page, -0.3, -0.2)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (2 vértices)' }).waitFor();
+      const tabL = grupo.locator('table[data-limites-tabela] tbody tr');
+      assert.equal(await tabL.count(), 1);
+      assert.match(await tabL.first().innerText(), /L1.*2.*aberto/s);
+      // o limite selecionado abre o editor de vértices
+      await tabL.first().click();
+      const edL = grupo.locator('[data-editor-limite]');
+      await edL.waitFor();
+      assert.equal(await edL.locator('table[data-vertices-limite] tbody tr').count(), 2);
+
+      // altura constante na associada (só ela é aparada por limites) pelo editor do elemento
+      await linhas.first().click();
+      const ed = grupo.locator('[data-editor-fundacao]');
+      await ed.waitFor();
+      assert.match(await ed.locator('h4').innerText(), /sob 2 pilares \(P1, P2\)/i);
+      await ed.getByLabel('Altura constante (h0 = h; só ela é aparada por limites)').check();
+      assert.equal(await ed.getByLabel('Altura constante (h0 = h; só ela é aparada por limites)').isChecked(), true);
+
+      // calcular o edifício (as fundações vão junto)
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const cardF = page.locator('[data-card-fundacoes]');
+      await cardF.waitFor();
+      assert.equal(await cardF.locator('tbody tr').count(), 3);
+      // janela da associada: pilares, limite que apara, quadro por pilar e croqui com o contorno
+      await cardF.locator('tbody tr', { hasText: 'S1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S1/ });
+      await jan.waitFor();
+      const jt = await jan.innerText();
+      assert.match(jt, /Pilares do elemento.*P1.*P2/s);
+      assert.match(jt, /Ponto de referência \(resultante\)/);
+      assert.match(jt, /Limites que aparam o elemento\s*L1/);
+      assert.match(jt, /altura constante/);
+      assert.ok(await jan.locator('[data-grupo-sapata]').count() === 1, 'quadro da sapata de vários pilares');
+      assert.ok(await jan.locator('.fsketch svg polygon').count() >= 2, 'contorno poligonal no croqui');
+      assert.ok(await jan.locator('[data-malha-superior]').count() >= 1, 'negativo entre pilares / malha superior nas duas direções');
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+
+      // impor as calculadas em S2 (sapata isolada): fica só verificada
+      await linhas.nth(1).click();
+      await ed.waitFor();
+      const imp = grupo.locator('[data-impostas-fundacao]');
+      await imp.waitFor();
+      await imp.getByRole('button', { name: 'Impor as calculadas' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Dimensões impostas em 1 elemento' }).waitFor();
+      await grupo.locator('[data-impostas-fundacao] .pill', { hasText: 'só verificadas' }).waitFor();
+      await imp.getByRole('button', { name: 'Remover a imposição' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Dimensões impostas removidas' }).waitFor();
+
+      // igualar S3 (pilar P4) a S2 (pilar P3)
+      await linhas.nth(2).click();
+      await ed.waitFor();
+      await ed.getByLabel('Igualar a').selectOption({ label: 'S2 (Sapata)' });
+      await ed.getByRole('button', { name: 'Igualar este ao modelo' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'igualado(s) a S2' }).waitFor();
+      await grupo.locator('[data-igualado-a]').waitFor();
+
+      // recalcular só as fundações: S2 e S3 se sobrepõem (1 m entre os pilares) e o aviso oferece unir
+      await grupo.getByRole('button', { name: 'Calcular fundações' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Fundações calculadas' }).waitFor({ timeout: 60000 });
+      const sob = grupo.locator('[data-sobreposicao]');
+      await sob.waitFor();
+      assert.match(await sob.innerText(), /FUND_SOBREPOSTA.*S2 \+ S3|FUND_SOBREPOSTA.*S3 \+ S2/s);
+      // a revisão mostra o aviso e a ação de unir
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.getByLabel('Tipo').selectOption('fundacao');
+      assert.ok(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_SOBREPOSTA' }).count() >= 1);
+      assert.ok(await lista.locator('[data-acao-unir]').count() >= 1, 'botão que une as sapatas sobrepostas');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await sob.getByRole('button', { name: /Eliminar sobreposições/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'sobreposição(ões) eliminada(s)' }).waitFor();
+      assert.equal(await linhas.count(), 2, 'S2 e S3 viraram uma só (associada)');
+      assert.match(await linhas.nth(1).innerText(), /S2/);
+      await linhas.nth(1).click();
+      assert.match(await ed.locator('h4').innerText(), /sob 2 pilares \(P3, P4\)/i);
+      // desfazer a união é um passo só
+      await page.keyboard.press('Control+z');
+      await page.locator('.statusbar .msg', { hasText: 'Desfeito: fundacao.eliminarSobreposicoes' }).waitFor();
+      assert.equal(await linhas.count(), 3);
+    },
+  },
+  {
+    name: 'FU3: limite capturado da máscara DXF — a polilinha ligada ao clique vira um limite fechado e o editor de vértices o altera',
+    async run({ newPage, tmp }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      // o nível de fundação mostra a máscara do grupo do pavimento mais baixo (Térreo)
+      const sel = page.getByLabel('Pavimento da planta');
+      await sel.selectOption(await sel.locator('option', { hasText: 'Térreo' }).first().getAttribute('value'));
+      await importarMascara(page, tmp);
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('q');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'limiteMascara');
+      // parede externa (retângulo 15 × 10 m): clique no meio do lado inferior
+      await page.mouse.click(...(await telaDe(page, 7.5, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (4 vértices)' }).waitFor();
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const linha = grupo.locator('table[data-limites-tabela] tbody tr');
+      assert.equal(await linha.count(), 1);
+      assert.match(await linha.first().innerText(), /L1\s+4\s+fechado/);
+      // seleção na planta (clique na linha do limite) abre o editor; remover um vértice deixa 3 (mínimo de um limite fechado)
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 7.5, 0)));
+      const ed = grupo.locator('[data-editor-limite]');
+      await ed.waitFor();
+      assert.equal(await ed.locator('table[data-vertices-limite] tbody tr').count(), 4);
+      await ed.getByRole('button', { name: 'Remover vértice 4' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Limite L1 alterado' }).waitFor();
+      assert.equal(await ed.locator('table[data-vertices-limite] tbody tr').count(), 3);
+      assert.equal(await ed.getByRole('button', { name: 'Remover vértice 1' }).isDisabled(), true);
+      // Del remove o limite selecionado
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('Delete');
+      await page.locator('.statusbar .msg', { hasText: 'limite(s) removido(s)' }).waitFor();
+      assert.equal(await linha.count(), 0);
+    },
+  },
+  {
+    name: 'FU3: bloco sobre estacas com 2 pilares — escolhido na planta, cálculo, bielas por pilar na janela e pilar retirado volta ao bloco simples',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [2, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      // estaca de capacidade informada (500 kN)
+      await grupo.getByRole('button', { name: '+ estaca' }).click();
+      await grupo.locator('table[data-estacas] select[aria-label^="Modo da estaca"]').selectOption('informada');
+      await grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).first().locator('select').selectOption('bloco');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      await page.getByLabel('Vários pilares (Enter cria)').check();
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 2, 0)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'B1 (bloco, 2 pilares) lançado sob P1, P2' }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+      const cardF = page.locator('[data-card-fundacoes]');
+      await cardF.waitFor();
+      await cardF.locator('tbody tr', { hasText: 'B1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Fundação B1/ });
+      await jan.waitFor();
+      const jt = await jan.innerText();
+      assert.match(jt, /Pilares do elemento.*P1.*P2/s);
+      assert.ok(await jan.locator('[data-bielas-por-pilar] tbody tr').count() === 2, 'uma linha de verificação por pilar');
+      assert.ok(await jan.locator('.fsketch svg').count() >= 1, 'croqui do bloco com os dois pilares');
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // retirar um pilar pelo editor: o elemento volta a ter um pilar só
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await grupo.locator('table[data-fundacoes] tbody tr').first().click();
+      await grupo.getByRole('button', { name: 'Retirar o pilar P2' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'B1 alterado' }).waitFor();
+      assert.match(await grupo.locator('[data-editor-fundacao] h4').innerText(), /sob P1/i);
+    },
+  },
+  {
     webgl: true,
     name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
     async run({ newPage, baseURL }) {
@@ -1834,7 +2085,7 @@ export const flows = [
       await casos.getByLabel('Relação entre Água e Vazio').selectOption('incompativel');
       await msg('Água e Vazio: incompativel');
       assert.equal(await casos.getByLabel('Relação entre Água e Vazio').inputValue(), 'incompativel');
-      await casos.locator('summary', { hasText: 'Arranjos: cargas alternadas e móveis' }).click();
+      await casos.locator('summary', { hasText: 'Arranjos alternados e móveis' }).click();
       await casos.getByLabel('Nome do caso', { exact: true }).fill('Uso alternado');
       await casos.getByLabel('Nome do caso', { exact: true }).press('Enter');
       await casos.getByRole('button', { name: 'Gerar arranjos' }).click();
@@ -1938,6 +2189,97 @@ export const flows = [
       assert.ok(await memo.locator('figure svg').count() >= 1);
       assert.match(t, /Equilíbrio global \(tombamento\)/);
       assert.match(t, /Ca pelo ábaco de baixa turbulência/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'R7a: tabelas de armadura (bitola restrita muda a viga, tabela impossível gera FORA_TABELA com atalho, restaurar, exportar e importar JSON, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const calcular = async () => {
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+        await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      };
+      await calcular();
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      const antes = await cardVigas.locator('tbody tr').first().innerText();
+      assert.ok(!/φ25/.test(antes), `esperava a viga sem φ25 antes da tabela: ${antes}`);
+      // grupo Tabelas de armadura (fechado) e a aba de vigas
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Tabelas de armadura' }) }).first();
+      await g.locator('summary').click();
+      const tabela = g.locator('table[data-tabela="vigas"]');
+      await tabela.waitFor();
+      const chips = (rot) => g.getByRole('group', { name: rot });
+      const so = async (rot, phi) => {
+        const grupo = chips(rot);
+        for (const t of ['8', '10', '12,5', '16', '20', '25', '32']) {
+          const b = grupo.getByRole('button', { name: t, exact: true });
+          const ligado = (await b.getAttribute('aria-pressed')) === 'true';
+          if (ligado !== (t === phi)) await b.click();
+        }
+      };
+      // só φ25 nos positivos e nos negativos do grupo 1 (b ≤ 20 cm): a viga passa a usar φ25
+      await so('Positivos do grupo 1', '25');
+      await so('Negativos do grupo 1', '25');
+      assert.match(await g.locator('[data-tabelas-alteradas]').innerText(), /Vigas \(barras\): Padrão \(padrão alterada\)|Padrão/);
+      await calcular();
+      const depois = await cardVigas.locator('tbody tr').first().innerText();
+      assert.match(depois, /φ25/);
+      // tabela impossível (só φ8, 6 barras em uma camada): erro FORA_TABELA na lista e atalho que abre a tabela
+      await so('Positivos do grupo 1', '8');
+      const cam = g.getByLabel('Camadas positivos do grupo 1'), nmin = g.getByLabel('n mínimo positivos do grupo 1');
+      await cam.fill('1'); await cam.press('Enter');
+      await nmin.fill('6'); await nmin.press('Enter'); // 6 φ8 não cabem em uma camada de 20 cm
+      await calcular();
+      const lista = page.locator('[data-lista-erros]');
+      const linhaErro = lista.locator('tbody tr.bad', { hasText: 'FORA_TABELA' }).first();
+      await linhaErro.waitFor();
+      assert.match(await linhaErro.innerText(), /Fora de tabela \(barras\)/);
+      await g.locator('summary').click(); // fecha o grupo para ver o atalho abrir
+      await linhaErro.locator('[data-atalho-tabela]').click();
+      await page.waitForFunction(() => document.querySelector('[data-grupo-tabelas] details')?.open === true);
+      assert.equal(await g.locator('table[data-tabela="vigas"]').count(), 1);
+      // restaurar a padrão de fábrica: some o erro e a lista de alteradas
+      await g.getByRole('button', { name: 'Restaurar a padrão de fábrica' }).click();
+      assert.equal(await g.locator('[data-tabelas-alteradas]').count(), 0);
+      await calcular();
+      assert.equal(await lista.locator('tbody tr.bad, tbody tr.warn', { hasText: 'FORA_TABELA' }).count(), 0);
+      assert.ok(!/φ25/.test(await cardVigas.locator('tbody tr').first().innerText()));
+      // altera de novo, exporta o JSON, restaura e importa de volta
+      await so('Positivos do grupo 1', '20');
+      const { name, text } = await downloadText(page, () => g.getByRole('button', { name: 'Exportar JSON' }).click());
+      assert.match(name, /tabelas-armadura.*\.json$/);
+      const j = JSON.parse(text);
+      assert.equal(j.formato, 'statikos-tabelas-armadura');
+      assert.equal(j.tabelas[0].tipo, 'vigas');
+      assert.deepEqual(j.tabelas[0].tabela.linhas[0].pos.bitolas, [20]);
+      await g.getByRole('button', { name: 'Restaurar a padrão de fábrica' }).click();
+      assert.equal(await g.locator('[data-tabelas-alteradas]').count(), 0);
+      await g.getByLabel('Arquivo de tabelas de armadura').setInputFiles({ name: 'tabelas.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await g.locator('[data-tabelas-alteradas]').waitFor();
+      // arquivo inválido: mensagem e nada importado
+      await g.getByLabel('Arquivo de tabelas de armadura').setInputFiles({ name: 'ruim.json', mimeType: 'application/json', buffer: Buffer.from('{"formato": "outro"}') });
+      await g.locator('[data-erros-importacao]').waitFor();
+      // duplicar como nova tabela, remover e as abas dos outros elementos
+      await g.getByRole('button', { name: 'Duplicar como nova tabela' }).click();
+      assert.match(await g.locator('select').first().innerText(), /\(cópia\)/);
+      await g.getByRole('button', { name: 'Remover tabela' }).click();
+      for (const [aba, t] of [['Estribos de vigas', 'estribos'], ['Pilares', 'pilares'], ['Lajes', 'lajes']]) {
+        await g.getByRole('radio', { name: aba, exact: true }).click();
+        await g.locator(`[data-tabela="${t}"]`).waitFor();
+      }
+      // memorial: seção das tabelas alteradas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /Tabelas de armadura/);
+      assert.match(await memo.textContent(), /Tolerância de simetria da armadura dos pilares: 0 %/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },

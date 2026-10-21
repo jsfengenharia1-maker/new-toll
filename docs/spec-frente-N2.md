@@ -174,3 +174,7 @@ Ordem: N2a → N2b → N2c na onda 2 (a E1 depende das três); N2d → N2e → N
 - **Tabelas normativas digitadas** (NBR 15200, NBR 14432, NBR 8681 para equilíbrio e empuxo, ábacos da NBR 6123): sem o texto da norma no ambiente, entram marcadas "a confirmar". Os ábacos de Ca e de vizinhança da NBR 6123 exigem os pontos da figura da norma (dado externo): até o usuário fornecer, a tabela de pontos fica vazia e vale o Ca informado.
 - **Mudança de resultados por padrão novo:** `modeloGlobal = integrado` e `arredondamentoApoio = 1` mudam os esforços de todos os edifícios; a regressão registra as diferenças do exemplo, e o perfil `separado`/0 reproduz o comportamento anterior.
 - Nenhuma dependência nova.
+
+## Andamento
+
+- 21/10/2026: N2a concluída (núcleo, interface e e2e `N2a`; testes em `src/core/building/acoes.test.ts`). Fora do escopo por falta de dado ou de fatia: pontos dos ábacos da NBR 6123 (tabelas vazias, Ca automático desativado), aplicação do empuxo às paredes (E1c), grupos de aço, madeira e alumínio. Estado-limite "usuário" vale nos grupos concreto, tensões no solo e fissuração; fundações, deslocamentos, flechas e equilíbrio usam fatores próprios. Detalhes no Andamento de `plano-execucao.md`.

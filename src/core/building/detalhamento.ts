@@ -8,6 +8,7 @@ import type { Dimensionamento, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { contornoPilar, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel, type Viga } from './types';
+import { fracaoPassante } from './tabelasArmadura';
 import { vigaTocaPilar } from './vigas';
 
 export type FaceBarra = 'inf' | 'sup' | 'pele';
@@ -24,7 +25,8 @@ export interface BarraViga {
   /** Comprimento de cada barra (m), arredondado, com os ganchos. */
   comprimento: number;
 }
-export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number }
+/** Zona de estribos: `n` peças a cada `s`; `ramos` > 2 (estribo duplo ou triplo): `n` já conta todas as peças. */
+export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number }
 export interface DetalheViga {
   viga: string; nome: string;
   /** Pavimentos em que a viga se repete (grupo). */
@@ -161,7 +163,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const centrosApoio = apoios.map((a) => (a.s0 + a.s1) / 2);
   const meiosVao = apoios.slice(1).map((a, i) => (apoios[i].s1 + a.s0) / 2);
   // inferior: passantes (máx(2; n/3) barras, 18.3.2.4) corridas, emendas sobre os apoios internos
-  const nInf = r.arranjo.inf?.n ?? 2, nPass = Math.max(2, Math.ceil(nInf / 3));
+  const nInf = r.arranjo.inf?.n ?? 2, nPass = Math.max(2, Math.ceil(nInf * fracaoPassante(b, v) - 1e-9));
   corrida('inf', 'passante', nPass, phiI, lbI, centrosApoio.slice(1, -1));
   // reforços inferiores onde a As decalada passa da capacidade das passantes, prolongados por lb (≥ 10φ)
   const capPass = nPass * barArea(phiI), Ai = barArea(phiI), prolI = prolong(lbI, phiI);
@@ -199,15 +201,15 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     corrida('pele', 'pele', 2 * nFace, phiP, lbBasico(phiP, c, aPos.fyd, supBoa), meiosVao);
   }
   // estribos por zonas fora dos pilares: espaçamento exigido pelo cortante e pela torção em cada ponto
-  const fywd = Math.min(aEst.fyk / 1.15, 435), A1 = barArea(phiT);
+  const fywd = Math.min(aEst.fyk / 1.15, 435), A1 = barArea(phiT), ramos = r.arranjo.estribo?.legs ?? 2, nPecas = (len: number, s: number) => (Math.floor(len / s + 1e-9) + 1) * (ramos / 2);
   const he = (bw * h) / (2 * (bw + h)), Ae = (bw - he) * (h - he);
   const Vc0 = 0.6 * c.fctd * bw * d * 1000, aswMin = ((0.2 * c.fctm) / aEst.fyk) * bw;
   const smax = (Vmx: number) => (Vmx <= 0.67 * 0.27 * c.av2 * c.fcd * bw * d * 1000 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2));
   const sReq = Float64Array.from({ length: nG }, (_, i) => {
     const asw = Math.max(aswMin, Math.max(0, Vd[i] - Vc0) / 1000 / (0.9 * d * fywd) + (Td[i] / 1000) / (Ae * fywd));
-    return Math.floor(Math.min(smax(Vd[i]), (2 * A1) / asw) * 100) / 100;
+    return Math.floor(Math.min(smax(Vd[i]), (ramos * A1) / asw) * 100) / 100;
   });
-  const sCentral = Math.floor(Math.min(smax(0), (2 * A1) / aswMin) * 100) / 100;
+  const sCentral = Math.floor(Math.min(smax(0), (ramos * A1) / aswMin) * 100) / 100;
   const dentroPilar = (s: number) => apoios.some((a) => s > a.s0 + 1e-9 && s < a.s1 - 1e-9);
   const compEstribo = arred(2 * (bw - 2 * cob.lat) + 2 * (h - cob.inf - cob.sup) + 2 * Math.max((5 * phiT) / 1000, 0.05) + 2 * ((3 * Math.PI) / 8) * ((4 * phiT) / 1000), passo);
   const estribos: ZonaEstribo[] = [];
@@ -220,8 +222,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
       while (k2 + 1 <= i1 && Math.min(sReq[k2 + 1], sCentral) === sj) k2++;
       const s0 = sG(j), s1 = sG(k2), len = s1 - s0;
       const ant = estribos.at(-1);
-      if (ant && Math.abs(ant.s1 - s0) < dx + 1e-9 && ant.s === sj) { ant.s1 = s1; ant.n = Math.floor((ant.s1 - ant.s0) / sj + 1e-9) + 1; }
-      else estribos.push({ s0, s1, phi: phiT, s: sj, n: Math.floor(len / sj + 1e-9) + 1, comprimento: compEstribo });
+      if (ant && Math.abs(ant.s1 - s0) < dx + 1e-9 && ant.s === sj) { ant.s1 = s1; ant.n = nPecas(ant.s1 - ant.s0, sj); }
+      else estribos.push({ s0, s1, phi: phiT, s: sj, n: nPecas(len, sj), comprimento: compEstribo, ...(ramos > 2 ? { ramos } : {}) });
       j = k2 + 1;
     }
   }
@@ -230,7 +232,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     const z = estribos[i], a = estribos[i - 1];
     if (Math.abs(a.s1 - z.s0) <= dx + 1e-9 && (z.s1 - z.s0 < 2 * z.s || a.s1 - a.s0 < 2 * a.s)) {
       const s = Math.min(a.s, z.s);
-      estribos.splice(i - 1, 2, { ...a, s1: z.s1, s, n: Math.floor((z.s1 - a.s0) / s + 1e-9) + 1 });
+      estribos.splice(i - 1, 2, { ...a, s1: z.s1, s, n: nPecas(z.s1 - a.s0, s) });
     }
   }
   const peso = barras.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0) + estribos.reduce((t, z) => t + z.n * z.comprimento * pesoLinear(z.phi), 0);

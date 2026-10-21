@@ -91,7 +91,7 @@ export function ArranjosCasos({ b }: { b: BuildingModel }) {
   };
   return (
     <details className="small">
-      <summary>Arranjos: cargas alternadas e móveis</summary>
+      <summary>Arranjos alternados e móveis</summary>
       <div className="row wrap">
         <Select label="Tipo de arranjo" value={modo} options={MODOS.map((m) => ({ v: m.v, label: m.label }))} onChange={setModo} />
         <Select label="Grupo" value={grupo} options={b.grupos.map((x) => ({ v: x.id, label: x.nome }))} onChange={setGrupo} />

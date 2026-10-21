@@ -6,7 +6,7 @@ import { Button, Modal } from '../ui';
 
 const ROTULOS: Record<keyof Paleta, string> = {
   fundo: 'Fundo', mascara: 'Máscara (DXF)', eixo: 'Eixos', viga: 'Vigas', laje: 'Lajes', carga: 'Cargas', parede: 'Paredes (alvenaria)', pilar: 'Pilares', pilarBorda: 'Borda dos pilares',
-  texto: 'Textos', cota: 'Cotas', selecao: 'Seleção', captura: 'Captura', guia: 'Linhas-guia', erro: 'Erro', aviso: 'Aviso', janela: 'Janela de seleção', cruzamento: 'Seleção por cruzamento', fantasma: 'Pilares do pavimento de baixo',
+  texto: 'Textos', cota: 'Cotas', selecao: 'Seleção', captura: 'Captura', guia: 'Linhas-guia', erro: 'Erro', aviso: 'Aviso', janela: 'Janela de seleção', cruzamento: 'Seleção por cruzamento', fantasma: 'Pilares do pavimento de baixo', limite: 'Limites da fundação',
 };
 const NOME_TEMA = { escuro: 'escuro', claro: 'claro', pb: 'P&B' } as const;
 

@@ -5,7 +5,7 @@ import type { CaissonResult } from '../core/caissons';
 import type { BarSet } from '../core/rebar';
 import { useMemo } from 'react';
 import { PILE_LABEL, capacityCurve, recommendedOption, type FLoad, type FoundationData, type FoundationParams, type PileSolution } from '../core/piles';
-import { capFor, type SupportDesign } from '../core/foundation';
+import { capCols, capFor, type SupportDesign } from '../core/foundation';
 import { fmt } from './results';
 import { svgCaisson, svgCap, svgFooting } from './foundationDrawing';
 import { Button, Hint, Note, Pill } from './ui';
@@ -18,15 +18,15 @@ const cm = (v: number) => fmt(v * 100, 0);
 const Svg = ({ svg }: { svg: string }) => <div className="fsketch" dangerouslySetInnerHTML={{ __html: svg }} />;
 const Ok = ({ ok }: { ok: boolean }) => <Pill tone={ok ? 'ok' : 'bad'}>{ok ? 'atende' : 'não atende'}</Pill>;
 
-export function CapDetail({ cap, coords, D, ap, bp, p }: { cap: CapResult; coords: [number, number][]; D: number; ap: number; bp: number; p: FoundationParams }) {
+export function CapDetail({ cap, coords, D, ap, bp, p, cols }: { cap: CapResult; coords: [number, number][]; D: number; ap: number; bp: number; p: FoundationParams; cols?: { label: string; x: number; y: number; ap: number; bp: number }[] }) {
   return (
     <div className="fcap">
       <h4>Bloco de coroamento — bielas e tirantes <Ok ok={cap.ok} /></h4>
-      <Svg svg={svgCap(cap, coords, D, ap, bp)} />
+      <Svg svg={svgCap(cap, coords, D, ap, bp, cols)} />
       <div className="fgrid">
         <dl className="kv">
           <dt>Dimensões (lx × ly × h)</dt><dd>{cm(cap.lx)} × {cm(cap.ly)} × {cm(cap.h)} cm</dd>
-          <dt>Pilar</dt><dd>{cm(ap)} × {cm(bp)} cm</dd>
+          <dt>{cols && cols.length > 1 ? `Pilares (${cols.length})` : 'Pilar'}</dt><dd>{cols && cols.length > 1 ? cols.map((c) => `${c.label} ${cm(c.ap)} × ${cm(c.bp)}`).join(' · ') + ' cm' : `${cm(ap)} × ${cm(bp)} cm`}</dd>
           {cap.n > 1 ? (
             <>
               <dt>d / d′</dt><dd>{cm(cap.d)} / {cm(cap.dPrime)} cm</dd>
@@ -50,6 +50,13 @@ export function CapDetail({ cap, coords, D, ap, bp, p }: { cap: CapResult; coord
           <dt>Volume / peso real</dt><dd>{fmt(cap.volume, 2)} m³ / {fmt(cap.weight, 0)} kN{cap.WbAssumed !== undefined ? ` (adotado ${fmt(cap.WbAssumed, 0)} kN)` : ''}</dd>
         </dl>
         <div>
+          {cap.multi && (
+            <table className="data" data-bielas-por-pilar>
+              <thead><tr><th className="l">Pilar</th><th>Nd (kN)</th><th>Nd,eq (kN)</th><th>σ biela (MPa)</th><th>θ mín (°)</th><th /></tr></thead>
+              <tbody>{cap.multi.cols.map((q) => <tr key={q.label}><td className="l">{q.label}</td><td>{fmt(q.Nd, 0)}</td><td>{fmt(q.NdEq, 0)}</td><td className={q.sigma > cap.sigmaLim ? 'bad' : ''}>{fmt(q.sigma, 1)}</td><td>{fmt(q.thetaMin, 1)}</td><td><Ok ok={q.ok} /></td></tr>)}</tbody>
+            </table>
+          )}
+          {cap.multi && <p className="hint">Bielas de cada pilar às estacas por ajuste bi-proporcional ao inverso do quadrado da distância; tirantes pelo equilíbrio dos nós (resíduo {fmt(cap.multi.residuo, 0)} kN). Extensão de Blévot: <Tbc />.</p>}
           {cap.ties.length > 0 && (
             <table className="data">
               <thead><tr><th className="l">Tirante</th><th>T (kN)</th><th>As (cm²)</th><th className="l">Barras (faixa {fmt(p.capBand, 1)}D)</th><th>Ancor. (cm)</th></tr></thead>
@@ -100,8 +107,28 @@ export function FootingDetail({ r, ap, bp, p }: { r: FootingResult; ap: number; 
           </dl>
           <table className="data">
             <thead><tr><th className="l">Dir.</th><th>{r.method === 'ceb70' ? 'Md (kN·m)' : 'T (kN)'}</th><th>As calc / mín</th><th className="l">Barras</th></tr></thead>
-            <tbody>{(['x', 'y'] as const).map((k) => { const d = r.flex[k]; return <tr key={k}><td className="l">{k === 'x' ? 'A (barras // A)' : 'B (barras // B)'}</td><td>{fmt(r.method === 'ceb70' ? d.Md : d.T, 0)}</td><td>{cm2(d.As)} / {cm2(d.AsMin)}</td><td className="l">{barTxt(d.bars)}</td></tr>; })}</tbody>
+            <tbody>{(['x', 'y'] as const).flatMap((k) => {
+              const d = r.flex[k], nome = k === 'x' ? 'A (barras // A)' : 'B (barras // B)';
+              const linhas = [<tr key={k}><td className="l">{nome}</td><td>{fmt(r.method === 'ceb70' ? d.Md : d.T, 0)}</td><td>{r.simples ? '—' : `${cm2(d.As)} / ${cm2(d.AsMin)}`}</td><td className="l">{r.simples ? (d.sigmaT !== undefined ? `concreto simples: σt ${fmt(d.sigmaT, 2)} / fctd ${fmt(d.fctd ?? 0, 2)} MPa` : 'concreto simples') : barTxt(d.bars)}{d.imposed ? ` (imposta φ${phiTxt(d.imposed.phi)} c/${cm(d.imposed.s)}${d.imposed.ok ? '' : ': não atende'})` : ''}</td></tr>];
+              if (d.top) linhas.push(<tr key={`${k}-top`} data-malha-superior={k}><td className="l">{k === 'x' ? 'A, negativo entre pilares' : 'B, negativo entre pilares'}</td><td>{fmt(d.top.Md, 0)}</td><td>{d.top.needed ? `${cm2(d.top.As)} / ${cm2(d.top.AsMin)}` : '—'}</td><td className="l">{d.top.needed ? (d.top.bars ? `malha superior ${barTxt(d.top.bars)}` : <span className="bad">malha superior não cabe</span>) : `sem malha superior (σt ${fmt(d.top.sigmaT, 2)} ≤ fctd ${fmt(d.top.fctd, 2)} MPa)`}</td></tr>);
+              return linhas;
+            })}</tbody>
           </table>
+          {r.grupo && (
+            <>
+              <h4>Sapata de vários pilares / aparada <Tbc /></h4>
+              <dl className="kv" data-grupo-sapata>
+                <dt>Maior vão entre pilares / h</dt><dd>{fmt(r.grupo.vao, 2)} m / {fmt(r.grupo.vaoAltura, 2)} × h</dd>
+                <dt>Maior balanço / h</dt><dd>{fmt(r.grupo.balanco, 2)} m / {fmt(r.grupo.balancoAltura, 2)} × h</dd>
+                <dt>Resultante (em relação ao centro da base)</dt><dd>{fmt(r.grupo.resultante[0], 3)} ; {fmt(r.grupo.resultante[1], 3)} m</dd>
+                {r.grupo.limitesIgnorados.length > 0 && <><dt>Limites ignorados</dt><dd>{r.grupo.limitesIgnorados.length} (ver mensagens)</dd></>}
+              </dl>
+              <table className="data">
+                <thead><tr><th className="l">Pilar</th><th>Nd (kN)</th><th>τSd (MPa)</th><th>τRd2 (MPa)</th></tr></thead>
+                <tbody>{r.grupo.pilares.map((q) => <tr key={q.label}><td className="l">{q.label}</td><td>{fmt(q.Nd, 0)}</td><td className={q.tauSd0 > q.tauRd2 ? 'bad' : ''}>{fmt(q.tauSd0, 2)}</td><td>{fmt(q.tauRd2, 2)}</td></tr>)}</tbody>
+              </table>
+            </>
+          )}
           <dl className="kv">
             <dt>Contorno C: τSd / τRd2</dt><dd className={r.punch.tauSd0 > r.punch.tauRd2 ? 'bad' : ''}>{fmt(r.punch.tauSd0, 2)} / {fmt(r.punch.tauRd2, 2)} MPa</dd>
             <dt>Punção em C′ (2d)</dt><dd>{r.punch.applies ? <span className={r.punch.tauSd1! > r.punch.tauRd1! ? 'bad' : ''}>{fmt(r.punch.tauSd1!, 2)} / {fmt(r.punch.tauRd1!, 2)} MPa{r.kind === 'rigida' ? ' (informativo)' : ''}</span> : 'C′ fora da sapata'}</dd>
@@ -212,7 +239,7 @@ export function SolutionDetail({ s, ds, f, setLoad }: { s: PileSolution; ds: Sup
           <CapChart curve={curve} s={s} />
         </div>
       </div>
-      <CapDetail cap={cap} coords={pl.coords} D={s.D} ap={ds.ap} bp={ds.bp} p={f.params} />
+      <CapDetail cap={cap} coords={pl.coords} D={s.D} ap={ds.ap} bp={ds.bp} p={f.params} cols={capCols(ds.load)} />
     </div>
   );
 }

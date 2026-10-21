@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { APP_PRINT_CSS, MEMO_CSS, memoPrintCss, printHtmlDoc } from '../Memorial';
 import { memo } from '../design/tokens';
 import { valorOpcaoTxt } from './OpcoesCalculo';
+import { descreverTabela, rotuloTabela, tabelasAlteradas } from '../../core/building/tabelasArmadura';
 import { OPCOES_INFO, opcoesAlteradas, opcoesEmUso, padraoDe, perfilDe, vinculosAlterados } from '../../core/building/opcoes';
 import { acoDe, cobrimentoFundacao, cobrimentoLaje, cobrimentoViga, fckDe, gamas } from '../../core/building/materiais';
 import { Button, Check, download, Spacer } from '../ui';
@@ -42,6 +43,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
+  const tabelas = useMemo(() => tabelasAlteradas(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];
@@ -338,6 +340,17 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               </table>
             </>)}
 
+            {tabelas.length > 0 && (<>
+              {h2('Tabelas de armadura')}
+              <p>Tabelas de bitolas, espaçamentos e tipologias que o dimensionamento e o detalhamento podem usar; só as alteradas pelo projetista ou criadas por ele. As demais seguem a tabela de fábrica (todas as bitolas comerciais da NBR 7480, com os limites da NBR 6118). Tolerância de simetria da armadura dos pilares: {opcoesEmUso(b.opcoes, perfil).pilarSimetria >= 1000 ? 'sempre simétrica' : `${String(opcoesEmUso(b.opcoes, perfil).pilarSimetria).replace('.', ',')} %`}.</p>
+              {tabelas.map((x, k) => (
+                <div key={k}>
+                  <p><b>{rotuloTabela(x)}</b> (id {x.tabela.id}). Elementos que a usam: {x.tabela.id === 'padrao' ? 'todos sem tabela própria' : `${[...b.vigas.filter((v) => v.tabela === x.tabela.id || v.tabelaEstribo === x.tabela.id), ...b.pilares.filter((p) => p.tabela === x.tabela.id), ...b.lajes.filter((l) => l.tabela === x.tabela.id)].map((e) => e.nome).join(', ') || 'nenhum'}`}.</p>
+                  <ul>{descreverTabela(x.tipo, x.tabela).map((l, i) => <li key={i}>{l}</li>)}</ul>
+                </div>
+              ))}
+            </>)}
+
             {bloqueadasMemo.length > 0 && (<>
               {h2('Armaduras bloqueadas')}
               <p>Armaduras editadas pelo projetista e bloqueadas: o recálculo não as redimensiona, só as verifica (vigas: área de aço, estribos, barras laterais, fissuração e flecha; pilares: verificação completa do lance, por fibras). Situação "não atende" indica armadura insuficiente; a mensagem traz o necessário.</p>
@@ -361,6 +374,11 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 Terreno: σadm {b.fundacao?.terreno.sigmaModo === 'sondagem' ? 'estimada pelo SPT (N̄/50 nas sapatas, N̄/30 nos tubulões; a confirmar)' : `informada, ${fmt(b.fundacao?.terreno.sigmaAdm ?? NaN, 0)} kN/m²`}
                 {' '}(majoração com vento × {fmt(b.fundacao?.terreno.fatorVento ?? 1)}; a confirmar); cota do terreno {fmt(cotaTerreno(b))} m; {b.fundacao?.sondagens.length ?? 0} furo(s) de sondagem.
                 {b.fundacao?.terreno.estacas.length ? ` Estacas: ${b.fundacao.terreno.estacas.map((e) => `${e.nome} (${e.modo === 'informada' ? `${fmt(e.capacidade ?? NaN, 0)} kN por estaca` : 'pela sondagem'})`).join('; ')}.` : ''}
+              </p>
+              <p>
+                Geração automática (quando usada): distância de visão D = {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistVisao, 1)} m, ângulo de visão A = {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarAnguloVisao, 0)}°
+                (cone de abertura total A), associação de pilares com bordas a menos de {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistAssociada, 1)} m, elemento de divisa com limite a menos de {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarDistLimite, 2)} m da face
+                e bloco sobre estacas se σadm &lt; {fmt(opcoesEmUso(b.opcoes, perfilDe(b)).gerarSigmaMin, 0)} kN/m² (a confirmar); os elementos gerados são editáveis como os lançados à mão.
               </p>
               <table>
                 <thead><tr><th className="l">Elemento</th><th className="l">Pilar</th><th className="l">Tipo</th><th>Cota (m)</th><th className="l">Dimensões</th><th>σadm (kN/m²)</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>

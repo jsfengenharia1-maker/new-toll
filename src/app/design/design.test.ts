@@ -107,7 +107,7 @@ describe('design system', () => {
     const t = lerTokens(GLOBAL);
     for (const tema of ['escuro', 'claro', 'pb']) {
       const chaves = Object.keys(t).filter((k) => k.startsWith(`pl-${tema}-`));
-      expect(chaves.length, tema).toBe(19);
+      expect(chaves.length, tema).toBe(20);
     }
   });
 });
