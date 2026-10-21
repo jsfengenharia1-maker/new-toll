@@ -5,7 +5,7 @@ import { dimensionarEdificio } from './dimensionamento';
 import { revisarEdificio } from './revisao';
 import { edificioVazio, type BuildingModel } from './types';
 import { concretoDe } from './materiais';
-import { gradeRadier, pilaresNaBase, resumoBaseElastica } from './baseElastica';
+import { gradeRadier, pilaresNaBase, radierSemCarga, resumoBaseElastica } from './baseElastica';
 import { calcularFundacaoEdificio } from './fundacao';
 import { filtrarDim } from '../../cli/mcp';
 import ref from '../../../validation/opensees/radier.json';
@@ -200,5 +200,32 @@ describe('base elástica (FU6): validação analítica', () => {
     const pts = g.linhas.flatMap((l) => l.pontos);
     expect(pts.some((p) => Math.hypot(p[0] - 1.3, p[1] - 2.7) < 1e-9)).toBe(true);
     expect(pts.some((p) => p[0] > 2 + 1e-6 && p[0] < 3 - 1e-6 && p[1] > 1 + 1e-6 && p[1] < 2 - 1e-6)).toBe(false);
+  });
+});
+
+describe('radier sem carga: definir a carga na hora (FU8c, C10.23)', () => {
+  it('radier.carga lança G e Q de área sobre o contorno num só passo; o aviso some e a carga entra na análise', () => {
+    const { s, ok } = sessao();
+    ok('pavimento.criar', { nome: 'Térreo', cota: 0 });
+    ok('fundacao.terreno', { sigmaAdm: 200 });
+    ok('radier.criar', { contorno: [[0, 0], [6, 0], [6, 4], [0, 4]], h: 0.4 });
+    ok('pilar.inserir', { x: 3, y: 2, secao: { tipo: 'ret', b: 0.4, h: 0.4 }, nasce: 'fundacao' });
+    const r = s.modelo.fundacao!.radiers![0];
+    expect(radierSemCarga(s.modelo, r)).toBe(true);
+    const an0 = analisarEdificio(s.modelo);
+    expect(an0.avisos.some((a) => /^Radier sem cargas/.test(a))).toBe(true);
+    // validação: sem valor e radier inexistente
+    expect(s.executar('radier.carga', { id: r.id }).ok).toBe(false);
+    expect(s.executar('radier.carga', { id: 'xx', G: 5 }).ok).toBe(false);
+    const rc = s.revCalculo;
+    ok('radier.carga', { id: r.id, G: 5, Q: 2 });
+    expect(s.revCalculo).toBe(rc + 1); // muda a análise global (molas)
+    const cs = s.modelo.cargas.filter((c) => c.grupo === 'fundacao');
+    expect(cs.map((c) => [c.caso, c.tipo, c.valor])).toEqual([['G', 'area', 5], ['Q', 'area', 2]]);
+    expect(radierSemCarga(s.modelo, r)).toBe(false);
+    expect(analisarEdificio(s.modelo).avisos.some((a) => /^Radier sem cargas/.test(a))).toBe(false);
+    // um passo só no histórico: desfazer remove as duas cargas
+    s.desfazer();
+    expect(s.modelo.cargas.filter((c) => c.grupo === 'fundacao')).toHaveLength(0);
   });
 });

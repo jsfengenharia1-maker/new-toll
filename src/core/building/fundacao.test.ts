@@ -312,3 +312,24 @@ describe('fundações do edifício (FU1): comandos e revisão', () => {
     expect(rv.porElemento.get(`fundacao|${r.id}`)).toBeUndefined();
   });
 });
+
+describe('ligação com o módulo Fundações: copiar sondagens (FU8c)', () => {
+  const furo = (name: string, x?: number) => ({ name, water: 4, endImpenetrable: true, ...(x !== undefined ? { x, y: 0 } : {}), meters: [{ N: 5, soil: 'areia' as const }, { N: 9, soil: 'argila' as const, excluded: true }, { N: 14, soil: 'areia' as const }] });
+  it('sondagem.copiar acrescenta ou substitui, refaz ids e as escolhas de furo; um passo no histórico', () => {
+    const s = new Sessao(edificioVazio());
+    const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
+    ok('sondagem.criar', { nome: 'SP-A', leituras: [{ N: 4, solo: 'areia' }] });
+    ok('sondagem.copiar', { furos: [furo('M1', 1), furo('M2')] });
+    expect(s.modelo.fundacao!.sondagens.map((x) => [x.id, x.name])).toEqual([[1, 'SP-A'], [2, 'M1'], [3, 'M2']]);
+    const m1 = s.modelo.fundacao!.sondagens[1];
+    expect(m1).toMatchObject({ water: 4, endImpenetrable: true, x: 1, y: 0 });
+    expect(m1.meters[1]).toEqual({ N: 9, soil: 'argila', excluded: true });
+    expect(s.modelo.fundacao!.sondagens[2].x).toBeUndefined();
+    expect(s.executar('sondagem.copiar', { furos: [] }).ok).toBe(false);
+    ok('sondagem.copiar', { furos: [furo('N1')], substituir: true });
+    expect(s.modelo.fundacao!.sondagens.map((x) => [x.id, x.name])).toEqual([[1, 'N1']]);
+    s.desfazer();
+    expect(s.modelo.fundacao!.sondagens).toHaveLength(3);
+    expect(replay(s.log)).toEqual(s.modelo);
+  });
+});

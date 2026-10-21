@@ -217,6 +217,8 @@ export interface OpcoesCalculo {
   corridaJanela: number;
   /** Rearmar com os esforços guardados (R7f): variação da rigidez à flexão (%) de um elemento, desde a análise, acima da qual os esforços são tidos como antigos (aviso ESFORCO_ANTIGO). */
   rearmarLimiteRigidez: number;
+  /** Sapata corrida de aba única (FU8a): espaçamento máximo entre cintas (m); acima dele, aviso (flexão longitudinal entre cintas não verificada). */
+  corridaCintaEspac: number;
   /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
   modeloGlobal: number;
   /** 1 = barras de laje com deformação por cortante (Timoshenko, área 5/6·b·h). */
@@ -503,6 +505,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Comprimento da janela em que as cargas lineares, pontuais e de área do nível de fundação sobre a sapata corrida são somadas e divididas para dar a carga por metro de projeto (a largura é única ao longo do eixo).' },
   { chave: 'rearmarLimiteRigidez', rotulo: 'Rearmar: variação de rigidez que torna os esforços antigos', unidade: '%', min: 1, max: 200, passo: 1, padrao: 15, fonte: 'Critério do Statikos (sem fonte): o programa de referência manda recalcular se as variações forem grandes, sem dar o limite; 15 % da inércia da seção (a confirmar)', aConfirmar: true,
     descricao: 'Ao rearmar com os esforços da última análise depois de mudar seções, o elemento cuja inércia (b·h³/12) variou mais que este percentual desde a análise recebe o aviso ESFORCO_ANTIGO: refaça a análise para esforços corretos.' },
+  { chave: 'corridaCintaEspac', rotulo: 'Sapata corrida de aba única: espaçamento máximo entre cintas', unidade: 'm', min: 1, max: 12, passo: 0.5, padrao: 5, fonte: 'Critério do Statikos (sem fonte): a sapata entre cintas funciona como viga contínua apoiada nelas e não é verificada na flexão longitudinal; o programa de referência não fixa valor', aConfirmar: true,
+    descricao: 'Distância entre cintas (vigas de equilíbrio da aba de um lado só) acima da qual o programa avisa que a flexão longitudinal da sapata entre elas não é verificada; o balanço além da última cinta aceita metade.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----

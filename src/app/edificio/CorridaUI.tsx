@@ -7,7 +7,8 @@ import { usePlanta } from './plantaStore';
 import { classificar } from '../../core/building/revisao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import { corridaEfetiva, pilaresDaCorrida } from '../../core/building/baseElastica';
-import { modoCorrida, type ResultadoCorrida } from '../../core/building/sapataCorrida';
+import { comprimentoCorrida, modoCorrida, type ResultadoCorrida } from '../../core/building/sapataCorrida';
+import { secaoCinta } from '../../core/building/cintasCorrida';
 import type { AbaCorrida, BuildingModel, SapataCorrida } from '../../core/building/types';
 import { Button, Check, Group, Hint, KV, NumField, OptNumField, Pill, Select, TextField } from '../ui';
 
@@ -124,10 +125,47 @@ function CorridaEditor({ b, c, r }: { b: BuildingModel; c: SapataCorrida; r?: Re
         <Check label="Apoio de alvenaria" checked={!!c.alvenaria} onChange={(v) => ed({ alvenaria: v })} />
         <Check label="Aba de um lado: equilibrada por cintas" checked={!!c.equilibrio} onChange={(v) => ed({ equilibrio: v })} />
       </div>
+      <CintasEditor b={b} c={c} r={r} nPil={nPil} />
       <div className="row wrap">
         <Button disabled={!r} onClick={() => abrir(c.id)}>Resultados da sapata corrida</Button>
         <Button variant="danger" onClick={() => exec('corrida.remover', { ids: [c.id] })}>Remover</Button>
       </div>
+    </div>
+  );
+}
+
+/** Cintas (FU8a): vigas de equilíbrio da aba de um lado só, do eixo da corrida a elementos internos (só sob parede). */
+function CintasEditor({ b, c, r, nPil }: { b: BuildingModel; c: SapataCorrida; r?: ResultadoCorrida; nPil: number }) {
+  const { exec } = useBuilding();
+  if (c.aba === 'ambas' || nPil > 0) return <p className="muted small" data-cintas-nao>Cintas: só sapata corrida sob parede com aba de um lado (apoio rente à divisa).</p>;
+  const pontas = [
+    ...(b.fundacao?.elementos ?? []).map((e) => ({ v: e.id, label: e.nome })),
+    ...b.pilares.filter((p) => p.nasce === 'fundacao' && !b.fundacao?.elementos.some((e) => e.pilares.includes(p.id))).map((p) => ({ v: p.id, label: `pilar ${p.nome}` })),
+  ];
+  const L = comprimentoCorrida(c.pontos), cs = c.cintas ?? [];
+  const res = (id: string) => r?.cintas?.find((x) => x.id === id);
+  return (
+    <div data-cintas={c.id}>
+      <p className="small"><b>Cintas ({cs.length})</b> — vigas de equilíbrio até sapatas internas; cada cinta toma o momento N·e do seu trecho e alivia o elemento da ponta.</p>
+      {cs.map((ct) => {
+        const x = res(ct.id), ed = (p: Record<string, unknown>) => exec('cinta.editar', { id: ct.id, ...p });
+        return (
+          <div key={ct.id} className="row wrap u-items-end" data-cinta-id={ct.id}>
+            <TextField label="Nome" value={ct.nome} onChange={(v) => v.trim() && ed({ nome: v })} />
+            <NumField label={`s (0 a ${fmt(L)})`} unit="m" width={110} value={ct.s} onChange={(v) => v >= 0 && v <= L && ed({ s: v })} />
+            <Select label="Ponta interna" value={ct.fim} options={pontas.some((q) => q.v === ct.fim) ? pontas : [{ v: ct.fim, label: ct.fim }, ...pontas]} onChange={(v) => ed({ fim: v })} />
+            <NumField label="b" unit="m" width={80} value={ct.b} onChange={(v) => v >= 0.1 && ed({ b: v })} />
+            <NumField label="h" unit="m" width={80} value={ct.h} onChange={(v) => v >= 0.2 && ed({ h: v })} />
+            <Check label="Seção fixa" checked={!!ct.fixa} onChange={(v) => ed({ fixa: v })} />
+            {x && <Pill tone={x.status === 'ok' ? 'ok' : 'bad'}>{secaoCinta(x)} · ΔN {fmt(x.dN, 0)} kN</Pill>}
+            <Button variant="danger" onClick={() => exec('cinta.remover', { ids: [ct.id] })}>Remover</Button>
+          </div>
+        );
+      })}
+      <div className="row wrap">
+        <Button data-add-cinta disabled={!pontas.length} onClick={() => exec('cinta.criar', { corrida: c.id, s: +(cs.length ? Math.min(L, Math.max(...cs.map((q) => q.s)) + 2) : L / 2).toFixed(2), fim: pontas[0].v })}>Adicionar cinta</Button>
+      </div>
+      {!pontas.length && <p className="hint">Lance antes uma sapata (ou arranque) interna para servir de ponta.</p>}
     </div>
   );
 }
@@ -186,7 +224,11 @@ export function JanelaCorrida({ id }: { id: string }) {
           ['Distribuição (longitudinal)', `${fmt(t.distribuicao.As)} cm²/m → ${t.distribuicao.barras ? `φ${fmt(t.distribuicao.barras.phi, 1)} c/${cm(t.distribuicao.barras.s)}` : '—'}`],
           ...(t.cortante ? [['Cortante a d da face', `Vd ${fmt(t.cortante.Vd, 1)} · VRd1 ${fmt(t.cortante.VRd1, 1)} kN/m`]] as [string, string][] : []),
         ] as [string, string][] : []),
-        ...(r.cinta !== undefined ? [['Momento das cintas', `${fmt(r.cinta, 1)} kN·m por metro (N·e; as cintas não são dimensionadas aqui)`]] as [string, string][] : []),
+        ...(r.cinta !== undefined ? [['Momento das cintas', `${fmt(r.cinta, 1)} kN·m por metro (N·e)${r.cintas?.length ? '' : ' — sem cintas lançadas'}`]] as [string, string][] : []),
+        ...((r.cintas ?? []).flatMap((x) => [
+          [`Cinta ${x.nome}`, `${secaoCinta(x)} cm · ℓ ${fmt(x.L)} m · trecho s ${fmt(x.tributario[0])}–${fmt(x.tributario[1])} m: N ${fmt(x.N, 1)} → R ${fmt(x.R, 1)} kN (×${fmt(x.fator, 3)}) · alívio ΔN ${fmt(x.dN, 1)} kN em ${x.fim}`],
+          [`Cinta ${x.nome}: armadura`, `Md ${fmt(x.Md.sup, 1)} (sup.) / ${fmt(x.Md.inf, 1)} (inf.) kN·m · Vd ${fmt(x.Vd, 1)} kN · ${x.resumo}`],
+        ]) as [string, string][]),
         ...(lg ? [
           ['Viga: Md inf. / sup.', `${fmt(lg.Md.inf, 1)} / ${fmt(lg.Md.sup, 1)} kN·m · Vd ${fmt(lg.Vd, 1)} kN`],
           ['Viga: armadura', `inf. ${lg.armadura.inf.barras ? `${lg.armadura.inf.barras.n} φ${fmt(lg.armadura.inf.barras.phi, 1)}` : '—'}; sup. ${lg.armadura.sup.barras ? `${lg.armadura.sup.barras.n} φ${fmt(lg.armadura.sup.barras.phi, 1)}` : '—'}${lg.armadura.estribo ? `; estribo φ${fmt(lg.armadura.estribo.phi, 1)} c/${cm(lg.armadura.estribo.s)}` : ''}`],

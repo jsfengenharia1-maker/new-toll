@@ -45,6 +45,8 @@ export interface GeometriaVF {
   ini: PontaVF | null; fim: PontaVF | null;
   /** Centros dos pilares das pontas (m), direção unitária ini → fim e distância entre eles. */
   a: P; z: P; u: P; L: number;
+  /** Meias faces dos elementos das pontas ao longo da viga (m); ausente = as dos pilares (a cinta de sapata corrida, FU8a, informa as suas). */
+  faces?: { ini: number; fim: number };
   erro?: string;
 }
 
@@ -241,6 +243,8 @@ export interface ResultadoVigaFundacao {
   ini: string; fim: string;
   /** Distância entre os pilares das pontas (m). */
   L: number;
+  /** Eixo em planta (centro da ponta inicial, centro da final; m) e meias faces das pontas ao longo da viga (m). */
+  eixo?: [P, P]; faces?: { ini: number; fim: number };
   /** Seção do modelo e seção adotada (m). */
   b: number; h: number; bAdot: number; hAdot: number; fixa: boolean;
   equilibrio: { ini: boolean; fim: boolean };
@@ -311,7 +315,7 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   const L = g.L;
   // ---- esforços característicos ----
   const n = Math.max(40, Math.ceil(L / PASSO));
-  const fi = meiaFace(b, g.ini!.pilar, g.u), ff = meiaFace(b, g.fim!.pilar, [-g.u[0], -g.u[1]]);
+  const fi = g.faces?.ini ?? meiaFace(b, g.ini!.pilar, g.u), ff = g.faces?.fim ?? meiaFace(b, g.fim!.pilar, [-g.u[0], -g.u[1]]);
   // abscissas: malha, faces dos pilares e ponto de cortante nulo de cada alavanca (momento máximo)
   const extras = [fi, L - ff, ...ent.alavancas.flatMap((al) => {
     if (al.ei <= 1e-9 || !al.dN) return [];
@@ -387,7 +391,7 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   const txt = (x: BarChoice | null) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}` : '—');
   const status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
   return {
-    ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd,
+    ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd, eixo: [g.a, g.z], faces: { ini: fi, fim: ff },
     diagrama: { s: xs, Msup, Minf, V },
     armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d, ancoragem: anc },
     volume: bw * h * Lc, aco: aco_, status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),

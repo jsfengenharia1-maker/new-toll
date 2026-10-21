@@ -6,10 +6,11 @@ import { useBuilding, calculoAtual } from './store';
 import { usePlanta } from './plantaStore';
 import { classificar } from '../../core/building/revisao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
-import { TABELA_K, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
+import { TABELA_K, radierSemCarga, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { CartaoPuncao } from './Puncao';
 import { centroPilar, contornoPilar, type BuildingModel } from '../../core/building/types';
+import { useState } from 'react';
 import { Button, Group, Hint, KV, NumField, OptNumField, Pill, TextField } from '../ui';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -26,6 +27,27 @@ export const nomeBaseElastica = (b: BuildingModel, id: string) => [...(b.fundaca
 function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
   return <ul className="revmsg">{msgs.map((m, i) => { const c = classificar(m); return <li key={i}><Pill tone={c.nivel === 'erro' ? 'bad' : c.nivel === 'aviso' ? 'warn' : 'na'}>{c.codigo}</Pill> {m}</li>; })}</ul>;
+}
+
+/**
+ * Radier sem carga do nível de fundação (C10.23): define a carga de área (G e Q) na hora, num só comando, e segue o cálculo do
+ * edifício. Só aparece quando nenhuma carga do nível de fundação cai sobre o radier.
+ */
+function CargaRadier({ b, id }: { b: BuildingModel; id: string }) {
+  const { exec, calcular } = useBuilding();
+  const [g, setG] = useState(5), [q, setQ] = useState(2);
+  const r = b.fundacao?.radiers?.find((x) => x.id === id);
+  if (!r || !radierSemCarga(b, r)) return null;
+  return (
+    <div data-radier-sem-carga={id}>
+      <p className="hint bad">Radier sem cargas do nível de fundação (só o peso próprio e os pilares): defina a carga de piso na hora e siga o cálculo.</p>
+      <div className="row wrap u-items-end">
+        <NumField label="Permanente G" unit="kN/m²" width={130} value={g} onChange={(v) => v >= 0 && setG(v)} />
+        <NumField label="Variável Q" unit="kN/m²" width={130} value={q} onChange={(v) => v >= 0 && setQ(v)} />
+        <Button variant="primary" data-definir-carga disabled={!(g > 0 || q > 0)} onClick={() => { exec('radier.carga', { id, ...(g > 0 ? { G: g } : {}), ...(q > 0 ? { Q: q } : {}) }); void calcular(); }}>Definir carga e seguir</Button>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------- bloco do grupo Fundação
@@ -98,6 +120,7 @@ export function BaseElasticaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta:
             <OptNumField label={`k (vazio = ${fmt(op.radierK, 0)})`} unit="kN/m³" width={170} value={selR.k} onChange={(v) => exec('radier.editar', v === undefined ? { id: selR.id, limpar: ['k'] } : { id: selR.id, k: v })} />
             <OptNumField label="σadm (vazio = terreno)" unit="kN/m²" width={150} value={selR.sigmaAdm} onChange={(v) => exec('radier.editar', v === undefined ? { id: selR.id, limpar: ['sigmaAdm'] } : { id: selR.id, sigmaAdm: v })} />
           </div>
+          <CargaRadier b={b} id={selR.id} />
           <div className="row wrap">
             <Button disabled={!res(selR.id)} onClick={() => abrir(selR.id)}>Resultados do radier</Button>
             <Button variant="danger" onClick={() => exec('radier.remover', { ids: [selR.id] })}>Remover</Button>
@@ -177,6 +200,7 @@ export function JanelaBaseElastica({ id }: { id: string }) {
         ...(r ? [['As inferior x / y', `${fmt(r.As.pos[0])} / ${fmt(r.As.pos[1])} cm²/m`], ['As superior x / y', `${fmt(r.As.neg[0])} / ${fmt(r.As.neg[1])} cm²/m`], ['md (Wood-Armer) inf. / sup.', `${fmt(Math.max(...r.mPos), 1)} / ${fmt(Math.min(...r.mNeg), 1)} kN·m/m`]] as [string, string][] : []),
         ...(v ? [['Md inf. / sup.', `${fmt(v.Md.inf, 1)} / ${fmt(v.Md.sup, 1)} kN·m`], ['Vd', `${fmt(v.Vd, 1)} kN`], ['Armadura', `inf. ${v.armadura.inf.barras ? `${v.armadura.inf.barras.n} φ${fmt(v.armadura.inf.barras.phi, 1)}` : '—'}; sup. ${v.armadura.sup.barras ? `${v.armadura.sup.barras.n} φ${fmt(v.armadura.sup.barras.phi, 1)}` : '—'}${v.armadura.estribo ? `; estribo φ${fmt(v.armadura.estribo.phi, 1)} c/${fmt(v.armadura.estribo.s * 100, 0)}` : ''}`]] as [string, string][] : []),
       ]} />
+      {r && <CargaRadier b={b} id={r.id} />}
       <Mensagens msgs={x.mensagens} />
       {!!r?.puncao?.length && (
         <div data-puncao-radier={r.puncao.length}>

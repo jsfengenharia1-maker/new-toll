@@ -517,7 +517,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 Sapatas corridas lançadas por polilinha sob parede (sem pilares sobre o eixo) ou sob pilares. Sob parede: a carga por metro é a maior soma, em janelas de {fmt(opc.corridaJanela)} m ao longo do eixo, das cargas do nível de fundação sobre ela, nas combinações raras;
                 a largura B sai da σadm (passos de 5 cm, com o peso próprio, pressão sem tração e área comprimida mínima), a altura da rigidez (balanço ≤ 1,5·h) e a flexão transversal da aba, numa faixa de 1 m, do CEB-70 com a seção de referência a {fmt(opc.corridaRefConcreto, 0)} % de bw dentro da face
                 ({fmt(opc.corridaRefAlvenaria, 0)} % em alvenaria), com ρmín e armadura de distribuição mínima de {fmt(opc.corridaDistribuicao, 0)} % da principal (a confirmar). Sob pilares: viga sobre base elástica na análise global (k padrão {fmt(opc.radierK, 0)} kN/m³, a confirmar),
-                seção em T invertido, e flexão transversal da aba com a pressão máxima do solo. Aba de um lado só: apoio rente à divisa; o momento N·e fica para as vigas de equilíbrio (cintas), que não são dimensionadas aqui.
+                seção em T invertido, e flexão transversal da aba com a pressão máxima do solo. Aba de um lado só: apoio rente à divisa; o momento N·e vai para as vigas de equilíbrio (cintas): cada cinta toma o momento do seu trecho tributário (R = N·ℓ/(ℓ − e), reação sob a base majorada por R/N) e alivia o elemento interno da ponta (50 %, opção das vigas de fundação).
               </p>
               <table data-memorial-corridas>
                 <thead><tr><th className="l">Sapata</th><th className="l">Modo</th><th>L (m)</th><th>B (cm)</th><th>bw (cm)</th><th>h / h0 (cm)</th><th>Nk (kN/m)</th><th>σmáx (kN/m²)</th><th>σadm (kN/m²)</th><th>Md (kN·m/m)</th><th className="l">Transversal</th><th className="l">Distribuição</th><th>Concreto (m³)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
@@ -526,6 +526,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   <td className="l">{x.transversal?.barras ? `φ${fmt(x.transversal.barras.phi, 1)} c/${Math.round(x.transversal.barras.s * 100)}` : '—'}</td><td className="l">{x.transversal?.distribuicao.barras ? `φ${fmt(x.transversal.distribuicao.barras.phi, 1)} c/${Math.round(x.transversal.distribuicao.barras.s * 100)}` : '—'}</td>
                   <td>{fmt(x.volume, 2)}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>)}</tbody>
               </table>
+              {dim.corridas.some((x) => x.cintas?.length) && <table data-memorial-cintas>
+                <thead><tr><th className="l">Cinta</th><th className="l">Sapata corrida</th><th>s (m)</th><th>Trecho (m)</th><th>ℓ (m)</th><th>N (kN)</th><th>R = N·ℓ/(ℓ − e) (kN)</th><th>e (m)</th><th>Alívio ΔN (kN)</th><th>b × h (cm)</th><th>Md sup./inf. (kN·m)</th><th>Vd (kN)</th><th className="l">Armadura</th><th className="l">Situação</th></tr></thead>
+                <tbody>{dim.corridas.flatMap((x) => (x.cintas ?? []).map((ct) => <tr key={ct.id}><td className="l">{ct.nome}</td><td className="l">{x.nome}</td><td>{fmt(ct.s)}</td><td>{fmt(ct.tributario[0])}–{fmt(ct.tributario[1])}</td><td>{fmt(ct.L)}</td><td>{fmt(ct.N, 1)}</td><td>{fmt(ct.R, 1)}</td><td>{fmt(ct.e)}</td><td>{fmt(ct.dN, 1)}</td><td>{Math.round(ct.bAdot * 100)} × {Math.round(ct.hAdot * 100)}</td><td>{fmt(ct.Md.sup, 1)} / {fmt(ct.Md.inf, 1)}</td><td>{fmt(ct.Vd, 1)}</td><td className="l">{ct.resumo}</td><td className="l">{ST[ct.status]}</td></tr>))}</tbody>
+              </table>}
             </>)}
 
             {quantFund && quantFund.linhas.length > 0 && (<>

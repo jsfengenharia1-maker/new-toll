@@ -15,7 +15,7 @@ import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../Fund
 import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
 import { useStore } from '../store';
 import { PARAMS_FUNDACAO } from '../../core/commands';
-import { PILE_LABEL, type Boring, type FoundationData, type PileType } from '../../core/piles';
+import { PILE_LABEL, boringsOf, normalizeFoundation, sampleFoundation, type Boring, type FoundationData, type PileType } from '../../core/piles';
 import { isFooting } from '../../core/footings';
 import { isCaisson } from '../../core/caissons';
 import {
@@ -624,6 +624,46 @@ function AlavancaDoElemento({ b, r }: { b: BuildingModel; r: ResultadoFundacao }
 // ---------------------------------------------------------------- aba Fundações em modo leitura
 
 /** Aviso e lista dos elementos do edifício, no topo da aba Fundações quando o edifício tem fundação lançada. */
+/** Copia furos do edifício para o módulo Fundações (nova lista ou acrescentados); as escolhas de furo dos apoios que sumirem voltam ao automático. */
+export function copiarSondagensParaModulo(furos: Boring[], substituir: boolean) {
+  const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
+  useStore.getState().commit((m) => {
+    const d = normalizeFoundation(clone(m.foundation ?? sampleFoundation()));
+    const antes = substituir ? [] : boringsOf(d);
+    let id = Math.max(0, ...antes.map((x) => x.id ?? 0));
+    d.borings = [...antes, ...clone(furos).map((x) => ({ ...x, id: ++id }))];
+    const ids = new Set(d.borings.map((x) => x.id));
+    for (const l of d.loads) { if (l.boringId !== undefined && !ids.has(l.boringId)) delete l.boringId; if (l.boringIds) { l.boringIds = l.boringIds.filter((i) => ids.has(i)); if (!l.boringIds.length) delete l.boringIds; } }
+    d.boring = d.borings[0];
+    m.foundation = d;
+  }, `${furos.length} furo(s) de sondagem copiado(s) do edifício${substituir ? ' (substituíram os do módulo)' : ''}.`);
+}
+
+/**
+ * Ligação entre o módulo Fundações e o Edifício (FU8c): copia as sondagens nos dois sentidos (acrescentando ou substituindo os
+ * furos do destino) e abre a planta de fundação do edifício. Sempre visível no topo da aba Fundações.
+ */
+export function LigacaoEdificio() {
+  const b = useBuilding((s) => s.sessao.modelo), exec = useBuilding((s) => s.exec);
+  const fundModulo = useStore((s) => s.model.foundation);
+  const furosMod = useMemo(() => (fundModulo ? boringsOf(normalizeFoundation(JSON.parse(JSON.stringify(fundModulo)))) : []), [fundModulo]);
+  const [subst, setSubst] = useState(true);
+  const furosEd = b.fundacao?.sondagens ?? [];
+  const temModulo = !!fundModulo;
+  const el = b.fundacao?.elementos.length ?? 0, extra = (b.fundacao?.radiers?.length ?? 0) + (b.fundacao?.vigasElasticas?.length ?? 0) + (b.fundacao?.corridas?.length ?? 0);
+  return (
+    <div className="card" data-ligacao-edificio>
+      <p><b>Ligação com o Edifício.</b> {furosEd.length} furo(s) de sondagem no edifício · {temModulo ? furosMod.length : 0} neste módulo · {el} elemento(s) de fundação lançado(s) no edifício{extra ? ` e ${extra} de base elástica/corrida` : ''}.</p>
+      <div className="row wrap u-items-center">
+        <Button data-copiar-do-edificio disabled={!furosEd.length} title={furosEd.length ? 'Copia os furos do edifício para este módulo.' : 'O edifício não tem sondagens lançadas.'} onClick={() => copiarSondagensParaModulo(furosEd, subst)}>Copiar sondagens do edifício</Button>
+        <Button data-copiar-para-edificio disabled={!temModulo || !furosMod.length} title="Copia os furos deste módulo para o edifício." onClick={() => exec('sondagem.copiar', { furos: furosMod.map((x) => ({ name: x.name, ...(x.water !== null ? { water: x.water } : {}), endImpenetrable: x.endImpenetrable, meters: x.meters.map((m) => ({ N: m.N, soil: m.soil, ...(m.excluded ? { excluded: true } : {}) })), ...(x.x !== undefined && x.y !== undefined ? { x: x.x, y: x.y } : {}) })), substituir: subst })}>Copiar sondagens para o edifício</Button>
+        <Check label="Substituir os furos do destino (senão acrescenta)" checked={subst} onChange={setSubst} />
+        <Button data-abrir-no-edificio onClick={() => { usePlanta.getState().set({ pavimento: 'fundacao' }); useStore.getState().set({ module: 'edificio' }); }}>Abrir no Edifício (planta de fundação)</Button>
+      </div>
+    </div>
+  );
+}
+
 export function FundacoesDoEdificio() {
   const b = useBuilding((s) => s.sessao.modelo), dim = useBuilding((s) => s.dim);
   const elementos = b.fundacao?.elementos ?? [];
