@@ -145,3 +145,29 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 - 21/10/2026 (pausa pedida pelo usuário, retomada no sábado): concluídas FU1–FU8 (falta FU7b, com a E1), R7-0 a R7e, N2a, N2b, N2d e V1 (~19 de ~55 fatias; 44 % dos itens no escopo dos checklists Feito, 53 % contando Parcial como meio). Em andamento e interrompidas, salvas nos branches remotos `wip/r7f` (R7f, quase pronta), `wip/n2c` (N2c, faltava a verificação final) e `wip/e1a` (E1a, faltava a verificação final): na retomada, mesclar o `main` em cada uma, verificar e juntar. Depois seguir as ondas (R7g; N2e, N2f, N2g; E1b em diante e FU7b; L; V2–V5; fechamento com a revisão numérica).
 - 21/10/2026 (consolidação): R7f, N2c e E1a concluídas e juntadas (os branches remotos `wip/r7f`, `wip/n2c` e `wip/e1a` já estão no `main` e podem ser apagados no GitHub; a remoção daqui foi recusada pela rede). Entregues: FU1–FU8 (falta FU7b), R7-0 a R7f (falta R7g), N2a–N2d (faltam N2e, N2f, N2g), E1a (faltam E1b–E1e, E2–E4), V1 (faltam V2–V5), L inteira por fazer: ~22 de ~55 fatias. Checklists, itens no escopo (sem Fora): manual do usuário 237/578 Feito (41 %), manual de cálculo 309/550 (56 %), total 546/1.128 = 48 % Feito (56 % contando Parcial como meio). Pendências por frente: E 369, L 75, V 55, N 53, R 23, FU 7. Para o fechamento (revisão numérica): Wp de borda/canto da punção; queda de momentos nas vigas com o modelo integrado; bloco multi-pilar com o sinal do momento; `pilarLancesDesligados` = 1 no sistema reprova os pilares do térreo sem vigas do edifício de 10 pavimentos; teste de desempenho no limite (3,19 s × 3,10 s sob carga); pacote 2,48 MB. Retomada: R7g e N2e (lanes 2 e 3) e E1b (lane 1).
 - 21/10/2026: itens extras X1–X8 registrados em `docs/checklist-extras.md` e alocados às frentes (X1 E2; X2 nova subfatia FU9; X3 e X7 L; X4 N2; X5 e X6 E1; X8 Fora); entram nas fatias quando as specs forem executadas.
+
+## Melhorias futuras (depois de concluir o aplicativo)
+
+Decisão do usuário (21/10/2026): melhorias não essenciais ficam só registradas; começam depois que o aplicativo estiver concluído.
+
+- Desempenho da vista 3D (`docs/analises/analise-motor3d.md`):
+  - remontar só quando a geometria muda (`revGeometria`);
+  - cache dos panos por grupo;
+  - rótulos "?" num objeto só, com dispose;
+  - filtros por visibilidade;
+  - seleção por caixas;
+  - cena no worker;
+  - pavimentos iguais instanciados;
+  - atualização incremental.
+- Validação externa e QA (`docs/analises/plano-freecad-itens.md`):
+  - conferência de conteúdo dos DXF;
+  - fixtures IFC;
+  - CalculiX (casca, radier, viga-parede, punção, bloco em sólido);
+  - Gmsh × malhaTri;
+  - cotas e hachuras do TechDraw como checklist de recursos;
+  - benchmarks de vibração e flambagem;
+  - exportação IFC estrutural.
+- Desempenho do cálculo e desktop:
+  - medir em 30+ pavimentos e, se o resolvedor dominar, núcleo em Rust/WASM;
+  - app desktop com Tauri.
+- Observação: os itens de validação que resolvem dúvidas numéricas já listadas no fechamento (Wp de borda/canto, momentos das vigas no modelo integrado, bloco multi-pilar) podem ser antecipados no fechamento se o usuário quiser.
