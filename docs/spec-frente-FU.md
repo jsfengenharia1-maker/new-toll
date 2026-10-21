@@ -281,6 +281,8 @@ Fora de escopo, sem lacuna: placas de base (C11.1 a C11.3, Fora), recalques, tub
 
 ### FU8 — pendências da auditoria
 
+**Concluída em 21/10/2026** (FU8a a FU8d; ver o Andamento de `plano-execucao.md`). A validação externa da FU3 fechou com OpenSees: sapata associada (placa sobre molas) com erros ≤ 1,5 % e bloco com dois pilares (sólido) com o tirante do Statikos a favor da segurança (+14 a +16 % com pilares iguais; +25 % e +132 % com cargas diferentes, pela regra de Rmáx em todas as estacas herdada do bloco de um pilar).
+
 Subfatia nova da frente FU, depois da FU7b (ou antes dela, pois não depende da E1). Classe: S2 em todas, exceto a FU8d (S1).
 
 | Subfatia | Conteúdo | Classe núcleo | Classe interface |

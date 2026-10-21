@@ -173,3 +173,26 @@ registrar<{ ids: string[] }>({
     return `${p.ids.length} viga(s) sobre base elástica removida(s).`;
   },
 });
+
+registrar<{ id: string; G?: number; Q?: number }>({
+  nome: 'radier.carga',
+  descricao: 'Define a carga do radier na hora (radier sem carga do nível de fundação): carga de área permanente `G` e/ou variável `Q` (kN/m², para baixo) sobre o contorno do radier, no nível de fundação (dois comandos `carga.area` num só passo). Depois recalcule o edifício.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: true,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, G: { type: 'number', minimum: 0, description: 'carga permanente de área (kN/m²)' }, Q: { type: 'number', minimum: 0, description: 'carga variável de área (kN/m²)' } } },
+  validar(b, p) {
+    if (!b.fundacao?.radiers?.some((x) => x.id === p.id)) return err('RADIER_INEXISTENTE', `Radier ${p.id} não existe.`);
+    return (p.G ?? 0) > 0 || (p.Q ?? 0) > 0 ? [] : err('SEM_VALOR', 'Informe a carga permanente G e/ou a variável Q (kN/m², maior que zero).');
+  },
+  aplicar(d, p) {
+    const r = d.fundacao!.radiers!.find((x) => x.id === p.id)!, partes: string[] = [];
+    for (const [caso, v] of [['G', p.G], ['Q', p.Q]] as const) {
+      if (!v || v <= 0) continue;
+      d.cargas.push({ id: novoId(d, 'c'), grupo: 'fundacao', caso, tipo: 'area', valor: v, pontos: r.contorno.map((q) => [q[0], q[1]] as [number, number]) });
+      partes.push(`${caso} = ${v.toFixed(2).replace('.', ',')} kN/m²`);
+    }
+    return `Carga do radier ${r.nome} definida: ${partes.join(' e ')} sobre ${Math.abs(areaPoligono(r.contorno)).toFixed(2).replace('.', ',')} m².`;
+  },
+});
+

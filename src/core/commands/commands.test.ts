@@ -54,6 +54,9 @@ function base() {
   expect(s.executar('vigaElastica.criar', { pontos: [[20, 10], [26, 10]] }).ok).toBe(true);
   // FU7a: uma sapata corrida sob parede longe dos pilares
   expect(s.executar('corrida.criar', { pontos: [[40, 0], [46, 0]], bw: 0.2 }).ok).toBe(true);
+  // FU8a: sapata corrida de aba única com uma cinta até a sapata do P1
+  expect(s.executar('corrida.criar', { pontos: [[-6, -3], [-6, 3]], bw: 0.2, aba: 'dir' }).ok).toBe(true);
+  expect(s.executar('cinta.criar', { corrida: s.modelo.fundacao!.corridas![1].id, s: 3, fim: s.modelo.fundacao!.elementos[0].id, nome: 'CT1' }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -172,14 +175,19 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'radier.criar': () => ({ contorno: [[8, 8], [12, 8], [12, 12], [8, 12]], furos: [[[9, 9], [10, 9], [10, 10], [9, 10]]], h: 0.4, k: 30000, sigmaAdm: 150, nome: 'R9' }),
   'radier.editar': (b) => ({ id: b.fundacao!.radiers![0].id, h: 0.5, k: 60000, contorno: [[20, 0], [25, 0], [25, 4], [20, 4]], nome: 'RA' }),
   'radier.remover': (b) => ({ ids: [b.fundacao!.radiers![0].id] }),
+  'radier.carga': (b) => ({ id: b.fundacao!.radiers![0].id, G: 5, Q: 2 }),
   'vigaElastica.criar': () => ({ pontos: [[30, 0], [36, 0], [36, 4]], b: 0.6, h: 1, k: 50000, nome: 'VE9' }),
   'vigaElastica.editar': (b) => ({ id: b.fundacao!.vigasElasticas![0].id, b: 0.7, sigmaAdm: 200, nome: 'VE5' }),
   'vigaElastica.remover': (b) => ({ ids: [b.fundacao!.vigasElasticas![0].id] }),
   'corrida.criar': () => ({ pontos: [[50, 0], [58, 0], [58, 6]], bw: 0.25, aba: 'esq', equilibrio: true, h: 0.5, h0: 0.25, alvenaria: true, sigmaAdm: 180, nome: 'SC9' }),
   'corrida.editar': (b) => ({ id: b.fundacao!.corridas![0].id, B: 1.2, aba: 'dir', bw: 0.3, equilibrio: true, nome: 'SCA', limpar: ['h'] }),
   'corrida.remover': (b) => ({ ids: [b.fundacao!.corridas![0].id] }),
+  'cinta.criar': (b) => ({ corrida: b.fundacao!.corridas![1].id, s: 1, fim: b.pilares[2].id, b: 0.25, h: 0.5, fixa: true, nome: 'CT9' }),
+  'cinta.editar': (b) => ({ id: b.fundacao!.corridas![1].cintas![0].id, s: 2, b: 0.25, h: 0.5, fixa: true, nome: 'CTA', ancoragem: { ini: 0.4 } }),
+  'cinta.remover': (b) => ({ ids: [b.fundacao!.corridas![1].cintas![0].id] }),
   'sondagem.criar': () => ({ nome: 'SP-02', x: 4, y: 3, leituras: [{ N: 3, solo: 'argila' }, { N: 6, solo: 'silteArgiloso', descartada: true }, { N: 9, solo: 'silteArenoso' }], impenetravel: true }),
   'sondagem.editar': (b) => ({ id: b.fundacao!.sondagens[0].id!, nome: 'SP-1A', semAgua: true }),
+  'sondagem.copiar': () => ({ furos: [{ name: 'SP-M1', water: 3, endImpenetrable: false, x: 1, y: 2, meters: [{ N: 4, soil: 'argila' }, { N: 7, soil: 'areia', excluded: true }] }], substituir: false }),
   'sondagem.remover': (b) => ({ ids: [b.fundacao!.sondagens[0].id!] }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };

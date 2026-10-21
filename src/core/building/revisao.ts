@@ -124,6 +124,11 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_CORRIDA_FLEXAO', nivel: 'erro', re: /^Sapata corrida .*: (armadura transversal|cisalhamento a d)/, descricao: 'Sapata corrida: armadura transversal não cabe ou cisalhamento não atende' },
   { codigo: 'FUND_CORRIDA_FLEXIVEL', nivel: 'aviso', re: /^Sapata corrida .*: altura .* menor que a rígida/, descricao: 'Sapata corrida flexível (altura menor que a rígida): cisalhamento verificado' },
   { codigo: 'FUND_CORRIDA_LARGURA', nivel: 'aviso', re: /^Sapata corrida .*: largura necessária/, descricao: 'Sapata corrida sob pilares: largura necessária para a σadm' },
+  // cintas da sapata corrida de aba única (FU8a)
+  { codigo: 'FUND_CORRIDA_SEM_CINTA', nivel: 'aviso', re: /^Sapata corrida .*: marcada como equilibrada por cintas, mas sem cintas/, descricao: 'Sapata corrida marcada como equilibrada por cintas, sem cintas lançadas (reação uniforme suposta)' },
+  { codigo: 'FUND_CINTA_ERRO', nivel: 'erro', re: /^Sapata corrida .*: cintas? \S+ (sem ponta|com ponta|oblíqua ou do lado|— alavanca|e \S+ na mesma)/, descricao: 'Cinta de sapata corrida: ponta inválida, oblíqua, alavanca impossível ou duas cintas na mesma abscissa' },
+  { codigo: 'FUND_CINTA_OBLIQUA', nivel: 'aviso', re: /^Sapata corrida .*: cinta \S+ oblíqua à normal/, descricao: 'Cinta de sapata corrida oblíqua à normal da corrida (excentricidade fora do plano da cinta)' },
+  { codigo: 'FUND_CINTA_ESPACAMENTO', nivel: 'aviso', re: /^Sapata corrida .*: (cintas (ignoradas|espaçadas)|balanço de .* última cinta)/, descricao: 'Cintas de sapata corrida ignoradas (aba nos dois lados), espaçadas demais ou com balanço longo além da última' },
   // avisos da análise (obra)
   { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
 import { calcularCorridas, contornoCorrida, resumoCorrida } from './sapataCorrida';
+import { calcularFundacaoEdificio } from './fundacao';
 import { dimensionarEdificio } from './dimensionamento';
 import { concretoDe } from './materiais';
 import { pilaresNaBase } from './baseElastica';
@@ -232,5 +233,137 @@ describe('sapata corrida: pranchas do tipo fundação', () => {
     // conjunto: o tipo fundação sai com as folhas das corridas
     const cj = montarConjunto(b, an, dim, { tipos: ['fundacao'] });
     expect(cj.pranchas.some((p) => /sapatas corridas/.test(p.titulo))).toBe(true);
+  });
+});
+
+
+describe('cintas da sapata corrida de aba única (FU8a): alavanca no trecho tributário, alívio e dimensionamento', () => {
+  /** Corrida de aba à esquerda do eixo (0,0)–(4,0), parede de 200 kN/m (G) e um arranque interno em (2; 4) com sapata. */
+  function obra(cintaS = [2], N2 = 500) {
+    const { s, ok } = sessao();
+    ok('pilar.inserir', { x: 2, y: 4, secao: { tipo: 'ret', b: 0.3, h: 0.3 }, nasce: 'fundacao', morre: 'fundacao' });
+    const P = s.modelo.pilares[0];
+    ok('carga.pilar', { pilar: P.id, caso: 'G', N: N2 });
+    ok('fundacao.terreno', { sigmaAdm: 200, cotaTerreno: 0 });
+    ok('fundacao.criar', { pilar: P.id, tipo: 'sapata', cota: -1.5 });
+    ok('corrida.criar', { pontos: [[0, 0], [4, 0]], bw: 0.2, aba: 'esq', cota: -1.5 });
+    ok('carga.linha', { grupo: 'fundacao', pontos: [[0, 0], [4, 0]], valor: 200, caso: 'G' });
+    const c = s.modelo.fundacao!.corridas![0], el = s.modelo.fundacao!.elementos[0];
+    for (const x of cintaS) ok('cinta.criar', { corrida: c.id, s: x, fim: el.id });
+    return { s, ok, P, c, el };
+  }
+
+  it('uma cinta no trecho de 4 m: R = N·ℓ/(ℓ − e), ΔN = N·e/(ℓ − e), momento máximo da alavanca e alívio de 50 % no elemento interno', () => {
+    const { s } = obra();
+    const [rc] = calcularCorridas(s.modelo, null);
+    expect(rc.status, rc.mensagens.join(' ')).toBe('ok');
+    expect(rc.mensagens).toEqual([]);
+    const ct = rc.cintas![0];
+    // geometria: cinta de (2; 0) até o centro do pilar (2; 4): ℓ = 4 m; N = 200 × 4 = 800 kN (trecho tributário = a corrida toda)
+    expect(ct.L).toBeCloseTo(4, 9);
+    expect(ct.tributario).toEqual([0, 4]);
+    expect(ct.N).toBeCloseTo(800, 6);
+    const e = (rc.B - 0.2) / 2, fator = 4 / (4 - e);
+    expect(ct.e).toBeCloseTo(e, 9);
+    expect(ct.fator).toBeCloseTo(fator, 9);
+    expect(ct.R).toBeCloseTo(800 * fator, 6);
+    expect(ct.dN).toBeCloseTo((800 * e) / (4 - e), 6);
+    // largura: reação uniforme com a carga linear majorada, (q·ℓ/(ℓ − e) + W)/B ≤ σadm (σmáx do resultado)
+    expect(rc.pressao!.sigmaMax).toBeCloseTo((200 * fator + rc.carga!.W) / rc.B, 6);
+    expect(rc.pressao!.sigmaMax).toBeLessThanOrEqual(200 + 1e-6);
+    expect(rc.equilibrio).toBe(true);
+    // a reação majorada pede base maior do que a reação uniforme sem alavanca (marca "equilibrada" sem cintas)
+    const { s: s2, ok: ok2 } = obra([]);
+    ok2('corrida.editar', { id: s2.modelo.fundacao!.corridas![0].id, equilibrio: true });
+    const [sem] = calcularCorridas(s2.modelo, null);
+    expect(sem.B).toBeLessThan(rc.B);
+    expect(sem.mensagens.join(' ')).toMatch(/marcada como equilibrada por cintas, mas sem cintas/);
+    expect(revisarEdificio(s2.modelo, null, { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, corridas: [sem] }).itens.some((x) => x.codigo === 'FUND_CORRIDA_SEM_CINTA' && x.nivel === 'aviso')).toBe(true);
+    // momento máximo: reação R sob a base (largura B centrada em e), carga N na parede; cortante nulo em sz
+    const q = ct.R / rc.B, s0 = e - rc.B / 2, sz = s0 + 800 / q, Mmax = 800 * sz - (q * (sz - s0) ** 2) / 2;
+    expect(ct.Mk.sup).toBeCloseTo(Mmax, 1);
+    expect(ct.Md.sup).toBeCloseTo(1.4 * ct.Mk.sup, 6);
+    expect(ct.status, ct.mensagens.join(' ')).toBe('ok');
+    expect(ct.armadura.sup.As).toBeGreaterThan(0);
+    // elemento interno: Nk = carga do arranque + metade do peso próprio da cinta − 50 % do alívio; mínima com o alívio total
+    const r = calcularFundacaoEdificio(s.modelo, null, { corridas: [rc] });
+    const [rel] = r.elementos, pp = (25 * 0.2 * 0.4 * 4) / 2;
+    expect(rel.status, rel.mensagens.join(' ')).toBe('ok');
+    expect(rel.alivio!.total).toBeCloseTo(ct.dN, 6);
+    expect(rel.alivio!.vigas).toEqual([ct.nome]);
+    expect(rel.carga!.Nk).toBeCloseTo(500 + pp - 0.5 * ct.dN, 1);
+    expect(rel.carga!.NkMin).toBeCloseTo(500 + pp - ct.dN, 1);
+  });
+
+  it('duas cintas repartem a parede em trechos tributários (pontos médios); cinta oblíqua, sem ponta e aba dos dois lados dão mensagens', () => {
+    const { s, ok, c } = obra([1, 3]);
+    const [rc] = calcularCorridas(s.modelo, null);
+    expect(rc.status, rc.mensagens.join(' ')).toBe('ok');
+    const [a, z] = rc.cintas!;
+    expect(a.tributario).toEqual([0, 2]);
+    expect(z.tributario).toEqual([2, 4]);
+    expect(a.N).toBeCloseTo(400, 6);
+    expect(z.N).toBeCloseTo(400, 6);
+    // ℓ da cinta de s = 1: de (1; 0) a (2; 4); oblíqua à normal: aviso de excentricidade fora do plano
+    expect(a.L).toBeCloseTo(Math.hypot(1, 4), 9);
+    expect(rc.mensagens.join(' ')).toMatch(/cinta CT1 oblíqua à normal da corrida/);
+    // alívio somado no elemento interno (uma parcela por cinta)
+    const rel = calcularFundacaoEdificio(s.modelo, null, { corridas: [rc] }).elementos[0];
+    expect(rel.alivio!.vigas.sort()).toEqual([a.nome, z.nome].sort());
+    expect(rel.alivio!.total).toBeCloseTo(a.dN + z.dN, 6);
+    // ponta interna que não existe e cinta do lado oposto à aba
+    expect(s.executar('cinta.editar', { id: s.modelo.fundacao!.corridas![0].cintas![0].id, fim: 'xx' }).ok).toBe(false);
+    ok('corrida.editar', { id: c.id, aba: 'dir' });
+    const [inv] = calcularCorridas(s.modelo, null);
+    expect(inv.status).toBe('fail');
+    expect(inv.mensagens.join(' ')).toMatch(/cinta CT\d.* oblíqua ou do lado oposto à aba/);
+    expect(revisarEdificio(s.modelo, null, { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, corridas: [inv] }).itens.some((x) => x.codigo === 'FUND_CINTA_ERRO' && x.nivel === 'erro' && x.id === c.id)).toBe(true);
+    ok('corrida.editar', { id: c.id, aba: 'ambas' });
+    const [amb] = calcularCorridas(s.modelo, null);
+    expect(amb.mensagens.join(' ')).toMatch(/cintas ignoradas/);
+    expect(amb.cintas).toBeUndefined();
+  });
+
+  it('cinta muito curta para a excentricidade: alavanca impossível; espaçamento acima da opção: aviso; MCP e dimensionar trazem as cintas', () => {
+    const { s, ok } = obra([1]);
+    ok('opcoes.definir', { valores: { corridaCintaEspac: 1 } });
+    ok('cinta.criar', { corrida: s.modelo.fundacao!.corridas![0].id, s: 3, fim: s.modelo.fundacao!.elementos[0].id });
+    const [rc] = calcularCorridas(s.modelo, null);
+    expect(rc.mensagens.join(' ')).toMatch(/cintas espaçadas de 2,00 m/);
+    expect(resumoCorrida(rc).cintas).toHaveLength(2);
+    const d = dimensionar(s.modelo) as { corridas: typeof rc[] };
+    expect(d.corridas[0].cintas).toHaveLength(2);
+    // pilar a 0,6 m do eixo: ℓ pequeno; com aba larga a alavanca fica impossível
+    const { s: s3, ok: ok3 } = sessao();
+    ok3('pilar.inserir', { x: 3, y: 0.7, secao: { tipo: 'ret', b: 0.3, h: 0.3 }, nasce: 'fundacao', morre: 'fundacao' });
+    ok3('carga.pilar', { pilar: s3.modelo.pilares[0].id, caso: 'G', N: 300 });
+    ok3('fundacao.terreno', { sigmaAdm: 100, cotaTerreno: 0 });
+    ok3('fundacao.criar', { pilar: s3.modelo.pilares[0].id, tipo: 'sapata', cota: -1.5 });
+    ok3('corrida.criar', { pontos: [[0, 0], [6, 0]], bw: 0.2, aba: 'esq', cota: -1.5 });
+    ok3('carga.linha', { grupo: 'fundacao', pontos: [[0, 0], [6, 0]], valor: 150, caso: 'G' });
+    ok3('cinta.criar', { corrida: s3.modelo.fundacao!.corridas![0].id, s: 3, fim: s3.modelo.fundacao!.elementos[0].id });
+    const [imp] = calcularCorridas(s3.modelo, null);
+    expect(imp.status).toBe('fail');
+    expect(imp.mensagens.join(' ')).toMatch(/nenhuma largura|alavanca impossível|ponta interna a/);
+  });
+
+  it('pranchas (FU8b): elevação longitudinal da corrida, cintas na locação e nas folhas das vigas de fundação, quantitativos, DXF e PDF', () => {
+    const { s } = obra();
+    const b = s.modelo, dim = dimensionar(b) as ReturnType<typeof dimensionarEdificio>;
+    expect(dim.corridas![0].cintas).toHaveLength(1);
+    const prs = montarPranchasFundacao(b, null, dim);
+    // elevação longitudinal na folha de detalhe da sapata corrida, com a cota total e a marca da cinta
+    const det = prs.find((p) => /^Fundação — sapatas corridas/.test(p.titulo) && !/locação/.test(p.titulo))!;
+    const txt = JSON.stringify(det.papel);
+    expect(txt).toContain('ELEVAÇÃO LONGITUDINAL (CORTE PELO EIXO)');
+    expect(txt).toContain('CT1 20×');
+    expect(txt).toContain('TERRENO');
+    // locação das corridas: a faixa e o rótulo da cinta; a cinta tem folha própria (viga de equilíbrio) e linha de quantitativo
+    expect(JSON.stringify(prs.find((p) => /sapatas corridas — locação/.test(p.titulo))!.modelo)).toContain('CT1 20×');
+    expect(prs.some((p) => /vigas de fundação/.test(p.titulo) && JSON.stringify(p.papel).includes('Cinta da sapata corrida'))).toBe(true);
+    const q = quantitativosFundacao(b, null, dim);
+    expect(q.linhas.some((l) => l.tipo === 'Cinta de sapata corrida' && l.nomes.includes('CT1') && l.concreto > 0 && l.aco > 0)).toBe(true);
+    for (const p of prs) expect(escreverDxf(p).length).toBeGreaterThan(500);
+    expect(escreverPdf(prs).length).toBeGreaterThan(1000);
   });
 });

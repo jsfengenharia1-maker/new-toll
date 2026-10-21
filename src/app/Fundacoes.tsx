@@ -14,7 +14,7 @@ import { isFooting } from '../core/footings';
 import { isCaisson } from '../core/caissons';
 import { CaissonDetail, FootingDetail, SolutionDetail, Tbc, barTxt, phiTxt } from './FundacoesDetail';
 import { SondagemEditor } from './SondagemEditor';
-import { FundacoesDoEdificio } from './edificio/Fundacao';
+import { FundacoesDoEdificio, LigacaoEdificio } from './edificio/Fundacao';
 
 const KINDS = Object.keys(KIND_LABEL) as FoundationKind[];
 /** Campos por apoio preservados ao reimportar cargas (casados pelo nome do apoio). */
@@ -98,7 +98,10 @@ export function Fundacoes() {
   const leitura = elementos > 0;
   return (
     <div className="fund-wrap">
-      {leitura ? <FundacoesDoEdificio /> : <div />}
+      <div>
+        <LigacaoEdificio />
+        {leitura && <FundacoesDoEdificio />}
+      </div>
     <fieldset className="fund" disabled={leitura} data-somente-leitura={leitura || undefined}>
       <aside className="fund-in">
         <SondagemEditor furos={borings} cutoff={p.cutoff} sol={(x) => (selDesign && selDesign.boring.id === x.id ? selPile : null)} onEdit={(i, fn, msg) => upd((d) => fn(d.borings![i]), msg)} onAdd={addBoring} onRemove={removeBoring}

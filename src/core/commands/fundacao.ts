@@ -231,6 +231,8 @@ registrar<{ ids: string[] }>({
     for (const e of f.elementos) if (e.igualA && s.has(e.igualA)) delete e.igualA;
     // vigas de fundação com ponta no elemento removido saem junto
     if (f.vigas?.some((v) => s.has(v.ini) || s.has(v.fim))) { f.vigas = f.vigas.filter((v) => !s.has(v.ini) && !s.has(v.fim)); if (!f.vigas.length) delete f.vigas; }
+    // cintas das sapatas corridas (FU8a) com a ponta interna no elemento removido saem junto
+    for (const c of f.corridas ?? []) if (c.cintas?.some((x) => s.has(x.fim))) { c.cintas = c.cintas.filter((x) => !s.has(x.fim)); if (!c.cintas.length) delete c.cintas; }
     return `${p.ids.length} elemento(s) de fundação removido(s).`;
   },
 });
@@ -280,6 +282,7 @@ function aplicarUniao(d: Draft<BuildingModel>, idsEl: string[]): string {
     f.vigas = f.vigas.filter((v) => elemDe(v.ini) !== elemDe(v.fim));
     if (!f.vigas.length) delete f.vigas;
   }
+  for (const c of f.corridas ?? []) for (const x of c.cintas ?? []) if (sai.has(x.fim)) x.fim = base.id;
   return `${base.nome} (${pils.map((q) => q.nome).join(' + ')})`;
 }
 
@@ -632,6 +635,31 @@ registrar<{ id: number; nome?: string; x?: number; y?: number; nivelAgua?: numbe
     if (p.impenetravel !== undefined) s.endImpenetrable = p.impenetravel;
     if (p.leituras) s.meters = metros(p.leituras);
     return `Sondagem ${s.name} alterada.`;
+  },
+});
+
+registrar<{ furos: { name: string; water?: number | null; meters: { N: number; soil: SoilClass; excluded?: boolean }[]; endImpenetrable: boolean; x?: number; y?: number }[]; substituir?: boolean }>({
+  nome: 'sondagem.copiar',
+  descricao: 'Copia furos de sondagem do módulo Fundações para o edifício (formato do módulo: name, water [ausente = não encontrado], meters { N, soil, excluded }, endImpenetrable, x, y). Acrescenta aos existentes ou, com `substituir`, troca todos (as escolhas de furo dos elementos de fundação voltam ao automático).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['furos'], properties: {
+    furos: { type: 'array', minItems: 1, items: { type: 'object', additionalProperties: false, required: ['name', 'meters', 'endImpenetrable'], properties: {
+      name: { type: 'string', minLength: 1 }, water: { type: 'number', minimum: 0, description: 'nível d’água (m de profundidade); ausente = não encontrado' }, endImpenetrable: { type: 'boolean' }, x: { type: 'number' }, y: { type: 'number' },
+      meters: { type: 'array', minItems: 1, items: { type: 'object', additionalProperties: false, required: ['N', 'soil'], properties: { N: { type: 'number', minimum: 0, maximum: 100 }, soil: { type: 'string', enum: SOLOS }, excluded: { type: 'boolean' } } } },
+    } } },
+    substituir: { type: 'boolean', description: 'troca os furos do edifício em vez de acrescentar' },
+  } },
+  aplicar(d, p) {
+    const f = fund(d);
+    if (p.substituir) {
+      f.sondagens = [];
+      for (const e of f.elementos) delete e.sondagem;
+    }
+    let id = Math.max(0, ...f.sondagens.map((s) => s.id ?? 0));
+    for (const x of p.furos) f.sondagens.push({ id: ++id, name: x.name.trim(), water: x.water ?? null, meters: x.meters.map((m) => ({ N: m.N, soil: m.soil, ...(m.excluded ? { excluded: true } : {}) })), endImpenetrable: x.endImpenetrable, ...(x.x !== undefined && x.y !== undefined ? { x: x.x, y: x.y } : {}) });
+    return `${p.furos.length} furo(s) de sondagem copiado(s) do módulo Fundações${p.substituir ? ' (substituíram os do edifício)' : ''}.`;
   },
 });
 

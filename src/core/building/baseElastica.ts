@@ -637,6 +637,11 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   };
 }
 
+/** O radier não recebe nenhuma carga do nível de fundação (ponto, linha ou área dentro do contorno, ou o contorno dentro de uma carga de área)? */
+export function radierSemCarga(b: BuildingModel, r: Pick<Radier, 'contorno' | 'furos'>): boolean {
+  return !b.cargas.some((c) => c.grupo === 'fundacao' && (c.pontos.some((q) => noRadier(r, q as P)) || (c.tipo === 'area' && r.contorno.some((q) => dentroPoligono(q as P, c.pontos as P[])))));
+}
+
 /** Avisos de modelo da base elástica: apoios mistos e radier sem carga no nível de fundação. */
 export function avisosBaseElastica(b: BuildingModel, info: BaseElasticaAnalise | undefined): string[] {
   if (!info) return [];

@@ -367,19 +367,20 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
   detalhe('tubulao', 'Tubulão', ['Tubulão a céu aberto de concreto simples, sem armadura; marcas C.T (cota do terreno), C.A (arrasamento) e C.T.B (topo da base) [a confirmar].', 'Padrão R5 de desenho, sem folha de referência para o tubulão [a confirmar].'],
     (g) => [{ nome: nomesDe(g).join('='), elementos: nomesDe(g), desenhar: (c) => desenharTubulao(c, g.els, cotaT, cut) }], `${NOME_SIGLA.SFN} — DETALHAMENTO DOS TUBULÕES`, `Planta e corte 1:${cfg.escalaFundacao} · arranques 1:${cfg.escalaFundacao}`, 'SFN');
   // 3) vigas de fundação (equilíbrio e travamento)
-  const vs = (dim.vigasFundacao ?? []).filter((v) => v.L > 0 && (v.armadura.sup.barras || v.armadura.inf.barras));
+  // as cintas das sapatas corridas (FU8a) são vigas de equilíbrio detalhadas junto com as vigas de fundação
+  const vs = [...(dim.vigasFundacao ?? []), ...cors.flatMap((r) => r.cintas ?? [])].filter((v) => v.L > 0 && (v.armadura.sup.barras || v.armadura.inf.barras));
   if (vs.length) {
     const gv = new Map<string, ResultadoVigaFundacao[]>();
     for (const v of vs) {
       const a = v.armadura, bs = (x?: { phi: number; n: number; layers: number } | null) => (x ? [x.phi, x.n, x.layers] : null);
-      const k = JSON.stringify([v.tipo, c1(v.bAdot), c1(v.hAdot), c1(v.L), bs(a.sup.barras), bs(a.inf.barras), bs(a.pele?.barras), a.estribo && [a.estribo.phi, c1(a.estribo.s)], c1(a.ancoragem.ini), c1(a.ancoragem.fim)]);
+      const k = JSON.stringify(['corrida' in v, v.tipo, c1(v.bAdot), c1(v.hAdot), c1(v.L), bs(a.sup.barras), bs(a.inf.barras), bs(a.pele?.barras), a.estribo && [a.estribo.phi, c1(a.estribo.s)], c1(a.ancoragem.ini), c1(a.ancoragem.fim)]);
       (gv.get(k) ?? gv.set(k, []).get(k)!).push(v);
     }
     const area = areaArmacao('A1'), larg = area.x1 - area.x0;
     const grupos = [...gv.values()].map((g) => g.sort((a, z) => ordemNome(a.nome, z.nome))).sort((a, z) => ordemNome(a[0].nome, z[0].nome));
     const esc = (v: ResultadoVigaFundacao) => [cfg.escalaFundacao, 25, 50, 75, 100, 125, 150, 200].filter((e, i, arr) => arr.indexOf(e) === i).sort((a, z) => a - z).filter((e) => e >= cfg.escalaFundacao).find((e) => (v.L * 1000) / e + 60 <= larg) ?? 200;
     const defs: DefDesenho[] = grupos.map((g) => ({ nome: g.map((v) => v.nome).join('='), elementos: g.map((v) => v.nome), desenhar: (c) => desenharViga(c, g, esc(g[0])) }));
-    for (const g of grupos) regQuant(g.map((v) => v.nome), g[0].tipo === 'equilibrio' ? 'Viga de equilíbrio' : 'Viga de travamento', g.length, g.reduce((s, v) => s + v.volume, 0), g.reduce((s, v) => s + formaViga(v), 0), (c) => desenharViga(c, g, esc(g[0])));
+    for (const g of grupos) regQuant(g.map((v) => v.nome), 'corrida' in g[0] ? 'Cinta de sapata corrida' : g[0].tipo === 'equilibrio' ? 'Viga de equilíbrio' : 'Viga de travamento', g.length, g.reduce((s, v) => s + v.volume, 0), g.reduce((s, v) => s + formaViga(v), 0), (c) => desenharViga(c, g, esc(g[0])));
     const nomesV = (nomes: string[]) => grupos.flat().filter((v) => nomes.includes(v.nome));
     const r = folhasDeDesenhos(b, {
       ...oa, sigla, conteudo: `${NOME_SIGLA[sigla]} — DETALHAMENTO DAS VIGAS DE FUNDAÇÃO`, titulo: 'Fundação — vigas de fundação',
@@ -402,9 +403,9 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
     for (const g of gc) regQuant(nomesC(g), 'Sapata corrida', g.els.length, g.els.reduce((t, e) => t + e.volume, 0), g.els.reduce((t, e) => t + e.forma, 0), (c) => desenharCorrida(c, g.els));
     const r = folhasDeDesenhos(b, {
       ...oa, sigla, conteudo: `${NOME_SIGLA[sigla]} — DETALHAMENTO DAS SAPATAS CORRIDAS`, titulo: 'Fundação — sapatas corridas',
-      notas: notasDetalhe(b, ['Planta de um trecho típico e corte transversal; a armadura transversal vai de borda a borda da aba e a de distribuição corre ao longo da sapata, com emenda por traspasse acima da barra máxima [a confirmar].', 'Sob pilares, armadura longitudinal e estribos da viga sobre base elástica; aba de um lado exige vigas de equilíbrio (cintas), não detalhadas aqui.']),
+      notas: notasDetalhe(b, ['Planta de um trecho típico e corte transversal; a armadura transversal vai de borda a borda da aba e a de distribuição corre ao longo da sapata, com emenda por traspasse acima da barra máxima [a confirmar].', 'Sob pilares, armadura longitudinal e estribos da viga sobre base elástica; aba de um lado exige vigas de equilíbrio (cintas), detalhadas nas folhas das vigas de fundação. A elevação longitudinal mostra o corte pelo eixo.']),
       defs: gc.map((g) => ({ nome: nomesC(g).join('='), elementos: nomesC(g), desenhar: (c: Ctx) => desenharCorrida(c, g.els) })),
-      legenda: `Planta e corte 1:${cfg.escalaFundacao} · sapatas corridas`,
+      legenda: `Planta e corte 1:${cfg.escalaFundacao} · elevação longitudinal · sapatas corridas`,
       concretoDe: (nomes) => cors.filter((e) => nomes.includes(e.nome)).reduce((t, e) => t + e.volume, 0), formaDe: (nomes) => cors.filter((e) => nomes.includes(e.nome)).reduce((t, e) => t + e.forma, 0),
     });
     out.push(...r.pranchas); tabAco.push(...r.aco);
