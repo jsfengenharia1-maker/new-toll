@@ -2090,6 +2090,99 @@ export const flows = [
     },
   },
   {
+    name: 'FU7a: sapata corrida — lançada pela planta (Z) sob parede, cálculo rígido por metro, janela com corte transversal, edição, sob pilares na análise global e pranchas',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      // estrutura (para a análise) em y = 0 a 6; a parede da sapata SC1 fica entre x = 2 e 6 em y = 0 (longe dos pilares); os pilares de y = 6 ficam sobre a SC2
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [8, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 6], [8, 6]], [[0, 0], [0, 6]], [[8, 0], [8, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('200');
+      await sigma.press('Enter');
+      // carga linear da parede (nível de fundação): G 250 + Q 100 kN/m
+      await cmd('carga.linha {"grupo": "fundacao", "pontos": [[2, 0], [6, 0]], "valor": 250, "caso": "G"}');
+      await cmd('carga.linha {"grupo": "fundacao", "pontos": [[2, 0], [6, 0]], "valor": 100, "caso": "Q"}');
+      // ferramenta Sapata corrida (Z) no nível de fundação: eixo por 2 pontos e Enter
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('z');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'corrida');
+      await page.keyboard.press('f');
+      await page.mouse.click(...(await telaDe(page, 2, 0)));
+      await page.mouse.click(...(await telaDe(page, 6, 0)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /Sapata corrida SC1 lançada .*sob parede/ }).waitFor();
+      const tab = grupo.locator('table[data-corridas-tabela] tbody tr');
+      assert.equal(await tab.count(), 1);
+      assert.match(await tab.first().innerText(), /SC1.*sob parede/s);
+      const idSC1 = await tab.first().getAttribute('data-corrida-id');
+      // seleção na planta (clique sobre o eixo): editor
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 4, 0)));
+      const ed = grupo.locator('[data-editor-corrida]');
+      await ed.waitFor();
+      // sob pilares: SC2 pelo comando, ao longo de y = 6 (passa pelos dois pilares): B e h informadas
+      await cmd('corrida.criar {"pontos": [[0, 6], [8, 6]], "bw": 0.3, "B": 1.2, "h": 0.5}');
+      await page.locator('.statusbar .msg', { hasText: /Sapata corrida SC2 lançada .*2 pilar\(es\) sobre ela/ }).waitFor();
+      assert.equal(await tab.count(), 2);
+      // calcular: card das sapatas corridas
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const card = page.locator('[data-card-corridas]');
+      await card.waitFor();
+      assert.match(await card.innerText(), /SC1.*sob parede.*185 × 55 \/ 20/s);
+      assert.match(await card.innerText(), /SC2.*sob pilares/s);
+      // janela da SC1: corte transversal, flexão transversal CEB-70 e armadura
+      await card.locator('tbody tr', { hasText: 'SC1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Sapata corrida SC1/ });
+      await jan.waitFor();
+      await jan.locator('svg[data-corte-corrida]').waitFor();
+      assert.match(await jan.innerText(), /CEB-70.*Md = 96,8/s);
+      assert.match(await jan.innerText(), /φ12,5 c\/14/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // janela da SC2 (sob pilares): viga sobre base elástica
+      await card.locator('tbody tr', { hasText: 'SC2' }).dblclick();
+      const jan2 = page.getByRole('dialog', { name: /Resultados do elemento — Sapata corrida SC2/ });
+      await jan2.waitFor();
+      assert.match(await jan2.innerText(), /Viga: Md inf\. \/ sup\./);
+      await jan2.getByRole('button', { name: 'Fechar' }).click();
+      // editar a SC1 (B imposta pequena): erro FUND_CORRIDA_SEM_SOLUCAO na lista de revisão após recalcular
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 4, 0)));
+      const ed2 = grupo.locator('[data-editor-corrida]').first();
+      await ed2.waitFor();
+      const bf = ed2.locator('label.field', { has: page.locator('.flabel', { hasText: /^B \(vazio/ }) }).locator('input');
+      await bf.fill('0.5');
+      await bf.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /Sapata corrida SC1 alterada/ }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Recalcular' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      assert.ok(await page.locator('[data-lista-erros]').locator('.tablewrap tbody tr', { hasText: 'FUND_CORRIDA_SEM_SOLUCAO' }).count() >= 1, 'erro da largura imposta');
+      // volta ao cálculo pela σadm e abre as pranchas do tipo Fundação
+      await cmd('corrida.editar {"id": "' + idSC1 + '", "limpar": ["B"]}');
+      await page.getByRole('button', { name: 'Recalcular' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'fundacao');
+      const itens = await page.locator('[data-lista-folhas]').innerText();
+      assert.match(itens, /sapatas corridas — locação/);
+      assert.match(itens, /Fundação — sapatas corridas/);
+      await page.locator('[data-folha-item]', { hasText: /^.*Fundação — sapatas corridas(?! —)/ }).first().click();
+      await page.waitForFunction(() => /CORTE TRANSVERSAL/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      assert.ok(parseFloat(await page.locator('[data-aco-folha]').getAttribute('data-aco-peso')) > 0, 'peso de aço das sapatas corridas');
+    },
+  },
+  {
     webgl: true,
     name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
     async run({ newPage, baseURL }) {

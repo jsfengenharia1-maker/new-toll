@@ -570,6 +570,41 @@ export interface FundacaoEdificio {
   radiers?: Radier[];
   /** Vigas de fundação sobre base elástica (FU6): entram na análise global com molas de Winkler. */
   vigasElasticas?: VigaElastica[];
+  /** Sapatas corridas (FU7a): sob parede (carga linear, dimensionamento rígido) ou sob alinhamento de pilares (viga sobre base elástica). */
+  corridas?: SapataCorrida[];
+}
+
+/** Aba da sapata corrida: nas duas faces do elemento apoiado ou só à esquerda / à direita do sentido do traçado. */
+export type AbaCorrida = 'ambas' | 'esq' | 'dir';
+
+/**
+ * Sapata corrida (FU7a), lançada por polilinha no nível de fundação sob uma parede ou carga linear (largura pela σadm,
+ * flexão transversal CEB-70 numa faixa de 1 m, armadura de distribuição) ou sob um alinhamento de pilares / viga de
+ * fundação (viga sobre base elástica no pórtico espacial, como na FU6, mais a flexão transversal da aba).
+ * Aba de um lado só: o elemento apoiado fica rente à divisa; o momento N·e vai para vigas de equilíbrio (cintas).
+ */
+export interface SapataCorrida {
+  id: string;
+  nome: string;
+  /** Eixo do elemento apoiado (parede, viga de fundação ou alinhamento de pilares), m. */
+  pontos: [number, number][];
+  aba: AbaCorrida;
+  /** Largura do elemento apoiado (parede, viga ou nervura), m. */
+  bw: number;
+  /** Largura total da base (m). Sob parede, ausente = calculada pela σadm; informada = só verificada. Sob pilares, ausente = o padrão da opção `corridaBPadrao`. */
+  B?: number;
+  /** Altura no eixo (m) e espessura da aba na borda (m); ausentes = calculadas (sob pilares, a altura padrão é a da opção `corridaHPadrao`). */
+  h?: number;
+  h0?: number;
+  /** Elemento apoiado de alvenaria: a seção de referência da flexão fica mais para dentro (opção `corridaRefAlvenaria`). */
+  alvenaria?: boolean;
+  /** Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas absorvem o momento N·e e a pressão fica uniforme. */
+  equilibrio?: boolean;
+  /** Coeficiente de reação (kN/m³; sob pilares) e σadm (kN/m²) próprios; ausentes = os das opções e do terreno. */
+  k?: number;
+  sigmaAdm?: number;
+  /** Cota de assentamento (m); ausente = a cota de fundação da obra. */
+  cota?: number;
 }
 
 /**

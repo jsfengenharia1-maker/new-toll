@@ -306,7 +306,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
   const alvo = ((): Alvo | null => {
     for (const id of pl.selecao) {
-      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
+      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id) || b.fundacao?.corridas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
       if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
       if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
       if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
@@ -332,6 +332,13 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       {pl.ferramenta === 'espelhar' && <label className="check small"><input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
       {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
       {pl.ferramenta === 'radier' && <NumField label="h do radier" unit="m" width={90} value={pl.hRadier} onChange={(v) => v >= 0.1 && v <= 3 && pl.set({ hRadier: v })} />}
+      {pl.ferramenta === 'corrida' && <>
+        <NumField label="bw" unit="m" width={70} value={pl.corridaLanc.bw} onChange={(v) => v >= 0.1 && pl.set({ corridaLanc: { ...pl.corridaLanc, bw: v } })} />
+        <select aria-label="Aba da sapata corrida" value={pl.corridaLanc.aba} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, aba: e.target.value as 'ambas' | 'esq' | 'dir' } })}>
+          <option value="ambas">Abas: dois lados</option><option value="esq">Aba à esquerda</option><option value="dir">Aba à direita</option>
+        </select>
+        <label className="check small" title="Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas"><input type="checkbox" checked={pl.corridaLanc.equilibrio} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, equilibrio: e.target.checked } })} /> <span>Cintas</span></label>
+      </>}
       {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
       {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <select aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
         <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
@@ -899,6 +906,24 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
                   </LinhaElemento>))}</tbody>
               </table>
               <Hint>Radier e vigas sobre base elástica (Winkler) dentro da análise global: tensão no solo σ = k·w nas combinações raras e recalques por nó; armadura do radier por Wood-Armer. Duplo clique abre o mapa por nó e as armaduras.</Hint>
+            </div>
+          )}
+          {!!dim.corridas?.length && (
+            <div className="card" data-card-corridas>
+              <h3>Sapatas corridas</h3>
+              <table className="data quadro">
+                <thead><tr><th>Sapata</th><th>Modo</th><th>L (m)</th><th>B × h / h0 (cm)</th><th>Transversal</th><th>Distribuição</th><th>σmáx / σadm (kN/m²)</th><th>Concreto (m³)</th><th>Situação</th></tr></thead>
+                <tbody>{filtro(dim.corridas).map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('fundacao', x.id)} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
+                    <td className="tl">{x.nome}</td><td className="tl">{x.modo === 'pilares' ? 'sob pilares' : 'sob parede'}</td><td className="num">{fmt(x.L)}</td>
+                    <td className="num">{Math.round(x.B * 100)} × {Math.round(x.h * 100)} / {Math.round(x.h0 * 100)}</td>
+                    <td className="tl small">{x.transversal?.barras ? `φ${fmt(x.transversal.barras.phi, 1)} c/${Math.round(x.transversal.barras.s * 100)}` : '—'}</td>
+                    <td className="tl small">{x.transversal?.distribuicao.barras ? `φ${fmt(x.transversal.distribuicao.barras.phi, 1)} c/${Math.round(x.transversal.distribuicao.barras.s * 100)}` : '—'}</td>
+                    <td className="num">{x.pressao ? `${fmt(x.pressao.sigmaMax, 1)} / ${x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}` : '—'}</td><td className="num">{fmt(x.volume, 2)}</td>
+                    <td>{x.status === 'ok' ? 'ok' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              <Hint>Sapatas corridas sob parede (largura pela σadm, flexão transversal CEB-70 por metro, armadura de distribuição) e sob pilares (viga sobre base elástica na análise global). Duplo clique abre o corte transversal e as verificações.</Hint>
             </div>
           )}
           <div className="card">

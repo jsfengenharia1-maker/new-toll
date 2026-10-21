@@ -97,6 +97,13 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_RADIER_MALHA', nivel: 'aviso', re: /^Radier .*: (malha vazia|.* não cabe com espaçamento)/, descricao: 'Radier: malha vazia ou armadura que não cabe' },
   { codigo: 'FUND_APOIOS_MISTOS', nivel: 'aviso', re: /^Apoios mistos/, descricao: 'Pilares sobre base elástica e com vínculo externo na mesma obra' },
   { codigo: 'FUND_RADIER_SEM_CARGA', nivel: 'aviso', re: /^Radier (sem cargas|.* sem pilares)/, descricao: 'Radier sem cargas do nível de fundação ou sem pilares' },
+  // sapata corrida (FU7a)
+  { codigo: 'FUND_CORRIDA_SEM_CARGA', nivel: 'erro', re: /^Sapata corrida .*: sem carga/, descricao: 'Sapata corrida sob parede sem carga linear no nível de fundação' },
+  { codigo: 'FUND_CORRIDA_SEM_SOLUCAO', nivel: 'erro', re: /^Sapata corrida .*: nenhuma largura/, descricao: 'Sapata corrida: nenhuma largura atende a σadm, a área comprimida e a excentricidade' },
+  { codigo: 'FUND_CORRIDA_EXC', nivel: 'erro', re: /^Sapata corrida .*: aba de um lado/, descricao: 'Sapata corrida com aba de um lado sem viga de equilíbrio (cintas)' },
+  { codigo: 'FUND_CORRIDA_FLEXAO', nivel: 'erro', re: /^Sapata corrida .*: (armadura transversal|cisalhamento a d)/, descricao: 'Sapata corrida: armadura transversal não cabe ou cisalhamento não atende' },
+  { codigo: 'FUND_CORRIDA_FLEXIVEL', nivel: 'aviso', re: /^Sapata corrida .*: altura .* menor que a rígida/, descricao: 'Sapata corrida flexível (altura menor que a rígida): cisalhamento verificado' },
+  { codigo: 'FUND_CORRIDA_LARGURA', nivel: 'aviso', re: /^Sapata corrida .*: largura necessária/, descricao: 'Sapata corrida sob pilares: largura necessária para a σadm' },
   // avisos da análise (obra)
   { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },
@@ -132,6 +139,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
   for (const r of dim?.radiers ?? []) add('fundacao', r.id, r.nome, undefined, r.mensagens);
   for (const v of dim?.vigasElasticas ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
+  for (const c of dim?.corridas ?? []) add('fundacao', c.id, c.nome, undefined, c.mensagens);
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento

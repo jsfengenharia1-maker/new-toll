@@ -47,7 +47,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     try {
       if (!ultimo || ultimo.id !== m.calculo) { responder({ id: m.id, erro: 'Resultados do cálculo indisponíveis em segundo plano; recalcule na aba Dimensionamento.' }); return; }
       const f = comFundacao(m.modelo, ultimo.r, { anteriores: m.anteriores });
-      if (ultimo.dim) { delete ultimo.dim.vigasFundacao; delete ultimo.dim.avisosFundacao; Object.assign(ultimo.dim, f); }
+      if (ultimo.dim) { delete ultimo.dim.vigasFundacao; delete ultimo.dim.avisosFundacao; delete ultimo.dim.corridas; Object.assign(ultimo.dim, f); }
       responder({ id: m.id, fundacoes: f });
     } catch (err) {
       responder({ id: m.id, erro: (err as Error).message });
@@ -58,7 +58,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     const b = m.modelo, r = analisarEdificio(b);
     const t0 = performance.now();
     // obra só com arranques (sem estrutura para analisar): calcula só as fundações, com as cargas lançadas nos arranques
-    const soArranques = b.pilares.length > 0 && b.pilares.every(ehArranque) && !!b.fundacao?.elementos.length;
+    const soArranques = b.pilares.every(ehArranque) && !!(b.fundacao?.elementos.length || b.fundacao?.corridas?.length);
     const dim = r.erro || !r.portico.res ? (soArranques ? {
       ...({ vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, ...(m.semFundacao ? {} : comFundacao(b, r, { anteriores: m.anteriores })) } as Dimensionamento),
       fundacao: cargasParaFundacao(b, r) as FLoad[], ms: 0,

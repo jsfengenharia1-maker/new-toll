@@ -9,6 +9,7 @@ import { CargasNoPilar } from './Vinculos';
 import { AssociarPilares, ElementoGrupoEditor, LimitesBloco, OpcoesSapatas, SobreposicaoBloco } from './FundacaoGrupoUI';
 import { SondagemEditor } from '../SondagemEditor';
 import { BaseElasticaBloco } from './BaseElasticaUI';
+import { CorridaBloco } from './CorridaUI';
 import { capCols } from '../../core/foundation';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
 import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
@@ -282,6 +283,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
 
       <VigasFundacaoBloco b={b} onPlanta={onPlanta} />
       <BaseElasticaBloco b={b} onPlanta={onPlanta} />
+      <CorridaBloco b={b} onPlanta={onPlanta} />
       <CargasNoNivel b={b} onPlanta={onPlanta} />
 
       {(() => {

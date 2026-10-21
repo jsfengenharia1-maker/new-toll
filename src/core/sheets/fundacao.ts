@@ -11,6 +11,7 @@ import { centroPilar, dimsSecao, secaoNoLance, type BuildingModel, type Pilar, t
 import { geometriaVF, type ResultadoVigaFundacao } from '../building/vigasFundacao';
 import { cargasDosPilares } from './locacao';
 import { montarPranchasBaseElastica } from './fundacaoRadier';
+import { agruparCorridas, desenharCorrida, montarPranchaCorridas } from './fundacaoCorrida';
 import type { OpcoesArmacao } from './armacaoVigas';
 import {
   Chaves, Posicoes, acoDaFolha, areaArmacao, bloco, capacidadeTabela, cfgArmacao, cmInt, empacotar, formatoArmacao, montarFolha, mover, nf, notas, ordemNome, perdasDe,
@@ -319,9 +320,10 @@ export function quantitativosFundacao(b: BuildingModel, an: AnaliseEdificio | nu
 function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento, o: OpcoesArmacao = {}): { pranchas: Prancha[]; quant: LinhaQuantitativo[]; estacas: { nome: string; quant: number; L: number }[] } {
   const rs = (dim.fundacoes ?? []).filter((r) => r.contorno.length);
   const temBase = !!(dim.radiers?.length || dim.vigasElasticas?.length);
-  if (!rs.length && !temBase) return { pranchas: [], quant: [], estacas: [] };
-  // radier e viga sobre base elástica = fundação direta (sigla das sapatas) [a confirmar]
-  const sigla = siglaFundacao([...rs.map((r) => r.tipo), ...(temBase ? ['sapata' as const] : [])]);
+  const cors = (dim.corridas ?? []).filter((r) => r.contorno.length);
+  if (!rs.length && !temBase && !cors.length) return { pranchas: [], quant: [], estacas: [] };
+  // radier, viga sobre base elástica e sapata corrida = fundação direta (sigla das sapatas) [a confirmar]
+  const sigla = siglaFundacao([...rs.map((r) => r.tipo), ...(temBase || cors.length ? ['sapata' as const] : [])]);
   const oa = { carimbo: o.carimbo }, cfg = cfgArmacao(b);
   const out: Prancha[] = [], tabAco: LinhaTabelaAco[] = [], quant: LinhaQuantitativo[] = [];
   const avisos: string[] = [];
@@ -391,6 +393,21 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
   if (temBase) {
     const r = montarPranchasBaseElastica(b, dim, { ...oa, sigla, conteudo: NOME_SIGLA[sigla] });
     out.push(...r.pranchas); tabAco.push(...r.aco); quant.push(...r.quant);
+  }
+  // 3c) sapatas corridas (FU7a): locação e detalhamento (planta de um trecho e corte transversal)
+  if (cors.length) {
+    const pl = montarPranchaCorridas(b, dim, { ...oa, sigla, conteudo: NOME_SIGLA[sigla] });
+    if (pl) out.push(pl);
+    const gc = agruparCorridas(cors), nomesC = (g: { els: { nome: string }[] }) => g.els.map((e) => e.nome);
+    for (const g of gc) regQuant(nomesC(g), 'Sapata corrida', g.els.length, g.els.reduce((t, e) => t + e.volume, 0), g.els.reduce((t, e) => t + e.forma, 0), (c) => desenharCorrida(c, g.els));
+    const r = folhasDeDesenhos(b, {
+      ...oa, sigla, conteudo: `${NOME_SIGLA[sigla]} — DETALHAMENTO DAS SAPATAS CORRIDAS`, titulo: 'Fundação — sapatas corridas',
+      notas: notasDetalhe(b, ['Planta de um trecho típico e corte transversal; a armadura transversal vai de borda a borda da aba e a de distribuição corre ao longo da sapata, com emenda por traspasse acima da barra máxima [a confirmar].', 'Sob pilares, armadura longitudinal e estribos da viga sobre base elástica; aba de um lado exige vigas de equilíbrio (cintas), não detalhadas aqui.']),
+      defs: gc.map((g) => ({ nome: nomesC(g).join('='), elementos: nomesC(g), desenhar: (c: Ctx) => desenharCorrida(c, g.els) })),
+      legenda: `Planta e corte 1:${cfg.escalaFundacao} · sapatas corridas`,
+      concretoDe: (nomes) => cors.filter((e) => nomes.includes(e.nome)).reduce((t, e) => t + e.volume, 0), formaDe: (nomes) => cors.filter((e) => nomes.includes(e.nome)).reduce((t, e) => t + e.forma, 0),
+    });
+    out.push(...r.pranchas); tabAco.push(...r.aco);
   }
   // 4) quantitativos
   const estacas = new Map<string, { nome: string; quant: number; L: number }>();

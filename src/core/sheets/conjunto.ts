@@ -52,9 +52,9 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
   const oa = { grupo: o.grupo, carimbo: o.carimbo };
   const pedeTodas = (Array.isArray(o.tipos) ? o.tipos : [o.tipos]).includes('todas');
   for (const t of tipos) {
-    if (t === 'fundacao' && pedeTodas && !b.fundacao?.elementos.length) continue;
+    if (t === 'fundacao' && pedeTodas && !b.fundacao?.elementos.length && !b.fundacao?.corridas?.length) continue;
     if (PRECISA_CALCULO.includes(t) && !dim) { avisos.push(`Pranchas de ${t}: calcule e dimensione o edifício antes.`); continue; }
-    if (t === 'fundacao' && !dim?.fundacoes?.length && !dim?.radiers?.length && !dim?.vigasElasticas?.length) { if (!pedeTodas) avisos.push('Pranchas de fundação: lance fundações no nível de fundação e calcule o edifício.'); continue; }
+    if (t === 'fundacao' && !dim?.fundacoes?.length && !dim?.radiers?.length && !dim?.vigasElasticas?.length && !dim?.corridas?.length) { if (!pedeTodas) avisos.push('Pranchas de fundação: lance fundações no nível de fundação e calcule o edifício.'); continue; }
     if (t === 'locacao') { const pr = montarPranchaLocacao(b, an, oa); if (pr) out.push(pr); }
     else if (t === 'formas') {
       let prs = montarPranchas(b, { formato: o.formato, escala: o.escala, carimbo: o.carimbo, armaduras: o.armaduras ?? (dim ? armadurasDoDim(b, dim) : undefined) });

@@ -17,6 +17,7 @@ import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
 import { JanelaFundacao } from './Fundacao';
 import { JanelaBaseElastica, ehBaseElastica } from './BaseElasticaUI';
+import { JanelaCorrida, ehCorrida } from './CorridaUI';
 import { JanelaVigaFundacao } from './VigaFundacao';
 import { limiteDaMensagem, sobreposicoesDe } from './fundacaoGrupo';
 
@@ -357,11 +358,12 @@ export function JanelaElemento() {
   // viga de fundação (FU2) usa o tipo 'fundacao', distinguida pelo id
   const ehVF = j.tipo === 'fundacao' && !!b.fundacao?.vigas?.some((x) => x.id === j.id);
   const ehBE = j.tipo === 'fundacao' && ehBaseElastica(b, j.id);
-  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'fundacao' ? [...(b.fundacao?.elementos ?? []), ...(b.fundacao?.vigas ?? []), ...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? [])] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
+  const ehSC = j.tipo === 'fundacao' && ehCorrida(b, j.id);
+  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'fundacao' ? [...(b.fundacao?.elementos ?? []), ...(b.fundacao?.vigas ?? []), ...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? []), ...(b.fundacao?.corridas ?? [])] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
   return (
-    <Modal titulo={`Resultados do elemento — ${ehVF ? 'Viga de fundação' : ehBE ? (b.fundacao?.radiers?.some((x) => x.id === j.id) ? 'Radier' : 'Viga sobre base elástica') : TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
+    <Modal titulo={`Resultados do elemento — ${ehVF ? 'Viga de fundação' : ehSC ? 'Sapata corrida' : ehBE ? (b.fundacao?.radiers?.some((x) => x.id === j.id) ? 'Radier' : 'Viga sobre base elástica') : TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
       {!dim ? <p className="muted">Calcule o dimensionamento para ver os resultados do elemento.</p>
-        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
+        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehSC ? <JanelaCorrida id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
     </Modal>
   );
 }

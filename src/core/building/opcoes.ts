@@ -165,6 +165,18 @@ export interface OpcoesCalculo {
   radierK: number;
   /** Base elástica (FU6): espaçamento máximo da malha do radier e da divisão das vigas sobre base elástica (m). */
   radierMalha: number;
+  /** Sapata corrida (FU7a): largura total mínima da base (m). */
+  corridaBMin: number;
+  /** Sapata corrida sob pilares (FU7a): largura da base (m) e altura no eixo (m) quando não informadas. */
+  corridaBPadrao: number;
+  corridaHPadrao: number;
+  /** Sapata corrida (FU7a): seção de referência da flexão transversal (CEB-70), dentro da face do elemento apoiado, em % da sua largura: concreto e alvenaria. */
+  corridaRefConcreto: number;
+  corridaRefAlvenaria: number;
+  /** Sapata corrida (FU7a): armadura de distribuição (longitudinal) mínima, em % da armadura principal. */
+  corridaDistribuicao: number;
+  /** Sapata corrida sob parede (FU7a): comprimento da janela em que a carga linear é somada para obter a carga por metro (m). */
+  corridaJanela: number;
 }
 
 export interface OpcaoInfo {
@@ -381,6 +393,20 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
   { chave: 'radierMalha', rotulo: 'Base elástica: malha do radier e divisão das vigas', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): malha mais grossa que a das lajes para limitar o tamanho do pórtico', aConfirmar: true,
     descricao: 'Espaçamento máximo das barras da grelha do radier (as linhas passam também pelos pilares) e dos nós das vigas sobre base elástica.' },
+  { chave: 'corridaBMin', rotulo: 'Sapata corrida: largura mínima da base', unidade: 'm', min: 0.3, max: 3, passo: 0.05, padrao: 0.6, fonte: 'Mesmo mínimo das sapatas do módulo Fundações (lado ≥ 60 cm; a confirmar)', aConfirmar: true,
+    descricao: 'Menor largura total B que a busca pela σadm considera na sapata corrida sob parede.' },
+  { chave: 'corridaBPadrao', rotulo: 'Sapata corrida sob pilares: largura da base padrão', unidade: 'm', min: 0.4, max: 5, passo: 0.05, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a largura entra na rigidez e nas molas da análise e precisa existir antes dela', aConfirmar: true,
+    descricao: 'Largura B da base quando a sapata corrida sob pilares não a informa (a verificação da σadm dá a largura necessária).' },
+  { chave: 'corridaHPadrao', rotulo: 'Sapata corrida sob pilares: altura padrão no eixo', unidade: 'm', min: 0.2, max: 3, passo: 0.05, padrao: 0.6, fonte: 'Critério do Statikos (sem fonte): a altura entra na rigidez da análise e precisa existir antes dela', aConfirmar: true,
+    descricao: 'Altura total (nervura + aba) da sapata corrida sob pilares quando não informada; a espessura da aba sai da regra de rigidez.' },
+  { chave: 'corridaRefConcreto', rotulo: 'Sapata corrida: seção de referência da flexão (parede ou viga de concreto)', unidade: '% de bw', min: 0, max: 50, passo: 1, padrao: 15, fonte: 'CEB-70 / NBR 6118 22.6.3: seção a 0,15·a dentro da face do pilar, estendida à parede (item a confirmar)', aConfirmar: true,
+    descricao: 'Distância da seção de momento para dentro da face do elemento apoiado, em % da sua largura (parede ou viga de concreto).' },
+  { chave: 'corridaRefAlvenaria', rotulo: 'Sapata corrida: seção de referência da flexão (parede de alvenaria)', unidade: '% de bw', min: 0, max: 50, passo: 1, padrao: 25, fonte: 'Prática de livro-texto (ACI 318: parede de alvenaria, a meia distância entre o eixo e a face); a confirmar', aConfirmar: true,
+    descricao: 'Mesma distância para elemento apoiado de alvenaria (a seção fica no meio da metade da espessura).' },
+  { chave: 'corridaDistribuicao', rotulo: 'Sapata corrida: armadura de distribuição mínima', unidade: '% da principal', min: 0, max: 100, passo: 5, padrao: 20, fonte: 'NBR 6118 20.1 e 20.3.2.2 (lajes): 20 % da principal, 0,9 cm²/m e 0,5·ρmín (item a confirmar)', aConfirmar: true,
+    descricao: 'Armadura paralela ao eixo da sapata corrida: o maior entre este percentual da armadura transversal, 0,9 cm²/m e metade da taxa mínima.' },
+  { chave: 'corridaJanela', rotulo: 'Sapata corrida sob parede: janela da carga linear', unidade: 'm', min: 0.25, max: 5, passo: 0.25, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a carga por metro é a maior soma em janelas deste comprimento ao longo do eixo', aConfirmar: true,
+    descricao: 'Comprimento da janela em que as cargas lineares, pontuais e de área do nível de fundação sobre a sapata corrida são somadas e divididas para dar a carga por metro de projeto (a largura é única ao longo do eixo).' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

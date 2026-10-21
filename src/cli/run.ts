@@ -101,7 +101,7 @@ export function novoTrabalho(vazio: boolean): Sessao {
  */
 export function dimensionar(b: BuildingModel, an: AnaliseEdificio = analisarEdificio(b)) {
   if (an.erro || !an.portico.res) {
-    if (b.pilares.length && b.pilares.every(ehArranque) && b.fundacao?.elementos.length)
+    if (b.pilares.every(ehArranque) && (b.fundacao?.elementos.length || b.fundacao?.corridas?.length))
       return { vigas: [], pilares: [], lajes: [], quantitativos: [], combinacoes: 0, fundacao: cargasParaFundacao(b, an), ...comFundacao(b, an) } as Dimensionamento & { fundacao: FLoad[] };
     return { erro: an.erro ?? 'Análise sem resultado.' };
   }
@@ -211,6 +211,7 @@ export function runCli(args: string[], io: Io): number {
             io.out(linha('vigas de fundação', r.vigasFundacao));
             for (const v of r.vigasFundacao) io.out(`  ${v.resumo} (${v.ini}–${v.fim}) · ${v.status}${v.mensagens.length ? ` · ${v.mensagens.join(' ')}` : ''}`);
           }
+          for (const x of r.corridas ?? []) io.out(`  ${x.resumo} (sapata corrida ${x.modo === 'pilares' ? 'sob pilares' : 'sob parede'})${x.pressao ? ` · σmáx ${x.pressao.sigmaMax.toFixed(1)} kN/m²` : ''} · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
           for (const x of [...(r.radiers ?? []), ...(r.vigasElasticas ?? [])]) io.out(`  ${x.nome}: σ ${x.sigmaMax.toFixed(1)}${x.sigmaAdm ? `/${x.sigmaAdm.toFixed(0)}` : ''} kN/m², recalque ${(x.recalque * 1000).toFixed(2)} mm · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
           for (const a of r.avisosFundacao ?? []) io.out(`  ${a}`);
         }

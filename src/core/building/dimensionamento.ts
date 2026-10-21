@@ -22,6 +22,7 @@ import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao }
 import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
+import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 export { TAXAS };
 
@@ -1066,15 +1067,18 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[];
   /** Base elástica (FU6): radiers e vigas sobre base elástica (tensões no solo, recalques e armaduras), detalhamento e aço dos radiers. */
   radiers?: ResultadoRadier[]; vigasElasticas?: ResultadoVigaElastica[]; detalhesRadier?: DetalheLaje[]; resumoAcoRadiers?: ReturnType<typeof resumoAcoRadiers>;
+  /** Sapatas corridas (FU7a): sob parede (dimensionamento rígido) ou sob pilares (viga sobre base elástica na análise global); calculadas com a fundação. */
+  corridas?: ResultadoCorrida[];
   /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
   equilibrio?: ResultadoEQU[];
   /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
   avisosAcoes?: string[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
-export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao'> {
+export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
   const f = calcularFundacaoEdificio(b, an, o);
-  return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}) };
+  const corridas = calcularCorridas(b, an);
+  return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}), ...(corridas.length ? { corridas } : {}) };
 }
 
 /**
@@ -1105,6 +1109,6 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
     }
     if (be.vigasElasticas.length) d.vigasElasticas = be.vigasElasticas;
   }
-  if (o.fundacao !== false && b.fundacao?.elementos.length) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
+  if (o.fundacao !== false && (b.fundacao?.elementos.length || b.fundacao?.corridas?.length)) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
   return d;
 }

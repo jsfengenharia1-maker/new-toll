@@ -38,7 +38,7 @@ function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilares
     if (!p) return err('PILAR_INEXISTENTE', `Pilar ${id} não existe.`);
     if (p.nasce !== 'fundacao') return err('PILAR_NAO_NASCE_FUNDACAO', `${p.nome} não nasce na fundação.`, [p.id]);
     const naBase = pilaresNaBase(b).find((x) => x.pilar === p.id);
-    if (naBase) return err('PILAR_NA_BASE_ELASTICA', `${p.nome} está sobre ${naBase.tipo === 'radier' ? 'o radier' : 'a viga sobre base elástica'} ${(naBase.tipo === 'radier' ? b.fundacao?.radiers : b.fundacao?.vigasElasticas)?.find((x) => x.id === naBase.ref)?.nome ?? naBase.ref} (sem elemento próprio).`, [p.id, naBase.ref]);
+    if (naBase) return err('PILAR_NA_BASE_ELASTICA', `${p.nome} está sobre ${naBase.tipo === 'radier' ? 'o radier' : b.fundacao?.corridas?.some((x) => x.id === naBase.ref) ? 'a sapata corrida' : 'a viga sobre base elástica'} ${(naBase.tipo === 'radier' ? b.fundacao?.radiers : [...(b.fundacao?.vigasElasticas ?? []), ...(b.fundacao?.corridas ?? [])])?.find((x) => x.id === naBase.ref)?.nome ?? naBase.ref} (sem elemento próprio).`, [p.id, naBase.ref]);
     const outro = b.fundacao?.elementos.find((x) => x.id !== proprio && x.pilares.includes(p.id));
     if (outro) return err('PILAR_COM_FUNDACAO', `${p.nome} já tem o elemento ${outro.nome}.`, [p.id, outro.id]);
   }
