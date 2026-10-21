@@ -447,6 +447,11 @@ export interface VigaFundacao {
   h: number;
   /** Seção imposta (igualada ou fixada pelo usuário): só verificada. Sem ela, a altura (e depois a largura) cresce até atender. */
   fixa?: boolean;
+  /**
+   * Ancoragem editável (C11.45): comprimento reto (m) das barras superiores além da face do pilar de cada ponta.
+   * Ausente = o comprimento de ancoragem básico lb calculado; valor menor que lb gera aviso.
+   */
+  ancoragem?: { ini?: number; fim?: number };
 }
 
 export const FUNDACAO_VAZIA = (): FundacaoEdificio => ({ terreno: { sigmaModo: 'informada', estacas: [] }, sondagens: [], elementos: [] });
@@ -486,12 +491,14 @@ export interface ConfigArmacao {
   escalaLajes: number;
   /** Planta de locação (0 = a das formas). */
   escalaLocacao: number;
+  /** Detalhes das fundações: planta e corte de sapatas, blocos e tubulões e elevação das vigas de fundação (50 ou 25). */
+  escalaFundacao: number;
   /** Lajes: positivas e negativas em folhas separadas (1) ou na mesma folha, em camadas distintas (0). */
   lajesSeparadas: 0 | 1;
   /** Quadro de pilares (seção, armadura e estribos por lance) no fim das pranchas de pilares. */
   quadroPilares: 0 | 1;
 }
-export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, lajesSeparadas: 1, quadroPilares: 1 };
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, lajesSeparadas: 1, quadroPilares: 1 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

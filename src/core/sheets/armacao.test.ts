@@ -125,7 +125,7 @@ describe('pranchas de armação (R5)', () => {
   it('locação: pilares, eixos, cargas características e de cálculo e notas gerais', () => {
     const pr = montarPranchaLocacao(s.modelo, an)!;
     const t = textos(pr);
-    for (const x of ['P1', '20×50', 'A', '1', 'Nk,máx', 'Nd,máx', 'Hyd', 'NOTAS GERAIS', 'SFN']) expect(t).toContain(x);
+    for (const x of ['P1', '20×50', 'A', '1', 'Nk,máx', 'Nd,máx', 'Hyd', 'NOTAS GERAIS', 'SLP']) expect(t).toContain(x);
     expect(t.some((x) => /C30/.test(x) && /pilares/.test(x))).toBe(true);
     // valores com vírgula e duas casas; Nd > Nk no pilar
     const tp = pr.papel.flatMap((q) => (q.t === 'txt' ? [q.s] : [])), i5 = tp.indexOf('P5');

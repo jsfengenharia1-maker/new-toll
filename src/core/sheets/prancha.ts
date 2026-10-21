@@ -28,6 +28,8 @@ export const CAMADAS = {
   'ARMADURA': { cor: 1, pena: 0.35, tipo: 'cont' },
   'ARMADURA-NEG': { cor: 5, pena: 0.35, tipo: 'cont' },
   'FORMA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
+  // fundações (FU5): contorno dos elementos (sapatas, blocos, tubulões) e das vigas de fundação em planta
+  'FUNDACAO': { cor: 6, pena: 0.5, tipo: 'cont' },
 } as const;
 export type Camada = keyof typeof CAMADAS;
 /** Padrões de traço no papel (mm): traço, espaço, ... */
@@ -50,9 +52,14 @@ export const LARGURA_LEGENDA = 178;
 export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
-export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes';
-/** Siglas das folhas de referência (fundação SFN, formas SCF, vigas SCV, pilares SCP); lajes SCL por extensão [a confirmar]. */
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SFN', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL' };
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao';
+/**
+ * Siglas das folhas de referência (fundação indireta SFN, direta SFS, formas SCF, vigas SCV, pilares SCP); lajes SCL por
+ * extensão [a confirmar]. A sigla de `fundacao` é a padrão (SFN); cada folha de fundação leva a sua em `Prancha.sigla`
+ * (`siglaFundacao`). A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
+ */
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN' };
+export const siglaDe = (p: Pick<Prancha, 'tipo' | 'sigla'>) => p.sigla ?? SIGLAS[p.tipo ?? 'formas'];
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */
 export interface LinhaTabelaAco { pos: string; aco: string; phi: number; quant: number; cUnit: number; cTotal: number }
@@ -62,6 +69,8 @@ export interface AcoPrancha { tabela: LinhaTabelaAco[]; resumo: LinhaResumoAco[]
 
 export interface Prancha {
   tipo?: TipoPrancha;
+  /** Sigla no carimbo quando difere da padrão do tipo (fundação direta SFS, indireta SFN). */
+  sigla?: string;
   titulo: string;
   formato: Formato;
   /** Largura e altura da folha (mm, paisagem). */
@@ -328,7 +337,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
 export const ret = (c: Camada, x0: number, y0: number, x1: number, y1: number): Prim => ({ t: 'pl', c, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], fechada: true });
 export const txt = (c: Camada, x: number, y: number, h: number, s: string, ah: 'e' | 'c' | 'd' = 'e', av: 'base' | 'meio' | 'topo' = 'base'): Prim => ({ t: 'txt', c, p: [x, y], h, s, ah, av });
 
-export interface OpcoesFolha { tipo: TipoPrancha; conteudo: string; escala: string; numero?: number; total?: number; carimbo?: Partial<Carimbo> }
+export interface OpcoesFolha { tipo: TipoPrancha; sigla?: string; conteudo: string; escala: string; numero?: number; total?: number; carimbo?: Partial<Carimbo> }
 
 /**
  * Folha (moldura, marcas de dobra) e legenda (carimbo) no canto inferior direito, comuns a todas as pranchas.
@@ -354,7 +363,7 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
     { h: 14, cel: [...(lg ? [{ w: wLogo, rot: '', val: '' }] : []), { w: 1 - wLogo, rot: 'EMPRESA / PROFISSIONAL', val: cb.empresa ?? '', hv: 4 }] },
     { h: 10, cel: [{ w: 1, rot: 'OBRA', val: cb.obra ?? b.obra.nome ?? '' }] },
     { h: 9, cel: [{ w: 0.5, rot: 'CLIENTE', val: cb.cliente ?? '' }, { w: 0.5, rot: 'LOCAL', val: cb.local ?? b.obra.cidade ?? '' }] },
-    { h: 12, cel: [{ w: 0.56, rot: 'CONTEÚDO', val: o.conteudo, hv: Math.min(3.5, wCont / (Math.max(1, o.conteudo.length) * 1.0)) }, { w: 0.12, rot: 'SIGLA', val: SIGLAS[o.tipo], hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
+    { h: 12, cel: [{ w: 0.56, rot: 'CONTEÚDO', val: o.conteudo, hv: Math.min(3.5, wCont / (Math.max(1, o.conteudo.length) * 1.0)) }, { w: 0.12, rot: 'SIGLA', val: o.sigla ?? SIGLAS[o.tipo], hv: 3.5 }, { w: 0.32, rot: 'ETAPA', val: cb.etapa ?? '' }] },
     { h: 9, cel: [{ w: 0.46, rot: 'RESPONSÁVEL TÉCNICO', val: cb.responsavel ?? '' }, { w: 0.27, rot: 'REGISTRO PROFISSIONAL', val: cb.registro ?? '' }, { w: 0.27, rot: 'ART / RRT', val: cb.art ?? '' }] },
     { h: 10, cel: [{ w: 0.17, rot: 'ESCALA', val: o.escala }, { w: 0.2, rot: 'DATA', val: cb.data ?? '' }, { w: 0.25, rot: 'DESENHO', val: cb.desenho ?? '' }, { w: 0.14, rot: 'REVISÃO', val: cb.revisao ?? 'R00' }, { w: 0.24, rot: 'FOLHA', val: `${String(o.numero ?? 1).padStart(2, '0')}/${String(o.total ?? 1).padStart(2, '0')}`, hv: 4 }] },
   ];

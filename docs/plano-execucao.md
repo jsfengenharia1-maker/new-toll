@@ -47,7 +47,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | FU2 | (feito, O) | (feito, S2) |
 | FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 |
 | FU4 geração automática | S2 (feito em 20/10/2026) | S1 (feito em 20/10/2026) |
-| FU5 pranchas e memorial | S2 | S1 |
+| FU5 pranchas e memorial | S2 (feito em 21/10/2026; memorial pendente) | S1 (feito em 21/10/2026) |
 | FU6 radier e vigas sobre base elástica | O | S2 |
 | FU7a sapata corrida | S3 | S1 |
 | FU7b fundação de muros | S3 | S1 |
@@ -126,3 +126,4 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 
 - 20/10/2026: V1 concluída (núcleo e interface): vista 3D do edifício com three.js 0.186.1 vendorizado (`scripts/vendor-three.mjs`, `public/vendor/three-0.186.1.mjs`, 623 KB, sob demanda, fora do `dist/index.html`), cena por função pura em `src/core/vista3d/` com geradores registrados (`GERADORES_3D`), aba 3D com escopo por grupo, intervalo ou pavimento, tipos, transparência, perspectiva/isométrica, caminhar, seleção sincronizada com a planta, captura PNG e fallback em SVG isométrico (artifact do claude.ai ou sem WebGL); figura isométrica no memorial; C3.35–C3.41 e C7.18 fechados; e2e `V1`. Seguem V2 e V3 (podem rodar em paralelo), depois V4 e V5.
 - 20/10/2026: FU4 concluída (núcleo e interface mínima): comando `fundacao.gerar` (`mcp: false`, `calculo: 'fundacao'`) sobre `src/core/building/fundacaoGerar.ts` (`planejarFundacoes`): tipo pela σadm, posição de divisa e de canto pelos pilares em frente (D 3 m, A 30°) e pelos limites, sapata associada ou bloco com vários pilares (bordas a menos de 1 m ou sobreposição estimada pelas cargas), vigas de equilíbrio e de travamento dos blocos de 1 e 2 estacas, tudo em um passo só (um desfazer); opções `gerarDistVisao/AnguloVisao/DistAssociada/DistLimite/SigmaMin`, premissa `fundacoes-gerar`, memorial, `docs/ia.md`, botão e diálogo "Gerar fundações…" no grupo Fundação e e2e `FU4`. C11.54 a C11.58 Feito. Detalhes no Andamento de `spec-frente-FU.md`.
+- 21/10/2026: FU5 concluída (núcleo e interface): pranchas de fundação (`src/core/sheets/fundacao.ts` e `fundacaoDetalhe.ts`): locação e planta de cargas por nível, detalhamento de sapatas (SFS), blocos e tubulões (SFN), vigas de fundação, arranques e quantitativos; tipo `fundacao` no conjunto, na CLI e na ferramenta `pranchas`; locação dos pilares passou de SFN a SLP; ancoragem editável das vigas de fundação (C11.45); tipo "Fundação" em `Pranchas.tsx`; e2e `FU5`. C11.45, C11.67–C11.70 e K1.11.60 Feito. Detalhes no Andamento de `spec-frente-FU.md`.

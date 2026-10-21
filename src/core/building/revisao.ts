@@ -69,6 +69,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_VIGA_FLEXAO', nivel: 'erro', re: /^Viga de fundação: flexão/, descricao: 'Viga de fundação: flexão não atende na seção' },
   { codigo: 'FUND_VIGA_CORTANTE', nivel: 'erro', re: /^Viga de fundação: (biela|cortante)/, descricao: 'Viga de fundação: cortante não atende' },
   { codigo: 'FUND_VIGA_SECAO', nivel: 'aviso', re: /^Viga de fundação: seção abaixo do mínimo/, descricao: 'Viga de fundação com seção abaixo da mínima' },
+  { codigo: 'FUND_VIGA_ANCORAGEM', nivel: 'aviso', re: /^Viga de fundação: ancoragem informada/, descricao: 'Ancoragem informada das barras superiores da viga de fundação menor que o lb necessário' },
   { codigo: 'FUND_VIGA_SEM_EXC', nivel: 'aviso', re: /^Viga de fundação: viga de equilíbrio sem ponta excêntrica/, descricao: 'Viga de equilíbrio sem elemento excêntrico (calculada como travamento)' },
   { codigo: 'FUND_CARGA_FORA', nivel: 'aviso', re: /^Carga no nível de fundação fora/, descricao: 'Carga do nível de fundação fora das vigas e elementos (ignorada)' },
   // sapatas associadas, blocos com vários pilares, limites e igualar (FU3)

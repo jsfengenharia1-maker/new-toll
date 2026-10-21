@@ -26,7 +26,7 @@ export interface Io {
 }
 
 export interface OpcoesSaidaPranchas { pdf?: string; dxf?: string; dwg?: string; grupo?: string; formato?: Formato | 'auto'; escala?: number;
-  /** formas (padrão) | locacao | vigas | pilares | lajes | todas; armação e cargas calculam o edifício antes. */
+  /** formas (padrão) | locacao | fundacao | vigas | pilares | lajes | todas; armação e cargas calculam o edifício antes. */
   tipo?: TipoSaida | TipoSaida[] }
 
 /**
@@ -68,7 +68,7 @@ Uso:
                                                    executa comandos (uma linha JSON por comando: {"nome": ..., "params": {...}})
   statikos calc <arquivo.statikos> [--json]        análise (grelhas + pórtico espacial): cargas na fundação, flechas e equilíbrio
   statikos dim <arquivo.statikos> [--json]         dimensionamento NBR 6118 (vigas, pilares, lajes), quantitativos e cargas para Fundações
-  statikos prancha <arquivo.statikos> [--pdf <saida.pdf>] [--dxf <saida.dxf>] [--dwg <saida.dwg>] [--tipo formas|locacao|vigas|pilares|lajes|todas]
+  statikos prancha <arquivo.statikos> [--pdf <saida.pdf>] [--dxf <saida.dxf>] [--dwg <saida.dwg>] [--tipo formas|locacao|fundacao|vigas|pilares|lajes|todas]
                    [--grupo <nome>] [--formato A0..A4] [--escala 50]
                                                    pranchas (padrão: formas; locação e cargas e armação calculam antes; PDF com todas;
                                                    DXF R2000 e DWG R2018, uma por arquivo)

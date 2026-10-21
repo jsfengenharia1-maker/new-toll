@@ -1121,7 +1121,7 @@ export const flows = [
       await prev.locator('svg').waitFor();
       assert.equal(await prev.getAttribute('data-tipo'), 'locacao');
       assert.match(await prev.textContent(), /kN/);
-      assert.match(await lista.innerText(), /SFN/);
+      assert.match(await lista.innerText(), /SLP/);
       // opção de armação: escala das vigas muda a folha
       await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await tipo.selectOption({ label: 'Armação de vigas' });
@@ -1135,7 +1135,7 @@ export const flows = [
       assert.ok(n >= 5, `folhas do conjunto: ${n}`);
       assert.equal(await page.locator('[data-folha-item]').count(), n);
       assert.match(await prev.textContent(), /01\//);
-      for (const sg of ['SFN', 'SCF', 'SCV', 'SCP', 'SCL']) assert.match(await lista.innerText(), new RegExp(sg));
+      for (const sg of ['SLP', 'SCF', 'SCV', 'SCP', 'SCL']) assert.match(await lista.innerText(), new RegExp(sg));
       await page.getByRole('button', { name: 'Próxima folha' }).click();
       assert.equal(await prev.getAttribute('data-folha'), '2');
       assert.match(await prev.textContent(), /02\//);
@@ -1717,6 +1717,79 @@ export const flows = [
       await page.getByRole('button', { name: /Desfazer/ }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       assert.match(await grupo.locator('summary').first().innerText(), /Fundação \(0 elementos\)/i);
+    },
+  },
+  {
+    name: 'FU5: pranchas de fundação — tipo Fundação, locação com rótulos e cargas, detalhamento das sapatas (SFS), vigas, quantitativos, ancoragem editável e conjunto numerado',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('eixo.malha {"dx": [7], "dy": [5]}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      await grupo.locator('[data-gerar-fundacoes]').click();
+      const dlg = page.getByRole('dialog', { name: 'Gerar fundações' });
+      await dlg.waitFor();
+      await dlg.locator('[data-gerar-confirmar]').click();
+      await page.locator('.statusbar .msg', { hasText: /Fundações geradas: 4 sapatas/ }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      await tipo.selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
+      // sem cálculo: aviso claro
+      await page.locator('[data-aviso-calculo="sem"]').waitFor();
+      assert.equal(await page.locator('[data-lista-folhas]').count(), 0);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const prev = page.locator('.prancha-prev');
+      const lista = page.locator('[data-lista-folhas]');
+      await tipo.selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'fundacao');
+      await prev.locator('svg').waitFor();
+      // locação, detalhamento das sapatas, vigas de fundação e quantitativos
+      assert.ok((await page.locator('[data-folha-item]').count()) >= 4, await lista.innerText());
+      const itens = await lista.innerText();
+      assert.match(itens, /SFS/);
+      assert.match(itens, /locação/);
+      assert.match(itens, /sapatas/);
+      assert.match(itens, /vigas de fundação/);
+      assert.match(itens, /quantitativos/);
+      const texto = await prev.textContent();
+      assert.match(texto, /h0 = \d+ cm/);
+      assert.match(texto, /df = \d+ cm/);
+      assert.match(texto, /Nk,máx/);
+      // detalhamento das sapatas: planta e corte 1:50 e peso de aço
+      await page.locator('[data-folha-item]', { hasText: /sapatas/ }).click();
+      await page.waitForFunction(() => /PLANTA ESC 1:50/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      assert.ok(parseFloat(await page.locator('[data-aco-folha]').getAttribute('data-aco-peso')) > 0, 'peso de aço da folha de sapatas');
+      // quantitativos
+      await page.locator('[data-folha-item]', { hasText: /quantitativos/ }).click();
+      await page.waitForFunction(() => /QUANTITATIVOS POR ELEMENTO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      // ancoragem editável: muda o desenho depois de calcular as fundações
+      await page.locator('summary', { hasText: 'Ancoragem das vigas de fundação' }).click();
+      const anc = page.locator('[data-ancoragem-vf] tbody tr').first().locator('input').first();
+      await anc.fill('120');
+      await anc.press('Enter');
+      await page.locator('[data-aviso-fundacao="desatualizada"]').waitFor();
+      await page.locator('[data-aviso-fundacao="desatualizada"]').getByRole('button', { name: 'Calcular fundações' }).click();
+      await page.locator('[data-aviso-fundacao="desatualizada"]').waitFor({ state: 'detached' });
+      await page.locator('[data-folha-item]', { hasText: /vigas de fundação/ }).click();
+      await page.waitForFunction(() => /Ancoragem das barras superiores: 120 cm/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      // conjunto completo: locação dos pilares (SLP), fundação (SFS) e as demais, numerado
+      await tipo.selectOption({ label: 'Conjunto completo' });
+      await prev.locator('svg').waitFor();
+      const todos = await lista.innerText();
+      for (const sg of ['SLP', 'SFS', 'SCF', 'SCV', 'SCP']) assert.match(todos, new RegExp(sg));
+      const n = parseInt(await prev.getAttribute('data-total'), 10);
+      assert.equal(await page.locator('[data-folha-item]').count(), n);
     },
   },
   {

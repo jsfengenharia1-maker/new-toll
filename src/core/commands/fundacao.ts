@@ -657,7 +657,7 @@ registrar<{ ids: number[] }>({
 const equilibrioSchema: JsonSchema = { oneOf: [{ type: 'string', enum: ['auto'] }, { type: 'object', additionalProperties: false, required: ['ini', 'fim'], properties: { ini: { type: 'boolean' }, fim: { type: 'boolean' } } }],
   description: '"auto" (padrão) = as pontas em sapata ou bloco excêntrico; ou { ini, fim } explícito' };
 const TIPOS_VF = ['equilibrio', 'travamento'] as const;
-type VFIn = { tipo: VigaFundacao['tipo']; ini: string; fim: string; equilibrio?: VigaFundacao['equilibrio']; b?: number; h?: number; fixa?: boolean; nome?: string };
+type VFIn = { tipo: VigaFundacao['tipo']; ini: string; fim: string; equilibrio?: VigaFundacao['equilibrio']; b?: number; h?: number; fixa?: boolean; nome?: string; ancoragem?: { ini?: number; fim?: number } };
 
 function validarVF(b: BuildingModel, v: Pick<VigaFundacao, 'ini' | 'fim'>, proprio?: string): Diagnostico[] {
   const a = pontaVF(b, v.ini), z = pontaVF(b, v.fim);
@@ -695,13 +695,14 @@ registrar<VFIn>({
 
 registrar<Partial<VFIn> & { id: string }>({
   nome: 'vigaFundacao.editar',
-  descricao: 'Altera uma viga de fundação: nome, tipo, pontas, pontas equilibradas ("auto" ou { ini, fim }), seção b × h (m) e `fixa` (seção só verificada).',
+  descricao: 'Altera uma viga de fundação: nome, tipo, pontas, pontas equilibradas ("auto" ou { ini, fim }), seção b × h (m), `fixa` (seção só verificada) e `ancoragem` (comprimento reto das barras superiores além da face do pilar de cada ponta, m; 0 = o lb calculado).',
   risco: 'escrita',
   mcp: false,
   calculo: 'fundacao',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { type: 'string', enum: TIPOS_VF }, ini: { type: 'string' }, fim: { type: 'string' },
     equilibrio: equilibrioSchema, b: { type: 'number', minimum: 0.1, maximum: 1.5 }, h: { type: 'number', minimum: 0.2, maximum: 3 }, fixa: { type: 'boolean' },
+    ancoragem: { type: 'object', additionalProperties: false, properties: { ini: { type: 'number', minimum: 0, maximum: 3 }, fim: { type: 'number', minimum: 0, maximum: 3 } } },
   } },
   validar(b, p) {
     const v = b.fundacao?.vigas?.find((x) => x.id === p.id);
@@ -715,6 +716,11 @@ registrar<Partial<VFIn> & { id: string }>({
     if (p.fixa !== undefined) { if (p.fixa) v.fixa = true; else delete v.fixa; }
     if (p.equilibrio !== undefined) { if (p.equilibrio === 'auto') delete v.equilibrio; else v.equilibrio = { ...p.equilibrio }; }
     if (v.tipo !== 'equilibrio') delete v.equilibrio;
+    if (p.ancoragem) {
+      const a = { ...(v.ancoragem ?? {}) };
+      for (const k of ['ini', 'fim'] as const) { const x = p.ancoragem[k]; if (x === undefined) continue; if (x > 0) a[k] = x; else delete a[k]; }
+      if (Object.keys(a).length) v.ancoragem = a; else delete v.ancoragem;
+    }
     return `${v.nome} alterada.`;
   },
 });

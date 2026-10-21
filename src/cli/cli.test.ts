@@ -87,6 +87,27 @@ describe('linha de comando', () => {
     expect(m.err.at(-1)).toMatch(/DWG não carregado/);
   });
 
+  it('prancha --tipo fundacao: locação, detalhamento e quantitativos das fundações geradas; sem fundações dá erro claro', () => {
+    const m = memIo({ 'c.jsonl': [
+      JSON.stringify({ nome: 'lote', params: { comandos: [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } })) } }),
+      JSON.stringify({ nome: 'lote', params: { comandos: [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.4 } } })) } }),
+      JSON.stringify({ nome: 'laje.detectarPanos', params: { grupo: 'g_3' } }),
+    ].join('\n'), 'f.jsonl': [
+      JSON.stringify({ nome: 'fundacao.terreno', params: { sigmaAdm: 300 } }),
+      JSON.stringify({ nome: 'fundacao.gerar', params: { tipo: 'sapata' } }),
+    ].join('\n') });
+    runCli(['novo', 'a.statikos'], m.io);
+    expect(runCli(['exec', 'a.statikos', 'c.jsonl'], m.io)).toBe(0);
+    expect(runCli(['prancha', 'a.statikos', '--tipo', 'fundacao', '--pdf', 'x.pdf'], m.io)).not.toBe(0);
+    expect(m.err.at(-1)).toMatch(/lance fundações/);
+    expect(runCli(['exec', 'a.statikos', 'f.jsonl'], m.io)).toBe(0);
+    expect(runCli(['prancha', 'a.statikos', '--tipo', 'fundacao', '--pdf', 'f.pdf', '--json'], m.io)).toBe(0);
+    const pt = JSON.parse(m.out.at(-1)!);
+    expect(pt.pranchas.every((p: { tipo: string }) => p.tipo === 'fundacao')).toBe(true);
+    expect(pt.pranchas.map((p: { titulo: string }) => p.titulo)).toEqual(expect.arrayContaining([expect.stringMatching(/locação/), expect.stringMatching(/sapatas/), 'Fundação — quantitativos']));
+    expect(new TextDecoder().decode(m.bin['f.pdf'].slice(0, 8))).toBe('%PDF-1.5');
+  });
+
   it('uso inválido devolve 64 e a ajuda', () => {
     const m = memIo();
     expect(runCli(['xyz'], m.io)).toBe(64);

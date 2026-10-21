@@ -19,10 +19,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
-| 11. Fundações | 70 | 36 | 19 | 10 | 5 |
+| 11. Fundações | 70 | 41 | 18 | 6 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **148** | **126** | **304** | **185** |
+| **Total** | **763** | **153** | **125** | **300** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU4 concluída em 20/10/2026) | 20 | 13 | 33 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU4 e FU5 concluídas em 20/10/2026) | 19 | 9 | 28 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
@@ -855,10 +855,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.42 | Edição pós-cálculo da viga; sapata pode ser dimensionada antes e a viga depois. | Feito | — | FU2: vigas calculadas depois dos elementos (alavanca) e editáveis com recálculo só das fundações (`calculo: "fundacao"`, "Calcular fundações" sem refazer a análise) |
 | C11.43 | Edição: trocar o tipo de viga numa lista do mesmo tipo. | Feito | — | FU2: editor da viga troca tipo, pontas, equilíbrio por ponta e seção (`vigaFundacao.editar`) |
 | C11.44 | Edição: prolongar os estribos da viga de equilíbrio dentro da fundação até as esperas do pilar. | Parcial | FU | FU2: opção `vigaFundEstribosEsperas` (estribos de eixo a eixo dos pilares ou só entre as faces, no aço estimado e no detalhe da janela); desenho nas pranchas na FU5 |
-| C11.45 | Edição: alterar comprimentos de ancoragem. | Falta | FU | FU2 calcula lb das barras superiores (nota da viga e detalhe da janela); edição dos comprimentos de ancoragem fica para o desenho (FU5) |
+| C11.45 | Edição: alterar comprimentos de ancoragem. | Feito | — | FU5: `VigaFundacao.ancoragem` (comprimento reto das barras superiores além da face do pilar de cada ponta, padrão lb), comando `vigaFundacao.editar { ancoragem }`, aviso FUND_VIGA_ANCORAGEM abaixo do lb, grupo "Ancoragem das vigas de fundação" na aba Pranchas; o desenho e as quantidades seguem o valor editado |
 | C11.46 | Edição: verificar a viga atual e listar as verificações feitas. | Feito | — | FU2: seção fixa (`fixa`, imposta ou igualada) só verificada; editor e janela da viga listam as verificações (mensagens FUND_VIGA_* e observações do cálculo) |
 | C11.47 | Edição: dimensionar a viga pela norma, listando as verificações. | Feito | — | FU2: `dimensionarVigaFundacao` (flexão com As,mín 17.3.5.2.1, cortante modelo I, pele, ancoragem; altura e depois largura crescentes a partir de 20 × 40 cm); sem "fixa" a viga é dimensionada e o editor lista as verificações; "Impor a seção calculada" fixa o resultado |
-| C11.48 | Edição: detalhe com cortes transversal e longitudinal, armadura e dimensões. | Feito | — | FU2: janela da viga de fundação com detalhe longitudinal (pilares das pontas, barras superiores e inferiores com lb, estribos, diagramas de momento e cortante) e transversal (seção com barras, pele e estribo), em SVG (`VigaFundacao.tsx`); desenho nas pranchas fica na FU5 |
+| C11.48 | Edição: detalhe com cortes transversal e longitudinal, armadura e dimensões. | Feito | — | FU2: janela da viga de fundação com detalhe longitudinal (pilares das pontas, barras superiores e inferiores com lb, estribos, diagramas de momento e cortante) e transversal (seção com barras, pele e estribo), em SVG (`VigaFundacao.tsx`); desenho nas pranchas na FU5 (`desenharViga`: elevação, seção A-A, posições e ancoragem) |
 | C11.49 | Edição: vista 3D da viga. | Falta | FU |  |
 | C11.50 | Apagar viga. | Feito | — | FU2: Remover no editor, Del e botão da barra da planta (`vigaFundacao.remover`); as vigas saem junto com o elemento ou o pilar das pontas |
 | C11.51 | Ativar/desativar o equilíbrio em cada extremidade, indicado por seta curva. | Feito | — | FU2: equilíbrio por ponta no editor, indicado na planta por seta curva (anel aberto sobre o pilar da ponta equilibrada) |
@@ -880,10 +880,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.65 | Aviso de sapatas sobrepostas e opção de eliminar sobreposições, que reorganiza e cria sapata associada sob os pilares. | Parcial | FU | FU3 núcleo: aviso FUND_SOBREPOSTA (`sobreposicoes`, `gruposSobrepostos`) e `fundacao.eliminarSobreposicoes` (une as sapatas sobrepostas numa associada); botão na interface pendente |
 | | **11.6 Relatórios e desenhos** | | | |
 | C11.66 | Relatório de fundação: dados de sapatas, blocos, vigas e placas de base com dimensões e verificações. | Feito | — | memorial de fundações |
-| C11.67 | Planta de locação da fundação: elementos, arranques de pilares, armaduras e dimensões, e quadros de sapatas e de vigas de fundação. | Falta | FU |  |
-| C11.68 | Planta de armaduras da fundação: detalhes de sapatas, blocos e placas de base. | Parcial | FU | detalhes de bloco, sapata e tubulão (SVG); sem planta de armaduras |
-| C11.69 | Configuração do desenho com duas partes: locação (elementos e arranques) e detalhes/quadros de armadura. | Falta | FU |  |
-| C11.70 | Na locação aparecem sapatas, blocos, estacas e quadros de estacas. | Falta | FU |  |
+| C11.67 | Planta de locação da fundação: elementos, arranques de pilares, armaduras e dimensões, e quadros de sapatas e de vigas de fundação. | Feito | — | FU5: `src/core/sheets/fundacao.ts` (`montarLocacaoFundacao`: uma folha por nível, eixos e cotas, pilares tracejados, contornos de sapatas, blocos com estacas e tubulões, cotas de excentricidade, rótulos h0/h1/df e ha/hb/n×ø, vigas "VF1 20×40", quadros Pilar + Fundação + Bloco e de elementos iguais); arranques e armaduras nas folhas de detalhamento; quadro por elemento nos quantitativos |
+| C11.68 | Planta de armaduras da fundação: detalhes de sapatas, blocos e placas de base. | Feito | — | FU5: detalhamento de sapatas (SFS), blocos com legenda 1:25 e tubulões (SFN) e vigas de fundação, planta e corte 1:50 com malhas "n×q Nk φ c/s C=", tabela de aço e resumo com perdas por folha, arranques na mesma folha; placas de base são de aço (C11.1–C11.3, Fora) |
+| C11.69 | Configuração do desenho com duas partes: locação (elementos e arranques) e detalhes/quadros de armadura. | Feito | — | FU5: tipo de prancha `fundacao` (locação por nível, detalhamento por tipo, vigas e quantitativos), escala dos detalhes `escalaFundacao` (1:50 ou 1:25), formato automático (A1/A0) ou fixo |
+| C11.70 | Na locação aparecem sapatas, blocos, estacas e quadros de estacas. | Feito | — | FU5: sapatas, blocos com as estacas (círculo com diagonais), tubulões; quadro de estacas (tipo, quantidade, comprimento, metragem) na folha de quantitativos |
 
 ## 12. Isovalores e deformada
 
@@ -966,3 +966,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 143 → 148; Parcial 126 → 126; Falta 309 → 304; Fora 185 → 185.
   - Pendências por frente: FU 38 → 33 (Parcial 20 → 20, Falta 18 → 13); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
+
+- **20/10/2026 — fatia FU5 (pranchas de fundação).** C11.45, C11.67, C11.68, C11.69 e C11.70 passam a Feito (`src/core/sheets/fundacao.ts` e `fundacaoDetalhe.ts`: locação e planta de cargas por nível, detalhamento de sapatas, blocos, tubulões e vigas de fundação com arranques, quantitativos; tipo `fundacao` no conjunto, na CLI e no MCP; ancoragem editável das vigas). Capítulo 11: 41 Feito, 18 Parcial, 6 Falta.

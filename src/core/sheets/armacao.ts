@@ -264,7 +264,7 @@ export function capacidadeTabela(f: Formato, hLeg: number, blocosFixos: BlocoTab
 }
 
 export interface MontagemFolha {
-  b: BuildingModel; formato: Formato; tipo: TipoPrancha; titulo: string; conteudo: string; escala: string; escalaNum: number;
+  b: BuildingModel; formato: Formato; tipo: TipoPrancha; sigla?: string; titulo: string; conteudo: string; escala: string; escalaNum: number;
   carimbo?: OpcoesCarimbo; desenho: Prim[]; tabelas: BlocoTabela[]; legenda: string; avisos: string[];
   modelo?: Prim[]; janela?: Prancha['janela']; aco?: AcoPrancha; elementos?: string[];
 }
@@ -272,7 +272,7 @@ export type OpcoesCarimbo = Parameters<typeof folhaECarimbo>[2]['carimbo'];
 
 /** Junta folha, carimbo, coluna de tabelas, título e desenho numa prancha. */
 export function montarFolha(m: MontagemFolha): Prancha {
-  const fc = folhaECarimbo(m.b, m.formato, { tipo: m.tipo, conteudo: m.conteudo, escala: m.escala, carimbo: m.carimbo });
+  const fc = folhaECarimbo(m.b, m.formato, { tipo: m.tipo, sigla: m.sigla, conteudo: m.conteudo, escala: m.escala, carimbo: m.carimbo });
   const col = colunaDeTabelas(fc.moldura, fc.hLeg, m.tabelas);
   const avisos = [...m.avisos];
   const [W, H] = FORMATOS[m.formato];
@@ -283,7 +283,7 @@ export function montarFolha(m: MontagemFolha): Prancha {
   }
   const papel: Prim[] = [...fc.papel, ...col.prims, ...m.desenho,
     txt('FOLHA-TEXTO', area.x0, fc.moldura.y0 + 9, 4.5, m.conteudo), txt('FOLHA-TEXTO', area.x0, fc.moldura.y0 + 4, 2.5, m.legenda)];
-  return { tipo: m.tipo, titulo: m.titulo, formato: m.formato, W, H, escala: m.escalaNum, modelo: m.modelo ?? [], papel, janela: m.janela, avisos, aco: m.aco, elementos: m.elementos, ...(fc.logo ? { logo: fc.logo } : {}) };
+  return { tipo: m.tipo, ...(m.sigla ? { sigla: m.sigla } : {}), titulo: m.titulo, formato: m.formato, W, H, escala: m.escalaNum, modelo: m.modelo ?? [], papel, janela: m.janela, avisos, aco: m.aco, elementos: m.elementos, ...(fc.logo ? { logo: fc.logo } : {}) };
 }
 
 /** Numera a prancha ("folha n de N" no carimbo). */

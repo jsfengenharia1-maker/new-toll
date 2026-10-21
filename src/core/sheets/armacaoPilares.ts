@@ -41,7 +41,7 @@ export function gruposDePilares(b: BuildingModel, dim: Dimensionamento): GrupoPi
 }
 
 /** Barras da seção retangular (u ao longo de b, v ao longo de h) ou circular, a partir do arranjo. */
-function barrasSecao(w: number, h: number, a: number, circ: boolean, ar: NonNullable<ResultadoPilar['arranjo']>): [number, number][] {
+export function barrasSecao(w: number, h: number, a: number, circ: boolean, ar: NonNullable<ResultadoPilar['arranjo']>): [number, number][] {
   if (circ) { const n = ar.n ?? 6, r = w / 2 - a; return Array.from({ length: n }, (_, i) => [w / 2 + r * Math.cos((2 * Math.PI * i) / n), h / 2 + r * Math.sin((2 * Math.PI * i) / n)]); }
   const nb = ar.nb ?? 2, nh = ar.nh ?? 2, out: [number, number][] = [];
   for (let i = 0; i < nb; i++) { const u = a + ((w - 2 * a) * i) / Math.max(1, nb - 1); out.push([u, a], [u, h - a]); }

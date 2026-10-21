@@ -55,6 +55,7 @@ Status: **resolvido** (sai do "a confirmar"), **parcial** (parte do item resolvi
 | Formato das armações | A1 (A0 quando não cabe) | igual | Folhas de referência (A1 e A0) | resolvido |
 | Escala automática das plantas (formas, locação, lajes) | a partir de 1:50 | **a partir de 1:75** (1:50 só quando escolhida) | Folhas de referência | resolvido |
 | Siglas | LOC, FOR, ARV, ARP, ARL | **SFN, SCF, SCV, SCP**, SCL | Folhas de referência (lajes por extensão) | resolvido; SCL mantido |
+| Siglas da fundação (FU5) | locação dos pilares = SFN | **SFS** (sapatas), **SFN** (blocos e tubulões), SFM (misto); locação dos pilares = **SLP** (colisão com a fundação indireta) | Folhas de referência (SFN indireta, SFS direta); SFM e a sigla do tubulão por extensão | parcial |
 | Cotas na prancha | cor amarela (ACI 2) | **cinza (ACI 8)** | Folhas de referência (cotas e chamadas finas em cinza) | resolvido |
 | Hierarquia das penas | concreto 0,50 / barras 0,35 / fundo 0,18 | igual | Folhas de referência confirmam a hierarquia; valores em mm (NBR 16861) | parcial |
 | Rótulo das vigas nas formas | "V1 (15×50)" | **"V1 15×50"** | Folhas de referência | resolvido |

@@ -10,13 +10,14 @@ import { acharGrupo, montarPranchasVigas } from './armacaoVigas';
 import { montarPranchasPilares } from './armacaoPilares';
 import { montarPranchasLajes } from './armacaoLajes';
 import { montarPranchaLocacao } from './locacao';
+import { montarPranchasFundacao } from './fundacao';
 
 export type TipoSaida = TipoPrancha | 'todas';
-export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'vigas', 'pilares', 'lajes', 'todas'];
+export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'lajes', 'todas'];
 /** Ordem das pranchas no conjunto. */
-export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'formas', 'vigas', 'pilares', 'lajes'];
+export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'fundacao', 'formas', 'vigas', 'pilares', 'lajes'];
 /** Tipos que exigem análise e dimensionamento. */
-export const PRECISA_CALCULO: TipoPrancha[] = ['vigas', 'pilares', 'lajes'];
+export const PRECISA_CALCULO: TipoPrancha[] = ['vigas', 'pilares', 'lajes', 'fundacao'];
 
 export interface OpcoesConjunto {
   /** Tipos de prancha (padrão: formas). 'todas' = o conjunto completo. */
@@ -49,15 +50,19 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
   const tipos = tiposDe(o.tipos), avisos: string[] = [];
   const out: Prancha[] = [];
   const oa = { grupo: o.grupo, carimbo: o.carimbo };
+  const pedeTodas = (Array.isArray(o.tipos) ? o.tipos : [o.tipos]).includes('todas');
   for (const t of tipos) {
+    if (t === 'fundacao' && pedeTodas && !b.fundacao?.elementos.length) continue;
     if (PRECISA_CALCULO.includes(t) && !dim) { avisos.push(`Pranchas de ${t}: calcule e dimensione o edifício antes.`); continue; }
+    if (t === 'fundacao' && !dim?.fundacoes?.length) { if (!pedeTodas) avisos.push('Pranchas de fundação: lance fundações no nível de fundação e calcule o edifício.'); continue; }
     if (t === 'locacao') { const pr = montarPranchaLocacao(b, an, oa); if (pr) out.push(pr); }
     else if (t === 'formas') {
       let prs = montarPranchas(b, { formato: o.formato, escala: o.escala, carimbo: o.carimbo, armaduras: o.armaduras ?? (dim ? armadurasDoDim(b, dim) : undefined) });
       const g = acharGrupo(b, o.grupo);
       if (g) { const nome = b.grupos.find((x) => x.id === g)?.nome; prs = prs.filter((p) => p.titulo === `Formas — ${nome}`); }
       out.push(...prs);
-    } else if (t === 'vigas') out.push(...montarPranchasVigas(b, an, dim!, oa));
+    } else if (t === 'fundacao') out.push(...montarPranchasFundacao(b, an, dim!, oa));
+    else if (t === 'vigas') out.push(...montarPranchasVigas(b, an, dim!, oa));
     else if (t === 'pilares') out.push(...montarPranchasPilares(b, an, dim!, oa));
     else if (t === 'lajes') out.push(...montarPranchasLajes(b, an, dim!, oa));
   }

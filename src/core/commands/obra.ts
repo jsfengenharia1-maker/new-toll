@@ -81,7 +81,7 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     armacao: { type: 'object', additionalProperties: false, properties: {
       formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
       escalaVigas: { type: 'number', enum: [20, 25, 50, 75, 100] }, escalaSecao: { type: 'number', enum: [10, 20, 25, 50] }, escalaPilares: { type: 'number', enum: [20, 25, 40, 50, 75, 100] },
-      escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] },
+      escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaFundacao: { type: 'number', enum: [25, 50] },
       lajesSeparadas: { type: 'number', enum: [0, 1] }, quadroPilares: { type: 'number', enum: [0, 1] },
     } },
     logo: { type: 'object', additionalProperties: false, required: ['dados'], properties: { dados: { type: 'string', minLength: 8, description: 'JPEG em base64 (sem o prefixo data:)' }, nome: { type: 'string' } } },

@@ -257,7 +257,9 @@ export interface ResultadoVigaFundacao {
   Md: { sup: number; inf: number }; Vd: number;
   /** Diagramas característicos ao longo da viga (s a partir do pilar da ponta inicial). */
   diagrama: { s: number[]; Msup: number[]; Minf: number[]; V: number[] };
-  armadura: { sup: ArmaduraVF; inf: ArmaduraVF; pele?: { AsFace: number; barras: BarChoice | null }; estribo: { phi: number; s: number; legs: number } | null; aswS: number; VRd2: number; lb: number; d: number };
+  armadura: { sup: ArmaduraVF; inf: ArmaduraVF; pele?: { AsFace: number; barras: BarChoice | null }; estribo: { phi: number; s: number; legs: number } | null; aswS: number; VRd2: number; lb: number; d: number;
+    /** Ancoragem das barras superiores além da face do pilar de cada ponta (m): a adotada, e se foi editada (C11.45). */
+    ancoragem: { ini: number; fim: number; editada: { ini: boolean; fim: boolean } } };
   /** Concreto (m³, entre as faces dos pilares) e aço (kg, estimado pelas barras e estribos). */
   volume: number; aco: number;
   status: 'ok' | 'fail';
@@ -302,7 +304,7 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     id: v.id, nome: v.nome, tipo: v.tipo, ini: g.ini?.nome ?? v.ini, fim: g.fim?.nome ?? v.fim, L: g.L, b: v.b, h: v.h, bAdot: v.b, hAdot: v.h, fixa: !!v.fixa,
     equilibrio: ent.equilibrio, alivio: ent.alivio, cargas: { ini: 0, fim: 0 }, travamento: ent.travamento, Mk: { sup: 0, inf: 0 }, Vk: 0, Md: { sup: 0, inf: 0 }, Vd: 0,
     diagrama: { s: [], Msup: [], Minf: [], V: [] },
-    armadura: { sup: { As: 0, AsMin: 0, barras: null }, inf: { As: 0, AsMin: 0, barras: null }, estribo: null, aswS: 0, VRd2: 0, lb: 0, d: 0 },
+    armadura: { sup: { As: 0, AsMin: 0, barras: null }, inf: { As: 0, AsMin: 0, barras: null }, estribo: null, aswS: 0, VRd2: 0, lb: 0, d: 0, ancoragem: { ini: 0, fim: 0, editada: { ini: false, fim: false } } },
     volume: 0, aco: 0, status: 'fail', mensagens: msgs, notas, resumo: `${v.nome}: não calculada`,
   };
   if (g.erro) { msgs.unshift(g.erro); vazio.status = 'fail'; return vazio; }
@@ -371,20 +373,23 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   const phiSup = r.sup.barras?.phi ?? 10;
   const lb = lbBasico(phiSup, c, fyd, h < 0.6);
   if (ent.equilibrio.ini || ent.equilibrio.fim) notas.push(`Barras superiores ancoradas além do pilar equilibrado: lb = ${fmt(lb * 100, 0)} cm (φ${String(phiSup).replace('.', ',')}, ${h < 0.6 ? 'boa' : 'má'} aderência), com gancho na face da divisa.`);
+  const anc = { ini: v.ancoragem?.ini ?? lb, fim: v.ancoragem?.fim ?? lb, editada: { ini: v.ancoragem?.ini !== undefined, fim: v.ancoragem?.fim !== undefined } };
+  for (const k of ['ini', 'fim'] as const) if (anc.editada[k] && anc[k] < lb - 1e-9) msgs.push(`Viga de fundação: ancoragem informada na ponta ${k === 'ini' ? g.ini?.nome : g.fim?.nome} (${fmt(anc[k] * 100, 0)} cm) menor que o lb necessário (${fmt(lb * 100, 0)} cm).`);
+  if (anc.editada.ini || anc.editada.fim) notas.push(`Ancoragem editada: ${fmt(anc.ini * 100, 0)} cm na ponta inicial e ${fmt(anc.fim * 100, 0)} cm na final (lb = ${fmt(lb * 100, 0)} cm).`);
   // quantidades
   const Lc = Math.max(0, L - fi - ff);
   const Lest = op.vigaFundEstribosEsperas ? L : Lc;
   const est = r.sh.stirrup;
   const nEst = est ? Math.ceil(Lest / est.s) + 1 : 0, perim = 2 * (bw - 2 * cob + h - 2 * cob) + 0.2;
   const kg = (A: number, len: number) => A * len * 7850;
-  const aco_ = (r.sup.barras ? kg(r.sup.barras.As, L + 2 * lb) : 0) + (r.inf.barras ? kg(r.inf.barras.As, L) : 0)
+  const aco_ = (r.sup.barras ? kg(r.sup.barras.As, Lc + anc.ini + anc.fim) : 0) + (r.inf.barras ? kg(r.inf.barras.As, L) : 0)
     + (est ? kg(barArea(est.phi), perim) * nEst : 0) + (r.pele?.barras ? 2 * kg(r.pele.barras.As, L) : 0);
   const txt = (x: BarChoice | null) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}` : '—');
   const status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
   return {
     ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd,
     diagrama: { s: xs, Msup, Minf, V },
-    armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d },
+    armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d, ancoragem: anc },
     volume: bw * h * Lc, aco: aco_, status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),
     resumo: `${v.nome} ${Math.round(bw * 100)}×${Math.round(h * 100)}: sup. ${txt(r.sup.barras)}, inf. ${txt(r.inf.barras)}${est ? `, estribo φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : ''} (Md ${fmt(Md.sup, 1)}/${fmt(Md.inf, 1)} kN·m; Vd ${fmt(Vd, 1)} kN)`,
   };

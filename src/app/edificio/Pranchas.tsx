@@ -1,11 +1,11 @@
 // Aba Pranchas: planta de formas por grupo, prévia em SVG e saída em PDF, DXF R2000 e DWG R2018.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { calculoAtual, useBuilding } from './store';
+import { calculoAtual, fundacaoAtual, useBuilding } from './store';
 import { montarConjuntoNoWorker, Obsoleto, type Conjunto } from './calculo';
 import { useStore } from '../store';
-import { Button, Check, download, Group, Hint, Select, TextField } from '../ui';
+import { Button, Check, download, Group, Hint, NumField, Select, TextField } from '../ui';
 import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
-import { SIGLAS } from '../../core/sheets/prancha';
+import { siglaDe } from '../../core/sheets/prancha';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
 import { ARQUIVO_LOGO, base64Bytes, LIMITE_LOGO } from '../../core/sheets/logo';
@@ -22,7 +22,7 @@ const CAMPOS: [keyof Carimbo, string][] = [
   ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
 ];
 const ROTULO_TIPO: Record<TipoSaida, string> = {
-  formas: 'Formas', locacao: 'Locação e cargas', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', todas: 'Conjunto completo',
+  formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', todas: 'Conjunto completo',
 };
 const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f }));
 /** Opções de escala (denominador); inclui o valor em uso, mesmo que fora da lista. */
@@ -62,7 +62,8 @@ function carregarDwg(): Promise<EscritorDwg> {
 }
 
 export function Pranchas() {
-  const { sessao, exec, dim, analise, revAnalise, idCalculo } = useBuilding();
+  const { sessao, exec, dim, analise, revAnalise, idCalculo, revFund, calcularFundacao, calculandoFund } = useBuilding();
+  const fundAtual = useBuilding((st) => fundacaoAtual(st));
   const msg = (m: string) => useStore.getState().set({ message: m });
   const b = sessao.modelo;
   const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
@@ -77,8 +78,8 @@ export function Pranchas() {
   // o conjunto é montado no worker do cálculo (que guarda a análise); respostas de pedidos antigos são descartadas
   const calc = atual ? idCalculo : null;
   const pedido = useMemo(
-    () => ({ b, calc, tipos: tipo, grupo: porGrupo && grupo ? grupo : undefined, data: b.prancha?.carimbo.data || hoje }),
-    [b, calc, tipo, grupo, porGrupo, hoje],
+    () => ({ b, calc, revFund, tipos: tipo, grupo: porGrupo && grupo ? grupo : undefined, data: b.prancha?.carimbo.data || hoje }),
+    [b, calc, revFund, tipo, grupo, porGrupo, hoje],
   );
   const [res, setRes] = useState<{ pedido: typeof pedido; cj?: Conjunto; erro?: string } | null>(null);
   useEffect(() => {
@@ -98,7 +99,7 @@ export function Pranchas() {
   const pr = prs[i];
   const svg = useMemo(() => (pr ? svgPrancha(pr) : ''), [pr]);
   const base = slug(b.obra.nome || 'edificio');
-  const nome = (p: (typeof prs)[number], k: number) => `${base}-${SIGLAS[p.tipo ?? 'formas']}-${String(k + 1).padStart(2, '0')}`;
+  const nome = (p: (typeof prs)[number], k: number) => `${base}-${siglaDe(p)}-${String(k + 1).padStart(2, '0')}`;
   const pa = (patch: Partial<ConfigArmacao>) => exec('prancha.definir', { armacao: patch });
   const salvar = async (arquivo: string, dados: Uint8Array, mime: string) => {
     const r = await download(arquivo, dados, mime);
@@ -156,12 +157,18 @@ export function Pranchas() {
         </div>
         {precisa && !dim && <Hint><span data-aviso-calculo="sem">As pranchas de armação e a tabela de cargas da locação exigem o cálculo. Calcule e dimensione o edifício na aba Dimensionamento.</span></Hint>}
         {precisa && dim && !atual && <p className="hint bad" data-aviso-calculo="desatualizado">O dimensionamento é de uma revisão anterior do modelo. Recalcule na aba Dimensionamento para gerar as pranchas de armação e a locação com cargas.</p>}
+        {(tipo === 'fundacao' || tipo === 'todas') && atual && !fundAtual && !!b.fundacao?.elementos.length && (
+          <p className="hint bad" data-aviso-fundacao="desatualizada">
+            As fundações mudaram depois do último cálculo (por exemplo, a ancoragem das vigas de fundação).{' '}
+            <Button disabled={calculandoFund} onClick={() => void calcularFundacao()}>Calcular fundações</Button>
+          </p>
+        )}
         {!precisa && tipo === 'locacao' && !atual && <Hint>Sem cálculo atualizado, a locação sai sem a tabela de cargas.</Hint>}
         {!precisa && tipo === 'formas' && !atual && <Hint>Quadro de pilares sem armaduras (calcule e dimensione).</Hint>}
         {avisos.map((a, k) => <p key={k} className="hint bad">{a}</p>)}
         {visivel?.erro && <p className="hint bad">Pranchas: {visivel.erro}</p>}
         {carregando && <Hint><span data-pranchas-carregando>Montando as pranchas…</span></Hint>}
-        {!visivel ? null : !prs.length ? <Hint>{precisa && !atual ? 'Nenhuma folha: falta o cálculo.' : 'Lance vigas ou lajes em algum grupo para gerar as pranchas.'}</Hint> : (
+        {!visivel ? null : !prs.length ? <Hint>{precisa && !atual ? 'Nenhuma folha: falta o cálculo.' : tipo === 'fundacao' ? 'Lance fundações no nível de fundação (aba Edifício, grupo Fundação) e calcule para gerar as pranchas de fundação.' : 'Lance vigas ou lajes em algum grupo para gerar as pranchas.'}</Hint> : (
           <>
             <table className="design data" data-lista-folhas={prs.length}>
               <thead><tr><th className="tl">Folha</th><th className="tl">Sigla</th><th className="tl">Título</th><th>Formato</th><th>Escala</th></tr></thead>
@@ -169,7 +176,7 @@ export function Pranchas() {
                 {prs.map((p, k) => (
                   <tr key={k} className={k === i ? 'on' : ''} onClick={() => setSel(k)} data-folha-item={k + 1}>
                     <td className="tl">{String(k + 1).padStart(2, '0')}/{String(prs.length).padStart(2, '0')}</td>
-                    <td className="tl">{SIGLAS[p.tipo ?? 'formas']}</td>
+                    <td className="tl">{siglaDe(p)}</td>
                     <td className="tl">{p.titulo}</td><td className="num">{p.formato}</td><td className="num">1:{p.escala}</td>
                   </tr>
                 ))}
@@ -215,6 +222,7 @@ export function Pranchas() {
           <Select label="Escala dos pilares" value={arm.escalaPilares} options={escalas([25, 40, 50, 75, 100, 125], arm.escalaPilares)} onChange={(e) => pa({ escalaPilares: e })} />
           <Select label="Escala das lajes" value={arm.escalaLajes} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLajes, 'a das formas')} onChange={(e) => pa({ escalaLajes: e })} />
           <Select label="Escala da locação" value={arm.escalaLocacao} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLocacao, 'a das formas')} onChange={(e) => pa({ escalaLocacao: e })} />
+          <Select label="Escala dos detalhes de fundação" value={arm.escalaFundacao} options={escalas([25, 50], arm.escalaFundacao)} onChange={(e) => pa({ escalaFundacao: e })} />
         </div>
         <Check label="Lajes: positivas e negativas em folhas separadas" checked={arm.lajesSeparadas === 1} onChange={(v) => pa({ lajesSeparadas: v ? 1 : 0 })} />
         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
@@ -222,6 +230,24 @@ export function Pranchas() {
           Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
         </Hint>
       </Group>
+      {!!dim?.vigasFundacao?.length && (
+        <Group title="Ancoragem das vigas de fundação" open={false}>
+          <table className="design data" data-ancoragem-vf>
+            <thead><tr><th className="tl">Viga</th><th>lb calculado (cm)</th><th>Ponta inicial (cm)</th><th>Ponta final (cm)</th></tr></thead>
+            <tbody>
+              {dim.vigasFundacao.map((v) => (
+                <tr key={v.id}>
+                  <td className="tl">{v.nome} ({v.ini} — {v.fim})</td>
+                  <td className="num">{nf(v.armadura.lb * 100, 0)}</td>
+                  <td><NumField label="Início" unit="cm" width={110} value={Math.round(v.armadura.ancoragem.ini * 100)} onChange={(x) => exec('vigaFundacao.editar', { id: v.id, ancoragem: { ini: Math.max(0, x) / 100 } })} /></td>
+                  <td><NumField label="Fim" unit="cm" width={110} value={Math.round(v.armadura.ancoragem.fim * 100)} onChange={(x) => exec('vigaFundacao.editar', { id: v.id, ancoragem: { fim: Math.max(0, x) / 100 } })} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Hint>Comprimento reto das barras superiores além da face do pilar de cada ponta (padrão: o lb calculado; 0 volta ao padrão). Abaixo do lb, a viga recebe aviso FUND_VIGA_ANCORAGEM. Depois de editar, calcule as fundações para atualizar o desenho e as quantidades.</Hint>
+        </Group>
+      )}
       <div className="card">
         <h3>Carimbo</h3>
         <div className="carimbo-campos">
