@@ -384,19 +384,22 @@ export function beamAsMin(sec: BeamSection, flangeComp: boolean, d: number, c: C
 
 export interface BarChoice { phi: number; n: number; As: number; layers: number }
 
-export function chooseBars(As: number, bw: number, cover: number, phiT: number, dmax: number): BarChoice | null {
+/** Restrições de uma tabela de armadura (R7a): bitolas permitidas, mínimo de barras e máximo de camadas. */
+export interface BarRestrictions { phis?: number[]; nMin?: number; camadas?: number }
+
+export function chooseBars(As: number, bw: number, cover: number, phiT: number, dmax: number, restr?: BarRestrictions): BarChoice | null {
   if (As <= 0) return null;
   const opts: BarChoice[] = [];
-  for (const phi of PHI_L) {
+  for (const phi of restr?.phis ?? PHI_L) {
     if (phi > 25 && As < 0.002) continue;
     const Ab = barArea(phi);
-    const n = Math.max(2, Math.ceil(As / Ab - 1e-9));
+    const n = Math.max(restr?.nMin ?? 2, Math.ceil(As / Ab - 1e-9));
     const ah = Math.max(0.02, phi / 1000, 1.2 * dmax);
     const free = bw - 2 * (cover + phiT);
     const perLayer = Math.max(1, Math.floor((free + ah) / (phi / 1000 + ah)));
     if (perLayer < 2) continue;
     const layers = Math.ceil(n / perLayer);
-    if (layers > 3) continue;
+    if (layers > (restr?.camadas ?? 3)) continue;
     opts.push({ phi, n, As: n * Ab, layers });
   }
   opts.sort((p, q) => p.layers - q.layers || p.As - q.As || p.n - q.n);

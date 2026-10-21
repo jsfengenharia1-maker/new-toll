@@ -2,6 +2,7 @@
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
 import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
+import type { TabelasArmadura } from './tabelasArmadura';
 
 export const BUILDING_VERSION = 1;
 
@@ -146,6 +147,8 @@ export interface Pilar {
   cobrimento?: number;
   /** Armaduras editadas e bloqueadas por lance: o recálculo só as verifica. */
   armaduras?: ArmaduraPilar[];
+  /** Tabela de armadura (R7a); ausente = a padrão da obra. */
+  tabela?: string;
 }
 
 /** Armadura bloqueada de um lance de pilar (barras iguais no contorno; estribo). */
@@ -157,6 +160,9 @@ export interface ArmaduraPilar {
   /** Retangular: barras por face ao longo de b e de h (com os cantos). */
   nb?: number;
   nh?: number;
+  /** Faces opostas com outro número de barras (arranjo não simétrico): face superior (y+) e direita (x+); ausente = igual a nb e nh. */
+  nbS?: number;
+  nhD?: number;
   /** Circular: número de barras. */
   n?: number;
   estribo: { phi: number; s: number };
@@ -168,7 +174,8 @@ export interface ArmaduraPilar {
 export interface ArmaduraViga {
   inf: { n: number; phi: number };
   sup?: { n: number; phi: number };
-  estribo: { phi: number; s: number };
+  /** Estribo; `legs` = ramos (2 simples, 4 duplo, 6 triplo; ausente = 2). */
+  estribo: { phi: number; s: number; legs?: number };
   /** Barras longitudinais em cada face lateral (torção). */
   laterais?: { n: number; phi: number };
   /** Número de vãos quando foi bloqueada (se mudar, o bloqueio deixa de valer). */
@@ -207,6 +214,10 @@ export interface Viga {
   cobrimento?: number;
   /** Armadura editada e bloqueada: o recálculo só a verifica (área de aço, estribos e flecha). */
   armadura?: ArmaduraViga;
+  /** Tabela de barras longitudinais (R7a); ausente = a padrão da obra. */
+  tabela?: string;
+  /** Tabela de estribos (R7a); ausente = a padrão da obra. */
+  tabelaEstribo?: string;
 }
 
 export type TipoLaje =
@@ -232,6 +243,8 @@ export interface Laje {
   cobrimento?: number;
   /** Treliçadas: armadura adicional das vigotas editada e bloqueada (o recálculo só a verifica). */
   armaduraVigotas?: ArmaduraVigotas;
+  /** Tabela de armadura (R7a); ausente = a padrão da obra. */
+  tabela?: string;
 }
 
 /**
@@ -317,6 +330,8 @@ export interface BuildingModel {
   cargasPilar?: CargaPilar[];
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
   fundacao?: FundacaoEdificio;
+  /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */
+  tabelas?: TabelasArmadura;
 }
 
 // ---------------- fundações (frente FU) ----------------

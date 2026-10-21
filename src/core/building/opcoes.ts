@@ -60,6 +60,8 @@ export interface OpcoesCalculo {
   bitolaMontagem: number;
   /** 1 = continuidade nos pilares: abaixo do penúltimo lance, nenhum lance com menos armadura nem bitola menor que o de cima. */
   continuidadePilares: number;
+  /** Pilares: tolerância (%) para preferir a disposição simétrica à de menor armadura; 0 = menor armadura (pode ser não simétrica); 1000 = sempre simétrica. */
+  pilarSimetria: number;
   /** Comprimento máximo de barra dos pilares (m). */
   pilarBarraMaxima: number;
   /** União de lances curtos dos pilares: barras corridas sem emenda até este comprimento (m), se a armadura for idêntica. */
@@ -216,6 +218,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '2 barras superiores corridas (porta-estribos), contadas na armadura negativa onde existem; limitadas à bitola dos negativos.' },
   { chave: 'continuidadePilares', rotulo: 'Continuidade da armadura dos pilares', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: cada lance pelos seus esforços', fonte: 'Padrão do programa de referência (taxa e bitola de canto a partir do penúltimo pavimento)', aConfirmar: false,
     descricao: 'Último e penúltimo lances pelos seus esforços; daí para baixo, cada lance com armadura e bitola de canto não menores que as do lance de cima.' },
+  { chave: 'pilarSimetria', rotulo: 'Simetria da armadura dos pilares (tolerância)', unidade: '%', min: 0, max: 1000, passo: 5, padrao: 0, padraoNBR: 1000, fonteNBR: 'NBR 6118 não fixa: armadura simétrica nas faces opostas (comportamento anterior do app)', fonte: 'Programa de referência: armadura não simétrica por padrão (tolerância 0 %); decisão do usuário (20/10/2026)', aConfirmar: false,
+    descricao: 'Em cada bitola, a disposição de menor armadura pode ter faces opostas com números de barras diferentes. A disposição simétrica (as duas faces iguais) é preferida se sua armadura exceder a da melhor em até esta %. 0 = sempre a de menor armadura; 1000 = só simétricas. A disposição escolhida é verificada nos quatro quadrantes da flexão oblíqua.' },
   { chave: 'pilarBarraMaxima', rotulo: 'Comprimento máximo de barra dos pilares', unidade: 'm', min: 3, max: 12, passo: 0.5, padrao: 8, fonte: 'Padrão do programa de referência (8 m)', aConfirmar: false,
     descricao: 'Barra longitudinal de pilar mais longa que isto é emendada.' },
   { chave: 'pilarUniaoLances', rotulo: 'União de lances curtos dos pilares', unidade: 'm', min: 0, max: 8, passo: 0.5, padrao: 4, fonte: 'Padrão do programa de referência (4 m)', aConfirmar: false,

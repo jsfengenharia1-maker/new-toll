@@ -44,7 +44,7 @@ export function comandosBloquear(dim: DimEdificio, ids?: Set<string>): { cmds: C
     if (p.bloqueada) continue;
     const a = p.arranjo;
     if (!a || !p.pavimentoId) { ignorados++; continue; }
-    cmds.push({ nome: 'pilar.armadura', params: { id: p.pilar, pavimento: p.pavimentoId, phi: a.phi, ...(a.n !== undefined ? { n: a.n } : { nb: a.nb, nh: a.nh }), estribo: a.estribo } });
+    cmds.push({ nome: 'pilar.armadura', params: { id: p.pilar, pavimento: p.pavimentoId, phi: a.phi, ...(a.n !== undefined ? { n: a.n } : { nb: a.nb, nh: a.nh, ...(a.nbS !== undefined ? { nbS: a.nbS } : {}), ...(a.nhD !== undefined ? { nhD: a.nhD } : {}) }), estribo: a.estribo } });
   }
   return { cmds, ignorados };
 }
@@ -150,13 +150,14 @@ export function EditorArmaduraPilar({ p }: { p: ResultadoPilar }) {
   const circ = a?.n !== undefined;
   const [phi, setPhi] = useState(a ? phiMais(a.phi, BITOLAS_LONG) : 12.5);
   const [nb, setNb] = useState(a?.nb ?? 3), [nh, setNh] = useState(a?.nh ?? 3), [nc, setNc] = useState(a?.n ?? 8);
+  const [nbS, setNbS] = useState(a?.nbS ?? a?.nb ?? 3), [nhD, setNhD] = useState(a?.nhD ?? a?.nh ?? 3);
   const [est, setEst] = useState(a?.estribo ?? { phi: 5, s: 0.15 });
   if (!a || !p.pavimentoId) return null;
-  const nBarras = circ ? nc : 2 * nb + 2 * Math.max(0, nh - 2);
+  const nBarras = circ ? nc : nb + nbS + Math.max(0, nh - 2) + Math.max(0, nhD - 2);
   const As = nBarras * barArea(phi);
   const lim = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(x)));
   const invalido = est.s < 0.03 || est.s > 0.5;
-  const aplicar = () => executarERecalcular('pilar.armadura', { id: p.pilar, pavimento: p.pavimentoId, phi, ...(circ ? { n: nc } : { nb, nh }), estribo: est });
+  const aplicar = () => executarERecalcular('pilar.armadura', { id: p.pilar, pavimento: p.pavimentoId, phi, ...(circ ? { n: nc } : { nb, nh, ...(nbS !== nb ? { nbS } : {}), ...(nhD !== nh ? { nhD } : {}) }), estribo: est });
   return (
     <div data-editor-armadura="pilar">
       <h5>Armadura do lance {p.bloqueada && <Pill tone="warn" data-bloqueada>bloqueada</Pill>}</h5>
@@ -165,7 +166,7 @@ export function EditorArmaduraPilar({ p }: { p: ResultadoPilar }) {
         <Select label="Bitola longitudinal" value={phi} options={opts(BITOLAS_LONG)} onChange={setPhi} />
         {circ
           ? <NumField label="Nº de barras" width={120} value={nc} onChange={(q) => setNc(lim(q, 4, 40))} />
-          : <><NumField label="Barras ao longo de b" width={140} value={nb} onChange={(q) => setNb(lim(q, 2, 20))} /><NumField label="Barras ao longo de h" width={140} value={nh} onChange={(q) => setNh(lim(q, 2, 20))} /></>}
+          : <><NumField label="Barras na face inferior (b)" width={150} value={nb} onChange={(q) => { setNb(lim(q, 2, 20)); setNbS((v) => (v === nb ? lim(q, 2, 20) : v)); }} /><NumField label="Barras na face superior (b)" width={150} value={nbS} onChange={(q) => setNbS(lim(q, 2, 20))} /><NumField label="Barras na face esquerda (h)" width={150} value={nh} onChange={(q) => { setNh(lim(q, 2, 20)); setNhD((v) => (v === nh ? lim(q, 2, 20) : v)); }} /><NumField label="Barras na face direita (h)" width={150} value={nhD} onChange={(q) => setNhD(lim(q, 2, 20))} /></>}
         <span className="small" data-as>{nBarras} {phiTxt(phi)} · As efetiva {cm2(As)} cm²</span>
       </div>
       <div className="row wrap">

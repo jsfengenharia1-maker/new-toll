@@ -4,6 +4,7 @@ import './planta';
 import './vigas';
 import './lajes';
 import './armaduras';
+import './tabelas';
 import './fundacao';
 import './edicao';
 

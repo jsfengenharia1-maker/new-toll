@@ -10,16 +10,19 @@ import type { JsonSchema } from './schema';
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
 const BITOLA_L = [8, 10, 12.5, 16, 20, 25, 32], BITOLA_T = [5, 6.3, 8, 10, 12.5], BITOLA_VIGOTA = [6.3, 8, 10, 12.5];
 const barras = (bitolas: number[]): JsonSchema => ({ type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 40 }, phi: { type: 'number', enum: bitolas } } });
-const estribo: JsonSchema = { type: 'object', additionalProperties: false, required: ['phi', 's'], properties: { phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5, description: 'espaçamento (m)' } } };
+const estriboPilar: JsonSchema = { type: 'object', additionalProperties: false, required: ['phi', 's'], properties: { phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5, description: 'espaçamento (m)' } } };
+const estribo: JsonSchema = { type: 'object', additionalProperties: false, required: ['phi', 's'], properties: { phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5, description: 'espaçamento (m)' }, legs: { type: 'integer', enum: [2, 4, 6], description: 'ramos (padrão 2)' } } };
 
-registrar<{ id: string; pavimento: string; phi: number; nb?: number; nh?: number; n?: number; estribo: { phi: number; s: number } }>({
+registrar<{ id: string; pavimento: string; phi: number; nb?: number; nh?: number; nbS?: number; nhD?: number; n?: number; estribo: { phi: number; s: number } }>({
   nome: 'pilar.armadura',
   descricao: 'Edita e bloqueia a armadura de um lance de pilar: bitola longitudinal `phi` (mm), barras por face ao longo de b (`nb`) e de h (`nh`), com os cantos, ou `n` barras no pilar circular, e o estribo { phi (mm), s (m) }. O recálculo verifica essa armadura (verificação completa) sem redimensioná-la.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento', 'phi', 'estribo'], properties: {
     id: { type: 'string' }, pavimento: { type: 'string', description: 'lance (pavimento do topo)' }, phi: { type: 'number', enum: BITOLA_L },
-    nb: { type: 'integer', minimum: 2, maximum: 20 }, nh: { type: 'integer', minimum: 2, maximum: 20 }, n: { type: 'integer', minimum: 4, maximum: 40 }, estribo,
+    nb: { type: 'integer', minimum: 2, maximum: 20 }, nh: { type: 'integer', minimum: 2, maximum: 20 }, n: { type: 'integer', minimum: 4, maximum: 40 }, estribo: estriboPilar,
+    nbS: { type: 'integer', minimum: 2, maximum: 20, description: 'face superior (y+) com outro número de barras (arranjo não simétrico); padrão = nb' },
+    nhD: { type: 'integer', minimum: 2, maximum: 20, description: 'face direita (x+) com outro número de barras; padrão = nh' },
   } },
   validar(b, p) {
     const pil = b.pilares.find((x) => x.id === p.id);
@@ -33,12 +36,12 @@ registrar<{ id: string; pavimento: string; phi: number; nb?: number; nh?: number
     const q = d.pilares.find((x) => x.id === p.id)!;
     const lances = lancesDoPilar(d as BuildingModel, q as Pilar).length;
     q.armaduras = (q.armaduras ?? []).filter((x) => x.pavimento !== p.pavimento);
-    q.armaduras.push({ pavimento: p.pavimento, phi: p.phi, ...(p.n !== undefined ? { n: p.n } : { nb: p.nb, nh: p.nh }), estribo: { ...p.estribo }, lances });
+    q.armaduras.push({ pavimento: p.pavimento, phi: p.phi, ...(p.n !== undefined ? { n: p.n } : { nb: p.nb, nh: p.nh, ...(p.nbS !== undefined && p.nbS !== p.nb ? { nbS: p.nbS } : {}), ...(p.nhD !== undefined && p.nhD !== p.nh ? { nhD: p.nhD } : {}) }), estribo: { ...p.estribo }, lances });
     return `Armadura de ${q.nome} (lance ${p.pavimento}) editada e bloqueada.`;
   },
 });
 
-registrar<{ id: string; inf: { n: number; phi: number }; sup?: { n: number; phi: number }; estribo: { phi: number; s: number }; laterais?: { n: number; phi: number } }>({
+registrar<{ id: string; inf: { n: number; phi: number }; sup?: { n: number; phi: number }; estribo: { phi: number; s: number; legs?: number }; laterais?: { n: number; phi: number } }>({
   nome: 'viga.armadura',
   descricao: 'Edita e bloqueia a armadura de uma viga (todos os vãos e pavimentos do grupo): inferior e superior { n, phi (mm) }, estribo { phi (mm), s (m) } e barras laterais por face { n, phi }. O recálculo só verifica a área de aço, os estribos e a flecha.',
   risco: 'escrita',
