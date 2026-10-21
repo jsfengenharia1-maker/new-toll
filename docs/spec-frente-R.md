@@ -141,7 +141,7 @@ Itens: K1.4.75, K1.4.76, K1.9.86, K1.9.88, K1.9.102, K1.11.16, K1.13.2.1-1, K1.1
 - Testes: reforço descontado; base insuficiente aumentada; predefinida reduz o reforço só na faixa; quantitativo com e sem detalhar; regressão sem base; e2e `R7d`.
 - Premissas: base não detalhada por padrão (registro K1.4.76); catálogo de telas pelas designações da NBR 7481 (decisão do usuário, 20/10/2026); faixa de influência da predefinida = nº de barras × espaçamento [a confirmar]; redução de densidade desligada [a confirmar].
 
-### R7e — Edição, uniformização e linhas de dobra das lajes (18 itens)
+### R7e — Edição, uniformização e linhas de dobra das lajes (18 itens; concluída em 21/10/2026)
 
 Itens: C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134, C7.135; K1.4.77, K1.11.22, K1.11.25, K1.11.26, K1.13.2.4-12, K1.13.2.4-13, K1.13.2.4-14, K1.13.2.4-15, K1.13.2.4-16, K1.13.2.4-18.
 
@@ -153,6 +153,7 @@ Itens: C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134, C7.135; K1.4.77, K
 - Pranchas: siglas de reforço, emendas nas linhas de dobra, rótulos reposicionados.
 - Testes: uniformização igual ao máximo da zona; emenda na linha de dobra; edição bloqueada reprova quando insuficiente; refazer mantém zonas; geração sem cálculo apaga e recria; e2e `R7e`.
 - Premissas: emenda construtiva de 30 cm (registro K1.11.25); uniformização sobre pilares desligada e largura da faixa [a confirmar]; armadura média em lajes retangulares desligada [a confirmar].
+- **R7e feita em 21/10/2026 (núcleo e interface).** `src/core/building/lajesEdicao.ts` (`uniformizarLajes`, `posicoesDaZona`, `poligonoZona`, `convexosSeCruzam`, `maximosDe`, `igualarPosicoes`, `cruzamentosDaBarra`, `aplicarEdicoes`, `siglaReforco`, `zonasDosPilares`), `BuildingModel.zonasLaje/linhasDobra`, `Laje.edicao/semCalculo`, `ConfigPrancha.rotulos`; comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras` (editar, conjunto, agrupar, desagrupar, emendar, reverter, refazer), `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`; sem o `calculo: 'detalhe'`, que fica para a R7f, os de armadura refazem a análise); opções `lajeEmendaConstrutiva` (30 cm), `lajeUniformizarPilares` (0), `lajeUniformizarPilaresLargura` (100 cm), `lajeArmaduraMedia` (0), `lajeSiglaReforco` (1) e `lajeNumeracao` (0), todas iguais no perfil NBR; códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA (a edição reprovada usa ARM_BLOQ e a desconsiderada BLOQ_IGNORADO); interface `EdicaoLajes.tsx` (painel não modal sob a planta, tabela de posições, conjunto da tabela, igualar, agrupar, emendar, zonas e linhas de dobra, geração com confirmação, rótulos das pranchas), ferramentas `zonaLaje` e `linhaDobra`, camada `ambas`; memorial, pranchas e premissa `lajes-edicao`. Testes `detalhamentoLajesEdicao.test.ts` e e2e `R7e`. A confirmar: faixa de 100 cm junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° das zonas, folga de um espaçamento na faixa coberta, numeração por face e tipo. Fora: arrastar o rótulo na prévia e tecla de atalho das ferramentas novas.
 
 ### R7f — Cópia, agrupamento e rearmar só o alterado (19 itens)
 

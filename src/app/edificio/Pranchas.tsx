@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { Button, Check, download, Group, Hint, NumField, Select, TextField } from '../ui';
 import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
 import { siglaDe } from '../../core/sheets/prancha';
+import { RotulosLajes } from './EdicaoLajes';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
 import { ARQUIVO_LOGO, base64Bytes, LIMITE_LOGO } from '../../core/sheets/logo';
@@ -230,6 +231,11 @@ export function Pranchas() {
           Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
         </Hint>
       </Group>
+      {!!dim?.detalhesLajes?.length && (
+        <Group title="Rótulos das barras das lajes" open={false}>
+          <RotulosLajes />
+        </Group>
+      )}
       {!!dim?.vigasFundacao?.length && (
         <Group title="Ancoragem das vigas de fundação" open={false}>
           <table className="design data" data-ancoragem-vf>

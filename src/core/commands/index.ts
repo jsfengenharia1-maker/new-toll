@@ -5,6 +5,7 @@ import './vigas';
 import './lajes';
 import './acoes';
 import './armaduras';
+import './armadurasLajes';
 import './tabelas';
 import './fundacao';
 import './baseElastica';

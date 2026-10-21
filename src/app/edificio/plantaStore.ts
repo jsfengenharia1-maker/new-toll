@@ -5,13 +5,15 @@ import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
 /** Parâmetros que levam a planta ao nível de fundação ao escolher a ferramenta (e limpam a seleção, salvo as que a usam). */
 export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao: Set<string> }> =>
   !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };
+/** Faces da camada de armadura das lajes na planta. */
+export const facesLaje = (v: 'nenhuma' | 'inf' | 'sup' | 'ambas'): ('inf' | 'sup')[] => (v === 'ambas' ? ['inf', 'sup'] : v === 'nenhuma' ? [] : [v]);
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -28,7 +30,14 @@ interface PState {
   /** Mostra em vermelho/amarelo os elementos com erro/aviso da revisão do dimensionamento. */
   mostrarErros: boolean;
   /** Camada de armadura das lajes na planta: barras representativas inferiores, superiores ou nenhuma (não vai para o arquivo). */
-  armaduraLajes: 'nenhuma' | 'inf' | 'sup';
+  armaduraLajes: 'nenhuma' | 'inf' | 'sup' | 'ambas';
+  /** Painel de edição da armadura das lajes (R7e): aberto sob a planta, não modal (não vai para o arquivo). */
+  painelLajes: boolean;
+  /** Ferramentas Zona de uniformização e Linha de dobra (R7e): forma, face, direção das barras (null = qualquer) e largura da faixa da linha (m). */
+  zonaForma: 'linha' | 'retangulo';
+  zonaFace: 'inf' | 'sup';
+  zonaAngulo: number | null;
+  zonaLargura: number;
   /** O que mostrar na elevação do detalhamento das vigas (R7b; não vai para o arquivo). */
   detMostrar: { inf: boolean; sup: boolean; pele: boolean; estribos: boolean; secao: boolean };
   /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
@@ -110,6 +119,11 @@ export const usePlanta = create<PState>((set) => ({
   tema: temaSalvo(),
   mostrarErros: true,
   armaduraLajes: 'nenhuma',
+  painelLajes: false,
+  zonaForma: 'linha',
+  zonaFace: 'sup',
+  zonaAngulo: null,
+  zonaLargura: 0.5,
   detMostrar: { inf: true, sup: true, pele: true, estribos: true, secao: true },
   vigotasTodas: false,
   camadaPuncao: false,

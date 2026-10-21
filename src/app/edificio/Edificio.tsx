@@ -31,6 +31,7 @@ import { EmpuxoGrupo } from './Empuxo';
 import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote, executarERecalcular } from './Armadura';
 import { FundacaoGrupo } from './Fundacao';
+import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
@@ -150,7 +151,7 @@ export function Edificio() {
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
           ))}
         </div>
-        {aba === 'planta' && <><PlantaBarra b={b} /><Planta /></>}
+        {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
         {aba !== 'planta' && aba !== 'vista3d' && (
           <div className="edif-out">
@@ -348,9 +349,14 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
       <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro" value={pl.camadaPuncao ? 'puncao' : pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length && !dim?.vigotas?.length && !dim?.puncao?.length}
-        onChange={(e) => { const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'puncao'; pl.set(v === 'puncao' ? { camadaPuncao: true, armaduraLajes: 'nenhuma' } : { camadaPuncao: false, armaduraLajes: v }); }}>
-        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
+      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
+        onChange={(e) => {
+          const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
+          if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
+          else if (v === 'editar') pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes });
+          else pl.set({ camadaPuncao: false, painelLajes: false, armaduraLajes: v });
+        }}>
+        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
         {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
       </select>
       {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
