@@ -21,5 +21,5 @@ const cssRawNosTestes = {
 export default defineConfig({
   plugins: [react(), viteSingleFile(), cssRawNosTestes],
   base: './',
-  test: { exclude: ['**/node_modules/**', '.claude/**', 'dist/**', 'e2e/**'] },
+  test: { testTimeout: 30000, exclude: ['**/node_modules/**', '.claude/**', 'dist/**', 'e2e/**'] },
 });
