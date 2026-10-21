@@ -1,9 +1,11 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import { base64Bytes, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import type { Draft } from 'immer';
-import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
+import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
+import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
 import { OPCOES_INFO, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
+import { gamaCDoControle } from '../building/acoes';
 import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -42,10 +44,13 @@ registrar<{ nome?: string; cidade?: string; profundidadeFundacao?: number }>({
   },
 });
 
+const curvaSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['param', 'pontos'], properties: { param: { type: 'number', exclusiveMinimum: 0, description: 'h/l1 da curva' }, pontos: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, description: '[[l1/l2, Ca], …] com l1/l2 crescente' } } };
+
 registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: CategoriaVento; caX?: number; caY?: number; excentricidade?: number;
-  sentido?: Partial<{ xp: number; xn: number; yp: number; yn: number }>; vizinhanca?: number; platibanda?: number }>({
+  sentido?: Partial<{ xp: number; xn: number; yp: number; yn: number }>; vizinhanca?: number; platibanda?: number;
+  caAuto?: 0 | 1 | 2; vizAuto?: boolean; vizDist?: number; abacos?: { caBaixa?: CurvaAbaco[]; caAlta?: CurvaAbaco[]; vizinhanca?: [number, number][] } }>({
   nome: 'vento.definir',
-  descricao: 'Define o vento (NBR 6123): ativo, V0 (m/s), S1, S3, categoria de rugosidade (I a V), coeficientes de arrasto Ca nas direções X e Y, excentricidade relativa (0,075 = edificação comum), coeficiente por sentido (+X, −X, +Y, −Y; edifício abrigado por vizinho; 1 = padrão), fator de vizinhança (NBR 6123, 6.4) e altura da platibanda (m, somada à faixa do último pavimento). Gera 12 casos: 4 direções × (centrado, +e, −e).',
+  descricao: 'Define o vento (NBR 6123): ativo, V0 (m/s), S1, S3, categoria de rugosidade (I a V), coeficientes de arrasto Ca nas direções X e Y, excentricidade relativa (0,075 = edificação comum), coeficiente por sentido (+X, −X, +Y, −Y; edifício abrigado por vizinho; 1 = padrão), fator de vizinhança (NBR 6123, 6.4) e altura da platibanda (m, somada à faixa do último pavimento). Gera 12 casos: 4 direções × (centrado, +e, −e). Ábacos (N2a): `abacos` guarda as tabelas de pontos digitadas das figuras da NBR 6123 (caBaixa e caAlta: curvas por h/l1 com pontos [l1/l2, Ca]; vizinhanca: pontos [d/l1, fator]; lista vazia limpa); `caAuto` 1 ou 2 usa o Ca do ábaco de baixa ou alta turbulência e `vizAuto` o fator de vizinhança do ábaco com a distância `vizDist` (m) ao vizinho — só com a tabela preenchida; o programa não traz os pontos das figuras (a confirmar com o usuário).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, properties: {
     ativo: { type: 'boolean' }, v0: { type: 'number', minimum: 20, maximum: 60, description: 'm/s (isopletas)' },
@@ -55,9 +60,32 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
     excentricidade: { type: 'number', minimum: 0, maximum: 0.3 },
     sentido: { type: 'object', additionalProperties: false, properties: Object.fromEntries(['xp', 'xn', 'yp', 'yn'].map((k) => [k, { type: 'number', minimum: 0, maximum: 2 }])) },
     vizinhanca: { type: 'number', minimum: 1, maximum: 1.3 }, platibanda: { type: 'number', minimum: 0, maximum: 5 },
+    caAuto: { type: 'integer', enum: [0, 1, 2], description: '0 = Ca informado; 1 = ábaco de baixa turbulência; 2 = alta turbulência' }, vizAuto: { type: 'boolean' }, vizDist: { type: 'number', exclusiveMinimum: 0, description: 'm' },
+    abacos: { type: 'object', additionalProperties: false, properties: { caBaixa: { type: 'array', items: curvaSchema }, caAlta: { type: 'array', items: curvaSchema }, vizinhanca: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } } } },
   } },
+  validar(b, p) {
+    const merged: AbacosVento = { ...(b.vento?.abacos ?? {}), ...(p.abacos ?? {}) };
+    const erros = p.abacos ? validarAbacos(merged) : [];
+    if (erros.length) return err('ABACO_INVALIDO', erros[0]);
+    const ca = p.caAuto ?? 0; // o modo já gravado volta ao informado se a tabela for esvaziada (aplicar)
+    if (ca && !abacoCaPreenchido(merged, ca === 1 ? 1 : 2)) return err('ABACO_VAZIO', `A tabela do Ca (${ca === 1 ? 'baixa' : 'alta'} turbulência) está vazia: digite os pontos da figura da norma antes de usar o Ca automático.`);
+    const va = p.vizAuto ?? false;
+    if (va && !abacoVizPreenchido(merged)) return err('ABACO_VAZIO', 'A tabela do fator de vizinhança está vazia: digite os pontos antes de usar o fator automático.');
+    return [];
+  },
   aplicar(d, p) {
     d.vento ??= { ...VENTO_PADRAO };
+    if (p.abacos) {
+      const a = { ...(d.vento.abacos ?? {}) };
+      for (const k of ['caBaixa', 'caAlta', 'vizinhanca'] as const) if (p.abacos[k] !== undefined) { if (p.abacos[k]!.length) (a as Record<string, unknown>)[k] = p.abacos[k]; else delete a[k]; }
+      if (Object.keys(a).length) d.vento.abacos = a; else delete d.vento.abacos;
+      // tabela esvaziada: o modo automático correspondente volta ao informado
+      if (d.vento.caAuto && !abacoCaPreenchido(d.vento.abacos, d.vento.caAuto === 1 ? 1 : 2)) delete d.vento.caAuto;
+      if (d.vento.vizAuto && !abacoVizPreenchido(d.vento.abacos)) delete d.vento.vizAuto;
+    }
+    if (p.caAuto !== undefined) { if (p.caAuto) d.vento.caAuto = p.caAuto; else delete d.vento.caAuto; }
+    if (p.vizAuto !== undefined) { if (p.vizAuto) d.vento.vizAuto = true; else delete d.vento.vizAuto; }
+    if (p.vizDist !== undefined) d.vento.vizDist = p.vizDist;
     for (const k of ['ativo', 'v0', 's1', 's3', 'categoria', 'caX', 'caY', 'excentricidade'] as const) if (p[k] !== undefined) (d.vento as Record<string, unknown>)[k] = p[k];
     if (p.sentido) { const s0 = { ...d.vento.sentido, ...p.sentido }; for (const k of ['xp', 'xn', 'yp', 'yn'] as const) if (s0[k] === 1) delete s0[k]; if (Object.keys(s0).length) d.vento.sentido = s0; else delete d.vento.sentido; }
     if (p.vizinhanca !== undefined) { if (p.vizinhanca === 1) delete d.vento.vizinhanca; else d.vento.vizinhanca = p.vizinhanca; }
@@ -145,7 +173,7 @@ registrar<{ valores?: Partial<OpcoesCalculo>; padrao?: (keyof OpcoesCalculo)[] |
 });
 
 type Elem = 'laje' | 'viga' | 'pilar' | 'fundacao';
-registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: string; fck: number }[]; aco?: Partial<Record<PosicaoAco, Norma['aco']>>; gamas?: Partial<{ c: number; s: number; g: number; q: number }>; cobFaces?: NonNullable<Norma['cobFaces']>; cobFundacao?: number; padrao?: boolean }>({
+registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: string; fck: number }[]; aco?: Partial<Record<PosicaoAco, Norma['aco']>>; gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>; cobFaces?: NonNullable<Norma['cobFaces']>; cobFundacao?: number; padrao?: boolean }>({
   nome: 'materiais.definir',
   descricao: 'Materiais e segurança por elemento (padrão: o da obra e a NBR 6118): fck por tipo (laje, viga, pilar, fundacao = sapatas e blocos, MPa) e dos pilares por lance (fckPilarPav; fck 0 volta ao do tipo), aço por posição (pilarLong, pilarEstribo, vigaPos, vigaNeg, vigaEstribo, lajeInf, lajeSup, fundacao), γc, γs, γg, γq, cobrimentos por face (vigaInf, vigaSup, vigaLat, lajeInf, lajeSup, cm; 0 volta ao do tipo) e cobrimento das fundações (cobFundacao, cm; 0 volta ao padrão de 5 cm). "padrao": true volta tudo ao padrão.',
   risco: 'escrita',
@@ -154,7 +182,7 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
     fck: { type: 'object', additionalProperties: false, properties: { laje: { type: 'number', minimum: 20, maximum: 90 }, viga: { type: 'number', minimum: 20, maximum: 90 }, pilar: { type: 'number', minimum: 20, maximum: 90 }, fundacao: { type: 'number', minimum: 20, maximum: 90 } } },
     fckPilarPav: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pavimento', 'fck'], properties: { pavimento: { type: 'string' }, fck: { type: 'number', minimum: 0, maximum: 90 } } } },
     aco: { type: 'object', additionalProperties: false, properties: Object.fromEntries(POSICOES_ACO.map((x) => [x.k, { type: 'string', enum: ['CA-50', 'CA-60'], description: x.rotulo }])) },
-    gamas: { type: 'object', additionalProperties: false, properties: { c: { type: 'number', minimum: 1, maximum: 2 }, s: { type: 'number', minimum: 1, maximum: 1.5 }, g: { type: 'number', minimum: 1, maximum: 2 }, q: { type: 'number', minimum: 1, maximum: 2 } } },
+    gamas: { type: 'object', additionalProperties: false, properties: { c: { type: 'number', minimum: 1, maximum: 2 }, s: { type: 'number', minimum: 1, maximum: 1.5 }, g: { type: 'number', minimum: 1, maximum: 2 }, q: { type: 'number', minimum: 1, maximum: 2 }, h: { type: 'number', minimum: 1, maximum: 2, description: 'empuxo de terra (caso H)' } } },
     cobFaces: { type: 'object', additionalProperties: false, properties: Object.fromEntries(['vigaInf', 'vigaSup', 'vigaLat', 'lajeInf', 'lajeSup'].map((k) => [k, { type: 'number', minimum: 0, maximum: 10 }])) },
     cobFundacao: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento de sapatas, blocos e tubulões (cm); 0 = padrão (5 cm)' },
     padrao: { type: 'boolean' },
@@ -170,7 +198,7 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
     if (p.fck) { n.fckElem ??= {}; for (const k of ['laje', 'viga', 'pilar', 'fundacao'] as const) { const v = p.fck[k]; if (v === undefined) continue; if (v === n.fck) delete n.fckElem[k]; else n.fckElem[k] = v; } }
     for (const x of p.fckPilarPav ?? []) { n.fckPilarPav = (n.fckPilarPav ?? []).filter((y) => y.pavimento !== x.pavimento); if (x.fck) n.fckPilarPav.push({ ...x }); }
     if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) { const v = p.aco[x.k]; if (!v) continue; if (v === n.aco) delete n.acoPos[x.k]; else n.acoPos[x.k] = v; } }
-    if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === GAMAS_PADRAO[k]) delete n.gamas[k]; else n.gamas[k] = v; } }
+    if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q', 'h'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === (k === 'c' ? gamaCDoControle(n.controle) : GAMAS_PADRAO[k])) delete n.gamas[k]; else n.gamas[k] = v; } }
     if (p.cobFaces) { n.cobFaces ??= {}; for (const [k, v] of Object.entries(p.cobFaces) as [keyof NonNullable<Norma['cobFaces']>, number][]) { if (!v) delete n.cobFaces[k]; else n.cobFaces[k] = v; } }
     if (p.cobFundacao !== undefined) { if (p.cobFundacao) n.cobFundacao = p.cobFundacao; else delete n.cobFundacao; }
     // valores antigos nas opções das fundações (antes dos materiais da fundação) deixam de valer
@@ -184,9 +212,9 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
   },
 });
 
-registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento']; psiQ?: [number, number, number]; psiUso?: Norma['psiUso'] }>({
+registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: Norma['cobrimento']; psiQ?: [number, number, number]; psiUso?: Norma['psiUso']; controle?: ControleExecucao }>({
   nome: 'norma.definir',
-  descricao: 'Define fck, aço, classe de agressividade ambiental, cobrimentos e ψ da carga de uso (NBR 6118). Ao mudar a CAA sem informar cobrimentos, aplica os da Tabela 7.2.',
+  descricao: 'Define fck, aço, classe de agressividade ambiental, cobrimentos, ψ da carga de uso e o nível de controle de execução (NBR 6118): normal (γc 1,4), desfavoravel (γc × 1,1) ou premoldado (γc 1,3, NBR 9062); o controle fixa o γc padrão, que segue editável em materiais.definir. Ao mudar a CAA sem informar cobrimentos, aplica os da Tabela 7.2.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, properties: {
     fck: { type: 'number', minimum: 20, maximum: 90, description: 'MPa' },
@@ -195,6 +223,7 @@ registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: N
     cobrimento: { type: 'object', additionalProperties: false, required: ['laje', 'viga', 'pilar'], properties: {
       laje: { type: 'number', minimum: 1 }, viga: { type: 'number', minimum: 1 }, pilar: { type: 'number', minimum: 1 },
     }, description: 'cm' },
+    controle: { type: 'string', enum: ['normal', 'desfavoravel', 'premoldado'], description: 'Controle de execução: fixa o γc padrão (1,4 / 1,54 / 1,3)' },
     psiQ: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3, description: 'ψ0, ψ1, ψ2 da carga de uso (residencial 0,5/0,4/0,3; escritórios 0,7/0,6/0,4)' },
     psiUso: { type: 'object', additionalProperties: false, properties: {
       B: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3 },
@@ -202,6 +231,7 @@ registrar<{ fck?: number; aco?: Norma['aco']; caa?: Norma['caa']; cobrimento?: N
     }, description: 'ψ0, ψ1, ψ2 das classes de uso com caso próprio: B escritórios (padrão 0,7/0,6/0,4), C garagens (0,8/0,7/0,6)' },
   } },
   aplicar(d, p) {
+    if (p.controle) { if (p.controle === 'normal') delete d.norma.controle; else d.norma.controle = p.controle; }
     if (p.psiQ) d.norma.psiQ = [...p.psiQ];
     if (p.psiUso) d.norma.psiUso = { ...d.norma.psiUso, ...p.psiUso };
     if (p.fck !== undefined) d.norma.fck = p.fck;

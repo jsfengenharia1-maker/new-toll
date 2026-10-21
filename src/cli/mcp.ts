@@ -200,6 +200,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
     ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao, ...(d.fundacoes?.length ? { fundacoes: fprob(d.fundacoes) } : {}), ...vigasF() } : {}),
     combinacoes: d.combinacoes,
+    // N2a: tombamento (EQU) por direção do vento e avisos das ações/combinações do usuário
+    ...(d.equilibrio?.length ? { equilibrio: d.equilibrio.map((e) => ({ direcao: e.direcao, FS: Number.isFinite(e.FS) ? +e.FS.toFixed(2) : null, atende: e.ok })) } : {}),
+    ...(d.avisosAcoes?.length ? { avisosAcoes: d.avisosAcoes } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
@@ -220,6 +223,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, avisosFundacao: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

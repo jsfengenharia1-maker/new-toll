@@ -1,6 +1,7 @@
 // Materiais, coeficientes de segurança, cobrimentos e flambagem do edifício (frente N1b).
 // Padrão pela NBR 6118; cada valor é editável na obra (norma.*) e, onde o manual de referência permite, por elemento.
 import { concrete, type Concrete } from '../concrete';
+import { gamaCDoControle } from './acoes';
 import { cotaFundacao, pavimentosOrdenados, secaoNoLance, dimsSecao, type BuildingModel, type Norma, type Pilar } from './types';
 import { vigaTocaPilar } from './vigas';
 import { dentroPoligono } from '../geom/faces';
@@ -18,8 +19,9 @@ export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
 ];
 
 /** γ padrão (NBR 6118, Tabelas 11.1 e 12.1, combinações normais). */
-export const GAMAS_PADRAO = { c: 1.4, s: 1.15, g: 1.4, q: 1.4 };
-export const gamas = (b: BuildingModel) => ({ ...GAMAS_PADRAO, ...b.norma.gamas });
+export const GAMAS_PADRAO = { c: 1.4, s: 1.15, g: 1.4, q: 1.4, h: 1.4 };
+/** γ em uso: o padrão (γc pelo nível de controle de execução; h = empuxo de terra) e o que a obra alterou. */
+export const gamas = (b: BuildingModel) => ({ ...GAMAS_PADRAO, c: gamaCDoControle(b.norma.controle), ...b.norma.gamas });
 
 /**
  * fck (MPa) do tipo de elemento; nos pilares, o do lance que chega ao pavimento quando informado. Fundação: o dos

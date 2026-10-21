@@ -3,12 +3,12 @@
 // de maior N, como as cargas enviadas a Fundações) e de cálculo (ELU de maior Nd), em kN e kN·m, e notas gerais
 // do modelo (concreto, aço, cobrimentos, CAA, γ, normas).
 import type { AnaliseEdificio } from '../building/analitico';
-import { combinacoesEdificio, type CombinacaoEd } from '../building/combinacoes';
+import { combinacoesDoEstado, type CombinacaoEd } from '../building/combinacoes';
 import { cargasParaFundacao } from '../building/dimensionamento';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from '../building/materiais';
 
 const ROTULO = { laje: 'lajes', viga: 'vigas', pilar: 'pilares', fundacao: 'fundações' } as const;
-import { contornoPilar, lancesDoPilar, type BuildingModel, type SecaoPilar } from '../building/types';
+import { casosDaObra, contornoPilar, lancesDoPilar, USOS, type BuildingModel, type SecaoPilar } from '../building/types';
 import { caixa, eixosECotas, type P, type Prancha, type Prim } from './prancha';
 import { montarFolha, nf, notas, ordemNome, plantaNaFolha, type BlocoTabela } from './armacao';
 import type { OpcoesArmacao } from './armacaoVigas';
@@ -26,7 +26,7 @@ export interface CargaPilarPrancha {
 /** Cargas por pilar na fundação: características (rara) e de cálculo (ELU). */
 export function cargasDosPilares(b: BuildingModel, an: AnaliseEdificio): CargaPilarPrancha[] {
   const fk = new Map(cargasParaFundacao(b, an).map((c) => [c.label, c]));
-  const elu = combinacoesEdificio(b, an).filter((c) => c.tipo === 'ELU');
+  const elu = combinacoesDoEstado(b, an, 'concreto');
   const porPilar = new Map<string, Record<string, AnaliseEdificio['fundacao'][number]>>();
   for (const f of an.fundacao) { const r = porPilar.get(f.pilar) ?? {}; r[f.caso] = f; porPilar.set(f.pilar, r); }
   const out: CargaPilarPrancha[] = [];
@@ -45,6 +45,20 @@ export function cargasDosPilares(b: BuildingModel, an: AnaliseEdificio): CargaPi
   return out;
 }
 
+/** Notas das cargas variáveis por uso (NBR 6120) e das categorias de uso como casos de carga (ψ da NBR 6118, Tabela 11.2). */
+function cargasVariaveisPorUso(b: BuildingModel): string[] {
+  const usados = b.grupos.filter((g) => b.pavimentos.some((p) => p.grupo === g.id));
+  const porUso = new Map<string, Set<number>>();
+  for (const g of usados) { const r = USOS.find((u) => u.v === g.uso)?.label.split(' (')[0] ?? g.uso; porUso.set(r, new Set([...(porUso.get(r) ?? []), g.q])); }
+  const f = (v: number) => nf(v);
+  const out: string[] = [];
+  if (porUso.size) out.push(`Cargas variáveis de uso (NBR 6120, kN/m²): ${[...porUso].map(([u, qs]) => `${u.toLowerCase()} ${[...qs].map(f).join('/')}`).join('; ')}.`);
+  const qs = casosDaObra(b).filter((c) => c.natureza === 'Q' && c.psi);
+  if (qs.length > 1) out.push(`Categorias de uso como casos de carga (ψ0/ψ1/ψ2, NBR 6118 Tabela 11.2): ${qs.map((c) => `${c.nome} ${c.psi!.map((x) => f(x)).join('/')}`).join('; ')}.`);
+  if ((b.casos ?? []).some((c) => c.natureza === 'H')) out.push('Empuxo de terra (caso H): permanente com γh próprio, tipos de empuxo no memorial.');
+  return out;
+}
+
 /** Notas gerais geradas do modelo (materiais, cobrimentos, CAA, γ e normas). */
 export function notasGerais(b: BuildingModel): string[] {
   const fund = !!b.fundacao?.elementos.length;
@@ -54,7 +68,8 @@ export function notasGerais(b: BuildingModel): string[] {
   return [
     `Concreto: ${fcks.join(', ')} (fck em MPa). Aço: ${acos.join(' e ')}.`,
     `Classe de agressividade ambiental ${b.norma.caa}; cobrimentos nominais: lajes ${nf(c.laje, 1)} cm, vigas ${nf(c.viga, 1)} cm, pilares ${nf(c.pilar, 1)} cm${fund ? `, fundações ${nf(cobrimentoFundacao(b) * 100, 1)} cm` : ''}.`,
-    `Coeficientes de ponderação: γc ${nf(g.c)}, γs ${nf(g.s)}, γg ${nf(g.g)}, γq ${nf(g.q)}.`,
+    `Coeficientes de ponderação: γc ${nf(g.c)}, γs ${nf(g.s)}, γg ${nf(g.g)}, γq ${nf(g.q)}${b.norma.controle && b.norma.controle !== 'normal' ? ` (controle de execução: ${b.norma.controle === 'desfavoravel' ? 'desfavorável' : 'pré-moldado'})` : ''}.`,
+    ...cargasVariaveisPorUso(b),
     'Normas: ABNT NBR 6118 (concreto), NBR 6120 (cargas), NBR 6123 (vento), NBR 8681 (ações e combinações).',
     'Cargas na fundação por pilar em kN e kN·m: característica = combinação rara de maior N (M e H da mesma); cálculo = ELU de maior Nd. Momentos e forças nos eixos globais.',
     'Medidas em cm; cotas pelos eixos e centros dos pilares do projeto.',

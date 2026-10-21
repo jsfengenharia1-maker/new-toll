@@ -6,7 +6,7 @@ import type { Boring, FoundationParams, PileType } from '../piles';
 export const BUILDING_VERSION = 1;
 
 /** Categorias de uso (NBR 6120:2019, Tabela 10) com a carga variável padrão em kN/m² [a confirmar]. */
-export type CategoriaUso = 'residencial' | 'servico' | 'comum' | 'escritorio' | 'garagem' | 'cobertura';
+export type CategoriaUso = 'residencial' | 'servico' | 'comum' | 'escritorio' | 'garagem' | 'cobertura' | 'misto';
 
 export interface Obra {
   nome: string;
@@ -31,13 +31,20 @@ export interface Norma {
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
   acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'fundacao', 'CA-50' | 'CA-60'>>;
-  /** Coeficientes de ponderação (padrão γc 1,4; γs 1,15; γg 1,4; γq 1,4). */
-  gamas?: Partial<{ c: number; s: number; g: number; q: number }>;
+  /** Coeficientes de ponderação (padrão γc 1,4 [pelo controle de execução]; γs 1,15; γg 1,4; γq 1,4; γh do empuxo 1,4). */
+  gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
   cobFaces?: Partial<{ vigaInf: number; vigaSup: number; vigaLat: number; lajeInf: number; lajeSup: number }>;
   /** Cobrimento das fundações (sapatas, blocos e tubulões; cm); ausente = o das opções das fundações (padrão 5 cm). */
   cobFundacao?: number;
+  /** Nível de controle de execução (N2a): fixa o γc padrão (normal 1,4; desfavorável × 1,1; pré-moldado 1,3); ausente = normal. */
+  controle?: ControleExecucao;
+  /** Natureza cujos casos adicionais NÃO se combinam entre si (todos ficam num grupo excludente); ausente = combinam. */
+  combinarAdicionais?: Partial<Record<Natureza, boolean>>;
 }
+
+/** Controle de execução (NBR 6118, 12.4.1; NBR 9062 para pré-moldados). */
+export type ControleExecucao = 'normal' | 'desfavoravel' | 'premoldado';
 
 export type CategoriaVento = 'I' | 'II' | 'III' | 'IV' | 'V';
 
@@ -59,7 +66,20 @@ export interface Vento {
   vizinhanca?: number;
   /** Altura da platibanda (m) somada à faixa de exposição do último pavimento; padrão 0. */
   platibanda?: number;
+  /** Tabelas de pontos dos ábacos da NBR 6123 (Ca, vizinhança), digitadas pelo usuário (N2a). */
+  abacos?: AbacosVento;
+  /** Ca pelo ábaco: 1 = vento de baixa turbulência (Fig. 4), 2 = alta turbulência (Fig. 5); ausente/0 = Ca informado. */
+  caAuto?: 0 | 1 | 2;
+  /** Fator de vizinhança pelo ábaco a partir da distância `vizDist`; ausente = informado. */
+  vizAuto?: boolean;
+  /** Distância (m) ao edifício vizinho, argumento do ábaco de vizinhança. */
+  vizDist?: number;
 }
+
+/** Curva de um ábaco: `param` (ex.: h/l1) e pontos [x, y] ordenados por x (ex.: l1/l2 → Ca). */
+export interface CurvaAbaco { param: number; pontos: [number, number][] }
+/** Ábacos da NBR 6123 digitados: Ca em baixa e alta turbulência (curvas por h/l1, abscissa l1/l2) e fator de vizinhança (d/l1 → fator). */
+export interface AbacosVento { caBaixa?: CurvaAbaco[]; caAlta?: CurvaAbaco[]; vizinhanca?: [number, number][] }
 
 export const VENTO_PADRAO: Vento = { ativo: true, v0: 35, s1: 1, s3: 1, categoria: 'IV', caX: 1.3, caY: 1.3, excentricidade: 0.075 };
 
@@ -246,8 +266,8 @@ export interface ArmaduraVigotas {
 export type CasoFisico = 'G' | 'Q';
 
 /** Carga lançada na planta de um grupo: ponto (kN), linha (kN/m) ou área (kN/m²). */
-/** Natureza do caso de carga: permanente, variável, vento (ação horizontal) ou excepcional. */
-export type Natureza = 'G' | 'Q' | 'W' | 'E';
+/** Natureza do caso de carga: permanente, variável, vento (ação horizontal), excepcional ou empuxo de terra (permanente com γ próprio). */
+export type Natureza = 'G' | 'Q' | 'W' | 'E' | 'H';
 
 /**
  * Caso de carga adicional (além de G e Q da obra). `grupo`: casos do mesmo grupo são incompatíveis (nunca juntos);
@@ -261,6 +281,67 @@ export interface CasoAdicional {
   simultaneo?: string;
   /** ψ0, ψ1, ψ2 (variáveis e vento). */
   psi?: [number, number, number];
+  /** Descrição livre (referência da hipótese). */
+  descricao?: string;
+  /** Caso-pai: este caso é um arranjo do pai (arranjos do mesmo pai são incompatíveis entre si; o pai deixa de combinar). */
+  pai?: string;
+  /** Tipo de empuxo (`BuildingModel.empuxos`) de um caso H. */
+  empuxo?: string;
+}
+
+/** Relação entre dois casos de carga: compatível, incompatível (nunca juntos) ou simultâneo (o primeiro segue o segundo). */
+export type RelacaoCasos = 'compativel' | 'incompativel' | 'simultaneo';
+/** Exceção à relação derivada de `grupo`/`simultaneo`/`pai` (tabela de compatibilidade editável). */
+export interface CompatCasos { a: string; b: string; relacao: RelacaoCasos }
+
+/** Estados-limite / grupos de combinações selecionáveis. */
+export type EstadoId = 'concreto' | 'fundacoes' | 'solo' | 'deslocamentos' | 'fissuracao' | 'flecha' | 'equilibrio';
+export interface EstadoConfig { ativo: boolean; modo: 'norma' | 'usuario' }
+/** Só o que difere do padrão (ver `ESTADOS_INFO`). */
+export type EstadosLimite = Partial<Record<EstadoId, Partial<EstadoConfig>>>;
+
+/** Situação (combinação) de projeto definida pelo usuário para um grupo de estados. */
+export interface SituacaoUsuario {
+  id: string;
+  nome: string;
+  estado: EstadoId;
+  /** Tipo da situação (informativo): normal, de construção/especial ou excepcional. */
+  situacao: 'normal' | 'especial' | 'excepcional';
+  /** 'fatores': fator final por caso; 'gamapsi': γ e ψ separados (fator = γ·ψ). */
+  modo: 'fatores' | 'gamapsi';
+  fatores: Record<string, number>;
+  gama?: Record<string, number>;
+  psi?: Record<string, number>;
+}
+
+/** Estrato do terreno de um tipo de empuxo. */
+export interface EstratoEmpuxo {
+  /** Espessura (m); o último estrato continua até a base. */
+  espessura: number;
+  /** Peso específico aparente (kN/m³) e submerso (kN/m³; ausente = aparente − 10). */
+  gama: number; gamaSub?: number;
+  /** Ângulo de atrito interno (graus). */
+  phi: number;
+}
+/** Tipo de empuxo de terra reutilizável (paredes de subsolo). */
+export interface TipoEmpuxo {
+  id: string;
+  nome: string;
+  /** repouso: K0 = 1 − sen φ; rankine/coulomb: empuxo ativo com talude `talude`. */
+  metodo: 'repouso' | 'rankine' | 'coulomb';
+  estratos: EstratoEmpuxo[];
+  /** Cota do topo do aterro (m, mesma referência das cotas dos pavimentos). */
+  cotaAterro: number;
+  /** Cota do nível d'água (m); ausente = sem água. */
+  nivelAgua?: number;
+  /** Inclinação do talude β (graus) e atrito solo-parede δ (graus, Coulomb). */
+  talude?: number; delta?: number;
+  /** Alívio da pressão de água por drenagem (%). */
+  alivio?: number;
+  /** Sobrecarga no terreno (kN/m²). */
+  sobrecarga?: number;
+  /** Coeficiente K informado (substitui o do método). */
+  k?: number;
 }
 
 /** Carga aplicada num lance de pilar (eixos globais): no topo ou a `altura` m acima da base do lance. */
@@ -313,6 +394,14 @@ export interface BuildingModel {
   perfilOpcoes?: 'nbr';
   /** Casos de carga adicionais. */
   casos?: CasoAdicional[];
+  /** Exceções da tabela de compatibilidade entre casos (N2a). */
+  compat?: CompatCasos[];
+  /** Estados-limite (grupos de combinações): só o que difere do padrão. */
+  estados?: EstadosLimite;
+  /** Situações de projeto do usuário. */
+  situacoes?: SituacaoUsuario[];
+  /** Tipos de empuxo de terra. */
+  empuxos?: TipoEmpuxo[];
   /** Cargas nos pilares. */
   cargasPilar?: CargaPilar[];
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
@@ -500,6 +589,7 @@ export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'escritorio', label: 'Escritórios', q: 2.5 },
   { v: 'garagem', label: 'Garagem (veículos leves)', q: 3.0 },
   { v: 'cobertura', label: 'Cobertura sem acesso (manutenção)', q: 1.0 },
+  { v: 'misto', label: 'Misto (sem carga variável geral; cargas por área em cada categoria)', q: 0 },
 ];
 
 export const qDoUso = (u: CategoriaUso) => USOS.find((x) => x.v === u)?.q ?? 1.5;
@@ -644,15 +734,19 @@ export const pavimentosDoGrupo = (b: BuildingModel, grupo: string) => pavimentos
  * C = garagens, bibliotecas, arquivos e oficinas. Enquadramento das categorias [a confirmar].
  */
 export type ClasseUso = 'A' | 'B' | 'C';
-export const CLASSE_DO_USO: Record<CategoriaUso, ClasseUso> = { residencial: 'A', servico: 'A', comum: 'A', cobertura: 'A', escritorio: 'B', garagem: 'C' };
+export const CLASSE_DO_USO: Record<CategoriaUso, ClasseUso> = { residencial: 'A', servico: 'A', comum: 'A', cobertura: 'A', misto: 'A', escritorio: 'B', garagem: 'C' };
 export const PSI_CLASSE: Record<ClasseUso, [number, number, number]> = { A: [0.5, 0.4, 0.3], B: [0.7, 0.6, 0.4], C: [0.8, 0.7, 0.6] };
 /** Caso de carga de cada classe (a classe A usa o caso Q da obra). */
 export const CASO_DA_CLASSE: Record<ClasseUso, { id: string; nome: string }> = { A: { id: 'Q', nome: 'Q' }, B: { id: 'QB', nome: 'Q escritórios (classe B)' }, C: { id: 'QC', nome: 'Q garagens (classe C)' } };
 
-/** Classes de uso B e C que viram casos próprios (grupos com pavimentos; opção `categoriasUso`). */
+/**
+ * Classes de uso B e C que viram casos próprios (opção `categoriasUso`): as dos grupos com pavimentos e as das cargas
+ * lançadas diretamente em QB/QC (grupo `misto`: cada carga de área na sua categoria).
+ */
 export function classesProprias(b: BuildingModel): ClasseUso[] {
   if (!opcoesEmUso(b.opcoes, b.perfilOpcoes ?? 'sistema').categoriasUso) return [];
-  const usados = new Set(b.pavimentos.map((p) => b.grupos.find((g) => g.id === p.grupo)).filter(Boolean).map((g) => CLASSE_DO_USO[g!.uso] ?? 'A'));
+  const usados = new Set<ClasseUso>(b.pavimentos.map((p) => b.grupos.find((g) => g.id === p.grupo)).filter(Boolean).map((g) => CLASSE_DO_USO[g!.uso] ?? 'A'));
+  for (const c of [...b.cargas, ...(b.cargasPilar ?? [])]) for (const cl of ['B', 'C'] as const) if (c.caso === CASO_DA_CLASSE[cl].id) usados.add(cl);
   return (['B', 'C'] as const).filter((c) => usados.has(c));
 }
 
@@ -662,8 +756,70 @@ export function casoUsoDoGrupo(b: BuildingModel, grupo: string): string {
   return cl !== 'A' && classesProprias(b).includes(cl) ? CASO_DA_CLASSE[cl].id : 'Q';
 }
 
-/** Casos de carga da obra: G e Q (padrão), Q das classes de uso B e C (casos próprios) + os adicionais. */
-export function casosDaObra(b: BuildingModel): { id: string; nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }[] {
+export interface CasoObra { id: string; nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number]; descricao?: string; pai?: string; empuxo?: string }
+
+/** Chave de um par de casos (sem ordem). */
+export const parDeCasos = (a: string, z: string) => (a < z ? `${a}\u0001${z}` : `${z}\u0001${a}`);
+
+/**
+ * Casos de carga da obra: G e Q (padrão), Q das classes de uso B e C (casos próprios) + os adicionais. Os campos
+ * `grupo` e `simultaneo` já são os efetivos: derivados de `grupo`, de `pai` (arranjos do mesmo pai são incompatíveis),
+ * da opção `combinarAdicionais` por natureza e das exceções da tabela de compatibilidade (`b.compat`); a
+ * incompatibilidade vale por componente (A incompatível com B e B com C: os três são excludentes). Casos-pai com
+ * arranjos não entram (só os arranjos têm carga).
+ */
+export function casosDaObra(b: BuildingModel): CasoObra[] {
   const usos = classesProprias(b).map((cl) => ({ ...CASO_DA_CLASSE[cl], natureza: 'Q' as const, psi: b.norma.psiUso?.[cl as 'B' | 'C'] ?? PSI_CLASSE[cl] }));
-  return [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...usos, ...(b.casos ?? [])];
+  const adic = b.casos ?? [];
+  if (!adic.length) return [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...usos];
+  const pais = new Set(adic.filter((c) => c.pai).map((c) => c.pai!));
+  const porId = new Map(adic.map((c) => [c.id, c]));
+  const casos: CasoObra[] = [{ id: 'G', nome: 'G', natureza: 'G' }, { id: 'Q', nome: 'Q', natureza: 'Q', psi: b.norma.psiQ ?? [0.5, 0.4, 0.3] }, ...usos,
+    ...adic.filter((c) => !pais.has(c.id)).map((c): CasoObra => {
+      const pai = c.pai ? porId.get(c.pai) : undefined;
+      return { ...c, ...(pai ? { natureza: pai.natureza, ...(c.psi ?? pai.psi ? { psi: c.psi ?? pai.psi } : {}) } : {}) };
+    })];
+  // pares incompatíveis: mesmo grupo explícito, arranjos do mesmo pai, natureza que não combina, exceções do usuário
+  const inc = new Set<string>(), sim = new Map<string, string>();
+  const todosPares = (ids: string[]) => { for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) inc.add(parDeCasos(ids[i], ids[j])); };
+  const porGrupo = new Map<string, string[]>();
+  for (const c of casos) {
+    if (c.grupo) porGrupo.set(c.grupo, [...(porGrupo.get(c.grupo) ?? []), c.id]);
+    if (c.pai) porGrupo.set(`arranjos:${c.pai}`, [...(porGrupo.get(`arranjos:${c.pai}`) ?? []), c.id]);
+    if (c.simultaneo) sim.set(c.id, c.simultaneo);
+  }
+  for (const ids of porGrupo.values()) todosPares(ids);
+  for (const [nat, comb] of Object.entries(b.norma.combinarAdicionais ?? {})) if (comb === false) todosPares(casos.filter((c) => adic.some((a) => a.id === c.id) && c.natureza === nat).map((c) => c.id));
+  for (const o of b.compat ?? []) {
+    const k = parDeCasos(o.a, o.b);
+    if (o.relacao === 'incompativel') { inc.add(k); if (sim.get(o.a) === o.b) sim.delete(o.a); if (sim.get(o.b) === o.a) sim.delete(o.b); }
+    else if (o.relacao === 'simultaneo') { inc.delete(k); if (sim.get(o.b) === o.a) sim.delete(o.b); sim.set(o.a, o.b); }
+    else { inc.delete(k); if (sim.get(o.a) === o.b) sim.delete(o.a); if (sim.get(o.b) === o.a) sim.delete(o.b); }
+  }
+  // componentes da incompatibilidade = grupos excludentes
+  const pai = new Map(casos.map((c) => [c.id, c.id]));
+  const raiz = (x: string): string => { while (pai.get(x) !== x) { pai.set(x, pai.get(pai.get(x)!)!); x = pai.get(x)!; } return x; };
+  for (const k of inc) { const [a, z] = k.split('\u0001'); if (pai.has(a) && pai.has(z)) pai.set(raiz(a), raiz(z)); }
+  const membros = new Map<string, CasoObra[]>();
+  for (const c of casos) membros.set(raiz(c.id), [...(membros.get(raiz(c.id)) ?? []), c]);
+  for (const ms of membros.values()) {
+    const pf = ms.find((c) => c.pai), rot = ms.length < 2 ? undefined : ms.some((c) => c.grupo === 'vento') ? 'vento' : ms.find((c) => c.grupo)?.grupo ?? (pf ? `arranjos de ${porId.get(pf.pai!)?.nome ?? pf.pai}` : `incomp. ${ms.map((c) => c.nome).join(' / ')}`);
+    for (const c of ms) { if (rot) c.grupo = rot; else delete c.grupo; }
+  }
+  for (const c of casos) { const s2 = sim.get(c.id); if (s2 && casos.some((x) => x.id === s2)) c.simultaneo = s2; else delete c.simultaneo; }
+  return casos;
+}
+
+/** Relação efetiva entre dois casos (a tabela de compatibilidade da interface). */
+export function relacaoEfetiva(casos: CasoObra[], a: string, z: string): RelacaoCasos {
+  const ca = casos.find((c) => c.id === a), cz = casos.find((c) => c.id === z);
+  if (ca?.simultaneo === z || cz?.simultaneo === a) return 'simultaneo';
+  return ca?.grupo && ca.grupo === cz?.grupo ? 'incompativel' : 'compativel';
+}
+
+/** Casos que uma carga pode usar: os da obra e, com a opção `categoriasUso`, QB e QC mesmo sem grupo dessa classe (cargas por área em grupo misto). */
+export function casosParaCarga(b: BuildingModel): { id: string; nome: string; natureza: Natureza }[] {
+  const base = casosDaObra(b).map((c) => ({ id: c.id, nome: c.nome, natureza: c.natureza }));
+  if (!opcoesEmUso(b.opcoes, b.perfilOpcoes ?? 'sistema').categoriasUso) return base;
+  return [...base, ...(['B', 'C'] as const).map((cl) => ({ ...CASO_DA_CLASSE[cl], natureza: 'Q' as const })).filter((c) => !base.some((x) => x.id === c.id))];
 }

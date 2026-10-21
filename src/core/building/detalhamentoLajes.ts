@@ -157,7 +157,7 @@ export function bordasDaLaje(b: BuildingModel, l: Laje): BordaLaje[] {
 /** Fatores mínimo e máximo de cada caso nas ELU (G: 1,0 a γg; Q: 0 a γq; os demais não entram na grelha). */
 function faixasELU(b: BuildingModel, an: AnaliseEdificio): [number, number][] {
   const obra = casosDaObra(b), gm = gamas(b);
-  return an.casos.map((id) => { const n = obra.find((c) => c.id === id)?.natureza ?? 'G'; return n === 'G' ? [1, gm.g] : n === 'Q' ? [0, gm.q] : [0, 0]; });
+  return an.casos.map((id) => { const n = obra.find((c) => c.id === id)?.natureza ?? 'G'; return n === 'G' ? [1, gm.g] : n === 'H' ? [1, gm.h] : n === 'Q' ? [0, gm.q] : [0, 0]; });
 }
 
 /**

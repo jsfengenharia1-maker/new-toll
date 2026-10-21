@@ -3,6 +3,7 @@ import './obra';
 import './planta';
 import './vigas';
 import './lajes';
+import './acoes';
 import './armaduras';
 import './fundacao';
 import './edicao';

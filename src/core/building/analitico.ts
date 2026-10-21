@@ -4,7 +4,7 @@
 import { resolver3, type Barra3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
-import { casosVento, type CasoVento, type Classe, type ZonaVento } from './vento';
+import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, gamas } from './materiais';
 import {
@@ -200,7 +200,7 @@ export interface AnaliseEdificio {
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
   fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
-  vento: { classe: Classe; altura: number; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[]; deslocamentos?: DeslocamentosVento[] } | null;
+  vento: { classe: Classe; altura: number; ca?: CoefVento; viz?: CoefVento; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[]; deslocamentos?: DeslocamentosVento[] } | null;
   /** Carga vertical característica por pavimento (kN), usada no γz. */
   cargasPavimento: Record<string, Record<CasoAnalise, number>>;
   /** Carga vertical total por caso (kN). */
@@ -323,9 +323,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           // cargas de área: grupo + regiões de carga que contêm o meio da barra
           const mid: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
           let g = areaG, q = areaQ;
-          for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else q += c.valor; }
+          const outros: Record<string, number> = {}; // cargas de área em casos próprios (QB, QC, adicionais e arranjos)
+          for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else if (c.caso === 'Q') q += c.valor; else outros[c.caso] = (outros[c.caso] ?? 0) + c.valor; }
           carregar('G', (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -g * w] }));
           carregar('Q', (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -q * w] }));
+          for (const [k, v] of Object.entries(outros)) carregar(k, (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -v * w] }));
         }
       }
       if (!mm.linhas.length) avisos.push(`${l.nome}: malha vazia.`);
@@ -337,9 +339,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         const larg = mm.pesoBorda[0][k] * sh[0] + mm.pesoBorda[1][k] * sh[1]; // m² de faixa por m de borda
         if (!larg) return;
         let g = areaG, q = areaQ;
-        for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else q += c.valor; }
+        const outros: Record<string, number> = {};
+        for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else if (c.caso === 'Q') q += c.valor; else outros[c.caso] = (outros[c.caso] ?? 0) + c.valor; }
         const ia = no(achar(e.a, false)), iz = no(achar(e.z, false));
-        for (const [cs, v] of [['G', g], ['Q', q]] as const) carregar(cs, (x) => { x.nodais.push({ no: ia, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }, { no: iz, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }); });
+        for (const [cs, v] of [['G', g], ['Q', q], ...Object.entries(outros)] as [string, number][]) carregar(cs, (x) => { x.nodais.push({ no: ia, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }, { no: iz, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }); });
         if (!sobreViga(mid)) {
           const w = Math.min(mm.sx, mm.sy) / 2, h = l.tipo.tipo === 'macica' ? l.tipo.h : l.tipo.capa, I = (w * h ** 3) / 12;
           m.barras.push({ i: ia, j: iz, E: El, G: Gl, A: w * h, Iz: I, Iy: I, J: op.torcaoLaje * 2 * I });
@@ -616,6 +619,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
 
   // ---- vento: forças nos mestres, pórtico com a área real dos pilares ----
   const ven = casosVento(b, (pav) => zonas[pav] ?? []);
+  avisos.push(...ven.avisos);
   let resVento: Resultado3 | null = null, vento: AnaliseEdificio['vento'] = null, casosW: Caso3[] = [];
   if (ven.casos.length) {
     casosW = ven.casos.map((cv) => ({
@@ -650,7 +654,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         if (!sw) continue;
         const d = (sg * sd) / sw, c = cargasPavimento[p.id];
         let G = 0, Q = 0, Qpsi = 0;
-        for (const k of casosOb) { const v = c[k.id] ?? 0; if (k.natureza === 'G') G += v; else if (k.natureza === 'Q') { Q += v; Qpsi += (k.id === 'Q' ? psi0 : k.psi?.[0] ?? psi0) * v; } }
+        for (const k of casosOb) { const v = c[k.id] ?? 0; if (k.natureza === 'G' || k.natureza === 'H') G += v; else if (k.natureza === 'Q') { Q += v; Qpsi += (k.id === 'Q' ? psi0 : k.psi?.[0] ?? psi0) * v; } }
         dV += (gm.g * G + gm.q * Qpsi) * d; dU += (gm.g * G + gm.q * Q) * d;
       }
       const gz = (r: number) => (r < 1 ? 1 / (1 - r) : Infinity);
@@ -684,7 +688,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     });
     for (const d of deslocamentos) if (!d.ok) avisos.push(`Deslocamento lateral do vento a ${d.direcao}° (frequente, ψ1 = 0,3) acima do limite: topo ${(d.topo * 1000).toFixed(1).replace('.', ',')} mm (H/${op.limiteDeslocTopo} = ${(d.limTopo * 1000).toFixed(1).replace('.', ',')} mm)${d.pavimentos.some((x) => x.drift > x.limDrift) ? '; entre pavimentos acima de hi/' + op.limiteDeslocPavimento : ''}.`);
     for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
-    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos };
+    vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz };
   }
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: pmV, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };

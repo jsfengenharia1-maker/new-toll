@@ -3,7 +3,8 @@
 // pede atenção (amarelo); informação (redistribuição aplicada, resumo das vigotas) fica só na linha do elemento.
 import type { AnaliseEdificio } from './analitico';
 import type { Dimensionamento } from './dimensionamento';
-import type { BuildingModel } from './types';
+import { estadoEmUso } from './acoes';
+import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
 export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra';
@@ -77,9 +78,14 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_IGUAL_MODELO', nivel: 'erro', re: /^Fundação igualada a /, descricao: 'Fundação igualada a um modelo inexistente ou sem solução' },
   { codigo: 'FUND_VIGA_CRUZA', nivel: 'aviso', re: /^Viga de fundação: .* cruza /, descricao: 'Viga de fundação apoiada em outra no cruzamento (apoio intermediário)' },
   // avisos da análise (obra)
+  { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
+  { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },
 ];
+
+/** Grupo de estados-limite de cada código: desativado em Estados-limite, o aviso deixa de entrar na revisão. */
+const ESTADO_DO_CODIGO: Record<string, EstadoId> = { FLECHA: 'flecha', FLECHA_Q: 'flecha', FISSURA: 'fissuracao', ARM_AUMENTADA: 'fissuracao', DESLOC: 'deslocamentos', EQU_TOMBAMENTO: 'equilibrio' };
 
 /** Código e nível de uma mensagem (sem regra conhecida: aviso genérico). */
 export function classificar(msg: string): { codigo: string; nivel: NivelRevisao | 'info' } {
@@ -91,7 +97,7 @@ export function classificar(msg: string): { codigo: string; nivel: NivelRevisao 
 export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento | null) {
   const itens: ItemRevisao[] = [];
   const add = (tipo: TipoRevisao, id: string | undefined, nome: string, pavimento: string | undefined, msgs: string[]) => {
-    for (const m of msgs) { const c = classificar(m); if (c.nivel !== 'info') itens.push({ tipo, id, nome, pavimento, nivel: c.nivel, codigo: c.codigo, mensagem: m }); }
+    for (const m of msgs) { const c = classificar(m); const est = ESTADO_DO_CODIGO[c.codigo]; if (est && !estadoEmUso(b, est).ativo) continue; if (c.nivel !== 'info') itens.push({ tipo, id, nome, pavimento, nivel: c.nivel, codigo: c.codigo, mensagem: m }); }
   };
   for (const a of an?.avisos ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   if (an?.erro) itens.push({ tipo: 'obra', nome: b.obra?.nome || 'Obra', nivel: 'erro', codigo: 'ANALISE', mensagem: an.erro });
@@ -101,6 +107,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
   for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
+  for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento
   if (dim?.fundacoes && b.fundacao?.elementos.length) for (const p of b.pilares)
     if (p.nasce === 'fundacao' && !b.fundacao.elementos.some((e) => e.pilares.includes(p.id))) add('pilar', p.id, p.nome, undefined, ['Pilar sem elemento de fundação lançado.']);

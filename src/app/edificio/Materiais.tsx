@@ -3,6 +3,7 @@
 import { acoDe, COBRIMENTO_FUNDACAO, cobrimentoFundacao, cobrimentoLaje, cobrimentoViga, fckDe, gamas, GAMAS_PADRAO, POSICOES_ACO } from '../../core/building/materiais';
 import { pavimentosOrdenados, type BuildingModel, type Norma } from '../../core/building/types';
 import { Button, Group, Hint, NumField, Select } from '../ui';
+import { MateriaisBiblioteca } from './MateriaisBiblioteca';
 import { useBuilding } from './store';
 
 const ACOS: { v: Norma['aco']; label: string }[] = [{ v: 'CA-50', label: 'CA-50' }, { v: 'CA-60', label: 'CA-60' }];
@@ -44,6 +45,7 @@ export function MateriaisGrupo({ b }: { b: BuildingModel }) {
         <NumField label="Cobr. laje superior" unit="cm" width={110} value={cm(cl.sup)} onChange={(v) => def({ cobFaces: { lajeSup: v === n.cobrimento.laje ? 0 : v } })} />
         <NumField label="Cobr. fundações" unit="cm" width={110} value={cm(cobrimentoFundacao(b))} onChange={(v) => def({ cobFundacao: v === cm(COBRIMENTO_FUNDACAO) ? 0 : v })} />
       </div>
+      <MateriaisBiblioteca b={b} />
       <div className="row wrap u-mt-6"><Button disabled={!alterado} onClick={() => def({ padrao: true })}>Voltar ao padrão</Button></div>
       <Hint>Padrão: fck e aço da obra em todos os elementos; γc {GAMAS_PADRAO.c}, γs {GAMAS_PADRAO.s}, γg e γq {GAMAS_PADRAO.g} (NBR 6118, Tabelas 11.1 e 12.1); cobrimentos da CAA em todas as faces (Tabela 7.2). Fundações: fck de sapatas e blocos e aço próprios, padrão os da obra (fuste do tubulão nas opções das fundações); cobrimento padrão {cm(COBRIMENTO_FUNDACAO)} cm. Estribos com fywd ≤ 435 MPa em qualquer aço.</Hint>
     </Group>

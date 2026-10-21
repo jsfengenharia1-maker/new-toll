@@ -8,7 +8,7 @@ import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { casosDaObra, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
+import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
@@ -25,6 +25,9 @@ import { OpcoesGrupo } from './OpcoesCalculo';
 import { MateriaisGrupo } from './Materiais';
 import { VinculosGrupo } from './Vinculos';
 import { CasosGrupo } from './Casos';
+import { AbacosVentoGrupo } from './AbacosVento';
+import { EmpuxoGrupo } from './Empuxo';
+import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote } from './Armadura';
 import { FundacaoGrupo } from './Fundacao';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
@@ -95,7 +98,10 @@ export function Edificio() {
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
         <VentoGrupo b={b} />
+        <AbacosVentoGrupo b={b} />
         <CasosGrupo b={b} />
+        <EstadosGrupo b={b} />
+        <EmpuxoGrupo b={b} />
         <OpcoesGrupo b={b} />
         <MateriaisGrupo b={b} />
         <VinculosGrupo b={b} />
@@ -645,7 +651,7 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
       {grupo && <Hint>Em toda a planta: revestimento {fmt(grupo.gRev)} kN/m² (G) e uso {fmt(grupo.q)} kN/m² (Q), além do peso próprio — edite em Grupos.</Hint>}
       <div className="row wrap">
         <Select label="Tipo" value={pl.tipoCarga} options={[{ v: 'ponto', label: 'Ponto' }, { v: 'linha', label: 'Linha' }, { v: 'area', label: 'Área' }]} onChange={(v) => pl.set({ tipoCarga: v })} />
-        <Select label="Caso" value={pl.caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : `${c.nome} (${c.natureza})` }))} onChange={(v) => pl.set({ caso: v })} />
+        <Select label="Caso" value={pl.caso} options={casosParaCarga(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : `${c.nome} (${c.natureza})` }))} onChange={(v) => pl.set({ caso: v })} />
         <NumField label="Valor" unit={unid} width={110} value={pl.valorCarga} onChange={(v) => pl.set({ valorCarga: v })} />
       </div>
       <div className="row"><Button variant={pl.ferramenta === 'carga' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'carga' })}>Lançar cargas (C)</Button></div>

@@ -19,6 +19,7 @@ import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { naturezaTexto, psiDoCaso } from './Casos';
+import { MemorialAcoes } from './MemorialAcoes';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
 import { linhasGruposVigotas } from './Vigotas';
@@ -149,6 +150,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <p>Combinações geradas: {combs.length} ({porTipo('ELU')} ELU, {porTipo('RARA')} raras, {porTipo('FREQ')} frequentes, {porTipo('QP')} quase permanentes).{excepcionais.length ? ` Excepcionais: ${excepcionais.map((c) => c.nome.replace('ELU excepcional ', '')).join('; ')}.` : ''} A lista completa, com os fatores por caso, pode ser exportada em CSV na aba Análise.</p>
           )}
           <p>Vento: {v.ativo ? `V0 = ${fmt(v.v0, 0)} m/s, S1 = ${fmt(v.s1)}, S3 = ${fmt(v.s3)}, categoria ${v.categoria}, Ca = ${fmt(v.caX)} (X) / ${fmt(v.caY)} (Y), excentricidade ${fmt(v.excentricidade, 3)} × largura${ventoExtra}${r?.vento ? `, classe ${r.vento.classe} (altura ${fmt(r.vento.altura, 1)} m)` : ''}.` : 'não considerado.'}</p>
+
+          <MemorialAcoes b={b} analise={analise} dim={dim} />
 
           {h2('Modelo de análise')}
           <p>Análise linear. Grelha de lajes e vigas por pavimento (malha {fmt(opc.malha)} m) e pórtico espacial com diafragma rígido por pavimento (zonas do pavimento ligadas por vigas são diafragmas independentes, cada uma com seu mestre; pilar isolado, sem diafragma; vigas fora do diafragma não o integram); as forças das lajes nas vigas entram no pórtico como cargas concentradas. Pilares engastados na fundação.{opc.zonasIndependentes ? '' : ' Zonas independentes desligadas: um diafragma por pavimento.'}{zonasTxt}{r && !r.erro ? ` ${r.gdl} graus de liberdade; ${r.combinacoes} combinações. Equilíbrio (reações − cargas): G ${fmt(r.equilibrio.G, 3)} kN, Q ${fmt(r.equilibrio.Q, 3)} kN.` : ''}</p>
