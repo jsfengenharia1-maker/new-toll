@@ -8,6 +8,7 @@ import { classificar } from '../../core/building/revisao';
 import { CargasNoPilar } from './Vinculos';
 import { AssociarPilares, ElementoGrupoEditor, LimitesBloco, OpcoesSapatas, SobreposicaoBloco } from './FundacaoGrupoUI';
 import { SondagemEditor } from '../SondagemEditor';
+import { BaseElasticaBloco } from './BaseElasticaUI';
 import { capCols } from '../../core/foundation';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
 import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
@@ -22,6 +23,7 @@ import {
 import { FUNDACAO_VAZIA, casosDaObra, cotaFundacao, dimsSecao, ehArranque, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type PosicaoFundacao, type TipoFundacao, type TipoVigaFundacao, type VigaFundacao } from '../../core/building/types';
 import type { ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
+import { pilaresNaBase } from '../../core/building/baseElastica';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const TIPOS = (Object.keys(TIPO_FUNDACAO_LABEL) as TipoFundacao[]).map((v) => ({ v, label: TIPO_FUNDACAO_LABEL[v] }));
@@ -150,7 +152,8 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
   const resultados = dim?.fundacoes ?? [];
   const sel = fe.elementos.find((e) => pl.selecao.has(e.id));
   const arranques = b.pilares.filter((p) => ehArranque(p));
-  const semElemento = b.pilares.filter((p) => p.nasce === 'fundacao' && !fe.elementos.some((e) => e.pilares.includes(p.id)));
+  const naBase = useMemo(() => new Set(pilaresNaBase(b).map((x) => x.pilar)), [b]);
+  const semElemento = b.pilares.filter((p) => p.nasce === 'fundacao' && !fe.elementos.some((e) => e.pilares.includes(p.id)) && !naBase.has(p.id));
   const estacaSel = pl.estacaFund && t.estacas.some((e) => e.id === pl.estacaFund) ? pl.estacaFund : t.estacas[0]?.id ?? null;
   const setEst = (i: number, patch: Partial<EstacaTerreno>) => {
     const novas = t.estacas.map((e, k) => {
@@ -278,6 +281,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
       {sel && <ElementoEditor b={b} el={sel} r={resultados.find((x) => x.id === sel.id)} onPlanta={onPlanta} />}
 
       <VigasFundacaoBloco b={b} onPlanta={onPlanta} />
+      <BaseElasticaBloco b={b} onPlanta={onPlanta} />
       <CargasNoNivel b={b} onPlanta={onPlanta} />
 
       {(() => {

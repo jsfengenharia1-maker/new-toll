@@ -1939,6 +1939,8 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await cmd('eixo.malha {"dx": [7], "dy": [5]}');
+      // pilares 19 × 19 não atendem: sem esta opção (R7c) ficariam fora da prancha de pilares do conjunto
+      await cmd('opcoes.definir {"valores": {"pilarInsuficienteSemDesenho": 0}}');
       await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
       const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
@@ -2000,6 +2002,91 @@ export const flows = [
       for (const sg of ['SLP', 'SFS', 'SCF', 'SCV', 'SCP']) assert.match(todos, new RegExp(sg));
       const n = parseInt(await prev.getAttribute('data-total'), 10);
       assert.equal(await page.locator('[data-folha-item]').count(), n);
+    },
+  },
+  {
+    name: 'FU6: radier sobre base elástica — lançado pela planta, pilares sem vínculo, cálculo, mapa por nó na janela, viga sobre base elástica e pranchas da base elástica',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      // ferramenta Radier (W) no nível de fundação: contorno por 4 vértices e Enter
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('w');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'radier');
+      await page.keyboard.press('f'); // a barra da ferramenta muda a altura da planta: reenquadra
+      for (const [x, y] of [[-0.4, -0.4], [7.4, -0.4], [7.4, 5.4], [-0.4, 5.4]]) await page.mouse.click(...(await telaDe(page, x, y)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /Radier R1 lançado .*4 pilar\(es\) sobre ele/ }).waitFor();
+      const tab = grupo.locator('table[data-bases-elasticas] tbody tr');
+      assert.equal(await tab.count(), 1);
+      assert.match(await tab.first().innerText(), /R1.*radier h = 30/s);
+      // pilares sobre o radier não pedem elemento próprio: "Lançar centrados" sem pilares
+      assert.match(await grupo.getByRole('button', { name: /Lançar centrados em/ }).innerText(), /em 0 pilares/);
+      // seleção na planta (clique dentro do radier): editor com h, k e σadm
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 3.5, 2.5)));
+      const ed = grupo.locator('[data-editor-radier]');
+      await ed.waitFor();
+      const k = ed.locator('label.field', { has: page.locator('.flabel', { hasText: /^k \(vazio/ }) }).locator('input');
+      await k.fill('40000');
+      await k.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'Radier R1 alterado' }).waitFor();
+      // carga do piso sobre o radier (nível de fundação)
+      await cmd('carga.area {"grupo": "fundacao", "contorno": [[-0.4, -0.4], [7.4, -0.4], [7.4, 5.4], [-0.4, 5.4]], "valor": 5, "caso": "Q"}');
+      // calcular: card da base elástica, sem FUND_PILAR_SEM_ELEMENTO
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const card = page.locator('[data-card-base-elastica]');
+      await card.waitFor();
+      assert.match(await card.innerText(), /R1.*radier h = 30.*40000/s);
+      assert.equal(await page.locator('[data-lista-erros]').locator('.tablewrap tbody tr', { hasText: 'FUND_PILAR_SEM_ELEMENTO' }).count(), 0);
+      // janela: mapa por nó, nós de maior tensão e posições da armadura
+      await card.locator('tbody tr', { hasText: 'R1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Radier R1/ });
+      await jan.waitFor();
+      assert.ok(parseInt(await jan.locator('svg[data-mapa-base]').getAttribute('data-mapa-nos'), 10) > 50, 'mapa com os nós da malha');
+      assert.ok(await jan.locator('.mapa-no').count() > 50);
+      assert.match(await jan.innerText(), /σ máxima \(raras\)/);
+      assert.ok(await jan.locator('table[data-posicoes-radier] tbody tr').count() >= 4, 'malhas inferior e superior nas duas direções');
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // planta: mapa de tensões e viga sobre base elástica (X)
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.getByLabel('Mapa da base elástica').selectOption('tensao');
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('x');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'vigaElastica');
+      await page.keyboard.press('f');
+      await page.mouse.click(...(await telaDe(page, -0.3, 5.9)));
+      await page.mouse.click(...(await telaDe(page, 7.3, 5.9)));
+      await page.keyboard.press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /VE1 \(50×80, sobre base elástica\) lançada/ }).waitFor();
+      assert.equal(await tab.count(), 2);
+      // pranchas do tipo Fundação: folhas da base elástica e quantitativos
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Recalcular' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      assert.match(await card.innerText(), /VE1/);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'fundacao');
+      const itens = await page.locator('[data-lista-folhas]').innerText();
+      assert.match(itens, /base elástica — malha inferior/);
+      assert.match(itens, /base elástica — malha superior/);
+      assert.match(itens, /quantitativos/);
+      await page.locator('[data-folha-item]', { hasText: /malha inferior/ }).click();
+      await page.waitForFunction(() => /RADIERS — TENSÕES NO SOLO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      assert.ok(parseFloat(await page.locator('[data-aco-folha]').getAttribute('data-aco-peso')) > 0, 'peso de aço da malha inferior');
     },
   },
   {
@@ -2429,6 +2516,76 @@ export const flows = [
     },
   },
   {
+    name: 'R7c: detalhamento de pilares (edição de espera e traspasse com PILAR_DET_INSUF, restaurar, corte no topo, adensamento, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      const abrir = async () => {
+        await cardP.locator('tbody tr').first().dblclick();
+        const j = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+        await j.waitFor();
+        await j.getByRole('radio', { name: 'Detalhamento' }).click();
+        await j.locator('svg[data-detalhe-pilar]').waitFor();
+        return j;
+      };
+      // edição: espera na fundação e traspasse; traspasse curto demais reprova com PILAR_DET_INSUF
+      let jan = await abrir();
+      const ed = jan.locator('[data-edicao-pilar]');
+      await ed.waitFor();
+      assert.equal(await jan.locator('[data-detalhe-editado]').count(), 0);
+      const esp = ed.getByLabel('Espera', { exact: true });
+      await esp.fill('0,9'); await esp.press('Enter');
+      const pass = ed.locator('[data-edicao-passagem]').first().locator('input');
+      await pass.fill('0,1'); await pass.press('Enter');
+      await ed.getByRole('button', { name: 'Aplicar edição' }).click();
+      await livre();
+      await jan.locator('[data-detalhe-editado]').waitFor();
+      assert.match(await jan.locator('[data-avisos-det]').innerText(), /detalhe editado insuficiente: traspasse/);
+      assert.match(await jan.locator('[data-edicao-pilar]').locator('[data-edicao-espera] input').inputValue(), /^0,9/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros]').locator('tbody tr.bad', { hasText: 'PILAR_DET_INSUF' }).first().waitFor();
+      // restaurar o calculado: o erro some
+      jan = await abrir();
+      await jan.locator('[data-edicao-pilar]').getByRole('button', { name: 'Restaurar calculado' }).click();
+      await livre();
+      await page.waitForFunction(() => !document.querySelector('[data-detalhe-editado]'));
+      assert.equal(await jan.locator('[data-avisos-det]').getByText('detalhe editado insuficiente').count(), 0);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // opções: corte no topo e adensamento
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      assert.ok(!(await g.getByLabel('Pilares: cortar as barras no topo do último lance').isChecked()));
+      assert.ok(await g.getByLabel('Pilares: seção insuficiente sem desenho nem quantitativo').isChecked());
+      assert.match(await g.innerText(), /Pilares: traspasse mínimo reduzido/);
+      await g.getByLabel('Pilares: cortar as barras no topo do último lance').check();
+      await g.getByLabel('Pilares: adensar estribos no topo e na base do lance').check();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).click();
+      await livre();
+      jan = await abrir();
+      assert.match(await jan.locator('[data-avisos-det]').innerText(), /barras cortadas no topo/);
+      assert.match(await jan.locator('[data-rotulo-estribo="0"]').innerHTML(), /ad\. c\/10 em 50/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros]').locator('tbody tr', { hasText: 'PILAR_CORTE_TOPO' }).first().waitFor();
+      // memorial: critérios do detalhamento dos pilares
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const t = await memo.locator('[data-memorial-det-pilares]').innerText();
+      assert.match(t, /com as barras cortadas, sem ancoragem/);
+      assert.match(t, /adensados a cada 10 cm numa altura de 0,50 m/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
     name: 'N2d: punção das lajes (contornos C, C′ e C″, armadura calculada, grupos informados, camada e ferramenta na planta, envoltória do grupo, memorial)',
     async run({ newPage }) {
       const page = await newPage();
@@ -2488,10 +2645,23 @@ export const flows = [
       await livre();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await card.locator('tbody tr', { hasText: 'informada' }).first().waitFor({ timeout: 30000 });
+      // radier sob os 9 pilares (FU6): punção do radier na janela e no memorial
+      await cmd('radier.criar {"contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "h": 0.3, "k": 40000, "sigmaAdm": 400}');
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      const cardBase = page.locator('[data-card-base-elastica]');
+      await cardBase.waitFor({ timeout: 60000 });
+      await cardBase.locator('tbody tr').first().dblclick();
+      const janR = page.getByRole('dialog', { name: /Resultados do elemento/ });
+      await janR.locator('[data-puncao-radier="9"]').waitFor();
+      assert.equal(await janR.locator('[data-puncao-radier] section[data-puncao]').count(), 9);
+      assert.equal(await janR.locator('[data-puncao-radier] [data-editor-puncao]').count(), 0);
+      await janR.getByRole('button', { name: 'Fechar' }).click();
       // memorial
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       const t = await memo.textContent();
+      assert.ok(await memo.locator('[data-memorial-puncao-radier]').count() > 0);
       assert.match(t, /Punção e cortante das lajes/);
       assert.match(t, /Punção por pilar/);
       assert.match(t, /Cortante das lajes nos apoios em vigas/);

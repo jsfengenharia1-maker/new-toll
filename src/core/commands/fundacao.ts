@@ -9,6 +9,7 @@ import { nomeVigaFundacao, pontaVF } from '../building/vigasFundacao';
 import type { Diagnostico } from '../building/verify';
 import { ladoDoAjuste, nomeFundacao } from '../building/fundacao';
 import type { FoundationParams, SoilClass } from '../piles';
+import { pilaresNaBase, temBaseElastica } from '../building/baseElastica';
 import { planejarFundacoes, resumoPlano, type PassoGerar } from '../building/fundacaoGerar';
 import { aplicarComando, comando, registrar } from './registry';
 import { comDefaults, type JsonSchema } from './schema';
@@ -36,6 +37,8 @@ function validarElemento(b: BuildingModel, e: Required<Pick<ElementoIn, 'pilares
     const p = b.pilares.find((x) => x.id === id);
     if (!p) return err('PILAR_INEXISTENTE', `Pilar ${id} não existe.`);
     if (p.nasce !== 'fundacao') return err('PILAR_NAO_NASCE_FUNDACAO', `${p.nome} não nasce na fundação.`, [p.id]);
+    const naBase = pilaresNaBase(b).find((x) => x.pilar === p.id);
+    if (naBase) return err('PILAR_NA_BASE_ELASTICA', `${p.nome} está sobre ${naBase.tipo === 'radier' ? 'o radier' : 'a viga sobre base elástica'} ${(naBase.tipo === 'radier' ? b.fundacao?.radiers : b.fundacao?.vigasElasticas)?.find((x) => x.id === naBase.ref)?.nome ?? naBase.ref} (sem elemento próprio).`, [p.id, naBase.ref]);
     const outro = b.fundacao?.elementos.find((x) => x.id !== proprio && x.pilares.includes(p.id));
     if (outro) return err('PILAR_COM_FUNDACAO', `${p.nome} já tem o elemento ${outro.nome}.`, [p.id, outro.id]);
   }
@@ -498,7 +501,7 @@ registrar<{ sigmaAdm?: number; sigmaModo?: 'informada' | 'sondagem'; fatorVento?
   descricao: 'Dados do terreno: σadm de sapatas e tubulões (kN/m²; modo "informada", padrão, ou "sondagem" = estimada pelo SPT), majoração de σadm nas combinações com vento (`fatorVento`, padrão 1,0), cota do terreno (boca dos furos; padrão: a do pavimento mais baixo) e a lista de tipos de estaca (substitui a atual): { tipo: helice | escavada | premoldada, D (cm), modo: informada (com `capacidade` kN por estaca) | sondagem, s (m, entre eixos) }.',
   risco: 'escrita',
   mcp: false,
-  calculo: 'fundacao',
+  calculo: (_p, b) => (b && temBaseElastica(b) ? true : 'fundacao'), // σadm e fator de vento entram na verificação da base elástica (FU6)
   schema: { type: 'object', additionalProperties: false, properties: {
     sigmaAdm: { type: 'number', exclusiveMinimum: 0, maximum: 10000, description: 'kN/m²' }, sigmaModo: { type: 'string', enum: ['informada', 'sondagem'] },
     fatorVento: { type: 'number', minimum: 1, maximum: 1.5 }, cotaTerreno: { type: 'number' },

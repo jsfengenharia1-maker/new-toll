@@ -21,7 +21,8 @@ import { areaPoligono } from '../geom/faces';
 import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
-import { cortanteLaje, puncaoEdificio, sitiosPuncao, type CortanteLaje, type ResultadoPuncao } from './puncao';
+import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type CortanteLaje, type ResultadoPuncao } from './puncao';
+import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 export { TAXAS };
 
@@ -567,9 +568,9 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
   // de cima para baixo: o último e o penúltimo lances pelos seus esforços; abaixo, com a opção de continuidade,
   // nenhum lance com menos armadura nem bitola de canto menor que o de cima (critério do programa de referência)
   const ls = lancesDoPilar(b, p), res: ResultadoPilar[] = [];
-  let acima: { As: number; phi: number } | null = null;
+  let acima: { As: number; phi: number; arr: ArranjoPilar; sec: string } | null = null;
   for (let li = ls.length - 1; li >= 0; li--) {
-    const lance = ls[li], cont = op.continuidadePilares && li <= ls.length - 3 && acima ? acima : null;
+    const lance = ls[li], cont = op.continuidadePilares && li <= ls.length - (op.pilarContinuidadeInicio ? 3 : 2) && acima ? acima : null;
     const c = concretoDe(b, 'pilar', lance.id), cob = cobrimentoPilar(b, p.cobrimento);
     const bi = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === p.id && t.pavimento === lance.id);
     if (bi < 0) continue;
@@ -646,6 +647,13 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     type Escolha = { util: number; txt: string; As: number; phi: number; arr: ArranjoPilar; det: string };
     let melhor = null as Escolha | null;
     const tMin = circ ?? Math.min(w, h);
+    // manter o número de barras de cada face do lance de cima (K1.12.4-21), quando a seção é a mesma
+    const okFaces = (arr: ArranjoPilar) => {
+      if (!op.pilarContinuidadeFaces || !cont || cont.sec !== secTxt(s)) return true;
+      type Ar = { n?: number; nb?: number; nh?: number; nbS?: number; nhD?: number };
+      const q = cont.arr as Ar, c = arr as Ar;
+      return circ ? (c.n ?? 0) >= (q.n ?? 0) : (c.nb ?? 2) >= (q.nb ?? 2) && (c.nh ?? 2) >= (q.nh ?? 2) && (c.nbS ?? c.nb ?? 2) >= (q.nbS ?? q.nb ?? 2) && (c.nhD ?? c.nh ?? 2) >= (q.nhD ?? q.nh ?? 2);
+    };
     // armadura bloqueada (editada): verificação completa com as barras dadas, sem redimensionar
     const nLances = lancesDoPilar(b, p).length, armB = p.armaduras?.find((x) => x.pavimento === lance.id);
     const bloq = !!armB && armB.lances === nLances;
@@ -663,7 +671,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       busca: for (const phi of bloq ? [] : phis) {
         if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8 || (cont && phi < cont.phi)) continue; // φ10 a φ25 (premissa dim-pilares); continuidade
         const a = cob + 0.005 + phi / 2000, Ab = barArea(phi), wi = w - 2 * a, hi = h - 2 * a;
-        const cands = esps.map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, Ab) }; }).filter(({ bars }) => { const As = bars.length * Ab; return As >= Math.max(AsMin, cont?.As ?? 0) - 1e-12 && As <= AsMax; });
+        const cands = esps.map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, Ab) }; }).filter(({ bars, arr }) => { const As = bars.length * Ab; return As >= Math.max(AsMin, cont?.As ?? 0) - 1e-12 && As <= AsMax && okFaces(arr); });
         const anota = ({ bars, arr }: (typeof cands)[number], u: number) => { const As = bars.length * Ab, m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr, det: ultimoDet }; };
         // disposição simétrica (as duas faces opostas iguais): a mais densa primeiro; se nem ela atende, a bitola inteira não atende
         let sim: { cd: (typeof cands)[number]; u: number } | null = null;
@@ -696,6 +704,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
               const simetrica = d.nbS === d.nb && d.nhD === d.nh;
               if (soSim && !simetrica) continue;
               const arr: ArranjoPilar = { nb: d.nb, nh: d.nh, ...(d.nbS !== d.nb ? { nbS: d.nbS } : {}), ...(d.nhD !== d.nh ? { nhD: d.nhD } : {}) };
+              if (!okFaces(arr)) continue;
               const bars = barrasDoArranjo(poly, circ, a, arr, Ab), u = avaliar(bars, true, simetrica);
               if (u <= 1) { ach = { arr, bars, u, simetrica }; break; }
             }
@@ -790,7 +799,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     res.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util,
       origens: [origem('Armadura longitudinal', melhor.det || '—', 'pilar'), origem('Armadura mínima e máxima', NdMax > 0 ? 'Nd máximo' : '—', 'pilarLimites'), origem('Estribos', cVd || '—', 'pilarEstribo')], lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
     const ult = res.at(-1);
-    if (ult && ult.pavimentoId === lance.id && ult.As > 0) acima = { As: ult.As, phi: ult.arranjo?.phi ?? 0 };
+    if (ult && ult.pavimentoId === lance.id && ult.As > 0 && ult.arranjo) acima = { As: ult.As, phi: ult.arranjo.phi, arr: ult.arranjo as unknown as ArranjoPilar, sec: ult.secao };
   }
   out.push(...res.reverse());
   }
@@ -1071,6 +1080,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   fundacoes?: ResultadoFundacao[];
   /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
   vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[];
+  /** Base elástica (FU6): radiers e vigas sobre base elástica (tensões no solo, recalques e armaduras), detalhamento e aço dos radiers. */
+  radiers?: ResultadoRadier[]; vigasElasticas?: ResultadoVigaElastica[]; detalhesRadier?: DetalheLaje[]; resumoAcoRadiers?: ReturnType<typeof resumoAcoRadiers>;
   /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
   equilibrio?: ResultadoEQU[];
   /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
@@ -1110,6 +1121,24 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
+  if (an.baseElastica) {
+    const be = dimensionarBaseElastica(b, an, { raras: combinacoesDoEstado(b, an, 'solo', combs), elu, freq }, momentosWoodArmer);
+    if (be.radiers.length) {
+      // punção sob os pilares do radier (N2d): mensagens e situação do radier
+      const pr = puncaoRadier(b, an, be.radiers, elu, an.opcoes);
+      for (const r of be.radiers) {
+        const l = pr.get(r.id);
+        if (!l?.length) continue;
+        r.puncao = l;
+        r.mensagens.push(...l.flatMap((x) => x.mensagens));
+        if (l.some((x) => x.status === 'fail')) r.status = 'fail';
+      }
+      d.radiers = be.radiers;
+      d.detalhesRadier = be.radiers.map((r) => detalharRadier(b, b.fundacao!.radiers!.find((x) => x.id === r.id)!, r, an.opcoes));
+      d.resumoAcoRadiers = resumoAcoRadiers(b, d.detalhesRadier, an.opcoes.perdasAco);
+    }
+    if (be.vigasElasticas.length) d.vigasElasticas = be.vigasElasticas;
+  }
   if (o.fundacao !== false && b.fundacao?.elementos.length) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
   return d;
 }

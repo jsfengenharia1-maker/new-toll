@@ -777,3 +777,13 @@ tr.sel td { background: var(--accent-soft); }
 .emp-resultante { stroke: var(--emp-sobrecarga); stroke-width: 1.6; fill: var(--emp-sobrecarga); }
 .emp-txt { fill: var(--emp-eixo); }
 .emp-txt.forte { fill: var(--ink); }
+/* base elástica (FU6): mapa simples por nó na janela do radier e da viga sobre base elástica (5 faixas até a σadm ou o maior recalque) */
+.mapa-no { stroke: none; }
+.mapa-no.n0 { fill: color-mix(in srgb, var(--ok) 70%, transparent); }
+.mapa-no.n1 { fill: color-mix(in srgb, var(--ok) 45%, var(--warn)); }
+.mapa-no.n2 { fill: var(--warn); }
+.mapa-no.n3 { fill: color-mix(in srgb, var(--warn) 45%, var(--bad)); }
+.mapa-no.n4 { fill: var(--bad); }
+.mapa-no.tracao { fill: none; stroke: var(--c-v); stroke-width: 2; }
+.mapa-leg { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+.mapa-leg svg { vertical-align: middle; margin-right: 4px; }

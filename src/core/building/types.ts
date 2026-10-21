@@ -169,6 +169,18 @@ export interface Pilar {
   armaduras?: ArmaduraPilar[];
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */
   tabela?: string;
+  /** Comprimentos de espera, traspasse e arranque editados (R7c); verificados a cada recálculo. */
+  detalhe?: DetalhePilarEditado;
+}
+
+/** Comprimentos editados do detalhamento de um pilar (m); campos ausentes ficam como calculados. */
+export interface DetalhePilarEditado {
+  /** Espera na fundação, abaixo da base (m). */
+  espera?: number;
+  /** Por passagem (pavimento do topo do lance de baixo): traspasse acima do topo e, no arranque, ancoragem das barras novas abaixo do topo. */
+  passagens?: { pavimento: string; emenda?: number; ancoragem?: number }[];
+  /** Número de lances do pilar quando foi editado (se mudar, a edição deixa de valer). */
+  lances: number;
 }
 
 /** Armadura bloqueada de um lance de pilar (barras iguais no contorno; estribo). */
@@ -570,6 +582,47 @@ export interface FundacaoEdificio {
   limites?: LimiteFundacao[];
   /** Níveis de fundação calculados (cotas de assentamento, m); ausente = todos. Os demais mantêm o cálculo anterior. */
   niveis?: number[];
+  /** Radiers sobre base elástica (FU6): entram na análise global com molas de Winkler. */
+  radiers?: Radier[];
+  /** Vigas de fundação sobre base elástica (FU6): entram na análise global com molas de Winkler. */
+  vigasElasticas?: VigaElastica[];
+}
+
+/**
+ * Radier (FU6): placa maciça de concreto no nível de fundação, apoiada no solo por molas de Winkler (k × área de
+ * influência de cada nó). Os pilares que nascem na fundação dentro do contorno ficam sem vínculo externo: o pé do
+ * pilar é um nó da malha do radier, no pórtico espacial.
+ */
+export interface Radier {
+  id: string;
+  nome: string;
+  /** Contorno (anti-horário), m. */
+  contorno: [number, number][];
+  furos?: [number, number][][];
+  /** Espessura (m). */
+  h: number;
+  /** Coeficiente de reação vertical do solo (kN/m³); ausente = o das opções (`radierK`). */
+  k?: number;
+  /** σadm própria (kN/m²); ausente = a do terreno. */
+  sigmaAdm?: number;
+}
+
+/**
+ * Viga de fundação sobre base elástica (FU6): viga apoiada no solo ao longo do comprimento (molas k × largura ×
+ * comprimento de influência), lançada por polilinha no nível de fundação; os pilares que nascem na fundação sobre ela
+ * ficam sem vínculo externo.
+ */
+export interface VigaElastica {
+  id: string;
+  nome: string;
+  /** Eixo (polilinha, m). */
+  pontos: [number, number][];
+  /** Seção (m): largura da base apoiada no solo e altura. */
+  b: number;
+  h: number;
+  /** Coeficiente de reação vertical (kN/m³); ausente = o das opções (`radierK`). */
+  k?: number;
+  sigmaAdm?: number;
 }
 
 /** Viga de equilíbrio (alavanca: centra a fundação excêntrica) ou de travamento (bloco de 1 e 2 estacas). */

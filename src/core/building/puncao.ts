@@ -14,10 +14,13 @@ import { barArea, type Concrete } from '../concrete';
 import { areaPoligono, dentroPoligono, type P } from '../geom/faces';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import type { Resultado3 } from '../fe3d';
+import { forcaBasePilar, type ResultadoRadier } from './baseElastica';
+import type { CombinacaoEd } from './combinacoes';
+import { secaoBase } from './fundacao';
 import type { ResultadoLaje } from './dimensionamento';
 import type { OpcoesCalculo } from './opcoes';
 import { origem, COMB_ELU_LAJE, type Origem } from './origem';
-import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
+import { acoDe, cobrimentoFundacao, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import { GAMA_CONCRETO } from './lajes';
 import { vrd1 } from './vigotas';
 import { vigaTocaPilar } from './vigas';
@@ -233,8 +236,10 @@ export interface EntradaPuncao {
   d: number; h: number;
   /** Força de punção (kN) e momentos que a transmitem por excentricidade em u e em v (kN·m, módulos). */
   F: number; M: [number, number];
-  /** Carga de cálculo da laje (kN/m²), para a varredura de cortante. */
+  /** Carga de cálculo da laje (kN/m²; radier: pressão do solo), para a varredura de cortante. */
   qd: number;
+  /** Desconta de FSd a carga distribuída (qd) dentro de cada contorno (radier: reação do solo; NBR 6118, 19.5.2.1). */
+  descontar?: boolean;
 }
 
 export interface ParametrosPuncao {
@@ -255,8 +260,9 @@ export interface Tensao { a: number; u: number; tau: number; Wp: [number, number
 
 /** Tensão de cisalhamento de cálculo (MPa) no contorno afastado de `a`. */
 export function tensaoNoContorno(ent: EntradaPuncao, livres: Lado[], a: number, furoDist: number): Tensao {
-  const { ap, reg, d, F } = ent;
+  const { ap, reg, d } = ent;
   let pecas = recortar(curvaAfastada(ap, a), reg);
+  const F = ent.descontar ? Math.max(0, ent.F - ent.qd * areaDentro(curvaAfastada(ap, a), reg)) : ent.F;
   pecas = descontarFuros(pecas, ap, reg.furos, furoDist * d);
   const pr = propriedadesContorno(pecas, ap.angulo);
   const K = fatoresK(ap, livres);
@@ -473,7 +479,9 @@ export function cortanteLaje(g: GrelhaPavimento, lajeId: string, fat: number[], 
 
 export interface ResultadoPuncao {
   id: string; pilar: string; nome: string; pavimento: string; pavimentoId: string; laje: string; lajeNome: string;
-  origem: 'pilar' | 'viga'; viga?: string;
+  origem: 'pilar' | 'viga' | 'radier'; viga?: string;
+  /** Radier: combinação ELU determinante. */
+  combinacao?: string;
   tipo: 'interno' | 'borda' | 'canto'; livres: Lado[];
   /** Dimensões do pilar nos eixos u (c1) e v (c2), m; circular: c1 = c2 = D. */
   c1: number; c2: number; circular: boolean; angulo: number; centro: P;
@@ -619,6 +627,65 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       ja.set(chave, r);
       out.push(r);
     }
+  }
+  return out;
+}
+
+/**
+ * Punção do radier sob os pilares (FU6): mesma verificação das lajes, com FSd = N do pé do pilar, MSd = momentos no pé,
+ * a reação do solo (pressão ELU k·w média nos nós próximos) descontada dentro de cada contorno (NBR 6118, 19.5.2.1) e a
+ * armadura de flexão da face em contato com o solo. Vale a combinação ELU de maior τSd em C′; sem armadura informada.
+ */
+export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: ResultadoRadier[], elu: CombinacaoEd[], op: OpcoesCalculo): Map<string, ResultadoPuncao[]> {
+  const out = new Map<string, ResultadoPuncao[]>(), be = an.baseElastica, pm = an.portico;
+  if (!op.puncaoVerificar || !be || !pm.res) return out;
+  const nomes: string[] = [...an.casos], desl = [...pm.res.desloc], esf = [...pm.res.esforcos];
+  if (pm.resVento) (an.vento?.casos ?? []).forEach((cv, ic) => { nomes.push(cv.nome); desl.push(pm.resVento!.desloc[ic]); esf.push(pm.resVento!.esforcos[ic]); });
+  const c = concretoDe(b, 'fundacao'), fywd = Math.min(acoDe(b, 'lajePuncao').fyd, op.puncaoTipoArmadura ? 300 : 250), cob = cobrimentoFundacao(b);
+  const combs = elu.filter((x) => x.tipo === 'ELU');
+  for (const rr of radiers) {
+    const rad = b.fundacao?.radiers?.find((x) => x.id === rr.id);
+    if (!rad) continue;
+    const nosR = be.nos.filter((n) => n.ref === rad.id), reg: Regiao = { poligonos: [rad.contorno as P[]], furos: (rad.furos ?? []) as P[][] };
+    const d = Math.max(0.05, rad.h - cob - 0.01), lista: ResultadoPuncao[] = [];
+    const amin = 0.0015 * rad.h * 1e4, rho = Math.min(0.02, Math.sqrt((Math.max(rr.As.pos[0], amin) / (1e4 * d)) * (Math.max(rr.As.pos[1], amin) / (1e4 * d))));
+    for (const [pid, info] of Object.entries(be.pilares)) {
+      if (info.tipo !== 'radier' || info.ref !== rad.id) continue;
+      const p = b.pilares.find((x) => x.id === pid), bi = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === pid);
+      if (!p || bi < 0) continue;
+      const sec = secaoBase(b, p), centro = centroPilar(p, sec), [w, hh] = dimsSecao(sec), circular = sec.tipo === 'circ';
+      const ap: Apoio = { centro, c1: w, c2: circular ? w : hh, circular, angulo: p.angulo };
+      const fb = nomes.map((_, ic) => forcaBasePilar(pm.modelo, bi, esf[ic][bi]));
+      const perto = nosR.filter((n) => Math.hypot(n.x - centro[0], n.y - centro[1]) <= Math.max(w, hh) / 2 + 3 * d);
+      const a = (p.angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
+      const livres = ladosLivres(ap, reg, d);
+      let melhor: { ent: EntradaPuncao; tau: number; nome: string } | null = null;
+      for (const cb of combs) {
+        const f = nomes.map((n) => cb.fatores[n] ?? 0);
+        const F = f.reduce((s, fi, ic) => s + fi * fb[ic].N, 0), Mx = f.reduce((s, fi, ic) => s + fi * fb[ic].Mx, 0), My = f.reduce((s, fi, ic) => s + fi * fb[ic].My, 0);
+        if (F <= 0) continue;
+        const Mu = Mx * co + My * si, Mv = -Mx * si + My * co; // momento em torno de u tem excentricidade ao longo de v
+        const q = perto.length ? perto.reduce((s, n) => s + f.reduce((t, fi, ic) => t - fi * n.k * desl[ic][n.no * 6 + 2], 0), 0) / perto.length : 0;
+        const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], qd: Math.max(0, q), descontar: true };
+        const tau = tensaoNoContorno(ent, livres, 2 * d, op.puncaoFuroDist).tau;
+        if (!melhor || tau > melhor.tau) melhor = { ent, tau, nome: cb.nome };
+      }
+      if (!melhor) continue;
+      const par: ParametrosPuncao = { c, rho, fywd, tipoArm: op.puncaoTipoArmadura ? 'conector' : 'estribo', s0f: Math.min(0.5, op.puncaoS0), srf: Math.min(0.75, op.puncaoSr), passoCortante: op.cortanteVarredura ? op.cortanteVarreduraPasso : 0, furoDist: op.puncaoFuroDist, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (rad.h * 1000) / 20 + 1e-9) };
+      const v = verificarPuncao(melhor.ent, par), ent = melhor.ent;
+      const msgs = v.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}`));
+      if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);
+      const mk = (k: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[k], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
+      lista.push({
+        id: `${pid}|fundacao`, pilar: pid, nome: p.nome, pavimento: 'Fundação', pavimentoId: 'fundacao', laje: rad.id, lajeNome: rad.nome, origem: 'radier', combinacao: melhor.nome,
+        tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: p.angulo, centro, h: rad.h, d, rho, fck: c.fck, F: ent.F, M: ent.M, K: v.C.K,
+        contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.armadura ? v.tauRd3 ?? v.tauRd1 : v.tauRd1, v.armadura ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
+        tauRd1: v.tauRd1, tauRd2: v.tauRd2, ...(v.tauRd3 !== undefined ? { tauRd3: v.tauRd3 } : {}), ...(v.armadura ? { armadura: v.armadura } : {}),
+        manual: [], cortante: v.cortante, status: v.status, mensagens: msgs,
+        origens: [origem('Punção do radier', `${melhor.nome} (ELU; reação do solo descontada)`, 'puncao'), origem('Cortante no entorno do pilar', COMB_ELU_LAJE, 'cortanteLaje')],
+      });
+    }
+    if (lista.length) out.set(rad.id, lista);
   }
   return out;
 }

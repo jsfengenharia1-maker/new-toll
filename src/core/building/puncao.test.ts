@@ -370,3 +370,34 @@ describe('punção no edifício (laje lisa)', () => {
     expect(e.mPos[0]).toBeCloseTo(ls[1].mPos[0] + 5, 9);
   });
 });
+
+describe('punção do radier (FU6)', () => {
+  it('pilares sobre o radier: FSd do pé do pilar, reação do solo descontada no contorno, mensagens e situação do radier', () => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
+    ok('vento.definir', { ativo: false });
+    ok('lote', { comandos: [[1, 1], [7, 1], [7, 6], [1, 6]].map(([x, y]) => ({ nome: 'pilar.inserir', params: { x, y, secao: { tipo: 'ret', b: 0.3, h: 0.3 } } })) });
+    ok('lote', { comandos: [[[1, 1], [7, 1]], [[1, 6], [7, 6]], [[1, 1], [1, 6]], [[7, 1], [7, 6]]].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.5 } } })) });
+    ok('radier.criar', { contorno: [[0, 0], [8, 0], [8, 7], [0, 7]], h: 0.25, k: 40000, sigmaAdm: 300 });
+    ok('carga.pilar', { pilar: s.modelo.pilares[0].id, pavimento: s.modelo.pavimentos[1].id, caso: 'Q', N: 1500, Hx: 0, Hy: 0, Mx: 0, My: 0 });
+    const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
+    const r = d.radiers![0];
+    expect(r.puncao).toHaveLength(4);
+    const p1 = r.puncao!.find((x) => x.pilar === s.modelo.pilares[0].id)!;
+    expect(p1.origem).toBe('radier');
+    expect(p1.tipo).toBe('interno');
+    expect(p1.F).toBeGreaterThan(1500);
+    // sem a reação do solo descontada, τSd(C′) = F/(u·d) seria maior
+    const u = p1.contornos[1].u, semDesconto = p1.F / (u * p1.d) / 1000;
+    expect(p1.contornos[1].tau).toBeLessThan(semDesconto + 1e-9);
+    expect(p1.contornos[1].tau - (p1.F / (u * p1.d) / 1000)).toBeLessThan(0);
+    expect(p1.combinacao).toBeTruthy();
+    // P1 (1500 kN a mais): biela excedida → radier não atende, com o código de revisão; P2 sem armadura
+    expect(p1.status).toBe('fail');
+    expect(r.status).toBe('fail');
+    expect(r.mensagens.join(' ')).toMatch(/Punção em P1: τSd/);
+    expect(r.puncao!.find((x) => x.nome === 'P2')!.status).toBe('ok');
+    expect(revisarEdificio(s.modelo, an, d).itens.some((i) => i.codigo === 'PUNCAO_BIELA' && i.tipo === 'fundacao' && i.id === r.id)).toBe(true);
+  });
+});

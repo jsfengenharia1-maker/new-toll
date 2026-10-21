@@ -24,7 +24,7 @@ export function cantosDoPilar(r: Pick<ResultadoPuncao, 'centro' | 'c1' | 'c2' | 
 }
 
 function FiguraPuncao({ r }: { r: ResultadoPuncao }) {
-  const l = useBuilding((s) => s.sessao.modelo.lajes.find((x) => x.id === r.laje));
+  const l = useBuilding((s) => s.sessao.modelo.lajes.find((x) => x.id === r.laje) ?? s.sessao.modelo.fundacao?.radiers?.find((x) => x.id === r.laje));
   const pts = [...cantosDoPilar(r), ...r.contornos.flatMap((c) => c.pontos.flat()), ...r.armadura?.posicoes.flat() ?? []];
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), mg = 0.25;
   const x0 = Math.min(...xs) - mg, x1 = Math.max(...xs) + mg, y0 = Math.min(...ys) - mg, y1 = Math.max(...ys) + mg;
@@ -74,13 +74,14 @@ function EditorGrupos({ r }: { r: ResultadoPuncao }) {
   );
 }
 
-function CartaoPuncao({ r }: { r: ResultadoPuncao }) {
+/** Cartão de um apoio: figura, tensões por contorno, armadura e cortante; `semEditor` no radier (sem grupos informados). */
+export function CartaoPuncao({ r, semEditor }: { r: ResultadoPuncao; semEditor?: boolean }) {
   const tom = r.status === 'fail' ? 'bad' : r.status === 'armadura' ? 'warn' : 'ok';
   const dim1 = r.circular ? `ø${fmt(r.c1 * 100, 0)}` : `${fmt(r.c1 * 100, 0)}×${fmt(r.c2 * 100, 0)}`;
   const a = r.armadura;
   return (
     <section className="rev-lance" data-puncao={r.pilar} data-status={r.status} data-tipo-apoio={r.tipo}>
-      <h4>{r.nome} {dim1} cm · pilar {TIPO_TXT[r.tipo]}{r.origem === 'viga' ? ' (viga chata)' : ''} · <Pill tone={tom}>{ST_PUN[r.status]}</Pill></h4>
+      <h4>{r.nome} {dim1} cm · pilar {TIPO_TXT[r.tipo]}{r.origem === 'viga' ? ' (viga chata)' : r.origem === 'radier' ? ` (radier ${r.lajeNome}${r.combinacao ? `, ${r.combinacao}` : ''})` : ''} · <Pill tone={tom}>{ST_PUN[r.status]}</Pill></h4>
       <FiguraPuncao r={r} />
       <div className="tablewrap">
         <table className="data quadro" data-contornos-puncao>
@@ -118,7 +119,7 @@ function CartaoPuncao({ r }: { r: ResultadoPuncao }) {
           <p className="hint">VRd2 = {fmt(r.cortante.vRd2, 1)} kN/m. Superfícies a cada 0,75d a partir do contorno C′ (varredura), com V = FSd − q·A.</p>
         </details>
       )}
-      <EditorGrupos r={r} />
+      {!semEditor && <EditorGrupos r={r} />}
       <Origens o={r.origens} />
       <Mensagens msgs={r.mensagens} />
     </section>

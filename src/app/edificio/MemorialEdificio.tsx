@@ -19,6 +19,8 @@ import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
+import { quantitativosFundacao } from '../../core/sheets/fundacao';
+import { TABELA_K } from '../../core/building/baseElastica';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { MemorialAcoes } from './MemorialAcoes';
 import { useRevisao } from './revisao';
@@ -66,6 +68,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const combs = useMemo(() => (analise ? combinacoesEdificio(b, analise) : []), [b, analise]);
   const porTipo = (t: string) => combs.filter((c) => c.tipo === t).length;
   const excepcionais = combs.filter((c) => c.nome.startsWith('ELU excepcional'));
+  const quantFund = useMemo(() => { if (!dim) return null; try { return quantitativosFundacao(b, analise ?? null, dim); } catch { return null; } }, [b, analise, dim]);
 
   const printCss = memoPrintCss({ title: nome, obra: b.obra.nome, rev: 'R00', date: today });
   const html = () => {
@@ -235,6 +238,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             {dim.detalhesPilares && dim.detalhesPilares.length > 0 && (<>
               {h2('Detalhamento dos pilares')}
               <p>Barras longitudinais de baixo para cima: espera na fundação e ancoragem no topo com ganchos de 90°, emenda por traspasse de comprimento lb (boa aderência) na passagem de um lance a outro, união de lances curtos (até {fmt(opc.pilarUniaoLances, 1)} m) com a mesma armadura, dobra (inclinação ≤ 1:6) ou arranque na mudança de seção, barra máxima de {fmt(opc.pilarBarraMaxima, 1)} m; continuidade da armadura entre lances {opc.continuidadePilares ? 'ligada (a armadura não diminui de cima para baixo)' : 'desligada (cada lance pela sua necessidade)'}; ancoragem reduzida no topo {opc.ancoragemReduzidaTopo ? 'ligada (As,calc/As,ef)' : 'desligada'}. Estribos ao longo de cada lance e grampos nas barras a mais de 20φt de um canto (NBR 6118, 18.2.4). Comprimentos arredondados para cima a {fmt(opc.arredondamento, 0)} cm. Desenhos na janela de resultados do pilar.</p>
+              <p data-memorial-det-pilares>Critérios em uso (opções de cálculo): continuidade a partir do {opc.pilarContinuidadeInicio ? 'penúltimo' : 'último'} lance{opc.pilarContinuidadeFaces ? ', mantendo o número de barras de cada face' : ''}; níveis sem viga chegando ao pilar {opc.pilarProlongarSemViga ? 'prolongados sem emenda (lances de armadura idêntica)' : 'emendados como os demais'}; topo do último lance {opc.pilarCorteTopo ? 'com as barras cortadas, sem ancoragem (só desenho e medição, não calculado)' : opc.ancoragemReduzidaTopo ? 'ancorado com gancho, ancoragem reduzida por As,calc/As,ef' : 'ancorado com gancho, lb pleno'}; traspasse e ancoragem dos arranques {opc.pilarReducaoIntermediarios ? `reduzidos pela utilização (traspasse mínimo ${fmt(opc.pilarReducaoMinimo, 0)} % de lb, 15φ e 20 cm)` : 'com lb pleno'}; estribos {opc.pilarAdensamento ? `adensados a cada ${fmt(opc.pilarAdensamentoEspacamento, 0)} cm numa altura de ${fmt(opc.pilarAdensamentoAltura)} m junto à base e ao topo de cada lance` : 'com espaçamento uniforme no lance (nó incluído)'}; pilar com seção insuficiente {opc.pilarInsuficienteSemDesenho ? 'fora do detalhamento, das pranchas e do quantitativo (continua como erro na revisão)' : 'detalhado mesmo assim, com a armadura de 4 %'}.</p>
+              {b.pilares.some((q) => q.detalhe) && <p data-memorial-det-pilares-editados>Comprimentos editados: {b.pilares.filter((q) => q.detalhe).map((q) => `${q.nome} (${[q.detalhe!.espera !== undefined ? `espera ${fmt(q.detalhe!.espera)} m` : '', ...(q.detalhe!.passagens ?? []).map((x) => `${dim.detalhesPilares?.find((d) => d.pilar === q.id)?.lances.find((l) => l.pavimento === x.pavimento)?.nome ?? x.pavimento}: ${[x.emenda !== undefined ? `traspasse ${fmt(x.emenda)} m` : '', x.ancoragem !== undefined ? `ancoragem ${fmt(x.ancoragem)} m` : ''].filter(Boolean).join(', ')}`)].filter(Boolean).join('; ')})`).join('; ')}.</p>}
               {dim.detalhesPilares.map((d) => {
                 const barras = linhasBarrasPilar(d), est = linhasEstribosPilar(d), nome = new Map(d.lances.map((l) => [l.pavimento, l.nome]));
                 return (
@@ -428,6 +433,47 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </table>
               </>)}
               {dim.avisosFundacao?.map((a, i) => <p key={i}>{a}</p>)}
+            </>)}
+
+            {!!(dim.radiers?.length || dim.vigasElasticas?.length) && (<>
+              {h2('Base elástica: radiers e vigas sobre base elástica')}
+              <p>
+                Radiers e vigas de fundação sobre base elástica (Winkler) incluídos no pórtico espacial: grelha do radier com malha de {fmt(opc.radierMalha)} m (rigidez à flexão e à torção das lajes maciças), barras das vigas com a seção b × h,
+                molas verticais k × área de influência em cada nó (k padrão {fmt(opc.radierK, 0)} kN/m³, a confirmar) e os pilares que nascem sobre eles sem vínculo externo. Nós flutuantes com deslocamentos horizontais e giro em planta presos (a confirmar).
+                Análise linear: mola tracionada não é iterada (erro de levantamento). Tensão no solo σ = k·w nas combinações raras contra a σadm; armadura do radier por Wood-Armer (ELU, faixa de 1 m) com ρmín 0,15 % por face; punção sob os pilares verificada pela NBR 6118, 19.5, com a reação do solo descontada dentro do contorno.
+              </p>
+              {!!dim.radiers?.length && <table data-memorial-radiers>
+                <thead><tr><th className="l">Radier</th><th>h (cm)</th><th>Área (m²)</th><th>k (kN/m³)</th><th>σmáx (kN/m²)</th><th>σmín (kN/m²)</th><th>σadm (kN/m²)</th><th>Recalque (mm)</th><th>As inf. x/y (cm²/m)</th><th>As sup. x/y (cm²/m)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.radiers.map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td>{fmt(x.h * 100, 0)}</td><td>{fmt(x.area, 1)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{fmt(x.sigmaMin, 1)}</td><td>{x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>)}</tbody>
+              </table>}
+              {!!dim.radiers?.some((x) => x.puncao?.length) && <>
+                <p>Punção sob os pilares dos radiers (NBR 6118, 19.5): combinação ELU de maior τSd em C′, FSd = força axial no pé do pilar, MSd = momentos no pé, reação do solo (pressão k·w média nos nós vizinhos) descontada dentro de cada contorno; armadura de flexão da face em contato com o solo.</p>
+                <table data-memorial-puncao-radier>
+                  <thead><tr><th className="l">Radier</th><th className="l">Pilar</th><th className="l">Apoio</th><th>FSd (kN)</th><th>MSd u / v (kN·m)</th><th>τSd (C) / τRd2</th><th>τSd (C′) / τRd1</th><th className="l">Armadura de punção</th><th className="l">Situação</th><th className="l">Combinação</th></tr></thead>
+                  <tbody>{dim.radiers.flatMap((x) => (x.puncao ?? []).map((r) => (
+                    <tr key={r.id}><td className="l">{x.nome}</td><td className="l">{r.nome}</td><td className="l">{r.tipo}</td><td>{fmt(r.F, 1)}</td><td>{fmt(r.M[0], 1)} / {fmt(r.M[1], 1)}</td><td className={r.contornos[0].ok ? undefined : 'bad'}>{fmt(r.contornos[0].tau, 3)} / {fmt(r.tauRd2, 3)}</td><td className={r.contornos[1].tau > r.tauRd1 + 1e-9 ? 'bad' : undefined}>{fmt(r.contornos[1].tau, 3)} / {fmt(r.tauRd1, 3)}</td>
+                      <td className="l">{r.armadura ? `${r.armadura.linhas} linhas × ${r.armadura.barras} ${r.armadura.tipo === 'estribo' ? 'estribos' : 'conectores'} φ${String(r.armadura.phi).replace('.', ',')}` : '—'}</td><td className="l">{r.status === 'ok' ? 'sem armadura' : r.status === 'armadura' ? 'com armadura' : 'não atende'}</td><td className="l">{r.combinacao}</td></tr>
+                  )))}</tbody>
+                </table>
+              </>}
+              {!!dim.vigasElasticas?.length && <table data-memorial-vigas-elasticas>
+                <thead><tr><th className="l">Viga</th><th>b × h (cm)</th><th>L (m)</th><th>k (kN/m³)</th><th>σmáx (kN/m²)</th><th>σadm (kN/m²)</th><th>Recalque (mm)</th><th>Md inf./sup. (kN·m)</th><th>Vd (kN)</th><th className="l">Armadura</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.vigasElasticas.map((x) => { const a = x.armadura, t = (q: { n: number; phi: number } | null) => (q ? `${q.n} φ${fmt(q.phi, 1)}` : '—'); return <tr key={x.id}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)} × {Math.round(x.h * 100)}</td><td>{fmt(x.L)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.Md.inf, 1)} / {fmt(x.Md.sup, 1)}</td><td>{fmt(x.Vd, 1)}</td><td className="l">inf. {t(a.inf.barras)}; sup. {t(a.sup.barras)}{a.estribo ? `; estribo φ${fmt(a.estribo.phi, 1)} c/${Math.round(a.estribo.s * 100)}` : ''}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>; })}</tbody>
+              </table>}
+              <p>Tabela orientativa do coeficiente de reação vertical (Bowles, 1996; a confirmar com o geotécnico): {TABELA_K.map((x) => `${x.solo.toLowerCase()} ${fmt(x.min / 1000, 0)}–${fmt(x.max / 1000, 0)} MN/m³`).join('; ')}.</p>
+            </>)}
+
+            {quantFund && quantFund.linhas.length > 0 && (<>
+              {h2('Quantitativos da fundação')}
+              <table data-memorial-quant-fundacao>
+                <thead><tr><th className="l">Elementos</th><th className="l">Tipo</th><th>Quant.</th><th>Concreto (m³)</th><th>Fôrma (m²)</th><th>Aço (kg)</th></tr></thead>
+                <tbody>
+                  {quantFund.linhas.map((l, k) => <tr key={k}><td className="l">{l.nomes.join(', ')}</td><td className="l">{l.tipo}</td><td>{l.quant}</td><td>{fmt(l.concreto, 3)}</td><td>{fmt(l.forma, 2)}</td><td>{fmt(l.aco, 1)}</td></tr>)}
+                  <tr><td className="l"><b>Total</b></td><td /><td /><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.concreto, 0), 3)}</b></td><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.forma, 0), 2)}</b></td><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.aco, 0), 1)}</b></td></tr>
+                </tbody>
+              </table>
+              {quantFund.estacas.length > 0 && <p>Estacas: {quantFund.estacas.map((e) => `${e.quant} × ${e.nome}${e.L ? ` (L = ${fmt(e.L, 1)} m)` : ''}`).join('; ')}.</p>}
+              <p>Aço pela soma das posições desenhadas nas folhas de fundação (sem perdas); concreto das vigas de fundação entre as faces dos pilares; fôrma lateral, fundo sobre o lastro (a confirmar).</p>
             </>)}
 
             {h2('Quantitativos')}

@@ -36,6 +36,9 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'TRAMO_IGNORADO', nivel: 'aviso', re: /^Tramo predefinido desconsiderado/, descricao: 'Tramo predefinido não aplicado (vigas, bitola ou barra máxima)' },
   { codigo: 'DETALHE_INSUF', nivel: 'erro', re: /^Detalhe editado insuficiente/, descricao: 'Viga: detalhamento editado não cobre a armadura necessária ou os estribos' },
   { codigo: 'DETALHE_IGNORADO', nivel: 'aviso', re: /^Detalhe editado (desconsiderado|:)/, descricao: 'Viga: edição do detalhamento desconsiderada ou fora da barra máxima' },
+  { codigo: 'PILAR_DET_INSUF', nivel: 'erro', re: /^[^:]+: detalhe editado insuficiente/, descricao: 'Pilar: espera, traspasse ou ancoragem editados abaixo do mínimo' },
+  { codigo: 'PILAR_DET_IGNORADO', nivel: 'aviso', re: /^[^:]+: detalhe editado desconsiderado/, descricao: 'Pilar: edição dos comprimentos desconsiderada (lances mudaram ou passagem sem emenda)' },
+  { codigo: 'PILAR_CORTE_TOPO', nivel: 'aviso', re: /^[^:]+: barras cortadas no topo/, descricao: 'Pilar: barras cortadas no topo do último lance, sem ancoragem (só desenho e medição)' },
   { codigo: 'FORA_TABELA', nivel: 'erro', re: /^Fora de tabela \((barras|estribos)\)/, descricao: 'Viga: armadura sem solução na tabela (φ25 ou estribo fora do mínimo da tabela)' },
   { codigo: 'ARM_MANUAL', nivel: 'erro', re: /^Armadura manual necessária/, descricao: 'Pilar: nem a tabela nem a armadura própria atendem (amplie a tabela ou a seção)' },
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
@@ -97,6 +100,13 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_LIMITE_IGNORADO', nivel: 'aviso', re: /^Limite .* ignorado/, descricao: 'Limite de fundação ignorado (corta pilar, isola pilar ou sapata de altura variável)' },
   { codigo: 'FUND_IGUAL_MODELO', nivel: 'erro', re: /^Fundação igualada a /, descricao: 'Fundação igualada a um modelo inexistente ou sem solução' },
   { codigo: 'FUND_VIGA_CRUZA', nivel: 'aviso', re: /^Viga de fundação: .* cruza /, descricao: 'Viga de fundação apoiada em outra no cruzamento (apoio intermediário)' },
+  // base elástica: radiers e vigas de fundação sobre molas (FU6)
+  { codigo: 'FUND_LEVANTAMENTO', nivel: 'erro', re: /^Fundação: levantamento/, descricao: 'Base elástica: mola tracionada (levantamento) numa combinação rara; análise linear sem iteração' },
+  { codigo: 'FUND_RADIER_TENSAO', nivel: 'erro', re: /^Fundação: tensão no solo/, descricao: 'Base elástica: tensão no solo k·w acima da σadm' },
+  { codigo: 'FUND_RADIER_ESPESSURA', nivel: 'erro', re: /^Radier .*: espessura insuficiente/, descricao: 'Radier: espessura insuficiente na flexão' },
+  { codigo: 'FUND_RADIER_MALHA', nivel: 'aviso', re: /^Radier .*: (malha vazia|.* não cabe com espaçamento)/, descricao: 'Radier: malha vazia ou armadura que não cabe' },
+  { codigo: 'FUND_APOIOS_MISTOS', nivel: 'aviso', re: /^Apoios mistos/, descricao: 'Pilares sobre base elástica e com vínculo externo na mesma obra' },
+  { codigo: 'FUND_RADIER_SEM_CARGA', nivel: 'aviso', re: /^Radier (sem cargas|.* sem pilares)/, descricao: 'Radier sem cargas do nível de fundação ou sem pilares' },
   // avisos da análise (obra)
   { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },
@@ -125,14 +135,18 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   // avisos do detalhamento com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhes ?? []) add('viga', d.viga, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
+  // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
+  for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
   for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
+  for (const r of dim?.radiers ?? []) add('fundacao', r.id, r.nome, undefined, r.mensagens);
+  for (const v of dim?.vigasElasticas ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento
   if (dim?.fundacoes && b.fundacao?.elementos.length) for (const p of b.pilares)
-    if (p.nasce === 'fundacao' && !b.fundacao.elementos.some((e) => e.pilares.includes(p.id))) add('pilar', p.id, p.nome, undefined, ['Pilar sem elemento de fundação lançado.']);
+    if (p.nasce === 'fundacao' && !b.fundacao.elementos.some((e) => e.pilares.includes(p.id)) && !an?.baseElastica?.pilares[p.id]) add('pilar', p.id, p.nome, undefined, ['Pilar sem elemento de fundação lançado.']);
   // pilar reprovado pela utilização sem mensagem própria
   for (const p of dim?.pilares ?? []) if (p.status === 'fail' && !itens.some((x) => x.tipo === 'pilar' && x.id === p.pilar && x.pavimento === p.pavimento && x.nivel === 'erro'))
     itens.push({ tipo: 'pilar', id: p.pilar, nome: p.nome, pavimento: p.pavimento, nivel: 'erro', codigo: 'ARMADURA', mensagem: `Utilização ${p.util.toFixed(2).replace('.', ',')} > 1.` });

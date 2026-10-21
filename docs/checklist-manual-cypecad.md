@@ -18,11 +18,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 7. Lajes | 195 | 22 | 34 | 72 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 16 | 4 | 3 | 3 |
+| 10. Cargas | 26 | 17 | 5 | 1 | 3 |
 | 11. Fundações | 70 | 53 | 6 | 6 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **186** | **107** | **285** | **185** |
+| **Total** | **763** | **187** | **108** | **283** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 4 | 10 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 198 | 229 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 7 | 9 | 16 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 8 | 7 | 15 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
 
@@ -793,8 +793,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.20 | Alerta de responsabilidade: situações do usuário não devem resultar em segurança menor que a da norma. | Feito | — | N2a: `alertasSituacoes`/`textosAlertas` (fator máximo do caso abaixo do da norma): COMB_USUARIO na revisão, `Dimensionamento.avisosAcoes`, janela das situações e memorial |
 | | **10.2 Cargas por grupo e na fundação** | | | |
 | C10.21 | Sobrecarga de uso definida por grupo ao criar grupos, aplicada nos pavimentos, sem atuar nos furos. | Feito | — | sobrecarga por grupo, fora dos furos |
-| C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Falta | FU | radier |
-| C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Falta | FU |  |
+| C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Feito | — | cargas do grupo "fundacao" sobre radier ou viga sobre base elástica entram na análise global (revisão de cálculo) e saem das vigas e elementos de fundação (`montarBaseElastica`, `pontoNaBase`) |
+| C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Parcial | FU | aviso FUND_RADIER_SEM_CARGA quando há radier e o nível de fundação não tem carga sobre ele; definir a carga na hora e seguir o cálculo não existe (lançar pela ferramenta Carga no nível de fundação) |
 | | **10.3 Menu de cargas** | | | |
 | C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje [L5] |
 | C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” [L5] |
@@ -978,6 +978,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia N2a (ações e combinações).** C3.18, C10.8, C10.12, C10.13, C10.14, C10.16, C10.17, C10.18, C10.19 e C10.20 passam a Feito: grupo de uso misto com cargas de área por categoria, descrição do caso, arranjos (xadrez, faixas e carga móvel) como casos filhos, tabela de compatibilidade, controle de execução, estados-limite selecionáveis, situações do usuário com importação da norma, colagem, biblioteca e alerta de responsabilidade (`src/core/building/acoes.ts`, `src/core/commands/acoes.ts`, `EstadosLimite.tsx`, `CasosArranjos.tsx`; e2e N2a). Correção junto: cargas de área em casos próprios iam para o caso Q (`analitico.ts`).
   - Situação: Feito 164 → 174; Parcial 113 → 109; Falta 301 → 295; Fora 185 → 185.
   - Pendências por frente: N 24 → 14; demais sem mudança.
+- **21/10/2026 — fatia FU6 (base elástica).** C10.22 passa a Feito (cargas do nível de fundação sobre radier e vigas sobre base elástica na análise global); C10.23 fica Parcial (aviso FUND_RADIER_SEM_CARGA, sem definir a carga na hora). Interface: ferramentas Radier (W) e Viga sobre base elástica (X) na planta de fundação, mapa por nó (tensão ou recalque), bloco no grupo Fundação, janela com mapa e armadura (`BaseElasticaUI.tsx`), card no Dimensionamento, memorial (base elástica e quantitativos da fundação) e pranchas no tipo fundação; e2e `FU6`.
 - **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.

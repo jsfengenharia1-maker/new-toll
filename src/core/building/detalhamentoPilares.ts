@@ -25,7 +25,9 @@ export interface LanceDetalhe {
   pavimento: string; nome: string; z0: number; z1: number; secao: string;
   /** Passagem para o lance de cima: continua (mesma armadura, sem emenda), emenda, dobra (mudança de seção ≤ 1:6) ou arranque. */
   transicao: 'topo' | 'continua' | 'emenda' | 'dobra' | 'arranque';
-  estribos: { phi: number; s: number; n: number; comprimento: number; grampos: number; comprimentoGrampo: number };
+  estribos: { phi: number; s: number; n: number; comprimento: number; grampos: number; comprimentoGrampo: number;
+    /** Adensamento (R7c): altura, a partir da base e do topo do lance, e espaçamento adensado (m). */
+    ad?: { h: number; s: number } };
 }
 export interface DetalhePilar {
   pilar: string; nome: string;
@@ -38,6 +40,22 @@ export interface DetalhePilar {
 }
 
 const pesoLinear = (phi: number) => barArea(phi) * 7850;
+
+/** Cotas (m) dos estribos de um lance: espaçamento `s` a partir de 5 cm acima da base; com adensamento, `ad.s` na altura `ad.h` junto à base e ao topo. */
+export function posicoesEstribos(z0: number, z1: number, s: number, ad?: { h: number; s: number }): number[] {
+  const reg = (esp: number) => Array.from({ length: Math.floor((z1 - z0 - 0.05) / esp + 1e-9) + 1 }, (_, k) => z0 + 0.05 + k * esp);
+  if (!ad) return reg(s);
+  const nAd = Math.max(1, Math.floor((ad.h - 0.05) / ad.s + 1e-9) + 1);
+  const baseFim = z0 + 0.05 + (nAd - 1) * ad.s, topoIni = z1 - 0.05 - (nAd - 1) * ad.s, span = topoIni - baseFim;
+  if (span <= ad.s) return reg(ad.s);
+  const nMid = Math.max(0, Math.ceil(span / s - 1e-9) - 1);
+  return [
+    ...Array.from({ length: nAd }, (_, k) => z0 + 0.05 + k * ad.s),
+    ...Array.from({ length: nMid }, (_, k) => baseFim + ((k + 1) * span) / (nMid + 1)),
+    ...Array.from({ length: nAd }, (_, k) => topoIni + k * ad.s),
+  ];
+}
+const fmtM = (x: number) => x.toFixed(2).replace('.', ',');
 const arred = (x: number, passo: number) => Math.ceil(x / passo - 1e-9) * passo;
 
 /** Barras de um arranjo: total e por face (retangular), para os grampos. */
@@ -63,8 +81,18 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
   const ls = lancesDoPilar(b, p), ps = pavimentosOrdenados(b);
   const rs = ls.map((l) => res.find((r) => r.pilar === p.id && r.pavimentoId === l.id));
   if (!ls.length || rs.some((r) => !r?.arranjo)) return null;
+  // seção insuficiente (nem com 4 % de armadura, tabela esgotada, biela): fora do desenho e do quantitativo (K1.11.34)
+  if (op.pilarInsuficienteSemDesenho && rs.some((r) => r!.mensagens.some((m) => /^(Não atende com até 4|Armadura manual necessária|Nenhuma armadura|Biela comprimida)/.test(m)))) return null;
   const c = concretoDe(b, 'pilar'), aL = acoDe(b, 'pilarLong'), cob = cobrimentoPilar(b, p.cobrimento);
   const passo = op.arredondamento / 100, avisos: string[] = [];
+  // comprimentos editados (pilar.detalhe), válidos enquanto o número de lances não muda
+  const ed = p.detalhe && p.detalhe.lances === ls.length ? p.detalhe : undefined;
+  if (p.detalhe && !ed) avisos.push(`${p.nome}: detalhe editado desconsiderado: o número de lances do pilar mudou desde a edição.`);
+  const utilDe = (k: number) => Math.min(1, Math.max(0, rs[k]!.util));
+  const minEmenda = (lbx: number, f: number) => Math.max((op.pilarReducaoMinimo / 100) * lbx, 15 * f, 0.2);
+  const minAnc = (lbx: number, f: number) => Math.max(0.3 * lbx, 10 * f, 0.1);
+  /** Nível sem viga chegando ao pilar (K1.4.47). */
+  const semViga = (pav: string) => !b.vigas.some((v) => ps.find((x) => x.id === pav)?.grupo === v.grupo && vigaTocaPilar(v, p, pav));
   const zBase = (i: number) => { const k = ps.findIndex((x) => x.id === ls[i].id); return k > 0 ? ps[k - 1].cota : cotaFundacao(b); };
   /** Maior altura de viga que chega ao pilar no pavimento (nó), para a dobra, a ancoragem do topo e os estribos no nó. */
   const hNo = (pav: string) => Math.max(0.1, ...b.vigas.filter((v) => ps.find((x) => x.id === pav)?.grupo === v.grupo && vigaTocaPilar(v, p, pav)).map((v) => v.secao.h));
@@ -79,33 +107,60 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
   let i = 0;
   while (i < ls.length) {
     let j = i;
-    while (j + 1 < ls.length && igual(j, j + 1) && ps.find((x) => x.id === ls[j + 1].id)!.cota - zBase(i) <= op.pilarUniaoLances + 1e-9) j++;
+    while (j + 1 < ls.length && igual(j, j + 1) && (ps.find((x) => x.id === ls[j + 1].id)!.cota - zBase(i) <= op.pilarUniaoLances + 1e-9 || (op.pilarProlongarSemViga && semViga(ls[j].id)))) j++;
     const r = rs[i]!, a = r.arranjo!, cnt = contagem(r), phi = a.phi, f = phi / 1000;
     const lbB = lbBasico(phi, c, aL.fyd, true, aL.aco === 'CA-60');
     for (let k = i; k <= j; k++) lb[ls[k].id] = lbB;
     const topo = ps.find((x) => x.id === ls[j].id)!.cota, ultimo = j === ls.length - 1;
     // ponta de baixo: espera na fundação (lb abaixo da base, com gancho) ou já vem do trecho anterior
     let z0 = zBase(i), g0 = false;
-    if (i === 0 && p.nasce === 'fundacao') { z0 -= lbB; g0 = true; }
+    if (i === 0 && p.nasce === 'fundacao') {
+      const esp = ed?.espera ?? lbB;
+      if (ed?.espera !== undefined && esp < minAnc(lbB, f) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: espera na fundação de ${fmtM(esp)} m abaixo do mínimo ${fmtM(minAnc(lbB, f))} m (0,3·lb; 10φ; 10 cm).`);
+      z0 -= esp; g0 = true;
+    } else if (i === 0 && ed?.espera !== undefined) avisos.push(`${p.nome}: detalhe editado desconsiderado: o pilar não nasce na fundação (espera).`);
+    // passagens editadas em lances unidos sem emenda não valem
+    for (let k = i; k < j; k++) if (ed?.passagens?.some((x) => x.pavimento === ls[k].id)) avisos.push(`${p.nome}: detalhe editado desconsiderado: a passagem do ${ls[k].nome} é contínua (sem emenda).`);
+    const edP = ed?.passagens?.find((x) => x.pavimento === ls[j].id);
+
     // ponta de cima: topo do edifício (ancoragem no nó, gancho) ou emenda / arranque para o trecho de cima
     let z1: number, g1 = false, trans: LanceDetalhe['transicao'];
     if (ultimo) {
       const disp = hNo(ls[j].id) - cob, util = Math.min(1, Math.max(0, r.util));
       const nec = Math.max((op.ancoragemReduzidaTopo ? util : 1) * 0.7 * lbB, 0.3 * lbB, 10 * f, 0.1);
-      if (nec > disp + 1e-9) avisos.push(`${p.nome}: ancoragem no topo ${(nec * 100).toFixed(0)} cm > ${(disp * 100).toFixed(0)} cm disponíveis no nó (viga ou laje).`);
-      z1 = topo - cob; g1 = true; trans = 'topo';
+      if (op.pilarCorteTopo) {
+        avisos.push(`${p.nome}: barras cortadas no topo do último lance, sem gancho nem ancoragem (só desenho e quantitativo; não é calculado). Reduza o engaste do topo e ative a ancoragem reduzida antes.`);
+        z1 = topo - cob; g1 = false; trans = 'topo';
+      } else {
+        if (nec > disp + 1e-9) avisos.push(`${p.nome}: ancoragem no topo ${(nec * 100).toFixed(0)} cm > ${(disp * 100).toFixed(0)} cm disponíveis no nó (viga ou laje).`);
+        z1 = topo - cob; g1 = true; trans = 'topo';
+      }
+      if (edP) avisos.push(`${p.nome}: detalhe editado desconsiderado: o último lance não tem passagem para o de cima.`);
     } else {
       const sA = secaoNoLance(p, ls[j].id), sB = secaoNoLance(p, ls[j + 1].id);
       const [wA, hA] = dimsSecao(sA), [wB, hB] = dimsSecao(sB), cA = centroPilar(p, sA), cB = centroPilar(p, sB);
       const e = Math.hypot(cA[0] - cB[0], cA[1] - cB[1]) + Math.max(Math.abs(wA - wB), Math.abs(hA - hB)) / 2;
       const hv = hNo(ls[j].id);
-      if (e < 1e-6) { trans = 'emenda'; z1 = topo + lbB; }
-      else if (e / hv <= 1 / 6) { trans = 'dobra'; z1 = topo + lbB; }
+      const uP = Math.max(utilDe(j), utilDe(j + 1));
+      /** Traspasse (editado ou calculado, com a redução opcional pela utilização) de barras da bitola f com lb lbx. */
+      const traspasse = (lbx: number, fx: number) => {
+        const calc = op.pilarReducaoIntermediarios ? Math.max(uP * lbx, minEmenda(lbx, fx)) : lbx;
+        if (edP?.emenda === undefined) return calc;
+        if (edP.emenda < minEmenda(lbx, fx) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: traspasse de ${fmtM(edP.emenda)} m acima do ${ls[j].nome} abaixo do mínimo ${fmtM(minEmenda(lbx, fx))} m (${op.pilarReducaoMinimo} % de lb; 15φ; 20 cm).`);
+        return edP.emenda;
+      };
+      if (e < 1e-6 || e / hv <= 1 / 6) {
+        if (edP?.ancoragem !== undefined) avisos.push(`${p.nome}: detalhe editado desconsiderado: a ancoragem da passagem do ${ls[j].nome} só vale no arranque.`);
+        trans = e < 1e-6 ? 'emenda' : 'dobra'; z1 = topo + traspasse(lbB, f);
+      }
       else {
         // arranque: as barras de baixo param no nó com gancho; barras novas ancoradas lb abaixo do topo e emendadas lb acima
         trans = 'arranque'; z1 = topo - cob; g1 = true;
         const rB = rs[j + 1]!, cB2 = contagem(rB), phiB = rB.arranjo!.phi, lbA = lbBasico(phiB, c, aL.fyd, true, aL.aco === 'CA-60');
-        const za = topo - lbA, zb = topo + lbA;
+        const fA = phiB / 1000, ancCalc = op.pilarReducaoIntermediarios ? Math.max(uP * lbA, minAnc(lbA, fA)) : lbA;
+        const anc = edP?.ancoragem ?? ancCalc;
+        if (edP?.ancoragem !== undefined && anc < minAnc(lbA, fA) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: ancoragem do arranque de ${fmtM(anc)} m abaixo do mínimo ${fmtM(minAnc(lbA, fA))} m (0,3·lb; 10φ; 10 cm).`);
+        const za = topo - anc, zb = topo + traspasse(lbA, fA);
         barras.push({ pos: `N${++np}`, tipo: 'arranque', lances: [ls[j].id, ls[j + 1].id], n: cB2.n, phi: phiB, z0: za, z1: zb, ganchos: [false, false], comprimento: arred(zb - za, passo) });
       }
     }
@@ -127,13 +182,16 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
   function estribosDoLance(k: number): LanceDetalhe['estribos'] {
     const r = rs[k]!, a = r.arranjo!, e = a.estribo, s = secaoNoLance(p, ls[k].id), [w, h] = dimsSecao(s), cnt = contagem(r);
     const z0 = zBase(k), z1 = ps.find((x) => x.id === ls[k].id)!.cota, f = e.phi / 1000;
-    const n = Math.floor((z1 - z0 - 0.05) / e.s + 1e-9) + 1; // inclui o nó (estribos na interseção com vigas e lajes)
+    // inclui o nó (estribos na interseção com vigas e lajes); adensamento junto à base e ao topo (K1.4.61)
+    const sAd = Math.min(op.pilarAdensamentoEspacamento / 100, e.s);
+    const ad = op.pilarAdensamento && sAd < e.s - 1e-9 ? { h: Math.min(op.pilarAdensamentoAltura, (z1 - z0) / 2), s: sAd } : undefined;
+    const n = posicoesEstribos(z0, z1, e.s, ad).length;
     const ganchos = 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f);
     const comprimento = arred(s.tipo === 'circ' ? Math.PI * (s.d - 2 * cob) + Math.max(30 * f, 0.1) + ganchos : 2 * (w - 2 * cob) + 2 * (h - 2 * cob) + ganchos, passo);
     const aBar = cob + f + a.phi / 2000;
     const grampos = cnt.circ ? 0 : gramposPorEstribo(w, h, aBar, cnt.nb, cnt.nh, e.phi, cnt.nbS, cnt.nhD);
     const comprimentoGrampo = arred(Math.max(w, h) - 2 * cob + 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f), passo);
-    return { phi: e.phi, s: e.s, n, comprimento, grampos, comprimentoGrampo };
+    return { phi: e.phi, s: e.s, n, comprimento, grampos, comprimentoGrampo, ...(ad ? { ad } : {}) };
   }
   const peso = barras.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0)
     + lances.reduce((t, l) => t + l.estribos.n * (l.estribos.comprimento + l.estribos.grampos * l.estribos.comprimentoGrampo) * pesoLinear(l.estribos.phi), 0);
