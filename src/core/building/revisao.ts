@@ -39,6 +39,10 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'PILAR_DET_INSUF', nivel: 'erro', re: /^[^:]+: detalhe editado insuficiente/, descricao: 'Pilar: espera, traspasse ou ancoragem editados abaixo do mínimo' },
   { codigo: 'PILAR_DET_IGNORADO', nivel: 'aviso', re: /^[^:]+: detalhe editado desconsiderado/, descricao: 'Pilar: edição dos comprimentos desconsiderada (lances mudaram ou passagem sem emenda)' },
   { codigo: 'PILAR_CORTE_TOPO', nivel: 'aviso', re: /^[^:]+: barras cortadas no topo/, descricao: 'Pilar: barras cortadas no topo do último lance, sem ancoragem (só desenho e medição)' },
+  { codigo: 'LAJE_PREDEF_FORA', nivel: 'aviso', re: /^Predefinida .* sai do pano/, descricao: 'Laje: armadura predefinida sai do pano' },
+  { codigo: 'LAJE_PREDEF_COMPRIMENTO', nivel: 'aviso', re: /^Predefinida .* barra máxima/, descricao: 'Laje: armadura predefinida mais longa que a barra máxima' },
+  { codigo: 'LAJE_BASE_TELA', nivel: 'erro', re: /^Tela \S+ da base (inferior|superior) não está no catálogo/, descricao: 'Laje: tela da base fora do catálogo da NBR 7481' },
+  { codigo: 'LAJE_REFORCO_NAO_CABE', nivel: 'erro', re: /^Reforço da positiva na direção/, descricao: 'Laje: reforço sobre a base não cabe (espaçamento ou bitola)' },
   { codigo: 'FORA_TABELA', nivel: 'erro', re: /^Fora de tabela \((barras|estribos)\)/, descricao: 'Viga: armadura sem solução na tabela (φ25 ou estribo fora do mínimo da tabela)' },
   { codigo: 'ARM_MANUAL', nivel: 'erro', re: /^Armadura manual necessária/, descricao: 'Pilar: nem a tabela nem a armadura própria atendem (amplie a tabela ou a seção)' },
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
@@ -120,6 +124,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
+  for (const d of dim?.detalhesLajes ?? []) add('laje', d.laje, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
   for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);

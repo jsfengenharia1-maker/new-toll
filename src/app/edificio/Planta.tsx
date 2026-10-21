@@ -223,6 +223,11 @@ export function Planta() {
     const ids = new Set(lajes.map(({ l }) => l.id));
     return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => d.posicoes.filter((x) => x.face === pl.armaduraLajes).map((x) => ({ x, mx: (x.faixa[0][0] + x.faixa[1][0]) / 2, my: (x.faixa[0][1] + x.faixa[1][1]) / 2 })));
   }, [dimLajes, lajes, pl.armaduraLajes]);
+  const painelLajes = useMemo(() => {
+    if (pl.armaduraLajes === 'nenhuma' || !dimLajes) return [];
+    const ids = new Set(lajes.map(({ l }) => l.id));
+    return dimLajes.filter((d) => ids.has(d.laje)).flatMap((d) => (d.paineis ?? []).filter((p) => p.face === pl.armaduraLajes));
+  }, [dimLajes, lajes, pl.armaduraLajes]);
   // lajes treliçadas na mesma camada: vigotas (inferior: adicional ao longo do vão) e negativos nas pontas (superior)
   const dimVigotas = useBuilding((st) => st.dim?.vigotas);
   const armVigotas = useMemo(() => {
@@ -386,6 +391,17 @@ export function Planta() {
         for (const sgn of [1, -1]) { const ex = tx + sgn * ux * L, ey = cy + sgn * uy * L; ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 - uy * 4), ey - sgn * (uy * 7 + ux * 4)); ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 + uy * 4), ey - sgn * (uy * 7 - ux * 4)); }
         ctx.stroke();
       }
+    }
+    // painéis de tela soldada da base detalhada (retângulo com diagonais e designação)
+    if (painelLajes.length) {
+      const cor = pl.armaduraLajes === 'inf' ? cores.viga : cores.carga;
+      ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = 1; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const pn of painelLajes) {
+        const q = pn.poligono.map((pt) => paraTela(pt[0], pt[1]));
+        ctx.beginPath(); ctx.moveTo(...q[0]); for (const pt of q.slice(1)) ctx.lineTo(...pt); ctx.closePath(); ctx.moveTo(...q[0]); ctx.lineTo(...q[2]); ctx.stroke();
+        if (v.k > 40) ctx.fillText(`${pn.n} ${pn.designacao}`, (q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2);
+      }
+      ctx.textAlign = 'left';
     }
     // armadura das lajes (barra representativa de cada posição, com ganchos e rótulo)
     if (armLajes.length) {

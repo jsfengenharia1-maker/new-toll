@@ -2500,4 +2500,71 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'R7d: armadura base das lajes (tela Q138 detalhada em painéis, reforço, predefinida), resumo de telas e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
+      await cardL.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const svg = jan.locator('svg[data-detalhe-laje]');
+      await svg.waitFor();
+      assert.equal(await svg.locator('g[data-painel]').count(), 0);
+      const base = jan.locator('[data-base-laje]');
+      await base.waitFor();
+      // base inferior: tela Q138, detalhada, nas lajes do pavimento
+      await base.locator('[data-base-face="inf"]').getByLabel('Armadura base').selectOption({ label: 'tela soldada' });
+      await base.getByLabel('Detalhar a base').selectOption({ label: 'sim (desenhar e medir)' });
+      await base.getByLabel('Aplicar às lajes maciças do pavimento').check();
+      await base.locator('[data-base-aplicar]').click();
+      await livre();
+      await jan.locator('g[data-painel]').first().waitFor();
+      assert.ok(await jan.locator('g[data-painel][data-tela="Q138"]').count() >= 1);
+      assert.match(await jan.locator('svg[data-detalhe-laje]').innerHTML(), /T1 – Q138 – \d,\d\d × \d,\d\d/);
+      assert.match(await jan.locator('[data-base-indicada]').innerText(), /Tela Q138/);
+      assert.ok(await jan.locator('table[data-tabela-paineis] tbody tr').count() >= 1);
+      assert.ok(await jan.locator('g[data-tipo="reforco"]').count() >= 1, 'reforço = necessária − base');
+      // predefinida superior: medida como lançada
+      const pd = jan.locator('[data-predefinida-form]');
+      await pd.getByLabel('Comprimento (m)').fill('2,5'); await pd.getByLabel('Comprimento (m)').press('Enter');
+      await pd.locator('[data-predefinida-aplicar]').click();
+      await livre();
+      await jan.locator('g[data-tipo="predefinida"]').first().waitFor();
+      assert.equal(await jan.locator('table[data-tabela-predefinidas] tbody tr').count(), 1);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // resumo de aço: tabela de telas (painéis e kg)
+      const resumo = page.locator('[data-resumo-aco]');
+      await resumo.locator('table[data-tabela-telas]').waitFor();
+      const linha = resumo.locator('tr[data-tela="Q138"] td.num');
+      assert.ok(parseInt(await linha.nth(0).innerText(), 10) >= 2, 'painéis');
+      assert.ok(num(await linha.nth(2).innerText()) > 0, 'kg');
+      const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
+      assert.match(csv.text, /Telas soldadas da base das lajes/);
+      // opção de detalhamento da base na lista de opções
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      assert.match(await g.innerText(), /Lajes: traspasse entre painéis de tela soldada/);
+      assert.ok(!(await g.getByLabel('Lajes: detalhar a armadura base').isChecked()));
+      // memorial: base, painéis e resumo de telas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const t = await memo.innerText();
+      assert.match(t, /Armadura base \(detalhada, desenhada e medida\)/);
+      assert.match(t, /Painéis de tela: T1 Q138/);
+      assert.match(t, /Telas soldadas da base das lajes \(NBR 7481/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];

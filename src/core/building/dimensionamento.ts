@@ -14,7 +14,7 @@ import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
-import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, type DetalheLaje } from './detalhamentoLajes';
+import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, resumoTelasLajes, type DetalheLaje } from './detalhamentoLajes';
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
 import { casosDaObra, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { areaPoligono } from '../geom/faces';
@@ -1051,7 +1051,7 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Detalhamento dos pilares (barras por lance, emendas, arranques, estribos e grampos) e resumo do aço dos pilares. */
   detalhesPilares?: DetalhePilar[]; resumoAcoPilares?: ReturnType<typeof resumoAcoPilares>;
   /** Detalhamento das lajes maciças (posições de barras, bordas, avisos) e resumo do aço das lajes. */
-  detalhesLajes?: DetalheLaje[]; resumoAcoLajes?: ReturnType<typeof resumoAcoLajes>;
+  detalhesLajes?: DetalheLaje[]; resumoAcoLajes?: ReturnType<typeof resumoAcoLajes>; resumoTelas?: ReturnType<typeof resumoTelasLajes>;
   /**
    * Lajes treliçadas (R6): um resultado por laje (envoltória dos pavimentos do grupo) com alinhamentos de vigotas,
    * grupos de igualação, armaduras e verificações; erros e avisos também vão para `lajes[].mensagens`.
@@ -1090,6 +1090,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.resumoAcoPilares = resumoAcoPilares(b, d.detalhesPilares, an.opcoes.perdasAco);
   d.detalhesLajes = detalharLajes(b, d, an, an.opcoes);
   d.resumoAcoLajes = resumoAcoLajes(b, d.detalhesLajes, an.opcoes.perdasAco);
+  { const t = resumoTelasLajes(d.detalhesLajes, an.opcoes.perdasAco); if (t.length) d.resumoTelas = t; }
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);

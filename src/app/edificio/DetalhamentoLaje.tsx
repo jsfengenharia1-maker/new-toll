@@ -8,10 +8,12 @@ import { barArea } from '../../core/concrete';
 import { acoDe } from '../../core/building/materiais';
 import type { BordaLaje, DetalheLaje, PosicaoLaje, TipoBarraLaje } from '../../core/building/detalhamentoLajes';
 import { fmt, phiTxt } from './Detalhamento';
+import { BaseLaje } from './BaseLaje';
 
 export const TIPO_POS_LAJE: Record<TipoBarraLaje, string> = {
   positiva: 'Positiva', negativa: 'Negativa', 'negativa-borda': 'Negativa de borda', distribuicao: 'Distribuição',
   'borda-livre': 'Borda livre (U)', 'borda-livre-long': 'Borda livre (longitudinal)', canto: 'Canto', furo: 'Reforço de furo',
+  base: 'Base', reforco: 'Reforço sobre a base', predefinida: 'Predefinida',
 };
 export const FACE_POS_LAJE: Record<PosicaoLaje['face'], string> = { inf: 'inferior', sup: 'superior' };
 const TIPO_BORDA: Record<BordaLaje['tipo'], string> = { continua: 'contínua', apoiada: 'apoiada', livre: 'livre' };
@@ -54,6 +56,17 @@ function PlantaLaje({ d, mostrar }: { d: DetalheLaje; mostrar: { inf: boolean; s
           </g>
         );
       })}
+      {(d.paineis ?? []).filter((p) => mostrar[p.face]).map((p) => {
+        const [A, B, C, D] = p.poligono, cx = (A[0] + C[0]) / 2, cy = (A[1] + C[1]) / 2;
+        return (
+          <g key={p.n} data-painel={p.n} data-tela={p.designacao} data-face={p.face}>
+            <path d={anel(p.poligono)} className={`det-tela ${p.face}`} />
+            <line x1={X(A[0])} y1={Y(A[1])} x2={X(C[0])} y2={Y(C[1])} className="det-tela-diag" />
+            <line x1={X(B[0])} y1={Y(B[1])} x2={X(D[0])} y2={Y(D[1])} className="det-tela-diag" />
+            <text x={X(cx)} y={Y(cy)} textAnchor="middle" className={`det-txt ${p.face}`}>{`${p.n} – ${p.designacao} – ${fmt(p.largura)} × ${fmt(p.comprimento)}`}</text>
+          </g>
+        );
+      })}
       {vis.map((x) => {
         const f0 = x.faixa[0], f1 = x.faixa[1], mx = (f0[0] + f1[0]) / 2, my = (f0[1] + f1[1]) / 2;
         const chave = `${mx.toFixed(1)}|${my.toFixed(1)}`, k = usados.get(chave) ?? 0;
@@ -92,6 +105,20 @@ export function DetalheDaLaje({ id }: { id: string }) {
       </div>
       <div className="det-leg"><span><i className="inf" />armadura inferior</span><span><i className="sup" />armadura superior</span><span><i className="continua" />borda contínua</span><span><i className="apoiada" />borda apoiada</span><span><i className="livre" />borda livre</span></div>
       <PlantaLaje d={d} mostrar={{ inf, sup }} />
+      {d.base && (
+        <div data-base-indicada>
+          <h4>Armadura base {d.base.detalhada ? '(detalhada)' : '(só indicada)'}</h4>
+          <KV rows={[...(d.base.inf ? [['Face inferior', `${d.base.inf.nota} · ${fmt(d.base.inf.As[0])} / ${fmt(d.base.inf.As[1])} cm²/m`] as [string, string]] : []), ...(d.base.sup ? [['Face superior', `${d.base.sup.nota} · ${fmt(d.base.sup.As[0])} / ${fmt(d.base.sup.As[1])} cm²/m`] as [string, string]] : [])]} />
+        </div>
+      )}
+      {d.paineis && d.paineis.length > 0 && (
+        <div className="tablewrap">
+          <table className="data quadro" data-tabela-paineis>
+            <thead><tr><th>Painel</th><th>Face</th><th>Tela</th><th>Largura (m)</th><th>Comprimento (m)</th><th>Peso (kg)</th></tr></thead>
+            <tbody>{d.paineis.map((p) => <tr key={p.n}><td className="tl">{p.n}</td><td className="tl">{FACE_POS_LAJE[p.face]}</td><td className="tl">{p.designacao}</td><td className="num">{fmt(p.largura)}</td><td className="num">{fmt(p.comprimento)}</td><td className="num">{fmt(p.peso)}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
       <h4>Tabela de posições (uma laje)</h4>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-posicoes-laje>
@@ -111,6 +138,7 @@ export function DetalheDaLaje({ id }: { id: string }) {
           </tbody>
         </table>
       </div>
+      {b.lajes.find((x) => x.id === id)?.tipo.tipo === 'macica' && <BaseLaje l={b.lajes.find((x) => x.id === id)!} />}
       <h4>Bordas</h4>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-bordas-laje>

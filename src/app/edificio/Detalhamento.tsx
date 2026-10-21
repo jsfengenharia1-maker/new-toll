@@ -381,6 +381,11 @@ export function csvAco(dim: DimEdificio): string {
     for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
     lin.push(['Total', fmt(dim.trelicas.reduce((a, t) => a + t.comprimento, 0)), fmt(dim.trelicas.reduce((a, t) => a + t.peso, 0)), fmt(dim.trelicas.reduce((a, t) => a + t.pesoComPerdas, 0))], []);
   }
+  if (dim.resumoTelas?.length) {
+    lin.push(['Telas soldadas da base das lajes (NBR 7481)'], ['Designação', 'Painéis', 'Área (m²)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
+    for (const t of dim.resumoTelas) lin.push([t.designacao, String(t.paineis), fmt(t.area), fmt(t.peso), fmt(t.pesoComPerdas)]);
+    lin.push(['Total', String(dim.resumoTelas.reduce((a, t) => a + t.paineis, 0)), fmt(dim.resumoTelas.reduce((a, t) => a + t.area, 0)), fmt(dim.resumoTelas.reduce((a, t) => a + t.peso, 0)), fmt(dim.resumoTelas.reduce((a, t) => a + t.pesoComPerdas, 0))], []);
+  }
   if (dim.vigotas?.length) {
     lin.push(['Lajes treliçadas por grupo de igualação (esforços e armadura por nervura)'], ['Laje', 'Grupo', 'Vigotas', 'L (m)', 'Md+ (kN·m)', 'Md− ini (kN·m)', 'Md− fim (kN·m)', 'As nec. (cm²)', 'Adicional', 'Negativo ini', 'Negativo fim', 'Maciço ini (cm)', 'Maciço fim (cm)']);
     for (const r of dim.vigotas) for (const x of linhasGruposVigotas(r)) lin.push([r.nome, `G${x.grupo}`, String(x.vigotas), fmt(x.L), fmt(x.mPos), fmt(x.mNeg[0]), fmt(x.mNeg[1]), fmt(x.AsNec), x.adicional, x.negativos[0], x.negativos[1], fmt(x.macico[0] * 100, 0), fmt(x.macico[1] * 100, 0)]);
@@ -421,7 +426,8 @@ function TabelaAco({ titulo, res, marca }: { titulo: string; res: LinhaAco[]; ma
 
 export function ResumoAco({ dim }: { dim: DimEdificio }) {
   const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], tre = dim.trelicas ?? [];
-  if (!res.length && !resP.length && !resL.length && !resV.length) return null;
+  const telas = dim.resumoTelas ?? [];
+  if (!res.length && !resP.length && !resL.length && !resV.length && !telas.length) return null;
   const perdas = perdasDoResumo(somarResumosAco(res, resP, resL, resV));
   return (
     <div className="card" data-resumo-aco>
@@ -439,6 +445,20 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
               <tbody>
                 {tre.map((t) => <tr key={t.trelica} data-trelica={t.trelica}><td className="tl">{t.trelica}</td><td className="num">{fmt(t.comprimento)}</td><td className="num">{fmt(t.peso)}</td><td className="num">{fmt(t.pesoComPerdas)}</td></tr>)}
                 <tr data-total-trelicas><td className="tl"><b>Total</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.comprimento, 0))}</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.peso, 0))}</b></td><td className="num"><b>{fmt(tre.reduce((a, t) => a + t.pesoComPerdas, 0))}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      {telas.length > 0 && (
+        <>
+          <h4>Telas soldadas da base das lajes (NBR 7481, fora do total de barras)</h4>
+          <div className="tablewrap">
+            <table className="data quadro" data-tabela-telas>
+              <thead><tr><th>Designação</th><th>Painéis</th><th>Área (m²)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+              <tbody>
+                {telas.map((t) => <tr key={t.designacao} data-tela={t.designacao}><td className="tl">{t.designacao}</td><td className="num">{t.paineis}</td><td className="num">{fmt(t.area)}</td><td className="num">{fmt(t.peso)}</td><td className="num">{fmt(t.pesoComPerdas)}</td></tr>)}
+                <tr data-total-telas><td className="tl"><b>Total</b></td><td className="num"><b>{telas.reduce((a, t) => a + t.paineis, 0)}</b></td><td className="num"><b>{fmt(telas.reduce((a, t) => a + t.area, 0))}</b></td><td className="num"><b>{fmt(telas.reduce((a, t) => a + t.peso, 0))}</b></td><td className="num"><b>{fmt(telas.reduce((a, t) => a + t.pesoComPerdas, 0))}</b></td></tr>
               </tbody>
             </table>
           </div>

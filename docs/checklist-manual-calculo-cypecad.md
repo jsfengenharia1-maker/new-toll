@@ -13,31 +13,31 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 10 | 12 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 48 | 19 | 12 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 50 | 17 | 12 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 34 | 9 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 28 | 20 | 55 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 31 | 19 | 53 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 23 | 17 | 19 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 24 | 17 | 18 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 50 | 17 | 30 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 9 | 2 | 30 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 14 | 1 | 26 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **242** | **122** | **186** | **111** |
+| **Total** | **661** | **253** | **118** | **179** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 54 | 28 | 82 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 24 | 15 | 39 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 20 | 8 | 28 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 119 | 144 |
 | FU — Fundações | 6 | 13 | 19 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **122** | **186** | **308** |
+| **Total** | **118** | **179** | **297** |
 
 ## Divergências de premissa
 
@@ -251,8 +251,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.73 | Seleção de estribos (opção geral); fissuração (opção geral). | Feito | — | seleção de estribos pelas tabelas (vigas: bitolas, espaçamento mínimo e máximo e ramos por faixa de largura; pilares: φt e s máx por bitola longitudinal) e fissuração pela opção limiteFissura (N1e) (R7a) |
 | K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Parcial | FU | FU2: vigas de fundação com As,mín da 17.3.5.2.1 nas duas faces e pele 0,10 % por face com h > 60 cm (`dimensionarVigaFundacao`), com o detalhe na janela; cintas e vigas embutidas em paredes faltam (E1, FU7) |
 | | **Lajes maciças, mistas e nervuradas (listadas)** | | | |
-| K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Parcial | R | ρmín e mínimos de distribuição (Tabela 19.1), negativo de borda (19.3.3.2) e comprimentos mínimos em % do vão; torção das lajes por Wood-Armer (N1d); sem redução de densidade (R4) [R7d] |
-| K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Parcial | R | ponta das barras a cobrimento da borda; sem armadura base nos desenhos (R4) [R7d] |
+| K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Feito | — | ρmín e mínimos de distribuição (Tabela 19.1), negativo de borda (19.3.3.2), comprimentos mínimos em % do vão, torção por Wood-Armer (N1d) e redução de densidade do reforço (opção `lajeReforcoReducao`, desligada: bitola da base em espaçamento múltiplo; `detalhamentoLajes.ts`, R7d) |
+| K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Feito | — | ponta das barras a cobrimento da borda; opção `lajeBaseDetalhada` (padrão desligada, como no registro) e escolha por laje em `laje.armaduraBase`: não detalhada só indica φ c/ s ou a tela (desenho e notas da prancha), fora do quantitativo (R7d) |
 | K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Parcial | R | arredondamento de comprimentos (opção), ganchos de 90° e numeração N1…; sem critérios de disposição editáveis nem armadura de lajes retangulares (R4) [R7e] |
 | | **Escadas (listadas)** | | | |
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas [E4d] |
@@ -476,9 +476,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Lajes maciças** | | | |
 | K1.9.84 | Espessura e direção de armadura por pano (espessura pode variar por pano). | Feito | — | espessura e direção da malha por laje (`laje.editar`) |
 | K1.9.85 | Engaste de borda com vigas de apoio 0–1 (inclui engaste parcial); desníveis entre panos como nas vigotas. | Parcial | N | engaste de borda 0–1 por aresta e por viga de apoio (N1a); desnível entre panos não entra no cálculo [N2e] |
-| K1.9.86 | Armadura base (superior e inferior, em cada direção) ou tela soldada atribuível por pano; considerada no cálculo e descontada da armadura adicional. | Falta | R | armadura base ou tela por pano [R7d] |
+| K1.9.86 | Armadura base (superior e inferior, em cada direção) ou tela soldada atribuível por pano; considerada no cálculo e descontada da armadura adicional. | Feito | — | comando `laje.armaduraBase` (barras por direção da tabela da laje ou tela da NBR 7481, por pano ou seleção), sempre colaborante: reforço = necessária − base em `detalharLaje`; grupo "Armadura base" na janela da laje (`BaseLaje.tsx`) (R7d) |
 | K1.9.87 | Alerta: se a opção de detalhar armadura base estiver desligada, ela não aparece em desenhos, quantitativos e tabelas, embora entre no cálculo — indicar no desenho emendas e zonas. | Fora | — | alerta do manual |
-| K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Parcial | R | positiva contínua com emenda por traspasse acima da barra máxima e negativos só onde o diagrama pede; sem armadura base nem emendas nas zonas de máximo negativo (R4) [R7d] |
+| K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Feito | — | positiva contínua com emenda por traspasse acima da barra máxima, na base inferior detalhada com o centro da emenda junto à borda contínua (opção `lajeBaseEmendaApoio`); superior só onde necessária (base superior que atende dispensa negativo e distribuição). Radier (FU6) segue `detalharRadier`, sem a base (R7d) |
 | K1.9.89 | Lajes maciças podem ser radier: espessura, coeficiente de reação e tensão admissível; armadura base do radier pela taxa mínima automática das opções. | Falta | FU | radier |
 | | **Lajes nervuradas** | | | |
 | K1.9.90 | Zona aliviada e zona maciça; fôrma recuperável ou perdida (biblioteca editável). | Falta | E | lajes nervuradas [E3c] |
@@ -493,7 +493,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Falta | E | ábacos manuais [E3d] |
 | K1.9.100 | Ábacos sempre têm armadura base entre nervuras, descontada da armadura das nervuras; não é medida nem detalhada — alerta para legenda e detalhes; tabela informativa sempre impressa na planta. | Falta | E | ábacos (armadura base) [E3d] |
 | K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Falta | E | desenho dos caixotes [E3c] |
-| K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Falta | R | armadura predefinida [R7d] |
+| K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Feito | — | comando `laje.armaduraPredefinida` (face, ponto, direção, comprimento, φ, espaçamento e nº de barras; criar, editar e remover): medida como lançada e descontada do reforço só na faixa n × s, inclusive sobre bordas contínuas (R7d) |
 | | **Aberturas** | | | |
 | K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | L | `laje.abertura` cria furo e aviso de região sem laje; a grelha ignora os furos [L5] |
 | K1.9.104 | Vigas chatas entre duas aberturas ou abertura e contorno, sem laje lateral, ficam sem altura: trocar por viga alta com dimensões. | Fora | — | regra interna de vigas chatas |
@@ -551,7 +551,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Alveolares** | | | |
 | K1.11.15 | Envoltórias médias por metro de faixa, placa escolhida, negativo nos apoios (nº, bitola, espaçamento, comprimento), flecha, erros de momento/cortante/flecha/ambiente; placa e negativos editáveis. | Falta | E | lajes alveolares [E3e] |
 | | **Maciças, nervuradas e radiers** | | | |
-| K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Falta | R | armadura base das lajes [R7d] |
+| K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Feito | — | armadura base das lajes definida e alterada na janela da laje e por comando; malha de discretização pela opção `malha` (R7d) |
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | V | As por metro (máximo por laje e direção) na tabela e no detalhamento; sem mapa [V4] |
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Falta | V | deslocamentos e esforços por nó e caso na tela [V3] |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
@@ -748,10 +748,10 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.1-1 | Processo de cálculo remetido ao item 1.9 (entrada de dados). | Falta | E | lajes alveolares [E3e] |
 | | **1.13.2 Lajes maciças (págs. 91–94)** | | | |
 | | **1.13.2.1 Armadura base** | | | |
-| K1.13.2.1-1 | Opcional: armadura base superior e inferior, longitudinal e transversal, podendo diferir entre si; escolhida da tabela e editável. | Falta | R | armadura base das lajes [R7d] |
-| K1.13.2.1-2 | Quando definida, é sempre colaborante; aumentada se o cálculo exigir (flexão, armadura comprimida ou taxas mínimas configuradas). | Falta | R | armadura base colaborante [R7d] |
-| K1.13.2.1-3 | Detalhada: desenhada com os reforços, cortes e emendas, com quantitativo e comprimentos de corte. | Parcial | R | desenho (planta da laje e prancha) com as posições, comprimentos e quantitativo da armadura calculada (R4, R5); sem armadura base [R7d] |
-| K1.13.2.1-4 | Não detalhada: só diâmetro e espaçamento indicados, sem desenho nem quantitativo; o usuário completa planta e quantitativos. | Falta | R | armadura base não detalhada [R7d] |
+| K1.13.2.1-1 | Opcional: armadura base superior e inferior, longitudinal e transversal, podendo diferir entre si; escolhida da tabela e editável. | Feito | — | base superior e inferior, nas duas direções, com valores diferentes; barras da tabela da laje (R7a) ou tela soldada (`BaseFaceLaje`) (R7d) |
+| K1.13.2.1-2 | Quando definida, é sempre colaborante; aumentada se o cálculo exigir (flexão, armadura comprimida ou taxas mínimas configuradas). | Feito | — | a base conta na armadura positiva e nos negativos; aumentada pelo reforço quando o cálculo exige (flexão ou mínimos); armadura comprimida não é considerada na laje maciça (R7d) |
+| K1.13.2.1-3 | Detalhada: desenhada com os reforços, cortes e emendas, com quantitativo e comprimentos de corte. | Feito | — | base detalhada: barras como posições (desenho, comprimentos, emendas e quantitativo) ou painéis de tela com traspasse, recortados por contorno e furos, nas pranchas e no resumo de telas (R7d) |
+| K1.13.2.1-4 | Não detalhada: só diâmetro e espaçamento indicados, sem desenho nem quantitativo; o usuário completa planta e quantitativos. | Feito | — | base não detalhada: só φ c/ s ou a designação da tela, sem desenho nem quantitativo (nota da prancha e aba Detalhamento) (R7d) |
 | | **1.13.2.2 Reforço longitudinal** | | | |
 | K1.13.2.2-1 | Em cada nó da malha conhecem-se os momentos fletores nas duas direções e o momento torçor. | Feito | — | momentos das barras nas duas direções e volvente mxy em módulo (torção das barras) usados no Wood-Armer (N1d) |
 | K1.13.2.2-2 | Método de Wood (inclui a torção) dá o momento de dimensionamento em cada direção de armadura, que em geral não coincide com as direções principais. | Feito | — | Wood-Armer: mx* = mx + abs(mxy) e mx*′ = mx − abs(mxy); torçor conservador somando abs(γ·mxy) por caso (N1d) |
@@ -762,7 +762,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.2-7 | Diâmetros e espaçamentos máximos garantidos pelas tabelas, definidas por faixa de espessura da laje. | Feito | — | tabela de lajes por faixa de espessura (bitolas, espaçamento mínimo e máximo), com φ ≤ h/8 e s ≤ mín(2h; 20 cm) da NBR e aviso FORA_TABELA_LAJE (R7a) |
 | K1.13.2.2-8 | Consideração da torção opcional, recomendada sempre. | Feito | — | torção das lajes maciças por Wood-Armer, opção ligada por padrão (woodArmer, N1d) |
 | | **1.13.2.3 Armadura predefinida** | | | |
-| K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Falta | R | armadura predefinida [R7d] |
+| K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Feito | — | armadura lançada pelo usuário, descontada do reforço na faixa de influência n × s (R7d) |
 | K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Falta | FU | radier |
 | | **1.13.2.4 Armadura transversal** | | | |
 | K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Falta | N | punção em lajes (NBR 6118 19.5); só sapatas têm (`footings.ts`) [N2d] |
@@ -906,5 +906,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.
 - **21/10/2026 — fatia R7c (opções do detalhamento de pilares, núcleo e interface).** K1.4.47, K1.4.48, K1.4.49, K1.4.52, K1.4.61, K1.11.34, K1.12.4-15 e K1.12.4-21 passam a Feito: 10 opções `pilar*` (níveis sem viga, corte no topo, redução do traspasse e do arranque com mínimo, continuidade a partir do penúltimo ou do último lance e por face, adensamento dos estribos, seção insuficiente sem desenho), comando `pilar.detalhe` (`mcp: false`) com editor na janela do pilar, códigos PILAR_DET_INSUF, PILAR_DET_IGNORADO e PILAR_CORTE_TOPO, memorial, pranchas (adensamento cotado e quadro com pilar sem desenho), premissa `detalhamento-pilares-opcoes` e e2e `R7c`. Com as opções novas nos valores da NBR o detalhamento dos pilares é idêntico ao anterior (`detalhamentoPilares.base.json`).
+- **21/10/2026 — fatia R7d (armadura base, tela soldada e armadura predefinida das lajes, núcleo e interface).** K1.4.75, K1.4.76, K1.9.86, K1.9.88, K1.9.102, K1.11.16, K1.13.2.1-1 a K1.13.2.1-4 e K1.13.2.3-1 passam a Feito: `Laje.base`/`Laje.predefinidas`, comandos `laje.armaduraBase` e `laje.armaduraPredefinida` (`mcp: false`), catálogo de telas pelas designações da NBR 7481 (`telasSoldadas.ts`, série Q), reforço = necessária − base, painéis de 2,45 × 6,00 m com traspasse, 4 opções `lajeBase*`/`lajeReforcoReducao`/`lajeTelaTraspasse`, códigos LAJE_PREDEF_FORA, LAJE_PREDEF_COMPRIMENTO, LAJE_BASE_TELA e LAJE_REFORCO_NAO_CABE, resumo de telas (painéis, m², kg), memorial, pranchas (painéis e tabelas de telas), premissa `lajes-base` e e2e `R7d`. Sem base nem predefinidas o detalhamento é idêntico ao anterior (`detalhamentoLajes.base.json`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 8 itens; demais sem mudança.

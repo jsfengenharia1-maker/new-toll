@@ -5,6 +5,8 @@ import { lancesDoPilar, type BuildingModel, type Pilar } from '../building/types
 import type { Diagnostico } from '../building/verify';
 import { vaosDaViga } from '../building/vigas';
 import { motivoTramo } from '../building/detalhamento';
+import { linhaLajes, tabelaDe } from '../building/tabelasArmadura';
+import { TELAS } from '../building/telasSoldadas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -219,5 +221,88 @@ registrar<{ ids: string[]; remover?: boolean }>({
     if (p.remover) { d.tramos = (d.tramos ?? []).filter((t) => !(t.length === p.ids.length && t.every((x, i) => x === p.ids[i]))); if (!d.tramos.length) delete d.tramos; return 'Tramo desfeito.'; }
     d.tramos = [...(d.tramos ?? []), [...p.ids]];
     return `Tramo predefinido criado com ${p.ids.length} vigas.`;
+  },
+});
+
+const BITOLA_LAJE = [5, 6.3, 8, 10, 12.5, 16];
+interface FaceBaseP { tela?: string; giro?: boolean; barras?: { dir: 0 | 1; phi: number; s: number }[] }
+const faceBase: JsonSchema = { type: 'object', additionalProperties: false, properties: {
+  tela: { type: 'string', enum: TELAS.map((t) => t.id), description: 'designação da tela soldada (NBR 7481)' },
+  giro: { type: 'boolean', description: 'tela com os fios principais na direção 1 da laje' },
+  barras: { type: 'array', minItems: 1, maxItems: 2, items: { type: 'object', additionalProperties: false, required: ['dir', 'phi', 's'], properties: { dir: { type: 'integer', enum: [0, 1] }, phi: { type: 'number', enum: BITOLA_LAJE }, s: { type: 'number', minimum: 5, maximum: 33, description: 'espaçamento (cm)' } } } },
+} };
+
+registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean; detalhadaPadrao?: boolean; remover?: ('inf' | 'sup')[] }>({
+  nome: 'laje.armaduraBase',
+  descricao: 'Define a armadura base de lajes maciças (R7d), por pano ou seleção: face `inf` e/ou `sup` com tela soldada (`tela` pela designação da NBR 7481, `giro` troca a direção dos fios principais) ou `barras` por direção da malha (`dir` 0 = maior aresta, `phi` mm da tabela da laje, `s` cm). A base é sempre colaborante: o reforço é a armadura necessária menos a base. `detalhada` (desenhada e medida) sobrepõe a opção lajeBaseDetalhada; `detalhadaPadrao` volta a opção; `remover` apaga faces.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, inf: faceBase, sup: faceBase, detalhada: { type: 'boolean' }, detalhadaPadrao: { type: 'boolean' },
+    remover: { type: 'array', items: { type: 'string', enum: ['inf', 'sup'] } },
+  } },
+  validar(b, p) {
+    const sem = p.ids.filter((id) => !b.lajes.some((x) => x.id === id));
+    if (sem.length) return err('LAJE_INEXISTENTE', `Laje ${sem.join(', ')} não existe.`);
+    const nm = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'macica');
+    if (nm.length) return err('LAJE_NAO_MACICA', `${nm.map((x) => x.nome).join(', ')} não é maciça (a base vale para lajes maciças).`, nm.map((x) => x.id));
+    if (!p.inf && !p.sup && p.detalhada === undefined && !p.detalhadaPadrao && !p.remover?.length) return err('SEM_EDICAO', 'Informe inf, sup, detalhada ou remover.');
+    for (const [nome, f] of [['inf', p.inf], ['sup', p.sup]] as const) {
+      if (!f) continue;
+      if (!!f.tela === !!f.barras) return err('BASE_FACE', `Base ${nome}: informe a tela ou as barras (uma só).`);
+      if (f.barras) {
+        if (new Set(f.barras.map((x) => x.dir)).size !== f.barras.length) return err('BASE_FACE', `Base ${nome}: direção repetida.`);
+        for (const l of b.lajes.filter((x) => p.ids.includes(x.id))) {
+          const lin = linhaLajes(tabelaDe(b, 'lajes', l.tabela), l.tipo.tipo === 'macica' ? l.tipo.h : 0.12);
+          const fora = f.barras.find((x) => !lin.bitolas.includes(x.phi));
+          if (fora) return err('FORA_TABELA_BASE', `${l.nome}: φ${fora.phi} não está na tabela de armadura da laje.`, [l.id]);
+        }
+      }
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const conv = (f: FaceBaseP) => f.tela ? { tela: f.tela, ...(f.giro ? { giro: true } : {}) } : { barras: [0, 1].map((k) => { const x = f.barras!.find((y) => y.dir === k); return x ? { phi: x.phi, s: x.s } : null; }) as [{ phi: number; s: number } | null, { phi: number; s: number } | null] };
+    for (const l of d.lajes) {
+      if (!p.ids.includes(l.id)) continue;
+      const base = { ...(l.base ?? {}) };
+      if (p.inf) base.inf = conv(p.inf);
+      if (p.sup) base.sup = conv(p.sup);
+      for (const f of p.remover ?? []) delete base[f];
+      if (p.detalhada !== undefined) base.detalhada = p.detalhada;
+      if (p.detalhadaPadrao) delete base.detalhada;
+      if (base.inf || base.sup || base.detalhada !== undefined) l.base = base; else delete l.base;
+    }
+    return `Armadura base de ${p.ids.length} laje(s) editada.`;
+  },
+});
+
+interface PredP { face: 'inf' | 'sup'; a: [number, number]; angulo: number; comprimento: number; phi: number; s: number; n: number }
+registrar<{ id: string; acao: 'criar' | 'editar' | 'remover'; predefinida?: string } & Partial<PredP>>({
+  nome: 'laje.armaduraPredefinida',
+  descricao: 'Cria, edita ou remove uma armadura predefinida de uma laje maciça (R7d): barra representativa de `a` (m, planta) na direção `angulo` (graus) com `comprimento` (m), `n` barras φ `phi` (mm) espaçadas de `s` (m) à esquerda da representativa, na `face` inf ou sup. É medida como lançada e descontada do reforço calculado na faixa n × s. `predefinida` = id, para editar ou remover.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id', 'acao'], properties: {
+    id: { type: 'string' }, acao: { type: 'string', enum: ['criar', 'editar', 'remover'] }, predefinida: { type: 'string' },
+    face: { type: 'string', enum: ['inf', 'sup'] }, a: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, angulo: { type: 'number' },
+    comprimento: { type: 'number', minimum: 0.2, maximum: 30 }, phi: { type: 'number', enum: BITOLA_LAJE }, s: { type: 'number', minimum: 0.05, maximum: 0.33 }, n: { type: 'integer', minimum: 1, maximum: 200 },
+  } },
+  validar(b, p) {
+    const l = b.lajes.find((x) => x.id === p.id);
+    if (!l) return err('LAJE_INEXISTENTE', `Laje ${p.id} não existe.`);
+    if (l.tipo.tipo !== 'macica') return err('LAJE_NAO_MACICA', `${l.nome} não é maciça.`, [l.id]);
+    if (p.acao !== 'criar' && !(l.predefinidas ?? []).some((x) => x.id === p.predefinida)) return err('PREDEFINIDA_INEXISTENTE', `Predefinida ${p.predefinida ?? '?'} não existe em ${l.nome}.`, [l.id]);
+    if (p.acao === 'criar') for (const k of ['face', 'a', 'angulo', 'comprimento', 'phi', 's', 'n'] as const) if (p[k] === undefined) return err('PREDEFINIDA_INCOMPLETA', `Informe ${k}.`, [l.id]);
+    return [];
+  },
+  aplicar(d, p) {
+    const l = d.lajes.find((x) => x.id === p.id)!;
+    if (p.acao === 'remover') { l.predefinidas = (l.predefinidas ?? []).filter((x) => x.id !== p.predefinida); if (!l.predefinidas.length) delete l.predefinidas; return `Predefinida removida de ${l.nome}.`; }
+    const r4 = (x: number) => +x.toFixed(4);
+    const novo = (o?: PredP & { id: string }) => ({ id: o?.id ?? `pd_${(++d.seq).toString(36)}`, face: p.face ?? o!.face, a: (p.a ? [r4(p.a[0]), r4(p.a[1])] : o!.a) as [number, number], angulo: p.angulo ?? o!.angulo, comprimento: r4(p.comprimento ?? o!.comprimento), phi: p.phi ?? o!.phi, s: r4(p.s ?? o!.s), n: p.n ?? o!.n });
+    if (p.acao === 'criar') { (l.predefinidas ??= []).push(novo()); return `Predefinida criada em ${l.nome}.`; }
+    l.predefinidas = (l.predefinidas ?? []).map((x) => (x.id === p.predefinida ? novo(x) : x));
+    return `Predefinida editada em ${l.nome}.`;
   },
 });

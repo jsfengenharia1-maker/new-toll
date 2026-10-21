@@ -593,6 +593,7 @@ svg.mono .hinge { fill: #fff !important; }
   --det-inf: var(--c-m);
   --det-sup: var(--c-v);
   --det-pele: var(--c-n);
+  --det-tela: var(--det-inf);
   --det-estribo: var(--muted);
   --det-pilar-barra: var(--c-m);
   --det-arranque: var(--c-load);
@@ -614,6 +615,11 @@ svg.mono .hinge { fill: #fff !important; }
 .det-barra.inf { stroke: var(--det-inf); }
 .det-barra.sup { stroke: var(--det-sup); }
 .det-barra.pele { stroke: var(--det-pele); }
+.det-barra.predefinida { stroke-width: calc(var(--det-esp-barra) * 1.4); }
+.det-tela { fill: color-mix(in srgb, var(--det-tela) 14%, transparent); stroke: var(--det-tela); stroke-width: 1.2; }
+.det-tela.sup { --det-tela: var(--det-sup); }
+.det-tela.inf { --det-tela: var(--det-inf); }
+.det-tela-diag { stroke: var(--det-tela); stroke-width: 0.8; fill: none; }
 .det-barra.montagem { stroke-dasharray: 9 3; }
 .det-fio { stroke: var(--det-estribo); stroke-width: var(--det-esp-estribo); }
 .det-estribo-zona { fill: color-mix(in srgb, var(--det-estribo) 35%, transparent); stroke: none; }

@@ -13,7 +13,7 @@ import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, secaoNo
 import { areaPoligono } from '../geom/faces';
 import { pontoInterno } from '../geom/faces';
 import { caixa, type P, type Prancha, type Prim } from './prancha';
-import { Posicoes, acoDaFolha, cfgArmacao, cmInt, montarFolha, notas, perdasDe, phiTxt, plantaNaFolha, qtd, resumoAco, tabelaAco } from './armacao';
+import { Posicoes, acoDaFolha, cfgArmacao, cmInt, montarFolha, nf, notas, perdasDe, phiTxt, plantaNaFolha, qtd, resumoAco, tabelaAco, type BlocoTabela } from './armacao';
 import { acharGrupo, gruposOrdenados, type OpcoesArmacao } from './armacaoVigas';
 
 type Face = 'inf' | 'sup';
@@ -91,6 +91,26 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         modelo.push({ t: 'txt', c: 'TEXTO', p: m, h: 2 * k, s: `${qtd(rep, x.n)} ${pos} ${phiTxt(x.phi)}${s} C=${C}`, ang, ah: 'c', av: 'base' });
       };
       for (const d of dets) for (const x of d.posicoes) if (fl.faces.includes(x.face)) barra(x, d.repeticoes);
+      // base em tela soldada detalhada: painel com diagonais e "T1 – Q138 – 2,45 × 6,00" (m), traspasse pelos retângulos sobrepostos
+      const telas = new Map<string, { n: number; area: number; peso: number }>();
+      const relacao: string[][] = [];
+      for (const d of dets) for (const pn of d.paineis ?? []) {
+        if (!fl.faces.includes(pn.face)) continue;
+        const c = pn.face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG', [A, B, C, D] = pn.poligono, cx: P = [(A[0] + C[0]) / 2, (A[1] + C[1]) / 2];
+        modelo.push({ t: 'pl', c, pts: pn.poligono, fechada: true }, { t: 'pl', c, pts: [A, C] }, { t: 'pl', c, pts: [B, D] });
+        modelo.push({ t: 'txt', c: 'TEXTO', p: cx, h: 2 * k, s: `${pn.n} – ${pn.designacao} – ${nf(pn.largura)} × ${nf(pn.comprimento)}`, ang: pn.angulo > 90 && pn.angulo <= 270 ? pn.angulo - 180 : pn.angulo, ah: 'c', av: 'meio' });
+        const e = telas.get(pn.designacao) ?? { n: 0, area: 0, peso: 0 };
+        e.n += d.repeticoes; e.area += pn.largura * pn.comprimento * d.repeticoes; e.peso += pn.peso * d.repeticoes; telas.set(pn.designacao, e);
+        relacao.push([`${d.nome} ${pn.n}`, pn.designacao, nf(pn.largura), nf(pn.comprimento), nf(pn.peso)]);
+      }
+      const blocosTela: BlocoTabela[] = telas.size ? [{
+        titulo: 'RESUMO DAS TELAS', cols: [{ w: 34, rot: 'TELA' }, { w: 30, rot: 'PAINÉIS' }, { w: 36, rot: 'ÁREA (m²)' }, { w: 38, rot: 'PESO (kg)' }, { w: 40, rot: `PESO + ${nf(perdas, 0)} %` }],
+        linhas: [...telas.entries()].map(([id, e]) => [id, String(e.n), nf(e.area), nf(e.peso), nf(e.peso * (1 + perdas / 100))]),
+        rodape: ['Painéis de 2,45 × 6,00 m cortados no pano, com traspasse entre painéis; designação pela NBR 7481.'],
+      }, { titulo: 'RELAÇÃO DAS TELAS', cols: [{ w: 56, rot: 'LAJE / PAINEL' }, { w: 28, rot: 'TELA' }, { w: 30, rot: 'LARG. (m)' }, { w: 32, rot: 'COMP. (m)' }, { w: 32, rot: 'PESO (kg)' }], linhas: relacao }] : [];
+      // base não detalhada: só a indicação (φ c/ s ou a tela), fora do quantitativo
+      const indicada = dets.filter((d) => d.base && !d.base.detalhada && ((fl.faces.includes('inf') && d.base.inf) || (fl.faces.includes('sup') && d.base.sup)))
+        .map((d) => `${d.nome}: base ${[fl.faces.includes('inf') && d.base!.inf && `inferior ${d.base!.inf.nota.replace(/\./g, ',')}`, fl.faces.includes('sup') && d.base!.sup && `superior ${d.base!.sup.nota.replace(/\./g, ',')}`].filter(Boolean).join('; ')} (indicada, fora do quantitativo)`);
       // treliçadas: sentido das vigotas e posições listadas na laje
       for (const v of vigs) {
         const l = lajes.find((x) => x.id === v.laje);
@@ -119,10 +139,11 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         `Concreto C${fck} (fck = ${fck} MPa); aço ${acoI} (inferior) e ${acoS} (superior).`,
         `Cobrimento nominal das lajes: ${String(b.norma.cobrimento.laje).replace('.', ',')} cm (CAA ${b.norma.caa}).`,
         `Quantidades por laje${pavs.length > 1 ? `; "${pavs.length}×n" = ${pavs.length} pavimentos × n barras` : ''}.`,
+        ...indicada,
       ]);
       out.push(montarFolha({
         b, formato: pl.formato, tipo: 'lajes', titulo: `Armação das lajes — ${nomeG} — ${fl.rot.toLowerCase()}`, conteudo: `ARMAÇÃO DAS LAJES — ${nomeG.toUpperCase()} — ${fl.rot}`,
-        escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, desenho: [], tabelas: [nts, tabelaAco(aco.tabela), resumoAco(aco, fck)],
+        escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, desenho: [], tabelas: [nts, ...blocosTela, tabelaAco(aco.tabela), resumoAco(aco, fck)],
         legenda: `ESCALA 1:${pl.escala} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: pl.avisos, modelo, janela: pl.janela, aco, elementos: [...dets.map((d) => d.nome), ...vigs.map((v) => v.nome)],
       }));
     }

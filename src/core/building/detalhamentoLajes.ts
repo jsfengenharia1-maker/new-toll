@@ -13,12 +13,13 @@ import { linhaLajes, tabelaDe, type LinhaLajes } from './tabelasArmadura';
 import type { Dimensionamento, ResultadoLaje } from './dimensionamento';
 import { acoDe, cobrimentoLaje, cobrimentoViga, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
-import { casosDaObra, geometriaViga, pavimentosDoGrupo, type BuildingModel, type Laje, type Viga } from './types';
+import { areaBarraBase, areaTela, PAINEL_TELA, resumoTelas, telaPor, type PainelTela } from './telasSoldadas';
+import { casosDaObra, geometriaViga, pavimentosDoGrupo, type BaseFaceLaje, type BuildingModel, type Laje, type Viga } from './types';
 
 /** Taxa mínima das lajes (mesma do dimensionamento, 0,15 % para qualquer fck, a confirmar). */
 export const RHO_MIN_LAJE = 0.0015;
 
-export type TipoBarraLaje = 'positiva' | 'negativa' | 'negativa-borda' | 'distribuicao' | 'borda-livre' | 'borda-livre-long' | 'canto' | 'furo';
+export type TipoBarraLaje = 'positiva' | 'base' | 'reforco' | 'predefinida' | 'negativa' | 'negativa-borda' | 'distribuicao' | 'borda-livre' | 'borda-livre-long' | 'canto' | 'furo';
 export interface PosicaoLaje {
   /** Posição dentro da laje (N1, N2, …). */
   pos: string;
@@ -48,6 +49,8 @@ export interface BordaLaje {
   tipo: 'continua' | 'apoiada' | 'livre';
   vizinha?: string; viga?: string;
 }
+/** Base de uma face: tela (designação, giro) ou barras por direção; área (cm²/m) por direção e a indicação para o desenho. */
+export interface BaseDetalhe { tela?: string; giro?: boolean; dir: ({ phi: number; s: number } | null)[]; As: [number, number]; nota: string }
 export interface DetalheLaje {
   laje: string; nome: string;
   /** Pavimentos em que a laje se repete (grupo). */
@@ -56,7 +59,11 @@ export interface DetalheLaje {
   /** Ângulo da direção 0 da malha (graus). */
   angulo: number;
   /** Armadura positiva adotada por direção (bitola mm, espaçamento m, As cm²/m efetiva e necessária). */
-  positivas: { phi: number; s: number; As: number; AsNec: number; secundaria: boolean }[];
+  positivas: { phi: number; s: number; As: number; AsNec: number; secundaria: boolean; /** Armadura base da direção (cm²/m) e se há reforço sobre ela (R7d). */ base?: number; reforco?: boolean }[];
+  /** Armadura base (R7d): `detalhada` = desenhada e medida; sem ela só a indicação (φ c/ s ou a designação da tela). */
+  base?: { detalhada: boolean; inf?: BaseDetalhe; sup?: BaseDetalhe };
+  /** Painéis de tela soldada da base detalhada (R7d). */
+  paineis?: PainelTela[];
   bordas: BordaLaje[];
   posicoes: PosicaoLaje[];
   /** Comprimentos de ancoragem básicos (m) das positivas (boa aderência) e das negativas. */
@@ -100,6 +107,8 @@ const sub = (a: P, z: P): P => [a[0] - z[0], a[1] - z[1]];
 const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
 const add = (a: P, v: P, k = 1): P => [a[0] + v[0] * k, a[1] + v[1] * k];
 const r4 = (p: P): P => [+p[0].toFixed(4), +p[1].toFixed(4)];
+/** Distância de um ponto ao contorno de um polígono (m). */
+function distPoligono(r: P[], p: P): number { let m = Infinity; for (let i = 0; i < r.length; i++) m = Math.min(m, distSeg(p, r[i], r[(i + 1) % r.length])); return m; }
 function distSeg(p: P, a: P, z: P) {
   const d = sub(z, a), L2 = dot(d, d), u = L2 ? Math.max(0, Math.min(1, dot(sub(p, a), d) / L2)) : 0;
   return Math.hypot(a[0] + u * d[0] - p[0], a[1] + u * d[1] - p[1]);
@@ -235,32 +244,70 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   const dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005, aL = op.lajeDecalagem * Math.min(dI, dS);
   const perna = op.lajePernasNegativos ? Math.max(0, h - cob.sup - cob.inf) : 0;
 
+  // ---- armadura base (R7d): área por direção, indicação e reforço = necessária − base
+  const baseLaje = l.base, baseDet = baseLaje?.detalhada ?? op.lajeBaseDetalhada === 1;
+  const barraBase = (f: BaseFaceLaje | undefined, k: 0 | 1): { phi: number; s: number } | null => {
+    if (f?.tela) { const t = telaPor(f.tela); return t ? (((f.giro ? 1 - k : k) === 0) ? { phi: t.phiL, s: t.sL / 100 } : { phi: t.phiT, s: t.sT / 100 }) : null; }
+    const x = f?.barras?.[k]; return x ? { phi: x.phi, s: x.s / 100 } : null;
+  };
+  const areaBase = (f: BaseFaceLaje | undefined): [number, number] => {
+    if (f?.tela) { const t = telaPor(f.tela); return t ? areaTela(t, f.giro) : [0, 0]; }
+    return [0, 1].map((k) => { const x = f?.barras?.[k]; return x ? areaBarraBase(x.phi, x.s) : 0; }) as [number, number];
+  };
+  const baseInf = areaBase(baseLaje?.inf), baseSup = areaBase(baseLaje?.sup);
+  if (baseLaje?.inf?.tela && !telaPor(baseLaje.inf.tela)) avisos.push(`Tela ${baseLaje.inf.tela} da base inferior não está no catálogo.`);
+  if (baseLaje?.sup?.tela && !telaPor(baseLaje.sup.tela)) avisos.push(`Tela ${baseLaje.sup.tela} da base superior não está no catálogo.`);
+  /** Reforço sobre a base: com a redução de densidade, a bitola da base em espaçamento múltiplo (uma barra a cada k da base). */
+  const escolherReforco = (ref: number, smax: number, bb: { phi: number; s: number } | null, ca60: boolean, hh = h) => {
+    if (op.lajeReforcoReducao && bb) {
+      const A = barArea(bb.phi), m = Math.min(Math.floor(A / (ref * bb.s) + 1e-9), Math.floor(smax / bb.s + 1e-9));
+      if (m >= 1 && bb.s * m >= smin - 1e-9) { const sr = +(bb.s * m).toFixed(4); return { phi: bb.phi, s: sr, As: A / sr, cabe: true }; }
+    }
+    return escolherBarrasLaje(ref, hh, smax, smin, op.lajeBitolaMinima, ca60, linha);
+  };
+  const pre = l.predefinidas ?? [];
+  const dirPre = (a: number) => [Math.cos((a * Math.PI) / 180), Math.sin((a * Math.PI) / 180)] as P;
+
   // ---- positivas: malha nas duas direções (a maior As de todos os pavimentos do grupo), recortada pelo contorno e furos
   const AsNec = [0, 1].map((k) => Math.max(...rs.map((r) => r.As.pos[k])) / 1e4);
   const umaDirecao = Math.max(...ext) / Math.max(1e-9, Math.min(...ext)) > 2;
+  const reforcoK: ({ phi: number; s: number; As: number } | null)[] = [null, null];
   const positivas = ([0, 1] as const).map((k) => {
     const sec = umaDirecao && ext[k] > ext[1 - k];
-    const br = escolherBarrasLaje(AsNec[k], h, sec ? 0.33 : smaxP, smin, op.lajeBitolaMinima, ca60I, linha);
+    const smaxK = sec ? 0.33 : smaxP, bK = baseInf[k] / 1e4, bb = barraBase(baseLaje?.inf, k);
+    if (bK > 0 && bb) {
+      // base inferior: reforço = necessária − base (a base é sempre colaborante)
+      const ref = Math.max(0, AsNec[k] - bK);
+      if (ref > 1e-9) {
+        const r = escolherReforco(ref, smaxK, bb, ca60I);
+        if (!r.cabe) avisos.push(`Reforço da positiva na direção ${k}: ${fmt(ref * 1e4, 2)} cm²/m não cabe com espaçamento ≥ ${fmt(smin * 100)} cm e φ ≤ h/8.`);
+        reforcoK[k] = r;
+      }
+      const r = reforcoK[k];
+      return { phi: r?.phi ?? bb.phi, s: r?.s ?? bb.s, As: +((bK + (r?.As ?? 0)) * 1e4).toFixed(3), AsNec: +(AsNec[k] * 1e4).toFixed(3), secundaria: sec, base: +baseInf[k].toFixed(3), reforco: !!r };
+    }
+    const br = escolherBarrasLaje(AsNec[k], h, smaxK, smin, op.lajeBitolaMinima, ca60I, linha);
     if (!br.cabe) avisos.push(`Positiva na direção ${k}: ${fmt(AsNec[k] * 1e4, 2)} cm²/m não cabe com espaçamento ≥ ${fmt(smin * 100)} cm e φ ≤ h/8.`);
     return { phi: br.phi, s: br.s, As: +(br.As * 1e4).toFixed(3), AsNec: +(AsNec[k] * 1e4).toFixed(3), secundaria: sec };
   });
   const aneisGlob = [l.contorno, ...(l.furos ?? [])];
-  for (const k of [0, 1] as const) {
-    const ua = U[k], uc = U[1 - k], { phi, s } = positivas[k];
+  /** Malha de barras na direção k (face inf/sup), recortada pelo contorno e pelos furos. `exig`: As exigida e As da camada (m²/m), para descontar predefinidas. */
+  const gerarMalha = (k: 0 | 1, face: 'inf' | 'sup', phi: number, s: number, tipo: TipoBarraLaje, exig?: { Ar: number; Al: number }) => {
+    const ua = U[k], uc = U[1 - k], cobF = face === 'inf' ? cob.inf : cob.sup;
     const loc = (p: P): P => [dot(p, ua), dot(p, uc)], glob = (a: number, cc: number): P => add(add([0, 0], ua, a), uc, cc);
     const aneis = aneisGlob.map((r) => r.map(loc));
     const cs = aneis[0].map((p) => p[1]), cmin = Math.min(...cs), W = Math.max(...cs) - cmin;
     const nL = Math.max(1, Math.ceil(W / s - 1e-9)), passoC = W / nL;
-    const lb = lbI(phi), l0 = alfa0t(1) * lb;
+    const lb = (face === 'inf' ? lbI : lbS)(phi), l0 = alfa0t(1) * lb;
     /** Extensão da ponta além da borda (m, ao longo da barra; negativa = recua) e gancho. */
-    const ponta = (anel: number, ar: number, pt: P): { ext: number; g: number } => {
-      if (anel > 0) return { ext: -cob.inf, g: 0 }; // furo: barra interrompida antes da borda (reforço ao lado)
+    const ponta = (anel: number, ar: number, pt: P): { ext: number; g: number; cont?: boolean } => {
+      if (anel > 0) return { ext: -cobF, g: 0 }; // furo: barra interrompida antes da borda (reforço ao lado)
       const Pa = l.contorno[ar], Pz = l.contorno[(ar + 1) % l.contorno.length], Le = Math.hypot(Pz[0] - Pa[0], Pz[1] - Pa[1]) || 1;
       const e: P = [(Pz[0] - Pa[0]) / Le, (Pz[1] - Pa[1]) / Le], cosf = Math.max(0.3, Math.abs(ua[0] * -e[1] + ua[1] * e[0]));
       const sp = dot(sub(pt, Pa), e), bd = bordas.find((x) => x.aresta === ar && sp >= x.s0 - 1e-6 && sp <= x.s1 + 1e-6) ?? bordas.find((x) => x.aresta === ar)!;
       const v = vigaDe(bd.viga), bw = v?.secao.b ?? 0, cv = v ? cobrimentoViga(b, v.cobrimento).lat : 0;
-      if (bd.tipo === 'livre') return { ext: -cob.inf / cosf, g: 0 };
-      if (bd.tipo === 'continua') return { ext: Math.max(0, (10 * phi) / 1000 - bw / 2) / cosf, g: 0 };
+      if (bd.tipo === 'livre') return { ext: -cobF / cosf, g: 0 };
+      if (bd.tipo === 'continua') return { ext: Math.max(0, (10 * phi) / 1000 - bw / 2) / cosf, g: 0, cont: true };
       // apoio sem continuidade: atravessa a viga até a face oposta menos o cobrimento; gancho se não couber máx(10φ; 6 cm)
       const disp = bw - cv, req = Math.max((10 * phi) / 1000, 0.06);
       if (disp >= req - 1e-9) return { ext: (bw / 2 - cv) / cosf, g: 0 };
@@ -268,6 +315,11 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       return { ext: Math.max(0, bw / 2 - cv) / cosf, g: ganchoNoventa(phi) };
     };
     type Peca = { a0: number; a1: number; g: [number, number]; L: number };
+    // predefinidas paralelas às barras desta camada: faixa de influência (n × s) em coordenadas locais
+    const faixasPre = exig && face === 'inf' ? preInf.filter((x) => Math.abs(dirPre(x.angulo)[0] * ua[1] - dirPre(x.angulo)[1] * ua[0]) < 0.0872).map((x) => {
+      const d = dirPre(x.angulo), nl: P = [-d[1], d[0]], sg = dot(d, ua) >= 0 ? 1 : -1, c0 = dot(x.a, uc), dc = dot(nl, uc), ca = c0 - (x.s / 2) * dc, cb2 = c0 + ((x.n - 1) * x.s + x.s / 2) * dc, a0 = dot(x.a, ua), a1 = a0 + sg * x.comprimento;
+      return { c0: Math.min(ca, cb2), c1: Math.max(ca, cb2), a0: Math.min(a0, a1), a1: Math.max(a0, a1), Ap: barArea(x.phi) / x.s };
+    }) : [];
     const linhas: { c: number; pecas: Peca[] }[] = [];
     for (let i = 0; i < nL; i++) {
       const cc = cmin + (i + 0.5) * passoC, pecas: Peca[] = [];
@@ -277,6 +329,22 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
         if (a1 - a0 < 0.05) continue;
         const tot = a1 - a0 + p0.g + p1.g;
         if (tot <= Lmax + 1e-9) { pecas.push({ a0, a1, g: [p0.g, p1.g], L: arred(tot, passo) }); continue; }
+        // base inferior: emenda com o centro junto à borda contínua (zona de máximo negativo), em duas peças
+        if (tipo === 'base' && op.lajeBaseEmendaApoio && (p0.cont || p1.cont)) {
+          // o centro da emenda a 10 % do comprimento da borda contínua; se a peça mais longa passar da barra máxima, o mais perto possível
+          const dEnd = Math.max(0.1 * tot, l0), cont0 = !!p0.cont;
+          let m = cont0 ? a0 + dEnd : a1 - dEnd;
+          const limite = a0 + (Lmax - passo) - p0.g - l0 / 2;
+          m = cont0 ? Math.max(m, a1 - (Lmax - passo) + p1.g + l0 / 2) : Math.min(m, limite);
+          const q0: Peca = { a0, a1: m + l0 / 2, g: [p0.g, 0], L: 0 }, q1: Peca = { a0: m - l0 / 2, a1, g: [0, p1.g], L: 0 };
+          q0.L = arred(q0.a1 - q0.a0 + q0.g[0], passo); q1.L = arred(q1.a1 - q1.a0 + q1.g[1], passo);
+          if (q0.L <= Lmax + 1e-9 && q1.L <= Lmax + 1e-9 && q0.a1 - q0.a0 > l0 && q1.a1 - q1.a0 > l0 && Math.min(m - a0, a1 - m) <= 0.25 * tot) {
+            pecas.push(q0, q1);
+            const em2 = emendas.find((x) => x.dir === k);
+            if (em2) em2.linhas++; else emendas.push({ dir: k, l0, linhas: 1 });
+            continue;
+          }
+        }
         // emenda por traspasse l0t = α0t·lb (α0t = 2,0: todas as barras emendadas na mesma seção, a favor da segurança)
         let nP = Math.ceil((tot - l0) / (Lmax - l0) - 1e-9);
         for (; nP < 50; nP++) { const Lp = (tot + (nP - 1) * l0) / nP; if (arred(Lp, passo) <= Lmax + 1e-9) break; }
@@ -289,8 +357,18 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
         const em = emendas.find((x) => x.dir === k);
         if (em) em.linhas++; else emendas.push({ dir: k, l0, linhas: 1 });
       }
+      if (faixasPre.length && pecas.length) {
+        // predefinida sobre a faixa: remove o reforço quando ela basta, senão mantém uma barra a cada m
+        const am = (pecas[0].a0 + pecas[pecas.length - 1].a1) / 2, fp = faixasPre.find((f) => cc > f.c0 && cc < f.c1 && am >= f.a0 && am <= f.a1);
+        if (fp && exig) {
+          const need = exig.Ar - fp.Ap;
+          if (need <= 1e-9) pecas.length = 0;
+          else if (Math.floor((cc - fp.c0) / passoC + 1e-9) % Math.max(1, Math.floor(exig.Al / need + 1e-9)) !== 0) pecas.length = 0;
+        }
+      }
       linhas.push({ c: cc, pecas });
     }
+    if (faixasPre.length) { const v = linhas.filter((x) => x.pecas.length); linhas.length = 0; linhas.push(...v); }
     // agrupa linhas consecutivas com as mesmas peças (comprimento arredondado e ganchos)
     const chave = (x: { pecas: Peca[] }) => x.pecas.map((p) => `${p.L.toFixed(3)}|${p.g[0] > 0}|${p.g[1] > 0}`).join(';');
     let i0 = 0;
@@ -299,7 +377,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       const grupo = linhas.slice(i0, i), rep = grupo[Math.floor(grupo.length / 2)];
       rep.pecas.forEach((pc) => {
         const am = (pc.a0 + pc.a1) / 2;
-        nova({ face: 'inf', tipo: 'positiva', angulo: ang(ua), dir: k, phi, s, n: grupo.length, comprimento: pc.L, ganchos: [pc.g[0], pc.g[1]], a: glob(pc.a0, rep.c), z: glob(pc.a1, rep.c), faixa: [glob(am, grupo[0].c), glob(am, grupo.at(-1)!.c)] });
+        nova({ face, tipo, angulo: ang(ua), dir: k, phi, s, n: grupo.length, comprimento: pc.L, ganchos: [pc.g[0], pc.g[1]], a: glob(pc.a0, rep.c), z: glob(pc.a1, rep.c), faixa: [glob(am, grupo[0].c), glob(am, grupo.at(-1)!.c)] });
       });
       i0 = i;
     }
@@ -311,19 +389,74 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       if (!nInt) continue;
       const nLado = Math.max(1, Math.ceil(nInt / 2)), L = arred(a1 - a0 + 2 * lb, passo);
       for (const cc of [c0 - Math.min(s, 0.05) , c1 + Math.min(s, 0.05)]) {
-        nova({ face: 'inf', tipo: 'furo', angulo: ang(ua), dir: k, phi, s: 0.05, n: nLado, comprimento: L, ganchos: [0, 0], a: glob(a0 - lb, cc), z: glob(a1 + lb, cc), faixa: [glob((a0 + a1) / 2, cc), glob((a0 + a1) / 2, cc + (cc < c0 ? -1 : 1) * 0.05 * (nLado - 1))] });
+        nova({ face, tipo: 'furo', angulo: ang(ua), dir: k, phi, s: 0.05, n: nLado, comprimento: L, ganchos: [0, 0], a: glob(a0 - lb, cc), z: glob(a1 + lb, cc), faixa: [glob((a0 + a1) / 2, cc), glob((a0 + a1) / 2, cc + (cc < c0 ? -1 : 1) * 0.05 * (nLado - 1))] });
       }
       if (a0 - lb < Math.min(...aneis[0].map((p) => p[0])) || a1 + lb > Math.max(...aneis[0].map((p) => p[0]))) avisos.push(`Reforço do furo na direção ${k}: prolongamento lb passa da borda da laje; conferir a ancoragem.`);
     }
+  };
+  const preInf = pre.filter((x) => x.face === 'inf');
+  for (const k of [0, 1] as const) {
+    const bb = barraBase(baseLaje?.inf, k), bK = baseInf[k] / 1e4;
+    if (bK > 0 && bb) {
+      if (baseDet && !baseLaje!.inf!.tela) gerarMalha(k, 'inf', bb.phi, bb.s, 'base');
+      const r = reforcoK[k];
+      if (r) gerarMalha(k, 'inf', r.phi, r.s, 'reforco', { Ar: AsNec[k] - bK, Al: r.As });
+    } else gerarMalha(k, 'inf', positivas[k].phi, positivas[k].s, 'positiva', { Ar: AsNec[k], Al: positivas[k].As / 1e4 });
   }
+  if (baseDet) for (const k of [0, 1] as const) { const bb = barraBase(baseLaje?.sup, k); if (bb && !baseLaje?.sup?.tela) gerarMalha(k, 'sup', bb.phi, bb.s, 'base'); }
+
+  // ---- painéis de tela soldada da base detalhada (padrão 2,45 × 6,00 m, traspasse entre painéis)
+  const paineis: PainelTela[] = [];
+  const painelDeTela = (face: 'inf' | 'sup', f: BaseFaceLaje | undefined) => {
+    const t = telaPor(f?.tela);
+    if (!t) return;
+    const g = f!.giro ? 1 : 0, ua = U[g], uc = U[1 - g], cobF = face === 'inf' ? cob.inf : cob.sup, lap = op.lajeTelaTraspasse / 100;
+    const loc = (p: P): P => [dot(p, ua), dot(p, uc)], glob = (a: number, cc: number): P => add(add([0, 0], ua, a), uc, cc);
+    const aneis = aneisGlob.map((r) => r.map(loc)), cs = aneis[0].map((p) => p[1]);
+    const cmin = Math.min(...cs) + cobF, cmax = Math.max(...cs) - cobF, Wt = cmax - cmin;
+    if (Wt < 0.1) return;
+    const Wp = PAINEL_TELA.largura, Lp = PAINEL_TELA.comprimento, nS = Wt <= Wp ? 1 : Math.ceil((Wt - Wp) / (Wp - lap) - 1e-9) + 1;
+    for (let j = 0; j < nS; j++) {
+      const c0 = cmin + j * (Wp - lap), c1 = Math.min(cmax, c0 + Wp), cm = (c0 + c1) / 2;
+      for (const ch of cortes(aneis, cm)) {
+        const A0 = ch.a0 + cobF, A1 = ch.a1 - cobF;
+        if (A1 - A0 < 0.1) continue;
+        const nP = A1 - A0 <= Lp ? 1 : Math.ceil((A1 - A0 - lap) / (Lp - lap) - 1e-9);
+        for (let i = 0; i < nP; i++) {
+          const p0 = A0 + i * (Lp - lap), p1 = Math.min(A1, p0 + Lp), comp = Math.ceil((p1 - p0) * 100 - 1e-6) / 100, larg = Math.ceil((c1 - c0) * 100 - 1e-6) / 100;
+          paineis.push({ n: `T${paineis.length + 1}`, face, designacao: t.id, poligono: [glob(p0, c0), glob(p1, c0), glob(p1, c1), glob(p0, c1)].map(r4), comprimento: comp, largura: larg, angulo: ang(ua), peso: +(comp * larg * t.kgm2).toFixed(3) });
+        }
+      }
+    }
+  };
+  if (baseDet) { painelDeTela('inf', baseLaje?.inf); painelDeTela('sup', baseLaje?.sup); }
 
   // ---- negativas e bordas
   const kPerp = (x: Laje, nrm: P): 0 | 1 => { const t = (direcaoPrincipal(x.contorno) * Math.PI) / 180; return Math.abs(Math.cos(t) * nrm[0] + Math.sin(t) * nrm[1]) >= Math.abs(-Math.sin(t) * nrm[0] + Math.cos(t) * nrm[1]) ? 0 : 1; };
   const extN = (x: Laje, nrm: P) => { const pr = x.contorno.map((q) => dot(q, nrm)); return Math.max(...pr) - Math.min(...pr); };
   const menorVao = Math.min(...ext);
-  const distribuicao = (AsNeg: number, lados: [number, number], P0: P, e: P, nrm: P, s0: number, s1: number) => {
+  /** Barras de um negativo sobre a borda: s0..s1 menos as faixas das predefinidas superiores que a cruzam (nelas, o que falta). */
+  const nNeg = (Lint: number, br: { phi: number; s: number }, AsRef: number, P0: P, e: P, nrm: P, s0: number, s1: number) => {
+    const cheio = Math.max(2, Math.ceil(Lint / br.s - 1e-9));
+    let wTot = 0, nIn = 0;
+    for (const x of pre.filter((y) => y.face === 'sup' && Math.abs(dirPre(y.angulo)[0] * nrm[1] - dirPre(y.angulo)[1] * nrm[0]) < 0.0872)) {
+      const d = dirPre(x.angulo), nl: P = [-d[1], d[0]], sg = dot(d, nrm) >= 0 ? 1 : -1, an = dot(sub(x.a, P0), nrm), az = an + sg * x.comprimento;
+      if (Math.min(an, az) > 1e-9 || Math.max(an, az) < -1e-9) continue; // não cruza a borda
+      const t0 = dot(sub(x.a, P0), e), dt = dot(nl, e), tA = t0 - (x.s / 2) * dt, tB = t0 + ((x.n - 1) * x.s + x.s / 2) * dt;
+      const w = Math.min(s1, Math.max(tA, tB)) - Math.max(s0, Math.min(tA, tB));
+      if (w <= 0) continue;
+      wTot += w;
+      const need = AsRef - barArea(x.phi) / x.s;
+      if (need > 1e-9) nIn += Math.ceil(w / Math.min(0.2, barArea(br.phi) / need) - 1e-9);
+    }
+    if (!wTot) return cheio;
+    return Math.max(0, Math.ceil((Lint - Math.min(wTot, Lint)) / br.s - 1e-9)) + nIn;
+  };
+  const distribuicao = (AsNeg: number, lados: [number, number], P0: P, e: P, nrm: P, s0: number, s1: number, kPar?: 0 | 1) => {
     // armadura de distribuição sob os negativos (Tabela 19.1: ≥ 20 % da principal e 0,9 cm²/m; s ≤ 33 cm)
-    const Ad = Math.max(0.2 * AsNeg, 0.9e-4), br = escolherBarrasLaje(Ad, h, 0.33, smin, op.lajeBitolaMinima, ca60S, linha);
+    const Ad = Math.max(0.2 * AsNeg, 0.9e-4);
+    if (kPar !== undefined && baseSup[kPar] / 1e4 >= Ad) return; // a base superior paralela à borda já distribui
+    const br = escolherBarrasLaje(Ad, h, 0.33, smin, op.lajeBitolaMinima, ca60S, linha);
     const larg = lados[0] + lados[1], n = Math.max(2, Math.ceil(larg / br.s - 1e-9));
     const Lb = arred(s1 - s0, passo), meio = (s0 + s1) / 2;
     nova({ face: 'sup', tipo: 'distribuicao', angulo: ang(e), phi: br.phi, s: br.s, n, comprimento: Lb, ganchos: [0, 0], a: add(add(P0, e, s0), nrm, (lados[0] - lados[1]) / 2), z: add(add(P0, e, s1), nrm, (lados[0] - lados[1]) / 2), faixa: [add(add(P0, e, meio), nrm, -lados[1]), add(add(P0, e, meio), nrm, lados[0])] });
@@ -341,9 +474,12 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       const rsB = B.tipo.tipo === 'macica' ? porLaje.get(B.id) ?? [] : [];
       const hB = B.tipo.tipo === 'macica' ? B.tipo.h : h, hMin = Math.min(h, hB), hMax = Math.max(h, hB);
       const AsCalc = Math.max(RHO_MIN_LAJE * hMax, ...rs.map((r) => r.As.neg[kA] / 1e4), ...rsB.map((r) => r.As.neg[kB] / 1e4));
-      const br = escolherBarrasLaje(AsCalc, hMin, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
+      const bsB = areaBase(B.base?.sup)[kB] / 1e4, bsA = baseSup[kA] / 1e4, baseMin = Math.min(bsA, bsB);
+      const AsRef = Math.max(0, AsCalc - baseMin);
+      if (baseMin > 0 && AsRef <= 1e-9) continue; // a base superior atende o negativo
+      const br = baseMin > 0 ? escolherReforco(AsRef, smaxP, barraBase(baseLaje?.sup, kA), ca60S, hMin) : escolherBarrasLaje(AsCalc, hMin, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
       if (!br.cabe) avisos.push(`Negativo sobre a borda com ${B.nome}: ${fmt(AsCalc * 1e4, 2)} cm²/m não cabe com espaçamento ≥ ${fmt(smin * 100)} cm.`);
-      const lbn = lbNecessario(lbS(br.phi), br.phi, AsCalc, br.As);
+      const lbn = lbNecessario(lbS(br.phi), br.phi, AsRef, br.As);
       const dA = negativoJuntoBorda(grs, l.id, kA, P0, e, nrm, bd.s0, bd.s1, extA / 2, 0.6 * op.malha, fx);
       const dB = negativoJuntoBorda(grs, B.id, kB, P0, e, nB, bd.s0, bd.s1, extB / 2, 0.6 * op.malha, fx);
       const minPct = (op.lajeNegativoVao / 100) * Math.max(extA, extB), minViga = bw / 2 + (10 * br.phi) / 1000;
@@ -354,24 +490,25 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
         return Math.min(cap, Math.max(minPct, minViga, diag));
       };
       const lados: [number, number] = [lado(dA.x0, extA), lado(dB.x0, extB)];
-      const n = Math.max(2, Math.ceil(Lint / br.s - 1e-9)), comp = arred(lados[0] + lados[1] + 2 * perna, passo);
+      const n = nNeg(Lint, br, AsRef, P0, e, nrm, bd.s0, bd.s1), comp = arred(lados[0] + lados[1] + 2 * perna, passo);
       if (comp > Lmax + 1e-9) avisos.push(`Negativo sobre a borda com ${B.nome} com ${fmt(comp, 2)} m > barra máxima ${fmt(Lmax, 1)} m.`);
-      nova({ face: 'sup', tipo: 'negativa', angulo: ang(nrm), phi: br.phi, s: br.s, n, comprimento: comp, ganchos: [perna, perna], a: add(add(P0, e, meio), nrm, -lados[1]), z: add(add(P0, e, meio), nrm, lados[0]), faixa: [add(P0, e, bd.s0), add(P0, e, bd.s1)], lados: [+lados[0].toFixed(4), +lados[1].toFixed(4)], vizinha: B.id });
-      distribuicao(br.As, lados, P0, e, nrm, bd.s0, bd.s1);
+      if (n > 0) nova({ face: 'sup', tipo: 'negativa', angulo: ang(nrm), phi: br.phi, s: br.s, n, comprimento: comp, ganchos: [perna, perna], a: add(add(P0, e, meio), nrm, -lados[1]), z: add(add(P0, e, meio), nrm, lados[0]), faixa: [add(P0, e, bd.s0), add(P0, e, bd.s1)], lados: [+lados[0].toFixed(4), +lados[1].toFixed(4)], vizinha: B.id });
+      if (n > 0) distribuicao(br.As, lados, P0, e, nrm, bd.s0, bd.s1, (1 - kA) as 0 | 1);
     } else if (bd.tipo === 'apoiada' && op.lajeNegativoBorda > 0) {
       // negativa de borda sem continuidade (19.3.3.2): ρs ≥ 0,67·ρmín (Tabela 19.1) ou o momento da grelha junto à borda,
       // até ≥ % do menor vão a partir da face; do lado de fora, até a face oposta da viga menos o cobrimento, com gancho
       const dA = negativoJuntoBorda(grs, l.id, kA, P0, e, nrm, bd.s0, bd.s1, extA / 2, 0.6 * op.malha, fx);
       const AsM = dA.Mmin < 0 ? beamFlexure({ kind: 'rect', bw: 1, h }, false, -dA.Mmin, dS, 0.02, c, aS.fyd).As : 0;
-      const AsCalc = Math.max(0.67 * RHO_MIN_LAJE * h, AsM);
-      const br = escolherBarrasLaje(AsCalc, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
-      const lbn = lbNecessario(lbS(br.phi), br.phi, AsCalc, br.As);
+      const AsCalc = Math.max(0.67 * RHO_MIN_LAJE * h, AsM), bsA = baseSup[kA] / 1e4, AsRef = Math.max(0, AsCalc - bsA);
+      if (bsA > 0 && AsRef <= 1e-9) continue; // a base superior atende a negativa de borda
+      const br = bsA > 0 ? escolherReforco(AsRef, smaxP, barraBase(baseLaje?.sup, kA), ca60S) : escolherBarrasLaje(AsCalc, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
+      const lbn = lbNecessario(lbS(br.phi), br.phi, AsRef, br.As);
       let dentro = Math.max(bw / 2 + (op.lajeNegativoBorda / 100) * menorVao, dA.x0 > 0 ? dA.x0 + aL + lbn : 0);
       if (dentro > extA - cob.sup) dentro = extA - cob.sup;
       const fora = Math.max(0, bw / 2 - cv), g = ganchoNoventa(br.phi);
-      const n = Math.max(2, Math.ceil(Lint / br.s - 1e-9)), comp = arred(dentro + fora + perna + g, passo);
-      nova({ face: 'sup', tipo: 'negativa-borda', angulo: ang(nrm), phi: br.phi, s: br.s, n, comprimento: comp, ganchos: [g, perna], a: add(add(P0, e, meio), nrm, -fora), z: add(add(P0, e, meio), nrm, dentro), faixa: [add(P0, e, bd.s0), add(P0, e, bd.s1)], lados: [+dentro.toFixed(4), +fora.toFixed(4)] });
-      distribuicao(br.As, [dentro, fora], P0, e, nrm, bd.s0, bd.s1);
+      const n = nNeg(Lint, br, AsRef, P0, e, nrm, bd.s0, bd.s1), comp = arred(dentro + fora + perna + g, passo);
+      if (n > 0) nova({ face: 'sup', tipo: 'negativa-borda', angulo: ang(nrm), phi: br.phi, s: br.s, n, comprimento: comp, ganchos: [g, perna], a: add(add(P0, e, meio), nrm, -fora), z: add(add(P0, e, meio), nrm, dentro), faixa: [add(P0, e, bd.s0), add(P0, e, bd.s1)], lados: [+dentro.toFixed(4), +fora.toFixed(4)] });
+      if (n > 0) distribuicao(br.As, [dentro, fora], P0, e, nrm, bd.s0, bd.s1, (1 - kA) as 0 | 1);
     } else if (bd.tipo === 'livre') {
       // borda livre (20.1, Figura 20.1): grampos em U (pernas horizontais 2h) com a bitola e o espaçamento da positiva
       // perpendicular à borda e 2 barras longitudinais nos cantos do U
@@ -385,8 +522,9 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   }
 
   // ---- malha superior de canto entre duas bordas apoiadas sem continuidade (lado ℓ/5 do menor vão; As = maior positiva)
-  if (op.lajeArmaduraCanto) {
-    const nV = l.contorno.length, AsC = Math.max(...AsNec), brC = escolherBarrasLaje(AsC, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha), lc = menorVao / 5;
+  const AsCanto = Math.max(0, Math.max(...AsNec) - Math.min(...baseSup) / 1e4);
+  if (op.lajeArmaduraCanto && AsCanto > 1e-9) {
+    const nV = l.contorno.length, AsC = AsCanto, brC = escolherBarrasLaje(AsC, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha), lc = menorVao / 5;
     for (let i = 0; i < nV; i++) {
       const V = l.contorno[i], ant = l.contorno[(i - 1 + nV) % nV], prox = l.contorno[(i + 1) % nV];
       const La = Math.hypot(V[0] - ant[0], V[1] - ant[1]), Lp = Math.hypot(prox[0] - V[0], prox[1] - V[1]);
@@ -407,10 +545,32 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
     }
   }
 
+  // ---- armaduras predefinidas (R7d): desenhadas e medidas como lançadas; avisos quando saem do pano ou passam da barra máxima
+  const dentro = (p: P) => {
+    const ring = (r: P[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < ((r[j][0] - r[i][0]) * (p[1] - r[i][1])) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+    return ring(l.contorno) && !(l.furos ?? []).some(ring);
+  };
+  for (const x of pre) {
+    const d = dirPre(x.angulo), nl: P = [-d[1], d[0]], z = add(x.a, d, x.comprimento), fim = add(x.a, nl, (x.n - 1) * x.s);
+    const nome = `Predefinida ${fmt(x.phi, 1)} (${x.face === 'inf' ? 'inf.' : 'sup.'})`;
+    if (![x.a, z, fim, add(z, nl, (x.n - 1) * x.s)].every((q) => dentro(q) || distPoligono(l.contorno, q) < 0.3)) avisos.push(`${nome} sai do pano da laje ${l.nome}.`);
+    if (x.comprimento > Lmax + 1e-9) avisos.push(`${nome} com ${fmt(x.comprimento, 2)} m > barra máxima ${fmt(Lmax, 1)} m.`);
+    nova({ face: x.face, tipo: 'predefinida', angulo: +(((x.angulo % 360) + 360) % 360).toFixed(3), phi: x.phi, s: x.s, n: x.n, comprimento: arred(x.comprimento, passo), ganchos: [0, 0], a: x.a, z, faixa: [add(x.a, d, x.comprimento / 2), add(add(x.a, d, x.comprimento / 2), nl, (x.n - 1) * x.s)] });
+  }
+
+  const notaBase = (f: BaseFaceLaje | undefined, a: [number, number]): BaseDetalhe | undefined => {
+    if (!f || (a[0] <= 0 && a[1] <= 0)) return undefined;
+    const dir = ([0, 1] as const).map((k) => barraBase(f, k)), fm = (x: { phi: number; s: number } | null) => (x ? `φ${fmt(x.phi, 1)} c/ ${fmt(x.s * 100, x.s * 100 % 1 ? 1 : 0)}` : '—');
+    return { ...(f.tela ? { tela: f.tela, ...(f.giro ? { giro: true } : {}) } : {}), dir, As: [+a[0].toFixed(3), +a[1].toFixed(3)], nota: f.tela ? `Tela ${f.tela}${f.giro ? ' (girada)' : ''}` : `${fm(dir[0])} / ${fm(dir[1])}` };
+  };
+  const baseInfo = notaBase(baseLaje?.inf, baseInf), baseSupInfo = notaBase(baseLaje?.sup, baseSup);
+
   const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0);
   const phiNeg = posicoes.find((x) => x.face === 'sup')?.phi ?? positivas[0].phi;
   return {
-    laje: l.id, nome: l.nome, repeticoes: Math.max(1, pavimentosDoGrupo(b, l.grupo).length), h, angulo: ang(U[0]), positivas, bordas: bordas.map((x) => ({ ...x, s0: +x.s0.toFixed(4), s1: +x.s1.toFixed(4) })), posicoes,
+    laje: l.id, nome: l.nome, repeticoes: Math.max(1, pavimentosDoGrupo(b, l.grupo).length), h, angulo: ang(U[0]), positivas,
+    ...(baseInfo || baseSupInfo ? { base: { detalhada: baseDet, ...(baseInfo ? { inf: baseInfo } : {}), ...(baseSupInfo ? { sup: baseSupInfo } : {}) } } : {}),
+    ...(paineis.length ? { paineis } : {}), bordas: bordas.map((x) => ({ ...x, s0: +x.s0.toFixed(4), s1: +x.s1.toFixed(4) })), posicoes,
     lb: { inf: lbI(positivas[0].phi), sup: lbS(phiNeg), supBoaAderencia: supBoa }, emendas, peso, avisos: [...new Set(avisos)],
   };
 }
@@ -435,4 +595,9 @@ export function resumoAcoLajes(b: BuildingModel, dets: DetalheLaje[], perdas: nu
     m.set(k, e);
   }
   return [...m.values()].sort((a, z) => a.aco.localeCompare(z.aco) || a.phi - z.phi).map((e) => { const peso = e.comprimento * pesoLinear(e.phi); return { ...e, peso, pesoComPerdas: peso * (1 + perdas / 100) }; });
+}
+
+/** Resumo das telas soldadas da base detalhada por designação: painéis (com as repetições dos grupos), área (m²) e peso (kg). */
+export function resumoTelasLajes(dets: DetalheLaje[], perdas: number) {
+  return resumoTelas(dets.flatMap((d) => (d.paineis ?? []).map((p) => ({ designacao: p.designacao, comprimento: p.comprimento, largura: p.largura, repeticoes: d.repeticoes }))), perdas);
 }

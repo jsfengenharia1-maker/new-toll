@@ -1,5 +1,6 @@
 // Memorial de cálculo do edifício: identificação, materiais, geometria, ações, modelo, estabilidade,
 // dimensionamento, cargas na fundação, quantitativos e premissas. Mesmo CSS e impressão do memorial do pórtico.
+import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useBuilding } from './store';
 import { useStore } from '../store';
@@ -270,6 +271,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                     <thead><tr><th>Direção</th><th>Adotada</th><th>As adotada (cm²/m)</th><th>As necessária (cm²/m)</th></tr></thead>
                     <tbody>{d.positivas.map((p, k) => <tr key={k}><td className="l">{k === 0 ? 'principal' : 'perpendicular'}{p.secundaria ? ' (secundária)' : ''}</td><td className="l">{`φ${String(p.phi).replace('.', ',')}`} c/{fmt(p.s * 100, 0)}</td><td>{fmt(p.As)}</td><td>{fmt(p.AsNec)}</td></tr>)}</tbody>
                   </table>
+                  {d.base && <p>Armadura base {d.base.detalhada ? '(detalhada, desenhada e medida)' : '(só indicada, fora do desenho e do quantitativo)'}: {[d.base.inf && `inferior ${d.base.inf.nota} (${fmt(d.base.inf.As[0])} / ${fmt(d.base.inf.As[1])} cm²/m)`, d.base.sup && `superior ${d.base.sup.nota} (${fmt(d.base.sup.As[0])} / ${fmt(d.base.sup.As[1])} cm²/m)`].filter(Boolean).join('; ')}. A base é colaborante: reforço = necessária − base{d.positivas.some((p) => p.reforco) ? ` (reforço adotado nas direções ${d.positivas.map((p, k) => (p.reforco ? k : -1)).filter((k) => k >= 0).join(' e ')})` : ' (a base atende a positiva)'}.</p>}
+                  {d.paineis && d.paineis.length > 0 && <p>Painéis de tela: {d.paineis.map((p) => `${p.n} ${p.designacao} ${fmt(p.largura)} × ${fmt(p.comprimento)} m`).join('; ')}.</p>}
                   <table>
                     <thead><tr><th>Pos.</th><th>Face</th><th>Tipo</th><th>Quant.</th><th>φ (mm)</th><th>Espaç. (cm)</th><th>C unit. (m)</th><th>C total (m)</th><th>Peso (kg)</th></tr></thead>
                     <tbody>
@@ -297,7 +300,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </>)}
-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0) && (<>
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
               {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]] as const).map(([tit, rs]) => (
                 <div key={tit} className="avoid">
@@ -311,6 +314,16 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   </table>
                 </div>
               ))}
+              {(dim.resumoTelas?.length ?? 0) > 0 && (
+                <div className="avoid">
+                  <h3>Telas soldadas da base das lajes (NBR 7481, fora do total de barras)</h3>
+                  <table>
+                    <thead><tr><th>Designação</th><th>Painéis</th><th>Área (m²)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
+                    <tbody>{dim.resumoTelas!.map((t) => <tr key={t.designacao}><td className="l">{t.designacao}</td><td>{t.paineis}</td><td>{fmt(t.area)}</td><td>{fmt(t.peso)}</td><td>{fmt(t.pesoComPerdas)}</td></tr>)}</tbody>
+                  </table>
+                  <p>Painéis de {fmt(PAINEL_TELA.largura)} × {fmt(PAINEL_TELA.comprimento)} m cortados no pano, com traspasse de {fmt(opc.lajeTelaTraspasse, 0)} cm entre painéis e cobrimento nas bordas; peso = 7850 kg/m³ × área de aço das duas direções [a confirmar: dimensões dos fios e das malhas do catálogo conferidas por catálogos de fabricantes, séries L e T fora do catálogo].</p>
+                </div>
+              )}
               <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
               {(dim.trelicas?.length ?? 0) > 0 && (
                 <div className="avoid">

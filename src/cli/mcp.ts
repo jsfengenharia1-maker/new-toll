@@ -206,6 +206,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
+    ...(d.resumoTelas?.length ? { resumoTelas: d.resumoTelas } : {}),
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
@@ -226,6 +227,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

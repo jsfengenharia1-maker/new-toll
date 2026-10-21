@@ -109,6 +109,14 @@ export interface OpcoesCalculo {
   lajeArmaduraCanto: number;
   /** Lajes: 1 = negativos com pernas (dobras até a face inferior) nas pontas dentro da laje. */
   lajePernasNegativos: number;
+  /** Lajes (R7d): 1 = armadura base desenhada e medida (sem a opção, só indicada com φ c/ s ou a designação da tela). */
+  lajeBaseDetalhada: number;
+  /** Lajes (R7d): 1 = emenda das barras da base inferior na zona de máximo negativo (junto à borda contínua). */
+  lajeBaseEmendaApoio: number;
+  /** Lajes (R7d): 1 = reforço com espaçamento múltiplo do da base (barras alternadas). */
+  lajeReforcoReducao: number;
+  /** Lajes (R7d): traspasse entre painéis de tela soldada (cm). */
+  lajeTelaTraspasse: number;
   /** Vigotas (treliçadas): momento positivo mínimo p·ℓ²/este valor por nervura (0 = desligado). */
   vigotaMomentoMinPositivo: number;
   /** Vigotas: momento negativo mínimo nas pontas p·ℓ²/este valor por nervura (0 = desligado). */
@@ -321,6 +329,14 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Nos cantos entre duas bordas apoiadas sem continuidade, malha superior nas duas direções para os momentos volventes.' },
   { chave: 'lajePernasNegativos', rotulo: 'Lajes: pernas nos negativos', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática construtiva (dobra até a face inferior para apoiar o negativo na fôrma); ganchos construtivos do programa de referência', aConfirmar: true,
     descricao: 'Pontas dos negativos dentro da laje dobradas até a face inferior (h − cobrimentos).' },
+  { chave: 'lajeBaseDetalhada', rotulo: 'Lajes: detalhar a armadura base', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.76): padrão desativado, a base só é indicada (φ c/ s ou tela) e não entra no desenho nem no quantitativo; cada laje pode sobrepor', aConfirmar: false,
+    descricao: 'Ligada, a armadura base (barras ou painéis de tela) é desenhada com comprimentos e emendas e entra no quantitativo; desligada, só o reforço (necessária − base) é desenhado e medido.' },
+  { chave: 'lajeBaseEmendaApoio', rotulo: 'Lajes: emenda da base inferior na zona de máximo negativo', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (K1.9.88); NBR 6118, 9.5.2 (emendas em regiões de menor tensão)', aConfirmar: true,
+    descricao: 'Barras da base inferior emendadas por traspasse (acima da barra máxima) com o centro da emenda junto à borda contínua mais próxima do meio da barra, onde o momento positivo é menor.' },
+  { chave: 'lajeReforcoReducao', rotulo: 'Lajes: reforço com densidade reduzida (barras alternadas)', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.75, redução de densidade de armadura); padrão desligado', aConfirmar: true,
+    descricao: 'O reforço usa a bitola da base com espaçamento múltiplo do espaçamento da base (uma barra a cada k da base), em vez de uma bitola e espaçamento próprios.' },
+  { chave: 'lajeTelaTraspasse', rotulo: 'Lajes: traspasse entre painéis de tela soldada', unidade: 'cm', min: 10, max: 60, passo: 1, padrao: 20, fonte: 'NBR 6118, 9.5.4 (emenda de telas por traspasse; valor inicial do app, sem fonte aberta)', aConfirmar: true,
+    descricao: 'Sobreposição entre painéis vizinhos de tela, nas duas direções; os painéis seguem a largura de 2,45 m e o comprimento de 6,00 m.' },
   { chave: 'vigotaMomentoMinPositivo', rotulo: 'Vigotas: momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige momento mínimo nas nervuras: só o da análise', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16)', aConfirmar: false,
     descricao: 'Momento positivo de cálculo de cada vigota ≥ p·ℓ²/este valor, com p = (V1 + V2)/ℓ dos cortantes das pontas (carga por nervura) e ℓ = comprimento da vigota. 0 = desligado.' },
   { chave: 'vigotaMomentoMinNegativo', rotulo: 'Vigotas: momento negativo mínimo nas pontas (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: só o momento da análise (bordas sem continuidade ficam sem negativo de cálculo)', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16), em todas as pontas', aConfirmar: false,

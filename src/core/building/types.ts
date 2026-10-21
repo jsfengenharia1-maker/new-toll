@@ -301,7 +301,24 @@ export interface Laje {
   armaduraVigotas?: ArmaduraVigotas;
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */
   tabela?: string;
+  /** Armadura base (R7d): barras ou tela soldada nas faces; ausente = sem base (só a calculada). */
+  base?: ArmaduraBaseLaje;
+  /** Armaduras predefinidas pelo usuário (R7d), descontadas do reforço na sua faixa. */
+  predefinidas?: ArmaduraPredefinida[];
 }
+
+/** Armadura base de uma face: tela soldada (designação NBR 7481; `giro` troca a direção dos fios principais) ou barras por direção (φ mm, s cm). */
+export interface BaseFaceLaje {
+  tela?: string; giro?: boolean;
+  barras?: [{ phi: number; s: number } | null, { phi: number; s: number } | null];
+}
+/** Armadura base da laje maciça; `detalhada` sobrepõe a opção `lajeBaseDetalhada` (ausente = a opção). */
+export interface ArmaduraBaseLaje { inf?: BaseFaceLaje; sup?: BaseFaceLaje; detalhada?: boolean }
+/**
+ * Armadura predefinida: barra representativa de `a` na direção `angulo` (graus) com `comprimento` (m), `n` barras
+ * φ `phi` (mm) espaçadas de `s` (m) à esquerda da representativa. A faixa de influência é n × s.
+ */
+export interface ArmaduraPredefinida { id: string; face: 'inf' | 'sup'; a: [number, number]; angulo: number; comprimento: number; phi: number; s: number; n: number }
 
 /**
  * Armadura bloqueada das vigotas de uma laje treliçada, por nervura: positiva adicional (além do banzo inferior da
