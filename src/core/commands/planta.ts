@@ -1,8 +1,9 @@
 // Comandos da planta: máscara (DXF de referência) e pilares.
 import type { Draft } from 'immer';
-import { centroPilar, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar } from '../building/types';
+import { centroPilar, geoLance, inicioDe, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
+import { apoioDoPilar, nomeSobre } from '../building/transicao';
 import { atribuirTabela, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -134,43 +135,71 @@ const secaoSchema: JsonSchema = { oneOf: [
 ], description: 'Seção: {tipo: "ret", b, h} ou {tipo: "circ", d}, em m' };
 const ajusteSchema: JsonSchema = { type: 'string', enum: ['c', 'n', 's', 'l', 'o', 'ne', 'no', 'se', 'so'], description: 'Ponto fixo: centro, faces (n, s, l, o) ou cantos' };
 
-type PilarIn = { x: number; y: number; secao: SecaoPilar; ajuste: Ajuste; angulo: number; nasce: string; morre?: string; nome?: string };
+type PilarIn = { x?: number; y?: number; secao: SecaoPilar; ajuste?: Ajuste; angulo?: number; nasce?: string; morre?: string; nome?: string; inicio?: 'fundacao' | 'apoiado'; sobre?: { pilar: string; dx?: number; dy?: number } };
 
 const proximoNumero = (b: BuildingModel) => Math.max(0, ...b.pilares.map((p) => { const m = /^P(\d+)$/.exec(p.nome); return m ? +m[1] : 0; })) + 1;
 
+const sobreSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['pilar'], properties: {
+  pilar: { type: 'string', description: 'pilar de baixo (o novo nasce no pavimento em que ele morre)' },
+  dx: { type: 'number', description: 'm, em x, a partir do ponto fixo do pilar de baixo (padrão 0)' }, dy: { type: 'number', description: 'm, em y' },
+}, description: 'Pilar que nasce sobre outro: x, y relativos ao ponto fixo do pilar de baixo no último lance; nasce, ponto fixo e ângulo herdados dele quando omitidos' };
+
+/** Pilar resolvido a partir dos parâmetros (posição relativa ao pilar de baixo, nascimento herdado), ou o erro. */
+function resolverPilar(b: BuildingModel, p: PilarIn): { novo: Pilar } | { erro: Diagnostico[] } {
+  let baixo: Pilar | undefined;
+  if (p.sobre) {
+    baixo = b.pilares.find((q) => q.id === p.sobre!.pilar);
+    if (!baixo) return { erro: err('PILAR_INEXISTENTE', `Pilar ${p.sobre.pilar} não existe.`) };
+  } else if (p.x === undefined || p.y === undefined) return { erro: err('POSICAO', 'Informe x e y, ou `sobre` (pilar de baixo).') };
+  const ref = baixo ? geoLance(baixo, lancesDoPilar(b, baixo).at(-1)?.id ?? '').p : undefined;
+  const nasce = p.nasce ?? baixo?.morre ?? 'fundacao';
+  const morre = p.morre ?? pavimentosOrdenados(b).at(-1)?.id ?? '';
+  const x = p.x ?? ref!.x + (p.sobre!.dx ?? 0), y = p.y ?? ref!.y + (p.sobre!.dy ?? 0);
+  const novo: Pilar = { id: '?', nome: '?', x, y, angulo: p.angulo ?? baixo?.angulo ?? 0, ajuste: p.ajuste ?? baixo?.ajuste ?? 'c', nasce, morre, secao: p.secao, ...(p.inicio ? { inicio: p.inicio } : {}) };
+  if (novo.inicio === 'apoiado' && nasce === 'fundacao') return { erro: err('PILAR_INICIO', 'Pilar que nasce na fundação não pode ser apoiado em outro elemento.') };
+  if (novo.inicio && inicioDe({ nasce, inicio: undefined }) === novo.inicio) delete novo.inicio; // igual ao padrão: não grava
+  return { novo };
+}
+
 registrar<PilarIn>({
   nome: 'pilar.inserir',
-  descricao: 'Insere um pilar no ponto (x, y) do ponto fixo, com seção, ângulo e os pavimentos em que nasce (padrão: fundação) e morre (padrão: o mais alto). Arranque (pilar de altura zero, só para levar cargas à fundação): nasce e morre "fundacao"; vale mesmo sem pavimentos.',
+  descricao: 'Insere um pilar no ponto (x, y) do ponto fixo, com seção, ângulo e os pavimentos em que nasce (padrão: fundação) e morre (padrão: o mais alto). Arranque (pilar de altura zero, só para levar cargas à fundação): nasce e morre "fundacao"; vale mesmo sem pavimentos. Pilar que nasce sobre outro pilar, viga ou laje (transição): nasce no pavimento do elemento de apoio; `sobre` dá x, y relativos ao pilar de baixo e herda dele nascimento, ponto fixo e ângulo; o nome automático é o do pilar de baixo mais uma letra (P5a). `inicio` "fundacao" num pavimento acima da fundação dá vínculo externo (sem apoio embaixo).',
   risco: 'escrita',
-  schema: { type: 'object', additionalProperties: false, required: ['x', 'y', 'secao'], properties: {
-    x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema, ajuste: { ...ajusteSchema, default: 'c' },
-    angulo: { type: 'number', default: 0, description: 'graus, anti-horário' },
-    nasce: { type: 'string', default: 'fundacao', description: '"fundacao" ou id do pavimento' },
+  schema: { type: 'object', additionalProperties: false, required: ['secao'], properties: {
+    x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema, ajuste: { ...ajusteSchema, description: 'Ponto fixo: centro (padrão), faces (n, s, l, o) ou cantos; herdado do pilar de baixo com `sobre`' },
+    angulo: { type: 'number', description: 'graus, anti-horário (padrão 0)' },
+    nasce: { type: 'string', description: '"fundacao" (padrão) ou id do pavimento' },
     morre: { type: 'string', description: 'id do pavimento mais alto; padrão: o mais alto da obra; "fundacao" (com nasce "fundacao") = arranque' },
-    nome: { type: 'string', minLength: 1, description: 'padrão: próximo P<n>' },
+    nome: { type: 'string', minLength: 1, description: 'padrão: próximo P<n> (ou o do pilar de baixo + letra)' },
+    inicio: { type: 'string', enum: ['fundacao', 'apoiado'], description: 'início do pilar que nasce acima da fundação: apoiado (padrão, sem vínculo externo) ou fundacao (vínculo externo)' },
+    sobre: sobreSchema,
   } },
   validar(b, p) {
-    const morre = p.morre ?? pavimentosOrdenados(b).at(-1)?.id ?? '';
-    const r = refsPilar(b, p.nasce, morre);
-    if (r.length) return r;
-    const novo: Pilar = { id: '?', nome: '?', x: p.x, y: p.y, angulo: p.angulo, ajuste: p.ajuste, nasce: p.nasce, morre, secao: p.secao };
-    const sob = pilaresSobrepostos(b, novo);
+    const r = resolverPilar(b, p);
+    if ('erro' in r) return r.erro;
+    const ref = refsPilar(b, r.novo.nasce, r.novo.morre);
+    if (ref.length) return ref;
+    const sob = pilaresSobrepostos(b, r.novo);
     return sob.length ? err('PILAR_SOBREPOSTO', `A seção se sobrepõe a ${sob.map((q) => q.nome).join(', ')}.`, sob.map((q) => q.id)) : [];
   },
   aplicar(d, p) {
-    const nome = p.nome?.trim() || `P${proximoNumero(d as BuildingModel)}`;
-    d.pilares.push({ id: novoId(d, 'p'), nome, x: p.x, y: p.y, angulo: p.angulo, ajuste: p.ajuste, nasce: p.nasce, morre: p.morre ?? pavimentosOrdenados(d as BuildingModel).at(-1)!.id, secao: { ...p.secao } });
-    return `${nome} inserido em (${fmt(p.x)}; ${fmt(p.y)}).`;
+    const { novo } = resolverPilar(d as BuildingModel, p) as { novo: Pilar };
+    const ap = inicioDe(novo) === 'apoiado' && novo.nasce !== 'fundacao' ? apoioDoPilar(d as BuildingModel, novo) : null;
+    const baixo = ap?.tipo === 'pilar' ? (d as BuildingModel).pilares.find((q) => q.id === ap.principal) : undefined;
+    const nome = p.nome?.trim() || (baixo ? nomeSobre(d as BuildingModel, baixo) : `P${proximoNumero(d as BuildingModel)}`);
+    d.pilares.push({ ...novo, id: novoId(d, 'p'), nome, secao: { ...p.secao } });
+    return `${nome} inserido em (${fmt(novo.x)}; ${fmt(novo.y)}).`;
   },
 });
 
-registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cobrimento?: number; tabela?: string }>({
+registrar<{ id: string } & Partial<Omit<PilarIn, 'nome' | 'sobre'>> & { nome?: string; cobrimento?: number; tabela?: string }>({
   nome: 'pilar.editar',
-  descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte ou cobrimento próprio (cm) de um pilar.',
+  descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte, início (apoiado em outro elemento ou na fundação, com vínculo externo) ou cobrimento próprio (cm) de um pilar.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
     ajuste: ajusteSchema, angulo: { type: 'number' }, nasce: { type: 'string' }, morre: { type: 'string' },
+    inicio: { type: 'string', enum: ['fundacao', 'apoiado'], description: 'apoiado: nasce sobre pilar, viga ou laje, sem vínculo externo; fundacao: vínculo externo no pavimento em que nasce' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cm; 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de armadura dos pilares (R7a); "padrao" ou vazio volta à padrão da obra' },
   } },
@@ -182,6 +211,7 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
     const n: Pilar = { ...q, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined)) } as Pilar;
     const r = refsPilar(b, n.nasce, n.morre);
     if (r.length) return r;
+    if (n.inicio === 'apoiado' && n.nasce === 'fundacao') return err('PILAR_INICIO', 'Pilar que nasce na fundação não pode ser apoiado em outro elemento.', [q.id]);
     const sob = pilaresSobrepostos(b, n);
     return sob.length ? err('PILAR_SOBREPOSTO', `A seção se sobrepõe a ${sob.map((x) => x.nome).join(', ')}.`, sob.map((x) => x.id)) : [];
   },
@@ -189,6 +219,8 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
     const q = d.pilares.find((x) => x.id === p.id)!;
     for (const k of ['nome', 'x', 'y', 'ajuste', 'angulo', 'nasce', 'morre'] as const) if (p[k] !== undefined) (q as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
     if (p.secao) q.secao = { ...p.secao };
+    if (p.inicio !== undefined) { if (p.inicio === inicioDe({ nasce: q.nasce })) delete q.inicio; else q.inicio = p.inicio; }
+    if (q.nasce === 'fundacao') delete q.inicio;
     if (p.cobrimento !== undefined) { if (p.cobrimento) q.cobrimento = p.cobrimento; else delete q.cobrimento; }
     atribuirTabela(q, 'tabela', p.tabela);
     return `${q.nome} alterado.`;
@@ -262,23 +294,53 @@ registrar<{ ids: string[]; pavimentos?: string[]; topo?: number; base?: number }
   },
 });
 
-registrar<{ id: string; pavimento: string; secao?: SecaoPilar }>({
+registrar<{ id: string; pavimento: string; secao?: SecaoPilar; ajuste?: Ajuste; angulo?: number; dx?: number; dy?: number; fck?: number }>({
   nome: 'pilar.secaoLance',
-  descricao: 'Define a seção de um lance do pilar (o lance que chega ao pavimento indicado). Sem `secao`, o lance volta à seção geral.',
+  descricao: 'Define a seção, o ponto fixo, o ângulo, o deslocamento (dx, dy em m, no mundo) e o fck de um lance do pilar (o lance que chega ao pavimento indicado). A parte do lance fora da projeção do de baixo liga-se a ele por trecho rígido. Só informado = alterado; sem nenhum campo, o lance volta à seção e à geometria do pilar. `fck` 0 volta ao dos materiais. O primeiro lance usa a geometria do pilar (edite o pilar).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento'], properties: { id: { type: 'string' }, pavimento: { type: 'string' }, secao: secaoSchema } },
+  schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento'], properties: {
+    id: { type: 'string' }, pavimento: { type: 'string' }, secao: secaoSchema, ajuste: ajusteSchema,
+    angulo: { type: 'number', description: 'graus; padrão: o do pilar' },
+    dx: { type: 'number', description: 'm, deslocamento do ponto fixo em x' }, dy: { type: 'number', description: 'm, em y' },
+    fck: { type: 'number', minimum: 0, maximum: 90, description: 'MPa; 0 volta ao dos materiais' },
+  } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.id);
     if (!q) return err('PILAR_INEXISTENTE', `Pilar ${p.id} não existe.`);
-    return lancesDoPilar(b, q).some((x) => x.id === p.pavimento) ? [] : err('LANCE_INEXISTENTE', `${q.nome} não tem lance chegando a ${p.pavimento}.`, [q.id]);
+    const ls = lancesDoPilar(b, q);
+    if (!ls.some((x) => x.id === p.pavimento)) return err('LANCE_INEXISTENTE', `${q.nome} não tem lance chegando a ${p.pavimento}.`, [q.id]);
+    const geom = p.ajuste !== undefined || p.angulo !== undefined || !!p.dx || !!p.dy;
+    if (geom && ls[0].id === p.pavimento) return err('LANCE_BASE', `O primeiro lance de ${q.nome} usa o ponto fixo, o ângulo e a posição do pilar: edite o pilar.`, [q.id]);
+    if (p.fck !== undefined && p.fck !== 0 && p.fck < 20) return err('FCK_INVALIDO', 'fck do lance entre 20 e 90 MPa (0 volta ao dos materiais).', [q.id]);
+    const n: Pilar = { ...q, secoes: [...(q.secoes ?? []).filter((s) => s.pavimento !== p.pavimento), ...(p.secao || geom ? [{ pavimento: p.pavimento, secao: p.secao ?? q.secoes?.find((s) => s.pavimento === p.pavimento)?.secao ?? q.secao, ajuste: p.ajuste, angulo: p.angulo, dx: p.dx, dy: p.dy }] : [])] };
+    const sob = pilaresSobrepostos(b, n);
+    return sob.length ? err('PILAR_SOBREPOSTO', `O lance ficaria sobre ${sob.map((x) => x.nome).join(', ')}.`, [q.id, ...sob.map((x) => x.id)]) : [];
   },
   aplicar(d, p) {
     const q = d.pilares.find((x) => x.id === p.id)!;
-    q.secoes = (q.secoes ?? []).filter((s) => s.pavimento !== p.pavimento);
-    if (p.secao) q.secoes.push({ pavimento: p.pavimento, secao: { ...p.secao } });
-    if (!q.secoes.length) delete q.secoes;
-    return `Seção do lance de ${q.nome} alterada.`;
+    const atual = q.secoes?.find((s) => s.pavimento === p.pavimento);
+    const geom = p.ajuste !== undefined || p.angulo !== undefined || p.dx !== undefined || p.dy !== undefined;
+    const tudo = !p.secao && !geom && p.fck === undefined;
+    if (p.fck !== undefined || tudo) {
+      q.fck = (q.fck ?? []).filter((f) => f.pavimento !== p.pavimento);
+      if (p.fck) q.fck.push({ pavimento: p.pavimento, fck: p.fck });
+      if (!q.fck.length) delete q.fck;
+    }
+    if (p.secao || geom || tudo) {
+      q.secoes = (q.secoes ?? []).filter((s) => s.pavimento !== p.pavimento);
+      if (!tudo) {
+        const e: NonNullable<Pilar['secoes']>[number] = { pavimento: p.pavimento, secao: { ...(p.secao ?? atual?.secao ?? q.secao) } };
+        const aj = p.ajuste ?? atual?.ajuste, an = p.angulo ?? atual?.angulo, dx = p.dx ?? atual?.dx, dy = p.dy ?? atual?.dy;
+        if (aj !== undefined && aj !== q.ajuste) e.ajuste = aj;
+        if (an !== undefined && an !== q.angulo) e.angulo = an;
+        if (dx) e.dx = dx;
+        if (dy) e.dy = dy;
+        q.secoes.push(e);
+      }
+      if (!q.secoes.length) delete q.secoes;
+    }
+    return `Lance de ${q.nome} alterado.`;
   },
 });
 

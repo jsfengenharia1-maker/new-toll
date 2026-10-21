@@ -9,7 +9,8 @@ import { posicoesEstribos, type DetalhePilar } from '../building/detalhamentoPil
 import type { Dimensionamento, ResultadoPilar } from '../building/dimensionamento';
 import { acoDe, cobrimentoPilar, fckDe } from '../building/materiais';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
-import { cotaFundacao, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
+import { apoioDoPilar } from '../building/transicao';
+import { cotaFundacao, dimsSecao, inicioDe, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
 import { LARGURA_LEGENDA, txt, type Prancha, type Prim } from './prancha';
 import {
   Chaves, Posicoes, acoDaFolha, areaArmacao, bloco, capacidadeTabela, cfgArmacao, cmInt, colunaDeTabelas, cotaCm, cotaVertical, empacotar, formatoArmacao,
@@ -23,6 +24,17 @@ export interface GrupoPilares { pilares: Pilar[]; det: DetalhePilar; res: (Resul
 
 const r2 = (x: number) => Math.round(x * 100);
 
+/** Onde o pilar nasce quando não é na fundação ("nasce em V12", "nasce em P5", "nasce na laje L3"); vazio na fundação. */
+export function rotuloApoio(b: BuildingModel, p: Pilar): string {
+  if (p.nasce === 'fundacao') return '';
+  if (inicioDe(p) === 'fundacao') return `nasce em ${b.pavimentos.find((x) => x.id === p.nasce)?.nome ?? ''} (apoio externo)`;
+  const ap = apoioDoPilar(b, p);
+  if (!ap) return 'nasce sem apoio';
+  if (ap.tipo === 'pilar') return `nasce em ${b.pilares.find((q) => q.id === ap.principal)?.nome ?? ''}`;
+  if (ap.tipo === 'viga') return `nasce em ${ap.vigas.map((id) => b.vigas.find((v) => v.id === id)?.nome).join(', ')} (esperas ancoradas)`;
+  return `nasce na laje ${b.lajes.find((l) => l.id === ap.laje)?.nome ?? ''} (esperas ancoradas)`;
+}
+
 /** Pilares iguais: mesmos lances, seções, arranjos, estribos e barras (cotas e comprimentos ao cm). */
 export function gruposDePilares(b: BuildingModel, dim: Dimensionamento): GrupoPilares[] {
   const m = new Map<string, GrupoPilares>();
@@ -34,6 +46,7 @@ export function gruposDePilares(b: BuildingModel, dim: Dimensionamento): GrupoPi
       det.lances.map((l) => [l.pavimento, r2(l.z0), r2(l.z1), JSON.stringify(secaoNoLance(p, l.pavimento)), l.estribos]),
       res.map((r) => r?.arranjo),
       det.barras.map((x) => [x.tipo, x.n, x.phi, r2(x.comprimento), r2(x.z0), r2(x.z1), x.ganchos]),
+      rotuloApoio(b, p),
     ]);
     const g = m.get(chave);
     if (g) g.pilares.push(p); else m.set(chave, { pilares: [p], det, res });
@@ -126,7 +139,8 @@ export function blocoPilares(b: BuildingModel, g: GrupoPilares, escala: number, 
   const linhasTit: string[] = [];
   for (let i = 0; i < nomes.length; i += 6) linhasTit.push(nomes.slice(i, i + 6).join('='));
   linhasTit.forEach((l, i) => out.push(txt('TEXTO', 0, yTop + 4 + (linhasTit.length - 1 - i) * 6, 5, i < linhasTit.length - 1 ? `${l}=` : l, 'e', 'base')));
-  out.push(txt('TEXTO', 0, yTop, 2, `Elevação 1:${escala} · seções 1:${cfg.escalaSecao}${n > 1 ? ` · ${n} pilares` : ''}`, 'e', 'base'));
+  const apoioTxt = rotuloApoio(b, p);
+  out.push(txt('TEXTO', 0, yTop, 2, `Elevação 1:${escala} · seções 1:${cfg.escalaSecao}${n > 1 ? ` · ${n} pilares` : ''}${apoioTxt ? ` · ${apoioTxt}` : ''}`, 'e', 'base'));
   // seções distintas (seção + arranjo + estribo), de cima para baixo
   const xs0 = xn1 + 32;
   const distintas = new Map<string, { idx: number[] }>();

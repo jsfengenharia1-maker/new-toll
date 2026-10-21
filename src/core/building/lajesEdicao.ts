@@ -8,7 +8,7 @@ import { barArea } from '../concrete';
 import type { P } from '../geom/faces';
 import type { DetalheLaje, PosicaoLaje, TipoBarraLaje } from './detalhamentoLajes';
 import type { OpcoesCalculo } from './opcoes';
-import { contornoPilar, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel, type EdicaoBarraLaje, type Laje, type LinhaDobra, type ZonaUniformizacao } from './types';
+import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type EdicaoBarraLaje, type Laje, type LinhaDobra, type ZonaUniformizacao, contornoNoLance } from './types';
 
 /** Exigências do cálculo por posição (antes de uniformizar e editar): área necessária (cm²/m), cobertura (m) e comprimento calculado (m). */
 export interface Exigencia { As: number; cobertura: number; comprimento: number }
@@ -114,7 +114,7 @@ export function zonasDosPilares(b: BuildingModel, grupo: string, op: OpcoesCalcu
   if (!ref) return [];
   const folga = op.lajeUniformizarPilaresLargura / 100;
   return b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === ref.id)).map((p) => {
-    const c = contornoPilar(p, secaoNoLance(p, ref.id)), xs = c.map((q) => q[0]), ys = c.map((q) => q[1]);
+    const c = contornoNoLance(p, ref.id), xs = c.map((q) => q[0]), ys = c.map((q) => q[1]);
     return { id: `auto_${p.id}`, grupo, forma: 'retangulo' as const, pontos: [[Math.min(...xs) - folga, Math.min(...ys) - folga], [Math.max(...xs) + folga, Math.max(...ys) + folga]] as [[number, number], [number, number]], face: 'sup' as const };
   });
 }

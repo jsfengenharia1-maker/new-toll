@@ -1,5 +1,5 @@
 // Planta de fôrma esquemática de um grupo, em SVG estático (cores do papel: design/memorial.css).
-import { contornoPilar, geometriaViga, lancesDoPilar, secaoNoLance, type BuildingModel } from '../../core/building/types';
+import { geometriaViga, lancesDoPilar, type BuildingModel, contornoNoLance } from '../../core/building/types';
 import { memo } from '../design/tokens';
 import { construirCena, type OpcoesCena } from '../../core/vista3d/cena';
 import { isometricoSvg } from '../../core/vista3d/isometrico';
@@ -12,7 +12,7 @@ export function svgPlantaGrupo(b: BuildingModel, grupo: string, falhas: Set<stri
   const pav = pavs[0].id;
   const lajes = b.lajes.filter((l) => l.grupo === grupo), vigas = b.vigas.filter((v) => v.grupo === grupo);
   const pilares = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav));
-  const pts = [...lajes.flatMap((l) => l.contorno), ...vigas.flatMap((v) => v.pontos), ...pilares.flatMap((p) => contornoPilar(p, secaoNoLance(p, pav)))];
+  const pts = [...lajes.flatMap((l) => l.contorno), ...vigas.flatMap((v) => v.pontos), ...pilares.flatMap((p) => contornoNoLance(p, pav))];
   if (!pts.length) return '';
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const x0 = Math.min(...xs) - 0.8, x1 = Math.max(...xs) + 0.8, y0 = Math.min(...ys) - 0.8, y1 = Math.max(...ys) + 0.8;
@@ -36,7 +36,7 @@ export function svgPlantaGrupo(b: BuildingModel, grupo: string, falhas: Set<stri
     out.push(`<text x="${X(mx)}" y="${Y(my)}" dy="${(-(v.secao.b / 2) * s - 3).toFixed(1)}" text-anchor="middle" fill="${cor}" transform="rotate(${rot.toFixed(1)} ${X(mx)} ${Y(my)})">${esc(v.nome)} ${Math.round(v.secao.b * 100)}×${Math.round(v.secao.h * 100)}</text>`);
   }
   for (const p of pilares) {
-    const c = contornoPilar(p, secaoNoLance(p, pav)), cor = falhas.has(p.id) ? memo('falha') : memo('ink');
+    const c = contornoNoLance(p, pav), cor = falhas.has(p.id) ? memo('falha') : memo('ink');
     out.push(`<polygon points="${poly(c)}" fill="${cor}"/>`);
     const mx = Math.max(...c.map((q) => q[0])), my = Math.max(...c.map((q) => q[1]));
     out.push(`<text x="${X(mx)}" y="${Y(my)}" dx="2" dy="-2" fill="${cor}" font-weight="bold">${esc(p.nome)}</text>`);

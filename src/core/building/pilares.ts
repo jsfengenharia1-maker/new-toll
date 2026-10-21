@@ -1,5 +1,5 @@
 // Regras dos pilares e geometria da planta no mundo (sem dependência do registro de comandos).
-import { centroPilar, contornoPilar, dimsSecao, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, type BuildingModel, type Pilar } from './types';
+import { centroPilar, contornoNoLance, dimsSecao, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, type BuildingModel, type Pilar } from './types';
 import type { Diagnostico } from './verify';
 import { sobrepoe } from '../geom/poly';
 
@@ -11,8 +11,7 @@ export function pilaresSobrepostos(b: BuildingModel, p: Pilar, ignorar: Set<stri
   const lp = new Set(lancesDoPilar(b, p).map((x) => x.id));
   return b.pilares.filter((q) => q.id !== p.id && !ignorar.has(q.id) && lancesDoPilar(b, q).some((x) => {
     if (!lp.has(x.id)) return false;
-    const sp = p.secoes?.find((s) => s.pavimento === x.id)?.secao ?? p.secao, sq = q.secoes?.find((s) => s.pavimento === x.id)?.secao ?? q.secao;
-    return sobrepoe(contornoPilar(p, sp), contornoPilar(q, sq));
+    return sobrepoe(contornoNoLance(p, x.id), contornoNoLance(q, x.id));
   }));
 }
 

@@ -1,6 +1,6 @@
 // Regras das vigas na planta: apoios (pilares e outras vigas), sobreposição, face do pilar e diagnósticos de lançamento.
 import {
-  contornoPilar, geometriaViga, lancesDoPilar, offsetsViga, pavimentosDoGrupo, secaoNoLance, trechosViga,
+  contornoNoLance, contornoPilar, geoLance, geometriaViga, lancesDoPilar, offsetsViga, pavimentosDoGrupo, trechosViga,
   type BuildingModel, type Pilar, type Viga,
 } from './types';
 import type { Diagnostico } from './verify';
@@ -19,7 +19,7 @@ export const vigasDoGrupo = (b: BuildingModel, grupo: string) => b.vigas.filter(
 export const pilaresQueChegam = (b: BuildingModel, pav: string) => b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav));
 
 export function vigaTocaPilar(v: Viga, p: Pilar, pav: string): boolean {
-  const c = contornoPilar(p, secaoNoLance(p, pav));
+  const c = contornoNoLance(p, pav);
   return trechosViga(v, FOLGA_APOIO).some((t) => sobrepoe(t, c));
 }
 
@@ -74,12 +74,12 @@ export function ajusteFaceTrecho(v: Viga, i: number, pilares: { p: Pilar; pav: s
   const fEsq = (g.esq[i][0] - a[0]) * nx + (g.esq[i][1] - a[1]) * ny, fDir = (g.dir[i][0] - a[0]) * nx + (g.dir[i][1] - a[1]) * ny;
   let melhor = 0;
   for (const { p, pav } of pilares) {
-    const s = secaoNoLance(p, pav);
+    const gl = geoLance(p, pav), s = gl.secao;
     if (s.tipo !== 'ret') continue;
-    const ang = (p.angulo * Math.PI) / 180;
+    const ang = (gl.p.angulo * Math.PI) / 180;
     const paralelo = Math.abs(Math.abs(ux * Math.cos(ang) + uy * Math.sin(ang)) - 1) < 2e-4 || Math.abs(ux * Math.cos(ang) + uy * Math.sin(ang)) < 0.0141;
     if (!paralelo) continue;
-    const c = contornoPilar(p, s);
+    const c = contornoPilar(gl.p, s);
     if (!sobrepoe(t, c)) continue;
     const proj = c.map((q) => (q[0] - a[0]) * nx + (q[1] - a[1]) * ny);
     const pMax = Math.max(...proj), pMin = Math.min(...proj);
@@ -123,7 +123,7 @@ export function alinhamentoNaFace(v: Viga, pilares: { p: Pilar; pav: string }[],
     const t = nrm(i);
     let f: number | null = null;
     for (const { p, pav } of pilares) {
-      const c = contornoPilar(p, secaoNoLance(p, pav));
+      const c = contornoNoLance(p, pav);
       if (!sobrepoe(corpos[i], c)) continue;
       for (const q of c) { const d = s * ((q[0] - t.a[0]) * t.nx + (q[1] - t.a[1]) * t.ny); if (f === null || d > f) f = d; }
     }
@@ -165,7 +165,7 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
       const fora = v.pontos.slice(1).map((_, i) => ajusteFaceTrecho(v, i, ps)).filter((x) => x);
       if (fora.length) d.push({ codigo: 'VIGA_FORA_FACE', severidade: 'aviso', elementos: [v.id], mensagem: `Face de ${v.nome} a ${fmt(Math.abs(fora[0]) * 100)} cm da face do pilar.`, sugestao: { comando: 'viga.ajustarFaces', params: { grupo: g.id, ids: [v.id] }, texto: 'Encostar na face do pilar' } });
     }
-    // pilares sem viga e pilares que nascem sem apoio
+    // pilares sem viga (os que nascem sem apoio: transicao.ts)
     if (vs.length) {
       const sem = new Map<string, string[]>();
       for (const pav of pavs)
@@ -173,14 +173,6 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
           if (!vs.some((v) => vigaTocaPilar(v, p, pav.id))) sem.set(p.id, [...(sem.get(p.id) ?? []), pav.nome]);
       for (const [id, nomes] of sem) d.push({ codigo: 'PILAR_SEM_VIGA', severidade: 'aviso', elementos: [id], mensagem: `${b.pilares.find((p) => p.id === id)!.nome} não recebe viga em ${nomes.join(', ')}.` });
     }
-    for (const pav of pavs)
-      for (const p of b.pilares.filter((x) => x.nasce === pav.id)) {
-        const c = contornoPilar(p, p.secao);
-        const sobre = vs.filter((v) => trechosViga(v).some((t) => sobrepoe(t, c)));
-        d.push(sobre.length
-          ? { codigo: 'PILAR_TRANSICAO', severidade: 'erro', elementos: [p.id, ...sobre.map((v) => v.id)], mensagem: `${p.nome} nasce sobre ${sobre.map((v) => v.nome).join(', ')} em ${pav.nome}: viga de transição chega na V2.` }
-          : { codigo: 'PILAR_NASCE_SEM_APOIO', severidade: 'erro', elementos: [p.id], mensagem: `${p.nome} nasce em ${pav.nome} sem viga embaixo.` });
-      }
   }
   return d;
 }

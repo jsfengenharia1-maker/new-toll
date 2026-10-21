@@ -77,7 +77,7 @@ export function notasGerais(b: BuildingModel): string[] {
 }
 
 export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesArmacao = {}): Prancha | null {
-  const pils = b.pilares.map((p) => { const l = lancesDoPilar(b, p)[0]; const s = l ? (p.secoes?.find((x) => x.pavimento === l.id)?.secao ?? p.secao) : p.secao; return { p, s, c: contornoPilar(p, s) }; });
+  const pils = b.pilares.filter((p) => p.nasce === 'fundacao').map((p) => { const l = lancesDoPilar(b, p)[0]; const s = l ? (p.secoes?.find((x) => x.pavimento === l.id)?.secao ?? p.secao) : p.secao; return { p, s, c: contornoPilar(p, s) }; });
   if (!pils.length) return null;
   const cfg = { escala: b.prancha?.armacao?.escalaLocacao || b.prancha?.escala || 0, formato: b.prancha?.formato ?? 'auto' };
   const cx = caixa(pils.flatMap((x) => x.c));

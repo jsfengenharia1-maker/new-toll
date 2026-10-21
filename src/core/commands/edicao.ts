@@ -55,7 +55,14 @@ function validarSelecao(b: BuildingModel, p: Selecao): Diagnostico[] {
 
 const pilarTransformado = (q: Pilar, t: Transf): Pilar => {
   const [x, y] = t.ponto([q.x, q.y]);
-  return { ...q, x, y, angulo: t.angulo(q.angulo), ajuste: t.reflete ? AJUSTE_REFLETIDO[q.ajuste] : q.ajuste };
+  const o = t.ponto([0, 0]);
+  // lances com ponto fixo, ângulo e deslocamento próprios (E1a) acompanham a transformação
+  const secoes = q.secoes?.map((e) => {
+    if (e.ajuste === undefined && e.angulo === undefined && !e.dx && !e.dy) return e;
+    const [dx, dy] = e.dx || e.dy ? t.ponto([e.dx ?? 0, e.dy ?? 0]) : [0, 0];
+    return { ...e, ...(e.ajuste !== undefined ? { ajuste: t.reflete ? AJUSTE_REFLETIDO[e.ajuste] : e.ajuste } : {}), ...(e.angulo !== undefined ? { angulo: t.angulo(e.angulo) } : {}), ...(e.dx || e.dy ? { dx: r9(dx - o[0]), dy: r9(dy - o[1]) } : {}) };
+  });
+  return { ...q, x, y, angulo: t.angulo(q.angulo), ajuste: t.reflete ? AJUSTE_REFLETIDO[q.ajuste] : q.ajuste, ...(secoes ? { secoes } : {}) };
 };
 
 /** Pilares transformados que ficariam sobre outros (movidos: ignora os da própria seleção; copiados: considera todos). */

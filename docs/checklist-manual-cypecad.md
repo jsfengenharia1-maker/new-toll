@@ -12,7 +12,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
-| 4. Pilares | 63 | 25 | 17 | 14 | 7 |
+| 4. Pilares | 63 | 34 | 13 | 9 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 18 | 15 | 50 | 25 |
 | 7. Lajes | 195 | 29 | 32 | 67 | 67 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 60 | 1 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **203** | **99** | **276** | **185** |
+| **Total** | **763** | **212** | **95** | **271** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 13 | 11 | 24 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 4 | 9 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 199 | 231 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 194 | 222 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 2 | 3 | 5 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -197,20 +197,20 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Feito | — | engaste (pilar.engaste, N1a) e flambagem (pilar.flambagem, N1b) por lance |
 | C4.9 | Pilar novo: ângulo. | Feito | — |  |
 | C4.10 | Pilar novo: vinculação exterior. | Parcial | N | base articulada ou com engaste parcial na fundação (pilar.engaste base, N1a); molas e outros vínculos externos ainda não [N2c] |
-| C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Parcial | E | seção por lance; só concreto [E1a] |
+| C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Feito | — | concreto: fck por pilar e lance (`Pilar.fck`, comando `pilar.secaoLance`, `fckDe(b, "pilar", lance, pilar)`) sobre o por pavimento e o do tipo, seção própria por lance; perfil metálico fora do escopo (aço fora) (E1a) |
 | C4.12 | Posicionamento do pilar por clique. | Feito | — | clique, coordenada digitada, captura |
-| C4.13 | Pilar que nasce sobre outro pilar. | Parcial | E | pilar que nasce num pavimento; sem checar apoio em pilar de baixo [E1a] |
-| C4.14 | Tramos superiores com ponto fixo, ângulo ou dimensões diferentes, podendo parte deles ficar fora da projeção do pilar de baixo. | Parcial | E | seção por lance; ponto fixo/ângulo por lance não [E1a] |
-| C4.15 | Empilhamento sem limite de pilares sobre pilares, e mais de um pilar nascendo no mesmo pilar. | Falta | E | vários pilares nascendo sobre um pilar [E1a] |
-| C4.16 | Pilar que admite outro por cima (termina antes do último pavimento) muda de cor sob o cursor e mostra um círculo de referência no eixo. | Falta | E | [E1a] |
-| C4.17 | Coordenadas do ponto fixo do novo pilar relativas às do pilar de baixo. | Falta | E | [E1a] |
-| C4.18 | Captura DXF/DWG de eixo, cantos ou ponto médio das faces do pilar de baixo, sem pedir coordenadas. | Parcial | E | capturas no contorno do pilar existente [E1a] |
-| C4.19 | Referência automática do pilar que nasce: referência do pilar de baixo seguida de letra sequencial (a, b, ...). | Falta | E | nome automático com sufixo para pilar que nasce [E1a] |
+| C4.13 | Pilar que nasce sobre outro pilar. | Feito | — | pilar que nasce sobre pilar: `apoioDoPilar` (`transicao.ts`) detecta o pilar que morre no pavimento com seção sobreposta; o pé é o nó do topo do de baixo (`analitico.ts`), com N·e transmitido; engaste 1 (E1a) |
+| C4.14 | Tramos superiores com ponto fixo, ângulo ou dimensões diferentes, podendo parte deles ficar fora da projeção do pilar de baixo. | Feito | — | `Pilar.secoes[]` com `ajuste`, `angulo`, `dx`, `dy` por lance (`geoLance`, `contornoNoLance`; comando `pilar.secaoLance`, editor em `Transicao.tsx`); parte fora da projeção do lance de baixo ligada por trecho rígido horizontal (`offI` da barra); o primeiro lance usa a geometria do pilar (E1a) |
+| C4.15 | Empilhamento sem limite de pilares sobre pilares, e mais de um pilar nascendo no mesmo pilar. | Feito | — | vários pilares sobre o mesmo pilar (`pilaresSobre`; apoio principal = maior área em comum) e empilhamento sem limite (pilar que nasce sobre pilar que nasce sobre pilar) (E1a) |
+| C4.16 | Pilar que admite outro por cima (termina antes do último pavimento) muda de cor sob o cursor e mostra um círculo de referência no eixo. | Feito | — | ferramenta Pilar: o pilar de baixo que admite outro por cima (termina no pavimento, antes do último) é realçado sob o cursor com círculo no eixo (`Planta.tsx`, `baixoSob`) (E1a) |
+| C4.17 | Coordenadas do ponto fixo do novo pilar relativas às do pilar de baixo. | Feito | — | `pilar.inserir { sobre: { pilar, dx, dy } }` e, na planta, clique ou "@dx;dy" digitado relativos ao ponto fixo do pilar de baixo (status mostra Δx, Δy) (E1a) |
+| C4.18 | Captura DXF/DWG de eixo, cantos ou ponto médio das faces do pilar de baixo, sem pedir coordenadas. | Feito | — | capturas de extremidade (cantos), meio das faces e centro do pilar de baixo, que a planta do pavimento em que ele morre desenha (E1a) |
+| C4.19 | Referência automática do pilar que nasce: referência do pilar de baixo seguida de letra sequencial (a, b, ...). | Feito | — | nome automático = pilar de baixo + letra sequencial livre (P5a, P5b, …; `nomeSobre`) (E1a) |
 | C4.20 | Pilares que não se sobrepõem são lançados como pilares comuns. | Feito | — |  |
 | C4.21 | O topo do pilar de baixo não usa o coeficiente de engastamento do último pavimento. Os elementos apoiados nele são tidos como engastados por padrão. | Feito | — | lances intermediários usam o próprio coeficiente; o das opções vale só no topo do último lance (N1a) |
 | C4.22 | Engastamento parcial só no topo do último tramo. Pode-se articular o pilar que chega a uma viga ou definir engaste parcial na base do pilar novo. | Feito | — | engaste parcial ou rótula no topo e na base de qualquer lance (N1a) |
 | C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos [N2c] |
-| C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E | [E1a] |
+| C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Feito | — | `Pilar.inicio` = apoiado (sem vínculo externo) ou fundação; `aceitaVinculoExterno` só no início fundação (a N2c a usa nos vínculos); início apoiado em pilar da fundação é erro PILAR_INICIO (E1a) |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |
 | C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote [L4] |
 | C4.27 | Ponto fixo dos pilares visível durante o lançamento de vigas e lajes. | Feito | — | ponto fixo visível |
@@ -993,3 +993,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134 e C7.135 (manual do usuário) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 8 itens (manual do usuário); demais sem mudança.
+- **21/10/2026 — fatia E1a (pilares sobre pilares e transições, núcleo e interface).** C4.11, C4.13, C4.14, C4.15, C4.16, C4.17, C4.18, C4.19 e C4.24 (manual do usuário) passam a Feito: `src/core/building/transicao.ts` (`apoioDoPilar`: pilar que morre no pavimento com seção sobreposta, viga que toca o corpo ou laje que o contém; `pilaresSobre`, `nomeSobre`, diagnósticos PILAR_NASCE_SEM_APOIO, PILAR_TRANSICAO, PILAR_SOBRE_LAJE, PILAR_APOIO_PARCIAL, PILAR_EXCENTRICO e PILAR_INICIO), `Pilar.inicio` (apoiado | fundação), `Pilar.secoes[]` com ponto fixo, ângulo e deslocamento por lance e `Pilar.fck` por lance (`geoLance`, `contornoNoLance`, `centroNoLance`, `lanceNoPavimento`), comando `pilar.inserir` com `sobre` e `inicio` e `pilar.secaoLance` ampliado (`mcp: false`), opção `engasteTransicao` (0,3; NBR 1). `analitico.ts` (localizado): o pé do pilar apoiado é o nó do topo do pilar de baixo (trecho rígido horizontal até o centro: momento N·e), nó da viga (pórtico e grelha, sem apoio vertical próprio) ou nó da grelha integrada sob a laje; no modelo separado, sobre laje fica o apoio fixo provisório com aviso; pilar de baixo com topo contínuo; lance com geometria própria ligado por `offI`. `dimensionamento.ts`: `ResultadoViga.transicoes` (Nd, cortante nas faces contra VRd3 e VRd2; mensagens Transição… com códigos TRANSICAO e TRANSICAO_CORTANTE) e a cadeia da viga contínua no pé do pilar. `detalhamentoPilares.ts`: esperas no elemento de apoio (reta, gancho de 90° ou erro ARRANQUE_ANCORAGEM). Interface: realce do pilar de baixo, coordenadas relativas e nome automático na ferramenta Pilar, `Transicao.tsx` (lance, início), apoio na janela do pilar, transições na janela da viga, memorial; pranchas de pilares ("nasce em V12") e de vigas ("P6 nasce aqui · Nd"); premissas `e1a-transicao` e `e1a-transicao-dim`; testes `transicao.test.ts` (pilar sobre viga biengastada: M = Nd·ℓ/8; N·e; dois pilares sobre um; laje; ancoragem) e e2e `E1a`. Edifícios sem transição: resultados idênticos (r70). Aço fora do escopo (C4.11). A confirmar: `engasteTransicao` 0,3, gancho com 0,7·lb, escolha do pilar de maior área em comum como apoio.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 9 itens (manual do usuário); demais sem mudança.

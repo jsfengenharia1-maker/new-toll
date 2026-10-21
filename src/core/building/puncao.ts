@@ -24,7 +24,7 @@ import { acoDe, cobrimentoFundacao, cobrimentoLaje, concretoDe, gamas } from './
 import { GAMA_CONCRETO } from './lajes';
 import { vrd1 } from './vigotas';
 import { vigaTocaPilar } from './vigas';
-import { casosDaObra, centroPilar, dimsSecao, lancesDoPilar, secaoNoLance, trechosViga, type BuildingModel, type Laje, type Pilar, type Viga } from './types';
+import { anguloNoLance, casosDaObra, centroNoLance, centroPilar, dimsSecao, lancesDoPilar, secaoNoLance, trechosViga, type BuildingModel, type Laje, type Pilar, type Viga } from './types';
 
 // ---------------------------------------------------------------- geometria
 
@@ -514,7 +514,7 @@ export function sitiosPuncao(b: BuildingModel, pavId: string, op: Pick<OpcoesCal
   const out: { p: Pilar; centro: P; viga?: Viga; avisoViga?: string }[] = [];
   for (const p of b.pilares) {
     if (!lancesDoPilar(b, p).some((x) => x.id === pavId)) continue;
-    const s = secaoNoLance(p, pavId), centro = centroPilar(p, s), [w, hh] = dimsSecao(s);
+    const s = secaoNoLance(p, pavId), centro = centroNoLance(p, pavId), [w, hh] = dimsSecao(s);
     const raio = Math.max(w, hh) / 2;
     if (!lajes.some((l) => dentroPoligono(centro, l.contorno) || distBorda(centro, l.contorno) <= raio)) continue;
     const tocam = vigas.filter((v) => vigaTocaPilar(v, p, pavId));
@@ -522,7 +522,7 @@ export function sitiosPuncao(b: BuildingModel, pavId: string, op: Pick<OpcoesCal
     if (!op.puncaoVigaChata) continue;
     // viga chata mais larga que o apoio em mais de uma altura (largura perpendicular ao traçado)
     for (const v of tocam) {
-      const k = (v.pontos.length > 1 ? Math.atan2(v.pontos[1][1] - v.pontos[0][1], v.pontos[1][0] - v.pontos[0][0]) : 0) - (p.angulo * Math.PI) / 180;
+      const k = (v.pontos.length > 1 ? Math.atan2(v.pontos[1][1] - v.pontos[0][1], v.pontos[1][0] - v.pontos[0][0]) : 0) - (anguloNoLance(p, pavId) * Math.PI) / 180;
       const ext = s.tipo === 'circ' ? s.d : s.b * Math.abs(Math.sin(k)) + s.h * Math.abs(Math.cos(k));
       if (v.secao.b > ext + v.secao.h + 1e-9) { out.push({ p, centro, viga: v, avisoViga: `Viga chata ${v.nome} (b = ${(v.secao.b * 100).toFixed(0)} cm) mais larga que o apoio (${(ext * 100).toFixed(0)} cm) em mais de uma altura (h = ${(v.secao.h * 100).toFixed(0)} cm): punção e estribos no apoio verificados.` }); break; }
     }
@@ -602,11 +602,11 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       if (F <= 0) continue;
       const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gm.q) : momentosDoNo(g, st.centro, fat) ?? [0, 0];
       // eixos do pilar: u ao longo de b. Momento em torno de u tem excentricidade ao longo de v, e vice-versa
-      const a = (p.angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
+      const angP = anguloNoLance(p, pav.id), a = (angP * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
       const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
       const M: [number, number] = [Mv, Mu];
       const [w, hh] = dimsSecao(sec), circular = sec.tipo === 'circ';
-      const ap: Apoio = { centro: st.centro, c1: w, c2: circular ? w : hh, circular, angulo: p.angulo };
+      const ap: Apoio = { centro: st.centro, c1: w, c2: circular ? w : hh, circular, angulo: angP };
       const laje = lajes.find((l) => dentroPoligono(st.centro, l.contorno)) ?? lajes.find((l) => distBorda(st.centro, l.contorno) <= Math.max(w, hh)) ?? lajes[0];
       if (!laje) continue;
       let reg: Regiao, h: number, cob: number, rho: number, origemEl: 'pilar' | 'viga' = 'pilar';
@@ -642,7 +642,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       const mk = (nome: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[nome], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
       const r: ResultadoPuncao = {
         id: `${p.id}|${pav.id}`, pilar: p.id, nome: p.nome, pavimento: pav.nome, pavimentoId: pav.id, laje: laje.id, lajeNome: laje.nome, origem: origemEl, ...(st.viga ? { viga: st.viga.id } : {}),
-        tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: p.angulo, centro: st.centro, h, d, rho, fck: c.fck, F, M, K: v.C.K,
+        tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: angP, centro: st.centro, h, d, rho, fck: c.fck, F, M, K: v.C.K,
         contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.armadura ? v.tauRd3 ?? v.tauRd1 : v.tauRd1, v.armadura ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
         tauRd1: v.tauRd1, tauRd2: v.tauRd2, ...(v.tauRd3 !== undefined ? { tauRd3: v.tauRd3 } : {}), ...(v.armadura ? { armadura: v.armadura } : {}),
         manual: manual.map(({ id, linhas, barras, phi, s }) => ({ id, linhas, barras, phi, s })), cortante: v.cortante, status: v.status, mensagens: msgs,

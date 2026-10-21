@@ -8,7 +8,8 @@ import { ganchoNoventa, lbBasico } from './detalhamento';
 import type { Dimensionamento, ResultadoPilar } from './dimensionamento';
 import { acoDe, cobrimentoPilar, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
-import { centroPilar, cotaFundacao, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from './types';
+import { apoioDoPilar } from './transicao';
+import { centroPilar, cotaFundacao, dimsSecao, inicioDe, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from './types';
 import { vigaTocaPilar } from './vigas';
 
 export interface BarraPilar {
@@ -109,16 +110,30 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
     let j = i;
     while (j + 1 < ls.length && igual(j, j + 1) && (ps.find((x) => x.id === ls[j + 1].id)!.cota - zBase(i) <= op.pilarUniaoLances + 1e-9 || (op.pilarProlongarSemViga && semViga(ls[j].id)))) j++;
     const r = rs[i]!, a = r.arranjo!, cnt = contagem(r), phi = a.phi, f = phi / 1000;
-    const lbB = lbBasico(phi, c, aL.fyd, true, aL.aco === 'CA-60');
+    const cI = concretoDe(b, 'pilar', ls[i].id, p), lbB = lbBasico(phi, cI, aL.fyd, true, aL.aco === 'CA-60');
     for (let k = i; k <= j; k++) lb[ls[k].id] = lbB;
     const topo = ps.find((x) => x.id === ls[j].id)!.cota, ultimo = j === ls.length - 1;
-    // ponta de baixo: espera na fundação (lb abaixo da base, com gancho) ou já vem do trecho anterior
+    // ponta de baixo: espera na fundação (lb abaixo da base, com gancho), no elemento de apoio (pilar apoiado: viga ou laje
+    // com a altura disponível h − c; sobre pilar, as esperas descem lb no pilar de baixo) ou já vem do trecho anterior
     let z0 = zBase(i), g0 = false;
-    if (i === 0 && p.nasce === 'fundacao') {
+    const apoiado = p.nasce !== 'fundacao' && inicioDe(p) === 'apoiado';
+    if (i === 0 && !apoiado) {
       const esp = ed?.espera ?? lbB;
       if (ed?.espera !== undefined && esp < minAnc(lbB, f) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: espera na fundação de ${fmtM(esp)} m abaixo do mínimo ${fmtM(minAnc(lbB, f))} m (0,3·lb; 10φ; 10 cm).`);
       z0 -= esp; g0 = true;
-    } else if (i === 0 && ed?.espera !== undefined) avisos.push(`${p.nome}: detalhe editado desconsiderado: o pilar não nasce na fundação (espera).`);
+    } else if (i === 0) {
+      const ap = apoioDoPilar(b, p), esp = ed?.espera ?? lbB;
+      if (ed?.espera !== undefined && esp < minAnc(lbB, f) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: espera no apoio de ${fmtM(esp)} m abaixo do mínimo ${fmtM(minAnc(lbB, f))} m (0,3·lb; 10φ; 10 cm).`);
+      if (ap?.tipo === 'viga' || ap?.tipo === 'laje') {
+        const hs = ap.tipo === 'viga' ? ap.vigas.map((id) => b.vigas.find((v) => v.id === id)!.secao.h) : [(() => { const t = b.lajes.find((l) => l.id === ap.laje)!.tipo; return t.tipo === 'macica' ? t.h : t.capa; })()];
+        const disp = Math.max(...hs) - cob, nome = ap.tipo === 'viga' ? `${ap.vigas.map((id) => b.vigas.find((v) => v.id === id)!.nome).join(', ')}` : b.lajes.find((l) => l.id === ap.laje)!.nome;
+        // barra reta se lb cabe em h − c; senão gancho de 90° (lb,nec = 0,7·lb ≥ 0,3·lb; 10φ; 10 cm, NBR 6118, 9.4.2.3); senão não ancora
+        const nec = Math.max(0.7 * esp, 0.3 * esp, 10 * f, 0.1);
+        if (esp <= disp + 1e-9) z0 -= esp;
+        else if (nec <= disp + 1e-9) { z0 -= Math.max(nec, minAnc(lbB, f)); g0 = true; }
+        else { avisos.push(`${p.nome}: ancoragem das esperas em ${nome} insuficiente: lb = ${(esp * 100).toFixed(0)} cm (${(nec * 100).toFixed(0)} cm com gancho) > ${(disp * 100).toFixed(0)} cm disponíveis (h − c). Aumente a altura, reduza a bitola ou o engaste da transição.`); z0 -= disp; g0 = true; }
+      } else z0 -= esp;
+    }
     // passagens editadas em lances unidos sem emenda não valem
     for (let k = i; k < j; k++) if (ed?.passagens?.some((x) => x.pavimento === ls[k].id)) avisos.push(`${p.nome}: detalhe editado desconsiderado: a passagem do ${ls[k].nome} é contínua (sem emenda).`);
     const edP = ed?.passagens?.find((x) => x.pavimento === ls[j].id);

@@ -16,7 +16,8 @@ import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento'
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, resumoTelasLajes, type DetalheLaje } from './detalhamentoLajes';
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
-import { casosDaObra, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
+import { casosDaObra, centroNoLance, comprimentoPolilinha, contornoNoLance, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
+import { apoioDoPilar } from './transicao';
 import { areaPoligono } from '../geom/faces';
 import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import type { ResultadoVigaFundacao } from './vigasFundacao';
@@ -139,6 +140,19 @@ export interface ResultadoViga {
   /** Áreas necessárias inferior e superior (m²), antes do bloqueio e do aumento por fissuração. */
   AsNec: [number, number];
   arranjo: { inf: { n: number; phi: number } | null; sup: { n: number; phi: number } | null; estribo: { phi: number; s: number; legs?: number } | null; laterais: { n: number; phi: number } | null };
+  /** Pilares que nascem sobre a viga (transição, E1a): posição, carga de cálculo na base e cortante de cálculo nas faces do pilar. */
+  transicoes?: TransicaoViga[];
+}
+
+export interface TransicaoViga {
+  pilar: string; nome: string;
+  /** Abscissa do centro do pilar ao longo do traçado e a extensão do pilar na viga (m). */
+  s: number; sFaces: [number, number];
+  /** Maior carga axial de cálculo na base do pilar (kN, compressão) e a combinação. */
+  Nd: number; combinacao: string;
+  /** Cortante de cálculo (kN) junto às faces do pilar (dois lados), VRd3 dos estribos adotados e VRd2 (kN). */
+  Vfaces: [number, number]; VRd3: number; VRd2: number;
+  status: 'ok' | 'fail';
 }
 
 export interface EnvoltoriaViga {
@@ -223,7 +237,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   const gz = Math.max(1, ...(an.vento?.gamaZ ?? []).map((g) => g.max));
   const deltaMin = gz > 1.1 ? 0.9 : 0.75, deltaX = c.fck > 50 ? 0.56 : 0.44;
   const noPilar = new Set<number>(), pilarNo = new Map<number, string>();
-  an.portico.barras.forEach((t, i) => { if (t.tipo === 'pilar') { for (const n of [an.portico.modelo.barras[i].i, an.portico.modelo.barras[i].j]) { noPilar.add(n); if (t.ref && !pilarNo.has(n)) pilarNo.set(n, t.ref); } } });
+  // pilar que nasce sobre viga (transição) não é apoio da viga: o pé não entra em `noPilar` (a cadeia segue contínua)
+  an.portico.barras.forEach((t, i) => { if (t.tipo === 'pilar') { for (const n of t.transicao === 'viga' || t.transicao === 'laje' ? [an.portico.modelo.barras[i].j] : [an.portico.modelo.barras[i].i, an.portico.modelo.barras[i].j]) { noPilar.add(n); if (t.ref && !pilarNo.has(n)) pilarNo.set(n, t.ref); } } });
   const usoNo = new Map<number, number>();
   an.portico.barras.forEach((t, i) => { if (t.tipo === 'viga') for (const n of [an.portico.modelo.barras[i].i, an.portico.modelo.barras[i].j]) usoNo.set(n, (usoNo.get(n) ?? 0) + 1); });
   const out: ResultadoViga[] = [];
@@ -428,6 +443,28 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const flecha = fl.qp * (1 + af), limite = fl.vao / op.limiteFlechaTotal * (fl.balanco ? 2 : 1), limiteQ = fl.vaoQ / op.limiteFlechaSensorial * (fl.balancoQ ? 2 : 1);
     if (flecha > limite) msgs.push(`Flecha total ${(flecha * 1000).toFixed(1)} mm > ${fl.balanco ? '2ℓ' : 'ℓ'}/${op.limiteFlechaTotal} = ${(limite * 1000).toFixed(1)} mm (Branson por seção, × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')})).`);
     if (fl.q > limiteQ) msgs.push(`Flecha das variáveis ${(fl.q * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limiteQ * 1000).toFixed(1)} mm.`);
+    // pilares que nascem sobre a viga (E1a): carga concentrada na base e cortante junto às faces do pilar
+    const transicoes: TransicaoViga[] = [];
+    for (const [pid, ap] of Object.entries(an.apoiados ?? {})) {
+      if (ap.apoio !== 'viga' || !ap.ligado) continue;
+      const pil = b.pilares.find((x) => x.id === pid), apo = pil ? apoioDoPilar(b, pil) : null;
+      if (!pil || apo?.tipo !== 'viga' || !apo.vigas.includes(v.id)) continue;
+      const l0 = lancesDoPilar(b, pil)[0], bi0 = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === pid && t.pavimento === l0?.id);
+      if (bi0 < 0) continue;
+      const pcN = porCaso(an, bi0, [0]);
+      let Nd = 0, cNd = '';
+      for (const cb of elu) { const n = -comb(pcN, cb, 0, 'N'); if (n > Nd) { Nd = n; cNd = cb.nome; } }
+      const c0 = centroNoLance(pil, l0.id), ss = contornoNoLance(pil, l0.id).map((q) => abscissa(v.pontos, q)), sA = Math.min(...ss), sB = Math.max(...ss);
+      const perto = (sx: number) => { let m = 0, dm = Infinity; for (const q of envolt.pontos) { const dd = Math.abs(q.s - sx); if (dd < dm - 1e-9) { dm = dd; m = Math.max(Math.abs(q.Vmax), Math.abs(q.Vmin)); } } return m; };
+      const Vfaces: [number, number] = [perto(sA), perto(sB)];
+      const Aswp = est ? (est.legs * barArea(est.phi)) / est.s : 0, VRd3 = Vc0 + Aswp * 0.9 * d * fywd * 1000;
+      const ruim = Math.max(...Vfaces) > Math.min(VRd3, VRd2) + 1e-6;
+      transicoes.push({ pilar: pid, nome: pil.nome, s: abscissa(v.pontos, c0), sFaces: [sA, sB], Nd, combinacao: cNd, Vfaces, VRd3, VRd2, status: ruim ? 'fail' : 'ok' });
+      const f1 = (x: number) => x.toFixed(1).replace('.', ',');
+      msgs.push(ruim
+        ? `Transição ${pil.nome} (Nd = ${f1(Nd)} kN): cortante junto às faces ${f1(Math.max(...Vfaces))} kN acima de VRd3 = ${f1(Math.min(VRd3, VRd2))} kN dos estribos adotados.`
+        : `Transição: ${pil.nome} nasce sobre a viga (Nd = ${f1(Nd)} kN, ${cNd}); cortante junto às faces ${f1(Vfaces[0])} e ${f1(Vfaces[1])} kN ≤ VRd3 = ${f1(VRd3)} kN.`);
+    }
     const txt = (x: ReturnType<typeof chooseBars>) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}${x.layers > 1 ? ` (${x.layers} camadas)` : ''}` : '—');
     if (!bi && AsInf > 0) msgs.push('Armadura inferior não cabe na largura.');
     if ((aPos.aco === 'CA-60' && (bi?.phi ?? 0) > 10) || (aNeg.aco === 'CA-60' && (bs?.phi ?? 0) > 10)) msgs.push(AVISO_CA60);
@@ -445,7 +482,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       ], T: env.T, AslTorcao: env.Asl, AsLateral, barrasLaterais: lat ? `${lat.n} φ${String(lat.phi).replace('.', ',')} por face` : '—', al, biela: env.biela, delta, wk: [wkI, wkS], wkLim,
       AsInf, AsSup, AsNec, barrasInf: txt(bi), barrasSup: AsSup ? txt(bs) : '—',
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}${est.legs > 2 ? ` (${est.legs} ramos)` : ''}` : '—',
-      status: msgs.some((x) => x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
+      ...(transicoes.length ? { transicoes } : {}),
+      status: msgs.some((x) => x.startsWith('Transição ') || x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
       bloqueada: bloq, arranjo: { inf: bi ? { n: bi.n, phi: bi.phi } : null, sup: AsSup && bs ? { n: bs.n, phi: bs.phi } : null, estribo: est ? { phi: est.phi, s: est.s, ...(est.legs > 2 ? { legs: est.legs } : {}) } : null, laterais: lat ? { n: lat.n, phi: lat.phi } : null },
     });
   }
@@ -578,7 +616,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
   let acima: { As: number; phi: number; arr: ArranjoPilar; sec: string } | null = null;
   for (let li = ls.length - 1; li >= 0; li--) {
     const lance = ls[li], cont = op.continuidadePilares && li <= ls.length - (op.pilarContinuidadeInicio ? 3 : 2) && acima ? acima : null;
-    const c = concretoDe(b, 'pilar', lance.id), cob = cobrimentoPilar(b, p.cobrimento);
+    const c = concretoDe(b, 'pilar', lance.id, p), cob = cobrimentoPilar(b, p.cobrimento);
     const bi = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === p.id && t.pavimento === lance.id);
     if (bi < 0) continue;
     const s = secaoNoLance(p, lance.id), [w, h] = dimsSecao(s);

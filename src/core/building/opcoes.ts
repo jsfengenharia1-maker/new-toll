@@ -18,6 +18,8 @@ export interface OpcoesCalculo {
   trechoRigido: number;
   /** Coeficiente de engaste no topo do último lance de cada pilar (0 = rótula, 1 = engaste). */
   engasteTopoUltimo: number;
+  /** Coeficiente de engaste da base do primeiro lance de pilar que nasce sobre viga ou laje (E1a); sobre pilar vale 1. */
+  engasteTransicao: number;
   /** 1 = zonas independentes do pavimento como diafragmas separados; 0 = um diafragma por pavimento. */
   zonasIndependentes: number;
   /** Limite do γz para a ampliação por 0,95·γz (acima dele, aviso). */
@@ -269,6 +271,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'O trecho da viga dentro do pilar é rígido até a face menos este fator × h da viga; 0 = rígido até a face.' },
   { chave: 'engasteTopoUltimo', rotulo: 'Engaste no topo do último lance', min: 0, max: 1, passo: 0.05, padrao: 0.3, padraoNBR: 1, fonteNBR: 'NBR 6118 não fixa: ligação monolítica (engaste pleno)', fonte: 'NBR 6118 não fixa; padrão 0,3 do programa de referência (0 a 1)', aConfirmar: false,
     descricao: 'Ligação do topo do último lance de cada pilar com as vigas: 0 = rótula, 1 = engaste. Interpola as rigidezes engaste-engaste e engaste-rótula do lance.' },
+  { chave: 'engasteTransicao', rotulo: 'Engaste na base de pilar sobre viga ou laje', min: 0, max: 1, passo: 0.05, padrao: 0.3, padraoNBR: 1, fonteNBR: 'NBR 6118 não fixa: ligação monolítica, a rigidez da viga ou laje de apoio governa', fonte: 'NBR 6118 não fixa; padrão 0,3 do programa de referência (faixa recomendada 0,1 a 0,3: evita barras grossas e arranques longos)', aConfirmar: false,
+    descricao: 'Multiplica o engaste da base do primeiro lance de um pilar que nasce numa viga (transição) ou laje: 0 = rótula, 1 = engaste. Pilar sobre pilar é contínuo (1).' },
   { chave: 'zonasIndependentes', rotulo: 'Zonas independentes como diafragmas separados', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (cada zona ligada por vigas é um diafragma; pilar isolado, sem diafragma)', aConfirmar: false,
     descricao: 'Partes do pavimento sem vigas entre si (blocos separados por junta) têm diafragmas próprios, e o vento do pavimento é repartido entre elas pela largura de cada uma.' },
   { chave: 'limiteGamaZ', rotulo: 'Limite do γz', min: 1.1, max: 1.5, passo: 0.05, padrao: 1.3, fonte: 'NBR 6118, 15.5.3 e 15.7.2 (ampliação por 0,95·γz até 1,3)', aConfirmar: false,

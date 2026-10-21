@@ -7,7 +7,7 @@ import { barArea, beamFlexure, type Concrete } from '../concrete';
 import type { Dimensionamento, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
-import { contornoPilar, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel, type Viga } from './types';
+import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Viga, contornoNoLance } from './types';
 import { fracaoPassante } from './tabelasArmadura';
 import { vaosDaViga, vigaTocaPilar } from './vigas';
 
@@ -48,6 +48,8 @@ export interface DetalheViga {
   /** Peso de aço de uma viga (kg, sem perdas). */
   peso: number;
   avisos: string[];
+  /** Pilares que nascem sobre a viga (E1a): abscissa do centro e das faces e carga de cálculo (kN). */
+  transicoes?: { pilar: string; nome: string; s: number; sFaces: [number, number]; Nd: number }[];
 }
 
 const ACO_KG_M3 = 7850;
@@ -93,7 +95,7 @@ export function apoiosDaViga(b: BuildingModel, v: Viga): { s0: number; s1: numbe
   const out: { s0: number; s1: number; pilar: string }[] = [];
   for (const p of b.pilares) {
     if (!lancesDoPilar(b, p).some((x) => x.id === pav.id) || !vigaTocaPilar(v, p, pav.id)) continue;
-    const ss = contornoPilar(p, secaoNoLance(p, pav.id)).map((q) => abscissa(v.pontos, q).s);
+    const ss = contornoNoLance(p, pav.id).map((q) => abscissa(v.pontos, q).s);
     out.push({ s0: Math.min(...ss), s1: Math.max(...ss), pilar: p.id });
   }
   return out.sort((a, z) => a.s0 - z.s0);
@@ -456,6 +458,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   return {
     viga: v.id, nome: v.nome, repeticoes: Math.max(1, pavimentosDoGrupo(b, v.grupo).length), extensao: ext, apoios, barras, estribos,
     lb: { inf: lbI, sup: lbS, supBoaAderencia: supBoa }, emendas, peso, avisos,
+    ...(r.transicoes?.length ? { transicoes: r.transicoes.map((t) => ({ pilar: t.pilar, nome: t.nome, s: t.s, sFaces: t.sFaces, Nd: t.Nd })) } : {}),
   };
 }
 

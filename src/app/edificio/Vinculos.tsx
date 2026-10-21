@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Button, Check, Group, Hint, NumField, OptNumField, Select } from '../ui';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
+import { LanceDoPilar } from './Transicao';
 
 const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
 const VAZIA = { N: 0, Hx: 0, Hy: 0, Mx: 0, My: 0 };
@@ -77,6 +78,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
         <div className="row wrap">
           <Button onClick={() => exec('pilar.engaste', { ids: pilares.map((p) => p.id), topo: e0.topo, base: e0.base })}>Aplicar a todos os lances</Button>
         </div>
+        {p0 && pilares.length === 1 && doLance && <LanceDoPilar b={b} p={p0} pavId={pav.id} pavNome={pav.nome} />}
         {p0 && pilares.length === 1 && doLance && <CargasNoPilar b={b} p0={p0} pavId={pav.id} pavNome={pav.nome} />}
         <Hint>No topo do último lance o coeficiente multiplica o das opções de cálculo. Base 0 na fundação = pilar articulado.</Hint>
         <div className="row wrap">

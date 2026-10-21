@@ -7,7 +7,8 @@ import { usePlanta } from './plantaStore';
 import { useRevisao } from './revisao';
 import { Button, download, Modal, Pill, Select, Seg, KV } from '../ui';
 import { CODIGOS_REVISAO, classificar, type TipoRevisao } from '../../core/building/revisao';
-import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { inicioDe, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { DimEdificio } from './calculo';
 import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
@@ -252,6 +253,18 @@ function JanelaViga({ id }: { id: string }) {
           <p className="muted small">Valores na face do pilar (o cálculo usa o trecho rígido até a face − 0,3h, opção “Trecho rígido”), com a mesma redistribuição dos negativos.</p>
         </>
       )}
+      {v.transicoes?.length ? (
+        <>
+          <h4>Pilares que nascem sobre a viga (transição)</h4>
+          <div className="tablewrap">
+            <table className="data quadro" data-transicoes={v.transicoes.length}>
+              <thead><tr><th>Pilar</th><th>s (m)</th><th>Nd (kN)</th><th>Combinação</th><th>Vd nas faces (kN)</th><th>VRd3 / VRd2 (kN)</th><th>Situação</th></tr></thead>
+              <tbody>{v.transicoes.map((t) => <tr key={t.pilar}><td className="tl">{t.nome}</td><td className="num">{fmt(t.s)}</td><td className="num">{fmt(t.Nd, 1)}</td><td className="tl small">{t.combinacao}</td><td className="num">{fmt(t.Vfaces[0], 1)} / {fmt(t.Vfaces[1], 1)}</td><td className="num">{fmt(t.VRd3, 1)} / {fmt(t.VRd2, 1)}</td><td className="tl"><Pill tone={t.status === 'ok' ? 'ok' : 'bad'}>{ST_TXT[t.status === 'ok' ? 'ok' : 'fail']}</Pill></td></tr>)}</tbody>
+            </table>
+          </div>
+          <p className="muted small">A carga do pilar entra concentrada no nó do pé (o pé não apoia a viga); os estribos atendem o maior cortante da cadeia, inclusive junto às faces do pilar.</p>
+        </>
+      ) : null}
       <Origens o={v.origens} />
       <h4>Resumo</h4>
       <KV rows={[
@@ -272,6 +285,19 @@ function JanelaViga({ id }: { id: string }) {
   );
 }
 
+/** Onde o pilar nasce quando não é na fundação: elemento de apoio, excentricidade e como o pé entrou no modelo (E1a). */
+export function ApoioDoPilar({ id }: { id: string }) {
+  const { sessao, analise } = useBuilding();
+  const b = sessao.modelo, p = b.pilares.find((x) => x.id === id);
+  if (!p || p.nasce === 'fundacao') return null;
+  const nomePav = b.pavimentos.find((x) => x.id === p.nasce)?.nome ?? p.nasce;
+  if (inicioDe(p) === 'fundacao') return <p className="small" data-apoio="fundacao">Nasce em {nomePav} com início na fundação: vínculo externo (apoio fixo) no pavimento.</p>;
+  const ap = apoioDoPilar(b, p), q = ap?.tipo === 'pilar' ? b.pilares.find((x) => x.id === ap.principal) : undefined, e = q ? excentricidadeApoio(b, p, q) : null;
+  const onde = !ap ? 'sem pilar, viga ou laje embaixo' : ap.tipo === 'pilar' ? `sobre o pilar ${q?.nome}${e && Math.hypot(e[0], e[1]) > 1e-3 ? ` (excentricidade ${fmt(Math.hypot(e[0], e[1]) * 100, 1)} cm: momento N·e)` : ''}` : ap.tipo === 'viga' ? `sobre a viga ${ap.vigas.map((v) => b.vigas.find((x) => x.id === v)?.nome).join(', ')} (viga de transição)` : `sobre a laje ${b.lajes.find((l) => l.id === ap.laje)?.nome}`;
+  const lig = analise?.apoiados?.[id]?.ligado;
+  return <p className="small" data-apoio={ap?.tipo ?? 'nenhum'}>Nasce em {nomePav} {onde}. {analise ? (lig ? 'Pé ligado ao apoio no modelo.' : 'Pé em apoio fixo provisório (o modelo não alcançou o apoio).') : ''}</p>;
+}
+
 function JanelaPilar({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
   const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
@@ -281,6 +307,7 @@ function JanelaPilar({ id }: { id: string }) {
   return (
     <>
       <AbasDetalhe aba={aba} onChange={setAba} />
+      <ApoioDoPilar id={id} />
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>

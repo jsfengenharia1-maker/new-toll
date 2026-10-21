@@ -17,7 +17,7 @@ import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from 
 import { geometriaMascara } from '../../core/building/pilares';
 import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
-import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, secaoNoLance, trechosViga, type BuildingModel, type Pilar } from '../../core/building/types';
+import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL, secaoBase } from '../../core/building/fundacao';
 import { cruzamentosVF, geometriaVF, pontasEquilibradas } from '../../core/building/vigasFundacao';
 import { abrirJanelaFundacao } from './Fundacao';
@@ -46,9 +46,9 @@ function pilaresDaPlanta(b: BuildingModel, pav: string | null, inferior: boolean
   const out: PilarPlanta[] = [];
   for (const p of b.pilares) {
     const l = lancesDoPilar(b, p).map((x) => x.id);
-    if (l.includes(pav)) out.push({ p, estado: p.morre === pav ? 'morre' : 'chega', contorno: contornoPilar(p, secaoNoLance(p, pav)) });
-    else if (p.nasce === pav) out.push({ p, estado: 'nasce', contorno: contornoPilar(p, secaoNoLance(p, l[0] ?? pav)) });
-    else if (inferior && abaixo && l.includes(abaixo)) out.push({ p, estado: 'inferior', contorno: contornoPilar(p, secaoNoLance(p, abaixo)) });
+    if (l.includes(pav)) out.push({ p, estado: p.morre === pav ? 'morre' : 'chega', contorno: contornoNoLance(p, pav) });
+    else if (p.nasce === pav) out.push({ p, estado: 'nasce', contorno: contornoNoLance(p, l[0] ?? pav) });
+    else if (inferior && abaixo && l.includes(abaixo)) out.push({ p, estado: 'inferior', contorno: contornoNoLance(p, abaixo) });
   }
   return out;
 }
@@ -171,7 +171,7 @@ export function Planta() {
   const it = useRef({
     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
-    fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
+    baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
   });
 
   // ---- dados derivados ----
@@ -879,6 +879,16 @@ export function Planta() {
       const ini = s.vfIni ? pontaPorId(s.vfIni) : null;
       if (ini && pontos.length) { const [ix, iy] = paraTela(...ini.centro); ctx.strokeStyle = cores.guia; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(alvo ? paraTela(...alvo.centro)[0] : px, alvo ? paraTela(...alvo.centro)[1] : py); ctx.stroke(); ctx.setLineDash([]); }
     }
+    // pilar de baixo que admite outro por cima: realçado sob o cursor, com um círculo de referência no eixo (E1a)
+    if (pl.ferramenta === 'pilar' && s.baixo) {
+      const q = naPlanta.find((x) => x.p.id === s.baixo);
+      if (q) {
+        const c = q.contorno.map((v) => paraTela(v[0], v[1])), ce = centroNoLance(q.p, pav?.id ?? ''), [cx, cy] = paraTela(ce[0], ce[1]);
+        ctx.beginPath(); c.forEach((v, i) => (i ? ctx.lineTo(...v) : ctx.moveTo(...v))); ctx.closePath();
+        ctx.globalAlpha = 0.35; ctx.fillStyle = cores.captura; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = cores.captura; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, 9, 0, 2 * Math.PI); ctx.stroke();
+      }
+    }
     // prévia do pilar
     if (pl.ferramenta === 'pilar' && !s.pan) {
       const c = contornoPilar({ x: s.ponto[0], y: s.ponto[1], angulo: pl.angulo, ajuste: pl.ajuste }, pl.secao).map((q) => paraTela(q[0], q[1]));
@@ -924,6 +934,7 @@ export function Planta() {
     s.caps = caps; s.cursor = w; s.tela = [sx, sy];
     s.cap = caps.length ? caps[s.ciclo % caps.length] : null;
     s.guia = false;
+    s.baixo = pl.ferramenta === 'pilar' ? (baixoSob(w)?.p.id ?? (s.cap ? baixoSob([s.cap.x, s.cap.y])?.p.id : null) ?? null) : null;
     if (s.cap) s.ponto = [s.cap.x, s.cap.y];
     else if (ref && (pl.orto || pl.polar)) {
       const passo = pl.orto ? 90 : 15;
@@ -931,13 +942,22 @@ export function Planta() {
       const desvio = Math.hypot(q[0] - w[0], q[1] - w[1]) * vista!.k;
       if (pl.orto || desvio < 10) { s.ponto = q; s.guia = true; } else s.ponto = w;
     } else s.ponto = w;
-    if (statusRef.current) statusRef.current.textContent = `x ${fmt(s.ponto[0])}  y ${fmt(s.ponto[1])} m${s.cap ? ` · ${s.cap.tipo}` : s.guia ? ' · alinhado' : ''}`;
+    const qb = s.baixo ? naPlanta.find((x) => x.p.id === s.baixo) : null;
+    if (statusRef.current) statusRef.current.textContent = `x ${fmt(s.ponto[0])}  y ${fmt(s.ponto[1])} m${s.cap ? ` · ${s.cap.tipo}` : s.guia ? ' · alinhado' : ''}${qb ? ` · sobre ${qb.p.nome}: Δx ${fmt(s.ponto[0] - refBaixo(qb.p).x)}  Δy ${fmt(s.ponto[1] - refBaixo(qb.p).y)} m` : ''}`;
   };
 
   /** Pilar do nível de fundação sob o ponto (dentro do contorno ou a até 8 px dele). */
   const pilarSob = (w: P2) => {
     const tol = 8 / (vista?.k || 1);
     return naPlanta.find((q) => dentro(w, q.contorno) || q.contorno.some((c, i) => distSeg(w, c, q.contorno[(i + 1) % q.contorno.length]) < tol));
+  };
+
+  /** Ponto fixo do pilar de baixo no pavimento (geometria própria do lance): referência das coordenadas relativas. */
+  const refBaixo = (q: Pilar) => geoLance(q, pav?.id ?? '').p;
+  /** Pilar de baixo que admite outro por cima (termina neste pavimento, antes do último) sob o ponto (E1a). */
+  const baixoSob = (w: P2) => {
+    if (nivelFund || !pav || pav.id === pavs.at(-1)?.id) return null;
+    return naPlanta.find((q) => q.estado === 'morre' && q.p.morre === pav.id && !ehArranque(q.p) && dentro(w, q.contorno)) ?? null;
   };
 
   /** Viga do grupo sob o ponto (dentro do contorno ou a até `px` pixels do eixo). */
@@ -967,7 +987,13 @@ export function Planta() {
   const agir = (p: P2) => {
     const f = pl.ferramenta;
     const novos = [...pontosRef.current, p];
-    if (f === 'pilar') { exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), secao: pl.secao, ajuste: pl.ajuste, angulo: pl.angulo, ...(pl.arranque ? { nasce: 'fundacao', morre: 'fundacao' } : {}) }); return; }
+    if (f === 'pilar') {
+      // sobre um pilar de baixo que admite outro por cima: coordenadas relativas ao ponto fixo dele (nasce no pavimento em que ele morre)
+      const q = !pl.arranque ? baixoSob(p) ?? (it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) ?? null : null) : null;
+      if (q) { exec('pilar.inserir', { sobre: { pilar: q.p.id, dx: +(p[0] - refBaixo(q.p).x).toFixed(4), dy: +(p[1] - refBaixo(q.p).y).toFixed(4) }, secao: pl.secao, ajuste: pl.ajuste, angulo: pl.angulo }); return; }
+      exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), secao: pl.secao, ajuste: pl.ajuste, angulo: pl.angulo, ...(pl.arranque ? { nasce: 'fundacao', morre: 'fundacao' } : {}) });
+      return;
+    }
     if (f === 'selecionar') return;
     if (f === 'puncao') {
       if (nivelFund) { msg('A armadura de punção é lançada nas plantas dos pavimentos.'); return; }
@@ -1340,7 +1366,9 @@ export function Planta() {
   });
 
   const confirmarDigitado = () => {
-    const p = pontoDigitado(digitando ?? '', pontos.at(-1) ?? null, it.current.cursor);
+    // com um pilar de baixo sob o cursor, "@dx;dy" sem ponto anterior é relativo ao ponto fixo dele (E1a)
+    const qb = it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) : null;
+    const p = pontoDigitado(digitando ?? '', pontos.at(-1) ?? (pl.ferramenta === 'pilar' && qb ? [refBaixo(qb.p).x, refBaixo(qb.p).y] : null), it.current.cursor);
     setDigitando(null);
     if (!p) { msg('Entrada inválida: use x;y, @dx;dy, @d<ângulo ou uma distância.'); return; }
     it.current.ponto = p;

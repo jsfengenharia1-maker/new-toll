@@ -11,7 +11,7 @@ import { comprimentoPolilinha, pavimentosDoGrupo, pavimentosOrdenados, type Buil
 import { txt, type Prancha, type Prim } from './prancha';
 import {
   Chaves, Posicoes, acoDaFolha, areaArmacao, bloco, capacidadeTabela, cfgArmacao, cmInt, cotaCm, cotaHorizontal, empacotar, formatoArmacao, larguraTxt,
-  montarFolha, mover, notas, ordemNome, perdasDe, phiTxt, ponto, qtd, resumoAco, tabelaAco, type Bloco, type OpcoesCarimbo, type PosDe,
+  montarFolha, mover, nf, notas, ordemNome, perdasDe, phiTxt, ponto, qtd, resumoAco, tabelaAco, type Bloco, type OpcoesCarimbo, type PosDe,
 } from './armacao';
 
 export interface OpcoesArmacao {
@@ -67,6 +67,12 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   const apoioEm = (s: number) => ap.some((a) => a.s0 <= s + 1e-6 && a.s1 >= s - 1e-6);
   pl('CONCRETO', [X(e0), apoioEm(e0) ? -d : 0], [X(e0), apoioEm(e0) ? hb + d : hb]);
   pl('CONCRETO', [X(e1), apoioEm(e1) ? -d : 0], [X(e1), apoioEm(e1) ? hb + d : hb]);
+  // pilares que nascem sobre a viga (transição, E1a): contorno tracejado do pilar acima da viga e a carga de cálculo
+  for (const t of det.transicoes ?? []) {
+    const xa = X(t.sFaces[0]), xz = X(t.sFaces[1]);
+    out.push({ t: 'pl', c: 'FORMA-FINA', pts: [[xa, hb], [xa, hb + d + 3]] }, { t: 'pl', c: 'FORMA-FINA', pts: [[xz, hb], [xz, hb + d + 3]] });
+    out.push(txt('TEXTO', (xa + xz) / 2, hb + d + 4.2, 2.2, `${t.nome} nasce aqui · Nd = ${nf(t.Nd, 0)} kN`, 'c', 'base'));
+  }
   // ---- cotas: apoios e vãos livres; zonas de estribos ----
   const pts = [e0, ...ap.flatMap((a) => [a.s0, a.s1]), e1].sort((p, q) => p - q).filter((s, i, arr) => !i || s - arr[i - 1] > 0.005);
   const y1 = -d - 7.5, y2 = y1 - 8;

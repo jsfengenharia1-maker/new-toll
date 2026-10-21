@@ -157,8 +157,19 @@ export interface Pilar {
   /** Pavimento mais alto que o pilar alcança. */
   morre: string;
   secao: SecaoPilar;
-  /** Seção diferente por lance (o lance é identificado pelo pavimento do seu topo). */
-  secoes?: { pavimento: string; secao: SecaoPilar }[];
+  /**
+   * Seção diferente por lance (o lance é identificado pelo pavimento do seu topo). Ponto fixo, ângulo e deslocamento
+   * (dx, dy em m, no mundo) próprios do lance (E1a): ausentes = os do pilar; a parte do lance fora da projeção do de
+   * baixo liga-se a ele por trecho rígido horizontal.
+   */
+  secoes?: { pavimento: string; secao: SecaoPilar; ajuste?: Ajuste; angulo?: number; dx?: number; dy?: number }[];
+  /** fck próprio por lance (MPa; sobre o do tipo e o por pavimento de `Norma.fckPilarPav`); ausente = o dos materiais. */
+  fck?: { pavimento: string; fck: number }[];
+  /**
+   * Início do pilar (E1a): 'fundacao' = apoio externo (vínculo) no pavimento em que nasce; 'apoiado' = nasce sobre outro
+   * pilar, viga ou laje, sem vínculo externo. Ausente: fundação se nasce na fundação, apoiado nos demais.
+   */
+  inicio?: 'fundacao' | 'apoiado';
   /** Coeficientes de engaste por lance (0 = rótula, 1 = engaste; ausente = 1). No topo do último lance, multiplica o das opções. */
   engastes?: { pavimento: string; topo?: number; base?: number }[];
   /** α de flambagem por lance e direção (u: ao longo de b; v: ao longo de h); ausente = 1. */
@@ -858,6 +869,32 @@ export function engasteNoLance(p: Pilar, pavimento: string): { topo: number; bas
 }
 
 export const secaoNoLance = (p: Pilar, pav: string) => p.secoes?.find((s) => s.pavimento === pav)?.secao ?? p.secao;
+
+/** Início efetivo do pilar: fundação (vínculo externo) ou apoiado em outro elemento (sem vínculo). */
+export const inicioDe = (p: Pick<Pilar, 'nasce' | 'inicio'>): 'fundacao' | 'apoiado' => (p.nasce === 'fundacao' ? 'fundacao' : p.inicio ?? 'apoiado');
+/** Só o pilar que começa na fundação (ou numa fundação intermediária) aceita vínculo externo (molas, rótula). */
+export const aceitaVinculoExterno = (p: Pick<Pilar, 'nasce' | 'inicio'>) => inicioDe(p) === 'fundacao';
+
+/** Posição (ponto fixo, ângulo e deslocamento) e seção do pilar num lance: os próprios do lance sobre os do pilar. */
+export function geoLance(p: Pilar, lance: string): { p: Pilar; secao: SecaoPilar } {
+  const e = p.secoes?.find((s) => s.pavimento === lance);
+  if (!e || (e.ajuste === undefined && e.angulo === undefined && !e.dx && !e.dy)) return { p, secao: e?.secao ?? p.secao };
+  return { p: { ...p, ajuste: e.ajuste ?? p.ajuste, angulo: e.angulo ?? p.angulo, x: p.x + (e.dx ?? 0), y: p.y + (e.dy ?? 0) }, secao: e.secao };
+}
+/** Centro e contorno do pilar no lance, com a geometria própria do lance. */
+export function centroNoLance(p: Pilar, lance: string): [number, number] { const g = geoLance(p, lance); return centroPilar(g.p, g.secao); }
+export function contornoNoLance(p: Pilar, lance: string): [number, number][] { const g = geoLance(p, lance); return contornoPilar(g.p, g.secao); }
+/** Ângulo (graus) do pilar no lance. */
+export const anguloNoLance = (p: Pilar, lance: string) => p.secoes?.find((s) => s.pavimento === lance)?.angulo ?? p.angulo;
+/**
+ * Lance cuja geometria vale no pavimento: o que chega a ele ou, no pavimento em que o pilar nasce apoiado, o primeiro
+ * (sua base); `undefined` se o pilar não passa por ali.
+ */
+export function lanceNoPavimento(b: BuildingModel, p: Pilar, pav: string): string | undefined {
+  const ls = lancesDoPilar(b, p);
+  if (ls.some((x) => x.id === pav)) return pav;
+  return p.nasce === pav ? ls[0]?.id : undefined;
+}
 
 /** Dimensões (m) da seção nos eixos locais: largura em x, altura em y. */
 export const dimsSecao = (s: SecaoPilar): [number, number] => (s.tipo === 'ret' ? [s.b, s.h] : [s.d, s.d]);
