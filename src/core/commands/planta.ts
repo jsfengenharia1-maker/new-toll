@@ -3,7 +3,7 @@ import type { Draft } from 'immer';
 import { centroPilar, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
-import { atribuirTabela, tabelaInexistente } from './tabelas';
+import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -168,6 +168,7 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
   nome: 'pilar.editar',
   descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte ou cobrimento próprio (cm) de um pilar.',
   risco: 'escrita',
+  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento'], 'secao'),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
     ajuste: ajusteSchema, angulo: { type: 'number' }, nasce: { type: 'string' }, morre: { type: 'string' },
@@ -188,10 +189,20 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
   aplicar(d, p) {
     const q = d.pilares.find((x) => x.id === p.id)!;
     for (const k of ['nome', 'x', 'y', 'ajuste', 'angulo', 'nasce', 'morre'] as const) if (p[k] !== undefined) (q as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
-    if (p.secao) q.secao = { ...p.secao };
+    let aviso = '';
+    if (p.secao) {
+      // lances sem seção própria passam à seção nova: a armadura bloqueada deles sai e o recálculo gera a nova (K1.11.27)
+      const propria = new Set((q.secoes ?? []).map((x) => x.pavimento));
+      const mudou = JSON.stringify(q.secao) !== JSON.stringify(p.secao);
+      if (mudou && q.armaduras?.length) {
+        const ficam = q.armaduras.filter((x) => propria.has(x.pavimento));
+        if (ficam.length !== q.armaduras.length) { aviso = ' A armadura bloqueada dos lances com a seção geral saiu: a seção mudou e o recálculo gera uma nova.'; if (ficam.length) q.armaduras = ficam; else delete q.armaduras; }
+      }
+      q.secao = { ...p.secao };
+    }
     if (p.cobrimento !== undefined) { if (p.cobrimento) q.cobrimento = p.cobrimento; else delete q.cobrimento; }
     atribuirTabela(q, 'tabela', p.tabela);
-    return `${q.nome} alterado.`;
+    return `${q.nome} alterado.${aviso}`;
   },
 });
 
@@ -199,6 +210,7 @@ registrar<{ ids: string[]; pavimentos?: string[]; au?: number; av?: number }>({
   nome: 'pilar.flambagem',
   descricao: 'Define o α de flambagem dos lances de pilares por direção (au: deslocamento ao longo de b; av: ao longo de h): ℓe = mín(ℓ0 + h; ℓ) × α do pavimento × α do lance (NBR 6118, 15.6). Pilar destravado por vários pavimentos: α > 1. Sem `pavimentos`, vale para todos os lances; 1 volta ao padrão.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
     ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, pavimentos: { type: 'array', items: { type: 'string' }, minItems: 1 },
@@ -266,6 +278,7 @@ registrar<{ id: string; pavimento: string; secao?: SecaoPilar }>({
   nome: 'pilar.secaoLance',
   descricao: 'Define a seção de um lance do pilar (o lance que chega ao pavimento indicado). Sem `secao`, o lance volta à seção geral.',
   risco: 'escrita',
+  calculo: 'secao',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'pavimento'], properties: { id: { type: 'string' }, pavimento: { type: 'string' }, secao: secaoSchema } },
   validar(b, p) {
@@ -275,10 +288,18 @@ registrar<{ id: string; pavimento: string; secao?: SecaoPilar }>({
   },
   aplicar(d, p) {
     const q = d.pilares.find((x) => x.id === p.id)!;
+    const antes = q.secoes?.find((s) => s.pavimento === p.pavimento)?.secao ?? q.secao;
     q.secoes = (q.secoes ?? []).filter((s) => s.pavimento !== p.pavimento);
     if (p.secao) q.secoes.push({ pavimento: p.pavimento, secao: { ...p.secao } });
     if (!q.secoes.length) delete q.secoes;
-    return `Seção do lance de ${q.nome} alterada.`;
+    const depois = p.secao ?? q.secao;
+    let aviso = '';
+    if (JSON.stringify(antes) !== JSON.stringify(depois) && q.armaduras?.some((x) => x.pavimento === p.pavimento)) {
+      q.armaduras = q.armaduras.filter((x) => x.pavimento !== p.pavimento);
+      if (!q.armaduras.length) delete q.armaduras;
+      aviso = ' A armadura bloqueada do lance saiu: a seção mudou e o recálculo gera uma nova.';
+    }
+    return `Seção do lance de ${q.nome} alterada.${aviso}`;
   },
 });
 

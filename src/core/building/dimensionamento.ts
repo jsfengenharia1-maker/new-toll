@@ -1,6 +1,8 @@
 // Dimensionamento do edifício (NBR 6118) a partir da análise: vigas (flexão e cortante pela envoltória ELU),
 // pilares (pilar-padrão com curvatura aproximada nas duas direções e flexão oblíqua por fibras), lajes maciças
 // (momentos por metro da grelha) e quantitativos. Cargas para o módulo Fundações.
+import type { InfoRearme } from './rearmar';
+import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, type Caso3, type Modelo3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, bransonRatio, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
 import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, tabelaDe } from './tabelasArmadura';
@@ -136,6 +138,8 @@ export interface ResultadoViga {
   status: 'ok' | 'fail'; mensagens: string[];
   /** Armadura editada e bloqueada (só verificada) e o arranjo adotado (para o editor). */
   bloqueada: boolean;
+  /** Nome do agrupamento de pórticos efetivo a que a viga pertence (R7f); a armadura é a do pórtico que governa o grupo. */
+  agrupada?: string;
   /** Áreas necessárias inferior e superior (m²), antes do bloqueio e do aumento por fissuração. */
   AsNec: [number, number];
   arranjo: { inf: { n: number; phi: number } | null; sup: { n: number; phi: number } | null; estribo: { phi: number; s: number; legs?: number } | null; laterais: { n: number; phi: number } | null };
@@ -1088,7 +1092,11 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
   equilibrio?: ResultadoEQU[];
   /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
-  avisosAcoes?: string[] }
+  avisosAcoes?: string[];
+  /** Rearme (R7f): o dimensionamento foi refeito sobre a análise já feita (modo, esforços usados, elementos refeitos). */
+  rearme?: InfoRearme;
+  /** Agrupamentos de pórticos (R7f): se valem (efetivos), motivo quando não, pórtico de referência e desenhos únicos. */
+  agrupamentos?: InfoAgrupamento[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
@@ -1103,7 +1111,25 @@ export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: Opc
  */
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
-  const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  let vigas = dimensionarVigas(b, an, elu, freq), agrupamentos: InfoAgrupamento[] | undefined;
+  if (b.agrupamentos?.length) {
+    // pórticos agrupados (R7f): a armadura do pórtico que governa vale para todos (segunda passada como bloqueio transitório)
+    const ag = resolverAgrupamentos(b, vigas);
+    agrupamentos = ag.infos;
+    const grupoDe = new Map<string, string>();
+    for (const g of ag.infos) if (g.efetivo) for (const id of g.vigas) grupoDe.set(id, g.nome);
+    if (ag.transientes.size) {
+      const b2: BuildingModel = { ...b, vigas: b.vigas.map((v) => (ag.transientes.has(v.id) ? { ...v, armadura: ag.transientes.get(v.id) } : v)) };
+      vigas = dimensionarVigas(b2, an, elu, freq);
+    }
+    for (const r of vigas) {
+      for (const m of ag.avisos.get(r.viga) ?? []) r.mensagens.push(m);
+      const g = grupoDe.get(r.viga);
+      if (g) { r.agrupada = g; if (ag.transientes.has(r.viga)) r.bloqueada = true; }
+    }
+  }
+  const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  if (agrupamentos?.length) d.agrupamentos = agrupamentos;
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
   if (avisosAcoes.length) d.avisosAcoes = avisosAcoes;

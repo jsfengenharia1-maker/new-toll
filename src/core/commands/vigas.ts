@@ -4,7 +4,7 @@ import type { Draft } from 'immer';
 import { centroPilar, comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { ajusteFaceTrecho, alinhamentoNaFace, pilaresQueChegam, proximaViga, TOL_FACE, type LadoFace } from '../building/vigas';
-import { atribuirTabela, tabelaInexistente } from './tabelas';
+import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -56,6 +56,8 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
   nome: 'viga.editar',
   descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido ou cobrimento próprio (cm).',
   risco: 'escrita',
+  // tabela, cobrimento e nome só mudam o dimensionamento; a seção muda rigidez e peso (rearmar com os esforços guardados)
+  calculo: (p) => nivelEdicao(p, ['tabela', 'tabelaEstribo', 'cobrimento'], 'secao'),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, secao: secaoSchema,
     alinhamento: alinSchema, invertida: { type: 'boolean' }, nivel: { type: 'number', minimum: -5, maximum: 5 }, vinculoIni: vincSchema, vinculoFim: vincSchema,
@@ -77,7 +79,8 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     const v = d.vigas.find((x) => x.id === p.id)!;
     if (p.nome !== undefined) v.nome = p.nome.trim();
     if (p.pontos) v.pontos = limpar(p.pontos);
-    if (p.secao) v.secao = { ...p.secao };
+    let aviso = '';
+    if (p.secao) { if (p.secao.b !== v.secao.b || p.secao.h !== v.secao.h) aviso = soltarArmaduraViga(v); v.secao = { ...p.secao }; }
     if (p.alinhamento) v.alinhamento = p.alinhamento;
     if (p.invertida !== undefined) { if (p.invertida) v.invertida = true; else delete v.invertida; }
     if (p.nivel !== undefined) { if (p.nivel) v.nivel = p.nivel; else delete v.nivel; }
@@ -87,14 +90,22 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     if (p.cobrimento !== undefined) { if (p.cobrimento) v.cobrimento = p.cobrimento; else delete v.cobrimento; }
     atribuirTabela(v, 'tabela', p.tabela); atribuirTabela(v, 'tabelaEstribo', p.tabelaEstribo);
     if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
-    return `${v.nome} alterada.`;
+    return `${v.nome} alterada.${aviso}`;
   },
 });
+
+/** Seção mudou: a armadura bloqueada e o detalhe editado saem e o recálculo gera a armadura nova (K1.11.27); desfazer devolve. */
+function soltarArmaduraViga(v: { armadura?: unknown; detalhe?: unknown }): string {
+  const tinha = !!v.armadura || !!v.detalhe;
+  delete v.armadura; delete v.detalhe;
+  return tinha ? ' A armadura bloqueada saiu: a seção mudou e o recálculo gera uma nova.' : '';
+}
 
 registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel'; valor: unknown }>({
   nome: 'viga.atribuir',
   descricao: 'Atribui o mesmo valor a várias vigas: seção {b, h}, alinhamento, invertida ou desnível.',
   risco: 'escrita',
+  calculo: (p) => (p.campo === 'secao' ? 'secao' : true),
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'campo', 'valor'], properties: { ids, campo: { type: 'string', enum: ['secao', 'alinhamento', 'invertida', 'nivel'] }, valor: {} } },
   validar(b, p) {
@@ -106,7 +117,7 @@ registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel
   },
   aplicar(d, p) {
     for (const v of d.vigas) if (p.ids.includes(v.id)) {
-      if (p.campo === 'secao') { const s = p.valor as { b: number; h: number }; v.secao = { b: s.b, h: s.h }; }
+      if (p.campo === 'secao') { const s = p.valor as { b: number; h: number }; if (s.b !== v.secao.b || s.h !== v.secao.h) soltarArmaduraViga(v); v.secao = { b: s.b, h: s.h }; }
       else if (p.campo === 'alinhamento') v.alinhamento = p.valor as Alinhamento;
       else if (p.campo === 'invertida') { if (p.valor) v.invertida = true; else delete v.invertida; }
       else if (p.valor) v.nivel = p.valor as number; else delete v.nivel;

@@ -5,7 +5,7 @@ import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
 import { temBaseElastica } from '../building/baseElastica';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
-import { atribuirTabela, tabelaInexistente } from './tabelas';
+import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -82,6 +82,7 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?
   nome: 'laje.editar',
   descricao: 'Altera nome, tipo, direção das vigotas (graus), desnível, contorno, aberturas coeficientes de engaste das bordas (um por aresta do contorno, 0 = articulada, 1 = engastada) ou cobrimento próprio (cm) de uma laje.',
   risco: 'escrita',
+  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento']),
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { ...tipoSchema, default: undefined }, direcao: { type: 'number' },
@@ -137,6 +138,7 @@ registrar<{ id: string; adicionar?: { pilar?: string; ponto?: P; linhas: number;
   nome: 'laje.puncao',
   descricao: 'Armadura de punção informada numa laje (N2d), somada à calculada: `adicionar` grupos { pilar (ou ponto [x, y]), linhas radiais, barras por linha, phi (mm), s (m, espaçamento radial) }; `remover` por id de grupo, `pilares` (todos os grupos desses pilares) ou `limpar`.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string', description: 'laje' },

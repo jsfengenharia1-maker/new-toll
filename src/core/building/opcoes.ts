@@ -215,6 +215,8 @@ export interface OpcoesCalculo {
   corridaDistribuicao: number;
   /** Sapata corrida sob parede (FU7a): comprimento da janela em que a carga linear é somada para obter a carga por metro (m). */
   corridaJanela: number;
+  /** Rearmar com os esforços guardados (R7f): variação da rigidez à flexão (%) de um elemento, desde a análise, acima da qual os esforços são tidos como antigos (aviso ESFORCO_ANTIGO). */
+  rearmarLimiteRigidez: number;
 }
 
 export interface OpcaoInfo {
@@ -483,7 +485,28 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Armadura paralela ao eixo da sapata corrida: o maior entre este percentual da armadura transversal, 0,9 cm²/m e metade da taxa mínima.' },
   { chave: 'corridaJanela', rotulo: 'Sapata corrida sob parede: janela da carga linear', unidade: 'm', min: 0.25, max: 5, passo: 0.25, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a carga por metro é a maior soma em janelas deste comprimento ao longo do eixo', aConfirmar: true,
     descricao: 'Comprimento da janela em que as cargas lineares, pontuais e de área do nível de fundação sobre a sapata corrida são somadas e divididas para dar a carga por metro de projeto (a largura é única ao longo do eixo).' },
+  { chave: 'rearmarLimiteRigidez', rotulo: 'Rearmar: variação de rigidez que torna os esforços antigos', unidade: '%', min: 1, max: 200, passo: 1, padrao: 15, fonte: 'Critério do Statikos (sem fonte): o programa de referência manda recalcular se as variações forem grandes, sem dar o limite; 15 % da inércia da seção (a confirmar)', aConfirmar: true,
+    descricao: 'Ao rearmar com os esforços da última análise depois de mudar seções, o elemento cuja inércia (b·h³/12) variou mais que este percentual desde a análise recebe o aviso ESFORCO_ANTIGO: refaça a análise para esforços corretos.' },
 ];
+
+// ---- o que cada opção refaz (R7f) ----
+/** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
+export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
+  'malha', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+]);
+const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
+/**
+ * O que mudar a opção refaz: `true` = a análise (e tudo depois); `'fundacao'` = só as fundações; `'detalhe'` = só o
+ * dimensionamento e o detalhamento sobre a análise vigente. Opções das sapatas corridas e dos radiers, que entram na
+ * base elástica da análise, contam como análise.
+ */
+export function efeitoDaOpcao(chave: string): true | 'fundacao' | 'detalhe' {
+  if (OPCOES_ANALISE.has(chave as keyof OpcoesCalculo)) return true;
+  if (RE_FUNDACAO.test(chave)) return 'fundacao';
+  if (/^(corrida|radier)/.test(chave)) return true;
+  return 'detalhe';
+}
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
 export const OPCOES_PADRAO_NBR: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, padraoDe(o, 'nbr')])) as unknown as OpcoesCalculo;

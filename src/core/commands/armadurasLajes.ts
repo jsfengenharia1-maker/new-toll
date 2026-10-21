@@ -24,6 +24,7 @@ registrar<ZonaP>({
   nome: 'laje.uniformizacao',
   descricao: 'Cria, edita ou remove uma zona de uniformização da armadura das lajes maciças de um grupo (R7e): `forma` linha (dois pontos e `largura` total da faixa, m) ou retângulo (dois cantos opostos), `face` inf ou sup e, opcional, a `angulo` das barras (graus; `qualquerDirecao` limpa). As barras calculadas da face que passam pela zona recebem a maior taxa (φ e espaçamento de maior As/m) e o maior comprimento entre elas; vale em todo detalhamento, antes ou depois do cálculo. `zona` = id, para editar ou remover.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['acao'], properties: {
     acao: { type: 'string', enum: ['criar', 'editar', 'remover'] }, zona: { type: 'string' }, grupo: { type: 'string' },
@@ -63,6 +64,7 @@ registrar<{ acao: 'criar' | 'editar' | 'remover'; linha?: string; grupo?: string
   nome: 'laje.linhaDobra',
   descricao: 'Cria, edita ou remove uma linha de dobra das lajes maciças de um grupo (R7e): segmento de `a` a `z` (m, planta). A armadura inferior emendada por traspasse (acima da barra máxima) tem a emenda centrada na linha que cruza a barra e os negativos em porcentagem mínima do vão usam o vão até a linha seguinte. `linha` = id, para editar ou remover.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['acao'], properties: {
     acao: { type: 'string', enum: ['criar', 'editar', 'remover'] }, linha: { type: 'string' }, grupo: { type: 'string' }, a: ponto, z: ponto,
@@ -106,6 +108,7 @@ registrar<BarrasP>({
   nome: 'laje.barras',
   descricao: 'Edita as posições de armadura de uma laje maciça (R7e), bloqueando-as (o recálculo verifica a armadura exigida, ARM_BLOQ, e desconsidera a edição se a numeração mudar). `editar`: n, φ, espaçamento `s` (m), comprimento total e `ganchos` por posição (`barras`: pos, face, tipo, dir); posições agrupadas editam juntas. `conjunto`: φ e s de uma linha da tabela de armadura da laje. `agrupar`: junta posições (com `valores` iguais, p.ex. os máximos). `desagrupar`: desfaz o grupo da posição. `emendar`: corta a posição em `em` (m a partir do início), com o traspasse construtivo das opções, sem recalcular. `reverter`: volta as posições ao calculado. `refazer` (`ids`): descarta a edição e a geração sem cálculo das lajes e refaz a armadura com os esforços; zonas de uniformização e linhas de dobra ficam.',
   risco: 'escrita',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['acao'], properties: {
     id: { type: 'string' }, ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
@@ -192,6 +195,7 @@ registrar<{ ids?: string[] }>({
   nome: 'lajes.gerarArmadura',
   descricao: 'Gera a armadura das lajes maciças só com a geometria (R7e): mínimos e armadura base, sem os esforços da análise, para edição manual. Apaga a edição e as armaduras predefinidas existentes das lajes (`ids`, ou todas as maciças da obra) e as marca como geradas sem cálculo. A edição seguinte é verificada contra os mínimos; `laje.barras` com `refazer` volta ao cálculo.',
   risco: 'destrutivo',
+  calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
   validar(b, p) {
