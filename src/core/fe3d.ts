@@ -1,7 +1,11 @@
 // Barras 3D (pórtico espacial e, com os gdl do plano presos, grelha), com trechos rígidos nas extremidades,
 // liberações por condensação, molas, restrições mestre-escravo (diafragma rígido) e vários casos de carga.
 // Rigidez direta: K esparsa nas equações independentes, Cuthill-McKee reversa e LDLᵀ em banda (math.ts).
+// N2b: barra de Timoshenko (áreas de cisalhamento Ay/Az), barras só no plano (soPlano), gdl condensados
+// recuperados por superelementos (complemento de Schur, condensacao.ts) e cascas de 6 nós (casca.ts).
 import { BandLDL, rcmOrder, spAdd, type SpRows } from './math';
+import { cargaPressaoCasca, esforcosCasca, rigidezCasca, type Casca3 } from './casca';
+export type { Casca3 } from './casca';
 
 export type V3 = [number, number, number];
 
@@ -22,7 +26,29 @@ export interface Barra3 {
    * K = α·Kee + (1 − α)·Ker; com vários gdl, os pesos se multiplicam (interpolação multilinear).
    */
   engI?: [number, number][]; engJ?: [number, number][];
+  /**
+   * Áreas de cisalhamento (Timoshenko) para a flexão com deslocamento em y local (Ay, junto com Iz) e em z local
+   * (Az, junto com Iy). Ausentes: Euler-Bernoulli (sem deformação por cortante).
+   */
+  Ay?: number; Az?: number;
+  /**
+   * Só a parte no plano XY entra na montagem (gdl globais ux, uy, rz das pontas) e nas cargas; a parte fora do plano
+   * (uz, rx, ry) está num superelemento. Os esforços saem completos, com os deslocamentos recuperados.
+   */
+  soPlano?: boolean;
 }
+
+/** Superelemento: rigidez condensada (complemento de Schur) sobre gdl globais de fronteira. */
+export interface Superelemento3 {
+  /** Gdl globais (nó·6 + gdl) da fronteira, na ordem das linhas de K. */
+  dofs: number[];
+  /** Rigidez condensada nb × nb, por linhas. */
+  K: ArrayLike<number>;
+  /** Preenche em `u` os gdl condensados a partir da fronteira já resolvida e da carga do caso (ou sem carga). */
+  recuperar?: (u: Float64Array, carga: CargaSuper3 | undefined) => void;
+}
+/** Carga condensada de um superelemento num caso: P (nb) e um dado livre para a recuperação. */
+export interface CargaSuper3 { se: number; P: ArrayLike<number>; dados?: unknown }
 
 /** Gdl do nó: 0 ux, 1 uy, 2 uz, 3 rx, 4 ry, 5 rz. */
 export interface Modelo3 {
@@ -33,6 +59,11 @@ export interface Modelo3 {
   molas?: { no: number; gdl: number; k: number }[];
   /** Diafragma rígido: ux, uy e rz do escravo seguem o mestre (corpo rígido no plano XY). */
   escravos?: { no: number; mestre: number }[];
+  /** Gdl (nó·6 + gdl) fora das equações, preenchidos pela recuperação dos superelementos (não são apoios). */
+  condensados?: Set<number>;
+  superelementos?: Superelemento3[];
+  /** Cascas de 6 nós (casca.ts). */
+  cascas?: Casca3[];
 }
 
 export interface Caso3 {
@@ -41,6 +72,10 @@ export interface Caso3 {
   distribuidas: { barra: number; q: V3 }[];
   /** Forças e momentos concentrados (globais: Fx, Fy, Fz, Mx, My, Mz) a `a` metros da extremidade flexível i. */
   pontuais?: { barra: number; a: number; f: number[] }[];
+  /** Cargas condensadas dos superelementos. */
+  superelementos?: CargaSuper3[];
+  /** Pressão uniforme na casca (kN/m², ao longo da normal local z da casca). */
+  pressoes?: { casca: number; q: number }[];
 }
 
 export interface Resultado3 {
@@ -50,6 +85,8 @@ export interface Resultado3 {
   esforcos: Float64Array[][];
   /** Reações nos gdl presos (6 por nó com apoio), por caso. */
   reacoes: Map<number, number[]>[];
+  /** Esforços das cascas no centroide (Nx, Ny, Nxy, Mx, My, Mxy, Qx, Qy; eixos locais, por metro), por caso. */
+  cascas?: Float64Array[][];
   neq: number; hb: number;
   erro?: string;
 }
@@ -71,7 +108,7 @@ export function baseBarra(m: Modelo3, b: Barra3) {
   return { L, R: [ex, ey, ez] as [V3, V3, V3], oi, oj };
 }
 
-/** Rigidez local 12×12 (Euler-Bernoulli). */
+/** Rigidez local 12×12 (Euler-Bernoulli; Timoshenko com Ay/Az: Φ = 12EI/(G·As·L²)). */
 export function rigidezLocal(b: Barra3, L: number): number[][] {
   const k = Array.from({ length: 12 }, () => new Array(12).fill(0));
   const set = (r: number, c: number, v: number) => { k[r][c] += v; if (r !== c) k[c][r] += v; };
@@ -79,6 +116,17 @@ export function rigidezLocal(b: Barra3, L: number): number[][] {
   set(0, 0, EA); set(6, 6, EA); set(0, 6, -EA);
   set(3, 3, GJ); set(9, 9, GJ); set(3, 9, -GJ);
   const z = b.E * b.Iz, y = b.E * b.Iy, L2 = L * L, L3 = L2 * L;
+  if (b.Ay || b.Az) {
+    const fy = b.Ay ? (12 * z) / (b.G * b.Ay * L2) : 0, fz = b.Az ? (12 * y) / (b.G * b.Az * L2) : 0;
+    const cy = z / (1 + fy), cz = y / (1 + fz);
+    set(1, 1, (12 * cy) / L3); set(1, 5, (6 * cy) / L2); set(1, 7, (-12 * cy) / L3); set(1, 11, (6 * cy) / L2);
+    set(5, 5, ((4 + fy) * cy) / L); set(5, 7, (-6 * cy) / L2); set(5, 11, ((2 - fy) * cy) / L);
+    set(7, 7, (12 * cy) / L3); set(7, 11, (-6 * cy) / L2); set(11, 11, ((4 + fy) * cy) / L);
+    set(2, 2, (12 * cz) / L3); set(2, 4, (-6 * cz) / L2); set(2, 8, (-12 * cz) / L3); set(2, 10, (-6 * cz) / L2);
+    set(4, 4, ((4 + fz) * cz) / L); set(4, 8, (6 * cz) / L2); set(4, 10, ((2 - fz) * cz) / L);
+    set(8, 8, (12 * cz) / L3); set(8, 10, (6 * cz) / L2); set(10, 10, ((4 + fz) * cz) / L);
+    return k;
+  }
   // flexão no plano x-y (v, θz)
   set(1, 1, (12 * z) / L3); set(1, 5, (6 * z) / L2); set(1, 7, (-12 * z) / L3); set(1, 11, (6 * z) / L2);
   set(5, 5, (4 * z) / L); set(5, 7, (-6 * z) / L2); set(5, 11, (2 * z) / L);
@@ -177,24 +225,86 @@ function transformacao(R: [V3, V3, V3], oi: V3, oj: V3): number[][] {
   return T;
 }
 
+/** Elemento de barra pronto para montar: rigidez local condensada, transformação e forças de engastamento por caso. */
+export interface ElementoBarra { L: number; R: [V3, V3, V3]; T: number[][]; k: number[][]; f0s: number[][]; dofs: number[] }
+
+/**
+ * Rigidez local (com liberações e engastes parciais), transformação nó → extremidade flexível e forças de engastamento
+ * das cargas da barra em cada caso (`dist`/`pont`: cargas globais da barra por caso).
+ * Cargas concentradas em barras com áreas de cisalhamento usam as fórmulas de Euler-Bernoulli (o app não as aplica).
+ */
+export function elementoBarra(m: Modelo3, b: Barra3, dist: (V3[] | undefined)[], pont: ({ a: number; f: number[] }[] | undefined)[]): ElementoBarra {
+  const { L, R, oi, oj } = baseBarra(m, b);
+  const k = rigidezLocal(b, L);
+  const lib = [...(b.libI ?? []), ...(b.libJ ?? []).map((g) => g + 6)];
+  const T = transformacao(R, oi, oj);
+  const f0s = dist.map((dl, ic) => {
+    const f0 = new Array(12).fill(0);
+    for (const q of dl ?? []) {
+      const ql: V3 = [R[0][0] * q[0] + R[0][1] * q[1] + R[0][2] * q[2], R[1][0] * q[0] + R[1][1] * q[1] + R[1][2] * q[2], R[2][0] * q[0] + R[2][1] * q[1] + R[2][2] * q[2]];
+      engastamento(ql, L).forEach((v, a) => (f0[a] += v));
+    }
+    for (const q of pont[ic] ?? []) {
+      const fl = [0, 1, 2, 3, 4, 5].map((kk) => { const r = R[kk % 3], o = kk < 3 ? 0 : 3; return r[0] * q.f[o] + r[1] * q.f[o + 1] + r[2] * q.f[o + 2]; });
+      engastamentoPontual(fl, q.a, L).forEach((v, a) => (f0[a] += v));
+    }
+    return f0;
+  });
+  const parc = parciais(b);
+  // sem liberações nem engastes parciais a condensação não muda nada (pulá-la dá os mesmos valores)
+  const { k: kc, f0s: fc } = lib.length || parc.length ? condensarParcial(k, f0s, lib, parc) : { k, f0s };
+  return { L, R, T, k: kc, f0s: fc, dofs: [b.i, b.j].flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)) };
+}
+
+/** Rigidez local 12 × 12 com as liberações e os engastes parciais da barra condensados (sem cargas). */
+export function rigidezCondensada(b: Barra3, L: number): number[][] {
+  const k = rigidezLocal(b, L), lib = [...(b.libI ?? []), ...(b.libJ ?? []).map((g) => g + 6)], parc = parciais(b);
+  return lib.length || parc.length ? condensarParcial(k, [], lib, parc).k : k;
+}
+
+/** Kg = Tᵀ k T (12 × 12, global), pulando os termos nulos de T. */
+export function rigidezGlobal(e: { T: number[][]; k: number[][] }): number[][] {
+  // laços explícitos na mesma ordem de soma, pulando os termos de T nulos (somariam ±0: os valores não nulos
+  // de Kg ficam idênticos aos dos map/reduce; os nulos não entram na montagem)
+  const nzT: number[][] = [];
+  for (let c = 0; c < 12; c++) { const l: number[] = []; for (let a = 0; a < 12; a++) if (e.T[a][c] !== 0) l.push(a); nzT.push(l); }
+  const kT: number[][] = [], Kg: number[][] = [];
+  for (let r = 0; r < 12; r++) { const kr = e.k[r], row = new Array<number>(12); for (let c = 0; c < 12; c++) { const l = nzT[c]; let s = 0; for (let j = 0; j < l.length; j++) s += kr[l[j]] * e.T[l[j]][c]; row[c] = s; } kT.push(row); }
+  for (let r = 0; r < 12; r++) { const row = new Array<number>(12), l = nzT[r]; for (let c = 0; c < 12; c++) { let s = 0; for (let j = 0; j < l.length; j++) s += e.T[l[j]][r] * kT[l[j]][c]; row[c] = s; } Kg.push(row); }
+  return Kg;
+}
+
+/** Esforços de extremidade (locais, 12) da barra para os deslocamentos nodais globais `u` (6 por nó); caso sem forças de engastamento (ic fora da lista): só k·T·u. */
+export function esforcosBarra(e: ElementoBarra, u: ArrayLike<number>, ic: number, ug = new Float64Array(12), ul = new Float64Array(12)): Float64Array {
+  for (let a = 0; a < 12; a++) ug[a] = u[e.dofs[a]];
+  for (let r = 0; r < 12; r++) { const row = e.T[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ug[a]; ul[r] = s; }
+  const f = new Float64Array(12), f0 = e.f0s[ic];
+  for (let r = 0; r < 12; r++) { const row = e.k[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ul[a]; f[r] = f0 ? s + f0[r] : s; }
+  return f;
+}
+
+/** Gdl globais no plano XY (ux, uy, rz). */
+export const NO_PLANO = [true, true, false, false, false, true];
+
 export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   const nn = m.nos.length;
-  // equações: cada gdl livre e não escravo ganha uma; escravos combinam os do mestre
+  // equações: cada gdl livre e não escravo ganha uma; escravos combinam os do mestre; condensados ficam de fora
   const mapa: [number, number][][] = Array.from({ length: nn * 6 }, () => []);
   const presos = new Set<number>();
   for (const [no, gs] of m.apoios) for (const g of gs) presos.add(no * 6 + g);
+  const cond = m.condensados ?? new Set<number>();
   const escravo = new Map((m.escravos ?? []).map((e) => [e.no, e.mestre]));
   let neq = 0;
   const eqDe = new Int32Array(nn * 6).fill(-1);
   for (let d = 0; d < nn * 6; d++) {
     const g = d % 6, no = (d - g) / 6;
-    if (presos.has(d)) continue;
+    if (presos.has(d) || cond.has(d)) continue;
     if (escravo.has(no) && (g === 0 || g === 1 || g === 5)) continue;
     eqDe[d] = neq++;
   }
   for (let d = 0; d < nn * 6; d++) {
     const g = d % 6, no = (d - g) / 6;
-    if (presos.has(d)) continue;
+    if (presos.has(d) || cond.has(d)) continue;
     const ms = escravo.get(no);
     if (ms !== undefined && (g === 0 || g === 1 || g === 5)) {
       const dx = m.nos[no][0] - m.nos[ms][0], dy = m.nos[no][1] - m.nos[ms][1];
@@ -209,49 +319,50 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   const P = casos.map(() => new Float64Array(neq));
   const porBarra = casos.map((c) => { const mp = new Map<number, V3[]>(); for (const q of c.distribuidas) { const l = mp.get(q.barra); if (l) l.push(q.q); else mp.set(q.barra, [q.q]); } return mp; });
   const pontBarra = casos.map((c) => { const mp = new Map<number, { a: number; f: number[] }[]>(); for (const q of c.pontuais ?? []) { const l = mp.get(q.barra); if (l) l.push(q); else mp.set(q.barra, [q]); } return mp; });
-  const elem = m.barras.map((b, bi) => {
-    const { L, R, oi, oj } = baseBarra(m, b);
-    const k = rigidezLocal(b, L);
-    const lib = [...(b.libI ?? []), ...(b.libJ ?? []).map((g) => g + 6)];
-    const T = transformacao(R, oi, oj);
-    const f0s = casos.map((_, ic) => {
-      const f0 = new Array(12).fill(0);
-      for (const q of porBarra[ic].get(bi) ?? []) {
-        const ql: V3 = [R[0][0] * q[0] + R[0][1] * q[1] + R[0][2] * q[2], R[1][0] * q[0] + R[1][1] * q[1] + R[1][2] * q[2], R[2][0] * q[0] + R[2][1] * q[1] + R[2][2] * q[2]];
-        engastamento(ql, L).forEach((v, a) => (f0[a] += v));
-      }
-      for (const q of pontBarra[ic].get(bi) ?? []) {
-        const fl = [0, 1, 2, 3, 4, 5].map((k) => { const r = R[k % 3], o = k < 3 ? 0 : 3; return r[0] * q.f[o] + r[1] * q.f[o + 1] + r[2] * q.f[o + 2]; });
-        engastamentoPontual(fl, q.a, L).forEach((v, a) => (f0[a] += v));
-      }
-      return f0;
-    });
-    // condensação: a rigidez é a mesma para todos os casos; as forças de engastamento, uma por caso
-    const { k: kc, f0s: fc } = condensarParcial(k, f0s, lib, parciais(b));
-    return { b, L, R, T, k: kc, f0s: fc, dofs: [b.i, b.j].flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)) };
-  });
+  // condensação: a rigidez é a mesma para todos os casos; as forças de engastamento, uma por caso
+  const elem = m.barras.map((b, bi) => ({ b, ...elementoBarra(m, b, porBarra.map((mp) => mp.get(bi)), pontBarra.map((mp) => mp.get(bi))) }));
   for (const e of elem) {
-    // Kg = Tᵀ k T
-    // laços explícitos na mesma ordem de soma, pulando os termos de T nulos (somariam ±0: os valores não nulos
-    // de Kg ficam idênticos aos dos map/reduce; os nulos não entram na montagem)
-    const nzT: number[][] = [];
-    for (let c = 0; c < 12; c++) { const l: number[] = []; for (let a = 0; a < 12; a++) if (e.T[a][c] !== 0) l.push(a); nzT.push(l); }
-    const kT: number[][] = [], Kg: number[][] = [];
-    for (let r = 0; r < 12; r++) { const kr = e.k[r], row = new Array<number>(12); for (let c = 0; c < 12; c++) { const l = nzT[c]; let s = 0; for (let j = 0; j < l.length; j++) s += kr[l[j]] * e.T[l[j]][c]; row[c] = s; } kT.push(row); }
-    for (let r = 0; r < 12; r++) { const row = new Array<number>(12), l = nzT[r]; for (let c = 0; c < 12; c++) { let s = 0; for (let j = 0; j < l.length; j++) s += e.T[l[j]][r] * kT[l[j]][c]; row[c] = s; } Kg.push(row); }
-    for (let a = 0; a < 12; a++) for (const [ea, ca] of mapa[e.dofs[a]]) for (let c = 0; c < 12; c++) {
-      const v = Kg[a][c];
-      if (!v) continue;
-      for (const [ec, cc] of mapa[e.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+    const Kg = rigidezGlobal(e);
+    const plano = e.b.soPlano;
+    for (let a = 0; a < 12; a++) {
+      if (plano && !NO_PLANO[a % 6]) continue;
+      for (const [ea, ca] of mapa[e.dofs[a]]) for (let c = 0; c < 12; c++) {
+        if (plano && !NO_PLANO[c % 6]) continue;
+        const v = Kg[a][c];
+        if (!v) continue;
+        for (const [ec, cc] of mapa[e.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+      }
     }
     e.f0s.forEach((f0, ic) => {
       for (let a = 0; a < 12; a++) {
+        if (plano && !NO_PLANO[a % 6]) continue;
         let fa = 0; // −Tᵀ f0
         for (let r = 0; r < 12; r++) fa -= e.T[r][a] * f0[r];
         for (const [ea, ca] of mapa[e.dofs[a]]) P[ic][ea] += ca * fa;
       }
     });
   }
+  // superelementos: rigidez condensada densa e cargas condensadas por caso
+  const ses = m.superelementos ?? [];
+  for (const se of ses) {
+    const nb = se.dofs.length;
+    for (let a = 0; a < nb; a++) for (const [ea, ca] of mapa[se.dofs[a]]) for (let c = 0; c < nb; c++) {
+      const v = se.K[a * nb + c];
+      if (!v) continue;
+      for (const [ec, cc] of mapa[se.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+    }
+  }
+  casos.forEach((c, ic) => { for (const cs of c.superelementos ?? []) { const se = ses[cs.se]; se.dofs.forEach((d, a) => { for (const [e, cf] of mapa[d]) P[ic][e] += cf * cs.P[a]; }); } });
+  // cascas: rigidez global 36 × 36 e pressões
+  const cas = (m.cascas ?? []).map((c) => rigidezCasca(m.nos, c));
+  for (const ce of cas) {
+    for (let a = 0; a < 36; a++) for (const [ea, ca] of mapa[ce.dofs[a]]) for (let c = 0; c < 36; c++) {
+      const v = ce.K[a * 36 + c];
+      if (!v) continue;
+      for (const [ec, cc] of mapa[ce.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+    }
+  }
+  casos.forEach((c, ic) => { for (const pr of c.pressoes ?? []) { const ce = cas[pr.casca], f = cargaPressaoCasca(ce, pr.q); for (let a = 0; a < 36; a++) for (const [e, cf] of mapa[ce.dofs[a]]) P[ic][e] += cf * f[a]; } });
   for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
   casos.forEach((c, ic) => { for (const n of c.nodais) n.f.forEach((v, g) => { for (const [e, cf] of mapa[n.no * 6 + g]) P[ic][e] += cf * v; }); });
 
@@ -268,25 +379,28 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   }
   const molasNo = new Map<number, NonNullable<Modelo3['molas']>>();
   for (const s of m.molas ?? []) { const l = molasNo.get(s.no); if (l) l.push(s); else molasNo.set(s.no, [s]); }
-  const desloc: Float64Array[] = [], esforcos: Float64Array[][] = [], reacoes: Map<number, number[]>[] = [];
+  const desloc: Float64Array[] = [], esforcos: Float64Array[][] = [], reacoes: Map<number, number[]>[] = [], esfCascas: Float64Array[][] = [];
   casos.forEach((caso, ic) => {
     const b = new Float64Array(neq);
     for (let e = 0; e < neq; e++) b[pos[e]] = P[ic][e];
     const x = ldl.solve(b);
     const u = new Float64Array(nn * 6);
     for (let d = 0; d < nn * 6; d++) for (const [e, c] of mapa[d]) u[d] += c * x[pos[e]];
+    ses.forEach((se, k) => se.recuperar?.(u, caso.superelementos?.find((c) => c.se === k)));
     desloc.push(u);
     const forcasNo = new Float64Array(nn * 6); // forças que as barras fazem nos nós (sinal: ação dos nós sobre as barras)
     const ug = new Float64Array(12), ul = new Float64Array(12);
     const ef = elem.map((e) => {
-      for (let a = 0; a < 12; a++) ug[a] = u[e.dofs[a]];
-      for (let r = 0; r < 12; r++) { const row = e.T[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ug[a]; ul[r] = s; }
-      const f = new Float64Array(12), f0 = e.f0s[ic];
-      for (let r = 0; r < 12; r++) { const row = e.k[r]; let s = 0; for (let a = 0; a < 12; a++) s += row[a] * ul[a]; f[r] = s + f0[r]; }
+      const f = esforcosBarra(e, u, ic, ug, ul);
       for (let a = 0; a < 12; a++) { let s = 0; for (let r = 0; r < 12; r++) s += e.T[r][a] * f[r]; forcasNo[e.dofs[a]] += s; }
       return f;
     });
     esforcos.push(ef);
+    ses.forEach((se, k) => {
+      const nb = se.dofs.length, cs = caso.superelementos?.find((c) => c.se === k);
+      for (let a = 0; a < nb; a++) { let s = -(cs?.P[a] ?? 0); for (let c = 0; c < nb; c++) s += se.K[a * nb + c] * u[se.dofs[c]]; forcasNo[se.dofs[a]] += s; }
+    });
+    if (cas.length) esfCascas.push(cas.map((ce, k) => esforcosCasca(ce, u, (caso.pressoes ?? []).filter((p) => p.casca === k).reduce((s, p) => s + p.q, 0), forcasNo)));
     const rc = new Map<number, number[]>();
     const nodaisNo = new Map<number, Caso3['nodais']>();
     for (const n of caso.nodais) { const l = nodaisNo.get(n.no); if (l) l.push(n); else nodaisNo.set(n.no, [n]); }
@@ -298,5 +412,5 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
     }
     reacoes.push(rc);
   });
-  return { desloc, esforcos, reacoes, neq, hb };
+  return { desloc, esforcos, reacoes, ...(cas.length ? { cascas: esfCascas } : {}), neq, hb };
 }

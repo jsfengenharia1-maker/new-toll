@@ -3,3 +3,4 @@ dist
 dist-cli
 .claude/worktrees/
 statikos-netlify.zip
+validation/opensees/integrado.modelo.json

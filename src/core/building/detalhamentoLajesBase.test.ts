@@ -13,7 +13,7 @@ import { edificioExemplo } from '../sheets/exemplo';
 import { revisarEdificio } from './revisao';
 import { areaTela, PAINEL_TELA, telaPor, TELAS } from './telasSoldadas';
 
-function lajes(vaos: number[], furo = false, nbr = false) {
+function lajes(vaos: number[], furo = false, nbr = false, separado = false) {
   const s = new Sessao();
   for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
   const ok = (n: string, p: Record<string, unknown>) => { const r = s.executar(n, p); expect(r.ok, `${n}: ${r.erros.map((e) => e.mensagem).join(' ')}`).toBe(true); };
@@ -25,6 +25,8 @@ function lajes(vaos: number[], furo = false, nbr = false) {
   ok('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
   if (furo) ok('laje.abertura', { id: s.modelo.lajes[0].id, contorno: [[1, 1.5], [2, 1.5], [2, 2.5], [1, 2.5]] });
   if (nbr) ok('opcoes.definir', { perfil: 'nbr' });
+  // baselines gerados com o modelo separado (anterior à N2b): o modelo integrado muda os esforços de todos os edifícios
+  else if (separado) ok('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0 } });
   const dim = () => dimensionarEdificio(s.modelo, analisarEdificio(s.modelo));
   return { s, ok, dim };
 }
@@ -40,11 +42,12 @@ describe('R7d: sem base nem predefinidas o detalhamento é o anterior', () => {
     expect(OPCOES_INFO.filter((o) => NOVAS.includes(o.chave)).map((o) => padraoDe(o))).toEqual([0, 1, 0, 20]);
   });
   it('dois e três vãos, furo, perfil NBR e edifício de exemplo (digest idêntico)', () => {
-    expect(digest(lajes([4, 4]).dim())).toEqual(base.v2);
-    expect(digest(lajes([3, 6, 4]).dim())).toEqual(base.v3);
-    expect(digest(lajes([5], true).dim())).toEqual(base.furo);
+    expect(digest(lajes([4, 4], false, false, true).dim())).toEqual(base.v2);
+    expect(digest(lajes([3, 6, 4], false, false, true).dim())).toEqual(base.v3);
+    expect(digest(lajes([5], true, false, true).dim())).toEqual(base.furo);
     expect(digest(lajes([4, 4], false, true).dim())).toEqual(base.nbr);
     const ex = edificioExemplo();
+    ex.executar('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0 } });
     expect(digest(dimensionarEdificio(ex.modelo, analisarEdificio(ex.modelo)))).toEqual(base.ex);
   }, 120000);
 });

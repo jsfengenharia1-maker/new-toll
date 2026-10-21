@@ -217,6 +217,14 @@ export interface OpcoesCalculo {
   corridaJanela: number;
   /** Rearmar com os esforços guardados (R7f): variação da rigidez à flexão (%) de um elemento, desde a análise, acima da qual os esforços são tidos como antigos (aviso ESFORCO_ANTIGO). */
   rearmarLimiteRigidez: number;
+  /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
+  modeloGlobal: number;
+  /** 1 = barras de laje com deformação por cortante (Timoshenko, área 5/6·b·h). */
+  cortanteBarrasLaje: number;
+  /** Tamanho alvo da malha triangular das cascas (m). */
+  malhaCasca: number;
+  /** Abertura interna de uma zona fechada por vigas acima da qual o diafragma rígido é questionado (% da área). */
+  aberturaDiafragma: number;
 }
 
 export interface OpcaoInfo {
@@ -469,6 +477,14 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Distância entre as superfícies verificadas, em múltiplos de d, a partir do contorno C′.' },
   { chave: 'radierK', rotulo: 'Base elástica: coeficiente de reação vertical padrão (k)', unidade: 'kN/m³', min: 1000, max: 1000000, passo: 1000, padrao: 100000, fonte: 'Sem fonte normativa (NBR 6122 não fixa); valor da sapata corrida da spec da FU (10 kgf/cm³); tabela orientativa de Bowles (1996) no memorial; deve vir do geotécnico', aConfirmar: true,
     descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
+  { chave: 'modeloGlobal', rotulo: 'Modelo integrado (lajes no pórtico)', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige o modelo único: grelha das lajes e vigas e pórtico espacial separados (modelo clássico, 14.6.6 e 14.7; itens a confirmar)', booleana: true, fonte: 'Programa de referência: modelo único com pilares, vigas e lajes resolvidos juntos; a NBR 6118 admite os dois', aConfirmar: false,
+    descricao: 'Ligado: a grelha de cada pavimento (lajes e vigas) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto; os esforços das vigas e das lajes incluem o vento, e o γz usa também as lajes (0,3·Eci·Ic). Desligado (modelo anterior): grelha por pavimento com molas nos pilares e forças da grelha aplicadas nas vigas do pórtico.' },
+  { chave: 'cortanteBarrasLaje', rotulo: 'Deformação por cortante nas barras de laje', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a deformação por cortante nas barras da grelha (Euler-Bernoulli)', booleana: true, fonte: 'Programa de referência (barras da grelha das lajes com deformação por cortante); área de cisalhamento 5/6 da seção (Timoshenko)', aConfirmar: false,
+    descricao: 'Barras da grelha das lajes como vigas de Timoshenko (área de cisalhamento 5/6·b·h; nas treliçadas, a alma das nervuras e a capa). Aumenta um pouco as flechas das lajes espessas.' },
+  { chave: 'malhaCasca', rotulo: 'Malha das cascas (tamanho alvo)', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Sem fonte (critério do app); a casca de 6 nós entra nas paredes e pilares-parede com a E1', aConfirmar: true,
+    descricao: 'Tamanho alvo dos lados da malha triangular das cascas (Delaunay restrita), refinada à metade junto a cantos, aberturas e pontos de chegada de vigas e lajes.' },
+  { chave: 'aberturaDiafragma', rotulo: 'Aviso de abertura grande no diafragma', unidade: '% da zona', min: 5, max: 100, passo: 1, padrao: 33, fonte: 'Sem fonte (critério do app: 1/3 da área da zona); a hipótese de diafragma rígido é do programa de referência e da NBR 6118, 14.7.2.1 (item a confirmar)', aConfirmar: true,
+    descricao: 'Zona fechada por vigas com laje e com abertura interna (furos ou parte sem laje) acima desta fração da área recebe o aviso DIAFRAGMA_ABERTURA, sugerindo marcar as vigas da zona fora do diafragma.' },
   { chave: 'radierMalha', rotulo: 'Base elástica: malha do radier e divisão das vigas', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): malha mais grossa que a das lajes para limitar o tamanho do pórtico', aConfirmar: true,
     descricao: 'Espaçamento máximo das barras da grelha do radier (as linhas passam também pelos pilares) e dos nós das vigas sobre base elástica.' },
   { chave: 'corridaBMin', rotulo: 'Sapata corrida: largura mínima da base', unidade: 'm', min: 0.3, max: 3, passo: 0.05, padrao: 0.6, fonte: 'Mesmo mínimo das sapatas do módulo Fundações (lado ≥ 60 cm; a confirmar)', aConfirmar: true,
@@ -493,7 +509,7 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
   'malha', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
-  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
 ]);
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
 /**

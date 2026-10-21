@@ -36,11 +36,12 @@ describe('R7b: perfil NBR reproduz o detalhamento das vigas anterior', () => {
   it('vigas de 2 e 3 vãos e edifício de exemplo (digest idêntico ao do código anterior)', () => {
     for (const [vaos, ref] of [[[5, 5], base.v2], [[5, 5, 5], base.v3]] as const) {
       const t = viga3([...vaos]);
-      t.ok('opcoes.definir', { valores: NBR_DET });
+      // baselines gerados com o modelo separado (anterior à N2b): o modelo integrado muda os esforços de todos os edifícios
+      t.ok('opcoes.definir', { valores: { ...NBR_DET, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
       expect(digest(t.calc())).toEqual(ref);
     }
     const s = edificioExemplo();
-    s.executar('opcoes.definir', { valores: NBR_DET });
+    s.executar('opcoes.definir', { valores: { ...NBR_DET, modeloGlobal: 0, cortanteBarrasLaje: 0 } });
     expect(digest(dimensionarEdificio(s.modelo, analisarEdificio(s.modelo)))).toEqual(base.ex);
   }, 60000);
   it('o perfil NBR traz esses valores e o do sistema muda o detalhamento', () => {

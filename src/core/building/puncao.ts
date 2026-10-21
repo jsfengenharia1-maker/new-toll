@@ -535,6 +535,27 @@ function gruposDoPilar(b: BuildingModel, pilar: string): { id: string; linhas: n
   return b.lajes.flatMap((l) => (l.puncao ?? []).filter((g) => g.pilar === pilar).map((g) => ({ id: g.id, linhas: g.linhas, barras: g.barras, phi: g.phi, s: g.s ?? 0.15 })));
 }
 
+/**
+ * Modelo integrado (N2b): momentos (kN·m) que a laje transmite ao pilar (S·ub − Pb do superelemento), combinados em
+ * módulo caso a caso como no modelo separado e, com vento, a pior de duas combinações ELU: uso principal com o vento
+ * acompanhante (ψ0 = 0,6) e vento principal com o uso reduzido por ψ0; o vento ampliado por 0,95·γz quando couber.
+ */
+function momentosIntegrado(mp: Record<string, [number, number]> | undefined, an: AnaliseEdificio, fat: number[], fatW: number[], gq: number): [number, number] {
+  if (!mp) return [0, 0];
+  const soma = (f: number[]) => [0, 1].map((k) => an.casos.reduce((t, id, ic) => t + Math.abs(f[ic] * (mp[id]?.[k] ?? 0)), 0)) as [number, number];
+  const g1 = soma(fat);
+  const W: [number, number] = [0, 0];
+  for (const cv of an.vento?.casos ?? []) {
+    const m = mp[cv.nome];
+    if (!m) continue;
+    const amp = Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1);
+    for (const k of [0, 1]) W[k] = Math.max(W[k], Math.abs(m[k]) * amp);
+  }
+  if (!W[0] && !W[1]) return g1;
+  const g2 = soma(fatW);
+  return [0, 1].map((k) => Math.max(g1[k] + gq * 0.6 * W[k], g2[k] + gq * W[k])) as [number, number];
+}
+
 /** Momentos (kN·m) transmitidos pelo pilar à laje na grelha (molas de rotação), combinados em módulo caso a caso. */
 function momentosDoNo(g: GrelhaPavimento, centro: P, fat: number[]): [number, number] | null {
   const m = g.modelo, res = g.res as Resultado3 | null;
@@ -554,11 +575,14 @@ const clona = (r: ResultadoPuncao, pav: { id: string; nome: string }): Resultado
  * Punção dos pilares que apoiam a laje direto (sem viga) e das vigas chatas largas, por pavimento. FSd e os
  * momentos vêm da grelha do pavimento (reação vertical e molas de rotação dos pilares) na combinação ELU
  * γg·G + γq·Q; os momentos dos casos somam-se em módulo (a favor da segurança, vale para cargas alternadas).
+ * No modelo integrado (N2b) os momentos são os que a laje transmite ao pilar no superelemento e incluem o vento.
  */
 export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: ResultadoLaje[], op: OpcoesCalculo): ResultadoPuncao[] {
   if (!op.puncaoVerificar) return [];
   const gm = gamas(b), obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
   const fat = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
+  // com o vento principal, as variáveis entram reduzidas por ψ0 (modelo integrado)
+  const fatW = an.casos.map((id, ic) => (nat[ic] === 'Q' ? gm.q * (obra.find((x) => x.id === id)?.psi?.[0] ?? b.norma.psiQ?.[0] ?? 0.5) : fat[ic]));
   const c = concretoDe(b, 'laje'), fyP = acoDe(b, 'lajePuncao').fyd, fywd = Math.min(fyP, op.puncaoTipoArmadura ? 300 : 250);
   const out: ResultadoPuncao[] = [];
   const memo = new Map<unknown, Map<string, ResultadoPuncao>>();
@@ -576,7 +600,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       if (!reac) continue;
       const F = an.casos.reduce((s, id, ic) => s + fat[ic] * (reac[id] ?? 0), 0);
       if (F <= 0) continue;
-      const Mx = momentosDoNo(g, st.centro, fat) ?? [0, 0];
+      const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gm.q) : momentosDoNo(g, st.centro, fat) ?? [0, 0];
       // eixos do pilar: u ao longo de b. Momento em torno de u tem excentricidade ao longo de v, e vice-versa
       const a = (p.angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
       const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
