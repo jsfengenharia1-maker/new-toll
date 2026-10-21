@@ -38,28 +38,30 @@ function TabelaDeVigas({ t, grava }: { t: TabelaVigas; grava: (t: Tabela) => voi
     <td className="tl">
       <Escolha valor={g.bitolas} ref_={BITOLAS_TABELA.vigas} rotulo={`${face === 'pos' ? 'Positivos' : 'Negativos'} do grupo ${i + 1}`} onChange={(v) => set(i, (l) => { l[face].bitolas = v; })} />
       <span className="row">
-        <span className="small">n ≥</span><NumCell value={g.nMin} onChange={(v) => set(i, (l) => { l[face].nMin = Math.round(v); })} />
-        <span className="small">camadas ≤</span><NumCell value={g.camadas} onChange={(v) => set(i, (l) => { l[face].camadas = Math.round(v); })} />
+        <span className="small">n ≥</span><NumCell label={`n mínimo ${face === 'pos' ? 'positivos' : 'negativos'} do grupo ${i + 1}`} value={g.nMin} onChange={(v) => set(i, (l) => { l[face].nMin = Math.round(v); })} />
+        <span className="small">camadas ≤</span><NumCell label={`Camadas ${face === 'pos' ? 'positivos' : 'negativos'} do grupo ${i + 1}`} value={g.camadas} onChange={(v) => set(i, (l) => { l[face].camadas = Math.round(v); })} />
       </span>
     </td>
   );
   return (
     <>
+      <div className="tablewrap">
       <table className="data quadro" data-tabela="vigas">
         <thead><tr><th>Grupo</th><th>b até (cm)</th><th>h até (cm)</th><th>Positivos (φ mm)</th><th>Negativos (φ mm)</th><th>Passante (%)</th><th /></tr></thead>
         <tbody>
           {t.linhas.map((l, i) => (
             <tr key={i}>
               <td className="num">{i + 1}</td>
-              <td><NumCell value={lim(l.bAte)} onChange={(v) => set(i, (x) => { x.bAte = deLim(v); })} /></td>
-              <td><NumCell value={lim(l.hAte)} onChange={(v) => set(i, (x) => { x.hAte = deLim(v); })} /></td>
+              <td><NumCell label={`b até do grupo ${i + 1}`} value={lim(l.bAte)} onChange={(v) => set(i, (x) => { x.bAte = deLim(v); })} /></td>
+              <td><NumCell label={`h até do grupo ${i + 1}`} value={lim(l.hAte)} onChange={(v) => set(i, (x) => { x.hAte = deLim(v); })} /></td>
               {grupo(i, 'pos', l.pos)}{grupo(i, 'neg', l.neg)}
-              <td><NumCell value={+(l.passante * 100).toFixed(1)} onChange={(v) => set(i, (x) => { x.passante = v / 100; })} /></td>
+              <td><NumCell label={`Passante do grupo ${i + 1}`} value={+(l.passante * 100).toFixed(1)} onChange={(v) => set(i, (x) => { x.passante = v / 100; })} /></td>
               <td><Button variant="danger" aria-label={`Remover grupo ${i + 1}`} disabled={t.linhas.length < 2} onClick={() => { const c = clone(t); c.linhas.splice(i, 1); grava(c); }}>×</Button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <div className="row wrap"><Button onClick={() => { const c = clone(t), u = c.linhas.at(-1)!; c.linhas.push(clone({ ...u, bAte: SEM_LIMITE })); if (c.linhas.length > 1) c.linhas[c.linhas.length - 2].bAte = Math.min(c.linhas[c.linhas.length - 2].bAte, 40); grava(c); }}>Adicionar grupo</Button></div>
       <Hint>Cada grupo vale para a primeira faixa que contém b e h da viga (0 = sem limite). As barras são as de menor número de camadas, depois menor área, entre as bitolas marcadas; n ≥ é o mínimo de barras. Passante: fração das barras inferiores que vai de apoio a apoio (NBR 6118, 18.3.2.4: ≥ 1/3 do vão positivo). Sem solução na tabela: φ25 e erro FORA_TABELA.</Hint>
     </>
@@ -70,22 +72,24 @@ function TabelaDeEstribos({ t, grava }: { t: TabelaEstribos; grava: (t: Tabela) 
   const set = (i: number, f: (l: TabelaEstribos['linhas'][number]) => void) => { const c = clone(t); f(c.linhas[i]); grava(c); };
   return (
     <>
+      <div className="tablewrap">
       <table className="data quadro" data-tabela="estribos">
         <thead><tr><th>Grupo</th><th>b até (cm)</th><th>Bitolas (φ mm)</th><th>s mín (cm)</th><th>s máx (cm)</th><th>Ramos</th><th /></tr></thead>
         <tbody>
           {t.linhas.map((l, i) => (
             <tr key={i}>
               <td className="num">{i + 1}</td>
-              <td><NumCell value={lim(l.bAte)} onChange={(v) => set(i, (x) => { x.bAte = deLim(v); })} /></td>
+              <td><NumCell label={`b até do grupo de estribos ${i + 1}`} value={lim(l.bAte)} onChange={(v) => set(i, (x) => { x.bAte = deLim(v); })} /></td>
               <td className="tl"><Escolha valor={l.bitolas} ref_={BITOLAS_TABELA.estribos} rotulo={`Bitolas do grupo ${i + 1}`} onChange={(v) => set(i, (x) => { x.bitolas = v; })} /></td>
-              <td><NumCell value={l.sMin} onChange={(v) => set(i, (x) => { x.sMin = v; })} /></td>
-              <td><NumCell value={l.sMax} onChange={(v) => set(i, (x) => { x.sMax = v; })} /></td>
+              <td><NumCell label={`s mín dos estribos do grupo ${i + 1}`} value={l.sMin} onChange={(v) => set(i, (x) => { x.sMin = v; })} /></td>
+              <td><NumCell label={`s máx dos estribos do grupo ${i + 1}`} value={l.sMax} onChange={(v) => set(i, (x) => { x.sMax = v; })} /></td>
               <td className="tl"><Escolha valor={l.ramos} ref_={RAMOS_ESTRIBO} rotulo={`Ramos do grupo ${i + 1}`} onChange={(v) => set(i, (x) => { x.ramos = v; })} /></td>
               <td><Button variant="danger" aria-label={`Remover grupo ${i + 1}`} disabled={t.linhas.length < 2} onClick={() => { const c = clone(t); c.linhas.splice(i, 1); grava(c); }}>×</Button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <div className="row wrap"><Button onClick={() => { const c = clone(t); c.linhas.at(-1)!.bAte = Math.min(c.linhas.at(-1)!.bAte, 40); c.linhas.push({ ...clone(c.linhas.at(-1)!), bAte: SEM_LIMITE }); grava(c); }}>Adicionar grupo</Button></div>
       <Hint>Ramos 2 = estribo simples, 4 = duplo, 6 = triplo. Para cada número de ramos, do menor ao maior, vale a menor bitola cujo espaçamento (até o máximo da tabela e da NBR 6118, 17.4.1.1.1 e 18.3.3.2; 0 = só a norma) fica a partir do mínimo. Sem solução: erro FORA_TABELA.</Hint>
     </>
@@ -96,25 +100,27 @@ function TabelaDePilares({ t, grava }: { t: TabelaPilares; grava: (t: Tabela) =>
   const set = (f: (p: TabelaPilares) => void) => { const c = clone(t); f(c); grava(c); };
   return (
     <>
-      <div className="stack" data-tabela="pilares">
+      <div data-tabela="pilares">
         <p className="small"><b>Bitolas longitudinais (φ mm)</b></p>
         <Escolha valor={t.bitolas} ref_={BITOLAS_TABELA.pilares} rotulo="Bitolas dos pilares" onChange={(v) => set((p) => { p.bitolas = v; })} />
         <p className="small"><b>Espaçamentos entre barras (cm)</b></p>
         <Escolha valor={t.espacamentos} ref_={ESPACAMENTOS_PILAR} rotulo="Espaçamentos dos pilares" onChange={(v) => set((p) => { p.espacamentos = v; })} />
       </div>
+      <div className="tablewrap">
       <table className="data quadro">
         <thead><tr><th>Estribo para φ longitudinal até (mm)</th><th>φt (mm)</th><th>s máx (cm)</th><th /></tr></thead>
         <tbody>
           {t.estribos.map((e, i) => (
             <tr key={i}>
-              <td><NumCell value={e.phiAte} onChange={(v) => set((p) => { p.estribos[i].phiAte = v; })} /></td>
+              <td><NumCell label={`φ longitudinal até do estribo ${i + 1}`} value={e.phiAte} onChange={(v) => set((p) => { p.estribos[i].phiAte = v; })} /></td>
               <td><select aria-label={`φt da linha ${i + 1}`} value={e.phiT} onChange={(ev) => set((p) => { p.estribos[i].phiT = Number(ev.target.value); })}>{BITOLAS_TABELA.estribos.map((x) => <option key={x} value={x}>{f1(x)}</option>)}</select></td>
-              <td><NumCell value={e.sMax} onChange={(v) => set((p) => { p.estribos[i].sMax = v; })} /></td>
+              <td><NumCell label={`s máx do estribo ${i + 1}`} value={e.sMax} onChange={(v) => set((p) => { p.estribos[i].sMax = v; })} /></td>
               <td><Button variant="danger" aria-label={`Remover estribo ${i + 1}`} onClick={() => set((p) => { p.estribos.splice(i, 1); })}>×</Button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <div className="row wrap"><Button onClick={() => set((p) => { p.estribos.push({ phiAte: 25, phiT: 6.3, sMax: 0 }); })}>Adicionar linha de estribo</Button></div>
       <Hint>Em cada bitola, as disposições são testadas do menor ao maior número de barras (espaçamentos marcados); vale a primeira que atende, com a simetria da opção “Simetria da armadura dos pilares”. Estribo: o φt da tabela é o mínimo (além de φℓ/4 e φ5) e o s máx limita o espaçamento da NBR 6118, 18.4.2; sem linha, vale só a norma e os grampos da 18.2.4 são automáticos. Sem disposição na tabela: armadura própria (aviso) ou ARM_MANUAL.</Hint>
     </>
@@ -125,21 +131,23 @@ function TabelaDeLajes({ t, grava }: { t: TabelaLajes; grava: (t: Tabela) => voi
   const set = (i: number, f: (l: TabelaLajes['linhas'][number]) => void) => { const c = clone(t); f(c.linhas[i]); grava(c); };
   return (
     <>
+      <div className="tablewrap">
       <table className="data quadro" data-tabela="lajes">
         <thead><tr><th>Faixa</th><th>h até (cm)</th><th>Bitolas (φ mm)</th><th>s mín (cm)</th><th>s máx (cm)</th><th /></tr></thead>
         <tbody>
           {t.linhas.map((l, i) => (
             <tr key={i}>
               <td className="num">{i + 1}</td>
-              <td><NumCell value={lim(l.hAte)} onChange={(v) => set(i, (x) => { x.hAte = deLim(v); })} /></td>
+              <td><NumCell label={`h até da faixa ${i + 1}`} value={lim(l.hAte)} onChange={(v) => set(i, (x) => { x.hAte = deLim(v); })} /></td>
               <td className="tl"><Escolha valor={l.bitolas} ref_={BITOLAS_TABELA.lajes} rotulo={`Bitolas da faixa ${i + 1}`} onChange={(v) => set(i, (x) => { x.bitolas = v; })} /></td>
-              <td><NumCell value={l.sMin} onChange={(v) => set(i, (x) => { x.sMin = v; })} /></td>
-              <td><NumCell value={l.sMax} onChange={(v) => set(i, (x) => { x.sMax = v; })} /></td>
+              <td><NumCell label={`s mín da faixa ${i + 1}`} value={l.sMin} onChange={(v) => set(i, (x) => { x.sMin = v; })} /></td>
+              <td><NumCell label={`s máx da faixa ${i + 1}`} value={l.sMax} onChange={(v) => set(i, (x) => { x.sMax = v; })} /></td>
               <td><Button variant="danger" aria-label={`Remover faixa ${i + 1}`} disabled={t.linhas.length < 2} onClick={() => { const c = clone(t); c.linhas.splice(i, 1); grava(c); }}>×</Button></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <div className="row wrap"><Button onClick={() => { const c = clone(t); c.linhas.at(-1)!.hAte = Math.min(c.linhas.at(-1)!.hAte, 20); c.linhas.push({ ...clone(c.linhas.at(-1)!), hAte: SEM_LIMITE }); grava(c); }}>Adicionar faixa</Button></div>
       <Hint>Faixas de espessura da laje maciça (h até; 0 = sem limite). s mín e s máx 0 = pelas opções de lajes e pela NBR 6118, 20.1 (mín(2h; 20 cm)). As faixas de espessura são premissa a confirmar. Armadura que não cabe: aviso FORA_TABELA_LAJE.</Hint>
     </>

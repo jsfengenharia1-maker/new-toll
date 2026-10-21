@@ -206,9 +206,12 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
-    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
+    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
   };
 }
+/** Elementos com armadura fora das tabelas de armadura (R7a): fora de tabela ou armadura manual necessária. */
+const foraTabela = (d: { vigas: { mensagens: string[] }[]; pilares: { mensagens: string[] }[]; lajes: { mensagens: string[] }[] }) =>
+  [...d.vigas, ...d.pilares, ...d.lajes].filter((x) => x.mensagens.some((m) => /^(Fora de tabela|Armadura manual necessária)/.test(m))).length;
 const contaStatus = (xs: { status: string }[]) => ({ total: xs.length, ok: xs.filter((x) => x.status === 'ok').length, revisar: xs.filter((x) => x.status === 'review').length, naoAtende: xs.filter((x) => x.status === 'fail').length });
 
 const SAIDA_LIVRE = { type: 'object' };

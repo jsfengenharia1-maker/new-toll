@@ -963,3 +963,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 126 → 134; Parcial 121 → 121; Falta 331 → 323; Fora 185 → 185.
   - Pendências por frente: V 42 → 34 (Parcial 7 → 7, Falta 35 → 27); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
+- **20/10/2026 — fatia R7a (tabelas de armadura editáveis, núcleo e interface).** C13.1, C13.2, C13.3 e C13.5 passam a Feito: tabelas de vigas, estribos, pilares e lajes (`src/core/building/tabelasArmadura.ts`, comandos `tabela.definir` e `tabela.restaurar`, grupo Tabelas de armadura, importar e exportar JSON, atalho da lista de erros), erros FORA_TABELA e ARM_MANUAL e avisos FORA_TABELA_PILAR e FORA_TABELA_LAJE.
+  - Situação: Feito 143 → 147; Parcial 126 → 125; Falta 309 → 306; Fora 185 → 185.
+  - Pendências por frente: R 41 → 37; demais sem mudança.

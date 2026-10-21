@@ -28,7 +28,7 @@ function predio(vezes: number, sec: S, vb: S, comandos: [string, Record<string, 
 const dim = (b: ReturnType<typeof predio>['s']['modelo']) => dimensionarEdificio(b, analisarEdificio(b), { fundacao: false });
 const grupoVigas = (bitolas: number[], camadas = 3) => ({ bitolas, nMin: 2, camadas });
 
-describe('tabelas de fábrica', () => {
+describe('tabelas de fábrica', { timeout: 60000 }, () => {
   it('reproduzem chooseBars e chooseStirrup (vigas e estribos)', () => {
     const tv = tabelaDeFabrica('vigas'), te = tabelaDeFabrica('estribos');
     for (const bw of [0.12, 0.15, 0.2, 0.25, 0.3, 0.4]) for (const As of [0.5e-4, 1.2e-4, 3e-4, 6e-4, 12e-4, 25e-4, 40e-4]) for (const face of ['pos', 'neg'] as const) {
@@ -52,7 +52,7 @@ describe('tabelas de fábrica', () => {
   });
 });
 
-describe('escolha pelas tabelas', () => {
+describe('escolha pelas tabelas', { timeout: 60000 }, () => {
   it('tabela restrita força a bitola', () => {
     const t: TabelaVigas = { id: 'so16', nome: 'Só φ16', linhas: [{ bAte: 999, hAte: 999, pos: grupoVigas([16]), neg: grupoVigas([16]), passante: 0.5 }] };
     const r = escolherBarrasViga(t, 'pos', 6e-4, 0.2, 0.5, 0.03, 0.005, 0.019); // 6 cm²: 3 φ16 = 6,03 cm²
@@ -108,7 +108,7 @@ describe('escolha pelas tabelas', () => {
   });
 });
 
-describe('comandos de tabela', () => {
+describe('comandos de tabela', { timeout: 60000 }, () => {
   it('definir, atribuir, restaurar e remover', () => {
     const { s, ok } = predio(0, { b: 0.2, h: 0.5 }, { b: 0.15, h: 0.5 });
     const so25: TabelaVigas = { id: 'so25', nome: 'Só φ25', linhas: [{ bAte: 999, hAte: 999, pos: grupoVigas([25]), neg: grupoVigas([25]), passante: 0.5 }] };

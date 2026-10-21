@@ -51,8 +51,8 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | FU6 radier e vigas sobre base elástica | O | S2 |
 | FU7a sapata corrida | S3 | S1 |
 | FU7b fundação de muros | S3 | S1 |
-| R7-0 (em andamento, O) | — | — |
-| R7a, R7b, R7c, R7d, R7f, R7g | S2 | S1 |
+| R7-0 (concluída em 20/10/2026) | — | — |
+| R7a (concluída em 20/10/2026), R7b, R7c, R7d, R7f, R7g | S2 | S1 |
 | R7e uniformização e linhas de dobra | S3 | S2 |
 | N2a ações e combinações | S3 | S1 |
 | N2b modelo integrado e casca | O | S1 |
@@ -125,3 +125,4 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 - 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 pendente (agente de interface da FU2/FU3).
 
 - 20/10/2026: V1 concluída (núcleo e interface): vista 3D do edifício com three.js 0.186.1 vendorizado (`scripts/vendor-three.mjs`, `public/vendor/three-0.186.1.mjs`, 623 KB, sob demanda, fora do `dist/index.html`), cena por função pura em `src/core/vista3d/` com geradores registrados (`GERADORES_3D`), aba 3D com escopo por grupo, intervalo ou pavimento, tipos, transparência, perspectiva/isométrica, caminhar, seleção sincronizada com a planta, captura PNG e fallback em SVG isométrico (artifact do claude.ai ou sem WebGL); figura isométrica no memorial; C3.35–C3.41 e C7.18 fechados; e2e `V1`. Seguem V2 e V3 (podem rodar em paralelo), depois V4 e V5.
+- 20/10/2026: R7a concluída (núcleo e interface): tabelas de armadura editáveis para vigas, estribos, pilares e lajes (fábrica + do usuário, atribuição por elemento, importar e exportar JSON, atalho da lista de erros, memorial), erros FORA_TABELA e ARM_MANUAL e avisos de fora de tabela, simetria dos pilares por tolerância (opção `pilarSimetria`: sistema 0 %, perfil NBR sempre simétrica) e estribos de 2, 4 e 6 ramos; e2e `R7a`. Resultados de pilares do perfil do sistema mudam (menos aço); o do perfil NBR reproduz os anteriores. Fica para a R7f o `calculo: 'detalhe'` (rearmar sem nova análise). Próxima: R7b.

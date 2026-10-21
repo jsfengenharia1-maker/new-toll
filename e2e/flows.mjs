@@ -1809,4 +1809,95 @@ export const flows = [
       assert.match(await page.locator('.v3d-sel-info').innerText(), /Selecionado:\s+P\d/);
     },
   },
+  {
+    name: 'R7a: tabelas de armadura (bitola restrita muda a viga, tabela impossível gera FORA_TABELA com atalho, restaurar, exportar e importar JSON, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const calcular = async () => {
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+        await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      };
+      await calcular();
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      const antes = await cardVigas.locator('tbody tr').first().innerText();
+      assert.ok(!/φ25/.test(antes), `esperava a viga sem φ25 antes da tabela: ${antes}`);
+      // grupo Tabelas de armadura (fechado) e a aba de vigas
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Tabelas de armadura' }) }).first();
+      await g.locator('summary').click();
+      const tabela = g.locator('table[data-tabela="vigas"]');
+      await tabela.waitFor();
+      const chips = (rot) => g.getByRole('group', { name: rot });
+      const so = async (rot, phi) => {
+        const grupo = chips(rot);
+        for (const t of ['8', '10', '12,5', '16', '20', '25', '32']) {
+          const b = grupo.getByRole('button', { name: t, exact: true });
+          const ligado = (await b.getAttribute('aria-pressed')) === 'true';
+          if (ligado !== (t === phi)) await b.click();
+        }
+      };
+      // só φ25 nos positivos e nos negativos do grupo 1 (b ≤ 20 cm): a viga passa a usar φ25
+      await so('Positivos do grupo 1', '25');
+      await so('Negativos do grupo 1', '25');
+      assert.match(await g.locator('[data-tabelas-alteradas]').innerText(), /Vigas \(barras\): Padrão \(padrão alterada\)|Padrão/);
+      await calcular();
+      const depois = await cardVigas.locator('tbody tr').first().innerText();
+      assert.match(depois, /φ25/);
+      // tabela impossível (só φ8, 6 barras em uma camada): erro FORA_TABELA na lista e atalho que abre a tabela
+      await so('Positivos do grupo 1', '8');
+      const cam = g.getByLabel('Camadas positivos do grupo 1'), nmin = g.getByLabel('n mínimo positivos do grupo 1');
+      await cam.fill('1'); await cam.press('Enter');
+      await nmin.fill('6'); await nmin.press('Enter'); // 6 φ8 não cabem em uma camada de 20 cm
+      await calcular();
+      const lista = page.locator('[data-lista-erros]');
+      const linhaErro = lista.locator('tbody tr.bad', { hasText: 'FORA_TABELA' }).first();
+      await linhaErro.waitFor();
+      assert.match(await linhaErro.innerText(), /Fora de tabela \(barras\)/);
+      await g.locator('summary').click(); // fecha o grupo para ver o atalho abrir
+      await linhaErro.locator('[data-atalho-tabela]').click();
+      await page.waitForFunction(() => document.querySelector('[data-grupo-tabelas] details')?.open === true);
+      assert.equal(await g.locator('table[data-tabela="vigas"]').count(), 1);
+      // restaurar a padrão de fábrica: some o erro e a lista de alteradas
+      await g.getByRole('button', { name: 'Restaurar a padrão de fábrica' }).click();
+      assert.equal(await g.locator('[data-tabelas-alteradas]').count(), 0);
+      await calcular();
+      assert.equal(await lista.locator('tbody tr.bad, tbody tr.warn', { hasText: 'FORA_TABELA' }).count(), 0);
+      assert.ok(!/φ25/.test(await cardVigas.locator('tbody tr').first().innerText()));
+      // altera de novo, exporta o JSON, restaura e importa de volta
+      await so('Positivos do grupo 1', '20');
+      const { name, text } = await downloadText(page, () => g.getByRole('button', { name: 'Exportar JSON' }).click());
+      assert.match(name, /tabelas-armadura.*\.json$/);
+      const j = JSON.parse(text);
+      assert.equal(j.formato, 'statikos-tabelas-armadura');
+      assert.equal(j.tabelas[0].tipo, 'vigas');
+      assert.deepEqual(j.tabelas[0].tabela.linhas[0].pos.bitolas, [20]);
+      await g.getByRole('button', { name: 'Restaurar a padrão de fábrica' }).click();
+      assert.equal(await g.locator('[data-tabelas-alteradas]').count(), 0);
+      await g.getByLabel('Arquivo de tabelas de armadura').setInputFiles({ name: 'tabelas.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await g.locator('[data-tabelas-alteradas]').waitFor();
+      // arquivo inválido: mensagem e nada importado
+      await g.getByLabel('Arquivo de tabelas de armadura').setInputFiles({ name: 'ruim.json', mimeType: 'application/json', buffer: Buffer.from('{"formato": "outro"}') });
+      await g.locator('[data-erros-importacao]').waitFor();
+      // duplicar como nova tabela, remover e as abas dos outros elementos
+      await g.getByRole('button', { name: 'Duplicar como nova tabela' }).click();
+      assert.match(await g.locator('select').first().innerText(), /\(cópia\)/);
+      await g.getByRole('button', { name: 'Remover tabela' }).click();
+      for (const [aba, t] of [['Estribos de vigas', 'estribos'], ['Pilares', 'pilares'], ['Lajes', 'lajes']]) {
+        await g.getByRole('radio', { name: aba, exact: true }).click();
+        await g.locator(`[data-tabela="${t}"]`).waitFor();
+      }
+      // memorial: seção das tabelas alteradas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /Tabelas de armadura/);
+      assert.match(await memo.textContent(), /Tolerância de simetria da armadura dos pilares: 0 %/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];
