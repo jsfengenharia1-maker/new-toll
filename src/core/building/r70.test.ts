@@ -235,8 +235,10 @@ describe('logo no carimbo', () => {
 });
 
 describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes maciças)', () => {
-  // valores do cálculo em 20/10/2026 (antes e depois da otimização do núcleo da R7-0, idênticos)
+  // valores do cálculo em 20/10/2026 (antes e depois da otimização do núcleo da R7-0, idênticos), com o modelo separado:
+  // desde a N2b o padrão é o modelo integrado; as opções do modelo anterior reproduzem estes valores exatamente
   const { s } = predio(5);
+  s.executar('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0 } });
   const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
   it('γz, deslocamento do topo e reações', () => {
     expect(s.modelo.pavimentos).toHaveLength(10);
@@ -270,6 +272,44 @@ describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes 
     const l1 = d.lajes.find((x) => x.nome === 'L1')!;
     expect(l1.mPos[0]).toBeCloseTo(6.6033, 3);
     expect(l1.mNeg[0]).toBeCloseTo(-11.093, 2);
+  });
+});
+
+describe('regressão N2b: o mesmo edifício no modelo integrado (padrão do sistema)', () => {
+  // valores de 21/10/2026 (N2b). Diferenças para o modelo separado (bloco acima): γz 1,1850 → 1,1784 e 1,0614 → 1,0539,
+  // topo −2,3 %, V2 Mpos −11 % e Mneg −7,6 % (as lajes ligadas aos pilares entram no pórtico e tiram momento de vento das
+  // vigas), N do P1 +1,1 %, Nd do P5 −1,6 %, L1 mNeg +2,6 %. Com vigas muito rígidas os dois modelos coincidem (< 0,2 %).
+  const { s } = predio(5);
+  const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
+  it('γz, deslocamento do topo e reações', () => {
+    expect(an.opcoes.modeloGlobal).toBe(1);
+    expect(an.grelhas.filter((g) => g.integrado)).toHaveLength(8); // pavimentos do grupo com lajes
+    const gz = an.vento!.gamaZ;
+    expect(gz[0].max).toBeCloseTo(1.17836, 4);
+    expect(gz[0].ampliacao).toBeCloseTo(1.11945, 4);
+    expect(gz[1].max).toBeCloseTo(1.05394, 4);
+    expect(an.vento!.deslocamentos!.find((x) => x.direcao === 0)!.topo * 1000).toBeCloseTo(11.838, 2);
+    // equilíbrio: soma das reações = carga total (as cargas das lajes chegam pelos superelementos)
+    const soma = (c: string) => an.fundacao.filter((f) => f.caso === c).reduce((t, f) => t + f.N, 0);
+    expect(soma('G') / 6390 - 1).toBeLessThan(1e-9);
+    expect(Math.abs(soma('Q') / 1620 - 1)).toBeLessThan(1e-9);
+    const p1 = an.fundacao.filter((f) => f.pilar === s.modelo.pilares[0].id);
+    expect(p1.find((f) => f.caso === 'G')!.N).toBeCloseTo(301.964, 2);
+    expect(p1.find((f) => f.caso === 'W0°')!.My).toBeCloseTo(-33.566, 2);
+    expect(p1.find((f) => f.caso === 'W90°')!.Mx).toBeCloseTo(59.613, 2);
+  });
+  it('vigas, pilares e lajes', () => {
+    const v2 = d.vigas.find((x) => x.nome === 'V2')!;
+    expect(v2.Mpos).toBeCloseTo(58.399, 2);
+    expect(v2.Mneg).toBeCloseTo(-92.010, 2);
+    expect(v2.V).toBeCloseTo(75.813, 2);
+    expect([v2.barrasInf, v2.barrasSup, v2.estribo]).toEqual(['2 φ16', '2 φ20', 'φ5 c/22']);
+    const p5 = d.pilares.filter((x) => x.pilar === s.modelo.pilares[4].id);
+    expect(p5.map((x) => x.armadura)).toEqual(['14 φ16', '14 φ16', '10 φ16', '14 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10']);
+    expect(p5[0].Nd).toBeCloseTo(1759.514, 2);
+    const l1 = d.lajes.find((x) => x.nome === 'L1')!;
+    expect(l1.mPos[0]).toBeCloseTo(6.6599, 3);
+    expect(l1.mNeg[0]).toBeCloseTo(-11.384, 2);
   });
 });
 

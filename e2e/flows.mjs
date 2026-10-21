@@ -1768,12 +1768,12 @@ export const flows = [
       const linhas = grupo.locator('table[data-fundacoes] tbody tr');
       assert.equal(await linhas.count(), 3);
 
-      // limite: divisa vertical a 30 cm do eixo de P1, à esquerda dele (tecla T)
+      // limite: divisa vertical a 15 cm do eixo de P1 (com o modelo integrado a resultante P1 + P2 fica mais perto de P2 e a sapata, mais curta à esquerda), à esquerda dele (tecla T)
       await page.locator('.planta-st').click();
       await page.keyboard.press('t');
       assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'limite');
-      await page.mouse.click(...(await telaDe(page, -0.3, 0.9)));
-      await page.mouse.click(...(await telaDe(page, -0.3, -0.2)));
+      await page.mouse.click(...(await telaDe(page, -0.15, 0.9)));
+      await page.mouse.click(...(await telaDe(page, -0.15, -0.2)));
       await page.keyboard.press('Enter');
       await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (2 vértices)' }).waitFor();
       const tabL = grupo.locator('table[data-limites-tabela] tbody tr');
@@ -2959,6 +2959,46 @@ export const flows = [
       assert.equal(await det.locator('table[data-tabela-linhas-dobra] tbody tr').count(), 1);
       await painel.locator('[data-fechar-painel-lajes]').click();
       assert.equal(await page.locator('[data-painel-edicao-lajes]').count(), 0);
+    },
+  },
+  {
+    name: 'N2b: modelo integrado (lajes condensadas no pórtico) em uso, opção no grupo Opções e volta ao modelo separado',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // opção no grupo Opções de cálculo, ligada por padrão (padrão do sistema)
+      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      const opcao = page.getByLabel('Modelo integrado (lajes no pórtico)');
+      assert.equal(await opcao.isChecked(), true);
+      assert.equal(await page.getByLabel('Deformação por cortante nas barras de laje').isChecked(), true);
+      assert.equal(await page.getByLabel('Malha das cascas (tamanho alvo)').inputValue(), '0,5');
+      // análise: indicação do modelo em uso, gdl e tempo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      const linha = page.locator('[data-modelo]');
+      await linha.waitFor();
+      assert.equal(await linha.getAttribute('data-modelo'), 'integrado');
+      assert.match(await linha.textContent(), /Modelo integrado \(\d+ pavimento\(s\) condensados no pórtico\) · \d+ gdl em \d+ ms/);
+      assert.match(await page.locator('.edif-out').textContent(), /superelemento/);
+      // desliga: volta ao modelo separado (comportamento anterior)
+      await opcao.uncheck();
+      await page.locator('summary', { hasText: 'Opções de cálculo (1 alterada)' }).waitFor();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('[data-modelo]')?.getAttribute('data-modelo') === 'separado', null, { timeout: 120000 });
+      assert.match(await page.locator('[data-modelo]').textContent(), /Modelo separado/);
+      // memorial descreve o modelo em uso
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.textContent(), /modelo separado/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
 ];

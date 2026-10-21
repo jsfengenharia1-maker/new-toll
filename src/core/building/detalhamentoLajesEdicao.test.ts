@@ -23,7 +23,7 @@ function lajes(vaos: number[], opts: Record<string, number> = {}, y = 5) {
   const L = xs.at(-1)!;
   ok('lote', { comandos: [[[0, 0], [L, 0]], [[0, y], [L, y]], ...xs.map((x) => [[x, 0], [x, y]])].map((p) => ({ nome: 'viga.tracar', params: { grupo: 'g_3', pontos: p, secao: { b: 0.15, h: 0.45 } } })) });
   ok('laje.detectarPanos', { grupo: 'g_3', tipo: { tipo: 'macica', h: 0.12 } });
-  if (Object.keys(opts).length) ok('opcoes.definir', { valores: opts });
+  ok('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0, ...opts } });
   const dim = () => dimensionarEdificio(s.modelo, analisarEdificio(s.modelo));
   const gp = s.modelo.grupos.find((g) => g.id === 'g_3') ? 'g_3' : s.modelo.lajes[0].grupo;
   return { s, ok, dim, grupo: gp };
@@ -49,8 +49,10 @@ describe('R7e: sem zonas, linhas, edição nem geração o detalhamento é o ant
     expect(digest(t.dim())).toEqual(base.furo);
     const n = lajes([4, 4]);
     n.ok('opcoes.definir', { perfil: 'nbr' });
+    n.ok('opcoes.definir', { padrao: true });
     expect(digest(n.dim())).toEqual(base.nbr);
     const ex = edificioExemplo();
+    ex.executar('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0 } });
     expect(digest(dimensionarEdificio(ex.modelo, analisarEdificio(ex.modelo)))).toEqual(base.ex);
   }, 120000);
 });

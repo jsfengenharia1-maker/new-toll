@@ -1,7 +1,13 @@
 // Gerador do modelo analítico (função pura): grelha de lajes e vigas por pavimento e pórtico espacial
-// com diafragma rígido. Modelo "separado" (premissa 20): as lajes são resolvidas na grelha e as forças
-// que elas passam às vigas viram cargas do pórtico, junto com o peso das vigas, das paredes e dos pilares.
-import { resolver3, type Barra3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
+// com diafragma rígido. Dois modelos (opção `modeloGlobal`, N2b):
+// - integrado (padrão do sistema, como no programa de referência): a grelha de cada pavimento vira superelemento do
+//   pórtico (condensação estática exata nos nós dos pilares, condensacao.ts); pórtico e lajes resolvidos juntos, com
+//   os esforços das vigas e lajes incluindo as ações horizontais;
+// - separado (premissa 20, o comportamento anterior): as lajes são resolvidas na grelha com molas nos pilares e as
+//   forças que elas passam às vigas viram cargas do pórtico, junto com o peso das vigas, das paredes e dos pilares.
+import { elementoBarra, resolver3, rigidezCondensada, type Barra3, type Caso3, type ElementoBarra, type Modelo3, type Resultado3, type V3 } from '../fe3d';
+import { condensar, forcaFronteira, recuperarInternos, type Condensado } from '../condensacao';
+import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
@@ -175,6 +181,144 @@ export interface GrelhaPavimento {
   /** Reações verticais (kN, para cima) por pilar e caso. */
   reacoes: Record<string, Record<CasoAnalise, number>>;
   carga: Record<CasoAnalise, number>;
+  /** Modelo integrado: a grelha foi resolvida junto com o pórtico (superelemento). */
+  integrado?: boolean;
+  /** Modelo integrado: momentos (Mx, My globais, kN·m) que a laje transmite a cada pilar, por caso (inclusive vento). */
+  momentos?: Record<string, Record<string, [number, number]>>;
+}
+
+/** Modelo-base da grelha de um grupo (malha, barras, cargas e apoios), comum aos pavimentos com os mesmos pilares. */
+interface GrelhaBase {
+  m: Modelo3; tags: BarraGrelha[]; casos: Caso3[];
+  /** Nó da planta → pilar (apoio das vigas ou nó do pilar sem viga). */
+  apoio: Map<number, string>;
+  /** Nó da planta → nó da grelha. */
+  idx: Map<number, number>;
+  nos: NoPlanta[]; trechos: TrechoViga[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[]; achar: (p: P, viga?: boolean) => number };
+  carga: Record<CasoAnalise, number>; avisos: string[];
+  /** Barra da grelha → trecho de viga (null nas lajes). */
+  trechoDe: (TrechoViga | null)[];
+  /** Pilares presentes no pavimento. */
+  pilares: string[];
+}
+
+/** Grelha do modelo integrado: associação dos nós aos pilares, barras com trecho rígido e a condensação. */
+interface IntegradoGrelha {
+  erro?: string;
+  /** Pilares da fronteira (3 gdl cada: uz, rx, ry) e os centros das suas seções no pavimento. */
+  pils: string[]; centros: P[];
+  /** Nó da grelha → índice do pilar associado (−1 = nó interno). */
+  assoc: Int32Array;
+  /** Nó da grelha → índice do nó interno (−1 = associado). */
+  interno: Int32Array;
+  ni: number;
+  barras: Barra3[]; elems: ElementoBarra[];
+  cond: Condensado;
+  /** Raiz da ligação pelo diafragma (lajes e vigas do diafragma) e nós tocados por lajes. */
+  uniao: Int32Array; comLaje: Uint8Array;
+  /** Cargas distribuídas por barra, por caso. */
+  distDe: Map<number, V3[]>[];
+  /** Condensação com a rigidez reduzida do γz (calculada na primeira vez). */
+  reduzida: () => Condensado;
+  /** Por barra, (k·T) restrita aos gdl uz, rx, ry das duas pontas (12 × 6, por linhas). */
+  kt: Float64Array[];
+}
+
+/** Deslocamentos da grelha (6 por nó; só uz, rx e ry) a partir dos gdl dos pilares da fronteira e do caso (ou sem carga). */
+function deslocGrelha(gb: GrelhaBase, ig: IntegradoGrelha, uB: ArrayLike<number>, k?: number, nos?: number[]): Float64Array {
+  const nn = gb.m.nos.length, ug = new Float64Array(nn * 6);
+  if (nos) {
+    // só alguns nós (as pontas das vigas, no vento): linhas de X desses nós
+    const c = ig.cond, nb = c.nb;
+    for (const n of nos) {
+      const a = ig.assoc[n];
+      if (a >= 0) { const dx = gb.m.nos[n][0] - ig.centros[a][0], dy = gb.m.nos[n][1] - ig.centros[a][1]; ug[n * 6 + 2] = uB[3 * a] + uB[3 * a + 1] * dy - uB[3 * a + 2] * dx; ug[n * 6 + 3] = uB[3 * a + 1]; ug[n * 6 + 4] = uB[3 * a + 2]; continue; }
+      for (let g = 0; g < 3; g++) { const i = 3 * ig.interno[n] + g; let s = k === undefined ? 0 : c.Z[k][i]; for (let b = 0; b < nb; b++) s -= c.X[i * nb + b] * uB[b]; ug[n * 6 + 2 + g] = s; }
+    }
+    return ug;
+  }
+  const uI = recuperarInternos(ig.cond, uB, k);
+  for (let n = 0; n < nn; n++) {
+    const a = ig.assoc[n];
+    if (a < 0) { const o = 3 * ig.interno[n]; ug[n * 6 + 2] = uI[o]; ug[n * 6 + 3] = uI[o + 1]; ug[n * 6 + 4] = uI[o + 2]; continue; }
+    const dx = gb.m.nos[n][0] - ig.centros[a][0], dy = gb.m.nos[n][1] - ig.centros[a][1];
+    ug[n * 6 + 2] = uB[3 * a] + uB[3 * a + 1] * dy - uB[3 * a + 2] * dx; ug[n * 6 + 3] = uB[3 * a + 1]; ug[n * 6 + 4] = uB[3 * a + 2];
+  }
+  return ug;
+}
+
+/** Esforços de extremidade de uma barra da grelha integrada (deslocamentos só fora do plano) e as forças de engastamento. */
+function esforcosGrelha(ig: IntegradoGrelha, bi: number, ug: Float64Array, f0?: number[], f = new Float64Array(12)): Float64Array {
+  const e = ig.elems[bi], kt = ig.kt[bi], d = e.dofs;
+  const u0 = ug[d[2]], u1 = ug[d[3]], u2 = ug[d[4]], u3 = ug[d[8]], u4 = ug[d[9]], u5 = ug[d[10]];
+  for (let r = 0; r < 12; r++) { const o = r * 6; f[r] = kt[o] * u0 + kt[o + 1] * u1 + kt[o + 2] * u2 + kt[o + 3] * u3 + kt[o + 4] * u4 + kt[o + 5] * u5 + (f0 ? f0[r] : 0); }
+  return f;
+}
+
+/**
+ * Modelo integrado sem condensação (para os testes e a validação externa): o pórtico resolvido sem as vigas só no plano,
+ * mais todas as barras das grelhas, com os nós só de laje escravos do diafragma e os nós associados pelo trecho rígido.
+ */
+function modeloCheio(pmV: Modelo3, casosV: Caso3[], detalhes: { pav: string; gb: GrelhaBase; ig: IntegradoGrelha; colNo: number[]; noP: Map<number, number>; porRaiz: Map<number, number> }[], ps: { id: string; cota: number }[], CASOS: string[]) {
+  const m: Modelo3 = { nos: pmV.nos.map((p) => [...p] as V3), barras: [], apoios: new Map(pmV.apoios), escravos: [...(pmV.escravos ?? [])], molas: [...(pmV.molas ?? [])] };
+  const casos: Caso3[] = casosV.map((c) => ({ nodais: c.nodais.map((n) => ({ no: n.no, f: [...n.f] })), distribuidas: [], pontuais: [] }));
+  const novo = new Map<number, number>();
+  pmV.barras.forEach((br, i) => { if (br.soPlano) return; novo.set(i, m.barras.length); const { soPlano: _s, ...rest } = br; m.barras.push(rest); });
+  casosV.forEach((c, ic) => {
+    for (const d of c.distribuidas) { const k = novo.get(d.barra); if (k !== undefined) casos[ic].distribuidas.push({ barra: k, q: d.q }); }
+    for (const p of c.pontuais ?? []) { const k = novo.get(p.barra); if (k !== undefined) casos[ic].pontuais!.push({ ...p, barra: k }); }
+  });
+  const mestreDe = new Map((pmV.escravos ?? []).map((e) => [e.no, e.mestre]));
+  const noGrelha: Record<string, number[]> = {};
+  for (const { pav, gb, ig, colNo, noP, porRaiz } of detalhes) {
+    const z = ps.find((p) => p.id === pav)!.cota, nn = gb.m.nos.length, mapa: number[] = [];
+    for (let n = 0; n < nn; n++) {
+      const k = ig.assoc[n];
+      if (k >= 0) { mapa.push(colNo[k]); continue; }
+      let j = noP.get(n);
+      if (j === undefined) {
+        j = m.nos.length;
+        m.nos.push([gb.m.nos[n][0], gb.m.nos[n][1], z]);
+        const r = porRaiz.get(ig.uniao[n]), mt = r !== undefined ? mestreDe.get(r) : undefined;
+        if (mt !== undefined) m.escravos!.push({ no: j, mestre: mt }); else m.apoios.set(j, [0, 1, 5]);
+      }
+      mapa.push(j);
+    }
+    noGrelha[pav] = mapa;
+    const off = (n: number, o: V3 | undefined): V3 | undefined => { const k = ig.assoc[n]; return k < 0 ? o : [gb.m.nos[n][0] - ig.centros[k][0] + (o?.[0] ?? 0), gb.m.nos[n][1] - ig.centros[k][1] + (o?.[1] ?? 0), 0]; };
+    /** Carga vertical (e momentos) num nó da grelha: no nó associado, levada ao nó do pilar com o momento do braço. */
+    const carga = (ic: number, n: number, f: number[]) => {
+      const k = ig.assoc[n];
+      if (k < 0) { casos[ic].nodais.push({ no: mapa[n], f: [0, 0, f[2], f[3], f[4], 0] }); return; }
+      const dx = gb.m.nos[n][0] - ig.centros[k][0], dy = gb.m.nos[n][1] - ig.centros[k][1];
+      casos[ic].nodais.push({ no: mapa[n], f: [0, 0, f[2], f[3] + dy * f[2], f[4] - dx * f[2], 0] });
+    };
+    ig.barras.forEach((br, bi) => {
+      const i = mapa[br.i], j = mapa[br.j], oI = off(br.i, br.offI), oJ = off(br.j, br.offJ);
+      const nb: Barra3 = { ...br, i, j };
+      delete nb.offI; delete nb.offJ;
+      if (oI) nb.offI = oI;
+      if (oJ) nb.offJ = oJ;
+      if (i === j) { const L = Math.hypot((oJ?.[0] ?? 0) - (oI?.[0] ?? 0), (oJ?.[1] ?? 0) - (oI?.[1] ?? 0)); if (L < 1e-9) return; }
+      const k = m.barras.length;
+      m.barras.push(nb);
+      ig.distDe.forEach((mp, ic) => { for (const q of mp.get(bi) ?? []) casos[ic].distribuidas.push({ barra: k, q }); });
+      const t = gb.trechoDe[bi], ig0 = CASOS.indexOf('G');
+      if (t && ig0 >= 0) for (const [o2, n] of [[br.offI, br.i], [br.offJ, br.j]] as const) if (o2) carga(ig0, n, [0, 0, -GAMA_CONCRETO * t.viga.secao.b * t.viga.secao.h * Math.hypot(o2[0], o2[1]), 0, 0, 0]);
+    });
+    gb.casos.forEach((cs, ic) => { for (const nd of cs.nodais) carga(ic, nd.no, nd.f); });
+  }
+  return { modelo: m, casos, noGrelha };
+}
+
+/** Cópia do modelo sem as funções de recuperação dos superelementos (o resultado vai do worker para a interface). */
+const semFuncoes = (m: Modelo3): Modelo3 => (m.superelementos ? { ...m, superelementos: m.superelementos.map(({ dofs, K }) => ({ dofs, K })) } : m);
+
+/** Distância de um ponto ao contorno de um polígono. */
+function distPoligono(p: P, c: P[]) {
+  let d = Infinity;
+  for (let i = 0; i < c.length; i++) d = Math.min(d, distSeg(p, c[i], c[(i + 1) % c.length]));
+  return d;
 }
 
 /** Zona independente de um pavimento no pórtico: nó de aplicação (mestre, ou o próprio nó isolado) e nós da zona. */
@@ -192,7 +336,11 @@ export interface DeslocamentosVento {
 }
 
 /** Barra do pórtico: viga, pilar ou da base elástica (FU6: radier ou viga sobre base elástica; `pavimento` = 'fundacao'). */
-export interface BarraPortico { tipo: 'viga' | 'pilar' | 'fundacao'; ref: string; pavimento: string }
+export interface BarraPortico {
+  tipo: 'viga' | 'pilar' | 'fundacao'; ref: string; pavimento: string;
+  /** Modelo integrado: barra da divisão fina da viga (esforços da grelha condensada; poucas estações no dimensionamento). */
+  fina?: boolean;
+}
 export interface AnaliseEdificio {
   erro?: string;
   avisos: string[];
@@ -213,6 +361,11 @@ export interface AnaliseEdificio {
   casos: CasoAnalise[];
   gdl: number;
   ms: number;
+  /**
+   * Só com `analisarEdificio(b, o, { cheio: true })` (testes e validação externa): o modelo integrado montado sem
+   * condensação (todas as barras das grelhas no pórtico) e os casos verticais, para conferir o superelemento.
+   */
+  cheio?: { modelo: Modelo3; casos: Caso3[]; noGrelha: Record<string, number[]> };
 }
 
 /**
@@ -235,7 +388,7 @@ export function reacoesArranques(b: BuildingModel): AnaliseEdificio['fundacao'] 
   return out;
 }
 
-export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}): AnaliseEdificio {
+export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, extra: { cheio?: boolean } = {}): AnaliseEdificio {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
   const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes, perfilDe(b)), nu: 0.2, ...o };
   // módulo Ecs (kN/m²) por tipo de elemento e, nos pilares, por lance (fck por elemento: materiais.ts)
@@ -249,18 +402,26 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   if (b.pilares.every(ehArranque)) return { ...vazio, erro: 'A obra só tem arranques: calcule só a fundação.', fundacao: reacoesArranques(b) };
 
   // ---- grelhas (uma por pavimento) e geometria das vigas reaproveitada no pórtico ----
+  // O modelo-base da grelha (malha, barras, cargas e apoios) depende só do grupo e dos pilares presentes com as suas
+  // seções: é montado uma vez e reaproveitado nos pavimentos iguais (só as molas dos pilares mudam por pavimento).
   const grelhas: GrelhaPavimento[] = [];
   const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>> }>();
   const CASOS = casosDaObra(b).map((c) => c.id), zeros = () => Object.fromEntries(CASOS.map((c) => [c, 0])) as Record<CasoAnalise, number>;
   const totais = zeros();
   const cargasPavimento: Record<string, Record<CasoAnalise, number>> = Object.fromEntries(ps.map((p) => [p.id, zeros()]));
   const cacheGrelha = new Map<string, Resultado3>();
-  for (const [ip, pav] of ps.entries()) {
-    const grupo = b.grupos.find((g) => g.id === pav.grupo)!;
+  const transfDe = new WeakMap<Resultado3, Record<CasoAnalise, Map<number, number[]>>>();
+  const basesGrelha = new Map<string, GrelhaBase>();
+  const integrado = op.modeloGlobal === 1;
+  /** Pavimentos do modelo integrado: modelo-base da grelha e o seu superelemento. */
+  const integPav = new Map<string, { gb: GrelhaBase; ig: IntegradoGrelha; gi: number }>();
+  const cacheInteg = new Map<GrelhaBase, IntegradoGrelha>();
+  /** Modelo-base da grelha de um grupo com os pilares dados (na seção do lance do pavimento). */
+  const montarBase = (pav: (typeof ps)[number], grupo: (typeof b.grupos)[number], pilares: Pilar[]): GrelhaBase => {
+    const avisosB: string[] = [];
     const vigas = b.vigas.filter((v) => v.grupo === grupo.id);
     const lajes = b.lajes.filter((l) => l.grupo === grupo.id);
     const cargas = b.cargas.filter((c) => c.grupo === grupo.id);
-    const pilares = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav.id));
     const malhas = lajes.map((l) => ({ l, m: malhaLaje(l.contorno, l.tipo.tipo === 'trelicada' ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? []) }));
     // pontos das bordas das malhas e apoios dos pilares dividem as vigas
     const eixos = eixosDasVigas(b, grupo.id) as [P, P][];
@@ -293,15 +454,15 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     // a carga de uso do grupo (e as lançadas como Q) vai para o caso da classe de uso (Q, QB ou QC)
     const casoQ = casoUsoDoGrupo(b, grupo.id);
     const carregar = (c: CasoAnalise, f: (cs: Caso3) => void) => { const i = CASOS.indexOf(c === 'Q' ? casoQ : c); if (i >= 0) f(casos[i]); };
-    const ppBarra = new Map<number, number>(); // barra de viga → peso próprio (kN/m)
+    const trechoDe: (TrechoViga | null)[] = []; // barra da grelha → trecho de viga (null nas lajes)
     for (const t of trechos) {
       const v = t.viga, s = ret(v.secao.b, v.secao.h);
       const bv: Barra3 = { i: no(t.a), j: no(t.z), E: Ev, G: Gv, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
       vincularPontas(bv, t, trechos, nos, [5]);
       m.barras.push(bv);
       tags.push({ tipo: 'viga', ref: v.id });
+      trechoDe.push(t);
       const pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
-      ppBarra.set(m.barras.length - 1, pp);
       carregar('G', (cs) => cs.distribuidas.push({ barra: m.barras.length - 1, q: [0, 0, -pp] }));
     }
     for (const { l, m: mm } of malhas) {
@@ -315,6 +476,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (ids[j] === ids[j + 1]) continue;
           const pr = prop[k];
           const bl: Barra3 = { i: no(ids[j]), j: no(ids[j + 1]), E: El, G: Gl, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J };
+          if (op.cortanteBarrasLaje && pr.As) bl.Ay = pr.As; // Timoshenko (K1.3.22)
           // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)
           for (const [ponta, id] of [['engI', ids[j]], ['engJ', ids[j + 1]]] as const) {
             const a = nos[id].viga && !nos[id].pilar ? engasteBorda(l, nos[id].p, trechos, nos) : 1;
@@ -322,6 +484,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           }
           m.barras.push(bl);
           tags.push({ tipo: 'laje', ref: l.id, dir: k, largura: ln.largura });
+          trechoDe.push(null);
           const bi = m.barras.length - 1, w = ln.largura * share;
           if (!w) continue;
           // cargas de área: grupo + regiões de carga que contêm o meio da barra
@@ -334,7 +497,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           for (const [k, v] of Object.entries(outros)) carregar(k, (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -v * w] }));
         }
       }
-      if (!mm.linhas.length) avisos.push(`${l.nome}: malha vazia.`);
+      if (!mm.linhas.length) avisosB.push(`${l.nome}: malha vazia.`);
       // bordas: a faixa junto ao contorno vai para os nós da borda; borda livre (sem viga) ganha barra de meia faixa
       const sobreViga = (p: P) => trechos.some((t) => { const a = nos[t.a].p, z = nos[t.z].p; if (p[0] < Math.min(a[0], z[0]) - 0.02 || p[0] > Math.max(a[0], z[0]) + 0.02 || p[1] < Math.min(a[1], z[1]) - 0.02 || p[1] > Math.max(a[1], z[1]) + 0.02) return false; const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy; const u = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]) < 0.01; });
       mm.bordas.forEach((e, k) => {
@@ -349,8 +512,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         for (const [cs, v] of [['G', g], ['Q', q], ...Object.entries(outros)] as [string, number][]) carregar(cs, (x) => { x.nodais.push({ no: ia, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }, { no: iz, f: [0, 0, (-v * larg * L) / 2, 0, 0, 0] }); });
         if (!sobreViga(mid)) {
           const w = Math.min(mm.sx, mm.sy) / 2, h = l.tipo.tipo === 'macica' ? l.tipo.h : l.tipo.capa, I = (w * h ** 3) / 12;
-          m.barras.push({ i: ia, j: iz, E: El, G: Gl, A: w * h, Iz: I, Iy: I, J: op.torcaoLaje * 2 * I });
+          const bb: Barra3 = { i: ia, j: iz, E: El, G: Gl, A: w * h, Iz: I, Iy: I, J: op.torcaoLaje * 2 * I };
+          if (op.cortanteBarrasLaje) bb.Ay = (5 / 6) * w * h;
+          m.barras.push(bb);
           tags.push({ tipo: 'laje', ref: l.id, largura: w });
+          trechoDe.push(null);
         }
       });
     }
@@ -366,12 +532,25 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
       for (const { p, f } of pts) { const gi = maisProximo(p); if (gi >= 0) carregar(c.caso, (cs) => cs.nodais.push({ no: gi, f: [0, 0, -f, 0, 0, 0] })); }
     }
-    // apoios: w preso nos pilares, molas de rotação com 4EI/L dos lances de baixo e de cima
+    // apoios: w preso nos pilares (as molas de rotação dos lances, por pavimento, entram em `molasGrelha`)
     for (let gi = 0; gi < m.nos.length; gi++) m.apoios.set(gi, [0, 1, 5]);
+    for (const [i] of apoio) m.apoios.set(no(i), [0, 1, 2, 5]);
+    const carga = zeros();
+    casos.forEach((cs, ic) => {
+      let s = 0;
+      for (const d of cs.distribuidas) { const br = m.barras[d.barra], a = m.nos[br.i], z = m.nos[br.j]; s += -d.q[2] * Math.hypot(z[0] - a[0], z[1] - a[1]); }
+      for (const n of cs.nodais) s += -n.f[2];
+      carga[CASOS[ic]] = s;
+    });
+    if (!m.barras.length) avisosB.push('sem vigas nem lajes (só pilares).');
+    return { m, tags, casos, apoio, idx, nos, trechos, grosso, carga, avisos: avisosB, trechoDe, pilares: pilares.map((p) => p.id) };
+  };
+  /** Molas de rotação dos pilares na grelha do pavimento (4EI/L dos lances de baixo e de cima, com o engaste parcial). */
+  const molasGrelha = (gb: GrelhaBase, ip: number, pav: (typeof ps)[number]) => {
+    const molas: NonNullable<Modelo3['molas']> = [];
     const comMola = new Set<string>();
-    for (const [i, pid] of apoio) {
-      const gi = no(i);
-      m.apoios.set(gi, [0, 1, 2, 5]);
+    for (const [i, pid] of gb.apoio) {
+      const gi = gb.idx.get(i)!;
       if (comMola.has(pid)) continue;
       comMola.add(pid);
       const pil = b.pilares.find((x) => x.id === pid)!;
@@ -388,19 +567,148 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         const Ea = Em('pilar', acima.id);
         kx += (aBase * 4 * Ea * sa.Ix) / (acima.cota - pav.cota); ky += (aBase * 4 * Ea * sa.Iy) / (acima.cota - pav.cota);
       }
-      m.molas!.push({ no: gi, gdl: 3, k: kx }, { no: gi, gdl: 4, k: ky });
+      molas.push({ no: gi, gdl: 3, k: kx }, { no: gi, gdl: 4, k: ky });
     }
-    const carga = zeros();
-    casos.forEach((cs, ic) => {
-      let s = 0;
-      for (const d of cs.distribuidas) { const br = m.barras[d.barra], a = m.nos[br.i], z = m.nos[br.j]; s += -d.q[2] * Math.hypot(z[0] - a[0], z[1] - a[1]); }
-      for (const n of cs.nodais) s += -n.f[2];
-      carga[CASOS[ic]] = s;
+    return molas;
+  };
+  /**
+   * Modelo integrado (N2b): a grelha do pavimento (lajes + vigas, gdl uz, rx e ry) vira superelemento ligado aos nós
+   * dos pilares. Nós da grelha dentro da seção de um pilar (apoios das vigas, nó do pilar sem viga, chegadas de lajes)
+   * ficam associados ao nó do pilar por corpo rígido (K1.3.43: trecho rígido até o eixo); as vigas que saem do pilar
+   * têm trecho rígido até a face menos `trechoRigido`·h, como no pórtico. Condensação estática exata dos demais gdl.
+   */
+  const integrarGrelha = (gb: GrelhaBase, pav: (typeof ps)[number]): IntegradoGrelha => {
+    const { m, casos, trechoDe, tags } = gb;
+    const nn = m.nos.length;
+    const pils = gb.pilares.map((id) => b.pilares.find((p) => p.id === id)!);
+    const geo = pils.map((p) => { const s = secaoNoLance(p, pav.id); return { p, s, cont: contornoPilar(p, s), c: centroPilar(p, s) }; });
+    const gidx = new Map([...gb.idx].map(([i, gi]) => [gi, i]));
+    const assoc0 = new Int32Array(nn).fill(-1);
+    for (let n = 0; n < nn; n++) {
+      const i = gidx.get(n)!, pid = gb.apoio.get(i);
+      if (pid) { assoc0[n] = gb.pilares.indexOf(pid); continue; }
+      const q: P = [m.nos[n][0], m.nos[n][1]];
+      const k = geo.findIndex((g) => dentroPoligono(q, g.cont) || distPoligono(q, g.cont) < 1e-3);
+      if (k >= 0) assoc0[n] = k;
+    }
+    // fronteira: só os pilares com nós associados
+    const usados = [...new Set([...assoc0].filter((k) => k >= 0))].sort((a, z) => a - z);
+    const ren = new Map(usados.map((k, j) => [k, j]));
+    const assoc = assoc0.map((k) => (k >= 0 ? ren.get(k)! : -1));
+    const g2 = usados.map((k) => geo[k]);
+    const interno = new Int32Array(nn).fill(-1);
+    let nI = 0;
+    for (let n = 0; n < nn; n++) if (assoc[n] < 0) interno[n] = nI++;
+    const ni = 3 * nI, nB = 3 * g2.length;
+    // barras da grelha no modelo integrado: vigas com trecho rígido na face dos pilares e liberações nas duas flexões
+    const barras: Barra3[] = m.barras.map((br, bi) => {
+      const t = trechoDe[bi];
+      if (!t) return br;
+      const nb: Barra3 = { ...br };
+      delete nb.engI; delete nb.engJ;
+      vincularPontas(nb, t, gb.trechos, gb.nos, [4, 5]);
+      for (const [ponta, a, z] of [['offI', br.i, br.j], ['offJ', br.j, br.i]] as const) {
+        const k = assoc[a];
+        if (k < 0 || assoc[z] === k) continue;
+        const pa: P = [m.nos[a][0], m.nos[a][1]], pz: P = [m.nos[z][0], m.nos[z][1]];
+        const off = offsetFace(pa, pz, g2[k].p, g2[k].s, op.trechoRigido * t.viga.secao.h, [pa[0], pa[1], 0]);
+        if (off && Math.hypot(off[0], off[1]) > 1e-9) nb[ponta] = off;
+      }
+      return nb;
     });
+    const mZ: Modelo3 = { nos: m.nos, barras, apoios: new Map() };
+    const distDe = casos.map((c) => { const mp = new Map<number, V3[]>(); for (const d of c.distribuidas) { const l = mp.get(d.barra); if (l) l.push(d.q); else mp.set(d.barra, [d.q]); } return mp; });
+    const elems = barras.map((br, bi) => elementoBarra(mZ, br, distDe.map((mp) => mp.get(bi)), []));
+    /** Equações (índice, coeficiente) do gdl g (2 uz, 3 rx, 4 ry) do nó n da grelha. */
+    const mapa = (n: number, g: number): [number, number][] => {
+      const k = assoc[n];
+      if (k < 0) return [[3 * interno[n] + g - 2, 1]];
+      const B = ni + 3 * k, dx = m.nos[n][0] - g2[k].c[0], dy = m.nos[n][1] - g2[k].c[1];
+      // corpo rígido: uz = uzP + rxP·dy − ryP·dx; rx = rxP; ry = ryP
+      return g === 2 ? [[B, 1], [B + 1, dy], [B + 2, -dx]] : [[B + g - 2, 1]];
+    };
+    const LOC = [2, 3, 4, 8, 9, 10];
+    const mapas = barras.map((br) => LOC.map((a) => mapa(a < 6 ? br.i : br.j, a % 6)));
+    /** (k·T) nas colunas fora do plano (12 × 6). */
+    const ktDe = (k: number[][], T: number[][]) => { const o = new Float64Array(72); for (let r = 0; r < 12; r++) for (let c = 0; c < 6; c++) { let v = 0; for (let a = 0; a < 12; a++) v += k[r][a] * T[a][LOC[c]]; o[r * 6 + c] = v; } return o; };
+    const kt = elems.map((e) => ktDe(e.k, e.T));
+    const montarK = (fator?: (bi: number) => { kE: number; f: number }) => {
+      const K: SpRows = Array.from({ length: ni + nB }, () => new Map<number, number>());
+      const Kg = new Float64Array(36);
+      barras.forEach((br, bi) => {
+        const e = elems[bi];
+        let t6 = kt[bi];
+        if (fator) { const { kE, f } = fator(bi); t6 = ktDe(rigidezCondensada({ ...br, E: br.E * kE, G: br.G * kE, Iz: br.Iz * f, Iy: br.Iy * f }, e.L), e.T); }
+        // bloco fora do plano da rigidez global: Kg = T₆ᵀ·(k·T₆)
+        for (let a = 0; a < 6; a++) for (let c = 0; c < 6; c++) { let v = 0; for (let r = 0; r < 12; r++) v += e.T[r][LOC[a]] * t6[r * 6 + c]; Kg[a * 6 + c] = v; }
+        const mp = mapas[bi];
+        for (let a = 0; a < 6; a++) for (let c = 0; c < 6; c++) {
+          const v = Kg[a * 6 + c];
+          if (!v) continue;
+          for (const [ea, ca] of mp[a]) for (const [ec, cc] of mp[c]) spAdd(K, ea, ec, ca * cc * v);
+        }
+      });
+      return K;
+    };
+    const K = montarK();
+    const Pc = CASOS.map(() => new Float64Array(ni + nB));
+    barras.forEach((br, bi) => {
+      const e = elems[bi], mp = mapas[bi];
+      e.f0s.forEach((f0, ic) => {
+        for (let a = 0; a < 6; a++) { let fa = 0; for (let r = 0; r < 12; r++) fa -= e.T[r][LOC[a]] * f0[r]; if (fa) for (const [ea, ca] of mp[a]) Pc[ic][ea] += ca * fa; }
+      });
+      // peso da viga nos trechos rígidos (a carga distribuída atua só na parte flexível)
+      const t = trechoDe[bi];
+      if (t) {
+        const pp = GAMA_CONCRETO * t.viga.secao.b * t.viga.secao.h, ig = CASOS.indexOf('G');
+        for (const [off, n] of [[barras[bi].offI, br.i], [barras[bi].offJ, br.j]] as const) if (off && ig >= 0) for (const [ea, ca] of mapa(n, 2)) Pc[ig][ea] += ca * -pp * Math.hypot(off[0], off[1]);
+      }
+    });
+    casos.forEach((cs, ic) => { for (const nd of cs.nodais) for (const g of [2, 3, 4]) if (nd.f[g]) for (const [ea, ca] of mapa(nd.no, g)) Pc[ic][ea] += ca * nd.f[g]; });
+    const cond = condensar(K, ni, Pc);
+    // ligação do diafragma: nós unidos por lajes e vigas do diafragma
+    const pai = Array.from({ length: nn }, (_, i) => i);
+    const raiz = (k: number): number => (pai[k] === k ? k : (pai[k] = raiz(pai[k])));
+    const comLaje = new Uint8Array(nn);
+    m.barras.forEach((br, bi) => {
+      const t = trechoDe[bi];
+      if (t?.viga.foraDiafragma) return;
+      pai[raiz(br.i)] = raiz(br.j);
+      if (tags[bi].tipo === 'laje') { comLaje[br.i] = 1; comLaje[br.j] = 1; }
+    });
+    const uniao = Int32Array.from({ length: nn }, (_, i) => raiz(i));
+    const kv = (() => { const c = concretoDe(b, 'viga'); return c.Eci / c.Ecs; })(), kl = (() => { const c = concretoDe(b, 'laje'); return c.Eci / c.Ecs; })();
+    let condR: Condensado | null = null;
+    return {
+      ...(cond.erro ? { erro: `modelo integrado: ${cond.erro}` } : {}),
+      pils: g2.map((g) => g.p.id), centros: g2.map((g) => g.c), assoc, interno, ni, barras, elems, cond, uniao, comLaje, distDe,
+      // rigidez reduzida para o γz (NBR 6118, 15.7.3): vigas 0,4·Eci·Ic, lajes 0,3·Eci·Ic
+      reduzida: () => (condR ??= condensar(montarK((bi) => (trechoDe[bi] ? { kE: kv, f: 0.4 } : { kE: kl, f: 0.3 })), ni, [], cond.ordem)),
+      // (k·T) nas colunas fora do plano das duas pontas (uz, rx, ry): esforços da grelha sem a parte no plano (nula)
+      kt,
+    };
+  };
+  for (const [ip, pav] of ps.entries()) {
+    const grupo = b.grupos.find((g) => g.id === pav.grupo)!;
+    const pilares = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav.id));
+    const chaveBase = `${grupo.id}|${pilares.map((p) => `${p.id}:${JSON.stringify(secaoNoLance(p, pav.id))}`).join(';')}`;
+    let gb = basesGrelha.get(chaveBase);
+    if (!gb) { gb = montarBase(pav, grupo, pilares); basesGrelha.set(chaveBase, gb); }
+    for (const a of gb.avisos) avisos.push(a.startsWith('sem vigas') ? `${pav.nome}: ${a}` : a);
+    const { m: m0, tags, casos, apoio, nos, grosso, carga } = gb;
     let res: Resultado3 | null = null;
     const reacoes: Record<string, Record<CasoAnalise, number>> = {};
-    const transf: Record<CasoAnalise, Map<number, number[]>> = Object.fromEntries(CASOS.map((c) => [c, new Map()]));
-    if (m.barras.length) {
+    let transf: Record<CasoAnalise, Map<number, number[]>> = Object.fromEntries(CASOS.map((c) => [c, new Map()]));
+    let m: Modelo3 = m0;
+    if (integrado && m0.barras.length) {
+      // modelo integrado: a grelha vira superelemento do pórtico (resolvida junto com ele mais abaixo)
+      let ig = cacheInteg.get(gb);
+      if (!ig) { ig = integrarGrelha(gb, pav); cacheInteg.set(gb, ig); }
+      if (ig.erro) avisos.push(`${pav.nome}: ${ig.erro}`);
+      else integPav.set(pav.id, { gb, ig, gi: grelhas.length });
+      m = { ...m0, molas: [] };
+    } else if (m0.barras.length) {
+      m = { ...m0, molas: molasGrelha(gb, ip, pav) };
       // pavimentos do mesmo grupo têm a mesma grelha; reaproveita a solução quando apoios e molas coincidem
       const chave = `${grupo.id}|${m.nos.length}|${m.barras.length}|${[...m.apoios].filter(([, g]) => g.includes(2)).map(([n]) => n).join(',')}|${m.molas!.map((x) => `${x.no}:${x.gdl}:${x.k.toPrecision(12)}`).join(',')}`;
       res = cacheGrelha.get(chave) ?? resolver3(m, casos);
@@ -408,38 +716,52 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       if (res.erro) avisos.push(`${pav.nome}: ${res.erro}`);
       else {
         for (const [i, pid] of apoio) {
-          const r = CASOS.map((_, ic) => res!.reacoes[ic].get(no(i))![2]);
+          const r = CASOS.map((_, ic) => res!.reacoes[ic].get(gb!.idx.get(i)!)![2]);
           reacoes[pid] ??= zeros();
           CASOS.forEach((c, ic) => (reacoes[pid][c] += r[ic]));
         }
         // forças das lajes sobre os nós das vigas (e cargas aplicadas nesses nós) → cargas do pórtico
-        const gidx = new Map([...idx].map(([i, gi]) => [gi, i]));
-        CASOS.forEach((c, ic) => {
-          const f = new Map<number, number[]>();
-          m.barras.forEach((br, bi) => {
-            if (tags[bi].tipo !== 'laje') return;
-            const e = res!.esforcos[ic][bi];
-            for (const [noG, off] of [[br.i, 0], [br.j, 6]] as const) {
-              const i = gidx.get(noG)!;
-              if (!nos[i].viga && !apoio.has(i)) continue;
-              const g = paraGlobal(m, br, e, off); // força que o nó faz na barra
-              const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0];
-              for (let k = 0; k < 6; k++) acc[k] -= g[k]; // a laje empurra o nó
-              f.set(i, acc);
-            }
+        const t0r = transfDe.get(res);
+        if (t0r) transf = t0r;
+        else {
+          const gidx = new Map([...gb.idx].map(([i, gi]) => [gi, i]));
+          CASOS.forEach((c, ic) => {
+            const f = new Map<number, number[]>();
+            m.barras.forEach((br, bi) => {
+              if (tags[bi].tipo !== 'laje') return;
+              const e = res!.esforcos[ic][bi];
+              for (const [noG, off] of [[br.i, 0], [br.j, 6]] as const) {
+                const i = gidx.get(noG)!;
+                if (!nos[i].viga && !apoio.has(i)) continue;
+                const g = paraGlobal(m, br, e, off); // força que o nó faz na barra
+                const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0];
+                for (let k = 0; k < 6; k++) acc[k] -= g[k]; // a laje empurra o nó
+                f.set(i, acc);
+              }
+            });
+            for (const n of casos[ic].nodais) { const i = gidx.get(n.no)!; if (!nos[i].viga && !apoio.has(i)) continue; const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0]; n.f.forEach((v, k) => (acc[k] += v)); f.set(i, acc); }
+            transf[c] = f;
           });
-          for (const n of casos[ic].nodais) { const i = gidx.get(n.no)!; if (!nos[i].viga && !apoio.has(i)) continue; const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0]; n.f.forEach((v, k) => (acc[k] += v)); f.set(i, acc); }
-          transf[c] = f;
-        });
+          transfDe.set(res, transf);
+        }
       }
-    } else avisos.push(`${pav.nome}: sem vigas nem lajes (só pilares).`);
+    }
     for (const c of CASOS) { totais[c] += carga[c]; cargasPavimento[pav.id][c] += carga[c]; }
     grelhas.push({ pavimento: pav.id, modelo: m, barras: tags, res, reacoes, carga });
     geoPav.set(pav.id, { nos, grosso, apoio, transf });
   }
 
   // ---- pórtico espacial ----
-  const pm: Modelo3 = { nos: [], barras: [], apoios: new Map(), escravos: [] };
+  const pm: Modelo3 = { nos: [], barras: [], apoios: new Map(), escravos: [], ...(integPav.size ? { condensados: new Set<number>(), superelementos: [] } : {}) };
+  /** Superelementos do pórtico (modelo integrado): pavimento, gdl de fronteira e grelha integrada, na ordem de `pm.superelementos`. */
+  const seInfo: { pav: string; dofs: number[]; ig: IntegradoGrelha }[] = [];
+  /**
+   * Vigas do diafragma no modelo integrado: só a parte fora do plano trabalha (no superelemento) e o plano XY é corpo
+   * rígido; ficam fora das soluções do pórtico e entram depois, com os esforços tirados da grelha condensada.
+   */
+  const pendentes = new Map<string, { nb: Barra3; tag: BarraPortico; bi: number; vento: Float64Array[] }[]>();
+  /** Só para o modelo cheio (testes): dados de cada pavimento integrado. */
+  const detalhes: { pav: string; gb: GrelhaBase; ig: IntegradoGrelha; colNo: number[]; noP: Map<number, number>; porRaiz: Map<number, number> }[] = [];
   const ptags: BarraPortico[] = [];
   const mestres: Record<string, number> = {};
   const zonas: Record<string, ZonaPortico[]> = {};
@@ -506,8 +828,70 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   }
   // vigas por pavimento (divisão grossa), com trecho rígido até a face do pilar menos 0,3h
   for (const pav of ps) {
-    const g0 = geoPav.get(pav.id)!, g = g0.grosso;
     const z = pav.cota;
+    /** Vigas que chegam a cada nó: as de fora do diafragma não prendem o nó ao corpo rígido do pavimento. */
+    const usoNo = new Map<number, { livre: number; diafragma: number }>();
+    /** Modelo integrado: nós do pórtico tocados por lajes (ficam no diafragma) e pares ligados pela grelha. */
+    const naLaje = new Set<number>(), ligar: [number, number][] = [];
+    const ipg = integPav.get(pav.id);
+    if (ipg) {
+      // grelha condensada (superelemento nos nós dos pilares) + vigas da divisão fina só para os esforços e o plano XY
+      const { gb, ig } = ipg;
+      const colNo = ig.pils.map((pid) => noPilar.get(`${pid}|${pav.id}`)!);
+      const noP = new Map<number, number>(); // nó interno da grelha → nó do pórtico
+      const noDe = (n: number) => {
+        const k = ig.assoc[n];
+        if (k >= 0) return colNo[k];
+        let j = noP.get(n);
+        if (j === undefined) { j = pm.nos.length; noP.set(n, j); pm.nos.push([gb.m.nos[n][0], gb.m.nos[n][1], z]); for (const g of [2, 3, 4]) pm.condensados!.add(j * 6 + g); }
+        return j;
+      };
+      /** Trecho rígido no pórtico: do nó do pilar até o nó associado, mais o da face (nós internos: o da barra). */
+      const offDe = (n: number, off: V3 | undefined): V3 | undefined => {
+        const k = ig.assoc[n];
+        if (k < 0) return off;
+        // mesmo nulo, o trecho rígido marca a ponta no pilar (o corte do cortante na face usa a sua presença)
+        return [gb.m.nos[n][0] - ig.centros[k][0] + (off?.[0] ?? 0), gb.m.nos[n][1] - ig.centros[k][1] + (off?.[1] ?? 0), 0];
+      };
+      gb.trechoDe.forEach((t, bi) => {
+        if (!t) return;
+        const br = ig.barras[bi], i0 = noDe(br.i), j0 = noDe(br.j);
+        if (i0 === j0) return; // trecho inteiro dentro do pilar: rígido
+        const nb: Barra3 = { ...br, i: i0, j: j0, soPlano: true };
+        delete nb.offI; delete nb.offJ;
+        const oI = offDe(br.i, br.offI), oJ = offDe(br.j, br.offJ);
+        if (oI) nb.offI = oI;
+        if (oJ) nb.offJ = oJ;
+        const tag: BarraPortico = { tipo: 'viga', ref: t.viga.id, pavimento: pav.id, fina: true };
+        if (t.viga.foraDiafragma) {
+          pm.barras.push(nb);
+          ptags.push(tag);
+          const k = pm.barras.length - 1;
+          ig.distDe.forEach((mp, ic) => { for (const q of mp.get(bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q }); });
+        } else (pendentes.get(pav.id) ?? pendentes.set(pav.id, []).get(pav.id)!).push({ nb, tag, bi, vento: [] });
+        for (const n of [i0, j0]) { const u = usoNo.get(n) ?? { livre: 0, diafragma: 0 }; u[t.viga.foraDiafragma ? 'livre' : 'diafragma']++; usoNo.set(n, u); }
+      });
+      // nós só de laje não entram no pórtico: ficam no superelemento e voltam na retrossubstituição
+      const se = pm.superelementos!.length, dofs = colNo.flatMap((c) => [c * 6 + 2, c * 6 + 3, c * 6 + 4]);
+      const internosP = [...noP].map(([n, j]) => [3 * ig.interno[n], j * 6] as const);
+      const temSolvidas = internosP.length && gb.trechoDe.some((t) => t?.viga.foraDiafragma);
+      pm.superelementos!.push({
+        dofs, K: ig.cond.S,
+        recuperar: !temSolvidas ? undefined : (u, c) => {
+          const uI = recuperarInternos(ig.cond, dofs.map((d) => u[d]), typeof c?.dados === 'number' ? c.dados : undefined);
+          for (const [o, j] of internosP) { u[j + 2] = uI[o]; u[j + 3] = uI[o + 1]; u[j + 4] = uI[o + 2]; }
+        },
+      });
+      seInfo.push({ pav: pav.id, dofs, ig });
+      CASOS.forEach((_, ic) => (casosV[ic].superelementos ??= []).push({ se, P: ig.cond.Pb[ic], dados: ic }));
+      // diafragma: nós do pórtico unidos pela grelha (lajes e vigas do diafragma)
+      const porRaiz = new Map<number, number>();
+      const reg = (n: number, j: number) => { const r = ig.uniao[n], a = porRaiz.get(r); if (a === undefined) porRaiz.set(r, j); else if (a !== j) ligar.push([a, j]); if (ig.comLaje[n]) naLaje.add(j); };
+      for (const [n, j] of noP) reg(n, j);
+      for (let n = 0; n < ig.assoc.length; n++) if (ig.assoc[n] >= 0) reg(n, colNo[ig.assoc[n]]);
+      if (extra.cheio) detalhes.push({ pav: pav.id, gb, ig, colNo, noP, porRaiz });
+    } else {
+    const g0 = geoPav.get(pav.id)!, g = g0.grosso;
     const local = new Map<number, number>();
     const noViga = (i: number) => {
       const pid = g.nos[i].pilar;
@@ -517,8 +901,6 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     };
     /** Barra do pórtico de cada trecho grosso: índice, início da parte flexível e direção (para cargas concentradas). */
     const barraDe = new Map<number, { bi: number; ini: P; u: P; L: number } | { no: number }>();
-    /** Vigas que chegam a cada nó: as de fora do diafragma não prendem o nó ao corpo rígido do pavimento. */
-    const usoNo = new Map<number, { livre: number; diafragma: number }>();
     g.trechos.forEach((t, ti) => {
       const v = t.viga, s = ret(v.secao.b, v.secao.h), pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
       const ni = noViga(t.a), nj = noViga(t.z);
@@ -570,9 +952,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         (casosV[ic].pontuais ??= []).push({ barra: bd.bi, a, f });
       }
     });
+    }
     // diafragma por zona independente: nós ligados por vigas do diafragma formam uma zona (corpo rígido próprio);
     // nó isolado (pilar sem vigas no nível) é zona sem diafragma. Sem a opção, um diafragma só por pavimento.
-    const soLivre = (i: number) => { const u = usoNo.get(i); return !!u && u.livre > 0 && !u.diafragma; };
+    const soLivre = (i: number) => { const u = usoNo.get(i); return !!u && u.livre > 0 && !u.diafragma && !naLaje.has(i); };
     const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i) && !soLivre(i));
     const pos = new Map(nivel.map(([, i], k) => [i, k]));
     const pai = nivel.map((_, k) => k);
@@ -584,6 +967,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         const a = pos.get(br.i), c = pos.get(br.j);
         if (a !== undefined && c !== undefined) pai[raiz(a)] = raiz(c);
       });
+      for (const [i, j] of ligar) { const a = pos.get(i), c = pos.get(j); if (a !== undefined && c !== undefined) pai[raiz(a)] = raiz(c); }
     } else nivel.forEach((_, k) => (pai[raiz(k)] = raiz(0)));
     const grupos = new Map<number, number[]>();
     nivel.forEach(([, i], k) => grupos.set(raiz(k), [...(grupos.get(raiz(k)) ?? []), i]));
@@ -614,6 +998,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // engaste parcial no topo só onde há vigas no nó: sem elas o giro ficaria sem rigidez (mecanismo)
   const nBarras = new Map<number, number>();
   for (const br of pm.barras) { nBarras.set(br.i, (nBarras.get(br.i) ?? 0) + 1); nBarras.set(br.j, (nBarras.get(br.j) ?? 0) + 1); }
+  for (const se of pm.superelementos ?? []) for (let a = 0; a < se.dofs.length; a += 3) { const n = (se.dofs[a] - 2) / 6; nBarras.set(n, (nBarras.get(n) ?? 0) + 1); }
+  for (const l of pendentes.values()) for (const { nb } of l) { nBarras.set(nb.i, (nBarras.get(nb.i) ?? 0) + 1); nBarras.set(nb.j, (nBarras.get(nb.j) ?? 0) + 1); }
   pm.barras.forEach((br, i) => {
     if (ptags[i].tipo !== 'pilar') return;
     if (br.engJ && (nBarras.get(br.j) ?? 0) < 2 && !pm.apoios.has(br.j)) delete br.engJ;
@@ -622,7 +1008,24 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
   const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)) };
   const res = resolver3(pmV, casosV);
-  if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: pm, barras: ptags, mestres, zonas, res: null } };
+  if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: semFuncoes(pm), barras: ptags, mestres, zonas, res: null } };
+  // modelo integrado: deslocamentos e esforços da grelha de cada pavimento por retrossubstituição; reações e momentos
+  // que a laje transmite a cada pilar (para a punção) = S·ub − Pb
+  const momentosGrelha = new Map<number, Record<string, Record<string, [number, number]>>>();
+  for (const { pav, dofs, ig } of seInfo) {
+    const { gb, gi } = integPav.get(pav)!;
+    const reacoes: Record<string, Record<CasoAnalise, number>> = {}, momentos: Record<string, Record<string, [number, number]>> = {};
+    const desloc = CASOS.map((c, ic) => {
+      const uB = dofs.map((d) => res.desloc[ic][d]), ug = deslocGrelha(gb, ig, uB, ic);
+      const f = forcaFronteira(ig.cond, uB, ic);
+      ig.pils.forEach((p, k) => { (reacoes[p] ??= zeros())[c] = f[3 * k]; (momentos[p] ??= {})[c] = [f[3 * k + 1], f[3 * k + 2]]; });
+      return ug;
+    });
+    // um bloco de memória por caso, com uma vista de 12 valores por barra
+    const esforcos = desloc.map((ug, ic) => { const buf = new Float64Array(12 * ig.elems.length); return ig.elems.map((e, bi) => esforcosGrelha(ig, bi, ug, e.f0s[ic], buf.subarray(12 * bi, 12 * bi + 12))); });
+    grelhas[gi] = { ...grelhas[gi], res: { desloc, esforcos, reacoes: CASOS.map(() => new Map()), neq: ig.ni, hb: ig.cond.hb }, reacoes, momentos, integrado: true };
+    momentosGrelha.set(gi, momentos);
+  }
   const fundacao: AnaliseEdificio['fundacao'] = [];
   const bases = b.pilares.map((p) => [p.id, noPilar.get(`${p.id}|base`)] as const).filter((x): x is readonly [string, number] => x[1] !== undefined);
   // pilar sobre base elástica: esforços no pé do pilar (ponta i do primeiro lance), na convenção das reações
@@ -644,10 +1047,29 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     }));
     resVento = resolver3(pm, casosW);
     if (resVento.erro) avisos.push(`Vento: ${resVento.erro}`);
-    else for (const [pid, k] of bases) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoBase(resVento!, ic, pid, k) }));
+    else {
+      for (const [pid, k] of bases) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoBase(resVento!, ic, pid, k) }));
+      // momentos que a laje transmite aos pilares no vento (modelo integrado): entram na punção
+      // e esforços das vigas do diafragma no vento (grelha condensada, sem cargas)
+      for (const { pav, dofs, ig } of seInfo) {
+        const mom = momentosGrelha.get(integPav.get(pav)!.gi), pend = pendentes.get(pav) ?? [], gb = integPav.get(pav)!.gb;
+        const nosPend = [...new Set(pend.flatMap((pd) => [gb.m.barras[pd.bi].i, gb.m.barras[pd.bi].j]))];
+        ven.casos.forEach((cv, iv) => {
+          const uB = dofs.map((d) => resVento!.desloc[iv][d]), f = forcaFronteira(ig.cond, uB);
+          if (mom) ig.pils.forEach((p, k) => ((mom[p] ??= {})[cv.nome] = [f[3 * k + 1], f[3 * k + 2]]));
+          if (pend.length) { const ug = deslocGrelha(gb, ig, uB, undefined, nosPend); for (const pd of pend) pd.vento[iv] = esforcosGrelha(ig, pd.bi, ug); }
+        });
+      }
+    }
     // γz com rigidez reduzida (NBR 6118 15.7.3: vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic)
     const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
-    const pmR: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => { const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; }) };
+    const reduzida = (br: Barra3, i: number) => { const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
+    // modelo integrado: superelementos com lajes 0,3·Eci·Ic e vigas 0,4·Eci·Ic; as vigas da divisão fina (só plano XY,
+    // escravas do diafragma) não mudam os deslocamentos e ficam de fora, menos as de fora do diafragma
+    const foraDiaf = new Set(b.vigas.filter((v) => v.foraDiafragma).map((v) => v.id));
+    const pmR: Modelo3 = seInfo.length
+      ? { ...pm, barras: pm.barras.map(reduzida).filter((br, i) => !br.soPlano || foraDiaf.has(ptags[i].ref)), superelementos: seInfo.map(({ dofs, ig }) => ({ dofs, K: ig.reduzida().S })) }
+      : { ...pm, barras: pm.barras.map(reduzida) };
     const centrados = ven.casos.filter((c) => c.exc === 0);
     const rR = resolver3(pmR, centrados.map((cv) => casosW[ven.casos.indexOf(cv)]));
     const psi0 = b.norma.psiQ?.[0] ?? 0.5;
@@ -706,9 +1128,27 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
     vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz };
   }
+  // vigas do diafragma do modelo integrado: barras só de resultado, no fim da lista, com os esforços da grelha
+  let modeloFinal = semFuncoes(pmV);
+  if (pendentes.size) {
+    const extras: Barra3[] = [];
+    for (const [pav, lista] of pendentes) {
+      const g = grelhas[integPav.get(pav)!.gi], ig = integPav.get(pav)!.ig;
+      for (const pd of lista) {
+        const k = pmV.barras.length + extras.length;
+        extras.push(pd.nb);
+        ptags.push(pd.tag);
+        ig.distDe.forEach((mp, ic) => { for (const q of mp.get(pd.bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q }); });
+        CASOS.forEach((_, ic) => res.esforcos[ic].push(g.res!.esforcos[ic][pd.bi]));
+        if (resVento && !resVento.erro) ven.casos.forEach((_, iv) => resVento!.esforcos[iv].push(pd.vento[iv] ?? new Float64Array(12)));
+      }
+    }
+    modeloFinal = { ...modeloFinal, barras: [...modeloFinal.barras, ...extras] };
+  }
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   if (base) avisos.push(...avisosBaseElastica(b, base.info));
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: pmV, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, ...(base ? { baseElastica: base.info } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms };
+  const cheio = extra.cheio && detalhes.length ? modeloCheio(pmV, casosV, detalhes, ps, CASOS) : undefined;
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, ...(base ? { baseElastica: base.info } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
 }
 
 // ---------------- auxiliares ----------------
@@ -778,16 +1218,18 @@ function lajeG(l: Laje) {
 }
 
 /** Propriedades das barras de laje nas duas direções da malha (0: direção da laje; 1: transversal). */
-function propLaje(l: Laje, sx: number, sy: number, op: OpcoesAnalise): [{ A: number; I: number; J: number }, { A: number; I: number; J: number }] {
+/** Propriedades de uma barra de laje: área, inércia, torção e área de cisalhamento (Timoshenko, 5/6 da alma). */
+type PropBarraLaje = { A: number; I: number; J: number; As: number };
+function propLaje(l: Laje, sx: number, sy: number, op: OpcoesAnalise): [PropBarraLaje, PropBarraLaje] {
   if (l.tipo.tipo === 'macica') {
     const h = l.tipo.h;
-    return [sy, sx].map((w) => { const I = (w * h ** 3) / 12; return { A: w * h, I, J: op.torcaoLaje * 2 * I }; }) as [{ A: number; I: number; J: number }, { A: number; I: number; J: number }];
+    return [sy, sx].map((w) => { const I = (w * h ** 3) / 12; return { A: w * h, I, J: op.torcaoLaje * 2 * I, As: (5 / 6) * w * h }; }) as [PropBarraLaje, PropBarraLaje];
   }
   const c = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12, h = c.hEnch + l.tipo.capa;
   const IT = inerciaT(c.intereixo, l.tipo.capa, c.bw, h);
-  const nerv = { A: (sy / c.intereixo) * (c.intereixo * l.tipo.capa + c.bw * c.hEnch), I: (sy / c.intereixo) * IT * (op.vigotaRigidez ?? 1), J: op.torcaoLaje * 2 * (sy / c.intereixo) * IT };
+  const nerv = { A: (sy / c.intereixo) * (c.intereixo * l.tipo.capa + c.bw * c.hEnch), I: (sy / c.intereixo) * IT * (op.vigotaRigidez ?? 1), J: op.torcaoLaje * 2 * (sy / c.intereixo) * IT, As: (5 / 6) * (sy / c.intereixo) * c.bw * h };
   const Icapa = (sx * l.tipo.capa ** 3) / 12;
-  return [nerv, { A: sx * l.tipo.capa, I: Icapa, J: op.torcaoLaje * 2 * Icapa }];
+  return [nerv, { A: sx * l.tipo.capa, I: Icapa, J: op.torcaoLaje * 2 * Icapa, As: (5 / 6) * sx * l.tipo.capa }];
 }
 
 /** Esforços de extremidade (locais) → forças globais que o nó faz na barra (6 componentes). */
