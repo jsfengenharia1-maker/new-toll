@@ -117,6 +117,18 @@ export interface OpcoesCalculo {
   lajeReforcoReducao: number;
   /** Lajes (R7d): traspasse entre painéis de tela soldada (cm). */
   lajeTelaTraspasse: number;
+  /** Lajes (R7e): traspasse da emenda construtiva feita depois do cálculo, sem recálculo (cm). */
+  lajeEmendaConstrutiva: number;
+  /** Lajes (R7e): 1 = uniformização automática dos negativos em faixas junto aos pilares (sem zonas lançadas). */
+  lajeUniformizarPilares: number;
+  /** Lajes (R7e): largura da faixa de uniformização junto a cada face do pilar (cm). */
+  lajeUniformizarPilaresLargura: number;
+  /** Lajes (R7e): 1 = armadura média uniforme por direção em lajes retangulares apoiadas em vigas (no lugar da máxima). */
+  lajeArmaduraMedia: number;
+  /** Lajes (R7e): 1 = siglas de reforço (RI inferior, RS superior) junto às barras nas plantas e nas pranchas. */
+  lajeSiglaReforco: number;
+  /** Lajes (R7e): numeração das posições de cada laje — 0 = ordem de geração (positivas e bases por direção, depois bordas), 1 = inferiores primeiro e superiores depois, agrupadas por tipo e direção. */
+  lajeNumeracao: number;
   /** Vigotas (treliçadas): momento positivo mínimo p·ℓ²/este valor por nervura (0 = desligado). */
   vigotaMomentoMinPositivo: number;
   /** Vigotas: momento negativo mínimo nas pontas p·ℓ²/este valor por nervura (0 = desligado). */
@@ -371,6 +383,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'O reforço usa a bitola da base com espaçamento múltiplo do espaçamento da base (uma barra a cada k da base), em vez de uma bitola e espaçamento próprios.' },
   { chave: 'lajeTelaTraspasse', rotulo: 'Lajes: traspasse entre painéis de tela soldada', unidade: 'cm', min: 10, max: 60, passo: 1, padrao: 20, fonte: 'NBR 6118, 9.5.4 (emenda de telas por traspasse; valor inicial do app, sem fonte aberta)', aConfirmar: true,
     descricao: 'Sobreposição entre painéis vizinhos de tela, nas duas direções; os painéis seguem a largura de 2,45 m e o comprimento de 6,00 m.' },
+  { chave: 'lajeEmendaConstrutiva', rotulo: 'Lajes: traspasse da emenda construtiva (sem recálculo)', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 30, fonte: 'Programa de referência (K1.11.25): emendas construtivas de 30 cm feitas depois do cálculo, sem recalcular', aConfirmar: false,
+    descricao: 'Traspasse das emendas feitas na edição das posições (cortar uma barra numa linha de dobra ou num ponto) sem refazer o dimensionamento; o comprimento do traspasse não é verificado contra l0t.' },
+  { chave: 'lajeUniformizarPilares', rotulo: 'Lajes: uniformizar os negativos junto aos pilares', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.13.2.4-13): uniformização automática sobre pilares, em faixas adjacentes a pilares indicados; padrão desligado', aConfirmar: true,
+    descricao: 'Em cada pilar do grupo, as barras superiores que passam pela faixa em torno do pilar recebem a maior taxa e o maior comprimento entre elas (zona retangular automática).' },
+  { chave: 'lajeUniformizarPilaresLargura', rotulo: 'Lajes: largura da faixa de uniformização junto aos pilares', unidade: 'cm', min: 20, max: 300, passo: 5, padrao: 100, fonte: 'Valor inicial do app, sem fonte aberta (a faixa em torno do pilar)', aConfirmar: true,
+    descricao: 'Folga da zona retangular automática a partir de cada face do pilar.' },
+  { chave: 'lajeArmaduraMedia', rotulo: 'Lajes: armadura positiva média uniforme em lajes retangulares', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.13.2.4-18): opção de armadura média uniforme por direção em lajes retangulares apoiadas em vigas; padrão desligado', aConfirmar: true,
+    descricao: 'Lajes de quatro lados apoiados em vigas (sem furos, sem borda livre): a armadura positiva de cada direção usa a média dos momentos positivos máximos das linhas da grelha (nunca menos que a mínima), em vez do máximo.' },
+  { chave: 'lajeSiglaReforco', rotulo: 'Lajes: siglas de reforço junto às barras', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (C7.130): vista com siglas de reforço superior e inferior junto às barras de reforço', aConfirmar: false,
+    descricao: 'RI (reforço inferior) e RS (reforço superior) nos rótulos das barras de reforço das lajes, nas plantas e nas pranchas; barras da base, predefinidas, distribuição e demais ficam sem sigla.' },
+  { chave: 'lajeNumeracao', rotulo: 'Lajes: numeração das posições por face e tipo', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.77: critérios de disposição e numeração); padrão desligado, a ordem de geração do app', aConfirmar: true,
+    descricao: 'Ligada, as posições de cada laje são numeradas com as inferiores primeiro (positivas, reforços, bordas livres, furos) e depois as superiores (negativos, negativas de borda, distribuição, cantos), por direção; desligada, N1… na ordem em que o detalhamento as gera. A edição bloqueada acompanha a numeração em uso: trocar a opção desconsidera as edições (BLOQ_IGNORADO).' },
   { chave: 'vigotaMomentoMinPositivo', rotulo: 'Vigotas: momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige momento mínimo nas nervuras: só o da análise', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16)', aConfirmar: false,
     descricao: 'Momento positivo de cálculo de cada vigota ≥ p·ℓ²/este valor, com p = (V1 + V2)/ℓ dos cortantes das pontas (carga por nervura) e ℓ = comprimento da vigota. 0 = desligado.' },
   { chave: 'vigotaMomentoMinNegativo', rotulo: 'Vigotas: momento negativo mínimo nas pontas (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 16, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige: só o momento da análise (bordas sem continuidade ficam sem negativo de cálculo)', fonte: 'Recomendação do programa de referência: metade do momento isostático (p·ℓ²/16), em todas as pontas', aConfirmar: false,

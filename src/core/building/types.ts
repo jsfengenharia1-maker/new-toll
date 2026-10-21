@@ -305,6 +305,10 @@ export interface Laje {
   base?: ArmaduraBaseLaje;
   /** Armaduras predefinidas pelo usuário (R7d), descontadas do reforço na sua faixa. */
   predefinidas?: ArmaduraPredefinida[];
+  /** Edição das posições de armadura (R7e): bloqueada, verificada a cada recálculo. */
+  edicao?: EdicaoLaje;
+  /** Armadura gerada só com a geometria (R7e): mínimos e base, sem os esforços; a edição manual substitui a calculada. */
+  semCalculo?: boolean;
   /** Armadura de punção informada pelo usuário (N2d): somada à calculada. */
   puncao?: GrupoPuncao[];
 }
@@ -335,6 +339,32 @@ export interface ArmaduraBaseLaje { inf?: BaseFaceLaje; sup?: BaseFaceLaje; deta
  * φ `phi` (mm) espaçadas de `s` (m) à esquerda da representativa. A faixa de influência é n × s.
  */
 export interface ArmaduraPredefinida { id: string; face: 'inf' | 'sup'; a: [number, number]; angulo: number; comprimento: number; phi: number; s: number; n: number }
+
+/**
+ * Edição de uma posição de armadura de laje maciça (R7e). A posição é identificada pelo número (N1, N2, …) e pela
+ * `assinatura` (`face|tipo|dir`), para a edição ser desconsiderada quando a numeração mudar. Campos ausentes seguem o detalhamento.
+ * `emenda`: corta a barra na distância `em` (m) a partir do início da representativa, com o traspasse construtivo.
+ */
+export interface EdicaoBarraLaje {
+  pos: string; assinatura: string;
+  n?: number; phi?: number; s?: number; comprimento?: number; ganchos?: [number, number];
+  emenda?: { em: number };
+}
+/** Edição das posições de uma laje: barras editadas e grupos de posições (editar uma altera todas do grupo). */
+export interface EdicaoLaje { barras: EdicaoBarraLaje[]; grupos?: { pos: string; assinatura: string }[][] }
+
+/**
+ * Zona de uniformização (R7e): as barras da face (e direção, quando dada) que passam pela zona recebem a maior taxa
+ * (φ e espaçamento de maior As/m) e o maior comprimento entre elas. `linha`: segmento com `largura` (m) de cada lado
+ * somada (faixa centrada no segmento); `retangulo`: dois cantos opostos (eixos globais).
+ */
+export interface ZonaUniformizacao {
+  id: string; grupo: string; forma: 'linha' | 'retangulo';
+  pontos: [[number, number], [number, number]];
+  largura?: number; face: 'inf' | 'sup'; angulo?: number;
+}
+/** Linha de dobra (R7e): local de negativo máximo e de emenda preferencial da armadura inferior; limita o "vão" dos mínimos em % do vão. */
+export interface LinhaDobra { id: string; grupo: string; a: [number, number]; z: [number, number] }
 
 /**
  * Armadura bloqueada das vigotas de uma laje treliçada, por nervura: positiva adicional (além do banzo inferior da
@@ -492,6 +522,10 @@ export interface BuildingModel {
   tabelas?: TabelasArmadura;
   /** Tramos predefinidos (R7b): vigas consecutivas alinhadas cuja armadura inferior passante corre sem emenda no apoio comum. */
   tramos?: string[][];
+  /** Zonas de uniformização da armadura das lajes (R7e). */
+  zonasLaje?: ZonaUniformizacao[];
+  /** Linhas de dobra das lajes (R7e). */
+  linhasDobra?: LinhaDobra[];
 }
 
 // ---------------- fundações (frente FU) ----------------
@@ -725,6 +759,8 @@ export interface ConfigPrancha {
   armacao?: Partial<ConfigArmacao>;
   /** Logo do carimbo: JPEG em base64 (limite `LIMITE_LOGO`), dimensões em px e nome do arquivo de origem. */
   logo?: { dados: string; largura: number; altura: number; nome?: string };
+  /** Rótulos das barras das lajes reposicionados nas pranchas (R7e): `laje|pos` → deslocamento no papel (mm). */
+  rotulos?: Record<string, [number, number]>;
 }
 export const PRANCHA_PADRAO: ConfigPrancha = { carimbo: {}, formato: 'auto', escala: 0 };
 
