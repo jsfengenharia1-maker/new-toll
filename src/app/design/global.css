@@ -56,6 +56,7 @@
   --pl-escuro-janela: #4FC3F7;
   --pl-escuro-cruzamento: #00E5C8;
   --pl-escuro-fantasma: rgba(242,244,247,0.35);
+  --pl-escuro-limite: #FF9E40;
   --pl-claro-fundo: #FAFAF7;
   --pl-claro-mascara: #B3B9C0;
   --pl-claro-eixo: #5E7085;
@@ -75,6 +76,7 @@
   --pl-claro-janela: #0072B2;
   --pl-claro-cruzamento: #00897B;
   --pl-claro-fantasma: rgba(27,31,36,0.35);
+  --pl-claro-limite: #C2570C;
   --pl-pb-fundo: #FFFFFF;
   --pl-pb-mascara: #9A9A9A;
   --pl-pb-eixo: #555555;
@@ -94,6 +96,7 @@
   --pl-pb-janela: #000000;
   --pl-pb-cruzamento: #000000;
   --pl-pb-fantasma: rgba(0,0,0,0.35);
+  --pl-pb-limite: #000000;
   /* vista 3D (V1): cores por tipo de elemento nos três temas da planta; o contêiner .v3d-cv[data-tema] liga o tema às variáveis --v3d-<chave> */
   --v3d-escuro-fundo: #11151A; --v3d-escuro-pilar: #C9D1D9; --v3d-escuro-viga: #4FA3D9; --v3d-escuro-laje: #D9B66A; --v3d-escuro-parede: #A1887F;
   --v3d-escuro-escada: #9C8CD1; --v3d-escuro-fundacao: #7FA37A; --v3d-escuro-pendente: #FF8FD8; --v3d-escuro-linha: #0A0D10; --v3d-escuro-selecao: #00E5C8; --v3d-escuro-destaque: #FFD54F;

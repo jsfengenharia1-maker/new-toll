@@ -3,7 +3,7 @@
 // que o Enter na planta (ferramenta Selecionar, nada pendente) repete.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
-import { usePlanta, type Ferramenta } from './plantaStore';
+import { aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
@@ -34,7 +34,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
   const out: ItemPaleta[] = [];
   for (const f of Object.keys(ROTULO_FERRAMENTA) as Ferramenta[]) {
     if (f === 'alinhar' && !b.mascaras.length) continue;
-    out.push({ id: `f:${f}`, tipo: 'Ferramenta', rotulo: ROTULO_FERRAMENTA[f], detalhe: TECLA_FERRAMENTA[f] ? `tecla ${TECLA_FERRAMENTA[f]}` : undefined, repetivel: true, executar: () => naPlanta({ ferramenta: f, ...(f === 'fundacao' || f === 'vigaFund' ? { pavimento: 'fundacao', selecao: new Set<string>() } : f === 'girarFund' ? { pavimento: 'fundacao' } : {}) }) });
+    out.push({ id: `f:${f}`, tipo: 'Ferramenta', rotulo: ROTULO_FERRAMENTA[f], detalhe: TECLA_FERRAMENTA[f] ? `tecla ${TECLA_FERRAMENTA[f]}` : undefined, repetivel: true, executar: () => naPlanta({ ferramenta: f, ...aoEscolher(f) }) });
   }
   out.push(
     { id: 'a:calcular', tipo: 'Ação', rotulo: 'Calcular e dimensionar', repetivel: true, executar: ctx.calcular },
