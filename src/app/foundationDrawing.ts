@@ -18,7 +18,7 @@ const wrap = (W: number, H: number, body: string, label: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;background:${C.paper}" role="img" aria-label="${esc(label)}"><rect width="${W}" height="${H}" fill="${C.paper}"/>${body}</svg>`;
 
 /** Bloco de coroamento: planta (estacas, pilar e tirantes) e corte (bielas e tirante). */
-export function svgCap(cap: CapResult, coords: [number, number][], D: number, ap: number, bp: number): string {
+export function svgCap(cap: CapResult, coords: [number, number][], D: number, ap: number, bp: number, cols?: { label: string; x: number; y: number; ap: number; bp: number }[]): string {
   const W = 600, H = 270;
   let s = '';
   // planta
@@ -35,7 +35,14 @@ export function svgCap(cap: CapResult, coords: [number, number][], D: number, ap
     s += `<circle cx="${X(x).toFixed(1)}" cy="${Y(y).toFixed(1)}" r="${((D / 2) * k).toFixed(1)}" fill="${C.pile}" fill-opacity="0.7" stroke="${C.pileLine}" stroke-dasharray="4 2"/>`;
     s += t(X(x), Y(y) + 3, `E${i + 1}`, 'middle', C.pileLine, 9);
   });
-  s += rect(X(-ap / 2), Y(bp / 2), ap * k, bp * k, C.col, C.ink, 1.2);
+  if (cols && cols.length > 1) {
+    // bloco com vários pilares: cada pilar e as bielas até as estacas que ele carrega
+    for (const q of cap.multi?.struts ?? []) {
+      const c = cols[q.col], e = coords[q.pile];
+      if (c && e) s += line(X(q.top[0]), Y(q.top[1]), X(e[0]), Y(e[1]), C.strut, 1.2, '4 3');
+    }
+    for (const c of cols) { s += rect(X(c.x - c.ap / 2), Y(c.y + c.bp / 2), c.ap * k, c.bp * k, C.col, C.ink, 1.2); s += t(X(c.x), Y(c.y) + 3, c.label, 'middle', C.ink, 9); }
+  } else s += rect(X(-ap / 2), Y(bp / 2), ap * k, bp * k, C.col, C.ink, 1.2);
   s += t(cx, Y(-cap.ly / 2) + 14, `${cm(cap.lx)} × ${cm(cap.ly)} cm`, 'middle', C.ink, 10);
   // corte ao longo de x
   const x0 = 20 + pw + 30, sw = W - x0 - 50;
@@ -44,14 +51,16 @@ export function svgCap(cap: CapResult, coords: [number, number][], D: number, ap
   const ccx = x0 + sw / 2, top = 34 + colH * kv;
   const SX = (x: number) => ccx + x * kv, SY = (z: number) => top + z * kv; // z para baixo a partir do topo do bloco
   s += t(ccx, 16, 'Corte', 'middle', C.muted, 10);
-  s += rect(SX(-ap / 2), SY(-colH), ap * kv, colH * kv, C.col, C.ink, 1.2);
+  if (cols && cols.length > 1) for (const c of cols) s += rect(SX(c.x - c.ap / 2), SY(-colH), c.ap * kv, colH * kv, C.col, C.ink, 1.2);
+  else s += rect(SX(-ap / 2), SY(-colH), ap * kv, colH * kv, C.col, C.ink, 1.2);
   s += rect(SX(-cap.lx / 2), SY(0), cap.lx * kv, cap.h * kv, C.conc, C.ink, 1.4);
   const xsSec = [...new Set(coords.map(([x]) => Math.round(x * 1000) / 1000))];
   for (const x of xsSec) s += rect(SX(x - D / 2), SY(cap.h - Math.min(0.1, cap.dPrime)), D * kv, (stub + Math.min(0.1, cap.dPrime)) * kv, C.pile, C.pileLine, 1);
   const zt = cap.h - cap.dPrime;
   if (cap.n > 1) {
     s += line(SX(Math.min(...xsSec)), SY(zt), SX(Math.max(...xsSec)), SY(zt), C.tie, 2.4);
-    coords.forEach(([x], i) => {
+    if (cols && cols.length > 1) for (const q of cap.multi?.struts ?? []) { const e = coords[q.pile]; if (e) s += line(SX(q.top[0]), SY(0), SX(e[0]), SY(zt), C.strut, 1.2, '5 3'); }
+    else coords.forEach(([x], i) => {
       const g = cap.tops[i];
       if (!g) { s += line(SX(0), SY(0), SX(0), SY(zt), C.strut, 1.6, '5 3'); return; }
       s += line(SX(g[0]), SY(0), SX(x), SY(zt), C.strut, 1.6, '5 3');
@@ -73,19 +82,32 @@ export function svgFooting(r: FootingResult, ap: number, bp: number): string {
   const pw = 260, k = Math.min((pw - 40) / r.A, (H - 70) / r.B);
   const cx = 20 + pw / 2, cy = 30 + (H - 60) / 2;
   s += t(cx, 16, 'Planta', 'middle', C.muted, 10);
+  const g = r.grupo;
+  const GX = (x: number) => cx + x * k, GY = (y: number) => cy - y * k;
+  if (g) {
+    // sapata de vários pilares ou aparada por limites: base retangular (tracejada), contorno real, pilares, resultante e faixas
+    s += rect(cx - (r.A / 2) * k, cy - (r.B / 2) * k, r.A * k, r.B * k, 'none', C.muted, 0.8).replace('<rect ', '<rect stroke-dasharray="4 3" ');
+    s += `<polygon points="${g.contorno.map(([x, y]) => `${GX(x).toFixed(1)},${GY(y).toFixed(1)}`).join(' ')}" fill="${C.conc}" stroke="${C.ink}" stroke-width="1.4"/>`;
+    s += line(GX(-r.A / 2), cy, GX(r.A / 2), cy, C.tie, 0.8, '2 3') + line(cx, GY(-r.B / 2), cx, GY(r.B / 2), C.tie, 0.8, '2 3');
+    for (const c of g.cols) { s += rect(GX(c.x - c.ap / 2), GY(c.y + c.bp / 2), c.ap * k, c.bp * k, C.col, C.ink, 1.2); s += t(GX(c.x), GY(c.y) + 3, c.label, 'middle', C.ink, 9); }
+    s += `<path d="M${GX(g.resultante[0]).toFixed(1)} ${(GY(g.resultante[1]) - 5).toFixed(1)} l5 5 l-5 5 l-5 -5 z" fill="${C.press}"/>`;
+  } else {
   s += rect(cx - (r.A / 2) * k, cy - (r.B / 2) * k, r.A * k, r.B * k, C.conc, C.ink, 1.4);
   if (r.kind === 'rigida') s += rect(cx - ((ap + 0.05) / 2) * k, cy - ((bp + 0.05) / 2) * k, (ap + 0.05) * k, (bp + 0.05) * k, 'none', C.muted, 0.8);
   for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) if (r.kind === 'rigida') s += line(cx + sx * (r.A / 2) * k, cy + sy * (r.B / 2) * k, cx + sx * ((ap + 0.05) / 2) * k, cy + sy * ((bp + 0.05) / 2) * k, C.muted, 0.6);
   s += rect(cx - (ap / 2) * k, cy - (bp / 2) * k, ap * k, bp * k, C.col, C.ink, 1.2);
-  s += t(cx, cy + (r.B / 2) * k + 14, `A ${cm(r.A)} × B ${cm(r.B)} cm`, 'middle', C.ink, 10);
+  }
+  s += t(cx, cy + (r.B / 2) * k + 14, `A ${cm(r.A)} × B ${cm(r.B)} cm${g ? ' (base)' : ''}`, 'middle', C.ink, 10);
   const x0 = 20 + pw + 30, sw = W - x0 - 50, colH = 0.4, pz = 0.5;
   const kv = Math.min((sw - 20) / r.A, (H - 90) / (r.h + colH + pz));
   const ccx = x0 + sw / 2, top = 30 + colH * kv;
   const SX = (x: number) => ccx + x * kv, SY = (z: number) => top + z * kv;
   s += t(ccx, 16, 'Corte (direção A)', 'middle', C.muted, 10);
-  s += rect(SX(-ap / 2), SY(-colH), ap * kv, colH * kv, C.col, C.ink, 1.2);
+  if (g) for (const c of g.cols) s += rect(SX(c.x - c.ap / 2), SY(-colH), c.ap * kv, colH * kv, C.col, C.ink, 1.2);
+  else s += rect(SX(-ap / 2), SY(-colH), ap * kv, colH * kv, C.col, C.ink, 1.2);
   const a2 = (ap + 0.05) / 2;
-  const pts = [[-r.A / 2, r.h], [r.A / 2, r.h], [r.A / 2, r.h - r.h0], [a2, 0], [-a2, 0], [-r.A / 2, r.h - r.h0]];
+  const topoL = g ? Math.min(...g.cols.map((c) => c.x - c.ap / 2)) - 0.025 : -a2, topoR = g ? Math.max(...g.cols.map((c) => c.x + c.ap / 2)) + 0.025 : a2;
+  const pts = [[-r.A / 2, r.h], [r.A / 2, r.h], [r.A / 2, r.h - r.h0], [topoR, 0], [topoL, 0], [-r.A / 2, r.h - r.h0]];
   s += `<polygon points="${pts.map(([x, z]) => `${SX(x).toFixed(1)},${SY(z).toFixed(1)}`).join(' ')}" fill="${C.conc}" stroke="${C.ink}" stroke-width="1.4"/>`;
   s += line(SX(-r.A / 2), SY(r.h - p0(r)), SX(r.A / 2), SY(r.h - p0(r)), C.tie, 2.2);
   s += line(SX(r.A / 2) + 8, SY(0), SX(r.A / 2) + 8, SY(r.h), C.muted, 0.8);

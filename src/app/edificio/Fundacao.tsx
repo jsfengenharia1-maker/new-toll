@@ -6,7 +6,9 @@ import { useBuilding, fundacaoAtual, calculoAtual } from './store';
 import { usePlanta } from './plantaStore';
 import { classificar } from '../../core/building/revisao';
 import { CargasNoPilar } from './Vinculos';
+import { AssociarPilares, ElementoGrupoEditor, LimitesBloco, OpcoesSapatas, SobreposicaoBloco } from './FundacaoGrupoUI';
 import { SondagemEditor } from '../SondagemEditor';
+import { capCols } from '../../core/foundation';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
 import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
 import { useStore } from '../store';
@@ -173,6 +175,11 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
       </div>
       <Hint>Na planta de fundação, escolha a ferramenta Fundação e clique no pilar: em “automática” o ponto do clique define a posição (perto do centro: centrada; perto de uma face: de divisa; perto de um canto: de canto) e, em divisa e canto, a face ou o canto (nos eixos do pilar). Posição livre: clique no pilar e depois no centro do elemento. Arranque: marque “Arranque” na ferramenta Pilar; ele só aparece na planta de fundação.</Hint>
 
+      <AssociarPilares b={b} estaca={estacaSel} />
+      <LimitesBloco b={b} onPlanta={onPlanta} />
+      <OpcoesSapatas b={b} />
+      <SobreposicaoBloco b={b} />
+
       <NiveisCalculados b={b} />
 
       {fe.elementos.length > 0 && (
@@ -238,13 +245,6 @@ function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: Elemento
   const { exec } = useBuilding();
   const fe = b.fundacao!;
   const pil = b.pilares.find((p) => p.id === el.pilares[0]);
-  const imp = el.impostas;
-  const setImp = (k: 'A' | 'B' | 'h', v: number | undefined) => {
-    const n = { ...imp, [k]: v } as { A?: number; B?: number; h?: number };
-    if (n.h === undefined) delete n.h;
-    if (v === undefined && k !== 'h') { exec('fundacao.editar', { id: el.id, limpar: ['impostas'] }); return; }
-    if (n.A && n.B) exec('fundacao.editar', { id: el.id, impostas: { A: n.A, B: n.B, ...(n.h ? { h: n.h } : {}) } });
-  };
   const trocarPosicao = (posicao: PosicaoFundacao) => {
     const ladoAjuste = pil ? ladoDoAjuste(pil) : [0, 0];
     const nz = ladoAjuste.filter((x) => x !== 0).length;
@@ -259,10 +259,10 @@ function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: Elemento
   };
   return (
     <div className="card" data-editor-fundacao={el.id}>
-      <h4>{el.nome} — {TIPO_FUNDACAO_LABEL[el.tipo]}{pil ? ` sob ${pil.nome}` : ''}</h4>
+      <h4>{el.nome} — {TIPO_FUNDACAO_LABEL[el.tipo]}{el.pilares.length > 1 ? ` sob ${el.pilares.length} pilares (${el.pilares.map((id) => b.pilares.find((p) => p.id === id)?.nome ?? id).join(', ')})` : pil ? ` sob ${pil.nome}` : ''}</h4>
       <div className="row wrap u-items-end">
         <Select label="Tipo" value={el.tipo} options={TIPOS} onChange={(v) => exec('fundacao.editar', { id: el.id, tipo: v, ...(v === 'tubulao' ? { posicao: 'centrada' } : {}) })} />
-        <Select label="Posição" value={el.posicao} options={el.tipo === 'tubulao' ? POSICOES.filter((o) => o.v === 'centrada') : POSICOES} onChange={trocarPosicao} />
+        <Select label="Posição" value={el.posicao} options={el.tipo === 'tubulao' ? POSICOES.filter((o) => o.v === 'centrada') : el.pilares.length > 1 ? POSICOES.filter((o) => o.v === 'centrada' || o.v === 'livre') : POSICOES} onChange={trocarPosicao} />
         {(el.posicao === 'divisa' || el.posicao === 'canto') && (
           <Select label="Lado da divisa" value={JSON.stringify(el.lado ?? [])} options={LADOS[el.posicao]} onChange={(v) => exec('fundacao.editar', { id: el.id, lado: JSON.parse(v) })} />
         )}
@@ -284,17 +284,7 @@ function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: Elemento
           <OptNumField label="Nº de estacas (vazio = calculado)" width={170} value={el.estaca?.n} onChange={(v) => el.estaca && exec('fundacao.editar', { id: el.id, estaca: { id: el.estaca.id, ...(v ? { n: Math.round(v) } : {}) } })} />
         </>)}
       </div>
-      {el.tipo === 'sapata' && (
-        <>
-          <div className="row wrap u-items-end">
-            <OptNumField label="A imposta" unit="m" width={96} value={imp?.A} onChange={(v) => setImp('A', v)} />
-            <OptNumField label="B imposta" unit="m" width={96} value={imp?.B} onChange={(v) => setImp('B', v)} />
-            <OptNumField label="h imposta" unit="m" width={96} value={imp?.h} onChange={(v) => setImp('h', v)} />
-            <Button disabled={!r?.dims.A || !r?.dims.B} title="Fixa as dimensões calculadas como impostas (para o modo Só verificar)" onClick={() => r && exec('fundacao.editar', { id: el.id, impostas: { A: r.dims.A!, B: r.dims.B!, ...(r.dims.h ? { h: r.dims.h } : {}) } })}>Impor as calculadas</Button>
-          </div>
-          <Hint>Dimensões impostas são só verificadas (A e B em m, h opcional). Vazio: a sapata é dimensionada.</Hint>
-        </>
-      )}
+      <ElementoGrupoEditor b={b} el={el} r={r} onPlanta={onPlanta} />
       <div className="row wrap">
         <Button disabled={!r} onClick={() => abrirJanelaFundacao(el.id)}>Resultados do elemento</Button>
         <Button variant="danger" onClick={() => exec('fundacao.remover', { ids: [el.id] })}>Remover</Button>
@@ -502,11 +492,19 @@ export function JanelaFundacao({ id }: { id: string }) {
         ['Excentricidade do pilar (eixos do elemento)', `ex ${fmt(r.excentricidade[0], 3)} m · ey ${fmt(r.excentricidade[1], 3)} m`],
         ...(r.sigmaAdm !== undefined ? [['σadm', `${fmt(r.sigmaAdm, 0)} kN/m² (${r.sigmaFonte ?? ''})`] as [string, string]] : []),
         ['Volume de concreto', `${fmt(r.volume, 2)} m³`],
+        ...(r.simples || r.alturaConstante || r.igualA ? [['Particularidades', [r.simples ? 'concreto simples' : '', r.alturaConstante ? 'altura constante' : '', r.igualA ? `igualado a ${r.igualA.nome}` : ''].filter(Boolean).join(' · ')] as [string, string]] : []),
+        ...(r.grupo ? [
+          ['Pilares do elemento', r.grupo.pilares.map((q) => `${q.nome} (${fmt(q.centro[0], 2)} ; ${fmt(q.centro[1], 2)})`).join(' · ')] as [string, string],
+          ['Ponto de referência (resultante)', `${fmt(r.grupo.referencia[0], 3)} ; ${fmt(r.grupo.referencia[1], 3)} m`] as [string, string],
+          ...(r.grupo.limitesUsados.length ? [['Limites que aparam o elemento', r.grupo.limitesUsados.map((id) => b.fundacao?.limites?.find((l) => l.id === id)?.nome ?? id).join(', ')] as [string, string]] : []),
+          ...(r.grupo.limitesIgnorados.length ? [['Limites ignorados', r.grupo.limitesIgnorados.map((x) => `${x.nome} (${x.motivo})`).join('; ')] as [string, string]] : []),
+        ] : []),
         ...(c ? [['Carga característica no elemento', `Nk ${fmt(c.Nk, 0)} · Nk,mín ${fmt(c.NkMin, 0)} kN · Mx ${fmt(c.Mx, 1)} · My ${fmt(c.My, 1)} kN·m · Hx ${fmt(c.Hx, 1)} · Hy ${fmt(c.Hy, 1)} kN (${c.source ?? ''})`] as [string, string]] : []),
       ]} />
       {(r.alavanca || r.alivio || r.cargaDireta !== undefined) && <AlavancaDoElemento b={b} r={r} />}
       <h4>Mensagens</h4>
       <Mensagens msgs={r.mensagens} />
+      {r.mensagens.some((m) => classificar(m).codigo === 'FUND_SOBREPOSTA') && <SobreposicaoBloco b={b} apenas={r.id} />}
       {r.notas.length > 0 && <details className="small"><summary>Observações do cálculo ({r.notas.length})</summary><ul>{r.notas.map((n, i) => <li key={i}>{n}</li>)}</ul></details>}
       {pr && r.tipo === 'sapata' && pr.footing && (isFooting(pr.footing)
         ? <div className="fdetail"><FootingDetail r={pr.footing} ap={pr.ap} bp={pr.bp} p={p} /></div>
@@ -516,7 +514,7 @@ export function JanelaFundacao({ id }: { id: string }) {
         : pr.caisson.messages.map((m, i) => <Note tone="bad" key={i}>{m}</Note>))}
       {pr && f && r.tipo === 'bloco' && (
         pr.pile ? <SolutionDetail s={pr.pile} ds={pr} f={f} />
-          : pr.pileFixed && pr.cap ? <div className="fdetail"><CapDetail cap={pr.cap} coords={pr.pileFixed.loads.coords} D={pr.pileFixed.D / 100} ap={pr.ap} bp={pr.bp} p={p} /></div>
+          : pr.pileFixed && pr.cap ? <div className="fdetail"><CapDetail cap={pr.cap} coords={pr.pileFixed.loads.coords} D={pr.pileFixed.D / 100} ap={pr.ap} bp={pr.bp} p={p} cols={capCols(pr.load)} /></div>
             : pr.cap ? <div className="fdetail"><CapDetail cap={pr.cap} coords={[]} D={0.4} ap={pr.ap} bp={pr.bp} p={p} /></div> : null
       )}
       <p className="hint">Cálculo do módulo Fundações (NBR 6122, NBR 6118); σadm e demais estimativas pelo SPT são a confirmar. Veja também o memorial do edifício (seção Fundações).</p>

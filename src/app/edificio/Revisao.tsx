@@ -17,6 +17,7 @@ import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
 import { JanelaFundacao } from './Fundacao';
 import { JanelaVigaFundacao } from './VigaFundacao';
+import { limiteDaMensagem, sobreposicoesDe } from './fundacaoGrupo';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
@@ -71,6 +72,8 @@ export function LinhaElemento({ className, title, ir, abrir, children }: { class
 export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void }) {
   const rev = useRevisao();
   const analise = useBuilding((s) => s.analise), dim = useBuilding((s) => s.dim);
+  const { exec } = useBuilding();
+  const modelo = useBuilding((s) => s.sessao.modelo);
   const [nivel, setNivel] = useState<'todos' | 'erro' | 'aviso'>('todos');
   const [tipo, setTipo] = useState<'todos' | TipoRevisao>('todos');
   if (!analise && !dim) return null;
@@ -99,7 +102,12 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
                       ir={() => el && onIr(el.tipo, el.id, i.pavimento)} abrir={() => el && abrirJanela({ ...el, pavimento: i.pavimento })}>
                       <td className="tl">{TIPO_TXT[i.tipo]} {i.nome}</td><td className="tl">{i.pavimento ?? '—'}</td>
                       <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}</td>
-                      <td>{el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}</td>
+                      <td>
+                        {el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}
+                        {el && i.codigo === 'FUND_SOBREPOSTA' && <button type="button" className="mini" data-acao-unir title="Une as sapatas sobrepostas numa sapata associada" onClick={(e) => { e.stopPropagation(); const g = sobreposicoesDe(dim?.fundacoes).find((x) => x.includes(el.id)); if (g) exec('fundacao.eliminarSobreposicoes', { grupos: [g] }); }}>unir sapatas</button>}
+                        {i.codigo === 'FUND_LIMITE_IGNORADO' && <button type="button" className="mini" data-acao-limite title="Mostra o limite na planta de fundação" onClick={(e) => { e.stopPropagation(); const l = modelo.fundacao?.limites?.find((x) => x.nome === limiteDaMensagem(i.mensagem)); if (l) usePlanta.getState().set({ pavimento: 'fundacao', selecao: new Set([l.id]), foco: { id: l.id, n: Date.now() } }); }}>ver limite</button>}
+                        {el && i.codigo === 'FUND_IGUAL_MODELO' && <button type="button" className="mini" data-acao-modelo title="Vai ao elemento modelo da igualdade" onClick={(e) => { e.stopPropagation(); const m = modelo.fundacao?.elementos.find((x) => x.id === el.id)?.igualA; if (m) irParaElemento(modelo, 'fundacao', m); }}>ver modelo</button>}
+                      </td>
                     </LinhaElemento>
                   );
                 })}

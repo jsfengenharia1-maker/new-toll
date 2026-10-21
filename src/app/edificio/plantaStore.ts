@@ -5,7 +5,13 @@ import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
+/** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
+export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund'];
+export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
+/** Parâmetros que levam a planta ao nível de fundação ao escolher a ferramenta (e limpam a seleção, salvo as que a usam). */
+export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao: Set<string> }> =>
+  !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -34,6 +40,12 @@ interface PState {
   /** 'auto': a posição sai do ponto do clique no pilar (centro = centrada, face = divisa, canto = canto). */
   posFund: PosicaoFundacao | 'auto';
   estacaFund: string | null;
+  /** Ferramenta Fundação (FU3): os cliques acumulam pilares (Enter cria uma sapata associada ou um bloco com vários pilares). */
+  multiFund: boolean;
+  /** Pilares escolhidos na ferramenta Fundação em modo de vários pilares. */
+  pilaresFund: string[];
+  /** Ferramentas Limite e Limite da máscara (FU3): polilinha fechada (poço, reservatório) ou aberta (divisa). */
+  limiteFechado: boolean;
   /** Ferramenta Viga de fundação (FU2): tipo e seção (m) das vigas lançadas por clique entre dois elementos. */
   tipoVigaFund: TipoVigaFundacao;
   secaoVigaFund: { b: number; h: number };
@@ -90,6 +102,9 @@ export const usePlanta = create<PState>((set) => ({
   tipoFund: 'sapata',
   posFund: 'auto',
   estacaFund: null,
+  multiFund: false,
+  pilaresFund: [],
+  limiteFechado: false,
   arranque: false,
   tipoVigaFund: 'equilibrio',
   secaoVigaFund: { b: 0.2, h: 0.4 },
@@ -121,9 +136,9 @@ export const usePlanta = create<PState>((set) => ({
 /** Cores da planta por tema; os valores ficam em design/global.css (--pl-<tema>-<chave>). */
 export type Paleta = {
   fundo: string; mascara: string; eixo: string; viga: string; laje: string; carga: string; parede: string; pilar: string; pilarBorda: string; texto: string; cota: string;
-  selecao: string; captura: string; guia: string; erro: string; aviso: string; janela: string; cruzamento: string; fantasma: string;
+  selecao: string; captura: string; guia: string; erro: string; aviso: string; janela: string; cruzamento: string; fantasma: string; limite: string;
 };
-export const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma'] as const;
+export const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma', 'limite'] as const;
 const cache = new Map<Tema, Paleta>();
 /** Paleta do tema no design system (global.css), sem as alterações do usuário. */
 export function paletaBase(t: Tema): Paleta {

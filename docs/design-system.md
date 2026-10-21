@@ -27,7 +27,7 @@ Fora do escopo: `src/core/sheets` (pranchas PDF/DXF/DWG), cujas penas, camadas e
 
 - Interface: `--bg`, `--surface`, `--surface-2`, `--ink`, `--muted`, `--line`, `--accent`, `--accent-ink`, `--accent-soft`, `--ok`, `--warn`, `--bad`, `--sel`; fontes `--font-ui`, `--font-num`.
 - Desenho do pórtico (SVG): `--paper`, `--grid`, `--grid-major`, `--axis`, `--member`, diagramas `--c-n`, `--c-v`, `--c-m`, `--c-def`, `--c-react`, `--c-load`, `--c-il`.
-- Planta do edifício (Canvas 2D): `--pl-<tema>-<chave>` para os temas `escuro`, `claro` e `pb` (19 chaves cada), lidos por `paleta()` em `plantaStore.ts`.
+- Planta do edifício (Canvas 2D): `--pl-<tema>-<chave>` para os temas `escuro`, `claro` e `pb` (20 chaves cada; `limite` desde a FU3), lidos por `paleta()` em `plantaStore.ts`.
 - Vista 3D: `--v3d-<tema>-<chave>` (`escuro`, `claro`, `pb`; 11 chaves: fundo, pilar, viga, laje, parede, escada, fundacao, pendente, linha, selecao, destaque), ligadas por `.v3d[data-tema]` às variáveis `--v3d-<chave>` que o renderizador e o isométrico em SVG leem.
 - Grupos de pavimentos: `--grupo-0` a `--grupo-7` (classes `.grupo-c<i>` + `.grupo-marca`, `.grupo-faixa`, `.grupo-linha`).
 - Solos do perfil SPT: `--solo-argila`, `--solo-silte-argiloso`, `--solo-silte-arenoso`, `--solo-areia` (classes `.solo-<tipo>`).

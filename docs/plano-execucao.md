@@ -19,7 +19,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 
 | Ordem | Lane 1 — Fundações e elementos | Lane 2 — Detalhamento e produtividade | Lane 3 — Normas e visualização | Lane D — Specs (só docs) |
 |---|---|---|---|---|
-| Onda 1 | FU2 (concluída) → FU3 (núcleo feito) → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
+| Onda 1 | FU2 (concluída) → FU3 (concluída) → FU4 | R7-0 → R7a → R7b | — | specs N2, E1, E2 |
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
@@ -45,7 +45,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | Fatia | Núcleo | Interface |
 |---|---|---|
 | FU2 | (feito, O) | (feito, S2) |
-| FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 |
+| FU3 associadas e blocos com vários pilares | S3 (núcleo feito em 20/10/2026) | S2 (interface feita em 21/10/2026) |
 | FU4 geração automática | S2 | S1 |
 | FU5 pranchas e memorial | S2 | S1 |
 | FU6 radier e vigas sobre base elástica | O | S2 |
@@ -122,6 +122,8 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 - 20/10/2026: FU2 concluída (núcleo e interface): vigas de equilíbrio e de travamento lançadas na planta de fundação, editor, janela com detalhe longitudinal e transversal, alavanca e alívio na janela do elemento, cargas do nível de fundação, níveis calculados e giro por dois pontos; e2e `FU2`. Pendências de interface da FU1 também fechadas (giro por dois pontos e níveis). Seguem FU3 (núcleo em paralelo) e FU4.
 - 20/10/2026: specs da lane D escritas: `spec-frente-N2.md` (N2a–N2g, 119 itens), `spec-frente-E1.md` (E1a–E1e, 80 itens) e `spec-frente-E2.md` (E2a–E2e, 61 itens); fatia marcada na nota de cada item dos checklists (a frente segue "N"/"E": o teste só aceita a letra). Os 228 itens E restantes ficam para as specs E3 e E4. Ordem: N2a–N2c na onda 2 (a E1 depende delas), E1 na onda 3, E2 na onda 4.
 - 20/10/2026: specs E3, E4, L e V escritas (lane D): `spec-frente-E3.md` (E3a–E3f, 148 itens), `spec-frente-E4.md` (E4a–E4e, 80 itens), `spec-frente-L.md` (L1–L5, 75 itens) e `spec-frente-V.md` (V1–V5, 62 itens); 365 itens alocados, cada um em uma só fatia (conferido por script), fatia marcada na nota de cada item dos checklists. Classes por fatia na tabela acima; Opus só na E3f (núcleo). Dependências three.js (V) e web-ifc (L3) já aceitas, vendorizadas sob demanda; sem bloqueio. Dependências entre frentes: E3b/E3e esperam N2f para a flecha ativa; E3c/E3d esperam N2b e N2d; E3f espera N2b, N2c, E2b e E2c; E4c espera a casca da N2b; E4e espera V1, V4 e V5; L1 espera E1b e E1c para fechar C1.28 e C1.29; L4 espera R7f e E3f para K1.4.69 e C7.8.
-- 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 pendente (agente de interface da FU2/FU3).
+- 20/10/2026: FU3 no núcleo (sapata associada, bloco com vários pilares, concreto simples, descolamento, impostas, limites, unir, igualar, sobreposição e cruzamento de vigas; detalhes no Andamento de `spec-frente-FU.md`). Interface da FU3 concluída em 21/10/2026 (ver a linha seguinte).
+
+- 21/10/2026: FU3 concluída (interface): ferramenta Fundação em modo “vários pilares” (Enter cria a sapata associada ou o bloco com vários pilares), ponto de inserção movível (N), pilares do elemento, concreto simples, altura constante, unir, igualar, impor as calculadas e editor de dimensões e armadura impostas de sapata, bloco e tubulão, opções `fund*`, limites (desenhar T, capturar da máscara DXF Q, editor de vértices, mover e Del), aviso FUND_SOBREPOSTA com botão de eliminar, contorno poligonal, pilares, faixas, malha superior, bielas por pilar e cruzamentos de vigas na planta e nos croquis da janela; e2e `FU3` (3 fluxos). Resta a validação externa (OpenSees) da associada e do bloco multi-pilar. Próximo na lane 1: FU4 (núcleo em paralelo).
 
 - 20/10/2026: V1 concluída (núcleo e interface): vista 3D do edifício com three.js 0.186.1 vendorizado (`scripts/vendor-three.mjs`, `public/vendor/three-0.186.1.mjs`, 623 KB, sob demanda, fora do `dist/index.html`), cena por função pura em `src/core/vista3d/` com geradores registrados (`GERADORES_3D`), aba 3D com escopo por grupo, intervalo ou pavimento, tipos, transparência, perspectiva/isométrica, caminhar, seleção sincronizada com a planta, captura PNG e fallback em SVG isométrico (artifact do claude.ai ou sem WebGL); figura isométrica no memorial; C3.35–C3.41 e C7.18 fechados; e2e `V1`. Seguem V2 e V3 (podem rodar em paralelo), depois V4 e V5.

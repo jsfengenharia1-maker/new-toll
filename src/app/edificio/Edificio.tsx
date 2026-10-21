@@ -1,7 +1,7 @@
 // Módulo Edifícios: obra, pavimentos, grupos, máscara, pilares e eixos, tudo por comandos do registro; planta em Canvas.
 import { useEffect, useRef, useState } from 'react';
 import { useBuilding } from './store';
-import { usePlanta, type Ferramenta, type Tema } from './plantaStore';
+import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
@@ -282,7 +282,7 @@ export function NomeObra() {
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
-const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'mover', 'medir']);
+const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
 /** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
 const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
@@ -307,13 +307,13 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
-        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : pl.ferramenta === 'fundacao' || pl.ferramenta === 'vigaFund' || pl.ferramenta === 'girarFund' ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
+        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : FERRAMENTAS_FUNDACAO.includes(pl.ferramenta) ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
           <option value="fundacao">Fundação ({fmt(cotaFundacao(b))})</option>
         </select>
       </label>
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
-        {FERRAMENTAS.filter((t) => nivelFund || (t.f !== 'vigaFund' && t.f !== 'girarFund')).map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...(t.f === 'fundacao' || t.f === 'vigaFund' ? { pavimento: 'fundacao', selecao: new Set() } : {}) })}>{t.rot}</button>)}
+        {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</button>)}
       </div>
       <div className="seg small" role="radiogroup" aria-label="Edição">
         {EDICAO.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
@@ -321,6 +321,8 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
+      {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
+      {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
       <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
