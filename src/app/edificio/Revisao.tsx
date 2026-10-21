@@ -67,6 +67,15 @@ export function LinhaElemento({ className, title, ir, abrir, children }: { class
   return <tr className={className} title={title} {...h}>{children}</tr>;
 }
 
+/** Abre o grupo Tabelas de armadura na tabela que o elemento usa (atalho dos erros FORA_TABELA e ARM_MANUAL). */
+function abrirTabela(b: BuildingModel, tipo: TipoRevisao, id: string, codigo: string, mensagem: string) {
+  const v = tipo === 'viga' ? b.vigas.find((x) => x.id === id) : undefined, p = tipo === 'pilar' ? b.pilares.find((x) => x.id === id) : undefined, l = tipo === 'laje' ? b.lajes.find((x) => x.id === id) : undefined;
+  const estribo = codigo === 'FORA_TABELA' && /\(estribos\)/.test(mensagem);
+  const alvo = tipo === 'viga' ? { tipo: estribo ? 'estribos' as const : 'vigas' as const, id: (estribo ? v?.tabelaEstribo : v?.tabela) ?? 'padrao' }
+    : tipo === 'pilar' ? { tipo: 'pilares' as const, id: p?.tabela ?? 'padrao' } : { tipo: 'lajes' as const, id: l?.tabela ?? 'padrao' };
+  usePlanta.getState().set({ tabelaFoco: { ...alvo, n: (usePlanta.getState().tabelaFoco?.n ?? 0) + 1 } });
+}
+
 // ---------------------------------------------------------------- lista de erros e avisos
 
 export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao', id: string, pavimento?: string) => void }) {
@@ -107,6 +116,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
                         {el && i.codigo === 'FUND_SOBREPOSTA' && <button type="button" className="mini" data-acao-unir title="Une as sapatas sobrepostas numa sapata associada" onClick={(e) => { e.stopPropagation(); const g = sobreposicoesDe(dim?.fundacoes).find((x) => x.includes(el.id)); if (g) exec('fundacao.eliminarSobreposicoes', { grupos: [g] }); }}>unir sapatas</button>}
                         {i.codigo === 'FUND_LIMITE_IGNORADO' && <button type="button" className="mini" data-acao-limite title="Mostra o limite na planta de fundação" onClick={(e) => { e.stopPropagation(); const l = modelo.fundacao?.limites?.find((x) => x.nome === limiteDaMensagem(i.mensagem)); if (l) usePlanta.getState().set({ pavimento: 'fundacao', selecao: new Set([l.id]), foco: { id: l.id, n: Date.now() } }); }}>ver limite</button>}
                         {el && i.codigo === 'FUND_IGUAL_MODELO' && <button type="button" className="mini" data-acao-modelo title="Vai ao elemento modelo da igualdade" onClick={(e) => { e.stopPropagation(); const m = modelo.fundacao?.elementos.find((x) => x.id === el.id)?.igualA; if (m) irParaElemento(modelo, 'fundacao', m); }}>ver modelo</button>}
+                        {el && /^(FORA_TABELA|ARM_MANUAL)/.test(i.codigo) && <button type="button" className="mini" data-atalho-tabela onClick={(e) => { e.stopPropagation(); abrirTabela(modelo, el.tipo, el.id, i.codigo, i.mensagem); }}>tabela</button>}
                       </td>
                     </LinhaElemento>
                   );

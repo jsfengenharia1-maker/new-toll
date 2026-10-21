@@ -119,15 +119,23 @@ function SecaoLance({ p, l, r, cob }: { p: Pilar; l: LanceDetalhe; r: ResultadoP
     const n = a.n ?? 6, rr = s.d / 2 - ap;
     for (let i = 0; i < n; i++) pts.push([s.d / 2 + rr * Math.cos((2 * Math.PI * i) / n), s.d / 2 + rr * Math.sin((2 * Math.PI * i) / n)]);
   } else {
-    const nb = a.nb ?? 2, nh = a.nh ?? 2, lim = 20 * t;
+    const nb = a.nb ?? 2, nh = a.nh ?? 2, nbS = a.nbS ?? nb, nhD = a.nhD ?? nh, lim = 20 * t;
     const xs = Array.from({ length: nb }, (_, i) => ap + ((w - 2 * ap) * i) / Math.max(nb - 1, 1)), ys = Array.from({ length: nh }, (_, i) => ap + ((h - 2 * ap) * i) / Math.max(nh - 1, 1));
-    xs.forEach((x) => { pts.push([x, ap], [x, h - ap]); });
-    ys.slice(1, -1).forEach((y) => { pts.push([ap, y], [w - ap, y]); });
+    if (nbS === nb && nhD === nh) {
+      xs.forEach((x) => { pts.push([x, ap], [x, h - ap]); });
+      ys.slice(1, -1).forEach((y) => { pts.push([ap, y], [w - ap, y]); });
+    } else { // arranjo não simétrico: faces opostas com números diferentes de barras
+      const xsS = Array.from({ length: nbS }, (_, i) => ap + ((w - 2 * ap) * i) / Math.max(nbS - 1, 1)), ysD = Array.from({ length: nhD }, (_, i) => ap + ((h - 2 * ap) * i) / Math.max(nhD - 1, 1));
+      xs.forEach((x) => { pts.push([x, ap]); });
+      xsS.forEach((x) => { pts.push([x, h - ap]); });
+      ys.slice(1, -1).forEach((y) => { pts.push([ap, y]); });
+      ysD.slice(1, -1).forEach((y) => { pts.push([w - ap, y]); });
+    }
     const L1 = w - 2 * ap, L2 = h - 2 * ap;
     xs.slice(1, -1).forEach((x, i) => { const d = Math.min(((L1) * (i + 1)) / Math.max(nb - 1, 1), L1 - (L1 * (i + 1)) / Math.max(nb - 1, 1)); if (d > lim + 1e-9) gr.push([x, ap, x, h - ap]); });
     ys.slice(1, -1).forEach((y, i) => { const d = Math.min((L2 * (i + 1)) / Math.max(nh - 1, 1), L2 - (L2 * (i + 1)) / Math.max(nh - 1, 1)); if (d > lim + 1e-9) gr.push([ap, y, w - ap, y]); });
   }
-  const nGr = s.tipo === 'circ' ? 0 : gramposPorEstribo(w, h, ap, a.nb ?? 2, a.nh ?? 2, l.estribos.phi);
+  const nGr = s.tipo === 'circ' ? 0 : gramposPorEstribo(w, h, ap, a.nb ?? 2, a.nh ?? 2, l.estribos.phi, a.nbS, a.nhD);
   return (
     <figure className="det-fig" data-secao-lance={l.pavimento}>
       <svg className="det det-secao" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Seção do ${l.nome}`} data-barras-secao={pts.length} data-grampos={nGr}>

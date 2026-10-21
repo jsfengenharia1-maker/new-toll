@@ -3,6 +3,7 @@ import type { Draft } from 'immer';
 import { centroPilar, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
+import { atribuirTabela, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -163,7 +164,7 @@ registrar<PilarIn>({
   },
 });
 
-registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cobrimento?: number }>({
+registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cobrimento?: number; tabela?: string }>({
   nome: 'pilar.editar',
   descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte ou cobrimento próprio (cm) de um pilar.',
   risco: 'escrita',
@@ -171,10 +172,13 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
     ajuste: ajusteSchema, angulo: { type: 'number' }, nasce: { type: 'string' }, morre: { type: 'string' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cm; 0 volta ao da obra' },
+    tabela: { type: 'string', description: 'id da tabela de armadura dos pilares (R7a); "padrao" ou vazio volta à padrão da obra' },
   } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.id);
     if (!q) return err('PILAR_INEXISTENTE', `Pilar ${p.id} não existe.`);
+    const tab = tabelaInexistente(b, [['pilares', p.tabela]]);
+    if (tab.length) return tab;
     const n: Pilar = { ...q, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined)) } as Pilar;
     const r = refsPilar(b, n.nasce, n.morre);
     if (r.length) return r;
@@ -186,6 +190,7 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome'>> & { nome?: string; cob
     for (const k of ['nome', 'x', 'y', 'ajuste', 'angulo', 'nasce', 'morre'] as const) if (p[k] !== undefined) (q as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
     if (p.secao) q.secao = { ...p.secao };
     if (p.cobrimento !== undefined) { if (p.cobrimento) q.cobrimento = p.cobrimento; else delete q.cobrimento; }
+    atribuirTabela(q, 'tabela', p.tabela);
     return `${q.nome} alterado.`;
   },
 });

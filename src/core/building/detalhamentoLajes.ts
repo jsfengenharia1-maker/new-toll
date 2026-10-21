@@ -9,6 +9,7 @@ import { barArea, beamFlexure, type Concrete } from '../concrete';
 import type { P } from '../geom/faces';
 import { direcaoPrincipal, type AnaliseEdificio, type GrelhaPavimento } from './analitico';
 import { alfa0t, ganchoNoventa, lbBasico } from './detalhamento';
+import { linhaLajes, tabelaDe, type LinhaLajes } from './tabelasArmadura';
 import type { Dimensionamento, ResultadoLaje } from './dimensionamento';
 import { acoDe, cobrimentoLaje, cobrimentoViga, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
@@ -76,9 +77,12 @@ const BITOLAS_LAJE = [5, 6.3, 8, 10, 12.5, 16];
  * Bitola e espaçamento para As (m²/m): a menor bitola da lista (≥ mínima, ≤ h/8, 20.1) com espaçamento ≥ smin,
  * espaçamento arredondado para baixo ao centímetro e ≤ smax. Sem solução, a maior bitola em smin (`cabe` falso).
  */
-export function escolherBarrasLaje(As: number, h: number, smax: number, smin: number, phiMin: number, ca60: boolean): { phi: number; s: number; As: number; cabe: boolean } {
-  const lista = BITOLAS_LAJE.filter((p) => p >= phiMin - 1e-9 && (p >= 6.3 || ca60) && p <= (h * 1000) / 8 + 1e-9);
-  const ls = lista.length ? lista : [BITOLAS_LAJE.find((p) => p >= 6.3 || ca60)!];
+export function escolherBarrasLaje(As: number, h: number, smax: number, smin: number, phiMin: number, ca60: boolean, linha?: LinhaLajes): { phi: number; s: number; As: number; cabe: boolean } {
+  // tabela de armadura (R7a): bitolas da linha e espaçamentos mínimo/máximo próprios (0 = pela opção e pela NBR)
+  if (linha?.sMin) smin = linha.sMin / 100;
+  if (linha?.sMax) smax = Math.min(smax, linha.sMax / 100);
+  const lista = BITOLAS_LAJE.filter((p) => p >= phiMin - 1e-9 && (p >= 6.3 || ca60) && p <= (h * 1000) / 8 + 1e-9 && (!linha || linha.bitolas.includes(p)));
+  const ls = lista.length ? lista : [(linha ? [...linha.bitolas].sort((x, y) => x - y).find((p) => p >= 6.3 || ca60) : undefined) ?? BITOLAS_LAJE.find((p) => p >= 6.3 || ca60)!];
   for (const phi of ls) {
     const s = Math.floor(Math.min(smax, As > 0 ? barArea(phi) / As : smax) * 100 + 1e-6) / 100;
     if (s >= smin - 1e-9) return { phi, s, As: barArea(phi) / s, cabe: true };
@@ -213,6 +217,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), c: Concrete = concretoDe(b, 'laje');
   const aI = acoDe(b, 'lajeInf'), aS = acoDe(b, 'lajeSup'), ca60I = aI.aco === 'CA-60', ca60S = aS.aco === 'CA-60';
   const passo = op.arredondamento / 100, Lmax = op.barraMaxima, smin = op.lajeEspacamentoMinimo / 100, smaxP = Math.min(2 * h, 0.2);
+  const linha = linhaLajes(tabelaDe(b, 'lajes', l.tabela), h);
   const avisos: string[] = [], posicoes: PosicaoLaje[] = [], emendas: DetalheLaje['emendas'] = [];
   let np = 0;
   const nova = (p: Omit<PosicaoLaje, 'pos'>) => { const x = { pos: `N${++np}`, ...p, a: r4(p.a), z: r4(p.z), faixa: [r4(p.faixa[0]), r4(p.faixa[1])] as [P, P] }; posicoes.push(x); return x; };
@@ -235,7 +240,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   const umaDirecao = Math.max(...ext) / Math.max(1e-9, Math.min(...ext)) > 2;
   const positivas = ([0, 1] as const).map((k) => {
     const sec = umaDirecao && ext[k] > ext[1 - k];
-    const br = escolherBarrasLaje(AsNec[k], h, sec ? 0.33 : smaxP, smin, op.lajeBitolaMinima, ca60I);
+    const br = escolherBarrasLaje(AsNec[k], h, sec ? 0.33 : smaxP, smin, op.lajeBitolaMinima, ca60I, linha);
     if (!br.cabe) avisos.push(`Positiva na direção ${k}: ${fmt(AsNec[k] * 1e4, 2)} cm²/m não cabe com espaçamento ≥ ${fmt(smin * 100)} cm e φ ≤ h/8.`);
     return { phi: br.phi, s: br.s, As: +(br.As * 1e4).toFixed(3), AsNec: +(AsNec[k] * 1e4).toFixed(3), secundaria: sec };
   });
@@ -318,7 +323,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   const menorVao = Math.min(...ext);
   const distribuicao = (AsNeg: number, lados: [number, number], P0: P, e: P, nrm: P, s0: number, s1: number) => {
     // armadura de distribuição sob os negativos (Tabela 19.1: ≥ 20 % da principal e 0,9 cm²/m; s ≤ 33 cm)
-    const Ad = Math.max(0.2 * AsNeg, 0.9e-4), br = escolherBarrasLaje(Ad, h, 0.33, smin, op.lajeBitolaMinima, ca60S);
+    const Ad = Math.max(0.2 * AsNeg, 0.9e-4), br = escolherBarrasLaje(Ad, h, 0.33, smin, op.lajeBitolaMinima, ca60S, linha);
     const larg = lados[0] + lados[1], n = Math.max(2, Math.ceil(larg / br.s - 1e-9));
     const Lb = arred(s1 - s0, passo), meio = (s0 + s1) / 2;
     nova({ face: 'sup', tipo: 'distribuicao', angulo: ang(e), phi: br.phi, s: br.s, n, comprimento: Lb, ganchos: [0, 0], a: add(add(P0, e, s0), nrm, (lados[0] - lados[1]) / 2), z: add(add(P0, e, s1), nrm, (lados[0] - lados[1]) / 2), faixa: [add(add(P0, e, meio), nrm, -lados[1]), add(add(P0, e, meio), nrm, lados[0])] });
@@ -336,7 +341,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       const rsB = B.tipo.tipo === 'macica' ? porLaje.get(B.id) ?? [] : [];
       const hB = B.tipo.tipo === 'macica' ? B.tipo.h : h, hMin = Math.min(h, hB), hMax = Math.max(h, hB);
       const AsCalc = Math.max(RHO_MIN_LAJE * hMax, ...rs.map((r) => r.As.neg[kA] / 1e4), ...rsB.map((r) => r.As.neg[kB] / 1e4));
-      const br = escolherBarrasLaje(AsCalc, hMin, smaxP, smin, op.lajeBitolaMinima, ca60S);
+      const br = escolherBarrasLaje(AsCalc, hMin, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
       if (!br.cabe) avisos.push(`Negativo sobre a borda com ${B.nome}: ${fmt(AsCalc * 1e4, 2)} cm²/m não cabe com espaçamento ≥ ${fmt(smin * 100)} cm.`);
       const lbn = lbNecessario(lbS(br.phi), br.phi, AsCalc, br.As);
       const dA = negativoJuntoBorda(grs, l.id, kA, P0, e, nrm, bd.s0, bd.s1, extA / 2, 0.6 * op.malha, fx);
@@ -359,7 +364,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
       const dA = negativoJuntoBorda(grs, l.id, kA, P0, e, nrm, bd.s0, bd.s1, extA / 2, 0.6 * op.malha, fx);
       const AsM = dA.Mmin < 0 ? beamFlexure({ kind: 'rect', bw: 1, h }, false, -dA.Mmin, dS, 0.02, c, aS.fyd).As : 0;
       const AsCalc = Math.max(0.67 * RHO_MIN_LAJE * h, AsM);
-      const br = escolherBarrasLaje(AsCalc, h, smaxP, smin, op.lajeBitolaMinima, ca60S);
+      const br = escolherBarrasLaje(AsCalc, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha);
       const lbn = lbNecessario(lbS(br.phi), br.phi, AsCalc, br.As);
       let dentro = Math.max(bw / 2 + (op.lajeNegativoBorda / 100) * menorVao, dA.x0 > 0 ? dA.x0 + aL + lbn : 0);
       if (dentro > extA - cob.sup) dentro = extA - cob.sup;
@@ -381,7 +386,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
 
   // ---- malha superior de canto entre duas bordas apoiadas sem continuidade (lado ℓ/5 do menor vão; As = maior positiva)
   if (op.lajeArmaduraCanto) {
-    const nV = l.contorno.length, AsC = Math.max(...AsNec), brC = escolherBarrasLaje(AsC, h, smaxP, smin, op.lajeBitolaMinima, ca60S), lc = menorVao / 5;
+    const nV = l.contorno.length, AsC = Math.max(...AsNec), brC = escolherBarrasLaje(AsC, h, smaxP, smin, op.lajeBitolaMinima, ca60S, linha), lc = menorVao / 5;
     for (let i = 0; i < nV; i++) {
       const V = l.contorno[i], ant = l.contorno[(i - 1 + nV) % nV], prox = l.contorno[(i + 1) % nV];
       const La = Math.hypot(V[0] - ant[0], V[1] - ant[1]), Lp = Math.hypot(prox[0] - V[0], prox[1] - V[1]);

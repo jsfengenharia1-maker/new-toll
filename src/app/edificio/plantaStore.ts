@@ -35,6 +35,8 @@ interface PState {
   janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao'; id: string; pavimento?: string } | null;
   /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
   foco: { id: string; n: number } | null;
+  /** Pedido de abrir o grupo Tabelas de armadura numa tabela (atalho da lista de erros; não vai para o arquivo). */
+  tabelaFoco: { tipo: 'vigas' | 'estribos' | 'pilares' | 'lajes'; id: string; n: number } | null;
   /** Ferramenta Fundação (planta do nível de fundação): tipo, posição em relação ao pilar e tipo de estaca do bloco. */
   tipoFund: TipoFundacao;
   /** 'auto': a posição sai do ponto do clique no pilar (centro = centrada, face = divisa, canto = canto). */
@@ -99,6 +101,7 @@ export const usePlanta = create<PState>((set) => ({
   vigotasTodas: false,
   janela: null,
   foco: null,
+  tabelaFoco: null,
   tipoFund: 'sapata',
   posFund: 'auto',
   estacaFund: null,

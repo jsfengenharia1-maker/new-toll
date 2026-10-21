@@ -21,14 +21,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 10. Cargas | 26 | 7 | 8 | 8 | 3 |
 | 11. Fundações | 70 | 48 | 7 | 10 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
-| 13. Tabelas e bibliotecas | 11 | 0 | 1 | 3 | 7 |
-| **Total** | **763** | **160** | **114** | **304** | **185** |
+| 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
+| **Total** | **763** | **164** | **113** | **301** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 19 | 22 | 41 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 19 | 37 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 8 | 13 | 21 |
@@ -919,11 +919,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **13.1 Tabelas de armadura** | | | |
-| C13.1 | Tabelas de armadura predefinidas para todos os elementos de concreto, todas editáveis, e criação de tabelas novas independentes. | Falta | R | tabelas de armadura editáveis [R7a] |
-| C13.2 | Gestão das tabelas na janela de tipos de aço por posição, acessível nos dados gerais. | Falta | R | [R7a] |
-| C13.3 | No cálculo, a armadura é escolhida na tabela; sem solução, aviso para revisar a tabela. | Parcial | R | bitolas fixas na busca (mínimos de lajes editáveis); sem tabela nem aviso para revisá-la [R7a] |
+| C13.1 | Tabelas de armadura predefinidas para todos os elementos de concreto, todas editáveis, e criação de tabelas novas independentes. | Feito | — | tabelas de armadura de vigas, estribos, pilares e lajes: de fábrica (id "padrao") e criadas pelo usuário, no modelo da obra (`tabelasArmadura.ts`, comando `tabela.definir`, grupo Tabelas de armadura) (R7a); sapatas, blocos e tubulões seguem as bitolas das suas regras |
+| C13.2 | Gestão das tabelas na janela de tipos de aço por posição, acessível nos dados gerais. | Feito | — | grupo "Tabelas de armadura" nos dados gerais da obra, junto de Materiais (`TabelasArmadura.tsx`), com abas por elemento, linhas editáveis, importar e exportar JSON (R7a) |
+| C13.3 | No cálculo, a armadura é escolhida na tabela; sem solução, aviso para revisar a tabela. | Feito | — | vigas, estribos, pilares e lajes escolhem pela tabela (`escolherBarrasViga`, `escolherEstribo`, busca de pilares, `escolherBarrasLaje`); sem solução: FORA_TABELA (erro, vigas), ARM_MANUAL (erro) ou aviso FORA_TABELA_PILAR (pilares) e FORA_TABELA_LAJE (aviso), com atalho "tabela" na lista de erros (R7a) |
 | C13.4 | Recomendação de conferir a coerência de tabelas criadas ou alteradas. | Fora | — |  |
-| C13.5 | Restaurar as tabelas originais, perguntando quais alteradas salvar; tabelas acrescentadas pelo usuário são mantidas. | Falta | R | [R7a] |
+| C13.5 | Restaurar as tabelas originais, perguntando quais alteradas salvar; tabelas acrescentadas pelo usuário são mantidas. | Feito | — | botão "Restaurar a padrão de fábrica" por tipo (comando `tabela.restaurar`): volta a padrão alterada à original e mantém as criadas; exportar JSON antes guarda as alteradas (R7a) |
 | | **13.2 Biblioteca de perfis** | | | |
 | C13.6 | Bibliotecas de perfis predefinidas de fabricantes, com dimensões e propriedades prontas. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
 | C13.7 | Perfil individual editável: todas as dimensões e propriedades alteráveis. | Fora | — | biblioteca de perfis (aço); o Pórtico tem perfis W/HP |
@@ -969,3 +969,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: Feito 143 → 155; Parcial 126 → 114; Falta 309 → 309; Fora 185 → 185 (contagem do resumo no momento da fatia, sem as demais frentes em andamento).
   - Pendências por frente: FU 38 → 26 (Parcial 20 → 8, Falta 18 → 18); demais sem mudança.
 - Regra: toda fatia atualiza as linhas que tocou e as tabelas de resumo; `src/core/checklists.test.ts` reprova contagens divergentes e itens pendentes sem frente.
+- **20/10/2026 — fatia R7a (tabelas de armadura editáveis, núcleo e interface).** C13.1, C13.2, C13.3 e C13.5 passam a Feito: tabelas de vigas, estribos, pilares e lajes (`src/core/building/tabelasArmadura.ts`, comandos `tabela.definir` e `tabela.restaurar`, grupo Tabelas de armadura, importar e exportar JSON, atalho da lista de erros), erros FORA_TABELA e ARM_MANUAL e avisos FORA_TABELA_PILAR e FORA_TABELA_LAJE.
+  - Situação: Feito 143 → 147; Parcial 126 → 125; Falta 309 → 306; Fora 185 → 185.
+  - Pendências por frente: R 41 → 37; demais sem mudança.

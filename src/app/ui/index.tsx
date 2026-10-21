@@ -199,10 +199,10 @@ export function OptNumCell({ value, placeholder, onChange }: { value: number | u
 }
 
 /** Célula de tabela numérica. */
-export function NumCell({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+export function NumCell({ value, onChange, label = 'valor' }: { value: number; onChange: (v: number) => void; label?: string }) {
   const [t, setT] = useState(String(value).replace('.', ','));
   useEffect(() => setT(String(value).replace('.', ',')), [value]);
-  return <input className="num" inputMode="decimal" aria-label="valor" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(String(value).replace('.', ',')); }} />;
+  return <input className="num" inputMode="decimal" aria-label={label} value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v) && v !== value) onChange(v); else setT(String(value).replace('.', ',')); }} />;
 }
 
 /** Célula de tabela com texto (ou número, com `num`) confirmada no Enter/blur; Esc desfaz. */
