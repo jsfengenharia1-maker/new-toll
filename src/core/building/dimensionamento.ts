@@ -250,13 +250,18 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       // estações de cada barra da cadeia (primeiro passo: total de estações para alocar os vetores)
       const estacoes = cad.map((bi) => {
         const { L } = baseBarra(pm.modelo, mb[bi]);
-        const n = Math.max(4, Math.ceil(L / 0.25));
+        // barras da divisão fina do modelo integrado (≈ malha das lajes): só as pontas e estações a cada 0,25 m
+        const n = pm.barras[bi].fina ? Math.max(1, Math.ceil(L / 0.25 - 1e-9)) : Math.max(4, Math.ceil(L / 0.25));
         const xl = Array.from({ length: n + 1 }, (_, k) => (k * L) / n);
         for (const p of pontuais.get(bi) ?? []) xl.push(Math.max(0, p.a - 1e-6), Math.min(L, p.a + 1e-6));
         xl.sort((a, z) => a - z);
         return { L, xl };
       });
       const tot = estacoes.reduce((t, e) => t + e.xl.length, 0);
+      // faces dos pilares nas pontas da cadeia (a parte flexível começa trechoRigido·h antes da face): o corte do cortante
+      // é medido ao longo da cadeia, que no modelo integrado tem várias barras curtas até o vão seguinte
+      const bI = mb[cad[0]], bJ = mb[cad.at(-1)!], Lcad = estacoes.reduce((t, e) => t + e.L, 0);
+      const rIc = bI.offI && noPilar.has(bI.i) ? recuo : null, rJc = bJ.offJ && noPilar.has(bJ.j) ? recuo : null;
       const M = elu.map(() => new Float64Array(tot)), Mv = elu.map(() => new Float64Array(tot)), V = elu.map(() => new Float64Array(tot)), Vv = elu.map(() => new Float64Array(tot)), T = elu.map(() => new Float64Array(tot)), Mk = freq.map(() => new Float64Array(tot));
       let x0 = 0, o = 0;
       for (let ib = 0; ib < cad.length; ib++) {
@@ -264,8 +269,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         const pc = porCaso(an, bi, xl);
         const ne = xl.length, ez = vetorCasos(pc, nomesCasos, 'Mz'), ey = vetorCasos(pc, nomesCasos, 'Vy'), et = vetorCasos(pc, nomesCasos, 'T');
         const rI = mb[bi].offI && noPilar.has(mb[bi].i) ? recuo : null, rJ = mb[bi].offJ && noPilar.has(mb[bi].j) ? recuo : null;
-        const marcados = xl.map((x) => !op.cortanteApoio || ((rI === null || x - rI >= depoisFace - 1e-9) && (rJ === null || L - x - rJ >= depoisFace - 1e-9)));
-        if (!marcados.some(Boolean)) marcados[Math.floor(xl.length / 2)] = true;
+        const marcados = xl.map((x) => !op.cortanteApoio || ((rIc === null || x0 + x - rIc >= depoisFace - 1e-9) && (rJc === null || Lcad - x0 - x - rJc >= depoisFace - 1e-9)));
+        if (!pm.barras[bi].fina && !marcados.some(Boolean)) marcados[Math.floor(xl.length / 2)] = true;
         // posição em planta de cada estação (início da parte flexível + u·x) para a abscissa ao longo da viga
         const nI = pm.modelo.nos[mb[bi].i], nJ = pm.modelo.nos[mb[bi].j], oI = mb[bi].offI ?? [0, 0, 0], oJ = mb[bi].offJ ?? [0, 0, 0];
         const ini = [nI[0] + oI[0], nI[1] + oI[1]], fim = [nJ[0] + oJ[0], nJ[1] + oJ[1]], Lf = Math.hypot(fim[0] - ini[0], fim[1] - ini[1]) || 1;
@@ -290,6 +295,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       }
       const ini = mb[cad[0]].i, fim = mb[cad.at(-1)!].j;
       const livre = (no: number) => !noPilar.has(no) && (usoNo.get(no) ?? 0) <= 1;
+      if (pm.barras[cad[0]].fina && !corte.some(Boolean)) corte[Math.floor(corte.length / 2)] = true; // cadeia fina toda dentro da faixa
       vaos.push({ L: x0, xs, s: sAbs, M, Mv, V, Vv, T, Mk, corte, ini, fim, balanco: livre(ini) !== livre(fim), faces });
     }
     // envoltória ELU: momentos mínimos (p·ℓ²/x, p = (V1 + V2)/ℓ das cargas verticais) e depois a
@@ -459,7 +465,7 @@ export function flechasViga(an: AnaliseEdificio, membros: number[], noPilar: Set
     let x0 = 0;
     for (const bi of cad) {
       const { L } = baseBarra(pm.modelo, mb[bi]);
-      const n = Math.max(8, Math.ceil(L / 0.1)), xs = Array.from({ length: n }, (_, k) => ((k + 0.5) * L) / n);
+      const n = pm.barras[bi].fina ? Math.max(2, Math.ceil(L / 0.1 - 1e-9)) : Math.max(8, Math.ceil(L / 0.1)), xs = Array.from({ length: n }, (_, k) => ((k + 0.5) * L) / n);
       const pc = porCaso(an, bi, xs, true);
       xs.forEach((x, k) => {
         const Mqp = Object.entries(fQP).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0), Mq = Object.entries(fQ).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0);
@@ -833,53 +839,79 @@ function barrasLaje(As: number, h: number, linha?: { bitolas: number[] }) {
   return { phi: 16, s: 0.1, As: barArea(16) / 0.1 };
 }
 
-/**
- * Momentos de cálculo por metro de uma laje maciça nos nós da grelha (kN·m/m), por Wood-Armer:
- * mx, my das barras das duas direções e o volvente |mxy| (torção das barras / largura), cada um com média numa
- * faixa transversal de 1 m; armadura inferior mx* = mx + |mxy| (com as correções quando mx* < 0) e superior
- * mx*′ = mx − |mxy|. Os casos entram com γg (permanentes) e γq (variáveis); o volvente soma |γ·mxy| por caso.
- */
-function momentosWoodArmer(g: GrelhaPavimento, lajeId: string, fat: number[]): { pos: [number, number]; neg: [number, number] } {
-  const m = g.modelo, res = g.res!;
-  type Acc = { mx: number[]; my: number[]; t: number[] };
-  const acc = new Map<number, Acc>();
+/** Geometria do Wood-Armer de uma laje numa grelha (igual nos pavimentos do grupo): contribuições e faixas por nó. */
+interface GeoWoodArmer {
+  /** Por nó (na ordem de chegada das barras): contribuições [barra, ponta (0 ou 6), direção] e vizinhos das faixas nas duas direções. */
+  nos: { contrib: [number, 0 | 6, 0 | 1][]; nx: number; ny: number; faixa: [number[], number[]] }[];
+}
+const cacheWoodArmer = new WeakMap<object, Map<string, GeoWoodArmer | null>>();
+function geoWoodArmer(g: GrelhaPavimento, lajeId: string): GeoWoodArmer | null {
+  let porLaje = cacheWoodArmer.get(g.modelo.barras);
+  if (!porLaje) { porLaje = new Map(); cacheWoodArmer.set(g.modelo.barras, porLaje); }
+  if (porLaje.has(lajeId)) return porLaje.get(lajeId)!;
+  const m = g.modelo;
+  const acc = new Map<number, [number, 0 | 6, 0 | 1][]>();
   let u: [number, number] | null = null, s = 0.25;
   m.barras.forEach((br, i) => {
     const tg = g.barras[i];
     if (tg.tipo !== 'laje' || tg.ref !== lajeId || tg.dir === undefined || !tg.largura) return;
     const a = m.nos[br.i], z = m.nos[br.j], L = Math.hypot(z[0] - a[0], z[1] - a[1]);
     if (tg.dir === 0 && !u) { u = [(z[0] - a[0]) / L, (z[1] - a[1]) / L]; s = L; }
-    for (const [no, k] of [[br.i, 0], [br.j, 6]] as const) {
-      const x = acc.get(no) ?? { mx: [], my: [], t: [] };
-      // momento interno (+ traciona embaixo) e torção nas pontas, por metro, já combinados
-      const M = fat.reduce((t, f, ic) => t + f * (k === 0 ? -res.esforcos[ic][i][5] : res.esforcos[ic][i][11]), 0) / tg.largura;
-      const T = fat.reduce((t, f, ic) => t + Math.abs(f * res.esforcos[ic][i][k + 3]), 0) / tg.largura;
-      (tg.dir === 0 ? x.mx : x.my).push(M);
-      x.t.push(T);
-      acc.set(no, x);
-    }
+    for (const [no, k] of [[br.i, 0], [br.j, 6]] as const) { const x = acc.get(no) ?? []; x.push([i, k, tg.dir]); acc.set(no, x); }
   });
-  if (!acc.size || !u) return { pos: [0, 0], neg: [0, 0] };
-  const media = (v: number[]) => (v.length ? v.reduce((a, c) => a + c, 0) / v.length : 0);
+  if (!acc.size || !u) { porLaje.set(lajeId, null); return null; }
   const nos = [...acc.keys()], uu = u as [number, number], vv: [number, number] = [-uu[1], uu[0]];
-  const val = new Map(nos.map((n) => { const x = acc.get(n)!; return [n, { mx: media(x.mx), my: media(x.my), t: media(x.t), tem: [x.mx.length > 0, x.my.length > 0] }]; }));
-  const pos: [number, number] = [0, 0], neg: [number, number] = [0, 0];
+  const tem = nos.map((n) => [acc.get(n)!.some((c) => c[2] === 0), acc.get(n)!.some((c) => c[2] === 1)]);
   // grade de busca: a faixa (|d·ax| < s/2, |d·tr| ≤ 0,5) cabe no círculo de raio R; candidatos na ordem de `nos`
   const R = Math.hypot(s / 2, 0.5) + 1e-3, cel = new Map<string, number[]>();
   const chave = (x: number, y: number) => `${Math.floor(x / R)}:${Math.floor(y / R)}`;
   nos.forEach((q, iq) => { const k = chave(m.nos[q][0], m.nos[q][1]); const l = cel.get(k); if (l) l.push(iq); else cel.set(k, [iq]); });
-  for (const n of nos) {
+  const out: GeoWoodArmer = { nos: [] };
+  nos.forEach((n) => {
     const p = m.nos[n], gx = Math.floor(p[0] / R), gy = Math.floor(p[1] / R), cand: number[] = [];
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const iq of cel.get(`${gx + dx}:${gy + dy}`) ?? []) cand.push(iq);
     cand.sort((a, z) => a - z);
-    const perto = cand.map((iq) => nos[iq]);
     // faixa de 1 m transversal a cada direção (mesma posição longitudinal, ± meia malha)
     const faixa = (dir: 0 | 1) => {
       const ax = dir === 0 ? uu : vv, tr = dir === 0 ? vv : uu;
-      const ns = perto.filter((q) => { const d = [m.nos[q][0] - p[0], m.nos[q][1] - p[1]]; return val.get(q)!.tem[dir] && Math.abs(d[0] * ax[0] + d[1] * ax[1]) < s / 2 + 1e-6 && Math.abs(d[0] * tr[0] + d[1] * tr[1]) <= 0.5 + 1e-6; });
-      return { M: media(ns.map((q) => (dir === 0 ? val.get(q)!.mx : val.get(q)!.my))), t: media(ns.map((q) => val.get(q)!.t)) };
+      return cand.filter((iq) => { const q = nos[iq], d = [m.nos[q][0] - p[0], m.nos[q][1] - p[1]]; return tem[iq][dir] && Math.abs(d[0] * ax[0] + d[1] * ax[1]) < s / 2 + 1e-6 && Math.abs(d[0] * tr[0] + d[1] * tr[1]) <= 0.5 + 1e-6; });
     };
-    const fx = faixa(0), fy = faixa(1), w = woodArmer(fx.M, fy.M, Math.max(fx.t, fy.t));
+    const c = acc.get(n)!;
+    out.nos.push({ contrib: c, nx: c.filter((x) => x[2] === 0).length, ny: c.filter((x) => x[2] === 1).length, faixa: [faixa(0), faixa(1)] });
+  });
+  porLaje.set(lajeId, out);
+  return out;
+}
+
+/**
+ * Momentos de cálculo por metro de uma laje maciça nos nós da grelha (kN·m/m), por Wood-Armer:
+ * mx, my das barras das duas direções e o volvente |mxy| (torção das barras / largura), cada um com média numa
+ * faixa transversal de 1 m; armadura inferior mx* = mx + |mxy| (com as correções quando mx* < 0) e superior
+ * mx*′ = mx − |mxy|. Os casos entram com γg (permanentes) e γq (variáveis); o volvente soma |γ·mxy| por caso.
+ * A geometria (contribuições e faixas) fica em cache por grelha e laje (pavimentos do grupo compartilham).
+ */
+function momentosWoodArmer(g: GrelhaPavimento, lajeId: string, fat: number[]): { pos: [number, number]; neg: [number, number] } {
+  const res = g.res!, geo = geoWoodArmer(g, lajeId);
+  if (!geo) return { pos: [0, 0], neg: [0, 0] };
+  // valores por nó: médias de mx, my e do volvente nas pontas das barras (na ordem das barras)
+  const nn = geo.nos.length, MX = new Float64Array(nn), MY = new Float64Array(nn), TT = new Float64Array(nn);
+  geo.nos.forEach((x, k) => {
+    let sx = 0, sy = 0, st = 0;
+    for (const [i, kk, dir] of x.contrib) {
+      const larg = g.barras[i].largura!;
+      // momento interno (+ traciona embaixo) e torção nas pontas, por metro, já combinados
+      const M = fat.reduce((t, f, ic) => t + f * (kk === 0 ? -res.esforcos[ic][i][5] : res.esforcos[ic][i][11]), 0) / larg;
+      const T = fat.reduce((t, f, ic) => t + Math.abs(f * res.esforcos[ic][i][kk + 3]), 0) / larg;
+      if (dir === 0) sx += M; else sy += M;
+      st += T;
+    }
+    MX[k] = x.nx ? sx / x.nx : 0; MY[k] = x.ny ? sy / x.ny : 0; TT[k] = x.contrib.length ? st / x.contrib.length : 0;
+  });
+  const pos: [number, number] = [0, 0], neg: [number, number] = [0, 0];
+  const media = (ids: number[], v: Float64Array) => { if (!ids.length) return 0; let t = 0; for (const q of ids) t += v[q]; return t / ids.length; };
+  for (const x of geo.nos) {
+    const fx = { M: media(x.faixa[0], MX), t: media(x.faixa[0], TT) }, fy = { M: media(x.faixa[1], MY), t: media(x.faixa[1], TT) };
+    const w = woodArmer(fx.M, fy.M, Math.max(fx.t, fy.t));
     pos[0] = Math.max(pos[0], w.inf[0]); pos[1] = Math.max(pos[1], w.inf[1]);
     neg[0] = Math.min(neg[0], w.sup[0]); neg[1] = Math.min(neg[1], w.sup[1]);
   }

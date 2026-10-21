@@ -278,7 +278,9 @@ describe('punção no edifício (laje lisa)', () => {
     // borda e canto têm momento desbalanceado e contorno reduzido (menor que o do interno)
     expect(t1.find((r) => r.tipo === 'borda')!.M[0] + t1.find((r) => r.tipo === 'borda')!.M[1]).toBeGreaterThan(10);
     expect(t1.find((r) => r.tipo === 'canto')!.contornos[1].u).toBeLessThan(2.5);
-    expect(t1.every((r) => r.status === 'ok')).toBe(true);
+    // modelo integrado (N2b): os momentos de borda e de canto crescem (região do pilar rígida e continuidade real com
+    // os lances), e esses pilares pedem armadura de punção; nenhum falha
+    expect(t1.every((r) => r.status !== 'fail')).toBe(true);
     expect(d.lajes.every((l) => l.cortante?.ok !== false)).toBe(true);
   });
 

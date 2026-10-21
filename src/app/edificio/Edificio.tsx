@@ -740,6 +740,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
   const { analise, revAnalise, calculando, calcular, sessao } = useBuilding();
   const r = analise ? resumoAnalise(b, analise) : null;
   const velha = analise && revAnalise !== sessao.revCalculo;
+  const integradoEmUso = (analise?.opcoes.modeloGlobal ?? 1) === 1;
   return (
     <>
       <div className="card">
@@ -749,9 +750,11 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
           {nErr > 0 && <span className="hint bad">Há {nErr} erro(s) de lançamento: o resultado pode não ter sentido.</span>}
           {velha && <span className="hint bad">O modelo mudou depois do cálculo: calcule de novo.</span>}
         </div>
-        <Hint>Casos G, Q e 12 de vento (4 direções × centrado/±e); γz com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic). Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.5)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</Hint>
+        <Hint>Casos G, Q e 12 de vento (4 direções × centrado/±e); γz com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic{integradoEmUso ? ', lajes 0,3·Eci·Ic' : ''}). {integradoEmUso
+          ? <>Modelo integrado: a grelha de lajes e vigas de cada pavimento (malha {fmt(analise?.opcoes.malha ?? 0.25)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %{analise?.opcoes.cortanteBarrasLaje ? ', barras de laje de Timoshenko' : ''}) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto, com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</>
+          : <>Modelo separado: grelha de lajes e vigas por pavimento (malha {fmt(analise?.opcoes.malha ?? 0.25)} m, torção das lajes {Math.round((analise?.opcoes.torcaoLaje ?? 0.15) * 100)} % de 2I, das vigas {Math.round((analise?.opcoes.torcaoViga ?? 0.15) * 100)} %) e pórtico espacial com diafragma rígido, trechos rígidos até a face − 0,3h e área dos pilares × {analise?.opcoes.axialPilares ?? 2} nas ações verticais.</>}</Hint>
         {r && !r.erro && (
-          <p className="small">{r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
+          <p className="small" data-modelo={integradoEmUso ? 'integrado' : 'separado'}>Modelo {integradoEmUso ? `integrado (${analise!.grelhas.filter((g) => g.integrado).length} pavimento(s) condensados no pórtico)` : 'separado (grelhas + pórtico)'} · {r.gdl} gdl em {r.ms} ms · cargas G {fmt(r.totais.G, 1)} kN, Q {fmt(r.totais.Q, 1)} kN · equilíbrio (reações − cargas): G {fmt(r.equilibrio.G, 3)}, Q {fmt(r.equilibrio.Q, 3)} kN</p>
         )}
         {r?.erro && <p className="hint bad">{r.erro}</p>}
         {r && r.avisos.length > 0 && <ul className="prem">{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
