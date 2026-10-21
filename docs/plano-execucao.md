@@ -171,3 +171,13 @@ Decisão do usuário (21/10/2026): melhorias não essenciais ficam só registrad
   - medir em 30+ pavimentos e, se o resolvedor dominar, núcleo em Rust/WASM;
   - app desktop com Tauri.
 - Observação: os itens de validação que resolvem dúvidas numéricas já listadas no fechamento (Wp de borda/canto, momentos das vigas no modelo integrado, bloco multi-pilar) podem ser antecipados no fechamento se o usuário quiser.
+
+## Interoperabilidade e documentação de exportação (depois de concluir o aplicativo)
+Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e implementar a exportação do projeto estrutural para Revit, CYPECAD, TQS e Eberick (IFC ou outro formato), de forma que os programas reconheçam os elementos como nativos e permitam recalcular, para conferência do motor de cálculo.
+- Relatório da pesquisa: `docs/analises/interoperabilidade-ifc.md` (viabilidade por programa, requisitos do IFC, limitações, itens "não confirmado").
+- Fatias propostas:
+  - I0: teste empírico de importação de IFC mínimo nos quatro programas (troca "não confirmado" por fato);
+  - I1: exportar IFC2x3 (IFC4 opcional) físico com perfis paramétricos, tipos, materiais e Psets;
+  - I2: modelo analítico (IfcStructuralAnalysisModel) e SAF;
+  - I3: add-in Revit (API/Dynamo) para elementos nativos;
+  - I4: roteiro de conferência de cálculo num edifício-teste fictício, comparando esforços, γz, armaduras e deslocamentos.
