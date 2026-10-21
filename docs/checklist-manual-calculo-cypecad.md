@@ -13,19 +13,19 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 12 | 12 | 25 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 50 | 17 | 12 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 51 | 16 | 12 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 35 | 9 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 36 | 20 | 47 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 25 | 18 | 16 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 26 | 17 | 16 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 51 | 17 | 29 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 24 | 1 | 16 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **274** | **119** | **157** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
+| **Total** | **661** | **277** | **116** | **157** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -34,10 +34,10 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 52 | 18 | 70 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 20 | 8 | 28 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 119 | 147 |
-| FU — Fundações | 6 | 1 | 7 |
+| FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **119** | **157** | **276** |
+| **Total** | **116** | **157** | **273** |
 
 ## Divergências de premissa
 
@@ -249,7 +249,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.71 | Envoltória de cortante contínua ou descontínua (opção geral). | Falta | N | envoltória de cortante contínua/descontínua [N2e] |
 | K1.4.72 | Armadura de cortante: disposição de armadura de pele, seção de verificação ao cortante (opção geral). | Feito | — | armadura de pele (17.3.5.2.3, h > 60 cm) somada às laterais de torção, por face (R3a); seção de verificação do cortante pelas opções cortanteApoio e cortanteDistancia (N1e) |
 | K1.4.73 | Seleção de estribos (opção geral); fissuração (opção geral). | Feito | — | seleção de estribos pelas tabelas (vigas: bitolas, espaçamento mínimo e máximo e ramos por faixa de largura; pilares: φt e s máx por bitola longitudinal) e fissuração pela opção limiteFissura (N1e) (R7a) |
-| K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Parcial | FU | FU2: vigas de fundação com As,mín da 17.3.5.2.1 nas duas faces e pele 0,10 % por face com h > 60 cm (`dimensionarVigaFundacao`), com o detalhe na janela; FU7a: sapata corrida com ρmín 0,15 %·h, armadura de distribuição (20 % da principal, 0,9 cm²/m e 0,5·ρmín) e, sob pilares, a armadura longitudinal e a pele da viga em T invertido; cintas (vigas de equilíbrio da aba de um lado) e vigas embutidas em paredes faltam (E1, FU7b) |
+| K1.4.74 | Taxas mínimas em vigas de fundação; armadura de vigas embutidas em paredes e de cintas/encadeados. | Parcial | FU | FU2: vigas de fundação com As,mín da 17.3.5.2.1 nas duas faces e pele 0,10 % por face com h > 60 cm (`dimensionarVigaFundacao`); FU7a: sapata corrida com ρmín 0,15 %·h, distribuição e, sob pilares, armadura e pele da viga em T invertido; faltam as cintas (vigas de equilíbrio da aba de um lado, [FU8a]) e as vigas embutidas em paredes (FU7b, com a E1) |
 | | **Lajes maciças, mistas e nervuradas (listadas)** | | | |
 | K1.4.75 | Armadura de lajes e nervuradas; taxas mínimas; redução de densidade de armadura; armadura de torção; comprimentos mínimos. | Feito | — | ρmín e mínimos de distribuição (Tabela 19.1), negativo de borda (19.3.3.2), comprimentos mínimos em % do vão, torção por Wood-Armer (N1d) e redução de densidade do reforço (opção `lajeReforcoReducao`, desligada: bitola da base em espaçamento múltiplo; `detalhamentoLajes.ts`, R7d) |
 | K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Feito | — | ponta das barras a cobrimento da borda; opção `lajeBaseDetalhada` (padrão desligada, como no registro) e escolha por laje em `laje.armaduraBase`: não detalhada só indica φ c/ s ou a tela (desenho e notas da prancha), fora do quantitativo (R7d) |
@@ -268,7 +268,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Parcial | E | cortante das nervuras sem armadura transversal (19.4.1, VRd1 e VRd2) com faixa maciçada (R6); vigotas moldadas no local (E3) [E3b] |
 | K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos [E2c] |
 | | **Fundações (listadas)** | | | |
-| K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Parcial | FU | opções gerais de sapatas, blocos, tubulões e vigas de fundação no edifício (`fundacao.opcoes`, `PARAMS_FUNDACAO` e `vigaEq*`/`vigaTrav*`/`vigaFund*` em Opções de cálculo; editor "Parâmetros do cálculo"), particulares por elemento e por viga (seção, `fixa`, equilíbrio por ponta); sapatas corridas faltam (FU7a) |
+| K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Feito | — | opções gerais de sapatas, blocos, tubulões, vigas de fundação e sapatas corridas no edifício (`fundacao.opcoes`, `PARAMS_FUNDACAO`, `vigaEq*`/`vigaTrav*`/`vigaFund*`/`corrida*` em Opções de cálculo; editor "Parâmetros do cálculo"); particulares por elemento, por viga e por sapata corrida (seção, `fixa`, equilíbrio por ponta, B, h, aba, k, σadm) |
 | | **Desenho** | | | |
 | K1.4.90 | Camadas, tamanho de texto e penas configuráveis. | Parcial | V | camadas e penas fixas (NBR 16861); não configuráveis [V5] |
 | K1.4.91 | Opções gerais (marcadas) afetam todas as obras: mudar e recalcular pode alterar resultados; as demais ficam salvas com a obra. | Fora | — | opções por instalação do outro programa |
@@ -503,7 +503,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.108 | Versões < 2012.a: vigas livres perpendiculares à parede junto a vazios devem virar vigas inclinadas para dimensionar à flexo-compressão (vigas e lajes comuns só à flexão simples); ≥ 2012.a ver capítulo de diafragma rígido. | Fora | — | versões antigas do outro programa |
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
 | | **Fundações (na entrada de lajes)** | | | |
-| K1.9.110 | Pilares e pilares-parede com vinculação externa podem ter sapatas e blocos sobre estacas; entre eles vigas de equilíbrio (centradoras) e vigas de travamento, que também ligam sapatas corridas de paredes. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1) e vigas de equilíbrio e de travamento (FU2: lançamento na planta, editor e janela; núcleo da FU3 com cruzamento de vigas em `vigasFundacao.ts`); sapatas corridas e pilares-parede faltam (FU7) |
+| K1.9.110 | Pilares e pilares-parede com vinculação externa podem ter sapatas e blocos sobre estacas; entre eles vigas de equilíbrio (centradoras) e vigas de travamento, que também ligam sapatas corridas de paredes. | Parcial | FU | sapatas, blocos e tubulões (FU1), vigas de equilíbrio e de travamento com cruzamento (FU2/FU3) e sapatas corridas (FU7a); faltam as cintas que ligam sapatas corridas de paredes ([FU8a]) e os pilares-parede com vinculação externa (FU7b, com a E1) |
 | K1.9.111 | Sapatas retangulares calculadas como sólido rígido; podem receber vários pilares e/ou pilares-parede; blocos idem conforme tipologia. | Feito | — | FU3: sapata associada rígida (faixas pelo diagrama de momentos, `footingsGroup.ts`) e bloco com vários pilares (bielas e tirantes por pilar, `caps.ts`, extensão de Blévot a confirmar); pilares-parede com a E1 |
 | K1.9.112 | Vigas centradoras absorvem os momentos transmitidos à sapata/bloco; várias numa direção dividem o momento proporcionalmente às rigidezes. | Feito | — | FU2: alavanca com várias vigas repartindo o momento pela rigidez EI/ℓ (`alavanca` em `vigasFundacao.ts`); componente que nenhuma viga equilibra fica no elemento; alívio e alavanca na janela do elemento; momentos do pilar ficam no elemento (a confirmar) |
 | | **1.9.10–1.9.11 Cargas, vigas inclinadas, contraventamentos, escadas (pág. 65)** | | | |
@@ -591,7 +591,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.49 | Pilares e pilares-parede: barras, esforços na base, por caso e mais desfavoráveis. | Feito | — | barras do pilar no detalhamento (R3b), esforços na base por caso e envoltórias em "Cargas na fundação" |
 | K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | V | deslocamento do vento por direção e pavimento (máximo entre os pilares) e distorção entre pavimentos (R1); sem deslocamento por caso simples e por pilar [V3] |
 | K1.11.51 | Efeitos de 2ª ordem; cargas de vento; participação sísmica (períodos, massas, coeficiente sísmico por direção). | Parcial | R | γz e deslocamentos laterais no memorial; forças de vento só na tela; sismo fora [R7g] |
-| K1.11.52 | Fundações: materiais, ações, geometria de sapatas, blocos, vigas centradoras e de travamento, quantitativos e verificações realizadas. | Parcial | FU | memorial de sapatas, blocos e tubulões no módulo Fundações; quantitativos de concreto, forma, aço e estacas por elemento nas pranchas (FU5: folha de quantitativos); memorial do edifício com as vigas de equilíbrio e de travamento falta |
+| K1.11.52 | Fundações: materiais, ações, geometria de sapatas, blocos, vigas centradoras e de travamento, quantitativos e verificações realizadas. | Feito | — | memorial do edifício com terreno, materiais, ações, geometria e verificações dos elementos de fundação, vigas de equilíbrio e de travamento, base elástica e sapatas corridas (`MemorialEdificio.tsx`) e quantitativos de concreto, forma, aço e estacas (`quantitativosFundacao`, FU5) |
 | K1.11.53 | Consolos curtos; estruturas 3D integradas; verificações ELU de pilares e vigas. | Parcial | R | verificações ELU de pilares e vigas no memorial; sem detalhe por combinação; consolos (E2) [R7g] |
 | | **1.11.3 Desenhos (págs. 75–76)** | | | |
 | K1.11.54 | Formatos padrão ou do usuário; impressora, plotter, DXF/DWG, PDF; detalhes DXF/DWG inseríveis; escala, espessuras, textos, moldura, modelo DXF/DWG; elementos por camadas. | Parcial | V | PDF, DXF R2000, DWG; A0–A4, carimbo, camadas; sem formato ou moldura do usuário [V5] |
@@ -866,7 +866,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-32 | Conforto: basta a flecha do caso de carga variável. | Feito | — | flecha imediata das variáveis ≤ ℓ/350 (limite editável) em lajes e vigas (N1d) |
 | K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | total (ℓ/250) e conforto (variável, ℓ/350) com limites editáveis; falta a flecha ativa (etapas de carga) (N1d) [N2f] |
 | | **1.15.5 Elementos de fundação (pág. 111)** | | | |
-| K1.15.5-1 | Remete à parte do manual sobre sapatas corridas e isoladas, blocos sobre estacas, vigas de equilíbrio e vigas de travamento. | Parcial | FU | sapatas, blocos e tubulões no edifício (FU1); vigas de equilíbrio e de travamento (FU2, núcleo e interface); sapatas corridas faltam (FU7a) |
+| K1.15.5-1 | Remete à parte do manual sobre sapatas corridas e isoladas, blocos sobre estacas, vigas de equilíbrio e vigas de travamento. | Feito | — | sapatas isoladas, blocos e tubulões (FU1), vigas de equilíbrio e de travamento (FU2) e sapatas corridas (FU7a) no edifício |
 | K1.15.5-2 | Fim do texto: remete à versão completa em inglês (learning.cype.com, CYPECAD calculations manual). | Fora | — | remissão ao manual em inglês |
 
 ## Histórico de conferência
@@ -916,3 +916,5 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — fatia FU7a (sapata corrida sob parede e sob pilares).** K1.1.4 passa a Feito (sapatas corridas em `src/core/building/sapataCorrida.ts`: sob parede com dimensionamento rígido por metro, sob pilares como viga em T invertido sobre base elástica na análise global); K1.9.48 passa de Falta a Parcial (σadm e k próprios da sapata corrida, k padrão 100 000 kN/m³; o muro com sapata corrida fica na FU7b); K1.4.74 segue Parcial (nota: ρmín, distribuição e pele da sapata corrida; cintas e vigas embutidas faltam); K1.9.47 segue Falta (base da parede, FU7b). Premissas novas em `sapata-corrida` e nas opções `corrida*`, todas a confirmar.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: FU reduz em 1 item; demais sem mudança.
+- **21/10/2026 — auditoria de fim da frente FU contra o código.** K1.4.89, K1.11.52 e K1.15.5-1 passam a Feito (opções das sapatas corridas, memorial do edifício com vigas de fundação, base elástica e corridas, e as quatro famílias de elementos no edifício). K1.4.74 e K1.9.110 seguem Parcial (cintas na FU8a; vigas embutidas em paredes e pilares-parede na FU7b); K1.9.47 e K1.9.48 seguem na FU7b. Lacunas e fatias: seção "Auditoria de 21/10/2026" de `spec-frente-FU.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
