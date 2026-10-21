@@ -7,6 +7,7 @@ import './acoes';
 import './armaduras';
 import './tabelas';
 import './fundacao';
+import './baseElastica';
 import './edicao';
 
 export * from './registry';

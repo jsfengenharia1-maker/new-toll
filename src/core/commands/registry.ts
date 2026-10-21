@@ -22,9 +22,10 @@ export interface Comando<P = Record<string, unknown>> {
    * (`Sessao.revCalculo`), então não invalida a análise nem o dimensionamento. Padrão: true.
    * 'fundacao': só dados das fundações (elementos, terreno, sondagens). Não muda `revCalculo` (a estrutura é calculada
    * com vínculo externo na base dos pilares), só `revFundacao`.
-   * Função: decide pelos parâmetros (ex.: carga lançada no nível de fundação só muda as fundações).
+   * Função: decide pelos parâmetros e pelo modelo resultante (ex.: carga lançada no nível de fundação só muda as
+   * fundações, a menos que haja base elástica, FU6, que entra na análise global).
    */
-  calculo?: boolean | 'fundacao' | ((p: Record<string, unknown>) => boolean | 'fundacao');
+  calculo?: boolean | 'fundacao' | ((p: Record<string, unknown>, b?: BuildingModel) => boolean | 'fundacao');
   /** Regras além do schema (referências, colisões). Diagnósticos de severidade "erro" impedem a aplicação. */
   validar?(b: BuildingModel, p: P): Diagnostico[];
   /** Muta o rascunho; pode devolver uma mensagem para a barra de status. */
@@ -39,22 +40,22 @@ export function registrar<P>(c: Comando<P>) {
 }
 export const comando = (nome: string) => REGISTRO.get(nome);
 /** O comando altera algo que entra no cálculo? (`lote`: se algum item altera; comando desconhecido: sim.) */
-export function afetaCalculo(nome: string, params?: Record<string, unknown>): boolean {
+export function afetaCalculo(nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean {
   if (nome === 'lote') {
     const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
-    return cs.some((c) => afetaCalculo(c.nome, c.params));
+    return cs.some((c) => afetaCalculo(c.nome, c.params, b));
   }
-  const c = calculoDe(nome, params);
+  const c = calculoDe(nome, params, b);
   return c === undefined || c === true;
 }
-const calculoDe = (nome: string, params?: Record<string, unknown>) => { const c = REGISTRO.get(nome)?.calculo; return typeof c === 'function' ? c(params ?? {}) : c; };
+const calculoDe = (nome: string, params?: Record<string, unknown>, b?: BuildingModel) => { const c = REGISTRO.get(nome)?.calculo; return typeof c === 'function' ? c(params ?? {}, b) : c; };
 /** O comando altera o cálculo das fundações? (tudo que altera o cálculo, mais os comandos só de fundação.) */
-export function afetaFundacao(nome: string, params?: Record<string, unknown>): boolean {
+export function afetaFundacao(nome: string, params?: Record<string, unknown>, b?: BuildingModel): boolean {
   if (nome === 'lote') {
     const cs = (params?.comandos ?? []) as { nome: string; params?: Record<string, unknown> }[];
-    return cs.some((c) => afetaFundacao(c.nome, c.params));
+    return cs.some((c) => afetaFundacao(c.nome, c.params, b));
   }
-  return calculoDe(nome, params) !== false;
+  return calculoDe(nome, params, b) !== false;
 }
 export const listarComandos = () => [...REGISTRO.values()].sort((a, z) => a.nome.localeCompare(z.nome));
 
@@ -177,7 +178,7 @@ export class Sessao {
     if (REGISTRO.get(nome)!.risco === 'leitura') return { ok: true, erros: [], mensagem: r.mensagem };
     const entrada: Entrada = { t: new Date().toISOString(), nome, params: r.params!, autor };
     this.modelo = r.modelo;
-    const calculo = afetaCalculo(nome, r.params), fundacao = afetaFundacao(nome, r.params);
+    const calculo = afetaCalculo(nome, r.params, r.modelo), fundacao = afetaFundacao(nome, r.params, r.modelo);
     this.rev++;
     if (calculo) this.revCalculo++;
     if (fundacao) this.revFundacao++;

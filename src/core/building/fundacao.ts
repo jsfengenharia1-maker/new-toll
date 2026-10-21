@@ -22,6 +22,7 @@ import { combinacoesDoEstado, type CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
+import { pontoNaBase } from './baseElastica';
 import {
   abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
   type AlavancaNaViga, type CargaPontualVF, type GeometriaVF, type ResultadoVigaFundacao, type VigaAlavanca,
@@ -245,7 +246,8 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
   const avisos: string[] = [];
 
   // cargas do nível de fundação: primeiro nas vigas (faixa da largura entre os pilares), depois nos elementos
-  const parcelas = b.cargas.filter((c) => c.grupo === 'fundacao').flatMap((c) => parcelasDaCarga(c).map((x) => ({ ...x, caso: c.caso })));
+  // as que caem sobre a base elástica (radier, viga sobre base elástica; FU6) já entraram na análise global
+  const parcelas = b.cargas.filter((c) => c.grupo === 'fundacao').flatMap((c) => parcelasDaCarga(c).map((x) => ({ ...x, caso: c.caso }))).filter((x) => !pontoNaBase(b, x.pt));
   const naViga = new Map<string, CargaPontualVF[]>();
   const resto: typeof parcelas = [];
   for (const pc of parcelas) {

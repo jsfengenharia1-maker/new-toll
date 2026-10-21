@@ -601,3 +601,6 @@ export function resumoAcoLajes(b: BuildingModel, dets: DetalheLaje[], perdas: nu
 export function resumoTelasLajes(dets: DetalheLaje[], perdas: number) {
   return resumoTelas(dets.flatMap((d) => (d.paineis ?? []).map((p) => ({ designacao: p.designacao, comprimento: p.comprimento, largura: p.largura, repeticoes: d.repeticoes }))), perdas);
 }
+
+/** Trechos de uma reta c = cte dentro dos anéis (radier, FU6). */
+export const cortesLaje = cortes;

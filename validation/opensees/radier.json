@@ -1,0 +1,17 @@
+{
+ "fonte": "OpenSeesPy 3.8.0 (ShellMITC4, ElasticMembranePlateSection, zeroLength)",
+ "L": 8.0,
+ "h": 0.4,
+ "k": 30000.0,
+ "P": 1000.0,
+ "nu": 0.2,
+ "E": 26838405.317753144,
+ "malha": 0.25,
+ "resultados": {
+  "w_centro": 0.002191326938088248,
+  "w_meio_borda": 5.732157175566361e-05,
+  "w_canto": -0.0005352868337255034,
+  "w_quarto": 0.001015546869393184,
+  "sigma_max": 65.73980814264745
+ }
+}

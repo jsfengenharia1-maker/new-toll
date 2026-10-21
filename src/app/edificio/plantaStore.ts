@@ -5,9 +5,9 @@ import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
-export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund'];
+export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
 /** Parâmetros que levam a planta ao nível de fundação ao escolher a ferramenta (e limpam a seleção, salvo as que a usam). */
 export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao: Set<string> }> =>
@@ -53,6 +53,11 @@ interface PState {
   /** Ferramenta Viga de fundação (FU2): tipo e seção (m) das vigas lançadas por clique entre dois elementos. */
   tipoVigaFund: TipoVigaFundacao;
   secaoVigaFund: { b: number; h: number };
+  /** Ferramentas Radier e Viga sobre base elástica (FU6): espessura do radier e seção da viga (m) lançados. */
+  hRadier: number;
+  secaoVigaElastica: { b: number; h: number };
+  /** Mapa por nó da base elástica na planta de fundação (FU6): tensão no solo, recalque ou nenhum. */
+  mapaBase: 'nenhum' | 'tensao' | 'recalque';
   /** Ferramenta Pilar: lança arranque (pilar de altura zero que só leva cargas à fundação). */
   arranque: boolean;
   secao: { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
@@ -111,6 +116,9 @@ export const usePlanta = create<PState>((set) => ({
   multiFund: false,
   pilaresFund: [],
   limiteFechado: false,
+  hRadier: 0.3,
+  secaoVigaElastica: { b: 0.5, h: 0.8 },
+  mapaBase: 'nenhum',
   arranque: false,
   tipoVigaFund: 'equilibrio',
   secaoVigaFund: { b: 0.2, h: 0.4 },

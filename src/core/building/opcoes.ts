@@ -169,6 +169,10 @@ export interface OpcoesCalculo {
   gerarDistLimite: number;
   /** Geração automática: σadm (kN/m²) abaixo da qual o tipo automático passa de sapata a bloco sobre estacas. */
   gerarSigmaMin: number;
+  /** Base elástica (FU6): coeficiente de reação vertical do solo padrão (kN/m³), para radiers e vigas sem valor próprio. */
+  radierK: number;
+  /** Base elástica (FU6): espaçamento máximo da malha do radier e da divisão das vigas sobre base elástica (m). */
+  radierMalha: number;
 }
 
 export interface OpcaoInfo {
@@ -389,6 +393,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Limites poligonais (e as camadas da máscara escolhidas como divisa) a menos desta distância da face do pilar tornam o elemento de divisa naquela face, mesmo com pilar em frente.' },
   { chave: 'gerarSigmaMin', rotulo: 'Geração automática: σadm mínima para sapata', unidade: 'kN/m²', min: 0, max: 1000, passo: 10, padrao: 150, fonte: 'Critério do Statikos (sem fonte): terreno fraco pede fundação profunda', aConfirmar: true,
     descricao: 'No tipo automático, o pilar vai para bloco sobre estacas quando a σadm (informada ou estimada pelo SPT, N̄/50) é menor que este valor e há estaca cadastrada; senão, sapata.' },
+  { chave: 'radierK', rotulo: 'Base elástica: coeficiente de reação vertical padrão (k)', unidade: 'kN/m³', min: 1000, max: 1000000, passo: 1000, padrao: 100000, fonte: 'Sem fonte normativa (NBR 6122 não fixa); valor da sapata corrida da spec da FU (10 kgf/cm³); tabela orientativa de Bowles (1996) no memorial; deve vir do geotécnico', aConfirmar: true,
+    descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
+  { chave: 'radierMalha', rotulo: 'Base elástica: malha do radier e divisão das vigas', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): malha mais grossa que a das lajes para limitar o tamanho do pórtico', aConfirmar: true,
+    descricao: 'Espaçamento máximo das barras da grelha do radier (as linhas passam também pelos pilares) e dos nós das vigas sobre base elástica.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

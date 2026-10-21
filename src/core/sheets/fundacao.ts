@@ -10,6 +10,7 @@ import { acoDe, cobrimentoFundacao, fckDe } from '../building/materiais';
 import { centroPilar, dimsSecao, secaoNoLance, type BuildingModel, type Pilar, type TipoFundacao } from '../building/types';
 import { geometriaVF, type ResultadoVigaFundacao } from '../building/vigasFundacao';
 import { cargasDosPilares } from './locacao';
+import { montarPranchasBaseElastica } from './fundacaoRadier';
 import type { OpcoesArmacao } from './armacaoVigas';
 import {
   Chaves, Posicoes, acoDaFolha, areaArmacao, bloco, capacidadeTabela, cfgArmacao, cmInt, empacotar, formatoArmacao, montarFolha, mover, nf, notas, ordemNome, perdasDe,
@@ -303,9 +304,24 @@ function folhaQuantitativos(b: BuildingModel, sigla: string, linhas: LinhaQuanti
 // ---------------- conjunto das folhas de fundação ----------------
 
 export function montarPranchasFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento, o: OpcoesArmacao = {}): Prancha[] {
+  return montarFundacao(b, an, dim, o).pranchas;
+}
+
+/**
+ * Quantitativos da fundação (concreto, forma e aço por grupo de elementos iguais, vigas de fundação, radiers e vigas
+ * sobre base elástica; estacas por tipo), os mesmos da folha de quantitativos: para o memorial.
+ */
+export function quantitativosFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento): { linhas: LinhaQuantitativo[]; estacas: { nome: string; quant: number; L: number }[] } {
+  const r = montarFundacao(b, an, dim, {});
+  return { linhas: r.quant, estacas: r.estacas };
+}
+
+function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento, o: OpcoesArmacao = {}): { pranchas: Prancha[]; quant: LinhaQuantitativo[]; estacas: { nome: string; quant: number; L: number }[] } {
   const rs = (dim.fundacoes ?? []).filter((r) => r.contorno.length);
-  if (!rs.length) return [];
-  const sigla = siglaFundacao(rs.map((r) => r.tipo));
+  const temBase = !!(dim.radiers?.length || dim.vigasElasticas?.length);
+  if (!rs.length && !temBase) return { pranchas: [], quant: [], estacas: [] };
+  // radier e viga sobre base elástica = fundação direta (sigla das sapatas) [a confirmar]
+  const sigla = siglaFundacao([...rs.map((r) => r.tipo), ...(temBase ? ['sapata' as const] : [])]);
   const oa = { carimbo: o.carimbo }, cfg = cfgArmacao(b);
   const out: Prancha[] = [], tabAco: LinhaTabelaAco[] = [], quant: LinhaQuantitativo[] = [];
   const avisos: string[] = [];
@@ -371,11 +387,16 @@ export function montarPranchasFundacao(b: BuildingModel, an: AnaliseEdificio | n
     });
     out.push(...r.pranchas); tabAco.push(...r.aco);
   }
+  // 3b) base elástica (FU6): radiers e vigas sobre base elástica
+  if (temBase) {
+    const r = montarPranchasBaseElastica(b, dim, { ...oa, sigla, conteudo: NOME_SIGLA[sigla] });
+    out.push(...r.pranchas); tabAco.push(...r.aco); quant.push(...r.quant);
+  }
   // 4) quantitativos
   const estacas = new Map<string, { nome: string; quant: number; L: number }>();
   for (const g of porTipo('bloco')) for (const e of g.els) { const est = estacasDe(e); if (!est) continue; const nome = e.dims.estaca ?? `ø${cm(est.D)}`, k = `${nome}|${est.L ?? 0}`, x = estacas.get(k) ?? { nome, quant: 0, L: est.L ?? 0 }; x.quant += est.coords.length; estacas.set(k, x); }
   const q = folhaQuantitativos(b, sigla, quant, [...estacas.values()], tabAco, oa);
   q.avisos.push(...avisos);
   out.push(q);
-  return out;
+  return { pranchas: out, quant, estacas: [...estacas.values()] };
 }
