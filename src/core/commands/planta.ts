@@ -1,6 +1,6 @@
 // Comandos da planta: máscara (DXF de referência) e pilares.
 import type { Draft } from 'immer';
-import { centroPilar, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar } from '../building/types';
+import { centroPilar, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar, type VinculoBasePilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
 import { atribuirTabela, tabelaInexistente } from './tabelas';
@@ -259,6 +259,53 @@ registrar<{ ids: string[]; pavimentos?: string[]; topo?: number; base?: number }
       if (!q.engastes?.length) delete q.engastes;
     }
     return `Engaste de ${n} lance(s) de pilar alterado.`;
+  },
+});
+
+registrar<{ ids: string[]; base?: VinculoBasePilar; cotaBase?: number; cotaFundacao?: boolean; apoio?: { pavimento: string; altura: number; direcao?: 'u' | 'v' } }>({
+  nome: 'pilar.vinculo',
+  descricao: 'Vínculo externo e desnível dos pilares (N2c). `base`: engaste (padrão), rotula (giros de flexão livres) ou molas com kx, ky, kz (kN/m) e krx, kry, krz (kN·m/rad) em eixos globais (gdl ausente = preso, 0 = livre). `cotaBase`: cota própria do pé (m; só pilares que nascem na fundação); `cotaFundacao: true` volta à cota da fundação. `apoio`: travamento intermediário no lance que chega ao `pavimento`, a `altura` m da base (0 remove), numa direção (u ao longo de b, v ao longo de h) ou nas duas.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    base: { type: 'object', additionalProperties: false, required: ['tipo'], properties: {
+      tipo: { type: 'string', enum: ['engaste', 'rotula', 'molas'] },
+      kx: { type: 'number', minimum: 0 }, ky: { type: 'number', minimum: 0 }, kz: { type: 'number', minimum: 0 }, krx: { type: 'number', minimum: 0 }, kry: { type: 'number', minimum: 0 }, krz: { type: 'number', minimum: 0 },
+    } },
+    cotaBase: { type: 'number' }, cotaFundacao: { type: 'boolean' },
+    apoio: { type: 'object', additionalProperties: false, required: ['pavimento', 'altura'], properties: { pavimento: { type: 'string' }, altura: { type: 'number', minimum: 0 }, direcao: { type: 'string', enum: ['u', 'v'] } } },
+  } },
+  validar(b, p) {
+    const sp = p.ids.filter((id) => !b.pilares.some((x) => x.id === id));
+    if (sp.length) return err('PILAR_INEXISTENTE', `Pilar ${sp.join(', ')} não existe.`);
+    if (p.base === undefined && p.cotaBase === undefined && !p.cotaFundacao && !p.apoio) return err('SEM_VALOR', 'Informe base, cotaBase e/ou apoio.');
+    const qs = p.ids.map((id) => b.pilares.find((x) => x.id === id)!);
+    if (((p.base && p.base.tipo !== 'engaste') || p.cotaBase !== undefined) && qs.some((q) => q.nasce !== 'fundacao')) return err('PILAR_SEM_BASE', 'Vínculo externo e cota da base valem só para pilares que nascem na fundação.');
+    if (p.cotaBase !== undefined) {
+      const ps = pavimentosOrdenados(b);
+      if (ps.length && p.cotaBase >= ps[0].cota) return err('COTA_INVALIDA', `A cota da base deve ficar abaixo do primeiro pavimento (${ps[0].cota} m).`);
+    }
+    if (p.base?.tipo === 'molas' && ![p.base.kx, p.base.ky, p.base.kz, p.base.krx, p.base.kry, p.base.krz].some((k) => k !== undefined)) return err('SEM_VALOR', 'Molas: informe a rigidez de ao menos um gdl (os ausentes ficam presos).');
+    if (p.apoio) {
+      const ap = p.apoio, falta = qs.filter((q) => !lancesDoPilar(b, q).some((x) => x.id === ap.pavimento));
+      if (falta.length) return err('LANCE_INEXISTENTE', `${falta.map((q) => q.nome).join(', ')} sem lance chegando a ${ap.pavimento}.`);
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    for (const id of p.ids) {
+      const q = d.pilares.find((x) => x.id === id)!;
+      if (p.base) { if (p.base.tipo === 'engaste') delete q.vinculoBase; else q.vinculoBase = p.base.tipo === 'rotula' ? { tipo: 'rotula' } : { ...p.base }; }
+      if (p.cotaFundacao) delete q.cotaBase; else if (p.cotaBase !== undefined) q.cotaBase = p.cotaBase;
+      if (p.apoio) {
+        const ap = p.apoio;
+        q.apoiosIntermediarios = (q.apoiosIntermediarios ?? []).filter((x) => x.pavimento !== ap.pavimento);
+        if (ap.altura > 0) q.apoiosIntermediarios.push({ pavimento: ap.pavimento, altura: ap.altura, ...(ap.direcao ? { direcao: ap.direcao } : {}) });
+        if (!q.apoiosIntermediarios.length) delete q.apoiosIntermediarios;
+      }
+    }
+    return `Vínculo de ${p.ids.length} pilar(es) alterado.`;
   },
 });
 

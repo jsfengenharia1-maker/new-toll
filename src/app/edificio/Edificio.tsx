@@ -1,4 +1,5 @@
 // Módulo Edifícios: obra, pavimentos, grupos, máscara, pilares e eixos, tudo por comandos do registro; planta em Canvas.
+import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { useEffect, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
@@ -750,7 +751,7 @@ function CombinacoesCard({ b }: { b: BuildingModel }) {
 }
 
 function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
-  const { analise, revAnalise, calculando, calcular, sessao } = useBuilding();
+  const { analise, revAnalise, calculando, calcular, sessao, exec } = useBuilding();
   const r = analise ? resumoAnalise(b, analise) : null;
   const velha = analise && revAnalise !== sessao.revCalculo;
   const integradoEmUso = (analise?.opcoes.modeloGlobal ?? 1) === 1;
@@ -771,6 +772,13 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
         )}
         {r?.erro && <p className="hint bad">{r.erro}</p>}
         {r && r.avisos.length > 0 && <ul className="prem">{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+      </div>
+      <div className="card" data-card-2ordem>
+        <h3>2ª ordem global</h3>
+        <div className="row wrap">
+          <Check label="P-Δ no pórtico 3D (no lugar do γz)" checked={(b.opcoes?.segundaOrdem ?? 0) === 1} onChange={(c) => exec('opcoes.definir', { valores: { segundaOrdem: c ? 1 : 0 } })} />
+        </div>
+        {analise && !analise.erro && !velha ? <SegundaOrdemAnalise an={analise} /> : <Hint>Rigidez reduzida da NBR 6118, 15.7.3; com o P-Δ, cada combinação ELU é resolvida com a matriz geométrica dos pilares e os efeitos de 2ª ordem entram no dimensionamento sem a ampliação 0,95·γz. Calcule para ver os resultados.</Hint>}
       </div>
       {r && !r.erro && (
         <>

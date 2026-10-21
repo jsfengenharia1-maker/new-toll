@@ -1,14 +1,14 @@
 // Grupo "Vínculos e engastes" da barra lateral (frente N1a): coeficientes por elemento da seleção da planta.
-import { pavimentosOrdenados, engasteNoLance, lancesDoPilar, casosDaObra, type BuildingModel } from '../../core/building/types';
+import { pavimentosOrdenados, engasteNoLance, lancesDoPilar, casosDaObra, type BuildingModel, type Pilar, type VinculoBasePilar } from '../../core/building/types';
 import { vigaTocaPilar } from '../../core/building/vigas';
-import { flambagemLance } from '../../core/building/materiais';
+import { flambagemLance, travamentoNoTopo } from '../../core/building/materiais';
 import { useState } from 'react';
 import { Button, Check, Group, Hint, NumField, OptNumField, Select } from '../ui';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
 
 const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
-const VAZIA = { N: 0, Hx: 0, Hy: 0, Mx: 0, My: 0 };
+const VAZIA = { N: 0, Hx: 0, Hy: 0, Mx: 0, My: 0, T: 0 };
 type Esforcos = typeof VAZIA;
 
 /** Cargas concentradas no pilar (ou no arranque, com `pavId` = "fundacao"): tabela e campos para adicionar. */
@@ -17,35 +17,83 @@ export function CargasNoPilar({ b, p0, pavId, pavNome }: { b: BuildingModel; p0:
   const [caso, setCaso] = useState('Q');
   const [alt, setAlt] = useState<number | undefined>(undefined);
   const [esf, setEsf] = useState<Esforcos>(VAZIA);
+  const [tipo, setTipo] = useState<'concentrada' | 'uniforme' | 'faixa'>('concentrada');
+  const [eixos, setEixos] = useState<'global' | 'local'>('global');
+  const [ate, setAte] = useState<number | undefined>(undefined);
+  const arranque = pavId === 'fundacao';
   const pav = { id: pavId, nome: pavNome };
+  const dist = tipo !== 'concentrada';
   const cps = (b.cargasPilar ?? []).filter((c) => c.pilar === p0.id);
   const nomeCaso = (id: string) => b.casos?.find((x) => x.id === id)?.nome ?? id;
   const nomePav = (id: string) => b.pavimentos.find((x) => x.id === id)?.nome ?? id;
   return (
     <>
-      <p className="small"><b>Cargas no pilar {p0.nome}</b> (eixos globais; N &gt; 0 = compressão)</p>
+      <p className="small"><b>Cargas no pilar {p0.nome}</b> (N &gt; 0 = compressão; local: x ao longo de b)</p>
       {cps.length > 0 && (
         <table className="data quadro">
-          <thead><tr><th>Lance</th><th>Caso</th><th>Altura (m)</th><th>N</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th /></tr></thead>
+          <thead><tr><th>Lance</th><th>Caso</th><th>Tipo</th><th>Eixos</th><th>Altura (m)</th><th>N</th><th>Hx</th><th>Hy</th><th>Mx</th><th>My</th><th>T</th><th /></tr></thead>
           <tbody>{cps.map((c) => (
-            <tr key={c.id}><td className="tl">{nomePav(c.pavimento)}</td><td className="tl">{nomeCaso(c.caso)}</td><td className="num">{c.altura === undefined ? 'topo' : fmt(c.altura)}</td>
-              <td className="num">{fmt(c.N)}</td><td className="num">{fmt(c.Hx)}</td><td className="num">{fmt(c.Hy)}</td><td className="num">{fmt(c.Mx)}</td><td className="num">{fmt(c.My)}</td>
+            <tr key={c.id} data-carga-pilar={c.tipo ?? 'concentrada'}><td className="tl">{nomePav(c.pavimento)}</td><td className="tl">{nomeCaso(c.caso)}</td><td className="tl">{TIPO_TXT[c.tipo ?? 'concentrada']}</td><td className="tl">{c.eixos === 'local' ? 'local' : 'global'}</td>
+              <td className="num">{c.tipo === 'uniforme' ? 'lance' : c.tipo === 'faixa' ? `${fmt(c.altura ?? 0)}–${fmt(c.ate ?? 0)}` : c.altura === undefined ? 'topo' : fmt(c.altura)}</td>
+              <td className="num">{fmt(c.N)}</td><td className="num">{fmt(c.Hx)}</td><td className="num">{fmt(c.Hy)}</td><td className="num">{fmt(c.Mx)}</td><td className="num">{fmt(c.My)}</td><td className="num">{fmt(c.T ?? 0)}</td>
               <td><Button variant="danger" aria-label={`Remover carga ${c.id}`} onClick={() => exec('carga.pilarRemover', { ids: [c.id] })}>×</Button></td></tr>
           ))}</tbody>
         </table>
       )}
       <div className="row wrap">
         <Select label={`Caso (lance ${pav.nome})`} value={caso} options={casosDaObra(b).map((c) => ({ v: c.id, label: c.nome }))} onChange={setCaso} />
-        <OptNumField label="Altura da base (vazio = topo)" unit="m" width={150} value={alt} onChange={setAlt} />
+        {!arranque && <Select label="Tipo" value={tipo} options={(['concentrada', 'uniforme', 'faixa'] as const).map((v) => ({ v, label: TIPO_TXT[v] }))} onChange={setTipo} />}
+        <Select label="Eixos" value={eixos} options={[{ v: 'global' as const, label: 'globais (X, Y)' }, { v: 'local' as const, label: 'locais (b, h)' }]} onChange={setEixos} />
       </div>
       <div className="row wrap">
-        {(['N', 'Hx', 'Hy', 'Mx', 'My'] as const).map((k) => <NumField key={k} label={k === 'N' ? 'N (kN)' : k.startsWith('H') ? `${k} (kN)` : `${k} (kN·m)`} width={86} value={esf[k]} onChange={(v) => setEsf({ ...esf, [k]: v })} />)}
+        {tipo !== 'uniforme' && <OptNumField label={tipo === 'faixa' ? 'Início da faixa' : 'Altura da base (vazio = topo)'} unit="m" width={150} value={alt} onChange={setAlt} />}
+        {tipo === 'faixa' && <OptNumField label="Fim da faixa" unit="m" width={120} value={ate} onChange={setAte} />}
       </div>
       <div className="row wrap">
-        <Button disabled={!Object.values(esf).some((v) => v)} onClick={() => { exec('carga.pilar', { pilar: p0.id, pavimento: pav.id, caso, ...(alt !== undefined ? { altura: alt } : {}), ...esf }); setEsf(VAZIA); }}>Adicionar carga no lance</Button>
+        {(dist ? (['N', 'Hx', 'Hy'] as const) : (['N', 'Hx', 'Hy', 'Mx', 'My', 'T'] as const)).map((k) => <NumField key={k} label={dist ? `${k} (kN/m)` : k === 'N' ? 'N (kN)' : k.startsWith('H') ? `${k} (kN)` : `${k} (kN·m)`} width={86} value={esf[k]} onChange={(v) => setEsf({ ...esf, [k]: v })} />)}
       </div>
-      <Hint>Carga concentrada no topo do lance de {pav.nome} ou a uma altura da base; entra no pórtico espacial como ação do caso escolhido.</Hint>
+      <div className="row wrap">
+        <Button disabled={!Object.values(esf).some((v) => v) || (tipo === 'faixa' && (alt === undefined || ate === undefined || ate <= alt))} onClick={() => {
+          const e = dist ? { N: esf.N, Hx: esf.Hx, Hy: esf.Hy } : esf;
+          exec('carga.pilar', { pilar: p0.id, pavimento: pav.id, caso, ...(tipo !== 'concentrada' ? { tipo } : {}), ...(eixos === 'local' ? { eixos } : {}), ...(alt !== undefined && tipo !== 'uniforme' ? { altura: alt } : {}), ...(tipo === 'faixa' && ate !== undefined ? { ate } : {}), ...e });
+          setEsf(VAZIA);
+        }}>Adicionar carga no lance</Button>
+      </div>
+      <Hint>Concentrada no topo do lance de {pav.nome} ou a uma altura da base (com torção T); uniforme em todo o lance ou em faixa (por metro). Entra no pórtico espacial como ação do caso escolhido; com carga horizontal ao longo do lance, o pilar é verificado também nas seções intermediárias.</Hint>
     </>
+  );
+}
+
+const TIPO_TXT = { concentrada: 'concentrada', uniforme: 'uniforme', faixa: 'em faixa' } as const;
+const MOLAS = [['kx', 'kx', 'kN/m'], ['ky', 'ky', 'kN/m'], ['kz', 'kz', 'kN/m'], ['krx', 'kθx', 'kN·m/rad'], ['kry', 'kθy', 'kN·m/rad'], ['krz', 'kθz', 'kN·m/rad']] as const;
+
+/** Vínculo externo da base, cota própria do pé e travamento intermediário do lance (N2c). */
+function VinculoExterno({ b, pilares, pav, doLance }: { b: BuildingModel; pilares: Pilar[]; pav: { id: string; nome: string }; doLance: boolean }) {
+  const { exec } = useBuilding();
+  const p0 = pilares[0], ids = pilares.map((p) => p.id), naFundacao = pilares.every((p) => p.nasce === 'fundacao');
+  const vb: VinculoBasePilar = p0.vinculoBase ?? { tipo: 'engaste' };
+  const ap = p0.apoiosIntermediarios?.find((x) => x.pavimento === pav.id);
+  const tr = doLance ? travamentoNoTopo(b, p0, pav.id) : null;
+  return (
+    <div data-vinculo-externo>
+      {naFundacao && (<>
+        <div className="row wrap">
+          <Select label="Vínculo da base" value={vb.tipo} options={[{ v: 'engaste' as const, label: 'engaste' }, { v: 'rotula' as const, label: 'rótula' }, { v: 'molas' as const, label: 'molas' }]}
+            onChange={(t) => exec('pilar.vinculo', { ids, base: t === 'molas' ? { tipo: 'molas', krx: 0, kry: 0 } : { tipo: t } })} />
+          <OptNumField label="Cota da base (vazio = fundação)" unit="m" width={170} value={p0.cotaBase} onChange={(v) => exec('pilar.vinculo', { ids, ...(v === undefined ? { cotaFundacao: true } : { cotaBase: v }) })} />
+        </div>
+        {vb.tipo === 'molas' && (
+          <div className="row wrap">
+            {MOLAS.map(([k, rot, un]) => <OptNumField key={k} label={rot} unit={un} width={110} value={vb[k]} onChange={(v) => { const nv: VinculoBasePilar = { ...vb }; if (v === undefined) delete nv[k]; else nv[k] = v; exec('pilar.vinculo', { ids, base: nv }); }} />)}
+          </div>
+        )}
+      </>)}
+      <div className="row wrap">
+        <OptNumField label={`Travamento intermediário no lance de ${pav.nome}`} unit="m da base" width={210} value={ap?.altura} onChange={(v) => exec('pilar.vinculo', { ids, apoio: { pavimento: pav.id, altura: v ?? 0, ...(ap?.direcao ? { direcao: ap.direcao } : {}) } })} />
+        {ap && <Select label="Direção" value={ap.direcao ?? 'ambas'} options={[{ v: 'ambas', label: 'b e h' }, { v: 'u', label: 'b (u)' }, { v: 'v', label: 'h (v)' }]} onChange={(d) => exec('pilar.vinculo', { ids, apoio: { pavimento: pav.id, altura: ap.altura, ...(d !== 'ambas' ? { direcao: d } : {}) } })} />}
+      </div>
+      <Hint>Molas em eixos globais: gdl vazio fica preso, 0 = livre (rótula). Cota da base: pé do pilar em cota própria (desnível). O travamento intermediário divide o lance para a flambagem.{tr ? ` Topo do lance ${tr[0] && tr[1] ? 'travado nas duas direções' : tr[0] ? 'travado só na direção b' : tr[1] ? 'travado só na direção h' : 'sem travamento (lance desligado: soma-se ao de cima na flambagem)'}.` : ''}</Hint>
+    </div>
   );
 }
 
@@ -79,13 +127,14 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
         </div>
         {p0 && pilares.length === 1 && doLance && <CargasNoPilar b={b} p0={p0} pavId={pav.id} pavNome={pav.nome} />}
         <Hint>No topo do último lance o coeficiente multiplica o das opções de cálculo. Base 0 na fundação = pilar articulado.</Hint>
+        <VinculoExterno b={b} pilares={pilares} pav={pav} doLance={!!doLance} />
         <div className="row wrap">
           <NumField label="α flambagem (b)" width={110} value={fl0?.au ?? 1} onChange={(v) => exec('pilar.flambagem', { ids: pilares.map((p) => p.id), pavimentos: [pav.id], au: v })} disabled={!doLance} />
           <NumField label="α flambagem (h)" width={110} value={fl0?.av ?? 1} onChange={(v) => exec('pilar.flambagem', { ids: pilares.map((p) => p.id), pavimentos: [pav.id], av: v })} disabled={!doLance} />
           <NumField label={`α do pavimento ${pav.nome}`} width={130} value={pav.alfaFlambagem ?? 1} onChange={(v) => exec('pavimento.editar', { id: pav.id, alfaFlambagem: v })} />
           <NumField label="Cobrimento" unit="cm" width={100} value={p0.cobrimento ?? b.norma.cobrimento.pilar} onChange={(v) => lote(pilares.map((p) => ({ nome: 'pilar.editar', params: { id: p.id, cobrimento: v === b.norma.cobrimento.pilar ? 0 : v } })))} />
         </div>
-        {le && <Hint>ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6): {fmt(le.leU)} m (b) e {fmt(le.leV)} m (h), com ℓ = {fmt(le.l)} m e ℓ0 = {fmt(le.l0)} m. Pilar destravado em vários pavimentos: α &gt; 1.</Hint>}
+        {le && <Hint>ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6): {fmt(le.leU)} m (b) e {fmt(le.leV)} m (h), com ℓ = {fmt(le.l)} m e ℓ0 = {fmt(le.l0)} m.{le.desligados[0] > 1 || le.desligados[1] > 1 ? ` Lances desligados somados: ${le.desligados[0]} (b) e ${le.desligados[1]} (h).` : ''}{le.apoio !== undefined ? ` Travamento intermediário a ${fmt(le.apoio)} m.` : ''} Pilar destravado em vários pavimentos: α &gt; 1 ou a soma automática dos lances desligados (opções).</Hint>}
       </>)}
 
       {v0 && (<>

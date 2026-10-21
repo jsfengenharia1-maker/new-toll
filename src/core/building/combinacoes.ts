@@ -30,8 +30,10 @@ export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): Comb
   for (const c of W) casos.push({ id: id++, name: c.nome, nature: 'W', group: 'vento', psi0: 0.6, psi1: 0.3, psi2: 0 });
   const porNome = new Map(casos.map((c) => [c.id, c.name]));
   // ampliação das ações horizontais: vento por direção; horizontais lançadas pelo usuário pela maior
-  const ampMax = Math.max(1, ...(an.vento?.gamaZ ?? []).map((g) => g.ampliacao));
-  const amp = new Map<string, number>([...W.map((c) => [c.nome, an.vento?.gamaZ.find((g) => g.direcao === c.direcao)?.ampliacao ?? 1] as [string, number]), ...obra.filter((c) => c.natureza === 'W').map((c) => [c.id, ampMax] as [string, number])]);
+  // com P-Δ (N2c, opção segundaOrdem = 1) não há ampliação: os efeitos de 2ª ordem entram como caso próprio por combinação
+  const pDelta = an.opcoes?.segundaOrdem === 1;
+  const ampMax = pDelta ? 1 : Math.max(1, ...(an.vento?.gamaZ ?? []).map((g) => g.ampliacao));
+  const amp = pDelta ? new Map<string, number>() : new Map<string, number>([...W.map((c) => [c.nome, an.vento?.gamaZ.find((g) => g.direcao === c.direcao)?.ampliacao ?? 1] as [string, number]), ...obra.filter((c) => c.natureza === 'W').map((c) => [c.id, ampMax] as [string, number])]);
   const comSimultaneos = (f: Record<string, number>) => { for (const [s, alvo] of simult) if (f[alvo] !== undefined) f[s] = f[alvo]; return f; };
   const gm = gamas(b);
   // empuxo de terra (natureza H): permanente com o γ da linha de empuxo (o desfavorável das ELU normais vira γh)
@@ -68,7 +70,14 @@ export function combinacoesEdificio(b: BuildingModel, an: AnaliseEdificio): Comb
     }
   }
   if (!V.length) out.push({ nome: 'Rara · permanentes', tipo: 'RARA', fatores: comSimultaneos(Object.fromEntries(G.map((c) => [c.name, 1]))) });
-  return out;
+  return comSegundaOrdem(out, an);
+}
+
+/** P-Δ (N2c): soma, com fator 1, o caso dos efeitos de 2ª ordem calculado para cada combinação ELU (pelo nome). */
+function comSegundaOrdem(cs: CombinacaoEd[], an: Pick<AnaliseEdificio, 'segundaOrdem'>): CombinacaoEd[] {
+  const casos = new Map((an.segundaOrdem?.combinacoes ?? []).filter((c) => c.caso).map((c) => [c.nome, c.caso!]));
+  if (!casos.size) return cs;
+  return cs.map((c) => (c.tipo === 'ELU' && casos.has(c.nome) && !(casos.get(c.nome)! in c.fatores) ? { ...c, fatores: { ...c.fatores, [casos.get(c.nome)!]: 1 } } : c));
 }
 
 /** Valor combinado de uma grandeza por caso. */
@@ -80,11 +89,11 @@ const TIPO_DO_ESTADO: Record<EstadoId, CombinacaoEd['tipo'] | 'EQU'> = Object.fr
  * Combinações de um grupo de estados: as da norma (filtradas pelo tipo do grupo) ou, no modo "usuário" e havendo
  * situações cadastradas, as do usuário. Sem situações, o grupo em modo "usuário" usa as da norma.
  */
-export function combinacoesDoEstado(b: BuildingModel, an: Pick<AnaliseEdificio, 'vento'>, id: EstadoId, normativas?: CombinacaoEd[]): CombinacaoEd[] {
+export function combinacoesDoEstado(b: BuildingModel, an: Pick<AnaliseEdificio, 'vento'> & Partial<Pick<AnaliseEdificio, 'opcoes' | 'segundaOrdem'>>, id: EstadoId, normativas?: CombinacaoEd[]): CombinacaoEd[] {
   const tipo = TIPO_DO_ESTADO[id];
   if (tipo === 'EQU') return [];
   const norma = (normativas ?? combinacoesEdificio(b, an as AnaliseEdificio)).filter((c) => c.tipo === tipo);
   if (estadoEmUso(b, id).modo !== 'usuario') return norma;
   const sits = (b.situacoes ?? []).filter((s) => s.estado === id);
-  return sits.length ? sits.map((s) => ({ nome: s.nome, tipo, fatores: fatoresDaSituacao(s) })) : norma;
+  return sits.length ? comSegundaOrdem(sits.map((s) => ({ nome: s.nome, tipo, fatores: fatoresDaSituacao(s) })), an as Pick<AnaliseEdificio, 'segundaOrdem'>) : norma;
 }

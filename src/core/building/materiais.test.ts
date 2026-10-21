@@ -19,6 +19,8 @@ function predio() {
 describe('materiais, segurança e flambagem (N1b)', () => {
   it('comprimento de flambagem: ℓe = mín(ℓ0 + h; ℓ) × α do pavimento × α do lance', () => {
     const { s, ok } = predio();
+    // Térreo sem vigas: com a soma dos lances desligados (N2c) o lance do Tipo 1 somaria o de baixo
+    ok('opcoes.definir', { valores: { pilarLancesDesligados: 0 } });
     const p = s.modelo.pilares[0], tipo1 = s.modelo.pavimentos.find((x) => x.grupo === 'g_3')!;
     const f = flambagemLance(s.modelo, p, tipo1.id);
     expect(f.l).toBeCloseTo(3, 9);
@@ -35,7 +37,8 @@ describe('materiais, segurança e flambagem (N1b)', () => {
   });
 
   it('o dimensionamento dos pilares usa ℓe (λ = ℓe / i)', { timeout: 20000 }, () => {
-    const { s } = predio();
+    const { s, ok } = predio();
+    ok('opcoes.definir', { valores: { pilarLancesDesligados: 0 } });
     const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
     const tipo1 = s.modelo.pavimentos.find((x) => x.grupo === 'g_3')!;
     const r = d.pilares.find((x) => x.pilar === s.modelo.pilares[0].id && x.pavimento === tipo1.nome)!;

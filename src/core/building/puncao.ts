@@ -548,7 +548,8 @@ function momentosIntegrado(mp: Record<string, [number, number]> | undefined, an:
   for (const cv of an.vento?.casos ?? []) {
     const m = mp[cv.nome];
     if (!m) continue;
-    const amp = Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1);
+    // com P-Δ (N2c) a ampliação dos momentos do vento na laje é a maior amplificação dos deslocamentos das combinações
+    const amp = an.segundaOrdem ? Math.max(1, an.segundaOrdem.amplificacaoMax) : Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1);
     for (const k of [0, 1]) W[k] = Math.max(W[k], Math.abs(m[k]) * amp);
   }
   if (!W[0] && !W[1]) return g1;

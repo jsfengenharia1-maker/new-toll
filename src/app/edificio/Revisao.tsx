@@ -13,6 +13,7 @@ import type { DimEdificio } from './calculo';
 import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
+import { SegundaOrdemPilar } from './SegundaOrdem';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
 import { JanelaPuncao } from './Puncao';
@@ -297,6 +298,7 @@ function JanelaPilar({ id }: { id: string }) {
             ['ℓe u / v (m)', `${fmt(x.le[0])} / ${fmt(x.le[1])}`], ['λ u / v', `${fmt(x.lambda[0], 0)} / ${fmt(x.lambda[1], 0)}`], ['Utilização', x.util >= 99 ? '> 1' : fmt(x.util)],
             ['Vd (kN)', x.Vd === undefined ? '—' : fmt(x.Vd, 1)], ['Armadura', `${x.armadura} (As ${fmt(x.As * 1e4)} cm²)`], ['Estribo', x.estribo],
           ]} />
+          <SegundaOrdemPilar x={x} />
           <Origens o={x.origens} />
           <Mensagens msgs={x.mensagens} />
           <EditorArmaduraPilar key={`${x.pavimentoId}|${x.bloqueada}|${JSON.stringify(x.arranjo)}`} p={x} />

@@ -51,7 +51,9 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
   { codigo: 'FORA_TABELA_LAJE', nivel: 'aviso', re: /^Fora de tabela \(laje\)/, descricao: 'Laje: armadura necessária não cabe nas bitolas e espaçamentos da tabela' },
   { codigo: 'ESBELTEZ', nivel: 'erro', re: /^λ > 200/, descricao: 'Esbeltez acima de 200' },
-  { codigo: 'ESBELTEZ_90', nivel: 'aviso', re: /^λ > 90/, descricao: 'Esbeltez acima de 90 (método mais refinado)' },
+  { codigo: 'ESBELTEZ_90', nivel: 'aviso', re: /^λ > 90/, descricao: 'Esbeltez acima de 90: fluência (15.8.4) e, acima de 140, método geral (o aviso informa o método usado)' },
+  { codigo: 'ESTRIBO_TABELA', nivel: 'aviso', re: /^Estribo fora da tabela/, descricao: 'Pilar: estribos e grampos não cabem na tabela; só um estribo foi colocado (revisar a tabela e a disposição)' },
+  { codigo: 'LANCES_DESLIGADOS', nivel: 'info', re: /^Lances desligados/, descricao: 'Pilar: lances sem travamento somados no comprimento de flambagem' },
   { codigo: 'ARM_DUPLA', nivel: 'aviso', re: /^Armadura dupla/, descricao: 'Armadura dupla (x limitado)' },
   { codigo: 'CA60', nivel: 'aviso', re: /^CA-60/, descricao: 'Bitola acima de φ10 em CA-60' },
   { codigo: 'TRACAO', nivel: 'aviso', re: /^Tração em/, descricao: 'Pilar tracionado' },
@@ -126,6 +128,8 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },
   { codigo: 'DESLOC', nivel: 'erro', re: /^Deslocamento lateral/, descricao: 'Deslocamento lateral acima do limite' },
   { codigo: 'GAMA_Z', nivel: 'erro', re: /^γz = .* acima do limite/, descricao: 'γz acima do limite' },
+  { codigo: 'GAMA_Z_PDELTA', nivel: 'aviso', re: /^γz informado/, descricao: 'γz acima do limite com a 2ª ordem global pelo P-Δ' },
+  { codigo: 'PDELTA', nivel: 'erro', re: /^P-Δ/, descricao: 'P-Δ: instabilidade global ou falta de convergência numa combinação' },
 ];
 
 /** Grupo de estados-limite de cada código: desativado em Estados-limite, o aviso deixa de entrar na revisão. */

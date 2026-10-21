@@ -5,14 +5,16 @@
 //   os esforços das vigas e lajes incluindo as ações horizontais;
 // - separado (premissa 20, o comportamento anterior): as lajes são resolvidas na grelha com molas nos pilares e as
 //   forças que elas passam às vigas viram cargas do pórtico, junto com o peso das vigas, das paredes e dos pilares.
-import { elementoBarra, resolver3, rigidezCondensada, type Barra3, type Caso3, type ElementoBarra, type Modelo3, type Resultado3, type V3 } from '../fe3d';
+import { baseBarra, elementoBarra, fatorar3, resolver3, rigidezCondensada, type Barra3, type Caso3, type ElementoBarra, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { condensar, forcaFronteira, recuperarInternos, type Condensado } from '../condensacao';
 import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
-import { concretoDe, gamas } from './materiais';
+import { concretoDe, flambagemLance, gamas } from './materiais';
+import { barrasGeo, iterarPDelta, normalMedia } from '../pdelta3';
+import { combinacoesDoEstado } from './combinacoes';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
 import {
   centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, lancesDoPilar, pavimentosOrdenados, secaoNoLance,
@@ -220,6 +222,8 @@ interface IntegradoGrelha {
   distDe: Map<number, V3[]>[];
   /** Condensação com a rigidez reduzida do γz (calculada na primeira vez). */
   reduzida: () => Condensado;
+  /** A mesma rigidez reduzida com as cargas dos casos condensadas (P-Δ, N2c). */
+  reduzidaCargas: () => Condensado;
   /** Por barra, (k·T) restrita aos gdl uz, rx, ry das duas pontas (12 × 6, por linhas). */
   kt: Float64Array[];
 }
@@ -346,7 +350,13 @@ export interface AnaliseEdificio {
   avisos: string[];
   opcoes: OpcoesAnalise;
   grelhas: GrelhaPavimento[];
-  portico: { modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; zonas: Record<string, ZonaPortico[]>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[] };
+  portico: {
+    modelo: Modelo3; barras: BarraPortico[]; mestres: Record<string, number>; zonas: Record<string, ZonaPortico[]>; res: Resultado3 | null; resVento?: Resultado3 | null; casos?: Caso3[]; casosVento?: Caso3[];
+    /** P-Δ (N2c): esforços no modelo de cálculo das forças fictícias de 2ª ordem, um caso por combinação ELU (segundaOrdem.combinacoes[].caso). */
+    resPDelta?: Resultado3; casosPDelta?: Caso3[];
+  };
+  /** 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1): por combinação ELU, iterações, convergência e amplificação dos deslocamentos horizontais. */
+  segundaOrdem?: { metodo: 'pDelta'; combinacoes: { nome: string; caso?: string; iteracoes: number; convergiu: boolean; amplificacao: number; erro?: string }[]; amplificacaoMax: number; iteracoesMax: number; ms: number };
   /** Base elástica (FU6): nós com molas, barras do radier e das vigas sobre base elástica e pilares sem vínculo externo. */
   baseElastica?: BaseElasticaAnalise;
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
@@ -678,12 +688,14 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     });
     const uniao = Int32Array.from({ length: nn }, (_, i) => raiz(i));
     const kv = (() => { const c = concretoDe(b, 'viga'); return c.Eci / c.Ecs; })(), kl = (() => { const c = concretoDe(b, 'laje'); return c.Eci / c.Ecs; })();
-    let condR: Condensado | null = null;
+    let condR: Condensado | null = null, condRC: Condensado | null = null;
+    const fatorReduzido = (bi: number) => (trechoDe[bi] ? { kE: kv, f: 0.4 } : { kE: kl, f: 0.3 });
     return {
       ...(cond.erro ? { erro: `modelo integrado: ${cond.erro}` } : {}),
       pils: g2.map((g) => g.p.id), centros: g2.map((g) => g.c), assoc, interno, ni, barras, elems, cond, uniao, comLaje, distDe,
       // rigidez reduzida para o γz (NBR 6118, 15.7.3): vigas 0,4·Eci·Ic, lajes 0,3·Eci·Ic
-      reduzida: () => (condR ??= condensar(montarK((bi) => (trechoDe[bi] ? { kE: kv, f: 0.4 } : { kE: kl, f: 0.3 })), ni, [], cond.ordem)),
+      reduzida: () => (condR ??= condensar(montarK(fatorReduzido), ni, [], cond.ordem)),
+      reduzidaCargas: () => (condRC ??= condensar(montarK(fatorReduzido), ni, Pc, cond.ordem)),
       // (k·T) nas colunas fora do plano das duas pontas (uz, rx, ry): esforços da grelha sem a parte no plano (nula)
       kt,
     };
@@ -759,7 +771,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
    * Vigas do diafragma no modelo integrado: só a parte fora do plano trabalha (no superelemento) e o plano XY é corpo
    * rígido; ficam fora das soluções do pórtico e entram depois, com os esforços tirados da grelha condensada.
    */
-  const pendentes = new Map<string, { nb: Barra3; tag: BarraPortico; bi: number; vento: Float64Array[] }[]>();
+  const pendentes = new Map<string, { nb: Barra3; tag: BarraPortico; bi: number; vento: Float64Array[]; pdelta?: Float64Array[] }[]>();
   /** Só para o modelo cheio (testes): dados de cada pavimento integrado. */
   const detalhes: { pav: string; gb: GrelhaBase; ig: IntegradoGrelha; colNo: number[]; noP: Map<number, number>; porRaiz: Map<number, number> }[] = [];
   const ptags: BarraPortico[] = [];
@@ -780,7 +792,19 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const baseKey = p.nasce === 'fundacao' ? `${p.id}|base` : `${p.id}|${p.nasce}`;
     const flut = p.nasce === 'fundacao' ? base?.info.pilares[p.id] : undefined;
     if (flut) noPilar.set(baseKey, flut.no);
-    else { noPilar.set(baseKey, pm.nos.length); pm.nos.push([c[0], c[1], i0 === 0 ? zf : ps[i0 - 1].cota]); pm.apoios.set(noPilar.get(baseKey)!, [0, 1, 2, 3, 4, 5]); }
+    else {
+      const nb = pm.nos.length;
+      noPilar.set(baseKey, nb); pm.nos.push([c[0], c[1], i0 === 0 ? (p.nasce === 'fundacao' && p.cotaBase !== undefined ? p.cotaBase : zf) : ps[i0 - 1].cota]);
+      // vínculo externo (N2c): engaste (padrão), rótula (giros de flexão livres) ou molas por gdl (ausente = preso, 0 = livre)
+      const vb = p.nasce === 'fundacao' ? p.vinculoBase : undefined;
+      if (!vb || vb.tipo === 'engaste') pm.apoios.set(nb, [0, 1, 2, 3, 4, 5]);
+      else if (vb.tipo === 'rotula') pm.apoios.set(nb, [0, 1, 2, 5]);
+      else {
+        const ks = [vb.kx, vb.ky, vb.kz, vb.krx, vb.kry, vb.krz];
+        pm.apoios.set(nb, ks.flatMap((k, g) => (k === undefined ? [g] : [])));
+        ks.forEach((k, g) => { if (k) (pm.molas ??= []).push({ no: nb, gdl: g, k }); });
+      }
+    }
     if (p.nasce !== 'fundacao') avisos.push(`${p.nome} nasce em ${ps.find((x) => x.id === p.nasce)?.nome}: transição ainda não modelada (apoio fixo provisório).`);
     for (const x of l) {
       const sx = secaoNoLance(p, x.id);
@@ -804,6 +828,17 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       if (aTopo < 1) barra.engJ = [[4, aTopo], [5, aTopo]];
       if (eg.base < 1) barra.engI = [[4, eg.base], [5, eg.base]];
       if (x === l[0] && base?.offsets.has(p.id) && base.info.pilares[p.id]) barra.offI = base.offsets.get(p.id);
+      else {
+        // excentricidade entre lances (N2c): o nó do pavimento fica no centro da seção de baixo; o lance de cima liga-se
+        // a ele por trecho rígido horizontal até o seu centro (N·e transmitido), e a parte flexível fica vertical
+        const pi = pm.nos[ant!], dx = pm.nos[j][0] - pi[0], dy = pm.nos[j][1] - pi[1];
+        if (Math.hypot(dx, dy) > 1e-9) barra.offI = [dx, dy, 0];
+      }
+      // comprimento flexível entre faces (opção): trecho rígido vertical no topo, da face inferior da viga mais alta ao nó
+      if (op.pilarComprimento === 1) {
+        const hT = flambagemLance(b, p, x.id).hTopo, H = pm.nos[j][2] - pm.nos[ant!][2];
+        if (hT > 1e-9 && hT < H - 1e-6) barra.offJ = [0, 0, -hT];
+      }
       if (x === l[0]) primeiroLance.set(p.id, pm.barras.length);
       pm.barras.push(barra);
       ptags.push({ tipo: 'pilar', ref: p.id, pavimento: x.id });
@@ -820,11 +855,29 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   for (const cp of b.cargasPilar ?? []) {
     const ic = CASOS.indexOf(cp.caso), bi = ptags.findIndex((t) => t.tipo === 'pilar' && t.ref === cp.pilar && t.pavimento === cp.pavimento);
     if (ic < 0 || bi < 0) continue;
-    const br = pm.barras[bi], H = pm.nos[br.j][2] - pm.nos[br.i][2], f = [cp.Hx, cp.Hy, -cp.N, cp.Mx, cp.My, 0];
-    if (cp.altura === undefined || cp.altura >= H - 1e-9) casosV[ic].nodais.push({ no: br.j, f });
-    else if (cp.altura <= 1e-9) casosV[ic].nodais.push({ no: br.i, f });
-    else (casosV[ic].pontuais ??= []).push({ barra: bi, a: cp.altura, f });
-    totais[cp.caso] += cp.N; cargasPavimento[cp.pavimento][cp.caso] += cp.N;
+    const br = pm.barras[bi], H = pm.nos[br.j][2] - pm.nos[br.i][2];
+    // eixos locais da seção (N2c): x ao longo de b, y ao longo de h, girados pelo ângulo do pilar
+    const pil = b.pilares.find((q) => q.id === cp.pilar)!, ang = cp.eixos === 'local' ? (pil.angulo * Math.PI) / 180 : 0, ca = Math.cos(ang), sa = Math.sin(ang);
+    const gl = (x: number, y: number) => [x * ca - y * sa, x * sa + y * ca];
+    const [Hx, Hy] = gl(cp.Hx, cp.Hy), [Mx, My] = gl(cp.Mx, cp.My);
+    const tipo = cp.tipo ?? 'concentrada';
+    if (tipo === 'concentrada') {
+      const f = [Hx, Hy, -cp.N, Mx, My, cp.T ?? 0];
+      if (cp.altura === undefined || cp.altura >= H - 1e-9) casosV[ic].nodais.push({ no: br.j, f });
+      else if (cp.altura <= 1e-9) casosV[ic].nodais.push({ no: br.i, f });
+      else (casosV[ic].pontuais ??= []).push({ barra: bi, a: cp.altura, f });
+      totais[cp.caso] += cp.N; cargasPavimento[cp.pavimento][cp.caso] += cp.N;
+    } else if (tipo === 'uniforme') {
+      // por metro da parte flexível (kN/m)
+      const Lf = baseBarra(pm, br).L;
+      casosV[ic].distribuidas.push({ barra: bi, q: [Hx, Hy, -cp.N] });
+      totais[cp.caso] += cp.N * Lf; cargasPavimento[cp.pavimento][cp.caso] += cp.N * Lf;
+    } else {
+      // faixa de `altura` a `ate`: 20 resultantes concentradas no meio de cada trecho (erro O(1/400) nos momentos)
+      const a0 = Math.max(0, Math.min(H, cp.altura ?? 0)), a1 = Math.max(a0, Math.min(H, cp.ate ?? H)), n = 20, d = (a1 - a0) / n;
+      if (d > 0) for (let k = 0; k < n; k++) (casosV[ic].pontuais ??= []).push({ barra: bi, a: a0 + (k + 0.5) * d, f: [Hx * d, Hy * d, -cp.N * d, 0, 0, 0] });
+      totais[cp.caso] += cp.N * (a1 - a0); cargasPavimento[cp.pavimento][cp.caso] += cp.N * (a1 - a0);
+    }
   }
   // vigas por pavimento (divisão grossa), com trecho rígido até a face do pilar menos 0,3h
   for (const pav of ps) {
@@ -1029,13 +1082,18 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const fundacao: AnaliseEdificio['fundacao'] = [];
   const bases = b.pilares.map((p) => [p.id, noPilar.get(`${p.id}|base`)] as const).filter((x): x is readonly [string, number] => x[1] !== undefined);
   // pilar sobre base elástica: esforços no pé do pilar (ponta i do primeiro lance), na convenção das reações
+  const comMolas = new Set(b.pilares.filter((p) => p.nasce === 'fundacao' && p.vinculoBase?.tipo === 'molas').map((p) => p.id));
   const reacaoBase = (r3: Resultado3, ic: number, pid: string, k: number) => {
-    if (base?.info.pilares[pid]) { const bi = primeiroLance.get(pid)!; return forcaBasePilar(pm, bi, r3.esforcos[ic][bi]); }
+    // base elástica ou molas no vínculo externo (N2c): esforços no pé do pilar (a reação nodal das molas não é a da fundação)
+    if (base?.info.pilares[pid] || comMolas.has(pid)) { const bi = primeiroLance.get(pid)!; return forcaBasePilar(pm, bi, r3.esforcos[ic][bi]); }
     const r = r3.reacoes[ic].get(k)!; return { N: r[2], Vx: r[0], Vy: r[1], Mx: r[3], My: r[4] };
   };
   for (const [pid, k] of bases) CASOS.forEach((c, ic) => fundacao.push({ pilar: pid, caso: c, ...reacaoBase(res, ic, pid, k) }));
   fundacao.push(...reacoesArranques(b));
 
+  // rigidez reduzida da NBR 6118, 15.7.3 (γz e P-Δ): vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic
+  const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
+  const reduzida = (br: Barra3, i: number) => { const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
   // ---- vento: forças nos mestres, pórtico com a área real dos pilares ----
   const ven = casosVento(b, (pav) => zonas[pav] ?? []);
   avisos.push(...ven.avisos);
@@ -1062,8 +1120,6 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
     }
     // γz com rigidez reduzida (NBR 6118 15.7.3: vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic)
-    const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
-    const reduzida = (br: Barra3, i: number) => { const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
     // modelo integrado: superelementos com lajes 0,3·Eci·Ic e vigas 0,4·Eci·Ic; as vigas da divisão fina (só plano XY,
     // escravas do diafragma) não mudam os deslocamentos e ficam de fora, menos as de fora do diafragma
     const foraDiaf = new Set(b.vigas.filter((v) => v.foraDiafragma).map((v) => v.id));
@@ -1125,8 +1181,67 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       return { direcao: cv.direcao, caso: cv.nome, psi1: psi1W, pavimentos: pavs, H, topo, limTopo, ok: topo <= limTopo + 1e-12 && pavs.every((x) => x.drift <= x.limDrift + 1e-12) };
     });
     for (const d of deslocamentos) if (!d.ok) avisos.push(`Deslocamento lateral do vento a ${d.direcao}° (frequente, ψ1 = 0,3) acima do limite: topo ${(d.topo * 1000).toFixed(1).replace('.', ',')} mm (H/${op.limiteDeslocTopo} = ${(d.limTopo * 1000).toFixed(1).replace('.', ',')} mm)${d.pavimentos.some((x) => x.drift > x.limDrift) ? '; entre pavimentos acima de hi/' + op.limiteDeslocPavimento : ''}.`);
-    for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(`γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa; P-Δ 3D na V2).`);
+    for (const g of gamaZ) if (g.max > op.limiteGamaZ) avisos.push(op.segundaOrdem === 1
+      ? `γz informado = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°, acima do limite ${String(op.limiteGamaZ).replace('.', ',')}: efeitos globais de 2ª ordem pelo P-Δ (opção ativa).`
+      : `γz = ${g.max.toFixed(3).replace('.', ',')} na direção ${g.direcao}°: acima do limite ${String(op.limiteGamaZ).replace('.', ',')} das opções (exige análise de 2ª ordem mais rigorosa: ative o P-Δ nas opções de cálculo).`);
     vento = { classe: ven.classe, altura: ven.altura, casos: ven.casos, gamaZ, deslocamentos, ca: ven.ca, viz: ven.viz };
+  }
+  // ---- 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1) ----
+  // Cada combinação ELU: deslocamentos de 1ª ordem no pórtico com rigidez reduzida (as mesmas do γz; lajes 0,3·Eci·Ic
+  // no modelo integrado) e normais dos pilares do modelo de cálculo; iteração P-Δ (matriz geométrica de corpo rígido dos
+  // pilares, normais atualizadas); as forças fictícias −K_G·u finais viram um caso por combinação, resolvido no modelo de
+  // cálculo e somado com fator 1 só àquela combinação (combinacoes.ts). Sem a ampliação 0,95·γz.
+  let segundaOrdem: AnaliseEdificio['segundaOrdem'] = undefined, resPD: Resultado3 | null = null;
+  const casosPD: Caso3[] = [];
+  if (op.segundaOrdem === 1) {
+    const tPD = typeof performance !== 'undefined' ? performance.now() : 0;
+    const elu = combinacoesDoEstado(b, { vento, opcoes: op } as AnaliseEdificio, 'concreto').filter((c) => c.tipo === 'ELU');
+    const pmRP: Modelo3 = seInfo.length
+      ? { ...pm, barras: pm.barras.map(reduzida), superelementos: seInfo.map(({ dofs, ig }) => ({ dofs, K: ig.reduzidaCargas().S })) }
+      : { ...pm, barras: pm.barras.map(reduzida) };
+    const casosVR: Caso3[] = casosV.map((c, ic) => (c.superelementos ? { ...c, superelementos: c.superelementos.map((cs) => ({ se: cs.se, P: seInfo[cs.se].ig.reduzidaCargas().Pb[ic] })) } : c));
+    const rR = resolver3(pmRP, [...casosVR, ...casosW]);
+    const pil = ptags.map((t, i) => (t.tipo === 'pilar' && i < pm.barras.length ? i : -1)).filter((i) => i >= 0);
+    const fat = fatorar3(pmRP);
+    const lista: NonNullable<AnaliseEdificio['segundaOrdem']>['combinacoes'] = [];
+    if (rR.erro || fat.erro) avisos.push(`P-Δ: ${rR.erro ?? fat.erro}`);
+    else {
+      const geo = barrasGeo(pmRP, pil), nomesW = ven.casos.map((c) => c.nome);
+      const u1s: Float64Array[] = [], N1s: Float64Array[] = [], validas: typeof elu = [];
+      for (const cb of elu) {
+        const u = new Float64Array(pm.nos.length * 6), N = new Float64Array(pil.length);
+        for (const [nome, f] of Object.entries(cb.fatores)) {
+          const ic = CASOS.indexOf(nome), iw = nomesW.indexOf(nome);
+          const ur = ic >= 0 ? rR.desloc[ic] : iw >= 0 ? rR.desloc[CASOS.length + iw] : null;
+          const ef = ic >= 0 ? res.esforcos[ic] : iw >= 0 && resVento && !resVento.erro ? resVento.esforcos[iw] : null;
+          if (!ur || !ef || !f) continue;
+          for (let d = 0; d < u.length; d++) u[d] += f * ur[d];
+          pil.forEach((bi, k) => (N[k] += f * normalMedia(ef[bi])));
+        }
+        u1s.push(u); N1s.push(N); validas.push(cb);
+      }
+      const rs = iterarPDelta(fat, geo, u1s, N1s);
+      rs.forEach((r, k) => {
+        const caso = r.erro ? undefined : `PΔ ${casosPD.length + 1}`;
+        if (caso) casosPD.push({ nodais: r.forcas, distribuidas: [] });
+        lista.push({ nome: validas[k].nome, ...(caso ? { caso } : {}), iteracoes: r.iteracoes, convergiu: r.convergiu, amplificacao: r.amplificacao, ...(r.erro ? { erro: r.erro } : {}) });
+        if (r.erro) avisos.push(`P-Δ na combinação ${validas[k].nome}: ${r.erro}`);
+      });
+      if (casosPD.length) {
+        resPD = resolver3(pm, casosPD);
+        if (resPD.erro) { avisos.push(`P-Δ: ${resPD.erro}`); resPD = null; casosPD.length = 0; for (const c of lista) delete c.caso; }
+        else {
+          for (const { pav, dofs, ig } of seInfo) {
+            const pend = pendentes.get(pav) ?? [];
+            if (!pend.length) continue;
+            const gb = integPav.get(pav)!.gb, nosPend = [...new Set(pend.flatMap((pd) => [gb.m.barras[pd.bi].i, gb.m.barras[pd.bi].j]))];
+            casosPD.forEach((_, k) => { const ug = deslocGrelha(gb, ig, dofs.map((d) => resPD!.desloc[k][d]), undefined, nosPend); for (const pd of pend) (pd.pdelta ??= [])[k] = esforcosGrelha(ig, pd.bi, ug); });
+          }
+        }
+      }
+    }
+    const ok = lista.filter((c) => c.convergiu);
+    segundaOrdem = { metodo: 'pDelta', combinacoes: lista, amplificacaoMax: ok.length ? Math.max(...ok.map((c) => c.amplificacao)) : 1, iteracoesMax: lista.length ? Math.max(...lista.map((c) => c.iteracoes)) : 0, ms: (typeof performance !== 'undefined' ? performance.now() : 0) - tPD };
   }
   // vigas do diafragma do modelo integrado: barras só de resultado, no fim da lista, com os esforços da grelha
   let modeloFinal = semFuncoes(pmV);
@@ -1141,6 +1256,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         ig.distDe.forEach((mp, ic) => { for (const q of mp.get(pd.bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q }); });
         CASOS.forEach((_, ic) => res.esforcos[ic].push(g.res!.esforcos[ic][pd.bi]));
         if (resVento && !resVento.erro) ven.casos.forEach((_, iv) => resVento!.esforcos[iv].push(pd.vento[iv] ?? new Float64Array(12)));
+        if (resPD) casosPD.forEach((_, k) => resPD!.esforcos[k].push(pd.pdelta?.[k] ?? new Float64Array(12)));
       }
     }
     modeloFinal = { ...modeloFinal, barras: [...modeloFinal.barras, ...extras] };
@@ -1148,7 +1264,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   if (base) avisos.push(...avisosBaseElastica(b, base.info));
   const cheio = extra.cheio && detalhes.length ? modeloCheio(pmV, casosV, detalhes, ps, CASOS) : undefined;
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW }, ...(base ? { baseElastica: base.info } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(base ? { baseElastica: base.info } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
 }
 
 // ---------------- auxiliares ----------------

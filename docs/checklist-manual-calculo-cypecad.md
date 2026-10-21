@@ -12,32 +12,32 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 17 | 10 | 22 | 10 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 19 | 8 | 22 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 52 | 15 | 12 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 35 | 9 | 1 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 37 | 20 | 46 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 41 | 16 | 46 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 29 | 17 | 13 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 51 | 17 | 29 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 53 | 15 | 29 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **293** | **112** | **145** | **111** |
+| **Total** | **661** | **304** | **101** | **145** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 47 | 14 | 61 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 36 | 14 | 50 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 0 | 18 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 119 | 150 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **112** | **145** | **257** |
+| **Total** | **101** | **145** | **246** |
 
 ## Divergências de premissa
 
@@ -104,8 +104,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.3.1 | Estrutura discretizada em barras, grelhas de barras e nós, e elementos finitos triangulares. | Feito | — | barras (pórtico e grelhas), grelhas condensadas como superelementos (N2b) e elementos finitos triangulares de casca de 6 nós (`casca.ts`, `Casca3` no `fe3d`) com malha triangular própria (`malhaTri.ts`); aplicação às paredes na E1 |
 | K1.3.2 | Pilares: barras verticais entre pavimentos, nó na base (fundação, viga ou laje) e nó em cada pavimento; eixo = eixo da seção. | Feito | — | lance entre pavimentos, nó na base e em cada pavimento, no centro da seção |
-| K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Parcial | N | nó de cada lance no centro da sua seção: barra levemente inclinada, sem trecho rígido de excentricidade [N2c] |
-| K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Parcial | N | comprimento = distância entre cotas; distância livre entre faces não usada [N2c] |
+| K1.3.3 | Pilares: excentricidades por mudança de seção entre pavimentos são consideradas. | Feito | — | nó do pavimento no centro da seção de baixo; lance de cima com trecho rígido horizontal até o seu centro (barra vertical, N·e transmitido; `analitico.ts`, N2c) |
+| K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Feito | — | opção `pilarComprimento`: 0 = entre cotas (padrão, a confirmar); 1 = parte flexível do topo da laje à face inferior da viga mais alta, com trecho rígido vertical no topo (N2c) |
 | K1.3.5 | Vigas: definidas em planta; nós nas interseções com faces dos apoios (pilares, pilares-parede, paredes), com elementos de laje e com outras vigas; nós ao longo do eixo, nas extremidades, nos balanços e extremos livres. | Feito | — | nós nos cruzamentos e apoios (`dividirVigas`); no pórtico o nó fica no eixo do pilar com trecho rígido |
 | K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
 | K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | só concreto retangular; sem seção T colaborante nem biblioteca (aço/madeira fora) [E2a] |
@@ -295,9 +295,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
 | K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) [N2g] |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
-| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Parcial | N | carga.pilar: N, Hx, Hy, Mx, My em eixos globais, por caso e lance (N1c); sem torção T [N2c] |
+| K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Feito | — | `carga.pilar` com N, Hx, Hy, Mx, My e torção T por caso e lance, eixos globais ou locais (N2c) |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Feito | — | arranques com cargas sobre o radier ou a viga sobre base elástica: as cargas vão para o nó mais próximo da malha (`src/core/building/baseElastica.ts`) |
-| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais [N2c] |
+| K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Feito | — | `carga.pilar` concentrada a qualquer altura, uniforme no lance ou em faixa, eixos globais ou locais da seção (N2c) |
 | | **1.5.2 Cargas horizontais — vento (págs. 29–32)** | | | |
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
 | K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Feito | — | vento.definir: Ca por direção e coeficiente por sentido (+X, −X, +Y, −Y), multiplicando a força (N1c) |
@@ -337,7 +337,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.53 | Padrão do programa: multiplicador de deslocamentos 1,00 (fachadas, escadas e alvenarias enrijecem); mudança fica a cargo do projetista. | Fora | — | padrão 1,00 do outro programa; nós: rigidez reduzida da NBR |
 | K1.5.54 | Saídas: fatores de ampliação por combinação e relatório com γz máximo por direção. | Feito | — | γz e ampliação por direção na aba Análise e no memorial |
 | K1.5.55 | Instabilidade global: aviso antes do fim do cálculo quando Σ(γfg·Ci + γfq·Cj) ≥ 1 (γz → ∞ ou negativo). | Feito | — | ΔM ≥ M1 dá γz infinito e cai no aviso de γz > 1,3 |
-| K1.5.56 | Recomendado como método alternativo de 2ª ordem, sobretudo para estruturas deslocáveis ou pouco deslocáveis. | Parcial | N | P-Δ só no Pórtico 2D (`secondorder.ts`); edifício só γz [N2c] |
+| K1.5.56 | Recomendado como método alternativo de 2ª ordem, sobretudo para estruturas deslocáveis ou pouco deslocáveis. | Feito | — | P-Δ 3D por combinação ELU como alternativa ao γz (opção `segundaOrdem`; matriz geométrica dos pilares, rigidez reduzida 0,4/0,8/0,3, normais iteradas; validado contra o Pórtico 2D e o OpenSees; `pdelta3.ts`, N2c) |
 | K1.5.57 | Limitação: a sobrecarga entra integralmente (sem redução automática); recomenda-se recalcular com sobrecarga reduzida só para pilares. | Feito | — | nós: ψ0·Q com vento principal e Q integral com uso principal; manual: Q integral |
 | K1.5.58 | ACI 318: após a estabilidade, redução de rigidez para dimensionar pilares pela fórmula do anexo de normas. | Fora | — | ACI 318 |
 | K1.5.59 | Recomendação: adotar coeficiente de flambagem = 1 nos pilares, somando a excentricidade adicional/fictícia de 2ª ordem de barra isolada ao efeito P-Δ global; decisão do usuário. | Feito | — | nós: le = altura do lance, M2 local do pilar-padrão + γz global |
@@ -398,7 +398,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento, ψ, casos adicionais (N1c) e opções; sem incêndio nem escolha de estados [N2g] |
 | K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
 | K1.9.12 | Padrão α (β) = 1; o usuário muda conforme tipo de estrutura e ligação do pilar às vigas/lajes nas duas direções. | Feito | — | α padrão 1, editável nas duas direções (N1b) |
-| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Parcial | N | pilar destravado por α > 1 no lance; sem soma automática dos lances desligados [N2c] |
+| K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Feito | — | opção `pilarLancesDesligados` (sistema 1, NBR 0): lance sem viga nem laje que o trave no topo, por direção, soma-se ao de cima; ℓe = máx(αi) × Σℓi (`flambagemLance`, `travamentoNoTopo`; N2c) |
 | K1.9.14 | Pilar desligado em uma só direção: o programa usa l0 = αi·li em cada lance sem saber do desligamento; o usuário deve dar αi = α·Σlj/li para obter o comprimento total. | Feito | — | mesmo critério: α por direção informado pelo usuário (N1b) |
 | K1.9.15 | Altura para flambagem = altura livre: altura do pavimento menos a altura da viga ou laje mais alta que chega ao pilar. | Feito | — | ℓe = mín(ℓ0 + h; ℓ), ℓ0 = altura do lance − viga mais alta no topo (NBR 6118, 15.6) (N1b) |
 | K1.9.16 | α final do pilar = α do pavimento × α do lance. | Feito | — | α final = α do pavimento × α do lance (N1b) |
@@ -419,12 +419,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.29 | Altura do pavimento = diferença entre faces superiores das lajes (plano de referência superior médio); cotas calculadas. | Feito | — | cota = topo da laje; pé-direito calculado |
 | K1.9.30 | Pilar: tipo (concreto/metálico), seção por pavimento, referência (ponto fixo), ângulo, início (fundação com vinculação externa ou apoiado sem vinculação) e pavimento final. | Parcial | E | pilar ret/circ, seção por lance, ponto fixo, ângulo, nasce/morre; nascer em laje = apoio fixo provisório [E1a] |
 | K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Feito | — | pilar que nasce na fundação sobre radier ou viga sobre base elástica sem vínculo externo: o pé é um nó da malha, com trecho rígido até o centro (`analitico.ts`, `pilaresNaBase`); esforços no pé vão para as cargas da fundação |
-| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Parcial | N | engaste de topo e base por lance (N1a) e flambagem por pavimento, pilar e direção (N1b); sem desnível e altura de apoio; perfil metálico fora [N2c] |
+| K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Feito | — | engaste de topo e base por lance (N1a), flambagem por pavimento, pilar e direção (N1b), cota própria da base (desnível) e travamento intermediário por lance e direção (`pilar.vinculo`, N2c); perfil metálico fora do escopo do edifício |
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
 | K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede [E1b] |
 | K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) [E1b] |
-| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Parcial | N | cargas horizontais concentradas em qualquer altura do lance, eixos globais, por caso (N1c); sem uniformes, faixa nem eixos locais [N2c] |
-| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Parcial | N | cargas no topo do lance por caso, eixos globais (N1c); sem torção T [N2c] |
+| K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Feito | — | cargas horizontais concentradas, uniformes ou em faixa, a qualquer altura, por caso, eixos globais ou locais (N2c) |
+| K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Feito | — | cargas no topo do lance por caso: N, Hx, Hy, Mx, My e torção T, eixos globais ou locais (N2c) |
 | K1.9.38 | Vinculação de apoio, engastes e flambagem consultáveis e editáveis. | Feito | — | vínculo da base, engastes por lance (pilar.engaste) e flambagem (pilar.flambagem) editáveis em Vínculos e no grupo de seleção (N1a, N1b) |
 | | **1.9.9 Dados das lajes (págs. 50–65)** | | | |
 | K1.9.39 | Geometria em planta por grupo; ordem lógica: vigas, apoios em muro e vigas de fundação primeiro. | Feito | — | planta por grupo; panos detectados pelas vigas (`laje.detectarPanos`) |
@@ -686,7 +686,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-4 | A armadura escolhida deve atender todas as combinações. | Feito | — | atende as combinações determinantes (Nd máx./mín., maiores momentos) |
 | K1.12.4-5 | Verifica compatibilidade esforços × deformações e que tensões e deformações-limite do concreto e do aço não são excedidas. | Feito | — | fibras com deformações-limite da NBR 6118 |
 | K1.12.4-6 | Considera excentricidade mínima ou acidental e excentricidade adicional de flambagem (2ª ordem) conforme a norma. | Feito | — | M1d,mín e M2d do pilar-padrão com curvatura aproximada |
-| K1.12.4-7 | Esbeltez mecânica limitada pela norma; acima do limite das fórmulas, a seção é dada como insuficiente (armadura manual ainda permitida) com aviso de esbeltez excessiva. | Parcial | N | λ > 90 "revisar", λ > 200 recusa; sem método geral entre 90 e 200 [N2c] |
+| K1.12.4-7 | Esbeltez mecânica limitada pela norma; acima do limite das fórmulas, a seção é dada como insuficiente (armadura manual ainda permitida) com aviso de esbeltez excessiva. | Feito | — | λ ≤ 90 curvatura aproximada; 90 < λ ≤ 140 com fluência (15.8.4, `pilarFluencia`); 140 < λ ≤ 200 método geral pela relação M–N–1/r das fibras (`metodoGeral.ts`); λ > 200 recusa; a mensagem informa o método (N2c) |
 | K1.12.4-8 | Taxas geométricas/mecânicas mínimas e máximas por norma num arquivo interno; acima do máximo, aviso de taxa excessiva (em tela e listagem) → aumentar a seção. | Feito | — | As entre máx(0,15Nd/fyd; 0,4 %) e 4 % |
 | K1.12.4-9 | Se nenhuma armadura da tabela resolve, o programa gera armaduras próprias até não caberem em uma camada no perímetro; então aviso de armadura manual → ampliar a tabela e recalcular só os pilares, ou aumentar a seção (que redimensiona automaticamente). | Feito | — | tabela esgotada: armadura própria em uma camada no contorno (bitolas e espaçamentos de fábrica) com aviso FORA_TABELA_PILAR; sem solução, erro ARM_MANUAL (ampliar a tabela ou a seção); o recálculo refaz a análise completa (R7a) |
 | K1.12.4-10 | Grande mudança de dimensões: recomendado recalcular a estrutura toda (rigidez muda). | Feito | — | cálculo sempre global; aviso de modelo alterado |
@@ -697,7 +697,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-15 | Opção: reduzir o comprimento de ancoragem pela relação armadura necessária/efetiva, com limite inferior (texto ambíguo); comprimentos editáveis. | Feito | — | redução do traspasse e do arranque pela utilização (`pilarReducaoIntermediarios`, mínimo `pilarReducaoMinimo`) e comprimentos editáveis de espera, traspasse e ancoragem do arranque (comando `pilar.detalhe`, editor na janela do pilar, verificação PILAR_DET_INSUF) (R7c) |
 | K1.12.4-16 | Hipótese: pilar predominantemente comprimido; pilar tracionado (tirante) exige alongar ancoragens e detalhar ligações manualmente. | Feito | — | pilar tracionado verificado por fibras sem 2ª ordem, com aviso TRACAO (frente 0) |
 | K1.12.4-17 | Armadura vertical: último e penúltimo lances armados pelos seus esforços; depois, lance a lance de cima para baixo, sem que o inferior tenha menos armadura que o superior (critério de continuidade opcional). | Feito | — | último e penúltimo lances pelos seus esforços e, de cima para baixo, o inferior não tem menos armadura que o superior (opção continuidadePilares) (R3b) |
-| K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Parcial | N | topo e base do lance; sem seções intermediárias [N2c] |
+| K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Feito | — | topo e base do lance e, com carga horizontal no lance, também as seções das cargas e nove internas (αb = 1 quando o maior momento é interno; `dimensionamento.ts`, N2c) |
 | K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | pilar com desnível [E1a] |
 | K1.12.4-20 | Estribos dispostos não atendem o cortante → aviso; correções sugeridas: reduzir espaçamento, aumentar diâmetro, outra disposição de estribos/grampos (via tabelas e recálculo dos pilares) ou aumentar armadura vertical. | Feito | — | estribo pelo cortante verificado (aviso ESTRIBO_V) e estribo editado reprovado com o motivo (Asw/s, φt, s) e ARM_BLOQ (N1e, R2) |
 | K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Feito | — | opções `continuidadePilares` (continuidade das barras), bitola de canto e `pilarContinuidadeFaces` (número de barras das faces) a partir do penúltimo ou do último lance (R7c) |
@@ -921,3 +921,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** K1.4.77, K1.11.22, K1.11.25, K1.11.26, K1.13.2.4-12, -13, -14, -15, -16 e -18 (manual de cálculo) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 10 itens (manual de cálculo); demais sem mudança.
+- **21/10/2026 — fatia N2c (pilares e 2ª ordem, núcleo e interface).** K1.3.3, K1.3.4, K1.5.17, K1.5.19, K1.5.56, K1.9.13, K1.9.32, K1.9.36, K1.9.37, K1.12.4-7 e K1.12.4-18 passam a Feito: P-Δ 3D (validado contra o `pDelta` do Pórtico 2D e o OpenSees, `validation/opensees/pdelta3d.py`), excentricidade entre lances, comprimento entre faces (`pilarComprimento`), cargas no pilar com torção, uniformes, em faixa e em eixos locais, lances desligados (`pilarLancesDesligados`), cota da base e travamento intermediário, método geral e fluência por esbeltez (`metodoGeral.ts`, `pilarFluencia`) e seções intermediárias. K1.9.32 fica Feito com perfil metálico fora do escopo do edifício.
+  - Situação: Feito 293 → 304; Parcial 112 → 101; Falta 145 → 145; Fora 111 → 111.
+  - Pendências por frente: N 61 → 50; demais sem mudança.

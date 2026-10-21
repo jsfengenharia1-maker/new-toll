@@ -98,6 +98,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'viga.copiarArmadura': (b) => ({ de: b.vigas[1].id, para: [b.vigas[0].id] }),
   'materiais.definir': (b) => ({ fck: { pilar: 40, fundacao: 25 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60', fundacao: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 }, cobFundacao: 4 }),
   'pilar.engaste': (b) => ({ ids: [b.pilares[0].id], topo: 0.5, base: 0 }),
+  'pilar.vinculo': (b) => ({ ids: [b.pilares[0].id], base: { tipo: 'molas', krx: 5000, kry: 5000 }, cotaBase: -2, apoio: { pavimento: b.pilares[0].morre, altura: 1.2, direcao: 'u' } }),
   'opcoes.definir': () => ({ valores: { malha: 0.5, engasteTopoUltimo: 1 }, padrao: ['torcaoViga'] }),
   'prancha.definir': () => ({ carimbo: { empresa: 'Escritório Exemplo', responsavel: 'Eng. Fulano' }, formato: 'A1', escala: 50, armacao: { escalaVigas: 50, quadroPilares: 0 } }),
   'grupo.criar': () => ({ nome: 'Garagem', uso: 'garagem' }),

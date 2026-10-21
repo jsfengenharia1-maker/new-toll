@@ -223,6 +223,16 @@ export interface OpcoesCalculo {
   malhaCasca: number;
   /** Abertura interna de uma zona fechada por vigas acima da qual o diafragma rígido é questionado (% da área). */
   aberturaDiafragma: number;
+  /** 2ª ordem global (N2c): 0 = γz (ampliação 0,95·γz das ações horizontais); 1 = P-Δ no pórtico 3D com rigidez reduzida. */
+  segundaOrdem: number;
+  /** Comprimento da barra do pilar (N2c): 0 = entre cotas dos pavimentos; 1 = parte flexível até a face inferior da viga mais alta. */
+  pilarComprimento: number;
+  /** 1 = lances sem viga nem laje que os travem numa direção somam-se aos vizinhos na flambagem (ℓ0 = máx αi × Σ ℓi). */
+  pilarLancesDesligados: number;
+  /** Coeficiente de fluência φ dos pilares com λ > 90 (NBR 6118, 15.8.4). */
+  pilarFluencia: number;
+  /** Taxa geométrica mínima da armadura longitudinal dos pilares (%); 0 = da norma (0,4 %, junto com 0,15·Nd/fyd). */
+  pilarTaxaMin: number;
 }
 
 export interface OpcaoInfo {
@@ -499,6 +509,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Armadura paralela ao eixo da sapata corrida: o maior entre este percentual da armadura transversal, 0,9 cm²/m e metade da taxa mínima.' },
   { chave: 'corridaJanela', rotulo: 'Sapata corrida sob parede: janela da carga linear', unidade: 'm', min: 0.25, max: 5, passo: 0.25, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a carga por metro é a maior soma em janelas deste comprimento ao longo do eixo', aConfirmar: true,
     descricao: 'Comprimento da janela em que as cargas lineares, pontuais e de área do nível de fundação sobre a sapata corrida são somadas e divididas para dar a carga por metro de projeto (a largura é única ao longo do eixo).' },
+  { chave: 'segundaOrdem', rotulo: '2ª ordem global por P-Δ (no lugar do γz)', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'NBR 6118, 15.7.2 (γz) e 15.7.3 (rigidez reduzida 0,4/0,8 e lajes 0,3); o programa de referência recomenda o P-Δ como alternativa, sobretudo em estruturas deslocáveis', aConfirmar: false,
+    descricao: 'Ligado: cada combinação ELU é resolvida no pórtico espacial com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic, lajes 0,3·Eci·Ic) somando a matriz geométrica P-Δ dos pilares, iterando as normais até convergir; os efeitos de 2ª ordem viram forças fictícias aplicadas ao modelo de cálculo. Não há ampliação 0,95·γz; o γz continua informado.' },
+  { chave: 'pilarComprimento', rotulo: 'Pilares: comprimento flexível entre faces', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (opção: comprimento = altura entre cotas ou distância livre entre faces); NBR 6118 não fixa o modelo; padrão entre cotas (comportamento anterior), a confirmar', aConfirmar: true,
+    descricao: 'Ligado: a parte flexível de cada lance vai do topo da laje de baixo até a face inferior da viga mais alta que chega ao pilar no topo; o trecho dentro da viga é rígido. Desligado: barra inteira entre as cotas dos pavimentos.' },
+  { chave: 'pilarLancesDesligados', rotulo: 'Pilares: lances desligados somados na flambagem', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118, 15.6: ℓe por lance entre os nós do pórtico; o lance destravado se ajusta pelo α (comportamento anterior)', fonte: 'Programa de referência (ℓ0 = máx αi × soma dos lances sem travamento); NBR 6118, 15.6 (ℓe entre pontos travados)', aConfirmar: false,
+    descricao: 'Lance cujo topo não tem viga nem laje que o trave numa direção (vigas com o eixo a menos de 45° da direção, ou laje junto ao pilar) soma-se ao lance de cima: o comprimento de flambagem da cadeia é o maior α × a soma das alturas, por direção.' },
+  { chave: 'pilarFluencia', rotulo: 'Pilares: coeficiente de fluência (λ > 90)', min: 0, max: 5, passo: 0.1, padrao: 2.5, fonte: 'NBR 6118, 15.8.4 (fluência obrigatória para λ > 90) e 8.2.11 (φ pela Tabela 8.2); valor padrão 2,5 sem fonte específica, a confirmar', aConfirmar: true,
+    descricao: 'φ usado na excentricidade de fluência e_cc = (MSg/NSg + ea)·(2,718^(φNSg/(Ne − NSg)) − 1), Ne = 10·Eci·Ic/ℓe², com NSg e MSg da combinação quase permanente, nos pilares com 90 < λ ≤ 200.' },
+  { chave: 'pilarTaxaMin', rotulo: 'Pilares: taxa geométrica mínima', unidade: '%', min: 0, max: 4, passo: 0.05, padrao: 0, fonte: 'NBR 6118, 17.3.5.3.1 (As,mín = 0,15·Nd/fyd ≥ 0,4 %·Ac); valor do usuário substitui os 0,4 % (programa de referência)', aConfirmar: false,
+    descricao: '0 = taxa da norma (0,4 % da seção). Outro valor substitui a taxa geométrica mínima; o mínimo mecânico 0,15·Nd/fyd continua valendo.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;
@@ -525,6 +545,17 @@ export function vinculosAlterados(b: BuildingModel): string[] {
   for (const p of b.pilares) for (const e of p.engastes ?? []) {
     const partes = [e.topo !== undefined && `topo ${f(e.topo)}`, e.base !== undefined && `base ${f(e.base)}`].filter(Boolean);
     if (partes.length) out.push(`Pilar ${p.nome}, lance até ${pav(e.pavimento)}: engaste ${partes.join(', ')}.`);
+  }
+  for (const p of b.pilares) {
+    // N2c: vínculo externo, cota da base e travamentos intermediários
+    const vb = p.vinculoBase;
+    if (vb?.tipo === 'rotula') out.push(`Pilar ${p.nome}: base rotulada (giros de flexão livres).`);
+    if (vb?.tipo === 'molas') {
+      const ks = (['kx', 'ky', 'kz', 'krx', 'kry', 'krz'] as const).map((k) => `${k} ${vb[k] === undefined ? 'preso' : vb[k] === 0 ? 'livre' : `${f(vb[k]!)} ${k.startsWith('kr') ? 'kN·m/rad' : 'kN/m'}`}`);
+      out.push(`Pilar ${p.nome}: base sobre molas (${ks.join('; ')}).`);
+    }
+    if (p.cotaBase !== undefined) out.push(`Pilar ${p.nome}: base na cota ${f(p.cotaBase)} m.`);
+    for (const a of p.apoiosIntermediarios ?? []) out.push(`Pilar ${p.nome}, lance até ${pav(a.pavimento)}: travamento a ${f(a.altura)} m da base${a.direcao ? ` (direção ${a.direcao})` : ''}.`);
   }
   for (const v of b.vigas) {
     const partes = [

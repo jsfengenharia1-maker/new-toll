@@ -171,6 +171,22 @@ export interface Pilar {
   tabela?: string;
   /** Comprimentos de espera, traspasse e arranque editados (R7c); verificados a cada recálculo. */
   detalhe?: DetalhePilarEditado;
+  /**
+   * Vínculo externo na base (N2c): ausente = engaste. `rotula` libera os giros de flexão (rx, ry); `molas` dá a rigidez
+   * de cada gdl (kN/m e kN·m/rad, eixos globais): gdl ausente = preso, 0 = livre.
+   */
+  vinculoBase?: VinculoBasePilar;
+  /** Cota própria do pé do pilar que nasce na fundação (m; desnível); ausente = cota da fundação da obra. */
+  cotaBase?: number;
+  /** Travamentos intermediários por lance (altura a partir da base do lance, m): dividem o lance para a flambagem. */
+  apoiosIntermediarios?: { pavimento: string; altura: number; direcao?: 'u' | 'v' }[];
+}
+
+/** Vínculo externo da base do pilar (N2c). */
+export interface VinculoBasePilar {
+  tipo: 'engaste' | 'rotula' | 'molas';
+  /** Rigidez por gdl global (com `tipo` = molas): kx, ky, kz (kN/m), krx, kry, krz (kN·m/rad); ausente = preso. */
+  kx?: number; ky?: number; kz?: number; krx?: number; kry?: number; krz?: number;
 }
 
 /** Comprimentos editados do detalhamento de um pilar (m); campos ausentes ficam como calculados. */
@@ -464,10 +480,18 @@ export interface CargaPilar {
   pavimento: string;
   /** G, Q ou id de caso adicional. */
   caso: string;
-  /** Ausente = topo do lance. */
+  /** Ausente = topo do lance (concentrada); na carga em faixa, início da faixa a partir da base do lance. */
   altura?: number;
-  /** kN (N > 0 = compressão, para baixo); kN·m. */
+  /** kN (N > 0 = compressão, para baixo); kN·m. Nas cargas uniformes e em faixa, N, Hx e Hy em kN/m (momentos ignorados). */
   N: number; Hx: number; Hy: number; Mx: number; My: number;
+  /** Torção (kN·m) em torno do eixo do pilar (N2c); só na concentrada. */
+  T?: number;
+  /** N2c: concentrada (padrão), uniforme em todo o lance ou em faixa de `altura` a `ate`. */
+  tipo?: 'concentrada' | 'uniforme' | 'faixa';
+  /** Fim da faixa a partir da base do lance (m). */
+  ate?: number;
+  /** Eixos de Hx/Hy e Mx/My: globais (padrão) ou locais da seção (x ao longo de b, y ao longo de h). */
+  eixos?: 'global' | 'local';
 }
 
 export interface Carga {

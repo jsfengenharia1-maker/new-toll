@@ -3001,4 +3001,64 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'N2c: vínculo externo com molas, carga uniforme no pilar, P-Δ na aba Análise, 2ª ordem local e cortante por direção na janela do pilar, memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // vínculo externo: molas na base do P1 (giros) e carga uniforme no lance
+      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await page.locator('table.quadro tbody tr').first().click();
+      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      const vinc = page.locator('[data-vinculo-externo]');
+      await vinc.waitFor();
+      await vinc.getByLabel('Vínculo da base').selectOption({ label: 'molas' });
+      await page.locator('.statusbar .msg', { hasText: 'Vínculo de 1 pilar(es) alterado' }).waitFor();
+      const kx = vinc.getByLabel('kθx', { exact: true });
+      await kx.fill('50000');
+      await kx.press('Enter');
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-vinculo-externo] label.field')].find((l) => l.textContent.startsWith('kθx'))?.querySelector('input')?.value === '50000');
+      await page.locator('select', { has: page.locator('option', { hasText: 'em faixa' }) }).selectOption({ label: 'uniforme' });
+      const hx = page.getByLabel('Hx (kN/m)');
+      await hx.fill('2');
+      await hx.press('Enter');
+      await page.getByRole('button', { name: 'Adicionar carga no lance' }).click();
+      await page.locator('tr[data-carga-pilar="uniforme"]').waitFor();
+      // P-Δ na aba Análise
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      const card = page.locator('[data-card-2ordem]');
+      await card.getByLabel('P-Δ no pórtico 3D (no lugar do γz)').check();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      const pd = card.locator('[data-segunda-ordem="pDelta"]');
+      await pd.waitFor({ timeout: 60000 });
+      assert.ok(parseInt(await pd.getAttribute('data-pdelta-combinacoes'), 10) > 0);
+      assert.match(await pd.textContent(), /P-Δ.*sem a ampliação 0,95·γz/s);
+      // janela do pilar: método local por direção, diagrama de 1ª e 2ª ordem e cortante por direção
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      await cardP.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jan.waitFor();
+      assert.match(await jan.locator('[data-pilar-2ordem]').first().getAttribute('data-pilar-2ordem'), /^(curvatura|curvaturaFluencia|geral)\|/);
+      assert.match(await jan.textContent(), /2ª ordem local u \(b\)/);
+      await jan.locator('svg[data-diagrama="M2"]').first().waitFor();
+      assert.ok(await jan.locator('table[data-cortante-direcao="2"]').count() >= 1);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // memorial: método global P-Δ, efeitos locais, cortante por direção e vínculo com molas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      await memo.locator('[data-memorial-2ordem="pDelta"]').waitFor();
+      assert.match(await memo.textContent(), /processo P-Δ/);
+      assert.match(await memo.textContent(), /Pilar P1: base sobre molas/);
+      await memo.locator('table[data-memorial-cortante]').waitFor();
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];

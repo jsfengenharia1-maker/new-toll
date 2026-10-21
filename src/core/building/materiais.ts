@@ -2,7 +2,8 @@
 // Padrão pela NBR 6118; cada valor é editável na obra (norma.*) e, onde o manual de referência permite, por elemento.
 import { concrete, type Concrete } from '../concrete';
 import { gamaCDoControle } from './acoes';
-import { cotaFundacao, pavimentosOrdenados, secaoNoLance, dimsSecao, type BuildingModel, type Norma, type Pilar } from './types';
+import { cotaFundacao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, dimsSecao, type BuildingModel, type Norma, type Pilar } from './types';
+import { opcoesEmUso, perfilDe } from './opcoes';
 import { vigaTocaPilar } from './vigas';
 import { dentroPoligono } from '../geom/faces';
 
@@ -66,16 +67,80 @@ export const cobrimentoPilar = (b: BuildingModel, cob?: number) => (cob ?? b.nor
  */
 export function flambagemLance(b: BuildingModel, p: Pilar, pavimento: string) {
   const ps = pavimentosOrdenados(b), ip = ps.findIndex((x) => x.id === pavimento);
-  const pav = ps[ip], abaixo = ip > 0 ? ps[ip - 1].cota : cotaFundacao(b);
-  const l = pav.cota - abaixo;
+  const pav = ps[ip], l = pav.cota - baseDoLance(b, p, pavimento);
   const vigas = b.vigas.filter((v) => v.grupo === pav.grupo && vigaTocaPilar(v, p, pavimento));
   const c: [number, number] = [p.x, p.y];
   const hLaje = Math.max(0, ...b.lajes.filter((x) => x.grupo === pav.grupo && dentroPoligono(c, x.contorno)).map((x) => (x.tipo.tipo === 'macica' ? x.tipo.h : x.tipo.capa)));
   const hTopo = vigas.length ? Math.max(...vigas.map((v) => v.secao.h)) : hLaje;
   const l0 = Math.max(0, l - hTopo);
   const [w, h] = dimsSecao(secaoNoLance(p, pavimento));
-  const fl = p.flambagem?.find((x) => x.pavimento === pavimento), aPav = pav.alfaFlambagem ?? 1;
-  const aU = aPav * (fl?.au ?? 1), aV = aPav * (fl?.av ?? 1);
-  return { l, l0, hTopo, leU: Math.min(l0 + w, l) * aU, leV: Math.min(l0 + h, l) * aV, aU, aV };
+  const alfa = (pv: string) => {
+    const fl = p.flambagem?.find((x) => x.pavimento === pv), aPav = ps.find((x) => x.id === pv)?.alfaFlambagem ?? 1;
+    return [aPav * (fl?.au ?? 1), aPav * (fl?.av ?? 1)] as const;
+  };
+  const [aU, aV] = alfa(pavimento);
+  let leU = Math.min(l0 + w, l) * aU, leV = Math.min(l0 + h, l) * aV;
+  // travamento intermediário no lance (N2c): o maior trecho entre a base, o apoio e o topo
+  const apoio = p.apoiosIntermediarios?.find((x) => x.pavimento === pavimento && x.altura > 0 && x.altura < l);
+  if (apoio) {
+    const t = Math.max(apoio.altura, l - apoio.altura);
+    if (apoio.direcao !== 'v') leU = Math.min(leU, t * aU);
+    if (apoio.direcao !== 'u') leV = Math.min(leV, t * aV);
+  }
+  // lances desligados (N2c, K1.9.13): cadeia de lances sem travamento no topo, por direção; ℓe = máx(αi) × Σ ℓi
+  const desligados: [number, number] = [1, 1];
+  if (opcoesEmUso(b.opcoes, perfilDe(b)).pilarLancesDesligados) {
+    const ls = lancesDoPilar(b, p), k = ls.findIndex((x) => x.id === pavimento);
+    const trav = ls.map((x) => travamentoNoTopo(b, p, x.id));
+    for (const d of [0, 1] as const) {
+      let s = k, e = k;
+      while (s > 0 && !trav[s - 1][d]) s--;
+      while (e < ls.length - 1 && !trav[e][d]) e++;
+      if (s === e) continue;
+      const soma = ls[e].cota - baseDoLance(b, p, ls[s].id), aMax = Math.max(...ls.slice(s, e + 1).map((x) => alfa(x.id)[d]));
+      desligados[d] = e - s + 1;
+      if (d === 0) leU = soma * aMax; else leV = soma * aMax;
+    }
+  }
+  return { l, l0, hTopo, leU, leV, aU, aV, desligados, ...(apoio ? { apoio: apoio.altura } : {}) };
+}
+
+/** Cota da base do lance: o pavimento de baixo, a fundação ou a cota própria do pé do pilar (N2c). */
+export function baseDoLance(b: BuildingModel, p: Pilar, pavimento: string): number {
+  const ps = pavimentosOrdenados(b), ip = ps.findIndex((x) => x.id === pavimento);
+  if (ip > 0) return ps[ip - 1].cota;
+  return p.nasce === 'fundacao' && p.cotaBase !== undefined ? p.cotaBase : cotaFundacao(b);
+}
+
+/**
+ * Travamento do pilar no topo do lance (pavimento dado), por direção [u, v]: laje junto ao pilar (trava as duas) ou viga
+ * que chega ao pilar com o eixo a menos de 45° da direção.
+ */
+export function travamentoNoTopo(b: BuildingModel, p: Pilar, pavimento: string): [boolean, boolean] {
+  const pav = b.pavimentos.find((x) => x.id === pavimento);
+  if (!pav) return [true, true];
+  const [w, h] = dimsSecao(secaoNoLance(p, pavimento)), r = Math.hypot(w, h) / 2 + 0.02, c: [number, number] = [p.x, p.y];
+  const perto = (cont: [number, number][]) => dentroPoligono(c, cont) || cont.some((a, i) => distSeg(c, a, cont[(i + 1) % cont.length]) <= r);
+  if (b.lajes.some((x) => x.grupo === pav.grupo && perto(x.contorno))) return [true, true];
+  const a = (p.angulo * Math.PI) / 180, u: [number, number] = [Math.cos(a), Math.sin(a)], v: [number, number] = [-Math.sin(a), Math.cos(a)];
+  const out: [boolean, boolean] = [false, false];
+  for (const vg of b.vigas) {
+    if (vg.grupo !== pav.grupo || !vigaTocaPilar(vg, p, pavimento)) continue;
+    // trecho da viga mais próximo do pilar
+    let best = Infinity, dir: [number, number] = [1, 0];
+    for (let i = 0; i + 1 < vg.pontos.length; i++) {
+      const d = distSeg(c, vg.pontos[i], vg.pontos[i + 1]);
+      if (d < best) { best = d; const L = Math.hypot(vg.pontos[i + 1][0] - vg.pontos[i][0], vg.pontos[i + 1][1] - vg.pontos[i][1]) || 1; dir = [(vg.pontos[i + 1][0] - vg.pontos[i][0]) / L, (vg.pontos[i + 1][1] - vg.pontos[i][1]) / L]; }
+    }
+    if (Math.abs(dir[0] * u[0] + dir[1] * u[1]) >= Math.SQRT1_2 - 1e-9) out[0] = true;
+    if (Math.abs(dir[0] * v[0] + dir[1] * v[1]) >= Math.SQRT1_2 - 1e-9) out[1] = true;
+  }
+  return out;
+}
+
+function distSeg(p: [number, number], a: [number, number], z: [number, number]) {
+  const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
 }
 

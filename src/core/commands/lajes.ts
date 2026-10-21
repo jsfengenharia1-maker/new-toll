@@ -366,14 +366,15 @@ registrar<{ id: string }>({
 
 // ---- cargas nos pilares ----
 
-registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; N?: number; Hx?: number; Hy?: number; Mx?: number; My?: number }>({
+registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; ate?: number; tipo?: 'concentrada' | 'uniforme' | 'faixa'; eixos?: 'global' | 'local'; N?: number; Hx?: number; Hy?: number; Mx?: number; My?: number; T?: number }>({
   nome: 'carga.pilar',
-  descricao: 'Carga num lance de pilar (eixos globais): N (kN, compressão +), Hx, Hy (kN), Mx, My (kN·m), no topo do lance ou a `altura` m acima da base. Sem `pavimento`, o último lance do pilar. Num arranque (pilar que nasce e morre na fundação), a carga vai no topo do arranque e chega direto à fundação.',
+  descricao: 'Carga num lance de pilar: N (kN, compressão +), Hx, Hy (kN), Mx, My e T (torção) (kN·m), no topo do lance ou a `altura` m acima da base. `tipo` uniforme (em todo o lance) ou faixa (de `altura` a `ate`): N, Hx e Hy em kN/m. `eixos` global (padrão) ou local da seção (x ao longo de b). Sem `pavimento`, o último lance do pilar. Num arranque (pilar que nasce e morre na fundação), a carga vai no topo do arranque e chega direto à fundação.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['pilar', 'caso'], properties: {
-    pilar: { type: 'string' }, pavimento: { type: 'string' }, caso: casoSchema('Q'), altura: { type: 'number', minimum: 0 },
-    N: { type: 'number' }, Hx: { type: 'number' }, Hy: { type: 'number' }, Mx: { type: 'number' }, My: { type: 'number' },
+    pilar: { type: 'string' }, pavimento: { type: 'string' }, caso: casoSchema('Q'), altura: { type: 'number', minimum: 0 }, ate: { type: 'number', minimum: 0 },
+    tipo: { type: 'string', enum: ['concentrada', 'uniforme', 'faixa'] }, eixos: { type: 'string', enum: ['global', 'local'] },
+    N: { type: 'number' }, Hx: { type: 'number' }, Hy: { type: 'number' }, Mx: { type: 'number' }, My: { type: 'number' }, T: { type: 'number' },
   } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.pilar);
@@ -382,14 +383,18 @@ registrar<{ pilar: string; pavimento?: string; caso: string; altura?: number; N?
     const arr = ehArranque(q);
     if (arr ? p.pavimento && p.pavimento !== 'fundacao' : p.pavimento && !l.some((x) => x.id === p.pavimento)) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lance até ${p.pavimento}.`);
     if (!arr && !l.length) return err('LANCE_INEXISTENTE', `O pilar ${q.nome} não tem lances.`);
-    if (![p.N, p.Hx, p.Hy, p.Mx, p.My].some((v) => v)) return err('SEM_VALOR', 'Informe ao menos um esforço.');
+    if (![p.N, p.Hx, p.Hy, p.Mx, p.My, p.T].some((v) => v)) return err('SEM_VALOR', 'Informe ao menos um esforço.');
+    if (p.tipo === 'faixa' && (p.altura === undefined || p.ate === undefined || p.ate <= p.altura)) return err('FAIXA_INVALIDA', 'Carga em faixa: informe `altura` (início) e `ate` (fim) com ate > altura.');
+    if (p.tipo && p.tipo !== 'concentrada' && arr) return err('TIPO_INVALIDO', 'Num arranque só há carga concentrada no topo.');
     return casoOk(b, p.caso);
   },
   aplicar(d, p) {
     const q = d.pilares.find((x) => x.id === p.pilar)!;
     // arranque: carga no topo, lance "fundacao"
     const pav = ehArranque(q) ? 'fundacao' : p.pavimento ?? lancesDoPilar(d as BuildingModel, q as Pilar).at(-1)!.id;
-    (d.cargasPilar ??= []).push({ id: novoId(d, 'cp'), pilar: p.pilar, pavimento: pav, caso: p.caso, ...(p.altura !== undefined ? { altura: p.altura } : {}), N: p.N ?? 0, Hx: p.Hx ?? 0, Hy: p.Hy ?? 0, Mx: p.Mx ?? 0, My: p.My ?? 0 });
+    const tipo = p.tipo && p.tipo !== 'concentrada' ? p.tipo : undefined;
+    (d.cargasPilar ??= []).push({ id: novoId(d, 'cp'), pilar: p.pilar, pavimento: pav, caso: p.caso, ...(p.altura !== undefined && tipo !== 'uniforme' ? { altura: p.altura } : {}), N: p.N ?? 0, Hx: p.Hx ?? 0, Hy: p.Hy ?? 0, Mx: tipo ? 0 : p.Mx ?? 0, My: tipo ? 0 : p.My ?? 0,
+      ...(p.T && !tipo ? { T: p.T } : {}), ...(tipo ? { tipo } : {}), ...(tipo === 'faixa' ? { ate: p.ate } : {}), ...(p.eixos === 'local' ? { eixos: 'local' as const } : {}) });
     return `Carga no pilar ${q.nome} (${p.caso}).`;
   },
 });

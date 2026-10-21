@@ -12,24 +12,24 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
-| 4. Pilares | 63 | 25 | 17 | 14 | 7 |
+| 4. Pilares | 63 | 30 | 14 | 12 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 18 | 15 | 50 | 25 |
 | 7. Lajes | 195 | 29 | 32 | 67 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 17 | 5 | 1 | 3 |
+| 10. Cargas | 26 | 18 | 4 | 1 | 3 |
 | 11. Fundações | 70 | 60 | 1 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **203** | **99** | **276** | **185** |
+| **Total** | **763** | **209** | **95** | **274** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 13 | 11 | 24 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 4 | 9 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 1 | 2 | 3 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 199 | 231 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 2 | 3 | 5 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
@@ -196,7 +196,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.7 | Pilar novo: grupo inicial e grupo final. | Feito | — | nasce/morre |
 | C4.8 | Pilar novo: coeficientes de engastamento e de flambagem. | Feito | — | engaste (pilar.engaste, N1a) e flambagem (pilar.flambagem, N1b) por lance |
 | C4.9 | Pilar novo: ângulo. | Feito | — |  |
-| C4.10 | Pilar novo: vinculação exterior. | Parcial | N | base articulada ou com engaste parcial na fundação (pilar.engaste base, N1a); molas e outros vínculos externos ainda não [N2c] |
+| C4.10 | Pilar novo: vinculação exterior. | Feito | — | vínculo externo da base por pilar: engaste, rótula ou molas por gdl (kx, ky, kz, krx, kry, krz; ausente = preso, 0 = livre), cota própria da base e travamento intermediário (`pilar.vinculo`, `Pilar.vinculoBase/cotaBase/apoiosIntermediarios`, `analitico.ts`; grupo Vínculos; N2c) |
 | C4.11 | Material do pilar por pavimento/tramo (concreto ou aço) e dimensões ou perfil. | Parcial | E | seção por lance; só concreto [E1a] |
 | C4.12 | Posicionamento do pilar por clique. | Feito | — | clique, coordenada digitada, captura |
 | C4.13 | Pilar que nasce sobre outro pilar. | Parcial | E | pilar que nasce num pavimento; sem checar apoio em pilar de baixo [E1a] |
@@ -209,7 +209,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.20 | Pilares que não se sobrepõem são lançados como pilares comuns. | Feito | — |  |
 | C4.21 | O topo do pilar de baixo não usa o coeficiente de engastamento do último pavimento. Os elementos apoiados nele são tidos como engastados por padrão. | Feito | — | lances intermediários usam o próprio coeficiente; o das opções vale só no topo do último lance (N1a) |
 | C4.22 | Engastamento parcial só no topo do último tramo. Pode-se articular o pilar que chega a uma viga ou definir engaste parcial na base do pilar novo. | Feito | — | engaste parcial ou rótula no topo e na base de qualquer lance (N1a) |
-| C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Falta | N | excentricidade entre pilares sobrepostos [N2c] |
+| C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Feito | — | nó do pavimento no centro da seção de baixo e trecho rígido horizontal até o centro do lance de cima: N·e transmitido (`analitico.ts`; N2c) |
 | C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Falta | E | [E1a] |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |
 | C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote [L4] |
@@ -219,7 +219,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L | [L4] |
 | C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Falta | E | pilar-parede de retângulos [E1b] |
 | C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E | [E1b] |
-| C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Parcial | N | taxa mínima fixa (máx(0,15Nd/fyd; 0,4%)); sem valor do usuário [N2c] |
+| C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Feito | — | opção `pilarTaxaMin` (%; 0 = 0,4 % da norma), com o mínimo mecânico 0,15·Nd/fyd (`dimensionamento.ts`; N2c); o app não separa cargas dinâmicas |
 | | **4.2 Resultados de pilares** | | | |
 | C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Feito | — | pilares com erro em vermelho e aviso em amarelo na planta (R1), revisados pelo editor de armadura da janela do elemento com recálculo (R2) |
 | C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Feito | — | janela de resultados do pilar por clique duplo (tabela, lista de erros ou botão na planta) com as combinações determinantes de cada lance (R1) |
@@ -228,8 +228,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção por erro [R7g] |
 | C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Feito | — | erro ARMADURA quando nem 4 % de armadura atende (limite da NBR 6118, 17.3.5.3.2), equivalente à taxa máxima; sem taxa mecânica |
 | C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Feito | — | biela (Vsd/VRd2, erro BIELA) e estribo pelo cortante nos pilares (N1e); espaçamento do estribo verificado na armadura bloqueada (R2) |
-| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Parcial | N | Vd por pilar na tabela; sem detalhe por direção [N2c] |
-| C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Falta | N | [N2c] |
+| C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Feito | — | cortante por direção (u ao longo de b, v ao longo de h): Vsd, Vc, VRd2, Asw/s, As das faces e combinação (`ResultadoPilar.cortante`); janela do pilar e memorial (N2c) |
+| C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Feito | — | aviso ESTRIBO_TABELA quando o cortante pede mais ramos do que um estribo dá (s < 10 cm) e só um estribo (2 ramos) foi colocado (`dimensionamento.ts`, `revisao.ts`; N2c) |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
 | C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) [N2g] |
 | C4.45 | Taxa As/Ac (%) mostrada por tramo. | Parcial | R | As por lance na tabela e na janela do pilar; taxa As/Ac não exibida [R7g] |
@@ -772,7 +772,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **10.1 Ações nos dados gerais** | | | |
 | C10.1 | Vento ativável nos dados gerais, com escolha da norma e dados próprios dela; todas pedem larguras de faixa e coeficientes de carga em X e Y. | Feito | — | vento NBR 6123 (V0, S1, S2, S3, Ca em X e Y, coeficiente por sentido, fator de vizinhança, platibanda; N1c) |
-| C10.2 | Vento com ou sem efeitos de 2ª ordem. | Parcial | N | γz com ampliação do vento; P-Δ 3D não [N2c] |
+| C10.2 | Vento com ou sem efeitos de 2ª ordem. | Feito | — | 2ª ordem global por γz (ampliação 0,95·γz) ou, por opção, P-Δ no pórtico 3D com rigidez reduzida por combinação ELU (`segundaOrdem`, `pdelta3.ts`, `analitico.ts`; N2c) |
 | C10.3 | Norma genérica de vento quando a desejada não existe. | Fora | — | só NBR 6123 |
 | C10.4 | Sismo ativável com escolha da norma e dados próprios, e opção de 2ª ordem. | Fora | — | sismo |
 | C10.5 | Sismo por norma genérica: análise modal espectral ou coeficientes por pavimento. | Fora | — | sismo |
@@ -993,3 +993,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia R7e (edição, uniformização e linhas de dobra das lajes, núcleo e interface).** C1.38, C7.128, C7.130, C7.131, C7.132, C7.133, C7.134 e C7.135 (manual do usuário) passam a Feito: `src/core/building/lajesEdicao.ts` (zonas de uniformização, edição bloqueada com verificação ARM_BLOQ/BLOQ_IGNORADO, igualação por máximos, grupos, emenda construtiva de 30 cm, siglas de reforço), linhas de dobra e armadura média em `detalhamentoLajes.ts`, geração só com a geometria (`Laje.semCalculo`), comandos `laje.uniformizacao`, `laje.linhaDobra`, `laje.barras`, `lajes.gerarArmadura` e `prancha.rotulo` (`mcp: false`), 6 opções `laje*` (`lajeEmendaConstrutiva`, `lajeUniformizarPilares`, `lajeUniformizarPilaresLargura`, `lajeArmaduraMedia`, `lajeSiglaReforco`, `lajeNumeracao`), códigos LAJE_SEM_CALCULO, LAJE_EDIT_BARRA_MAX e LAJE_ZONA_VAZIA, painel de edição não modal sob a planta (`EdicaoLajes.tsx`), ferramentas Zona de uniformização e Linha de dobra, camada inferior e superior juntas, memorial, pranchas (siglas, linhas "LD", rótulos reposicionados), premissa `lajes-edicao`, testes `detalhamentoLajesEdicao.test.ts` (baseline `detalhamentoLajes.base.json` reproduzido sem zonas, linhas nem edição) e e2e `R7e`. A confirmar: faixa de 100 cm da uniformização junto aos pilares, linha de dobra no interior do pano só limita o vão, tolerância de 5° da direção das zonas, folga de um espaçamento na cobertura da edição, numeração por face e tipo. Os comandos refazem a análise inteira (o tipo de revisão só de detalhe fica para a R7f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 8 itens (manual do usuário); demais sem mudança.
+- **21/10/2026 — fatia N2c (pilares e 2ª ordem, núcleo e interface).** C4.10, C4.23, C4.33, C4.41, C4.42 e C10.2 passam a Feito: P-Δ 3D por combinação ELU como opção no lugar do γz (`pdelta3.ts`, `analitico.ts`, `combinacoes.ts`; aba Análise), excentricidade entre lances por trecho rígido, vínculo externo com molas, cota da base e travamento intermediário (`pilar.vinculo`, grupo Vínculos), taxa mínima do usuário (`pilarTaxaMin`), cortante por direção e aviso ESTRIBO_TABELA (janela do pilar e memorial); e2e `N2c`.
+  - Situação: Feito 203 → 209; Parcial 99 → 95; Falta 276 → 274; Fora 185 → 185.
+  - Pendências por frente: N 9 → 3; demais sem mudança.

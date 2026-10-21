@@ -414,3 +414,112 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   });
   return { desloc, esforcos, reacoes, ...(cas.length ? { cascas: esfCascas } : {}), neq, hb };
 }
+
+// ---------------- 2ª ordem (N2c) ----------------
+
+/**
+ * Matriz geométrica local 12 × 12 da barra (N > 0 tração). `consistente`: matriz consistente das funções cúbicas
+ * (6/5, L/10, 2L²/15, −L²/30, como a `geometricLocal` do Pórtico 2D); senão só a parcela P-Δ de corpo rígido
+ * (N/L nos deslocamentos transversais das pontas, como a transformação P-Delta do OpenSees). Torção não incluída.
+ */
+export function geometricaLocal3(L: number, N: number, consistente = false): number[][] {
+  const k = Array.from({ length: 12 }, () => new Array(12).fill(0));
+  const set = (r: number, c: number, v: number) => { k[r][c] += v; if (r !== c) k[c][r] += v; };
+  const a = N / L;
+  if (!consistente) {
+    for (const [p, q] of [[1, 7], [2, 8]]) { set(p, p, a); set(q, q, a); set(p, q, -a); }
+    return k;
+  }
+  // flexão no plano x-y (v, θz = dv/dx)
+  set(1, 1, 1.2 * a); set(1, 5, (L / 10) * a); set(1, 7, -1.2 * a); set(1, 11, (L / 10) * a);
+  set(5, 5, ((2 * L * L) / 15) * a); set(5, 7, (-L / 10) * a); set(5, 11, ((-L * L) / 30) * a);
+  set(7, 7, 1.2 * a); set(7, 11, (-L / 10) * a); set(11, 11, ((2 * L * L) / 15) * a);
+  // flexão no plano x-z (w, θy = −dw/dx)
+  set(2, 2, 1.2 * a); set(2, 4, (-L / 10) * a); set(2, 8, -1.2 * a); set(2, 10, (-L / 10) * a);
+  set(4, 4, ((2 * L * L) / 15) * a); set(4, 8, (L / 10) * a); set(4, 10, ((-L * L) / 30) * a);
+  set(8, 8, 1.2 * a); set(8, 10, (L / 10) * a); set(10, 10, ((2 * L * L) / 15) * a);
+  return k;
+}
+
+/** Sistema fatorado: resolve casos só com cargas nodais (deslocamentos de todos os gdl; condensados ficam nulos). */
+export interface Fatorado3 { erro?: string; neq: number; deslocamentos: (cargas: { no: number; f: number[] }[][]) => Float64Array[] }
+
+/**
+ * Monta e fatora a rigidez do modelo (barras, superelementos, cascas e molas, como `resolver3`) uma vez, para
+ * resolver depois vários vetores de carga nodal (iterações de 2ª ordem). Os gdl condensados dos superelementos
+ * não são recuperados (ficam nulos).
+ */
+export function fatorar3(m: Modelo3): Fatorado3 {
+  const nn = m.nos.length;
+  const mapa: [number, number][][] = Array.from({ length: nn * 6 }, () => []);
+  const presos = new Set<number>();
+  for (const [no, gs] of m.apoios) for (const g of gs) presos.add(no * 6 + g);
+  const cond = m.condensados ?? new Set<number>();
+  const escravo = new Map((m.escravos ?? []).map((e) => [e.no, e.mestre]));
+  let neq = 0;
+  const eqDe = new Int32Array(nn * 6).fill(-1);
+  for (let d = 0; d < nn * 6; d++) {
+    const g = d % 6, no = (d - g) / 6;
+    if (presos.has(d) || cond.has(d)) continue;
+    if (escravo.has(no) && (g === 0 || g === 1 || g === 5)) continue;
+    eqDe[d] = neq++;
+  }
+  for (let d = 0; d < nn * 6; d++) {
+    const g = d % 6, no = (d - g) / 6;
+    if (presos.has(d) || cond.has(d)) continue;
+    const ms = escravo.get(no);
+    if (ms !== undefined && (g === 0 || g === 1 || g === 5)) {
+      const dx = m.nos[no][0] - m.nos[ms][0], dy = m.nos[no][1] - m.nos[ms][1];
+      const em = (h: number) => eqDe[ms * 6 + h];
+      if (g === 0) { if (em(0) >= 0) mapa[d].push([em(0), 1]); if (em(5) >= 0) mapa[d].push([em(5), -dy]); }
+      if (g === 1) { if (em(1) >= 0) mapa[d].push([em(1), 1]); if (em(5) >= 0) mapa[d].push([em(5), dx]); }
+      if (g === 5 && em(5) >= 0) mapa[d].push([em(5), 1]);
+    } else mapa[d].push([eqDe[d], 1]);
+  }
+  const K: SpRows = Array.from({ length: neq }, () => new Map<number, number>());
+  for (const b of m.barras) {
+    const e = elementoBarra(m, b, [], []), Kg = rigidezGlobal(e), plano = b.soPlano;
+    for (let a = 0; a < 12; a++) {
+      if (plano && !NO_PLANO[a % 6]) continue;
+      for (const [ea, ca] of mapa[e.dofs[a]]) for (let c = 0; c < 12; c++) {
+        if (plano && !NO_PLANO[c % 6]) continue;
+        const v = Kg[a][c];
+        if (!v) continue;
+        for (const [ec, cc] of mapa[e.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+      }
+    }
+  }
+  for (const se of m.superelementos ?? []) {
+    const nb = se.dofs.length;
+    for (let a = 0; a < nb; a++) for (const [ea, ca] of mapa[se.dofs[a]]) for (let c = 0; c < nb; c++) {
+      const v = se.K[a * nb + c];
+      if (!v) continue;
+      for (const [ec, cc] of mapa[se.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+    }
+  }
+  for (const ce of (m.cascas ?? []).map((c) => rigidezCasca(m.nos, c))) {
+    for (let a = 0; a < 36; a++) for (const [ea, ca] of mapa[ce.dofs[a]]) for (let c = 0; c < 36; c++) {
+      const v = ce.K[a * 36 + c];
+      if (!v) continue;
+      for (const [ec, cc] of mapa[ce.dofs[c]]) spAdd(K, ea, ec, ca * cc * v);
+    }
+  }
+  for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
+  const { order, hb } = neq ? rcmOrder(K, Array.from({ length: neq }, (_, i) => i)) : { order: [], hb: 0 };
+  const pos = new Int32Array(neq);
+  order.forEach((e, p) => (pos[e] = p));
+  let maxDiag = 0;
+  for (let e = 0; e < neq; e++) maxDiag = Math.max(maxDiag, Math.abs(K[e].get(e) ?? 0));
+  const ldl = new BandLDL(neq, hb, (set) => { for (let e = 0; e < neq; e++) for (const [c, v] of K[e]) { const p = pos[e], q = pos[c]; if (q >= p) set(p, q, v); } }, maxDiag || 1);
+  if (ldl.singularRow >= 0) return { erro: 'Estrutura instável.', neq, deslocamentos: () => [] };
+  return {
+    neq,
+    deslocamentos: (cargas) => cargas.map((nodais) => {
+      const b = new Float64Array(neq);
+      for (const n of nodais) n.f.forEach((v, g) => { if (v) for (const [e, cf] of mapa[n.no * 6 + g]) b[pos[e]] += cf * v; });
+      const x = ldl.solve(b), u = new Float64Array(nn * 6);
+      for (let d = 0; d < nn * 6; d++) for (const [e, c] of mapa[d]) u[d] += c * x[pos[e]];
+      return u;
+    }),
+  };
+}

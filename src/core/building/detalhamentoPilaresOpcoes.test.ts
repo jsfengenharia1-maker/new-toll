@@ -35,6 +35,9 @@ function digest(d: ReturnType<typeof dimensionarEdificio>) {
   return r6({ det: d.detalhesPilares, res: d.resumoAcoPilares, arr: d.pilares.map((p) => [p.pilar, p.pavimentoId, p.arranjo, p.status]) });
 }
 
+/** N2c: soma dos lances desligados (padrão do sistema) desligada para comparar com a base anterior (Térreo sem vigas). */
+const ANTES_N2C = { pilarLancesDesligados: 0 };
+
 describe('R7c: opções novas na NBR reproduzem o detalhamento anterior', () => {
   it('valores da NBR: só a seção insuficiente sem desenho difere do padrão do sistema', () => {
     const nbr = opcoesEmUso(undefined, 'nbr') as never as Record<string, number>, sis = opcoesEmUso(undefined, 'sistema') as never as Record<string, number>;
@@ -44,10 +47,10 @@ describe('R7c: opções novas na NBR reproduzem o detalhamento anterior', () => 
   });
   it('prédio de 5 lances, mudança de seção em arranque, perfil NBR e edifício de exemplo (digest idêntico)', () => {
     const a = predio(4);
-    a.ok('opcoes.definir', { valores: VALORES_NBR });
+    a.ok('opcoes.definir', { valores: { ...VALORES_NBR, ...ANTES_N2C } });
     expect(digest(a.dim())).toEqual(base.v4);
     const b = predio(2);
-    b.ok('opcoes.definir', { valores: { ...VALORES_NBR, pilarUniaoLances: 8, continuidadePilares: 0 } });
+    b.ok('opcoes.definir', { valores: { ...VALORES_NBR, ...ANTES_N2C, pilarUniaoLances: 8, continuidadePilares: 0 } });
     const p = b.s.modelo.pilares[0], ls = lancesDoPilar(b.s.modelo, p);
     b.ok('pilar.secaoLance', { id: p.id, pavimento: ls.at(-1)!.id, secao: { tipo: 'ret', b: 0.2, h: 0.2 } });
     expect(digest(b.dim())).toEqual(base.arranque);
@@ -55,7 +58,7 @@ describe('R7c: opções novas na NBR reproduzem o detalhamento anterior', () => 
     c.ok('opcoes.definir', { perfil: 'nbr' });
     expect(digest(c.dim())).toEqual(base.nbr);
     const ex = edificioExemplo();
-    ex.executar('opcoes.definir', { valores: VALORES_NBR });
+    ex.executar('opcoes.definir', { valores: { ...VALORES_NBR, ...ANTES_N2C } });
     expect(digest(dimensionarEdificio(ex.modelo, analisarEdificio(ex.modelo)))).toEqual(base.ex);
   }, 120000);
 });

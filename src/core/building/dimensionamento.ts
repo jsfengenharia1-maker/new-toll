@@ -8,6 +8,8 @@ import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, fla
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
+import { excentricidadeAcidental, excentricidadeFluencia, metodoGeral, relacaoMCurvatura } from '../metodoGeral';
+import { gramposPorEstribo } from './detalhamentoPilares';
 import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type ResultadoEQU } from './acoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
@@ -76,6 +78,8 @@ function porCaso(an: AnaliseEdificio, bi: number, xs: number[], semVento = false
   if (!pm.res) return out;
   an.casos.forEach((c, ic) => (out[c] = esforcosAoLongo(pm.modelo, bi, pm.res!.esforcos[ic][bi], pm.casos?.[ic], xs)));
   if (!semVento) (an.vento?.casos ?? []).forEach((cv, ic) => { if (pm.resVento) out[cv.nome] = esforcosAoLongo(pm.modelo, bi, pm.resVento.esforcos[ic][bi], pm.casosVento?.[ic], xs); });
+  // P-Δ (N2c): efeitos de 2ª ordem de cada combinação ELU como caso próprio (forças fictícias nodais)
+  if (!semVento && pm.resPDelta) for (const c of an.segundaOrdem?.combinacoes ?? []) { const k = c.caso ? +c.caso.slice(3) - 1 : -1; if (k >= 0) out[c.caso!] = esforcosAoLongo(pm.modelo, bi, pm.resPDelta.esforcos[k][bi], undefined, xs); }
   return out;
 }
 
@@ -108,6 +112,7 @@ function nomesDosCasos(an: AnaliseEdificio): Map<string, number> {
   if (!an.portico.res) return m;
   for (const c of an.casos) if (!m.has(c)) m.set(c, m.size);
   if (an.portico.resVento) for (const cv of an.vento?.casos ?? []) if (!m.has(cv.nome)) m.set(cv.nome, m.size);
+  if (an.portico.resPDelta) for (const c of an.segundaOrdem?.combinacoes ?? []) if (c.caso && !m.has(c.caso)) m.set(c.caso, m.size);
   return m;
 }
 
@@ -508,13 +513,26 @@ export interface ResultadoPilar {
   bloqueada?: boolean;
   arranjo?: { phi: number; n?: number; nb?: number; nh?: number; /** faces superior e direita, quando diferem de nb e nh (arranjo não simétrico) */ nbS?: number; nhD?: number; estribo: { phi: number; s: number } };
   /** Combinações determinantes: Nd (kN, + compressão), momentos de 1ª ordem nas pontas (base, topo) por direção e de cálculo com 2ª ordem (kN·m). */
-  determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean }[];
+  determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean; /** Maior momento nas seções intermediárias (u, v), com carga horizontal no lance. */ Mi?: [number, number] }[];
   /** Origem de cada grandeza: combinação determinante, fórmula e item da NBR 6118. */
   origens?: Origem[];
   /** Comprimentos de flambagem (m) nas direções u (ao longo de b) e v. */
   le: [number, number];
+  /**
+   * Efeitos locais de 2ª ordem por direção (N2c): método (λ ≤ 90 pilar-padrão com curvatura aproximada; 90 < λ ≤ 140 o
+   * mesmo com fluência; 140 < λ ≤ 200 método geral com fluência), excentricidade de fluência e_cc (m) e lances somados
+   * (lances desligados).
+   */
+  local?: { metodo: [MetodoLocal, MetodoLocal]; ecc: [number, number]; lances: [number, number]; secoesIntermediarias: boolean };
+  /** Cortante por direção (N2c): u = esforço ao longo de b (Vy local), v = ao longo de h; kN, cm²/m e cm². */
+  cortante?: { u: CortanteDirecao; v?: CortanteDirecao };
   armadura: string; As: number; estribo: string; status: 'ok' | 'fail' | 'review'; mensagens: string[];
 }
+
+export type MetodoLocal = 'curvatura' | 'curvaturaFluencia' | 'geral';
+export const METODO_LOCAL_TXT: Record<MetodoLocal, string> = { curvatura: 'pilar-padrão com curvatura aproximada', curvaturaFluencia: 'pilar-padrão com curvatura aproximada e fluência', geral: 'método geral (M–N–1/r) com fluência' };
+/** Cortante numa direção do pilar: maior Vsd, Vc e VRd2 dessa combinação, Asw/s necessária e As longitudinal das faces. */
+export interface CortanteDirecao { Vsd: number; Vc: number; VRd2: number; asw: number; AsLong: number; combinacao: string }
 
 /** Barras no contorno interno do retângulo b × h (u ao longo de b) ou do círculo, com espaçamento até `s`. */
 type ArranjoPilar = { n: number } | { nb: number; nh: number; nbS?: number; nhD?: number };
@@ -568,7 +586,7 @@ function distribuicoes(N: number, lb: number, lh: number, spMax: number, spMin: 
   return out.sort((p, q) => p.sc - q.sc || p.v - q.v).slice(0, max);
 }
 
-function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[]): ResultadoPilar[] {
+function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], qp?: CombinacaoEd): ResultadoPilar[] {
   const FYD = acoDe(b, 'pilarLong').fyd, acoLong = acoDe(b, 'pilarLong').aco;
   const pm = an.portico, out: ResultadoPilar[] = [], op = an.opcoes;
   for (const p of b.pilares) {
@@ -584,7 +602,10 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const s = secaoNoLance(p, lance.id), [w, h] = dimsSecao(s);
     const circ = s.tipo === 'circ' ? s.d : null;
     const { L } = baseBarra(pm.modelo, pm.modelo.barras[bi]);
-    const pc = porCaso(an, bi, [0, L]);
+    // seções intermediárias (N2c, K1.12.4-18): com carga horizontal no lance, também nas cargas e em nove pontos internos
+    const cargasLance = (b.cargasPilar ?? []).filter((x) => x.pilar === p.id && x.pavimento === lance.id && (x.Hx || x.Hy) && ((x.tipo ?? 'concentrada') !== 'concentrada' || (x.altura !== undefined && x.altura > 1e-9 && x.altura < L - 1e-9)));
+    const xsInt = cargasLance.length ? [...new Set([...cargasLance.flatMap((x) => (x.tipo ?? 'concentrada') === 'concentrada' ? [x.altura!] : x.tipo === 'faixa' ? [x.altura ?? 0, x.ate ?? L] : []), ...Array.from({ length: 9 }, (_, k) => ((k + 1) * L) / 10)].filter((x) => x > 1e-9 && x < L - 1e-9).map((x) => Math.min(L, x)))].sort((a, z) => a - z) : [];
+    const pc = porCaso(an, bi, [0, L, ...xsInt]);
     const poly: Pt[] = circ ? circlePolygon(circ) : [[0, 0], [w, 0], [w, h], [0, h]];
     const P = polyProps(poly), Ac = circ ? (Math.PI * circ * circ) / 4 : w * h;
     const iu = Math.sqrt(P.Iy / P.A), iv = Math.sqrt(P.Ix / P.A); // u ao longo de x da seção (b), v ao longo de y (h)
@@ -596,10 +617,12 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     // solicitações por combinação: Nd (compressão +), momentos nas duas direções nas duas pontas (u: flexão com deslocamento ao longo de b → Mz local)
     const sol = elu.map((cb) => {
       const N0 = -comb(pc, cb, 0, 'N') * gn, NL = -comb(pc, cb, 1, 'N') * gn;
-      return { nome: cb.nome, Nd: Math.max(N0, NL), Nt: Math.min(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn] };
+      // maior momento nas seções intermediárias (com sinal), por direção
+      const mi = (k: 'Mz' | 'My') => xsInt.reduce((m, _, j) => { const v = comb(pc, cb, 2 + j, k) * gn; return Math.abs(v) > Math.abs(m) ? v : m; }, 0);
+      return { nome: cb.nome, Nd: Math.max(N0, NL), Nt: Math.min(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn], Mi: [mi('Mz'), mi('My')] as [number, number] };
     });
     const NdMax = Math.max(0, ...sol.map((x) => x.Nd));
-    const AsMin = Math.max((0.15 * NdMax) / 1000 / FYD, 0.004 * Ac), AsMax = 0.04 * Ac;
+    const AsMin = Math.max((0.15 * NdMax) / 1000 / FYD, ((op.pilarTaxaMin || 0.4) / 100) * Ac), AsMax = 0.04 * Ac;
     // combinações determinantes (Nd máx./mín., maiores momentos em cada direção e a maior soma relativa)
     const am = (m: number[]) => Math.max(Math.abs(m[0]), Math.abs(m[1]));
     const comp = sol.filter((x) => x.Nd > 0), pick = new Set<number>();
@@ -612,17 +635,39 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     if (tra.length) for (const f of [(x: (typeof sol)[number]) => -x.Nt, (x: (typeof sol)[number]) => am(x.Mu), (x: (typeof sol)[number]) => am(x.Mv)]) pickT.add(argT(f));
     const traD = [...pickT].map((i) => tra[i]);
     const mesh = fiberMesh(poly, circ ? 24 : 16);
-    const direcao = (Nd: number, M: number[], hDir: number, lam: number, Le: number) => {
+    // efeitos locais (N2c): método por esbeltez e fluência (15.8.4) para λ > 90, com NSg e MSg da quase permanente
+    const metodo = [lamU, lamV].map((l) => (l > 140 ? 'geral' : l > 90 ? 'curvaturaFluencia' : 'curvatura')) as [MetodoLocal, MetodoLocal];
+    const ecc: [number, number] = [0, 0];
+    [lamU, lamV].forEach((lam, k) => {
+      if (lam <= 90 || !qp) return;
+      const NSg = Math.max(-comb(pc, qp, 0, 'N'), -comb(pc, qp, 1, 'N')), kM = k === 0 ? 'Mz' : 'My', MSg = Math.max(Math.abs(comb(pc, qp, 0, kM)), Math.abs(comb(pc, qp, 1, kM)));
+      const leK = k === 0 ? fl.leU : fl.leV, I = k === 0 ? P.Iy : P.Ix;
+      ecc[k] = excentricidadeFluencia(NSg, MSg, excentricidadeAcidental(fl.l, leK), op.pilarFluencia, c.Eci * 1000 * I, leK);
+    });
+    const direcao = (Nd: number, M: number[], hDir: number, lam: number, Le: number, Mi = 0, e = 0) => {
       const MA = Math.max(Math.abs(M[0]), Math.abs(M[1])), MB = Math.min(Math.abs(M[0]), Math.abs(M[1]));
       const M1min = Nd * (0.015 + 0.03 * hDir);
       // momentos internos com o mesmo sinal nas pontas = curvatura simples (MB/MA > 0); sinais opostos = curvatura dupla
       let ab = Math.max(0.4, Math.min(1, 0.6 + 0.4 * (MA > 0 ? (M[0] * M[1] > 0 ? MB / MA : -MB / MA) : 0)));
       if (MA < M1min) ab = 1;
-      const lam1 = Math.max(35, Math.min(90, (25 + (12.5 * (MA / Math.max(Nd, 1e-9))) / hDir) / ab));
+      // carga transversal no lance: maior momento interno com αb = 1 (15.8.2)
+      const MAi = Math.max(MA, Math.abs(Mi));
+      if (MAi > MA) ab = 1;
+      const lam1 = Math.max(35, Math.min(90, (25 + (12.5 * (MAi / Math.max(Nd, 1e-9))) / hDir) / ab));
       const nu = Nd / 1000 / (Ac * c.fcd);
       const M2 = lam > lam1 ? ((Nd * Le * Le) / 10) * Math.min(0.005 / (hDir * (nu + 0.5)), 0.005 / hDir) : 0;
-      const base = Math.max(MA, M1min);
-      return { tot: Math.max(ab * base + M2, base), M1: base };
+      const base = Math.max(MAi, M1min) + Nd * e;
+      return { tot: Math.max(ab * base + M2, base), M1: base, M2 };
+    };
+    /** Método geral (λ > 140): barra birrotulada de comprimento ℓe com M1 linear entre as pontas (≥ M1d,mín), Nd·e_cc e a relação M–N–1/r da seção. */
+    const geral = (S: FiberSection, Nd: number, M: number[], hDir: number, Le: number, dir: 0 | 1, e: number) => {
+      const M1min = Nd * (0.015 + 0.03 * hDir), MA = Math.max(Math.abs(M[0]), Math.abs(M[1]));
+      const sg = Math.abs(M[1]) > Math.abs(M[0]) ? Math.sign(M[1]) || 1 : Math.sign(M[0]) || 1;
+      const M1 = MA < M1min ? () => sg * M1min + sg * Nd * e : (x: number) => M[0] + ((M[1] - M[0]) * x) / Le + sg * Nd * e;
+      const rel = relacaoMCurvatura(S, Nd / 1000, dir);
+      if (!rel) return Infinity;
+      const r = metodoGeral(Le, Nd, M1, (m) => rel(m / 1000));
+      return r.erro ? Infinity : r.Mmax;
     };
     /** Maior utilização da armadura; com `parar`, devolve assim que passar de 1 (só interessa se atende). */
     let ultimoDet = '';
@@ -641,7 +686,10 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       }
       for (const x of solD) {
         if (x.Nd / 1000 > NRc) { sobe(99, x.nome); continue; }
-        const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV);
+        const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU, x.Mi[0], ecc[0]), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV, x.Mi[1], ecc[1]);
+        if (!Number.isFinite(ecc[0] + ecc[1])) { sobe(99, x.nome); continue; }
+        if (metodo[0] === 'geral') { const t = geral(S, x.Nd, x.Mu, w, fl.leU, 0, ecc[0]); if (!Number.isFinite(t)) { sobe(99, x.nome); continue; } du.tot = Math.max(t, du.M1); }
+        if (metodo[1] === 'geral') { const t = geral(S, x.Nd, x.Mv, h, fl.leV, 1, ecc[1]); if (!Number.isFinite(t)) { sobe(99, x.nome); continue; } dv.tot = Math.max(t, dv.M1); }
         // seção e armadura duplamente simétricas: um quadrante basta
         for (const [mu, mv] of [[du.tot, dv.M1], [du.M1, dv.tot]]) {
           sobe(utilFlexao(S, x.Nd / 1000, mu, mv, simetrica), x.nome);
@@ -757,7 +805,11 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     }
     if (!melhor) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: [restrito ? `Armadura manual necessária: nenhuma disposição da tabela "${tabP.nome}" entre As,mín e 4 % cabe na seção; amplie a tabela ou a seção.` : 'Nenhuma armadura entre As,mín e 4 % cabe na seção.'] }); continue; }
     let status: ResultadoPilar['status'] = melhor.util <= 1 ? 'ok' : 'fail';
-    if (Math.max(lamU, lamV) > 90) { status = 'review'; msgs.push('λ > 90: exige método mais refinado.'); }
+    if (Math.max(lamU, lamV) > 90) {
+      const k = lamU >= lamV ? 0 : 1, f = (x: number) => (Number.isFinite(x) ? (x * 100).toFixed(2).replace('.', ',') + ' cm' : 'instável');
+      msgs.push(`λ > 90 (${Math.max(lamU, lamV).toFixed(0)}): ${METODO_LOCAL_TXT[metodo[k]]}${qp ? `, φ = ${String(op.pilarFluencia).replace('.', ',')}, e_cc = ${f(ecc[k])}` : ', sem combinação quase permanente para a fluência'} (NBR 6118, ${metodo[k] === 'geral' ? '15.8.3.2' : '15.8.3.3.2'} e 15.8.4).`);
+    }
+    if (fl.desligados[0] > 1 || fl.desligados[1] > 1) msgs.push(`Lances desligados: ℓe soma ${Math.max(...fl.desligados)} lances sem travamento (${fl.desligados[0] > 1 ? `u: ${fl.leU.toFixed(2).replace('.', ',')} m` : ''}${fl.desligados[0] > 1 && fl.desligados[1] > 1 ? '; ' : ''}${fl.desligados[1] > 1 ? `v: ${fl.leV.toFixed(2).replace('.', ',')} m` : ''}).`);
     if (gn > 1) msgs.push(`γn = ${gn.toFixed(2)} (menor dimensão < 19 cm).`);
     if (tra.length) msgs.push(`Tração em ${tra.length} combinação(ões): até ${(-Math.min(...tra.map((x) => x.Nt))).toFixed(0)} kN (verificada sem 2ª ordem).`);
     if (acoLong === 'CA-60' && melhor.phi > 10) msgs.push(AVISO_CA60);
@@ -769,6 +821,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const a = cob + 0.005 + melhor.phi / 2000, gg = gamas(b).g;
     const dirs: { bw: number; d: number; WA: number; M: 'Mz' | 'My' }[] = circ ? [{ bw: circ, d: 0.8 * circ, WA: circ / 8, M: 'Mz' }] : [{ bw: h, d: w - a, WA: w / 6, M: 'Mz' }, { bw: w, d: h - a, WA: h / 6, M: 'My' }];
     let asw = 0, Vd = 0, biela = 0, cVd = '';
+    const porDir: (CortanteDirecao | undefined)[] = [];
     for (const cb of elu) for (const i of [0, 1]) {
       const Vy = comb(pc, cb, i, 'Vy') * gn, Vz = comb(pc, cb, i, 'Vz') * gn, Nc = -comb(pc, cb, i, 'N'), comp = Nc > 0;
       const Vs = circ ? [Math.hypot(Vy, Vz)] : [Math.abs(Vy), Math.abs(Vz)];
@@ -778,9 +831,19 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
         const Vc = comp ? Math.min(2 * Vc0, Vc0 * (1 + (Msd > 1e-9 ? ((Nc / gg) * WA) / Msd : 1))) : 0;
         if (V > Vd) cVd = cb.nome;
         Vd = Math.max(Vd, V); biela = Math.max(biela, V / VRd2);
-        if (V > Vc) asw = Math.max(asw, ((0.2 * c.fctm) / acoDe(b, 'pilarEstribo').fyk) * bw, (V - Vc) / 1000 / (0.9 * d * Math.min(acoDe(b, 'pilarEstribo').fyk / gamas(b).s, 435)));
+        const aswK = V > Vc ? Math.max(((0.2 * c.fctm) / acoDe(b, 'pilarEstribo').fyk) * bw, (V - Vc) / 1000 / (0.9 * d * Math.min(acoDe(b, 'pilarEstribo').fyk / gamas(b).s, 435))) : 0;
+        if (V > Vc) asw = Math.max(asw, aswK);
+        const pd = porDir[k];
+        if (!pd || V > pd.Vsd) porDir[k] = { Vsd: V, Vc, VRd2, asw: Math.max(aswK, pd?.asw ?? 0), AsLong: 0, combinacao: cb.nome };
+        else if (aswK > pd.asw) pd.asw = aswK;
       });
     }
+    // As longitudinal das faces perpendiculares a cada direção (cm²): u → faces em x = a e b − a; v → em y
+    { const ar = melhor.arr as { n?: number; nb?: number; nh?: number; nbS?: number; nhD?: number }, Ab = barArea(melhor.phi) * 1e4;
+      if (porDir[0]) porDir[0].AsLong = circ ? melhor.As * 1e4 : ((ar.nh ?? 2) + (ar.nhD ?? ar.nh ?? 2)) * Ab;
+      if (porDir[1]) porDir[1].AsLong = ((ar.nb ?? 2) + (ar.nbS ?? ar.nb ?? 2)) * Ab; }
+    const r3 = (x: number) => Math.round(x * 1000) / 1000;
+    const cortante = porDir[0] ? { u: { ...porDir[0], Vsd: r3(porDir[0].Vsd), Vc: r3(porDir[0].Vc), VRd2: r3(porDir[0].VRd2), asw: r3(porDir[0].asw * 1e4), AsLong: r3(porDir[0].AsLong) }, ...(porDir[1] ? { v: { ...porDir[1], Vsd: r3(porDir[1].Vsd), Vc: r3(porDir[1].Vc), VRd2: r3(porDir[1].VRd2), asw: r3(porDir[1].asw * 1e4), AsLong: r3(porDir[1].AsLong) } } : {}) } : undefined;
     if (biela > 1) { status = 'fail'; msgs.push(`Biela comprimida no cortante: Vsd/VRd2 = ${biela.toFixed(2).replace('.', ',')}.`); }
     const phiT = Math.max(5, melhor.phi / 4), sT = Math.min(0.2, Math.min(w, h), (12 * melhor.phi) / 1000);
     // tipologia do estribo da tabela (R7a): φt mínimo e espaçamento máximo por bitola longitudinal
@@ -797,14 +860,26 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       if (asw > 0 && (2 * barArea(est.phi)) / est.s < asw - 1e-9) falta.push(`Asw/s ${((2 * barArea(est.phi)) / est.s * 1e4).toFixed(2).replace('.', ',')} < ${(asw * 1e4).toFixed(2).replace('.', ',')} cm²/m do cortante`);
       if (falta.length) msgs.push(`Armadura bloqueada insuficiente: estribo (${falta.join('; ')}).`);
     } else if (estV && est === estV) msgs.push(`Estribos pelo cortante: Vsd = ${Vd.toFixed(1)} kN.`);
+    // C4.42: o cortante pede mais ramos do que um estribo dá (s < 10 cm com a maior bitola da tabela): só um estribo foi colocado
+    if (!bloq && estV && est === estV && est.s < 0.1 - 1e-9) msgs.push(`Estribo fora da tabela: o cortante exige mais ramos e só um estribo (2 ramos) foi colocado (φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}${!circ && gramposPorEstribo(w, h, a, (melhor.arr as { nb?: number }).nb ?? 2, (melhor.arr as { nh?: number }).nh ?? 2, est.phi) ? ', com grampos' : ''}); revise a tabela de armaduras e a disposição dos estribos.`);
     if (msgs.some((x) => x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Armadura bloqueada acima'))) status = 'fail';
     const r2 = (x: number) => Math.round(x * 100) / 100;
     const determinantes = [
-      ...solD.map((x) => { const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV); return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false }; }),
+      ...solD.map((x) => {
+        const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU, x.Mi[0], ecc[0]), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV, x.Mi[1], ecc[1]);
+        // método geral: o total vem da integração com a armadura adotada
+        if (metodo.includes('geral') && Number.isFinite(ecc[0] + ecc[1])) {
+          const a0 = cob + 0.005 + melhor!.phi / 2000, S: FiberSection = { mesh, bars: barrasDoArranjo(poly, circ, a0, melhor!.arr, barArea(melhor!.phi)), cx: P.cx, cy: P.cy, c, fyd: FYD, poly };
+          if (metodo[0] === 'geral') du.tot = Math.max(geral(S, x.Nd, x.Mu, w, fl.leU, 0, ecc[0]), du.M1);
+          if (metodo[1] === 'geral') dv.tot = Math.max(geral(S, x.Nd, x.Mv, h, fl.leV, 1, ecc[1]), dv.M1);
+        }
+        return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false, ...(xsInt.length ? { Mi: x.Mi.map(r2) as [number, number] } : {}) };
+      }),
       ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true })),
     ];
     res.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util,
-      origens: [origem('Armadura longitudinal', melhor.det || '—', 'pilar'), origem('Armadura mínima e máxima', NdMax > 0 ? 'Nd máximo' : '—', 'pilarLimites'), origem('Estribos', cVd || '—', 'pilarEstribo')], lambda: [lamU, lamV], le, armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+      origens: [origem('Armadura longitudinal', melhor.det || '—', 'pilar'), origem('Armadura mínima e máxima', NdMax > 0 ? 'Nd máximo' : '—', 'pilarLimites'), origem('Estribos', cVd || '—', 'pilarEstribo')], lambda: [lamU, lamV], le,
+      local: { metodo, ecc: ecc.map((x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : x)) as [number, number], lances: fl.desligados, secoesIntermediarias: xsInt.length > 0 }, ...(cortante ? { cortante } : {}), armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
     const ult = res.at(-1);
     if (ult && ult.pavimentoId === lance.id && ult.As > 0 && ult.arranjo) acima = { As: ult.As, phi: ult.arranjo.phi, arr: ult.arranjo as unknown as ArranjoPilar, sec: ult.secao };
   }
@@ -1135,7 +1210,7 @@ export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: Opc
  */
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
   const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
-  const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
   if (avisosAcoes.length) d.avisosAcoes = avisosAcoes;
