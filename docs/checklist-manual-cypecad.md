@@ -18,11 +18,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 7. Lajes | 195 | 22 | 34 | 72 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 17 | 5 | 1 | 3 |
-| 11. Fundações | 70 | 60 | 1 | 4 | 5 |
+| 10. Cargas | 26 | 18 | 4 | 1 | 3 |
+| 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **195** | **102** | **281** | **185** |
+| **Total** | **763** | **197** | **100** | **281** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 4 | 10 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 199 | 230 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 2 | 3 | 5 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
 
@@ -794,7 +794,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **10.2 Cargas por grupo e na fundação** | | | |
 | C10.21 | Sobrecarga de uso definida por grupo ao criar grupos, aplicada nos pavimentos, sem atuar nos furos. | Feito | — | sobrecarga por grupo, fora dos furos |
 | C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Feito | — | cargas do grupo "fundacao" sobre radier ou viga sobre base elástica entram na análise global (revisão de cálculo) e saem das vigas e elementos de fundação (`montarBaseElastica`, `pontoNaBase`) |
-| C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Parcial | FU | [FU8c] aviso FUND_RADIER_SEM_CARGA quando há radier e o nível de fundação não tem carga sobre ele; falta definir a carga na hora e seguir o cálculo (hoje: ferramenta Carga no nível de fundação) |
+| C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Feito | — | FU6: aviso FUND_RADIER_SEM_CARGA quando há radier e o nível de fundação não tem carga sobre ele; FU8c: comando `radier.carga` (G e Q de área sobre o contorno, um passo no histórico) e botão "Definir carga e seguir" (`CargaRadier` em `BaseElasticaUI.tsx`, no editor e na janela do radier; `radierSemCarga` em `baseElastica.ts`), que refaz o cálculo do edifício; e2e FU8 |
 | | **10.3 Menu de cargas** | | | |
 | C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje [L5] |
 | C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” [L5] |
@@ -838,7 +838,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **11.2.4 Sapatas corridas sob muros** | | | |
 | C11.28 | Ao lançar um muro, definição da sua fundação: sem vinculação, engastado ou sobre sapata corrida (aba à esquerda, à direita ou ambas). | Falta | FU |  |
 | C11.29 | Sapata corrida dimensionada automaticamente. | Feito | — | FU7a: `src/core/building/sapataCorrida.ts` (`calcularCorridas`, `flexaoTransversal`): sob parede, largura pela σadm (passos de 5 cm, peso próprio, pressão sem tração), altura rígida (balanço ≤ 1,5·h), flexão transversal CEB-70 numa faixa de 1 m (ou bielas) e armadura de distribuição; sob pilares, viga sobre base elástica na análise global com B e h informados ou padrão (a largura necessária sai na mensagem); comandos `corrida.criar/editar/remover`, ferramenta A na planta de fundação, janela com corte transversal, pranchas do tipo fundação |
-| C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Parcial | FU | [FU8a] FU7a: aba à esquerda ou à direita; sem a marca "equilibrada por cintas" a pressão excêntrica sem tração tem de atender a σadm (erro FUND_CORRIDA_EXC); com a marca a reação é uniforme e o momento N·e por metro das cintas fica registrado; as vigas de equilíbrio até sapatas internas não são lançadas nem dimensionadas |
+| C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Feito | — | FU7a: aba à esquerda ou à direita; sem cintas a pressão excêntrica sem tração tem de atender a σadm (erro FUND_CORRIDA_EXC); FU8a: cintas (`cinta.criar/editar/remover`, `cintasCorrida.ts`): da abscissa s do eixo ao elemento interno, alavanca R = N·ℓ/(ℓ − e) por trecho tributário, reação sob a base majorada por R/N (a largura B a considera), alívio ΔN no elemento interno e dimensionamento como viga de equilíbrio (`dimensionarVigaFundacao`); corrida marcada como equilibrada sem cintas dá o aviso FUND_CORRIDA_SEM_CINTA; só sob parede |
 | C11.31 | Atribuir sapata a muro lançado sem ela, pelo menu de elementos de fundação. | Falta | FU |  |
 | | **11.2.5 Opções de fundação (dados gerais)** | | | |
 | C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Feito | — | FU3: opção `fundReducaoTaxa` (As,mín = menor entre ρmín·b·h e 4/3 da calculada, NBR 6118 17.3.5.2.1, a confirmar); desligada por padrão |
@@ -990,3 +990,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Pendências por frente: FU reduz em 1 item; demais sem mudança.
 - **21/10/2026 — auditoria de fim da frente FU contra o código.** C1.35, C11.15, C11.27, C11.38, C11.44, C11.59 e C11.61 passam a Feito (notas desatualizadas: radier e corridas, giro por dois pontos, cruzamento de vigas, desenho dos estribos até as esperas, níveis calculados na interface). C11.26 passa à E (E4c) e C11.49 à V (V2), como a spec da FU já previa. C10.23 e C11.30 seguem Parcial com subfatias FU8c e FU8a; C5.28, C11.28 e C11.31 seguem Falta na FU7b (com a E1). Lacunas e fatias: seção "Auditoria de 21/10/2026" de `spec-frente-FU.md`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
+- **21/10/2026 — subfatias FU8a a FU8d (pendências da auditoria da frente FU).** C10.23 e C11.30 (manual do usuário) passam a Feito: radier sem carga com definição da carga na hora (`radier.carga`, botão "Definir carga e seguir") e sapata corrida de aba única com cintas (`src/core/building/cintasCorrida.ts`, comandos `cinta.criar/editar/remover`, alavanca por trecho tributário com reação majorada por R/N sob a base e alívio no elemento interno; dimensionamento por `dimensionarVigaFundacao`; elevação longitudinal da corrida e cintas nas pranchas). Ligação com o módulo Fundações: `sondagem.copiar`, copiar nos dois sentidos e "Abrir no Edifício" (`LigacaoEdificio`). Validação externa: `validation/opensees/sapata_associada.py` e `bloco_multi.py`. e2e FU8.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: FU reduz em 2 itens; demais sem mudança.

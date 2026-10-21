@@ -2,10 +2,12 @@
 // Sob pilares ela entra na análise global (viga sobre base elástica): muda o cálculo da estrutura; sob parede só muda o
 // cálculo das fundações. Sem ferramenta própria no MCP (`mcp: false`).
 import type { Draft } from 'immer';
-import { FUNDACAO_VAZIA, type AbaCorrida, type BuildingModel, type FundacaoEdificio, type SapataCorrida } from '../building/types';
+import { FUNDACAO_VAZIA, type AbaCorrida, type BuildingModel, type CintaCorrida, type FundacaoEdificio, type SapataCorrida } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { corridasSobPilares, pilaresDaCorrida } from '../building/baseElastica';
 import { comprimentoCorrida, nomeCorrida } from '../building/sapataCorrida';
+import { nomeCinta } from '../building/cintasCorrida';
+import { pontaVF } from '../building/vigasFundacao';
 import type { P } from '../geom/faces';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -119,5 +121,95 @@ registrar<{ ids: string[] }>({
     f.corridas = f.corridas!.filter((c) => !s.has(c.id));
     if (!f.corridas.length) delete f.corridas;
     return `${p.ids.length} sapata(s) corrida(s) removida(s).`;
+  },
+});
+
+// ---------------- cintas (FU8a) ----------------
+
+type CintaIn = { corrida: string; s: number; fim: string; b?: number; h?: number; fixa?: boolean; nome?: string };
+
+/** Corrida de aba única sob parede que recebe a cinta, e a ponta interna válida. */
+function validarCinta(b: BuildingModel, corrida: string, s: number, fim: string): Diagnostico[] {
+  const c = b.fundacao?.corridas?.find((x) => x.id === corrida);
+  if (!c) return err('CORRIDA_INEXISTENTE', `Sapata corrida ${corrida} não existe.`);
+  if (c.aba === 'ambas') return err('CINTA_ABA', `A sapata corrida ${c.nome} tem aba nos dois lados: cintas só valem para aba de um lado (apoio rente à divisa).`, [c.id]);
+  if (pilaresDaCorrida(b, c).length) return err('CINTA_MODO', `A sapata corrida ${c.nome} está sob pilares (viga sobre base elástica na análise global): cintas só valem para sapata corrida sob parede.`, [c.id]);
+  const L = comprimentoCorrida(c.pontos);
+  if (s < -1e-9 || s > L + 1e-9) return err('CINTA_ABSCISSA', `Abscissa s = ${s} m fora do eixo da ${c.nome} (0 a ${L.toFixed(2)} m).`, [c.id]);
+  if (!pontaVF(b, fim)) return err('PONTA_INVALIDA', `Ponta ${fim} não é elemento de fundação nem pilar que nasce na fundação.`);
+  return [];
+}
+
+const propsCinta: Record<string, JsonSchema> = {
+  s: { type: 'number', minimum: 0, description: 'abscissa ao longo do eixo da corrida onde a cinta nasce (m, do primeiro ponto)' },
+  fim: { type: 'string', description: 'id do elemento de fundação (ou do pilar que nasce na fundação) da ponta interna' },
+  b: { type: 'number', minimum: 0.1, maximum: 1.5, description: 'largura da cinta (m; padrão 0,20)' },
+  h: { type: 'number', minimum: 0.2, maximum: 3, description: 'altura da cinta (m; padrão 0,40; cresce até atender, salvo `fixa`)' },
+  fixa: { type: 'boolean', description: 'seção só verificada' },
+  nome: { type: 'string', minLength: 1 },
+};
+
+registrar<CintaIn>({
+  nome: 'cinta.criar',
+  descricao: 'Lança uma cinta (viga de equilíbrio) de sapata corrida de aba única sob parede: da abscissa `s` do eixo da corrida ao elemento interno `fim`. A cinta toma o momento N·e do trecho tributário (alavanca R = N·ℓ/(ℓ − e)), majora a reação sob a corrida e alivia o elemento da ponta oposta; é dimensionada como as vigas de equilíbrio (seção padrão 20 × 40 cm, cresce até atender ou `fixa`).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['corrida', 's', 'fim'], properties: { corrida: { type: 'string', description: 'id da sapata corrida' }, ...propsCinta } },
+  validar: (b, p) => validarCinta(b, p.corrida, p.s, p.fim),
+  aplicar(d, p) {
+    const c = d.fundacao!.corridas!.find((x) => x.id === p.corrida)!;
+    const nome = p.nome?.trim() || nomeCinta(d as BuildingModel);
+    const ct: CintaCorrida = { id: novoId(d, 'ct'), nome, s: r6(p.s), fim: p.fim, b: p.b ?? 0.2, h: p.h ?? 0.4, ...(p.fixa ? { fixa: true } : {}) };
+    (c.cintas ??= []).push(ct);
+    return `Cinta ${nome} lançada na sapata corrida ${c.nome} (s = ${p.s.toFixed(2).replace('.', ',')} m).`;
+  },
+});
+
+const acharCinta = (b: BuildingModel, id: string) => { for (const c of b.fundacao?.corridas ?? []) { const ct = c.cintas?.find((x) => x.id === id); if (ct) return { c, ct }; } return null; };
+
+registrar<Partial<Omit<CintaIn, 'corrida'>> & { id: string; ancoragem?: { ini?: number; fim?: number } }>({
+  nome: 'cinta.editar',
+  descricao: 'Altera uma cinta de sapata corrida: abscissa `s`, ponta interna `fim`, seção b × h (m), `fixa`, nome e `ancoragem` (comprimento reto das barras superiores além das faces, m; 0 = o lb calculado).',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, ...propsCinta,
+    ancoragem: { type: 'object', additionalProperties: false, properties: { ini: { type: 'number', minimum: 0, maximum: 3 }, fim: { type: 'number', minimum: 0, maximum: 3 } } } } },
+  validar(b, p) {
+    const a = acharCinta(b, p.id);
+    if (!a) return err('CINTA_INEXISTENTE', `Cinta ${p.id} não existe.`);
+    return validarCinta(b, a.c.id, p.s ?? a.ct.s, p.fim ?? a.ct.fim);
+  },
+  aplicar(d, p) {
+    const { ct } = acharCinta(d as BuildingModel, p.id)! as unknown as { ct: Draft<CintaCorrida> };
+    if (p.nome) ct.nome = p.nome.trim();
+    if (p.s !== undefined) ct.s = r6(p.s);
+    for (const k of ['fim', 'b', 'h'] as const) if (p[k] !== undefined) (ct as unknown as Record<string, unknown>)[k] = p[k];
+    if (p.fixa !== undefined) { if (p.fixa) ct.fixa = true; else delete ct.fixa; }
+    if (p.ancoragem) {
+      const a = { ...(ct.ancoragem ?? {}) };
+      for (const k of ['ini', 'fim'] as const) { const x = p.ancoragem[k]; if (x === undefined) continue; if (x > 0) a[k] = x; else delete a[k]; }
+      if (Object.keys(a).length) ct.ancoragem = a; else delete ct.ancoragem;
+    }
+    return `Cinta ${ct.nome} alterada.`;
+  },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'cinta.remover',
+  descricao: 'Remove cintas de sapatas corridas.',
+  risco: 'destrutivo',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } } },
+  validar(b, p) {
+    const f = p.ids.filter((id) => !acharCinta(b, id));
+    return f.length ? err('CINTA_INEXISTENTE', `Cinta(s) inexistente(s): ${f.join(', ')}.`) : [];
+  },
+  aplicar(d, p) {
+    const s = new Set(p.ids);
+    for (const c of d.fundacao!.corridas ?? []) if (c.cintas) { c.cintas = c.cintas.filter((x) => !s.has(x.id)); if (!c.cintas.length) delete c.cintas; }
+    return `${p.ids.length} cinta(s) removida(s).`;
   },
 });

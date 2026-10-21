@@ -293,9 +293,9 @@ export function desenharTubulao(c: Ctx, els: ResultadoFundacao[], cotaTerreno: n
 export function desenharViga(c: Ctx, vs: ResultadoVigaFundacao[], escala: number): Prim[] {
   const v = vs[0], rep = vs.length, k = 1000 / escala, kS = 1000 / c.escalaSecao, cob = cobrimentoFundacao(c.b), aco = acoDe(c.b, 'fundacao').aco;
   const vm = c.b.fundacao?.vigas?.find((x) => x.id === v.id), g = vm ? geometriaVF(c.b, vm) : null;
-  const fi = g?.ini ? meiaFace(c.b, g.ini.pilar, g.u) : 0.1, ff = g?.fim ? meiaFace(c.b, g.fim.pilar, [-g.u[0], -g.u[1]]) : 0.1;
+  const fi = v.faces?.ini ?? (g?.ini ? meiaFace(c.b, g.ini.pilar, g.u) : 0.1), ff = v.faces?.fim ?? (g?.fim ? meiaFace(c.b, g.fim.pilar, [-g.u[0], -g.u[1]]) : 0.1);
   const a = v.armadura, h = v.hAdot, bw = v.bAdot, out: Prim[] = [];
-  let y = cabecalho(out, vs.map((e) => e.nome), `${v.tipo === 'equilibrio' ? 'Viga de equilíbrio' : 'Viga de travamento'} ${cmInt(bw)}×${cmInt(h)} cm · ${v.ini} — ${v.fim} · L=${cmInt(v.L)} cm${rep > 1 ? ` · ${rep} iguais` : ''}`);
+  let y = cabecalho(out, vs.map((e) => e.nome), `${'corrida' in v ? 'Cinta da sapata corrida' : v.tipo === 'equilibrio' ? 'Viga de equilíbrio' : 'Viga de travamento'} ${cmInt(bw)}×${cmInt(h)} cm · ${v.ini} — ${v.fim} · L=${cmInt(v.L)} cm${rep > 1 ? ` · ${rep} iguais` : ''}`);
   out.push(txt('TEXTO', 0, y, 2.4, `ELEVAÇÃO ESC 1:${escala}`, 'e', 'topo'));
   const x0 = Math.max(a.ancoragem.ini - fi, 0.05) * k + 6, yTop = y - 26, yBot = yTop - h * k;
   const xi = x0, xf = x0 + v.L * k, xFi = xi + fi * k, xFf = xf - ff * k;

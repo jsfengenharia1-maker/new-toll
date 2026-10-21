@@ -7,6 +7,7 @@ import { useRevisao } from './revisao';
 import { aoEscolher, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { corridaEfetiva } from '../../core/building/baseElastica';
+import { geometriasCintas } from '../../core/building/cintasCorrida';
 import { contornoApoio, contornoCorrida, ladosDaBase } from '../../core/building/sapataCorrida';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import { cadeiaDeSegmentos } from '../../core/geom/cadeia';
@@ -221,7 +222,7 @@ export function Planta() {
   const vigasEl = useMemo(() => (nivelFund ? (b.fundacao?.vigasElasticas ?? []).map((v) => ({ v, f: faixaVigaElastica(v) as P2[] })) : []), [nivelFund, b.fundacao?.vigasElasticas]);
   const dimRad = useBuilding((st) => st.dim?.radiers), dimVE = useBuilding((st) => st.dim?.vigasElasticas), dimCor = useBuilding((st) => st.dim?.corridas);
   // sapatas corridas (FU7a): base (largura calculada ou a efetiva) e elemento apoiado em planta
-  const corridasP = useMemo(() => (nivelFund ? (b.fundacao?.corridas ?? []).map((c) => { const r = dimCor?.find((x) => x.id === c.id), B = r?.B ?? corridaEfetiva(b, c).B; return { c, r, B, contorno: contornoCorrida(c, B) as P2[], apoio: contornoApoio(c) as P2[] }; }) : []), [nivelFund, b, dimCor]);
+  const corridasP = useMemo(() => (nivelFund ? (b.fundacao?.corridas ?? []).map((c) => { const r = dimCor?.find((x) => x.id === c.id), B = r?.B ?? corridaEfetiva(b, c).B; const cintas = c.cintas?.length && c.aba !== 'ambas' ? geometriasCintas(b, c).itens.filter((x) => !x.erro).map((x) => { const rc = r?.cintas?.find((y) => y.id === x.cinta.id); return { nome: x.cinta.nome, a: x.g.a as P2, z: x.g.z as P2, larg: rc?.bAdot ?? x.cinta.b, alt: rc?.hAdot ?? x.cinta.h }; }) : []; return { c, r, B, contorno: contornoCorrida(c, B) as P2[], apoio: contornoApoio(c) as P2[], cintas }; }) : []), [nivelFund, b, dimCor]);
   const cruzamentosVFPlanta = useMemo(() => cruzamentosVF(vigasFund.map((x) => x.g)).map((c) => {
     const nome = (id: string) => b.fundacao?.vigas?.find((x) => x.id === id)?.nome ?? id, nApoiada = nome(c.apoiada);
     return { ...c, nApoiada, nApoio: nome(c.apoio), R: dimVF?.find((x) => x.id === c.apoio)?.cruzamentos?.find((x) => x.papel === 'apoio' && x.com === nApoiada)?.R };
@@ -507,7 +508,7 @@ export function Planta() {
       ctx.restore();
     }
     // sapatas corridas (FU7a): base, elemento apoiado, eixo e rótulo "SC1 120x40/20 φ12,5 c/14"
-    for (const { c, r, contorno, apoio, B: Bc } of corridasP) {
+    for (const { c, r, contorno, apoio, B: Bc, cintas } of corridasP) {
       const sel = pl.selecao.has(c.id), erro = comErro.has(c.id), avi = comAviso.has(c.id), cor = erro ? cores.erro : avi ? cores.aviso : sel ? cores.selecao : cores.laje;
       const poli = (pts: P2[]) => { ctx.beginPath(); pts.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
       poli(contorno); ctx.globalAlpha = sel ? 0.35 : 0.14; ctx.fillStyle = cor; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = cor; ctx.lineWidth = erro || avi || sel ? 3 : 2; ctx.stroke();
@@ -521,6 +522,17 @@ export function Planta() {
       ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = cor;
       ctx.fillText(`${c.nome} ${Math.round(Bc * 100)}x${Math.round((r?.h ?? c.h ?? 0) * 100)}${r && r.h0 < r.h ? `/${Math.round(r.h0 * 100)}` : ''}${t?.barras ? ` φ${fmt(t.barras.phi, 1)} c/${Math.round(t.barras.s * 100)}` : ''}${r ? (r.modo === 'pilares' ? ' s/ pilares' : '') : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, 0, -Math.max(3, Math.max(ladosDaBase(c.aba, Bc, c.bw).esq, ladosDaBase(c.aba, Bc, c.bw).dir) * v.k + 2));
       ctx.restore();
+      // cintas (FU8a): faixa da viga do eixo da corrida ao pilar interno, com nome e seção
+      for (const ct of cintas) {
+        const p1 = paraTela(ct.a[0], ct.a[1]), p2 = paraTela(ct.z[0], ct.z[1]);
+        ctx.save(); ctx.lineCap = 'butt'; ctx.globalAlpha = 0.35; ctx.strokeStyle = cores.viga; ctx.lineWidth = Math.max(3, ct.larg * v.k);
+        ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.stroke();
+        let ang2 = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]); if (ang2 > Math.PI / 2 || ang2 < -Math.PI / 2) ang2 += Math.PI;
+        ctx.translate((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2); ctx.rotate(ang2);
+        ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = cores.viga;
+        ctx.fillText(`${ct.nome} ${Math.round(ct.larg * 100)}x${Math.round(ct.alt * 100)} cinta`, 0, -Math.max(3, (ct.larg * v.k) / 2 + 2));
+        ctx.restore();
+      }
     }
     // mapa por nó (envoltória das raras): tensão no solo (escala até a σadm) ou recalque (até o maior), cor por faixa
     if (pl.mapaBase !== 'nenhum' && (dimRad?.length || dimVE?.length)) {

@@ -2198,6 +2198,107 @@ export const flows = [
     },
   },
   {
+    name: 'FU8: cintas da sapata corrida de aba única (lançadas no editor, alavanca, alívio no elemento interno, janela e pranchas), radier sem carga (definir e seguir) e ligação com o módulo Fundações (sondagens nos dois sentidos, abrir no Edifício)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
+      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('250');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      // sapatas centradas sob P1 (0; 0) e P2 (7; 0)
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata) lançado sob P1' }).waitFor();
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P2' }).waitFor();
+      // sapata corrida de aba à esquerda (+y) sob uma parede a 3,5 m das sapatas, carga linear G = 200 kN/m
+      await cmd('carga.linha {"grupo": "fundacao", "pontos": [[0, -3.5], [7, -3.5]], "valor": 200, "caso": "G"}');
+      await cmd('corrida.criar {"pontos": [[0, -3.5], [7, -3.5]], "bw": 0.2, "aba": "esq"}');
+      await page.locator('.statusbar .msg', { hasText: /Sapata corrida SC1 lançada .*sob parede/ }).waitFor();
+      const tab = grupo.locator('table[data-corridas-tabela] tbody tr');
+      await tab.first().click();
+      const ed = grupo.locator('[data-editor-corrida]');
+      await ed.waitFor();
+      // cintas pelo editor: a primeira nasce no meio e vai para S1; a segunda vai para S2
+      const cintas = ed.locator('[data-cintas]');
+      await cintas.getByRole('button', { name: 'Adicionar cinta' }).click();
+      await page.locator('.statusbar .msg', { hasText: /Cinta CT1 lançada na sapata corrida SC1/ }).waitFor();
+      const linha = (n) => cintas.locator('[data-cinta-id]').nth(n);
+      const campoS = (n) => linha(n).locator('label.field', { has: page.locator('.flabel', { hasText: /^s \(0 a/ }) }).locator('input');
+      await campoS(0).fill('0');
+      await campoS(0).press('Enter');
+      await page.locator('.statusbar .msg', { hasText: /Cinta CT1 alterada/ }).waitFor();
+      await cintas.getByRole('button', { name: 'Adicionar cinta' }).click();
+      await page.locator('.statusbar .msg', { hasText: /Cinta CT2 lançada/ }).waitFor();
+      await campoS(1).fill('7');
+      await campoS(1).press('Enter');
+      await linha(1).locator('select').selectOption({ label: 'S2' });
+      await page.locator('.statusbar .msg', { hasText: /Cinta CT2 alterada/ }).waitFor();
+      assert.equal(await cintas.locator('[data-cinta-id]').count(), 2);
+      // calcular: cintas na janela da sapata corrida, com alavanca e alívio
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const card = page.locator('[data-card-corridas]');
+      await card.waitFor();
+      await card.locator('tbody tr', { hasText: 'SC1' }).dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Sapata corrida SC1/ });
+      await jan.waitFor();
+      const txt = await jan.innerText();
+      assert.match(txt, /Cinta CT1/);
+      assert.match(txt, /Cinta CT2/);
+      assert.match(txt, /alívio ΔN \d+,\d kN em S1/);
+      assert.match(txt, /alívio ΔN \d+,\d kN em S2/);
+      assert.doesNotMatch(txt, /FUND_CORRIDA_EXC/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // o elemento interno recebe o alívio (janela da sapata S1)
+      const cardF = page.locator('[data-card-fundacoes]');
+      if (await cardF.count()) assert.match(await cardF.innerText(), /S1/);
+      // pranchas: elevação longitudinal da corrida e cintas nas folhas das vigas de fundação
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Fundação (locação, detalhes e quantitativos)' });
+      await page.waitForFunction(() => document.querySelector('.prancha-prev')?.getAttribute('data-tipo') === 'fundacao');
+      await page.locator('[data-folha-item]', { hasText: /^.*Fundação — sapatas corridas(?! —)/ }).first().click();
+      await page.waitForFunction(() => /ELEVAÇÃO LONGITUDINAL/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
+      const folhas = await page.locator('[data-lista-folhas]').innerText();
+      assert.match(folhas, /Fundação — vigas de fundação/);
+
+      // radier sem carga: define a carga na hora e segue o cálculo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await cmd('radier.criar {"contorno": [[10, 0], [14, 0], [14, 4], [10, 4]], "h": 0.3}');
+      await page.locator('.statusbar .msg', { hasText: /Radier .* lançado/ }).waitFor();
+      await grupo.locator('table[data-bases-elasticas] tbody tr').first().click();
+      const semCarga = grupo.locator('[data-radier-sem-carga]');
+      await semCarga.waitFor();
+      await semCarga.getByRole('button', { name: 'Definir carga e seguir' }).click();
+      await grupo.locator('[data-radier-sem-carga]').waitFor({ state: 'detached' });
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // ligação com o módulo Fundações: sondagens nos dois sentidos e atalho para o Edifício
+      await cmd('sondagem.criar {"nome": "SP-E1", "x": 1, "y": 1, "nivelAgua": 6, "leituras": [{"N": 5, "solo": "areia"}, {"N": 8, "solo": "areia"}, {"N": 12, "solo": "areia"}, {"N": 18, "solo": "areia"}]}');
+      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
+      const lig = page.locator('[data-ligacao-edificio]');
+      await lig.waitFor();
+      assert.match(await lig.innerText(), /1 furo\(s\) de sondagem no edifício/);
+      await lig.getByRole('button', { name: 'Copiar sondagens do edifício' }).click();
+      await page.locator('.statusbar .msg', { hasText: /1 furo\(s\) de sondagem copiado\(s\) do edifício/ }).waitFor();
+      assert.match(await lig.innerText(), /1 neste módulo/);
+      await lig.getByRole('button', { name: 'Copiar sondagens para o edifício' }).click();
+      await page.locator('.statusbar .msg', { hasText: /1 furo\(s\) de sondagem copiado\(s\) do módulo Fundações \(substituíram os do edifício\)/ }).waitFor();
+      assert.match(await lig.innerText(), /1 furo\(s\) de sondagem no edifício/);
+      await lig.getByRole('button', { name: /Abrir no Edifício/ }).click();
+      await page.locator('.planta-cv').waitFor();
+      assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
+    },
+  },
+  {
     webgl: true,
     name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
     async run({ newPage, baseURL }) {

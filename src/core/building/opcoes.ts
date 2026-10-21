@@ -203,6 +203,8 @@ export interface OpcoesCalculo {
   corridaDistribuicao: number;
   /** Sapata corrida sob parede (FU7a): comprimento da janela em que a carga linear é somada para obter a carga por metro (m). */
   corridaJanela: number;
+  /** Sapata corrida de aba única (FU8a): espaçamento máximo entre cintas (m); acima dele, aviso (flexão longitudinal entre cintas não verificada). */
+  corridaCintaEspac: number;
 }
 
 export interface OpcaoInfo {
@@ -459,6 +461,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Armadura paralela ao eixo da sapata corrida: o maior entre este percentual da armadura transversal, 0,9 cm²/m e metade da taxa mínima.' },
   { chave: 'corridaJanela', rotulo: 'Sapata corrida sob parede: janela da carga linear', unidade: 'm', min: 0.25, max: 5, passo: 0.25, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a carga por metro é a maior soma em janelas deste comprimento ao longo do eixo', aConfirmar: true,
     descricao: 'Comprimento da janela em que as cargas lineares, pontuais e de área do nível de fundação sobre a sapata corrida são somadas e divididas para dar a carga por metro de projeto (a largura é única ao longo do eixo).' },
+  { chave: 'corridaCintaEspac', rotulo: 'Sapata corrida de aba única: espaçamento máximo entre cintas', unidade: 'm', min: 1, max: 12, passo: 0.5, padrao: 5, fonte: 'Critério do Statikos (sem fonte): a sapata entre cintas funciona como viga contínua apoiada nelas e não é verificada na flexão longitudinal; o programa de referência não fixa valor', aConfirmar: true,
+    descricao: 'Distância entre cintas (vigas de equilíbrio da aba de um lado só) acima da qual o programa avisa que a flexão longitudinal da sapata entre elas não é verificada; o balanço além da última cinta aceita metade.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

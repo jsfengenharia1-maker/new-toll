@@ -22,6 +22,8 @@ import { combinacoesDoEstado, type CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
+import type { ResultadoCinta } from './cintasCorrida';
+import type { ResultadoCorrida } from './sapataCorrida';
 import { pilaresDaCorrida, pontoNaBase, pontoNaCorrida } from './baseElastica';
 import {
   abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
@@ -187,6 +189,8 @@ export interface OpcoesFundacao {
   niveis?: number[];
   /** Só estes elementos. */
   ids?: string[];
+  /** Sapatas corridas já calculadas (FU8a): as cintas aliviam os elementos internos e somam o peso próprio na ponta. */
+  corridas?: ResultadoCorrida[];
 }
 
 /** Elementos, vigas de fundação e avisos gerais (cargas do nível de fundação sem destino). */
@@ -287,7 +291,10 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
       });
     }
   }
-  const ge: Geral = { o, op, modo, niveis, P0: parametrosFundacao(b), zt: cotaTerreno(b), furos: fe.sondagens };
+  const cintas = (o.corridas ?? []).flatMap((r) => r.cintas ?? []);
+  // peso próprio da cinta na ponta interna (G); o alívio da alavanca entra pelos `alivios` de cada elemento
+  for (const ct of cintas) somar(ct.pilarId, 'G', ct.cargas.fim);
+  const ge: Geral = { o, op, modo, niveis, P0: parametrosFundacao(b), zt: cotaTerreno(b), furos: fe.sondagens, cintas };
   let res = passo(b, base, extra, geos, ge);
   // cargas sobre os elementos (contorno do primeiro cálculo): somadas ao pilar do elemento, por caso
   if (resto.length) {
@@ -406,7 +413,7 @@ export function gruposSobrepostos(res: ResultadoFundacao[]): string[][] {
   return [...grupos.values()].filter((g) => g.length > 1);
 }
 
-interface Geral { o: OpcoesFundacao; op: OpcoesCalculo; modo: number; niveis?: number[]; P0: FoundationParams; zt: number; furos: Boring[] }
+interface Geral { o: OpcoesFundacao; op: OpcoesCalculo; modo: number; niveis?: number[]; P0: FoundationParams; zt: number; furos: Boring[]; cintas: ResultadoCinta[] }
 
 /** Um passo do cálculo dos elementos (com as reações extras das cargas do nível de fundação). */
 function passo(b: BuildingModel, base: Pick<AnaliseEdificio, 'fundacao' | 'vento'>, extra: Reacao[], geos: GeometriaVF[], ge: Geral): ResultadoFundacao[] {
@@ -428,6 +435,8 @@ function passo(b: BuildingModel, base: Pick<AnaliseEdificio, 'fundacao' | 'vento
     for (const ponta of ['ini', 'fim'] as const) if (eq[ponta]) { const id = g[ponta]!.elemento!.id; eqPorEl.set(id, [...(eqPorEl.get(id) ?? []), { g, ponta }]); }
   }
   const alivios = new Map<string, AlivioRecebido[]>();
+  // cintas das sapatas corridas de aba única (FU8a): o alívio chega ao pilar da ponta interna
+  for (const ct of ge.cintas) alivios.set(ct.pilarId, [...(alivios.get(ct.pilarId) ?? []), { dN: ct.dN, dNMin: ct.dNMin, viga: ct.nome }]);
   const registrarAlivio = (r: ResultadoFundacao) => {
     for (const a of r.alavanca?.vigas ?? []) {
       const g = geos.find((x) => x.viga.id === a.id);

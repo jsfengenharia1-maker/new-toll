@@ -638,6 +638,28 @@ export interface SapataCorrida {
   sigmaAdm?: number;
   /** Cota de assentamento (m); ausente = a cota de fundação da obra. */
   cota?: number;
+  /**
+   * Cintas (FU8a): vigas de equilíbrio da aba de um lado só, da sapata corrida (no eixo, na abscissa `s`) a sapatas internas.
+   * Só sob parede. Cada cinta toma o momento N·e do trecho tributário e alivia o elemento da ponta oposta.
+   */
+  cintas?: CintaCorrida[];
+}
+
+/** Cinta de uma sapata corrida de aba única (FU8a): viga de equilíbrio entre o eixo da corrida e um elemento interno. */
+export interface CintaCorrida {
+  id: string;
+  nome: string;
+  /** Abscissa ao longo do eixo da corrida onde a cinta nasce (m, a partir do primeiro ponto). */
+  s: number;
+  /** Ponta interna: id de elemento de fundação ou de pilar que nasce na fundação. */
+  fim: string;
+  /** Seção (m). */
+  b: number;
+  h: number;
+  /** Seção imposta: só verificada. */
+  fixa?: boolean;
+  /** Ancoragem editável das barras superiores além da face de cada ponta (m); ausente = lb. */
+  ancoragem?: { ini?: number; fim?: number };
 }
 
 /**
