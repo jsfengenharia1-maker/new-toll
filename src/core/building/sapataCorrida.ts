@@ -24,6 +24,7 @@ import { cotaElemento, cotaTerreno, parametrosElemento, parametrosFundacao } fro
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { vrd1 } from './vigotas';
 import { classificar } from './revisao';
+import { calcularCintas, fatorCinta, geometriasCintas, resumoCinta, type ResultadoCinta } from './cintasCorrida';
 import { parcelasDaCarga } from './vigasFundacao';
 import { casosDaObra, deslocarPolilinha, type AbaCorrida, type BuildingModel, type SapataCorrida } from './types';
 
@@ -96,6 +97,8 @@ export interface ResultadoCorrida {
   transversal: FlexaoTransversal | null;
   /** Momento por metro que as cintas (vigas de equilíbrio) absorvem na aba de um lado só (kN·m/m). */
   cinta?: number;
+  /** Cintas lançadas (FU8a): vigas de equilíbrio dimensionadas, com a alavanca e o alívio nas sapatas internas. */
+  cintas?: ResultadoCinta[];
   /** Modo pilares: a viga sobre base elástica (esforços longitudinais, armadura e tensões por nó). */
   longitudinal?: ResultadoVigaElastica;
   /** Concreto (m³), forma (m²) e aço estimado (kg). */
@@ -212,7 +215,7 @@ function furoMaisProximo(b: BuildingModel, c: SapataCorrida): Boring | undefined
 }
 
 /** Cargas do nível de fundação sobre o eixo, por caso e por janela ao longo do comprimento (kN/m). */
-function cargasPorJanela(b: BuildingModel, c: SapataCorrida, op: OpcoesCalculo, L: number): { casos: Map<string, number[]>; total: number; nJan: number } {
+function cargasPorJanela(b: BuildingModel, c: SapataCorrida, op: OpcoesCalculo, L: number): { casos: Map<string, number[]>; total: number; nJan: number; wj: number } {
   const nJan = Math.max(1, Math.floor(L / op.corridaJanela + 1e-9)), wj = L / nJan;
   const casos = new Map<string, number[]>();
   let total = 0;
@@ -225,8 +228,11 @@ function cargasPorJanela(b: BuildingModel, c: SapataCorrida, op: OpcoesCalculo, 
       v[j] += pc.P / wj; casos.set(cg.caso, v); total += pc.P;
     }
   }
-  return { casos, total, nJan };
+  return { casos, total, nJan, wj };
 }
+
+/** Carga (kN) de uma lista de janelas de `wj` metros que cai no trecho [lo, hi] do eixo. */
+const somaNoTrecho = (arr: number[], wj: number, lo: number, hi: number) => arr.reduce((t, v, j) => t + v * Math.max(0, Math.min(hi, (j + 1) * wj) - Math.max(lo, j * wj)), 0);
 
 // ---------------- sapata corrida sob parede ----------------
 
@@ -257,10 +263,15 @@ function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
   // cargas por metro nas combinações raras (a maior soma em janelas ao longo do eixo)
   const cj = cargasPorJanela(b, c, op, L);
   if (cj.total <= 0) { msgs.push(`Sapata corrida ${c.nome}: sem carga — lance cargas lineares (alvenaria), pontuais ou de área no nível de fundação sobre o eixo, ou apoie pilares nela.`); return base(c.B ?? op.corridaBMin); }
+  // cintas (FU8a): trechos tributários (aba de um lado só); a carga de cada cinta é a do seu trecho
+  const cin = c.aba !== 'ambas' && c.cintas?.length ? geometriasCintas(b, c) : null;
+  if (c.aba === 'ambas' && c.cintas?.length) msgs.push(`Sapata corrida ${c.nome}: cintas ignoradas — aba nos dois lados não tem excentricidade; remova as cintas ou use aba de um lado.`);
+  if (cin?.msgs.length) { msgs.push(...cin.msgs); return base(c.B ?? op.corridaBMin); }
   const cargas = cx.raras.map((cb) => {
     let q = 0, qMin = Infinity;
     for (let j = 0; j < cj.nJan; j++) { const v = [...cj.casos].reduce((t, [k, arr]) => t + (cb.fatores[k] ?? 0) * arr[j], 0); q = Math.max(q, v); qMin = Math.min(qMin, v); }
-    return { cb, q, qMin: Number.isFinite(qMin) ? qMin : 0, vento: comVento(cx, cb) };
+    const N = cin?.itens.map((g) => [...cj.casos].reduce((t, [k, arr]) => t + (cb.fatores[k] ?? 0) * somaNoTrecho(arr, cj.wj, g.lo, g.hi), 0));
+    return { cb, q, qMin: Number.isFinite(qMin) ? qMin : 0, vento: comVento(cx, cb), N };
   }).filter((x) => x.q > 1e-9);
   if (!cargas.length) { msgs.push(`Sapata corrida ${c.nome}: sem carga nas combinações raras (os casos lançados não entram em nenhuma).`); return base(c.B ?? op.corridaBMin); }
   const Nk = Math.max(...cargas.map((x) => x.q)), NkMin = Math.min(...cargas.map((x) => x.qMin)), cMax = cargas.find((x) => x.q === Nk)!.cb.nome;
@@ -271,13 +282,27 @@ function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
     const h = c.h ?? ceil05(Math.max(hRig, P.ftH0Min)), h0 = Math.min(h, c.h0 ?? ceil05(Math.max(h / 3, P.ftH0Min)));
     return { h, h0, hRig, bal };
   };
+  // com cintas, a reação sob o trecho tributário é a carga linear × R/N da alavanca (depende de B pela excentricidade)
+  const qEf = (x: (typeof cargas)[number], B: number): number | null => {
+    if (!cin) return x.q;
+    let q = 0;
+    for (let k = 0; k < cin.itens.length; k++) {
+      const f = fatorCinta(B, c.bw, cin.itens[k]);
+      if (f === null) return null;
+      q = Math.max(q, (x.N![k] / Math.max(cin.itens[k].hi - cin.itens[k].lo, 1e-9)) * f);
+    }
+    return q;
+  };
+  const eqEf = !!c.equilibrio || !!cin;
   const verifica = (B: number) => {
     const g = hFor(B), sg = sigmaFor(B);
     if (!sg) return null;
     const W = Math.max(W0, GAMA_CONC * areaSecaoParede(B, c.bw, g.h, g.h0));
     let pior: { sigmaMax: number; sigmaMin: number; compressed: number; e: number } | null = null;
     for (const x of cargas) {
-      const pr = pressaoCorrida(B, x.q + W, ecc(B), !!c.equilibrio);
+      const qe = qEf(x, B);
+      if (qe === null) return null;
+      const pr = pressaoCorrida(B, qe + W, ecc(B), eqEf);
       if (!pr || pr.sigmaMax > P.ftEdgeFactor * sg.s * (x.vento ? cx.fv : 1) + 1e-6 || pr.compressed < (P.ftLevantamento ? 0 : P.ftMinCompressed) - 1e-6) return null;
       if (!pior || pr.sigmaMax > pior.sigmaMax) pior = { sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed, e: ecc(B) };
     }
@@ -288,7 +313,7 @@ function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
   else for (let t = Math.max(op.corridaBMin, ceil05(c.bw + 0.1)); t <= 8 + 1e-9; t += 0.05) { const r = verifica(Math.round(t * 100) / 100); if (r) { B = Math.round(t * 100) / 100; ok = r; break; } }
   if (!ok) {
     const B0 = fixa ? c.B! : op.corridaBMin;
-    msgs.push(c.aba !== 'ambas' && !c.equilibrio
+    msgs.push(c.aba !== 'ambas' && !eqEf
       ? `Sapata corrida ${c.nome}: aba de um lado exige viga de equilíbrio (cintas até sapatas internas): sem elas, a pressão excêntrica sem tração não atende a σadm até B = 8 m. Marque "equilibrada por cintas" ou use abas dos dois lados.`
       : fixa ? `Sapata corrida ${c.nome}: nenhuma largura atende — a largura imposta B = ${fmt(B0)} m não atende a σadm, a área comprimida e a excentricidade.`
         : `Sapata corrida ${c.nome}: nenhuma largura até 8 m atende a σadm, a área comprimida e a excentricidade.`);
@@ -296,11 +321,26 @@ function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
   }
   const { g, sg, W, pior } = ok;
   if (c.aba !== 'ambas' && !c.equilibrio && pior.e > 0) notas.push(`Aba de um lado sem cintas: pressão excêntrica (e = ${fmt(pior.e)} m) com σmáx = ${fmt(pior.sigmaMax, 1)} kN/m² e ${fmt(pior.compressed * 100, 0)} % comprimida.`);
-  const eq = c.aba !== 'ambas' && !!c.equilibrio;
+  const eq = c.aba !== 'ambas' && eqEf;
   const cinta = eq ? Nk * ecc(B) : undefined;
-  if (eq) notas.push(`Aba de um lado: reação uniforme (equilíbrio por vigas de equilíbrio/cintas até sapatas internas, NBR 6122 — item a confirmar); momento a equilibrar N·e = ${fmt(Nk)} × ${fmt(ecc(B))} = ${fmt(cinta!, 1)} kN·m por metro. As cintas não são dimensionadas aqui.`);
-  const Nd = P.gammaF * Nk;
-  const tr = flexaoTransversal({ B, bw: c.bw, aba: c.aba, equilibrio: !!c.equilibrio, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd }, P, op, msgs, c.nome);
+  let cintasRes: ResultadoCinta[] | undefined;
+  let qEfFinal = Nk;
+  if (cin) {
+    // cintas (FU8a): alavanca por cinta no trecho tributário; a reação sob a base é a da alavanca (R/N)
+    const Nmax = cin.itens.map((_, k) => Math.max(...cargas.map((x) => x.N![k]))), Nmin = cin.itens.map((_, k) => Math.min(...cargas.map((x) => x.N![k])));
+    cintasRes = calcularCintas(b, c, cin.itens, B, Nmax, Nmin, op, msgs);
+    qEfFinal = Math.max(...cargas.map((x) => qEf(x, B) ?? 0));
+    notas.push(`Aba de um lado com ${cin.itens.length} cinta(s): alavanca em cada trecho tributário (R = N·ℓ/(ℓ − e)); reação uniforme sob a base com carga linear majorada até ${fmt(qEfFinal, 1)} kN/m (Nk = ${fmt(Nk, 1)} kN/m); momento N·e = ${fmt(Nk)} × ${fmt(ecc(B))} = ${fmt(cinta!, 1)} kN·m por metro, absorvido pelas cintas.`);
+    const maxEsp = Math.max(...cin.itens.slice(1).map((g, i) => g.cinta.s - cin.itens[i].cinta.s), 0);
+    if (maxEsp > op.corridaCintaEspac + 1e-9) msgs.push(`Sapata corrida ${c.nome}: cintas espaçadas de ${fmt(maxEsp)} m (acima de ${fmt(op.corridaCintaEspac)} m): a flexão longitudinal da sapata entre cintas não é verificada (a confirmar).`);
+    const livre = Math.max(cin.itens[0].cinta.s, L - cin.itens[cin.itens.length - 1].cinta.s);
+    if (livre > op.corridaCintaEspac / 2 + 1e-9) msgs.push(`Sapata corrida ${c.nome}: balanço de ${fmt(livre)} m além da última cinta (acima de ${fmt(op.corridaCintaEspac / 2)} m): a carga do trecho vai toda para a cinta (a confirmar).`);
+  } else if (eq) {
+    notas.push(`Aba de um lado: reação uniforme (equilíbrio por vigas de equilíbrio/cintas até sapatas internas, NBR 6122 — item a confirmar); momento a equilibrar N·e = ${fmt(Nk)} × ${fmt(ecc(B))} = ${fmt(cinta!, 1)} kN·m por metro. Sem cintas lançadas.`);
+    msgs.push(`Sapata corrida ${c.nome}: marcada como equilibrada por cintas, mas sem cintas lançadas — lance as cintas até as sapatas internas para dimensioná-las e aliviar os elementos (a reação uniforme é suposta; N·e = ${fmt(cinta!, 1)} kN·m/m sem viga).`);
+  }
+  const Nd = P.gammaF * qEfFinal;
+  const tr = flexaoTransversal({ B, bw: c.bw, aba: c.aba, equilibrio: eqEf, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd }, P, op, msgs, c.nome);
   if (tr.cortante && !tr.cortante.ok) { /* mensagem já incluída */ }
   const sec = areaSecaoParede(B, c.bw, g.h, g.h0), volume = sec * L, forma = L * formaPorMetroParede(c.aba, B, c.bw, g.h, g.h0) + 2 * sec;
   if (c.h !== undefined && c.h < g.hRig - 1e-9) notas.push('Altura imposta menor que a rígida: sapata flexível.');
@@ -312,6 +352,7 @@ function calcularParede(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
   const r: ResultadoCorrida = {
     ...base(B), h: g.h, h0: g.h0, balanco: g.bal, hRigido: g.hRig, rigida: g.h >= g.hRig - 1e-9,
     carga: { Nk, NkMin, Nd, W, comb: cMax }, sigmaAdm: sg.s, sigmaFonte, pressao: pior, transversal: tr, ...(cinta !== undefined ? { cinta } : {}),
+    ...(cintasRes?.length ? { cintas: cintasRes } : {}), equilibrio: eq,
     volume, forma, aco, notas, mensagens: msgs, resumo: '',
   };
   r.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
@@ -409,6 +450,7 @@ export function resumoCorrida(r: ResultadoCorrida) {
     transversal: t ? { metodo: t.metodo, Md_kNm_m: +t.Md.toFixed(2), As_cm2_m: +t.AsAdot.toFixed(2), barras: t.barras ? `φ${t.barras.phi} c/${cm(t.barras.s)}` : null, distribuicao: t.distribuicao.barras ? `φ${t.distribuicao.barras.phi} c/${cm(t.distribuicao.barras.s)}` : null } : null,
     ...(r.longitudinal ? { longitudinal: { Md: { inf: +r.longitudinal.Md.inf.toFixed(1), sup: +r.longitudinal.Md.sup.toFixed(1) }, Vd: +r.longitudinal.Vd.toFixed(1), recalque_mm: +(r.longitudinal.recalque * 1000).toFixed(2) } } : {}),
     ...(r.cinta !== undefined ? { cinta_kNm_m: +r.cinta.toFixed(1) } : {}),
+    ...(r.cintas?.length ? { cintas: r.cintas.map(resumoCinta) } : {}),
     volume: +r.volume.toFixed(3), forma: +r.forma.toFixed(2), aco: +r.aco.toFixed(1), status: r.status, mensagens: r.mensagens,
   };
 }

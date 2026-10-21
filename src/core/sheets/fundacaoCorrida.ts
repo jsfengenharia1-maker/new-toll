@@ -8,9 +8,10 @@ import { alfa0t, lbBasico } from '../building/detalhamento';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { acoDe, cobrimentoFundacao, concretoDe, fckDe } from '../building/materiais';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
+import { pilaresDaCorrida, projecaoNaViga } from '../building/baseElastica';
 import { ladosDaBase, type ResultadoCorrida } from '../building/sapataCorrida';
-import { centroPilar, contornoPilar, lancesDoPilar, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
-import { cfgArmacao, cmInt, cotaCm, cotaHorizontal, cotaVertical, montarFolha, nf, notas, phiTxt, plantaNaFolha, ponto, qtd, type BlocoTabela } from './armacao';
+import { centroPilar, contornoPilar, dimsSecao, lancesDoPilar, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
+import { areaArmacao, cfgArmacao, cmInt, cotaCm, cotaHorizontal, cotaVertical, montarFolha, nf, notas, phiTxt, plantaNaFolha, ponto, qtd, type BlocoTabela } from './armacao';
 import type { Ctx } from './fundacaoDetalhe';
 import { caixa, eixosECotas, txt, type P, type Prancha, type Prim } from './prancha';
 import type { OpcoesArmacao } from './armacaoVigas';
@@ -61,6 +62,7 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
   const tr = r.transversal, bt = tr?.barras, bd = tr?.distribuicao.barras;
   const Lmax = op.barraMaxima, fyd = aco.fyd, ca60 = aco.aco === 'CA-60';
   const textos: string[] = [];
+  let posCT = '', posCD = '', posEst = '', pecasCD = 1;
   const lap = (phi: number) => alfa0t(1) * lbBasico(phi, conc, fyd, true, ca60);
   // ---- planta de um trecho ----
   const Lt = Math.min(L, Math.max(1.5, 3 * (bt?.s ?? 0.15) * 4)), Wt = Lt * k;
@@ -76,14 +78,15 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
   if (bt && tr) {
     for (const xm of mostra(Lt - cob, bt.s, cob)) out.push({ t: 'pl', c: 'ARMADURA', pts: [[x0 + xm * k, yb + cob * k], [x0 + xm * k, yt - cob * k]] });
     const n = Math.floor((L - 2 * cob) / bt.s + 1e-9) + 1, C = cmInt(B - 2 * cob);
-    const pos = c.posDe(`CT|${cmInt(B)}|${bt.phi}|${cmInt(bt.s)}`, aco.aco, bt.phi, C, rep * n);
+    const pos = posCT = c.posDe(`CT|${cmInt(B)}|${bt.phi}|${cmInt(bt.s)}`, aco.aco, bt.phi, C, rep * n);
     out.push(...cotaHorizontal(yt + 5, [x0 + cob * k, x0 + (cob + bt.s) * k], [`${cmInt(bt.s)}`], 'COTA', 1.6));
     textos.push(`${qtd(rep, n)} ${pos} ${phiTxt(bt.phi)} c/${cmInt(bt.s)} C=${C}  (transversal, inferior)`);
   }
   if (bd && tr) {
     const nAc = Math.floor((B - 2 * cob) / bd.s + 1e-9) + 1, total = L - 2 * cob, pc = pecas(total, Lmax, lap(bd.phi));
     for (let i = 0; i < Math.min(nAc, 4); i++) { const yy = yb + (cob + i * bd.s) * k; out.push({ t: 'pl', c: 'ARMADURA', pts: [[x0 + cob * k, yy], [x0 + Wt, yy]] }); }
-    const pos = c.posDe(`CD|${cmInt(B)}|${cmInt(L)}|${bd.phi}|${cmInt(bd.s)}`, aco.aco, bd.phi, cmInt(pc.C), rep * nAc * pc.n);
+    const pos = posCD = c.posDe(`CD|${cmInt(B)}|${cmInt(L)}|${bd.phi}|${cmInt(bd.s)}`, aco.aco, bd.phi, cmInt(pc.C), rep * nAc * pc.n);
+    pecasCD = pc.n;
     out.push(...cotaVertical(x0 - 5, [yb + cob * k, yb + (cob + bd.s) * k], [`${cmInt(bd.s)}`], 'COTA', 1.6));
     textos.push(`${qtd(rep, nAc * pc.n)} ${pos} ${phiTxt(bd.phi)} c/${cmInt(bd.s)} C=${cmInt(pc.C)}  (distribuição, longitudinal)`);
   }
@@ -104,7 +107,7 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
     }
     if (lg.estribo) {
       const e = lg.estribo, perim = 2 * (bw - 2 * cob + r.h - 2 * cob) + 0.2, n = Math.ceil(L / e.s) + 1;
-      const pos = c.posDe(`CE|${cmInt(bw)}|${cmInt(r.h)}|${e.phi}|${cmInt(e.s)}`, aco.aco, e.phi, cmInt(perim), rep * n);
+      const pos = posEst = c.posDe(`CE|${cmInt(bw)}|${cmInt(r.h)}|${e.phi}|${cmInt(e.s)}`, aco.aco, e.phi, cmInt(perim), rep * n);
       textos.push(`${qtd(rep, n)} ${pos} ${phiTxt(e.phi)} c/${cmInt(e.s)} C=${cmInt(perim)}  (estribos da nervura)`);
     }
   }
@@ -157,9 +160,87 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
   out.push(...cotaVertical(-6, [yc0, yc0 + r.profundidade * k], [`df=${cotaCm(r.profundidade)}`]));
   out.push(txt('TEXTO', 0, yc0 - 17, 2, `Assentamento: cota ${nf(r.cota)} m · df = ${cotaCm(r.profundidade)} cm`, 'e', 'topo'));
   out.push(txt('TEXTO', 0, yc0 - 21, 2, 'Solo compactado sobre a sapata (γ ≥ 16 kN/m³) [a confirmar]', 'e', 'topo'));
-  if (r.aba !== 'ambas') out.push(txt('TEXTO', 0, yc0 - 25, 2, `Aba ${r.aba === 'esq' ? 'à esquerda' : 'à direita'} do sentido do traçado: apoio rente à divisa; vigas de equilíbrio (cintas) absorvem N·e${r.cinta !== undefined ? ` = ${nf(r.cinta, 1)} kN·m/m` : ''}`, 'e', 'topo'));
+  if (r.aba !== 'ambas') out.push(txt('TEXTO', 0, yc0 - 25, 2, `Aba ${r.aba === 'esq' ? 'à esquerda' : 'à direita'} do sentido do traçado: apoio rente à divisa; vigas de equilíbrio (cintas) absorvem N·e${r.cinta !== undefined ? ` = ${nf(r.cinta, 1)} kN·m/m` : ''}${r.cintas?.length ? `; cintas ${r.cintas.map((x) => `${x.nome} ${cmInt(x.bAdot)}×${cmInt(x.hAdot)}`).join(', ')} (detalhadas nas folhas de vigas de fundação)` : ''}`, 'e', 'topo'));
+  // ---- elevação longitudinal (FU8b) ----
+  out.push(...elevacaoLongitudinal(c, r, yc0 - 34, { rep, posCT, posCD, pecasCD, posEst, barrasLong, Lmax, lap, cob }));
   return out;
 }
+
+interface DadosElevacao { rep: number; posCT: string; posCD: string; pecasCD: number; posEst: string; barrasLong: { rot: string; n: number; phi: number; face: 'inf' | 'sup' | 'pele' }[]; Lmax: number; lap: (phi: number) => number; cob: number }
+
+/**
+ * Elevação (corte longitudinal pelo eixo) da sapata corrida: concreto ao longo do comprimento, apoio (parede ou pilares) por
+ * cima, terreno, barras transversais em seção, longitudinais (distribuição, ou inferior/superior/pele e estribos sob
+ * pilares) com as posições da planta, cintas e pilares marcados, cotas parciais e total e altura. Escala própria: a
+ * da folha, aumentada até o comprimento caber na largura útil. `yTopo` é a ordenada do título (mm).
+ */
+export function elevacaoLongitudinal(c: Ctx, r: ResultadoCorrida, yTopo: number, d: DadosElevacao): Prim[] {
+  const out: Prim[] = [];
+  const area = areaArmacao('A1'), larg = area.x1 - area.x0 - 40;
+  const escL = [c.escala, 50, 75, 100, 125, 150, 200, 250, 500].filter((e, i, a) => a.indexOf(e) === i && e >= c.escala).sort((a, z) => a - z).find((e) => (r.L * 1000) / e <= larg) ?? 500;
+  const k = 1000 / escL, L = r.L, h = r.h * k, cob = d.cob, tr = r.transversal, bt = tr?.barras, bd = tr?.distribuicao.barras, lg = r.longitudinal?.armadura;
+  const x0 = 10, x1 = x0 + L * k;
+  const alto = Math.max(r.profundidade, r.h + 0.3) * k;
+  const yBase = yTopo - 14 - alto, yTop = yBase + h, yTer = yBase + r.profundidade * k;
+  out.push(txt('TEXTO', 0, yTopo, 2.4, `ELEVAÇÃO LONGITUDINAL (CORTE PELO EIXO) ESC 1:${escL}`, 'e', 'topo'));
+  // concreto
+  out.push({ t: 'pl', c: 'CONCRETO', pts: [[x0, yBase], [x1, yBase], [x1, yTop], [x0, yTop]], fechada: true });
+  // apoio: parede (faixa contínua) ou pilares
+  const pils = r.modo === 'pilares' ? pilaresDaCorrida(c.b, { pontos: r.pontos, bw: r.bw }) : [];
+  const stub = Math.min(10, Math.max(5, (yTer - yTop) + 4));
+  if (pils.length) {
+    for (const { pilar, c: ct } of pils) {
+      const sec = secaoBaseDe(c.b, pilar), xs = x0 + projecaoNaViga({ pontos: r.pontos }, ct).s * k, hw = (dimsSecao(sec)[0] / 2) * k;
+      out.push({ t: 'pl', c: 'PILAR', pts: [[xs - hw, yTop], [xs - hw, yTop + stub]] }, { t: 'pl', c: 'PILAR', pts: [[xs + hw, yTop], [xs + hw, yTop + stub]] }, txt('TEXTO', xs, yTop + stub + 1, 1.8, pilar.nome, 'c', 'base'));
+    }
+  } else {
+    out.push({ t: 'pl', c: 'PILAR', pts: [[x0, yTop], [x0, yTop + stub]] }, { t: 'pl', c: 'PILAR', pts: [[x1, yTop], [x1, yTop + stub]] }, { t: 'pl', c: 'FORMA-FINA', pts: [[x0, yTop + stub], [x1, yTop + stub]] });
+  }
+  // terreno
+  out.push({ t: 'pl', c: 'COTA', pts: [[x0 - 4, yTer], [x1 + 4, yTer]] }, txt('COTA', x1 + 5, yTer, 1.6, `TERRENO ${nf(r.cota + r.profundidade)}`, 'e', 'meio'));
+  // barras transversais, em seção (pontos) ao longo do comprimento
+  const lbl: string[] = [];
+  if (bt) {
+    const yb = yBase + (cob + bt.phi / 2000) * k, n = Math.floor((L - 2 * cob) / bt.s + 1e-9) + 1, rr = Math.max((bt.phi / 2000) * k, 0.4), passo = bt.s * k;
+    const idx = passo >= 1.4 ? Array.from({ length: n }, (_, i) => i) : [0, 1, 2, n - 3, n - 2, n - 1].filter((i, j, a) => i >= 0 && i < n && a.indexOf(i) === j);
+    for (const i of idx) out.push(ponto('ARMADURA', x0 + (cob + i * bt.s) * k, yb, rr));
+    out.push(...cotaHorizontal(yBase - 4, [x0 + cob * k, x0 + (cob + bt.s) * k], [`${cmInt(bt.s)}`], 'COTA', 1.4));
+    lbl.push(`${qtd(d.rep, n)} ${d.posCT} ${phiTxt(bt.phi)} c/${cmInt(bt.s)} C=${cmInt(B_(r) - 2 * cob)} (transversal, em seção)`);
+  }
+  if (bd && bt) {
+    const yd = yBase + (cob + bt.phi / 1000 + bd.phi / 2000) * k;
+    out.push({ t: 'pl', c: 'ARMADURA', pts: [[x0 + cob * k, yd], [x1 - cob * k, yd]] });
+    if (d.pecasCD > 1) for (let i = 1; i < d.pecasCD; i++) { const xe = x0 + cob * k + ((L - 2 * cob) * i) / d.pecasCD * k; out.push({ t: 'pl', c: 'ARMADURA', pts: [[xe - 1.5, yd + 0.8], [xe + 1.5, yd + 0.8]] }); }
+    lbl.push(`${d.rep}× ${d.posCD} ${phiTxt(bd.phi)} c/${cmInt(bd.s)} (distribuição, longitudinal${d.pecasCD > 1 ? `, em ${d.pecasCD} peças com traspasse ${cmInt(d.lap(bd.phi))} cm` : ''})`);
+  }
+  // sob pilares: barras da viga e estribos
+  for (const bl of d.barrasLong) {
+    const yy = bl.face === 'inf' ? yBase + (cob + 0.01 + bl.phi / 2000 + (bt ? bt.phi / 1000 + (bd ? bd.phi / 1000 : 0) : 0)) * k : bl.face === 'sup' ? yTop - (cob + 0.01 + bl.phi / 2000) * k : (yBase + yTop) / 2;
+    out.push({ t: 'pl', c: 'ARMADURA', pts: [[x0 + cob * k, yy], [x1 - cob * k, yy]] });
+    lbl.push(`${bl.face === 'pele' ? 2 * bl.n : bl.n} ${bl.rot} ${phiTxt(bl.phi)} (${bl.face === 'inf' ? 'inferior' : bl.face === 'sup' ? 'superior' : 'pele'})`);
+  }
+  if (lg?.estribo && d.posEst) {
+    const e = lg.estribo, passo = Math.max(e.s * k, 1.2);
+    for (let x = x0 + cob * k; x <= x1 - cob * k + 1e-9; x += passo) out.push({ t: 'pl', c: 'ARMADURA', pts: [[x, yBase + h * 0.3], [x, yTop - cob * k]] });
+    lbl.push(`${d.posEst} ${phiTxt(e.phi)} c/${cmInt(e.s)} (estribos da nervura)`);
+  }
+  // cintas e cotas parciais
+  const marcas: number[] = [0, L, ...(r.cintas ?? []).map((x) => x.s), ...pils.map((q) => projecaoNaViga({ pontos: r.pontos }, q.c).s)].map((v) => +v.toFixed(4)).filter((v, i, a) => v >= 0 && v <= L + 1e-9 && a.indexOf(v) === i).sort((a, z) => a - z);
+  for (const ct of r.cintas ?? []) {
+    const xs = x0 + ct.s * k;
+    out.push({ t: 'pl', c: 'EIXO', pts: [[xs, yBase - 2], [xs, yTop + stub + 4]] }, txt('TEXTO', xs, yTop + stub + 5, 1.8, `${ct.nome} ${cmInt(ct.bAdot)}×${cmInt(ct.hAdot)}`, 'c', 'base'));
+  }
+  const ys = yBase - 11;
+  out.push(...cotaHorizontal(ys, marcas.map((m) => x0 + m * k), marcas.slice(1).map((m, i) => cotaCm(m - marcas[i])), 'COTA', 1.6));
+  out.push(...cotaHorizontal(ys - 6, [x0, x1], [cotaCm(L)], 'COTA', 1.8));
+  out.push(...cotaVertical(x0 - 6, [yBase, yTop], [`h=${cotaCm(r.h)}`]), ...cotaVertical(x1 + 6, [yBase, yTer], [`df=${cotaCm(r.profundidade)}`]));
+  lbl.forEach((t, i) => out.push(txt('TEXTO', 0, ys - 14 - 3.4 * i, 2.2, t, 'e', 'topo')));
+  out.push(txt('TEXTO', 0, ys - 16 - 3.4 * lbl.length, 2, 'Barras transversais em seção (pontos); posições iguais às da planta do trecho [a confirmar o padrão de desenho].', 'e', 'topo'));
+  return out;
+}
+
+const B_ = (r: ResultadoCorrida) => r.B;
+const secaoBaseDe = (b: BuildingModel, p: Pilar) => secaoBase(b, p);
 
 /** Forma lateral (m²) já calculada no resultado. */
 export const formaCorrida = (r: ResultadoCorrida) => r.forma;
@@ -175,7 +256,7 @@ export function montarPranchaCorridas(b: BuildingModel, dim: Dimensionamento, o:
   if (!rs.length) return null;
   const cfg = cfgArmacao(b), fck = fckDe(b, 'fundacao'), aco = acoDe(b, 'fundacao').aco, cob = cobrimentoFundacao(b);
   const pilares = b.pilares.filter((p) => p.nasce === 'fundacao');
-  const geo: P[] = rs.flatMap((r) => r.contorno);
+  const geo: P[] = rs.flatMap((r) => [...r.contorno, ...(r.cintas ?? []).flatMap((ct) => ct.eixo ?? [])]);
   const cx = caixa(geo);
   const pl = plantaNaFolha(cx, b.prancha?.formato ?? 'auto', cfg.escalaLocacao || b.prancha?.escala || 0);
   const k = pl.escala / 1000;
@@ -189,7 +270,14 @@ export function montarPranchaCorridas(b: BuildingModel, dim: Dimensionamento, o:
     const rad = (ang * Math.PI) / 180, nn: P = [-Math.sin(rad), Math.cos(rad)];
     const mid: P = [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2], t = r.transversal;
     const lados = ladosDaBase(r.aba, r.B, r.bw), off = (Math.max(lados.esq, lados.dir) + 1.5 * k);
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [mid[0] + nn[0] * off, mid[1] + nn[1] * off], h: 2.2 * k, s: `${r.nome} ${cmInt(r.B)}×${cmInt(r.h)}${r.h0 < r.h ? `/${cmInt(r.h0)}` : ''}${t?.barras ? ` ${phiTxt(t.barras.phi)} c/${cmInt(t.barras.s)}` : ''}`, ang, ah: 'c', av: 'base' });
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [mid[0] + nn[0] * off, mid[1] + nn[1] * off], h: 2.2 * k, s: `${r.nome} ${cmInt(r.B)}×${cmInt(r.h)}${r.h0 < r.h ? `/${cmInt(r.h0)}` : ''}${t?.barras ? ` ${phiTxt(t.barras.phi)} c/${cmInt(t.barras.s)}` : ''}`, ang, ah: 'c', av: 'base' });    // cintas (FU8a): faixa da viga do eixo da corrida até o centro do pilar interno, com o nome e a seção
+    for (const ct of r.cintas ?? []) {
+      if (!ct.eixo) continue;
+      const [p1, p2] = ct.eixo, dx = p2[0] - p1[0], dy = p2[1] - p1[1], l = Math.hypot(dx, dy) || 1, nx = (-dy / l) * (ct.bAdot / 2), ny = (dx / l) * (ct.bAdot / 2);
+      modelo.push({ t: 'pl', c: 'FUNDACAO', pts: [[p1[0] + nx, p1[1] + ny], [p2[0] + nx, p2[1] + ny], [p2[0] - nx, p2[1] - ny], [p1[0] - nx, p1[1] - ny]], fechada: true });
+      let a2 = (Math.atan2(dy, dx) * 180) / Math.PI; if (a2 > 90) a2 -= 180; if (a2 <= -90) a2 += 180;
+      modelo.push({ t: 'txt', c: 'TEXTO', p: [p1[0] + 0.7 * dx + nx * 1.6, p1[1] + 0.7 * dy + ny * 1.6], h: 2.2 * k, s: `${ct.nome} ${cmInt(ct.bAdot)}×${cmInt(ct.hAdot)}`, ang: a2, ah: 'c', av: 'base' });
+    }
   }
   const centros: P[] = [];
   for (const p of pilares) { const s = secaoBase(b, p); centros.push(centroPilar(p, s)); modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: contornoPilar(p, s) as P[], fechada: true }); }
@@ -202,7 +290,7 @@ export function montarPranchaCorridas(b: BuildingModel, dim: Dimensionamento, o:
     'Medidas em cm; bitolas (φ) em mm; tensões em MPa. Eixo e apoio (parede, viga ou nervura) em planta; aço nas folhas de detalhamento.',
     `Concreto C${fck} (fck = ${fck} MPa); aço ${aco}; cobrimento ${nf(cob * 100, 1)} cm.`,
     'Sob parede: largura pela σadm, altura rígida (balanço ≤ 1,5h), flexão transversal da aba (CEB-70) por metro e armadura de distribuição. Sob pilares: viga sobre base elástica na análise global.',
-    ...(rs.some((r) => r.aba !== 'ambas') ? ['Aba de um lado: apoio rente à divisa; o momento N·e é absorvido por vigas de equilíbrio (cintas) até sapatas internas (não detalhadas aqui) [a confirmar].'] : []),
+    ...(rs.some((r) => r.aba !== 'ambas') ? ['Aba de um lado: apoio rente à divisa; o momento N·e é absorvido por vigas de equilíbrio (cintas) até sapatas internas (detalhadas nas folhas das vigas de fundação) [a confirmar].'] : []),
     'Desenho pelo padrão da sapata isolada, sem folha de referência para sapata corrida [a confirmar].',
   ]);
   return montarFolha({

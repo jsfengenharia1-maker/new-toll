@@ -1199,8 +1199,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
-  const f = calcularFundacaoEdificio(b, an, o);
   const corridas = calcularCorridas(b, an);
+  const f = calcularFundacaoEdificio(b, an, { ...o, corridas });
   return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}), ...(corridas.length ? { corridas } : {}) };
 }
 
