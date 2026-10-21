@@ -3,6 +3,7 @@ import type { Draft } from 'immer';
 import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
+import { temBaseElastica } from '../building/baseElastica';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { atribuirTabela, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
@@ -165,8 +166,8 @@ const casoSchema = (padrao: CasoFisico): JsonSchema => ({ type: 'string', minLen
 /** O caso existe na obra (G, Q ou adicional)? */
 /** Grupo da carga: um grupo da obra ou 'fundacao' (nível de fundação: cargas sobre vigas e elementos de fundação). */
 const grupoCargaOk = (b: BuildingModel, g: string) => (g === 'fundacao' ? [] : grupoOk(b, g));
-/** Carga no nível de fundação só muda o cálculo das fundações. */
-const calculoCarga = (p: Record<string, unknown>) => (p.grupo === 'fundacao' ? 'fundacao' as const : true);
+/** Carga no nível de fundação só muda o cálculo das fundações (com base elástica, FU6, entra na análise global). */
+const calculoCarga = (p: Record<string, unknown>, b?: BuildingModel) => (p.grupo === 'fundacao' && !(b && temBaseElastica(b)) ? 'fundacao' as const : true);
 const casoOk = (b: BuildingModel, caso?: string) => {
   if (!caso || casosParaCarga(b).some((c) => c.id === caso)) return [];
   const filhos = (b.casos ?? []).filter((c) => c.pai === caso);

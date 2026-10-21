@@ -436,3 +436,6 @@ export function resumoAcoLajes(b: BuildingModel, dets: DetalheLaje[], perdas: nu
   }
   return [...m.values()].sort((a, z) => a.aco.localeCompare(z.aco) || a.phi - z.phi).map((e) => { const peso = e.comprimento * pesoLinear(e.phi); return { ...e, peso, pesoComPerdas: peso * (1 + perdas / 100) }; });
 }
+
+/** Trechos de uma reta c = cte dentro dos anéis (radier, FU6). */
+export const cortesLaje = cortes;

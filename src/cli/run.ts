@@ -211,6 +211,7 @@ export function runCli(args: string[], io: Io): number {
             io.out(linha('vigas de fundação', r.vigasFundacao));
             for (const v of r.vigasFundacao) io.out(`  ${v.resumo} (${v.ini}–${v.fim}) · ${v.status}${v.mensagens.length ? ` · ${v.mensagens.join(' ')}` : ''}`);
           }
+          for (const x of [...(r.radiers ?? []), ...(r.vigasElasticas ?? [])]) io.out(`  ${x.nome}: σ ${x.sigmaMax.toFixed(1)}${x.sigmaAdm ? `/${x.sigmaAdm.toFixed(0)}` : ''} kN/m², recalque ${(x.recalque * 1000).toFixed(2)} mm · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
           for (const a of r.avisosFundacao ?? []) io.out(`  ${a}`);
         }
         return 'erro' in r ? 1 : 0;

@@ -19,6 +19,8 @@ import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
+import { quantitativosFundacao } from '../../core/sheets/fundacao';
+import { TABELA_K } from '../../core/building/baseElastica';
 import { naturezaTexto, psiDoCaso } from './Casos';
 import { MemorialAcoes } from './MemorialAcoes';
 import { useRevisao } from './revisao';
@@ -66,6 +68,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const combs = useMemo(() => (analise ? combinacoesEdificio(b, analise) : []), [b, analise]);
   const porTipo = (t: string) => combs.filter((c) => c.tipo === t).length;
   const excepcionais = combs.filter((c) => c.nome.startsWith('ELU excepcional'));
+  const quantFund = useMemo(() => { if (!dim) return null; try { return quantitativosFundacao(b, analise ?? null, dim); } catch { return null; } }, [b, analise, dim]);
 
   const printCss = memoPrintCss({ title: nome, obra: b.obra.nome, rev: 'R00', date: today });
   const html = () => {
@@ -401,6 +404,37 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </table>
               </>)}
               {dim.avisosFundacao?.map((a, i) => <p key={i}>{a}</p>)}
+            </>)}
+
+            {!!(dim.radiers?.length || dim.vigasElasticas?.length) && (<>
+              {h2('Base elástica: radiers e vigas sobre base elástica')}
+              <p>
+                Radiers e vigas de fundação sobre base elástica (Winkler) incluídos no pórtico espacial: grelha do radier com malha de {fmt(opc.radierMalha)} m (rigidez à flexão e à torção das lajes maciças), barras das vigas com a seção b × h,
+                molas verticais k × área de influência em cada nó (k padrão {fmt(opc.radierK, 0)} kN/m³, a confirmar) e os pilares que nascem sobre eles sem vínculo externo. Nós flutuantes com deslocamentos horizontais e giro em planta presos (a confirmar).
+                Análise linear: mola tracionada não é iterada (erro de levantamento). Tensão no solo σ = k·w nas combinações raras contra a σadm; armadura do radier por Wood-Armer (ELU, faixa de 1 m) com ρmín 0,15 % por face; punção sob os pilares não verificada.
+              </p>
+              {!!dim.radiers?.length && <table data-memorial-radiers>
+                <thead><tr><th className="l">Radier</th><th>h (cm)</th><th>Área (m²)</th><th>k (kN/m³)</th><th>σmáx (kN/m²)</th><th>σmín (kN/m²)</th><th>σadm (kN/m²)</th><th>Recalque (mm)</th><th>As inf. x/y (cm²/m)</th><th>As sup. x/y (cm²/m)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.radiers.map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td>{fmt(x.h * 100, 0)}</td><td>{fmt(x.area, 1)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{fmt(x.sigmaMin, 1)}</td><td>{x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>)}</tbody>
+              </table>}
+              {!!dim.vigasElasticas?.length && <table data-memorial-vigas-elasticas>
+                <thead><tr><th className="l">Viga</th><th>b × h (cm)</th><th>L (m)</th><th>k (kN/m³)</th><th>σmáx (kN/m²)</th><th>σadm (kN/m²)</th><th>Recalque (mm)</th><th>Md inf./sup. (kN·m)</th><th>Vd (kN)</th><th className="l">Armadura</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.vigasElasticas.map((x) => { const a = x.armadura, t = (q: { n: number; phi: number } | null) => (q ? `${q.n} φ${fmt(q.phi, 1)}` : '—'); return <tr key={x.id}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)} × {Math.round(x.h * 100)}</td><td>{fmt(x.L)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.Md.inf, 1)} / {fmt(x.Md.sup, 1)}</td><td>{fmt(x.Vd, 1)}</td><td className="l">inf. {t(a.inf.barras)}; sup. {t(a.sup.barras)}{a.estribo ? `; estribo φ${fmt(a.estribo.phi, 1)} c/${Math.round(a.estribo.s * 100)}` : ''}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>; })}</tbody>
+              </table>}
+              <p>Tabela orientativa do coeficiente de reação vertical (Bowles, 1996; a confirmar com o geotécnico): {TABELA_K.map((x) => `${x.solo.toLowerCase()} ${fmt(x.min / 1000, 0)}–${fmt(x.max / 1000, 0)} MN/m³`).join('; ')}.</p>
+            </>)}
+
+            {quantFund && quantFund.linhas.length > 0 && (<>
+              {h2('Quantitativos da fundação')}
+              <table data-memorial-quant-fundacao>
+                <thead><tr><th className="l">Elementos</th><th className="l">Tipo</th><th>Quant.</th><th>Concreto (m³)</th><th>Fôrma (m²)</th><th>Aço (kg)</th></tr></thead>
+                <tbody>
+                  {quantFund.linhas.map((l, k) => <tr key={k}><td className="l">{l.nomes.join(', ')}</td><td className="l">{l.tipo}</td><td>{l.quant}</td><td>{fmt(l.concreto, 3)}</td><td>{fmt(l.forma, 2)}</td><td>{fmt(l.aco, 1)}</td></tr>)}
+                  <tr><td className="l"><b>Total</b></td><td /><td /><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.concreto, 0), 3)}</b></td><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.forma, 0), 2)}</b></td><td><b>{fmt(quantFund.linhas.reduce((t, l) => t + l.aco, 0), 1)}</b></td></tr>
+                </tbody>
+              </table>
+              {quantFund.estacas.length > 0 && <p>Estacas: {quantFund.estacas.map((e) => `${e.quant} × ${e.nome}${e.L ? ` (L = ${fmt(e.L, 1)} m)` : ''}`).join('; ')}.</p>}
+              <p>Aço pela soma das posições desenhadas nas folhas de fundação (sem perdas); concreto das vigas de fundação entre as faces dos pilares; fôrma lateral, fundo sobre o lastro (a confirmar).</p>
             </>)}
 
             {h2('Quantitativos')}

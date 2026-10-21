@@ -49,6 +49,9 @@ function base() {
   expect(s.executar('limite.criar', { pontos: [[-3, -3], [-3, 9]], nome: 'Divisa' }).ok).toBe(true);
   expect(s.executar('vigaFundacao.criar', { tipo: 'equilibrio', ini: s.modelo.fundacao!.elementos[0].id, fim: s.modelo.pilares[1].id }).ok).toBe(true);
   expect(s.executar('vigaFundacao.criar', { tipo: 'travamento', ini: s.modelo.pilares[1].id, fim: s.modelo.pilares[2].id, b: 0.2, h: 0.5 }).ok).toBe(true);
+  // FU6: um radier e uma viga sobre base elástica longe dos pilares
+  expect(s.executar('radier.criar', { contorno: [[20, 0], [24, 0], [24, 4], [20, 4]], h: 0.35 }).ok).toBe(true);
+  expect(s.executar('vigaElastica.criar', { pontos: [[20, 10], [26, 10]] }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -156,6 +159,12 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'vigaFundacao.editar': (b) => ({ id: b.fundacao!.vigas![0].id, equilibrio: { ini: true, fim: false }, h: 0.6, nome: 'VF9', ancoragem: { ini: 0.5 } }),
   'vigaFundacao.remover': (b) => ({ ids: [b.fundacao!.vigas![1].id] }),
   'vigaFundacao.igualar': (b) => ({ modelo: b.fundacao!.vigas![0].id, ids: [b.fundacao!.vigas![1].id] }),
+  'radier.criar': () => ({ contorno: [[8, 8], [12, 8], [12, 12], [8, 12]], furos: [[[9, 9], [10, 9], [10, 10], [9, 10]]], h: 0.4, k: 30000, sigmaAdm: 150, nome: 'R9' }),
+  'radier.editar': (b) => ({ id: b.fundacao!.radiers![0].id, h: 0.5, k: 60000, contorno: [[20, 0], [25, 0], [25, 4], [20, 4]], nome: 'RA' }),
+  'radier.remover': (b) => ({ ids: [b.fundacao!.radiers![0].id] }),
+  'vigaElastica.criar': () => ({ pontos: [[30, 0], [36, 0], [36, 4]], b: 0.6, h: 1, k: 50000, nome: 'VE9' }),
+  'vigaElastica.editar': (b) => ({ id: b.fundacao!.vigasElasticas![0].id, b: 0.7, sigmaAdm: 200, nome: 'VE5' }),
+  'vigaElastica.remover': (b) => ({ ids: [b.fundacao!.vigasElasticas![0].id] }),
   'sondagem.criar': () => ({ nome: 'SP-02', x: 4, y: 3, leituras: [{ N: 3, solo: 'argila' }, { N: 6, solo: 'silteArgiloso', descartada: true }, { N: 9, solo: 'silteArenoso' }], impenetravel: true }),
   'sondagem.editar': (b) => ({ id: b.fundacao!.sondagens[0].id!, nome: 'SP-1A', semAgua: true }),
   'sondagem.remover': (b) => ({ ids: [b.fundacao!.sondagens[0].id!] }),

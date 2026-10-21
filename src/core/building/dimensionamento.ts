@@ -21,6 +21,7 @@ import { areaPoligono } from '../geom/faces';
 import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
+import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 export { TAXAS };
 
@@ -1063,6 +1064,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   fundacoes?: ResultadoFundacao[];
   /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
   vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[];
+  /** Base elástica (FU6): radiers e vigas sobre base elástica (tensões no solo, recalques e armaduras), detalhamento e aço dos radiers. */
+  radiers?: ResultadoRadier[]; vigasElasticas?: ResultadoVigaElastica[]; detalhesRadier?: DetalheLaje[]; resumoAcoRadiers?: ReturnType<typeof resumoAcoRadiers>;
   /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
   equilibrio?: ResultadoEQU[];
   /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
@@ -1093,6 +1096,15 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
+  if (an.baseElastica) {
+    const be = dimensionarBaseElastica(b, an, { raras: combinacoesDoEstado(b, an, 'solo', combs), elu, freq }, momentosWoodArmer);
+    if (be.radiers.length) {
+      d.radiers = be.radiers;
+      d.detalhesRadier = be.radiers.map((r) => detalharRadier(b, b.fundacao!.radiers!.find((x) => x.id === r.id)!, r, an.opcoes));
+      d.resumoAcoRadiers = resumoAcoRadiers(b, d.detalhesRadier, an.opcoes.perdasAco);
+    }
+    if (be.vigasElasticas.length) d.vigasElasticas = be.vigasElasticas;
+  }
   if (o.fundacao !== false && b.fundacao?.elementos.length) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
   return d;
 }

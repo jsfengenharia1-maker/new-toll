@@ -291,6 +291,7 @@ export function NomeObra() {
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
 const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
+/** Radier (W) e viga sobre base elástica (X): pelas teclas e pelos botões do grupo Fundação (a barra não cabe numa linha). */
 /** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
 const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
@@ -305,7 +306,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
   const alvo = ((): Alvo | null => {
     for (const id of pl.selecao) {
-      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
+      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
       if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
       if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
       if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
@@ -330,6 +331,11 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
       {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
+      {pl.ferramenta === 'radier' && <NumField label="h do radier" unit="m" width={90} value={pl.hRadier} onChange={(v) => v >= 0.1 && v <= 3 && pl.set({ hRadier: v })} />}
+      {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
+      {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <select aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
+        <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
+      </select> : null}
       {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
       <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
@@ -877,6 +883,22 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
               </table>
               {dim.avisosFundacao?.map((m, i) => <Note key={i}>{m}</Note>)}
               <Hint>Vigas de equilíbrio (alavanca) e de travamento entre elementos do nível de fundação. Duplo clique abre o detalhe longitudinal e transversal.</Hint>
+            </div>
+          )}
+          {!!(dim.radiers?.length || dim.vigasElasticas?.length) && (
+            <div className="card" data-card-base-elastica>
+              <h3>Base elástica: radiers e vigas sobre base elástica</h3>
+              <table className="data quadro">
+                <thead><tr><th>Elemento</th><th>Tipo</th><th>k (kN/m³)</th><th>σmáx / σadm (kN/m²)</th><th>σmín (kN/m²)</th><th>Recalque (mm)</th><th>Armadura</th><th>Situação</th></tr></thead>
+                <tbody>{[...filtro(dim.radiers ?? []), ...filtro(dim.vigasElasticas ?? [])].map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('fundacao', x.id)} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
+                    <td className="tl">{x.nome}</td><td className="tl">{'As' in x ? `radier h = ${Math.round(x.h * 100)}` : `viga ${Math.round(x.b * 100)}×${Math.round(x.h * 100)}`}</td><td className="num">{fmt(x.k, 0)}</td>
+                    <td className="num">{fmt(x.sigmaMax, 1)} / {x.sigmaAdm ? fmt(x.sigmaAdm, 0) : '—'}</td><td className="num">{fmt(x.sigmaMin, 1)}</td><td className="num">{fmt(x.recalque * 1000, 2)}</td>
+                    <td className="tl small">{'As' in x ? `inf. ${fmt(x.As.pos[0])}/${fmt(x.As.pos[1])} · sup. ${fmt(x.As.neg[0])}/${fmt(x.As.neg[1])} cm²/m` : `inf. ${x.armadura.inf.barras ? `${x.armadura.inf.barras.n} φ${fmt(x.armadura.inf.barras.phi, 1)}` : '—'} · sup. ${x.armadura.sup.barras ? `${x.armadura.sup.barras.n} φ${fmt(x.armadura.sup.barras.phi, 1)}` : '—'}`}</td>
+                    <td>{x.status === 'ok' ? 'ok' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              <Hint>Radier e vigas sobre base elástica (Winkler) dentro da análise global: tensão no solo σ = k·w nas combinações raras e recalques por nó; armadura do radier por Wood-Armer. Duplo clique abre o mapa por nó e as armaduras.</Hint>
             </div>
           )}
           <div className="card">

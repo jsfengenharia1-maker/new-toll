@@ -12,20 +12,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 10 | 12 | 27 | 10 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 12 | 12 | 25 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 48 | 19 | 12 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 34 | 9 | 2 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 35 | 9 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 28 | 20 | 55 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 33 | 20 | 50 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 23 | 17 | 19 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 24 | 17 | 18 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 50 | 17 | 30 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 9 | 2 | 30 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 11 | 2 | 28 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **242** | **122** | **186** | **111** |
+| **Total** | **661** | **253** | **122** | **175** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -34,10 +34,10 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 54 | 28 | 82 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 24 | 15 | 39 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 119 | 144 |
-| FU — Fundações | 6 | 13 | 19 |
+| FU — Fundações | 6 | 2 | 8 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **122** | **186** | **308** |
+| **Total** | **122** | **175** | **297** |
 
 ## Divergências de premissa
 
@@ -77,7 +77,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.1.1 | Análise de esforços e dimensionamento de estruturas de concreto armado e aço que suportam lajes de vigotas (comuns, armadas, protendidas, moldadas in loco, de aço, alma vazada), alveolares, mistas, nervuradas e maciças, em edifícios sob cargas verticais e horizontais. | Parcial | E | lajes maciças e treliçadas; faltam nervuradas e alveolares (mistas fora) [E3f] |
 | K1.1.2 | Vigas de apoio das lajes podem ser de concreto armado, aço ou mistas (aço + concreto). | Feito | — | vigas de concreto armado; aço e mistas fora do escopo do edifício |
 | K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Parcial | E | pilares de concreto retangulares e circulares; faltam pilares-parede, paredes de concreto e alvenaria estrutural [E1c] |
-| K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Parcial | FU | sapatas isoladas, blocos de 1 a 6 estacas e tubulões, no módulo Fundações e lançados no edifício (FU1: `src/core/building/fundacao.ts`, grupo Fundação e planta de fundação); faltam corridas, vigas de fundação e radier |
+| K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Parcial | FU | sapatas isoladas e associadas, blocos de 1 a 6 estacas (e com vários pilares), tubulões, vigas de equilíbrio e de travamento (FU1–FU3), radier e vigas de fundação sobre base elástica no pórtico (FU6, `src/core/building/baseElastica.ts`); falta a sapata corrida (FU7a) |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
 | K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas [E4c] |
 | K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares e lajes (PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML (R5); sem pilares-parede e paredes [E1d] |
@@ -116,7 +116,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.12 | Alerta: na articulação deslizante, viga contínua ou alinhada ao eixo do apoio gera engaste por continuidade (momentos negativos na borda); conferir se a obra garante isso; viga desalinhada comporta-se como articulada. | Fora | — | alerta ligado a recurso inexistente |
 | K1.3.13 | Para evitar engaste por continuidade: rótula na extremidade da viga junto ao apoio. | Fora | — | conselho de modelagem; rótula de extremidade já existe |
 | K1.3.14 | Limitação: não se obtêm as reações desses apoios em muro. | Fora | — | limitação do outro programa |
-| K1.3.15 | Vigas de fundação: vigas "flutuantes" sobre meio elástico; molas nos nós a partir do coeficiente de reação (módulo de reação do solo). | Falta | FU | vigas de fundação sobre base elástica (Winkler) |
+| K1.3.15 | Vigas de fundação: vigas "flutuantes" sobre meio elástico; molas nos nós a partir do coeficiente de reação (módulo de reação do solo). | Feito | — | vigas de fundação sobre base elástica (Winkler) no pórtico espacial: barras b × h divididas pela malha das opções, molas k × b × comprimento de influência e giro k·b³/12 por metro (`src/core/building/baseElastica.ts`, `montarBaseElastica`); validada contra Hetényi (erro 0,01 % no recalque e 0,07 % no momento) |
 | K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Falta | E | vigas inclinadas [E2c] |
 | K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Falta | E | consolos curtos (NBR 6118 22.5) [E2e] |
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Parcial | E | treliçadas como faixas T na grelha (`propriedadesLaje`); vigotas não são barras individuais [E3b] |
@@ -125,7 +125,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Feito | — | opções de cálculo: malha configurável, padrão 0,25 m (N1a) |
 | K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Parcial | N | grelha Euler-Bernoulli (sem cortante); torção das lajes com redutor editável (torcaoLaje, N1a); diafragma só no pórtico [N2b] |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
-| K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Falta | FU | radier |
+| K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Feito | — | radier como grelha de barras com a rigidez à flexão e à torção das lajes maciças, malha das opções passando pelos pilares (`gradeRadier`), molas k × área de influência; k por radier ou o padrão `radierK` (`src/core/building/baseElastica.ts`); placa contra o OpenSees (`validation/opensees/radier.py`, ±3 %) |
 | K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Falta | E | lajes nervuradas bidirecionais [E3c] |
 | K1.3.26 | Lajes nervuradas: inércia à flexão das barras = metade da da zona maciça (tanto na zona maciça quanto na aliviada, como média); inércia à torção = 2 × a de flexão. | Falta | E | lajes nervuradas (inércias da malha) [E3c] |
 | K1.3.27 | Lajes nervuradas: malha igual nas zonas maciça e aliviada; considera cortante, diafragma e rigidez à torção. | Falta | E | lajes nervuradas [E3c] |
@@ -296,7 +296,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) [N2g] |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
 | K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Parcial | N | carga.pilar: N, Hx, Hy, Mx, My em eixos globais, por caso e lance (N1c); sem torção T [N2c] |
-| K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Falta | FU | arranques sobre radier ou viga de fundação |
+| K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Feito | — | arranques com cargas sobre o radier ou a viga sobre base elástica: as cargas vão para o nó mais próximo da malha (`src/core/building/baseElastica.ts`) |
 | K1.5.19 | Cargas horizontais concentradas em qualquer altura do pilar, em eixos locais ou globais. | Parcial | N | carga.pilar a uma altura da base do lance, concentrada, eixos globais (N1c); sem uniformes, faixa nem eixos locais [N2c] |
 | | **1.5.2 Cargas horizontais — vento (págs. 29–32)** | | | |
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
@@ -418,7 +418,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.28 | Grupos: nome, permanente e sobrecarga; cota de fundação, nome do pavimento e alturas entre pavimentos. | Feito | — | grupos (nome, uso, gRev, q), pavimentos com cota e nível de fundação |
 | K1.9.29 | Altura do pavimento = diferença entre faces superiores das lajes (plano de referência superior médio); cotas calculadas. | Feito | — | cota = topo da laje; pé-direito calculado |
 | K1.9.30 | Pilar: tipo (concreto/metálico), seção por pavimento, referência (ponto fixo), ângulo, início (fundação com vinculação externa ou apoiado sem vinculação) e pavimento final. | Parcial | E | pilar ret/circ, seção por lance, ponto fixo, ângulo, nasce/morre; nascer em laje = apoio fixo provisório [E1a] |
-| K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Falta | FU | pilar sobre viga de fundação ou radier |
+| K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Feito | — | pilar que nasce na fundação sobre radier ou viga sobre base elástica sem vínculo externo: o pé é um nó da malha, com trecho rígido até o centro (`analitico.ts`, `pilaresNaBase`); esforços no pé vão para as cargas da fundação |
 | K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Parcial | N | engaste de topo e base por lance (N1a) e flambagem por pavimento, pilar e direção (N1b); sem desnível e altura de apoio; perfil metálico fora [N2c] |
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
 | K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede [E1b] |
@@ -430,15 +430,15 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.39 | Geometria em planta por grupo; ordem lógica: vigas, apoios em muro e vigas de fundação primeiro. | Feito | — | planta por grupo; panos detectados pelas vigas (`laje.detectarPanos`) |
 | K1.9.40 | Coeficiente de engaste nas bordas de vigas (0–1), afetando as lajes que chegam à borda. | Feito | — | viga.editar engasteLajes, multiplicado pelo engaste da borda da laje (N1a) |
 | K1.9.41 | Rótulas nos extremos de qualquer trecho de viga (com pilares, pilares-parede ou outras vigas). | Parcial | N | rótula ou engaste parcial nas pontas da viga (engasteIni/Fim) e articulação em pilares intermediários (N1a); sem rótula em cruzamentos com outras vigas [N2e] |
-| K1.9.42 | Viga de fundação exige coeficiente de reação e tensão admissível do solo. | Falta | FU | viga de fundação (coeficiente de reação e σadm) |
+| K1.9.42 | Viga de fundação exige coeficiente de reação e tensão admissível do solo. | Feito | — | viga sobre base elástica com k e σadm próprios ou os padrões (opção `radierK`, σadm do terreno); comandos `vigaElastica.*` (`src/core/building/baseElastica.ts`, `src/core/commands/baseElastica.ts`) |
 | K1.9.43 | Vigas mistas remetidas a capítulo próprio. | Fora | — | vigas mistas |
 | K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Falta | E | paredes de concreto e de alvenaria portante (alvenaria só como carga) [E1c] |
 | K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Falta | E | paredes (pavimentos e espessuras) [E1c] |
 | K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Parcial | E | N2a: tipo de empuxo com estratos (peso aparente e submerso, φ), K0/Rankine/Coulomb com talude, NA, drenagem e sobrecarga, diagrama de pressões; aplicação às paredes de subsolo na E1c |
 | K1.9.47 | Base da parede: viga de fundação (sem vínculo externo), sapata corrida (sem vínculo externo), com vínculo externo (com ou sem sapata), viga sem vínculo externo. | Falta | FU | base da parede (viga, sapata corrida) |
 | K1.9.48 | Sapata da parede: tensão admissível e coeficiente de reação; padrão alto 100 000 kN/m³ para evitar recalque diferencial com pilares de vinculação externa. | Falta | FU | sapata corrida com coeficiente de reação |
-| K1.9.49 | Fundação toda flutuante: usar coeficiente compatível com solo e dimensões. | Falta | FU | fundação flutuante (Winkler) |
-| K1.9.50 | Misturar apoios com e sem vinculação externa gera aviso. | Falta | FU | aviso de apoios mistos |
+| K1.9.49 | Fundação toda flutuante: usar coeficiente compatível com solo e dimensões. | Feito | — | fundação toda flutuante aceita (radier/vigas sobre base elástica sem pilares vinculados); tabela orientativa de k (Bowles 1996, a confirmar) no grupo Fundação e no memorial (`TABELA_K`) |
+| K1.9.50 | Misturar apoios com e sem vinculação externa gera aviso. | Feito | — | aviso FUND_APOIOS_MISTOS quando há pilares sobre base elástica e com vínculo externo (`avisosBaseElastica`) |
 | K1.9.51 | Tipos de lajes de vigotas: concreto (geometria geral), armadas, protendidas, moldadas in loco, metálicas, tipo "joist". | Parcial | E | só treliçadas com EPS (H8–H25) [E3a] |
 | K1.9.52 | Vigotas armadas/protendidas: dados do fabricante (não editáveis), de biblioteca (fabricantes e usuários, editor de fichas) ou geometria do usuário (editável); para flecha, vigota calculada com armadura ou protensão. | Parcial | E | catálogo fixo de treliçadas (a confirmar); sem editor de fichas nem fabricante [E3a] |
 | K1.9.53 | Vigotas definidas por tipo, conforme momento último por metro de largura (em daN·m/m, já com coeficiente de segurança). | Falta | E | tipo de vigota por momento resistente [E3a] |
@@ -479,7 +479,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.86 | Armadura base (superior e inferior, em cada direção) ou tela soldada atribuível por pano; considerada no cálculo e descontada da armadura adicional. | Falta | R | armadura base ou tela por pano [R7d] |
 | K1.9.87 | Alerta: se a opção de detalhar armadura base estiver desligada, ela não aparece em desenhos, quantitativos e tabelas, embora entre no cálculo — indicar no desenho emendas e zonas. | Fora | — | alerta do manual |
 | K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Parcial | R | positiva contínua com emenda por traspasse acima da barra máxima e negativos só onde o diagrama pede; sem armadura base nem emendas nas zonas de máximo negativo (R4) [R7d] |
-| K1.9.89 | Lajes maciças podem ser radier: espessura, coeficiente de reação e tensão admissível; armadura base do radier pela taxa mínima automática das opções. | Falta | FU | radier |
+| K1.9.89 | Lajes maciças podem ser radier: espessura, coeficiente de reação e tensão admissível; armadura base do radier pela taxa mínima automática das opções. | Feito | — | radier lançado por contorno no nível de fundação com espessura, k e σadm por elemento (`radier.criar/editar`); armadura mínima 0,15 % por face e direção como nas lajes (`src/core/building/baseElastica.ts`) |
 | | **Lajes nervuradas** | | | |
 | K1.9.90 | Zona aliviada e zona maciça; fôrma recuperável ou perdida (biblioteca editável). | Falta | E | lajes nervuradas [E3c] |
 | K1.9.91 | Dados: nome, altura total, capa, nº de peças do bloco, intereixo ou vão entre nervuras (iguais ou distintos em X e Y), largura da nervura (X e Y), peso próprio indicativo e volume de concreto m³/m² indicativo. | Falta | E | lajes nervuradas (dados) [E3c] |
@@ -558,7 +558,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | flecha elástica máxima por pavimento (G, Q) na aba Análise e flecha por laje; sem deslocamento por pano e caso [V3] |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Falta | N | punção e cortante em lajes (NBR 6118 19.4 e 19.5) [N2d] |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Falta | R | uniformização e edição de barras das lajes [R7e] |
-| K1.11.23 | Tensões excessivas no radier sinalizadas. | Falta | FU | tensões no radier |
+| K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |
 | K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Falta | V | isovalores e isolinhas [V4] |
 | K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Falta | R | linhas de dobra e emendas construtivas [R7e] |
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Falta | R | refazer armadura das lajes com os esforços iniciais [R7e] |
@@ -763,7 +763,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.2-8 | Consideração da torção opcional, recomendada sempre. | Feito | — | torção das lajes maciças por Wood-Armer, opção ligada por padrão (woodArmer, N1d) |
 | | **1.13.2.3 Armadura predefinida** | | | |
 | K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Falta | R | armadura predefinida [R7d] |
-| K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Falta | FU | radier |
+| K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Feito | — | radier pelo critério das lajes maciças: Wood-Armer na faixa de 1 m (ELU), ρmín 0,15 %, fissuração na frequente (`dimensionarBaseElastica`) |
 | | **1.13.2.4 Armadura transversal** | | | |
 | K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Falta | N | punção em lajes (NBR 6118 19.5); só sapatas têm (`footings.ts`) [N2d] |
 | K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Falta | N | tensões de punção no perímetro [N2d] |
@@ -775,7 +775,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.4-8 | Cortante: a partir do perímetro de punção e em superfícies paralelas a cada 0,75d, verifica toda a laje até esgotar as superfícies que irradiam do apoio. | Falta | N | cortante em lajes (NBR 6118 19.4) [N2d] |
 | K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Falta | N | armadura de cortante em lajes [N2d] |
 | K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Falta | N | marcação de cortante excedido nas lajes (N2) [N2d] |
-| K1.13.2.4-11 | Radiers: mesmas regras das lajes maciças. | Falta | FU | radier |
+| K1.13.2.4-11 | Radiers: mesmas regras das lajes maciças. | Feito | — | detalhamento do radier pelas regras das lajes (R4): malhas inferior e superior corridas, recortadas pelo contorno e pelos furos, perna nas bordas (a confirmar) e emenda α0t = 2 (`detalharRadier`); pranchas no tipo fundação (`src/core/sheets/fundacaoRadier.ts`) |
 | K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Falta | R | uniformização por zonas [R7e] |
 | K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Falta | R | uniformização sobre pilares [R7e] |
 | K1.13.2.4-14 | Linhas de dobra (definidas antes do cálculo, pelas direções de apoio): tratadas como pontos de negativo máximo e locais preferenciais de emenda da armadura inferior. | Falta | R | linhas de dobra [R7e] |
@@ -902,6 +902,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — fatia N2a (ações e combinações).** K1.5.13, K1.5.27, K1.6.1, K1.7.3, K1.7.4, K1.7.5, K1.8.1, K1.8.3 e K1.9.27 passam a Feito (compatibilidade e arranjos, largura corrigida da platibanda, biblioteca de materiais, controle de execução, γ por origem, situações do usuário, equilíbrio global e estados-limite selecionáveis). K1.5.12 e K1.9.46 (empuxo de terra: tipos, diagrama e caso H) ficam Parcial com a aplicação às paredes na E1c (frente E). K1.5.23 e K1.5.29 seguem Parcial: ábacos de vizinhança e de Ca prontos como tabelas de pontos, mas vazios até o usuário fornecer os pontos da NBR 6123.
   - Situação: Feito 210 → 219; Parcial 148 → 141; Falta 192 → 190; Fora 111 → 111.
   - Pendências por frente: N 93 → 82; E 142 → 144; demais sem mudança.
+- **21/10/2026 — fatia FU6 (base elástica: radier e vigas de fundação sobre molas de Winkler).** K1.3.15, K1.3.24, K1.5.18, K1.9.31, K1.9.42, K1.9.49, K1.9.50, K1.9.89, K1.11.23, K1.13.2.3-2 e K1.13.2.4-11 passam a Feito: `src/core/building/baseElastica.ts` (grelha do radier e barras das vigas no pórtico espacial com molas k × área, pilares sem vínculo externo, tensões no solo nas raras, levantamento como erro, Wood-Armer, detalhamento em malhas), comandos `radier.*` e `vigaElastica.*`, opções `radierK` e `radierMalha`, códigos FUND_LEVANTAMENTO, FUND_RADIER_TENSAO, FUND_RADIER_ESPESSURA, FUND_RADIER_MALHA, FUND_APOIOS_MISTOS e FUND_RADIER_SEM_CARGA; validação contra Hetényi e OpenSees (`validation/opensees/radier.py`). K1.1.4 segue Parcial (sapata corrida na FU7a).
 - **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.
