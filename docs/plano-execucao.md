@@ -174,10 +174,13 @@ Decisão do usuário (21/10/2026): melhorias não essenciais ficam só registrad
 
 ## Interoperabilidade e documentação de exportação (depois de concluir o aplicativo)
 Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e implementar a exportação do projeto estrutural para Revit, CYPECAD, TQS e Eberick (IFC ou outro formato), de forma que os programas reconheçam os elementos como nativos e permitam recalcular, para conferência do motor de cálculo.
-- Relatório da pesquisa: `docs/analises/interoperabilidade-ifc.md` (viabilidade por programa, requisitos do IFC, limitações, itens "não confirmado").
-- Fatias propostas:
-  - I0: teste empírico de importação de IFC mínimo nos quatro programas (troca "não confirmado" por fato);
-  - I1: exportar IFC2x3 (IFC4 opcional) físico com perfis paramétricos, tipos, materiais e Psets;
-  - I2: modelo analítico (IfcStructuralAnalysisModel) e SAF;
-  - I3: add-in Revit (API/Dynamo) para elementos nativos;
+- Relatório da pesquisa: `docs/analises/interoperabilidade-ifc.md` (viabilidade por programa, requisitos do IFC, limitações, itens "não confirmado"). A seção 7 (pesquisa aprofundada de 21/10/2026, páginas oficiais lidas por curl) substitui as conclusões das seções 2 a 5 onde houver conflito.
+- Recomendação (seção 7.7): TQS pela API Python oficial (TQSBuild/TQSModel/TQSExec); CYPECAD pela entrada automática por IFC ou DXF (módulo AUT) mais DXF de vigas; Eberick por IFC com "importar pilares e vigas"; Revit fora do caminho crítico; CYPE 3D lê modelo analítico IFC.
+- Fatias propostas (ordem de execução):
+  - I0: teste de bancada nas licenças do usuário (edifício-teste fictício, série de IFC, DXF, ASC, planilhas de vento e script TQS; passo 0 = exportar IFC dos três programas como gabarito; planilha `I0-registro.csv` e critérios de Go na seção 7.8 do relatório). Trocar "não confirmado" por fato antes de implementar;
+  - I1: exportar IFC2x3 (IFC4 opcional) físico com extrusão retangular/circular com origem no ponto fixo, tipos, materiais, Psets, storeys, IfcSlab com contorno, IfcFooting, IfcWall; calibrado pelos IFCs do passo 0;
+  - I1b: DXF-gabarito do CYPECAD (camadas de pilares, contornos, aberturas, pontos fixos, eixos de vigas), planilha de vento do Eberick (.xlsx) e texto do TQS, ASC do CYPECAD (fundação);
+  - I5: gerador de script Python do TQS (edifício, pilares, vigas, lajes, cargas; depois treliçadas, fundações, processamento e extração de resultados). Prioridade alta se o I0 confirmar o ciclo;
+  - I2: modelo analítico (IfcStructuralAnalysisModel) para o CYPE 3D, prioridade subiu; SAF continua baixa;
+  - I3: add-in Revit (API/Dynamo) para elementos nativos, só se o I0 mostrar necessidade (plugin CYPE pago ou plugin TQS-Revit);
   - I4: roteiro de conferência de cálculo num edifício-teste fictício, comparando esforços, γz, armaduras e deslocamentos.
