@@ -36,6 +36,9 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'TRAMO_IGNORADO', nivel: 'aviso', re: /^Tramo predefinido desconsiderado/, descricao: 'Tramo predefinido não aplicado (vigas, bitola ou barra máxima)' },
   { codigo: 'DETALHE_INSUF', nivel: 'erro', re: /^Detalhe editado insuficiente/, descricao: 'Viga: detalhamento editado não cobre a armadura necessária ou os estribos' },
   { codigo: 'DETALHE_IGNORADO', nivel: 'aviso', re: /^Detalhe editado (desconsiderado|:)/, descricao: 'Viga: edição do detalhamento desconsiderada ou fora da barra máxima' },
+  { codigo: 'PILAR_DET_INSUF', nivel: 'erro', re: /^[^:]+: detalhe editado insuficiente/, descricao: 'Pilar: espera, traspasse ou ancoragem editados abaixo do mínimo' },
+  { codigo: 'PILAR_DET_IGNORADO', nivel: 'aviso', re: /^[^:]+: detalhe editado desconsiderado/, descricao: 'Pilar: edição dos comprimentos desconsiderada (lances mudaram ou passagem sem emenda)' },
+  { codigo: 'PILAR_CORTE_TOPO', nivel: 'aviso', re: /^[^:]+: barras cortadas no topo/, descricao: 'Pilar: barras cortadas no topo do último lance, sem ancoragem (só desenho e medição)' },
   { codigo: 'FORA_TABELA', nivel: 'erro', re: /^Fora de tabela \((barras|estribos)\)/, descricao: 'Viga: armadura sem solução na tabela (φ25 ou estribo fora do mínimo da tabela)' },
   { codigo: 'ARM_MANUAL', nivel: 'erro', re: /^Armadura manual necessária/, descricao: 'Pilar: nem a tabela nem a armadura própria atendem (amplie a tabela ou a seção)' },
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
@@ -115,6 +118,8 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   // avisos do detalhamento com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhes ?? []) add('viga', d.viga, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
+  // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
+  for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const l of dim?.lajes ?? []) add('laje', l.laje, l.nome, l.pavimento, l.mensagens);
   for (const f of dim?.fundacoes ?? []) add('fundacao', f.id, f.nome, undefined, f.mensagens);
   for (const v of dim?.vigasFundacao ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);

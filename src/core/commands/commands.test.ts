@@ -80,6 +80,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'tabela.restaurar': () => ({ tipos: ['estribos'] }),
   'laje.armaduraVigotas': (b) => ({ ids: [b.lajes[1].id], inf: { n: 1, phi: 8 }, sup: { n: 2, phi: 6.3 } }),
   'viga.detalhe': (b) => ({ id: b.vigas[0].id, barras: [{ pos: 'N1', s0: 0.1, ganchos: [false, true], perna: 12 }], zonas: [{ zona: 0, phi: 6.3, s: 0.15, ramos: 4 }], fatorEmenda: 1.5 }),
+  'pilar.detalhe': (b) => ({ id: b.pilares[0].id, espera: 0.8, passagens: [{ pavimento: lancesDoPilar(b, b.pilares[0])[0].id, emenda: 0.7, ancoragem: 0.6 }] }),
   'viga.tramo': (b) => ({ ids: [b.vigas[1].id, b.vigas[2].id] }),
   'viga.copiarArmadura': (b) => ({ de: b.vigas[1].id, para: [b.vigas[0].id] }),
   'materiais.definir': (b) => ({ fck: { pilar: 40, fundacao: 25 }, fckPilarPav: [{ pavimento: b.pavimentos[0].id, fck: 45 }], aco: { vigaEstribo: 'CA-60', fundacao: 'CA-60' }, gamas: { c: 1.5 }, cobFaces: { vigaInf: 3.5 }, cobFundacao: 4 }),

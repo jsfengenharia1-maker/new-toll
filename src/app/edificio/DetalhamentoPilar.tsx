@@ -1,12 +1,14 @@
 // Detalhamento dos pilares (frente R3b): elevação do pilar inteiro (lances, níveis, barras com ganchos, emendas, arranques
 // e estribos), seção de cada lance, tabelas de barras e estribos, lb por lance e avisos.
+import { useState } from 'react';
 import { useBuilding } from './store';
-import { KV, Pill } from '../ui';
+import { Button, KV, NumField, Pill } from '../ui';
+import { executarERecalcular } from './Armadura';
 import { barArea } from '../../core/concrete';
 import { cobrimentoPilar } from '../../core/building/materiais';
 import { dimsSecao, secaoNoLance, type Pilar } from '../../core/building/types';
 import type { BarraPilar, DetalhePilar, LanceDetalhe } from '../../core/building/detalhamentoPilares';
-import { gramposPorEstribo } from '../../core/building/detalhamentoPilares';
+import { gramposPorEstribo, posicoesEstribos } from '../../core/building/detalhamentoPilares';
 import type { ResultadoPilar } from '../../core/building/dimensionamento';
 import { fmt, phiTxt } from './Detalhamento';
 
@@ -69,16 +71,16 @@ function Elevacao({ d, p }: { d: DetalhePilar; p: Pilar }) {
         <text x={ml + 2} y={Y(d.lances[0].z0) + 12} className="det-txt cota">Fundação</text>
       </g>}
       {d.lances.map((l, i) => {
-        const yA = Y(l.z1), yB = Y(l.z0), px = l.estribos.s * esc, ticks = px >= 3.5;
+        const yA = Y(l.z1), yB = Y(l.z0), ad = l.estribos.ad, px = (ad ? Math.min(ad.s, l.estribos.s) : l.estribos.s) * esc, ticks = px >= 3.5;
         const g = l.estribos.grampos;
         return (
           <g key={l.pavimento} data-lance={l.pavimento}>
             <rect x={xL} y={yA} width={wC} height={yB - yA} className="det-contorno" />
             {ticks
-              ? Array.from({ length: l.estribos.n }, (_, k) => <line key={k} x1={xL + 3} x2={xR - 3} y1={Y(l.z0 + 0.05 + k * l.estribos.s)} y2={Y(l.z0 + 0.05 + k * l.estribos.s)} className="det-fio" />)
+              ? posicoesEstribos(l.z0, l.z1, l.estribos.s, ad).map((z, k) => <line key={k} x1={xL + 3} x2={xR - 3} y1={Y(z)} y2={Y(z)} className="det-fio" />)
               : <rect x={xL + 3} y={yA + 2} width={wC - 6} height={Math.max(1, yB - yA - 4)} className="det-estribo-zona" />}
             <text x={xL - 8} y={(yA + yB) / 2 - 2} textAnchor="end" className="det-txt" data-rotulo-lance={i}>{l.nome} · {l.secao} cm</text>
-            <text x={xL - 8} y={(yA + yB) / 2 + 9} textAnchor="end" className="det-txt cota" data-rotulo-estribo={i}>{l.estribos.n} {phiTxt(l.estribos.phi)} c/{Math.round(l.estribos.s * 100)}{g > 0 ? ` + ${g} ${g === 1 ? 'grampo' : 'grampos'}` : ''}</text>
+            <text x={xL - 8} y={(yA + yB) / 2 + 9} textAnchor="end" className="det-txt cota" data-rotulo-estribo={i}>{l.estribos.n} {phiTxt(l.estribos.phi)} c/{Math.round(l.estribos.s * 100)}{ad ? ` (ad. c/${Math.round(ad.s * 100)} em ${Math.round(ad.h * 100)})` : ''}{g > 0 ? ` + ${g} ${g === 1 ? 'grampo' : 'grampos'}` : ''}</text>
           </g>
         );
       })}
@@ -151,6 +153,79 @@ function SecaoLance({ p, l, r, cob }: { p: Pilar; l: LanceDetalhe; r: ResultadoP
   );
 }
 
+// ---------------------------------------------------------------- comprimentos editáveis (R7c)
+
+export interface ComprimentosPilar {
+  espera?: number;
+  passagens: { pavimento: string; nome: string; transicao: LanceDetalhe['transicao']; emenda: number; ancoragem?: number }[];
+}
+const arred2 = (x: number) => Math.round(x * 100) / 100;
+/** Espera na fundação, traspasse acima de cada topo e ancoragem dos arranques, lidos das barras do detalhamento. */
+export function comprimentosPilar(d: DetalhePilar): ComprimentosPilar {
+  const primeira = d.barras.find((x) => x.ganchos[0]);
+  const out: ComprimentosPilar = { passagens: [] };
+  if (primeira) out.espera = arred2(Math.max(0, d.lances[0].z0 - primeira.z0));
+  d.lances.forEach((l, k) => {
+    if (l.transicao === 'topo' || l.transicao === 'continua') return;
+    const topo = l.z1, prox = d.lances[k + 1].pavimento;
+    if (l.transicao === 'arranque') {
+      const a = d.barras.find((x) => x.tipo === 'arranque' && x.lances[0] === l.pavimento);
+      if (a) out.passagens.push({ pavimento: l.pavimento, nome: l.nome, transicao: l.transicao, emenda: arred2(a.z1 - topo), ancoragem: arred2(topo - a.z0) });
+      return;
+    }
+    const zs = d.barras.filter((x) => x.tipo === 'longitudinal' && x.lances.includes(l.pavimento) && !x.lances.includes(prox)).map((x) => x.z1);
+    if (zs.length) out.passagens.push({ pavimento: l.pavimento, nome: l.nome, transicao: l.transicao, emenda: arred2(Math.max(...zs) - topo) });
+  });
+  return out;
+}
+
+/** Editor da espera, dos traspasses e das ancoragens de arranque; aplica `pilar.detalhe`. */
+export function EdicaoPilar({ d, p }: { d: DetalhePilar; p: Pilar }) {
+  const calculando = useBuilding((s) => s.calculando);
+  const c0 = comprimentosPilar(d);
+  const [esp, setEsp] = useState(c0.espera ?? 0), [pas, setPas] = useState(c0.passagens);
+  const chave = JSON.stringify(c0);
+  const [vista, setVista] = useState(chave);
+  if (vista !== chave) { setVista(chave); setEsp(c0.espera ?? 0); setPas(c0.passagens); } // novo cálculo: recarrega
+  const alt = (pav: string, q: Partial<ComprimentosPilar['passagens'][number]>) => setPas((l) => l.map((x) => (x.pavimento === pav ? { ...x, ...q } : x)));
+  const mud = pas.filter((x, i) => x.emenda !== c0.passagens[i].emenda || x.ancoragem !== c0.passagens[i].ancoragem);
+  const mudEsp = c0.espera !== undefined && esp !== c0.espera;
+  const aplicar = () => executarERecalcular('pilar.detalhe', {
+    id: p.id, ...(mudEsp ? { espera: esp } : {}),
+    ...(mud.length ? { passagens: mud.map((x) => { const o = c0.passagens.find((y) => y.pavimento === x.pavimento)!; return { pavimento: x.pavimento, ...(x.emenda !== o.emenda ? { emenda: x.emenda } : {}), ...(x.ancoragem !== undefined && x.ancoragem !== o.ancoragem ? { ancoragem: x.ancoragem } : {}) }; }) } : {}),
+  });
+  return (
+    <section data-edicao-pilar={p.id}>
+      <h4>Editar comprimentos {p.detalhe && <Pill tone="warn" data-detalhe-editado>editado</Pill>}</h4>
+      <p className="small">Espera na fundação, traspasse (acima do topo do lance de baixo) e ancoragem das barras novas nos arranques, em m. O recálculo mantém a edição e a confere contra os mínimos (traspasse: % de lb das opções, 15φ e 20 cm; ancoragem: 0,3·lb, 10φ e 10 cm); vale enquanto o número de lances do pilar não mudar.</p>
+      <div className="tablewrap">
+        <table className="data quadro" data-tabela-edicao-pilar>
+          <thead><tr><th>Posição</th><th>Passagem</th><th>Comprimento (m)</th></tr></thead>
+          <tbody>
+            {c0.espera !== undefined && <tr data-edicao-espera><td className="tl">Espera na fundação</td><td className="tl">abaixo da base</td><td><NumField label="Espera" width={90} value={esp} onChange={(q) => setEsp(Math.max(0.1, Math.min(3, q)))} /></td></tr>}
+            {pas.map((x) => (
+              <tr key={x.pavimento} data-edicao-passagem={x.pavimento}>
+                <td className="tl">Traspasse acima do {x.nome}</td><td className="tl">{TRANSICAO[x.transicao]}</td>
+                <td><NumField label={`Traspasse ${x.nome}`} width={90} value={x.emenda} onChange={(q) => alt(x.pavimento, { emenda: Math.max(0.1, Math.min(3, q)) })} /></td>
+              </tr>
+            ))}
+            {pas.filter((x) => x.ancoragem !== undefined).map((x) => (
+              <tr key={`a${x.pavimento}`} data-edicao-ancoragem={x.pavimento}>
+                <td className="tl">Ancoragem do arranque no {x.nome}</td><td className="tl">abaixo do topo</td>
+                <td><NumField label={`Ancoragem ${x.nome}`} width={90} value={x.ancoragem!} onChange={(q) => alt(x.pavimento, { ancoragem: Math.max(0.1, Math.min(3, q)) })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="row wrap u-items-end">
+        <Button variant="primary" disabled={calculando || (!mud.length && !mudEsp)} onClick={aplicar}>Aplicar edição</Button>
+        <Button disabled={calculando || !p.detalhe} onClick={() => executarERecalcular('pilar.detalhe', { id: p.id, remover: true })}>Restaurar calculado</Button>
+      </div>
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------- aba Detalhamento da janela do pilar
 
 export function DetalheDoPilar({ id }: { id: string }) {
@@ -192,6 +267,7 @@ export function DetalheDoPilar({ id }: { id: string }) {
           </tbody>
         </table>
       </div>
+      <EdicaoPilar d={d} p={p} />
       <h4>Avisos do detalhamento</h4>
       {d.avisos.length === 0 ? <p className="muted small" data-avisos-det>Sem avisos.</p> : (
         <ul className="revmsg" data-avisos-det>{d.avisos.map((m, i) => <li key={i}><Pill tone="warn">DET</Pill> {m}</li>)}</ul>

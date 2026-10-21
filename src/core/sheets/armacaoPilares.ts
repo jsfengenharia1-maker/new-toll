@@ -5,9 +5,10 @@
 // Quadro de pilares opcional nas últimas folhas. Posições por folha, tabela de aço e resumo como nas vigas.
 import type { AnaliseEdificio } from '../building/analitico';
 import { ganchoNoventa } from '../building/detalhamento';
-import type { DetalhePilar } from '../building/detalhamentoPilares';
+import { posicoesEstribos, type DetalhePilar } from '../building/detalhamentoPilares';
 import type { Dimensionamento, ResultadoPilar } from '../building/dimensionamento';
 import { acoDe, cobrimentoPilar, fckDe } from '../building/materiais';
+import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { cotaFundacao, dimsSecao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from '../building/types';
 import { LARGURA_LEGENDA, txt, type Prancha, type Prim } from './prancha';
 import {
@@ -104,7 +105,11 @@ export function blocoPilares(b: BuildingModel, g: GrupoPilares, escala: number, 
     const s = secaoNoLance(p, l.pavimento), [w, h] = dimsSecao(s), e = l.estribos;
     const pe = posDe(`E|${s.tipo}|${cmInt(w - 2 * cob)}|${cmInt(h - 2 * cob)}`, acoE, e.phi, cmInt(e.comprimento), e.n * n);
     const pg = e.grampos ? posDe(`G|${cmInt(Math.max(w, h) - 2 * cob)}`, acoE, e.phi, cmInt(e.comprimentoGrampo), e.grampos * e.n * n) : '';
-    out.push(...cotaVertical(xe, [Y(l.z0), Y(l.z1)], [`${qtd(n, e.n)} ${pe} c/${cmInt(e.s)}`]));
+    const zs = e.ad ? posicoesEstribos(l.z0, l.z1, e.s, e.ad) : [], hAd = e.ad?.h ?? 0;
+    const nBase = zs.filter((z) => z < l.z0 + hAd).length, nTopo = zs.filter((z) => z > l.z1 - hAd).length;
+    if (e.ad && 2 * hAd < l.z1 - l.z0 - 0.01 && nBase + nTopo < e.n) // adensamento: base, trecho corrente e topo
+      out.push(...cotaVertical(xe, [Y(l.z0), Y(l.z0 + hAd), Y(l.z1 - hAd), Y(l.z1)], [`${qtd(n, nBase)} ${pe} c/${cmInt(e.ad.s)}`, `${qtd(n, e.n - nBase - nTopo)} ${pe} c/${cmInt(e.s)}`, `${qtd(n, nTopo)} ${pe} c/${cmInt(e.ad.s)}`]));
+    else out.push(...cotaVertical(xe, [Y(l.z0), Y(l.z1)], [`${qtd(n, e.n)} ${pe} c/${cmInt(e.ad && 2 * hAd >= l.z1 - l.z0 - 0.01 ? e.ad.s : e.s)}`]));
     return { pe, pg };
   });
   // níveis
@@ -180,14 +185,18 @@ function escalaQueCabe(b: BuildingModel, g: GrupoPilares, altUtil: number) {
 }
 
 /** Quadro de pilares: uma linha por pilar e lance (seção, armadura longitudinal, estribos e grampos). */
-export function linhasQuadroPilares(dim: Dimensionamento): string[][] {
+export function linhasQuadroPilares(dim: Dimensionamento, b?: BuildingModel): string[][] {
   const out: string[][] = [];
   const dets = [...(dim.detalhesPilares ?? [])].sort((a, z) => ordemNome(a.nome, z.nome));
   for (const d of dets) for (const l of d.lances) {
     const bar = d.barras.find((x) => x.tipo === 'longitudinal' && x.lances.includes(l.pavimento));
     const e = l.estribos;
-    out.push([d.nome, l.nome, l.secao.replace('×', ' × '), bar ? `${bar.n} ${phiTxt(bar.phi)}` : '—', `${phiTxt(e.phi)} c/${cmInt(e.s)}`, e.grampos ? `${e.grampos} ${phiTxt(e.phi)}` : '—']);
+    out.push([d.nome, l.nome, l.secao.replace('×', ' × '), bar ? `${bar.n} ${phiTxt(bar.phi)}` : '—', `${phiTxt(e.phi)} c/${cmInt(e.s)}${e.ad ? ` (ad. c/${cmInt(e.ad.s)})` : ''}`, e.grampos ? `${e.grampos} ${phiTxt(e.phi)}` : '—']);
   }
+  // pilares com seção insuficiente (sem armadura que atenda): listados sem desenho (K1.11.34)
+  const com = new Set(dets.map((d) => d.pilar));
+  const sem = !b || !opcoesEmUso(b.opcoes, perfilDe(b)).pilarInsuficienteSemDesenho ? [] : dim.pilares.filter((r) => !com.has(r.pilar) && r.mensagens.some((m) => /^(Não atende com até 4|Armadura manual necessária|Nenhuma armadura|Biela comprimida|λ > 200)/.test(m)));
+  for (const r of [...sem].sort((a, z) => ordemNome(a.nome, z.nome))) out.push([r.nome, r.pavimento, r.secao.replace('×', ' × '), 'seção insuficiente', 'sem desenho', '—']);
   return out;
 }
 
@@ -236,7 +245,7 @@ export function montarPranchasPilares(b: BuildingModel, _an: AnaliseEdificio | n
   }
   // quadro de pilares nas últimas folhas
   if (cfg.quadroPilares) {
-    const linhas = linhasQuadroPilares(dim);
+    const linhas = linhasQuadroPilares(dim, b);
     const cols = [{ w: 22, rot: 'PILAR' }, { w: 34, rot: 'LANCE' }, { w: 28, rot: 'SEÇÃO (cm)' }, { w: 34, rot: 'ARMADURA' }, { w: 32, rot: 'ESTRIBOS' }, { w: 28, rot: 'GRAMPOS' }];
     const nCols = Math.max(1, Math.floor((area.x1 - area.x0 + 4) / (LARGURA_LEGENDA + 4)));
     const porCol = Math.max(1, Math.floor((area.y1 - area.y0 - 2 * 4.5 - 3) / 4.5));

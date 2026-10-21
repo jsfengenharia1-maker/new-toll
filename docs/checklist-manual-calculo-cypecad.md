@@ -13,31 +13,31 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 2 | 4 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 10 | 12 | 27 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 43 | 23 | 13 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 48 | 19 | 12 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 34 | 9 | 2 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 28 | 20 | 55 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 22 | 18 | 19 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 48 | 19 | 30 | 23 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 23 | 17 | 19 | 3 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 50 | 17 | 30 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 9 | 2 | 30 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **234** | **129** | **187** | **111** |
+| **Total** | **661** | **242** | **122** | **186** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 54 | 28 | 82 |
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 31 | 16 | 47 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 24 | 15 | 39 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 119 | 144 |
 | FU — Fundações | 6 | 13 | 19 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **129** | **187** | **316** |
+| **Total** | **122** | **186** | **308** |
 
 ## Divergências de premissa
 
@@ -221,12 +221,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Pilares** | | | |
 | K1.4.45 | Comprimento máximo de barra vertical padrão 8 m; acima exige emenda. | Feito | — | opção pilarBarraMaxima (padrão 8 m); acima disso a barra é cortada e emendada por traspasse (R3b) |
 | K1.4.46 | União de lances curtos: comprimento máximo padrão 4 m; une lances e elimina emendas intermediárias até esse limite, de cima para baixo, se a armadura for idêntica. | Feito | — | opção pilarUniaoLances (padrão 4 m): lances consecutivos com a mesma armadura e seção viram barras corridas, sem emenda intermediária (R3b) |
-| K1.4.47 | Pilares sem vigas chegando num nível: pode-se prolongar armadura sem emenda até o pavimento seguinte ou emendar em todos os pavimentos (se armadura idêntica). | Parcial | R | barras corridas por lances de mesma armadura até o limite de união; sem distinguir níveis sem vigas chegando ao pilar (R3b) [R7c] |
-| K1.4.48 | Opção de cortar as barras no topo do último lance (só afeta desenho/medição, não é calculada; usar com cautela); recomenda-se antes reduzir o engaste no topo e ativar redução de ancoragem. | Falta | R | corte das barras no topo do último lance (o topo sempre ancora com gancho) [R7c] |
-| K1.4.49 | Redução do comprimento de ancoragem/arranque pela relação tensão real/tensão máxima: padrão desativada em pavimentos intermediários e ativada no último pavimento; pode gerar arranques de comprimentos diferentes. | Parcial | R | ancoragem no topo do último lance reduzida pela utilização da seção (aproxima As,calc/As,ef), ≥ máx(0,3·lb; 10φ; 10 cm); opção ancoragemReduzidaTopo, padrão ligada; sem redução nos arranques (R3b) [R7c] |
+| K1.4.47 | Pilares sem vigas chegando num nível: pode-se prolongar armadura sem emenda até o pavimento seguinte ou emendar em todos os pavimentos (se armadura idêntica). | Feito | — | opção `pilarProlongarSemViga` (padrão desligada, a confirmar): em lances de armadura idêntica o nível sem viga chegando ao pilar passa sem emenda mesmo acima de `pilarUniaoLances`; barra máxima vale (`detalhamentoPilares.ts`, `semViga`) (R7c) |
+| K1.4.48 | Opção de cortar as barras no topo do último lance (só afeta desenho/medição, não é calculada; usar com cautela); recomenda-se antes reduzir o engaste no topo e ativar redução de ancoragem. | Feito | — | opção `pilarCorteTopo` (padrão desligada): barras terminam a um cobrimento do topo, sem gancho, só desenho e medição, com aviso PILAR_CORTE_TOPO; a redução de ancoragem e do engaste do topo seguem nas opções (R7c) |
+| K1.4.49 | Redução do comprimento de ancoragem/arranque pela relação tensão real/tensão máxima: padrão desativada em pavimentos intermediários e ativada no último pavimento; pode gerar arranques de comprimentos diferentes. | Feito | — | opção `pilarReducaoIntermediarios` (padrão desligada nos intermediários; topo do último lance reduzido por `ancoragemReduzidaTopo`): traspasse = máx(util·lb; `pilarReducaoMinimo` % de lb; 15φ; 20 cm) e ancoragem do arranque = máx(util·lb; 0,3·lb; 10φ; 10 cm), gerando arranques de comprimentos diferentes (R7c) |
 | K1.4.50 | Simetria de armadura: tabela permite armadura diferente nas faces X e Y; escolhe a 1ª disposição da tabela que atende todas as combinações e a 1ª simétrica nas 4 faces; compara taxas e aceita a simétrica se a diferença % ≤ limite (padrão 0 %, não simétrica; usar ~300 para forçar simetria). | Feito | — | opção pilarSimetria (tolerância %): padrão do sistema 0 % (menor armadura, faces opostas podem diferir; verificada nos quatro quadrantes da flexão oblíqua), perfil NBR 1000 = sempre simétrica; a disposição simétrica é aceita se sua armadura exceder a da melhor em até a tolerância (R7a) |
 | K1.4.51 | Pilares dimensionados lance a lance, de cima para baixo. | Feito | — | pilares dimensionados de cima para baixo (opção continuidadePilares) (R3b) |
-| K1.4.52 | Continuidade: opção de manter taxa, bitola de canto e de face e nº de barras para baixo a partir do último ou penúltimo pavimento; padrão: continuidade de taxa e bitola de canto a partir do penúltimo pavimento. | Parcial | R | padrão do sistema: a partir do penúltimo lance, armadura e bitola de canto não diminuem para baixo (opção continuidadePilares, NBR = 0); sem manter nº de barras das faces nem escolher o lance inicial (R3b) [R7c] |
+| K1.4.52 | Continuidade: opção de manter taxa, bitola de canto e de face e nº de barras para baixo a partir do último ou penúltimo pavimento; padrão: continuidade de taxa e bitola de canto a partir do penúltimo pavimento. | Feito | — | opções `continuidadePilares` (taxa e bitola de canto), `pilarContinuidadeInicio` (padrão: a partir do penúltimo lance; ou do último) e `pilarContinuidadeFaces` (mantém o nº de barras de cada face do lance de cima) em `dimensionamento.ts` (R7c) |
 | K1.4.53 | Cobrimento: da face externa à 1ª barra (estribo); padrão conforme a norma escolhida. | Feito | — | cobrimento pela CAA (Tabela 7.2), editável (`norma.definir`) |
 | K1.4.54 | Perfis metálicos: opção de reduzir o perfil quando possível ou mantê-lo e só verificar; esforços vêm do perfil lançado — se a inércia mudar muito, recalcular; escolhe o perfil mais econômico. | Fora | — | perfis metálicos |
 | K1.4.55 | Mudança de seção entre pavimentos: dobra da armadura com inclinação limitada (ângulo depende da espessura da laje ou viga); se exceder, cortar e ancorar a barra inferior e colocar arranques para o lance de cima. | Feito | — | mudança de seção: dobra se o deslocamento das faces/altura da viga ≤ 1:6; senão a barra de baixo ancora no nó com gancho e entram arranques ancorados lb abaixo e emendados lb acima (R3b) |
@@ -235,7 +235,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.58 | Emendas no terço central do lance (zona sísmica): padrão desativado; recomendado em alta sismicidade. | Fora | — | sismo |
 | K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Falta | E | emendas em paredes e pilares-parede [E1d] |
 | K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Falta | E | grau de cumprimento em paredes [E1d] |
-| K1.4.61 | Estribos: na interseção com laje/viga (padrão ativo) e adensamento no topo e base numa altura definida (padrão inativo; recomendado em zona sísmica). | Parcial | R | estribos também na interseção com vigas e lajes (nó incluído na contagem); sem adensamento no topo e na base (R3b) [R7c] |
+| K1.4.61 | Estribos: na interseção com laje/viga (padrão ativo) e adensamento no topo e base numa altura definida (padrão inativo; recomendado em zona sísmica). | Feito | — | estribos também na interseção com vigas e lajes (nó incluído) e opção `pilarAdensamento` (padrão inativa) com altura e espaçamento adensado (`pilarAdensamentoAltura`/`Espacamento`, valores iniciais a confirmar), contados no quantitativo e desenhados na elevação e na prancha (`posicoesEstribos`) (R7c) |
 | K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos (E2) [E2e] |
 | | **Vigas (listadas, sem valores)** | | | |
 | K1.4.63 | Armadura negativa simétrica em vigas de um vão; diferença % para simetria da negativa. | Feito | — | opção `vigaSimetriaNegativos` (tolerância %, padrão do sistema 25 % a confirmar; NBR 0): em viga de um vão os dois negativos ganham o maior número de barras (R7b) |
@@ -570,7 +570,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.31 | Momentos ampliados por excentricidade acidental e de 2ª ordem (flambagem) destacados. | Feito | — | janela do pilar com momentos de 1ª ordem na base e no topo e Md,tot com M1d,mín e 2ª ordem por combinação determinante (R1) |
 | K1.11.32 | Código de motivo quando não atende (ex.: taxa excessiva acima do máximo de norma — armadura mantida); sinal de limite excedido após edição. | Feito | — | código do motivo por lance (ARMADURA, ESBELTEZ, GAMA_N, TRACAO…) e ARM_BLOQ quando a armadura editada não atende (R1, R2) |
 | K1.11.33 | Recalcular se mudanças significativas (rigidez mudou). | Feito | — | aviso "o modelo mudou: recalcule" |
-| K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Parcial | R | λ > 200 ou nenhuma armadura entre As,mín e 4 % cabendo: sem arranjo, sem detalhamento nem desenho (`detalharPilar` devolve null); com armadura de 4 % que não atende ("aumente a seção"), marcado "não atende", mas ainda desenhado e medido [R7c] |
+| K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Feito | — | opção `pilarInsuficienteSemDesenho` (sistema ligada; NBR desligada, comportamento anterior): pilar que não atende nem com 4 % ("aumente a seção"), tabela esgotada ou biela fica sem detalhamento, desenho e quantitativo, listado como "sem desenho" no quadro de pilares; o erro segue na revisão (R7c) |
 | K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Feito | — | quadro de pilares agrupa pilares iguais (P1=P3, R5); os que não atendem em vermelho (R1); armadura travável (R2) |
 | | **Pilares-parede e paredes** | | | |
 | K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) [E1d] |
@@ -694,13 +694,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-12 | Tabelas de estribos e grampos por armadura vertical e dimensões da seção, podendo variar por projeto; sem definição na tabela, só estribo perimetral. | Parcial | R | estribo por bitola longitudinal na tabela de pilares (R7a); grampos automáticos pela 18.2.4, sem tabela por seção e por armadura; estribo perimetral quando a tabela não define [R7c] |
 | K1.12.4-13 | Cortante: verificação da biela comprimida e da tração na alma com a armadura disposta; falha → aviso na coluna dos estribos. | Feito | — | Vd, biela e estribo pelo cortante nos pilares, Vc por flexo-compressão (17.4.2.2 c); falha → BIELA ou aviso ESTRIBO_V (N1e) |
 | K1.12.4-14 | Emendas: comprimento = ancoragem em posição I (boa aderência), função do aço, do concreto e de cargas dinâmicas. | Feito | — | emenda por traspasse = lb em boa aderência (aço, concreto e fyd do projeto) (R3b); sem cargas dinâmicas |
-| K1.12.4-15 | Opção: reduzir o comprimento de ancoragem pela relação armadura necessária/efetiva, com limite inferior (texto ambíguo); comprimentos editáveis. | Parcial | R | redução só na ancoragem do topo do último lance (opção ancoragemReduzidaTopo); emendas com lb pleno; comprimentos não editáveis (R3b) [R7c] |
+| K1.12.4-15 | Opção: reduzir o comprimento de ancoragem pela relação armadura necessária/efetiva, com limite inferior (texto ambíguo); comprimentos editáveis. | Feito | — | redução do traspasse e do arranque pela utilização (`pilarReducaoIntermediarios`, mínimo `pilarReducaoMinimo`) e comprimentos editáveis de espera, traspasse e ancoragem do arranque (comando `pilar.detalhe`, editor na janela do pilar, verificação PILAR_DET_INSUF) (R7c) |
 | K1.12.4-16 | Hipótese: pilar predominantemente comprimido; pilar tracionado (tirante) exige alongar ancoragens e detalhar ligações manualmente. | Feito | — | pilar tracionado verificado por fibras sem 2ª ordem, com aviso TRACAO (frente 0) |
 | K1.12.4-17 | Armadura vertical: último e penúltimo lances armados pelos seus esforços; depois, lance a lance de cima para baixo, sem que o inferior tenha menos armadura que o superior (critério de continuidade opcional). | Feito | — | último e penúltimo lances pelos seus esforços e, de cima para baixo, o inferior não tem menos armadura que o superior (opção continuidadePilares) (R3b) |
 | K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Parcial | N | topo e base do lance; sem seções intermediárias [N2c] |
 | K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | pilar com desnível [E1a] |
 | K1.12.4-20 | Estribos dispostos não atendem o cortante → aviso; correções sugeridas: reduzir espaçamento, aumentar diâmetro, outra disposição de estribos/grampos (via tabelas e recálculo dos pilares) ou aumentar armadura vertical. | Feito | — | estribo pelo cortante verificado (aviso ESTRIBO_V) e estribo editado reprovado com o motivo (Asw/s, φt, s) e ARM_BLOQ (N1e, R2) |
-| K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Parcial | R | opção continuidadePilares liga/desliga a continuidade (armadura e bitola de canto); sem manter número e diâmetro das faces separadamente (R3b) [R7c] |
+| K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Feito | — | opções `continuidadePilares` (continuidade das barras), bitola de canto e `pilarContinuidadeFaces` (número de barras das faces) a partir do penúltimo ou do último lance (R7c) |
 | K1.12.4-22 | Edição: alterar seção (rearma), armadura vertical e tipo de estribo. | Feito | — | seção editável (pilar.editar, recalcula e rearma); armadura vertical e estribo editáveis por lance com bloqueio (R2) |
 | | **1.12.4.1 Pilares de aço (pág. 88)** | | | |
 | K1.12.4.1-1 | Dimensionados pela norma escolhida para aço laminado ou formado a frio. | Fora | — | pilares de aço |
@@ -905,3 +905,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.
+- **21/10/2026 — fatia R7c (opções do detalhamento de pilares, núcleo e interface).** K1.4.47, K1.4.48, K1.4.49, K1.4.52, K1.4.61, K1.11.34, K1.12.4-15 e K1.12.4-21 passam a Feito: 10 opções `pilar*` (níveis sem viga, corte no topo, redução do traspasse e do arranque com mínimo, continuidade a partir do penúltimo ou do último lance e por face, adensamento dos estribos, seção insuficiente sem desenho), comando `pilar.detalhe` (`mcp: false`) com editor na janela do pilar, códigos PILAR_DET_INSUF, PILAR_DET_IGNORADO e PILAR_CORTE_TOPO, memorial, pranchas (adensamento cotado e quadro com pilar sem desenho), premissa `detalhamento-pilares-opcoes` e e2e `R7c`. Com as opções novas nos valores da NBR o detalhamento dos pilares é idêntico ao anterior (`detalhamentoPilares.base.json`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: R reduz em 8 itens; demais sem mudança.

@@ -7,7 +7,7 @@ describe('perfis de padrões das opções: sistema × NBR 6118', () => {
     const s = new Sessao();
     for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
     const ok = (n: string, p: Record<string, unknown>) => expect(s.executar(n, p).ok, n).toBe(true);
-    expect(OPCOES_DIFERENTES_NBR.map((o) => o.chave).sort()).toEqual(['axialPilares', 'continuidadePilares', 'engasteTopoUltimo', 'fatorFlechaLaje', 'lajeNegativoVao', 'pilarSimetria', 'redistribuicao', 'vigaEstriboExtensao', 'vigaNegativoVao', 'vigaNegativosUnir', 'vigaReducaoLb', 'vigaSimetriaNegativos', 'vigotaMomentoMinNegativo', 'vigotaMomentoMinPositivo', 'vigotaNegativoVao']);
+    expect(OPCOES_DIFERENTES_NBR.map((o) => o.chave).sort()).toEqual(['axialPilares', 'continuidadePilares', 'engasteTopoUltimo', 'fatorFlechaLaje', 'lajeNegativoVao', 'pilarInsuficienteSemDesenho', 'pilarSimetria', 'redistribuicao', 'vigaEstriboExtensao', 'vigaNegativoVao', 'vigaNegativosUnir', 'vigaReducaoLb', 'vigaSimetriaNegativos', 'vigotaMomentoMinNegativo', 'vigotaMomentoMinPositivo', 'vigotaNegativoVao']);
     expect(opcoesEmUso(s.modelo.opcoes, perfilDe(s.modelo)).redistribuicao).toBe(15);
     ok('opcoes.definir', { valores: { malha: 0.5, redistribuicao: 0 } });
     ok('opcoes.definir', { perfil: 'nbr' });

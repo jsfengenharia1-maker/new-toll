@@ -84,6 +84,17 @@ export interface OpcoesCalculo {
   pilarUniaoLances: number;
   /** 1 = ancoragem no topo do último lance reduzida por As,calc/As,ef (9.4.2.5). */
   ancoragemReduzidaTopo: number;
+  /** Detalhamento dos pilares (R7c). */
+  pilarContinuidadeInicio: number;
+  pilarContinuidadeFaces: number;
+  pilarProlongarSemViga: number;
+  pilarCorteTopo: number;
+  pilarReducaoIntermediarios: number;
+  pilarReducaoMinimo: number;
+  pilarAdensamento: number;
+  pilarAdensamentoAltura: number;
+  pilarAdensamentoEspacamento: number;
+  pilarInsuficienteSemDesenho: number;
   /** Lajes: comprimento mínimo dos negativos sobre bordas contínuas, de cada lado do eixo, em % do maior vão adjacente (0 = só o diagrama). */
   lajeNegativoVao: number;
   /** Lajes: negativa de borda sem continuidade até esta % do menor vão a partir da face (0 = sem). */
@@ -276,6 +287,26 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Lances consecutivos com a mesma armadura têm barras corridas, sem emenda intermediária, enquanto o comprimento somado couber neste limite.' },
   { chave: 'ancoragemReduzidaTopo', rotulo: 'Ancoragem reduzida no topo do último lance', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 9.4.2.5 (lb,nec = α·lb·As,calc/As,ef); padrão do programa de referência: ligada no último pavimento', aConfirmar: false,
     descricao: 'No topo do último lance, a ancoragem das barras é reduzida pela utilização da seção (≥ lb,mín).' },
+  { chave: 'pilarContinuidadeInicio', rotulo: 'Pilares: continuidade a partir do penúltimo lance (0 = do último)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Opção do programa de referência (K1.4.52): continuidade de taxa e bitola de canto a partir do penúltimo pavimento (padrão)', aConfirmar: false,
+    descricao: 'Ligada: o último e o penúltimo lances pelos seus esforços e, de baixo do penúltimo, a continuidade. Desligada: só o último pelos seus esforços e a continuidade já no penúltimo. Vale com a continuidade da armadura ligada.' },
+  { chave: 'pilarContinuidadeFaces', rotulo: 'Pilares: manter o número de barras de cada face', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.12.4-21: manter número e diâmetro das barras das faces); padrão desligado', aConfirmar: true,
+    descricao: 'Com a continuidade ligada, cada face (b, b oposta, h, h oposta) tem, de cima para baixo, número de barras não menor que o do lance de cima, além da taxa e da bitola (quando a seção é a mesma).' },
+  { chave: 'pilarProlongarSemViga', rotulo: 'Pilares: prolongar as barras sem emenda nos níveis sem viga', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.47): prolongar a armadura sem emenda até o pavimento seguinte nos níveis sem viga chegando ao pilar; padrão não registrado, desligada (emenda em todos os níveis)', aConfirmar: true,
+    descricao: 'Em lances consecutivos de armadura idêntica, o nível em que nenhuma viga chega ao pilar não recebe emenda: as barras seguem até o nível seguinte, mesmo acima do limite de união de lances (barra máxima continua valendo).' },
+  { chave: 'pilarCorteTopo', rotulo: 'Pilares: cortar as barras no topo do último lance', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.48): só desenho e medição, usar com cautela; padrão desligado', aConfirmar: false,
+    descricao: 'As barras terminam no topo, a um cobrimento, sem gancho nem ancoragem. Não é calculado: reduza antes o engaste do topo e ative a ancoragem reduzida.' },
+  { chave: 'pilarReducaoIntermediarios', rotulo: 'Pilares: reduzir traspasse e arranque pela utilização', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.49, K1.12.4-15): desativada nos pavimentos intermediários, ativada no último (ver ancoragem no topo); NBR 6118, 9.4.2.5', aConfirmar: false,
+    descricao: 'Traspasse = máx(util·lb; mínimo; 15φ; 20 cm) e ancoragem do arranque = máx(util·lb; 0,3·lb; 10φ; 10 cm), com util = As,calc/As,ef aproximada pela utilização da seção (maior dos dois lances). Pode gerar arranques de comprimentos diferentes.' },
+  { chave: 'pilarReducaoMinimo', rotulo: 'Pilares: traspasse mínimo reduzido', unidade: '% de lb', min: 30, max: 100, passo: 5, padrao: 60, fonte: 'NBR 6118, 9.5.2.3 (l0c ≥ máx(0,6·lb; 15φ; 200 mm))', aConfirmar: false,
+    descricao: 'Limite inferior do traspasse reduzido e do traspasse editado dos pilares (também ≥ 15φ e 20 cm).' },
+  { chave: 'pilarAdensamento', rotulo: 'Pilares: adensar estribos no topo e na base do lance', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.61): padrão inativo, recomendado em zona sísmica', aConfirmar: false,
+    descricao: 'Estribos mais próximos junto ao topo e à base de cada lance, numa altura dada (as duas opções abaixo).' },
+  { chave: 'pilarAdensamentoAltura', rotulo: 'Pilares: altura do adensamento', unidade: 'm', min: 0.2, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Altura dada pelo usuário no programa de referência; valor inicial do app (sem fonte)', aConfirmar: true,
+    descricao: 'Altura, a partir da base e do topo de cada lance, com o espaçamento adensado (limitada à metade do lance).' },
+  { chave: 'pilarAdensamentoEspacamento', rotulo: 'Pilares: espaçamento adensado', unidade: 'cm', min: 5, max: 20, passo: 1, padrao: 10, fonte: 'Valor inicial do app (sem fonte); nunca maior que o espaçamento do lance', aConfirmar: true,
+    descricao: 'Espaçamento dos estribos nas zonas de adensamento.' },
+  { chave: 'pilarInsuficienteSemDesenho', rotulo: 'Pilares: seção insuficiente sem desenho nem quantitativo', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não trata: o app anterior desenhava e media a armadura de 4 %', fonte: 'Programa de referência (K1.11.34): pilar com seção insuficiente não é desenhado nem dimensionado', aConfirmar: false,
+    descricao: 'Pilar cujo dimensionamento não atende nem com 4 % de armadura ("aumente a seção") fica fora do detalhamento, das pranchas e do quantitativo; o erro continua na lista de revisão.' },
   { chave: 'lajeNegativoVao', rotulo: 'Lajes: comprimento mínimo dos negativos', unidade: '% do vão', min: 0, max: 50, passo: 1, padrao: 25, padraoNBR: 0, fonteNBR: 'NBR 6118 não fixa: só o diagrama decalado mais a ancoragem (9.4.2.5 e 19.4)', fonte: 'Prática usual brasileira (ℓ/4 do maior vão adjacente, de cada lado do eixo); o programa de referência também impõe porcentagens mínimas do vão', aConfirmar: true,
     descricao: 'Cada lado do negativo sobre uma borda contínua vai, a partir do eixo do apoio, até o maior entre esta % do maior vão adjacente (perpendicular à borda) e o ponto de momento nulo do diagrama da grelha + decalagem + ancoragem. 0 = só o diagrama.' },
   { chave: 'lajeNegativoBorda', rotulo: 'Lajes: negativa de borda sem continuidade', unidade: '% do menor vão', min: 0, max: 50, passo: 1, padrao: 15, fonte: 'NBR 6118, 19.3.3.2 (≥ 0,15 do menor vão a partir da face; ρs ≥ 0,67·ρmín, Tabela 19.1)', aConfirmar: false,

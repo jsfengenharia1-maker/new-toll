@@ -1939,6 +1939,8 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       await cmd('eixo.malha {"dx": [7], "dy": [5]}');
+      // pilares 19 × 19 não atendem: sem esta opção (R7c) ficariam fora da prancha de pilares do conjunto
+      await cmd('opcoes.definir {"valores": {"pilarInsuficienteSemDesenho": 0}}');
       await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
       const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
@@ -2425,6 +2427,76 @@ export const flows = [
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       assert.match(await memo.locator('[data-memorial-det-vigas]').innerText(), /prolongamento dos cortes lb·As,calc\/As,ef/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'R7c: detalhamento de pilares (edição de espera e traspasse com PILAR_DET_INSUF, restaurar, corte no topo, adensamento, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      const abrir = async () => {
+        await cardP.locator('tbody tr').first().dblclick();
+        const j = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+        await j.waitFor();
+        await j.getByRole('radio', { name: 'Detalhamento' }).click();
+        await j.locator('svg[data-detalhe-pilar]').waitFor();
+        return j;
+      };
+      // edição: espera na fundação e traspasse; traspasse curto demais reprova com PILAR_DET_INSUF
+      let jan = await abrir();
+      const ed = jan.locator('[data-edicao-pilar]');
+      await ed.waitFor();
+      assert.equal(await jan.locator('[data-detalhe-editado]').count(), 0);
+      const esp = ed.getByLabel('Espera', { exact: true });
+      await esp.fill('0,9'); await esp.press('Enter');
+      const pass = ed.locator('[data-edicao-passagem]').first().locator('input');
+      await pass.fill('0,1'); await pass.press('Enter');
+      await ed.getByRole('button', { name: 'Aplicar edição' }).click();
+      await livre();
+      await jan.locator('[data-detalhe-editado]').waitFor();
+      assert.match(await jan.locator('[data-avisos-det]').innerText(), /detalhe editado insuficiente: traspasse/);
+      assert.match(await jan.locator('[data-edicao-pilar]').locator('[data-edicao-espera] input').inputValue(), /^0,9/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros]').locator('tbody tr.bad', { hasText: 'PILAR_DET_INSUF' }).first().waitFor();
+      // restaurar o calculado: o erro some
+      jan = await abrir();
+      await jan.locator('[data-edicao-pilar]').getByRole('button', { name: 'Restaurar calculado' }).click();
+      await livre();
+      await page.waitForFunction(() => !document.querySelector('[data-detalhe-editado]'));
+      assert.equal(await jan.locator('[data-avisos-det]').getByText('detalhe editado insuficiente').count(), 0);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // opções: corte no topo e adensamento
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      assert.ok(!(await g.getByLabel('Pilares: cortar as barras no topo do último lance').isChecked()));
+      assert.ok(await g.getByLabel('Pilares: seção insuficiente sem desenho nem quantitativo').isChecked());
+      assert.match(await g.innerText(), /Pilares: traspasse mínimo reduzido/);
+      await g.getByLabel('Pilares: cortar as barras no topo do último lance').check();
+      await g.getByLabel('Pilares: adensar estribos no topo e na base do lance').check();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).click();
+      await livre();
+      jan = await abrir();
+      assert.match(await jan.locator('[data-avisos-det]').innerText(), /barras cortadas no topo/);
+      assert.match(await jan.locator('[data-rotulo-estribo="0"]').innerHTML(), /ad\. c\/10 em 50/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('[data-lista-erros]').locator('tbody tr', { hasText: 'PILAR_CORTE_TOPO' }).first().waitFor();
+      // memorial: critérios do detalhamento dos pilares
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const t = await memo.locator('[data-memorial-det-pilares]').innerText();
+      assert.match(t, /com as barras cortadas, sem ancoragem/);
+      assert.match(t, /adensados a cada 10 cm numa altura de 0,50 m/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },

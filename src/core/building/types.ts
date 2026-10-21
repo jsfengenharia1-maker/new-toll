@@ -169,6 +169,18 @@ export interface Pilar {
   armaduras?: ArmaduraPilar[];
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */
   tabela?: string;
+  /** Comprimentos de espera, traspasse e arranque editados (R7c); verificados a cada recálculo. */
+  detalhe?: DetalhePilarEditado;
+}
+
+/** Comprimentos editados do detalhamento de um pilar (m); campos ausentes ficam como calculados. */
+export interface DetalhePilarEditado {
+  /** Espera na fundação, abaixo da base (m). */
+  espera?: number;
+  /** Por passagem (pavimento do topo do lance de baixo): traspasse acima do topo e, no arranque, ancoragem das barras novas abaixo do topo. */
+  passagens?: { pavimento: string; emenda?: number; ancoragem?: number }[];
+  /** Número de lances do pilar quando foi editado (se mudar, a edição deixa de valer). */
+  lances: number;
 }
 
 /** Armadura bloqueada de um lance de pilar (barras iguais no contorno; estribo). */

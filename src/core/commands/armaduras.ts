@@ -158,6 +158,50 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
   },
 });
 
+registrar<{ id: string; espera?: number; passagens?: { pavimento: string; emenda?: number; ancoragem?: number }[]; remover?: boolean }>({
+  nome: 'pilar.detalhe',
+  descricao: 'Edita os comprimentos do detalhamento de um pilar (R7c): `espera` na fundação (m, abaixo da base) e, por passagem de lance (`pavimento` do topo do lance de baixo), o traspasse `emenda` acima do topo e, nos arranques, a `ancoragem` das barras novas abaixo do topo (m). Verificado a cada recálculo (traspasse mínimo das opções, ancoragem mínima de 0,3·lb) e desconsiderado quando muda o número de lances do pilar. Com `remover`, volta ao calculado.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+    id: { type: 'string' },
+    espera: { type: 'number', minimum: 0.1, maximum: 3, description: 'espera na fundação (m)' },
+    passagens: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pavimento'], properties: {
+      pavimento: { type: 'string', description: 'lance de baixo da passagem (pavimento do seu topo)' },
+      emenda: { type: 'number', minimum: 0.1, maximum: 3, description: 'traspasse acima do topo (m)' },
+      ancoragem: { type: 'number', minimum: 0.1, maximum: 3, description: 'ancoragem das barras novas abaixo do topo, no arranque (m)' },
+    } } },
+    remover: { type: 'boolean' },
+  } },
+  validar(b, p) {
+    const pil = b.pilares.find((x) => x.id === p.id);
+    if (!pil) return err('PILAR_INEXISTENTE', `Pilar ${p.id} não existe.`);
+    if (p.remover) return [];
+    if (p.espera === undefined && !p.passagens?.length) return err('SEM_EDICAO', 'Informe espera ou passagens.', [p.id]);
+    const ls = lancesDoPilar(b, pil);
+    for (const e of p.passagens ?? []) {
+      const i = ls.findIndex((x) => x.id === e.pavimento);
+      if (i < 0) return err('LANCE_INEXISTENTE', `${pil.nome} não tem lance em ${e.pavimento}.`, [p.id]);
+      if (i === ls.length - 1) return err('SEM_PASSAGEM', `${pil.nome}: o último lance não tem passagem para o de cima (use o topo no detalhamento calculado).`, [p.id]);
+      if (e.emenda === undefined && e.ancoragem === undefined) return err('SEM_EDICAO', `Passagem ${e.pavimento}: informe emenda ou ancoragem.`, [p.id]);
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const q = d.pilares.find((x) => x.id === p.id)!;
+    if (p.remover) { delete q.detalhe; return `Detalhamento de ${q.nome} volta ao calculado.`; }
+    const lances = lancesDoPilar(d as BuildingModel, q as Pilar).length;
+    const antes = q.detalhe && q.detalhe.lances === lances ? q.detalhe : undefined;
+    const passagens = [...(antes?.passagens ?? []).filter((x) => !p.passagens?.some((y) => y.pavimento === x.pavimento)), ...(p.passagens ?? []).map((y) => {
+      const o = (antes?.passagens ?? []).find((x) => x.pavimento === y.pavimento);
+      return { pavimento: y.pavimento, ...(y.emenda ?? o?.emenda) !== undefined ? { emenda: y.emenda ?? o?.emenda } : {}, ...(y.ancoragem ?? o?.ancoragem) !== undefined ? { ancoragem: y.ancoragem ?? o?.ancoragem } : {} };
+    })];
+    const espera = p.espera ?? antes?.espera;
+    q.detalhe = { lances, ...(espera !== undefined ? { espera } : {}), ...(passagens.length ? { passagens } : {}) };
+    return `Detalhamento de ${q.nome} editado.`;
+  },
+});
+
 registrar<{ ids: string[]; remover?: boolean }>({
   nome: 'viga.tramo',
   descricao: 'Cria (ou, com `remover`, desfaz) um tramo predefinido: vigas consecutivas e alinhadas do mesmo grupo cuja armadura inferior passante corre sem emenda nem gancho no apoio comum, enquanto o comprimento total não passa da barra máxima (R7b). `ids` na ordem do alinhamento.',
