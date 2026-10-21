@@ -746,3 +746,22 @@ tr.sel td { background: var(--accent-soft); }
 .v3d-iso .v3d-sh3 { fill: color-mix(in srgb, var(--c) 58%, black); stroke: color-mix(in srgb, var(--c) 58%, black); }
 .v3d-iso .v3d-f.v3d-sel { fill: var(--v3d-selecao); stroke: var(--v3d-selecao); fill-opacity: 1; }
 .v3d-iso .v3d-rotulo { fill: var(--v3d-pendente); font: 700 40px var(--font-ui); }
+
+/* ações e combinações (N2a): situações do usuário, empuxo de terra e ábacos de vento */
+.gp-par { display: inline-flex; flex-direction: column; gap: 2px; }
+.nowrap { white-space: nowrap; }
+:root {
+  --emp-solo: var(--c-m);
+  --emp-agua: var(--c-v);
+  --emp-sobrecarga: var(--c-load);
+  --emp-eixo: var(--muted);
+}
+.emp-box { margin: 6px 0; }
+.emp-fig { width: 100%; max-width: 380px; height: auto; font: 10px var(--font-ui); }
+.emp-solo { fill: color-mix(in srgb, var(--emp-solo) 22%, transparent); stroke: var(--emp-solo); stroke-width: 1.4; }
+.emp-agua { fill: color-mix(in srgb, var(--emp-agua) 22%, transparent); stroke: var(--emp-agua); stroke-width: 1.2; }
+.emp-parede { stroke: var(--emp-eixo); stroke-width: 2.4; }
+.emp-aterro { stroke: var(--emp-eixo); stroke-width: 1; stroke-dasharray: 5 3; }
+.emp-resultante { stroke: var(--emp-sobrecarga); stroke-width: 1.6; fill: var(--emp-sobrecarga); }
+.emp-txt { fill: var(--emp-eixo); }
+.emp-txt.forte { fill: var(--ink); }

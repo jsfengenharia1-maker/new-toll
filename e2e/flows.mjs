@@ -2134,6 +2134,138 @@ export const flows = [
     },
   },
   {
+    name: 'N2a: compatibilidade e arranjos em xadrez, estados-limite, situações do usuário com alerta, empuxo (caso H), ábacos de vento e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [0, 5, 10].flatMap((x) => [0, 4, 8].map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`)).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 8], [10, 8]], [[0, 0], [0, 8]], [[5, 0], [5, 8]], [[10, 0], [10, 8]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const msg = (t) => page.locator('.statusbar .msg', { hasText: t }).waitFor();
+      const grupo = (t) => page.locator('details.group', { has: page.locator(':scope > summary', { hasText: t }) });
+
+      // ---- casos: compatibilidade e arranjos ----
+      await page.locator('summary', { hasText: /^Casos de carga/ }).click();
+      const casos = grupo(/^Casos de carga/);
+      for (const n of ['Água', 'Vazio']) {
+        await casos.getByLabel('Novo caso').fill(n);
+        await casos.getByLabel('Novo caso').press('Enter');
+        await casos.getByRole('button', { name: 'Criar caso' }).click();
+        await msg(`Caso ${n} (Q) criado`);
+      }
+      await casos.locator('summary', { hasText: 'Compatibilidade entre casos' }).click();
+      await casos.getByLabel('Relação entre Água e Vazio').selectOption('incompativel');
+      await msg('Água e Vazio: incompativel');
+      assert.equal(await casos.getByLabel('Relação entre Água e Vazio').inputValue(), 'incompativel');
+      await casos.locator('summary', { hasText: 'Arranjos alternados e móveis' }).click();
+      await casos.getByLabel('Nome do caso', { exact: true }).fill('Uso alternado');
+      await casos.getByLabel('Nome do caso', { exact: true }).press('Enter');
+      await casos.getByRole('button', { name: 'Gerar arranjos' }).click();
+      await msg('2 arranjos em xadrez');
+      assert.equal(await casos.getByLabel('Natureza de Uso alternado A').inputValue(), 'Q');
+      assert.match(await casos.innerText(), /arranjo de Uso alternado/);
+
+      // ---- estados-limite ----
+      await page.locator('summary', { hasText: /^Estados-limite e combinações/ }).click();
+      const est = grupo(/^Estados-limite e combinações/);
+      assert.equal(await est.getByLabel('Ativar Concreto armado (ELU)').isDisabled(), true);
+      await est.getByLabel('Ativar Flechas (quase permanentes)').uncheck();
+      await msg('Estados-limite alterados');
+      await page.locator('summary', { hasText: /^Estados-limite e combinações \(alterados\)/ }).waitFor();
+      await est.getByLabel('Ativar Flechas (quase permanentes)').check();
+      await est.getByLabel('Controle de execução').selectOption('premoldado');
+      await msg('Parâmetros de norma alterados');
+
+      // ---- análise e situações do usuário ----
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await msg('Análise concluída');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await est.getByRole('button', { name: 'Situações do usuário…' }).click();
+      const jan = page.getByRole('dialog', { name: 'Situações do usuário' });
+      await jan.getByRole('button', { name: 'Importar da norma' }).click();
+      await msg('situação(ões) importada(s) da norma em Concreto armado (ELU)');
+      const linhas = await jan.locator('tbody tr').count();
+      assert.ok(linhas >= 8, `${linhas} situações importadas`);
+      assert.equal(await jan.locator('.alert').count(), 0, 'importada da norma: sem alerta');
+      // modo usuário num grupo com situação de fator menor que o da norma: alerta de responsabilidade
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await est.getByLabel('Modo de Tensões no solo (raras)').selectOption('usuario');
+      await msg('Estados-limite alterados');
+      await est.getByRole('button', { name: 'Situações do usuário…' }).click();
+      await jan.getByLabel('Grupo de estados').selectOption({ label: 'Tensões no solo (raras)' });
+      await jan.getByLabel('Nome da nova situação').fill('Baixa');
+      await jan.getByLabel('Nome da nova situação').press('Enter');
+      await jan.getByRole('button', { name: 'Nova situação' }).click();
+      await jan.getByLabel('Nome da situação Baixa').waitFor();
+      const q = jan.getByLabel('Fator de Q em Baixa');
+      await q.fill('0,5');
+      await q.press('Enter');
+      await jan.locator('.alert').first().waitFor();
+      assert.match(await jan.locator('.alert').first().innerText(), /Combinações do usuário \(Tensões no solo \(raras\)\):.*fator máximo de Q = 0,5, abaixo de 1 da norma/s);
+      // colagem de uma situação própria
+      await jan.locator('summary', { hasText: 'Colar tabela' }).click();
+      await jan.getByLabel('Tabela colada').fill('\tG\tQ\nPrópria\t1\t0,8');
+      await jan.getByRole('button', { name: 'Criar situações da colagem' }).click();
+      await jan.getByLabel('Nome da situação Própria').waitFor();
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+
+      // ---- empuxo de terra e caso H ----
+      await page.locator('summary', { hasText: /^Empuxo de terra/ }).click();
+      const emp = grupo(/^Empuxo de terra/);
+      await emp.getByLabel('Novo tipo de empuxo').fill('Subsolo');
+      await emp.getByLabel('Novo tipo de empuxo').press('Enter');
+      await emp.getByRole('button', { name: 'Criar tipo' }).click();
+      await msg('Empuxo “Subsolo” (repouso, K = 0,5)');
+      const caixa = emp.locator('.emp-box');
+      const R0 = parseFloat(await caixa.getAttribute('data-resultante'));
+      const na = emp.getByLabel('Cota do nível d\'água');
+      await na.fill('-0,5'); // dentro da parede (cota da base −1,5 m)
+      await na.press('Enter');
+      await page.waitForFunction((r) => parseFloat(document.querySelector('.emp-box').getAttribute('data-resultante')) > r, R0);
+      assert.ok(await caixa.locator('svg.emp-fig polygon.emp-agua').count() >= 1, 'a água entra no diagrama');
+      await casos.getByLabel('Novo caso').fill('Empuxo do subsolo');
+      await casos.getByLabel('Novo caso').press('Enter');
+      await casos.locator('label.field', { has: page.locator('.flabel', { hasText: /^Natureza$/ }) }).locator('select').selectOption('H');
+      await casos.getByRole('button', { name: 'Criar caso' }).click();
+      await msg('Caso Empuxo do subsolo (H) criado');
+      await casos.getByLabel('Empuxo de Empuxo do subsolo').selectOption({ label: 'Subsolo' });
+      await msg('Caso Empuxo do subsolo alterado');
+
+      // ---- ábacos de vento ----
+      await page.locator('summary', { hasText: /^Ábacos de vento/ }).click();
+      const ab = grupo(/^Ábacos de vento/);
+      assert.deepEqual(await ab.getByLabel('Coeficiente de arrasto Ca').locator('option').allInnerTexts(), ['Informado (Ca em X e Y)']);
+      await ab.locator('summary', { hasText: /^Ca, baixa turbulência/ }).click();
+      await ab.getByLabel('Ca, baixa turbulência: pontos da curva 1').fill('0,2; 1,04\n5; 1,04');
+      await ab.getByRole('button', { name: 'Aplicar ca, baixa turbulência' }).click();
+      await msg('Vento alterado');
+      await ab.getByLabel('Coeficiente de arrasto Ca').selectOption('1');
+      await msg('Vento alterado');
+      await page.locator('summary', { hasText: /^Ábacos de vento \(NBR 6123\) \(em uso\)/ }).waitFor();
+
+      // ---- memorial ----
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('text=O modelo mudou depois do cálculo').waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const t = await memo.textContent();
+      assert.match(t, /Categorias de uso, arranjos e compatibilidade/);
+      assert.match(t, /Uso alternado.*Uso alternado A; Uso alternado B/s);
+      assert.match(t, /Estados-limite e coeficientes/);
+      assert.match(t, /Pré-moldado com controle rigoroso/);
+      assert.match(t, /Situações de projeto do usuário/);
+      assert.match(t, /Combinações do usuário \(Tensões no solo \(raras\)\): fator máximo de Q = 0,8, abaixo de 1 da norma/);
+      assert.match(t, /Empuxo de terra.*Subsolo.*método de repouso/s);
+      assert.ok(await memo.locator('figure svg').count() >= 1);
+      assert.match(t, /Equilíbrio global \(tombamento\)/);
+      assert.match(t, /Ca pelo ábaco de baixa turbulência/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
     name: 'R7a: tabelas de armadura (bitola restrita muda a viga, tabela impossível gera FORA_TABELA com atalho, restaurar, exportar e importar JSON, memorial)',
     async run({ newPage }) {
       const page = await newPage();

@@ -2,6 +2,7 @@
 // Na conta (capability db, subárvore privada do usuário) quando disponível; senão no navegador.
 import type { Model } from '../core/types';
 import type { FLoad } from '../core/piles';
+import type { ListaSituacoes, PerfilMateriais } from '../core/building/acoes';
 
 export interface SavedCharacteristics {
   projectName: string;
@@ -11,9 +12,11 @@ export interface SavedCharacteristics {
   settings: Record<string, unknown>;
 }
 
-export type LibraryKind = 'project' | 'characteristics';
+export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes';
+/** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício ou situações de projeto (N2a). */
+export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes;
 export interface LibraryItem { id: string; kind: LibraryKind; name: string; savedAt: string; summary: string }
-export interface LibraryEntry extends LibraryItem { payload: Model | SavedCharacteristics }
+export interface LibraryEntry extends LibraryItem { payload: LibraryPayload }
 
 type Doc = { exists: boolean; id: string; data(): Record<string, unknown> | undefined };
 interface DbLike {
@@ -59,7 +62,7 @@ export async function listLibrary(): Promise<{ mode: 'cloud' | 'local'; items: L
   return { mode: 'local', items: localAll().map(({ payload: _p, ...rest }) => rest).sort((a, z) => z.savedAt.localeCompare(a.savedAt)) };
 }
 
-export async function saveToLibrary(kind: LibraryKind, name: string, summary: string, payload: Model | SavedCharacteristics, id?: string, savedAt = new Date().toISOString()): Promise<{ id: string; mode: 'cloud' | 'local' }> {
+export async function saveToLibrary(kind: LibraryKind, name: string, summary: string, payload: LibraryPayload, id?: string, savedAt = new Date().toISOString()): Promise<{ id: string; mode: 'cloud' | 'local' }> {
   const b = await storageBackend();
   const body = { kind, name, summary, savedAt, payload: JSON.stringify(payload) };
   if (body.payload.length > 240_000) throw new Error('O projeto passa de 240 KB e não cabe em um registro. Use Exportar .json.');

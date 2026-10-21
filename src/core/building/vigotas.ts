@@ -227,7 +227,7 @@ const arred = (x: number, cm: number) => Math.ceil(x / (cm / 100) - 1e-9) * (cm 
 export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], op: OpcoesCalculo): ResultadoVigotas[] {
   const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'lajeInf'), aS = acoDe(b, 'lajeSup'), fyd60 = 600 / gm.s;
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
-  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'Q' ? gm.q : 0));
+  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
   const out: ResultadoVigotas[] = [];
   const msgsLaje = (id: string, msgs: string[], erro: boolean) => {
     for (const r of lajes.filter((x) => x.laje === id)) { r.mensagens.push(...msgs); if (erro) r.status = 'fail'; }

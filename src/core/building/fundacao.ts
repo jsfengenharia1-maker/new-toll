@@ -17,7 +17,8 @@ import { isCaisson } from '../caissons';
 import { defaultFoundationParams, PILE_LABEL, type Boring, type FCol, type FCombo, type FixedDims, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
 import type { AnaliseEdificio } from './analitico';
 import { reacoesArranques } from './analitico';
-import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
+import { estadoEmUso } from './acoes';
+import { combinacoesDoEstado, type CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
@@ -42,9 +43,9 @@ type Reacao = AnaliseEdificio['fundacao'][number];
 
 /** Cargas características por pilar (id → FLoad): rara máx./mín., permanente, H e M da rara de maior N (eixos globais). */
 export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fundacao' | 'vento'>, filtro?: (c: CombinacaoEd) => boolean, comCombos = false): Map<string, FLoad> {
-  const combs = combinacoesEdificio(b, an as AnaliseEdificio).filter((x) => x.tipo === 'RARA' && (!filtro || filtro(x)));
+  const combs = combinacoesDoEstado(b, an as AnaliseEdificio, 'solo').filter((x) => x.tipo === 'RARA' && (!filtro || filtro(x)));
   const porPilar = new Map<string, Record<string, Reacao>>();
-  const permanentes = casosDaObra(b).filter((c) => c.natureza === 'G').map((c) => c.id);
+  const permanentes = casosDaObra(b).filter((c) => c.natureza === 'G' || c.natureza === 'H').map((c) => c.id);
   for (const f of an.fundacao) {
     const r = porPilar.get(f.pilar) ?? {}, a = r[f.caso];
     // a mesma reação pode vir de mais de uma origem (análise + cargas do nível de fundação): soma
@@ -235,6 +236,7 @@ type AlivioRecebido = { dN: number; dNMin: number; viga: string };
 export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): CalculoFundacao {
   const fe = b.fundacao;
   if (!fe?.elementos.length) return { elementos: [], vigas: [], avisos: [] };
+  if (!estadoEmUso(b, 'fundacoes').ativo && !estadoEmUso(b, 'solo').ativo) return { elementos: [], vigas: [], avisos: ['Fundações não calculadas: os grupos "Fundações" e "Tensões no solo" estão desativados em Estados-limite.'] };
   const base: Pick<AnaliseEdificio, 'fundacao' | 'vento'> = an && an.fundacao.length ? an : { fundacao: reacoesArranques(b), vento: an?.vento ?? null };
   const op = opcoesEmUso(b.opcoes, perfilDe(b));
   const modo = o.modo ?? op.fundModo;

@@ -1,6 +1,6 @@
 // Comandos de lajes (panos, tipos, aberturas) e de cargas (ponto, linha, área e alvenaria da máscara).
 import type { Draft } from 'immer';
-import { casosDaObra, ehArranque, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
+import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
@@ -167,7 +167,11 @@ const casoSchema = (padrao: CasoFisico): JsonSchema => ({ type: 'string', minLen
 const grupoCargaOk = (b: BuildingModel, g: string) => (g === 'fundacao' ? [] : grupoOk(b, g));
 /** Carga no nível de fundação só muda o cálculo das fundações. */
 const calculoCarga = (p: Record<string, unknown>) => (p.grupo === 'fundacao' ? 'fundacao' as const : true);
-const casoOk = (b: BuildingModel, caso?: string) => (!caso || casosDaObra(b).some((c) => c.id === caso) ? [] : err('CASO_INEXISTENTE', `Caso ${caso} não existe.`));
+const casoOk = (b: BuildingModel, caso?: string) => {
+  if (!caso || casosParaCarga(b).some((c) => c.id === caso)) return [];
+  const filhos = (b.casos ?? []).filter((c) => c.pai === caso);
+  return filhos.length ? err('CASO_COM_ARRANJOS', `O caso ${caso} tem arranjos: lance a carga em um deles (${filhos.map((c) => c.nome).join(', ')}).`) : err('CASO_INEXISTENTE', `Caso ${caso} não existe.`);
+};
 
 registrar<{ grupo: string; ponto: P; valor: number; caso: string }>({
   nome: 'carga.ponto',
@@ -228,62 +232,96 @@ registrar<{ ids: string[] }>({
 
 // ---- casos de carga adicionais ----
 
-const naturezaSchema: JsonSchema = { type: 'string', enum: ['G', 'Q', 'W', 'E'], description: 'G permanente, Q variável, W vento ou ação horizontal, E excepcional' };
+const naturezaSchema: JsonSchema = { type: 'string', enum: ['G', 'Q', 'W', 'E', 'H'], description: 'G permanente, Q variável, W vento ou ação horizontal, E excepcional, H empuxo de terra (permanente com γ próprio)' };
 const psiSchema: JsonSchema = { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, minItems: 3, maxItems: 3, description: 'ψ0, ψ1, ψ2' };
 const casoAd = (b: BuildingModel, id: string) => b.casos?.find((c) => c.id === id);
 
-registrar<{ nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }>({
+type DadosCaso = { descricao?: string; pai?: string; empuxo?: string };
+const descricaoSchema: JsonSchema = { type: 'string', description: 'Referência/descrição da hipótese (texto vazio remove)' };
+const paiSchema: JsonSchema = { type: 'string', description: 'Id de um caso adicional: este caso passa a ser um arranjo dele (arranjos do mesmo pai são incompatíveis entre si; o pai deixa de combinar). Texto vazio remove.' };
+const empuxoSchema: JsonSchema = { type: 'string', description: 'Id de um tipo de empuxo (empuxo.tipo) para um caso H. Texto vazio remove.' };
+/** O caso (id) tem cargas lançadas? */
+const casoComCargas = (b: BuildingModel, id: string) => b.cargas.some((c) => c.caso === id) || !!b.cargasPilar?.some((c) => c.caso === id);
+/** Regras do caso-pai e do tipo de empuxo (criar e editar). */
+function validarDadosCaso(b: BuildingModel, id: string | undefined, natureza: Natureza | undefined, p: DadosCaso): Diagnostico[] {
+  if (p.pai) {
+    const pai = casoAd(b, p.pai);
+    if (!pai) return err('CASO_INEXISTENTE', `Caso-pai ${p.pai} não é um caso adicional.`);
+    if (pai.id === id) return err('CASO_PAI', 'Um caso não pode ser pai de si mesmo.');
+    if (pai.pai) return err('CASO_PAI', `O caso ${pai.nome} já é arranjo de outro: arranjos não se aninham.`);
+    if (id && (b.casos ?? []).some((c) => c.pai === id)) return err('CASO_PAI', 'Este caso tem arranjos: não pode ser arranjo de outro.');
+    if (natureza && pai.natureza !== natureza) return err('CASO_PAI', `O arranjo deve ter a natureza do pai (${pai.natureza}).`);
+    if (casoComCargas(b, pai.id)) return err('CASO_PAI', `O caso ${pai.nome} tem cargas lançadas: mova-as para os arranjos antes.`);
+    if (pai.natureza !== 'Q' && pai.natureza !== 'W') return err('CASO_PAI', 'Só casos variáveis (Q) ou horizontais (W) têm arranjos.');
+  }
+  if (p.empuxo && !b.empuxos?.some((e) => e.id === p.empuxo)) return err('EMPUXO_INEXISTENTE', `Tipo de empuxo ${p.empuxo} não existe.`);
+  if (p.empuxo && natureza && natureza !== 'H') return err('EMPUXO_NATUREZA', 'Tipo de empuxo só em caso de natureza H.');
+  return [];
+}
+
+registrar<{ nome: string; natureza: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] } & DadosCaso>({
   nome: 'caso.criar',
-  descricao: 'Cria um caso de carga adicional com natureza (G, Q, W ou E). Casos com o mesmo `grupo` são incompatíveis (nunca atuam juntos); `simultaneo` liga o caso a outro que atua sempre junto (mesmo fator). ψ das variáveis: padrão o da carga de uso (Q) ou 0,6/0,3/0 (W).',
+  descricao: 'Cria um caso de carga adicional com natureza (G, Q, W, E ou H = empuxo de terra). Casos com o mesmo `grupo` são incompatíveis (nunca atuam juntos); `simultaneo` liga o caso a outro que atua sempre junto (mesmo fator); `pai` torna o caso um arranjo de outro; `descricao` e `empuxo` (tipo de empuxo de um caso H) completam a hipótese. ψ das variáveis: padrão o da carga de uso (Q) ou 0,6/0,3/0 (W).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['nome', 'natureza'], properties: { nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema } },
+  schema: { type: 'object', additionalProperties: false, required: ['nome', 'natureza'], properties: { nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema, descricao: descricaoSchema, pai: paiSchema, empuxo: empuxoSchema } },
   validar(b, p) {
-    if (casosDaObra(b).some((c) => c.nome === p.nome.trim() || c.id === p.nome.trim())) return err('CASO_REPETIDO', `Já existe o caso ${p.nome}.`);
-    return p.simultaneo && !casosDaObra(b).some((c) => c.id === p.simultaneo) ? err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`) : [];
+    if ((b.casos ?? []).some((c) => c.nome === p.nome.trim() || c.id === p.nome.trim()) || casosDaObra(b).some((c) => c.nome === p.nome.trim() || c.id === p.nome.trim())) return err('CASO_REPETIDO', `Já existe o caso ${p.nome}.`);
+    if (p.simultaneo && !casosDaObra(b).some((c) => c.id === p.simultaneo)) return err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`);
+    return validarDadosCaso(b, undefined, p.natureza, p);
   },
   aplicar(d, p) {
-    (d.casos ??= []).push({ id: novoId(d, 'cs'), nome: p.nome.trim(), natureza: p.natureza, ...(p.grupo?.trim() ? { grupo: p.grupo.trim() } : {}), ...(p.simultaneo ? { simultaneo: p.simultaneo } : {}), ...(p.psi ? { psi: [...p.psi] as [number, number, number] } : {}) });
+    (d.casos ??= []).push({ id: novoId(d, 'cs'), nome: p.nome.trim(), natureza: p.natureza, ...(p.grupo?.trim() ? { grupo: p.grupo.trim() } : {}), ...(p.simultaneo ? { simultaneo: p.simultaneo } : {}), ...(p.psi ? { psi: [...p.psi] as [number, number, number] } : {}),
+      ...(p.descricao?.trim() ? { descricao: p.descricao.trim() } : {}), ...(p.pai ? { pai: p.pai } : {}), ...(p.empuxo ? { empuxo: p.empuxo } : {}) });
     return `Caso ${p.nome.trim()} (${p.natureza}) criado.`;
   },
 });
 
-registrar<{ id: string; nome?: string; natureza?: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] }>({
+registrar<{ id: string; nome?: string; natureza?: Natureza; grupo?: string; simultaneo?: string; psi?: [number, number, number] } & DadosCaso>({
   nome: 'caso.editar',
-  descricao: 'Altera nome, natureza, grupo de incompatibilidade (texto vazio = nenhum), caso simultâneo (vazio = nenhum) ou ψ de um caso adicional.',
+  descricao: 'Altera nome, natureza, grupo de incompatibilidade (texto vazio = nenhum), caso simultâneo (vazio = nenhum), ψ, descrição, caso-pai (arranjo) ou tipo de empuxo de um caso adicional.',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema } },
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, natureza: naturezaSchema, grupo: { type: 'string' }, simultaneo: { type: 'string' }, psi: psiSchema, descricao: descricaoSchema, pai: paiSchema, empuxo: empuxoSchema } },
   validar(b, p) {
-    if (!casoAd(b, p.id)) return err('CASO_INEXISTENTE', `Caso adicional ${p.id} não existe.`);
+    const c = casoAd(b, p.id);
+    if (!c) return err('CASO_INEXISTENTE', `Caso adicional ${p.id} não existe.`);
     if (p.simultaneo === p.id) return err('CASO_SIMULTANEO', 'Um caso não pode ser simultâneo a si mesmo.');
-    return p.simultaneo && !casosDaObra(b).some((c) => c.id === p.simultaneo) ? err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`) : [];
+    if (p.simultaneo && !casosDaObra(b).some((x) => x.id === p.simultaneo)) return err('CASO_INEXISTENTE', `Caso ${p.simultaneo} não existe.`);
+    if (p.natureza && p.natureza !== c.natureza && ((b.casos ?? []).some((x) => x.pai === c.id) || c.pai)) return err('CASO_PAI', 'Arranjos e casos-pai mantêm a natureza: desfaça o vínculo antes de mudar.');
+    return validarDadosCaso(b, p.id, p.natureza ?? c.natureza, p);
   },
   aplicar(d, p) {
     const c = d.casos!.find((x) => x.id === p.id)!;
     if (p.nome !== undefined) c.nome = p.nome.trim();
-    if (p.natureza) c.natureza = p.natureza;
+    if (p.natureza) { c.natureza = p.natureza; if (p.natureza !== 'H') delete c.empuxo; }
     if (p.grupo !== undefined) { if (p.grupo.trim()) c.grupo = p.grupo.trim(); else delete c.grupo; }
     if (p.simultaneo !== undefined) { if (p.simultaneo) c.simultaneo = p.simultaneo; else delete c.simultaneo; }
     if (p.psi) c.psi = [...p.psi] as [number, number, number];
+    if (p.descricao !== undefined) { if (p.descricao.trim()) c.descricao = p.descricao.trim(); else delete c.descricao; }
+    if (p.pai !== undefined) { if (p.pai) c.pai = p.pai; else delete c.pai; }
+    if (p.empuxo !== undefined) { if (p.empuxo) c.empuxo = p.empuxo; else delete c.empuxo; }
     return `Caso ${c.nome} alterado.`;
   },
 });
 
 registrar<{ id: string }>({
   nome: 'caso.remover',
-  descricao: 'Remove um caso adicional e as cargas lançadas nele (na planta e nos pilares); casos ligados a ele deixam de ser simultâneos.',
+  descricao: 'Remove um caso adicional (com seus arranjos, se for um caso-pai) e as cargas lançadas neles (na planta e nos pilares); casos ligados a ele deixam de ser simultâneos; sai também das exceções de compatibilidade e das situações do usuário.',
   risco: 'destrutivo',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
   validar: (b, p) => (casoAd(b, p.id) ? [] : err('CASO_INEXISTENTE', `Caso adicional ${p.id} não existe.`)),
   aplicar(d, p) {
     const n0 = d.cargas.length + (d.cargasPilar?.length ?? 0);
-    d.casos = d.casos!.filter((c) => c.id !== p.id);
-    for (const c of d.casos) if (c.simultaneo === p.id) delete c.simultaneo;
+    const fora = new Set([p.id, ...d.casos!.filter((c) => c.pai === p.id).map((c) => c.id)]);
+    d.casos = d.casos!.filter((c) => !fora.has(c.id));
+    for (const c of d.casos) if (c.simultaneo && fora.has(c.simultaneo)) delete c.simultaneo;
     if (!d.casos.length) delete d.casos;
-    d.cargas = d.cargas.filter((c) => c.caso !== p.id);
-    if (d.cargasPilar) { d.cargasPilar = d.cargasPilar.filter((c) => c.caso !== p.id); if (!d.cargasPilar.length) delete d.cargasPilar; }
+    d.cargas = d.cargas.filter((c) => !fora.has(c.caso));
+    if (d.cargasPilar) { d.cargasPilar = d.cargasPilar.filter((c) => !fora.has(c.caso)); if (!d.cargasPilar.length) delete d.cargasPilar; }
+    if (d.compat) { d.compat = d.compat.filter((o) => !fora.has(o.a) && !fora.has(o.b)); if (!d.compat.length) delete d.compat; }
+    for (const s of d.situacoes ?? []) for (const k of ['fatores', 'gama', 'psi'] as const) for (const id of fora) if (s[k]) delete s[k]![id];
     return `Caso removido (${n0 - d.cargas.length - (d.cargasPilar?.length ?? 0)} carga(s) junto).`;
   },
 });

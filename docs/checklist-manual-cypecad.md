@@ -11,25 +11,25 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 25 | 7 | 6 | 3 |
+| 3. Grupos e pavimentos | 41 | 26 | 7 | 5 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 13 | 17 | 53 | 25 |
 | 7. Lajes | 195 | 21 | 32 | 75 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 7 | 8 | 8 | 3 |
+| 10. Cargas | 26 | 16 | 4 | 3 | 3 |
 | 11. Fundações | 70 | 53 | 6 | 6 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **169** | **112** | **297** | **185** |
+| **Total** | **763** | **179** | **108** | **291** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 18 | 19 | 37 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 11 | 13 | 24 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 7 | 14 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 7 | 9 | 16 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
@@ -157,7 +157,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.15 | As categorias da obra são escolhidas nos dados gerais, junto das hipóteses adicionais. | Feito | — | grupo Casos de carga na aba Edifício (N1c) |
 | C3.16 | A categoria é atribuída a cada grupo na edição de grupos, pelo menu de cargas ou pelo de pavimentos. | Feito | — |  |
 | C3.17 | As categorias podem ser definidas antes ou depois dos grupos. No lançamento automático, sempre depois. | Feito | — |  |
-| C3.18 | Várias categorias no mesmo grupo: sem carga variável geral, com cargas lançadas em posições diferentes, cada uma ligada à sua hipótese e categoria. | Falta | N | várias categorias no mesmo grupo [N2a] |
+| C3.18 | Várias categorias no mesmo grupo: sem carga variável geral, com cargas lançadas em posições diferentes, cada uma ligada à sua hipótese e categoria. | Feito | — | N2a: grupo de uso `misto` (sem carga variável geral) e cargas de área lançadas em Q, QB ou QC (`casosParaCarga`, `classesProprias`); a análise leva a carga de área de cada caso ao seu caso (`analitico.ts`); `acoes.test.ts` |
 | C3.19 | Aviso: cada categoria a mais aumenta o número de combinações e o tempo de cálculo. | Fora | — |  |
 | C3.20 | Cota do plano de fundação definida na edição de pavimentos, com reajuste automático das cotas de todos os pavimentos. | Feito | — | profundidade da fundação |
 | C3.21 | Renomear pavimentos na edição de pavimentos. | Feito | — |  |
@@ -778,19 +778,19 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.5 | Sismo por norma genérica: análise modal espectral ou coeficientes por pavimento. | Fora | — | sismo |
 | C10.6 | Verificação de resistência ao fogo (só pela norma espanhola), com dados dos revestimentos de proteção dos elementos. | Falta | N | fogo pela NBR 15200 [N2g] |
 | C10.7 | Lista de todas as hipóteses da obra com edição e criação de hipóteses adicionais (permanente, variável, vento, sismo, neve). | Feito | — | grupo Casos de carga: G e Q fixos e adicionais G/Q/W/E editáveis (N1c) |
-| C10.8 | Hipótese adicional com referência e descrição. | Parcial | N | nome do caso; sem descrição (N1c) [N2a] |
+| C10.8 | Hipótese adicional com referência e descrição. | Feito | — | N2a: `CasoAdicional.descricao` (`caso.criar/editar`), tabela de descrição em Casos de carga e no memorial |
 | C10.9 | Hipótese com várias disposições de carga: compatíveis (atuam sozinhas ou juntas com outras da mesma hipótese). | Feito | — | casos sem grupo são compatíveis e atuam sozinhos ou juntos (N1c) |
 | C10.10 | Disposições incompatíveis: nunca combinadas entre si (ex.: vento em direções diferentes). | Feito | — | grupo de incompatíveis por caso adicional; vento em grupo próprio (N1c) |
 | C10.11 | Disposições simultâneas: sempre atuam juntas; servem para dividir uma hipótese em grupos de cargas mais fáceis de editar e visualizar. | Feito | — | campo Simultâneo com: recebe o mesmo fator do caso ligado (N1c) |
-| C10.12 | Uso das disposições para cargas alternadas e móveis. | Parcial | N | cargas alternadas por casos no mesmo grupo (N1c); sem cargas móveis [N2a] |
-| C10.13 | Com duas ou mais hipóteses adicionais, tabela de compatibilidade entre hipóteses de mesma natureza. | Parcial | N | grupo único entre casos substitui a tabela de compatibilidade (N1c) [N2a] |
-| C10.14 | Estados-limite: controle de execução, categoria de uso e altitude/nível de neve. | Parcial | N | CAA e ψ editáveis [N2a] |
+| C10.12 | Uso das disposições para cargas alternadas e móveis. | Feito | — | N2a: `caso.arranjos` (xadrez e faixas por pano; carga móvel ponto ou linha ao longo de um trajeto, até 60 posições) como casos filhos incompatíveis (`CasoAdicional.pai`); `acoes.test.ts`, e2e N2a |
+| C10.13 | Com duas ou mais hipóteses adicionais, tabela de compatibilidade entre hipóteses de mesma natureza. | Feito | — | N2a: tabela de compatibilidade par a par editável (`caso.compatibilidade`, `BuildingModel.compat`, `relacaoEfetiva`; incompatibilidade por componente) em `CasosArranjos.tsx` |
+| C10.14 | Estados-limite: controle de execução, categoria de uso e altitude/nível de neve. | Feito | — | N2a: controle de execução (`Norma.controle`: normal 1,4, desfavorável × 1,1, pré-moldado 1,3 [a confirmar os itens]) e estados-limite selecionáveis (`acoes.ts`, `estados.definir`); categoria de uso por casos (R7-0); altitude/neve fora do escopo (clima sem dado) |
 | C10.15 | Consulta das combinações geradas com os coeficientes de ponderação e de combinação. | Feito | — | quadro Combinações na aba Análise, com fatores por caso e exportação em CSV (N1c) |
-| C10.16 | Configuração das combinações por estado-limite e por material: concreto, fundações, aço dobrado a frio, aço laminado, madeira, tensões no terreno e deslocamentos. | Falta | N | [N2a] |
-| C10.17 | Situações de projeto definidas pelo usuário: criar, apagar, copiar, editar, biblioteca para outras obras e criar a partir das situações da norma. | Falta | N | combinações do usuário (existe no Pórtico, não no edifício) [N2a] |
-| C10.18 | Situação nova: referência e lista de combinações, definidas por coeficientes de segurança ou por coeficientes de segurança e de combinação. | Falta | N | [N2a] |
-| C10.19 | Importar as situações da norma e ajustá-las, reduzindo erros de digitação. | Falta | N | [N2a] |
-| C10.20 | Alerta de responsabilidade: situações do usuário não devem resultar em segurança menor que a da norma. | Falta | N | [N2a] |
+| C10.16 | Configuração das combinações por estado-limite e por material: concreto, fundações, aço dobrado a frio, aço laminado, madeira, tensões no terreno e deslocamentos. | Feito | — | N2a: grupos concreto, fundações, tensões no solo, deslocamentos, fissuração, flecha e equilíbrio com ativo e modo norma/usuário (`ESTADOS_INFO`, `combinacoesDoEstado`); aço, madeira e alumínio fora do escopo do edifício de concreto |
+| C10.17 | Situações de projeto definidas pelo usuário: criar, apagar, copiar, editar, biblioteca para outras obras e criar a partir das situações da norma. | Feito | — | N2a: situações do usuário por grupo (`situacao.criar/editar/remover/importar`, `BuildingModel.situacoes`), copiar, apagar, editar, biblioteca (`storage.ts`, tipo `combinacoes`) em `EstadosLimite.tsx` |
+| C10.18 | Situação nova: referência e lista de combinações, definidas por coeficientes de segurança ou por coeficientes de segurança e de combinação. | Feito | — | N2a: situação com fatores finais por caso ou γ e ψ separados (fator = γ·ψ) e tipo normal, construção/especial ou excepcional |
+| C10.19 | Importar as situações da norma e ajustá-las, reduzindo erros de digitação. | Feito | — | N2a: `situacao.importar` reproduz as combinações da norma do grupo (com a lista da análise, inclusive a ampliação do vento por 0,95·γz); colagem de tabela do Excel |
+| C10.20 | Alerta de responsabilidade: situações do usuário não devem resultar em segurança menor que a da norma. | Feito | — | N2a: `alertasSituacoes`/`textosAlertas` (fator máximo do caso abaixo do da norma): COMB_USUARIO na revisão, `Dimensionamento.avisosAcoes`, janela das situações e memorial |
 | | **10.2 Cargas por grupo e na fundação** | | | |
 | C10.21 | Sobrecarga de uso definida por grupo ao criar grupos, aplicada nos pavimentos, sem atuar nos furos. | Feito | — | sobrecarga por grupo, fora dos furos |
 | C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Falta | FU | radier |
@@ -974,3 +974,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **20/10/2026 — fatia R7a (tabelas de armadura editáveis, núcleo e interface).** C13.1, C13.2, C13.3 e C13.5 passam a Feito: tabelas de vigas, estribos, pilares e lajes (`src/core/building/tabelasArmadura.ts`, comandos `tabela.definir` e `tabela.restaurar`, grupo Tabelas de armadura, importar e exportar JSON, atalho da lista de erros), erros FORA_TABELA e ARM_MANUAL e avisos FORA_TABELA_PILAR e FORA_TABELA_LAJE.
   - Situação: Feito 143 → 147; Parcial 126 → 125; Falta 309 → 306; Fora 185 → 185.
   - Pendências por frente: R 41 → 37; demais sem mudança.
+
+- **21/10/2026 — fatia N2a (ações e combinações).** C3.18, C10.8, C10.12, C10.13, C10.14, C10.16, C10.17, C10.18, C10.19 e C10.20 passam a Feito: grupo de uso misto com cargas de área por categoria, descrição do caso, arranjos (xadrez, faixas e carga móvel) como casos filhos, tabela de compatibilidade, controle de execução, estados-limite selecionáveis, situações do usuário com importação da norma, colagem, biblioteca e alerta de responsabilidade (`src/core/building/acoes.ts`, `src/core/commands/acoes.ts`, `EstadosLimite.tsx`, `CasosArranjos.tsx`; e2e N2a). Correção junto: cargas de área em casos próprios iam para o caso Q (`analitico.ts`).
+  - Situação: Feito 164 → 174; Parcial 113 → 109; Falta 301 → 295; Fora 185 → 185.
+  - Pendências por frente: N 24 → 14; demais sem mudança.

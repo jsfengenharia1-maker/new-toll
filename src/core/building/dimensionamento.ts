@@ -8,7 +8,8 @@ import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, fla
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
-import { combinacoesEdificio, type CombinacaoEd } from './combinacoes';
+import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
+import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type ResultadoEQU } from './acoes';
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
@@ -206,7 +207,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
   const obra = casosDaObra(b), natureza = (id: string) => obra.find((x) => x.id === id)?.natureza ?? 'G';
   const psi2 = (id: string) => obra.find((x) => x.id === id)?.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3;
-  const fQP: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'G' ? 1 : natureza(id) === 'Q' ? psi2(id) : 0]));
+  const fQP: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'G' || natureza(id) === 'H' ? 1 : natureza(id) === 'Q' ? psi2(id) : 0]));
   const fQ: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'Q' ? 1 : 0]));
   // parte vertical de cada combinação (a redistribuição e os mínimos valem para as cargas verticais)
   const horiz = new Set([...(an.vento?.casos ?? []).map((x) => x.nome), ...obra.filter((x) => x.natureza === 'W').map((x) => x.id)]);
@@ -919,9 +920,9 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
   // natureza e ψ2 de cada caso, na ordem dos resultados da grelha
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((c) => c.id === id)?.natureza ?? 'G');
   const psiQP = an.casos.map((id) => { const c = obra.find((x) => x.id === id); return c?.natureza === 'Q' ? (c.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3) : 0; });
-  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'Q' ? gm.q : 0));
-  const fQP = nat.map((n, ic) => (n === 'G' ? 1 : n === 'Q' ? psiQP[ic] : 0)), fQ = nat.map((n) => (n === 'Q' ? 1 : 0));
-  const fFreq = an.casos.map((id, ic) => { const c = obra.find((x) => x.id === id); return nat[ic] === 'G' ? 1 : nat[ic] === 'Q' ? (c?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
+  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
+  const fQP = nat.map((n, ic) => (n === 'G' || n === 'H' ? 1 : n === 'Q' ? psiQP[ic] : 0)), fQ = nat.map((n) => (n === 'Q' ? 1 : 0));
+  const fFreq = an.casos.map((id, ic) => { const c = obra.find((x) => x.id === id); return nat[ic] === 'G' || nat[ic] === 'H' ? 1 : nat[ic] === 'Q' ? (c?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
   const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
   const af = deltaXi(op.t0Flecha); // fluência (NBR 6118, 17.3.2.1.2), ρ′ = 0
   const fatorTotal = op.fatorFlechaLaje > 0 ? op.fatorFlechaLaje : 1 + af;
@@ -1053,7 +1054,11 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
   fundacoes?: ResultadoFundacao[];
   /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
-  vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[] }
+  vigasFundacao?: ResultadoVigaFundacao[]; avisosFundacao?: string[];
+  /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
+  equilibrio?: ResultadoEQU[];
+  /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
+  avisosAcoes?: string[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao'> {
@@ -1066,8 +1071,11 @@ export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: Opc
  * `fundacao`: opções do cálculo das fundações (modo, resultados anteriores, níveis).
  */
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
-  const combs = combinacoesEdificio(b, an), elu = combs.filter((x) => x.tipo === 'ELU'), freq = combs.filter((x) => x.tipo === 'FREQ');
+  const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
   const d: Dimensionamento = { vigas: dimensionarVigas(b, an, elu, freq), pilares: dimensionarPilares(b, an, elu), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
+  if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
+  const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
+  if (avisosAcoes.length) d.avisosAcoes = avisosAcoes;
   d.detalhes = detalharVigas(b, d, an.opcoes);
   d.resumoAcoVigas = resumoAcoVigas(b, d.detalhes, an.opcoes.perdasAco);
   d.detalhesPilares = detalharPilares(b, d, an.opcoes);

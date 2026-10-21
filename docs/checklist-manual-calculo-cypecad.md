@@ -14,30 +14,30 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 10 | 12 | 27 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 40 | 25 | 14 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 32 | 11 | 2 | 14 |
-| 1.6 Materiais (págs. 37–38) | 11 | 5 | 3 | 0 | 3 |
-| 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 2 | 3 | 0 | 0 |
-| 1.8 Combinações (págs. 39–41) | 8 | 2 | 1 | 1 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 27 | 20 | 56 | 13 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 34 | 9 | 2 | 14 |
+| 1.6 Materiais (págs. 37–38) | 11 | 6 | 2 | 0 | 3 |
+| 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
+| 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 28 | 20 | 55 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 21 | 19 | 19 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 38 | 27 | 32 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 9 | 2 | 30 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **211** | **147** | **192** | **111** |
+| **Total** | **661** | **220** | **140** | **190** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 63 | 30 | 93 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 54 | 28 | 82 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 42 | 19 | 61 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 23 | 119 | 142 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 119 | 144 |
 | FU — Fundações | 6 | 13 | 19 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **147** | **192** | **339** |
+| **Total** | **140** | **190** | **330** |
 
 ## Divergências de premissa
 
@@ -290,8 +290,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.9 | Sobrecarga de uso uniforme no pavimento, aplicada automaticamente às barras de cada grupo de pavimentos. | Feito | — | q por grupo, caso Q automático |
 | K1.5.10 | Casos gerados automaticamente: permanente, sobrecarga, vento (X e Y conforme norma e larguras de fachada) e sismo (conforme norma). | Feito | — | G, Q e vento (4 direções × centrado/±e); sismo fora |
 | K1.5.11 | Casos adicionais (antes "cargas especiais") pontuais, lineares ou superficiais, de natureza permanente, sobrecarga, vento, neve, sismo; combináveis com os automáticos (exceto com vento e sismo automáticos). | Feito | — | casos adicionais G, Q, W e E com cargas de ponto, linha e área e nos pilares (N1c); sismo fora do escopo |
-| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | N | ações excepcionais (natureza E) com combinações próprias (N1c); sem empuxo de terra [N2a] |
-| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Parcial | N | grupo de incompatíveis e caso simultâneo entre casos adicionais (N1c); sem arranjos dentro do mesmo caso nem tabela de compatibilidade [N2a] |
+| K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | E | N2a: natureza H (empuxo de terra, permanente com γh), tipos de empuxo reutilizáveis (`empuxo.tipo`, `empuxo.ts`, `diagramaEmpuxo`) e casos acidentais pelas naturezas Q/W/E; aplicação às paredes de subsolo na E1c |
+| K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Feito | — | N2a: arranjos como casos filhos incompatíveis (`pai`), tabela de compatibilidade compatível/incompatível/simultâneo e opção de os adicionais se combinarem entre si (`Norma.combinarAdicionais`) |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
 | K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) [N2g] |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
@@ -302,13 +302,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.20 | Vento gerado automaticamente por pavimento, conforme a norma, em X e Y (ou um só) e nos dois sentidos (+X, −X, +Y, −Y). | Feito | — | NBR 6123 por pavimento a 0°, 90°, 180°, 270° (`vento.ts`) |
 | K1.5.21 | Coeficiente de carga por direção e sentido, multiplicando a pressão total. | Feito | — | vento.definir: Ca por direção e coeficiente por sentido (+X, −X, +Y, −Y), multiplicando a força (N1c) |
 | K1.5.22 | Edifício isolado: pressão ≈ 2/3 (0,66) a barlavento + sucção ≈ 1/3 (0,33) a sotavento → coeficiente 1. | Feito | — | o Ca da NBR 6123 já soma pressão e sucção |
-| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Parcial | N | coeficiente por sentido (abrigo por vizinho) e fator de vizinhança 1 a 1,3 (NBR 6123, 6.4), informados pelo usuário; sem ábaco automático (N1c) [N2a] |
+| K1.5.23 | Edifício abrigado por vizinho: ajustar coeficientes (ex.: +X = 0,33 só sucção; −X = 0,66 só pressão). | Parcial | N | coeficiente por sentido e fator de vizinhança informados; N2a: fator de vizinhança pelo ábaco (tabela de pontos, `abacosVento.ts`) pronto, mas a tabela vem vazia: pontos da figura da NBR 6123 a fornecer pelo usuário |
 | K1.5.24 | Largura de banda = comprimento da fachada perpendicular ao vento, por pavimento (pode variar). | Feito | — | largura da fachada por pavimento pela extensão em planta |
 | K1.5.25 | Zonas independentes num pavimento: carga repartida na proporção da largura de cada zona (b1, b2 pelas coordenadas dos pilares extremos): Bi = bi/(b1+b2)·B. | Feito | — | vento do pavimento repartido entre zonas independentes: Bi = bi/Σb·B, aplicado no centro de cada zona (N1c) |
 | K1.5.26 | Área exposta = semissoma das alturas dos pavimentos acima e abaixo × largura de banda; força = área × pressão na cota × coeficiente de carga. | Feito | — | altura de influência = semissoma; F = Ca·q·largura·altura |
-| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Parcial | N | platibanda (m) somada à faixa de exposição do último pavimento; sem a largura corrigida b' pela forma do texto (N1c) [N2a] |
+| K1.5.27 | Platibanda/parede de cobertura: largura de banda corrigida b' proporcional à altura (b' = b·(2a+h)/h, forma do texto). | Feito | — | N2a: largura corrigida b′ = b·(2a + h)/h aplicada à meia faixa do último pavimento (`ForcaPavimento.larguraCorrigida`, `vento.ts`); mesma área de exposição b·(h/2 + a) |
 | K1.5.28 | Método geral: curva altura–pressão de biblioteca (editável), interpolada nas cotas dos pavimentos. | Feito | — | perfil S2(z) da NBR 6123 nas cotas dos pavimentos |
-| K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado à mão (padrão 1,3); ábaco não digitalizado [N2a] |
+| K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado (padrão 1,3); N2a: Ca automático pelo ábaco de baixa/alta turbulência (curvas por h/l1, interpolação) pronto, tabelas vazias: pontos da figura da NBR 6123 a fornecer pelo usuário; forma cilíndrica fora |
 | K1.5.30 | Coeficiente de rajada para locais expostos (vales, encostas). | Feito | — | S1 (topográfico) e S3 editáveis |
 | K1.5.31 | Força total por pavimento = pressão × área × coef. de forma × coef. de rajada; aplicada no centro geométrico do contorno do pavimento. | Feito | — | força no mestre (centro das lajes) com excentricidade ± 0,075·largura |
 | K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Parcial | V | forças por pavimento na aba Análise; não no memorial nem em planta [V5] |
@@ -346,7 +346,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.6.1 | Materiais escolhidos de listas; propriedades em arquivo. | Parcial | N | fck, aço e CAA por obra; sem biblioteca de materiais [N2a] |
+| K1.6.1 | Materiais escolhidos de listas; propriedades em arquivo. | Feito | — | N2a: biblioteca de materiais (`PerfilMateriais`, `comandosDoPerfil`, `MateriaisBiblioteca.tsx`, tipo `materiais` em `storage.ts`) |
 | K1.6.2 | Concreto: resistência característica, coeficiente redutor, módulo secante, ν = 0,2, conforme norma. | Feito | — | fck, γc 1,4, Ecs (NBR 8.2.8) e ν 0,2 |
 | K1.6.3 | Concreto pode diferir por elemento e, nos pilares, por pavimento. | Feito | — | materiais.definir: fck por tipo de elemento e dos pilares por lance; Ecs de cada barra pelo seu fck (N1b) |
 | K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Feito | — | aço por posição com fyk 500/600 e γs da obra no dimensionamento (N1b) |
@@ -364,17 +364,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.7.1 | Coeficientes parciais conforme materiais, ações e método de cálculo da norma escolhida. | Feito | — | γc, γs, γg e γq editáveis no edifício (N1b) |
 | K1.7.2 | Método dos estados-limites (ou o método próprio de cada norma). | Feito | — | método dos estados-limites |
-| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Parcial | N | γc e γs editáveis (N1b); sem nível de controle de execução que os escolha [N2a] |
-| K1.7.4 | Coeficientes das ações conforme nível de controle, danos previsíveis e uso; distinção entre efeito favorável/desfavorável e origem da ação. | Parcial | N | G favorável 1,0 / desfavorável 1,4; sem γ por origem (Tabela 11.1 completa) [N2a] |
-| K1.7.5 | Coeficientes parciais e de simultaneidade lidos de arquivo de combinações por norma (não editável); o usuário pode criar combinações próprias. | Parcial | N | ψ da carga de uso editável; combinações próprias só no Pórtico 2D [N2a] |
+| K1.7.3 | Coeficientes de minoração dos materiais definidos por norma; ao escolher o material indica-se o nível de controle de execução, que fixa o coeficiente pré-definido. | Feito | — | N2a: `Norma.controle` escolhe o γc padrão (`gamaCDoControle`), editável em materiais |
+| K1.7.4 | Coeficientes das ações conforme nível de controle, danos previsíveis e uso; distinção entre efeito favorável/desfavorável e origem da ação. | Feito | — | N2a: tabela de γ por origem e tipo de combinação (`GAMA_ORIGEM`: NBR 6118 Tabela 11.1 e linhas de empuxo e indiretas da NBR 8681 [a confirmar]); γh do empuxo em `gamas` |
+| K1.7.5 | Coeficientes parciais e de simultaneidade lidos de arquivo de combinações por norma (não editável); o usuário pode criar combinações próprias. | Feito | — | N2a: combinações do usuário no edifício (situações por grupo de estados, γ e ψ separados), além das da norma |
 
 ## 1.8 Combinações (págs. 39–41)
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.8.1 | Estados-limite verificados conforme a norma: equilíbrio, tensões, ruptura, fissuração, deformações; podem depender do material. | Parcial | N | ELU, fissuração de vigas e lajes maciças, flecha (N1d/N1e) e deslocamentos laterais (R1); sem equilíbrio (tombamento) [N2a] |
+| K1.8.1 | Estados-limite verificados conforme a norma: equilíbrio, tensões, ruptura, fissuração, deformações; podem depender do material. | Feito | — | N2a: equilíbrio global (tombamento, EQU) com γ de equilíbrio editáveis (`equilibrioGlobal`, opções `equGamaFav` e `equGamaVento` [a confirmar]); fissuração, flecha, deslocamentos e ELU já existiam |
 | K1.8.2 | Grupos de combinações gerados automaticamente: ELU concreto (seções); ELU concreto de fundações; tensões no solo; deslocamentos (máximos da estrutura); ELU aço laminado e soldado; ELU aço formado a frio; ELU madeira; ELU alumínio. | Feito | — | ELU de concreto, raras para fundação e tensões no solo, frequente para deslocamentos (R1); aço, madeira e alumínio fora |
-| K1.8.3 | Usuário ativa os estados a verificar e os coeficientes por norma ativa. | Falta | N | escolha dos estados-limite a verificar [N2a] |
+| K1.8.3 | Usuário ativa os estados a verificar e os coeficientes por norma ativa. | Feito | — | N2a: o usuário ativa os grupos de estados e escolhe o modo (`estados.definir`, grupo Estados-limite e combinações); desativar tira os avisos do grupo da revisão |
 | K1.8.4 | ELU não se aplicam em normas de tensões admissíveis. | Fora | — | normas de tensões admissíveis |
 | K1.8.5 | Situação não sísmica com coeficientes de combinação: Σγg·Gk + γQ1·ψp1·Qk1 + Σ γQi·ψai·Qki (i>1). | Feito | — | ELU normais com ψ0 (`nbrCombinations`, NBR 8681) |
 | K1.8.6 | Situação não sísmica sem coeficientes de combinação: Σγg·Gk + Σγq·Qk. | Fora | — | formato sem coeficientes de combinação de outras normas |
@@ -413,7 +413,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
 | K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Feito | — | combinações automáticas pelos casos e grupos de incompatíveis (N1c); cada carga vinculada a G, Q ou a um caso adicional |
-| K1.9.27 | Grupos de combinações selecionáveis: concreto, fundações, aço frio, aço laminado, madeira, alumínio, tensões no solo, deslocamentos. | Parcial | N | ELU e raras para fundação; sem seleção de grupos [N2a] |
+| K1.9.27 | Grupos de combinações selecionáveis: concreto, fundações, aço frio, aço laminado, madeira, alumínio, tensões no solo, deslocamentos. | Feito | — | N2a: grupos selecionáveis concreto, fundações, tensões no solo, deslocamentos, fissuração, flecha e equilíbrio; aço, madeira e alumínio fora do escopo |
 | | **1.9.8 Pavimentos/grupos, pilares, arranques e pilares-parede (págs. 47–50)** | | | |
 | K1.9.28 | Grupos: nome, permanente e sobrecarga; cota de fundação, nome do pavimento e alturas entre pavimentos. | Feito | — | grupos (nome, uso, gRev, q), pavimentos com cota e nível de fundação |
 | K1.9.29 | Altura do pavimento = diferença entre faces superiores das lajes (plano de referência superior médio); cotas calculadas. | Feito | — | cota = topo da laje; pé-direito calculado |
@@ -434,7 +434,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.43 | Vigas mistas remetidas a capítulo próprio. | Fora | — | vigas mistas |
 | K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Falta | E | paredes de concreto e de alvenaria portante (alvenaria só como carga) [E1c] |
 | K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Falta | E | paredes (pavimentos e espessuras) [E1c] |
-| K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Falta | N | empuxo de terra em paredes de subsolo [N2a] |
+| K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Parcial | E | N2a: tipo de empuxo com estratos (peso aparente e submerso, φ), K0/Rankine/Coulomb com talude, NA, drenagem e sobrecarga, diagrama de pressões; aplicação às paredes de subsolo na E1c |
 | K1.9.47 | Base da parede: viga de fundação (sem vínculo externo), sapata corrida (sem vínculo externo), com vínculo externo (com ou sem sapata), viga sem vínculo externo. | Falta | FU | base da parede (viga, sapata corrida) |
 | K1.9.48 | Sapata da parede: tensão admissível e coeficiente de reação; padrão alto 100 000 kN/m³ para evitar recalque diferencial com pilares de vinculação externa. | Falta | FU | sapata corrida com coeficiente de reação |
 | K1.9.49 | Fundação toda flutuante: usar coeficiente compatível com solo e dimensões. | Falta | FU | fundação flutuante (Winkler) |
@@ -898,3 +898,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **20/10/2026 — fatia R7a (tabelas de armadura editáveis, núcleo e interface).** K1.4.50, K1.4.73, K1.12.4-3, K1.12.4-9, K1.12.4-11, K1.12.11 e K1.13.2.2-7 passam a Feito: escolha pelas tabelas em vigas (menor solução por faixa de largura × altura; φ25 forçado fora de tabela), estribos (bitolas, espaçamento mínimo e máximo, ramos 2/4/6), pilares (bitolas e espaçamentos; faces opostas com números diferentes; simetria por tolerância, opção pilarSimetria: sistema 0 %, perfil NBR sempre simétrica; estribo por bitola; armadura própria e ARM_MANUAL) e lajes (faixas de espessura). Seguem Parcial, com o resto na R7b ou R7c: K1.12.4-2, K1.12.4-12, K1.12.6, K1.12.7, K1.12.12, K1.12.18, K1.12.1-6 e K1.12.1-7. Os resultados de pilares do perfil do sistema mudam (menos aço, disposições não simétricas); o perfil NBR reproduz os anteriores (teste).
   - Situação: Feito 203 → 210; Parcial 155 → 148; Falta 192 → 192; Fora 111 → 111.
   - Pendências por frente: R 68 → 61; demais sem mudança.
+
+- **21/10/2026 — fatia N2a (ações e combinações).** K1.5.13, K1.5.27, K1.6.1, K1.7.3, K1.7.4, K1.7.5, K1.8.1, K1.8.3 e K1.9.27 passam a Feito (compatibilidade e arranjos, largura corrigida da platibanda, biblioteca de materiais, controle de execução, γ por origem, situações do usuário, equilíbrio global e estados-limite selecionáveis). K1.5.12 e K1.9.46 (empuxo de terra: tipos, diagrama e caso H) ficam Parcial com a aplicação às paredes na E1c (frente E). K1.5.23 e K1.5.29 seguem Parcial: ábacos de vizinhança e de Ca prontos como tabelas de pontos, mas vazios até o usuário fornecer os pontos da NBR 6123.
+  - Situação: Feito 210 → 219; Parcial 148 → 141; Falta 192 → 190; Fora 111 → 111.
+  - Pendências por frente: N 93 → 82; E 142 → 144; demais sem mudança.
