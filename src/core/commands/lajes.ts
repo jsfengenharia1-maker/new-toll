@@ -133,6 +133,43 @@ registrar<{ id: string; contorno: P[] }>({
   aplicar(d, p) { const l = d.lajes.find((x) => x.id === p.id)!; l.furos = [...(l.furos ?? []), anti(p.contorno)]; return `Abertura em ${l.nome}.`; },
 });
 
+registrar<{ id: string; adicionar?: { pilar?: string; ponto?: P; linhas: number; barras: number; phi: number; s?: number }[]; remover?: string[]; pilares?: string[]; limpar?: boolean }>({
+  nome: 'laje.puncao',
+  descricao: 'Armadura de punção informada numa laje (N2d), somada à calculada: `adicionar` grupos { pilar (ou ponto [x, y]), linhas radiais, barras por linha, phi (mm), s (m, espaçamento radial) }; `remover` por id de grupo, `pilares` (todos os grupos desses pilares) ou `limpar`.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+    id: { type: 'string', description: 'laje' },
+    adicionar: { type: 'array', minItems: 1, items: { type: 'object', additionalProperties: false, required: ['linhas', 'barras', 'phi'], properties: {
+      pilar: { type: 'string' }, ponto, linhas: { type: 'integer', minimum: 2, maximum: 64 }, barras: { type: 'integer', minimum: 1, maximum: 14 },
+      phi: { type: 'number', enum: [5, 6.3, 8, 10, 12.5, 16] }, s: { type: 'number', minimum: 0.03, maximum: 0.3, description: 'espaçamento radial (m); padrão 0,15' },
+    } } },
+    remover: ids, pilares: ids, limpar: { type: 'boolean' },
+  } },
+  validar(b, p) {
+    if (!b.lajes.some((l) => l.id === p.id)) return err('LAJE_INEXISTENTE', `Laje ${p.id} não existe.`);
+    const sem = [...(p.adicionar ?? []).flatMap((g) => (g.pilar ? [g.pilar] : [])), ...(p.pilares ?? [])].filter((id) => !b.pilares.some((x) => x.id === id));
+    if (sem.length) return err('PILAR_INEXISTENTE', `Pilar ${sem.join(', ')} não existe.`);
+    return (p.adicionar ?? []).some((g) => !g.pilar && !g.ponto) ? err('PARAMETRO_INVALIDO', 'Cada grupo precisa de `pilar` ou `ponto`.') : [];
+  },
+  aplicar(d, p) {
+    const l = d.lajes.find((x) => x.id === p.id)!;
+    let n = 0;
+    if (p.limpar) { n += l.puncao?.length ?? 0; delete l.puncao; }
+    if (l.puncao && (p.remover || p.pilares)) {
+      const antes = l.puncao.length;
+      l.puncao = l.puncao.filter((g) => !p.remover?.includes(g.id) && !(g.pilar && p.pilares?.includes(g.pilar)));
+      n += antes - l.puncao.length;
+    }
+    for (const g of p.adicionar ?? []) {
+      (l.puncao ??= []).push({ id: novoId(d, 'gp'), ...(g.pilar ? { pilar: g.pilar } : { ponto: [r6(g.ponto![0]), r6(g.ponto![1])] as P }), linhas: g.linhas, barras: g.barras, phi: g.phi, ...(g.s !== undefined ? { s: g.s } : {}) });
+      n++;
+    }
+    if (l.puncao && !l.puncao.length) delete l.puncao;
+    return `Armadura de punção de ${l.nome}: ${p.adicionar?.length ? `${p.adicionar.length} grupo(s) adicionado(s)` : `${n} grupo(s) removido(s)`}.`;
+  },
+});
+
 registrar<{ ids: string[] }>({
   nome: 'laje.remover',
   descricao: 'Remove lajes.',

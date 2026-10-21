@@ -81,6 +81,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'armadura.desbloquear': () => ({ tipo: 'viga' }),
   'tabela.definir': () => ({ tipo: 'pilares', tabela: { id: 'p25', nome: 'Pilares φ ≥ 16', bitolas: [16, 20, 25], espacamentos: [30, 20, 15], estribos: [{ phiAte: 20, phiT: 6.3, sMax: 15 }] } }),
   'tabela.restaurar': () => ({ tipos: ['estribos'] }),
+  'laje.puncao': (b) => ({ id: b.lajes[0].id, adicionar: [{ pilar: b.pilares[0].id, linhas: 8, barras: 3, phi: 6.3, s: 0.12 }] }),
   'laje.armaduraVigotas': (b) => ({ ids: [b.lajes[1].id], inf: { n: 1, phi: 8 }, sup: { n: 2, phi: 6.3 } }),
   'viga.detalhe': (b) => ({ id: b.vigas[0].id, barras: [{ pos: 'N1', s0: 0.1, ganchos: [false, true], perna: 12 }], zonas: [{ zona: 0, phi: 6.3, s: 0.15, ramos: 4 }], fatorEmenda: 1.5 }),
   'pilar.detalhe': (b) => ({ id: b.pilares[0].id, espera: 0.8, passagens: [{ pavimento: lancesDoPilar(b, b.pilares[0])[0].id, emenda: 0.7, ancoragem: 0.6 }] }),

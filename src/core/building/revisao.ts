@@ -67,6 +67,16 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'VIGOTA_MACICO', nivel: 'aviso', re: /^Vigotas: maciçamento/, descricao: 'Vigotas: maciçamento extenso (> 2h ou > 20 % do vão)' },
   { codigo: 'VIGOTA_APOIO', nivel: 'aviso', re: /^Vigotas: tração inferior/, descricao: 'Vigotas: momento positivo no apoio' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
+  // punção e cortante das lajes (N2d)
+  { codigo: 'PUNCAO_BIELA', nivel: 'erro', re: /^Punção em .*τSd/, descricao: 'Punção: compressão diagonal (τSd > τRd2 no contorno C)' },
+  { codigo: 'PUNCAO_SEM_SOLUCAO', nivel: 'erro', re: /^(Punção|Cortante da laje) em .*sem solução/, descricao: 'Punção ou cortante da laje sem solução com armadura (aumente a espessura)' },
+  { codigo: 'PUNCAO_ARMADURA', nivel: 'aviso', re: /^Punção em .*armadura de/, descricao: 'Punção: armadura de punção necessária' },
+  { codigo: 'CORTANTE_LAJE_ARM', nivel: 'aviso', re: /^Cortante da laje( em .*)? \(armadura transversal\)/, descricao: 'Cortante da laje: armadura transversal necessária' },
+  { codigo: 'CORTANTE_LAJE', nivel: 'erro', re: /^Cortante da laje/, descricao: 'Cortante da laje acima de VRd2 ou sem armadura possível (laje com h < 15 cm)' },
+  { codigo: 'PUNCAO_ESP', nivel: 'aviso', re: /^Punção em .*espaçamento informado/, descricao: 'Punção: espaçamento radial informado maior que 0,75d' },
+  { codigo: 'PUNCAO_INFORMADA', nivel: 'info', re: /^Armadura de punção informada/, descricao: 'Armadura de punção informada atende' },
+  { codigo: 'VIGA_CHATA_LARGA', nivel: 'aviso', re: /^Viga chata /, descricao: 'Viga chata mais larga que o apoio em mais de uma altura (punção verificada)' },
+  { codigo: 'PUNCAO_PAREDE', nivel: 'aviso', re: /^Pilar-parede /, descricao: 'Pilar-parede: tensões não uniformes no contorno de punção' },
   // fundações do edifício (FU1)
   { codigo: 'FUND_EXC_SEM_VIGA', nivel: 'erro', re: /^Fundação excêntrica sem viga de equilíbrio/, descricao: 'Fundação de divisa ou de canto sem viga de equilíbrio' },
   { codigo: 'FUND_SEM_SOLUCAO', nivel: 'erro', re: /^Fundação sem solução/, descricao: 'Fundação: nenhuma solução atende' },

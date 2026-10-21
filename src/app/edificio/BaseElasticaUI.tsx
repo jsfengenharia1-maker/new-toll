@@ -8,6 +8,7 @@ import { classificar } from '../../core/building/revisao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import { TABELA_K, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
+import { CartaoPuncao } from './Puncao';
 import { centroPilar, contornoPilar, type BuildingModel } from '../../core/building/types';
 import { Button, Group, Hint, KV, NumField, OptNumField, Pill, TextField } from '../ui';
 
@@ -177,6 +178,13 @@ export function JanelaBaseElastica({ id }: { id: string }) {
         ...(v ? [['Md inf. / sup.', `${fmt(v.Md.inf, 1)} / ${fmt(v.Md.sup, 1)} kN·m`], ['Vd', `${fmt(v.Vd, 1)} kN`], ['Armadura', `inf. ${v.armadura.inf.barras ? `${v.armadura.inf.barras.n} φ${fmt(v.armadura.inf.barras.phi, 1)}` : '—'}; sup. ${v.armadura.sup.barras ? `${v.armadura.sup.barras.n} φ${fmt(v.armadura.sup.barras.phi, 1)}` : '—'}${v.armadura.estribo ? `; estribo φ${fmt(v.armadura.estribo.phi, 1)} c/${fmt(v.armadura.estribo.s * 100, 0)}` : ''}`]] as [string, string][] : []),
       ]} />
       <Mensagens msgs={x.mensagens} />
+      {!!r?.puncao?.length && (
+        <div data-puncao-radier={r.puncao.length}>
+          <h4>Punção sob os pilares</h4>
+          <p className="small">Combinação ELU de maior τSd em C′ por pilar; a reação do solo (pressão k·w média nos nós vizinhos) é descontada de FSd dentro de cada contorno.</p>
+          {r.puncao.map((q) => <CartaoPuncao key={q.id} r={q} semEditor />)}
+        </div>
+      )}
       <p className="small"><b>{modo === 'tensao' ? 'Tensão no solo por nó (envoltória das raras)' : 'Recalque por nó (envoltória das raras)'}</b> <span className="muted">— troque no seletor “Mapa” da planta de fundação</span></p>
       <MapaPorNo b={b} id={id} nos={x.nos} modo={modo} escala={ref} />
       <div className="mapa-leg">

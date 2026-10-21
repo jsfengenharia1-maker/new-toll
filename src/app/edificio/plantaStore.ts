@@ -5,7 +5,7 @@ import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -31,6 +31,11 @@ interface PState {
   armaduraLajes: 'nenhuma' | 'inf' | 'sup';
   /** O que mostrar na elevação do detalhamento das vigas (R7b; não vai para o arquivo). */
   detMostrar: { inf: boolean; sup: boolean; pele: boolean; estribos: boolean; secao: boolean };
+  /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
+  camadaPuncao: boolean;
+  /** Ferramenta Armadura de punção: adicionar ou apagar grupos ao clicar num pilar, e o grupo lançado (linhas radiais, barras por linha, φ em mm, espaçamento em m). */
+  puncaoModo: 'adicionar' | 'apagar';
+  puncaoGrupo: { linhas: number; barras: number; phi: number; s: number };
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
@@ -107,6 +112,9 @@ export const usePlanta = create<PState>((set) => ({
   armaduraLajes: 'nenhuma',
   detMostrar: { inf: true, sup: true, pele: true, estribos: true, secao: true },
   vigotasTodas: false,
+  camadaPuncao: false,
+  puncaoModo: 'adicionar',
+  puncaoGrupo: { linhas: 8, barras: 3, phi: 6.3, s: 0.12 },
   janela: null,
   foco: null,
   tabelaFoco: null,

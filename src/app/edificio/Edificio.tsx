@@ -29,7 +29,7 @@ import { CasosGrupo } from './Casos';
 import { AbacosVentoGrupo } from './AbacosVento';
 import { EmpuxoGrupo } from './Empuxo';
 import { EstadosGrupo } from './EstadosLimite';
-import { BloqueioLote } from './Armadura';
+import { BloqueioLote, executarERecalcular } from './Armadura';
 import { FundacaoGrupo } from './Fundacao';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
@@ -304,6 +304,13 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const { exec, calcularFundacao, calculandoFund } = useBuilding();
   const elementosSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
   const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
+  // armadura de punção informada nos pilares selecionados (apagar por janela de seleção)
+  const pilaresSelPuncao = b.lajes.flatMap((l) => [...new Set((l.puncao ?? []).filter((g) => g.pilar && pl.selecao.has(g.pilar)).map((g) => g.pilar!))].map((pilar) => ({ laje: l.id, pilar })));
+  const apagarPuncaoSelecao = () => {
+    const porLaje = new Map<string, string[]>();
+    for (const x of pilaresSelPuncao) porLaje.set(x.laje, [...(porLaje.get(x.laje) ?? []), x.pilar]);
+    void executarERecalcular('lote', { comandos: [...porLaje].map(([id, pilares]) => ({ nome: 'laje.puncao', params: { id, pilares } })) });
+  };
   const alvo = ((): Alvo | null => {
     for (const id of pl.selecao) {
       if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
@@ -341,9 +348,22 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
       <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <select aria-label="Armadura das lajes na planta" title="Camada com as barras representativas das lajes maciças e as vigotas das treliçadas do pavimento (calcule o dimensionamento primeiro)" value={pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length && !dim?.vigotas?.length} onChange={(e) => pl.set({ armaduraLajes: e.target.value as 'nenhuma' | 'inf' | 'sup' })}>
+      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro" value={pl.camadaPuncao ? 'puncao' : pl.armaduraLajes} disabled={!dim?.detalhesLajes?.length && !dim?.vigotas?.length && !dim?.puncao?.length}
+        onChange={(e) => { const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'puncao'; pl.set(v === 'puncao' ? { camadaPuncao: true, armaduraLajes: 'nenhuma' } : { camadaPuncao: false, armaduraLajes: v }); }}>
         <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option>
+        {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
       </select>
+      {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
+      {pl.ferramenta === 'puncao' && (<>
+        <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
+          {(['adicionar', 'apagar'] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</button>)}
+        </div>
+        <NumField label="Linhas" width={64} value={pl.puncaoGrupo.linhas} onChange={(v) => v >= 2 && v <= 64 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, linhas: Math.round(v) } })} />
+        <NumField label="Barras/linha" width={80} value={pl.puncaoGrupo.barras} onChange={(v) => v >= 1 && v <= 14 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, barras: Math.round(v) } })} />
+        <Select label="φ" value={pl.puncaoGrupo.phi} options={[5, 6.3, 8, 10, 12.5, 16].map((v) => ({ v, label: String(v).replace('.', ',') }))} onChange={(v) => pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, phi: v } })} />
+        <NumField label="Espaç." unit="cm" width={70} value={Math.round(pl.puncaoGrupo.s * 100)} onChange={(v) => v >= 3 && v <= 30 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, s: v / 100 } })} />
+      </>)}
+      {!!pilaresSelPuncao.length && <Button title="Apaga a armadura de punção informada nos pilares selecionados (use a seleção por janela da ferramenta Selecionar)" onClick={() => apagarPuncaoSelecao()}>Apagar punção da seleção</Button>}
       {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
       {nivelFund && (<>
         <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
@@ -855,6 +875,21 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
             </table>
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>
+          {!!dim.puncao?.length && (
+            <div className="card" data-card-puncao>
+              <h3>Punção das lajes</h3>
+              <table className="data quadro">
+                <thead><tr><th>Pilar</th><th>Pavimento</th><th>Apoio</th><th>FSd (kN)</th><th>MSd u / v (kN·m)</th><th>τSd C / τRd2 (MPa)</th><th>τSd C′ / τRd1 (MPa)</th><th>Armadura de punção</th><th>Situação</th></tr></thead>
+                <tbody>{filtro(dim.puncao).map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${x.status === 'fail' ? 'bad' : x.status === 'armadura' ? 'warn' : ''}`} title={x.mensagens.join(' ')} ir={() => onIr('laje', x.laje, x.pavimento)} abrir={() => abrirJanela({ tipo: 'laje', id: x.laje, pavimento: x.pavimento })}>
+                    <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td className="tl">{x.tipo}{x.origem === 'viga' ? ' (viga chata)' : ''}</td><td className="num">{fmt(x.F, 0)}</td><td className="num">{fmt(x.M[0], 1)} / {fmt(x.M[1], 1)}</td>
+                    <td className="num">{fmt(x.contornos[0].tau, 2)} / {fmt(x.tauRd2, 2)}</td><td className="num">{fmt(x.contornos[1].tau, 2)} / {fmt(x.tauRd1, 2)}</td>
+                    <td className="tl small">{x.armadura ? `${x.armadura.linhas} × ${x.armadura.barras} φ${String(x.armadura.phi).replace('.', ',')}${x.manual.length ? ' + informada' : ''}` : x.manual.length ? 'informada' : '—'}</td><td>{x.status === 'ok' ? 'ok' : x.status === 'armadura' ? 'com armadura' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              <Hint>Pilares que apoiam a laje maciça sem viga e vigas chatas largas (NBR 6118, 19.5): contornos C, C′ e C″, armadura de punção em linhas radiais e cortante em torno do pilar. Duplo clique abre a aba “Punção e cortante” da laje.</Hint>
+            </div>
+          )}
           {!!dim.fundacoes?.length && (
             <div className="card" data-card-fundacoes>
               <h3>Fundações</h3>

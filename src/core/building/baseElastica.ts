@@ -18,6 +18,7 @@ import { GAMA_CONCRETO } from './lajes';
 import { classificar } from './revisao';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
+import type { ResultadoPuncao } from './puncao';
 import { casosDaObra, centroPilar, contornoPilar, ehArranque, secaoNoLance, lancesDoPilar, type BuildingModel, type Pilar, type Radier, type VigaElastica } from './types';
 
 const fmt = (v: number, d = 1) => v.toFixed(d).replace('.', ',');
@@ -364,6 +365,8 @@ export interface ResultadoRadier {
   /** Armadura por metro (cm²/m): inf (face em contato com o solo) e sup, por direção. */
   As: { pos: [number, number]; neg: [number, number] };
   wk: number; wkLim: number;
+  /** Punção sob os pilares (N2d): um resultado por pilar, com a reação do solo descontada dentro do contorno. */
+  puncao?: ResultadoPuncao[];
   /** Ângulo da direção 0 (graus). */
   angulo: number;
   nos: NoResultadoBase[];
@@ -475,7 +478,7 @@ export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, c
     }
     if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${fmt(wkLim, 2)} mm.`);
     if (wk > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${fmt(wk, 2)} mm > ${fmt(wkLim, 2)} mm.`);
-    notas.push(`Malha de ${fmt(op.radierMalha, 2)} m, k = ${fmt(r.k ?? op.radierK, 0)} kN/m³, molas k × área de influência; punção sob os pilares não verificada [a confirmar].`);
+    notas.push(`Malha de ${fmt(op.radierMalha, 2)} m, k = ${fmt(r.k ?? op.radierK, 0)} kN/m³, molas k × área de influência; punção sob os pilares verificada (NBR 6118, 19.5; N2d).`);
     const area = Math.abs(areaPoligono(r.contorno)) - (r.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
     radiers.push({
       id: r.id, nome: r.nome, h, k: r.k ?? op.radierK, sigmaAdm: sAdm, area, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
@@ -625,7 +628,7 @@ export function detalharRadier(b: BuildingModel, r: Radier, res: ResultadoRadier
 /** Resumo para o MCP e a linha de comando (sem os nós). */
 export function resumoBaseElastica(r: ResultadoRadier | ResultadoVigaElastica) {
   const base = { id: r.id, nome: r.nome, sigmaAdm: r.sigmaAdm, sigmaMax: +r.sigmaMax.toFixed(1), sigmaMin: +r.sigmaMin.toFixed(1), recalque_mm: +(r.recalque * 1000).toFixed(2), k: r.k, status: r.status, mensagens: r.mensagens };
-  if ('As' in r) return { ...base, tipo: 'radier', h: r.h, As_cm2m: { inf: r.As.pos.map((x) => +x.toFixed(2)), sup: r.As.neg.map((x) => +x.toFixed(2)) } };
+  if ('As' in r) return { ...base, tipo: 'radier', h: r.h, ...(r.puncao?.length ? { puncao: { pilares: r.puncao.length, comArmadura: r.puncao.filter((x) => x.status === 'armadura').length, naoAtende: r.puncao.filter((x) => x.status === 'fail').length } } : {}), As_cm2m: { inf: r.As.pos.map((x) => +x.toFixed(2)), sup: r.As.neg.map((x) => +x.toFixed(2)) } };
   return { ...base, tipo: 'viga', secao: [r.b, r.h], Md: { inf: +r.Md.inf.toFixed(1), sup: +r.Md.sup.toFixed(1) }, Vd: +r.Vd.toFixed(1) };
 }
 

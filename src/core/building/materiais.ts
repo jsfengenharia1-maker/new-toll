@@ -10,11 +10,12 @@ export type Aco = Norma['aco'];
 /** Tipos de elemento com concreto próprio (fundacao = sapatas e blocos do edifício). */
 export type TipoElemento = 'laje' | 'viga' | 'pilar' | 'fundacao';
 /** Posições de armadura com aço próprio (as que o dimensionamento calcula). */
-export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'fundacao';
+export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao';
 export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
   { k: 'pilarLong', rotulo: 'Pilares: longitudinal' }, { k: 'pilarEstribo', rotulo: 'Pilares: estribos' },
   { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
   { k: 'lajeInf', rotulo: 'Lajes: inferior' }, { k: 'lajeSup', rotulo: 'Lajes: superior' },
+  { k: 'lajePuncao', rotulo: 'Lajes: armadura de punção' }, { k: 'lajeCortante', rotulo: 'Lajes: armadura de cortante' },
   { k: 'fundacao', rotulo: 'Fundações (sapatas, blocos, tubulões)' },
 ];
 

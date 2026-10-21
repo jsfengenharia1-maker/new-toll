@@ -21,6 +21,8 @@ const F = {
   pilarLimites: { formula: 'As ≥ máx(0,15·Nd/fyd; 0,4 %·Ac); As ≤ 4 %·Ac', item: 'NBR 6118, 17.3.5.3' },
   pilarEstribo: { formula: 'φt ≥ máx(5 mm; φℓ/4); s ≤ mín(20 cm; menor lado; 12φℓ); cortante com Vc = Vc0·(1 + M0/Msd,máx) ≤ 2Vc0', item: 'NBR 6118, 18.4.3, 17.4.1.1.1 e 17.4.2.2 c' },
   laje: { formula: 'Wood-Armer: mx* = mx + |mxy| (média em faixa de 1 m); As = Md / (fyd·z) ≥ ρmín·h', item: 'NBR 6118, 17.2.2, 19.3.3.2 e Tabela 19.1' },
+  puncao: { formula: 'τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d); C: τSd ≤ τRd2 = 0,27·αv2·fcd; C′ (2d): τSd ≤ τRd1 = 0,13·(1 + √(20/d))·(100ρ·fck)^⅓ ou, com armadura, τRd3 = 0,10·(1 + √(20/d))·(100ρ·fck)^⅓ + 1,5·(d/sr)·Asw·fywd/(u·d)', item: 'NBR 6118, 19.5.2 e 19.5.3' },
+  cortanteLaje: { formula: 'VSd ≤ VRd1 = [τRd·k·(1,2 + 40ρ1)]·bw·d, τRd = 0,25·fctd, k = |1,6 − d| ≥ 1; acima, armadura transversal Asw/s = (VSd − Vc)/(0,9·d·fywd), VSd ≤ VRd2 = 0,27·αv2·fcd·bw·d', item: 'NBR 6118, 19.4.1 e 19.4.2' },
   flechaLaje: { formula: 'Flecha elástica da grelha relativa aos apoios × fator (ou 1 + αf)', item: 'NBR 6118, 17.3.2.1 e Tabela 13.3' },
 } as const;
 

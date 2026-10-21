@@ -606,9 +606,21 @@ svg.mono .hinge { fill: #fff !important; }
   --det-esp-contorno: 1.6;
   --det-esp-barra: 1.8;
   --det-esp-estribo: 1;
+  --pun-laje: var(--muted);
+  --pun-c0: var(--c-load);
+  --pun-c1: var(--c-m);
+  --pun-c2: var(--c-v);
+  --pun-falha: var(--bad);
+  --pun-barra: var(--c-n);
 }
 .det { width: 100%; height: auto; display: block; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
 .det-secao { max-width: 360px; }
+.pun-fig { max-width: 560px; }
+.pun-laje { fill: none; stroke: var(--pun-laje); stroke-width: 1.2; stroke-dasharray: 5 3; }
+.pun-c { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
+.pun-c0 { stroke: var(--pun-c0); } .pun-c1 { stroke: var(--pun-c1); } .pun-c2 { stroke: var(--pun-c2); }
+.pun-c.falha { stroke: var(--pun-falha); stroke-width: 2.8; }
+.pun-barra { fill: var(--pun-barra); stroke: none; }
 .det-contorno { fill: var(--surface); stroke: var(--det-contorno); stroke-width: var(--det-esp-contorno); }
 .det-pilar { fill: color-mix(in srgb, var(--det-pilar) 28%, transparent); stroke: var(--det-pilar); stroke-width: 1; }
 .det-barra { fill: none; stroke-width: var(--det-esp-barra); stroke-linecap: round; stroke-linejoin: round; }

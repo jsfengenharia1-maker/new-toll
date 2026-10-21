@@ -8,7 +8,7 @@ import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
 import { TRELICADAS } from '../building/lajes';
-import { acoDe, fckDe } from '../building/materiais';
+import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
 import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel } from '../building/types';
 import { areaPoligono } from '../geom/faces';
 import { pontoInterno } from '../geom/faces';
@@ -133,11 +133,47 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         }
         linhas.forEach((s, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [pi[0], pi[1] - (7 + 3 * i) * k], h: 2 * k, s, ah: 'c', av: 'topo' }));
       }
+      // armadura de punção (N2d): estribos ou conectores em linhas radiais, entre as armaduras superior e inferior
+      // (desenhada na folha das negativas; quantidades por pavimento do grupo)
+      const punc = fl.faces.includes('sup') ? (dim.puncao ?? []).filter((r) => r.pavimentoId === ref?.id && (r.armadura || r.manual.length)) : [];
+      const acoP = acoDe(b, 'lajePuncao').aco;
+      for (const r of punc) {
+        const rep = (dim.puncao ?? []).filter((x) => x.pilar === r.pilar && x.laje === r.laje && pavs.some((pv) => pv.id === x.pavimentoId)).length || 1;
+        const l = lajes.find((x) => x.id === r.laje), cob = cobrimentoLaje(b, l?.cobrimento), alt = r.h - cob.inf - cob.sup;
+        const nomeP = b.pilares.find((x) => x.id === r.pilar)?.nome ?? r.nome;
+        const linhasTxt: string[] = [];
+        if (r.armadura) {
+          const a = r.armadura, ganchos = a.tipo === 'estribo' ? 2 * Math.max(0.05, 0.008 * a.phi) : 2 * 1.5 * a.phi / 1000;
+          const C = cmInt(a.tipo === 'estribo' ? 2 * alt + ganchos : alt + ganchos), n = a.total * rep;
+          const pos = reg.pos(`PUN|${a.tipo}`, acoP, a.phi, C, n);
+          for (const linha of a.posicoes) {
+            if (linha.length > 1) modelo.push({ t: 'pl', c: 'ARMADURA-NEG', pts: linha });
+            for (const q of linha) modelo.push({ t: 'circ', c: 'ARMADURA-NEG', centro: q, r: 0.9 * k });
+          }
+          linhasTxt.push(`${qtd(rep, a.total)} ${pos} ${phiTxt(a.phi)} C=${C} — ${a.tipo === 'estribo' ? 'estribos' : 'conectores'} de punção, ${a.linhas} linhas × ${a.barras}, 1ª a ${cmInt(a.s0)} cm, c/${cmInt(a.sr)}`);
+        }
+        for (const g2 of r.manual) {
+          const C = cmInt(2 * alt + 2 * Math.max(0.05, 0.008 * g2.phi)), pos = reg.pos(`PUNM|${g2.id}`, acoP, g2.phi, C, g2.linhas * g2.barras * rep);
+          linhasTxt.push(`${qtd(rep, g2.linhas * g2.barras)} ${pos} ${phiTxt(g2.phi)} C=${C} — punção informada, ${g2.linhas} linhas × ${g2.barras}, c/${cmInt(g2.s)} cm`);
+        }
+        const topo = Math.max(...r.contornos.flatMap((c) => c.pontos.flat().map((q) => q[1])), r.centro[1]);
+        modelo.push({ t: 'txt', c: 'TEXTO', p: [r.centro[0], topo + 1.5 * k], h: 2 * k, s: `${nomeP}: armadura de punção`, ah: 'c', av: 'base' });
+        linhasTxt.forEach((s2, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [r.centro[0], topo - (1 + 2.6 * i) * k], h: 1.8 * k, s: s2, ah: 'c', av: 'topo' }));
+      }
+      // grupos informados em pontos livres (sem pilar): marca no ponto e quantidade na tabela de aço
+      const livres = fl.faces.includes('sup') ? lajes.flatMap((l) => (l.puncao ?? []).filter((g2) => !g2.pilar && g2.ponto).map((g2) => ({ l, g2 }))) : [];
+      for (const { l, g2 } of livres) {
+        const alt = (l.tipo.tipo === 'macica' ? l.tipo.h : 0.1) - cobrimentoLaje(b, l.cobrimento).inf - cobrimentoLaje(b, l.cobrimento).sup;
+        const C = cmInt(2 * alt + 2 * Math.max(0.05, 0.008 * g2.phi)), pos = reg.pos(`PUNM|${g2.id}`, acoP, g2.phi, C, g2.linhas * g2.barras * pavs.length);
+        modelo.push({ t: 'circ', c: 'ARMADURA-NEG', centro: g2.ponto!, r: 1.5 * k });
+        modelo.push({ t: 'txt', c: 'TEXTO', p: [g2.ponto![0], g2.ponto![1] - 2.5 * k], h: 1.8 * k, s: `${qtd(pavs.length, g2.linhas * g2.barras)} ${pos} ${phiTxt(g2.phi)} C=${C} — punção informada, ${g2.linhas} linhas × ${g2.barras}, c/${cmInt(g2.s ?? 0.15)} cm`, ah: 'c', av: 'topo' });
+      }
       const aco = acoDaFolha(reg.tabela, perdas, concreto, forma);
       const nts = notas([
         'Medidas em cm; bitolas (φ) em mm. Barra representativa de cada posição com a linha de distribuição; pernas e ganchos rebatidos no plano.',
         `Concreto C${fck} (fck = ${fck} MPa); aço ${acoI} (inferior) e ${acoS} (superior).`,
         `Cobrimento nominal das lajes: ${String(b.norma.cobrimento.laje).replace('.', ',')} cm (CAA ${b.norma.caa}).`,
+        ...(punc.length || livres.length ? ['Armadura de punção: estribos (grampos verticais) ou conectores entre as armaduras superior e inferior, em linhas radiais a partir do pilar; primeira barra a no máximo 0,5d da face e entre barras no máximo 0,75d (NBR 6118, 19.5.3) [a confirmar].'] : []),
         `Quantidades por laje${pavs.length > 1 ? `; "${pavs.length}×n" = ${pavs.length} pavimentos × n barras` : ''}.`,
         ...indicada,
       ]);
