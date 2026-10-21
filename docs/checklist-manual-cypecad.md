@@ -11,26 +11,26 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 15 | 14 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
-| 3. Grupos e pavimentos | 41 | 26 | 7 | 5 | 3 |
+| 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
 | 4. Pilares | 63 | 25 | 17 | 14 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 18 | 15 | 50 | 25 |
-| 7. Lajes | 195 | 21 | 32 | 75 | 67 |
+| 7. Lajes | 195 | 22 | 34 | 72 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 16 | 4 | 3 | 3 |
 | 11. Fundações | 70 | 53 | 6 | 6 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **184** | **106** | **288** | **185** |
+| **Total** | **763** | **186** | **107** | **285** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 16 | 16 | 32 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 7 | 14 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 198 | 227 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 4 | 10 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 198 | 229 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 7 | 9 | 16 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 27 | 34 |
@@ -143,7 +143,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.1 | Até 5 pavimentos por grupo. | Fora | — | sem limite de pavimentos por grupo (escolha) |
 | C3.2 | Grupo: conjunto de pavimentos iguais e consecutivos, com a mesma armadura. | Feito | — | grupo = pavimentos iguais |
 | C3.3 | Num grupo, os dados são lançados uma vez para todos os pavimentos. | Feito | — |  |
-| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Parcial | N | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na tela por pavimento [N2d] |
+| C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Feito | — | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na janela com seletor por pavimento ou envoltória do grupo (`envoltoriaLajes` em `puncao.ts`, `Revisao.tsx`) [N2d] |
 | C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Feito | — | vigas, lajes maciças e vigotas dimensionadas uma vez pela envoltória do grupo (R3a, R4, R6); pilares por lance |
 | C3.6 | Desenho único por grupo (uma planta de formas, um desenho de vigas etc.). | Feito | — | uma prancha de formas por grupo |
 | C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre [L4] |
@@ -567,9 +567,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.136 | Salvar cópia da armadura de todos os grupos (ex.: antes de abrir um furo imprevisto). | Falta | R | [R7f] |
 | C7.137 | Recuperar a cópia salva: restaura só onde a geometria não mudou, cortando barras na borda de furos novos sem criar ganchos. | Falta | R | [R7f] |
 | C7.138 | Copiar a armadura de outro grupo de pavimentos para o grupo atual (destino); copia só onde há laje, corta nas bordas de furos sem ganchos; exige mesmo ângulo e ponto de inserção da malha; recomenda-se criar grupos copiando o de baixo e revisar barras cortadas. | Falta | R | [R7f] |
-| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Falta | N | [N2d] |
-| C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Falta | N | [N2d] |
-| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Falta | N | [N2d] |
+| C7.139 | Adicionar grupos de estribos de punção nas nervuras que chegam a um ábaco: número, diâmetro e espaçamento; o ábaco sob o cursor escurece e recebe as barras ao clicar. | Parcial | E | grupos de armadura de punção nos pilares das lajes maciças: número de linhas, barras, diâmetro e espaçamento (`Laje.puncao`, comando `laje.puncao`, ferramenta Armadura de punção na planta, editor em `Puncao.tsx`); nervuras que chegam a um ábaco entram com as nervuradas [N2d; resto E3d] |
+| C7.140 | As barras novas somam-se às existentes; para substituir, apagar antes. | Feito | — | os grupos informados somam-se à armadura calculada (a exigência por anel é abatida); para substituir, apagar antes (`laje.puncao`, `puncao.ts`) [N2d] |
+| C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Parcial | E | apagar grupos de armadura de punção um a um, por pilar ou pela seleção por janela (comando `laje.puncao`, botão “Apagar punção da seleção”); lajes cogumelo e nervuradas com as nervuradas [N2d; resto E3d] |
 | | **7.2.3 Lajes alveolares** | | | |
 | C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Falta | E | [E3f] |
 | C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Falta | E | [E3e] |
@@ -981,3 +981,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.
+- **21/10/2026 — fatia N2d (punção e cortante das lajes, núcleo e interface).** C3.4 e C7.140 passam a Feito: resultados das lajes na janela com seletor por pavimento ou envoltória do grupo, e grupos de armadura de punção informados que se somam à calculada (`src/core/building/puncao.ts`, `Laje.puncao`, comando `laje.puncao`). C7.139 e C7.141 ficam Parcial na frente E (E3d): os grupos valem para os pilares das lajes maciças (ferramenta Armadura de punção, editor na aba Punção e cortante, apagar por pilar e pela seleção por janela); nervuras que chegam a ábaco e lajes cogumelo entram com as nervuradas. Interface: aba Punção e cortante da janela da laje (contornos C, C′ e C″ em SVG, τSd × resistências, armadura, varredura de cortante, editor de grupos), camada Punção e cortante e ferramenta na planta, cartão no Dimensionamento, memorial, armadura de punção na prancha de lajes (folha das negativas, com posições na tabela de aço); e2e N2d.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N 96 → 80 (junto com as demais fatias do lote); E 371 → 376 (C7.139 e C7.141 passam à E3d).

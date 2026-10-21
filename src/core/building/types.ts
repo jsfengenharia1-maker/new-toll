@@ -31,7 +31,7 @@ export interface Norma {
   /** fck dos pilares por lance (pavimento do topo do lance). */
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
-  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'fundacao', 'CA-50' | 'CA-60'>>;
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao', 'CA-50' | 'CA-60'>>;
   /** Coeficientes de ponderação (padrão γc 1,4 [pelo controle de execução]; γs 1,15; γg 1,4; γq 1,4; γh do empuxo 1,4). */
   gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
@@ -289,6 +289,22 @@ export interface Laje {
   armaduraVigotas?: ArmaduraVigotas;
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */
   tabela?: string;
+  /** Armadura de punção informada pelo usuário (N2d): somada à calculada. */
+  puncao?: GrupoPuncao[];
+}
+
+/**
+ * Grupo de armadura de punção informado: `linhas` radiais com `barras` estribos (ou conectores) de φ `phi` (mm) por
+ * linha, a partir da face do pilar, espaçados de `s` (m). Sem pilar, vale só o `ponto` (desenho e quantidade).
+ */
+export interface GrupoPuncao {
+  id: string;
+  pilar?: string;
+  ponto?: [number, number];
+  linhas: number;
+  barras: number;
+  phi: number;
+  s?: number;
 }
 
 /**

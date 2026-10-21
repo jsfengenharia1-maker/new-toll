@@ -1,6 +1,7 @@
 // Servidor MCP (JSON-RPC 2.0, uma mensagem por linha em stdio), sem SDK.
 // Cada comando de escrita é exposto como ferramenta que só faz a PRÉVIA (diff + token);
 // a alteração acontece em `aplicar`, com o token. Nunca há execução de código livre.
+import type { ResultadoPuncao } from '../core/building/puncao';
 import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '../core/commands';
 import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
 import { PREMISSAS } from '../core/building/premissas';
@@ -206,12 +207,20 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
+    // punção (N2d): resumo por pilar (tensões, resistências e armadura), sem os contornos e as superfícies de cortante
+    ...(d.puncao?.length ? { puncao: (pav ? d.puncao.filter((r) => r.pavimentoId === pav.id) : d.puncao).map(resumoPuncao).filter((r) => !soProblemas || r.status !== 'ok') } : {}),
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
-    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
+    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.puncao?.length ? { puncao: contaStatus(d.puncao.map((r) => ({ status: r.status === 'armadura' ? 'review' : r.status }))) } : {}), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
   };
 }
+/** Resumo de um resultado de punção para a ferramenta `dimensionar` (armadura de punção conta como "revisar"). */
+const resumoPuncao = (r: ResultadoPuncao) => ({
+  pilar: r.nome, pavimento: r.pavimento, laje: r.lajeNome, apoio: r.tipo, FSd: +r.F.toFixed(1), tauSdC: +r.contornos[0].tau.toFixed(3), tauRd2: +r.tauRd2.toFixed(3), tauSdC2: +r.contornos[1].tau.toFixed(3), tauRd1: +r.tauRd1.toFixed(3),
+  ...(r.armadura ? { armadura: `${r.armadura.linhas} linhas × ${r.armadura.barras} ${r.armadura.tipo === 'estribo' ? 'estribos' : 'conectores'} φ${r.armadura.phi}` } : {}),
+  status: r.status === 'armadura' ? 'review' : r.status, mensagens: r.mensagens,
+});
 /** Elementos com armadura fora das tabelas de armadura (R7a): fora de tabela ou armadura manual necessária. */
 const foraTabela = (d: { vigas: { mensagens: string[] }[]; pilares: { mensagens: string[] }[]; lajes: { mensagens: string[] }[] }) =>
   [...d.vigas, ...d.pilares, ...d.lajes].filter((x) => x.mensagens.some((m) => /^(Fora de tabela|Armadura manual necessária)/.test(m))).length;

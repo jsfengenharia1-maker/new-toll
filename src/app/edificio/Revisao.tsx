@@ -15,6 +15,8 @@ import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
+import { JanelaPuncao } from './Puncao';
+import { envoltoriaLajes } from '../../core/building/puncao';
 import { JanelaFundacao } from './Fundacao';
 import { JanelaVigaFundacao } from './VigaFundacao';
 import { limiteDaMensagem, sobreposicoesDe } from './fundacaoGrupo';
@@ -196,7 +198,7 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs }: 
 }
 
 /** Origem de cada grandeza: combinação determinante, fórmula e item da NBR 6118. */
-function Origens({ o }: { o?: Origem[] }) {
+export function Origens({ o }: { o?: Origem[] }) {
   if (!o?.length) return null;
   return (
     <>
@@ -302,48 +304,53 @@ function JanelaPilar({ id }: { id: string }) {
   );
 }
 
+function ResultadoDaLaje({ x }: { x: DimEdificio['lajes'][number] }) {
+  return (
+    <section className="rev-lance" data-lance={x.pavimento}>
+      <h4>{x.pavimento} · {x.tipo} · h = {fmt(x.h * 100, 0)} cm · <Pill tone={x.status === 'ok' ? 'ok' : 'bad'}>{ST_TXT[x.status]}</Pill></h4>
+      <KV rows={[
+        ['md+ (kN·m/m)', `${fmt(x.mPos[0], 1)} / ${fmt(x.mPos[1], 1)}`], ['md− (kN·m/m)', `${fmt(x.mNeg[0], 1)} / ${fmt(x.mNeg[1], 1)}`],
+        ['As+ (cm²/m)', `${fmt(x.As.pos[0])} / ${fmt(x.As.pos[1])}`], ['As− (cm²/m)', `${fmt(x.As.neg[0])} / ${fmt(x.As.neg[1])}`],
+        ['Flecha total / limite (mm)', `${fmt(x.flecha * 1000, 1)} / ${fmt(x.limite * 1000, 1)}`], ['Flecha das variáveis / limite (mm)', `${fmt(x.flechaQ * 1000, 1)} / ${fmt(x.limiteQ * 1000, 1)}`],
+        ['wk / limite (mm)', `${fmt(x.wk, 2)} / ${fmt(x.wkLim, 2)}`],
+        ...(x.cortante ? [['Cortante nos apoios em vigas: VSd / VRd1 (kN/m)', `${fmt(x.cortante.VSd[0], 1)} / ${fmt(x.cortante.VRd1[0], 1)} · ${fmt(x.cortante.VSd[1], 1)} / ${fmt(x.cortante.VRd1[1], 1)}`] as [string, string], ...(x.cortante.Asw > 0 ? [['Armadura transversal (cm²/m²)', fmt(x.cortante.Asw)] as [string, string]] : [])] : []),
+      ]} />
+      <Origens o={x.origens} />
+      <Mensagens msgs={x.mensagens} />
+    </section>
+  );
+}
+
 function JanelaLajeResultados({ ls }: { ls: DimEdificio['lajes'] }) {
+  const [modo, setModo] = useState<'pavimento' | 'envoltoria'>('pavimento');
+  const env = ls.length > 1 ? envoltoriaLajes(ls) : null;
   return (
     <>
       <p className="small">Momentos de cálculo por metro nas duas direções da malha (x / y).</p>
-      {ls.map((x) => (
-        <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>
-          <h4>{x.pavimento} · {x.tipo} · h = {fmt(x.h * 100, 0)} cm · <Pill tone={x.status === 'ok' ? 'ok' : 'bad'}>{ST_TXT[x.status]}</Pill></h4>
-          <KV rows={[
-            ['md+ (kN·m/m)', `${fmt(x.mPos[0], 1)} / ${fmt(x.mPos[1], 1)}`], ['md− (kN·m/m)', `${fmt(x.mNeg[0], 1)} / ${fmt(x.mNeg[1], 1)}`],
-            ['As+ (cm²/m)', `${fmt(x.As.pos[0])} / ${fmt(x.As.pos[1])}`], ['As− (cm²/m)', `${fmt(x.As.neg[0])} / ${fmt(x.As.neg[1])}`],
-            ['Flecha total / limite (mm)', `${fmt(x.flecha * 1000, 1)} / ${fmt(x.limite * 1000, 1)}`], ['Flecha das variáveis / limite (mm)', `${fmt(x.flechaQ * 1000, 1)} / ${fmt(x.limiteQ * 1000, 1)}`],
-            ['wk / limite (mm)', `${fmt(x.wk, 2)} / ${fmt(x.wkLim, 2)}`],
-          ]} />
-          <Origens o={x.origens} />
-          <Mensagens msgs={x.mensagens} />
-        </section>
-      ))}
+      {env && <Seg value={modo} onChange={setModo} options={[{ v: 'pavimento', label: 'Por pavimento' }, { v: 'envoltoria', label: 'Envoltória do grupo' }]} />}
+      {modo === 'envoltoria' && env ? <div data-envoltoria-laje><ResultadoDaLaje x={env} /></div> : ls.map((x) => <ResultadoDaLaje key={x.pavimento} x={x} />)}
     </>
   );
 }
 
 function JanelaLaje({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
-  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
+  const [aba, setAba] = useState<'resultados' | 'detalhamento' | 'vigotas' | 'puncao'>('resultados');
   const ls = dim.lajes.filter((x) => x.laje === id);
   if (!ls.length) return <p className="muted">Laje sem resultado.</p>;
   const temDetalhe = !!dim.detalhesLajes?.some((x) => x.laje === id);
   const temVigotas = !!dim.vigotas?.some((x) => x.laje === id);
-  if (temVigotas) {
-    const aV = aba === 'detalhamento' ? 'vigotas' : 'resultados';
-    return (
-      <>
-        <Seg value={aV} onChange={(a) => setAba(a === 'vigotas' ? 'detalhamento' : 'resultados')} options={[{ v: 'resultados', label: 'Resultados' }, { v: 'vigotas', label: 'Vigotas' }]} />
-        {aV === 'vigotas' ? <JanelaVigotas id={id} /> : <JanelaLajeResultados ls={ls} />}
-      </>
-    );
-  }
-  if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaLaje id={id} /></>;
+  const temPuncao = !!dim.puncao?.some((x) => x.laje === id);
+  const abas = [
+    { v: 'resultados' as const, label: temVigotas ? 'Resultados' : 'Resultados e armadura' },
+    ...(temVigotas ? [{ v: 'vigotas' as const, label: 'Vigotas' }] : temDetalhe ? [{ v: 'detalhamento' as const, label: 'Detalhamento' }] : []),
+    ...(temPuncao ? [{ v: 'puncao' as const, label: 'Punção e cortante' }] : []),
+  ];
+  const atual = abas.some((x) => x.v === aba) ? aba : 'resultados';
   return (
     <>
-      {temDetalhe && <AbasDetalhe aba={aba} onChange={setAba} />}
-      <JanelaLajeResultados ls={ls} />
+      {abas.length > 1 && <Seg value={atual} onChange={setAba} options={abas} />}
+      {atual === 'vigotas' ? <JanelaVigotas id={id} /> : atual === 'detalhamento' ? <DetalheDaLaje id={id} /> : atual === 'puncao' ? <JanelaPuncao id={id} /> : <JanelaLajeResultados ls={ls} />}
     </>
   );
 }

@@ -186,7 +186,7 @@ describe('momento na face do pilar e origem dos resultados', () => {
     const o = p.origens!.find((x) => x.grandeza === 'Armadura longitudinal')!;
     expect(p.determinantes!.map((x) => x.combinacao)).toContain(o.combinacao);
     expect(o.item).toContain('15.8.3.3.2');
-    expect(d.lajes[0].origens!.map((x) => x.grandeza)).toEqual(['Armadura', 'Flecha', 'Fissuração']);
+    expect(d.lajes[0].origens!.map((x) => x.grandeza)).toEqual(['Armadura', 'Flecha', 'Fissuração', 'Cortante']);
   });
 });
 

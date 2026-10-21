@@ -150,6 +150,24 @@ export interface OpcoesCalculo {
   gerarDistLimite: number;
   /** Geração automática: σadm (kN/m²) abaixo da qual o tipo automático passa de sapata a bloco sobre estacas. */
   gerarSigmaMin: number;
+  /** 1 = verifica a punção dos pilares sem viga (e das vigas chatas largas) nas lajes maciças. */
+  puncaoVerificar: number;
+  /** Armadura de punção: 0 = estribos (grampos verticais, fywd ≤ 250 MPa); 1 = conectores (fywd ≤ 300 MPa). */
+  puncaoTipoArmadura: number;
+  /** Primeira linha da armadura de punção a este múltiplo de d da face (NBR 6118, 19.5.3.5: ≤ 0,5d). */
+  puncaoS0: number;
+  /** Espaçamento radial entre barras da armadura de punção, em múltiplos de d (NBR 6118, 19.5.3.5: ≤ 0,75d). */
+  puncaoSr: number;
+  /** Furos a menos de este múltiplo de d da face do pilar descontam o contorno crítico (NBR 6118, 19.5.2.5: 8d). */
+  puncaoFuroDist: number;
+  /** 1 = viga chata mais larga que o apoio em mais de uma altura recebe aviso e verificação de punção. */
+  puncaoVigaChata: number;
+  /** 1 = verifica o cortante das lajes maciças (NBR 6118, 19.4), com armadura transversal quando necessário. */
+  cortanteLajes: number;
+  /** 1 = varredura do cortante em superfícies paralelas ao contorno de punção, até esgotar a laje. */
+  cortanteVarredura: number;
+  /** Passo da varredura de cortante, em múltiplos de d. */
+  cortanteVarreduraPasso: number;
 }
 
 export interface OpcaoInfo {
@@ -342,6 +360,24 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Limites poligonais (e as camadas da máscara escolhidas como divisa) a menos desta distância da face do pilar tornam o elemento de divisa naquela face, mesmo com pilar em frente.' },
   { chave: 'gerarSigmaMin', rotulo: 'Geração automática: σadm mínima para sapata', unidade: 'kN/m²', min: 0, max: 1000, passo: 10, padrao: 150, fonte: 'Critério do Statikos (sem fonte): terreno fraco pede fundação profunda', aConfirmar: true,
     descricao: 'No tipo automático, o pilar vai para bloco sobre estacas quando a σadm (informada ou estimada pelo SPT, N̄/50) é menor que este valor e há estaca cadastrada; senão, sapata.' },
+  { chave: 'puncaoVerificar', rotulo: 'Punção: verificar lajes maciças', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 19.5 (contornos C, C′ e C″); verificação em pilares sem viga e em vigas chatas largas', aConfirmar: false,
+    descricao: 'Verifica τSd contra τRd2 (contorno C) e τRd1/τRd3 (contorno C′ a 2d) nos pilares que apoiam a laje maciça sem viga, com o momento desbalanceado das molas da grelha; calcula a armadura de punção quando necessário.' },
+  { chave: 'puncaoTipoArmadura', rotulo: 'Punção: armadura (0 estribos, 1 conectores)', min: 0, max: 1, passo: 1, padrao: 0, fonte: 'NBR 6118, 19.5.3.3: fywd ≤ 250 MPa com estribos e ≤ 300 MPa com conectores; estribos (grampos verticais) como padrão do programa de referência', aConfirmar: true,
+    descricao: 'Estribos em grampo (2 pernas por barra) ou conectores (1 perna), em linhas radiais entre as armaduras superior e inferior.' },
+  { chave: 'puncaoS0', rotulo: 'Punção: primeira linha da armadura', unidade: '× d', min: 0.1, max: 0.5, passo: 0.05, padrao: 0.5, fonte: 'NBR 6118, 19.5.3.5: primeira linha a no máximo 0,5d da face do pilar', aConfirmar: false,
+    descricao: 'Distância da primeira barra de punção à face do pilar, em múltiplos de d (até 0,5).' },
+  { chave: 'puncaoSr', rotulo: 'Punção: espaçamento radial entre barras', unidade: '× d', min: 0.2, max: 0.75, passo: 0.05, padrao: 0.75, fonte: 'NBR 6118, 19.5.3.5: espaçamento radial ≤ 0,75d', aConfirmar: false,
+    descricao: 'Distância entre as barras de uma mesma linha radial, em múltiplos de d (até 0,75).' },
+  { chave: 'puncaoFuroDist', rotulo: 'Punção: distância dos furos que descontam o contorno', unidade: '× d', min: 0, max: 20, passo: 1, padrao: 8, fonte: 'NBR 6118, 19.5.2.5: furos a menos de 8d da face do pilar (retas tangentes ao furo pelo centro do pilar); item a confirmar', aConfirmar: true,
+    descricao: 'Furos mais perto que este múltiplo de d da face do pilar descontam do contorno crítico o trecho entre as tangentes ao furo traçadas pelo centro do pilar.' },
+  { chave: 'puncaoVigaChata', rotulo: 'Punção: viga chata mais larga que o apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (viga chata mais larga que o apoio em mais de uma altura: punção verificada); critério da largura a confirmar', aConfirmar: true,
+    descricao: 'Viga cuja largura passa da largura do pilar mais uma altura da viga: aviso e verificação de punção no apoio, com a altura da viga e o contorno limitado à largura dela.' },
+  { chave: 'cortanteLajes', rotulo: 'Cortante das lajes maciças (NBR 6118, 19.4)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 19.4.1 e 19.4.2', aConfirmar: false,
+    descricao: 'Verifica o cortante nas pontas das barras da malha (por metro) contra VRd1; acima, armadura transversal (h ≥ 15 cm) até VRd2.' },
+  { chave: 'cortanteVarredura', rotulo: 'Cortante em torno do pilar: varredura por superfícies', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a varredura: só o contorno C′ de punção e o cortante nos apoios', fonte: 'Programa de referência: superfícies paralelas ao contorno de punção a cada 0,75d até esgotar a laje', aConfirmar: false,
+    descricao: 'Verifica o cortante da laje em superfícies paralelas ao contorno de punção, com VRd1 (19.4.1) e armadura transversal (19.4.2) do mesmo tipo da punção.' },
+  { chave: 'cortanteVarreduraPasso', rotulo: 'Cortante em torno do pilar: passo da varredura', unidade: '× d', min: 0.25, max: 2, passo: 0.05, padrao: 0.75, fonte: 'Programa de referência (superfícies a cada 0,75d)', aConfirmar: false,
+    descricao: 'Distância entre as superfícies verificadas, em múltiplos de d, a partir do contorno C′.' },
 ];
 
 export const OPCOES_PADRAO_CALCULO: OpcoesCalculo = Object.fromEntries(OPCOES_INFO.map((o) => [o.chave, o.padrao])) as unknown as OpcoesCalculo;

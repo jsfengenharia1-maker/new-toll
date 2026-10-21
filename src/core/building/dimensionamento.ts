@@ -21,6 +21,7 @@ import { areaPoligono } from '../geom/faces';
 import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
+import { cortanteLaje, puncaoEdificio, sitiosPuncao, type CortanteLaje, type ResultadoPuncao } from './puncao';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 export { TAXAS };
 
@@ -812,6 +813,8 @@ export interface ResultadoLaje {
   status: 'ok' | 'fail'; mensagens: string[];
   /** Origem de cada grandeza: combinação, fórmula e item da NBR 6118. */
   origens?: Origem[];
+  /** Cortante da laje maciça (NBR 6118, 19.4): maior cortante por metro nas duas direções, VRd1, VRd2 e armadura transversal. */
+  cortante?: CortanteLaje;
 }
 
 /** Bitola e espaçamento de laje para As (m²/m): a menor bitola com espaçamento ≥ 10 cm, até mín(2h; 20 cm). */
@@ -934,6 +937,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
     const pav = b.pavimentos.find((p) => p.id === g.pavimento)!;
     const ja = memo.get(g.res) ?? new Map<string, ResultadoLaje>();
     memo.set(g.res, ja);
+    // pilares sem viga do pavimento: o cortante do entorno é da punção (puncao.ts), fora do cortante das pontas das barras
+    const semViga = op.cortanteLajes ? sitiosPuncao(b, g.pavimento, { puncaoVigaChata: 0 }).map((x) => ({ p: x.centro, ext: Math.max(...dimsSecao(secaoNoLance(x.p, g.pavimento))) / 2 })) : [];
     for (const l of b.lajes.filter((x) => x.grupo === pav.grupo)) {
       const r0 = ja.get(l.id);
       if (r0) { out.push({ ...r0, pavimento: pav.nome, mensagens: [...r0.mensagens] }); continue; }
@@ -992,12 +997,21 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         }
         if (foraTab.length) msgs.push(`Fora de tabela (laje): ${foraTab.join('; ')} não cabe com as bitolas e espaçamentos da tabela "${tabelaDe(b, 'lajes', l.tabela).nome}".`);
       }
+      // cortante (19.4): maciças apoiadas em vigas; o entorno de pilares sem viga é da punção (puncao.ts)
+      let cort: CortanteLaje | undefined;
+      if (l.tipo.tipo === 'macica' && op.cortanteLajes) {
+        const h = l.tipo.h, dI = h - cobrimentoLaje(b, l.cobrimento).inf - 0.005, amin = 0.0015 * h * 1e4;
+        const rhoC = [0, 1].map((k) => Math.min(0.02, Math.max(As.pos[k], amin) / (1e4 * dI))) as [number, number];
+        const excl = semViga.map((x) => ({ p: x.p, r: x.ext + 2 * dI + op.malha }));
+        cort = cortanteLaje(g, l.id, fELU, c, h, dI, rhoC, acoDe(b, 'lajeCortante').fyd, excl) ?? undefined;
+        if (cort) msgs.push(...cort.mensagens);
+      }
       // treliçadas: resultados por vigota em vigotas.ts (mensagens acrescentadas em dimensionarEdificio)
       const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), sem fissuração`;
       if (fl > lim) msgs.push(`Flecha total ${(fl * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaTotal} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
       if (fq > limQ) msgs.push(`Flecha das variáveis ${(fq * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limQ * 1000).toFixed(1)} mm (vibrações).`);
-      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, wk, wkLim, status: fl > lim || fq > limQ || wk > wkLim + 1e-9 ? 'fail' : 'ok', mensagens: msgs,
-        origens: [origem('Armadura', COMB_ELU_LAJE, 'laje'), origem('Flecha', COMB_QP, 'flechaLaje'), ...(l.tipo.tipo === 'macica' ? [origem('Fissuração', COMB_FREQ, 'fissura')] : [])] };
+      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, wk, wkLim, status: fl > lim || fq > limQ || wk > wkLim + 1e-9 || (cort && !cort.ok) ? 'fail' : 'ok', mensagens: msgs, ...(cort ? { cortante: cort } : {}),
+        origens: [origem('Armadura', COMB_ELU_LAJE, 'laje'), origem('Flecha', COMB_QP, 'flechaLaje'), ...(l.tipo.tipo === 'macica' ? [origem('Fissuração', COMB_FREQ, 'fissura')] : []), ...(cort ? [origem('Cortante', COMB_ELU_LAJE, 'cortanteLaje')] : [])] };
       ja.set(l.id, r);
       out.push(r);
     }
@@ -1051,6 +1065,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   vigotas?: ResultadoVigotas[];
   /** Aço das vigotas (adicionais, negativos e distribuição da capa) por bitola e treliças por tipo (m, kg). */
   resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas>;
+  /** Punção dos pilares que apoiam a laje maciça sem viga e das vigas chatas largas, por pavimento (N2d). */
+  puncao?: ResultadoPuncao[];
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
   fundacoes?: ResultadoFundacao[];
   /** Vigas de equilíbrio e de travamento (FU2) e avisos gerais das fundações (cargas do nível de fundação sem destino). */
@@ -1082,6 +1098,15 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.resumoAcoPilares = resumoAcoPilares(b, d.detalhesPilares, an.opcoes.perdasAco);
   d.detalhesLajes = detalharLajes(b, d, an, an.opcoes);
   d.resumoAcoLajes = resumoAcoLajes(b, d.detalhesLajes, an.opcoes.perdasAco);
+  d.puncao = puncaoEdificio(b, an, d.lajes, an.opcoes);
+  if (!d.puncao.length) delete d.puncao;
+  // mensagens da punção entram na laje do pavimento (revisão, planta e janela da laje)
+  for (const r of d.puncao ?? []) {
+    const l = d.lajes.find((x) => x.laje === r.laje && x.pavimento === r.pavimento);
+    if (!l) continue;
+    l.mensagens.push(...r.mensagens);
+    if (r.status === 'fail') l.status = 'fail';
+  }
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);

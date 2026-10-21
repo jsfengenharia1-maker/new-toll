@@ -178,3 +178,4 @@ Ordem: N2a → N2b → N2c na onda 2 (a E1 depende das três); N2d → N2e → N
 ## Andamento
 
 - 21/10/2026: N2a concluída (núcleo, interface e e2e `N2a`; testes em `src/core/building/acoes.test.ts`). Fora do escopo por falta de dado ou de fatia: pontos dos ábacos da NBR 6123 (tabelas vazias, Ca automático desativado), aplicação do empuxo às paredes (E1c), grupos de aço, madeira e alumínio. Estado-limite "usuário" vale nos grupos concreto, tensões no solo e fissuração; fundações, deslocamentos, flechas e equilíbrio usam fatores próprios. Detalhes no Andamento de `plano-execucao.md`.
+- 21/10/2026: N2d concluída (núcleo, interface e e2e `N2d`; testes em `src/core/building/puncao.test.ts`). Fora do escopo por depender de outras fatias: punção em nervuras e ábacos (E3d), paredes (E1), momento do vento em laje lisa (modelo integrado, N2b); a redução de FSd pela carga dentro do contorno não é considerada (a favor da segurança). Detalhes no Andamento de `plano-execucao.md`.

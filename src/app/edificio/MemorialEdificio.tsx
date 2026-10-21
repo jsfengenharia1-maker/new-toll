@@ -329,6 +329,35 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <tbody>{dim.lajes.map((x) => <tr key={`${x.laje}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td className="l">{x.tipo}</td><td>{fmt(x.As.pos[0])} / {fmt(x.As.pos[1])}</td><td>{fmt(x.As.neg[0])} / {fmt(x.As.neg[1])}</td><td className={x.wk > x.wkLim + 1e-9 ? 'bad' : undefined}>{fmt(x.wk, 2)} / {fmt(x.wkLim, 2)}</td><td className={x.flecha > x.limite + 1e-9 ? 'bad' : undefined}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : undefined}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
             <p>Lajes maciças: momentos por {opc.woodArmer ? 'Wood-Armer (mx* = mx + |mxy|; mx*′ = mx − |mxy|, torçor somando |γ·mxy| por caso) com média numa faixa transversal de 1 m' : 'extremos dos momentos nas barras da grelha (Wood-Armer desligado)'}. Flecha relativa aos apoios (descontado o deslocamento das vigas e pilares), {opc.fatorFlechaLaje ? `fator simplificado ${fmt(opc.fatorFlechaLaje, 1)} × elástica` : `elástica (G + ψ2·Q) × (1 + αf), αf = Δξ(t0) = ${fmt(deltaXi(opc.t0Flecha))}, sem fissuração (a confirmar)`}; limite ℓ/{opc.limiteFlechaTotal} do menor vão; carga variável ≤ ℓ/{opc.limiteFlechaSensorial}.</p>
+            {(!!dim.puncao?.length || dim.lajes.some((x) => x.cortante)) && (<>
+              {h2('Punção e cortante das lajes')}
+              <p>Cortante e punção das lajes maciças pela NBR 6118:2014, 19.4 e 19.5 (numeração a confirmar na edição de 2023). Valores de cálculo (ELU, γg·G + γq·Q); tensões em MPa, forças em kN, momentos em kN·m, comprimentos em m.</p>
+              {(dim.puncao?.[0]?.origens ?? dim.lajes.find((x) => x.cortante)?.origens?.filter((o) => o.grandeza === 'Cortante') ?? []).map((o, i) => <p key={i}><b>{o.grandeza}.</b> {o.formula}. <i>{o.item}.</i></p>)}
+              {!!dim.puncao?.length && (<>
+                <h3>Punção por pilar</h3>
+                <table>
+                  <thead><tr><th className="l">Pilar</th><th className="l">Pavimento</th><th className="l">Apoio</th><th>FSd</th><th>MSd u / v</th><th>u (C′)</th><th>τSd (C) / τRd2</th><th>τSd (C′) / {'τRd1'}</th><th className="l">Armadura de punção</th><th className="l">Situação</th></tr></thead>
+                  <tbody>{dim.puncao.map((r) => (
+                    <tr key={r.id}>
+                      <td className="l">{r.nome}</td><td className="l">{r.pavimento}</td><td className="l">{r.tipo}{r.origem === 'viga' ? ' (viga chata)' : ''}</td><td>{fmt(r.F, 1)}</td><td>{fmt(r.M[0], 1)} / {fmt(r.M[1], 1)}</td><td>{fmt(r.contornos[1].u)}</td>
+                      <td className={r.contornos[0].ok ? undefined : 'bad'}>{fmt(r.contornos[0].tau, 3)} / {fmt(r.tauRd2, 3)}</td>
+                      <td className={r.contornos[1].tau > r.tauRd1 + 1e-9 ? 'bad' : undefined}>{fmt(r.contornos[1].tau, 3)} / {fmt(r.tauRd1, 3)}</td>
+                      <td className="l">{r.armadura ? `${r.armadura.linhas} linhas × ${r.armadura.barras} ${r.armadura.tipo === 'estribo' ? 'estribos' : 'conectores'} φ${String(r.armadura.phi).replace('.', ',')} (τRd3 = ${fmt(r.tauRd3 ?? 0, 3)})${r.manual.length ? ' + informada' : ''}` : r.manual.length ? 'informada' : '—'}</td>
+                      <td className="l">{r.status === 'ok' ? 'sem armadura' : r.status === 'armadura' ? 'com armadura' : 'não atende'}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+                <p>Contornos: C no perímetro do pilar, C′ a 2d e C″ a 2d da última linha de armadura, recortados pela laje (pilares de borda e de canto: contorno reduzido) e sem o trecho entre as tangentes aos furos a menos de {fmt(opc.puncaoFuroDist, 0)}d. τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d), com MSd1 = máx(0; MSd − FSd·e*), K da Tabela 19.2 e Wp = ∫|e|dℓ. FSd é a reação do pilar na grelha da laje; MSd, o momento das molas de rotação do pilar (cargas verticais, módulos somados caso a caso). ρ = √(ρx·ρy) da armadura superior calculada. Armadura em linhas radiais: primeira barra a {fmt(opc.puncaoS0, 2)}d e barras a {fmt(opc.puncaoSr, 2)}d, {opc.puncaoTipoArmadura ? 'conectores (fywd ≤ 300 MPa)' : 'estribos em grampo (fywd ≤ 250 MPa)'}, aço {acoDe(b, 'lajePuncao').aco}.</p>
+              </>)}
+              {dim.lajes.some((x) => x.cortante) && (<>
+                <h3>Cortante das lajes nos apoios em vigas</h3>
+                <table>
+                  <thead><tr><th className="l">Laje</th><th className="l">Pavimento</th><th>VSd / VRd1 dir. 0 (kN/m)</th><th>VSd / VRd1 dir. 1 (kN/m)</th><th>VRd2 (kN/m)</th><th>Armadura transversal (cm²/m²)</th></tr></thead>
+                  <tbody>{dim.lajes.filter((x) => x.cortante).map((x) => <tr key={`${x.laje}-${x.pavimento}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td className={x.cortante!.VSd[0] > x.cortante!.VRd1[0] + 1e-9 ? 'bad' : undefined}>{fmt(x.cortante!.VSd[0], 1)} / {fmt(x.cortante!.VRd1[0], 1)}</td><td className={x.cortante!.VSd[1] > x.cortante!.VRd1[1] + 1e-9 ? 'bad' : undefined}>{fmt(x.cortante!.VSd[1], 1)} / {fmt(x.cortante!.VRd1[1], 1)}</td><td>{fmt(x.cortante!.VRd2, 1)}</td><td>{x.cortante!.Asw ? fmt(x.cortante!.Asw) : '—'}</td></tr>)}</tbody>
+                </table>
+                <p>Cortante nas pontas das barras da malha que chegam a vigas, por metro de largura, contra VRd1 (19.4.1); acima dele, armadura transversal (19.4.2) para h ≥ 15 cm, com Vc interpolado entre VRd1 (h ≤ 15 cm) e 0,6·fctd·d (h ≥ 35 cm) [a confirmar]. No entorno de pilares sem viga, varredura em superfícies a cada {fmt(opc.cortanteVarreduraPasso, 2)}d a partir do contorno C′ ({opc.cortanteVarredura ? 'ligada' : 'desligada'}).</p>
+              </>)}
+            </>)}
             {[...dim.vigas, ...dim.pilares, ...dim.lajes].some((x) => x.mensagens.length) && (
               <ul>{[...dim.vigas.map((x) => [x.nome, x.mensagens] as const), ...dim.pilares.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const), ...dim.lajes.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const)].filter(([, m]) => m.length).map(([n, m], i) => <li key={i}><b>{n}:</b> {m.join(' ')}</li>)}</ul>
             )}

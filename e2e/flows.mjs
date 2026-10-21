@@ -2428,4 +2428,74 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'N2d: punção das lajes (contornos C, C′ e C″, armadura calculada, grupos informados, camada e ferramenta na planta, envoltória do grupo, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('vento.definir {"ativo": false}');
+      await cmd('grupo.editar {"id": "g_3", "q": 14}');
+      // laje lisa de 12 × 12 m, h = 16 cm, em 3 × 3 pilares 50 × 50 (1 interno, 4 de borda e 4 de canto)
+      await cmd('lote {"comandos": [' + [0.25, 6, 11.75].flatMap((x) => [0.25, 6, 11.75].map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.5, "h": 0.5}}}`)).join(', ') + ']}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "tipo": {"tipo": "macica", "h": 0.16}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      await livre();
+      // cartão de punção: 9 pilares por pavimento do grupo; o interno leva armadura, os de borda e de canto reprovam na biela
+      const card = page.locator('[data-card-puncao]');
+      await card.waitFor();
+      assert.equal(await card.locator('tbody tr').count(), 27);
+      assert.ok(await card.locator('tbody tr', { hasText: 'com armadura' }).count() >= 1);
+      assert.ok(await card.locator('tbody tr.bad', { hasText: 'não atende' }).count() >= 1);
+      assert.ok(await page.locator('[data-lista-erros]').getByText('PUNCAO_BIELA').first().isVisible());
+      // janela da laje, aba Punção e cortante
+      await card.locator('tbody tr', { hasText: 'com armadura' }).first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Punção e cortante' }).click();
+      const cartao = jan.locator('section[data-status="armadura"]').first();
+      await cartao.waitFor();
+      assert.equal(await cartao.getAttribute('data-tipo-apoio'), 'interno');
+      assert.ok(await cartao.locator('svg[data-puncao-fig] [data-contorno="C″"]').count() > 0);
+      assert.ok(await cartao.locator('svg circle[data-barra]').count() >= 4);
+      assert.match(await cartao.locator('table[data-contornos-puncao]').innerText(), /τRd3/);
+      assert.match(await cartao.innerText(), /armadura de punção calculada/i);
+      // grupo informado soma-se à calculada e pode ser apagado
+      await cartao.getByRole('button', { name: 'Adicionar grupo' }).click();
+      await livre();
+      await jan.locator('[data-grupos-puncao="1"]').waitFor();
+      await cartao.getByRole('button', { name: 'Apagar os grupos do pilar' }).click();
+      await livre();
+      await jan.locator('[data-grupos-puncao]').waitFor({ state: 'detached' });
+      // envoltória dos pavimentos do grupo (C3.4)
+      await jan.getByRole('radio', { name: 'Resultados e armadura' }).click();
+      await jan.getByRole('radio', { name: 'Envoltória do grupo' }).click();
+      await jan.locator('[data-envoltoria-laje]').waitFor();
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // camada na planta (Tipo 1): contornos dos 9 pilares
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.getByLabel('Armadura das lajes na planta').selectOption('puncao');
+      await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-puncao') === '9', null, { timeout: 15000 });
+      // ferramenta: um clique no pilar interno lança o grupo informado; no modo Apagar, remove
+      await page.getByRole('button', { name: 'Armadura de punção', exact: true }).click();
+      await page.keyboard.press('f');
+      const [px, py] = await telaDe(page, 6, 6);
+      await page.mouse.click(px, py);
+      await page.waitForTimeout(500);
+      await livre();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await card.locator('tbody tr', { hasText: 'informada' }).first().waitFor({ timeout: 30000 });
+      // memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const t = await memo.textContent();
+      assert.match(t, /Punção e cortante das lajes/);
+      assert.match(t, /Punção por pilar/);
+      assert.match(t, /Cortante das lajes nos apoios em vigas/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];

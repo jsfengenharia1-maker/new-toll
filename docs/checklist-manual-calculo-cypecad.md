@@ -20,24 +20,24 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 28 | 20 | 55 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 22 | 18 | 19 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 48 | 19 | 30 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 9 | 2 | 30 | 4 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 22 | 19 | 18 | 3 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 49 | 19 | 29 | 23 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 17 | 2 | 22 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 7 | 10 | 7 | 19 |
-| **Total** | **661** | **234** | **129** | **187** | **111** |
+| **Total** | **661** | **243** | **130** | **177** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 54 | 28 | 82 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 52 | 18 | 70 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 31 | 16 | 47 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 25 | 119 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 119 | 147 |
 | FU — Fundações | 6 | 13 | 19 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **129** | **187** | **316** |
+| **Total** | **130** | **177** | **307** |
 
 ## Divergências de premissa
 
@@ -352,7 +352,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.6.4 | Aço de armadura: resistência de escoamento, coeficiente redutor e módulo, conforme norma; definido por posição e tipo de elemento. | Feito | — | aço por posição com fyk 500/600 e γs da obra no dimensionamento (N1b) |
 | K1.6.5 | Aço de armadura distinto para pilares/paredes/pilares-parede/consolos (longitudinal; estribos). | Feito | — | pilares: longitudinal e estribos (N1b) |
 | K1.6.6 | Aço distinto em vigas e vigas de fundação: negativo, positivo, montagem, pele, estribos. | Parcial | N | vigas: positiva, negativa e estribos (N1b); montagem e pele usam o aço da positiva [N2e] |
-| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | N | lajes maciças: inferior e superior (N1b); punção, cortante e nervuradas com as próprias verificações [N2d] |
+| K1.6.7 | Aço distinto em lajes e radiers: punção e cortante; superior e inferior de maciças; superior de nervuradas e vigotas; inferior de nervuradas. | Parcial | E | aço por posição: inferior e superior das lajes maciças (N1b), armadura de punção e de cortante (`acoPos.lajePuncao` e `lajeCortante`, `materiais.ts`, N2d); nervuradas e vigotas in loco com as nervuradas [E3] |
 | K1.6.8 | Aço distinto em sapatas, sapatas corridas e blocos. | Feito | — | módulo Fundações tem fck e fyk próprios (`piles.ts`: fckFound, fyk); no edifício, aço da posição `fundacao` em `materiais.definir` (`acoDe`, padrão o da obra, FU1) |
 | K1.6.9 | Aço estrutural de pilares, vigas e placas de base: biblioteca não editável (módulo, escoamento, Poisson etc.); perfis laminados, formados a frio e soldados. | Fora | — | aço estrutural |
 | K1.6.10 | Placas de base: aço da placa e enrijecedores, aço e tipo de chumbadores; bitolas pré-definidas não editáveis. | Fora | — | placas de base |
@@ -393,7 +393,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Falta | E | blocos de concreto estrutural [E1e] |
 | K1.9.6 | Aço de armadura em pilares/pilares-parede/consolos (longitudinal e estribos), com abas separadas para estrutura e fundação. | Feito | — | aço dos pilares por posição: longitudinal e estribos (acoPos, N1b); aço da fundação do edifício na posição `fundacao` (FU1) |
 | K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Parcial | N | aço por posição: positiva, negativa e estribos das vigas (acoPos, N1b); montagem e pele usam o da positiva [N2e] |
-| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | N | aço por posição: inferior e superior das lajes maciças e treliçadas (acoPos, N1b); punção e cortante sem armadura no edifício; nervuradas (E) [N2d] |
+| K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | E | punção e cortante das lajes maciças com aço próprio (`acoPos`, N2d) e negativo/positivo de maciças e treliçadas (N1b); nervuradas, ábacos e vigotas in loco (E3) [N2d] |
 | K1.9.9 | Aço de perfis de vigas e pilares: formado a frio e laminado a quente. | Fora | — | perfis de aço |
 | K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento, ψ, casos adicionais (N1c) e opções; sem incêndio nem escolha de estados [N2g] |
 | K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
@@ -556,7 +556,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Falta | V | deslocamentos e esforços por nó e caso na tela [V3] |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | flecha elástica máxima por pavimento (G, Q) na aba Análise e flecha por laje; sem deslocamento por pano e caso [V3] |
-| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Falta | N | punção e cortante em lajes (NBR 6118 19.4 e 19.5) [N2d] |
+| K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); nervuras com as nervuradas (E3d) [N2d] |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Falta | R | uniformização e edição de barras das lajes [R7e] |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Falta | FU | tensões no radier |
 | K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Falta | V | isovalores e isolinhas [V4] |
@@ -656,7 +656,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.1-16 | Arranques de pilar apoiado em viga: conferir a ancoragem na viga; recomenda-se limitar o coeficiente de engaste na base do pilar no primeiro lance para evitar barras grossas e arranques longos. | Falta | E | arranques de pilar sobre viga [E1a] |
 | K1.12.1-17 | Limitação: trecho com vão < 2× a altura (viga alta/viga-parede) não tem critério de dimensionamento → verificação e armadura manuais. | Falta | N | aviso de viga-parede (NBR 6118 22.4) [N2e] |
 | K1.12.1-18 | Limitação: largura > 2× o vão → elemento de placa; deve ser discretizado e lançado como laje, não viga. | Falta | N | aviso de elemento de placa [N2e] |
-| K1.12.1-19 | Viga chata mais larga que o apoio em mais de uma altura: punção e estribos no apoio verificados manualmente, com armadura transversal adicional se necessário. | Falta | N | punção e estribos em viga chata larga [N2d] |
+| K1.12.1-19 | Viga chata mais larga que o apoio em mais de uma altura: punção e estribos no apoio verificados manualmente, com armadura transversal adicional se necessário. | Feito | — | viga chata mais larga que o apoio em mais de uma altura: aviso VIGA_CHATA_LARGA e punção verificada com a altura e a largura da viga (`sitiosPuncao`, opção `puncaoVigaChata`) [N2d] |
 | K1.12.1-20 | Limitação: cargas penduradas abaixo da linha neutra ou cargas concentradas de vigas apoiadas em vigas → armadura de suspensão não calculada; acrescentar manualmente. | Falta | N | armadura de suspensão (NBR 6118 18.3.6) [N2e] |
 | K1.12.1-21 | Fissuração (opcional): limite de abertura de fissura definido pelo usuário; expressão do CEB-FIP Model Code: wk = 1,7·sm·εsm. | Feito | — | wk pela NBR 6118 17.3.3.2 (equivalente ao CEB-FIP) nas vigas e lajes maciças, limite editável ou pela CAA (N1e) |
 | K1.12.1-22 | sm = 2c + 0,2s + K1·K2·φ·Ac,ef/As; c = cobrimento da armadura tracionada; s = espaçamento das barras (se s > 15φ, usa 15φ); K1 = 0,4 (barras nervuradas); K2 = 0,125 (flexão simples); As = área das barras dentro de Ac,ef; Ac,ef = área efetiva em torno das barras, com altura de 1/4 da altura da viga. | Fora | — | fórmula do CEB; usamos a da NBR 6118 |
@@ -765,16 +765,16 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.3-1 | Armadura lançada pelo usuário (face, direção, diâmetro e comprimento livres), descontada do reforço na sua zona de influência; útil onde o esforço é conhecido, ex. sobre apoios. | Falta | R | armadura predefinida [R7d] |
 | K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Falta | FU | radier |
 | | **1.13.2.4 Armadura transversal** | | | |
-| K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Falta | N | punção em lajes (NBR 6118 19.5); só sapatas têm (`footings.ts`) [N2d] |
-| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Falta | N | tensões de punção no perímetro [N2d] |
+| K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Feito | — | contornos C (face), C′ (2d) e C″ da NBR 6118, 19.5, no lugar das superfícies a 0,5d (a norma é exigência), recortados pela laje, pelas bordas livres e pelos furos a menos de 8d: pilar interno, de borda, de canto, circular e pilar-parede (`puncao.ts`) [N2d] |
+| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Feito | — | τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d) no contorno, com FSd (reação do pilar na grelha) e o momento das molas no lugar da interpolação dos cortantes dos nós; método da NBR 6118, 19.5.2 [N2d] |
 | K1.13.2.4-3 | O manual registra que a abordagem é geral e difere das normas (fórmulas simplificadas com normal e momento desequilibrado). | Fora | — | comentário do manual |
-| K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Falta | N | marcação de punção excedida (punção em lajes: N2) [N2d] |
-| K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Falta | N | armadura de punção [N2d] |
-| K1.13.2.4-6 | Disposição dos grampos pelo usuário, com espaçamento ≤ 0,75d e entre as armaduras superior e inferior. | Falta | N | disposição dos grampos de punção (N2) [N2d] |
+| K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Feito | — | τSd > τRd2 no contorno C: erro PUNCAO_BIELA; contornos que excedem a resistência em vermelho na janela da laje e na camada Punção e cortante da planta [N2d] |
+| K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Feito | — | armadura de punção calculada: estribos (grampos verticais) ou conectores em linhas radiais, número de linhas, barras por linha, φ e espaçamento, até o contorno C″ dispensar armadura (`ArmaduraPuncao`, opção `puncaoTipoArmadura`) [N2d] |
+| K1.13.2.4-6 | Disposição dos grampos pelo usuário, com espaçamento ≤ 0,75d e entre as armaduras superior e inferior. | Feito | — | primeira barra a ≤ 0,5d e espaçamento radial ≤ 0,75d (opções `puncaoS0` e `puncaoSr`), entre as armaduras superior e inferior; grupos do usuário com aviso PUNCAO_ESP quando passam de 0,75d [N2d] |
 | K1.13.2.4-7 | Junto a vigas (chatas ou altas), as tensões tangenciais vão para os estribos das vigas; na laje só se calculam tensões em superfícies paralelas às faces das vigas. | Fora | — | critério interno |
-| K1.13.2.4-8 | Cortante: a partir do perímetro de punção e em superfícies paralelas a cada 0,75d, verifica toda a laje até esgotar as superfícies que irradiam do apoio. | Falta | N | cortante em lajes (NBR 6118 19.4) [N2d] |
-| K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Falta | N | armadura de cortante em lajes [N2d] |
-| K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Falta | N | marcação de cortante excedido nas lajes (N2) [N2d] |
+| K1.13.2.4-8 | Cortante: a partir do perímetro de punção e em superfícies paralelas a cada 0,75d, verifica toda a laje até esgotar as superfícies que irradiam do apoio. | Feito | — | varredura de cortante a partir do contorno C′ em superfícies a cada 0,75d até esgotar a laje (V = FSd − q·A, v = V/u contra VRd1; opções `cortanteVarredura` e `cortanteVarreduraPasso`); cortante nas pontas das barras sobre vigas (`cortanteLaje`) [N2d] |
+| K1.13.2.4-9 | Armadura de cortante indicada (número e diâmetro) com o mesmo tipo usado na punção. | Feito | — | armadura transversal de cortante pela 19.4.2 (Vc interpolado entre VRd1 e 0,6·fctd·d pela espessura), do mesmo tipo da punção e somada aos anéis da punção [N2d] |
+| K1.13.2.4-10 | Falha de cortante → linha vermelha; aumentar espessura, dimensão do apoio ou resistência do concreto. | Feito | — | cortante acima de VRd2 ou laje com h < 15 cm acima de VRd1: erro CORTANTE_LAJE (superfície em vermelho); com armadura possível, aviso CORTANTE_LAJE_ARM [N2d] |
 | K1.13.2.4-11 | Radiers: mesmas regras das lajes maciças. | Falta | FU | radier |
 | K1.13.2.4-12 | Uniformização: linhas ou retângulos em qualquer direção, face superior ou inferior, definidos antes ou depois do cálculo, igualam a armadura ao máximo da zona (taxa e comprimento). | Falta | R | uniformização por zonas [R7e] |
 | K1.13.2.4-13 | Opção de uniformização automática sobre pilares, em faixas adjacentes a pilares indicados. | Falta | R | uniformização sobre pilares [R7e] |
@@ -905,3 +905,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **21/10/2026 — fatia R7b (opções e edição fina do detalhamento de vigas, núcleo e interface).** C6.33, C6.65, C6.66, C6.103 e C6.104 (manual do usuário) e K1.4.63, K1.4.64, K1.4.70, K1.11.6, K1.12.9, K1.12.13, K1.12.14, K1.12.15, K1.12.17, K1.12.19, K1.12.25, K1.12.26, K1.12.27 e K1.12.1-9 (manual de cálculo) passam a Feito: 15 opções `viga*` (redução de lb por As,calc/As,ef, negativos e reforços mínimos em % do vão, simetria e união dos negativos, montagem contínua/interrompida, colaborante/construtiva, com gancho ou reta, do extremo ou do eixo, perna do gancho, extensão de d/2, zona mínima e simetria dos estribos, fator de emenda, limite do desnível), comandos `viga.detalhe` e `viga.tramo` (`mcp: false`), códigos ESTRIBO_BITOLA, DESNIVEL_LONG, TRAMO_IGNORADO, DETALHE_INSUF e DETALHE_IGNORADO, "Mostrar" e edição na aba Detalhamento da viga, memorial e pranchas (perna e continuidade do tramo). K1.4.65 (falta estribo em U e ancoragem do fechamento) e K1.12.4 (falta As,mín longitudinal ponto a ponto) seguem Parcial.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R reduz em 19 itens; demais sem mudança.
+- **21/10/2026 — fatia N2d (punção e cortante das lajes, núcleo e interface).** K1.12.1-19, K1.13.2.4-1, -2, -4, -5, -6, -8, -9 e -10 passam a Feito: contornos C, C′ e C″ da NBR 6118, 19.5 (exigência, no lugar das superfícies a 0,5d), pilares interno, de borda, de canto, circular e pilar-parede com momento desbalanceado (K da Tabela 19.2, Wp numérico, MSd1 = MSd − FSd·e*), furos a menos de 8d, armadura de punção em linhas radiais (estribos ou conectores), varredura de cortante a cada 0,75d com armadura transversal da 19.4.2, viga chata larga com aviso e verificação, e cortante nas pontas das barras sobre vigas; aço próprio da punção e do cortante (`acoPos.lajePuncao`/`lajeCortante`). K1.6.7, K1.9.8 e K1.11.21 seguem Parcial na frente E (E3): nervuradas, ábacos e nervuras com punção. Testes conferidos à mão em `src/core/building/puncao.test.ts` (Wp e u de C′ do pilar interno, de borda e de canto; τSd com momento; armadura por anel; VRd1 e Vc da laje; varredura); e2e N2d.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N 96 → 80 (junto com as demais fatias do lote); E 371 → 376.
