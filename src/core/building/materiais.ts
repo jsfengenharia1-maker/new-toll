@@ -26,17 +26,18 @@ export const GAMAS_PADRAO = { c: 1.4, s: 1.15, g: 1.4, q: 1.4, h: 1.4 };
 export const gamas = (b: BuildingModel) => ({ ...GAMAS_PADRAO, c: gamaCDoControle(b.norma.controle), ...b.norma.gamas });
 
 /**
- * fck (MPa) do tipo de elemento; nos pilares, o do lance que chega ao pavimento quando informado. Fundação: o dos
+ * fck (MPa) do tipo de elemento; nos pilares, o do lance que chega ao pavimento quando informado (do pilar, E1a; senão o por pavimento). Fundação: o dos
  * materiais, o das opções das fundações (arquivos anteriores) ou o da obra.
  */
-export function fckDe(b: BuildingModel, tipo: TipoElemento, pavimento?: string): number {
+export function fckDe(b: BuildingModel, tipo: TipoElemento, pavimento?: string, pilar?: Pick<Pilar, 'fck'>): number {
+  if (tipo === 'pilar' && pavimento) { const fp = pilar?.fck?.find((x) => x.pavimento === pavimento)?.fck; if (fp) return fp; }
   if (tipo === 'pilar' && pavimento) { const f = b.norma.fckPilarPav?.find((x) => x.pavimento === pavimento)?.fck; if (f) return f; }
   if (tipo === 'fundacao') return b.norma.fckElem?.fundacao ?? b.fundacao?.params?.fckFound ?? b.norma.fck;
   return b.norma.fckElem?.[tipo] ?? b.norma.fck;
 }
 
 /** Concreto de um elemento com o γc da obra. */
-export const concretoDe = (b: BuildingModel, tipo: TipoElemento, pavimento?: string): Concrete => concrete(fckDe(b, tipo, pavimento), gamas(b).c);
+export const concretoDe = (b: BuildingModel, tipo: TipoElemento, pavimento?: string, pilar?: Pick<Pilar, 'fck'>): Concrete => concrete(fckDe(b, tipo, pavimento, pilar), gamas(b).c);
 
 /** Aço da posição (padrão: aço da obra), com fyk e fyd (MPa). */
 export function acoDe(b: BuildingModel, pos: PosicaoAco): { aco: Aco; fyk: number; fyd: number } {

@@ -15,7 +15,8 @@ import { resumoAnalise } from '../../core/building/resumo';
 import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
-import { cotaFundacao, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
+import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
+import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
@@ -71,6 +72,14 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const combs = useMemo(() => (analise ? combinacoesEdificio(b, analise) : []), [b, analise]);
   const porTipo = (t: string) => combs.filter((c) => c.tipo === t).length;
   const excepcionais = combs.filter((c) => c.nome.startsWith('ELU excepcional'));
+  /** Pilares que nascem acima da fundação (E1a): apoio detectado, excentricidade e como ficou ligado no modelo. */
+  const apoiados = useMemo(() => b.pilares.filter((p) => p.nasce !== 'fundacao' && lancesDoPilar(b, p).length).map((p) => {
+    const ap = inicioDe(p) === 'apoiado' ? apoioDoPilar(b, p) : null, q = ap?.tipo === 'pilar' ? b.pilares.find((x) => x.id === ap.principal) : undefined;
+    const e = q ? excentricidadeApoio(b, p, q) : null;
+    const txt = inicioDe(p) === 'fundacao' ? 'fundação (vínculo externo)' : !ap ? 'sem apoio' : ap.tipo === 'pilar' ? `pilar ${q?.nome ?? ''}${ap.todos.length > 1 ? ` (+${ap.todos.length - 1})` : ''}` : ap.tipo === 'viga' ? `viga ${ap.vigas.map((id) => b.vigas.find((v) => v.id === id)?.nome).join(', ')} (transição)` : `laje ${b.lajes.find((l) => l.id === ap.laje)?.nome ?? ''}`;
+    return { p, txt, ligado: analise?.apoiados?.[p.id]?.ligado, exc: e ? Math.hypot(e[0], e[1]) : null, tipo: ap?.tipo ?? null };
+  }), [b, analise]);
+  const lancesProprios = useMemo(() => b.pilares.flatMap((p) => (p.secoes ?? []).filter((e) => e.ajuste !== undefined || e.angulo !== undefined || e.dx || e.dy).map((e) => ({ p, e }))), [b]);
   const quantFund = useMemo(() => { if (!dim) return null; try { return quantitativosFundacao(b, analise ?? null, dim); } catch { return null; } }, [b, analise, dim]);
 
   const printCss = memoPrintCss({ title: nome, obra: b.obra.nome, rev: 'R00', date: today });
@@ -119,7 +128,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>
               <tr><td className="l">Lajes</td><td>{fckDe(b, 'laje')}</td><td className="l">inferior {acoDe(b, 'lajeInf').aco}; superior {acoDe(b, 'lajeSup').aco}</td><td className="l">inferior {fmt(cobrimentoLaje(b).inf * 100, 1)}; superior {fmt(cobrimentoLaje(b).sup * 100, 1)}</td></tr>
               <tr><td className="l">Vigas</td><td>{fckDe(b, 'viga')}</td><td className="l">positiva {acoDe(b, 'vigaPos').aco}; negativa {acoDe(b, 'vigaNeg').aco}; estribos {acoDe(b, 'vigaEstribo').aco}</td><td className="l">inferior {fmt(cobrimentoViga(b).inf * 100, 1)}; superior {fmt(cobrimentoViga(b).sup * 100, 1)}; lateral {fmt(cobrimentoViga(b).lat * 100, 1)}</td></tr>
-              <tr><td className="l">Pilares</td><td>{fckDe(b, 'pilar')}{b.norma.fckPilarPav?.length ? ` (lances: ${b.norma.fckPilarPav.map((x) => `${b.pavimentos.find((p) => p.id === x.pavimento)?.nome ?? x.pavimento} ${x.fck}`).join('; ')})` : ''}</td><td className="l">longitudinal {acoDe(b, 'pilarLong').aco}; estribos {acoDe(b, 'pilarEstribo').aco}</td><td className="l">{fmt(b.norma.cobrimento.pilar, 1)}</td></tr>
+              <tr><td className="l">Pilares</td><td>{fckDe(b, 'pilar')}{b.pilares.some((x) => x.fck?.length) ? ` (fck próprio por lance: ${b.pilares.filter((x) => x.fck?.length).map((x) => `${x.nome} ${x.fck!.map((f) => `${b.pavimentos.find((q) => q.id === f.pavimento)?.nome ?? f.pavimento} ${f.fck}`).join(', ')}`).join('; ')})` : ''}{b.norma.fckPilarPav?.length ? ` (lances: ${b.norma.fckPilarPav.map((x) => `${b.pavimentos.find((p) => p.id === x.pavimento)?.nome ?? x.pavimento} ${x.fck}`).join('; ')})` : ''}</td><td className="l">longitudinal {acoDe(b, 'pilarLong').aco}; estribos {acoDe(b, 'pilarEstribo').aco}</td><td className="l">{fmt(b.norma.cobrimento.pilar, 1)}</td></tr>
               {!!b.fundacao?.elementos.length && <tr><td className="l">Fundações</td><td>{fckDe(b, 'fundacao')}</td><td className="l">{acoDe(b, 'fundacao').aco}</td><td className="l">{fmt(cobrimentoFundacao(b) * 100, 1)}</td></tr>}
             </tbody>
           </table>
@@ -131,6 +140,19 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>{[...ps].reverse().map((p) => <tr key={p.id}><td className="l">{p.nome}</td><td>{fmt(p.cota)}</td><td>{fmt(peDireito(b, p.id))}</td><td className="l">{b.grupos.find((g) => g.id === p.grupo)?.nome ?? '—'}</td></tr>)}</tbody>
           </table>
           <p>Fundação na cota {fmt(cotaFundacao(b))} m. {b.pilares.length} pilares, {b.vigas.length} vigas e {b.lajes.length} lajes lançadas.</p>
+          {apoiados.length > 0 && <>
+            <h3>Pilares que nascem acima da fundação (apoiados)</h3>
+            <table>
+              <thead><tr><th className="l">Pilar</th><th className="l">Nasce em</th><th className="l">Apoio</th><th>Excentricidade (cm)</th><th className="l">Pé no modelo</th><th>Engaste da base</th></tr></thead>
+              <tbody>{apoiados.map(({ p, txt, ligado, exc, tipo }) => <tr key={p.id}>
+                <td className="l">{p.nome}</td><td className="l">{nomePav(p.nasce)}</td><td className="l">{txt}</td><td>{exc === null ? '—' : fmt(exc * 100, 1)}</td>
+                <td className="l">{tipo === null ? 'apoio fixo' : ligado ? 'ligado ao apoio' : 'apoio fixo provisório'}</td>
+                <td>{tipo === 'viga' || tipo === 'laje' ? fmt(opc.engasteTransicao) : tipo === 'pilar' ? '1,00 (contínuo)' : '—'}</td>
+              </tr>)}</tbody>
+            </table>
+            <p>O apoio é detectado no pavimento em que o pilar nasce (pilar que morre ali com seção sobreposta; senão viga; senão laje). Sobre pilar, o pé é o nó do topo do pilar de baixo e a parte fora da projeção liga-se por trecho rígido horizontal (momento N·e); sobre viga, o pé é nó da viga e não a apoia; sobre laje, só no modelo integrado. A viga de transição é verificada para o cortante junto às faces do pilar (resultados das vigas).</p>
+          </>}
+          {lancesProprios.length > 0 && <p>Lances com geometria própria: {lancesProprios.map(({ p, e }) => `${p.nome} em ${nomePav(e.pavimento)}${e.ajuste ? ` (ponto fixo ${e.ajuste})` : ''}${e.angulo !== undefined ? ` (${fmt(e.angulo, 0)}°)` : ''}${e.dx || e.dy ? ` (deslocamento ${fmt((e.dx ?? 0) * 100, 1)}; ${fmt((e.dy ?? 0) * 100, 1)} cm)` : ''}`).join('; ')}. A parte do lance fora da projeção do lance de baixo liga-se a ele por trecho rígido horizontal.</p>}
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
 
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
@@ -204,6 +226,14 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <thead><tr><th>Viga</th><th>b×h (cm)</th><th>M+ (kN·m)</th><th>M− (kN·m)</th><th>V (kN)</th><th>Inferior</th><th>Superior</th><th>Estribo</th><th>Td (kN·m)</th><th>δ</th><th>wk inf / sup / lim. (mm)</th><th>Flecha / lim. (mm)</th><th>Flecha Q / lim. (mm)</th><th>Laterais (torção)</th><th>aℓ (cm)</th><th>Situação</th></tr></thead>
               <tbody>{dim.vigas.map((x) => <tr key={x.viga}><td className="l">{x.nome}</td><td>{Math.round(x.b * 100)}×{Math.round(x.h * 100)}</td><td>{fmt(x.Mpos, 1)}</td><td>{fmt(x.Mneg, 1)}</td><td>{fmt(x.V, 1)}</td><td>{x.barrasInf}</td><td>{x.barrasSup}</td><td>{x.estribo}</td><td>{fmt(x.T, 1)}</td><td>{x.delta < 1 ? fmt(x.delta, 2) : '—'}</td><td className={Math.max(x.wk[0], x.wk[1]) > x.wkLim + 1e-9 ? 'bad' : undefined}>{fmt(x.wk[0], 2)} / {fmt(x.wk[1], 2)} / {fmt(x.wkLim, 2)}</td><td className={x.flecha > x.limite + 1e-9 ? 'bad' : undefined}>{fmt(x.flecha * 1000, 1)} / {fmt(x.limite * 1000, 1)}</td><td className={x.flechaQ > x.limiteQ + 1e-9 ? 'bad' : undefined}>{fmt(x.flechaQ * 1000, 1)} / {fmt(x.limiteQ * 1000, 1)}</td><td>{x.barrasLaterais}</td><td>{fmt(x.al * 100, 1)}</td><td>{ST[x.status]}</td></tr>)}</tbody>
             </table>
+            {dim.vigas.some((x) => x.transicoes?.length) && (<>
+              <h3>Vigas de transição (pilares que nascem sobre vigas)</h3>
+              <table data-memorial-transicoes>
+                <thead><tr><th className="l">Viga</th><th className="l">Pilar</th><th>s (m)</th><th>Nd (kN)</th><th className="l">Combinação</th><th>Vd nas faces (kN)</th><th>VRd3 / VRd2 (kN)</th><th className="l">Situação</th></tr></thead>
+                <tbody>{dim.vigas.flatMap((x) => (x.transicoes ?? []).map((t) => <tr key={`${x.viga}${t.pilar}`}><td className="l">{x.nome}</td><td className="l">{t.nome}</td><td>{fmt(t.s)}</td><td>{fmt(t.Nd, 1)}</td><td className="l">{t.combinacao}</td><td>{fmt(t.Vfaces[0], 1)} / {fmt(t.Vfaces[1], 1)}</td><td>{fmt(t.VRd3, 1)} / {fmt(t.VRd2, 1)}</td><td className="l">{ST[t.status === 'ok' ? 'ok' : 'fail']}</td></tr>))}</tbody>
+              </table>
+              <p>A carga do pilar apoiado entra na viga como concentrada no nó do pé (o pé não apoia a viga); os estribos atendem o maior cortante da cadeia, inclusive o junto às faces do pilar (NBR 6118, 17.4.2.2). Armadura de suspensão não se aplica (a carga entra por cima da viga); a verificação de carga localizada fica para a N2e.</p>
+            </>)}
             <p><b>Redistribuição</b> (NBR 6118, 14.6.4.3): {opc.redistribuicao > 0 ? `${fmt(opc.redistribuicao, 0)} %` : 'desligada'}. Reduz o momento negativo das cargas verticais nos apoios internos de vigas contínuas por δ = 1 − r/100, com δ ≥ 0,75 em nós fixos, δ ≥ 0,90 em nós móveis (γz &gt; 1,1) e δ ≥ 0,44 + 1,25·x/d; só as cargas verticais; o positivo aumenta por equilíbrio, aplicado linearmente ao longo do vão. A coluna δ mostra o valor efetivo (— sem redistribuição).</p>
             <p><b>Momentos mínimos</b>: {opc.momentoMinPositivo > 0 || opc.momentoMinNegativo > 0 ? `positivo ${opc.momentoMinPositivo > 0 ? `≥ p·ℓ²/${opc.momentoMinPositivo}` : 'desligado'} e negativo nos apoios ${opc.momentoMinNegativo > 0 ? `≥ p·ℓ²/${opc.momentoMinNegativo}` : 'desligado'}` : 'desligados'}, com a carga equivalente p = (V1 + V2)/ℓ dos cortantes das cargas verticais nas pontas do vão, aplicados antes da redistribuição (o negativo mínimo nos apoios internos também é multiplicado por δ); critério do programa de referência (recomendados p·ℓ²/20 e p·ℓ²/32).</p>
             <p><b>Cortante junto ao pilar</b> (17.4.1.2.1): {opc.cortanteApoio ? `a partir da face do pilar${opc.cortanteDistancia ? ` mais ${fmt(opc.cortanteDistancia, 0)} % de d` : ''}` : 'maior valor em toda a parte flexível'}. Decalagem do diagrama (17.4.2.2, estribos verticais): aℓ = d·Vmáx/[2(Vmáx − Vc)], entre 0,5d e d, na coluna aℓ, para o corte das barras.</p>

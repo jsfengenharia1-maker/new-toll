@@ -11,7 +11,7 @@ import { TRELICADAS } from '../building/lajes';
 import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
 import { siglaReforco } from '../building/lajesEdicao';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
-import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosDoGrupo, secaoNoLance, type BuildingModel } from '../building/types';
+import { geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, contornoNoLance } from '../building/types';
 import { areaPoligono } from '../geom/faces';
 import { pontoInterno } from '../geom/faces';
 import { caixa, type P, type Prancha, type Prim } from './prancha';
@@ -60,7 +60,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       fundo.push({ t: 'pl', c: 'EIXO', pts: [ln.a, ln.z] }, { t: 'txt', c: 'TEXTO', p: ln.a, h: 1.8 * k, s: `LD${i + 1}`, ah: 'e', av: 'base' });
     });
     for (const v of vigas) { const gv = geometriaViga(v); fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: [...gv.esq, ...[...gv.dir].reverse()], fechada: true }); }
-    for (const p of pilares) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: contornoPilar(p, secaoNoLance(p, ref!.id)), fechada: true });
+    for (const p of pilares) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: contornoNoLance(p, ref!.id), fechada: true });
     // concreto e forma das lajes do grupo (todas as repetições)
     let concreto = 0, forma = 0;
     for (const l of lajes) {

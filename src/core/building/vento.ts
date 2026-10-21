@@ -1,7 +1,7 @@
 // Vento pela NBR 6123:1988 (premissa 18): Vk = V0·S1·S2·S3, q = 0,613·Vk², F = Ca·q·Ae por pavimento,
 // em 4 direções e com excentricidade ± e·largura (item 6.6). Valores das tabelas a confirmar na norma.
 import { caDoAbaco, vizinhancaDoAbaco, abacoCaPreenchido, abacoVizPreenchido } from './abacosVento';
-import { centroPilar, contornoPilar, pavimentosOrdenados, secaoNoLance, lancesDoPilar, VENTO_PADRAO, type BuildingModel, type CategoriaVento, type Vento } from './types';
+import { centroPilar, pavimentosOrdenados, lancesDoPilar, VENTO_PADRAO, type BuildingModel, type CategoriaVento, type Vento, contornoNoLance } from './types';
 
 /** Parâmetros de S2 (NBR 6123, Tabela 1) [a confirmar]: b e p por classe A, B, C; Fr da categoria II. */
 export const S2_PARAM: Record<CategoriaVento, { b: number; p: [number, number, number] }> = {
@@ -41,7 +41,7 @@ function extensoes(b: BuildingModel, pav: string) {
   const pts: [number, number][] = [];
   for (const l of b.lajes) if (l.grupo === p.grupo) pts.push(...l.contorno);
   for (const v of b.vigas) if (v.grupo === p.grupo) pts.push(...v.pontos);
-  for (const q of b.pilares) if (lancesDoPilar(b, q).some((x) => x.id === pav)) pts.push(...contornoPilar(q, secaoNoLance(q, pav)), centroPilar(q, q.secao));
+  for (const q of b.pilares) if (lancesDoPilar(b, q).some((x) => x.id === pav)) pts.push(...contornoNoLance(q, pav), centroPilar(q, q.secao));
   if (!pts.length) return null;
   const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };

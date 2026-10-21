@@ -51,12 +51,13 @@ describe('verificação de lançamento das vigas', () => {
     expect(codigos(s)).toEqual([]);
   });
 
-  it('pilar nascendo sobre viga é transição (V2); sem viga embaixo é erro próprio', () => {
+  it('pilar nascendo sobre viga é transição (informação); sem apoio embaixo é erro próprio', () => {
     const s = quadro();
     ok(s, 'pilar.inserir', { x: 2.5, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 }, nasce: 'pav_5' });
     ok(s, 'pilar.inserir', { x: 2.5, y: 2, secao: { tipo: 'ret', b: 0.2, h: 0.2 }, nasce: 'pav_5' });
-    const d = verificar(s.modelo).filter((x) => x.severidade === 'erro').map((x) => x.codigo).sort();
-    expect(d).toEqual(['PILAR_NASCE_SEM_APOIO', 'PILAR_TRANSICAO']);
+    const d = verificar(s.modelo);
+    expect(d.filter((x) => x.severidade === 'erro').map((x) => x.codigo)).toEqual(['PILAR_NASCE_SEM_APOIO']);
+    expect(d.find((x) => x.codigo === 'PILAR_TRANSICAO')).toMatchObject({ severidade: 'info' });
   });
 
   it('face da viga a 3 cm da face do pilar: aviso com correção que resolve', () => {

@@ -398,6 +398,9 @@ registrar<{ id: string }>({
         q.morre = abaixo;
       }
       if (q.secoes) { q.secoes = q.secoes.filter((s) => s.pavimento !== p.id); if (!q.secoes.length) delete q.secoes; }
+      if (q.fck) { q.fck = q.fck.filter((f) => f.pavimento !== p.id); if (!q.fck.length) delete q.fck; }
+      // pilar que nascia sobre o pavimento removido e passa a nascer no de baixo perde o início próprio se virar pilar da fundação
+      if (q.inicio && q.nasce === 'fundacao') delete q.inicio;
       return true;
     });
     return `Pavimento “${x.nome}” removido${removidos.length ? `; pilares sem lance removidos: ${removidos.join(', ')}` : ''}.`;

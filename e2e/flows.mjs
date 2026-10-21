@@ -3280,4 +3280,103 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'E1a: pilar sobre pilar (realce e coordenadas relativas ao pilar de baixo, nome P5a) e pilar sobre viga (transição): janela, viga de transição, memorial e pranchas',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      const sec = (b, h) => `{"tipo": "ret", "b": ${b}, "h": ${h}}`;
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": ${sec(0.6, 0.6)}}}`).join(', ') + ']}');
+      // P5 da fundação ao Tipo 3 (admite outro por cima) e P6 nasce no Tipo 3 sobre a viga de y = 0
+      await cmd(`pilar.inserir {"x": 3, "y": 2.5, "secao": ${sec(0.3, 0.3)}, "morre": "pav_6"}`);
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.6}}}`).join(', ') + ']}');
+      await cmd(`pilar.inserir {"x": 3, "y": 0, "secao": ${sec(0.25, 0.25)}, "nasce": "pav_6"}`);
+      // pilar sem apoio embaixo é erro; sobre viga é só informação
+      await cmd(`pilar.inserir {"x": 1.5, "y": 3.5, "secao": ${sec(0.25, 0.25)}, "nasce": "pav_6"}`);
+      // planta do Tipo 3: pilar da ferramenta passa sobre o pilar de baixo (P5): realce, coordenadas relativas e P5a
+      const sel = page.getByLabel('Pavimento da planta');
+      await sel.selectOption(await sel.locator('option', { hasText: 'Tipo 3' }).first().getAttribute('value'));
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('p');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
+      await reenquadrarAte(page, [[0, 0], [6, 0], [6, 5], [0, 5], [3, 2.5]]);
+      const [px, py] = await telaDe(page, 3.1, 2.5);
+      await page.mouse.move(px, py);
+      await page.waitForFunction(() => /sobre P5: Δx/.test(document.querySelector('.planta-st .num')?.textContent ?? ''), null, { timeout: 20000 });
+      // um pilar que não admite outro por cima (P1 vai até a cobertura) não mostra a referência
+      const [qx, qy] = await telaDe(page, 0, 0);
+      await page.mouse.move(qx, qy);
+      await page.waitForFunction(() => !/sobre P/.test(document.querySelector('.planta-st .num')?.textContent ?? ''), null, { timeout: 20000 });
+      await page.mouse.move(px, py);
+      await page.waitForFunction(() => /sobre P5: Δx/.test(document.querySelector('.planta-st .num')?.textContent ?? ''), null, { timeout: 20000 });
+      await page.mouse.click(px, py);
+      await page.locator('.statusbar .msg', { hasText: /P5a inserido/ }).waitFor({ timeout: 20000 });
+      // tabela de pilares: P5a nasce no Tipo 3, sem erro de lançamento em P5a
+      await page.keyboard.press('s');
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Pilares \(/ }) });
+      await gp.locator(':scope > summary').click();
+      assert.equal(await gp.getByLabel('Nasce P5a').inputValue(), 'pav_6');
+      // Cobertura: seleciona P6 (sobre a viga) e vê o apoio e o lance
+      await sel.selectOption(await sel.locator('option', { hasText: 'Cobertura' }).first().getAttribute('value'));
+      await reenquadrarAte(page, [[0, 0], [6, 0], [3, 2.5], [0, 5]]);
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 3, 0)));
+      const gv = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vínculos, flambagem/ }) });
+      await gv.locator(':scope > summary').click();
+      await gv.locator('[data-apoio="viga"]').waitFor({ timeout: 20000 });
+      assert.match(await gv.locator('[data-apoio="viga"]').innerText(), /sobre a viga V1 \(viga de transição\)/);
+      await gv.getByLabel('Início do pilar').waitFor();
+      // verificação do lançamento: P7 sem apoio é erro; P6 sobre a viga é só informação
+      await page.locator('.edif-tabs').getByRole('tab', { name: /^Verificação/ }).click();
+      const ver = await page.locator('.edif-out').innerText();
+      assert.match(ver, /P7 nasce em Tipo 3 sem pilar, viga ou laje embaixo/);
+      assert.match(ver, /P6 nasce sobre V1 em Tipo 3: viga de transição/);
+      // calcula e dimensiona
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 120000 });
+      await livre();
+      // janela da viga de transição: tabela com o pilar P6, Nd e cortante nas faces
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr', { hasText: 'V1' }).first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      const tr = jv.locator('table[data-transicoes]');
+      await tr.waitFor();
+      assert.match(await tr.innerText(), /P6/);
+      assert.match(await jv.innerText(), /Transição: P6 nasce sobre a viga/);
+      await jv.getByRole('button', { name: 'Fechar' }).click();
+      // janela do pilar P6: o apoio detectado e o pé ligado ao modelo
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr', { hasText: 'P6' }).first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      assert.match(await jp.locator('[data-apoio="viga"]').innerText(), /Pé ligado ao apoio no modelo/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // memorial: pilares apoiados e vigas de transição
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.innerText();
+      assert.match(mt, /Pilares que nascem acima da fundação \(apoiados\)/);
+      assert.match(mt, /Vigas de transição \(pilares que nascem sobre vigas\)/);
+      assert.ok(await memo.locator('[data-memorial-transicoes] tbody tr').count() >= 1);
+      assert.match(mt, /P5a[\s\S]*pilar P5/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // pranchas: pilares com "nasce em ..." e vigas com a carga da transição
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      const prev = page.locator('.prancha-prev');
+      await tipo.selectOption({ label: 'Armação de pilares' });
+      await prev.locator('svg').waitFor();
+      const tp = await prev.textContent();
+      assert.match(tp, /nasce em V1/);
+      assert.match(tp, /nasce em P5/);
+      await tipo.selectOption({ label: 'Armação de vigas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /P6 nasce aqui · Nd = \d+ kN/);
+    },
+  },
 ];

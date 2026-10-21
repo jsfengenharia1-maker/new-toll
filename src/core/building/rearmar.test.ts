@@ -95,12 +95,21 @@ describe('revisões: detalhe, seção e esforços', () => {
     for (const k of OPCOES_DETALHE) { expect(chaves.has(k), `OPCOES_DETALHE cita chave inexistente ${k}`).toBe(true); expect(OPCOES_ANALISE.has(k as never), `${k} está nos dois conjuntos`).toBe(false); }
     for (const k of OPCOES_ANALISE) expect(chaves.has(k), `OPCOES_ANALISE cita chave inexistente ${k}`).toBe(true);
     // N2c: 2ª ordem global e comprimento flexível entram na análise; o resto dos pilares só no dimensionamento
-    for (const k of ['segundaOrdem', 'pilarComprimento']) expect(efeitoDaOpcao(k), k).toBe(true);
+    for (const k of ['segundaOrdem', 'pilarComprimento', 'engasteTransicao']) expect(efeitoDaOpcao(k), k).toBe(true);
     for (const k of ['pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez']) expect(efeitoDaOpcao(k), k).toBe('detalhe');
   });
 
   it('vínculo externo e cargas nos pilares (N2c) são cálculo pleno', () => {
     for (const n of ['pilar.vinculo', 'carga.pilar', 'carga.pilarRemover']) { expect(afetaCalculo(n), n).toBe(true); expect(afetaEsforcos(n), n).toBe(true); }
+  });
+
+  it('E1a: geometria e início do pilar são análise plena; seção e fck do lance só rigidez', () => {
+    expect(afetaEsforcos('pilar.secaoLance', { id: 'x', pavimento: 'y', dx: 0.1 })).toBe(true);
+    expect(afetaEsforcos('pilar.secaoLance', { id: 'x', pavimento: 'y', angulo: 10 })).toBe(true);
+    expect(afetaEsforcos('pilar.secaoLance', { id: 'x', pavimento: 'y', secao: { tipo: 'ret', b: 1, h: 1 } })).toBe(false);
+    expect(afetaCalculo('pilar.secaoLance', { id: 'x', pavimento: 'y', fck: 40 })).toBe(true);
+    expect(afetaEsforcos('pilar.editar', { id: 'x', inicio: 'fundacao' })).toBe(true);
+    expect(afetaEsforcos('pilar.inserir', { x: 0, y: 0 })).toBe(true);
   });
 
   it('comandos de detalhe e de fundação não são classificados como cálculo pleno por engano', () => {
