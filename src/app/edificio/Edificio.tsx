@@ -31,8 +31,10 @@ import { TabelasGrupo } from './TabelasArmadura';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
 import { CartaoParedes } from './ParedesUI';
+import { CartaoAlvenaria } from './AlvenariaResumo';
 import { ParedesGrupo } from './ParedesUI';
 import { MurosGrupo } from './MurosUI';
+import { AlvenariaGrupo } from './AlvenariaUI';
 import { CasosGrupo } from './Casos';
 import { AbacosVentoGrupo } from './AbacosVento';
 import { EmpuxoGrupo } from './Empuxo';
@@ -114,6 +116,7 @@ export function Edificio() {
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
         <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
         <MurosGrupo b={b} />
+        <AlvenariaGrupo b={b} />
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -895,6 +898,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
       {dim && <CartaoRelatorios />}
       {dim?.pilaresParede?.length ? <CartaoPilaresParede onIr={(id) => onIr('pilarParede', id)} /> : null}
       {dim?.paredes?.length ? <CartaoParedes onIr={(id) => onIr('parede', id)} /> : null}
+      {dim?.alvenaria ? <CartaoAlvenaria /> : null}
       <ListaErros onIr={onIr} />
       {dim && <div className="card"><BloqueioLote dim={dim} velha={!!velha} /><div className="row wrap"><Button data-abrir-selecao-bloqueio onClick={() => setSelBloq(true)}>Seleção para bloqueio…</Button></div></div>}
       {selBloq && <SelecaoBloqueio onClose={() => setSelBloq(false)} />}

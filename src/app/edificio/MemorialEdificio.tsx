@@ -2,6 +2,7 @@
 // dimensionamento, cargas na fundação, quantitativos e premissas. Mesmo CSS e impressão do memorial do pórtico.
 import { MemorialPilaresParede } from './MemorialPilarParede';
 import { MemorialParedes } from './MemorialParedes';
+import { MemorialAlvenaria } from './AlvenariaResumo';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { calculoAtual, dimAtual, useBuilding } from './store';
@@ -163,6 +164,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {lancesProprios.length > 0 && <p>Lances com geometria própria: {lancesProprios.map(({ p, e }) => `${p.nome} em ${nomePav(e.pavimento)}${e.ajuste ? ` (ponto fixo ${e.ajuste})` : ''}${e.angulo !== undefined ? ` (${fmt(e.angulo, 0)}°)` : ''}${e.dx || e.dy ? ` (deslocamento ${fmt((e.dx ?? 0) * 100, 1)}; ${fmt((e.dy ?? 0) * 100, 1)} cm)` : ''}`).join('; ')}. A parte do lance fora da projeção do lance de baixo liga-se a ele por trecho rígido horizontal.</p>}
           <MemorialPilaresParede b={b} dim={dim} h2={h2} />
           <MemorialParedes b={b} dim={dim} h2={h2} />
+          <MemorialAlvenaria b={b} dim={dim} h2={h2} />
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
 
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}

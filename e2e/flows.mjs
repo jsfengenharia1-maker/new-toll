@@ -4189,4 +4189,484 @@ export const flows = [
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
     },
   },
+  {
+    name: 'E1e: alvenaria estrutural (blocos e tipos no grupo, paredes de blocos, janela com panos, verga e modulação, quantitativo, cartão, memorial e biblioteca)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+      // 1. modelo enxuto: Térreo e Tipo 1 (como no E1d)
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+      let b0 = await modelo();
+      for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+        const p = b0.pavimentos.find((x) => x.nome === nome);
+        const antes = b0.pavimentos.length;
+        await cmd('pavimento.remover {"id": "' + p.id + '"}');
+        await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+        b0 = await modelo();
+      }
+      const terreo = b0.pavimentos.find((p) => p.nome === 'Térreo'), tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+      // 2. grupo "Alvenaria estrutural": bloco e tipo de blocos pela interface
+      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Alvenaria estrutural/ }) });
+      await ga.evaluate((el) => { el.open = true; });
+      const eb = ga.locator('[data-alv-editor-bloco]');
+      await eb.getByLabel('Bloco: nome', { exact: true }).fill('B20');
+      await eb.getByLabel(/^Bloco: comprimento/).fill('40');
+      await eb.getByLabel(/^Bloco: largura/).fill('20');
+      await eb.getByLabel(/^Bloco: altura/).fill('20');
+      await eb.getByLabel(/^Bloco: fbk/).fill('8');
+      await eb.getByRole('button', { name: 'Criar bloco', exact: true }).click();
+      await ga.locator('table[data-alv-blocos] tbody tr').waitFor({ timeout: 20000 });
+      assert.match(await ga.locator('table[data-alv-blocos]').innerText(), /40 × 20 × 20 cm/);
+      assert.match(await ga.locator('table[data-alv-blocos]').innerText(), /automático \(não\)/);
+      const et = ga.locator('[data-alv-editor-tipo]');
+      await et.getByLabel('Tipo de alvenaria: nome', { exact: true }).fill('Blocos B20');
+      await et.getByLabel(/^Tipo de alvenaria: peso específico/).fill('14');
+      await et.getByRole('button', { name: 'Criar tipo de alvenaria', exact: true }).click();
+      await ga.locator('table[data-alv-tipos] tbody tr').waitFor({ timeout: 20000 });
+      const linhaTipo = await ga.locator('table[data-alv-tipos] tbody tr').first().innerText();
+      assert.match(linhaTipo, /Blocos B20/);
+      assert.match(linhaTipo, /2,24/); // fd = 0,7 · (0,8 · 8) / 2
+      // edição do tipo: prisma informado de 10 MPa → fd = 3,50 MPa
+      await ga.getByRole('button', { name: 'Editar tipo Blocos B20', exact: true }).click();
+      await et.getByLabel(/^Tipo de alvenaria: prisma fpk/).fill('10');
+      await et.getByRole('button', { name: 'Salvar tipo de alvenaria', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-alv-tipos] tbody tr')?.textContent?.includes('3,50'), null, { timeout: 20000 });
+      // 3. duas paredes de blocos de 12 m com laje maciça e uma porta fora da modulação
+      const mat = (await modelo()).tiposAlvenaria[0].id;
+      await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+      await cmd('parede.criar {"pontos": [[0, 6], [12, 6]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 2, null);
+      const m1 = (await modelo()).paredes.find((w) => w.nome === 'M1').id;
+      await cmd('parede.abertura {"parede": "' + m1 + '", "s": 5.07, "largura": 0.9, "altura": 2.1, "pavimento": "' + terreo.id + '"}');
+      await esperarModelo((id) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.find((w) => w.id === id)?.aberturas?.length === 1, m1);
+      // o tipo em uso não sai
+      await ga.getByRole('button', { name: 'Remover tipo Blocos B20', exact: true }).click();
+      assert.match(await ga.locator('[data-alv-msg]').innerText(), /Há paredes com este tipo de alvenaria/);
+      // lista de paredes mostra o tipo
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes \(/ }) });
+      assert.match(await gp.locator('table[data-pw-lista]').innerText(), /Blocos \(Blocos B20\)/);
+      // 4. cálculo e cartões
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
+      await livre();
+      const cartao = page.locator('[data-pw-cartao]');
+      await cartao.waitFor({ timeout: 30000 });
+      assert.match(await cartao.innerText(), /Blocos \(Blocos B20\)/);
+      assert.match(await cartao.innerText(), /Cumprimento mín\./);
+      const ca = page.locator('[data-alv-cartao]');
+      await ca.waitFor({ timeout: 30000 });
+      assert.ok(await ca.locator('table[data-alv-resumo-blocos] tbody tr').count() >= 1);
+      assert.match(await ca.locator('table[data-alv-resumo-blocos]').innerText(), /B20/);
+      // 5. janela de M1: panos, quantitativo, verga e modulação
+      await cartao.getByRole('button', { name: 'Resultados de M1' }).click();
+      const jp = page.getByRole('dialog', { name: /M1/ });
+      await jp.waitFor();
+      const raiz = jp.locator('[data-alv-parede]');
+      assert.equal(await raiz.locator('table[data-alv-panos] tbody tr').count(), 3);
+      assert.match(await raiz.locator('[data-alv-situacao]').innerText(), /Blocos B20.*não armada/);
+      assert.match(await raiz.locator('table[data-alv-quant]').innerText(), /Total/);
+      assert.equal(await raiz.locator('table[data-alv-vergas] tbody tr').count(), 1);
+      assert.match(await raiz.locator('table[data-alv-vergas] tbody tr').first().innerText(), /porta[\s\S]*não/);
+      assert.match(await raiz.innerText(), /Nenhum pilar em contato com esta parede/);
+      await raiz.getByRole('button', { name: 'Ajustar aberturas à modulação', exact: true }).click();
+      await page.waitForFunction(() => /sim/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      assert.match(await raiz.locator('table[data-alv-vergas] tbody tr').first().innerText(), /1,00 × 2,20 m/);
+      // verga bloqueada e depois limpa
+      await raiz.locator('table[data-alv-vergas] tbody tr').first().click();
+      const ev = raiz.locator('[data-alv-editor-verga]');
+      await ev.getByLabel(/^Verga: n/).fill('2');
+      await ev.getByLabel(/^Verga: φ/).selectOption({ label: '12,5' });
+      await raiz.getByRole('button', { name: 'Bloquear verga', exact: true }).click();
+      await page.waitForFunction(() => /bloqueada/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      await raiz.getByRole('button', { name: 'Limpar verga', exact: true }).click();
+      await page.waitForFunction(() => /calculada/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      assert.ok(await raiz.locator('ul[data-alv-mensagens], p.muted').count() >= 1);
+      assert.ok(await jp.locator('[data-pw-iso-svg] polygon').count() > 10);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 6. memorial do edifício
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const textoMemo = await memo.textContent();
+      assert.match(textoMemo, /Alvenaria estrutural e blocos de concreto/);
+      assert.match(textoMemo, /Verificação das tensões-limite por pano/);
+      assert.equal(await memo.locator('[data-memorial-alvenaria="alv-panos"]').count(), 1);
+      assert.equal(await memo.locator('[data-memorial-alvenaria="alv-blocos"]').count(), 1);
+      assert.match(textoMemo, /Quantitativo de blocos por parede e pavimento/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7. biblioteca do usuário: gravar e trazer (nada novo na mesma obra)
+      await ga.locator('details[data-alv-biblioteca] > summary').click();
+      await ga.getByLabel('Nome na biblioteca de alvenaria', { exact: true }).fill('Minha alvenaria');
+      await ga.getByLabel('Nome na biblioteca de alvenaria', { exact: true }).press('Enter'); // TextField confirma no Enter/blur
+      await ga.getByRole('button', { name: 'Gravar alvenaria da obra', exact: true }).click();
+      await page.waitForFunction(() => [...document.querySelectorAll('select option')].some((o) => o.textContent?.includes('Minha alvenaria')), null, { timeout: 20000 });
+      await ga.getByLabel(/^Alvenaria gravada/).selectOption({ index: 1 }); // índice 0 é “— escolha —”
+      await ga.getByRole('button', { name: 'Trazer para a obra', exact: true }).click();
+      assert.match(await ga.locator('[data-alv-msg-biblioteca]').innerText(), /Nada novo/);
+    },
+  },
+  {
+    name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      await page.waitForTimeout(500);
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const m0 = await modelo();
+      // 1) legenda dos códigos com a sugestão de correção
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('summary', { hasText: 'Legenda dos códigos' }).click();
+      assert.match(await lista.locator('details').innerText(), /Sugestão[\s\S]*Aumente a largura ou a altura da seção/);
+      // 2) relatórios e índices
+      const rel = page.locator('[data-relatorios]');
+      await rel.waitFor();
+      const ind = await rel.locator('[data-indices] tbody tr').innerText();
+      assert.ok(/\d/.test(ind));
+      for (const k of ['pilares-html', 'pilares-csv', 'listagem', 'quantitativos', 'intercambio-json', 'intercambio-csv']) assert.equal(await rel.locator(`[data-relatorio="${k}"]`).count(), 1);
+      await rel.locator('summary', { hasText: 'Quantitativos por pano' }).click();
+      assert.equal(await rel.locator('[data-quant-panos] tbody tr').count(), m0.lajes.length);
+      assert.equal(await rel.locator('[data-quant-vigas] tbody tr').count(), m0.vigas.length);
+      // 3) janela do pilar: dados, taxa, planta de situação e navegação
+      const cardPil = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      await cardPil.locator('tbody tr', { hasText: 'P1' }).first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      assert.equal(await jp.locator('[data-situacao-pilares]').getAttribute('data-situacao-pilares'), '6');
+      assert.equal(await jp.locator('[data-pilar-situacao]').count(), 6);
+      assert.match(await jp.locator('[data-dados-pilar]').innerText(), /Ângulo[\s\S]*Ponto fixo[\s\S]*Engaste por lance[\s\S]*Profundidade do apoio/);
+      assert.match(await jp.locator('.rev-lance').first().innerText(), /Taxa As\/Ac \(%\)\s*\d/);
+      assert.equal(await jp.locator('[data-pilar-atual]').innerText(), 'P1');
+      assert.equal(await jp.getByRole('button', { name: 'Pilar anterior' }).isDisabled(), true);
+      await jp.getByRole('button', { name: 'Próximo pilar' }).click();
+      await page.waitForFunction(() => document.querySelector('[data-pilar-atual]')?.textContent === 'P2', null, { timeout: 15000 });
+      await jp.locator('[data-pilar-situacao]').nth(3).click();
+      await page.waitForFunction(() => document.querySelector('[data-pilar-atual]')?.textContent === 'P4', null, { timeout: 15000 });
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 4) janela da viga: linhas de capacidade resistente no diagrama de momentos
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      await jv.locator('[data-diagrama="M"] [data-curva="MRd+"]').waitFor();
+      assert.equal(await jv.locator('[data-diagrama="M"] [data-curva="MRd−"]').count(), 1);
+      await jv.getByRole('button', { name: 'Fechar' }).click();
+      // 5) pranchas: gabarito e ponto fixo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const prev = page.locator('.prancha-prev');
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
+      await prev.locator('svg').waitFor();
+      const n0 = await prev.locator('svg circle').count();
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
+      await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
+      await page.waitForFunction((n) => document.querySelectorAll('.prancha-prev svg circle').length >= n + 6, n0, { timeout: 30000 });
+      await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').uncheck();
+      await page.waitForFunction((n) => document.querySelectorAll('.prancha-prev svg circle').length === n, n0, { timeout: 30000 });
+      // 6) memorial: listagem, índices e, ligado, as verificações ELU por combinação
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      await memo.locator('[data-memorial-listagem]').waitFor();
+      const mt = await memo.innerText();
+      assert.match(mt, /Pilares: coordenadas, dimensões e vínculos/);
+      assert.match(mt, /Lajes: geometria e pesos/);
+      assert.match(mt, /Taxa de armadura dos pilares/);
+      assert.match(mt, /Quantitativos por pano e por viga/);
+      await memo.locator('[data-memorial-indices]').waitFor();
+      assert.equal(await memo.locator('[data-memorial-elu-comb]').count(), 0);
+      await memo.getByLabel('ELU por combinação').check();
+      await memo.locator('[data-memorial-elu-comb]').waitFor();
+      assert.match(await memo.locator('[data-memorial-elu-comb]').innerText(), /Pilares: combinações determinantes[\s\S]*Vigas: combinação que dá cada extremo/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7) pilar largo com a tabela de grampos "só o estribo perimetral": aviso GRAMPOS_TABELA
+      const p1 = m0.pilares.find((p) => p.nome === 'P1');
+      await cmd(`pilar.editar {"id": "${p1.id}", "secao": {"tipo": "ret", "b": 0.2, "h": 0.9}}`);
+      await cmd('tabela.definir {"tipo": "pilares", "tabela": {"id": "padrao", "nome": "Padrão", "bitolas": [10, 12.5, 16, 20, 25], "espacamentos": [30, 25, 20, 15, 12, 10], "estribos": [], "grampos": [{"phiAte": 25, "ladoMaiorAte": 999, "modo": "nenhum"}]}}');
+      await livre();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      await lista.locator('tbody tr', { hasText: 'GRAMPOS_TABELA' }).first().waitFor({ timeout: 60000 });
+    },
+  },
+  {
+    name: 'N2e: apoios, limites e avisos de modelagem (suspensão no cruzamento, arredondamento, viga-parede, opções e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('vento.definir {"ativo": false}');
+      // vigas A (y = 0) e C (y = 4) de 6 m em pilares nas pontas; B (x = 3) apoia-se nelas; e uma viga curta e alta (viga-parede)
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [0, 4], [6, 4], [10, 0], [11, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0], 0.15, 0.4], [[0, 4], [6, 4], 0.15, 0.4], [[3, 0], [3, 4], 0.15, 0.4], [[10, 0], [11, 0], 0.15, 0.6]].map(([a, z, b, h]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, z])}, "secao": {"b": ${b}, "h": ${h}}}}`).join(', ') + ']}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await livre();
+      // lista de erros e avisos: a viga curta e alta é viga-parede
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
+      // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      const t = await g.innerText();
+      assert.match(t, /Arredondamento do diagrama no apoio/);
+      assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
+      assert.match(t, /Desnível entre panos: limite da continuidade/);
+      // memorial: critério de arredondamento, tabela de suspensão (A e C recebem a reação de B) e avisos
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const ap = await memo.locator('[data-memorial-apoios]').innerText();
+      assert.match(ap, /parábola cúbica M\(x\) = a·x³/);
+      assert.match(ap, /Armadura de suspensão \(NBR 6118, 18\.3\.6\)/);
+      assert.equal(await memo.locator('[data-memorial-suspensao] tbody tr').count(), 2);
+      assert.match(await memo.innerText(), /VIGA_PAREDE/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // perfil NBR: ΔM = R·t/8
+      await cmd('opcoes.definir {"perfil": "nbr"}');
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo2 = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo2.locator('[data-memorial-apoios]').innerText(), /ΔM = R·t\/8/);
+      await memo2.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'N2f: flechas por etapas (etapas, limites por elemento, janela da viga, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('vento.definir {"ativo": false}');
+      // 4 pilares 20×40 nos cantos; vigas 15×50 no contorno (grupo g_3); laje maciça de 12 cm nos painéis
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await livre();
+      // 1) grupo Etapas de carga (flechas): quatro etapas padrão
+      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
+      await etapas.locator('summary').click();
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
+      // colagem de uma etapa única: a lista vira uma linha
+      await etapas.locator('textarea[aria-label="Etapas coladas"]').fill('A\t30\t1\t1\t1\t1');
+      await etapas.getByRole('button', { name: 'Aplicar colagem' }).click();
+      await livre();
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 1);
+      await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
+      await livre();
+      // 2) opções de cálculo com os limites de flecha
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      const t = await g.innerText();
+      assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
+      assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
+      // 3) limite de flecha ativa impossível para as vigas: erro FLECHA_ATIVA na lista
+      await cmd('flechas.limites {"elemento": "viga", "tipo": "ativa", "limite": {"rel": 100000}}');
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /FLECHA_ATIVA/);
+      // 4) janela da viga: tabela de flechas com quatro linhas
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const janela = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await janela.waitFor();
+      assert.equal(await janela.locator('[data-flechas] tbody tr').count(), 4);
+      assert.match(await janela.innerText(), /Ativa \(após as paredes\)/);
+      await page.keyboard.press('Escape');
+      // 5) memorial: etapas de carga e limites
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-flechas]').innerText(), /Desforma \(peso próprio\)/);
+      assert.match(await memo.locator('[data-memorial-flechas]').innerText(), /ℓ\/500 e 1 cm/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
+    async run({ newPage, tmp }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const campo = async (loc, v) => { await loc.fill(v); await loc.press('Tab'); };
+      const nPav = () => page.locator('.edpav tbody tr').count();
+      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      const nova = page.getByRole('dialog', { name: 'Nova obra' });
+      await nova.getByRole('button', { name: 'Assistente passo a passo' }).click();
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      await campo(nova.getByLabel('Nome da obra'), 'Obra L1 teste');
+      await campo(nova.getByLabel('Descrição (linha 1)'), 'Residencial fictício');
+      await campo(nova.getByLabel('Descrição (linha 2)'), 'Teste de interface');
+      await campo(nova.getByLabel('Cidade'), 'Cidade X');
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      await campo(nova.getByLabel('fck'), '35');
+      await nova.getByLabel('CAA').selectOption('III');
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      await campo(nova.getByLabel('Repetições 2'), '2');
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      await nova.getByLabel('Criar malha de eixos').check();
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      await campo(nova.getByLabel('Revestimento e piso'), '1,5');
+      await nova.getByRole('button', { name: 'Avançar' }).click();
+      assert.match(await nova.innerText(), /4 em 3 grupo\(s\)/);
+      await nova.getByRole('button', { name: 'Criar obra' }).click();
+      const gerais = page.getByRole('dialog', { name: 'Dados gerais da obra' });
+      await gerais.waitFor();
+      assert.equal(await gerais.getByLabel('Nome da obra').inputValue(), 'Obra L1 teste');
+      assert.equal(await gerais.getByLabel('fck').inputValue(), '35');
+      await campo(gerais.getByLabel('Descrição (linha 2)'), 'Teste de interface 2');
+      await gerais.getByRole('button', { name: 'Concluir' }).click();
+      assert.equal(await nPav(), 4);
+      assert.match(await page.locator('[data-etapa="pavimentos"]').innerText(), /feito/);
+      assert.match(await page.locator('[data-etapa="pilares"]').innerText(), /pendente/);
+      const muros = await page.locator('[data-etapa="muros"]').innerText();
+      assert.match(muros, /indispon/);
+      assert.match(muros, /E1c/);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.textContent();
+      assert.match(mt, /Descrição.*Residencial fictício · Teste de interface 2/s);
+      assert.match(mt, /Origem do lançamento.*Assistente de nova obra/s);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
+      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
+      await ga.locator(':scope > summary').click();
+      await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
+      const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
+      const ws = JSON.parse(f.text);
+      assert.equal(ws.building.obra.cidade, 'Cidade Y');
+      assert.deepEqual(ws.versoes.map((v) => v.rotulo), ['obra.definir', 'obra.definir']);
+      assert.equal(ws.versoes[1].building.obra.cidade, 'Cidade X');
+      assert.equal(ws.versoes[0].building.obra.descricao[1], 'Teste de interface');
+      const file = join(tmp, f.name);
+      writeFileSync(file, f.text);
+      const page2 = await newPage(NO_PICKERS);
+      const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
+      await chooser.setFiles(file);
+      await page2.locator('.statusbar .msg', { hasText: 'aberto de' }).waitFor();
+      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const ga2 = page2.locator('details.group', { has: page2.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
+      await ga2.locator(':scope > summary').click();
+      await ga2.getByRole('button', { name: 'Recuperar' }).click();
+      await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
+      await page2.close();
+      await page.getByRole('button', { name: 'Obras recentes…' }).click();
+      const rec = page.getByRole('dialog', { name: 'Obras recentes' });
+      await campo(rec.getByLabel('Buscar obra'), 'residencial');
+      assert.ok((await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count()) >= 1);
+      await campo(rec.getByLabel('Buscar obra'), 'zzzz');
+      assert.equal(await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count(), 0);
+      await campo(rec.getByLabel('Buscar obra'), '');
+      await rec.getByRole('button', { name: 'Guardar na biblioteca' }).click();
+      await rec.getByRole('button', { name: 'Abrir Obra L1 teste' }).waitFor();
+      await rec.getByRole('button', { name: /Abrir exemplo Exemplo: com subsolo/ }).click();
+      await rec.waitFor({ state: 'detached' });
+      assert.equal(await nPav(), 5);
+      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      const nova2 = page.getByRole('dialog', { name: 'Nova obra' });
+      await nova2.getByRole('button', { name: 'Assistente passo a passo' }).click();
+      for (let i = 0; i < 6; i++) await nova2.getByRole('button', { name: 'Avançar' }).click();
+      await nova2.getByRole('button', { name: 'Criar obra' }).click();
+      await page.getByRole('dialog', { name: 'Dados gerais da obra' }).getByRole('button', { name: 'Concluir' }).click();
+      assert.equal(await nPav(), 5);
+      await page.getByRole('button', { name: /Desfazer/ }).click();
+      assert.equal(await nPav(), 0);
+      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
+      await nova3.getByRole('button', { name: 'Cargas de arquivo de texto' }).click();
+      await nova3.getByRole('button', { name: 'Escolher arquivo de texto…' }).click();
+      const imp = page.getByRole('dialog', { name: 'Importar cargas de texto' });
+      await campo(imp.getByLabel('Nome da obra a criar'), 'Obra de arranques e2e');
+      await campo(imp.getByLabel('Ou cole o texto aqui'), 'Pilar;Caso;N;Hx;Hy;Mx;My;bx;by\nP1;G;500,5;0;0;0;0;30;40\nP1;Q;100;0;0;0;0;30;40\nP2;G;300;0;0;0;0;25;25\n');
+      assert.match(await imp.innerText(), /2 arranque\(s\), 2 hipótese\(s\)/);
+      await imp.getByRole('button', { name: 'Criar obra e calcular fundações' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Obra só com arranques' }).waitFor({ timeout: 120000 });
+    },
+  },
+  {
+    name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const calcular = async () => {
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await livre();
+      };
+      await cmd('vento.definir {"ativo": false}');
+      // 4 pilares 20×40 nos cantos; vigas 15×50 no contorno (grupo g_3); laje maciça de 12 cm nos painéis
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await calcular();
+      // sem a verificação ligada: nenhum card de fogo
+      assert.equal(await page.locator('[data-card-fogo]').count(), 0);
+      // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
+      await g.locator('summary').click();
+      await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
+      await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
+      assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
+      assert.ok((await g.locator('[data-fogo-grupos] tbody tr').count()) >= 1);
+      // 2) TRRF de 120 min no grupo g_3 (linha de comando) reprova as vigas: erro FOGO_TRRF
+      await cmd('fogo.definir {"trrf": {"g_3": 120}}');
+      await calcular();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /FOGO_TRRF/);
+      // 3) card do Dimensionamento: elementos com TRRF, TRF e folga; as vigas não atendem
+      const card = page.locator('[data-card-fogo]');
+      await card.waitFor();
+      assert.match(await card.innerText(), /TRRF \(min\)/);
+      assert.ok((await card.locator('tbody tr', { hasText: 'viga' }).filter({ hasText: 'não atende' }).count()) >= 1);
+      // 4) revestimento de 60 mm de argamassa de cimento e areia no grupo: as vigas passam a atender
+      await cmd('fogo.definir {"revestimentos": {"g_3": {"material": "cimento", "espessura": 60}}}');
+      await calcular();
+      assert.equal(await card.locator('tbody tr', { hasText: 'viga' }).filter({ hasText: 'não atende' }).count(), 0);
+      // 5) janela da viga pelo duplo clique no card
+      await card.locator('tbody tr', { hasText: 'viga' }).first().dblclick();
+      await page.getByRole('dialog', { name: /Resultados do elemento — Viga/ }).waitFor();
+      await page.keyboard.press('Escape');
+      // 6) memorial: seção Resistência ao fogo com a tabela por elemento
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mf = await memo.locator('[data-memorial-fogo]').innerText();
+      assert.match(mf, /NBR 15200/);
+      assert.match(mf, /Tabela 9 \(vigas contínuas ou de pórtico\)|Tabela 8 \(vigas biapoiadas\)/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7) desligar a verificação: o card some
+      await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').uncheck();
+      await calcular();
+      assert.equal(await page.locator('[data-card-fogo]').count(), 0);
+    },
+  },
 ];
