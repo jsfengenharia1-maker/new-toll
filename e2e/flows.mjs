@@ -589,7 +589,7 @@ export const flows = [
       await fck.fill('35');
       await fck.press('Enter');
       await page.locator('summary', { hasText: 'Materiais e segurança (alterados)' }).waitFor();
-      const gc = page.getByLabel('γc');
+      const gc = page.getByLabel('γc', { exact: true });
       await gc.fill('1,5');
       await gc.press('Enter');
       await page.locator('.statusbar .msg', { hasText: 'Materiais e segurança alterados' }).waitFor();
