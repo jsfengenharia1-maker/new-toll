@@ -126,7 +126,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
 
@@ -164,7 +164,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   copiar: ['Ponto base da cópia da seleção (pilares e vigas).', 'Ponto de destino (cópias em série pelo número da barra).'],
   girar: ['Clique o centro do giro da seleção (ângulo na barra da planta; digite x;y e Enter para coordenadas).'],
   espelhar: ['1º ponto do eixo de espelhamento da seleção.', '2º ponto do eixo.'],
-  pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'],
+  pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'], parede: ['Clique os vértices do eixo da parede (capturas valem; Enter termina; Esc cancela).'],
 };
 
 export function Planta() {
