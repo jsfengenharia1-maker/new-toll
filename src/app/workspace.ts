@@ -18,6 +18,8 @@ export interface Workspace {
   /** Edifício (v2): modelo físico atual e log de comandos que o reproduz. */
   building?: BuildingFile['building'];
   buildingLog?: BuildingFile['buildingLog'];
+  versoes?: BuildingFile['versoes'];
+  resultados?: BuildingFile['resultados'];
 }
 
 export function isModel(x: unknown): x is Model {
