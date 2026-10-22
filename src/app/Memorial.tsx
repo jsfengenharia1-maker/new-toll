@@ -8,7 +8,7 @@ import { PROFILE_NOTE } from '../core/profiles';
 import { sectionProps } from '../core/section';
 import { defaultProject, type Load, type ProjectInfo, type SectionShape } from '../core/types';
 import { svgDeformed, svgDesign, svgDiagram, svgGeometry, svgLoads, svgReactions } from './drawing';
-import { Button, download, Spacer } from './ui';
+import { Button, Input, Spacer, download } from './ui';
 import { FoundationMemorial } from './MemorialFundacoes';
 import type { CaseResult } from '../core/solver';
 import { logActivity } from './history';
@@ -155,7 +155,7 @@ export function Memorial({ onClose }: { onClose: () => void }) {
         {(['obra', 'cliente', 'local', 'responsavel', 'registro', 'revisao'] as (keyof ProjectInfo)[]).map((k) => (
           <label key={k} className="field" htmlFor={`proj-${k}`}>
             <span className="flabel">{{ obra: 'Obra', cliente: 'Cliente', local: 'Local', responsavel: 'Responsável técnico', registro: 'Registro profissional', revisao: 'Revisão' }[k]}</span>
-            <span className="finput"><input id={`proj-${k}`} defaultValue={proj[k]} onBlur={(e) => e.target.value !== proj[k] && setProj(k, e.target.value)} /></span>
+            <span className="finput"><Input id={`proj-${k}`} defaultValue={proj[k]} onBlur={(e) => e.target.value !== proj[k] && setProj(k, e.target.value)} /></span>
           </label>
         ))}
       </div>

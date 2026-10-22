@@ -120,7 +120,7 @@ export function LimitesBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () =
               <tr key={l.id} className={`click ${pl.selecao.has(l.id) ? 'on ' : ''}${ignorados.has(l.id) ? 'warn' : ''}`} data-limite-id={l.id} onClick={() => { pl.set({ pavimento: 'fundacao', selecao: new Set([l.id]), foco: { id: l.id, n: Date.now() } }); onPlanta(); }} title="Clique: ver na planta e editar os vértices.">
                 <td className="tl">{l.nome}</td><td className="num">{l.pontos.length}</td><td className="tl">{l.fechado ? 'fechado' : 'aberto'}</td><td className="num">{l.cota !== undefined ? fmt(l.cota) : 'todos'}</td>
                 <td className="tl small">{ignorados.has(l.id) ? <span className="warn">ignorado: {ignorados.get(l.id)!.join('; ')}</span> : dim?.fundacoes ? <span className="muted">em uso</span> : <span className="muted">não calculado</span>}</td>
-                <td><button type="button" className="x" aria-label={`Remover limite ${l.nome}`} onClick={(e) => { e.stopPropagation(); exec('limite.remover', { ids: [l.id] }); }}>×</button></td>
+                <td><Button variant="x" aria-label={`Remover limite ${l.nome}`} onClick={(e) => { e.stopPropagation(); exec('limite.remover', { ids: [l.id] }); }}>×</Button></td>
               </tr>
             ))}</tbody>
           </table>
@@ -160,8 +160,8 @@ function LimiteEditor({ l }: { l: LimiteFundacao }) {
               <td><NumCell value={q[0]} onChange={(v) => set(i, 0, v)} /></td>
               <td><NumCell value={q[1]} onChange={(v) => set(i, 1, v)} /></td>
               <td>
-                <button type="button" className="mini" aria-label={`Inserir vértice depois do ${i + 1}`} disabled={!l.fechado && i === pts.length - 1} onClick={() => inserir(i)}>+</button>
-                <button type="button" className="x" aria-label={`Remover vértice ${i + 1}`} disabled={pts.length <= minimo} onClick={() => ed({ pontos: pts.filter((_, j) => j !== i) })}>×</button>
+                <Button variant="mini" aria-label={`Inserir vértice depois do ${i + 1}`} disabled={!l.fechado && i === pts.length - 1} onClick={() => inserir(i)}>+</Button>
+                <Button variant="x" aria-label={`Remover vértice ${i + 1}`} disabled={pts.length <= minimo} onClick={() => ed({ pontos: pts.filter((_, j) => j !== i) })}>×</Button>
               </td>
             </tr>
           ))}</tbody>
@@ -260,7 +260,7 @@ export function ElementoGrupoEditor({ b, el, r, onPlanta }: { b: BuildingModel; 
       <div className="row wrap u-items-center">
         {el.pilares.map((id) => (
           <span key={id} className="chip on" data-pilar-do-elemento={id}>{nomePilar(b, id)}{ehArranque(b.pilares.find((p) => p.id === id)!) ? ' (arranque)' : ''}
-            {el.pilares.length > 1 && <button type="button" className="x" aria-label={`Retirar o pilar ${nomePilar(b, id)}`} onClick={() => ed({ pilares: el.pilares.filter((x) => x !== id) })}>×</button>}
+            {el.pilares.length > 1 && <Button variant="x" aria-label={`Retirar o pilar ${nomePilar(b, id)}`} onClick={() => ed({ pilares: el.pilares.filter((x) => x !== id) })}>×</Button>}
           </span>
         ))}
         {el.tipo !== 'tubulao' && livres.length > 0 && <Select label="Juntar pilar" value="" options={[{ v: '', label: '—' }, ...livres.map((p) => ({ v: p.id, label: p.nome }))]} onChange={(v) => v && ed({ pilares: [...el.pilares, v] })} />}

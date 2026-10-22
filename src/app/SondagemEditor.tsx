@@ -1,7 +1,7 @@
 // Editor de sondagens SPT compartilhado: o módulo Fundações (modelo em `foundation`) e a aba Edifício (comandos
 // `sondagem.*`) usam este mesmo componente; cada um traz só a forma de gravar a alteração.
 import { useEffect, useState } from 'react';
-import { Button, Check, Group, Hint, NumField, OptNumField, Select, TextField } from './ui';
+import { Button, Check, Dropdown, Group, Hint, Input, NumField, OptNumField, Select, TextField, Textarea } from './ui';
 import { fmt } from './results';
 import { SOIL_LABEL, type Boring, type FoundationParams, type PileSolution, type SoilClass } from '../core/piles';
 
@@ -20,7 +20,7 @@ function NCell({ value, label, onCommit }: { value: number; label: string; onCom
   const [t, setT] = useState(String(value));
   useEffect(() => setT(String(value)), [value]);
   const fim = () => { const v = parseInt(t || '0', 10); if (Number.isFinite(v) && v !== value) onCommit(v); else setT(String(value)); };
-  return <input aria-label={label} value={t} inputMode="numeric" onChange={(e) => setT(e.target.value)} onBlur={fim} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />;
+  return <Input aria-label={label} value={t} inputMode="numeric" onChange={(e) => setT(e.target.value)} onBlur={fim} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />;
 }
 
 export interface SondagemEditorProps {
@@ -66,8 +66,8 @@ export function SondagemEditor({ furos, cutoff, sol, onEdit, onAdd, onRemove, me
     <Group title={`Sondagens SPT (${furos.length})`}>
       <div className="row wrap">
         {b && <Select label="Furo" value={idx} options={furos.map((x, i) => ({ v: i, label: `${x.name}${x.x !== undefined && x.y !== undefined ? ` (${fmt(x.x, 1)}; ${fmt(x.y, 1)})` : ''}` }))} onChange={(v) => setBi(v)} />}
-        <button type="button" className="mini" onClick={() => { onAdd(b); setBi(furos.length); }}>+ furo</button>
-        {b && (furos.length > 1 || podeRemoverUltimo) && <button type="button" className="mini" onClick={() => { onRemove(idx); setBi(0); }}>remover furo</button>}
+        <Button variant="mini" onClick={() => { onAdd(b); setBi(furos.length); }}>+ furo</Button>
+        {b && (furos.length > 1 || podeRemoverUltimo) && <Button variant="mini" onClick={() => { onRemove(idx); setBi(0); }}>remover furo</Button>}
       </div>
       {!b && <Hint>Nenhum furo de sondagem. Crie um furo e informe o SPT metro a metro (ou cole do boletim) para a σadm e as estacas pelo SPT.</Hint>}
       {b && (<>
@@ -87,19 +87,19 @@ export function SondagemEditor({ furos, cutoff, sol, onEdit, onAdd, onRemove, me
               <div className={`spt-r${b.water !== null && i + 1 > b.water ? ' wet' : ''}${m.excluded ? ' excl' : ''}`} key={i} title={m.excluded ? 'Leitura descartada: fica fora da média e é interpolada no furo isolado' : undefined}>
                 <span className="muted">{i + 1}</span>
                 <NCell label={`N no metro ${i + 1}`} value={m.N} onCommit={(v) => upd((x) => { x.meters[i].N = v; })} />
-                <select aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => upd((x) => { x.meters[i].soil = e.target.value as SoilClass; })}>
+                <Dropdown aria-label={`Solo no metro ${i + 1}`} value={m.soil} onChange={(e) => upd((x) => { x.meters[i].soil = e.target.value as SoilClass; })}>
                   {SOILS.map((s) => <option key={s} value={s}>{SOIL_LABEL[s]}</option>)}
-                </select>
-                <button type="button" className={`x${m.excluded ? ' on' : ''}`} aria-label={m.excluded ? `Voltar a usar a leitura do metro ${i + 1}` : `Descartar a leitura do metro ${i + 1}`} title={m.excluded ? 'Voltar a usar esta leitura' : 'Descartar esta leitura (fora do padrão)'} onClick={() => upd((x) => { if (x.meters[i].excluded) delete x.meters[i].excluded; else x.meters[i].excluded = true; }, m.excluded ? `Leitura do metro ${i + 1} volta ao cálculo.` : `Leitura do metro ${i + 1} descartada.`)}>⊘</button>
-                <button type="button" className="x" aria-label="Remover metro" onClick={() => upd((x) => { x.meters.splice(i, 1); })}>×</button>
+                </Dropdown>
+                <Button variant="x" className={m.excluded ? ' on' : ''} aria-label={m.excluded ? `Voltar a usar a leitura do metro ${i + 1}` : `Descartar a leitura do metro ${i + 1}`} title={m.excluded ? 'Voltar a usar esta leitura' : 'Descartar esta leitura (fora do padrão)'} onClick={() => upd((x) => { if (x.meters[i].excluded) delete x.meters[i].excluded; else x.meters[i].excluded = true; }, m.excluded ? `Leitura do metro ${i + 1} volta ao cálculo.` : `Leitura do metro ${i + 1} descartada.`)}>⊘</Button>
+                <Button variant="x" aria-label="Remover metro" onClick={() => upd((x) => { x.meters.splice(i, 1); })}>×</Button>
               </div>
             ))}
-            <button type="button" className="mini" onClick={() => upd((x) => { const last = x.meters.at(-1) ?? { N: 10, soil: 'argila' as SoilClass }; x.meters.push({ ...last }); })}>+ metro</button>
+            <Button variant="mini" onClick={() => upd((x) => { const last = x.meters.at(-1) ?? { N: 10, soil: 'argila' as SoilClass }; x.meters.push({ ...last }); })}>+ metro</Button>
           </div>
           <SptChart b={b} cutoff={cutoff} sol={sol ? sol(b) : null} />
         </div>
         <label className="field" htmlFor="sptpaste"><span className="flabel">Colar do boletim (uma linha por metro: “N” ou “prof; N; solo”)</span>
-          <textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
+          <Textarea id="sptpaste" rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'1; 4; argila\n2; 6; silte argiloso'} />
         </label>
         <Button variant="ghost" disabled={!paste.trim()} onClick={colar}>Substituir SPT deste furo pelo texto colado</Button>
       </>)}

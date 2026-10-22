@@ -7,7 +7,7 @@ import {
   MODOS_GRAMPOS, type GrupoBarras, type ModoGrampos, type Tabela, type TabelaEstribos, type TabelaLajes, type TabelaPilares, type TabelaVigas, type TipoTabela,
 } from '../../core/building/tabelasArmadura';
 import type { BuildingModel } from '../../core/building/types';
-import { Button, Chip, Group, Hint, NumCell, Pill, Select, Seg, TextField, download } from '../ui';
+import { Button, Chip, Dropdown, Group, Hint, NumCell, Pill, Seg, Select, TextField, download } from '../ui';
 import { usePlanta } from './plantaStore';
 import { useStore } from '../store';
 import { useBuilding } from './store';
@@ -113,7 +113,7 @@ function TabelaDePilares({ t, grava }: { t: TabelaPilares; grava: (t: Tabela) =>
           {t.estribos.map((e, i) => (
             <tr key={i}>
               <td><NumCell label={`φ longitudinal até do estribo ${i + 1}`} value={e.phiAte} onChange={(v) => set((p) => { p.estribos[i].phiAte = v; })} /></td>
-              <td><select aria-label={`φt da linha ${i + 1}`} value={e.phiT} onChange={(ev) => set((p) => { p.estribos[i].phiT = Number(ev.target.value); })}>{BITOLAS_TABELA.estribos.map((x) => <option key={x} value={x}>{f1(x)}</option>)}</select></td>
+              <td><Dropdown aria-label={`φt da linha ${i + 1}`} value={e.phiT} onChange={(ev) => set((p) => { p.estribos[i].phiT = Number(ev.target.value); })}>{BITOLAS_TABELA.estribos.map((x) => <option key={x} value={x}>{f1(x)}</option>)}</Dropdown></td>
               <td><NumCell label={`s máx do estribo ${i + 1}`} value={e.sMax} onChange={(v) => set((p) => { p.estribos[i].sMax = v; })} /></td>
               <td><Button variant="danger" aria-label={`Remover estribo ${i + 1}`} onClick={() => set((p) => { p.estribos.splice(i, 1); })}>×</Button></td>
             </tr>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { Button, Check, Group, Hint, NumField, Seg, Select, TextField } from '../ui';
+import { Button, Check, Dropdown, Group, Hint, Input, NumField, Seg, Select, TextField } from '../ui';
 import { caseGroup, nbrCombinations, nextId } from '../../core/edit';
 import type { CaseNature, ComboKind, Load, LoadSystem } from '../../core/types';
 import { fmt } from '../results';
@@ -44,14 +44,14 @@ export function CargasPanel() {
 
   return (
     <div className="panel-body">
-      <Group title="Casos de carga" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.cases); st.commit((m) => { m.cases.push({ id, name: `Caso ${id}`, nature: 'Q' }); }); st.set({ activeCase: id }); }}>+ novo</button>}>
+      <Group title="Casos de carga" aside={<Button variant="mini" onClick={() => { const id = nextId(model.cases); st.commit((m) => { m.cases.push({ id, name: `Caso ${id}`, nature: 'Q' }); }); st.set({ activeCase: id }); }}>+ novo</Button>}>
         <div className="caselist">
           {model.cases.map((c) => (
-            <button type="button" key={c.id} className={`caseitem${c.id === cs?.id ? ' on' : ''}`} onClick={() => st.set({ activeCase: c.id })}>
+            <Button variant="caseitem" key={c.id} className={c.id === cs?.id ? ' on' : ''} onClick={() => st.set({ activeCase: c.id })}>
               <span className={`nat ${c.nature ?? 'G'}`}>{c.nature ?? 'G'}</span>
               <span className="cname">{c.name}</span>
               <span className="muted">{model.loads.filter((l) => l.caseId === c.id).length}</span>
-            </button>
+            </Button>
           ))}
         </div>
         {cs && (
@@ -147,13 +147,13 @@ export function CargasPanel() {
           {caseLoads.map((l) => (
             <li key={l.id}>
               <span>{describe(l, U)}</span>
-              <button type="button" className="x" aria-label="Remover carga" onClick={() => st.commit((m) => { m.loads = m.loads.filter((x) => x.id !== l.id); }, 'Carga removida.')}>×</button>
+              <Button variant="x" aria-label="Remover carga" onClick={() => st.commit((m) => { m.loads = m.loads.filter((x) => x.id !== l.id); }, 'Carga removida.')}>×</Button>
             </li>
           ))}
         </ul>
       </Group>
 
-      <Group title="Combinações" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.combinations); st.commit((m) => { m.combinations.push({ id, name: `Comb ${id}`, kind: 'ELU', factors: Object.fromEntries(m.cases.map((c) => [c.id, 1.4])) }); }); }}>+ nova</button>}>
+      <Group title="Combinações" aside={<Button variant="mini" onClick={() => { const id = nextId(model.combinations); st.commit((m) => { m.combinations.push({ id, name: `Comb ${id}`, kind: 'ELU', factors: Object.fromEntries(m.cases.map((c) => [c.id, 1.4])) }); }); }}>+ nova</Button>}>
         <Button onClick={() => st.commit((m) => { m.combinations = nbrCombinations(m.cases, 1); }, 'Combinações NBR 8681 geradas. Revise os fatores.')}>Gerar combinações NBR 8681</Button>
         <Hint>ELU normal com γg = 1,4 / 1,0 e γq = 1,4 (acompanhantes × ψ0), uma de cada grupo excludente, e a principal sozinha; ELS quase permanente e frequente. Natureza, ψ e grupo de cada caso definem os fatores.</Hint>
         {model.combinations.length > 0 && (
@@ -164,13 +164,13 @@ export function CargasPanel() {
                 {model.combinations.map((cb) => (
                   <tr key={cb.id}>
                     <td className="cbname">{cb.name}</td>
-                    <td><select className="factor kind" aria-label="Tipo da combinação" value={cb.kind ?? (/^ELS/i.test(cb.name) ? (/quase/i.test(cb.name) ? 'QP' : 'FREQ') : 'ELU')} onChange={(e) => st.commit((m) => { m.combinations.find((k) => k.id === cb.id)!.kind = e.target.value as ComboKind; })}>
+                    <td><Dropdown className="factor kind" aria-label="Tipo da combinação" value={cb.kind ?? (/^ELS/i.test(cb.name) ? (/quase/i.test(cb.name) ? 'QP' : 'FREQ') : 'ELU')} onChange={(e) => st.commit((m) => { m.combinations.find((k) => k.id === cb.id)!.kind = e.target.value as ComboKind; })}>
                       <option value="ELU">ELU</option><option value="QP">ELS-QP</option><option value="FREQ">ELS-F</option><option value="RARA">Rara</option>
-                    </select></td>
+                    </Dropdown></td>
                     {model.cases.map((c) => (
                       <td key={c.id}><FactorInput value={cb.factors[c.id] ?? 0} onChange={(v) => st.commit((m) => { const x = m.combinations.find((k) => k.id === cb.id)!; if (v) x.factors[c.id] = v; else delete x.factors[c.id]; })} /></td>
                     ))}
-                    <td><button type="button" className="x" aria-label="Excluir combinação" onClick={() => st.commit((m) => { m.combinations = m.combinations.filter((k) => k.id !== cb.id); })}>×</button></td>
+                    <td><Button variant="x" aria-label="Excluir combinação" onClick={() => st.commit((m) => { m.combinations = m.combinations.filter((k) => k.id !== cb.id); })}>×</Button></td>
                   </tr>
                 ))}
               </tbody>
@@ -184,7 +184,7 @@ export function CargasPanel() {
 
 function FactorInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [t, setT] = useState(String(value).replace('.', ','));
-  return <input className="factor" aria-label="Fator" value={t} onChange={(e) => setT(e.target.value)} onFocus={() => setT(String(value).replace('.', ','))} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v)) onChange(v); else setT(String(value)); }} />;
+  return <Input className="factor" aria-label="Fator" value={t} onChange={(e) => setT(e.target.value)} onFocus={() => setT(String(value).replace('.', ','))} onBlur={() => { const v = parseFloat(t.replace(',', '.')); if (Number.isFinite(v)) onChange(v); else setT(String(value)); }} />;
 }
 
 function describe(l: Load, U: Units): string {

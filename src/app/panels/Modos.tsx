@@ -64,7 +64,7 @@ export function ModosGroup() {
               <table className="data">
                 <thead><tr>{kind === 'buckling' ? <><th>Modo</th><th>λ (fator)</th><th>Situação</th></> : <><th>Modo</th><th>f (Hz)</th><th>T (s)</th><th>Massa X / Y (%)</th></>}<th /></tr></thead>
                 <tbody>{rows.list.map((r) => (
-                  <tr key={r.label}><td>{r.label}</td><td>{r.a}</td><td>{r.b}</td>{kind === 'vibration' && <td>{r.c}</td>}<td><button type="button" className="mini" onClick={() => show(r)}>ver</button></td></tr>
+                  <tr key={r.label}><td>{r.label}</td><td>{r.a}</td><td>{r.b}</td>{kind === 'vibration' && <td>{r.c}</td>}<td><Button variant="mini" onClick={() => show(r)}>ver</Button></td></tr>
                 ))}</tbody>
               </table>
             </div>

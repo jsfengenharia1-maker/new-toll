@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
-import { Button, Check, Chip, Group, Hint, NumField, Seg, Select, TextField } from '../ui';
+import { Button, Check, Chip, Group, Hint, NumField, Seg, Select, Textarea, TextField } from '../ui';
 import { nextId, joinAtNode, selectionSets, transformSelection, type Xform } from '../../core/edit';
 import { sectionProps } from '../../core/section';
 import type { Material, MemberRole, Restraint, SectionShape, Support } from '../../core/types';
@@ -159,7 +159,7 @@ export function EstruturaPanel() {
       <TransformGroup />
       <ManualDims />
 
-      <Group title="Materiais" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.materials); st.commit((m) => { m.materials.push({ ...(mat ?? { E: 2e8, nu: 0.3, alpha: 1e-5, gamma: 78.5 }), id, name: `Material ${id}` }); }); setMatId(id); }}>+ novo</button>}>
+      <Group title="Materiais" aside={<Button variant="mini" onClick={() => { const id = nextId(model.materials); st.commit((m) => { m.materials.push({ ...(mat ?? { E: 2e8, nu: 0.3, alpha: 1e-5, gamma: 78.5 }), id, name: `Material ${id}` }); }); setMatId(id); }}>+ novo</Button>}>
         <Select value={mat?.id ?? 0} options={model.materials.map((m) => ({ v: m.id, label: `${m.name} · ${countUse(model.members, 'material', m.id)} barras` }))} onChange={setMatId} />
         {mat && (
           <>
@@ -181,7 +181,7 @@ export function EstruturaPanel() {
         )}
       </Group>
 
-      <Group title="Seções" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.sections); st.commit((m) => { m.sections.push({ id, name: `Seção ${id}`, shape: { kind: 'rect', b: 0.2, h: 0.5 } }); }); setSecId(id); }}>+ nova</button>}>
+      <Group title="Seções" aside={<Button variant="mini" onClick={() => { const id = nextId(model.sections); st.commit((m) => { m.sections.push({ id, name: `Seção ${id}`, shape: { kind: 'rect', b: 0.2, h: 0.5 } }); }); setSecId(id); }}>+ nova</Button>}>
         <Select value={sec?.id ?? 0} options={model.sections.map((s) => ({ v: s.id, label: `${s.name} · ${countUse(model.members, 'section', s.id)} barras` }))} onChange={setSecId} />
         <QuickRect onCreated={setSecId} />
         <CatalogProfile onCreated={setSecId} />
@@ -528,7 +528,7 @@ function PolygonEditor({ id }: { id: number }) {
     <div className="grow">
       <label className="field grow" htmlFor={`poly${id}`}>
         <span className="flabel">Vértices x y (cm), em ordem; y = altura no plano do pórtico</span>
-        <textarea id={`poly${id}`} rows={6} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={parse} />
+        <Textarea id={`poly${id}`} rows={6} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={parse} />
       </label>
       <div className="row">
         <NumField label="L: b" unit="cm" value={L.b} onChange={(v) => setL({ ...L, b: v })} />
@@ -561,7 +561,7 @@ function ManualDims() {
           {dims.map((d) => (
             <li key={d.id}>
               <span>{fmt(U.L.to(Math.hypot(d.x2 - d.x1, d.y2 - d.y1)))} {U.L.label} · ({fmt(U.L.to(d.x1))}; {fmt(U.L.to(d.y1))}) → ({fmt(U.L.to(d.x2))}; {fmt(U.L.to(d.y2))})</span>
-              <button type="button" className="x" aria-label="Remover cota" onClick={() => st.commit((m) => { m.dims = (m.dims ?? []).filter((x) => x.id !== d.id); }, 'Cota removida.')}>×</button>
+              <Button variant="x" aria-label="Remover cota" onClick={() => st.commit((m) => { m.dims = (m.dims ?? []).filter((x) => x.id !== d.id); }, 'Cota removida.')}>×</Button>
             </li>
           ))}
         </ul>

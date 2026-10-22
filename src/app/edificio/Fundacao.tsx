@@ -12,7 +12,7 @@ import { BaseElasticaBloco } from './BaseElasticaUI';
 import { CorridaBloco } from './CorridaUI';
 import { capCols } from '../../core/foundation';
 import { CaissonDetail, CapDetail, FootingDetail, SolutionDetail } from '../FundacoesDetail';
-import { Button, Check, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
+import { Button, Check, Dropdown, Group, Hint, KV, Modal, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from '../ui';
 import { useStore } from '../store';
 import { PARAMS_FUNDACAO } from '../../core/commands';
 import { PILE_LABEL, boringsOf, normalizeFoundation, sampleFoundation, type Boring, type FoundationData, type PileType } from '../../core/piles';
@@ -207,19 +207,19 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
             <tbody>{t.estacas.map((e, i) => (
               <tr key={e.id}>
                 <td className="tl">{e.nome}</td>
-                <td><select aria-label={`Tipo da estaca ${e.nome}`} value={e.tipo} onChange={(ev) => setEst(i, { tipo: ev.target.value as PileType })}>{ESTACAS_TIPO.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</select></td>
+                <td><Dropdown aria-label={`Tipo da estaca ${e.nome}`} value={e.tipo} onChange={(ev) => setEst(i, { tipo: ev.target.value as PileType })}>{ESTACAS_TIPO.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</Dropdown></td>
                 <td><NumCell value={e.D} onChange={(v) => setEst(i, { D: v })} /></td>
-                <td><select aria-label={`Modo da estaca ${e.nome}`} value={e.modo} onChange={(ev) => setEst(i, { modo: ev.target.value as 'informada' | 'sondagem', ...(ev.target.value === 'informada' && !e.capacidade ? { capacidade: 500 } : {}) })}><option value="sondagem">pela sondagem</option><option value="informada">informada</option></select></td>
+                <td><Dropdown aria-label={`Modo da estaca ${e.nome}`} value={e.modo} onChange={(ev) => setEst(i, { modo: ev.target.value as 'informada' | 'sondagem', ...(ev.target.value === 'informada' && !e.capacidade ? { capacidade: 500 } : {}) })}><option value="sondagem">pela sondagem</option><option value="informada">informada</option></Dropdown></td>
                 <td>{e.modo === 'informada' ? <NumCell value={e.capacidade ?? 0} onChange={(v) => setEst(i, { capacidade: v })} /> : <span className="muted">—</span>}</td>
                 <td><OptNumCell value={e.s} placeholder="padrão" onChange={(v) => { if (v === undefined) { const n = t.estacas.map((x, k) => { if (k !== i) return x; const c = { ...x }; delete c.s; return c; }); exec('fundacao.terreno', { estacas: n }); } else setEst(i, { s: v }); }} /></td>
-                <td><button type="button" className="x" aria-label={`Remover estaca ${e.nome}`} onClick={() => exec('fundacao.terreno', { estacas: t.estacas.filter((_, k) => k !== i) })}>×</button></td>
+                <td><Button variant="x" aria-label={`Remover estaca ${e.nome}`} onClick={() => exec('fundacao.terreno', { estacas: t.estacas.filter((_, k) => k !== i) })}>×</Button></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       )}
       <div className="row wrap">
-        <button type="button" className="mini" onClick={() => exec('fundacao.terreno', { estacas: [...t.estacas, { tipo: 'helice', D: 40, modo: 'sondagem' }] })}>+ estaca</button>
+        <Button variant="mini" onClick={() => exec('fundacao.terreno', { estacas: [...t.estacas, { tipo: 'helice', D: 40, modo: 'sondagem' }] })}>+ estaca</Button>
       </div>
       <Hint>Pela sondagem: capacidade e comprimento pelo SPT (Décourt-Quaresma, NBR 6122); informada: carga admissível característica dada. O bloco usa o tipo escolhido no elemento.</Hint>
 

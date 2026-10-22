@@ -138,4 +138,15 @@ describe('design system', () => {
       expect(chaves.length, tema).toBe(20);
     }
   });
+
+  it('controles só pela biblioteca ui (button, select, textarea e input fora de ui; file hidden fica cru)', () => {
+    const achados: string[] = [];
+    Object.entries(codigo).filter(([f]) => f.startsWith('/src/app/') && f.endsWith('.tsx') && !f.startsWith('/src/app/ui/')).forEach(([f, s]) => {
+      semComentarios(s).split('\n').forEach((l, i) => {
+        if (/<(button|select|textarea)[\s>]/.test(l)) achados.push(`${f}:${i + 1}: ${l.trim().slice(0, 100)}`);
+        for (const m of l.matchAll(/<input[\s>][^]*?(\/>|>)/g)) if (!(/type="file"/.test(m[0]) && /\bhidden\b/.test(m[0]))) achados.push(`${f}:${i + 1}: ${l.trim().slice(0, 100)}`);
+      });
+    });
+    expect(achados).toEqual([]);
+  });
 });

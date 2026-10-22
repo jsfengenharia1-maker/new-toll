@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { elementosAlterados } from '../../core/building/rearmarAlterados';
 import { useStore } from '../store';
-import { Button, Hint, Modal, Note, Pill, Select, TextField } from '../ui';
+import { Button, Hint, Input, Modal, Note, Pill, Select, TextField } from '../ui';
 import { comandosBloquear, executarERecalcular } from './Armadura';
 import { usePlanta } from './plantaStore';
 import { calculoAtual, dimAtual, podeRearmar, useBuilding } from './store';
@@ -126,7 +126,7 @@ export function SelecaoBloqueio({ onClose }: { onClose: () => void }) {
               {grupos.map(({ g, vigas }) => (
                 <tr key={g.id}>
                   <td className="tl">{g.nome}</td>
-                  <td className="tl small">{vigas.map((v) => <label key={v.id} className="check"><input type="checkbox" checked={escolha.has(v.id)} onChange={(e) => alt([v.id], e.target.checked)} /> <span className={bloqueado(v.id) ? 'ok' : undefined}>{v.nome}{bloqueado(v.id) ? ' ▣' : ''}</span> </label>)}</td>
+                  <td className="tl small">{vigas.map((v) => <label key={v.id} className="check"><Input type="checkbox" checked={escolha.has(v.id)} onChange={(e) => alt([v.id], e.target.checked)} /> <span className={bloqueado(v.id) ? 'ok' : undefined}>{v.nome}{bloqueado(v.id) ? ' ▣' : ''}</span> </label>)}</td>
                   <td className="num">{vigas.filter((v) => bloqueado(v.id)).length}/{vigas.length}</td>
                   <td><Button onClick={() => alt(vigas.map((v) => v.id), !vigas.every((v) => escolha.has(v.id)))}>{vigas.every((v) => escolha.has(v.id)) ? 'Nenhuma' : 'Todas'}</Button></td>
                 </tr>
@@ -134,7 +134,7 @@ export function SelecaoBloqueio({ onClose }: { onClose: () => void }) {
               {b.pilares.length > 0 && (
                 <tr>
                   <td className="tl">Pilares</td>
-                  <td className="tl small">{b.pilares.map((p) => <label key={p.id} className="check"><input type="checkbox" checked={escolha.has(p.id)} onChange={(e) => alt([p.id], e.target.checked)} /> <span className={bloqueado(p.id) ? 'ok' : undefined}>{p.nome}{bloqueado(p.id) ? ' ▣' : ''}</span> </label>)}</td>
+                  <td className="tl small">{b.pilares.map((p) => <label key={p.id} className="check"><Input type="checkbox" checked={escolha.has(p.id)} onChange={(e) => alt([p.id], e.target.checked)} /> <span className={bloqueado(p.id) ? 'ok' : undefined}>{p.nome}{bloqueado(p.id) ? ' ▣' : ''}</span> </label>)}</td>
                   <td className="num">{b.pilares.filter((p) => bloqueado(p.id)).length}/{b.pilares.length}</td>
                   <td><Button onClick={() => alt(b.pilares.map((p) => p.id), !b.pilares.every((p) => escolha.has(p.id)))}>{b.pilares.every((p) => escolha.has(p.id)) ? 'Nenhum' : 'Todos'}</Button></td>
                 </tr>

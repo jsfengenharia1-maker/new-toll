@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useBuilding } from './edificio/store';
-import { Button, Check, Chip, Group, Hint, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
+import { Button, Check, Chip, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
@@ -119,19 +119,19 @@ export function Fundacoes() {
               <tbody>
                 {f.loads.map((l, i) => (
                   <tr key={l.id}>
-                    <td><input value={l.label} aria-label="Apoio" onChange={(e) => upd((d) => { d.loads[i].label = e.target.value; })} /></td>
+                    <td><Input value={l.label} aria-label="Apoio" onChange={(e) => upd((d) => { d.loads[i].label = e.target.value; })} /></td>
                     {(['Nk', 'NkMin', 'NkPerm', 'Hx', 'Hy', 'Mx', 'My'] as (keyof FLoad)[]).map((k) => (
                       <td key={k}>{k === 'NkPerm'
                         ? <OptNumCell value={l.NkPerm} placeholder={fmt(l.Nk, 0)} onChange={(v) => upd((d) => { if (v === undefined) delete d.loads[i].NkPerm; else d.loads[i].NkPerm = v; })} />
                         : <NumCell value={l[k] as number} onChange={(v) => upd((d) => { (d.loads[i][k] as number) = v; })} />}</td>
                     ))}
-                    <td><button type="button" className="x" aria-label="Remover apoio" onClick={() => upd((d) => { d.loads.splice(i, 1); })}>×</button></td>
+                    <td><Button variant="x" aria-label="Remover apoio" onClick={() => upd((d) => { d.loads.splice(i, 1); })}>×</Button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button type="button" className="mini" onClick={() => upd((d) => { const id = Math.max(0, ...d.loads.map((x) => x.id)) + 1; d.loads.push({ id, label: `P${id}`, Nk: 500, NkMin: 300, Hx: 0, Hy: 0, Mx: 0, My: 0 }); })}>+ apoio</button>
+          <Button variant="mini" onClick={() => upd((d) => { const id = Math.max(0, ...d.loads.map((x) => x.id)) + 1; d.loads.push({ id, label: `P${id}`, Nk: 500, NkMin: 300, Hx: 0, Hy: 0, Mx: 0, My: 0 }); })}>+ apoio</Button>
           <Hint>kN e kN·m, valores característicos no topo da fundação. N mín negativo indica tração. N perm é a parcela permanente (casos G); ela entra com γf = {fmt(p.gammaFfav, 1)} em Nd,mín, e o alívio variável (N perm − N mín) e o binário do momento com γf = {fmt(p.gammaF, 1)}. Vazio: adota-se N perm = N máx (a favor da segurança). Do pórtico 2D: X = Rx, My = Mz; direção Y livre para você completar. Tipo de fundação, furo, pilar e coordenadas ficam no cartão de cada apoio.</Hint>
         </Group>
 
@@ -194,12 +194,12 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
         <>
           <div className="fsum">
             {r.byType.map((t) => (
-              <button type="button" key={t.type} className={`fpick${sel?.load === ld.id && sel.type === t.type && t.recommended && sel.D === Math.round(t.recommended.D * 100) ? ' on' : ''}`} onClick={() => t.recommended && setSel({ load: ld.id, type: t.type, D: Math.round(t.recommended.D * 100) })}>
+              <Button variant="fpick" key={t.type} className={sel?.load === ld.id && sel.type === t.type && t.recommended && sel.D === Math.round(t.recommended.D * 100) ? ' on' : ''} onClick={() => t.recommended && setSel({ load: ld.id, type: t.type, D: Math.round(t.recommended.D * 100) })}>
                 <span className="ftype">{PILE_LABEL[t.type]}</span>
                 {t.recommended ? <b>{t.recommended.n} × Ø{Math.round(t.recommended.D * 100)} · L = {t.recommended.L} m</b> : <b className="bad">sem solução</b>}
                 {t.recommended && recommendedOption(t.recommended.struct.options) && <span className="muted">{recommendedOption(t.recommended.struct.options)!.n} φ{phiTxt(recommendedOption(t.recommended.struct.options)!.phi)} em {fmt(t.recommended.struct.armedLength, 1)} m · espiral φ{p.stirrupPhi} c/{Math.round(p.stirrupS * 100)}</span>}
                 {t.recommended && t.type === 'premoldada' && <span className="muted">armadura de fábrica</span>}
-              </button>
+              </Button>
             ))}
           </div>
           {ds.pile && ds.cap && (
@@ -207,7 +207,7 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
               <Pill tone="na">{ds.pileAdopted ? 'adotada' : 'recomendada'}</Pill>
               <Pill tone={ds.cap.ok ? 'ok' : 'bad'}>{ds.cap.ok ? 'bloco atende' : 'bloco não atende'}</Pill>
               <span>{PILE_LABEL[ds.pile.type].split(' ')[0]} Ø{Math.round(ds.pile.D * 100)} · {ds.pile.n} estaca{ds.pile.n > 1 ? 's' : ''} · L {ds.pile.L} m · bloco {fmt(ds.cap.lx * 100, 0)} × {fmt(ds.cap.ly * 100, 0)} × {fmt(ds.cap.h * 100, 0)} cm{ds.cap.ties[0]?.bars ? ` · tirante ${barTxt(ds.cap.ties[0].bars, false)}` : ''}</span>
-              <button type="button" className="mini" onClick={() => setSel({ load: ld.id, type: ds.pile!.type, D: Math.round(ds.pile!.D * 100) })}>ver bloco</button>
+              <Button variant="mini" onClick={() => setSel({ load: ld.id, type: ds.pile!.type, D: Math.round(ds.pile!.D * 100) })}>ver bloco</Button>
             </div>
           )}
           <details>
@@ -230,22 +230,22 @@ function SupportCard({ ds, f, sel, setSel, setLoad, active }: { ds: SupportDesig
         </>
       )}
       {ds.kind === 'sapata' && ds.footing && (
-        <button type="button" className={`fpick${active ? ' on' : ''}`} onClick={() => setSel({ load: ld.id })}>
+        <Button variant="fpick" className={active ? ' on' : ''} onClick={() => setSel({ load: ld.id })}>
           <span className="ftype">Sapata isolada</span>
           {isFooting(ds.footing) ? <>
             <b>{fmt(ds.footing.A * 100, 0)} × {fmt(ds.footing.B * 100, 0)} cm · h {fmt(ds.footing.h * 100, 0)} cm ({ds.footing.kind === 'rigida' ? 'rígida' : 'flexível'})</b>
             <span className="muted">σadm {fmt(ds.footing.sigmaAdm, 0)} kPa ({ds.footing.sigmaSrc.startsWith('estimada') ? 'SPT, a confirmar' : 'informada'}) · A: {barTxt(ds.footing.flex.x.bars)} · B: {barTxt(ds.footing.flex.y.bars)}{ds.footing.ok ? '' : ' · com pendências'}</span>
           </> : <b className="bad">{ds.footing.messages[0]}</b>}
-        </button>
+        </Button>
       )}
       {ds.kind === 'tubulao' && ds.caisson && (
-        <button type="button" className={`fpick${active ? ' on' : ''}`} onClick={() => setSel({ load: ld.id })}>
+        <Button variant="fpick" className={active ? ' on' : ''} onClick={() => setSel({ load: ld.id })}>
           <span className="ftype">Tubulão a céu aberto</span>
           {isCaisson(ds.caisson) ? <>
             <b>Fuste Ø{fmt(ds.caisson.Df * 100, 0)} · base Ø{fmt(ds.caisson.Db * 100, 0)} · cota {fmt(ds.caisson.depth, 1)} m</b>
             <span className="muted">σadm {fmt(ds.caisson.sigmaAdm, 0)} kPa ({ds.caisson.sigmaSrc.startsWith('estimada') ? 'SPT, a confirmar' : 'informada'}) · H {fmt(ds.caisson.H * 100, 0)} cm · {fmt(ds.caisson.volume, 2)} m³</span>
           </> : <b className="bad">{ds.caisson.messages[0]}</b>}
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 // (global.css, --pl-<tema>-<chave>) e o usuário troca as que quiser; as alterações ficam só neste navegador.
 import { useState } from 'react';
 import { CHAVES, hexDaCor, paletaBase, usePlanta, type Paleta } from './plantaStore';
-import { Button, Modal } from '../ui';
+import { Button, ColorField, Modal } from '../ui';
 
 const ROTULOS: Record<keyof Paleta, string> = {
   fundo: 'Fundo', mascara: 'Máscara (DXF)', eixo: 'Eixos', viga: 'Vigas', laje: 'Lajes', carga: 'Cargas', parede: 'Paredes (alvenaria)', pilar: 'Pilares', pilarBorda: 'Borda dos pilares',
@@ -33,7 +33,7 @@ export function CoresPlanta() {
               const atual = hexDaCor(alteradas[k] ?? base[k]).hex;
               return (
                 <label key={k} className={alteradas[k] ? 'on' : ''}>
-                  <input type="color" aria-label={`Cor: ${ROTULOS[k]}`} data-chave={k} value={atual} onChange={(e) => mudar(k, e.target.value)} />
+                  <ColorField aria-label={`Cor: ${ROTULOS[k]}`} data-chave={k} value={atual} onChange={(v) => mudar(k, v)} />
                   <span>{ROTULOS[k]}{alteradas[k] ? ' *' : ''}</span>
                 </label>
               );

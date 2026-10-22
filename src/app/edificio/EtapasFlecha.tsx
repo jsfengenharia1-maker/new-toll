@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { type EtapaCarga, type TipoFlecha, etapasDe, lerEtapasColadas, limitesEmUso, TIPOS_ELEMENTO_FLECHA, TIPOS_FLECHA, textoLimite, type TipoElementoFlecha } from '../../core/building/flechas';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import type { BuildingModel } from '../../core/building/types';
-import { Button, Group, Hint, NumCell, OptNumCell, Select, TextCell } from '../ui';
+import { Button, Group, Hint, NumCell, OptNumCell, Select, TextCell, Textarea } from '../ui';
 import { useBuilding } from './store';
 
 const CAMPOS = ['dias', 'pp', 'alvenaria', 'revestimento', 'variavel'] as const;
@@ -65,7 +65,7 @@ export function EtapasFlechaGrupo({ b }: { b: BuildingModel }) {
         <Button disabled={!temProprias} onClick={() => exec('etapas.definir', { elemento: el, padrao: true })}>Voltar ao padrão</Button>
       </div>
       <Hint>Frações de cada carga aplicadas na idade (soma ≤ 1 por coluna). ξ(t) da NBR 6118, Tabela 17.1; a flecha ativa conta a partir da primeira etapa com alvenaria.</Hint>
-      <textarea aria-label="Etapas coladas" rows={4} value={colar} onChange={(e) => setColar(e.target.value)} placeholder={'Desforma\t28\t1\t0\t0\t0\nAlvenaria\t60\t0\t1\t0\t0'} />
+      <Textarea aria-label="Etapas coladas" rows={4} value={colar} onChange={(e) => setColar(e.target.value)} placeholder={'Desforma\t28\t1\t0\t0\t0\nAlvenaria\t60\t0\t1\t0\t0'} />
       <div className="row wrap">
         <Button disabled={!colar.trim()} onClick={aplicarColagem}>Aplicar colagem</Button>
         {erro && <span className="hint bad">{erro}</span>}
