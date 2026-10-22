@@ -16,6 +16,7 @@ import { planoGrupo } from './fundacaoGrupo';
 import { isFooting } from '../../core/footings';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara } from '../../core/building/pilares';
+import { vigasDoClique } from '../../core/building/lancamentoDxf';
 import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
 import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
@@ -129,7 +130,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
@@ -149,6 +150,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
+  vigaGabarito: ['Clique numa linha, arco ou polilinha do gabarito (modo eixo: a viga sai pelo eixo; modo face: a linha é a face da viga).', 'Clique do lado em que o corpo da viga deve ficar (a linha é a face oposta ao clique).'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
   girarFund: ['Primeiro ponto da direção: os elementos de fundação selecionados giram para a direção dos dois pontos.', 'Segundo ponto da direção.'],
@@ -1067,6 +1069,20 @@ export function Planta() {
       return;
     }
     if (f === 'selecionar') return;
+    if (f === 'vigaGabarito') {
+      // L2 (C6.63): clique na linha, arco ou polilinha do gabarito; no modo face, o 2º clique diz o lado do corpo da viga
+      if (nivelFund) { msg('A viga pelo gabarito é lançada nas plantas dos pavimentos.'); return; }
+      const c = it.current.cursor, r4 = (q: P2) => [+q[0].toFixed(4), +q[1].toFixed(4)], raio = 12 / (vista?.k || 1);
+      if (pl.modoVigaGab === 'eixo') { exec('viga.daMascara', { grupo, ponto: r4(c), modo: 'eixo', secao: pl.secaoViga, raio }); return; }
+      if (!pontosRef.current.length) {
+        if (!vigasDoClique({ mascaras }, grupo, c, c, 'face', raio).length) { msg('Nenhuma linha, arco ou polilinha do gabarito perto do clique.'); return; }
+        setPontos([c]); return;
+      }
+      const a = pontosRef.current[0];
+      setPontos([]);
+      exec('viga.daMascara', { grupo, ponto: r4(a), cursor: r4(c), modo: 'face', secao: pl.secaoViga, raio });
+      return;
+    }
     if (f === 'pilarParede') {
       if (!pl.ppTipo) { msg('Escolha o tipo no grupo Pilares-parede (Lançar na planta).'); return; }
       exec('pilarParede.inserir', { ...(pl.ppParams ?? {}), tipo: pl.ppTipo, angulo: pl.ppAngulo, x: +p[0].toFixed(4), y: +p[1].toFixed(4) });
@@ -1427,6 +1443,14 @@ export function Planta() {
       if (k === 'Escape') { it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
       if (k === 'F8') { e.preventDefault(); P.set({ orto: !P.orto }); msg(`Ortogonal ${P.orto ? 'desligado' : 'ligado'}.`); return; }
+      if (k === 'F3') {
+        // F3 (L2, C2.21): liga e desliga as capturas; sem nenhum modo escolhido, abre a janela de seleção
+        e.preventDefault();
+        if (P.capturas.size) { P.set({ capturasAntes: new Set(P.capturas), capturas: new Set() }); msg('Capturas desligadas (F3 liga de novo).'); }
+        else if (P.capturasAntes.size) { P.set({ capturas: new Set(P.capturasAntes) }); msg('Capturas ligadas.'); }
+        else P.set({ janelaCapturas: true });
+        return;
+      }
       if (k === 'F10') { e.preventDefault(); P.set({ polar: !P.polar }); msg(`Polar ${P.polar ? 'desligado' : 'ligado'}.`); return; }
       if (k.toLowerCase() === 'f') { enquadrar(); return; }
       if (P.ferramenta === 'pilarParede' && k.toLowerCase() === 'r') { P.set({ ppAngulo: (P.ppAngulo + 90) % 360 }); return; }
