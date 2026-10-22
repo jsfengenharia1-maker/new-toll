@@ -17,6 +17,9 @@ import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type Re
 import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
+import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
+import { detalharParedes, resumoAcoParedes, type DetalheParede } from './detalhamentoParedes';
+import { dimensionarMuroArrimo, matMuroDe, type ResultadoMuroDim } from './muroArrimoDim';
 import { ladosDoPP, lancesDoPP, todosPilares } from './pilarParede';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
@@ -1601,7 +1604,12 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Resistência ao fogo (N2g): TRRF por grupo e TRF por elemento (estado "incendio" ativo); erros e avisos também vão para as mensagens dos elementos. */
   fogo?: ResultadoFogo;
   /** Paredes de concreto (E1c): esforços resultantes por trecho e pavimento e cargas na base (mesma forma dos pilares-parede). */
-  paredes?: ResultadoPilarParede[] }
+  paredes?: ResultadoPilarParede[];
+  /** Armadura das paredes e pilares-parede (E1d): panos, lados, aberturas, emendas; detalhamento e aço. */
+  armaduraParedes?: ResultadoParedeDim[];
+  detalhesParedes?: DetalheParede[]; resumoAcoParedes?: ReturnType<typeof resumoAcoParedes>;
+  /** Muros de arrimo isolados (E1d): estabilidade, armadura do fuste e da base. */
+  muros?: ResultadoMuroDim[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
@@ -1638,6 +1646,15 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
   { const pp = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs)); if (pp.length) d.pilaresParede = pp; }
   { const pw = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs), 'paredes'); if (pw.length) d.paredes = pw; }
+  if (d.paredes || d.pilaresParede) {
+    const ap = dimensionarParedes(b, an, elu, { paredes: d.paredes, pilaresParede: d.pilaresParede }, an.opcoes);
+    if (ap.length) {
+      d.armaduraParedes = ap;
+      d.detalhesParedes = detalharParedes(b, ap, an.opcoes);
+      d.resumoAcoParedes = resumoAcoParedes(d.detalhesParedes, an.opcoes.perdasAco);
+    }
+  }
+  if (b.murosArrimo?.length) d.muros = b.murosArrimo.map((m) => ({ id: m.id, nome: m.nome, ...dimensionarMuroArrimo(m, matMuroDe(b, an.opcoes)) }));
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
   if (avisosAcoes.length) d.avisosAcoes = avisosAcoes;

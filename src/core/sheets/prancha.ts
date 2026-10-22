@@ -57,13 +57,13 @@ export const LARGURA_LEGENDA = 178;
 export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
-export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao';
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes';
 /**
  * Siglas das folhas de referência (fundação indireta SFN, direta SFS, formas SCF, vigas SCV, pilares SCP); lajes SCL por
  * extensão [a confirmar]. A sigla de `fundacao` é a padrão (SFN); cada folha de fundação leva a sua em `Prancha.sigla`
- * (`siglaFundacao`). A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
+ * (`siglaFundacao`). Paredes e pilares-parede (E1d): SCM por extensão [a confirmar]. A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
  */
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN' };
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM' };
 export const siglaDe = (p: Pick<Prancha, 'tipo' | 'sigla'>) => p.sigla ?? SIGLAS[p.tipo ?? 'formas'];
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */

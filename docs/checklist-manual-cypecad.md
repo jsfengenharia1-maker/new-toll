@@ -13,7 +13,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
 | 4. Pilares | 63 | 49 | 5 | 2 | 7 |
-| 5. Muros e paredes estruturais | 30 | 4 | 3 | 19 | 4 |
+| 5. Muros e paredes estruturais | 30 | 6 | 7 | 13 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **251** | **80** | **247** | **185** |
+| **Total** | **763** | **253** | **84** | **241** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 185 | 216 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 179 | 214 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -250,7 +250,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação [V5] |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
-| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos [E1d] |
+| C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; `linhasQuadroPilares`) e a seção do estribo à parte na prancha de paredes (`armacaoParedes.ts`); falta o desenho das condições de estribos dos consolos [E2] |
 | C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | E | relatório de esforços e armaduras dos pilares em HTML e CSV (`relatorioPilaresHtml`/`relatorioPilaresCsv`, `RelatoriosUI.tsx`): combinações determinantes, Md,tot, armadura, taxa, estribo, cortante, utilização (R7g); faltam pilares-parede (E1b) e muros |
 
 ## 5. Muros e paredes estruturais
@@ -269,12 +269,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C5.10 | A abertura é lançada no pavimento de baixo dos dois entre os quais fica. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `AberturaParede.pavimento` = base do lance (`furosDaParede`). |
 | C5.11 | Em muros de blocos, a abertura se ajusta à modulação dos blocos para evitar peças especiais. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.12 | Verga: em muros de subsolo e de alvenaria genérica não há aviso de tensões excessivas. Em blocos, a verga é verificada e armada. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.13 | Edição da armadura de uma abertura, destacada sob o cursor. | Falta | E | muros e paredes estruturais (V2) [E1d] |
-| C5.14 | Armadura padrão de portas, copiada de uma porta e aplicada a várias. | Falta | E | muros e paredes estruturais (V2) [E1d] |
-| C5.15 | Armadura padrão de janelas, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.13 | Edição da armadura de uma abertura, destacada sob o cursor. | Parcial | E | núcleo: comando `abertura.armadura` (editar e bloquear; verificada contra a necessária no recálculo, `dimensionarAbertura`); falta a edição destacada sob o cursor na interface [E1d] |
+| C5.14 | Armadura padrão de portas, copiada de uma porta e aplicada a várias. | Parcial | E | núcleo: `abertura.armadura { acao: 'padrao', tipo: 'porta' }` e `copiar` (`aberturasPadrao`, `ArmaduraAbertura`); falta a interface [E1d] |
+| C5.15 | Armadura padrão de janelas, copiada e aplicada da mesma forma. | Parcial | E | núcleo: `abertura.armadura { acao: 'padrao', tipo: 'janela' }` e `copiar`; falta a interface [E1d] |
 | C5.16 | Armadura de vergas em muros de blocos, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.17 | Relatório das verificações da armadura de uma abertura escolhida. | Falta | E | muros e paredes estruturais (V2) [E1d] |
-| C5.18 | A armadura das aberturas de muros de concreto é dimensionada para empuxos e para os esforços em vergas e peitoris. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.17 | Relatório das verificações da armadura de uma abertura escolhida. | Parcial | E | núcleo: tabela `aberturas` do memorial (necessária × adotada, origem, situação; `memorialParedes.ts`) e mensagens PAREDE_ABERTURA_*; falta a consulta por abertura na interface [E1d] |
+| C5.18 | A armadura das aberturas de muros de concreto é dimensionada para empuxos e para os esforços em vergas e peitoris. | Feito | — | `dimensionarAbertura` (`paredesDim.ts`): verga e peitoril pela tração N/2 + M/z integrada nos elementos da casca (inclui o empuxo), cortante modelo I, montantes e cantos; `PAREDE_ABERTURA_ARM` e `PAREDE_ABERTURA_CORTANTE` [E1d] |
 | C5.19 | Sismo com aceleração acima de 0,16 g: armadura inclinada em verga e peitoril. | Fora | — | sismo |
 | C5.20 | Com vão livre/altura da verga < 1,5 e tração acima da resistência do concreto, as barras do quadro fazem o papel da armadura inclinada. | Fora | — | sismo |
 | C5.21 | Prolongar muro (como as vigas), em todos os grupos onde ele existe. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `parede.prolongar` (até parede, viga, eixo ou ponto; a parede é uma só em todos os grupos; vigas embutidas acompanham). |
@@ -282,7 +282,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C5.23 | Vigas embutidas e de coroamento aparecem sobrepostas ao muro em planta e são editáveis junto com ele. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `Viga.embutida`, `viga.embutir`, movidas e removidas com a parede, VIGA_EMBUTIDA. |
 | C5.24 | Opção de armadura: aço da armadura horizontal dos muros de blocos. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Falta | E | muros e paredes estruturais (V2) [E1d] |
+| C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Feito | — | `Parede.armar` (concreto simples verificado por `verificaConcretoSimples`) e opções `paredeArmarSempre`, `paredeSoHorizontal` e `paredeHorizontalGrampos` [E1d] |
 | C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Falta | E | muros e paredes estruturais (V2) [E1e] |
 | C5.28 | Sapata isolada equivalente para cada pilar sobre sapata corrida, dimensionada com os esforços do pilar e do trecho de muro apoiado. | Falta | FU | muros e paredes estruturais (V2) |
 | C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Falta | E | muros e paredes estruturais (V2) [E1e] |
@@ -1020,3 +1020,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Pendências por frente: E reduz em 4 itens (manual do usuário).
 - **22/10/2026 — fatia N2g, núcleo.** C4.44 e C10.6 passam a Parcial (resistência ao fogo da NBR 15200 em `src/core/building/fogo.ts` e `fogoTabelas.ts`, comando `fogo.definir`, estado-limite "incendio" desligado por padrão; falta a interface, cartões em `docs/cartoes/N2g/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
+- **22/10/2026 — fatia E1d, núcleo (armadura e desenho de paredes e pilares-parede).** C5.18 e C5.26 passam a Feito (`dimensionarAbertura`, opções de armar); C4.62 (consolos pela E2), C5.13, C5.14, C5.15 e C5.17 passam a Parcial: comando `abertura.armadura` (editar, copiar, padrão por tipo), tabela de aberturas do memorial e pilares-parede no quadro de pilares no núcleo; falta a interface (cartões em `docs/cartoes/E1d/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 2 itens (manual do usuário).

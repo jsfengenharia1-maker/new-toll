@@ -35,7 +35,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## NBR 15200:2012 e NBR 14432 (fogo; frente N2g, ainda sem código)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
-| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` (a criar) | Nenhum; só a edição de 2004 e fórmula analítica |
+| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` e `fogoTabelas.ts` | Tabelas da edição de 2004 (até 120 min); só a edição de 2004 e fórmula analítica |
 | Tabelas de vigas biapoiadas e contínuas (bmín/c1, 180 min) | Verificação de viga ao fogo | `fogo.ts` | Idem |
 | As nove tabelas gerais do método tabular de pilares (μfi, λ, e/b) | Pilares ao fogo | `fogo.ts` | Idem |
 | NBR 14432: TRRF por ocupação, altura e área | Sugestão de TRRF por grupo | `fogo.ts`, `b.fogo.trrf` | IT 06 do CBMMG |
@@ -73,3 +73,15 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 | AUDIT do DXF (R2000) e DWG no AutoCAD, incluindo o aviso de arquivo não Autodesk | Garantir abertura sem erro | `src/core/sheets/dxf.ts`, `dwg.ts`; `validation/dxf/auditar.py` | Só ezdxf; AutoCAD não testado |
 | Bloco de várias estacas sob pilares com cargas diferentes: exemplo resolvido ou pelo programa de referência | Tirantes (hoje Rmáx em todas as estacas, conservador) | `src/core/caps.ts` (`cols`) | Até +132 % contra OpenSees |
 | Gabarito de IFC exportado dos programas de referência (passo I0) | Exportação para Revit/CYPECAD/TQS/Eberick | Frente de exportação | Nenhum |
+
+## Paredes e muros (E1d)
+
+| Fatia | Norma e edição | Tabela ou item | O que falta conferir | Onde é usado no código |
+|---|---|---|---|---|
+| E1d | NBR 6118:2014 (e 2023) | 18.4 e 18.5 (pilares-parede), 15.9 | Taxas mínima e máxima da armadura vertical e horizontal, espaçamentos e bitola máxima das malhas de paredes e pilares-parede; ℓe do processo aproximado por faixas | opções `paredeTaxaVertMin/Max`, `paredeTaxaHorMin`, `paredeHorFracVert`, `paredeEspMin/Max`, `paredeBitolaMax`, `paredeFlambagem` em `opcoes.ts`; `paredesArmadura.ts` (`listaMalhas`, `minimosPano`, `requisitosElemento`) |
+| E1d | NBR 16055:2012 | armadura mínima e de aberturas | Paredes de concreto moldadas no local: armadura mínima, reforço de aberturas (verga, peitoril, montantes, cantos) | `paredesDim.ts` (`dimensionarAbertura`, `CANTO_PADRAO`) |
+| E1d | NBR 6118:2014 | 19.4.1 e 19.4.2 | Espessura de 35 cm para armadura transversal de cortante em lajes, estendida às paredes (cortante fora do plano) | `paredesArmadura.ts` (`atende`, `cortanteTransversal`) e `paredesDim.ts` (`dimensionarPano`) |
+| E1d | NBR 6118:2014 | 9.5.2 (emendas por traspasse) e Tabela 9.4 (α0t) | Item do acréscimo da distância livre entre barras emendadas (> 4φ) e proporção de barras emendadas por seção em paredes | `detalhamentoParedes.ts` (`comprimentoEmenda`), opções `paredeEmendaProp` e `paredeEmendaAmpliar` |
+| E1d | NBR 6118:2014 | 24 (concreto simples) | Limites de tração e compressão do concreto simples (γc × 1,2 usado como nas fundações) | `paredesArmadura.ts` (`verificaConcretoSimples`), `Parede.armar === false` |
+| E1d | EN 1992-2 (referência) e NBR 6118:2014 | Annex F e Annex LL (sanduíche); 17.2 | Equivalência do modelo sanduíche com z = 0,9d e das camadas de concreto (t/2 sem tração, t/3 com tração) aos critérios da NBR 6118 para chapas | `paredesArmadura.ts` (`membrana`, `camadas`, `requisitosElemento`) |
+| E1d | NBR 11682:2009 | 5 (muros de arrimo) | Fatores de segurança ao tombamento e ao deslizamento, empuxo passivo e dente; dispensa de estribos no fuste e na base | `muroArrimo.ts`, `muroArrimoDim.ts` |

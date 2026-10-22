@@ -65,6 +65,9 @@ function base() {
   // E1c: uma parede longe dos demais e uma viga sobre ela (para embutir)
   expect(s.executar('parede.criar', { pontos: [[80, 0], [86, 0]], espessura: 0.2 }).ok).toBe(true);
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[80, 0], [86, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
+  // E1d: uma porta na parede (para armadura da abertura) e um muro de arrimo isolado
+  expect(s.executar('parede.abertura', { parede: s.modelo.paredes![0].id, s: 3, largura: 1, altura: 2.1, pavimento: s.modelo.pavimentos[0].id }).ok).toBe(true);
+  expect(s.executar('muro.arrimo', { nome: 'MA1', H: 3, tTopo: 0.2, tBase: 0.3, B: 2, ponta: 0.5, hBase: 0.4, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -219,6 +222,12 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'parede.prolongar': (b) => ({ id: b.paredes![0].id, extremidade: 'fim', ate: { ponto: [88, 0] } }),
   'parede.atribuir': (b) => ({ ids: [b.paredes![0].id], valores: { esq: 0.15 } }),
   'parede.daMascara': () => ({ grupo: 'g_3', camada: 'ALV' }),
+  'parede.armadura': (b) => ({ id: b.paredes![0].id, lado: 0, pavimento: b.pavimentos[0].id, pano: 0, vert: { phi: 10, s: 0.15 }, hor: { phi: 8, s: 0.2 }, emendas: [{ pavimento: b.pavimentos[0].id, tracao: 0.8, compressao: 0.5 }] }),
+  'pilarParede.armadura': (b) => ({ id: b.pilaresParede![0].id, lado: 0, pavimento: b.pavimentos[0].id, vert: { phi: 8, s: 0.15 }, hor: { phi: 6.3, s: 0.2 } }),
+  'parede.redimensionar': (b) => ({ id: b.paredes![0].id, pavimento: b.pavimentos[0].id, espessura: 0.25 }),
+  'abertura.armadura': (b) => ({ acao: 'editar', abertura: b.paredes![0].aberturas![0].id, armadura: { verga: { n: 3, phi: 10 }, estribo: { phi: 5, s: 0.15 }, montante: { n: 2, phi: 10 }, canto: { n: 2, phi: 10 } } }),
+  'muro.arrimo': (b) => ({ id: b.murosArrimo![0].id, nome: 'MA1', H: 3.5, tTopo: 0.2, tBase: 0.35, B: 2.4, ponta: 0.5, hBase: 0.45, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }),
+  'muro.remover': (b) => ({ ids: [b.murosArrimo![0].id] }),
   'viga.embutir': (b) => ({ viga: b.vigas.at(-1)!.id, parede: b.paredes![0].id }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };

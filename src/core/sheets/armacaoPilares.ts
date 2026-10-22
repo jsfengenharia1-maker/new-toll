@@ -211,6 +211,11 @@ export function linhasQuadroPilares(dim: Dimensionamento, b?: BuildingModel): st
   const com = new Set(dets.map((d) => d.pilar));
   const sem = !b || !opcoesEmUso(b.opcoes, perfilDe(b)).pilarInsuficienteSemDesenho ? [] : dim.pilares.filter((r) => !com.has(r.pilar) && r.mensagens.some((m) => /^(Não atende com até 4|Armadura manual necessária|Nenhuma armadura|Biela comprimida|λ > 200)/.test(m)));
   for (const r of [...sem].sort((a, z) => ordemNome(a.nome, z.nome))) out.push([r.nome, r.pavimento, r.secao.replace('×', ' × '), 'seção insuficiente', 'sem desenho', '—']);
+  // pilares-parede (E1d, C4.62): uma linha por pano de lado em casca e por lado curto (barras e estribos), com a seção L × t
+  for (const w of (dim.armaduraParedes ?? []).filter((x) => x.tipo === 'pilarParede').sort((a, z) => ordemNome(a.nome, z.nome))) {
+    for (const p of w.panos) out.push([p.nomeLado, p.nomePav, `${cmInt(p.s1 - p.s0)} × ${cmInt(p.t)}`, p.vert ? `${phiTxt(p.vert.phi)} c/${cmInt(p.vert.s)} (2 faces)` : '—', p.hor ? `${phiTxt(p.hor.phi)} c/${cmInt(p.hor.s)} (horiz.)` : '—', '—']);
+    for (const l of w.lados.filter((x) => x.modelo === 'barra' && x.barra?.vert)) out.push([l.nome, l.nomePav, `${cmInt(l.L)} × ${cmInt(l.t)}`, `${l.barra!.n} ${phiTxt(l.barra!.vert!.phi)}`, `${phiTxt(l.barra!.estribo.phi)} c/${cmInt(l.barra!.estribo.s)}`, '—']);
+  }
   return out;
 }
 
