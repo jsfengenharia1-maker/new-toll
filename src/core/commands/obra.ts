@@ -400,6 +400,9 @@ registrar<{ id: string }>({
     d.pavimentos = d.pavimentos.filter((y) => y.id !== p.id);
     if (!d.pavimentos.some((y) => y.grupo === x.grupo)) {
       d.grupos = d.grupos.filter((g) => g.id !== x.grupo);
+      // a máscara associada a outros grupos fica com eles; as exclusivas do grupo saem
+      for (const m of d.mascaras) if (m.grupo === x.grupo && m.grupos?.length) { m.grupo = m.grupos[0]; m.grupos = m.grupos.slice(1); }
+      for (const m of d.mascaras) { if (m.grupos?.includes(x.grupo)) m.grupos = m.grupos.filter((g) => g !== x.grupo); if (m.grupos && !m.grupos.length) delete m.grupos; }
       d.mascaras = d.mascaras.filter((m) => m.grupo !== x.grupo);
     }
     // pilares: quem nascia no pavimento passa a nascer no de baixo; quem morria nele morre no de baixo (ou some)

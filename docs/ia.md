@@ -150,6 +150,8 @@ O mesmo roteiro roda no `npm test` (`src/cli/agente.test.ts`).
 
 A ferramenta `comandos` lista `obra.assistente` (cria pavimentos, grupos, eixos e cargas de uma vez, a partir de uma especificação) e `obra.importarArranques` (obra só de arranques, a partir de cargas lidas de texto). Nenhum dos dois tem ferramenta própria; passam pela `previa` (com `aplicar`).
 
+Lançamento por gabarito (DXF/DWG já importado como máscara pelo `mascara.importar`): `mascara.regras` define o papel de cada camada (pilar, viga por faces ou por eixo, contorno, abertura, eixo, ponto fixo...), `lancamento.aplicar` lança no grupo a proposta revisada (pilares, vigas, eixos, lajes nos panos e aberturas; um passo no histórico, e o que já foi lançado do mesmo gabarito não duplica) e `viga.daMascara` gera vigas por um clique numa linha, arco ou polilinha do gabarito (pela face, do lado do cursor, ou pelo eixo). Também sem ferramenta própria (`previa`). A proposta (`Proposta`, contagens, ambíguos, ignorados e avisos) é calculada no núcleo por `propostaDeLancamento`.
+
 A `previa` mostra o que o comando faz antes de aplicar. Exemplo:
 
 ```json

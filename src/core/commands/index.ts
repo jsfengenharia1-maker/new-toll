@@ -1,6 +1,7 @@
 // Ponto de entrada do registro: importa os módulos que registram comandos.
 import './obra';
 import './planta';
+import './lancamento';
 import './vigas';
 import './lajes';
 import './acoes';

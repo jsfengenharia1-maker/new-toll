@@ -4,6 +4,7 @@ import { edificioVazio, lancesDoPilar, peDireito } from '../building/types';
 import { ESPEC_PADRAO } from '../building/assistente';
 import { importarArranques, UNIDADES_PADRAO } from '../building/importarArranques';
 import { verificar } from '../building/verify';
+import { propostaDeLancamento, REGRAS_PADRAO, sugerirRegras } from '../building/lancamentoDxf';
 import { lerEdificio } from '../building/file';
 
 function padrao(): Sessao {
@@ -38,6 +39,8 @@ function base() {
     ['corte.criar', { pontos: [[0, 1], [6, 1]] }],
     ['secao.criar', { a: [0, 0], b: [6, 3] }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
+  // L2: a máscara sai da origem da importação (para `mascara.origemOriginal` ter o que desfazer)
+  expect(s.executar('mascara.editar', { id: s.modelo.mascaras[0].id, dx: 0.5 }).ok).toBe(true);
   expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
   // R7a: uma tabela de vigas criada (para restaurar e remover) e a padrão dos estribos alterada
   expect(s.executar('tabela.definir', { tipo: 'vigas', tabela: { id: 'so16', nome: 'Só φ16', linhas: [{ bAte: 999, hAte: 999, pos: { bitolas: [16], nMin: 2, camadas: 2 }, neg: { bitolas: [16], nMin: 2, camadas: 2 }, passante: 0.5 }] } }).ok).toBe(true);
@@ -153,6 +156,12 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'mascara.editar': (b) => ({ id: b.mascaras[0].id, rotacao: 30 }),
   'mascara.camadas': (b) => ({ id: b.mascaras[0].id, camadas: ['PORTA'], visivel: false }),
   'mascara.remover': (b) => ({ id: b.mascaras[0].id }),
+  'mascara.copiar': (b) => ({ id: b.mascaras[0].id, grupos: ['g_1'] }),
+  'mascara.regras': (b) => ({ id: b.mascaras[0].id, regras: sugerirRegras(b.mascaras[0].geo, b.mascaras[0].escala) }),
+  'mascara.origemOriginal': (b) => ({ id: b.mascaras[0].id }),
+  'mascara.configurar': (b) => ({ id: b.mascaras[0].id, configuracao: { versao: 1, camadas: [{ nome: 'PORTA', visivel: false, capturavel: true, apelido: 'Portas' }] } }),
+  'lancamento.aplicar': (b) => ({ grupo: 'g_3', mascara: b.mascaras[0].id, proposta: propostaDeLancamento(b, b.mascaras[0], { ...REGRAS_PADRAO, papeis: { PAREDE: 'pilar' } }) }),
+  'viga.daMascara': () => ({ grupo: 'g_3', ponto: [6, 0], cursor: [6, 1], modo: 'eixo', secao: { b: 0.15, h: 0.4 } }),
   'pilar.inserir': () => ({ x: 4, y: 0, secao: { tipo: 'circ', d: 0.4 }, nasce: 'pav_2', morre: 'pav_6' }),
   'pilar.editar': (b) => ({ id: b.pilares[0].id, ajuste: 'so', angulo: 90 }),
   'pilar.secaoLance': (b) => ({ id: b.pilares[0].id, pavimento: 'pav_8', secao: { tipo: 'ret', b: 0.2, h: 0.3 } }),

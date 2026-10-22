@@ -67,11 +67,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.14 | Obra nova com pasta, nome e descrição. | Feito | — | descrição de até 2 linhas e origem em `Obra` (`obra.definir`); obras na lista de recentes e na biblioteca (sem pastas: o navegador não as tem) [L1] |
 | C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | janela `NovaObra.tsx`: assistente, vazia, padrão, exemplo e texto; DXF/DWG chegam na L2 e IFC na L3 [L1] |
 | C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Feito | — | `assistente.ts` (`gerarObra`), comando `obra.assistente`, janela `NovaObra.tsx` em 6 etapas, guia `etapas.ts`/`EtapasObra.tsx` [L1] |
-| C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Falta | L | lançamento automático [L2] |
-| C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Falta | L | lançamento automático por DXF [L2] |
-| C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Parcial | L | cores/visibilidade de camadas existem na máscara, não em assistente [L2] |
-| C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Parcial | L | uma máscara por grupo [L2] |
-| C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Falta | L | camada → tipo de elemento (pilar, contorno, abertura) [L2] |
+| C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Falta | L | lançamento automático [L2] — núcleo feito (L2): `lancamentoDxf.ts` (`propostaDeLancamento`: pilares, vigas, contorno, aberturas, eixos) e `lancamento.aplicar`; interface: cartões 04, 08 |
+| C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Falta | L | lançamento automático por DXF [L2] — núcleo feito (L2): `mascara.importar` (`grupos`, `arquivo`), `lerDwg`, vários arquivos por lançamento; interface: cartões 01, 04 |
+| C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Parcial | L | cores/visibilidade de camadas existem na máscara, não em assistente [L2] — núcleo feito (L2): `mascara.camadas` (cor, visibilidade), `PreviaCamadas`; interface: cartões 03, 04 |
+| C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Parcial | L | uma máscara por grupo [L2] — núcleo feito (L2): `Mascara.grupos`, `mascara.editar { grupos }`; interface: cartões 04, 07 |
+| C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Falta | L | camada → tipo de elemento (pilar, contorno, abertura) [L2] — núcleo feito (L2): `RegrasCamadas`, `sugerirRegras`, `mascara.regras` (papel por camada); interface: cartão 04 |
 | C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Falta | L | IFC [L3] |
 | C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Falta | L | IFC [L3] |
 | C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Feito | — | ao criar, abre `DadosGerais.tsx` (normas, materiais, perfil de padrões) [L1] |
@@ -115,25 +115,25 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | C2.1 | Recomendação de preparo: pilares, vigas de contorno e vigas de borda de abertura em camadas distintas. | Fora | — | recomendação de preparo do DXF (vale para o usuário) |
 | C2.2 | Recomendação: contorno externo e bordas de aberturas desenhados como polígonos fechados. | Fora | — |  |
-| C2.3 | Ponto fixo dos pilares marcado numa camada própria, por polígono fechado que contém o ponto a usar como fixo. | Falta | L | ponto fixo por camada no lançamento automático [L2] |
+| C2.3 | Ponto fixo dos pilares marcado numa camada própria, por polígono fechado que contém o ponto a usar como fixo. | Falta | L | ponto fixo por camada no lançamento automático [L2] — núcleo feito (L2): papel `pontoFixo` em `propostaDeLancamento` (o ponto da seção dentro do polígono vira o `Ajuste`); interface: cartão 04 |
 | C2.4 | Recomendação: gabaritos ou camadas diferentes para cada grupo quando o desenho da obra é completo (térreo, tipo, cobertura...). | Fora | — |  |
-| C2.5 | Gerenciador de vistas de gabarito acessível pela barra principal. | Parcial | L | grupo Máscara por grupo de pavimentos [L2] |
-| C2.6 | Anexação de gabaritos DXF/DWG à obra, com lista dos importados. | Parcial | L | DXF importado por grupo; DWG não [L2] |
-| C2.7 | Gerenciador de camadas por gabarito: ligar/desligar, renomear, mudar cor. | Parcial | L | ligar/desligar e cor; sem renomear [L2] |
-| C2.8 | Espessura de linha por camada, com valor digitado quando a espessura vem do tamanho. | Falta | L | espessura de linha por camada da máscara [L2] |
-| C2.9 | Mostrar ou ocultar os textos de cada camada. | Parcial | L | textos da máscara aparecem; sem ligar/desligar só os textos [L2] |
+| C2.5 | Gerenciador de vistas de gabarito acessível pela barra principal. | Parcial | L | grupo Máscara por grupo de pavimentos [L2] — núcleo feito (L2): `gruposDaMascara`, `vistasDoGrupo`, `geometriaPorCamada`; interface: cartões 06, 07, 08 |
+| C2.6 | Anexação de gabaritos DXF/DWG à obra, com lista dos importados. | Parcial | L | DXF importado por grupo; DWG não [L2] — núcleo feito (L2): `dwgLeitor.ts` (`lerDwg`), `Mascara.arquivo`, vendor `nasjidwg-leitor-0.18.0.mjs`; interface: cartões 01, 07 |
+| C2.7 | Gerenciador de camadas por gabarito: ligar/desligar, renomear, mudar cor. | Parcial | L | ligar/desligar e cor; sem renomear [L2] — núcleo feito (L2): `mascara.camadas` (apelido, cor); interface: cartão 07 |
+| C2.8 | Espessura de linha por camada, com valor digitado quando a espessura vem do tamanho. | Falta | L | espessura de linha por camada da máscara [L2] — núcleo feito (L2): `CamadaMascara.espessura` (`mascara.camadas`); interface: cartões 06, 07 |
+| C2.9 | Mostrar ou ocultar os textos de cada camada. | Parcial | L | textos da máscara aparecem; sem ligar/desligar só os textos [L2] — núcleo feito (L2): `CamadaMascara.textos` (`mascara.camadas`); interface: cartões 06, 07 |
 | C2.10 | Permitir ou não capturas (snap) nas entidades de cada camada. | Feito | — | camada capturável |
-| C2.11 | Pré-visualização do resultado da configuração de camadas ao lado da lista. | Falta | L | prévia da configuração de camadas [L2] |
-| C2.12 | Conceito de vista: conjunto de camadas, escala e origem de um desenho. Em geral uma vista por grupo, cada uma ligada a um gabarito com seleção própria de camadas. | Parcial | L | máscara por grupo com camadas e transformação; uma por grupo [L2] |
-| C2.13 | Operações sobre vistas: adicionar, apagar, copiar, deslocar, transformar, associar a grupos, abrir e salvar configuração. | Parcial | L | importar, alinhar, editar, remover; sem copiar vista nem salvar configuração [L2] |
+| C2.11 | Pré-visualização do resultado da configuração de camadas ao lado da lista. | Falta | L | prévia da configuração de camadas [L2] — núcleo feito (L2): `PreviaCamadas` ao lado da lista de camadas; interface: cartões 03, 07 |
+| C2.12 | Conceito de vista: conjunto de camadas, escala e origem de um desenho. Em geral uma vista por grupo, cada uma ligada a um gabarito com seleção própria de camadas. | Parcial | L | máscara por grupo com camadas e transformação; uma por grupo [L2] — núcleo feito (L2): vista = `Mascara` (camadas, escala, origem) com `grupos`; interface: cartões 06, 07 |
+| C2.13 | Operações sobre vistas: adicionar, apagar, copiar, deslocar, transformar, associar a grupos, abrir e salvar configuração. | Parcial | L | importar, alinhar, editar, remover; sem copiar vista nem salvar configuração [L2] — núcleo feito (L2): `mascara.copiar`, `mascara.configurar`, `configuracaoDaMascara`/`lerConfiguracao`; interface: cartão 07 |
 | C2.14 | Transformação do gabarito (deslocamento e escala) por valores digitados ou graficamente. | Feito | — | escala, origem e rotação numéricas e por 2 pontos |
 | C2.15 | Mudança gráfica da origem de coordenadas do gabarito. | Feito | — | alinhar por pontos |
-| C2.16 | Retorno à origem original do desenho, desfazendo todas as mudanças de origem. | Parcial | L | editar volta valores; sem botão “origem original” [L2] |
+| C2.16 | Retorno à origem original do desenho, desfazendo todas as mudanças de origem. | Parcial | L | editar volta valores; sem botão “origem original” [L2] — núcleo feito (L2): `mascara.origemOriginal`, `Mascara.original`; interface: cartão 07 |
 | C2.17 | Ajuste de escala desconhecida: marcar os dois pontos de um segmento e informar sua medida real. | Feito | — | escala por segmento de medida conhecida |
-| C2.18 | Escolha dos grupos em que cada vista aparece. | Parcial | L | uma máscara ligada a um grupo [L2] |
-| C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento [L2] |
+| C2.18 | Escolha dos grupos em que cada vista aparece. | Parcial | L | uma máscara ligada a um grupo [L2] — núcleo feito (L2): `Mascara.grupos`; interface: cartões 06, 07 |
+| C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento [L2] — núcleo feito (L2): `Mascara.visivel` (`mascara.editar`), `vistasDoGrupo`; interface: cartão 07 |
 | C2.20 | Janela de seleção dos modos de captura de objetos (snap) do DXF/DWG. | Feito | — | tipos de captura |
-| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir [L2] |
+| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir [L2] — núcleo feito (L2): F3 com `capturasAntes` e a janela de capturas (estado no `plantaStore`); interface: cartões 05, 07 |
 | C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Feito | — | opção de prancha `mascara` (`prancha.definir { armacao: { mascara: 1 } }`): `sheets/gabarito.ts` (`primitivasMascara`) desenha as camadas visíveis da máscara do grupo na camada MASCARA (pena 0,13 mm [a confirmar]) nas formas (`prancha.ts`) e nas lajes (`armacaoLajes.ts`); padrão desligado; caixa em Pranchas › Opções de armação (R7g) |
 
 ## 3. Grupos e pavimentos
@@ -355,7 +355,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
 | C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Feito | — | modelos de pórtico (seção, vãos, desnível, armadura e detalhe editado) na biblioteca do usuário (`ModeloPortico`, `storage.ts` tipo `portico`, `ModelosPortico` em `Detalhamento.tsx`) e `viga.copiarArmadura { modelo }`; tramos predefinidos ficam no modelo da obra, não na biblioteca (R7f) |
-| C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara [L2] |
+| C6.63 | Lançamento por captura do gabarito: um clique numa linha, arco ou polígono gera uma série de vigas ajustadas pela face (do lado oposto ao cursor) ou pelo eixo. | Falta | L | vigas geradas por clique em linha da máscara [L2] — núcleo feito (L2): `vigasDoClique` e `viga.daMascara` (linha, arco, polilinha; face do lado oposto ao cursor ou eixo); interface: cartões 05, 08 |
 | | **6.2 Cálculo e resultados de vigas** | | | |
 | C6.64 | Vigas de aço no cálculo: dimensionar a partir do perfil inicial (só maiores ou iguais) ou de toda a série (pode reduzir). | Fora | — | aço |
 | C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Feito | — | erro ESTRIBO_BITOLA (φt ≤ bw/10, NBR 6118 18.3.3.2) no detalhamento das vigas, também para a bitola editada de uma zona; lista de erros e planta (R7b) |
