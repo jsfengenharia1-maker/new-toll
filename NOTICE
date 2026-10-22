@@ -9,3 +9,4 @@ Componentes de terceiros distribuídos junto:
   (public/vendor/nasjidwg-LICENSE.txt e nasjidwg-NOTICE.txt).
 - public/vendor/three-0.186.1.mjs: three.js (renderizador WebGL e classes da vista 3D, gerado por scripts/vendor-three.mjs), Copyright 2010-2026 three.js authors, licença MIT
   (public/vendor/three-LICENSE.txt).
+- Tokens de design (cores, alturas, raios e tamanhos de texto em src/app/design/global.css): valores derivados de @adobe/spectrum-tokens (Adobe Inc.), Apache License 2.0, https://github.com/adobe/spectrum-design-data. Marcas Adobe, Photoshop e Spectrum, fonte Adobe Clean e ícones não são usados. Fontes carregadas do Google Fonts: Source Sans 3 e IBM Plex Mono (SIL Open Font License 1.1).

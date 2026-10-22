@@ -1,6 +1,6 @@
 # Design system do Statikos
 
-Decisão do usuário (20/10/2026): toda funcionalidade nova usa a biblioteca de componentes e o design system global. Uma mudança de design feita num lugar vale para o app inteiro. O redesenho visual (proposta em https://claude.ai/artifact/XkWi2JtGrgPQka5Rk7G389) fica para depois; por enquanto a aparência é a atual.
+Decisão do usuário (20/10/2026): toda funcionalidade nova usa a biblioteca de componentes e o design system global. Uma mudança de design feita num lugar vale para o app inteiro. Redesenho visual (lote 1, 22/10/2026): tokens e componentes seguem a prévia aprovada `docs/analises/design-previa.html` e `docs/analises/design-referencias.md` (valores derivados do Spectrum 2, Apache-2.0; atribuição no `NOTICE`). Os controles crus dos demais arquivos migram para `src/app/ui` no lote 2.
 
 ## Onde fica cada coisa
 
@@ -22,6 +22,15 @@ Decisão do usuário (20/10/2026): toda funcionalidade nova usa a biblioteca de 
 5. Peça de interface usada em mais de um lugar vai para `src/app/ui` e se veste só com classes de `global.css`. Antes de escrever `<button className="btn">`, `<span className="pill">` etc., use o componente.
 
 Fora do escopo: `src/core/sheets` (pranchas PDF/DXF/DWG), cujas penas, camadas e cores seguem as normas ABNT de representação, não o design da interface.
+
+## Paleta e estilo (redesenho, lote 1)
+
+- Paleta enxuta: neutros (R=G=B) + **um** accent azul (`--accent`, `--accent-text`, `--accent-soft`). Seleção na planta e no app = accent (`--sel`). Tema escuro é o `:root` puro; o claro redefine nos blocos `prefers-color-scheme: light` e `[data-theme='light']`.
+- Cores semânticas (`--ok`, `--warn`, `--bad`) só em ícones, pontos (`.pill::before`, `.status::before`), texto pequeno e erros na planta. Etiqueta (`Pill`) neutra com ponto colorido; `Alert` neutro com ponto colorido; botão destrutivo = texto `--bad`.
+- Planta, vista 3D, grupos, solos, diagramas e detalhamento: diferenciar por tom de cinza, traço e espessura, não por matiz (exceto o accent). `memorial.css` (papel impresso) não muda.
+- Tipografia: Source Sans 3 (UI, 12 px) e IBM Plex Mono só para números (OFL, Google Fonts como antes; pilha de sistema como reserva). Controles de 24 px (`--h-ctl`), raio 4 px (`--radius`), foco por `outline` 2 px `--ring`.
+- Regras testadas em `design.test.ts`: sem `color-mix(`, sem `text-transform: uppercase` (fora do memorial), sem `transition: all`, todo token no `:root` puro antes dos blocos de tema. Transições só de cor, 120 ms (`--dur`). Sem mono em caixa alta com espaçamento em rótulos, abas e grupos.
+- Tema da interface: `ThemeSelect` (ui) na barra superior; Sistema/Escuro/Claro em `localStorage` (`statikos:tema`), aplicado em `document.documentElement` por `iniciarTema()` no `main.tsx` (`design/tema.ts`). A planta segue o tema do app enquanto o usuário não escolher um tema próprio (`statikos:tema-planta`).
 
 ## Tokens
 

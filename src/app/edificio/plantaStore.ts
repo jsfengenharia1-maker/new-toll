@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
+import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede';
@@ -109,9 +110,11 @@ function coresSalvas(): PState['cores'] {
   try { const t = localStorage.getItem('statikos:cores-planta'); const o = t ? JSON.parse(t) : {}; return o && typeof o === 'object' ? o : {}; } catch { return {}; }
 }
 
-function temaSalvo(): Tema {
-  try { const t = localStorage.getItem('statikos:tema-planta'); return t === 'claro' || t === 'pb' ? t : 'escuro'; } catch { return 'escuro'; }
+/** Tema escolhido para a planta, ou null quando o usuário nunca escolheu (então segue o tema do app). */
+function temaEscolhido(): Tema | null {
+  try { const t = localStorage.getItem('statikos:tema-planta'); return t === 'claro' || t === 'pb' || t === 'escuro' ? t : null; } catch { return null; }
 }
+function temaSalvo(): Tema { return temaEscolhido() ?? temaEfetivo(); }
 
 export const usePlanta = create<PState>((set) => ({
   pavimento: null,
@@ -213,3 +216,6 @@ export function hexDaCor(c: string): { hex: string; alfa: string } {
   if (n.length < 3) return { hex: '#' + '0'.repeat(6), alfa: '' };
   return { hex: '#' + n.slice(0, 3).map(h2).join(''), alfa: n.length > 3 && n[3] < 1 ? h2(n[3] * 255) : '' };
 }
+
+// Sem escolha explícita, a planta segue o tema da interface (Sistema/Escuro/Claro).
+if (typeof window !== 'undefined') window.addEventListener(EVENTO_TEMA, () => { if (!temaEscolhido()) usePlanta.setState({ tema: temaEfetivo() }); });

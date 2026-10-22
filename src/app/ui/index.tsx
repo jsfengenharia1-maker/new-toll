@@ -1,6 +1,7 @@
 // Biblioteca de componentes do Statikos. Toda peça de interface reutilizável mora aqui e se veste
 // só com classes de design/global.css (tokens + componentes). Ver docs/design-system.md.
 import { zip } from '../../core/zip';
+import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
 import { useEffect, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 
 export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger';
@@ -240,5 +241,19 @@ export function Modal({ titulo, onClose, larga, children }: { titulo: string; on
         {children}
       </div>
     </div>
+  );
+}
+
+/** Seletor do tema da interface (Sistema / Escuro / Claro); salva no navegador e aplica na hora. */
+export function ThemeSelect() {
+  const [t, setT] = useState<TemaApp>(temaSalvoApp);
+  return (
+    <label className="tema-sel" title="Tema da interface">
+      <select aria-label="Tema da interface" value={t} onChange={(e) => { const v = e.target.value as TemaApp; setT(v); definirTema(v); }}>
+        <option value="sistema">Sistema</option>
+        <option value="escuro">Escuro</option>
+        <option value="claro">Claro</option>
+      </select>
+    </label>
   );
 }

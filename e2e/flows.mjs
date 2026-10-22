@@ -59,9 +59,15 @@ const JPEG_TESTE = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYW
 
 /** Ponto do mundo (m) na tela, pela vista publicada pela planta. */
 async function telaDe(page, x, y) {
-  const v = JSON.parse(await page.locator('.planta-cv').getAttribute('data-vista'));
-  const box = await page.locator('canvas.int').boundingBox();
-  return [box.x + v.ox + x * v.k, box.y + v.oy - y * v.k];
+  for (let t = 0; ; t++) {
+    const v = JSON.parse(await page.locator('.planta-cv').getAttribute('data-vista'));
+    const box = await page.locator('canvas.int').boundingBox();
+    const px = box.x + v.ox + x * v.k, py = box.y + v.oy - y * v.k;
+    // fora da área de desenho (layout da barra mudou a altura): reenquadra e tenta de novo
+    if ((px > box.x + 5 && px < box.x + box.width - 5 && py > box.y + 5 && py < box.y + box.height - 5) || t >= 10) return [px, py];
+    await page.keyboard.press('f');
+    await page.waitForTimeout(200);
+  }
 }
 
 /** Reenquadra (F) até todos os pontos do modelo caírem dentro da área de desenho: a barra da ferramenta muda a altura da planta e o

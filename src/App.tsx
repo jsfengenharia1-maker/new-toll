@@ -13,7 +13,7 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { copyText, download } from './app/ui';
+import { copyText, download, ThemeSelect } from './app/ui';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
@@ -307,6 +307,7 @@ export default function App() {
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
+        <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
 
