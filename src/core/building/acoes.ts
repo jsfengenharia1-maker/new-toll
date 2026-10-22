@@ -13,7 +13,7 @@ export interface EstadoInfo {
   fixo?: boolean;
   rotulo: string;
   /** Tipo das combinações do grupo (EQU usa γ próprios, não lista). */
-  tipo: TipoCombinacao | 'EQU';
+  tipo: TipoCombinacao | 'EQU' | 'FOGO';
   /** Padrão do sistema: ativo? */
   ativo: boolean;
   /** O grupo consome uma lista de combinações (aceita o modo "usuário")? */
@@ -31,6 +31,7 @@ export const ESTADOS_INFO: EstadoInfo[] = [
   { id: 'fissuracao', rotulo: 'Fissuração (frequentes)', tipo: 'FREQ', ativo: true, lista: true, descricao: 'Abertura de fissuras de vigas e lajes (combinação frequente).', fonte: 'NBR 6118, 13.4.2' },
   { id: 'flecha', rotulo: 'Flechas (quase permanentes)', tipo: 'QP', ativo: true, lista: false, descricao: 'Flechas de vigas e lajes (quase permanente com fluência).', fonte: 'NBR 6118, 17.3.2 e 13.3' },
   { id: 'equilibrio', rotulo: 'Equilíbrio global (EQU)', tipo: 'EQU', ativo: true, lista: false, descricao: 'Tombamento do edifício: momento estabilizante das permanentes × momento do vento, com γ de equilíbrio.', fonte: 'NBR 8681, 5.1.1 e Tabelas 1 a 3 [a confirmar os valores]' },
+  { id: 'incendio', rotulo: 'Resistência ao fogo (NBR 15200)', tipo: 'FOGO', ativo: false, lista: false, descricao: 'Verificação opcional em situação de incêndio pelo método tabular: dimensões mínimas e distância c1 de vigas, lajes e pilares conforme o TRRF (solicitação Sd,fi = 0,7·Sd; sem lista de combinações).', fonte: 'NBR 15200; NBR 14432 [a confirmar as tabelas]' },
 ];
 
 export const estadoInfo = (id: EstadoId) => ESTADOS_INFO.find((e) => e.id === id)!;

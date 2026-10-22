@@ -32,6 +32,9 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FLECHA_Q', nivel: 'erro', re: /^Flecha das variáveis/, descricao: 'Flecha das cargas variáveis acima do limite' },
   { codigo: 'FLECHA_ATIVA', nivel: 'erro', re: /^Flecha ativa/, descricao: 'Flecha ativa (após as paredes) acima do limite' },
   { codigo: 'FLECHA_INST', nivel: 'aviso', re: /^Flecha instantânea/, descricao: 'Flecha instantânea acima do limite opcional' },
+  { codigo: 'FOGO_TRRF', nivel: 'erro', re: /^Fogo: TRRF de .* não atendido/, descricao: 'Resistência ao fogo: TRF abaixo do TRRF (NBR 15200)' },
+  { codigo: 'FOGO_FORA_TABELA', nivel: 'aviso', re: /^Fogo: TRRF de .* fora das tabelas/, descricao: 'Resistência ao fogo: TRRF além das tabelas implementadas' },
+  { codigo: 'FOGO_LIMITES', nivel: 'aviso', re: /^Fogo: método analítico fora dos limites/, descricao: 'Resistência ao fogo: método analítico fora dos limites da norma' },
   { codigo: 'FISSURA', nivel: 'erro', re: /^Abertura de fissuras/, descricao: 'Abertura de fissuras acima do limite' },
   { codigo: 'ARM_BLOQ', nivel: 'erro', re: /^Armadura bloqueada (insuficiente|acima)/, descricao: 'Armadura bloqueada não atende' },
   { codigo: 'BLOQ_IGNORADO', nivel: 'aviso', re: /^Armadura bloqueada desconsiderada/, descricao: 'Bloqueio desconsiderado (vãos ou lances mudaram)' },
@@ -161,7 +164,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
 ];
 
 /** Grupo de estados-limite de cada código: desativado em Estados-limite, o aviso deixa de entrar na revisão. */
-const ESTADO_DO_CODIGO: Record<string, EstadoId> = { FLECHA: 'flecha', FLECHA_Q: 'flecha', FLECHA_ATIVA: 'flecha', FLECHA_INST: 'flecha', FISSURA: 'fissuracao', ARM_AUMENTADA: 'fissuracao', DESLOC: 'deslocamentos', EQU_TOMBAMENTO: 'equilibrio' };
+const ESTADO_DO_CODIGO: Record<string, EstadoId> = { FLECHA: 'flecha', FLECHA_Q: 'flecha', FLECHA_ATIVA: 'flecha', FLECHA_INST: 'flecha', FISSURA: 'fissuracao', ARM_AUMENTADA: 'fissuracao', DESLOC: 'deslocamentos', EQU_TOMBAMENTO: 'equilibrio', FOGO_TRRF: 'incendio', FOGO_FORA_TABELA: 'incendio', FOGO_LIMITES: 'incendio' };
 
 /** Código e nível de uma mensagem (sem regra conhecida: aviso genérico). */
 export function classificar(msg: string): { codigo: string; nivel: NivelRevisao | 'info' } {

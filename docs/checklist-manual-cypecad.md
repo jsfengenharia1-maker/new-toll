@@ -12,24 +12,24 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
-| 4. Pilares | 63 | 49 | 4 | 3 | 7 |
+| 4. Pilares | 63 | 49 | 5 | 2 | 7 |
 | 5. Muros e paredes estruturais | 30 | 4 | 3 | 19 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
-| 10. Cargas | 26 | 19 | 3 | 1 | 3 |
+| 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **251** | **78** | **249** | **185** |
+| **Total** | **763** | **251** | **80** | **247** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 0 | 2 | 2 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 185 | 216 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
@@ -231,7 +231,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Feito | — | cortante por direção (u ao longo de b, v ao longo de h): Vsd, Vc, VRd2, Asw/s, As das faces e combinação (`ResultadoPilar.cortante`); janela do pilar e memorial (N2c) |
 | C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Feito | — | aviso ESTRIBO_TABELA quando o cortante pede mais ramos do que um estribo dá (s < 10 cm) e só um estribo (2 ramos) foi colocado (`dimensionamento.ts`, `revisao.ts`; N2c) |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
-| C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) [N2g] |
+| C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Parcial | N | N2g (núcleo): `fogoPilar` em `src/core/building/fogo.ts` (analítico da NBR 15200:2012, tabular de 2004 e uma face), estado "incendio"; falta a interface [N2g] |
 | C4.45 | Taxa As/Ac (%) mostrada por tramo. | Feito | — | `taxasPilares`/`taxaDoPilar` (`relatorios.ts`): As/Ac (%) por lance, na janela do pilar, no memorial (tabela de taxas) e no relatório dos pilares (R7g) |
 | C4.46 | Pilares de aço: ao calcular, opções de dimensionar ou não os perfis. | Fora | — | pilar de aço no edifício |
 | C4.47 | Dimensionamento de perfis por toda a série (pode trocar por menor) ou só por perfis maiores ou iguais ao atual. | Fora | — |  |
@@ -776,7 +776,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.3 | Norma genérica de vento quando a desejada não existe. | Fora | — | só NBR 6123 |
 | C10.4 | Sismo ativável com escolha da norma e dados próprios, e opção de 2ª ordem. | Fora | — | sismo |
 | C10.5 | Sismo por norma genérica: análise modal espectral ou coeficientes por pavimento. | Fora | — | sismo |
-| C10.6 | Verificação de resistência ao fogo (só pela norma espanhola), com dados dos revestimentos de proteção dos elementos. | Falta | N | fogo pela NBR 15200 [N2g] |
+| C10.6 | Verificação de resistência ao fogo (só pela norma espanhola), com dados dos revestimentos de proteção dos elementos. | Parcial | N | N2g (núcleo): revestimento por grupo ou elemento (`fogo.definir`, `espessuraEquivalente`); falta a interface [N2g] |
 | C10.7 | Lista de todas as hipóteses da obra com edição e criação de hipóteses adicionais (permanente, variável, vento, sismo, neve). | Feito | — | grupo Casos de carga: G e Q fixos e adicionais G/Q/W/E editáveis (N1c) |
 | C10.8 | Hipótese adicional com referência e descrição. | Feito | — | N2a: `CasoAdicional.descricao` (`caso.criar/editar`), tabela de descrição em Casos de carga e no memorial |
 | C10.9 | Hipótese com várias disposições de carga: compatíveis (atuam sozinhas ou juntas com outras da mesma hipótese). | Feito | — | casos sem grupo são compatíveis e atuam sozinhos ou juntos (N1c) |
@@ -1018,3 +1018,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **22/10/2026 — fatia E1c, interface (paredes de concreto).** C5.10, C5.21, C5.22 e C5.23 passam a Feito (frente —): grupo Paredes (`ParedesUI.tsx`, `paredesLista.ts`), ferramenta Parede de concreto (`Planta.tsx`, Ctrl+K), janela e cartão de Paredes, e2e `E1c`. C5.2 e C5.9 seguem Parcial (FU7b; E1e).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 4 itens (manual do usuário).
+- **22/10/2026 — fatia N2g, núcleo.** C4.44 e C10.6 passam a Parcial (resistência ao fogo da NBR 15200 em `src/core/building/fogo.ts` e `fogoTabelas.ts`, comando `fogo.definir`, estado-limite "incendio" desligado por padrão; falta a interface, cartões em `docs/cartoes/N2g/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).

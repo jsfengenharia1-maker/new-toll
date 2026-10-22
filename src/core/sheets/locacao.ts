@@ -7,6 +7,8 @@ import type { AnaliseEdificio } from '../building/analitico';
 import { combinacoesDoEstado, type CombinacaoEd } from '../building/combinacoes';
 import { cargasParaFundacao } from '../building/dimensionamento';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from '../building/materiais';
+import { estadoEmUso } from '../building/acoes';
+import { notaFogo } from '../building/fogo';
 
 const ROTULO = { laje: 'lajes', viga: 'vigas', pilar: 'pilares', fundacao: 'fundações' } as const;
 import { casosDaObra, contornoPilar, lancesDoPilar, USOS, type BuildingModel, type SecaoPilar } from '../building/types';
@@ -87,6 +89,7 @@ export function notasGerais(b: BuildingModel): string[] {
     `Coeficientes de ponderação: γc ${nf(g.c)}, γs ${nf(g.s)}, γg ${nf(g.g)}, γq ${nf(g.q)}${b.norma.controle && b.norma.controle !== 'normal' ? ` (controle de execução: ${b.norma.controle === 'desfavoravel' ? 'desfavorável' : 'pré-moldado'})` : ''}.`,
     ...cargasVariaveisPorUso(b),
     'Normas: ABNT NBR 6118 (concreto), NBR 6120 (cargas), NBR 6123 (vento), NBR 8681 (ações e combinações).',
+    ...(estadoEmUso(b, 'incendio').ativo ? [notaFogo(b, opcoesEmUso(b.opcoes, perfilDe(b)))] : []),
     opcoesEmUso(b.opcoes, perfilDe(b)).segundaOrdem === 1
       ? 'Efeitos globais de 2ª ordem pelo processo P-Δ no pórtico espacial com rigidez reduzida (NBR 6118, 15.7.3), por combinação ELU.'
       : 'Efeitos globais de 2ª ordem pelo coeficiente γz (NBR 6118, 15.5.3): ações horizontais das combinações ELU × 0,95·γz.',

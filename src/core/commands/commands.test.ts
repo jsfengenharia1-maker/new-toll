@@ -85,6 +85,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'empuxo.tipo': (b) => ({ id: b.empuxos![0].id, sobrecarga: 10, nivelAgua: -3, alivio: 20 }),
   'estados.definir': () => ({ estados: { flecha: { ativo: false }, solo: { modo: 'usuario' } }, combinarAdicionais: { Q: false } }),
   'etapas.definir': () => ({ elemento: 'viga', etapas: [{ nome: 'Desforma', dias: 21, pp: 1 }, { nome: 'Alvenaria', dias: 45, alvenaria: 1 }, { nome: 'Uso', dias: 180, revestimento: 1, variavel: 1 }] }),
+  'fogo.definir': (b) => ({ ativo: true, ocupacao: 'A-2', altura: 20, trrf: { g_3: 90 }, revestimentos: { g_3: { material: 'cal', espessura: 15 } }, elementos: { [b.vigas[0].id]: { trrf: 60 }, [b.pilares[0].id]: { faces: 3, muFi: 0.5 }, [b.lajes[0].id]: { compartimentadora: false, lisa: true } } }),
   'flechas.limites': () => ({ elemento: 'macica', tipo: 'ativa', limite: { rel: 500, abs: 1.5 } }),
   'situacao.criar': () => ({ nome: 'Própria', estado: 'concreto', fatores: { G: 1.4, Q: 1.4 } }),
   'situacao.editar': (b) => ({ id: b.situacoes![0].id, nome: 'Renomeada', fatores: { G: 1, Q: 1 } }),

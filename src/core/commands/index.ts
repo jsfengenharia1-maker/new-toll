@@ -16,6 +16,7 @@ import './edicao';
 import './pilarParede';
 import './obraAssistente';
 import './flechas';
+import './fogo';
 import './paredes';
 
 export * from './registry';

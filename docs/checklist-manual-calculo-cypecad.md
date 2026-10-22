@@ -14,30 +14,30 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 57 | 13 | 9 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 50 | 12 | 41 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 51 | 12 | 40 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 35 | 11 | 13 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 12 | 21 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **367** | **65** | **118** | **111** |
+| **Total** | **661** | **368** | **66** | **116** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 2 | 8 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 0 | 7 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 36 | 104 | 140 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **65** | **118** | **183** |
+| **Total** | **66** | **116** | **182** |
 
 ## Divergências de premissa
 
@@ -293,7 +293,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | E | N2a: natureza H (empuxo de terra, permanente com γh), tipos de empuxo reutilizáveis (`empuxo.tipo`, `empuxo.ts`, `diagramaEmpuxo`) e casos acidentais pelas naturezas Q/W/E; aplicação às paredes de subsolo na E1c |
 | K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Feito | — | N2a: arranjos como casos filhos incompatíveis (`pai`), tabela de compatibilidade compatível/incompatível/simultâneo e opção de os adicionais se combinarem entre si (`Norma.combinarAdicionais`) |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
-| K1.5.15 | Verificação de resistência ao fogo opcional. | Falta | N | incêndio (NBR 15200) [N2g] |
+| K1.5.15 | Verificação de resistência ao fogo opcional. | Parcial | N | N2g (núcleo): estado-limite "incendio" (desligado por padrão, ligado em Estados-limite ou `fogo.definir`), `verificarFogo` em `src/core/building/fogo.ts`; falta a interface do grupo Incêndio [N2g] |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
 | K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Feito | — | `carga.pilar` com N, Hx, Hy, Mx, My e torção T por caso e lance, eixos globais ou locais (N2c) |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Feito | — | arranques com cargas sobre o radier ou a viga sobre base elástica: as cargas vão para o nó mais próximo da malha (`src/core/building/baseElastica.ts`) |
@@ -395,7 +395,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Feito | — | positiva, negativa, montagem, pele e estribos com aço por posição (`acoPos`); N2e |
 | K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | E | punção e cortante das lajes maciças com aço próprio (`acoPos`, N2d) e negativo/positivo de maciças e treliçadas (N1b); nervuradas, ábacos e vigotas in loco (E3) [N2d] |
 | K1.9.9 | Aço de perfis de vigas e pilares: formado a frio e laminado a quente. | Fora | — | perfis de aço |
-| K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Parcial | N | vento, ψ, casos adicionais (N1c) e opções; sem incêndio nem escolha de estados [N2g] |
+| K1.9.10 | Dados gerais incluem: vento, sismo, verificação de incêndio, casos adicionais, estados-limite (concreto, fundações, aço frio, laminado, madeira, alumínio, tensões no solo, deslocamentos). | Feito | — | vento, ψ, casos adicionais (N1c), estados-limite selecionáveis (N2a) e incêndio (N2g, estado "incendio" em `acoes.ts`); sismo e os demais materiais (aço, madeira, alumínio) ficam fora do escopo do edifício de concreto |
 | K1.9.11 | Coeficientes de flambagem por pavimento e por direção, para pilares de concreto e de aço; definíveis por pavimento e por pilar. | Feito | — | pilar.flambagem (α por lance e direção) e α do pavimento (N1b) |
 | K1.9.12 | Padrão α (β) = 1; o usuário muda conforme tipo de estrutura e ligação do pilar às vigas/lajes nas duas direções. | Feito | — | α padrão 1, editável nas duas direções (N1b) |
 | K1.9.13 | Pilar sem travamento nas duas direções em vários pavimentos seguidos: dimensionado lance a lance, mas l0 = máx(αi) × soma dos comprimentos dos lances desligados. | Feito | — | opção `pilarLancesDesligados` (sistema 1, NBR 0): lance sem viga nem laje que o trave no topo, por direção, soma-se ao de cima; ℓe = máx(αi) × Σℓi (`flambagemLance`, `travamentoNoTopo`; N2c) |
@@ -409,7 +409,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
 | K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Feito | — | vento e ações horizontais manuais: caso adicional de natureza W, ampliado por 0,95·γz (N1c) |
-| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Falta | N | incêndio (NBR 15200) [N2g] |
+| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Parcial | N | N2g (núcleo): `fogo.definir` com TRRF por grupo e elemento, ocupação (NBR 14432/IT), revestimento e `compartimentadora` por laje; falta a interface [N2g] |
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
 | K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Feito | — | combinações automáticas pelos casos e grupos de incompatíveis (N1c); cada carga vinculada a G, Q ou a um caso adicional |
@@ -947,3 +947,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1c, núcleo (paredes de concreto e empuxo aplicado).** K1.2.5, K1.3.32, K1.3.33, K1.3.36, K1.9.45 e K1.9.107 passam a Feito: `Parede` em `src/core/building/types.ts`, `paredesBase.ts` (parede como pilar-parede virtual, aberturas, pressões de empuxo, chegadas de vigas e lajes, toque na laje), `paredes.ts` (diagnósticos PAREDE_*), malha com linhas obrigatórias e furos em `pilarParede.ts`, empuxo nas cascas e nós fora do diafragma em `pilarParedeModelo.ts`/`analitico.ts`; K1.1.3, K1.3.31 e K1.9.44 seguem Parcial (alvenaria estrutural na E1e).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 6 itens (manual de cálculo).
+- **22/10/2026 — fatia N2g, núcleo (resistência ao fogo, NBR 15200).** K1.9.10 passa a Feito (estado "incendio" em `src/core/building/acoes.ts`); K1.5.15 e K1.9.23 passam a Parcial: método tabular de lajes, vigas e pilares e analítico dos pilares em `fogo.ts`/`fogoTabelas.ts`, comando `fogo.definir` (`src/core/commands/fogo.ts`), códigos FOGO_TRRF/FOGO_FORA_TABELA/FOGO_LIMITES, premissa `n2g-fogo`; falta a interface (cartões em `docs/cartoes/N2g/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N reduz em 1 item (K1.9.10).

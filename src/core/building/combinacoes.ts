@@ -83,7 +83,7 @@ function comSegundaOrdem(cs: CombinacaoEd[], an: Pick<AnaliseEdificio, 'segundaO
 /** Valor combinado de uma grandeza por caso. */
 export const combinar = (por: Record<string, number>, c: CombinacaoEd) => Object.entries(c.fatores).reduce((s, [k, f]) => s + f * (por[k] ?? 0), 0);
 
-const TIPO_DO_ESTADO: Record<EstadoId, CombinacaoEd['tipo'] | 'EQU'> = Object.fromEntries(ESTADOS_INFO.map((e) => [e.id, e.tipo])) as never;
+const TIPO_DO_ESTADO: Record<EstadoId, CombinacaoEd['tipo'] | 'EQU' | 'FOGO'> = Object.fromEntries(ESTADOS_INFO.map((e) => [e.id, e.tipo])) as never;
 
 /**
  * Combinações de um grupo de estados: as da norma (filtradas pelo tipo do grupo) ou, no modo "usuário" e havendo
@@ -91,7 +91,7 @@ const TIPO_DO_ESTADO: Record<EstadoId, CombinacaoEd['tipo'] | 'EQU'> = Object.fr
  */
 export function combinacoesDoEstado(b: BuildingModel, an: Pick<AnaliseEdificio, 'vento'> & Partial<Pick<AnaliseEdificio, 'opcoes' | 'segundaOrdem'>>, id: EstadoId, normativas?: CombinacaoEd[]): CombinacaoEd[] {
   const tipo = TIPO_DO_ESTADO[id];
-  if (tipo === 'EQU') return [];
+  if (tipo === 'EQU' || tipo === 'FOGO') return [];
   const norma = (normativas ?? combinacoesEdificio(b, an as AnaliseEdificio)).filter((c) => c.tipo === tipo);
   if (estadoEmUso(b, id).modo !== 'usuario') return norma;
   const sits = (b.situacoes ?? []).filter((s) => s.estado === id);
