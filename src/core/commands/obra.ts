@@ -209,7 +209,12 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
     if (p.padrao) { delete n.fckElem; delete n.fckPilarPav; delete n.acoPos; delete n.gamas; delete n.cobFaces; delete n.cobFundacao; }
     if (p.fck) { n.fckElem ??= {}; for (const k of ['laje', 'viga', 'pilar', 'fundacao'] as const) { const v = p.fck[k]; if (v === undefined) continue; if (v === n.fck) delete n.fckElem[k]; else n.fckElem[k] = v; } }
     for (const x of p.fckPilarPav ?? []) { n.fckPilarPav = (n.fckPilarPav ?? []).filter((y) => y.pavimento !== x.pavimento); if (x.fck) n.fckPilarPav.push({ ...x }); }
-    if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) { const v = p.aco[x.k]; if (!v) continue; if (v === n.aco) delete n.acoPos[x.k]; else n.acoPos[x.k] = v; } }
+    if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) {
+      const v = p.aco[x.k]; if (!v) continue;
+      // montagem e pele seguem a positiva enquanto não têm aço próprio: com a positiva diferente da obra, o valor da obra fica registrado
+      const segue = (x.k === 'vigaMontagem' || x.k === 'vigaPele') && !!n.acoPos[ 'vigaPos' ];
+      if (v === n.aco && !segue) delete n.acoPos[x.k]; else n.acoPos[x.k] = v;
+    } }
     if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q', 'h'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === (k === 'c' ? gamaCDoControle(n.controle) : GAMAS_PADRAO[k])) delete n.gamas[k]; else n.gamas[k] = v; } }
     if (p.cobFaces) { n.cobFaces ??= {}; for (const [k, v] of Object.entries(p.cobFaces) as [keyof NonNullable<Norma['cobFaces']>, number][]) { if (!v) delete n.cobFaces[k]; else n.cobFaces[k] = v; } }
     if (p.cobFundacao !== undefined) { if (p.cobFundacao) n.cobFundacao = p.cobFundacao; else delete n.cobFundacao; }

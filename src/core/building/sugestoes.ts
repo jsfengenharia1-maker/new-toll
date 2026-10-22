@@ -3,6 +3,16 @@
 
 export const SUGESTOES: Record<string, string> = {
   // vigas e pilares: dimensionamento
+  ARREDONDAMENTO: 'Informativo: o diagrama dentro dos apoios internos foi arredondado; mude a opção “arredondamento do diagrama no apoio” (0, 1 ou 2) se o critério do projeto for outro.',
+  VIGA_PAREDE: 'Trecho com ℓ/h abaixo de 2 (biapoiada) ou 3 (contínua): dimensione por bielas e tirantes fora do programa, ou aumente o vão/reduza a altura.',
+  NAO_LINEAR: 'O trecho é curto demais para o modelo de barra: trate-o como bloco, consolo ou elemento 2D e confira a armadura à mão.',
+  VIGA_PLACA: 'A largura passa de 2 vezes o vão: lance o elemento como laje (maciça ou nervurada) e não como viga.',
+  CONSOLO: 'Balanço com comprimento até d: dimensione como consolo curto (biela e tirante, NBR 6118, 22.3) com armadura manual.',
+  PILAR_CURTO: 'O lance é curto para o modelo de barra: confira à mão o pilar como bloco ou consolo e a transmissão de cargas.',
+  CARGA_PROXIMA_APOIO: 'Carga a ≤ d da face do apoio: verifique biela-tirante e acrescente armadura horizontal/estribos junto ao apoio; entre d e 2d o cortante já foi reduzido por a/2d.',
+  SUSPENSAO: 'Informativo: estribos de suspensão na viga de apoio, no cruzamento com a viga apoiada; confira o detalhe na elevação e na tabela de aço.',
+  TORCAO_MIN: 'Informativo: estribo fechado e taxa mínima de torção verificados; não exige ação.',
+  ESTRIBO_COMPRIMIDA: 'Informativo: estribos limitados a mín(20 cm; b; 12φ) por haver armadura comprimida; aumente a altura para evitar a armadura dupla.',
   BIELA: 'Aumente a largura ou a altura da seção, ou o fck: a compressão diagonal do concreto (cortante e torção) não depende da armadura.',
   LARGURA: 'Aumente a largura da viga, admita mais camadas na tabela de armadura (ou bitolas maiores) ou reduza o cobrimento dentro do limite da CAA.',
   FLECHA: 'Aumente a altura da viga, acrescente armadura de compressão, ou reduza a carga/vão; a flecha total é a de Branson com fluência.',

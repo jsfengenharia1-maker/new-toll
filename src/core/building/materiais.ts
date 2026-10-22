@@ -11,10 +11,10 @@ export type Aco = Norma['aco'];
 /** Tipos de elemento com concreto próprio (fundacao = sapatas e blocos do edifício). */
 export type TipoElemento = 'laje' | 'viga' | 'pilar' | 'fundacao';
 /** Posições de armadura com aço próprio (as que o dimensionamento calcula). */
-export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao';
+export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao';
 export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
   { k: 'pilarLong', rotulo: 'Pilares: longitudinal' }, { k: 'pilarEstribo', rotulo: 'Pilares: estribos' },
-  { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
+  { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaMontagem', rotulo: 'Vigas: montagem (porta-estribos)' }, { k: 'vigaPele', rotulo: 'Vigas: pele (laterais)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
   { k: 'lajeInf', rotulo: 'Lajes: inferior' }, { k: 'lajeSup', rotulo: 'Lajes: superior' },
   { k: 'lajePuncao', rotulo: 'Lajes: armadura de punção' }, { k: 'lajeCortante', rotulo: 'Lajes: armadura de cortante' },
   { k: 'fundacao', rotulo: 'Fundações (sapatas, blocos, tubulões)' },
@@ -41,7 +41,8 @@ export const concretoDe = (b: BuildingModel, tipo: TipoElemento, pavimento?: str
 
 /** Aço da posição (padrão: aço da obra), com fyk e fyd (MPa). */
 export function acoDe(b: BuildingModel, pos: PosicaoAco): { aco: Aco; fyk: number; fyd: number } {
-  const aco = b.norma.acoPos?.[pos] ?? b.norma.aco, fyk = aco === 'CA-60' ? 600 : 500;
+  // montagem e pele seguem a positiva enquanto não tiverem aço próprio (N2e, K1.6.6)
+  const aco = b.norma.acoPos?.[pos] ?? ((pos === 'vigaMontagem' || pos === 'vigaPele') ? b.norma.acoPos?.vigaPos : undefined) ?? b.norma.aco, fyk = aco === 'CA-60' ? 600 : 500;
   return { aco, fyk, fyd: fyk / gamas(b).s };
 }
 

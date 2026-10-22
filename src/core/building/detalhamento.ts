@@ -34,7 +34,7 @@ export interface BarraViga {
   continuaCom?: string;
 }
 /** Zona de estribos: `n` peças a cada `s`; `ramos` > 2 (estribo duplo ou triplo): `n` já conta todas as peças. */
-export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number; /** Estribo em U (aberto no topo; R7g). */ u?: boolean }
+export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number; /** Estribo em U (aberto no topo; R7g). */ u?: boolean; /** Estribos adicionais de suspensão (N2e, NBR 6118 18.3.6). */ suspensao?: boolean }
 export interface DetalheViga {
   viga: string; nome: string;
   /** Pavimentos em que a viga se repete (grupo). */
@@ -347,7 +347,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   // (porta-estribos entre as pontas dos negativos) nunca é colaborante. Compressão superior exigida pelo cálculo => colaborante.
   const montCont = !!op.vigaMontagemContinua, colab = montCont && (!!op.vigaMontagemColaborante || compSup);
   if (montCont && !op.vigaMontagemColaborante && compSup) avisos.push('Montagem colaborante: o cálculo exige armadura de compressão superior, que a montagem fornece.');
-  const lbM = lbBasico(phiM, c, aNeg.fyd, supBoa, aNeg.aco === 'CA-60');
+  const aMont = acoDe(b, 'vigaMontagem'), lbM = lbBasico(phiM, c, aMont.fyd, supBoa, aMont.aco === 'CA-60');
   const capMont = colab ? 2 * barArea(phiM) : 0, As_ = barArea(phiS), nSup = r.arranjo.sup?.n ?? 0;
   interface Reg { s0: number; s1: number; n: number; mx: number; ef: number }
   let regs: Reg[] = [];
@@ -408,14 +408,14 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     const alt = h - cob.inf - cob.sup - 0.04, sMax = Math.min(0.2, d / 3);
     const phiP = r.arranjo.laterais?.phi ?? 8;
     const nFace = Math.max(Math.ceil(AsLat / barArea(phiP) - 1e-9), Math.ceil(alt / sMax - 1e-9) - 1, 1);
-    corrida('pele', 'pele', 2 * nFace, phiP, lbBasico(phiP, c, aPos.fyd, supBoa), meiosVao);
+    corrida('pele', 'pele', 2 * nFace, phiP, lbBasico(phiP, c, acoDe(b, 'vigaPele').fyd, supBoa), meiosVao);
   }
   // estribos por zonas fora dos pilares: espaçamento exigido pelo cortante e pela torção em cada ponto
   const fywd = Math.min(aEst.fyk / 1.15, 435), A1 = barArea(phiT), ramos = r.arranjo.estribo?.legs ?? 2;
   const nPecasR = (len: number, s: number, rm: number) => (Math.floor(len / s + 1e-9) + 1) * (rm / 2), nPecas = (len: number, s: number) => nPecasR(len, s, ramos);
   const he = (bw * h) / (2 * (bw + h)), Ae = (bw - he) * (h - he);
   const Vc0 = 0.6 * c.fctd * bw * d * 1000, aswMin = ((0.2 * c.fctm) / aEst.fyk) * bw;
-  const smax = (Vmx: number) => (Vmx <= 0.67 * 0.27 * c.av2 * c.fcd * bw * d * 1000 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2));
+  const smax = (Vmx: number) => Math.min(Vmx <= 0.67 * 0.27 * c.av2 * c.fcd * bw * d * 1000 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2), r.estriboSmax ?? Infinity);
   const aswI = Float64Array.from({ length: nG }, (_, i) => Math.max(aswMin, Math.max(0, Vd[i] - Vc0) / 1000 / (0.9 * d * fywd) + (Td[i] / 1000) / (Ae * fywd)));
   const smaxI = Float64Array.from({ length: nG }, (_, i) => smax(Vd[i]));
   /** Espaçamento exigido em cada ponto com `rm` ramos de bitola `phi`. */
@@ -492,6 +492,11 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     };
     verificar('inf', AsPosD, lbI, phiI); verificar('sup', AsNegD, lbS, phiS);
   }
+  // suspensão (N2e): estribos adicionais no cruzamento com a viga apoiada, na largura bw + h/2 de cada lado, depois das edições
+  for (const sp of r.suspensoes ?? []) {
+    const s0 = Math.max(ext[0], sp.s - sp.largura / 2), s1 = Math.min(ext[1], sp.s + sp.largura / 2);
+    if (sp.n > 0 && s1 > s0) estribos.push({ s0, s1, phi: sp.phi, s: Math.max(0.03, (s1 - s0) / sp.n), n: sp.n * (ramos / 2), comprimento: compEst(sp.phi), suspensao: true, ...(ramos > 2 ? { ramos } : {}) });
+  }
   for (const x of barras) if (x.perna === undefined && pernaG !== 8 && x.ganchos.some(Boolean)) x.perna = pernaG;
   const peso = barras.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0) + estribos.reduce((t, z) => t + z.n * z.comprimento * pesoLinear(z.phi), 0);
   return {
@@ -515,13 +520,18 @@ export function detalharVigas(b: BuildingModel, dim: Dimensionamento, op: Opcoes
   return out;
 }
 
+/** Aço da barra pela posição (N2e, K1.6.6): negativo, montagem e pele têm aço próprio; o resto, o da positiva. */
+export function acoDaBarraViga(b: BuildingModel, tipo: BarraViga['tipo']): string {
+  return acoDe(b, tipo === 'negativo' ? 'vigaNeg' : tipo === 'montagem' ? 'vigaMontagem' : tipo === 'pele' ? 'vigaPele' : 'vigaPos').aco;
+}
+
 /** Resumo do aço das vigas por aço e bitola (kg), com as repetições dos grupos e as perdas (%). */
 export function resumoAcoVigas(b: BuildingModel, dets: DetalheViga[], perdas: number): { aco: string; phi: number; comprimento: number; peso: number; pesoComPerdas: number }[] {
-  const acoL = acoDe(b, 'vigaPos').aco, acoE = acoDe(b, 'vigaEstribo').aco;
+  const acoE = acoDe(b, 'vigaEstribo').aco;
   const m = new Map<string, { aco: string; phi: number; comprimento: number }>();
   const soma = (aco: string, phi: number, len: number) => { const k = `${aco}|${phi}`; const e = m.get(k) ?? { aco, phi, comprimento: 0 }; e.comprimento += len; m.set(k, e); };
   for (const d of dets) {
-    for (const x of d.barras) soma(acoL, x.phi, x.n * x.comprimento * d.repeticoes);
+    for (const x of d.barras) soma(acoDaBarraViga(b, x.tipo), x.phi, x.n * x.comprimento * d.repeticoes);
     for (const z of d.estribos) soma(acoE, z.phi, z.n * z.comprimento * d.repeticoes);
   }
   return [...m.values()].sort((a, z) => a.aco.localeCompare(z.aco) || a.phi - z.phi).map((e) => {
