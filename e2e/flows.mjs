@@ -3676,6 +3676,128 @@ export const flows = [
     },
   },
   {
+    name: 'E1e: alvenaria estrutural (blocos e tipos no grupo, paredes de blocos, janela com panos, verga e modulação, quantitativo, cartão, memorial e biblioteca)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+      // 1. modelo enxuto: Térreo e Tipo 1 (como no E1d)
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+      let b0 = await modelo();
+      for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+        const p = b0.pavimentos.find((x) => x.nome === nome);
+        const antes = b0.pavimentos.length;
+        await cmd('pavimento.remover {"id": "' + p.id + '"}');
+        await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+        b0 = await modelo();
+      }
+      const terreo = b0.pavimentos.find((p) => p.nome === 'Térreo'), tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+      // 2. grupo "Alvenaria estrutural": bloco e tipo de blocos pela interface
+      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Alvenaria estrutural/ }) });
+      await ga.evaluate((el) => { el.open = true; });
+      const eb = ga.locator('[data-alv-editor-bloco]');
+      await eb.getByLabel('Bloco: nome', { exact: true }).fill('B20');
+      await eb.getByLabel(/^Bloco: comprimento/).fill('40');
+      await eb.getByLabel(/^Bloco: largura/).fill('20');
+      await eb.getByLabel(/^Bloco: altura/).fill('20');
+      await eb.getByLabel(/^Bloco: fbk/).fill('8');
+      await eb.getByRole('button', { name: 'Criar bloco', exact: true }).click();
+      await ga.locator('table[data-alv-blocos] tbody tr').waitFor({ timeout: 20000 });
+      assert.match(await ga.locator('table[data-alv-blocos]').innerText(), /40 × 20 × 20 cm/);
+      assert.match(await ga.locator('table[data-alv-blocos]').innerText(), /automático \(não\)/);
+      const et = ga.locator('[data-alv-editor-tipo]');
+      await et.getByLabel('Tipo de alvenaria: nome', { exact: true }).fill('Blocos B20');
+      await et.getByLabel(/^Tipo de alvenaria: peso específico/).fill('14');
+      await et.getByRole('button', { name: 'Criar tipo de alvenaria', exact: true }).click();
+      await ga.locator('table[data-alv-tipos] tbody tr').waitFor({ timeout: 20000 });
+      const linhaTipo = await ga.locator('table[data-alv-tipos] tbody tr').first().innerText();
+      assert.match(linhaTipo, /Blocos B20/);
+      assert.match(linhaTipo, /2,24/); // fd = 0,7 · (0,8 · 8) / 2
+      // edição do tipo: prisma informado de 10 MPa → fd = 3,50 MPa
+      await ga.getByRole('button', { name: 'Editar tipo Blocos B20', exact: true }).click();
+      await et.getByLabel(/^Tipo de alvenaria: prisma fpk/).fill('10');
+      await et.getByRole('button', { name: 'Salvar tipo de alvenaria', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-alv-tipos] tbody tr')?.textContent?.includes('3,50'), null, { timeout: 20000 });
+      // 3. duas paredes de blocos de 12 m com laje maciça e uma porta fora da modulação
+      const mat = (await modelo()).tiposAlvenaria[0].id;
+      await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+      await cmd('parede.criar {"pontos": [[0, 6], [12, 6]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 2, null);
+      const m1 = (await modelo()).paredes.find((w) => w.nome === 'M1').id;
+      await cmd('parede.abertura {"parede": "' + m1 + '", "s": 5.07, "largura": 0.9, "altura": 2.1, "pavimento": "' + terreo.id + '"}');
+      await esperarModelo((id) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.find((w) => w.id === id)?.aberturas?.length === 1, m1);
+      // o tipo em uso não sai
+      await ga.getByRole('button', { name: 'Remover tipo Blocos B20', exact: true }).click();
+      assert.match(await ga.locator('[data-alv-msg]').innerText(), /Há paredes com este tipo de alvenaria/);
+      // lista de paredes mostra o tipo
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes \(/ }) });
+      assert.match(await gp.locator('table[data-pw-lista]').innerText(), /Blocos \(Blocos B20\)/);
+      // 4. cálculo e cartões
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
+      await livre();
+      const cartao = page.locator('[data-pw-cartao]');
+      await cartao.waitFor({ timeout: 30000 });
+      assert.match(await cartao.innerText(), /Blocos \(Blocos B20\)/);
+      assert.match(await cartao.innerText(), /Cumprimento mín\./);
+      const ca = page.locator('[data-alv-cartao]');
+      await ca.waitFor({ timeout: 30000 });
+      assert.ok(await ca.locator('table[data-alv-resumo-blocos] tbody tr').count() >= 1);
+      assert.match(await ca.locator('table[data-alv-resumo-blocos]').innerText(), /B20/);
+      // 5. janela de M1: panos, quantitativo, verga e modulação
+      await cartao.getByRole('button', { name: 'Resultados de M1' }).click();
+      const jp = page.getByRole('dialog', { name: /M1/ });
+      await jp.waitFor();
+      const raiz = jp.locator('[data-alv-parede]');
+      assert.equal(await raiz.locator('table[data-alv-panos] tbody tr').count(), 3);
+      assert.match(await raiz.locator('[data-alv-situacao]').innerText(), /Blocos B20.*não armada/);
+      assert.match(await raiz.locator('table[data-alv-quant]').innerText(), /Total/);
+      assert.equal(await raiz.locator('table[data-alv-vergas] tbody tr').count(), 1);
+      assert.match(await raiz.locator('table[data-alv-vergas] tbody tr').first().innerText(), /porta[\s\S]*não/);
+      assert.match(await raiz.innerText(), /Nenhum pilar em contato com esta parede/);
+      await raiz.getByRole('button', { name: 'Ajustar aberturas à modulação', exact: true }).click();
+      await page.waitForFunction(() => /sim/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      assert.match(await raiz.locator('table[data-alv-vergas] tbody tr').first().innerText(), /1,00 × 2,20 m/);
+      // verga bloqueada e depois limpa
+      await raiz.locator('table[data-alv-vergas] tbody tr').first().click();
+      const ev = raiz.locator('[data-alv-editor-verga]');
+      await ev.getByLabel(/^Verga: n/).fill('2');
+      await ev.getByLabel(/^Verga: φ/).selectOption({ label: '12,5' });
+      await raiz.getByRole('button', { name: 'Bloquear verga', exact: true }).click();
+      await page.waitForFunction(() => /bloqueada/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      await raiz.getByRole('button', { name: 'Limpar verga', exact: true }).click();
+      await page.waitForFunction(() => /calculada/.test(document.querySelector('table[data-alv-vergas] tbody tr')?.textContent ?? ''), null, { timeout: 180000 });
+      assert.ok(await raiz.locator('ul[data-alv-mensagens], p.muted').count() >= 1);
+      assert.ok(await jp.locator('[data-pw-iso-svg] polygon').count() > 10);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 6. memorial do edifício
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const textoMemo = await memo.textContent();
+      assert.match(textoMemo, /Alvenaria estrutural e blocos de concreto/);
+      assert.match(textoMemo, /Verificação das tensões-limite por pano/);
+      assert.equal(await memo.locator('[data-memorial-alvenaria="alv-panos"]').count(), 1);
+      assert.equal(await memo.locator('[data-memorial-alvenaria="alv-blocos"]').count(), 1);
+      assert.match(textoMemo, /Quantitativo de blocos por parede e pavimento/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7. biblioteca do usuário: gravar e trazer (nada novo na mesma obra)
+      await ga.locator('details[data-alv-biblioteca] > summary').click();
+      await ga.getByLabel('Nome na biblioteca de alvenaria', { exact: true }).fill('Minha alvenaria');
+      await ga.getByLabel('Nome na biblioteca de alvenaria', { exact: true }).press('Enter'); // TextField confirma no Enter/blur
+      await ga.getByRole('button', { name: 'Gravar alvenaria da obra', exact: true }).click();
+      await page.waitForFunction(() => [...document.querySelectorAll('select option')].some((o) => o.textContent?.includes('Minha alvenaria')), null, { timeout: 20000 });
+      await ga.getByLabel(/^Alvenaria gravada/).selectOption({ index: 1 }); // índice 0 é “— escolha —”
+      await ga.getByRole('button', { name: 'Trazer para a obra', exact: true }).click();
+      assert.match(await ga.locator('[data-alv-msg-biblioteca]').innerText(), /Nada novo/);
+    },
+  },
+  {
     name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
     async run({ newPage }) {
       const page = await newPage();

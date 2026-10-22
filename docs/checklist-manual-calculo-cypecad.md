@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 53 | 13 | 37 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 55 | 11 | 37 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 11 | 9 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 12 | 9 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **390** | **65** | **95** | **111** |
+| **Total** | **661** | **392** | **63** | **95** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 0 | 5 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 37 | 84 | 121 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 84 | 119 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **65** | **95** | **160** |
+| **Total** | **63** | **95** | **158** |
 
 ## Divergências de premissa
 
@@ -389,8 +389,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.1 | Normas por material: concreto, aço (formado a frio e laminado), madeira, alumínio, alvenaria, lajes mistas. | Fora | — | normas por material; só NBR de concreto no edifício |
 | K1.9.2 | Descrição da obra (2 linhas). | Feito | — | `Obra.descricao` (2 linhas): painel, dados gerais, memorial e carimbo [L1] |
 | K1.9.3 | Concreto separado para lajes, fundações (com dados de fundação), pilares/pilares-parede (pode variar por pavimento) e paredes (pode variar por pavimento). | Feito | — | fck por tipo de elemento (laje, viga, pilar, fundação) e dos pilares por lance (Norma.fckElem, fckPilarPav, N1b); fundação do edifício com fck, aço e cobrimento próprios, padrão os da obra (`fckDe(b, 'fundacao')`, `cobrimentoFundacao`, `parametrosFundacao`, FU1); paredes (E) |
-| K1.9.4 | Alvenaria estrutural: E, G, peso específico, tensão de cálculo à compressão e à tração, opção de considerar rigidez ao cortante. | Parcial | E | núcleo: `TipoAlvenaria` genérica e de blocos (E, G, γ, fd, ftd, fvd, `considerarG` para a rigidez ao cortante), `resistenciaAlvenaria`, casca com o material do tipo; falta o editor [E1e] |
-| K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Parcial | E | núcleo: blocos de concreto (`TipoBloco`), argamassa, graute, prisma e aço da armadura de junta (`alvenariaHor`); falta o editor [E1e] |
+| K1.9.4 | Alvenaria estrutural: E, G, peso específico, tensão de cálculo à compressão e à tração, opção de considerar rigidez ao cortante. | Feito | — | núcleo: `TipoAlvenaria` genérica e de blocos (E, G, γ, fd, ftd, fvd, `considerarG` para a rigidez ao cortante), `resistenciaAlvenaria`, casca com o material do tipo; interface: AlvenariaUI.tsx (editor do tipo de alvenaria) [E1e] |
+| K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Feito | — | núcleo: blocos de concreto (`TipoBloco`), argamassa, graute, prisma e aço da armadura de junta (`alvenariaHor`); interface: AlvenariaUI.tsx (editor de blocos e tipo de blocos) [E1e] |
 | K1.9.6 | Aço de armadura em pilares/pilares-parede/consolos (longitudinal e estribos), com abas separadas para estrutura e fundação. | Feito | — | aço dos pilares por posição: longitudinal e estribos (acoPos, N1b); aço da fundação do edifício na posição `fundacao` (FU1) |
 | K1.9.7 | Vigas: negativo (inferior em vigas de fundação), positivo (superior em vigas de fundação), montagem, pele lateral, estribos. | Feito | — | positiva, negativa, montagem, pele e estribos com aço por posição (`acoPos`); N2e |
 | K1.9.8 | Lajes: punção e cortante; negativo/positivo de maciças (superior/inferior em radier); negativo/positivo de nervuradas, ábacos e vigotas in loco. | Parcial | E | punção e cortante das lajes maciças com aço próprio (`acoPos`, N2d) e negativo/positivo de maciças e treliçadas (N1b); nervuradas, ábacos e vigotas in loco (E3) [N2d] |
@@ -963,3 +963,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1e, núcleo (alvenaria estrutural e blocos de concreto).** K1.12.4.3-1 passa a Feito; K1.9.4 e K1.9.5 passam a Parcial: `alvenaria.ts` (tipos, resistências NBR 16868 a confirmar, esbeltez, tensões-limite por elemento, armadura de blocos, modulação, quantitativo, desligamento muro-pilar, diagnósticos), `alvenariaDim.ts` (panos com fator de cumprimento, lados curtos, vergas, vigas sobre muros), `memorialAlvenaria.ts`, comandos `bloco.tipo`, `alvenaria.tipo`, `parede.modularAbertura` e `verga.armadura`, 18 opções `alvenaria*`; falta a interface (cartões em `docs/cartoes/E1e/`) e a prancha.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 1 item (manual de cálculo); 2 passam de Falta a Parcial.
+- **22/10/2026 — fatia E1e, interface.** K1.9.4 e K1.9.5 passam a Feito (`AlvenariaUI.tsx`, editor do tipo de alvenaria e de blocos). Fluxo e2e `E1e`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 2 itens (manual de cálculo).

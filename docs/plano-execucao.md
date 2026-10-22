@@ -167,3 +167,4 @@ Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e
   - I2: modelo analítico (IfcStructuralAnalysisModel) para o CYPE 3D, prioridade subiu; SAF continua baixa;
   - I3: add-in Revit (API/Dynamo) para elementos nativos, só se o I0 mostrar necessidade (plugin CYPE pago ou plugin TQS-Revit);
   - I4: roteiro de conferência de cálculo num edifício-teste fictício, comparando esforços, γz, armaduras e deslocamentos.
+- 22/10/2026: E1e, interface concluída (cartões `docs/cartoes/E1e/`); e2e `E1e` verde. Próximo: FU7b (fundação de muros e paredes) e E2.
