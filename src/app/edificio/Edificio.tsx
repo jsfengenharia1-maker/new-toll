@@ -1015,6 +1015,22 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
               <Hint>Sapatas corridas sob parede (largura pela σadm, flexão transversal CEB-70 por metro, armadura de distribuição) e sob pilares (viga sobre base elástica na análise global). Duplo clique abre o corte transversal e as verificações.</Hint>
             </div>
           )}
+          {!!dim.basesMuros?.length && (
+            <div className="card" data-card-bases-muros>
+              <h3>Bases dos muros de arrimo</h3>
+              <table className="data quadro">
+                <thead><tr><th>Muro</th><th>B (m)</th><th>Cota / df (m)</th><th>σmáx / σadm (kN/m²)</th><th>Fonte da σadm</th><th>Concreto da base (m³)</th><th>Aço da base (kg)</th><th>Situação</th></tr></thead>
+                <tbody>{filtro(dim.basesMuros).map((x) => (
+                  <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => abrirJanela({ tipo: 'fundacao', id: x.id })} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
+                    <td className="tl">{x.nome}</td><td className="num">{fmt(x.B)}</td><td className="num">{fmt(x.cota)} / {fmt(x.profundidade)}</td>
+                    <td className="num">{fmt(x.sigmaMax, 1)} / {x.sigmaAdm !== null ? fmt(x.sigmaAdm, 0) : '—'}</td><td className="tl">{x.sigmaFonte === 'propria' ? 'própria do muro' : x.sigmaFonte === 'terreno' ? 'terreno (informada)' : x.sigmaFonte === 'spt' ? 'SPT (menor furo)' : '—'}</td>
+                    <td className="num">{x.total ? fmt(x.total.concreto, 1) : `${fmt(x.porMetro.concreto)}/m`}</td><td className="num">{x.total ? fmt(x.total.aco, 0) : `${fmt(x.porMetro.aco, 1)}/m`}</td>
+                    <td>{x.status === 'ok' ? 'ok' : 'não atende'}</td>
+                  </LinhaElemento>))}</tbody>
+              </table>
+              <Hint>Base do muro de arrimo isolado na fundação: σadm própria, do terreno ou pelo SPT (menor furo); cota de assentamento e quantitativos da base (totais só com o comprimento do muro). Duplo clique abre a janela.</Hint>
+            </div>
+          )}
           <div className="card">
             <h3>Quantitativos</h3>
             <table className="data quadro">

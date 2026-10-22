@@ -1,16 +1,42 @@
 // Muros de arrimo (E1d-2, bloco C): grupo da barra lateral com lançamento, lista de estabilidade e armadura, e mensagens
 // do muro selecionado. O cálculo está em core/building/muroArrimoDim; os comandos são muro.arrimo e muro.remover.
 import { useState } from 'react';
-import { Button, Group, Hint, NumField, OptNumField, Pill, Select, TextField } from '../ui';
+import { Button, Group, Hint, KV, NumField, OptNumField, Pill, Select, TextField } from '../ui';
 import { linhasMuros } from '../../core/building/paredesLista';
 import type { BuildingModel } from '../../core/building/types';
 import { useBuilding } from './store';
+import { usePlanta } from './plantaStore';
 import { executarERecalcular } from './Armadura';
+import { Mensagens } from './CorridaUI';
 
 const cm2m = (v: number) => +(v / 100).toFixed(4);
+const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
+const FONTE_SIGMA = { propria: 'própria do muro', terreno: 'terreno (informada)', spt: 'SPT (menor furo)', nenhuma: '—' } as const;
 const METODOS: { v: 'repouso' | 'rankine' | 'coulomb'; label: string }[] = [
   { v: 'repouso', label: 'repouso (K0)' }, { v: 'rankine', label: 'Rankine' }, { v: 'coulomb', label: 'Coulomb' },
 ];
+
+/** Janela da base do muro de arrimo na fundação (FU7b): σadm do terreno, cota, tensão e quantitativos da base. */
+export function JanelaBaseMuro({ id }: { id: string }) {
+  const dim = useBuilding((s) => s.dim), b = useBuilding((s) => s.sessao.modelo);
+  const m = b.murosArrimo?.find((x) => x.id === id), r = dim?.basesMuros?.find((x) => x.id === id);
+  if (!m) return <p className="muted">O muro não existe mais.</p>;
+  if (!r) return <p className="muted">Calcule o edifício (aba Dimensionamento) para ver a base do muro.</p>;
+  return (
+    <div data-janela-base-muro={id}>
+      <div className="row wrap u-items-center"><Pill tone={r.status === 'ok' ? 'ok' : 'bad'}>{r.status === 'ok' ? 'atende' : 'não atende'}</Pill></div>
+      <KV rows={[
+        ['Base', `B ${fmt(r.B)} m · espessura ${fmt(r.hBase * 100, 0)} cm`],
+        ['Assentamento', `cota ${fmt(r.cota)} m · ${fmt(r.profundidade)} m abaixo do terreno`],
+        ['σ máx. / σadm', `${fmt(r.sigmaMax, 1)} / ${r.sigmaAdm !== null ? fmt(r.sigmaAdm, 0) : '—'} kN/m² (${FONTE_SIGMA[r.sigmaFonte]})`],
+        ['Quantitativos por metro', `concreto ${fmt(r.porMetro.concreto)} m³ · forma ${fmt(r.porMetro.forma)} m² · aço ${fmt(r.porMetro.aco, 1)} kg`],
+        ...(r.total ? [['Quantitativos totais', `${fmt(r.comprimento ?? 0)} m: concreto ${fmt(r.total.concreto, 1)} m³ · forma ${fmt(r.total.forma, 1)} m² · aço ${fmt(r.total.aco, 0)} kg`]] as [string, string][] : []),
+      ]} />
+      <Mensagens msgs={r.mensagens} />
+      {r.notas.map((n, i) => <p key={i} className="muted small">{n}</p>)}
+    </div>
+  );
+}
 
 /** Grupo "Muros de arrimo": lançamento do muro (balanço isolado, por metro), lista e mensagens do selecionado. */
 export function MurosGrupo({ b }: { b: BuildingModel }) {
@@ -31,9 +57,11 @@ export function MurosGrupo({ b }: { b: BuildingModel }) {
   const [sobrecarga, setSobrecarga] = useState(10);
   const [atrito, setAtrito] = useState<number | undefined>(undefined);
   const [sigmaAdm, setSigmaAdm] = useState<number | undefined>(undefined);
+  const [cota, setCota] = useState<number | undefined>(undefined);
+  const [comprimento, setComprimento] = useState<number | undefined>(undefined);
   const [sel, setSel] = useState<string | null>(null);
   const selEf = sel ?? linhas[0]?.id ?? null;
-  const mensagens = dim?.muros?.find((m) => m.id === selEf)?.mensagens ?? [];
+  const mensagens = [...(dim?.muros?.find((m) => m.id === selEf)?.mensagens ?? []), ...(dim?.basesMuros?.find((m) => m.id === selEf)?.mensagens ?? [])];
 
   return (
     <Group title={`Muros de arrimo (${n})`} open={n > 0}>
@@ -51,12 +79,16 @@ export function MurosGrupo({ b }: { b: BuildingModel }) {
         <NumField label="Sobrecarga" unit="kN/m²" width={90} value={sobrecarga} onChange={setSobrecarga} />
         <OptNumField label="Atrito base-solo" width={90} value={atrito} onChange={setAtrito} />
         <OptNumField label="σadm do solo" unit="kN/m²" width={96} value={sigmaAdm} onChange={setSigmaAdm} />
+        <OptNumField label="Cota de assentamento da base (m; vazio = a da obra)" width={190} value={cota} onChange={setCota} />
+        <OptNumField label="Comprimento do muro (m; para os quantitativos da base)" width={190} value={comprimento} onChange={setComprimento} />
         <Button onClick={() => executarERecalcular('muro.arrimo', {
           nome: nome || `MA${n + 1}`, H, tTopo: cm2m(tTopo), tBase: cm2m(tBase), B, ponta, hBase: cm2m(hBase),
           solo: { gama, phi, metodo },
           ...(sobrecarga ? { sobrecarga } : {}),
           ...(atrito !== undefined ? { atrito } : {}),
           ...(sigmaAdm !== undefined ? { sigmaAdm } : {}),
+          ...(cota !== undefined ? { cota } : {}),
+          ...(comprimento !== undefined ? { comprimento } : {}),
         })}>Lançar muro</Button>
       </div>
       {linhas.length > 0 && (
@@ -70,6 +102,22 @@ export function MurosGrupo({ b }: { b: BuildingModel }) {
                 <td className="tl">{l.fuste}</td><td className="tl">{l.base}</td><td className="tl">{l.aco}</td>
                 <td><Pill tone={l.situacao === 'calcule' ? 'na' : l.status === 'ok' ? 'ok' : 'bad'}>{l.situacao}</Pill></td>
                 <td><Button variant="ghost" aria-label={`Remover ${l.nome}`} onClick={(e) => { e.stopPropagation(); executarERecalcular('muro.remover', { ids: [l.id] }); }}>×</Button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {(dim?.basesMuros?.length ?? 0) > 0 && (
+        <table className="data quadro" data-mu-base>
+          <thead><tr><th>Muro</th><th>Base B (m)</th><th>Cota (m) / df (m)</th><th>σmáx / σadm (kN/m²)</th><th>Fonte da σadm</th><th>Folga (kN/m²)</th><th>Concreto da base (m³/m)</th><th>Aço da base (kg/m)</th><th>Total (m³ · kg)</th><th>Situação</th><th /></tr></thead>
+          <tbody>
+            {dim!.basesMuros!.map((m) => (
+              <tr key={m.id} data-id={m.id} className={m.status === 'fail' ? 'bad' : undefined}>
+                <td className="tl"><b>{m.nome}</b></td><td className="num">{fmt(m.B)}</td><td className="num">{fmt(m.cota)} / {fmt(m.profundidade)}</td>
+                <td className="num">{fmt(m.sigmaMax, 1)} / {m.sigmaAdm !== null ? fmt(m.sigmaAdm, 0) : '—'}</td><td className="tl">{FONTE_SIGMA[m.sigmaFonte]}</td><td className="num">{m.folga !== null ? fmt(m.folga, 1) : '—'}</td>
+                <td className="num">{fmt(m.porMetro.concreto)}</td><td className="num">{fmt(m.porMetro.aco, 1)}</td><td className="num">{m.total ? `${fmt(m.total.concreto, 1)} · ${fmt(m.total.aco, 0)}` : '—'}</td>
+                <td><Pill tone={m.status === 'ok' ? 'ok' : 'bad'}>{m.status === 'ok' ? 'atende' : 'não atende'}</Pill></td>
+                <td><Button variant="ghost" aria-label={`Resultados da base de ${m.nome}`} onClick={() => usePlanta.getState().set({ janela: { tipo: 'fundacao', id: m.id } })}>base</Button></td>
               </tr>
             ))}
           </tbody>
