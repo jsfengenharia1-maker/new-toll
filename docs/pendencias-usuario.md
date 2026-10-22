@@ -116,3 +116,9 @@ Nenhum texto da NBR 16868 estava disponível: todas as fórmulas abaixo foram es
 | E1e | NBR 16868-1:2020 | Alvenaria armada: diagrama de tensões na flexão, taxas mínimas vertical e horizontal, espaçamentos máximos, bitolas, limite superior do cisalhamento, comprimentos de ancoragem e de traspasse nos furos grauteados | Bloco retangular com tensão fd·R, taxas 0,05 %, espaçamentos 1,2 m e 0,6 m, limite 0,25 fd da biela | opções `alvenariaTaxaVertMin`, `alvenariaTaxaHorMin`; constantes `ESP_VERTICAL_MAX`, `ESP_HORIZONTAL_MAX`, `flexaoArmadaFaixa`, `verificarPanoAlvenaria` |
 | E1e | NBR 16868-1:2020 (e prática de projeto) | Vergas, contravergas, apoios e canaletas; modulação, cantos e amarração (16868-3) | Apoio mínimo da verga (30 cm), altura em fiadas de canaleta, regras de peça de canto e de perda de módulo na contagem de blocos | opções `alvenariaVergaApoio`, `alvenariaVergaFiadas`; `dimensionarVerga`, `quantitativoParede` |
 | E1e | Catálogos de fabricantes de blocos | Blocos de concreto estruturais (famílias 14 e 19 cm, 29, 39, canaleta, compensadores, canto) | Dimensões modulares e peças especiais para pré-cadastrar na biblioteca (hoje só o bloco que o usuário cria) | `bloco.tipo` (`TipoBloco` em `src/core/building/types.ts`) |
+
+## Conferências no CYPECAD (o usuário tem o programa)
+
+| Item | O que conferir | Onde é usado no código | Critério provisório |
+|---|---|---|---|
+| Deslizamento da sapata corrida de parede de subsolo travada por laje | Num subsolo com duas paredes opostas sob empuxo, laje no topo e sapata corrida: o CYPECAD verifica deslizamento por sapata (com a reação horizontal da base) ou dispensa/considera o conjunto? Que FS e μ usa? | `sapataCorrida.ts` (`topoTravado`, deslizamento do conjunto), opção `fundCorridaDeslizGrupo` | Conjunto travado: FS = Σμ·N / |ΣH| (padrão 1); 0 = cada sapata |

@@ -115,6 +115,7 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 3. Exemplos de prancha de viga de equilíbrio, tubulão, radier e lajes: enviados pelo usuário em 20/10/2026 (resumo fora do repositório, `padrao-desenho.md` §11). Pendente: AUDIT do DXF/DWG no AutoCAD.
 
 ## Andamento
+- 22/10/2026 (decisões do usuário): `pilarLancesDesligados` mantém o padrão do CYPECAD (1; NBR 0). Itens normativos sem texto seguem o padrão do CYPECAD até o usuário enviar a norma (NBR 15200:2024 virá depois). Aprovada a fatia **N3 — biblioteca de normas editável** (tabelas normativas como dados com versão de fábrica e do usuário, importáveis/exportáveis, versão usada registrada no memorial; o CYPECAD traz as normas fixas no programa e só deixa editar coeficientes e opções, o Statikos vai além), a executar depois da rodada E2a/L2/V2. Deslizamento da sapata de parede travada: mantido o critério do conjunto (padrão) até conferir no CYPECAD (pendência do usuário).
 
 Entradas antigas em `docs/historico-fatias.md`.
 
