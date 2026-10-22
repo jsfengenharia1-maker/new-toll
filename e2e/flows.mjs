@@ -3738,4 +3738,64 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const calcular = async () => {
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await livre();
+      };
+      await cmd('vento.definir {"ativo": false}');
+      // 4 pilares 20×40 nos cantos; vigas 15×50 no contorno (grupo g_3); laje maciça de 12 cm nos painéis
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await calcular();
+      // sem a verificação ligada: nenhum card de fogo
+      assert.equal(await page.locator('[data-card-fogo]').count(), 0);
+      // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
+      await g.locator('summary').click();
+      await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
+      await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
+      assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
+      assert.ok((await g.locator('[data-fogo-grupos] tbody tr').count()) >= 1);
+      // 2) TRRF de 120 min no grupo g_3 (linha de comando) reprova as vigas: erro FOGO_TRRF
+      await cmd('fogo.definir {"trrf": {"g_3": 120}}');
+      await calcular();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /FOGO_TRRF/);
+      // 3) card do Dimensionamento: elementos com TRRF, TRF e folga; as vigas não atendem
+      const card = page.locator('[data-card-fogo]');
+      await card.waitFor();
+      assert.match(await card.innerText(), /TRRF \(min\)/);
+      assert.ok((await card.locator('tbody tr', { hasText: 'viga' }).filter({ hasText: 'não atende' }).count()) >= 1);
+      // 4) revestimento de 60 mm de argamassa de cimento e areia no grupo: as vigas passam a atender
+      await cmd('fogo.definir {"revestimentos": {"g_3": {"material": "cimento", "espessura": 60}}}');
+      await calcular();
+      assert.equal(await card.locator('tbody tr', { hasText: 'viga' }).filter({ hasText: 'não atende' }).count(), 0);
+      // 5) janela da viga pelo duplo clique no card
+      await card.locator('tbody tr', { hasText: 'viga' }).first().dblclick();
+      await page.getByRole('dialog', { name: /Resultados do elemento — Viga/ }).waitFor();
+      await page.keyboard.press('Escape');
+      // 6) memorial: seção Resistência ao fogo com a tabela por elemento
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mf = await memo.locator('[data-memorial-fogo]').innerText();
+      assert.match(mf, /NBR 15200/);
+      assert.match(mf, /Tabela 9 \(vigas contínuas ou de pórtico\)|Tabela 8 \(vigas biapoiadas\)/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7) desligar a verificação: o card some
+      await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').uncheck();
+      await calcular();
+      assert.equal(await page.locator('[data-card-fogo]').count(), 0);
+    },
+  },
 ];
