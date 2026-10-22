@@ -60,6 +60,9 @@ function base() {
   // E1b: um tipo de pilar-parede e um pilar-parede longe dos demais
   expect(s.executar('pilarParede.tipo', { nome: 'Parede 2 m', vertices: [[0, 0], [2, 0]], esq: 0.1, dir: 0.1 }).ok).toBe(true);
   expect(s.executar('pilarParede.inserir', { tipo: s.modelo.tiposPilarParede![0].id, x: 60, y: 60 }).ok).toBe(true);
+  // E1c: uma parede longe dos demais e uma viga sobre ela (para embutir)
+  expect(s.executar('parede.criar', { pontos: [[80, 0], [86, 0]], espessura: 0.2 }).ok).toBe(true);
+  expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[80, 0], [86, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -200,6 +203,16 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilarParede.editar': (b) => ({ id: b.pilaresParede![0].id, angulo: 90, x: 61, vinculoBase: 'rotula' }),
   'pilarParede.mover': (b) => ({ ids: [b.pilaresParede![0].id], dx: 1, dy: 1 }),
   'pilarParede.remover': (b) => ({ ids: [b.pilaresParede![0].id] }),
+  'parede.criar': () => ({ pontos: [[90, 0], [90, 6]], espessura: 0.2, nome: 'M9', vinculoBase: 'rotula' }),
+  'parede.editar': (b) => ({ id: b.paredes![0].id, espessura: 0.25, porPavimento: [{ pavimento: b.pavimentos[1].id, esq: 0.1, dir: 0.1 }] }),
+  'parede.mover': (b) => ({ ids: [b.paredes![0].id], dx: 1, dy: 0 }),
+  'parede.remover': (b) => ({ ids: [b.paredes![0].id] }),
+  'parede.abertura': (b) => ({ parede: b.paredes![0].id, s: 1, largura: 0.9, altura: 2.1, pavimento: b.pavimentos[0].id }),
+  'parede.empuxo': (b) => ({ parede: b.paredes![0].id, empuxos: [{ caso: 'G', lado: 'esq', liquido: { cota: 1 } }] }),
+  'parede.prolongar': (b) => ({ id: b.paredes![0].id, extremidade: 'fim', ate: { ponto: [88, 0] } }),
+  'parede.atribuir': (b) => ({ ids: [b.paredes![0].id], valores: { esq: 0.15 } }),
+  'parede.daMascara': () => ({ grupo: 'g_3', camada: 'ALV' }),
+  'viga.embutir': (b) => ({ viga: b.vigas.at(-1)!.id, parede: b.paredes![0].id }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 

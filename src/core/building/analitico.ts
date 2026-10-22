@@ -17,6 +17,7 @@ import { barrasGeo, iterarPDelta, normalMedia } from '../pdelta3';
 import { combinacoesDoEstado } from './combinacoes';
 import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { geometriaParedes } from './pilarParede';
+import { ppDaObra } from './paredesBase';
 import { incluirParedes, reduzirCascas, type ParedesNoPortico } from './pilarParedeModelo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
 import { anguloNoLance, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
@@ -420,8 +421,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const geoEm = (p: Pilar, pavId: string) => geoLance(p, lanceNoPavimento(b, p, pavId) ?? pavId);
   const vazio: AnaliseEdificio = { avisos, opcoes: op, casos: casosDaObra(b).map((c) => c.id), grelhas: [], portico: { modelo: { nos: [], barras: [], apoios: new Map() }, barras: [], mestres: {}, zonas: {}, res: null }, fundacao: [], vento: null, cargasPavimento: {}, totais: { G: 0, Q: 0 }, gdl: 0, ms: 0 };
   if (!ps.length) return { ...vazio, erro: 'A obra não tem pavimentos.', fundacao: reacoesArranques(b) };
-  if (!b.pilares.length && !b.pilaresParede?.length) return { ...vazio, erro: 'A obra não tem pilares.' };
-  if (b.pilares.length && b.pilares.every(ehArranque) && !b.pilaresParede?.length) return { ...vazio, erro: 'A obra só tem arranques: calcule só a fundação.', fundacao: reacoesArranques(b) };
+  if (!b.pilares.length && !ppDaObra(b).length) return { ...vazio, erro: 'A obra não tem pilares.' };
+  if (b.pilares.length && b.pilares.every(ehArranque) && !ppDaObra(b).length) return { ...vazio, erro: 'A obra só tem arranques: calcule só a fundação.', fundacao: reacoesArranques(b) };
   /** Pilares-parede (E1b): lados em barra viram pilares virtuais; as fatias do topo dos lados em casca são apoios virtuais da grelha. */
   const paredes = geometriaParedes(b, op);
   const pilaresA: Pilar[] = paredes ? [...b.pilares, ...paredes.barras] : b.pilares;
@@ -947,7 +948,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // pilares-parede (E1b): cascas dos lados longos, viga fictícia no topo e ligação dos lados em barra
   const noParedes: ParedesNoPortico | undefined = paredes ? incluirParedes({
     b, geo: paredes, pm, casosV, noPilar, Ec: (pav) => Em('pilar', pav), Ev, Gv, nu: op.nu, gama: GAMA_CONCRETO, ret, iG: CASOS.indexOf('G'),
-    hViga: op.pilarParedeVigaAltura / 100,
+    hViga: op.pilarParedeVigaAltura / 100, caso: (id) => CASOS.indexOf(id),
     peso: (pav, kN) => { totais.G += kN; cargasPavimento[pav].G += kN; },
     etiqueta: (ref, pav) => ptags.push({ tipo: 'parede', ref, pavimento: pav }),
   }) : undefined;
@@ -1086,7 +1087,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     // diafragma por zona independente: nós ligados por vigas do diafragma formam uma zona (corpo rígido próprio);
     // nó isolado (pilar sem vigas no nível) é zona sem diafragma. Sem a opção, um diafragma só por pavimento.
     const soLivre = (i: number) => { const u = usoNo.get(i); return !!u && u.livre > 0 && !u.diafragma && !naLaje.has(i); };
-    const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i) && !soLivre(i));
+    // paredes que não tocam laje no nível ficam fora do diafragma (E1c; K1.2.5, K1.3.36)
+    const paredeLivre = new Set((noParedes?.foraDiafragma ?? []).filter((x) => x.pavimento === pav.id && !naLaje.has(x.no)).map((x) => x.no));
+    const nivel = pm.nos.map((n, i) => [n, i] as const).filter(([n, i]) => Math.abs(n[2] - z) < 1e-6 && !pm.apoios.has(i) && !soLivre(i) && !paredeLivre.has(i));
     const pos = new Map(nivel.map(([, i], k) => [i, k]));
     const pai = nivel.map((_, k) => k);
     const raiz = (k: number): number => (pai[k] === k ? k : (pai[k] = raiz(pai[k])));

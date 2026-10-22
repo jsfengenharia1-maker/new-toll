@@ -14,6 +14,7 @@
 import { paraT6, type MalhaTri } from '../geom/malhaTri';
 import { contornoNoLance, cotaFundacao, lancesDoPilar, pavimentosOrdenados, type BuildingModel, type Pilar, type PilarParede, type TipoPilarParede } from './types';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
+import { chegadasNoTrecho, cotasObrigatoriasParedes, furosDaParede, paredeDoPP, ppDaObra, pressoesDaParede, PREFIXO_PAREDE, tipoDaParede, type FuroTrecho, type PressaoParede } from './paredesBase';
 
 type P = [number, number];
 export const VERSAO_PAREDES = 1;
@@ -23,7 +24,10 @@ const arred = (x: number) => Math.round(x * 1e4) / 1e4;
 
 // ---------------------------------------------------------------- tipos e lados
 
-export const tipoDoPilarParede = (b: Pick<BuildingModel, 'tiposPilarParede'>, pp: Pick<PilarParede, 'tipo'>): TipoPilarParede | undefined => b.tiposPilarParede?.find((t) => t.id === pp.tipo);
+export const tipoDoPilarParede = (b: Pick<BuildingModel, 'tiposPilarParede' | 'paredes'>, pp: Pick<PilarParede, 'tipo'>): TipoPilarParede | undefined => {
+  if (pp.tipo.startsWith(PREFIXO_PAREDE)) { const w = paredeDoPP(b, pp); return w ? tipoDaParede(w) : undefined; }
+  return b.tiposPilarParede?.find((t) => t.id === pp.tipo);
+};
 
 /** Pavimentos (topos dos lances) que o pilar-parede atravessa, de baixo para cima. */
 export const lancesDoPP = (b: BuildingModel, pp: Pick<PilarParede, 'nasce' | 'morre'>) => lancesDoPilar(b, pp as unknown as Pilar);
@@ -90,7 +94,7 @@ function cacheLados(b: BuildingModel) {
   let c = memoLados.get(b);
   if (c) return c;
   const lados: LadoGeo[] = [], virtuais: PilarVirtual[] = [];
-  for (const pp of b.pilaresParede ?? []) {
+  for (const pp of ppDaObra(b)) {
     const ls = lancesDoPP(b, pp).map((x) => x.id);
     for (const g of ladosDoPP(b, pp)) { lados.push(g); virtuais.push(pilarVirtualDoLado(g, g.id, g.nome, pp.nasce, pp.morre, ls, 0, g.L, 'lado')); }
   }
@@ -99,11 +103,11 @@ function cacheLados(b: BuildingModel) {
   return c;
 }
 /** Lados de todos os pilares-parede da obra (em cache por modelo). */
-export const todosLados = (b: BuildingModel): LadoGeo[] => (b.pilaresParede?.length ? cacheLados(b).lados : []);
+export const todosLados = (b: BuildingModel): LadoGeo[] => (ppDaObra(b).length ? cacheLados(b).lados : []);
 /** Pilares da obra e os lados dos pilares-parede como pilares virtuais retangulares: para as regras de apoio das vigas (K1.3.59). */
-export const todosPilares = (b: BuildingModel): Pilar[] => (b.pilaresParede?.length ? cacheLados(b).todos : b.pilares);
+export const todosPilares = (b: BuildingModel): Pilar[] => (ppDaObra(b).length ? cacheLados(b).todos : b.pilares);
 /** Só os pilares virtuais dos lados (casca ou barra). */
-export const pilaresVirtuaisDosLados = (b: BuildingModel): PilarVirtual[] => (b.pilaresParede?.length ? cacheLados(b).virtuais : []);
+export const pilaresVirtuaisDosLados = (b: BuildingModel): PilarVirtual[] => (ppDaObra(b).length ? cacheLados(b).virtuais : []);
 
 /** Contorno (retângulo no mundo) do lado no lance. */
 export function contornoDoLado(g: LadoGeo, pav: string): P[] {
@@ -189,21 +193,27 @@ export function abscissasDoLado(L: number, h: number, obrigatorias: number[] = [
 }
 
 /** Alturas da grade de um lado: as cotas dos níveis (base e topos dos lances), cada painel dividido em ≈ h. */
-export function cotasDaGrade(zs: number[], h: number): { Z: number[]; nivel: number[] } {
+export function cotasDaGrade(zs: number[], h: number, extras: number[] = []): { Z: number[]; nivel: number[] } {
   const Z: number[] = [zs[0]], nivel: number[] = [0];
   for (let k = 0; k + 1 < zs.length; k++) {
-    const n = Math.max(1, Math.ceil((zs[k + 1] - zs[k]) / h - 1e-9));
-    for (let q = 1; q <= n; q++) Z.push(zs[k] + ((zs[k + 1] - zs[k]) * q) / n);
+    // cotas obrigatórias dentro do painel (aberturas, mudanças do empuxo; E1c): cada subintervalo dividido em ≈ h
+    const cortes = [zs[k], ...[...new Set(extras.map(arred))].filter((z) => z > zs[k] + 1e-3 && z < zs[k + 1] - 1e-3).sort((a, c) => a - c), zs[k + 1]];
+    for (let j = 0; j + 1 < cortes.length; j++) {
+      const z0 = cortes[j], z1 = cortes[j + 1], n = Math.max(1, Math.ceil((z1 - z0) / h - 1e-9));
+      for (let q = 1; q <= n; q++) Z.push(z0 + ((z1 - z0) * q) / n);
+    }
     nivel.push(Z.length - 1);
   }
   return { Z, nivel };
 }
 
-/** Malha estruturada de triângulos (anti-horários em (s, z)) sobre a grade S × Z, diagonais alternadas. */
-export function malhaDaGrade(S: number[], Z: number[]): MalhaTri {
+/** Malha estruturada de triângulos (anti-horários em (s, z)) sobre a grade S × Z, diagonais alternadas; sem as células dentro dos furos (E1c). */
+export function malhaDaGrade(S: number[], Z: number[], furos: Pick<FuroTrecho, 's0' | 's1' | 'z0' | 'z1'>[] = []): MalhaTri {
   const pontos: P[] = [], tris: [number, number, number][] = [], id = (i: number, j: number) => j * S.length + i;
   for (let j = 0; j < Z.length; j++) for (let i = 0; i < S.length; i++) pontos.push([S[i], Z[j]]);
   for (let j = 0; j + 1 < Z.length; j++) for (let i = 0; i + 1 < S.length; i++) {
+    const sc = (S[i] + S[i + 1]) / 2, zc = (Z[j] + Z[j + 1]) / 2;
+    if (furos.some((f) => sc > f.s0 && sc < f.s1 && zc > f.z0 && zc < f.z1)) continue;
     const p00 = id(i, j), p10 = id(i + 1, j), p11 = id(i + 1, j + 1), p01 = id(i, j + 1);
     if ((i + j) % 2) tris.push([p00, p10, p11], [p00, p11, p01]); else tris.push([p00, p10, p01], [p10, p11, p01]);
   }
@@ -220,6 +230,9 @@ export interface GradeLado {
   S: number[]; Z: number[];
   /** Índice em Z de cada nível: 0 = base; k = topo do lance k (pavimento `lances[k-1]`). */
   nivel: number[];
+  /** Paredes (E1c): aberturas do trecho no plano (s, z) e pressões de empuxo. */
+  furos?: FuroTrecho[];
+  pressoes?: PressaoParede[];
 }
 
 export interface ModeloParedes {
@@ -238,18 +251,22 @@ export const chaveXY = (p: P) => `${Math.round(p[0] * 1e4)}|${Math.round(p[1] * 
 
 /** Geometria de cálculo dos pilares-parede (nada se a obra não tem nenhum). */
 export function geometriaParedes(b: BuildingModel, op: Pick<OpcoesCalculo, 'malhaCasca' | 'pilarParedeLimite'>): ModeloParedes | null {
-  if (!b.pilaresParede?.length) return null;
+  const pps = ppDaObra(b);
+  if (!pps.length) return null;
   const ps = pavimentosOrdenados(b), zf = cotaFundacao(b);
   const niveisZ: Record<string, number[]> = {}, grades: GradeLado[] = [], barras: PilarVirtual[] = [], fatias: PilarVirtual[] = [];
   const vertices = new Map<string, { p: P; lados: string[] }>();
-  for (const pp of b.pilaresParede) {
+  for (const pp of pps) {
     const lances = lancesDoPP(b, pp);
     if (!lances.length || !tipoDoPilarParede(b, pp)) continue;
+    const parede = paredeDoPP(b, pp), furos = parede ? furosDaParede(b, parede).porTrecho : [];
     const ladosPP = ladosDoPP(b, pp, op.pilarParedeLimite);
     const iNasce = pp.nasce === 'fundacao' ? -1 : ps.findIndex((x) => x.id === pp.nasce);
     const z0 = pp.nasce === 'fundacao' ? zf : ps[iNasce].cota;
     const zs = [z0, ...lances.map((x) => x.cota)];
     niveisZ[pp.id] = zs;
+    const pressoes = parede ? pressoesDaParede(b, parede, zs[0], zs.at(-1)!) : [];
+    const grupos = [...new Set(lances.map((x) => x.grupo))];
     for (const g of ladosPP) for (const v of [g.a, g.z]) { const k = chaveXY(v), e = vertices.get(k); if (e) e.lados.push(g.id); else vertices.set(k, { p: v, lados: [g.id] }); }
     const lancesIds = lances.map((x) => x.id);
     for (const g of ladosPP) {
@@ -260,8 +277,12 @@ export function geometriaParedes(b: BuildingModel, op: Pick<OpcoesCalculo, 'malh
         const dx = v[0] - g.a[0], dy = v[1] - g.a[1], s = dx * g.u[0] + dy * g.u[1], d = Math.abs(-dx * g.u[1] + dy * g.u[0]);
         if (d < 1e-3 && s > 1e-3 && s < g.L - 1e-3) obr.push(s);
       }
-      const S = abscissasDoLado(g.L, op.malhaCasca, obr), { Z, nivel } = cotasDaGrade(zs, op.malhaCasca);
-      grades.push({ lado: g, S, Z, nivel });
+      // paredes (E1c): bordas das aberturas, chegadas de vigas e lajes e mudanças do empuxo viram linhas da malha
+      const fs = parede ? furos[g.i] ?? [] : [];
+      if (parede) obr.push(...fs.flatMap((f) => [f.s0, f.s1]), ...chegadasNoTrecho(b, grupos, g.a, g.z, g.tMax / 2));
+      const zExtras = parede ? cotasObrigatoriasParedes(b) : [];
+      const S = abscissasDoLado(g.L, op.malhaCasca, obr), { Z, nivel } = cotasDaGrade(zs, op.malhaCasca, zExtras);
+      grades.push({ lado: g, S, Z, nivel, ...(fs.length ? { furos: fs } : {}), ...(pressoes.length ? { pressoes } : {}) });
       // fatias do topo de cada nível (lances 1..n): uma por vértice da malha, cobrindo o lado inteiro
       for (let k = 1; k < zs.length; k++) {
         const pav = lancesIds[k - 1], nasce = k === 1 ? pp.nasce : lancesIds[k - 2];

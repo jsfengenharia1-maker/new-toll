@@ -8,8 +8,8 @@ Itens que não constam nos manuais do programa de referência (`checklist-manual
 | X2 | Interação solo-estrutura pelo SPT: molas automáticas por estaca/sapata, capacidade por Aoki-Velloso, recalques no ELS e distorção angular | Parcial | FU9 | molas por gdl e k do radier já existem (N2c, FU6) |
 | X3 | Copiloto de IA dentro do app sobre o MCP existente, com aprovação por alteração | Parcial | L | MCP e CLI existem; falta a interface de chat |
 | X4 | Vibração de piso (NBR 6118 23.3) | Falta | N2 | — |
-| X5 | Reservatórios (paredes e fundo, empuxo hidrostático) | Falta | E1 | depende de E1c (paredes e empuxo) |
-| X6 | Muro de arrimo isolado (estabilidade ao tombamento e deslizamento, dimensionamento) | Falta | E1 | depende de E1c |
+| X5 | Reservatórios (paredes e fundo, empuxo hidrostático) | Parcial | E1 | empuxo hidrostático de líquido nas paredes (`EmpuxoParede.liquido`, `pressoesDaParede`, E1c); fundo como laje/radier com carga de área; falta armadura das paredes e do fundo e a verificação de estanqueidade [E1d] |
+| X6 | Muro de arrimo isolado (estabilidade ao tombamento e deslizamento, dimensionamento) | Parcial | E1 | `estabilidadeMuro` (`muroArrimo.ts`, E1c): tombamento, deslizamento, tensões na base e esforços do fuste; falta interface e dimensionamento do fuste e da base [E1d] |
 | X7 | Custo estimado por m² (preços unitários editáveis sobre os quantitativos) | Falta | L | — |
 | X8 | Sismo (NBR 15421) | Fora | — | decisão de escopo mantida; reavaliar com o usuário |
 

@@ -1471,7 +1471,9 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Agrupamentos de pórticos (R7f): se valem (efetivos), motivo quando não, pórtico de referência e desenhos únicos. */
   agrupamentos?: InfoAgrupamento[];
   /** Pilares-parede (E1b): esforços resultantes por lado e pavimento, cargas na base e modelo de cada lado (casca ou barra). */
-  pilaresParede?: ResultadoPilarParede[] }
+  pilaresParede?: ResultadoPilarParede[];
+  /** Paredes de concreto (E1c): esforços resultantes por trecho e pavimento e cargas na base (mesma forma dos pilares-parede). */
+  paredes?: ResultadoPilarParede[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
@@ -1507,6 +1509,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
   { const pp = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs)); if (pp.length) d.pilaresParede = pp; }
+  { const pw = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs), 'paredes'); if (pw.length) d.paredes = pw; }
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];
   if (avisosAcoes.length) d.avisosAcoes = avisosAcoes;

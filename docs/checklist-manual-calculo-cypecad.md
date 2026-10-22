@@ -11,21 +11,21 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | Seção | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
-| 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 28 | 4 | 17 | 10 |
+| 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 56 | 14 | 9 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 48 | 11 | 44 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 50 | 12 | 41 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 34 | 12 | 13 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 12 | 21 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **341** | **82** | **127** | **111** |
+| **Total** | **661** | **347** | **82** | **121** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 25 | 5 | 30 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 110 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 104 | 138 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **82** | **127** | **209** |
+| **Total** | **82** | **121** | **203** |
 
 ## Divergências de premissa
 
@@ -76,7 +76,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | K1.1.1 | Análise de esforços e dimensionamento de estruturas de concreto armado e aço que suportam lajes de vigotas (comuns, armadas, protendidas, moldadas in loco, de aço, alma vazada), alveolares, mistas, nervuradas e maciças, em edifícios sob cargas verticais e horizontais. | Parcial | E | lajes maciças e treliçadas; faltam nervuradas e alveolares (mistas fora) [E3f] |
 | K1.1.2 | Vigas de apoio das lajes podem ser de concreto armado, aço ou mistas (aço + concreto). | Feito | — | vigas de concreto armado; aço e mistas fora do escopo do edifício |
-| K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Parcial | E | pilares de concreto retangulares e circulares; faltam pilares-parede, paredes de concreto e alvenaria estrutural [E1c] |
+| K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Parcial | E | pilares, pilares-parede (E1b) e paredes de concreto com ou sem empuxo (E1c: `Parede`, `paredesBase.ts`, `paredes.ts`); falta a alvenaria estrutural [E1e] |
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Feito | — | sapatas isoladas e associadas, blocos de 1 a 6 estacas (e com vários pilares), tubulões, vigas de equilíbrio e de travamento (FU1–FU3), radier e vigas de fundação sobre base elástica no pórtico (FU6, `src/core/building/baseElastica.ts`) e sapatas corridas sob parede e sob pilares (FU7a, `src/core/building/sapataCorrida.ts`) |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
 | K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas [E4c] |
@@ -91,7 +91,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.2.2 | Compatibilidade de deslocamentos em todos os nós com 6 graus de liberdade. | Feito | — | `fe3d.ts`: 6 GL por nó no pórtico espacial |
 | K1.2.3 | Hipótese de diafragma rígido por pavimento: plano indeformável; cada pavimento só translada e gira como corpo rígido (3 GL no plano). | Feito | — | diafragma rígido mestre-escravo por pavimento (`analitico.ts`) |
 | K1.2.4 | Diafragma rígido vale para cada zona independente do pavimento, mesmo quando só há vigas (sem laje). | Feito | — | cada zona de nós ligada por vigas do diafragma é um diafragma, mesmo só com vigas (opção zonasIndependentes, N1c) |
-| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Parcial | E | vigas fora do diafragma (N1a; no integrado, só no plano XY no pórtico); regra das cascas verticais escravas só no nível em que tocam laje pronta no núcleo (`escravosVerticais`, `diafragma.ts`, N2b); fecha quando a E1c ligar as paredes [E1c] |
+| K1.2.5 | Exceções ao diafragma: vigas "livres" desligadas do diafragma pelo usuário e paredes que não tocam nenhuma laje (desde a versão 2012.a). | Feito | — | vigas fora do diafragma (N1a); paredes que não tocam laje ficam fora do diafragma naquele nível (`paredeTocaLaje`, `ParedesNoPortico.foraDiafragma`, filtro do nível em `analitico.ts`; PAREDE_FORA_DIAFRAGMA) [E1c] |
 | K1.2.6 | Zonas independentes num mesmo pavimento são diafragmas separados, sem influência mútua; pilar não ligado a nada é zona independente. | Feito | — | zonas independentes são diafragmas separados; pilar isolado fica sem diafragma (N1c) |
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
@@ -132,12 +132,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Feito | — | tipo = lados (segmentos do eixo) com espessura à esquerda e à direita; mesma planta em toda a altura, espessura por pavimento (`LadoPilarParede.porPavimento`), `nasce`/`morre` por pavimento [E1b] |
 | K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Feito | — | lado ≥ `pilarParedeLimite` (5) × espessura vira casca de 6 nós; o mais curto, barra (PPAREDE_LADO_CURTO, informação) (`pilarParede.ts`, `geometriaParedes`) [E1b] |
 | K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Feito | — | viga fictícia de altura `pilarParedeVigaAltura` (25 cm) no topo de cada nível e fatias do topo como apoios da grelha para vigas e lajes em qualquer posição (`pilarParedeModelo.ts`, `incluirParedes`; premissa e1b-ligacao a confirmar) [E1b] |
-| K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Falta | E | paredes de concreto e de alvenaria estrutural [E1c] |
-| K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Falta | E | paredes (regra de esbeltez) [E1c] |
-| K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Falta | E | paredes (ligação com vigas e lajes) [E1c] |
+| K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Parcial | E | paredes de concreto: polilinha (trechos retos = retângulos), espessura média esq./dir. por pavimento (`Parede.porPavimento`); a planta dos trechos é a mesma em todos os pavimentos (lance outra parede para mudar); falta alvenaria e blocos [E1e] |
+| K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Feito | — | trecho com comprimento < `pilarParedeLimite` × espessura vira barra, como no pilar-parede (`ladosDoPP`; PAREDE_TRECHO_CURTO) [E1c] |
+| K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Feito | — | linhas obrigatórias da malha nas chegadas de vigas, vértices de lajes e de outras paredes (`chegadasNoTrecho`) e nas bordas das aberturas; fatias do topo ligam vigas e lajes; paredes fecham panos (`panosDoGrupo` + `eixosDasParedes`) [E1c] |
 | K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Feito | — | casca espessa plana de 6 nós, 6 gdl por nó (`src/core/casca.ts`, `Casca3` no `fe3d`): membrana LST e placa de Mindlin com cortante por interpolação mista (Raviart-Thomas girado, família MITC); testes de membrana e placa, placa apoiada contra Mindlin e parede em balanço contra Timoshenko (N2b); paredes do edifício na E1 |
 | K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Feito | — | malha triangular própria (`src/core/geom/malhaTri.ts`): Delaunay restrita com contorno e aberturas preservados, pontos obrigatórios e refino à metade junto a cantos, aberturas e pontos; tamanho alvo `malhaCasca` (0,5 m, a confirmar); `paraT6` gera os nós dos meios (N2b) |
-| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Parcial | E | regra pronta no núcleo (`escravosVerticais` em `diafragma.ts`, teste com parede de cascas no `fe3d`, N2b); fecha quando a E1c ligar as paredes ao modelo [E1c] |
+| K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Feito | — | nós da parede no nível sem laje fora do diafragma (`foraDiafragma` em `pilarParedeModelo.ts`, `analitico.ts`); teste das duas paredes no Térreo em `paredes.test.ts` [E1c] |
 | K1.3.37 | Escadas: elementos finitos triangulares de casca espessa nos lances inclinados e patamares. | Falta | E | escadas [E4c] |
 | K1.3.38 | Escadas: apoios inicial e final simulados como laje por viga de rigidez elevada; apoios intermediários por apoios elásticos (alvenaria ou tirantes). | Falta | E | escadas (apoios) [E4c] |
 | K1.3.39 | Escadas: só casos gravitacionais (permanente e variável). | Falta | E | escadas (casos) [E4c] |
@@ -432,8 +432,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.41 | Rótulas nos extremos de qualquer trecho de viga (com pilares, pilares-parede ou outras vigas). | Feito | — | `Viga.articulacoes` aceita ids de vigas cruzadas (`vincularPontas` em analitico.ts; validação em commands/vigas.ts; caixa “cruzamento com V…” em Vinculos.tsx); N2e |
 | K1.9.42 | Viga de fundação exige coeficiente de reação e tensão admissível do solo. | Feito | — | viga sobre base elástica com k e σadm próprios ou os padrões (opção `radierK`, σadm do terreno); comandos `vigaElastica.*` (`src/core/building/baseElastica.ts`, `src/core/commands/baseElastica.ts`) |
 | K1.9.43 | Vigas mistas remetidas a capítulo próprio. | Fora | — | vigas mistas |
-| K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Falta | E | paredes de concreto e de alvenaria portante (alvenaria só como carga) [E1c] |
-| K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Falta | E | paredes (pavimentos e espessuras) [E1c] |
+| K1.9.44 | Paredes de concreto (com ou sem empuxo) e de alvenaria (recebem carga vertical, sem empuxo lateral). | Parcial | E | paredes de concreto com ou sem empuxo (terra e líquido, `pressoesDaParede`); falta a alvenaria portante [E1e] |
+| K1.9.45 | Paredes: pavimentos inicial e final; espessura média por pavimento (esquerda/direita). | Feito | — | `Parede.nasce/morre` e espessura média por pavimento à esquerda/direita (`porPavimento`) [E1c] |
 | K1.9.46 | Empuxo (paredes de subsolo): caso de empuxo, densidade aparente, densidade submersa, ângulo de talude natural, ângulo de atrito interno, sobrecarga no terreno. | Parcial | E | N2a: tipo de empuxo com estratos (peso aparente e submerso, φ), K0/Rankine/Coulomb com talude, NA, drenagem e sobrecarga, diagrama de pressões; aplicação às paredes de subsolo na E1c |
 | K1.9.47 | Base da parede: viga de fundação (sem vínculo externo), sapata corrida (sem vínculo externo), com vínculo externo (com ou sem sapata), viga sem vínculo externo. | Falta | FU | base da parede (viga, sapata corrida) |
 | K1.9.48 | Sapata da parede: tensão admissível e coeficiente de reação; padrão alto 100 000 kN/m³ para evitar recalque diferencial com pilares de vinculação externa. | Parcial | FU | FU7a: a sapata corrida tem σadm própria e, sob pilares, k próprio (padrão `radierK` = 100 000 kN/m³, a confirmar); a sapata corrida do muro lançado e o recalque compatível com pilares de vínculo externo ficam para a FU7b (E1) |
@@ -499,7 +499,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.104 | Vigas chatas entre duas aberturas ou abertura e contorno, sem laje lateral, ficam sem altura: trocar por viga alta com dimensões. | Fora | — | regra interna de vigas chatas |
 | K1.9.105 | Blocos de menor altura ao lado de abertura são desconsiderados, com aviso de dado incorreto. | Fora | — | regra interna de nervuradas |
 | K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Feito | — | aviso DIAFRAGMA_ABERTURA (`aberturasDiafragma` em `diafragma.ts`, na verificação de lançamento): zona fechada por vigas com abertura interna acima de `aberturaDiafragma` (33 % da área, a confirmar) ou pavimento com aberturas acima do limite, sugerindo vigas fora do diafragma (N1a) (N2b) |
-| K1.9.107 | Paredes de subsolo com empuxo e panos de vigotas paralelos à parede: rigidez deve garantir diafragma (enchimento de concreto e detalhes), não feito automaticamente. | Falta | E | paredes com empuxo e diafragma [E1c] |
+| K1.9.107 | Paredes de subsolo com empuxo e panos de vigotas paralelos à parede: rigidez deve garantir diafragma (enchimento de concreto e detalhes), não feito automaticamente. | Feito | — | aviso PAREDE_EMPUXO_DIAFRAGMA: parede com empuxo e laje treliçada com vigotas a menos de 15° encostada nela (`diagnosticosParedes`) [E1c] |
 | K1.9.108 | Versões < 2012.a: vigas livres perpendiculares à parede junto a vazios devem virar vigas inclinadas para dimensionar à flexo-compressão (vigas e lajes comuns só à flexão simples); ≥ 2012.a ver capítulo de diafragma rígido. | Fora | — | versões antigas do outro programa |
 | K1.9.109 | Estruturas 3D integradas podem ligar zonas independentes. | Fora | — | estruturas 3D integradas |
 | | **Fundações (na entrada de lajes)** | | | |
@@ -941,3 +941,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1b (pilar-parede).** K1.3.28, K1.3.29, K1.3.30, K1.9.34 e K1.9.35 passam a Feito; K1.3.59, K1.4.30 e K1.12.21 ficam Parcial (apoio longitudinal só nas pontas da viga, E × `axialPilares` também na flexão da casca, vão de cálculo sem o limite pela distância entre eixos). Validação: parede em balanço contra a viga de Timoshenko (2 %), pilar-parede em L contra o OpenSees (`validation/opensees/pilar_parede.py`, 1 % com malha de 1 m e 0,1–0,5 % com 0,5 m), lado em barra contra o pilar comum (0,1 %) e equilíbrio vertical da base. A malha padrão das cascas passou de 0,5 para 1 m (a banda do diafragma custava ~30 s numa parede de 4 × 14 m).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 5 itens (manual de cálculo).
+- **22/10/2026 — fatia E1c, núcleo (paredes de concreto e empuxo aplicado).** K1.2.5, K1.3.32, K1.3.33, K1.3.36, K1.9.45 e K1.9.107 passam a Feito: `Parede` em `src/core/building/types.ts`, `paredesBase.ts` (parede como pilar-parede virtual, aberturas, pressões de empuxo, chegadas de vigas e lajes, toque na laje), `paredes.ts` (diagnósticos PAREDE_*), malha com linhas obrigatórias e furos em `pilarParede.ts`, empuxo nas cascas e nós fora do diafragma em `pilarParedeModelo.ts`/`analitico.ts`; K1.1.3, K1.3.31 e K1.9.44 seguem Parcial (alvenaria estrutural na E1e).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 6 itens (manual de cálculo).
