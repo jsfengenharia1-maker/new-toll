@@ -118,6 +118,18 @@ export const SUGESTOES: Record<string, string> = {
   FUND_CINTA_ERRO: 'Corrija as pontas da cinta (elemento e corrida) e a alavanca; reveja as posições.',
   FUND_CINTA_OBLIQUA: 'Posicione a cinta na normal da corrida para evitar excentricidade fora do plano.',
   FUND_CINTA_ESPACAMENTO: 'Reduza o espaçamento das cintas ou aumente o balanço permitido nas opções.',
+  // paredes (E1c)
+  PAREDE_GEOMETRIA: 'Corrija a polilinha (2 vértices ou mais, trechos de 5 cm ou mais) e a espessura (5 cm ou mais) da parede.',
+  PAREDE_SEM_LANCE: 'Faça a parede morrer acima do pavimento em que nasce (pavimentos inicial e final).',
+  PAREDE_ABERTURA: 'Ajuste a posição, a largura ou a altura da abertura: num só trecho, dentro da parede e com lintel até o topo do lance; lance-a no pavimento de baixo.',
+  PAREDE_ABERTURA_BARRA: 'O trecho é curto e foi tratado como pilar: alongue o trecho ou retire a abertura, que não entra no modelo.',
+  PAREDE_SOBREPOSTA: 'Separe as paredes ou una-as numa só polilinha; paredes que se cruzam devem se encontrar pelos eixos (canto, T ou cruz).',
+  PAREDE_PILAR: 'Termine a parede na face do pilar ou remova o pilar: a parte comum entra duas vezes na rigidez e no peso.',
+  PAREDE_EMPUXO: 'Escolha um caso H com tipo de empuxo de terra, ou informe o empuxo de líquido (cota da superfície e γ).',
+  PAREDE_EMPUXO_DIAFRAGMA: 'Detalhe faixa maciça ou enchimento de concreto junto à parede (ou gire as vigotas) para o diafragma transmitir o empuxo; o modelo não faz isso sozinho.',
+  PAREDE_FORA_DIAFRAGMA: 'Informativo: a parede não toca laje neste nível e não segue o diafragma rígido; lance uma laje ou viga que a trave se for o caso.',
+  PAREDE_TRECHO_CURTO: 'Informativo: o trecho foi tratado como pilar (barra); alongue-o para modelá-lo em casca, se preferir.',
+  VIGA_EMBUTIDA: 'Coloque a viga sobre o eixo da parede ou desfaça a marcação de embutida.',
   // obra
   COMB_USUARIO: 'Confira cada combinação do usuário: o fator abaixo da norma é responsabilidade do projetista.',
   EQU_TOMBAMENTO: 'Aumente o peso estabilizante (largura da base, lastro) ou reduza o vento; o momento estabilizante é menor que o instabilizante.',

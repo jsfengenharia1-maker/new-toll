@@ -2,6 +2,7 @@
 // alvenaria a partir das paredes da máscara e diagnósticos de lajes e cargas.
 import { geometriaViga, mascaraParaMundo, type BuildingModel, type Laje, type TipoLaje } from './types';
 import type { Diagnostico } from './verify';
+import { eixosDasParedes } from './paredesBase';
 import { areaPoligono, dentroPoligono, faces, pontoInterno, type P } from '../geom/faces';
 
 /**
@@ -76,7 +77,8 @@ export function eixosDasVigas(b: BuildingModel, grupo: string): [P, P][] {
 
 /** Panos (regiões fechadas) formados pelo eixo das vigas do grupo. */
 export function panosDoGrupo(b: BuildingModel, grupo: string): P[][] {
-  return faces(eixosDasVigas(b, grupo), { tol: 0.01, areaMin: 0.05 });
+  // paredes de concreto (E1c) também fecham panos
+  return faces(b.paredes?.length ? [...eixosDasVigas(b, grupo), ...eixosDasParedes(b, grupo)] : eixosDasVigas(b, grupo), { tol: 0.01, areaMin: 0.05 });
 }
 
 export const areaLaje = (l: Pick<Laje, 'contorno' | 'furos'>) => Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);

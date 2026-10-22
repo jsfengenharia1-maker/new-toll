@@ -4,6 +4,7 @@
 import type { AnaliseEdificio } from './analitico';
 import { combinacoesDoEstado } from './combinacoes';
 import { ladosDoPP, lancesDoPP, tipoDoPilarParede } from './pilarParede';
+import { ppDaParede } from './paredesBase';
 import { cotaFundacao, pavimentosOrdenados, type BuildingModel } from './types';
 
 /** Resultante num lado e pavimento (kN, kN·m; N > 0 tração). Lado em casca: média sobre a altura do painel; em barra: extremo do lance. */
@@ -51,16 +52,17 @@ const vazio = (): Resultante => ({ N: 0, Vp: 0, Mp: 0, Vo: 0, Mo: 0 });
 const GRANDEZAS: (keyof Resultante)[] = ['N', 'Vp', 'Mp', 'Vo', 'Mo'];
 
 /** Esforços resultantes dos pilares-parede (vazio se a obra não tem nenhum ou a análise não os tem). */
-export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, porCasoBarra: PorCaso): ResultadoPilarParede[] {
+export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, porCasoBarra: PorCaso, quais: 'pilaresParede' | 'paredes' = 'pilaresParede'): ResultadoPilarParede[] {
   const pars = an.paredes;
-  if (!b.pilaresParede?.length || !an.portico.res) return [];
+  const alvos = quais === 'paredes' ? (b.paredes ?? []).map(ppDaParede) : b.pilaresParede ?? [];
+  if (!alvos.length || !an.portico.res) return [];
   const ps = pavimentosOrdenados(b), zf = cotaFundacao(b);
   const resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
   const nomesV = an.vento?.casos.map((c) => c.nome) ?? [];
   const casosAn = an.casos;
   const elu = combinacoesDoEstado(b, an, 'concreto').filter((c) => c.tipo === 'ELU');
   const out: ResultadoPilarParede[] = [];
-  for (const pp of b.pilaresParede) {
+  for (const pp of alvos) {
     const tipo = tipoDoPilarParede(b, pp), lances = lancesDoPP(b, pp);
     if (!tipo || !lances.length) continue;
     const lados = ladosDoPP(b, pp), lista: EsforcosLado[] = [];

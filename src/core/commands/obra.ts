@@ -420,6 +420,22 @@ registrar<{ id: string }>({
       });
       if (!d.pilaresParede.length) delete d.pilaresParede;
     }
+    // paredes (E1c): mesma regra; espessuras próprias e aberturas do pavimento removido somem
+    if (d.paredes) {
+      d.paredes = d.paredes.filter((q) => {
+        if (q.nasce === p.id) q.nasce = abaixo;
+        if (q.morre === p.id) {
+          if (abaixo === 'fundacao' || abaixo === q.nasce) { removidos.push(q.nome); return false; }
+          q.morre = abaixo;
+        }
+        if (q.porPavimento) { q.porPavimento = q.porPavimento.filter((e) => e.pavimento !== p.id); if (!q.porPavimento.length) delete q.porPavimento; }
+        if (q.aberturas) { q.aberturas = q.aberturas.filter((a) => a.pavimento !== p.id); if (!q.aberturas.length) delete q.aberturas; }
+        return true;
+      });
+      const ids = new Set(d.paredes.map((q) => q.id));
+      for (const v of d.vigas) if (v.embutida && !ids.has(v.embutida)) delete v.embutida;
+      if (!d.paredes.length) delete d.paredes;
+    }
     for (const t of d.tiposPilarParede ?? []) for (const l of t.lados) if (l.porPavimento) { l.porPavimento = l.porPavimento.filter((e) => e.pavimento !== p.id); if (!l.porPavimento.length) delete l.porPavimento; }
     return `Pavimento “${x.nome}” removido${removidos.length ? `; pilares sem lance removidos: ${removidos.join(', ')}` : ''}.`;
   },

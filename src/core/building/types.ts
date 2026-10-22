@@ -219,6 +219,57 @@ export interface PilarParede {
   vinculoBase?: 'engaste' | 'rotula';
 }
 
+/**
+ * Abertura (porta ou janela) numa parede (E1c, C5.9, C5.10): posição ao longo do eixo (distância `s` do primeiro vértice
+ * da polilinha até a borda inicial, m), largura, peitoril (a partir da base do lance) e altura. Lançada no pavimento de
+ * baixo dos dois entre os quais fica: `pavimento` = 'fundacao' ou id do pavimento da base do lance.
+ */
+export interface AberturaParede {
+  id: string;
+  tipo: 'porta' | 'janela';
+  s: number; largura: number; peitoril: number; altura: number;
+  pavimento: string;
+}
+/**
+ * Empuxo aplicado à parede (E1c, C5.2, K1.9.107; X5): caso de carga, lado do terreno (ou do líquido) e a fonte da pressão:
+ * terra pelo tipo de empuxo do caso (H) com a cota do terreno própria, ou líquido (pressão hidrostática γ·(cota − z)).
+ */
+export interface EmpuxoParede {
+  /** Id do caso de carga (H com `empuxo` = tipo de empuxo de terra; ou qualquer caso para o líquido). */
+  caso: string;
+  /** Lado do eixo (a → z) em que está o terreno ou o líquido; a pressão empurra a parede para o outro lado. */
+  lado: 'esq' | 'dir';
+  /** Cota do terreno junto à parede (m); ausente = a cota do aterro do tipo de empuxo. */
+  cotaTerreno?: number;
+  /** Líquido (reservatório, X5): cota da superfície (m) e peso específico (kN/m³, padrão 10). */
+  liquido?: { cota: number; gama?: number };
+}
+/**
+ * Parede estrutural (E1c; K1.1.3, K1.3.31, K1.9.44, K1.9.45, C5.2): polilinha do eixo em planta, espessura à esquerda e à
+ * direita do eixo (média por pavimento em `porPavimento`, pelo topo do lance), pavimentos inicial e final, aberturas,
+ * empuxo, vínculo externo da base e dados da base para a fundação (FU7b). Cada trecho reto com comprimento ≥
+ * `pilarParedeLimite` × a espessura vira casca; o mais curto, pilar (barra), como no pilar-parede.
+ */
+export interface Parede {
+  id: string; nome: string;
+  /** Concreto aqui; alvenaria estrutural e blocos na E1e. */
+  tipo: 'concreto';
+  /** Polilinha do eixo (m), 2 ou mais vértices. */
+  pontos: [number, number][];
+  esq: number; dir: number;
+  porPavimento?: { pavimento: string; esq: number; dir: number }[];
+  /** 'fundacao' ou id do pavimento em cuja laje a parede nasce. */
+  nasce: string;
+  morre: string;
+  vinculoBase?: 'engaste' | 'rotula';
+  aberturas?: AberturaParede[];
+  empuxos?: EmpuxoParede[];
+  /** Armar a parede (padrão) ou só verificar como concreto simples (E1d). */
+  armar?: boolean;
+  /** Base da parede para a fundação (FU7b): apoio direto (padrão) ou sapata corrida com largura e altura próprias. */
+  base?: { tipo: 'apoio' | 'sapataCorrida'; largura?: number; altura?: number };
+}
+
 /** Vínculo externo da base do pilar (N2c). */
 export interface VinculoBasePilar {
   tipo: 'engaste' | 'rotula' | 'molas';
@@ -327,6 +378,8 @@ export interface Viga {
   tabelaEstribo?: string;
   /** Detalhamento editado (comprimentos, ganchos, posições, zonas de estribos; R7b). */
   detalhe?: DetalheEditado;
+  /** Viga embutida ou de coroamento (E1c, C5.23): id da parede sobre a qual corre; é movida e removida junto com ela. */
+  embutida?: string;
 }
 
 export type TipoLaje =
@@ -583,6 +636,8 @@ export interface BuildingModel {
   tiposPilarParede?: TipoPilarParede[];
   /** Pilares-parede lançados (E1b); cada lado vira casca (lado ≥ 5 × a espessura) ou barra. */
   pilaresParede?: PilarParede[];
+  /** Paredes de concreto (E1c), com ou sem empuxo; cascas como o pilar-parede. */
+  paredes?: Parede[];
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */

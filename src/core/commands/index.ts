@@ -15,6 +15,7 @@ import './corrida';
 import './edicao';
 import './pilarParede';
 import './flechas';
+import './paredes';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';
