@@ -8,7 +8,7 @@ import { sugestaoDe } from './sugestoes';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;

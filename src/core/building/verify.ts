@@ -6,6 +6,7 @@ import { diagnosticosTransicao } from './transicao';
 import { diagnosticosVigas } from './vigas';
 import { diagnosticosLajes } from './lajes';
 import { aberturasDiafragma } from './diafragma';
+import { diagnosticosPilaresParede } from './pilarParede';
 
 export type Severidade = 'erro' | 'aviso' | 'info';
 
@@ -109,7 +110,7 @@ export function verificar(b: BuildingModel): Diagnostico[] {
   for (const [n, ids] of nomes) if (ids.length > 1) d.push({ codigo: 'EIXO_NOME_DUPLICADO', severidade: 'aviso', elementos: ids, mensagem: `Há ${ids.length} eixos com o nome “${n}”.` });
 
   d.push(...mascarasDesalinhadas(b));
-  d.push(...diagnosticosPilares(b), ...diagnosticosTransicao(b), ...diagnosticosVigas(b), ...diagnosticosLajes(b), ...aberturasDiafragma(b));
+  d.push(...diagnosticosPilares(b), ...diagnosticosTransicao(b), ...diagnosticosVigas(b), ...diagnosticosLajes(b), ...aberturasDiafragma(b), ...diagnosticosPilaresParede(b));
   return d;
 }
 

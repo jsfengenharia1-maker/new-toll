@@ -10,6 +10,8 @@ import type { OpcoesCalculo } from './opcoes';
 import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Viga, contornoNoLance } from './types';
 import { fracaoPassante } from './tabelasArmadura';
 import { vaosDaViga, vigaTocaPilar } from './vigas';
+import { ehVirtual, todosPilares } from './pilarParede';
+import { opcoesEmUso, perfilDe } from './opcoes';
 
 export type FaceBarra = 'inf' | 'sup' | 'pele';
 export interface BarraViga {
@@ -101,17 +103,39 @@ function abscissa(pts: [number, number][], P: [number, number]): { s: number; d:
   return { s, d: melhor };
 }
 
-/** Apoios em pilares ao longo da viga (faces em abscissa), no primeiro pavimento do grupo. */
-export function apoiosDaViga(b: BuildingModel, v: Viga): { s0: number; s1: number; pilar: string }[] {
+/** Apoio da viga: faces em abscissa; `corta` = apoio de pilar-parede ou parede de contato longo, cortado a `(prolongamento + barras) × h` da face do vão. */
+export interface ApoioViga { s0: number; s1: number; pilar: string; corta?: 'ini' | 'fim' }
+
+/**
+ * Apoios em pilares ao longo da viga (faces em abscissa), no primeiro pavimento do grupo. Os lados dos pilares-parede
+ * (E1b) apoiam como pilares; o apoio longitudinal nas pontas da viga (K1.3.59, K1.12.21) é cortado no comprimento em que
+ * o diagrama e a armadura prosseguem sobre a parede (prolongamento + extensão das barras, em múltiplos de h).
+ */
+export function apoiosDaViga(b: BuildingModel, v: Viga): ApoioViga[] {
   const pav = pavimentosDoGrupo(b, v.grupo)[0];
   if (!pav) return [];
-  const out: { s0: number; s1: number; pilar: string }[] = [];
-  for (const p of b.pilares) {
+  const out: ApoioViga[] = [];
+  for (const p of todosPilares(b)) {
     if (!lancesDoPilar(b, p).some((x) => x.id === pav.id) || !vigaTocaPilar(v, p, pav.id)) continue;
     const ss = contornoNoLance(p, pav.id).map((q) => abscissa(v.pontos, q).s);
     out.push({ s0: Math.min(...ss), s1: Math.max(...ss), pilar: p.id });
   }
-  return out.sort((a, z) => a.s0 - z.s0);
+  out.sort((a, z) => a.s0 - z.s0);
+  if (out.length > 1 && todosPilares(b) !== b.pilares) {
+    const op = opcoesEmUso(b.opcoes, perfilDe(b)), lim = (op.vigaApoioLongProlong + op.vigaApoioLongBarras) * v.secao.h;
+    const virt = new Set(todosPilares(b).filter(ehVirtual).map((p) => p.id));
+    const a0 = out[0], a1 = out[out.length - 1];
+    if (virt.has(a0.pilar) && a0.s1 - a0.s0 > lim + 1e-9) { a0.s0 = a0.s1 - lim; a0.corta = 'ini'; }
+    if (virt.has(a1.pilar) && a1.s1 - a1.s0 > lim + 1e-9) { a1.s1 = a1.s0 + lim; a1.corta = 'fim'; }
+  }
+  return out;
+}
+
+/** Extensão ao longo do traçado em que a armadura corre: do traçado e dos apoios (parede cortada: até o corte). */
+export function extensaoDaViga(v: Viga, apoios: ApoioViga[]): [number, number] {
+  const L = comprimentoTraco(v.pontos);
+  const ini = apoios.find((a) => a.corta === 'ini'), fim = apoios.find((a) => a.corta === 'fim');
+  return [ini ? ini.s0 : Math.min(0, ...apoios.map((x) => x.s0)), fim ? fim.s1 : Math.max(L, ...apoios.map((x) => x.s1))];
 }
 
 const arred = (x: number, passo: number) => Math.ceil(x / passo - 1e-9) * passo;
@@ -209,7 +233,7 @@ export function resolverTramos(b: BuildingModel, dim: Dimensionamento, op: Opcoe
     const juntas = lig.map((l, i) => ({ a: sDe(vv[i], l.ponto), z: sDe(vv[i + 1], l.ponto), extA: l.extA, extZ: l.extZ }));
     let total = 0;
     vv.forEach((v, i) => {
-      const ap = apoiosDaViga(b, v), e0 = Math.min(0, ...ap.map((x) => x.s0)), e1 = Math.max(comprimentoTraco(v.pontos), ...ap.map((x) => x.s1));
+      const ap = apoiosDaViga(b, v), [e0, e1] = extensaoDaViga(v, ap);
       const ini = i === 0 ? (juntas[0].extA === 'ini' ? e1 : e0) : juntas[i - 1].z;
       const fim = i === vv.length - 1 ? (juntas[i - 1].extZ === 'ini' ? e1 : e0) : juntas[i].a;
       total += Math.abs(fim - ini);
@@ -234,8 +258,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const dI = h - cob.inf - phiT / 1000 - 0.008, dS = h - cob.sup - phiT / 1000 - 0.008, d = Math.min(dI, dS);
   const avisos: string[] = [];
   const apoios = apoiosDaViga(b, v);
-  const L = comprimentoTraco(v.pontos);
-  const ext: [number, number] = [Math.min(0, ...apoios.map((a) => a.s0)), Math.max(L, ...apoios.map((a) => a.s1))];
+  const ext = extensaoDaViga(v, apoios);
   const c0 = ext[0] + cob.lat, c1 = ext[1] - cob.lat; // pontas das barras (cobrimento na ponta)
   // detalhe editado: vale enquanto o número de vãos não mudou
   const edit = v.detalhe && v.detalhe.vaos === vaosDaViga(b, v) ? v.detalhe : undefined;

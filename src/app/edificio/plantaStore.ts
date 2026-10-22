@@ -5,7 +5,7 @@ import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import { cssVar } from '../design/tokens';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -48,7 +48,7 @@ interface PState {
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
-  janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao'; id: string; pavimento?: string } | null;
+  janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede'; id: string; pavimento?: string } | null;
   /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
   foco: { id: string; n: number } | null;
   /** Pedido de abrir o grupo Tabelas de armadura numa tabela (atalho da lista de erros; não vai para o arquivo). */
@@ -79,6 +79,10 @@ interface PState {
   secao: { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
   ajuste: Ajuste;
   angulo: number;
+  /** Ferramenta Pilar-parede (E1b): tipo, ângulo (graus) e os demais parâmetros do lançamento (nasce, morre, base). */
+  ppTipo: string | null;
+  ppAngulo: number;
+  ppParams: Record<string, unknown> | null;
   alinharEscala: boolean;
   secaoViga: { b: number; h: number };
   alinhamento: Alinhamento;
@@ -150,6 +154,9 @@ export const usePlanta = create<PState>((set) => ({
   secao: { tipo: 'ret', b: 0.2, h: 0.4 },
   ajuste: 'c',
   angulo: 0,
+  ppTipo: null,
+  ppAngulo: 0,
+  ppParams: null,
   alinharEscala: false,
   secaoViga: { b: 0.15, h: 0.4 },
   alinhamento: 'centro',

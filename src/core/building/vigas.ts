@@ -5,6 +5,7 @@ import {
 } from './types';
 import type { Diagnostico } from './verify';
 import { sobrepoe } from '../geom/poly';
+import { ehVirtual, todosPilares } from './pilarParede';
 
 type P = [number, number];
 const fmt = (v: number) => String(+v.toFixed(3)).replace('.', ',');
@@ -16,7 +17,7 @@ export const TOL_FACE = 0.05;
 export const vigasDoGrupo = (b: BuildingModel, grupo: string) => b.vigas.filter((v) => v.grupo === grupo);
 
 /** Pilares que chegam ao pavimento (lance com topo nele): apoiam as vigas desse pavimento. */
-export const pilaresQueChegam = (b: BuildingModel, pav: string) => b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav));
+export const pilaresQueChegam = (b: BuildingModel, pav: string) => todosPilares(b).filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav));
 
 export function vigaTocaPilar(v: Viga, p: Pilar, pav: string): boolean {
   const c = contornoNoLance(p, pav);
@@ -169,7 +170,7 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
     if (vs.length) {
       const sem = new Map<string, string[]>();
       for (const pav of pavs)
-        for (const p of pilaresQueChegam(b, pav.id))
+        for (const p of pilaresQueChegam(b, pav.id).filter((q) => !ehVirtual(q)))
           if (!vs.some((v) => vigaTocaPilar(v, p, pav.id))) sem.set(p.id, [...(sem.get(p.id) ?? []), pav.nome]);
       for (const [id, nomes] of sem) d.push({ codigo: 'PILAR_SEM_VIGA', severidade: 'aviso', elementos: [id], mensagem: `${b.pilares.find((p) => p.id === id)!.nome} não recebe viga em ${nomes.join(', ')}.` });
     }

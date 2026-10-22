@@ -408,6 +408,19 @@ registrar<{ id: string }>({
       if (q.inicio && q.nasce === 'fundacao') delete q.inicio;
       return true;
     });
+    // pilares-parede (E1b): mesma regra; a espessura própria do pavimento removido some dos tipos
+    if (d.pilaresParede) {
+      d.pilaresParede = d.pilaresParede.filter((q) => {
+        if (q.nasce === p.id) q.nasce = abaixo;
+        if (q.morre === p.id) {
+          if (abaixo === 'fundacao' || abaixo === q.nasce) { removidos.push(q.nome); return false; }
+          q.morre = abaixo;
+        }
+        return true;
+      });
+      if (!d.pilaresParede.length) delete d.pilaresParede;
+    }
+    for (const t of d.tiposPilarParede ?? []) for (const l of t.lados) if (l.porPavimento) { l.porPavimento = l.porPavimento.filter((e) => e.pavimento !== p.id); if (!l.porPavimento.length) delete l.porPavimento; }
     return `Pavimento “${x.nome}” removido${removidos.length ? `; pilares sem lance removidos: ${removidos.join(', ')}` : ''}.`;
   },
 });

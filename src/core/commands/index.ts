@@ -13,6 +13,7 @@ import './fundacao';
 import './baseElastica';
 import './corrida';
 import './edicao';
+import './pilarParede';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';

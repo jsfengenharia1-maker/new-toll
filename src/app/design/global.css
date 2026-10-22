@@ -814,3 +814,12 @@ tr.sel td { background: var(--accent-soft); }
 .mapa-no.tracao { fill: none; stroke: var(--c-v); stroke-width: 2; }
 .mapa-leg { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
 .mapa-leg svg { vertical-align: middle; margin-right: 4px; }
+
+/* Pilar-parede (E1b): prévia do tipo em planta e tabela de lados */
+.pp-prev { width: 100%; max-height: 190px; margin-top: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; }
+.pp-prev .pp-lado { fill: var(--accent-soft); stroke: var(--member); stroke-width: 0.01; }
+.pp-prev .pp-lado.barra { fill: var(--surface); stroke: var(--warn); }
+.pp-prev .pp-eixo { stroke: var(--accent); stroke-width: 0.01; stroke-dasharray: 0.06 0.04; }
+.pp-prev .pp-ins { fill: var(--bad); }
+table.pp-lados td { padding: 1px 3px; }
+table.pp-lados tr[aria-selected="true"] { background: var(--accent-soft); }

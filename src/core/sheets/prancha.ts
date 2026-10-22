@@ -4,6 +4,7 @@
 import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { TRELICADAS } from '../building/lajes';
+import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
 
@@ -107,6 +108,14 @@ export interface OpcoesPrancha {
 const nf = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const cm = (v: number) => String(Math.round(v * 100));
 const secTxt = (s: SecaoPilar) => (s.tipo === 'ret' ? `${cm(s.b)}×${cm(s.h)}` : `ø${cm(s.d)}`);
+/** Seção do pilar-parede no quadro e no desenho: comprimento × espessura do maior lado (e quantos lados mais). */
+export function textoParede(b: BuildingModel, pp: { id: string }, lance: string): string {
+  const w = (b.pilaresParede ?? []).find((x) => x.id === pp.id);
+  const ls = w ? ladosDoPP(b, w) : [];
+  if (!ls.length) return '—';
+  const g = ls.reduce((m, l) => (l.L > m.L ? l : m), ls[0]);
+  return `${cm(g.L)}×${cm(g.esp(lance).t)}${ls.length > 1 ? ` +${ls.length - 1}` : ''}`;
+}
 
 /** Elementos do grupo no pavimento de referência (o primeiro do grupo). */
 function elementos(b: BuildingModel, grupo: string) {
@@ -116,7 +125,14 @@ function elementos(b: BuildingModel, grupo: string) {
   const chegam = ref ? b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === ref.id)) : [];
   const nascem = ref ? b.pilares.filter((p) => p.nasce === ref.id) : [];
   const eixos = b.eixos;
-  return { ps, pavs, ref, lajes, vigas, chegam, nascem, eixos };
+  // pilares-parede (E1b): um contorno por lado, no lance que chega ao pavimento de referência (ou no primeiro, se nasce nele)
+  const paredes = ref ? (b.pilaresParede ?? []).flatMap((pp) => {
+    const ls = lancesDoPP(b, pp), chega = ls.some((x) => x.id === ref.id);
+    if (!chega && pp.nasce !== ref.id) return [];
+    const lance = chega ? ref.id : ls[0]?.id;
+    return lance ? [{ pp, nasce: !chega, lance, lados: ladosDoPP(b, pp).map((g) => ({ g, contorno: contornoDoLado(g, lance) })) }] : [];
+  }) : [];
+  return { ps, pavs, ref, lajes, vigas, chegam, nascem, eixos, paredes };
 }
 
 /** Seção e contorno da base do pilar (primeiro lance, com a geometria própria dele): o desenho dos pilares que nascem no pavimento. */
@@ -223,6 +239,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   const geo: P[] = [
     ...el.lajes.flatMap((l) => l.contorno), ...el.vigas.flatMap((v) => v.pontos),
     ...el.chegam.flatMap((p) => contornoNoLance(p, el.ref!.id)), ...el.nascem.flatMap((p) => contornoBase(b, p)),
+    ...el.paredes.flatMap((w) => w.lados.flatMap((l) => l.contorno)),
   ];
   if (!geo.length) avisos.push('Grupo sem elementos lançados.');
   const [gx0, gy0, gx1, gy1] = caixa(geo.length ? geo : [[0, 0], [1, 1]]);
@@ -255,7 +272,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     }
   }
   // corpos que interrompem as faces das vigas: pilares e as outras vigas (cruzamentos e apoios em "T")
-  const corposPilar = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p))];
+  const corposPilar = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p)), ...el.paredes.flatMap((w) => w.lados.map((l) => l.contorno))];
   const corpoViga = new Map(el.vigas.map((v) => { const gv = geometriaViga(v); return [v.id, [...gv.esq, ...[...gv.dir].reverse()] as P[]]; }));
   for (const v of el.vigas) {
     const gv = geometriaViga(v);
@@ -292,11 +309,18 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: c, fechada: true });
     rotPilar(p, secaoBase(b, p), c);
   }
+  // pilares-parede: contorno de cada lado (hachura nos que chegam, tracejado nos que nascem) e o nome com a espessura
+  for (const w of el.paredes) {
+    for (const l of w.lados) modelo.push(...(w.nasce ? [] : [{ t: 'hach' as const, c: 'PILAR-HACH' as const, pts: l.contorno }]), { t: 'pl', c: w.nasce ? 'PILAR-NASCE' : 'PILAR', pts: l.contorno, fechada: true });
+    const [, , x1, y1] = caixa(w.lados.flatMap((l) => l.contorno));
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: w.pp.nome, av: 'base' });
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: textoParede(b, w.pp, w.lance), av: 'topo' });
+  }
   // opções de desenho (R7g): gabarito do pavimento e ponto fixo dos pilares (padrão desligadas)
   const opc = { ...ARMACAO_PADRAO, ...(cfg.armacao ?? {}) };
   if (opc.mascara) modelo.unshift(...primitivasMascara(b, grupo));
   if (opc.pontoFixo) modelo.push(...marcasPontoFixo([...el.chegam, ...el.nascem], k));
-  const centros = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
+  const centros = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p)), ...el.paredes.map((w) => w.lados.flatMap((l) => l.contorno))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, el.eixos, centros, [gx0, gy0, gx1, gy1], k);
 
   // ---------- espaço do papel ----------
@@ -306,8 +330,11 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   const { x0: fx0, y0: fy0, x1: fx1, y1: fy1 } = fc.moldura, hLeg = fc.hLeg, lx1 = fx1;
   void fx0;
   // quadro de pilares acima da legenda (colunas para a esquerda quando não cabe)
-  const todos = [...el.chegam, ...el.nascem.filter((p) => !el.chegam.includes(p))].sort((a, z) => a.nome.localeCompare(z.nome, 'pt-BR', { numeric: true }));
-  const nomePav = (id: string) => (id === 'fundacao' ? 'Fundação' : el.ps.find((x) => x.id === id)?.nome ?? id);
+  const nomePav0 = (id: string) => (id === 'fundacao' ? 'Fundação' : el.ps.find((x) => x.id === id)?.nome ?? id);
+  const todos = [
+    ...[...el.chegam, ...el.nascem.filter((p) => !el.chegam.includes(p))].map((p) => ({ nome: p.nome, vals: [p.nome, secTxt(ref && lancesDoPilar(b, p).some((x2) => x2.id === ref.id) ? secaoNoLance(p, ref.id) : p.secao), nomePav0(p.nasce), nomePav0(p.morre), (ref && o.armaduras?.[`${p.id}|${ref.id}`]) || '—'] })),
+    ...el.paredes.map((w) => ({ nome: w.pp.nome, vals: [w.pp.nome, textoParede(b, w.pp, w.lance), nomePav0(w.pp.nasce), nomePav0(w.pp.morre), '—'] })),
+  ].sort((a, z) => a.nome.localeCompare(z.nome, 'pt-BR', { numeric: true }));
   const colsQ = [{ w: 22, rot: 'PILAR' }, { w: 30, rot: 'SEÇÃO (cm)' }, { w: 38, rot: 'NASCE' }, { w: 38, rot: 'MORRE' }, { w: 50, rot: 'ARMADURA' }];
   const hl = 5, qy1 = fy1 - 2, qy0 = fy0 + hLeg + 6;
   const porCol = Math.max(1, Math.floor((qy1 - qy0 - 2 * hl) / hl));
@@ -324,9 +351,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     yy -= hl; papel.push({ t: 'pl', c: 'QUADRO', pts: [[qx0, yy], [qx1, yy]] });
     x = qx0;
     for (const c of colsQ.slice(0, -1)) { x += c.w; papel.push({ t: 'pl', c: 'QUADRO', pts: [[x, yy + hl], [x, yy - hl * fatia.length]] }); }
-    for (const p of fatia) {
-      const s = ref && lancesDoPilar(b, p).some((x2) => x2.id === ref.id) ? secaoNoLance(p, ref.id) : p.secao;
-      const vals = [p.nome, secTxt(s), nomePav(p.nasce), nomePav(p.morre), (ref && o.armaduras?.[`${p.id}|${ref.id}`]) || '—'];
+    for (const { vals } of fatia) {
       x = qx0;
       vals.forEach((v, i) => { papel.push(txt('QUADRO', x + colsQ[i].w / 2, yy - hl / 2, 2, v, 'c', 'meio')); x += colsQ[i].w; });
       yy -= hl;
