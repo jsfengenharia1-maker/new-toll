@@ -157,7 +157,8 @@ export const useBuilding = create<BState>((set, get) => {
       const s = new Sessao(edificioVazio());
       const r = s.executar('obra.importarArranques', { nome, resultado }, 'usuario');
       if (!r.ok) { msg(r.erros.map((e) => e.mensagem).join(' ')); return r; }
-      atualizar(s); set({ ...semCalculo, versoesArquivo: [] }); lembrar(s, 'texto'); msg(r.mensagem ?? 'Obra criada.');
+      const g = s.executar('fundacao.gerar', {}, 'usuario');
+      atualizar(s); set({ ...semCalculo, versoesArquivo: [] }); lembrar(s, 'texto'); msg(`${r.mensagem ?? 'Obra criada.'}${g.ok ? '' : ` Fundações não geradas: ${g.erros.map((e) => e.mensagem).join(' ')}`}`);
       return r;
     },
     opcoesArquivo: { versoes: 0, resultados: false },
