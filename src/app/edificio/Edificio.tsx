@@ -32,6 +32,7 @@ import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
 import { CartaoParedes } from './ParedesUI';
 import { ParedesGrupo } from './ParedesUI';
+import { MurosGrupo } from './MurosUI';
 import { CasosGrupo } from './Casos';
 import { AbacosVentoGrupo } from './AbacosVento';
 import { EmpuxoGrupo } from './Empuxo';
@@ -112,6 +113,7 @@ export function Edificio() {
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
         <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
+        <MurosGrupo b={b} />
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />

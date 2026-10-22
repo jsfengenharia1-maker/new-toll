@@ -2,12 +2,16 @@
 // aberturas, empuxo, prolongamento e atribuição. Os dados e as regras estão em core/building (paredes, paredesBase)
 // e os comandos são parede.* (ver core/commands/paredes.ts).
 import { useState } from 'react';
-import { Button, Check, Group, Hint, NumField, OptNumField, Select, Seg } from '../ui';
+import { Button, Check, Group, Hint, NumField, OptNumField, Pill, Select, Seg } from '../ui';
 import { niveisDaParede } from '../../core/building/paredesBase';
 import type { EsforcosLado, Resultante } from '../../core/building/pilarParedeEsforcos';
 import { casosParaCarga, pavimentosOrdenados, type BuildingModel, type Parede } from '../../core/building/types';
 import { useBuilding } from './store';
 import { linhasParedes } from './paredesLista';
+import { ArmaduraDaParede } from './ArmaduraParedeUI';
+import { AberturasArmadura } from './AberturasArmaduraUI';
+import { IsovaloresParede } from './IsovaloresParede';
+import { resumoCartao } from '../../core/building/paredesLista';
 
 export { aberturasNaPlanta, linhasParedes } from './paredesLista';
 import { usePlanta } from './plantaStore';
@@ -182,6 +186,9 @@ export function JanelaParede({ id }: { id: string }) {
   return (
     <div data-janela-pw={id}>
       <p className="small">Parede de concreto · {r.nCascas} trecho(s) em casca e {r.ladosBarra} em barra. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
+      <ArmaduraDaParede id={id} tipo="parede" />
+      {w.aberturas?.length ? <AberturasArmadura id={id} /> : null}
+      <IsovaloresParede id={id} tipo="parede" />
       <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
       <table className="data quadro" data-pw-base>
         <thead><tr><th>Caso</th><th>N (kN)</th><th>Vx (kN)</th><th>Vy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>
@@ -210,7 +217,7 @@ export function JanelaParede({ id }: { id: string }) {
           </table>
         </>
       )}
-      <Hint>Lado em casca: médias sobre a altura do painel dos esforços de membrana e de placa. Lado em barra: extremo do lance. Tensões e armaduras na frente E1d.</Hint>
+      <Hint>Lado em casca: médias sobre a altura do painel dos esforços de membrana e de placa. Lado em barra: extremo do lance.</Hint>
     </div>
   );
 }
@@ -224,16 +231,21 @@ export function CartaoParedes({ onIr }: { onIr: (id: string) => void }) {
     <div className="card" data-pw-cartao>
       <h4>Paredes de concreto</h4>
       <table className="data quadro">
-        <thead><tr><th>Parede</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th /></tr></thead>
+        <thead><tr><th>Parede</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th>Armadura</th><th>Cumprimento mín.</th><th>Situação</th><th /></tr></thead>
         <tbody>
-          {lista.map((r) => (
+          {lista.map((r) => {
+            const a = dim?.armaduraParedes?.find((x) => x.id === r.id);
+            const rc = a ? resumoCartao(a) : null;
+            return (
             <tr key={r.id} data-id={r.id}>
               <td className="tl"><b>{r.nome}</b></td>
               <td className="tl">{r.modelo === 'casca' ? 'casca' : r.modelo === 'barra' ? 'barra' : `${r.nCascas} casca(s) + ${r.ladosBarra} barra(s)`}</td>
               <td className="num">{fmt(r.baseElu.Nmax, 1)}</td><td className="tl">{r.baseElu.cNmax}</td>
+              <td className="tl">{rc?.armadura ?? '—'}</td><td className="num">{rc?.cumprimentoMin ?? '—'}</td><td className="tl">{rc ? <Pill tone={rc.status === 'ok' ? 'ok' : 'bad'}>{rc.situacao}</Pill> : '—'}</td>
               <td><Button variant="ghost" onClick={() => onIr(r.id)}>planta</Button><Button variant="ghost" aria-label={`Resultados de ${r.nome}`} onClick={() => usePlanta.getState().set({ janela: { tipo: 'parede', id: r.id } })}>resultados</Button></td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

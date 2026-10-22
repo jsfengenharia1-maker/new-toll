@@ -417,7 +417,7 @@ const totalAco = (r: LinhaAco[]) => ({ comprimento: r.reduce((s, x) => s + x.com
 
 /** Resumo de aço e lista de barras (vigas, pilares e lajes; separador ";", vírgula decimal). */
 export function csvAco(dim: DimEdificio): string {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [], detsL = dim.detalhesLajes ?? [];
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resPar = dim.resumoAcoParedes ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], dets = dim.detalhes ?? [], detsP = dim.detalhesPilares ?? [], detsL = dim.detalhesLajes ?? [];
   const cab = (t: string, p: number) => [[t], ['Aço', 'φ (mm)', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(p, 1)} % (kg)`]];
   const tabela = (t: string, r: LinhaAco[]) => {
     const l = cab(t, perdasDoResumo(r)), tt = totalAco(r);
@@ -425,7 +425,7 @@ export function csvAco(dim: DimEdificio): string {
     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
     return l;
   };
-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo geral de aço (vigas, pilares, lajes e vigotas)', somarResumosAco(res, resP, resL, resV))];
+  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(res, resP, resPar, resL, resV))];
   if (dim.trelicas?.length) {
     lin.push(['Treliças eletrossoldadas por tipo'], ['Treliça', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
     for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
@@ -475,15 +475,16 @@ function TabelaAco({ titulo, res, marca }: { titulo: string; res: LinhaAco[]; ma
 }
 
 export function ResumoAco({ dim }: { dim: DimEdificio }) {
-  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], tre = dim.trelicas ?? [];
+  const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resPar = dim.resumoAcoParedes ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], tre = dim.trelicas ?? [];
   const telas = dim.resumoTelas ?? [];
-  if (!res.length && !resP.length && !resL.length && !resV.length && !telas.length) return null;
-  const perdas = perdasDoResumo(somarResumosAco(res, resP, resL, resV));
+  if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !telas.length) return null;
+  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV));
   return (
     <div className="card" data-resumo-aco>
       <h3>Resumo de aço</h3>
       <TabelaAco titulo="Vigas" res={res} marca="vigas" />
       <TabelaAco titulo="Pilares" res={resP} marca="pilares" />
+      {resPar.length > 0 && <TabelaAco titulo="Paredes e pilares-parede" res={resPar} marca="paredes" />}
       <TabelaAco titulo="Lajes maciças" res={resL} marca="lajes" />
       {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
       {tre.length > 0 && (
@@ -514,7 +515,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
           </div>
         </>
       )}
-      <TabelaAco titulo="Total geral (vigas, pilares, lajes e vigotas)" res={somarResumosAco(res, resP, resL, resV)} marca="geral" />
+      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes e vigotas)" res={somarResumosAco(res, resP, resPar, resL, resV)} marca="geral" />
       <div className="row wrap">
         <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
       </div>

@@ -224,13 +224,14 @@ export function Pranchas() {
           <Select label="Escala das lajes" value={arm.escalaLajes} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLajes, 'a das formas')} onChange={(e) => pa({ escalaLajes: e })} />
           <Select label="Escala da locação" value={arm.escalaLocacao} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLocacao, 'a das formas')} onChange={(e) => pa({ escalaLocacao: e })} />
           <Select label="Escala dos detalhes de fundação" value={arm.escalaFundacao} options={escalas([25, 50], arm.escalaFundacao)} onChange={(e) => pa({ escalaFundacao: e })} />
+          <Select label="Escala das elevações de paredes" value={arm.escalaParedes} options={escalas([20, 25, 40, 50, 75, 100], arm.escalaParedes)} onChange={(e) => pa({ escalaParedes: e })} />
         </div>
         <Check label="Lajes: positivas e negativas em folhas separadas" checked={arm.lajesSeparadas === 1} onChange={(v) => pa({ lajesSeparadas: v ? 1 : 0 })} />
         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
         <Check label={`Gabarito (máscara DXF/DWG) nas formas e nas lajes${b.mascaras.length ? '' : ' (sem máscara importada)'}`} checked={arm.mascara === 1} onChange={(v) => pa({ mascara: v ? 1 : 0 })} />
         <Check label="Ponto fixo dos pilares nas formas e nas lajes" checked={arm.pontoFixo === 1} onChange={(v) => pa({ pontoFixo: v ? 1 : 0 })} />
         <Hint>
-          Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
+          Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), paredes 1:{ARMACAO_PADRAO.escalaParedes}, lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
         </Hint>
       </Group>
       {!!dim?.detalhesLajes?.length && (

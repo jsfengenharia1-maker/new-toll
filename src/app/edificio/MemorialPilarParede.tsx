@@ -60,7 +60,7 @@ export function MemorialPilaresParede({ b, dim, h2 }: { b: BuildingModel; dim: D
             <thead><tr><th className="l">Lado</th><th className="l">Pavimento</th><th>t (cm)</th><th className="l">Modelo</th><th>N mín./máx. (kN)</th><th>V plano mín./máx. (kN)</th><th>M plano mín./máx. (kN·m)</th><th>V fora mín./máx. (kN)</th><th>M fora mín./máx. (kN·m)</th></tr></thead>
             <tbody>{r.lados.map((l) => <tr key={`${l.nome}${l.pavimento}`}><td className="l">{l.nome}</td><td className="l">{l.nomePav}</td><td>{fmt(l.t * 100, 0)}</td><td className="l">{l.modelo}</td>{(['N', 'Vp', 'Mp', 'Vo', 'Mo'] as const).map((k) => <td key={k}>{fmt(l.elu[k].min, 1)} / {fmt(l.elu[k].max, 1)}</td>)}</tr>)}</tbody>
           </table>
-          <p>Esforços resultantes dos lados em casca: médias sobre a altura do painel dos esforços de membrana e de placa (N &gt; 0 é tração); extremos nas combinações ELU. Lados em barra: extremos do lance. Tensões e armaduras serão tratadas na frente E1d.</p>
+          <p>Esforços resultantes dos lados em casca: médias sobre a altura do painel dos esforços de membrana e de placa (N &gt; 0 é tração); extremos nas combinações ELU. Lados em barra: extremos do lance. A armadura, as tensões e as verificações estão na seção de armadura das paredes e pilares-parede.</p>
         </div>
       ))}
     </div>

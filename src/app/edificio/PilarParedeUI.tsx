@@ -7,6 +7,9 @@ import type { EsforcosLado, Resultante } from '../../core/building/pilarParedeEs
 import { pavimentosOrdenados, type BuildingModel, type LadoPilarParede, type PilarParede, type TipoPilarParede } from '../../core/building/types';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
+import { ArmaduraDaParede } from './ArmaduraParedeUI';
+import { IsovaloresParede } from './IsovaloresParede';
+import { resumoCartao } from '../../core/building/paredesLista';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const m2cm = (v: number) => +(v * 100).toFixed(2);
@@ -170,6 +173,8 @@ export function JanelaPilarParede({ id }: { id: string }) {
   return (
     <div data-janela-pp={id}>
       <p className="small">Tipo <b>{r.nomeTipo}</b> · modelo: {r.modelo === 'casca' ? 'todos os lados em casca' : r.modelo === 'barra' ? 'todos os lados em barra' : `${r.nCascas} lado(s) em casca e ${r.ladosBarra} em barra`}. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
+      <ArmaduraDaParede id={id} tipo="pilarParede" />
+      <IsovaloresParede id={id} tipo="pilarParede" />
       <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
       <table className="data quadro" data-pp-base>
         <thead><tr><th>Caso</th><th>N (kN)</th><th>Vx (kN)</th><th>Vy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>
@@ -189,7 +194,7 @@ export function JanelaPilarParede({ id }: { id: string }) {
           </table>
         </details>
       ))}
-      <Hint>Lado em casca: médias sobre a altura do painel dos esforços de membrana e de placa (N = ∫Ny ds, V = ∫Nxy ds, M = ∫Ny·s ds no plano; ∫Qy ds e ∫My ds fora do plano). Lado em barra: extremo do lance. Tensões e armaduras na frente E1d.</Hint>
+      <Hint>Lado em casca: médias sobre a altura do painel dos esforços de membrana e de placa (N = ∫Ny ds, V = ∫Nxy ds, M = ∫Ny·s ds no plano; ∫Qy ds e ∫My ds fora do plano). Lado em barra: extremo do lance.</Hint>
     </div>
   );
 }
@@ -203,16 +208,21 @@ export function CartaoPilaresParede({ onIr }: { onIr: (id: string) => void }) {
     <div className="card" data-pp-cartao>
       <h4>Pilares-parede</h4>
       <table className="data quadro">
-        <thead><tr><th>Pilar-parede</th><th>Tipo</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th /></tr></thead>
+        <thead><tr><th>Pilar-parede</th><th>Tipo</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th>Armadura</th><th>Cumprimento mín.</th><th>Situação</th><th /></tr></thead>
         <tbody>
-          {lista.map((r) => (
+          {lista.map((r) => {
+            const a = dim?.armaduraParedes?.find((x) => x.id === r.id);
+            const rc = a ? resumoCartao(a) : null;
+            return (
             <tr key={r.id} data-id={r.id}>
               <td className="tl"><b>{r.nome}</b></td><td className="tl">{r.nomeTipo}</td>
               <td className="tl">{r.modelo === 'casca' ? 'casca' : r.modelo === 'barra' ? 'barra' : `${r.nCascas} casca(s) + ${r.ladosBarra} barra(s)`}</td>
               <td className="num">{fmt(r.baseElu.Nmax, 1)}</td><td className="tl">{r.baseElu.cNmax}</td>
+              <td className="tl">{rc?.armadura ?? '—'}</td><td className="num">{rc?.cumprimentoMin ?? '—'}</td><td className="tl">{rc ? <Pill tone={rc.status === 'ok' ? 'ok' : 'bad'}>{rc.situacao}</Pill> : '—'}</td>
               <td><Button variant="ghost" onClick={() => onIr(r.id)}>planta</Button><Button variant="ghost" aria-label={`Resultados de ${r.nome}`} onClick={() => usePlanta.getState().set({ janela: { tipo: 'pilarParede', id: r.id } })}>resultados</Button></td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
