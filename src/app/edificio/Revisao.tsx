@@ -21,6 +21,7 @@ import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { SegundaOrdemPilar } from './SegundaOrdem';
 import { DetalheDaLaje } from './DetalhamentoLaje';
+import { Armadura3D } from '../vista3d/Armadura3D';
 import { JanelaVigotas } from './Vigotas';
 import { TabelaFlechas } from './FlechasTabela';
 import { JanelaPuncao } from './Puncao';
@@ -230,8 +231,9 @@ export function Origens({ o }: { o?: Origem[] }) {
   );
 }
 
-function AbasDetalhe({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; onChange: (a: 'resultados' | 'detalhamento') => void }) {
-  return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }]} />;
+type AbaDet = 'resultados' | 'detalhamento' | '3d';
+function AbasDetalhe({ aba, onChange }: { aba: AbaDet; onChange: (a: AbaDet) => void }) {
+  return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }, { v: '3d', label: '3D' }]} />;
 }
 
 /** Capacidade resistente (MRd+ e MRd−) da viga pela armadura detalhada, ou null sem detalhamento. */
@@ -243,9 +245,10 @@ function capacidadeDaViga(b: BuildingModel, id: string, dim: DimEdificio): Ponto
 
 function JanelaViga({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!, b = useBuilding((s) => s.sessao.modelo);
-  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
+  const [aba, setAba] = useState<AbaDet>('resultados');
   const v = dim.vigas.find((x) => x.viga === id);
   if (!v) return <p className="muted">Viga sem resultado.</p>;
+  if (aba === '3d') return <><AbasDetalhe aba={aba} onChange={setAba} /><Armadura3D tipo="viga" id={id} /></>;
   if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaViga id={id} /></>;
   const { pontos, determinantes: d } = v.envoltoria;
   const xs = pontos.map((p) => p.s), L = Math.max(v.L, xs.at(-1) ?? 0, 0.01);
@@ -323,9 +326,10 @@ export function ApoioDoPilar({ id }: { id: string }) {
 
 function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
   const dim = useBuilding((s) => s.dim)!, b = useBuilding((s) => s.sessao.modelo);
-  const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
+  const [aba, setAba] = useState<AbaDet>('resultados');
   const lances = dim.pilares.filter((x) => x.pilar === id);
   if (!lances.length) return <p className="muted">Pilar sem resultado.</p>;
+  if (aba === '3d') return <><AbasDetalhe aba={aba} onChange={setAba} /><Armadura3D tipo="pilar" id={id} /></>;
   if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDoPilar id={id} /></>;
   return (
     <>
@@ -391,7 +395,7 @@ function JanelaLajeResultados({ ls }: { ls: DimEdificio['lajes'] }) {
 
 function JanelaLaje({ id }: { id: string }) {
   const dim = useBuilding((s) => s.dim)!;
-  const [aba, setAba] = useState<'resultados' | 'detalhamento' | 'vigotas' | 'puncao'>('resultados');
+  const [aba, setAba] = useState<'resultados' | 'detalhamento' | 'vigotas' | 'puncao' | '3d'>('resultados');
   const ls = dim.lajes.filter((x) => x.laje === id);
   if (!ls.length) return <p className="muted">Laje sem resultado.</p>;
   const temDetalhe = !!dim.detalhesLajes?.some((x) => x.laje === id);
@@ -401,12 +405,13 @@ function JanelaLaje({ id }: { id: string }) {
     { v: 'resultados' as const, label: temVigotas ? 'Resultados' : 'Resultados e armadura' },
     ...(temVigotas ? [{ v: 'vigotas' as const, label: 'Vigotas' }] : temDetalhe ? [{ v: 'detalhamento' as const, label: 'Detalhamento' }] : []),
     ...(temPuncao ? [{ v: 'puncao' as const, label: 'Punção e cortante' }] : []),
+    ...(temDetalhe ? [{ v: '3d' as const, label: '3D' }] : []),
   ];
   const atual = abas.some((x) => x.v === aba) ? aba : 'resultados';
   return (
     <>
       {abas.length > 1 && <Seg value={atual} onChange={setAba} options={abas} />}
-      {atual === 'vigotas' ? <JanelaVigotas id={id} /> : atual === 'detalhamento' ? <DetalheDaLaje id={id} /> : atual === 'puncao' ? <JanelaPuncao id={id} /> : <JanelaLajeResultados ls={ls} />}
+      {atual === '3d' ? <Armadura3D tipo="laje" id={id} /> : atual === 'vigotas' ? <JanelaVigotas id={id} /> : atual === 'detalhamento' ? <DetalheDaLaje id={id} /> : atual === 'puncao' ? <JanelaPuncao id={id} /> : <JanelaLajeResultados ls={ls} />}
     </>
   );
 }
