@@ -2,14 +2,16 @@
 // só com classes de design/global.css (tokens + componentes). Ver docs/design-system.md.
 import { zip } from '../../core/zip';
 import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
 
-export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger';
+/** Variantes: primary/ghost/danger são do botão de ação; mini, x, caseitem e fpick são botões de tabela, lista e escolha (mesmas classes de antes). */
+export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger' | 'mini' | 'x' | 'caseitem' | 'fpick';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+const CLASSE_BOTAO: Record<ButtonVariant, string> = { default: 'btn', primary: 'btn primary', ghost: 'btn ghost', danger: 'btn danger', mini: 'mini', x: 'x', caseitem: 'caseitem', fpick: 'fpick' };
 
-/** Botão de ação. `variant`: primary (ação principal), ghost (secundária discreta), danger (destrutiva). */
+/** Botão de ação. `variant`: primary (ação principal), ghost (secundária discreta), danger (destrutiva); demais variantes = botões de tabela/lista. */
 export function Button({ variant = 'default', className, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
-  return <button type={type} className={cx('btn', variant !== 'default' && variant, className)} {...rest} />;
+  return <button type={type} className={cx(CLASSE_BOTAO[variant], className)} {...rest} />;
 }
 
 /** Botão-etiqueta alternável (filtros, seleção múltipla). */
@@ -74,14 +76,14 @@ function fmtIn(v: number) {
   return String(r).replace('.', ',');
 }
 
-export function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function TextField({ label, value, onChange, ...rest }: { label: string; value: string; onChange: (v: string) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const id = useId('txt');
   const [txt, setTxt] = useState(value);
   useEffect(() => setTxt(value), [value]);
   return (
     <label className="field grow" htmlFor={id}>
       <span className="flabel">{label}</span>
-      <span className="finput"><input id={id} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={() => txt !== value && onChange(txt)} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} /></span>
+      <span className="finput"><input id={id} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={() => txt !== value && onChange(txt)} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} {...rest} /></span>
     </label>
   );
 }
@@ -129,23 +131,25 @@ export function Group({ title, children, aside, open = true }: { title: string; 
   );
 }
 
-export function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function Check({ label, checked, onChange, disabled, ...rest }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'checked' | 'onChange' | 'disabled'>) {
   const id = useId('chk');
   return (
     <label className="check" htmlFor={id}>
-      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} {...rest} />
       <span>{label}</span>
     </label>
   );
 }
 
-export function Select<T extends string | number>({ label, value, options, onChange }: { label?: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) {
+type SelectProps<T extends string | number> = { label?: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void } & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'>;
+/** Lista com rótulo visível (`label`) ou só `aria-label`; sem `label` não cria o rótulo visível. */
+export function Select<T extends string | number>({ label, value, options, onChange, ...rest }: SelectProps<T>) {
   const id = useId('sel');
   return (
     <label className="field grow" htmlFor={id}>
       {label && <span className="flabel">{label}</span>}
       <span className="finput">
-        <select id={id} value={String(value)} onChange={(e) => { const o = options.find((x) => String(x.v) === e.target.value); if (o) onChange(o.v); }}>
+        <select id={id} value={String(value)} onChange={(e) => { const o = options.find((x) => String(x.v) === e.target.value); if (o) onChange(o.v); }} {...rest}>
           {options.map((o) => <option key={String(o.v)} value={String(o.v)}>{o.label}</option>)}
         </select>
       </span>
@@ -153,13 +157,38 @@ export function Select<T extends string | number>({ label, value, options, onCha
   );
 }
 
+/** Lista nativa sem o invólucro de campo (uso em tabelas e linhas); mesmas classes e props do `<select>`. */
+export function Dropdown<T extends string | number>({ value, options, onChange, className, ...rest }: Omit<SelectProps<T>, 'label'> & { className?: string }) {
+  return (
+    <select className={className} value={String(value)} onChange={(e) => { const o = options.find((x) => String(x.v) === e.target.value); if (o) onChange(o.v); }} {...rest}>
+      {options.map((o) => <option key={String(o.v)} value={String(o.v)}>{o.label}</option>)}
+    </select>
+  );
+}
+
+/** Campo de entrada nativo sem invólucro (tabelas, linhas e controles soltos). */
+export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} />;
+}
+
+/** Campo de texto de várias linhas sem invólucro. */
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} />;
+}
+
+/** Seletor de cor (`<input type="color">`) com as props de entrada. */
+export function ColorField({ value, onChange, ...rest }: { value: string; onChange: (v: string) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'>) {
+  return <input type="color" value={value} onChange={(e) => onChange(e.target.value)} {...rest} />;
+}
+
 /** Barra deslizante com o valor ao lado (transparência, velocidade, ângulos). */
-export function Slider({ label, value, min, max, step = 1, unit, onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void }) {
-  const id = useId('sld');
+export function Slider({ label, value, min, max, step = 1, unit, onChange, id: idExterno, ...rest }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void; id?: string } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max' | 'step' | 'id'>) {
+  const idGerado = useId('sld');
+  const id = idExterno ?? idGerado;
   return (
     <label className="slider" htmlFor={id}>
       <span>{label}</span>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} />
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} {...rest} />
       <output htmlFor={id}>{Math.round(value * 10) / 10}{unit}</output>
     </label>
   );
