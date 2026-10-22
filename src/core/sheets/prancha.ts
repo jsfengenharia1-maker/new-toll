@@ -1,10 +1,11 @@
 // Montagem das pranchas (função pura): planta de formas de um grupo de pavimentos em escala real (m) no espaço
 // do modelo, e folha, carimbo e quadro de pilares no espaço do papel (mm). Os escritores (PDF, DXF, DWG, SVG)
 // recebem a mesma prancha.
-import { contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
+import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { TRELICADAS } from '../building/lajes';
 import { encaixar } from './logo';
+import { marcasPontoFixo, primitivasMascara } from './gabarito';
 
 export type { P };
 
@@ -30,6 +31,9 @@ export const CAMADAS = {
   'FORMA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
   // fundações (FU5): contorno dos elementos (sapatas, blocos, tubulões) e das vigas de fundação em planta
   'FUNDACAO': { cor: 6, pena: 0.5, tipo: 'cont' },
+  // opções de desenho (R7g): gabarito (máscara DXF/DWG) na pena mais fina das existentes e ponto fixo dos pilares
+  'MASCARA': { cor: 8, pena: 0.13, tipo: 'cont' },
+  'PONTO-FIXO': { cor: 1, pena: 0.18, tipo: 'cont' },
 } as const;
 export type Camada = keyof typeof CAMADAS;
 /** Padrões de traço no papel (mm): traço, espaço, ... */
@@ -288,6 +292,10 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: c, fechada: true });
     rotPilar(p, secaoBase(b, p), c);
   }
+  // opções de desenho (R7g): gabarito do pavimento e ponto fixo dos pilares (padrão desligadas)
+  const opc = { ...ARMACAO_PADRAO, ...(cfg.armacao ?? {}) };
+  if (opc.mascara) modelo.unshift(...primitivasMascara(b, grupo));
+  if (opc.pontoFixo) modelo.push(...marcasPontoFixo([...el.chegam, ...el.nascem], k));
   const centros = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, el.eixos, centros, [gx0, gy0, gx1, gy1], k);
 

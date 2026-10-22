@@ -8,6 +8,7 @@ import { ganchoNoventa, lbBasico } from './detalhamento';
 import type { Dimensionamento, ResultadoPilar } from './dimensionamento';
 import { acoDe, cobrimentoPilar, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
+import { modoGrampos, tabelaDe, tabelaPilarNaSecao, type ModoGrampos } from './tabelasArmadura';
 import { apoioDoPilar } from './transicao';
 import { centroPilar, cotaFundacao, dimsSecao, inicioDe, lancesDoPilar, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Pilar } from './types';
 import { vigaTocaPilar } from './vigas';
@@ -67,8 +68,10 @@ function contagem(r: ResultadoPilar): { n: number; nb: number; nh: number; nbS: 
   return { n: nb + nbS + (nh - 2) + (nhD - 2), nb, nh, nbS, nhD, circ: false };
 }
 
-/** Grampos por estribo: barras intermediárias de cada face a mais de 20φt do canto mais próximo (NBR 6118, 18.2.4). */
-export function gramposPorEstribo(w: number, h: number, a: number, nb: number, nh: number, phiT: number, nbS = nb, nhD = nh): number {
+/** Grampos por estribo (modo da tabela de grampos, R7g; padrão a NBR): barras intermediárias de cada face a mais de 20φt do canto mais próximo (NBR 6118, 18.2.4). */
+export function gramposPorEstribo(w: number, h: number, a: number, nb: number, nh: number, phiT: number, nbS = nb, nhD = nh, modo: ModoGrampos = 'norma'): number {
+  if (modo === 'nenhum') return 0;
+  if (modo === 'todas') return Math.max(0, nb - 2) + Math.max(0, nbS - 2) + Math.max(0, nh - 2) + Math.max(0, nhD - 2);
   const lim = (20 * phiT) / 1000;
   const face = (L: number, n: number) => {
     let k = 0;
@@ -204,7 +207,7 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
     const ganchos = 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f);
     const comprimento = arred(s.tipo === 'circ' ? Math.PI * (s.d - 2 * cob) + Math.max(30 * f, 0.1) + ganchos : 2 * (w - 2 * cob) + 2 * (h - 2 * cob) + ganchos, passo);
     const aBar = cob + f + a.phi / 2000;
-    const grampos = cnt.circ ? 0 : gramposPorEstribo(w, h, aBar, cnt.nb, cnt.nh, e.phi, cnt.nbS, cnt.nhD);
+    const grampos = cnt.circ ? 0 : gramposPorEstribo(w, h, aBar, cnt.nb, cnt.nh, e.phi, cnt.nbS, cnt.nhD, modoGrampos(tabelaPilarNaSecao(tabelaDe(b, 'pilares', p.tabela), w, h), a.phi, w, h));
     const comprimentoGrampo = arred(Math.max(w, h) - 2 * cob + 2 * Math.max(5 * f, 0.05) + 2 * ((3 * Math.PI) / 8) * (4 * f), passo);
     return { phi: e.phi, s: e.s, n, comprimento, grampos, comprimentoGrampo, ...(ad ? { ad } : {}) };
   }

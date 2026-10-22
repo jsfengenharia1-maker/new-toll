@@ -74,6 +74,12 @@ export interface OpcoesCalculo {
   vigaEstriboExtensao: number;
   vigaEstriboZonaMin: number;
   vigaEstriboSimetria: number;
+  /** Gancho do fechamento do estribo (R7g): 90, 135 ou 180 graus (NBR 6118, 9.4.6.1). */
+  vigaEstriboGancho: number;
+  /** 1 = estribos em U (abertos no topo, ganchos nas pontas das pernas) em todas as vigas (R7g). */
+  vigaEstriboU: number;
+  /** 1 = As,mín comparada ponto a ponto com a armadura necessária de cada face (R7g, K1.12.4). */
+  vigaAsMinPonto: number;
   vigaFatorEmenda: number;
   vigaDesnivelLimite: number;
   /** 1 = continuidade nos pilares: abaixo do penúltimo lance, nenhum lance com menos armadura nem bitola menor que o de cima. */
@@ -389,6 +395,12 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Zonas mais curtas que este valor são absorvidas pela vizinha mais densa. 0 = só a regra de 2 espaçamentos.' },
   { chave: 'vigaEstriboSimetria', rotulo: 'Vigas: estribos simétricos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.65: simetria de estribos); padrão desligado', aConfirmar: true,
     descricao: 'O espaçamento em cada ponto é o menor entre ele e o simétrico em relação ao meio da viga.' },
+  { chave: 'vigaEstriboGancho', rotulo: 'Vigas: ancoragem do fechamento do estribo (gancho)', unidade: '°', min: 90, max: 180, passo: 45, padrao: 135, fonte: 'NBR 6118, 9.4.6.1 (gancho de 45° [135°], 90° ou 180°; pontas retas mínimas 5φ/5 cm, 10φ/7 cm e 5φ/5 cm); padrão 135° (comportamento anterior)', aConfirmar: false,
+    descricao: 'Ângulo do gancho de fechamento dos estribos das vigas: 90°, 135° ou 180°. Define o comprimento da peça. Pino de 4φ [a confirmar para 90° e 180°].' },
+  { chave: 'vigaEstriboU', rotulo: 'Vigas: estribos em U (abertos no topo)', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (K1.4.65: estribos em U); padrão desligado', aConfirmar: true,
+    descricao: 'Estribo em U: fundo e duas pernas, com gancho na ponta de cada perna (ângulo da opção de gancho). O fechamento fica por conta da laje/armadura superior [a confirmar]; cada zona pode ser editada.' },
+  { chave: 'vigaAsMinPonto', rotulo: 'Vigas: As,mín longitudinal ponto a ponto', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.12.4: em cada ponto, armadura necessária comparada às taxas mínimas, prevalece a maior); padrão desligado para manter o detalhamento anterior (a NBR 6118, 17.3.5.2.1, exige a mínima no arranjo da viga, não ponto a ponto)', aConfirmar: true,
+    descricao: 'Em cada ponto onde a face é tracionada, a armadura necessária decalada não fica abaixo de As,mín da seção (os cortes das barras respeitam esse piso).' },
   { chave: 'vigaFatorEmenda', rotulo: 'Vigas: fator do comprimento de emenda', unidade: '×', min: 0.5, max: 2, passo: 0.1, padrao: 1, fonte: 'Opção do programa de referência (C6.104); 1 = l0t da NBR 6118 (9.5.2.2)', aConfirmar: false,
     descricao: 'Multiplica o comprimento de traspasse das emendas de todas as vigas (cada viga pode ter o seu fator na edição do detalhamento).' },
   { chave: 'vigaDesnivelLimite', rotulo: 'Vigas: desnível longitudinal para aviso', unidade: 'cm', min: 0, max: 20, passo: 0.5, padrao: 2, fonte: 'Critério do app (sem fonte): faces superior ou inferior de vigas consecutivas alinhadas diferindo mais que isto', aConfirmar: true,
@@ -629,7 +641,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'momentoMinNegativo', 'cortanteApoio', 'cortanteDistancia', 'verificarTorcao', 'limiteFissura', 'barraMaxima', 'arredondamento', 'perdasAco',
   'bitolaMontagem', 'vigaReducaoLb', 'vigaNegativoVao', 'vigaReforcoVao', 'vigaSimetriaNegativos', 'vigaNegativosUnir', 'vigaMontagemContinua',
   'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
-  'vigaEstriboSimetria', 'vigaFatorEmenda', 'vigaDesnivelLimite', 'continuidadePilares', 'pilarSimetria', 'pilarBarraMaxima', 'pilarUniaoLances',
+  'vigaEstriboSimetria', 'vigaEstriboGancho', 'vigaEstriboU', 'vigaAsMinPonto', 'vigaFatorEmenda', 'vigaDesnivelLimite', 'continuidadePilares', 'pilarSimetria', 'pilarBarraMaxima', 'pilarUniaoLances',
   'ancoragemReduzidaTopo', 'pilarContinuidadeInicio', 'pilarContinuidadeFaces', 'pilarProlongarSemViga', 'pilarCorteTopo',
   'pilarReducaoIntermediarios', 'pilarReducaoMinimo', 'pilarAdensamento', 'pilarAdensamentoAltura', 'pilarAdensamentoEspacamento',
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',

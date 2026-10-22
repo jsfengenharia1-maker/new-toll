@@ -3,7 +3,7 @@
 // e negativos cortados pelo diagrama decalado mais o comprimento de ancoragem, montagem superior colaborante),
 // emendas por traspasse quando a barra passa do comprimento máximo, armadura de pele / laterais de torção e
 // estribos em zonas. Comprimentos arredondados para cima; peso do aço por bitola com perdas.
-import { barArea, beamFlexure, type Concrete } from '../concrete';
+import { barArea, beamAsMin, beamFlexure, type Concrete } from '../concrete';
 import type { Dimensionamento, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
@@ -32,7 +32,7 @@ export interface BarraViga {
   continuaCom?: string;
 }
 /** Zona de estribos: `n` peças a cada `s`; `ramos` > 2 (estribo duplo ou triplo): `n` já conta todas as peças. */
-export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number; /** Estribos adicionais de suspensão (N2e, NBR 6118 18.3.6). */ suspensao?: boolean }
+export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number; /** Estribo em U (aberto no topo; R7g). */ u?: boolean; /** Estribos adicionais de suspensão (N2e, NBR 6118 18.3.6). */ suspensao?: boolean }
 export interface DetalheViga {
   viga: string; nome: string;
   /** Pavimentos em que a viga se repete (grupo). */
@@ -50,6 +50,19 @@ export interface DetalheViga {
   avisos: string[];
   /** Pilares que nascem sobre a viga (E1a): abscissa do centro e das faces e carga de cálculo (kN). */
   transicoes?: { pilar: string; nome: string; s: number; sFaces: [number, number]; Nd: number }[];
+}
+
+/**
+ * Ponta reta (m) e comprimento desenvolvido do gancho do estribo (NBR 6118, 9.4.6.1): 45° (aqui 135° de dobra) e 180° com ponta
+ * ≥ máx(5φ; 5 cm), 90° com ponta ≥ máx(10φ; 7 cm); pino de 4φ nos três [a confirmar para 90° e 180°].
+ */
+export function ganchoEstribo(phiMm: number, graus: number): number {
+  const f = phiMm / 1000, perna = graus <= 90 ? Math.max(10 * f, 0.07) : Math.max(5 * f, 0.05);
+  return perna + (graus / 360) * Math.PI * 4 * f;
+}
+/** Comprimento (m) do estribo de largura e altura internas dadas: fechado (retângulo) ou em U (fundo e duas pernas), com dois ganchos. */
+export function estriboComprimento(larg: number, alt: number, phiMm: number, graus: number, u = false): number {
+  return (u ? larg + 2 * alt : 2 * larg + 2 * alt) + 2 * ganchoEstribo(phiMm, graus);
 }
 
 const ACO_KG_M3 = 7850;
@@ -233,12 +246,14 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const dx = 0.05, nG = Math.max(2, Math.round((ext[1] - ext[0]) / dx) + 1), sG = (i: number) => ext[0] + i * dx;
   const env = r.envoltoria.pontos;
   const perto = (s: number) => env.reduce((m, p) => (Math.abs(p.s - s) < Math.abs(m.s - s) ? p : m), env[0]);
+  // As,mín ponto a ponto (R7g, K1.12.4): piso da armadura necessária onde a face é tracionada
+  const AsMinI = beamAsMin(sec, false, dI, c, aPos.fyd), AsMinS = beamAsMin(sec, false, dS, c, aNeg.fyd);
   const AsPos = new Float64Array(nG), AsNeg = new Float64Array(nG), Vd = new Float64Array(nG), Td = new Float64Array(nG);
   let compSup = false; // armadura de compressão superior exigida pelo cálculo (a montagem passa a colaborante)
   for (let i = 0; i < nG; i++) {
     const p = env.length ? perto(sG(i)) : { Mmax: 0, Mmin: 0, Vmax: 0, Vmin: 0, T: 0 };
-    if (p.Mmax > 0) { const f = beamFlexure(sec, false, p.Mmax, dI, 0.04, c, aPos.fyd); AsPos[i] = f.As; if (f.As2 > 1e-12) compSup = true; }
-    AsNeg[i] = p.Mmin < 0 ? beamFlexure(sec, false, -p.Mmin, dS, 0.04, c, aNeg.fyd).As : 0;
+    if (p.Mmax > 0) { const f = beamFlexure(sec, false, p.Mmax, dI, 0.04, c, aPos.fyd); AsPos[i] = op.vigaAsMinPonto ? Math.max(f.As, AsMinI) : f.As; if (f.As2 > 1e-12) compSup = true; }
+    AsNeg[i] = p.Mmin < 0 ? (op.vigaAsMinPonto ? Math.max(AsMinS, beamFlexure(sec, false, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : beamFlexure(sec, false, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : 0;
     Vd[i] = Math.max(Math.abs(p.Vmax), Math.abs(p.Vmin)); Td[i] = p.T;
   }
   const k = Math.max(0, Math.round(r.al / dx));
@@ -390,8 +405,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   if (op.vigaEstriboSimetria) { const base = sReq; sReq = Float64Array.from(base, (x, i) => Math.min(x, base[nG - 1 - i])); }
   const sCentral = Math.floor(Math.min(smax(0), (ramos * A1) / aswMin) * 100) / 100;
   const dentroPilar = (s: number) => apoios.some((a) => s > a.s0 + 1e-9 && s < a.s1 - 1e-9);
-  const compEst = (phi: number) => arred(2 * (bw - 2 * cob.lat) + 2 * (h - cob.inf - cob.sup) + 2 * Math.max((5 * phi) / 1000, 0.05) + 2 * ((3 * Math.PI) / 8) * ((4 * phi) / 1000), passo);
-  const compEstribo = compEst(phiT);
+  const compEst = (phi: number, u = !!op.vigaEstriboU) => arred(estriboComprimento(bw - 2 * cob.lat, h - cob.inf - cob.sup, phi, op.vigaEstriboGancho, u), passo);
+  const uGlobal = !!op.vigaEstriboU, compEstribo = compEst(phiT);
   const zonaMin = op.vigaEstriboZonaMin / 100;
   const estribos: ZonaEstribo[] = [];
   for (const [i0, i1] of intervalos(nG, (i) => !dentroPilar(sG(i)) && sG(i) > ext[0] + cob.lat && sG(i) < ext[1] - cob.lat)) {
@@ -404,7 +419,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
       const s0 = sG(j), s1 = sG(k2), len = s1 - s0;
       const ant = estribos.at(-1);
       if (ant && Math.abs(ant.s1 - s0) < dx + 1e-9 && ant.s === sj) { ant.s1 = s1; ant.n = nPecas(ant.s1 - ant.s0, sj); }
-      else estribos.push({ s0, s1, phi: phiT, s: sj, n: nPecas(len, sj), comprimento: compEstribo, ...(ramos > 2 ? { ramos } : {}) });
+      else estribos.push({ s0, s1, phi: phiT, s: sj, n: nPecas(len, sj), comprimento: compEstribo, ...(ramos > 2 ? { ramos } : {}), ...(uGlobal ? { u: true } : {}) });
       j = k2 + 1;
     }
   }
@@ -426,7 +441,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     let pior = Infinity;
     for (let i = 0; i < nG; i++) if (sG(i) >= z.s0 - 1e-9 && sG(i) <= z.s1 + 1e-9) pior = Math.min(pior, sNec(i, rm, phi));
     if (s > pior + 1e-9) avisos.push(`Detalhe editado insuficiente: estribo da zona E${e.zona + 1} com s = ${(s * 100).toFixed(0)} cm, exigido ${(pior * 100).toFixed(0)} cm ou menos.`);
-    z.phi = phi; z.s = s; z.comprimento = compEst(phi); z.n = nPecasR(z.s1 - z.s0, s, rm);
+    if (e.u !== undefined) { if (e.u) z.u = true; else delete z.u; }
+    z.phi = phi; z.s = s; z.comprimento = compEst(phi, !!z.u); z.n = nPecasR(z.s1 - z.s0, s, rm);
     if (rm > 2) z.ramos = rm; else delete z.ramos;
   }
   if (edit?.barras?.length) {

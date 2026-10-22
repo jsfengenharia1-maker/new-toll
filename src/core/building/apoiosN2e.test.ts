@@ -335,6 +335,17 @@ describe('N2e: limites editáveis e aço por posição', () => {
     const det = calc(s).d.detalhes!.find((x) => x.viga === r.viga)!;
     for (const z of det.estribos) expect(z.s).toBeLessThanOrEqual(0.1 + 1e-9);
   });
+  it('estribos com armadura comprimida (armadura dupla): s ≤ 12φ e φt ≥ φℓ/4; opção desligada não limita', () => {
+    const { s, ok } = tres({ b: 0.15, h: 0.4 });
+    ok('viga.editar', { id: s.modelo.vigas[0].id, secao: { b: 0.12, h: 0.25 } });
+    ok('carga.linha', { grupo: 'g_3', pontos: [[0, 0], [6, 0]], valor: 60, caso: 'G' });
+    const r = calc(s).d.vigas[0];
+    expect(r.mensagens.some((m) => m.startsWith('Armadura dupla'))).toBe(true);
+    expect(r.mensagens.some((m) => m.startsWith('Estribos com armadura comprimida'))).toBe(true);
+    expect(r.estriboSmax).toBeLessThanOrEqual(0.2 + 1e-9);
+    ok('opcoes.definir', { valores: { vigaEstriboComprimida: 0 } });
+    expect(calc(s).d.vigas[0].mensagens.some((m) => m.startsWith('Estribos com armadura comprimida'))).toBe(false);
+  });
   it('envoltória de cortante descontínua: patamares por zona (¼ do vão), mesmo extremo global', () => {
     const { s, ok, v1 } = grade();
     const cont = v1(calc(s).d).envoltoria;

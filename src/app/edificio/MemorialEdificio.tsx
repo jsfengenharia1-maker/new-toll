@@ -30,6 +30,7 @@ import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
 import { linhasGruposVigotas } from './Vigotas';
 import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
+import { MemorialEluPorCombinacao, MemorialListagemGeral, MemorialQuantitativosDetalhados, MemorialTaxasPilares, MemorialVentoPavimentos } from './MemorialRelatorios';
 import { emendasPilar, linhasBarrasPilar, linhasEstribosPilar, TRANSICAO } from './DetalhamentoPilar';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -44,6 +45,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const docRef = useRef<HTMLDivElement>(null);
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const [iso, setIso] = useState(false);
+  const [eluDet, setEluDet] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && (!calculoAtual(estado) || !dimAtual(estado));
   const perfil = perfilDe(b);
@@ -104,6 +106,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
         <span className="muted">{!analise ? 'Sem cálculo: só geometria e premissas.' : velha ? 'O modelo mudou depois do cálculo: calcule de novo.' : 'Gerado a partir do último cálculo.'}</span>
         <Spacer />
         <Check label="Incluir vista isométrica" checked={iso} onChange={setIso} />
+        <Check label="ELU por combinação" checked={eluDet} onChange={setEluDet} />
         <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
         <Button onClick={exportar}>Exportar HTML</Button>
         <Button onClick={onClose}>Fechar</Button>
@@ -157,6 +160,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
 
+          <MemorialListagemGeral b={b} h2={h2} />
           {h2('Ações')}
           <table>
             <thead><tr><th>Grupo</th><th>Uso</th><th>Revestimento (kN/m²)</th><th>Variável (kN/m²)</th></tr></thead>
@@ -210,6 +214,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             {analise?.segundaOrdem
               ? <p data-memorial-2ordem="pDelta">γz com rigidez reduzida (vigas 0,4·Eci·Ic; pilares 0,8·Eci·Ic), só informado: os efeitos globais de 2ª ordem vêm do <b>processo P-Δ</b> (opção de cálculo). Cada combinação ELU é resolvida no pórtico espacial com a mesma rigidez reduzida{opc.modeloGlobal === 1 ? ' (lajes 0,3·Eci·Ic)' : ''} somando a matriz geométrica dos pilares (parcela P-Δ de corpo rígido, N/L), com as normais atualizadas a cada iteração até a convergência dos deslocamentos (tolerância 10⁻⁵); as forças fictícias −K_G·u finais entram no modelo de cálculo como um caso por combinação, sem a ampliação 0,95·γz. {analise.segundaOrdem.combinacoes.length} combinações; maior amplificação dos deslocamentos horizontais {fmt(analise.segundaOrdem.amplificacaoMax, 3)}; até {analise.segundaOrdem.iteracoesMax} iterações{analise.segundaOrdem.combinacoes.some((c) => c.erro) ? `; sem convergência (instabilidade) em: ${analise.segundaOrdem.combinacoes.filter((c) => c.erro).map((c) => c.nome).join('; ')}` : '; todas convergiram'}. Validação: igual ao P-Δ do Pórtico 2D num pórtico plano e ao OpenSees (transformação P-Delta) num pórtico espacial com diafragma.</p>
               : <p data-memorial-2ordem="gamaZ">γz com rigidez reduzida (vigas 0,4·Eci·Ic; pilares 0,8·Eci·Ic). Entre 1,1 e 1,3, o vento das ELU é majorado por 0,95·γz. O processo P-Δ é opção de cálculo (alternativa ao γz).</p>}
+            <MemorialVentoPavimentos b={b} analise={analise ?? null} />
             {desloc.length > 0 && (<>
               <h3>Deslocamentos laterais do vento</h3>
               <table>
@@ -254,7 +259,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             {dim.detalhes && dim.detalhes.length > 0 && (<>
               {h2('Detalhamento das vigas')}
               <p>Armadura longitudinal disposta pela envoltória das combinações ELU decalada de aℓ (NBR 6118, 17.4.2.2), com ancoragem por aderência (9.4) e emendas por traspasse (9.5.2); estribos por zonas. Quantidades e pesos por viga (um pavimento); o grupo repete a armadura nos pavimentos indicados. Desenhos nas pranchas e na janela de resultados da viga.</p>
-              <p data-memorial-det-vigas>Critérios em uso (opções de cálculo): prolongamento dos cortes {opc.vigaReducaoLb ? 'lb·As,calc/As,ef ≥ lb,mín = máx(0,3·lb; 10φ; 10 cm) (NBR 6118, 9.4.2.5)' : 'lb pleno (≥ 10φ)'}; negativos com no mínimo {fmt(opc.vigaNegativoVao, 0)} % do vão adjacente a partir da face{opc.vigaReforcoVao > 0 ? `; reforços inferiores com no mínimo ${fmt(opc.vigaReforcoVao, 0)} % do vão` : ''}; {opc.vigaNegativosUnir ? 'negativos separados por menos de lb unidos' : 'negativos não unidos'}; {opc.vigaSimetriaNegativos > 0 ? `negativos simétricos em vigas de um vão (diferença até ${fmt(opc.vigaSimetriaNegativos, 0)} %)` : 'negativos de vigas de um vão sem simetria forçada'}; montagem {opc.vigaMontagemContinua ? 'contínua' : 'interrompida (porta-estribos entre as pontas dos negativos, traspasse construtivo)'}, {opc.vigaMontagemColaborante && opc.vigaMontagemContinua ? 'colaborante' : 'construtiva (colaborante só onde há compressão superior)'}, {opc.vigaMontagemGancho ? 'com gancho' : `reta, medida ${opc.vigaMontagemEixo ? 'do eixo do apoio' : 'do extremo'}`}; perna reta dos ganchos {fmt(opc.vigaPernaGancho, 0)}φ; zonas de estribos {opc.vigaEstriboExtensao ? 'estendidas de d/2' : 'sem extensão'}{opc.vigaEstriboZonaMin > 0 ? `, comprimento mínimo ${fmt(opc.vigaEstriboZonaMin, 0)} cm` : ''}{opc.vigaEstriboSimetria ? ', simétricas' : ''}; fator do comprimento de emenda {fmt(opc.vigaFatorEmenda, 1)}; aviso de desnível longitudinal acima de {fmt(opc.vigaDesnivelLimite, 1)} cm. Vários desses valores são "a confirmar" (ver Premissas).</p>
+              <p data-memorial-det-vigas>Critérios em uso (opções de cálculo): prolongamento dos cortes {opc.vigaReducaoLb ? 'lb·As,calc/As,ef ≥ lb,mín = máx(0,3·lb; 10φ; 10 cm) (NBR 6118, 9.4.2.5)' : 'lb pleno (≥ 10φ)'}; negativos com no mínimo {fmt(opc.vigaNegativoVao, 0)} % do vão adjacente a partir da face{opc.vigaReforcoVao > 0 ? `; reforços inferiores com no mínimo ${fmt(opc.vigaReforcoVao, 0)} % do vão` : ''}; {opc.vigaNegativosUnir ? 'negativos separados por menos de lb unidos' : 'negativos não unidos'}; {opc.vigaSimetriaNegativos > 0 ? `negativos simétricos em vigas de um vão (diferença até ${fmt(opc.vigaSimetriaNegativos, 0)} %)` : 'negativos de vigas de um vão sem simetria forçada'}; montagem {opc.vigaMontagemContinua ? 'contínua' : 'interrompida (porta-estribos entre as pontas dos negativos, traspasse construtivo)'}, {opc.vigaMontagemColaborante && opc.vigaMontagemContinua ? 'colaborante' : 'construtiva (colaborante só onde há compressão superior)'}, {opc.vigaMontagemGancho ? 'com gancho' : `reta, medida ${opc.vigaMontagemEixo ? 'do eixo do apoio' : 'do extremo'}`}; perna reta dos ganchos {fmt(opc.vigaPernaGancho, 0)}φ; zonas de estribos {opc.vigaEstriboExtensao ? 'estendidas de d/2' : 'sem extensão'}{opc.vigaEstriboZonaMin > 0 ? `, comprimento mínimo ${fmt(opc.vigaEstriboZonaMin, 0)} cm` : ''}{opc.vigaEstriboSimetria ? ', simétricas' : ''}; estribos {opc.vigaEstriboU ? 'em U' : 'fechados'} com gancho de {fmt(opc.vigaEstriboGancho, 0)}° (NBR 6118, 9.4.6.1){opc.vigaAsMinPonto ? '; As,mín longitudinal comparada ponto a ponto com a necessária' : ''}; fator do comprimento de emenda {fmt(opc.vigaFatorEmenda, 1)}; aviso de desnível longitudinal acima de {fmt(opc.vigaDesnivelLimite, 1)} cm. Vários desses valores são "a confirmar" (ver Premissas).</p>
               {(b.tramos ?? []).length > 0 && <p data-memorial-tramos>Tramos predefinidos (armadura inferior passante sem emenda nem gancho nos apoios comuns): {(b.tramos ?? []).map((t) => t.map((id) => b.vigas.find((x) => x.id === id)?.nome ?? id).join(' + ')).join('; ')}.</p>}
               {dim.detalhes.map((d) => (
                 <div key={d.viga} className="avoid">
@@ -294,6 +299,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               </table>
             </>)}
             <p>Cortante nos pilares (17.4.2, modelo I): na flexo-compressão Vc = Vc0·(1 + M0/Msd,máx) ≤ 2·Vc0 (17.4.2.2 c), com M0 = N·W/A (momento de descompressão; N com γf = 1,0 tomado como Nd/γg, a confirmar) e Msd,máx o maior momento das pontas na direção do cortante; Vc = 0 com tração; dispensa do estribo mínimo quando Vsd ≤ Vc em pilar comprimido; seção circular com bw = D e d = 0,8·D. Quando o cortante manda, o estribo vem da mensagem "Estribos pelo cortante".</p>
+            <MemorialTaxasPilares b={b} dim={dim} />
             {dim.detalhesPilares && dim.detalhesPilares.length > 0 && (<>
               {h2('Detalhamento dos pilares')}
               <p>Barras longitudinais de baixo para cima: espera na fundação e ancoragem no topo com ganchos de 90°, emenda por traspasse de comprimento lb (boa aderência) na passagem de um lance a outro, união de lances curtos (até {fmt(opc.pilarUniaoLances, 1)} m) com a mesma armadura, dobra (inclinação ≤ 1:6) ou arranque na mudança de seção, barra máxima de {fmt(opc.pilarBarraMaxima, 1)} m; continuidade da armadura entre lances {opc.continuidadePilares ? 'ligada (a armadura não diminui de cima para baixo)' : 'desligada (cada lance pela sua necessidade)'}; ancoragem reduzida no topo {opc.ancoragemReduzidaTopo ? 'ligada (As,calc/As,ef)' : 'desligada'}. Estribos ao longo de cada lance e grampos nas barras a mais de 20φt de um canto (NBR 6118, 18.2.4). Comprimentos arredondados para cima a {fmt(opc.arredondamento, 0)} cm. Desenhos na janela de resultados do pilar.</p>
@@ -606,6 +612,8 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               </tbody>
             </table>
             <p>Aço estimado por taxas: lajes {TAXAS.lajes}, vigas {TAXAS.vigas} e pilares {TAXAS.pilares} kg/m³ (a confirmar).</p>
+            <MemorialQuantitativosDetalhados b={b} dim={dim} />
+            {eluDet && <MemorialEluPorCombinacao dim={dim} h2={h2} />}
           </>)}
 
           {h2('Premissas', true)}

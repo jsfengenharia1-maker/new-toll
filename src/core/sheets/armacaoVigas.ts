@@ -108,11 +108,12 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   desenhar(inf, y2 - 11, false);
   // estribos: uma posição por bitola e comprimento na viga
   const eLarg = bw - 2 * cob.lat, eAlt = h - cob.inf - cob.sup;
-  const est = new Map<string, { phi: number; C: number; n: number }>();
-  for (const z of det.estribos) { const k = `${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}`; const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0 }; e.n += z.n; est.set(k, e); }
+  const kEst = (z: { phi: number; comprimento: number; u?: boolean; suspensao?: boolean }) => `${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}${z.u ? '|U' : ''}`;
+  const est = new Map<string, { phi: number; C: number; n: number; u: boolean; s: boolean }>();
+  for (const z of det.estribos) { const k = kEst(z); const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0, u: !!z.u, s: !!z.suspensao }; e.n += z.n; est.set(k, e); }
   const posEst = new Map<string, string>();
-  for (const [k, e] of est) posEst.set(k, posDe(`${k.startsWith('S|') ? 'S' : 'E'}|${cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
-  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(`${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}`)} ${z.suspensao ? 'suspensão' : `c/${cmInt(z.s)}`}`]));
+  for (const [k, e] of est) posEst.set(k, posDe(`${e.s ? 'S' : 'E'}${e.u ? 'U' : ''}|${cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
+  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(kEst(z))} ${z.suspensao ? 'suspensão' : `c/${cmInt(z.s)}`}`]));
   // ---- título ----
   const yTit = hb + d + 8 + Math.max(0, nSup - 1) * 9 + 9;
   const pavs = pavimentosDoGrupo(b, v.grupo);
@@ -149,11 +150,15 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   out.push({ t: 'txt', c: 'COTA', p: [xs - 1.5, ys + hs / 2], h: 1.8, s: cotaCm(h), ang: 90, ah: 'c', av: 'base' });
   // estribo à parte
   const ye = ys - 12 - eAlt * kS, we = eLarg * kS, he = eAlt * kS;
-  pl('ARMADURA', [xs, ye], [xs + we, ye], [xs + we, ye + he], [xs, ye + he], [xs, ye]);
-  pl('ARMADURA', [xs, ye + he - 1.6], [xs + 1.6, ye + he]);
+  if ([...est.values()][0]?.u) { // estribo em U (R7g): fundo e duas pernas, ganchos para dentro nas pontas
+    pl('ARMADURA', [xs + 1.6, ye + he - 1.6], [xs, ye + he], [xs, ye], [xs + we, ye], [xs + we, ye + he], [xs + we - 1.6, ye + he - 1.6]);
+  } else {
+    pl('ARMADURA', [xs, ye], [xs + we, ye], [xs + we, ye + he], [xs, ye + he], [xs, ye]);
+    pl('ARMADURA', [xs, ye + he - 1.6], [xs + 1.6, ye + he]);
+  }
   out.push(txt('COTA', xs + we / 2, ye - 0.8, 1.8, String(cmInt(eLarg)), 'c', 'topo'), txt('COTA', xs + we + 0.8, ye + he / 2, 1.8, String(cmInt(eAlt)), 'e', 'meio'));
   let yt = ye - 4;
-  for (const [k, e] of est) { out.push(txt('TEXTO', xs, yt, 2.2, `${qtd(rep, e.n)} ${posEst.get(k)} ${phiTxt(e.phi)} C=${e.C}`, 'e', 'topo')); yt -= 3.2; }
+  for (const [k, e] of est) { out.push(txt('TEXTO', xs, yt, 2.2, `${qtd(rep, e.n)} ${posEst.get(k)} ${phiTxt(e.phi)} C=${e.C}${e.u ? ' (em U)' : ''}`, 'e', 'topo')); yt -= 3.2; }
   return out;
 }
 

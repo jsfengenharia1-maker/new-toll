@@ -34,7 +34,17 @@ export interface LinhaEstribos { bAte: number; bitolas: number[]; sMin: number; 
 export interface TabelaEstribos { id: string; nome: string; linhas: LinhaEstribos[] }
 /** Estribo do pilar por bitola longitudinal: φt e espaçamento máximo (cm; 0 = só a norma). */
 export interface LinhaEstriboPilar { phiAte: number; phiT: number; sMax: number }
-export interface TabelaPilares { id: string; nome: string; bitolas: number[]; espacamentos: number[]; estribos: LinhaEstriboPilar[] }
+/**
+ * Faixa de seção da tabela de pilares (R7g): vale para o pilar cujo menor lado é ≤ `ladoMenorAte` e o maior ≤ `ladoMaiorAte`
+ * (cm; círculo: o diâmetro nos dois); os campos presentes substituem os da tabela geral. A primeira faixa que contém a seção vence.
+ */
+export interface LinhaSecaoPilar { ladoMenorAte: number; ladoMaiorAte: number; bitolas?: number[]; espacamentos?: number[]; estribos?: LinhaEstriboPilar[] }
+/** Grampos: 'norma' = os da NBR 6118 (18.2.4: barras a mais de 20φt de um canto), 'todas' = em todas as barras intermediárias, 'nenhum' = só o estribo perimetral. */
+export type ModoGrampos = 'norma' | 'todas' | 'nenhum';
+export const MODOS_GRAMPOS: { v: ModoGrampos; rotulo: string }[] = [{ v: 'norma', rotulo: 'Pela NBR 6118 (18.2.4)' }, { v: 'todas', rotulo: 'Em todas as barras intermediárias' }, { v: 'nenhum', rotulo: 'Só o estribo perimetral' }];
+/** Tabela de grampos (R7g): por bitola longitudinal (até `phiAte`, mm) e maior lado da seção (cm), o modo; sem linha, vale 'norma'. */
+export interface LinhaGrampos { phiAte: number; ladoMaiorAte: number; modo: ModoGrampos }
+export interface TabelaPilares { id: string; nome: string; bitolas: number[]; espacamentos: number[]; estribos: LinhaEstriboPilar[]; secoes?: LinhaSecaoPilar[]; grampos?: LinhaGrampos[] }
 /** Faixa de espessura das lajes: bitolas, espaçamentos mínimo e máximo (cm; 0 = pela opção/NBR). */
 export interface LinhaLajes { hAte: number; bitolas: number[]; sMin: number; sMax: number }
 export interface TabelaLajes { id: string; nome: string; linhas: LinhaLajes[] }
@@ -133,6 +143,16 @@ export function validarTabela(tipo: TipoTabela, t: Tabela): string[] {
     const p = t as TabelaPilares;
     bit(p.bitolas, 'bitolas');
     if (!p.espacamentos.length || !subconjunto(p.espacamentos, ESPACAMENTOS_PILAR)) e.push(`espaçamentos dentro de ${ESPACAMENTOS_PILAR.join(', ')} cm`);
+    p.secoes?.forEach((x, i) => {
+      if (!(x.ladoMenorAte > 0) || !(x.ladoMaiorAte >= x.ladoMenorAte)) e.push(`faixa de seção ${i + 1}: limites inválidos (menor lado > 0 e maior lado ≥ menor)`);
+      if (x.bitolas) bit(x.bitolas, `faixa de seção ${i + 1}`);
+      if (x.espacamentos && (!x.espacamentos.length || !subconjunto(x.espacamentos, ESPACAMENTOS_PILAR))) e.push(`faixa de seção ${i + 1}: espaçamentos dentro de ${ESPACAMENTOS_PILAR.join(', ')} cm`);
+      for (const y of x.estribos ?? []) if (!BITOLAS_TABELA.estribos.includes(y.phiT) || !(y.phiAte > 0) || (y.sMax !== 0 && !(y.sMax >= 5 && y.sMax <= 30))) e.push(`faixa de seção ${i + 1}: estribo inválido`);
+    });
+    p.grampos?.forEach((x, i) => {
+      if (!(x.phiAte > 0) || !(x.ladoMaiorAte > 0)) e.push(`grampos ${i + 1}: limites inválidos`);
+      if (!MODOS_GRAMPOS.some((m) => m.v === x.modo)) e.push(`grampos ${i + 1}: modo inválido`);
+    });
     p.estribos.forEach((x, i) => {
       if (!BITOLAS_TABELA.estribos.includes(x.phiT)) e.push(`estribo ${i + 1}: φt fora de ${PHI_T.join(', ')}`);
       if (!(x.phiAte > 0)) e.push(`estribo ${i + 1}: limite de bitola inválido`);
@@ -157,7 +177,7 @@ export function normalizarTabela(tipo: TipoTabela, t: Tabela): Tabela {
   const c = copia(t), ref = BITOLAS_TABELA[tipo];
   if (tipo === 'vigas') for (const l of (c as TabelaVigas).linhas) { l.pos.bitolas = ordenadas(l.pos.bitolas, ref); l.neg.bitolas = ordenadas(l.neg.bitolas, ref); }
   if (tipo === 'estribos' || tipo === 'lajes') for (const l of (c as TabelaEstribos | TabelaLajes).linhas) l.bitolas = ordenadas(l.bitolas, ref);
-  if (tipo === 'pilares') { const p = c as TabelaPilares; p.bitolas = ordenadas(p.bitolas, ref); p.espacamentos = ESPACAMENTOS_PILAR.filter((x) => p.espacamentos.includes(x)); p.estribos.sort((a, z) => a.phiAte - z.phiAte); }
+  if (tipo === 'pilares') { const p = c as TabelaPilares; p.bitolas = ordenadas(p.bitolas, ref); p.espacamentos = ESPACAMENTOS_PILAR.filter((x) => p.espacamentos.includes(x)); p.estribos.sort((a, z) => a.phiAte - z.phiAte); p.secoes?.forEach((x) => { if (x.bitolas) x.bitolas = ordenadas(x.bitolas, ref); if (x.espacamentos) x.espacamentos = ESPACAMENTOS_PILAR.filter((y) => x.espacamentos!.includes(y)); }); if (p.secoes && !p.secoes.length) delete p.secoes; if (p.grampos && !p.grampos.length) delete p.grampos; }
   if (tipo === 'vigas') (c as TabelaVigas).linhas.sort((a, z) => a.bAte - z.bAte || a.hAte - z.hAte);
   if (tipo === 'estribos') (c as TabelaEstribos).linhas.sort((a, z) => a.bAte - z.bAte);
   if (tipo === 'lajes') (c as TabelaLajes).linhas.sort((a, z) => a.hAte - z.hAte);
@@ -213,6 +233,22 @@ export function escolherEstribo(t: TabelaEstribos, bw: number, aswS: number, sma
   return { phi, s: sAdopt, legs, fora: sAdopt < sMin - NA };
 }
 
+/**
+ * Tabela efetiva para a seção (m): a geral com os campos da primeira faixa de seção que contém o menor e o maior lado
+ * (R7g). Sem faixas ou sem faixa aplicável, a própria tabela.
+ */
+export function tabelaPilarNaSecao(t: TabelaPilares, w: number, h: number): TabelaPilares {
+  const menor = Math.min(w, h) * 100, maior = Math.max(w, h) * 100;
+  const f = t.secoes?.find((x) => menor <= x.ladoMenorAte + NA && maior <= x.ladoMaiorAte + NA);
+  if (!f) return t;
+  return { ...t, bitolas: f.bitolas ?? t.bitolas, espacamentos: f.espacamentos ?? t.espacamentos, estribos: f.estribos ?? t.estribos };
+}
+/** Modo dos grampos para a bitola longitudinal (mm) e a seção (m): a primeira linha da tabela de grampos que contém ambos; senão 'norma'. */
+export function modoGrampos(t: TabelaPilares, phiLong: number, w: number, h: number): ModoGrampos {
+  const maior = Math.max(w, h) * 100;
+  return [...(t.grampos ?? [])].sort((a, z) => a.phiAte - z.phiAte || a.ladoMaiorAte - z.ladoMaiorAte).find((x) => phiLong <= x.phiAte + NA && maior <= x.ladoMaiorAte + NA)?.modo ?? 'norma';
+}
+
 /** Bitolas (mm) e espaçamentos (m) das disposições do pilar, do mais esparso ao mais denso. */
 export const espacamentosPilar = (t: TabelaPilares) => [...t.espacamentos].sort((a, z) => z - a).map((x) => x / 100);
 export const bitolasPilar = (t: TabelaPilares) => [...t.bitolas].sort((a, z) => a - z);
@@ -231,7 +267,7 @@ const lim = (x: number) => (x >= SEM_LIMITE ? '∞' : String(x));
 export function descreverTabela(tipo: TipoTabela, t: Tabela): string[] {
   if (tipo === 'vigas') return (t as TabelaVigas).linhas.map((l, i) => `Grupo ${i + 1}: b ≤ ${lim(l.bAte)} cm, h ≤ ${lim(l.hAte)} cm — positivos φ ${bitolasTxt(l.pos.bitolas)} (≥ ${l.pos.nMin} barras, ${l.pos.camadas} camadas); negativos φ ${bitolasTxt(l.neg.bitolas)} (≥ ${l.neg.nMin}, ${l.neg.camadas} camadas); passante ≥ ${f1(l.passante * 100)} %`);
   if (tipo === 'estribos') return (t as TabelaEstribos).linhas.map((l, i) => `Grupo ${i + 1}: b ≤ ${lim(l.bAte)} cm — φ ${bitolasTxt(l.bitolas)}, s ≥ ${l.sMin} cm${l.sMax ? `, s ≤ ${l.sMax} cm` : ''}, ramos ${l.ramos.join('/')}`);
-  if (tipo === 'pilares') { const p = t as TabelaPilares; return [`φ ${bitolasTxt(p.bitolas)}; espaçamentos ${p.espacamentos.join(' · ')} cm`, ...p.estribos.map((x) => `Estribo φt ${f1(x.phiT)} para φ ≤ ${f1(x.phiAte)}${x.sMax ? `, s ≤ ${x.sMax} cm` : ''}`)]; }
+  if (tipo === 'pilares') { const p = t as TabelaPilares; return [`φ ${bitolasTxt(p.bitolas)}; espaçamentos ${p.espacamentos.join(' · ')} cm`, ...p.estribos.map((x) => `Estribo φt ${f1(x.phiT)} para φ ≤ ${f1(x.phiAte)}${x.sMax ? `, s ≤ ${x.sMax} cm` : ''}`), ...(p.secoes ?? []).map((x, i) => `Seção ${i + 1}: menor lado ≤ ${lim(x.ladoMenorAte)} cm, maior ≤ ${lim(x.ladoMaiorAte)} cm${x.bitolas ? ` — φ ${bitolasTxt(x.bitolas)}` : ''}${x.espacamentos ? `; espaçamentos ${x.espacamentos.join(' · ')} cm` : ''}${x.estribos ? `; estribos ${x.estribos.map((y) => `φt ${f1(y.phiT)} até φ ${f1(y.phiAte)}`).join(', ')}` : ''}`), ...(p.grampos ?? []).map((x, i) => `Grampos ${i + 1}: φ ≤ ${f1(x.phiAte)}, maior lado ≤ ${lim(x.ladoMaiorAte)} cm — ${MODOS_GRAMPOS.find((m) => m.v === x.modo)!.rotulo.toLowerCase()}`)]; }
   return (t as TabelaLajes).linhas.map((l, i) => `Faixa ${i + 1}: h ≤ ${lim(l.hAte)} cm — φ ${bitolasTxt(l.bitolas)}${l.sMin ? `, s ≥ ${l.sMin} cm` : ''}${l.sMax ? `, s ≤ ${l.sMax} cm` : ''}`);
 }
 
