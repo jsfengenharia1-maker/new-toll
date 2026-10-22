@@ -10,6 +10,7 @@ import { condensar, forcaFronteira, recuperarInternos, type Condensado } from '.
 import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
+import { inerciaT, mesaDaViga, propriedadesRigidez } from './secaoViga';
 import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, flambagemLance, gamas } from './materiais';
@@ -100,10 +101,16 @@ export function torcaoRet(b: number, h: number) {
   const a = Math.max(b, h), c = Math.min(b, h);
   return a * c ** 3 * (1 / 3 - 0.21 * (c / a) * (1 - c ** 4 / (12 * a ** 4)));
 }
-/** Inércia de seção T (mesa bf × hf, alma bw, altura total h) em torno do centróide. */
-function inerciaT(bf: number, hf: number, bw: number, h: number) {
-  const A1 = bf * hf, A2 = bw * (h - hf), y1 = h - hf / 2, y2 = (h - hf) / 2, yc = (A1 * y1 + A2 * y2) / (A1 + A2);
-  return (bf * hf ** 3) / 12 + A1 * (y1 - yc) ** 2 + (bw * (h - hf) ** 3) / 12 + A2 * (y2 - yc) ** 2;
+/** Fator do EI vertical das vigas de amarração (K1.4.28: o programa de referência usa 10⁻¹⁵) [a confirmar]. */
+export const FATOR_EI_AMARRACAO = 1e-15;
+/** Penalidade do plano e da área das vigas de amarração (premissa do projeto: × 10⁶). */
+const PENALIDADE_AMARRACAO = 1e6;
+/** Barra 3D de uma viga: seção (com mesa colaborante, se a opção valer), torção e rigidezes das vigas de amarração. */
+function propsBarraViga(b: BuildingModel, v: Viga, op: OpcoesAnalise) {
+  const s = ret(v.secao.b, v.secao.h), pr = propriedadesRigidez(v, mesaDaViga(b, v), op);
+  const out = { A: pr.A, Iz: pr.Iz, Iy: pr.Iy, J: torcaoDe(v, op) * s.J };
+  if (v.amarracao) { out.Iz *= FATOR_EI_AMARRACAO; out.A *= PENALIDADE_AMARRACAO; out.Iy *= PENALIDADE_AMARRACAO; }
+  return out;
 }
 
 /** Inércias do pilar em torno dos eixos globais X e Y (seção girada de `angulo`). */
@@ -452,12 +459,13 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   /** Modelo-base da grelha de um grupo com os pilares dados (na seção do lance do pavimento). */
   const montarBase = (pav: (typeof ps)[number], grupo: (typeof b.grupos)[number], pilares: Pilar[]): GrelhaBase => {
     const avisosB: string[] = [];
-    const vigas = b.vigas.filter((v) => v.grupo === grupo.id);
+    // viga não estrutural (E2a, C6.21) só fecha o contorno do pano: fora da grelha e do pórtico (a laje fica com borda livre)
+    const vigas = b.vigas.filter((v) => v.grupo === grupo.id && v.estrutural !== false);
     const lajes = b.lajes.filter((l) => l.grupo === grupo.id);
     const cargas = b.cargas.filter((c) => c.grupo === grupo.id);
     const malhas = lajes.map((l) => ({ l, m: malhaLaje(l.contorno, l.tipo.tipo === 'trelicada' ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? []) }));
     // pontos das bordas das malhas e apoios dos pilares dividem as vigas
-    const eixos = eixosDasVigas(b, grupo.id) as [P, P][];
+    const eixos = eixosDasVigas(b, grupo.id, true) as [P, P][];
     const extras: P[] = [];
     for (const { m } of malhas) for (const ln of m.linhas) extras.push(ln.pontos[0], ln.pontos[ln.pontos.length - 1]);
     const pre = dividirVigas(vigas, eixos, extras);
@@ -494,8 +502,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     // N2e (K1.4.34): trecho fino dentro de um trecho grosso (cruzamento a cruzamento/apoio) com comprimento ≤ limite
     const curtaNaGrelha = (t: TrechoViga) => { const m: P = [(nos[t.a].p[0] + nos[t.z].p[0]) / 2, (nos[t.a].p[1] + nos[t.z].p[1]) / 2]; return grosso.trechos.some((g) => g.viga === t.viga && Math.hypot(grosso.nos[g.z].p[0] - grosso.nos[g.a].p[0], grosso.nos[g.z].p[1] - grosso.nos[g.a].p[1]) <= op.barraCurtaLimite + 1e-9 && distSeg(m, grosso.nos[g.a].p, grosso.nos[g.z].p) < 1e-3); };
     for (const t of trechos) {
-      const v = t.viga, s = ret(v.secao.b, v.secao.h);
-      const bv: Barra3 = { i: no(t.a), j: no(t.z), E: Ev, G: Gv, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
+      const v = t.viga, pv = propsBarraViga(b, v, op);
+      const bv: Barra3 = { i: no(t.a), j: no(t.z), E: Ev, G: Gv, ...pv };
       if (op.barraCurtaLimite > 0 && op.barraCurtaFator !== 1 && curtaNaGrelha(t)) { bv.A *= op.barraCurtaFator; bv.Iz *= op.barraCurtaFator; bv.Iy *= op.barraCurtaFator; bv.J *= op.barraCurtaFator; }
       vincularPontas(bv, t, trechos, nos, [5]);
       m.barras.push(bv);
@@ -1033,11 +1041,11 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     /** Barra do pórtico de cada trecho grosso: índice, início da parte flexível e direção (para cargas concentradas). */
     const barraDe = new Map<number, { bi: number; ini: P; u: P; L: number } | { no: number }>();
     g.trechos.forEach((t, ti) => {
-      const v = t.viga, s = ret(v.secao.b, v.secao.h), pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
+      const v = t.viga, pv = propsBarraViga(b, v, op), pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
       const ni = noViga(t.a), nj = noViga(t.z);
       const Lt = Math.hypot(g.nos[t.z].p[0] - g.nos[t.a].p[0], g.nos[t.z].p[1] - g.nos[t.a].p[1]);
       if (ni === nj) { casosV[0].nodais.push({ no: ni, f: [0, 0, -pp * Lt, 0, 0, 0] }); barraDe.set(ti, { no: ni }); return; } // dentro do pilar
-      const barra: Barra3 = { i: ni, j: nj, E: Ev, G: Gv, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
+      const barra: Barra3 = { i: ni, j: nj, E: Ev, G: Gv, ...pv };
       if (op.barraCurtaLimite > 0 && op.barraCurtaFator !== 1 && Lt <= op.barraCurtaLimite + 1e-9) { barra.A *= op.barraCurtaFator; barra.Iz *= op.barraCurtaFator; barra.Iy *= op.barraCurtaFator; barra.J *= op.barraCurtaFator; }
       for (const [k, i, outro] of [['I', t.a, t.z], ['J', t.z, t.a]] as const) {
         const pid = g.nos[i].pilar;

@@ -147,11 +147,12 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
     if (!pavs.length) continue;
     // vigas sem apoio / com um apoio só (por pavimento do grupo; mensagem única por viga)
     for (const v of vs) {
+      if (v.estrutural === false) continue; // não estrutural: só fecha o contorno do pano
       const semApoio: string[] = [], umApoio: string[] = [];
       let soViga = false;
       for (const pav of pavs) {
         const np = pilaresQueChegam(b, pav.id).filter((p) => vigaTocaPilar(v, p, pav.id)).length;
-        const nv = vs.filter((w) => w.id !== v.id && vigasSeTocam(v, w)).length;
+        const nv = vs.filter((w) => w.id !== v.id && w.estrutural !== false && vigasSeTocam(v, w)).length;
         if (np + nv === 0) semApoio.push(pav.nome);
         else if (np + nv === 1) { umApoio.push(pav.nome); soViga = np === 0; }
       }
@@ -165,6 +166,12 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
       const ps = pavs.flatMap((pav) => pilaresQueChegam(b, pav.id).map((p) => ({ p, pav: pav.id })));
       const fora = v.pontos.slice(1).map((_, i) => ajusteFaceTrecho(v, i, ps)).filter((x) => x);
       if (fora.length) d.push({ codigo: 'VIGA_FORA_FACE', severidade: 'aviso', elementos: [v.id], mensagem: `Face de ${v.nome} a ${fmt(Math.abs(fora[0]) * 100)} cm da face do pilar.`, sugestao: { comando: 'viga.ajustarFaces', params: { grupo: g.id, ids: [v.id] }, texto: 'Encostar na face do pilar' } });
+    }
+    // viga não estrutural (E2a, C6.21) não recebe carga: a carga linear sobre ela não tem para onde ir
+    for (const v of vs.filter((x) => x.estrutural === false)) {
+      const eixo = geometriaViga(v).eixo.map((q) => [q[0], q[1]] as P);
+      const sobre = b.cargas.filter((c) => c.grupo === g.id && c.tipo !== 'area' && c.pontos.every((q) => distPontoPolilinha(q, eixo) <= v.secao.b / 2 + 0.02));
+      if (sobre.length) d.push({ codigo: 'VIGA_NAO_ESTRUTURAL_CARGA', severidade: 'aviso', elementos: [v.id, ...sobre.map((c) => c.id)], mensagem: `${v.nome} é não estrutural e recebe ${sobre.length} carga(s) lançada(s) sobre ela: a carga não é transferida a nenhum apoio.` });
     }
     // pilares sem viga (os que nascem sem apoio: transicao.ts)
     if (vs.length) {

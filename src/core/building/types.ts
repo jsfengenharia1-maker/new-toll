@@ -474,6 +474,18 @@ export interface Viga {
   detalhe?: DetalheEditado;
   /** Viga embutida ou de coroamento (E1c, C5.23): id da parede sobre a qual corre; é movida e removida junto com ela. */
   embutida?: string;
+  /**
+   * Seção com mesa (E2a, C6.16): T (mesa dos dois lados) ou L (de um lado). `bf`/`hf`/`a` ausentes = mesa colaborante
+   * automática pela NBR 6118, 14.6.2.2 (`secaoViga.ts`); ausente = retangular. A mesa entra na rigidez da análise e,
+   * com a opção `mesaDimensionamento`, na flexão.
+   */
+  mesa?: { tipo: 'T' | 'L'; bf?: number; hf?: number; a?: number };
+  /** Viga chata (faixa, C6.15): altura igual à da laje que contorna (comando `viga.editar { chata }`). */
+  chata?: boolean;
+  /** `false` = viga não estrutural (C6.21): só fecha o contorno do pano; fica fora da grelha e do pórtico. */
+  estrutural?: false;
+  /** Viga de amarração ou encadeado (K1.4.28): sem rigidez à flexão vertical; plano e EA rígidos. */
+  amarracao?: boolean;
 }
 
 export type TipoLaje =

@@ -401,6 +401,13 @@ export interface OpcoesCalculo {
   /** Vigas sobre muros (E1e): largura e altura mínimas (cm). */
   alvenariaVigaBMin: number;
   alvenariaVigaHMin: number;
+  // ---- E2a: seções de viga ----
+  /** 1 = a mesa colaborante (T/L) entra na rigidez à flexão vertical da viga na análise; 0 = só a alma. */
+  mesaRigidez: number;
+  /** 1 = a flexão da viga T/L é dimensionada na seção T quando a mesa está comprimida; 0 = só a alma (armadura pela alma). */
+  mesaDimensionamento: number;
+  /** 1 = barras de canto na mesa (bitola de montagem) apoiando as pontas dos estribos das vigas T/L no detalhamento. */
+  mesaBarrasCanto: number;
 }
 
 export interface OpcaoInfo {
@@ -861,12 +868,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Largura mínima da viga embutida em muro de alvenaria; abaixo disso, aviso ALV_VIGA_ESPESSURA.' },
   { chave: 'alvenariaVigaHMin', rotulo: 'Vigas sobre muros: altura mínima', unidade: 'cm', min: 10, max: 60, passo: 1, padrao: 19, fonte: 'Programa de referência (espessuras mínimas configuráveis); valor do Statikos [a confirmar]', aConfirmar: true,
     descricao: 'Altura mínima da viga embutida em muro de alvenaria; abaixo disso, aviso ALV_VIGA_ESPESSURA.' },
+  { chave: 'mesaRigidez', rotulo: 'Vigas T/L: mesa na rigidez', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Manual do programa de referência (a mesa entra na rigidez); NBR 6118, 14.6.2.2 (largura colaborante)', aConfirmar: false,
+    descricao: 'A inércia e a área da viga com mesa (T ou L) usam a largura colaborante da NBR 6118 na grelha e no pórtico. 0 = só a alma. O peso próprio segue b × h (a laje já é contada à parte).' },
+  { chave: 'mesaDimensionamento', rotulo: 'Vigas T/L: flexão na seção T', min: 0, max: 1, passo: 1, padrao: 0, padraoNBR: 1, booleana: true, fonteNBR: 'NBR 6118, 14.6.2.2 e 17.2.2: a mesa comprimida colabora na resistência', fonte: 'Manual do programa de referência: a armadura é calculada só com a alma, mesmo com mesa na rigidez', aConfirmar: false,
+    descricao: '1 = a flexão é dimensionada na seção T (ou L) onde a mesa está comprimida (positivo com a mesa em cima; negativo se a viga é invertida). 0 = armadura pela alma.' },
+  { chave: 'mesaBarrasCanto', rotulo: 'Vigas T/L: barras de canto na mesa', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Manual do programa de referência (barras adicionais para apoiar as pontas dos estribos na mesa); 2 barras (1 na L) de bitola de montagem em toda a extensão [a confirmar]', aConfirmar: true,
+    descricao: 'No detalhamento da viga com mesa, acrescenta barras de canto no nível da mesa, na bitola de montagem, para amarrar as pontas dos estribos. 0 = sem.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
-  'malha', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
+  'malha', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
   'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
@@ -912,6 +925,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'alvenariaCumprimento', 'alvenariaTracao', 'alvenariaGamaM', 'alvenariaFkPrisma', 'alvenariaPrisma', 'alvenariaFlambagem', 'alvenariaLambdaMax', 'alvenariaLambdaMaxArmada',
   'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas',
   'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin',
+  // E2a: seções T/L (flexão na seção T e barras de canto da mesa)
+  'mesaDimensionamento', 'mesaBarrasCanto',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
@@ -973,6 +988,10 @@ export function vinculosAlterados(b: BuildingModel): string[] {
       v.engasteLajes !== undefined && `lajes apoiadas ${f(v.engasteLajes)}`,
       v.torcaoEquilibrio && 'torção de equilíbrio (seção bruta)',
       v.foraDiafragma && 'fora do diafragma',
+      v.mesa && `seção ${v.mesa.tipo}${v.mesa.bf !== undefined ? ` com bf ${f(v.mesa.bf * 100)} cm` : ' com mesa colaborante (NBR 6118, 14.6.2.2)'}${v.mesa.hf !== undefined ? `, hf ${f(v.mesa.hf * 100)} cm` : ''}`,
+      v.chata && 'viga chata (altura da laje que contorna)',
+      v.estrutural === false && 'não estrutural (só fecha o contorno do pano)',
+      v.amarracao && 'amarração (sem rigidez à flexão vertical)',
     ].filter(Boolean);
     if (partes.length) out.push(`Viga ${v.nome}: ${partes.join('; ')}.`);
   }

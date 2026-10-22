@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 4 | 2 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 13 | 7 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 14 | 6 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -21,11 +21,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 12 | 37 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 11 | 9 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 12 | 9 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 13 | 8 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 3 | 5 | 19 |
-| **Total** | **661** | **388** | **67** | **95** | **111** |
+| **Total** | **661** | **388** | **69** | **93** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 84 | 119 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 37 | 82 | 119 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **67** | **95** | **162** |
+| **Total** | **69** | **93** | **162** |
 
 ## Divergências de premissa
 
@@ -108,7 +108,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.4 | Pilares: comprimento da barra = altura ou distância livre entre faces dos elementos dos pavimentos inicial e final. | Feito | — | opção `pilarComprimento`: 0 = entre cotas (padrão, a confirmar); 1 = parte flexível do topo da laje à face inferior da viga mais alta, com trecho rígido vertical no topo (N2c) |
 | K1.3.5 | Vigas: definidas em planta; nós nas interseções com faces dos apoios (pilares, pilares-parede, paredes), com elementos de laje e com outras vigas; nós ao longo do eixo, nas extremidades, nos balanços e extremos livres. | Feito | — | nós nos cruzamentos e apoios (`dividirVigas`); no pórtico o nó fica no eixo do pilar com trecho rígido |
 | K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
-| K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | só concreto retangular; sem seção T colaborante nem biblioteca (aço/madeira fora) [E2a] |
+| K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | concreto armado retangular, T e L (mesa colaborante, `secaoViga.ts`); aço, mista e madeira fora do escopo [E2a]; interface nos cartões E2a |
 | K1.3.8 | Eixo da barra de viga no plano médio vertical da alma, na altura do centro de gravidade. | Feito | — | eixo da viga no plano do pavimento (prática usual com diafragma) |
 | K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Falta | E | apoio contínuo em muro [E2e] |
 | K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Falta | E | tipos de vínculo do apoio em muro [E2e] |
@@ -197,7 +197,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Falta | E | vigas inclinadas [E2c] |
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
-| K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Falta | E | vigas de amarração sem rigidez à flexão [E2a] |
+| K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: `Viga.amarracao` (EI vertical × 10⁻¹⁵, A e plano × 10⁶, GJ das demais vigas; `propsBarraViga` em `analitico.ts`); interface no cartão E2a-1 [E2a] |
 | K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro [E2e] |
 | K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Parcial | E | casca com E = Ecs (EI bruto), torção pela placa e E × `axialPilares` nas cargas verticais (majora também a flexão: material isotrópico); 0,8·Eci·Ic no γz (`incluirParedes`, `analitico.ts`) [E1b] |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
@@ -624,7 +624,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.13 | Armadura de montagem: contínua ou construtiva, suportando estribos; montagem contínua quando a armação é feita em oficina de apoio a apoio (negativos colocados na obra). | Feito | — | opção `vigaMontagemContinua`: contínua de ponta a ponta ou porta-estribos nas lacunas entre as pontas dos negativos com traspasse construtivo (R7b) |
 | K1.12.14 | Opção de considerar a montagem como colaborante (superior); se precisar de compressão superior, passa a colaborante. | Feito | — | opção `vigaMontagemColaborante`; com compressão superior exigida pelo cálculo (As2 > 0) a montagem passa a colaborante, com aviso (R7b) |
 | K1.12.15 | Ancoragem da montagem: gancho ou prolongamento reto, a partir do extremo ou do eixo (opções). | Feito | — | opções `vigaMontagemGancho` (gancho ou prolongamento reto) e `vigaMontagemEixo` (reta medida do extremo ou do eixo do apoio) (R7b) |
-| K1.12.16 | Seções T: barras adicionais para apoiar as pontas dos estribos na mesa. | Falta | E | barras de canto da seção T (vigas T: E2) [E2a] |
+| K1.12.16 | Seções T: barras adicionais para apoiar as pontas dos estribos na mesa. | Parcial | E | núcleo: `DetalheViga.cantosMesa` (opção `mesaBarrasCanto`: 2 barras na T, 1 na L, bitola de montagem), no peso, no resumo e na seção da prancha de vigas (`armacaoVigas.ts`); seção do detalhe na interface no cartão E2a-2 [E2a] |
 | K1.12.17 | Montagem para porta-estribos entre extremos dos negativos, bitola pequena, emenda construtiva; útil em zona sísmica para afastar emendas dos nós. | Feito | — | montagem interrompida = porta-estribos de bitola pequena entre as pontas dos negativos, com traspasse construtivo máx(20 cm; 15φ) (R7b) |
 | K1.12.18 | Sem disposição na tabela: nº necessário de φ25 e aviso "fora de tabela" (montagem e adicional). | Parcial | R | positivos e negativos sem disposição na tabela: n φ25 e erro FORA_TABELA (R7a); montagem e adicional ainda sem tabela [R7b] |
 | K1.12.19 | Negativos que se encontram dos dois lados de um trecho viram montagem colaborante automaticamente. | Feito | — | opção `vigaNegativosUnir` (padrão do sistema ligada, NBR desligada): negativos separados por menos de lb viram uma barra com o maior nº de barras; negativos cobertos pela montagem colaborante não geram barras próprias (R3a) (R7b) |
@@ -970,3 +970,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 2 itens (manual de cálculo).
 - **22/10/2026 — correção pós-auditoria N2 (achados 4, 5 e 7).** K1.5.15, K1.9.23, K1.13.2.4-2 e K1.15.4-22 voltam a Parcial (fogo por fontes secundárias e TRRF pela IT estadual; Wp/K de borda e canto da punção; 1,965 × 1,981 da flecha ativa); C4.44 e C10.6 no checklist do usuário.
+- **22/10/2026 — E2a, núcleo.** K1.3.7 e K1.12.16 Parcial com nota; K1.4.28 de Falta a Parcial (amarração no núcleo, interface nos cartões `docs/cartoes/E2a/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente.

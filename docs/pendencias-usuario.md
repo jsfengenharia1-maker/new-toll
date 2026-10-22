@@ -122,3 +122,9 @@ Nenhum texto da NBR 16868 estava disponível: todas as fórmulas abaixo foram es
 | Item | O que conferir | Onde é usado no código | Critério provisório |
 |---|---|---|---|
 | Deslizamento da sapata corrida de parede de subsolo travada por laje | Num subsolo com duas paredes opostas sob empuxo, laje no topo e sapata corrida: o CYPECAD verifica deslizamento por sapata (com a reação horizontal da base) ou dispensa/considera o conjunto? Que FS e μ usa? | `sapataCorrida.ts` (`topoTravado`, deslizamento do conjunto), opção `fundCorridaDeslizGrupo` | Conjunto travado: FS = Σμ·N / |ΣH| (padrão 1); 0 = cada sapata |
+## Seções de viga (E2a)
+| Frente | Norma | Item | O que falta | Onde entra |
+|---|---|---|---|---|
+| E2a | NBR 6118:2014 | 14.6.2.2 e 14.6.2.2.1 (largura colaborante e distância a entre pontos de momento nulo) | Texto da norma não disponível: usados b1 ≤ 0,1·a e ≤ 0,5·b2 e a = 1,0ℓ, 0,75ℓ e 0,6ℓ (biapoiada, extremo e interno de contínua) de memória; conferir os coeficientes, o caso do balanço (2,0ℓ) e a regra de b3 (vigas de borda) | `secaoViga.ts` (`abaColaborante`, `distanciaMomentoNulo`) |
+| E2a | NBR 6118:2014 | 17.3.5.2.1 (armadura mínima) na seção T com a mesa tracionada | W0 da seção T bruta também no momento negativo (mesa tracionada): confirmar se a norma pede o W0 da T ou da alma | `concrete.ts` (`beamAsMin`), usado com `mesaDimensionamento` = 1 |
+| E2a | Programa de referência (manual de cálculo) | EI vertical × 10⁻¹⁵ das vigas de amarração | Fator numérico adotado igual ao do manual; confirmar o efeito sobre a torção (GJ × coeficiente) e a quantidade de barras de canto da mesa (K1.12.16) | `analitico.ts` (`FATOR_EI_AMARRACAO`), `detalhamento.ts` (`cantosMesa`) |

@@ -50,8 +50,8 @@ export function vaos(l: Pick<Laje, 'contorno' | 'direcao'>): [number, number] {
  * Eixos das vigas do grupo como segmentos, com as pontas levadas até o eixo da viga em que se apoiam
  * (vigas alinhadas pela face têm o eixo deslocado: sem isso, cantos e "T" não fechariam).
  */
-export function eixosDasVigas(b: BuildingModel, grupo: string): [P, P][] {
-  const vs = b.vigas.filter((v) => v.grupo === grupo).map((v) => ({ v, e: geometriaViga(v).eixo.map((q) => [q[0], q[1]] as P) }));
+export function eixosDasVigas(b: BuildingModel, grupo: string, soEstruturais = false): [P, P][] {
+  const vs = b.vigas.filter((v) => v.grupo === grupo && (!soEstruturais || v.estrutural !== false)).map((v) => ({ v, e: geometriaViga(v).eixo.map((q) => [q[0], q[1]] as P) }));
   const folga = 0.01;
   for (const A of vs) for (const k of [0, A.e.length - 1]) {
     const E = A.e[k], V = k === 0 ? A.e[1] : A.e[A.e.length - 2];

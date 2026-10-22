@@ -1,5 +1,6 @@
 // Comandos de vigas: traçar, editar, dividir, unir, prolongar/aparar, mover, copiar (no grupo e para outros grupos),
 // remover, renumerar e ajustar às faces dos pilares.
+import { alturaVigaChata } from '../building/secaoViga';
 import type { Draft } from 'immer';
 import { centroPilar, comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
@@ -52,9 +53,10 @@ registrar<{ grupo: string; pontos: P[]; secao: { b: number; h: number }; alinham
 });
 
 registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
-  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string }>({
+  engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string;
+  mesa?: { tipo: 'ret' | 'T' | 'L'; bf?: number; hf?: number; a?: number }; chata?: boolean; estrutural?: boolean; amarracao?: boolean }>({
   nome: 'viga.editar',
-  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido ou cobrimento próprio (cm).',
+  descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido, cobrimento próprio (cm), seção com mesa (mesa: T, L ou ret; bf, hf e a ausentes = mesa colaborante da NBR 6118 14.6.2.2), viga chata (altura da laje que contorna), viga não estrutural (estrutural: false, só fecha o contorno do pano) ou de amarração (sem rigidez à flexão vertical).',
   risco: 'escrita',
   // tabela, cobrimento e nome só mudam o dimensionamento; a seção muda rigidez e peso (rearmar com os esforços guardados)
   calculo: (p) => nivelEdicao(p, ['tabela', 'tabelaEstribo', 'cobrimento'], 'secao'),
@@ -66,9 +68,25 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     tabela: { type: 'string', description: 'id da tabela de barras longitudinais (R7a); "padrao" ou vazio volta à padrão da obra' },
     tabelaEstribo: { type: 'string', description: 'id da tabela de estribos (R7a); "padrao" ou vazio volta à padrão da obra' },
     articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários, ou das vigas cruzadas, em que a viga tem rótula' },
+    mesa: { type: 'object', additionalProperties: false, required: ['tipo'], properties: {
+      tipo: { type: 'string', enum: ['ret', 'T', 'L'], description: 'ret = retangular (sem mesa)' },
+      bf: { type: 'number', exclusiveMinimum: 0, maximum: 10, description: 'largura da mesa (m); ausente = colaborante pela norma' },
+      hf: { type: 'number', exclusiveMinimum: 0, maximum: 2, description: 'espessura da mesa (m); ausente = a da laje adjacente' },
+      a: { type: 'number', exclusiveMinimum: 0, maximum: 100, description: 'distância entre pontos de momento nulo (m); ausente = pelo número de vãos' },
+    } },
+    chata: { type: 'boolean', description: 'viga chata: altura = a da laje que contorna' },
+    estrutural: { type: 'boolean', description: 'false = viga não estrutural (só fecha o contorno do pano)' },
+    amarracao: { type: 'boolean', description: 'viga de amarração (encadeado): sem rigidez à flexão vertical' },
   } },
   validar(b, p) {
     if (!viga(b, p.id)) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
+    const v0 = viga(b, p.id)!;
+    if (p.mesa && p.mesa.tipo !== 'ret') {
+      const bw = p.secao?.b ?? v0.secao.b, h = p.secao?.h ?? v0.secao.h;
+      if (p.mesa.bf !== undefined && p.mesa.bf <= bw) return err('MESA_INVALIDA', 'A largura da mesa (bf) precisa ser maior que a da alma.');
+      if (p.mesa.hf !== undefined && p.mesa.hf >= h) return err('MESA_INVALIDA', 'A espessura da mesa (hf) precisa ser menor que a altura da viga.');
+    }
+    if (p.chata && alturaVigaChata(b, v0) === null) return err('VIGA_CHATA_SEM_LAJE', 'A viga chata precisa tocar uma laje do grupo (a altura vem da laje que ela contorna).');
     const tab = tabelaInexistente(b, [['vigas', p.tabela], ['estribos', p.tabelaEstribo]]);
     if (tab.length) return tab;
     // pilares intermediários ou outras vigas (rótula no cruzamento, N2e)
@@ -90,6 +108,16 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     for (const k of ['torcaoEquilibrio', 'foraDiafragma'] as const) if (p[k] !== undefined) { if (p[k]) v[k] = true; else delete v[k]; }
     if (p.cobrimento !== undefined) { if (p.cobrimento) v.cobrimento = p.cobrimento; else delete v.cobrimento; }
     atribuirTabela(v, 'tabela', p.tabela); atribuirTabela(v, 'tabelaEstribo', p.tabelaEstribo);
+    if (p.mesa) { if (p.mesa.tipo === 'ret') delete v.mesa; else v.mesa = { tipo: p.mesa.tipo, ...(p.mesa.bf !== undefined ? { bf: p.mesa.bf } : {}), ...(p.mesa.hf !== undefined ? { hf: p.mesa.hf } : {}), ...(p.mesa.a !== undefined ? { a: p.mesa.a } : {}) }; }
+    if (p.estrutural !== undefined) { if (p.estrutural) delete v.estrutural; else v.estrutural = false; }
+    if (p.amarracao !== undefined) { if (p.amarracao) v.amarracao = true; else delete v.amarracao; }
+    if (p.chata !== undefined) {
+      if (p.chata) {
+        v.chata = true;
+        const hc = alturaVigaChata(d, v);
+        if (hc !== null && Math.abs(hc - v.secao.h) > 1e-6) { aviso += soltarArmaduraViga(v); v.secao = { b: v.secao.b, h: hc }; }
+      } else delete v.chata;
+    }
     if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
     return `${v.nome} alterada.${aviso}`;
   },
@@ -102,18 +130,20 @@ function soltarArmaduraViga(v: { armadura?: unknown; detalhe?: unknown }): strin
   return tinha ? ' A armadura bloqueada saiu: a seção mudou e o recálculo gera uma nova.' : '';
 }
 
-registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel'; valor: unknown }>({
+registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel' | 'mesa' | 'chata' | 'estrutural' | 'amarracao'; valor: unknown }>({
   nome: 'viga.atribuir',
-  descricao: 'Atribui o mesmo valor a várias vigas: seção {b, h}, alinhamento, invertida ou desnível.',
+  descricao: 'Atribui o mesmo valor a várias vigas: seção {b, h}, alinhamento, invertida, desnível, mesa {tipo: ret|T|L, bf?, hf?, a?}, chata, estrutural ou amarracao (booleanos).',
   risco: 'escrita',
   calculo: (p) => (p.campo === 'secao' ? 'secao' : true),
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['ids', 'campo', 'valor'], properties: { ids, campo: { type: 'string', enum: ['secao', 'alinhamento', 'invertida', 'nivel'] }, valor: {} } },
+  schema: { type: 'object', additionalProperties: false, required: ['ids', 'campo', 'valor'], properties: { ids, campo: { type: 'string', enum: ['secao', 'alinhamento', 'invertida', 'nivel', 'mesa', 'chata', 'estrutural', 'amarracao'] }, valor: {} } },
   validar(b, p) {
     const f = faltam(b, p.ids);
     if (f.length) return err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`);
     const ok = p.campo === 'secao' ? typeof p.valor === 'object' && p.valor !== null && (p.valor as { b: number }).b > 0 && (p.valor as { h: number }).h > 0
-      : p.campo === 'alinhamento' ? ['esq', 'centro', 'dir'].includes(p.valor as string) : p.campo === 'invertida' ? typeof p.valor === 'boolean' : typeof p.valor === 'number';
+      : p.campo === 'alinhamento' ? ['esq', 'centro', 'dir'].includes(p.valor as string)
+      : p.campo === 'mesa' ? typeof p.valor === 'object' && p.valor !== null && ['ret', 'T', 'L'].includes((p.valor as { tipo: string }).tipo)
+      : ['invertida', 'chata', 'estrutural', 'amarracao'].includes(p.campo) ? typeof p.valor === 'boolean' : typeof p.valor === 'number';
     return ok ? [] : err('PARAMETRO_INVALIDO', `Valor inválido para ${p.campo}.`);
   },
   aplicar(d, p) {
@@ -121,6 +151,12 @@ registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel
       if (p.campo === 'secao') { const s = p.valor as { b: number; h: number }; if (s.b !== v.secao.b || s.h !== v.secao.h) soltarArmaduraViga(v); v.secao = { b: s.b, h: s.h }; }
       else if (p.campo === 'alinhamento') v.alinhamento = p.valor as Alinhamento;
       else if (p.campo === 'invertida') { if (p.valor) v.invertida = true; else delete v.invertida; }
+      else if (p.campo === 'mesa') { const m = p.valor as NonNullable<Viga['mesa']> | { tipo: 'ret' }; if (m.tipo === 'ret') delete v.mesa; else v.mesa = { ...(m as NonNullable<Viga['mesa']>) }; }
+      else if (p.campo === 'estrutural') { if (p.valor) delete v.estrutural; else v.estrutural = false; }
+      else if (p.campo === 'amarracao') { if (p.valor) v.amarracao = true; else delete v.amarracao; }
+      else if (p.campo === 'chata') {
+        if (p.valor) { v.chata = true; const hc = alturaVigaChata(d, v); if (hc !== null && Math.abs(hc - v.secao.h) > 1e-6) { soltarArmaduraViga(v); v.secao = { b: v.secao.b, h: hc }; } } else delete v.chata;
+      }
       else if (p.valor) v.nivel = p.valor as number; else delete v.nivel;
     }
     return `${p.ids.length} viga(s) alterada(s).`;
