@@ -14,30 +14,30 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 13 | 7 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 39 | 6 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 52 | 11 | 40 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 53 | 10 | 40 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 36 | 14 | 9 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 72 | 15 | 10 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **380** | **71** | **99** | **111** |
+| **Total** | **661** | **382** | **69** | **99** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 0 | 7 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 0 | 5 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 87 | 129 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **71** | **99** | **170** |
+| **Total** | **69** | **99** | **168** |
 
 ## Divergências de premissa
 
@@ -293,7 +293,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | E | N2a: natureza H (empuxo de terra, permanente com γh), tipos de empuxo reutilizáveis (`empuxo.tipo`, `empuxo.ts`, `diagramaEmpuxo`) e casos acidentais pelas naturezas Q/W/E; aplicação às paredes de subsolo na E1c |
 | K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Feito | — | N2a: arranjos como casos filhos incompatíveis (`pai`), tabela de compatibilidade compatível/incompatível/simultâneo e opção de os adicionais se combinarem entre si (`Norma.combinarAdicionais`) |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
-| K1.5.15 | Verificação de resistência ao fogo opcional. | Parcial | N | N2g (núcleo): estado-limite "incendio" (desligado por padrão, ligado em Estados-limite ou `fogo.definir`), `verificarFogo` em `src/core/building/fogo.ts`; falta a interface do grupo Incêndio [N2g] |
+| K1.5.15 | Verificação de resistência ao fogo opcional. | Feito | — | N2g: verificação opcional de incêndio (estado-limite "incendio", grupo Incêndio, card e memorial); e2e N2g |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
 | K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Feito | — | `carga.pilar` com N, Hx, Hy, Mx, My e torção T por caso e lance, eixos globais ou locais (N2c) |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Feito | — | arranques com cargas sobre o radier ou a viga sobre base elástica: as cargas vão para o nó mais próximo da malha (`src/core/building/baseElastica.ts`) |
@@ -409,7 +409,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
 | K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Feito | — | vento e ações horizontais manuais: caso adicional de natureza W, ampliado por 0,95·γz (N1c) |
-| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Parcial | N | N2g (núcleo): `fogo.definir` com TRRF por grupo e elemento, ocupação (NBR 14432/IT), revestimento e `compartimentadora` por laje; falta a interface [N2g] |
+| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Feito | — | N2g: incêndio por grupo e elemento com revestimento, TRRF (ou sugestão pela ocupação) e laje compartimentadora (`Incendio.tsx`); e2e N2g |
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
 | K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Feito | — | combinações automáticas pelos casos e grupos de incompatíveis (N1c); cada carga vinculada a G, Q ou a um caso adicional |
@@ -953,3 +953,5 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1d, núcleo (armadura e desenho de paredes e pilares-parede, muro de arrimo).** K1.4.59, K1.4.60, K1.11.61 e K1.12.4.2-1, -2, -3, -4, -5, -7, -9 e -10 passam a Feito: `paredesArmadura.ts` (sanduíche + chapa ortogonal por elemento, malhas, cumprimento, reforços locais, concreto simples), `paredesDim.ts` (panos entre aberturas, bordas extrapoladas, aberturas, verificação global do lado por fibras), `paredesLado.ts` (lado curto como pilar), `detalhamentoParedes.ts` (barras, emendas, quantitativos), `armacaoParedes.ts` (prancha SCM), `muroArrimoDim.ts`, 15 opções `parede*`. K1.1.7, K1.11.36, K1.11.37, K1.11.38, K1.12.4.2-6, -8 e -11 passam a Parcial: o núcleo existe (`campoParede.ts`, comandos `parede.armadura`/`pilarParede.armadura`/`abertura.armadura`, emendas, `memorialParedes.ts`) e falta a interface (cartões em `docs/cartoes/E1d/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 11 itens (manual de cálculo).
+- **22/10/2026 — fatia N2g, interface.** C4.44 e C10.6 (K1.5.15 e K1.9.23 no manual de cálculo) passam a Feito (Incendio.tsx, FogoCard.tsx, memorial, e2e N2g).
+  - Situação: ver o resumo (recontado por `npm run checklists`).

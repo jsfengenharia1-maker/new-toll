@@ -473,6 +473,21 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               <ul>{[...dim.vigas.map((x) => [x.nome, x.mensagens] as const), ...dim.pilares.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const), ...dim.lajes.map((x) => [`${x.nome} (${x.pavimento})`, x.mensagens] as const)].filter(([, m]) => m.length).map(([n, m], i) => <li key={i}><b>{n}:</b> {m.join(' ')}</li>)}</ul>
             )}
 
+            {dim.fogo && (<>
+              {h2('Resistência ao fogo')}
+              <div data-memorial-fogo>
+                <p>Verificação em situação de incêndio pela NBR 15200: método tabular nas lajes e vigas (edição de 2004, dimensões mínimas e distância c1 do eixo da armadura à face exposta, TRRF de 30 a 120 min, sem interpolação) e, nos pilares, {opc.fogoPilarMetodo ? 'a tabela da edição de 2004 por μfi' : 'o método analítico da edição de 2012 (TRF = 120·[(Rμ + Ra + Rl + Rb + Rn)/120]^1,8)'}. c1 = cobrimento + φ do estribo + φ/2 das barras adotadas; o revestimento de proteção soma a c1 (e à largura das vigas e à espessura das lajes) pela eficiência do material (cal e areia 67 %, cimento e areia 100 %). μfi dos pilares {fmt(opc.fogoMuFi)}, {opc.fogoFacesPilar} face(s) exposta(s), ℓef,fi {opc.fogoLefReducao ? '= 0,5·ℓe (0,7·ℓe no último pavimento) com γz ≤ 1,1' : '= ℓe'}; lajes {opc.fogoLajeCompartimentadora ? 'compartimentadoras (espessura mínima também verificada)' : 'sem função compartimentadora (só c1)'}. Tabelas da edição de 2012 para lajes maciças e vigas e as tabelas gerais dos pilares não foram transcritas (a confirmar).</p>
+                {dim.fogo.sugestao && <p>Sugestão pela ocupação {dim.fogo.sugestao.divisao} e altura {fmt(dim.fogo.sugestao.altura, 1)} m (classe {dim.fogo.sugestao.classe}): {dim.fogo.sugestao.trrf === null ? 'consultar o corpo técnico dos bombeiros' : `${dim.fogo.sugestao.trrf} min`}. {dim.fogo.sugestao.fonte}.</p>}
+                <table>
+                  <thead><tr><th className="l">Grupo</th><th>TRRF (min)</th><th className="l">Origem</th></tr></thead>
+                  <tbody>{dim.fogo.grupos.map((g) => <tr key={g.grupo}><td className="l">{g.nome}</td><td>{g.trrf}</td><td className="l">{g.origem === 'grupo' ? 'informado para o grupo' : g.origem === 'ocupacao' ? 'sugerido pela ocupação' : g.origem === 'elemento' ? 'do elemento' : 'padrão das opções'}</td></tr>)}</tbody>
+                </table>
+                <table>
+                  <thead><tr><th className="l">Elemento</th><th className="l">Tipo</th><th className="l">Pavimento</th><th>TRRF (min)</th><th>TRF (min)</th><th>Folga (min)</th><th className="l">Tabela ou método</th><th className="l">Exigido</th><th className="l">Adotado</th><th className="l">Situação</th></tr></thead>
+                  <tbody>{dim.fogo.elementos.map((e) => <tr key={`${e.tipo}-${e.id}-${e.pavimento ?? ''}`}><td className="l">{e.nome}</td><td className="l">{e.tipo}</td><td className="l">{e.pavimento ?? '—'}</td><td>{e.trrf}</td><td>{e.metodo === 'analítico' ? e.trf : e.trf > 0 ? `${e.limiteTabela ? '≥ ' : ''}${e.trf}` : '< 30'}</td><td className={e.folga < 0 ? 'bad' : undefined}>{e.folga}</td><td className="l">{e.tabela}</td><td className="l">{e.exigido}</td><td className="l">{e.adotado}</td><td className="l">{e.status === 'ok' ? 'atende' : e.status === 'review' ? 'revisar' : 'não atende'}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </>)}
             {h2('Erros e avisos')}
             {rev.itens.length === 0 ? <p>Nenhum erro ou aviso.</p> : (<>
               <p>{rev.erros} {rev.erros === 1 ? 'erro' : 'erros'} e {rev.avisos} {rev.avisos === 1 ? 'aviso' : 'avisos'}. Erro: o elemento não atende ao cálculo; aviso: atende, mas pede atenção.</p>
