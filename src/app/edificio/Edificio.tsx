@@ -1004,7 +1004,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
                 <thead><tr><th>Sapata</th><th>Modo</th><th>L (m)</th><th>B × h / h0 (cm)</th><th>Transversal</th><th>Distribuição</th><th>σmáx / σadm (kN/m²)</th><th>Concreto (m³)</th><th>Situação</th></tr></thead>
                 <tbody>{filtro(dim.corridas).map((x) => (
                   <LinhaElemento key={x.id} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('fundacao', x.id)} abrir={() => abrirJanela({ tipo: 'fundacao', id: x.id })}>
-                    <td className="tl">{x.nome}</td><td className="tl">{x.modo === 'pilares' ? 'sob pilares' : 'sob parede'}</td><td className="num">{fmt(x.L)}</td>
+                    <td className="tl">{x.nome}</td><td className="tl">{x.modo === 'pilares' ? 'sob pilares' : x.parede ? `parede ${x.parede.nome}` : 'sob parede'}</td><td className="num">{fmt(x.L)}</td>
                     <td className="num">{Math.round(x.B * 100)} × {Math.round(x.h * 100)} / {Math.round(x.h0 * 100)}</td>
                     <td className="tl small">{x.transversal?.barras ? `φ${fmt(x.transversal.barras.phi, 1)} c/${Math.round(x.transversal.barras.s * 100)}` : '—'}</td>
                     <td className="tl small">{x.transversal?.distribuicao.barras ? `φ${fmt(x.transversal.distribuicao.barras.phi, 1)} c/${Math.round(x.transversal.distribuicao.barras.s * 100)}` : '—'}</td>

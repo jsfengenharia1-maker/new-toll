@@ -11,6 +11,7 @@ import { linhasParedes } from './paredesLista';
 import { ArmaduraDaParede } from './ArmaduraParedeUI';
 import { AberturasArmadura } from './AberturasArmaduraUI';
 import { IsovaloresParede } from './IsovaloresParede';
+import { BaseDaParede } from './BaseParedeUI';
 import { resumoCartao } from '../../core/building/paredesLista';
 
 export { aberturasNaPlanta, linhasParedes } from './paredesLista';
@@ -33,6 +34,7 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const [nasce, setNasce] = useState('fundacao');
   const [morre, setMorre] = useState('');
   const [vinc, setVinc] = useState<'engaste' | 'rotula'>('engaste');
+  const [fund, setFund] = useState<'apoio' | 'sapata'>('apoio');
   const morreEf = morre && ps.some((p) => p.id === morre) ? morre : ultimo;
   const nasceOpcoes = [{ v: 'fundacao', label: 'fundação' }, ...ps.slice(0, -1).map((p) => ({ v: p.id, label: p.nome }))];
   const grupoAtivo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[0]?.grupo ?? '';
@@ -49,7 +51,8 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
         <Select label="Nasce em" value={nasce} options={nasceOpcoes} onChange={setNasce} />
         <Select label="Morre em" value={morreEf} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={setMorre} />
         <Select label="Base" value={vinc} options={[{ v: 'engaste', label: 'engastada' }, { v: 'rotula', label: 'rotulada' }]} onChange={setVinc} />
-        <Button onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc } }); onPlanta?.(); }}>Traçar na planta</Button>
+        <Select label="Fundação da parede" aria-label="Fundação da parede" value={fund} options={[{ v: 'apoio', label: 'apoio direto' }, { v: 'sapata', label: 'sapata corrida' }]} onChange={setFund} />
+        <Button onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc, ...(fund === 'sapata' && nasce === 'fundacao' ? { base: { tipo: 'sapataCorrida' } } : {}) } }); onPlanta?.(); }}>Traçar na planta</Button>
       </div>
       <div className="row wrap">
         <Select label="Camada da máscara" value={camadaEf} options={camadas.map((c) => ({ v: c, label: c }))} onChange={setCamada} />
@@ -57,7 +60,7 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
       </div>
       {ws.length > 0 && (
         <table className="data quadro" data-pw-lista>
-          <thead><tr><th>Parede</th><th>Trechos</th><th>Comprimento (m)</th><th>e (cm)</th><th>Nasce</th><th>Morre</th><th>Aberturas</th><th>Empuxo</th><th /></tr></thead>
+          <thead><tr><th>Parede</th><th>Trechos</th><th>Comprimento (m)</th><th>e (cm)</th><th>Nasce</th><th>Morre</th><th>Base</th><th>Aberturas</th><th>Empuxo</th><th /></tr></thead>
           <tbody>
             {linhasParedes(b).map((l) => {
               const w = ws.find((q) => q.id === l.id)!;
@@ -69,6 +72,7 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
                   <td className="num">{fmt(l.e, 0)}</td>
                   <td className="tl">{nomePav(w.nasce)}</td>
                   <td className="tl">{nomePav(w.morre)}</td>
+                  <td className="tl">{b.fundacao?.corridas?.some((c) => c.parede === w.id) ? 'sapata corrida' : 'apoio'}</td>
                   <td className="num">{l.nAberturas}</td>
                   <td className="tl">{l.empuxo ? 'sim' : '—'}</td>
                   <td>
@@ -114,6 +118,7 @@ function EditorParede({ b, w }: { b: BuildingModel; w: Parede }) {
         <NumField label="Direita" unit="cm" width={90} value={m2cm(w.dir)} onChange={(v) => exec('parede.editar', { id: w.id, dir: cm2m(v) })} />
         <Check label="Armar a parede" checked={w.armar !== false} onChange={(v) => exec('parede.editar', { id: w.id, armar: v })} />
       </div>
+      <BaseDaParede b={b} w={w} />
       <h4>Aberturas</h4>
       {(w.aberturas ?? []).length > 0 && (
         <table className="data quadro" data-pw-aberturas>

@@ -23,7 +23,7 @@ const irPara = (id: string) => usePlanta.getState().set({ pavimento: 'fundacao',
 /** O id é de uma sapata corrida? */
 export const ehCorrida = (b: BuildingModel, id: string) => !!b.fundacao?.corridas?.some((x) => x.id === id);
 
-function Mensagens({ msgs }: { msgs: string[] }) {
+export function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
   return <ul className="revmsg">{msgs.map((m, i) => { const c = classificar(m); return <li key={i}><Pill tone={c.nivel === 'erro' ? 'bad' : c.nivel === 'aviso' ? 'warn' : 'na'}>{c.codigo}</Pill> {m}</li>; })}</ul>;
 }
@@ -72,6 +72,11 @@ export function CorridaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () =
           <NumField label="Distribuição mínima" unit="% da principal" width={170} value={op.corridaDistribuicao} onChange={(v) => opc('corridaDistribuicao', v)} />
           <NumField label="Janela da carga linear" unit="m" width={150} value={op.corridaJanela} onChange={(v) => opc('corridaJanela', v)} />
         </div>
+        <div className="row wrap u-items-end" data-corrida-deslizamento>
+          <NumField label="μ da base da parede (a confirmar)" width={190} value={op.fundCorridaAtrito} onChange={(v) => opc('fundCorridaAtrito', v)} />
+          <NumField label="FS mínimo ao deslizamento (parede)" width={190} value={op.fundCorridaFSDesliz} onChange={(v) => opc('fundCorridaFSDesliz', v)} />
+          <Check label="Reprovar o deslizamento (parede)" checked={op.fundCorridaDeslizamento === 1} onChange={(v) => opc('fundCorridaDeslizamento', v ? 1 : 0)} />
+        </div>
         <Hint>O k das sapatas sob pilares é o do grupo Radier e vigas sobre base elástica (padrão 100 000 kN/m³, a confirmar). Mudar B, h ou k sob pilares refaz a análise do edifício.</Hint>
       </Group>
       {cs.length > 0 && (
@@ -83,7 +88,7 @@ export function CorridaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () =
               return (
                 <tr key={c.id} className={`click ${pl.selecao.has(c.id) ? 'on ' : ''}${r?.status === 'fail' ? 'bad' : ''}`} data-corrida-id={c.id} onClick={() => irPara(c.id)} onDoubleClick={() => abrir(c.id)} title="Clique: ver na planta. Duplo clique: resultados.">
                   <td className="tl">{c.nome}</td>
-                  <td className="tl">{modo === 'pilares' ? 'sob pilares' : 'sob parede'}</td>
+                  <td className="tl">{modo === 'pilares' ? 'sob pilares' : c.parede ? `parede ${b.paredes?.find((q) => q.id === c.parede)?.nome ?? ''}` : 'sob parede'}</td>
                   <td className="num">{r ? `${cm(r.B)} × ${cm(r.h)} / ${cm(r.h0)}` : `${cm(g.B)}${c.B === undefined ? '*' : ''} × ${c.h !== undefined ? cm(c.h) : '—'}`}</td>
                   <td className="tl small">{r?.transversal?.barras ? `φ${fmt(r.transversal.barras.phi, 1)} c/${cm(r.transversal.barras.s)}` : <span className="muted">não calculada</span>}</td>
                   <td className="num">{r?.pressao ? `${fmt(r.pressao.sigmaMax, 1)} / ${r.sigmaAdm ? fmt(r.sigmaAdm, 0) : '—'}` : '—'}</td>
@@ -108,7 +113,7 @@ function CorridaEditor({ b, c, r }: { b: BuildingModel; c: SapataCorrida; r?: Re
       <p className="small"><b>Sapata corrida {c.nome}</b> — {nPil ? `${nPil} pilar(es) sobre o eixo: viga sobre base elástica` : 'sob parede'}</p>
       <div className="row wrap u-items-end">
         <TextField label="Nome" value={c.nome} onChange={(v) => v.trim() && ed({ nome: v })} />
-        <NumField label="bw" unit="m" width={80} value={c.bw} onChange={(v) => ed({ bw: v })} />
+        {c.parede ? <p className="muted small" data-corrida-parede={c.parede}>Sapata da parede {b.paredes?.find((q) => q.id === c.parede)?.nome ?? ''}: o eixo e a largura do apoio seguem a parede (edite a base em Paredes).</p> : <NumField label="bw" unit="m" width={80} value={c.bw} onChange={(v) => ed({ bw: v })} />}
         <Select label="Aba" value={c.aba} options={ABAS} onChange={(v) => ed({ aba: v })} />
       </div>
       <div className="row wrap u-items-end">
@@ -217,6 +222,13 @@ export function JanelaCorrida({ id }: { id: string }) {
         ['Altura h / aba h0', `${cm(r.h)} / ${cm(r.h0)} cm · rígida ≥ ${cm(r.hRigido)} cm: ${r.rigida ? 'sim' : 'não (flexível)'}`],
         ['Comprimento', `${fmt(r.L)} m · cota ${fmt(r.cota)} m (df = ${fmt(r.profundidade)} m)`],
         ...(r.carga ? [['Carga por metro', `Nk ${fmt(r.carga.Nk, 1)} · Nd ${fmt(r.carga.Nd, 1)} · peso próprio ${fmt(r.carga.W, 1)} kN/m (${r.carga.comb})`]] as [string, string][] : []),
+        ...(r.parede ? [
+          ['Parede', `${r.parede.nome}${r.parede.virtual ? ' (sapata derivada da base da parede)' : ''} · cargas ${r.parede.origem === 'reacoes' ? 'das reações da base na análise' : 'só as lançadas no nível de fundação'}`],
+          ['Momento fora do plano', `${fmt(r.parede.M, 1)} kN·m/m · excentricidade M/N ${fmt(r.parede.eM * 100, 0)} cm`],
+          ['Cortante normal à parede', `${fmt(r.parede.H, 1)} kN/m`],
+          ...(r.parede.deslizamento ? [['Deslizamento', `FS ${fmt(r.parede.deslizamento.FS)} (mín. ${fmt(r.parede.deslizamento.FSmin, 1)}; μ ${fmt(r.parede.deslizamento.mu)}) em ${r.parede.deslizamento.comb}`]] as [string, string][] : []),
+          ...(r.parede.pilaresEq ?? []).map((q): [string, string] => [`Pilar ${q.pilar} sobre a parede`, `Nk ${fmt(q.Nk, 0)} kN → sapata isolada equivalente ${fmt(q.a)} × ${fmt(q.a)} m (${q.rege ? 'coberta pela largura B' : 'B menor: aumente B'})`]),
+        ] as [string, string][] : []),
         ...(r.pressao ? [['σ máx. / mín. (raras)', `${fmt(r.pressao.sigmaMax, 1)} / ${fmt(r.pressao.sigmaMin, 1)} kN/m² · σadm ${r.sigmaAdm ? fmt(r.sigmaAdm, 0) : '—'} kN/m²`]] as [string, string][] : []),
         ...(t ? [
           ['Flexão transversal', `${t.metodo === 'bielas' ? 'bielas' : 'CEB-70'}: balanço ${fmt(t.balanco)} m, seção a ${fmt(t.l)} m da borda, Md = ${fmt(t.Md, 1)} kN·m/m`],
