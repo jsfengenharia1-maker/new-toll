@@ -3380,6 +3380,81 @@ export const flows = [
     },
   },
   {
+    name: 'E1b: pilar-parede (tipo reto criado no grupo, lançamento, planta, janela com esforços por lado, viga apoiada ao longo, memorial e pranchas)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const sec = '{"tipo": "ret", "b": 0.3, "h": 0.3}';
+      await cmd('lote {"comandos": [' + [[6, 0], [0, 5], [6, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": ${sec}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [6, 0], [6, 5], [0, 5]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      // grupo Pilares-parede: cria o tipo reto de 4 m × 20 cm e lança em (0; 0)
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Pilares-parede/ }) });
+      await gp.locator(':scope > summary').click();
+      await gp.getByLabel('Novo tipo').fill('Parede 4 m');
+      await gp.getByLabel('Comprimento').fill('400');
+      await gp.getByLabel('Espessura').first().fill('20');
+      await gp.getByRole('button', { name: 'Criar tipo reto' }).click();
+      await gp.locator('[data-pp-previa]').waitFor({ timeout: 20000 });
+      assert.equal(await gp.locator('table[data-pp-lados] tbody tr').count(), 1);
+      assert.match(await gp.locator('table[data-pp-lados] tbody tr').first().innerText(), /casca/);
+      await gp.getByRole('button', { name: 'Inserir em (x; y)' }).click();
+      await gp.locator('table[data-pp-lista] tbody tr', { hasText: 'PP1' }).waitFor({ timeout: 20000 });
+      // a planta desenha o pilar-parede; clique no corpo seleciona; o realce vai para a lista
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.locator('.planta-st').click();
+      await reenquadrarAte(page, [[0, 0], [6, 0], [6, 5], [0, 5], [4, 0]]);
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 2, 0)));
+      await gp.locator('table[data-pp-lista] tbody tr[aria-selected="true"]').waitFor({ timeout: 20000 });
+      // verificação: nenhum erro de lançamento do pilar-parede
+      await page.locator('.edif-tabs').getByRole('tab', { name: /^Verificação/ }).click();
+      assert.doesNotMatch(await page.locator('.edif-out').innerText(), /PPAREDE_APOIO|PPAREDE_SOBREPOSTO/);
+      // calcula e dimensiona
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      await livre();
+      const cartao = page.locator('[data-pp-cartao]');
+      await cartao.waitFor({ timeout: 30000 });
+      assert.match(await cartao.innerText(), /PP1[\s\S]*casca/);
+      // janela com as cargas na base e os esforços por lado e pavimento
+      await cartao.getByRole('button', { name: 'Resultados de PP1' }).click();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar-parede PP1/ });
+      await jp.waitFor();
+      await jp.locator('table[data-pp-base]').waitFor();
+      assert.match(await jp.locator('table[data-pp-base]').innerText(), /Nd máx\./);
+      const lado = jp.locator('details[data-pp-lado]').first();
+      assert.ok(await lado.locator('tbody tr').count() >= 2);
+      await jp.getByLabel('Caso').selectOption('G');
+      assert.match(await lado.locator('tbody tr').first().innerText(), /-?\d/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // a viga sobre a parede (apoio longitudinal) foi dimensionada e detalhada
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      assert.ok(await cardVigas.locator('tbody tr').count() >= 3);
+      // memorial: seção dos pilares-parede com a figura e as tabelas
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mt = await memo.innerText();
+      assert.match(mt, /Pilares-parede/);
+      assert.match(mt, /PP1 — cargas na base e esforços por lado/);
+      assert.ok(await memo.locator('[data-memorial-pilares-parede] svg').count() >= 1);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // pranchas: formas e locação trazem PP1
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      const prev = page.locator('.prancha-prev');
+      await tipo.selectOption({ label: 'Formas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /PP1/);
+      await tipo.selectOption({ label: 'Locação e cargas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /PP1/);
+    },
+  },
+  {
     name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
     async run({ newPage }) {
       const page = await newPage();

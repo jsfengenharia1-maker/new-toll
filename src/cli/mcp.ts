@@ -221,6 +221,8 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
+    // pilares-parede (E1b): modelo, cargas na base e extremos ELU por lado e pavimento (sem os casos)
+    ...(d.pilaresParede?.length ? { pilaresParede: d.pilaresParede.map(({ lados, ...r }) => ({ ...r, lados: lados.filter((l) => !pav || l.pavimento === pav.id).map(({ casos: _c, ...l }) => l) })) } : {}),
     ...(d.resumoTelas?.length ? { resumoTelas: d.resumoTelas } : {}),
     // punção (N2d): resumo por pilar (tensões, resistências e armadura), sem os contornos e as superfícies de cortante
     ...(d.puncao?.length ? { puncao: (pav ? d.puncao.filter((r) => r.pavimentoId === pav.id) : d.puncao).map(resumoPuncao).filter((r) => !soProblemas || r.status !== 'ok') } : {}),

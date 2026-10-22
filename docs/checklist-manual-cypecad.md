@@ -12,7 +12,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
-| 4. Pilares | 63 | 46 | 5 | 5 | 7 |
+| 4. Pilares | 63 | 49 | 4 | 3 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
 | 7. Lajes | 195 | 32 | 32 | 64 | 67 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **243** | **77** | **258** | **185** |
+| **Total** | **763** | **246** | **76** | **256** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 1 | 2 | 3 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 194 | 223 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 192 | 220 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -187,7 +187,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **4.1 Lançamento** | | | |
-| C4.1 | Lançamento de pilares, pilares-parede e arranques. | Parcial | E | pilares sim; pilar-parede só aviso; arranque não [E1b] |
+| C4.1 | Lançamento de pilares, pilares-parede e arranques. | Feito | — | pilares e arranques (FU1); pilar-parede por tipo: comando `pilarParede.inserir`, ferramenta Pilar-parede da planta (Ctrl+K) e grupo Pilares-parede (`PilarParedeUI.tsx`) [E1b] |
 | C4.2 | Sem pavimentos definidos, só arranques podem ser lançados. | Feito | — | FU1: arranque (nasce e morre "fundacao") aceito sem pavimentos (`refsPilar`, `pilares.ts`); na interface, "Novo vazio", opção Arranque da ferramenta Pilar (a planta vai para o nível de fundação) e cálculo só da fundação (`calculo.worker.ts`; e2e FU1 "obra vazia"); pilar comum segue recusado |
 | C4.3 | Depois do lançamento: editar, mover, ajustar, mudar ponto fixo e ângulo, coeficientes de engastamento, comprimentos de flambagem e cargas. | Feito | — | editar, mover, ponto fixo, ângulo, engaste por lance (N1a), flambagem (N1b) e cargas no lance (N1c) |
 | C4.4 | Arranque: pilar de altura zero para dimensionar a fundação (sapatas, radier etc.) sem lançar a estrutura nem os grupos. | Feito | — | FU1: arranque (`ehArranque`, types.ts) lançado pela opção Arranque da ferramenta Pilar (`Edificio.tsx`, `Planta.tsx`), hachurado só na planta de fundação, com cargas levadas à fundação (`reacoesArranques`, analitico.ts); obra só de arranques calcula só a fundação (worker, `dimensionar` da CLI) |
@@ -217,8 +217,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Falta | L | copiar dados de um pilar (conta-gotas) [L4] |
 | C4.29 | O formulário de pilar novo guarda os dados do último pilar lançado. | Feito | — | ferramenta guarda a última seção |
 | C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L | [L4] |
-| C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Falta | E | pilar-parede de retângulos [E1b] |
-| C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Falta | E | [E1b] |
+| C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Feito | — | `PilarParede` (tipo, nome, `nasce`/`morre`, ponto, ângulo, base engastada ou rotulada; molas não) em `types.ts`; comandos `pilarParede.*` (`commands/pilarParede.ts`); geometria em `pilarParede.ts` [E1b] |
+| C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Feito | — | `BuildingModel.tiposPilarParede`, comando `pilarParede.tipo` (criar, editar, remover; remoção bloqueada com pilares do tipo) e editor com prévia no grupo Pilares-parede [E1b] |
 | C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Feito | — | opção `pilarTaxaMin` (%; 0 = 0,4 % da norma), com o mínimo mecânico 0,15·Nd/fyd (`dimensionamento.ts`; N2c); o app não separa cargas dinâmicas |
 | | **4.2 Resultados de pilares** | | | |
 | C4.34 | Após o cálculo, pilares que não passam nas verificações ficam em vermelho e são revisados pela edição na aba de resultados. | Feito | — | pilares com erro em vermelho e aviso em amarelo na planta (R1), revisados pelo editor de armadura da janela do elemento com recálculo (R2) |
@@ -1006,3 +1006,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia R7g (revisão, relatórios e opções de desenho das pranchas, núcleo e interface).** C2.22, C4.38, C4.45, C4.51, C4.52 e C4.61 (manual do usuário) passam a Feito e C4.63 fica Parcial com a frente E (pilares-parede e muros): `src/core/building/sugestoes.ts` (sugestão de correção por código de revisão, `ItemRevisao.sugestao`), `src/core/building/relatorios.ts` (`taxasPilares`, `capacidadeViga`, `intercambioArmadura`, `quantitativosDetalhados`, `listagemGeral`, `ventoPorPavimento`), `src/core/sheets/gabarito.ts` (máscara e ponto fixo nas formas e nas lajes; opções de prancha `mascara` e `pontoFixo`, camadas MASCARA e PONTO-FIXO), interface `RelatoriosUI.tsx` (dados do pilar, planta de situação com navegação, cartão de relatórios), `MemorialRelatorios.tsx`, testes `relatorios.test.ts` e e2e `R7g`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: R 7 → 0 nesta frente; E +1 (C4.63).
+- **22/10/2026 — fatia E1b (pilar-parede).** C4.1, C4.31 e C4.32 (manual do usuário) passam a Feito: `PilarParede`/`TipoPilarParede` em `src/core/building/types.ts`, geometria e modelo em `pilarParede.ts` e `pilarParedeModelo.ts`, comandos `pilarParede.tipo/inserir/editar/mover/remover` (`src/core/commands/pilarParede.ts`), interface em `PilarParedeUI.tsx` (grupo Pilares-parede, ferramenta Pilar-parede pela paleta Ctrl+K, janela do elemento) e e2e `E1b`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 3 itens (manual do usuário).

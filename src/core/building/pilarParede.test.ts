@@ -219,6 +219,21 @@ describe('pilar-parede: esforços, vigas apoiadas ao longo e dimensionamento', (
     expect(dim.quantitativos[0].concreto.pilares).toBeGreaterThan(0.8);
   });
 
+  it('base rotulada: sem momento de flexão no plano na base; a fundação do edifício calcula com o pilar-parede na obra', () => {
+    const s = edificio();
+    ok(s, 'pilarParede.editar', { id: s.modelo.pilaresParede![0].id, vinculoBase: 'rotula' });
+    ok(s, 'fundacao.terreno', { sigmaAdm: 300, sigmaModo: 'informada' });
+    ok(s, 'fundacao.criar', { pilar: s.modelo.pilares[0].id, tipo: 'sapata', posicao: 'centrada' });
+    const an = analisarEdificio(s.modelo);
+    expect(an.erro).toBeUndefined();
+    // rótula: os giros dos nós da base ficam livres (sem momento de reação neles)
+    const nos = an.paredes!.base[s.modelo.pilaresParede![0].id];
+    expect(nos.length).toBeGreaterThan(4);
+    for (const n of nos) { const r = an.portico.res!.reacoes[0].get(n)!; expect(Math.abs(r[3] ?? 0) + Math.abs(r[4] ?? 0)).toBeLessThan(1e-9); }
+    const dim = dimensionarEdificio(s.modelo, an);
+    expect(dim.fundacoes?.length).toBe(1);
+  });
+
   it('viga sobre a parede: apoio longitudinal cortado, diagrama prolongado e barras limitadas', () => {
     const s = edificio(), b = s.modelo, v1 = b.vigas[0];
     const ap = apoiosDaViga(b, v1);

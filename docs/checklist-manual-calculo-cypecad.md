@@ -12,20 +12,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 25 | 4 | 20 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 56 | 13 | 10 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 28 | 4 | 17 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 56 | 14 | 9 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 46 | 11 | 46 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 48 | 11 | 44 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 34 | 12 | 13 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 11 | 22 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 12 | 21 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **336** | **80** | **134** | **111** |
+| **Total** | **661** | **341** | **82** | **127** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 25 | 5 | 30 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 117 | 149 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 110 | 144 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **80** | **134** | **214** |
+| **Total** | **82** | **127** | **209** |
 
 ## Divergências de premissa
 
@@ -129,9 +129,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Falta | E | lajes nervuradas bidirecionais [E3c] |
 | K1.3.26 | Lajes nervuradas: inércia à flexão das barras = metade da da zona maciça (tanto na zona maciça quanto na aliviada, como média); inércia à torção = 2 × a de flexão. | Falta | E | lajes nervuradas (inércias da malha) [E3c] |
 | K1.3.27 | Lajes nervuradas: malha igual nas zonas maciça e aliviada; considera cortante, diafragma e rigidez à torção. | Falta | E | lajes nervuradas [E3c] |
-| K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Falta | E | pilares-parede de seção composta [E1b] |
-| K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Parcial | E | lado > 5 × o menor gera aviso de pilar-parede; segue como barra (mesmo limite do manual; premissa resolvida em 20/10/2026) [E1b] |
-| K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Falta | E | ligação de vigas e lajes ao pilar-parede [E1b] |
+| K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Feito | — | tipo = lados (segmentos do eixo) com espessura à esquerda e à direita; mesma planta em toda a altura, espessura por pavimento (`LadoPilarParede.porPavimento`), `nasce`/`morre` por pavimento [E1b] |
+| K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Feito | — | lado ≥ `pilarParedeLimite` (5) × espessura vira casca de 6 nós; o mais curto, barra (PPAREDE_LADO_CURTO, informação) (`pilarParede.ts`, `geometriaParedes`) [E1b] |
+| K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Feito | — | viga fictícia de altura `pilarParedeVigaAltura` (25 cm) no topo de cada nível e fatias do topo como apoios da grelha para vigas e lajes em qualquer posição (`pilarParedeModelo.ts`, `incluirParedes`; premissa e1b-ligacao a confirmar) [E1b] |
 | K1.3.31 | Paredes de concreto, de alvenaria e de blocos de concreto armado: seção composta de retângulos; dimensões dos lados podem mudar por pavimento e espessura pode diminuir por pavimento. | Falta | E | paredes de concreto e de alvenaria estrutural [E1c] |
 | K1.3.32 | Paredes: mesma regra de esbeltez (lado ≥ 5 × espessura), senão tratadas como pilares. | Falta | E | paredes (regra de esbeltez) [E1c] |
 | K1.3.33 | Paredes: vigas e lajes ligam-se em qualquer posição; todos os nós gerados coincidem com nós da malha triangular da parede. | Falta | E | paredes (ligação com vigas e lajes) [E1c] |
@@ -162,7 +162,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.56 | Referência a CIRSOC (Argentina) / DIN: arredondamento parabólico conforme dimensão dos apoios. | Fora | — | referência a norma estrangeira |
 | K1.3.57 | Dentro do apoio, altura da viga cresce linearmente com inclinação 1:3 até o eixo (mísula fictícia para dimensionamento). | Fora | — | mísula fictícia 1:3: critério interno; nós dimensionamos na face − 0,3h |
 | K1.3.58 | Resultado: armadura máxima fica entre a face e o eixo, em geral na face — economia de armadura longitudinal. | Fora | — | consequência do critério interno anterior |
-| K1.3.59 | Viga apoiada em apoio longitudinal (pilar-parede ou parede): diagrama prolongado a partir da face por um comprimento = altura da viga; armadura dimensionada só nesse trecho; viga e armadura interrompidas depois disso, mesmo que a viga seja mais larga que o apoio. | Falta | E | viga apoiada em pilar-parede ou parede [E1b] |
+| K1.3.59 | Viga apoiada em apoio longitudinal (pilar-parede ou parede): diagrama prolongado a partir da face por um comprimento = altura da viga; armadura dimensionada só nesse trecho; viga e armadura interrompidas depois disso, mesmo que a viga seja mais larga que o apoio. | Parcial | E | apoio de pilar-parede/parede na ponta da viga: diagrama prolongado de `vigaApoioLongProlong` × h (`prolongarSobreParede`) e armadura cortada a (1 + 2) × h da face (`apoiosDaViga`, `extensaoDaViga`); parede no meio da viga sem corte [E1b] |
 
 ## 1.4 Opções de cálculo (págs. 15–27)
 
@@ -199,7 +199,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
 | K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Falta | E | vigas de amarração sem rigidez à flexão [E2a] |
 | K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro [E2e] |
-| K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Falta | E | paredes e pilares-parede [E1b] |
+| K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Parcial | E | casca com E = Ecs (EI bruto), torção pela placa e E × `axialPilares` nas cargas verticais (majora também a flexão: material isotrópico); 0,8·Eci·Ic no γz (`incluirParedes`, `analitico.ts`) [E1b] |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
 | K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Falta | E | lajes alveolares (mistas fora) [E3e] |
 | | **1.4.3 Coeficientes de rigidez à torção (pág. 19)** | | | |
@@ -421,8 +421,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.31 | Pilar que nasce em viga de fundação ou radier: sem vinculação externa. | Feito | — | pilar que nasce na fundação sobre radier ou viga sobre base elástica sem vínculo externo: o pé é um nó da malha, com trecho rígido até o centro (`analitico.ts`, `pilaresNaBase`); esforços no pé vão para as cargas da fundação |
 | K1.9.32 | Pilar: coeficientes de engaste de topo e base; coeficientes de flambagem por pavimento e por direção local; perfil e série se metálico; desnível e altura de apoio; arranques na vista. | Feito | — | engaste de topo e base por lance (N1a), flambagem por pavimento, pilar e direção (N1b), cota própria da base (desnível) e travamento intermediário por lance e direção (`pilar.vinculo`, N2c); perfil metálico fora do escopo do edifício |
 | K1.9.33 | Arranque de pilar com altura zero: permite calcular a fundação só com cargas no topo. | Feito | — | módulo Fundações calcula com cargas por apoio |
-| K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Falta | E | pilares-parede [E1b] |
-| K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Falta | E | pilares-parede (geometria e contraventamento) [E1b] |
+| K1.9.34 | Pilares-parede: lista-tipo com nome, grupos inicial e final, lados e vértices, espessuras por pavimento à esquerda e direita do eixo; 1º vértice é ponto de inserção. | Feito | — | tipos com nome, lados, vértices e espessuras por pavimento; o primeiro vértice é o ponto de inserção (`pilarParede.tipo`) [E1b] |
+| K1.9.35 | Pilares-parede: mesma geometria em planta em toda a altura (só espessura varia); não podem nascer em pilares nem apoiar pilares; função de contraventamento horizontal. | Feito | — | mesma geometria em planta em toda a altura; PPAREDE_APOIO (erro) se nasce em pilar ou apoia pilar; os nós dos níveis entram no diafragma e a casca contraventa o pórtico [E1b] |
 | K1.9.36 | Cargas horizontais em pilares: concentradas, uniformes ou em faixa; natureza conforme casos da obra; em qualquer altura; eixos locais ou globais, X ou Y. | Feito | — | cargas horizontais concentradas, uniformes ou em faixa, a qualquer altura, por caso, eixos globais ou locais (N2c) |
 | K1.9.37 | Cargas no topo do pilar no último pavimento (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, somadas às do cálculo. | Feito | — | cargas no topo do lance por caso: N, Hx, Hy, Mx, My e torção T, eixos globais ou locais (N2c) |
 | K1.9.38 | Vinculação de apoio, engastes e flambagem consultáveis e editáveis. | Feito | — | vínculo da base, engastes por lance (pilar.engaste) e flambagem (pilar.flambagem) editáveis em Vínculos e no grupo de seleção (N1a, N1b) |
@@ -629,7 +629,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.18 | Sem disposição na tabela: nº necessário de φ25 e aviso "fora de tabela" (montagem e adicional). | Parcial | R | positivos e negativos sem disposição na tabela: n φ25 e erro FORA_TABELA (R7a); montagem e adicional ainda sem tabela [R7b] |
 | K1.12.19 | Negativos que se encontram dos dois lados de um trecho viram montagem colaborante automaticamente. | Feito | — | opção `vigaNegativosUnir` (padrão do sistema ligada, NBR desligada): negativos separados por menos de lb viram uma barra com o maior nº de barras; negativos cobertos pela montagem colaborante não geram barras próprias (R3a) (R7b) |
 | K1.12.20 | Dentro do apoio: altura variando linearmente (1/3) reduz a armadura; o máximo fica entre as faces, normalmente na face. | Fora | — | mísula fictícia: critério interno |
-| K1.12.21 | Vigas em pilares-parede/paredes: vão de cálculo = menor entre distância entre eixos (ou ponto médio do eixo da viga cruzada) e vão livre + 2 × altura; corte de barras não excede o vão de cálculo em mais de duas alturas. | Falta | E | vigas sobre pilares-parede e paredes [E1b] |
+| K1.12.21 | Vigas em pilares-parede/paredes: vão de cálculo = menor entre distância entre eixos (ou ponto médio do eixo da viga cruzada) e vão livre + 2 × altura; corte de barras não excede o vão de cálculo em mais de duas alturas. | Parcial | E | vão de cálculo = vão livre + `vigaApoioLongVao` × h/2 por apoio de parede (2 no sistema; 0,6 na NBR) nos momentos mínimos (`dimensionamento.ts`, `Vao.Lc`); sem o limite pela distância entre eixos nem o ponto médio da viga cruzada; barras limitadas pelo corte do apoio [E1b] |
 | K1.12.22 | Armadura de pele nas faces laterais quando a altura exige (critério nas opções), com bitola e espaçamento mínimos de norma. | Feito | — | pele 0,10 % de Ac por face (h > 60 cm), s ≤ mín(20 cm; d/3), somada às laterais de torção; corrida com emendas (R3a) |
 | K1.12.23 | Torção: após flexão, armadura longitudinal de torção por norma em cada seção; as barras de canto existentes absorvem o acréscimo se tiverem folga; senão aumenta a longitudinal e acrescenta barras laterais (como pele). | Feito | — | Asl de torção repartida: faces horizontais somadas à flexão (absorvida pelas barras com folga), laterais em barras próprias como pele (N1e) |
 | K1.12.24 | Compressão diagonal por torção + cortante verificada com a altura útil na borda do apoio, pelas fórmulas da norma. | Feito | — | biela conjunta Vsd/VRd2 + Tsd/TRd2 ≤ 1 (N1e) |
@@ -938,3 +938,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia N2e (apoios, limites e avisos de modelagem).** No manual de cálculo, 21 dos 23 itens passam a Feito (K1.3.46, K1.3.47, K1.3.51, K1.3.53, K1.3.54, K1.3.55, K1.4.34, K1.4.71, K1.4.81, K1.6.6, K1.9.7, K1.9.41, K1.9.55, K1.9.85, K1.12.2, K1.12.1-10, -13, -15, -17, -18, -20); K1.4.1 segue Parcial (fecha com a R7a) e K1.4.7 segue Parcial (a redistribuição atua sobre o diagrama arredondado, não nas faces). Código: `src/core/building/apoios.ts` (cúbica, ΔM = R·t/8, a/2d, suspensão, avisos), `dimensionamento.ts`, `analitico.ts`, `detalhamento.ts`, `armacaoVigas.ts`, `Vinculos.tsx`, `MemorialEdificio.tsx`. Vibração de piso (X4) não entrou: sem modelo de frequência validado.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: N reduz em 21 itens.
+- **22/10/2026 — fatia E1b (pilar-parede).** K1.3.28, K1.3.29, K1.3.30, K1.9.34 e K1.9.35 passam a Feito; K1.3.59, K1.4.30 e K1.12.21 ficam Parcial (apoio longitudinal só nas pontas da viga, E × `axialPilares` também na flexão da casca, vão de cálculo sem o limite pela distância entre eixos). Validação: parede em balanço contra a viga de Timoshenko (2 %), pilar-parede em L contra o OpenSees (`validation/opensees/pilar_parede.py`, 1 % com malha de 1 m e 0,1–0,5 % com 0,5 m), lado em barra contra o pilar comum (0,1 %) e equilíbrio vertical da base. A malha padrão das cascas passou de 0,5 para 1 m (a banda do diafragma custava ~30 s numa parede de 4 × 14 m).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 5 itens (manual de cálculo).
