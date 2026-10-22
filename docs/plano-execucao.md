@@ -173,3 +173,4 @@ Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e
   - I4: roteiro de conferência de cálculo num edifício-teste fictício, comparando esforços, γz, armaduras e deslocamentos.
 - 22/10/2026: E1e, interface concluída (cartões `docs/cartoes/E1e/`); e2e `E1e` verde. Próximo: FU7b (fundação de muros e paredes) e E2.
 - 22/10/2026: E2a, núcleo concluído (7 itens a Parcial: C6.15, C6.16, C6.21, C6.22, K1.3.7, K1.4.28, K1.12.16). Seção T/L com mesa colaborante (rigidez na análise; flexão só pela alma no sistema, em T pela opção `mesaDimensionamento`), barras de canto, viga chata, não estrutural e de amarração. Próximo: interface pelos cartões `docs/cartoes/E2a/1-editor-secao.md`, `2-planta-detalhe.md` e `3-memorial-e2e.md` (Haiku), depois E2b.
+- 22/10/2026: L2, interface concluída (cartões `docs/cartoes/L2/`); e2e L2 verde. Próximo: L3 (IFC).
