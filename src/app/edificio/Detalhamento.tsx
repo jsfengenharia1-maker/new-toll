@@ -103,11 +103,13 @@ function Elevacao({ d, h, mostrar }: { d: DetalheViga; h: number; mostrar: { inf
 
 // ---------------------------------------------------------------- seção transversal
 
-function Secao({ d, b, h, cob, phiT }: { d: DetalheViga; b: number; h: number; cob: { inf: number; sup: number; lat: number }; phiT: number }) {
+function Secao({ d, b, h, cob, phiT, tipoMesa, invertida }: { d: DetalheViga; b: number; h: number; cob: { inf: number; sup: number; lat: number }; phiT: number; tipoMesa?: 'T' | 'L'; invertida?: boolean }) {
   const ap = d.apoios;
   const sSec = ap.length >= 2 ? (ap[0].s1 + ap[1].s0) / 2 : (d.extensao[0] + d.extensao[1]) / 2;
   const noMeio = d.barras.filter((x) => x.s0 <= sSec && x.s1 >= sSec);
-  const esc = 190 / Math.max(h, b), m = 18, wS = b * esc, hS = h * esc, W = wS + 2 * m, H = hS + 2 * m + 18;
+  // seção T ou L (E2a): as abas da mesa ficam fora da alma; origem deslocada pela aba da esquerda
+  const cm = d.cantosMesa, bT = cm ? cm.bf - b : 0, aEsq = cm ? (tipoMesa === 'L' ? bT : bT / 2) : 0, aDir = cm ? bT - aEsq : 0;
+  const esc = 190 / Math.max(h, b + bT), m = 18, wS = b * esc, hS = h * esc, W = wS + (aEsq + aDir) * esc + 2 * m, H = hS + 2 * m + 18, x0 = m + aEsq * esc;
   const t = phiT / 1000;
   const lista = (face: BarraViga['face']) => noMeio.filter((x) => x.face === face).flatMap((x) => Array.from({ length: x.n }, () => x.phi / 1000));
   const iL = cob.lat + t, xL = iL, xR = b - iL;
@@ -128,16 +130,21 @@ function Secao({ d, b, h, cob, phiT }: { d: DetalheViga; b: number; h: number; c
   const yA = cob.sup + t + 0.03 + (pS.length ? Math.max(...pS.map((c) => c.y - cob.sup)) : 0), yB = h - cob.inf - t - 0.03 - (pI.length ? Math.max(...pI.map((c) => h - cob.inf - c.y)) : 0);
   const pP = Array.from({ length: nFace }, (_, i) => (nFace === 1 ? (yA + yB) / 2 : yA + (i * (yB - yA)) / (nFace - 1)))
     .flatMap((y, i) => [{ x: iL + (peles[i] ?? 0.008) / 2, y, r: (peles[i] ?? 0.008) / 2 }, { x: b - iL - (peles[i] ?? 0.008) / 2, y, r: (peles[i] ?? 0.008) / 2 }]);
-  const P = (v: number) => (m + v * esc).toFixed(1);
+  const P = (v: number) => (x0 + v * esc).toFixed(1);
+  const Py = (v: number) => (m + v * esc).toFixed(1);
   const R = (r: number) => Math.max(1.8, r * esc).toFixed(1);
   return (
     <svg className="det det-secao" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Seção transversal da viga" data-secao data-barras-secao={noMeio.reduce((s, x) => s + x.n, 0)}>
-      <rect x={m} y={m} width={wS} height={hS} className="det-contorno" />
-      <rect x={P(cob.lat)} y={P(cob.sup)} width={((b - 2 * cob.lat) * esc).toFixed(1)} height={((h - cob.sup - cob.inf) * esc).toFixed(1)} rx={4} className="det-estribo-sec" />
-      {pS.map((c, i) => <circle key={`s${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt sup" />)}
-      {pI.map((c, i) => <circle key={`i${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt inf" />)}
-      {pP.map((c, i) => <circle key={`p${i}`} cx={P(c.x)} cy={P(c.y)} r={R(c.r)} className="det-pt pele" />)}
-      <text x={m + wS / 2} y={H - 4} textAnchor="middle" className="det-txt cota">{fmt(b * 100, 0)} × {fmt(h * 100, 0)} cm · s = {fmt(sSec)} m · cobr. {fmt(cob.inf * 100, 1)} cm</text>
+      <rect x={x0} y={m} width={wS} height={hS} className="det-contorno" />
+      {cm && aEsq > 0 && <rect x={m} y={invertida ? m + (h - cm.hf) * esc : m} width={aEsq * esc} height={cm.hf * esc} className="det-contorno" data-mesa-aba="esq" />}
+      {cm && aDir > 0 && <rect x={x0 + wS} y={invertida ? m + (h - cm.hf) * esc : m} width={aDir * esc} height={cm.hf * esc} className="det-contorno" data-mesa-aba="dir" />}
+      <rect x={P(cob.lat)} y={Py(cob.sup)} width={((b - 2 * cob.lat) * esc).toFixed(1)} height={((h - cob.sup - cob.inf) * esc).toFixed(1)} rx={4} className="det-estribo-sec" />
+      {pS.map((c, i) => <circle key={`s${i}`} cx={P(c.x)} cy={Py(c.y)} r={R(c.r)} className="det-pt sup" />)}
+      {pI.map((c, i) => <circle key={`i${i}`} cx={P(c.x)} cy={Py(c.y)} r={R(c.r)} className="det-pt inf" />)}
+      {pP.map((c, i) => <circle key={`p${i}`} cx={P(c.x)} cy={Py(c.y)} r={R(c.r)} className="det-pt pele" />)}
+      {cm && (aEsq > 0 || cm.n === 2) && <circle cx={P(-aEsq + (cob.sup + cm.phi / 2000))} cy={Py(invertida ? h - cob.inf - cm.phi / 2000 : cob.sup + cm.phi / 2000)} r={R(cm.phi / 2000)} className="det-pt sup" data-canto-mesa />}
+      {cm && (aDir > 0 || cm.n === 2) && <circle cx={P(b + aDir - (cob.sup + cm.phi / 2000))} cy={Py(invertida ? h - cob.inf - cm.phi / 2000 : cob.sup + cm.phi / 2000)} r={R(cm.phi / 2000)} className="det-pt sup" data-canto-mesa />}
+      <text x={x0 + wS / 2} y={H - 4} textAnchor="middle" className="det-txt cota">{fmt(b * 100, 0)} × {fmt(h * 100, 0)} cm{cm ? ` · bf ${fmt(cm.bf * 100, 0)} × hf ${fmt(cm.hf * 100, 0)}` : ''} · s = {fmt(sSec)} m · cobr. {fmt(cob.inf * 100, 1)} cm</text>
     </svg>
   );
 }
@@ -266,7 +273,7 @@ export function DetalheDaViga({ id }: { id: string }) {
       <div className="det-grade">
         <div>
           <h4>Seção transversal</h4>
-          {mostrar.secao ? <Secao d={d} b={v.secao.b} h={v.secao.h} cob={cob} phiT={phiT} /> : <p className="muted small">Seção oculta.</p>}
+          {mostrar.secao ? <Secao d={d} b={v.secao.b} h={v.secao.h} cob={cob} phiT={phiT} tipoMesa={v.mesa?.tipo} invertida={v.invertida} /> : <p className="muted small">Seção oculta.</p>}
         </div>
         <div>
           <h4>Ancoragem</h4>

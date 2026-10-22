@@ -518,10 +518,10 @@ export function Planta() {
     // vigas
     for (const { v, g, t } of vigas) {
       const sel = pl.selecao.has(v.id), erro = comErro.has(v.id), avi = comAviso.has(v.id), cor = erro ? cores.erro : avi ? cores.aviso : sel ? cores.selecao : cores.viga;
-      ctx.fillStyle = cor; ctx.globalAlpha = 0.12;
+      ctx.fillStyle = cor; ctx.globalAlpha = v.estrutural === false ? 0.04 : 0.12;
       for (const r of t) { ctx.beginPath(); r.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.fill(); }
       ctx.globalAlpha = 1; ctx.strokeStyle = cor; ctx.lineWidth = erro || avi ? 2.5 : sel ? 2.5 : 1.5;
-      if (v.invertida) ctx.setLineDash([6, 3]);
+      if (v.estrutural === false) ctx.setLineDash([2, 4]); else if (v.invertida) ctx.setLineDash([6, 3]);
       for (const lado of [g.esq, g.dir]) { ctx.beginPath(); lado.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
       ctx.setLineDash([]);
       if (sel) { ctx.setLineDash([8, 4]); ctx.lineWidth = 1; ctx.beginPath(); g.eixo.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]); }
@@ -533,7 +533,7 @@ export function Planta() {
       if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
       ctx.save(); ctx.translate((a[0] + z[0]) / 2, (a[1] + z[1]) / 2); ctx.rotate(ang);
       ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.viga;
-      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
+      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${v.mesa ? ` ${v.mesa.tipo}` : ''}${v.chata ? ' chata' : ''}${v.estrutural === false ? ' n.est.' : ''}${v.amarracao ? ' amar.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
       ctx.restore();
     }
     // base elástica (FU6): radiers (contorno, furos, rótulo) e vigas sobre base elástica (faixa b), sob os elementos
