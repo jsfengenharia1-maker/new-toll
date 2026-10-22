@@ -17,7 +17,7 @@ import { memorialFlechas } from '../../core/building/flechas';
 import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 
-import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO } from '../../core/building/types';
+import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { casosDaObra } from '../../core/building/types';
@@ -120,7 +120,9 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <p className="sub">{nome} · edifício em concreto armado: grelha de lajes e vigas por pavimento e pórtico espacial</p>
           <dl className="id">
             <dt>Obra</dt><dd>{b.obra.nome || '—'}</dd>
+            {b.obra.descricao?.length ? <><dt>Descrição</dt><dd>{b.obra.descricao.join(' · ')}</dd></> : null}
             <dt>Local</dt><dd>{b.obra.cidade || '—'}</dd>
+            <dt>Origem do lançamento</dt><dd>{ORIGEM_ROTULO[b.obra.origem ?? 'vazio']}</dd>
             <dt>Data</dt><dd>{today}</dd>
           </dl>
           {velha && <p className="warn">Atenção: o modelo foi alterado depois do cálculo; os resultados abaixo podem estar desatualizados.</p>}
