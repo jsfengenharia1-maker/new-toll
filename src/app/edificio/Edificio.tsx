@@ -9,7 +9,7 @@ import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type Norma, type TipoLaje } from '../../core/building/types';
+import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
@@ -41,6 +41,12 @@ import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
 import { CartaoRelatorios } from './RelatoriosUI';
+import { NovaObra } from './NovaObra';
+import { ObrasRecentes } from './ObrasRecentes';
+import { ImportarTexto } from './ImportarTexto';
+import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
+import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
+import type { EtapaId } from '../../core/building/etapas';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
@@ -55,23 +61,23 @@ export function Edificio() {
   const ps = pavimentosOrdenados(b);
   const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
+  const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
+  const irEtapa = (id: EtapaId) => {
+    if (id === 'obra') { setDialogoL1('gerais'); return; }
+    if (id === 'calculo') { setAba('dimensionamento'); return; }
+    if (id === 'pavimentos') { setAba('planta'); useStore.getState().set({ message: 'Pavimentos: edite a lista “Pavimentos” do painel (nome, cota, grupo, +1 para repetir).' }); return; }
+    const f = ({ gabarito: 'eixo', pilares: 'pilar', pilaresParede: 'pilarParede', vigas: 'viga', lajes: 'laje', cargas: 'carga' } as Partial<Record<EtapaId, Ferramenta>>)[id];
+    setAba('planta');
+    if (f) usePlanta.getState().set({ ferramenta: f, ...aoEscolher(f) });
+  };
 
   return (
     <div className="edif">
       <aside className="fund-in edif-in">
-        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
-          <div className="row"><TextField label="Nome da obra" value={b.obra.nome} onChange={(v) => exec('obra.definir', { nome: v })} /></div>
-          <div className="row wrap">
-            <TextField label="Cidade" value={b.obra.cidade ?? ''} onChange={(v) => exec('obra.definir', { cidade: v })} />
-            <NumField label="Fundação abaixo do mais baixo" unit="m" width={150} value={b.obra.profundidadeFundacao} onChange={(v) => exec('obra.definir', { profundidadeFundacao: v })} />
-          </div>
-          <div className="row wrap">
-            <NumField label="fck" unit="MPa" width={92} value={b.norma.fck} onChange={(v) => exec('norma.definir', { fck: v })} />
-            <Select label="Aço" value={b.norma.aco} options={[{ v: 'CA-50', label: 'CA-50' }, { v: 'CA-60', label: 'CA-60' }]} onChange={(v) => exec('norma.definir', { aco: v })} />
-            <Select label="CAA" value={b.norma.caa} options={(['I', 'II', 'III', 'IV'] as Norma['caa'][]).map((v) => ({ v, label: v }))} onChange={(v) => exec('norma.definir', { caa: v })} />
-          </div>
-          <Hint>Cobrimentos (cm): laje {fmt(b.norma.cobrimento.laje, 1)} · viga {fmt(b.norma.cobrimento.viga, 1)} · pilar {fmt(b.norma.cobrimento.pilar, 1)} (NBR 6118, Tabela 7.2).</Hint>
+        <EtapasGrupo b={b} aoIr={irEtapa} />
+        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => setDialogoL1('nova')}>Nova obra…</Button><Button variant="mini" onClick={() => setDialogoL1('recentes')}>Obras recentes…</Button><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
+          <DadosGeraisCorpo b={b} />
         </Group>
 
         <Group title={`Pavimentos (${ps.length})`}>
@@ -118,6 +124,7 @@ export function Edificio() {
         <MateriaisGrupo b={b} />
         <TabelasGrupo b={b} />
         <VinculosGrupo b={b} />
+        <ArquivoGrupo />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -182,6 +189,10 @@ export function Edificio() {
         )}
       </section>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
+      {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} />}
+      {dialogoL1 === 'recentes' && <ObrasRecentes onClose={() => setDialogoL1(null)} onAberta={() => setDialogoL1(null)} />}
+      {dialogoL1 === 'texto' && <ImportarTexto onClose={() => setDialogoL1(null)} onCriada={() => { setDialogoL1(null); useStore.getState().set({ module: 'fundacoes' }); }} />}
+      {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
       <JanelaElemento />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
