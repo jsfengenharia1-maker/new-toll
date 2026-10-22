@@ -97,6 +97,34 @@ describe('design system', () => {
     expect([...faltam].map(([c, f]) => `${c} (${f})`)).toEqual([]);
   });
 
+  it('regras anti "cara de IA": sem color-mix, sem caixa alta, sem transition: all', () => {
+    const g = semComentarios(GLOBAL);
+    expect(g).not.toMatch(/color-mix\(/);
+    expect(g).not.toMatch(/text-transform:\s*uppercase/);
+    expect(g).not.toMatch(/transition:\s*all\b/);
+    expect(g).not.toMatch(/letter-spacing:\s*0?\.\d+(em|px)/);
+    // o memorial (papel) também não usa color-mix
+    expect(semComentarios(MEMORIAL)).not.toMatch(/color-mix\(/);
+    // nenhuma regra fora de memorial.css usa caixa alta (a verificação acima cobre global.css; impressao-app.css é o outro)
+    for (const [f, s] of Object.entries(estilos)) if (f !== DESIGN + 'memorial.css') expect(s, f).not.toMatch(/text-transform:\s*uppercase/);
+  });
+
+  it('todo token está definido no :root puro, antes dos blocos de tema', () => {
+    const g = semComentarios(GLOBAL);
+    const primeiroTema = g.search(/@media \(prefers-color-scheme|:root\[data-theme/);
+    expect(primeiroTema).toBeGreaterThan(0);
+    const puros = [...g.matchAll(/(^|\n):root \{/g)];
+    expect(puros.length).toBeGreaterThan(0);
+    for (const m of puros) expect(m.index!, 'bloco :root puro depois dos temas').toBeLessThan(primeiroTema);
+    const definidos = new Set([...g.slice(0, primeiroTema).matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    const nosTemas = new Set([...g.slice(primeiroTema, g.indexOf('* { box-sizing')).matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    expect([...nosTemas].filter((t) => !definidos.has(t))).toEqual([]);
+    // todo var(--x) usado tem definição
+    const usados = new Set([...g.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
+    const dinamicos = new Set(['--dg', '--c', '--grupo', '--vig', '--det-tela', '--v3d-fundo', '--v3d-pilar', '--v3d-viga', '--v3d-laje', '--v3d-parede', '--v3d-escada', '--v3d-fundacao', '--v3d-pendente', '--v3d-linha', '--v3d-selecao', '--v3d-destaque']);
+    expect([...usados].filter((t) => !definidos.has(t) && !dinamicos.has(t))).toEqual([]);
+  });
+
   it('tokens do papel lidos do memorial.css', () => {
     expect(memo('ink')).toMatch(/^#/);
     expect(() => memo('inexistente')).toThrow();
