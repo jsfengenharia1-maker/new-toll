@@ -2377,9 +2377,9 @@ export const flows = [
       assert.equal(Object.keys(um.pavimentos).length, 1);
       assert.ok(um.laje >= 1 && um.viga >= 4, JSON.stringify(um));
       // tipo oculto sai da contagem
-      await page.getByRole('button', { name: 'Pilares' }).click();
+      await page.getByRole('button', { name: 'Pilares', exact: true }).click();
       await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).pilar === undefined);
-      await page.getByRole('button', { name: 'Pilares' }).click();
+      await page.getByRole('button', { name: 'Pilares', exact: true }).click();
       // edifício completo de volta
       await page.locator('.v3d-barra').getByLabel('Escopo da vista 3D').selectOption('edificio');
       await page.waitForFunction((t) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).total === t, inicial.total);
@@ -2428,9 +2428,9 @@ export const flows = [
       assert.notEqual(await cv.locator('svg.v3d-iso').innerHTML(), antes);
       // o filtro por tipo vale no fallback
       const total = JSON.parse(await cv.getAttribute('data-cena')).total;
-      await page.getByRole('button', { name: 'Lajes' }).click();
+      await page.getByRole('button', { name: 'Lajes', exact: true }).click();
       await page.waitForFunction((t) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-cena')).total < t, total);
-      await page.getByRole('button', { name: 'Lajes' }).click();
+      await page.getByRole('button', { name: 'Lajes', exact: true }).click();
       // clique no desenho seleciona o elemento (o mesmo estado da planta)
       await cv.locator('svg.v3d-iso path[data-id^="pilar:"]').first().click({ force: true });
       await page.locator('.v3d-sel-info').waitFor();
