@@ -10,6 +10,7 @@ import type { OpcoesCalculo } from './opcoes';
 import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Viga, contornoNoLance } from './types';
 import { fracaoPassante } from './tabelasArmadura';
 import { vaosDaViga, vigaTocaPilar } from './vigas';
+import { secaoParaFlexao } from './secaoViga';
 import { ehVirtual, todosPilares } from './pilarParede';
 import { opcoesEmUso, perfilDe } from './opcoes';
 
@@ -52,6 +53,8 @@ export interface DetalheViga {
   avisos: string[];
   /** Pilares que nascem sobre a viga (E1a): abscissa do centro e das faces e carga de cálculo (kN). */
   transicoes?: { pilar: string; nome: string; s: number; sFaces: [number, number]; Nd: number }[];
+  /** Barras de canto da mesa (E2a, K1.12.16): n por viga, bitola de montagem, trecho e comprimento (m); mesa bf × hf (m). */
+  cantosMesa?: { n: number; phi: number; s0: number; s1: number; comprimento: number; bf: number; hf: number };
 }
 
 /**
@@ -252,7 +255,7 @@ export function resolverTramos(b: BuildingModel, dim: Dimensionamento, op: Opcoe
 export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: OpcoesCalculo, tramo: TramoViga = {}): DetalheViga {
   const c = concretoDe(b, 'viga'), aPos = acoDe(b, 'vigaPos'), aNeg = acoDe(b, 'vigaNeg'), aEst = acoDe(b, 'vigaEstribo');
   const cob = cobrimentoViga(b, v.cobrimento), h = v.secao.h, bw = v.secao.b;
-  const sec = { kind: 'rect' as const, bw, h };
+  const { sec, fcPos, fcNeg, mesa } = secaoParaFlexao(b, v, op);
   const passo = op.arredondamento / 100, Lmax = op.barraMaxima;
   const phiT = r.arranjo.estribo?.phi ?? 5;
   const dI = h - cob.inf - phiT / 1000 - 0.008, dS = h - cob.sup - phiT / 1000 - 0.008, d = Math.min(dI, dS);
@@ -270,13 +273,13 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const env = r.envoltoria.pontos;
   const perto = (s: number) => env.reduce((m, p) => (Math.abs(p.s - s) < Math.abs(m.s - s) ? p : m), env[0]);
   // As,mín ponto a ponto (R7g, K1.12.4): piso da armadura necessária onde a face é tracionada
-  const AsMinI = beamAsMin(sec, false, dI, c, aPos.fyd), AsMinS = beamAsMin(sec, false, dS, c, aNeg.fyd);
+  const AsMinI = beamAsMin(sec, fcPos, dI, c, aPos.fyd), AsMinS = beamAsMin(sec, fcNeg, dS, c, aNeg.fyd);
   const AsPos = new Float64Array(nG), AsNeg = new Float64Array(nG), Vd = new Float64Array(nG), Td = new Float64Array(nG);
   let compSup = false; // armadura de compressão superior exigida pelo cálculo (a montagem passa a colaborante)
   for (let i = 0; i < nG; i++) {
     const p = env.length ? perto(sG(i)) : { Mmax: 0, Mmin: 0, Vmax: 0, Vmin: 0, T: 0 };
-    if (p.Mmax > 0) { const f = beamFlexure(sec, false, p.Mmax, dI, 0.04, c, aPos.fyd); AsPos[i] = op.vigaAsMinPonto ? Math.max(f.As, AsMinI) : f.As; if (f.As2 > 1e-12) compSup = true; }
-    AsNeg[i] = p.Mmin < 0 ? (op.vigaAsMinPonto ? Math.max(AsMinS, beamFlexure(sec, false, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : beamFlexure(sec, false, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : 0;
+    if (p.Mmax > 0) { const f = beamFlexure(sec, fcPos, p.Mmax, dI, 0.04, c, aPos.fyd); AsPos[i] = op.vigaAsMinPonto ? Math.max(f.As, AsMinI) : f.As; if (f.As2 > 1e-12) compSup = true; }
+    AsNeg[i] = p.Mmin < 0 ? (op.vigaAsMinPonto ? Math.max(AsMinS, beamFlexure(sec, fcNeg, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : beamFlexure(sec, fcNeg, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : 0;
     Vd[i] = Math.max(Math.abs(p.Vmax), Math.abs(p.Vmin)); Td[i] = p.T;
   }
   const k = Math.max(0, Math.round(r.al / dx));
@@ -498,10 +501,18 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     if (sp.n > 0 && s1 > s0) estribos.push({ s0, s1, phi: sp.phi, s: Math.max(0.03, (s1 - s0) / sp.n), n: sp.n * (ramos / 2), comprimento: compEst(sp.phi), suspensao: true, ...(ramos > 2 ? { ramos } : {}) });
   }
   for (const x of barras) if (x.perna === undefined && pernaG !== 8 && x.ganchos.some(Boolean)) x.perna = pernaG;
-  const peso = barras.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0) + estribos.reduce((t, z) => t + z.n * z.comprimento * pesoLinear(z.phi), 0);
+  // E2a (K1.12.16): seção T/L com estribos, barras de canto no nível da mesa para apoiar as pontas dos estribos
+  let cantosMesa: DetalheViga['cantosMesa'];
+  if (mesa && op.mesaBarrasCanto && estribos.length) {
+    const comprimento = Math.ceil((c1 - c0) / passo - 1e-9) * passo;
+    cantosMesa = { n: mesa.tipo === 'T' ? 2 : 1, phi: op.bitolaMontagem, s0: c0, s1: c1, comprimento, bf: mesa.bf, hf: mesa.hf };
+  }
+  const peso = barras.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0) + estribos.reduce((t, z) => t + z.n * z.comprimento * pesoLinear(z.phi), 0)
+    + (cantosMesa ? cantosMesa.n * cantosMesa.comprimento * pesoLinear(cantosMesa.phi) : 0);
   return {
     viga: v.id, nome: v.nome, repeticoes: Math.max(1, pavimentosDoGrupo(b, v.grupo).length), extensao: ext, apoios, barras, estribos,
     lb: { inf: lbI, sup: lbS, supBoaAderencia: supBoa }, emendas, peso, avisos,
+    ...(cantosMesa ? { cantosMesa } : {}),
     ...(r.transicoes?.length ? { transicoes: r.transicoes.map((t) => ({ pilar: t.pilar, nome: t.nome, s: t.s, sFaces: t.sFaces, Nd: t.Nd })) } : {}),
   };
 }
@@ -533,6 +544,7 @@ export function resumoAcoVigas(b: BuildingModel, dets: DetalheViga[], perdas: nu
   for (const d of dets) {
     for (const x of d.barras) soma(acoDaBarraViga(b, x.tipo), x.phi, x.n * x.comprimento * d.repeticoes);
     for (const z of d.estribos) soma(acoE, z.phi, z.n * z.comprimento * d.repeticoes);
+    if (d.cantosMesa) soma(acoDaBarraViga(b, 'montagem'), d.cantosMesa.phi, d.cantosMesa.n * d.cantosMesa.comprimento * d.repeticoes);
   }
   return [...m.values()].sort((a, z) => a.aco.localeCompare(z.aco) || a.phi - z.phi).map((e) => {
     const peso = e.comprimento * pesoLinear(e.phi);

@@ -146,6 +146,20 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
     const y = ys + ci + ((hs - ci - cs) * i) / (nP + 1), r = Math.max((phiP / 2000) * kS, 0.45), a = (cob.lat + phiT / 1000 + phiP / 2000) * kS;
     out.push(ponto('ARMADURA', xs + a, y, r), ponto('ARMADURA', xs + ws - a, y, r));
   }
+  // seção T ou L (E2a): mesa no lado da laje (em cima; embaixo se a viga é invertida) e barras de canto que apoiam as pontas dos estribos
+  const cm = det.cantosMesa;
+  if (cm) {
+    const bT = cm.bf - bw, esq = v.mesa?.tipo === 'L' ? bT : bT / 2, dir = v.mesa?.tipo === 'L' ? 0 : bT / 2;
+    const yb = v.invertida ? ys : ys + hs, yi = v.invertida ? ys + cm.hf * kS : ys + hs - cm.hf * kS;
+    if (esq > 0) pl('CONCRETO', [xs, yi], [xs - esq * kS, yi], [xs - esq * kS, yb], [xs, yb]);
+    if (dir > 0) pl('CONCRETO', [xs + ws, yi], [xs + ws + dir * kS, yi], [xs + ws + dir * kS, yb], [xs + ws, yb]);
+    const phiC = cm.phi, rC = Math.max((phiC / 2000) * kS, 0.45), a = (v.invertida ? cob.inf : cob.sup) * kS + rC, yc = v.invertida ? ys + a : ys + hs - a;
+    const posC = posDe('CM', acoDe(b, 'vigaMontagem').aco, phiC, cmInt(cm.comprimento), cm.n * rep);
+    if (esq > 0) out.push(ponto('ARMADURA', xs - esq * kS + a, yc, rC));
+    if (dir > 0 || cm.n === 2) out.push(ponto('ARMADURA', xs + ws + dir * kS - a, yc, rC));
+    out.push(txt('TEXTO', xs + ws / 2, v.invertida ? ys - 6.5 : ys + hs + 1.5, 2, `${qtd(rep, cm.n)} ${posC} ${phiTxt(phiC)} C=${cmInt(cm.comprimento)} (canto da mesa)`, 'c', 'base'));
+    out.push(...cotaHorizontal(ys - 6, [xs - esq * kS, xs + ws + dir * kS], [`bf ${cotaCm(cm.bf)}`]));
+  }
   out.push(...cotaHorizontal(ys - 3, [xs, xs + ws], [cotaCm(bw)]));
   out.push({ t: 'txt', c: 'COTA', p: [xs - 1.5, ys + hs / 2], h: 1.8, s: cotaCm(h), ang: 90, ah: 'c', av: 'base' });
   // estribo à parte

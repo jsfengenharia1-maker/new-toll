@@ -37,6 +37,7 @@ import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type Resulta
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { temCorridas } from './corridaParede';
 import { opcoesEmUso, perfilDe } from './opcoes';
+import { alturaVigaChata, secaoParaFlexao } from './secaoViga';
 import { calcularBasesMuros, type ResultadoBaseMuro } from './baseMuro';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
@@ -350,7 +351,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   for (const v of b.vigas) {
     const membros = pm.barras.map((t, i) => [t, i] as const).filter(([t]) => t.tipo === 'viga' && t.ref === v.id).map(([, i]) => i);
     if (!membros.length) continue;
-    const sec = { kind: 'rect' as const, bw: v.secao.b, h: v.secao.h };
+    // E2a: seção T/L na flexão (opção mesaDimensionamento); fissuração e flecha seguem a mesma seção
+    const { sec, fcPos, fcNeg, mesa } = secaoParaFlexao(b, v, op);
     // d da armadura positiva pela face inferior e da negativa pela superior (cobrimentos por face: materiais.ts)
     const cob = cobrimentoViga(b, v.cobrimento), dI = v.secao.h - cob.inf - 0.005 - 0.008, dS = v.secao.h - cob.sup - 0.005 - 0.008;
     const d2I = cob.sup + 0.005 + 0.008, d2S = cob.inf + 0.005 + 0.008, d = Math.min(dI, dS);
@@ -516,13 +518,13 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       }
       return { Mpos, Mneg, V, T, biela, asw, Asl };
     };
-    const asMinViga = (dd: number, fyd: number) => (op.vigaTaxaMin > 0 ? (op.vigaTaxaMin / 100) * v.secao.b * v.secao.h : beamAsMin(sec, false, dd, c, fyd));
-    const flx = (M: number, dd: number, d2: number, fyd: number) => { const r = beamFlexure(sec, false, M, dd, d2, c, fyd); return Math.max(r.As, M ? asMinViga(dd, fyd) : 0); };
+    const asMinViga = (dd: number, fyd: number, fc = false) => (op.vigaTaxaMin > 0 ? (op.vigaTaxaMin / 100) * v.secao.b * v.secao.h : beamAsMin(sec, fc, dd, c, fyd));
+    const flx = (M: number, dd: number, d2: number, fyd: number, fc = false) => { const r = beamFlexure(sec, fc, M, dd, d2, c, fyd); return Math.max(r.As, M ? asMinViga(dd, fyd, fc) : 0); };
     // δ: o pedido, limitado por nós fixos/móveis e por δ ≥ 0,44 + 1,25·x/d no apoio (iterado, x cresce com o momento)
     let delta = op.redistribuicao > 0 ? Math.max(1 - op.redistribuicao / 100, deltaMin) : 1;
     let env = envoltoria(delta);
     for (let it = 0; it < 6 && delta < 1; it++) {
-      const xd = beamFlexure(sec, false, -env.Mneg, dS, d2S, c, aNeg.fyd).xd, req = Math.min(1, deltaX + 1.25 * xd);
+      const xd = beamFlexure(sec, fcNeg, -env.Mneg, dS, d2S, c, aNeg.fyd).xd, req = Math.min(1, deltaX + 1.25 * xd);
       if (delta >= req - 1e-4) break;
       delta = Math.min(1, req + 0.005); env = envoltoria(delta);
     }
@@ -545,6 +547,10 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       facesPilar.push({ s: r2(f.s), pilar: f.pilar, nomePilar: pil?.nome ?? '', Mmin: r2(Mmin), Mmax: r2(Mmax), combinacaoMin: cMin, combinacaoMax: cMax });
     }
     const msgs: string[] = [];
+    // E2a: seção com mesa, viga de amarração e viga chata
+    if (mesa) msgs.push(`Mesa colaborante: ${mesa.texto} ${op.mesaDimensionamento ? 'Flexão dimensionada na seção T onde a mesa está comprimida (NBR 6118, 14.6.2.2).' : 'Armadura calculada só com a alma; a mesa entra na rigidez da análise.'}`);
+    if (v.amarracao) msgs.push('Amarração: viga sem rigidez à flexão vertical (EI × 10⁻¹⁵, plano e EA rígidos); os esforços de flexão vertical são nulos e a armadura é a mínima.');
+    if (v.chata) { const hc = alturaVigaChata(b, v); if (hc !== null && Math.abs(hc - v.secao.h) > 0.005) msgs.push(`Viga chata: altura de ${Math.round(v.secao.h * 100)} cm difere da laje que contorna (${Math.round(hc * 100)} cm).`); }
     if (arredondou) msgs.push(`Arredondamento do diagrama nos apoios internos: ${op.arredondamentoApoio === 1 ? 'parábola cúbica entre as faces (M e V das faces)' : 'ΔM = R·t/8 (NBR 6118, 14.6.3)'}${op.momentoFaceMin > 0 ? `; módulo mínimo ${op.momentoFaceMin.toFixed(0)} % do momento do eixo` : ''}.`);
     // avisos de modelagem (K1.3.47, K1.3.53, K1.12.1-17, K1.12.1-18): um por código, no vão mais desfavorável
     {
@@ -561,8 +567,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       else msgs.push(`Carga próxima ao apoio: carga concentrada a ${f2(q.a)} m da face (d < a < 2d): cortante da carga multiplicado por a/2d = ${f2(q.a / (2 * d))} (NBR 6118, 17.4.1.2.1).`);
     }
     if (op.redistribuicao > 0 && vaos.some((vo) => interno(vo.ini) || interno(vo.fim))) msgs.push(`Redistribuição nos apoios internos: δ = ${delta.toFixed(2).replace('.', ',')}${delta > 1 - op.redistribuicao / 100 + 1e-6 ? ` (limitado: ${deltaMin === 0.9 ? 'nós móveis, δ ≥ 0,90' : 'δ ≥ 0,75'} e δ ≥ ${deltaX.toFixed(2).replace('.', ',')} + 1,25·x/d)` : ''}.`);
-    let AsInf = Math.max(flx(Mpos, dI, d2I, aPos.fyd), asMinViga(dI, aPos.fyd)), AsSup = Mneg < 0 ? flx(-Mneg, dS, d2S, aNeg.fyd) : 0;
-    const fi = beamFlexure(sec, false, Mpos, dI, d2I, c, aPos.fyd), fs = beamFlexure(sec, false, -Mneg, dS, d2S, c, aNeg.fyd);
+    let AsInf = Math.max(flx(Mpos, dI, d2I, aPos.fyd, fcPos), asMinViga(dI, aPos.fyd, fcPos)), AsSup = Mneg < 0 ? flx(-Mneg, dS, d2S, aNeg.fyd, fcNeg) : 0;
+    const fi = beamFlexure(sec, fcPos, Mpos, dI, d2I, c, aPos.fyd), fs = beamFlexure(sec, fcNeg, -Mneg, dS, d2S, c, aNeg.fyd);
     if (fi.double || fs.double) msgs.push('Armadura dupla (x limitado): aumente a altura.');
     // estribos: cortante + torção, com mínimo e espaçamento máximo pelo cortante (17.4.1.1.1 e 18.3.3.2)
     const aswMin = ((0.2 * c.fctm) / aEst.fyk) * v.secao.b, aswS = Math.max(aswMin, env.asw);
@@ -594,7 +600,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     let MkPos = 0, MkNeg = 0;
     for (const vo of vaos) for (const r of vo.Mk) for (const m of r) { MkPos = Math.max(MkPos, m); MkNeg = Math.min(MkNeg, m); }
     const larg = (As: number, fc: 'pos' | 'neg') => escolherBarrasViga(tabBarras, fc, As, v.secao.b, v.secao.h, cob.lat, 0.005, 0.019).barras;
-    const fissura = (As: number, Mk: number, dd: number, fc: 'pos' | 'neg') => { const bb = larg(As, fc); return bb && Mk ? crackWidth(sec, false, bb.As, bb.phi, dd, Mk, c, caa).wk : 0; };
+    const fissura = (As: number, Mk: number, dd: number, fc: 'pos' | 'neg') => { const bb = larg(As, fc); return bb && Mk ? crackWidth(sec, fc === 'pos' ? fcPos : fcNeg, bb.As, bb.phi, dd, Mk, c, caa).wk : 0; };
     // armadura bloqueada (editada): só verificada — área de aço, estribos, laterais, fissuras e flecha com as barras dadas
     const arm = v.armadura, bloq = !!arm && arm.vaos === vaosDaViga(b, v);
     if (arm && !bloq) msgs.push('Armadura bloqueada desconsiderada: o número de vãos mudou e a viga foi redimensionada.');
@@ -614,8 +620,8 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       AsInf = bi!.As; AsSup = bs?.As ?? 0;
       est = { phi: arm.estribo.phi, s: arm.estribo.s, legs: arm.estribo.legs ?? 2 };
       lat = arm.laterais ? { ...arm.laterais } : null;
-      wkI = MkPos ? crackWidth(sec, false, bi!.As, bi!.phi, dI, MkPos, c, caa).wk : 0;
-      wkS = bs && MkNeg ? crackWidth(sec, false, bs.As, bs.phi, dS, -MkNeg, c, caa).wk : 0;
+      wkI = MkPos ? crackWidth(sec, fcPos, bi!.As, bi!.phi, dI, MkPos, c, caa).wk : 0;
+      wkS = bs && MkNeg ? crackWidth(sec, fcNeg, bs.As, bs.phi, dS, -MkNeg, c, caa).wk : 0;
       if (Math.max(wkI, wkS) > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${Math.max(wkI, wkS).toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
     } else {
       wkI = fissura(AsInf, MkPos, dI, 'pos'); wkS = AsSup ? fissura(AsSup, -MkNeg, dS, 'neg') : 0;
@@ -644,7 +650,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const dMont = cob.sup + 0.005 + op.bitolaMontagem / 2000, AsMont = 2 * barArea(op.bitolaMontagem);
     const rhoL = op.flechaRhoLinha ? AsMont / (v.secao.b * dI) : 0;
     const EIv = (M: number) => {
-      const r = M >= 0 ? bransonFlecha(sec, false, AsInf, dI, M, c, !!op.inerciaHomogeneizada, AsMont, dMont) : bransonFlecha(sec, false, Math.max(AsSup, 1e-6), dS, M, c, !!op.inerciaHomogeneizada, AsInf, v.secao.h - dI);
+      const r = M >= 0 ? bransonFlecha(sec, fcPos, AsInf, dI, M, c, !!op.inerciaHomogeneizada, AsMont, dMont) : bransonFlecha(sec, fcNeg, Math.max(AsSup, 1e-6), dS, M, c, !!op.inerciaHomogeneizada, AsInf, v.secao.h - dI);
       return c.Ecs * 1000 * r.Ie;
     };
     const cadF = flechasVigaSets(an, membros, noPilar, usoNo, EIv, fQP, [fG, fQ, fQqp], !!op.flechaRotacaoBalanco);

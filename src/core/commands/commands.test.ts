@@ -153,7 +153,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.remover': (b) => ({ ids: [b.pilares[0].id] }),
   'pilar.renumerar': () => ({}),
   'viga.tracar': () => ({ grupo: 'g_3', pontos: [[0, 3], [4, 3]], secao: { b: 0.15, h: 0.4 } }),
-  'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado', engasteFim: 0.5, torcaoEquilibrio: true, engasteLajes: 0.4 }),
+  'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado', engasteFim: 0.5, torcaoEquilibrio: true, engasteLajes: 0.4, mesa: { tipo: 'T', bf: 0.8, hf: 0.1 }, amarracao: true, estrutural: false }),
   'viga.atribuir': (b) => ({ ids: b.vigas.map((v) => v.id), campo: 'alinhamento', valor: 'dir' }),
   'viga.dividir': (b) => ({ id: b.vigas[1].id, ponto: [2, 0.1] }),
   'viga.unir': (b) => ({ ids: [b.vigas[1].id, b.vigas.find((v) => v.nome === 'V3')!.id] }),

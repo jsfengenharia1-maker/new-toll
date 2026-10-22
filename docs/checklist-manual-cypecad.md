@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 5 | 5 | 3 |
 | 4. Pilares | 63 | 49 | 5 | 2 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 32 | 8 | 43 | 25 |
+| 6. Vigas | 108 | 32 | 10 | 41 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **285** | **74** | **219** | **185** |
+| **Total** | **763** | **285** | **76** | **217** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 166 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 164 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 33 | 25 | 58 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -307,14 +307,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Falta | E | viga curva [E2b] |
 | C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Falta | E | [E2b] |
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
-| C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Falta | E | viga chata (faixa) [E2a] |
-| C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | retangular; sem T/mesa colaborante [E2a] |
+| C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Parcial | E | núcleo: `Viga.chata`, `alturaVigaChata` (`secaoViga.ts`; altura da laje que contorna, com desnível do topo mais alto ao fundo mais baixo), `viga.editar { chata }`; interface no cartão `docs/cartoes/E2a/1-editor-secao.md` [E2a] |
+| C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | núcleo: `Viga.mesa` T/L com mesa colaborante da NBR 6118 14.6.2.2 (`mesaDaViga`), na rigidez da grelha e do pórtico (`propsBarraViga`, opção `mesaRigidez`), armadura só pela alma (padrão do sistema) ou na seção T (`mesaDimensionamento`); interface nos cartões E2a-1 a E2a-3 [E2a] |
 | C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Falta | E | treliçadas/protendidas pré-fabricadas [E2e] |
 | C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Falta | E | viga de vínculo externo [E2e] |
 | C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Feito | — | aviso `MURO_PILAR_MACICA` (laje maciça ou sem laje junto ao pilar): o desligamento só vale com lajes de vigotas e a mensagem sugere lançar o muro como elemento (`diagnosticosAlvenaria`) [E1e] |
 | C6.20 | A viga de coroamento do topo do muro não é especificada pelo programa. O detalhe fica com o usuário, com apoio da biblioteca de detalhes construtivos. | Fora | — |  |
-| C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Falta | E | viga não estrutural de contorno [E2a] |
-| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas no térreo funcionam como baldrame; sem tipo próprio [E2a] |
+| C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Parcial | E | núcleo: `Viga.estrutural = false` fora da grelha e do pórtico (`analitico.ts`), contorno do pano fechado (`panosDoGrupo`), VIGA_NAO_ESTRUTURAL_CARGA; interface nos cartões E2a-1 e E2a-2 [E2a] |
+| C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas do pavimento: retangular, T, L (mesa) e chata pelos campos de `Viga`; vigas de fundação com seção T/L/plana ficam na FU (hoje só retangular em `ElementoFundacao`) [E2a] |
 | C6.23 | Vigas de aço: perfil simples, caixão soldado, perfis afastados com chapas de ligação, perfis unidos. Usam a mesma biblioteca dos pilares de aço. | Fora | — | vigas de aço no edifício |
 | C6.24 | Vigas alveoladas (não mistas): furos hexagonais, octogonais ou circulares, proporções e número de furos preenchidos nas extremidades. | Fora | — |  |
 | C6.25 | Vigas mistas: perfil sob a laje com concreto colaborante ligado por conectores de geometria definível. | Fora | — | mistas |
@@ -1040,3 +1040,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 9 itens (manual do usuário).
 - **22/10/2026 — correção pós-auditoria N2 (achados 4 a 6).** C4.44 e C10.6 voltam a Parcial: fogo apoiado em fontes secundárias (NBR 15200:2004 de cópia de terceiros; 2012 por monografia), 180 min e tabelas gerais de pilares da 2012 não transcritos; pilar com vento determinante agora emite aviso FOGO_LIMITES em vez de silêncio.
+- **22/10/2026 — E2a, núcleo.** C6.15, C6.16, C6.21 e C6.22 passam de Falta/Parcial a Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/E2a/`; C6.22: vigas de fundação T/L/plana seguem na FU).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).

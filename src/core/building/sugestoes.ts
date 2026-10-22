@@ -4,6 +4,9 @@
 export const SUGESTOES: Record<string, string> = {
   // vigas e pilares: dimensionamento
   ARREDONDAMENTO: 'Informativo: o diagrama dentro dos apoios internos foi arredondado; mude a opção “arredondamento do diagrama no apoio” (0, 1 ou 2) se o critério do projeto for outro.',
+  VIGA_MESA: 'Informativo: largura colaborante da NBR 6118 (14.6.2.2) na rigidez; ligue “Vigas T/L: flexão na seção T” para dimensionar a flexão com a mesa comprimida, ou informe bf e hf na viga.',
+  VIGA_AMARRACAO: 'Informativo: viga de amarração sem flexão vertical; se ela deve receber laje ou parede, desligue “amarração” na viga.',
+  VIGA_CHATA_ALTURA: 'Execute “viga chata” de novo na viga (a altura volta à da laje que contorna) ou desligue a opção chata se a altura é outra de propósito.',
   VIGA_PAREDE: 'Trecho com ℓ/h abaixo de 2 (biapoiada) ou 3 (contínua): dimensione por bielas e tirantes fora do programa, ou aumente o vão/reduza a altura.',
   NAO_LINEAR: 'O trecho é curto demais para o modelo de barra: trate-o como bloco, consolo ou elemento 2D e confira a armadura à mão.',
   VIGA_PLACA: 'A largura passa de 2 vezes o vão: lance o elemento como laje (maciça ou nervurada) e não como viga.',
