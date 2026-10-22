@@ -35,7 +35,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## NBR 15200:2012 e NBR 14432 (fogo; frente N2g, ainda sem código)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
-| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` e `fogoTabelas.ts` | Tabelas da edição de 2004 (até 120 min); só a edição de 2004 e fórmula analítica |
+| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` e `fogoTabelas.ts` | Edição de 2004 (até 120 min) e fórmula analítica |
 | Tabelas de vigas biapoiadas e contínuas (bmín/c1, 180 min) | Verificação de viga ao fogo | `fogo.ts` | Idem |
 | As nove tabelas gerais do método tabular de pilares (μfi, λ, e/b) | Pilares ao fogo | `fogo.ts` | Idem |
 | NBR 14432: TRRF por ocupação, altura e área | Sugestão de TRRF por grupo | `fogo.ts`, `b.fogo.trrf` | IT 06 do CBMMG |
