@@ -318,7 +318,7 @@ export const flows = [
       await page.keyboard.type('7,5;5');
       await page.keyboard.press('Enter');
       await page.locator('summary', { hasText: 'Pilares (2)' }).waitFor();
-      await page.locator('summary', { hasText: 'Pilares' }).click();
+      await page.locator('summary', { hasText: /^Pilares \(/ }).click();
       assert.equal(await page.getByLabel('x de P2').inputValue(), '7,500');
       // sobreposição recusada
       await page.keyboard.type('7,55;5');
@@ -3078,7 +3078,7 @@ export const flows = [
       const opcao = page.getByLabel('Modelo integrado (lajes no pórtico)');
       assert.equal(await opcao.isChecked(), true);
       assert.equal(await page.getByLabel('Deformação por cortante nas barras de laje').isChecked(), true);
-      assert.equal(await page.getByLabel('Malha das cascas (tamanho alvo)').inputValue(), '0,5');
+      assert.equal(await page.getByLabel('Malha das cascas (tamanho alvo)').inputValue(), '1');
       // análise: indicação do modelo em uso, gdl e tempo
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
       await page.getByRole('button', { name: 'Calcular', exact: true }).click();
