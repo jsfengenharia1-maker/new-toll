@@ -2438,6 +2438,128 @@ export const flows = [
     },
   },
   {
+    webgl: true,
+    name: 'V2: cortes e linhas de seção (traçar, janela, renomear, profundidade, memorial, apagar) e armaduras em 3D (vista do edifício e aba 3D da viga, do pilar e da laje)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+
+      // ---- corte traçado na planta: a janela abre sozinha com a elevação hachurada
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.locator('summary', { hasText: /^Cortes e seções/ }).click();
+      await page.getByRole('button', { name: 'Traçar corte na planta', exact: true }).click();
+      await page.waitForTimeout(300);
+      const [ax, ay] = await telaDe(page, -1, 2.5), [bx, by] = await telaDe(page, 7, 2.5);
+      await page.mouse.click(ax, ay);
+      await page.mouse.click(bx, by);
+      await page.keyboard.press('Enter');
+      const jc = page.getByRole('dialog', { name: /^Corte — Corte AA/ });
+      await jc.waitFor();
+      const svg = jc.locator('svg.corte-svg');
+      assert.ok(Number(await svg.getAttribute('data-secoes')) >= 3, await svg.getAttribute('data-secoes'));
+      assert.ok(await svg.locator('polygon.corte-sec').count() >= 3);
+      assert.match(await jc.innerText(), /Fundação .*Térreo/);
+      await page.keyboard.press('Escape');
+      assert.equal(await jc.count(), 0);
+
+      // ---- lista: renomear, profundidade, reabrir
+      const nome = page.getByLabel('Nome do corte Corte AA', { exact: true });
+      await nome.fill('Longitudinal');
+      await nome.press('Enter');
+      await page.getByLabel('Nome do corte Longitudinal', { exact: true }).waitFor();
+      await page.getByLabel(/^Profundidade de Longitudinal/).fill('1');
+      await page.getByLabel(/^Profundidade de Longitudinal/).press('Enter');
+      await page.getByRole('button', { name: 'Abrir Longitudinal', exact: true }).click();
+      const jc2 = page.getByRole('dialog', { name: /^Corte — Longitudinal/ });
+      await jc2.waitFor();
+      assert.match(await jc2.innerText(), /até 1,00 m/);
+      await page.keyboard.press('Escape');
+
+      // ---- linha de seção: dois cliques e a janela abre sozinha com os vãos
+      await page.getByRole('button', { name: 'Traçar linha de seção na planta', exact: true }).click();
+      await page.waitForTimeout(300);
+      const [cx, cy] = await telaDe(page, -1, 2.5), [dx, dy] = await telaDe(page, 7, 2.5);
+      await page.mouse.click(cx, cy);
+      await page.mouse.click(dx, dy);
+      const js = page.getByRole('dialog', { name: /^Seção — Seção 1/ });
+      await js.waitFor();
+      assert.ok(await js.locator('[data-secao-vaos] tbody tr').count() >= 1);
+      assert.match(await js.locator('[data-secao-vaos]').innerText(), /5,85/); // 6 m de eixo a eixo − 15 cm de viga
+      assert.ok(await js.locator('svg.corte-svg rect.corte-sec').count() >= 3);
+      await js.getByLabel(/^Pavimento da seção/).selectOption({ label: 'Tipo 2' });
+      await js.getByText(/em Tipo 2/).waitFor();
+      await page.keyboard.press('Escape');
+
+      // ---- memorial: uma figura por corte e por seção
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.equal(await memo.locator('figure[data-memorial-corte] svg.corte-svg').count(), 1);
+      assert.equal(await memo.locator('figure[data-memorial-secao] svg.corte-svg').count(), 1);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+
+      // ---- armaduras na vista 3D do edifício
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv').first();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await cv.getAttribute('data-status');
+      console.log(`        (V2: vista 3D em modo ${status})`);
+      assert.equal(await cv.getAttribute('data-armaduras'), '0');
+      await page.getByLabel('Armaduras', { exact: true }).check();
+      await page.waitForFunction(() => { const a = document.querySelector('.v3d-cv')?.getAttribute('data-armaduras'); return !!a && a !== '0' && JSON.parse(a).barras > 0; });
+      const arm = JSON.parse(await cv.getAttribute('data-armaduras'));
+      assert.ok(arm.segmentos > 100 && arm.camadas >= 2 && !arm.truncado, JSON.stringify(arm));
+      await page.locator('.v3d-barra').getByLabel('Colorir armaduras por', { exact: true }).selectOption('elemento');
+      await page.waitForFunction((n) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-armaduras')).camadas !== n, arm.camadas);
+      if (status === 'pronto') {
+        await page.getByLabel('Barras como tubos', { exact: true }).check();
+        await page.locator('.v3d-barra .slider', { hasText: 'Espessura das barras' }).locator('input').fill('10');
+        await page.waitForFunction(() => Number(document.querySelector('.v3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+      }
+      // escopo de um pavimento: menos barras
+      await page.locator('.v3d-barra').getByLabel('Escopo da vista 3D').selectOption('pavimento');
+      await page.locator('.v3d-barra').getByLabel('Pavimento', { exact: true }).selectOption({ label: 'Tipo 2' });
+      await page.waitForFunction((n) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-armaduras')).segmentos < n, arm.segmentos);
+
+      // ---- aba 3D das janelas de armadura
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const card = (t) => page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: t }) });
+      for (const [titulo, dialogo, tipo] of [[/^Vigas$/, /Resultados do elemento — Viga/, 'viga'], ['Pilares (por lance)', /Resultados do elemento — Pilar/, 'pilar'], [/^Lajes$/, /Resultados do elemento — Laje/, 'laje']]) {
+        await card(titulo).locator('tbody tr').first().dblclick();
+        const j = page.getByRole('dialog', { name: dialogo });
+        await j.waitFor();
+        await j.getByRole('radio', { name: '3D', exact: true }).click();
+        const a3 = j.locator('[data-armadura3d]');
+        await a3.waitFor();
+        const info = JSON.parse(await a3.getAttribute('data-armadura3d'));
+        assert.equal(info.tipo, tipo);
+        assert.ok(info.barras > 0 && info.segmentos > 0, JSON.stringify(info));
+        if (status === 'pronto') {
+          await j.locator('.armadura3d-cv[data-status="pronto"] canvas').waitFor();
+          await page.waitForFunction(() => Number(document.querySelector('.armadura3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+        } else {
+          assert.equal(await j.locator('.armadura3d-cv canvas').count(), 0);
+        }
+        await page.keyboard.press('Escape');
+      }
+
+      // ---- apagar corte e seção
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await page.getByRole('button', { name: 'Apagar Longitudinal', exact: true }).click();
+      await page.getByRole('button', { name: 'Apagar Seção 1', exact: true }).click();
+      assert.equal(await page.locator('[data-cortes-lista]').count(), 0);
+      assert.equal(await page.locator('[data-secoes-lista]').count(), 0);
+    },
+  },
+  {
     name: 'N2a: compatibilidade e arranjos em xadrez, estados-limite, situações do usuário com alerta, empuxo (caso H), ábacos de vento e memorial',
     async run({ newPage }) {
       const page = await newPage();
