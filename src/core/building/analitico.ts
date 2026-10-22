@@ -478,9 +478,12 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const casoQ = casoUsoDoGrupo(b, grupo.id);
     const carregar = (c: CasoAnalise, f: (cs: Caso3) => void) => { const i = CASOS.indexOf(c === 'Q' ? casoQ : c); if (i >= 0) f(casos[i]); };
     const trechoDe: (TrechoViga | null)[] = []; // barra da grelha → trecho de viga (null nas lajes)
+    // N2e (K1.4.34): trecho fino dentro de um trecho grosso (cruzamento a cruzamento/apoio) com comprimento ≤ limite
+    const curtaNaGrelha = (t: TrechoViga) => { const m: P = [(nos[t.a].p[0] + nos[t.z].p[0]) / 2, (nos[t.a].p[1] + nos[t.z].p[1]) / 2]; return grosso.trechos.some((g) => g.viga === t.viga && Math.hypot(grosso.nos[g.z].p[0] - grosso.nos[g.a].p[0], grosso.nos[g.z].p[1] - grosso.nos[g.a].p[1]) <= op.barraCurtaLimite + 1e-9 && distSeg(m, grosso.nos[g.a].p, grosso.nos[g.z].p) < 1e-3); };
     for (const t of trechos) {
       const v = t.viga, s = ret(v.secao.b, v.secao.h);
       const bv: Barra3 = { i: no(t.a), j: no(t.z), E: Ev, G: Gv, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
+      if (op.barraCurtaLimite > 0 && op.barraCurtaFator !== 1 && curtaNaGrelha(t)) { bv.A *= op.barraCurtaFator; bv.Iz *= op.barraCurtaFator; bv.Iy *= op.barraCurtaFator; bv.J *= op.barraCurtaFator; }
       vincularPontas(bv, t, trechos, nos, [5]);
       m.barras.push(bv);
       tags.push({ tipo: 'viga', ref: v.id });
@@ -502,7 +505,9 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (op.cortanteBarrasLaje && pr.As) bl.Ay = pr.As; // Timoshenko (K1.3.22)
           // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)
           for (const [ponta, id] of [['engI', ids[j]], ['engJ', ids[j + 1]]] as const) {
-            const a = nos[id].viga && !nos[id].pilar ? engasteBorda(l, nos[id].p, trechos, nos) : 1;
+            let a = nos[id].viga && !nos[id].pilar ? engasteBorda(l, nos[id].p, trechos, nos, lajes, op.lajeDesnivelFator) : 1;
+            // N2e (K1.9.55): vigotas biapoiadas: rotações livres nas bordas da treliçada (extremos das linhas na direção das vigotas)
+            if (l.vigotasBiapoiadas && l.tipo.tipo === 'trelicada' && k === 0 && nos[id].viga && (ponta === 'engI' ? j === 0 : j + 2 === ids.length)) a = 0;
             if (a < 1) bl[ponta] = [[5, a]];
           }
           m.barras.push(bl);
@@ -639,6 +644,10 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       vincularPontas(nb, t, gb.trechos, gb.nos, [4, 5]);
       for (const [ponta, a, z] of [['offI', br.i, br.j], ['offJ', br.j, br.i]] as const) {
         const k = assoc[a];
+        if (k < 0 && op.vigaApoiadaRigida) {
+          const ov = ponta === 'offI' ? offsetApoiadaEmViga(t.a, t.z, t, gb.trechos, gb.nos) : offsetApoiadaEmViga(t.z, t.a, t, gb.trechos, gb.nos);
+          if (ov) nb[ponta] = ov;
+        }
         if (k < 0 || assoc[z] === k) continue;
         const pa: P = [m.nos[a][0], m.nos[a][1]], pz: P = [m.nos[z][0], m.nos[z][1]];
         const off = offsetFace(pa, pz, g2[k].p, g2[k].s, op.trechoRigido * t.viga.secao.h, [pa[0], pa[1], 0]);
@@ -1008,9 +1017,14 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const Lt = Math.hypot(g.nos[t.z].p[0] - g.nos[t.a].p[0], g.nos[t.z].p[1] - g.nos[t.a].p[1]);
       if (ni === nj) { casosV[0].nodais.push({ no: ni, f: [0, 0, -pp * Lt, 0, 0, 0] }); barraDe.set(ti, { no: ni }); return; } // dentro do pilar
       const barra: Barra3 = { i: ni, j: nj, E: Ev, G: Gv, A: s.A, Iz: s.I, Iy: (v.secao.h * v.secao.b ** 3) / 12, J: torcaoDe(v, op) * s.J };
+      if (op.barraCurtaLimite > 0 && op.barraCurtaFator !== 1 && Lt <= op.barraCurtaLimite + 1e-9) { barra.A *= op.barraCurtaFator; barra.Iz *= op.barraCurtaFator; barra.Iy *= op.barraCurtaFator; barra.J *= op.barraCurtaFator; }
       for (const [k, i, outro] of [['I', t.a, t.z], ['J', t.z, t.a]] as const) {
         const pid = g.nos[i].pilar;
-        if (!pid) continue;
+        if (!pid) {
+          const ov = op.vigaApoiadaRigida ? offsetApoiadaEmViga(i, outro, t, g.trechos, g.nos) : null;
+          if (ov) { if (k === 'I') barra.offI = ov; else barra.offJ = ov; }
+          continue;
+        }
         const pil = b.pilares.find((x) => x.id === pid)!;
         const gp = geoEm(pil, pav.id), off = offsetFace(g.nos[i].p, g.nos[outro].p, gp.p, gp.secao, op.trechoRigido * v.secao.h, pm.nos[k === 'I' ? ni : nj]);
         if (off) { if (k === 'I') barra.offI = off; else barra.offJ = off; }
@@ -1333,12 +1347,37 @@ function vincularPontas(br: Barra3, t: TrechoViga, trechos: TrechoViga[], nos: N
     let a = extremo ? engastePonta(v, fim) : 1;
     const pid = nos[no].pilar;
     if (pid && v.articulacoes?.includes(pid)) a = 0;
+    // N2e (K1.9.41): rótula no cruzamento com viga listada em `articulacoes` (o nó é de uma trecho dela)
+    else if (!pid && v.articulacoes?.length && trechos.some((x) => x.viga !== v && v.articulacoes!.includes(x.viga.id) && (x.a === no || x.z === no))) a = 0;
     if (a < 1) br[ponta] = gdl.map((g) => [g, a] as [number, number]);
   }
 }
 
+/**
+ * Trecho rígido da viga apoiada em viga (N2e, K1.3.46): do eixo da viga de apoio até a face dela, medido ao longo da
+ * viga apoiada. Só nas pontas da viga, em nó sem pilar por onde passa outra viga (dois trechos dela) a mais de 10° da
+ * direção. Devolve o vetor do nó ao início da parte flexível, ou null.
+ */
+function offsetApoiadaEmViga(i: number, outro: number, t: TrechoViga, trechos: TrechoViga[], nos: NoPlanta[]): V3 | null {
+  if (nos[i].pilar) return null;
+  const v = t.viga, daViga = trechos.filter((x) => x.viga === v);
+  if (!((t === daViga[0] && i === t.a) || (t === daViga.at(-1) && i === t.z))) return null;
+  const P = nos[i].p, Q = nos[outro].p, ux = Q[0] - P[0], uy = Q[1] - P[1], L = Math.hypot(ux, uy);
+  if (!L) return null;
+  for (const v2 of new Set(trechos.map((x) => x.viga))) {
+    if (v2 === v) continue;
+    const ts = trechos.filter((x) => x.viga === v2 && (x.a === i || x.z === i));
+    if (ts.length < 2) continue;
+    const A = nos[ts[0].a].p, Z = nos[ts[0].z].p, wx = Z[0] - A[0], wy = Z[1] - A[1], sin = Math.abs(ux * wy - uy * wx) / (L * (Math.hypot(wx, wy) || 1));
+    if (sin < 0.17) continue;
+    const dd = Math.min(v2.secao.b / 2 / sin, 0.9 * L);
+    return [(ux / L) * dd, (uy / L) * dd, 0];
+  }
+  return null;
+}
+
 /** Engaste da laje no ponto p da sua borda: coeficiente da aresta do contorno × o da viga paralela a ela. */
-function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[]) {
+function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[], lajes: Laje[] = [], fatorDesnivel = 0) {
   const c = l.contorno, n = c.length;
   let k = -1, dm = 0.01;
   for (let i = 0; i < n; i++) { const d = distSeg(p, c[i], c[(i + 1) % n]); if (d < dm) { dm = d; k = i; } }
@@ -1349,6 +1388,14 @@ function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[]) {
     if ((t.viga.engasteLajes ?? 1) >= cv) continue; // não muda o mínimo
     const pa = nos[t.a].p, pz = nos[t.z].p, vx = pz[0] - pa[0], vy = pz[1] - pa[1], Lv = Math.hypot(vx, vy) || 1;
     if (distSeg(p, pa, pz) < 0.01 && Math.abs(ux * vy - uy * vx) / (L * Lv) < 0.05) cv = Math.min(cv, t.viga.engasteLajes ?? 1);
+  }
+  // N2e (K1.9.85): desnível entre panos maior que fator × a menor espessura: a borda perde a continuidade
+  if (fatorDesnivel > 0) {
+    const h = (x: Laje) => (x.tipo.tipo === 'macica' ? x.tipo.h : x.tipo.capa + (TRELICADAS[x.tipo.modelo] ?? TRELICADAS.H12).hEnch);
+    for (const l2 of lajes) {
+      if (l2 === l || !(l2.contorno as P[]).some((q, i, c2) => { const q2 = c2[(i + 1) % c2.length]; return (Math.hypot(q[0] - z[0], q[1] - z[1]) < 0.02 && Math.hypot(q2[0] - a[0], q2[1] - a[1]) < 0.02); })) continue;
+      if (Math.abs((l.nivel ?? 0) - (l2.nivel ?? 0)) > fatorDesnivel * Math.min(h(l), h(l2)) + 1e-9) return 0;
+    }
   }
   return (l.engasteBordas?.[k] ?? 1) * cv;
 }

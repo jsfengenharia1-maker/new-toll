@@ -78,7 +78,7 @@ function contornoDe(b: BuildingModel, p: { grupo: string; ponto?: P; contorno?: 
   return panosDoGrupo(b, p.grupo).find((x) => dentroPoligono(p.ponto!, x)) ?? null;
 }
 
-registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string }>({
+registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string; vigotasBiapoiadas?: boolean }>({
   nome: 'laje.editar',
   descricao: 'Altera nome, tipo, direção das vigotas (graus), desnível, contorno, aberturas coeficientes de engaste das bordas (um por aresta do contorno, 0 = articulada, 1 = engastada) ou cobrimento próprio (cm) de uma laje.',
   risco: 'escrita',
@@ -90,6 +90,7 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?
     engasteBordas: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, description: 'coeficiente por aresta do contorno (aresta k vai do vértice k ao k+1); lista vazia = todas engastadas' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de armadura das lajes (R7a); "padrao" ou vazio volta à padrão da obra' },
+    vigotasBiapoiadas: { type: 'boolean', description: 'treliçadas: vigotas biapoiadas (rotações livres nas bordas, sem continuidade com o pano vizinho); false volta às contínuas' },
   } },
   validar: (b, p) => (b.lajes.some((l) => l.id === p.id) ? tabelaInexistente(b, [['lajes', p.tabela]]) : err('LAJE_INEXISTENTE', `Laje ${p.id} não existe.`)),
   aplicar(d, p) {
@@ -102,6 +103,7 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?
     if (p.furos) { if (p.furos.length) l.furos = p.furos.map(anti); else delete l.furos; }
     if (p.cobrimento !== undefined) { if (p.cobrimento) l.cobrimento = p.cobrimento; else delete l.cobrimento; }
     atribuirTabela(l, 'tabela', p.tabela);
+    if (p.vigotasBiapoiadas !== undefined) { if (p.vigotasBiapoiadas) l.vigotasBiapoiadas = true; else delete l.vigotasBiapoiadas; }
     if (p.engasteBordas) { if (p.engasteBordas.some((a) => a !== 1)) l.engasteBordas = [...p.engasteBordas]; else delete l.engasteBordas; }
     return `${l.nome} alterada.`;
   },

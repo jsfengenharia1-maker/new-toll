@@ -4,7 +4,7 @@
 // seção transversal e estribo à parte (padrão 1:25). Vigas paginadas nas folhas; posições numeradas por folha
 // (barras iguais somadas); tabela de aço e resumo por bitola com perdas, concreto e forma da folha.
 import type { AnaliseEdificio } from '../building/analitico';
-import { ganchoNoventa, type BarraViga, type DetalheViga } from '../building/detalhamento';
+import { acoDaBarraViga, ganchoNoventa, type BarraViga, type DetalheViga } from '../building/detalhamento';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { acoDe, cobrimentoViga, fckDe } from '../building/materiais';
 import { comprimentoPolilinha, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type Viga } from '../building/types';
@@ -46,7 +46,7 @@ function faixas(ints: [number, number][]): number[] {
 
 export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: PosDe): Prim[] {
   const cfg = cfgArmacao(b), kE = 1000 / cfg.escalaVigas, kS = 1000 / cfg.escalaSecao;
-  const rep = det.repeticoes, acoL = acoDe(b, 'vigaPos').aco, acoE = acoDe(b, 'vigaEstribo').aco;
+  const rep = det.repeticoes, acoE = acoDe(b, 'vigaEstribo').aco;
   const cob = cobrimentoViga(b, v.cobrimento), h = v.secao.h, bw = v.secao.b;
   const [e0, e1] = det.extensao, X = (s: number) => (s - e0) * kE, hb = h * kE, d = 3;
   const out: Prim[] = [];
@@ -88,7 +88,7 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
     bs.forEach((x, i) => {
       const p = pernas(x), y = sobe ? yBase + nv[i] * 9 : yBase - nv[i] * 9, xa = X(x.s0), xz = X(x.s1);
       const sinal = sobe ? -1 : 1; // pernas das superiores descem, das inferiores sobem (para dentro da viga)
-      const pos = posDe(`L|${Math.min(p.L0, p.L1)}|${Math.max(p.L0, p.L1)}`, acoL, x.phi, p.C, x.n * rep);
+      const pos = posDe(`L|${Math.min(p.L0, p.L1)}|${Math.max(p.L0, p.L1)}`, acoDaBarraViga(b, x.tipo), x.phi, p.C, x.n * rep);
       const linha: [number, number][] = [];
       if (p.L0) linha.push([xa, y + (sinal * p.L0 * kE) / 100]);
       linha.push([xa, y], [xz, y]);
@@ -109,10 +109,10 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   // estribos: uma posição por bitola e comprimento na viga
   const eLarg = bw - 2 * cob.lat, eAlt = h - cob.inf - cob.sup;
   const est = new Map<string, { phi: number; C: number; n: number }>();
-  for (const z of det.estribos) { const k = `${z.phi}|${cmInt(z.comprimento)}`; const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0 }; e.n += z.n; est.set(k, e); }
+  for (const z of det.estribos) { const k = `${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}`; const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0 }; e.n += z.n; est.set(k, e); }
   const posEst = new Map<string, string>();
-  for (const [k, e] of est) posEst.set(k, posDe(`E|${cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
-  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(`${z.phi}|${cmInt(z.comprimento)}`)} c/${cmInt(z.s)}`]));
+  for (const [k, e] of est) posEst.set(k, posDe(`${k.startsWith('S|') ? 'S' : 'E'}|${cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
+  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(`${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}`)} ${z.suspensao ? 'suspensão' : `c/${cmInt(z.s)}`}`]));
   // ---- título ----
   const yTit = hb + d + 8 + Math.max(0, nSup - 1) * 9 + 9;
   const pavs = pavimentosDoGrupo(b, v.grupo);

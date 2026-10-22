@@ -3379,4 +3379,50 @@ export const flows = [
       assert.match(await prev.textContent(), /P6 nasce aqui · Nd = \d+ kN/);
     },
   },
+  {
+    name: 'N2e: apoios, limites e avisos de modelagem (suspensão no cruzamento, arredondamento, viga-parede, opções e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('vento.definir {"ativo": false}');
+      // vigas A (y = 0) e C (y = 4) de 6 m em pilares nas pontas; B (x = 3) apoia-se nelas; e uma viga curta e alta (viga-parede)
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [0, 4], [6, 4], [10, 0], [11, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0], 0.15, 0.4], [[0, 4], [6, 4], 0.15, 0.4], [[3, 0], [3, 4], 0.15, 0.4], [[10, 0], [11, 0], 0.15, 0.6]].map(([a, z, b, h]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, z])}, "secao": {"b": ${b}, "h": ${h}}}}`).join(', ') + ']}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await livre();
+      // lista de erros e avisos: a viga curta e alta é viga-parede
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
+      // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      const t = await g.innerText();
+      assert.match(t, /Arredondamento do diagrama no apoio/);
+      assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
+      assert.match(t, /Desnível entre panos: limite da continuidade/);
+      // memorial: critério de arredondamento, tabela de suspensão (A e C recebem a reação de B) e avisos
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const ap = await memo.locator('[data-memorial-apoios]').innerText();
+      assert.match(ap, /parábola cúbica M\(x\) = a·x³/);
+      assert.match(ap, /Armadura de suspensão \(NBR 6118, 18\.3\.6\)/);
+      assert.equal(await memo.locator('[data-memorial-suspensao] tbody tr').count(), 2);
+      assert.match(await memo.innerText(), /VIGA_PAREDE/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // perfil NBR: ΔM = R·t/8
+      await cmd('opcoes.definir {"perfil": "nbr"}');
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo2 = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo2.locator('[data-memorial-apoios]').innerText(), /ΔM = R·t\/8/);
+      await memo2.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];
