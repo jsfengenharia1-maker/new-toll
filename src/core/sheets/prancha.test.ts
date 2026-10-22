@@ -81,6 +81,18 @@ describe('pranchas', () => {
     expect(textosPr(montarPranchas(s.modelo)[0], true)).toContain(s.modelo.obra.nome);
   });
 
+  it('carimbo: a descrição da obra sai sob o nome, cortada em 90 caracteres', () => {
+    const s = edificioExemplo();
+    expect(s.executar('obra.definir', { descricao: ['Residencial fictício de 5 pavimentos', 'Fase de anteprojeto'] }).ok).toBe(true);
+    expect(textosPr(montarPranchas(s.modelo)[0], true)).toContain('Residencial fictício de 5 pavimentos · Fase de anteprojeto');
+    expect(s.executar('obra.definir', { descricao: ['x'.repeat(120)] }).ok).toBe(true);
+    const pap = textosPr(montarPranchas(s.modelo)[0], true);
+    expect(pap).toContain('x'.repeat(90));
+    expect(pap).not.toContain('x'.repeat(91));
+    expect(s.executar('obra.definir', { descricao: [] }).ok).toBe(true);
+    expect(textosPr(montarPranchas(s.modelo)[0], true)).not.toContain('xxxxxxxxxx');
+  });
+
   it('PDF: estrutura (xref), página no tamanho da folha, camadas OCG e texto em WinAnsi', () => {
     const pr = prancha();
     const b = escreverPdf([pr, pr]);

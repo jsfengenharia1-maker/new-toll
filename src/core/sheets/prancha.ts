@@ -417,6 +417,8 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
       if (lg && l === linhas[0] && i === 0) logo = { ...encaixar({ x0: x, y0: yb, x1: x + w, y1: y }, lg.largura, lg.altura), dados: lg.dados, largura: lg.largura, altura: lg.altura };
       if (c.rot) papel.push(txt('FOLHA-TEXTO', x + 1.5, y - 1.5, 1.6, c.rot, 'e', 'topo'));
       if (c.val) papel.push(txt('FOLHA-TEXTO', x + 2, yb + 2, c.hv ?? 2.8, c.val));
+      // descrição da obra (K1.9.2): segunda linha da célula OBRA, em corpo menor, cortada em 90 caracteres
+      if (c.rot === 'OBRA' && b.obra.descricao?.length) papel.push(txt('FOLHA-TEXTO', x + 2, yb + 5.2, 1.6, b.obra.descricao.join(' · ').slice(0, 90)));
       x += w;
     });
     y = yb;
