@@ -3721,6 +3721,9 @@ export const flows = [
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.fundacao?.corridas?.length === 2, null);
       const cs = (await modelo()).fundacao.corridas;
       assert.deepEqual(cs.map((c) => c.nome).sort(), ['SC-M1', 'SC-M2']);
+      // este fluxo confere a verificação de cada sapata isolada (o conjunto travado pela laje é testado em sapataParede.test.ts)
+      await cmd('opcoes.definir {"valores": {"fundCorridaDeslizGrupo": 0}}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.opcoes?.fundCorridaDeslizGrupo === 0, null);
       assert.equal(cs.find((c) => c.nome === 'SC-M1').parede, m1);
       // 2. cálculo: as sapatas aparecem no cartão com "parede M1" e o deslizamento da base sob o empuxo reprova (FS < 1,5)
       await calcular();
