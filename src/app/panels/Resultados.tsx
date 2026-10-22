@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore, type Diagram, type Source } from '../store';
-import { Alert, Button, Check, Chip, copyText, download, Group, Hint, Seg, Select } from '../ui';
+import { Alert, Button, Check, Chip, copyText, download, Group, Hint, Input, Seg, Select } from '../ui';
 import { useAnalysis, resultFor, fmt, memberSeries, sourceLabel, type Eff } from '../results';
 import { P } from '../../core/math';
 import { useUnits, type Units } from '../units';
@@ -50,7 +50,7 @@ export function ResultadosPanel() {
       <Group title="Carregamento">
         <div className="srclist">
           {opts.map((o) => (
-            <button type="button" key={o.key} className={`caseitem${srcKey(st.source) === o.key ? ' on' : ''}`} onClick={() => st.set({ source: o.src })}>{o.label}</button>
+            <Button variant="caseitem" key={o.key} className={srcKey(st.source) === o.key ? ' on' : ''} onClick={() => st.set({ source: o.src })}>{o.label}</Button>
           ))}
         </div>
               {st.source.kind === 'envSel' && (() => {
@@ -70,7 +70,7 @@ export function ResultadosPanel() {
         ]} />
         <label className="field" htmlFor="diagscale">
           <span className="flabel">Escala do desenho · {fmt(st.diagScale, 1)}×</span>
-          <input id="diagscale" type="range" min={0.2} max={4} step={0.1} value={st.diagScale} onChange={(e) => st.set({ diagScale: +e.target.value })} />
+          <Input id="diagscale" type="range" min={0.2} max={4} step={0.1} value={st.diagScale} onChange={(e) => st.set({ diagScale: +e.target.value })} />
         </label>
         <div className="row">
           <Select label="Valores ao longo da barra" value={st.stepValues} options={[{ v: 0, label: 'extremos e máximos' }, { v: 2, label: '2 passos (meio)' }, { v: 4, label: '4 passos' }, { v: 5, label: '5 passos' }, { v: 10, label: '10 passos' }]} onChange={(v) => st.set({ stepValues: v })} />

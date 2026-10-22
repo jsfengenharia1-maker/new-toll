@@ -12,7 +12,7 @@ import {
   ALTURA_OLHO, alternarProjecao, definirAngulos, enquadrar, iniciarCaminhar, type Camera3D, type EstadoCaminhar,
 } from '../../core/vista3d/camera';
 import { cssVar } from '../design/tokens';
-import { Button, Check, Chip, download, Seg, Slider } from '../ui';
+import { Button, Check, Chip, Dropdown, Seg, Slider, download } from '../ui';
 import { carregarThree, temWebGL, type Three } from './carregarThree';
 import { ligarControles } from './controles';
 import { RenderizadorCena, type CoresCena } from './renderizador';
@@ -236,35 +236,35 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     <div className="v3d" data-tema={tema}>
       <div className="v3d-barra">
         <label className="rot">Escopo
-          <select aria-label="Escopo da vista 3D" value={st.escopo} onChange={(e) => st.set({ escopo: e.target.value as typeof st.escopo })}>
+          <Dropdown aria-label="Escopo da vista 3D" value={st.escopo} onChange={(e) => st.set({ escopo: e.target.value as typeof st.escopo })}>
             <option value="edificio">Edifício completo</option>
             <option value="grupo">Grupo</option>
             <option value="intervalo">Intervalo de pavimentos</option>
             <option value="pavimento">Um pavimento</option>
-          </select>
+          </Dropdown>
         </label>
         {st.escopo === 'grupo' && (
-          <select aria-label="Grupo" value={grupoSel} onChange={(e) => st.set({ grupo: e.target.value })}>
+          <Dropdown aria-label="Grupo" value={grupoSel} onChange={(e) => st.set({ grupo: e.target.value })}>
             {b.grupos.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-          </select>
+          </Dropdown>
         )}
         {st.escopo === 'intervalo' && (
           <>
-            <select aria-label="Pavimento inicial" value={pavSel(st.de)} onChange={(e) => st.set({ de: e.target.value })}>
+            <Dropdown aria-label="Pavimento inicial" value={pavSel(st.de)} onChange={(e) => st.set({ de: e.target.value })}>
               <option value={PAV_FUNDACAO}>Fundação</option>
               {ps.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
+            </Dropdown>
             <span className="muted">até</span>
-            <select aria-label="Pavimento final" value={st.ate && ps.some((p) => p.id === st.ate) ? st.ate : ps.at(-1)?.id ?? ''} onChange={(e) => st.set({ ate: e.target.value })}>
+            <Dropdown aria-label="Pavimento final" value={st.ate && ps.some((p) => p.id === st.ate) ? st.ate : ps.at(-1)?.id ?? ''} onChange={(e) => st.set({ ate: e.target.value })}>
               {ps.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
+            </Dropdown>
           </>
         )}
         {st.escopo === 'pavimento' && (
-          <select aria-label="Pavimento" value={pavSel(st.pavimento)} onChange={(e) => st.set({ pavimento: e.target.value })}>
+          <Dropdown aria-label="Pavimento" value={pavSel(st.pavimento)} onChange={(e) => st.set({ pavimento: e.target.value })}>
             {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             <option value={PAV_FUNDACAO}>Fundação</option>
-          </select>
+          </Dropdown>
         )}
         <div className="row" role="group" aria-label="Tipos visíveis">
           {tiposVisiveis.map((t) => (

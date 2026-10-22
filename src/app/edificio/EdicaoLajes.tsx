@@ -9,7 +9,7 @@ import { usePlanta } from './plantaStore';
 import { executarERecalcular } from './Armadura';
 import { fmt, phiTxt } from './Detalhamento';
 import { TIPO_POS_LAJE } from './DetalhamentoLaje';
-import { Button, Hint, Note, NumCell, NumField, Pill, Select, Seg } from '../ui';
+import { Button, Dropdown, Hint, Input, Note, NumCell, NumField, Pill, Seg, Select } from '../ui';
 import type { DetalheLaje, PosicaoLaje } from '../../core/building/detalhamentoLajes';
 import { assinaturaPos, cruzamentosDaBarra, igualarPosicoes, maximosDe, siglaReforco } from '../../core/building/lajesEdicao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
@@ -59,12 +59,12 @@ export function EdicaoPosicoes({ l, d }: { l: Laje; d: DetalheLaje }) {
               const sg = sigla ? siglaReforco(x) : '';
               return (
                 <tr key={x.pos} data-pos-edicao={x.pos} data-tipo={x.tipo} data-face={x.face} className={sel.has(x.pos) ? 'on' : ''}>
-                  <td><input type="checkbox" aria-label={`Selecionar ${x.pos}`} checked={sel.has(x.pos)} onChange={(ev) => alternar(x.pos, ev.target.checked)} /></td>
+                  <td><Input type="checkbox" aria-label={`Selecionar ${x.pos}`} checked={sel.has(x.pos)} onChange={(ev) => alternar(x.pos, ev.target.checked)} /></td>
                   <td className="tl">{x.pos}</td>
                   <td className="tl">{x.face === 'inf' ? 'inferior' : 'superior'}{sg ? ` · ${sg}` : ''}</td>
                   <td className="tl">{TIPO_POS_LAJE[x.tipo]}</td>
                   <td className="num"><NumCell label={`Quantidade de ${x.pos}`} value={x.n} onChange={(v) => { if (v >= 1) void editar(x, { n: Math.round(v) }); }} /></td>
-                  <td><select aria-label={`Bitola de ${x.pos}`} value={x.phi} disabled={calculando} onChange={(ev) => void editar(x, { phi: +ev.target.value })}>{bs.map((p) => <option key={p} value={p}>{phiTxt(p)}</option>)}</select></td>
+                  <td><Dropdown aria-label={`Bitola de ${x.pos}`} value={x.phi} disabled={calculando} onChange={(ev) => void editar(x, { phi: +ev.target.value })}>{bs.map((p) => <option key={p} value={p}>{phiTxt(p)}</option>)}</Dropdown></td>
                   <td className="num">{x.s > 0 ? <NumCell label={`Espaçamento de ${x.pos}`} value={+(x.s * 100).toFixed(1)} onChange={(v) => { if (v >= 5 && v <= 33) void editar(x, { s: +(v / 100).toFixed(4) }); }} /> : '—'}</td>
                   <td className="num"><NumCell label={`Comprimento de ${x.pos}`} value={x.comprimento} onChange={(v) => { if (v >= 0.2) void editar(x, { comprimento: +v.toFixed(3) }); }} /></td>
                   {[0, 1].map((k) => <td key={k} className="num"><NumCell label={`Gancho ${k + 1} de ${x.pos}`} value={Math.round(x.ganchos[k] * 100)} onChange={(v) => { if (v >= 0 && v <= 100) void editar(x, { ganchos: k ? [x.ganchos[0], v / 100] : [v / 100, x.ganchos[1]] }); }} /></td>)}

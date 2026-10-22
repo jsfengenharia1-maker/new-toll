@@ -86,7 +86,7 @@ export function BaseElasticaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta:
         <div className="tablewrap">
           <table className="data quadro" data-tabela-k>
             <thead><tr><th>Solo</th><th>k (kN/m³)</th><th /></tr></thead>
-            <tbody>{TABELA_K.map((x) => <tr key={x.solo}><td className="tl">{x.solo}</td><td className="num">{fmt(x.min, 0)} – {fmt(x.max, 0)}</td><td><button type="button" className="mini" onClick={() => exec('opcoes.definir', { valores: { radierK: Math.round((x.min + x.max) / 2000) * 1000 } })}>usar a média</button></td></tr>)}</tbody>
+            <tbody>{TABELA_K.map((x) => <tr key={x.solo}><td className="tl">{x.solo}</td><td className="num">{fmt(x.min, 0)} – {fmt(x.max, 0)}</td><td><Button variant="mini" onClick={() => exec('opcoes.definir', { valores: { radierK: Math.round((x.min + x.max) / 2000) * 1000 } })}>usar a média</Button></td></tr>)}</tbody>
           </table>
         </div>
         <Hint>Bowles, Foundation Analysis and Design (1996), Tabela 9-1: placa de 30 cm. O k real depende da dimensão da fundação e deve vir do geotécnico.</Hint>

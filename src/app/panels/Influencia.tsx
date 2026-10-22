@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
-import { Alert, Button, Group, Hint, NumField, Seg, Select, TextField } from '../ui';
+import { Alert, Button, Group, Hint, Input, NumField, Seg, Select, TextField } from '../ui';
 import { useAnalysis, resultFor, fmt, ilFieldOf, ilStaticValue } from '../results';
 import { defaultPath } from '../pathTable';
 import { buildPath, samplePath, trainEnvelope, trainEnvelopeAll } from '../../core/influence';
@@ -86,7 +86,7 @@ export function InfluenciaPanel() {
               <Select label="Barra" value={pm.id} options={a.prep.members.map((m) => ({ v: m.id, label: `Barra ${m.id} (L = ${fmt(m.L)} m)` }))} onChange={(v) => st.set({ il: { ...il, member: v } })} />
               <NumField label="x da seção" unit={U.L.label} value={U.L.to(il.x)} onChange={(v) => st.set({ il: { ...il, x: Math.min(Math.max(U.L.from(v), 0), pm.L) } })} />
             </div>
-            <input aria-label="Posição da seção" type="range" min={0} max={pm.L} step={pm.L / 200} value={il.x} onChange={(e) => st.set({ il: { ...il, x: +e.target.value } })} />
+            <Input aria-label="Posição da seção" type="range" min={0} max={pm.L} step={pm.L / 200} value={il.x} onChange={(e) => st.set({ il: { ...il, x: +e.target.value } })} />
             {sectionStats && (
               <dl className="kv">
                 <dt>Ordenada máx.</dt><dd>{fmt(sectionStats.fmax, 4)}</dd>
@@ -101,7 +101,7 @@ export function InfluenciaPanel() {
         {st.trainResult && <Button variant="ghost" onClick={() => st.set({ trainResult: null })}>Voltar à linha de influência</Button>}
       </Group>
 
-      <Group title="Trem-tipo" aside={<button type="button" className="mini" onClick={() => { const id = nextId(model.trains); st.commit((m) => { m.trains.push({ id, name: `Veículo ${id}`, length: 6, loads: [{ d: 1.5, P: 100 }, { d: 4.5, P: 100 }], q: 5, qIn: 0, impact: 1 }); }); st.set({ trainId: id }); }}>+ novo</button>}>
+      <Group title="Trem-tipo" aside={<Button variant="mini" onClick={() => { const id = nextId(model.trains); st.commit((m) => { m.trains.push({ id, name: `Veículo ${id}`, length: 6, loads: [{ d: 1.5, P: 100 }, { d: 4.5, P: 100 }], q: 5, qIn: 0, impact: 1 }); }); st.set({ trainId: id }); }}>+ novo</Button>}>
         {!train ? <Hint>Crie um veículo para calcular envoltórias de carga móvel.</Hint> : (
           <>
             {model.trains.length > 1 && <Select value={train.id} options={model.trains.map((t) => ({ v: t.id, label: t.name }))} onChange={(v) => st.set({ trainId: v })} />}
@@ -120,10 +120,10 @@ export function InfluenciaPanel() {
                 <div className="tl-row" key={i}>
                   <NumField label="" value={U.L.to(l.d)} onChange={(v) => updTrain((t) => { t.loads[i].d = Math.min(Math.max(U.L.from(v), 0), t.length); })} />
                   <NumField label="" value={U.F.to(l.P)} onChange={(v) => updTrain((t) => { t.loads[i].P = U.F.from(v); })} />
-                  <button type="button" className="x" aria-label="Remover eixo" onClick={() => updTrain((t) => { t.loads.splice(i, 1); })}>×</button>
+                  <Button variant="x" aria-label="Remover eixo" onClick={() => updTrain((t) => { t.loads.splice(i, 1); })}>×</Button>
                 </div>
               ))}
-              <button type="button" className="mini" onClick={() => updTrain((t) => { t.loads.push({ d: t.length, P: 50 }); })}>+ eixo</button>
+              <Button variant="mini" onClick={() => updTrain((t) => { t.loads.push({ d: t.length, P: 50 }); })}>+ eixo</Button>
             </div>
             <TrainSketch length={train.length} loads={train.loads.map((l) => ({ d: l.d, P: U.F.to(l.P) }))} />
             <Hint>Cargas concentradas sempre presentes; q e q′ entram só nos trechos desfavoráveis. O veículo percorre o caminho nos dois sentidos.</Hint>

@@ -3,7 +3,7 @@
 // ψ e arranjos (casos filhos); compatibilidade par a par e gerador de arranjos em CasosArranjos.tsx.
 import { useState } from 'react';
 import { casosDaObra, type BuildingModel, type Natureza } from '../../core/building/types';
-import { Button, Group, Hint, NumCell, Select, TextCell, TextField } from '../ui';
+import { Button, Dropdown, Group, Hint, Input, NumCell, Select, TextCell, TextField } from '../ui';
 import { ArranjosCasos, CombinarAdicionais, CompatibilidadeCasos } from './CasosArranjos';
 import { useBuilding } from './store';
 
@@ -48,11 +48,11 @@ export function CasosGrupo({ b }: { b: BuildingModel }) {
             return (
               <tr key={c.id}>
                 <td><TextCell value={c.nome} label={`Nome do caso ${c.nome}`} onCommit={(v) => exec('caso.editar', { id: c.id, nome: v })} />{pai && <span className="hint">arranjo de {pai}</span>}{filhos.length > 0 && <span className="hint">{filhos.length} arranjo(s)</span>}</td>
-                <td><select aria-label={`Natureza de ${c.nome}`} value={c.natureza} disabled={!!pai || filhos.length > 0} onChange={(e) => exec('caso.editar', { id: c.id, natureza: e.target.value })}>
-                  {NATUREZAS.map((n) => <option key={n.v} value={n.v}>{n.label}</option>)}</select></td>
+                <td><Dropdown aria-label={`Natureza de ${c.nome}`} value={c.natureza} disabled={!!pai || filhos.length > 0} onChange={(e) => exec('caso.editar', { id: c.id, natureza: e.target.value })}>
+                  {NATUREZAS.map((n) => <option key={n.v} value={n.v}>{n.label}</option>)}</Dropdown></td>
                 <td>{pai || filhos.length ? <span className="muted">{pai ? 'arranjos' : '—'}</span> : <TextCell value={c.grupo ?? ''} label={`Grupo de ${c.nome}`} onCommit={(v) => exec('caso.editar', { id: c.id, grupo: v === '-' ? '' : v })} />}</td>
-                <td>{filhos.length ? <span className="muted">—</span> : <select aria-label={`Simultâneo com ${c.nome}`} value={c.simultaneo ?? ''} onChange={(e) => exec('caso.editar', { id: c.id, simultaneo: e.target.value })}>
-                  <option value="">—</option>{outros.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>}</td>
+                <td>{filhos.length ? <span className="muted">—</span> : <Dropdown aria-label={`Simultâneo com ${c.nome}`} value={c.simultaneo ?? ''} onChange={(e) => exec('caso.editar', { id: c.id, simultaneo: e.target.value })}>
+                  <option value="">—</option>{outros.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</Dropdown>}</td>
                 {[0, 1, 2].map((i) => <td key={i}>{psi && !filhos.length ? <NumCell value={psi[i]} onChange={(v) => exec('caso.editar', { id: c.id, psi: psi.map((x, k) => (k === i ? v : x)) })} /> : <span className="muted">—</span>}</td>)}
                 <td><Button variant="danger" aria-label={`Remover ${c.nome}`} onClick={() => exec('caso.remover', { id: c.id })}>×</Button></td>
               </tr>
@@ -70,7 +70,7 @@ export function CasosGrupo({ b }: { b: BuildingModel }) {
           <summary>Descrição dos casos</summary>
           <table className="data quadro">
             <thead><tr><th>Caso</th><th>Descrição</th></tr></thead>
-            <tbody>{adicionais.map((c) => <tr key={c.id}><td className="tl">{c.nome}</td><td><input aria-label={`Descrição de ${c.nome}`} defaultValue={c.descricao ?? ''} key={c.descricao ?? ''} onBlur={(e) => e.target.value !== (c.descricao ?? '') && exec('caso.editar', { id: c.id, descricao: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} /></td></tr>)}</tbody>
+            <tbody>{adicionais.map((c) => <tr key={c.id}><td className="tl">{c.nome}</td><td><Input aria-label={`Descrição de ${c.nome}`} defaultValue={c.descricao ?? ''} key={c.descricao ?? ''} onBlur={(e) => e.target.value !== (c.descricao ?? '') && exec('caso.editar', { id: c.id, descricao: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} /></td></tr>)}</tbody>
           </table>
         </details>
       )}

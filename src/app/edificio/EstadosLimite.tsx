@@ -6,7 +6,7 @@ import { alertasSituacoes, comandosDaLista, CONTROLE_INFO, ESTADOS_INFO, estadoE
 import { combinacoesDoEstado, combinacoesEdificio } from '../../core/building/combinacoes';
 import { gamas } from '../../core/building/materiais';
 import { casosDaObra, type BuildingModel, type ControleExecucao, type EstadoId, type SituacaoUsuario } from '../../core/building/types';
-import { Alert, Button, Group, Hint, Modal, NumField, Select, TextCell, TextField } from '../ui';
+import { Alert, Button, Dropdown, Group, Hint, Input, Modal, NumField, Select, TextCell, TextField, Textarea } from '../ui';
 import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
 import { useBuilding } from './store';
 
@@ -106,8 +106,8 @@ function SituacoesJanela({ b, onClose }: { b: BuildingModel; onClose: () => void
               return (
                 <tr key={s.id}>
                   <td><TextCell value={s.nome} label={`Nome da situação ${s.nome}`} onCommit={(v) => editar(s, { nome: v })} /></td>
-                  <td><select aria-label={`Tipo de ${s.nome}`} value={s.situacao} onChange={(e) => editar(s, { situacao: e.target.value })}>{TIPOS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}</select></td>
-                  <td><select aria-label={`Modo de ${s.nome}`} value={s.modo} onChange={(e) => editar(s, { modo: e.target.value })}><option value="fatores">fator final</option><option value="gamapsi">γ e ψ</option></select></td>
+                  <td><Dropdown aria-label={`Tipo de ${s.nome}`} value={s.situacao} onChange={(e) => editar(s, { situacao: e.target.value })}>{TIPOS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}</Dropdown></td>
+                  <td><Dropdown aria-label={`Modo de ${s.nome}`} value={s.modo} onChange={(e) => editar(s, { modo: e.target.value })}><option value="fatores">fator final</option><option value="gamapsi">γ e ψ</option></Dropdown></td>
                   {cols.map((c) => (
                     <td key={c.id}>
                       {gp ? (
@@ -131,7 +131,7 @@ function SituacoesJanela({ b, onClose }: { b: BuildingModel; onClose: () => void
       </div>
       <details className="small">
         <summary>Colar tabela</summary>
-        <textarea aria-label="Tabela colada" rows={5} value={colar} placeholder={'\tG\tQ\tW0°\nELU própria\t1,4\t1,4\t0'} onChange={(e) => setColar(e.target.value)} />
+        <Textarea aria-label="Tabela colada" rows={5} value={colar} placeholder={'\tG\tQ\tW0°\nELU própria\t1,4\t1,4\t0'} onChange={(e) => setColar(e.target.value)} />
         <div className="row wrap"><Button disabled={!colar.trim()} onClick={aplicarColagem}>Criar situações da colagem</Button>{erroColar && <span className="hint bad">{erroColar}</span>}</div>
         <Hint>Cole do Excel: primeira linha com os casos (nome ou id; ventos como W0°, W90°+e…), demais linhas com o nome da situação e os fatores finais. Células vazias valem 0.</Hint>
       </details>
@@ -165,8 +165,8 @@ export function EstadosGrupo({ b }: { b: BuildingModel }) {
             return (
               <tr key={e.id} title={e.descricao}>
                 <td className="tl">{e.rotulo}</td>
-                <td><input type="checkbox" aria-label={`Ativar ${e.rotulo}`} checked={c.ativo} disabled={e.fixo} onChange={(ev) => exec('estados.definir', { estados: { [e.id]: { ativo: ev.target.checked } } })} /></td>
-                <td>{e.lista ? <select aria-label={`Modo de ${e.rotulo}`} value={c.modo} onChange={(ev) => exec('estados.definir', { estados: { [e.id]: { modo: ev.target.value } } })}><option value="norma">norma</option><option value="usuario">usuário</option></select> : <span className="muted">norma</span>}</td>
+                <td><Input type="checkbox" aria-label={`Ativar ${e.rotulo}`} checked={c.ativo} disabled={e.fixo} onChange={(ev) => exec('estados.definir', { estados: { [e.id]: { ativo: ev.target.checked } } })} /></td>
+                <td>{e.lista ? <Dropdown aria-label={`Modo de ${e.rotulo}`} value={c.modo} onChange={(ev) => exec('estados.definir', { estados: { [e.id]: { modo: ev.target.value } } })}><option value="norma">norma</option><option value="usuario">usuário</option></Dropdown> : <span className="muted">norma</span>}</td>
                 <td className="num">{!e.lista ? '—' : c.modo === 'usuario' && n ? `${n} do usuário` : analise ? combinacoesDoEstado(b, analise, e.id, normativas).length : '—'}</td>
               </tr>
             );

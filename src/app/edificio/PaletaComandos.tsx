@@ -8,7 +8,7 @@ import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { useStore } from '../store';
-import { Modal } from '../ui';
+import { Button, Input, Modal } from '../ui';
 
 export interface ItemPaleta { id: string; tipo: 'Ferramenta' | 'Ação' | 'Comando' | 'Aba' | 'Pavimento' | 'Pilar' | 'Viga' | 'Laje'; rotulo: string; detalhe?: string; executar: () => void; repetivel: boolean }
 
@@ -97,7 +97,7 @@ function Paleta({ setAba, onClose }: { setAba: (a: string) => void; onClose: () 
   };
   return (
     <Modal titulo="Paleta de comandos" onClose={onClose}>
-      <input className="paleta-busca" autoFocus aria-label="Buscar comando, pavimento ou elemento" placeholder="Comando, ferramenta, pavimento ou elemento (P1, V3, L2…)" value={busca}
+      <Input className="paleta-busca" autoFocus aria-label="Buscar comando, pavimento ou elemento" placeholder="Comando, ferramenta, pavimento ou elemento (P1, V3, L2…)" value={busca}
         onChange={(e) => { setBusca(e.target.value); setSel(0); }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setSel(Math.min(i + 1, achados.length - 1)); }
@@ -107,9 +107,9 @@ function Paleta({ setAba, onClose }: { setAba: (a: string) => void; onClose: () 
         }} />
       <div className="paleta-lista" ref={lista} role="listbox" aria-label="Resultados" data-resultados={achados.length}>
         {achados.map((it, k) => (
-          <button key={it.id} type="button" role="option" aria-selected={k === i} className={`paleta-item${k === i ? ' on' : ''}`} data-item={it.id} onMouseEnter={() => setSel(k)} onClick={() => executar(it)}>
+          <Button variant="nenhuma" key={it.id} type="button" role="option" aria-selected={k === i} className={`paleta-item${k === i ? ' on' : ''}`} data-item={it.id} onMouseEnter={() => setSel(k)} onClick={() => executar(it)}>
             <span className="paleta-tipo">{it.tipo}</span><b>{it.rotulo}</b>{it.detalhe && <span className="muted small">{it.detalhe}</span>}
-          </button>
+          </Button>
         ))}
         {!achados.length && <p className="muted small">Nada encontrado.</p>}
       </div>

@@ -13,7 +13,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, download, Group, Hint, Note, NumField, Select, TextCell, TextField } from '../ui';
+import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Select, TextCell, TextField, Textarea, download } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -60,7 +60,7 @@ export function Edificio() {
   return (
     <div className="edif">
       <aside className="fund-in edif-in">
-        <Group title="Obra" aside={<span className="row"><button type="button" className="mini" onClick={() => novo(false)}>Novo padrão</button><button type="button" className="mini" onClick={() => novo(true)}>Novo vazio</button></span>}>
+        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
           <div className="row"><TextField label="Nome da obra" value={b.obra.nome} onChange={(v) => exec('obra.definir', { nome: v })} /></div>
           <div className="row wrap">
             <TextField label="Cidade" value={b.obra.cidade ?? ''} onChange={(v) => exec('obra.definir', { cidade: v })} />
@@ -82,15 +82,15 @@ export function Edificio() {
                 <tr key={p.id} data-id={p.id}>
                   <td><TextCell value={p.nome} label={`Nome de ${p.nome}`} onCommit={(v) => exec('pavimento.editar', { id: p.id, nome: v })} /></td>
                   <td>
-                    <select aria-label={`Grupo de ${p.nome}`} value={p.grupo} className={`grupo-marca ${corGrupo(b, p.grupo)}`} onChange={(e) => exec('pavimento.editar', { id: p.id, grupo: e.target.value })}>
+                    <Dropdown aria-label={`Grupo de ${p.nome}`} value={p.grupo} className={`grupo-marca ${corGrupo(b, p.grupo)}`} onChange={(e) => exec('pavimento.editar', { id: p.id, grupo: e.target.value })}>
                       {b.grupos.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                    </select>
+                    </Dropdown>
                   </td>
                   <td><TextCell value={fmt(p.cota, 2)} label={`Cota de ${p.nome}`} num onCommit={(v) => { const c = num(v); if (Number.isFinite(c)) exec('pavimento.editar', { id: p.id, cota: c }); }} /></td>
                   <td className="num">{fmt(peDireito(b, p.id))}</td>
                   <td className="acts">
-                    <button type="button" className="mini" title={`Repetir ${p.nome} acima (mesmo grupo)`} onClick={() => exec('pavimento.repetir', { id: p.id, vezes: 1, ...(ps[0].id === p.id ? { peDireito: 3 } : {}) })}>+1</button>
-                    <button type="button" className="mini" title={`Remover ${p.nome}`} aria-label={`Remover ${p.nome}`} onClick={() => exec('pavimento.remover', { id: p.id })}>×</button>
+                    <Button variant="mini" title={`Repetir ${p.nome} acima (mesmo grupo)`} onClick={() => exec('pavimento.repetir', { id: p.id, vezes: 1, ...(ps[0].id === p.id ? { peDireito: 3 } : {}) })}>+1</Button>
+                    <Button variant="mini" title={`Remover ${p.nome}`} aria-label={`Remover ${p.nome}`} onClick={() => exec('pavimento.remover', { id: p.id })}>×</Button>
                   </td>
                 </tr>
               ))}
@@ -127,9 +127,9 @@ export function Edificio() {
                 <tr key={g.id}>
                   <td className={`grupo-marca ${corGrupo(b, g.id)}`}><TextCell value={g.nome} label={`Nome do grupo ${g.nome}`} onCommit={(v) => exec('grupo.editar', { id: g.id, nome: v })} /></td>
                   <td>
-                    <select aria-label={`Uso de ${g.nome}`} value={g.uso} onChange={(e) => exec('grupo.editar', { id: g.id, uso: e.target.value as CategoriaUso })}>
+                    <Dropdown aria-label={`Uso de ${g.nome}`} value={g.uso} onChange={(e) => exec('grupo.editar', { id: g.id, uso: e.target.value as CategoriaUso })}>
                       {USOS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
-                    </select>
+                    </Dropdown>
                   </td>
                   <td><TextCell value={fmt(g.gRev, 2)} label={`Revestimento de ${g.nome}`} num onCommit={(v) => { const x = num(v); if (Number.isFinite(x)) exec('grupo.editar', { id: g.id, gRev: x }); }} /></td>
                   <td><TextCell value={fmt(g.q, 2)} label={`Carga variável de ${g.nome}`} num onCommit={(v) => { const x = num(v); if (Number.isFinite(x)) exec('grupo.editar', { id: g.id, q: x }); }} /></td>
@@ -145,7 +145,7 @@ export function Edificio() {
           {b.eixos.length > 0 && (
             <div className="row wrap u-mt-6">
               <span className="muted small">{b.eixos.map((e) => e.nome).join(' · ')}</span>
-              <button type="button" className="mini" onClick={() => exec('eixo.remover', { ids: b.eixos.map((e) => e.id) })}>remover todos</button>
+              <Button variant="mini" onClick={() => exec('eixo.remover', { ids: b.eixos.map((e) => e.id) })}>remover todos</Button>
             </div>
           )}
         </Group>
@@ -158,7 +158,7 @@ export function Edificio() {
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
           {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</button>
+            <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
           ))}
         </div>
         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
@@ -241,7 +241,7 @@ function LinhaComando() {
   return (
     <>
       <form className="row" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
-        <input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
+        <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
         <datalist id="edcmds">{nomes.map((n) => <option key={n} value={n} />)}</datalist>
       </form>
       {erro && <p className="hint bad">{erro}</p>}
@@ -258,8 +258,8 @@ function Diagnosticos({ diags, onIr }: { diags: Diagnostico[]; onIr?: (ids: stri
       {diags.map((d, i) => (
         <li key={i} className={d.severidade}>
           <span className="sev">{d.severidade === 'erro' ? '⚠ erro' : d.severidade === 'aviso' ? '! aviso' : 'i'}</span> {d.mensagem}
-          {onIr && d.elementos.length > 0 && <button type="button" className="mini" onClick={() => onIr(d.elementos)}>ver na planta</button>}
-          {d.sugestao && <button type="button" className="mini" onClick={() => exec(d.sugestao!.comando, d.sugestao!.params)}>{d.sugestao.texto}</button>}
+          {onIr && d.elementos.length > 0 && <Button variant="mini" onClick={() => onIr(d.elementos)}>ver na planta</Button>}
+          {d.sugestao && <Button variant="mini" onClick={() => exec(d.sugestao!.comando, d.sugestao!.params)}>{d.sugestao.texto}</Button>}
         </li>
       ))}
     </ul>
@@ -297,7 +297,7 @@ export function NomeObra() {
   const nome = sessao.modelo.obra.nome;
   const [t, setT] = useState(nome);
   useEffect(() => setT(nome), [nome]);
-  return <input aria-label="Nome da obra no cabeçalho" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (t.trim() && t !== nome) exec('obra.definir', { nome: t }); else setT(nome); }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />;
+  return <Input aria-label="Nome da obra no cabeçalho" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => { if (t.trim() && t !== nome) exec('obra.definir', { nome: t }); else setT(nome); }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />;
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
@@ -334,39 +334,39 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
-        <select aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : FERRAMENTAS_FUNDACAO.includes(pl.ferramenta) ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
+        <Dropdown aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : FERRAMENTAS_FUNDACAO.includes(pl.ferramenta) ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
           <option value="fundacao">Fundação ({fmt(cotaFundacao(b))})</option>
-        </select>
+        </Dropdown>
       </label>
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
-        {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</button>)}
+        {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</Button>)}
       </div>
       <div className="seg small" role="radiogroup" aria-label="Edição">
-        {EDICAO.map((t) => <button key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</button>)}
+        {EDICAO.map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</Button>)}
       </div>
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
-      {pl.ferramenta === 'espelhar' && <label className="check small"><input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
-      {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
+      {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
+      {pl.ferramenta === 'fundacao' && <label className="check small" title="Cada clique marca ou desmarca um pilar; Enter cria a sapata associada ou o bloco com vários pilares"><Input type="checkbox" checked={pl.multiFund} onChange={(e) => pl.set({ multiFund: e.target.checked, pilaresFund: [] })} /> <span>Vários pilares (Enter cria)</span></label>}
       {pl.ferramenta === 'radier' && <NumField label="h do radier" unit="m" width={90} value={pl.hRadier} onChange={(v) => v >= 0.1 && v <= 3 && pl.set({ hRadier: v })} />}
       {pl.ferramenta === 'corrida' && <>
         <NumField label="bw" unit="m" width={70} value={pl.corridaLanc.bw} onChange={(v) => v >= 0.1 && pl.set({ corridaLanc: { ...pl.corridaLanc, bw: v } })} />
-        <select aria-label="Aba da sapata corrida" value={pl.corridaLanc.aba} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, aba: e.target.value as 'ambas' | 'esq' | 'dir' } })}>
+        <Dropdown aria-label="Aba da sapata corrida" value={pl.corridaLanc.aba} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, aba: e.target.value as 'ambas' | 'esq' | 'dir' } })}>
           <option value="ambas">Abas: dois lados</option><option value="esq">Aba à esquerda</option><option value="dir">Aba à direita</option>
-        </select>
-        <label className="check small" title="Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas"><input type="checkbox" checked={pl.corridaLanc.equilibrio} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, equilibrio: e.target.checked } })} /> <span>Cintas</span></label>
+        </Dropdown>
+        <label className="check small" title="Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas"><Input type="checkbox" checked={pl.corridaLanc.equilibrio} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, equilibrio: e.target.checked } })} /> <span>Cintas</span></label>
       </>}
       {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
-      {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <select aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
+      {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
         <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
-      </select> : null}
-      {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
-      <label className="check small"><input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
-      <label className="check small"><input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
-      <label className="check small"><input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
-      <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <select aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
+      </Dropdown> : null}
+      {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><Input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
+      <label className="check small"><Input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
+      <label className="check small"><Input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
+      <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
+      <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><Input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
+      <Dropdown aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
         onChange={(e) => {
           const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
           if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
@@ -375,11 +375,11 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         }}>
         <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
         {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
-      </select>
+      </Dropdown>
       {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
       {pl.ferramenta === 'puncao' && (<>
         <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
-          {(['adicionar', 'apagar'] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</button>)}
+          {(['adicionar', 'apagar'] as const).map((m) => <Button variant="nenhuma" key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</Button>)}
         </div>
         <NumField label="Linhas" width={64} value={pl.puncaoGrupo.linhas} onChange={(v) => v >= 2 && v <= 64 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, linhas: Math.round(v) } })} />
         <NumField label="Barras/linha" width={80} value={pl.puncaoGrupo.barras} onChange={(v) => v >= 1 && v <= 14 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, barras: Math.round(v) } })} />
@@ -387,7 +387,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <NumField label="Espaç." unit="cm" width={70} value={Math.round(pl.puncaoGrupo.s * 100)} onChange={(v) => v >= 3 && v <= 30 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, s: v / 100 } })} />
       </>)}
       {!!pilaresSelPuncao.length && <Button title="Apaga a armadura de punção informada nos pilares selecionados (use a seleção por janela da ferramenta Selecionar)" onClick={() => apagarPuncaoSelecao()}>Apagar punção da seleção</Button>}
-      {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
+      {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
       {nivelFund && (<>
         <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
         <Button disabled={!elementosSel.length} title="Gira os elementos selecionados em 90° (R)" onClick={() => exec('lote', { comandos: elementosSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })}>Girar 90°</Button>
@@ -398,9 +398,9 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         }}>Remover</Button>
       </>)}
       <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
-      <select aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
+      <Dropdown aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
         <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
-      </select>
+      </Dropdown>
       <CoresPlanta />
     </div>
   );
@@ -441,17 +441,17 @@ function MascaraGrupo({ b }: { b: BuildingModel }) {
         <Button disabled={!grupo} onClick={() => ref.current?.click()}>Importar DXF…</Button>
         <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ''; }} />
         {ms.length > 0 && <Button onClick={() => pl.set({ ferramenta: 'alinhar' })}>Alinhar por 2 pontos</Button>}
-        {ms.length > 0 && <label className="check small"><input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
+        {ms.length > 0 && <label className="check small"><Input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
       </div>
       {ms.map((m) => (
         <div key={m.id} className="masc">
           <div className="row wrap">
             <b className="grow">{m.nome}</b>
-            <select aria-label={`Unidade de ${m.nome}`} value={UNIDADES.find((u) => Math.abs(u.v - m.escala) < 1e-12)?.v ?? ''} onChange={(e) => exec('mascara.editar', { id: m.id, escala: +e.target.value })}>
+            <Dropdown aria-label={`Unidade de ${m.nome}`} value={UNIDADES.find((u) => Math.abs(u.v - m.escala) < 1e-12)?.v ?? ''} onChange={(e) => exec('mascara.editar', { id: m.id, escala: +e.target.value })}>
               {!UNIDADES.some((u) => Math.abs(u.v - m.escala) < 1e-12) && <option value="">{`${fmt(m.escala, 5)} m/un`}</option>}
               {UNIDADES.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
-            </select>
-            <button type="button" className="mini" onClick={() => exec('mascara.remover', { id: m.id })}>remover</button>
+            </Dropdown>
+            <Button variant="mini" onClick={() => exec('mascara.remover', { id: m.id })}>remover</Button>
           </div>
           <table className="data camadas">
             <thead><tr><th>Camada</th><th title="Visível">vis.</th><th title="Capturável">capt.</th></tr></thead>
@@ -459,8 +459,8 @@ function MascaraGrupo({ b }: { b: BuildingModel }) {
               {m.camadas.map((c) => (
                 <tr key={c.nome}>
                   <td className="tl">{c.nome}</td>
-                  <td><input type="checkbox" aria-label={`Camada ${c.nome} visível`} checked={c.visivel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], visivel: e.target.checked })} /></td>
-                  <td><input type="checkbox" aria-label={`Camada ${c.nome} capturável`} checked={c.capturavel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], capturavel: e.target.checked })} /></td>
+                  <td><Input type="checkbox" aria-label={`Camada ${c.nome} visível`} checked={c.visivel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], visivel: e.target.checked })} /></td>
+                  <td><Input type="checkbox" aria-label={`Camada ${c.nome} capturável`} checked={c.capturavel} onChange={(e) => exec('mascara.camadas', { id: m.id, camadas: [c.nome], capturavel: e.target.checked })} /></td>
                 </tr>
               ))}
             </tbody>
@@ -529,12 +529,12 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
                   }} /></td>
                   <td><TextCell value={fmt(p.angulo, 0)} num label={`Ângulo de ${p.nome}`} onCommit={(v) => { const a = num(v); if (Number.isFinite(a)) exec('pilar.editar', { id: p.id, angulo: a }); }} /></td>
                   <td className="tl small">
-                    <select aria-label={`Nasce ${p.nome}`} value={p.nasce} onChange={(e) => exec('pilar.editar', { id: p.id, nasce: e.target.value })}>
+                    <Dropdown aria-label={`Nasce ${p.nome}`} value={p.nasce} onChange={(e) => exec('pilar.editar', { id: p.id, nasce: e.target.value })}>
                       <option value="fundacao">fundação</option>{ps.slice(0, -1).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                    </select>
-                    <select aria-label={`Morre ${p.nome}`} value={p.morre} onChange={(e) => exec('pilar.editar', { id: p.id, morre: e.target.value })}>
+                    </Dropdown>
+                    <Dropdown aria-label={`Morre ${p.nome}`} value={p.morre} onChange={(e) => exec('pilar.editar', { id: p.id, morre: e.target.value })}>
                       <option value="fundacao" disabled={p.nasce !== 'fundacao'}>fundação (arranque)</option>{ps.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                    </select>
+                    </Dropdown>
                     <span className="muted"> {ehArranque(p) ? 'arranque' : l.length}</span>
                   </td>
                 </tr>
@@ -543,7 +543,7 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
           </tbody>
         </table>
       )}
-      <textarea rows={3} aria-label="Colar pilares do Excel" placeholder="Colar do Excel: nome, x (m), y (m), b (cm), h (cm) [, ângulo] — uma linha por pilar; só b = circular" value={cola} onChange={(e) => setCola(e.target.value)} />
+      <Textarea rows={3} aria-label="Colar pilares do Excel" placeholder="Colar do Excel: nome, x (m), y (m), b (cm), h (cm) [, ângulo] — uma linha por pilar; só b = circular" value={cola} onChange={(e) => setCola(e.target.value)} />
       <div className="row"><Button disabled={!cola.trim()} onClick={colar}>Aplicar quadro colado</Button></div>
       <Hint>Pilar com o mesmo nome é atualizado; os demais são inseridos. Tudo vira um passo só (Ctrl+Z desfaz).</Hint>
     </Group>
@@ -578,7 +578,7 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
         <Select label="Linha traçada (A)" value={pl.alinhamento} options={ALINHAMENTOS} onChange={(v) => pl.set({ alinhamento: v })} />
       </div>
       <div className="row wrap">
-        <label className="check small"><input type="checkbox" checked={pl.invertida} onChange={(e) => pl.set({ invertida: e.target.checked })} /> <span>invertida</span></label>
+        <label className="check small"><Input type="checkbox" checked={pl.invertida} onChange={(e) => pl.set({ invertida: e.target.checked })} /> <span>invertida</span></label>
         <Button variant={pl.ferramenta === 'viga' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'viga' })}>Traçar vigas (V)</Button>
         <Button disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.alinharFace', { grupo: grupo.id, lado: 'externa' })} title="Vigas de contorno: a face externa da viga vai para a face externa dos pilares (viga mais estreita que o pilar fica para dentro)">Contorno na face externa</Button>
         <Button disabled={!vs.length || !grupo} onClick={() => grupo && exec('viga.ajustarFaces', { grupo: grupo.id })} title="Corrige folgas de até 5 cm entre a face da viga e a do pilar">Encostar nas faces</Button>
@@ -597,7 +597,7 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
           <Button onClick={() => exec('viga.atribuir', { ids: sel, campo: 'secao', valor: sv })}>Aplicar {cm(sv.b)}x{cm(sv.h)} às {sel.length} selecionada(s)</Button>
           <span className="muted small">Copiar para:</span>
           {b.grupos.filter((g) => g.id !== grupo?.id).map((g) => (
-            <label key={g.id} className="check small"><input type="checkbox" checked={destinos.includes(g.id)} onChange={(e) => setDestinos(e.target.checked ? [...destinos, g.id] : destinos.filter((x) => x !== g.id))} /> <span>{g.nome}</span></label>
+            <label key={g.id} className="check small"><Input type="checkbox" checked={destinos.includes(g.id)} onChange={(e) => setDestinos(e.target.checked ? [...destinos, g.id] : destinos.filter((x) => x !== g.id))} /> <span>{g.nome}</span></label>
           ))}
           <Button disabled={!destinos.length} onClick={() => exec('viga.copiarParaGrupos', { ids: sel, grupos: destinos })}>Copiar</Button>
         </div>
@@ -610,7 +610,7 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
               <tr key={v.id} className={pl.selecao.has(v.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([v.id]) })}>
                 <td><TextCell value={v.nome} label={`Nome de ${v.nome}`} onCommit={(t) => exec('viga.editar', { id: v.id, nome: t })} /></td>
                 <td><TextCell value={`${cm(v.secao.b)}x${cm(v.secao.h)}`} label={`Seção de ${v.nome}`} onCommit={(t) => { const r = /^\s*([\d.,]+)\s*[x×*]\s*([\d.,]+)\s*$/i.exec(t); if (r) exec('viga.editar', { id: v.id, secao: { b: num(r[1]) / 100, h: num(r[2]) / 100 } }); }} /></td>
-                <td><select aria-label={`Alinhamento de ${v.nome}`} value={v.alinhamento} onChange={(e) => exec('viga.editar', { id: v.id, alinhamento: e.target.value })}>{ALINHAMENTOS.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}</select></td>
+                <td><Dropdown aria-label={`Alinhamento de ${v.nome}`} value={v.alinhamento} onChange={(e) => exec('viga.editar', { id: v.id, alinhamento: e.target.value })}>{ALINHAMENTOS.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}</Dropdown></td>
                 <td className="num">{fmt(comprimentoPolilinha(v.pontos))}</td>
                 <td><TextCell value={fmt(v.nivel ?? 0, 2)} num label={`Desnível de ${v.nome}`} onCommit={(t) => { const x = num(t); if (Number.isFinite(x)) exec('viga.editar', { id: v.id, nivel: x }); }} /></td>
               </tr>
@@ -618,7 +618,7 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
           </tbody>
         </table>
       )}
-      <textarea rows={3} aria-label="Colar vigas do Excel" placeholder="Colar do Excel: nome, b (cm), h (cm), x1, y1, x2, y2 [, x3, y3 …] (m) — uma linha por viga" value={colaV} onChange={(e) => setColaV(e.target.value)} />
+      <Textarea rows={3} aria-label="Colar vigas do Excel" placeholder="Colar do Excel: nome, b (cm), h (cm), x1, y1, x2, y2 [, x3, y3 …] (m) — uma linha por viga" value={colaV} onChange={(e) => setColaV(e.target.value)} />
       <div className="row"><Button disabled={!colaV.trim() || !grupo} onClick={colarVigas}>Aplicar quadro de vigas</Button></div>
       <Hint>As vigas pertencem à planta do grupo (todos os pavimentos do grupo). Clique os pontos na planta; Enter, duplo clique ou botão direito termina. No quadro colado, viga com o mesmo nome no grupo é atualizada (seção e pontos); as demais são traçadas, num passo só (Ctrl+Z desfaz).</Hint>
     </Group>
@@ -868,7 +868,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
           <Button disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }}>Enviar cargas ao módulo Fundações</Button>
           <Button onClick={onMemorial}>Memorial do edifício</Button>
           {dim && <BotaoExportar dim={dim} />}
-          <label className="check small"><input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
+          <label className="check small"><Input type="checkbox" checked={so} onChange={(e) => setSo(e.target.checked)} /> <span>só o que não atende</span></label>
         </div>
         {velha && <p className="hint bad">O modelo mudou depois do cálculo: recalcule{dim && podeRearm(st) ? ' ou rearme os elementos alterados (esforços guardados)' : ''}.</p>}
         {!velha && desatualizado && <p className="hint bad" data-dim-velho>O detalhamento mudou depois do dimensionamento: rearme.</p>}
@@ -1023,7 +1023,7 @@ function VentoGrupo({ b }: { b: BuildingModel }) {
   return (
     <Group title="Vento e combinações" open={false}>
       <div className="row wrap">
-        <label className="check small"><input type="checkbox" checked={v.ativo} onChange={(e) => exec('vento.definir', { ativo: e.target.checked })} /> <span>considerar vento (NBR 6123)</span></label>
+        <label className="check small"><Input type="checkbox" checked={v.ativo} onChange={(e) => exec('vento.definir', { ativo: e.target.checked })} /> <span>considerar vento (NBR 6123)</span></label>
       </div>
       <div className="row wrap">
         <NumField label="V0" unit="m/s" width={90} value={v.v0} onChange={(x) => exec('vento.definir', { v0: x })} />

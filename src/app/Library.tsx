@@ -6,7 +6,7 @@ import type { Model } from '../core/types';
 import type { DesignReport } from '../core/design';
 import { sampleFoundation } from '../core/piles';
 import { getHistory, logActivity } from './history';
-import { Alert, Button, Pill, Spacer } from './ui';
+import { Alert, Button, Input, Pill, Spacer } from './ui';
 
 export function buildCharacteristics(model: Model, rep: DesignReport): SavedCharacteristics {
   return {
@@ -116,7 +116,7 @@ export function Library() {
             {confirmDel === it.id ? (
               <span className="libact"><Button variant="danger" disabled={busy} onClick={() => del(it.id)}>Excluir</Button><Button variant="ghost" onClick={() => setConfirmDel(null)}>Cancelar</Button></span>
             ) : (
-              <span className="libact"><Button disabled={busy} onClick={() => open(it)}>{action}</Button><button type="button" className="x" aria-label="Excluir" onClick={() => setConfirmDel(it.id)}>×</button></span>
+              <span className="libact"><Button disabled={busy} onClick={() => open(it)}>{action}</Button><Button variant="x" aria-label="Excluir" onClick={() => setConfirmDel(it.id)}>×</Button></span>
             )}
           </li>
         ))}
@@ -135,7 +135,7 @@ export function Library() {
         </div>
         {err && <Alert compact>{err}</Alert>}
         <div className="libsave">
-          <label className="field grow" htmlFor="libname"><span className="flabel">Nome do projeto</span><span className="finput"><input id="libname" value={name} onChange={(e) => setName(e.target.value)} /></span></label>
+          <label className="field grow" htmlFor="libname"><span className="flabel">Nome do projeto</span><span className="finput"><Input id="libname" value={name} onChange={(e) => setName(e.target.value)} /></span></label>
           {st.libraryId && <Button disabled={busy} onClick={() => saveProject(true)}>Atualizar salvo</Button>}
           <Button variant="primary" disabled={busy} onClick={() => saveProject(false)}>Salvar como novo</Button>
         </div>

@@ -4,10 +4,10 @@ import { zip } from '../../core/zip';
 import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
 
-/** Variantes: primary/ghost/danger são do botão de ação; mini, x, caseitem e fpick são botões de tabela, lista e escolha (mesmas classes de antes). */
-export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger' | 'mini' | 'x' | 'caseitem' | 'fpick';
+/** Variantes: primary/ghost/danger são do botão de ação; mini, x, caseitem e fpick são botões de tabela, lista e escolha; `nenhuma` não põe classe própria (abas e opções estilizadas pelo contêiner). */
+export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger' | 'mini' | 'x' | 'caseitem' | 'fpick' | 'nenhuma';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
-const CLASSE_BOTAO: Record<ButtonVariant, string> = { default: 'btn', primary: 'btn primary', ghost: 'btn ghost', danger: 'btn danger', mini: 'mini', x: 'x', caseitem: 'caseitem', fpick: 'fpick' };
+const CLASSE_BOTAO: Record<ButtonVariant, string> = { default: 'btn', primary: 'btn primary', ghost: 'btn ghost', danger: 'btn danger', mini: 'mini', x: 'x', caseitem: 'caseitem', fpick: 'fpick', nenhuma: '' };
 
 /** Botão de ação. `variant`: primary (ação principal), ghost (secundária discreta), danger (destrutiva); demais variantes = botões de tabela/lista. */
 export function Button({ variant = 'default', className, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
@@ -157,13 +157,9 @@ export function Select<T extends string | number>({ label, value, options, onCha
   );
 }
 
-/** Lista nativa sem o invólucro de campo (uso em tabelas e linhas); mesmas classes e props do `<select>`. */
-export function Dropdown<T extends string | number>({ value, options, onChange, className, ...rest }: Omit<SelectProps<T>, 'label'> & { className?: string }) {
-  return (
-    <select className={className} value={String(value)} onChange={(e) => { const o = options.find((x) => String(x.v) === e.target.value); if (o) onChange(o.v); }} {...rest}>
-      {options.map((o) => <option key={String(o.v)} value={String(o.v)}>{o.label}</option>)}
-    </select>
-  );
+/** Lista nativa sem o invólucro de campo (tabelas e linhas); recebe as `<option>` como filhos. */
+export function Dropdown(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} />;
 }
 
 /** Campo de entrada nativo sem invólucro (tabelas, linhas e controles soltos). */

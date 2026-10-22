@@ -1,7 +1,7 @@
 // Compatibilidade entre casos, opção de combinar os adicionais e gerador de arranjos (xadrez, faixas e carga móvel).
 import { useState } from 'react';
 import { casosDaObra, relacaoEfetiva, type BuildingModel, type RelacaoCasos } from '../../core/building/types';
-import { Button, Check, Hint, NumField, Select, TextField } from '../ui';
+import { Button, Check, Dropdown, Hint, NumField, Select, TextField } from '../ui';
 import { useBuilding } from './store';
 
 const RELACOES: { v: RelacaoCasos; label: string }[] = [{ v: 'compativel', label: 'compatível' }, { v: 'incompativel', label: 'incompatível' }, { v: 'simultaneo', label: 'simultâneo' }];
@@ -26,9 +26,9 @@ export function CompatibilidadeCasos({ b }: { b: BuildingModel }) {
                   <td className="tl">{a.nome}</td>
                   {cs.slice(1).map((z, j) => j + 1 <= i ? <td key={z.id} /> : (
                     <td key={z.id}>
-                      <select aria-label={`Relação entre ${a.nome} e ${z.nome}`} value={relacaoEfetiva(todos, a.id, z.id)} onChange={(e) => exec('caso.compatibilidade', { a: a.id, b: z.id, relacao: e.target.value })}>
+                      <Dropdown aria-label={`Relação entre ${a.nome} e ${z.nome}`} value={relacaoEfetiva(todos, a.id, z.id)} onChange={(e) => exec('caso.compatibilidade', { a: a.id, b: z.id, relacao: e.target.value })}>
                         {RELACOES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
-                      </select>
+                      </Dropdown>
                     </td>
                   ))}
                 </tr>

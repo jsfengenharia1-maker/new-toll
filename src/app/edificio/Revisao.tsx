@@ -7,7 +7,7 @@ import { useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { useRevisao } from './revisao';
-import { Button, download, Modal, Pill, Select, Seg, KV } from '../ui';
+import { Button, KV, Modal, Pill, Seg, Select, download } from '../ui';
 import { CODIGOS_REVISAO, classificar, type TipoRevisao } from '../../core/building/revisao';
 import { sugestaoDe } from '../../core/building/sugestoes';
 import { capacidadeViga, taxaDoPilar, type PontoCapacidade } from '../../core/building/relatorios';
@@ -124,11 +124,11 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
                       <td className="tl">{TIPO_TXT[i.tipo]} {i.nome}</td><td className="tl">{i.pavimento ?? '—'}</td>
                       <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}{i.sugestao && <div className="small muted" data-sugestao={i.codigo}>Sugestão: {i.sugestao}</div>}</td>
                       <td>
-                        {el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}
-                        {el && i.codigo === 'FUND_SOBREPOSTA' && <button type="button" className="mini" data-acao-unir title="Une as sapatas sobrepostas numa sapata associada" onClick={(e) => { e.stopPropagation(); const g = sobreposicoesDe(dim?.fundacoes).find((x) => x.includes(el.id)); if (g) exec('fundacao.eliminarSobreposicoes', { grupos: [g] }); }}>unir sapatas</button>}
-                        {i.codigo === 'FUND_LIMITE_IGNORADO' && <button type="button" className="mini" data-acao-limite title="Mostra o limite na planta de fundação" onClick={(e) => { e.stopPropagation(); const l = modelo.fundacao?.limites?.find((x) => x.nome === limiteDaMensagem(i.mensagem)); if (l) usePlanta.getState().set({ pavimento: 'fundacao', selecao: new Set([l.id]), foco: { id: l.id, n: Date.now() } }); }}>ver limite</button>}
-                        {el && i.codigo === 'FUND_IGUAL_MODELO' && <button type="button" className="mini" data-acao-modelo title="Vai ao elemento modelo da igualdade" onClick={(e) => { e.stopPropagation(); const m = modelo.fundacao?.elementos.find((x) => x.id === el.id)?.igualA; if (m) irParaElemento(modelo, 'fundacao', m); }}>ver modelo</button>}
-                        {el && /^(FORA_TABELA|ARM_MANUAL)/.test(i.codigo) && <button type="button" className="mini" data-atalho-tabela onClick={(e) => { e.stopPropagation(); abrirTabela(modelo, el.tipo, el.id, i.codigo, i.mensagem); }}>tabela</button>}
+                        {el && <Button variant="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</Button>}
+                        {el && i.codigo === 'FUND_SOBREPOSTA' && <Button variant="mini" data-acao-unir title="Une as sapatas sobrepostas numa sapata associada" onClick={(e) => { e.stopPropagation(); const g = sobreposicoesDe(dim?.fundacoes).find((x) => x.includes(el.id)); if (g) exec('fundacao.eliminarSobreposicoes', { grupos: [g] }); }}>unir sapatas</Button>}
+                        {i.codigo === 'FUND_LIMITE_IGNORADO' && <Button variant="mini" data-acao-limite title="Mostra o limite na planta de fundação" onClick={(e) => { e.stopPropagation(); const l = modelo.fundacao?.limites?.find((x) => x.nome === limiteDaMensagem(i.mensagem)); if (l) usePlanta.getState().set({ pavimento: 'fundacao', selecao: new Set([l.id]), foco: { id: l.id, n: Date.now() } }); }}>ver limite</Button>}
+                        {el && i.codigo === 'FUND_IGUAL_MODELO' && <Button variant="mini" data-acao-modelo title="Vai ao elemento modelo da igualdade" onClick={(e) => { e.stopPropagation(); const m = modelo.fundacao?.elementos.find((x) => x.id === el.id)?.igualA; if (m) irParaElemento(modelo, 'fundacao', m); }}>ver modelo</Button>}
+                        {el && /^(FORA_TABELA|ARM_MANUAL)/.test(i.codigo) && <Button variant="mini" data-atalho-tabela onClick={(e) => { e.stopPropagation(); abrirTabela(modelo, el.tipo, el.id, i.codigo, i.mensagem); }}>tabela</Button>}
                       </td>
                     </LinhaElemento>
                   );

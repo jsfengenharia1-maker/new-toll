@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../../core/building/abacosVento';
 import { VENTO_PADRAO, type BuildingModel, type CurvaAbaco } from '../../core/building/types';
-import { Button, Check, Group, Hint, NumField, Select } from '../ui';
+import { Button, Check, Group, Hint, Input, NumField, Select, Textarea } from '../ui';
 import { useBuilding } from './store';
 
 const fmt = (v: number, d = 3) => String(+v.toFixed(d)).replace('.', ',');
@@ -38,9 +38,9 @@ function Tabela({ rotulo, curvas, aoSalvar, comParam }: { rotulo: string; curvas
       <summary>{rotulo} ({curvas.reduce((s, c) => s + c.pontos.length, 0)} ponto(s))</summary>
       {rascunho.map((r, i) => (
         <div key={i} className="row wrap">
-          {comParam && <label className="field" style={{ width: 90 }}><span className="flabel">h/l1</span><span className="finput"><input aria-label={`${rotulo}: h/l1 da curva ${i + 1}`} value={r.param} onChange={(e) => setRascunho(rascunho.map((x, k) => (k === i ? { ...x, param: e.target.value } : x)))} /></span></label>}
+          {comParam && <label className="field" style={{ width: 90 }}><span className="flabel">h/l1</span><span className="finput"><Input aria-label={`${rotulo}: h/l1 da curva ${i + 1}`} value={r.param} onChange={(e) => setRascunho(rascunho.map((x, k) => (k === i ? { ...x, param: e.target.value } : x)))} /></span></label>}
           <label className="field grow"><span className="flabel">{comParam ? 'Pontos (l1/l2; Ca), um por linha' : 'Pontos (d/l1; fator), um por linha'}</span>
-            <textarea aria-label={`${rotulo}: pontos da curva ${i + 1}`} rows={4} value={r.pontos} onChange={(e) => setRascunho(rascunho.map((x, k) => (k === i ? { ...x, pontos: e.target.value } : x)))} /></label>
+            <Textarea aria-label={`${rotulo}: pontos da curva ${i + 1}`} rows={4} value={r.pontos} onChange={(e) => setRascunho(rascunho.map((x, k) => (k === i ? { ...x, pontos: e.target.value } : x)))} /></label>
           {comParam && rascunho.length > 1 && <Button variant="danger" aria-label={`${rotulo}: remover curva ${i + 1}`} onClick={() => setRascunho(rascunho.filter((_, k) => k !== i))}>×</Button>}
         </div>
       ))}
