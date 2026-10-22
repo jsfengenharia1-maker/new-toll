@@ -3379,4 +3379,96 @@ export const flows = [
       assert.match(await prev.textContent(), /P6 nasce aqui · Nd = \d+ kN/);
     },
   },
+  {
+    name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      await page.waitForTimeout(500);
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const m0 = await modelo();
+      // 1) legenda dos códigos com a sugestão de correção
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('summary', { hasText: 'Legenda dos códigos' }).click();
+      assert.match(await lista.locator('details').innerText(), /Sugestão[\s\S]*Aumente a largura ou a altura da seção/);
+      // 2) relatórios e índices
+      const rel = page.locator('[data-relatorios]');
+      await rel.waitFor();
+      const ind = await rel.locator('[data-indices] tbody tr').innerText();
+      assert.ok(/\d/.test(ind));
+      for (const k of ['pilares-html', 'pilares-csv', 'listagem', 'quantitativos', 'intercambio-json', 'intercambio-csv']) assert.equal(await rel.locator(`[data-relatorio="${k}"]`).count(), 1);
+      await rel.locator('summary', { hasText: 'Quantitativos por pano' }).click();
+      assert.equal(await rel.locator('[data-quant-panos] tbody tr').count(), m0.lajes.length);
+      assert.equal(await rel.locator('[data-quant-vigas] tbody tr').count(), m0.vigas.length);
+      // 3) janela do pilar: dados, taxa, planta de situação e navegação
+      const cardPil = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+      await cardPil.locator('tbody tr', { hasText: 'P1' }).first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      assert.equal(await jp.locator('[data-situacao-pilares]').getAttribute('data-situacao-pilares'), '6');
+      assert.equal(await jp.locator('[data-pilar-situacao]').count(), 6);
+      assert.match(await jp.locator('[data-dados-pilar]').innerText(), /Ângulo[\s\S]*Ponto fixo[\s\S]*Engaste por lance[\s\S]*Profundidade do apoio/);
+      assert.match(await jp.locator('.rev-lance').first().innerText(), /Taxa As\/Ac \(%\)\s*\d/);
+      assert.equal(await jp.locator('[data-pilar-atual]').innerText(), 'P1');
+      assert.equal(await jp.getByRole('button', { name: 'Pilar anterior' }).isDisabled(), true);
+      await jp.getByRole('button', { name: 'Próximo pilar' }).click();
+      await page.waitForFunction(() => document.querySelector('[data-pilar-atual]')?.textContent === 'P2', null, { timeout: 15000 });
+      await jp.locator('[data-pilar-situacao]').nth(3).click();
+      await page.waitForFunction(() => document.querySelector('[data-pilar-atual]')?.textContent === 'P4', null, { timeout: 15000 });
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 4) janela da viga: linhas de capacidade resistente no diagrama de momentos
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      await jv.locator('[data-diagrama="M"] [data-curva="MRd+"]').waitFor();
+      assert.equal(await jv.locator('[data-diagrama="M"] [data-curva="MRd−"]').count(), 1);
+      await jv.getByRole('button', { name: 'Fechar' }).click();
+      // 5) pranchas: gabarito e ponto fixo
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const prev = page.locator('.prancha-prev');
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
+      await prev.locator('svg').waitFor();
+      const n0 = await prev.locator('svg circle').count();
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
+      await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
+      await page.waitForFunction((n) => document.querySelectorAll('.prancha-prev svg circle').length >= n + 6, n0, { timeout: 30000 });
+      await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').uncheck();
+      await page.waitForFunction((n) => document.querySelectorAll('.prancha-prev svg circle').length === n, n0, { timeout: 30000 });
+      // 6) memorial: listagem, índices e, ligado, as verificações ELU por combinação
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      await memo.locator('[data-memorial-listagem]').waitFor();
+      const mt = await memo.innerText();
+      assert.match(mt, /Pilares: coordenadas, dimensões e vínculos/);
+      assert.match(mt, /Lajes: geometria e pesos/);
+      assert.match(mt, /Taxa de armadura dos pilares/);
+      assert.match(mt, /Quantitativos por pano e por viga/);
+      await memo.locator('[data-memorial-indices]').waitFor();
+      assert.equal(await memo.locator('[data-memorial-elu-comb]').count(), 0);
+      await memo.getByLabel('ELU por combinação').check();
+      await memo.locator('[data-memorial-elu-comb]').waitFor();
+      assert.match(await memo.locator('[data-memorial-elu-comb]').innerText(), /Pilares: combinações determinantes[\s\S]*Vigas: combinação que dá cada extremo/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 7) pilar largo com a tabela de grampos "só o estribo perimetral": aviso GRAMPOS_TABELA
+      const p1 = m0.pilares.find((p) => p.nome === 'P1');
+      await cmd(`pilar.editar {"id": "${p1.id}", "secao": {"tipo": "ret", "b": 0.2, "h": 0.9}}`);
+      await cmd('tabela.definir {"tipo": "pilares", "tabela": {"id": "padrao", "nome": "Padrão", "bitolas": [10, 12.5, 16, 20, 25], "espacamentos": [30, 25, 20, 15, 12, 10], "estribos": [], "grampos": [{"phiAte": 25, "ladoMaiorAte": 999, "modo": "nenhum"}]}}');
+      await livre();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      await lista.locator('tbody tr', { hasText: 'GRAMPOS_TABELA' }).first().waitFor({ timeout: 60000 });
+    },
+  },
 ];

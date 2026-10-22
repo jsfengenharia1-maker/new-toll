@@ -10,9 +10,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
-| 2. Gabaritos DXF/DWG | 22 | 5 | 9 | 5 | 3 |
+| 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
-| 4. Pilares | 63 | 41 | 8 | 7 | 7 |
+| 4. Pilares | 63 | 46 | 5 | 5 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 0 | 26 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
 | 7. Lajes | 195 | 32 | 32 | 64 | 67 |
@@ -22,15 +22,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **237** | **80** | **261** | **185** |
+| **Total** | **763** | **243** | **77** | **258** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 4 | 3 | 7 |
+| R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 1 | 2 | 3 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 28 | 194 | 222 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 29 | 194 | 223 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -134,7 +134,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Falta | L | janela rápida de vistas por pavimento [L2] |
 | C2.20 | Janela de seleção dos modos de captura de objetos (snap) do DXF/DWG. | Feito | — | tipos de captura |
 | C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Parcial | L | liga/desliga capturas (botão); tecla própria a conferir [L2] |
-| C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Falta | R | máscara nas pranchas (fora da R5) [R7g] |
+| C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Feito | — | opção de prancha `mascara` (`prancha.definir { armacao: { mascara: 1 } }`): `sheets/gabarito.ts` (`primitivasMascara`) desenha as camadas visíveis da máscara do grupo na camada MASCARA (pena 0,13 mm [a confirmar]) nas formas (`prancha.ts`) e nas lajes (`armacaoLajes.ts`); padrão desligado; caixa em Pranchas › Opções de armação (R7g) |
 
 ## 3. Grupos e pavimentos
 
@@ -225,21 +225,21 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.35 | Janela de dimensionamento do pilar, aberta por clique. | Feito | — | janela de resultados do pilar por clique duplo (tabela, lista de erros ou botão na planta) com as combinações determinantes de cada lance (R1) |
 | C4.36 | O relatório do cálculo lista os pilares com erro de dimensionamento e indica onde revisá-los. | Feito | — | mensagens por lance |
 | C4.37 | Seção em vermelho na tela, no pavimento onde está o erro. | Feito | — | contorno e rótulo do pilar em vermelho (erro) ou amarelo (aviso) no pavimento do lance, com chave Mostrar erros (R1) |
-| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Parcial | R | código e mensagem na lista de erros e na janela do elemento, com legenda dos códigos (R1); sem sugestões de correção por erro [R7g] |
+| C4.38 | Tramos com erro marcados com símbolo de aviso e coluna de estado com códigos. O clique mostra o detalhe da verificação e sugestões de correção. | Feito | — | `sugestoes.ts` (`SUGESTOES`, `sugestaoDe`): sugestão de correção própria para todo código de erro e aviso, em `ItemRevisao.sugestao`, na lista de erros, na janela do elemento (`Mensagens`) e na legenda (R7g); `relatorios.test.ts` exige uma por código |
 | C4.39 | Erro de taxa excessiva: taxa mecânica aço/concreto acima de 100% ou geométrica acima de 8%. | Feito | — | erro ARMADURA quando nem 4 % de armadura atende (limite da NBR 6118, 17.3.5.3.2), equivalente à taxa máxima; sem taxa mecânica |
 | C4.40 | Verificação do cortante contra a compressão oblíqua (bielas), quando a norma pede, e do espaçamento dos estribos quando há armadura transversal. | Feito | — | biela (Vsd/VRd2, erro BIELA) e estribo pelo cortante nos pilares (N1e); espaçamento do estribo verificado na armadura bloqueada (R2) |
 | C4.41 | Detalhe do cortante: área longitudinal em X e Y, área de estribo, esforços e cortante resistente em cada direção (Vsd ≤ Vrd). | Feito | — | cortante por direção (u ao longo de b, v ao longo de h): Vsd, Vc, VRd2, Asw/s, As das faces e combinação (`ResultadoPilar.cortante`); janela do pilar e memorial (N2c) |
 | C4.42 | Aviso de estribo fora da tabela: só um estribo foi colocado. Revisar a tabela de armaduras e a disposição dos estribos. | Feito | — | aviso ESTRIBO_TABELA quando o cortante pede mais ramos do que um estribo dá (s < 10 cm) e só um estribo (2 ramos) foi colocado (`dimensionamento.ts`, `revisao.ts`; N2c) |
 | C4.43 | Limite da taxa volumétrica de estribos de confinamento em sismo com ductilidade muito alta. | Fora | — | sismo |
 | C4.44 | Verificação de resistência ao fogo da seção do pilar, conforme o especificado. | Falta | N | fogo (NBR 15200) [N2g] |
-| C4.45 | Taxa As/Ac (%) mostrada por tramo. | Parcial | R | As por lance na tabela e na janela do pilar; taxa As/Ac não exibida [R7g] |
+| C4.45 | Taxa As/Ac (%) mostrada por tramo. | Feito | — | `taxasPilares`/`taxaDoPilar` (`relatorios.ts`): As/Ac (%) por lance, na janela do pilar, no memorial (tabela de taxas) e no relatório dos pilares (R7g) |
 | C4.46 | Pilares de aço: ao calcular, opções de dimensionar ou não os perfis. | Fora | — | pilar de aço no edifício |
 | C4.47 | Dimensionamento de perfis por toda a série (pode trocar por menor) ou só por perfis maiores ou iguais ao atual. | Fora | — |  |
 | C4.48 | Testar outro perfil da série com verificação imediata. | Fora | — |  |
 | C4.49 | Lista dos perfis da série com peso por metro, aproveitamento (%) e erros. | Fora | — |  |
 | C4.50 | Botão para voltar ao perfil ótimo proposto pelo dimensionamento. | Fora | — |  |
-| C4.51 | Dados do pilar no dimensionamento: ângulo, engastamento, desnível e profundidade do apoio. | Falta | R | ângulo, engaste e desnível não aparecem na janela do pilar (estão nos grupos de seleção e Vínculos) [R7g] |
-| C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Parcial | R | planta do pavimento com pilares em vermelho/amarelo e botão "Resultados do elemento" (R1); sem planta de situação dentro da janela nem navegação pilar a pilar [R7g] |
+| C4.51 | Dados do pilar no dimensionamento: ângulo, engastamento, desnível e profundidade do apoio. | Feito | — | `DadosDoPilar` (`RelatoriosUI.tsx`) na janela do pilar: ângulo, ponto fixo, engaste por lance, vínculo, cota da base, desnível e profundidade do apoio (R7g) |
+| C4.52 | Planta de situação dos pilares dos pavimentos selecionados. Pilares não dimensionados (armadura manual) em vermelho, e clique para passar a outro pilar. | Feito | — | `SituacaoPilares` (`RelatoriosUI.tsx`) na janela do pilar: planta do pavimento com vigas e pilares (vermelho = não atende; amarelo = revisar ou bloqueada), clique e botões anterior/próximo para passar a outro pilar (R7g) |
 | C4.53 | Bloqueio da armadura de pilares: recalcula a estrutura sem mudar a armadura bloqueada (preserva edições manuais). | Feito | — | armadura do pilar editada e bloqueada por lance (pilar.armadura; janela do elemento e bloqueio em lote), só verificada no recálculo (R2) |
 | C4.54 | Pilares bloqueados passam pela verificação completa da norma a cada recálculo, e os que falham ficam em vermelho. | Feito | — | verificação completa por fibras a cada recálculo; reprovado = ARM_BLOQ (erro), vermelho na planta e na lista |
 | C4.55 | Para redimensionar: desbloquear e redimensionar todos, ou redimensionar pilar a pilar mantendo o bloqueio. | Feito | — | desbloquear todos (`BloqueioLote`) e recalcular, ou desbloquear só o pilar ("Restaurar calculada" em `Armadura.tsx`) e recalcular: os demais continuam bloqueados e só verificados (`dimensionamento.ts`); rearmar sem nova análise é o C6.87 (auditoria de 20/10/2026) |
@@ -249,9 +249,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Feito | — | janela “Seleção para bloqueio” (`SelecaoBloqueio`, `Rearmar.tsx`): por grupo, todos, nenhum, seleção da planta e mostrar na planta, com contagem e marcador ▣ dos bloqueados; pilares de aço não existem no edifício (R7f) |
 | C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação [V5] |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
-| C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Falta | R | ponto fixo nas pranchas (fora da R5) [R7g] |
+| C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | quadro de pilares com seção, armadura, estribos e grampos por lance (R5); sem o desenho do detalhe das condições de estribos [E1d] |
-| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | R | memorial do edifício (detalhamento dos pilares) e listagem CSV com Nd, armadura, estribo, Vd e utilização (R1, R3b); sem relatório por esforço [R7g] |
+| C4.63 | Relatório de esforços e armaduras de pilares, pilares-parede e muros, com a verificação de cortante dos pilares de concreto. | Parcial | E | relatório de esforços e armaduras dos pilares em HTML e CSV (`relatorioPilaresHtml`/`relatorioPilaresCsv`, `RelatoriosUI.tsx`): combinações determinantes, Md,tot, armadura, taxa, estribo, cortante, utilização (R7g); faltam pilares-parede (E1b) e muros |
 
 ## 5. Muros e paredes estruturais
 
@@ -1003,3 +1003,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **21/10/2026 — fatia E1a (pilares sobre pilares e transições, núcleo e interface).** C4.11, C4.13, C4.14, C4.15, C4.16, C4.17, C4.18, C4.19 e C4.24 (manual do usuário) passam a Feito: `src/core/building/transicao.ts` (`apoioDoPilar`: pilar que morre no pavimento com seção sobreposta, viga que toca o corpo ou laje que o contém; `pilaresSobre`, `nomeSobre`, diagnósticos PILAR_NASCE_SEM_APOIO, PILAR_TRANSICAO, PILAR_SOBRE_LAJE, PILAR_APOIO_PARCIAL, PILAR_EXCENTRICO e PILAR_INICIO), `Pilar.inicio` (apoiado | fundação), `Pilar.secoes[]` com ponto fixo, ângulo e deslocamento por lance e `Pilar.fck` por lance (`geoLance`, `contornoNoLance`, `centroNoLance`, `lanceNoPavimento`), comando `pilar.inserir` com `sobre` e `inicio` e `pilar.secaoLance` ampliado (`mcp: false`), opção `engasteTransicao` (0,3; NBR 1). `analitico.ts` (localizado): o pé do pilar apoiado é o nó do topo do pilar de baixo (trecho rígido horizontal até o centro: momento N·e), nó da viga (pórtico e grelha, sem apoio vertical próprio) ou nó da grelha integrada sob a laje; no modelo separado, sobre laje fica o apoio fixo provisório com aviso; pilar de baixo com topo contínuo; lance com geometria própria ligado por `offI`. `dimensionamento.ts`: `ResultadoViga.transicoes` (Nd, cortante nas faces contra VRd3 e VRd2; mensagens Transição… com códigos TRANSICAO e TRANSICAO_CORTANTE) e a cadeia da viga contínua no pé do pilar. `detalhamentoPilares.ts`: esperas no elemento de apoio (reta, gancho de 90° ou erro ARRANQUE_ANCORAGEM). Interface: realce do pilar de baixo, coordenadas relativas e nome automático na ferramenta Pilar, `Transicao.tsx` (lance, início), apoio na janela do pilar, transições na janela da viga, memorial; pranchas de pilares ("nasce em V12") e de vigas ("P6 nasce aqui · Nd"); premissas `e1a-transicao` e `e1a-transicao-dim`; testes `transicao.test.ts` (pilar sobre viga biengastada: M = Nd·ℓ/8; N·e; dois pilares sobre um; laje; ancoragem) e e2e `E1a`. Edifícios sem transição: resultados idênticos (r70). Aço fora do escopo (C4.11). A confirmar: `engasteTransicao` 0,3, gancho com 0,7·lb, escolha do pilar de maior área em comum como apoio.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 9 itens (manual do usuário); demais sem mudança.
+- **21/10/2026 — fatia R7g (revisão, relatórios e opções de desenho das pranchas, núcleo e interface).** C2.22, C4.38, C4.45, C4.51, C4.52 e C4.61 (manual do usuário) passam a Feito e C4.63 fica Parcial com a frente E (pilares-parede e muros): `src/core/building/sugestoes.ts` (sugestão de correção por código de revisão, `ItemRevisao.sugestao`), `src/core/building/relatorios.ts` (`taxasPilares`, `capacidadeViga`, `intercambioArmadura`, `quantitativosDetalhados`, `listagemGeral`, `ventoPorPavimento`), `src/core/sheets/gabarito.ts` (máscara e ponto fixo nas formas e nas lajes; opções de prancha `mascara` e `pontoFixo`, camadas MASCARA e PONTO-FIXO), interface `RelatoriosUI.tsx` (dados do pilar, planta de situação com navegação, cartão de relatórios), `MemorialRelatorios.tsx`, testes `relatorios.test.ts` e e2e `R7g`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: R 7 → 0 nesta frente; E +1 (C4.63).

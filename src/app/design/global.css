@@ -733,6 +733,17 @@ text.vig-g0, text.vig-g1, text.vig-g2, text.vig-g3, text.vig-g4, text.vig-g5 { f
 .det-leg i.vig-leg.macico { border-color: var(--vig-macico); border-top-style: dotted; border-top-width: 5px; }
 .det-leg i.vig-leg.dist { border-color: var(--det-cota); border-top-style: dashed; border-top-width: 1px; }
 tr.sel td { background: var(--accent-soft); }
+/* R7g: planta de situação dos pilares na janela do elemento e linha de capacidade resistente nos diagramas */
+.sit { width: 100%; max-width: 420px; height: auto; display: block; margin: 6px 0; }
+.sit-viga { fill: color-mix(in srgb, var(--member) 10%, transparent); stroke: var(--member); stroke-width: 0.8; }
+.sit-pilar { cursor: pointer; }
+.sit-pilar polygon { fill: color-mix(in srgb, var(--ok) 35%, transparent); stroke: var(--ok); stroke-width: 1; }
+.sit-pilar.warn polygon { fill: color-mix(in srgb, var(--warn) 45%, transparent); stroke: var(--warn); }
+.sit-pilar.bad polygon { fill: color-mix(in srgb, var(--bad) 50%, transparent); stroke: var(--bad); }
+.sit-pilar.sel polygon { stroke: var(--accent); stroke-width: 2.6; }
+.sit-txt { font: 10px var(--font-num); fill: var(--muted); pointer-events: none; }
+.dg-cap { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 5 3; }
+.dg-captxt { fill: var(--accent); }
 .dg-ref { stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 6 3; }
 .dg-reftxt { fill: var(--bad); }
 

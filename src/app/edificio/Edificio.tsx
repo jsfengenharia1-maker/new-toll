@@ -36,6 +36,7 @@ import { FundacaoGrupo } from './Fundacao';
 import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
+import { CartaoRelatorios } from './RelatoriosUI';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
@@ -868,6 +869,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
         {dim && <p className="small">Vigas {conta(dim.vigas)} · pilares {conta(dim.pilares)} · lajes {conta(dim.lajes)} · {dim.combinacoes} combinações · {Math.round(dim.ms)} ms. Clique numa linha para ver o elemento na planta; duplo clique abre os resultados do elemento.</p>}
       </div>
       {dim && <div className="card"><RearmarCard /></div>}
+      {dim && <CartaoRelatorios />}
       <ListaErros onIr={onIr} />
       {dim && <div className="card"><BloqueioLote dim={dim} velha={!!velha} /><div className="row wrap"><Button data-abrir-selecao-bloqueio onClick={() => setSelBloq(true)}>Seleção para bloqueio…</Button></div></div>}
       {selBloq && <SelecaoBloqueio onClose={() => setSelBloq(false)} />}

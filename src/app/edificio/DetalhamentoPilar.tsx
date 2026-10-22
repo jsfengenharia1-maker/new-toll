@@ -8,6 +8,7 @@ import { barArea } from '../../core/concrete';
 import { cobrimentoPilar } from '../../core/building/materiais';
 import { dimsSecao, secaoNoLance, type Pilar } from '../../core/building/types';
 import type { BarraPilar, DetalhePilar, LanceDetalhe } from '../../core/building/detalhamentoPilares';
+import { modoGrampos, tabelaDe, tabelaPilarNaSecao, type ModoGrampos } from '../../core/building/tabelasArmadura';
 import { gramposPorEstribo, posicoesEstribos } from '../../core/building/detalhamentoPilares';
 import type { ResultadoPilar } from '../../core/building/dimensionamento';
 import { fmt, phiTxt } from './Detalhamento';
@@ -109,7 +110,7 @@ function Elevacao({ d, p }: { d: DetalhePilar; p: Pilar }) {
 
 // ---------------------------------------------------------------- seção transversal de um lance
 
-function SecaoLance({ p, l, r, cob }: { p: Pilar; l: LanceDetalhe; r: ResultadoPilar | undefined; cob: number }) {
+function SecaoLance({ p, l, r, cob, modo }: { p: Pilar; l: LanceDetalhe; r: ResultadoPilar | undefined; cob: number; modo: ModoGrampos }) {
   const a = r?.arranjo, s = secaoNoLance(p, l.pavimento), [w, h] = dimsSecao(s);
   if (!a) return null;
   const t = l.estribos.phi / 1000, f = a.phi / 1000, ap = cob + t + f / 2;
@@ -134,10 +135,10 @@ function SecaoLance({ p, l, r, cob }: { p: Pilar; l: LanceDetalhe; r: ResultadoP
       ysD.slice(1, -1).forEach((y) => { pts.push([w - ap, y]); });
     }
     const L1 = w - 2 * ap, L2 = h - 2 * ap;
-    xs.slice(1, -1).forEach((x, i) => { const d = Math.min(((L1) * (i + 1)) / Math.max(nb - 1, 1), L1 - (L1 * (i + 1)) / Math.max(nb - 1, 1)); if (d > lim + 1e-9) gr.push([x, ap, x, h - ap]); });
-    ys.slice(1, -1).forEach((y, i) => { const d = Math.min((L2 * (i + 1)) / Math.max(nh - 1, 1), L2 - (L2 * (i + 1)) / Math.max(nh - 1, 1)); if (d > lim + 1e-9) gr.push([ap, y, w - ap, y]); });
+    xs.slice(1, -1).forEach((x, i) => { const d = Math.min(((L1) * (i + 1)) / Math.max(nb - 1, 1), L1 - (L1 * (i + 1)) / Math.max(nb - 1, 1)); if (modo !== 'nenhum' && (modo === 'todas' || d > lim + 1e-9)) gr.push([x, ap, x, h - ap]); });
+    ys.slice(1, -1).forEach((y, i) => { const d = Math.min((L2 * (i + 1)) / Math.max(nh - 1, 1), L2 - (L2 * (i + 1)) / Math.max(nh - 1, 1)); if (modo !== 'nenhum' && (modo === 'todas' || d > lim + 1e-9)) gr.push([ap, y, w - ap, y]); });
   }
-  const nGr = s.tipo === 'circ' ? 0 : gramposPorEstribo(w, h, ap, a.nb ?? 2, a.nh ?? 2, l.estribos.phi, a.nbS, a.nhD);
+  const nGr = s.tipo === 'circ' ? 0 : gramposPorEstribo(w, h, ap, a.nb ?? 2, a.nh ?? 2, l.estribos.phi, a.nbS, a.nhD, modo);
   return (
     <figure className="det-fig" data-secao-lance={l.pavimento}>
       <svg className="det det-secao" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Seção do ${l.nome}`} data-barras-secao={pts.length} data-grampos={nGr}>
@@ -241,7 +242,10 @@ export function DetalheDoPilar({ id }: { id: string }) {
       <div className="det-leg"><span><i className="pilar" />barras longitudinais</span><span><i className="arranque" />arranques</span><span><i className="emenda" />emenda / sobreposição</span><span><i className="estribo" />estribos</span></div>
       <Elevacao d={d} p={p} />
       <h4>Seção transversal de cada lance</h4>
-      <div className="det-secoes">{d.lances.map((l) => <SecaoLance key={l.pavimento} p={p} l={l} r={dim?.pilares.find((x) => x.pilar === id && x.pavimentoId === l.pavimento)} cob={cob} />)}</div>
+      <div className="det-secoes">{d.lances.map((l) => {
+        const r = dim?.pilares.find((x) => x.pilar === id && x.pavimentoId === l.pavimento), [w, h] = dimsSecao(secaoNoLance(p, l.pavimento));
+        return <SecaoLance key={l.pavimento} p={p} l={l} r={r} cob={cob} modo={modoGrampos(tabelaPilarNaSecao(tabelaDe(b, 'pilares', p.tabela), w, h), r?.arranjo?.phi ?? 0, w, h)} />;
+      })}</div>
       <h4>Ancoragem</h4>
       <KV rows={[
         ...d.lances.map((l): [string, string] => [`lb – ${l.nome} (boa aderência)`, `${fmt((d.lb[l.pavimento] ?? 0) * 100, 0)} cm`]),

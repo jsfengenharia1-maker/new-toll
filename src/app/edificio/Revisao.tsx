@@ -7,6 +7,9 @@ import { usePlanta } from './plantaStore';
 import { useRevisao } from './revisao';
 import { Button, download, Modal, Pill, Select, Seg, KV } from '../ui';
 import { CODIGOS_REVISAO, classificar, type TipoRevisao } from '../../core/building/revisao';
+import { sugestaoDe } from '../../core/building/sugestoes';
+import { capacidadeViga, taxaDoPilar, type PontoCapacidade } from '../../core/building/relatorios';
+import { DadosDoPilar, SituacaoPilares } from './RelatoriosUI';
 import { inicioDe, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import type { AnaliseEdificio } from '../../core/building/analitico';
@@ -116,7 +119,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
                     <LinhaElemento key={k} className={`${el ? 'click' : ''} ${i.nivel === 'erro' ? 'bad' : 'warn'}`} title={el ? 'Clique: ver na planta. Duplo clique: resultados do elemento.' : undefined}
                       ir={() => el && onIr(el.tipo, el.id, i.pavimento)} abrir={() => el && abrirJanela({ ...el, pavimento: i.pavimento })}>
                       <td className="tl">{TIPO_TXT[i.tipo]} {i.nome}</td><td className="tl">{i.pavimento ?? '—'}</td>
-                      <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}</td>
+                      <td><Pill tone={i.nivel === 'erro' ? 'bad' : 'warn'}>{i.codigo}</Pill></td><td className="tl">{i.mensagem}{i.sugestao && <div className="small muted" data-sugestao={i.codigo}>Sugestão: {i.sugestao}</div>}</td>
                       <td>
                         {el && <button type="button" className="mini" onClick={(e) => { e.stopPropagation(); abrirJanela({ ...el, pavimento: i.pavimento }); }}>resultados</button>}
                         {el && i.codigo === 'FUND_SOBREPOSTA' && <button type="button" className="mini" data-acao-unir title="Une as sapatas sobrepostas numa sapata associada" onClick={(e) => { e.stopPropagation(); const g = sobreposicoesDe(dim?.fundacoes).find((x) => x.includes(el.id)); if (g) exec('fundacao.eliminarSobreposicoes', { grupos: [g] }); }}>unir sapatas</button>}
@@ -134,8 +137,8 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
       <details className="small">
         <summary>Legenda dos códigos</summary>
         <table className="data quadro">
-          <thead><tr><th>Código</th><th>Nível</th><th>Motivo</th></tr></thead>
-          <tbody>{CODIGOS_REVISAO.map((c) => <tr key={c.codigo}><td className="tl">{c.codigo}</td><td className="tl">{c.nivel === 'erro' ? 'erro' : c.nivel === 'aviso' ? 'aviso' : 'informação (não listada)'}</td><td className="tl">{c.descricao}</td></tr>)}</tbody>
+          <thead><tr><th>Código</th><th>Nível</th><th>Motivo</th><th>Sugestão</th></tr></thead>
+          <tbody>{CODIGOS_REVISAO.map((c) => <tr key={c.codigo}><td className="tl">{c.codigo}</td><td className="tl">{c.nivel === 'erro' ? 'erro' : c.nivel === 'aviso' ? 'aviso' : 'informação (não listada)'}</td><td className="tl">{c.descricao}</td><td className="tl small">{sugestaoDe(c.codigo)}</td></tr>)}</tbody>
         </table>
         <p className="hint">Erro = o elemento não atende ao cálculo (vermelho na planta); aviso = atende, mas pede atenção (amarelo). Mensagens sem regra conhecida entram como AVISO.</p>
       </details>
@@ -149,7 +152,7 @@ export function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
   return (
     <ul className="revmsg">
-      {msgs.map((m, i) => { const c = classificar(m); return <li key={i}><Pill tone={c.nivel === 'erro' ? 'bad' : c.nivel === 'aviso' ? 'warn' : 'na'}>{c.codigo}</Pill> {m}</li>; })}
+      {msgs.map((m, i) => { const c = classificar(m); return <li key={i}><Pill tone={c.nivel === 'erro' ? 'bad' : c.nivel === 'aviso' ? 'warn' : 'na'}>{c.codigo}</Pill> {m}{sugestaoDe(c.codigo) && <span className="small muted" data-sugestao={c.codigo}> — Sugestão: {sugestaoDe(c.codigo)}</span>}</li>; })}
     </ul>
   );
 }
@@ -163,9 +166,9 @@ function passoEixo(L: number) {
 }
 
 /** Diagrama SVG ao longo de s. `baixo`: valores positivos desenhados para baixo (momento, lado tracionado). */
-export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs }: { id: string; titulo: string; unid: string; xs: number[]; L: number; series: Serie[]; baixo?: boolean; cor: 'dg-m' | 'dg-v' | 'dg-t'; refs?: { v: number; rot: string }[] }) {
+export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs, curvas }: { id: string; titulo: string; unid: string; xs: number[]; L: number; series: Serie[]; baixo?: boolean; cor: 'dg-m' | 'dg-v' | 'dg-t'; refs?: { v: number; rot: string }[]; curvas?: { xs: number[]; ys: number[]; rot: string }[] }) {
   const W = 640, H = 170, ml = 54, mr = 16, mt = 28, mb = 30, hh = H - mt - mb, ww = W - ml - mr;
-  const todos = [...series.flatMap((s) => s.ys), ...(refs ?? []).map((r) => r.v)];
+  const todos = [...series.flatMap((s) => s.ys), ...(refs ?? []).map((r) => r.v), ...(curvas ?? []).flatMap((c) => c.ys)];
   const vmax = Math.max(0, ...todos), vmin = Math.min(0, ...todos), span = Math.max(vmax - vmin, 1e-9);
   const X = (s: number) => ml + (L > 0 ? s / L : 0) * ww;
   const Y = (v: number) => mt + (baixo ? (v - vmin) / span : (vmax - v) / span) * hh;
@@ -190,6 +193,12 @@ export function Diagrama({ id, titulo, unid, xs, L, series, baixo, cor, refs }: 
           </g>
         );
       })}
+      {(curvas ?? []).map((c, k) => (
+        <g key={`c${k}`} data-curva={c.rot}>
+          <path d={c.xs.map((s, i) => `${i ? 'L' : 'M'}${X(s).toFixed(1)},${Y(c.ys[i]).toFixed(1)}`).join('')} className="dg-cap" />
+          <text x={X(c.xs[Math.floor(c.xs.length / 2)] ?? 0)} y={Y(c.ys[Math.floor(c.ys.length / 2)] ?? 0) + (c.ys[Math.floor(c.ys.length / 2)] >= 0 === !baixo ? -4 : 11)} textAnchor="middle" className="dg-txt dg-captxt">{c.rot}</text>
+        </g>
+      ))}
       {(refs ?? []).map((r, k) => (
         <g key={`r${k}`} data-ref={r.rot}>
           <line x1={ml} x2={W - mr} y1={Y(r.v)} y2={Y(r.v)} className="dg-ref" />
@@ -221,21 +230,29 @@ function AbasDetalhe({ aba, onChange }: { aba: 'resultados' | 'detalhamento'; on
   return <Seg value={aba} onChange={onChange} options={[{ v: 'resultados', label: 'Resultados e armadura' }, { v: 'detalhamento', label: 'Detalhamento' }]} />;
 }
 
+/** Capacidade resistente (MRd+ e MRd−) da viga pela armadura detalhada, ou null sem detalhamento. */
+function capacidadeDaViga(b: BuildingModel, id: string, dim: DimEdificio): PontoCapacidade[] | null {
+  const v = b.vigas.find((x) => x.id === id), det = dim.detalhes?.find((x) => x.viga === id), r = dim.vigas.find((x) => x.viga === id);
+  if (!v || !det || !r) return null;
+  try { return capacidadeViga(b, v, det, r); } catch { return null; }
+}
+
 function JanelaViga({ id }: { id: string }) {
-  const dim = useBuilding((s) => s.dim)!;
+  const dim = useBuilding((s) => s.dim)!, b = useBuilding((s) => s.sessao.modelo);
   const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const v = dim.vigas.find((x) => x.viga === id);
   if (!v) return <p className="muted">Viga sem resultado.</p>;
   if (aba === 'detalhamento') return <><AbasDetalhe aba={aba} onChange={setAba} /><DetalheDaViga id={id} /></>;
   const { pontos, determinantes: d } = v.envoltoria;
   const xs = pontos.map((p) => p.s), L = Math.max(v.L, xs.at(-1) ?? 0, 0.01);
+  const cap = capacidadeDaViga(b, id, dim);
   return (
     <>
       <AbasDetalhe aba={aba} onChange={setAba} />
       <p className="small">Envoltória das combinações ELU em todos os pavimentos do grupo, em faixas de 0,25 m. Momento positivo desenhado para baixo (lado tracionado); abscissa s ao longo do traçado.</p>
       {pontos.length === 0 ? <p className="muted">Sem envoltória (viga sem vãos dimensionados).</p> : (
         <>
-          <Diagrama id="M" titulo="Momento fletor Md" unid="kN·m" xs={xs} L={L} baixo cor="dg-m" series={[{ ys: pontos.map((p) => p.Mmax), rot: 'Mmax' }, { ys: pontos.map((p) => p.Mmin), rot: 'Mmin', alt: true }]} />
+          <Diagrama id="M" titulo="Momento fletor Md" unid="kN·m" xs={xs} L={L} baixo cor="dg-m" series={[{ ys: pontos.map((p) => p.Mmax), rot: 'Mmax' }, { ys: pontos.map((p) => p.Mmin), rot: 'Mmin', alt: true }]} curvas={cap ? [{ xs: cap.map((c) => c.s), ys: cap.map((c) => c.MRdPos), rot: 'MRd+' }, { xs: cap.map((c) => c.s), ys: cap.map((c) => -c.MRdNeg), rot: 'MRd−' }] : undefined} />
           <Diagrama id="V" titulo="Cortante Vd" unid="kN" xs={xs} L={L} cor="dg-v" series={[{ ys: pontos.map((p) => p.Vmax), rot: 'Vmax' }, { ys: pontos.map((p) => p.Vmin), rot: 'Vmin', alt: true }]} />
           <Diagrama id="T" titulo="Torção |Td|" unid="kN·m" xs={xs} L={L} cor="dg-t" series={[{ ys: pontos.map((p) => p.T), rot: 'T' }]} />
           <h4>Combinações determinantes</h4>
@@ -299,8 +316,8 @@ export function ApoioDoPilar({ id }: { id: string }) {
   return <p className="small" data-apoio={ap?.tipo ?? 'nenhum'}>Nasce em {nomePav} {onde}. {analise ? (lig ? 'Pé ligado ao apoio no modelo.' : 'Pé em apoio fixo provisório (o modelo não alcançou o apoio).') : ''}</p>;
 }
 
-function JanelaPilar({ id }: { id: string }) {
-  const dim = useBuilding((s) => s.dim)!;
+function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
+  const dim = useBuilding((s) => s.dim)!, b = useBuilding((s) => s.sessao.modelo);
   const [aba, setAba] = useState<'resultados' | 'detalhamento'>('resultados');
   const lances = dim.pilares.filter((x) => x.pilar === id);
   if (!lances.length) return <p className="muted">Pilar sem resultado.</p>;
@@ -309,6 +326,8 @@ function JanelaPilar({ id }: { id: string }) {
     <>
       <AbasDetalhe aba={aba} onChange={setAba} />
       <ApoioDoPilar id={id} />
+      <SituacaoPilares id={id} pavimentoNome={pavimento} />
+      {b.pilares.find((q) => q.id === id) && <DadosDoPilar b={b} p={b.pilares.find((q) => q.id === id)!} />}
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>
@@ -323,7 +342,7 @@ function JanelaPilar({ id }: { id: string }) {
           ) : <p className="muted small">Sem combinações determinantes registradas para este lance.</p>}
           <KV rows={[
             ['ℓe u / v (m)', `${fmt(x.le[0])} / ${fmt(x.le[1])}`], ['λ u / v', `${fmt(x.lambda[0], 0)} / ${fmt(x.lambda[1], 0)}`], ['Utilização', x.util >= 99 ? '> 1' : fmt(x.util)],
-            ['Vd (kN)', x.Vd === undefined ? '—' : fmt(x.Vd, 1)], ['Armadura', `${x.armadura} (As ${fmt(x.As * 1e4)} cm²)`], ['Estribo', x.estribo],
+            ['Vd (kN)', x.Vd === undefined ? '—' : fmt(x.Vd, 1)], ['Armadura', `${x.armadura} (As ${fmt(x.As * 1e4)} cm²)`], ['Taxa As/Ac (%)', ((t) => (t === null ? '—' : fmt(t)))(taxaDoPilar(b, x))], ['Estribo', x.estribo],
           ]} />
           <SegundaOrdemPilar x={x} />
           <Origens o={x.origens} />
@@ -399,7 +418,7 @@ export function JanelaElemento() {
   return (
     <Modal titulo={`Resultados do elemento — ${ehVF ? 'Viga de fundação' : ehSC ? 'Sapata corrida' : ehBE ? (b.fundacao?.radiers?.some((x) => x.id === j.id) ? 'Radier' : 'Viga sobre base elástica') : TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
       {!dim ? <p className="muted">Calcule o dimensionamento para ver os resultados do elemento.</p>
-        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehSC ? <JanelaCorrida id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
+        : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} pavimento={j.pavimento} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehSC ? <JanelaCorrida id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
     </Modal>
   );
 }

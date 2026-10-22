@@ -145,7 +145,7 @@ function Secao({ d, b, h, cob, phiT }: { d: DetalheViga; b: number; h: number; c
 // ---------------------------------------------------------------- edição fina do detalhamento (R7b)
 
 type LinhaBarra = { pos: string; s0: number; s1: number; g0: boolean; g1: boolean; perna: number };
-type LinhaZona = { zona: number; phi: number; s: number; ramos: number };
+type LinhaZona = { zona: number; phi: number; s: number; ramos: number; u: boolean };
 const arredM = (x: number) => Math.round(x * 100) / 100;
 
 /** Editor das posições das barras (extremos, ganchos, perna), das zonas de estribos e do fator de emenda; aplica `viga.detalhe`. */
@@ -153,7 +153,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
   const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
   const op = opcoesEmUso(b.opcoes, perfilDe(b));
   const barras0: LinhaBarra[] = d.barras.map((x) => ({ pos: x.pos, s0: arredM(x.s0), s1: arredM(x.s1), g0: x.ganchos[0], g1: x.ganchos[1], perna: x.perna ?? op.vigaPernaGancho }));
-  const zonas0: LinhaZona[] = d.estribos.map((z, i) => ({ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2 }));
+  const zonas0: LinhaZona[] = d.estribos.map((z, i) => ({ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2, u: !!z.u }));
   const [barras, setBarras] = useState(barras0), [zonas, setZonas] = useState(zonas0);
   const [fator, setFator] = useState(v.detalhe?.fatorEmenda ?? op.vigaFatorEmenda);
   const chave = JSON.stringify([barras0, zonas0]);
@@ -167,7 +167,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
   const aplicar = async () => {
     const params: Record<string, unknown> = { id: v.id };
     if (mudB.length) params.barras = mudB.map((x) => ({ pos: x.pos, s0: x.s0, s1: x.s1, ganchos: [x.g0, x.g1], perna: x.perna }));
-    if (mudZ.length) params.zonas = mudZ.map((x) => ({ zona: x.zona, phi: x.phi, s: x.s, ...(x.ramos !== 2 || d.estribos[x.zona]?.ramos ? { ramos: x.ramos } : {}) }));
+    if (mudZ.length) params.zonas = mudZ.map((x) => ({ zona: x.zona, phi: x.phi, s: x.s, ...(x.ramos !== 2 || d.estribos[x.zona]?.ramos ? { ramos: x.ramos } : {}), ...(x.u !== !!d.estribos[x.zona]?.u ? { u: x.u } : {}) }));
     if (fator !== fator0) params.fatorEmenda = fator;
     await executarERecalcular('viga.detalhe', params);
   };
@@ -195,7 +195,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
       </div>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-edicao-zonas>
-          <thead><tr><th>Zona</th><th>Trecho (m)</th><th>Bitola</th><th>Espaç. (cm)</th><th>Ramos</th></tr></thead>
+          <thead><tr><th>Zona</th><th>Trecho (m)</th><th>Bitola</th><th>Espaç. (cm)</th><th>Ramos</th><th>Em U</th></tr></thead>
           <tbody>
             {zonas.map((z) => (
               <tr key={z.zona} data-edicao-zona={z.zona}>
@@ -204,6 +204,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
                 <td><Select value={z.phi} options={BITOLAS_EST.map((p) => ({ v: p, label: phiTxt(p) }))} onChange={(q) => altZ(z.zona, { phi: q })} /></td>
                 <td><NumField label={`E${z.zona + 1} espaçamento`} width={90} value={Math.round(z.s * 1000) / 10} onChange={(q) => altZ(z.zona, { s: q / 100 })} /></td>
                 <td><Select value={z.ramos} options={[2, 4, 6].map((r) => ({ v: r, label: String(r) }))} onChange={(q) => altZ(z.zona, { ramos: q })} /></td>
+                <td><Check label="U" checked={z.u} onChange={(c) => altZ(z.zona, { u: c })} /></td>
               </tr>
             ))}
           </tbody>

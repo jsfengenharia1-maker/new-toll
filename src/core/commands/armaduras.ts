@@ -158,7 +158,7 @@ registrar<{ de?: string; modelo?: ModeloPortico; para: string[] }>({
   },
 });
 
-registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; ganchos?: [boolean, boolean]; perna?: number }[]; zonas?: { zona: number; phi?: number; s?: number; ramos?: number }[]; fatorEmenda?: number; remover?: boolean }>({
+registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; ganchos?: [boolean, boolean]; perna?: number }[]; zonas?: { zona: number; phi?: number; s?: number; ramos?: number; u?: boolean }[]; fatorEmenda?: number; remover?: boolean }>({
   nome: 'viga.detalhe',
   descricao: 'Edita o detalhamento de uma viga (R7b): por posição de barra (N1, N2, …) os extremos `s0`/`s1` ao longo do traçado (m), os `ganchos` de 90° nas pontas e a `perna` reta (× φ); por zona de estribos (índice 0, 1, …) bitola `phi`, espaçamento `s` (m) e `ramos`; e o `fatorEmenda` do comprimento de traspasse. O recálculo aplica as edições e verifica a cobertura da armadura necessária, os estribos e a barra máxima (DETALHE_INSUF); vale enquanto o número de vãos não muda. `remover: true` volta ao detalhamento calculado.',
   risco: 'escrita',
@@ -171,7 +171,7 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
       ganchos: { type: 'array', items: { type: 'boolean' }, minItems: 2, maxItems: 2 }, perna: { type: 'number', minimum: 8, maximum: 20 },
     } } },
     zonas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['zona'], properties: {
-      zona: { type: 'integer', minimum: 0, maximum: 60 }, phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5 }, ramos: { type: 'integer', enum: [2, 4, 6] },
+      zona: { type: 'integer', minimum: 0, maximum: 60 }, phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5 }, ramos: { type: 'integer', enum: [2, 4, 6] }, u: { type: 'boolean', description: 'estribo em U (aberto no topo) nesta zona' },
     } } },
     fatorEmenda: { type: 'number', minimum: 0.5, maximum: 2 },
     remover: { type: 'boolean' },

@@ -14,6 +14,7 @@ import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, contornoNoLance } from '../building/types';
 import { areaPoligono } from '../geom/faces';
 import { pontoInterno } from '../geom/faces';
+import { marcasPontoFixo, primitivasMascara } from './gabarito';
 import { caixa, type P, type Prancha, type Prim } from './prancha';
 import { Posicoes, acoDaFolha, cfgArmacao, cmInt, montarFolha, nf, notas, perdasDe, phiTxt, plantaNaFolha, qtd, resumoAco, tabelaAco, type BlocoTabela } from './armacao';
 import { acharGrupo, gruposOrdenados, type OpcoesArmacao } from './armacaoVigas';
@@ -61,6 +62,8 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     });
     for (const v of vigas) { const gv = geometriaViga(v); fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: [...gv.esq, ...[...gv.dir].reverse()], fechada: true }); }
     for (const p of pilares) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: contornoNoLance(p, ref!.id), fechada: true });
+    if (cfg.mascara) fundo.unshift(...primitivasMascara(b, g));
+    if (cfg.pontoFixo) fundo.push(...marcasPontoFixo(pilares, k));
     // concreto e forma das lajes do grupo (todas as repetições)
     let concreto = 0, forma = 0;
     for (const l of lajes) {
