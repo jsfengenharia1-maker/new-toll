@@ -89,6 +89,12 @@ export interface DadosParedeCorrida {
   M: number; H: number; eM: number;
   /** Deslizamento: μ, N (kN/m), H (kN/m) e FS = μ·N/H na combinação mais desfavorável; ausente sem cortante. */
   deslizamento?: { mu: number; N: number; H: number; FS: number; FSmin: number; ok: boolean; comb: string };
+  /** Topo da parede travado por laje (ou diafragma): o deslizamento é verificado no conjunto das sapatas de paredes travadas, com a força horizontal líquida (soma vetorial das reações da base). */
+  travada?: boolean;
+  /** Conjunto travado (só com `travada`): nº de sapatas, força horizontal líquida (kN), carga vertical total (kN) e FS do conjunto; `isolado` = FS da sapata sozinha (sem a ajuda das outras paredes). */
+  conjunto?: { n: number; Hliq: number; N: number; FS: number; isolado: number };
+  /** Forças da base por combinação rara (kN, globais): horizontal (Hx, Hy), vertical com o peso da sapata e a resistência μ·N. Entrada do conjunto travado. */
+  forcas?: { comb: string; Hx: number; Hy: number; N: number; muN: number }[];
   /** Pilares que nascem na fundação sobre o eixo (suas reações entram espalhadas pela sapata isolada equivalente). */
   pilares: string[];
   /** Sapata isolada equivalente de cada pilar (pilar + trecho da parede, C5.28): carga rara máxima do pilar (kN), lado a × a (m) e se a largura B da sapata corrida já cobre o lado. */
@@ -260,6 +266,44 @@ const somaNoTrecho = (arr: number[], wj: number, lo: number, hi: number) => arr.
 
 // ---------------- sapata corrida sob parede ----------------
 
+/** Distância (m) de um ponto ao segmento ab. */
+function distSeg(p: P, a: P, b2: P): number {
+  const dx = b2[0] - a[0], dy = b2[1] - a[1], l2 = dx * dx + dy * dy;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+
+/**
+ * O topo da parede é travado por laje? Pelo menos metade dos pontos amostrados do eixo (a cada ~0,5 m) está dentro do contorno
+ * de uma laje do pavimento em que a parede morre, ou a até bw/2 + 5 cm da borda dela. Parede cujo topo fica livre (sem laje)
+ * é um balanço: a reação da base é o empuxo inteiro.
+ */
+export function topoTravado(b: BuildingModel, w: { pontos: P[]; morre: string }, bw: number): boolean {
+  const pav = b.pavimentos.find((p) => p.id === w.morre);
+  if (!pav) return false;
+  const lajes = b.lajes.filter((l) => l.grupo === pav.grupo);
+  if (!lajes.length) return false;
+  const amostras: P[] = [];
+  for (let i = 0; i + 1 < w.pontos.length; i++) {
+    const a = w.pontos[i], z = w.pontos[i + 1], n = Math.max(1, Math.ceil(Math.hypot(z[0] - a[0], z[1] - a[1]) / 0.5));
+    for (let k = 0; k <= n; k++) amostras.push([a[0] + ((z[0] - a[0]) * k) / n, a[1] + ((z[1] - a[1]) * k) / n]);
+  }
+  const tol = bw / 2 + 0.05;
+  const na = amostras.filter((q) => lajes.some((l) => dentroPoligono(q, l.contorno) || l.contorno.some((v, i) => distSeg(q, v, l.contorno[(i + 1) % l.contorno.length]) <= tol)));
+  return na.length >= amostras.length / 2;
+}
+
+/** Normal à polilinha (à esquerda do sentido do traçado) na abscissa s (m) ao longo do eixo. */
+function normalNaAbscissa(pts: P[], s: number): P {
+  let acc = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    if (s <= acc + l + 1e-9 || i + 2 === pts.length) return l > 0 ? [-(pts[i + 1][1] - pts[i][1]) / l, (pts[i + 1][0] - pts[i][0]) / l] : [0, 1];
+    acc += l;
+  }
+  return [0, 1];
+}
+
 /** Carga por janela (kN/m) de uma combinação, somando os casos pelos fatores. */
 const soma0 = (mp: Map<string, number[]>, cb: CombinacaoEd, nJan: number) => Array.from({ length: nJan }, (_, j) => [...mp].reduce((t, [k, arr]) => t + (cb.fatores[k] ?? 0) * arr[j], 0));
 
@@ -425,6 +469,7 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
   let eMnet = 0;
   if (w) {
     const mu = c.atrito ?? op.fundCorridaAtrito, fsMin = op.fundCorridaFSDesliz;
+    const travada = !!op.fundCorridaDeslizGrupo && topoTravado(b, { pontos: c.pontos, morre: w.morre }, c.bw);
     let desliz: DadosParedeCorrida['deslizamento'];
     let Mmax = 0, Hmax = 0;
     for (const x of cargas) {
@@ -436,8 +481,18 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
         if (!desliz || FS < desliz.FS) desliz = { mu, N, H: Math.abs(x.h), FS, FSmin: fsMin, ok: FS >= fsMin - 1e-9, comb: x.cb.nome };
       }
     }
-    if (desliz && !desliz.ok && op.fundCorridaDeslizamento) msgs.push(`Sapata corrida ${c.nome}: deslizamento na base, FS = ${fmt(desliz.FS)} < ${fmt(fsMin)} (μ = ${fmt(mu)}, H = ${fmt(desliz.H, 1)} kN/m, N = ${fmt(desliz.N, 1)} kN/m em ${desliz.comb}); aumente a largura ou o atrito, ou confirme o travamento da base por laje ou viga.`);
-    dadosParede = { id: w.id, nome: w.nome, virtual: !!c.virtual, origem: cx.an && !cx.an.erro && cx.an.portico.res ? 'reacoes' : 'lancadas', M: Mmax, H: Hmax, eM: eMnet, ...(desliz ? { deslizamento: desliz } : {}), pilares: pilaresEixo, ...(pilaresEq.length ? { pilaresEq: pilaresEq.map((x) => ({ ...x, rege: B >= x.a - 1e-9 })) } : {}) };
+    // topo travado: a força horizontal que vai ao solo é a soma vetorial das reações horizontais da base (kN, eixos globais) de todas as
+    // sapatas de paredes travadas, contra μ·N do conjunto (feito em calcularCorridas); aqui só as forças por combinação rara
+    let forcas: DadosParedeCorrida['forcas'];
+    if (travada) {
+      forcas = cx.raras.map((cb) => {
+        const hs = soma(hor, cb), qs = soma(cj.casos, cb);
+        let Hx = 0, Hy = 0, N = W * L;
+        hs.forEach((h, j) => { const nv = normalNaAbscissa(c.pontos, (j + 0.5) * cj.wj); Hx += h * cj.wj * nv[0]; Hy += h * cj.wj * nv[1]; N += qs[j] * cj.wj; });
+        return { comb: cb.nome, Hx, Hy, N, muN: mu * N };
+      });
+    } else if (desliz && !desliz.ok && op.fundCorridaDeslizamento) msgs.push(`Sapata corrida ${c.nome}: deslizamento na base, FS = ${fmt(desliz.FS)} < ${fmt(fsMin)} (μ = ${fmt(mu)}, H = ${fmt(desliz.H, 1)} kN/m, N = ${fmt(desliz.N, 1)} kN/m em ${desliz.comb}); topo livre (balanço) ou conjunto travado desligado: o empuxo da própria parede vai ao solo; aumente a largura ou o atrito.`);
+    dadosParede = { id: w.id, nome: w.nome, virtual: !!c.virtual, origem: cx.an && !cx.an.erro && cx.an.portico.res ? 'reacoes' : 'lancadas', M: Mmax, H: Hmax, eM: eMnet, ...(desliz ? { deslizamento: desliz } : {}), ...(travada ? { travada: true, forcas } : {}), pilares: pilaresEixo, ...(pilaresEq.length ? { pilaresEq: pilaresEq.map((x) => ({ ...x, rege: B >= x.a - 1e-9 })) } : {}) };
     notas.push(`Base da parede ${w.nome}${c.virtual ? ' (sapata derivada de Parede.base; edite com parede.sapata)' : ''}: ${dadosParede.origem === 'reacoes' ? 'cargas das reações da análise' : 'só as cargas lançadas'}; momento fora do plano até ${fmt(Mmax, 1)} kN·m/m (e = ${fmt(eMnet)} m) e cortante normal até ${fmt(Hmax, 1)} kN/m nas combinações raras${pilaresEixo.length ? `; pilar(es) sobre o eixo: ${pilaresEixo.join(', ')}` : ''}.`);
   }
   const tr = flexaoTransversal({ B, bw: c.bw, aba: c.aba, equilibrio: eqEf, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd, ...(eMnet > 1e-9 ? { eExtra: eMnet } : {}) }, P, op, msgs, c.nome);
@@ -538,7 +593,43 @@ export function calcularCorridas(b: BuildingModel, an: AnaliseEdificio | null): 
   const raras = combinacoesDoEstado(b, base, 'solo').filter((x) => x.tipo === 'RARA');
   const ventos = new Set([...(vento?.casos ?? []).map((c) => c.nome), ...casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.id)]);
   const cx: Contexto = { b, an, op, P0: parametrosFundacao(b), zt: cotaTerreno(b), raras, ventos, fv: b.fundacao?.terreno.fatorVento ?? 1 };
-  return cs.map((c) => (!c.orfa && pilaresDaCorrida(b, c).length ? calcularSobPilares(cx, c) : calcularParede(cx, c)));
+  const res = cs.map((c) => (!c.orfa && pilaresDaCorrida(b, c).length ? calcularSobPilares(cx, c) : calcularParede(cx, c)));
+  deslizamentoDoConjunto(res, op);
+  return res;
+}
+
+/**
+ * Deslizamento das sapatas de paredes de topo travado (FU7b): a laje (diafragma) leva o empuxo de um lado ao outro, então o que o
+ * solo recebe é a soma vetorial das reações horizontais da base de todas as paredes travadas (empuxos opostos se anulam), contra
+ * a soma de μ·(N + peso da sapata): FS = Σ μ·N / |ΣH| na pior combinação rara. Pilares e outras fundações não entram (a confirmar).
+ */
+function deslizamentoDoConjunto(res: ResultadoCorrida[], op: OpcoesCalculo) {
+  const grupo = res.filter((r) => r.parede?.travada && r.parede.forcas?.length);
+  if (!grupo.length) return;
+  const fsMin = op.fundCorridaFSDesliz, Ltot = grupo.reduce((t, r) => t + r.L, 0);
+  const porComb = new Map<string, { Hx: number; Hy: number; N: number; muN: number }>();
+  for (const r of grupo) for (const f of r.parede!.forcas!) {
+    const a = porComb.get(f.comb) ?? { Hx: 0, Hy: 0, N: 0, muN: 0 };
+    a.Hx += f.Hx; a.Hy += f.Hy; a.N += f.N; a.muN += f.muN; porComb.set(f.comb, a);
+  }
+  let pior: { comb: string; Hliq: number; N: number; FS: number } | null = null;
+  for (const [comb, a] of porComb) {
+    const Hliq = Math.hypot(a.Hx, a.Hy);
+    if (Hliq < 1e-6) continue;
+    const FS = Math.min(99, a.muN / Hliq);
+    if (!pior || FS < pior.FS) pior = { comb, Hliq, N: a.N, FS };
+  }
+  if (!pior) return;
+  for (const r of grupo) {
+    const d = r.parede!;
+    const iso = d.deslizamento?.FS ?? 99, ok = pior.FS >= fsMin - 1e-9;
+    d.deslizamento = { mu: d.deslizamento?.mu ?? op.fundCorridaAtrito, N: pior.N / Ltot, H: pior.Hliq / Ltot, FS: pior.FS, FSmin: fsMin, ok, comb: pior.comb };
+    d.conjunto = { n: grupo.length, Hliq: pior.Hliq, N: pior.N, FS: pior.FS, isolado: iso };
+    if (!ok && op.fundCorridaDeslizamento) {
+      r.mensagens.push(`Sapata corrida ${r.nome}: deslizamento do conjunto de ${grupo.length} sapata(s) de paredes travadas, FS = ${fmt(pior.FS)} < ${fmt(fsMin)} (H líquida = ${fmt(pior.Hliq, 1)} kN, N = ${fmt(pior.N, 1)} kN em ${pior.comb}; isolada, FS = ${fmt(iso)}); aumente a largura ou o atrito, ou trave a base com vigas de fundação.`);
+      r.status = 'fail';
+    }
+  }
 }
 
 /** Resumo para o MCP e a linha de comando (sem o contorno nem os nós). */

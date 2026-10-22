@@ -169,7 +169,8 @@ function pontoApoio(trechos: TrechoViga[], nos: NoPlanta[], pil: Pilar, sec: Sec
     const a = nos[t.a].p, z = nos[t.z].p, dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy;
     const u = Math.max(0, Math.min(1, ((c[0] - a[0]) * dx + (c[1] - a[1]) * dy) / L2));
     const q: P = [a[0] + u * dx, a[1] + u * dy];
-    if (dentroPoligono(q, cont) || Math.hypot(q[0] - c[0], q[1] - c[1]) < 1e-6) out.push(q);
+    // o contorno do pilar conta como dentro (tolerância de 1 µm): nó da malha exatamente na face não pode depender do lado (a regra par-ímpar sozinha é assimétrica)
+    if (dentroPoligono(q, cont) || Math.hypot(q[0] - c[0], q[1] - c[1]) < 1e-6 || distPoligono(q, cont) < 1e-6) out.push(q);
   }
   return out;
 }

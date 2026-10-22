@@ -98,6 +98,60 @@ describe('punção: geometria dos contornos críticos (cálculo manual)', () => 
   });
 });
 
+describe('punção: Wp de borda e canto contra a definição (19.5.2.2) e a fórmula fechada da NBR 6118 (19.5.2.3)', () => {
+  // Integração independente da biblioteca: amostra o contorno u* (pontos a cada ≤ 0,1 mm) e soma ∫|e| dℓ em torno do centroide.
+  type Trecho = { n: number; f: (t: number) => P }; // t ∈ [0, 1]
+  const reta = (a: P, z: P): Trecho => ({ n: Math.hypot(z[0] - a[0], z[1] - a[1]), f: (t) => [a[0] + (z[0] - a[0]) * t, a[1] + (z[1] - a[1]) * t] });
+  const arco = (c: P, r: number, a0: number, a1: number): Trecho => ({ n: r * Math.abs(a1 - a0), f: (t) => [c[0] + r * Math.cos(a0 + (a1 - a0) * t), c[1] + r * Math.sin(a0 + (a1 - a0) * t)] });
+  function integrar(trechos: Trecho[]) {
+    const pts: { p: P; dl: number }[] = [];
+    for (const t of trechos) { const m = Math.max(10, Math.ceil(t.n / 1e-4)); for (let k = 0; k < m; k++) pts.push({ p: t.f((k + 0.5) / m), dl: t.n / m }); }
+    const u = pts.reduce((s, q) => s + q.dl, 0), cx = pts.reduce((s, q) => s + q.p[0] * q.dl, 0) / u, cy = pts.reduce((s, q) => s + q.p[1] * q.dl, 0) / u;
+    return { u, cx, cy, Wx: pts.reduce((s, q) => s + Math.abs(q.p[0] - cx) * q.dl, 0), Wy: pts.reduce((s, q) => s + Math.abs(q.p[1] - cy) * q.dl, 0) };
+  }
+  const d = 0.2, C1 = 0.4, C2 = 0.4;
+  // fórmula fechada da NBR para o pilar de borda (C1 perpendicular à borda, C2 paralela): ∫|y| do contorno u* em torno do eixo do pilar
+  const WpNBRborda = (C2 * C2) / 4 + C1 * C2 + 4 * C1 * d + 8 * d * d + Math.PI * d * C2;
+
+  it('borda 40×40, d = 20 cm: integral independente = biblioteca; paralela à borda = fórmula da NBR; perpendicular = 0,516 da fórmula (razão gravada)', () => {
+    // pilar em x ∈ [0; 0,4], y ∈ [−0,2; 0,2], borda livre em x = 0; contorno a 2d = 0,4 das faces
+    const ind = integrar([
+      reta([0, 0.6], [0.4, 0.6]), arco([0.4, 0.2], 0.4, Math.PI / 2, 0), reta([0.8, 0.2], [0.8, -0.2]), arco([0.4, -0.2], 0.4, 0, -Math.PI / 2), reta([0.4, -0.6], [0, -0.6]),
+    ]);
+    const reg: Regiao = { poligonos: [quad(0, -20, 20, 20)], furos: [] };
+    const pr = propriedadesContorno(recortar(curvaAfastada(pilar(0.4, 0.4, [0.2, 0]), 2 * d), reg), 0);
+    expect(pr.u).toBeCloseTo(ind.u, 3);
+    expect(pr.centroide[0]).toBeCloseTo(ind.cx, 3);
+    expect(pr.Wp[0]).toBeCloseTo(ind.Wx, 3);
+    expect(pr.Wp[1]).toBeCloseTo(ind.Wy, 3);
+    // paralela à borda (∫|y|): coincide com a fórmula fechada (1,0913 m²)
+    expect(WpNBRborda).toBeCloseTo(1.0913, 4);
+    expect(pr.Wp[1] / WpNBRborda).toBeCloseTo(1, 3);
+    // perpendicular à borda (∫|x − x̄| em torno do centroide, 0,5627 m²): 51,6 % da fórmula fechada. O app usa a definição de 19.5.2.2
+    // (critério), que é o que a norma manda para o momento no plano perpendicular à borda; a fórmula fechada só vale para ∫|y|.
+    // Conservador (Wp menor, τ maior). "A confirmar": texto do item 19.5.2.3 em docs/pendencias-usuario.md.
+    expect(pr.Wp[0]).toBeCloseTo(0.5627, 3);
+    expect(pr.Wp[0] / WpNBRborda).toBeCloseTo(0.5156, 3);
+  });
+
+  it('canto 40×40, d = 20 cm: integral independente = biblioteca nas duas direções; razões à fórmula fechada da borda gravadas', () => {
+    // pilar em [0; 0,4]², bordas livres em x = 0 e y = 0; contorno a 0,4 das faces com quarto de círculo no canto externo
+    const ind = integrar([reta([0, 0.8], [0.4, 0.8]), arco([0.4, 0.4], 0.4, Math.PI / 2, 0), reta([0.8, 0.4], [0.8, 0])]);
+    const reg: Regiao = { poligonos: [quad(0, 0, 20, 20)], furos: [] };
+    const pr = propriedadesContorno(recortar(curvaAfastada(pilar(0.4, 0.4, [0.2, 0.2]), 2 * d), reg), 0);
+    expect(pr.u).toBeCloseTo(ind.u, 3);
+    expect(pr.centroide[0]).toBeCloseTo(ind.cx, 3);
+    expect(pr.Wp[0]).toBeCloseTo(ind.Wx, 3);
+    expect(pr.Wp[1]).toBeCloseTo(ind.Wy, 3);
+    expect(pr.Wp[0]).toBeCloseTo(pr.Wp[1], 6); // simetria
+    // 0,3231 m² = 29,6 % do Wp fechado do pilar de borda (mesmo C1, C2, d): contorno menor (u* = 1,428 m) e centroide a 0,568 m das duas bordas.
+    // Mesmo critério da borda (definição 19.5.2.2); a norma não traz fórmula fechada de canto neste teste: pendência do usuário.
+    expect(pr.Wp[0]).toBeCloseTo(0.3231, 3);
+    expect(pr.Wp[0] / WpNBRborda).toBeCloseTo(0.2961, 3);
+  });
+});
+
+
 describe('punção: tensões e resistências (cálculo manual)', () => {
   it('K da Tabela 19.2 e as regras de borda e canto', () => {
     expect(coefK(0.5)).toBeCloseTo(0.45, 9);

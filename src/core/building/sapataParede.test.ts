@@ -121,7 +121,7 @@ describe('sapata corrida de parede: cargas por metro das reações da base', () 
 });
 
 /** Duas paredes de 12 m frente a frente (y = 0 e y = 6), da fundação ao Tipo 1, terreno por fora (K0 = 0,5, γ 18, aterro em +3) e laje no Tipo 1. */
-function caixa(base: Record<string, unknown> = { tipo: 'sapataCorrida' }) {
+function caixa(base: Record<string, unknown> = { tipo: 'sapataCorrida' }, laje = true, soUma = false) {
   const s = padrao();
   ok(s, 'fundacao.terreno', { sigmaAdm: 200 });
   ok(s, 'empuxo.tipo', { nome: 'Aterro', metodo: 'repouso', estratos: [{ espessura: 20, gama: 18, phi: 30 }], cotaAterro: 3 });
@@ -129,11 +129,11 @@ function caixa(base: Record<string, unknown> = { tipo: 'sapataCorrida' }) {
   const caso = s.modelo.casos!.find((c) => c.nome === 'Empuxo')!.id, t1 = nomePav(s.modelo, 'Tipo 1');
   const g = s.modelo.pavimentos.find((p) => p.id === t1)!.grupo;
   ok(s, 'parede.criar', { pontos: [[0, 0], [12, 0]], espessura: 0.2, morre: t1, base });
-  ok(s, 'parede.criar', { pontos: [[0, 6], [12, 6]], espessura: 0.2, morre: t1, base });
+  if (!soUma) ok(s, 'parede.criar', { pontos: [[0, 6], [12, 6]], espessura: 0.2, morre: t1, base });
   const [a, z] = s.modelo.paredes!;
   ok(s, 'parede.empuxo', { parede: a.id, empuxos: [{ caso, lado: 'dir' }] }); // terreno em y < 0
-  ok(s, 'parede.empuxo', { parede: z.id, empuxos: [{ caso, lado: 'esq' }] }); // terreno em y > 6
-  ok(s, 'laje.criar', { grupo: g, contorno: [[0, 0], [12, 0], [12, 6], [0, 6]] });
+  if (z) ok(s, 'parede.empuxo', { parede: z.id, empuxos: [{ caso, lado: 'esq' }] }); // terreno em y > 6
+  if (laje) ok(s, 'laje.criar', { grupo: g, contorno: [[0, 0], [12, 0], [12, 6], [0, 6]] });
   return { s, caso };
 }
 
@@ -162,8 +162,73 @@ describe('sapata corrida de muro de subsolo: momento e cortante do empuxo na bas
     expect(d.FSmin).toBe(1.5);
   });
 
-  it('atrito baixo reprova o deslizamento (FUND_CORRIDA_DESLIZA, erro); atrito próprio da sapata vale sobre a opção', () => {
+  it('subsolo travado pela laje: a reação da base de cada parede vale 0,7–0,8 do empuxo, mas as duas se anulam pela laje e o conjunto passa', () => {
     const { s } = caixa();
+    const b = s.modelo, an = analisarEdificio(b), rs = calcularCorridas(b, an);
+    expect(rs).toHaveLength(2);
+    for (const r of rs) {
+      // a força que o algoritmo usa por parede é a reação horizontal da análise (não o empuxo total q0·H/2 = 72 kN/m)
+      expect(r.parede!.travada).toBe(true);
+      expect(r.parede!.H / 72).toBeGreaterThan(0.69);
+      expect(r.parede!.H / 72).toBeLessThan(0.81);
+      const f = r.parede!.forcas!.find((x) => x.comb === 'Rara · Q principal')!;
+      expect(Math.abs(f.Hy) / 12 / 72).toBeGreaterThan(0.69); // kN ao longo dos 12 m / 72 kN/m
+      expect(Math.abs(f.Hy) / 12 / 72).toBeLessThan(0.81);
+      // cada sapata sozinha reprovaria (FS ≈ 0,42), mas a reação de uma parede é a oposta da outra
+      expect(r.parede!.conjunto!.isolado).toBeLessThan(0.5);
+      expect(r.parede!.conjunto!.n).toBe(2);
+      expect(r.parede!.deslizamento!.FS).toBeGreaterThan(1.5);
+      expect(r.parede!.deslizamento!.ok).toBe(true);
+      expect(r.mensagens.some((m) => /deslizamento/.test(m))).toBe(false);
+      expect(r.status).toBe('ok');
+    }
+    // sinais opostos e soma líquida pequena (só o vento) contra a reação de cada uma
+    const hy = (i: number) => rs[i].parede!.forcas!.find((x) => x.comb === 'Rara · Q principal')!.Hy;
+    expect(hy(0) * hy(1)).toBeLessThan(0);
+    expect(Math.abs(hy(0) + hy(1)) / Math.abs(hy(0))).toBeLessThan(1e-6);
+    // sem o conjunto (opção 0), volta a verificar cada uma com a própria reação e reprova
+    ok(s, 'opcoes.definir', { valores: { fundCorridaDeslizGrupo: 0 } });
+    const r0 = calcularCorridas(s.modelo, an)[0];
+    expect(r0.parede!.travada).toBeUndefined();
+    expect(r0.parede!.deslizamento!.FS).toBeCloseTo(0.42, 2);
+    expect(r0.status).toBe('fail');
+    expect(classificar(r0.mensagens.find((t) => /deslizamento/.test(t))!).codigo).toBe('FUND_CORRIDA_DESLIZA');
+  });
+
+  it('travado por laje mas com uma parede só (terreno de um lado): o solo recebe a reação da base inteira e o deslizamento reprova', () => {
+    const { s } = caixa({ tipo: 'sapataCorrida' }, true, true);
+    const b = s.modelo, r = calcularCorridas(b, analisarEdificio(b))[0];
+    expect(r.parede!.travada).toBe(true);
+    expect(r.parede!.conjunto!.n).toBe(1);
+    // FS do conjunto = μ·N/H médio ao longo dos 12 m (o isolado usa a janela de pico, até 3 % de oscilação dos nós): 0,76–0,84 < 1,5
+    expect(r.parede!.deslizamento!.FS).toBeGreaterThanOrEqual(r.parede!.conjunto!.isolado - 1e-9);
+    expect(r.parede!.deslizamento!.FS / r.parede!.conjunto!.isolado).toBeLessThan(1.15);
+    expect(r.parede!.deslizamento!.FS).toBeLessThan(1);
+    expect(r.parede!.conjunto!.Hliq / 12 / 72).toBeGreaterThan(0.69);
+    expect(r.status).toBe('fail');
+  });
+
+  it('muro em balanço (sem laje no topo): a reação da base é o empuxo inteiro q0·H/2 = 72 kN/m e é ele que se verifica', () => {
+    const { s } = caixa({ tipo: 'sapataCorrida' }, false);
+    const b = s.modelo, an = analisarEdificio(b);
+    expect(an.erro).toBeUndefined();
+    const rs = calcularCorridas(b, an);
+    for (const r of rs) {
+      expect(r.parede!.travada).toBeUndefined();
+      expect(r.parede!.conjunto).toBeUndefined();
+      // q0 = K0·γ·H = 0,5·18·4 = 36 kN/m²; R = q0·H/2 = 72 kN/m (engastado na base, topo livre)
+      expect(r.parede!.deslizamento!.H / 72).toBeGreaterThan(0.97);
+      expect(r.parede!.deslizamento!.H / 72).toBeLessThan(1.04); // janela de pico (oscilação dos nós da casca ≤ 3 %)
+      expect(r.parede!.deslizamento!.FS).toBeCloseTo((0.4 * r.parede!.deslizamento!.N) / r.parede!.deslizamento!.H, 9);
+      expect(r.status).toBe('fail');
+      expect(classificar(r.mensagens.find((t) => /deslizamento/.test(t))!).codigo).toBe('FUND_CORRIDA_DESLIZA');
+    }
+  });
+
+  it('atrito baixo reprova o deslizamento (FUND_CORRIDA_DESLIZA, erro); atrito próprio da sapata vale sobre a opção', () => {
+    // cada sapata sozinha (conjunto travado desligado)
+    const { s } = caixa();
+    ok(s, 'opcoes.definir', { valores: { fundCorridaDeslizGrupo: 0 } });
     const w = s.modelo.paredes![0];
     ok(s, 'parede.sapata', { parede: w.id, atrito: 0.1 });
     const b = s.modelo, an = analisarEdificio(b);

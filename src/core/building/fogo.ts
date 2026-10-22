@@ -189,6 +189,7 @@ export function fogoPilar(e: EntradaPilar): AvaliacaoFogo {
   if (c1 < 25 - 1e-9 || c1 > 80 + 1e-9) fora.push(`c1 ${f1(c1)} mm fora de 25 a 80 mm`);
   if (bL < 190 - 1e-9) fora.push(`b′ ${f0(bL)} mm < 190 mm`);
   if (e.e !== null && e.e > 0.15 * bMin + 1e-9) fora.push(`e ${f1(e.e)} mm > 0,15·b = ${f1(0.15 * bMin)} mm`);
+  if (e.e === null) fora.push('e ≤ 0,15·b não verificada: todas as combinações determinantes levam vento, que a NBR 15200 manda desprezar na excentricidade (avalie a combinação sem vento)');
   if (e.lef > 6 + 1e-9) fora.push(`ℓef,fi ${f1(e.lef)} m > 6 m`);
   const ok = trf >= e.trrf, erros: string[] = [], avisos: string[] = [];
   const exigido = `TRF ≥ ${f0(e.trrf)} min`, adotado = `${adot}; ${e.n} barras, ℓef,fi ${f1(e.lef)} m, μfi ${f1(e.muFi)}, b′ ${f0(bL)} mm, ${e.e === null ? 'e não avaliada (combinações determinantes com vento)' : `e ${f1(e.e)} mm`}`;
