@@ -3461,6 +3461,88 @@ export const flows = [
     },
   },
   {
+    name: 'E1c: paredes de concreto (traçar na planta, abertura, empuxo de terra, fora do diafragma, janela com empuxo)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await cmd('empuxo.tipo {"nome": "Aterro", "metodo": "repouso", "estratos": [{"espessura": 20, "gama": 18, "phi": 30}], "cotaAterro": 3}');
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.empuxos?.length > 0, null, { timeout: 20000 });
+      const idEmp = await page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.empuxos[0].id);
+      await cmd('caso.criar {"nome": "Empuxo", "natureza": "H", "empuxo": "' + idEmp + '"}');
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.casos?.some((c) => c.nome === 'Empuxo'), null, { timeout: 20000 });
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      // grupo Paredes: espessura 20 cm, morre no Tipo 3; traça as duas paredes na planta
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes/ }) });
+      await gp.locator(':scope > summary').click();
+      await gp.getByLabel('Espessura').first().fill('20');
+      await gp.getByLabel('Morre em').selectOption({ label: 'Tipo 3' });
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await page.locator('.planta-st').click();
+      await reenquadrarAte(page, [[0, 0], [12, 0], [12, 6], [0, 6]]);
+      await gp.getByRole('button', { name: 'Traçar na planta' }).click();
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 12, 0)));
+      await page.keyboard.press('Enter');
+      await gp.getByRole('button', { name: 'Traçar na planta' }).click();
+      await page.mouse.click(...(await telaDe(page, 0, 6)));
+      await page.mouse.click(...(await telaDe(page, 12, 6)));
+      await page.keyboard.press('Enter');
+      await gp.locator('table[data-pw-lista] tbody tr').nth(1).waitFor({ timeout: 20000 });
+      assert.equal(await gp.locator('table[data-pw-lista] tbody tr').count(), 2);
+      assert.match(await gp.locator('table[data-pw-lista]').innerText(), /M1[\s\S]*M2/);
+      // M1: abertura de janela na base do Térreo
+      await gp.getByRole('button', { name: 'Selecionar M1' }).click();
+      const ed = gp.locator('[data-pw-editor]');
+      const campo = (t) => ed.locator('label.field', { has: page.locator('.flabel', { hasText: new RegExp('^' + t + '$') }) }).locator('input');
+      await ed.getByRole('radio', { name: 'janela' }).click();
+      await campo('s').fill('400');
+      await campo('Largura').fill('200');
+      await campo('Peitoril').fill('50');
+      await campo('Altura').fill('200');
+      await ed.getByLabel('Pavimento da abertura').selectOption({ label: 'Térreo' });
+      await ed.getByRole('button', { name: 'Acrescentar abertura' }).click();
+      await gp.locator('table[data-pw-aberturas] tbody tr').waitFor({ timeout: 20000 });
+      assert.equal(await gp.locator('table[data-pw-aberturas] tbody tr').count(), 1);
+      // empuxo: M1 com o terreno à direita; M2 com o terreno à esquerda
+      await ed.getByLabel('Caso do empuxo').selectOption({ label: 'Empuxo' });
+      await ed.getByRole('radio', { name: 'terreno à direita' }).click();
+      await ed.getByRole('button', { name: 'Aplicar empuxo' }).click();
+      await gp.getByRole('button', { name: 'Selecionar M2' }).click();
+      await ed.getByLabel('Caso do empuxo').selectOption({ label: 'Empuxo' });
+      await ed.getByRole('radio', { name: 'terreno à esquerda' }).click();
+      await ed.getByRole('button', { name: 'Aplicar empuxo' }).click();
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.every((w) => w.empuxos?.length === 1), null, { timeout: 20000 });
+      const linhas = gp.locator('table[data-pw-lista] tbody tr');
+      assert.match(await linhas.nth(0).innerText(), /sim/);
+      assert.match(await linhas.nth(1).innerText(), /sim/);
+      // verificação: a parede chega ao Tipo 3 e não há sobreposição nem abertura inválida
+      await page.locator('.edif-tabs').getByRole('tab', { name: /^Verificação/ }).click();
+      const out = await page.locator('.edif-out').innerText();
+      // a tela mostra a mensagem (não o código): fora do diafragma no Térreo; sem sobreposição nem abertura inválida
+      assert.match(out, /não toca laje em Térreo: fora do diafragma rígido/);
+      assert.doesNotMatch(out, /sobreposta|abertura/i);
+      // calcula e dimensiona
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      await livre();
+      const cartao = page.locator('[data-pw-cartao]');
+      await cartao.waitFor({ timeout: 30000 });
+      assert.match(await cartao.innerText(), /M1/);
+      assert.match(await cartao.innerText(), /M2/);
+      // janela de M1: resultante do empuxo (Fy = 810 kN)
+      await cartao.getByRole('button', { name: 'Resultados de M1' }).click();
+      const jp = page.getByRole('dialog', { name: /M1/ });
+      await jp.waitFor();
+      const texto = await jp.locator('table[data-pw-empuxo]').innerText();
+      assert.match(texto, /810/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
     name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
     async run({ newPage }) {
       const page = await newPage();
