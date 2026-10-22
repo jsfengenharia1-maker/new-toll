@@ -4,6 +4,7 @@
 import type { ResultadoPuncao } from '../core/building/puncao';
 import { comandosEdificioPadrao, listarComandos, Sessao, type Resultado } from '../core/commands';
 import { edificioVazio, pavimentosOrdenados, type BuildingModel } from '../core/building/types';
+import { resumoFlechasJson } from '../core/building/flechas';
 import { PREMISSAS } from '../core/building/premissas';
 import { analisarEdificio, type AnaliseEdificio } from '../core/building/analitico';
 import { rearmar } from '../core/building/rearmar';
@@ -209,9 +210,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
   return {
     ...(pav ? { pavimento: { id: pav.id, nome: pav.nome, cota: pav.cota } } : {}),
     // envoltórias ao longo da viga e combinações dos pilares ficam fora (volume); a combinação determinante da viga fica
-    vigas: prob(pav ? d.vigas.filter((v) => v.grupo === pav.grupo) : d.vigas).map(({ envoltoria, ...v }) => ({ ...v, determinantes: envoltoria.determinantes })),
+    vigas: prob(pav ? d.vigas.filter((v) => v.grupo === pav.grupo) : d.vigas).map(({ envoltoria, flechas, ...v }) => ({ ...v, ...(flechas ? { flechas: resumoFlechasJson(flechas) } : {}), determinantes: envoltoria.determinantes })),
     pilares: prob(pav ? d.pilares.filter((p) => p.pavimento === pav.nome) : d.pilares).map(({ determinantes: _d, ...p }) => p),
-    lajes: prob(pav ? d.lajes.filter((l) => l.pavimento === pav.nome) : d.lajes),
+    lajes: prob(pav ? d.lajes.filter((l) => l.pavimento === pav.nome) : d.lajes).map(({ flechas, ...l }) => ({ ...l, ...(flechas ? { flechas: resumoFlechasJson(flechas) } : {}) })),
     quantitativos: pav ? d.quantitativos.filter((q) => q.pavimento === pav.nome) : d.quantitativos,
     ...(!pav || pav.id === maisBaixo ? { fundacao: d.fundacao, ...(d.fundacoes?.length ? { fundacoes: fprob(d.fundacoes) } : {}), ...vigasF() } : {}),
     combinacoes: d.combinacoes,

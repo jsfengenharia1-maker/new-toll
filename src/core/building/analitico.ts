@@ -183,6 +183,8 @@ export interface GrelhaPavimento {
   /** Reações verticais (kN, para cima) por pilar e caso. */
   reacoes: Record<string, Record<CasoAnalise, number>>;
   carga: Record<CasoAnalise, number>;
+  /** Casos verticais da grelha (N2f: recomposição com a rigidez fissurada das lajes). */
+  casos?: Caso3[];
   /** Modelo integrado: a grelha foi resolvida junto com o pórtico (superelemento). */
   integrado?: boolean;
   /** Modelo integrado: momentos (Mx, My globais, kN·m) que a laje transmite a cada pilar, por caso (inclusive vento). */
@@ -797,7 +799,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
     }
     for (const c of CASOS) { totais[c] += carga[c]; cargasPavimento[pav.id][c] += carga[c]; }
-    grelhas.push({ pavimento: pav.id, modelo: m, barras: tags, res, reacoes, carga });
+    grelhas.push({ pavimento: pav.id, modelo: m, barras: tags, res, reacoes, carga, casos });
     geoPav.set(pav.id, { nos, grosso, apoio, transf });
   }
 

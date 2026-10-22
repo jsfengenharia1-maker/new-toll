@@ -17,6 +17,8 @@ export const SUGESTOES: Record<string, string> = {
   LARGURA: 'Aumente a largura da viga, admita mais camadas na tabela de armadura (ou bitolas maiores) ou reduza o cobrimento dentro do limite da CAA.',
   FLECHA: 'Aumente a altura da viga, acrescente armadura de compressão, ou reduza a carga/vão; a flecha total é a de Branson com fluência.',
   FLECHA_Q: 'Aumente a altura da viga ou o fck, ou revise o limite sensorial nas opções; a parcela das variáveis não se corrige com armadura.',
+  FLECHA_ATIVA: 'Aumente a altura do elemento, adie a alvenaria nas etapas de carga (menos fluência após as paredes) ou revise o limite da flecha ativa (ℓ/500 e 10 mm, NBR 6118 Tabela 13.3); armadura de compressão reduz a parcela diferida.',
+  FLECHA_INST: 'Informativo: a flecha instantânea passou do limite opcional; aumente a altura ou a rigidez, ou ajuste o limite nas opções (0 desliga).',
   FISSURA: 'Use mais barras de menor bitola, ative “aumentar a armadura pela fissuração” ou aumente a seção; confira a CAA e o limite de abertura nas opções.',
   ARM_BLOQ: 'Desbloqueie a armadura para recalcular, ou edite o arranjo bloqueado para atender à necessária (As ou estribo).',
   BLOQ_IGNORADO: 'O número de vãos ou lances mudou: refaça a armadura do elemento e bloqueie-a de novo, se quiser.',

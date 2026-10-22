@@ -3,6 +3,7 @@
 import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
+import type { FlechasConfig } from './flechas';
 
 export const BUILDING_VERSION = 1;
 
@@ -596,6 +597,8 @@ export interface BuildingModel {
   agrupamentos?: AgrupamentoPorticos[];
   /** Cópias da armadura das lajes (R7f), guardadas para recuperar depois (ex.: antes de abrir um furo imprevisto). */
   copiasLaje?: CopiaArmaduraLajes[];
+  /** Flechas (N2f): etapas de carga e limites por tipo de elemento; só o que difere do padrão. */
+  flechas?: FlechasConfig;
 }
 
 /** Agrupamento de pórticos: vigas que levam a mesma armadura (a envoltória do grupo). Uma viga pertence a um só agrupamento. */

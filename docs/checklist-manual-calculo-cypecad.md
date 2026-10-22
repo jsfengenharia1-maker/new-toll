@@ -13,31 +13,31 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 6 | 2 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 28 | 4 | 17 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 56 | 14 | 9 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 57 | 13 | 9 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 48 | 11 | 44 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 34 | 12 | 13 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 35 | 11 | 13 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 12 | 21 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
-| 1.14 Flechas de vigas (págs. 95–97) | 12 | 2 | 8 | 1 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 8 | 9 | 7 | 19 |
-| **Total** | **661** | **341** | **82** | **127** | **111** |
+| 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
+| **Total** | **661** | **361** | **65** | **124** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 25 | 5 | 30 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 2 | 8 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 110 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 36 | 110 | 146 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **82** | **127** | **209** |
+| **Total** | **65** | **124** | **189** |
 
 ## Divergências de premissa
 
@@ -263,8 +263,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Feito | — | redutor de rigidez à flexão das treliçadas na grelha (opção vigotaRigidez) (R6) |
 | K1.4.83 | Considerar armadura de torção em vigas. | Feito | — | torção das vigas verificada (NBR 6118 17.5), opção verificarTorcao (N1e) |
 | K1.4.84 | Opções de vigas de aço e vigotas. | Fora | — | vigas de aço; vigotas ver K1.4.40 |
-| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | N | limites total ℓ/250 e sensorial ℓ/350 editáveis para lajes e vigas (N1d); sem limites por tipo, alveolares nem mistas [N2f] |
-| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Parcial | N | flecha diferida por αf(t0) editável em lajes e vigas (N1d); sem etapas de carga do processo construtivo [N2f] |
+| K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | E | N2f: limites por tipo de flecha (total, ativa, variável, instantânea) e de elemento (vigas, maciças, treliçadas) na forma ℓ/x, ℓ/x + cm ou cm (`flechas.ts`: `limitesEmUso`, `limiteFlecha`; comando `flechas.limites`); alveolares e mistas com a E3 [E3] |
+| K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Feito | — | N2f: etapas de carga do processo construtivo (`ETAPAS_PADRAO`, `etapas.definir`), `composicaoEtapas` (ativa e total a longo prazo) em vigas e lajes (`flechas.ts`, `dimensionamento.ts`) |
 | K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Parcial | E | cortante das nervuras sem armadura transversal (19.4.1, VRd1 e VRd2) com faixa maciçada (R6); vigotas moldadas no local (E3) [E3b] |
 | K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos [E2c] |
 | | **Fundações (listadas)** | | | |
@@ -536,7 +536,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.2 | Fundações com vinculação externa (sapatas, blocos, vigas centradoras e de travamento) calculadas junto ou depois; editáveis e redimensionáveis/verificáveis independentemente. | Feito | — | FU1 e FU2: elementos com vínculo externo e vigas de equilíbrio e de travamento calculados depois da estrutura (`calcularFundacaoEdificio`), editáveis e redimensionáveis/verificáveis à parte (`fundModo`, `fixa`, `revFundacao`, "Calcular fundações" sem refazer a análise, níveis calculados escolhidos no grupo Fundação) |
 | K1.11.3 | Dados gerais consultáveis; opções e tabelas especiais salvas com a obra; mudar opções/tabelas pode alterar resultados; recalcular após mudanças; permite reformar armaduras com novas opções. | Feito | — | premissas e opções visíveis e salvas com a obra, aviso de modelo alterado; o recálculo refaz a armadura com as novas opções (bloqueadas só verificadas, R2) |
 | | **Vigas** | | | |
-| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Parcial | N | flecha total e da variável com relação flecha/vão por viga e laje (N1d); momentos mínimos (N1e); sem flecha ativa [N2f] |
+| K1.11.4 | Flecha ativa e outras, relação flecha/vão, consideração de momentos mínimos. | Feito | — | N2f: flecha ativa (FLECHA_ATIVA, ℓ/500 e 10 mm), total, variável e instantânea com relação flecha/vão por elemento (`ResultadoViga/ResultadoLaje.flechas`); momentos mínimos (N1e) |
 | K1.11.5 | Envoltórias com e sem sismo de momento, cortante e torção (gráficas e numéricas). | Feito | — | diagramas de M, V e T da envoltória ELU na janela da viga, com valores (R1); sismo fora |
 | K1.11.6 | Armadura (nº, bitola, comprimento, estribos) editável; áreas necessárias e efetivas, superior/inferior, longitudinal e transversal. | Feito | — | nº, bitola e estribos pela armadura bloqueada (R2); comprimento, extremos, ganchos e perna por posição e bitola, espaçamento e ramos por zona em `viga.detalhe` (R7b), verificados a cada recálculo (DETALHE_INSUF) |
 | K1.11.7 | Erros de vigas: flecha excessiva, espaçamento de barras, ancoragens, armadura comprimida, compressão diagonal (cortante e/ou torção), dimensionamento inadequado; código de cores. | Feito | — | erros e avisos com código em vermelho/amarelo (R1): flecha, espaçamento (LARGURA), armadura comprimida (ARM_DUPLA), biela (cortante e torção), seção insuficiente; ancoragens e emendas avisadas no detalhamento (R3a) |
@@ -736,7 +736,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Parcial | E | momentos mínimos das vigotas configuráveis para toda a obra (vigotaMomentoMin*, R6); sem valor por pano [E3b] |
 | K1.12.5-10 | Limitação: não verifica necessidade de armadura comprimida no vão. | Fora | — | limitação do outro programa |
 | K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Parcial | E | cortantes das pontas por nervura (por metro no núcleo) na tabela e nos diagramas; pranchas de lajes treliçadas listam as posições, sem os cortantes desenhados (R6/R5) [E3b] |
-| K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | N | flecha elástica × (1 + αf) sem fissuração; sem distinção protendida [N2f] |
+| K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | E | N2f: vigotas armadas pelas regras das lajes (etapas, fatores 1,75/1,25 e limites próprios das treliçadas); protendidas com a E3 [E3] |
 
 ## 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95)
 
@@ -802,17 +802,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **1.14 Flechas de vigas (págs. 95–97)** | | | |
-| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Parcial | N | vigas do edifício: total ℓ/250 e variável ℓ/350 editáveis (N1d); sem instantânea por caso nem ativa [N2f] |
-| K1.14-2 | Cada limite: relativo L/xxx, L/xxx + xx cm, ou absoluto em cm. | Parcial | N | limites relativos ℓ/xxx editáveis (N1d); sem forma ℓ/xxx + cm nem absoluta [N2f] |
+| K1.14-1 | Limites opcionais: flecha instantânea (peso próprio, variável, total), total a longo prazo e ativa. | Feito | — | N2f: instantânea por categoria (peso próprio, alvenaria, revestimento, variável) e total opcional (`limiteFlechaInst`, aviso FLECHA_INST), total a longo prazo e ativa (`FlechasElemento`) |
+| K1.14-2 | Cada limite: relativo L/xxx, L/xxx + xx cm, ou absoluto em cm. | Feito | — | N2f: `LimiteFlecha` { rel, mais, abs } = ℓ/x, ℓ/x + cm ou absoluto (`limiteFlecha`, `textoLimite`; `flechas.limites`) |
 | K1.14-3 | Limites dependem da norma; o usuário define os que considera relevantes. | Feito | — | limites da NBR 6118 13.3 editáveis nas opções (total e da variável) (N1d) |
-| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Parcial | N | total a longo prazo nas vigas e lajes do edifício (N1d); sem flecha ativa [N2f] |
-| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Parcial | N | αf por t0 editável no edifício e no Pórtico 2D; sem coeficientes separados para permanente e variável [N2f] |
+| K1.14-4 | Usuais: flecha ativa e total a longo prazo. | Feito | — | N2f: ativa (ℓ/500 e 10 mm, padrão) e total a longo prazo (ℓ/250) verificadas em vigas e lajes |
+| K1.14-5 | Coeficientes por processo construtivo, para carga permanente e variável, multiplicam as flechas instantâneas para obter as diferidas; padrões nas opções gerais. | Feito | — | N2f: Δξ por etapa e por categoria; coeficientes αg e αq da ativa separados para permanente e variável (`composicaoEtapas`); etapas nas opções (`etapas.definir`) |
 | K1.14-6 | Flecha total de cada caso = instantânea + diferida. | Feito | — | total = imediata × (1 + αf) (N1d) |
-| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Parcial | N | vigas do edifício: Branson em cada seção com a armadura calculada e integração da curvatura (vão e balanço); sem inércia homogeneizada nem rotações por caso (N1d) [N2f] |
-| K1.14-8 | Esforços e deslocamentos por caso com módulo secante do concreto; correções (clima, cura etc.) pelos coeficientes do processo construtivo, nas flechas instantâneas e diferidas. | Parcial | N | Ecs; correções só por αf e t0 [N2f] |
-| K1.14-9 | Flecha ativa = instantânea + diferida de permanentes e variáveis após a execução das paredes: fA = αg·fg + αq·fq (αg, αq coeficientes de carga permanente e variável). | Parcial | N | nós: após alvenaria ≈ αf·f0 (a confirmar); manual: αg·fg + αq·fq [N2f] |
-| K1.14-10 | αg e αq variam com as frações de carga definidas como permanentes/variáveis e os coeficientes instantâneo/diferido. | Falta | N | frações de carga por etapa [N2f] |
-| K1.14-11 | Flecha total a longo prazo = ativa + a parcela ocorrida até a execução do elemento danificável (paredes). | Parcial | N | total = ativa + anterior: no Pórtico 2D de forma aproximada [N2f] |
+| K1.14-7 | Método: dupla integração das curvaturas numa série de pontos, com inércia bruta, homogeneizada, fissurada e rotações por caso de carga. | Feito | — | N2f: integração da curvatura por seção (`flechasVigaSets`) com inércia bruta ou homogeneizada (`inerciaHomogeneizada`, `bransonFlecha`) e fissurada (Branson), giro do apoio por caso nos balanços (`flechaRotacaoBalanco`) |
+| K1.14-8 | Esforços e deslocamentos por caso com módulo secante do concreto; correções (clima, cura etc.) pelos coeficientes do processo construtivo, nas flechas instantâneas e diferidas. | Feito | — | N2f: Ecs; correções pelo processo construtivo nas instantâneas e diferidas (etapas, ξ(t) por idade, ρ′) |
+| K1.14-9 | Flecha ativa = instantânea + diferida de permanentes e variáveis após a execução das paredes: fA = αg·fg + αq·fq (αg, αq coeficientes de carga permanente e variável). | Feito | — | N2f: fA = αg·fg + αq·fq após a alvenaria (`composicaoEtapas`: `ativa`, `alfaG`, `alfaQ`) |
+| K1.14-10 | αg e αq variam com as frações de carga definidas como permanentes/variáveis e os coeficientes instantâneo/diferido. | Feito | — | N2f: frações de pp, alvenaria, revestimento e ψ2·Q por etapa (`EtapaCarga`) e αg/αq resultantes |
+| K1.14-11 | Flecha total a longo prazo = ativa + a parcela ocorrida até a execução do elemento danificável (paredes). | Feito | — | N2f: total = ativa + parcela até as paredes (`ComposicaoEtapas.antes`) |
 | K1.14-12 | Valores padrão do programa são indicativos (condições favoráveis usuais); processo, umidade, temperatura, cura, desforma e idade de carregamento podem dobrar ou reduzir à metade a flecha. | Fora | — | comentário do manual |
 
 ## 1.15 Deformações de lajes e fundações (págs. 97–111)
@@ -821,7 +821,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | | **1.15 Deformações de lajes (págs. 97–111)** | | | |
 | | **1.15.1 Lajes de vigotas (pág. 97)** | | | |
-| K1.15.1-1 | Lajes aliviadas e de vigotas seguem as regras das vigas, com opções independentes de processo construtivo por tipo de laje. | Parcial | N | treliçadas: flecha elástica × (1 + αf), igual à maciça [N2f] |
+| K1.15.1-1 | Lajes aliviadas e de vigotas seguem as regras das vigas, com opções independentes de processo construtivo por tipo de laje. | Feito | — | N2f: treliçadas e maciças com etapas e limites próprios (`etapas.definir { elemento }`, `flechas.limites`) e fatores próprios (`fatorFlechaAtivaTrelicada`, `fatorFlechaConfortoTrelicada`) |
 | K1.15.1-2 | Pré-fabricados: rigidez das fichas técnicas; demais: inércias equivalentes calculadas. | Parcial | E | seção T do catálogo; sem ficha do fabricante [E3a] |
 | | **1.15.2 Lajes mistas (pág. 97)** | | | |
 | K1.15.2-1 | Remetidas ao capítulo de lajes mistas. | Fora | — | lajes mistas |
@@ -844,16 +844,16 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-10 | Caso 1, maciça h = 26 cm: L/h = 25 > 23 (EHE-08, Tab. 50.2.2.1.a, pouco armada) → flecha a verificar. | Fora | — | critério L/h da EHE-08 |
 | K1.15.4-11 | Faixa de 1 m com distribuição uniforme (simplificação); Ig = b·h³/12 = 146 466,67 cm⁴ é a inércia do modelo. | Fora | — | exemplo numérico |
 | K1.15.4-12 | Cálculo: 1,35·8,5 + 1,5·2 = 14,475 kN/m²; fator 0,76 na faixa de apoio e 0,6 na central; Md− esq. 93,02 kN·m/m (As 10,2 cm²/m), Md+ 43,16 (4,8 cm²/m), Md− dir. 31 (3,4 cm²/m). | Fora | — | exemplo numérico |
-| K1.15.4-13 | Momento de fissuração: Mcr = fct,m,fl·Wb, com fct,m,fl = máx[(1,6 − h/1000)·fct,m; fct,m] (h em mm) e fct,m = 0,3·fck^(2/3); no exemplo 2,565 → 3,437 MPa, Wb = 11 266 667 mm³, Mcr = 38,72 kN·m. | Parcial | N | Mr da NBR 6118 17.3.1 no Pórtico 2D (`bransonRatio`); lajes do edifício não [N2f] |
+| K1.15.4-13 | Momento de fissuração: Mcr = fct,m,fl·Wb, com fct,m,fl = máx[(1,6 − h/1000)·fct,m; fct,m] (h em mm) e fct,m = 0,3·fck^(2/3); no exemplo 2,565 → 3,437 MPa, Wb = 11 266 667 mm³, Mcr = 38,72 kN·m. | Feito | — | N2f: Mr pela NBR 6118 17.3.1 (exigência normativa, no lugar do fct,m,fl da referência) nas lajes maciças do edifício (`bransonFlecha`, `fissuracaoGrelha` em `dimensionamento.ts`) |
 | K1.15.4-14 | Momentos de serviço com carga total 10,5 kN/m²: esq. 67,4 > Mcr (fissura), centro 31,3 < Mcr, dir. 22,48 < Mcr. | Fora | — | exemplo numérico |
-| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Parcial | N | Branson por seção nas vigas do edifício (N1d) e no Pórtico 2D; lajes do edifício sem fissuração [N2f] |
-| K1.15.4-16 | Inércia média do vão: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2; Ie,esq = 51 744 cm⁴ (Icr = 29 584), dir. = centro = Ig → 122 768 cm⁴ = 0,84·Ig. | Parcial | N | Pórtico 2D: Ie com o Ma máximo; sem média apoios/vão [N2f] |
+| K1.15.4-15 | Inércia equivalente de Branson: Ie = (Mcr/Ma)³·Ig + [1 − (Mcr/Ma)³]·Icr. | Feito | — | N2f: Branson por barra da grelha com a armadura calculada e grelha recomposta com a rigidez fissurada (`resolverGrelhaFissurada`; opção `fissuracaoLajes`) |
+| K1.15.4-16 | Inércia média do vão: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2; Ie,esq = 51 744 cm⁴ (Icr = 29 584), dir. = centro = Ig → 122 768 cm⁴ = 0,84·Ig. | Feito | — | N2f: opção `inerciaMediaVao` (Ie por laje e direção = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2); padrão Ie por barra |
 | K1.15.4-17 | A favor da segurança adota Ie ≈ 0,66·Ig → fator de fissuração Ke = 1/0,66 ≈ 1,50 aplicado à flecha elástica do programa. | Fora | — | exemplo numérico |
-| K1.15.4-18 | Flecha diferida pela EHE-08 (análoga ao ACI-08): λ = ξ/(1 + 50ρ'), ρ' = taxa média de armadura comprimida; com malhas de 1 ‰ (ρ' = 0,001) → λ = 0,95·ξ (reconstruída). | Parcial | N | αf = Δξ/(1 + 50ρ′) no Pórtico 2D; no edifício ρ′ = 0 [a confirmar] com t0 editável (N1d) [N2f] |
+| K1.15.4-18 | Flecha diferida pela EHE-08 (análoga ao ACI-08): λ = ξ/(1 + 50ρ'), ρ' = taxa média de armadura comprimida; com malhas de 1 ‰ (ρ' = 0,001) → λ = 0,95·ξ (reconstruída). | Feito | — | N2f: αf = Δξ/(1 + 50ρ′) com ρ′ das barras de montagem nas vigas (`flechaRhoLinha`) [a confirmar]; lajes ρ′ = 0 (sem armadura superior no vão) |
 | K1.15.4-19 | ξ por duração: ≥ 5 anos 2,0; 1 ano 1,4; 6 meses 1,2; 1 mês 0,7; 2 semanas 0,5 (o exemplo usa também 0,8 aos 60 dias e 1,0 aos 120 dias). | Feito | — | ξ(t) da NBR 6118 (Tabela 17.1) com t0 editável no edifício (t0Flecha, N1d) e no Pórtico 2D |
-| K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Falta | N | ξ ponderado por etapas de carga (NBR 6118 17.3.2.1.2) [N2f] |
-| K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Falta | N | fator total por etapas [N2f] |
-| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | Pórtico 2D: parcela após alvenaria ≈ αf·f0; lajes do edifício não [N2f] |
+| K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Feito | — | N2f: etapas padrão 28/60/120/365 dias com pp, alvenaria, revestimento e ψ2·Q; ξ(t) da Tabela 17.1 (`ETAPAS_PADRAO`, `xiDias`) |
+| K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Feito | — | N2f: ξ médio ponderado (Σ Pi·Δξi / P) e fator total (`ComposicaoEtapas.xiMedio`, `fatorTotal`); exemplo registrado reproduzido (3,00·δi) em `flechasEtapas.test.ts` |
+| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Feito | — | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes; exemplo dá 1,98·δi (registrado 1,965 com λ arredondado) em `flechasEtapas.test.ts` |
 | K1.15.4-23 | Conclusão maciça: ativa ≈ 2,0× e total ≈ 3,0× a flecha elástica com seção bruta. | Fora | — | conclusão do exemplo (ver divergências) |
 | K1.15.4-24 | Caso 2, nervurada com caixões perdidos: Ig da zona aliviada 61 567 cm⁴; do ábaco (maciça 30 cm × 82 cm) 184 500 cm⁴; média ao longo do vão 123 033,5 cm⁴. | Fora | — | exemplo numérico |
 | K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Falta | E | nervuradas: inércia única na malha [E3c] |
@@ -864,7 +864,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-30 | ρ' = 0 a favor da segurança → λ = ξ; ξ médio total ≈ 1 → δtotal = 2,5·δi; ativa: ξ médio 0,94 e fração sem peso próprio 4/8,6 ≈ 0,47 → δativa ≈ 1,75·δi. | Fora | — | exemplo numérico |
 | K1.15.4-31 | Os fatores valem para casos usuais (vãos, espessuras, cargas, processo, ambiente, desforma, idade de carregamento); mudando as condições, corrigir. | Fora | — | comentário do manual |
 | K1.15.4-32 | Conforto: basta a flecha do caso de carga variável. | Feito | — | flecha imediata das variáveis ≤ ℓ/350 (limite editável) em lajes e vigas (N1d) |
-| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Parcial | N | total (ℓ/250) e conforto (variável, ℓ/350) com limites editáveis; falta a flecha ativa (etapas de carga) (N1d) [N2f] |
+| K1.15.4-33 | Quadro-resumo do fator de amplificação: integridade → flecha ativa, 2,0 maciça / 1,75 nervurada, combinação gravitacional mais desfavorável; estética → total a longo prazo, 3,00 / 2,50, mesma combinação; conforto → instantânea da variável, 1,50 / 1,25, caso de carga variável. | Feito | — | N2f: fatores simplificados da tabela-resumo: total `fatorFlechaLaje` 2,5 (N1e), ativa `fatorFlechaAtiva` 2,0 / `fatorFlechaAtivaTrelicada` 1,75, conforto `fatorFlechaConforto` 1,5 / `fatorFlechaConfortoTrelicada` 1,25 (NBR 0 = método por etapas) |
 | | **1.15.5 Elementos de fundação (pág. 111)** | | | |
 | K1.15.5-1 | Remete à parte do manual sobre sapatas corridas e isoladas, blocos sobre estacas, vigas de equilíbrio e vigas de travamento. | Feito | — | sapatas isoladas, blocos e tubulões (FU1), vigas de equilíbrio e de travamento (FU2) e sapatas corridas (FU7a) no edifício |
 | K1.15.5-2 | Fim do texto: remete à versão completa em inglês (learning.cype.com, CYPECAD calculations manual). | Fora | — | remissão ao manual em inglês |
@@ -941,3 +941,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1b (pilar-parede).** K1.3.28, K1.3.29, K1.3.30, K1.9.34 e K1.9.35 passam a Feito; K1.3.59, K1.4.30 e K1.12.21 ficam Parcial (apoio longitudinal só nas pontas da viga, E × `axialPilares` também na flexão da casca, vão de cálculo sem o limite pela distância entre eixos). Validação: parede em balanço contra a viga de Timoshenko (2 %), pilar-parede em L contra o OpenSees (`validation/opensees/pilar_parede.py`, 1 % com malha de 1 m e 0,1–0,5 % com 0,5 m), lado em barra contra o pilar comum (0,1 %) e equilíbrio vertical da base. A malha padrão das cascas passou de 0,5 para 1 m (a banda do diafragma custava ~30 s numa parede de 4 × 14 m).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 5 itens (manual de cálculo).
+- **22/10/2026 — fatia N2f, núcleo (flechas por etapas e flecha ativa).** 20 dos 22 itens do manual de cálculo passam a Feito (K1.4.86, K1.11.4, K1.14-1, -2, -4, -5, -7, -8, -9, -10, -11, K1.15.1-1, K1.15.4-13, -15, -16, -18, -20, -21, -22, -33); K1.4.85 e K1.12.5-12 ficam Parcial com a E3 (alveolares, mistas e vigotas protendidas). Código: `src/core/building/flechas.ts` (`composicaoEtapas`, `xiNBR`, `limiteFlecha`, `limitesEmUso`, `bransonFlecha`, `resolverGrelhaFissurada`, `memorialFlechas`), `flechasVigaSets`, `finalizarFlechaLaje` e `fissuracaoGrelha` em `dimensionamento.ts`, comandos `etapas.definir` e `flechas.limites` (`src/core/commands/flechas.ts`), códigos FLECHA_ATIVA e FLECHA_INST. Exemplo registrado: total 3,00·δi reproduzido; ativa 1,98·δi (texto reconstruído 1,965, λ arredondado). `ANTES_N2F` (antesN2f.ts) fixa as opções antigas. Interface: cartões em `docs/cartoes/N2f/`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: N reduz em 22 itens; E aumenta em 2 (K1.4.85, K1.12.5-12).

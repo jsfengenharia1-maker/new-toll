@@ -30,6 +30,8 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'LARGURA', nivel: 'erro', re: /^Armadura inferior não cabe/, descricao: 'Armadura não cabe na largura' },
   { codigo: 'FLECHA', nivel: 'erro', re: /^Flecha total/, descricao: 'Flecha total acima do limite' },
   { codigo: 'FLECHA_Q', nivel: 'erro', re: /^Flecha das variáveis/, descricao: 'Flecha das cargas variáveis acima do limite' },
+  { codigo: 'FLECHA_ATIVA', nivel: 'erro', re: /^Flecha ativa/, descricao: 'Flecha ativa (após as paredes) acima do limite' },
+  { codigo: 'FLECHA_INST', nivel: 'aviso', re: /^Flecha instantânea/, descricao: 'Flecha instantânea acima do limite opcional' },
   { codigo: 'FISSURA', nivel: 'erro', re: /^Abertura de fissuras/, descricao: 'Abertura de fissuras acima do limite' },
   { codigo: 'ARM_BLOQ', nivel: 'erro', re: /^Armadura bloqueada (insuficiente|acima)/, descricao: 'Armadura bloqueada não atende' },
   { codigo: 'BLOQ_IGNORADO', nivel: 'aviso', re: /^Armadura bloqueada desconsiderada/, descricao: 'Bloqueio desconsiderado (vãos ou lances mudaram)' },
@@ -159,7 +161,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
 ];
 
 /** Grupo de estados-limite de cada código: desativado em Estados-limite, o aviso deixa de entrar na revisão. */
-const ESTADO_DO_CODIGO: Record<string, EstadoId> = { FLECHA: 'flecha', FLECHA_Q: 'flecha', FISSURA: 'fissuracao', ARM_AUMENTADA: 'fissuracao', DESLOC: 'deslocamentos', EQU_TOMBAMENTO: 'equilibrio' };
+const ESTADO_DO_CODIGO: Record<string, EstadoId> = { FLECHA: 'flecha', FLECHA_Q: 'flecha', FLECHA_ATIVA: 'flecha', FLECHA_INST: 'flecha', FISSURA: 'fissuracao', ARM_AUMENTADA: 'fissuracao', DESLOC: 'deslocamentos', EQU_TOMBAMENTO: 'equilibrio' };
 
 /** Código e nível de uma mensagem (sem regra conhecida: aviso genérico). */
 export function classificar(msg: string): { codigo: string; nivel: NivelRevisao | 'info' } {

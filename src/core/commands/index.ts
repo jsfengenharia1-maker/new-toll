@@ -14,6 +14,7 @@ import './baseElastica';
 import './corrida';
 import './edicao';
 import './pilarParede';
+import './flechas';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';
