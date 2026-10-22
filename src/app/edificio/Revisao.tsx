@@ -1,6 +1,7 @@
 // Revisão de resultados do edifício (frente R1): lista de erros e avisos, janela de resultados por elemento
 // (diagramas de envoltória das vigas, combinações determinantes dos pilares, lajes), deslocamentos laterais e listagem em CSV.
 import { JanelaPilarParede } from './PilarParedeUI';
+import { JanelaParede } from './ParedesUI';
 import type { Origem } from '../../core/building/origem';
 import { useRef, useState } from 'react';
 import { useBuilding } from './store';
@@ -32,9 +33,9 @@ import { limiteDaMensagem, sobreposicoesDe } from './fundacaoGrupo';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
-const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra', pilarParede: 'Pilar-parede' };
+const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra', pilarParede: 'Pilar-parede', parede: 'Parede' };
 
-export type Alvo = { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede'; id: string; pavimento?: string };
+export type Alvo = { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede'; id: string; pavimento?: string };
 
 /** Abre a janela de resultados do elemento. */
 export const abrirJanela = (a: Alvo) => usePlanta.getState().set({ janela: a });
@@ -43,7 +44,7 @@ export const abrirJanela = (a: Alvo) => usePlanta.getState().set({ janela: a });
  * Seleciona o elemento na planta e pede para centralizá-lo. Pilares e lajes vão para o pavimento do resultado;
  * vigas valem para o grupo (mantém o pavimento atual se ele for do grupo da viga).
  */
-export function irParaElemento(b: BuildingModel, tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede', id: string, pavimentoNome?: string) {
+export function irParaElemento(b: BuildingModel, tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede', id: string, pavimentoNome?: string) {
   const P = usePlanta.getState(), ps = pavimentosOrdenados(b);
   let pav = P.pavimento;
   if (tipo === 'fundacao') {
@@ -89,7 +90,7 @@ function abrirTabela(b: BuildingModel, tipo: TipoRevisao, id: string, codigo: st
 
 // ---------------------------------------------------------------- lista de erros e avisos
 
-export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede', id: string, pavimento?: string) => void }) {
+export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede', id: string, pavimento?: string) => void }) {
   const rev = useRevisao();
   const analise = useBuilding((s) => s.analise), dim = useBuilding((s) => s.dim);
   const { exec } = useBuilding();
@@ -418,11 +419,11 @@ export function JanelaElemento() {
   const ehVF = j.tipo === 'fundacao' && !!b.fundacao?.vigas?.some((x) => x.id === j.id);
   const ehBE = j.tipo === 'fundacao' && ehBaseElastica(b, j.id);
   const ehSC = j.tipo === 'fundacao' && ehCorrida(b, j.id);
-  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'pilarParede' ? (b.pilaresParede ?? []) : j.tipo === 'fundacao' ? [...(b.fundacao?.elementos ?? []), ...(b.fundacao?.vigas ?? []), ...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? []), ...(b.fundacao?.corridas ?? [])] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
+  const nome = (j.tipo === 'viga' ? b.vigas : j.tipo === 'pilar' ? b.pilares : j.tipo === 'pilarParede' ? (b.pilaresParede ?? []) : j.tipo === 'parede' ? (b.paredes ?? []) : j.tipo === 'fundacao' ? [...(b.fundacao?.elementos ?? []), ...(b.fundacao?.vigas ?? []), ...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? []), ...(b.fundacao?.corridas ?? [])] : b.lajes).find((x) => x.id === j.id)?.nome ?? j.id;
   return (
     <Modal titulo={`Resultados do elemento — ${ehVF ? 'Viga de fundação' : ehSC ? 'Sapata corrida' : ehBE ? (b.fundacao?.radiers?.some((x) => x.id === j.id) ? 'Radier' : 'Viga sobre base elástica') : TIPO_TXT[j.tipo]} ${nome}`} onClose={fechar} larga>
       {!dim ? <p className="muted">Calcule o dimensionamento para ver os resultados do elemento.</p>
-        : j.tipo === 'pilarParede' ? <JanelaPilarParede id={j.id} /> : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} pavimento={j.pavimento} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehSC ? <JanelaCorrida id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
+        : j.tipo === 'pilarParede' ? <JanelaPilarParede id={j.id} /> : j.tipo === 'parede' ? <JanelaParede id={j.id} /> : j.tipo === 'viga' ? <JanelaViga id={j.id} /> : j.tipo === 'pilar' ? <JanelaPilar id={j.id} pavimento={j.pavimento} /> : j.tipo === 'fundacao' ? (ehVF ? <JanelaVigaFundacao id={j.id} /> : ehSC ? <JanelaCorrida id={j.id} /> : ehBE ? <JanelaBaseElastica id={j.id} /> : <JanelaFundacao id={j.id} />) : <JanelaLaje id={j.id} />}
     </Modal>
   );
 }

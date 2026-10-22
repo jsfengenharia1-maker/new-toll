@@ -28,6 +28,8 @@ import { MateriaisGrupo } from './Materiais';
 import { TabelasGrupo } from './TabelasArmadura';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
+import { CartaoParedes } from './ParedesUI';
+import { ParedesGrupo } from './ParedesUI';
 import { CasosGrupo } from './Casos';
 import { AbacosVentoGrupo } from './AbacosVento';
 import { EmpuxoGrupo } from './Empuxo';
@@ -101,6 +103,7 @@ export function Edificio() {
         <MascaraGrupo b={b} />
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
+        <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -844,7 +847,7 @@ function Analise({ b, nErr }: { b: BuildingModel; nErr: number }) {
 
 const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
 
-function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede', id: string, pavimento?: string) => void; onMemorial: () => void }) {
+function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede', id: string, pavimento?: string) => void; onMemorial: () => void }) {
   const st = useBuilding();
   const { dim, analise, sessao, calculando, calcular } = st;
   const [so, setSo] = useState(false);
@@ -875,6 +878,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
       {dim && <div className="card"><RearmarCard /></div>}
       {dim && <CartaoRelatorios />}
       {dim?.pilaresParede?.length ? <CartaoPilaresParede onIr={(id) => onIr('pilarParede', id)} /> : null}
+      {dim?.paredes?.length ? <CartaoParedes onIr={(id) => onIr('parede', id)} /> : null}
       <ListaErros onIr={onIr} />
       {dim && <div className="card"><BloqueioLote dim={dim} velha={!!velha} /><div className="row wrap"><Button data-abrir-selecao-bloqueio onClick={() => setSelBloq(true)}>Seleção para bloqueio…</Button></div></div>}
       {selBloq && <SelecaoBloqueio onClose={() => setSelBloq(false)} />}
