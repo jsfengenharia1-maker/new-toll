@@ -622,6 +622,27 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               </table>}
             </>)}
 
+            {!!dim.corridas?.some((x) => x.parede) && (<>
+              <p>
+                Sapatas de parede e de muro (FU7b): a base da parede cria a sapata corrida vinculada ao eixo e à espessura da parede. A carga por metro vem das reações da base da parede na análise (normal, momento em torno do eixo e cortante normal à parede,
+                por caso, espalhadas em janelas de {fmt(opc.corridaJanela)} m) mais as cargas lançadas no nível de fundação; o momento vira excentricidade M/(N + peso próprio) somada à geométrica no sentido desfavorável (pressão sem tração);
+                o deslizamento é FS = μ·(N + peso próprio)/H nas combinações raras, com μ = {fmt(opc.fundCorridaAtrito)} e FS mínimo {fmt(opc.fundCorridaFSDesliz, 1)} ({opc.fundCorridaDeslizamento === 1 ? 'reprova' : 'só informa'}), sem empuxo passivo (a confirmar).
+                Pilares que nascem na fundação sobre o eixo viram sapata isolada equivalente a × a, (Pk + q·a)(1 + 5 %) ≤ σadm(a)·a², e a reação é espalhada por a metros no eixo.
+              </p>
+              <table data-memorial-corridas-parede>
+                <thead><tr><th className="l">Sapata</th><th className="l">Parede</th><th className="l">Cargas</th><th>M máx. (kN·m/m)</th><th>e = M/N (cm)</th><th>H máx. (kN/m)</th><th>μ</th><th>FS desliz. (mín.)</th><th className="l">Pilares sobre o eixo (a × a)</th></tr></thead>
+                <tbody>{dim.corridas.filter((x) => x.parede).map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td className="l">{x.parede!.nome}</td><td className="l">{x.parede!.origem === 'reacoes' ? 'reações da análise' : 'só lançadas'}</td><td>{fmt(x.parede!.M, 1)}</td><td>{fmt(x.parede!.eM * 100, 0)}</td><td>{fmt(x.parede!.H, 1)}</td><td>{x.parede!.deslizamento ? fmt(x.parede!.deslizamento.mu) : '—'}</td><td>{x.parede!.deslizamento ? `${fmt(x.parede!.deslizamento.FS)} (${fmt(x.parede!.deslizamento.FSmin, 1)})` : '—'}</td><td className="l">{(x.parede!.pilaresEq ?? []).map((q) => `${q.pilar} ${fmt(q.a)} × ${fmt(q.a)} m`).join('; ') || '—'}</td></tr>)}</tbody>
+              </table>
+            </>)}
+            {!!dim.basesMuros?.length && (<>
+              {h2('Bases dos muros de arrimo na fundação')}
+              <p>A σadm da base do muro é a própria, ou a informada do terreno, ou a menor estimada pelo SPT de todos os furos com a largura B do muro (o muro não tem posição em planta); a tensão máxima é a da estabilidade (rara, por metro, com a sobrecarga). Quantitativos da base: ponta, talão e distribuição; totais com o comprimento do muro.</p>
+              <table data-memorial-bases-muros>
+                <thead><tr><th className="l">Muro</th><th>B (m)</th><th>Cota (m)</th><th>df (m)</th><th>σmáx (kN/m²)</th><th>σadm (kN/m²)</th><th className="l">Fonte</th><th>Concreto (m³/m)</th><th>Forma (m²/m)</th><th>Aço (kg/m)</th><th>Comprimento (m)</th><th className="l">Situação</th><th className="l">Mensagens</th></tr></thead>
+                <tbody>{dim.basesMuros.map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td>{fmt(x.B)}</td><td>{fmt(x.cota)}</td><td>{fmt(x.profundidade)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{x.sigmaAdm !== null ? fmt(x.sigmaAdm, 0) : '—'}</td><td className="l">{x.sigmaFonte === 'propria' ? 'própria' : x.sigmaFonte === 'terreno' ? 'terreno' : x.sigmaFonte === 'spt' ? 'SPT (menor furo)' : '—'}</td><td>{fmt(x.porMetro.concreto)}</td><td>{fmt(x.porMetro.forma)}</td><td>{fmt(x.porMetro.aco, 1)}</td><td>{x.comprimento !== null ? fmt(x.comprimento) : '—'}</td><td className="l">{ST[x.status]}</td><td className="l">{x.mensagens.join(' ')}</td></tr>)}</tbody>
+              </table>
+            </>)}
+
             {quantFund && quantFund.linhas.length > 0 && (<>
               {h2('Quantitativos da fundação')}
               <table data-memorial-quant-fundacao>

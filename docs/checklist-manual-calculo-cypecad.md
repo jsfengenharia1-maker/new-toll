@@ -963,3 +963,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1e, núcleo (alvenaria estrutural e blocos de concreto).** K1.12.4.3-1 passa a Feito; K1.9.4 e K1.9.5 passam a Parcial: `alvenaria.ts` (tipos, resistências NBR 16868 a confirmar, esbeltez, tensões-limite por elemento, armadura de blocos, modulação, quantitativo, desligamento muro-pilar, diagnósticos), `alvenariaDim.ts` (panos com fator de cumprimento, lados curtos, vergas, vigas sobre muros), `memorialAlvenaria.ts`, comandos `bloco.tipo`, `alvenaria.tipo`, `parede.modularAbertura` e `verga.armadura`, 18 opções `alvenaria*`; falta a interface (cartões em `docs/cartoes/E1e/`) e a prancha.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 1 item (manual de cálculo); 2 passam de Falta a Parcial.
+- **22/10/2026 — fatia FU7b, interface.** Nenhum item do manual de cálculo muda de situação: K1.9.47 segue Parcial (base em viga de fundação sem vínculo externo, FU7c); K1.9.48, K1.9.110 e K1.4.74 sem mudança. A interface da base da parede e do muro de arrimo está em `BaseParedeUI.tsx` e `MurosUI.tsx`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma alteração (manual de cálculo).

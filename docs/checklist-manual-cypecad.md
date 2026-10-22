@@ -13,16 +13,16 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 28 | 5 | 5 | 3 |
 | 4. Pilares | 63 | 50 | 4 | 2 | 7 |
-| 5. Muros e paredes estruturais | 30 | 12 | 14 | 0 | 4 |
+| 5. Muros e paredes estruturais | 30 | 13 | 13 | 0 | 4 |
 | 6. Vigas | 108 | 32 | 8 | 43 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 20 | 3 | 0 | 3 |
-| 11. Fundações | 70 | 61 | 2 | 2 | 5 |
+| 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **275** | **84** | **219** | **185** |
+| **Total** | **763** | **278** | **81** | **219** | **185** |
 
 ## Pendências por frente
 
@@ -31,7 +31,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 0 | 0 | 0 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 41 | 166 | 207 |
-| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 3 | 0 | 3 |
+| FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 33 | 25 | 58 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
 
@@ -258,7 +258,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | C5.1 | Tipos de muro: concreto armado, alvenaria de blocos de concreto genéricos (armada), blocos de catálogo de fabricante e alvenaria genérica. | Parcial | E | núcleo: `Parede.tipo` (concreto, alvenaria ou blocos) com `material` (`TipoAlvenaria` genérica ou de blocos, `types.ts`), comandos `alvenaria.tipo` e `parede.criar/editar` (`commands/alvenaria.ts`, `commands/paredes.ts`); blocos de catálogo de fabricante ficam fora; falta a interface [E1e] |
-| C5.2 | Dados comuns a todos os tipos: geometria, existência de empuxos laterais e tipo de fundação de apoio. | Parcial | E | núcleo: `Parede` (polilinha, espessuras, `empuxos`, `base` para a FU7b) em `types.ts`, comandos `parede.*` (`commands/paredes.ts`), empuxo nas cascas (`paredesBase.ts`); fundação da base: núcleo da FU7b (`Parede.base`, `parede.sapata`, `sapataCorrida.ts`); falta a interface (cartões FU7b) [FU7b-UI] |
+| C5.2 | Dados comuns a todos os tipos: geometria, existência de empuxos laterais e tipo de fundação de apoio. | Parcial | E | núcleo: `Parede` (polilinha, espessuras, `empuxos`, `base` para a FU7b) em `types.ts`, comandos `parede.*` (`commands/paredes.ts`), empuxo nas cascas (`paredesBase.ts`); fundação da base: núcleo e interface da FU7b (`Parede.base`, `parede.sapata`, `sapataCorrida.ts`, `BaseParedeUI.tsx`); falta a alvenaria (E1e) |
 | C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Parcial | E | núcleo: biblioteca de blocos da obra (`TipoBloco`, comando `bloco.tipo`: dimensões modulares, fbk, canto); falta o editor e gravar na biblioteca do usuário (`storage.ts`) [E1e] |
 | C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Parcial | E | núcleo: peça de canto automática quando a largura não é metade do comprimento (`precisaCanto`) ou por `TipoBloco.canto`, contada por fiada e canto no quantitativo (`quantitativoParede`); falta o editor de blocos [E1e] |
 | C5.5 | Muros de blocos de fabricante: dimensionamento e verificação pelo Eurocódigo 6, com armadura vertical e/ou horizontal opcional. | Fora | — | Eurocódigo 6 |
@@ -284,7 +284,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Parcial | E | núcleo: resistência do bloco (`TipoBloco.fbk`), da argamassa e do graute (`TipoAlvenaria.argamassa/graute/grauteamento`) e prisma `fpk` informado ou estimado (`alvenariaPrisma`); falta o editor [E1e] |
 | C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Feito | — | `Parede.armar` (concreto simples verificado por `verificaConcretoSimples`) e opções `paredeArmarSempre`, `paredeSoHorizontal` e `paredeHorizontalGrampos` [E1d] |
 | C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Feito | — | `desligamentosMuroPilar` (`alvenaria.ts`): pilar a até 5 cm do muro de alvenaria ou blocos, por pavimento; com lajes de vigotas é desligado (`MURO_PILAR_DESLIGADO`), tabela no memorial e no `dimensionar`; premissa e1e-desligamento [E1e] |
-| C5.28 | Sapata isolada equivalente para cada pilar sobre sapata corrida, dimensionada com os esforços do pilar e do trecho de muro apoiado. | Parcial | FU | núcleo (FU7b): `sapataCorrida.ts` (`calcularParede`, `pilaresEq`): lado a × a da sapata isolada equivalente de cada pilar que nasce na fundação sobre o eixo ((Pk + q·a)(1 + 5 %) ≤ σadm(a)·a²), reação do pilar espalhada por a no eixo e largura da corrida cobrindo a; falta a interface (cartões FU7b) [FU7b-UI] |
+| C5.28 | Sapata isolada equivalente para cada pilar sobre sapata corrida, dimensionada com os esforços do pilar e do trecho de muro apoiado. | Feito | — | lado a × a da sapata isolada equivalente de cada pilar que nasce na fundação sobre o eixo ((Pk + q·a)(1 + 5 %) ≤ σadm(a)·a²), reação do pilar espalhada por a no eixo e largura da corrida cobrindo a; lista no editor da parede, na janela e no memorial (`sapataCorrida.ts`, `BaseParedeUI.tsx`) [FU7b] |
 | C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Parcial | E | núcleo: `quantitativoParede` / `quantitativoAlvenaria`: inteiros, meios blocos, peças de canto e canaletas por parede e pavimento, área líquida, resumo por bloco (`Dimensionamento.alvenaria`); falta a interface [E1e] |
 | C5.30 | Lacuna: o texto do item sobre muros de concreto armado (5.1.2.1) não veio na extração. Só há o título. | Parcial | E | dados do muro de concreto no núcleo: espessuras e `armar` em `Parede`; o dimensionamento e o detalhamento ficam na E1d [E1d] |
 
@@ -836,10 +836,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C11.26 | Reconhecimento das cargas de apoios de escadas sobre elementos de fundação. | Falta | E | [E4c] reações da escada como cargas no nível de fundação; fora da FU por decisão da spec (20/10/2026), ainda não listado na spec da E4 |
 | C11.27 | Solo sob vigas de equilíbrio/travamento desconsiderado: as vigas resistem às cargas sobre elas e transmitem às sapatas, blocos ou vigas que cruzam. | Feito | — | FU2/FU3: vigas sem apoio no solo, peso próprio e cargas sobre elas levados às pontas (`cargasDaViga`, `reacoesBiapoiada`); cruzamento de vigas em `cruzamentosVF` e `reacoesComApoios` (a viga apoiada é contínua com apoio no cruzamento e a reação vai à viga de apoio; teste em `fundacaoGrupo.test.ts`, marca na planta) |
 | | **11.2.4 Sapatas corridas sob muros** | | | |
-| C11.28 | Ao lançar um muro, definição da sua fundação: sem vinculação, engastado ou sobre sapata corrida (aba à esquerda, à direita ou ambas). | Parcial | FU | núcleo (FU7b): `Parede.base` no `parede.criar` (sapata derivada, `corridaParede.ts` `corridasEfetivas`) e `parede.sapata` (aba, B, h, σadm, cota, atrito, cintas); engaste e rótula já em `vinculoBase`; falta a interface (cartões FU7b) [FU7b-UI] |
+| C11.28 | Ao lançar um muro, definição da sua fundação: sem vinculação, engastado ou sobre sapata corrida (aba à esquerda, à direita ou ambas). | Feito | — | base da parede ao lançar (seletor Fundação da parede: apoio direto ou sapata corrida) e no editor da parede (`parede.sapata`: aba, B, h, σadm, atrito, cota); engaste ou rótula em Base [FU7b] |
 | C11.29 | Sapata corrida dimensionada automaticamente. | Feito | — | FU7a: `src/core/building/sapataCorrida.ts` (`calcularCorridas`, `flexaoTransversal`): sob parede, largura pela σadm (passos de 5 cm, peso próprio, pressão sem tração), altura rígida (balanço ≤ 1,5·h), flexão transversal CEB-70 numa faixa de 1 m (ou bielas) e armadura de distribuição; sob pilares, viga sobre base elástica na análise global com B e h informados ou padrão (a largura necessária sai na mensagem); comandos `corrida.criar/editar/remover`, ferramenta A na planta de fundação, janela com corte transversal, pranchas do tipo fundação |
 | C11.30 | Sapata corrida excêntrica (aba de um lado) exige vigas de equilíbrio até sapatas internas. | Feito | — | FU7a: aba à esquerda ou à direita; sem cintas a pressão excêntrica sem tração tem de atender a σadm (erro FUND_CORRIDA_EXC); FU8a: cintas (`cinta.criar/editar/remover`, `cintasCorrida.ts`): da abscissa s do eixo ao elemento interno, alavanca R = N·ℓ/(ℓ − e) por trecho tributário, reação sob a base majorada por R/N (a largura B a considera), alívio ΔN no elemento interno e dimensionamento como viga de equilíbrio (`dimensionarVigaFundacao`); corrida marcada como equilibrada sem cintas dá o aviso FUND_CORRIDA_SEM_CINTA; só sob parede |
-| C11.31 | Atribuir sapata a muro lançado sem ela, pelo menu de elementos de fundação. | Parcial | FU | núcleo (FU7b): comando `parede.sapata` (cria a sapata corrida presa à parede, que segue o eixo e a espessura; `remover` volta ao apoio direto); falta a interface (cartões FU7b) [FU7b-UI] |
+| C11.31 | Atribuir sapata a muro lançado sem ela, pelo menu de elementos de fundação. | Feito | — | atribuir sapata corrida a parede já lançada pelo bloco Base da parede do editor (`parede.sapata`); remover devolve o apoio direto [FU7b] |
 | | **11.2.5 Opções de fundação (dados gerais)** | | | |
 | C11.32 | Redução da taxa mecânica mínima de flexão quando a norma permite; sempre aplicada na verificação. | Feito | — | FU3: opção `fundReducaoTaxa` (As,mín = menor entre ρmín·b·h e 4/3 da calculada, NBR 6118 17.3.5.2.1, a confirmar); desligada por padrão |
 | C11.33 | Permitir ou não levantamento (descolamento) da sapata; sem permissão, a resultante deve cair no núcleo central. | Feito | — | FU3: opção `fundDescolamento` (ligada: só σmáx limita; desligada: área comprimida ≥ 2/3 [a confirmar]) em sapatas isoladas e associadas |
@@ -1033,3 +1033,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **22/10/2026 — fatia E1e, núcleo (alvenaria estrutural e blocos de concreto).** C5.24, C5.27, C6.19 e C6.59 passam a Feito; C5.1, C5.3, C5.4, C5.6, C5.8, C5.11, C5.12, C5.16, C5.25 e C5.29 passam a Parcial: `alvenaria.ts` (tipos, resistências NBR 16868 a confirmar, esbeltez, tensões-limite por elemento, armadura de blocos, modulação, quantitativo, desligamento muro-pilar, diagnósticos), `alvenariaDim.ts` (panos com fator de cumprimento, lados curtos, vergas, vigas sobre muros), `memorialAlvenaria.ts`, comandos `bloco.tipo`, `alvenaria.tipo`, `parede.modularAbertura` e `verga.armadura`, 18 opções `alvenaria*`; falta a interface (cartões em `docs/cartoes/E1e/`) e a prancha.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 4 itens (manual do usuário); 10 passam de Falta a Parcial.
+- **22/10/2026 — fatia FU7b, interface.** C5.28, C11.28 e C11.31 passam a Feito (interface da base da parede: `BaseParedeUI.tsx`, seletor Fundação da parede, sapata de parede na lista, no editor e na janela, memorial; `CorridaUI.tsx`, `ParedesUI.tsx`, `MemorialEdificio.tsx`). C5.2 segue Parcial (falta a alvenaria, E1e).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: FU reduz em 3 itens (manual do usuário).
