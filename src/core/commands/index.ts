@@ -14,6 +14,7 @@ import './baseElastica';
 import './corrida';
 import './edicao';
 import './pilarParede';
+import './obraAssistente';
 import './flechas';
 import './paredes';
 

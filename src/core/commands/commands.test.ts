@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { afetaCalculo, aplicarComando, comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
 import { edificioVazio, lancesDoPilar, peDireito } from '../building/types';
+import { ESPEC_PADRAO } from '../building/assistente';
 import { verificar } from '../building/verify';
 import { lerEdificio } from '../building/file';
 
@@ -69,6 +70,7 @@ function base() {
 /** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2, descricao: ['Residencial de 5 pavimentos', 'Fase de anteprojeto'], origem: 'assistente' }),
+  'obra.assistente': () => ({ espec: { nome: 'Assistente', cotaBase: 100, perfil: 'nbr', pavimentos: [{ nome: 'Térreo', peDireito: 3, categoria: 'comum', repeticoes: 1 }, { nome: 'Tipo', peDireito: 3, categoria: 'residencial', repeticoes: 2 }], eixos: { dx: [5], dy: [] } } }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
   'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
   'editar.espelhar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], eixo: [[5, -10], [5, 10]], copiar: true }),
@@ -437,5 +439,44 @@ describe('obra.definir: descrição e origem', () => {
     expect(r.ok).toBe(false);
     expect(r.erros[0].codigo).toBe('DESCRICAO_LONGA');
     expect(s.executar('obra.definir', { origem: 'xyz' }).ok).toBe(false);
+  });
+});
+
+describe('obra.assistente', () => {
+  it('um passo no histórico: desfazer volta ao modelo vazio', () => {
+    const s = new Sessao(edificioVazio());
+    expect(s.executar('obra.assistente', { espec: ESPEC_PADRAO }).ok).toBe(true);
+    expect(s.modelo.pavimentos.length).toBe(5);
+    expect(s.log.length).toBe(1);
+    s.desfazer();
+    expect(s.modelo).toEqual(edificioVazio());
+    s.refazer();
+    expect(s.modelo.pavimentos.length).toBe(5);
+  });
+  it('replay do log reproduz a obra', () => {
+    const s = new Sessao(edificioVazio());
+    s.executar('obra.assistente', { espec: ESPEC_PADRAO });
+    expect(replay(s.log, edificioVazio())).toEqual(s.modelo);
+  });
+  it('especificação inválida é recusada sem alterar o modelo', () => {
+    const s = new Sessao(edificioVazio());
+    const antes = s.modelo;
+    const r = s.executar('obra.assistente', { espec: { ...ESPEC_PADRAO, nome: ' ' } });
+    expect(r.ok).toBe(false);
+    expect(r.erros[0].codigo).toBe('ESPEC_INVALIDA');
+    expect(s.modelo).toEqual(antes);
+  });
+  it('mesmo modelo que o edifício padrão antigo', () => {
+    const A = new Sessao();
+    for (const c of comandosEdificioPadrao()) expect(A.executar(c.nome, c.params, 'sistema').ok).toBe(true);
+    const B = new Sessao(edificioVazio());
+    const espec = { nome: 'Edifício residencial', profundidadeFundacao: 1.5, pavimentos: [
+      { nome: 'Térreo', peDireito: 3, categoria: 'comum', repeticoes: 1 },
+      { nome: 'Tipo', peDireito: 3, categoria: 'residencial', repeticoes: 3 },
+      { nome: 'Cobertura', peDireito: 3, categoria: 'cobertura', repeticoes: 1 },
+    ] };
+    expect(B.executar('obra.assistente', { espec }).ok).toBe(true);
+    expect(B.modelo.pavimentos.map((p) => [p.nome, p.cota])).toEqual(A.modelo.pavimentos.map((p) => [p.nome, p.cota]));
+    expect(B.modelo.grupos.map((g) => [g.nome, g.uso, g.q])).toEqual(A.modelo.grupos.map((g) => [g.nome, g.uso, g.q]));
   });
 });
