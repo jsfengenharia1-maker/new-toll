@@ -24,6 +24,8 @@ import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
 import { EtapasFlechaGrupo } from './EtapasFlecha';
+import { IncendioGrupo } from './Incendio';
+import { FogoCard } from './FogoCard';
 import { MateriaisGrupo } from './Materiais';
 import { TabelasGrupo } from './TabelasArmadura';
 import { VinculosGrupo } from './Vinculos';
@@ -115,6 +117,7 @@ export function Edificio() {
         <EmpuxoGrupo b={b} />
         <OpcoesGrupo b={b} />
         <EtapasFlechaGrupo b={b} />
+        <IncendioGrupo b={b} />
         <MateriaisGrupo b={b} />
         <TabelasGrupo b={b} />
         <VinculosGrupo b={b} />
@@ -919,6 +922,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
             </table>
             <Hint>Duas direções da malha (x / y). Flecha total relativa aos apoios: elástica (G + ψ2·Q) × (1 + αf), sem fissuração; Q = flecha imediata só das cargas variáveis (limite sensorial ℓ/350). Limites editáveis nas opções de cálculo.</Hint>
           </div>
+          {!!dim.fogo && <FogoCard onIr={onIr} />}
           {!!dim.puncao?.length && (
             <div className="card" data-card-puncao>
               <h3>Punção das lajes</h3>
