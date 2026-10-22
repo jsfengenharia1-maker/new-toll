@@ -9,6 +9,8 @@ import { casosParaCarga, pavimentosOrdenados, type BuildingModel, type Parede } 
 import { useBuilding } from './store';
 import { linhasParedes } from './paredesLista';
 import { ArmaduraDaParede } from './ArmaduraParedeUI';
+import { AberturasArmadura } from './AberturasArmaduraUI';
+import { IsovaloresParede } from './IsovaloresParede';
 import { resumoCartao } from '../../core/building/paredesLista';
 
 export { aberturasNaPlanta, linhasParedes } from './paredesLista';
@@ -185,6 +187,8 @@ export function JanelaParede({ id }: { id: string }) {
     <div data-janela-pw={id}>
       <p className="small">Parede de concreto · {r.nCascas} trecho(s) em casca e {r.ladosBarra} em barra. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
       <ArmaduraDaParede id={id} tipo="parede" />
+      {w.aberturas?.length ? <AberturasArmadura id={id} /> : null}
+      <IsovaloresParede id={id} tipo="parede" />
       <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
       <table className="data quadro" data-pw-base>
         <thead><tr><th>Caso</th><th>N (kN)</th><th>Vx (kN)</th><th>Vy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>

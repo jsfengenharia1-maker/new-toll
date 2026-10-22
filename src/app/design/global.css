@@ -184,6 +184,8 @@
   --emp-agua: var(--accent-text);
   --emp-sobrecarga: var(--ink-strong);
   --emp-eixo: var(--muted);
+  --iso-0: #2b4ba8; --iso-1: #3f6fc4; --iso-2: #5c93d6; --iso-3: #86b6e2; --iso-4: #b3d4ea; --iso-5: #e3ece9;
+  --iso-6: #f2dcb4; --iso-7: #eab883; --iso-8: #de8d5c; --iso-9: #c95a3c; --iso-10: #a02a2a;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
@@ -704,6 +706,16 @@ svg.mono .hinge { fill: #fff !important; }
 .det-barra.pele { stroke: var(--det-pele); }
 .det-barra.predefinida { stroke-width: calc(var(--det-esp-barra) * 1.4); }
 .det-tela { fill: var(--det-tela); fill-opacity: 0.14; stroke: var(--det-tela); stroke-width: 1.2; }
+.iso-svg { width: 100%; max-height: 320px; background: var(--surface); }
+.iso { stroke: var(--line); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
+.iso-leg { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.iso-cel { width: 18px; height: 10px; display: inline-block; }
+.iso-0 { fill: var(--iso-0); background: var(--iso-0); } .iso-1 { fill: var(--iso-1); background: var(--iso-1); }
+.iso-2 { fill: var(--iso-2); background: var(--iso-2); } .iso-3 { fill: var(--iso-3); background: var(--iso-3); }
+.iso-4 { fill: var(--iso-4); background: var(--iso-4); } .iso-5 { fill: var(--iso-5); background: var(--iso-5); }
+.iso-6 { fill: var(--iso-6); background: var(--iso-6); } .iso-7 { fill: var(--iso-7); background: var(--iso-7); }
+.iso-8 { fill: var(--iso-8); background: var(--iso-8); } .iso-9 { fill: var(--iso-9); background: var(--iso-9); }
+.iso-10 { fill: var(--iso-10); background: var(--iso-10); }
 .det-tela.sup { --det-tela: var(--det-sup); }
 .det-tela.inf { --det-tela: var(--det-inf); }
 .det-zona { fill: var(--det-zona); fill-opacity: 0.12; stroke: var(--det-zona); stroke-width: 1.2; stroke-dasharray: 8 3; }

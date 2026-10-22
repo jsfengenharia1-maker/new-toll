@@ -8,6 +8,7 @@ import { pavimentosOrdenados, type BuildingModel, type LadoPilarParede, type Pil
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { ArmaduraDaParede } from './ArmaduraParedeUI';
+import { IsovaloresParede } from './IsovaloresParede';
 import { resumoCartao } from '../../core/building/paredesLista';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -173,6 +174,7 @@ export function JanelaPilarParede({ id }: { id: string }) {
     <div data-janela-pp={id}>
       <p className="small">Tipo <b>{r.nomeTipo}</b> · modelo: {r.modelo === 'casca' ? 'todos os lados em casca' : r.modelo === 'barra' ? 'todos os lados em barra' : `${r.nCascas} lado(s) em casca e ${r.ladosBarra} em barra`}. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
       <ArmaduraDaParede id={id} tipo="pilarParede" />
+      <IsovaloresParede id={id} tipo="pilarParede" />
       <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
       <table className="data quadro" data-pp-base>
         <thead><tr><th>Caso</th><th>N (kN)</th><th>Vx (kN)</th><th>Vy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>
