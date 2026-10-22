@@ -3,8 +3,8 @@
 // (momentos por metro da grelha) e quantitativos. Cargas para o módulo Fundações.
 import type { InfoRearme } from './rearmarAlterados';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
-import { baseBarra, type Caso3, type Modelo3, type V3 } from '../fe3d';
-import { barArea, beamAsMin, beamFlexure, bransonRatio, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
+import { baseBarra, resolver3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
+import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
 import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, modoGrampos, tabelaDe, tabelaPilarNaSecao } from './tabelasArmadura';
 import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, flambagemLance, gamas } from './materiais';
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
@@ -32,6 +32,7 @@ import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type Cortante
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
+import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
 export { TAXAS };
 
@@ -128,6 +129,8 @@ export interface ResultadoViga {
   viga: string; nome: string; grupo: string; b: number; h: number; L: number;
   /** Maior flecha total (quase permanente, Branson por seção, com fluência) e da carga variável, e limites (m). */
   flecha: number; limite: number; flechaQ: number; limiteQ: number;
+  /** Flechas por tipo (N2f): instantâneas por categoria, diferida, total, ativa e da variável, com os limites. */
+  flechas?: FlechasElemento;
   Mpos: number; Mneg: number; V: number;
   /** Envoltória ELU ao longo da viga (todos os pavimentos do grupo), em faixas de 0,25 m, com as combinações determinantes. */
   envoltoria: EnvoltoriaViga;
@@ -312,6 +315,11 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   const psi2 = (id: string) => obra.find((x) => x.id === id)?.psi?.[2] ?? b.norma.psiQ?.[2] ?? 0.3;
   const fQP: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'G' || natureza(id) === 'H' ? 1 : natureza(id) === 'Q' ? psi2(id) : 0]));
   const fQ: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'Q' ? 1 : 0]));
+  // N2f: permanentes e parcela quase permanente das variáveis em separado (etapas de carga)
+  const fG: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'G' || natureza(id) === 'H' ? 1 : 0]));
+  const fQqp: Record<string, number> = Object.fromEntries(an.casos.map((id) => [id, natureza(id) === 'Q' ? psi2(id) : 0]));
+  const memoFr = new Map<string, FracoesG>();
+  const fracoesViga = (g: string) => { let f = memoFr.get(g); if (!f) { f = fracoesGGrupo(b, g); memoFr.set(g, f); } return f; };
   // parte vertical de cada combinação (a redistribuição e os mínimos valem para as cargas verticais)
   const horiz = new Set([...(an.vento?.casos ?? []).map((x) => x.nome), ...obra.filter((x) => x.natureza === 'W').map((x) => x.id)]);
   const vert = (cb: CombinacaoEd): CombinacaoEd => ({ ...cb, fatores: Object.fromEntries(Object.entries(cb.fatores).filter(([k]) => !horiz.has(k))) });
@@ -623,14 +631,35 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         msgs.push(`Estribos com armadura comprimida (φ${String(phiC).replace('.', ',')}): s ≤ mín(20 cm; b; 12φ) = ${Math.floor(sC * 100)} cm e φt ≥ φℓ/4 = ${(phiC / 4).toFixed(1).replace('.', ',')} mm (NBR 6118, 18.2.4 e 18.3.3.2) [a confirmar].`);
       }
     }
-    // flechas por vão (cadeias de barras entre pilares), curvatura M/(Ecs·Ie) com Branson em cada seção
-    const fl = flechasViga(an, membros, noPilar, usoNo, (M) => {
-      const r = M >= 0 ? bransonRatio(sec, false, AsInf, dI, M, c) : bransonRatio(sec, false, Math.max(AsSup, 1e-6), dS, M, c);
+    // flechas por vão (cadeias de barras entre pilares), curvatura M/(Ecs·Ie) com Branson em cada seção; N2f: seção
+    // homogeneizada (opção), ρ′ das barras de montagem (porta-estribos) no vão, etapas de carga e flecha ativa
+    const dMont = cob.sup + 0.005 + op.bitolaMontagem / 2000, AsMont = 2 * barArea(op.bitolaMontagem);
+    const rhoL = op.flechaRhoLinha ? AsMont / (v.secao.b * dI) : 0;
+    const EIv = (M: number) => {
+      const r = M >= 0 ? bransonFlecha(sec, false, AsInf, dI, M, c, !!op.inerciaHomogeneizada, AsMont, dMont) : bransonFlecha(sec, false, Math.max(AsSup, 1e-6), dS, M, c, !!op.inerciaHomogeneizada, AsInf, v.secao.h - dI);
       return c.Ecs * 1000 * r.Ie;
-    }, fQP, fQ);
-    const flecha = fl.qp * (1 + af), limite = fl.vao / op.limiteFlechaTotal * (fl.balanco ? 2 : 1), limiteQ = fl.vaoQ / op.limiteFlechaSensorial * (fl.balancoQ ? 2 : 1);
-    if (flecha > limite) msgs.push(`Flecha total ${(flecha * 1000).toFixed(1)} mm > ${fl.balanco ? '2ℓ' : 'ℓ'}/${op.limiteFlechaTotal} = ${(limite * 1000).toFixed(1)} mm (Branson por seção, × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')})).`);
-    if (fl.q > limiteQ) msgs.push(`Flecha das variáveis ${(fl.q * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limiteQ * 1000).toFixed(1)} mm.`);
+    };
+    const cadF = flechasVigaSets(an, membros, noPilar, usoNo, EIv, fQP, [fG, fQ, fQqp], !!op.flechaRotacaoBalanco);
+    const limsV = limitesEmUso(b, op, 'viga'), etV = etapasDe(b, 'viga'), frV = fracoesViga(v.grupo);
+    const qInst = op.flechaQInstantanea ? 'total' as const : 'qp' as const;
+    const afR = af / (1 + 50 * rhoL);
+    type Cand = { L: number; balanco: boolean; inst: FlechasInstantaneas; comp: ComposicaoEtapas; total: number };
+    const cands: Cand[] = cadF.map((x) => {
+      const inst = instantaneasPorCategoria(x.d[0], frV, x.d[1], x.d[2]);
+      const comp = composicaoEtapas(etV, inst, { rho: rhoL, qInstantanea: qInst });
+      return { L: x.L, balanco: x.balanco, inst, comp, total: op.flechaEtapas ? comp.total : (x.d[0] + x.d[2]) * (1 + afR) };
+    });
+    const pior = (val: (k: Cand) => number, t: TipoFlecha) => cands.reduce<{ k: Cand | null; r: number }>((m, k) => { const lim = limiteFlecha(k.L, limsV[t], k.balanco), r = Number.isFinite(lim) ? val(k) / lim : val(k) / (k.balanco ? 2 * k.L : k.L); return r > m.r ? { k, r } : m; }, { k: null, r: 0 }).k;
+    const cT = pior((k) => k.total, 'total'), cQ = pior((k) => k.inst.q, 'variavel'), cA = pior((k) => k.comp.ativa, 'ativa'), cI = pior((k) => k.comp.instantanea, 'instantanea');
+    const vaoT = cT?.L ?? 1, balT = cT?.balanco ?? false, vaoQ = cQ?.L ?? 1, balQ = cQ?.balanco ?? false;
+    const flecha = cT?.total ?? 0, flechaQ = cQ?.inst.q ?? 0;
+    const limite = limiteFlecha(vaoT, limsV.total, balT), limiteQ = limiteFlecha(vaoQ, limsV.variavel, balQ);
+    const fv = resumoFlechas({ metodo: op.flechaEtapas ? 'etapas' : 'fator', instantaneas: cT?.inst ?? instantaneasPorCategoria(0, frV, 0, 0), instantanea: cI?.comp.instantanea ?? 0, diferida: cT ? cT.total - cT.comp.instantanea : 0, total: flecha, ativa: cA?.comp.ativa ?? 0, variavel: flechaQ, vao: vaoT, balanco: balT, ...(cT && op.flechaEtapas ? { etapas: cT.comp } : {}), rho: rhoL }, limsV);
+    fv.limites.ativa = cA ? limiteFlecha(cA.L, limsV.ativa, cA.balanco) : Infinity; fv.limites.instantanea = cI ? limiteFlecha(cI.L, limsV.instantanea, cI.balanco) : Infinity;
+    fv.limites.variavel = limiteQ;
+    if (flecha > limite) msgs.push(`Flecha total ${(flecha * 1000).toFixed(1)} mm > ${textoLimite(limsV.total, balT)} = ${(limite * 1000).toFixed(1)} mm (Branson por seção, ${op.flechaEtapas ? `por etapas: ${(cT!.comp.fatorTotal).toFixed(2).replace('.', ',')} × instantânea, ξ médio ${cT!.comp.xiMedio.toFixed(2).replace('.', ',')}` : `× (1 + αf = ${(1 + afR).toFixed(2).replace('.', ',')})`}).`);
+    if (flechaQ > limiteQ) msgs.push(`Flecha das variáveis ${(flechaQ * 1000).toFixed(1)} mm > ${textoLimite(limsV.variavel, balQ).replace('2ℓ', 'ℓ')} = ${(limiteQ * 1000).toFixed(1)} mm.`);
+    msgs.push(...mensagensFlechasNovas(fv));
     // pilares que nascem sobre a viga (E1a): carga concentrada na base e cortante junto às faces do pilar
     const transicoes: TransicaoViga[] = [];
     for (const [pid, ap] of Object.entries(an.apoiados ?? {})) {
@@ -658,7 +687,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     if ((aPos.aco === 'CA-60' && (bi?.phi ?? 0) > 10) || (aNeg.aco === 'CA-60' && (bs?.phi ?? 0) > 10)) msgs.push(AVISO_CA60);
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
-      flecha, limite, flechaQ: fl.q, limiteQ,
+      flecha, limite, flechaQ, limiteQ, flechas: fv,
       Mpos, Mneg, V, envoltoria: envolt, facesPilar, origens: [
         origem('Armadura inferior', envolt.determinantes.Mmax, 'flexao'),
         ...(AsSup ? [origem('Armadura superior', envolt.determinantes.Mmin, 'flexao')] : []),
@@ -672,7 +701,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}${est.legs > 2 ? ` (${est.legs} ramos)` : ''}` : '—',
       ...(transicoes.length ? { transicoes } : {}),
       ...(smaxImposto < Infinity ? { estriboSmax: smaxImposto } : {}),
-      status: msgs.some((x) => x.startsWith('Transição ') || x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Flecha') || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
+      status: msgs.some((x) => x.startsWith('Transição ') || x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || (x.startsWith('Flecha') && !x.startsWith('Flecha instantânea')) || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
       bloqueada: bloq, arranjo: { inf: bi ? { n: bi.n, phi: bi.phi } : null, sup: AsSup && bs ? { n: bs.n, phi: bs.phi } : null, estribo: est ? { phi: est.phi, s: est.s, ...(est.legs > 2 ? { legs: est.legs } : {}) } : null, laterais: lat ? { n: lat.n, phi: lat.phi } : null },
     });
   }
@@ -717,40 +746,64 @@ function suspensoesVigas(b: BuildingModel, an: AnaliseEdificio, vigas: Resultado
  * balanço (ponta sem pilar nem outra viga) → d = −∫κ·|ξ − x_livre| com tangente fixa no apoio.
  */
 export function flechasViga(an: AnaliseEdificio, membros: number[], noPilar: Set<number>, usoNo: Map<number, number>, EI: (M: number) => number, fQP: Record<string, number>, fQ: Record<string, number>) {
+  const out = { qp: 0, q: 0, vao: 1, vaoQ: 1, balanco: false, balancoQ: false };
+  for (const c of flechasVigaSets(an, membros, noPilar, usoNo, EI, fQP, [fQP, fQ])) {
+    const [dqp, dq] = c.d, Lr = c.balanco ? 2 * c.L : c.L;
+    if (dqp / Lr > out.qp / (out.balanco ? 2 * out.vao : out.vao)) { out.qp = dqp; out.vao = c.L; out.balanco = c.balanco; }
+    if (dq / Lr > out.q / (out.balancoQ ? 2 * out.vaoQ : out.vaoQ)) { out.q = dq; out.vaoQ = c.L; out.balancoQ = c.balanco; }
+  }
+  return out;
+}
+
+/**
+ * Flechas imediatas de cada vão da viga para vários conjuntos de fatores por caso (N2f): a rigidez de cada seção vem
+ * de `EI(M)` com o momento da combinação `fMom` (quase permanente). Vão apoiado: maior deslocamento relativo à reta
+ * dos apoios; balanço: deslocamento da ponta com tangente fixa no apoio e, com `rotacao`, mais o giro do apoio no
+ * pórtico (K1.14-7: rotações por caso) [a confirmar: giro elástico do modelo].
+ */
+export function flechasVigaSets(an: AnaliseEdificio, membros: number[], noPilar: Set<number>, usoNo: Map<number, number>, EI: (M: number) => number, fMom: Record<string, number>, sets: Record<string, number>[], rotacao = false) {
   const pm = an.portico, mb = pm.modelo.barras;
   const cadeias = cadeiasViga(an, membros, noPilar);
-  const out = { qp: 0, q: 0, vao: 1, vaoQ: 1, balanco: false, balancoQ: false };
+  const out: { L: number; balanco: boolean; d: number[] }[] = [];
   for (const cad of cadeias) {
-    const est: { x: number; kqp: number; kq: number; dx: number }[] = [];
+    const est: { x: number; k: number[]; dx: number }[] = [];
     let x0 = 0;
     for (const bi of cad) {
       const { L } = baseBarra(pm.modelo, mb[bi]);
       const n = pm.barras[bi].fina ? Math.max(2, Math.ceil(L / 0.1 - 1e-9)) : Math.max(8, Math.ceil(L / 0.1)), xs = Array.from({ length: n }, (_, k) => ((k + 0.5) * L) / n);
       const pc = porCaso(an, bi, xs, true);
+      const m = (f: Record<string, number>, k: number) => Object.entries(f).reduce((t, [cs, v]) => t + v * (pc[cs]?.[k]?.Mz ?? 0), 0);
       xs.forEach((x, k) => {
-        const Mqp = Object.entries(fQP).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0), Mq = Object.entries(fQ).reduce((t, [cs, f]) => t + f * (pc[cs]?.[k]?.Mz ?? 0), 0);
-        const ei = EI(Mqp);
-        est.push({ x: x0 + x, kqp: Mqp / ei, kq: Mq / ei, dx: L / n });
+        const ei = EI(m(fMom, k));
+        est.push({ x: x0 + x, k: sets.map((f) => m(f, k) / ei), dx: L / n });
       });
       x0 += L;
     }
     const L = x0, a = mb[cad[0]].i, z = mb[cad.at(-1)!].j;
     const livre = (no: number) => !noPilar.has(no) && (usoNo.get(no) ?? 0) <= 1;
     const balanco = livre(a) !== livre(z) ? (livre(a) ? 0 : L) : null;
-    let dqp = 0, dq = 0;
+    const d = sets.map(() => 0);
     if (balanco !== null) {
-      for (const e of est) { dqp -= e.kqp * Math.abs(e.x - balanco) * e.dx; dq -= e.kq * Math.abs(e.x - balanco) * e.dx; }
-      dqp = Math.abs(dqp); dq = Math.abs(dq);
+      for (const e of est) for (let s = 0; s < sets.length; s++) d[s] -= e.k[s] * Math.abs(e.x - balanco) * e.dx;
+      if (rotacao && pm.res) {
+        // giro do apoio do balanço: deslocamento vertical da ponta = −(θ × r)z, r = ponta − apoio (horizontal)
+        const ap = balanco === 0 ? z : a, pt = balanco === 0 ? a : z, P = pm.modelo.nos;
+        const rx = P[pt][0] - P[ap][0], ry = P[pt][1] - P[ap][1];
+        sets.forEach((f, s) => {
+          let th = 0;
+          an.casos.forEach((cs, ic) => { const v = f[cs]; const u = pm.res!.desloc[ic]; if (v && u) th += v * -(u[ap * 6 + 3] * ry - u[ap * 6 + 4] * rx); });
+          d[s] += th;
+        });
+      }
+      for (let s = 0; s < sets.length; s++) d[s] = Math.abs(d[s]);
     } else {
       for (let k = 0; k <= 20; k++) {
-        const x = (k * L) / 20;
-        let wqp = 0, wq = 0;
-        for (const e of est) { const G = e.x <= x ? (e.x * (L - x)) / L : (x * (L - e.x)) / L; wqp += e.kqp * G * e.dx; wq += e.kq * G * e.dx; }
-        dqp = Math.max(dqp, wqp); dq = Math.max(dq, wq);
+        const x = (k * L) / 20, w = sets.map(() => 0);
+        for (const e of est) { const G = e.x <= x ? (e.x * (L - x)) / L : (x * (L - e.x)) / L; for (let s = 0; s < sets.length; s++) w[s] += e.k[s] * G * e.dx; }
+        for (let s = 0; s < sets.length; s++) d[s] = Math.max(d[s], w[s]);
       }
     }
-    if (dqp / (balanco !== null ? 2 * L : L) > out.qp / (out.balanco ? 2 * out.vao : out.vao)) { out.qp = dqp; out.vao = L; out.balanco = balanco !== null; }
-    if (dq / (balanco !== null ? 2 * L : L) > out.q / (out.balancoQ ? 2 * out.vaoQ : out.vaoQ)) { out.q = dq; out.vaoQ = L; out.balancoQ = balanco !== null; }
+    out.push({ L, balanco: balanco !== null, d });
   }
   return out;
 }
@@ -1159,6 +1212,8 @@ export interface ResultadoLaje {
   flecha: number; limite: number;
   /** Flecha imediata só das variáveis e o limite sensorial (m). */
   flechaQ: number; limiteQ: number;
+  /** Flechas por tipo (N2f), com os limites. */
+  flechas?: FlechasElemento;
   /** Maior abertura de fissuras na combinação frequente (mm; maciças) e limite. */
   wk: number; wkLim: number;
   status: 'ok' | 'fail'; mensagens: string[];
@@ -1273,8 +1328,8 @@ export function woodArmer(mx: number, my: number, mxy: number): { inf: [number, 
  * Maior flecha relativa aos apoios das linhas da malha da laje: em cada linha (cadeia de barras de uma direção),
  * deslocamento menos a reta entre as pontas (que estão sobre as vigas).
  */
-function flechaRelativa(g: GrelhaPavimento, lajeId: string, fat: number[]): number {
-  const m = g.modelo, res = g.res!;
+function flechaRelativa(g: GrelhaPavimento, lajeId: string, fat: number[], res: Resultado3 = g.res!): number {
+  const m = g.modelo;
   const w = (n: number) => fat.reduce((t, f, ic) => t + f * res.desloc[ic][n * 6 + 2], 0);
   let max = 0;
   for (const dir of [0, 1]) {
@@ -1305,7 +1360,9 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
   const fFreq = an.casos.map((id, ic) => { const c = obra.find((x) => x.id === id); return nat[ic] === 'G' || nat[ic] === 'H' ? 1 : nat[ic] === 'Q' ? (c?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
   const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
   const af = deltaXi(op.t0Flecha); // fluência (NBR 6118, 17.3.2.1.2), ρ′ = 0
-  const fatorTotal = op.fatorFlechaLaje > 0 ? op.fatorFlechaLaje : 1 + af;
+  // N2f: permanentes e parcela quase permanente das variáveis em separado (etapas de carga)
+  const fG = nat.map((n) => (n === 'G' || n === 'H' ? 1 : 0)), fQqp = nat.map((n, ic) => (n === 'Q' ? psiQP[ic] : 0));
+  const precisaMetodo = op.fatorFlechaLaje <= 0 || op.fatorFlechaAtiva <= 0 || op.fatorFlechaAtivaTrelicada <= 0 || op.fatorFlechaConforto <= 0 || op.fatorFlechaConfortoTrelicada <= 0;
   const out: ResultadoLaje[] = [];
   // pavimentos do mesmo grupo com a mesma grelha (resultado reaproveitado na análise) dão o mesmo resultado
   const memo = new Map<unknown, Map<string, ResultadoLaje>>();
@@ -1315,6 +1372,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
     const ja = memo.get(g.res) ?? new Map<string, ResultadoLaje>();
     memo.set(g.res, ja);
     // pilares sem viga do pavimento: o cortante do entorno é da punção (puncao.ts), fora do cortante das pontas das barras
+    /** Lajes deste pavimento à espera das flechas (a fissuração recompõe a grelha com todas as lajes dimensionadas). */
+    const pend: PendenteFlecha[] = [];
     const semViga = op.cortanteLajes ? sitiosPuncao(b, g.pavimento, { puncaoVigaChata: 0 }).map((x) => ({ p: x.centro, ext: Math.max(...dimsSecao(secaoNoLance(x.p, g.pavimento))) / 2 })) : [];
     for (const l of b.lajes.filter((x) => x.grupo === pav.grupo)) {
       const r0 = ja.get(l.id);
@@ -1342,9 +1401,9 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       let wk = 0;
       const pr = propriedadesLaje(l.tipo), msgs: string[] = [];
       let As = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
-      // flecha relativa aos apoios: quase permanente × fator (fluência); sensorial: só as variáveis, imediata
-      const fl = flechaRelativa(g, l.id, fQP) * fatorTotal, fq = flechaRelativa(g, l.id, fQ);
-      const vao = Math.min(...vaos(l)), lim = vao / op.limiteFlechaTotal, limQ = vao / op.limiteFlechaSensorial;
+      // flecha relativa aos apoios (elástica, por combinação); a composição (fator, etapas, fissuração) vem depois de todas as lajes
+      const flQP = flechaRelativa(g, l.id, fQP), fq = flechaRelativa(g, l.id, fQ);
+      const vao = Math.min(...vaos(l));
       if (l.tipo.tipo === 'macica') {
         const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
         const sec = { kind: 'rect' as const, bw: 1, h };
@@ -1392,15 +1451,81 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         if (cort) msgs.push(...cort.mensagens);
       }
       // treliçadas: resultados por vigota em vigotas.ts (mensagens acrescentadas em dimensionarEdificio)
-      const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), sem fissuração`;
-      if (fl > lim) msgs.push(`Flecha total ${(fl * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaTotal} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
-      if (fq > limQ) msgs.push(`Flecha das variáveis ${(fq * 1000).toFixed(1)} mm > ℓ/${op.limiteFlechaSensorial} = ${(limQ * 1000).toFixed(1)} mm (vibrações).`);
-      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: fl, limite: lim, flechaQ: fq, limiteQ: limQ, wk, wkLim, status: fl > lim || fq > limQ || wk > wkLim + 1e-9 || (cort && !cort.ok) ? 'fail' : 'ok', mensagens: msgs, ...(cort ? { cortante: cort } : {}),
+      const r: ResultadoLaje = { laje: l.id, nome: l.nome, pavimento: pav.nome, tipo: pr.descricao, h: pr.h, mPos, mNeg, As, flecha: 0, limite: Infinity, flechaQ: fq, limiteQ: Infinity, wk, wkLim, status: 'ok', mensagens: msgs, ...(cort ? { cortante: cort } : {}),
         origens: [origem('Armadura', COMB_ELU_LAJE, 'laje'), origem('Flecha', COMB_QP, 'flechaLaje'), ...(l.tipo.tipo === 'macica' ? [origem('Fissuração', COMB_FREQ, 'fissura')] : []), ...(cort ? [origem('Cortante', COMB_ELU_LAJE, 'cortanteLaje')] : [])] };
       ja.set(l.id, r);
       out.push(r);
+      pend.push({ r, l, flQP, dG: precisaMetodo ? flechaRelativa(g, l.id, fG) : 0, dQ: fq, dQqp: precisaMetodo ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
     }
+    // N2f: fissuração das lajes maciças (Branson por barra com a armadura calculada e a grelha recomposta)
+    const kappa = precisaMetodo && op.fissuracaoLajes ? fissuracaoGrelha(b, g, pend.filter((x) => x.l.tipo.tipo === 'macica'), fQP, c, op) : new Map<string, number>();
+    for (const x of pend) finalizarFlechaLaje(b, op, x, kappa.get(x.l.id) ?? 1, af);
   }
+  return out;
+}
+
+type PendenteFlecha = { r: ResultadoLaje; l: BuildingModel['lajes'][number]; flQP: number; dG: number; dQ: number; dQqp: number; vao: number; cortOk: boolean };
+
+/**
+ * Flechas da laje por tipo (N2f) e mensagens: total pelo fator simplificado (`fatorFlechaLaje`) ou pelo método (etapas
+ * de carga, NBR 6118 17.3.2.1.2; sem etapas, 1 + αf); ativa e da variável pelos fatores da tabela-resumo do programa de
+ * referência (maciça 2,0 e 1,5; treliçada 1,75 e 1,25) ou pelo método (0); fissuração por `kappa` (δ fissurada / elástica).
+ */
+function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x: PendenteFlecha, kappa: number, af: number) {
+  const { r, l } = x, mac = l.tipo.tipo === 'macica', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
+  const inst = instantaneasPorCategoria(x.dG * kappa, fracoesGLaje(b, l), x.dQ * kappa, x.dQqp * kappa);
+  const comp = composicaoEtapas(etapasDe(b, tipoL), inst, { rho: 0, qInstantanea: op.flechaQInstantanea ? 'total' : 'qp' });
+  const fatA = mac ? op.fatorFlechaAtiva : op.fatorFlechaAtivaTrelicada, fatC = mac ? op.fatorFlechaConforto : op.fatorFlechaConfortoTrelicada;
+  const total = op.fatorFlechaLaje > 0 ? x.flQP * op.fatorFlechaLaje : op.flechaEtapas ? comp.total : x.flQP * kappa * (1 + af);
+  const ativa = fatA > 0 ? (x.dG + x.dQ) * fatA : comp.ativa;
+  const variavel = fatC > 0 ? x.dQ * fatC : x.dQ * kappa;
+  const f = resumoFlechas({ metodo: op.fatorFlechaLaje > 0 ? 'simplificado' : op.flechaEtapas ? 'etapas' : 'fator', instantaneas: inst, instantanea: (x.dG + x.dQ) * kappa, diferida: Math.max(0, total - comp.instantanea), total, ativa, variavel, vao: x.vao, balanco: false, ...(op.fatorFlechaLaje <= 0 && op.flechaEtapas ? { etapas: comp } : {}), rho: 0, ...(kappa !== 1 ? { fissuracao: kappa } : {}) }, lims);
+  const lim = f.limites.total, limQ = f.limites.variavel, fiss = kappa > 1 ? `fissurada (Branson, × ${kappa.toFixed(2).replace('.', ',')})` : 'sem fissuração';
+  const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : op.flechaEtapas ? `por etapas: ${comp.fatorTotal.toFixed(2).replace('.', ',')} × instantânea, ξ médio ${comp.xiMedio.toFixed(2).replace('.', ',')}, ${fiss}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), ${fiss}`;
+  const msgs = r.mensagens;
+  if (total > lim) msgs.push(`Flecha total ${(total * 1000).toFixed(1)} mm > ${f.textos.total} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
+  if (variavel > limQ) msgs.push(`Flecha das variáveis ${(variavel * 1000).toFixed(1)} mm > ${f.textos.variavel} = ${(limQ * 1000).toFixed(1)} mm (vibrações${fatC > 0 ? `, elástica × ${String(fatC).replace('.', ',')}` : ''}).`);
+  msgs.push(...mensagensFlechasNovas(f));
+  r.flecha = total; r.limite = lim; r.flechaQ = variavel; r.limiteQ = limQ; r.flechas = f;
+  r.status = total > lim || variavel > limQ || ativa > f.limites.ativa || r.wk > r.wkLim + 1e-9 || !x.cortOk ? 'fail' : 'ok';
+}
+
+/**
+ * Fator de fissuração por laje maciça (K1.15.4-13/15/16): em cada barra de laje da grelha, Ie/Ic de Branson com o
+ * momento da combinação quase permanente, Mr da NBR 6118 17.3.1 (seção bruta ou homogeneizada) e a armadura
+ * calculada da direção (positiva ou negativa); com `inerciaMediaVao`, um Ie por laje e direção pela média
+ * [(Ie,apoio + Ie,apoio)/2 + Ie,centro]/2 [a confirmar: apoio = barra mais fissurada nos negativos]. A grelha é
+ * resolvida de novo com Iz × Ie/Ic e o fator é δ fissurada / δ elástica da mesma grelha isolada (no modelo integrado a
+ * grelha isolada só serve para a razão) [a confirmar].
+ */
+function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteFlecha[], fQP: number[], c: ReturnType<typeof concretoDe>, op: AnaliseEdificio['opcoes']): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!lajes.length || !g.res || !g.casos) return out;
+  const porLaje = new Map(lajes.map((x) => [x.l.id, x]));
+  const fator = new Map<number, number>();
+  const media = new Map<string, { neg: number; pos: number; mPos: number; barras: number[] }>();
+  g.modelo.barras.forEach((_, i) => {
+    const t = g.barras[i], x = t.tipo === 'laje' ? porLaje.get(t.ref) : undefined;
+    if (!x || t.dir === undefined || !t.largura || x.l.tipo.tipo !== 'macica') return;
+    const h = x.l.tipo.h, cob = cobrimentoLaje(b, x.l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005, amin = 0.0015 * h;
+    const ms = [0, 6].map((k) => fQP.reduce((s, f, ic) => s + f * (k === 0 ? -g.res!.esforcos[ic][i][5] : g.res!.esforcos[ic][i][11]), 0) / t.largura!);
+    const M = Math.abs(ms[0]) >= Math.abs(ms[1]) ? ms[0] : ms[1];
+    const As = M >= 0 ? Math.max(amin, x.r.As.pos[t.dir] / 1e4) : Math.max(amin, x.r.As.neg[t.dir] / 1e4);
+    const br = bransonFlecha({ kind: 'rect', bw: 1, h }, false, As, M >= 0 ? dI : dS, M, c, !!op.inerciaHomogeneizada);
+    const f = Math.min(1, br.Ie / (h ** 3 / 12));
+    fator.set(i, f);
+    if (op.inerciaMediaVao) {
+      const k = `${t.ref}|${t.dir}`, e = media.get(k) ?? { neg: 1, pos: 1, mPos: -Infinity, barras: [] };
+      e.barras.push(i);
+      if (M < 0) e.neg = Math.min(e.neg, f); else if (M > e.mPos) { e.mPos = M; e.pos = f; }
+      media.set(k, e);
+    }
+  });
+  for (const e of media.values()) { const f = inerciaMediaVao(e.neg, e.neg, e.pos); for (const i of e.barras) fator.set(i, f); }
+  if (![...fator.values()].some((f) => f < 1 - 1e-9)) return out;
+  const resEl = g.integrado ? resolver3(g.modelo, g.casos) : g.res, resCr = resolverGrelhaFissurada(g.modelo, g.casos, fator);
+  if (resEl.erro || resCr.erro) return out;
+  for (const { l } of lajes) { const e = flechaRelativa(g, l.id, fQP, resEl), k = flechaRelativa(g, l.id, fQP, resCr); if (e > 1e-12) out.set(l.id, Math.max(1, k / e)); }
   return out;
 }
 

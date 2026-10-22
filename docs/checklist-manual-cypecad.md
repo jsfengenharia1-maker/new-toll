@@ -499,7 +499,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L | [L5] |
 | C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L | [L5] |
 | | **7.1.5 Opções de lajes** | | | |
-| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | limites ℓ/250 (total) e ℓ/350 (variável) editáveis, comuns a todas as lajes (N1d); sem flecha ativa nem padrões próprios das vigotas [N2f] |
+| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | N2f (núcleo): limites próprios das treliçadas por tipo de flecha (`flechas.limites { elemento: trelicada }`), ativa ℓ/500 e 10 mm e fator 1,75; falta a interface [N2f] |
 | C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
@@ -1009,3 +1009,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **22/10/2026 — fatia E1b (pilar-parede).** C4.1, C4.31 e C4.32 (manual do usuário) passam a Feito: `PilarParede`/`TipoPilarParede` em `src/core/building/types.ts`, geometria e modelo em `pilarParede.ts` e `pilarParedeModelo.ts`, comandos `pilarParede.tipo/inserir/editar/mover/remover` (`src/core/commands/pilarParede.ts`), interface em `PilarParedeUI.tsx` (grupo Pilares-parede, ferramenta Pilar-parede pela paleta Ctrl+K, janela do elemento) e e2e `E1b`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 3 itens (manual do usuário).
+- **22/10/2026 — fatia N2f, núcleo.** C7.83 segue Parcial: limites próprios das treliçadas por tipo de flecha (`flechas.limites`, `src/core/commands/flechas.ts`), ativa ℓ/500 e 10 mm e fator 1,75 já no cálculo; falta a interface (cartões em `docs/cartoes/N2f/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).

@@ -291,6 +291,35 @@ export interface OpcoesCalculo {
   vigaEstriboComprimida: number;
   /** Desnível entre panos (K1.9.85): fração da menor espessura acima da qual a borda perde a continuidade (0 = desligado). */
   lajeDesnivelFator: number;
+  // ---- N2f: flechas por etapas ----
+  /** 1 = flecha total e ativa pelas etapas de carga (t0 ponderado, NBR 6118 17.3.2.1.2); 0 = fator único 1 + αf(t0). */
+  flechaEtapas: number;
+  /** 1 = a variável entra inteira na instantânea (critério da referência); 0 = só ψ2·Q (combinação quase permanente). */
+  flechaQInstantanea: number;
+  /** 1 = ρ′ das barras de compressão (porta-estribos) na fluência das vigas, αf = Δξ/(1 + 50ρ′); 0 = ρ′ = 0. */
+  flechaRhoLinha: number;
+  /** 1 = estádio I com a seção homogeneizada (αe = Es/Ecs) no Branson; 0 = seção bruta (NBR 6118, 17.3.2.1.1). */
+  inerciaHomogeneizada: number;
+  /** 1 = soma o giro do apoio (pórtico) à flecha dos balanços das vigas. */
+  flechaRotacaoBalanco: number;
+  /** 1 = lajes maciças com a grelha recomposta pela rigidez fissurada (Branson por barra) no método da NBR. */
+  fissuracaoLajes: number;
+  /** 1 = inércia média do vão [(Ie,esq + Ie,dir)/2 + Ie,centro]/2 por laje e direção; 0 = Ie por barra. */
+  inerciaMediaVao: number;
+  /** Limite da flecha ativa: vão / este valor (0 = sem a parcela relativa). */
+  limiteFlechaAtiva: number;
+  /** Limite absoluto da flecha ativa (cm; 0 = sem). */
+  limiteFlechaAtivaAbs: number;
+  /** Limite da flecha instantânea total (G + Q): vão / este valor (0 = sem verificação; aviso). */
+  limiteFlechaInst: number;
+  /** Fator simplificado da flecha ativa das lajes maciças (× elástica G + Q); 0 = método por etapas. */
+  fatorFlechaAtiva: number;
+  /** Idem para as lajes treliçadas. */
+  fatorFlechaAtivaTrelicada: number;
+  /** Fator simplificado da flecha da variável (conforto) das lajes maciças (× elástica Q); 0 = método (instantânea). */
+  fatorFlechaConforto: number;
+  /** Idem para as lajes treliçadas. */
+  fatorFlechaConfortoTrelicada: number;
 }
 
 export interface OpcaoInfo {
@@ -636,6 +665,35 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Nas vigas com armadura dupla (barras comprimidas) o espaçamento dos estribos fica limitado a mín(20 cm; b; 12φ CA-50) e o diâmetro a φℓ/4.' },
   { chave: 'lajeDesnivelFator', rotulo: 'Desnível entre panos: limite da continuidade', unidade: '× espessura mínima', min: 0, max: 5, passo: 0.1, padrao: 0.5, fonte: 'Programa de referência (desníveis entre panos como nas vigotas); limite de ½ da menor espessura [a confirmar]', aConfirmar: true,
     descricao: 'Borda entre dois panos com desnível maior que este fator × a menor espessura é tratada sem continuidade (articulada); abaixo, vale o engaste da borda. 0 = desligado.' },
+  // ---- N2f: flechas por etapas e flecha ativa ----
+  { chave: 'flechaEtapas', rotulo: 'Flechas por etapas de carga (processo construtivo)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.2 (t0 ponderado pelas cargas aplicadas em idades diferentes); etapas padrão do exemplo do manual de cálculo do programa de referência', aConfirmar: false,
+    descricao: 'Flecha diferida de cada parcela de carga desde a idade em que é aplicada (etapas: desforma, alvenaria, revestimento, uso), com ξ médio ponderado. 0 = uma só idade t0 para toda a carga (1 + αf).' },
+  { chave: 'flechaQInstantanea', rotulo: 'Variável inteira na flecha instantânea', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 11.8.3.1 e 17.3.2.1: combinação quase permanente (ψ2·Q)', fonte: 'Exemplo do manual de cálculo do programa de referência (instantânea com a carga total, fluência só da parcela quase permanente)', aConfirmar: false,
+    descricao: '1 = a flecha instantânea inclui toda a carga variável e a diferida só ψ2·Q; 0 = só ψ2·Q nas duas (combinação quase permanente).' },
+  { chave: 'flechaRhoLinha', rotulo: 'Armadura de compressão na fluência (ρ′)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.2: αf = Δξ/(1 + 50ρ′); ρ′ das vigas = 2 barras de montagem no vão [a confirmar]; lajes sem armadura superior no vão (ρ′ = 0)', aConfirmar: true,
+    descricao: 'Vigas: ρ′ = As′/(b·d) com as duas barras de montagem (porta-estribos) da bitola de montagem. 0 = ρ′ = 0.' },
+  { chave: 'inerciaHomogeneizada', rotulo: 'Branson com a seção homogeneizada', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 17.3.2.1.1: Ic da seção bruta', fonte: 'Manual de cálculo do programa de referência (inércia bruta, homogeneizada e fissurada); αe = Es/Ecs', aConfirmar: false,
+    descricao: 'Estádio I com as armaduras homogeneizadas (αe = Es/Ecs) no momento de fissuração e na inércia de Branson das seções retangulares. 0 = seção bruta de concreto.' },
+  { chave: 'flechaRotacaoBalanco', rotulo: 'Giro do apoio na flecha dos balanços', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Manual de cálculo do programa de referência (rotações por caso na integração); giro elástico do pórtico [a confirmar]', aConfirmar: true,
+    descricao: 'Soma à flecha da ponta do balanço o giro do apoio no pórtico × comprimento. 0 = tangente fixa no apoio.' },
+  { chave: 'fissuracaoLajes', rotulo: 'Lajes maciças: fissuração na flecha (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.1 e 17.3.2.1.1 (Mr = α·fct·Ic/yt e Branson); grelha recomposta com a rigidez fissurada [a confirmar o método]', aConfirmar: true,
+    descricao: 'No método da NBR (fatores simplificados em 0), a rigidez de cada barra de laje maciça da grelha é reduzida por Branson com o momento quase permanente e a armadura calculada, e a grelha é resolvida de novo. Treliçadas sem fissuração (redutor `vigotaRigidez`).' },
+  { chave: 'inerciaMediaVao', rotulo: 'Lajes: inércia média do vão', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Manual de cálculo do programa de referência: Ie = [(Ie,esq + Ie,dir)/2 + Ie,centro]/2 (como opção); padrão integração por seção', aConfirmar: true,
+    descricao: '1 = uma inércia por laje e direção, média entre a dos apoios (barra mais fissurada nos negativos) e a do centro; 0 = Branson em cada barra.' },
+  { chave: 'limiteFlechaAtiva', rotulo: 'Limite da flecha ativa (vão / …)', min: 0, max: 2000, passo: 10, padrao: 500, fonte: 'NBR 6118, Tabela 13.3 (efeitos em elementos não estruturais: paredes, ℓ/500 e 10 mm)', aConfirmar: false,
+    descricao: 'Flecha ocorrida depois das paredes (ativa) ≤ vão / este valor e ≤ o limite absoluto; balanço: 2 × vão. 0 = sem a parcela relativa.' },
+  { chave: 'limiteFlechaAtivaAbs', rotulo: 'Limite absoluto da flecha ativa', unidade: 'cm', min: 0, max: 10, passo: 0.1, padrao: 1, fonte: 'NBR 6118, Tabela 13.3 (10 mm)', aConfirmar: false,
+    descricao: 'Valor máximo da flecha ativa (cm). 0 = sem limite absoluto.' },
+  { chave: 'limiteFlechaInst', rotulo: 'Limite da flecha instantânea total (vão / …)', min: 0, max: 2000, passo: 10, padrao: 0, fonte: 'Opção do programa de referência (limites opcionais de flecha instantânea); a NBR não fixa', aConfirmar: false,
+    descricao: 'Flecha instantânea de G + Q ≤ vão / este valor (aviso). 0 = sem verificação.' },
+  { chave: 'fatorFlechaAtiva', rotulo: 'Fator simplificado da flecha ativa (maciças)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 2, padraoNBR: 0, fonteNBR: 'NBR 6118, 17.3.2.1.2: método por etapas', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (integridade: 2,0 maciça, combinação gravitacional mais desfavorável)', aConfirmar: false,
+    descricao: 'Flecha ativa das lajes maciças = elástica de G + Q × este fator. 0 = pelas etapas de carga.' },
+  { chave: 'fatorFlechaAtivaTrelicada', rotulo: 'Fator simplificado da flecha ativa (treliçadas)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 1.75, padraoNBR: 0, fonteNBR: 'NBR 6118, 17.3.2.1.2: método por etapas', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (integridade: 1,75 nervurada/treliçada)', aConfirmar: false,
+    descricao: 'Flecha ativa das lajes treliçadas = elástica de G + Q × este fator. 0 = pelas etapas de carga.' },
+  { chave: 'fatorFlechaConforto', rotulo: 'Fator simplificado da flecha da variável (maciças)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 1.5, padraoNBR: 0, fonteNBR: 'NBR 6118, Tabela 13.3: flecha imediata da variável', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (conforto: 1,50 maciça, caso de carga variável)', aConfirmar: false,
+    descricao: 'Flecha da variável das lajes maciças = elástica de Q × este fator. 0 = instantânea pelo método (com fissuração, se ligada).' },
+  { chave: 'fatorFlechaConfortoTrelicada', rotulo: 'Fator simplificado da flecha da variável (treliçadas)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 1.25, padraoNBR: 0, fonteNBR: 'NBR 6118, Tabela 13.3: flecha imediata da variável', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (conforto: 1,25 nervurada/treliçada)', aConfirmar: false,
+    descricao: 'Flecha da variável das lajes treliçadas = elástica de Q × este fator. 0 = instantânea pelo método.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -675,6 +733,9 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao',
   'arredondamentoApoio', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
   'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',
+  // N2f: flechas por etapas (só o dimensionamento)
+  'flechaEtapas', 'flechaQInstantanea', 'flechaRhoLinha', 'inerciaHomogeneizada', 'flechaRotacaoBalanco', 'fissuracaoLajes', 'inerciaMediaVao',
+  'limiteFlechaAtiva', 'limiteFlechaAtivaAbs', 'limiteFlechaInst', 'fatorFlechaAtiva', 'fatorFlechaAtivaTrelicada', 'fatorFlechaConforto', 'fatorFlechaConfortoTrelicada',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

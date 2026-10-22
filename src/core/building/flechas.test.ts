@@ -5,6 +5,7 @@ import { dimensionarEdificio, flechasViga, woodArmer } from './dimensionamento';
 import { analisarEdificio } from './analitico';
 import { deltaXi } from '../design';
 import { comandosEdificioPadrao, Sessao } from '../commands';
+import { ANTES_N2F } from './antesN2f';
 
 const E = 30e6, b = 0.2, h = 0.5, I = (b * h ** 3) / 12;
 /** Pórtico mínimo de uma viga (barras em x) com cargas uniformes G; pilares fictícios marcam os apoios. */
@@ -60,7 +61,7 @@ describe('Wood-Armer e flecha das lajes', () => {
     expect(l.flecha / fat).toBeLessThan(absMax);
     expect(l.flecha).toBeGreaterThan(0);
     expect(l.mPos[0]).toBeGreaterThan(0);
-    const nbr = { ...s.modelo, opcoes: { fatorFlechaLaje: 0 } }, d2 = dimensionarEdificio(nbr, analisarEdificio(nbr));
+    const nbr = { ...s.modelo, opcoes: { fatorFlechaLaje: 0, ...ANTES_N2F } }, d2 = dimensionarEdificio(nbr, analisarEdificio(nbr));
     expect(d2.lajes[0].flecha / (1 + deltaXi(1))).toBeCloseTo(l.flecha / fat, 9);
     expect(d.vigas[0].flecha).toBeGreaterThan(0);
     expect(d.vigas[0].limite).toBeCloseTo(6 / 250, 3);
