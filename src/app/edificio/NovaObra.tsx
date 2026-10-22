@@ -16,11 +16,11 @@ const MODOS: { v: Modo; label: string; desabilitado?: string }[] = [
   { v: 'padrao', label: 'Edifício padrão' },
   { v: 'exemplo', label: 'Obra de exemplo' },
   { v: 'texto', label: 'Cargas de arquivo de texto' },
-  { v: 'dxf', label: 'Lançamento por DXF/DWG', desabilitado: 'Chega com a frente L2' },
+  { v: 'dxf', label: 'Lançamento por DXF/DWG' },
   { v: 'ifc', label: 'Importação de IFC', desabilitado: 'Chega com a frente L3' },
 ];
 
-export function NovaObra({ onClose, onCriada, onTexto }: { onClose(): void; onCriada(): void; onTexto(): void }) {
+export function NovaObra({ onClose, onCriada, onTexto, onDxf }: { onClose(): void; onCriada(): void; onTexto(): void; onDxf(): void }) {
   const [passo, setPasso] = useState<Passo>('modo');
   const [modo, setModo] = useState<Modo>('assistente');
   const [espec, setEspec] = useState<EspecificacaoObra>(() => structuredClone(ESPEC_PADRAO));
@@ -72,6 +72,12 @@ export function NovaObra({ onClose, onCriada, onTexto }: { onClose(): void; onCr
               <>
                 <Hint>Arquivo de texto com as hipóteses de carga, os esforços nos arranques e a dimensão da base dos pilares: gera uma obra só de arranques para calcular as fundações.</Hint>
                 <div><Button variant="primary" onClick={() => onTexto()}>Escolher arquivo de texto…</Button></div>
+              </>
+            )}
+            {modo === 'dxf' && (
+              <>
+                <Hint>Cria o edifício padrão (pavimentos e grupos para editar depois) e abre o assistente de lançamento: arquivos DXF ou DWG, camadas, grupos e revisão da proposta de pilares, vigas, eixos, lajes e aberturas.</Hint>
+                <div><Button variant="primary" onClick={() => { novo(false); onDxf(); }}>Criar edifício padrão e lançar pelo gabarito…</Button></div>
               </>
             )}
           </>

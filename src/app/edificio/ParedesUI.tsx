@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button, Check, Group, Hint, NumField, OptNumField, Pill, Select, Seg } from '../ui';
 import { niveisDaParede } from '../../core/building/paredesBase';
 import type { EsforcosLado, Resultante } from '../../core/building/pilarParedeEsforcos';
-import { casosParaCarga, pavimentosOrdenados, type BuildingModel, type Parede } from '../../core/building/types';
+import { casosParaCarga, mascaraNoGrupo, pavimentosOrdenados, type BuildingModel, type Parede } from '../../core/building/types';
 import { useBuilding } from './store';
 import { linhasParedes } from './paredesLista';
 import { ArmaduraDaParede } from './ArmaduraParedeUI';
@@ -44,7 +44,7 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const morreEf = morre && ps.some((p) => p.id === morre) ? morre : ultimo;
   const nasceOpcoes = [{ v: 'fundacao', label: 'fundação' }, ...ps.slice(0, -1).map((p) => ({ v: p.id, label: p.nome }))];
   const grupoAtivo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[0]?.grupo ?? '';
-  const mascaras = (b.mascaras ?? []).filter((m) => m.grupo === grupoAtivo);
+  const mascaras = (b.mascaras ?? []).filter((m) => mascaraNoGrupo(m, grupoAtivo));
   const camadas = mascaras.flatMap((m) => m.camadas.map((c) => c.nome));
   const [camada, setCamada] = useState('');
   const camadaEf = camada && camadas.includes(camada) ? camada : camadas[0] ?? '';
