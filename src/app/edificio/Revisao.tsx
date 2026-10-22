@@ -21,6 +21,7 @@ import { DetalheDoPilar } from './DetalhamentoPilar';
 import { SegundaOrdemPilar } from './SegundaOrdem';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { JanelaVigotas } from './Vigotas';
+import { TabelaFlechas } from './FlechasTabela';
 import { JanelaPuncao } from './Puncao';
 import { envoltoriaLajes } from '../../core/building/puncao';
 import { JanelaFundacao } from './Fundacao';
@@ -285,6 +286,7 @@ function JanelaViga({ id }: { id: string }) {
         </>
       ) : null}
       <Origens o={v.origens} />
+      {v.flechas && <><h4>Flechas</h4><TabelaFlechas f={v.flechas} /></>}
       <h4>Resumo</h4>
       <KV rows={[
         ['Seção b × h (cm)', `${Math.round(v.b * 100)} × ${Math.round(v.h * 100)}`], ['Comprimento (m)', fmt(v.L)],
@@ -366,6 +368,7 @@ function ResultadoDaLaje({ x }: { x: DimEdificio['lajes'][number] }) {
         ['wk / limite (mm)', `${fmt(x.wk, 2)} / ${fmt(x.wkLim, 2)}`],
         ...(x.cortante ? [['Cortante nos apoios em vigas: VSd / VRd1 (kN/m)', `${fmt(x.cortante.VSd[0], 1)} / ${fmt(x.cortante.VRd1[0], 1)} · ${fmt(x.cortante.VSd[1], 1)} / ${fmt(x.cortante.VRd1[1], 1)}`] as [string, string], ...(x.cortante.Asw > 0 ? [['Armadura transversal (cm²/m²)', fmt(x.cortante.Asw)] as [string, string]] : [])] : []),
       ]} />
+      {x.flechas && <TabelaFlechas f={x.flechas} />}
       <Origens o={x.origens} />
       <Mensagens msgs={x.mensagens} />
     </section>
