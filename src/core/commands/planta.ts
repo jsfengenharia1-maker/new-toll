@@ -1,9 +1,10 @@
 // Comandos da planta: máscara (DXF de referência) e pilares.
 import type { Draft } from 'immer';
-import { centroPilar, geoLance, inicioDe, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Pilar, type SecaoPilar, type VinculoBasePilar } from '../building/types';
+import { centroPilar, geoLance, inicioDe, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Mascara, type Pilar, type RegrasCamadas, type SecaoPilar, type VinculoBasePilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
 import { apoioDoPilar, nomeSobre } from '../building/transicao';
+import { deslocamentoCentralizado } from '../building/lancamentoDxf';
 import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -17,35 +18,51 @@ const fmt = (v: number) => String(+v.toFixed(3)).replace('.', ',');
 // ---- máscara ----
 
 const mascara = (b: BuildingModel, id: string) => b.mascaras.find((m) => m.id === id);
+const PAPEIS_OK = ['pilar', 'pilarParede', 'vigaEixo', 'vigaFaces', 'contorno', 'abertura', 'eixo', 'pontoFixo', 'texto', 'parede', 'ignorar'];
+/** Regras com papel desconhecido, camada inexistente ou parâmetro fora da faixa (null = ok). */
+function regrasInvalidas(geo: Record<string, CamadaGeo>, r: RegrasCamadas): Diagnostico[] | null {
+  if (!r || typeof r.papeis !== 'object') return err('REGRAS_INVALIDAS', 'Regras sem a tabela de papéis das camadas.');
+  for (const [c, papel] of Object.entries(r.papeis)) {
+    if (!PAPEIS_OK.includes(papel)) return err('PAPEL_INVALIDO', `Papel “${papel}” da camada “${c}” não existe.`);
+    if (!geo[c]) return err('CAMADA_INEXISTENTE', `Camada “${c}” das regras não existe no gabarito.`);
+  }
+  for (const k of ['larguraViga', 'alturaViga', 'vigaFacesMin', 'vigaFacesMax', 'tolerancia', 'pilarMax', 'raioTexto', 'lajeH'] as const)
+    if (!(typeof r[k] === 'number' && r[k] > 0)) return err('REGRAS_INVALIDAS', `Parâmetro “${k}” das regras deve ser positivo.`);
+  return r.vigaFacesMin < r.vigaFacesMax ? null : err('REGRAS_INVALIDAS', 'vigaFacesMin deve ser menor que vigaFacesMax.');
+}
 
-registrar<{ grupo: string; nome: string; geo: Record<string, CamadaGeo>; escala: number; centralizar: boolean }>({
+registrar<{ grupo: string; nome: string; geo: Record<string, CamadaGeo>; escala: number; centralizar: boolean; grupos?: string[]; regras?: RegrasCamadas; arquivo?: { nome: string; tipo: 'dxf' | 'dwg' } }>({
   nome: 'mascara.importar',
-  descricao: 'Importa um desenho de referência (geometria já lida do DXF, por camada) para a planta de um grupo de pavimentos. `escala` = metros por unidade do desenho; `centralizar` leva o canto inferior esquerdo à origem.',
+  descricao: 'Importa um desenho de referência (geometria já lida do DXF ou do DWG, por camada) para a planta de um grupo de pavimentos. `escala` = metros por unidade do desenho; `centralizar` leva o canto inferior esquerdo à origem; `grupos` associa a vista a outros grupos; `regras` guarda os papéis das camadas para o lançamento automático; `arquivo` registra o nome e o formato de origem.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'nome', 'geo', 'escala'], properties: {
     grupo: { type: 'string' }, nome: { type: 'string', minLength: 1 },
     geo: { type: 'object', description: 'camada → {linhas: [x1,y1,x2,y2,...], arcos: [cx,cy,r,a0,a1,...], textos: [{x,y,h,rot,t}]}' },
     escala: { type: 'number', exclusiveMinimum: 0, description: 'm por unidade (mm: 0,001; cm: 0,01; m: 1)' },
     centralizar: { type: 'boolean', default: true },
+    grupos: { type: 'array', items: { type: 'string' }, description: 'outros grupos em que a vista aparece' },
+    regras: { type: 'object', description: 'RegrasCamadas (src/core/building/types.ts)' },
+    arquivo: { type: 'object', additionalProperties: false, required: ['nome', 'tipo'], properties: { nome: { type: 'string' }, tipo: { type: 'string', enum: ['dxf', 'dwg'] } } },
   } },
   validar(b, p) {
     if (!b.grupos.some((g) => g.id === p.grupo)) return err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`);
+    const sem = (p.grupos ?? []).filter((g) => !b.grupos.some((x) => x.id === g));
+    if (sem.length) return err('GRUPO_INEXISTENTE', `Grupo ${sem.join(', ')} não existe.`);
+    const rg = p.regras ? regrasInvalidas(p.geo, p.regras) : null;
+    if (rg) return rg;
     const ruim = Object.entries(p.geo).find(([, c]) => !c || !Array.isArray(c.linhas) || !Array.isArray(c.arcos) || !Array.isArray(c.textos) || c.linhas.length % 4 || c.arcos.length % 5);
     if (ruim) return err('GEOMETRIA_INVALIDA', `Camada “${ruim[0]}” com geometria inválida.`);
     return Object.keys(p.geo).length ? [] : err('GEOMETRIA_VAZIA', 'O desenho não tem entidades lidas.');
   },
   aplicar(d, p) {
-    let x0 = Infinity, y0 = Infinity;
-    for (const c of Object.values(p.geo)) {
-      for (let k = 0; k < c.linhas.length; k += 2) { x0 = Math.min(x0, c.linhas[k]); y0 = Math.min(y0, c.linhas[k + 1]); }
-      for (let k = 0; k < c.arcos.length; k += 5) { x0 = Math.min(x0, c.arcos[k] - c.arcos[k + 2]); y0 = Math.min(y0, c.arcos[k + 1] - c.arcos[k + 2]); }
-    }
-    const ok = p.centralizar && Number.isFinite(x0);
+    const { dx, dy } = p.centralizar ? deslocamentoCentralizado(p.geo, p.escala) : { dx: 0, dy: 0 };
+    const extras = [...new Set(p.grupos ?? [])].filter((g) => g !== p.grupo);
     d.mascaras.push({
-      id: novoId(d, 'm'), nome: p.nome.trim(), grupo: p.grupo, escala: p.escala, rotacao: 0,
-      dx: ok ? -x0 * p.escala : 0, dy: ok ? -y0 * p.escala : 0,
+      id: novoId(d, 'm'), nome: p.nome.trim(), grupo: p.grupo, escala: p.escala, rotacao: 0, dx, dy,
       camadas: Object.keys(p.geo).sort().map((nome) => ({ nome, visivel: true, capturavel: true })),
       geo: p.geo,
+      ...(extras.length ? { grupos: extras } : {}), ...(p.regras ? { regras: p.regras } : {}), ...(p.arquivo ? { arquivo: p.arquivo } : {}),
+      original: { escala: p.escala, rotacao: 0, dx, dy },
     });
     return `Máscara “${p.nome.trim()}” importada (${Object.keys(p.geo).length} camada(s)).`;
   },
@@ -79,30 +96,39 @@ registrar<{ id: string; de: [number, number][]; para: [number, number][]; escala
   },
 });
 
-registrar<{ id: string; nome?: string; escala?: number; rotacao?: number; dx?: number; dy?: number }>({
+registrar<{ id: string; nome?: string; escala?: number; rotacao?: number; dx?: number; dy?: number; grupos?: string[]; visivel?: boolean }>({
   nome: 'mascara.editar',
-  descricao: 'Altera nome, escala (m por unidade), rotação (graus) ou deslocamento (m) da máscara.',
+  descricao: 'Altera nome, escala (m por unidade), rotação (graus), deslocamento (m), grupos em que a vista aparece (o primeiro é o principal) ou se está ligada na planta (`visivel`).',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, escala: { type: 'number', exclusiveMinimum: 0 },
     rotacao: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' },
+    grupos: { type: 'array', items: { type: 'string' }, minItems: 1, description: 'todos os grupos da vista; o primeiro é o principal' },
+    visivel: { type: 'boolean', description: 'vista ligada (padrão) ou desligada na planta' },
   } },
-  validar: (b, p) => (mascara(b, p.id) ? [] : err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`)),
+  validar(b, p) {
+    if (!mascara(b, p.id)) return err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`);
+    const sem = (p.grupos ?? []).filter((g) => !b.grupos.some((x) => x.id === g));
+    return sem.length ? err('GRUPO_INEXISTENTE', `Grupo ${sem.join(', ')} não existe.`) : [];
+  },
   aplicar(d, p) {
     const m = d.mascaras.find((x) => x.id === p.id)!;
     for (const k of ['nome', 'escala', 'rotacao', 'dx', 'dy'] as const) if (p[k] !== undefined) (m as Record<string, unknown>)[k] = k === 'nome' ? String(p[k]).trim() : p[k];
+    if (p.grupos) { const l = [...new Set(p.grupos)]; m.grupo = l[0]; if (l.length > 1) m.grupos = l.slice(1); else delete m.grupos; }
+    if (p.visivel !== undefined) { if (p.visivel) delete m.visivel; else m.visivel = false; }
     return `Máscara “${m.nome}” alterada.`;
   },
 });
 
-registrar<{ id: string; camadas: string[]; visivel?: boolean; capturavel?: boolean }>({
+registrar<{ id: string; camadas: string[]; visivel?: boolean; capturavel?: boolean; apelido?: string; cor?: string; espessura?: number; textos?: boolean }>({
   nome: 'mascara.camadas',
-  descricao: 'Liga/desliga a visibilidade e a captura de camadas da máscara.',
+  descricao: 'Liga/desliga a visibilidade e a captura de camadas da máscara; também o apelido (vazio remove), a cor (vazio volta à automática), a espessura de linha (px; 0 volta à automática) e a exibição só dos textos da camada.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'camadas'], properties: {
     id: { type: 'string' }, camadas: ids, visivel: { type: 'boolean' }, capturavel: { type: 'boolean' },
+    apelido: { type: 'string' }, cor: { type: 'string' }, espessura: { type: 'number', minimum: 0, maximum: 20 }, textos: { type: 'boolean' },
   } },
   validar(b, p) {
     const m = mascara(b, p.id);
@@ -112,7 +138,14 @@ registrar<{ id: string; camadas: string[]; visivel?: boolean; capturavel?: boole
   },
   aplicar(d, p) {
     const m = d.mascaras.find((x) => x.id === p.id)!;
-    for (const c of m.camadas) if (p.camadas.includes(c.nome)) { if (p.visivel !== undefined) c.visivel = p.visivel; if (p.capturavel !== undefined) c.capturavel = p.capturavel; }
+    for (const c of m.camadas) if (p.camadas.includes(c.nome)) {
+      if (p.visivel !== undefined) c.visivel = p.visivel;
+      if (p.capturavel !== undefined) c.capturavel = p.capturavel;
+      if (p.apelido !== undefined) { if (p.apelido.trim()) c.apelido = p.apelido.trim(); else delete c.apelido; }
+      if (p.cor !== undefined) { if (p.cor.trim()) c.cor = p.cor.trim(); else delete c.cor; }
+      if (p.espessura !== undefined) { if (p.espessura > 0) c.espessura = p.espessura; else delete c.espessura; }
+      if (p.textos !== undefined) { if (p.textos) delete c.textos; else c.textos = false; }
+    }
     return `${p.camadas.length} camada(s) alterada(s).`;
   },
 });
@@ -125,6 +158,91 @@ registrar<{ id: string }>({
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
   validar: (b, p) => (mascara(b, p.id) ? [] : err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`)),
   aplicar(d, p) { d.mascaras = d.mascaras.filter((m) => m.id !== p.id); return 'Máscara removida.'; },
+});
+
+registrar<{ id: string; grupos: string[]; nome?: string }>({
+  nome: 'mascara.copiar',
+  descricao: 'Copia a vista (camadas, escala e origem) para outros grupos de pavimentos: uma vista nova e independente para cada grupo informado, com a mesma geometria, configuração de camadas e regras.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id', 'grupos'], properties: {
+    id: { type: 'string' }, grupos: { type: 'array', items: { type: 'string' }, minItems: 1 }, nome: { type: 'string', minLength: 1, description: 'padrão: nome da vista + nome do grupo' },
+  } },
+  validar(b, p) {
+    if (!mascara(b, p.id)) return err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`);
+    const sem = p.grupos.filter((g) => !b.grupos.some((x) => x.id === g));
+    return sem.length ? err('GRUPO_INEXISTENTE', `Grupo ${sem.join(', ')} não existe.`) : [];
+  },
+  aplicar(d, p) {
+    const m = d.mascaras.find((x) => x.id === p.id)!;
+    const copia = JSON.parse(JSON.stringify({ ...m, geo: undefined })) as Mascara;
+    for (const g of [...new Set(p.grupos)]) {
+      const nome = p.nome?.trim() ? (p.grupos.length > 1 ? `${p.nome.trim()} (${d.grupos.find((x) => x.id === g)?.nome ?? g})` : p.nome.trim()) : `${m.nome} (${d.grupos.find((x) => x.id === g)?.nome ?? g})`;
+      const { grupos: _g, ...resto } = copia;
+      d.mascaras.push({ ...resto, id: novoId(d, 'm'), nome, grupo: g, geo: m.geo });
+    }
+    return `Vista “${m.nome}” copiada para ${new Set(p.grupos).size} grupo(s).`;
+  },
+});
+
+registrar<{ id: string; regras: RegrasCamadas }>({
+  nome: 'mascara.regras',
+  descricao: 'Define as regras do lançamento por camada do gabarito: papel de cada camada (pilar, pilarParede, vigaEixo, vigaFaces, contorno, abertura, eixo, pontoFixo, texto, parede, ignorar) e os parâmetros (largura e altura das vigas, afastamento das faces, tolerância, maior pilar, raio dos textos, espessura das lajes).',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id', 'regras'], properties: { id: { type: 'string' }, regras: { type: 'object', description: 'RegrasCamadas (src/core/building/types.ts)' } } },
+  validar(b, p) {
+    const m = mascara(b, p.id);
+    return m ? regrasInvalidas(m.geo, p.regras) ?? [] : err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`);
+  },
+  aplicar(d, p) { const m = d.mascaras.find((x) => x.id === p.id)!; m.regras = p.regras; return `Regras de lançamento da máscara “${m.nome}” definidas.`; },
+});
+
+registrar<{ id: string }>({
+  nome: 'mascara.origemOriginal',
+  descricao: 'Volta escala, rotação e deslocamento da máscara aos da importação, desfazendo todas as mudanças de origem (alinhar, girar, deslocar).',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
+  validar(b, p) {
+    const m = mascara(b, p.id);
+    if (!m) return err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`);
+    return m.original ? [] : err('SEM_ORIGEM_ORIGINAL', 'A máscara não guardou a origem da importação (arquivo antigo).');
+  },
+  aplicar(d, p) { const m = d.mascaras.find((x) => x.id === p.id)!; Object.assign(m, m.original); return `Máscara “${m.nome}” voltou à origem da importação.`; },
+});
+
+registrar<{ id: string; configuracao: { versao: 1; camadas: { nome: string; visivel: boolean; capturavel: boolean; cor?: string; apelido?: string; espessura?: number; textos?: boolean }[]; regras?: RegrasCamadas } }>({
+  nome: 'mascara.configurar',
+  descricao: 'Aplica à máscara uma configuração de camadas salva em arquivo (.json): visibilidade, captura, cor, apelido, espessura e textos por camada, e as regras de lançamento. Camadas que o gabarito não tem são ignoradas.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['id', 'configuracao'], properties: { id: { type: 'string' }, configuracao: { type: 'object', description: 'ConfiguracaoCamadas (lancamentoDxf.ts)' } } },
+  validar(b, p) {
+    const m = mascara(b, p.id);
+    if (!m) return err('MASCARA_INEXISTENTE', `Máscara ${p.id} não existe.`);
+    const c = p.configuracao;
+    if (!c || c.versao !== 1 || !Array.isArray(c.camadas)) return err('CONFIGURACAO_INVALIDA', 'Configuração de camadas inválida (versão 1 esperada).');
+    if (c.regras) {
+      const r = { ...c.regras, papeis: Object.fromEntries(Object.entries(c.regras.papeis ?? {}).filter(([n]) => m.geo[n])) };
+      return regrasInvalidas(m.geo, r) ?? [];
+    }
+    return [];
+  },
+  aplicar(d, p) {
+    const m = d.mascaras.find((x) => x.id === p.id)!;
+    let n = 0;
+    for (const e of p.configuracao.camadas) {
+      const c = m.camadas.find((x) => x.nome === e.nome);
+      if (!c) continue;
+      c.visivel = e.visivel; c.capturavel = e.capturavel;
+      for (const k of ['cor', 'apelido', 'espessura'] as const) { if (e[k] !== undefined) (c as Record<string, unknown>)[k] = e[k]; else delete c[k]; }
+      if (e.textos === false) c.textos = false; else delete c.textos;
+      n++;
+    }
+    if (p.configuracao.regras) m.regras = { ...p.configuracao.regras, papeis: Object.fromEntries(Object.entries(p.configuracao.regras.papeis).filter(([nome]) => m.geo[nome])) };
+    return `Configuração aplicada a ${n} camada(s) da máscara “${m.nome}”.`;
+  },
 });
 
 // ---- pilares ----

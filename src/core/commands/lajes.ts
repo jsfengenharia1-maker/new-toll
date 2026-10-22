@@ -1,6 +1,6 @@
 // Comandos de lajes (panos, tipos, aberturas) e de cargas (ponto, linha, área e alvenaria da máscara).
 import type { Draft } from 'immer';
-import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
+import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, mascaraNoGrupo, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
 import { temBaseElastica } from '../building/baseElastica';
@@ -437,7 +437,7 @@ registrar<{ grupo: string; camada: string; bloco: string; altura?: number; espes
   validar(b, p) {
     const g = grupoOk(b, p.grupo);
     if (g.length) return g;
-    if (!b.mascaras.some((m) => m.grupo === p.grupo && m.geo[p.camada])) return err('CAMADA_INEXISTENTE', `A máscara do grupo não tem a camada “${p.camada}”.`);
+    if (!b.mascaras.some((m) => mascaraNoGrupo(m, p.grupo) && m.geo[p.camada])) return err('CAMADA_INEXISTENTE', `A máscara do grupo não tem a camada “${p.camada}”.`);
     return paredesDaMascara(b, p.grupo, p.camada).length ? [] : err('SEM_PAREDES', `Nenhuma parede (par de linhas paralelas a 5–35 cm) na camada “${p.camada}”.`);
   },
   aplicar(d, p) {

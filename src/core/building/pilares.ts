@@ -1,5 +1,6 @@
 // Regras dos pilares e geometria da planta no mundo (sem dependência do registro de comandos).
-import { centroPilar, contornoNoLance, dimsSecao, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, type BuildingModel, type Pilar } from './types';
+import type { CamadaMascara } from './types';
+import { centroPilar, contornoNoLance, dimsSecao, lancesDoPilar, mascaraNoGrupo, mascaraParaMundo, pavimentosOrdenados, type BuildingModel, type Pilar } from './types';
 import type { Diagnostico } from './verify';
 import { sobrepoe } from '../geom/poly';
 
@@ -54,18 +55,30 @@ export function diagnosticosPilares(b: BuildingModel): Diagnostico[] {
 /** Centro de cada pilar no mundo, para desenho e captura (seção geral). */
 export const centros = (b: BuildingModel) => b.pilares.map((p) => ({ id: p.id, c: centroPilar(p, p.secao) }));
 
-/** Máscara no mundo como segmentos e arcos das camadas visíveis e capturáveis (para o índice de capturas). */
-export function geometriaMascara(b: Pick<BuildingModel, 'mascaras'>, grupo: string, soCapturaveis = true) {
-  const segs: number[] = [], arcos: number[] = [];
-  for (const m of b.mascaras.filter((x) => x.grupo === grupo)) {
+/**
+ * Geometria da máscara no mundo, uma entrada por camada visível (e capturável, se `soCapturaveis`) das vistas ligadas
+ * do grupo: segmentos [x1, y1, x2, y2, ...] e arcos [cx, cy, r, a0, a1, ...].
+ */
+export function geometriaPorCamada(b: Pick<BuildingModel, 'mascaras'>, grupo: string, soCapturaveis = true) {
+  const out: { mascara: string; cam: CamadaMascara; segs: number[]; arcos: number[] }[] = [];
+  for (const m of b.mascaras.filter((x) => mascaraNoGrupo(x, grupo) && x.visivel !== false)) {
     const sx = m.escala;
     for (const cam of m.camadas) {
       if (!cam.visivel || (soCapturaveis && !cam.capturavel)) continue;
       const g = m.geo[cam.nome];
       if (!g) continue;
+      const segs: number[] = [], arcos: number[] = [];
       for (let k = 0; k < g.linhas.length; k += 4) { const a = mascaraParaMundo(m, g.linhas[k], g.linhas[k + 1]), z = mascaraParaMundo(m, g.linhas[k + 2], g.linhas[k + 3]); segs.push(a[0], a[1], z[0], z[1]); }
       for (let k = 0; k < g.arcos.length; k += 5) { const c = mascaraParaMundo(m, g.arcos[k], g.arcos[k + 1]); arcos.push(c[0], c[1], g.arcos[k + 2] * sx, g.arcos[k + 3] + m.rotacao, g.arcos[k + 4] + m.rotacao); }
+      out.push({ mascara: m.id, cam, segs, arcos });
     }
   }
+  return out;
+}
+
+/** Máscara no mundo como segmentos e arcos das camadas visíveis e capturáveis (para o índice de capturas). */
+export function geometriaMascara(b: Pick<BuildingModel, 'mascaras'>, grupo: string, soCapturaveis = true) {
+  const segs: number[] = [], arcos: number[] = [];
+  for (const c of geometriaPorCamada(b, grupo, soCapturaveis)) { for (const v of c.segs) segs.push(v); for (const v of c.arcos) arcos.push(v); }
   return { segs, arcos };
 }

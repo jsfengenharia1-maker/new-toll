@@ -1,6 +1,6 @@
 // Lajes: catálogo de treliçadas, peso próprio, direção do menor vão, panos pelo eixo das vigas,
 // alvenaria a partir das paredes da máscara e diagnósticos de lajes e cargas.
-import { geometriaViga, mascaraParaMundo, type BuildingModel, type Laje, type TipoLaje } from './types';
+import { geometriaViga, mascaraNoGrupo, mascaraParaMundo, type BuildingModel, type Laje, type TipoLaje } from './types';
 import type { Diagnostico } from './verify';
 import { eixosDasParedes } from './paredesBase';
 import { areaPoligono, dentroPoligono, faces, pontoInterno, type P } from '../geom/faces';
@@ -127,7 +127,7 @@ export const BLOCOS: Record<string, { rotulo: string; gama: number }> = {
  */
 export function paredesDaMascara(b: BuildingModel, grupo: string, camada: string, emin = 0.05, emax = 0.35, lmin = 0.2): { a: P; z: P; e: number }[] {
   const segs: [P, P][] = [];
-  for (const m of b.mascaras.filter((x) => x.grupo === grupo)) {
+  for (const m of b.mascaras.filter((x) => mascaraNoGrupo(x, grupo))) {
     const g = m.geo[camada];
     if (!g) continue;
     for (let k = 0; k < g.linhas.length; k += 4) segs.push([mascaraParaMundo(m, g.linhas[k], g.linhas[k + 1]), mascaraParaMundo(m, g.linhas[k + 2], g.linhas[k + 3])]);

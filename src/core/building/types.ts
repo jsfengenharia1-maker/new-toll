@@ -123,6 +123,8 @@ export interface Eixo {
   nome: string;
   p1: [number, number];
   p2: [number, number];
+  /** Origem do lançamento automático (`dxf:<máscara>:<hash>`), para reimportar sem duplicar (L2). */
+  origemLancamento?: string;
 }
 
 /** Geometria de uma camada da máscara, em unidades do DXF (antes da transformação da máscara). */
@@ -134,7 +136,36 @@ export interface CamadaGeo {
   textos: { x: number; y: number; h: number; rot: number; t: string }[];
 }
 
-export interface CamadaMascara { nome: string; visivel: boolean; capturavel: boolean; cor?: string }
+/** Papel de uma camada do gabarito no lançamento automático (L2). */
+export type PapelCamada = 'pilar' | 'pilarParede' | 'vigaEixo' | 'vigaFaces' | 'contorno' | 'abertura' | 'eixo' | 'pontoFixo' | 'texto' | 'parede' | 'ignorar';
+
+/** Regras do lançamento por camada (L2): papel de cada camada e parâmetros (m) [valores a confirmar]. */
+export interface RegrasCamadas {
+  papeis: Record<string, PapelCamada>;
+  /** Largura da viga lançada por eixo (m). */
+  larguraViga: number;
+  /** Altura das vigas lançadas (m). */
+  alturaViga: number;
+  /** Afastamento mínimo e máximo entre as linhas de uma viga por faces (m). */
+  vigaFacesMin: number;
+  vigaFacesMax: number;
+  /** Tolerância para fechar polilinhas e juntar pontas (m). */
+  tolerancia: number;
+  /** Maior lado de um pilar reconhecido (m); polígonos maiores não viram pilar. */
+  pilarMax: number;
+  /** Distância máxima do texto ao elemento que ele nomeia (m). */
+  raioTexto: number;
+  /** Espessura da laje maciça criada nos panos e no contorno (m). */
+  lajeH: number;
+}
+
+export interface CamadaMascara { nome: string; visivel: boolean; capturavel: boolean; cor?: string;
+  /** Nome de exibição (L2); o nome do arquivo continua sendo a chave. */
+  apelido?: string;
+  /** Espessura de linha na planta (px); ausente = automática. */
+  espessura?: number;
+  /** false oculta só os textos da camada (padrão: true). */
+  textos?: boolean }
 
 /** Desenho de referência (DXF) de um grupo de pavimentos. Mundo = R(rotacao)·(escala·p) + (dx, dy). */
 export interface Mascara {
@@ -147,7 +178,21 @@ export interface Mascara {
   dy: number;
   camadas: CamadaMascara[];
   geo: Record<string, CamadaGeo>;
+  /** false: vista desligada na planta (janela rápida de vistas; L2, C2.19); ausente = ligada. */
+  visivel?: boolean;
+  /** Outros grupos em que a vista também aparece, além de `grupo` (L2, C2.18). */
+  grupos?: string[];
+  /** Regras do lançamento por camada (L2). */
+  regras?: RegrasCamadas;
+  /** Arquivo de origem e formato (L2, C2.6). */
+  arquivo?: { nome: string; tipo: 'dxf' | 'dwg' };
+  /** Escala, rotação e deslocamento ao importar, para voltar à origem original (L2, C2.16). */
+  original?: { escala: number; rotacao: number; dx: number; dy: number };
 }
+
+/** Grupos em que a máscara aparece: o principal e os associados. */
+export const gruposDaMascara = (m: Pick<Mascara, 'grupo' | 'grupos'>): string[] => [...new Set([m.grupo, ...(m.grupos ?? [])])];
+export const mascaraNoGrupo = (m: Pick<Mascara, 'grupo' | 'grupos'>, grupo: string): boolean => m.grupo === grupo || !!m.grupos?.includes(grupo);
 
 export type SecaoPilar = { tipo: 'ret'; b: number; h: number } | { tipo: 'circ'; d: number };
 
@@ -163,6 +208,8 @@ export interface Pilar {
   x: number;
   y: number;
   angulo: number; // graus; b na direção local x
+  /** Origem do lançamento automático (`dxf:<máscara>:<hash>`), para reimportar sem duplicar (L2). */
+  origemLancamento?: string;
   ajuste: Ajuste;
   /** 'fundacao' ou id do pavimento em cuja laje o pilar nasce. */
   nasce: string;
@@ -472,6 +519,8 @@ export interface Viga {
   tabelaEstribo?: string;
   /** Detalhamento editado (comprimentos, ganchos, posições, zonas de estribos; R7b). */
   detalhe?: DetalheEditado;
+  /** Origem do lançamento automático (`dxf:<máscara>:<hash>`), para reimportar sem duplicar (L2). */
+  origemLancamento?: string;
   /** Viga embutida ou de coroamento (E1c, C5.23): id da parede sobre a qual corre; é movida e removida junto com ela. */
   embutida?: string;
 }
@@ -487,6 +536,8 @@ export interface Laje {
   grupo: string;
   /** Contorno pelo eixo das vigas (anti-horário), m. */
   contorno: [number, number][];
+  /** Origem do lançamento automático (`dxf:<máscara>:<hash>`), para reimportar sem duplicar (L2). */
+  origemLancamento?: string;
   furos?: [number, number][][];
   tipo: TipoLaje;
   /** Direção das vigotas (graus, anti-horário a partir de +x); padrão: menor vão. */
