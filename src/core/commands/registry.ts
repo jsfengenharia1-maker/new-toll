@@ -115,7 +115,7 @@ type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' },
   { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' }, { k: 'vigas', rot: 'viga' }, { k: 'lajes', rot: 'laje' }, { k: 'cargas', rot: 'carga' },
-  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' },
+  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' }, { k: 'tiposAlvenaria', rot: 'tipo de alvenaria' }, { k: 'blocos', rot: 'bloco' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */
@@ -130,7 +130,7 @@ export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
     }
     for (const [id, x] of A) if (!Z.has(id)) { d.removidos.push(id); d.resumo.push(`− ${rot} ${x.nome ?? id}`); }
   }
-  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao'] as const)
+  for (const k of ['obra', 'norma', 'vento', 'prancha', 'opcoes', 'perfilOpcoes', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'cargasPilar', 'fundacao', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra', 'agrupamentos', 'copiasLaje', 'flechas', 'fogo', 'aberturasPadrao', 'vergasPadrao'] as const)
     if (a[k] !== z[k] && JSON.stringify(a[k]) !== JSON.stringify(z[k])) { d.alterados.push(k); d.resumo.push(`~ ${k}`); }
   return d;
 }

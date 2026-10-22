@@ -13,8 +13,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
 | 3. Grupos e pavimentos | 41 | 28 | 5 | 5 | 3 |
 | 4. Pilares | 63 | 50 | 4 | 2 | 7 |
-| 5. Muros e paredes estruturais | 30 | 10 | 4 | 12 | 4 |
-| 6. Vigas | 108 | 30 | 8 | 45 | 25 |
+| 5. Muros e paredes estruturais | 30 | 12 | 14 | 0 | 4 |
+| 6. Vigas | 108 | 32 | 8 | 43 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 61 | 2 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **271** | **74** | **233** | **185** |
+| **Total** | **763** | **275** | **84** | **219** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 0 | 0 | 0 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 180 | 211 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 41 | 166 | 207 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 3 | 0 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 33 | 25 | 58 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
@@ -257,22 +257,22 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| C5.1 | Tipos de muro: concreto armado, alvenaria de blocos de concreto genéricos (armada), blocos de catálogo de fabricante e alvenaria genérica. | Falta | E | muros de concreto e alvenaria (V2); blocos de catálogo fora [E1e] |
+| C5.1 | Tipos de muro: concreto armado, alvenaria de blocos de concreto genéricos (armada), blocos de catálogo de fabricante e alvenaria genérica. | Parcial | E | núcleo: `Parede.tipo` (concreto, alvenaria ou blocos) com `material` (`TipoAlvenaria` genérica ou de blocos, `types.ts`), comandos `alvenaria.tipo` e `parede.criar/editar` (`commands/alvenaria.ts`, `commands/paredes.ts`); blocos de catálogo de fabricante ficam fora; falta a interface [E1e] |
 | C5.2 | Dados comuns a todos os tipos: geometria, existência de empuxos laterais e tipo de fundação de apoio. | Parcial | E | núcleo: `Parede` (polilinha, espessuras, `empuxos`, `base` para a FU7b) em `types.ts`, comandos `parede.*` (`commands/paredes.ts`), empuxo nas cascas (`paredesBase.ts`); fundação da base: núcleo da FU7b (`Parede.base`, `parede.sapata`, `sapataCorrida.ts`); falta a interface (cartões FU7b) [FU7b-UI] |
-| C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.3 | Bloco escolhido da biblioteca, com cadastro de blocos novos. | Parcial | E | núcleo: biblioteca de blocos da obra (`TipoBloco`, comando `bloco.tipo`: dimensões modulares, fbk, canto); falta o editor e gravar na biblioteca do usuário (`storage.ts`) [E1e] |
+| C5.4 | Série de blocos genéricos com opção de peça de canto, para quando a largura não é metade do comprimento. | Parcial | E | núcleo: peça de canto automática quando a largura não é metade do comprimento (`precisaCanto`) ou por `TipoBloco.canto`, contada por fiada e canto no quantitativo (`quantitativoParede`); falta o editor de blocos [E1e] |
 | C5.5 | Muros de blocos de fabricante: dimensionamento e verificação pelo Eurocódigo 6, com armadura vertical e/ou horizontal opcional. | Fora | — | Eurocódigo 6 |
-| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.6 | Saídas dos muros de blocos: relatório de cálculo, quantitativo, plantas e esquema em planta dos blocos e das armaduras. | Parcial | E | núcleo: dados do memorial (`memorialAlvenaria.ts`: materiais, verificação por pano, armadura, vergas, blocos por parede e pavimento, desligamentos, vigas) e quantitativo (`quantitativoAlvenaria`); faltam a interface do memorial e as plantas com esquema dos blocos nas pranchas [E1e] |
 | C5.7 | Escolha de fabricante e modelo de bloco. Peças especiais de canto usadas automaticamente quando o fabricante as tem. | Fora | — | catálogo de fabricante europeu |
-| C5.8 | Alvenaria genérica: módulo de elasticidade, módulo de cisalhamento, peso específico, resistência de cálculo à compressão e à tração, e opção de considerar a rigidez ao cisalhamento. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.8 | Alvenaria genérica: módulo de elasticidade, módulo de cisalhamento, peso específico, resistência de cálculo à compressão e à tração, e opção de considerar a rigidez ao cisalhamento. | Parcial | E | núcleo: alvenaria genérica (`TipoAlvenaria` modelo 'generica': E, G, γ, fd, ftd, fvd e `considerarG`, que dá o ν da casca por G = E/2(1+ν)), `resistenciaAlvenaria`, casca com o material do tipo (`materialParede` em `pilarParedeModelo.ts`); falta o editor [E1e] |
 | C5.9 | Aberturas (portas e janelas) em muros de concreto, de alvenaria genérica e de blocos. | Parcial | E | muros de concreto: `parede.abertura`, células da malha removidas (`furosDaParede`, `malhaDaGrade`); falta as aberturas em alvenaria/blocos (E1e) [E1e] |
 | C5.10 | A abertura é lançada no pavimento de baixo dos dois entre os quais fica. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `AberturaParede.pavimento` = base do lance (`furosDaParede`). |
-| C5.11 | Em muros de blocos, a abertura se ajusta à modulação dos blocos para evitar peças especiais. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.12 | Verga: em muros de subsolo e de alvenaria genérica não há aviso de tensões excessivas. Em blocos, a verga é verificada e armada. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.11 | Em muros de blocos, a abertura se ajusta à modulação dos blocos para evitar peças especiais. | Parcial | E | núcleo: `ajustarAberturaModular` e comando `parede.modularAbertura` (início ao meio bloco, largura e topo para cima, peitoril ao módulo), aviso `ALV_ABERTURA_MODULACAO`; falta o botão na janela da parede [E1e] |
+| C5.12 | Verga: em muros de subsolo e de alvenaria genérica não há aviso de tensões excessivas. Em blocos, a verga é verificada e armada. | Parcial | E | núcleo: `dimensionarVerga` (`alvenariaDim.ts`): verga e contraverga das paredes de blocos verificadas e armadas (tração N/2 + M/z da faixa da casca, cortante, estribos); muro de subsolo sem aviso de biela e genérica sem verga calculada; falta a janela da parede [E1e] |
 | C5.13 | Edição da armadura de uma abertura, destacada sob o cursor. | Feito | — | `abertura.armadura` (editar e bloquear) e editor `AberturasArmadura` na janela da parede; verificada contra a necessária no recálculo [E1d] |
 | C5.14 | Armadura padrão de portas, copiada de uma porta e aplicada a várias. | Feito | — | armadura padrão de portas por `abertura.armadura { acao: 'padrao' }`, copiar para as de mesmo tipo e aplicar na janela da parede [E1d] |
 | C5.15 | Armadura padrão de janelas, copiada e aplicada da mesma forma. | Feito | — | armadura padrão de janelas, copiar e aplicar, como nas portas [E1d] |
-| C5.16 | Armadura de vergas em muros de blocos, copiada e aplicada da mesma forma. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.16 | Armadura de vergas em muros de blocos, copiada e aplicada da mesma forma. | Parcial | E | núcleo: comando `verga.armadura` (editar, copiar, padrão por tipo, limpar; `BuildingModel.vergasPadrao`), verificada contra a necessária; falta o editor [E1e] |
 | C5.17 | Relatório das verificações da armadura de uma abertura escolhida. | Feito | — | relatório da abertura na janela (necessária, adotada, cortante da verga, mensagens) e tabela de aberturas no memorial [E1d] |
 | C5.18 | A armadura das aberturas de muros de concreto é dimensionada para empuxos e para os esforços em vergas e peitoris. | Feito | — | `dimensionarAbertura` (`paredesDim.ts`): verga e peitoril pela tração N/2 + M/z integrada nos elementos da casca (inclui o empuxo), cortante modelo I, montantes e cantos; `PAREDE_ABERTURA_ARM` e `PAREDE_ABERTURA_CORTANTE` [E1d] |
 | C5.19 | Sismo com aceleração acima de 0,16 g: armadura inclinada em verga e peitoril. | Fora | — | sismo |
@@ -280,12 +280,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C5.21 | Prolongar muro (como as vigas), em todos os grupos onde ele existe. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `parede.prolongar` (até parede, viga, eixo ou ponto; a parede é uma só em todos os grupos; vigas embutidas acompanham). |
 | C5.22 | Atribuir as propriedades de um tipo de muro a outros muros, um a um ou por janela, inclusive copiando de um muro de outro tipo. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `parede.atribuir` (de outra parede ou valores, por lista de ids = janela). |
 | C5.23 | Vigas embutidas e de coroamento aparecem sobrepostas ao muro em planta e são editáveis junto com ele. | Feito | — | interface: grupo Paredes (`ParedesUI.tsx`), ferramenta Parede de concreto (Ctrl+K), janela e cartão; e2e `E1c` [E1c]. Núcleo: `Viga.embutida`, `viga.embutir`, movidas e removidas com a parede, VIGA_EMBUTIDA. |
-| C5.24 | Opção de armadura: aço da armadura horizontal dos muros de blocos. | Falta | E | muros e paredes estruturais (V2) [E1e] |
-| C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.24 | Opção de armadura: aço da armadura horizontal dos muros de blocos. | Feito | — | aço da armadura vertical e da horizontal (junta) por `materiais.definir { aco: { alvenariaVert, alvenariaHor } }` (`POSICOES_ACO`, `acoDe`); o grupo Materiais lista as duas posições [E1e] |
+| C5.25 | Opção de armadura: resistências da argamassa e dos blocos de fabricante. | Parcial | E | núcleo: resistência do bloco (`TipoBloco.fbk`), da argamassa e do graute (`TipoAlvenaria.argamassa/graute/grauteamento`) e prisma `fpk` informado ou estimado (`alvenariaPrisma`); falta o editor [E1e] |
 | C5.26 | Muro de concreto: armar ou não, sempre ou só quando necessário, só horizontal ou horizontal e vertical, e tipo da armadura horizontal. | Feito | — | `Parede.armar` (concreto simples verificado por `verificaConcretoSimples`) e opções `paredeArmarSempre`, `paredeSoHorizontal` e `paredeHorizontalGrampos` [E1d] |
-| C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.27 | Pilares em contato com muros de alvenaria/blocos são desligados do muro no nível do pavimento, para uma transmissão de esforços mais realista. | Feito | — | `desligamentosMuroPilar` (`alvenaria.ts`): pilar a até 5 cm do muro de alvenaria ou blocos, por pavimento; com lajes de vigotas é desligado (`MURO_PILAR_DESLIGADO`), tabela no memorial e no `dimensionar`; premissa e1e-desligamento [E1e] |
 | C5.28 | Sapata isolada equivalente para cada pilar sobre sapata corrida, dimensionada com os esforços do pilar e do trecho de muro apoiado. | Parcial | FU | núcleo (FU7b): `sapataCorrida.ts` (`calcularParede`, `pilaresEq`): lado a × a da sapata isolada equivalente de cada pilar que nasce na fundação sobre o eixo ((Pk + q·a)(1 + 5 %) ≤ σadm(a)·a²), reação do pilar espalhada por a no eixo e largura da corrida cobrindo a; falta a interface (cartões FU7b) [FU7b-UI] |
-| C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Falta | E | muros e paredes estruturais (V2) [E1e] |
+| C5.29 | Quantitativo de muros de blocos com peças inteiras e especiais (meio bloco, canto). | Parcial | E | núcleo: `quantitativoParede` / `quantitativoAlvenaria`: inteiros, meios blocos, peças de canto e canaletas por parede e pavimento, área líquida, resumo por bloco (`Dimensionamento.alvenaria`); falta a interface [E1e] |
 | C5.30 | Lacuna: o texto do item sobre muros de concreto armado (5.1.2.1) não veio na extração. Só há o título. | Parcial | E | dados do muro de concreto no núcleo: espessuras e `armar` em `Parede`; o dimensionamento e o detalhamento ficam na E1d [E1d] |
 
 ## 6. Vigas
@@ -311,7 +311,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | retangular; sem T/mesa colaborante [E2a] |
 | C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Falta | E | treliçadas/protendidas pré-fabricadas [E2e] |
 | C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Falta | E | viga de vínculo externo [E2e] |
-| C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Falta | E | [E1e] |
+| C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Feito | — | aviso `MURO_PILAR_MACICA` (laje maciça ou sem laje junto ao pilar): o desligamento só vale com lajes de vigotas e a mensagem sugere lançar o muro como elemento (`diagnosticosAlvenaria`) [E1e] |
 | C6.20 | A viga de coroamento do topo do muro não é especificada pelo programa. O detalhe fica com o usuário, com apoio da biblioteca de detalhes construtivos. | Fora | — |  |
 | C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Falta | E | viga não estrutural de contorno [E2a] |
 | C6.22 | Vigas de fundação: retangular, L, T ou plana (esta para fechar panos de radier). | Parcial | E | vigas no térreo funcionam como baldrame; sem tipo próprio [E2a] |
@@ -351,7 +351,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
 | C6.57 | Edição de consolos. | Falta | E | [E2e] |
 | C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Falta | E | [E2b] |
-| C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Falta | E | [E1e] |
+| C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Feito | — | `vigasSobreMuros` (`alvenariaDim.ts`): viga embutida em muro de alvenaria genérica (nível da laje) ou de blocos (coroamento) com armadura opcional dispensada pela opção `alvenariaVigaArmar`; a de topo de muro com empuxo é sempre armada; largura e altura mínimas configuráveis (`alvenariaVigaBMin/HMin`, `ALV_VIGA_ESPESSURA`) [E1e] |
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
 | C6.62 | Gravar referências-base de juntas de vigas e de pórticos para usar em obras futuras. | Feito | — | modelos de pórtico (seção, vãos, desnível, armadura e detalhe editado) na biblioteca do usuário (`ModeloPortico`, `storage.ts` tipo `portico`, `ModelosPortico` em `Detalhamento.tsx`) e `viga.copiarArmadura { modelo }`; tramos predefinidos ficam no modelo da obra, não na biblioteca (R7f) |
@@ -1030,3 +1030,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Pendências por frente: E reduz em 4 itens (manual do usuário).
 - **22/10/2026 — fatia FU7b, núcleo (sapata corrida de paredes e muros).** C5.2, C5.28, C11.28 e C11.31 passam a Parcial (nota com arquivo/função): `src/core/building/corridaParede.ts` (`sincronizarBases`: a base da parede cria, atualiza e remove a sapata corrida no mesmo passo de qualquer comando; `cargasLinearesDaParede`, `cargasDosPilaresSobEixo`), `sapataCorrida.ts` (`calcularParede`: carga por metro das reações da base da parede na análise, momento fora do plano como excentricidade M/N, cortante normal e deslizamento, pilares sobre o eixo com sapata isolada equivalente), comando `parede.sapata`, `baseMuro.ts` (base do muro de arrimo na fundação), opções `fundCorridaAtrito`, `fundCorridaFSDesliz` e `fundCorridaDeslizamento`, códigos FUND_CORRIDA_DESLIZA/PILAR/PAREDE e FUND_MURO_SIGMA/TENSAO/COTA, premissa `sapata-parede`, folhas e quantitativos (`sheets/fundacaoCorrida.ts`, `fundacao.ts`); falta a interface (cartões em `docs/cartoes/FU7b/`) e a base em viga de fundação (FU7c).
   - Situação: ver o resumo (recontado por `npm run checklists`).
+- **22/10/2026 — fatia E1e, núcleo (alvenaria estrutural e blocos de concreto).** C5.24, C5.27, C6.19 e C6.59 passam a Feito; C5.1, C5.3, C5.4, C5.6, C5.8, C5.11, C5.12, C5.16, C5.25 e C5.29 passam a Parcial: `alvenaria.ts` (tipos, resistências NBR 16868 a confirmar, esbeltez, tensões-limite por elemento, armadura de blocos, modulação, quantitativo, desligamento muro-pilar, diagnósticos), `alvenariaDim.ts` (panos com fator de cumprimento, lados curtos, vergas, vigas sobre muros), `memorialAlvenaria.ts`, comandos `bloco.tipo`, `alvenaria.tipo`, `parede.modularAbertura` e `verga.armadura`, 18 opções `alvenaria*`; falta a interface (cartões em `docs/cartoes/E1e/`) e a prancha.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 4 itens (manual do usuário); 10 passam de Falta a Parcial.

@@ -18,6 +18,7 @@ import { combinacoesDoEstado } from './combinacoes';
 import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { geometriaParedes } from './pilarParede';
 import { ppDaObra } from './paredesBase';
+import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
 import { incluirParedes, reduzirCascas, type ParedesNoPortico } from './pilarParedeModelo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
 import { anguloNoLance, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
@@ -950,6 +951,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // pilares-parede (E1b): cascas dos lados longos, viga fictícia no topo e ligação dos lados em barra
   const noParedes: ParedesNoPortico | undefined = paredes ? incluirParedes({
     b, geo: paredes, pm, casosV, noPilar, Ec: (pav) => Em('pilar', pav), Ev, Gv, nu: op.nu, gama: GAMA_CONCRETO, ret, iG: CASOS.indexOf('G'),
+    materialParede: (w) => { const t = tipoAlvenariaDe(b, w); if (!t || !ehAlvenaria(w)) return undefined; const r = resistenciaAlvenaria(t, blocoDe(b, t), op); return { E: r.E * 1000, nu: r.nu, gama: r.gama }; },
     hViga: op.pilarParedeVigaAltura / 100, caso: (id) => CASOS.indexOf(id),
     peso: (pav, kN) => { totais.G += kN; cargasPavimento[pav].G += kN; },
     etiqueta: (ref, pav) => ptags.push({ tipo: 'parede', ref, pavimento: pav }),

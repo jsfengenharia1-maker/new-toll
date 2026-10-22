@@ -177,6 +177,15 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'PAREDE_ABERTURA_CORTANTE', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Verga: cortante/, descricao: 'Verga: cortante acima de VRd2 (biela comprimida)' },
   { codigo: 'PAREDE_ABERTURA_ARM', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: (Verga |Peitoril |Montantes |Estribos da verga)/, descricao: 'Abertura: armadura de verga, peitoril, montantes ou estribos menor que a necessária' },
   { codigo: 'PAREDE_EMENDA', nivel: 'aviso', re: /^(Parede|Pilar-parede) [^:]+: .*emenda .* abaixo do mínimo/, descricao: 'Parede: comprimento de emenda editado abaixo do mínimo' },
+  { codigo: 'ALV_ESBELTEZ', nivel: 'erro', re: /^Alvenaria [^:]+: Esbeltez/, descricao: 'Alvenaria: esbeltez hef/t acima do limite (24 não armada, 30 armada)' },
+  { codigo: 'ALV_CUMPRIMENTO', nivel: 'erro', re: /^Alvenaria [^:]+: Fator de cumprimento/, descricao: 'Alvenaria: fração da área do pano que atende as tensões-limite abaixo da exigida' },
+  { codigo: 'ALV_PONTOS', nivel: 'aviso', re: /^Alvenaria [^:]+: Pontos fora das tensões-limite/, descricao: 'Alvenaria: pontos acima das tensões-limite dentro do fator de cumprimento (aviso do relatório final)' },
+  { codigo: 'ALV_ARMADURA', nivel: 'erro', re: /^Alvenaria [^:]+: Armadura (vertical|horizontal)/, descricao: 'Alvenaria armada: nenhuma malha atende ou a bloqueada é menor que a necessária' },
+  { codigo: 'ALV_LADO_CURTO', nivel: 'erro', re: /^Alvenaria [^:]+: Lado curto/, descricao: 'Alvenaria: trecho curto (pilar de alvenaria) não atende' },
+  { codigo: 'ALV_VERGA', nivel: 'erro', re: /^Alvenaria [^:]+: (Verga|Contraverga|Estribos da verga)/, descricao: 'Alvenaria de blocos: verga ou contraverga menor que a necessária, ou cortante acima da biela' },
+  { codigo: 'ALV_ABERTURA_MODULACAO', nivel: 'aviso', re: /^Alvenaria [^:]+: Abertura fora das medidas modulares/, descricao: 'Alvenaria de blocos: abertura fora da modulação (peças cortadas)' },
+  { codigo: 'ALV_VIGA_ESPESSURA', nivel: 'aviso', re: /^Viga .* abaixo das dimensões mínimas/, descricao: 'Viga sobre muro de alvenaria abaixo das dimensões mínimas' },
+  { codigo: 'ALV_VIGA_DISPENSADA', nivel: 'info', re: /^Viga .* armadura opcional dispensada/, descricao: 'Viga sobre muro: armadura opcional dispensada' },
   { codigo: 'MURO_CORTANTE', nivel: 'erro', re: /^Muro [^:]+: (Fuste|Ponta|Talão): cortante/, descricao: 'Muro de arrimo: cortante do fuste ou da base acima de VRd1 (aumente a espessura)' },
   { codigo: 'MURO_ESTABILIDADE', nivel: 'erro', re: /^Muro [^:]+: Estabilidade: /, descricao: 'Muro de arrimo: tombamento, deslizamento, tensão ou núcleo central não atendem' },
   // avisos da análise (obra)
@@ -231,6 +240,14 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
       ...(det?.avisos ?? []).map((m) => `${pre} ${w.nome}: ${m}`),
     ]);
   }
+  // alvenaria estrutural e blocos (E1e): mensagens dos panos, lados e vergas, e das vigas sobre muros
+  for (const w of dim?.alvenaria?.paredes ?? []) add('parede', w.id, w.nome, undefined, [
+    ...w.mensagens.map((m) => `Alvenaria ${w.nome}: ${m}`),
+    ...w.panos.flatMap((p) => p.mensagens.map((m) => `Alvenaria ${w.nome}, ${p.nomeLado}, ${p.nomePav}: ${m}`)),
+    ...w.lados.flatMap((l) => l.mensagens.map((m) => `Alvenaria ${w.nome}, ${l.nome}, ${l.nomePav}: ${m}`)),
+    ...w.vergas.flatMap((a) => a.mensagens.map((m) => `Alvenaria ${w.nome}, ${a.nomePav}: ${m}`)),
+  ]);
+  for (const v of dim?.alvenaria?.vigasMuro ?? []) add('viga', v.viga, v.nome, undefined, v.mensagens);
   for (const m of dim?.muros ?? []) add('obra', m.id, m.nome ?? 'Muro', undefined, m.mensagens.map((x) => `Muro ${m.nome ?? ''}: ${x}`));
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);

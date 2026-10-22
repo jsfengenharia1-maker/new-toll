@@ -67,6 +67,12 @@ function base() {
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[80, 0], [86, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
   // E1d: uma porta na parede (para armadura da abertura) e um muro de arrimo isolado
   expect(s.executar('parede.abertura', { parede: s.modelo.paredes![0].id, s: 3, largura: 1, altura: 2.1, pavimento: s.modelo.pavimentos[0].id }).ok).toBe(true);
+  // E1e: um bloco, tipos de alvenaria (blocos e genérica) e uma parede de blocos com uma porta, longe das demais
+  expect(s.executar('bloco.tipo', { nome: 'B15', comprimento: 0.4, largura: 0.15, altura: 0.2, fbk: 6 }).ok).toBe(true);
+  expect(s.executar('alvenaria.tipo', { nome: 'Blocos B15', modelo: 'blocos', bloco: s.modelo.blocos![0].id, gama: 14 }).ok).toBe(true);
+  expect(s.executar('alvenaria.tipo', { nome: 'Alvenaria genérica', modelo: 'generica', gama: 13, E: 1500, fd: 1.2 }).ok).toBe(true);
+  expect(s.executar('parede.criar', { pontos: [[100, 0], [104, 0]], espessura: 0.15, tipo: 'blocos', material: s.modelo.tiposAlvenaria![0].id }).ok).toBe(true);
+  expect(s.executar('parede.abertura', { parede: s.modelo.paredes![1].id, s: 1.07, largura: 0.9, altura: 2.1, pavimento: s.modelo.pavimentos[0].id }).ok).toBe(true);
   expect(s.executar('muro.arrimo', { nome: 'MA1', H: 3, tTopo: 0.2, tBase: 0.3, B: 2, ponta: 0.5, hBase: 0.4, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }).ok).toBe(true);
   return s.modelo;
 }
@@ -227,6 +233,10 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilarParede.armadura': (b) => ({ id: b.pilaresParede![0].id, lado: 0, pavimento: b.pavimentos[0].id, vert: { phi: 8, s: 0.15 }, hor: { phi: 6.3, s: 0.2 } }),
   'parede.redimensionar': (b) => ({ id: b.paredes![0].id, pavimento: b.pavimentos[0].id, espessura: 0.25 }),
   'abertura.armadura': (b) => ({ acao: 'editar', abertura: b.paredes![0].aberturas![0].id, armadura: { verga: { n: 3, phi: 10 }, estribo: { phi: 5, s: 0.15 }, montante: { n: 2, phi: 10 }, canto: { n: 2, phi: 10 } } }),
+  'bloco.tipo': (b) => ({ id: b.blocos![0].id, nome: 'B15 reforçado', fbk: 8 }),
+  'alvenaria.tipo': (b) => ({ id: b.tiposAlvenaria![1].id, nome: 'Genérica 1,5', fd: 1.5, ftd: 0.15, considerarG: true, G: 600 }),
+  'parede.modularAbertura': (b) => ({ parede: b.paredes![1].id }),
+  'verga.armadura': (b) => ({ acao: 'editar', abertura: b.paredes![1].aberturas![0].id, armadura: { n: 2, phi: 10, estribo: { phi: 5, s: 0.2 } } }),
   'muro.arrimo': (b) => ({ id: b.murosArrimo![0].id, nome: 'MA1', H: 3.5, tTopo: 0.2, tBase: 0.35, B: 2.4, ponta: 0.5, hBase: 0.45, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }),
   'muro.remover': (b) => ({ ids: [b.murosArrimo![0].id] }),
   'viga.embutir': (b) => ({ viga: b.vigas.at(-1)!.id, parede: b.paredes![0].id }),

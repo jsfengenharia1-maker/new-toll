@@ -11,11 +11,13 @@
 //  - PAREDE_EMPUXO (erro): empuxo sem caso, caso de terra sem tipo de empuxo;
 //  - PAREDE_EMPUXO_DIAFRAGMA (aviso, K1.9.107): parede com empuxo e laje treliçada com vigotas paralelas a ela;
 //  - PAREDE_FORA_DIAFRAGMA (info, K1.2.5/K1.3.36): nível em que a parede não toca laje (fora do diafragma);
-//  - VIGA_EMBUTIDA (erro): viga embutida em parede inexistente ou fora do eixo dela.
+//  - VIGA_EMBUTIDA (erro): viga embutida em parede inexistente ou fora do eixo dela;
+//  - ALV_* e MURO_PILAR_* (E1e): paredes de alvenaria e de blocos, em `alvenaria.ts`.
 import type { P } from '../geom/faces';
 import { direcaoMenorVao } from './lajes';
 import { opcoesEmUso, perfilDe } from './opcoes';
 import { contornoDoLado, cruzaPoligonos, ladosDoPP, lancesDoPP } from './pilarParede';
+import { diagnosticosAlvenaria } from './alvenaria';
 import { furosDaParede, niveisDaParede, paredeTocaLaje, ppDaParede } from './paredesBase';
 import { contornoNoLance, lancesDoPilar, type BuildingModel, type Parede } from './types';
 import type { Diagnostico } from './verify';
@@ -90,6 +92,7 @@ export function diagnosticosParedes(b: BuildingModel): Diagnostico[] {
     if (!w) { d.push({ codigo: 'VIGA_EMBUTIDA', severidade: 'erro', elementos: [v.id], mensagem: `${v.nome}: a parede ${v.embutida} em que a viga está embutida não existe.` }); continue; }
     if (!vigaSobreParede(v.pontos as P[], w)) d.push({ codigo: 'VIGA_EMBUTIDA', severidade: 'erro', elementos: [v.id, w.id], mensagem: `${v.nome}: a viga embutida não corre sobre o eixo de ${w.nome}.` });
   }
+  d.push(...diagnosticosAlvenaria(b));
   return d;
 }
 

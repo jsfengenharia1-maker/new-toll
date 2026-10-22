@@ -19,6 +19,7 @@ import './flechas';
 import './fogo';
 import './paredes';
 import './paredesArmadura';
+import './alvenaria';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';

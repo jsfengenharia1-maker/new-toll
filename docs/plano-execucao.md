@@ -127,6 +127,7 @@ Entradas antigas em `docs/historico-fatias.md`.
 - 22/10/2026: E1d, núcleo concluído (25 itens: 13 Feito — C5.18, C5.26, K1.4.59, K1.4.60, K1.11.61, K1.12.4.2-1 a -5, -7, -9, -10 —; 12 Parcial à espera da interface: C4.62 [E2], C5.13–C5.15, C5.17, K1.1.7, K1.11.36–38, K1.12.4.2-6, -8, -11). Armadura por pano pelo sanduíche com fator de cumprimento (90 %; NBR 100 %), reforços locais, aberturas, lados curtos como pilar, emendas, muro de arrimo, prancha SCM, memorial e isovalores (dados). Próximo: interface pelos cartões `docs/cartoes/E1d/` (Haiku), depois E1e.
 - 22/10/2026: L1 concluída (15 itens; ver historico-fatias.md). 922 testes; pacote 2.949 KB.
 - 22/10/2026: E1d, interface concluída (cartões `docs/cartoes/E1d/`); e2e `E1d` verde. Próximo: E1e.
+- 22/10/2026: E1e, núcleo concluído (17 itens: 5 Feito — C5.24, C5.27, C6.19, C6.59, K1.12.4.3-1 —; 12 Parcial à espera da interface). Alvenaria estrutural e blocos de concreto: tipos, resistências, tensões-limite por elemento da casca com fator de cumprimento, armadura de blocos armados, vergas, modulação, quantitativo de blocos, desligamento muro-pilar, vigas sobre muros, memorial (dados), comandos e opções. Detalhes em `historico-fatias.md`. Interface pelos cartões `docs/cartoes/E1e/`.
 
 ## Melhorias futuras (depois de concluir o aplicativo)
 

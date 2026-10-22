@@ -368,6 +368,37 @@ export interface OpcoesCalculo {
   paredeEmendaAmpliar: number;
   /** Paredes (E1d): 1 = barras inclinadas nos cantos das aberturas. */
   paredeAberturaCanto: number;
+  /** Alvenaria estrutural (E1e): fator de cumprimento, % da área do pano que deve atender os limites de compressão, tração e cisalhamento. */
+  alvenariaCumprimento: number;
+  /** Alvenaria (E1e): resistência de cálculo à tração como % da de compressão (blocos e genérica sem ftd informado). */
+  alvenariaTracao: number;
+  /** Alvenaria de blocos (E1e): γm da resistência (compressão, tração e cisalhamento). */
+  alvenariaGamaM: number;
+  /** Alvenaria de blocos (E1e): fk = fator × fpk (prisma). */
+  alvenariaFkPrisma: number;
+  /** Alvenaria de blocos (E1e): fpk estimado = fator × fbk quando o prisma não é informado. */
+  alvenariaPrisma: number;
+  /** Alvenaria (E1e): hef = coeficiente × altura do lance (esbeltez λ = hef/t). */
+  alvenariaFlambagem: number;
+  /** Alvenaria (E1e): esbeltez máxima λ = hef/t, não armada e armada. */
+  alvenariaLambdaMax: number;
+  alvenariaLambdaMaxArmada: number;
+  /** Alvenaria (E1e): excentricidade mínima hef/valor (0 = sem excentricidade mínima). */
+  alvenariaExcMin: number;
+  /** Alvenaria de blocos (E1e): fvk = fv0 + 0,5σ ≤ fvMax (MPa). */
+  alvenariaCisalhInicial: number;
+  alvenariaCisalhMax: number;
+  /** Alvenaria armada (E1e): taxas mínimas das armaduras vertical e horizontal, % de b·t. */
+  alvenariaTaxaVertMin: number;
+  alvenariaTaxaHorMin: number;
+  /** Verga da alvenaria de blocos (E1e): apoio em cada lado (cm) e fiadas de canaleta. */
+  alvenariaVergaApoio: number;
+  alvenariaVergaFiadas: number;
+  /** Vigas sobre muros de alvenaria (E1e, C6.59): 1 = armar (dimensionar) sempre; 0 = armadura opcional dispensada nas de alvenaria genérica e de coroamento em blocos. */
+  alvenariaVigaArmar: number;
+  /** Vigas sobre muros (E1e): largura e altura mínimas (cm). */
+  alvenariaVigaBMin: number;
+  alvenariaVigaHMin: number;
 }
 
 export interface OpcaoInfo {
@@ -790,7 +821,42 @@ export const OPCOES_INFO: OpcaoInfo[] = [
   { chave: 'paredeEmendaAmpliar', rotulo: 'Paredes: ampliar a emenda pelo espaçamento das barras', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 9.5.2.1 (distância livre entre barras emendadas > 4φ acrescenta-se ao traspasse); a confirmar o item', aConfirmar: true,
     descricao: 'Ligado: quando a distância livre entre barras emendadas excede 4φ, o excedente da distância livre soma-se ao comprimento do traspasse.' },
   { chave: 'paredeAberturaCanto', rotulo: 'Paredes: barras inclinadas nos cantos das aberturas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática de projeto de paredes de concreto (reforço dos cantos reentrantes); NBR 16055 não consultada; a confirmar', aConfirmar: true,
-    descricao: 'Ligado: cada canto de abertura recebe barras inclinadas a 45° (padrão 2φ10 com 60 cm, editável por abertura).' },
+    descricao: 'Ligado: cada canto de abertura recebe barras inclinadas a 45° (padrão 2φ10 com 60 cm, editável por abertura).' },  { chave: 'alvenariaCumprimento', rotulo: 'Alvenaria: fator de cumprimento das tensões-limite', unidade: '%', min: 50, max: 100, passo: 1, padrao: 80, padraoNBR: 100, fonteNBR: 'NBR 16868-1: toda a parede atende (sem tolerância de área)', fonte: 'Programa de referência (80 % da área do pano atende os limites de compressão, tração e cisalhamento; falha gera aviso no relatório final)', aConfirmar: false,
+    descricao: 'Fração da área do pano (trecho entre aberturas, por lance) cujos elementos da casca devem atender as tensões-limite de compressão, tração e cisalhamento da alvenaria. Abaixo disso o pano não atende (ALV_CUMPRIMENTO); com a fração atendida, os pontos que excedem aparecem como aviso (ALV_PONTOS).' },
+  { chave: 'alvenariaTracao', rotulo: 'Alvenaria: tração de cálculo como % da compressão', unidade: '%', min: 0, max: 30, passo: 1, padrao: 10, fonte: 'Programa de referência (tração = 10 % da compressão); a NBR 16868-1 dá a resistência à tração na flexão em tabela, não transcrita [a confirmar]', aConfirmar: true,
+    descricao: 'Resistência de cálculo à tração da alvenaria = % da resistência de cálculo à compressão. Vale para os blocos e para a alvenaria genérica sem tração informada. Em paredes armadas a tração é resistida pela armadura.' },
+  { chave: 'alvenariaGamaM', rotulo: 'Alvenaria de blocos: γm', min: 1, max: 3, passo: 0.05, padrao: 2, fonte: 'NBR 16868-1 (γm da alvenaria em combinações normais 2,0 [a confirmar]; a edição vigente traz coeficientes por situação)', aConfirmar: true,
+    descricao: 'Coeficiente de ponderação da resistência da alvenaria de blocos: fd = fk/γm.' },
+  { chave: 'alvenariaFkPrisma', rotulo: 'Alvenaria de blocos: fk/fpk', min: 0.4, max: 1, passo: 0.05, padrao: 0.7, fonte: 'NBR 16868-1: resistência característica da parede = 0,7 da do prisma [a confirmar o item]', aConfirmar: true,
+    descricao: 'Fator que leva a resistência característica de prisma (fpk) à da parede (fk).' },
+  { chave: 'alvenariaPrisma', rotulo: 'Alvenaria de blocos: fpk/fbk (prisma estimado)', min: 0.3, max: 1.5, passo: 0.05, padrao: 0.8, fonte: 'Estimativa do Statikos para blocos de concreto vazados quando o ensaio de prisma não é informado; NBR 16868-1 pede ensaio [a confirmar]', aConfirmar: true,
+    descricao: 'Razão fpk/fbk usada quando o tipo de alvenaria não informa o prisma. Informe o fpk ensaiado no tipo de alvenaria sempre que possível.' },
+  { chave: 'alvenariaFlambagem', rotulo: 'Alvenaria: coeficiente da altura efetiva', unidade: '× altura', min: 0.5, max: 2.5, passo: 0.05, padrao: 1, fonte: 'NBR 16868-1: hef = h com apoio em cima e embaixo (laje); 2h se livre no topo [a confirmar]', aConfirmar: true,
+    descricao: 'hef = coeficiente × altura do lance; esbeltez λ = hef/t (parede sem enrijecedores).' },
+  { chave: 'alvenariaLambdaMax', rotulo: 'Alvenaria não armada: esbeltez máxima', min: 10, max: 40, passo: 1, padrao: 24, fonte: 'NBR 16868-1: λ ≤ 24 (não armada) [a confirmar]', aConfirmar: true,
+    descricao: 'Esbeltez λ = hef/t máxima da alvenaria não armada; acima disso o pano não atende (ALV_ESBELTEZ).' },
+  { chave: 'alvenariaLambdaMaxArmada', rotulo: 'Alvenaria armada: esbeltez máxima', min: 10, max: 40, passo: 1, padrao: 30, fonte: 'NBR 16868-1: λ ≤ 30 (armada) [a confirmar]', aConfirmar: true,
+    descricao: 'Esbeltez λ = hef/t máxima da alvenaria armada.' },
+  { chave: 'alvenariaExcMin', rotulo: 'Alvenaria: excentricidade mínima hef/x', min: 0, max: 1000, passo: 50, padrao: 500, fonte: 'NBR 16868-1: excentricidade mínima hef/500 [a confirmar]', aConfirmar: true,
+    descricao: 'Momento mínimo fora do plano M = N·hef/x em cada elemento da casca (0 desliga).' },
+  { chave: 'alvenariaCisalhInicial', rotulo: 'Alvenaria de blocos: resistência ao cisalhamento inicial fv0', unidade: 'MPa', min: 0, max: 1, passo: 0.05, padrao: 0.15, fonte: 'NBR 16868-1: fvk = 0,15 + 0,5σ (junta de argamassa, blocos de concreto) [a confirmar a tabela]', aConfirmar: true,
+    descricao: 'Parcela independente da tensão normal da resistência ao cisalhamento: fvk = fv0 + 0,5·σ ≤ fvMax.' },
+  { chave: 'alvenariaCisalhMax', rotulo: 'Alvenaria de blocos: limite de fvk', unidade: 'MPa', min: 0.3, max: 3, passo: 0.1, padrao: 1.4, fonte: 'NBR 16868-1: fvk ≤ 1,4 MPa [a confirmar]', aConfirmar: true,
+    descricao: 'Limite superior da resistência característica ao cisalhamento da alvenaria de blocos.' },
+  { chave: 'alvenariaTaxaVertMin', rotulo: 'Alvenaria armada: taxa mínima vertical', unidade: '% de b·t', min: 0, max: 1, passo: 0.01, padrao: 0.05, fonte: 'NBR 16868-1: taxa mínima de armadura [a confirmar]', aConfirmar: true,
+    descricao: 'Armadura vertical mínima das paredes de blocos armadas (área das barras por metro ÷ t).' },
+  { chave: 'alvenariaTaxaHorMin', rotulo: 'Alvenaria armada: taxa mínima horizontal', unidade: '% de b·t', min: 0, max: 1, passo: 0.01, padrao: 0.05, fonte: 'NBR 16868-1: taxa mínima de armadura [a confirmar]', aConfirmar: true,
+    descricao: 'Armadura horizontal (de junta) mínima das paredes de blocos armadas (área das barras por metro de altura ÷ t).' },
+  { chave: 'alvenariaVergaApoio', rotulo: 'Verga de blocos: apoio em cada lado', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 30, fonte: 'Prática de projeto de alvenaria estrutural (apoio mínimo da verga); NBR 16868-1 não consultada [a confirmar]', aConfirmar: true,
+    descricao: 'Comprimento de apoio da verga e da contraverga além de cada lado da abertura, arredondado para cima ao módulo do bloco.' },
+  { chave: 'alvenariaVergaFiadas', rotulo: 'Verga de blocos: fiadas de canaleta', min: 1, max: 4, passo: 1, padrao: 1, fonte: 'Prática de projeto (uma fiada de canaleta grauteada); a confirmar', aConfirmar: true,
+    descricao: 'Altura da verga em fiadas de canaleta (cada fiada = altura modular do bloco).' },
+  { chave: 'alvenariaVigaArmar', rotulo: 'Vigas sobre muros de alvenaria: armar sempre', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (armadura opcional das vigas no nível das lajes sobre muros de alvenaria genérica e das de coroamento em blocos; a de topo do muro de subsolo é sempre armada)', aConfirmar: false,
+    descricao: 'Ligado: as vigas embutidas em muros de alvenaria são dimensionadas e armadas. Desligado: a armadura da viga sobre alvenaria genérica ou de coroamento em blocos é dispensada (o resultado diz “armadura opcional dispensada”); a viga de topo do muro de subsolo é sempre armada.' },
+  { chave: 'alvenariaVigaBMin', rotulo: 'Vigas sobre muros: largura mínima', unidade: 'cm', min: 5, max: 40, passo: 1, padrao: 14, fonte: 'Programa de referência (espessuras mínimas configuráveis); valor do Statikos [a confirmar]', aConfirmar: true,
+    descricao: 'Largura mínima da viga embutida em muro de alvenaria; abaixo disso, aviso ALV_VIGA_ESPESSURA.' },
+  { chave: 'alvenariaVigaHMin', rotulo: 'Vigas sobre muros: altura mínima', unidade: 'cm', min: 10, max: 60, passo: 1, padrao: 19, fonte: 'Programa de referência (espessuras mínimas configuráveis); valor do Statikos [a confirmar]', aConfirmar: true,
+    descricao: 'Altura mínima da viga embutida em muro de alvenaria; abaixo disso, aviso ALV_VIGA_ESPESSURA.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -838,6 +904,10 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   // E1d: armadura, detalhamento e emendas das paredes e pilares-parede (só o dimensionamento sobre a análise vigente)
   'paredeCumprimento', 'paredeArmarSempre', 'paredeSoHorizontal', 'paredeHorizontalGrampos', 'paredeTaxaVertMin', 'paredeTaxaVertMax', 'paredeTaxaHorMin',
   'paredeHorFracVert', 'paredeEspMax', 'paredeEspMin', 'paredeBitolaMax', 'paredeFlambagem', 'paredeEmendaProp', 'paredeEmendaAmpliar', 'paredeAberturaCanto',
+  // E1e: verificação, verga e vigas da alvenaria estrutural (só o dimensionamento sobre a análise vigente)
+  'alvenariaCumprimento', 'alvenariaTracao', 'alvenariaGamaM', 'alvenariaFkPrisma', 'alvenariaPrisma', 'alvenariaFlambagem', 'alvenariaLambdaMax', 'alvenariaLambdaMaxArmada',
+  'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas',
+  'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

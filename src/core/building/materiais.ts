@@ -11,13 +11,14 @@ export type Aco = Norma['aco'];
 /** Tipos de elemento com concreto próprio (fundacao = sapatas e blocos do edifício). */
 export type TipoElemento = 'laje' | 'viga' | 'pilar' | 'fundacao';
 /** Posições de armadura com aço próprio (as que o dimensionamento calcula). */
-export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao';
+export type PosicaoAco = 'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor';
 export const POSICOES_ACO: { k: PosicaoAco; rotulo: string }[] = [
   { k: 'pilarLong', rotulo: 'Pilares: longitudinal' }, { k: 'pilarEstribo', rotulo: 'Pilares: estribos' },
   { k: 'vigaPos', rotulo: 'Vigas: positiva (inferior)' }, { k: 'vigaNeg', rotulo: 'Vigas: negativa (superior)' }, { k: 'vigaMontagem', rotulo: 'Vigas: montagem (porta-estribos)' }, { k: 'vigaPele', rotulo: 'Vigas: pele (laterais)' }, { k: 'vigaEstribo', rotulo: 'Vigas: estribos' },
   { k: 'lajeInf', rotulo: 'Lajes: inferior' }, { k: 'lajeSup', rotulo: 'Lajes: superior' },
   { k: 'lajePuncao', rotulo: 'Lajes: armadura de punção' }, { k: 'lajeCortante', rotulo: 'Lajes: armadura de cortante' },
   { k: 'fundacao', rotulo: 'Fundações (sapatas, blocos, tubulões)' },
+  { k: 'alvenariaVert', rotulo: 'Alvenaria armada: barras verticais' }, { k: 'alvenariaHor', rotulo: 'Alvenaria armada: armadura horizontal (junta)' },
 ];
 
 /** γ padrão (NBR 6118, Tabelas 11.1 e 12.1, combinações normais). */

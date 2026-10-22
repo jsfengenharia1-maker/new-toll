@@ -3,7 +3,7 @@
 import type { Barra3, Caso3, Casca3, V3 } from '../fe3d';
 import { chaveXY, ladosDoPP, lancesDoPP, malhaDaGrade, paraT6, pontoDoLado, retanguloDoLado, type ModeloParedes } from './pilarParede';
 import { paredeDoPP, paredeTocaLaje, ppDaObra } from './paredesBase';
-import type { BuildingModel } from './types';
+import type { BuildingModel, Parede } from './types';
 
 type P = [number, number];
 const arred = (x: number) => Math.round(x * 1e4) / 1e4;
@@ -48,6 +48,8 @@ export interface EntradaParedes {
   peso: (pav: string, kN: number) => void;
   /** Etiqueta da barra do pórtico criada. */
   etiqueta: (ref: string, pav: string) => void;
+  /** Material próprio da parede (alvenaria, E1e): E (kN/m²), ν e peso específico (kN/m³); ausente = o do concreto do pilar. */
+  materialParede?: (w: Parede) => { E: number; nu: number; gama: number } | undefined;
   /** Altura da viga fictícia (m). */
   hViga: number;
   /** Índice do caso G em `casosV`. */
@@ -105,7 +107,7 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     const usado = new Uint8Array(malha.pontos.length);
     for (const t of malha.tris) for (const i of t) usado[i] = 1;
     const ids = malha.pontos.map(([s, z], i) => (usado[i] ? no(pontoDoLado(g, s, z)) : -1));
-    const parede = paredeDoPP(b, pp);
+    const parede = paredeDoPP(b, pp), mat = parede ? e.materialParede?.(parede) : undefined;
     const pesoNo = new Map<number, number>();
     for (const t of malha.tris) {
       const c3 = [malha.pontos[t[0]], malha.pontos[t[1]], malha.pontos[t[2]]], zc = (c3[0][1] + c3[1][1] + c3[2][1]) / 3, sc = (c3[0][0] + c3[1][0] + c3[2][0]) / 3;
@@ -113,10 +115,10 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
       while (k + 2 < zs.length && zc > zs[k + 1]) k++;
       const lance = lances[k], esp = g.esp(lance.id).t;
       const area = Math.abs((c3[1][0] - c3[0][0]) * (c3[2][1] - c3[0][1]) - (c3[2][0] - c3[0][0]) * (c3[1][1] - c3[0][1])) / 2;
-      pm.cascas.push({ nos: t.map((i) => ids[i]) as [number, number, number, number, number, number], E: e.Ec(lance.id), nu: e.nu, h: esp, ref: [g.u[0], g.u[1], 0] });
+      pm.cascas.push({ nos: t.map((i) => ids[i]) as [number, number, number, number, number, number], E: mat?.E ?? e.Ec(lance.id), nu: mat?.nu ?? e.nu, h: esp, ref: [g.u[0], g.u[1], 0], ...(mat ? { semReducao: true } : {}) });
       out.info.push({ k: pm.cascas.length - 1, pp: pp.id, lado: g.i, ladoId: g.id, lance: lance.id, t: esp, area, s: sc, z: zc });
       // peso próprio: carga consistente de pressão uniforme (vértices 0, meios dos lados 1/3 cada)
-      const W = e.gama * esp * area;
+      const W = (mat?.gama ?? e.gama) * esp * area;
       for (const m of [t[3], t[4], t[5]]) pesoNo.set(ids[m], (pesoNo.get(ids[m]) ?? 0) + W / 3);
       e.peso(lance.id, W);
       // empuxo (E1c): pressão normal ao plano da parede, forças consistentes do T6, no caso do empuxo
@@ -175,4 +177,4 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
 }
 
 /** Rigidez reduzida das cascas no γz e no P-Δ (pilares: 0,8·Eci·Ic; NBR 6118, 15.7.3). */
-export const reduzirCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => ({ ...c, E: c.E * fator }));
+export const reduzirCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, E: c.E * fator }));

@@ -5,6 +5,7 @@
 // (bordas e faixas). Lados curtos (barras) são dimensionados como pilares por fibras (`paredesLado.ts`) e os lados em
 // casca têm a armadura adotada verificada globalmente à flexo-compressão oblíqua. Aberturas: verga, peitoril, montantes
 // e cantos. Premissas em `premissas.ts` (ids e1d-*).
+import { ehAlvenaria } from './alvenaria';
 import { beamShear, barArea, type Concrete } from '../concrete';
 import type { AnaliseEdificio } from './analitico';
 import type { CombinacaoEd } from './combinacoes';
@@ -347,7 +348,7 @@ export function extrapolarBordas(els: ElementoPano[], S: number[], H: number): E
 
 // ---------------------------------------------------------------- orquestração
 
-const ordena = (xs: number[]) => [...new Set(xs.map((x) => Math.round(x * 1e4) / 1e4))].sort((a, z) => a - z);
+export const ordena = (xs: number[]) => [...new Set(xs.map((x) => Math.round(x * 1e4) / 1e4))].sort((a, z) => a - z);
 
 /** Armadura bloqueada do pano: a do pano (ou a do lado e lance sem pano) com o mesmo número de panos. */
 function bloqueioDoPano(lista: ArmaduraPano[] | undefined, lado: number, pav: string, pano: number, panos: number): { bloqueio?: Malha2; ignorado?: boolean } {
@@ -359,7 +360,7 @@ function bloqueioDoPano(lista: ArmaduraPano[] | undefined, lado: number, pav: st
 }
 
 /** Fontes de forças das cascas por nome de caso (analisados e vento). */
-function fontesCascas(an: AnaliseEdificio): Map<string, Float64Array[]> {
+export function fontesCascas(an: AnaliseEdificio): Map<string, Float64Array[]> {
   const m = new Map<string, Float64Array[]>();
   const res = an.portico.res, resV = an.portico.resVento && !an.portico.resVento.erro ? an.portico.resVento : null;
   if (res?.cascas) an.casos.forEach((c, ic) => { if (res.cascas![ic]) m.set(c, res.cascas![ic]); });
@@ -371,7 +372,7 @@ function fontesCascas(an: AnaliseEdificio): Map<string, Float64Array[]> {
 const matDe = (conc: Concrete, fyd: number, d1: number): MatParede => ({ fck: conc.fck, fcd: conc.fcd, fctd: conc.fctd, sigmaCd: conc.sigmaCd, fyd, d1 });
 
 /** Resultantes de um lado por combinação (N, Mp, Mo). */
-function esforcosDoLado(res: ResultadoPilarParede | undefined, lado: number, pav: string, elu: CombinacaoEd[]): EsforcoLado[] {
+export function esforcosDoLado(res: ResultadoPilarParede | undefined, lado: number, pav: string, elu: CombinacaoEd[]): EsforcoLado[] {
   const l = res?.lados.find((x) => x.lado === lado && x.pavimento === pav);
   if (!l) return [];
   return elu.map((cb) => {
@@ -388,7 +389,7 @@ function esforcosDoLado(res: ResultadoPilarParede | undefined, lado: number, pav
 export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], resultantes: { paredes?: ResultadoPilarParede[]; pilaresParede?: ResultadoPilarParede[] }, op: OpcoesCalculo): ResultadoParedeDim[] {
   const alvos: { pp: PilarParede; parede?: Parede; lista: ArmaduraPano[] | undefined; res?: ResultadoPilarParede }[] = [
     ...(b.pilaresParede ?? []).map((pp) => ({ pp, lista: pp.armaduras, res: resultantes.pilaresParede?.find((r) => r.id === pp.id) })),
-    ...(b.paredes ?? []).map((w) => ({ pp: ppDaParede(w), parede: w, lista: w.armaduras, res: resultantes.paredes?.find((r) => r.id === w.id) })),
+    ...(b.paredes ?? []).filter((w) => !ehAlvenaria(w)).map((w) => ({ pp: ppDaParede(w), parede: w, lista: w.armaduras, res: resultantes.paredes?.find((r) => r.id === w.id) })),
   ];
   if (!alvos.length || !an.paredes || !an.portico.res) return [];
   const geo = geometriaParedes(b, op);
@@ -471,7 +472,7 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
 }
 
 /** Integra a normal horizontal, o momento (em torno do meio da faixa) e o cortante no apoio da faixa acima ou abaixo da abertura. */
-function faixa(els: ElementoPano[], f: FuroTrecho, zlo: number, zhi: number, _topo: boolean, nCombos: number, _z0: number, gr: GradeLado): ForcasFaixa {
+export function faixa(els: ElementoPano[], f: FuroTrecho, zlo: number, zhi: number, _topo: boolean, nCombos: number, _z0: number, gr: GradeLado): ForcasFaixa {
   const S = gr.S, cel = (s: number) => { let i = 0; while (i + 2 < S.length && s >= S[i + 1]) i++; return i; };
   const dentro = els.filter((e) => e.s > f.s0 && e.s < f.s1 && e.z >= zlo - 1e-9 && e.z <= zhi + 1e-9);
   const zc = (zlo + zhi) / 2;

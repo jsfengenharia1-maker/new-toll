@@ -13,6 +13,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 5. NBR 7481 (telas Q, L, T) e catálogo SCAC (pré-moldadas).
 6. NBR 16752, 13142 e 16861 (prancha) e exemplos de prancha (laje, tubulão, radier, viga de equilíbrio).
 7. AUDIT do DXF/DWG no AutoCAD.
+8. NBR 16868-1 (alvenaria estrutural, 2020): fk e γm, esbeltez, tração e cisalhamento, alvenaria armada — base da E1e, escrita sem o texto da norma.
 
 ## NBR 6123 (vento)
 | O que falta | Para que serve | Onde entra | Valor provisório |
@@ -94,3 +95,18 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 | FU7b | NBR 6122:2019 e NBR 6118:2014 | Sapata sob parede: seção de referência do momento e dispersão da carga de pilar que nasce sobre a parede | Seção de referência a 15 % de bw (CEB-70) estendida à parede de concreto em contato com o solo e carga do pilar concentrada na janela de 1 m (a dispersão pela altura da sapata não é considerada) | `corridaParede.ts` (`cargasLinearesDaParede`), opções `corridaRefConcreto`, `corridaJanela` |
 | FU7b | NBR 6122:2019 | σadm do muro de arrimo isolado pelo SPT | Muro sem posição em planta usa o menor σadm entre os furos da obra (N̄/50 MPa com a largura B do muro): confirmar o critério de furo representativo | `baseMuro.ts` (`sigmaDoMuro`) |
 | FU7b | NBR 11682:2009 | 5 (muros) | Verificação do deslizamento de paredes de subsolo travadas por lajes (a base não deve ser reprovada por deslizamento quando a laje do pavimento resiste ao cortante) | opção `fundCorridaDeslizamento` |
+## Alvenaria estrutural e blocos de concreto (E1e)
+
+Nenhum texto da NBR 16868 estava disponível: todas as fórmulas abaixo foram escritas de memória, marcadas "a confirmar" no app (opções `alvenaria*`) e no memorial (premissas `e1e-*`). O que o programa de referência define (cumprimento 80 %, tração 10 % da compressão, aviso no relatório) já está como padrão do sistema.
+
+| Fatia | Norma e edição | Tabela ou item | O que falta conferir | Onde é usado no código |
+|---|---|---|---|---|
+| E1e | NBR 16868-1:2020 (e 16868-2/-3) | Resistência do prisma e da parede (fk = 0,7 fpk), razão fpk/fbk dos blocos de concreto vazados | Fator fk/fpk, razão de estimativa do prisma (0,8) e efeito do grauteamento (total, parcial) no fk | opções `alvenariaFkPrisma`, `alvenariaPrisma`; `resistenciaAlvenaria` em `src/core/building/alvenaria.ts` |
+| E1e | NBR 16868-1:2020 | Coeficientes de ponderação da resistência (γm) por situação e por material (alvenaria, graute, aço) | γm da alvenaria (2,0 usado), eventual redução em ações especiais e γm do graute | opção `alvenariaGamaM`; `resistenciaAlvenaria` |
+| E1e | NBR 16868-1:2020 | Módulo de elasticidade (800 fpk, teto 16 GPa) e de cisalhamento (0,4 E) | E em função do fpk (blocos de concreto e cerâmicos) e G | `resistenciaAlvenaria` (E e G da casca) |
+| E1e | NBR 16868-1:2020 | Esbeltez efetiva (hef/tef) e redutor R = 1 − (λ/40)³; limites λ ≤ 24 (não armada) e 30 (armada); altura efetiva com lajes e paredes de travamento | Redutor, limites de esbeltez, hef para apoio topo/base e para enrijecedores | opções `alvenariaFlambagem`, `alvenariaLambdaMax`, `alvenariaLambdaMaxArmada`; `esbeltezAlvenaria` |
+| E1e | NBR 16868-1:2020 | Excentricidade mínima / acidental (hef/500) e interação compressão-flexão da alvenaria não armada | Valor da excentricidade mínima e fórmula de interação (σN/(fd·R) + σM/fd) | opção `alvenariaExcMin`; `utilizacaoElemento` |
+| E1e | NBR 16868-1:2020 | Resistência à tração na flexão (por direção, tabela) e ao cisalhamento (fvk = fv0 + 0,5σ ≤ 1,4 MPa; fv0 = 0,15; fvk da armada) | Tabelas de ftk (paralela e normal às juntas, com e sem graute) no lugar do 10 % do programa de referência; fvk nas juntas horizontais, verticais e na armada | opções `alvenariaTracao`, `alvenariaCisalhInicial`, `alvenariaCisalhMax`; `utilizacaoElemento`, `fvdDe` |
+| E1e | NBR 16868-1:2020 | Alvenaria armada: diagrama de tensões na flexão, taxas mínimas vertical e horizontal, espaçamentos máximos, bitolas, limite superior do cisalhamento, comprimentos de ancoragem e de traspasse nos furos grauteados | Bloco retangular com tensão fd·R, taxas 0,05 %, espaçamentos 1,2 m e 0,6 m, limite 0,25 fd da biela | opções `alvenariaTaxaVertMin`, `alvenariaTaxaHorMin`; constantes `ESP_VERTICAL_MAX`, `ESP_HORIZONTAL_MAX`, `flexaoArmadaFaixa`, `verificarPanoAlvenaria` |
+| E1e | NBR 16868-1:2020 (e prática de projeto) | Vergas, contravergas, apoios e canaletas; modulação, cantos e amarração (16868-3) | Apoio mínimo da verga (30 cm), altura em fiadas de canaleta, regras de peça de canto e de perda de módulo na contagem de blocos | opções `alvenariaVergaApoio`, `alvenariaVergaFiadas`; `dimensionarVerga`, `quantitativoParede` |
+| E1e | Catálogos de fabricantes de blocos | Blocos de concreto estruturais (famílias 14 e 19 cm, 29, 39, canaleta, compensadores, canto) | Dimensões modulares e peças especiais para pré-cadastrar na biblioteca (hoje só o bloco que o usuário cria) | `bloco.tipo` (`TipoBloco` em `src/core/building/types.ts`) |
