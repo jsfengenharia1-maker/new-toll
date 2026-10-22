@@ -6,7 +6,7 @@ import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -86,6 +86,10 @@ interface PState {
   ppParams: Record<string, unknown> | null;
   /** Ferramenta Parede de concreto (E1c): parâmetros do lançamento (espessura, nasce, morre, base), sem tipo próprio. */
   pwParams: Record<string, unknown> | null;
+  /** Cortes do edifício e linhas de seção (V2): lado visto e profundidade (m; 0 = até o fim) do próximo corte, marcas na planta e janela aberta. */
+  corteLanc: { sentido: 'esq' | 'dir'; profundidade: number };
+  mostrarCortes: boolean;
+  janelaCorte: { tipo: 'corte' | 'secao'; id: string } | null;
   alinharEscala: boolean;
   secaoViga: { b: number; h: number };
   alinhamento: Alinhamento;
@@ -163,6 +167,9 @@ export const usePlanta = create<PState>((set) => ({
   ppAngulo: 0,
   ppParams: null,
   pwParams: null,
+  corteLanc: { sentido: 'esq', profundidade: 0 },
+  mostrarCortes: true,
+  janelaCorte: null,
   alinharEscala: false,
   secaoViga: { b: 0.15, h: 0.4 },
   alinhamento: 'centro',

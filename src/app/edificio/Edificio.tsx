@@ -33,6 +33,7 @@ import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
 import { CartaoParedes } from './ParedesUI';
 import { CartaoAlvenaria } from './AlvenariaResumo';
 import { ParedesGrupo } from './ParedesUI';
+import { CortesGrupo, JanelaCorte } from './CortesUI';
 import { MurosGrupo } from './MurosUI';
 import { AlvenariaGrupo } from './AlvenariaUI';
 import { CasosGrupo } from './Casos';
@@ -121,6 +122,7 @@ export function Edificio() {
         <LajesGrupo b={b} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
+        <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
         <VentoGrupo b={b} />
         <AbacosVentoGrupo b={b} />
         <CasosGrupo b={b} />
@@ -202,6 +204,7 @@ export function Edificio() {
       {dialogoL1 === 'texto' && <ImportarTexto onClose={() => setDialogoL1(null)} onCriada={() => { setDialogoL1(null); useStore.getState().set({ module: 'fundacoes' }); }} />}
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
       <JanelaElemento />
+      <JanelaCorte />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );
