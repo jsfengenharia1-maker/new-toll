@@ -705,6 +705,19 @@ export interface Carga {
   origem?: { tipo: 'alvenaria'; camada: string; bloco: string; espessura: number; altura: number };
 }
 
+/** Corte do edifício (V2): linha traçada na planta (poligonal); o observador olha para o lado `sentido` do traçado. */
+export interface CorteEdificio {
+  id: string;
+  nome: string;
+  pontos: [number, number][];
+  /** Lado do traçado (no sentido dos pontos) para onde o observador olha: esquerda ou direita. */
+  sentido: 'esq' | 'dir';
+  /** Profundidade visível além do plano (m); ausente = até o fim do edifício. */
+  profundidade?: number;
+}
+/** Linha de seção do pavimento (V2): reta a–b em qualquer direção; `pavimento` = o pavimento em que foi traçada. */
+export interface LinhaSecao { id: string; nome: string; a: [number, number]; b: [number, number]; pavimento?: string }
+
 export interface BuildingModel {
   version: typeof BUILDING_VERSION;
   /** Contador para ids determinísticos (o replay do log gera os mesmos ids). */
@@ -730,6 +743,9 @@ export interface BuildingModel {
   casos?: CasoAdicional[];
   /** Exceções da tabela de compatibilidade entre casos (N2a). */
   compat?: CompatCasos[];
+  /** Cortes do edifício e linhas de seção dos pavimentos (V2). */
+  cortes?: CorteEdificio[];
+  secoes?: LinhaSecao[];
   /** Estados-limite (grupos de combinações): só o que difere do padrão. */
   estados?: EstadosLimite;
   /** Situações de projeto do usuário. */

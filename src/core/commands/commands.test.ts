@@ -35,6 +35,8 @@ function base() {
     ['caso.criar', { nome: 'Vazio', natureza: 'Q' }],
     ['empuxo.tipo', { nome: 'Subsolo', metodo: 'repouso', estratos: [{ espessura: 5, gama: 18, phi: 30 }], cotaAterro: 0 }],
     ['situacao.importar', { estado: 'solo' }],
+    ['corte.criar', { pontos: [[0, 1], [6, 1]] }],
+    ['secao.criar', { a: [0, 0], b: [6, 3] }],
   ] as const) expect(s.executar(n, p).ok, n).toBe(true);
   expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
   // R7a: uma tabela de vigas criada (para restaurar e remover) e a padrão dos estribos alterada
@@ -137,6 +139,12 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pavimento.remover': () => ({ id: 'pav_6' }),
   'pavimento.repetir': () => ({ id: 'pav_6', vezes: 3 }),
   'eixo.criar': () => ({ nome: 'A', p1: [0, 0], p2: [10, 0] }),
+  'corte.criar': () => ({ nome: 'Corte AA', pontos: [[0, 2], [8, 2]], sentido: 'esq', profundidade: 6 }),
+  'corte.editar': (b) => ({ id: b.cortes![0].id, nome: 'Corte BB', sentido: 'dir', profundidade: 0 }),
+  'corte.remover': (b) => ({ ids: [b.cortes![0].id] }),
+  'secao.criar': () => ({ nome: 'S1', a: [0, 0], b: [6, 3] }),
+  'secao.editar': (b) => ({ id: b.secoes![0].id, nome: 'S2', b: [6, 4] }),
+  'secao.remover': (b) => ({ ids: [b.secoes![0].id] }),
   'eixo.editar': (b) => ({ id: b.eixos[0].id, nome: 'B' }),
   'eixo.remover': (b) => ({ ids: [b.eixos[0].id] }),
   'eixo.malha': () => ({ dx: [4, 5], dy: [3] }),
@@ -349,12 +357,12 @@ describe('revisão de cálculo', () => {
     expect(s.revCalculo).toBe(c0);
   });
 
-  it('comandos fora do cálculo só alteram b.prancha, e o cálculo não lê b.prancha', () => {
+  it('comandos fora do cálculo só alteram b.prancha, b.cortes e b.secoes, e o cálculo não lê b.prancha', () => {
     const b0 = base();
     for (const c of listarComandos().filter((x) => x.calculo === false)) {
       const r = aplicarComando(b0, c.nome, EXEMPLOS[c.nome](b0));
       expect(r.ok, c.nome).toBe(true);
-      expect(r.patches!.every((p) => p.path[0] === 'prancha'), c.nome).toBe(true);
+      expect(r.patches!.every((p) => ['prancha', 'cortes', 'secoes', 'seq'].includes(String(p.path[0]))), c.nome).toBe(true);
     }
     const src = import.meta.glob(['../building/*.ts', '!../building/*.test.ts', '!../building/types.ts', '!../building/file.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
     expect(Object.keys(src).length).toBeGreaterThan(10);
