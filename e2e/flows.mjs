@@ -4672,4 +4672,90 @@ export const flows = [
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
     },
   },
+  {
+    name: 'E2a: seção das vigas (T com mesa colaborante, chata, não estrutural e de amarração), detalhe com barras de canto da mesa e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 2, null);
+      // seleciona a viga da linha `i` da tabela (V1 = 0 … V4 = 3) e devolve o editor de seção
+      const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
+      await gvigas.locator(':scope > summary').click();
+      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      const editor = async (i) => {
+        await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click();
+        const sv = page.locator('[data-secao-viga]');
+        await sv.waitFor();
+        return sv;
+      };
+      // 1. V4 (x = 5, laje dos dois lados, 1 vão de 4 m): T automática, a = 4 m, b1 = 0,1·a = 40 cm, bf = 20 + 80 = 100 cm
+      let sv = await editor(3);
+      assert.equal(await sv.locator('svg[data-secao-previa]').getAttribute('data-secao-previa'), 'ret');
+      await sv.getByLabel(/^Tipo da seção/).selectOption('T');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.some((v) => v.mesa?.tipo === 'T'), null);
+      assert.match(await sv.innerText(), /Seção T: bf = 100 cm \(NBR 6118 14\.6\.2\.2: a = 4 m, abas 40 e 40 cm\), hf = 12 cm/);
+      assert.equal(await sv.locator('svg[data-secao-previa]').getAttribute('data-secao-previa'), 'T');
+      // bf informada (90 cm) prevalece; vazio volta à colaborante
+      await sv.getByLabel(/^Largura da mesa bf/).fill('90');
+      await sv.getByLabel(/^Largura da mesa bf/).press('Enter');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.some((v) => v.mesa?.bf === 0.9), null);
+      assert.match(await sv.innerText(), /bf = 90 cm informada/);
+      await sv.getByLabel(/^Largura da mesa bf/).fill('');
+      await sv.getByLabel(/^Largura da mesa bf/).press('Enter');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.some((v) => v.mesa && v.mesa.bf === undefined), null);
+      // 2. V1 vira viga chata (altura 12 cm da laje) e desfazer devolve os 50 cm
+      sv = await editor(0);
+      await sv.getByLabel('Viga chata (altura da laje que contorna)', { exact: true }).check();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.12, null);
+      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.5, null);
+      // 3. V2 não estrutural e V3 de amarração
+      sv = await editor(1);
+      await sv.getByLabel('Viga não estrutural (só fecha o contorno do pano)', { exact: true }).check();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V2')?.estrutural === false, null);
+      sv = await editor(2);
+      await sv.getByLabel('Viga de amarração (sem flexão vertical)', { exact: true }).check();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V3')?.amarracao === true, null);
+      // 4. flexão na seção T (opção) e cálculo
+      await cmd('opcoes.definir {"valores": {"mesaDimensionamento": 1}}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.opcoes?.mesaDimensionamento === 1, null);
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      await livre();
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      await cardVigas.waitFor({ timeout: 30000 });
+      assert.equal(await cardVigas.locator('tbody tr').count(), 4, 'V2 não estrutural fica fora do dimensionamento');
+      assert.equal(await cardVigas.locator('tbody tr', { hasText: 'V2' }).count(), 0);
+      // 5. janela de V4: detalhamento com a seção T e as barras de canto da mesa
+      await cardVigas.locator('tbody tr', { hasText: 'V4' }).first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const secao = jan.locator('svg[data-secao]');
+      await secao.waitFor();
+      assert.equal(await secao.locator('[data-mesa-aba]').count(), 2);
+      assert.equal(await secao.locator('[data-canto-mesa]').count(), 2);
+      assert.match(await secao.textContent(), /bf 100 × hf 12/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // 6. memorial: quadro das seções especiais
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const q = memo.locator('[data-memorial-secoes-viga]');
+      await q.waitFor();
+      const txt = await q.innerText();
+      assert.match(txt, /V4[\s\S]*T[\s\S]*mesa colaborante \(NBR 6118, 14\.6\.2\.2\)/);
+      assert.match(txt, /V2[\s\S]*não estrutural/);
+      assert.match(txt, /V3[\s\S]*amarração/);
+      assert.match(txt, /dimensionada na seção T onde a mesa está comprimida/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];

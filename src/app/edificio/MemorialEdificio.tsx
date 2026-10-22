@@ -32,6 +32,7 @@ import { MemorialAcoes } from './MemorialAcoes';
 import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
 import { linhasGruposVigotas } from './Vigotas';
+import { resumoSecoesVigas } from '../../core/building/secaoViga';
 import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
 import { MemorialEluPorCombinacao, MemorialListagemGeral, MemorialQuantitativosDetalhados, MemorialTaxasPilares, MemorialVentoPavimentos } from './MemorialRelatorios';
@@ -55,6 +56,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
+  const secoesEsp = useMemo(() => resumoSecoesVigas(b), [b]);
   const tabelas = useMemo(() => tabelasAlteradas(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
@@ -210,6 +212,24 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>{OPCOES_INFO.map((o) => { const sim = (v: number) => valorOpcaoTxt(o, v, fmt), nbr = padraoDe(o, 'nbr'), alt = opc[o.chave] !== padraoDe(o, perfil), dif = nbr !== o.padrao; return <tr key={o.chave}><td className="l">{o.rotulo}{o.unidade ? ` (${o.unidade})` : ''}</td><td className={alt ? 'warn' : undefined}>{sim(opc[o.chave])}</td><td className={dif ? 'warn' : undefined}>{sim(o.padrao)}</td><td className={dif ? 'warn' : undefined}>{sim(nbr)}</td><td className="l">{o.fonte}{o.aConfirmar ? '; a confirmar' : ''}{dif && o.fonteNBR ? `. NBR: ${o.fonteNBR}` : ''}</td></tr>; })}</tbody>
           </table>
           {vinculos.length > 0 && <><h3>Vínculos e engastes alterados por elemento</h3><ul>{vinculos.map((t, i) => <li key={i}>{t}</li>)}</ul></>}
+          {secoesEsp.length > 0 && (
+            <div data-memorial-secoes-viga>
+              <h3>Seções especiais das vigas</h3>
+              <table>
+                <thead><tr><th>Viga</th><th>Alma (cm)</th><th>Seção</th><th>bf (cm)</th><th>hf (cm)</th><th>a (m)</th><th>Situação</th></tr></thead>
+                <tbody>
+                  {secoesEsp.map((x) => (
+                    <tr key={x.viga}>
+                      <td className="l">{x.nome}</td><td>{fmt(x.b, 0)} × {fmt(x.h, 0)}</td><td>{x.tipo === 'ret' ? 'retangular' : x.tipo}</td>
+                      <td>{x.bf === undefined ? '—' : fmt(x.bf * 100, 1)}</td><td>{x.hf === undefined ? '—' : fmt(x.hf * 100, 1)}</td><td>{x.a === undefined ? '—' : fmt(x.a, 2)}</td>
+                      <td className="l">{[x.tipo !== 'ret' && (x.automatica ? 'mesa colaborante (NBR 6118, 14.6.2.2)' : 'mesa informada'), x.chata && 'chata', !x.estrutural && 'não estrutural (fora do cálculo)', x.amarracao && 'amarração (sem flexão vertical)'].filter(Boolean).join('; ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p>Largura colaborante: bf = bw + b1 + b3, com b1 ≤ 0,1·a e b1 ≤ 0,5·b2 (a: distância entre pontos de momento nulo pelo número de vãos; b2: distância livre à viga vizinha). A mesa entra na rigidez da análise; a flexão é dimensionada {opc.mesaDimensionamento ? 'na seção T onde a mesa está comprimida' : 'só com a alma'} (a confirmar).</p>
+            </div>
+          )}
           {opcoesAlteradas(b.opcoes, perfil).length > 0 && <p className="warn">Opções diferentes do padrão do perfil: {opcoesAlteradas(b.opcoes, perfil).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
           {r?.erro && <p className="warn">{r.erro}</p>}
           {r && r.avisos.length > 0 && <ul>{r.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
