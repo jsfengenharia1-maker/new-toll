@@ -3,11 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { resolver3, type Caso3, type Modelo3 } from '../fe3d';
 import { analisarEdificio, torcaoRet } from './analitico';
+import { dimensionarEdificio } from './dimensionamento';
+import { apoiosDaViga } from './detalhamento';
+import { vaosDaViga } from './vigas';
 import { opcoesEmUso } from './opcoes';
 import { abscissasDoLado, cotasDaGrade, geometriaParedes, ladosDoPP, malhaDaGrade, todosPilares } from './pilarParede';
 import { incluirParedes } from './pilarParedeModelo';
 import type { BuildingModel } from './types';
 import { verificar } from './verify';
+import { montarPrancha } from '../sheets/prancha';
+import { montarPranchaLocacao } from '../sheets/locacao';
+import { escreverDxf } from '../sheets/dxf';
 
 function padrao(): Sessao {
   const s = new Sessao();
@@ -178,5 +184,83 @@ describe('pilar-parede no edifício', () => {
     const reaPP = an.fundacao.find((f) => f.pilar === pp && f.caso === 'G')!;
     expect(reaPP.N).toBeGreaterThan(0);
     expect(an.paredes!.info.length).toBeGreaterThan(30);
+  });
+});
+
+describe('pilar-parede: esforços, vigas apoiadas ao longo e dimensionamento', () => {
+  function edificio() {
+    const s = padrao();
+    const b0 = s.modelo, t1 = nomePav(b0, 'Tipo 1'), g = b0.pavimentos.find((p) => p.id === t1)!.grupo;
+    ok(s, 'pilarParede.tipo', { nome: 'Reta 4 m', vertices: [[0, 0], [4, 0]], esq: 0.1, dir: 0.1 });
+    ok(s, 'pilarParede.inserir', { tipo: s.modelo.tiposPilarParede![0].id, x: 0, y: 0 });
+    ok(s, 'pilar.inserir', { x: 0, y: 5, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    ok(s, 'pilar.inserir', { x: 4, y: 5, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    ok(s, 'pilar.inserir', { x: 7, y: 0, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    ok(s, 'viga.tracar', { grupo: g, pontos: [[1, 0], [7, 0]], secao: { b: 0.2, h: 0.5 } }); // V1: 3 m sobre a parede (apoio longitudinal) e 3 m de vão até o pilar
+    for (const pts of [[[0, 5], [4, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]]]) ok(s, 'viga.tracar', { grupo: g, pontos: pts, secao: { b: 0.2, h: 0.5 } });
+    ok(s, 'laje.criar', { grupo: g, contorno: [[0, 0], [4, 0], [4, 5], [0, 5]], tipo: { tipo: 'macica', h: 0.12 } });
+    return s;
+  }
+
+  it('resultantes por lado e pavimento equilibram a carga da base; dimensionamento roda', () => {
+    const s = edificio(), b = s.modelo;
+    const an = analisarEdificio(b);
+    expect(an.erro).toBeUndefined();
+    const dim = dimensionarEdificio(b, an, { fundacao: false });
+    const pp = dim.pilaresParede![0];
+    expect(pp.modelo).toBe('casca');
+    expect(pp.lados).toHaveLength(b.pavimentos.length);
+    // N do primeiro lance (tração +) ≈ −N da base (compressão +), por caso
+    const l0 = pp.lados.find((x) => x.pavimento === b.pavimentos[0].id)!;
+    expect(Math.abs(l0.casos.G.N / -pp.base.G.N - 1)).toBeLessThan(0.05); // a média do painel descontando o meio peso próprio do painel
+    expect(pp.baseElu.Nmax).toBeGreaterThan(pp.base.G.N);
+    expect(l0.elu.N.min).toBeLessThan(0);
+    // quantitativo de concreto dos pilares inclui a parede
+    expect(dim.quantitativos[0].concreto.pilares).toBeGreaterThan(0.8);
+  });
+
+  it('viga sobre a parede: apoio longitudinal cortado, diagrama prolongado e barras limitadas', () => {
+    const s = edificio(), b = s.modelo, v1 = b.vigas[0];
+    const ap = apoiosDaViga(b, v1);
+    // o contato com a parede (s de 0 a 3 m) é cortado a (1 + 2) × h = 1,5 m da face do vão; o outro apoio é o pilar
+    const par = ap.find((a) => a.pilar.includes(':'))!;
+    expect(par.corta).toBe('ini');
+    expect(par.s1 - par.s0).toBeCloseTo(1.5, 6);
+    expect(ap).toHaveLength(2);
+    expect(vaosDaViga(b, v1)).toBe(1);
+    const an = analisarEdificio(b), dim = dimensionarEdificio(b, an, { fundacao: false });
+    const r = dim.vigas.find((x) => x.viga === v1.id)!;
+    expect(r.envoltoria.pontos.length).toBeGreaterThan(0);
+    // diagrama prolongado: há pontos da envoltória além da face (s menor que a do primeiro apoio do vão) até h = 0,5 m
+    const sFace = Math.min(...r.envoltoria.pontos.map((p) => p.s));
+    expect(sFace).toBeLessThan(par.s1 - 0.4 - 1e-9 + 0.5);
+    const d = dim.detalhes!.find((x) => x.viga === v1.id)!;
+    expect(d.barras.length).toBeGreaterThan(0);
+    // as barras não saem do trecho cortado do apoio de parede nem passam do pilar
+    expect(Math.min(...d.barras.map((x) => x.s0))).toBeGreaterThanOrEqual(par.s0 - 1e-9);
+  });
+});
+
+describe('pilar-parede nas pranchas', () => {
+  it('formas e locação desenham os lados, o quadro e as cargas somam o pilar-parede', () => {
+    const s = padrao();
+    const t1 = nomePav(s.modelo, 'Tipo 1'), g = s.modelo.pavimentos.find((p) => p.id === t1)!.grupo;
+    ok(s, 'pilarParede.tipo', { nome: 'L', vertices: [[0, 0], [3, 0], [3, 2]], esq: 0.1, dir: 0.1 });
+    ok(s, 'pilarParede.inserir', { tipo: s.modelo.tiposPilarParede![0].id, x: 0, y: 0 });
+    ok(s, 'pilar.inserir', { x: 0, y: 6, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    ok(s, 'pilar.inserir', { x: 5, y: 6, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    for (const pts of [[[0, 0], [3, 0]], [[0, 6], [5, 6]], [[0, 0], [0, 6]], [[5, 6], [3, 2]]]) ok(s, 'viga.tracar', { grupo: g, pontos: pts, secao: { b: 0.2, h: 0.5 } });
+    const b = s.modelo, an = analisarEdificio(b);
+    expect(an.erro).toBeUndefined();
+    const pf = montarPrancha(b, g);
+    const poli = pf.modelo.filter((x) => x.t === 'pl' && x.c === 'PILAR');
+    expect(poli.length).toBeGreaterThanOrEqual(2 + 2); // 2 pilares comuns + 2 lados
+    expect(pf.modelo.some((x) => x.t === 'txt' && x.s === 'PP1')).toBe(true);
+    const loc = montarPranchaLocacao(b, an)!;
+    expect(loc.elementos).toContain('PP1');
+    // tabela de cargas: a linha do PP1 (com a seção "300×20 +1") no espaço do papel
+    expect(loc.papel.filter((x) => x.t === 'txt' && x.s === 'PP1').length).toBeGreaterThanOrEqual(1);
+    expect(loc.papel.some((x) => x.t === 'txt' && x.s === '300×20 +1')).toBe(true);
+    expect(escreverDxf(pf).length).toBeGreaterThan(100);
   });
 });

@@ -10,7 +10,8 @@ import { acoDe, cobrimentoFundacao, fckDe, gamas } from '../building/materiais';
 
 const ROTULO = { laje: 'lajes', viga: 'vigas', pilar: 'pilares', fundacao: 'fundações' } as const;
 import { casosDaObra, contornoPilar, lancesDoPilar, USOS, type BuildingModel, type SecaoPilar } from '../building/types';
-import { caixa, eixosECotas, type P, type Prancha, type Prim } from './prancha';
+import { caixa, eixosECotas, textoParede, type P, type Prancha, type Prim } from './prancha';
+import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { montarFolha, nf, notas, ordemNome, plantaNaFolha, type BlocoTabela } from './armacao';
 import type { OpcoesArmacao } from './armacaoVigas';
 
@@ -41,6 +42,20 @@ export function cargasDosPilares(b: BuildingModel, an: AnaliseEdificio): CargaPi
       pilar: p.nome, secao: secTxt(s0 ? (p.secoes?.find((x) => x.pavimento === s0.id)?.secao ?? p.secao) : p.secao),
       k: { Nmax: c.Nk, Nmin: c.NkMin, Mx: c.Mx, My: c.My, Hx: c.Hx, Hy: c.Hy },
       d: cMax ? { Nmax: ns[iMax], Nmin: Math.min(...ns), Mx: v(cMax, 'Mx'), My: v(cMax, 'My'), Hx: v(cMax, 'Vx'), Hy: v(cMax, 'Vy') } : { Nmax: 0, Nmin: 0, Mx: 0, My: 0, Hx: 0, Hy: 0 },
+    });
+  }
+  // pilares-parede (E1b): resultante na base, no centro do pilar-parede
+  const raras = combinacoesDoEstado(b, an, 'solo').filter((x) => x.tipo === 'RARA');
+  for (const pp of [...(b.pilaresParede ?? [])].sort((a, z) => ordemNome(a.nome, z.nome))) {
+    const r = porPilar.get(pp.id), l0 = lancesDoPP(b, pp)[0];
+    if (!r || !l0 || pp.nasce !== 'fundacao') continue;
+    const v = (cb: CombinacaoEd, k: 'N' | 'Vx' | 'Vy' | 'Mx' | 'My') => Object.entries(cb.fatores).reduce((s, [n, f]) => s + f * (r[n]?.[k] ?? 0), 0);
+    const nk = raras.map((cb) => v(cb, 'N')), ik = nk.indexOf(Math.max(...nk)), ck = raras[ik], nd = elu.map((cb) => v(cb, 'N')), id = nd.indexOf(Math.max(...nd)), cd = elu[id];
+    if (!ck || !cd) continue;
+    out.push({
+      pilar: pp.nome, secao: textoParede(b, pp, l0.id),
+      k: { Nmax: nk[ik], Nmin: Math.min(...nk), Mx: v(ck, 'Mx'), My: v(ck, 'My'), Hx: v(ck, 'Vx'), Hy: v(ck, 'Vy') },
+      d: { Nmax: nd[id], Nmin: Math.min(...nd), Mx: v(cd, 'Mx'), My: v(cd, 'My'), Hx: v(cd, 'Vx'), Hy: v(cd, 'Vy') },
     });
   }
   return out;
@@ -82,9 +97,11 @@ export function notasGerais(b: BuildingModel): string[] {
 
 export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesArmacao = {}): Prancha | null {
   const pils = b.pilares.filter((p) => p.nasce === 'fundacao').map((p) => { const l = lancesDoPilar(b, p)[0]; const s = l ? (p.secoes?.find((x) => x.pavimento === l.id)?.secao ?? p.secao) : p.secao; return { p, s, c: contornoPilar(p, s) }; });
-  if (!pils.length) return null;
+  // pilares-parede que nascem na fundação: um contorno por lado
+  const paredes = (b.pilaresParede ?? []).filter((pp) => pp.nasce === 'fundacao').flatMap((pp) => { const l = lancesDoPP(b, pp)[0]; return l ? [{ pp, lance: l.id, cs: ladosDoPP(b, pp).map((g) => contornoDoLado(g, l.id)) }] : []; });
+  if (!pils.length && !paredes.length) return null;
   const cfg = { escala: b.prancha?.armacao?.escalaLocacao || b.prancha?.escala || 0, formato: b.prancha?.formato ?? 'auto' };
-  const cx = caixa(pils.flatMap((x) => x.c));
+  const cx = caixa([...pils.flatMap((x) => x.c), ...paredes.flatMap((w) => w.cs.flat())]);
   const pl = plantaNaFolha(cx, cfg.formato, cfg.escala, 34);
   const k = pl.escala / 1000;
   const modelo: Prim[] = [];
@@ -93,7 +110,12 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
     modelo.push({ t: 'hach', c: 'PILAR-HACH', pts: c }, { t: 'pl', c: 'PILAR', pts: c, fechada: true });
     modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base' }, { t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo' });
   }
-  const centros = pils.map(({ c }) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
+  for (const w of paredes) {
+    for (const c of w.cs) modelo.push({ t: 'hach', c: 'PILAR-HACH', pts: c }, { t: 'pl', c: 'PILAR', pts: c, fechada: true });
+    const [, , x1, y1] = caixa(w.cs.flat());
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: w.pp.nome, av: 'base' }, { t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: textoParede(b, w.pp, w.lance), av: 'topo' });
+  }
+  const centros = [...pils.map(({ c }) => c), ...paredes.map((w) => w.cs.flat())].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, b.eixos, centros, cx, k);
   const tabelas: BlocoTabela[] = [notas(notasGerais(b), 'NOTAS GERAIS')];
   const avisos = [...pl.avisos];
@@ -109,6 +131,6 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
   } else avisos.push('Sem análise: a tabela de cargas sai depois de calcular o edifício.');
   return montarFolha({
     b, formato: pl.formato, tipo: 'locacao', titulo: 'Locação e cargas', conteudo: 'LOCAÇÃO DOS PILARES E CARGAS NA FUNDAÇÃO', escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo,
-    desenho: [], tabelas, legenda: `ESCALA 1:${pl.escala} · cotas em cm · cargas em kN e kN·m`, avisos, modelo, janela: pl.janela, elementos: pils.map((x) => x.p.nome),
+    desenho: [], tabelas, legenda: `ESCALA 1:${pl.escala} · cotas em cm · cargas em kN e kN·m`, avisos, modelo, janela: pl.janela, elementos: [...pils.map((x) => x.p.nome), ...paredes.map((w) => w.pp.nome)],
   });
 }

@@ -57,6 +57,9 @@ function base() {
   // FU8a: sapata corrida de aba única com uma cinta até a sapata do P1
   expect(s.executar('corrida.criar', { pontos: [[-6, -3], [-6, 3]], bw: 0.2, aba: 'dir' }).ok).toBe(true);
   expect(s.executar('cinta.criar', { corrida: s.modelo.fundacao!.corridas![1].id, s: 3, fim: s.modelo.fundacao!.elementos[0].id, nome: 'CT1' }).ok).toBe(true);
+  // E1b: um tipo de pilar-parede e um pilar-parede longe dos demais
+  expect(s.executar('pilarParede.tipo', { nome: 'Parede 2 m', vertices: [[0, 0], [2, 0]], esq: 0.1, dir: 0.1 }).ok).toBe(true);
+  expect(s.executar('pilarParede.inserir', { tipo: s.modelo.tiposPilarParede![0].id, x: 60, y: 60 }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -192,6 +195,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'sondagem.editar': (b) => ({ id: b.fundacao!.sondagens[0].id!, nome: 'SP-1A', semAgua: true }),
   'sondagem.copiar': () => ({ furos: [{ name: 'SP-M1', water: 3, endImpenetrable: false, x: 1, y: 2, meters: [{ N: 4, soil: 'argila' }, { N: 7, soil: 'areia', excluded: true }] }], substituir: false }),
   'sondagem.remover': (b) => ({ ids: [b.fundacao!.sondagens[0].id!] }),
+  'pilarParede.tipo': (b) => ({ id: b.tiposPilarParede![0].id, nome: 'Parede 2,5 m', lados: [{ a: [0, 0], z: [2.5, 0], esq: 0.1, dir: 0.1, porPavimento: [{ pavimento: b.pavimentos[1].id, esq: 0.15, dir: 0.05 }] }] }),
+  'pilarParede.inserir': (b) => ({ tipo: b.tiposPilarParede![0].id, x: 70, y: 70, angulo: 90, nome: 'PP9', vinculoBase: 'rotula' }),
+  'pilarParede.editar': (b) => ({ id: b.pilaresParede![0].id, angulo: 90, x: 61, vinculoBase: 'rotula' }),
+  'pilarParede.mover': (b) => ({ ids: [b.pilaresParede![0].id], dx: 1, dy: 1 }),
+  'pilarParede.remover': (b) => ({ ids: [b.pilaresParede![0].id] }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 
