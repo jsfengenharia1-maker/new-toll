@@ -6,6 +6,7 @@ import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
+import { UNIDADES, unidadeProvavel } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
@@ -423,15 +424,6 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <CoresPlanta />
     </div>
   );
-}
-
-const UNIDADES = [{ v: 1, label: 'm' }, { v: 0.01, label: 'cm' }, { v: 0.001, label: 'mm' }];
-
-/** Unidade provável do desenho quando o DXF não informa (maior dimensão do desenho) [a confirmar]. */
-export function unidadeProvavel(bbox: [number, number, number, number] | null): number {
-  if (!bbox) return 1;
-  const D = Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]);
-  return D > 5000 ? 0.001 : D > 300 ? 0.01 : 1;
 }
 
 function MascaraGrupo({ b }: { b: BuildingModel }) {
