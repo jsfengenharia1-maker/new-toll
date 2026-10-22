@@ -23,6 +23,8 @@ import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL, secaoBase } from '../../core/buildi
 import { cruzamentosVF, geometriaVF, pontasEquilibradas } from '../../core/building/vigasFundacao';
 import { abrirJanelaFundacao } from './Fundacao';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../../core/building/pilarParede';
+import { niveisDaParede, paredeDoPP, ppDaParede } from '../../core/building/paredesBase';
+import { aberturasNaPlanta } from './paredesLista';
 import type { PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
@@ -30,7 +32,7 @@ import { executarERecalcular, idsBloqueados } from './Armadura';
 type P2 = [number, number];
 const RAIO_PX = 12;
 /** Ferramentas de polilinha: Enter, duplo clique e botão direito terminam. */
-const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida'];
+const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida', 'parede'];
 const dprAtual = () => Math.min(2, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const msg = (m: string) => useStore.getState().set({ message: m });
@@ -57,15 +59,16 @@ function pilaresDaPlanta(b: BuildingModel, pav: string | null, inferior: boolean
 }
 
 /** Pilar-parede na planta: o estado no pavimento e o contorno de cada lado (E1b). */
-interface ParedePlanta { pp: PilarParede; estado: Estado; lados: { casca: boolean; contorno: P2[] }[] }
+interface ParedePlanta { pp: PilarParede; estado: Estado; lados: { casca: boolean; contorno: P2[] }[]; aberturas: [number, number][][] }
 /** Pilares-parede da planta do pavimento (que chegam, que nascem e, fantasma, os do pavimento de baixo) ou do nível de fundação (os que nascem nela). */
 function paredesDaPlanta(b: BuildingModel, pav: string | null, fundacao: boolean, inferior: boolean): ParedePlanta[] {
   const out: ParedePlanta[] = [];
   const ps = pavimentosOrdenados(b), i = ps.findIndex((x) => x.id === pav), abaixo = i > 0 ? ps[i - 1].id : null;
-  for (const pp of b.pilaresParede ?? []) {
+  for (const pp of [...(b.pilaresParede ?? []), ...(b.paredes ?? []).map(ppDaParede)]) {
     const l = lancesDoPP(b, pp).map((x) => x.id);
     if (!l.length) continue;
-    const mk = (estado: Estado, lance: string): ParedePlanta => ({ pp, estado, lados: ladosDoPP(b, pp).map((g) => ({ casca: g.casca, contorno: contornoDoLado(g, lance) as P2[] })) });
+    const w = paredeDoPP(b, pp), nv = w ? niveisDaParede(b, w) : null;
+    const mk = (estado: Estado, lance: string): ParedePlanta => ({ pp, estado, lados: ladosDoPP(b, pp).map((g) => ({ casca: g.casca, contorno: contornoDoLado(g, lance) as P2[] })), aberturas: w && nv ? aberturasNaPlanta(b, w, nv.bases[nv.topos.indexOf(lance)] ?? '') : [] });
     if (fundacao) { if (pp.nasce === 'fundacao') out.push(mk('nasce', l[0])); continue; }
     if (!pav) continue;
     if (l.includes(pav)) out.push(mk(pp.morre === pav ? 'morre' : 'chega', pav));
@@ -744,6 +747,9 @@ export function Planta() {
         ctx.stroke(path); ctx.setLineDash([]);
       }
       if (w.estado !== 'inferior') {
+        ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = cores.pilarBorda; ctx.lineWidth = 2;
+        for (const seg of w.aberturas) { const [p0, p1] = seg.map((c) => paraTela(c[0], c[1])); ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); }
+        ctx.restore();
         const todos = w.lados.flatMap((l) => l.contorno.map((c) => paraTela(c[0], c[1])));
         ctx.fillStyle = cores.texto; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         ctx.fillText(w.pp.nome, Math.max(...todos.map((p) => p[0])) + 4, Math.min(...todos.map((p) => p[1])) - 3);
@@ -1276,6 +1282,7 @@ export function Planta() {
       if (pts.length >= (fechado ? 3 : 2)) exec('limite.criar', { pontos: q, ...(fechado ? { fechado: true } : {}) }); else msg(fechado ? 'Limite fechado: ao menos 3 vértices.' : 'Limite: ao menos 2 vértices.');
       setPontos([]); return;
     }
+    if (f === 'parede') { if (pts.length >= 2) exec('parede.criar', { ...(usePlanta.getState().pwParams ?? {}), pontos: q }); else msg('Parede: ao menos 2 pontos.'); setPontos([]); return; }
     if (f === 'radier') { if (pts.length >= 3) exec('radier.criar', { contorno: q, h: usePlanta.getState().hRadier }); else msg('Radier: ao menos 3 vértices.'); setPontos([]); return; }
     if (f === 'corrida') {
       const sc = usePlanta.getState().corridaLanc;
@@ -1429,6 +1436,8 @@ export function Planta() {
         const sel = selecionados();
         const cmds = [...(sel.corridas.length ? [{ nome: 'corrida.remover', params: { ids: sel.corridas } }] : []), ...(sel.radiers.length ? [{ nome: 'radier.remover', params: { ids: sel.radiers } }] : []), ...(sel.vigasEl.length ? [{ nome: 'vigaElastica.remover', params: { ids: sel.vigasEl } }] : []), ...(sel.limites.length ? [{ nome: 'limite.remover', params: { ids: sel.limites } }] : []), ...(sel.vigasFund.length ? [{ nome: 'vigaFundacao.remover', params: { ids: sel.vigasFund } }] : []), ...(sel.fundacoes.length ? [{ nome: 'fundacao.remover', params: { ids: sel.fundacoes } }] : []), ...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : []),
           ...(sel.lajes.length ? [{ nome: 'laje.remover', params: { ids: sel.lajes } }] : []), ...(sel.cargas.length ? [{ nome: 'carga.remover', params: { ids: sel.cargas } }] : [])];
+        const paredesSel = [...P.selecao].filter((id) => (b.paredes ?? []).some((w) => w.id === id));
+        if (paredesSel.length) cmds.push({ nome: 'parede.remover', params: { ids: paredesSel } });
         if (cmds.length) exec('lote', { comandos: cmds });
         P.set({ selecao: new Set() });
       }
@@ -1458,7 +1467,7 @@ export function Planta() {
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => {
             if (POLILINHAS.includes(pl.ferramenta)) terminar(pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
-            else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: 'pilarParede', id: q.pp.id } }); }
+            else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
           }} />
         {digitando !== null && (

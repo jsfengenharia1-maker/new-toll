@@ -49,7 +49,7 @@ interface PState {
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
-  janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede'; id: string; pavimento?: string } | null;
+  janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede'; id: string; pavimento?: string } | null;
   /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
   foco: { id: string; n: number } | null;
   /** Pedido de abrir o grupo Tabelas de armadura numa tabela (atalho da lista de erros; não vai para o arquivo). */

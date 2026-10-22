@@ -4,16 +4,20 @@
 import { useState } from 'react';
 import { Button, Check, Group, Hint, NumField, OptNumField, Select, Seg } from '../ui';
 import { niveisDaParede } from '../../core/building/paredesBase';
+import type { EsforcosLado, Resultante } from '../../core/building/pilarParedeEsforcos';
 import { casosParaCarga, pavimentosOrdenados, type BuildingModel, type Parede } from '../../core/building/types';
 import { useBuilding } from './store';
 import { linhasParedes } from './paredesLista';
 
-export { linhasParedes };
+export { aberturasNaPlanta, linhasParedes } from './paredesLista';
 import { usePlanta } from './plantaStore';
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const m2cm = (v: number) => +(v * 100).toFixed(2);
 const cm2m = (v: number) => +(v / 100).toFixed(4);
+const GRANDEZAS: { k: keyof Resultante; rot: string; un: string }[] = [
+  { k: 'N', rot: 'N', un: 'kN' }, { k: 'Vp', rot: 'V no plano', un: 'kN' }, { k: 'Mp', rot: 'M no plano', un: 'kN·m' }, { k: 'Vo', rot: 'V fora', un: 'kN' }, { k: 'Mo', rot: 'M fora', un: 'kN·m' },
+];
 
 /** Grupo "Paredes" da barra lateral: lançamento (planta ou máscara), lista e editor da parede selecionada. */
 export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
@@ -153,6 +157,85 @@ function EditorParede({ b, w }: { b: BuildingModel; w: Parede }) {
         <Select label="Copiar de" value={de && outras.some((q) => q.id === de) ? de : outras[0]?.id ?? ''} options={outras.map((q) => ({ v: q.id, label: q.nome }))} onChange={setDe} />
         <Button disabled={!selecionadas.length || !outras.length} onClick={() => exec('parede.atribuir', { ids: selecionadas.map((q) => q.id), de: de && outras.some((q) => q.id === de) ? de : outras[0]?.id })}>Atribuir às selecionadas</Button>
       </div>
+    </div>
+  );
+}
+
+/** Janela da parede: modelo de cada lado, cargas na base, esforços por lado e pavimento e o empuxo aplicado por caso. */
+export function JanelaParede({ id }: { id: string }) {
+  const dim = useBuilding((s) => s.dim), b = useBuilding((s) => s.sessao.modelo), an = useBuilding((s) => s.analise);
+  const w = b.paredes?.find((q) => q.id === id), r = dim?.paredes?.find((q) => q.id === id);
+  const [caso, setCaso] = useState('ELU');
+  if (!w) return null;
+  if (!r) return <p className="muted">Calcule o dimensionamento para ver os esforços da parede.</p>;
+  const casos = Object.keys(r.base);
+  const lados = r.lados;
+  const nomesLado = [...new Set(lados.map((l) => l.nome))];
+  const ps = pavimentosOrdenados(b);
+  const linhas = (nome: string) => lados.filter((l) => l.nome === nome).sort((a, z) => ps.findIndex((p) => p.id === a.pavimento) - ps.findIndex((p) => p.id === z.pavimento));
+  const celula = (l: EsforcosLado, k: keyof Resultante) => {
+    if (caso === 'ELU') return `${fmt(l.elu[k].min, 1)} / ${fmt(l.elu[k].max, 1)}`;
+    return fmt(l.casos[caso]?.[k] ?? 0, 1);
+  };
+  const nomeCaso = (c: string) => b.casos?.find((x) => x.id === c)?.nome ?? c;
+  const empuxos = an?.paredes?.empuxo.filter((e) => e.parede === id) ?? [];
+  return (
+    <div data-janela-pw={id}>
+      <p className="small">Parede de concreto · {r.nCascas} trecho(s) em casca e {r.ladosBarra} em barra. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
+      <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
+      <table className="data quadro" data-pw-base>
+        <thead><tr><th>Caso</th><th>N (kN)</th><th>Vx (kN)</th><th>Vy (kN)</th><th>Mx (kN·m)</th><th>My (kN·m)</th></tr></thead>
+        <tbody>
+          {casos.map((c) => <tr key={c}><td className="tl">{c}</td>{(['N', 'Vx', 'Vy', 'Mx', 'My'] as const).map((k) => <td key={k} className="num">{fmt(r.base[c][k], 1)}</td>)}</tr>)}
+          <tr><td className="tl"><b>ELU</b></td><td className="num" colSpan={5}>Nd máx. {fmt(r.baseElu.Nmax, 1)} kN ({r.baseElu.cNmax}) · Nd mín. {fmt(r.baseElu.Nmin, 1)} kN ({r.baseElu.cNmin})</td></tr>
+        </tbody>
+      </table>
+      <h4>Esforços por lado e pavimento</h4>
+      <div className="row wrap"><Select label="Caso" value={caso} options={[{ v: 'ELU', label: 'ELU (mínimo / máximo)' }, ...Object.keys(lados[0]?.casos ?? {}).map((c) => ({ v: c, label: c }))]} onChange={setCaso} /></div>
+      {nomesLado.map((n) => (
+        <details key={n} open className="small" data-pw-lado={n}>
+          <summary>{n} — {linhas(n)[0]?.modelo === 'casca' ? 'casca' : 'barra'}, {fmt((linhas(n)[0]?.L ?? 0) * 100, 0)} cm</summary>
+          <table className="data quadro">
+            <thead><tr><th>Pavimento</th><th>t (cm)</th>{GRANDEZAS.map((g) => <th key={g.k}>{g.rot} ({g.un})</th>)}</tr></thead>
+            <tbody>{linhas(n).map((l) => <tr key={l.pavimento}><td className="tl">{l.nomePav}</td><td className="num">{fmt(l.t * 100, 0)}</td>{GRANDEZAS.map((g) => <td key={g.k} className="num">{celula(l, g.k)}</td>)}</tr>)}</tbody>
+          </table>
+        </details>
+      ))}
+      {empuxos.length > 0 && (
+        <>
+          <h4>Empuxo aplicado</h4>
+          <table className="data quadro" data-pw-empuxo>
+            <thead><tr><th>Caso</th><th>Fx (kN)</th><th>Fy (kN)</th></tr></thead>
+            <tbody>{empuxos.map((e, i) => <tr key={i}><td className="tl">{nomeCaso(e.caso)}</td><td className="num">{fmt(e.F[0], 1)}</td><td className="num">{fmt(e.F[1], 1)}</td></tr>)}</tbody>
+          </table>
+        </>
+      )}
+      <Hint>Lado em casca: médias sobre a altura do painel dos esforços de membrana e de placa. Lado em barra: extremo do lance. Tensões e armaduras na frente E1d.</Hint>
+    </div>
+  );
+}
+
+/** Cartão da aba Dimensionamento: paredes com o modelo, a carga máxima na base e atalhos para a planta e a janela. */
+export function CartaoParedes({ onIr }: { onIr: (id: string) => void }) {
+  const dim = useBuilding((s) => s.dim);
+  const lista = dim?.paredes ?? [];
+  if (!lista.length) return null;
+  return (
+    <div className="card" data-pw-cartao>
+      <h4>Paredes de concreto</h4>
+      <table className="data quadro">
+        <thead><tr><th>Parede</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th /></tr></thead>
+        <tbody>
+          {lista.map((r) => (
+            <tr key={r.id} data-id={r.id}>
+              <td className="tl"><b>{r.nome}</b></td>
+              <td className="tl">{r.modelo === 'casca' ? 'casca' : r.modelo === 'barra' ? 'barra' : `${r.nCascas} casca(s) + ${r.ladosBarra} barra(s)`}</td>
+              <td className="num">{fmt(r.baseElu.Nmax, 1)}</td><td className="tl">{r.baseElu.cNmax}</td>
+              <td><Button variant="ghost" onClick={() => onIr(r.id)}>planta</Button><Button variant="ghost" aria-label={`Resultados de ${r.nome}`} onClick={() => usePlanta.getState().set({ janela: { tipo: 'parede', id: r.id } })}>resultados</Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
