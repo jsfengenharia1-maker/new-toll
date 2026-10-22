@@ -9,9 +9,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 17 | 12 | 17 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 28 | 6 | 12 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
-| 3. Grupos e pavimentos | 41 | 27 | 6 | 5 | 3 |
+| 3. Grupos e pavimentos | 41 | 28 | 5 | 5 | 3 |
 | 4. Pilares | 63 | 49 | 5 | 2 | 7 |
 | 5. Muros e paredes estruturais | 30 | 6 | 7 | 13 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **253** | **84** | **241** | **185** |
+| **Total** | **763** | **265** | **77** | **236** | **185** |
 
 ## Pendências por frente
 
@@ -30,9 +30,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 179 | 214 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 180 | 215 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 33 | 25 | 58 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
 
 ## 0. Apresentação do programa
@@ -64,9 +64,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.12 | Botão de informação geral sobre o conteúdo da janela, presente em várias janelas. | Parcial | L | dicas e aba Premissas [L4] |
 | C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Parcial | L | README e docs/ia.md; sem guia rápido imprimível na interface [L4] |
 | | **1.3 Criação de obra** | | | |
-| C1.14 | Obra nova com pasta, nome e descrição. | Parcial | L | nome e cidade da obra; sem descrição longa [L1] |
-| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | novo padrão ou vazio; sem lançamento automático por DXF/IFC [L1] |
-| C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Falta | L | assistente de nova obra (pavimentos, alturas, cargas) [L1] |
+| C1.14 | Obra nova com pasta, nome e descrição. | Feito | — | descrição de até 2 linhas e origem em `Obra` (`obra.definir`); obras na lista de recentes e na biblioteca (sem pastas: o navegador não as tem) [L1] |
+| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | janela `NovaObra.tsx`: assistente, vazia, padrão, exemplo e texto; DXF/DWG chegam na L2 e IFC na L3 [L1] |
+| C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Feito | — | `assistente.ts` (`gerarObra`), comando `obra.assistente`, janela `NovaObra.tsx` em 6 etapas, guia `etapas.ts`/`EtapasObra.tsx` [L1] |
 | C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Falta | L | lançamento automático [L2] |
 | C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Falta | L | lançamento automático por DXF [L2] |
 | C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Parcial | L | cores/visibilidade de camadas existem na máscara, não em assistente [L2] |
@@ -74,12 +74,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Falta | L | camada → tipo de elemento (pilar, contorno, abertura) [L2] |
 | C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Falta | L | IFC [L3] |
 | C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Falta | L | IFC [L3] |
-| C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Falta | L | [L1] |
+| C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Feito | — | ao criar, abre `DadosGerais.tsx` (normas, materiais, perfil de padrões) [L1] |
 | C1.25 | Depois do lançamento automático, todos os dados ficam editáveis. Lajes, cargas adicionais, fundações e dados particulares são completados à mão. | Fora | — | depende do lançamento automático |
 | C1.26 | Roteiro recomendado, passo 1: dados gerais (nome, descrição, materiais e opções, nível de controle de execução). | Feito | — | obra + norma (fck, aço, CAA, cobrimentos, ψ) |
 | C1.27 | Passo 2: pavimentos (níveis, grupos, alturas, cargas variáveis e permanentes). | Feito | — | pavimentos, grupos, uso, cargas |
-| C1.28 | Passo 3: pilares e pilares-parede (geometria e posição). | Parcial | L | pilares sim; pilar-parede só aviso [L1] |
-| C1.29 | Passo 4: muros e paredes de apoio. | Falta | L | muros e paredes estruturais [L1] |
+| C1.28 | Passo 3: pilares e pilares-parede (geometria e posição). | Feito | — | etapa Pilares-parede do guia (`etapas.ts`) leva à ferramenta (E1b) [L1] |
+| C1.29 | Passo 4: muros e paredes de apoio. | Falta | E | etapa Muros e paredes do guia existe e fica indisponível até a E1c (`MUROS_DISPONIVEIS` em `etapas.ts`) [L1] |
 | C1.30 | Passo 5: vigas. | Feito | — | vigas |
 | C1.31 | Passo 6: lajes. | Feito | — | lajes |
 | C1.32 | Passo 7: cargas especiais, como as de paredes divisórias. As cargas gerais vêm dos pavimentos, e o peso próprio de pilares, muros, vigas e lajes é gerado automaticamente. | Feito | — | cargas especiais, alvenaria da máscara; peso próprio automático |
@@ -91,15 +91,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.38 | Passo 13: preparar os resultados antes dos desenhos (editar ou uniformizar armaduras de lajes, modificar armaduras e agrupar pilares, reposicionar textos). | Feito | — | armaduras de vigas, pilares e vigotas editáveis e bloqueáveis (R2, R6), pilares iguais agrupados no quadro (R5), lajes maciças com edição bloqueada, uniformização por zonas e posições agrupadas (`src/core/building/lajesEdicao.ts`, comandos `laje.barras` e `laje.uniformizacao`, painel `EdicaoLajes.tsx`) e rótulos das barras reposicionáveis nas pranchas (`prancha.rotulo`, grupo "Rótulos das barras das lajes" em `Pranchas.tsx`) (R7e) |
 | C1.39 | Passo 14: desenhos e relatórios, pelo comando de impressão ou pelos ícones de configuração. | Feito | — | memorial e pranchas de formas, locação e armação de vigas, pilares e lajes em PDF/DXF/DWG (R5) |
 | | **1.3.3 Gestão de arquivos** | | | |
-| C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Parcial | L | trabalho no navegador e arquivo .statikos; sem lista de obras recentes no edifício [L1] |
-| C1.41 | Importação de arquivo texto ASCII, em colunas ou separado por vírgulas (planilhas ou outros programas), para gerar fundações. | Falta | L | importar cargas de fundação por texto/CSV [L1] |
-| C1.42 | A importação ASCII traz as hipóteses de carga, os esforços nos arranques por hipótese simples e as dimensões da base dos pilares. | Falta | L | [L1] |
-| C1.43 | Fluxo da importação ASCII: nome da obra a criar, escolha do arquivo e depois cálculo. | Falta | L | [L1] |
-| C1.44 | Obras de exemplo acessíveis pelo gerenciador de arquivos. | Parcial | L | edifício padrão; sem obras de exemplo completas [L1] |
-| C1.45 | Busca de obras na pasta por palavra no nome ou na descrição. | Parcial | L | busca na biblioteca do Pórtico; edifício não vai à biblioteca [L1] |
+| C1.40 | Lista das 6 últimas obras abertas e lista completa, em ordem cronológica, das obras abertas naquela versão. | Feito | — | `recentes.ts` (6 últimas distintas, histórico de 500, localStorage) e `ObrasRecentes.tsx` [L1] |
+| C1.41 | Importação de arquivo texto ASCII, em colunas ou separado por vírgulas (planilhas ou outros programas), para gerar fundações. | Feito | — | `importarArranques.ts` + `ImportarTexto.tsx`: colunas fixas, vírgula, ponto e vírgula, tabulação [L1] |
+| C1.42 | A importação ASCII traz as hipóteses de carga, os esforços nos arranques por hipótese simples e as dimensões da base dos pilares. | Feito | — | hipóteses, esforços por hipótese (N, Hx, Hy, Mx, My) e base dos pilares (`ArranqueImp`) [L1] |
+| C1.43 | Fluxo da importação ASCII: nome da obra a criar, escolha do arquivo e depois cálculo. | Feito | — | fluxo nome, arquivo, mapeamento, prévia e cálculo das fundações (`ImportarTexto.tsx`; gera as fundações com `fundacao.gerar`) [L1] |
+| C1.44 | Obras de exemplo acessíveis pelo gerenciador de arquivos. | Feito | — | `exemplos.ts`: residencial, com subsolo e com treliçadas (nervuradas quando o tipo existir); abertos em `ObrasRecentes.tsx` [L1] |
+| C1.45 | Busca de obras na pasta por palavra no nome ou na descrição. | Feito | — | `buscarRecentes` nos recentes, na biblioteca e nos exemplos; edifício na biblioteca (`salvarEdificioNaBiblioteca`, até 240 KB) [L1] |
 | C1.46 | Compactação de todos os arquivos da obra num único arquivo de formato próprio. | Feito | — | arquivo único .statikos com modelo, log e histórico |
 | C1.47 | Envio da obra compactada por e-mail ou só gravação do compactado numa pasta. | Fora | — | e-mail fora do app (arquivo único) |
-| C1.48 | Opção de incluir no compactado as cópias de segurança de versões anteriores e os arquivos associados (resultados do último cálculo). | Parcial | L | log de comandos no arquivo; sem cópias de versões [L1] |
+| C1.48 | Opção de incluir no compactado as cópias de segurança de versões anteriores e os arquivos associados (resultados do último cálculo). | Feito | — | `file.ts` (`versoesDoLog`, `arquivoComExtras`, `recuperarVersao`) e grupo Arquivo e versões [L1] |
 | C1.49 | Descompactação da obra compactada. | Fora | — | não há compactação |
 | C1.50 | Compartilhamento da obra compactada: publica num servidor com link privado, com título e comentário. | Fora | — | sem servidor (decisão: sem login); artifact do claude.ai pode compartilhar |
 | C1.51 | Janela com o link para copiar e para abrir a página publicada. | Fora | — |  |
@@ -151,7 +151,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.9 | Novos pavimentos criados agrupados ou isolados. | Feito | — |  |
 | C3.10 | Dados dos novos pavimentos: quantidade, alturas, carga variável, carga permanente (revestimento etc.) e nome de cada pavimento. | Feito | — | cota, nome, grupo; cargas por grupo |
 | C3.11 | Categoria de uso do grupo escolhida entre as já definidas. Sem categorias definidas, fica a padrão e pode ser trocada depois. | Feito | — | uso NBR 6120 por grupo |
-| C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Parcial | L | usos da NBR 6120 (6 categorias) [L1] |
+| C3.12 | As categorias de uso disponíveis dependem da norma (ex.: no Eurocódigo, residencial, escritórios, reunião, comércio, depósitos, veículos ≤ 30 kN, veículos de 30 a 160 kN e coberturas). | Feito | — | `categoriasUso.ts`: 7 do modelo + 9 da NBR 6120 [a confirmar]; sobrecarga editável por obra no passo Cargas [L1] |
 | C3.13 | Categoria de uso: conjunto de hipóteses variáveis (automáticas ou adicionais) que se combinam com as demais usando os mesmos coeficientes. | Feito | — | R7-0: classes de uso da NBR 6118 (Tabela 11.2) como casos próprios QB (escritórios) e QC (garagens) com ψ da classe, editável (`norma.definir psiUso`); `casosDaObra`/`casoUsoDoGrupo` em `types.ts`, opção `categoriasUso`; residencial, serviço, áreas comuns e cobertura no caso Q |
 | C3.14 | Combinação correta das variáveis quando há categorias diferentes por pavimento. | Feito | — | R7-0: carga de uso de cada grupo no caso da sua classe (`analitico.ts`), combinados como variáveis distintas (principal e acompanhante, cada uma sozinha) em `combinacoes.ts`; teste `r70.test.ts` |
 | C3.15 | As categorias da obra são escolhidas nos dados gerais, junto das hipóteses adicionais. | Feito | — | grupo Casos de carga na aba Edifício (N1c) |

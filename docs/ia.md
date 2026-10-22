@@ -144,6 +144,22 @@ npm run cli && npm run agente -- ./saida
 
 O mesmo roteiro roda no `npm test` (`src/cli/agente.test.ts`).
 
+## Nova obra pelo assistente
+
+A ferramenta `comandos` lista `obra.assistente` (cria pavimentos, grupos, eixos e cargas de uma vez, a partir de uma especificação) e `obra.importarArranques` (obra só de arranques, a partir de cargas lidas de texto). Nenhum dos dois tem ferramenta própria; passam pela `previa` (com `aplicar`).
+
+A `previa` mostra o que o comando faz antes de aplicar. Exemplo:
+
+```json
+{ "comando": "obra.assistente", "params": { "espec": { "nome": "Obra", "pavimentos": [{ "nome": "Térreo", "peDireito": 3, "categoria": "comum", "repeticoes": 1 }] } } }
+```
+
+Depois de conferir a prévia, a ferramenta `aplicar` recebe o token devolvido (falha se o modelo mudou entre as duas chamadas):
+
+```json
+{ "token": "<token da prévia>" }
+```
+
 ## Limites desta versão
 
 - Análise linear com γz; sem P-Δ 3D.

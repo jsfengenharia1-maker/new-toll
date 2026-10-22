@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 51 | 12 | 40 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 52 | 11 | 40 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 36 | 14 | 9 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 72 | 15 | 10 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **379** | **72** | **99** | **111** |
+| **Total** | **661** | **380** | **71** | **99** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -35,9 +35,9 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 87 | 129 |
 | FU — Fundações | 3 | 1 | 4 |
-| L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
+| L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **72** | **99** | **171** |
+| **Total** | **71** | **99** | **170** |
 
 ## Divergências de premissa
 
@@ -387,7 +387,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 |---|---|---|---|---|
 | | **1.9.1 Dados gerais da obra (págs. 41–45)** | | | |
 | K1.9.1 | Normas por material: concreto, aço (formado a frio e laminado), madeira, alumínio, alvenaria, lajes mistas. | Fora | — | normas por material; só NBR de concreto no edifício |
-| K1.9.2 | Descrição da obra (2 linhas). | Parcial | L | nome e cidade da obra; sem descrição [L1] |
+| K1.9.2 | Descrição da obra (2 linhas). | Feito | — | `Obra.descricao` (2 linhas): painel, dados gerais, memorial e carimbo [L1] |
 | K1.9.3 | Concreto separado para lajes, fundações (com dados de fundação), pilares/pilares-parede (pode variar por pavimento) e paredes (pode variar por pavimento). | Feito | — | fck por tipo de elemento (laje, viga, pilar, fundação) e dos pilares por lance (Norma.fckElem, fckPilarPav, N1b); fundação do edifício com fck, aço e cobrimento próprios, padrão os da obra (`fckDe(b, 'fundacao')`, `cobrimentoFundacao`, `parametrosFundacao`, FU1); paredes (E) |
 | K1.9.4 | Alvenaria estrutural: E, G, peso específico, tensão de cálculo à compressão e à tração, opção de considerar rigidez ao cortante. | Falta | E | alvenaria estrutural (NBR 16868) [E1e] |
 | K1.9.5 | Blocos de concreto: argamassa, resistência da alvenaria e aço da armadura de junta. | Falta | E | blocos de concreto estrutural [E1e] |
