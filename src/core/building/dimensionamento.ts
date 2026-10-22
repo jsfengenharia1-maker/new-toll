@@ -34,6 +34,7 @@ import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
+import { verificarFogo, type ResultadoFogo } from './fogo';
 export { TAXAS };
 
 const AVISO_CA60 = 'CA-60 só existe até φ10: confira as bitolas maiores.';
@@ -1597,6 +1598,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   agrupamentos?: InfoAgrupamento[];
   /** Pilares-parede (E1b): esforços resultantes por lado e pavimento, cargas na base e modelo de cada lado (casca ou barra). */
   pilaresParede?: ResultadoPilarParede[];
+  /** Resistência ao fogo (N2g): TRRF por grupo e TRF por elemento (estado "incendio" ativo); erros e avisos também vão para as mensagens dos elementos. */
+  fogo?: ResultadoFogo;
   /** Paredes de concreto (E1c): esforços resultantes por trecho e pavimento e cargas na base (mesma forma dos pilares-parede). */
   paredes?: ResultadoPilarParede[] }
 
@@ -1657,6 +1660,19 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
+  if (estadoEmUso(b, 'incendio').ativo) {
+    // resistência ao fogo (N2g): método tabular/analítico sobre as dimensões e a armadura adotadas
+    const gz = an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : null;
+    const vento = new Set([...(an.vento?.casos ?? []).map((c) => c.nome), ...casosDaObra(b).filter((c) => c.natureza === 'W').map((c) => c.nome)]);
+    const comVento = new Set(combs.filter((c) => Object.entries(c.fatores).some(([k, f]) => f !== 0 && vento.has(k))).map((c) => c.nome));
+    d.fogo = verificarFogo(b, d, an.opcoes, { gamaZmax: gz, phiLaje: (As, h) => barrasLaje(As, h).phi, semVento: (n) => !comVento.has(n) }, (v) => vaosDaViga(b, v));
+    for (const e of d.fogo.elementos) {
+      const alvo = e.tipo === 'viga' ? d.vigas.find((x) => x.viga === e.id) : e.tipo === 'laje' ? d.lajes.find((x) => x.laje === e.id && x.pavimento === e.pavimento) : d.pilares.find((x) => x.pilar === e.id && x.pavimento === e.pavimento);
+      if (!alvo) continue;
+      alvo.mensagens.push(...e.mensagens);
+      if (e.status === 'fail') alvo.status = 'fail'; else if (e.status === 'review' && alvo.status === 'ok' && e.tipo === 'pilar') alvo.status = 'review';
+    }
+  }
   if (an.baseElastica) {
     const be = dimensionarBaseElastica(b, an, { raras: combinacoesDoEstado(b, an, 'solo', combs), elu, freq }, momentosWoodArmer);
     if (be.radiers.length) {

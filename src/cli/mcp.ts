@@ -219,6 +219,8 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // N2a: tombamento (EQU) por direção do vento e avisos das ações/combinações do usuário
     ...(d.equilibrio?.length ? { equilibrio: d.equilibrio.map((e) => ({ direcao: e.direcao, FS: Number.isFinite(e.FS) ? +e.FS.toFixed(2) : null, atende: e.ok })) } : {}),
     ...(d.avisosAcoes?.length ? { avisosAcoes: d.avisosAcoes } : {}),
+    // resistência ao fogo (N2g): TRRF por grupo e TRF por elemento (só os problemas com `so_problemas`)
+    ...(d.fogo ? { fogo: { grupos: d.fogo.grupos, ...(d.fogo.sugestao ? { sugestao: d.fogo.sugestao } : {}), elementos: (pav ? d.fogo.elementos.filter((e) => e.pavimento === pav.nome || (e.tipo === 'viga' && e.grupo === pav.grupo)) : d.fogo.elementos).filter((e) => !soProblemas || e.status !== 'ok').map(({ id, nome, tipo, pavimento, trrf, trf, folga, metodo, status, mensagens }) => ({ id, nome, tipo, pavimento, trrf, trf, folga, metodo, status, mensagens })) } } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
@@ -230,7 +232,7 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
-    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.puncao?.length ? { puncao: contaStatus(d.puncao.map((r) => ({ status: r.status === 'armadura' ? 'review' : r.status }))) } : {}), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
+    resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.puncao?.length ? { puncao: contaStatus(d.puncao.map((r) => ({ status: r.status === 'armadura' ? 'review' : r.status }))) } : {}), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fogo ? { fogo: { total: d.fogo.resumo.total, ok: d.fogo.resumo.ok, revisar: d.fogo.resumo.revisar, naoAtende: d.fogo.resumo.naoAtende } } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
   };
 }
 /** Resumo de um resultado de punção para a ferramenta `dimensionar` (armadura de punção conta como "revisar"). */
@@ -253,6 +255,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

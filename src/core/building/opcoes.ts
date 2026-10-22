@@ -320,6 +320,19 @@ export interface OpcoesCalculo {
   fatorFlechaConforto: number;
   /** Idem para as lajes treliçadas. */
   fatorFlechaConfortoTrelicada: number;
+  // ---- N2g: resistência ao fogo (NBR 15200) ----
+  /** TRRF padrão (min) dos grupos sem TRRF próprio e sem ocupação informada. */
+  fogoTRRF: number;
+  /** Pilares: 0 = método analítico da NBR 15200:2012 (TRF); 1 = tabular simplificado (Tabela 10 da edição de 2004, por μfi). */
+  fogoPilarMetodo: number;
+  /** μfi = NSd,fi/NRd dos pilares (0,7 = NSd = NRd, a favor da segurança). */
+  fogoMuFi: number;
+  /** Faces expostas ao fogo dos pilares (1 a 4). */
+  fogoFacesPilar: number;
+  /** 1 = comprimento efetivo em incêndio 0,5·ℓe (0,7·ℓe no último pavimento) com γz ≤ 1,1; 0 = ℓe. */
+  fogoLefReducao: number;
+  /** 1 = as lajes têm função compartimentadora (espessura mínima de isolamento também verificada). */
+  fogoLajeCompartimentadora: number;
 }
 
 export interface OpcaoInfo {
@@ -694,6 +707,19 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Flecha da variável das lajes maciças = elástica de Q × este fator. 0 = instantânea pelo método (com fissuração, se ligada).' },
   { chave: 'fatorFlechaConfortoTrelicada', rotulo: 'Fator simplificado da flecha da variável (treliçadas)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 1.25, padraoNBR: 0, fonteNBR: 'NBR 6118, Tabela 13.3: flecha imediata da variável', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (conforto: 1,25 nervurada/treliçada)', aConfirmar: false,
     descricao: 'Flecha da variável das lajes treliçadas = elástica de Q × este fator. 0 = instantânea pelo método.' },
+  // ---- N2g: resistência ao fogo ----
+  { chave: 'fogoTRRF', rotulo: 'TRRF padrão', unidade: 'min', min: 30, max: 240, passo: 30, padrao: 60, fonte: 'NBR 14432 e ITs estaduais dependem da ocupação e da altura; 60 min é o valor de um edifício residencial ou comercial de 12 a 23 m, adotado como padrão [a confirmar]', aConfirmar: true,
+    descricao: 'Tempo requerido de resistência ao fogo dos grupos sem TRRF próprio nem ocupação informada (grupo Incêndio do edifício). A verificação só roda com o estado-limite “Resistência ao fogo” ativo.' },
+  { chave: 'fogoPilarMetodo', rotulo: 'Pilares em incêndio: método', min: 0, max: 1, passo: 1, padrao: 0, fonte: 'NBR 15200:2012, método analítico dos pilares (TRF) [equações transcritas de monografia que reproduz a norma; a confirmar]; tabular da edição de 2004 como alternativa simplificada', aConfirmar: true,
+    descricao: '0 = método analítico (TRF calculado, exige excentricidade ≤ 0,15·b, c1 entre 25 e 80 mm, b′ ≥ 190 mm, ℓef,fi ≤ 6 m e As ≤ 4 % de Ac); 1 = Tabela 10 da edição de 2004 (bmín/c1 por μfi).' },
+  { chave: 'fogoMuFi', rotulo: 'Pilares em incêndio: μfi', min: 0.1, max: 1, passo: 0.05, padrao: 0.7, fonte: 'NBR 15200:2012: μfi = NSd,fi/NRd com NSd,fi = 0,7·NSd; a favor da segurança NSd = NRd e μfi = 0,7', aConfirmar: false,
+    descricao: 'Nível de carregamento do pilar em situação de incêndio. O programa não calcula NRd do pilar: 0,7 é o limite normativo; reduza só com NRd conferido (valor por pilar em “Incêndio”).' },
+  { chave: 'fogoFacesPilar', rotulo: 'Pilares em incêndio: faces expostas', min: 1, max: 4, passo: 1, padrao: 4, fonte: 'NBR 15200:2012 (tabela de uma face exposta; analítico e tabular para mais de uma); pilares de borda com parede de vedação podem ter menos faces expostas [a confirmar]', aConfirmar: true,
+    descricao: 'Número de faces do pilar expostas ao fogo (4 = pilar isolado, a favor da segurança); por pilar em “Incêndio”.' },
+  { chave: 'fogoLefReducao', rotulo: 'Pilares em incêndio: ℓef,fi reduzido', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 15200:2012: ℓef,fi = 0,5·ℓe (pavimentos intermediários) e 0,7·ℓe (último) com efeitos globais de 2ª ordem ≤ 10 % (γz ≤ 1,1)', aConfirmar: false,
+    descricao: '1 = adota o comprimento reduzido quando γz ≤ 1,1; com γz maior ou 0, ℓef,fi = ℓe (a norma admite análise específica nesse caso).' },
+  { chave: 'fogoLajeCompartimentadora', rotulo: 'Lajes compartimentadoras (função corta-fogo)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 15200: a espessura mínima das tabelas de lajes garante a função corta-fogo (isolamento e estanqueidade); lajes de pavimento costumam separar compartimentos [a confirmar]', aConfirmar: true,
+    descricao: '1 = verifica também a espessura mínima (isolamento) das lajes; 0 = só a distância c1 (estabilidade). Por laje em “Incêndio”.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -736,6 +762,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   // N2f: flechas por etapas (só o dimensionamento)
   'flechaEtapas', 'flechaQInstantanea', 'flechaRhoLinha', 'inerciaHomogeneizada', 'flechaRotacaoBalanco', 'fissuracaoLajes', 'inerciaMediaVao',
   'limiteFlechaAtiva', 'limiteFlechaAtivaAbs', 'limiteFlechaInst', 'fatorFlechaAtiva', 'fatorFlechaAtivaTrelicada', 'fatorFlechaConforto', 'fatorFlechaConfortoTrelicada',
+  // N2g: resistência ao fogo (só o dimensionamento)
+  'fogoTRRF', 'fogoPilarMetodo', 'fogoMuFi', 'fogoFacesPilar', 'fogoLefReducao', 'fogoLajeCompartimentadora',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

@@ -4,6 +4,7 @@ import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
 import type { FlechasConfig } from './flechas';
+import type { FogoConfig } from './fogo';
 
 export const BUILDING_VERSION = 1;
 
@@ -525,7 +526,7 @@ export type RelacaoCasos = 'compativel' | 'incompativel' | 'simultaneo';
 export interface CompatCasos { a: string; b: string; relacao: RelacaoCasos }
 
 /** Estados-limite / grupos de combinações selecionáveis. */
-export type EstadoId = 'concreto' | 'fundacoes' | 'solo' | 'deslocamentos' | 'fissuracao' | 'flecha' | 'equilibrio';
+export type EstadoId = 'concreto' | 'fundacoes' | 'solo' | 'deslocamentos' | 'fissuracao' | 'flecha' | 'equilibrio' | 'incendio';
 export interface EstadoConfig { ativo: boolean; modo: 'norma' | 'usuario' }
 /** Só o que difere do padrão (ver `ESTADOS_INFO`). */
 export type EstadosLimite = Partial<Record<EstadoId, Partial<EstadoConfig>>>;
@@ -664,6 +665,8 @@ export interface BuildingModel {
   copiasLaje?: CopiaArmaduraLajes[];
   /** Flechas (N2f): etapas de carga e limites por tipo de elemento; só o que difere do padrão. */
   flechas?: FlechasConfig;
+  /** Resistência ao fogo (N2g): TRRF por grupo, ocupação, revestimentos e dados por elemento; só o que difere do padrão. */
+  fogo?: FogoConfig;
 }
 
 /** Agrupamento de pórticos: vigas que levam a mesma armadura (a envoltória do grupo). Uma viga pertence a um só agrupamento. */
