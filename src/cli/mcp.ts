@@ -109,7 +109,7 @@ export class ServidorMcp {
       c = this.cache = { ...c, revDetalhe: s.revDetalhe, dim: r && 'dim' in r && !('erro' in ant) ? { ...r.dim, fundacao: ant.fundacao } : dimensionar(s.modelo, c.an) };
     }
     if (c.revFundacao !== s.revFundacao) {
-      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, ...comFundacao(s.modelo, c.an) };
+      const dim = 'erro' in c.dim ? dimensionar(s.modelo, c.an) : { ...c.dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, basesMuros: undefined, ...comFundacao(s.modelo, c.an) };
       c = this.cache = { ...c, revFundacao: s.revFundacao, dim };
     }
     return c.dim;
@@ -201,8 +201,10 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
   const vigasF = () => ({ ...(d.vigasFundacao?.length ? { vigasFundacao: vprob(d.vigasFundacao) } : {}), ...(d.avisosFundacao?.length ? { avisosFundacao: d.avisosFundacao } : {}),
     ...(d.radiers?.length ? { radiers: bprob(d.radiers).map(resumoBaseElastica), resumoAcoRadiers: d.resumoAcoRadiers } : {}), ...(d.vigasElasticas?.length ? { vigasElasticas: bprob(d.vigasElasticas).map(resumoBaseElastica) } : {}),
     // sapatas corridas (FU7a): resumo sem o contorno nem os nós
-    ...(d.corridas?.length ? { corridas: bprob(d.corridas).map(resumoCorrida) } : {}) });
-  if (soFundacao) return { fundacoes: fprob(d.fundacoes ?? []), ...vigasF(), fundacao: d.fundacao, resumo: { fundacoes: contaStatus(d.fundacoes ?? []), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}), ...(d.radiers?.length ? { radiers: contaStatus(d.radiers) } : {}), ...(d.vigasElasticas?.length ? { vigasElasticas: contaStatus(d.vigasElasticas) } : {}), ...(d.corridas?.length ? { corridas: contaStatus(d.corridas) } : {}) } };
+    ...(d.corridas?.length ? { corridas: bprob(d.corridas).map(resumoCorrida) } : {}),
+    // bases dos muros de arrimo isolados (FU7b): σadm do terreno, cota e quantitativos
+    ...(d.basesMuros?.length ? { basesMuros: bprob(d.basesMuros) } : {}) });
+  if (soFundacao) return { fundacoes: fprob(d.fundacoes ?? []), ...vigasF(), fundacao: d.fundacao, resumo: { fundacoes: contaStatus(d.fundacoes ?? []), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}), ...(d.radiers?.length ? { radiers: contaStatus(d.radiers) } : {}), ...(d.vigasElasticas?.length ? { vigasElasticas: contaStatus(d.vigasElasticas) } : {}), ...(d.corridas?.length ? { corridas: contaStatus(d.corridas) } : {}), ...(d.basesMuros?.length ? { basesMuros: contaStatus(d.basesMuros) } : {}) } };
   const pav = pavimento ? b.pavimentos.find((p) => p.id === pavimento || p.nome.toLowerCase() === pavimento.toLowerCase()) : undefined;
   if (pavimento && !pav) throw new Error(`Pavimento ${pavimento} não existe.`);
   const prob = <T extends { status: string }>(xs: T[]) => (soProblemas ? xs.filter((x) => x.status !== 'ok') : xs);
@@ -259,6 +261,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, basesMuros: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

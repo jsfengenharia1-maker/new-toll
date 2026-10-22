@@ -201,6 +201,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'corrida.criar': () => ({ pontos: [[50, 0], [58, 0], [58, 6]], bw: 0.25, aba: 'esq', equilibrio: true, h: 0.5, h0: 0.25, alvenaria: true, sigmaAdm: 180, nome: 'SC9' }),
   'corrida.editar': (b) => ({ id: b.fundacao!.corridas![0].id, B: 1.2, aba: 'dir', bw: 0.3, equilibrio: true, nome: 'SCA', limpar: ['h'] }),
   'corrida.remover': (b) => ({ ids: [b.fundacao!.corridas![0].id] }),
+  'parede.sapata': (b) => ({ parede: b.paredes![0].id, B: 1.2, h: 0.45, aba: 'esq', atrito: 0.35, sigmaAdm: 180 }),
   'cinta.criar': (b) => ({ corrida: b.fundacao!.corridas![1].id, s: 1, fim: b.pilares[2].id, b: 0.25, h: 0.5, fixa: true, nome: 'CT9' }),
   'cinta.editar': (b) => ({ id: b.fundacao!.corridas![1].cintas![0].id, s: 2, b: 0.25, h: 0.5, fixa: true, nome: 'CTA', ancoragem: { ini: 0.4 } }),
   'cinta.remover': (b) => ({ ids: [b.fundacao!.corridas![1].cintas![0].id] }),

@@ -161,7 +161,8 @@ const muroSchema: JsonSchema = { type: 'object', additionalProperties: false, re
   B: { type: 'number', minimum: 0.5, maximum: 10, description: 'largura da base (m)' }, ponta: { type: 'number', minimum: 0, maximum: 5 }, hBase: { type: 'number', minimum: 0.2, maximum: 1.5 },
   solo: { type: 'object', additionalProperties: false, required: ['gama', 'phi', 'metodo'], properties: { gama: { type: 'number', minimum: 10, maximum: 25 }, phi: { type: 'number', minimum: 10, maximum: 50 }, metodo: { type: 'string', enum: ['repouso', 'rankine', 'coulomb'] }, delta: { type: 'number', minimum: 0, maximum: 40 }, k: { type: 'number', minimum: 0.05, maximum: 2 } } },
   sobrecarga: { type: 'number', minimum: 0, maximum: 100 }, gamaConcreto: { type: 'number', minimum: 20, maximum: 27 }, atrito: { type: 'number', minimum: 0.1, maximum: 1 },
-  sigmaAdm: { type: 'number', minimum: 20, maximum: 2000 }, fsTombamento: { type: 'number', minimum: 1, maximum: 5 }, fsDeslizamento: { type: 'number', minimum: 1, maximum: 5 },
+  sigmaAdm: { type: 'number', minimum: 20, maximum: 2000, description: 'σadm da base (kN/m²); ausente = a do terreno da obra (informada ou estimada pelo SPT), na fundação (FU7b)' }, fsTombamento: { type: 'number', minimum: 1, maximum: 5 }, fsDeslizamento: { type: 'number', minimum: 1, maximum: 5 },
+  cota: { type: 'number', description: 'cota de assentamento da base (m); ausente = a de fundação da obra (FU7b)' }, comprimento: { type: 'number', minimum: 0.5, maximum: 2000, description: 'comprimento do muro (m), para os quantitativos da base na fundação (FU7b)' },
 } };
 
 registrar<ParamsMuro>({

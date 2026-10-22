@@ -240,6 +240,8 @@ export interface MuroArrimoObra {
   H: number; tTopo: number; tBase: number; B: number; ponta: number; hBase: number;
   solo: { gama: number; phi: number; metodo: 'repouso' | 'rankine' | 'coulomb'; delta?: number; k?: number };
   sobrecarga?: number; gamaConcreto?: number; atrito?: number; sigmaAdm?: number; fsTombamento?: number; fsDeslizamento?: number;
+  /** Base na fundação (FU7b): cota de assentamento (m; ausente = a de fundação da obra) e comprimento do muro (m; ausente = só por metro). */
+  cota?: number; comprimento?: number;
 }
 
 /** Malha de uma direção da parede (por face): bitola (mm) e espaçamento (m). */
@@ -868,6 +870,14 @@ export interface SapataCorrida {
   sigmaAdm?: number;
   /** Cota de assentamento (m); ausente = a cota de fundação da obra. */
   cota?: number;
+  /**
+   * Parede sobre a qual a sapata corrida foi lançada (FU7b): o eixo e a largura do apoio seguem a parede, e a carga por
+   * metro vem das reações da base da parede na análise (N, momento fora do plano e cortante normal), além das cargas
+   * lançadas no nível de fundação. Só paredes que nascem na fundação.
+   */
+  parede?: string;
+  /** Coeficiente de atrito base-solo μ (verificação ao deslizamento sob parede com cortante); ausente = a opção `fundCorridaAtrito`. */
+  atrito?: number;
   /**
    * Cintas (FU8a): vigas de equilíbrio da aba de um lado só, da sapata corrida (no eixo, na abscissa `s`) a sapatas internas.
    * Só sob parede. Cada cinta toma o momento N·e do trecho tributário e alivia o elemento da ponta oposta.

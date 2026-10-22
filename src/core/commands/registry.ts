@@ -4,6 +4,7 @@ import { enablePatches, produceWithPatches, applyPatches, current, type Draft, t
 import { edificioVazio, type BuildingModel } from '../building/types';
 import { verificar, type Diagnostico } from '../building/verify';
 import { desbloquearObsoletos, mudouEstrutura, temBloqueioDependente } from '../building/desbloqueio';
+import { sincronizarBases, temBasesDeParede } from '../building/corridaParede';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
@@ -100,6 +101,12 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
     let avisos: string[] = [];
     const [m2, p2, i2] = produceWithPatches(modelo, (d) => { avisos = desbloquearObsoletos(d); });
     if (p2.length) { modelo = m2; patches = [...patches, ...p2]; inversos = [...i2, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
+  }
+  // sapatas corridas de parede (FU7b): criadas, atualizadas e removidas com a base da parede, no mesmo passo
+  if (temBasesDeParede(modelo)) {
+    let avisos: string[] = [];
+    const [m3, p3, i3] = produceWithPatches(modelo, (d) => { avisos = sincronizarBases(d); });
+    if (p3.length) { modelo = m3; patches = [...patches, ...p3]; inversos = [...i3, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
   }
   return { ok: true, erros: [], modelo, params: p, patches, inversos, diff: diffModelos(b, modelo), mensagem };
 }

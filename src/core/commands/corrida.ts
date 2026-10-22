@@ -2,7 +2,8 @@
 // Sob pilares ela entra na análise global (viga sobre base elástica): muda o cálculo da estrutura; sob parede só muda o
 // cálculo das fundações. Sem ferramenta própria no MCP (`mcp: false`).
 import type { Draft } from 'immer';
-import { FUNDACAO_VAZIA, type AbaCorrida, type BuildingModel, type CintaCorrida, type FundacaoEdificio, type SapataCorrida } from '../building/types';
+import { FUNDACAO_VAZIA, type AbaCorrida, type BuildingModel, type CintaCorrida, type FundacaoEdificio, type Parede, type SapataCorrida } from '../building/types';
+import { eixoDaBaseParede } from '../building/corridaParede';
 import type { Diagnostico } from '../building/verify';
 import { corridasSobPilares, pilaresDaCorrida } from '../building/baseElastica';
 import { comprimentoCorrida, nomeCorrida } from '../building/sapataCorrida';
@@ -43,9 +44,10 @@ const propsGeom: Record<string, JsonSchema> = {
   k: { type: 'number', minimum: 1000, maximum: 1000000, description: 'coeficiente de reação vertical (kN/m³; sob pilares); ausente = o das opções (radierK)' },
   sigmaAdm: { type: 'number', minimum: 10, maximum: 5000, description: 'σadm própria (kN/m²); ausente = a do terreno' },
   cota: { type: 'number', description: 'cota de assentamento (m); ausente = a de fundação da obra' },
+  atrito: { type: 'number', minimum: 0.1, maximum: 1, description: 'coeficiente de atrito base-solo μ (deslizamento sob parede com cortante); ausente = a opção fundCorridaAtrito' },
 };
 
-registrar<{ pontos: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; h0?: number; alvenaria?: boolean; equilibrio?: boolean; k?: number; sigmaAdm?: number; cota?: number; nome?: string }>({
+registrar<{ pontos: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; h0?: number; alvenaria?: boolean; equilibrio?: boolean; k?: number; sigmaAdm?: number; cota?: number; atrito?: number; nome?: string }>({
   nome: 'corrida.criar',
   descricao: 'Lança uma sapata corrida no nível de fundação por polilinha do eixo (m), sob parede (carga linear lançada no nível de fundação: largura pela σadm, flexão transversal CEB-70 numa faixa de 1 m, armadura de distribuição) ou sob pilares/viga de fundação (viga sobre base elástica na análise global). Largura do apoio `bw` (padrão 0,20 m), aba nas duas faces (padrão) ou de um lado só.',
   risco: 'escrita',
@@ -64,7 +66,7 @@ registrar<{ pontos: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; 
     const c: SapataCorrida = {
       id: novoId(d, 'sc'), nome, pontos: p.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]), aba: p.aba ?? 'ambas', bw: p.bw ?? 0.2,
       ...(p.B !== undefined ? { B: p.B } : {}), ...(p.h !== undefined ? { h: p.h } : {}), ...(p.h0 !== undefined ? { h0: p.h0 } : {}),
-      ...(p.alvenaria ? { alvenaria: true } : {}), ...(p.equilibrio ? { equilibrio: true } : {}), ...(p.k ? { k: p.k } : {}), ...(p.sigmaAdm ? { sigmaAdm: p.sigmaAdm } : {}), ...(p.cota !== undefined ? { cota: p.cota } : {}),
+      ...(p.alvenaria ? { alvenaria: true } : {}), ...(p.equilibrio ? { equilibrio: true } : {}), ...(p.k ? { k: p.k } : {}), ...(p.sigmaAdm ? { sigmaAdm: p.sigmaAdm } : {}), ...(p.cota !== undefined ? { cota: p.cota } : {}), ...(p.atrito ? { atrito: p.atrito } : {}),
     };
     (f.corridas ??= []).push(c);
     const n = pilaresDaCorrida(d as BuildingModel, c).length;
@@ -72,8 +74,8 @@ registrar<{ pontos: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; 
   },
 });
 
-type Limpar = 'B' | 'h' | 'h0' | 'k' | 'sigmaAdm' | 'cota' | 'alvenaria' | 'equilibrio';
-registrar<{ id: string; pontos?: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; h0?: number; alvenaria?: boolean; equilibrio?: boolean; k?: number; sigmaAdm?: number; cota?: number; nome?: string; limpar?: Limpar[] }>({
+type Limpar = 'B' | 'h' | 'h0' | 'k' | 'sigmaAdm' | 'cota' | 'atrito' | 'alvenaria' | 'equilibrio';
+registrar<{ id: string; pontos?: P[]; bw?: number; aba?: AbaCorrida; B?: number; h?: number; h0?: number; alvenaria?: boolean; equilibrio?: boolean; k?: number; sigmaAdm?: number; cota?: number; atrito?: number; nome?: string; limpar?: Limpar[] }>({
   nome: 'corrida.editar',
   descricao: 'Altera uma sapata corrida: eixo, largura do apoio bw, aba, largura B, alturas h e h0, alvenaria, equilíbrio por cintas, k, σadm, cota e nome; `limpar` remove B, h, h0, k, σadm, cota, alvenaria ou equilibrio (voltam ao padrão ou ao calculado).',
   risco: 'escrita',
@@ -82,7 +84,7 @@ registrar<{ id: string; pontos?: P[]; bw?: number; aba?: AbaCorrida; B?: number;
   calculo: (p, b) => (p.pontos || p.bw !== undefined ? true : calculoSob(b)),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, ...propsGeom, nome: { type: 'string', minLength: 1 },
-    limpar: { type: 'array', items: { type: 'string', enum: ['B', 'h', 'h0', 'k', 'sigmaAdm', 'cota', 'alvenaria', 'equilibrio'] } },
+    limpar: { type: 'array', items: { type: 'string', enum: ['B', 'h', 'h0', 'k', 'sigmaAdm', 'cota', 'atrito', 'alvenaria', 'equilibrio'] } },
   } },
   validar(b, p) {
     const c = b.fundacao?.corridas?.find((x) => x.id === p.id);
@@ -98,7 +100,7 @@ registrar<{ id: string; pontos?: P[]; bw?: number; aba?: AbaCorrida; B?: number;
     if (p.nome) c.nome = p.nome.trim();
     if (p.pontos) c.pontos = p.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]);
     if (p.aba) c.aba = p.aba;
-    for (const k of ['bw', 'B', 'h', 'h0', 'k', 'sigmaAdm', 'cota'] as const) if (p[k] !== undefined) c[k] = p[k]!;
+    for (const k of ['bw', 'B', 'h', 'h0', 'k', 'sigmaAdm', 'cota', 'atrito'] as const) if (p[k] !== undefined) c[k] = p[k]!;
     for (const k of ['alvenaria', 'equilibrio'] as const) if (p[k] !== undefined) { if (p[k]) c[k] = true; else delete c[k]; }
     for (const k of p.limpar ?? []) delete c[k];
     return `Sapata corrida ${c.nome} alterada.`;
@@ -118,9 +120,67 @@ registrar<{ ids: string[] }>({
   },
   aplicar(d, p) {
     const s = new Set(p.ids), f = d.fundacao!;
+    // sapata de parede (FU7b): a parede volta ao apoio direto (senão a base derivada ressurgiria)
+    for (const c of f.corridas!) if (s.has(c.id) && c.parede) { const w = d.paredes?.find((x) => x.id === c.parede); if (w?.base?.tipo === 'sapataCorrida') delete w.base; }
     f.corridas = f.corridas!.filter((c) => !s.has(c.id));
     if (!f.corridas.length) delete f.corridas;
     return `${p.ids.length} sapata(s) corrida(s) removida(s).`;
+  },
+});
+
+// ---------------- sapata de parede ou muro (FU7b) ----------------
+
+type SapataParedeIn = { parede: string; remover?: boolean; aba?: AbaCorrida; B?: number; h?: number; h0?: number; alvenaria?: boolean; equilibrio?: boolean; k?: number; sigmaAdm?: number; cota?: number; atrito?: number; nome?: string; limpar?: Limpar[] };
+const { bw: _bw, ...propsSapataParede } = propsGeom;
+void _bw;
+
+registrar<SapataParedeIn>({
+  nome: 'parede.sapata',
+  descricao: 'Define a base de uma parede de concreto (E1c) que nasce na fundação como sapata corrida: cria a sapata (eixo e largura do apoio seguem a parede, também depois de movê-la ou mudar a espessura) ou altera a que já existe (aba, largura B, alturas, σadm, cota, atrito, alvenaria, equilíbrio por cintas; `limpar` volta o campo ao calculado). A carga por metro vem das reações da base da parede na análise (normal, momento fora do plano e cortante do empuxo) e dos pilares que nascem sobre o eixo, além das cargas lançadas no nível de fundação. `remover` devolve a parede ao apoio direto (engaste na base). A parede lançada com `base: { tipo: "sapataCorrida" }` já tem uma sapata derivada, sem estes ajustes.',
+  risco: 'escrita',
+  mcp: false,
+  calculo: 'fundacao',
+  schema: { type: 'object', additionalProperties: false, required: ['parede'], properties: {
+    parede: { type: 'string', description: 'id da parede de concreto' }, remover: { type: 'boolean', description: 'remove a sapata e volta ao apoio direto' },
+    ...propsSapataParede, nome: { type: 'string', minLength: 1 },
+    limpar: { type: 'array', items: { type: 'string', enum: ['B', 'h', 'h0', 'k', 'sigmaAdm', 'cota', 'atrito', 'alvenaria', 'equilibrio'] } },
+  } },
+  validar(b, p) {
+    const w = b.paredes?.find((x) => x.id === p.parede);
+    if (!w) return err('PAREDE_INEXISTENTE', `Parede ${p.parede} não existe.`);
+    if (p.remover) return [];
+    if (w.nasce !== 'fundacao') return err('PAREDE_BASE_NASCE', `A parede ${w.nome} nasce num pavimento (${w.nasce}), não na fundação: só paredes que nascem na fundação têm sapata corrida.`, [w.id]);
+    const c = b.fundacao?.corridas?.find((x) => x.parede === w.id);
+    const bw = eixoDaBaseParede(b, w).bw, B = p.limpar?.includes('B') ? undefined : p.B ?? c?.B;
+    if (B !== undefined && B < bw + 0.1 - 1e-9) return err('CORRIDA_LARGURA', `Largura da base B = ${B} m deve ser ao menos a espessura da parede (${bw.toFixed(2)} m) + 0,10 m.`);
+    const h = p.limpar?.includes('h') ? undefined : p.h ?? c?.h, h0 = p.limpar?.includes('h0') ? undefined : p.h0 ?? c?.h0;
+    if (h !== undefined && h0 !== undefined && h0 > h + 1e-9) return err('CORRIDA_ALTURA', 'A espessura da aba h0 não pode passar da altura h.');
+    return [];
+  },
+  aplicar(d, p) {
+    const w = d.paredes!.find((x) => x.id === p.parede)!;
+    const f = fund(d);
+    const existente = f.corridas?.find((x) => x.parede === w.id);
+    if (p.remover) {
+      if (existente) { f.corridas = f.corridas!.filter((x) => x !== existente); if (!f.corridas.length) delete f.corridas; }
+      delete w.base;
+      return `Sapata da parede ${w.nome} removida (apoio direto).`;
+    }
+    const e = eixoDaBaseParede(d as BuildingModel, w as unknown as Parede);
+    let c = existente;
+    if (!c) {
+      // parte da derivada de Parede.base (largura e altura), se havia
+      c = { id: novoId(d, 'sc'), nome: `SC-${w.nome}`, pontos: e.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]), aba: 'ambas', bw: r6(e.bw), parede: w.id,
+        ...(w.base?.largura !== undefined ? { B: w.base.largura } : {}), ...(w.base?.altura !== undefined ? { h: w.base.altura } : {}) } as SapataCorrida;
+      (f.corridas ??= []).push(c);
+    } else { c.pontos = e.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]); c.bw = r6(e.bw); }
+    if (p.nome) c.nome = p.nome.trim();
+    if (p.aba) c.aba = p.aba;
+    for (const k of ['B', 'h', 'h0', 'k', 'sigmaAdm', 'cota', 'atrito'] as const) if (p[k] !== undefined) c[k] = p[k]!;
+    for (const k of ['alvenaria', 'equilibrio'] as const) if (p[k] !== undefined) { if (p[k]) c[k] = true; else delete c[k]; }
+    for (const k of p.limpar ?? []) delete c[k];
+    w.base = { tipo: 'sapataCorrida', ...(c.B !== undefined ? { largura: c.B } : {}), ...(c.h !== undefined ? { altura: c.h } : {}) };
+    return `Sapata corrida ${c.nome} da parede ${w.nome} ${existente ? 'alterada' : 'lançada'} (${comprimentoCorrida(c.pontos).toFixed(2).replace('.', ',')} m).`;
   },
 });
 

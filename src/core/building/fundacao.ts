@@ -7,6 +7,7 @@
 // ponta oposta) e de travamento (blocos de 1 e 2 estacas), cargas do nível de fundação sobre vigas e elementos e
 // dimensionamento das vigas (vigasFundacao.ts).
 // Unidades: kN, m, kN/m² (σadm), graus.
+import { corridasEfetivas } from './corridaParede';
 import { designSupport, type SupportDesign } from '../foundation';
 import { columnOffset, isFooting } from '../footings';
 import { dentroPoligono, type P } from '../geom/faces';
@@ -252,7 +253,7 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
   // cargas do nível de fundação: primeiro nas vigas (faixa da largura entre os pilares), depois nos elementos
   // as que caem sobre a base elástica (radier, viga sobre base elástica; FU6) já entraram na análise global
   // as que caem sobre uma sapata corrida sob parede (FU7a) são dela (calcularCorridas)
-  const corridasParede = (fe.corridas ?? []).filter((c) => !pilaresDaCorrida(b, c).length);
+  const corridasParede = corridasEfetivas(b).filter((c) => c.orfa || !pilaresDaCorrida(b, c).length);
   const parcelas = b.cargas.filter((c) => c.grupo === 'fundacao').flatMap((c) => parcelasDaCarga(c).map((x) => ({ ...x, caso: c.caso, tipo: c.tipo }))).filter((x) => !pontoNaBase(b, x.pt) && !corridasParede.some((c) => pontoNaCorrida(c, x.pt, x.tipo)));
   const naViga = new Map<string, CargaPontualVF[]>();
   const resto: typeof parcelas = [];

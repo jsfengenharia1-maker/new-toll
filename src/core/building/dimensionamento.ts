@@ -34,6 +34,9 @@ import { TAXAS } from './premissas';
 import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type CortanteLaje, type ResultadoPuncao } from './puncao';
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
+import { temCorridas } from './corridaParede';
+import { opcoesEmUso, perfilDe } from './opcoes';
+import { calcularBasesMuros, type ResultadoBaseMuro } from './baseMuro';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
@@ -1591,6 +1594,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   radiers?: ResultadoRadier[]; vigasElasticas?: ResultadoVigaElastica[]; detalhesRadier?: DetalheLaje[]; resumoAcoRadiers?: ReturnType<typeof resumoAcoRadiers>;
   /** Sapatas corridas (FU7a): sob parede (dimensionamento rígido) ou sob pilares (viga sobre base elástica na análise global); calculadas com a fundação. */
   corridas?: ResultadoCorrida[];
+  /** Bases dos muros de arrimo isolados na fundação (FU7b): σadm do terreno, cota e quantitativos; calculadas com a fundação. */
+  basesMuros?: ResultadoBaseMuro[];
   /** Equilíbrio global (EQU, N2a): tombamento por direção do vento; ausente com o grupo desativado ou sem vento. */
   equilibrio?: ResultadoEQU[];
   /** Avisos das ações e combinações (alerta de responsabilidade das combinações do usuário, EQU). */
@@ -1612,10 +1617,11 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   muros?: ResultadoMuroDim[] }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
-export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
+export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas' | 'basesMuros'> {
   const corridas = calcularCorridas(b, an);
   const f = calcularFundacaoEdificio(b, an, { ...o, corridas });
-  return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}), ...(corridas.length ? { corridas } : {}) };
+  const basesMuros = b.murosArrimo?.length ? calcularBasesMuros(b, opcoesEmUso(b.opcoes, perfilDe(b))) : [];
+  return { fundacoes: f.elementos, ...(f.vigas.length ? { vigasFundacao: f.vigas } : {}), ...(f.avisos.length ? { avisosFundacao: f.avisos } : {}), ...(corridas.length ? { corridas } : {}), ...(basesMuros.length ? { basesMuros } : {}) };
 }
 
 /**
@@ -1708,6 +1714,8 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
     }
     if (be.vigasElasticas.length) d.vigasElasticas = be.vigasElasticas;
   }
-  if (o.fundacao !== false && (b.fundacao?.elementos.length || b.fundacao?.corridas?.length)) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
+  if (o.fundacao !== false && (b.fundacao?.elementos.length || temCorridas(b))) Object.assign(d, comFundacao(b, an, o.fundacao || {}));
+  // base dos muros de arrimo isolados na fundação (FU7b): σadm do terreno, profundidade e quantitativos
+  if (!d.basesMuros && b.murosArrimo?.length) d.basesMuros = calcularBasesMuros(b, an.opcoes);
   return d;
 }
