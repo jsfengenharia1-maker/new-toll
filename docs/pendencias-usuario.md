@@ -8,7 +8,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## O que mandar (ordem de impacto)
 1. NBR 6123 (1988): ábacos de Ca (Figuras 4 a 10), fator de vizinhança e Tabela 1 de S2 — alteram as forças de vento de todo edifício.
 2. NBR 6122:2019: Tabela 4 (estacas), majoração de σadm com vento, alívio de 50 % e travamento — alteram o dimensionamento das fundações.
-3. NBR 15200:2012 (tabelas de lajes, vigas, pilares, 180 min) e NBR 14432 (TRRF) — base da frente N2g, ainda sem código.
+3. NBR 15200:2012 (tabelas de lajes, vigas, pilares, 180 min) e NBR 14432 (TRRF) — base da frente N2g; o código existe (`fogo.ts`, `fogoTabelas.ts`) com as tabelas de 2004 e a fonte secundária da 2012, e as tabelas faltantes entram só por transcrição.
 4. NBR 6118:2023 (numeração dos itens citados; ηc para fck > 40) e NBR 6120 (categorias novas de uso).
 5. NBR 7481 (telas Q, L, T) e catálogo SCAC (pré-moldadas).
 6. NBR 16752, 13142 e 16861 (prancha) e exemplos de prancha (laje, tubulão, radier, viga de equilíbrio).
@@ -33,23 +33,29 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 | Valores de σadm pelo SPT, nh e k do solo: nenhuma tabela da norma usada | Sapatas, tubulões, radier | `footings.ts`, `caissons.ts`, `baseElastica.ts` (`radierK`) | N̄/50 (sapata), N̄/30 (tubulão), k 100 000 kN/m³ — estimativas |
 | Fatores do concreto simples e fuste do tubulão (γc 1,6; ×1,2 no simples) | Tubulão e sapata de concreto simples | `caissons.ts`, `footingsGroup.ts` | Valores do app |
 
-## NBR 15200:2012 e NBR 14432 (fogo; frente N2g, ainda sem código)
+## NBR 15200:2012 e NBR 14432 (fogo; frente N2g, código em `fogo.ts` e `fogoTabelas.ts`)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
 | Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` e `fogoTabelas.ts` | Edição de 2004 (até 120 min) e fórmula analítica |
 | Tabelas de vigas biapoiadas e contínuas (bmín/c1, 180 min) | Verificação de viga ao fogo | `fogo.ts` | Idem |
 | As nove tabelas gerais do método tabular de pilares (μfi, λ, e/b) | Pilares ao fogo | `fogo.ts` | Idem |
 | NBR 14432: TRRF por ocupação, altura e área | Sugestão de TRRF por grupo | `fogo.ts`, `b.fogo.trrf` | IT 06 do CBMMG |
+| Pilar com vento nas combinações determinantes: a NBR 15200 manda desprezar o vento na excentricidade de 1ª ordem (confirmar o texto e o item) | Limite e ≤ 0,15·b do método analítico | `fogo.ts` (`semVento`, `e` nulo vira aviso FOGO_LIMITES) | Combinações sem vento; se todas levam vento, sem verificação e aviso |
 
 ## NBR 6118:2023 e NBR 6120
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
 | Numeração de todos os itens citados (o código usa a edição de 2014) | Referências no memorial e nas mensagens | `src/core/building/premissas.ts`, `origem.ts`, `fonte` em `opcoes.ts` | Numeração de 2014 |
 | ηc para fck > 40 (item 8.2.10.1) e demais mudanças de 2023 em diagrama tensão-deformação | Resistência de cálculo de C50 em diante | `src/core/concrete.ts` (linha de `etac`) | (40/fck)^(1/3) |
-| Itens/fórmulas: Wp de borda e canto, K da Tabela 19.2, ψ do vento na punção | Punção | `src/core/building/puncao.ts` | Wp ≈ metade da fórmula; K do app |
+| Itens/fórmulas: Wp de borda e canto, K da Tabela 19.2, ψ do vento na punção | Punção | `src/core/building/puncao.ts` | Wp pela definição ∫\|e\|dℓ em torno do centroide de u* (conferido por integração independente em `puncao.test.ts`): borda 40×40, d = 20 cm, 0,5627 m² perpendicular à borda (51,6 % da fórmula fechada de 1,0913 m², que o app reproduz na direção paralela) e canto 0,3231 m² (29,6 %); critério, não erro de implementação; conservador (τ maior). Enviar o texto do item 19.5.2.3/19.5.2.4 para fechar; K do app |
 | NBR 6120:2019 Tabela 10 completa (9 categorias novas da L1) | Cargas variáveis por uso e ψ por categoria | `src/core/building/categoriasUso.ts`, `USOS` em `types.ts` | 6 usos: 1,5; 2,0; 3,0; 2,5; 3,0; 1,0 kN/m² |
 | NBR 6120: carga em planos inclinados e escadas (item) | Frentes E3 e E4 | `src/core/building/lajes.ts` (planos) | Projeção horizontal [a confirmar] |
 | NBR 8681: γ de equilíbrio e do empuxo; controle de execução | Estados-limite de equilíbrio | `src/core/building/acoes.ts` (`GAMA_ORIGEM`) | 0,9/1,4 e 1,4 |
+| NBR 8681 / NBR 6118:2023 (tabelas de γ): linhas de empuxo de terra e ações indiretas (retração, temperatura, recalque) de `GAMA_ORIGEM` | γ por origem da ação nas combinações | `src/core/building/acoes.ts` (`GAMA_ORIGEM`, `gamaDaOrigem`) | Valores provisórios do app por origem (empuxo 1,4 ELU; ações indiretas conforme a linha da tabela), sem tabela conferida |
+| NBR 6118:2023, 15.8.3.3 / 8.2: 1,1·σcd na resistência do método geral dos pilares | Método geral (curva tensão-deformação do concreto) | `src/core/metodoGeral.ts` (constante comentada "[a confirmar]", linha 53) | 1,1·σcd do app |
+| NBR 6118:2023, 8.2.11 e Tabela 8.2: coeficiente de fluência φ (valor de 2,5 usado no pilar com fluência) | Efeito da fluência no pilar (λ > 90) | opção `pilarFluencia` em `src/core/building/opcoes.ts` (~694), `metodoGeral.ts` | φ = 2,5, Tabela 8.2 não consultada |
+| NBR 6118, 14.6.3 (e apoios): ΔM = R·t/8 do momento de ligação nos apoios extremos, divisor e item | Momento nos apoios (premissa `n2e-apoios`) | `src/core/building/apoios.ts` (`deltaMApoio`, ~16) | ΔM = R·t/8, divisor e item não conferidos com o texto |
+| NBR 6118, Tabela 17.1 (ξ(t)): conversão de dias em meses com 30 d/mês no cálculo da flecha diferida e ativa | Flecha diferida e ativa por etapas | `src/core/building/flechas.ts` (`xiDias`, ~72) | 30 d/mês |
 
 ## NBR 7481 e catálogos de fabricantes
 | O que falta | Para que serve | Onde entra | Valor provisório |
@@ -94,7 +100,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 | FU7b | NBR 6122:2019 | Excentricidade e área comprimida de sapatas sob momento | Limite de excentricidade (núcleo central, 2/3 da área comprimida) aplicado ao momento do pé da parede de subsolo, com o sinal do momento não distinguido (módulo, sentido desfavorável) | `sapataCorrida.ts` (`verifica`), `flexaoTransversal` (`eExtra`) |
 | FU7b | NBR 6122:2019 e NBR 6118:2014 | Sapata sob parede: seção de referência do momento e dispersão da carga de pilar que nasce sobre a parede | Seção de referência a 15 % de bw (CEB-70) estendida à parede de concreto em contato com o solo e carga do pilar concentrada na janela de 1 m (a dispersão pela altura da sapata não é considerada) | `corridaParede.ts` (`cargasLinearesDaParede`), opções `corridaRefConcreto`, `corridaJanela` |
 | FU7b | NBR 6122:2019 | σadm do muro de arrimo isolado pelo SPT | Muro sem posição em planta usa o menor σadm entre os furos da obra (N̄/50 MPa com a largura B do muro): confirmar o critério de furo representativo | `baseMuro.ts` (`sigmaDoMuro`) |
-| FU7b | NBR 11682:2009 | 5 (muros) | Verificação do deslizamento de paredes de subsolo travadas por lajes (a base não deve ser reprovada por deslizamento quando a laje do pavimento resiste ao cortante) | opção `fundCorridaDeslizamento` |
+| FU7b | NBR 11682:2009 e NBR 6122:2019 | 5 (muros) e estabilidade ao deslizamento | Deslizamento de paredes de subsolo de topo travado por laje: o app usa a soma vetorial das reações horizontais da base de todas as paredes travadas contra Σ μ·N (empuxos opostos se anulam pela laje e pela ligação das bases); confirmar o critério (conjunto, pilares fora do somatório, ligação das sapatas por piso ou vigas de fundação) | opções `fundCorridaDeslizGrupo` e `fundCorridaDeslizamento`; `deslizamentoDoConjunto` em `sapataCorrida.ts` |
 ## Alvenaria estrutural e blocos de concreto (E1e)
 
 Nenhum texto da NBR 16868 estava disponível: todas as fórmulas abaixo foram escritas de memória, marcadas "a confirmar" no app (opções `alvenaria*`) e no memorial (premissas `e1e-*`). O que o programa de referência define (cumprimento 80 %, tração 10 % da compressão, aviso no relatório) já está como padrão do sistema.

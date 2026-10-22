@@ -236,7 +236,10 @@ describe('logo no carimbo', () => {
 });
 
 describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes maciças)', () => {
-  // valores do cálculo em 20/10/2026 (antes e depois da otimização do núcleo da R7-0, idênticos), com o modelo separado:
+  // valores do cálculo em 20/10/2026 (antes e depois da otimização do núcleo da R7-0, idênticos), com o modelo separado; corrigidos em
+  // 22/10/2026 (auditoria N2): nó da malha da laje exatamente na face do pilar (0,25 m = meia seção de 50 cm) contava como apoio só em
+  // um lado, e o edifício simétrico dava reações e momentos assimétricos (P1 24,39 × P3 26,56 na grelha; V1 ≠ V3). Efeito: V2 Mpos
+  // −0,4 %, Mneg −2,2 %, V −1,9 %, Nd do P5 −0,6 %, L1 mPos +2,6 % e mNeg +5 %, P1 G +0,3 %, γz na direção 1 1,0614 → 1,0572; γz na direção 0 e topo iguais; armaduras iguais:
   // desde a N2b o padrão é o modelo integrado; as opções do modelo anterior reproduzem estes valores exatamente
   const { s } = predio(5);
   // N2c: o Térreo e a Cobertura não têm vigas; a soma dos lances desligados (padrão do sistema) muda os pilares de baixo
@@ -244,11 +247,11 @@ describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes 
   const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
   it('γz, deslocamento do topo e reações', () => {
     expect(s.modelo.pavimentos).toHaveLength(10);
-    expect(an.gdl).toBe(54464);
+    expect(an.gdl).toBe(54400);
     const gz = an.vento!.gamaZ;
     expect(gz[0].max).toBeCloseTo(1.18503, 4);
     expect(gz[0].ampliacao).toBeCloseTo(1.12578, 4);
-    expect(gz[1].max).toBeCloseTo(1.06142, 4);
+    expect(gz[1].max).toBeCloseTo(1.05718, 4);
     const w0 = an.vento!.deslocamentos!.find((x) => x.direcao === 0)!;
     expect(w0.H).toBeCloseTo(28.5, 9);
     expect(w0.topo * 1000).toBeCloseTo(12.112, 2);
@@ -257,23 +260,23 @@ describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes 
     expect(soma('G')).toBeCloseTo(6390, 4);
     expect(soma('Q')).toBeCloseTo(1620, 4);
     const p1 = an.fundacao.filter((f) => f.pilar === s.modelo.pilares[0].id);
-    expect(p1.find((f) => f.caso === 'G')!.N).toBeCloseTo(298.817, 2);
+    expect(p1.find((f) => f.caso === 'G')!.N).toBeCloseTo(299.606, 2);
     expect(p1.find((f) => f.caso === 'W0°')!.My).toBeCloseTo(-33.685, 2);
-    expect(p1.find((f) => f.caso === 'W90°')!.Mx).toBeCloseTo(61.154, 2);
+    expect(p1.find((f) => f.caso === 'W90°')!.Mx).toBeCloseTo(60.541, 2);
   });
   it('vigas, pilares e lajes', () => {
     const v2 = d.vigas.find((x) => x.nome === 'V2')!;
-    expect(v2.Mpos).toBeCloseTo(65.626, 2);
-    expect(v2.Mneg).toBeCloseTo(-99.569, 2);
-    expect(v2.V).toBeCloseTo(79.434, 2);
+    expect(v2.Mpos).toBeCloseTo(65.338, 2);
+    expect(v2.Mneg).toBeCloseTo(-97.330, 2);
+    expect(v2.V).toBeCloseTo(77.906, 2);
     expect([v2.barrasInf, v2.barrasSup, v2.estribo]).toEqual(['2 φ16', '2 φ20', 'φ5 c/22']);
     const p5 = d.pilares.filter((x) => x.pilar === s.modelo.pilares[4].id);
     expect(p5.map((x) => x.armadura)).toEqual(['10 φ20', '10 φ20', '10 φ16', '14 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10', '6 φ10']);
-    expect(p5[0].Nd).toBeCloseTo(1788.932, 2);
-    expect(p5[3].util).toBeCloseTo(0.99677, 4);
+    expect(p5[0].Nd).toBeCloseTo(1777.608, 2);
+    expect(p5[3].util).toBeCloseTo(0.98614, 4);
     const l1 = d.lajes.find((x) => x.nome === 'L1')!;
-    expect(l1.mPos[0]).toBeCloseTo(6.6033, 3);
-    expect(l1.mNeg[0]).toBeCloseTo(-11.093, 2);
+    expect(l1.mPos[0]).toBeCloseTo(6.7781, 3);
+    expect(l1.mNeg[0]).toBeCloseTo(-11.654, 2);
   });
 });
 

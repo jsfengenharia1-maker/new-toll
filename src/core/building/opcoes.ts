@@ -232,6 +232,8 @@ export interface OpcoesCalculo {
   fundCorridaFSDesliz: number;
   /** Sapata corrida de parede (FU7b): 1 = o FS ao deslizamento abaixo do mínimo é erro; 0 = só informado (base travada por laje ou viga). */
   fundCorridaDeslizamento: number;
+  /** Sapata corrida de parede de topo travado por laje (FU7b): 1 = o deslizamento usa a força horizontal líquida do conjunto das paredes travadas; 0 = cada sapata sozinha com a reação da própria parede. */
+  fundCorridaDeslizGrupo: number;
   /** Pilar-parede (E1b): lado com comprimento ≥ este fator × a espessura vira casca; o mais curto vira barra (pilar). */
   pilarParedeLimite: number;
   /** Pilar-parede (E1b): altura da viga fictícia no topo de cada lado casca, que liga vigas e lajes em qualquer posição (cm). */
@@ -703,6 +705,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Fator de segurança mínimo da sapata corrida sob parede ao deslizamento (sem empuxo passivo nem contribuição das lajes).' },
   { chave: 'fundCorridaDeslizamento', rotulo: 'Sapata corrida de parede: reprovar o deslizamento', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 11682 / NBR 6122 (estabilidade ao deslizamento); desligar quando a base é travada por laje ou viga (item a confirmar)', aConfirmar: true,
     descricao: 'Ligado: fator de segurança ao deslizamento abaixo do mínimo é erro. Desligado: o FS continua informado, mas não reprova (muro de subsolo cuja base é travada pela laje do pavimento ou por vigas de fundação).' },
+  { chave: 'fundCorridaDeslizGrupo', rotulo: 'Sapata corrida de parede travada: deslizamento do conjunto', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Equilíbrio horizontal (a laje do topo transmite o empuxo de uma parede à outra; o solo recebe só a força líquida); critério do Statikos sem fonte normativa, a confirmar',
+    descricao: 'Ligado: nas paredes de topo travado por laje, o FS ao deslizamento usa a soma vetorial das reações horizontais da base de todas elas contra a soma de μ·N (empuxos opostos se anulam). Desligado: cada sapata resiste sozinha à reação horizontal da própria parede. Parede sem laje no topo (balanço) sempre verifica o empuxo inteiro.', aConfirmar: true },
   { chave: 'pilarParedeLimite', rotulo: 'Pilar-parede: relação mínima lado/espessura para modelar por casca', unidade: '× espessura', min: 2, max: 10, passo: 0.5, padrao: 5, fonte: 'NBR 6118, 14.4.2.4 (pilar-parede: lado maior > 5 × o menor) e programa de referência (lado ≥ 5 × a outra dimensão para a discretização por elementos finitos); itens a confirmar', aConfirmar: false,
     descricao: 'Lado do pilar-parede com comprimento ≥ este fator × a espessura é discretizado em casca (membrana e placa, 6 nós); o lado mais curto é tratado como pilar (barra), ligado ao restante por trecho rígido.' },
   { chave: 'pilarParedeVigaAltura', rotulo: 'Pilar-parede: altura da viga fictícia no topo dos lados', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 25, fonte: 'Programa de referência (viga fictícia de largura igual à espessura e altura constante de 25 cm); a confirmar', aConfirmar: true,

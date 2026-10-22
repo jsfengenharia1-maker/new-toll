@@ -14,30 +14,30 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 13 | 7 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 39 | 6 | 0 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 53 | 13 | 37 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 52 | 14 | 37 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 11 | 9 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 12 | 9 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **390** | **65** | **95** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 3 | 5 | 19 |
+| **Total** | **661** | **386** | **69** | **95** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 5 | 0 | 5 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 37 | 84 | 121 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **65** | **95** | **160** |
+| **Total** | **69** | **95** | **164** |
 
 ## Divergências de premissa
 
@@ -293,7 +293,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.12 | Casos adicionais de empuxo de terra e acidentais. | Parcial | E | N2a: natureza H (empuxo de terra, permanente com γh), tipos de empuxo reutilizáveis (`empuxo.tipo`, `empuxo.ts`, `diagramaEmpuxo`) e casos acidentais pelas naturezas Q/W/E; aplicação às paredes de subsolo na E1c |
 | K1.5.13 | Em cada caso, vários arranjos de carga agrupados, com relação compatível, incompatível ou simultâneo; definição se os casos adicionais se combinam entre si. | Feito | — | N2a: arranjos como casos filhos incompatíveis (`pai`), tabela de compatibilidade compatível/incompatível/simultâneo e opção de os adicionais se combinarem entre si (`Norma.combinarAdicionais`) |
 | K1.5.14 | Geração automática de todas as combinações de todos os estados-limite (inclui fadiga — texto —, tensões no solo e deslocamentos de nós) conforme normas de ações, materiais e categoria de uso. | Feito | — | ELU, QP, frequente e rara automáticas (NBR 8681), com a frequente para deslocamentos laterais (R1) e as raras para a fundação; fadiga só citada |
-| K1.5.15 | Verificação de resistência ao fogo opcional. | Feito | — | N2g: verificação opcional de incêndio (estado-limite "incendio", grupo Incêndio, card e memorial); e2e N2g |
+| K1.5.15 | Verificação de resistência ao fogo opcional. | Parcial | N | N2g: verificação opcional de incêndio (estado-limite "incendio", grupo Incêndio, card e memorial); e2e N2g. Parcial: tabelas de lajes e vigas só de 2004 (até 120 min), pilares da 2012 por fonte secundária; 180 min e tabelas gerais de pilares pendentes (`pendencias-usuario.md`) |
 | K1.5.16 | Ações também valem para estruturas 3D integradas. | Fora | — | estruturas 3D integradas |
 | K1.5.17 | Cargas no topo de pilares (N, Mx, My, Qx, Qy, T) em eixos globais, por caso, independentes da análise. | Feito | — | `carga.pilar` com N, Hx, Hy, Mx, My e torção T por caso e lance, eixos globais ou locais (N2c) |
 | K1.5.18 | Pilares/arranques com cargas podem ser lançados sobre radiers ou vigas de fundação. | Feito | — | arranques com cargas sobre o radier ou a viga sobre base elástica: as cargas vão para o nó mais próximo da malha (`src/core/building/baseElastica.ts`) |
@@ -409,7 +409,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.20 | Permanente adicional e sobrecarga totais por pavimento nos dados de cada grupo; peso próprio da laje na ficha da laje. | Feito | — | gRev e q por grupo; peso da laje pelo tipo |
 | K1.9.21 | Vento e sismo: dados conforme a norma escolhida (seção de normas, fora do trecho). | Feito | — | V0, S1, S3, categoria, Ca e excentricidade (`vento.definir`) |
 | K1.9.22 | Cargas de vento/sismo podem ser definidas em casos adicionais quando não geradas automaticamente. | Feito | — | vento e ações horizontais manuais: caso adicional de natureza W, ampliado por 0,95·γz (N1c) |
-| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Feito | — | N2g: incêndio por grupo e elemento com revestimento, TRRF (ou sugestão pela ocupação) e laje compartimentadora (`Incendio.tsx`); e2e N2g |
+| K1.9.23 | Incêndio: por grupo e elemento, revestimento de proteção, resistência ao fogo exigida e se a laje é compartimentadora. | Parcial | N | N2g: incêndio por grupo e elemento com revestimento, TRRF (ou sugestão pela ocupação) e laje compartimentadora (`Incendio.tsx`); e2e N2g. Parcial: a sugestão de TRRF vem da IT 06 do CBMMG (2005), não da NBR 14432 (`fogoTabelas.ts`, fonte [D]); as ITs estaduais prevalecem |
 | K1.9.24 | Casos gerais automáticos: permanente (peso da laje + permanentes), sobrecarga dos grupos, vento e sismo da norma; permanente e sobrecarga sempre existem. | Feito | — | G, Q e vento automáticos |
 | K1.9.25 | Alternância de sobrecargas: criar um caso adicional por carga independente (não simultâneas) ou usar arranjos dentro do caso. | Feito | — | um caso adicional por carga, no mesmo grupo de incompatíveis = não simultâneas (N1c) |
 | K1.9.26 | Combinações geradas automaticamente pelos casos e suas compatibilidades; cada carga lançada é vinculada a um caso. | Feito | — | combinações automáticas pelos casos e grupos de incompatíveis (N1c); cada carga vinculada a G, Q ou a um caso adicional |
@@ -766,7 +766,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.3-2 | Radiers: mesmo critério de armadura das lajes maciças. | Feito | — | radier pelo critério das lajes maciças: Wood-Armer na faixa de 1 m (ELU), ρmín 0,15 %, fissuração na frequente (`dimensionarBaseElastica`) |
 | | **1.13.2.4 Armadura transversal** | | | |
 | K1.13.2.4-1 | Punção: verificação em superfícies paralelas às faces dos apoios (pilares, pilares-parede, vigas, paredes) à distância 0,5d. | Feito | — | contornos C (face), C′ (2d) e C″ da NBR 6118, 19.5, no lugar das superfícies a 0,5d (a norma é exigência), recortados pela laje, pelas bordas livres e pelos furos a menos de 8d: pilar interno, de borda, de canto, circular e pilar-parede (`puncao.ts`) [N2d] |
-| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Feito | — | τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d) no contorno, com FSd (reação do pilar na grelha) e o momento das molas no lugar da interpolação dos cortantes dos nós; método da NBR 6118, 19.5.2 [N2d] |
+| K1.13.2.4-2 | Punção tratada como verificação de tensão tangencial: tensões a partir dos cortantes dos nós vizinhos, interpoladas linearmente nos pontos do perímetro. | Parcial | N | τSd = FSd/(u·d) + ΣK·MSd1/(Wp·d) no contorno, com FSd (reação do pilar na grelha) e o momento das molas no lugar da interpolação dos cortantes dos nós; método da NBR 6118, 19.5.2 [N2d]. Parcial: Wp de borda e canto e K da Tabela 19.2 pendentes do texto da norma (razão medida em `puncao.test.ts`, conservadora) |
 | K1.13.2.4-3 | O manual registra que a abordagem é geral e difere das normas (fórmulas simplificadas com normal e momento desequilibrado). | Fora | — | comentário do manual |
 | K1.13.2.4-4 | Tensão máxima de punção excedida → linha vermelha; aumentar espessura ou resistência do concreto. | Feito | — | τSd > τRd2 no contorno C: erro PUNCAO_BIELA; contornos que excedem a resistência em vermelho na janela da laje e na camada Punção e cortante da planta [N2d] |
 | K1.13.2.4-5 | Tensão sem armadura excedida → armadura transversal indicada (número de barras e diâmetro) na forma de grampos verticais, com espaçamento conforme a quantidade num dado comprimento. | Feito | — | armadura de punção calculada: estribos (grampos verticais) ou conectores em linhas radiais, número de linhas, barras por linha, φ e espaçamento, até o contorno C″ dispensar armadura (`ArmaduraPuncao`, opção `puncaoTipoArmadura`) [N2d] |
@@ -853,7 +853,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-19 | ξ por duração: ≥ 5 anos 2,0; 1 ano 1,4; 6 meses 1,2; 1 mês 0,7; 2 semanas 0,5 (o exemplo usa também 0,8 aos 60 dias e 1,0 aos 120 dias). | Feito | — | ξ(t) da NBR 6118 (Tabela 17.1) com t0 editável no edifício (t0Flecha, N1d) e no Pórtico 2D |
 | K1.15.4-20 | Processo: peso próprio 6,5 kN/m² desformado aos 28 dias (ξ = 2 − 0,7 = 1,3); paredes 1,0 aos 60 dias (1,2); revestimento 1,0 aos 120 dias (1,0); uso só a parcela quase permanente, ψ2 = 0,3 (residencial) → 0,6 kN/m², após 1 ano (ξ = 0,6). | Feito | — | N2f: etapas padrão 28/60/120/365 dias com pp, alvenaria, revestimento e ψ2·Q; ξ(t) da Tabela 17.1 (`ETAPAS_PADRAO`, `xiDias`) |
 | K1.15.4-21 | ξ médio ponderado pelas cargas = 11,01/10,5 ≈ 1,05 → λ ≈ 1,00; δinst = Ke·δi = 1,5·δi; δdif = 1,00·δinst; δtotal = 3,00·δi (valor do fator a usar). | Feito | — | N2f: ξ médio ponderado (Σ Pi·Δξi / P) e fator total (`ComposicaoEtapas.xiMedio`, `fatorTotal`); exemplo registrado reproduzido (3,00·δi) em `flechasEtapas.test.ts` |
-| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Feito | — | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes; exemplo dá 1,98·δi (registrado 1,965 com λ arredondado) em `flechasEtapas.test.ts` |
+| K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes; exemplo dá 1,98·δi (registrado 1,965 com λ arredondado) em `flechasEtapas.test.ts`. Parcial: o exemplo do manual registra 1,965·δi (λ 0,93) e a função dá 1,981·δi (λ 0,940): diferença de 0,8 % não reproduzida, tolerância mantida em 0,02 |
 | K1.15.4-23 | Conclusão maciça: ativa ≈ 2,0× e total ≈ 3,0× a flecha elástica com seção bruta. | Fora | — | conclusão do exemplo (ver divergências) |
 | K1.15.4-24 | Caso 2, nervurada com caixões perdidos: Ig da zona aliviada 61 567 cm⁴; do ábaco (maciça 30 cm × 82 cm) 184 500 cm⁴; média ao longo do vão 123 033,5 cm⁴. | Fora | — | exemplo numérico |
 | K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Falta | E | nervuradas: inércia única na malha [E3c] |
@@ -963,3 +963,4 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1e, núcleo (alvenaria estrutural e blocos de concreto).** K1.12.4.3-1 passa a Feito; K1.9.4 e K1.9.5 passam a Parcial: `alvenaria.ts` (tipos, resistências NBR 16868 a confirmar, esbeltez, tensões-limite por elemento, armadura de blocos, modulação, quantitativo, desligamento muro-pilar, diagnósticos), `alvenariaDim.ts` (panos com fator de cumprimento, lados curtos, vergas, vigas sobre muros), `memorialAlvenaria.ts`, comandos `bloco.tipo`, `alvenaria.tipo`, `parede.modularAbertura` e `verga.armadura`, 18 opções `alvenaria*`; falta a interface (cartões em `docs/cartoes/E1e/`) e a prancha.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 1 item (manual de cálculo); 2 passam de Falta a Parcial.
+- **22/10/2026 — correção pós-auditoria N2 (achados 4, 5 e 7).** K1.5.15, K1.9.23, K1.13.2.4-2 e K1.15.4-22 voltam a Parcial (fogo por fontes secundárias e TRRF pela IT estadual; Wp/K de borda e canto da punção; 1,965 × 1,981 da flecha ativa); C4.44 e C10.6 no checklist do usuário.

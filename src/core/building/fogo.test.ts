@@ -138,9 +138,10 @@ describe('pilares: método analítico (NBR 15200:2012) e tabelas', () => {
     const s = fogoPilar({ ...base, c1: 90, lef: 7, As: 0.05 * 90000 });
     expect(s.avisos[0]).toMatch(/As\/Ac 5 % > 4 %.*c1 90 mm fora de 25 a 80 mm.*ℓef,fi 7 m > 6 m/);
   });
-  it('excentricidade não avaliada (determinantes com vento): sem aviso de limite, registrada no texto', () => {
+  it('excentricidade não avaliada (determinantes com vento): aviso explícito (N2g, auditoria) e registrada no texto', () => {
     const r = fogoPilar({ ...base, e: null });
-    expect(r.avisos).toEqual([]);
+    expect(r.avisos).toHaveLength(1);
+    expect(r.avisos[0]).toMatch(/^Fogo: método analítico fora dos limites.*e ≤ 0,15·b não verificada.*levam vento/);
     expect(r.adotado).toContain('e não avaliada');
     expect(r.trf).toBe(96);
   });
