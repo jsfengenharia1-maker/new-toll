@@ -75,8 +75,10 @@ export function secaoCorrida(B: number, bw: number, h: number, h0: number, torca
 }
 
 /** Pilares que nascem na fundação sobre o eixo da sapata corrida (centro a menos de bw/2 + 5 cm do eixo, ou eixo passando pela seção). */
-export function pilaresDaCorrida(b: BuildingModel, c: Pick<SapataCorrida, 'pontos' | 'bw'>): { pilar: Pilar; c: P }[] {
+export function pilaresDaCorrida(b: BuildingModel, c: Pick<SapataCorrida, 'pontos' | 'bw'> & { parede?: string }): { pilar: Pilar; c: P }[] {
   const out: { pilar: Pilar; c: P }[] = [];
+  // sapata corrida de parede (FU7b): modo "parede"; os pilares que nascem sobre o eixo entram como cargas pontuais
+  if (c.parede) return out;
   for (const p of b.pilares) {
     if (p.nasce !== 'fundacao') continue;
     const sec = secaoBase(b, p), ct = centroPilar(p, sec), pr = projecaoNaViga(c, ct);

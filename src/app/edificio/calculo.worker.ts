@@ -63,7 +63,7 @@ self.onmessage = (e: MessageEvent<Pedido>) => {
     try {
       if (!ultimo || ultimo.id !== m.calculo) { responder({ id: m.id, erro: 'Resultados do cálculo indisponíveis em segundo plano; recalcule na aba Dimensionamento.' }); return; }
       const f = comFundacao(m.modelo, ultimo.r, { anteriores: m.anteriores });
-      if (ultimo.dim) { delete ultimo.dim.vigasFundacao; delete ultimo.dim.avisosFundacao; delete ultimo.dim.corridas; Object.assign(ultimo.dim, f); }
+      if (ultimo.dim) { delete ultimo.dim.vigasFundacao; delete ultimo.dim.avisosFundacao; delete ultimo.dim.corridas; delete ultimo.dim.basesMuros; Object.assign(ultimo.dim, f); }
       responder({ id: m.id, fundacoes: f });
     } catch (err) {
       responder({ id: m.id, erro: (err as Error).message });

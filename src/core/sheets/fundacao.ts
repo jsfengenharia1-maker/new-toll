@@ -321,9 +321,11 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
   const rs = (dim.fundacoes ?? []).filter((r) => r.contorno.length);
   const temBase = !!(dim.radiers?.length || dim.vigasElasticas?.length);
   const cors = (dim.corridas ?? []).filter((r) => r.contorno.length);
-  if (!rs.length && !temBase && !cors.length) return { pranchas: [], quant: [], estacas: [] };
+  // bases dos muros de arrimo isolados com comprimento (FU7b): só quantitativos (o desenho está na folha do muro)
+  const muros = (dim.basesMuros ?? []).filter((m) => m.total);
+  if (!rs.length && !temBase && !cors.length && !muros.length) return { pranchas: [], quant: [], estacas: [] };
   // radier, viga sobre base elástica e sapata corrida = fundação direta (sigla das sapatas) [a confirmar]
-  const sigla = siglaFundacao([...rs.map((r) => r.tipo), ...(temBase || cors.length ? ['sapata' as const] : [])]);
+  const sigla = siglaFundacao([...rs.map((r) => r.tipo), ...(temBase || cors.length || muros.length ? ['sapata' as const] : [])]);
   const oa = { carimbo: o.carimbo }, cfg = cfgArmacao(b);
   const out: Prancha[] = [], tabAco: LinhaTabelaAco[] = [], quant: LinhaQuantitativo[] = [];
   const avisos: string[] = [];
@@ -410,6 +412,8 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
     });
     out.push(...r.pranchas); tabAco.push(...r.aco);
   }
+  // 3d) bases dos muros de arrimo isolados (FU7b): concreto, forma e aço da ponta, do talão e da distribuição
+  for (const m of muros) quant.push({ nomes: [m.nome], tipo: 'Base de muro de arrimo', quant: 1, concreto: m.total!.concreto, forma: m.total!.forma, aco: m.total!.aco });
   // 4) quantitativos
   const estacas = new Map<string, { nome: string; quant: number; L: number }>();
   for (const g of porTipo('bloco')) for (const e of g.els) { const est = estacasDe(e); if (!est) continue; const nome = e.dims.estaca ?? `ø${cm(est.D)}`, k = `${nome}|${est.L ?? 0}`, x = estacas.get(k) ?? { nome, quant: 0, L: est.L ?? 0 }; x.quant += est.coords.length; estacas.set(k, x); }

@@ -241,7 +241,7 @@ export const useBuilding = create<BState>((set, get) => {
         const f = await calcularFundacoesNoWorker(s.modelo, idCalculo, dim.fundacoes);
         if (get().sessao !== s || get().idCalculo !== idCalculo) { set({ calculandoFund: false }); return; }
         const fundacoes = f.fundacoes ?? [], vigasF = f.vigasFundacao ?? [];
-        set({ dim: { ...dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, ...f }, revFund: revF, calculandoFund: false });
+        set({ dim: { ...dim, vigasFundacao: undefined, avisosFundacao: undefined, corridas: undefined, basesMuros: undefined, ...f }, revFund: revF, calculandoFund: false });
         const falhas = fundacoes.filter((x) => x.status === 'fail').length + vigasF.filter((x) => x.status === 'fail').length;
         msg(`Fundações calculadas: ${fundacoes.length} elemento(s)${vigasF.length ? ` e ${vigasF.length} viga(s) de fundação` : ''}${falhas ? `, ${falhas} com erro` : ''}, em ${Math.round(performance.now() - t0)} ms (a análise da estrutura não foi refeita).`);
       } catch (e) {

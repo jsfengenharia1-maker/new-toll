@@ -212,6 +212,7 @@ export function runCli(args: string[], io: Io): number {
             for (const v of r.vigasFundacao) io.out(`  ${v.resumo} (${v.ini}–${v.fim}) · ${v.status}${v.mensagens.length ? ` · ${v.mensagens.join(' ')}` : ''}`);
           }
           for (const x of r.corridas ?? []) io.out(`  ${x.resumo} (sapata corrida ${x.modo === 'pilares' ? 'sob pilares' : 'sob parede'})${x.pressao ? ` · σmáx ${x.pressao.sigmaMax.toFixed(1)} kN/m²` : ''} · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
+          for (const x of r.basesMuros ?? []) io.out(`  ${x.nome}: base do muro B = ${x.B.toFixed(2).replace('.', ',')} m · σmáx ${x.sigmaMax.toFixed(1)}${x.sigmaAdm ? `/${x.sigmaAdm.toFixed(0)}` : ''} kN/m² (${x.sigmaFonte}) · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
           for (const x of [...(r.radiers ?? []), ...(r.vigasElasticas ?? [])]) io.out(`  ${x.nome}: σ ${x.sigmaMax.toFixed(1)}${x.sigmaAdm ? `/${x.sigmaAdm.toFixed(0)}` : ''} kN/m², recalque ${(x.recalque * 1000).toFixed(2)} mm · ${x.status}${x.mensagens.length ? ` · ${x.mensagens.join(' ')}` : ''}`);
           for (const a of r.avisosFundacao ?? []) io.out(`  ${a}`);
         }

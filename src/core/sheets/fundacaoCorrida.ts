@@ -56,7 +56,7 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
   const nomes = titulo(els.map((e) => e.nome));
   nomes.forEach((l, i) => out.push(txt('TEXTO', 0, -6 * i, 5, l, 'e', 'topo')));
   let y = -6 * nomes.length - 1;
-  out.push(txt('TEXTO', 0, y, 2.2, `Sapata corrida ${cmInt(r.B)}×${cmInt(r.h)}${r.h0 < r.h ? `/${cmInt(r.h0)}` : ''} cm · L = ${nf(r.L)} m · ${r.modo === 'pilares' ? 'sob pilares (viga sobre base elástica)' : 'sob parede'}${rep > 1 ? ` · ${rep} iguais` : ''}`, 'e', 'topo'));
+  out.push(txt('TEXTO', 0, y, 2.2, `Sapata corrida ${cmInt(r.B)}×${cmInt(r.h)}${r.h0 < r.h ? `/${cmInt(r.h0)}` : ''} cm · L = ${nf(r.L)} m · ${r.modo === 'pilares' ? 'sob pilares (viga sobre base elástica)' : r.parede ? `sob a parede ${r.parede.nome}` : 'sob parede'}${rep > 1 ? ` · ${rep} iguais` : ''}`, 'e', 'topo'));
   y -= 7;
   const B = r.B, bw = r.bw, L = r.L, W = B * k, lados = ladosDaBase(r.aba, B, bw);
   const tr = r.transversal, bt = tr?.barras, bd = tr?.distribuicao.barras;
@@ -110,6 +110,11 @@ export function desenharCorrida(c: Ctx, els: ResultadoCorrida[]): Prim[] {
       const pos = posEst = c.posDe(`CE|${cmInt(bw)}|${cmInt(r.h)}|${e.phi}|${cmInt(e.s)}`, aco.aco, e.phi, cmInt(perim), rep * n);
       textos.push(`${qtd(rep, n)} ${pos} ${phiTxt(e.phi)} c/${cmInt(e.s)} C=${cmInt(perim)}  (estribos da nervura)`);
     }
+  }
+  // sapata de parede ou muro (FU7b): ações da base da parede e deslizamento
+  if (r.parede) {
+    const pa = r.parede, d = pa.deslizamento;
+    textos.push(`Base da parede ${pa.nome}: M = ${nf(pa.M, 1)} kN·m/m (e = ${nf(pa.eM * 100, 0)} cm) · H = ${nf(pa.H, 1)} kN/m${d ? ` · deslizamento FS = ${nf(d.FS)} (μ = ${nf(d.mu)}, mín. ${nf(d.FSmin, 1)})` : ''}`);
   }
   textos.forEach((t, i) => out.push(txt('TEXTO', 0, yb - 8 - 3.4 * i, 2.2, t, 'e', 'topo')));
   y = yb - 8 - 3.4 * Math.max(1, textos.length) - 8;
@@ -245,7 +250,7 @@ const secaoBaseDe = (b: BuildingModel, p: Pilar) => secaoBase(b, p);
 /** Forma lateral (m²) já calculada no resultado. */
 export const formaCorrida = (r: ResultadoCorrida) => r.forma;
 
-const nomeModo = (r: ResultadoCorrida) => (r.modo === 'pilares' ? 'sob pilares' : 'sob parede');
+const nomeModo = (r: ResultadoCorrida) => (r.modo === 'pilares' ? 'sob pilares' : r.parede ? `parede ${r.parede.nome}` : 'sob parede');
 
 /**
  * Folha de locação das sapatas corridas: base e apoio em planta, pilares tracejados, eixos e cotas, rótulos e quadro com
@@ -283,12 +288,13 @@ export function montarPranchaCorridas(b: BuildingModel, dim: Dimensionamento, o:
   for (const p of pilares) { const s = secaoBase(b, p); centros.push(centroPilar(p, s)); modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: contornoPilar(p, s) as P[], fechada: true }); }
   eixosECotas(modelo, b.eixos, centros, cx, k);
   const tab: BlocoTabela = {
-    titulo: 'SAPATAS CORRIDAS', cols: [{ w: 14, rot: 'SAPATA' }, { w: 20, rot: 'MODO' }, { w: 14, rot: 'L (m)' }, { w: 16, rot: 'B (cm)' }, { w: 14, rot: 'bw (cm)' }, { w: 18, rot: 'h / h0 (cm)' }, { w: 22, rot: 'TRANSVERSAL' }, { w: 22, rot: 'DISTRIBUIÇÃO' }, { w: 20, rot: 'σ / σadm (MPa)' }],
+    titulo: 'SAPATAS CORRIDAS', cols: [{ w: 14, rot: 'SAPATA' }, { w: 24, rot: 'MODO' }, { w: 14, rot: 'L (m)' }, { w: 16, rot: 'B (cm)' }, { w: 14, rot: 'bw (cm)' }, { w: 18, rot: 'h / h0 (cm)' }, { w: 22, rot: 'TRANSVERSAL' }, { w: 22, rot: 'DISTRIBUIÇÃO' }, { w: 20, rot: 'σ / σadm (MPa)' }],
     linhas: rs.map((r) => { const t = r.transversal; return [r.nome, nomeModo(r), nf(r.L), String(cmInt(r.B)), String(cmInt(r.bw)), `${cmInt(r.h)} / ${cmInt(r.h0)}`, t?.barras ? `${phiTxt(t.barras.phi)} c/${cmInt(t.barras.s)}` : '—', t?.distribuicao.barras ? `${phiTxt(t.distribuicao.barras.phi)} c/${cmInt(t.distribuicao.barras.s)}` : '—', r.pressao ? `${nf(r.pressao.sigmaMax / 1000)} / ${r.sigmaAdm ? nf(r.sigmaAdm / 1000) : '—'}` : '—']; }),
   };
   const nts = notas([
     'Medidas em cm; bitolas (φ) em mm; tensões em MPa. Eixo e apoio (parede, viga ou nervura) em planta; aço nas folhas de detalhamento.',
     `Concreto C${fck} (fck = ${fck} MPa); aço ${aco}; cobrimento ${nf(cob * 100, 1)} cm.`,
+    ...(rs.some((r) => r.parede) ? ['Sapata de parede ou muro: carga das reações da base da parede na análise (normal, momento fora do plano e cortante do empuxo, nas combinações raras), pressão sem tração com a excentricidade M/N e verificação ao deslizamento (μ e FS nas opções) [a confirmar].'] : []),
     'Sob parede: largura pela σadm, altura rígida (balanço ≤ 1,5h), flexão transversal da aba (CEB-70) por metro e armadura de distribuição. Sob pilares: viga sobre base elástica na análise global.',
     ...(rs.some((r) => r.aba !== 'ambas') ? ['Aba de um lado: apoio rente à divisa; o momento N·e é absorvido por vigas de equilíbrio (cintas) até sapatas internas (detalhadas nas folhas das vigas de fundação) [a confirmar].'] : []),
     'Desenho pelo padrão da sapata isolada, sem folha de referência para sapata corrida [a confirmar].',

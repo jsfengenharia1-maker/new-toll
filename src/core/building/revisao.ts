@@ -154,6 +154,13 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_CINTA_ERRO', nivel: 'erro', re: /^Sapata corrida .*: cintas? \S+ (sem ponta|com ponta|oblíqua ou do lado|— alavanca|e \S+ na mesma)/, descricao: 'Cinta de sapata corrida: ponta inválida, oblíqua, alavanca impossível ou duas cintas na mesma abscissa' },
   { codigo: 'FUND_CINTA_OBLIQUA', nivel: 'aviso', re: /^Sapata corrida .*: cinta \S+ oblíqua à normal/, descricao: 'Cinta de sapata corrida oblíqua à normal da corrida (excentricidade fora do plano da cinta)' },
   { codigo: 'FUND_CINTA_ESPACAMENTO', nivel: 'aviso', re: /^Sapata corrida .*: (cintas (ignoradas|espaçadas)|balanço de .* última cinta)/, descricao: 'Cintas de sapata corrida ignoradas (aba nos dois lados), espaçadas demais ou com balanço longo além da última' },
+  // sapata corrida de parede e base dos muros (FU7b)
+  { codigo: 'FUND_CORRIDA_DESLIZA', nivel: 'erro', re: /^Sapata corrida .*: deslizamento/, descricao: 'Sapata corrida de parede: fator de segurança ao deslizamento abaixo do mínimo' },
+  { codigo: 'FUND_CORRIDA_PILAR', nivel: 'erro', re: /^Sapata corrida .*: o pilar .* nasce sobre o eixo/, descricao: 'Sapata corrida de parede com pilar sobre o eixo que já tem elemento de fundação (carga contada duas vezes)' },
+  { codigo: 'FUND_CORRIDA_PAREDE', nivel: 'aviso', re: /^Sapata corrida .*: a parede/, descricao: 'Sapata corrida de parede sem as reações da base (análise ausente, parede sem base na fundação ou removida)' },
+  { codigo: 'FUND_MURO_SIGMA', nivel: 'aviso', re: /^Base do muro .*: sem σadm/, descricao: 'Muro de arrimo sem σadm própria nem do terreno da obra: tensão da base não verificada contra o solo' },
+  { codigo: 'FUND_MURO_TENSAO', nivel: 'erro', re: /^Base do muro .*: tensão máxima/, descricao: 'Muro de arrimo: tensão máxima na base acima da σadm do terreno da obra' },
+  { codigo: 'FUND_MURO_COTA', nivel: 'erro', re: /^Base do muro .*: cota de assentamento/, descricao: 'Muro de arrimo: cota de assentamento da base igual ou acima do terreno' },
   // armadura das paredes e pilares-parede (E1d)
   { codigo: 'PAREDE_ARMADURA', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Armadura da parede não atende/, descricao: 'Parede: a malha não atinge o fator de cumprimento exigido (taxa máxima, bitola máxima ou concreto)' },
   { codigo: 'PAREDE_CUMPRIMENTO', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Armadura bloqueada (insuficiente|abaixo)/, descricao: 'Parede: armadura bloqueada abaixo do mínimo ou do fator de cumprimento exigido' },
@@ -211,6 +218,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const r of dim?.radiers ?? []) add('fundacao', r.id, r.nome, undefined, r.mensagens);
   for (const v of dim?.vigasElasticas ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
   for (const c of dim?.corridas ?? []) add('fundacao', c.id, c.nome, undefined, c.mensagens);
+  for (const m of dim?.basesMuros ?? []) add('fundacao', m.id, m.nome, undefined, m.mensagens);
   // paredes e pilares-parede (E1d): mensagens dos panos, lados, aberturas e do detalhamento, com o prefixo do elemento
   for (const w of dim?.armaduraParedes ?? []) {
     const pre = w.tipo === 'parede' ? 'Parede' : 'Pilar-parede', tipo = w.tipo === 'parede' ? 'parede' : 'pilarParede';
