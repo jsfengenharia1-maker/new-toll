@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { afetaCalculo, aplicarComando, comandosEdificioPadrao, listarComandos, replay, Sessao, validarSchema, type JsonSchema } from './index';
 import { edificioVazio, lancesDoPilar, peDireito } from '../building/types';
 import { ESPEC_PADRAO } from '../building/assistente';
+import { importarArranques, UNIDADES_PADRAO } from '../building/importarArranques';
 import { verificar } from '../building/verify';
 import { lerEdificio } from '../building/file';
 
@@ -70,6 +71,7 @@ function base() {
 /** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
   'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2, descricao: ['Residencial de 5 pavimentos', 'Fase de anteprojeto'], origem: 'assistente' }),
+  'obra.importarArranques': () => ({ nome: 'Só arranques', resultado: importarArranques('Pilar;Caso;N;x;y\nPA;G;300;9000;9000\nPB;G;200;9500;9000', { pilar: 0, caso: 1, N: 2, x: 3, y: 4 }, UNIDADES_PADRAO) }),
   'obra.assistente': () => ({ espec: { nome: 'Assistente', cotaBase: 100, perfil: 'nbr', pavimentos: [{ nome: 'Térreo', peDireito: 3, categoria: 'comum', repeticoes: 1 }, { nome: 'Tipo', peDireito: 3, categoria: 'residencial', repeticoes: 2 }], eixos: { dx: [5], dy: [] } } }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
   'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
@@ -478,5 +480,30 @@ describe('obra.assistente', () => {
     expect(B.executar('obra.assistente', { espec }).ok).toBe(true);
     expect(B.modelo.pavimentos.map((p) => [p.nome, p.cota])).toEqual(A.modelo.pavimentos.map((p) => [p.nome, p.cota]));
     expect(B.modelo.grupos.map((g) => [g.nome, g.uso, g.q])).toEqual(A.modelo.grupos.map((g) => [g.nome, g.uso, g.q]));
+  });
+});
+
+describe('obra.importarArranques', () => {
+  it('cria arranques, casos e cargas em um passo', () => {
+    const r = importarArranques('Pilar;Caso;N;Hx\nPA;G;300;0\nPA;Vento1;0;12\nPB;G;200;0', { pilar: 0, caso: 1, N: 2, Hx: 3 }, UNIDADES_PADRAO);
+    const s = new Sessao(edificioVazio());
+    expect(s.executar('obra.importarArranques', { nome: 'Só arranques', resultado: r }).ok).toBe(true);
+    expect(s.modelo.pilares.length).toBe(2);
+    expect(s.modelo.cargasPilar!.length).toBe(3);
+    expect(s.modelo.casos!.length).toBe(1);
+    expect(s.modelo.obra.nome).toBe('Só arranques');
+    expect(s.modelo.obra.origem).toBe('texto');
+    expect(s.log.length).toBe(1);
+    s.desfazer();
+    expect(s.modelo).toEqual(edificioVazio());
+  });
+  it('recusa resultado com erro, sem arranques ou malformado', () => {
+    const r = importarArranques('Pilar;Caso;N;Hx\nPA;G;300;0', { pilar: 0, caso: 1, N: 2, Hx: 3 }, UNIDADES_PADRAO);
+    const s = new Sessao(edificioVazio());
+    const r1 = s.executar('obra.importarArranques', { nome: 'X', resultado: { ...r, erros: ['x'] } });
+    expect(r1.ok).toBe(false);
+    expect(r1.erros[0].codigo).toBe('IMPORTACAO_COM_ERRO');
+    expect(s.executar('obra.importarArranques', { nome: 'X', resultado: { ...r, arranques: [] } }).erros[0].codigo).toBe('SEM_ARRANQUES');
+    expect(s.executar('obra.importarArranques', { nome: 'X', resultado: {} as never }).erros[0].codigo).toBe('RESULTADO_INVALIDO');
   });
 });

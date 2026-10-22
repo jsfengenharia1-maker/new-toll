@@ -2,6 +2,7 @@
 // existentes e os aplica no mesmo passo (um desfazer), como o `lote`.
 import type { Draft } from 'immer';
 import { gerarObra, type Cmd, type EspecificacaoObra } from '../building/assistente';
+import { comandosArranques, type ResultadoArranques } from '../building/importarArranques';
 import type { BuildingModel } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { aplicarComando, comando, registrar } from './registry';
@@ -46,5 +47,29 @@ registrar<{ espec: EspecificacaoObra }>({
   aplicar(d, p) {
     aplicarLista(d, gerarObra(p.espec, d.seq).comandos);
     return `Obra “${p.espec.nome.trim()}” gerada: ${d.pavimentos.length} pavimento(s) em ${d.grupos.length} grupo(s).`;
+  },
+});
+
+// ---- obra.importarArranques ----
+
+registrar<{ nome: string; resultado: ResultadoArranques }>({
+  nome: 'obra.importarArranques',
+  descricao: 'Cria uma obra só de arranques a partir da importação de um arquivo de texto de cargas: hipóteses (casos), arranques com a dimensão da base e as cargas por hipótese. Em obra existente, acrescenta os arranques.',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['nome', 'resultado'], properties: {
+    nome: { type: 'string', minLength: 1, description: 'Nome da obra a criar' },
+    resultado: { type: 'object', description: 'ResultadoArranques (src/core/building/importarArranques.ts)' },
+  } },
+  validar(b, p) {
+    const r = p.resultado;
+    if (!r || !Array.isArray(r.arranques) || !Array.isArray(r.hipoteses) || !Array.isArray(r.erros)) return erroCmd('RESULTADO_INVALIDO', 'Resultado da importação inválido.');
+    if (r.erros.length) return erroCmd('IMPORTACAO_COM_ERRO', r.erros[0]);
+    if (!r.arranques.length) return erroCmd('SEM_ARRANQUES', 'O arquivo não trouxe nenhum arranque.');
+    return validarLista(b, comandosArranques(r, p.nome, b.seq));
+  },
+  aplicar(d, p) {
+    aplicarLista(d, comandosArranques(p.resultado, p.nome, d.seq));
+    return `Obra “${p.nome.trim()}” criada com ${p.resultado.arranques.length} arranque(s) e ${p.resultado.hipoteses.length} hipótese(s) de carga.`;
   },
 });
