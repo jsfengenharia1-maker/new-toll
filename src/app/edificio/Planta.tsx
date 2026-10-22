@@ -15,11 +15,11 @@ import { cadeiaDeSegmentos } from '../../core/geom/cadeia';
 import { planoGrupo } from './fundacaoGrupo';
 import { isFooting } from '../../core/footings';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
-import { geometriaMascara } from '../../core/building/pilares';
+import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilares';
 import { vigasDoClique } from '../../core/building/lancamentoDxf';
 import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
-import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
+import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraNoGrupo, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL, secaoBase } from '../../core/building/fundacao';
 import { cruzamentosVF, geometriaVF, pontasEquilibradas } from '../../core/building/vigasFundacao';
 import { abrirJanelaFundacao } from './Fundacao';
@@ -208,9 +208,16 @@ export function Planta() {
   const desenhoMascara = useMemo(() => {
     const g = geometriaMascara({ mascaras }, grupo, false);
     const textos: { x: number; y: number; h: number; rot: number; t: string }[] = [];
-    for (const m of mascaras.filter((x) => x.grupo === grupo))
-      for (const c of m.camadas) if (c.visivel) for (const t of m.geo[c.nome]?.textos ?? []) { const [x, y] = mascaraParaMundo(m, t.x, t.y); textos.push({ x, y, h: t.h * m.escala, rot: t.rot + m.rotacao, t: t.t }); }
-    return { segs: Float64Array.from(g.segs), arcos: Float64Array.from(g.arcos), textos };
+    for (const m of mascaras.filter((x) => mascaraNoGrupo(x, grupo) && x.visivel !== false))
+      for (const c of m.camadas) if (c.visivel && c.textos !== false) for (const t of m.geo[c.nome]?.textos ?? []) { const [x, y] = mascaraParaMundo(m, t.x, t.y); textos.push({ x, y, h: t.h * m.escala, rot: t.rot + m.rotacao, t: t.t }); }
+    // camadas com cor ou espessura próprias (L2, C2.7 e C2.8) são traçadas à parte
+    const pad = { segs: [] as number[], arcos: [] as number[] };
+    const estilos: { segs: Float64Array; arcos: Float64Array; cor?: string; espessura?: number }[] = [];
+    for (const c of geometriaPorCamada({ mascaras }, grupo, false)) {
+      if (c.cam.cor || c.cam.espessura) estilos.push({ segs: Float64Array.from(c.segs), arcos: Float64Array.from(c.arcos), cor: c.cam.cor, espessura: c.cam.espessura });
+      else { for (const v of c.segs) pad.segs.push(v); for (const v of c.arcos) pad.arcos.push(v); }
+    }
+    return { segs: Float64Array.from(g.segs), arcos: Float64Array.from(g.arcos), textos, padrao: { segs: Float64Array.from(pad.segs), arcos: Float64Array.from(pad.arcos) }, estilos };
   }, [mascaras, grupo]);
   const idxMascara = useMemo(() => { const g = geometriaMascara({ mascaras }, grupo, true); return new IndiceCaptura(g.segs, g.arcos); }, [mascaras, grupo]);
   const paredesPl = useMemo(() => paredesDaPlanta(b, pav?.id ?? null, nivelFund, pl.inferior), [b, pav?.id, pl.inferior, nivelFund]);
@@ -367,16 +374,20 @@ export function Planta() {
   const desenharMascaraEm = (ctx: CanvasRenderingContext2D, v: Vista) => {
     ctx.clearRect(0, 0, tam[0], tam[1]);
     ctx.fillStyle = cores.fundo; ctx.fillRect(0, 0, tam[0], tam[1]);
-    const { segs, arcos, textos } = desenhoMascara;
-    ctx.strokeStyle = cores.mascara; ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < segs.length; i += 4) { ctx.moveTo(v.ox + segs[i] * v.k, v.oy - segs[i + 1] * v.k); ctx.lineTo(v.ox + segs[i + 2] * v.k, v.oy - segs[i + 3] * v.k); }
-    for (let i = 0; i < arcos.length; i += 5) {
-      const cx = v.ox + arcos[i] * v.k, cy = v.oy - arcos[i + 1] * v.k, r = arcos[i + 2] * v.k;
-      ctx.moveTo(cx + r * Math.cos((-arcos[i + 3] * Math.PI) / 180), cy + r * Math.sin((-arcos[i + 3] * Math.PI) / 180));
-      ctx.arc(cx, cy, r, (-arcos[i + 3] * Math.PI) / 180, (-arcos[i + 4] * Math.PI) / 180, true);
-    }
-    ctx.stroke();
+    const { textos, padrao, estilos } = desenhoMascara;
+    const tracar = (segs: Float64Array, arcos: Float64Array, cor: string, largura: number) => {
+      ctx.strokeStyle = cor; ctx.lineWidth = largura;
+      ctx.beginPath();
+      for (let i = 0; i < segs.length; i += 4) { ctx.moveTo(v.ox + segs[i] * v.k, v.oy - segs[i + 1] * v.k); ctx.lineTo(v.ox + segs[i + 2] * v.k, v.oy - segs[i + 3] * v.k); }
+      for (let i = 0; i < arcos.length; i += 5) {
+        const cx = v.ox + arcos[i] * v.k, cy = v.oy - arcos[i + 1] * v.k, r = arcos[i + 2] * v.k;
+        ctx.moveTo(cx + r * Math.cos((-arcos[i + 3] * Math.PI) / 180), cy + r * Math.sin((-arcos[i + 3] * Math.PI) / 180));
+        ctx.arc(cx, cy, r, (-arcos[i + 3] * Math.PI) / 180, (-arcos[i + 4] * Math.PI) / 180, true);
+      }
+      ctx.stroke();
+    };
+    tracar(padrao.segs, padrao.arcos, cores.mascara, 1);
+    for (const e of estilos) tracar(e.segs, e.arcos, e.cor || cores.mascara, e.espessura || 1);
     ctx.fillStyle = cores.mascara;
     for (const t of textos) {
       const h = t.h * v.k;
@@ -1272,7 +1283,7 @@ export function Planta() {
       return;
     }
     if (f === 'alinhar' && novos.length === 4) {
-      const m = b.mascaras.find((x) => x.grupo === grupo);
+      const m = b.mascaras.find((x) => mascaraNoGrupo(x, grupo));
       if (m) exec('mascara.alinhar', { id: m.id, de: [novos[0], novos[2]], para: [novos[1], novos[3]], escalar: pl.alinharEscala });
       setPontos([]); usePlanta.getState().set({ ferramenta: 'selecionar' }); return;
     }
