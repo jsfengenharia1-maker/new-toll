@@ -95,3 +95,16 @@ html,body{background:var(--m-paper)!important}
 .memo p{orphans:3;widows:3}
 }
 .memo .avoid{break-inside:avoid}
+
+/* cortes e seções (V2) */
+.memo .corte-svg{display:block;width:100%;height:auto;max-height:420px}
+.memo .corte-svg .corte-sec{fill:var(--m-line);stroke:var(--m-ink);stroke-width:1.2px;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-s-pilar{fill:var(--m-muted-fig)}
+.memo .corte-svg .corte-hach{stroke:none}
+.memo .corte-svg .corte-hachura{stroke:var(--m-ink);stroke-width:1px;opacity:.55}
+.memo .corte-svg .corte-visto{fill:none;stroke:var(--m-faint);stroke-width:.6px;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-nivel{stroke:var(--m-muted);stroke-width:.8px;stroke-dasharray:12 6;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-eixo{stroke:var(--m-muted);stroke-width:.7px;stroke-dasharray:16 4 3 4;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-balao{fill:var(--m-paper);stroke:var(--m-ink);stroke-width:.9px;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-cota{stroke:var(--m-ink);stroke-width:.7px;fill:none;vector-effect:non-scaling-stroke}
+.memo .corte-svg .corte-txt{fill:var(--m-ink);font:22px var(--m-font-num)}
