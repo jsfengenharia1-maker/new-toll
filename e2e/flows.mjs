@@ -3598,4 +3598,62 @@ export const flows = [
       await memo2.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'N2f: flechas por etapas (etapas, limites por elemento, janela da viga, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      await cmd('vento.definir {"ativo": false}');
+      // 4 pilares 20×40 nos cantos; vigas 15×50 no contorno (grupo g_3); laje maciça de 12 cm nos painéis
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 5]], [[6, 5], [0, 5]], [[0, 5], [0, 0]]].map(([a, b]) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify([a, b])}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await livre();
+      // 1) grupo Etapas de carga (flechas): quatro etapas padrão
+      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
+      await etapas.locator('summary').click();
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
+      // colagem de uma etapa única: a lista vira uma linha
+      await etapas.locator('textarea[aria-label="Etapas coladas"]').fill('A\t30\t1\t1\t1\t1');
+      await etapas.getByRole('button', { name: 'Aplicar colagem' }).click();
+      await livre();
+      assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 1);
+      await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
+      await livre();
+      // 2) opções de cálculo com os limites de flecha
+      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
+      await g.locator('summary').click();
+      const t = await g.innerText();
+      assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
+      assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
+      // 3) limite de flecha ativa impossível para as vigas: erro FLECHA_ATIVA na lista
+      await cmd('flechas.limites {"elemento": "viga", "tipo": "ativa", "limite": {"rel": 100000}}');
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await livre();
+      const lista = page.locator('[data-lista-erros]');
+      await lista.locator('[data-contagem]').waitFor();
+      await lista.locator('details summary').click();
+      assert.match(await lista.locator('details').innerText(), /FLECHA_ATIVA/);
+      // 4) janela da viga: tabela de flechas com quatro linhas
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const janela = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await janela.waitFor();
+      assert.equal(await janela.locator('[data-flechas] tbody tr').count(), 4);
+      assert.match(await janela.innerText(), /Ativa \(após as paredes\)/);
+      await page.keyboard.press('Escape');
+      // 5) memorial: etapas de carga e limites
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-flechas]').innerText(), /Desforma \(peso próprio\)/);
+      assert.match(await memo.locator('[data-memorial-flechas]').innerText(), /ℓ\/500 e 1 cm/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];
