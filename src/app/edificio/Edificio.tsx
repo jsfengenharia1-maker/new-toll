@@ -23,6 +23,7 @@ import { Pranchas } from './Pranchas';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { OpcoesGrupo } from './OpcoesCalculo';
+import { EtapasFlechaGrupo } from './EtapasFlecha';
 import { MateriaisGrupo } from './Materiais';
 import { TabelasGrupo } from './TabelasArmadura';
 import { VinculosGrupo } from './Vinculos';
@@ -110,6 +111,7 @@ export function Edificio() {
         <EstadosGrupo b={b} />
         <EmpuxoGrupo b={b} />
         <OpcoesGrupo b={b} />
+        <EtapasFlechaGrupo b={b} />
         <MateriaisGrupo b={b} />
         <TabelasGrupo b={b} />
         <VinculosGrupo b={b} />

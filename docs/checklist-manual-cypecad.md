@@ -15,21 +15,21 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 49 | 4 | 3 | 7 |
 | 5. Muros e paredes estruturais | 30 | 0 | 7 | 19 | 4 |
 | 6. Vigas | 108 | 30 | 8 | 45 | 25 |
-| 7. Lajes | 195 | 32 | 32 | 64 | 67 |
+| 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 3 | 1 | 3 |
 | 11. Fundações | 70 | 61 | 0 | 4 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **246** | **83** | **249** | **185** |
+| **Total** | **763** | **247** | **82** | **249** | **185** |
 
 ## Pendências por frente
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 1 | 2 | 3 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 0 | 2 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 35 | 185 | 220 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 3 | 3 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 40 | 31 | 71 |
@@ -499,7 +499,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L | [L5] |
 | C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L | [L5] |
 | | **7.1.5 Opções de lajes** | | | |
-| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Parcial | N | N2f (núcleo): limites próprios das treliçadas por tipo de flecha (`flechas.limites { elemento: trelicada }`), ativa ℓ/500 e 10 mm e fator 1,75; falta a interface [N2f] |
+| C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Feito | — | N2f: limites próprios das treliçadas por tipo de flecha (`flechas.limites`, grupo "Etapas de carga (flechas)" em `EtapasFlecha.tsx`), ativa ℓ/500 e 10 mm e fator 1,75; e2e N2f |
 | C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
@@ -1010,6 +1010,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 3 itens (manual do usuário).
 - **22/10/2026 — fatia N2f, núcleo.** C7.83 segue Parcial: limites próprios das treliçadas por tipo de flecha (`flechas.limites`, `src/core/commands/flechas.ts`), ativa ℓ/500 e 10 mm e fator 1,75 já no cálculo; falta a interface (cartões em `docs/cartoes/N2f/`).
+- **22/10/2026 — fatia N2f, interface.** C7.83 passa a Feito (EtapasFlecha.tsx, FlechasTabela.tsx, memorial, e2e N2f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
 - **22/10/2026 — fatia E1c, núcleo (paredes de concreto).** C5.2, C5.9, C5.10, C5.21, C5.22, C5.23 e C5.30 passam de Falta a Parcial: modelo, comandos `parede.criar/editar/mover/remover/abertura/empuxo/prolongar/atribuir/daMascara` e `viga.embutir` (`src/core/commands/paredes.ts`) prontos no núcleo; interface pelos cartões `docs/cartoes/E1c/`, fundação da base na FU7b e dimensionamento na E1d.
   - Situação: ver o resumo (recontado por `npm run checklists`).
