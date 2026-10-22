@@ -227,6 +227,40 @@ export interface PilarParede {
   morre: string;
   /** Vínculo externo da base: engaste (padrão) ou rótula (giros livres). */
   vinculoBase?: 'engaste' | 'rotula';
+  /** Armadura bloqueada por pano (E1d). */
+  armaduras?: ArmaduraPano[];
+  /** Comprimentos de emenda editados por pavimento (E1d). */
+  emendas?: EmendaParede[];
+}
+
+/** Muro de arrimo isolado da obra (dados de `muroArrimo.ts` mais id e nome). */
+export interface MuroArrimoObra {
+  id: string; nome: string;
+  H: number; tTopo: number; tBase: number; B: number; ponta: number; hBase: number;
+  solo: { gama: number; phi: number; metodo: 'repouso' | 'rankine' | 'coulomb'; delta?: number; k?: number };
+  sobrecarga?: number; gamaConcreto?: number; atrito?: number; sigmaAdm?: number; fsTombamento?: number; fsDeslizamento?: number;
+}
+
+/** Malha de uma direção da parede (por face): bitola (mm) e espaçamento (m). */
+export interface ArranjoParede { phi: number; s: number }
+/**
+ * Armadura bloqueada de um pano de parede ou pilar-parede (E1d): barras verticais e horizontais iguais nas duas faces.
+ * Pano = faixa do lado e do lance entre as aberturas (da esquerda para a direita); sem `pano`, vale para todos os panos.
+ */
+export interface ArmaduraPano {
+  /** Índice do lado (trecho) e lance (pavimento do topo). */
+  lado: number; pavimento: string; pano?: number;
+  /** Número de panos do lado e lance quando bloqueou; se mudar (aberturas, geometria), o bloqueio deixa de valer. */
+  panos: number;
+  vert: ArranjoParede; hor: ArranjoParede;
+}
+/** Comprimentos de emenda editados (m) acima do pavimento: tracionada e comprimida; ausente = calculado. */
+export interface EmendaParede { pavimento: string; tracao?: number; compressao?: number }
+/** Armadura de reforço de uma abertura (E1d): verga, peitoril, montantes e barras inclinadas nos cantos. */
+export interface ArmaduraAbertura {
+  /** Verga (inferior, sobre a abertura) e estribos dela; peitoril (superior, sob a abertura); montantes (cada lado); cantos (cada canto, inclinadas a 45°). */
+  verga: { n: number; phi: number }; estribo: { phi: number; s: number };
+  peitoril?: { n: number; phi: number }; montante: { n: number; phi: number }; canto?: { n: number; phi: number };
 }
 
 /**
@@ -239,6 +273,8 @@ export interface AberturaParede {
   tipo: 'porta' | 'janela';
   s: number; largura: number; peitoril: number; altura: number;
   pavimento: string;
+  /** Armadura de reforço bloqueada (E1d); ausente = calculada. */
+  armadura?: ArmaduraAbertura;
 }
 /**
  * Empuxo aplicado à parede (E1c, C5.2, K1.9.107; X5): caso de carga, lado do terreno (ou do líquido) e a fonte da pressão:
@@ -276,6 +312,9 @@ export interface Parede {
   empuxos?: EmpuxoParede[];
   /** Armar a parede (padrão) ou só verificar como concreto simples (E1d). */
   armar?: boolean;
+  /** Armadura bloqueada por pano e comprimentos de emenda editados (E1d). */
+  armaduras?: ArmaduraPano[];
+  emendas?: EmendaParede[];
   /** Base da parede para a fundação (FU7b): apoio direto (padrão) ou sapata corrida com largura e altura próprias. */
   base?: { tipo: 'apoio' | 'sapataCorrida'; largura?: number; altura?: number };
 }
@@ -648,6 +687,10 @@ export interface BuildingModel {
   pilaresParede?: PilarParede[];
   /** Paredes de concreto (E1c), com ou sem empuxo; cascas como o pilar-parede. */
   paredes?: Parede[];
+  /** Muros de arrimo em balanço isolados (X6/E1d): estabilidade e armadura do fuste e da base por metro. */
+  murosArrimo?: MuroArrimoObra[];
+  /** Armadura padrão de reforço das aberturas, por tipo, aplicada às que não têm armadura própria (E1d). */
+  aberturasPadrao?: { porta?: ArmaduraAbertura; janela?: ArmaduraAbertura };
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */
@@ -952,6 +995,8 @@ export interface ConfigArmacao {
   escalaLocacao: number;
   /** Detalhes das fundações: planta e corte de sapatas, blocos e tubulões e elevação das vigas de fundação (50 ou 25). */
   escalaFundacao: number;
+  /** Elevação das paredes e dos pilares-parede (E1d). */
+  escalaParedes: number;
   /** Lajes: positivas e negativas em folhas separadas (1) ou na mesma folha, em camadas distintas (0). */
   lajesSeparadas: 0 | 1;
   /** Quadro de pilares (seção, armadura e estribos por lance) no fim das pranchas de pilares. */
@@ -961,7 +1006,7 @@ export interface ConfigArmacao {
   /** Ponto fixo dos pilares nas formas e nas lajes (R7g; camada PONTO-FIXO). */
   pontoFixo: 0 | 1;
 }
-export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0 };
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, escalaParedes: 50, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

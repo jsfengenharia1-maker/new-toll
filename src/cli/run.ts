@@ -26,7 +26,7 @@ export interface Io {
 }
 
 export interface OpcoesSaidaPranchas { pdf?: string; dxf?: string; dwg?: string; grupo?: string; formato?: Formato | 'auto'; escala?: number;
-  /** formas (padrão) | locacao | fundacao | vigas | pilares | lajes | todas; armação e cargas calculam o edifício antes. */
+  /** formas (padrão) | locacao | fundacao | vigas | pilares | paredes | lajes | todas; armação e cargas calculam o edifício antes. */
   tipo?: TipoSaida | TipoSaida[] }
 
 /**

@@ -320,6 +320,36 @@ export interface OpcoesCalculo {
   fatorFlechaConforto: number;
   /** Idem para as lajes treliçadas. */
   fatorFlechaConfortoTrelicada: number;
+  /** Paredes e pilares-parede (E1d): fator de cumprimento da armadura do pano, % da área que deve atender com a malha uniforme (o resto recebe reforço local). */
+  paredeCumprimento: number;
+  /** Paredes (E1d): 1 = arma sempre (mínimos); 0 = só quando algum ponto exige armadura ou a verificação em concreto simples não passa. */
+  paredeArmarSempre: number;
+  /** Paredes (E1d): 1 = só armadura horizontal (a vertical exigida é erro); 0 = horizontal e vertical. */
+  paredeSoHorizontal: number;
+  /** Paredes (E1d): 1 = armadura horizontal em grampos (U) que abraçam a vertical; 0 = barras corridas. */
+  paredeHorizontalGrampos: number;
+  /** Paredes (E1d): taxa mínima da armadura vertical, % de b·t (as duas faces somadas). */
+  paredeTaxaVertMin: number;
+  /** Paredes (E1d): taxa máxima da armadura vertical, % de b·t (as duas faces somadas). */
+  paredeTaxaVertMax: number;
+  /** Paredes (E1d): taxa mínima da armadura horizontal, % de b·t (as duas faces somadas). */
+  paredeTaxaHorMin: number;
+  /** Paredes (E1d): armadura horizontal mínima como % da vertical adotada. */
+  paredeHorFracVert: number;
+  /** Paredes (E1d): espaçamento máximo das barras (cm); vale também o limite de 2 vezes a espessura. */
+  paredeEspMax: number;
+  /** Paredes (E1d): espaçamento mínimo das barras (cm). */
+  paredeEspMin: number;
+  /** Paredes (E1d): bitola máxima das malhas (mm); vale também o limite de t/8. */
+  paredeBitolaMax: number;
+  /** Paredes (E1d): coeficiente do comprimento de flambagem (ℓe = coeficiente × altura do lance). */
+  paredeFlambagem: number;
+  /** Paredes (E1d): proporção de barras emendadas na mesma seção (%) para o coeficiente α0t da emenda tracionada. */
+  paredeEmendaProp: number;
+  /** Paredes (E1d): 1 = acrescenta ao traspasse a distância livre entre barras emendadas quando passa de 4φ. */
+  paredeEmendaAmpliar: number;
+  /** Paredes (E1d): 1 = barras inclinadas nos cantos das aberturas. */
+  paredeAberturaCanto: number;
 }
 
 export interface OpcaoInfo {
@@ -694,6 +724,36 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Flecha da variável das lajes maciças = elástica de Q × este fator. 0 = instantânea pelo método (com fissuração, se ligada).' },
   { chave: 'fatorFlechaConfortoTrelicada', rotulo: 'Fator simplificado da flecha da variável (treliçadas)', unidade: '× elástica', min: 0, max: 5, passo: 0.05, padrao: 1.25, padraoNBR: 0, fonteNBR: 'NBR 6118, Tabela 13.3: flecha imediata da variável', fonte: 'Tabela-resumo do manual de cálculo do programa de referência (conforto: 1,25 nervurada/treliçada)', aConfirmar: false,
     descricao: 'Flecha da variável das lajes treliçadas = elástica de Q × este fator. 0 = instantânea pelo método.' },
+  { chave: 'paredeCumprimento', rotulo: 'Paredes: fator de cumprimento da armadura do pano', unidade: '%', min: 50, max: 100, passo: 1, padrao: 90, padraoNBR: 100, fonteNBR: 'NBR 6118: todo ponto atende (sem tolerância de área)', fonte: 'Programa de referência (90 % da área do pano deve atender com a malha uniforme; os pontos restantes aparecem em vermelho com a armadura adicional local); a confirmar', aConfirmar: true,
+    descricao: 'Fração da área do pano (lado entre aberturas, por lance) que deve ser atendida pela malha vertical e horizontal uniforme. A armadura é escolhida para atingir essa fração; os pontos que não atendem recebem reforço local (bordas e faixas) listado no detalhamento. 100 % = a malha uniforme cobre o ponto mais exigente.' },
+  { chave: 'paredeArmarSempre', rotulo: 'Paredes: armar sempre', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (opção de armar sempre ou só quando necessário); NBR 6118, 24 (concreto simples) para o caso desligado; a confirmar', aConfirmar: true,
+    descricao: 'Ligado: toda parede recebe ao menos as armaduras mínimas. Desligado: a parede em que nenhum ponto exige armadura e que passa na verificação em concreto simples (tração do concreto até fctd/1,2) fica sem armadura (aviso informativo).' },
+  { chave: 'paredeSoHorizontal', rotulo: 'Paredes: só armadura horizontal', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (opção de armar só na horizontal ou nas duas direções); a confirmar', aConfirmar: true,
+    descricao: 'Ligado: a parede leva só a armadura horizontal; se algum ponto exigir armadura vertical, o pano é reprovado (PAREDE_SEM_VERTICAL).' },
+  { chave: 'paredeHorizontalGrampos', rotulo: 'Paredes: armadura horizontal em grampos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (tipo da armadura horizontal: barras corridas ou grampos/estribos); a confirmar', aConfirmar: true,
+    descricao: 'Ligado: a armadura horizontal é de grampos em U (uma barra por nível que abraça as duas faces da vertical); desligado: barras corridas nas duas faces com emenda por traspasse.' },
+  { chave: 'paredeTaxaVertMin', rotulo: 'Paredes: taxa mínima da armadura vertical', unidade: '%', min: 0.1, max: 2, passo: 0.05, padrao: 0.4, fonte: 'NBR 6118, 17.3.5.3.1 (0,4 % de Ac para pilares) estendida às paredes e pilares-parede (18.4/18.5, itens a confirmar)', aConfirmar: true,
+    descricao: 'As,mín vertical = máx(esta taxa × b·t; 0,15·Nd/fyd), somando as duas faces; metade em cada face.' },
+  { chave: 'paredeTaxaVertMax', rotulo: 'Paredes: taxa máxima da armadura vertical', unidade: '%', min: 1, max: 8, passo: 0.5, padrao: 4, fonte: 'NBR 6118, 17.3.5.3.2 (4 % fora das emendas; 8 % total)', aConfirmar: false,
+    descricao: 'Acima desta taxa (as duas faces somadas, b·t) o pano é reprovado: aumente a espessura ou o fck.' },
+  { chave: 'paredeTaxaHorMin', rotulo: 'Paredes: taxa mínima da armadura horizontal', unidade: '%', min: 0.05, max: 1, passo: 0.05, padrao: 0.1, fonte: 'Eurocode 2, 9.6.3 (0,1 % de Ac) como referência; NBR 6118 não fixa para paredes; a confirmar', aConfirmar: true,
+    descricao: 'As,mín horizontal = máx(esta taxa × b·t; fração da vertical adotada), somando as duas faces.' },
+  { chave: 'paredeHorFracVert', rotulo: 'Paredes: armadura horizontal mínima, fração da vertical', unidade: '%', min: 0, max: 100, passo: 5, padrao: 25, fonte: 'Eurocode 2, 9.6.3 (25 % da vertical) como referência; NBR 6118 não fixa para paredes; a confirmar', aConfirmar: true,
+    descricao: 'A armadura horizontal adotada não é menor que esta fração da vertical adotada.' },
+  { chave: 'paredeEspMax', rotulo: 'Paredes: espaçamento máximo das barras', unidade: 'cm', min: 10, max: 50, passo: 5, padrao: 40, fonte: 'NBR 6118, 18.4.2.2 (menor entre 2 vezes a menor dimensão e 40 cm), estendido às paredes', aConfirmar: true,
+    descricao: 'Espaçamento máximo entre barras de cada malha; vale também 2 vezes a espessura.' },
+  { chave: 'paredeEspMin', rotulo: 'Paredes: espaçamento mínimo das barras', unidade: 'cm', min: 5, max: 20, passo: 1, padrao: 8, fonte: 'NBR 6118, 18.4.2.2 (máx(2 cm; φ; 1,2·dmáx) livres) e prática de execução (8 cm); a confirmar', aConfirmar: true,
+    descricao: 'Espaçamento mínimo entre barras de cada malha.' },
+  { chave: 'paredeBitolaMax', rotulo: 'Paredes: bitola máxima das malhas', unidade: 'mm', min: 6.3, max: 32, passo: 0.1, padrao: 16, fonte: 'NBR 6118, 18.4.2.1 (φ ≤ b/8) e critério do Statikos (16 mm); a confirmar', aConfirmar: true,
+    descricao: 'Maior bitola das malhas vertical e horizontal; vale também t/8.' },
+  { chave: 'paredeFlambagem', rotulo: 'Paredes: coeficiente do comprimento de flambagem', unidade: '× altura', min: 0.5, max: 2, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.9 (processo aproximado do pilar-parede por faixas, ℓe a confirmar); 1,0 = faixa biarticulada', aConfirmar: true,
+    descricao: 'ℓe = coeficiente × altura do lance, usado na esbeltez λ = ℓe·√12/t de cada pano (segunda ordem local pelo pilar-padrão de curvatura aproximada para 35 < λ ≤ 90; acima de 90, revisar).' },
+  { chave: 'paredeEmendaProp', rotulo: 'Paredes: proporção de barras emendadas na mesma seção', unidade: '%', min: 20, max: 100, passo: 5, padrao: 100, fonte: 'NBR 6118, 9.5.2.3 (Tabela 9.4, α0t); emenda de toda a malha no nível do piso; a confirmar', aConfirmar: true,
+    descricao: 'Define α0t da emenda tracionada: 20 % ou menos = 1,2; até 25 % = 1,4; 33 % = 1,6; 50 % = 1,8; acima = 2,0. Emenda comprimida usa lb,nec.' },
+  { chave: 'paredeEmendaAmpliar', rotulo: 'Paredes: ampliar a emenda pelo espaçamento das barras', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 9.5.2.1 (distância livre entre barras emendadas > 4φ acrescenta-se ao traspasse); a confirmar o item', aConfirmar: true,
+    descricao: 'Ligado: quando a distância livre entre barras emendadas excede 4φ, o excedente da distância livre soma-se ao comprimento do traspasse.' },
+  { chave: 'paredeAberturaCanto', rotulo: 'Paredes: barras inclinadas nos cantos das aberturas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Prática de projeto de paredes de concreto (reforço dos cantos reentrantes); NBR 16055 não consultada; a confirmar', aConfirmar: true,
+    descricao: 'Ligado: cada canto de abertura recebe barras inclinadas a 45° (padrão 2φ10 com 60 cm, editável por abertura).' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -736,6 +796,9 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   // N2f: flechas por etapas (só o dimensionamento)
   'flechaEtapas', 'flechaQInstantanea', 'flechaRhoLinha', 'inerciaHomogeneizada', 'flechaRotacaoBalanco', 'fissuracaoLajes', 'inerciaMediaVao',
   'limiteFlechaAtiva', 'limiteFlechaAtivaAbs', 'limiteFlechaInst', 'fatorFlechaAtiva', 'fatorFlechaAtivaTrelicada', 'fatorFlechaConforto', 'fatorFlechaConfortoTrelicada',
+  // E1d: armadura, detalhamento e emendas das paredes e pilares-parede (só o dimensionamento sobre a análise vigente)
+  'paredeCumprimento', 'paredeArmarSempre', 'paredeSoHorizontal', 'paredeHorizontalGrampos', 'paredeTaxaVertMin', 'paredeTaxaVertMax', 'paredeTaxaHorMin',
+  'paredeHorFracVert', 'paredeEspMax', 'paredeEspMin', 'paredeBitolaMax', 'paredeFlambagem', 'paredeEmendaProp', 'paredeEmendaAmpliar', 'paredeAberturaCanto',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

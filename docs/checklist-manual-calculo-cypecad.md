@@ -13,19 +13,19 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 3 | 3 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 57 | 13 | 9 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 13 | 7 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 6 | 1 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 50 | 12 | 41 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 35 | 11 | 13 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 64 | 12 | 21 | 23 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 36 | 14 | 9 | 3 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 72 | 15 | 10 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 30 | 0 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 2 | 5 | 19 |
-| **Total** | **661** | **367** | **65** | **118** | **111** |
+| **Total** | **661** | **378** | **71** | **101** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 2 | 8 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 36 | 104 | 140 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 87 | 129 |
 | FU — Fundações | 3 | 1 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **65** | **118** | **183** |
+| **Total** | **71** | **101** | **172** |
 
 ## Divergências de premissa
 
@@ -80,7 +80,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Feito | — | sapatas isoladas e associadas, blocos de 1 a 6 estacas (e com vários pilares), tubulões, vigas de equilíbrio e de travamento (FU1–FU3), radier e vigas de fundação sobre base elástica no pórtico (FU6, `src/core/building/baseElastica.ts`) e sapatas corridas sob parede e sob pilares (FU7a, `src/core/building/sapataCorrida.ts`) |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
 | K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas [E4c] |
-| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares e lajes (PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML (R5); sem pilares-parede e paredes [E1d] |
+| K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Parcial | E | desenhos de formas, locação e armação de vigas, pilares, lajes, fundações e paredes/pilares-parede (prancha SCM, `armacaoParedes.ts`; PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML; resta a interface da escolha/opções da prancha de paredes [E1d] |
 | K1.1.8 | Com módulo 3D adicional: barras de aço, madeira e alumínio integradas ao edifício. | Fora | — | barras de aço, madeira e alumínio no edifício |
 
 ## 1.2 Análise realizada (págs. 4–5)
@@ -233,8 +233,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.56 | Arredondamento de comprimentos de barras: múltiplo de 5 cm (padrão). | Feito | — | comprimentos arredondados para cima ao múltiplo de 5 cm (opção arredondamento), também nos pilares (R3b) |
 | K1.4.57 | Símbolos gráficos para pilar que nasce, passa ou morre no pavimento (selecionáveis). | Parcial | V | prancha: pilar que chega hachurado, que nasce tracejado; símbolos fixos [V5] |
 | K1.4.58 | Emendas no terço central do lance (zona sísmica): padrão desativado; recomendado em alta sismicidade. | Fora | — | sismo |
-| K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Falta | E | emendas em paredes e pilares-parede [E1d] |
-| K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Falta | E | grau de cumprimento em paredes [E1d] |
+| K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Feito | — | `comprimentoEmenda` e `detalharParedes` (`detalhamentoParedes.ts`): tracionada se algum elemento do quarto superior do pano traciona a vertical, α0t pela proporção (`paredeEmendaProp`), ampliação pelo espaçamento (`paredeEmendaAmpliar`) [E1d] |
+| K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Feito | — | opção `paredeCumprimento` (90 %; NBR 100 %), `escolherMalhasPano` e `fracaoAtende` (`paredesArmadura.ts`); pontos que não atendem e armadura local necessária em `ResultadoPano.pontos/reforcos` [E1d] |
 | K1.4.61 | Estribos: na interseção com laje/viga (padrão ativo) e adensamento no topo e base numa altura definida (padrão inativo; recomendado em zona sísmica). | Feito | — | estribos também na interseção com vigas e lajes (nó incluído) e opção `pilarAdensamento` (padrão inativa) com altura e espaçamento adensado (`pilarAdensamentoAltura`/`Espacamento`, valores iniciais a confirmar), contados no quantitativo e desenhados na elevação e na prancha (`posicoesEstribos`) (R7c) |
 | K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos (E2) [E2e] |
 | | **Vigas (listadas, sem valores)** | | | |
@@ -573,9 +573,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.34 | Pilares com seção insuficiente não são desenhados nem dimensionados. | Feito | — | opção `pilarInsuficienteSemDesenho` (sistema ligada; NBR desligada, comportamento anterior): pilar que não atende nem com 4 % ("aumente a seção"), tabela esgotada ou biela fica sem detalhamento, desenho e quantitativo, listado como "sem desenho" no quadro de pilares; o erro segue na revisão (R7c) |
 | K1.11.35 | Quadro de pilares agrupa pilares; os que não atendem em vermelho; armadura travável para verificação posterior. | Feito | — | quadro de pilares agrupa pilares iguais (P1=P3, R5); os que não atendem em vermelho (R1); armadura travável (R2) |
 | | **Pilares-parede e paredes** | | | |
-| K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Falta | E | pilares-parede e paredes (tensões) [E1d] |
-| K1.11.37 | Armadura e espessura editáveis; incompatibilidades em vermelho; rearmar. | Falta | E | pilares-parede e paredes (edição) [E1d] |
-| K1.11.38 | Mensagens codificadas de estado; grau de cumprimento (%) da armadura e zonas a reforçar; esforços mais desfavoráveis do trecho e resultantes por caso. | Falta | E | pilares-parede e paredes (mensagens) [E1d] |
+| K1.11.36 | Diagramas de tensões normais e tangenciais em toda a altura por combinação e deslocamentos por caso, em isovalores coloridos com mín/máx. | Parcial | E | núcleo: `campoTensaoLado` e `campoDeslocamentoLado` (`campoParede.ts`: triângulos (s, z) com valor, mínimo e máximo por combinação e por caso); falta o desenho de isovalores na interface [E1d] |
+| K1.11.37 | Armadura e espessura editáveis; incompatibilidades em vermelho; rearmar. | Parcial | E | núcleo: `parede.armadura`/`pilarParede.armadura` (bloqueio), `parede.redimensionar` (espessura) e recálculo/rearmar (R7f) verificam a armadura editada; falta a edição por pano com incompatibilidades em vermelho na interface [E1d] |
+| K1.11.38 | Mensagens codificadas de estado; grau de cumprimento (%) da armadura e zonas a reforçar; esforços mais desfavoráveis do trecho e resultantes por caso. | Parcial | E | núcleo: códigos PAREDE_* (revisão e sugestões), cumprimento por pano, reforços locais, combinações e esforços do ponto crítico (`ResultadoPano.governa`) e resultantes por caso (E1b); falta a janela de consulta [E1d] |
 | | **2ª ordem, vento, sismo, outros** | | | |
 | K1.11.39 | Fatores de ampliação por combinação e fator resultante da ação horizontal; relatório. | Feito | — | ampliação por direção (0,95·γz) na aba Análise e no memorial |
 | K1.11.40 | Forças de vento X e Y por pavimento. | Feito | — | forças de vento por pavimento (aba Análise) |
@@ -601,7 +601,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.58 | Quadro de pilares e placas de base: seções, número, posição, trecho de estribos, tipos, bitolas, comprimentos, perfis; agrupados por tipos iguais; placas com dimensões, chumbadores e geometria; por pavimento, com resumo. | Parcial | E | quadro de pilares com seção, armadura longitudinal, estribos e grampos por lance, agrupado por pilares iguais (P1=P3), na prancha de pilares (R5); sem placas de base (aço) [E4e] |
 | K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Feito | — | prancha de armação de pilares: elevação com níveis, emendas e arranques, seções por arranjo com grampos e tabela de aço (R5); pilares-parede inexistentes no módulo |
 | K1.11.60 | Cargas na fundação: arranques com cargas por caso em eixos globais (pilares e pilares-parede). | Feito | — | arranques com cargas por caso em eixos globais (FU1: `carga.pilar` no arranque, `CargasNoPilar` na interface, `reacoesArranques`); cargas na fundação em tabela e envio às Fundações; desenho na FU5: tabela de cargas (Nk, Nd, momentos e forças horizontais) na locação e arranques na planta de fundação |
-| K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Falta | E | paredes de subsolo e portantes [E1d] |
+| K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Feito | — | `montarPranchasParedes` (tipo `paredes`, sigla SCM a confirmar): elevação por trecho com aberturas, barras dos panos, reforços, verga/montantes/cantos, quadro de armadura por pavimento, emendas e quantitativo aproximado [E1d] |
 | K1.11.62 | Desenho de cargas especiais por caso e grupo; consolos curtos; isolinhas de lajes; estrutura 3D. | Falta | V | desenho de cargas, isolinhas e vista 3D [V5] |
 
 ## 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90)
@@ -711,17 +711,17 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4.1-6 | Pilar apoiado em elemento que não é fundação: comprimento dos chumbadores e ancoragem conferidos manualmente. | Fora | — | aço |
 | K1.12.4.1-7 | Limitação: ligações do pilar em cada pavimento com vigas/lajes não são calculadas; verificar manualmente. | Fora | — | ligações de aço |
 | | **1.12.4.2 Pilares-parede e paredes de concreto (págs. 88–89)** | | | |
-| K1.12.4.2-1 | Com o estado de tensões, para cada combinação verifica armadura vertical e horizontal de cada pano, e tensões/deformações no concreto e no aço com a armadura das tabelas. | Falta | E | pilares-parede e paredes (armadura por pano) [E1d] |
-| K1.12.4.2-2 | Aumento sequencial da armadura até atender todas as combinações. | Falta | E | pilares-parede e paredes [E1d] |
-| K1.12.4.2-3 | Verificação também na direção transversal, com armadura adicional se necessário; repetido em cada pano. | Falta | E | pilares-parede e paredes (direção transversal) [E1d] |
-| K1.12.4.2-4 | Verifica taxas mínimas e máximas, espaçamentos mínimos e máximos e proporções (ex.: lado > 5× a espessura); não atendendo, aviso e aplicação das limitações de pilar. | Falta | E | pilares-parede e paredes (taxas) [E1d] |
-| K1.12.4.2-5 | Esbeltez verificada por pano; excedida → aviso. | Falta | E | pilares-parede e paredes (esbeltez) [E1d] |
-| K1.12.4.2-6 | Consulta em tela de armaduras e erros; alterar armadura ou espessura dispara reverificação; redimensionamento disponível. | Falta | E | pilares-parede e paredes (edição) [E1d] |
-| K1.12.4.2-7 | Fator de cumprimento (fração da área do pano que atende) padrão 90 %, editável; valor menor (ex.: 80 %) dá armadura menor e marca em vermelho os pontos que não atendem (20 % da área). | Falta | E | fator de cumprimento [E1d] |
-| K1.12.4.2-8 | Saída: para cada ponto vermelho, consulta da armadura adicional necessária; colocá-la é decisão do projetista, edição manual nos desenhos. | Falta | E | armadura adicional local [E1d] |
-| K1.12.4.2-9 | Edição direta da armadura recalcula o fator de cumprimento. | Falta | E | fator de cumprimento [E1d] |
-| K1.12.4.2-10 | Armadura não atendida: aviso e texto em vermelho. | Falta | E | aviso de armadura [E1d] |
-| K1.12.4.2-11 | Comprimentos de emenda por pavimento, editáveis, diferentes para tração e compressão. | Falta | E | emendas em paredes [E1d] |
+| K1.12.4.2-1 | Com o estado de tensões, para cada combinação verifica armadura vertical e horizontal de cada pano, e tensões/deformações no concreto e no aço com a armadura das tabelas. | Feito | — | `requisitosElemento` (sanduíche + chapa ortogonal) por elemento e combinação; tensões no concreto (`util`) e no aço (`utilAco`) em `ResultadoPano.tensoes` [E1d] |
+| K1.12.4.2-2 | Aumento sequencial da armadura até atender todas as combinações. | Feito | — | `escolherMalhasPano`: malha vertical crescente e horizontal mínima até atingir o cumprimento em todas as combinações [E1d] |
+| K1.12.4.2-3 | Verificação também na direção transversal, com armadura adicional se necessário; repetido em cada pano. | Feito | — | flexão fora do plano (mx, my, mxy) entra no sanduíche; reforço local por coluna (vertical) e faixa (horizontal) em cada pano [E1d] |
+| K1.12.4.2-4 | Verifica taxas mínimas e máximas, espaçamentos mínimos e máximos e proporções (ex.: lado > 5× a espessura); não atendendo, aviso e aplicação das limitações de pilar. | Feito | — | opções `paredeTaxaVertMin/Max`, `paredeTaxaHorMin`, `paredeHorFracVert`, `paredeEspMin/Max`, `paredeBitolaMax`; lado < 5 × a espessura vira pilar (E1b/E1c); PAREDE_ARMADURA [E1d] |
+| K1.12.4.2-5 | Esbeltez verificada por pano; excedida → aviso. | Feito | — | esbeltez λ = ℓe·√12/t por pano, M1d,mín e M2d do pilar-padrão (λ > 35), aviso PAREDE_ESBELTEZ acima de 90 [E1d] |
+| K1.12.4.2-6 | Consulta em tela de armaduras e erros; alterar armadura ou espessura dispara reverificação; redimensionamento disponível. | Parcial | E | núcleo: bloqueio, espessura e rearmar verificam; falta a consulta/edição em tela [E1d] |
+| K1.12.4.2-7 | Fator de cumprimento (fração da área do pano que atende) padrão 90 %, editável; valor menor (ex.: 80 %) dá armadura menor e marca em vermelho os pontos que não atendem (20 % da área). | Feito | — | `paredeCumprimento` editável; valor menor dá malha menor e marca os pontos (`ResultadoPano.pontos`); teste 90 % × 80 % em `paredesArmadura.test.ts` [E1d] |
+| K1.12.4.2-8 | Saída: para cada ponto vermelho, consulta da armadura adicional necessária; colocá-la é decisão do projetista, edição manual nos desenhos. | Parcial | E | núcleo: `pontos` (dv, dh em cm²/m) e `reforcos` (n × φ) por pano; falta a consulta por ponto vermelho na interface [E1d] |
+| K1.12.4.2-9 | Edição direta da armadura recalcula o fator de cumprimento. | Feito | — | malha bloqueada: o fator de cumprimento é recalculado (`dimensionarPano` com `bloqueio`); abaixo do exigido, PAREDE_CUMPRIMENTO [E1d] |
+| K1.12.4.2-10 | Armadura não atendida: aviso e texto em vermelho. | Feito | — | códigos PAREDE_* com texto e sugestão (`revisao.ts`, `sugestoes.ts`), na lista de erros e avisos [E1d] |
+| K1.12.4.2-11 | Comprimentos de emenda por pavimento, editáveis, diferentes para tração e compressão. | Parcial | E | núcleo: `EmendaParede` e `parede.armadura { emendas }` (tração e compressão por pavimento; aviso abaixo do mínimo); falta a edição na interface [E1d] |
 | | **1.12.4.3 Paredes de alvenaria (pág. 89)** | | | |
 | K1.12.4.3-1 | Verificação das tensões-limite de compressão e de tração (tração = 10 % da compressão), com fator de cumprimento de 80 %; falha gera aviso no relatório final. | Falta | E | alvenaria estrutural (NBR 16868) [E1e] |
 | | **1.12.5 Lajes de vigotas (unidirecionais) (págs. 89–90)** | | | |
@@ -947,3 +947,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — fatia E1c, núcleo (paredes de concreto e empuxo aplicado).** K1.2.5, K1.3.32, K1.3.33, K1.3.36, K1.9.45 e K1.9.107 passam a Feito: `Parede` em `src/core/building/types.ts`, `paredesBase.ts` (parede como pilar-parede virtual, aberturas, pressões de empuxo, chegadas de vigas e lajes, toque na laje), `paredes.ts` (diagnósticos PAREDE_*), malha com linhas obrigatórias e furos em `pilarParede.ts`, empuxo nas cascas e nós fora do diafragma em `pilarParedeModelo.ts`/`analitico.ts`; K1.1.3, K1.3.31 e K1.9.44 seguem Parcial (alvenaria estrutural na E1e).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 6 itens (manual de cálculo).
+- **22/10/2026 — fatia E1d, núcleo (armadura e desenho de paredes e pilares-parede, muro de arrimo).** K1.4.59, K1.4.60, K1.11.61 e K1.12.4.2-1, -2, -3, -4, -5, -7, -9 e -10 passam a Feito: `paredesArmadura.ts` (sanduíche + chapa ortogonal por elemento, malhas, cumprimento, reforços locais, concreto simples), `paredesDim.ts` (panos entre aberturas, bordas extrapoladas, aberturas, verificação global do lado por fibras), `paredesLado.ts` (lado curto como pilar), `detalhamentoParedes.ts` (barras, emendas, quantitativos), `armacaoParedes.ts` (prancha SCM), `muroArrimoDim.ts`, 15 opções `parede*`. K1.1.7, K1.11.36, K1.11.37, K1.11.38, K1.12.4.2-6, -8 e -11 passam a Parcial: o núcleo existe (`campoParede.ts`, comandos `parede.armadura`/`pilarParede.armadura`/`abertura.armadura`, emendas, `memorialParedes.ts`) e falta a interface (cartões em `docs/cartoes/E1d/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E reduz em 11 itens (manual de cálculo).

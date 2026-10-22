@@ -151,6 +151,24 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FUND_CINTA_ERRO', nivel: 'erro', re: /^Sapata corrida .*: cintas? \S+ (sem ponta|com ponta|oblíqua ou do lado|— alavanca|e \S+ na mesma)/, descricao: 'Cinta de sapata corrida: ponta inválida, oblíqua, alavanca impossível ou duas cintas na mesma abscissa' },
   { codigo: 'FUND_CINTA_OBLIQUA', nivel: 'aviso', re: /^Sapata corrida .*: cinta \S+ oblíqua à normal/, descricao: 'Cinta de sapata corrida oblíqua à normal da corrida (excentricidade fora do plano da cinta)' },
   { codigo: 'FUND_CINTA_ESPACAMENTO', nivel: 'aviso', re: /^Sapata corrida .*: (cintas (ignoradas|espaçadas)|balanço de .* última cinta)/, descricao: 'Cintas de sapata corrida ignoradas (aba nos dois lados), espaçadas demais ou com balanço longo além da última' },
+  // armadura das paredes e pilares-parede (E1d)
+  { codigo: 'PAREDE_ARMADURA', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Armadura da parede não atende/, descricao: 'Parede: a malha não atinge o fator de cumprimento exigido (taxa máxima, bitola máxima ou concreto)' },
+  { codigo: 'PAREDE_CUMPRIMENTO', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Armadura bloqueada (insuficiente|abaixo)/, descricao: 'Parede: armadura bloqueada abaixo do mínimo ou do fator de cumprimento exigido' },
+  { codigo: 'PAREDE_BLOQ_IGNORADO', nivel: 'aviso', re: /^(Parede|Pilar-parede) [^:]+: Armadura bloqueada desconsiderada/, descricao: 'Parede: bloqueio desconsiderado (o número de panos do lado mudou)' },
+  { codigo: 'PAREDE_CONCRETO', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Concreto da biela/, descricao: 'Parede: compressão do concreto (biela) acima do limite' },
+  { codigo: 'PAREDE_GRAMPOS', nivel: 'aviso', re: /^(Parede|Pilar-parede) [^:]+: Cortante fora do plano .*grampos/, descricao: 'Parede: cortante fora do plano pede grampos entre as faces' },
+  { codigo: 'PAREDE_CORTANTE', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Cortante fora do plano/, descricao: 'Parede: cortante fora do plano acima de VRd1 (ou de VRd2)' },
+  { codigo: 'PAREDE_ESBELTEZ', nivel: 'aviso', re: /^(Parede|Pilar-parede) [^:]+: Esbeltez/, descricao: 'Parede: esbeltez acima de 90 (processo aproximado por faixas não vale)' },
+  { codigo: 'PAREDE_SEM_VERTICAL', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Só armadura horizontal/, descricao: 'Parede só com armadura horizontal, mas há pontos que exigem vertical' },
+  { codigo: 'PAREDE_SIMPLES', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Parede em concreto simples/, descricao: 'Parede em concreto simples com tração ou compressão acima do limite' },
+  { codigo: 'PAREDE_SEM_ARMADURA', nivel: 'info', re: /^(Parede|Pilar-parede) [^:]+: Nenhum ponto exige armadura/, descricao: 'Pano sem armadura (armar só quando necessário)' },
+  { codigo: 'PAREDE_GLOBAL', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Verificação global do lado/, descricao: 'Parede: verificação global do lado à flexo-compressão oblíqua não atende' },
+  { codigo: 'PAREDE_LADO_CURTO_ARM', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: (Lado curto|Nenhuma malha vertical)/, descricao: 'Trecho curto (pilar): não atende ou nenhuma malha cabe' },
+  { codigo: 'PAREDE_ABERTURA_CORTANTE', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: Verga: cortante/, descricao: 'Verga: cortante acima de VRd2 (biela comprimida)' },
+  { codigo: 'PAREDE_ABERTURA_ARM', nivel: 'erro', re: /^(Parede|Pilar-parede) [^:]+: (Verga |Peitoril |Montantes |Estribos da verga)/, descricao: 'Abertura: armadura de verga, peitoril, montantes ou estribos menor que a necessária' },
+  { codigo: 'PAREDE_EMENDA', nivel: 'aviso', re: /^(Parede|Pilar-parede) [^:]+: .*emenda .* abaixo do mínimo/, descricao: 'Parede: comprimento de emenda editado abaixo do mínimo' },
+  { codigo: 'MURO_CORTANTE', nivel: 'erro', re: /^Muro [^:]+: (Fuste|Ponta|Talão): cortante/, descricao: 'Muro de arrimo: cortante do fuste ou da base acima de VRd1 (aumente a espessura)' },
+  { codigo: 'MURO_ESTABILIDADE', nivel: 'erro', re: /^Muro [^:]+: Estabilidade: /, descricao: 'Muro de arrimo: tombamento, deslizamento, tensão ou núcleo central não atendem' },
   // avisos da análise (obra)
   { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },
@@ -190,6 +208,19 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const r of dim?.radiers ?? []) add('fundacao', r.id, r.nome, undefined, r.mensagens);
   for (const v of dim?.vigasElasticas ?? []) add('fundacao', v.id, v.nome, undefined, v.mensagens);
   for (const c of dim?.corridas ?? []) add('fundacao', c.id, c.nome, undefined, c.mensagens);
+  // paredes e pilares-parede (E1d): mensagens dos panos, lados, aberturas e do detalhamento, com o prefixo do elemento
+  for (const w of dim?.armaduraParedes ?? []) {
+    const pre = w.tipo === 'parede' ? 'Parede' : 'Pilar-parede', tipo = w.tipo === 'parede' ? 'parede' : 'pilarParede';
+    const det = dim?.detalhesParedes?.find((x) => x.id === w.id);
+    add(tipo, w.id, w.nome, undefined, [
+      ...w.mensagens.map((m) => `${pre} ${w.nome}: ${m}`),
+      ...w.panos.flatMap((p) => p.mensagens.map((m) => `${pre} ${p.nomeLado}, ${p.nomePav}: ${m}`)),
+      ...w.lados.flatMap((l) => l.mensagens.map((m) => `${pre} ${l.nome}, ${l.nomePav}: ${m}`)),
+      ...w.aberturas.flatMap((a) => a.mensagens.map((m) => `${pre} ${w.nome}, ${a.nomePav}: ${m}`)),
+      ...(det?.avisos ?? []).map((m) => `${pre} ${w.nome}: ${m}`),
+    ]);
+  }
+  for (const m of dim?.muros ?? []) add('obra', m.id, m.nome ?? 'Muro', undefined, m.mensagens.map((x) => `Muro ${m.nome ?? ''}: ${x}`));
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento

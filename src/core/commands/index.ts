@@ -17,6 +17,7 @@ import './pilarParede';
 import './obraAssistente';
 import './flechas';
 import './paredes';
+import './paredesArmadura';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';
