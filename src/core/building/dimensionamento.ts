@@ -5,7 +5,7 @@ import type { InfoRearme } from './rearmarAlterados';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, type Caso3, type Modelo3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, bransonRatio, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
-import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, tabelaDe } from './tabelasArmadura';
+import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, modoGrampos, tabelaDe, tabelaPilarNaSecao } from './tabelasArmadura';
 import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, flambagemLance, gamas } from './materiais';
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
@@ -763,7 +763,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       melhor = { util: avaliar(bars, false, !('nbS' in arr || 'nhD' in arr)), txt: `${bars.length} φ${String(armB.phi).replace('.', ',')}`, As, phi: armB.phi, arr, det: ultimoDet };
     }
     // tabela de armadura (R7a): bitolas e espaçamentos das disposições; simetria por tolerância (opção pilarSimetria)
-    const tabP = tabelaDe(b, 'pilares', p.tabela), restrito = pilarRestrito(tabP);
+    const tabP = tabelaPilarNaSecao(tabelaDe(b, 'pilares', p.tabela), w, h), restrito = pilarRestrito(tabP);
     const buscar = (phis: number[], esps: number[]) => {
       busca: for (const phi of bloq ? [] : phis) {
         if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8 || (cont && phi < cont.phi)) continue; // φ10 a φ25 (premissa dim-pilares); continuidade
@@ -904,6 +904,11 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     } else if (estV && est === estV) msgs.push(`Estribos pelo cortante: Vsd = ${Vd.toFixed(1)} kN.`);
     // C4.42: o cortante pede mais ramos do que um estribo dá (s < 10 cm com a maior bitola da tabela): só um estribo foi colocado
     if (!bloq && estV && est === estV && est.s < 0.1 - 1e-9) msgs.push(`Estribo fora da tabela: o cortante exige mais ramos e só um estribo (2 ramos) foi colocado (φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}${!circ && gramposPorEstribo(w, h, a, (melhor.arr as { nb?: number }).nb ?? 2, (melhor.arr as { nh?: number }).nh ?? 2, est.phi) ? ', com grampos' : ''}); revise a tabela de armaduras e a disposição dos estribos.`);
+    // tabela de grampos (R7g): modo 'nenhum' dispensa grampos que a 18.2.4 pede
+    if (!circ && modoGrampos(tabP, melhor.phi, w, h) === 'nenhum') {
+      const ar = melhor.arr as { nb?: number; nh?: number; nbS?: number; nhD?: number };
+      if (gramposPorEstribo(w, h, cob + 0.005 + est.phi / 1000 + melhor.phi / 2000, ar.nb ?? 2, ar.nh ?? 2, est.phi, ar.nbS, ar.nhD) > 0) msgs.push(`Grampos fora da NBR 6118 (18.2.4): a tabela "${tabP.nome}" dispensa os grampos das barras a mais de 20φt de um canto.`);
+    }
     if (msgs.some((x) => x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Armadura bloqueada acima'))) status = 'fail';
     const r2 = (x: number) => Math.round(x * 100) / 100;
     const determinantes = [

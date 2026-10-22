@@ -4,6 +4,7 @@
 import type { AnaliseEdificio } from './analitico';
 import type { Dimensionamento } from './dimensionamento';
 import { estadoEmUso } from './acoes';
+import { sugestaoDe } from './sugestoes';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
@@ -19,6 +20,8 @@ export interface ItemRevisao {
   nivel: NivelRevisao;
   codigo: string;
   mensagem: string;
+  /** Sugestão de correção do código (R7g). */
+  sugestao?: string;
 }
 
 /** Códigos dos motivos, com nível e descrição curta (legenda da lista). */
@@ -58,6 +61,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'FORA_TABELA_LAJE', nivel: 'aviso', re: /^Fora de tabela \(laje\)/, descricao: 'Laje: armadura necessária não cabe nas bitolas e espaçamentos da tabela' },
   { codigo: 'ESBELTEZ', nivel: 'erro', re: /^λ > 200/, descricao: 'Esbeltez acima de 200' },
   { codigo: 'ESBELTEZ_90', nivel: 'aviso', re: /^λ > 90/, descricao: 'Esbeltez acima de 90: fluência (15.8.4) e, acima de 140, método geral (o aviso informa o método usado)' },
+  { codigo: 'GRAMPOS_TABELA', nivel: 'aviso', re: /^Grampos fora da NBR 6118/, descricao: 'Pilar: a tabela de grampos dispensa grampos que a NBR 6118 (18.2.4) pede' },
   { codigo: 'ESTRIBO_TABELA', nivel: 'aviso', re: /^Estribo fora da tabela/, descricao: 'Pilar: estribos e grampos não cabem na tabela; só um estribo foi colocado (revisar a tabela e a disposição)' },
   { codigo: 'LANCES_DESLIGADOS', nivel: 'info', re: /^Lances desligados/, descricao: 'Pilar: lances sem travamento somados no comprimento de flambagem' },
   { codigo: 'ARM_DUPLA', nivel: 'aviso', re: /^Armadura dupla/, descricao: 'Armadura dupla (x limitado)' },
@@ -181,6 +185,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   // pilar reprovado pela utilização sem mensagem própria
   for (const p of dim?.pilares ?? []) if (p.status === 'fail' && !itens.some((x) => x.tipo === 'pilar' && x.id === p.pilar && x.pavimento === p.pavimento && x.nivel === 'erro'))
     itens.push({ tipo: 'pilar', id: p.pilar, nome: p.nome, pavimento: p.pavimento, nivel: 'erro', codigo: 'ARMADURA', mensagem: `Utilização ${p.util.toFixed(2).replace('.', ',')} > 1.` });
+  for (const i of itens) { const sg = sugestaoDe(i.codigo); if (sg) i.sugestao = sg; }
   itens.sort((x, y) => (x.nivel === y.nivel ? 0 : x.nivel === 'erro' ? -1 : 1));
   const porElemento = new Map<string, NivelRevisao>();
   for (const i of itens) if (i.id) { const k = `${i.tipo}|${i.id}`; if (porElemento.get(k) !== 'erro') porElemento.set(k, i.nivel); }

@@ -28,6 +28,8 @@ const tabelaSchema: JsonSchema = { type: 'object', required: ['id', 'nome'], pro
   id: { type: 'string', minLength: 1 }, nome: { type: 'string', minLength: 1 },
   linhas: { type: 'array', items: { type: 'object' }, minItems: 1, description: 'vigas: { bAte, hAte, pos, neg, passante }; estribos: { bAte, bitolas, sMin, sMax, ramos }; lajes: { hAte, bitolas, sMin, sMax } (cm, mm)' },
   bitolas: nums, espacamentos: nums, estribos: { type: 'array', items: { type: 'object' } },
+  secoes: { type: 'array', items: { type: 'object' }, description: 'pilares (R7g): faixas { ladoMenorAte, ladoMaiorAte (cm), bitolas?, espacamentos?, estribos? } que substituem os campos gerais' },
+  grampos: { type: 'array', items: { type: 'object' }, description: 'pilares (R7g): { phiAte (mm), ladoMaiorAte (cm), modo: norma | todas | nenhum }' },
 } };
 
 function limpar(d: Draft<BuildingModel>, tipo: TipoTabela) {

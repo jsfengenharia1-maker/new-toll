@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BITOLAS_TABELA, ESPACAMENTOS_PILAR, ID_PADRAO, RAMOS_ESTRIBO, SEM_LIMITE, TIPOS_TABELA, bitolasTxt, exportarTabelas, lerArquivoTabelas, tabelaDe, tabelasAlteradas, tabelasDoTipo, validarTabela,
-  type GrupoBarras, type Tabela, type TabelaEstribos, type TabelaLajes, type TabelaPilares, type TabelaVigas, type TipoTabela,
+  MODOS_GRAMPOS, type GrupoBarras, type ModoGrampos, type Tabela, type TabelaEstribos, type TabelaLajes, type TabelaPilares, type TabelaVigas, type TipoTabela,
 } from '../../core/building/tabelasArmadura';
 import type { BuildingModel } from '../../core/building/types';
 import { Button, Chip, Group, Hint, NumCell, Pill, Select, Seg, TextField, download } from '../ui';
@@ -122,6 +122,43 @@ function TabelaDePilares({ t, grava }: { t: TabelaPilares; grava: (t: Tabela) =>
       </table>
       </div>
       <div className="row wrap"><Button onClick={() => set((p) => { p.estribos.push({ phiAte: 25, phiT: 6.3, sMax: 0 }); })}>Adicionar linha de estribo</Button></div>
+      <h4>Faixas de seção (R7g)</h4>
+      <div className="tablewrap" data-tabela-secoes>
+      <table className="data quadro">
+        <thead><tr><th>Menor lado até (cm)</th><th>Maior lado até (cm)</th><th>Bitolas (φ mm)</th><th>Espaçamentos (cm)</th><th /></tr></thead>
+        <tbody>
+          {(t.secoes ?? []).map((x, i) => (
+            <tr key={i}>
+              <td><NumCell label={`Menor lado até da faixa ${i + 1}`} value={x.ladoMenorAte} onChange={(v) => set((p) => { p.secoes![i].ladoMenorAte = v; })} /></td>
+              <td><NumCell label={`Maior lado até da faixa ${i + 1}`} value={x.ladoMaiorAte} onChange={(v) => set((p) => { p.secoes![i].ladoMaiorAte = v; })} /></td>
+              <td><Escolha valor={x.bitolas ?? t.bitolas} ref_={BITOLAS_TABELA.pilares} rotulo={`Bitolas da faixa ${i + 1}`} onChange={(v) => set((p) => { p.secoes![i].bitolas = v; })} /></td>
+              <td><Escolha valor={x.espacamentos ?? t.espacamentos} ref_={ESPACAMENTOS_PILAR} rotulo={`Espaçamentos da faixa ${i + 1}`} onChange={(v) => set((p) => { p.secoes![i].espacamentos = v; })} /></td>
+              <td><Button variant="danger" aria-label={`Remover faixa de seção ${i + 1}`} onClick={() => set((p) => { p.secoes!.splice(i, 1); })}>×</Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </div>
+      <div className="row wrap"><Button onClick={() => set((p) => { (p.secoes ??= []).push({ ladoMenorAte: 40, ladoMaiorAte: SEM_LIMITE, bitolas: [...p.bitolas], espacamentos: [...p.espacamentos] }); })}>Adicionar faixa de seção</Button></div>
+      <Hint>A primeira faixa que contém o menor e o maior lado da seção (diâmetro, no círculo) substitui as bitolas e os espaçamentos acima; fora de todas, valem os gerais.</Hint>
+      <h4>Grampos (R7g)</h4>
+      <div className="tablewrap" data-tabela-grampos>
+      <table className="data quadro">
+        <thead><tr><th>φ longitudinal até (mm)</th><th>Maior lado até (cm)</th><th>Grampos</th><th /></tr></thead>
+        <tbody>
+          {(t.grampos ?? []).map((x, i) => (
+            <tr key={i}>
+              <td><NumCell label={`φ longitudinal até dos grampos ${i + 1}`} value={x.phiAte} onChange={(v) => set((p) => { p.grampos![i].phiAte = v; })} /></td>
+              <td><NumCell label={`Maior lado até dos grampos ${i + 1}`} value={x.ladoMaiorAte} onChange={(v) => set((p) => { p.grampos![i].ladoMaiorAte = v; })} /></td>
+              <td><Select<ModoGrampos> label={`Modo dos grampos ${i + 1}`} value={x.modo} options={MODOS_GRAMPOS.map((m) => ({ v: m.v, label: m.rotulo }))} onChange={(v) => set((p) => { p.grampos![i].modo = v; })} /></td>
+              <td><Button variant="danger" aria-label={`Remover grampos ${i + 1}`} onClick={() => set((p) => { p.grampos!.splice(i, 1); })}>×</Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </div>
+      <div className="row wrap"><Button onClick={() => set((p) => { (p.grampos ??= []).push({ phiAte: 25, ladoMaiorAte: SEM_LIMITE, modo: 'norma' }); })}>Adicionar linha de grampos</Button></div>
+      <Hint>Sem linha, vale a NBR 6118 (18.2.4: grampos nas barras a mais de 20φt de um canto). “Só o estribo perimetral” dispensa os grampos e gera o aviso GRAMPOS_TABELA quando a norma os pede; “todas” coloca um grampo em cada barra intermediária.</Hint>
       <Hint>Em cada bitola, as disposições são testadas do menor ao maior número de barras (espaçamentos marcados); vale a primeira que atende, com a simetria da opção “Simetria da armadura dos pilares”. Estribo: o φt da tabela é o mínimo (além de φℓ/4 e φ5) e o s máx limita o espaçamento da NBR 6118, 18.4.2; sem linha, vale só a norma e os grampos da 18.2.4 são automáticos. Sem disposição na tabela: armadura própria (aviso) ou ARM_MANUAL.</Hint>
     </>
   );

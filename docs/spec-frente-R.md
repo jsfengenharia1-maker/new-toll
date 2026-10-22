@@ -182,6 +182,8 @@ Itens: C2.22, C4.38, C4.45, C4.51, C4.52, C4.61, C4.63; K1.11.1, K1.11.44, K1.11
 - Testes: sugestões para todo código de erro; índices por m² contra soma manual; prancha com e sem máscara e ponto fixo (DXF auditado pelo `validation/dxf`); e2e `R7g`.
 - Premissas: pena e camada da máscara pela NBR 16861 (pena mais fina das existentes) [a confirmar]; flecha ativa nas envoltórias fica com a N2; sismo fora do escopo.
 
+- **R7g feita em 21/10/2026 (núcleo e interface).** `sugestoes.ts`, `relatorios.ts` (taxa As/Ac, capacidade resistente das vigas, intercâmbio JSON/CSV, quantitativos por pano e viga, enchimento e índices por m², listagem geral, vento por pavimento), `sheets/gabarito.ts` (`mascara` e `pontoFixo` em `ConfigArmacao`), `RelatoriosUI.tsx`, `MemorialRelatorios.tsx`, testes `relatorios.test.ts` e e2e `R7g`. Pendências das fatias anteriores incluídas: opções `vigaEstriboGancho`, `vigaEstriboU` e `vigaAsMinPonto` (R7b), tabela de pilares por seção e tabela de grampos (R7c). Fora: sismo, pilares-parede e muros (E1b), consolos (E2), flecha ativa (N2).
+
 ### Ordem dentro da R7
 
 R7-0 primeiro (pendências das fatias já entregues; a ferramenta de unir e dividir vigas serve à R7f), depois R7a (as demais escolhem pela tabela), R7b, R7c, R7d, R7e, R7f e R7g. R7d e R7e dependem da tabela de lajes; R7f depende da edição de comprimentos (R7b, R7e) para copiar tudo. Total dos checklists: 19 + 21 + 8 + 11 + 18 + 19 + 13 = 109 (41 do manual do usuário, 68 do de cálculo), mais os 11 da R7-0.
