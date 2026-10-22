@@ -12,6 +12,8 @@ import { ArmaduraDaParede } from './ArmaduraParedeUI';
 import { AberturasArmadura } from './AberturasArmaduraUI';
 import { IsovaloresParede } from './IsovaloresParede';
 import { resumoCartao } from '../../core/building/paredesLista';
+import { AlvenariaDaParede } from './ArmaduraAlvenariaUI';
+import { larguraDoMaterialCm, resumoCartaoAlv, rotuloTipoParede, tiposDoTipoParede } from '../../core/building/alvenariaLista';
 
 export { aberturasNaPlanta, linhasParedes } from './paredesLista';
 import { usePlanta } from './plantaStore';
@@ -33,6 +35,10 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const [nasce, setNasce] = useState('fundacao');
   const [morre, setMorre] = useState('');
   const [vinc, setVinc] = useState<'engaste' | 'rotula'>('engaste');
+  const [tipoP, setTipoP] = useState<'concreto' | 'alvenaria' | 'blocos'>('concreto');
+  const [mat, setMat] = useState('');
+  const tiposMat = tipoP === 'concreto' ? [] : tiposDoTipoParede(b, tipoP);
+  const matEf = tiposMat.some((t) => t.id === mat) ? mat : tiposMat[0]?.id ?? '';
   const morreEf = morre && ps.some((p) => p.id === morre) ? morre : ultimo;
   const nasceOpcoes = [{ v: 'fundacao', label: 'fundação' }, ...ps.slice(0, -1).map((p) => ({ v: p.id, label: p.nome }))];
   const grupoAtivo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[0]?.grupo ?? '';
@@ -49,21 +55,26 @@ export function ParedesGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
         <Select label="Nasce em" value={nasce} options={nasceOpcoes} onChange={setNasce} />
         <Select label="Morre em" value={morreEf} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={setMorre} />
         <Select label="Base" value={vinc} options={[{ v: 'engaste', label: 'engastada' }, { v: 'rotula', label: 'rotulada' }]} onChange={setVinc} />
-        <Button onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc } }); onPlanta?.(); }}>Traçar na planta</Button>
+        <Select label="Tipo de parede" value={tipoP} options={[{ v: 'concreto', label: 'concreto' }, { v: 'alvenaria', label: 'alvenaria genérica' }, { v: 'blocos', label: 'blocos de concreto' }]} onChange={setTipoP} />
+        {tipoP !== 'concreto' && (
+          <Select label="Material da parede" value={matEf} options={tiposMat.length ? tiposMat.map((t) => ({ v: t.id, label: t.nome })) : [{ v: '', label: '(crie em Alvenaria estrutural)' }]} onChange={(v) => { setMat(v); const c = larguraDoMaterialCm(b, v); if (c !== undefined) setEsp(c); }} />
+        )}
+        <Button disabled={tipoP !== 'concreto' && !matEf} onClick={() => { usePlanta.getState().set({ ferramenta: 'parede', pwParams: { espessura: cm2m(esp), nasce, morre: morreEf, vinculoBase: vinc, ...(tipoP !== 'concreto' ? { tipo: tipoP, material: matEf } : {}) } }); onPlanta?.(); }}>Traçar na planta</Button>
       </div>
       <div className="row wrap">
         <Select label="Camada da máscara" value={camadaEf} options={camadas.map((c) => ({ v: c, label: c }))} onChange={setCamada} />
-        <Button disabled={!camadaEf} onClick={() => exec('parede.daMascara', { grupo: grupoAtivo, camada: camadaEf, nasce, morre: morreEf })}>Gerar da máscara</Button>
+        <Button disabled={!camadaEf || (tipoP !== 'concreto' && !matEf)} onClick={() => exec('parede.daMascara', { grupo: grupoAtivo, camada: camadaEf, nasce, morre: morreEf, ...(tipoP !== 'concreto' ? { tipo: tipoP, material: matEf } : {}) })}>Gerar da máscara</Button>
       </div>
       {ws.length > 0 && (
         <table className="data quadro" data-pw-lista>
-          <thead><tr><th>Parede</th><th>Trechos</th><th>Comprimento (m)</th><th>e (cm)</th><th>Nasce</th><th>Morre</th><th>Aberturas</th><th>Empuxo</th><th /></tr></thead>
+          <thead><tr><th>Parede</th><th>Tipo</th><th>Trechos</th><th>Comprimento (m)</th><th>e (cm)</th><th>Nasce</th><th>Morre</th><th>Aberturas</th><th>Empuxo</th><th /></tr></thead>
           <tbody>
             {linhasParedes(b).map((l) => {
               const w = ws.find((q) => q.id === l.id)!;
               return (
                 <tr key={l.id} data-id={l.id} aria-selected={pl.selecao.has(l.id)}>
                   <td className="tl"><b>{l.nome}</b></td>
+                  <td className="tl">{rotuloTipoParede(b, w)}</td>
                   <td className="num">{l.trechos}</td>
                   <td className="num">{fmt(l.comprimento)}</td>
                   <td className="num">{fmt(l.e, 0)}</td>
@@ -109,10 +120,20 @@ function EditorParede({ b, w }: { b: BuildingModel; w: Parede }) {
   return (
     <div data-pw-editor>
       <h4>Parede {w.nome}</h4>
+      <div className="row wrap" data-pw-tipo>
+        <Select label="Tipo desta parede" value={w.tipo ?? 'concreto'} options={[{ v: 'concreto', label: 'concreto' }, { v: 'alvenaria', label: 'alvenaria genérica' }, { v: 'blocos', label: 'blocos de concreto' }]} onChange={(v) => {
+          const m = v === 'concreto' ? undefined : tiposDoTipoParede(b, v)[0]?.id;
+          if (v !== 'concreto' && !m) return;
+          exec('parede.editar', { id: w.id, tipo: v, ...(m ? { material: m } : {}) });
+        }} />
+        {w.tipo !== undefined && w.tipo !== 'concreto' && (
+          <Select label="Material desta parede" value={w.material ?? ''} options={tiposDoTipoParede(b, w.tipo).map((t) => ({ v: t.id, label: t.nome }))} onChange={(v) => exec('parede.editar', { id: w.id, material: v })} />
+        )}
+      </div>
       <div className="row wrap">
         <NumField label="Esquerda" unit="cm" width={90} value={m2cm(w.esq)} onChange={(v) => exec('parede.editar', { id: w.id, esq: cm2m(v) })} />
         <NumField label="Direita" unit="cm" width={90} value={m2cm(w.dir)} onChange={(v) => exec('parede.editar', { id: w.id, dir: cm2m(v) })} />
-        <Check label="Armar a parede" checked={w.armar !== false} onChange={(v) => exec('parede.editar', { id: w.id, armar: v })} />
+        {(w.tipo ?? 'concreto') === 'concreto' && <Check label="Armar a parede" checked={w.armar !== false} onChange={(v) => exec('parede.editar', { id: w.id, armar: v })} />}
       </div>
       <h4>Aberturas</h4>
       {(w.aberturas ?? []).length > 0 && (
@@ -185,9 +206,9 @@ export function JanelaParede({ id }: { id: string }) {
   const empuxos = an?.paredes?.empuxo.filter((e) => e.parede === id) ?? [];
   return (
     <div data-janela-pw={id}>
-      <p className="small">Parede de concreto · {r.nCascas} trecho(s) em casca e {r.ladosBarra} em barra. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
-      <ArmaduraDaParede id={id} tipo="parede" />
-      {w.aberturas?.length ? <AberturasArmadura id={id} /> : null}
+      <p className="small">Parede ({rotuloTipoParede(b, w)}) · {r.nCascas} trecho(s) em casca e {r.ladosBarra} em barra. N &gt; 0 é tração nos esforços dos lados; nas cargas da base, compressão.</p>
+      {w.tipo === 'concreto' || w.tipo === undefined ? <ArmaduraDaParede id={id} tipo="parede" /> : <AlvenariaDaParede id={id} />}
+      {(w.tipo === 'concreto' || w.tipo === undefined) && w.aberturas?.length ? <AberturasArmadura id={id} /> : null}
       <IsovaloresParede id={id} tipo="parede" />
       <h4>Cargas na base (no centroide {fmt(r.centro[0])}; {fmt(r.centro[1])} m)</h4>
       <table className="data quadro" data-pw-base>
@@ -225,23 +246,28 @@ export function JanelaParede({ id }: { id: string }) {
 /** Cartão da aba Dimensionamento: paredes com o modelo, a carga máxima na base e atalhos para a planta e a janela. */
 export function CartaoParedes({ onIr }: { onIr: (id: string) => void }) {
   const dim = useBuilding((s) => s.dim);
+  const b = useBuilding((s) => s.sessao.modelo);
   const lista = dim?.paredes ?? [];
   if (!lista.length) return null;
   return (
     <div className="card" data-pw-cartao>
-      <h4>Paredes de concreto</h4>
+      <h4>Paredes</h4>
       <table className="data quadro">
-        <thead><tr><th>Parede</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th>Armadura</th><th>Cumprimento mín.</th><th>Situação</th><th /></tr></thead>
+        <thead><tr><th>Parede</th><th>Tipo</th><th>Modelo</th><th>Nd máx. (kN)</th><th>Combinação</th><th>Armadura</th><th>Cumprimento mín.</th><th>Situação</th><th /></tr></thead>
         <tbody>
           {lista.map((r) => {
             const a = dim?.armaduraParedes?.find((x) => x.id === r.id);
             const rc = a ? resumoCartao(a) : null;
+            const w = b.paredes?.find((q) => q.id === r.id);
+            const al = w && w.tipo !== undefined && w.tipo !== 'concreto' ? dim?.alvenaria?.paredes.find((x) => x.id === r.id) : undefined;
+            const ra = al ? resumoCartaoAlv(al) : null;
             return (
             <tr key={r.id} data-id={r.id}>
               <td className="tl"><b>{r.nome}</b></td>
+              <td className="tl">{w ? rotuloTipoParede(b, w) : '—'}</td>
               <td className="tl">{r.modelo === 'casca' ? 'casca' : r.modelo === 'barra' ? 'barra' : `${r.nCascas} casca(s) + ${r.ladosBarra} barra(s)`}</td>
               <td className="num">{fmt(r.baseElu.Nmax, 1)}</td><td className="tl">{r.baseElu.cNmax}</td>
-              <td className="tl">{rc?.armadura ?? '—'}</td><td className="num">{rc?.cumprimentoMin ?? '—'}</td><td className="tl">{rc ? <Pill tone={rc.status === 'ok' ? 'ok' : 'bad'}>{rc.situacao}</Pill> : '—'}</td>
+              <td className="tl">{ra ? `${ra.material} · ${ra.armada}` : rc?.armadura ?? '—'}</td><td className="num">{ra ? ra.cumprimentoMin : rc?.cumprimentoMin ?? '—'}</td><td className="tl">{ra ? <Pill tone={ra.status === 'ok' ? 'ok' : 'bad'}>{ra.situacao}</Pill> : rc ? <Pill tone={rc.status === 'ok' ? 'ok' : 'bad'}>{rc.situacao}</Pill> : '—'}</td>
               <td><Button variant="ghost" onClick={() => onIr(r.id)}>planta</Button><Button variant="ghost" aria-label={`Resultados de ${r.nome}`} onClick={() => usePlanta.getState().set({ janela: { tipo: 'parede', id: r.id } })}>resultados</Button></td>
             </tr>
             );

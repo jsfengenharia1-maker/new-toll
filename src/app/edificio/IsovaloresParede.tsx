@@ -20,7 +20,7 @@ const FACES_TENSAO = new Set<ComponenteTensao>(['sigmaX', 'sigmaY', 'tauXY']);
 /** Mapa de isovalores de um lado de casca da parede ou do pilar-parede `id`, com legenda de 11 faixas. */
 export function IsovaloresParede({ id, tipo }: { id: string; tipo: 'parede' | 'pilarParede' }) {
   const dim = useBuilding((s) => s.dim), an = useBuilding((s) => s.analise), b = useBuilding((s) => s.sessao.modelo);
-  const lados = (dim?.armaduraParedes?.find((x) => x.id === id)?.lados ?? []).filter((l) => l.modelo === 'casca');
+  const lados = (dim?.armaduraParedes?.find((x) => x.id === id)?.lados ?? dim?.alvenaria?.paredes.find((x) => x.id === id)?.lados ?? []).filter((l) => l.modelo === 'casca');
   const porLado = [...new Map(lados.map((l) => [l.lado, l])).values()];
   const [ladoEscolhido, setLado] = useState<number | null>(null);
   const [modo, setModo] = useState<'tensao' | 'deslocamento'>('tensao');
