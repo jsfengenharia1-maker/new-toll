@@ -193,6 +193,31 @@ export interface Pilar {
   apoiosIntermediarios?: { pavimento: string; altura: number; direcao?: 'u' | 'v' }[];
 }
 
+/**
+ * Lado de um tipo de pilar-parede (E1b): trecho reto do eixo, em coordenadas locais do tipo (m; a origem é o ponto de
+ * inserção, o primeiro vértice do primeiro lado), com a espessura à esquerda e à direita do eixo (a → z). Mesma geometria
+ * em planta em toda a altura; só a espessura varia por pavimento (`porPavimento`, identificado pelo topo do lance).
+ */
+export interface LadoPilarParede {
+  a: [number, number]; z: [number, number];
+  esq: number; dir: number;
+  porPavimento?: { pavimento: string; esq: number; dir: number }[];
+}
+/** Tipo de pilar-parede gravado com a obra e reutilizável (E1b). */
+export interface TipoPilarParede { id: string; nome: string; lados: LadoPilarParede[] }
+/** Pilar-parede lançado (E1b): tipo, ponto de inserção (o primeiro vértice), ângulo, pavimentos em que nasce e morre e vínculo externo da base. */
+export interface PilarParede {
+  id: string; nome: string; tipo: string;
+  x: number; y: number;
+  /** Graus, anti-horário. */
+  angulo: number;
+  /** 'fundacao' ou id do pavimento em cuja laje a parede nasce (apoio engastado nesse nível, a confirmar). */
+  nasce: string;
+  morre: string;
+  /** Vínculo externo da base: engaste (padrão) ou rótula (giros livres). */
+  vinculoBase?: 'engaste' | 'rotula';
+}
+
 /** Vínculo externo da base do pilar (N2c). */
 export interface VinculoBasePilar {
   tipo: 'engaste' | 'rotula' | 'molas';
@@ -551,6 +576,10 @@ export interface BuildingModel {
   empuxos?: TipoEmpuxo[];
   /** Cargas nos pilares. */
   cargasPilar?: CargaPilar[];
+  /** Tipos de pilar-parede (E1b), gravados com a obra e reutilizáveis. */
+  tiposPilarParede?: TipoPilarParede[];
+  /** Pilares-parede lançados (E1b); cada lado vira casca (lado ≥ 5 × a espessura) ou barra. */
+  pilaresParede?: PilarParede[];
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */

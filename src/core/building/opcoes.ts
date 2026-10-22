@@ -221,6 +221,16 @@ export interface OpcoesCalculo {
   rearmarLimiteRigidez: number;
   /** Sapata corrida de aba única (FU8a): espaçamento máximo entre cintas (m); acima dele, aviso (flexão longitudinal entre cintas não verificada). */
   corridaCintaEspac: number;
+  /** Pilar-parede (E1b): lado com comprimento ≥ este fator × a espessura vira casca; o mais curto vira barra (pilar). */
+  pilarParedeLimite: number;
+  /** Pilar-parede (E1b): altura da viga fictícia no topo de cada lado casca, que liga vigas e lajes em qualquer posição (cm). */
+  pilarParedeVigaAltura: number;
+  /** Viga apoiada ao longo de pilar-parede ou parede (E1b): o diagrama e a armadura prolongam-se a partir da face deste fator × a altura da viga. */
+  vigaApoioLongProlong: number;
+  /** Viga apoiada ao longo de pilar-parede ou parede (E1b): as barras não passam do vão de cálculo mais este fator × a altura da viga. */
+  vigaApoioLongBarras: number;
+  /** Viga em pilar-parede ou parede (E1b): vão de cálculo = menor entre a distância entre eixos e o vão livre + este fator × a altura da viga. */
+  vigaApoioLongVao: number;
   /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
   modeloGlobal: number;
   /** 1 = barras de laje com deformação por cortante (Timoshenko, área 5/6·b·h). */
@@ -497,8 +507,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Ligado: a grelha de cada pavimento (lajes e vigas) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto; os esforços das vigas e das lajes incluem o vento, e o γz usa também as lajes (0,3·Eci·Ic). Desligado (modelo anterior): grelha por pavimento com molas nos pilares e forças da grelha aplicadas nas vigas do pórtico.' },
   { chave: 'cortanteBarrasLaje', rotulo: 'Deformação por cortante nas barras de laje', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a deformação por cortante nas barras da grelha (Euler-Bernoulli)', booleana: true, fonte: 'Programa de referência (barras da grelha das lajes com deformação por cortante); área de cisalhamento 5/6 da seção (Timoshenko)', aConfirmar: false,
     descricao: 'Barras da grelha das lajes como vigas de Timoshenko (área de cisalhamento 5/6·b·h; nas treliçadas, a alma das nervuras e a capa). Aumenta um pouco as flechas das lajes espessas.' },
-  { chave: 'malhaCasca', rotulo: 'Malha das cascas (tamanho alvo)', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Sem fonte (critério do app); a casca de 6 nós entra nas paredes e pilares-parede com a E1', aConfirmar: true,
-    descricao: 'Tamanho alvo dos lados da malha triangular das cascas (Delaunay restrita), refinada à metade junto a cantos, aberturas e pontos de chegada de vigas e lajes.' },
+  { chave: 'malhaCasca', rotulo: 'Malha das cascas (tamanho alvo)', unidade: 'm', min: 0.25, max: 2, passo: 0.05, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a casca de 6 nós (deslocamentos quadráticos) converge com células de ≈ 1 m; o diafragma rígido faz a banda do sistema crescer com os nós de cada pavimento, e a malha de 0,5 m custou ≈ 30 s numa parede de 4 m × 14 m (E1b)', aConfirmar: true,
+    descricao: 'Tamanho alvo das células da malha das cascas dos pilares-parede (malha estruturada com os pavimentos como linhas da malha e as junções de lados como colunas). Malha mais fina refina as tensões e aumenta muito o tempo de cálculo.' },
   { chave: 'aberturaDiafragma', rotulo: 'Aviso de abertura grande no diafragma', unidade: '% da zona', min: 5, max: 100, passo: 1, padrao: 33, fonte: 'Sem fonte (critério do app: 1/3 da área da zona); a hipótese de diafragma rígido é do programa de referência e da NBR 6118, 14.7.2.1 (item a confirmar)', aConfirmar: true,
     descricao: 'Zona fechada por vigas com laje e com abertura interna (furos ou parte sem laje) acima desta fração da área recebe o aviso DIAFRAGMA_ABERTURA, sugerindo marcar as vigas da zona fora do diafragma.' },
   { chave: 'radierMalha', rotulo: 'Base elástica: malha do radier e divisão das vigas', unidade: 'm', min: 0.1, max: 2, passo: 0.05, padrao: 0.5, fonte: 'Critério do Statikos (sem fonte): malha mais grossa que a das lajes para limitar o tamanho do pórtico', aConfirmar: true,
@@ -531,6 +541,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Ao rearmar com os esforços da última análise depois de mudar seções, o elemento cuja inércia (b·h³/12) variou mais que este percentual desde a análise recebe o aviso ESFORCO_ANTIGO: refaça a análise para esforços corretos.' },
   { chave: 'corridaCintaEspac', rotulo: 'Sapata corrida de aba única: espaçamento máximo entre cintas', unidade: 'm', min: 1, max: 12, passo: 0.5, padrao: 5, fonte: 'Critério do Statikos (sem fonte): a sapata entre cintas funciona como viga contínua apoiada nelas e não é verificada na flexão longitudinal; o programa de referência não fixa valor', aConfirmar: true,
     descricao: 'Distância entre cintas (vigas de equilíbrio da aba de um lado só) acima da qual o programa avisa que a flexão longitudinal da sapata entre elas não é verificada; o balanço além da última cinta aceita metade.' },
+  { chave: 'pilarParedeLimite', rotulo: 'Pilar-parede: relação mínima lado/espessura para modelar por casca', unidade: '× espessura', min: 2, max: 10, passo: 0.5, padrao: 5, fonte: 'NBR 6118, 14.4.2.4 (pilar-parede: lado maior > 5 × o menor) e programa de referência (lado ≥ 5 × a outra dimensão para a discretização por elementos finitos); itens a confirmar', aConfirmar: false,
+    descricao: 'Lado do pilar-parede com comprimento ≥ este fator × a espessura é discretizado em casca (membrana e placa, 6 nós); o lado mais curto é tratado como pilar (barra), ligado ao restante por trecho rígido.' },
+  { chave: 'pilarParedeVigaAltura', rotulo: 'Pilar-parede: altura da viga fictícia no topo dos lados', unidade: 'cm', min: 10, max: 100, passo: 5, padrao: 25, fonte: 'Programa de referência (viga fictícia de largura igual à espessura e altura constante de 25 cm); a confirmar', aConfirmar: true,
+    descricao: 'Em cada nível, uma viga fictícia (largura = espessura do lado, altura = este valor) percorre o topo do lado em casca e recebe as vigas e lajes que chegam em qualquer posição, sem exigir que seus nós coincidam com os da malha.' },
+  { chave: 'vigaApoioLongProlong', rotulo: 'Viga apoiada ao longo de parede: prolongamento do diagrama e da armadura', unidade: '× h', min: 0, max: 3, passo: 0.25, padrao: 1, fonte: 'Programa de referência (diagrama prolongado a partir da face por um comprimento igual à altura da viga; armadura só nesse trecho); NBR 6118 não fixa; a confirmar', aConfirmar: true,
+    descricao: 'Apoio longitudinal (pilar-parede ou parede): o diagrama de esforços da viga prossegue além da face do apoio por este múltiplo da altura da viga, e a armadura é dimensionada e detalhada só nesse trecho; a viga e a armadura são interrompidas depois dele.' },
+  { chave: 'vigaApoioLongBarras', rotulo: 'Viga em parede: extensão máxima das barras além do vão de cálculo', unidade: '× h', min: 0, max: 4, passo: 0.25, padrao: 2, fonte: 'Programa de referência (corte de barras não excede o vão de cálculo em mais de duas alturas); a confirmar', aConfirmar: true,
+    descricao: 'As pontas das barras da viga sobre pilar-parede ou parede não passam do vão de cálculo por mais que este múltiplo da altura da viga.' },
+  { chave: 'vigaApoioLongVao', rotulo: 'Viga em parede: acréscimo ao vão livre no vão de cálculo', unidade: '× h', min: 0, max: 4, passo: 0.1, padrao: 2, padraoNBR: 0.6, fonteNBR: 'NBR 6118, 14.6.2.4: ℓef = ℓ0 + a1 + a2, com cada ai ≤ 0,3h (ℓ0 + 0,6h)', fonte: 'Programa de referência (vão de cálculo = menor entre a distância entre eixos e o vão livre + 2 alturas); a confirmar', aConfirmar: true,
+    descricao: 'Vão de cálculo das vigas apoiadas em pilar-parede ou parede: o menor entre a distância entre os eixos de apoio e o vão livre mais este múltiplo da altura da viga.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -542,6 +562,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'segundaOrdem', 'pilarComprimento',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
   'engasteTransicao',
+  // E1b: modelo do pilar-parede (casca ou barra) e viga fictícia do topo
+  'pilarParedeLimite', 'pilarParedeVigaAltura',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
@@ -563,6 +585,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
+  'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

@@ -108,13 +108,14 @@ type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' },
   { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' }, { k: 'vigas', rot: 'viga' }, { k: 'lajes', rot: 'laje' }, { k: 'cargas', rot: 'carga' },
+  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */
 export function diffModelos(a: BuildingModel, z: BuildingModel): Diff {
   const d: Diff = { criados: [], alterados: [], removidos: [], resumo: [] };
   for (const { k, rot } of COLECOES) {
-    const A = new Map((a[k] as ComId[]).map((x) => [x.id, x])), Z = new Map((z[k] as ComId[]).map((x) => [x.id, x]));
+    const A = new Map(((a[k] as ComId[] | undefined) ?? []).map((x) => [x.id, x])), Z = new Map(((z[k] as ComId[] | undefined) ?? []).map((x) => [x.id, x]));
     for (const [id, x] of Z) {
       const old = A.get(id);
       if (!old) { d.criados.push(id); d.resumo.push(`+ ${rot} ${x.nome ?? id}`); }
