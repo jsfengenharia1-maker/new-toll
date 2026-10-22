@@ -245,6 +245,42 @@ export interface OpcoesCalculo {
   pilarFluencia: number;
   /** Taxa geométrica mínima da armadura longitudinal dos pilares (%); 0 = da norma (0,4 %, junto com 0,15·Nd/fyd). */
   pilarTaxaMin: number;
+  /** Arredondamento do diagrama no apoio (N2e): 0 = sem; 1 = parábola cúbica entre as faces (M e V das faces); 2 = ΔM = R·t/8 (NBR 6118, 14.6.3). */
+  arredondamentoApoio: number;
+  /** Momento negativo mínimo na face do apoio, em % do momento no eixo (0 = sem mínimo; critério do EC2: 65). */
+  momentoFaceMin: number;
+  /** 1 = viga apoiada em viga com trecho rígido até a face da viga de apoio (K1.3.46). */
+  vigaApoiadaRigida: number;
+  /** Envoltória de cortante: 0 = contínua; 1 = descontínua (patamar por zona de estribos). */
+  envoltoriaCortante: number;
+  /** Barra curta (K1.4.34): comprimento (m) até o qual a barra usa o multiplicador de rigidez (0 = desligado). */
+  barraCurtaLimite: number;
+  /** Multiplicador da rigidez (A, I, J) das barras de viga curtas. */
+  barraCurtaFator: number;
+  /** Taxa mínima de armadura longitudinal das vigas (% de b·h; 0 = da norma). */
+  vigaTaxaMin: number;
+  /** Taxa mínima de armadura das lajes maciças (% de b·h; 0 = da norma). */
+  lajeTaxaMin: number;
+  /** Espaçamento máximo dos estribos das vigas (cm; 0 = da norma). */
+  vigaEstriboSmax: number;
+  /** Espaçamento mínimo dos estribos das vigas (cm; 0 = o da tabela de estribos). */
+  vigaEstriboSmin: number;
+  /** Momentos mínimos das lajes maciças: p·ℓ²/x positivo (0 = sem mínimo). */
+  lajeMomentoMinPositivo: number;
+  /** Momentos mínimos das lajes maciças: p·ℓ²/x negativo (0 = sem mínimo). */
+  lajeMomentoMinNegativo: number;
+  /** 1 = armadura de suspensão nos apoios indiretos (viga apoiada em viga, NBR 6118, 18.3.6). */
+  vigaSuspensao: number;
+  /** Fator sobre a reação de cálculo que a suspensão resiste (1 = toda a reação; redução por h1/h2 a confirmar). */
+  vigaSuspensaoFator: number;
+  /** Critério de elemento linear: 0 = NBR 6118 14.4.1 (ℓ ≥ 3h); 1 = da referência (ℓ > h/3 e ℓ > 4b). */
+  criterioLinear: number;
+  /** 1 = cortante de cargas a ≤ 2d do apoio reduzido por a/2d (NBR 6118, 17.4.1.2.1) e aviso quando a ≤ d. */
+  cargaProximaApoio: number;
+  /** 1 = estribos limitados (s ≤ mín(20 cm; b; 12φ), φt ≥ φℓ/4) onde há armadura longitudinal comprimida (18.2.4). */
+  vigaEstriboComprimida: number;
+  /** Desnível entre panos (K1.9.85): fração da menor espessura acima da qual a borda perde a continuidade (0 = desligado). */
+  lajeDesnivelFator: number;
 }
 
 export interface OpcaoInfo {
@@ -543,6 +579,43 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Ao rearmar com os esforços da última análise depois de mudar seções, o elemento cuja inércia (b·h³/12) variou mais que este percentual desde a análise recebe o aviso ESFORCO_ANTIGO: refaça a análise para esforços corretos.' },
   { chave: 'corridaCintaEspac', rotulo: 'Sapata corrida de aba única: espaçamento máximo entre cintas', unidade: 'm', min: 1, max: 12, passo: 0.5, padrao: 5, fonte: 'Critério do Statikos (sem fonte): a sapata entre cintas funciona como viga contínua apoiada nelas e não é verificada na flexão longitudinal; o programa de referência não fixa valor', aConfirmar: true,
     descricao: 'Distância entre cintas (vigas de equilíbrio da aba de um lado só) acima da qual o programa avisa que a flexão longitudinal da sapata entre elas não é verificada; o balanço além da última cinta aceita metade.' },
+  // ---- N2e: apoios, limites e avisos de modelagem ----
+  { chave: 'arredondamentoApoio', rotulo: 'Arredondamento do diagrama no apoio', min: 0, max: 2, passo: 1, padrao: 1, padraoNBR: 2, fonteNBR: 'NBR 6118, 14.6.3 e Figura 14.7: ΔM = R·t/8 no apoio', fonte: 'Critério do programa de referência: parábola cúbica entre as faces do apoio com M e V das faces (manual de cálculo)', aConfirmar: false,
+    descricao: '0 = sem arredondamento (diagrama do modelo); 1 = dentro do apoio, M(x) = a·x³ + b·x² + c·x + d com M e V das duas faces (Q = 3a·x² + 2b·x + c); 2 = reduz o momento negativo do apoio de ΔM = R·t/8 (R reação, t largura do apoio). A redistribuição atua sobre o diagrama já arredondado [a confirmar: no programa de referência atua nas faces e o trecho do apoio é recalculado depois].' },
+  { chave: 'momentoFaceMin', rotulo: 'Momento mínimo na face do apoio', unidade: '% do M no eixo', min: 0, max: 100, passo: 5, padrao: 0, fonte: 'EC2 (65 % do momento no eixo) citado pelo manual do programa de referência; padrão 0 nos dois perfis. O momento no eixo é o da estação mais próxima do eixo (a parte flexível começa em face − 0,3h) [a confirmar]', aConfirmar: true,
+    descricao: 'Limite inferior do módulo do momento negativo dentro do apoio após o arredondamento, em % do momento do modelo na estação mais próxima do eixo. 0 = sem mínimo.' },
+  { chave: 'vigaApoiadaRigida', rotulo: 'Viga apoiada em viga: trecho rígido até a face da viga de apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Critério do programa de referência (dimensão da viga de apoio considerada como a dos pilares); sem o recuo da NBR 6118 (face − 0,3h), usa-se a face inteira [a confirmar]', aConfirmar: true,
+    descricao: 'A ponta da viga que se apoia em outra tem trecho rígido até a face da viga de apoio, no pórtico e na grelha. Vale quando a viga de apoio cruza a apoiada a mais de 10° da direção dela.' },
+  { chave: 'envoltoriaCortante', rotulo: 'Envoltória de cortante descontínua', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção geral do programa de referência; padrão contínua e zonas de ¼ do vão [a confirmar]', aConfirmar: true,
+    descricao: '0 = envoltória contínua ao longo da viga; 1 = descontínua: patamar com o maior cortante de cada zona (¼ de cada vão), como o estribo é detalhado por zona.' },
+  { chave: 'barraCurtaLimite', rotulo: 'Barra curta: comprimento limite', unidade: 'm', min: 0, max: 5, passo: 0.1, padrao: 0, fonte: 'Opção do programa de referência (barra com dimensão ≤ limite usa o valor das opções); sem padrão registrado, desligada [a confirmar]', aConfirmar: true,
+    descricao: 'Trechos de viga com comprimento até este limite recebem o multiplicador de rigidez abaixo. 0 = desligado.' },
+  { chave: 'barraCurtaFator', rotulo: 'Barra curta: multiplicador de rigidez', unidade: '×', min: 0.1, max: 1000, passo: 1, padrao: 1, fonte: 'Opção do programa de referência; sem padrão registrado [a confirmar]', aConfirmar: true,
+    descricao: 'Multiplica A, Iz, Iy e J dos trechos de viga curtos (vigas curtas e rígidas trabalham pouco à flexão).' },
+  { chave: 'vigaTaxaMin', rotulo: 'Vigas: taxa mínima de armadura longitudinal', unidade: '%', min: 0, max: 4, passo: 0.01, padrao: 0, fonte: 'NBR 6118, 17.3.5.2.1 (ρmín pela Tabela 17.3, em função do fck); valor do usuário substitui', aConfirmar: false,
+    descricao: '0 = taxa da norma. Outro valor substitui a taxa mínima (% de b·h) das armaduras inferior e superior.' },
+  { chave: 'lajeTaxaMin', rotulo: 'Lajes: taxa mínima de armadura', unidade: '%', min: 0, max: 4, passo: 0.01, padrao: 0, fonte: 'NBR 6118, 19.3.3.2 e Tabela 19.1 (0,15 % para a armadura de flexão); valor do usuário substitui', aConfirmar: false,
+    descricao: '0 = taxa da norma. Outro valor substitui a taxa mínima (% da seção) das lajes maciças.' },
+  { chave: 'vigaEstriboSmax', rotulo: 'Vigas: espaçamento máximo dos estribos', unidade: 'cm', min: 0, max: 40, passo: 1, padrao: 0, fonte: 'NBR 6118, 18.3.3.2 (0,6d ou 30 cm; 0,3d ou 20 cm); valor do usuário limita ainda mais', aConfirmar: false,
+    descricao: '0 = da norma. Outro valor limita o espaçamento dos estribos (nunca acima da norma).' },
+  { chave: 'vigaEstriboSmin', rotulo: 'Vigas: espaçamento mínimo dos estribos', unidade: 'cm', min: 0, max: 30, passo: 1, padrao: 0, fonte: 'Opção do programa de referência (espaçamento mínimo editável); 0 = o da tabela de estribos', aConfirmar: false,
+    descricao: '0 = o da tabela de estribos. Outro valor substitui o espaçamento mínimo da tabela na escolha dos estribos.' },
+  { chave: 'lajeMomentoMinPositivo', rotulo: 'Lajes maciças: momento positivo mínimo p·ℓ²/x', unidade: 'x', min: 0, max: 100, passo: 1, padrao: 0, fonte: 'Opção do programa de referência (momentos mínimos em lajes); sem valor registrado para maciças, desligado [a confirmar]', aConfirmar: true,
+    descricao: '0 = sem mínimo. Outro valor: o momento positivo de cada laje maciça não é menor que p·ℓ²/x (p a carga de cálculo, ℓ o menor vão).' },
+  { chave: 'lajeMomentoMinNegativo', rotulo: 'Lajes maciças: momento negativo mínimo p·ℓ²/x', unidade: 'x', min: 0, max: 100, passo: 1, padrao: 0, fonte: 'Opção do programa de referência (momentos mínimos em lajes); sem valor registrado para maciças, desligado [a confirmar]', aConfirmar: true,
+    descricao: '0 = sem mínimo. Outro valor: o momento negativo sobre apoio contínuo da laje maciça não é menor que p·ℓ²/x em módulo.' },
+  { chave: 'vigaSuspensao', rotulo: 'Vigas: armadura de suspensão nos apoios em vigas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 18.3.6 (apoio indireto); o programa de referência não calcula (aviso manual)', aConfirmar: false,
+    descricao: 'Estribos de suspensão na viga de apoio, no cruzamento com a viga apoiada: As = fator × Rd/fywd, na largura bw da apoiada + h/2 de cada lado [a confirmar a largura].' },
+  { chave: 'vigaSuspensaoFator', rotulo: 'Suspensão: parcela da reação resistida', unidade: '×', min: 0, max: 1, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 18.3.6: reação inteira; redução por h1/h2 (viga apoiada mais baixa que a de apoio) sem fonte aberta [a confirmar]', aConfirmar: true,
+    descricao: 'Fração da reação de cálculo da viga apoiada que a armadura de suspensão resiste.' },
+  { chave: 'criterioLinear', rotulo: 'Critério de elemento linear (aviso NAO_LINEAR)', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118, 14.4.1: elemento linear se ℓ ≥ 3h', fonte: 'Critério do manual do programa de referência: vão > h/3 e > 4 × a largura (texto como no manual) [a confirmar]', aConfirmar: true,
+    descricao: '1 = critério da referência (vão > h/3 e > 4b); 0 = NBR 6118 14.4.1 (ℓ ≥ 3h). Trecho que não atende é avisado como elemento a tratar à parte.' },
+  { chave: 'cargaProximaApoio', rotulo: 'Cargas próximas ao apoio: redução do cortante', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.4.1.2.1: cortante da carga concentrada a a ≤ 2d do apoio multiplicado por a/2d; a ≤ d: biela-tirante (aviso). Parcela da carga que vai ao apoio ≈ F·(ℓ − a)/ℓ [a confirmar]', aConfirmar: true,
+    descricao: 'Reduz o cortante das cargas concentradas (cargas pontuais da obra e pilares apoiados) a menos de 2d da face do apoio e avisa (CARGA_PROXIMA_APOIO) quando a ≤ d.' },
+  { chave: 'vigaEstriboComprimida', rotulo: 'Vigas: estribos onde a armadura longitudinal é comprimida', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 18.2.4 / 18.3.3.2 aplicada às vigas (como nos pilares): s ≤ mín(20 cm; b; 12φ), φt ≥ φℓ/4 [a confirmar]', aConfirmar: true,
+    descricao: 'Nas vigas com armadura dupla (barras comprimidas) o espaçamento dos estribos fica limitado a mín(20 cm; b; 12φ CA-50) e o diâmetro a φℓ/4.' },
+  { chave: 'lajeDesnivelFator', rotulo: 'Desnível entre panos: limite da continuidade', unidade: '× espessura mínima', min: 0, max: 5, passo: 0.1, padrao: 0.5, fonte: 'Programa de referência (desníveis entre panos como nas vigotas); limite de ½ da menor espessura [a confirmar]', aConfirmar: true,
+    descricao: 'Borda entre dois panos com desnível maior que este fator × a menor espessura é tratada sem continuidade (articulada); abaixo, vale o engaste da borda. 0 = desligado.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -554,6 +627,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'segundaOrdem', 'pilarComprimento',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
   'engasteTransicao',
+  // N2e: trecho rígido da viga apoiada, barras curtas e desnível entre panos entram no modelo de cálculo
+  'vigaApoiadaRigida', 'barraCurtaLimite', 'barraCurtaFator', 'lajeDesnivelFator',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
@@ -575,6 +650,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
+  'arredondamentoApoio', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
+  'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

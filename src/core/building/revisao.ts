@@ -72,6 +72,17 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'TORCAO', nivel: 'aviso', re: /^Torção Td/, descricao: 'Torção: armadura longitudinal adicional' },
   { codigo: 'ESTRIBO_V', nivel: 'aviso', re: /^Estribos pelo cortante/, descricao: 'Estribo do pilar pelo cortante' },
   { codigo: 'REDISTRIB', nivel: 'info', re: /^Redistribuição/, descricao: 'Redistribuição aplicada' },
+  // vigas e pilares: apoios, limites e avisos de modelagem (N2e)
+  { codigo: 'ARREDONDAMENTO', nivel: 'info', re: /^Arredondamento do diagrama/, descricao: 'Diagrama arredondado dentro dos apoios internos (cúbica entre as faces ou ΔM = R·t/8)' },
+  { codigo: 'VIGA_PAREDE', nivel: 'aviso', re: /^Viga-parede/, descricao: 'Viga-parede (ℓ/h < 2 biapoiada ou < 3 contínua): bielas e tirantes e armadura manuais' },
+  { codigo: 'NAO_LINEAR', nivel: 'aviso', re: /^Elemento não linear/, descricao: 'Trecho curto demais para o modelo de barra (NBR 6118, 14.4.1): tratar à parte' },
+  { codigo: 'VIGA_PLACA', nivel: 'aviso', re: /^Elemento de placa/, descricao: 'Largura maior que 2 × o vão: lançar como laje' },
+  { codigo: 'CONSOLO', nivel: 'aviso', re: /^Consolo curto/, descricao: 'Balanço com comprimento ≤ d: consolo curto, tratar à parte' },
+  { codigo: 'PILAR_CURTO', nivel: 'aviso', re: /^Pilar curto/, descricao: 'Pilar curto (altura < 3 × a maior dimensão): modelo linear não vale' },
+  { codigo: 'CARGA_PROXIMA_APOIO', nivel: 'aviso', re: /^Carga próxima ao apoio/, descricao: 'Carga concentrada a menos de 2d do apoio (≤ d: biela-tirante, armadura horizontal manual)' },
+  { codigo: 'SUSPENSAO', nivel: 'info', re: /^Suspensão: /, descricao: 'Armadura de suspensão na viga de apoio (apoio indireto, 18.3.6)' },
+  { codigo: 'TORCAO_MIN', nivel: 'info', re: /^Torção: estribo fechado/, descricao: 'Torção: estribo fechado e taxa mínima verificados' },
+  { codigo: 'ESTRIBO_COMPRIMIDA', nivel: 'info', re: /^Estribos com armadura comprimida/, descricao: 'Estribos limitados por haver armadura longitudinal comprimida' },
   // lajes treliçadas (R6)
   { codigo: 'VIGOTA_ALTURA', nivel: 'erro', re: /^Vigotas: altura insuficiente/, descricao: 'Vigotas: altura insuficiente para a flexão' },
   { codigo: 'VIGOTA_POS', nivel: 'erro', re: /^Vigotas: momento positivo/, descricao: 'Vigotas: momento positivo acima do resistente' },

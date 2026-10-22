@@ -83,7 +83,8 @@ describe('P-Δ 3D no edifício (opção segundaOrdem)', () => {
     const nd = (d: typeof d0) => d.pilares.filter((x) => x.pilar === s.modelo.pilares[4].id).map((x) => x.Nd);
     nd(d1).forEach((v, i) => expect(Math.abs(v / nd(d0)[i] - 1)).toBeLessThan(0.05));
     const v2 = (d: typeof d0) => d.vigas.find((x) => x.nome === 'V2')!.Mneg;
-    expect(Math.abs(v2(d1) / v2(d0) - 1)).toBeLessThan(0.05);
+    // N2e: com o arredondamento do diagrama o negativo de projeto é o da face (γz −88,7 × P-Δ −96,3 kN·m = 8,5 %; antes, dentro do apoio, 5 %)
+    expect(Math.abs(v2(d1) / v2(d0) - 1)).toBeLessThan(0.1);
   });
 });
 

@@ -65,14 +65,15 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de barras longitudinais (R7a); "padrao" ou vazio volta à padrão da obra' },
     tabelaEstribo: { type: 'string', description: 'id da tabela de estribos (R7a); "padrao" ou vazio volta à padrão da obra' },
-    articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários com rótula na viga' },
+    articulacoes: { type: 'array', items: { type: 'string' }, description: 'ids dos pilares intermediários, ou das vigas cruzadas, em que a viga tem rótula' },
   } },
   validar(b, p) {
     if (!viga(b, p.id)) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
     const tab = tabelaInexistente(b, [['vigas', p.tabela], ['estribos', p.tabelaEstribo]]);
     if (tab.length) return tab;
-    const sem = (p.articulacoes ?? []).filter((id) => !b.pilares.some((x) => x.id === id));
-    if (sem.length) return err('PILAR_INEXISTENTE', `Pilar ${sem.join(', ')} não existe.`);
+    // pilares intermediários ou outras vigas (rótula no cruzamento, N2e)
+    const sem = (p.articulacoes ?? []).filter((id) => !b.pilares.some((x) => x.id === id) && !b.vigas.some((x) => x.id === id && x.id !== p.id));
+    if (sem.length) return err('PILAR_INEXISTENTE', `Pilar ou viga ${sem.join(', ')} não existe.`);
     return p.pontos && limpar(p.pontos).length < 2 ? err('VIGA_DEGENERADA', 'A viga precisa de dois pontos distintos.') : [];
   },
   aplicar(d, p) {

@@ -32,7 +32,7 @@ export function linhasBarras(d: DetalheViga) {
   return d.barras.map((x) => ({ ...x, total: x.n * x.comprimento, peso: x.n * x.comprimento * kgM(x.phi) }));
 }
 export function linhasEstribos(d: DetalheViga) {
-  return d.estribos.map((z, i) => ({ ...z, pos: `E${i + 1}`, total: z.n * z.comprimento, peso: z.n * z.comprimento * kgM(z.phi) }));
+  return d.estribos.map((z, i) => ({ ...z, pos: z.suspensao ? `S${d.estribos.slice(0, i).filter((q) => q.suspensao).length + 1}` : `E${i + 1}`, total: z.n * z.comprimento, peso: z.n * z.comprimento * kgM(z.phi) }));
 }
 const rotuloBarra = (x: BarraViga) => `${x.pos} – ${x.n} ${phiTxt(x.phi)} – C = ${fmt(x.comprimento)}${x.editada ? ' (editada)' : ''}${x.continuaCom ? ' (tramo)' : ''}`;
 
@@ -153,7 +153,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
   const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
   const op = opcoesEmUso(b.opcoes, perfilDe(b));
   const barras0: LinhaBarra[] = d.barras.map((x) => ({ pos: x.pos, s0: arredM(x.s0), s1: arredM(x.s1), g0: x.ganchos[0], g1: x.ganchos[1], perna: x.perna ?? op.vigaPernaGancho }));
-  const zonas0: LinhaZona[] = d.estribos.map((z, i) => ({ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2, u: !!z.u }));
+  const zonas0: LinhaZona[] = d.estribos.flatMap((z, i) => (z.suspensao ? [] : [{ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2, u: !!z.u }]));
   const [barras, setBarras] = useState(barras0), [zonas, setZonas] = useState(zonas0);
   const [fator, setFator] = useState(v.detalhe?.fatorEmenda ?? op.vigaFatorEmenda);
   const chave = JSON.stringify([barras0, zonas0]);

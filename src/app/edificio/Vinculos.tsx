@@ -9,6 +9,17 @@ import { useBuilding } from './store';
 import { LanceDoPilar } from './Transicao';
 
 const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
+/** O traçado de uma viga toca o da outra (cruzamento ou apoio) sem serem colineares? */
+function cruza(a: { pontos: [number, number][] }, b2: { pontos: [number, number][] }): boolean {
+  const seg = (p: [number, number][]) => p.slice(0, -1).map((q, i) => [q, p[i + 1]] as const);
+  const ccw = (p: readonly number[], q: readonly number[], r: readonly number[]) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  for (const [p1, p2] of seg(a.pontos)) for (const [q1, q2] of seg(b2.pontos)) {
+    const d1 = ccw(p1, p2, q1), d2 = ccw(p1, p2, q2), d3 = ccw(q1, q2, p1), d4 = ccw(q1, q2, p2), e = 1e-9;
+    if (Math.abs(d1) < e && Math.abs(d2) < e) continue; // colineares
+    if (d1 * d2 <= e && d3 * d4 <= e) return true;
+  }
+  return false;
+}
 const VAZIA = { N: 0, Hx: 0, Hy: 0, Mx: 0, My: 0, T: 0 };
 type Esforcos = typeof VAZIA;
 
@@ -154,12 +165,15 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
         {vigas.length === 1 && pav && (() => {
           const pavG = ps.find((p) => p.grupo === v0.grupo) ?? pav;
           const apoios = b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === pavG.id) && vigaTocaPilar(v0, p, pavG.id));
-          if (!apoios.length) return null;
           const art = new Set(v0.articulacoes ?? []);
+          // N2e (K1.9.41): vigas do grupo que cruzam esta (o eixo de uma toca o traçado da outra)
+          const cruzadas = b.vigas.filter((q) => q.id !== v0.id && q.grupo === v0.grupo && cruza(v0, q));
+          if (!apoios.length && !cruzadas.length) return null;
           return (
-            <div className="row wrap">
+            <div className="row wrap" data-rotulas>
               <span className="muted small">Rótula na viga sobre:</span>
               {apoios.map((p) => <Check key={p.id} label={p.nome} checked={art.has(p.id)} onChange={(c) => exec('viga.editar', { id: v0.id, articulacoes: c ? [...art, p.id] : [...art].filter((x) => x !== p.id) })} />)}
+              {cruzadas.map((q) => <Check key={q.id} label={`cruzamento com ${q.nome}`} checked={art.has(q.id)} onChange={(c) => exec('viga.editar', { id: v0.id, articulacoes: c ? [...art, q.id] : [...art].filter((x) => x !== q.id) })} />)}
             </div>
           );
         })()}
@@ -180,6 +194,12 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
               return <NumField key={k} label={`Borda ${k + 1} (${fmt(Math.hypot(z[0] - a[0], z[1] - a[1]))} m)`} width={110} value={atual[k]}
                 onChange={(v) => exec('laje.editar', { id: l0.id, engasteBordas: atual.map((x, i) => (i === k ? v : x)) })} />;
             })}
+          </div>
+        )}
+        {lajes.some((l) => l.tipo.tipo === 'trelicada') && (
+          <div className="row wrap">
+            <Check label="Vigotas biapoiadas (sem continuidade nas bordas)" checked={lajes.filter((l) => l.tipo.tipo === 'trelicada').every((l) => !!l.vigotasBiapoiadas)}
+              onChange={(c) => lote(lajes.filter((l) => l.tipo.tipo === 'trelicada').map((l) => ({ nome: 'laje.editar', params: { id: l.id, vigotasBiapoiadas: c } })))} />
           </div>
         )}
         <Hint>Bordas numeradas a partir do primeiro vértice do contorno, no sentido anti-horário. Bordas que tocam pilares ficam sempre engastadas.</Hint>

@@ -31,7 +31,7 @@ export interface Norma {
   /** fck dos pilares por lance (pavimento do topo do lance). */
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
-  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao', 'CA-50' | 'CA-60'>>;
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao', 'CA-50' | 'CA-60'>>;
   /** Coeficientes de ponderação (padrão γc 1,4 [pelo controle de execução]; γs 1,15; γg 1,4; γq 1,4; γh do empuxo 1,4). */
   gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
@@ -322,6 +322,8 @@ export interface Laje {
   nivel?: number;
   /** Coeficiente de engaste por borda do contorno (índice k = aresta k → k+1; ausente = 1). Bordas em pilares ficam engastadas. */
   engasteBordas?: number[];
+  /** Treliçadas (N2e, K1.9.55): vigotas biapoiadas, sem continuidade nas bordas (rotações livres); ausente = contínuas. */
+  vigotasBiapoiadas?: boolean;
   /** Cobrimento próprio (cm); ausente = o da obra. */
   cobrimento?: number;
   /** Treliçadas: armadura adicional das vigotas editada e bloqueada (o recálculo só a verifica). */
