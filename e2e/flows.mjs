@@ -589,7 +589,7 @@ export const flows = [
       await fck.fill('35');
       await fck.press('Enter');
       await page.locator('summary', { hasText: 'Materiais e segurança (alterados)' }).waitFor();
-      const gc = page.getByLabel('γc', { exact: true });
+      const gc = page.getByLabel('γc');
       await gc.fill('1,5');
       await gc.press('Enter');
       await page.locator('.statusbar .msg', { hasText: 'Materiais e segurança alterados' }).waitFor();
@@ -2368,7 +2368,7 @@ export const flows = [
 
       // filtro por pavimento: a contagem exposta muda e fica só naquele pavimento
       await page.locator('.v3d-barra').getByLabel('Escopo da vista 3D').selectOption('pavimento');
-      const sel = page.locator('.v3d-barra').getByLabel('Pavimento', { exact: true });
+      const sel = page.locator('.v3d-barra').getByLabel('Pavimento');
       const opcoes = await sel.locator('option').allInnerTexts();
       assert.ok(opcoes.includes('Tipo 2'), opcoes.join(','));
       await sel.selectOption({ label: 'Tipo 2' });
@@ -2463,8 +2463,8 @@ export const flows = [
       await msg('Água e Vazio: incompativel');
       assert.equal(await casos.getByLabel('Relação entre Água e Vazio').inputValue(), 'incompativel');
       await casos.locator('summary', { hasText: 'Arranjos alternados e móveis' }).click();
-      await casos.getByLabel('Nome do caso', { exact: true }).fill('Uso alternado');
-      await casos.getByLabel('Nome do caso', { exact: true }).press('Enter');
+      await casos.getByLabel('Nome do caso').fill('Uso alternado');
+      await casos.getByLabel('Nome do caso').press('Enter');
       await casos.getByRole('button', { name: 'Gerar arranjos' }).click();
       await msg('2 arranjos em xadrez');
       assert.equal(await casos.getByLabel('Natureza de Uso alternado A').inputValue(), 'Q');
@@ -2699,7 +2699,7 @@ export const flows = [
       const ed = jan.locator('[data-edicao-detalhe]');
       await ed.waitFor();
       assert.equal(await jan.locator('[data-detalhe-editado]').count(), 0);
-      const fim = ed.getByLabel('N1 fim', { exact: true });
+      const fim = ed.getByLabel('N1 fim');
       const v0 = parseFloat((await fim.inputValue()).replace(',', '.'));
       await fim.fill(String(v0 - 1.5).replace('.', ',')); await fim.press('Enter');
       await ed.getByRole('button', { name: 'Aplicar edição' }).click();
@@ -2760,7 +2760,7 @@ export const flows = [
       const ed = jan.locator('[data-edicao-pilar]');
       await ed.waitFor();
       assert.equal(await jan.locator('[data-detalhe-editado]').count(), 0);
-      const esp = ed.getByLabel('Espera', { exact: true });
+      const esp = ed.getByLabel('Espera');
       await esp.fill('0,9'); await esp.press('Enter');
       const pass = ed.locator('[data-edicao-passagem]').first().locator('input');
       await pass.fill('0,1'); await pass.press('Enter');
@@ -3127,7 +3127,7 @@ export const flows = [
       await vinc.waitFor();
       await vinc.getByLabel('Vínculo da base').selectOption({ label: 'molas' });
       await page.locator('.statusbar .msg', { hasText: 'Vínculo de 1 pilar(es) alterado' }).waitFor();
-      const kx = vinc.getByLabel('kθx', { exact: true });
+      const kx = vinc.getByLabel('kθx');
       await kx.fill('50000');
       await kx.press('Enter');
       await page.waitForFunction(() => [...document.querySelectorAll('[data-vinculo-externo] label.field')].find((l) => l.textContent.startsWith('kθx'))?.querySelector('input')?.value === '50000');
@@ -3540,6 +3540,139 @@ export const flows = [
       const texto = await jp.locator('table[data-pw-empuxo]').innerText();
       assert.match(texto, /810/);
       await jp.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'E1d: armadura de paredes (janela com panos, bloqueio e desbloqueio, emendas, abertura, isovalores, muro de arrimo, memorial, resumo de aço e prancha de paredes)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+      // modelo enxuto: Térreo e Tipo 1, empuxo de terra, duas paredes de 12 m, uma abertura e um muro de arrimo
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+      let b0 = await modelo();
+      for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+        const p = b0.pavimentos.find((x) => x.nome === nome);
+        const antes = b0.pavimentos.length;
+        await cmd('pavimento.remover {"id": "' + p.id + '"}');
+        await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+        b0 = await modelo();
+      }
+      assert.equal(b0.pavimentos.length, 2);
+      const terreo = b0.pavimentos.find((p) => p.nome === 'Térreo'), tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+      await cmd('empuxo.tipo {"nome": "Aterro", "metodo": "repouso", "estratos": [{"espessura": 20, "gama": 18, "phi": 30}], "cotaAterro": 3}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.empuxos?.length > 0, null);
+      const idEmp = (await modelo()).empuxos[0].id;
+      await cmd('caso.criar {"nome": "Empuxo", "natureza": "H", "empuxo": "' + idEmp + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.casos?.some((c) => c.nome === 'Empuxo'), null);
+      const idCaso = (await modelo()).casos.find((c) => c.nome === 'Empuxo').id;
+      await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "morre": "' + tipo1.id + '"}');
+      await cmd('parede.criar {"pontos": [[0, 6], [12, 6]], "espessura": 0.2, "morre": "' + tipo1.id + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 2, null);
+      const ws = (await modelo()).paredes;
+      const m1 = ws.find((w) => w.nome === 'M1').id, m2 = ws.find((w) => w.nome === 'M2').id;
+      await cmd('parede.empuxo {"parede": "' + m1 + '", "empuxos": [{"caso": "' + idCaso + '", "lado": "dir"}]}');
+      await cmd('parede.empuxo {"parede": "' + m2 + '", "empuxos": [{"caso": "' + idCaso + '", "lado": "esq"}]}');
+      await cmd('parede.abertura {"parede": "' + m1 + '", "s": 5, "largura": 1, "altura": 2.1, "pavimento": "' + terreo.id + '"}');
+      await esperarModelo((id) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.find((w) => w.id === id)?.aberturas?.length === 1, m1);
+      await cmd('muro.arrimo {"nome": "MA1", "H": 3, "tTopo": 0.2, "tBase": 0.3, "B": 2.6, "ponta": 0.5, "hBase": 0.4, "solo": {"gama": 18, "phi": 30, "metodo": "rankine"}, "sobrecarga": 10, "atrito": 0.6}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.murosArrimo?.length === 1, null);
+      // 2. cálculo e grupo de muros na barra lateral
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+      await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const gm = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Muros de arrimo/ }) });
+      await gm.locator('table[data-mu-lista]').waitFor({ timeout: 30000 });
+      assert.match(await gm.locator('table[data-mu-lista]').innerText(), /MA1/);
+      assert.match(await gm.locator('table[data-mu-lista]').innerText(), /atende/);
+      // 3. cartão de paredes com as colunas de armadura
+      const cartao = page.locator('[data-pw-cartao]');
+      await cartao.waitFor({ timeout: 30000 });
+      assert.match(await cartao.innerText(), /M1/);
+      assert.match(await cartao.innerText(), /Cumprimento mín\./);
+      await cartao.getByRole('button', { name: 'Resultados de M1' }).click();
+      const jp = page.getByRole('dialog', { name: /M1/ });
+      await jp.waitFor();
+      // 4. panos: malha bloqueada reprova; desbloquear volta à calculada
+      assert.equal(await jp.locator('table[data-pw-panos] tbody tr').count(), 3);
+      assert.match(await jp.locator('table[data-pw-panos] tbody tr').first().innerText(), /calculada/);
+      await jp.locator('table[data-pw-panos] tbody tr').first().click();
+      const edMalha = jp.locator('[data-pw-editor-malha]');
+      await edMalha.getByLabel('φ vertical').selectOption({ label: '6,3' });
+      await edMalha.getByLabel('s vertical').fill('40');
+      await edMalha.getByLabel('φ horizontal').selectOption({ label: '6,3' });
+      await edMalha.getByLabel('s horizontal').fill('40');
+      await edMalha.getByRole('button', { name: 'Bloquear malha' }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-pw-panos] tbody tr')?.textContent?.includes('bloqueada'), null, { timeout: 90000 });
+      const primeira = await jp.locator('table[data-pw-panos] tbody tr').first().innerText();
+      assert.match(primeira, /bloqueada/);
+      assert.match(primeira, /não atende/);
+      assert.match(await jp.locator('ul[data-pw-mensagens]').innerText(), /Armadura bloqueada/);
+      await edMalha.getByRole('button', { name: 'Desbloquear' }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-pw-panos] tbody tr')?.textContent?.includes('calculada'), null, { timeout: 90000 });
+      // 5. emendas: tração e compressão editadas e depois voltar às calculadas
+      assert.ok(await jp.locator('table[data-pw-emendas] tbody tr').count() >= 1);
+      const edEm = jp.locator('[data-pw-editor-emendas]');
+      await edEm.getByLabel('Tração').fill('20');
+      await edEm.getByLabel('Compressão').fill('20');
+      await edEm.getByRole('button', { name: 'Aplicar emendas' }).click();
+      await jp.locator('table[data-pw-emendas]', { hasText: 'editada' }).waitFor({ timeout: 90000 });
+      assert.match(await jp.locator('ul[data-pw-mensagens]').innerText(), /abaixo do mínimo/);
+      await edEm.getByRole('button', { name: 'Voltar às calculadas' }).click();
+      await jp.locator('table[data-pw-emendas]', { hasText: 'calculada' }).waitFor({ timeout: 90000 });
+      // 6. abertura: armadura bloqueada, relatório e limpeza
+      const tabAb = jp.locator('table[data-pw-aberturas-arm-lista] tbody tr');
+      assert.equal(await tabAb.count(), 1);
+      assert.match(await tabAb.first().innerText(), /porta/);
+      await tabAb.first().click();
+      const edAb = jp.locator('[data-pw-editor-abertura]');
+      await edAb.getByLabel('Verga n').fill('4');
+      await edAb.getByLabel('Verga φ').selectOption({ label: '16' });
+      await edAb.getByLabel('Montante n').fill('6');
+      await edAb.getByLabel('Montante φ').selectOption({ label: '16' });
+      await jp.getByRole('button', { name: 'Bloquear armadura da abertura' }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-pw-aberturas-arm-lista] tbody tr')?.textContent?.includes('bloqueada'), null, { timeout: 90000 });
+      await jp.locator('details[data-pw-relatorio-abertura] summary').click();
+      const relAb = await jp.locator('details[data-pw-relatorio-abertura]').innerText();
+      assert.match(relAb, /Necessária/);
+      assert.match(relAb, /Cortante da verga/);
+      await jp.getByRole('button', { name: 'Limpar armadura' }).click();
+      await page.waitForFunction(() => document.querySelector('table[data-pw-aberturas-arm-lista] tbody tr')?.textContent?.includes('calculada'), null, { timeout: 90000 });
+      // 7. isovalores: tensões e deslocamentos com legenda
+      const iso = jp.locator('[data-pw-iso-svg] polygon');
+      assert.ok(await iso.count() > 10);
+      assert.match(await jp.locator('[data-pw-iso-leg]').first().innerText(), /mín\./);
+      await jp.getByRole('radio', { name: 'deslocamentos' }).click();
+      assert.ok(await iso.count() > 0);
+      assert.match(await jp.locator('[data-pw-iso-leg]').first().innerText(), /mm/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 8. memorial do edifício: armadura das paredes, resumo de aço e muros
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const textoMemo = await memo.textContent();
+      assert.match(textoMemo, /Armadura das paredes, pilares-parede e muros de arrimo/);
+      assert.match(textoMemo, /Armadura por pano/);
+      assert.equal(await memo.locator('[data-memorial-paredes="panos"]').count(), 1);
+      assert.match(textoMemo, /Paredes e pilares-parede/);
+      assert.match(textoMemo, /Muros de arrimo: estabilidade/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 9. resumo de aço com as paredes
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      assert.match(await page.locator('[data-resumo-aco]').innerText(), /Paredes e pilares-parede/);
+      // 10. pranchas de paredes e escala
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      await page.getByLabel('Tipo de prancha').selectOption({ label: 'Armação de paredes e pilares-parede' });
+      await page.locator('.prancha-prev[data-tipo="paredes"] svg').first().waitFor({ timeout: 90000 });
+      assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /SCM/);
+      assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /M1/);
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await page.getByLabel('Escala das elevações de paredes').selectOption({ label: '1:75' });
+      await page.locator('.prancha-prev[data-tipo="paredes"][data-escala="75"]').waitFor({ timeout: 90000 });
     },
   },
   {

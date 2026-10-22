@@ -1,6 +1,7 @@
 // Memorial de cálculo do edifício: identificação, materiais, geometria, ações, modelo, estabilidade,
 // dimensionamento, cargas na fundação, quantitativos e premissas. Mesmo CSS e impressão do memorial do pórtico.
 import { MemorialPilaresParede } from './MemorialPilarParede';
+import { MemorialParedes } from './MemorialParedes';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { calculoAtual, dimAtual, useBuilding } from './store';
@@ -161,6 +162,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           </>}
           {lancesProprios.length > 0 && <p>Lances com geometria própria: {lancesProprios.map(({ p, e }) => `${p.nome} em ${nomePav(e.pavimento)}${e.ajuste ? ` (ponto fixo ${e.ajuste})` : ''}${e.angulo !== undefined ? ` (${fmt(e.angulo, 0)}°)` : ''}${e.dx || e.dy ? ` (deslocamento ${fmt((e.dx ?? 0) * 100, 1)}; ${fmt((e.dy ?? 0) * 100, 1)} cm)` : ''}`).join('; ')}. A parte do lance fora da projeção do lance de baixo liga-se a ele por trecho rígido horizontal.</p>}
           <MemorialPilaresParede b={b} dim={dim} h2={h2} />
+          <MemorialParedes b={b} dim={dim} h2={h2} />
           {b.grupos.map((g) => { const svg = svgPlantaGrupo(b, g.id, falhas); return svg ? <figure key={g.id}><div dangerouslySetInnerHTML={{ __html: svg }} /><figcaption>Planta de fôrma esquemática — {g.nome}{falhas.size ? ' (em vermelho: elementos que não atendem)' : ''}</figcaption></figure> : null; })}
 
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
@@ -396,9 +398,9 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </>)}
-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
+            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]] as const).map(([tit, rs]) => (
+              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]] as const).map(([tit, rs]) => (
                 <div key={tit} className="avoid">
                   <h3>{tit}</h3>
                   <table>
@@ -420,7 +422,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                   <p>Painéis de {fmt(PAINEL_TELA.largura)} × {fmt(PAINEL_TELA.comprimento)} m cortados no pano, com traspasse de {fmt(opc.lajeTelaTraspasse, 0)} cm entre painéis e cobrimento nas bordas; peso = 7850 kg/m³ × área de aço das duas direções [a confirmar: dimensões dos fios e das malhas do catálogo conferidas por catálogos de fabricantes, séries L e T fora do catálogo].</p>
                 </div>
               )}
-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
               {(dim.trelicas?.length ?? 0) > 0 && (
                 <div className="avoid">
                   <h3>Treliças eletrossoldadas (por tipo)</h3>
