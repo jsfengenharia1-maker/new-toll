@@ -4,6 +4,7 @@ import type { Model } from '../core/types';
 import type { FLoad } from '../core/piles';
 import type { ListaSituacoes, PerfilMateriais } from '../core/building/acoes';
 import type { ModeloPortico } from '../core/building/copiaArmadura';
+import type { BuildingFile } from '../core/building/file';
 
 export interface SavedCharacteristics {
   projectName: string;
@@ -13,9 +14,9 @@ export interface SavedCharacteristics {
   settings: Record<string, unknown>;
 }
 
-export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico';
-/** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício, situações de projeto (N2a) ou modelo de armadura de pórtico (R7f). */
-export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico;
+export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico' | 'edificio';
+/** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício, situações de projeto (N2a) ou modelo de armadura de pórtico (R7f) ou edifício inteiro (L1). */
+export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico | BuildingFile;
 export interface LibraryItem { id: string; kind: LibraryKind; name: string; savedAt: string; summary: string }
 export interface LibraryEntry extends LibraryItem { payload: LibraryPayload }
 
@@ -96,4 +97,13 @@ export async function deleteFromLibrary(id: string) {
   const b = await storageBackend();
   if (b.mode === 'cloud') { await b.db.collection(`data/users/${b.uid}`).doc(id).delete(); return; }
   localPut(localAll().filter((x) => x.id !== id));
+}
+
+export const LIMITE_EDIFICIO = 240_000;
+
+/** Grava o edifício (modelo + log) na biblioteca. Acima do limite do registro devolve o aviso, sem gravar. */
+export async function salvarEdificioNaBiblioteca(nome: string, resumo: string, arquivo: BuildingFile, id?: string): Promise<{ ok: true; id: string } | { ok: false; aviso: string }> {
+  if (JSON.stringify(arquivo).length > LIMITE_EDIFICIO) return { ok: false, aviso: 'A obra passa de 240 KB e não cabe na biblioteca. Use Arquivo › Salvar no computador (.statikos), que não tem esse limite.' };
+  try { const r = await saveToLibrary('edificio', nome, resumo, arquivo, id); return { ok: true, id: r.id }; }
+  catch (e) { return { ok: false, aviso: (e as Error).message }; }
 }
