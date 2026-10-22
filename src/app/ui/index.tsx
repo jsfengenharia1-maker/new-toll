@@ -2,7 +2,7 @@
 // só com classes de design/global.css (tokens + componentes). Ver docs/design-system.md.
 import { zip } from '../../core/zip';
 import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
-import { useEffect, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 
 export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -83,6 +83,30 @@ export function TextField({ label, value, onChange }: { label: string; value: st
       <span className="flabel">{label}</span>
       <span className="finput"><input id={id} value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={() => txt !== value && onChange(txt)} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} /></span>
     </label>
+  );
+}
+
+/** Campo de texto de várias linhas; confirma ao sair do campo (blur) como o `TextField`. */
+export function TextArea({ label, value, onChange, rows = 4, placeholder }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+  const id = useId('txa');
+  const [txt, setTxt] = useState(value);
+  useEffect(() => setTxt(value), [value]);
+  return (
+    <label className="field grow" htmlFor={id}>
+      <span className="flabel">{label}</span>
+      <textarea id={id} rows={rows} value={txt} placeholder={placeholder} onChange={(e) => setTxt(e.target.value)} onBlur={() => txt !== value && onChange(txt)} />
+    </label>
+  );
+}
+
+/** Botão que abre o seletor de arquivos; entrega o arquivo escolhido. O `<input>` fica oculto e leva o rótulo como `aria-label`. */
+export function FilePick({ label, accept, onFile, disabled }: { label: string; accept?: string; onFile: (f: File) => void; disabled?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <span className="filepick">
+      <Button disabled={disabled} onClick={() => ref.current?.click()}>{label}</Button>
+      <input ref={ref} type="file" accept={accept} hidden aria-label={label} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+    </span>
   );
 }
 
