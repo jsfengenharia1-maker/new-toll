@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import { direcaoOlhar, metadeAltura, posicaoCamera, type Camera3D, type EstadoCaminhar } from '../../core/vista3d/camera';
 import type { Cena3D, Objeto3D, TipoElemento3D } from '../../core/vista3d/registro';
+import { malhaDeTubos, type CamadaArmadura } from '../../core/vista3d/armaduras3d';
 import type { Three } from './carregarThree';
 
 export interface CoresCena {
@@ -48,6 +49,7 @@ export class RenderizadorCena {
   private ativa: THREE.Camera;
   private raiz: THREE.Group;
   private realce: THREE.Group;
+  private arm: THREE.Group;
   private blocos: Bloco[] = [];
   private objetos = new Map<string, Objeto3D>();
   private ray: THREE.Raycaster;
@@ -71,7 +73,8 @@ export class RenderizadorCena {
     this.ativa = this.persp;
     this.raiz = new T.Group();
     this.realce = new T.Group();
-    this.cena.add(this.raiz, this.realce);
+    this.arm = new T.Group();
+    this.cena.add(this.raiz, this.realce, this.arm);
     this.cena.add(new T.HemisphereLight(undefined, undefined, 1.1));
     const sol = new T.DirectionalLight(undefined, 1.6);
     sol.position.set(-0.6, -0.9, 1.4);
@@ -178,6 +181,27 @@ export class RenderizadorCena {
     const g = new this.T.BufferGeometry();
     g.setAttribute('position', new this.T.Float32BufferAttribute(v, 3));
     return new this.T.LineSegments(g, mat);
+  }
+
+  /** Armaduras (V2): uma camada = um objeto (linhas ou malha de tubos) com a cor da camada; `raio` em m para os tubos. */
+  definirArmaduras(camadas: CamadaArmadura[], cores: string[], modo: 'linhas' | 'tubos', raio: number): void {
+    const T = this.T;
+    this.limparArmaduras();
+    camadas.forEach((c, i) => {
+      if (!c.linhas.length) return;
+      const cor = new T.Color(cores[i % cores.length]);
+      if (modo === 'linhas') { this.arm.add(this.linhas(c.linhas, new T.LineBasicMaterial({ color: cor }))); return; }
+      const { pos, idx } = malhaDeTubos(c.linhas, raio);
+      const g = new T.BufferGeometry();
+      g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+      g.setIndex(new T.Uint32BufferAttribute(idx, 1));
+      g.computeVertexNormals();
+      this.arm.add(new T.Mesh(g, new T.MeshLambertMaterial({ color: cor, side: T.DoubleSide })));
+    });
+  }
+
+  private limparArmaduras(): void {
+    for (const f of [...this.arm.children]) { this.arm.remove(f); (f as THREE.Mesh).geometry.dispose(); ((f as THREE.Mesh).material as THREE.Material).dispose(); }
   }
 
   /** Transparência por tipo e textura procedural. */
@@ -300,6 +324,7 @@ export class RenderizadorCena {
 
   dispose(): void {
     this.limpar();
+    this.limparArmaduras();
     for (const f of [...this.realce.children]) { (f as THREE.Mesh).geometry.dispose(); ((f as THREE.Mesh).material as THREE.Material).dispose(); }
     this.textura?.dispose();
     this.R.dispose();

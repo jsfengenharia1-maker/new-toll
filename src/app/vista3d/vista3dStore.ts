@@ -4,6 +4,7 @@ import type { BuildingModel } from '../../core/building/types';
 import { pavimentosOrdenados } from '../../core/building/types';
 import { PAV_FUNDACAO, type OpcoesCena, type TipoElemento3D } from '../../core/vista3d/registro';
 import { VELOCIDADE_INICIAL, type Projecao } from '../../core/vista3d/camera';
+import type { AgruparPor } from '../../core/vista3d/armaduras3d';
 
 /** O que entra na cena: o edifício todo, um grupo, um intervalo de pavimentos ou um pavimento só. */
 export type Escopo = 'edificio' | 'grupo' | 'intervalo' | 'pavimento';
@@ -23,6 +24,13 @@ export interface V3State {
   detalhe: 'baixo' | 'alto';
   caminhar: boolean;
   velocidade: number;
+  /** Armaduras em 3D (V2): liga, cor por, tubos, concreto translúcido, só os selecionados e espessura (× 2,5 mm de raio). */
+  armaduras: boolean;
+  armPor: AgruparPor;
+  armTubos: boolean;
+  armGhost: boolean;
+  armSoSelecao: boolean;
+  armEscala: number;
   set(p: Partial<Omit<V3State, 'set'>>): void;
 }
 
@@ -32,6 +40,7 @@ export const useVista3d = create<V3State>((set) => ({
   transpLajes: 40, transpParedes: 40,
   projecao: 'perspectiva', textura: false, detalhe: 'baixo',
   caminhar: false, velocidade: VELOCIDADE_INICIAL,
+  armaduras: false, armPor: 'bitola', armTubos: false, armGhost: true, armSoSelecao: false, armEscala: 4,
   set: (p) => set(p),
 }));
 
