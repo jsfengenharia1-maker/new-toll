@@ -1,12 +1,16 @@
 // Estado do módulo Edifícios na interface: uma Sessao do núcleo (comandos, desfazer, log) + persistência local.
 import { create } from 'zustand';
 import { comandosEdificioPadrao, Sessao, type Resultado } from '../../core/commands';
-import { compactarLog, lerEdificio, type BuildingFile } from '../../core/building/file';
+import { arquivoComExtras, compactarLog, lerEdificio, recuperarVersao, type BuildingFile, type VersaoObra } from '../../core/building/file';
 import { edificioVazio } from '../../core/building/types';
 import type { Diagnostico } from '../../core/building/verify';
 import { useStore } from '../store';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { BuildingModel } from '../../core/building/types';
+import { registrarRecente, type OrigemRecente } from './recentes';
+import { criarExemplo, type IdExemplo } from '../../core/building/exemplos';
+import type { EspecificacaoObra } from '../../core/building/assistente';
+import type { ResultadoArranques } from '../../core/building/importarArranques';
 import { calcular as calcularNoWorker, calcularFundacoesNoWorker, rearmarNoWorker, type DimEdificio } from './calculo';
 
 const KEY = 'statikos:building';
@@ -46,6 +50,20 @@ interface BState {
   novo(vazio: boolean): void;
   /** Troca pelo edifício de um arquivo (null = edifício vazio). */
   carregar(f: BuildingFile | null): void;
+  /** Cria a obra pelo assistente numa sessão nova (um passo no histórico). */
+  novaObra(espec: EspecificacaoObra): Resultado;
+  /** Abre uma obra de exemplo (fictícia). */
+  novaObraExemplo(id: IdExemplo): void;
+  /** Cria a obra só de arranques a partir da importação de texto. */
+  novaObraArranques(nome: string, resultado: ResultadoArranques): Resultado;
+  /** O que o próximo "Salvar" inclui no arquivo: nº de versões anteriores (0 a 20) e resultados do último cálculo. */
+  opcoesArquivo: OpcoesArquivo;
+  setOpcoesArquivo(o: Partial<OpcoesArquivo>): void;
+  /** Versões anteriores do arquivo aberto e avisos do último salvamento. */
+  versoesArquivo: VersaoObra[];
+  avisosArquivo: string[];
+  /** Recupera uma versão do arquivo aberto (vira a obra atual; o log é cortado ali). */
+  recuperarVersao(indice: number): void;
   analise: AnaliseEdificio | null;
   /** Dimensionamento feito com a mesma análise. */
   dim: DimEdificio | null;
@@ -93,6 +111,13 @@ export const calculoAtual = (st: Pick<BState, 'analise' | 'revAnalise' | 'sessao
 
 const msg = (m: string) => useStore.getState().set({ message: m });
 
+/** Registra a abertura da obra na lista de recentes (só metadados). */
+function lembrar(s: Sessao, origem: OrigemRecente) {
+  const o = s.modelo.obra;
+  registrarRecente({ nome: o.nome, descricao: (o.descricao ?? []).join(' · '), origem, pavimentos: s.modelo.pavimentos.length });
+}
+export interface OpcoesArquivo { versoes: number; resultados: boolean }
+
 export const useBuilding = create<BState>((set, get) => {
   const atualizar = (s: Sessao, sujo = true) => {
     persistir(s);
@@ -117,8 +142,33 @@ export const useBuilding = create<BState>((set, get) => {
     },
     desfazer() { const e = get().sessao.desfazer(); if (e) { atualizar(get().sessao); msg(`Desfeito: ${e.nome}.`); sincronizar(); } },
     refazer() { const e = get().sessao.refazer(); if (e) { atualizar(get().sessao); msg(`Refeito: ${e.nome}.`); sincronizar(); } },
-    novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); set(semCalculo); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
-    carregar(f) { atualizar(f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()), false); set(semCalculo); },
+    novo(vazio) { const s = vazio ? new Sessao(edificioVazio()) : padrao(); atualizar(s); set(semCalculo); set({ versoesArquivo: [] }); lembrar(s, vazio ? 'vazio' : 'padrao'); msg(vazio ? 'Edifício vazio.' : 'Edifício padrão: térreo, 3 pavimentos-tipo e cobertura.'); },
+    carregar(f) { const s = f ? new Sessao(f.building, f.buildingLog) : new Sessao(edificioVazio()); atualizar(s, false); set({ ...semCalculo, versoesArquivo: f?.versoes ?? [] }); if (f) lembrar(s, 'arquivo'); },
+    novaObra(espec) {
+      const s = new Sessao(edificioVazio());
+      const r = s.executar('obra.assistente', { espec }, 'usuario');
+      if (!r.ok) { msg(r.erros.map((e) => e.mensagem).join(' ')); return r; }
+      atualizar(s); set({ ...semCalculo, versoesArquivo: [] }); lembrar(s, espec.origem ?? 'assistente');
+      msg(`${r.mensagem ?? 'Obra criada.'} Confira normas e materiais nos dados gerais.`);
+      return r;
+    },
+    novaObraExemplo(id) { const s = criarExemplo(id); atualizar(s); set({ ...semCalculo, versoesArquivo: [] }); lembrar(s, 'exemplo'); msg(`Exemplo “${s.modelo.obra.nome}” aberto.`); },
+    novaObraArranques(nome, resultado) {
+      const s = new Sessao(edificioVazio());
+      const r = s.executar('obra.importarArranques', { nome, resultado }, 'usuario');
+      if (!r.ok) { msg(r.erros.map((e) => e.mensagem).join(' ')); return r; }
+      atualizar(s); set({ ...semCalculo, versoesArquivo: [] }); lembrar(s, 'texto'); msg(r.mensagem ?? 'Obra criada.');
+      return r;
+    },
+    opcoesArquivo: { versoes: 0, resultados: false },
+    setOpcoesArquivo(o) { set({ opcoesArquivo: { ...get().opcoesArquivo, ...o } }); },
+    versoesArquivo: [],
+    avisosArquivo: [],
+    recuperarVersao(indice) {
+      const st = get(), r = recuperarVersao({ building: st.sessao.modelo, buildingLog: st.sessao.log, versoes: st.versoesArquivo }, indice);
+      if (!r) { msg('Versão não encontrada.'); return; }
+      atualizar(new Sessao(r.building, r.buildingLog)); set({ ...semCalculo }); msg(`Versão anterior recuperada (antes do comando ${indice + 1}).`);
+    },
     analise: null,
     dim: null,
     revAnalise: -1,
@@ -203,6 +253,10 @@ export const useBuilding = create<BState>((set, get) => {
 
 /** Edifício para gravar no arquivo de trabalho (null se ainda não houver nada lançado). */
 export function edificioParaArquivo(): BuildingFile | null {
-  const s = useBuilding.getState().sessao;
-  return s.modelo.pavimentos.length || s.log.length ? { building: s.modelo, buildingLog: compactarLog(s.modelo, s.log) } : null;
+  const st = useBuilding.getState(), s = st.sessao;
+  if (!(s.modelo.pavimentos.length || s.log.length)) return null;
+  const dim = st.dim && calculoAtual(st) ? st.dim : null;
+  const { arquivo, avisos } = arquivoComExtras(s.modelo, s.log, st.opcoesArquivo, dim, s.revCalculo);
+  useBuilding.setState({ avisosArquivo: avisos });
+  return arquivo;
 }
