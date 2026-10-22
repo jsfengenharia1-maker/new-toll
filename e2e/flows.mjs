@@ -1018,7 +1018,7 @@ export const flows = [
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento dos pilares/);
       assert.match(mt, /Resumo geral de aço/);
-      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes e vigotas\)/);
       assert.match(mt, /detalhamento-pilares|Detalhamento\.\s*Pilares/);
     },
   },
@@ -1043,7 +1043,7 @@ export const flows = [
       assert.ok(Math.abs(pg - (pv + pp + pl)) < 0.03, `geral ${pg} = ${pv} + ${pp} + ${pl}`);
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Resumo de aço das lajes/);
-      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares, lajes e vigotas\)/);
+      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares, paredes, lajes e vigotas\)/);
       assert.match(csv.text, /Lista de posições das lajes/);
       // janela da laje, aba Detalhamento
       const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
@@ -1089,7 +1089,7 @@ export const flows = [
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento das lajes/);
-      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes e vigotas\)/);
       assert.match(mt, /detalhamento-lajes|Detalhamento\.\s*Lajes/);
     },
   },
@@ -1288,7 +1288,7 @@ export const flows = [
       const mt = await memo.textContent();
       assert.match(mt, /Lajes treliçadas/);
       assert.match(mt, /Treliças eletrossoldadas \(por tipo\)/);
-      assert.match(mt, /Total geral \(vigas, pilares, lajes e vigotas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes e vigotas\)/);
     },
   },
   {
@@ -2463,8 +2463,8 @@ export const flows = [
       await msg('Água e Vazio: incompativel');
       assert.equal(await casos.getByLabel('Relação entre Água e Vazio').inputValue(), 'incompativel');
       await casos.locator('summary', { hasText: 'Arranjos alternados e móveis' }).click();
-      await casos.getByLabel('Nome do caso').fill('Uso alternado');
-      await casos.getByLabel('Nome do caso').press('Enter');
+      await casos.getByLabel('Nome do caso', { exact: true }).fill('Uso alternado');
+      await casos.getByLabel('Nome do caso', { exact: true }).press('Enter');
       await casos.getByRole('button', { name: 'Gerar arranjos' }).click();
       await msg('2 arranjos em xadrez');
       assert.equal(await casos.getByLabel('Natureza de Uso alternado A').inputValue(), 'Q');
