@@ -68,7 +68,7 @@ function base() {
 
 /** Parâmetros válidos de exemplo para cada comando (sobre o modelo base). */
 const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, unknown>> = {
-  'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2 }),
+  'obra.definir': () => ({ nome: 'Outro', profundidadeFundacao: 2, descricao: ['Residencial de 5 pavimentos', 'Fase de anteprojeto'], origem: 'assistente' }),
   'norma.definir': () => ({ fck: 35, caa: 'III', psiQ: [0.7, 0.6, 0.4], psiUso: { C: [0.8, 0.7, 0.5] } }),
   'editar.girar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[0].id], lajes: [b.lajes[0].id], cargas: [b.cargas[0].id], centro: [4, 3], angulo: 30 }),
   'editar.espelhar': (b) => ({ pilares: [b.pilares[1].id], vigas: [b.vigas[1].id], eixo: [[5, -10], [5, 10]], copiar: true }),
@@ -420,3 +420,22 @@ describe('núcleo sem navegador', () => {
   });
 });
 
+describe('obra.definir: descrição e origem', () => {
+  it('grava a descrição aparada e a origem', () => {
+    const s = new Sessao(edificioVazio());
+    expect(s.executar('obra.definir', { descricao: ['  A  ', ' B '] }).ok).toBe(true);
+    expect(s.modelo.obra.descricao).toEqual(['A', 'B']);
+    expect(s.executar('obra.definir', { origem: 'texto' }).ok).toBe(true);
+    expect(s.modelo.obra.origem).toBe('texto');
+    expect(s.executar('obra.definir', { descricao: [] }).ok).toBe(true);
+    expect(s.modelo.obra.descricao).toBeUndefined();
+  });
+  it('recusa mais de 2 linhas e linha com mais de 120 caracteres', () => {
+    const s = new Sessao(edificioVazio());
+    expect(s.executar('obra.definir', { descricao: ['a', 'b', 'c'] }).ok).toBe(false);
+    const r = s.executar('obra.definir', { descricao: ['x'.repeat(121)] });
+    expect(r.ok).toBe(false);
+    expect(r.erros[0].codigo).toBe('DESCRICAO_LONGA');
+    expect(s.executar('obra.definir', { origem: 'xyz' }).ok).toBe(false);
+  });
+});

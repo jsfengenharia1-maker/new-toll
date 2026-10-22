@@ -10,9 +10,19 @@ export const BUILDING_VERSION = 1;
 /** Categorias de uso (NBR 6120:2019, Tabela 10) com a carga variável padrão em kN/m² [a confirmar]. */
 export type CategoriaUso = 'residencial' | 'servico' | 'comum' | 'escritorio' | 'garagem' | 'cobertura' | 'misto';
 
+/** Como a obra foi lançada (memorial e lista de obras; L1). Ausente = lançamento manual. */
+export type OrigemObra = 'vazio' | 'padrao' | 'assistente' | 'dxf' | 'ifc' | 'exemplo' | 'texto';
+export const ORIGEM_ROTULO: Record<OrigemObra, string> = {
+  vazio: 'Lançamento manual (obra vazia)', padrao: 'Edifício padrão', assistente: 'Assistente de nova obra',
+  dxf: 'Lançamento a partir de DXF/DWG', ifc: 'Importação de IFC', exemplo: 'Obra de exemplo', texto: 'Arquivo de texto de cargas (obra só de arranques)',
+};
+
 export interface Obra {
   nome: string;
   cidade?: string;
+  /** Descrição da obra: até 2 linhas de até 120 caracteres (K1.9.2). */
+  descricao?: string[];
+  origem?: OrigemObra;
   /** Profundidade do nível de fundação abaixo do pavimento mais baixo (m). */
   profundidadeFundacao: number;
 }

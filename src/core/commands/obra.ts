@@ -1,7 +1,7 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import { base64Bytes, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import type { Draft } from 'immer';
-import { ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
+import { ORIGEM_ROTULO, type OrigemObra, ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
 import { OPCOES_INFO, efeitoDaOpcao, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
@@ -28,18 +28,26 @@ function proximoNome(nome: string, k: number) {
 
 // ---- obra e norma ----
 
-registrar<{ nome?: string; cidade?: string; profundidadeFundacao?: number }>({
+registrar<{ nome?: string; cidade?: string; profundidadeFundacao?: number; descricao?: string[]; origem?: OrigemObra }>({
   nome: 'obra.definir',
-  descricao: 'Altera os dados gerais da obra (nome, cidade, profundidade da fundação abaixo do pavimento mais baixo).',
+  descricao: 'Altera os dados gerais da obra (nome, cidade, descrição em até 2 linhas, origem do lançamento, profundidade da fundação abaixo do pavimento mais baixo).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, properties: {
     nome: { type: 'string', minLength: 1 }, cidade: { type: 'string' },
+    descricao: { type: 'array', maxItems: 2, items: { type: 'string' }, description: 'Até 2 linhas de até 120 caracteres; lista vazia apaga' },
+    origem: { type: 'string', enum: Object.keys(ORIGEM_ROTULO), description: 'Origem do lançamento' },
     profundidadeFundacao: { type: 'number', exclusiveMinimum: 0, maximum: 30, description: 'm' },
   } },
+  validar(_b, p) {
+    if (p.descricao && p.descricao.some((l) => l.trim().length > 120)) return err('DESCRICAO_LONGA', 'Cada linha da descrição aceita até 120 caracteres.');
+    return [];
+  },
   aplicar(d, p) {
     if (p.nome !== undefined) d.obra.nome = p.nome.trim();
     if (p.cidade !== undefined) d.obra.cidade = p.cidade;
     if (p.profundidadeFundacao !== undefined) d.obra.profundidadeFundacao = p.profundidadeFundacao;
+    if (p.descricao !== undefined) { const l = p.descricao.map((x) => x.trim()).filter(Boolean); if (l.length) d.obra.descricao = l; else delete d.obra.descricao; }
+    if (p.origem !== undefined) d.obra.origem = p.origem;
     return 'Dados da obra alterados.';
   },
 });
