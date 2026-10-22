@@ -1,6 +1,7 @@
 // Comandos das paredes de concreto (E1c): lançamento, edição, aberturas, empuxo, prolongar, atribuir e geração pela
 // máscara. Geometria e regras em building/paredes.ts e building/paredesBase.ts.
 import type { Draft } from 'immer';
+import { diagnosticosAlvenaria, ehAlvenaria } from '../building/alvenaria';
 import { paredesDaMascara } from '../building/lajes';
 import { diagnosticosParedes, errosProprios, vigaSobreParede } from '../building/paredes';
 import { refsPilar } from '../building/pilares';
@@ -36,12 +37,16 @@ function errosDaParede(b: BuildingModel, w: Parede): Diagnostico[] {
   const proprios = errosProprios(b, w).filter((x) => x.severidade === 'erro');
   if (proprios.length) return proprios;
   const m: BuildingModel = { ...b, paredes: [...(b.paredes ?? []).filter((x) => x.id !== w.id), w] };
+  const mat = ehAlvenaria(w) ? diagnosticosAlvenaria(m).filter((x) => x.severidade === 'erro' && x.codigo === 'ALV_MATERIAL' && x.elementos.includes(w.id)) : [];
+  if (mat.length) return mat;
   return diagnosticosParedes(m).filter((x) => x.severidade === 'erro' && x.codigo === 'PAREDE_SOBREPOSTA' && x.elementos.includes(w.id));
 }
 
-type ParedeIn = { pontos: P[]; esq?: number; dir?: number; espessura?: number; porPavimento?: Parede['porPavimento']; nasce?: string; morre?: string; nome?: string; vinculoBase?: 'engaste' | 'rotula'; armar?: boolean; base?: Parede['base'] };
+type ParedeIn = { pontos: P[]; tipo?: Parede['tipo']; material?: string; esq?: number; dir?: number; espessura?: number; porPavimento?: Parede['porPavimento']; nasce?: string; morre?: string; nome?: string; vinculoBase?: 'engaste' | 'rotula'; armar?: boolean; base?: Parede['base'] };
 
 const props = {
+  tipo: { type: 'string', enum: ['concreto', 'alvenaria', 'blocos'], description: 'concreto (padrão), alvenaria genérica ou blocos de concreto (alvenaria estrutural, E1e)' },
+  material: { type: 'string', description: 'id do tipo de alvenaria (alvenaria.tipo) das paredes de alvenaria e de blocos' },
   esq: { type: 'number', minimum: 0, maximum: 3, description: 'espessura à esquerda do eixo (a → z), m' },
   dir: { type: 'number', minimum: 0, maximum: 3, description: 'espessura à direita do eixo, m' },
   espessura: { type: 'number', minimum: 0.05, maximum: 3, description: 'espessura total centrada no eixo (atalho para esq = dir = e/2)' },
@@ -53,7 +58,7 @@ const props = {
 function montar(b: BuildingModel, p: ParedeIn, id: string, nome: string): Parede {
   const ps = pavimentosOrdenados(b), meia = p.espessura !== undefined ? p.espessura / 2 : undefined;
   return {
-    id, nome, tipo: 'concreto', pontos: limpar(p.pontos), esq: p.esq ?? meia ?? 0.1, dir: p.dir ?? meia ?? 0.1,
+    id, nome, tipo: p.tipo ?? 'concreto', ...(p.tipo && p.tipo !== 'concreto' && p.material ? { material: p.material } : {}), pontos: limpar(p.pontos), esq: p.esq ?? meia ?? 0.1, dir: p.dir ?? meia ?? 0.1,
     ...(p.porPavimento?.length ? { porPavimento: p.porPavimento.map((e) => ({ ...e })) } : {}),
     nasce: p.nasce ?? 'fundacao', morre: p.morre ?? ps.at(-1)?.id ?? '',
     ...(p.vinculoBase === 'rotula' ? { vinculoBase: 'rotula' as const } : {}), ...(p.armar === false ? { armar: false } : {}), ...(p.base ? { base: { ...p.base } } : {}),
@@ -89,15 +94,16 @@ registrar<{ id: string; pontos?: P[] } & Partial<Omit<ParedeIn, 'pontos'>>>({
     const w = d.paredes!.find((x) => x.id === p.id)!;
     const n = editada(w as Parede, p);
     Object.assign(w, n);
-    for (const k of ['porPavimento', 'vinculoBase', 'armar', 'base'] as const) if (n[k] === undefined) delete w[k];
+    for (const k of ['porPavimento', 'vinculoBase', 'armar', 'base', 'material'] as const) if (n[k] === undefined) delete w[k];
     return `Parede ${w.nome} alterada.`;
   },
 });
 
 function editada(w: Parede, p: { pontos?: P[] } & Partial<Omit<ParedeIn, 'pontos'>>): Parede {
   const meia = p.espessura !== undefined ? p.espessura / 2 : undefined;
-  const n: Parede = { ...w, ...(p.pontos ? { pontos: limpar(p.pontos) } : {}), esq: p.esq ?? meia ?? w.esq, dir: p.dir ?? meia ?? w.dir, ...(p.nasce ? { nasce: p.nasce } : {}), ...(p.morre ? { morre: p.morre } : {}), ...(p.nome ? { nome: p.nome.trim() } : {}) };
+  const n: Parede = { ...w, ...(p.tipo ? { tipo: p.tipo } : {}), ...(p.material ? { material: p.material } : {}), ...(p.pontos ? { pontos: limpar(p.pontos) } : {}), esq: p.esq ?? meia ?? w.esq, dir: p.dir ?? meia ?? w.dir, ...(p.nasce ? { nasce: p.nasce } : {}), ...(p.morre ? { morre: p.morre } : {}), ...(p.nome ? { nome: p.nome.trim() } : {}) };
   if (p.porPavimento) { if (p.porPavimento.length) n.porPavimento = p.porPavimento.map((e) => ({ ...e })); else delete n.porPavimento; }
+  if (n.tipo === 'concreto') delete n.material;
   if (p.vinculoBase) { if (p.vinculoBase === 'rotula') n.vinculoBase = 'rotula'; else delete n.vinculoBase; }
   if (p.armar !== undefined) { if (p.armar) delete n.armar; else n.armar = false; }
   if (p.base) n.base = { ...p.base };
@@ -247,16 +253,16 @@ function novaPonta(b: BuildingModel, w: Parede, ext: 'ini' | 'fim', ate: Alvo): 
   return best;
 }
 
-const CAMPOS = ['esq', 'dir', 'porPavimento', 'nasce', 'morre', 'vinculoBase', 'armar', 'base', 'empuxos'] as const;
+const CAMPOS = ['esq', 'dir', 'porPavimento', 'nasce', 'morre', 'vinculoBase', 'armar', 'base', 'empuxos', 'tipo', 'material'] as const;
 type Campo = (typeof CAMPOS)[number];
 registrar<{ ids: string[]; de?: string; valores?: Partial<Pick<Parede, Campo>>; campos?: Campo[] }>({
   nome: 'parede.atribuir',
-  descricao: 'Atribui a paredes (uma a uma ou as de uma janela de seleção) as propriedades de outra parede (`de`) ou valores dados (`valores`): espessuras (esq, dir, por pavimento), pavimentos em que nasce e morre, vínculo da base, armar, base e empuxos. `campos` limita o que é copiado (padrão: as espessuras, armar e o vínculo da base).',
+  descricao: 'Atribui a paredes (uma a uma ou as de uma janela de seleção) as propriedades de outra parede (`de`) ou valores dados (`valores`): espessuras (esq, dir, por pavimento), pavimentos em que nasce e morre, vínculo da base, armar, base, empuxos e o tipo de parede com o tipo de alvenaria (`tipo`, `material`, E1e). `campos` limita o que é copiado (padrão: as espessuras, armar e o vínculo da base).',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
     ids, de: { type: 'string' },
-    valores: { type: 'object', additionalProperties: false, properties: { esq: props.esq, dir: props.dir, porPavimento: espPav, nasce: props.nasce, morre: props.morre, vinculoBase: props.vinculoBase, armar: props.armar, base: baseSchema, empuxos: { type: 'array', items: empuxoSchema } } },
+    valores: { type: 'object', additionalProperties: false, properties: { tipo: props.tipo, material: props.material, esq: props.esq, dir: props.dir, porPavimento: espPav, nasce: props.nasce, morre: props.morre, vinculoBase: props.vinculoBase, armar: props.armar, base: baseSchema, empuxos: { type: 'array', items: empuxoSchema } } },
     campos: { type: 'array', items: { type: 'string', enum: [...CAMPOS] }, minItems: 1 },
   } },
   validar(b, p) {
@@ -282,27 +288,32 @@ function atribuida(b: BuildingModel, w: Parede, p: { de?: string; valores?: Part
   const fonte = (p.de ? b.paredes!.find((x) => x.id === p.de)! : p.valores!) as Partial<Parede>;
   const campos = p.campos ?? (p.de ? ['esq', 'dir', 'porPavimento', 'armar', 'vinculoBase'] : (Object.keys(p.valores!) as Campo[]));
   const n = { ...w } as unknown as Record<string, unknown>;
-  for (const k of campos) { const v = fonte[k]; if (v === undefined) { if (k !== 'esq' && k !== 'dir' && k !== 'nasce' && k !== 'morre') delete n[k]; } else n[k] = JSON.parse(JSON.stringify(v)); }
+  for (const k of campos) { const v = fonte[k]; if (v === undefined) { if (k !== 'esq' && k !== 'dir' && k !== 'nasce' && k !== 'morre' && k !== 'tipo') delete n[k]; } else n[k] = JSON.parse(JSON.stringify(v)); }
   return n as unknown as Parede;
 }
 
-registrar<{ grupo: string; camada: string; nasce?: string; morre?: string; emin?: number; emax?: number }>({
+registrar<{ grupo: string; camada: string; nasce?: string; morre?: string; emin?: number; emax?: number; tipo?: Parede['tipo']; material?: string }>({
   nome: 'parede.daMascara',
   descricao: 'Gera paredes de concreto a partir de uma camada da máscara de um grupo: cada par de linhas paralelas com afastamento entre `emin` e `emax` (padrão 5 a 35 cm) vira uma parede no eixo do par, com essa espessura, entre os pavimentos dados (padrão: da fundação ao mais alto).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['grupo', 'camada'], properties: { grupo: { type: 'string' }, camada: { type: 'string' }, nasce: props.nasce, morre: props.morre, emin: { type: 'number', minimum: 0.03, maximum: 1 }, emax: { type: 'number', minimum: 0.05, maximum: 2 } } },
+  schema: { type: 'object', additionalProperties: false, required: ['grupo', 'camada'], properties: { grupo: { type: 'string' }, camada: { type: 'string' }, nasce: props.nasce, morre: props.morre, tipo: props.tipo, material: props.material, emin: { type: 'number', minimum: 0.03, maximum: 1 }, emax: { type: 'number', minimum: 0.05, maximum: 2 } } },
   validar(b, p) {
     if (!b.grupos.some((g) => g.id === p.grupo)) return err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`);
     const ws = paredesDaMascara(b, p.grupo, p.camada, p.emin ?? 0.05, p.emax ?? 0.35);
     if (!ws.length) return err('SEM_PAREDES', `Nenhuma parede (par de linhas paralelas) na camada “${p.camada}”.`);
     const ps = pavimentosOrdenados(b);
+    if (p.tipo && p.tipo !== 'concreto') {
+      const w0 = montar(b, { pontos: [[0, 0], [1, 0]], tipo: p.tipo, material: p.material }, '?', '?');
+      const e = diagnosticosAlvenaria({ ...b, paredes: [...(b.paredes ?? []), w0] }).filter((x) => x.severidade === 'erro' && x.codigo === 'ALV_MATERIAL' && x.elementos.includes('?'));
+      if (e.length) return e;
+    }
     return refsPilar(b, p.nasce ?? 'fundacao', p.morre ?? ps.at(-1)?.id ?? '');
   },
   aplicar(d, p) {
     const ws = paredesDaMascara(d as BuildingModel, p.grupo, p.camada, p.emin ?? 0.05, p.emax ?? 0.35);
     for (const x of ws) {
-      const w = montar(d as BuildingModel, { pontos: [x.a, x.z], espessura: x.e, nasce: p.nasce, morre: p.morre }, novoId(d, 'pw'), `M${proximoNumero(d as BuildingModel)}`);
+      const w = montar(d as BuildingModel, { pontos: [x.a, x.z], espessura: x.e, nasce: p.nasce, morre: p.morre, tipo: p.tipo, material: p.material }, novoId(d, 'pw'), `M${proximoNumero(d as BuildingModel)}`);
       (d.paredes ??= []).push(w);
     }
     return `${ws.length} parede(s) gerada(s) da camada “${p.camada}”.`;

@@ -18,6 +18,8 @@ export interface Casca3 {
   kGiro?: number;
   /** Direção de referência do eixo local x (projetada no plano da casca). Padrão: X global (Y se a casca for normal a X). */
   ref?: V3;
+  /** Material com rigidez própria (alvenaria, E1e): os fatores de rigidez do concreto (EA dos pilares, 0,8·Eci) não se aplicam. */
+  semReducao?: boolean;
 }
 
 /** Elemento montado: rigidez global 36 × 36 (por linhas), gdl, base local e dados para cargas e esforços. */

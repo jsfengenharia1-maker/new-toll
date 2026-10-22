@@ -2,6 +2,7 @@
 // por pavimento, espessura da parede, armadura das aberturas (editar, copiar, padrão por tipo) e muros de arrimo.
 // O recálculo verifica a armadura bloqueada sem redimensioná-la; bloqueio vale para o número de panos em que foi feito.
 import type { Draft } from 'immer';
+import { ehAlvenaria } from '../building/alvenaria';
 import { numeroDePanos } from '../building/paredesDim';
 import { lancesDoPP, ladosDoPP } from '../building/pilarParede';
 import { ppDaParede } from '../building/paredesBase';
@@ -71,7 +72,11 @@ registrar<ParamsArmadura>({
   descricao: 'Edita e bloqueia a malha de um pano de parede (lado, lance e pano; vert e hor { phi (mm), s (m) } iguais nas duas faces) e/ou os comprimentos de emenda por pavimento (tração e compressão, m). O recálculo verifica essa malha sem redimensioná-la: erro se o fator de cumprimento exigido não for atingido. O bloqueio vale para o número de panos em que foi feito.',
   risco: 'escrita', calculo: 'detalhe', mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: propsArmadura },
-  validar(b, p) { const w = b.paredes?.find((x) => x.id === p.id); return validarArmadura(b, p, w && ppDaParede(w), 'Parede'); },
+  validar(b, p) {
+    const w = b.paredes?.find((x) => x.id === p.id);
+    if (w && ehAlvenaria(w)) return err('PAREDE_TIPO', `${w.nome} é de ${w.tipo === 'blocos' ? 'blocos' : 'alvenaria'}: a armadura vem do tipo de alvenaria (alvenaria.tipo), não da malha de concreto.`);
+    return validarArmadura(b, p, w && ppDaParede(w), 'Parede');
+  },
   aplicar(d, p) { const w = d.paredes!.find((x) => x.id === p.id)!; return `Parede ${w.nome}: ${aplicarArmadura(d, w, p)}.`; },
 });
 
@@ -110,7 +115,7 @@ registrar<{ id: string; pavimento?: string; espessura: number }>({
 
 type ParamsAbertura = { acao: 'editar' | 'copiar' | 'padrao' | 'limpar'; abertura?: string; de?: string; para?: string[]; tipo?: 'porta' | 'janela'; armadura?: ArmaduraAbertura };
 
-const acharAbertura = (b: BuildingModel, id: string) => { for (const w of b.paredes ?? []) { const a = w.aberturas?.find((x) => x.id === id); if (a) return { w, a }; } return undefined; };
+const acharAbertura = (b: BuildingModel, id: string) => { for (const w of (b.paredes ?? []).filter((q) => !ehAlvenaria(q))) { const a = w.aberturas?.find((x) => x.id === id); if (a) return { w, a }; } return undefined; };
 
 registrar<ParamsAbertura>({
   nome: 'abertura.armadura',

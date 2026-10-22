@@ -18,6 +18,7 @@ import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
 import { vaosDaViga } from './vigas';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
 import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
+import { aplicarDispensaVigasMuro, dimensionarAlvenaria, type ResultadoAlvenaria } from './alvenariaDim';
 import { detalharParedes, resumoAcoParedes, type DetalheParede } from './detalhamentoParedes';
 import { dimensionarMuroArrimo, matMuroDe, type ResultadoMuroDim } from './muroArrimoDim';
 import { ladosDoPP, lancesDoPP, todosPilares } from './pilarParede';
@@ -1609,7 +1610,9 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   armaduraParedes?: ResultadoParedeDim[];
   detalhesParedes?: DetalheParede[]; resumoAcoParedes?: ReturnType<typeof resumoAcoParedes>;
   /** Muros de arrimo isolados (E1d): estabilidade, armadura do fuste e da base. */
-  muros?: ResultadoMuroDim[] }
+  muros?: ResultadoMuroDim[];
+  /** Alvenaria estrutural e blocos de concreto (E1e): verificação por pano, verga, quantitativo de blocos, desligamento muro-pilar e vigas sobre muros. */
+  alvenaria?: ResultadoAlvenaria }
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas'> {
@@ -1654,6 +1657,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
       d.resumoAcoParedes = resumoAcoParedes(d.detalhesParedes, an.opcoes.perdasAco);
     }
   }
+  { const al = dimensionarAlvenaria(b, an, elu, d.paredes, an.opcoes); if (al) { d.alvenaria = al; aplicarDispensaVigasMuro(d.vigas, al.vigasMuro); } }
   if (b.murosArrimo?.length) d.muros = b.murosArrimo.map((m) => ({ id: m.id, nome: m.nome, ...dimensionarMuroArrimo(m, matMuroDe(b, an.opcoes)) }));
   if (estadoEmUso(b, 'equilibrio').ativo) { const eq = equilibrioGlobal(b, an, an.opcoes); if (eq.length) d.equilibrio = eq; }
   const avisosAcoes = [...textosAlertas(b, alertasSituacoes(b, combs)), ...(d.equilibrio ?? []).filter((e) => !e.ok).map((e) => `Equilíbrio global: tombamento com vento a ${e.direcao}° (momento estabilizante ${Math.round(e.Mest)} kN·m < instabilizante ${Math.round(e.Minst)} kN·m).`)];

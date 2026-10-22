@@ -43,7 +43,7 @@ export interface Norma {
   /** fck dos pilares por lance (pavimento do topo do lance). */
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
-  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao', 'CA-50' | 'CA-60'>>;
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor', 'CA-50' | 'CA-60'>>;
   /** Coeficientes de ponderação (padrão γc 1,4 [pelo controle de execução]; γs 1,15; γg 1,4; γq 1,4; γh do empuxo 1,4). */
   gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
@@ -276,6 +276,46 @@ export interface AberturaParede {
   pavimento: string;
   /** Armadura de reforço bloqueada (E1d); ausente = calculada. */
   armadura?: ArmaduraAbertura;
+  /** Verga (e contraverga) da abertura em parede de blocos, bloqueada (E1e); ausente = calculada. */
+  verga?: ArmaduraVerga;
+}
+/** Armadura da verga de uma abertura em alvenaria de blocos (E1e): n barras φ (mm) na canaleta grauteada, estribos opcionais. */
+export interface ArmaduraVerga { n: number; phi: number; estribo?: { phi: number; s: number }; /** Contraverga sob a janela (canaleta abaixo do peitoril). */ contraverga?: { n: number; phi: number } }
+
+/** Bloco de concreto da biblioteca (E1e, C5.3, C5.4): dimensões modulares (com a junta) em m e resistência característica na área bruta (MPa). */
+export interface TipoBloco {
+  id: string; nome: string;
+  /** Comprimento, largura (= espessura da parede) e altura modulares, m. */
+  comprimento: number; largura: number; altura: number;
+  /** fbk na área bruta (MPa). */
+  fbk: number;
+  /** Peça de canto: ausente = só nas paredes em que a largura não é metade do comprimento. */
+  canto?: boolean;
+}
+/**
+ * Tipo de alvenaria estrutural (E1e; C5.1, C5.8, K1.9.4, K1.9.5, C5.25): 'generica' (módulo, peso e resistências de cálculo
+ * informados) ou 'blocos' (resistência pelo bloco, argamassa, graute e prisma, NBR 16868). Valores em MPa e kN/m³.
+ */
+export interface TipoAlvenaria {
+  id: string; nome: string;
+  modelo: 'generica' | 'blocos';
+  /** Peso específico com revestimento (kN/m³). */
+  gama: number;
+  /** Módulo de elasticidade (MPa); ausente em 'blocos' = mín(800·fpk; 16 000). */
+  E?: number;
+  /** Módulo de cisalhamento (MPa), usado só se `considerarG`; ausente = 0,4·E. */
+  G?: number;
+  /** Considera a rigidez ao cisalhamento informada (G); senão, material isótropo com o ν das opções. */
+  considerarG?: boolean;
+  /** Genérica: resistências de cálculo à compressão, à tração e ao cisalhamento (MPa); ftd ausente = % da compressão (opção), fvd ausente = ftd. */
+  fd?: number; ftd?: number; fvd?: number;
+  /** Blocos: id do bloco, resistência da argamassa e do graute (MPa), grauteamento e prisma informado (MPa). */
+  bloco?: string; argamassa?: number; graute?: number;
+  grauteamento?: 'nenhum' | 'parcial' | 'total';
+  fpk?: number;
+  /** Blocos armados: barras verticais nas células grauteadas e horizontais nas juntas, bloqueadas (E1e); ausente = calculadas. */
+  armada?: boolean;
+  armadura?: { vertical?: { phi: number; s: number }; horizontal?: { phi: number; s: number } };
 }
 /**
  * Empuxo aplicado à parede (E1c, C5.2, K1.9.107; X5): caso de carga, lado do terreno (ou do líquido) e a fonte da pressão:
@@ -299,8 +339,10 @@ export interface EmpuxoParede {
  */
 export interface Parede {
   id: string; nome: string;
-  /** Concreto aqui; alvenaria estrutural e blocos na E1e. */
-  tipo: 'concreto';
+  /** Concreto (E1c), alvenaria genérica ou blocos de concreto (E1e; o `material` dá o tipo de alvenaria). */
+  tipo: 'concreto' | 'alvenaria' | 'blocos';
+  /** Id do tipo de alvenaria (`tiposAlvenaria`) das paredes 'alvenaria' e 'blocos' (E1e). */
+  material?: string;
   /** Polilinha do eixo (m), 2 ou mais vértices. */
   pontos: [number, number][];
   esq: number; dir: number;
@@ -692,6 +734,11 @@ export interface BuildingModel {
   murosArrimo?: MuroArrimoObra[];
   /** Armadura padrão de reforço das aberturas, por tipo, aplicada às que não têm armadura própria (E1d). */
   aberturasPadrao?: { porta?: ArmaduraAbertura; janela?: ArmaduraAbertura };
+  /** Tipos de alvenaria estrutural (E1e) e blocos de concreto da biblioteca da obra. */
+  tiposAlvenaria?: TipoAlvenaria[];
+  blocos?: TipoBloco[];
+  /** Verga padrão das aberturas em parede de blocos, por tipo, aplicada às que não têm verga própria (E1e). */
+  vergasPadrao?: { porta?: ArmaduraVerga; janela?: ArmaduraVerga };
   /** Fundações lançadas no edifício (frente FU): dados do terreno, sondagens e elementos. */
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */
