@@ -11,7 +11,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 28 | 6 | 12 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 6 | 9 | 4 | 3 |
-| 3. Grupos e pavimentos | 41 | 28 | 5 | 5 | 3 |
+| 3. Grupos e pavimentos | 41 | 28 | 8 | 2 | 3 |
 | 4. Pilares | 63 | 49 | 5 | 2 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
 | 6. Vigas | 108 | 32 | 8 | 43 | 25 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **285** | **74** | **219** | **185** |
+| **Total** | **763** | **285** | **77** | **216** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 166 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 33 | 25 | 58 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 7 | 28 | 35 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 10 | 25 | 35 |
 
 ## 0. Apresentação do programa
 
@@ -170,10 +170,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.28 | Consulta das cotas relativas e absolutas de cada pavimento. | Feito | — | cotas e pé-direito |
 | C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Falta | L | mover textos de referência na planta [L4] |
 | C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Parcial | L | camadas de exibição na planta; sem escolher tipos de texto [L4] |
-| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Falta | V | cortes verticais do edifício [V2] |
-| C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Falta | V | [V2] |
-| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2] |
-| C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Falta | V | linhas de seção no pavimento [V2] |
+| C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Parcial | V | cortes verticais do edifício [V2]: núcleo `vista3d/corte.ts` (`cortarCena`, `desenharCorte`), comando `corte.criar`; tela nos cartões `docs/cartoes/V2/`; pranchas pendentes |
+| C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Parcial | V | [V2]: `b.cortes[]`, comandos `corte.criar/editar/remover` (`commands/cortes.ts`); lista na interface nos cartões V2 |
+| C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2]: marcas na tela nos cartões V2; `prancha.cortes` e folha de cortes nas pranchas pendentes |
+| C3.34 | Linhas de seção em qualquer direção no pavimento, com diagrama da seção. A janela da seção abre automaticamente. | Parcial | V | linhas de seção no pavimento [V2]: `secaoDoPavimento` (apoios, vãos, SVG), `secao.*`; janela automática nos cartões V2 |
 | C3.35 | Vista 3D do grupo atual ou de um intervalo de grupos/pavimentos. | Feito | — | vista 3D por grupo, intervalo de pavimentos ou um pavimento: `construirCena` (`src/core/vista3d/cena.ts`), aba 3D (`src/app/vista3d/Vista3D.tsx`) [V1] |
 | C3.36 | Vista 3D do edifício completo, incluindo as estruturas 3D integradas. | Feito | — | edifício completo na vista 3D (pilares, vigas, lajes e fundações); aço fora [V1] |
 | C3.37 | Vista 3D com cor e textura por tipo de elemento (pilares, vigas, lajes etc.). | Feito | — | cor por tipo (tokens `--v3d-*` nos três temas) e textura procedural opcional [V1] |
@@ -1040,3 +1040,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E reduz em 9 itens (manual do usuário).
 - **22/10/2026 — correção pós-auditoria N2 (achados 4 a 6).** C4.44 e C10.6 voltam a Parcial: fogo apoiado em fontes secundárias (NBR 15200:2004 de cópia de terceiros; 2012 por monografia), 180 min e tabelas gerais de pilares da 2012 não transcritos; pilar com vento determinante agora emite aviso FOGO_LIMITES em vez de silêncio.
+- **22/10/2026 — V2, núcleo (cortes, seções e armaduras em 3D).** C3.31, C3.32 e C3.34 passam de Falta a Parcial (núcleo e comandos prontos; interface nos cartões `docs/cartoes/V2/`); C3.33 segue Falta (marcas e folha nas pranchas pendentes). Pendências por frente: V sem mudança de contagem de Falta além de 3 itens que viram Parcial.

@@ -20,6 +20,7 @@ import './fogo';
 import './paredes';
 import './paredesArmadura';
 import './alvenaria';
+import './cortes';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';
