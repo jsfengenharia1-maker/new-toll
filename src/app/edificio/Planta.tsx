@@ -18,8 +18,8 @@ import { isFooting } from '../../core/footings';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilares';
 import { vigasDoClique } from '../../core/building/lancamentoDxf';
-import { pontaProlongada } from '../../core/building/lancamentoL5';
-import { panosDoGrupo } from '../../core/building/lajes';
+import { pontaProlongada, retanguloDaAbertura, retanguloPorLado } from '../../core/building/lancamentoL5';
+import { direcaoMenorVao, panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
 import { montarPoligonal } from '../../core/building/curvas';
 import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraNoGrupo, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
@@ -219,7 +219,7 @@ export function Planta() {
   const it = useRef({
     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
-    baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
+    baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, lajeAb: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
   });
 
   // ---- dados derivados ----
@@ -913,6 +913,26 @@ export function Planta() {
       const [ax, ay] = paraTela(...pontos[0]);
       ctx.strokeStyle = pl.ferramenta === 'laje' ? cores.laje : cores.carga; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, ay); ctx.stroke(); ctx.setLineDash([]);
     }
+    // L5: laje sob o cursor (escolha do pano nas ferramentas de abertura, carga, direção e inserção)
+    if (['aberturaRet', 'cargaLaje', 'direcaoPano', 'insercaoPano'].includes(pl.ferramenta) && !pontos.length && !s.pan) {
+      const lj = lajes.find((x) => dentroPoligono(s.cursor, x.l.contorno as P2[]))?.l;
+      if (lj) { ctx.beginPath(); lj.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.globalAlpha = 0.3; ctx.fillStyle = cores.aviso; ctx.fill(); ctx.globalAlpha = 1; }
+    }
+    // L5: prévia do contorno retangular e da abertura retangular
+    if ((pl.ferramenta === 'contornoRet' || pl.ferramenta === 'aberturaRet') && pontos.length && !s.pan) {
+      const alvo = [...(pl.ferramenta === 'aberturaRet' ? pontos.slice(1) : pontos), s.ponto];
+      let ret: P2[] | null = null;
+      if (pl.ferramenta === 'contornoRet') ret = alvo.length === 2 ? retanguloPorLado(alvo[0], alvo[1]) : alvo.length === 3 ? retanguloPorLado(alvo[0], alvo[1], alvo[2]) : null;
+      else if (alvo.length >= 2) {
+        const lj = lajes.find((x) => x.l.id === it.current.lajeAb)?.l, vp = pl.l5.vigaRef ? vigas.find((x) => x.v.id === pl.l5.vigaRef)?.v.pontos as P2[] | undefined : undefined;
+        const nerv = lj && !lj.definir && lj.tipo.tipo === 'trelicada' ? lj.direcao ?? direcaoMenorVao(lj.contorno as P2[]) : null;
+        ret = retanguloDaAbertura(pl.l5.modoAbertura, alvo[0], alvo[1], alvo[2], vp, nerv);
+      }
+      if (ret) {
+        ctx.strokeStyle = pl.ferramenta === 'contornoRet' ? cores.viga : cores.laje; ctx.lineWidth = 2; ctx.setLineDash([8, 4]); ctx.beginPath();
+        ret.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
     // prolongar por comprimento fixo (L5, C6.53): prévia da nova ponta da viga sob o cursor
     if (pl.ferramenta === 'prolongar' && pl.l5.comprimento && !pontos.length && !s.pan) {
       const v = vigaSob(s.cursor, 12);
@@ -1280,6 +1300,35 @@ export function Planta() {
       exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), copiarDe: P.contaGotas.pilar, incluirCargas: P.contaGotas.cargas });
       return;
     }
+    if (f === 'contornoRet') {
+      // L5 (C6.51): dois cliques + Enter = cantos opostos (ângulo zero); três cliques = um lado e um ponto do lado oposto
+      if (nivelFund || !pav) { msg('O contorno de vigas é lançado nas plantas dos pavimentos.'); return; }
+      if (novos.length < 3) { setPontos(novos); msg(novos.length === 1 ? 'Segundo ponto do contorno.' : 'Enter cria o contorno de ângulo zero; um clique no lado oposto cria o de qualquer ângulo.'); return; }
+      setPontos([]);
+      const [c1, c2, c3] = novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]);
+      exec('viga.contornoRetangular', { grupo, c1, c2, c3, secao: pl.secaoViga, alinhar: usePlanta.getState().l5.alinharContorno });
+      return;
+    }
+    if (f === 'aberturaRet') {
+      // L5 (C7.78 a C7.82): 1º clique na laje (no modo paralela a uma viga, antes na viga de referência) e depois os cantos
+      if (nivelFund || !pav) { msg('A abertura retangular é lançada nas plantas dos pavimentos.'); return; }
+      const P = usePlanta.getState(), L = P.l5, c = it.current.cursor;
+      if (!pontos.length) {
+        if (L.modoAbertura === 'viga' && !L.vigaRef) {
+          const v = vigaSob(c);
+          if (!v) { msg('Modo paralela a uma viga: clique primeiro na viga de referência.'); return; }
+          P.set({ l5: { ...L, vigaRef: v.id }, selecao: new Set([v.id]) }); msg(`Viga de referência: ${v.nome}. Clique na laje.`); return;
+        }
+        const l = lajes.find((x) => dentro(c, x.l.contorno))?.l;
+        if (!l) { msg('Clique dentro de uma laje.'); return; }
+        it.current.lajeAb = l.id; P.set({ selecao: new Set([l.id]) }); setPontos([p]); return;
+      }
+      if (novos.length - 1 < (L.modoAbertura === 'qualquer' ? 3 : 2)) { setPontos(novos); return; }
+      const [c1, c2, c3] = novos.slice(1).map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]);
+      setPontos([]);
+      exec('laje.aberturaRetangular', { id: it.current.lajeAb, modo: L.modoAbertura, c1, c2, ...(L.modoAbertura === 'qualquer' ? { c3 } : {}), ...(L.modoAbertura === 'viga' ? { viga: L.vigaRef } : {}), borda: L.borda, secaoBorda: { b: L.bordaB, h: L.bordaH } });
+      return;
+    }
     if (f === 'viga') {
       // viga curva (E2b): no trecho curvo o 1º clique é a passagem do arco e o 2º, o fim; os trechos retos guardam null
       const P = usePlanta.getState(), n = pontosRef.current.length;
@@ -1571,6 +1620,11 @@ export function Planta() {
       if (e.type !== 'keydown') return;
       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }
       if (k === 'Enter' && POLILINHAS.includes(P.ferramenta)) { terminar(); return; }
+      if (k === 'Enter' && P.ferramenta === 'contornoRet' && pontos.length === 2) { // L5: cantos opostos, ângulo zero
+        setPontos([]);
+        exec('viga.contornoRetangular', { grupo, c1: pontos[0].map((v) => +v.toFixed(4)), c2: pontos[1].map((v) => +v.toFixed(4)), secao: P.secaoViga, alinhar: P.l5.alinharContorno });
+        return;
+      }
       if (k === 'Enter' && P.ferramenta === 'fundacao' && P.multiFund) { criarGrupoPlanta(); return; }
       // Enter sem nada pendente repete o último comando (ferramenta ou item da paleta Ctrl+K)
       if (k === 'Enter' && P.ferramenta === 'selecionar' && !pontos.length && P.ultimaAcao) {
