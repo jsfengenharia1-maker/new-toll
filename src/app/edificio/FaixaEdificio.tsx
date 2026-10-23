@@ -1,7 +1,8 @@
 // Corpo das abas da faixa do módulo Edifício. Cada botão chama o mesmo handler que o grupo ou a barra de onde saiu (ver o mapa).
 import { useRef, type ReactNode } from 'react';
-import { RibbonButton, RibbonGroup } from '../ui';
-import { aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
+import { Dropdown, Input, RibbonButton, RibbonGroup } from '../ui';
+import { CoresPlanta } from './CoresPlanta';
+import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
@@ -155,10 +156,115 @@ function Dimensionamento() {
   );
 }
 
+function Fundacoes() {
+  const { calcularFundacao, calculandoFund, dim } = useBuilding();
+  const pl = usePlanta();
+  return (
+    <>
+      <RibbonGroup label="Elementos" radios="Ferramenta">
+        <Ferr f="fundacao" icon="fundacao" /><Ferr f="vigaFund" icon="vigaFund" /><Ferr f="radier" icon="radier" /><Ferr f="vigaElastica" icon="vigaElastica" /><Ferr f="corrida" icon="corrida" />
+      </RibbonGroup>
+      <RibbonGroup label="Modificar" radios="Ferramenta">
+        <Ferr f="girarFund" icon="girarFund" /><Ferr f="insFund" icon="pontoIns" />
+      </RibbonGroup>
+      <RibbonGroup label="Limites" radios="Ferramenta"><Ferr f="limite" icon="limite" /><Ferr f="limiteMascara" icon="limite" /></RibbonGroup>
+      <RibbonGroup label="Cálculo">
+        <RibbonButton icon="fundacao" label="Nível de fundação" title="Planta de fundação (U)" onClick={() => { ui({ aba: 'planta' }); pl.set({ pavimento: 'fundacao', ferramenta: 'fundacao', selecao: new Set() }); }} />
+        <RibbonButton icon="calcular" label="Calcular as fundações" title="Calcula só as fundações, com a análise em vigor" disabled={!dim || calculandoFund} onClick={() => { void calcularFundacao(); }} />
+        <RibbonButton icon="config" label="Configuração das fundações…" onClick={() => ui({ cfg: 'fundacao' })} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+function Pranchas() {
+  return (
+    <RibbonGroup label="Folhas">
+      <RibbonButton icon="pranchas" label="Abrir Pranchas" title="Abre a vista Pranchas (tipo, grupo, formato, escala, PDF, DXF e DWG)" onClick={() => ui({ aba: 'pranchas' })} />
+      <RibbonButton icon="config" label="Opções de armação e locação…" onClick={() => ui({ aba: 'pranchas' })} />
+    </RibbonGroup>
+  );
+}
+
+function Vista() {
+  const pl = usePlanta();
+  const dim = useBuilding((s) => s.dim);
+  const b = useBuilding((s) => s.sessao.modelo);
+  const nivelFund = pl.pavimento === 'fundacao';
+  return (
+    <>
+      <RibbonGroup label="Navegação" radios="Ferramenta">
+        <RibbonButton icon="enquadrar" label="Enquadrar" title="Enquadrar (F)" onClick={() => { ui({ aba: 'planta' }); pl.set({ vista: null }); }} />
+        <Ferr f="medir" icon="medir" />
+        <RibbonButton icon="paleta" label="Paleta de comandos" title="Paleta de comandos (Ctrl+K)" onClick={() => ui({ paleta: true })} />
+        <RibbonButton icon="guia" label="Guia rápido" onClick={() => ui({ l4: 'guia' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Camadas">
+        <div className="rstack">
+          <Dropdown aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
+          <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
+          </Dropdown>
+          <CoresPlanta />
+          <Dropdown aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
+          onChange={(e) => {
+          const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
+          if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
+          else if (v === 'editar') pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes });
+          else pl.set({ camadaPuncao: false, painelLajes: false, armaduraLajes: v });
+          }}>
+          <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
+          {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
+          </Dropdown>
+          <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><Input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
+          <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
+          {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
+          {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
+          <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
+          </Dropdown> : null}
+        </div>
+      </RibbonGroup>
+    </>
+  );
+}
+
+export const ROTULO_CTX: Record<string, string> = { pilar: 'Pilar', viga: 'Viga', laje: 'Laje', fundacao: 'Fundação' };
+
+function Contexto() {
+  const alvo = useAlvoSelecionado();
+  const { exec, dim, sessao } = useBuilding();
+  const pl = usePlanta();
+  const b = sessao.modelo;
+  if (!alvo) return null;
+  const fundSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
+  const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
+  return (
+    <>
+      <RibbonGroup label="Elemento">
+        <RibbonButton icon="relatorio" label="Resultados do elemento" disabled={!dim} onClick={() => abrirJanela(alvo)} />
+        <RibbonButton icon="enquadrar" label="Centralizar na planta" onClick={() => pl.set({ foco: { id: alvo.id, n: (pl.foco?.n ?? 0) + 1 } })} />
+      </RibbonGroup>
+      {alvo.tipo === 'fundacao' && (
+        <RibbonGroup label="Fundação">
+          <RibbonButton icon="girar" label="Girar 90°" title="Gira os elementos selecionados em 90° (R)" disabled={!fundSel.length} onClick={() => exec('lote', { comandos: fundSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })} />
+          <RibbonButton icon="pilar" label="Ao pilar" title="Gira os elementos selecionados para o ângulo do pilar" disabled={!fundSel.length} onClick={() => exec('fundacao.girar', { ids: fundSel.map((e) => e.id), doPilar: true })} />
+          <RibbonButton icon="remover" label="Remover" title="Remove os elementos e as vigas de fundação selecionados (Del)" disabled={!fundSel.length && !vigasFundSel.length} onClick={() => {
+            const cmds = [...(vigasFundSel.length ? [{ nome: 'vigaFundacao.remover', params: { ids: vigasFundSel.map((v) => v.id) } }] : []), ...(fundSel.length ? [{ nome: 'fundacao.remover', params: { ids: fundSel.map((e) => e.id) } }] : [])];
+            exec('lote', { comandos: cmds }); pl.set({ selecao: new Set() });
+          }} />
+        </RibbonGroup>
+      )}
+    </>
+  );
+}
+
 /** Corpo da aba `aba` da faixa do Edifício. Os cartões 03 a 05 acrescentam as demais abas. */
 export function FaixaEdificio({ aba }: { aba: string }): ReactNode {
   if (aba === 'lancamento') return <Lancamento />;
   if (aba === 'edicao') return <Edicao />;
+  if (aba === 'fundacoes') return <Fundacoes />;
+  if (aba === 'pranchas') return <Pranchas />;
+  if (aba === 'vista') return <Vista />;
+  if (aba === 'ctx') return <Contexto />;
   if (aba === 'cargas') return <CargasEAcoes />;
   if (aba === 'analise') return <Analise />;
   if (aba === 'dimensionamento') return <Dimensionamento />;

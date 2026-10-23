@@ -18,7 +18,9 @@ interface UiState {
   jan: JanelaForm;
   /** Seção aberta da Configuração da obra (id de `SECOES` em Configuracao.tsx); null = fechada. */
   cfg: string | null;
+  /** Paleta de comandos (Ctrl+K) aberta. */
+  paleta: boolean;
   set(p: Partial<Omit<UiState, 'set'>>): void;
 }
 
-export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, set: (p) => set(p) }));
+export const useEdifUI = create<UiState>((set) => ({ aba: 'planta', memo: false, l1: null, l2: null, l4: null, jan: null, cfg: null, paleta: false, set: (p) => set(p) }));

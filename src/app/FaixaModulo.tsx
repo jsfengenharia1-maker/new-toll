@@ -11,8 +11,8 @@ export const ABAS_FAIXA: Record<Modulo, RibbonTabDef[]> = {
 const NOME: Record<Modulo, string> = { portico: 'Pórtico', edificio: 'Edifício', fundacoes: 'Fundações' };
 
 /** `corpo(aba)` devolve os grupos da aba ativa; sem ele (D2), mostra uma dica. */
-export function FaixaModulo({ modulo, corpo }: { modulo: Modulo; corpo?: (aba: string) => ReactNode }) {
-  const abas = ABAS_FAIXA[modulo];
+export function FaixaModulo({ modulo, corpo, contextual }: { modulo: Modulo; corpo?: (aba: string) => ReactNode; contextual?: RibbonTabDef }) {
+  const abas = [...ABAS_FAIXA[modulo], ...(contextual ? [{ ...contextual, contextual: true }] : [])];
   const salva = useLayout((s) => s.aba[modulo]);
   const aberta = useLayout((s) => s.faixaAberta);
   const setAba = useLayout((s) => s.setAba);

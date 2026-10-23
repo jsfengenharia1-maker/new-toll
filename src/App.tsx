@@ -16,7 +16,8 @@ import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
 import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
-import { FaixaEdificio } from './app/edificio/FaixaEdificio';
+import { FaixaEdificio, ROTULO_CTX } from './app/edificio/FaixaEdificio';
+import { useAlvoSelecionado } from './app/edificio/alvo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
@@ -251,6 +252,7 @@ export default function App() {
   };
 
   const nErr = bd.diags.filter((d) => d.severidade === 'erro').length;
+  const alvo = useAlvoSelecionado();
   const acoes: AcoesArquivo = {
     novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); },
     abrir: openWork, salvar: saveWork, biblioteca: () => st.set({ libraryOpen: true }),
@@ -297,7 +299,7 @@ export default function App() {
       </nav>
 
       <div className="work">
-      <FaixaModulo modulo={st.module} corpo={corpoFaixa} />
+      <FaixaModulo modulo={st.module} corpo={corpoFaixa} contextual={st.module === 'edificio' && alvo ? { id: 'ctx', label: ROTULO_CTX[alvo.tipo] ?? 'Elemento' } : undefined} />
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
         <nav className="toolbar" aria-label="Ferramentas">

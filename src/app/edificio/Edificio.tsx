@@ -5,7 +5,7 @@ import { AbaDeslocamentos } from './AbaDeslocamentos';
 import { AbaIsovalores } from './AbaIsovalores';
 import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
-import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
+import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { UNIDADES } from './lancamentoLeitura';
@@ -24,7 +24,6 @@ import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
-import { CoresPlanta } from './CoresPlanta';
 import { Pranchas } from './Pranchas';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
@@ -68,7 +67,6 @@ import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
 import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
-import { useAlvoSelecionado } from './alvo';
 import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
 import { JanelaConfiguracao } from './Configuracao';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
@@ -384,9 +382,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const nivelFund = pl.pavimento === 'fundacao';
   const atual = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const dim = useBuilding((s) => s.dim);
-  const { exec, calcularFundacao, calculandoFund } = useBuilding();
-  const elementosSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
-  const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
+  const { calcularFundacao, calculandoFund } = useBuilding();
   // armadura de punção informada nos pilares selecionados (apagar por janela de seleção)
   const pilaresSelPuncao = b.lajes.flatMap((l) => [...new Set((l.puncao ?? []).filter((g) => g.pilar && pl.selecao.has(g.pilar)).map((g) => g.pilar!))].map((pilar) => ({ laje: l.id, pilar })));
   const apagarPuncaoSelecao = () => {
@@ -394,7 +390,6 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
     for (const x of pilaresSelPuncao) porLaje.set(x.laje, [...(porLaje.get(x.laje) ?? []), x.pilar]);
     void executarERecalcular('lote', { comandos: [...porLaje].map(([id, pilares]) => ({ nome: 'laje.puncao', params: { id, pilares } })) });
   };
-  const alvo = useAlvoSelecionado();
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
@@ -419,24 +414,9 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <label className="check small" title="Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas"><Input type="checkbox" checked={pl.corridaLanc.equilibrio} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, equilibrio: e.target.checked } })} /> <span>Cintas</span></label>
       </>}
       {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
-      {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
-        <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
-      </Dropdown> : null}
       {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><Input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
       <label className="check small"><Input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
       <label className="check small"><Input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
-      <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
-      <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><Input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <Dropdown aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
-        onChange={(e) => {
-          const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
-          if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
-          else if (v === 'editar') pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes });
-          else pl.set({ camadaPuncao: false, painelLajes: false, armaduraLajes: v });
-        }}>
-        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
-        {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
-      </Dropdown>
       {pl.ferramenta === 'puncao' && (<>
         <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
           {(['adicionar', 'apagar'] as const).map((m) => <Button variant="nenhuma" key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</Button>)}
@@ -447,21 +427,9 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <NumField label="Espaç." unit="cm" width={70} value={Math.round(pl.puncaoGrupo.s * 100)} onChange={(v) => v >= 3 && v <= 30 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, s: v / 100 } })} />
       </>)}
       {!!pilaresSelPuncao.length && <Button title="Apaga a armadura de punção informada nos pilares selecionados (use a seleção por janela da ferramenta Selecionar)" onClick={() => apagarPuncaoSelecao()}>Apagar punção da seleção</Button>}
-      {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
       {nivelFund && (<>
         <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
-        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados em 90° (R)" onClick={() => exec('lote', { comandos: elementosSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })}>Girar 90°</Button>
-        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados para o ângulo do pilar" onClick={() => exec('fundacao.girar', { ids: elementosSel.map((e) => e.id), doPilar: true })}>Ao pilar</Button>
-        <Button variant="danger" disabled={!elementosSel.length && !vigasFundSel.length} title="Remove os elementos e as vigas de fundação selecionados (Del)" onClick={() => {
-          const cmds = [...(vigasFundSel.length ? [{ nome: 'vigaFundacao.remover', params: { ids: vigasFundSel.map((v) => v.id) } }] : []), ...(elementosSel.length ? [{ nome: 'fundacao.remover', params: { ids: elementosSel.map((e) => e.id) } }] : [])];
-          exec('lote', { comandos: cmds }); pl.set({ selecao: new Set() });
-        }}>Remover</Button>
       </>)}
-      <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
-      <Dropdown aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
-        <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
-      </Dropdown>
-      <CoresPlanta />
     </div>
   );
 }
