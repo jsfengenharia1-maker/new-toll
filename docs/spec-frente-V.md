@@ -130,3 +130,4 @@ Ordem: V1 → V2 e V3 (podem rodar em paralelo) → V4 → V5 (V4 e V5 também s
 - **Desempenho:** as armaduras de um edifício inteiro têm dezenas de milhares de segmentos; o limite e a fusão por material são ajustados na execução e registrados.
 - **Escopo que as frentes E ampliam:** paredes, escadas, inclinadas e planos chegam ao 3D por `GERADORES_3D`; a V não espera por elas.
 - **Dependência:** three.js (aceita em 20/10/2026); nenhuma outra nova.
+- 23/10/2026: **V5, núcleo concluído.** Ver `docs/historico-fatias.md` e `docs/cartoes/V5/`. Pendente: formato do usuário e margens, planta (cargas coloridas, vento, vigotas), seletor nas janelas de elemento e memorial.

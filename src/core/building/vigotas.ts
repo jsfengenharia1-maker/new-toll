@@ -158,10 +158,10 @@ const r3 = (x: number) => +x.toFixed(3);
 const sub = (a: P, z: P): P => [a[0] - z[0], a[1] - z[1]];
 const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
 
-type Bruta = Omit<FaixaVigota, 'calc' | 'grupo' | 'nervuras'>;
+export type Bruta = Omit<FaixaVigota, 'calc' | 'grupo' | 'nervuras'>;
 
 /** Alinhamentos da laje numa grelha, com a envoltória por nervura da combinação de fatores `fat` (por caso). */
-function faixasDaGrelha(g: GrelhaPavimento, l: Laje, fat: number[], u: P, intereixo: number): Bruta[] {
+export function faixasDaGrelha(g: GrelhaPavimento, l: Laje, fat: number[], u: P, intereixo: number): Bruta[] {
   const m = g.modelo, res = g.res!;
   const adj = new Map<number, { no: number; bar: number }[]>();
   m.barras.forEach((br, i) => {

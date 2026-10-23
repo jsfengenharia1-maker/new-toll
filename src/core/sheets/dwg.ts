@@ -3,12 +3,13 @@
 // Mesma organização do DXF: planta em m no modelo, folha em mm num layout com as janelas 1 (papel) e 2.
 import type { Drawing, Entity, TextHAlign, TextVAlign } from 'nasjidwg';
 import { CAMADAS, TRACOS, type Camada, type Prancha, type Prim } from './prancha';
+import { camadaEstilo, nomeCamada } from './estilo';
 
 const TIPO: Record<'cont' | 'trac' | 'eixo', string> = { cont: 'Continuous', trac: 'TRACEJADA', eixo: 'EIXO' };
 const p3 = (p: [number, number]) => ({ x: p[0], y: p[1], z: 0 });
 
-function entidade(q: Prim, ltScale: number): Entity {
-  const base = { layer: q.c, color: { kind: 'byLayer' as const }, ...(ltScale !== 1 ? { linetypeScale: ltScale } : {}) };
+function entidade(pr: Prancha, q: Prim, ltScale: number): Entity {
+  const base = { layer: nomeCamada(pr, q.c), color: { kind: 'byLayer' as const }, ...(ltScale !== 1 ? { linetypeScale: ltScale } : {}) };
   if (q.t === 'pl') return { ...base, type: 'polyline', vertices: q.pts.map(([x, y]) => ({ x, y })), closed: !!q.fechada };
   if (q.t === 'circ') return { ...base, type: 'circle', center: p3(q.centro), radius: q.r };
   if (q.t === 'hach') return { ...base, type: 'hatch', patternName: 'SOLID', solid: true, angle: 0, scale: 1, loops: [{ kind: 'polyline', vertices: q.pts.map(([x, y]) => ({ x, y })), closed: true, external: true }] } as Entity;
@@ -30,7 +31,7 @@ export function desenhoDwg(pr: Prancha, arquivoLogo = 'logo.jpg'): Drawing {
     layers: [
       { name: '0', color: { kind: 'aci', index: 7 }, on: true, frozen: false, locked: false },
       { name: 'JANELA', color: { kind: 'aci', index: 8 }, on: true, frozen: false, locked: false, plottable: false },
-      ...camadas.map((c) => ({ name: c, color: { kind: 'aci' as const, index: CAMADAS[c].cor }, on: true, frozen: false, locked: false, linetype: TIPO[CAMADAS[c].tipo], lineweight: CAMADAS[c].pena })),
+      ...camadas.map((c) => ({ name: camadaEstilo(pr, c).nome, color: { kind: 'aci' as const, index: camadaEstilo(pr, c).cor }, on: true, frozen: false, locked: false, linetype: TIPO[camadaEstilo(pr, c).tipo], lineweight: camadaEstilo(pr, c).pena })),
     ],
     linetypes: [
       { name: 'Continuous', description: 'Solid line', pattern: [] },
@@ -39,13 +40,13 @@ export function desenhoDwg(pr: Prancha, arquivoLogo = 'logo.jpg'): Drawing {
     ],
     textStyles: [{ name: 'Standard', font: 'arial.ttf' }],
     blocks: {},
-    entities: pr.modelo.map((q) => entidade(q, k)),
+    entities: pr.modelo.map((q) => entidade(pr, q, k)),
     paperSpace: [
       vp(1, [pr.W / 2, pr.H / 2], pr.W * 1.05, pr.H * 1.05, [pr.W / 2, pr.H / 2], pr.H * 1.05),
       ...(j ? [vp(2, [(j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2], j.x1 - j.x0, j.y1 - j.y0, j.centro, (j.y1 - j.y0) * k)] : []),
-      ...pr.papel.map((q) => entidade(q, 1)),
+      ...pr.papel.map((q) => entidade(pr, q, 1)),
       // logo do carimbo: imagem externa (o arquivo vai ao lado do DWG)
-      ...(pr.logo ? [{ type: 'image', layer: 'FOLHA', color: { kind: 'byLayer' }, position: { x: pr.logo.x0, y: pr.logo.y0, z: 0 }, uVector: { x: (pr.logo.x1 - pr.logo.x0) / pr.logo.largura, y: 0, z: 0 }, vVector: { x: 0, y: (pr.logo.y1 - pr.logo.y0) / pr.logo.altura, z: 0 }, widthPx: pr.logo.largura, heightPx: pr.logo.altura, path: arquivoLogo } as Entity] : []),
+      ...(pr.logo ? [{ type: 'image', layer: nomeCamada(pr, 'FOLHA'), color: { kind: 'byLayer' }, position: { x: pr.logo.x0, y: pr.logo.y0, z: 0 }, uVector: { x: (pr.logo.x1 - pr.logo.x0) / pr.logo.largura, y: 0, z: 0 }, vVector: { x: 0, y: (pr.logo.y1 - pr.logo.y0) / pr.logo.altura, z: 0 }, widthPx: pr.logo.largura, heightPx: pr.logo.altura, path: arquivoLogo } as Entity] : []),
     ],
     layouts: [
       { name: 'Model', tabOrder: 0 },

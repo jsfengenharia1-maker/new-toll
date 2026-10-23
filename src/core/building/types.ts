@@ -1251,6 +1251,28 @@ export interface ConfigPrancha {
   logo?: { dados: string; largura: number; altura: number; nome?: string };
   /** Rótulos das barras das lajes reposicionados nas pranchas (R7e): `laje|pos` → deslocamento no papel (mm). */
   rotulos?: Record<string, [number, number]>;
+  /** Símbolos do pilar que passa, nasce ou morre no pavimento (V5, K1.4.57); ausente = os padrões. */
+  simbolos?: Partial<SimbolosPilar>;
+  /** Camadas (nome, cor ACI, pena, tipo de linha) e tamanho de texto por tipo diferentes do padrão da NBR 16861 (V5, K1.4.90). */
+  estilo?: EstiloParcial;
+  /** Moldura própria: modelo importado de DXF (V5, K1.11.54). */
+  moldura?: ConfigMoldura;
+  /** Detalhes DXF inseridos nas pranchas (V5, K1.11.54). */
+  detalhes?: DetalheInserido[];
+}
+export type SimboloPilar = 'hachura' | 'tracejado' | 'cruz' | 'solido' | 'vazio';
+export interface SimbolosPilar { passa: SimboloPilar; nasce: SimboloPilar; morre: SimboloPilar }
+/** Padrão atual: o pilar que passa ou morre é hachurado e o que nasce é tracejado. */
+export const SIMBOLOS_PADRAO: SimbolosPilar = { passa: 'hachura', nasce: 'tracejado', morre: 'hachura' };
+export interface EstiloCamadaParcial { nome?: string; cor?: number; pena?: number; tipo?: 'cont' | 'trac' | 'eixo' }
+/** Camadas por nome do catálogo (`CAMADAS`) e fator de tamanho de texto por tipo (1 = o atual). */
+export interface EstiloParcial { camadas?: Record<string, EstiloCamadaParcial>; textos?: Record<string, number> }
+/** Desenho DXF lido: segmentos [x1,y1,x2,y2], arcos [x,y,r,a0,a1] e textos, nas unidades do desenho. */
+export interface DetalheDxf { nome: string; insunits: number; linhas: number[]; arcos: number[]; textos: { x: number; y: number; h: number; rot: number; t: string }[] }
+export interface DetalheInserido { id: string; detalhe: DetalheDxf; /** posição na folha (mm) do ponto (0,0) do desenho, escala e rotação (graus) */ x: number; y: number; escala: number; rotacao?: number; /** folhas (tipos de prancha) ou vazio = todas */ folhas?: string[] }
+export interface ConfigMoldura {
+  /** Modelo de moldura importado: substitui o retângulo da folha ('moldura') ou também a legenda ('moldura+legenda'). */
+  modelo?: { detalhe: DetalheDxf; x: number; y: number; escala: number; modo: 'moldura' | 'moldura+legenda' };
 }
 export const PRANCHA_PADRAO: ConfigPrancha = { carimbo: {}, formato: 'auto', escala: 0 };
 

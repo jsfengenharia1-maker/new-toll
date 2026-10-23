@@ -1,8 +1,9 @@
 // Escritor de PDF vetorial próprio (PDF 1.5): uma página por prancha no tamanho da folha, desenho em mm
 // (escala exata), espessura por pena, tracejados, Helvetica com WinAnsiEncoding (acentos) e uma camada
 // opcional (OCG) por camada da prancha, que o leitor de PDF liga e desliga.
-import { CAMADAS, TRACOS, type Camada, type Prancha, type Prim } from './prancha';
+import { TRACOS, type Camada, type Prancha, type Prim } from './prancha';
 import { camadasUsadas, dyBase, primitivasNoPapel } from './papel';
+import { camadaEstilo, nomeCamada } from './estilo';
 import { base64Bytes, infoJpeg } from './logo';
 
 // Larguras da Helvetica (unidades de 1/1000 do corpo) dos caracteres 32 a 126 — métricas padrão da fonte.
@@ -42,11 +43,11 @@ const n = (v: number) => (Math.abs(v) < 5e-5 ? '0' : v.toFixed(4).replace(/\.?0+
 /** Corpo da fonte para a altura das maiúsculas `h` (Helvetica: 0,718 do corpo). */
 const CORPO = 1 / 0.718;
 
-function conteudo(prims: Prim[], ocg: Map<Camada, string>): string {
+function conteudo(pr: Prancha, prims: Prim[], ocg: Map<Camada, string>): string {
   const ops: string[] = ['1 J 1 j', `${n(72 / 25.4)} 0 0 ${n(72 / 25.4)} 0 0 cm`];
   // agrupa por camada, mantendo a ordem de desenho de cada uma (hachuras antes das linhas dentro da camada)
   for (const c of camadasUsadas(prims)) {
-    const cam = CAMADAS[c], qs = prims.filter((p) => p.c === c);
+    const cam = camadaEstilo(pr, c), qs = prims.filter((p) => p.c === c);
     ops.push(`/OC /${ocg.get(c)} BDC`, `${n(cam.pena)} w`, cam.tipo === 'cont' ? '[] 0 d' : `[${TRACOS[cam.tipo].join(' ')}] 0 d`);
     for (const q of qs) {
       if (q.t === 'pl') { ops.push(`${n(q.pts[0][0])} ${n(q.pts[0][1])} m ` + q.pts.slice(1).map((p) => `${n(p[0])} ${n(p[1])} l`).join(' ') + (q.fechada ? ' s' : ' S')); }
@@ -72,7 +73,7 @@ export function escreverPdf(pranchas: Prancha[], info: { titulo?: string; autor?
   const add = (s: string) => { objs.push(s); return objs.length; };
   const catalogo = add(''), paginas = add(''), fonte = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
   const todas = [...new Set(pranchas.flatMap((pr) => camadasUsadas(primitivasNoPapel(pr))))];
-  const ocgs = new Map<Camada, number>(todas.map((c) => [c, add(`<< /Type /OCG /Name ${strPdf(c)} >>`)]));
+  const ocgs = new Map<Camada, number>(todas.map((c) => [c, add(`<< /Type /OCG /Name ${strPdf(nomeCamada(pranchas[0], c))} >>`)]));
   const nomes = new Map<Camada, string>(todas.map((c, i) => [c, `oc${i + 1}`]));
   const kids: number[] = [];
   // logo do carimbo: um XObject de imagem (JPEG, DCTDecode) por imagem distinta, compartilhado entre as páginas
@@ -91,7 +92,7 @@ export function escreverPdf(pranchas: Prancha[], info: { titulo?: string; autor?
   };
   for (const pr of pranchas) {
     const prims = primitivasNoPapel(pr);
-    let cs = conteudo(prims, nomes);
+    let cs = conteudo(pr, prims, nomes);
     const im = pr.logo ? imagem(pr.logo.dados) : 0;
     if (im && pr.logo) { const k = 72 / 25.4, L = pr.logo; cs += `\nq ${n((L.x1 - L.x0) * k)} 0 0 ${n((L.y1 - L.y0) * k)} ${n(L.x0 * k)} ${n(L.y0 * k)} cm /Logo Do Q`; }
     const stream = add(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);

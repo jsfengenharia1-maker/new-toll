@@ -104,7 +104,8 @@ function vetoresDe(S: FiberSection) {
   return v;
 }
 
-function stateForces(S: FiberSection, theta: number, t: number) {
+/** Plano de deformações da família de estados (θ = direção da compressão, t ∈ [0, 3]): ε(s) = e0 + e1·s, compressão +. */
+function planoDeformacoes(S: FiberSection, theta: number, t: number) {
   const ux = Math.cos(theta), uy = Math.sin(theta);
   const V = vetoresDe(S);
   let sMax = -Infinity, sMin = Infinity, sBar = Infinity;
@@ -118,6 +119,12 @@ function stateForces(S: FiberSection, theta: number, t: number) {
   else { const yC = (1 - c.ec2 / c.ecu) * h, b2 = c.ec2 * (t - 2), sl = (b2 - c.ec2) / (h - yC); top = c.ec2 - sl * yC; bot = b2; }
   // ε(s) = top + (bot − top)·(sMax − s)/h = e0 + e1·s
   const e1 = -(bot - top) / h, e0 = top + (bot - top) * sMax / h;
+  return { ux, uy, V, sMax, sMin, sBar, h, d, top, bot, e0, e1 };
+}
+
+function stateForces(S: FiberSection, theta: number, t: number) {
+  const { ux, uy, V, e0, e1 } = planoDeformacoes(S, theta, t);
+  const c = S.c;
   let N = 0, Mx = 0, My = 0;
   // fibras tracionadas (ε ≤ 0) têm σ = 0: somariam +0, que não muda nenhuma soma (que nunca chega a −0)
   for (let k = 0; k < V.fx.length; k++) {
@@ -151,6 +158,15 @@ export function fiberAxialRange(S: FiberSection) {
  * mx > 0 comprime x+, my > 0 comprime y+ — para a normal Nd (MN, compressão +). null se Nd fora da faixa.
  */
 export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: number): number | null {
+  const r = fiberSolve(S, NdMN, mx, my);
+  return r ? Math.hypot(r.Mx, r.My) : null;
+}
+
+/** Estado último da seção para a normal Nd (MN, compressão +) e a direção do momento (mx, my): esforços resistentes e parâmetros (θ da compressão, t ∈ [0, 3]) do plano de deformações. */
+export interface EstadoUltimo { N: number; Mx: number; My: number; theta: number; t: number }
+
+/** Mesma busca de `fiberCapacity`, devolvendo o estado (V5, K1.11.30). */
+export function fiberSolve(S: FiberSection, NdMN: number, mx: number, my: number): EstadoUltimo | null {
   const target = Math.atan2(my, mx);
   // raiz de N(m) = Nd por falsa posição modificada (Illinois): converge em poucas iterações, tolerância 1e-9 MN
   const atN = (theta: number) => {
@@ -167,13 +183,13 @@ export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: num
       if (Math.abs(fm) < 1e-9 || b - a < 1e-12) break;
       if (fm < 0) { a = m; fa = fm; if (lado === -1) fb /= 2; lado = -1; } else { b = m; fb = fm; if (lado === 1) fa /= 2; lado = 1; }
     }
-    return r;
+    return { ...r, theta, t: m };
   };
   const ang = (theta: number) => { const r = atN(theta); if (!r) return null; let d = Math.atan2(r.My, r.Mx) - target; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return { d, r }; };
   let a = target - Math.PI / 2.2, b = target + Math.PI / 2.2;
   let fa = ang(a), fb = ang(b);
-  if (!fa || !fb) { const r = atN(target); return r ? Math.hypot(r.Mx, r.My) : null; }
-  if (fa.d * fb.d > 0) { const r = atN(target)!; return Math.hypot(r.Mx, r.My); }
+  if (!fa || !fb) return atN(target);
+  if (fa.d * fb.d > 0) return atN(target)!;
   // ângulo da linha neutra cuja resultante tem a direção pedida: também por Illinois
   let best = Math.abs(fa.d) < Math.abs(fb.d) ? fa : fb, lado = 0, da = fa.d, db = fb.d;
   for (let it = 0; it < 40; it++) {
@@ -185,8 +201,21 @@ export function fiberCapacity(S: FiberSection, NdMN: number, mx: number, my: num
     if (Math.abs(fm.d) < 1e-6) break;
     if (da * fm.d <= 0) { b = m; db = fm.d; if (lado === 1) da /= 2; lado = 1; } else { a = m; da = fm.d; if (lado === -1) db /= 2; lado = -1; }
   }
-  return Math.hypot(best.r.Mx, best.r.My);
+  return best.r;
 }
+
+/**
+ * Estado da seção para um estado (θ, t) da família do ELU: plano de deformações (compressão +), posição da linha
+ * neutra, tensões do concreto (parábola-retângulo) e do aço por barra, e os esforços resultantes (MN, MN·m).
+ */
+export function fiberEstado(S: FiberSection, theta: number, t: number) {
+  const P = planoDeformacoes(S, theta, t);
+  const f = stateForces(S, theta, t);
+  return { ...f, ux: P.ux, uy: P.uy, sMax: P.sMax, sMin: P.sMin, h: P.h, d: P.d, top: P.top, bot: P.bot, e0: P.e0, e1: P.e1 };
+}
+
+/** Tensão do concreto (MPa, compressão +) para a deformação ε (compressão +), diagrama parábola-retângulo. */
+export const fiberSigmaC = sigmaC;
 
 /** Perfil U (C) de alma vertical à esquerda: altura h, mesas b × tf, alma tw. */
 export function cPolygon(h: number, b: number, tw: number, tf: number): Pt[] {

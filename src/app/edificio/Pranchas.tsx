@@ -23,7 +23,7 @@ const CAMPOS: [keyof Carimbo, string][] = [
   ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
 ];
 const ROTULO_TIPO: Record<TipoSaida, string> = {
-  formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', todas: 'Conjunto completo',
+  formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', cargas: 'Cargas por caso e grupo', perspectiva: 'Perspectiva axonométrica', todas: 'Conjunto completo',
 };
 const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f }));
 /** Opções de escala (denominador); inclui o valor em uso, mesmo que fora da lista. */
