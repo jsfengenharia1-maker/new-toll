@@ -1,0 +1,72 @@
+// Corpo das abas da faixa do módulo Edifício. Cada botão chama o mesmo handler que o grupo ou a barra de onde saiu (ver o mapa).
+import { useRef, type ReactNode } from 'react';
+import { RibbonButton, RibbonGroup } from '../ui';
+import { aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
+import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
+import { useBuilding } from './store';
+import { useEdifUI } from './uiStore';
+import { useInclinadasUI } from './InclinadasUI';
+import { importarMascara } from './mascaraImportar';
+import { mascaraNoGrupo, pavimentosOrdenados } from '../../core/building/types';
+
+const ui = (p: Parameters<ReturnType<typeof useEdifUI.getState>['set']>[0]) => useEdifUI.getState().set(p);
+
+/** Escolhe a ferramenta na planta (a faixa sempre leva à vista Planta). */
+export const irFerramenta = (f: Ferramenta) => { ui({ aba: 'planta' }); usePlanta.getState().set({ ferramenta: f, ...aoEscolher(f) }); };
+
+/** Botão de ferramenta: `role=radio` com o rótulo e a tecla de antes (a barra da planta usava o mesmo `title`). */
+export function Ferr({ f, icon, disabled }: { f: Ferramenta; icon: string; disabled?: boolean }) {
+  const atual = usePlanta((s) => s.ferramenta);
+  const t = TECLA_FERRAMENTA[f];
+  return <RibbonButton role="radio" aria-checked={atual === f} icon={icon} label={ROTULO_FERRAMENTA[f]} title={t ? `${ROTULO_FERRAMENTA[f]} (${t})` : ROTULO_FERRAMENTA[f]} disabled={disabled} onClick={() => irFerramenta(f)} />;
+}
+
+function Gabarito() {
+  const { sessao, exec } = useBuilding();
+  const pl = usePlanta();
+  const b = sessao.modelo;
+  const ps = pavimentosOrdenados(b);
+  const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
+  const grupo = b.grupos.find((g) => g.id === pav?.grupo);
+  const temMascara = !!grupo && b.mascaras.some((m) => mascaraNoGrupo(m, grupo.id));
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <RibbonGroup label="Gabarito" radios="Ferramenta">
+      <RibbonButton icon="importarDxf" label="Importar DXF…" disabled={!grupo} onClick={() => ref.current?.click()} />
+      <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f && grupo) void importarMascara(f, grupo.id, exec); e.target.value = ''; }} />
+      {temMascara && <Ferr f="alinhar" icon="alinhar" />}
+      <RibbonButton icon="importarDxf" label="Lançar por DXF/DWG…" onClick={() => ui({ l2: { tipo: 'lancar' } })} />
+      <RibbonButton icon="gabarito" label="Gabaritos e vistas…" onClick={() => ui({ l2: { tipo: 'gabaritos' } })} />
+      <RibbonButton icon="gabarito" label="Vistas por pavimento…" onClick={() => ui({ l2: { tipo: 'vistas' } })} />
+      <RibbonButton icon="gabarito" label="Capturas…" onClick={() => pl.set({ janelaCapturas: true })} />
+      <Ferr f="vigaGabarito" icon="viga" />
+    </RibbonGroup>
+  );
+}
+
+function Lancamento() {
+  return (
+    <>
+      <RibbonGroup label="Seleção" radios="Ferramenta"><Ferr f="selecionar" icon="selecionar" /></RibbonGroup>
+      <RibbonGroup label="Elementos" radios="Ferramenta">
+        <Ferr f="pilar" icon="pilar" /><Ferr f="pilarParede" icon="pilarParede" /><Ferr f="viga" icon="viga" /><Ferr f="laje" icon="laje" /><Ferr f="parede" icon="parede" />
+        <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
+      </RibbonGroup>
+      <RibbonGroup label="Eixos" radios="Ferramenta">
+        <Ferr f="eixo" icon="eixo" />
+        <RibbonButton icon="malha" label="Malha de eixos…" onClick={() => ui({ jan: 'malha' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Cargas" radios="Ferramenta"><Ferr f="carga" icon="carga" /><Ferr f="cargaLaje" icon="cargaLaje" /><Ferr f="cargaViga" icon="cargaViga" /></RibbonGroup>
+      <Gabarito />
+      <RibbonGroup label="Lançamento rápido" radios="Ferramenta"><Ferr f="contornoRet" icon="contorno" /><Ferr f="aberturaRet" icon="abertura" /></RibbonGroup>
+      <RibbonGroup label="Cortes" radios="Ferramenta"><Ferr f="corte" icon="corte" /><Ferr f="secao" icon="secao" /></RibbonGroup>
+      <RibbonGroup label="Pavimentos"><RibbonButton icon="pavimento" label="Novo pavimento…" onClick={() => ui({ jan: 'novoPavimento' })} /></RibbonGroup>
+    </>
+  );
+}
+
+/** Corpo da aba `aba` da faixa do Edifício. Os cartões 03 a 05 acrescentam as demais abas. */
+export function FaixaEdificio({ aba }: { aba: string }): ReactNode {
+  if (aba === 'lancamento') return <Lancamento />;
+  return null;
+}

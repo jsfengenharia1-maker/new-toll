@@ -14,8 +14,8 @@ const NO_PICKERS = () => {
 };
 
 async function fileMenu(page, item) {
-  await page.getByRole('button', { name: 'Arquivo ▾' }).click();
-  await page.locator('.menu button', { hasText: item }).first().click();
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: 'Arquivo', exact: true }).click();
+  await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: item }).first().click();
 }
 
 async function tab(page, name) {

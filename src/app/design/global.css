@@ -1032,11 +1032,11 @@ body.ajuda-on { cursor: help; }
 .rgrp:last-child { border-right: 0; }
 .rbtns { display: flex; gap: var(--sp-1); flex: 1; align-items: stretch; }
 .rl { text-align: center; color: var(--faint); font-size: var(--fs-sm); padding-top: var(--sp-1); white-space: nowrap; }
-.rbtn { min-width: 52px; height: var(--h-ribbon); padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--radius); background: none; color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); }
+.rbtn { min-width: 52px; min-height: var(--h-ribbon); height: auto; padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--radius); background: none; color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); }
 .rbtn .icone { width: 22px; height: 22px; }
 .rbtn:hover:not(:disabled) { background: var(--hover); }
 .rbtn[aria-pressed="true"], .rbtn[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-text); }
-.rbl { font-size: var(--fs); white-space: nowrap; }
+.rbl { font-size: var(--fs); max-width: 112px; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
 .rhint { color: var(--faint); font-size: var(--fs); align-self: center; }
 .dock { position: relative; display: flex; flex-direction: column; min-width: 0; max-width: 100%; min-height: 0; background: var(--surface); }
 .dock.l { border-right: 1px solid var(--line); }

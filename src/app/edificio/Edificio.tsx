@@ -3,13 +3,12 @@ import { ehNervurada } from '../../core/building/tiposLaje';
 import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { AbaDeslocamentos } from './AbaDeslocamentos';
 import { AbaIsovalores } from './AbaIsovalores';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
-import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
-import { UNIDADES, unidadeProvavel } from './lancamentoLeitura';
+import { UNIDADES } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
@@ -147,7 +146,7 @@ export function Edificio() {
         </Group>
 
         <GruposCopiaGrupo b={b} abrir={setDialogoL4} />
-        <MascaraGrupo b={b} abrir={setDialogoL2} />
+        <MascaraGrupo b={b} />
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
         <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -375,7 +374,7 @@ export function NomeObra() {
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
-const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
+const FERRAMENTAS = ferramentas(['fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
 /** Radier (W) e viga sobre base elástica (X): pelas teclas e pelos botões do grupo Fundação (a barra não cabe numa linha). */
 /** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
 const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
@@ -480,36 +479,16 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   );
 }
 
-function MascaraGrupo({ b, abrir }: { b: BuildingModel; abrir: (d: { tipo: 'lancar' } | { tipo: 'gabaritos' } | { tipo: 'vistas' }) => void }) {
+function MascaraGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
   const pl = usePlanta();
-  const ref = useRef<HTMLInputElement>(null);
   const ps = pavimentosOrdenados(b);
   const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const grupo = b.grupos.find((g) => g.id === pav?.grupo);
   const ms = b.mascaras.filter((m) => !!grupo && mascaraNoGrupo(m, grupo.id));
-  const importar = async (f: File) => {
-    if (!grupo) return;
-    const txt = await f.text();
-    const r = lerDxf(txt);
-    const escala = metrosPorUnidade(r.insunits) ?? unidadeProvavel(r.bbox);
-    const res = exec('mascara.importar', { grupo: grupo.id, nome: f.name.replace(/\.dxf$/i, ''), geo: r.camadas, escala });
-    if (res.ok) {
-      const ign = Object.entries(r.ignoradas).map(([k, n]) => `${n} ${k}`).join(', ');
-      useStore.getState().set({ message: `${f.name}: ${r.segmentos} segmento(s) em ${Object.keys(r.camadas).length} camada(s), unidade ${UNIDADES.find((u) => u.v === escala)?.label ?? escala} ${metrosPorUnidade(r.insunits) ? '($INSUNITS)' : '(estimada pelo tamanho; confira)'}${ign ? ` · ignoradas: ${ign}` : ''}.` });
-      usePlanta.getState().set({ vista: null });
-    }
-  };
   return (
     <Group title={`Máscara — ${grupo?.nome ?? '—'} (${ms.length})`} open={false}>
       <div className="row wrap">
-        <Button disabled={!grupo} onClick={() => ref.current?.click()}>Importar DXF…</Button>
-        <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ''; }} />
-        {ms.length > 0 && <Button onClick={() => pl.set({ ferramenta: 'alinhar' })}>Alinhar por 2 pontos</Button>}
-        <Button onClick={() => abrir({ tipo: 'lancar' })}>Lançar por DXF/DWG…</Button>
-        <Button onClick={() => abrir({ tipo: 'gabaritos' })}>Gabaritos e vistas…</Button>
-        <Button onClick={() => abrir({ tipo: 'vistas' })}>Vistas por pavimento…</Button>
-        <Button onClick={() => pl.set({ janelaCapturas: true })}>Capturas…</Button>
         {ms.length > 0 && <label className="check small"><Input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
       </div>
       {ms.map((m) => (

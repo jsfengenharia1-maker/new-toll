@@ -17,7 +17,7 @@ export function FaixaModulo({ modulo, corpo }: { modulo: Modulo; corpo?: (aba: s
   const aberta = useLayout((s) => s.faixaAberta);
   const setAba = useLayout((s) => s.setAba);
   const setAberta = useLayout((s) => s.setFaixaAberta);
-  const ativa = abas.some((a) => a.id === salva) ? salva : abas[0].id;
+  const ativa = abas.some((a) => a.id === salva) ? salva : (abas.find((a) => a.id === 'lancamento') ?? abas[0]).id;
   return (
     <Ribbon label="Faixa de comandos" tabs={abas} active={ativa} onActive={(id) => setAba(modulo, id)} open={aberta} onOpen={setAberta}>
       {corpo ? corpo(ativa) : <RibbonGroup label={abas.find((a) => a.id === ativa)?.label ?? ''}><RibbonHint>{`Comandos de ${NOME[modulo]} nesta aba: em migração (painel lateral e barra da planta).`}</RibbonHint></RibbonGroup>}

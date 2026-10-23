@@ -15,6 +15,8 @@ import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
+import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
+import { FaixaEdificio } from './app/edificio/FaixaEdificio';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
@@ -59,7 +61,6 @@ export default function App() {
   const bd = useBuilding();
   const svgRef = useRef<SVGSVGElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [menu, setMenu] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [coord, setCoord] = useState('');
 
@@ -105,7 +106,7 @@ export default function App() {
   }, []);
 
 
-  const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); setMenu(false); };
+  const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); };
 
   const openText = async (txt: string, fileName: string) => {
     try {
@@ -122,14 +123,12 @@ export default function App() {
   };
 
   const openWork = async () => {
-    setMenu(false);
     const r = await pickFromDisk();
     if (r === 'unsupported') fileRef.current?.click();
     else if (r !== null) await openText(r, currentFileName() ?? 'arquivo');
   };
 
   const saveWork = async (saveAs = false) => {
-    setMenu(false);
     const s = useStore.getState();
     const ws = await buildWorkspace(s.model, edificioParaArquivo());
     const txt = JSON.stringify(ws);
@@ -161,12 +160,10 @@ export default function App() {
   const saveJSON = async () => {
     const txt = JSON.stringify(st.model, null, 1);
     const name = `${slug(st.model.name)}.json`;
-    setMenu(false);
     const r = await download(name, txt, 'application/json');
     if (r === 'saved') st.set({ message: `Modelo salvo como ${name}.` });
     else if (r === 'declined') st.set({ message: 'Download cancelado.' });
     else { const ok = await copyText(txt); st.set({ message: ok ? `Modelo exportado como ${name}. Se o download não iniciar, o JSON já está na área de transferência.` : `Modelo exportado como ${name}.` }); }
-    setMenu(false);
   };
 
   const exportSVG = async () => {
@@ -177,10 +174,8 @@ export default function App() {
     style.textContent = svgExportCss();
     clone.insertBefore(style, clone.firstChild);
     const txt = new XMLSerializer().serializeToString(clone);
-    setMenu(false);
     const r = await download(`${slug(st.model.name)}-${st.tab}.svg`, txt, 'image/svg+xml');
     st.set({ message: r === 'declined' ? 'Download cancelado.' : 'Desenho exportado em SVG (abre no navegador, Inkscape ou CAD).' });
-    setMenu(false);
   };
 
   /** Desenho atual como PNG (2×), com o mesmo estilo do SVG exportado. */
@@ -205,7 +200,6 @@ export default function App() {
     } finally { URL.revokeObjectURL(url); }
   };
   const exportPNG = async () => {
-    setMenu(false);
     const b = await pngBlob();
     if (!b) return;
     const url = URL.createObjectURL(b), el = document.createElement('a');
@@ -214,7 +208,6 @@ export default function App() {
     st.set({ message: 'Desenho exportado em PNG.' });
   };
   const copyPNG = async () => {
-    setMenu(false);
     try {
       const b = await pngBlob();
       if (!b) return;
@@ -234,7 +227,6 @@ export default function App() {
   });
 
   const exportDXF = async () => {
-    setMenu(false);
     const s = useStore.getState();
     const ok = !a.prep.error;
     const txt = buildDxf({
@@ -259,6 +251,17 @@ export default function App() {
   };
 
   const nErr = bd.diags.filter((d) => d.severidade === 'erro').length;
+  const acoes: AcoesArquivo = {
+    novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); },
+    abrir: openWork, salvar: saveWork, biblioteca: () => st.set({ libraryOpen: true }),
+    json: saveJSON, svg: exportSVG, png: exportPNG, copiar: copyPNG, dxf: exportDXF,
+    importarTabelas: () => tablesRef.current?.click(),
+    exemplo: (key) => { const s = SAMPLES.find((x) => x.key === key); if (!s) return; const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); },
+    podeSalvarComo: canPickFiles(),
+  };
+  const corpoFaixa = (aba: string) => aba === 'arquivo' ? <FaixaArquivo a={acoes} edificio={st.module === 'edificio'} />
+    : st.module === 'edificio' ? <FaixaEdificio aba={aba} /> : undefined;
+
   const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
   return (
@@ -270,29 +273,8 @@ export default function App() {
           <span className="bname">Statikos</span>
           <span className="bsub">pórticos planos</span>
         </div>
-        <div className="menuwrap">
-          <button type="button" className="tbtn" aria-expanded={menu} onClick={() => setMenu(!menu)}>Arquivo ▾</button>
-          {menu && (
-            <div className="menu" onMouseLeave={() => setMenu(false)}>
-              <button type="button" onClick={() => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); }}>Novo modelo</button>
-              <button type="button" onClick={openWork}>Abrir trabalho do computador… <span className="kbd">Ctrl+O</span></button>
-              <button type="button" onClick={() => saveWork(false)}>Salvar no computador <span className="kbd">Ctrl+S</span></button>
-              {canPickFiles() && <button type="button" onClick={() => saveWork(true)}>Salvar como… <span className="kbd">Ctrl+Shift+S</span></button>}
-              <button type="button" onClick={() => { setMenu(false); st.set({ libraryOpen: true }); }}>Biblioteca e histórico…</button>
-              <div className="msep">Exportar</div>
-              <button type="button" onClick={saveJSON}>Só o modelo (.json)</button>
-              <button type="button" onClick={exportSVG}>Exportar desenho (SVG)</button>
-              <button type="button" onClick={exportPNG}>Exportar desenho (PNG)</button>
-              <button type="button" onClick={copyPNG}>Copiar desenho</button>
-              <button type="button" onClick={() => { setMenu(false); tablesRef.current?.click(); }}>Importar materiais, seções e unidades de outro arquivo…</button>
-              <button type="button" onClick={exportDXF}>Desenho DXF (CAD)</button>
-              <div className="msep">Exemplos</div>
-              {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); }}>{s.label}</button>)}
-            </div>
-          )}
           <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
-        </div>
         <div className="mname" title={st.module === 'edificio' ? 'Nome da obra' : 'Nome do modelo'}>
           {st.module === 'edificio' ? <NomeObra /> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
         </div>
@@ -315,7 +297,7 @@ export default function App() {
       </nav>
 
       <div className="work">
-      <FaixaModulo modulo={st.module} />
+      <FaixaModulo modulo={st.module} corpo={corpoFaixa} />
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
         <nav className="toolbar" aria-label="Ferramentas">
