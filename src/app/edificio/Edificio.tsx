@@ -29,6 +29,7 @@ import { IncendioGrupo } from './Incendio';
 import { FogoCard } from './FogoCard';
 import { MateriaisGrupo } from './Materiais';
 import { TabelasGrupo } from './TabelasArmadura';
+import { BibliotecaNormasGrupo } from './BibliotecaNormas';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
 import { CartaoParedes } from './ParedesUI';
@@ -138,6 +139,7 @@ export function Edificio() {
         <IncendioGrupo b={b} />
         <MateriaisGrupo b={b} />
         <TabelasGrupo b={b} />
+        <BibliotecaNormasGrupo b={b} />
         <VinculosGrupo b={b} />
         <ArquivoGrupo />
 
