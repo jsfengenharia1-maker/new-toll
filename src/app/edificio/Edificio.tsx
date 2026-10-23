@@ -67,9 +67,22 @@ const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const corGrupo = (b: BuildingModel, id: string) => `grupo-c${Math.max(0, b.grupos.findIndex((g) => g.id === id)) % 8}`;
 const num = (t: string) => parseFloat(t.replace(',', '.'));
 
-export function Edificio() {
-  const { sessao, exec, diags, desfazer, refazer } = useBuilding();
+/** Atalhos de uso frequente (ferramentas, vistas, desfazer, ajuda, guia): ficam no cabeçalho, como barra de acesso rápido. */
+export function AtalhosEdificio() {
   const aj = useAjuda();
+  const { desfazer, refazer } = useBuilding();
+  const executar = (a: Atalho) => {
+    const ui = useEdifUI.getState();
+    if (a.tipo === 'ferramenta') { ui.set({ aba: 'planta' }); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
+    if (a.tipo === 'aba') { ui.set({ aba: a.alvo as AbaEdificio }); return; }
+    if (a.alvo === 'desfazer') desfazer(); else if (a.alvo === 'refazer') refazer(); else if (a.alvo === 'ajuda') aj.alternar();
+    else if (a.alvo === 'guia' || a.alvo === 'copiarGrupo' || a.alvo === 'unirPavimentos') ui.set({ l4: a.alvo });
+  };
+  return <BarraAtalhos executar={executar} />;
+}
+
+export function Edificio() {
+  const { sessao, exec, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
   const ui = useEdifUI();
@@ -80,12 +93,6 @@ export function Edificio() {
   const setDialogoL2 = (v: DialogoL2) => ui.set({ l2: v });
   const setDialogoL4 = (v: DialogoL4) => ui.set({ l4: v });
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
-  const executarAtalho = (a: Atalho) => {
-    if (a.tipo === 'ferramenta') { setAba('planta'); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
-    if (a.tipo === 'aba') { setAba(a.alvo as typeof aba); return; }
-    if (a.alvo === 'desfazer') desfazer(); else if (a.alvo === 'refazer') refazer(); else if (a.alvo === 'ajuda') aj.alternar();
-    else if (a.alvo === 'guia' || a.alvo === 'copiarGrupo' || a.alvo === 'unirPavimentos') setDialogoL4(a.alvo);
-  };
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
   const irEtapa = (id: EtapaId) => {
     if (id === 'obra') { setDialogoL1('gerais'); return; }
@@ -100,7 +107,6 @@ export function Edificio() {
     <div className="edif">
       <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
       <aside className="fund-in edif-in">
-        <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
 
         <Group title={`Pavimentos (${ps.length})`}>

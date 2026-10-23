@@ -4,6 +4,7 @@ import { useBuilding } from './edificio/store';
 import { Button, Check, Chip, Dock, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
+import { useAcoesFundacoes } from './fundacoesAcoes';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
 import {
   KIND_LABEL, PILE_LABEL, PRECAST_CATALOG, STRUCT, boringsOf, defaultFoundationParams, normalizeFoundation, recommendedOption, sampleFoundation,
@@ -44,7 +45,6 @@ export function importarCargasDoEdificio(loads: FLoad[]) {
 export function Fundacoes() {
   const st = useStore();
   const a = useAnalysis();
-  const edDim = useBuilding((s) => s.dim), edVelha = useBuilding((s) => s.revAnalise !== s.sessao.revCalculo);
   const f: FoundationData = useMemo(() => normalizeFoundation(clone(st.model.foundation ?? sampleFoundation())), [st.model.foundation]);
   const upd = (fn: (d: FoundationData) => void, msg?: string) => st.commit((m) => {
     const d = normalizeFoundation(clone(m.foundation ?? f));
@@ -74,6 +74,7 @@ export function Fundacoes() {
     const ch = buildCharacteristics(st.model, getDesign(a));
     upd((d) => mergeLoads(d, ch.supports), `${ch.supports.length} apoio(s) importados do pórtico atual (valores característicos).`);
   };
+  useEffect(() => { useAcoesFundacoes.getState().set({ importarDoPortico: importModel }); });
   const importSaved = async (id: string) => {
     const e = await loadFromLibrary(id);
     if (!e) return;
@@ -110,8 +111,6 @@ export function Fundacoes() {
 
         <Group title="Cargas por apoio (características)">
           <div className="row wrap">
-            <Button onClick={importModel}>Importar do pórtico atual</Button>
-            <Button disabled={!edDim?.fundacao.length} title={edDim ? (edVelha ? 'O edifício mudou depois do cálculo: as cargas são do último cálculo.' : 'Cargas do último cálculo do edifício.') : 'Calcule o edifício (aba Edifício › Análise) para importar.'} onClick={() => edDim && importarCargasDoEdificio(edDim.fundacao)}>Importar do edifício</Button>
             {saved.length > 0 && <Select value="" options={[{ v: '', label: 'Características salvas…' }, ...saved.map((s) => ({ v: s.id, label: s.name }))]} onChange={(id) => id && importSaved(id)} />}
           </div>
           <div className="tablewrap">

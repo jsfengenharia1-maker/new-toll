@@ -262,8 +262,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .panel-toggle { display: none; }
 
 /* área principal */
-.main { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; min-height: 0; }
-.main.nopanel { grid-template-columns: 48px minmax(0, 1fr); }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; }
+.main.nopanel { grid-template-columns: minmax(0, 1fr); }
 .toolbar { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
 .tool { position: relative; width: var(--h-ctl-lg); height: var(--h-ctl-lg); border-radius: var(--radius); border: 1px solid transparent; background: transparent; display: grid; place-items: center; color: var(--muted); }
 .tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
@@ -438,8 +438,8 @@ table.summary th.vN { color: var(--c-n); } table.summary th.vV { color: var(--c-
 @media (max-width: 860px) {
   .bsub, .tgroup { display: none; }
   .panel-toggle { display: inline-block; }
-  .main, .main.nopanel { grid-template-columns: 44px 1fr; position: relative; }
-  .panel { position: absolute; left: 44px; right: 0; bottom: 0; height: 58%; z-index: 20; border-left: 0; border-top: 1px solid var(--line); box-shadow: var(--shadow-pop); }
+  .main, .main.nopanel { grid-template-columns: minmax(0, 1fr); position: relative; }
+  .panel { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; z-index: 20; border-left: 0; border-top: 1px solid var(--line); box-shadow: var(--shadow-pop); }
   .coordin, .gridsel, .units { display: none; }
   .status { display: none; }
 }

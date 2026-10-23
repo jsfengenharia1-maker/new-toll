@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
-import { useStore, type Tab, type Tool } from './app/store';
+import { useEffect, useRef, useState } from 'react';
+import { useStore, type Tab } from './app/store';
 import { Canvas, fitView, svgSize } from './app/Canvas';
 import { EstruturaPanel } from './app/panels/Estrutura';
 import { CargasPanel } from './app/panels/Cargas';
@@ -15,6 +15,8 @@ import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
+import { FaixaPortico } from './app/FaixaPortico';
+import { FaixaFundacoes } from './app/FaixaFundacoes';
 import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
 import { FaixaEdificio, ROTULO_CTX } from './app/edificio/FaixaEdificio';
 import { ControlesPlanta } from './app/edificio/ControlesPlanta';
@@ -25,18 +27,9 @@ import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
 import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
-import { Edificio, NomeObra } from './app/edificio/Edificio';
+import { AtalhosEdificio, Edificio, NomeObra } from './app/edificio/Edificio';
 import { edificioParaArquivo, useBuilding } from './app/edificio/store';
 import { memo } from './app/design/tokens';
-
-const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
-  { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
-  { t: 'node', key: 'N', label: 'Inserir nó', icon: <><rect x="7" y="7" width="8" height="8" /><path d="M11 2v3M11 17v3M2 11h3M17 11h3" /></> },
-  { t: 'member', key: 'M', label: 'Inserir barra', icon: <><path d="M4 17 L18 5" /><rect x="2" y="15" width="4" height="4" /><rect x="16" y="3" width="4" height="4" /></> },
-  { t: 'dim', key: 'D', label: 'Cota (2 pontos e a posição da linha)', icon: <><path d="M3 16 L19 16" /><path d="M3 12 L3 19 M19 12 L19 19" /><path d="M6 13 L3 16 L6 19 M16 13 L19 16 L16 19" /></> },
-  { t: 'zoom', key: 'Z', label: 'Zoom por janela', icon: <><circle cx="9" cy="9" r="6" /><path d="M14 14 L20 20" /><path d="M6 9 H12 M9 6 V12" /></> },
-  { t: 'pan', key: 'H', label: 'Mover vista', icon: <path d="M11 2v18M2 11h18M11 2l-3 3M11 2l3 3M11 20l-3-3M11 20l3-3M2 11l3-3M2 11l3 3M20 11l-3-3M20 11l-3 3" /> },
-];
 
 const TABS: { t: Tab; label: string }[] = [
   { t: 'estrutura', label: 'Estrutura' },
@@ -264,7 +257,9 @@ export default function App() {
     podeSalvarComo: canPickFiles(),
   };
   const corpoFaixa = (aba: string) => aba === 'arquivo' ? <FaixaArquivo a={acoes} edificio={st.module === 'edificio'} />
-    : st.module === 'edificio' ? <FaixaEdificio aba={aba} /> : undefined;
+    : st.module === 'edificio' ? <FaixaEdificio aba={aba} />
+    : st.module === 'portico' ? <FaixaPortico aba={aba} setTab={setTab} enquadrar={fit} />
+    : <FaixaFundacoes aba={aba} />;
 
   const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
@@ -279,6 +274,7 @@ export default function App() {
         </div>
           <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
+        {st.module === 'edificio' && <AtalhosEdificio />}
         <div className="mname" title={st.module === 'edificio' ? 'Nome da obra' : 'Nome do modelo'}>
           {st.module === 'edificio' ? <NomeObra /> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
         </div>
@@ -303,17 +299,6 @@ export default function App() {
       <FaixaModulo modulo={st.module} corpo={corpoFaixa} contextual={st.module === 'edificio' && alvo ? { id: 'ctx', label: ROTULO_CTX[alvo.tipo] ?? 'Elemento' } : undefined} />
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
-        <nav className="toolbar" aria-label="Ferramentas">
-          {TOOLS.map((t) => (
-            <button type="button" key={t.t} className={`tool${st.tool === t.t ? ' on' : ''}`} title={`${t.label} (${t.key})`} aria-label={t.label} onClick={() => { st.set({ tool: t.t }); if ((t.t === 'node' || t.t === 'member') && (st.tab === 'resultados' || st.tab === 'influencia')) st.set({ tab: 'estrutura' }); }}>
-              <svg viewBox="0 0 22 22">{t.icon}</svg>
-              <span className="kbd">{t.key}</span>
-            </button>
-          ))}
-          <div className="tsep" />
-          <button type="button" className="tool" title="Enquadrar (F)" aria-label="Enquadrar" onClick={fit}><svg viewBox="0 0 22 22"><path d="M3 8V3h5M14 3h5v5M19 14v5h-5M8 19H3v-5" /></svg><span className="kbd">F</span></button>
-        </nav>
-
         <section className="stage">
           <Canvas svgRef={svgRef} />
           {st.tool === 'member' && <div className="toast">Clique no ponto inicial e nos seguintes. Esc ou botão direito encerra a sequência.</div>}
