@@ -11,7 +11,7 @@ import { registrar } from './registry';
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 const TOL = 0.01;
-const CAMPOS = ['base', 'predefinidas', 'edicao', 'semCalculo', 'armaduraVigotas', 'puncao', 'tabela'] as const;
+const CAMPOS = ['base', 'predefinidas', 'edicao', 'semCalculo', 'armaduraVigotas', 'puncao', 'tabela', 'edicaoVigotas', 'vigotasMultiplas'] as const;
 
 type Contorno = [number, number][];
 /** Os dois contornos têm os mesmos vértices (qualquer vértice de partida), dentro da tolerância? */

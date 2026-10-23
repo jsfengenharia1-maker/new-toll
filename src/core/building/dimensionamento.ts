@@ -15,7 +15,8 @@ import { gramposPorEstribo } from './detalhamentoPilares';
 import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type ResultadoEQU } from './acoes';
 import { propriedadesLaje, vaos } from './lajes';
-import { espessuraConcreto } from './tiposLaje';
+import { ehNervurada, espessuraConcreto, FICHA_TRELICADAS, geometriaNervurada, trelicasDe, type GeometriaNervurada } from './tiposLaje';
+import { alinhamentosDaLaje, armaduraEquivalente, dadosBranson, fatorBranson, flechaAlinhamento, momentosDaBarra, type DadosBranson } from './vigotasFlecha';
 import { vaosDaViga } from './vigas';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
 import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
@@ -29,6 +30,8 @@ import { ladosDoPP, lancesDoPP, todosPilares } from './pilarParede';
 import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento';
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, resumoTelasLajes, type DetalheLaje } from './detalhamentoLajes';
+import { dimensionarVigotasFichas } from './vigotasFichas';
+import { quantitativoMoldadas, quantitativoVigotas } from './vigotasRelatorio';
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
 import { casosDaObra, centroNoLance, comprimentoPolilinha, contornoNoLance, dimsSecao, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
 import { apoioDoPilar } from './transicao';
@@ -1254,6 +1257,15 @@ export interface ResultadoLaje {
   origens?: Origem[];
   /** Cortante da laje maciça (NBR 6118, 19.4): maior cortante por metro nas duas direções, VRd1, VRd2 e armadura transversal. */
   cortante?: CortanteLaje;
+  /** Flechas de cada alinhamento de vigotas (E3b, C7.102/C7.117): lajes de vigotas por ficha e moldadas, relativas aos apoios. */
+  flechasVigotas?: FlechaAlinhamento[];
+}
+/** Flecha de um alinhamento de vigotas (posição transversal t, comprimento L): instantânea, diferida, total, ativa e da variável (m) com os limites. */
+export interface FlechaAlinhamento {
+  t: number; L: number; kappa: number;
+  instantanea: number; diferida: number; total: number; ativa: number; variavel: number;
+  limites: { total: number; ativa: number; variavel: number }; textos: { total: string; ativa: string; variavel: string };
+  status: 'ok' | 'fail';
 }
 
 /** Bitola e espaçamento de laje para As (m²/m): a menor bitola com espaçamento ≥ 10 cm, até mín(2h; 20 cm). */
@@ -1511,11 +1523,17 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         origens: [origem('Armadura', COMB_ELU_LAJE, 'laje'), origem('Flecha', COMB_QP, 'flechaLaje'), ...(l.tipo.tipo === 'macica' ? [origem('Fissuração', COMB_FREQ, 'fissura')] : []), ...(cort ? [origem('Cortante', COMB_ELU_LAJE, 'cortanteLaje')] : [])] };
       ja.set(l.id, r);
       out.push(r);
-      pend.push({ r, l, flQP, dG: precisaMetodo ? flechaRelativa(g, l.id, fG) : 0, dQ: fq, dQqp: precisaMetodo ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
+      const metodoL = precisaMetodo || vigotaComBranson(b, l, op);
+      pend.push({ r, l, flQP, dG: metodoL ? flechaRelativa(g, l.id, fG) : 0, dQ: fq, dQqp: metodoL ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
     }
-    // N2f: fissuração das lajes maciças (Branson por barra com a armadura calculada e a grelha recomposta)
-    const kappa = precisaMetodo && op.fissuracaoLajes ? fissuracaoGrelha(b, g, pend.filter((x) => x.l.tipo.tipo === 'macica'), fQP, c, op) : new Map<string, number>();
-    for (const x of pend) finalizarFlechaLaje(b, op, x, kappa.get(x.l.id) ?? 1, af);
+    // N2f: fissuração das lajes maciças (Branson por barra com a armadura calculada e a grelha recomposta); E3b: vigotas por ficha e moldadas
+    const comBranson = (x: PendenteFlecha) => (x.l.tipo.tipo === 'macica' ? !!op.fissuracaoLajes && precisaMetodo : vigotaComBranson(b, x.l, op));
+    const fis = (precisaMetodo || pend.some((x) => vigotaComBranson(b, x.l, op))) ? fissuracaoGrelha(b, g, pend.filter(comBranson), fQP, fELU, c, op) : { kappa: new Map<string, number>() };
+    for (const x of pend) {
+      const kp = fis.kappa.get(x.l.id) ?? 1, vb = vigotaComBranson(b, x.l, op);
+      finalizarFlechaLaje(b, vb ? opMetodo(op) : op, x, kp, af);
+      if (vb && g.res) x.r.flechasVigotas = flechasDosAlinhamentos(b, vb ? opMetodo(op) : op, g, x, { fG, fQ, fQP, fQqp }, fis, af);
+    }
   }
   return out;
 }
@@ -1528,7 +1546,21 @@ type PendenteFlecha = { r: ResultadoLaje; l: BuildingModel['lajes'][number]; flQ
  * referência (maciça 2,0 e 1,5; treliçada 1,75 e 1,25) ou pelo método (0); fissuração por `kappa` (δ fissurada / elástica).
  */
 function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x: PendenteFlecha, kappa: number, af: number) {
-  const { r, l } = x, mac = l.tipo.tipo === 'macica', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
+  const { r, l } = x, mac = l.tipo.tipo === 'macica';
+  const { f, total, ativa, variavel, lim, limQ, metodo, fatC } = flechasDaLaje(b, op, l, x, kappa, af);
+  const msgs = r.mensagens;
+  // vigotas por ficha e moldadas (E3b, C7.102): a sugestão do erro de flecha é aumentar a espessura
+  const sug = !mac && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) ? ' Aumente a altura da laje.' : '';
+  if (total > lim) msgs.push(`Flecha total ${(total * 1000).toFixed(1)} mm > ${f.textos.total} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).${sug}`);
+  if (variavel > limQ) msgs.push(`Flecha das variáveis ${(variavel * 1000).toFixed(1)} mm > ${f.textos.variavel} = ${(limQ * 1000).toFixed(1)} mm (vibrações${fatC > 0 ? `, elástica × ${String(fatC).replace('.', ',')}` : ''}).${sug}`);
+  msgs.push(...mensagensFlechasNovas(f).map((m) => m + sug));
+  r.flecha = total; r.limite = lim; r.flechaQ = variavel; r.limiteQ = limQ; r.flechas = f;
+  r.status = total > lim || variavel > limQ || ativa > f.limites.ativa || r.wk > r.wkLim + 1e-9 || !x.cortOk ? 'fail' : 'ok';
+}
+
+/** Flechas de uma laje (ou de uma vigota) para as deformações elásticas `x`, o fator de fissuração `kappa` e αf: método, ativa e variável com os limites. */
+function flechasDaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], l: BuildingModel['lajes'][number], x: Pick<PendenteFlecha, 'flQP' | 'dG' | 'dQ' | 'dQqp' | 'vao'>, kappa: number, af: number) {
+  const mac = l.tipo.tipo === 'macica', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
   const inst = instantaneasPorCategoria(x.dG * kappa, fracoesGLaje(b, l), x.dQ * kappa, x.dQqp * kappa);
   const comp = composicaoEtapas(etapasDe(b, tipoL), inst, { rho: 0, qInstantanea: op.flechaQInstantanea ? 'total' : 'qp' });
   const fatA = mac ? op.fatorFlechaAtiva : op.fatorFlechaAtivaTrelicada, fatC = mac ? op.fatorFlechaConforto : op.fatorFlechaConfortoTrelicada;
@@ -1538,12 +1570,7 @@ function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x:
   const f = resumoFlechas({ metodo: op.fatorFlechaLaje > 0 ? 'simplificado' : op.flechaEtapas ? 'etapas' : 'fator', instantaneas: inst, instantanea: (x.dG + x.dQ) * kappa, diferida: Math.max(0, total - comp.instantanea), total, ativa, variavel, vao: x.vao, balanco: false, ...(op.fatorFlechaLaje <= 0 && op.flechaEtapas ? { etapas: comp } : {}), rho: 0, ...(kappa !== 1 ? { fissuracao: kappa } : {}) }, lims);
   const lim = f.limites.total, limQ = f.limites.variavel, fiss = kappa > 1 ? `fissurada (Branson, × ${kappa.toFixed(2).replace('.', ',')})` : 'sem fissuração';
   const metodo = op.fatorFlechaLaje > 0 ? `elástica × ${String(op.fatorFlechaLaje).replace('.', ',')}` : op.flechaEtapas ? `por etapas: ${comp.fatorTotal.toFixed(2).replace('.', ',')} × instantânea, ξ médio ${comp.xiMedio.toFixed(2).replace('.', ',')}, ${fiss}` : `elástica × (1 + αf = ${(1 + af).toFixed(2).replace('.', ',')}), ${fiss}`;
-  const msgs = r.mensagens;
-  if (total > lim) msgs.push(`Flecha total ${(total * 1000).toFixed(1)} mm > ${f.textos.total} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).`);
-  if (variavel > limQ) msgs.push(`Flecha das variáveis ${(variavel * 1000).toFixed(1)} mm > ${f.textos.variavel} = ${(limQ * 1000).toFixed(1)} mm (vibrações${fatC > 0 ? `, elástica × ${String(fatC).replace('.', ',')}` : ''}).`);
-  msgs.push(...mensagensFlechasNovas(f));
-  r.flecha = total; r.limite = lim; r.flechaQ = variavel; r.limiteQ = limQ; r.flechas = f;
-  r.status = total > lim || variavel > limQ || ativa > f.limites.ativa || r.wk > r.wkLim + 1e-9 || !x.cortOk ? 'fail' : 'ok';
+  return { f, total, ativa, variavel, lim, limQ, metodo, fatC };
 }
 
 /**
@@ -1554,15 +1581,28 @@ function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x:
  * resolvida de novo com Iz × Ie/Ic e o fator é δ fissurada / δ elástica da mesma grelha isolada (no modelo integrado a
  * grelha isolada só serve para a razão) [a confirmar].
  */
-function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteFlecha[], fQP: number[], c: ReturnType<typeof concretoDe>, op: AnaliseEdificio['opcoes']): Map<string, number> {
+function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteFlecha[], fQP: number[], fELU: number[], c: ReturnType<typeof concretoDe>, op: AnaliseEdificio['opcoes']): ResFissuracao {
   const out = new Map<string, number>();
-  if (!lajes.length || !g.res || !g.casos) return out;
+  if (!lajes.length || !g.res || !g.casos) return { kappa: out };
   const porLaje = new Map(lajes.map((x) => [x.l.id, x]));
   const fator = new Map<number, number>();
   const media = new Map<string, { neg: number; pos: number; mPos: number; barras: number[] }>();
+  const vig = new Map<string, DadosBranson | null>();
   g.modelo.barras.forEach((_, i) => {
     const t = g.barras[i], x = t.tipo === 'laje' ? porLaje.get(t.ref) : undefined;
-    if (!x || t.dir === undefined || !t.largura || x.l.tipo.tipo !== 'macica') return;
+    if (!x || t.dir === undefined || !t.largura) return;
+    if (x.l.tipo.tipo !== 'macica') {
+      // vigotas por ficha e moldadas (E3b): Ie/Ic de Branson da nervura com o momento quase permanente da barra
+      if (t.dir !== 0 || !ehNervurada(x.l.tipo)) return;
+      const g0 = geometriaNervurada(b, x.l.tipo);
+      if (!vig.has(x.l.id)) vig.set(x.l.id, dadosBransonLaje(b, g, x.l, g0, c, fELU));
+      const dados = vig.get(x.l.id);
+      if (!dados) return;
+      const ms = momentosDaBarra(g.res!, i, fQP, t.largura, g0.intereixo), M = Math.abs(ms[0]) >= Math.abs(ms[1]) ? ms[0] : ms[1];
+      const f = fatorBranson(dados, M);
+      if (f < 1 - 1e-9) fator.set(i, f);
+      return;
+    }
     const h = x.l.tipo.h, cob = cobrimentoLaje(b, x.l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005, amin = 0.0015 * h;
     const ms = [0, 6].map((k) => fQP.reduce((s, f, ic) => s + f * (k === 0 ? -g.res!.esforcos[ic][i][5] : g.res!.esforcos[ic][i][11]), 0) / t.largura!);
     const M = Math.abs(ms[0]) >= Math.abs(ms[1]) ? ms[0] : ms[1];
@@ -1578,11 +1618,64 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
     }
   });
   for (const e of media.values()) { const f = inerciaMediaVao(e.neg, e.neg, e.pos); for (const i of e.barras) fator.set(i, f); }
-  if (![...fator.values()].some((f) => f < 1 - 1e-9)) return out;
+  if (![...fator.values()].some((f) => f < 1 - 1e-9)) return { kappa: out, resEl: g.res, resCr: g.res };
   const resEl = g.integrado ? resolver3(g.modelo, g.casos) : g.res, resCr = resolverGrelhaFissurada(g.modelo, g.casos, fator);
-  if (resEl.erro || resCr.erro) return out;
+  if (resEl.erro || resCr.erro) return { kappa: out };
   for (const { l } of lajes) { const e = flechaRelativa(g, l.id, fQP, resEl), k = flechaRelativa(g, l.id, fQP, resCr); if (e > 1e-12) out.set(l.id, Math.max(1, k / e)); }
-  return out;
+  return { kappa: out, resEl, resCr };
+}
+
+/** Fatores de fissuração por laje e as grelhas elástica e fissurada de onde saíram (as mesmas barras para todas as lajes do pavimento). */
+interface ResFissuracao { kappa: Map<string, number>; resEl?: Resultado3; resCr?: Resultado3 }
+
+/** A laje de vigotas usa Branson na flecha (E3b): ficha armada, protendida, genérica ou moldada, com a opção ligada; a treliçada do catálogo interno, não. */
+function vigotaComBranson(b: BuildingModel, l: BuildingModel['lajes'][number], op: AnaliseEdificio['opcoes']): boolean {
+  return !!op.vigotaBranson && l.tipo.tipo !== 'macica' && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) && geometriaNervurada(b, l.tipo).familia !== 'trelicada';
+}
+/** Opções com o método da NBR no lugar dos fatores simplificados da flecha (a ficha traz a rigidez fissurada). */
+const opMetodo = (op: AnaliseEdificio['opcoes']): AnaliseEdificio['opcoes'] => ({ ...op, fatorFlechaLaje: 0, fatorFlechaAtivaTrelicada: 0, fatorFlechaConfortoTrelicada: 0 });
+
+/**
+ * Dados de Branson da nervura da laje: da ficha (EI, EI fissurado, Mfis) ou, sem eles, o estádio II da seção T com a armadura
+ * inferior equivalente ao Mu da ficha (armadas), à treliça (sem Mu) ou à armadura da moldada (a atribuída, ou a calculada
+ * para o maior momento positivo ELU da laje, no mínimo ρmín) [a confirmar].
+ */
+function dadosBransonLaje(b: BuildingModel, g: GrelhaPavimento, l: BuildingModel['lajes'][number], g0: GeometriaNervurada, c: ReturnType<typeof concretoDe>, fELU: number[]): DadosBranson | null {
+  const cob = cobrimentoLaje(b, l.cobrimento), d = g0.h - cob.inf - 0.005, fyd = acoDe(b, 'lajeInf').fyd;
+  let As = 0;
+  const Mu = g0.serie?.positivo?.Mu;
+  if (Mu) As = armaduraEquivalente(c, g0.intereixo, g0.capa, g0.bw, d, Mu, fyd);
+  else if (g0.tipo === 'moldada') {
+    const atrib = l.armaduraMoldada ? l.armaduraMoldada.inf.n * barArea(l.armaduraMoldada.inf.phi) : 0;
+    let Md = 0;
+    g.modelo.barras.forEach((_, i) => {
+      const t = g.barras[i];
+      if (t.tipo !== 'laje' || t.ref !== l.id || t.dir !== 0 || !t.largura) return;
+      const [m0, m1] = momentosDaBarra(g.res!, i, fELU, t.largura, g0.intereixo);
+      Md = Math.max(Md, m0, m1);
+    });
+    const AsMin = 0.0015 * (g0.intereixo * g0.capa + g0.bw * g0.hEnch);
+    As = Math.max(atrib, AsMin, Md > 0 ? beamFlexure({ kind: 'tee', bw: g0.bw, h: g0.h, bf: g0.intereixo, hf: g0.capa }, true, Md, d, 0.03, c, fyd).As : 0);
+  } else if (g0.trelica) {
+    const t = trelicasDe(b)[g0.trelica];
+    if (t) As = (2 * barArea(t.inf) * 600) / fyd;
+  }
+  return dadosBranson(g0, c, As, d);
+}
+
+/**
+ * Flecha de cada alinhamento de vigotas da laje (E3b): elástica e fissurada da combinação quase permanente (mesma grelha da
+ * laje), instantâneas por categoria de carga, diferida e total pelo método da laje (etapas ou 1 + αf), ativa e da variável.
+ */
+function flechasDosAlinhamentos(b: BuildingModel, op: AnaliseEdificio['opcoes'], g: GrelhaPavimento, x: PendenteFlecha, fat: { fG: number[]; fQ: number[]; fQP: number[]; fQqp: number[] }, fis: ResFissuracao, af: number): FlechaAlinhamento[] {
+  const l = x.l, ang = ((l.direcao ?? 0) * Math.PI) / 180, resEl = fis.resEl ?? g.res!, resCr = fis.resCr ?? resEl;
+  return alinhamentosDaLaje(g, l.id, [Math.cos(ang), Math.sin(ang)]).map((al) => {
+    const el = flechaAlinhamento(g, al, fat.fQP, resEl), cr = flechaAlinhamento(g, al, fat.fQP, resCr), kappa = el > 1e-12 ? Math.max(1, cr / el) : 1;
+    const xi = { flQP: el, dG: flechaAlinhamento(g, al, fat.fG, resEl), dQ: flechaAlinhamento(g, al, fat.fQ, resEl), dQqp: flechaAlinhamento(g, al, fat.fQqp, resEl), vao: al.L };
+    const { f, total, ativa, variavel } = flechasDaLaje(b, op, l, xi, kappa, af);
+    const ok = total <= f.limites.total && variavel <= f.limites.variavel && ativa <= f.limites.ativa;
+    return { t: al.t, L: al.L, kappa, instantanea: f.instantanea, diferida: f.diferida, total, ativa, variavel, limites: { total: f.limites.total, ativa: f.limites.ativa, variavel: f.limites.variavel }, textos: { total: f.textos.total, ativa: f.textos.ativa, variavel: f.textos.variavel }, status: ok ? 'ok' : 'fail' };
+  });
 }
 
 // ---------------- quantitativos ----------------
@@ -1639,6 +1732,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   vigotas?: ResultadoVigotas[];
   /** Aço das vigotas (adicionais, negativos e distribuição da capa) por bitola e treliças por tipo (m, kg). */
   resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas>;
+  /** Vigotas por tipo (número e comprimento com perdas) e armaduras das nervuras moldadas no local (E3b). */
+  quantitativoVigotas?: ReturnType<typeof quantitativoVigotas>; quantitativoMoldadas?: ReturnType<typeof quantitativoMoldadas>;
   /** Punção dos pilares que apoiam a laje maciça sem viga e das vigas chatas largas, por pavimento (N2d). */
   puncao?: ResultadoPuncao[];
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
@@ -1757,9 +1852,11 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
     l.mensagens.push(...r.mensagens);
     if (r.status === 'fail') l.status = 'fail';
   }
-  d.vigotas = dimensionarVigotas(b, an, d.lajes, an.opcoes);
+  d.vigotas = [...dimensionarVigotas(b, an, d.lajes, an.opcoes), ...dimensionarVigotasFichas(b, an, d.lajes, an.opcoes)].sort((x, z) => b.lajes.findIndex((l) => l.id === x.laje) - b.lajes.findIndex((l) => l.id === z.laje));
   d.resumoAcoVigotas = resumoAcoVigotas(d.vigotas, an.opcoes.perdasAco);
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
+  d.quantitativoVigotas = quantitativoVigotas(d.vigotas, an.opcoes.perdasAco);
+  { const q = quantitativoMoldadas(d.vigotas, an.opcoes.perdasAco); if (q.length) d.quantitativoMoldadas = q; }
   if (estadoEmUso(b, 'incendio').ativo) {
     // resistência ao fogo (N2g): método tabular/analítico sobre as dimensões e a armadura adotadas
     const gz = an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : null;

@@ -136,14 +136,17 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
           const A: P = [pi[0] - u[0] * a, pi[1] - u[1] * a - 4 * k], Z: P = [pi[0] + u[0] * a, pi[1] + u[1] * a - 4 * k], s = 1.5 * k;
           const seta = (p: P, d: number): Prim => ({ t: 'pl', c: 'ARMADURA', pts: [[p[0] - d * u[0] * s - u[1] * s * 0.5, p[1] - d * u[1] * s + u[0] * s * 0.5], p, [p[0] - d * u[0] * s + u[1] * s * 0.5, p[1] - d * u[1] * s - u[0] * s * 0.5]] });
           modelo.push({ t: 'pl', c: 'ARMADURA', pts: [A, Z] }, seta(Z, 1), seta(A, -1));
-          linhas.push(`${v.trelica} · ${v.vigotas} vigotas · intereixo ${cmInt(v.intereixo)}`);
+          const tipos = [...new Set(v.grupos.map((g) => g.tipo).filter(Boolean))].join('/');
+          linhas.push(v.familia ? `${v.fichaNome ?? 'Moldada no local'} ${v.serie ?? ''}${tipos ? ` · tipo ${tipos}` : ''} · ${v.vigotas} vigotas · intereixo ${cmInt(v.intereixo)}`.replace(/\s+/g, ' ') : `${v.trelica} · ${v.vigotas} vigotas · intereixo ${cmInt(v.intereixo)}`);
+          // cortantes das pontas majorados, por metro de largura (E3b, K1.12.5-11), e o tipo da vigota por grupo
+          v.grupos.forEach((g, gi) => linhas.push(`G${gi + 1}${g.tipo ? ` ${g.tipo}` : ''}${g.especial ? ` (vigota ${(g.indices ?? [])[0] + 1})` : ''}: V extremos ${nf(g.porMetro.v[0])} / ${nf(g.porMetro.v[1])} kN/m`));
         }
         for (const x of v.posicoes) {
-          const face: Face = x.tipo === 'adicional' ? 'inf' : 'sup';
+          const face: Face = x.tipo === 'adicional' || x.tipo === 'inferior' || x.tipo === 'transversal' ? 'inf' : 'sup';
           if (!fl.faces.includes(face)) continue;
           const C = cmInt(x.comprimento), pos = reg.pos(`VG|${x.tipo}`, x.aco, x.phi, C, x.n * v.repeticoes);
-          const rot = x.tipo === 'adicional' ? 'adicional' : x.tipo === 'negativa' ? 'negativos' : 'distribuição (capa)';
-          linhas.push(`${qtd(v.repeticoes, x.n)} ${pos} ${phiTxt(x.phi)} C=${C} — ${rot}`);
+          const rot = ({ adicional: 'adicional', negativa: 'negativos', distribuicao: 'distribuição (capa)', inferior: 'armadura inferior', superior: 'armadura superior', transversal: 'estribos' } as const)[x.tipo];
+          linhas.push(`${qtd(v.repeticoes, x.n)} ${pos} ${phiTxt(x.phi)} C=${C} — ${rot}${x.percentual !== undefined && x.percentual < 100 ? ` (${nf(x.percentual, 0)} % do comprimento)` : ''}`);
         }
         linhas.forEach((s, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [pi[0], pi[1] - (7 + 3 * i) * k], h: 2 * k, s, ah: 'c', av: 'topo' }));
       }

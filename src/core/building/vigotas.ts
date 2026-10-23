@@ -12,10 +12,12 @@ import { lbBasico } from './detalhamento';
 import { lbNecessario, RHO_MIN_LAJE } from './detalhamentoLajes';
 import type { ResultadoLaje } from './dimensionamento';
 import { vaos } from './lajes';
-import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FonteLajes } from './tiposLaje';
+import { esforcosDoGrupo, minimosDaFaixa, pontasContinuas, posicionarVigotas, redistribuirNegativos, tipoDeVao, type DiagramaVigota, type MinimosFaixa, type VigotaPosicionada } from './vigotasEsforcos';
+import type { FlechaAlinhamento } from './dimensionamento';
+import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FamiliaVigota, type FonteLajes } from './tiposLaje';
 import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
-import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje } from './types';
+import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje, type TipoVao } from './types';
 
 /**
  * Treliças eletrossoldadas (designação TR h·φsup·φdiag·φinf, NBR 14862): altura (m) e bitolas (mm) dos banzos
@@ -107,7 +109,12 @@ export interface FaixaVigota {
   grupo: number;
 }
 
+/** Parcela de armadura (n barras de φ mm, área em cm²) com comprimento (m) e percentual do comprimento da vigota. */
+export interface ParcelaVigota { n: number; phi: number; As: number; comprimento: number; percentual: number; tipo: 'total' | 'curta' | 'longa' | 'parcial' }
+
 export interface NegativoVigota {
+  /** Duas parcelas de comprimentos calculados (E3b, C7.32), momento de fissuração e rigidezes da ficha, Mu da seção maciça e a origem do limite. */
+  parcelas?: ParcelaVigota[]; MuMacico?: number; Mfis?: number; EI?: number; EIfis?: number; fonteLimite?: 'ficha' | 'calculado';
   /** As necessária por nervura (cm²), barras por nervura e comprimento a partir do eixo do apoio para dentro da laje (m). */
   AsNec: number; barras: { n: number; phi: number; As: number } | null; comprimento: number;
   /** Ponto de momento nulo a partir da ponta (m), decalagem e ancoragem (m). */
@@ -115,13 +122,23 @@ export interface NegativoVigota {
   /** Momento resistente sem maciçamento (kN·m por nervura) e faixa maciçada necessária pela flexão (m). */
   MRdNervura: number; macico: number;
 }
-export interface CortanteVigota { Vsd: number; VRd1: number; VRd2: number; macico: number }
+export interface CortanteVigota { Vsd: number; VRd1: number; VRd2: number; macico: number; fonte?: 'ficha' | 'calculado'; estribo?: { phi: number; s: number; zona: number; barras: number } }
 
 export interface GrupoVigotas {
   /** Índices das faixas, número de vigotas e comprimento médio (m). */
   faixas: number[]; vigotas: number; L: number;
   /** Esforços de cálculo por nervura (após mínimos e igualação) e por metro de largura. */
   esforcos: EsforcosVigota; porMetro: EsforcosVigota;
+  /** Diagrama igualado do grupo, ponto a ponto na discretização de 0,25 m (E3b). */
+  diagrama?: DiagramaVigota;
+  /** Vigotas do grupo (índices da numeração do pano) e, nas unidades à parte, o motivo: editada, dupla, tripla ou esforços manuais (E3b). */
+  indices?: number[]; especial?: 'editada' | 'dupla' | 'tripla' | 'manual';
+  /** Tipo da série escolhido (nome do tipo) e série (E3b: armadas, protendidas e genéricas). */
+  tipo?: string; serie?: string; tipoAtribuido?: boolean;
+  /** Dados da verificação pela ficha (E3b). */
+  ficha?: DadosFichaGrupo;
+  /** Tipo de vão da vigota (pano) e redistribuição aplicada. */
+  tipoVao?: TipoVao; redistribuicao?: { delta: number; aplicada: boolean };
   positiva: {
     /** As necessária total, a do banzo inferior da treliça (equivalente no aço da adicional) e a adicional (cm² por nervura). */
     AsNec: number; AsTrelica: number; AsAdicional: number;
@@ -134,7 +151,20 @@ export interface GrupoVigotas {
   macico: [number, number];
 }
 
-export interface PosicaoVigota { tipo: 'adicional' | 'negativa' | 'distribuicao'; aco: string; phi: number; n: number; comprimento: number }
+/** Verificação do grupo contra a ficha: momento positivo e aproveitamento, parcelas da armadura, serviço das protendidas. */
+export interface DadosFichaGrupo {
+  familia: FamiliaVigota; origem: string;
+  positivo: { Md: number; Mu: number; MuTotal: number; Mfis?: number; EI?: number; EIfis?: number; aprov: number; fonte: 'ficha' | 'calculado' };
+  parcelas: ParcelaVigota[];
+  servico?: { nivel: 'parcial' | 'limitada' | 'completa'; combinacao: 'frequente' | 'rara'; Mserv: number; Madm: number | null; Mdesc: number; ok: boolean };
+  moldada?: { bars: { n: number; phi: number; As: number }; AsNec: number; estribo: { phi: number; s: number } | null; larguraMin: number; bw: number };
+}
+
+export interface PosicaoVigota {
+  tipo: 'adicional' | 'negativa' | 'distribuicao' | 'inferior' | 'superior' | 'transversal'; aco: string; phi: number; n: number; comprimento: number;
+  /** Parcial: percentual do comprimento da vigota (E3b; mostrado sempre em percentual nas telas e desenhos). */
+  percentual?: number;
+}
 
 export interface ResultadoVigotas {
   laje: string; nome: string; grupo: string; pavimentos: string[]; repeticoes: number;
@@ -150,13 +180,35 @@ export interface ResultadoVigotas {
   /** Aço das barras (kg, por pavimento, sem perdas) e da treliça (kg). */
   peso: number; pesoTrelica: number;
   status: 'ok' | 'fail'; mensagens: string[];
+  /** Vigota a vigota (E3b): cada vigota real do pano com o alinhamento, o grupo, os esforços e a situação. */
+  lista?: VigotaIndividual[];
+  /** Família e ficha (E3b); ausentes nas treliçadas do catálogo interno. */
+  familia?: FamiliaVigota; ficha?: string; fichaNome?: string; serie?: string;
+  /** Protensão (E3b): classe de agressividade do pano, nível pela Tabela 13.4 e combinação de serviço. */
+  protensao?: { caa: 'I' | 'II' | 'III' | 'IV'; nivel: 'parcial' | 'limitada' | 'completa'; combinacao: 'frequente' | 'rara' };
 }
 
-const fmt = (x: number, n = 2) => x.toFixed(n).replace('.', ',');
-const fphi = (phi: number) => String(phi).replace('.', ',');
-const r3 = (x: number) => +x.toFixed(3);
+/** Uma vigota real da laje (numeração a partir da borda do ponto de inserção). */
+export interface VigotaIndividual {
+  indice: number; t: number; faixa: number; grupo: number; L: number; a: P; z: P;
+  /** 1 = simples, 2 = dupla, 3 = tripla (as vigotas ao lado foram apagadas). */
+  multipla: 1 | 2 | 3;
+  tipoVao: TipoVao;
+  /** Esforços de cálculo da vigota (por nervura, após mínimos e igualação) e cortantes das pontas por metro de largura (K1.12.5-11). */
+  esforcos: EsforcosVigota; cortantePorMetro: [number, number];
+  /** Tipo da série e armadura resumida (E3b). */
+  tipo?: string; armadura?: string; editada: boolean;
+  /** Carga linear do peso próprio da vigota (kN/m): peso por m² × intereixo; no conjunto, o peso das vigotas duplas ou triplas (K1.5.5). */
+  pesoLinear: number;
+  status: 'ok' | 'fail'; mensagens: string[];
+  flecha?: FlechaAlinhamento;
+}
+
+export const fmt = (x: number, n = 2) => x.toFixed(n).replace('.', ',');
+export const fphi = (phi: number) => String(phi).replace('.', ',');
+export const r3 = (x: number) => +x.toFixed(3);
 const sub = (a: P, z: P): P => [a[0] - z[0], a[1] - z[1]];
-const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
+export const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
 
 export type Bruta = Omit<FaixaVigota, 'calc' | 'grupo' | 'nervuras'>;
 
@@ -202,7 +254,7 @@ export function faixasDaGrelha(g: GrelhaPavimento, l: Laje, fat: number[], u: P,
 }
 
 /** Distância a partir da ponta (0 = início, 1 = fim) até onde f(i) deixa de ser verdadeiro (interpolação linear em `val`). */
-function alcance(s: number[], val: number[], lim: number, ponta: 0 | 1): number {
+export function alcance(s: number[], val: number[], lim: number, ponta: 0 | 1): number {
   const n = s.length, idx = ponta === 0 ? [...Array(n).keys()] : [...Array(n).keys()].reverse();
   const dist = (i: number) => (ponta === 0 ? s[i] : s[n - 1] - s[i]);
   if (val[idx[0]] <= lim) return 0;
@@ -213,7 +265,59 @@ function alcance(s: number[], val: number[], lim: number, ponta: 0 | 1): number 
   return s[n - 1];
 }
 
-const arred = (x: number, cm: number) => Math.ceil(x / (cm / 100) - 1e-9) * (cm / 100);
+export const arred = (x: number, cm: number) => Math.ceil(x / (cm / 100) - 1e-9) * (cm / 100);
+
+/** Alinhamentos da laje (envoltória dos pavimentos do grupo), mínimos por tipo de vão e grupos de igualação, comuns a todas as famílias. */
+/** δ mínimo da redistribuição (NBR 6118, 14.6.4.3): 0,75 em nós fixos e 0,90 em nós móveis (γz > 1,1). */
+export const deltaMinVigotas = (an: AnaliseEdificio): number => ((an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : 0) > 1.1 ? 0.9 : 0.75);
+
+export interface PreparoVigotas {
+  u: P; nomesPav: string[]; faixas: FaixaVigota[]; mins: MinimosFaixa[]; idxGr: number[][]; avisos: string[];
+}
+export function prepararVigotas(b: BuildingModel, an: AnaliseEdificio, l: Laje, intereixo: number, op: OpcoesCalculo): PreparoVigotas | null {
+  const gm = gamas(b), obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
+  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
+  const ang = ((l.direcao ?? 0) * Math.PI) / 180, u: P = [Math.cos(ang), Math.sin(ang)];
+  // envoltória dos pavimentos do grupo (alinhamentos casados pela posição)
+  const pavs = pavimentosDoGrupo(b, l.grupo), nomesPav: string[] = [];
+  const brutas = new Map<string, Bruta>();
+  for (const g of an.grelhas) {
+    if (!g.res || !pavs.some((p) => p.id === g.pavimento)) continue;
+    nomesPav.push(b.pavimentos.find((p) => p.id === g.pavimento)?.nome ?? g.pavimento);
+    for (const f of faixasDaGrelha(g, l, fELU, u, intereixo)) {
+      const key = `${Math.round(f.t * 1000)}|${Math.round(dot(f.a, u) * 100)}`, e = brutas.get(key);
+      if (!e) { brutas.set(key, f); continue; }
+      if (e.s.length === f.s.length) for (let i = 0; i < f.s.length; i++) { e.Mmax[i] = Math.max(e.Mmax[i], f.Mmax[i]); e.Mmin[i] = Math.min(e.Mmin[i], f.Mmin[i]); e.V[i] = Math.max(e.V[i], f.V[i]); }
+      else if (Math.max(...f.Mmax) > Math.max(...e.Mmax)) brutas.set(key, f);
+    }
+  }
+  if (!brutas.size) return null;
+  const ordem = [...brutas.values()].sort((x, z) => x.t - z.t), avisos: string[] = [];
+  // esforços da análise e mínimos (p = (V1 + V2)/ℓ, por nervura; divisor por tipo de vão, E3b)
+  const faixas: FaixaVigota[] = ordem.map((f) => {
+    const n = f.s.length - 1, calc: EsforcosVigota = { mPos: Math.max(0, ...f.Mmax), mNeg: [Math.min(0, f.Mmin[0]), Math.min(0, f.Mmin[n])], v: [f.V[0], f.V[n]] };
+    return { ...f, nervuras: f.largura / intereixo, calc, grupo: 0, s: f.s.map(r3), Mmax: f.Mmax.map(r3), Mmin: f.Mmin.map(r3), V: f.V.map(r3), a: [r3(f.a[0]), r3(f.a[1])], z: [r3(f.z[0]), r3(f.z[1])] };
+  });
+  const mins = faixas.map((f) => minimosDaFaixa(f, op, l));
+  // tração inferior nas pontas (momento positivo no apoio)
+  if (faixas.some((f) => [f.Mmax[0], f.Mmax.at(-1)!].some((M) => M > Math.max(0.1, 0.05 * f.calc.mPos))))
+    avisos.push('Vigotas: tração inferior junto ao apoio (momento positivo na ponta da vigota); reveja o engaste das bordas ou a continuidade da armadura inferior.');
+  const idxGr = gruposIgualacao(mins.map((m) => m.esforcos.mPos), op.vigotaIgualacaoDif, op.vigotaIgualacao);
+  return { u, nomesPav, faixas, mins, idxGr, avisos };
+}
+
+/** Vigotas reais da laje com o alinhamento, o grupo e os esforços de cada uma (a unidade à parte, se houver, vale para as suas vigotas). */
+export function listaDeVigotas(pos: VigotaPosicionada[], faixas: FaixaVigota[], grupos: GrupoVigotas[], l: Pick<Laje, 'vigotasBiapoiadas'> | undefined, pesoLinear: (multipla: 1 | 2 | 3) => number): VigotaIndividual[] {
+  return pos.map((p) => {
+    const f = faixas[p.faixa], gi = Math.max(0, grupos.findIndex((g) => g.indices?.includes(p.indice))), gi2 = gi >= 0 && grupos[gi]?.indices?.includes(p.indice) ? gi : grupos.findIndex((g) => g.faixas.includes(p.faixa) && !g.especial);
+    const g = grupos[gi2 >= 0 ? gi2 : 0];
+    return {
+      indice: p.indice, t: r3(p.t), faixa: p.faixa, grupo: gi2 >= 0 ? gi2 : 0, L: g?.L ?? r3(f.L), a: f.a, z: f.z, multipla: p.multipla, tipoVao: tipoDeVao(f, l),
+      esforcos: g?.esforcos ?? f.calc, cortantePorMetro: [(g?.porMetro.v[0] ?? 0), (g?.porMetro.v[1] ?? 0)], ...(g?.tipo ? { tipo: g.tipo } : {}), editada: g?.especial === 'editada' || g?.especial === 'manual',
+      status: 'ok' as const, mensagens: [], pesoLinear: +pesoLinear(p.multipla).toFixed(4),
+    };
+  });
+}
 
 /**
  * Resultados das vigotas das lajes treliçadas. Acrescenta as mensagens (erros, avisos e o resumo "Treliçada: …")
@@ -221,8 +325,6 @@ const arred = (x: number, cm: number) => Math.ceil(x / (cm / 100) - 1e-9) * (cm 
  */
 export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], op: OpcoesCalculo): ResultadoVigotas[] {
   const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'lajeInf'), aS = acoDe(b, 'lajeSup'), fyd60 = 600 / gm.s;
-  const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
-  const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
   const out: ResultadoVigotas[] = [];
   const msgsLaje = (id: string, msgs: string[], erro: boolean) => {
     for (const r of lajes.filter((x) => x.laje === id)) { r.mensagens.push(...msgs); if (erro) r.status = 'fail'; }
@@ -230,49 +332,21 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
   for (const l of b.lajes) {
     const g0 = ehNervurada(l.tipo) ? geometriaNervurada(b, l.tipo) : null;
     if (!g0 || (l.tipo.tipo !== 'trelicada' && g0.familia !== 'trelicada')) {
-      if (l.armaduraVigotas) msgsLaje(l.id, ['Armadura bloqueada desconsiderada: a laje não é treliçada.'], false);
-      // fichas armadas, protendidas e moldadas: peso, rigidez e esforços da grelha já usam a ficha; a vigota é a E3b
-      if (g0) msgsLaje(l.id, [`Vigotas: dimensionamento pela ficha (${g0.descricao}) ainda não disponível; a grelha usa o peso e a rigidez da ficha (E3b).`], false);
+      if (l.armaduraVigotas && !g0) msgsLaje(l.id, ['Armadura bloqueada desconsiderada: a laje não é treliçada.'], false);
+      // fichas armadas, protendidas e moldadas: vigotasFichas.ts (E3b)
       continue;
     }
     const trTab = trelicasDe(b), nomeTr = g0.trelica && trTab[g0.trelica] ? g0.trelica : 'TR 12645', tr = trTab[nomeTr] ?? TRELICAS[nomeTr];
     const modeloNome = l.tipo.tipo === 'trelicada' ? l.tipo.modelo : l.tipo.tipo === 'vigotas' ? l.tipo.serie : '';
     const { intereixo, bw, hEnch } = g0, capa = g0.capa, h = hEnch + capa;
-    const ang = ((l.direcao ?? 0) * Math.PI) / 180, u: P = [Math.cos(ang), Math.sin(ang)];
-    // envoltória dos pavimentos do grupo (alinhamentos casados pela posição)
-    const pavs = pavimentosDoGrupo(b, l.grupo), nomesPav: string[] = [];
-    const brutas = new Map<string, Bruta>();
-    for (const g of an.grelhas) {
-      if (!g.res || !pavs.some((p) => p.id === g.pavimento)) continue;
-      nomesPav.push(b.pavimentos.find((p) => p.id === g.pavimento)?.nome ?? g.pavimento);
-      for (const f of faixasDaGrelha(g, l, fELU, u, intereixo)) {
-        const key = `${Math.round(f.t * 1000)}|${Math.round(dot(f.a, u) * 100)}`, e = brutas.get(key);
-        if (!e) { brutas.set(key, f); continue; }
-        if (e.s.length === f.s.length) for (let i = 0; i < f.s.length; i++) { e.Mmax[i] = Math.max(e.Mmax[i], f.Mmax[i]); e.Mmin[i] = Math.min(e.Mmin[i], f.Mmin[i]); e.V[i] = Math.max(e.V[i], f.V[i]); }
-        else if (Math.max(...f.Mmax) > Math.max(...e.Mmax)) brutas.set(key, f);
-      }
-    }
-    if (!brutas.size) continue;
-    const ordem = [...brutas.values()].sort((x, z) => x.t - z.t);
-    const erros: string[] = [], avisos: string[] = [];
-    // esforços da análise e mínimos (p = (V1 + V2)/ℓ, por nervura)
-    const faixas: FaixaVigota[] = ordem.map((f) => {
-      const n = f.s.length - 1, calc: EsforcosVigota = { mPos: Math.max(0, ...f.Mmax), mNeg: [Math.min(0, f.Mmin[0]), Math.min(0, f.Mmin[n])], v: [f.V[0], f.V[n]] };
-      return { ...f, nervuras: f.largura / intereixo, calc, grupo: 0, s: f.s.map(r3), Mmax: f.Mmax.map(r3), Mmin: f.Mmin.map(r3), V: f.V.map(r3), a: [r3(f.a[0]), r3(f.a[1])], z: [r3(f.z[0]), r3(f.z[1])] };
-    });
-    const minimos = faixas.map((f): EsforcosVigota => {
-      const p = (f.calc.v[0] + f.calc.v[1]) / (f.L || 1), m0 = p * f.L * f.L;
-      const mp = op.vigotaMomentoMinPositivo > 0 ? m0 / op.vigotaMomentoMinPositivo : 0, mn = op.vigotaMomentoMinNegativo > 0 ? -m0 / op.vigotaMomentoMinNegativo : 0;
-      return { mPos: Math.max(f.calc.mPos, mp), mNeg: [Math.min(f.calc.mNeg[0], mn), Math.min(f.calc.mNeg[1], mn)], v: [...f.calc.v] as [number, number] };
-    });
-    // tração inferior nas pontas (momento positivo no apoio)
-    if (faixas.some((f) => [f.Mmax[0], f.Mmax.at(-1)!].some((M) => M > Math.max(0.1, 0.05 * f.calc.mPos))))
-      avisos.push('Vigotas: tração inferior junto ao apoio (momento positivo na ponta da vigota); reveja o engaste das bordas ou a continuidade da armadura inferior.');
+    const prep = prepararVigotas(b, an, l, intereixo, op);
+    if (!prep) continue;
+    const { nomesPav, faixas, mins, idxGr, u } = prep, pavs = pavimentosDoGrupo(b, l.grupo);
+    const erros: string[] = [], avisos: string[] = [...prep.avisos];
+    if (l.edicaoVigotas?.length || l.vigotasMultiplas?.length) avisos.push('Vigotas: a edição por vigota (tipo, parciais, esforços atribuídos e vigotas duplas) vale para vigotas por ficha e moldadas; nas treliçadas use a armadura bloqueada (laje.armaduraVigotas).');
     // capa (NBR 6118, 13.2.4.2): hf ≥ máx(4 cm; ℓ0/15)
     const capaMin = Math.max(0.04, (intereixo - bw) / 15), capaOk = capa >= capaMin - 1e-9;
     if (!capaOk) erros.push(`Vigotas: capa de ${fmt(capa * 100, 1)} cm abaixo do mínimo de ${fmt(capaMin * 100, 1)} cm (NBR 6118, 13.2.4.2: 4 cm e 1/15 da distância entre nervuras).`);
-    // igualação
-    const idxGr = gruposIgualacao(minimos.map((m) => m.mPos), op.vigotaIgualacaoDif, op.vigotaIgualacao);
     const cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
     const AcT = intereixo * capa + bw * hEnch, AsMin = RHO_MIN_LAJE * AcT * 1e4; // cm² por nervura
     const AsBanzo = 2 * barArea(tr.inf) * 1e4, AsTrel = AsBanzo * (fyd60 / aI.fyd);
@@ -287,11 +361,11 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       const nv = gi === idxGr.length - 1 ? restante : Math.min(restante, Math.round((nTotal * lg) / larguraTotal));
       restante -= nv;
       const crit = op.vigotaIgualacao;
-      const esf: EsforcosVigota = {
-        mPos: igualar(ids.map((i) => minimos[i].mPos), crit),
-        mNeg: [0, 1].map((k) => igualar(ids.map((i) => minimos[i].mNeg[k]), crit, true)) as [number, number],
-        v: [0, 1].map((k) => Math.max(...ids.map((i) => minimos[i].v[k]))) as [number, number],
-      };
+      const eg = esforcosDoGrupo(ids, faixas, mins, crit, !!op.vigotaIgualacaoPonto, igualar);
+      const continuas = ids.map((i) => pontasContinuas(faixas[i]));
+      const red = op.vigotaRedistribuir ? redistribuirNegativos(eg.esforcos, [continuas.some((c) => c[0]), continuas.some((c) => c[1])], op.redistribuicao, deltaMinVigotas(an)) : null;
+      const esf: EsforcosVigota = red?.esforcos ?? eg.esforcos;
+      if (red?.aplicada) avisos.push(`Vigotas: redistribuição dos negativos (grupo ${gi + 1}): δ = ${fmt(red.delta)} (NBR 6118, 14.6.4.3; positivo aumentado de ${fmt(esf.mPos - eg.esforcos.mPos)} kN·m por nervura).`);
       // positiva: seção T (mesa comprimida), As total ≥ ρmín·Ac; banzo inferior da treliça (CA-60) descontado
       const fl = beamFlexure(tee, true, esf.mPos, dI, 0.03, c, aI.fyd);
       const AsNec = Math.max(fl.As * 1e4, esf.mPos > 0 ? AsMin : 0), AsAd = Math.max(0, AsNec - AsTrel);
@@ -348,7 +422,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       }
       const pm = (e: EsforcosVigota): EsforcosVigota => ({ mPos: e.mPos / intereixo, mNeg: [e.mNeg[0] / intereixo, e.mNeg[1] / intereixo], v: [e.v[0] / intereixo, e.v[1] / intereixo] });
       return {
-        faixas: ids, vigotas: nv, L: r3(L), esforcos: esf, porMetro: pm(esf),
+        faixas: ids, vigotas: nv, L: r3(L), esforcos: esf, porMetro: pm(esf), diagrama: eg.diagrama,
         positiva: { AsNec, AsTrelica: AsTrel, AsAdicional: AsAd, barras, comprimento: arred(L, op.arredondamento), duplaNecessaria: fl.double },
         negativos, cortante, macico,
       };
@@ -379,6 +453,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       distribuicao: { AsNec: AsDist, aco: aS.aco, phi: phiD, s: sD }, verificacaoCapa: { minima: capaMin, ok: capaOk }, bloqueada: !!trava,
       posicoes, peso, pesoTrelica: comprimentoVigotas * pesoTrelica(nomeTr, b),
       status: erros.length ? 'fail' : 'ok', mensagens: msgs,
+      lista: listaDeVigotas(posicionarVigotas(l, faixas, nTotal, B, u), faixas, grupos, l, () => g0.pp * intereixo),
     });
   }
   return out;
@@ -398,17 +473,17 @@ export function resumoAcoVigotas(vs: ResultadoVigotas[], perdas: number): { aco:
 /** Quantitativo das treliças por tipo: comprimento total (m) e peso estimado (kg), com repetições e perdas (%). */
 export function quantitativoTrelicas(vs: ResultadoVigotas[], perdas: number): { trelica: string; comprimento: number; peso: number; pesoComPerdas: number }[] {
   const m = new Map<string, number>();
-  for (const v of vs) m.set(v.trelica, (m.get(v.trelica) ?? 0) + v.comprimentoVigotas * v.repeticoes);
+  for (const v of vs) if (v.trelica) m.set(v.trelica, (m.get(v.trelica) ?? 0) + v.comprimentoVigotas * v.repeticoes);
   return [...m.entries()].sort((a, z) => a[0].localeCompare(z[0])).map(([trelica, comprimento]) => { const peso = comprimento * pesoTrelica(trelica); return { trelica, comprimento, peso, pesoComPerdas: peso * (1 + perdas / 100) }; });
 }
 
 /** Resumo por laje para o MCP (sem os alinhamentos). */
 export function resumoVigotas(v: ResultadoVigotas) {
   return {
-    laje: v.laje, nome: v.nome, trelica: v.trelica, vigotas: v.vigotas, status: v.status,
+    laje: v.laje, nome: v.nome, trelica: v.trelica, vigotas: v.vigotas, status: v.status, ...(v.familia ? { familia: v.familia, ficha: v.fichaNome, serie: v.serie } : {}),
     grupos: v.grupos.map((g) => ({
       vigotas: g.vigotas, L: g.L, mPos: +g.esforcos.mPos.toFixed(2), mNeg: g.esforcos.mNeg.map((x) => +x.toFixed(2)), v: g.esforcos.v.map((x) => +x.toFixed(2)),
-      adicional: g.positiva.barras, negativos: g.negativos.map((n) => (n ? { barras: n.barras, comprimento: n.comprimento } : null)), macico: g.macico,
+      ...(g.tipo ? { tipo: g.tipo } : {}), ...(g.especial ? { especial: g.especial } : {}), adicional: g.positiva.barras, negativos: g.negativos.map((n) => (n ? { barras: n.barras, comprimento: n.comprimento } : null)), macico: g.macico,
     })),
     distribuicao: v.distribuicao, bloqueada: v.bloqueada, peso: +v.peso.toFixed(1), pesoTrelica: +v.pesoTrelica.toFixed(1),
   };

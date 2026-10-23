@@ -122,6 +122,7 @@ Entradas antigas em `docs/historico-fatias.md`.
 
 - 22–23/10/2026: pedido do usuário — cotas em série e cotas temporárias editáveis (estudo em docs/analises/cotas-revit.md); entra como L6 depois da L5.
 - 23/10/2026: E3a, núcleo concluído e interface em cartões (`docs/cartoes/E3a/`, 3 cartões Haiku; aplicar na ordem: grupo "Tipos de laje", cascata na atribuição, memorial + e2e `E3a`). Ver `docs/historico-fatias.md`. Próximo: E3b.
+- 23/10/2026: E3b, núcleo concluído e interface em cartões (`docs/cartoes/E3b/`, 3 cartões Haiku; aplicar na ordem: aba Vigotas por ficha, exposição e momentos mínimos por pano, relatório + memorial + e2e `E3b`, com a virada dos itens para Feito). Ver `docs/historico-fatias.md`. Próximo: E3c (nervuradas bidirecionais) e E3e (alveolares, depois da E3b).
 
 - 22/10/2026: N3 (biblioteca de normas editável), núcleo concluído e interface em cartões (`docs/cartoes/N3/`, 3 cartões Haiku; aplicar na ordem: grupo, consumidores, memorial + e2e `N3`). Ver `docs/historico-fatias.md`.
 

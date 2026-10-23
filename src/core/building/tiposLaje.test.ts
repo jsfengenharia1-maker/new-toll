@@ -293,7 +293,7 @@ describe('comandos: fichas, atribuição, exportar e importar', () => {
     expect(s.modelo.lajes[0].armaduraMoldada).toBeUndefined();
     const an = analisarEdificio(s.modelo);
     expect(an.erro).toBeUndefined();
-    expect(dimensionarEdificio(s.modelo, an).lajes[0].mensagens.join(' ')).toContain('dimensionamento pela ficha');
+    expect(dimensionarEdificio(s.modelo, an).lajes[0].mensagens.join(' ')).toContain('Vigotas moldadas: nervurada moldada');
   });
 });
 

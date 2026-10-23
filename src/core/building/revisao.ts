@@ -127,7 +127,15 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'VIGOTA_CORTANTE', nivel: 'erro', re: /^Vigotas: cortante/, descricao: 'Vigotas: cortante acima de VRd1 (maciçar ou laje mais alta)' },
   { codigo: 'VIGOTA_CAPA', nivel: 'erro', re: /^Vigotas: capa/, descricao: 'Vigotas: capa abaixo do mínimo' },
   { codigo: 'VIGOTA_MACICO', nivel: 'aviso', re: /^Vigotas: maciçamento/, descricao: 'Vigotas: maciçamento extenso (> 2h ou > 20 % do vão)' },
-  { codigo: 'VIGOTA_FICHA', nivel: 'info', re: /^Vigotas: dimensionamento pela ficha/, descricao: 'Vigotas por ficha: verificação da vigota pela ficha ainda não disponível (E3b)' },
+  { codigo: 'VIGOTA_FICHA', nivel: 'info', re: /^Vigotas (por ficha|moldadas): /, descricao: 'Resumo das vigotas por ficha ou moldadas (tipos, momentos, protensão)' },
+  // vigotas completas (E3b)
+  { codigo: 'VIGOTA_SERIE', nivel: 'erro', re: /^Vigotas: nenhuma vigota da série atende o serviço/, descricao: 'Vigotas protendidas: nenhuma vigota da série atende o momento de serviço do nível de protensão' },
+  { codigo: 'VIGOTA_TABELA', nivel: 'aviso', re: /^Vigotas: fora da tabela/, descricao: 'Vigotas: valor fora da tabela da ficha (ampliar a tabela ou laje mais alta); calculado assim mesmo' },
+  { codigo: 'VIGOTA_NERVURA_ESTREITA', nivel: 'erro', re: /^Vigotas: armadura não cabe na nervura/, descricao: 'Vigotas moldadas: armadura não cabe na largura da nervura' },
+  { codigo: 'VIGOTA_FLECHA', nivel: 'erro', re: /^Vigotas: flecha/, descricao: 'Vigotas: flecha (total, ativa ou das variáveis) acima do limite' },
+  { codigo: 'VIGOTA_REDISTRIB', nivel: 'info', re: /^Vigotas: redistribuição/, descricao: 'Vigotas: redistribuição dos negativos aplicada' },
+  { codigo: 'VIGOTA_EDICAO', nivel: 'aviso', re: /^Vigotas: a (edição|marcação)/, descricao: 'Vigotas: edição ou marcação de vigota ignorada' },
+  { codigo: 'FICHA_INCOERENTE', nivel: 'erro', re: /^Vigotas: ficha incompleta/, descricao: 'Vigotas: a ficha não informa o dado necessário (complete a ficha)' },
   { codigo: 'VIGOTA_APOIO', nivel: 'aviso', re: /^Vigotas: tração inferior/, descricao: 'Vigotas: momento positivo no apoio' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
   // punção e cortante das lajes (N2d)

@@ -10,6 +10,7 @@ import './consolos';
 import './lajes';
 import './lancamentoL5';
 import './tiposLaje';
+import './vigotas';
 import './acoes';
 import './armaduras';
 import './agrupamento';
