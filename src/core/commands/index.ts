@@ -15,6 +15,7 @@ import './nervuradas';
 import './abacos';
 import './alveolares';
 import './escadas';
+import './planos';
 import './acoes';
 import './armaduras';
 import './agrupamento';

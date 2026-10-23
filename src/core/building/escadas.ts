@@ -27,6 +27,15 @@ import type { P } from '../geom/faces';
 
 export type P3 = [number, number, number];
 const GAMA_CONCRETO = 25; // kN/m³ (NBR 6120), o mesmo de `GAMA_CONCRETO` em tiposLaje.ts
+/** Pesos específicos padrão das paredes e tirantes sob o patamar (padrão do CYPECAD, 'a confirmar'): alvenaria 15,70 e concreto 24,53 kN/m³. */
+export const GAMA_PAREDE_ALVENARIA = 15.7;
+export const GAMA_PAREDE_CONCRETO = 24.53;
+/** Peso específico do apoio do patamar: informado (`gama`) > bloco escolhido (`BLOCOS`) > padrão por tipo. */
+export function gamaApoioPatamar(a: { tipo: string; bloco?: keyof typeof BLOCOS; gama?: number }): number {
+  if (a.gama !== undefined) return a.gama;
+  if (a.tipo === 'concreto') return GAMA_PAREDE_CONCRETO;
+  return a.bloco ? BLOCOS[a.bloco].gama : GAMA_PAREDE_ALVENARIA;
+}
 
 // ---------------------------------------------------------------- modelo
 
@@ -70,7 +79,7 @@ export interface ApoioBorda {
   tipo: TipoApoioPatamar;
   /** Largura da parede ou do tirante (m). */
   largura: number;
-  /** Tipo de bloco (`BLOCOS`) da alvenaria e do tirante; padrão cerâmico. */
+  /** Tipo de bloco (`BLOCOS`) da alvenaria e do tirante; ausente = `GAMA_PAREDE_ALVENARIA`. */
   bloco?: keyof typeof BLOCOS;
   /** Peso específico informado (kN/m³), no lugar do padrão do tipo. */
   gama?: number;
@@ -376,7 +385,7 @@ export function geometriaEscada(e: Escada, tipos: TipoLance[], b: BuildingModel)
       if (ap && !ap.apoiado && ap.apoios?.length) erro('ESCADA_PATAMAR_APOIO', `${rot}: o patamar ${i + 1} está livre, mas tem apoios informados; marque-o como apoiado ou remova os apoios.`);
       const zPiso = z0, zCima = zTopo;
       for (const a2 of ap?.apoiado ? ap.apoios ?? [] : []) {
-        const gam = a2.gama ?? (a2.tipo === 'concreto' ? GAMA_CONCRETO : BLOCOS[a2.bloco ?? 'ceramico'].gama);
+        const gam = gamaApoioPatamar(a2);
         const segs = a2.borda === 'frontal' ? [frontal] : lateral;
         for (const sg of segs) {
           if (a2.tipo === 'tirante') apoiosLinhas.push({ patamar: i, borda: a2.borda, tipo: a2.tipo, a: sg[0], b: sg[1], valor: gam * a2.largura * Math.max(0, zCima - zLand), sobre: 'acima', descricao: `tirante de ${cm(a2.largura)} cm: alvenaria entre o patamar e o piso de cima` });
@@ -397,7 +406,7 @@ export function geometriaEscada(e: Escada, tipos: TipoLance[], b: BuildingModel)
     // as paredes sob o patamar usam a espessura definitiva
     if (tipo.espessura === undefined) for (const l of apoiosLinhas) if (l.sobre === 'abaixo' && l.tipo !== 'conector') {
       const ap = (lance.patamares ?? [])[l.patamar]?.apoios?.find((x) => x.borda === l.borda && x.tipo === l.tipo)!;
-      const gam = ap.gama ?? (ap.tipo === 'concreto' ? GAMA_CONCRETO : BLOCOS[ap.bloco ?? 'ceramico'].gama);
+      const gam = gamaApoioPatamar(ap);
       const tl = trechos.filter((x) => x.tipo === 'patamar')[l.patamar];
       l.valor = gam * ap.largura * Math.max(0, tl.cotaIni - hLaje - z0);
     }

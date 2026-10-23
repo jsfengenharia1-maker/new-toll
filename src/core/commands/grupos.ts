@@ -144,7 +144,7 @@ registrar<{ ids: string[]; ajuste: Ajuste; mantemPosicao: boolean }>({
 
 registrar<{ de: string; para: string[]; campos: string[] }>({
   nome: 'laje.copiarDados',
-  descricao: `Copia de outro pano (inclusive de outro grupo) os campos escolhidos para as lajes \`para\` (L4). Campos: ${Object.keys(CAMPOS_COPIA_LAJE).join(', ')}. O plano de inclinação entra com a E3f. Avisos na mensagem quando um campo não pôde ser copiado.`,
+  descricao: `Copia de outro pano (inclusive de outro grupo) os campos escolhidos para as lajes \`para\` (L4). Campos: ${Object.keys(CAMPOS_COPIA_LAJE).join(', ')}. O plano de inclinação (\`plano\`, E3f) avisa quando os panos têm inclinações diferentes. Avisos na mensagem quando um campo não pôde ser copiado.`,
   risco: 'escrita',
   mcp: false,
   calculo: (p) => (Array.isArray(p.campos) && p.campos.every((c) => c === 'tabela' || c === 'cobrimento' || c === 'armaduraBase') ? 'detalhe' : true),

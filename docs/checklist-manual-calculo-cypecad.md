@@ -10,7 +10,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 
 | Seção | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
-| 1.1 Problema a resolver e escopo (pág. 4) | 8 | 5 | 1 | 1 | 1 |
+| 1.1 Problema a resolver e escopo (pág. 4) | 8 | 6 | 0 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 38 | 6 | 5 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 67 | 11 | 1 | 13 |
@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 82 | 20 | 1 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 83 | 19 | 1 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 44 | 15 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 34 | 7 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **460** | **79** | **11** | **111** |
+| **Total** | **661** | **462** | **77** | **11** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 44 | 11 | 55 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 11 | 53 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **79** | **11** | **90** |
+| **Total** | **77** | **11** | **88** |
 
 ## Divergências de premissa
 
@@ -74,7 +74,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.1.1 | Análise de esforços e dimensionamento de estruturas de concreto armado e aço que suportam lajes de vigotas (comuns, armadas, protendidas, moldadas in loco, de aço, alma vazada), alveolares, mistas, nervuradas e maciças, em edifícios sob cargas verticais e horizontais. | Parcial | E | lajes maciças e treliçadas; faltam nervuradas e alveolares (mistas fora) [E3f] |
+| K1.1.1 | Análise de esforços e dimensionamento de estruturas de concreto armado e aço que suportam lajes de vigotas (comuns, armadas, protendidas, moldadas in loco, de aço, alma vazada), alveolares, mistas, nervuradas e maciças, em edifícios sob cargas verticais e horizontais. | Feito | — | [E3f] vigotas (armadas, protendidas, moldadas, treliçadas), alveolares, nervuradas e maciças calculadas em edifícios com cargas verticais e vento (E3a–E3e); mistas e vigotas de aço fora (aço) |
 | K1.1.2 | Vigas de apoio das lajes podem ser de concreto armado, aço ou mistas (aço + concreto). | Feito | — | vigas de concreto armado; aço e mistas fora do escopo do edifício |
 | K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Feito | — | pilares, pilares-parede (E1b) e paredes de concreto com ou sem empuxo (E1c: `Parede`, `paredesBase.ts`, `paredes.ts`); falta a alvenaria estrutural [E1e] — Feito 23/10/2026: alvenaria na janela de paredes (ParedesUI.tsx, AlvenariaUI.tsx, ArmaduraAlvenariaUI.tsx); e2e E1e [E1e] |
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Feito | — | sapatas isoladas e associadas, blocos de 1 a 6 estacas (e com vários pilares), tubulões, vigas de equilíbrio e de travamento (FU1–FU3), radier e vigas de fundação sobre base elástica no pórtico (FU6, `src/core/building/baseElastica.ts`) e sapatas corridas sob parede e sob pilares (FU7a, `src/core/building/sapataCorrida.ts`) |
@@ -445,7 +445,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.54 | Direção das vigotas por pano: perpendicular à viga, paralela à viga ou por dois pontos. | Feito | — | L5 núcleo: `laje.editar { direcaoPor }` (perpendicular, paralela ou dois pontos); interface: cartão 04 — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | K1.9.55 | Continuidade entre vigotas de panos vizinhos opcional (exceto metálicas e "joist", sempre biapoiadas); copiar panos dá continuidade. | Feito | — | `Laje.vigotasBiapoiadas` (comando `laje.editar`): rotações livres nas pontas das barras das vigotas na grelha (analitico.ts); caixa em Vinculos.tsx; N2e |
 | K1.9.56 | Continuidade eliminada quando a distância entre extremos de vigotas vizinhas > comprimento de barra curta (padrão 0,20 m); continuidade também se outra vigota/trimmer estiver a menos que esse comprimento. | Fora | — | critério interno de continuidade |
-| K1.9.57 | Desníveis entre panos (desenho e detalhamento; afetam altura de elementos de apoio); limitação: não calcula flexão transversal da viga — conferir estribos e ancoragens manualmente. | Parcial | E | desnível da laje guardado (`nivel`), não entra no cálculo [E3f] |
+| K1.9.57 | Desníveis entre panos (desenho e detalhamento; afetam altura de elementos de apoio); limitação: não calcula flexão transversal da viga — conferir estribos e ancoragens manualmente. | Feito | — | [E3f] desnível e plano por pano (`Laje.nivel`, `Laje.plano`, `cotaDaLaje`); aviso DESNIVEL_VIGA (`diagnosticosPlanos`) para conferir estribos e ancoragens, sem flexão transversal (como no programa de referência) |
 | K1.9.58 | Momentos mínimos negativos/positivos das vigotas consultáveis e editáveis. | Feito | — | momentos mínimos positivo e negativo das vigotas nas opções (vigotaMomentoMinPositivo/Negativo, R6) |
 | K1.9.59 | Vigotas duplas, triplas…: peso definido (limitado à tripla); barra paralela à distância = largura da vigota da ficha. | Parcial | E | `FichaVigota.multipla` (n ≤ 3) e `conjuntoVigotas` (largura, peso e inércia do conjunto, a confirmar); colocação na laje na E3b [E3a] |
 | K1.9.60 | Coeficiente de engaste nas bordas/extremos das vigotas por pano (padrão 1). | Feito | — | engaste por borda da laje (engasteBordas, padrão 1), também nas treliçadas (N1a) |
@@ -1007,3 +1007,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3e, núcleo (lajes alveolares).** K1.3.19, K1.3.20, K1.4.32, K1.4.80, K1.9.63 a K1.9.70, K1.9.72 a K1.9.75, K1.9.77 a K1.9.81 e K1.9.83 passam a Feito (`alveolares.ts`, `alveolaresDim.ts`, `analitico.ts`, `dimensionamento.ts`; processos 0, 1 e 2 contra o cálculo manual de dois tramos); K1.9.62, K1.9.71, K1.9.76, K1.11.15 e K1.13.1-1 passam de Falta a Parcial (núcleo e comandos prontos; editor de fichas, janela do pano e relatório na interface, marca “insuficiente” no desenho). Sem dado de fabricante: gabarito na biblioteca de normas e ficha fictícia `ex:alveolar`; pendências em `docs/pendencias-usuario.md`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (23 itens a Feito; 5 de Falta a Parcial).
+- **23/10/2026 — E3f, núcleo (lajes inclinadas, rampas e desníveis).** K1.1.1 passa a Feito (vigotas, alveolares, nervuradas e maciças calculadas; mistas e vigotas de aço fora) e K1.9.57 a Feito (desnível e plano por pano; aviso DESNIVEL_VIGA, sem flexão transversal, como no programa de referência). Modelo 3D dos panos inclinados validado contra o método das forças (pórtico de duas águas) e o OpenSees (`validation/opensees/inclinada.py`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (2 itens a Feito).

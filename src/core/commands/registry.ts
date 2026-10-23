@@ -132,7 +132,7 @@ type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' }, { k: 'cortes', rot: 'corte' }, { k: 'secoes', rot: 'seção' },
   { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' }, { k: 'vigas', rot: 'viga' }, { k: 'vigasInclinadas', rot: 'viga inclinada' }, { k: 'diagonais', rot: 'diagonal' }, { k: 'consolos', rot: 'consolo' }, { k: 'lajes', rot: 'laje' }, { k: 'cargas', rot: 'carga' },
-  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' }, { k: 'tiposAlvenaria', rot: 'tipo de alvenaria' }, { k: 'blocos', rot: 'bloco' }, { k: 'cotas', rot: 'cota' }, { k: 'abacos', rot: 'ábaco' }, { k: 'escadas', rot: 'escada' }, { k: 'tiposLance', rot: 'tipo de lance' },
+  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' }, { k: 'tiposAlvenaria', rot: 'tipo de alvenaria' }, { k: 'blocos', rot: 'bloco' }, { k: 'cotas', rot: 'cota' }, { k: 'abacos', rot: 'ábaco' }, { k: 'escadas', rot: 'escada' }, { k: 'tiposLance', rot: 'tipo de lance' }, { k: 'planos', rot: 'plano' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */

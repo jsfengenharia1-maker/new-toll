@@ -267,6 +267,9 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'ALV_VIGA_DISPENSADA', nivel: 'info', re: /^Viga .* armadura opcional dispensada/, descricao: 'Viga sobre muro: armadura opcional dispensada' },
   { codigo: 'MURO_CORTANTE', nivel: 'erro', re: /^Muro [^:]+: (Fuste|Ponta|Talão): cortante/, descricao: 'Muro de arrimo: cortante do fuste ou da base acima de VRd1 (aumente a espessura)' },
   { codigo: 'MURO_ESTABILIDADE', nivel: 'erro', re: /^Muro [^:]+: Estabilidade: /, descricao: 'Muro de arrimo: tombamento, deslizamento, tensão ou núcleo central não atendem' },
+  // planos inclinados (E3f): avisos da análise
+  { codigo: 'PLANO_SEPARADO', nivel: 'aviso', re: /^Plano: no modelo separado/, descricao: 'Panos inclinados no modelo separado: calculados na projeção horizontal, no diafragma' },
+  { codigo: 'PLANO_COTAS', nivel: 'aviso', re: /^Plano: cotas diferentes no mesmo nó/, descricao: 'Viga e pano com cotas diferentes no mesmo nó (incoerência de plano)' },
   // avisos da análise (obra)
   { codigo: 'COMB_USUARIO', nivel: 'aviso', re: /^Combinações do usuário/, descricao: 'Combinações do usuário com fator abaixo do da norma (responsabilidade do projetista)' },
   { codigo: 'EQU_TOMBAMENTO', nivel: 'erro', re: /^Equilíbrio global/, descricao: 'Tombamento global: momento estabilizante menor que o instabilizante' },

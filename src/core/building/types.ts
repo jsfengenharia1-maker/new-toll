@@ -499,6 +499,13 @@ export interface Viga {
   invertida?: boolean;
   /** Desnível do topo em relação ao topo da laje do pavimento (m; negativo = rebaixada). */
   nivel?: number;
+  /**
+   * Plano inclinado da viga (E3f, C7.70): id de `BuildingModel.planos`; a cota do topo do eixo segue z(x, y) do plano (no lugar
+   * de `nivel`). Ausente = horizontal (com `nivel`).
+   */
+  plano?: string;
+  /** Projeção horizontal da viga no plano inclinado (E3f, C7.73): pelo eixo (padrão) ou pela face; só desenho. */
+  projecaoPlano?: 'eixo' | 'face';
   vinculoIni?: Vinculo;
   vinculoFim?: Vinculo;
   /** Coeficiente de engaste nas pontas (0 = rótula, 1 = engaste); prevalece sobre o vínculo. */
@@ -762,7 +769,24 @@ export interface Laje {
   baseNervurada?: BaseNervurada;
   /** Alveolar (E3e): placa fixada pelo usuário, negativos editados e processo construtivo do pano; ausente = tudo automático. */
   alveolar?: ConfigAlveolar;
+  /** Plano inclinado do pano (E3f, C7.62): id de `BuildingModel.planos` do mesmo grupo; a cota do topo é z(x, y) do plano (no lugar de `nivel`). */
+  plano?: string;
+  /** Pano a definir (E3f, C7.16): espessura informada (m), passada às vigas chatas do contorno; ausente = a do tipo provisório. */
+  espessuraDefinir?: number;
 }
+
+/**
+ * Definição de um plano inclinado (E3f, C7.63–C7.65). Cotas em m relativas ao topo do pavimento (desnível); inclinação em %
+ * (tangente × 100). `tresPontos`: três pontos com o desnível de cada. `retaHorizontal`: dois pontos de mesma cota (`desnivel`)
+ * e a inclinação perpendicular a essa reta, subindo para a esquerda de p1→p2 (negativa: desce). `maximaDeclividade`: dois
+ * pontos da linha de máxima declividade, o desnível do primeiro e a inclinação, subindo de p1 para p2 (negativa: desce).
+ */
+export type DefinicaoPlano =
+  | { tipo: 'tresPontos'; pontos: [[number, number, number], [number, number, number], [number, number, number]] }
+  | { tipo: 'retaHorizontal'; pontos: [[number, number], [number, number]]; desnivel: number; inclinacao: number }
+  | { tipo: 'maximaDeclividade'; pontos: [[number, number], [number, number]]; desnivel: number; inclinacao: number };
+/** Plano inclinado de um grupo (E3f, C7.61): nome editável, cor (índice da paleta `--plano-*`) e definição. */
+export interface Plano { id: string; nome: string; grupo: string; cor?: number; def: DefinicaoPlano }
 
 /** Negativo de uma ponta da placa alveolar na capa: φ (mm) a cada `s` (m); comprimento no pano em m ou em percentual do vão. */
 export interface NegativoAlveolarEd { phi: number; s: number; comprimento?: number; percentual?: number }
@@ -1112,6 +1136,8 @@ export interface BuildingModel {
   /** Escadas (E4a) e seus tipos de lance reutilizáveis; ausente = nenhuma. */
   escadas?: Escada[];
   tiposLance?: TipoLance[];
+  /** Planos inclinados dos grupos (E3f): lajes e vigas com `plano` seguem z(x, y); ausente = nenhum. */
+  planos?: Plano[];
 }
 
 /** Tipos de texto de referência da planta (L4, C3.30). */

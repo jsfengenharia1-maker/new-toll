@@ -236,7 +236,15 @@ Nenhum texto da NBR 9062 nem do item 22.5 da NBR 6118 estava disponível: os mé
 |---|---|---|---|---|
 | E4a | Programa de referência (manual do usuário, cap. 8) | Figuras das tipologias, em especial "dois lances com patamar de volta inteira" | Adotada a volta inteira como meia-volta sem poço (patamar único de 2L × L); enviar a figura/descrição para conferir a forma do patamar e do poço | `escadas.ts` (`TIPOLOGIAS`, `geometriaEscada`) |
 | E4a | Programa de referência (C8.12, C8.20, C8.21) | Convenção do último degrau (patamar × laje), do desnível inicial (base abaixo do piso de partida) e dos degraus iniciais (antes da laje inclinada) | Adotado: n degraus = n espelhos; com o último no patamar a laje inclinada tem n − 1 pisos; os degraus vencem H + d. Conferir com o manual | `geometriaEscada` |
-| E4a | Programa de referência (C8.28) | Pesos específicos da parede sob o patamar: 15,70 kN/m³ (alvenaria) e 24,53 kN/m³ (concreto) | Adotados `BLOCOS` (13 e 14 kN/m³) e 25 kN/m³ por orientação da spec; o peso é editável por apoio (`gama`). Confirmar se o padrão deve ser o do programa de referência | `escadas.ts` (`LinhaApoio`) |
+| E4a | Programa de referência (C8.28) | Pesos específicos da parede sob o patamar: 15,70 kN/m³ (alvenaria) e 24,53 kN/m³ (concreto) | Adotado o padrão do programa de referência (regra dos itens 'a confirmar', 23/10/2026): `GAMA_PAREDE_ALVENARIA` 15,70 e `GAMA_PAREDE_CONCRETO` 24,53 kN/m³; bloco escolhido usa `BLOCOS`; editável por apoio (`gama`). Conferir na NBR 6120 | `escadas.ts` (`LinhaApoio`) |
 | E4a | NBR 6120 (2019) | Sobrecarga de escadas: 2,5 kN/m² sem acesso ao público e 3,0 kN/m² com acesso ao público | Texto da norma não disponível | opções `escadaSobrecargaPrivada`/`Publica` |
 | E4a | NBR 9077 e NBR 9050 | Relação de Blondel (63 a 64 cm), espelho (16 a 18 cm), piso e largura mínima (120 cm) | Texto das normas não disponível; só geram avisos | opções `escadaBlondel*`, `escadaEspelho*`, `escadaLarguraMin` |
 | E4a | NBR 6118:2014 | 13.2.4.1 (espessura mínima de 8 cm) aplicada à laje da escada; vão de 1/30 tomado na horizontal | Conferir o item e se a escada segue as lajes de piso | opções `escadaEspessuraMin`/`Divisor` |
+
+## Lajes inclinadas e rampas (E3f)
+| O que falta | Para que serve | Onde entra | Valor provisório |
+|---|---|---|---|
+| NBR 6120:2019, item das sobrecargas em coberturas (carga por m² de projeção horizontal) | Carga variável dos panos inclinados na projeção e peso próprio por área inclinada | `src/core/building/analitico.ts` (`montarBase`, kG/kQ), opção `planoCargaProjecao` | Variável na projeção (1), peso e revestimento × 1/cos α |
+| Programa de referência / NBR 6118: comprimento do lance do pilar que chega ao pano inclinado | Esbeltez e 2ª ordem local do pilar com o topo no plano | `analitico.ts` (`zPilar`), `dimensionamento.ts` (pilares) | Nó do pórtico no plano; dimensionamento com a altura do pavimento |
+| Programa de referência: tolerância do paralelismo das nervuras com a máxima declividade | Aviso PLANO_NERVURAS | `planos.ts` (`TOL_NERVURAS`) | 1° |
+| Programa de referência: altura acrescida da viga na interseção de dois planos e representação da armadura dobrada e do croqui | Prancha de formas e de armação | `planos.ts` (`secaoNoPlano`, `dobraDaBarra`, `croquiPavimento`) | Meia largura × inclinação; traço perpendicular na dobra |

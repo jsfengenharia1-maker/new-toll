@@ -200,22 +200,28 @@ describe('E4a: apoios do patamar (C8.26 a C8.30)', () => {
     expect(cod(g, 'erro')).toEqual([]);
     const ln = g.lances[0].cargas.linhas;
     expect(ln).toHaveLength(1);
-    expect(ln[0].valor).toBeCloseTo(13 * 0.15 * (4.5 - 0.15 - 3), 9); // 2,6325 kN/m
+    expect(ln[0].valor).toBeCloseTo(15.7 * 0.15 * (4.5 - 0.15 - 3), 9); // 3,179 kN/m (padrão 15,70 kN/m³)
     expect(ln[0].sobre).toBe('abaixo');
     expect(Math.hypot(ln[0].b[0] - ln[0].a[0], ln[0].b[1] - ln[0].a[1])).toBeCloseTo(2.5, 9);
     expect(g.lances[0].espessura.vaoMax).toBeCloseTo(8 * PISO, 9); // patamar apoiado separa os vãos
   });
-  it('parede de concreto (25 kN/m³) nas bordas laterais: dois segmentos', () => {
+  it('parede de concreto (24,53 kN/m³) nas bordas laterais: dois segmentos', () => {
     const ln = com([{ apoiado: true, apoios: [{ borda: 'lateral', tipo: 'concreto', largura: 0.2 }] }]).lances[0].cargas.linhas;
     expect(ln).toHaveLength(2);
-    expect(ln[0].valor).toBeCloseTo(25 * 0.2 * 1.35, 9);
+    expect(ln[0].valor).toBeCloseTo(24.53 * 0.2 * 1.35, 9);
   });
   it('tirante soma a alvenaria entre o patamar e o piso de cima, aplicada no elemento de cima', () => {
     const g = com([{ apoiado: true, apoios: [{ borda: 'frontal', tipo: 'tirante', largura: 0.15 }] }]);
     const ln = g.lances[0].cargas.linhas[0];
-    expect(ln.valor).toBeCloseTo(13 * 0.15 * (6 - 4.5), 9);
+    expect(ln.valor).toBeCloseTo(15.7 * 0.15 * (6 - 4.5), 9);
     expect(ln.sobre).toBe('acima');
     expect(cod(g)).not.toContain('ESCADA_PAREDE_SUP');
+  });
+  it('peso da parede: bloco escolhido usa BLOCOS e gama informado prevalece', () => {
+    const lb = com([{ apoiado: true, apoios: [{ borda: 'frontal', tipo: 'alvenaria', largura: 0.15, bloco: 'ceramico' }] }]).lances[0].cargas.linhas[0];
+    expect(lb.valor).toBeCloseTo(13 * 0.15 * (4.5 - 0.15 - 3), 9);
+    const lg = com([{ apoiado: true, apoios: [{ borda: 'frontal', tipo: 'concreto', largura: 0.15, gama: 25 }] }]).lances[0].cargas.linhas[0];
+    expect(lg.valor).toBeCloseTo(25 * 0.15 * (4.5 - 0.15 - 3), 9);
   });
   it('conector: sem peso, reação na E4c; avisos de parede superior e de patamar mal definido', () => {
     const g = com([{ apoiado: true, apoios: [{ borda: 'frontal', tipo: 'conector', largura: 0.1 }] }]);
