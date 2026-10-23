@@ -1,0 +1,582 @@
+diff --git a/e2e/flows.mjs b/e2e/flows.mjs
+index 90151f7..fc40307 100644
+--- a/e2e/flows.mjs
++++ b/e2e/flows.mjs
+@@ -1439,7 +1439,7 @@ export const flows = [
+       await jan3.getByRole('button', { name: 'Fechar' }).click();
+ 
+       // aba Fundações em leitura: aviso, elementos do edifício listados e controles desabilitados
+-      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
++      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Fundações', exact: true }).click();
+       const aviso = page.locator('[data-fundacoes-edificio]');
+       await aviso.waitFor();
+       assert.match(await aviso.innerText(), /modo leitura/);
+@@ -2332,7 +2332,7 @@ export const flows = [
+ 
+       // ligação com o módulo Fundações: sondagens nos dois sentidos e atalho para o Edifício
+       await cmd('sondagem.criar {"nome": "SP-E1", "x": 1, "y": 1, "nivelAgua": 6, "leituras": [{"N": 5, "solo": "areia"}, {"N": 8, "solo": "areia"}, {"N": 12, "solo": "areia"}, {"N": 18, "solo": "areia"}]}');
+-      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
++      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Fundações', exact: true }).click();
+       const lig = page.locator('[data-ligacao-edificio]');
+       await lig.waitFor();
+       assert.match(await lig.innerText(), /1 furo\(s\) de sondagem no edifício/);
+diff --git a/e2e/run.mjs b/e2e/run.mjs
+index 571c673..4df335c 100644
+--- a/e2e/run.mjs
++++ b/e2e/run.mjs
+@@ -99,7 +99,7 @@ async function main() {
+       mkdirSync(dir, { recursive: true });
+       const newPage = async (init, ctxOpts = {}) => {
+         const navegador = f.webgl ? await gl() : browser;
+-        const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 900 }, locale: 'pt-BR', ...ctxOpts });
++        const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 1080 }, locale: 'pt-BR', ...ctxOpts });
+         contexts.push(ctx);
+         if (init) await ctx.addInitScript(init);
+         const page = await ctx.newPage();
+diff --git a/src/App.tsx b/src/App.tsx
+index b60b59e..2781a1a 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -13,7 +13,8 @@ import { SAMPLES } from './app/samples';
+ import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
+ import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
+ import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
+-import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
++import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
++import { FaixaModulo } from './app/FaixaModulo';
+ import { useAnalysis, resultFor, sourceLabel } from './app/results';
+ import { buildDxf } from './app/dxf';
+ import { svgExportCss } from './app/exportCss';
+@@ -263,7 +264,7 @@ export default function App() {
+   return (
+     <AjudaProvider>
+     <div className="app">
+-      <header className="topbar">
++      <header className="topbar qbar">
+         <div className="brand">
+           <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 18 L2 6 L14 2 L26 6 L26 18" /><path d="M2 6 L26 6" className="thin" /><path d="M14 2 L14 6" className="thin" /></svg>
+           <span className="bname">Statikos</span>
+@@ -299,11 +300,6 @@ export default function App() {
+           <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
+           <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
+         </div>
+-        <div className="modsw" role="tablist" aria-label="Módulo">
+-          <button type="button" role="tab" aria-selected={st.module === 'portico'} className={st.module === 'portico' ? 'on' : ''} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
+-          <button type="button" role="tab" aria-selected={st.module === 'edificio'} className={st.module === 'edificio' ? 'on' : ''} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
+-          <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} className={st.module === 'fundacoes' ? 'on' : ''} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
+-        </div>
+         <span className={`status ${status.cls}`}>{status.text}</span>
+         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
+         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
+@@ -312,7 +308,14 @@ export default function App() {
+         <ThemeSelect />
+         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
+       </header>
++      <nav className="modtabs" role="tablist" aria-label="Módulo">
++        <button type="button" role="tab" aria-selected={st.module === 'portico'} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
++        <button type="button" role="tab" aria-selected={st.module === 'edificio'} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
++        <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
++      </nav>
+ 
++      <div className="work">
++      <FaixaModulo modulo={st.module} />
+       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
+       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
+         <nav className="toolbar" aria-label="Ferramentas">
+@@ -333,6 +336,7 @@ export default function App() {
+         </section>
+ 
+         {panelOpen && (
++          <Dock id="portico-dir" lado="dir" rotulo="painel lateral direito" padrao={380}>
+           <aside className="panel">
+             <div className="tabs" role="tablist">
+               {TABS.map((t, i) => (
+@@ -345,14 +349,15 @@ export default function App() {
+             {st.tab === 'influencia' && <InfluenciaPanel />}
+             {st.tab === 'dimensionar' && <DimensionarPanel />}
+           </aside>
++          </Dock>
+         )}
+       </div>
+ 
+       )}
++      </div>
+       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
+       {st.libraryOpen && <Library />}
+-      <footer className="statusbar">
+-        <span className="msg">{st.message}</span>
++      <StatusBar mensagem={st.message}>
+         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
+           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
+         </form>
+@@ -378,7 +383,7 @@ export default function App() {
+             {LENGTH_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
+           </select>
+         </label>
+-      </footer>
++      </StatusBar>
+     </div>
+     </AjudaProvider>
+   );
+diff --git a/src/app/FaixaModulo.tsx b/src/app/FaixaModulo.tsx
+new file mode 100644
+index 0000000..a4b0133
+--- /dev/null
++++ b/src/app/FaixaModulo.tsx
+@@ -0,0 +1,26 @@
++// Faixa de comandos de cada módulo (D2: só a casca; os comandos entram na D3 conforme docs/analises/layout-bimcraft-mapa.md).
++import type { ReactNode } from 'react';
++import { Ribbon, RibbonGroup, RibbonHint, type RibbonTabDef } from './ui';
++import { useLayout, type Modulo } from './layout';
++
++export const ABAS_FAIXA: Record<Modulo, RibbonTabDef[]> = {
++  portico: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'edicao', label: 'Edição' }, { id: 'cargas', label: 'Cargas e ações' }, { id: 'analise', label: 'Análise' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'vista', label: 'Vista' }],
++  edificio: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'edicao', label: 'Edição' }, { id: 'cargas', label: 'Cargas e ações' }, { id: 'analise', label: 'Análise' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'pranchas', label: 'Pranchas' }, { id: 'vista', label: 'Vista' }],
++  fundacoes: [{ id: 'arquivo', label: 'Arquivo' }, { id: 'lancamento', label: 'Lançamento' }, { id: 'dimensionamento', label: 'Dimensionamento' }, { id: 'fundacoes', label: 'Fundações' }, { id: 'vista', label: 'Vista' }],
++};
++const NOME: Record<Modulo, string> = { portico: 'Pórtico', edificio: 'Edifício', fundacoes: 'Fundações' };
++
++/** `corpo(aba)` devolve os grupos da aba ativa; sem ele (D2), mostra uma dica. */
++export function FaixaModulo({ modulo, corpo }: { modulo: Modulo; corpo?: (aba: string) => ReactNode }) {
++  const abas = ABAS_FAIXA[modulo];
++  const salva = useLayout((s) => s.aba[modulo]);
++  const aberta = useLayout((s) => s.faixaAberta);
++  const setAba = useLayout((s) => s.setAba);
++  const setAberta = useLayout((s) => s.setFaixaAberta);
++  const ativa = abas.some((a) => a.id === salva) ? salva : abas[0].id;
++  return (
++    <Ribbon label="Faixa de comandos" tabs={abas} active={ativa} onActive={(id) => setAba(modulo, id)} open={aberta} onOpen={setAberta}>
++      {corpo ? corpo(ativa) : <RibbonGroup label={abas.find((a) => a.id === ativa)?.label ?? ''}><RibbonHint>{`Comandos de ${NOME[modulo]} nesta aba: em migração (painel lateral e barra da planta).`}</RibbonHint></RibbonGroup>}
++    </Ribbon>
++  );
++}
+diff --git a/src/app/Fundacoes.tsx b/src/app/Fundacoes.tsx
+index 11ec4f1..4ed9fd6 100644
+--- a/src/app/Fundacoes.tsx
++++ b/src/app/Fundacoes.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useMemo, useState, type ReactNode } from 'react';
+ import { useStore } from './store';
+ import { useBuilding } from './edificio/store';
+-import { Button, Check, Chip, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
++import { Button, Check, Chip, Dock, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
+ import { fmt, getDesign, useAnalysis } from './results';
+ import { buildCharacteristics } from './Library';
+ import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
+@@ -103,6 +103,7 @@ export function Fundacoes() {
+         {leitura && <FundacoesDoEdificio />}
+       </div>
+     <fieldset className="fund" disabled={leitura} data-somente-leitura={leitura || undefined}>
++      <Dock id="fundacoes-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={440}>
+       <aside className="fund-in">
+         <SondagemEditor furos={borings} cutoff={p.cutoff} sol={(x) => (selDesign && selDesign.boring.id === x.id ? selPile : null)} onEdit={(i, fn, msg) => upd((d) => fn(d.borings![i]), msg)} onAdd={addBoring} onRemove={removeBoring}
+           onMessage={(m) => st.set({ message: m })} media={{ depth: p.sptAvgDepth, water: p.sptAvgWater, onChange: setP }} />
+@@ -137,6 +138,7 @@ export function Fundacoes() {
+ 
+         <Premissas p={p} setP={setP} reset={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')} />
+       </aside>
++      </Dock>
+ 
+       <section className="fund-out">
+         {designs.length === 0 && <p className="hint">Lance as cargas dos apoios para dimensionar.</p>}
+diff --git a/src/app/design/global.css b/src/app/design/global.css
+index b77ee80..92db0e9 100644
+--- a/src/app/design/global.css
++++ b/src/app/design/global.css
+@@ -56,6 +56,7 @@
+   --h-ctl-xs: 20px;
+   --h-ctl: 24px;
+   --h-ctl-lg: 32px;
++  --h-ribbon: 56px;
+   --fs-sm: 11px;
+   --fs: 12px;
+   --fs-lg: 14px;
+@@ -228,9 +229,9 @@ button:disabled { opacity: 0.45; cursor: default; }
+ :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+ 
+ /* transições só de cor (120 ms); zeradas em prefers-reduced-motion */
+-.btn, .tbtn, .tool, .chip, .seg button, .tabs button, .menu button, .caseitem, .finput, .group > summary, .edif-tabs button, .mini, .x { transition: background-color var(--dur) ease-out, border-color var(--dur) ease-out, color var(--dur) ease-out; }
++.btn, .tbtn, .tool, .rtab, .rbtn, .tn, .vtabs button, .modtabs button, .chip, .seg button, .tabs button, .menu button, .caseitem, .finput, .group > summary, .edif-tabs button, .mini, .x { transition: background-color var(--dur) ease-out, border-color var(--dur) ease-out, color var(--dur) ease-out; }
+ 
+-.app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
++.app { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; }
+ 
+ /* barra superior */
+ .topbar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; }
+@@ -261,8 +262,8 @@ button:disabled { opacity: 0.45; cursor: default; }
+ .panel-toggle { display: none; }
+ 
+ /* área principal */
+-.main { display: grid; grid-template-columns: 48px 1fr 380px; min-height: 0; }
+-.main.nopanel { grid-template-columns: 48px 1fr; }
++.main { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; min-height: 0; }
++.main.nopanel { grid-template-columns: 48px minmax(0, 1fr); }
+ .toolbar { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
+ .tool { position: relative; width: var(--h-ctl-lg); height: var(--h-ctl-lg); border-radius: var(--radius); border: 1px solid transparent; background: transparent; display: grid; place-items: center; color: var(--muted); }
+ .tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+@@ -522,7 +523,7 @@ td.neg { color: var(--bad); }
+ 
+ /* fundações */
+ .fund-wrap { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+-.fund { display: grid; grid-template-columns: 440px 1fr; min-height: 0; border: 0; margin: 0; padding: 0; min-width: 0; }
++.fund { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 0; border: 0; margin: 0; padding: 0; min-width: 0; }
+ .fund-in { background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto; padding-bottom: 30px; }
+ .fund-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+ .spt { display: grid; grid-template-columns: 1fr 150px; gap: 10px; align-items: start; }
+@@ -609,11 +610,8 @@ svg.mono .hinge { fill: #fff !important; }
+ .lbl.train.max { fill: var(--c-n); font-size: 10px; } .lbl.train.min { fill: var(--c-m); font-size: 10px; }
+ 
+ /* edifício */
+-.edif { display: grid; grid-template-columns: 400px 1fr; min-height: 0; }
++.edif { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 0; }
+ .edif-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+-.edif-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--line); background: var(--surface); }
+-.edif-tabs button { border: 1px solid transparent; border-bottom: none; background: none; min-height: var(--h-ctl); padding: 0 12px; border-radius: var(--radius) var(--radius) 0 0; font-size: var(--fs); font-weight: 600; color: var(--muted); }
+-.edif-tabs button.on { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); }
+ .edif-tabs button.bad { color: var(--bad); }
+ .edif-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
+ .planta-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12px; }
+@@ -1013,3 +1011,72 @@ body.ajuda-on { cursor: help; }
+ .iso-valor { fill: var(--ink-strong); font: 9px var(--font-num); paint-order: stroke; stroke: var(--surface); stroke-width: 2px; }
+ .iso-ext { fill: none; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+ .iso-ext-max { stroke: var(--ink-strong); } .iso-ext-min { stroke: var(--muted); stroke-dasharray: 3 2; }
++
++/* ---- layout inspirado no BIMCraft (D1): módulos, faixa de comandos, docas, árvore, abas de vista ---- */
++.work { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; min-width: 0; }
++.modtabs { display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3) 0; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
++.modtabs button { height: var(--h-ctl-lg); padding: 0 var(--sp-5); border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: none; color: var(--muted); font-weight: 600; white-space: nowrap; }
++.modtabs button:hover { background: var(--hover); color: var(--ink); }
++.modtabs button[aria-selected="true"] { background: var(--surface); color: var(--accent-text); border-color: var(--line); margin-bottom: -1px; }
++.ribbon-wrap { background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; }
++.rtabs { display: flex; align-items: flex-end; gap: var(--sp-1); padding: 0 var(--sp-3); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
++.rtab { height: var(--h-ctl-lg); padding: 0 var(--sp-4); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font-weight: 600; white-space: nowrap; }
++.rtab:hover { background: var(--hover); color: var(--ink); }
++.rtab.on { color: var(--accent-text); border-bottom-color: var(--accent); }
++.rtab.ctx { color: var(--accent-text); background: var(--accent-soft); }
++.rtab-toggle { margin-left: auto; height: var(--h-ctl-lg); padding: 0 var(--sp-3); border: 0; background: none; color: var(--muted); }
++.ribbon { display: flex; align-items: stretch; gap: 0; padding: var(--sp-2) var(--sp-3); min-height: calc(var(--h-ribbon) + var(--sp-6)); overflow-x: auto; scrollbar-width: thin; }
++.rgrp { display: flex; flex-direction: column; padding: 0 var(--sp-3); border-right: 1px solid var(--line); }
++.rgrp:first-child { padding-left: 0; }
++.rgrp:last-child { border-right: 0; }
++.rbtns { display: flex; gap: var(--sp-1); flex: 1; align-items: stretch; }
++.rl { text-align: center; color: var(--faint); font-size: var(--fs-sm); padding-top: var(--sp-1); white-space: nowrap; }
++.rbtn { min-width: 52px; height: var(--h-ribbon); padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--radius); background: none; color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); }
++.rbtn .icone { width: 22px; height: 22px; }
++.rbtn:hover:not(:disabled) { background: var(--hover); }
++.rbtn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
++.rbl { font-size: var(--fs); white-space: nowrap; }
++.rhint { color: var(--faint); font-size: var(--fs); align-self: center; }
++.dock { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
++.dock.l { border-right: 1px solid var(--line); }
++.dock.r { border-left: 1px solid var(--line); }
++.dock.off { width: 20px; }
++.dock.off .dock-in { display: none; }
++.dock-in { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
++.dock-in > * { flex: 1; min-height: 0; }
++.dock-toggle { position: absolute; top: 0; z-index: 3; width: 18px; height: 18px; padding: 0; border: 0; background: var(--surface-2); color: var(--muted); line-height: 1; border-radius: var(--radius-sm); }
++.dock.l .dock-toggle { right: 0; }
++.dock.r .dock-toggle { left: 0; }
++.dock.off .dock-toggle { left: 1px; right: auto; }
++.dock-grip { position: absolute; top: 0; bottom: 0; width: 5px; cursor: col-resize; z-index: 2; touch-action: none; }
++.dock.l .dock-grip { right: -3px; }
++.dock.r .dock-grip { left: -3px; }
++.dock-grip:hover, .dock-grip:focus-visible { background: var(--accent); }
++.pal { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line); }
++.pal.grow { flex: 1; }
++.phead { height: var(--h-ctl-lg); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--sp-4); font-weight: 600; color: var(--ink-strong); border-bottom: 1px solid var(--line); }
++.pbody { overflow: auto; min-height: 0; }
++.tree { list-style: none; margin: 0; padding: var(--sp-2) 0; }
++.tree ul { list-style: none; margin: 0; padding: 0; }
++.tn { width: 100%; height: var(--h-ctl); display: flex; align-items: center; gap: var(--sp-2); border: 0; background: none; color: var(--ink); text-align: left; padding-right: var(--sp-3); }
++.tn:hover { background: var(--hover); }
++.tn[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-text); }
++.tn .chev { width: 12px; height: 12px; fill: none; stroke: var(--muted); stroke-width: 1.5; }
++.tn[aria-expanded="true"] .chev { transform: rotate(90deg); }
++.tn .sp { width: 12px; flex: none; }
++.tn .cnt { margin-left: auto; color: var(--faint); font-size: var(--fs-sm); }
++.l1 > .tn { padding-left: var(--sp-3); }
++.l2 > .tn { padding-left: var(--sp-6); }
++.l3 > .tn { padding-left: calc(var(--sp-6) + var(--sp-5)); }
++.l4 > .tn { padding-left: calc(var(--sp-6) + 2 * var(--sp-5)); }
++.l5 > .tn { padding-left: calc(var(--sp-6) + 3 * var(--sp-5)); }
++.vtabs { display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3) 0; background: var(--surface); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
++.vtabs button { height: var(--h-ctl); padding: 0 var(--sp-4); border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: none; color: var(--muted); font-size: var(--fs); font-weight: 600; white-space: nowrap; flex: none; }
++.vtabs button:hover { background: var(--hover); color: var(--ink); }
++.vtabs button.on, .vtabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-text); }
++@media (max-width: 900px) {
++  .dock, .dock-in { display: contents; }
++  .dock-grip, .dock-toggle { display: none; }
++}
++.qbar { flex-wrap: wrap; row-gap: var(--sp-2); }
++.chev-w { display: inline-flex; }
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index c8d8388..cde55ef 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -17,7 +17,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
+ import { useStore } from '../store';
+ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
+ import type { Diagnostico } from '../../core/building/verify';
+-import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, dataAjuda, download, useAjuda } from '../ui';
++import { Button, Check, Dock, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
+ import { combinacoesEdificio } from '../../core/building/combinacoes';
+ import { MemorialEdificio } from './MemorialEdificio';
+ import { PaletaComandos } from './PaletaComandos';
+@@ -106,6 +106,7 @@ export function Edificio() {
+ 
+   return (
+     <div className="edif">
++      <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
+       <aside className="fund-in edif-in">
+         <BarraAtalhos executar={executarAtalho} />
+         <EtapasGrupo b={b} aoIr={irEtapa} />
+@@ -203,13 +204,11 @@ export function Edificio() {
+           <LinhaComando />
+         </Group>
+       </aside>
++      </Dock>
+ 
+       <section className="edif-main">
+-        <div className="edif-tabs" role="tablist">
+-          {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+-            <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} data-ajuda={`aba:${k}`} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
+-          ))}
+-        </div>
++        <ViewTabs className="edif-tabs" label="Vistas" active={aba} onChange={(k) => setAba(k as typeof aba)}
++          tabs={([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => ({ id: k, label: l, ajuda: `aba:${k}`, bad: k === 'verificacao' && nErr > 0 }))} />
+         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
+         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
+         {aba !== 'planta' && aba !== 'vista3d' && (
+diff --git a/src/app/layout.ts b/src/app/layout.ts
+new file mode 100644
+index 0000000..47b91e1
+--- /dev/null
++++ b/src/app/layout.ts
+@@ -0,0 +1,42 @@
++// Estado do layout (D2): aba ativa da faixa de comandos por módulo, faixa recolhida e largura/recolhimento das docas.
++// Fica no navegador (`statikos:layout`, protegido por try/catch) e não vai para o arquivo de trabalho.
++import { create } from 'zustand';
++
++export type Modulo = 'portico' | 'edificio' | 'fundacoes';
++export interface Doca { w: number; aberta: boolean }
++export const DOCA_MIN = 140;
++export const DOCA_MAX = 640;
++const CHAVE = 'statikos:layout';
++
++interface Salvo { faixaAberta: boolean; aba: Record<string, string>; docas: Record<string, Doca> }
++interface LayoutState extends Salvo {
++  setFaixaAberta(v: boolean): void;
++  setAba(modulo: Modulo, id: string): void;
++  setDoca(id: string, p: Partial<Doca>, padrao: number): void;
++}
++
++const limita = (w: number) => Math.min(DOCA_MAX, Math.max(DOCA_MIN, Math.round(w)));
++
++function ler(): Salvo {
++  const vazio: Salvo = { faixaAberta: true, aba: {}, docas: {} };
++  try {
++    const t = window.localStorage.getItem(CHAVE);
++    if (!t) return vazio;
++    const j = JSON.parse(t) as Partial<Salvo>;
++    return { faixaAberta: j.faixaAberta !== false, aba: j.aba && typeof j.aba === 'object' ? j.aba : {}, docas: j.docas && typeof j.docas === 'object' ? j.docas : {} };
++  } catch { return vazio; }
++}
++
++export const useLayout = create<LayoutState>((set) => ({
++  ...ler(),
++  setFaixaAberta: (v) => set({ faixaAberta: v }),
++  setAba: (modulo, id) => set((s) => ({ aba: { ...s.aba, [modulo]: id } })),
++  setDoca: (id, p, padrao) => set((s) => {
++    const atual = s.docas[id] ?? { w: padrao, aberta: true };
++    return { docas: { ...s.docas, [id]: { w: p.w === undefined ? atual.w : limita(p.w), aberta: p.aberta ?? atual.aberta } } };
++  }),
++}));
++
++useLayout.subscribe((s) => {
++  try { window.localStorage.setItem(CHAVE, JSON.stringify({ faixaAberta: s.faixaAberta, aba: s.aba, docas: s.docas })); } catch { /* sem armazenamento: o layout só vale nesta sessão */ }
++});
+diff --git a/src/app/ui/Dock.tsx b/src/app/ui/Dock.tsx
+new file mode 100644
+index 0000000..629d504
+--- /dev/null
++++ b/src/app/ui/Dock.tsx
+@@ -0,0 +1,42 @@
++// Docas laterais (D1): coluna redimensionável (arrastar a borda ou ← →) e recolhível, e Palette (cabeçalho + corpo) dentro dela.
++import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
++import { DOCA_MAX, DOCA_MIN, useLayout } from '../layout';
++import { Button } from './index';
++
++const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
++
++/** Doca lateral. `id` identifica a doca no layout salvo; `padrao` é a largura inicial (px). A borda de arrasto fica do lado do desenho. */
++export function Dock({ id, lado, rotulo, padrao, children }: { id: string; lado: 'esq' | 'dir'; rotulo: string; padrao: number; children: ReactNode }) {
++  const doca = useLayout((s) => s.docas[id]);
++  const setDoca = useLayout((s) => s.setDoca);
++  const w = doca?.w ?? padrao, aberta = doca?.aberta ?? true;
++  const arrasto = useRef<{ x: number; w: number } | null>(null);
++  const sinal = lado === 'esq' ? 1 : -1;
++  const largura = `${w}px`;
++  const aoMover = (e: PointerEvent<HTMLDivElement>) => { if (arrasto.current) setDoca(id, { w: arrasto.current.w + sinal * (e.clientX - arrasto.current.x) }, padrao); };
++  const aoTecla = (e: KeyboardEvent<HTMLDivElement>) => {
++    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
++    if (d) { e.preventDefault(); setDoca(id, { w: w + sinal * d * 16 }, padrao); }
++  };
++  return (
++    <aside className={cx('dock', lado === 'esq' ? 'l' : 'r', !aberta && 'off')} aria-label={rotulo} style={aberta ? { width: largura } : undefined}>
++      <Button variant="nenhuma" className="dock-toggle" aria-expanded={aberta} aria-label={`${aberta ? 'Recolher' : 'Mostrar'} ${rotulo}`} title={`${aberta ? 'Recolher' : 'Mostrar'} ${rotulo}`} onClick={() => setDoca(id, { aberta: !aberta }, padrao)}>{(lado === 'esq') === aberta ? '‹' : '›'}</Button>
++      <div className="dock-in">{children}</div>
++      {aberta && (
++        <div className="dock-grip" role="separator" aria-orientation="vertical" aria-label={`Largura de ${rotulo}`} aria-valuemin={DOCA_MIN} aria-valuemax={DOCA_MAX} aria-valuenow={w} tabIndex={0}
++          onPointerDown={(e) => { arrasto.current = { x: e.clientX, w }; e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={aoMover}
++          onPointerUp={() => { arrasto.current = null; }} onPointerCancel={() => { arrasto.current = null; }} onKeyDown={aoTecla} />
++      )}
++    </aside>
++  );
++}
++
++/** Paleta: cabeçalho com título (e `aside`) e corpo rolável. `grow` ocupa o espaço que sobra na doca. */
++export function Palette({ titulo, aside, grow, children }: { titulo: string; aside?: ReactNode; grow?: boolean; children: ReactNode }) {
++  return (
++    <section className={cx('pal', grow && 'grow')} aria-label={titulo}>
++      <div className="phead"><span>{titulo}</span>{aside}</div>
++      <div className="pbody">{children}</div>
++    </section>
++  );
++}
+diff --git a/src/app/ui/Ribbon.tsx b/src/app/ui/Ribbon.tsx
+new file mode 100644
+index 0000000..41ef0d6
+--- /dev/null
++++ b/src/app/ui/Ribbon.tsx
+@@ -0,0 +1,50 @@
++// Faixa de comandos (D1): abas por tarefa + grupos rotulados com botões grandes. Estilo em design/global.css (.ribbon-wrap, .rtabs, .rtab, .ribbon, .rgrp, .rbtn).
++import type { ButtonHTMLAttributes, ReactNode } from 'react';
++import { Button } from './index';
++import { Icone } from './Icone';
++
++export interface RibbonTabDef { id: string; label: string; /** Aba contextual (aparece com um elemento selecionado). */ contextual?: boolean; title?: string }
++
++const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
++
++/** Faixa de comandos: tira de abas (duplo clique numa aba ou o botão da ponta recolhe) e o corpo da aba ativa em `children`. */
++export function Ribbon({ label, tabs, active, onActive, open, onOpen, children }: {
++  label: string; tabs: RibbonTabDef[]; active: string; onActive: (id: string) => void; open: boolean; onOpen: (v: boolean) => void; children?: ReactNode;
++}) {
++  return (
++    <div className="ribbon-wrap">
++      <div className="rtabs" role="tablist" aria-label={label}>
++        {tabs.map((t) => <RibbonTab key={t.id} tab={t} selected={t.id === active} onSelect={() => { onActive(t.id); if (!open) onOpen(true); }} onToggle={() => onOpen(!open)} />)}
++        <Button variant="nenhuma" className="rtab-toggle" aria-label={open ? 'Recolher a faixa de comandos' : 'Expandir a faixa de comandos'} aria-expanded={open} title={open ? 'Recolher a faixa (duplo clique numa aba também)' : 'Expandir a faixa'} onClick={() => onOpen(!open)}>{open ? '⌃' : '⌄'}</Button>
++      </div>
++      {open && <div className="ribbon" role="toolbar" aria-label={`Comandos: ${tabs.find((t) => t.id === active)?.label ?? ''}`}>{children}</div>}
++    </div>
++  );
++}
++
++/** Aba da faixa. `role="tab"`: os testes de interface escopam por `[aria-label="Faixa de comandos"]`. */
++export function RibbonTab({ tab, selected, onSelect, onToggle }: { tab: RibbonTabDef; selected: boolean; onSelect: () => void; onToggle: () => void }) {
++  return (
++    <Button variant="nenhuma" role="tab" aria-selected={selected} className={cx('rtab', selected && 'on', tab.contextual && 'ctx')} title={tab.title} onClick={onSelect} onDoubleClick={onToggle}>{tab.label}</Button>
++  );
++}
++
++/** Grupo da faixa: botões em linha e o nome do grupo embaixo. */
++export function RibbonGroup({ label, children }: { label: string; children: ReactNode }) {
++  return <div className="rgrp" role="group" aria-label={label}><div className="rbtns">{children}</div><div className="rl">{label}</div></div>;
++}
++
++/** Botão grande da faixa: ícone (nome em ui/Icone) em cima, rótulo embaixo. `pressed` marca a ferramenta ativa. */
++export function RibbonButton({ icon, label, pressed, className, ...rest }: { icon?: string; label: string; pressed?: boolean } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>) {
++  return (
++    <Button variant="nenhuma" className={cx('rbtn', className)} aria-pressed={pressed} {...rest}>
++      {icon && <Icone nome={icon} />}
++      <span className="rbl">{label}</span>
++    </Button>
++  );
++}
++
++/** Texto discreto dentro de um grupo (dica, estado). */
++export function RibbonHint({ children }: { children: ReactNode }) {
++  return <span className="rhint">{children}</span>;
++}
+diff --git a/src/app/ui/Tree.tsx b/src/app/ui/Tree.tsx
+new file mode 100644
+index 0000000..2dc20dc
+--- /dev/null
++++ b/src/app/ui/Tree.tsx
+@@ -0,0 +1,29 @@
++// Árvore navegável (D1): Navegador da obra. Um TreeItem é um botão `role="treeitem"`; os filhos aparecem quando `expanded`.
++import type { ReactNode } from 'react';
++import { Button } from './index';
++
++const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
++
++export function Tree({ label, children }: { label: string; children: ReactNode }) {
++  return <ul className="tree" role="tree" aria-label={label}>{children}</ul>;
++}
++
++/** Item da árvore. `level` 1–5 define o recuo. Sem `expanded` é folha. O clique no setinha expande/recolhe (`onToggle`); o clique no rótulo seleciona (`onSelect`) ou, sem `onSelect`, expande. */
++export function TreeItem({ level, label, count, icon, expanded, onToggle, selected, onSelect, title, children }: {
++  level: number; label: string; count?: number | string; icon?: ReactNode; expanded?: boolean; onToggle?: () => void;
++  selected?: boolean; onSelect?: () => void; title?: string; children?: ReactNode;
++}) {
++  const folha = expanded === undefined;
++  return (
++    <li className={`l${level}`} role="none">
++      <Button variant="nenhuma" className={cx('tn', selected && 'on')} role="treeitem" aria-level={level} aria-expanded={folha ? undefined : expanded} aria-selected={selected} title={title}
++        onClick={() => { if (onSelect) onSelect(); else onToggle?.(); }}>
++        {folha ? <span className="sp" /> : <span className="chev-w" onClick={(e) => { if (onSelect && onToggle) { e.stopPropagation(); onToggle(); } }}><svg className="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2 L8 6 L4 10" /></svg></span>}
++        {icon}
++        <span className="tl">{label}</span>
++        {count !== undefined && <span className="cnt">{count}</span>}
++      </Button>
++      {!folha && expanded && children && <ul role="group">{children}</ul>}
++    </li>
++  );
++}
+diff --git a/src/app/ui/ViewTabs.tsx b/src/app/ui/ViewTabs.tsx
+new file mode 100644
+index 0000000..aab0d7e
+--- /dev/null
++++ b/src/app/ui/ViewTabs.tsx
+@@ -0,0 +1,28 @@
++// Abas de vista acima do desenho (D1) e barra de status (D1).
++import type { ReactNode } from 'react';
++import { Button } from './index';
++
++const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
++
++export interface ViewTabDef { id: string; label: string; /** Destaque de problema (aba Verificação com erros). */ bad?: boolean; ajuda?: string }
++
++/** Abas de vista, estilo documento: a ativa se funde com a folha. `className` extra mantém ganchos dos testes (ex.: `edif-tabs`). */
++export function ViewTabs({ label, tabs, active, onChange, className }: { label?: string; tabs: ViewTabDef[]; active: string; onChange: (id: string) => void; className?: string }) {
++  return (
++    <div className={cx('vtabs', className)} role="tablist" aria-label={label}>
++      {tabs.map((t) => (
++        <Button variant="nenhuma" key={t.id} role="tab" aria-selected={active === t.id} data-ajuda={t.ajuda} className={cx(active === t.id && 'on', t.bad && 'bad')} onClick={() => onChange(t.id)}>{t.label}</Button>
++      ))}
++    </div>
++  );
++}
++
++/** Barra de status: mensagem à esquerda (`.msg`) e os controles de visualização (children) à direita. */
++export function StatusBar({ mensagem, children }: { mensagem: ReactNode; children?: ReactNode }) {
++  return (
++    <footer className="statusbar">
++      <span className="msg">{mensagem}</span>
++      {children}
++    </footer>
++  );
++}
+diff --git a/src/app/ui/index.tsx b/src/app/ui/index.tsx
+index 1d53f66..cfb0c30 100644
+--- a/src/app/ui/index.tsx
++++ b/src/app/ui/index.tsx
+@@ -316,3 +316,7 @@ export function ThemeSelect() {
+ 
+ export { AjudaProvider, BotaoAjuda, dataAjuda, useAjuda } from './Ajuda';
+ export { Icone } from './Icone';
++export { Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, type RibbonTabDef } from './Ribbon';
++export { Dock, Palette } from './Dock';
++export { Tree, TreeItem } from './Tree';
++export { ViewTabs, StatusBar, type ViewTabDef } from './ViewTabs';
