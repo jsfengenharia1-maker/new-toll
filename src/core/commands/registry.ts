@@ -5,6 +5,9 @@ import { edificioVazio, type BuildingModel } from '../building/types';
 import { verificar, type Diagnostico } from '../building/verify';
 import { desbloquearObsoletos, mudouEstrutura, temBloqueioDependente } from '../building/desbloqueio';
 import { sincronizarBases, temBasesDeParede } from '../building/corridaParede';
+import { sincronizarCurvas, temCurvas } from '../building/curvas';
+import { opcoesEmUso, perfilDe } from '../building/opcoes';
+import { sincronizarComuns, temComuns } from '../building/vigaComum';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
@@ -107,6 +110,13 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
     let avisos: string[] = [];
     const [m3, p3, i3] = produceWithPatches(modelo, (d) => { avisos = sincronizarBases(d); });
     if (p3.length) { modelo = m3; patches = [...patches, ...p3]; inversos = [...i3, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
+  }
+  // vigas curvas (E2b): rediscretização quando a corda máxima muda; vigas comuns a dois grupos: a vinculada segue a origem
+  if (temCurvas(modelo) || temComuns(modelo)) {
+    let avisos: string[] = [];
+    const corda = opcoesEmUso(modelo.opcoes, perfilDe(modelo)).curvaSegmento / 100;
+    const [m4, p4, i4] = produceWithPatches(modelo, (d) => { avisos = [...sincronizarCurvas(d, corda), ...sincronizarComuns(d)]; });
+    if (p4.length) { modelo = m4; patches = [...patches, ...p4]; inversos = [...i4, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
   }
   return { ok: true, erros: [], modelo, params: p, patches, inversos, diff: diffModelos(b, modelo), mensagem };
 }

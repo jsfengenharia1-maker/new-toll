@@ -148,6 +148,7 @@ export function diagnosticosVigas(b: BuildingModel): Diagnostico[] {
     // vigas sem apoio / com um apoio só (por pavimento do grupo; mensagem única por viga)
     for (const v of vs) {
       if (v.estrutural === false) continue; // não estrutural: só fecha o contorno do pano
+      if (v.comumDe) continue; // associada de viga comum (E2b): a barra e os apoios são os da viga de origem
       const semApoio: string[] = [], umApoio: string[] = [];
       let soViga = false;
       for (const pav of pavs) {

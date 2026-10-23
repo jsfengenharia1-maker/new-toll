@@ -81,6 +81,10 @@ function base() {
   expect(s.executar('parede.criar', { pontos: [[100, 0], [104, 0]], espessura: 0.15, tipo: 'blocos', material: s.modelo.tiposAlvenaria![0].id }).ok).toBe(true);
   expect(s.executar('parede.abertura', { parede: s.modelo.paredes![1].id, s: 1.07, largura: 0.9, altura: 2.1, pavimento: s.modelo.pavimentos[0].id }).ok).toBe(true);
   expect(s.executar('muro.arrimo', { nome: 'MA1', H: 3, tTopo: 0.2, tBase: 0.3, B: 2, ponta: 0.5, hBase: 0.4, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }).ok).toBe(true);
+  // E2b: uma viga com trecho curvo (decompor) e uma viga comum ao grupo Vazio (desfazer), longe das demais
+  expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[120, 0], [126, 0], [130, 4]], passagens: [null, [129, 0.8]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
+  expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[140, 0], [146, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
+  expect(s.executar('viga.comum', { id: s.modelo.vigas.at(-1)!.id, grupo: s.modelo.grupos.find((g) => g.nome === 'Vazio')!.id }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -173,9 +177,9 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.copiar': (b) => ({ ids: [b.pilares[0].id], dx: 4, dy: 0, vezes: 2 }),
   'pilar.remover': (b) => ({ ids: [b.pilares[0].id] }),
   'pilar.renumerar': () => ({}),
-  'viga.tracar': () => ({ grupo: 'g_3', pontos: [[0, 3], [4, 3]], secao: { b: 0.15, h: 0.4 } }),
+  'viga.tracar': () => ({ grupo: 'g_3', pontos: [[0, 3], [4, 3], [6, 5]], passagens: [null, [5.5, 3.5]], secao: { b: 0.15, h: 0.4 } }),
   'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado', engasteFim: 0.5, torcaoEquilibrio: true, engasteLajes: 0.4, mesa: { tipo: 'T', bf: 0.8, hf: 0.1 }, amarracao: true, estrutural: false }),
-  'viga.atribuir': (b) => ({ ids: b.vigas.map((v) => v.id), campo: 'alinhamento', valor: 'dir' }),
+  'viga.atribuir': (b) => ({ ids: b.vigas.filter((v) => !v.comumDe).map((v) => v.id), campo: 'alinhamento', valor: 'dir' }),
   'viga.dividir': (b) => ({ id: b.vigas[1].id, ponto: [2, 0.1] }),
   'viga.unir': (b) => ({ ids: [b.vigas[1].id, b.vigas.find((v) => v.nome === 'V3')!.id] }),
   'viga.prolongar': (b) => ({ id: b.vigas[1].id, extremidade: 'ini', ate: { ponto: [-1, 0] } }),
@@ -184,6 +188,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'viga.copiarParaGrupos': (b) => ({ ids: b.vigas.map((v) => v.id), grupos: ['g_1'] }),
   'viga.remover': (b) => ({ ids: [b.vigas[0].id] }),
   'viga.renumerar': () => ({ grupo: 'g_3' }),
+  'viga.compor': (b) => ({ ids: [b.vigas[1].id, b.vigas[2].id] }),
+  'viga.decompor': (b) => ({ id: b.vigas.find((v) => v.arcos)!.id }),
+  'viga.comum': (b) => ({ id: b.vigas[0].id, grupo: b.grupos.find((g) => g.nome === 'Vazio')!.id, de: 0.5, ate: 2.5 }),
+  'viga.comumDesfazer': (b) => ({ id: b.vigas.find((v) => v.comum)!.id }),
+  'viga.ajustarPlano': (b) => ({ id: b.vigas[1].id, modo: 'maximaDeclividade', planos: [{ a: 0.1, b: 0.1, c: 0 }] }),
   'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
   'viga.alinharFace': (b) => ({ grupo: 'g_3', ids: [b.vigas[1].id], lado: 'esq' }),
   'laje.detectarPanos': () => ({ grupo: 'g_3' }),
@@ -260,7 +269,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'verga.armadura': (b) => ({ acao: 'editar', abertura: b.paredes![1].aberturas![0].id, armadura: { n: 2, phi: 10, estribo: { phi: 5, s: 0.2 } } }),
   'muro.arrimo': (b) => ({ id: b.murosArrimo![0].id, nome: 'MA1', H: 3.5, tTopo: 0.2, tBase: 0.35, B: 2.4, ponta: 0.5, hBase: 0.45, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }),
   'muro.remover': (b) => ({ ids: [b.murosArrimo![0].id] }),
-  'viga.embutir': (b) => ({ viga: b.vigas.at(-1)!.id, parede: b.paredes![0].id }),
+  'viga.embutir': (b) => ({ viga: b.vigas.find((v) => v.pontos[0][0] === 80)!.id, parede: b.paredes![0].id }),
   // L4
   'grupo.copiarConteudo': () => ({ de: 'g_3', para: 'g_7', modo: 'somar' }),
   'pavimento.unir': (b) => ({ ids: [b.pavimentos.find((x) => x.grupo === 'g_7')!.id, b.pavimentos.find((x) => x.grupo === 'g_3')!.id], grupo: 'g_3' }),

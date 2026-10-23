@@ -41,6 +41,7 @@ import { alturaVigaChata, secaoParaFlexao } from './secaoViga';
 import { calcularBasesMuros, type ResultadoBaseMuro } from './baseMuro';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
 import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGrupo, fracoesGLaje, instantaneasPorCategoria, limiteFlecha, limitesEmUso, mensagensFlechasNovas, resolverGrelhaFissurada, resumoFlechas, textoLimite, tipoFlechaLaje, type ComposicaoEtapas, type FlechasElemento, type FlechasInstantaneas, type FracoesG, type TipoFlecha } from './flechas';
+import { dadosDosArcos, ehCurva } from './curvas';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
 import { verificarFogo, type ResultadoFogo } from './fogo';
 export { TAXAS };
@@ -356,7 +357,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     // d da armadura positiva pela face inferior e da negativa pela superior (cobrimentos por face: materiais.ts)
     const cob = cobrimentoViga(b, v.cobrimento), dI = v.secao.h - cob.inf - 0.005 - 0.008, dS = v.secao.h - cob.sup - 0.005 - 0.008;
     const d2I = cob.sup + 0.005 + 0.008, d2S = cob.inf + 0.005 + 0.008, d = Math.min(dI, dS);
-    const tor = op.verificarTorcao || v.torcaoEquilibrio ? torsionRect(v.secao.b, v.secao.h, cob.lat + 0.005 + 0.008, 0, c, fywd, fydL) : null;
+    const tor = op.verificarTorcao || v.torcaoEquilibrio || ehCurva(v) ? torsionRect(v.secao.b, v.secao.h, cob.lat + 0.005 + 0.008, 0, c, fywd, fydL) : null;
     const VRd2 = 0.27 * c.av2 * c.fcd * v.secao.b * d * 1000, Vc0 = 0.6 * c.fctd * v.secao.b * d * 1000;
     // pontas das barras sobre pilares (parte flexível começa em face − trechoRigido·h) e apoios internos da viga
     const membrosNo = new Map<number, number>();
@@ -549,6 +550,12 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     const msgs: string[] = [];
     // E2a: seção com mesa, viga de amarração e viga chata
     if (mesa) msgs.push(`Mesa colaborante: ${mesa.texto} ${op.mesaDimensionamento ? 'Flexão dimensionada na seção T onde a mesa está comprimida (NBR 6118, 14.6.2.2).' : 'Armadura calculada só com a alma; a mesa entra na rigidez da análise.'}`);
+    // E2b: viga curva (torção de equilíbrio da curvatura) e viga comum a dois grupos
+    if (ehCurva(v)) {
+      const ds = dadosDosArcos(v);
+      msgs.push(`Viga curva: ${ds.map((x) => `R = ${x.raio.toFixed(2).replace('.', ',')} m, ${x.angulo.toFixed(0)}°`).join('; ')}; poligonal de ${ds.reduce((t, x) => t + x.cordas, 0)} cordas de até ${Math.round(Math.max(...ds.map((x) => x.cordaMax)) * 100)} cm; torção de equilíbrio da curvatura (${op.curvaTorcaoEquilibrio ? 'rigidez bruta' : 'rigidez reduzida'}) verificada.`);
+    }
+    if (v.comum) msgs.push(`Viga comum com o grupo ${b.grupos.find((g) => g.id === v.comum!.grupo)?.nome ?? v.comum.grupo}: barra única no pórtico, recebe as lajes dos dois grupos; armadura e envoltórias só aqui.`);
     if (v.amarracao) msgs.push('Amarração: viga sem rigidez à flexão vertical (EI × 10⁻¹⁵, plano e EA rígidos); os esforços de flexão vertical são nulos e a armadura é a mínima.');
     if (v.chata) { const hc = alturaVigaChata(b, v); if (hc !== null && Math.abs(hc - v.secao.h) > 0.005) msgs.push(`Viga chata: altura de ${Math.round(v.secao.h * 100)} cm difere da laje que contorna (${Math.round(hc * 100)} cm).`); }
     if (arredondou) msgs.push(`Arredondamento do diagrama nos apoios internos: ${op.arredondamentoApoio === 1 ? 'parábola cúbica entre as faces (M e V das faces)' : 'ΔM = R·t/8 (NBR 6118, 14.6.3)'}${op.momentoFaceMin > 0 ? `; módulo mínimo ${op.momentoFaceMin.toFixed(0)} % do momento do eixo` : ''}.`);
@@ -674,6 +681,11 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     if (flecha > limite) msgs.push(`Flecha total ${(flecha * 1000).toFixed(1)} mm > ${textoLimite(limsV.total, balT)} = ${(limite * 1000).toFixed(1)} mm (Branson por seção, ${op.flechaEtapas ? `por etapas: ${(cT!.comp.fatorTotal).toFixed(2).replace('.', ',')} × instantânea, ξ médio ${cT!.comp.xiMedio.toFixed(2).replace('.', ',')}` : `× (1 + αf = ${(1 + afR).toFixed(2).replace('.', ',')})`}).`);
     if (flechaQ > limiteQ) msgs.push(`Flecha das variáveis ${(flechaQ * 1000).toFixed(1)} mm > ${textoLimite(limsV.variavel, balQ).replace('2ℓ', 'ℓ')} = ${(limiteQ * 1000).toFixed(1)} mm.`);
     msgs.push(...mensagensFlechasNovas(fv));
+    // E2b: a armadura longitudinal curva em planta empurra o concreto para fora da curva (força de desvio As·fyd/R por metro)
+    if (ehCurva(v)) {
+      const Rmin = Math.min(...dadosDosArcos(v).map((x) => x.raio)), qd = (Math.max(AsInf * aPos.fyd, AsSup * aNeg.fyd) * 1000) / Rmin;
+      msgs.push(`Desvio da armadura em viga curva: força radial da armadura longitudinal ≈ ${qd.toFixed(1).replace('.', ',')} kN/m (As·fyd/R, R mín = ${Rmin.toFixed(2).replace('.', ',')} m); os estribos devem equilibrá-la além do cortante e da torção (verificação a confirmar).`);
+    }
     // pilares que nascem sobre a viga (E1a): carga concentrada na base e cortante junto às faces do pilar
     const transicoes: TransicaoViga[] = [];
     for (const [pid, ap] of Object.entries(an.apoiados ?? {})) {

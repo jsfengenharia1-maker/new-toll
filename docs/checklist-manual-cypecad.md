@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 33 | 10 | 40 | 25 |
+| 6. Vigas | 108 | 33 | 18 | 32 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **80** | **194** | **185** |
+| **Total** | **763** | **304** | **88** | **186** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 164 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 156 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 29 | 10 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
@@ -304,8 +304,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Falta | L | deslocamento configurável entre linha clicada e linha de ajuste [L5] |
 | C6.10 | Troca cíclica do ajuste (eixo/faces) por atalho (Ctrl+E) durante o lançamento. | Feito | — | tecla A |
 | C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Falta | L | [L5] |
-| C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Falta | E | viga curva [E2b] |
-| C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Falta | E | [E2b] |
+| C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Parcial | E | núcleo: `viga.tracar { passagens }` (um ponto de passagem por trecho; o arco por três pontos vira poligonal de cordas de até a opção `curvaSegmento`, cordas das pontas com 25 % das do meio; `Viga.arcos`, `curvas.ts`: `arcoPor3`, `montarPoligonal`, `sincronizarCurvas`); torção da curvatura de equilíbrio (opção `curvaTorcaoEquilibrio`, rigidez bruta) e verificação à torção sempre; validado contra o arco circular biapoiado em planta sob carga uniforme (M e T, convergência com a corda; `curvas.test.ts`); elevação desenvolvida na prancha de vigas; interface nos cartões `docs/cartoes/E2b/` [E2b] |
+| C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Parcial | E | núcleo: `viga.tracar` aceita trechos retos e curvos alternados no mesmo traçado, começando por qualquer um (passagem `null` = trecho reto); tecla R, prévia dos arcos e item da paleta no cartão E2b-2 [E2b] |
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
 | C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Parcial | E | núcleo: `Viga.chata`, `alturaVigaChata` (`secaoViga.ts`; altura da laje que contorna, com desnível do topo mais alto ao fundo mais baixo), `viga.editar { chata }`; interface no cartão `docs/cartoes/E2a/1-editor-secao.md` [E2a] |
 | C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | núcleo: `Viga.mesa` T/L com mesa colaborante da NBR 6118 14.6.2.2 (`mesaDaViga`), na rigidez da grelha e do pórtico (`propsBarraViga`, opção `mesaRigidez`), armadura só pela alma (padrão do sistema) ou na seção T (`mesaDimensionamento`); interface nos cartões E2a-1 a E2a-3 [E2a] |
@@ -324,7 +324,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.29 | Largura efetiva própria para verificar os positivos. A armadura de negativo sobre o apoio não é dimensionada. | Fora | — |  |
 | C6.30 | Capturas DXF/DWG (mais próximo, interseção, extremo, ponto médio etc.) ao marcar os pontos da viga, sem ajuste posterior. | Feito | — | capturas |
 | C6.31 | Poliviga: vigas consecutivas ligadas, que mudam e são apagadas juntas, com armaduras que podem diferir. | Feito | — | viga em polilinha (vários trechos) |
-| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Falta | E | viga curva e poliviga (vigas curvas: E2) [E2b] |
+| C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Parcial | E | núcleo: poliviga = uma viga só com trechos retos e curvos (um desenho, um conjunto de vãos, uma barra inferior corrida, sem tramo), `viga.compor` e `viga.decompor` (`vigasE2b.ts`, `decomporPoligonal`, `unirPoligonais`); dividir e unir preservam os arcos; botões no cartão E2b-1 [E2b] |
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Feito | — | comando `viga.tramo` e `resolverTramos` (`detalhamento.ts`): vigas consecutivas e alinhadas do mesmo grupo com a mesma bitola e nº de passantes têm a barra inferior corrida do eixo do apoio comum, sem emenda nem gancho, até a barra máxima (senão TRAMO_IGNORADO); botão "Tramo com…" na aba Detalhamento da viga (R7b) |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Feito | — | `viga.unir`/`viga.dividir` com ferramentas na planta (R7-0); o bloqueio e o detalhe editado saem no mesmo passo quando o nº de vãos muda e o recálculo redimensiona (R7f) |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos [E2c] |
@@ -339,10 +339,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.44 | Apagar diagonal: em todos os grupos, se for múltipla. | Falta | E | [E2d] |
 | C6.45 | Informação da diagonal (tipo, grupos, comprimento real, seção, ligações, flambagem), também desenhada na prancha de vigas do grupo inicial. | Falta | E | [E2d] |
 | C6.46 | Editar, mover extremos e atribuir propriedades a diagonais existentes: a operação vale só no grupo atual. | Falta | E | [E2d] |
-| C6.47 | Viga comum a dois grupos (ex.: borda entre laje horizontal e laje inclinada), lançada uma vez e criada automaticamente no outro grupo. | Falta | E | viga comum a dois grupos [E2b] |
-| C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Falta | E | [E2b] |
-| C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Falta | E | [E2b] |
-| C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Falta | E | [E2b] |
+| C6.47 | Viga comum a dois grupos (ex.: borda entre laje horizontal e laje inclinada), lançada uma vez e criada automaticamente no outro grupo. | Parcial | E | núcleo: `Viga.comum`/`comumDe`, `viga.comum` cria a viga associada no outro grupo e a mantém igual (`sincronizarComuns`, `vigaComum.ts`); uma barra só no pórtico: a associada apoia a laje do seu grupo (viga normal da grelha, sem peso) e as forças nos seus nós vão à viga de origem no pavimento alvo (pré-passo em `analitico.ts`, modelos separado e integrado; até 10 % da viga única equivalente, `vigaComum.test.ts`); interface nos cartões E2b-1 e E2b-2 [E2b] |
+| C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Parcial | E | núcleo: armadura, envoltórias, dimensionamento e prancha só na origem (a associada fica fora de `dim.vigas` e a origem informa a viga comum); eixo em traço-ponto na planta e atalho para abrir o grupo de origem nos cartões E2b-1 e E2b-2 [E2b] |
+| C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Parcial | E | núcleo: `viga.comum { de, ate }` divide a viga e só a parte indicada vira comum; cada parte pode ser comum a um grupo diferente (`vigaComum.test.ts`); campos no cartão E2b-1 [E2b] |
+| C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Parcial | E | núcleo: `viga.comumDesfazer` (a partir da origem ou da associada) devolve as duas vigas originais, independentes; desfazer do comando também; botão no cartão E2b-1 [E2b] |
 | C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular [L5] |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
 | C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga, com a ferramenta Prolongar viga (O) na planta (R7-0); sem comprimento fixo nem arraste da extremidade [L5] |
@@ -350,7 +350,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E | [E2e] |
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
 | C6.57 | Edição de consolos. | Falta | E | [E2e] |
-| C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Falta | E | [E2b] |
+| C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Parcial | E | núcleo: `viga.ajustarPlano` (`ajustarAoPlano`, `curvas.ts`): pontos levados à projeção da interseção de dois planos ou à linha de máxima declividade, planos por três pontos cotados ou por a, b e c; as linhas indicativas (magenta) na planta dependem das lajes inclinadas (E3f); editor no cartão E2b-1 [E2b] |
 | C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Feito | — | `vigasSobreMuros` (`alvenariaDim.ts`): viga embutida em muro de alvenaria genérica (nível da laje) ou de blocos (coroamento) com armadura opcional dispensada pela opção `alvenariaVigaArmar`; a de topo de muro com empuxo é sempre armada; largura e altura mínimas configuráveis (`alvenariaVigaBMin/HMin`, `ALV_VIGA_ESPESSURA`) [E1e] |
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
 | C6.61 | Cobrimentos nas zonas de confinamento (cálculo com sismo), indicados por linhas no editor. | Fora | — | sismo |
@@ -1046,3 +1046,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **22/10/2026 — V2, núcleo (cortes, seções e armaduras em 3D).** C3.31, C3.32 e C3.34 passam de Falta a Parcial (núcleo e comandos prontos; interface nos cartões `docs/cartoes/V2/`); C3.33 segue Falta (marcas e folha nas pranchas pendentes). Pendências por frente: V sem mudança de contagem de Falta além de 3 itens que viram Parcial.
 - **23/10/2026 — V3, núcleo (deformada, deslocamentos e flecha entre pontos).** C12.16 e C12.18–C12.21 passam de Falta a Parcial (núcleo `src/core/resultados/` pronto e testado; interface nos cartões `docs/cartoes/V3/`); C12.22 (várias janelas lado a lado) segue Falta. Pendências por frente: V sem mudança de contagem além de 5 itens que viram Parcial.
 - **23/10/2026 — L4, núcleo (cópias de grupo, grupos e áreas, referências e ajudas).** C1.6, C1.8, C1.9, C1.10, C3.29, C4.28 e C4.30 passam de Falta a Parcial; C1.11–C1.13, C6.2, C3.7, C3.22, C3.25, C3.27, C3.30, C4.26, C7.8 e K1.4.69 seguem Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/L4/`; C7.8: o plano de inclinação entra com a E3f). Pendências por frente: L sem mudança de contagem.
+- **23/10/2026 — E2b, núcleo (vigas curvas e viga comum a dois grupos).** C6.12, C6.13, C6.32, C6.47, C6.48, C6.49, C6.50 e C6.58 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; interface nos cartões `docs/cartoes/E2b/`; C6.58: as linhas indicativas na planta dependem das lajes inclinadas da E3f).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).

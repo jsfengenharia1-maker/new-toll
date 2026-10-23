@@ -146,6 +146,7 @@ registrar<Selecao & { eixo: [P, P]; copiar?: boolean }>({
     for (const v of vgs) {
       const nova: Viga = { ...v, id: `v_${(++d.seq).toString(36)}`, nome: `V${proximaViga(d as BuildingModel, v.grupo)}`, pontos: v.pontos.map((q) => t.ponto(q as P)) };
       if (nova.alinhamento === 'esq' || nova.alinhamento === 'dir') nova.alinhamento = nova.alinhamento === 'esq' ? 'dir' : 'esq';
+      delete nova.comum; delete nova.comumDe; // a cópia não herda o vínculo de viga comum (E2b)
       d.vigas.push(nova);
     }
     return `${pils.length + vgs.length} cópia(s) espelhada(s) criada(s).`;

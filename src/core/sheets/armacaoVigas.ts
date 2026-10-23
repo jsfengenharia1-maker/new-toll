@@ -4,6 +4,7 @@
 // seção transversal e estribo à parte (padrão 1:25). Vigas paginadas nas folhas; posições numeradas por folha
 // (barras iguais somadas); tabela de aço e resumo por bitola com perdas, concreto e forma da folha.
 import type { AnaliseEdificio } from '../building/analitico';
+import { dadosDosArcos } from '../building/curvas';
 import { acoDaBarraViga, ganchoNoventa, type BarraViga, type DetalheViga } from '../building/detalhamento';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { acoDe, cobrimentoViga, fckDe } from '../building/materiais';
@@ -118,7 +119,9 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   const yTit = hb + d + 8 + Math.max(0, nSup - 1) * 9 + 9;
   const pavs = pavimentosDoGrupo(b, v.grupo);
   out.push(txt('TEXTO', 0, yTit + 3, 5, v.nome, 'e', 'base'));
-  out.push(txt('TEXTO', 0, yTit, 2, `ESC 1:${cfg.escalaVigas} · ${cotaCm(bw)}×${cotaCm(h)}${rep > 1 ? ` · ${rep}× (${pavs[0].nome} a ${pavs.at(-1)!.nome})` : ''}`, 'e', 'base'));
+  // viga curva (E2b): elevação desenvolvida (abscissas ao longo do eixo); raio e ângulo dos trechos curvos no título [a confirmar a representação]
+  const curva = dadosDosArcos(v).map((x) => `R = ${nf(x.raio * 100, 0)} cm, ${nf(x.angulo, 0)}°`).join('; ');
+  out.push(txt('TEXTO', 0, yTit, 2, `ESC 1:${cfg.escalaVigas} · ${cotaCm(bw)}×${cotaCm(h)}${rep > 1 ? ` · ${rep}× (${pavs[0].nome} a ${pavs.at(-1)!.nome})` : ''}${curva ? ` · VIGA CURVA DESENVOLVIDA (${curva})` : ''}`, 'e', 'base'));
   // ---- seção transversal e estribo à parte ----
   const xs = X(e1) + 14, ws = bw * kS, hs = h * kS, ys = -2;
   out.push(txt('TEXTO', xs + ws / 2, ys + hs + 7, 2.5, 'SEÇÃO', 'c', 'base'), txt('TEXTO', xs + ws / 2, ys + hs + 4, 1.8, `ESC 1:${cfg.escalaSecao}`, 'c', 'base'));
