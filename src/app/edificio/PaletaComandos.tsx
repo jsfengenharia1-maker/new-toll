@@ -42,6 +42,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
     { id: 'a:refazer', tipo: 'Ação', rotulo: 'Refazer', detalhe: 'Ctrl+Y', repetivel: true, executar: ctx.refazer },
     { id: 'a:limpar', tipo: 'Ação', rotulo: 'Limpar a seleção', repetivel: true, executar: () => usePlanta.getState().set({ selecao: new Set() }) },
     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
+    { id: 'a:viga-curva', tipo: 'Ação', rotulo: 'Viga: alternar trecho reto ou curvo', detalhe: 'ferramenta Viga, tecla R', repetivel: true, executar: () => naPlanta({ ferramenta: 'viga', ...aoEscolher('viga'), curvaViga: !usePlanta.getState().curvaViga, passagemViga: null }) },
   );
   if (grupo) {
     out.push(
