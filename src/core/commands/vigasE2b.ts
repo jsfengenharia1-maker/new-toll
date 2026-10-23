@@ -3,6 +3,7 @@ import type { Draft } from 'immer';
 import { ajustarAoPlano, comprimentoDesenvolvido, decomporPoligonal, ehCurva, planoPor3Pontos, type PlanoInclinado } from '../building/curvas';
 import { comprimentoPolilinha, type BuildingModel, type Viga } from '../building/types';
 import type { Diagnostico } from '../building/verify';
+import { planoPor } from '../building/planos';
 import { proximaViga } from '../building/vigas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -162,15 +163,17 @@ registrar<{ id: string }>({
 // ---------------------------------------------------------------- ajuste a planos inclinados (C6.58)
 
 const planoSchema: JsonSchema = { type: 'object', additionalProperties: false, properties: {
+  plano: { type: 'string', description: 'id de um plano da obra (E3f)' },
   pontos: { type: 'array', items: ponto3, minItems: 3, maxItems: 3, description: 'três pontos cotados [x, y, z] do plano' },
   a: { type: 'number', description: 'inclinação em x (m/m)' }, b: { type: 'number', description: 'inclinação em y (m/m)' }, c: { type: 'number', description: 'cota em x = y = 0 (m)' },
 } };
-type PlanoParam = { pontos?: [number, number, number][]; a?: number; b?: number; c?: number };
-const planoDe = (q: PlanoParam): PlanoInclinado | null => (q.pontos ? planoPor3Pontos(q.pontos) : q.a !== undefined && q.b !== undefined ? { a: q.a, b: q.b, c: q.c ?? 0 } : null);
+type PlanoParam = { plano?: string; pontos?: [number, number, number][]; a?: number; b?: number; c?: number };
+let planosObra: BuildingModel['planos'];
+const planoDe = (q: PlanoParam): PlanoInclinado | null => (q.plano ? planoPor({ planos: planosObra }, q.plano)?.coef ?? null : q.pontos ? planoPor3Pontos(q.pontos) : q.a !== undefined && q.b !== undefined ? { a: q.a, b: q.b, c: q.c ?? 0 } : null);
 
 registrar<{ id: string; modo: 'interseccao' | 'maximaDeclividade'; planos: PlanoParam[] }>({
   nome: 'viga.ajustarPlano',
-  descricao: 'Ajusta a viga à interseção de dois planos inclinados (cada ponto vai à projeção da linha de interseção) ou à linha de máxima declividade do plano. Planos por três pontos cotados [x, y, z] ou por z = a·x + b·y + c (cotas informadas).',
+  descricao: 'Ajusta a viga à interseção de dois planos inclinados (cada ponto vai à projeção da linha de interseção) ou à linha de máxima declividade do plano. Planos por três pontos cotados [x, y, z], por z = a·x + b·y + c (cotas informadas) ou pelo id de um plano da obra (`plano`, E3f).',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'modo', 'planos'], properties: {
@@ -181,6 +184,7 @@ registrar<{ id: string; modo: 'interseccao' | 'maximaDeclividade'; planos: Plano
     if (!v) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
     if (v.comumDe) return err('VIGA_COMUM_ASSOCIADA', `${v.nome} é a viga associada de uma viga comum: ajuste a origem.`, [v.id]);
     if (ehCurva(v)) return err('VIGA_CURVA_PLANO', 'O ajuste a planos inclinados vale para vigas retas e poligonais (a curva por arco não é refeita).', [v.id]);
+    planosObra = b.planos;
     const planos = p.planos.map(planoDe);
     if (planos.some((q) => !q)) return err('PLANO_INVALIDO', 'Cada plano precisa de três pontos cotados não alinhados em planta, ou de a e b.');
     if (p.modo === 'interseccao' && planos.length < 2) return err('PLANO_INVALIDO', 'A interseção pede dois planos.');
@@ -188,6 +192,7 @@ registrar<{ id: string; modo: 'interseccao' | 'maximaDeclividade'; planos: Plano
   },
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.id)!;
+    planosObra = d.planos as BuildingModel['planos'];
     const novos = ajustarAoPlano(v.pontos as P[], p.modo, p.planos.map(planoDe) as PlanoInclinado[])!;
     const desloc = Math.max(...novos.map((q, i) => Math.hypot(q[0] - v.pontos[i][0], q[1] - v.pontos[i][1])));
     v.pontos = novos;

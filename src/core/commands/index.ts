@@ -14,6 +14,7 @@ import './vigotas';
 import './nervuradas';
 import './abacos';
 import './alveolares';
+import './planos';
 import './acoes';
 import './armaduras';
 import './agrupamento';

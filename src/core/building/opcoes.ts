@@ -292,6 +292,10 @@ export interface OpcoesCalculo {
   vigaApoioLongBarras: number;
   /** Viga em pilar-parede ou parede (E1b): vão de cálculo = menor entre a distância entre eixos e o vão livre + este fator × a altura da viga. */
   vigaApoioLongVao: number;
+  /** E3f: nós dos panos inclinados no diafragma do pavimento (1, só para comparação) ou livres com 6 gdl (0, padrão). */
+  planoDiafragma: number;
+  /** E3f: carga variável dos panos inclinados por m² de projeção horizontal (1, padrão) ou por m² de área inclinada (0). */
+  planoCargaProjecao: number;
   /** Modelo global (N2b): 1 = integrado (grelhas condensadas no pórtico, resolvidas juntas); 0 = separado (grelha + forças nas vigas). */
   modeloGlobal: number;
   /** 1 = barras de laje com deformação por cortante (Timoshenko, área 5/6·b·h). */
@@ -804,6 +808,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Molas de Winkler dos radiers e das vigas de fundação sobre base elástica que não têm k próprio: k × área de influência de cada nó (radier) ou k × largura × comprimento de influência (viga).' },
   { chave: 'modeloGlobal', rotulo: 'Modelo integrado (lajes no pórtico)', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige o modelo único: grelha das lajes e vigas e pórtico espacial separados (modelo clássico, 14.6.6 e 14.7; itens a confirmar)', booleana: true, fonte: 'Programa de referência: modelo único com pilares, vigas e lajes resolvidos juntos; a NBR 6118 admite os dois', aConfirmar: false,
     descricao: 'Ligado: a grelha de cada pavimento (lajes e vigas) entra no pórtico espacial como superelemento (condensação estática exata nos nós dos pilares) e tudo é resolvido junto; os esforços das vigas e das lajes incluem o vento, e o γz usa também as lajes (0,3·Eci·Ic). Desligado (modelo anterior): grelha por pavimento com molas nos pilares e forças da grelha aplicadas nas vigas do pórtico.' },
+  { chave: 'planoDiafragma', rotulo: 'Panos inclinados no diafragma do pavimento', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência: os nós dos panos inclinados saem do diafragma horizontal (6 gdl livres; só os da borda horizontal continuam no diafragma); ligado só para comparação', aConfirmar: false,
+    descricao: 'Desligado (padrão): os nós dos panos inclinados e das vigas inclinadas ficam livres no pórtico (modelo integrado), e o empuxo horizontal do telhado ou da rampa passa às vigas e aos pilares. Ligado: esses nós seguem o corpo rígido do pavimento no plano (o diafragma absorve o empuxo); só para comparação.' },
+  { chave: 'planoCargaProjecao', rotulo: 'Panos inclinados: carga variável na projeção horizontal', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6120 (coberturas: sobrecarga por m² de projeção horizontal) [a confirmar o item]; o peso próprio e o revestimento são por m² de área inclinada', aConfirmar: true,
+    descricao: 'Ligado (padrão): a carga variável do grupo e as cargas de área lançadas valem por m² de projeção horizontal; o peso próprio da laje e o revestimento, por m² de área inclinada (× 1/cos α). Desligado: todas as cargas por m² de área inclinada.' },
   { chave: 'cortanteBarrasLaje', rotulo: 'Deformação por cortante nas barras de laje', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, fonteNBR: 'NBR 6118 não exige a deformação por cortante nas barras da grelha (Euler-Bernoulli)', booleana: true, fonte: 'Programa de referência (barras da grelha das lajes com deformação por cortante); área de cisalhamento 5/6 da seção (Timoshenko)', aConfirmar: false,
     descricao: 'Barras da grelha das lajes como vigas de Timoshenko (área de cisalhamento 5/6·b·h; nas treliçadas, a alma das nervuras e a capa). Aumenta um pouco as flechas das lajes espessas.' },
   { chave: 'malhaCasca', rotulo: 'Malha das cascas (tamanho alvo)', unidade: 'm', min: 0.25, max: 2, passo: 0.05, padrao: 1, fonte: 'Critério do Statikos (sem fonte): a casca de 6 nós (deslocamentos quadráticos) converge com células de ≈ 1 m; o diafragma rígido faz a banda do sistema crescer com os nós de cada pavimento, e a malha de 0,5 m custou ≈ 30 s numa parede de 4 m × 14 m (E1b)', aConfirmar: true,
@@ -1048,7 +1056,7 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
   'malha', 'nervuradaMalha', 'nervuradaInercia', 'nervuradaTorcao', 'nervuradaMacicoViga', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
-  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'planoDiafragma', 'planoCargaProjecao', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
