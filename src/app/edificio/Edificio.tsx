@@ -16,7 +16,8 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
+import { Navegador } from './Navegador';
+import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -106,6 +107,9 @@ export function Edificio() {
   return (
     <div className="edif">
       <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
+      <div className="dock-stack">
+      <Navegador />
+      <Palette titulo="Dados da obra" grow>
       <aside className="fund-in edif-in">
         <EtapasGrupo b={b} aoIr={irEtapa} />
 
@@ -182,6 +186,8 @@ export function Edificio() {
         </Group>
 
       </aside>
+      </Palette>
+      </div>
       </Dock>
 
       <section className="edif-main">

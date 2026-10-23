@@ -1095,3 +1095,7 @@ body.ajuda-on { cursor: help; }
 .rstack { display: flex; flex-direction: column; gap: var(--sp-2); justify-content: center; min-width: 180px; }
 .optbar { min-height: var(--h-ctl-lg); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
 .optbar > * { flex: none; }
+
+.dock-stack { display: flex; flex-direction: column; min-height: 0; }
+.dock-stack > .pal:first-child { flex: none; max-height: 42%; }
+.dock-stack > .pal.grow { flex: 1; border-bottom: 0; }
