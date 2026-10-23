@@ -23,6 +23,7 @@ Decisão do usuário, 23/10/2026. Todo briefing cita este arquivo; o agente o l�
 - O orquestrador repete tsc, vitest completo, build e e2e completo antes de qualquer merge no `main`.
 
 ## Escopo e tamanho
+- Rodadas com 3 agentes em paralelo (decisão do usuário, 23/10/2026).
 - Uma fase por agente: núcleo OU cartões OU execução de cartões. Se o contexto passar de ~200 mil tokens, commitar, relatar o ponto exato e parar; um agente novo continua.
 - Cartões de interface e ajustes de checklist/documentação vão para o Haiku; núcleo novo para Sonnet (alto) ou Opus.
 
