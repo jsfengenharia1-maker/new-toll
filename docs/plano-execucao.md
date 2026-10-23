@@ -145,6 +145,7 @@ Entradas antigas em `docs/historico-fatias.md`.
 
 Decisão do usuário (21/10/2026): melhorias não essenciais ficam só registradas; começam depois que o aplicativo estiver concluído.
 
+- Frente A, autolançamento com receita de lançamento editável (`docs/spec-frente-A.md`, A0–A6; especificada e revisada em 23/10/2026, implementação pendente até ordem do usuário).
 - Desempenho da vista 3D (`docs/analises/analise-motor3d.md`):
   - remontar só quando a geometria muda (`revGeometria`);
   - cache dos panos por grupo;
