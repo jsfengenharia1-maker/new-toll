@@ -7,6 +7,7 @@ import { fmt, phiTxt } from './Detalhamento';
 import { Diagrama, Mensagens, ST_TXT } from './Revisao';
 import { Button, Check, Hint, KV, NumField, Pill, Select } from '../ui';
 import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
+import { VigotasPorFicha } from './VigotasFicha';
 import type { GrupoVigotas, ResultadoVigotas } from '../../core/building/vigotas';
 
 const NCORES = 6;
@@ -160,6 +161,7 @@ export function JanelaVigotas({ id }: { id: string }) {
       {r.faixas.length > 0 && <Check label="Mostrar todas as faixas" checked={todas} onChange={setTodas} />}
       {r.faixas.length > 0 && <PlantaVigotas r={r} sel={i} onSel={setSel} todas={todas} />}
       {r.faixas.length > 0 && <DiagramasVigota r={r} i={i} />}
+      {r.familia && r.lista && <VigotasPorFicha r={r} />}
       <h4>Grupos de igualação (esforços e armadura por nervura)</h4>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-grupos-vigotas>
@@ -181,16 +183,16 @@ export function JanelaVigotas({ id }: { id: string }) {
       <Hint>Esforços e armadura por nervura (vigota), após momentos mínimos e igualação. O As necessário já considera a seção T e o mínimo de 0,15 %; o banzo inferior da treliça entra descontado (CA-60 convertido ao aço da armadura).</Hint>
       <h4>Dados da laje</h4>
       <KV rows={[
-        ['Modelo / treliça', `${r.modelo} · ${r.trelica} (banzo inferior ${barrasTxt({ n: 2, phi: r.banzoInf.phi })})`], ['Altura h / capa', `${num(r.h * 100, 0)} / ${num(r.capa * 100, 1)} cm`],
+        r.familia ? ['Ficha / série', `${r.fichaNome ?? 'nervurada moldada no local'}${r.serie ? ` · ${r.serie}` : ''}`] : ['Modelo / treliça', `${r.modelo} · ${r.trelica} (banzo inferior ${barrasTxt({ n: 2, phi: r.banzoInf.phi })})`], ['Altura h / capa', `${num(r.h * 100, 0)} / ${num(r.capa * 100, 1)} cm`],
         ['Intereixo / nervura bw', `${num(r.intereixo * 100, 0)} / ${num(r.bw * 100, 0)} cm`], ['Vigotas / comprimento total', `${r.vigotas} / ${num(r.comprimentoVigotas)} m`],
         ['Distribuição na capa', `${phiTxt(r.distribuicao.phi)} c/${num(r.distribuicao.s * 100, 0)} cm (${r.distribuicao.aco}; As nec. ${num(r.distribuicao.AsNec)} cm²/m)`],
         ['Capa (13.2.4.2)', `${num(r.capa * 100, 1)} cm ≥ ${num(r.verificacaoCapa.minima * 100, 1)} cm: ${r.verificacaoCapa.ok ? 'atende' : 'não atende'}`],
-        ['Peso das barras (por pavimento)', `${num(r.peso)} kg`], ['Peso da treliça (por pavimento)', `${num(r.pesoTrelica)} kg`],
+        ['Peso das barras (por pavimento)', `${num(r.peso)} kg`], ...(r.familia && !r.trelica ? [] : [['Peso da treliça (por pavimento)', `${num(r.pesoTrelica)} kg`] as [string, string]]),
         ['Armadura', r.bloqueada ? 'bloqueada' : 'calculada'], ['Situação', ST_TXT[r.status]],
       ]} />
       <h4>Mensagens</h4>
       <Mensagens msgs={r.mensagens} />
-      <EditorVigotas key={`${r.laje}|${r.bloqueada}|${JSON.stringify(r.grupos.map((g) => g.positiva.barras))}`} r={r} />
+      {!r.familia && <EditorVigotas key={`${r.laje}|${r.bloqueada}|${JSON.stringify(r.grupos.map((g) => g.positiva.barras))}`} r={r} />}
     </div>
   );
 }
