@@ -919,6 +919,11 @@ export function Planta() {
       const lj = lajes.find((x) => dentroPoligono(s.cursor, x.l.contorno as P2[]))?.l;
       if (lj) { ctx.beginPath(); lj.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.globalAlpha = 0.3; ctx.fillStyle = cores.aviso; ctx.fill(); ctx.globalAlpha = 1; }
     }
+    // L5: janela de captura das cargas ao longo das vigas
+    if (pl.ferramenta === 'cargaViga' && pontos.length === 1 && !s.pan) {
+      const [ax, ay] = paraTela(...pontos[0]);
+      ctx.strokeStyle = cores.janela; ctx.lineWidth = 1; ctx.setLineDash([5, 4]); ctx.strokeRect(ax, ay, px - ax, py - ay); ctx.setLineDash([]);
+    }
     // L5: prévia do contorno retangular e da abertura retangular
     if ((pl.ferramenta === 'contornoRet' || pl.ferramenta === 'aberturaRet') && pontos.length && !s.pan) {
       const alvo = [...(pl.ferramenta === 'aberturaRet' ? pontos.slice(1) : pontos), s.ponto];
@@ -1328,6 +1333,24 @@ export function Planta() {
       const [c1, c2, c3] = novos.slice(1).map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]);
       setPontos([]);
       exec('laje.aberturaRetangular', { id: it.current.lajeAb, modo: L.modoAbertura, c1, c2, ...(L.modoAbertura === 'qualquer' ? { c3 } : {}), ...(L.modoAbertura === 'viga' ? { viga: L.vigaRef } : {}), borda: L.borda, secaoBorda: { b: L.bordaB, h: L.bordaH } });
+      return;
+    }
+    if (f === 'cargaLaje') {
+      // L5 (C10.24): um clique na laje (destacada) lança a carga de superfície nela inteira
+      if (nivelFund || !pav) { msg('A carga na laje inteira é lançada nas plantas dos pavimentos.'); return; }
+      const L = usePlanta.getState().l5, l = lajes.find((x) => dentro(it.current.cursor, x.l.contorno))?.l;
+      if (!l) { msg('Clique dentro de uma laje.'); return; }
+      exec('carga.areaNaLaje', L.copiarCarga ? { laje: l.id, copiarDe: L.copiarCarga } : { laje: l.id, valor: L.valorLaje, caso: L.casoLaje });
+      return;
+    }
+    if (f === 'cargaViga') {
+      // L5 (C10.25): clique numa viga = carga ao longo do eixo dela; dois cliques em lugar livre = janela de captura
+      if (nivelFund || !pav) { msg('A carga ao longo da viga é lançada nas plantas dos pavimentos.'); return; }
+      const L = usePlanta.getState().l5, c = it.current.cursor, v = pontos.length ? null : vigaSob(c);
+      if (v) { exec('carga.aoLongoDaViga', { vigas: [v.id], valor: L.valorViga, caso: L.casoViga }); return; }
+      if (novos.length < 2) { setPontos(novos); msg('Segundo canto da janela de captura.'); return; }
+      setPontos([]);
+      exec('carga.aoLongoDaViga', { grupo, janela: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), valor: L.valorViga, caso: L.casoViga });
       return;
     }
     if (f === 'direcaoPano' || f === 'insercaoPano') {

@@ -3,7 +3,7 @@
 // a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
 // `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
 import { Button, Check, Group, Hint, NumField, Select } from '../ui';
-import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { casosParaCarga, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { useBuilding } from './store';
 import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
 
@@ -16,6 +16,8 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
   const l5 = pl.l5;
   const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
   const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
+  const casos = casosParaCarga(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : c.nome }));
+  const superficies = b.cargas.filter((c) => c.tipo === 'area' && c.grupo === grupo);
   const vref = b.vigas.find((v) => v.id === l5.vigaRef);
   return (
     <Group title="Ferramentas de lançamento" open={false}>
@@ -65,6 +67,21 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
         <Button onClick={() => ir('insercaoPano')}>Mudar o ponto de inserção do pano</Button>
       </div>
       <Hint>A direção padrão continua a do menor vão. O ponto de inserção (vértice do contorno) é a origem da numeração das vigotas e da malha.</Hint>
+
+      <h4>Cargas rápidas</h4>
+      <div className="row wrap">
+        <NumField label="Carga na laje inteira" unit="kN/m²" width={130} value={l5.valorLaje} disabled={!!l5.copiarCarga} onChange={(v) => set({ valorLaje: v })} />
+        <Select label="Caso da carga na laje" value={l5.casoLaje} options={casos} disabled={!!l5.copiarCarga} onChange={(v) => set({ casoLaje: v })} />
+        <Select label="Copiar de uma carga de superfície" value={l5.copiarCarga} options={[{ v: '', label: 'não copiar' }, ...superficies.map((c) => ({ v: c.id, label: `${c.id}: ${c.valor} kN/m² (${c.caso})` }))]} onChange={(v) => set({ copiarCarga: v })} />
+      </div>
+      <div className="row wrap"><Button onClick={() => ir('cargaLaje')}>Lançar carga na laje inteira</Button></div>
+      <Hint>Um clique na laje destacada lança a carga de superfície no contorno inteiro (as aberturas não são descontadas [a confirmar]). Copiando de uma carga existente, valem o valor e o caso dela.</Hint>
+      <div className="row wrap">
+        <NumField label="Carga ao longo da viga" unit="kN/m" width={130} value={l5.valorViga} onChange={(v) => set({ valorViga: v })} />
+        <Select label="Caso da carga na viga" value={l5.casoViga} options={casos} onChange={(v) => set({ casoViga: v })} />
+      </div>
+      <div className="row wrap"><Button onClick={() => ir('cargaViga')}>Lançar carga ao longo da viga</Button></div>
+      <Hint>Clique numa viga para a carga linear ao longo do eixo dela, ou clique em dois cantos para uma janela de captura: todas as vigas inteiramente dentro dela recebem a carga.</Hint>
     </Group>
   );
 }
