@@ -91,3 +91,10 @@ Núcleo (vitest, valores): `resolverRef` para pilar retangular e girado (face, e
 - Cartões: núcleo S2 (modelo e `cota.*`, `cotasTemp.ts`, `cota.mover` sobre comandos existentes, normalização de arquivo, testes) em 3 cartões; interface S2 (ferramenta Cota, desenho temporário, pé da cota, digitação, fixar, estilo/design system) em 3 cartões, mais 1 cartão Haiku para pranchas/DXF e memorial; auditoria por agente independente.
 - Estimativa: núcleo ~1 dia de execução, interface ~1,5 dia, e2e e auditoria ~0,5 dia; ~3 dias de agente no total, aproximadamente 25 a 30 testes novos e 1 fluxo e2e.
 - Premissas "a confirmar" para o usuário: referência padrão (face vs eixo) por classe; regra de qual lado se move na cota permanente entre dois vizinhos; se o cadeado recusa ou propaga; cotas do usuário nas pranchas ligadas por padrão.
+
+## Decisões do usuário (23/10/2026)
+
+1. Referência padrão das cotas temporárias: **face** (eixo e centro como alternativa por Tab/controle da linha de testemunho).
+2. Cota entre dois vizinhos: move-se **sempre o elemento selecionado**.
+3. Cota travada (cadeado): **propaga**. Mover um elemento ligado por cota travada arrasta o outro junto, mantendo a distância travada (ex.: a 2 m, mover um 1 m move o outro 1 m). A propagação segue a cadeia de cotas travadas (vários elementos), num único passo de desfazer; ciclo ou conflito (cadeia que chega a um elemento fixo/travado por outra cota incompatível) recusa o comando com aviso explicando qual cota impede.
+4. Cotas do usuário nas pranchas: **saem por padrão** nas formas e na locação, com opção de desligar.
