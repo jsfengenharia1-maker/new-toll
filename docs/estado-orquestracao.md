@@ -1,0 +1,38 @@
+# Estado da orquestração (retomada após compactação)
+
+Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`. Este arquivo é reescrito a cada compactação.
+
+## Como retomar
+1. `git -C /home/user/new-toll fetch -q origin main && git -C /home/user/new-toll status -sb` e `git worktree list` (worktrees de agentes em `.claude/worktrees/agent-*`).
+2. Agentes de uma rodada interrompida (limite de sessão ou reinício do contêiner) são retomados por SendMessage com o id do agente; se o id se perdeu, olhar o worktree (`git -C <wt> log`, `git -C <wt> status`) e soltar um agente novo para terminar a partir dali.
+3. Merge da rodada (revisão em lote, CLAUDE.md): para cada branch `worktree-agent-*` concluído:
+   - `git merge --no-edit <branch>`;
+   - docs em conflito: `python3 scripts/orquestracao/resolver-docs.py <arquivos .md>` (mantém a linha de checklist de maior situação; cuidado: quando um branch REBAIXA itens, reaplicar as linhas dele);
+   - `docs/mapa-codigo.md`: `git checkout --theirs` e depois `npm run mapa`;
+   - `e2e/flows.mjs`: `python3 scripts/orquestracao/flows-add.py <branch> "<Prefixo:>"` (reconstrói = HEAD + fluxos novos do branch) e `node --check e2e/flows.mjs`;
+   - código em conflito: unir os dois lados à mão (comandos, opções, premissas, imports, registros);
+   - `npm run checklists`, `npx tsc -b`, `npx vitest run` (completo), `npm run e2e` (completo, paralelo) — tudo verde antes de `git push origin HEAD:main HEAD:claude/quirky-curie-uqb7br`;
+   - remover worktrees e branches dos agentes juntados.
+4. Briefing padrão dos agentes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
+
+## Rodada em andamento (no momento da compactação)
+- Migração do layout BIMCraft, fatias D1→D3 (Sonnet baixo, um agente, cartões em `docs/cartoes/D1..D3`, patch de referência `docs/cartoes/D2/validado-D1-D2.patch`). Depois: D4 (navegador em árvore), D5 (painel de propriedades), D6 (ajuste de e2e e guarda `mapaLayout.test.ts`).
+- E3d (ábacos e punção nas nervuradas) — só núcleo; interface depois do layout (`docs/cartoes/E3d/00-pendente.md`).
+- E3e (lajes alveolares) — só núcleo; idem (`docs/cartoes/E3e/00-pendente.md`).
+
+## Fila depois da rodada
+1. Terminar a migração do layout (D4–D6).
+2. Interfaces pendentes, escritas já no layout novo: V5 (cartões antigos em `docs/cartoes/V5/` precisam ser revistos para o layout novo), E3c (`docs/cartoes/E3c/`, idem), E3d, E3e.
+3. Núcleos restantes: E3f (lajes inclinadas e rampas — Opus), E4a–E4e (escadas), L3 (IFC).
+4. Auditorias independentes das frentes E, L e V.
+5. Fechamento: revisão numérica (punção de borda/canto, nervuradas contra OpenSees quando houver o pacote, bloco multi-pilar), desempenho (teste de 13 pavimentos acima de 3 s nesta máquina), pacote (~4 MB: dividir em partes sob demanda), republicação do artifact, revisão final dos "a confirmar".
+
+## Decisões recentes do usuário (já registradas no CLAUDE.md/plano)
+- Qualidade inegociável; revisão em lote; pendências normativas em `docs/pendencias-usuario.md`; itens "a confirmar" seguem o CYPECAD.
+- Visual: tokens Spectrum 2 + paleta enxuta; layout BIMCraft adotado (todos os comandos continuam).
+- Cotas (L6): face; move o selecionado; cota travada propaga; cotas do usuário nas pranchas.
+- Lances desligados dos pilares: padrão do CYPECAD.
+- Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
+
+## Números no último merge (cc45104 / 62b8f9c)
+1.412 testes, 85 fluxos e2e, pacote 3.999 KB; checklists: manual de cálculo 432 Feito.
