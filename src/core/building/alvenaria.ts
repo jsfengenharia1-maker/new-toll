@@ -6,6 +6,7 @@
 //
 // Unidades: MPa para resistências, kN e m nos esforços (kN/m, kN·m/m), cm²/m nas áreas de aço. Convenção da casca:
 // tração > 0 (ny vertical, nx horizontal, nxy cisalhamento no plano, my momento da faixa vertical, mx da horizontal).
+import { ehNervurada } from './tiposLaje';
 import { barArea } from '../concrete';
 import type { P } from '../geom/faces';
 import type { Forcas } from './paredesArmadura';
@@ -314,7 +315,7 @@ export function desligamentosMuroPilar(b: BuildingModel): Desligamento[] {
         const cq = contornoNoLance(q, lance.id) as P[];
         if (!contornos.some((cw) => distanciaPoligonos(cw, cq) <= TOL_TOQUE)) continue;
         const proximas = b.lajes.filter((l) => l.grupo === lance.grupo && distanciaPontoContorno(cq, l.contorno as P[]) <= 0.5);
-        const laje: Desligamento['laje'] = !proximas.length ? 'sem' : proximas.every((l) => l.tipo.tipo === 'trelicada') ? 'vigotas' : 'macica';
+        const laje: Desligamento['laje'] = !proximas.length ? 'sem' : proximas.every((l) => ehNervurada(l.tipo)) ? 'vigotas' : 'macica';
         out.push({ parede: w.id, nomeParede: w.nome, pilar: q.id, nomePilar: q.nome, pavimento: lance.id, nomePav: lance.nome, laje, desligado: laje === 'vigotas' });
       }
     }

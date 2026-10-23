@@ -78,6 +78,12 @@ export const SUGESTOES: Record<string, string> = {
   VIGOTA_CAPA: 'Aumente a capa (mínimo da NBR 6118 13.2.4.2).',
   VIGOTA_MACICO: 'Revise a laje: maciçamento extenso pede laje mais alta ou viga adicional.',
   VIGOTA_APOIO: 'Verifique a armadura inferior no apoio (tração junto ao apoio) e a ancoragem das vigotas.',
+  VIGOTA_FICHA: 'Informativo: a laje usa uma ficha de vigota armada, protendida ou moldada; peso, rigidez e esforços da grelha já seguem a ficha, mas a verificação da vigota pela ficha ainda não está disponível. Confira a vigota com o fabricante.',
+  // tipos de laje nervurada (E3a)
+  FICHA_INEXISTENTE: 'Escolha outra ficha ou laje da série em “Tipos de laje”, ou importe a ficha que falta (biblioteca do usuário ou arquivo JSON).',
+  FICHA_INCOERENTE: 'Corrija os campos apontados na ficha (editor em “Tipos de laje”): Mu maior que Mfis, altura maior que capa + enchimento, valores positivos e séries sem repetição. O programa só confere a coerência lógica, não o dado do fabricante.',
+  ENCHIMENTO_INEXISTENTE: 'Cadastre o enchimento em “Tipos de laje” (concreto, cerâmica, EPS ou genérico) ou escolha outro.',
+  TIPOLAJE_INVALIDO: 'Revise o tipo da laje: modelo da treliçada existente na biblioteca de normas, ou, na moldada no local, capa, intereixo, largura da nervura e altura coerentes.',
   // punção e cortante das lajes
   PUNCAO_BIELA: 'Aumente a espessura da laje, a seção do pilar ou o fck, ou use capitel/ábaco: a compressão no contorno C não se corrige com armadura.',
   PUNCAO_SEM_SOLUCAO: 'Aumente a espessura da laje ou o pilar; não há armadura de punção/cortante que resolva nessa seção.',

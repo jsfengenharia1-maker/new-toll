@@ -11,7 +11,8 @@ import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { lbBasico } from './detalhamento';
 import { lbNecessario, RHO_MIN_LAJE } from './detalhamentoLajes';
 import type { ResultadoLaje } from './dimensionamento';
-import { TRELICADAS, vaos } from './lajes';
+import { vaos } from './lajes';
+import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FonteLajes } from './tiposLaje';
 import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje } from './types';
@@ -20,23 +21,17 @@ import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje } from '.
  * Treliças eletrossoldadas (designação TR h·φsup·φdiag·φinf, NBR 14862): altura (m) e bitolas (mm) dos banzos
  * superior e inferior (2 barras) e das diagonais, em CA-60 [a confirmar com o fabricante].
  */
-export const TRELICAS: Record<string, { h: number; sup: number; diag: number; inf: number }> = {
-  'TR 8644': { h: 0.08, sup: 6, diag: 4.2, inf: 4.2 },
-  'TR 12645': { h: 0.12, sup: 6, diag: 4.2, inf: 5 },
-  'TR 16745': { h: 0.16, sup: 7, diag: 4.2, inf: 5 },
-  'TR 20745': { h: 0.2, sup: 7, diag: 4.2, inf: 5 },
-  'TR 25856': { h: 0.25, sup: 8, diag: 5, inf: 6 },
-};
+export const TRELICAS: Record<string, { h: number; sup: number; diag: number; inf: number }> = trelicasDe();
 /** Treliça usada em cada modelo do catálogo das lajes [a confirmar]. */
-export const TRELICA_DO_MODELO: Record<string, string> = { H8: 'TR 8644', H12: 'TR 12645', H16: 'TR 16745', H20: 'TR 20745', H25: 'TR 25856' };
+export const TRELICA_DO_MODELO: Record<string, string> = Object.fromEntries(Object.entries(modelosTrelicadas()).map(([k, m]) => [k, m.trelica]));
 
 const ACO_KG_M3 = 7850;
 /**
  * Peso por metro da treliça (kg/m) pela geometria: banzo superior, 2 inferiores e 2 sinusoides de diagonais com passo
  * de 20 cm e meia base de 4 cm (comprimento da diagonal √(0,1² + h² + 0,04²) a cada 10 cm) [a confirmar no catálogo].
  */
-export function pesoTrelica(nome: string): number {
-  const t = TRELICAS[nome];
+export function pesoTrelica(nome: string, f?: FonteLajes): number {
+  const t = trelicasDe(f)[nome];
   if (!t) return 0;
   const diag = 10 * Math.hypot(0.1, t.h, 0.04);
   return ACO_KG_M3 * (barArea(t.sup) + 2 * barArea(t.inf) + 2 * diag * barArea(t.diag));
@@ -233,12 +228,16 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     for (const r of lajes.filter((x) => x.laje === id)) { r.mensagens.push(...msgs); if (erro) r.status = 'fail'; }
   };
   for (const l of b.lajes) {
-    if (l.tipo.tipo !== 'trelicada') {
+    const g0 = ehNervurada(l.tipo) ? geometriaNervurada(b, l.tipo) : null;
+    if (!g0 || (l.tipo.tipo !== 'trelicada' && g0.familia !== 'trelicada')) {
       if (l.armaduraVigotas) msgsLaje(l.id, ['Armadura bloqueada desconsiderada: a laje não é treliçada.'], false);
+      // fichas armadas, protendidas e moldadas: peso, rigidez e esforços da grelha já usam a ficha; a vigota é a E3b
+      if (g0) msgsLaje(l.id, [`Vigotas: dimensionamento pela ficha (${g0.descricao}) ainda não disponível; a grelha usa o peso e a rigidez da ficha (E3b).`], false);
       continue;
     }
-    const tipo = l.tipo, cat = TRELICADAS[tipo.modelo] ?? TRELICADAS.H12, nomeTr = TRELICA_DO_MODELO[tipo.modelo] ?? 'TR 12645', tr = TRELICAS[nomeTr];
-    const { intereixo, bw, hEnch } = cat, capa = tipo.capa, h = hEnch + capa;
+    const trTab = trelicasDe(b), nomeTr = g0.trelica && trTab[g0.trelica] ? g0.trelica : 'TR 12645', tr = trTab[nomeTr] ?? TRELICAS[nomeTr];
+    const modeloNome = l.tipo.tipo === 'trelicada' ? l.tipo.modelo : l.tipo.tipo === 'vigotas' ? l.tipo.serie : '';
+    const { intereixo, bw, hEnch } = g0, capa = g0.capa, h = hEnch + capa;
     const ang = ((l.direcao ?? 0) * Math.PI) / 180, u: P = [Math.cos(ang), Math.sin(ang)];
     // envoltória dos pavimentos do grupo (alinhamentos casados pela posição)
     const pavs = pavimentosDoGrupo(b, l.grupo), nomesPav: string[] = [];
@@ -370,15 +369,15 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * barArea(x.phi) * ACO_KG_M3, 0);
     const comprimentoVigotas = grupos.reduce((t, g) => t + g.vigotas * g.L, 0);
     const adic = grupos.map((g) => (g.positiva.barras?.n ? `${g.positiva.barras.n}φ${fphi(g.positiva.barras.phi)}` : '—'));
-    const resumo = `Treliçada ${tipo.modelo}+${Math.round(capa * 100)}: ${nomeTr} (banzo inferior 2φ${fphi(tr.inf)} CA-60), ${nTotal} vigotas em ${grupos.length} grupo(s); Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura; adicional por nervura ${[...new Set(adic)].join(' / ')}.`;
+    const resumo = `Treliçada ${modeloNome}+${Math.round(capa * 100)}: ${nomeTr} (banzo inferior 2φ${fphi(tr.inf)} CA-60), ${nTotal} vigotas em ${grupos.length} grupo(s); Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura; adicional por nervura ${[...new Set(adic)].join(' / ')}.`;
     const msgs = [...erros, ...avisos, resumo];
     msgsLaje(l.id, msgs, erros.length > 0);
     out.push({
-      laje: l.id, nome: l.nome, grupo: l.grupo, pavimentos: nomesPav, repeticoes: Math.max(1, pavs.length), modelo: tipo.modelo, trelica: nomeTr,
+      laje: l.id, nome: l.nome, grupo: l.grupo, pavimentos: nomesPav, repeticoes: Math.max(1, pavs.length), modelo: modeloNome, trelica: nomeTr,
       banzoInf: { n: 2, phi: tr.inf, As: AsBanzo }, intereixo, bw, capa, h, d: { inf: r3(dI), sup: r3(dS) },
       vigotas: nTotal, comprimentoVigotas: r3(comprimentoVigotas), faixas, grupos,
       distribuicao: { AsNec: AsDist, aco: aS.aco, phi: phiD, s: sD }, verificacaoCapa: { minima: capaMin, ok: capaOk }, bloqueada: !!trava,
-      posicoes, peso, pesoTrelica: comprimentoVigotas * pesoTrelica(nomeTr),
+      posicoes, peso, pesoTrelica: comprimentoVigotas * pesoTrelica(nomeTr, b),
       status: erros.length ? 'fail' : 'ok', mensagens: msgs,
     });
   }

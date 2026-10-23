@@ -14,7 +14,8 @@ import { excentricidadeAcidental, excentricidadeFluencia, metodoGeral, relacaoMC
 import { gramposPorEstribo } from './detalhamentoPilares';
 import { combinacoesDoEstado, combinacoesEdificio, type CombinacaoEd } from './combinacoes';
 import { alertasSituacoes, equilibrioGlobal, estadoEmUso, textosAlertas, type ResultadoEQU } from './acoes';
-import { propriedadesLaje, TRELICADAS, vaos } from './lajes';
+import { propriedadesLaje, vaos } from './lajes';
+import { espessuraConcreto } from './tiposLaje';
 import { vaosDaViga } from './vigas';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
 import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
@@ -1567,7 +1568,7 @@ export function quantitativos(b: BuildingModel): Quantitativo[] {
     let cL = 0, fL = 0, cV = 0, fV = 0, cP = 0, fP = 0;
     for (const l of ls) {
       const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
-      const t = l.tipo.tipo === 'macica' ? l.tipo.h : (() => { const k = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12; return l.tipo.capa + (k.bw * k.hEnch) / k.intereixo; })();
+      const t = espessuraConcreto(b, l.tipo);
       cL += A * t; fL += A;
     }
     for (const v of vs) { const L = comprimentoPolilinha(v.pontos); cV += v.secao.b * v.secao.h * L; fV += (v.secao.b + 2 * v.secao.h) * L; }

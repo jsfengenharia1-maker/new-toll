@@ -7,7 +7,8 @@ import type { AnaliseEdificio } from './analitico';
 import type { DetalheViga } from './detalhamento';
 import type { Dimensionamento, ResultadoPilar, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe, fckDe, gamas } from './materiais';
-import { areaLaje, propriedadesLaje, TRELICADAS } from './lajes';
+import { areaLaje, propriedadesLaje } from './lajes';
+import { ehNervurada, espessuraConcreto, geometriaNervurada } from './tiposLaje';
 import {
   centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, peDireito, secaoNoLance,
   type BuildingModel, type Pilar, type Viga,
@@ -174,15 +175,13 @@ export interface IndicesObra {
 export interface QuantitativosDetalhados { panos: QuantPano[]; vigas: QuantViga[]; enchimento: { area: number; volume: number; pecas: number }; indices: IndicesObra }
 
 /** Espessura equivalente de concreto (m) da laje (treliçada: capa + nervuras). */
-const espessuraEquivalente = (l: { tipo: { tipo: string; h?: number; modelo?: string; capa?: number } }): number =>
-  l.tipo.tipo === 'macica' ? l.tipo.h! : (() => { const k = TRELICADAS[l.tipo.modelo!] ?? TRELICADAS.H12; return l.tipo.capa! + (k.bw * k.hEnch) / k.intereixo; })();
 
 export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensionamento, 'quantitativos' | 'resumoAcoVigas' | 'resumoAcoPilares' | 'resumoAcoLajes' | 'resumoAcoVigotas'>): QuantitativosDetalhados {
   const panos: QuantPano[] = b.lajes.map((l) => {
-    const rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo), t = espessuraEquivalente(l);
+    const rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo, b), t = espessuraConcreto(b, l.tipo);
     let ench: QuantPano['enchimento'];
-    if (l.tipo.tipo === 'trelicada') {
-      const k = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12, ae = (area * (k.intereixo - k.bw)) / k.intereixo;
+    if (ehNervurada(l.tipo)) {
+      const k = geometriaNervurada(b, l.tipo), ae = (area * (k.intereixo - k.bw)) / k.intereixo;
       ench = { area: r2(ae), volume: r2(ae * k.hEnch, 3), pecas: Math.ceil(ae / (k.intereixo - k.bw) - 1e-9) };
     }
     return { laje: l.id, nome: l.nome, grupo: l.grupo, pavimentos: rep, tipo: pr.descricao, h: r2(t, 3), area: r2(area), volume: r2(area * t, 3), forma: r2(area), pesoProprio: r2(pr.pp * area, 1), ...(ench ? { enchimento: ench } : {}) };
@@ -235,7 +234,7 @@ export function listagemGeral(b: BuildingModel): ListagemGeral {
     };
   });
   const lajes: ListagemLaje[] = b.lajes.map((l) => {
-    const gr = b.grupos.find((x) => x.id === l.grupo), rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo);
+    const gr = b.grupos.find((x) => x.id === l.grupo), rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo, b);
     const rev = gr?.gRev ?? 0, q = gr?.q ?? 0;
     return { id: l.id, nome: l.nome, grupo: gr?.nome ?? l.grupo, pavimentos: rep, tipo: pr.descricao, h: r2(pr.h, 3), area: r2(area), ppKNm2: r2(pr.pp), revKNm2: rev, qKNm2: q, pesoProprio: r2(pr.pp * area, 1), permanente: r2((pr.pp + rev) * area, 1), variavel: r2(q * area, 1) };
   });

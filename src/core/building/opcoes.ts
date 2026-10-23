@@ -149,6 +149,8 @@ export interface OpcoesCalculo {
   vigotaNegativoVao: number;
   /** Vigotas: fator redutor da rigidez à flexão das nervuras na grelha (1 = seção T bruta). */
   vigotaRigidez: number;
+  /** 1 = EI e GJ das nervuras das lajes de vigotas por ficha vêm da ficha do fabricante (K1.15.1-2); 0 = inércias calculadas pela geometria. */
+  vigotaRigidezFicha: number;
   /** 1 = cargas de uso das classes B (escritórios) e C (garagens) como casos próprios, com o ψ da classe; 0 = um caso Q com o ψ da obra. */
   categoriasUso: number;
   /** EQU: γ das permanentes favoráveis no tombamento global (NBR 8681). */
@@ -613,6 +615,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Cada lado do negativo sobre um apoio vai, a partir do eixo, até o maior entre esta % do vão da vigota e o ponto de momento nulo + decalagem (a das lajes) + ancoragem. 0 = só o diagrama.' },
   { chave: 'vigotaRigidez', rotulo: 'Vigotas: redutor da rigidez à flexão', unidade: '× EI', min: 0.1, max: 1, passo: 0.05, padrao: 1, fonte: 'Opção do programa de referência; NBR 6118 não fixa (seção T bruta da nervura)', aConfirmar: true,
     descricao: 'Multiplica a inércia das nervuras das treliçadas na grelha (fissuração das nervuras). Menor rigidez manda mais carga para as vigas e aumenta a flecha.' },
+  { chave: 'vigotaRigidezFicha', rotulo: 'Vigotas: rigidez das nervuras pela ficha do fabricante', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonte: 'Programa de referência (K1.15.1-2): pré-fabricadas usam a rigidez das fichas técnicas; as demais, inércias equivalentes calculadas', fonteNBR: 'NBR 6118 não conhece ficha de fabricante: seção T bruta calculada pela geometria (14.6.2 e 17.3.2)', aConfirmar: false,
+    descricao: '1 = nas lajes de vigotas por ficha (E3a), o EI (e o GJ, se a ficha informar) da nervura na grelha vem da ficha; 0 = inércia da seção T calculada pela geometria. Treliçadas do catálogo interno e fichas sem EI sempre usam a inércia calculada. O redutor “Vigotas: redutor da rigidez à flexão” continua valendo sobre o resultado.' },
   { chave: 'categoriasUso', rotulo: 'Categorias de uso como casos próprios', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 8681 (ações variáveis distintas combinadas como principal e secundárias) e NBR 6118, Tabela 11.2 (ψ por local); casos por categoria de uso do programa de referência', aConfirmar: false,
     descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'equGamaFav', rotulo: 'Equilíbrio (EQU): γ das permanentes favoráveis', min: 0.5, max: 1.2, passo: 0.05, padrao: 0.9, fonte: 'NBR 8681 (perda de equilíbrio como corpo rígido: permanentes de grande variabilidade favoráveis 0,9); valor a confirmar na norma', aConfirmar: true,
@@ -889,7 +893,7 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
   'malha', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
-  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
+  'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo

@@ -1,6 +1,7 @@
 // Planta de fôrma esquemática de um grupo, em SVG estático (cores do papel: design/memorial.css).
 import { geometriaViga, lancesDoPilar, type BuildingModel, contornoNoLance } from '../../core/building/types';
 import { memo } from '../design/tokens';
+import { propriedadesLaje } from '../../core/building/lajes';
 import { construirCena, type OpcoesCena } from '../../core/vista3d/cena';
 import { isometricoSvg } from '../../core/vista3d/isometrico';
 
@@ -24,7 +25,7 @@ export function svgPlantaGrupo(b: BuildingModel, grupo: string, falhas: Set<stri
   for (const l of lajes) {
     out.push(`<polygon points="${poly(l.contorno)}" fill="${memo('laje')}" stroke="${memo('laje-line')}" stroke-width="0.6"/>`);
     const cx = l.contorno.reduce((t, p) => t + p[0], 0) / l.contorno.length, cy = l.contorno.reduce((t, p) => t + p[1], 0) / l.contorno.length;
-    const h = l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.modelo;
+    const h = l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? l.tipo.modelo : propriedadesLaje(l.tipo, b).descricao;
     out.push(`<text x="${X(cx)}" y="${Y(cy)}" text-anchor="middle" fill="${memo('laje-ink')}">${esc(l.nome)} (${h})</text>`);
   }
   for (const v of vigas) {

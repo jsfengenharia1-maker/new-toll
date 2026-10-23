@@ -6,6 +6,7 @@ import type { TabelasArmadura } from './tabelasArmadura';
 import type { NormasModelo } from '../normas/tipos';
 import type { FlechasConfig } from './flechas';
 import type { FogoConfig } from './fogo';
+import type { TiposLajeObra } from './tiposLaje';
 
 export const BUILDING_VERSION = 1;
 
@@ -555,7 +556,11 @@ export interface ArcoViga { ini: number; fim: number }
 export type TipoLaje =
   | { tipo: 'macica'; h: number }
   /** Treliçada unidirecional (vigotas + enchimento de EPS); `modelo` do catálogo (lajes.ts). */
-  | { tipo: 'trelicada'; modelo: string; capa: number };
+  | { tipo: 'trelicada'; modelo: string; capa: number }
+  /** Vigotas por ficha (E3a): `ficha` (obra, catálogo ou exemplo) e `serie` (laje da série por altura e intereixo). */
+  | { tipo: 'vigotas'; ficha: string; serie: string }
+  /** Nervurada unidirecional moldada no local (E3a): nervuras como vigas T; `h` = altura total, `enchimento` = id da biblioteca. */
+  | { tipo: 'moldada'; capa: number; intereixo: number; bw: number; h: number; enchimento: string };
 
 export interface Laje {
   id: string;
@@ -591,7 +596,11 @@ export interface Laje {
   semCalculo?: boolean;
   /** Armadura de punção informada pelo usuário (N2d): somada à calculada. */
   puncao?: GrupoPuncao[];
+  /** Nervurada moldada no local (E3a): armadura de base atribuída às nervuras (inferior e superior: n barras de φ mm; estribo φ mm a cada s m); a E3b a usa e verifica. */
+  armaduraMoldada?: ArmaduraMoldada;
 }
+
+export interface ArmaduraMoldada { inf: { n: number; phi: number }; sup?: { n: number; phi: number }; estribo?: { phi: number; s: number } }
 
 /**
  * Grupo de armadura de punção informado: `linhas` radiais com `barras` estribos (ou conectores) de φ `phi` (mm) por
@@ -857,6 +866,8 @@ export interface BuildingModel {
   flechas?: FlechasConfig;
   /** Resistência ao fogo (N2g): TRRF por grupo, ocupação, revestimentos e dados por elemento; só o que difere do padrão. */
   fogo?: FogoConfig;
+  /** Fichas de vigotas e enchimentos da obra (E3a); só o que a obra usa ou criou, o catálogo interno não é guardado. */
+  tiposLaje?: TiposLajeObra;
 }
 
 /** Tipos de texto de referência da planta (L4, C3.30). */
