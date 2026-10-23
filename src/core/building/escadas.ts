@@ -69,6 +69,8 @@ export interface TipoLance {
   degrausPatamar?: number;
   /** Id do tipo predefinido de que a cópia da obra veio (`pre:...`). */
   predefinido?: string;
+  /** Desbloqueio manual (C8.43): enquanto o tipo está em uso por um lance, só se edita com o desbloqueio. */
+  desbloqueado?: true;
 }
 
 /** Apoio de uma borda do patamar (C8.26–C8.30). Tirante: pendurado no piso de cima; parede: alvenaria ou concreto sob a borda; conector: em viga ou muro. */
@@ -147,6 +149,34 @@ export const tiposLanceDisponiveis = (b: Pick<BuildingModel, 'tiposLance'>): Tip
 export const tipoLancePor = (b: Pick<BuildingModel, 'tiposLance'>, id: string): TipoLance | undefined => tiposLanceDisponiveis(b).find((t) => t.id === id);
 /** Ids dos tipos de lance em uso nas escadas (E4b bloqueia a edição de tipo usado). */
 export const tiposLanceEmUso = (b: Pick<BuildingModel, 'escadas'>): Set<string> => new Set((b.escadas ?? []).flatMap((e) => e.lances.map((l) => l.tipo)));
+/** Tipo da obra bloqueado para edição (C8.43): em uso por algum lance e sem desbloqueio manual. */
+export const tipoLanceBloqueado = (b: Pick<BuildingModel, 'escadas' | 'tiposLance'>, id: string): boolean => {
+  const t = b.tiposLance?.find((x) => x.id === id);
+  return !!t && !t.desbloqueado && tiposLanceEmUso(b).has(id);
+};
+
+/** Dados comuns de uma escada (sem identidade, posição nem lances): o que fica como padrão da próxima escada lançada (C8.38). */
+export type DadosComunsEscada = Pick<Escada, 'largura' | 'piso' | 'espelho'> & Partial<Pick<Escada, 'giro' | 'ultimoDegrau' | 'execucao' | 'bloco' | 'corrimao' | 'revestimento' | 'sobrecarga' | 'acesso'>>;
+export function dadosComunsDe(e: Escada): DadosComunsEscada {
+  const { largura, piso, espelho, giro, ultimoDegrau, execucao, bloco, corrimao, revestimento, sobrecarga, acesso } = e;
+  const o: DadosComunsEscada = { largura, piso, espelho };
+  const extra = { giro, ultimoDegrau, execucao, bloco, corrimao, revestimento, sobrecarga, acesso };
+  for (const [k, v] of Object.entries(extra)) if (v !== undefined) (o as Record<string, unknown>)[k] = v;
+  return o;
+}
+
+/**
+ * Nome da próxima escada (C8.35): com `ultimo` terminado em número, o seguinte livre com o mesmo prefixo ("E3" → "E4");
+ * sem `ultimo`, "E" + o menor número acima de todos os "E<n>" da obra.
+ */
+export function nomeSequencial(b: Pick<BuildingModel, 'escadas'>, ultimo?: string): string {
+  const nomes = new Set((b.escadas ?? []).map((e) => e.nome));
+  const m = /^(.*?)(\d+)$/.exec(ultimo?.trim() ?? '');
+  if (m) { for (let n = Number(m[2]) + 1; ; n++) if (!nomes.has(m[1] + n)) return m[1] + n; }
+  if (ultimo?.trim()) { for (let n = 2; ; n++) if (!nomes.has(`${ultimo.trim()} ${n}`)) return `${ultimo.trim()} ${n}`; }
+  const maior = Math.max(0, ...[...nomes].map((n) => /^E(\d+)$/.exec(n)).filter((x): x is RegExpExecArray => !!x).map((x) => Number(x[1])));
+  return `E${maior + 1}`;
+}
 
 // ---------------------------------------------------------------- validação dos dados
 

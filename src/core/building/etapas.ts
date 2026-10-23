@@ -7,7 +7,7 @@ export interface Etapa { id: EtapaId; rotulo: string; estado: EstadoEtapa; detal
 
 /** Muros e paredes chegam com a frente E1c; escadas, com a E4. Troque para true quando existirem. */
 export const MUROS_DISPONIVEIS = false;
-export const ESCADAS_DISPONIVEIS = false;
+export const ESCADAS_DISPONIVEIS = true;
 
 export function etapasDaObra(b: BuildingModel, calculado = false): Etapa[] {
   const nPil = b.pilares.filter((p) => !ehArranque(p)).length;
@@ -27,7 +27,7 @@ export function etapasDaObra(b: BuildingModel, calculado = false): Etapa[] {
     e('lajes', 'Lajes', b.lajes.length > 0, `${b.lajes.length} laje(s)`),
     e('cargas', 'Cargas', b.cargas.length > 0 || (b.cargasPilar?.length ?? 0) > 0 || b.grupos.length > 0, `${b.cargas.length} carga(s) de área/linha/ponto, ${b.cargasPilar?.length ?? 0} em pilares; sobrecarga por grupo`),
     ESCADAS_DISPONIVEIS
-      ? e('escadas', 'Escadas', false, 'Lance as escadas.')
+      ? e('escadas', 'Escadas', (b.escadas?.length ?? 0) > 0, (b.escadas?.length ?? 0) ? `${b.escadas!.length} escada(s)` : 'Opcional: lance as escadas pela ferramenta Escada.')
       : { id: 'escadas', rotulo: 'Escadas', estado: 'indisponivel', detalhe: 'Escadas chegam com a frente E4.' } as Etapa,
     e('calculo', 'Cálculo', calculado, calculado ? 'Cálculo em vigor.' : 'Calcule na aba Dimensionamento.'),
   ];

@@ -1,18 +1,18 @@
 // Comandos das escadas (frente E4a): escada (dados comuns), lances e tipos de lance. Lançamento na planta, mover, girar e
 // copiar ficam para a E4b. Tipos predefinidos (`pre:...`) são copiados para a obra ao serem usados num lance.
 import type { Draft } from 'immer';
-import { errosTipoLance, tipoLancePor, tiposLanceEmUso, TIPOLOGIAS, type ApoioPatamar, type Escada, type LanceEscada, type TipoLance } from '../building/escadas';
+import { errosTipoLance, nomeSequencial, tipoLanceBloqueado, tipoLancePor, tiposLanceEmUso, TIPOLOGIAS, type ApoioPatamar, type Escada, type LanceEscada, type TipoLance } from '../building/escadas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import type { BuildingModel } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
-const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
-const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
-const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
-const num: JsonSchema = { type: 'number' };
-const pos: JsonSchema = { type: 'number', exclusiveMinimum: 0 };
+export const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
+export const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+export const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
+export const num: JsonSchema = { type: 'number' };
+export const pos: JsonSchema = { type: 'number', exclusiveMinimum: 0 };
 const blocoSchema: JsonSchema = { type: 'string', enum: ['ceramico', 'concreto'] };
 
 const apoioSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['apoiado'], properties: {
@@ -20,7 +20,7 @@ const apoioSchema: JsonSchema = { type: 'object', additionalProperties: false, r
   apoios: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['borda', 'tipo', 'largura'], properties: {
     borda: { type: 'string', enum: ['frontal', 'lateral'] }, tipo: { type: 'string', enum: ['tirante', 'alvenaria', 'concreto', 'conector'] }, largura: pos, bloco: blocoSchema, gama: pos } } },
 } };
-const lanceCampos: Record<string, JsonSchema> = {
+export const lanceCampos: Record<string, JsonSchema> = {
   tipo: { type: 'string', minLength: 1, description: 'id do tipo de lance (da obra ou predefinido `pre:...`)' },
   pavimento: { type: 'string', description: 'pavimento de partida; ausente = o seguinte ao do lance anterior' },
   cotaInicial: { type: 'number', description: 'cota do piso de partida (m); ausente = cota do pavimento' },
@@ -29,7 +29,7 @@ const lanceCampos: Record<string, JsonSchema> = {
 };
 
 /** Garante o tipo de lance na obra: predefinido vira cópia (reaproveitando a já existente); devolve o id na obra. */
-function tipoNaObra(d: Draft<BuildingModel>, id: string): string {
+export function tipoNaObra(d: Draft<BuildingModel>, id: string): string {
   if (!id.startsWith('pre:')) return id;
   d.tiposLance ??= [];
   const ja = d.tiposLance.find((t) => t.predefinido === id);
@@ -42,17 +42,17 @@ function tipoNaObra(d: Draft<BuildingModel>, id: string): string {
 
 // ---------------------------------------------------------------- escada.criar / escada.dados
 
-interface DadosComuns {
+export interface DadosComuns {
   nome?: string; largura?: number; piso?: number; espelho?: number; giro?: 'esq' | 'dir'; ultimoDegrau?: 'patamar' | 'laje'; execucao?: 'concretados' | 'alvenaria';
   bloco?: 'ceramico' | 'concreto'; corrimao?: number; revestimento?: number; sobrecarga?: number; acesso?: 'privado' | 'publico';
 }
-const dadosSchema: Record<string, JsonSchema> = {
+export const dadosSchema: Record<string, JsonSchema> = {
   nome: { type: 'string', minLength: 1 }, largura: pos, piso: pos, espelho: pos,
   giro: { type: 'string', enum: ['esq', 'dir'] }, ultimoDegrau: { type: 'string', enum: ['patamar', 'laje'] }, execucao: { type: 'string', enum: ['concretados', 'alvenaria'] },
   bloco: blocoSchema, corrimao: { type: 'number', minimum: 0 }, revestimento: { type: 'number', minimum: 0 }, sobrecarga: { type: 'number', minimum: 0 }, acesso: { type: 'string', enum: ['privado', 'publico'] },
 };
 /** Grava os dados comuns só quando diferem do padrão. */
-function gravarDados(e: Draft<Escada>, p: DadosComuns) {
+export function gravarDados(e: Draft<Escada>, p: DadosComuns) {
   if (p.nome !== undefined) e.nome = p.nome;
   if (p.largura !== undefined) e.largura = p.largura;
   if (p.piso !== undefined) e.piso = p.piso;
@@ -68,7 +68,7 @@ function gravarDados(e: Draft<Escada>, p: DadosComuns) {
 }
 
 interface ParamsCriar extends DadosComuns { id?: string; grupo: string; origem: [number, number]; angulo?: number; lances?: (Omit<LanceEscada, 'id'>)[] }
-function validarLances(b: BuildingModel, lances: Omit<LanceEscada, 'id'>[]): Diagnostico[] {
+export function validarLances(b: BuildingModel, lances: Omit<LanceEscada, 'id'>[]): Diagnostico[] {
   for (const l of lances) {
     if (!tipoLancePor(b, l.tipo)) return err('TIPO_LANCE_INEXISTENTE', `Tipo de lance "${l.tipo}" não existe.`);
     if (l.pavimento && !b.pavimentos.some((p) => p.id === l.pavimento)) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${l.pavimento} não existe.`);
@@ -93,7 +93,7 @@ registrar<ParamsCriar>({
   aplicar(d, p) {
     d.escadas ??= [];
     const id = p.id ?? novoId(d, 'es');
-    const e: Escada = { id, nome: `E${d.escadas.length + 1}`, grupo: p.grupo, origem: [p.origem[0], p.origem[1]], angulo: p.angulo ?? 0, largura: 1.2, piso: 0.28, espelho: 0.175, lances: [] };
+    const e: Escada = { id, nome: nomeSequencial(d as BuildingModel), grupo: p.grupo, origem: [p.origem[0], p.origem[1]], angulo: p.angulo ?? 0, largura: 1.2, piso: 0.28, espelho: 0.175, lances: [] };
     gravarDados(e as Draft<Escada>, p);
     for (const l of p.lances ?? []) e.lances.push({ ...copia(l), id: novoId(d, 'ln'), tipo: tipoNaObra(d, l.tipo) });
     d.escadas.push(e);
@@ -193,18 +193,18 @@ registrar<{ escada: string; lance: string }>({
 
 // ---------------------------------------------------------------- tipoLance.*
 
-type CamposTipo = Omit<TipoLance, 'id' | 'predefinido'>;
-const tipoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['nome', 'tipologia', 'trechos'], properties: {
+export type CamposTipo = Omit<TipoLance, 'id' | 'predefinido' | 'desbloqueado'>;
+export const tipoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['nome', 'tipologia', 'trechos'], properties: {
   nome: { type: 'string', minLength: 1 }, tipologia: { type: 'string', enum: TIPOLOGIAS.map((t) => t.v) }, trechos: { type: 'array', items: { type: 'integer', minimum: 1 }, minItems: 1 },
   espessura: { type: 'number', description: 'm; ausente = vão / 30' }, desnivelInicial: { type: 'number', minimum: 0 }, degrausIniciais: { type: 'integer', minimum: 0 },
   poco: { type: 'number', minimum: 0 }, degrausPatamar: { type: 'integer', minimum: 0 },
 } };
-const limpo = (t: CamposTipo): CamposTipo => {
+export const limpo = (t: CamposTipo): CamposTipo => {
   const o = { ...copia(t) };
   for (const k of ['espessura', 'desnivelInicial', 'degrausIniciais', 'poco', 'degrausPatamar'] as const) if (!o[k]) delete o[k];
   return o;
 };
-const errosDoTipo = (b: BuildingModel, t: CamposTipo) => {
+export const errosDoTipo = (b: BuildingModel, t: CamposTipo) => {
   const e = errosTipoLance({ ...t, id: 'x' }, opcoesEmUso(b.opcoes, perfilDe(b)));
   return e.length ? err('TIPO_LANCE_INVALIDO', `Tipo de lance "${t.nome}": ${e.join('; ')}.`) : [];
 };
@@ -228,13 +228,14 @@ registrar<{ id?: string; tipo: CamposTipo }>({
 
 registrar<{ id: string; tipo: Partial<CamposTipo> }>({
   nome: 'tipoLance.editar',
-  descricao: 'Altera campos de um tipo de lance da obra (E4a). O bloqueio de tipo em uso vem na E4b.',
+  descricao: 'Altera campos de um tipo de lance da obra (E4a). Tipo em uso por lance fica bloqueado até o desbloqueio manual (E4b).',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'tipo'], properties: { id: { type: 'string' }, tipo: { ...tipoSchema, required: [] } } },
   validar(b, p) {
     const t = b.tiposLance?.find((x) => x.id === p.id);
     if (!t) return err('TIPO_LANCE_INEXISTENTE', `Tipo de lance ${p.id} não existe na obra.`);
+    if (tipoLanceBloqueado(b, p.id)) return err('TIPO_LANCE_BLOQUEADO', `O tipo de lance "${t.nome}" está em uso por lances de escada e bloqueado para edição; desbloqueie-o (tipoLance.desbloquear) ou copie-o com nova referência.`);
     return errosDoTipo(b, { ...t, ...p.tipo });
   },
   aplicar(d, p) {
@@ -256,6 +257,7 @@ registrar<{ de: string; nome?: string }>({
   aplicar(d, p) {
     const o = copia(tipoLancePor(d as BuildingModel, p.de)!);
     delete o.predefinido;
+    delete o.desbloqueado;
     d.tiposLance ??= [];
     const novo: TipoLance = { ...o, id: novoId(d, 'tl'), nome: p.nome?.trim() || `${o.nome} (cópia)` };
     d.tiposLance.push(novo);

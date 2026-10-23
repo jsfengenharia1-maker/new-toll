@@ -9,20 +9,20 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 40 | 1 | 5 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 40 | 2 | 4 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
 | 7. Lajes | 195 | 73 | 55 | 0 | 67 |
-| 8. Escadas | 65 | 0 | 26 | 39 | 0 |
+| 8. Escadas | 65 | 0 | 42 | 23 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **405** | **125** | **48** | **185** |
+| **Total** | **763** | **405** | **142** | **31** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 101 | 43 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 118 | 26 | 144 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -83,7 +83,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.30 | Passo 5: vigas. | Feito | — | vigas |
 | C1.31 | Passo 6: lajes. | Feito | — | lajes |
 | C1.32 | Passo 7: cargas especiais, como as de paredes divisórias. As cargas gerais vêm dos pavimentos, e o peso próprio de pilares, muros, vigas e lajes é gerado automaticamente. | Feito | — | cargas especiais, alvenaria da máscara; peso próprio automático |
-| C1.33 | Passo 8: escadas. | Falta | E | escadas [E4b] |
+| C1.33 | Passo 8: escadas. | Parcial | E | [E4b] núcleo 23/10/2026: `ESCADAS_DISPONIVEIS = true` e etapa "escadas" feita com ao menos uma escada (`etapas.ts`); clique da etapa escolher a ferramenta nos cartões `docs/cartoes/E4b/01` |
 | C1.34 | Passo 9: estruturas 3D integradas, definidas no módulo de barras metálicas 3D. | Falta | E | estruturas 3D integradas [E4e] |
 | C1.35 | Passo 10: fundações (sapatas, vigas de equilíbrio e de travamento). O radier é lançado como laje no nível da fundação. | Feito | — | FU1–FU7a: sapatas, blocos e tubulões (`fundacao.ts`), vigas de equilíbrio e de travamento (`vigasFundacao.ts`), radier e vigas sobre base elástica (`baseElastica.ts`, lançados por contorno ou polilinha na planta de fundação, no lugar de laje no nível) e sapatas corridas (`sapataCorrida.ts`), no grupo Fundação e na planta do nível de fundação |
 | C1.36 | Passo 11: cálculo da estrutura. | Feito | — | Calcular (worker) |
@@ -639,10 +639,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Parcial | E | [E4a] núcleo 23/10/2026: tipologias (`Tipologia`, `TIPOLOGIAS`) e geometria `geometriaEscada` (`escadas.ts`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Parcial | E | [E4a] núcleo 23/10/2026: modelo `Escada`/`LanceEscada`/`TipoLance` e patamares em `geometriaEscada`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | | **8.2 Acesso ao módulo** | | | |
-| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Falta | E | [E4b] |
+| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Falta | E | [E4b] menu flutuante nos cartões `docs/cartoes/E4b/01` (criar, editar, apagar, mover, girar; armadura e isovalores desabilitados até E4d/E4c); comandos `escada.*` prontos |
 | | **8.3.1 Criar escada** | | | |
-| C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Falta | E | [E4b] |
-| C8.7 | A escada nova começa no grupo atual, indicado na janela. | Falta | E | [E4b] |
+| C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Falta | E | [E4b] janela "Nova escada" com a aba de lançamento nos cartões `docs/cartoes/E4b/02` (estende a janela da E4a) |
+| C8.7 | A escada nova começa no grupo atual, indicado na janela. | Falta | E | [E4b] grupo atual na janela/menu nos cartões `docs/cartoes/E4b/01` e `02`; `escada.criar` já recebe o grupo |
 | C8.8 | Dados comuns valem para todos os lances; partes com dados diferentes (ex.: outra carga) devem virar escadas separadas. | Parcial | E | [E4a] núcleo 23/10/2026: dados comuns na `Escada`; comandos `escada.criar`/`escada.dados`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.9 | Geometria comum: largura da escada (comprimento dos degraus). | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.largura`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.10 | Geometria comum: piso (passo em planta) e espelho (altura do degrau). | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.piso` e `Escada.espelho`; avisos ESCADA_BLONDEL e ESCADA_DIMENSOES; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
@@ -652,7 +652,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.14 | Cargas comuns: peso de corrimãos (total, considerando um ou dois), revestimento e sobrecarga. | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.corrimao`/`revestimento`/`sobrecarga`/`acesso` e opções `escada*`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.15 | Lances (trechos entre pavimentos) podem ter dados diferentes entre si: espessura, cota inicial, tipologia, número de degraus. | Parcial | E | [E4a] núcleo 23/10/2026: `LanceEscada` (tipo, pavimento, cota inicial, repetição); `lance.criar`/`editar`/`remover`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.16 | Escolha do tipo de lance numa lista de tipos predefinidos ou criação de tipo novo. | Parcial | E | [E4a] núcleo 23/10/2026: `TIPOS_LANCE_PREDEFINIDOS` copiados para a obra ao usar; `tipoLance.criar`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
-| C8.17 | Tipos de lance ficam na biblioteca da obra, reutilizáveis em vários lances e escadas; importação/exportação entre obras pelo gerenciador de biblioteca. | Falta | E | [E4b] |
+| C8.17 | Tipos de lance ficam na biblioteca da obra, reutilizáveis em vários lances e escadas; importação/exportação entre obras pelo gerenciador de biblioteca. | Parcial | E | [E4b] núcleo 23/10/2026: `exportarTiposLance`/`lerBibliotecaTiposLance`/`tiposLanceIguais` (`escadasEdicao.ts`, formato `statikos-tipos-lance` v1) e `tipoLance.importar`; biblioteca do usuário (`storage.ts` kind `tiposLance`) nos cartões `docs/cartoes/E4b/04` |
 | C8.18 | Tipo de lance: referência (nome). | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.nome`; `tipoLance.criar`/`editar`/`copiar`/`remover`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.19 | Tipo de lance: espessura da laje dada pelo usuário ou pré-dimensionada pelo programa como 1/30 do maior vão real entre apoios. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.espessura` ou vão/30 (`LanceGeo.espessura`; opções `escadaEspessuraDivisor`/`Min`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.20 | Tipo de lance: desnível no início do lance (≥ 10 cm), ex.: escada que nasce na fundação e atravessa contrapiso. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.desnivelInicial` (0 ou ≥ `escadaDesnivelMin`), ESCADA_ALTURA; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
@@ -669,24 +669,24 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.31 | Número de lances iguais consecutivos (pavimentos seguidos com o mesmo tipo de lance). | Parcial | E | [E4a] núcleo 23/10/2026: `LanceEscada.repetir`: um lance por pavimento (`instanciasDaEscada`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.32 | Número ilimitado de lances por escada. | Parcial | E | [E4a] núcleo 23/10/2026: lista de lances sem limite; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | | **8.3.1.3 Inserção na obra** | | | |
-| C8.33 | Inserção no pavimento atual: o primeiro lance acompanha o cursor; clique fixa o início, a escada gira em torno dele e o segundo clique define a direção. | Falta | E | [E4b] |
-| C8.34 | Capturas a gabarito DXF/DWG e modo ortogonal para posicionar. | Falta | E | [E4b] |
-| C8.35 | Inserção repetida de escadas iguais com referências numeradas em sequência; botão direito encerra. | Falta | E | [E4b] |
-| C8.36 | Mensagem de erro geométrico na inserção. | Falta | E | [E4b] |
+| C8.33 | Inserção no pavimento atual: o primeiro lance acompanha o cursor; clique fixa o início, a escada gira em torno dele e o segundo clique define a direção. | Parcial | E | [E4b] núcleo 23/10/2026: `anguloDeInsercao` (direção pelos dois cliques) e `previaInsercao` (contorno para o cursor); cliques na `Planta.tsx` nos cartões `docs/cartoes/E4b/02` |
+| C8.34 | Capturas a gabarito DXF/DWG e modo ortogonal para posicionar. | Parcial | E | [E4b] núcleo 23/10/2026: `anguloDeInsercao(..., ortogonal)` arredonda a 90°; capturas do gabarito pelo `capturar` existente nos cartões `docs/cartoes/E4b/02` |
+| C8.35 | Inserção repetida de escadas iguais com referências numeradas em sequência; botão direito encerra. | Parcial | E | [E4b] núcleo 23/10/2026: `nomeSequencial` e `escada.criar` com nome em sequência (E1, E2...; sem repetir nome após remover); botão direito/Esc nos cartões `docs/cartoes/E4b/02` |
+| C8.36 | Mensagem de erro geométrico na inserção. | Parcial | E | [E4b] núcleo 23/10/2026: `previaInsercao` devolve `erros` (ESCADA_ALTURA, tipo/grupo inexistente, sem lances) que impedem o lançamento; mensagem na interface nos cartões `docs/cartoes/E4b/02` |
 | C8.37 | Conferência das escadas na vista 3D do edifício ou do pavimento (forma, interferências). | Falta | E | depende da vista 3D [E4e] |
 | | **8.3.1.4 Ferramentas de apoio** | | | |
-| C8.38 | Dados da última escada lançada mantidos enquanto a obra não muda e o programa não fecha. | Falta | E | [E4b] |
-| C8.39 | Copiar dados de uma escada visível no pavimento atual (inclusive lances) ao criar uma nova, para depois ajustar (ex.: escada simétrica trocando o sentido de giro). | Falta | E | [E4b] |
-| C8.40 | Lista de tipos de lance com predefinidos e do usuário, escolhível na janela do lance e na de nova escada. | Falta | E | [E4b] |
-| C8.41 | Duplicar um lance da mesma escada, colocado no topo da lista (fisicamente acima dos demais). | Falta | E | [E4b] |
-| C8.42 | Copiar tipo de lance com nova referência. | Falta | E | [E4b] |
-| C8.43 | Editar tipo de lance, bloqueado quando usado em outro lance para evitar alteração involuntária; desbloqueio manual. | Falta | E | [E4b] |
-| C8.44 | Biblioteca de tipos de lance do usuário: exportar da obra e importar em outras obras. | Falta | E | [E4b] |
+| C8.38 | Dados da última escada lançada mantidos enquanto a obra não muda e o programa não fecha. | Parcial | E | [E4b] núcleo 23/10/2026: `dadosComunsDe(escada)` extrai os dados que ficam como padrão da próxima; guarda em `plantaStore.escadaPadrao` nos cartões `docs/cartoes/E4b/01` e `02` |
+| C8.39 | Copiar dados de uma escada visível no pavimento atual (inclusive lances) ao criar uma nova, para depois ajustar (ex.: escada simétrica trocando o sentido de giro). | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.copiarDe` (dados e lances com ids novos, giro trocável, outro grupo sem pavimento fixo); seletor "Copiar dados de" nos cartões `docs/cartoes/E4b/01` e `02` |
+| C8.40 | Lista de tipos de lance com predefinidos e do usuário, escolhível na janela do lance e na de nova escada. | Parcial | E | [E4b] núcleo 23/10/2026: `tiposLanceDisponiveis` (obra + predefinidos) e `tiposLanceEmUso`; lista "Da obra"/"Predefinidos" nos cartões `docs/cartoes/E4b/02` e `04` |
+| C8.41 | Duplicar um lance da mesma escada, colocado no topo da lista (fisicamente acima dos demais). | Parcial | E | [E4b] núcleo 23/10/2026: comando `lance.duplicar` (copia tipo, repetição e apoios; vai para o fim da lista = topo da escada; sem pavimento/cota fixos); botão nos cartões `docs/cartoes/E4b/03` |
+| C8.42 | Copiar tipo de lance com nova referência. | Parcial | E | [E4b] núcleo 23/10/2026: `tipoLance.copiar` (E4a) agora descarta o desbloqueio da origem; botão "Copiar com nova referência" nos cartões `docs/cartoes/E4b/04` |
+| C8.43 | Editar tipo de lance, bloqueado quando usado em outro lance para evitar alteração involuntária; desbloqueio manual. | Parcial | E | [E4b] núcleo 23/10/2026: `tipoLanceBloqueado` e `tipoLance.editar` recusa `TIPO_LANCE_BLOQUEADO` com tipo em uso; `tipoLance.desbloquear {id, desbloquear}` (campo `TipoLance.desbloqueado`); cadeado/botão nos cartões `docs/cartoes/E4b/04` |
+| C8.44 | Biblioteca de tipos de lance do usuário: exportar da obra e importar em outras obras. | Parcial | E | [E4b] núcleo 23/10/2026: `exportarTiposLance`, `lerBibliotecaTiposLance` (valida formato, campos e tipo) e `tipoLance.importar` (não duplica iguais, ids novos, tudo ou nada); `storage.ts` e botões .json nos cartões `docs/cartoes/E4b/04` |
 | | **8.3.2–8.3.5 Editar, apagar, mover, girar** | | | |
-| C8.45 | Editar dados de escada existente clicando nela. | Falta | E | [E4b] |
-| C8.46 | Apagar uma ou várias escadas, por clique ou janela de captura. | Falta | E | [E4b] |
-| C8.47 | Mover escada por ponto de referência, com capturas a gabarito. | Falta | E | [E4b] |
-| C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Falta | E | [E4b] |
+| C8.45 | Editar dados de escada existente clicando nela. | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.editar` (dados comuns + origem + ângulo) e `escadasNoPonto` (clique no contorno); janela ao clicar nos cartões `docs/cartoes/E4b/03` |
+| C8.46 | Apagar uma ou várias escadas, por clique ou janela de captura. | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.remover {ids}`, `escadasNoPonto` e `escadasNaJanela` (dentro/cruza); interface nos cartões `docs/cartoes/E4b/03` |
+| C8.47 | Mover escada por ponto de referência, com capturas a gabarito. | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.mover {ids, dx, dy}` (contorno transformado por translação, tolerância 1e-9 nos testes); ponto de referência e capturas nos cartões `docs/cartoes/E4b/03` |
+| C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.girar {ids, angulo, centro?}` em torno da origem (início do lance) e `deltaPorPontos` (giro por pontos); ângulo digitado/pontos na interface nos cartões `docs/cartoes/E4b/03` |
 | | **8.4 Resultados, relatórios e desenhos** | | | |
 | C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Falta | E | [E4d] |
 | C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Falta | E | [E4c] |
