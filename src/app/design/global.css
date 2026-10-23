@@ -229,7 +229,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 /* transições só de cor (120 ms); zeradas em prefers-reduced-motion */
-.btn, .tbtn, .tool, .rtab, .rbtn, .tn, .vtabs button, .modtabs button, .chip, .seg button, .tabs button, .menu button, .caseitem, .finput, .group > summary, .edif-tabs button, .mini, .x { transition: background-color var(--dur) ease-out, border-color var(--dur) ease-out, color var(--dur) ease-out; }
+.btn, .tbtn, .tool, .rtab, .rbtn, .tn, .vtabs button, .modtabs button, .chip, .seg button, .tabs button, .menu button, .caseitem, .finput, .group > summary, .mini, .x { transition: background-color var(--dur) ease-out, border-color var(--dur) ease-out, color var(--dur) ease-out; }
 
 .app { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; }
 
@@ -612,9 +612,6 @@ svg.mono .hinge { fill: #fff !important; }
 /* edifício */
 .edif { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 0; }
 .edif-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.edif-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--line); background: var(--surface); }
-.edif-tabs button { border: 1px solid transparent; border-bottom: none; background: none; min-height: var(--h-ctl); padding: 0 12px; border-radius: var(--radius) var(--radius) 0 0; font-size: var(--fs); font-weight: 600; color: var(--muted); }
-.edif-tabs button.on { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); }
 .edif-tabs button.bad { color: var(--bad); }
 .edif-out { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
 .planta-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12px; }

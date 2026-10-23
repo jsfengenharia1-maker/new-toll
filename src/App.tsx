@@ -13,7 +13,7 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { AjudaProvider, BotaoAjuda, copyText, download, Dock, ThemeSelect } from './app/ui';
+import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
@@ -357,8 +357,7 @@ export default function App() {
       </div>
       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
       {st.libraryOpen && <Library />}
-      <footer className="statusbar">
-        <span className="msg">{st.message}</span>
+      <StatusBar mensagem={st.message}>
         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
@@ -384,7 +383,7 @@ export default function App() {
             {LENGTH_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
           </select>
         </label>
-      </footer>
+      </StatusBar>
     </div>
     </AjudaProvider>
   );
