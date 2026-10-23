@@ -4,6 +4,7 @@ import { MemorialPilaresParede } from './MemorialPilarParede';
 import { MemorialParedes } from './MemorialParedes';
 import { MemorialAlvenaria } from './AlvenariaResumo';
 import { MemorialCortes } from './MemorialCortes';
+import { MemorialConsolos } from './MemorialConsolos';
 import { MemorialInclinadas } from './MemorialInclinadas';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -188,6 +189,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           {(() => { const fig = iso ? svgIsometrico(b, { fundacoes: dim?.fundacoes, vigasFundacao: dim?.vigasFundacao }) : ''; return fig ? <figure data-isometrico><div dangerouslySetInnerHTML={{ __html: fig }} /><figcaption>Vista isométrica do edifício, gerada da geometria lançada (pilares, vigas, lajes{dim?.fundacoes?.length ? ' e fundações' : ''}); cores por tipo de elemento.</figcaption></figure> : null; })()}
 
           <MemorialCortes b={b} dim={dim} h2={h2} />
+          <MemorialConsolos b={b} dim={dim} h2={h2} />
           <MemorialInclinadas b={b} dim={dim} h2={h2} />
           <MemorialListagemGeral b={b} h2={h2} />
           {h2('Ações')}
