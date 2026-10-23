@@ -229,6 +229,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // diagonais de contraventamento (E2d): como as inclinadas
     ...(d.diagonais?.length ? { diagonais: prob(pav ? d.diagonais.filter((r) => r.pavimento === pav.id || r.pavimentoFim === pav.id) : d.diagonais).map(({ envoltoria: _e, ...r }) => r) } : {}),
     ...(d.resumoAcoDiagonais?.length ? { resumoAcoDiagonais: d.resumoAcoDiagonais } : {}),
+    // consolos curtos e vigas pré-moldadas (E2e): resultado por elemento (sem a envoltória)
+    ...(d.consolos?.length ? { consolos: d.consolos } : {}),
+    ...(d.premoldadas?.length ? { premoldadas: d.premoldadas } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),

@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 33 | 41 | 9 | 25 |
+| 6. Vigas | 108 | 33 | 50 | 0 | 25 |
 | 7. Lajes | 195 | 33 | 46 | 49 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 20 | 2 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **141** | **133** | **185** |
+| **Total** | **763** | **304** | **150** | **124** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 72 | 126 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 81 | 117 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 37 | 2 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 30 | 5 | 35 |
@@ -309,8 +309,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
 | C6.15 | Viga plana (faixa) com altura igual ao desnível entre os pontos mais alto e mais baixo da laje que contorna. | Parcial | E | núcleo: `Viga.chata`, `alturaVigaChata` (`secaoViga.ts`; altura da laje que contorna, com desnível do topo mais alto ao fundo mais baixo), `viga.editar { chata }`; interface no cartão `docs/cartoes/E2a/1-editor-secao.md` [E2a] |
 | C6.16 | Viga com altura (descolgada): retangular, T ou com mesa colaborante. A mesa entra na rigidez, mas a armadura usa só a alma. | Parcial | E | núcleo: `Viga.mesa` T/L com mesa colaborante da NBR 6118 14.6.2.2 (`mesaDaViga`), na rigidez da grelha e do pórtico (`propsBarraViga`, opção `mesaRigidez`), armadura só pela alma (padrão do sistema) ou na seção T (`mesaDimensionamento`); interface nos cartões E2a-1 a E2a-3 [E2a] |
-| C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Falta | E | treliçadas/protendidas pré-fabricadas [E2e] |
-| C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Falta | E | viga de vínculo externo [E2e] |
+| C6.17 | Vigas treliçadas e protendidas (pré-fabricadas), com propriedades próprias. | Parcial | E | núcleo: viga pré-fabricada de ficha (`Viga.premoldada` tipo `ficha`: EI, peso, MRd, VRd e TRd do fabricante, só verificada contra a envoltória ELU; `premoldadas.ts`: `verificarFicha`); interface nos cartões `docs/cartoes/E2e/` [E2e] |
+| C6.18 | Viga de vinculação exterior, que simula por exemplo o topo de um muro. Pilares coincidentes precisam ser desligados para não terem o deslocamento vertical travado. | Parcial | E | núcleo: `Viga.vinculoExterno` (engaste, articulação, deslizante): apoios em todos os nós (grelha e pórtico), EI × `vinculoExternoFatorEI`, plano e EA rígidos, viga não dimensionada; aviso VINCULO_PILAR (`vinculoExterno.ts`, `analitico.ts`); interface nos cartões `docs/cartoes/E2e/` [E2e] |
 | C6.19 | Desligamento muro-pilar só em lajes de vigotas. Em lajes maciças/cogumelo, a recomendação é lançar o muro como elemento. | Feito | — | aviso `MURO_PILAR_MACICA` (laje maciça ou sem laje junto ao pilar): o desligamento só vale com lajes de vigotas e a mensagem sugere lançar o muro como elemento (`diagnosticosAlvenaria`) [E1e] |
 | C6.20 | A viga de coroamento do topo do muro não é especificada pelo programa. O detalhe fica com o usuário, com apoio da biblioteca de detalhes construtivos. | Fora | — |  |
 | C6.21 | Viga não estrutural (limite), que só fecha o contorno de um pano maciço quando a viga de borda é desprezível. | Parcial | E | núcleo: `Viga.estrutural = false` fora da grelha e do pórtico (`analitico.ts`), contorno do pano fechado (`panosDoGrupo`), VIGA_NAO_ESTRUTURAL_CARGA; interface nos cartões E2a-1 e E2a-2 [E2a] |
@@ -346,10 +346,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Parcial | L | contorno retangular [L5] — L5 núcleo: `viga.contornoRetangular` (ângulo zero ou qualquer ângulo, corpo para fora, alinhamento pela face externa dos pilares e pontas fechadas); interface: ferramenta `contornoRet` (cartão 03)  |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
 | C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga, com a ferramenta Prolongar viga (O) na planta (R7-0); sem comprimento fixo nem arraste da extremidade [L5] — L5 `viga.prolongar` até ponto, eixo ou viga (R7-0) e, no núcleo da L5, por comprimento fixo (`ate.comprimento`; arrastar = o ponto projetado); prévia e campo: cartão 02 |
-| C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos [E2e] |
-| C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E | [E2e] |
-| C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
-| C6.57 | Edição de consolos. | Falta | E | [E2e] |
+| C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Parcial | E | núcleo: `BuildingModel.consolos` (pilar, face, viga e ponta, geometria e aparelho; `consolos.ts`, comandos `consolo.*`); não apoia pilares; interface nos cartões `docs/cartoes/E2e/` [E2e] |
+| C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Parcial | E | núcleo: `consolo.criar { viga, ponta, pilar, geometria, aparelho }` (a ponta da viga na face, valores de partida `consoloPadrao`); lançamento na janela (cartão 1); o clique na face do pilar na planta fica para depois [E2e] |
+| C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Parcial | E | modelo na análise: viga articulada na ponta (sem momento), trecho rígido do eixo do pilar ao centro do aparelho (a da face; opção `consoloExcentricidade` leva V·e ao pilar), só a vertical (`analitico.ts`: `vincularPontas`, `offsetFace`) [E2e] |
+| C6.57 | Edição de consolos. | Parcial | E | núcleo: `consolo.editar` (geometria, aparelho, Hd, cobrimento, armadura bloqueada) e `consolo.remover`; janela nos cartões `docs/cartoes/E2e/` [E2e] |
 | C6.58 | Ajuste de vigas à interseção de planos inclinados ou à linha de máxima declividade, indicadas por linhas magenta (contínua ou tracejada). | Parcial | E | núcleo: `viga.ajustarPlano` (`ajustarAoPlano`, `curvas.ts`): pontos levados à projeção da interseção de dois planos ou à linha de máxima declividade, planos por três pontos cotados ou por a, b e c; as linhas indicativas (magenta) na planta dependem das lajes inclinadas (E3f); editor no cartão E2b-1 [E2b] |
 | C6.59 | Armadura opcional de vigas no nível das lajes sobre muros de alvenaria genérica e de coroamento em blocos. Em muros de subsolo, a viga é armada no topo. Espessuras mínimas configuráveis. | Feito | — | `vigasSobreMuros` (`alvenariaDim.ts`): viga embutida em muro de alvenaria genérica (nível da laje) ou de blocos (coroamento) com armadura opcional dispensada pela opção `alvenariaVigaArmar`; a de topo de muro com empuxo é sempre armada; largura e altura mínimas configuráveis (`alvenariaVigaBMin/HMin`, `ALV_VIGA_ESPESSURA`) [E1e] |
 | C6.60 | Informação da viga de aço, com a largura efetiva de laje que ela recebe. | Fora | — |  |
@@ -393,8 +393,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.97 | Erro de conector: número excessivo para o comprimento da viga. | Fora | — | conectores de vigas mistas |
 | C6.98 | Erro de conector: mesa do perfil fina demais para soldar o conector (espessura mínima depende do diâmetro). | Fora | — | conectores de vigas mistas |
 | C6.99 | Erro de conector: mesa estreita demais para dois conectores (distâncias mínimas entre conectores e à borda). | Fora | — | conectores de vigas mistas |
-| C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E | [E2e] |
-| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E | [E2e] |
+| C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Parcial | E | núcleo: `dim.consolos` com status, mensagens e `relatorioConsolo`; códigos CONSOLO_* (lista de erros, tipo `consolo`); lista em vermelho e relatório nos cartões `docs/cartoes/E2e/` [E2e] |
+| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Parcial | E | núcleo: `consolo.redimensionar` solta a armadura bloqueada e o dimensionamento refaz com os esforços do último cálculo (a vertical vem da envoltória ELU da viga); botão nos cartões `docs/cartoes/E2e/` [E2e] |
 | C6.102 | Editar a armadura de vigas inclinadas. | Parcial | E | núcleo: `inclinada.armadura { id, sup, inf, laterais?, estribo }` edita e bloqueia (o recálculo só verifica a flexo-compressão oblíqua e o cortante); formulário nos cartões E2c [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Feito | — | "Mostrar" na aba Detalhamento da viga: inferior, superior, pele, estribos (zonas) e seção, no `plantaStore.detMostrar` (R7b); zonas de confinamento não se aplicam a vigas no perfil NBR |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Feito | — | fator do comprimento de emenda por viga (campo na edição do detalhamento, `viga.detalhe`) e opção `vigaFatorEmenda` para a obra (R7b) |
@@ -402,7 +402,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
 | C6.107 | Desenho da armadura de vigas inclinadas. | Parcial | E | núcleo: `blocoInclinada` (`sheets/armacaoVigas.ts`): elevação desenvolvida com barras superiores, inferiores e de pele, estribos e seção na prancha de vigas do grupo do pavimento inicial, com tabela de aço [E2c; representação a confirmar] |
-| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | E | consolos (E2) [E2e] |
+| C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Parcial | E | núcleo: `blocoConsolo` (`sheets/armacaoConsolos.ts`) na prancha de pilares: vistas frontal (perfil) e lateral cotadas, tirante, costura e estribos verticais com posições, referências do pilar e da viga; representação a confirmar com folhas de referência [E2e] |
 
 ## 7. Lajes
 
@@ -1056,3 +1056,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
 - **23/10/2026 — E2d, núcleo (diagonais de contraventamento).** C6.36 a C6.46 passam de Falta a Parcial com nota própria (barra das inclinadas entre grupos, nó nos cruzamentos sem reduzir ℓe, dimensionamento à tração e à compressão com esbeltez máxima, comandos `diagonal.*` com o grupo atual, memorial e prancha prontos; interface nos cartões `docs/cartoes/E2d/`).
+- **23/10/2026 — E2e, núcleo (consolos curtos, vínculo externo e vigas pré-moldadas).** C6.17, C6.18, C6.54 a C6.57, C6.100, C6.101 e C6.108 passam de Falta a Parcial com nota própria (consolos pela NBR 6118 22.5 e NBR 9062 por bielas e tirantes, atrito-cisalhamento e balanço; apoio no centro do aparelho com a viga sem momento na face; `viga.editar` com vínculo externo e pré-moldada; verificação de içamento e de ficha; prancha de pilares com os consolos; comandos `consolo.*`; interface nos cartões `docs/cartoes/E2e/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: sem mudança de contagem (os itens seguem na E).

@@ -8,7 +8,7 @@ import { sugestaoDe } from './sugestoes';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada' | 'diagonal';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada' | 'diagonal' | 'consolo';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;
@@ -65,6 +65,19 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'DIAGONAL_BIELA', nivel: 'erro', re: /^Diagonal: compressão diagonal/, descricao: 'Diagonal: compressão diagonal do concreto esgotada (cortante e torção)' },
   { codigo: 'DIAGONAL_CRUZAMENTO', nivel: 'info', re: /^Diagonal: (nó gerado|\d+ nós gerados) no cruzamento/, descricao: 'Diagonal: nó gerado no cruzamento com outra diagonal (flambagem pelo comprimento total)' },
   { codigo: 'DIAGONAL_NOS', nivel: 'info', re: /^Diagonal: o detalhe dos nós/, descricao: 'Diagonal: detalhe dos nós de extremidade a cargo do projetista' },
+  { codigo: 'CONSOLO_ARMADURA', nivel: 'erro', re: /^Consolo: (a armadura informada|o tirante|estribos horizontais|estribos verticais)/, descricao: 'Consolo: tirante, estribos de costura ou verticais menores que o necessário, ou o tirante não cabe em uma camada' },
+  { codigo: 'CONSOLO_BIELA', nivel: 'erro', re: /^Consolo: biela comprimida/, descricao: 'Consolo: compressão da biela junto ao aparelho acima do limite' },
+  { codigo: 'CONSOLO_APOIO', nivel: 'erro', re: /^Consolo: tensão de contato/, descricao: 'Consolo: tensão de contato sob o aparelho de apoio acima do limite' },
+  { codigo: 'CONSOLO_CORTANTE', nivel: 'erro', re: /^Consolo: cortante de cálculo/, descricao: 'Consolo: cortante acima de VRd2' },
+  { codigo: 'CONSOLO_GEOMETRIA', nivel: 'erro', re: /^Consolo: geometria/, descricao: 'Consolo: geometria incoerente (altura útil, altura na ponta, aparelho fora do balanço ou mais largo que o consolo)' },
+  { codigo: 'CONSOLO_LONGO', nivel: 'aviso', re: /^Consolo: a\/d/, descricao: 'Consolo com a/d acima de 1: calculado como viga em balanço' },
+  { codigo: 'CONSOLO_ANCORAGEM', nivel: 'aviso', re: /^Consolo: ancoragem/, descricao: 'Consolo: ancoragem do tirante sob o aparelho exige laço ou barras transversais soldadas' },
+  { codigo: 'PREMOLDADA_ICAMENTO', nivel: 'erro', re: /^Pré-moldada: içamento/, descricao: 'Viga pré-moldada: momentos de içamento acima da resistência das armaduras adotadas' },
+  { codigo: 'PREMOLDADA_FICHA', nivel: 'erro', re: /^Pré-moldada: ficha/, descricao: 'Viga pré-fabricada: esforço de cálculo acima do resistente da ficha do fabricante' },
+  { codigo: 'PREMOLDADA_ARTICULADA', nivel: 'info', re: /^Pré-moldada: ligações articuladas/, descricao: 'Viga pré-moldada: ligações articuladas por padrão' },
+  { codigo: 'VINCULO_PILAR', nivel: 'aviso', re: /^Vínculo externo: o pilar/, descricao: 'Viga de vínculo externo coincide com um pilar (travaria o deslocamento vertical)' },
+  { codigo: 'VINCULO_EXTERNO', nivel: 'info', re: /^Vínculo externo: a viga simula/, descricao: 'Viga de vínculo externo: topo de muro, não dimensionada' },
+  { codigo: 'VINCULO_MODELO', nivel: 'aviso', re: /^Vínculo externo: os apoios contínuos/, descricao: 'Vínculo externo não entra no modelo integrado' },
   { codigo: 'VIGA_CURVA', nivel: 'info', re: /^Viga curva: /, descricao: 'Viga curva: raio, discretização em cordas e torção de equilíbrio da curvatura' },
   { codigo: 'VIGA_COMUM', nivel: 'info', re: /^Viga comum com o grupo /, descricao: 'Viga comum a dois grupos: barra única, armadura e envoltórias na origem' },
   { codigo: 'VIGA_COMUM_APOIA_VIGA', nivel: 'aviso', re: /^Viga comum: .* chega à viga associada/, descricao: 'Viga comum: outra viga chega à associada fora de pilar (reação não levada à origem)' },
@@ -239,6 +252,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   for (const r of dim?.inclinadas ?? []) add('inclinada', r.inclinada, r.nome, undefined, r.mensagens);
   for (const r of dim?.diagonais ?? []) add('diagonal', r.inclinada, r.nome, undefined, r.mensagens);
+  for (const r of dim?.consolos ?? []) add('consolo', r.consolo, r.nome, undefined, r.mensagens);
   // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const d of dim?.detalhesLajes ?? []) add('laje', d.laje, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));

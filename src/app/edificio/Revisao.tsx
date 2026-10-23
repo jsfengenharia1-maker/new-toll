@@ -36,7 +36,7 @@ import { useInclinadasUI } from './InclinadasUI';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 export const ST_TXT = { ok: 'ok', fail: 'não atende', review: 'revisar' } as const;
-const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra', pilarParede: 'Pilar-parede', parede: 'Parede', inclinada: 'Viga inclinada', diagonal: 'Diagonal' };
+const TIPO_TXT: Record<TipoRevisao, string> = { viga: 'Viga', pilar: 'Pilar', laje: 'Laje', fundacao: 'Fundação', obra: 'Obra', pilarParede: 'Pilar-parede', parede: 'Parede', inclinada: 'Viga inclinada', diagonal: 'Diagonal', consolo: 'Consolo' };
 
 export type Alvo = { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede'; id: string; pavimento?: string };
 
@@ -121,7 +121,7 @@ export function ListaErros({ onIr }: { onIr: (tipo: 'viga' | 'pilar' | 'laje' | 
               <tbody>
                 {itens.map((i, k) => {
                   const inc = i.tipo === 'inclinada' && i.id ? i.id : null;
-                  const el = i.tipo !== 'obra' && i.tipo !== 'inclinada' && i.tipo !== 'diagonal' && i.id ? { tipo: i.tipo, id: i.id } : null;
+                  const el = i.tipo !== 'obra' && i.tipo !== 'inclinada' && i.tipo !== 'diagonal' && i.tipo !== 'consolo' && i.id ? { tipo: i.tipo, id: i.id } : null;
                   return (
                     <LinhaElemento key={k} className={`${el || inc ? 'click' : ''} ${i.nivel === 'erro' ? 'bad' : 'warn'}`} title={el ? 'Clique: ver na planta. Duplo clique: resultados do elemento.' : inc ? 'Clique: abre a janela da viga inclinada.' : undefined}
                       ir={() => (inc ? useInclinadasUI.getState().abrir(inc) : el && onIr(el.tipo, el.id, i.pavimento))} abrir={() => (inc ? useInclinadasUI.getState().abrir(inc) : el && abrirJanela({ ...el, pavimento: i.pavimento }))}>

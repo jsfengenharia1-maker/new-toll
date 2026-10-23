@@ -620,6 +620,7 @@ registrar<{ ids: string[] }>({
   aplicar(d, p) {
     const s = new Set(p.ids);
     d.pilares = d.pilares.filter((q) => !s.has(q.id));
+    if (d.consolos?.some((c) => s.has(c.pilar))) { d.consolos = d.consolos.filter((c) => !s.has(c.pilar)); if (!d.consolos.length) delete d.consolos; } // consolos nos pilares removidos (E2e)
     // elementos de fundação dos pilares removidos saem junto
     // (elemento de vários pilares: só o pilar sai; o elemento some quando não resta nenhum)
     if (d.fundacao?.elementos.some((e) => e.pilares.some((x) => s.has(x)))) {

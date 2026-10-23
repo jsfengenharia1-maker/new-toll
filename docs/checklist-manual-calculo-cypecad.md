@@ -12,8 +12,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 4 | 2 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 5 | 13 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 16 | 4 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 8 | 10 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 18 | 2 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -25,7 +25,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 6 | 1 | 19 |
-| **Total** | **661** | **389** | **89** | **72** | **111** |
+| **Total** | **661** | **389** | **94** | **67** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 49 | 69 | 118 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 54 | 64 | 118 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 17 | 3 | 20 |
-| **Total** | **89** | **72** | **161** |
+| **Total** | **94** | **67** | **161** |
 
 ## Divergências de premissa
 
@@ -110,15 +110,15 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
 | K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Parcial | E | concreto armado retangular, T e L (mesa colaborante, `secaoViga.ts`); aço, mista e madeira fora do escopo [E2a]; interface nos cartões E2a |
 | K1.3.8 | Eixo da barra de viga no plano médio vertical da alma, na altura do centro de gravidade. | Feito | — | eixo da viga no plano do pavimento (prática usual com diafragma) |
-| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Falta | E | apoio contínuo em muro [E2e] |
-| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Falta | E | tipos de vínculo do apoio em muro [E2e] |
+| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Parcial | E | núcleo: série de apoios nos nós de discretização (a cada `malha`) da viga de vínculo externo, na grelha e no pórtico, com EI × 100 (`pontosVinculoExterno`, `propsBarraViga` em `analitico.ts`); fora do modelo integrado (aviso) [E2e] |
+| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Parcial | E | núcleo: três tipos em `Viga.vinculoExterno`: engaste (6 gdl presos), articulação (deslocamentos presos), deslizante (só o vertical, sem reação horizontal); rigidez de folga de 10⁴ nos gdl livres (modo de corpo rígido) [E2e] |
 | K1.3.11 | Alerta: pilares que tocam esses apoios podem ficar "pendurados" — a carga não chega à fundação e podem surgir reações negativas. | Fora | — | alerta ligado a recurso inexistente (apoio em muro) |
 | K1.3.12 | Alerta: na articulação deslizante, viga contínua ou alinhada ao eixo do apoio gera engaste por continuidade (momentos negativos na borda); conferir se a obra garante isso; viga desalinhada comporta-se como articulada. | Fora | — | alerta ligado a recurso inexistente |
 | K1.3.13 | Para evitar engaste por continuidade: rótula na extremidade da viga junto ao apoio. | Fora | — | conselho de modelagem; rótula de extremidade já existe |
 | K1.3.14 | Limitação: não se obtêm as reações desses apoios em muro. | Fora | — | limitação do outro programa |
 | K1.3.15 | Vigas de fundação: vigas "flutuantes" sobre meio elástico; molas nos nós a partir do coeficiente de reação (módulo de reação do solo). | Feito | — | vigas de fundação sobre base elástica (Winkler) no pórtico espacial: barras b × h divididas pela malha das opções, molas k × b × comprimento de influência e giro k·b³/12 por metro (`src/core/building/baseElastica.ts`, `montarBaseElastica`); validada contra Hetényi (erro 0,01 % no recalque e 0,07 % no momento) |
 | K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Parcial | E | núcleo: barra de 2 nós e 6 gdl ligada a nós existentes (pilar com trecho rígido até a face − `trechoRigido`·h; viga: nó criado no eixo, só no modelo separado), pontas em cotas diferentes, fora do diafragma (nada a une ao corpo rígido; teste de zonas); validada contra o OpenSees (`validation/opensees/viga_inclinada.py`) [E2c] |
-| K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Falta | E | consolos curtos (NBR 6118 22.5) [E2e] |
+| K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Parcial | E | núcleo: consolos curtos pela NBR 6118 22.5 e NBR 9062 (`consolos.ts`: muito curto por atrito-cisalhamento, curto por bielas e tirantes, longo como balanço; biela, contato, cortante, costura, ancoragem); coeficientes e itens da NBR 9062 a confirmar (`docs/pendencias-usuario.md`) [E2e] |
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Parcial | E | treliçadas como faixas T na grelha (`propriedadesLaje`); vigotas não são barras individuais [E3b] |
 | K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) [E3e] |
 | K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Falta | E | fase construtiva das alveolares [E3e] |
@@ -198,7 +198,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
 | K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: `Viga.amarracao` (EI vertical × 10⁻¹⁵, A e plano × 10⁶, GJ das demais vigas; `propsBarraViga` em `analitico.ts`); interface no cartão E2a-1 [E2a] |
-| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Falta | E | apoio em muro [E2e] |
+| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: viga de vínculo externo com EI × 10² (`vinculoExternoFatorEI`), plano e EA × 10⁶, GJ × `torcaoViga` (`propsBarraViga`) [E2e] |
 | K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Parcial | E | casca com E = Ecs (EI bruto), torção pela placa e E × `axialPilares` nas cargas verticais (majora também a flexão: material isotrópico); 0,8·Eci·Ic no γz (`incluirParedes`, `analitico.ts`) [E1b] |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
 | K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Falta | E | lajes alveolares (mistas fora) [E3e] |
@@ -236,12 +236,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Feito | — | `comprimentoEmenda` e `detalharParedes` (`detalhamentoParedes.ts`): tracionada se algum elemento do quarto superior do pano traciona a vertical, α0t pela proporção (`paredeEmendaProp`), ampliação pelo espaçamento (`paredeEmendaAmpliar`) [E1d] |
 | K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Feito | — | opção `paredeCumprimento` (90 %; NBR 100 %), `escolherMalhasPano` e `fracaoAtende` (`paredesArmadura.ts`); pontos que não atendem e armadura local necessária em `ResultadoPano.pontos/reforcos` [E1d] |
 | K1.4.61 | Estribos: na interseção com laje/viga (padrão ativo) e adensamento no topo e base numa altura definida (padrão inativo; recomendado em zona sísmica). | Feito | — | estribos também na interseção com vigas e lajes (nó incluído) e opção `pilarAdensamento` (padrão inativa) com altura e espaçamento adensado (`pilarAdensamentoAltura`/`Espacamento`, valores iniciais a confirmar), contados no quantitativo e desenhados na elevação e na prancha (`posicoesEstribos`) (R7c) |
-| K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos (E2) [E2e] |
+| K1.4.62 | Outras opções de pilar listadas: arranques, taxas mínimas, consolos curtos. | Parcial | E | arranques (R3b) e taxas mínimas aplicados; consolos curtos: opções `consoloHMinimo`, `consoloBraco`, `consoloMu`, `consoloCostura`, `consoloTensaoApoio` e `consoloExcentricidade` (E2e, interface nos cartões `docs/cartoes/E2e/`) [E2e] |
 | | **Vigas (listadas, sem valores)** | | | |
 | K1.4.63 | Armadura negativa simétrica em vigas de um vão; diferença % para simetria da negativa. | Feito | — | opção `vigaSimetriaNegativos` (tolerância %, padrão do sistema 25 % a confirmar; NBR 0): em viga de um vão os dois negativos ganham o maior número de barras (R7b) |
 | K1.4.64 | Critérios de ganchos; ganchos no fim do alinhamento. | Feito | — | opção `vigaPernaGancho` (× φ, mínimo 8φ, 9.4.2.3), perna e ganchos por posição editáveis (`viga.detalhe`), `BarraViga.perna` usada nas pranchas; montagem com gancho ou reta (R7b) |
 | K1.4.65 | Comprimento mínimo de estribos; simetria de estribos; estribos de bitolas diferentes na viga; ancoragem do fechamento; estribos em U; estribos múltiplos. | Feito | — | estribos por zonas do cortante e da torção; comprimento mínimo de zona (`vigaEstriboZonaMin`), simetria (`vigaEstriboSimetria`), extensão de d/2, bitola, espaçamento e ramos por zona (R7b); gancho do fechamento de 90°, 135° ou 180° (`vigaEstriboGancho`, `ganchoEstribo`) e estribo em U (`vigaEstriboU`, edição por zona `viga.detalhe { zonas: [{ u }] }`, `estriboComprimento`) (R7g) |
-| K1.4.66 | Armadura de vigas pré-moldadas (armadas e protendidas) e propriedades; estribos de vigas protendidas. | Falta | E | vigas pré-moldadas (NBR 9062) [E2e] |
+| K1.4.66 | Armadura de vigas pré-moldadas (armadas e protendidas) e propriedades; estribos de vigas protendidas. | Parcial | E | núcleo: vigas pré-moldadas armadas (γc do controle pré-moldado, ligações articuladas por padrão, verificação de içamento) e de ficha (protendidas e treliçadas pré-fabricadas, só verificadas); `premoldadas.ts`, opções `premoldada*`; estribos de protendidas pelo fabricante [E2e] |
 | K1.4.67 | Detalhamento de vigas sísmicas. | Fora | — | sismo |
 | K1.4.68 | Cobrimentos superior, inferior e lateral; idem para vigas de fundação. | Feito | — | cobrimentos inferior, superior e lateral das vigas (Norma.cobFaces, N1b); vigas de fundação (FU) |
 | K1.4.69 | Avaliação de erros; numeração de pórticos e de vigas. | Parcial | L | renumeração automática de vigas (`viga.renumerar`); sem pórticos [L4] — L4 núcleo: `portico.renumerar`, `porticosDoGrupo`, `avaliarNumeracao` (`porticos.ts`); interface: `DadosL4.tsx` (cartão 03) |
@@ -982,5 +982,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: K1.15.1-2 sai das pendências da E.
 - **23/10/2026 — E2d, núcleo (diagonais de contraventamento).** K1.4.88 segue Parcial, agora com as opções de flambagem e a esbeltez máxima das diagonais (comprimento total entre as pontas, sem redução no cruzamento); interface nos cartões `docs/cartoes/E2d/`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: sem mudança de contagem.
+- **23/10/2026 — E2e, núcleo (consolos curtos, vínculo externo e vigas pré-moldadas).** K1.3.9, K1.3.10, K1.3.17, K1.4.29 e K1.4.66 passam de Falta a Parcial e K1.4.62 segue Parcial com as opções de consolo (`consoloHMinimo`, `consoloBraco`, `consoloMu`, `consoloCostura`, `consoloTensaoApoio`, `consoloExcentricidade`), `vinculoExternoFatorEI` e `premoldada*`; coeficientes e itens da NBR 9062 em `docs/pendencias-usuario.md`; interface nos cartões `docs/cartoes/E2e/`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança de contagem.

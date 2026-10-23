@@ -17,6 +17,7 @@ import {
   montarFolha, mover, nf, nivel, notas, ordemNome, perdasDe, phiTxt, ponto, qtd, resumoAco, tabelaAco, type Bloco, type BlocoTabela, type PosDe,
 } from './armacao';
 import type { OpcoesArmacao } from './armacaoVigas';
+import { blocoConsolo, detalharConsolo } from './armacaoConsolos';
 
 const ESCALAS_ELEV = [20, 25, 40, 50, 75, 100, 125, 150, 200, 250];
 
@@ -223,7 +224,9 @@ export function montarPranchasPilares(b: BuildingModel, _an: AnaliseEdificio | n
   const cfg = cfgArmacao(b), perdas = perdasDe(b), fck = fckDe(b, 'pilar');
   const acoL = acoDe(b, 'pilarLong').aco, acoE = acoDe(b, 'pilarEstribo').aco;
   const grupos = gruposDePilares(b, dim);
-  if (!grupos.length) return [];
+  // consolos (E2e, C6.108): um bloco por consolo, depois dos pilares
+  const consolos = (dim.consolos ?? []).map((r) => ({ r, c: b.consolos?.find((x) => x.id === r.consolo) })).filter((x): x is { r: NonNullable<typeof dim.consolos>[number]; c: NonNullable<typeof x.c> } => !!x.c);
+  if (!grupos.length && !consolos.length) return [];
   const nts = notas([
     'Medidas em cm; bitolas (φ) em mm; níveis em m.',
     `Concreto C${fck} (fck = ${fck} MPa); aço ${acoL} nas barras longitudinais e ${acoE} nos estribos e grampos.`,
@@ -233,7 +236,10 @@ export function montarPranchasPilares(b: BuildingModel, _an: AnaliseEdificio | n
   // escala por grupo pela altura útil do maior formato possível
   const f0 = cfg.formato === 'auto' ? 'A1' : cfg.formato, a0 = areaArmacao(f0);
   const escalas = grupos.map((g) => escalaQueCabe(b, g, a0.y1 - a0.y0));
-  const blocos: Bloco[] = grupos.map((g, i) => { const ch = new Chaves(); return bloco(blocoPilares(b, g, escalas[i], (k, a, p, c) => ch.pos(k, a, p, c)), ch.s, g.pilares.map((x) => x.nome).join('=')); });
+  const blocos: Bloco[] = [
+    ...grupos.map((g, i) => { const ch = new Chaves(); return bloco(blocoPilares(b, g, escalas[i], (k, a, p, c) => ch.pos(k, a, p, c)), ch.s, g.pilares.map((x) => x.nome).join('=')); }),
+    ...consolos.map(({ r, c }) => { const ch = new Chaves(); return bloco(blocoConsolo(b, c, r, (k, a, p, cc) => ch.pos(k, a, p, cc)), ch.s, `Consolo ${c.nome}`); }),
+  ];
   const { formato, avisos } = formatoArmacao(cfg.formato, blocos);
   const area = areaArmacao(formato);
   const cap = capacidadeTabela(formato, 64, [nts], 8);
@@ -246,7 +252,14 @@ export function montarPranchasPilares(b: BuildingModel, _an: AnaliseEdificio | n
     const reg = new Posicoes(), desenho: Prim[] = [];
     let concreto = 0, forma = 0;
     for (const i of idx) {
-      const g = grupos[i], c = col[i];
+      const c = col[i];
+      if (i >= grupos.length) {
+        const { r, c: cs } = consolos[i - grupos.length], det = detalharConsolo(b, cs, r);
+        desenho.push(...mover(bloco(blocoConsolo(b, cs, r, (k, a, p, cc, q) => reg.pos(k, a, p, cc, q)), new Set(), '').prims, area.x0 + c.x, area.y1 - c.y));
+        concreto += cs.b * cs.c * ((cs.h + cs.hp) / 2); forma += (cs.b + (cs.h + cs.hp)) * cs.c + det.tirante.n * 0;
+        continue;
+      }
+      const g = grupos[i];
       desenho.push(...mover(bloco(blocoPilares(b, g, escalas[i], (k, a, p, cc, q) => reg.pos(k, a, p, cc, q)), new Set(), '').prims, area.x0 + c.x, area.y1 - c.y));
       for (const p of g.pilares) for (const pav of lancesDoPilar(b, p)) {
         const k = ps.findIndex((x) => x.id === pav.id), hl = k > 0 ? pav.cota - ps[k - 1].cota : b.obra.profundidadeFundacao;
@@ -258,8 +271,8 @@ export function montarPranchasPilares(b: BuildingModel, _an: AnaliseEdificio | n
     const sufixo = nFolhas > 1 ? ` (${f + 1}/${nFolhas})` : '';
     out.push(montarFolha({
       b, formato, tipo: 'pilares', titulo: `Armação dos pilares${sufixo}`, conteudo: `ARMAÇÃO DOS PILARES${sufixo}`, escala: 'INDICADA', escalaNum: cfg.escalaPilares, carimbo: o.carimbo,
-      desenho, tabelas: [nts, tabelaAco(aco.tabela), resumoAco(aco, fck)], legenda: `Elevações 1:${[...new Set(idx.map((i) => escalas[i]))].join(', 1:')} · seções 1:${cfg.escalaSecao}`,
-      avisos: f === 0 ? avisos : [], aco, elementos: idx.flatMap((i) => grupos[i].pilares.map((x) => x.nome)),
+      desenho, tabelas: [nts, tabelaAco(aco.tabela), resumoAco(aco, fck)], legenda: `Elevações 1:${[...new Set(idx.filter((i) => i < grupos.length).map((i) => escalas[i]))].join(', 1:')} · seções ${consolos.length ? 'e consolos ' : ''}1:${cfg.escalaSecao}`,
+      avisos: f === 0 ? avisos : [], aco, elementos: idx.flatMap((i) => (i < grupos.length ? grupos[i].pilares.map((x) => x.nome) : [`Consolo ${consolos[i - grupos.length].c.nome}`])),
     }));
   }
   // quadro de pilares nas últimas folhas
