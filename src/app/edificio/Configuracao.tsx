@@ -49,7 +49,7 @@ export function JanelaConfiguracao({ b }: { b: BuildingModel }) {
   if (cfg) ultima.current = cfg;
   const corpo = useRef<HTMLDivElement>(null);
   // a janela cobre a doca esquerda (mesma largura) e não bloqueia o desenho: dá para editar uma opção e conferir na planta
-  const docaW = useLayout((s) => s.docas['edificio-esq']?.w ?? 400);
+  const docaW = useLayout((s) => s.docas['edificio-esq']?.w ?? 320);
   const fechar = () => useEdifUI.getState().set({ cfg: null });
   // os grupos nascem recolhidos (<details>): dentro da janela abrem todos
   useEffect(() => { corpo.current?.querySelectorAll('details.group').forEach((d) => { (d as HTMLDetailsElement).open = true; }); }, [secao.id, b]);

@@ -2833,6 +2833,7 @@ export const flows = [
       assert.equal((await dados(1)).grandeza, 'AsInfX');
 
       // ---- clique no mapa abre a janela da laje
+      await page.locator('[data-isov-janela="2"] svg.isov-mapa').scrollIntoViewIfNeeded();
       const caixa = await page.locator('[data-isov-janela="2"] svg.isov-mapa').boundingBox();
       await page.mouse.click(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
       await page.locator('.modal, [role="dialog"]').first().waitFor({ timeout: 5000 });
@@ -6174,6 +6175,8 @@ export const flows = [
       assert.match(await page.locator('[data-lista-erros]').innerText(), /VIGOTA_(POS|CORTANTE|NEG)/);
       // 7) exposição e momentos mínimos por pano (grupo Vínculos e engastes, com a laje selecionada na planta)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.keyboard.press('f');
+      await page.waitForTimeout(500);
       const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
       await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
       const vg = await grupoEdif(page, /^Vínculos, flambagem e cobrimento/);
