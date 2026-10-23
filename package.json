@@ -10,6 +10,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "e2e": "node e2e/run.mjs",
+    "mapa": "node scripts/mapa-codigo.mjs",
     "checklists": "node scripts/recontar-checklists.mjs",
     "cli": "vite build --config vite.cli.config.ts",
     "agente": "node docs/exemplos/agente-mcp.mjs"
