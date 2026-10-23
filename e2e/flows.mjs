@@ -5376,4 +5376,89 @@ export const flows = [
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.find((x) => x.nome === 'CM')?.pontos.every((p) => Math.abs(p[0] - 5) < 1e-4), null);
     },
   },
+  {
+    name: 'E2c: viga inclinada entre pavimentos (lançamento, ligação, carga, resultados, armadura bloqueada e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.4, "h": 0.4}}}`).join(', ') + ']}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 2, null);
+      // 1. janela pela paleta (Ctrl+K); lançamento do Tipo 1 ao Tipo 2, de P1 a P2
+      const abrir = async () => {
+        await page.locator('#edcmd').blur();
+        await page.keyboard.press('Control+k');
+        await page.getByRole('dialog').getByRole('textbox').fill('Vigas inclinadas');
+        await page.keyboard.press('Enter');
+        const j = page.getByRole('dialog', { name: 'Vigas inclinadas', exact: true });
+        await j.waitFor();
+        return j;
+      };
+      let jan = await abrir();
+      await jan.getByLabel(/^Centro do pilar da ponta inicial/).selectOption({ label: 'P1' });
+      await jan.getByLabel(/^Centro do pilar da ponta final/).selectOption({ label: 'P2' });
+      for (const [rot, v] of [[/^Lançar: largura b/, '25'], [/^Lançar: altura h/, '60']]) { const c = jan.getByLabel(rot); await c.fill(v); await c.press('Enter'); }
+      await jan.getByRole('button', { name: 'Lançar viga inclinada', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigasInclinadas?.length === 1, null);
+      let m = await modelo(), vi = m.vigasInclinadas[0];
+      assert.equal(vi.nome, 'VI1');
+      assert.deepEqual(vi.pIni, [0, 0]);
+      assert.deepEqual(vi.pFim, [8, 0]);
+      assert.deepEqual(vi.secao, { b: 0.25, h: 0.6 });
+      assert.equal(m.pavimentos.find((p) => p.id === vi.pavIni).nome, 'Tipo 1');
+      assert.equal(m.pavimentos.find((p) => p.id === vi.pavFim).nome, 'Tipo 2');
+      await jan.locator('[data-inclinadas-lista]').getByText('Tipo 1 → Tipo 2', { exact: true }).waitFor();
+      // 2. ligação articulada na ponta inicial, desnível e uma carga linear de 20 kN/m
+      await jan.getByLabel(/^Ligação da ponta inicial/).selectOption('articulada');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigasInclinadas?.[0]?.ligIni === 'articulada', null);
+      const valor = jan.getByLabel(/^Valor da carga/);
+      await valor.fill('20'); await valor.press('Enter');
+      await jan.getByRole('button', { name: 'Acrescentar a carga', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigasInclinadas?.[0]?.cargas?.length === 1, null);
+      vi = (await modelo()).vigasInclinadas[0];
+      assert.deepEqual([vi.cargas[0].caso, vi.cargas[0].tipo, vi.cargas[0].valor], ['G', 'linear', 20]);
+      assert.match(await jan.locator('[data-inclinada-resultados]').innerText(), /Calcule o edifício/);
+      await page.keyboard.press('Escape');
+      // 3. cálculo e resultados: armadura, esbeltez, desenho e envoltória
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      jan = await abrir();
+      const res = jan.locator('[data-inclinada-resultados]');
+      await res.locator('[data-inclinada-desenho]').waitFor();
+      const txt = await res.innerText();
+      assert.match(txt, /Flambagem: ℓe = \d+,\d+ m \(vertical, λ = \d+\)/);
+      assert.match(txt, /Armadura: \d+φ[\d,]+ sup \+ \d+φ[\d,]+ inf/);
+      assert.match(txt, /ligações articulada \/ engastada/);
+      await res.getByRole('button', { name: 'Detalhe das seções de VI1 (Tipo 1 → Tipo 2)', exact: true }).click();
+      assert.equal(await res.locator('[data-inclinada-envoltoria] tbody tr').count(), 21);
+      await res.getByRole('button', { name: 'Listagem de VI1 (Tipo 1 → Tipo 2)', exact: true }).click();
+      const lis = res.locator('[data-inclinada-listagem]');
+      await lis.waitFor();
+      assert.match(await lis.innerText(), /Materiais: C30, aço CA-50/);
+      assert.ok((await lis.locator('tbody tr').count()) === 21);
+      // 4. armadura bloqueada (4φ16 em cima, 4φ20 embaixo): a janela passa a mostrar "(bloqueada)"
+      for (const [rot, v] of [[/^Barras superiores/, '4'], [/^Barras inferiores/, '4']]) { const c = jan.getByLabel(rot); await c.fill(v); await c.press('Enter'); }
+      await jan.getByLabel(/^Bitola das superiores/).selectOption({ label: 'φ16' });
+      await jan.getByLabel(/^Bitola das inferiores/).selectOption({ label: 'φ20' });
+      await jan.getByRole('button', { name: 'Bloquear a armadura', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigasInclinadas?.[0]?.armadura?.inf?.phi === 20, null);
+      vi = (await modelo()).vigasInclinadas[0];
+      assert.deepEqual([vi.armadura.sup, vi.armadura.inf], [{ n: 4, phi: 16 }, { n: 4, phi: 20 }]);
+      await res.getByText('(bloqueada)', { exact: false }).waitFor({ timeout: 60000 });
+      await jan.getByRole('button', { name: 'Redimensionar esta viga inclinada', exact: true }).click();
+      await esperar(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigasInclinadas?.[0]?.armadura, null);
+      await page.keyboard.press('Escape');
+      // 5. memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mi = memo.locator('[data-memorial-inclinadas]');
+      await mi.waitFor();
+      assert.match(await mi.locator('[data-memorial-inclinadas-tabela="lista"]').innerText(), /VI1[\s\S]*Tipo 1 → Tipo 2[\s\S]*25×60 cm/);
+      assert.match(await mi.innerText(), /nós de extremidade/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];
