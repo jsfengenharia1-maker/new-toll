@@ -5413,7 +5413,7 @@ export const flows = [
       // 4) atribuir em cascata no grupo Lajes e preencher os panos
       const lj = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Lajes/ }) }).first();
       await lj.locator('summary').first().click();
-      await lj.getByLabel(/^Tipo$/).selectOption('vigotas');
+      await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('vigotas');
       await lj.getByLabel(/^Fabricante \(filtro\)/).selectOption('Fictício');
       const copia = (await modelo()).tiposLaje.fichas[0];
       await lj.getByLabel(/^Ficha da laje/).selectOption(copia.id);
