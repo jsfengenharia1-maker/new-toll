@@ -1090,3 +1090,4 @@ body.ajuda-on { cursor: help; }
 .cfg-corpo { overflow-y: auto; min-width: 0; }
 @media (max-width: 900px) { .cfg { grid-template-columns: 1fr; } .cfg-ind { flex-direction: row; flex-wrap: wrap; border-right: 0; padding-right: 0; } }
 .rstack { display: flex; flex-direction: column; gap: var(--sp-2); justify-content: center; min-width: 180px; }
+.optbar { min-height: var(--h-ctl-lg); }

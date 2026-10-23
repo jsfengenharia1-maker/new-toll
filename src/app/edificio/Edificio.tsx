@@ -204,9 +204,6 @@ export function Edificio() {
           )}
         </Group>
 
-        <Group title="Linha de comando">
-          <LinhaComando />
-        </Group>
       </aside>
       </Dock>
 
@@ -296,7 +293,7 @@ export function Malha() {
   );
 }
 
-function LinhaComando() {
+export function LinhaComando() {
   const exec = useBuilding((s) => s.exec);
   const [t, setT] = useState('');
   const [erro, setErro] = useState('');
@@ -313,11 +310,10 @@ function LinhaComando() {
   return (
     <>
       <form className="row" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
-        <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
+        <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" title="Os mesmos comandos da interface, da linha de comando (statikos exec) e do servidor MCP. Ctrl+Z desfaz." placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
         <datalist id="edcmds">{nomes.map((n) => <option key={n} value={n} />)}</datalist>
       </form>
-      {erro && <p className="hint bad">{erro}</p>}
-      <Hint>Os mesmos comandos da interface, da linha de comando (<code>statikos exec</code>) e do servidor MCP. Ctrl+Z desfaz.</Hint>
+      {erro && <span className="hint bad">{erro}</span>}
     </>
   );
 }
@@ -391,7 +387,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
     void executarERecalcular('lote', { comandos: [...porLaje].map(([id, pilares]) => ({ nome: 'laje.puncao', params: { id, pilares } })) });
   };
   return (
-    <div className="planta-barra">
+    <div className="planta-barra optbar">
       <label className="pavsel">Pavimento
         <Dropdown aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : FERRAMENTAS_FUNDACAO.includes(pl.ferramenta) ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
@@ -401,6 +397,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
         {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</Button>)}
       </div>
+      {pl.ferramenta === 'vigaGabarito' && <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />}
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
@@ -415,8 +412,6 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       </>}
       {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
       {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><Input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
-      <label className="check small"><Input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
-      <label className="check small"><Input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
       {pl.ferramenta === 'puncao' && (<>
         <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
           {(['adicionar', 'apagar'] as const).map((m) => <Button variant="nenhuma" key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</Button>)}
@@ -470,12 +465,6 @@ function MascaraGrupo({ b }: { b: BuildingModel }) {
           </table>
         </div>
       ))}
-      {ms.length > 0 && (
-        <div className="row wrap">
-          <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />
-          <Button variant={pl.ferramenta === 'vigaGabarito' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'vigaGabarito' })}>Viga pelo gabarito</Button>
-        </div>
-      )}
       <Hint>A máscara pertence ao grupo do pavimento da planta. Escala pela unidade do DXF ($INSUNITS); sem ela, estimada pelo tamanho do desenho.</Hint>
     </Group>
   );

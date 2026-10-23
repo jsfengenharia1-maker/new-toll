@@ -17,6 +17,8 @@ import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSe
 import { FaixaModulo } from './app/FaixaModulo';
 import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
 import { FaixaEdificio, ROTULO_CTX } from './app/edificio/FaixaEdificio';
+import { ControlesPlanta } from './app/edificio/ControlesPlanta';
+import { LinhaComando } from './app/edificio/Edificio';
 import { useAlvoSelecionado } from './app/edificio/alvo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
@@ -284,7 +286,6 @@ export default function App() {
           <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
           <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
         </div>
-        <span className={`status ${status.cls}`}>{status.text}</span>
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
@@ -342,6 +343,9 @@ export default function App() {
       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
       {st.libraryOpen && <Library />}
       <StatusBar mensagem={st.message}>
+        {st.module === 'edificio' && <LinhaComando />}
+        <span className={`status ${status.cls}`}>{status.text}</span>
+        {st.module === 'portico' && (<>
         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
@@ -367,6 +371,8 @@ export default function App() {
             {LENGTH_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
           </select>
         </label>
+        </>)}
+        {st.module === 'edificio' && <ControlesPlanta />}
       </StatusBar>
     </div>
     </AjudaProvider>

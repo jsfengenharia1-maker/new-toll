@@ -324,7 +324,7 @@ export const flows = [
       await page.locator('#edcmd').press('Enter');
       await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
-      await page.locator('.topbar .status.bad').waitFor();
+      await page.locator('.statusbar .status.bad').waitFor();
       await page.locator('.diags li.erro').getByRole('button', { name: /Criar um grupo próprio/ }).click();
       await page.locator('.diags', { hasText: 'Tipo 4' }).waitFor({ state: 'detached' });
 
@@ -435,16 +435,16 @@ export const flows = [
       await page.locator('summary', { hasText: 'Vigas — Tipo (2)' }).waitFor();
       await page.locator('summary', { hasText: 'Vigas' }).click();
       assert.equal(await page.getByLabel('Seção de V1').inputValue(), '15x40');
-      await page.locator('.topbar .status.ok').waitFor();
+      await page.locator('.statusbar .status.ok').waitFor();
       // viga solta digitada: erro de verificação; desfazer volta ao estado sem erro
       await page.keyboard.type('2;2'); await page.keyboard.press('Enter');
       await page.keyboard.type('3;2'); await page.keyboard.press('Enter');
       await page.keyboard.press('Enter');
-      await page.locator('.topbar .status.bad', { hasText: '1 erro' }).waitFor();
+      await page.locator('.statusbar .status.bad', { hasText: '1 erro' }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'V3 não se apoia' }).waitFor();
       await page.keyboard.press('Control+z');
-      await page.locator('.topbar .status.ok').waitFor();
+      await page.locator('.statusbar .status.ok').waitFor();
     },
   },
 {
@@ -5126,7 +5126,8 @@ export const flows = [
       // 2) viga pelo gabarito: clique na face e depois do lado do corpo da viga
       const masc = await abrirGrupo(/^Máscara/);
       assert.match(await masc.locator('summary').innerText(), /Máscara — Tipo \(1\)/);
-      await masc.getByRole('button', { name: 'Viga pelo gabarito', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('radio', { name: 'Viga pelo gabarito', exact: true }).click();
       await reenquadrarAte(page, [[3.0, 1.075], [3.0, 1.4], [3.0, 0.75]]);
       const clique = async (x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.click(px, py); };
       await clique(3.0, 1.075);
@@ -5141,7 +5142,7 @@ export const flows = [
       await clique(3.0, 1.075);
       await clique(3.0, 1.4);
       await msgBarra(/já foram lançadas/);
-      await masc.getByRole('radio', { name: 'Linha = eixo', exact: true }).click();
+      await page.getByRole('radio', { name: 'Linha = eixo', exact: true }).click();
       await clique(3.0, 0.925);
       await page.locator('summary', { hasText: /^Vigas — Tipo \(3\)/ }).waitFor();
       assert.equal(await page.getByLabel('Alinhamento de V3', { exact: true }).inputValue(), 'centro');
