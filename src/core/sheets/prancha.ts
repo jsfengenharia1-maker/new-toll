@@ -8,6 +8,7 @@ import { rotuloLaje } from '../building/tiposLaje';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
+import { chaveElem, geometriaCota } from '../building/cotas';
 
 export type { P };
 
@@ -232,6 +233,25 @@ export function eixosECotas(modelo: Prim[], eixos: BuildingModel['eixos'], centr
 
 }
 
+/**
+ * Cotas permanentes de planta do usuário (L6) na camada COTA: chamadas, linha com marcas oblíquas e valor em cm acima da
+ * linha (como as cotas automáticas). `filtro` escolhe as cotas (formas: as do grupo; locação: as só de pilares, eixos e pontos).
+ */
+export function cotasDoUsuario(b: BuildingModel, modelo: Prim[], k: number, filtro: (c: NonNullable<BuildingModel['cotas']>[number]) => boolean) {
+  const vistas = new Set<string>();
+  for (const c of b.cotas ?? []) {
+    if (!filtro(c)) continue;
+    const assinatura = `${c.estilo}|${c.linha.angulo}|${c.linha.offset}|${c.refs.map((r) => `${r.elem ? chaveElem(r.elem) : r.fixo}:${r.parte}`).join(',')}`;
+    if (vistas.has(assinatura)) continue;
+    vistas.add(assinatura);
+    const g = geometriaCota(b, c, 2 * k), ang = (c.linha.angulo * Math.PI) / 180, u: P = [Math.cos(ang), Math.sin(ang)], n: P = [-u[1], u[0]], tk = 1.2 * k;
+    for (const ch of g.chamadas) modelo.push({ t: 'pl', c: 'COTA', pts: ch });
+    for (const l of g.linhas) modelo.push({ t: 'pl', c: 'COTA', pts: l });
+    for (const q of g.marcas) modelo.push({ t: 'pl', c: 'COTA', pts: [[q[0] - (u[0] + n[0]) * tk, q[1] - (u[1] + n[1]) * tk], [q[0] + (u[0] + n[0]) * tk, q[1] + (u[1] + n[1]) * tk]] });
+    for (const t of g.textos) modelo.push({ t: 'txt', c: 'COTA', p: [t.p[0] + n[0] * 0.8 * k, t.p[1] + n[1] * 0.8 * k], h: 2 * k, s: t.s, ang: t.ang, ah: 'c', av: 'base' });
+  }
+}
+
 export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha = {}): Prancha {
   const cfg = { ...PRANCHA_PADRAO, ...(b.prancha ?? {}) };
   const el = elementos(b, grupo);
@@ -325,6 +345,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   if (opc.pontoFixo) modelo.push(...marcasPontoFixo([...el.chegam, ...el.nascem], k));
   const centros = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p)), ...el.paredes.map((w) => w.lados.flatMap((l) => l.contorno))].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, el.eixos, centros, [gx0, gy0, gx1, gy1], k);
+  if (opc.cotasUsuario) cotasDoUsuario(b, modelo, k, (c) => c.grupo === grupo);
 
   // ---------- espaço do papel ----------
   const papel: Prim[] = [];

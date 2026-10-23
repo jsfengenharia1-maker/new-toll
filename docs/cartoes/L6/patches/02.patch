@@ -1,0 +1,154 @@
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index 7553ea3..5d469b0 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -35,6 +35,7 @@ import { executarERecalcular, idsBloqueados } from './Armadura';
+ import { Input, useAjuda } from '../ui';
+ import type { ElemCota } from '../../core/building/types';
+ import type { ModoRef } from '../../core/geom/cotasTemp';
++import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/cotas';
+ import { ajudaDaFerramenta } from '../../core/ajuda';
+ import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
+ 
+@@ -885,10 +886,27 @@ export function Planta() {
+     ctx.fillText(c.tipo + (it.current.caps.length > 1 ? `  (Tab: ${it.current.ciclo % it.current.caps.length + 1}/${it.current.caps.length})` : ''), x + 10, y - 9);
+   };
+ 
++  /** Cotas permanentes do pavimento (L6): chamadas, linha, marcas e valor em cm. */
++  const desenharCotasPermanentes = (ctx: CanvasRenderingContext2D) => {
++    if (nivelFund) return;
++    ctx.lineWidth = 1; ctx.strokeStyle = cores.cota; ctx.fillStyle = cores.cota; ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
++    for (const c of b.cotas ?? []) {
++      if (c.grupo !== grupo) continue;
++      const g = geometriaCota(b, c, 0.05);
++      ctx.beginPath();
++      for (const [a, z] of [...g.chamadas, ...g.linhas]) { const [x0, y0] = paraTela(a[0], a[1]), [x1, y1] = paraTela(z[0], z[1]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
++      for (const q of g.marcas) { const [x, y] = paraTela(q[0], q[1]); ctx.moveTo(x - 4, y + 4); ctx.lineTo(x + 4, y - 4); }
++      ctx.stroke();
++      for (const t of g.textos) { const [x, y] = paraTela(t.p[0], t.p[1]); ctx.save(); ctx.translate(x, y - 2); ctx.rotate((-t.ang * Math.PI) / 180); ctx.fillText(t.s, 0, 0); ctx.restore(); }
++    }
++    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
++  };
++
+   const desenharInteracao = () => {
+     const v = vista, ctx = prep(cvI.current);
+     if (!v || !ctx) return;
+     ctx.clearRect(0, 0, tam[0], tam[1]);
++    desenharCotasPermanentes(ctx);
+     const s = it.current, [px, py] = paraTela(...s.ponto);
+     // janela de seleção
+     if (s.janela) {
+@@ -1172,6 +1190,56 @@ export function Planta() {
+     return pil ? { id, nome: el?.nome ?? pil.p.nome, centro: centroPilar(pil.p, secaoBase(b, pil.p)) as P2 } : null;
+   };
+ 
++  // ---- cota em série (L6) ----
++  /** Elemento da planta sob o ponto para a cota: pilar, viga ou parede (null = ponto livre). */
++  const elemCotaSob = (w: P2): ElemCota | null => {
++    const q = pilarSob(w);
++    if (q && q.estado !== 'inferior') return { tipo: 'pilar', id: q.p.id };
++    const v = vigaSob(w);
++    if (v) return { tipo: 'viga', id: v.id };
++    const pp = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(w, l.contorno)));
++    return pp && paredeDoPP(b, pp.pp) ? { tipo: 'parede', id: pp.pp.id } : null;
++  };
++  const agirCota = (p: P2) => {
++    if (nivelFund || !pav) { msg('A cota em série é lançada nas plantas dos pavimentos.'); return; }
++    const S = cotaSerie.current;
++    if (S.linha) { finalizarCota(p); return; }
++    const elem = elemCotaSob(it.current.cursor) ?? undefined;
++    const ponto = (elem && resolverRef(b, grupo, { elem, parte: 'centro' }, 0)) || p;
++    const ult = S.refs.at(-1);
++    if (ult && (elem ? ult.elem?.id === elem.id : Math.hypot(ult.ponto[0] - ponto[0], ult.ponto[1] - ponto[1]) < 1e-6)) return;
++    S.refs.push({ elem, ponto: ponto as P2 });
++    setPontos(S.refs.map((r) => r.ponto));
++    msg(`${S.refs.length} referência(s) (${S.modo === 'face' ? 'faces' : 'eixos'}). Enter fecha a série; Tab troca face e eixo; Backspace tira a última.`);
++  };
++  /** Enter/duplo clique: fecha a série e passa a pedir a linha de cota. */
++  const fecharSerie = () => {
++    const S = cotaSerie.current;
++    if (S.refs.length < 2) { msg('Cota em série: ao menos 2 referências.'); return; }
++    S.linha = true;
++    msg('Clique onde posicionar a linha de cota (ou digite a distância em cm da primeira referência).');
++  };
++  /** Cria a cota permanente: `p` = ponto da linha ou `distancia` (m) da primeira referência pela normal. */
++  const finalizarCota = (p: P2 | null, distancia = 0) => {
++    const S = cotaSerie.current;
++    const pts = S.refs.map((r) => r.ponto);
++    const dx = pts.at(-1)![0] - pts[0][0], dy = pts.at(-1)![1] - pts[0][1];
++    const angulo = Math.abs(dx) >= Math.abs(dy) ? 0 : 90, u = angulo ? [0, 1] : [1, 0];
++    const ordem = [...S.refs].sort((a, z) => a.ponto[0] * u[0] + a.ponto[1] * u[1] - (z.ponto[0] * u[0] + z.ponto[1] * u[1]));
++    const refs: Record<string, unknown>[] = [];
++    ordem.forEach((r, i) => {
++      if (!r.elem) { refs.push({ fixo: [+r.ponto[0].toFixed(4), +r.ponto[1].toFixed(4)], parte: 'centro' }); return; }
++      if (S.modo === 'eixo') { refs.push({ elem: r.elem, parte: 'centro' }); return; }
++      if (i === 0) refs.push({ elem: r.elem, parte: 'faceB' });
++      else if (i === ordem.length - 1) refs.push({ elem: r.elem, parte: 'faceA' });
++      else refs.push({ elem: r.elem, parte: 'faceA' }, { elem: r.elem, parte: 'faceB' });
++    });
++    const offset = p ? offsetDoPonto(angulo, p) : offsetDoPonto(angulo, ordem[0].ponto) + distancia;
++    cotaSerie.current = { refs: [], linha: false, modo: S.modo };
++    setPontos([]);
++    exec('cota.criar', { grupo, refs, linha: { angulo, offset: +offset.toFixed(4) } });
++  };
++
+   // ---- ações das ferramentas ----
+   const selecionados = () => ({ corridas: corridasP.filter((x) => pl.selecao.has(x.c.id)).map((x) => x.c.id), radiers: radiers.filter((r) => pl.selecao.has(r.id)).map((r) => r.id), vigasEl: vigasEl.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), limites: limites.filter((l) => pl.selecao.has(l.id)).map((l) => l.id), vigasFund: vigasFund.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
+   const agir = (p: P2) => {
+@@ -1185,6 +1253,7 @@ export function Planta() {
+       return;
+     }
+     if (f === 'selecionar') return;
++    if (f === 'cota') { agirCota(p); return; }
+     if (f === 'vigaGabarito') {
+       // L2 (C6.63): clique na linha, arco ou polilinha do gabarito; no modo face, o 2º clique diz o lado do corpo da viga
+       if (nivelFund) { msg('A viga pelo gabarito é lançada nas plantas dos pavimentos.'); return; }
+@@ -1669,6 +1738,7 @@ export function Planta() {
+       if (k === ' ') { it.current.espaco = e.type === 'keydown'; e.preventDefault(); return; }
+       if (e.type !== 'keydown') return;
+       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }
++      if (k === 'Enter' && P.ferramenta === 'cota') { fecharSerie(); return; }
+       if (k === 'Enter' && POLILINHAS.includes(P.ferramenta)) { terminar(); return; }
+       if (k === 'Enter' && P.ferramenta === 'contornoRet' && pontos.length === 2) { // L5: cantos opostos, ângulo zero
+         setPontos([]);
+@@ -1691,7 +1761,8 @@ export function Planta() {
+       // A é a tecla da sapata corrida só no nível de fundação e fora das ferramentas em que A já é outra coisa (alinhamento da viga, ajuste do pilar)
+       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
+       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
+-      if (k === 'Escape') { P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
++      if (k === 'Escape') { cotaSerie.current = { refs: [], linha: false, modo: cotaSerie.current.modo }; P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
++      if (k === 'Tab' && P.ferramenta === 'cota') { e.preventDefault(); const S = cotaSerie.current; S.modo = S.modo === 'face' ? 'eixo' : 'face'; msg(`Referência da série: ${S.modo === 'face' ? 'faces' : 'eixos e centros'}.`); return; }
+       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
+       if (k === 'F8') { e.preventDefault(); P.set({ orto: !P.orto }); msg(`Ortogonal ${P.orto ? 'desligado' : 'ligado'}.`); return; }
+       if (k === 'F3') {
+@@ -1708,6 +1779,7 @@ export function Planta() {
+       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'r') { P.set({ angulo: (P.angulo + 90) % 360 }); return; }
+       if (P.pavimento === 'fundacao' && k.toLowerCase() === 'r') { const sel = selecionados().fundacoes; if (sel.length) { exec('lote', { comandos: sel.map((id) => ({ nome: 'fundacao.girar', params: { ids: [id], angulo: (b.fundacao?.elementos.find((e) => e.id === id)?.angulo ?? 0) + 90 } })) }); return; } }
+       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
++      if (k === 'Backspace' && P.ferramenta === 'cota' && cotaSerie.current.refs.length && !cotaSerie.current.linha) { e.preventDefault(); cotaSerie.current.refs.pop(); setPontos(cotaSerie.current.refs.map((r) => r.ponto)); return; }
+       if (k === 'Backspace' && P.ferramenta === 'viga' && pontos.length) {
+         // L5 (C6.6): Backspace apaga o último ponto da sequência de pontos da viga
+         e.preventDefault();
+@@ -1731,6 +1803,12 @@ export function Planta() {
+   });
+ 
+   const confirmarDigitado = () => {
++    if (pl.ferramenta === 'cota' && cotaSerie.current.linha) {
++      const v = Number((digitando ?? '').replace(',', '.'));
++      setDigitando(null);
++      if (Number.isFinite(v)) finalizarCota(null, v / 100); else msg('Digite a distância da linha em cm.');
++      return;
++    }
+     // com um pilar de baixo sob o cursor, "@dx;dy" sem ponto anterior é relativo ao ponto fixo dele (E1a)
+     const qb = it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) : null;
+     const p = pontoDigitado(digitando ?? '', pontos.at(-1) ?? (pl.ferramenta === 'pilar' && qb ? [refBaixo(qb.p).x, refBaixo(qb.p).y] : null), it.current.cursor);
+@@ -1749,7 +1827,8 @@ export function Planta() {
+         <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
+           onDoubleClick={() => {
+-            if (POLILINHAS.includes(pl.ferramenta)) terminar(pl.ferramenta === 'viga' && usePlanta.getState().passagemViga ? pontosRef.current : pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
++            if (pl.ferramenta === 'cota') fecharSerie();
++            else if (POLILINHAS.includes(pl.ferramenta)) terminar(pl.ferramenta === 'viga' && usePlanta.getState().passagemViga ? pontosRef.current : pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
+             else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
+             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
+           }} />

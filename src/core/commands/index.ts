@@ -28,6 +28,7 @@ import './paredes';
 import './paredesArmadura';
 import './alvenaria';
 import './cortes';
+import './cotas';
 import './grupos';
 
 export * from './registry';

@@ -8,6 +8,7 @@ import { sincronizarBases, temBasesDeParede } from '../building/corridaParede';
 import { sincronizarCurvas, temCurvas } from '../building/curvas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { sincronizarComuns, temComuns } from '../building/vigaComum';
+import { sincronizarCotas, temCotas } from '../building/cotas';
 import { comDefaults, validarSchema, type JsonSchema } from './schema';
 
 enablePatches();
@@ -118,6 +119,12 @@ export function aplicarComando(b: BuildingModel, nome: string, params: unknown):
     const [m4, p4, i4] = produceWithPatches(modelo, (d) => { avisos = [...sincronizarCurvas(d, corda), ...sincronizarComuns(d)]; });
     if (p4.length) { modelo = m4; patches = [...patches, ...p4]; inversos = [...i4, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
   }
+  // cotas de planta (L6): a referência de um elemento removido vira ponto livre, com aviso; a cota de grupo removido sai
+  if (temCotas(modelo)) {
+    let avisos: string[] = [];
+    const [m5, p5, i5] = produceWithPatches(modelo, (d) => { avisos = sincronizarCotas(d, b); });
+    if (p5.length) { modelo = m5; patches = [...patches, ...p5]; inversos = [...i5, ...inversos]; mensagem = [mensagem, ...avisos].filter(Boolean).join(' '); }
+  }
   return { ok: true, erros: [], modelo, params: p, patches, inversos, diff: diffModelos(b, modelo), mensagem };
 }
 
@@ -125,7 +132,7 @@ type ComId = { id: string; nome?: string };
 const COLECOES: { k: keyof BuildingModel; rot: string }[] = [
   { k: 'pavimentos', rot: 'pavimento' }, { k: 'grupos', rot: 'grupo' }, { k: 'eixos', rot: 'eixo' }, { k: 'cortes', rot: 'corte' }, { k: 'secoes', rot: 'seção' },
   { k: 'mascaras', rot: 'máscara' }, { k: 'pilares', rot: 'pilar' }, { k: 'vigas', rot: 'viga' }, { k: 'vigasInclinadas', rot: 'viga inclinada' }, { k: 'diagonais', rot: 'diagonal' }, { k: 'lajes', rot: 'laje' }, { k: 'cargas', rot: 'carga' },
-  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' }, { k: 'tiposAlvenaria', rot: 'tipo de alvenaria' }, { k: 'blocos', rot: 'bloco' },
+  { k: 'tiposPilarParede', rot: 'tipo de pilar-parede' }, { k: 'pilaresParede', rot: 'pilar-parede' }, { k: 'paredes', rot: 'parede' }, { k: 'murosArrimo', rot: 'muro de arrimo' }, { k: 'tiposAlvenaria', rot: 'tipo de alvenaria' }, { k: 'blocos', rot: 'bloco' }, { k: 'cotas', rot: 'cota' },
 ];
 
 /** Diferenças legíveis entre dois modelos (por id nas coleções e por bloco nos dados gerais). */

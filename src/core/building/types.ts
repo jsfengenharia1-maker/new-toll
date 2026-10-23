@@ -937,6 +937,8 @@ export interface BuildingModel {
   linhasDobra?: LinhaDobra[];
   /** Vista permanente da obra (L4): tipos de texto de referência visíveis na planta e textos deslocados. */
   vista?: VistaObra;
+  /** Cotas permanentes de planta (L6): séries associativas aos elementos (`building/cotas.ts`). */
+  cotas?: CotaPlanta[];
   /** Agrupamentos de pórticos (R7f): vigas armadas com a mesma armadura (a do pórtico que governa) e um só desenho nas pranchas. */
   agrupamentos?: AgrupamentoPorticos[];
   /** Cópias da armadura das lajes (R7f), guardadas para recuperar depois (ex.: antes de abrir um furo imprevisto). */
@@ -955,6 +957,24 @@ export type TipoTexto = 'nomes' | 'secoes' | 'cotas' | 'cargas' | 'niveis';
 export interface RefPos { dx: number; dy: number; rot?: number }
 /** Vista da obra gravada com ela: tipos de texto visíveis (ausente = todos) e posições dos textos de referência por id de elemento. */
 export interface VistaObra { textos?: TipoTexto[]; refs?: Record<string, RefPos> }
+
+/** Elemento a que uma referência de cota se liga (L6). Abertura: `id` da abertura e `sub` = id da parede. */
+export interface ElemCota { tipo: 'pilar' | 'viga' | 'parede' | 'abertura' | 'fundacao' | 'eixo'; id: string; sub?: string }
+/** Parte do elemento medida (L6): faces do lado menor (A) e maior (B) da direção da cota, eixo, centro ou extremos do eixo da viga/parede. */
+export type ParteCota = 'faceA' | 'faceB' | 'eixo' | 'centro' | 'extremoI' | 'extremoJ';
+/** Referência de uma cota: associativa (`elem`) ou ponto livre (`fixo`, também o último valor de um elemento removido). */
+export interface RefCota { elem?: ElemCota; parte: ParteCota; fixo?: [number, number]; /** O elemento foi removido: `fixo` guarda o último ponto (aviso na cota). */ removido?: boolean }
+/**
+ * Cota permanente de planta (L6). `refs` (≥ 2) na ordem da série; `linha.angulo` = direção da medida (graus; 0 = x, 90 = y) e
+ * `linha.offset` = posição da linha de cota na normal n = (−sen a, cos a) (m, coordenada absoluta). 'serie': trechos
+ * consecutivos; 'baseline': cada trecho a partir da primeira referência. `travada`: a distância é mantida (propaga o movimento).
+ */
+export interface CotaPlanta {
+  id: string; grupo: string; estilo: 'serie' | 'baseline';
+  refs: RefCota[];
+  linha: { angulo: number; offset: number };
+  travada?: boolean;
+}
 
 /** Agrupamento de pórticos: vigas que levam a mesma armadura (a envoltória do grupo). Uma viga pertence a um só agrupamento. */
 export interface AgrupamentoPorticos { id: string; nome: string; vigas: string[] }
@@ -1260,8 +1280,10 @@ export interface ConfigArmacao {
   mascara: 0 | 1;
   /** Ponto fixo dos pilares nas formas e nas lajes (R7g; camada PONTO-FIXO). */
   pontoFixo: 0 | 1;
+  /** Cotas permanentes de planta do usuário nas formas e na locação (L6; camada COTA); padrão ligado. */
+  cotasUsuario: 0 | 1;
 }
-export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, escalaParedes: 50, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0 };
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, escalaParedes: 50, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0, cotasUsuario: 1 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

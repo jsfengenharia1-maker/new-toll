@@ -1,0 +1,24 @@
+diff --git a/src/app/edificio/PaletaComandos.tsx b/src/app/edificio/PaletaComandos.tsx
+index 339e137..edfd334 100644
+--- a/src/app/edificio/PaletaComandos.tsx
++++ b/src/app/edificio/PaletaComandos.tsx
+@@ -42,6 +42,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
+     { id: 'a:desfazer', tipo: 'Ação', rotulo: 'Desfazer', detalhe: 'Ctrl+Z', repetivel: true, executar: ctx.desfazer },
+     { id: 'a:refazer', tipo: 'Ação', rotulo: 'Refazer', detalhe: 'Ctrl+Y', repetivel: true, executar: ctx.refazer },
+     { id: 'a:limpar', tipo: 'Ação', rotulo: 'Limpar a seleção', repetivel: true, executar: () => usePlanta.getState().set({ selecao: new Set() }) },
++    { id: 'a:cotas-temp', tipo: 'Ação', rotulo: 'Cotas temporárias: ligar ou desligar', detalhe: pl.cotasTemp ? 'ligadas' : 'desligadas', repetivel: true, executar: () => usePlanta.getState().set({ cotasTemp: !usePlanta.getState().cotasTemp }) },
+     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
+     { id: 'a:inclinadas', tipo: 'Ação', rotulo: 'Vigas inclinadas', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useInclinadasUI.getState().abrir() },
+     { id: 'a:viga-curva', tipo: 'Ação', rotulo: 'Viga: alternar trecho reto ou curvo', detalhe: 'ferramenta Viga, tecla R', repetivel: true, executar: () => naPlanta({ ferramenta: 'viga', ...aoEscolher('viga'), curvaViga: !usePlanta.getState().curvaViga, passagemViga: null }) },
+diff --git a/src/app/edificio/Pranchas.tsx b/src/app/edificio/Pranchas.tsx
+index 390f8c4..1628777 100644
+--- a/src/app/edificio/Pranchas.tsx
++++ b/src/app/edificio/Pranchas.tsx
+@@ -230,6 +230,7 @@ export function Pranchas() {
+         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
+         <Check label={`Gabarito (máscara DXF/DWG) nas formas e nas lajes${b.mascaras.length ? '' : ' (sem máscara importada)'}`} checked={arm.mascara === 1} onChange={(v) => pa({ mascara: v ? 1 : 0 })} />
+         <Check label="Ponto fixo dos pilares nas formas e nas lajes" checked={arm.pontoFixo === 1} onChange={(v) => pa({ pontoFixo: v ? 1 : 0 })} />
++        <Check label="Cotas do usuário (cota em série) nas formas e na locação" checked={arm.cotasUsuario === 1} onChange={(v) => pa({ cotasUsuario: v ? 1 : 0 })} />
+         <Hint>
+           Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), paredes 1:{ARMACAO_PADRAO.escalaParedes}, lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.
+         </Hint>

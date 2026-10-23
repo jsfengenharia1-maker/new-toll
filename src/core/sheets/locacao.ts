@@ -12,8 +12,8 @@ import { estadoEmUso } from '../building/acoes';
 import { notaFogo } from '../building/fogo';
 
 const ROTULO = { laje: 'lajes', viga: 'vigas', pilar: 'pilares', fundacao: 'fundações' } as const;
-import { casosDaObra, contornoPilar, lancesDoPilar, USOS, type BuildingModel, type SecaoPilar } from '../building/types';
-import { caixa, eixosECotas, textoParede, type P, type Prancha, type Prim } from './prancha';
+import { ARMACAO_PADRAO, casosDaObra, contornoPilar, lancesDoPilar, USOS, type BuildingModel, type SecaoPilar } from '../building/types';
+import { caixa, cotasDoUsuario, eixosECotas, textoParede, type P, type Prancha, type Prim } from './prancha';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { montarFolha, nf, notas, ordemNome, plantaNaFolha, type BlocoTabela } from './armacao';
 import type { OpcoesArmacao } from './armacaoVigas';
@@ -122,6 +122,8 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
   }
   const centros = [...pils.map(({ c }) => c), ...paredes.map((w) => w.cs.flat())].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, b.eixos, centros, cx, k);
+  // cotas do usuário (L6) que só ligam pilares, paredes, eixos e pontos livres (a locação não tem vigas nem lajes)
+  if ({ ...ARMACAO_PADRAO, ...(b.prancha?.armacao ?? {}) }.cotasUsuario) cotasDoUsuario(b, modelo, k, (c) => c.refs.every((r) => !r.elem || ['pilar', 'parede', 'eixo'].includes(r.elem.tipo)));
   const tabelas: BlocoTabela[] = [notas(notasGerais(b), 'NOTAS GERAIS')];
   const avisos = [...pl.avisos];
   if (an) {
