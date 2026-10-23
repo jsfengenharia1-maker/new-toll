@@ -1081,3 +1081,11 @@ body.ajuda-on { cursor: help; }
   .dock, .dock-in { display: contents; }
   .dock-grip, .dock-toggle { display: none; }
 }
+
+.cfg { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--sp-4); min-height: 60vh; max-height: 75vh; }
+.cfg-ind { display: flex; flex-direction: column; gap: var(--sp-1); overflow-y: auto; border-right: 1px solid var(--line); padding-right: var(--sp-3); }
+.cfg-item { height: var(--h-ctl); padding: 0 var(--sp-3); border: 0; border-radius: var(--radius); background: none; color: var(--ink); text-align: left; white-space: nowrap; }
+.cfg-item:hover { background: var(--hover); }
+.cfg-item.on { background: var(--accent-soft); color: var(--accent-text); }
+.cfg-corpo { overflow-y: auto; min-width: 0; }
+@media (max-width: 900px) { .cfg { grid-template-columns: 1fr; } .cfg-ind { flex-direction: row; flex-wrap: wrap; border-right: 0; padding-right: 0; } }

@@ -17,7 +17,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dock, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
+import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -67,8 +67,10 @@ import { LancamentoL5Grupo } from './LancamentoL5';
 import { BarraAtalhos } from './BarraAtalhos';
 import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
-import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo, type DialogoGrupos } from './GruposL4';
+import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
+import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
+import { JanelaConfiguracao } from './Configuracao';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
 import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
@@ -84,11 +86,13 @@ export function Edificio() {
   const aj = useAjuda();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
-  const [memo, setMemo] = useState(false);
-  const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
-  const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
-  const [dialogoL4, setDialogoL4] = useState<DialogoGrupos | 'guia'>(null);
+  const ui = useEdifUI();
+  const aba = ui.aba, memo = ui.memo, dialogoL1 = ui.l1, dialogoL2 = ui.l2, dialogoL4 = ui.l4;
+  const setAba = (a: AbaEdificio) => ui.set({ aba: a });
+  const setMemo = (v: boolean) => ui.set({ memo: v });
+  const setDialogoL1 = (v: DialogoL1) => ui.set({ l1: v });
+  const setDialogoL2 = (v: DialogoL2) => ui.set({ l2: v });
+  const setDialogoL4 = (v: DialogoL4) => ui.set({ l4: v });
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
   const executarAtalho = (a: Atalho) => {
     if (a.tipo === 'ferramenta') { setAba('planta'); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
@@ -245,6 +249,9 @@ export function Edificio() {
       {dialogoL1 === 'recentes' && <ObrasRecentes onClose={() => setDialogoL1(null)} onAberta={() => setDialogoL1(null)} />}
       {dialogoL1 === 'texto' && <ImportarTexto onClose={() => setDialogoL1(null)} onCriada={() => { setDialogoL1(null); useStore.getState().set({ module: 'fundacoes' }); }} />}
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
+      {ui.jan === 'malha' && <Modal titulo="Malha de eixos" onClose={() => ui.set({ jan: null })}><Malha /></Modal>}
+      {ui.jan === 'novoPavimento' && <Modal titulo="Novo pavimento" onClose={() => ui.set({ jan: null })}><NovoPavimento b={b} /></Modal>}
+      {ui.cfg && <JanelaConfiguracao b={b} />}
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
@@ -257,7 +264,7 @@ export function Edificio() {
 
 /** Campo de tabela que confirma no Enter ou ao sair. */
 
-function NovoPavimento({ b }: { b: BuildingModel }) {
+export function NovoPavimento({ b }: { b: BuildingModel }) {
   const exec = useBuilding((s) => s.exec);
   const ps = pavimentosOrdenados(b);
   const topo = ps.at(-1);
@@ -274,7 +281,7 @@ function NovoPavimento({ b }: { b: BuildingModel }) {
   );
 }
 
-function Malha() {
+export function Malha() {
   const exec = useBuilding((s) => s.exec);
   const [dx, setDx] = useState('5; 5; 5');
   const [dy, setDy] = useState('4; 4');
