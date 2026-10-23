@@ -2833,6 +2833,7 @@ export const flows = [
       assert.equal((await dados(1)).grandeza, 'AsInfX');
 
       // ---- clique no mapa abre a janela da laje
+      await page.locator('[data-isov-janela="2"] svg.isov-mapa').scrollIntoViewIfNeeded();
       const caixa = await page.locator('[data-isov-janela="2"] svg.isov-mapa').boundingBox();
       await page.mouse.click(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
       await page.locator('.modal, [role="dialog"]').first().waitFor({ timeout: 5000 });
@@ -6174,6 +6175,8 @@ export const flows = [
       assert.match(await page.locator('[data-lista-erros]').innerText(), /VIGOTA_(POS|CORTANTE|NEG)/);
       // 7) exposição e momentos mínimos por pano (grupo Vínculos e engastes, com a laje selecionada na planta)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await page.keyboard.press('f');
+      await page.waitForTimeout(500);
       const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
       await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
       const vg = await grupoEdif(page, /^Vínculos, flambagem e cobrimento/);
@@ -6198,6 +6201,75 @@ export const flows = [
       assert.match(await mv.innerText(), /Tipos: A\d/);
       assert.equal(await mv.locator('[data-memorial-quantitativo-vigotas]').count(), 1, 'quantitativo das vigotas no memorial');
       await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'layout: faixa de comandos por módulo, faixa recolhível, docas recolhíveis e redimensionáveis, largura guardada',
+    async run({ newPage }) {
+      const page = await newPage();
+      const modulo = (n) => page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: n, exact: true });
+      await modulo('Edifício').click();
+      const abas = page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab');
+      const nomes = async () => (await abas.allTextContents()).map((t) => t.trim());
+      const ed = await nomes();
+      for (const a of ['Arquivo', 'Lançamento', 'Edição', 'Cargas e ações', 'Análise', 'Dimensionamento', 'Fundações', 'Pranchas', 'Vista']) assert.ok(ed.includes(a), `aba ${a} no Edifício`);
+      await modulo('Pórtico').click();
+      const po = await nomes();
+      for (const a of ['Arquivo', 'Lançamento', 'Edição', 'Análise', 'Vista']) assert.ok(po.includes(a), `aba ${a} no Pórtico`);
+      await modulo('Fundações').click();
+      const fu = await nomes();
+      for (const a of ['Arquivo', 'Lançamento', 'Fundações', 'Vista']) assert.ok(fu.includes(a), `aba ${a} em Fundações`);
+      await modulo('Edifício').click();
+      // faixa recolhível
+      await page.getByRole('button', { name: 'Recolher a faixa de comandos' }).click();
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).count(), 0);
+      await page.getByRole('button', { name: 'Expandir a faixa de comandos' }).click();
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).count(), 1);
+      // doca esquerda: recolher, mostrar, redimensionar pelo teclado
+      const dock = page.getByRole('complementary', { name: 'painel lateral esquerdo' });
+      const w0 = Math.round((await dock.boundingBox()).width);
+      await dock.getByRole('button', { name: 'Recolher painel lateral esquerdo' }).click();
+      assert.ok((await dock.boundingBox()).width < 40);
+      await dock.getByRole('button', { name: 'Mostrar painel lateral esquerdo' }).click();
+      await dock.getByRole('separator').focus();
+      for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+      assert.equal(Math.round((await dock.boundingBox()).width), w0 + 80);
+      // a largura volta ao recarregar
+      await page.reload();
+      await page.locator('.bname').waitFor();
+      await modulo('Edifício').click();
+      assert.equal(Math.round((await page.getByRole('complementary', { name: 'painel lateral esquerdo' }).boundingBox()).width), w0 + 80);
+    },
+  },
+  {
+    name: 'D4: navegador em árvore sincronizado com a planta (seções, vista, pilar nos dois sentidos) e Propriedades',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
+      const arvore = page.getByRole('tree', { name: 'Navegador da obra' });
+      await arvore.getByRole('treeitem', { name: /^Pavimentos/ }).waitFor();
+      const pil = arvore.getByRole('treeitem', { name: /^Pilares/ });
+      if ((await pil.getAttribute('aria-expanded')) !== 'true') await pil.click();
+      assert.equal(await pil.getAttribute('aria-expanded'), 'true');
+      // vista pelo Navegador
+      await arvore.getByRole('treeitem', { name: /^Vistas/ }).click();
+      await arvore.getByRole('treeitem', { name: 'Elevação', exact: true }).click();
+      assert.equal(await page.locator('.edif-tabs').getByRole('tab', { name: 'Elevação' }).getAttribute('aria-selected'), 'true');
+      // árvore -> planta
+      const p1 = arvore.getByRole('treeitem', { name: /^P1/ });
+      await p1.click();
+      assert.equal(await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).getAttribute('aria-selected'), 'true');
+      assert.equal(await p1.getAttribute('aria-selected'), 'true');
+      await page.getByRole('region', { name: 'Propriedades' }).getByText('Pilares (1)').waitFor();
+      // planta -> árvore: clique no segundo pilar
+      await page.keyboard.press('f');
+      await page.waitForTimeout(400);
+      const [x, y] = await telaDe(page, 4, 0);
+      await page.mouse.click(x, y);
+      await arvore.getByRole('treeitem', { name: /^P2/ }).waitFor();
+      assert.equal(await arvore.getByRole('treeitem', { name: /^P2/ }).getAttribute('aria-selected'), 'true');
     },
   },
 ];

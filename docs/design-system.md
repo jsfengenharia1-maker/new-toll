@@ -59,6 +59,19 @@ Fora do escopo: `src/core/sheets` (pranchas PDF/DXF/DWG), cujas penas, camadas e
 | `Spacer` | Empurra o resto da linha para a direita. |
 | `download`, `copyText`, `useId` | Utilidades de interface (arquivo, área de transferência, id). |
 
+## Layout (faixa, docas e navegador)
+
+| Componente | Uso | Classes |
+|---|---|---|
+| `Ribbon`, `RibbonTab`, `RibbonGroup`, `RibbonButton`, `RibbonHint` | faixa de comandos (abas por tarefa, grupos rotulados) | `ribbon-wrap`, `rtabs`, `rtab`, `ribbon`, `rgrp`, `rbtns`, `rl`, `rbtn`, `rbl`, `rhint` |
+| `Dock`, `Palette` | docas laterais redimensionáveis e paletas | `dock`, `dock-in`, `dock-grip`, `dock-toggle`, `pal`, `phead`, `pbody`, `dock-stack` |
+| `Tree`, `TreeItem` | Navegador da obra | `tree`, `tn`, `tl`, `chev`, `cnt`, `l1` a `l5` |
+| `ViewTabs`, `StatusBar` | abas de vista acima do desenho; barra de status | `vtabs`, `statusbar`, `msg` |
+| `TypeCard` | cartão do tipo da paleta Propriedades | `typecard`, `ico`, `psel` |
+| (tela) | casca do módulo | `work`, `modtabs`, `qbar`, `optbar`, `cfg`, `cfg-ind`, `cfg-item`, `cfg-corpo` |
+
+Regras: (1) um botão de comando só existe num lugar; (2) formulários com campos não ficam na faixa (abrem janela ou seção da Configuração da obra, que é uma janela fixa sobre a doca esquerda e não bloqueia o desenho); (3) larguras de doca em px, guardadas em `localStorage` (`statikos:layout`); (4) abas da faixa têm `role=tab` em `tablist` de `aria-label="Faixa de comandos"`; os testes de interface escopam por ele; (5) Edifício: Navegador (esquerda, sincronizado com a seleção da planta) e Propriedades (direita, cartão do tipo e grupos do elemento); a largura padrão da doca esquerda (320) é lida também pela Configuração da obra.
+
 ## Como mudar o design depois
 
 - Cor, fonte, raio, sombra: editar o token em `global.css`; vale no app inteiro, nos dois temas.

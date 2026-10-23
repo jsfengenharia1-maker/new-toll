@@ -1,3 +1,4 @@
+import { PropriedadesPortico } from './app/panels/PropriedadesPortico';
 import { useEffect, useRef, useState } from 'react';
 import { useStore, type Tab } from './app/store';
 import { Canvas, fitView, svgSize } from './app/Canvas';
@@ -313,6 +314,7 @@ export default function App() {
                 <button type="button" role="tab" aria-selected={st.tab === t.t} key={t.t} className={st.tab === t.t ? 'on' : ''} onClick={() => setTab(t.t)} title={`${t.label} (${i + 1})`}>{t.label}</button>
               ))}
             </div>
+            {st.tab === 'estrutura' && <PropriedadesPortico />}
             {st.tab === 'estrutura' && <EstruturaPanel />}
             {st.tab === 'cargas' && <CargasPanel />}
             {st.tab === 'resultados' && <ResultadosPanel />}

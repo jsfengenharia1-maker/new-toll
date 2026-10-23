@@ -16,7 +16,9 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
+import { Navegador } from './Navegador';
+import { Propriedades } from './Propriedades';
+import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Palette, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -105,7 +107,10 @@ export function Edificio() {
 
   return (
     <div className="edif">
-      <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
+      <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={320}>
+      <div className="dock-stack">
+      <Navegador />
+      <Palette titulo="Dados da obra" grow>
       <aside className="fund-in edif-in">
         <EtapasGrupo b={b} aoIr={irEtapa} />
 
@@ -137,18 +142,6 @@ export function Edificio() {
 
         <GruposCopiaGrupo b={b} abrir={setDialogoL4} />
         <MascaraGrupo b={b} />
-        <PilaresGrupo b={b} />
-        <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
-        <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
-        <MurosGrupo b={b} />
-        <AlvenariaGrupo b={b} />
-        <VigasGrupo b={b} />
-        <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
-        <LajesGrupo b={b} />
-        <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
-        <CargasGrupo b={b} />
-        <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
-        <VinculosGrupo b={b} />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -182,6 +175,8 @@ export function Edificio() {
         </Group>
 
       </aside>
+      </Palette>
+      </div>
       </Dock>
 
       <section className="edif-main">
@@ -209,6 +204,23 @@ export function Edificio() {
           </div>
         )}
       </section>
+
+      <Dock id="edificio-dir" lado="dir" rotulo="painel lateral direito" padrao={360}>
+        <Propriedades>
+          <PilaresGrupo b={b} />
+          <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
+          <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
+          <MurosGrupo b={b} />
+          <AlvenariaGrupo b={b} />
+          <VigasGrupo b={b} />
+          <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
+          <LajesGrupo b={b} />
+          <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
+          <CargasGrupo b={b} />
+          <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
+          <VinculosGrupo b={b} />
+        </Propriedades>
+      </Dock>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
       {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} />}
       {dialogoL4 === 'copiarGrupo' && <CopiarGrupoDialogo b={b} onClose={() => setDialogoL4(null)} />}
