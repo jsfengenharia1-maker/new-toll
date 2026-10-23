@@ -1,0 +1,122 @@
+diff --git a/e2e/flows.mjs b/e2e/flows.mjs
+index de2443a..5aa71e2 100644
+--- a/e2e/flows.mjs
++++ b/e2e/flows.mjs
+@@ -5091,4 +5091,117 @@ export const flows = [
+       await memo.getByRole('button', { name: 'Fechar' }).click();
+     },
+   },
++  {
++    name: 'L4: cópia entre grupos, união, áreas, ajuda F1, atalhos configuráveis, guia rápido, referências e memorial',
++    async run({ newPage }) {
++      const page = await newPage(NO_PICKERS);
++      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
++      const abrirGrupo = async (re) => {
++        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
++        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
++        return g;
++      };
++      const cmd = async (txt) => { await page.locator('#edcmd').fill(txt); await page.locator('#edcmd').press('Enter'); };
++      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`;
++      const viga = (a, z) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": [${JSON.stringify(a)}, ${JSON.stringify(z)}], "secao": {"b": 0.15, "h": 0.4}}}`;
++      await cmd('lote {"comandos": [' + [pil(0, 0), pil(5, 0), pil(5, 4), pil(0, 4), viga([0, 0], [5, 0]), viga([5, 0], [5, 4]), viga([5, 4], [0, 4]), viga([0, 4], [0, 0]),
++        '{"nome": "laje.criar", "params": {"grupo": "g_3", "contorno": [[0, 0], [5, 0], [5, 4], [0, 4]]}}'].join(', ') + ']}');
++      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
++
++      // 1) áreas por grupo e cópia do Tipo para a Cobertura
++      const gr = await abrirGrupo(/^Grupos: cópia, união e áreas/);
++      const linha = (id) => gr.locator(`[data-areas-grupos] tr[data-grupo="${id}"]`);
++      assert.match(await linha('g_3').innerText(), /3\s+20,00/);
++      assert.match(await linha('g_7').innerText(), /1\s+0,00/);
++      await gr.getByRole('button', { name: 'Copiar de outro grupo…', exact: true }).click();
++      const dlg = page.getByRole('dialog', { name: 'Copiar de outro grupo' });
++      await dlg.getByLabel(/^Grupo de origem/).selectOption({ label: 'Tipo' });
++      await dlg.getByLabel(/^Grupo de destino/).selectOption({ label: 'Cobertura' });
++      assert.equal(await dlg.locator('.esq-pav.origem').count(), 3);
++      assert.equal(await dlg.locator('.esq-pav.destino').count(), 1);
++      // ajuda da janela
++      await dlg.getByRole('button', { name: 'Ajuda de Copiar de outro grupo', exact: true }).click();
++      await page.getByRole('status', { name: 'Ajuda', exact: true }).getByText('Escolha o grupo de origem', { exact: false }).waitFor();
++      await page.getByRole('button', { name: 'Fechar a ajuda', exact: true }).click();
++      await dlg.getByRole('button', { name: 'Copiar conteúdo do grupo', exact: true }).click();
++      await dlg.waitFor({ state: 'detached' });
++      assert.match(await linha('g_7').innerText(), /1\s+20,00/);
++      // um passo no histórico: desfazer volta
++      await page.keyboard.press('Control+z');
++      assert.match(await linha('g_7').innerText(), /1\s+0,00/);
++      await page.keyboard.press('Control+y');
++      assert.match(await linha('g_7').innerText(), /1\s+20,00/);
++
++      // 2) modo de ajuda: F1 liga, clique mostra a explicação sem agir, Esc desliga
++      await page.keyboard.press('F1');
++      await page.waitForFunction(() => document.body.classList.contains('ajuda-on'));
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Premissas', exact: true }).click();
++      const painel = page.getByRole('status', { name: 'Ajuda', exact: true });
++      await painel.getByText('Todas as hipóteses de cálculo', { exact: false }).waitFor();
++      assert.equal(await page.locator('.edif-tabs').getByRole('tab', { name: 'Premissas', exact: true }).getAttribute('aria-selected'), 'false');
++      await page.keyboard.press('Escape');
++      await page.waitForFunction(() => !document.body.classList.contains('ajuda-on'));
++      assert.equal(await painel.count(), 0);
++      // botão da barra de título e botão direito
++      await page.getByRole('button', { name: 'Modo de ajuda (F1)', exact: true }).click();
++      await page.waitForFunction(() => document.body.classList.contains('ajuda-on'));
++      await page.locator('.edif-main').click({ button: 'right', position: { x: 20, y: 60 } });
++      await page.waitForFunction(() => !document.body.classList.contains('ajuda-on'));
++
++      // 3) barra de atalhos configurável e persistente
++      await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).waitFor();
++      assert.equal(await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).count(), 0);
++      await page.getByRole('button', { name: 'Configurar a barra de atalhos', exact: true }).click();
++      const cfg = page.getByRole('dialog', { name: 'Configurar atalhos' });
++      await cfg.getByLabel('Atalho Pilar', { exact: true }).check();
++      await cfg.getByLabel('Atalho Desfazer', { exact: true }).uncheck();
++      await cfg.getByRole('button', { name: 'Fechar', exact: true }).click();
++      await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).waitFor();
++      assert.equal(await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).count(), 0);
++      assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('statikos:barra'))), ['refazer', 'ajuda', 'guia', 'pilar']);
++      await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).click();
++      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
++      await page.getByRole('button', { name: 'Configurar a barra de atalhos', exact: true }).click();
++      await page.getByRole('dialog', { name: 'Configurar atalhos' }).getByRole('button', { name: 'Restaurar atalhos padrão', exact: true }).click();
++      await page.getByRole('dialog', { name: 'Configurar atalhos' }).getByRole('button', { name: 'Fechar', exact: true }).click();
++      await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).waitFor();
++
++      // 4) guia rápido: sem as ajudas dos diálogos
++      await page.getByRole('button', { name: 'Atalho: Guia rápido', exact: true }).click();
++      const guia = page.getByRole('dialog', { name: 'Guia rápido' });
++      const gt = await guia.locator('[data-guia-rapido]').innerText();
++      assert.match(gt, /Opções de cálculo/);
++      assert.match(gt, /Mover texto de referência/);
++      assert.doesNotMatch(gt, /Copiar de outro grupo\s*\n?\s*Escolha o grupo de origem/);
++      await guia.getByRole('button', { name: 'Fechar', exact: true }).click();
++
++      // 5) referências: tipos de texto na obra e mover o texto do pilar por dois cliques
++      const ref = await abrirGrupo(/^Referências e dados/);
++      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).uncheck();
++      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).waitFor();
++      assert.equal(await ref.getByLabel('Mostrar texto: cargas', { exact: true }).isChecked(), false);
++      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).check();
++      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' });
++      await page.keyboard.press('f');
++      await page.waitForTimeout(100);
++      await ref.getByRole('button', { name: 'Mover texto de referência', exact: true }).click();
++      const [ax, ay] = await telaDe(page, 0.1, 0.2);
++      await page.mouse.move(ax, ay); await page.mouse.click(ax, ay);
++      const [bx, by] = await telaDe(page, 1.2, 1.5);
++      await page.mouse.move(bx, by); await page.mouse.click(bx, by);
++      await ref.getByText('1 texto(s) fora da posição automática.', { exact: true }).waitFor();
++      await ref.getByRole('button', { name: 'Restaurar posições dos textos', exact: true }).click();
++      await ref.getByText('Dois cliques', { exact: false }).waitFor();
++
++      // 6) memorial: áreas por grupo e anexo do guia rápido
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
++      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
++      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
++      assert.match(await memo.locator('[data-memorial-areas]').innerText(), /Tipo\s+3\s+20,00/);
++      assert.equal(await memo.locator('[data-guia-rapido]').count(), 0);
++      await memo.getByLabel('Incluir guia rápido (anexo)', { exact: true }).check();
++      assert.equal(await memo.locator('[data-guia-rapido]').count(), 1);
++      await memo.getByRole('button', { name: 'Fechar' }).click();
++    },
++  },
+ ];
