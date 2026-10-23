@@ -100,6 +100,11 @@ interface PState {
   secaoViga: { b: number; h: number };
   alinhamento: Alinhamento;
   invertida: boolean;
+  /** Viga curva (E2b): o próximo trecho é um arco (clique na passagem e depois no fim); tecla R alterna. */
+  curvaViga: boolean;
+  /** Passagem do arco em andamento e passagens dos trechos já lançados da viga (null = trecho reto). */
+  passagemViga: [number, number] | null;
+  passagensViga: ([number, number] | null)[];
   tipoLaje: TipoLaje;
   tipoCarga: 'ponto' | 'linha' | 'area';
   /** G, Q ou id de caso adicional. */
@@ -185,6 +190,9 @@ export const usePlanta = create<PState>((set) => ({
   secaoViga: { b: 0.15, h: 0.4 },
   alinhamento: 'centro',
   invertida: false,
+  curvaViga: false,
+  passagemViga: null,
+  passagensViga: [],
   tipoLaje: { tipo: 'macica', h: 0.1 },
   tipoCarga: 'area',
   caso: 'Q',

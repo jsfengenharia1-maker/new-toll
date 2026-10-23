@@ -19,6 +19,7 @@ import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilare
 import { vigasDoClique } from '../../core/building/lancamentoDxf';
 import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
+import { montarPoligonal } from '../../core/building/curvas';
 import { centroPilar, contornoPilar, dimsSecao, ehArranque, geometriaViga, lancesDoPilar, mascaraNoGrupo, mascaraParaMundo, pavimentosOrdenados, trechosViga, type BuildingModel, type Pilar, contornoNoLance, centroNoLance, geoLance } from '../../core/building/types';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL, secaoBase } from '../../core/building/fundacao';
 import { cruzamentosVF, geometriaVF, pontasEquilibradas } from '../../core/building/vigasFundacao';
@@ -146,7 +147,7 @@ function proximoEixo(b: BuildingModel, horizontal: boolean) {
 const PASSOS: Record<Ferramenta, string[]> = {
   selecionar: ['Clique num elemento ou arraste: da esquerda para a direita seleciona o que está todo dentro; da direita para a esquerda, o que cruza. Del remove.'],
   pilar: ['Clique para inserir o pilar (A muda o ponto fixo, R gira 90°). Digite x;y e Enter para coordenadas.'],
-  viga: ['Primeiro ponto da viga (A alterna eixo/face esquerda/face direita).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela.'],
+  viga: ['Primeiro ponto da viga (A alterna eixo/face esquerda/face direita; R alterna trecho reto/curvo).', 'Próximo ponto; Enter, duplo clique ou botão direito termina; Esc cancela. Trecho curvo (R): clique na passagem e depois no fim do arco.'],
   laje: ['Clique dentro de uma região fechada por vigas (ou desenhe o contorno de um balanço: pontos e Enter).', 'Próximo ponto do contorno; Enter fecha.'],
   carga: ['Carga: clique o ponto (ou os pontos da linha/área; Enter termina).', 'Próximo ponto; Enter termina.'],
   eixo: ['Primeiro ponto do eixo.', 'Segundo ponto (digite a distância, @dx;dy ou @d<ângulo e Enter).'],
@@ -576,6 +577,7 @@ export function Planta() {
       for (const lado of [g.esq, g.dir]) { ctx.beginPath(); lado.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
       ctx.setLineDash([]);
       if (sel) { ctx.setLineDash([8, 4]); ctx.lineWidth = 1; ctx.beginPath(); g.eixo.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]); }
+      if (v.comum || v.comumDe) { ctx.setLineDash([10, 3, 2, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); g.eixo.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]); } // viga comum a dois grupos: eixo em traço-ponto (E2b)
       // rótulo no meio do trecho mais longo, legível (sem ficar de cabeça para baixo)
       let k = 0, Lm = 0;
       for (let i = 0; i + 1 < v.pontos.length; i++) { const L = Math.hypot(v.pontos[i + 1][0] - v.pontos[i][0], v.pontos[i + 1][1] - v.pontos[i][1]); if (L > Lm) { Lm = L; k = i; } }
@@ -585,7 +587,7 @@ export function Planta() {
       const [vx, vy] = descRef(v.id);
       ctx.save(); ctx.translate((a[0] + z[0]) / 2 + vx, (a[1] + z[1]) / 2 + vy); ctx.rotate(ang - ((refDe(b, v.id)?.rot ?? 0) * Math.PI) / 180);
       ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.viga;
-      ctx.fillText(`${textosVis.includes('nomes') ? `${v.nome} ` : ''}${textosVis.includes('secoes') ? `${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}` : ''}${v.invertida ? ' inv.' : ''}${v.mesa ? ` ${v.mesa.tipo}` : ''}${v.chata ? ' chata' : ''}${v.estrutural === false ? ' n.est.' : ''}${v.amarracao ? ' amar.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
+      ctx.fillText(`${textosVis.includes('nomes') ? `${v.nome} ` : ''}${textosVis.includes('secoes') ? `${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}` : ''}${v.invertida ? ' inv.' : ''}${v.mesa ? ` ${v.mesa.tipo}` : ''}${v.chata ? ' chata' : ''}${v.estrutural === false ? ' n.est.' : ''}${v.amarracao ? ' amar.' : ''}${v.comum ? ' comum' : ''}${v.comumDe ? ' (assoc.)' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
       ctx.restore();
     }
     // base elástica (FU6): radiers (contorno, furos, rótulo) e vigas sobre base elástica (faixa b), sob os elementos
@@ -905,7 +907,11 @@ export function Planta() {
     }
     // prévia da viga
     if (pl.ferramenta === 'viga' && pontos.length && !s.pan) {
-      const g = geometriaViga({ pontos: [...pontos, s.ponto], secao: pl.secaoViga, alinhamento: pl.alinhamento });
+      // viga curva (E2b): trechos curvos já lançados e o em andamento (passagem marcada) como arcos pela mesma discretização da viga
+      const ctl = [...pontos, s.ponto], pass = Array.from({ length: ctl.length - 1 }, (_, i) => (i < pontos.length - 1 ? pl.passagensViga[i] ?? null : pl.passagemViga));
+      const arco = pass.some((q) => q) ? montarPoligonal(ctl, pass, b.opcoes?.curvaSegmento ? b.opcoes.curvaSegmento / 100 : undefined) : null;
+      const g = geometriaViga({ pontos: arco && !('degenerado' in arco) ? arco.pontos : ctl, secao: pl.secaoViga, alinhamento: pl.alinhamento });
+      if (pl.passagemViga) { const [qx, qy] = paraTela(...pl.passagemViga); ctx.strokeStyle = cores.viga; ctx.beginPath(); ctx.arc(qx, qy, 4, 0, 2 * Math.PI); ctx.stroke(); }
       ctx.strokeStyle = cores.viga; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
       for (const lado of [g.esq, g.dir]) { ctx.beginPath(); lado.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
@@ -1253,7 +1259,14 @@ export function Planta() {
       exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), copiarDe: P.contaGotas.pilar, incluirCargas: P.contaGotas.cargas });
       return;
     }
-    if (f === 'viga') { setPontos(novos); return; }
+    if (f === 'viga') {
+      // viga curva (E2b): no trecho curvo o 1º clique é a passagem do arco e o 2º, o fim; os trechos retos guardam null
+      const P = usePlanta.getState(), n = pontosRef.current.length;
+      if (!n) { P.set({ passagemViga: null, passagensViga: [] }); setPontos(novos); return; }
+      if (P.curvaViga && !P.passagemViga) { P.set({ passagemViga: [p[0], p[1]] }); msg('Passagem do arco marcada: clique no fim do arco.'); desenharInteracao(); return; }
+      P.set({ passagensViga: [...P.passagensViga.slice(0, n - 1), P.curvaViga ? P.passagemViga : null], passagemViga: null });
+      setPontos(novos); return;
+    }
     if (f === 'laje') {
       if (!pontos.length) {
         const r = exec('laje.criar', { grupo, ponto: [+p[0].toFixed(4), +p[1].toFixed(4)], tipo: pl.tipoLaje });
@@ -1410,7 +1423,11 @@ export function Planta() {
     setPontos([]);
   };
   const terminarViga = (pts: P2[] = pontos) => {
-    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida });
+    const P = usePlanta.getState();
+    // passagens dos arcos (E2b), uma por trecho: null = reto
+    const passagens = Array.from({ length: Math.max(0, pts.length - 1) }, (_, i) => { const q = P.passagensViga[i]; return q ? [+q[0].toFixed(4), +q[1].toFixed(4)] : null; });
+    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida });
+    P.set({ passagemViga: null, passagensViga: [] });
     setPontos([]);
   };
 
@@ -1532,12 +1549,13 @@ export function Planta() {
         else { u.executar(); msg(`Repetindo: ${u.rotulo}.`); }
         return;
       }
+      if (P.ferramenta === 'viga' && k.toLowerCase() === 'r') { P.set({ curvaViga: !P.curvaViga, passagemViga: null }); msg(P.curvaViga ? 'Próximo trecho da viga: reto.' : 'Próximo trecho da viga: curvo (passagem e fim do arco).'); return; }
       if (P.ferramenta === 'viga' && k.toLowerCase() === 'a') { const o = ['centro', 'esq', 'dir'] as const; P.set({ alinhamento: o[(o.indexOf(P.alinhamento) + 1) % 3] }); msg(`Alinhamento: ${({ centro: 'eixo', esq: 'face esquerda', dir: 'face direita' })[o[(o.indexOf(P.alinhamento) + 1) % 3]]}.`); return; }
       const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao', b: 'vigaFund', k: 'girarFund', n: 'insFund', t: 'limite', q: 'limiteMascara', w: 'radier', x: 'vigaElastica', i: 'dividir', j: 'unir', o: 'prolongar', y: 'copiar', g: 'girar', h: 'espelhar', z: 'puncao' };
       // A é a tecla da sapata corrida só no nível de fundação e fora das ferramentas em que A já é outra coisa (alinhamento da viga, ajuste do pilar)
       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
-      if (k === 'Escape') { it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
+      if (k === 'Escape') { P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
       if (k === 'F8') { e.preventDefault(); P.set({ orto: !P.orto }); msg(`Ortogonal ${P.orto ? 'desligado' : 'ligado'}.`); return; }
       if (k === 'F3') {
@@ -1588,7 +1606,7 @@ export function Planta() {
         <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => {
-            if (POLILINHAS.includes(pl.ferramenta)) terminar(pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
+            if (POLILINHAS.includes(pl.ferramenta)) terminar(pl.ferramenta === 'viga' && usePlanta.getState().passagemViga ? pontosRef.current : pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
             else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
           }} />
