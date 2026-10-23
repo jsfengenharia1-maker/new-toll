@@ -13,7 +13,7 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
+import { AjudaProvider, BotaoAjuda, copyText, download, Dock, ThemeSelect } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
@@ -336,6 +336,7 @@ export default function App() {
         </section>
 
         {panelOpen && (
+          <Dock id="portico-dir" lado="dir" rotulo="painel lateral direito" padrao={380}>
           <aside className="panel">
             <div className="tabs" role="tablist">
               {TABS.map((t, i) => (
@@ -348,6 +349,7 @@ export default function App() {
             {st.tab === 'influencia' && <InfluenciaPanel />}
             {st.tab === 'dimensionar' && <DimensionarPanel />}
           </aside>
+          </Dock>
         )}
       </div>
 

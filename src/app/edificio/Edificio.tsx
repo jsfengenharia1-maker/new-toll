@@ -17,7 +17,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, dataAjuda, download, useAjuda } from '../ui';
+import { Button, Check, Dock, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -108,6 +108,7 @@ export function Edificio() {
 
   return (
     <div className="edif">
+      <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
       <aside className="fund-in edif-in">
         <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
@@ -205,6 +206,7 @@ export function Edificio() {
           <LinhaComando />
         </Group>
       </aside>
+      </Dock>
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">

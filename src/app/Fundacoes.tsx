@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useBuilding } from './edificio/store';
-import { Button, Check, Chip, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
+import { Button, Check, Chip, Dock, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
@@ -103,6 +103,7 @@ export function Fundacoes() {
         {leitura && <FundacoesDoEdificio />}
       </div>
     <fieldset className="fund" disabled={leitura} data-somente-leitura={leitura || undefined}>
+      <Dock id="fundacoes-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={440}>
       <aside className="fund-in">
         <SondagemEditor furos={borings} cutoff={p.cutoff} sol={(x) => (selDesign && selDesign.boring.id === x.id ? selPile : null)} onEdit={(i, fn, msg) => upd((d) => fn(d.borings![i]), msg)} onAdd={addBoring} onRemove={removeBoring}
           onMessage={(m) => st.set({ message: m })} media={{ depth: p.sptAvgDepth, water: p.sptAvgWater, onChange: setP }} />
@@ -137,6 +138,7 @@ export function Fundacoes() {
 
         <Premissas p={p} setP={setP} reset={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')} />
       </aside>
+      </Dock>
 
       <section className="fund-out">
         {designs.length === 0 && <p className="hint">Lance as cargas dos apoios para dimensionar.</p>}
