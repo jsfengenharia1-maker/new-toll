@@ -26,6 +26,7 @@ import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { MemorialAreasGrupos, MemorialGuia } from './MemorialGrupos';
 import { MemorialGabaritos } from './MemorialGabaritos';
+import { MemorialAberturas } from './MemorialL5';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { cotaTerreno, POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
@@ -162,6 +163,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           </table>
           <p>Fundação na cota {fmt(cotaFundacao(b))} m. {b.pilares.length} pilares{b.pilaresParede?.length ? `, ${b.pilaresParede.length} pilar(es)-parede` : ''}, {b.vigas.length} vigas e {b.lajes.length} lajes lançadas.</p>
           <MemorialAreasGrupos b={b} />
+          <MemorialAberturas b={b} />
           <MemorialGabaritos b={b} />
           {apoiados.length > 0 && <>
             <h3>Pilares que nascem acima da fundação (apoiados)</h3>
