@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Statikos Visual BIM</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111111;--surface:#222222;--surface-2:#2c2c2c;--hover:#323232;--field:#1b1b1b;--sunken:#111111;
+  --line:#393939;--line-strong:#6d6d6d;
+  --ink:#dbdbdb;--ink-strong:#f2f2f2;--muted:#afafaf;--faint:#8a8a8a;--disabled:#6d6d6d;
+  --accent:#4069fd;--accent-hover:#345bf8;--accent-ink:#ffffff;--accent-soft:#0f1c52;--accent-text:#6995fe;--ring:#6995fe;
+  --bad:#fc432e;--ok:#099d59;--warn:#e06400;
+  --sel:#6995fe;--sel-fill:#0f1c52;
+  --paper:#181818;--paper-laje:#1e1e1e;--grid:#212121;--grid-major:#2b2b2b;--axis:#6d6d6d;--member:#afafaf;--member-fill:#2c2c2c;--pilar:#f2f2f2;
+  --scrim:rgb(0 0 0 / .5);--shadow-pop:0 4px 16px rgb(0 0 0 / .6);
+  --font-ui:'Source Sans 3','IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-num:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+  --h-ctl-xs:20px;--h-ctl:24px;--h-ctl-lg:32px;--h-ribbon:56px;
+  --fs-sm:11px;--fs:12px;--fs-lg:14px;
+  --radius-sm:3px;--radius:4px;--radius-lg:6px;
+  --sp-1:2px;--sp-2:4px;--sp-3:8px;--sp-4:12px;--sp-5:16px;--sp-6:24px;
+  --dur:120ms;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#e9e9e9;--surface:#f3f3f3;--surface-2:#e1e1e1;--hover:#dadada;--field:#ffffff;--sunken:#e9e9e9;
+    --line:#dadada;--line-strong:#858585;
+    --ink:#292929;--ink-strong:#131313;--muted:#505050;--faint:#717171;--disabled:#8f8f8f;
+    --accent:#3b63fb;--accent-hover:#274dea;--accent-ink:#ffffff;--accent-soft:#e5f0fe;--accent-text:#274dea;--ring:#4b75ff;
+    --bad:#d73220;--ok:#05834e;--warn:#c24e00;
+    --sel:#3b63fb;--sel-fill:#e5f0fe;
+    --paper:#ffffff;--paper-laje:#f6f6f6;--grid:#f0f0f0;--grid-major:#e0e0e0;--axis:#8f8f8f;--member:#505050;--member-fill:#e6e6e6;--pilar:#131313;
+    --scrim:rgb(0 0 0 / .3);--shadow-pop:0 4px 16px rgb(0 0 0 / .2);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#e9e9e9;--surface:#f3f3f3;--surface-2:#e1e1e1;--hover:#dadada;--field:#ffffff;--sunken:#e9e9e9;
+  --line:#dadada;--line-strong:#858585;
+  --ink:#292929;--ink-strong:#131313;--muted:#505050;--faint:#717171;--disabled:#8f8f8f;
+  --accent:#3b63fb;--accent-hover:#274dea;--accent-ink:#ffffff;--accent-soft:#e5f0fe;--accent-text:#274dea;--ring:#4b75ff;
+  --bad:#d73220;--ok:#05834e;--warn:#c24e00;
+  --sel:#3b63fb;--sel-fill:#e5f0fe;
+  --paper:#ffffff;--paper-laje:#f6f6f6;--grid:#f0f0f0;--grid-major:#e0e0e0;--axis:#8f8f8f;--member:#505050;--member-fill:#e6e6e6;--pilar:#131313;
+  --scrim:rgb(0 0 0 / .3);--shadow-pop:0 4px 16px rgb(0 0 0 / .2);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 var(--fs)/1.4 var(--font-ui)}
+.wrap{padding-block:var(--sp-4) var(--sp-6);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1360px;margin:0 auto}
+h2{font:600 var(--fs-lg)/1.3 var(--font-ui);color:var(--ink-strong);margin:var(--sp-6) 0 var(--sp-3)}
+h3{font:600 var(--fs)/1.3 var(--font-ui);color:var(--ink-strong);margin:0 0 var(--sp-3)}
+p{margin:0}
+.note{color:var(--muted);margin:0 0 var(--sp-3)}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.is-focus{outline:2px solid var(--ring);outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* shell */
+.app{border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;border-radius:var(--radius-lg);overflow:hidden}
+.qbar{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.brand{font-weight:700;font-size:var(--fs-lg);color:var(--ink-strong);margin-right:var(--sp-3)}
+.tbtn{height:var(--h-ctl);padding:0 var(--sp-3);border:0;border-radius:var(--radius);background:none;color:var(--muted);display:inline-flex;align-items:center;gap:var(--sp-2);transition:background-color var(--dur) ease-out,color var(--dur) ease-out;white-space:nowrap}
+.tbtn:hover{background:var(--hover);color:var(--ink)}
+.tbtn:disabled{color:var(--disabled);background:none;cursor:not-allowed}
+.vsep{width:1px;height:16px;background:var(--line);margin:0 var(--sp-2)}
+.fname{flex:1;min-width:140px;text-align:center;color:var(--ink);font-weight:600}
+.fname .ex{color:var(--faint);font-weight:400}
+.tema{height:var(--h-ctl);display:inline-flex;align-items:center;gap:var(--sp-2);color:var(--muted)}
+.tema select{height:var(--h-ctl);background:var(--field);border:1px solid var(--line-strong);border-radius:var(--radius);padding:0 var(--sp-3);font-size:var(--fs)}
+.tema select option{background:var(--surface);color:var(--ink)}
+/* abas de módulo (barra de abas) */
+.modtabs{display:flex;gap:var(--sp-1);padding:var(--sp-2) var(--sp-3) 0;background:var(--bg);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.modtabs button{height:var(--h-ctl-lg);padding:0 var(--sp-5);border:1px solid transparent;border-bottom:0;border-radius:var(--radius) var(--radius) 0 0;background:none;color:var(--muted);font-weight:600;white-space:nowrap;transition:background-color var(--dur) ease-out,color var(--dur) ease-out}
+.modtabs button:hover{background:var(--hover);color:var(--ink)}
+.modtabs button[aria-selected="true"]{background:var(--surface);color:var(--accent-text);border-color:var(--line);margin-bottom:-1px;height:calc(var(--h-ctl-lg) + 1px)}
+.modtabs .ctx{margin-left:auto}
+/* faixa de comandos */
+.ribbon{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin;padding:var(--sp-2) var(--sp-3)}
+.rgrp{display:flex;flex-direction:column;padding:0 var(--sp-3);border-right:1px solid var(--line)}
+.rgrp:first-child{padding-left:0}
+.rgrp:last-child{border-right:0}
+.rbtns{display:flex;gap:var(--sp-1)}
+.rgrp .rl{text-align:center;color:var(--faint);font-size:var(--fs-sm);padding-top:var(--sp-1)}
+.rbtn{min-width:52px;height:var(--h-ribbon);padding:var(--sp-2) var(--sp-3);border:0;border-radius:var(--radius);background:none;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-2);transition:background-color var(--dur) ease-out;white-space:nowrap}
+.rbtn svg.i{width:22px;height:22px}
+.rbtn:hover{background:var(--hover)}
+.rbtn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-text)}
+.rbtn:disabled{color:var(--disabled);cursor:not-allowed;background:none}
+.optbar{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-2) var(--sp-3);background:var(--bg);border-bottom:1px solid var(--line);color:var(--muted);flex-wrap:wrap;min-height:32px}
+.optbar b{color:var(--ink-strong);font-weight:600}
+/* áreas */
+.main{display:grid;grid-template-columns:240px minmax(0,1fr) 304px;min-height:480px}
+.dock{background:var(--surface);min-width:0;display:flex;flex-direction:column}
+.dock.l{border-right:1px solid var(--line)}
+.dock.r{border-left:1px solid var(--line)}
+.pal{display:flex;flex-direction:column;min-height:0;border-bottom:1px solid var(--line)}
+.pal:last-child{border-bottom:0}
+.phead{height:var(--h-ctl-lg);display:flex;align-items:center;justify-content:space-between;padding:0 var(--sp-4);font-weight:600;color:var(--ink-strong);background:var(--surface);border-bottom:1px solid var(--line)}
+.phead .tbtn{height:var(--h-ctl-xs);padding:0 var(--sp-2)}
+.pbody{overflow:auto;min-height:0}
+.pal.grow{flex:1}
+.stage{background:var(--bg);min-width:0;display:flex;flex-direction:column}
+.vtabs{display:flex;gap:var(--sp-1);padding:var(--sp-2) var(--sp-3) 0;overflow-x:auto;scrollbar-width:thin;border-bottom:1px solid var(--line)}
+.vtabs button{height:var(--h-ctl);padding:0 var(--sp-4);border:1px solid transparent;border-bottom:0;border-radius:var(--radius) var(--radius) 0 0;background:none;color:var(--muted);white-space:nowrap;transition:background-color var(--dur) ease-out,color var(--dur) ease-out}
+.vtabs button:hover{background:var(--hover);color:var(--ink)}
+.vtabs button[aria-selected="true"]{background:var(--paper);color:var(--ink-strong);border-color:var(--line);margin-bottom:-1px;height:calc(var(--h-ctl) + 1px);font-weight:600}
+.sheet{flex:1;background:var(--paper);margin:0 var(--sp-3) var(--sp-3);border:1px solid var(--line);border-top:0;min-height:0;position:relative}
+.sheet svg.plan{display:block;width:100%;height:auto}
+.vzoom{position:absolute;top:var(--sp-3);right:var(--sp-3);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.vzoom button{width:var(--h-ctl);height:var(--h-ctl);border:0;background:none;color:var(--muted);display:grid;place-items:center}
+.vzoom button:hover{background:var(--hover);color:var(--ink)}
+.pane[hidden]{display:none}
+.vph{padding:var(--sp-6);color:var(--muted)}
+.vbar{display:flex;gap:var(--sp-4);align-items:center;padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--line);background:var(--surface);color:var(--muted);flex-wrap:wrap}
+.statusbar{display:flex;gap:var(--sp-5);padding:var(--sp-2) var(--sp-4);border-top:1px solid var(--line);background:var(--surface);color:var(--muted);flex-wrap:wrap;align-items:center}
+.statusbar .ex{margin-left:auto;color:var(--faint)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:var(--sp-2);vertical-align:baseline}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+/* planta */
+.pl-grid{stroke:var(--grid);stroke-width:1;fill:none}
+.pl-grid2{stroke:var(--grid-major);stroke-width:1;fill:none}
+.pl-axis{stroke:var(--axis);stroke-width:1;stroke-dasharray:10 4 2 4;fill:none}
+.pl-pil{fill:var(--pilar);cursor:pointer}
+.pl-pil.sel{fill:var(--sel)}
+.pl-vig{fill:var(--member-fill);stroke:var(--member);stroke-width:1;cursor:pointer}
+.pl-vig:hover{stroke:var(--ink-strong)}
+.pl-vig.sel{fill:var(--sel-fill);stroke:var(--sel);stroke-width:2}
+.pl-laje{fill:var(--paper-laje);cursor:pointer}
+.pl-laje:hover{fill:var(--grid-major)}
+.pl-laje.sel{fill:var(--sel-fill)}
+.pl-t{fill:var(--muted);font:12px var(--font-ui);pointer-events:none}
+.pl-t.s{fill:var(--sel);font-weight:600}
+.pl-t.a{fill:var(--ink-strong);font-weight:600;font-size:14px}
+.pl-bub{fill:none;stroke:var(--axis);stroke-width:1}
+.pl-dim{stroke:var(--faint);stroke-width:1;fill:none}
+/* árvore */
+.tree{list-style:none;margin:0;padding:var(--sp-2) 0}
+.tree ul{list-style:none;margin:0;padding:0}
+.tree li{margin:0}
+.tn{width:100%;height:var(--h-ctl);display:flex;align-items:center;gap:var(--sp-2);border:0;background:none;color:var(--ink);text-align:left;padding-right:var(--sp-3);transition:background-color var(--dur) ease-out}
+.tn:hover{background:var(--hover)}
+.tn[aria-selected="true"]{background:var(--accent-soft);color:var(--accent-text)}
+.tn .chev{width:12px;height:12px;color:var(--muted);transition:transform var(--dur) ease-out}
+.tn[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.tn .sp{width:12px;flex:none}
+.tn .cnt{margin-left:auto;color:var(--faint);font-size:var(--fs-sm)}
+.tree ul[hidden]{display:none}
+.l1>.tn{padding-left:var(--sp-3)}.l2>.tn{padding-left:var(--sp-6)}.l3>.tn{padding-left:calc(var(--sp-6) + var(--sp-5))}.l4>.tn{padding-left:calc(var(--sp-6) + var(--sp-5) + var(--sp-5))}
+/* grupos e propriedades */
+.typecard{display:flex;align-items:center;gap:var(--sp-3);margin:var(--sp-3);padding:var(--sp-3);background:var(--field);border:1px solid var(--line);border-radius:var(--radius)}
+.typecard .ico{width:32px;height:32px;display:grid;place-items:center;background:var(--surface-2);border-radius:var(--radius);color:var(--muted)}
+.typecard b{display:block;color:var(--ink-strong);font-weight:600;font-size:var(--fs-lg)}
+.typecard span{color:var(--muted)}
+.psel{display:flex;align-items:center;justify-content:space-between;padding:0 var(--sp-4) var(--sp-3);color:var(--muted)}
+details.group{border-top:1px solid var(--line)}
+details.group>summary{list-style:none;height:var(--h-ctl-lg);padding:0 var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);cursor:pointer;font-weight:600;color:var(--ink-strong);background:var(--surface-2);transition:background-color var(--dur) ease-out}
+details.group>summary::-webkit-details-marker{display:none}
+details.group>summary:hover{background:var(--hover)}
+details.group>summary svg.i{width:12px;height:12px;color:var(--muted);transition:transform var(--dur) ease-out}
+details.group[open]>summary svg.i{transform:rotate(90deg)}
+.gbody{padding:var(--sp-3) var(--sp-4);display:grid;gap:var(--sp-3)}
+.row{display:grid;grid-template-columns:104px minmax(0,1fr);gap:var(--sp-3);align-items:center}
+.lbl{color:var(--muted)}
+.val{color:var(--ink)}
+/* controles */
+.btn{height:var(--h-ctl);padding:0 var(--sp-4);border-radius:var(--radius);border:1px solid var(--line-strong);background:var(--surface-2);color:var(--ink);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);transition:background-color var(--dur) ease-out,border-color var(--dur) ease-out,color var(--dur) ease-out;white-space:nowrap}
+.btn:hover,.btn.is-hover{background:var(--hover);color:var(--ink-strong)}
+.btn:active,.btn.is-active{background:var(--sunken)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover,.btn.primary.is-hover{background:var(--accent-hover);border-color:var(--accent-hover);color:var(--accent-ink)}
+.btn.primary:active,.btn.primary.is-active{background:var(--accent-hover)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover,.btn.ghost.is-hover{background:var(--hover);color:var(--ink-strong)}
+.btn.ghost:active,.btn.ghost.is-active{background:var(--sunken)}
+.btn.danger{color:var(--bad)}
+.btn.danger:hover,.btn.danger.is-hover{background:var(--hover);border-color:var(--bad);color:var(--bad)}
+.btn.lg{height:var(--h-ctl-lg)}
+.btn.sm{height:var(--h-ctl-xs);padding:0 var(--sp-3)}
+.btn:disabled{background:var(--surface-2);border-color:var(--line);color:var(--disabled);cursor:not-allowed}
+.btn.ghost:disabled{background:none;border-color:transparent}
+.field{display:flex;align-items:center;height:var(--h-ctl);background:var(--field);border:1px solid var(--line-strong);border-radius:var(--radius);min-width:0;transition:border-color var(--dur) ease-out}
+.field:hover{border-color:var(--muted)}
+.field:focus-within,.field.is-focus{outline:2px solid var(--ring);outline-offset:2px;border-color:var(--ring)}
+.field input,.field select{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;padding:0 var(--sp-3);font:var(--fs) var(--font-num);font-variant-numeric:tabular-nums;text-align:right;-moz-appearance:textfield}
+.field input::-webkit-outer-spin-button,.field input::-webkit-inner-spin-button{-webkit-appearance:none}
+.field select{text-align:left;font-family:var(--font-ui);appearance:none;cursor:pointer}
+.field select option{background:var(--surface);color:var(--ink)}
+.field .unit{padding-right:var(--sp-3);color:var(--faint);font-size:var(--fs-sm)}
+.field .chev{transform:rotate(90deg);margin-right:var(--sp-3);color:var(--muted);pointer-events:none;width:12px;height:12px}
+.field.dis{background:var(--surface-2);border-color:var(--line)}
+.field.dis input{color:var(--disabled)}
+.check{display:flex;align-items:center;gap:var(--sp-3);color:var(--ink);cursor:pointer}
+.check input{appearance:none;-webkit-appearance:none;width:14px;height:14px;margin:0;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--field);display:grid;place-items:center;flex:none;cursor:pointer}
+.check input:checked{background:var(--accent);border-color:var(--accent)}
+.check input:checked::after{content:"";width:8px;height:4px;border-left:2px solid var(--accent-ink);border-bottom:2px solid var(--accent-ink);transform:translateY(-1px) rotate(-45deg)}
+.check input:disabled{border-color:var(--line);background:var(--surface-2);cursor:not-allowed}
+.check input:disabled+span{color:var(--disabled)}
+.slider{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:var(--sp-3);align-items:center}
+.slider input[type=range]{appearance:none;-webkit-appearance:none;height:var(--h-ctl);background:none;margin:0;width:100%}
+.slider input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--line-strong);border-radius:2px}
+.slider input[type=range]::-moz-range-track{height:4px;background:var(--line-strong);border-radius:2px}
+.slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);border:0;margin-top:-5px}
+.slider input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:0}
+.slider output{text-align:right;font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--radius);overflow:hidden}
+.seg button{height:calc(var(--h-ctl) - 2px);padding:0 var(--sp-4);border:0;background:var(--surface-2);color:var(--muted);border-right:1px solid var(--line);transition:background-color var(--dur) ease-out}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--hover);color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+/* tabela */
+.tablewrap{overflow-x:auto;border-top:1px solid var(--line);background:var(--field)}
+table.data{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums}
+table.data th{height:var(--h-ctl);padding:0 var(--sp-3);text-align:right;background:var(--surface-2);color:var(--ink-strong);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+table.data th:first-child,table.data td:first-child{text-align:left}
+table.data td{height:var(--h-ctl);padding:0 var(--sp-3);text-align:right;border-bottom:1px solid var(--line);font-family:var(--font-num)}
+table.data td:first-child{font-family:var(--font-ui)}
+table.data tr:hover td{background:var(--hover)}
+table.data tr.sel td{background:var(--accent-soft);color:var(--accent-text)}
+.pill{display:inline-flex;align-items:center;height:var(--h-ctl-xs);padding:0 var(--sp-3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--ink);font-size:var(--fs-sm)}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint);margin-right:var(--sp-2)}
+.pill.ok::before{background:var(--ok)}.pill.warn::before{background:var(--warn)}.pill.bad::before{background:var(--bad)}
+.alert{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-3) var(--sp-4);border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2);color:var(--ink)}
+.alert .dot{margin-top:5px;flex:none}
+.alert b{color:var(--ink-strong);font-weight:600}
+/* componentes */
+.comps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--sp-5)}
+.card{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-lg);padding:var(--sp-4);display:grid;gap:var(--sp-3);align-content:start;min-width:0}
+.line{display:flex;flex-wrap:wrap;gap:var(--sp-3);align-items:center}
+.cap{color:var(--faint);font-size:var(--fs-sm)}
+.scrim{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;padding:var(--sp-5);z-index:20}
+.scrim[hidden]{display:none}
+.modal{width:min(420px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop)}
+.modal .mh{display:flex;justify-content:space-between;align-items:center;padding:var(--sp-4) var(--sp-5);border-bottom:1px solid var(--line);font-size:var(--fs-lg);font-weight:600;color:var(--ink-strong)}
+.modal .mb{padding:var(--sp-5);display:grid;gap:var(--sp-3)}
+.modal .mf{display:flex;justify-content:flex-end;gap:var(--sp-3);padding:var(--sp-4) var(--sp-5);border-top:1px solid var(--line)}
+.legend{display:grid;gap:var(--sp-3)}
+@media (max-width:980px){
+  .main{grid-template-columns:minmax(0,1fr)}
+  .dock.l,.dock.r{border:0;border-bottom:1px solid var(--line)}
+  .dock .pbody{max-height:300px}
+  .stage{order:-1}
+  .fname{order:9;flex-basis:100%}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></symbol>
+  <symbol id="i-pil" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10"/><path d="M12 2v5M12 17v5"/></symbol>
+  <symbol id="i-vig" viewBox="0 0 24 24"><rect x="2" y="9" width="20" height="6"/><path d="M6 9v6M18 9v6"/></symbol>
+  <symbol id="i-laje" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M3 5l18 14M21 5L3 19"/></symbol>
+  <symbol id="i-mov" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></symbol>
+  <symbol id="i-sel" viewBox="0 0 24 24"><path d="M6 3v15l4-4 3 6 2-1-3-6h6z"/></symbol>
+  <symbol id="i-cota" viewBox="0 0 24 24"><path d="M3 15h18M3 11v8M21 11v8M6 12l-3 3 3 3M18 12l3 3-3 3"/></symbol>
+  <symbol id="i-calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/></symbol>
+  <symbol id="i-dim" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-prancha" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18"/><path d="M4 16h16M8 19h4"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h10a6 6 0 0 1 0 8"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 7l5 5-5 5M20 12H10a6 6 0 0 0 0 8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 16 16"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></symbol>
+</svg>
+
+<div class="wrap">
+<p class="note" style="margin-bottom:var(--sp-3)">Prévia de layout do Statikos (dados fictícios, marcados como exemplo). Clique nos itens da árvore ou na planta para trocar o elemento selecionado.</p>
+
+<div class="app" id="app">
+  <header class="qbar" id="qbar">
+    <span class="brand">Statikos</span>
+    <button type="button" class="tbtn" id="b-arquivo">Arquivo</button>
+    <span class="vsep"></span>
+    <button type="button" class="tbtn" id="b-undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><svg class="i"><use href="#i-undo"/></svg></button>
+    <button type="button" class="tbtn" id="b-redo" title="Refazer (Ctrl+Y)" aria-label="Refazer" disabled><svg class="i"><use href="#i-redo"/></svg></button>
+    <span class="vsep"></span>
+    <button type="button" class="tbtn" id="b-salvar">Salvar</button>
+    <button type="button" class="tbtn" id="b-biblioteca">Biblioteca</button>
+    <button type="button" class="tbtn" id="b-ajuda">Ajuda</button>
+    <span class="fname">Edifício Exemplo <span class="ex">(exemplo)</span></span>
+    <label class="tema" for="tema-sel">Tema
+      <select id="tema-sel" aria-label="Tema da interface">
+        <option value="sistema">Sistema</option>
+        <option value="escuro">Escuro</option>
+        <option value="claro">Claro</option>
+      </select>
+    </label>
+    <button type="button" class="tbtn" id="b-tema" title="Alternar entre escuro e claro">Alternar</button>
+  </header>
+
+  <nav class="modtabs" role="tablist" aria-label="Módulo" id="modtabs">
+    <button type="button" role="tab" id="m-portico" aria-selected="false">Pórtico</button>
+    <button type="button" role="tab" id="m-edificio" aria-selected="true">Edifício</button>
+    <button type="button" role="tab" id="m-fundacoes" aria-selected="false">Fundações</button>
+    <button type="button" role="tab" id="m-memorial" aria-selected="false">Memorial</button>
+  </nav>
+
+  <div class="ribbon" id="ribbon" role="toolbar" aria-label="Comandos de Edifício">
+    <div class="rgrp"><div class="rbtns">
+      <button type="button" class="rbtn" id="r-sel" aria-pressed="true"><svg class="i"><use href="#i-sel"/></svg>Selecionar</button>
+      <button type="button" class="rbtn" id="r-mov" aria-pressed="false"><svg class="i"><use href="#i-mov"/></svg>Mover</button>
+    </div><div class="rl">Edição</div></div>
+    <div class="rgrp"><div class="rbtns">
+      <button type="button" class="rbtn" id="r-pil" aria-pressed="false"><svg class="i"><use href="#i-pil"/></svg>Pilar</button>
+      <button type="button" class="rbtn" id="r-vig" aria-pressed="false"><svg class="i"><use href="#i-vig"/></svg>Viga</button>
+      <button type="button" class="rbtn" id="r-laje" aria-pressed="false"><svg class="i"><use href="#i-laje"/></svg>Laje</button>
+      <button type="button" class="rbtn" id="r-cota" aria-pressed="false"><svg class="i"><use href="#i-cota"/></svg>Cota</button>
+    </div><div class="rl">Lançamento</div></div>
+    <div class="rgrp"><div class="rbtns">
+      <button type="button" class="rbtn" id="r-calc"><svg class="i"><use href="#i-calc"/></svg>Calcular</button>
+      <button type="button" class="rbtn" id="r-dim"><svg class="i"><use href="#i-dim"/></svg>Dimensionar</button>
+      <button type="button" class="rbtn" id="r-pran" disabled><svg class="i"><use href="#i-prancha"/></svg>Pranchas</button>
+    </div><div class="rl">Cálculo</div></div>
+  </div>
+  <div class="optbar" id="optbar"><span><b>Selecionar</b> | Viga V1</span><span>Tab alterna o que está sob o cursor; Ctrl soma; Shift remove.</span></div>
+
+  <div class="main" id="main">
+    <aside class="dock l" id="dock-esq" aria-label="Navegador da obra">
+      <section class="pal grow" id="pal-nav">
+        <div class="phead">Navegador<button type="button" class="tbtn" id="nav-exp" title="Recolher tudo">Recolher</button></div>
+        <div class="pbody">
+          <ul class="tree" role="tree" id="tree">
+            <li class="l1" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="true" data-t="obra"><svg class="i chev"><use href="#i-chev"/></svg>Obra: Edifício Exemplo<span class="cnt">3 pav.</span></button>
+              <ul>
+                <li class="l2" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="false" data-t="cob"><svg class="i chev"><use href="#i-chev"/></svg>Cobertura<span class="cnt">+9,00 m</span></button><ul hidden></ul></li>
+                <li class="l2" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="true" data-t="t1"><svg class="i chev"><use href="#i-chev"/></svg>Tipo 1<span class="cnt">+6,00 m</span></button>
+                  <ul>
+                    <li class="l3" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="true" data-t="pil"><svg class="i chev"><use href="#i-chev"/></svg>Pilares<span class="cnt">6</span></button>
+                      <ul>
+                        <li class="l4" role="none"><button type="button" class="tn" role="treeitem" aria-selected="false" data-el="P1"><span class="sp"></span>P1</button></li>
+                        <li class="l4" role="none"><button type="button" class="tn" role="treeitem" aria-selected="false" data-el="P2"><span class="sp"></span>P2</button></li>
+                      </ul></li>
+                    <li class="l3" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="true" data-t="vig"><svg class="i chev"><use href="#i-chev"/></svg>Vigas<span class="cnt">7</span></button>
+                      <ul>
+                        <li class="l4" role="none"><button type="button" class="tn" role="treeitem" aria-selected="true" data-el="V1"><span class="sp"></span>V1</button></li>
+                        <li class="l4" role="none"><button type="button" class="tn" role="treeitem" aria-selected="false" data-el="V2"><span class="sp"></span>V2</button></li>
+                      </ul></li>
+                    <li class="l3" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="true" data-t="laj"><svg class="i chev"><use href="#i-chev"/></svg>Lajes<span class="cnt">2</span></button>
+                      <ul>
+                        <li class="l4" role="none"><button type="button" class="tn" role="treeitem" aria-selected="false" data-el="L1"><span class="sp"></span>L1</button></li>
+                      </ul></li>
+                  </ul></li>
+                <li class="l2" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="false" data-t="t0"><svg class="i chev"><use href="#i-chev"/></svg>Fundação<span class="cnt">+0,00 m</span></button><ul hidden></ul></li>
+              </ul></li>
+            <li class="l1" role="none"><button type="button" class="tn" role="treeitem" aria-expanded="false" data-t="vistas"><svg class="i chev"><use href="#i-chev"/></svg>Vistas e resultados</button>
+              <ul hidden>
+                <li class="l2" role="none"><button type="button" class="tn" role="treeitem" data-view="analise"><span class="sp"></span>Análise</button></li>
+                <li class="l2" role="none"><button type="button" class="tn" role="treeitem" data-view="verif"><span class="sp"></span>Verificação</button></li>
+              </ul></li>
+          </ul>
+        </div>
+      </section>
+      <section class="pal" id="pal-etapas">
+        <div class="phead">Etapas da obra</div>
+        <div class="pbody" style="max-height:132px">
+          <div class="gbody">
+            <div class="line"><span class="pill ok">Dados gerais</span><span class="pill ok">Lançamento</span></div>
+            <div class="line"><span class="pill warn">Cálculo</span><span class="pill">Detalhamento</span></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage" id="stage" aria-label="Área de desenho">
+      <div class="vtabs" role="tablist" aria-label="Vistas" id="vtabs">
+        <button type="button" role="tab" aria-selected="true" data-v="planta">Planta</button>
+        <button type="button" role="tab" aria-selected="false" data-v="3d">3D</button>
+        <button type="button" role="tab" aria-selected="false" data-v="verif">Verificação (2)</button>
+        <button type="button" role="tab" aria-selected="false" data-v="analise">Análise</button>
+        <button type="button" role="tab" aria-selected="false" data-v="dim">Dimensionamento</button>
+        <button type="button" role="tab" aria-selected="false" data-v="pran">Pranchas</button>
+      </div>
+      <div class="sheet" id="sheet">
+        <div class="pane" id="pane-planta">
+          <svg class="plan" viewBox="0 0 640 380" role="img" aria-label="Planta do pavimento Tipo 1 (exemplo)" id="plan">
+            <g>
+              <path class="pl-grid" d="M0 40H640M0 80H640M0 120H640M0 160H640M0 200H640M0 240H640M0 280H640M0 320H640M0 360H640M40 0V380M80 0V380M120 0V380M160 0V380M200 0V380M240 0V380M280 0V380M320 0V380M360 0V380M400 0V380M440 0V380M480 0V380M520 0V380M560 0V380M600 0V380"/>
+              <path class="pl-grid2" d="M0 120H640M0 280H640M120 0V380M320 0V380M520 0V380"/>
+            </g>
+            <polygon class="pl-laje" data-el="L1" points="120,120 320,120 320,280 120,280"/>
+            <polygon class="pl-laje" data-el="L2" points="320,120 520,120 520,280 320,280"/>
+            <path class="pl-axis" d="M120 70V330M320 70V330M520 70V330M70 120H570M70 280H570"/>
+            <rect class="pl-vig" data-el="V1" x="120" y="114" width="200" height="12"/>
+            <rect class="pl-vig" data-el="V2" x="320" y="114" width="200" height="12"/>
+            <rect class="pl-vig" data-el="V3" x="120" y="274" width="200" height="12"/>
+            <rect class="pl-vig" data-el="V4" x="320" y="274" width="200" height="12"/>
+            <rect class="pl-vig" data-el="V5" x="114" y="120" width="12" height="160"/>
+            <rect class="pl-vig" data-el="V6" x="314" y="120" width="12" height="160"/>
+            <rect class="pl-vig" data-el="V7" x="514" y="120" width="12" height="160"/>
+            <rect class="pl-pil" data-el="P1" x="110" y="110" width="20" height="20"/>
+            <rect class="pl-pil" data-el="P2" x="310" y="110" width="20" height="20"/>
+            <rect class="pl-pil" data-el="P3" x="510" y="110" width="20" height="20"/>
+            <rect class="pl-pil" data-el="P4" x="110" y="270" width="20" height="20"/>
+            <rect class="pl-pil" data-el="P5" x="310" y="270" width="20" height="20"/>
+            <rect class="pl-pil" data-el="P6" x="510" y="270" width="20" height="20"/>
+            <g class="lbls">
+              <text class="pl-t" x="140" y="106">V1 20x50</text><text class="pl-t" x="340" y="106">V2 20x50</text>
+              <text class="pl-t" x="140" y="306">V3</text><text class="pl-t" x="340" y="306">V4</text>
+              <text class="pl-t a" x="212" y="205">L1</text><text class="pl-t a" x="412" y="205">L2</text>
+              <text class="pl-t" x="92" y="104">P1</text><text class="pl-t" x="292" y="104">P2</text><text class="pl-t" x="534" y="104">P3</text>
+            </g>
+            <g>
+              <circle class="pl-bub" cx="120" cy="52" r="11"/><text class="pl-t a" x="115" y="57">1</text>
+              <circle class="pl-bub" cx="320" cy="52" r="11"/><text class="pl-t a" x="315" y="57">2</text>
+              <circle class="pl-bub" cx="520" cy="52" r="11"/><text class="pl-t a" x="515" y="57">3</text>
+              <circle class="pl-bub" cx="86" cy="120" r="11"/><text class="pl-t a" x="81" y="125">A</text>
+              <circle class="pl-bub" cx="86" cy="280" r="11"/><text class="pl-t a" x="81" y="285">B</text>
+            </g>
+            <g>
+              <path class="pl-dim" d="M120 336H520M120 330V342M320 330V342M520 330V342"/>
+              <text class="pl-t" x="205" y="352">5,00 m</text><text class="pl-t" x="405" y="352">5,00 m</text>
+              <path class="pl-dim" d="M560 120V280M554 120H566M554 280H566"/><text class="pl-t" x="568" y="204">4,00</text>
+            </g>
+          </svg>
+          <div class="vzoom"><button type="button" aria-label="Enquadrar" id="z-fit"><svg class="i"><use href="#i-fit"/></svg></button><button type="button" aria-label="Aproximar" id="z-in"><svg class="i"><use href="#i-plus"/></svg></button><button type="button" aria-label="Afastar" id="z-out"><svg class="i"><use href="#i-minus"/></svg></button></div>
+        </div>
+        <div class="pane vph" id="pane-ph" hidden><p id="ph-txt">Vista de exemplo.</p></div>
+      </div>
+      <div class="vbar"><span>Escala 1:50 (exemplo)</span><span>Pavimento: Tipo 1</span><span>Grade: 10 cm</span></div>
+    </section>
+
+    <aside class="dock r" id="dock-dir" aria-label="Propriedades">
+      <section class="pal grow" id="pal-prop">
+        <div class="phead">Propriedades</div>
+        <div class="pbody">
+          <div class="typecard"><div class="ico"><svg class="i" style="width:20px;height:20px"><use href="#i-vig"/></svg></div><div><b id="p-nome">Viga V1</b><span id="p-sub">Retangular 20 x 50 cm</span></div></div>
+          <div class="psel"><span id="p-cnt">Vigas (1)</span><button type="button" class="btn sm" id="p-tipo">Editar tipo</button></div>
+          <details class="group" open id="g-secao"><summary><svg class="i"><use href="#i-chev"/></svg>Seção</summary>
+            <div class="gbody">
+              <div class="row"><label class="lbl" for="f-tipo">Forma</label><div class="field"><select id="f-tipo"><option>Retangular</option><option>T</option><option>Circular</option></select><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+              <div class="row"><label class="lbl" for="f-b">Largura b</label><div class="field"><input id="f-b" type="text" inputmode="decimal" value="20"><span class="unit">cm</span></div></div>
+              <div class="row"><label class="lbl" for="f-h">Altura h</label><div class="field"><input id="f-h" type="text" inputmode="decimal" value="50"><span class="unit">cm</span></div></div>
+              <div class="row"><span class="lbl">Vão</span><span class="val num" id="f-vao">5,00 m</span></div>
+            </div></details>
+          <details class="group" open id="g-vinc"><summary><svg class="i"><use href="#i-chev"/></svg>Vinculação</summary>
+            <div class="gbody">
+              <div class="row"><label class="lbl" for="f-ei">Engaste início</label><div class="field"><select id="f-ei"><option>Engastado</option><option>Rotulado</option><option>Semirrígido</option></select><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+              <div class="row"><label class="lbl" for="f-ef">Engaste fim</label><div class="field"><select id="f-ef"><option>Engastado</option><option>Rotulado</option><option>Semirrígido</option></select><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+              <div class="row"><span class="lbl">Apoio</span><span class="val" id="f-apoio">P1 e P2</span></div>
+            </div></details>
+          <details class="group" id="g-mat"><summary><svg class="i"><use href="#i-chev"/></svg>Materiais</summary>
+            <div class="gbody">
+              <div class="row"><label class="lbl" for="f-fck">fck</label><div class="field"><input id="f-fck" type="text" inputmode="decimal" value="30"><span class="unit">MPa</span></div></div>
+              <div class="row"><label class="lbl" for="f-aco">Aço</label><div class="field"><select id="f-aco"><option>CA-50</option><option>CA-60</option></select><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+              <div class="row"><label class="lbl" for="f-cob">Cobrimento</label><div class="field"><input id="f-cob" type="text" inputmode="decimal" value="3,0"><span class="unit">cm</span></div></div>
+            </div></details>
+          <details class="group" id="g-opt"><summary><svg class="i"><use href="#i-chev"/></svg>Opções</summary>
+            <div class="gbody">
+              <label class="check"><input type="checkbox" id="o-flecha" checked><span>Verificar flecha</span></label>
+              <label class="check"><input type="checkbox" id="o-fiss"><span>Verificar fissuração</span></label>
+              <div class="slider"><label class="lbl" for="o-red" style="grid-column:1/-1">Redistribuição de momentos</label><input type="range" id="o-red" min="0" max="25" step="1" value="15"><output id="o-red-v" for="o-red">15%</output></div>
+            </div></details>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="tablewrap" id="resultados">
+    <table class="data" aria-label="Resultados das vigas (exemplo)">
+      <thead><tr><th>Viga</th><th>Seção (cm)</th><th>Md (kN·m)</th><th>Vd (kN)</th><th>As (cm²)</th><th>Flecha (mm)</th><th>Situação</th></tr></thead>
+      <tbody id="tbody">
+        <tr data-el="V1" class="sel"><td>V1</td><td>20 x 50</td><td>96,4</td><td>82,1</td><td>5,42</td><td>7,8</td><td><span class="pill ok">Atende</span></td></tr>
+        <tr data-el="V2"><td>V2</td><td>20 x 50</td><td>102,7</td><td>88,5</td><td>5,80</td><td>8,3</td><td><span class="pill ok">Atende</span></td></tr>
+        <tr data-el="V3"><td>V3</td><td>20 x 40</td><td>71,2</td><td>60,3</td><td>5,95</td><td>14,6</td><td><span class="pill warn">Flecha no limite</span></td></tr>
+        <tr data-el="V4"><td>V4</td><td>20 x 40</td><td>118,9</td><td>91,0</td><td>8,10</td><td>17,9</td><td><span class="pill bad">Revisar</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="statusbar">
+    <span><span class="dot ok"></span>Modelo calculado</span>
+    <span>6 pilares · 7 vigas · 2 lajes</span>
+    <span id="st-sel">Selecionado: V1</span>
+    <span class="ex">Dados de exemplo</span>
+  </footer>
+</div>
+
+<h2>Faixa de componentes</h2>
+<p class="note">Estados dos controles no padrão visual proposto. Valores de exemplo.</p>
+<div class="comps">
+  <div class="card"><h3>Botões</h3>
+    <div class="line"><button type="button" class="btn">Padrão</button><button type="button" class="btn is-hover">Hover</button><button type="button" class="btn is-active">Pressionado</button><button type="button" class="btn is-focus">Foco</button><button type="button" class="btn" disabled>Desabilitado</button></div>
+    <div class="line"><button type="button" class="btn primary">Primário</button><button type="button" class="btn primary is-hover">Hover</button><button type="button" class="btn primary is-active">Pressionado</button><button type="button" class="btn primary" disabled>Desabilitado</button></div>
+    <div class="line"><button type="button" class="btn ghost">Ghost</button><button type="button" class="btn ghost is-hover">Hover</button><button type="button" class="btn danger">Excluir</button><button type="button" class="btn danger is-hover">Hover</button><button type="button" class="btn sm">Pequeno</button><button type="button" class="btn lg">Grande</button></div>
+  </div>
+  <div class="card"><h3>Campos e seleção</h3>
+    <div class="row"><span class="lbl">Número</span><div class="field"><input type="text" value="25,0" aria-label="Número"><span class="unit">cm</span></div></div>
+    <div class="row"><span class="lbl">Foco</span><div class="field is-focus"><input type="text" value="30" aria-label="Campo em foco"><span class="unit">MPa</span></div></div>
+    <div class="row"><span class="lbl">Desabilitado</span><div class="field dis"><input type="text" value="1,40" disabled aria-label="Campo desabilitado"></div></div>
+    <div class="row"><label class="lbl" for="c-sel">Seletor</label><div class="field"><select id="c-sel"><option>CAA II</option><option>CAA III</option></select><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+    <div class="line"><label class="check"><input type="checkbox" checked><span>Marcado</span></label><label class="check"><input type="checkbox"><span>Vazio</span></label><label class="check"><input type="checkbox" disabled><span>Desabilitado</span></label></div>
+    <div class="slider"><input type="range" min="0" max="100" value="40" aria-label="Controle deslizante" id="c-sl"><output id="c-sl-v" for="c-sl">40</output></div>
+  </div>
+  <div class="card"><h3>Abas e segmentos</h3>
+    <div class="vtabs" role="tablist" aria-label="Abas de exemplo" id="vt2" style="padding-left:0;padding-right:0">
+      <button type="button" role="tab" aria-selected="true">Estrutura</button><button type="button" role="tab" aria-selected="false">Cargas</button><button type="button" role="tab" aria-selected="false">Resultados</button>
+    </div>
+    <div class="seg" role="group" aria-label="Segmentos" id="seg"><button type="button" aria-pressed="true">kN</button><button type="button" aria-pressed="false">tf</button><button type="button" aria-pressed="false">kgf</button></div>
+    <div class="line"><span class="pill ok">Atende</span><span class="pill warn">Atenção</span><span class="pill bad">Revisar</span><span class="pill">Neutro</span></div>
+  </div>
+  <div class="card"><h3>Alertas e modal</h3>
+    <div class="alert"><span class="dot warn"></span><div><b>Premissa a confirmar.</b> Cobrimento tomado do padrão do sistema; edite em Materiais.</div></div>
+    <div class="alert"><span class="dot bad"></span><div><b>Flecha acima do limite</b> na viga V4 (exemplo).</div></div>
+    <div class="alert"><span class="dot ok"></span><div>Modelo calculado sem erros.</div></div>
+    <div class="line"><button type="button" class="btn" id="modal-open">Abrir modal</button></div>
+  </div>
+</div>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-t" id="modal">
+    <div class="mh"><span id="modal-t">Nova obra</span><button type="button" class="btn ghost sm" id="modal-x" aria-label="Fechar">Fechar</button></div>
+    <div class="mb"><div class="row"><label class="lbl" for="m-nome">Nome</label><div class="field"><input id="m-nome" type="text" value="Obra de exemplo" style="text-align:left"></div></div><p class="note" style="margin:0">Exemplo de diálogo; nada é salvo.</p></div>
+    <div class="mf"><button type="button" class="btn" id="modal-c">Cancelar</button><button type="button" class="btn primary" id="modal-ok">Criar</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var KEY='statikos-preview-tema';
+  function lerTema(){try{return localStorage.getItem(KEY)||'sistema';}catch(e){return 'sistema';}}
+  function gravarTema(v){try{localStorage.setItem(KEY,v);}catch(e){}}
+  function efetivo(){var t=root.getAttribute('data-theme');if(t)return t;return window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+  function aplicar(v){
+    if(v==='escuro')root.setAttribute('data-theme','dark');
+    else if(v==='claro')root.setAttribute('data-theme','light');
+    else root.removeAttribute('data-theme');
+    document.getElementById('tema-sel').value=v;
+  }
+  var t0=lerTema();aplicar(t0);
+  document.getElementById('tema-sel').addEventListener('change',function(e){gravarTema(e.target.value);aplicar(e.target.value);});
+  document.getElementById('b-tema').addEventListener('click',function(){
+    var v=efetivo()==='dark'?'claro':'escuro';gravarTema(v);aplicar(v);
+  });
+
+  var DADOS={
+    V1:{n:'Viga V1',s:'Retangular 20 x 50 cm',c:'Vigas (1)',b:'20',h:'50',vao:'5,00 m',ap:'P1 e P2',ei:0,ef:0,ico:'i-vig'},
+    V2:{n:'Viga V2',s:'Retangular 20 x 50 cm',c:'Vigas (1)',b:'20',h:'50',vao:'5,00 m',ap:'P2 e P3',ei:0,ef:1,ico:'i-vig'},
+    V3:{n:'Viga V3',s:'Retangular 20 x 40 cm',c:'Vigas (1)',b:'20',h:'40',vao:'5,00 m',ap:'P4 e P5',ei:0,ef:0,ico:'i-vig'},
+    V4:{n:'Viga V4',s:'Retangular 20 x 40 cm',c:'Vigas (1)',b:'20',h:'40',vao:'5,00 m',ap:'P5 e P6',ei:1,ef:0,ico:'i-vig'},
+    V5:{n:'Viga V5',s:'Retangular 20 x 40 cm',c:'Vigas (1)',b:'20',h:'40',vao:'4,00 m',ap:'P1 e P4',ei:0,ef:0,ico:'i-vig'},
+    V6:{n:'Viga V6',s:'Retangular 20 x 40 cm',c:'Vigas (1)',b:'20',h:'40',vao:'4,00 m',ap:'P2 e P5',ei:0,ef:0,ico:'i-vig'},
+    V7:{n:'Viga V7',s:'Retangular 20 x 40 cm',c:'Vigas (1)',b:'20',h:'40',vao:'4,00 m',ap:'P3 e P6',ei:0,ef:0,ico:'i-vig'},
+    P1:{n:'Pilar P1',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F1',ei:0,ef:0,ico:'i-pil'},
+    P2:{n:'Pilar P2',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F2',ei:0,ef:0,ico:'i-pil'},
+    P3:{n:'Pilar P3',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F3',ei:0,ef:0,ico:'i-pil'},
+    P4:{n:'Pilar P4',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F4',ei:0,ef:0,ico:'i-pil'},
+    P5:{n:'Pilar P5',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F5',ei:0,ef:0,ico:'i-pil'},
+    P6:{n:'Pilar P6',s:'Retangular 30 x 30 cm',c:'Pilares (1)',b:'30',h:'30',vao:'3,00 m',ap:'Fundação F6',ei:0,ef:0,ico:'i-pil'},
+    L1:{n:'Laje L1',s:'Maciça h = 12 cm',c:'Lajes (1)',b:'500',h:'12',vao:'5,00 x 4,00 m',ap:'V1, V3, V5, V6',ei:0,ef:0,ico:'i-laje'},
+    L2:{n:'Laje L2',s:'Maciça h = 12 cm',c:'Lajes (1)',b:'500',h:'12',vao:'5,00 x 4,00 m',ap:'V2, V4, V6, V7',ei:0,ef:0,ico:'i-laje'}
+  };
+  function $(id){return document.getElementById(id);}
+  function selecionar(id){
+    var d=DADOS[id];if(!d)return;
+    document.querySelectorAll('[data-el]').forEach(function(n){
+      var on=n.getAttribute('data-el')===id;
+      if(n.classList.contains('tn')){n.setAttribute('aria-selected',on?'true':'false');}
+      else if(n.tagName==='TR'){n.classList.toggle('sel',on);}
+      else{n.classList.toggle('sel',on);}
+    });
+    $('p-nome').textContent=d.n;$('p-sub').textContent=d.s;$('p-cnt').textContent=d.c;
+    $('f-b').value=d.b;$('f-h').value=d.h;$('f-vao').textContent=d.vao;$('f-apoio').textContent=d.ap;
+    $('f-ei').selectedIndex=d.ei;$('f-ef').selectedIndex=d.ef;
+    $('st-sel').textContent='Selecionado: '+id;
+    $('optbar').firstElementChild.innerHTML='<b>Selecionar</b> | '+d.n;
+    document.querySelector('.typecard use').setAttribute('href','#'+d.ico);
+  }
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-el]');
+    if(el&&el.closest('#app')){selecionar(el.getAttribute('data-el'));}
+  });
+
+  document.querySelectorAll('#tree [aria-expanded]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var open=b.getAttribute('aria-expanded')==='true';
+      b.setAttribute('aria-expanded',open?'false':'true');
+      var ul=b.nextElementSibling;if(ul&&ul.tagName==='UL')ul.hidden=open;
+    });
+  });
+  $('nav-exp').addEventListener('click',function(){
+    document.querySelectorAll('#tree [aria-expanded="true"]').forEach(function(b){b.click();});
+  });
+
+  var NOMES={'3d':'Vista 3D','verif':'Verificação','analise':'Análise','dim':'Dimensionamento','pran':'Pranchas'};
+  function vista(v){
+    document.querySelectorAll('#vtabs button').forEach(function(b){b.setAttribute('aria-selected',b.getAttribute('data-v')===v?'true':'false');});
+    var pl=v==='planta';
+    $('pane-planta').hidden=!pl;$('pane-ph').hidden=pl;
+    if(!pl)$('ph-txt').textContent=NOMES[v]+' (exemplo): o conteúdo desta vista continua o mesmo do app atual; só muda onde ela fica.';
+  }
+  $('vtabs').addEventListener('click',function(e){var b=e.target.closest('button');if(b)vista(b.getAttribute('data-v'));});
+  document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){vista(b.getAttribute('data-view')==='verif'?'verif':'analise');});});
+
+  function grupoUnico(cont,sel,attr){
+    cont.addEventListener('click',function(e){
+      var b=e.target.closest(sel);if(!b||b.disabled)return;
+      cont.querySelectorAll(sel).forEach(function(x){x.setAttribute(attr,x===b?(attr==='aria-selected'?'true':'true'):'false');});
+    });
+  }
+  grupoUnico($('modtabs'),'button','aria-selected');
+  grupoUnico($('vt2'),'button','aria-selected');
+  grupoUnico($('seg'),'button','aria-pressed');
+  document.querySelectorAll('.ribbon .rbtn[aria-pressed]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.ribbon .rbtn[aria-pressed]').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+    });
+  });
+
+  $('o-red').addEventListener('input',function(e){$('o-red-v').textContent=e.target.value+'%';});
+  $('c-sl').addEventListener('input',function(e){$('c-sl-v').textContent=e.target.value;});
+
+  var scrim=$('scrim'),ult=null;
+  function abrir(){ult=document.activeElement;scrim.hidden=false;$('m-nome').focus();}
+  function fechar(){scrim.hidden=true;if(ult&&ult.focus)ult.focus();}
+  $('modal-open').addEventListener('click',abrir);
+  $('b-arquivo').addEventListener('click',abrir);
+  ['modal-x','modal-c','modal-ok'].forEach(function(id){$(id).addEventListener('click',fechar);});
+  scrim.addEventListener('click',function(e){if(e.target===scrim)fechar();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!scrim.hidden)fechar();});
+})();
+</script>
+</body>
+</html>
