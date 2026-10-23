@@ -7,7 +7,7 @@
 import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
-import { TRELICADAS } from '../building/lajes';
+import { espessuraConcreto } from '../building/tiposLaje';
 import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
 import { siglaReforco } from '../building/lajesEdicao';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
@@ -68,7 +68,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     let concreto = 0, forma = 0;
     for (const l of lajes) {
       const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
-      const t = l.tipo.tipo === 'macica' ? l.tipo.h : (() => { const kk = TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12; return l.tipo.capa + (kk.bw * kk.hEnch) / kk.intereixo; })();
+      const t = espessuraConcreto(b, l.tipo);
       concreto += A * t * pavs.length; forma += A * pavs.length;
     }
     const folhas: { faces: Face[]; rot: string }[] = cfg.lajesSeparadas ? [{ faces: ['inf'], rot: 'POSITIVAS' }, { faces: ['sup'], rot: 'NEGATIVAS' }] : [{ faces: ['inf', 'sup'], rot: 'POSITIVAS E NEGATIVAS' }];

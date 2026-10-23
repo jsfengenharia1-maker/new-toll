@@ -4,7 +4,7 @@
 import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
 import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
-import { TRELICADAS } from '../building/lajes';
+import { rotuloLaje } from '../building/tiposLaje';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
@@ -264,7 +264,7 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   const ref = el.ref;
   for (const l of el.lajes) {
     const pi = pontoInterno(l.contorno);
-    const tipo = l.tipo.tipo === 'macica' ? `h=${cm(l.tipo.h)}` : `TR ${l.tipo.modelo}+${cm(l.tipo.capa)} (h=${cm((TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12).hEnch + l.tipo.capa)})`;
+    const tipo = rotuloLaje(b, l.tipo);
     const pr = pontoRef(b, l.id, pi), rl = refDe(b, l.id)?.rot;
     modelo.push({ t: 'txt', c: 'LAJE', p: pr, h: 3 * k, s: l.nome, ah: 'c', av: 'base', ...(rl ? { ang: rl } : {}) }, { t: 'txt', c: 'LAJE', p: [pr[0], pr[1] - 1.5 * k], h: 2.2 * k, s: tipo, ah: 'c', av: 'topo', ...(rl ? { ang: rl } : {}) });
     for (const f of l.furos ?? []) {

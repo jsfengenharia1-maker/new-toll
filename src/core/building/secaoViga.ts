@@ -4,6 +4,7 @@
 import type { BeamSection } from '../concrete';
 import { dentroPoligono } from '../geom/faces';
 import { propriedadesLaje } from './lajes';
+import { capaLaje } from './tiposLaje';
 import type { OpcoesCalculo } from './opcoes';
 import { geometriaViga, type BuildingModel, type Viga } from './types';
 import { vaosDaViga } from './vigas';
@@ -86,7 +87,7 @@ function vizinhancaLateral(b: BuildingModel, v: Viga): { b2: [number | null, num
       // laje logo ao lado da face (5 cm)
       const q: P = [M[0] + nx * (v.secao.b / 2 + 0.05), M[1] + ny * (v.secao.b / 2 + 0.05)];
       const lj = lajes.find((l) => dentroPoligono(q, l.contorno));
-      if (lj) { comLaje++; hf = Math.max(hf, lj.tipo.tipo === 'macica' ? lj.tipo.h : lj.tipo.capa); }
+      if (lj) { comLaje++; hf = Math.max(hf, capaLaje(b, lj.tipo)); }
       // viga paralela mais próxima ao longo da normal
       let melhor = Infinity;
       for (const { w, e } of outras) for (let i = 0; i + 1 < e.length; i++) {

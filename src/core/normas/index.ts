@@ -3,11 +3,12 @@
 import { NORMAS_FOGO } from './fogo';
 import { NORMAS_FUNDACOES } from './fundacoes';
 import { NORMAS_GERAIS } from './gerais';
+import { NORMAS_LAJES } from './lajes';
 import type { CelulaNorma, FonteNormas, LinhaNorma, NormasModelo, TabelaNormaInfo, TabelaNormaUsuario } from './tipos';
 
 export * from './tipos';
 
-export const NORMAS: TabelaNormaInfo[] = [...NORMAS_GERAIS, ...NORMAS_FUNDACOES, ...NORMAS_FOGO];
+export const NORMAS: TabelaNormaInfo[] = [...NORMAS_GERAIS, ...NORMAS_FUNDACOES, ...NORMAS_FOGO, ...NORMAS_LAJES];
 const POR_ID = new Map(NORMAS.map((t) => [t.id, t]));
 
 export const normaInfo = (id: string): TabelaNormaInfo | undefined => POR_ID.get(id);

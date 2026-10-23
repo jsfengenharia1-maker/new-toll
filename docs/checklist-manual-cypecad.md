@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
 | 6. Vigas | 108 | 33 | 30 | 20 | 25 |
-| 7. Lajes | 195 | 33 | 36 | 59 | 67 |
+| 7. Lajes | 195 | 33 | 46 | 49 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 20 | 2 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **120** | **154** | **185** |
+| **Total** | **763** | **304** | **130** | **144** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 51 | 147 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 61 | 137 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 37 | 2 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 30 | 5 | 35 |
@@ -429,25 +429,25 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Parcial | L | bloquear o cálculo com pano sem tipo [L5] — L5 núcleo: erro `DEFINIR_PANO` (verificação, com "ver na planta" e sugestão) e `analisarEdificio` recusa a obra com pano a definir; o pano sem laje continua só aviso  |
 | C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Feito | — | pano fechado por vigas sem laje: polígono translúcido tracejado com "?" na vista 3D [V1] |
 | | **7.1.2.2 Lajes de vigotas** | | | |
-| C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] [E3a] |
-| C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Falta | E | vigotas protendidas; catálogo de fabricante [E3a] |
-| C7.21 | Tipos genéricos por geometria (criar, copiar, apagar) para quando a vigota final não é conhecida, ajudando a decidir entre armada e protendida pela flecha. | Falta | E | [E3a] |
-| C7.22 | Dados geométricos: referência, espessura da capa, altura do enchimento, intereixo e largura mínima da nervura. | Parcial | E | capa, enchimento, intereixo, nervura do catálogo; não editáveis [E3a] |
-| C7.23 | Acréscimo de largura da nervura, usado só na rigidez e no momento de fissuração para a flecha (enchimento de concreto). | Falta | E | [E3a] |
+| C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 na biblioteca de normas (`lajes.trelicadas`, editável) e fichas por norma/fabricante em `b.tiposLaje` (`tiposLaje.ts`); interface: cartões E3a [E3a] |
+| C7.20 | Vigotas de concreto armadas ou protendidas, por catálogo de fabricante ou por propriedades geométricas (dependendo da norma, só a segunda opção). | Parcial | E | fichas armada, protendida, moldada e treliçada (`FichaVigota`, `tipoLaje.ficha`) e tipo por geometria (`fichaPorGeometria`); editor nos cartões E3a; cálculo da vigota pela ficha na E3b [E3a] |
+| C7.21 | Tipos genéricos por geometria (criar, copiar, apagar) para quando a vigota final não é conhecida, ajudando a decidir entre armada e protendida pela flecha. | Parcial | E | tipo genérico por geometria: criar, copiar e apagar (`tipoLaje.ficha` com `geometria`); editor nos cartões E3a [E3a] |
+| C7.22 | Dados geométricos: referência, espessura da capa, altura do enchimento, intereixo e largura mínima da nervura. | Parcial | E | referência, capa, altura do enchimento, intereixo e largura mínima da nervura editáveis na ficha (`SerieFicha`); editor nos cartões E3a [E3a] |
+| C7.23 | Acréscimo de largura da nervura, usado só na rigidez e no momento de fissuração para a flecha (enchimento de concreto). | Parcial | E | `FichaVigota.bwExtra` entra só na inércia e no Mfis (`propriedadesFlexao`), nunca na resistência nem no peso; campo no editor dos cartões E3a [E3a] |
 | C7.24 | Volume de concreto por m² calculado e editável. | Feito | — | volume de concreto nos quantitativos |
-| C7.25 | Tipo de enchimento: concreto, cerâmica, EPS ou genérico (genérico pede o peso por m²). Peso total por m² calculado. | Parcial | E | só EPS [E3a] |
-| C7.26 | Escolha entre vigota armada e protendida para o cálculo da flecha (relação rigidez fissurada/bruta a confirmar com o fabricante). | Falta | E | [E3a] |
-| C7.27 | Exportar a laje definida para uma biblioteca interna e reutilizar em outras obras. | Falta | E | biblioteca de lajes [E3a] |
-| C7.28 | Biblioteca de fichas de fabricantes. Os dados são do fabricante, o programa só faz um controle lógico. Novas fichas podem ser criadas num editor à parte. | Falta | E | [E3a] |
-| C7.29 | Seleção na biblioteca: referência opcional (padrão ficha + laje), ficha/fabricante e laje da série (altura e intereixo), com resumo das propriedades (concretos, aço de protensão etc.). | Falta | E | [E3a] |
-| C7.30 | Ficha técnica para vigota simples e dupla, com dados obrigatórios e recomendados. | Falta | E | [E3a] |
+| C7.25 | Tipo de enchimento: concreto, cerâmica, EPS ou genérico (genérico pede o peso por m²). Peso total por m² calculado. | Parcial | E | enchimento concreto, cerâmica, EPS ou genérico (`Enchimento`, `pesoEnchimentoM2`) com peso total por m² calculado; cerâmica a confirmar; editor nos cartões E3a [E3a] |
+| C7.26 | Escolha entre vigota armada e protendida para o cálculo da flecha (relação rigidez fissurada/bruta a confirmar com o fabricante). | Parcial | E | `relacaoFissurada` (EIfis/EI da série ou da ficha) e `bransonEI` sem dado do fabricante (a confirmar); uso na flecha das vigotas na E3b [E3a] |
+| C7.27 | Exportar a laje definida para uma biblioteca interna e reutilizar em outras obras. | Parcial | E | exportar/importar `.json` versionado (`exportarTiposLaje`, `importarTiposLaje`, `tipoLaje.importar`); biblioteca do usuário (`storage.ts`) nos cartões E3a [E3a] |
+| C7.28 | Biblioteca de fichas de fabricantes. Os dados são do fabricante, o programa só faz um controle lógico. Novas fichas podem ser criadas num editor à parte. | Parcial | E | biblioteca de fichas na obra, validação lógica `validarFicha`, fichas de fabricante somente leitura e exemplos fictícios; editor nos cartões E3a [E3a] |
+| C7.29 | Seleção na biblioteca: referência opcional (padrão ficha + laje), ficha/fabricante e laje da série (altura e intereixo), com resumo das propriedades (concretos, aço de protensão etc.). | Parcial | E | seleção em cascata (ficha, fabricante, laje da série por altura e intereixo) e resumo de propriedades nos cartões E3a; núcleo `fichasDisponiveis`, `geometriaNervurada` [E3a] |
+| C7.30 | Ficha técnica para vigota simples e dupla, com dados obrigatórios e recomendados. | Parcial | E | campos obrigatórios e recomendados validados por `validarFicha` (erros e avisos), vigota simples e múltipla; editor nos cartões E3a [E3a] |
 | C7.31 | Vigota armada, positivo (meio do vão): tipo, armadura (base + adicional em todo o comprimento + adicional mais curta), área de aço, momento último, momento de fissuração, rigidez total e rigidez fissurada (flecha por Branson). | Parcial | E | treliça do modelo, adicional, área de aço e momento resistente da nervura no diagrama (R6); sem momento de fissuração nem rigidez fissurada da vigota [E3b] |
 | C7.32 | Vigota armada, negativo (apoio): armadura superior adicional (duas parcelas com comprimentos calculados), área de aço, momento último da seção típica e da seção maciça (sem enchimento), momento de fissuração e rigidezes. | Parcial | E | negativos na capa com área, comprimento e momento resistente da nervura e da faixa maciçada (R6); uma parcela só, sem momento de fissuração nem rigidezes [E3b] |
 | C7.33 | Cortante último da seção, com valores por tipo de treliça. O tipo usado aparece na tela e no desenho. | Feito | — | VRd1 e VRd2 da nervura calculados (19.4.1) com a treliça do modelo, mostrada na janela e na prancha de lajes (R6, R5) |
 | C7.34 | Vigota protendida: momentos de serviço por classe de ambiente/exposição, comparados com o de cálculo. Se não passa, procura outra vigota, e sem solução emite erro no fim do cálculo. | Falta | E | [E3b] |
 | C7.35 | Vigota protendida sem armadura de cortante. | Falta | E | [E3b] |
-| C7.36 | Laje nervurada moldada no local (nervuras como vigas) com armadura de base atribuível. | Falta | E | nervurada moldada no local [E3a] |
-| C7.37 | Dados da nervurada moldada no local: referência, tipo de enchimento (biblioteca: criar, copiar, apagar), espessura da capa e intereixo. | Falta | E | [E3a] |
+| C7.36 | Laje nervurada moldada no local (nervuras como vigas) com armadura de base atribuível. | Parcial | E | `TipoLaje` `moldada` (nervuras unidirecionais) com `Laje.armaduraMoldada` atribuível (`laje.editar`); dimensionamento das nervuras na E3b [E3a] |
+| C7.37 | Dados da nervurada moldada no local: referência, tipo de enchimento (biblioteca: criar, copiar, apagar), espessura da capa e intereixo. | Parcial | E | dados da moldada (capa, intereixo, bw, h, enchimento) e biblioteca de enchimentos (`tipoLaje.enchimento`: criar, copiar, apagar); editor nos cartões E3a [E3a] |
 | C7.38 | Laje com vigotas de perfil I laminado: referência, enchimento, capa, intereixo e série de perfis. | Fora | — |  |
 | C7.39 | Nas vigotas de aço, escolhe-se a série e o perfil é dimensionado automaticamente, sempre biapoiado (engastamento 0 fixo). | Fora | — |  |
 | C7.40 | Laje com vigotas treliçadas de aço biapoiadas: tipo (banzos com um ou dois perfis), série de perfis, altura nominal, ângulo das diagonais entre 30° e 60°, intereixo e espessura da capa (não colaborante). | Fora | — |  |
@@ -1052,3 +1052,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E2c, núcleo (vigas inclinadas entre pavimentos).** C6.35, C6.68, C6.69, C6.70, C6.71, C6.72, C6.74, C6.102 e C6.107 passam de Falta a Parcial com nota própria (núcleo, comandos, dimensionamento, listagem e desenho da prancha prontos; interface nos cartões `docs/cartoes/E2c/`).
 - **23/10/2026 — V4, núcleo (isovalores e isolinhas).** C12.1 a C12.13, C12.15 e C12.17 de Falta a Parcial (núcleo em `src/core/resultados/bandas.ts` e `isovalores.ts`; interface nos cartões `docs/cartoes/V4/`); C12.14 segue Falta (diagramas da V5). Validado contra campo linear, quadrático, placa de Navier e o dimensionamento das lajes.
 - **23/10/2026 — L5, núcleo (ferramentas de lançamento de vigas, panos, aberturas e cargas).** C6.9, C6.11, C6.51, C7.5, C7.17, C7.79, C7.81 e C7.82 passam de Falta a Parcial; C6.3, C6.6, C6.7, C6.53, C7.2, C7.6, C7.78, C7.80, C10.24, C10.25, K1.9.54 e K1.9.103 seguem Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/L5/`). Pendências por frente: L sem mudança de contagem.
+- **23/10/2026 — E3a, núcleo (catálogo e fichas de vigotas).** C7.19–C7.23, C7.25–C7.30, C7.36 e C7.37 de Falta/Parcial a Parcial com nota própria (núcleo e comandos prontos; editor, cascata e biblioteca do usuário nos cartões `docs/cartoes/E3a/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).

@@ -3,6 +3,7 @@
 // (comprimento de ancoragem em boa aderência), união de lances curtos com a mesma armadura, mudança de seção
 // por dobra (inclinação ≤ 1:6 dentro do nó) ou por arranque, ancoragem no topo do último lance (reduzida por
 // As,calc/As,ef como opção), estribos ao longo do lance e grampos nas barras a mais de 20φt de um canto (18.2.4).
+import { capaLaje } from './tiposLaje';
 import { barArea } from '../concrete';
 import { ganchoNoventa, lbBasico } from './detalhamento';
 import type { Dimensionamento, ResultadoPilar } from './dimensionamento';
@@ -128,7 +129,7 @@ export function detalharPilar(b: BuildingModel, p: Pilar, res: ResultadoPilar[],
       const ap = apoioDoPilar(b, p), esp = ed?.espera ?? lbB;
       if (ed?.espera !== undefined && esp < minAnc(lbB, f) - 1e-9) avisos.push(`${p.nome}: detalhe editado insuficiente: espera no apoio de ${fmtM(esp)} m abaixo do mínimo ${fmtM(minAnc(lbB, f))} m (0,3·lb; 10φ; 10 cm).`);
       if (ap?.tipo === 'viga' || ap?.tipo === 'laje') {
-        const hs = ap.tipo === 'viga' ? ap.vigas.map((id) => b.vigas.find((v) => v.id === id)!.secao.h) : [(() => { const t = b.lajes.find((l) => l.id === ap.laje)!.tipo; return t.tipo === 'macica' ? t.h : t.capa; })()];
+        const hs = ap.tipo === 'viga' ? ap.vigas.map((id) => b.vigas.find((v) => v.id === id)!.secao.h) : [(() => { const t = b.lajes.find((l) => l.id === ap.laje)!.tipo; return capaLaje(b, t); })()];
         const disp = Math.max(...hs) - cob, nome = ap.tipo === 'viga' ? `${ap.vigas.map((id) => b.vigas.find((v) => v.id === id)!.nome).join(', ')}` : b.lajes.find((l) => l.id === ap.laje)!.nome;
         // barra reta se lb cabe em h − c; senão gancho de 90° (lb,nec = 0,7·lb ≥ 0,3·lb; 10φ; 10 cm, NBR 6118, 9.4.2.3); senão não ancora
         const nec = Math.max(0.7 * esp, 0.3 * esp, 10 * f, 0.1);

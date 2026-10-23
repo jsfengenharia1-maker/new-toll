@@ -4,27 +4,23 @@ import { geometriaViga, mascaraNoGrupo, mascaraParaMundo, type BuildingModel, ty
 import type { Diagnostico } from './verify';
 import { eixosDasParedes } from './paredesBase';
 import { areaPoligono, dentroPoligono, faces, pontoInterno, type P } from '../geom/faces';
+import { GAMA_CONCRETO, ehNervurada, errosTipoLaje, geometriaNervurada, modelosTrelicadas, type FonteLajes } from './tiposLaje';
 
 /**
- * Treliçadas unidirecionais com enchimento de EPS [a confirmar com o fabricante]:
- * altura do enchimento, intereixo, largura média da nervura e capa padrão (m).
+ * Treliçadas unidirecionais com EPS [a confirmar com o fabricante]: altura do enchimento, intereixo, largura média da
+ * nervura e capa padrão (m). Catálogo de fábrica; a versão em uso (editável) vem da biblioteca de normas
+ * (`lajes.trelicadas`) por `modelosTrelicadas(b)`.
  */
-export const TRELICADAS: Record<string, { hEnch: number; intereixo: number; bw: number; capa: number }> = {
-  H8: { hEnch: 0.08, intereixo: 0.42, bw: 0.09, capa: 0.04 },
-  H12: { hEnch: 0.12, intereixo: 0.42, bw: 0.09, capa: 0.04 },
-  H16: { hEnch: 0.16, intereixo: 0.42, bw: 0.09, capa: 0.04 },
-  H20: { hEnch: 0.2, intereixo: 0.5, bw: 0.1, capa: 0.05 },
-  H25: { hEnch: 0.25, intereixo: 0.5, bw: 0.1, capa: 0.05 },
-};
-export const GAMA_CONCRETO = 25; // kN/m³
-export const GAMA_EPS = 0.2; // kN/m³ [a confirmar]
+export const TRELICADAS: Record<string, { hEnch: number; intereixo: number; bw: number; capa: number }> = Object.fromEntries(
+  Object.entries(modelosTrelicadas()).map(([k, { hEnch, intereixo, bw, capa }]) => [k, { hEnch, intereixo, bw, capa }]));
+export { GAMA_CONCRETO };
+export const GAMA_EPS = 0.2; // kN/m³ [a confirmar]; em uso: tabela `lajes.enchimentos`
 
-/** Altura total (m) e peso próprio (kN/m²) do tipo de laje. */
-export function propriedadesLaje(t: TipoLaje): { h: number; pp: number; descricao: string } {
+/** Altura total (m) e peso próprio (kN/m²) do tipo de laje (nervuradas: pelo catálogo, ficha ou geometria da obra `b`). */
+export function propriedadesLaje(t: TipoLaje, b?: FonteLajes): { h: number; pp: number; descricao: string } {
   if (t.tipo === 'macica') return { h: t.h, pp: GAMA_CONCRETO * t.h, descricao: `maciça h=${Math.round(t.h * 100)}` };
-  const c = TRELICADAS[t.modelo] ?? TRELICADAS.H12;
-  const nerv = (c.bw * c.hEnch) / c.intereixo, eps = ((c.intereixo - c.bw) * c.hEnch) / c.intereixo;
-  return { h: c.hEnch + t.capa, pp: GAMA_CONCRETO * (t.capa + nerv) + GAMA_EPS * eps, descricao: `treliçada ${t.modelo}+${Math.round(t.capa * 100)}` };
+  const g = geometriaNervurada(b, t);
+  return { h: g.h, pp: g.pp, descricao: g.descricao };
 }
 
 /** Direção (graus) do menor vão: entre as direções das arestas, a de menor extensão do polígono. */
@@ -110,7 +106,8 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
       d.push({ codigo: 'DEFINIR_PANO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é um pano a definir (?): atribua o tipo da laje antes de calcular.`, sugestao: { comando: 'laje.editar', params: { id: l.id, tipo: { tipo: 'macica', h: 0.1 } }, texto: `Definir ${l.nome} como maciça h=10` } });
     for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++)
       if (lajesSeSobrepoem(ls[i], ls[j])) d.push({ codigo: 'LAJES_SOBREPOSTAS', severidade: 'erro', elementos: [ls[i].id, ls[j].id], mensagem: `${ls[i].nome} e ${ls[j].nome} se sobrepõem.` });
-    for (const l of ls) if (l.tipo.tipo === 'trelicada' && !ehPano(l, panos))
+    for (const l of ls) for (const x of errosTipoLaje(b, l.tipo)) d.push({ codigo: x.codigo, severidade: 'erro', elementos: [l.id], mensagem: `${l.nome}: ${x.mensagem}` });
+    for (const l of ls) if (ehNervurada(l.tipo) && !ehPano(l, panos))
       d.push({ codigo: 'TRELICADA_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é treliçada e não está fechada por vigas (balanço ou contorno livre não é permitido).` });
   }
   for (const c of b.cargas) if (c.grupo !== 'fundacao' && !b.grupos.some((g) => g.id === c.grupo)) d.push({ codigo: 'CARGA_SEM_GRUPO', severidade: 'erro', elementos: [c.id], mensagem: 'Carga em grupo inexistente.' });

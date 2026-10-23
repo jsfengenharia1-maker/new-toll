@@ -1,4 +1,5 @@
 // Módulo Edifícios: obra, pavimentos, grupos, máscara, pilares e eixos, tudo por comandos do registro; planta em Canvas.
+import { ehNervurada } from '../../core/building/tiposLaje';
 import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { AbaDeslocamentos } from './AbaDeslocamentos';
 import { useEffect, useRef, useState } from 'react';
@@ -693,6 +694,7 @@ function TipoLajeCampos({ tipo, onChange }: { tipo: TipoLaje; onChange: (t: Tipo
       <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }]} onChange={(v) => onChange(v === 'macica' ? { tipo: 'macica', h: 0.1 } : { tipo: 'trelicada', modelo: 'H12', capa: TRELICADAS.H12.capa })} />
       {tipo.tipo === 'macica'
         ? <NumField label="h" unit="cm" width={80} value={+(tipo.h * 100).toFixed(1)} onChange={(v) => v >= 7 && onChange({ tipo: 'macica', h: v / 100 })} />
+        : tipo.tipo !== 'trelicada' ? <Hint>Laje de vigotas por ficha ou nervurada moldada: edite o tipo no grupo “Tipos de laje”.</Hint>
         : <>
           <Select label="Enchimento" value={tipo.modelo} options={Object.keys(TRELICADAS).map((k) => ({ v: k, label: k }))} onChange={(v) => onChange({ tipo: 'trelicada', modelo: v, capa: TRELICADAS[v].capa })} />
           <NumField label="Capa" unit="cm" width={80} value={+(tipo.capa * 100).toFixed(1)} onChange={(v) => v >= 3 && onChange({ ...tipo, capa: v / 100 })} />
@@ -707,7 +709,7 @@ function LajesGrupo({ b }: { b: BuildingModel }) {
   const grupo = grupoAtual(b, pl.pavimento);
   const ls = b.lajes.filter((l) => l.grupo === grupo?.id);
   const sel = ls.filter((l) => pl.selecao.has(l.id)).map((l) => l.id);
-  const pp = propriedadesLaje(pl.tipoLaje);
+  const pp = propriedadesLaje(pl.tipoLaje, b);
   return (
     <Group title={`Lajes — ${grupo?.nome ?? '—'} (${ls.length})`} open={false}>
       <TipoLajeCampos tipo={pl.tipoLaje} onChange={(t) => pl.set({ tipoLaje: t })} />
@@ -727,10 +729,10 @@ function LajesGrupo({ b }: { b: BuildingModel }) {
               return (
                 <tr key={l.id} className={pl.selecao.has(l.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([l.id]) })}>
                   <td><TextCell value={l.nome} label={`Nome de ${l.nome}`} onCommit={(t) => exec('laje.editar', { id: l.id, nome: t })} /></td>
-                  <td className="tl small">{propriedadesLaje(l.tipo).descricao}</td>
+                  <td className="tl small">{propriedadesLaje(l.tipo, b).descricao}</td>
                   <td className="num">{fmt(areaLaje(l))}</td>
                   <td className="num">{fmt(v1)} × {fmt(v2)}</td>
-                  <td>{l.tipo.tipo === 'trelicada' ? <TextCell value={fmt(l.direcao ?? 0, 0)} num label={`Direção de ${l.nome}`} onCommit={(t) => { const a = num(t); if (Number.isFinite(a)) exec('laje.editar', { id: l.id, direcao: a }); }} /> : <span className="muted">—</span>}</td>
+                  <td>{ehNervurada(l.tipo) ? <TextCell value={fmt(l.direcao ?? 0, 0)} num label={`Direção de ${l.nome}`} onCommit={(t) => { const a = num(t); if (Number.isFinite(a)) exec('laje.editar', { id: l.id, direcao: a }); }} /> : <span className="muted">—</span>}</td>
                 </tr>
               );
             })}

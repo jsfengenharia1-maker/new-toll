@@ -1,4 +1,5 @@
 // Grupo "Vínculos e engastes" da barra lateral (frente N1a): coeficientes por elemento da seleção da planta.
+import { ehNervurada } from '../../core/building/tiposLaje';
 import { pavimentosOrdenados, engasteNoLance, lancesDoPilar, casosDaObra, type BuildingModel, type Pilar, type VinculoBasePilar } from '../../core/building/types';
 import { vigaTocaPilar } from '../../core/building/vigas';
 import { flambagemLance, travamentoNoTopo } from '../../core/building/materiais';
@@ -200,10 +201,10 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
             })}
           </div>
         )}
-        {lajes.some((l) => l.tipo.tipo === 'trelicada') && (
+        {lajes.some((l) => ehNervurada(l.tipo)) && (
           <div className="row wrap">
-            <Check label="Vigotas biapoiadas (sem continuidade nas bordas)" checked={lajes.filter((l) => l.tipo.tipo === 'trelicada').every((l) => !!l.vigotasBiapoiadas)}
-              onChange={(c) => lote(lajes.filter((l) => l.tipo.tipo === 'trelicada').map((l) => ({ nome: 'laje.editar', params: { id: l.id, vigotasBiapoiadas: c } })))} />
+            <Check label="Vigotas biapoiadas (sem continuidade nas bordas)" checked={lajes.filter((l) => ehNervurada(l.tipo)).every((l) => !!l.vigotasBiapoiadas)}
+              onChange={(c) => lote(lajes.filter((l) => ehNervurada(l.tipo)).map((l) => ({ nome: 'laje.editar', params: { id: l.id, vigotasBiapoiadas: c } })))} />
           </div>
         )}
         <Hint>Bordas numeradas a partir do primeiro vértice do contorno, no sentido anti-horário. Bordas que tocam pilares ficam sempre engastadas.</Hint>

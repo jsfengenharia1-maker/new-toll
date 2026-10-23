@@ -7,6 +7,7 @@ import './vigasE2b';
 import './inclinadas';
 import './lajes';
 import './lancamentoL5';
+import './tiposLaje';
 import './acoes';
 import './armaduras';
 import './agrupamento';

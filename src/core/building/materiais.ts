@@ -1,5 +1,6 @@
 // Materiais, coeficientes de segurança, cobrimentos e flambagem do edifício (frente N1b).
 // Padrão pela NBR 6118; cada valor é editável na obra (norma.*) e, onde o manual de referência permite, por elemento.
+import { capaLaje } from './tiposLaje';
 import { concrete, type Concrete } from '../concrete';
 import { gamaCDoControle } from './acoes';
 import { cotaFundacao, lancesDoPilar, pavimentosOrdenados, secaoNoLance, dimsSecao, type BuildingModel, type Norma, type Pilar } from './types';
@@ -73,7 +74,7 @@ export function flambagemLance(b: BuildingModel, p: Pilar, pavimento: string) {
   const pav = ps[ip], l = pav.cota - baseDoLance(b, p, pavimento);
   const vigas = b.vigas.filter((v) => v.grupo === pav.grupo && vigaTocaPilar(v, p, pavimento));
   const c: [number, number] = [p.x, p.y];
-  const hLaje = Math.max(0, ...b.lajes.filter((x) => x.grupo === pav.grupo && dentroPoligono(c, x.contorno)).map((x) => (x.tipo.tipo === 'macica' ? x.tipo.h : x.tipo.capa)));
+  const hLaje = Math.max(0, ...b.lajes.filter((x) => x.grupo === pav.grupo && dentroPoligono(c, x.contorno)).map((x) => capaLaje(b, x.tipo)));
   const hTopo = vigas.length ? Math.max(...vigas.map((v) => v.secao.h)) : hLaje;
   const l0 = Math.max(0, l - hTopo);
   const [w, h] = dimsSecao(secaoNoLance(p, pavimento));

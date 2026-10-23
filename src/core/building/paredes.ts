@@ -13,6 +13,7 @@
 //  - PAREDE_FORA_DIAFRAGMA (info, K1.2.5/K1.3.36): nível em que a parede não toca laje (fora do diafragma);
 //  - VIGA_EMBUTIDA (erro): viga embutida em parede inexistente ou fora do eixo dela;
 //  - ALV_* e MURO_PILAR_* (E1e): paredes de alvenaria e de blocos, em `alvenaria.ts`.
+import { ehNervurada } from './tiposLaje';
 import type { P } from '../geom/faces';
 import { direcaoMenorVao } from './lajes';
 import { opcoesEmUso, perfilDe } from './opcoes';
@@ -69,7 +70,7 @@ export function diagnosticosParedes(b: BuildingModel): Diagnostico[] {
     // fora do diafragma (K1.2.5, K1.3.36)
     for (const l of lances) if (!paredeTocaLaje(b, w, l.id)) d.push({ codigo: 'PAREDE_FORA_DIAFRAGMA', severidade: 'info', elementos: [w.id], mensagem: `${w.nome} não toca laje em ${l.nome}: fora do diafragma rígido nesse nível.` });
     // empuxo × vigotas paralelas (K1.9.107)
-    if (w.empuxos?.length) for (const l of lances) for (const lj of b.lajes.filter((x) => x.grupo === l.grupo && x.tipo.tipo === 'trelicada')) {
+    if (w.empuxos?.length) for (const l of lances) for (const lj of b.lajes.filter((x) => x.grupo === l.grupo && ehNervurada(x.tipo))) {
       const dir = ((lj.direcao ?? direcaoMenorVao(lj.contorno)) * Math.PI) / 180, u: P = [Math.cos(dir), Math.sin(dir)], tol = Math.max(...espessuras(w)) / 2 + 0.05;
       const toca = w.pontos.slice(1).some((z, i) => {
         const a = w.pontos[i] as P, L = Math.hypot(z[0] - a[0], z[1] - a[1]), cos = Math.abs(((z[0] - a[0]) * u[0] + (z[1] - a[1]) * u[1]) / L);

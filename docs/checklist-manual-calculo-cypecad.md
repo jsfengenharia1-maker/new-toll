@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 13 | 36 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 15 | 34 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 16 | 4 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 19 | 2 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 7 | 1 | 19 |
-| **Total** | **661** | **388** | **88** | **74** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 6 | 1 | 19 |
+| **Total** | **661** | **389** | **89** | **72** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 48 | 71 | 119 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 49 | 69 | 118 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 17 | 3 | 20 |
-| **Total** | **88** | **74** | **162** |
+| **Total** | **89** | **72** | **161** |
 
 ## Divergências de premissa
 
@@ -441,13 +441,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.50 | Misturar apoios com e sem vinculação externa gera aviso. | Feito | — | aviso FUND_APOIOS_MISTOS quando há pilares sobre base elástica e com vínculo externo (`avisosBaseElastica`) |
 | K1.9.51 | Tipos de lajes de vigotas: concreto (geometria geral), armadas, protendidas, moldadas in loco, metálicas, tipo "joist". | Parcial | E | só treliçadas com EPS (H8–H25) [E3a] |
 | K1.9.52 | Vigotas armadas/protendidas: dados do fabricante (não editáveis), de biblioteca (fabricantes e usuários, editor de fichas) ou geometria do usuário (editável); para flecha, vigota calculada com armadura ou protensão. | Parcial | E | catálogo fixo de treliçadas (a confirmar); sem editor de fichas nem fabricante [E3a] |
-| K1.9.53 | Vigotas definidas por tipo, conforme momento último por metro de largura (em daN·m/m, já com coeficiente de segurança). | Falta | E | tipo de vigota por momento resistente [E3a] |
+| K1.9.53 | Vigotas definidas por tipo, conforme momento último por metro de largura (em daN·m/m, já com coeficiente de segurança). | Parcial | E | `escolherPorMomento` e `muPorMetro` (tipo por momento último por metro); uso no cálculo vigota a vigota na E3b [E3a] |
 | K1.9.54 | Direção das vigotas por pano: perpendicular à viga, paralela à viga ou por dois pontos. | Parcial | L | direção das vigotas por laje (ângulo; padrão menor vão) [L5] — L5 núcleo: `laje.editar { direcaoPor }` (perpendicular, paralela ou dois pontos); interface: cartão 04  |
 | K1.9.55 | Continuidade entre vigotas de panos vizinhos opcional (exceto metálicas e "joist", sempre biapoiadas); copiar panos dá continuidade. | Feito | — | `Laje.vigotasBiapoiadas` (comando `laje.editar`): rotações livres nas pontas das barras das vigotas na grelha (analitico.ts); caixa em Vinculos.tsx; N2e |
 | K1.9.56 | Continuidade eliminada quando a distância entre extremos de vigotas vizinhas > comprimento de barra curta (padrão 0,20 m); continuidade também se outra vigota/trimmer estiver a menos que esse comprimento. | Fora | — | critério interno de continuidade |
 | K1.9.57 | Desníveis entre panos (desenho e detalhamento; afetam altura de elementos de apoio); limitação: não calcula flexão transversal da viga — conferir estribos e ancoragens manualmente. | Parcial | E | desnível da laje guardado (`nivel`), não entra no cálculo [E3f] |
 | K1.9.58 | Momentos mínimos negativos/positivos das vigotas consultáveis e editáveis. | Feito | — | momentos mínimos positivo e negativo das vigotas nas opções (vigotaMomentoMinPositivo/Negativo, R6) |
-| K1.9.59 | Vigotas duplas, triplas…: peso definido (limitado à tripla); barra paralela à distância = largura da vigota da ficha. | Falta | E | vigotas duplas e triplas [E3a] |
+| K1.9.59 | Vigotas duplas, triplas…: peso definido (limitado à tripla); barra paralela à distância = largura da vigota da ficha. | Parcial | E | `FichaVigota.multipla` (n ≤ 3) e `conjuntoVigotas` (largura, peso e inércia do conjunto, a confirmar); colocação na laje na E3b [E3a] |
 | K1.9.60 | Coeficiente de engaste nas bordas/extremos das vigotas por pano (padrão 1). | Feito | — | engaste por borda da laje (engasteBordas, padrão 1), também nas treliçadas (N1a) |
 | K1.9.61 | Lajes mistas remetidas a capítulo próprio. | Fora | — | lajes mistas |
 | | **Lajes alveolares (ficha)** | | | |
@@ -822,7 +822,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.15 Deformações de lajes (págs. 97–111)** | | | |
 | | **1.15.1 Lajes de vigotas (pág. 97)** | | | |
 | K1.15.1-1 | Lajes aliviadas e de vigotas seguem as regras das vigas, com opções independentes de processo construtivo por tipo de laje. | Feito | — | N2f: treliçadas e maciças com etapas e limites próprios (`etapas.definir { elemento }`, `flechas.limites`) e fatores próprios (`fatorFlechaAtivaTrelicada`, `fatorFlechaConfortoTrelicada`) |
-| K1.15.1-2 | Pré-fabricados: rigidez das fichas técnicas; demais: inércias equivalentes calculadas. | Parcial | E | seção T do catálogo; sem ficha do fabricante [E3a] |
+| K1.15.1-2 | Pré-fabricados: rigidez das fichas técnicas; demais: inércias equivalentes calculadas. | Feito | — | EI e GJ da ficha na grelha (`propLaje`, opção `vigotaRigidezFicha`); sem ficha, inércia calculada [E3a] |
 | | **1.15.2 Lajes mistas (pág. 97)** | | | |
 | K1.15.2-1 | Remetidas ao capítulo de lajes mistas. | Fora | — | lajes mistas |
 | | **1.15.3 Lajes maciças e nervuradas (págs. 97–98)** | | | |
@@ -978,3 +978,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na V).
 - **23/10/2026 — E2c, núcleo (vigas inclinadas entre pavimentos).** K1.3.16, K1.4.25, K1.4.88, K1.9.114, K1.11.48 e K1.12.2-1 a K1.12.2-6 passam de Falta a Parcial com nota própria (barra de 2 nós e 6 gdl fora do diafragma, flambagem por plano, flexo-compressão oblíqua por fibras, envoltória e listagem; validação OpenSees).
 - **23/10/2026 — L5, núcleo (ferramentas de lançamento de vigas, panos, aberturas e cargas).** C6.9, C6.11, C6.51, C7.5, C7.17, C7.79, C7.81 e C7.82 passam de Falta a Parcial; C6.3, C6.6, C6.7, C6.53, C7.2, C7.6, C7.78, C7.80, C10.24, C10.25, K1.9.54 e K1.9.103 seguem Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/L5/`). Pendências por frente: L sem mudança de contagem.
+- **23/10/2026 — E3a, núcleo (catálogo e fichas de vigotas).** K1.15.1-2 passa a Feito (EI e GJ da ficha na grelha, opção `vigotaRigidezFicha`); K1.9.51, K1.9.52, K1.9.53 e K1.9.59 seguem Parcial com nota própria (interface nos cartões `docs/cartoes/E3a/`; tipo por momento e vigota múltipla na laje na E3b).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: K1.15.1-2 sai das pendências da E.

@@ -120,6 +120,8 @@ Estimativa: ~8 agentes Opus (7 %; a E3f entra como Opus), ~102 Sonnet, ~12 Haiku
 Entradas antigas em `docs/historico-fatias.md`.
 
 - 22–23/10/2026: pedido do usuário — cotas em série e cotas temporárias editáveis (estudo em docs/analises/cotas-revit.md); entra como L6 depois da L5.
+- 23/10/2026: E3a, núcleo concluído e interface em cartões (`docs/cartoes/E3a/`, 3 cartões Haiku; aplicar na ordem: grupo "Tipos de laje", cascata na atribuição, memorial + e2e `E3a`). Ver `docs/historico-fatias.md`. Próximo: E3b.
+
 - 22/10/2026: N3 (biblioteca de normas editável), núcleo concluído e interface em cartões (`docs/cartoes/N3/`, 3 cartões Haiku; aplicar na ordem: grupo, consumidores, memorial + e2e `N3`). Ver `docs/historico-fatias.md`.
 
 - 22/10/2026: V2, núcleo concluído (cortes, linhas de seção e armaduras em 3D; C3.31, C3.32 e C3.34 Parcial, C3.33 Falta até as pranchas). `src/core/vista3d/corte.ts` (`cortarCena`, `desenharCorte`, `secaoDoPavimento`, `eixosNoCorte`), `armaduras3d.ts` (`armaduras3D`, `camadasDeArmadura`, `malhaDeTubos`, `cenaDoElemento`), comandos `corte.*` e `secao.*` (`src/core/commands/cortes.ts`, `mcp: false`, `calculo: false`), `b.cortes`/`b.secoes`; 18 testes em `v2.test.ts` (áreas das seções, soma das barras 3D = resumo de aço em 1 %). Interface validada (tsc, design.test, e2e `V2` e `V1`) e revertida: cartões em `docs/cartoes/V2/` (1 estilos, 2 planta e janelas, 3 memorial, 4 armaduras na vista 3D, 5 aba 3D das janelas, 6 e2e). Pendente: marcas de corte nas plantas de formas (`prancha.cortes`) e folha de cortes no `montarConjunto`.

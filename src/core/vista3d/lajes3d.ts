@@ -40,7 +40,7 @@ registrarGerador3D('lajes', ({ b, pavimentos, detalhe }) => {
     if (!pavimentos.has(pav.id)) continue;
     const doGrupo = b.lajes.filter((l) => l.grupo === pav.grupo);
     for (const l of doGrupo) {
-      const { h } = propriedadesLaje(l.tipo);
+      const { h } = propriedadesLaje(l.tipo, b);
       const z1 = pav.cota + (l.nivel ?? 0);
       const trel = l.tipo.tipo === 'trelicada' ? l.tipo : null;
       const alto = detalhe === 'alto' && !!trel;
