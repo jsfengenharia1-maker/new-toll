@@ -2,12 +2,13 @@
 import { create } from 'zustand';
 import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
+import type { RefTemp } from '../../core/geom/cotasTemp';
 import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -141,6 +142,9 @@ interface PState {
   contaGotas: { pilar: string | null; cargas: boolean };
   /** Ferramentas de lançamento (L5). */
   l5: L5Estado;
+  /** Cotas temporárias ao selecionar (L6) e as trocas de referência da sessão (face/eixo por par de elementos; não vão para o arquivo). */
+  cotasTemp: boolean;
+  refTemp: RefTemp;
   /** Girar a seleção: ângulo (graus, anti-horário) em torno do ponto clicado. */
   anguloGiro: number;
   /** Espelhar a seleção: mantém os originais (cópia espelhada de pilares e vigas). */
@@ -226,6 +230,8 @@ export const usePlanta = create<PState>((set) => ({
   valorCarga: 2,
   copias: 1,
   contaGotas: { pilar: null, cargas: false },
+  cotasTemp: true,
+  refTemp: {},
   l5: { ...L5_PADRAO },
   anguloGiro: 90,
   espelharCopia: false,
