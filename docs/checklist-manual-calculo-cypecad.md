@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 12 | 37 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 11 | 9 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 13 | 7 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 13 | 8 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 3 | 5 | 19 |
-| **Total** | **661** | **388** | **69** | **93** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 7 | 1 | 19 |
+| **Total** | **661** | **388** | **75** | **87** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 37 | 82 | 119 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 9 | 11 | 20 |
-| **Total** | **69** | **93** | **162** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 5 | 20 |
+| **Total** | **75** | **87** | **162** |
 
 ## Divergências de premissa
 
@@ -553,9 +553,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Maciças, nervuradas e radiers** | | | |
 | K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Feito | — | armadura base das lajes definida e alterada na janela da laje e por comando; malha de discretização pela opção `malha` (R7d) |
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | V | As por metro (máximo por laje e direção) na tabela e no detalhamento; sem mapa [V4] |
-| K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Falta | V | deslocamentos e esforços por nó e caso na tela [V3] |
+| K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Parcial | V | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (cartões V3); falta abrir pelo clique no nó da vista 3D [V3] |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
-| K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | flecha elástica máxima por pavimento (G, Q) na aba Análise e flecha por laje; sem deslocamento por pano e caso [V3] |
+| K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado (radier/FU6 não incluído); tabela na aba Deslocamentos (cartões V3) [V3] |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); nervuras com as nervuradas (E3d) [N2d] |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Feito | — | `igualarPosicoes`/`maximosDe` (lajesEdicao.ts): φ, espaçamento e comprimento da posição de maior taxa e o maior comprimento; edição de n, φ, espaçamento, comprimento e ganchos por posição (`laje.barras`), bloqueada e verificada no recálculo (ARM_BLOQ, BLOQ_IGNORADO) (R7e) |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |
@@ -581,7 +581,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.40 | Forças de vento X e Y por pavimento. | Feito | — | forças de vento por pavimento (aba Análise) |
 | K1.11.41 | Sismo: períodos por modo, coeficientes de participação de massa por direção e coeficiente sísmico do espectro de deslocamentos. | Fora | — | sismo |
 | K1.11.42 | Isovalores de deslocamentos, esforços e taxas (cm²/m) em maciças e nervuradas por grupo. | Falta | V | isovalores de lajes [V4] |
-| K1.11.43 | Deformada 3D por caso e combinação, com animação. | Falta | V | deformada 3D animada (o Pórtico 2D tem deformada) [V3] |
+| K1.11.43 | Deformada 3D por caso e combinação, com animação. | Parcial | V | núcleo da deformada 3D por caso e combinação, com animação (`resultados/deformada.ts`, `deformadaCena.ts`); interface nos cartões V3 [V3] |
 | | **1.11.2 Relatórios (págs. 73–75)** | | | |
 | K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Parcial | E | `listagemGeral` (`relatorios.ts`) e seção "Listagem geral" do memorial: obra, materiais, pavimentos, grupos, coordenadas (ponto fixo e centro), dimensões, vínculos e engaste dos pilares, pesos próprio/permanente/variável por laje (R7g); faltam pilares-parede (E1b); sismo fora |
 | K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
@@ -589,7 +589,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Feito | — | `quantitativosDetalhados` (`relatorios.ts`): área, concreto, fôrma e peso próprio por pano e por viga, enchimento das treliçadas (área, volume, peças de 1,00 m [a confirmar]), treliças por tipo (R6) e índices kg/m², m³/m², m²/m² e kg/m³ da obra; no memorial e na aba Dimensionamento (R7g) |
 | K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas [E2c] |
 | K1.11.49 | Pilares e pilares-parede: barras, esforços na base, por caso e mais desfavoráveis. | Feito | — | barras do pilar no detalhamento (R3b), esforços na base por caso e envoltórias em "Cargas na fundação" |
-| K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | V | deslocamento do vento por direção e pavimento (máximo entre os pilares) e distorção entre pavimentos (R1); sem deslocamento por caso simples e por pilar [V3] |
+| K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | V | `deslocamentosPilares` (por caso, pilar e pavimento) e `maximosPilaresCombinados` (combinação mais desfavorável de cada direção e distorção); tabelas nos cartões V3; deslocamento do vento por direção e distorção seguem na R1 [V3] |
 | K1.11.51 | Efeitos de 2ª ordem; cargas de vento; participação sísmica (períodos, massas, coeficiente sísmico por direção). | Feito | — | γz e deslocamentos laterais no memorial; forças de vento por pavimento e zona (`ventoPorPavimento`, `MemorialVentoPavimentos`) no memorial (R7g); participação sísmica fora de escopo (K1.2.7) |
 | K1.11.52 | Fundações: materiais, ações, geometria de sapatas, blocos, vigas centradoras e de travamento, quantitativos e verificações realizadas. | Feito | — | memorial do edifício com terreno, materiais, ações, geometria e verificações dos elementos de fundação, vigas de equilíbrio e de travamento, base elástica e sapatas corridas (`MemorialEdificio.tsx`) e quantitativos de concreto, forma, aço e estacas (`quantitativosFundacao`, FU5) |
 | K1.11.53 | Consolos curtos; estruturas 3D integradas; verificações ELU de pilares e vigas. | Parcial | E | verificações ELU por combinação no memorial a pedido ("ELU por combinação": combinações determinantes dos pilares e extremos das vigas, `MemorialEluPorCombinacao`, R7g); faltam consolos curtos (E2) |
@@ -826,18 +826,18 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.15.2 Lajes mistas (pág. 97)** | | | |
 | K1.15.2-1 | Remetidas ao capítulo de lajes mistas. | Fora | — | lajes mistas |
 | | **1.15.3 Lajes maciças e nervuradas (págs. 97–98)** | | | |
-| K1.15.3-1 | Saída: deslocamentos de cada caso simples (permanente/peso próprio, variável, vento, sismo) em cada nó da malha de todos os pavimentos; máximo por caso e por pano. | Parcial | V | flecha máxima por laje e por pavimento; sem deslocamento por nó, caso e vento [V3] |
+| K1.15.3-1 | Saída: deslocamentos de cada caso simples (permanente/peso próprio, variável, vento, sismo) em cada nó da malha de todos os pavimentos; máximo por caso e por pano. | Parcial | V | `tabelaDeslocamentosMalha` + `csvDeslocamentos`: uz de cada caso simples em cada nó da malha de todos os pavimentos, máximo por caso e por pano, tabela e CSV (cartões V3); vento não entra (a grelha só tem ações verticais) [V3] |
 | K1.15.3-2 | Flecha ativa avaliada pelo projetista, com os coeficientes de fluência que julgar, a partir das flechas instantâneas. | Feito | — | fator simplificado editável ou αf = Δξ(t0) editável (N1d) |
 | K1.15.3-3 | Deslocamentos verticais são absolutos (incluem o do apoio); a flecha é relativa aos apoios extremos ou pontos de inflexão → subtrair o deslocamento dos apoios; efeito maior nos pavimentos altos (encurtamento elástico dos pilares). | Feito | — | flecha das lajes relativa aos apoios (descontado o deslocamento das vigas e pilares); sem pontos de inflexão (N1d) |
 | K1.15.3-4 | Estimativa prática: deslocamentos de peso próprio + uso × fator de 1,5 a 4, conforme processo construtivo e tipo de flecha. | Feito | — | fator simplificado das lajes editável (0 a 5; 0 = método da NBR) (N1d) |
 | K1.15.3-5 | Flecha relativa L/xxx: usar o menor dos vãos adjacentes ao ponto de máximo deslocamento absoluto. | Feito | — | limite pelo menor vão da laje (L/250) |
 | | **1.15.4 Flecha entre dois pontos (págs. 98–111)** | | | |
-| K1.15.4-1 | Ferramenta: dois pontos em laje maciça ou nervurada; linha entre eles e perfil dos deslocamentos verticais ao longo dela, por caso, por combinação e pela combinação gravitacional mais desfavorável (peso próprio + permanentes + variável). | Falta | V | flecha entre dois pontos (perfil de deslocamentos) [V3] |
+| K1.15.4-1 | Ferramenta: dois pontos em laje maciça ou nervurada; linha entre eles e perfil dos deslocamentos verticais ao longo dela, por caso, por combinação e pela combinação gravitacional mais desfavorável (peso próprio + permanentes + variável). | Parcial | V | `perfilDeslocamentos`/`flechaDaHipotese`: perfil dos uz ao longo da reta, por caso, combinação e combinação gravitacional mais desfavorável; aba Deslocamentos nos cartões V3; pontos digitados (ferramenta com cliques na planta pendente) [V3] |
 | K1.15.4-2 | Leitura: convexidade nos apoios e concavidade nos vãos; o máximo absoluto costuma estar na maior concavidade. | Fora | — | explicação do manual |
 | K1.15.4-3 | Direção da flecha relativa máxima: menor distância entre 2 pontos do contorno da concavidade; sugere marcar pontos mais afastados primeiro para achar o contorno. | Fora | — | dica de uso |
-| K1.15.4-4 | Flecha medida em relação à reta pelos pontos inicial e final (secante) ou à tangente no ponto inicial (opção). | Falta | V | referência pela secante ou pela tangente [V3] |
-| K1.15.4-5 | Saídas: vão L, flecha absoluta, flecha relativa a L (secante) ou a 2L (tangente). | Falta | V | saídas da ferramenta (vão, flecha, relação) [V3] |
-| K1.15.4-6 | Combinação usada por padrão: a mais desfavorável de peso próprio + permanentes + variável entre as combinações de deslocamento do projeto, só casos gravitacionais; também por caso ou combinação escolhidos. | Falta | V | combinação gravitacional padrão da ferramenta [V3] |
+| K1.15.4-4 | Flecha medida em relação à reta pelos pontos inicial e final (secante) ou à tangente no ponto inicial (opção). | Parcial | V | `flechaEntrePontos({ referencia })`: secante (padrão) ou tangente no ponto inicial; controle nos cartões V3 [V3] |
+| K1.15.4-5 | Saídas: vão L, flecha absoluta, flecha relativa a L (secante) ou a 2L (tangente). | Parcial | V | `ResultadoFlecha`: vão L, flecha, razão L/f (secante) ou 2L/f (tangente) e limite; exibição nos cartões V3 [V3] |
+| K1.15.4-6 | Combinação usada por padrão: a mais desfavorável de peso próprio + permanentes + variável entre as combinações de deslocamento do projeto, só casos gravitacionais; também por caso ou combinação escolhidos. | Parcial | V | `flechaMaisDesfavoravel`: entre as combinações do estado `flecha`, só com casos gravitacionais, a de maior flecha; também por caso ou combinação escolhidos [V3] |
 | K1.15.4-7 | Fator de amplificação de deslocamentos, padrão 2,5, multiplica os deslocamentos dos casos; deve englobar desforma, processo construtivo, efeitos térmicos e reológicos (fluência, retração). | Feito | — | fator simplificado das lajes padrão 2,5 (editável; 0 = método da NBR) (N1e) |
 | K1.15.4-8 | Faixa citada para o fator: 2,5 a 3,0 conforme o processo construtivo. | Fora | — | faixa citada pelo manual |
 | K1.15.4-9 | Exemplo, dados: vão médio 6,50 m, vão extremo; momentos aproximados pl²/10 (negativo interno), pl²/17 (positivo), pl²/30 (negativo externo); paredes 1 kN/m² aos 60 dias; revestimento 1 kN/m² aos 120 dias; variável 2 kN/m²; HA-25 e B500; condições médias de temperatura e umidade. | Fora | — | exemplo numérico do manual |
@@ -973,3 +973,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **22/10/2026 — E2a, núcleo.** K1.3.7 e K1.12.16 Parcial com nota; K1.4.28 de Falta a Parcial (amarração no núcleo, interface nos cartões `docs/cartoes/E2a/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente.
+- **23/10/2026 — V3, núcleo (deformada, deslocamentos e flecha entre pontos).** K1.11.18, K1.11.43, K1.15.4-1, K1.15.4-4, K1.15.4-5 e K1.15.4-6 de Falta a Parcial; K1.11.20, K1.11.50 e K1.15.3-1 seguem Parcial com a nota atualizada (consultas e tabelas no núcleo, interface nos cartões `docs/cartoes/V3/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na V).
