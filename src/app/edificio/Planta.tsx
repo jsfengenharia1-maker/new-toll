@@ -498,9 +498,10 @@ export function Planta() {
       const [tx, ty] = paraTela(c[0], c[1]);
       ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
       const [lx, ly] = descRef(l.id);
-      if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
-      ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}` : rotuloLaje(b, l.tipo), tx + lx, ty + 6 + ly);
-      if (ehNervurada(l.tipo)) { // seta dupla na direção das vigotas
+      if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${l.definir ? ' ?' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
+      ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.definir ? 'a definir' : l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}` : rotuloLaje(b, l.tipo), tx + lx, ty + 6 + ly);
+      if (l.insercao !== undefined && l.contorno[l.insercao]) { const [ix, iy] = paraTela(l.contorno[l.insercao][0], l.contorno[l.insercao][1]); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, 5, 0, 2 * Math.PI); ctx.stroke(); } // ponto de inserção do pano (L5)
+      if (ehNervurada(l.tipo) && !l.definir) { // seta dupla na direção das vigotas
         const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
         ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
         ctx.moveTo(tx - ux * L, cy - uy * L); ctx.lineTo(tx + ux * L, cy + uy * L);
@@ -1327,6 +1328,27 @@ export function Planta() {
       const [c1, c2, c3] = novos.slice(1).map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]);
       setPontos([]);
       exec('laje.aberturaRetangular', { id: it.current.lajeAb, modo: L.modoAbertura, c1, c2, ...(L.modoAbertura === 'qualquer' ? { c3 } : {}), ...(L.modoAbertura === 'viga' ? { viga: L.vigaRef } : {}), borda: L.borda, secaoBorda: { b: L.bordaB, h: L.bordaH } });
+      return;
+    }
+    if (f === 'direcaoPano' || f === 'insercaoPano') {
+      // L5 (C7.5, C7.6, K1.9.54): 1º clique no pano; depois uma viga (ou dois pontos) para a direção, ou o vértice para a inserção
+      if (nivelFund || !pav) { msg('Panos são editados nas plantas dos pavimentos.'); return; }
+      const P = usePlanta.getState(), c = it.current.cursor;
+      if (!pontos.length) {
+        const l = lajes.find((x) => dentro(c, x.l.contorno))?.l;
+        if (!l) { msg('Clique dentro de um pano (laje).'); return; }
+        it.current.lajeAb = l.id; P.set({ selecao: new Set([l.id]) }); setPontos([p]); return;
+      }
+      const id = it.current.lajeAb;
+      if (f === 'insercaoPano') { setPontos([]); exec('laje.editar', { id, insercaoPonto: [+p[0].toFixed(4), +p[1].toFixed(4)] }); return; }
+      if (P.l5.direcaoModo === 'viga') {
+        const v = vigaSob(c);
+        if (!v) { msg('Clique numa viga (a direção sai paralela ou perpendicular ao trecho clicado).'); return; }
+        setPontos([]); exec('laje.editar', { id, direcaoPor: { viga: v.id, relacao: P.l5.relacao } }); return;
+      }
+      if (novos.length < 3) { setPontos(novos); return; }
+      setPontos([]);
+      exec('laje.editar', { id, direcaoPor: { pontos: novos.slice(1).map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]) } });
       return;
     }
     if (f === 'viga') {

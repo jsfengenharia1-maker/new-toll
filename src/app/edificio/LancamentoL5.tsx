@@ -3,11 +3,16 @@
 // a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
 // `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
 import { Button, Check, Group, Hint, NumField, Select } from '../ui';
-import type { BuildingModel } from '../../core/building/types';
+import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { useBuilding } from './store';
 import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
 
 export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
+  const { exec } = useBuilding();
   const pl = usePlanta();
+  const ps = pavimentosOrdenados(b);
+  const grupo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[Math.min(1, ps.length - 1)]?.grupo ?? '';
+  const aDefinir = b.lajes.filter((l) => l.grupo === grupo && l.definir);
   const l5 = pl.l5;
   const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
   const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
@@ -44,6 +49,22 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
         {l5.modoAbertura === 'viga' && <Button disabled={!vref} onClick={() => set({ vigaRef: null })}>{vref ? `Trocar a viga de referência (${vref.nome})` : 'Viga de referência: clique na planta'}</Button>}
       </div>
       <Hint>Clique na laje e depois nos cantos (no modo de qualquer ângulo, os dois pontos de um lado e um do lado oposto). Largura e altura padrão da viga de borda: 15 × 40 cm [a confirmar]; a chata tem a altura da laje.</Hint>
+
+      <h4>Panos e direção</h4>
+      <div className="row wrap">
+        <Button disabled={!grupo} onClick={() => exec('laje.detectarPanos', { grupo, definir: true })}>Detectar panos como a definir</Button>
+        <Button disabled={!aDefinir.length} onClick={() => exec('laje.atribuir', { ids: aDefinir.map((l) => l.id), tipo: pl.tipoLaje })}>Atribuir o tipo da ferramenta Laje aos panos a definir</Button>
+      </div>
+      <Hint>{aDefinir.length ? `${aDefinir.length} pano(s) a definir (?) neste grupo: ${aDefinir.map((l) => l.nome).join(', ')}. A obra só calcula depois de atribuir o tipo de todos.` : 'Todo contorno fechado por vigas pode virar um pano a definir, marcado com ? na planta; o cálculo fica bloqueado até o tipo ser atribuído.'}</Hint>
+      <div className="row wrap">
+        <Select label="Direção do pano por" value={l5.direcaoModo} options={[{ v: 'viga', label: 'uma viga' }, { v: 'pontos', label: 'dois pontos' }]} onChange={(v) => set({ direcaoModo: v })} />
+        <Select label="Em relação à viga" value={l5.relacao} options={[{ v: 'paralela', label: 'paralela' }, { v: 'perpendicular', label: 'perpendicular' }]} onChange={(v) => set({ relacao: v })} />
+      </div>
+      <div className="row wrap">
+        <Button onClick={() => ir('direcaoPano')}>Definir a direção do pano</Button>
+        <Button onClick={() => ir('insercaoPano')}>Mudar o ponto de inserção do pano</Button>
+      </div>
+      <Hint>A direção padrão continua a do menor vão. O ponto de inserção (vértice do contorno) é a origem da numeração das vigotas e da malha.</Hint>
     </Group>
   );
 }
