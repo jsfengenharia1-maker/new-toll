@@ -611,7 +611,7 @@ export const flows = [
       assert.match(await memo.textContent(), /Vínculos e engastes alterados por elemento.*Pilar P1, lance até Tipo 1: engaste base 0\./s);
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       assert.doesNotMatch(await memo.textContent(), /Vínculos e engastes alterados/);
@@ -1776,7 +1776,7 @@ export const flows = [
       assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' }).count(), 0);
       assert.equal(await page.locator('[data-card-vigas-fundacao] tbody tr').count(), 4);
       // um desfazer remove elementos e vigas
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       assert.match(await grupo.locator('summary').first().innerText(), /Fundação \(0 elementos\)/i);
     },
@@ -2598,6 +2598,113 @@ export const flows = [
       await page.getByRole('button', { name: 'Apagar Seção 1', exact: true }).click();
       assert.equal(await page.locator('[data-cortes-lista]').count(), 0);
       assert.equal(await page.locator('[data-secoes-lista]').count(), 0);
+    },
+  },
+  {
+    webgl: true,
+    name: 'V3: deformada 3D (hipótese, escala, eixos, animação, legenda), consulta de deslocamentos por nó, máximos por pano e pavimento, CSV e flecha entre dois pontos da laje',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+
+      // ---- sem cálculo: aviso na aba
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      await page.getByText('Calcule a estrutura (aba Dimensionamento) para consultar os deslocamentos.').waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+
+      // ---- deformada na vista 3D
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await cv.getAttribute('data-status');
+      console.log(`        (V3: vista 3D em modo ${status})`);
+      assert.equal(await cv.getAttribute('data-deformada'), '0');
+      await page.getByLabel('Deformada', { exact: true }).check();
+      await page.waitForFunction(() => { const a = document.querySelector('.v3d-cv')?.getAttribute('data-deformada'); return !!a && a !== '0'; });
+      const def = async () => JSON.parse(await cv.getAttribute('data-deformada'));
+      const d0 = await def();
+      assert.equal(d0.modo, 'completa');
+      assert.ok(d0.dmaxMm > 0.01 && d0.escala > 1 && d0.objetos > 5, JSON.stringify(d0));
+      if (status === 'pronto') {
+        const leg = page.locator('.v3d-def-leg');
+        await leg.waitFor();
+        assert.match(await leg.innerText(), /mm/);
+        assert.equal(await leg.getByRole('img', { name: 'Legenda da deformada', exact: true }).count(), 1);
+      }
+      // troca a hipótese: o máximo muda
+      const lista = page.locator('.v3d-barra').getByLabel('Hipótese da deformada', { exact: true });
+      const valores = await lista.locator('option').evaluateAll((os) => os.map((o) => o.value));
+      assert.ok(valores.includes('caso:G') && valores.includes('caso:Q') && valores.length > 4, valores.join(','));
+      await lista.selectOption('caso:Q');
+      await page.waitForFunction((n) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).dmaxMm !== n, d0.dmaxMm);
+      const dq = await def();
+      assert.ok(dq.dmaxMm > 0 && dq.dmaxMm < d0.dmaxMm, `${dq.dmaxMm} < ${d0.dmaxMm}`);
+      // escala manual e de volta à automática
+      await page.getByLabel('Escala automática', { exact: true }).uncheck();
+      await page.locator('.v3d-barra .slider', { hasText: 'Escala da deformada' }).locator('input').fill('100');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).escala === 100);
+      await page.getByLabel('Escala automática', { exact: true }).check();
+      // estrutura simplificada (eixos)
+      await page.getByLabel('Só eixos das barras', { exact: true }).check();
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).modo === 'eixos');
+      await page.getByLabel('Só eixos das barras', { exact: true }).uncheck();
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).modo === 'completa');
+      // animação (só com WebGL): liga, ajusta o período, desliga
+      if (status === 'pronto') {
+        await page.getByLabel('Animar', { exact: true }).check();
+        await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).animando === true);
+        await page.locator('.v3d-barra .slider', { hasText: 'Período da animação' }).locator('input').fill('4');
+        await page.waitForFunction(() => Number(document.querySelector('.v3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+        await page.getByLabel('Animar', { exact: true }).uncheck();
+      }
+      await page.getByLabel('Deformada', { exact: true }).uncheck();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-deformada') === '0');
+
+      // ---- aba Deslocamentos: consulta por nó
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      await page.getByLabel(/^X da consulta/).fill('3');
+      await page.getByLabel(/^X da consulta/).press('Enter');
+      await page.getByLabel(/^Y da consulta/).fill('2,5');
+      await page.getByLabel(/^Y da consulta/).press('Enter');
+      const consulta = page.locator('[data-consulta-no]');
+      await consulta.waitFor();
+      assert.ok((await consulta.locator('tbody tr').count()) > 5);
+      const linhaG = consulta.locator('tbody tr', { hasText: /^Caso G/ }).first();
+      const uzG = parseFloat((await linhaG.locator('td').nth(3).innerText()).replace(',', '.'));
+      assert.ok(uzG < -0.01, `uz de G no meio da laje: ${uzG} mm`);
+      // máximos por pano e por pavimento
+      assert.ok(Number(await page.locator('[data-desloc-panos]').getAttribute('data-desloc-panos')) >= 1);
+      assert.ok(Number(await page.locator('[data-desloc-pilares]').getAttribute('data-desloc-pilares')) >= 3);
+      // CSV da malha
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar CSV dos deslocamentos da malha', exact: true }).click()]);
+      assert.equal(dl.suggestedFilename(), 'deslocamentos-malha.csv');
+
+      // ---- flecha entre dois pontos: combinação mais desfavorável (padrão), secante e tangente
+      const flecha = async () => JSON.parse(await page.locator('[data-flecha]').getAttribute('data-flecha'));
+      await page.locator('[data-flecha]').waitFor();
+      const f0 = await flecha();
+      assert.ok(f0.L > 4 && f0.flechaMm > 0.01 && f0.razao > 1, JSON.stringify(f0));
+      await page.getByLabel(/^X inicial/).fill('1');
+      await page.getByLabel(/^X inicial/).press('Enter');
+      await page.waitForFunction((L) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).L !== L, f0.L);
+      const f1 = await flecha();
+      assert.ok(f1.L < f0.L);
+      await page.getByRole('radio', { name: 'Tangente no ponto inicial', exact: true }).click();
+      await page.waitForFunction((v) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm !== v, f1.flechaMm);
+      await page.getByRole('radio', { name: 'Secante', exact: true }).click();
+      await page.waitForFunction((v) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm === v, f1.flechaMm);
+      await page.getByLabel(/^Amplificação da flecha/).fill('2');
+      await page.getByLabel(/^Amplificação da flecha/).press('Enter');
+      await page.waitForFunction((v) => Math.abs(JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm - 2 * v) < 0.01, f1.flechaMm);
+      await page.getByLabel(/^Hipótese da flecha/).selectOption('caso:G');
+      assert.equal(await page.locator('svg.flecha-perfil path.fp-curva').count(), 1);
     },
   },
   {
@@ -4281,7 +4388,7 @@ export const flows = [
       await nova2.getByRole('button', { name: 'Criar obra' }).click();
       await page.getByRole('dialog', { name: 'Dados gerais da obra' }).getByRole('button', { name: 'Concluir' }).click();
       assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       assert.equal(await nPav(), 0);
       await page.getByRole('button', { name: 'Nova obra…' }).click();
       const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
@@ -4674,108 +4781,6 @@ export const flows = [
     },
   },
   {
-    name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
-    async run({ newPage, tmp }) {
-      const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const campo = async (loc, v) => { await loc.fill(v); await loc.press('Tab'); };
-      const nPav = () => page.locator('.edpav tbody tr').count();
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova.getByRole('button', { name: 'Assistente passo a passo' }).click();
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Nome da obra'), 'Obra L1 teste');
-      await campo(nova.getByLabel('Descrição (linha 1)'), 'Residencial fictício');
-      await campo(nova.getByLabel('Descrição (linha 2)'), 'Teste de interface');
-      await campo(nova.getByLabel('Cidade'), 'Cidade X');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('fck'), '35');
-      await nova.getByLabel('CAA').selectOption('III');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Repetições 2'), '2');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await nova.getByLabel('Criar malha de eixos').check();
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Revestimento e piso'), '1,5');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      assert.match(await nova.innerText(), /4 em 3 grupo\(s\)/);
-      await nova.getByRole('button', { name: 'Criar obra' }).click();
-      const gerais = page.getByRole('dialog', { name: 'Dados gerais da obra' });
-      await gerais.waitFor();
-      assert.equal(await gerais.getByLabel('Nome da obra').inputValue(), 'Obra L1 teste');
-      assert.equal(await gerais.getByLabel('fck').inputValue(), '35');
-      await campo(gerais.getByLabel('Descrição (linha 2)'), 'Teste de interface 2');
-      await gerais.getByRole('button', { name: 'Concluir' }).click();
-      assert.equal(await nPav(), 4);
-      assert.match(await page.locator('[data-etapa="pavimentos"]').innerText(), /feito/);
-      assert.match(await page.locator('[data-etapa="pilares"]').innerText(), /pendente/);
-      const muros = await page.locator('[data-etapa="muros"]').innerText();
-      assert.match(muros, /indispon/);
-      assert.match(muros, /E1c/);
-      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
-      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
-      const mt = await memo.textContent();
-      assert.match(mt, /Descrição.*Residencial fictício · Teste de interface 2/s);
-      assert.match(mt, /Origem do lançamento.*Assistente de nova obra/s);
-      await memo.getByRole('button', { name: 'Fechar' }).click();
-      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-      await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
-      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga.locator(':scope > summary').click();
-      await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
-      const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
-      const ws = JSON.parse(f.text);
-      assert.equal(ws.building.obra.cidade, 'Cidade Y');
-      assert.deepEqual(ws.versoes.map((v) => v.rotulo), ['obra.definir', 'obra.definir']);
-      assert.equal(ws.versoes[1].building.obra.cidade, 'Cidade X');
-      assert.equal(ws.versoes[0].building.obra.descricao[1], 'Teste de interface');
-      const file = join(tmp, f.name);
-      writeFileSync(file, f.text);
-      const page2 = await newPage(NO_PICKERS);
-      const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
-      await chooser.setFiles(file);
-      await page2.locator('.statusbar .msg', { hasText: 'aberto de' }).waitFor();
-      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const ga2 = page2.locator('details.group', { has: page2.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga2.locator(':scope > summary').click();
-      await ga2.getByRole('button', { name: 'Recuperar' }).click();
-      await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
-      await page2.close();
-      await page.getByRole('button', { name: 'Obras recentes…' }).click();
-      const rec = page.getByRole('dialog', { name: 'Obras recentes' });
-      await campo(rec.getByLabel('Buscar obra'), 'residencial');
-      assert.ok((await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count()) >= 1);
-      await campo(rec.getByLabel('Buscar obra'), 'zzzz');
-      assert.equal(await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count(), 0);
-      await campo(rec.getByLabel('Buscar obra'), '');
-      await rec.getByRole('button', { name: 'Guardar na biblioteca' }).click();
-      await rec.getByRole('button', { name: 'Abrir Obra L1 teste' }).waitFor();
-      await rec.getByRole('button', { name: /Abrir exemplo Exemplo: com subsolo/ }).click();
-      await rec.waitFor({ state: 'detached' });
-      assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova2 = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova2.getByRole('button', { name: 'Assistente passo a passo' }).click();
-      for (let i = 0; i < 6; i++) await nova2.getByRole('button', { name: 'Avançar' }).click();
-      await nova2.getByRole('button', { name: 'Criar obra' }).click();
-      await page.getByRole('dialog', { name: 'Dados gerais da obra' }).getByRole('button', { name: 'Concluir' }).click();
-      assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
-      assert.equal(await nPav(), 0);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova3.getByRole('button', { name: 'Cargas de arquivo de texto' }).click();
-      await nova3.getByRole('button', { name: 'Escolher arquivo de texto…' }).click();
-      const imp = page.getByRole('dialog', { name: 'Importar cargas de texto' });
-      await campo(imp.getByLabel('Nome da obra a criar'), 'Obra de arranques e2e');
-      await campo(imp.getByLabel('Ou cole o texto aqui'), 'Pilar;Caso;N;Hx;Hy;Mx;My;bx;by\nP1;G;500,5;0;0;0;0;30;40\nP1;Q;100;0;0;0;0;30;40\nP2;G;300;0;0;0;0;25;25\n');
-      assert.match(await imp.innerText(), /2 arranque\(s\), 2 hipótese\(s\)/);
-      await imp.getByRole('button', { name: 'Criar obra e calcular fundações' }).click();
-      await page.locator('.statusbar .msg', { hasText: 'Obra só com arranques' }).waitFor({ timeout: 120000 });
-    },
-  },
-  {
     name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
     async run({ newPage }) {
       const page = await newPage();
@@ -4876,7 +4881,7 @@ export const flows = [
       sv = await editor(0);
       await sv.getByLabel('Viga chata (altura da laje que contorna)', { exact: true }).check();
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.12, null);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.5, null);
       // 3. V2 não estrutural e V3 de amarração
       sv = await editor(1);
@@ -5142,6 +5147,233 @@ export const flows = [
       // 5) restaura a biblioteca toda
       await g.getByRole('button', { name: 'Restaurar toda a biblioteca', exact: true }).click();
       assert.doesNotMatch(await g.locator('summary').first().innerText(), /alterada/);
+    },
+  },
+  {
+    name: 'L4: cópia entre grupos, união, áreas, ajuda F1, atalhos configuráveis, guia rápido, referências e memorial',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const abrirGrupo = async (re) => {
+        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
+        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
+        return g;
+      };
+      const cmd = async (txt) => { await page.locator('#edcmd').fill(txt); await page.locator('#edcmd').press('Enter'); };
+      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`;
+      const viga = (a, z) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": [${JSON.stringify(a)}, ${JSON.stringify(z)}], "secao": {"b": 0.15, "h": 0.4}}}`;
+      await cmd('lote {"comandos": [' + [pil(0, 0), pil(5, 0), pil(5, 4), pil(0, 4), viga([0, 0], [5, 0]), viga([5, 0], [5, 4]), viga([5, 4], [0, 4]), viga([0, 4], [0, 0]),
+        '{"nome": "laje.criar", "params": {"grupo": "g_3", "contorno": [[0, 0], [5, 0], [5, 4], [0, 4]]}}'].join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+
+      // 1) áreas por grupo e cópia do Tipo para a Cobertura
+      const gr = await abrirGrupo(/^Grupos: cópia, união e áreas/);
+      const linha = (id) => gr.locator(`[data-areas-grupos] tr[data-grupo="${id}"]`);
+      assert.match(await linha('g_3').innerText(), /3\s+20,00/);
+      assert.match(await linha('g_7').innerText(), /1\s+0,00/);
+      await gr.getByRole('button', { name: 'Copiar de outro grupo…', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Copiar de outro grupo' });
+      await dlg.getByLabel(/^Grupo de origem/).selectOption({ label: 'Tipo' });
+      await dlg.getByLabel(/^Grupo de destino/).selectOption({ label: 'Cobertura' });
+      assert.equal(await dlg.locator('.esq-pav.origem').count(), 3);
+      assert.equal(await dlg.locator('.esq-pav.destino').count(), 1);
+      // ajuda da janela
+      await dlg.getByRole('button', { name: 'Ajuda de Copiar de outro grupo', exact: true }).click();
+      await page.getByRole('status', { name: 'Ajuda', exact: true }).getByText('Escolha o grupo de origem', { exact: false }).waitFor();
+      await page.getByRole('button', { name: 'Fechar a ajuda', exact: true }).click();
+      await dlg.getByRole('button', { name: 'Copiar conteúdo do grupo', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+      assert.match(await linha('g_7').innerText(), /1\s+20,00/);
+      // um passo no histórico: desfazer volta
+      await page.keyboard.press('Control+z');
+      assert.match(await linha('g_7').innerText(), /1\s+0,00/);
+      await page.keyboard.press('Control+y');
+      assert.match(await linha('g_7').innerText(), /1\s+20,00/);
+
+      // 2) modo de ajuda: F1 liga, clique mostra a explicação sem agir, Esc desliga
+      await page.keyboard.press('F1');
+      await page.waitForFunction(() => document.body.classList.contains('ajuda-on'));
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Premissas', exact: true }).click();
+      const painel = page.getByRole('status', { name: 'Ajuda', exact: true });
+      await painel.getByText('Todas as hipóteses de cálculo', { exact: false }).waitFor();
+      assert.equal(await page.locator('.edif-tabs').getByRole('tab', { name: 'Premissas', exact: true }).getAttribute('aria-selected'), 'false');
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.body.classList.contains('ajuda-on'));
+      assert.equal(await painel.count(), 0);
+      // botão da barra de título e botão direito
+      await page.getByRole('button', { name: 'Modo de ajuda (F1)', exact: true }).click();
+      await page.waitForFunction(() => document.body.classList.contains('ajuda-on'));
+      await page.locator('.edif-main').click({ button: 'right', position: { x: 20, y: 60 } });
+      await page.waitForFunction(() => !document.body.classList.contains('ajuda-on'));
+
+      // 3) barra de atalhos configurável e persistente
+      await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'Configurar a barra de atalhos', exact: true }).click();
+      const cfg = page.getByRole('dialog', { name: 'Configurar atalhos' });
+      await cfg.getByLabel('Atalho Pilar', { exact: true }).check();
+      await cfg.getByLabel('Atalho Desfazer', { exact: true }).uncheck();
+      await cfg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).count(), 0);
+      assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('statikos:barra'))), ['refazer', 'ajuda', 'guia', 'pilar']);
+      await page.getByRole('button', { name: 'Atalho: Pilar', exact: true }).click();
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'pilar');
+      await page.getByRole('button', { name: 'Configurar a barra de atalhos', exact: true }).click();
+      await page.getByRole('dialog', { name: 'Configurar atalhos' }).getByRole('button', { name: 'Restaurar atalhos padrão', exact: true }).click();
+      await page.getByRole('dialog', { name: 'Configurar atalhos' }).getByRole('button', { name: 'Fechar', exact: true }).click();
+      await page.getByRole('button', { name: 'Atalho: Desfazer', exact: true }).waitFor();
+
+      // 4) guia rápido: sem as ajudas dos diálogos
+      await page.getByRole('button', { name: 'Atalho: Guia rápido', exact: true }).click();
+      const guia = page.getByRole('dialog', { name: 'Guia rápido' });
+      const gt = await guia.locator('[data-guia-rapido]').innerText();
+      assert.match(gt, /Opções de cálculo/);
+      assert.match(gt, /Mover texto de referência/);
+      assert.doesNotMatch(gt, /Copiar de outro grupo\s*\n?\s*Escolha o grupo de origem/);
+      await guia.getByRole('button', { name: 'Fechar', exact: true }).click();
+
+      // 5) referências: tipos de texto na obra e mover o texto do pilar por dois cliques
+      const ref = await abrirGrupo(/^Referências e dados/);
+      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).uncheck();
+      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).waitFor();
+      assert.equal(await ref.getByLabel('Mostrar texto: cargas', { exact: true }).isChecked(), false);
+      await ref.getByLabel('Mostrar texto: cargas', { exact: true }).check();
+      await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' });
+      await page.keyboard.press('f');
+      await page.waitForTimeout(100);
+      await ref.getByRole('button', { name: 'Mover texto de referência', exact: true }).click();
+      const [ax, ay] = await telaDe(page, 0.1, 0.2);
+      await page.mouse.move(ax, ay); await page.mouse.click(ax, ay);
+      const [bx, by] = await telaDe(page, 1.2, 1.5);
+      await page.mouse.move(bx, by); await page.mouse.click(bx, by);
+      await ref.getByText('1 texto(s) fora da posição automática.', { exact: true }).waitFor();
+      await ref.getByRole('button', { name: 'Restaurar posições dos textos', exact: true }).click();
+      await ref.getByText('Dois cliques', { exact: false }).waitFor();
+
+      // 6) memorial: áreas por grupo e anexo do guia rápido
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-areas]').innerText(), /Tipo\s+3\s+20,00/);
+      assert.equal(await memo.locator('[data-guia-rapido]').count(), 0);
+      await memo.getByLabel('Incluir guia rápido (anexo)', { exact: true }).check();
+      assert.equal(await memo.locator('[data-guia-rapido]').count(), 1);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'E2b: viga curva (traçado por três pontos), poliviga, viga comum a dois grupos, ajuste a planos e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 2, null);
+      // 1. traçado pelo mouse: V, clique no início, R (trecho curvo), clique na passagem, clique no fim e Enter
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await reenquadrarAte(page, [[1, 0], [4, 2], [7, 0]]);
+      await page.locator('#edcmd').blur(); // o foco sai da linha de comando: as teclas V e R vão para a planta
+      await page.getByLabel('Polar 15° (F10)', { exact: true }).uncheck(); // sem polar, os cliques valem a grade de 0,5 m
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('v');
+      let [sx, sy] = await telaDe(page, 1, 0);
+      await page.mouse.click(sx, sy);
+      await page.keyboard.press('r');
+      [sx, sy] = await telaDe(page, 4, 2);
+      await page.mouse.click(sx, sy);
+      await page.locator('.statusbar .msg', { hasText: 'Passagem do arco marcada' }).waitFor();
+      [sx, sy] = await telaDe(page, 7, 0);
+      await page.mouse.click(sx, sy);
+      await page.keyboard.press('Enter');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 1, null);
+      let v = (await modelo()).vigas[0];
+      assert.equal(v.arcos.length, 1, 'trecho curvo registrado');
+      assert.deepEqual(v.arcos[0], { ini: 0, fim: v.pontos.length - 1 });
+      assert.ok(v.pontos.length >= 14, 'poligonal de cordas');
+      // corda de 6 m e flecha de 2 m: R = 3,25 m, ângulo 134,8°, comprimento desenvolvido 7,64 m
+      await page.keyboard.press('s');
+      const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
+      if (!(await gvigas.evaluate((el) => el.open))) await gvigas.locator(':scope > summary').click();
+      const gv = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: 'Vínculos, flambagem e cobrimento' }) });
+      if (!(await gv.evaluate((el) => el.open))) await gv.locator(':scope > summary').click();
+      const linha = async (i) => { await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click(); const e = page.locator('[data-viga-curva-comum]'); await e.waitFor(); return e; };
+      let ed = await linha(0);
+      await ed.locator('[data-viga-curva]').waitFor();
+      assert.match(await ed.locator('[data-viga-curva]').innerText(), /R = 3,25 m, 134,8°, \d+ cordas de até (49|50) cm\. Comprimento desenvolvido 7,64 m\./);
+      // 2. a corda máxima da opção refaz a discretização (mesmo círculo) e desfazer devolve
+      const n0 = v.pontos.length;
+      await cmd('opcoes.definir {"valores": {"curvaSegmento": 20}}');
+      await esperar((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas[0].pontos.length > n, n0);
+      v = (await modelo()).vigas[0];
+      assert.deepEqual(v.arcos[0], { ini: 0, fim: v.pontos.length - 1 });
+      ed = await linha(0);
+      assert.match(await ed.locator('[data-viga-curva]').innerText(), /R = 3,25 m, 134,8°.*cordas de até (19|20) cm/);
+      // 3. poliviga: reta + curva + reta, decompor em três vigas pelo editor e compor de novo pelo comando
+      await cmd('viga.tracar {"grupo": "g_3", "pontos": [[0, 6], [4, 6], [8, 10], [8, 14]], "passagens": [null, [7.2, 6.8], null], "secao": {"b": 0.2, "h": 0.5}, "nome": "PV"}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 2, null);
+      ed = await linha(1);
+      await ed.getByRole('button', { name: 'Decompor a viga (trechos retos e curvos)', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 4, null);
+      const partes = (await modelo()).vigas.filter((x) => x.nome !== 'V1');
+      assert.deepEqual(partes.map((x) => x.arcos?.length ?? 0), [0, 1, 0]);
+      await cmd(`viga.compor {"ids": ${JSON.stringify(partes.map((x) => x.id))}}`);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 2, null);
+      assert.equal((await modelo()).vigas.find((x) => x.nome !== 'V1').arcos.length, 1);
+      // 4. viga comum: o grupo associado (Rampa) é criado, a viga PV vira comum e a associada aparece no outro grupo
+      await cmd('grupo.criar {"nome": "Rampa"}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.grupos?.some((g) => g.nome === 'Rampa'), null);
+      const rampa = (await modelo()).grupos.find((g) => g.nome === 'Rampa').id;
+      await cmd(`pavimento.criar {"nome": "Rampa 1", "cota": 1.5, "grupo": "${rampa}"}`);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.some((p) => p.nome === 'Rampa 1'), null);
+      await page.getByLabel('Pavimento da planta', { exact: true }).selectOption({ label: 'Tipo 1 (3,00)' }); // o pavimento novo vira o atual: volta ao Tipo
+      ed = await linha(1);
+      await ed.getByLabel(/^Grupo associado/).selectOption({ label: 'Rampa' });
+      await ed.getByRole('button', { name: 'Tornar comum a dois grupos', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.some((x) => x.comumDe), null);
+      let m = await modelo();
+      const origem = m.vigas.find((x) => x.comum), assoc = m.vigas.find((x) => x.comumDe);
+      assert.equal(origem.nome, 'PV');
+      assert.equal(assoc.grupo, rampa);
+      assert.deepEqual(assoc.pontos, origem.pontos);
+      assert.deepEqual(assoc.arcos, origem.arcos);
+      assert.match(await page.locator('[data-viga-comum]').innerText(), /Comum ao grupo Rampa: uma barra só no pórtico/);
+      // a associada pelo atalho da paleta (Ctrl+K), com o botão para abrir o grupo de origem
+      await page.keyboard.press('Control+k');
+      await page.getByRole('dialog').getByRole('textbox').fill(assoc.nome + ' Rampa');
+      await page.keyboard.press('Enter');
+      await page.locator('[data-viga-comum]', { hasText: 'Viga associada de PV (Tipo)' }).waitFor();
+      await page.getByRole('button', { name: 'Abrir o grupo de origem', exact: true }).click();
+      await page.locator('[data-viga-comum]', { hasText: 'Comum ao grupo Rampa' }).waitFor();
+      // 5. memorial com o quadro das vigas curvas e das comuns
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const qc = memo.locator('[data-memorial-vigas-curvas]');
+      await qc.waitFor();
+      assert.match(await qc.innerText(), /V1[\s\S]*3,25[\s\S]*134,8[\s\S]*7,64/);
+      assert.match(await qc.innerText(), /poligonal de cordas de até 20 cm/);
+      const qm = memo.locator('[data-memorial-vigas-comuns]');
+      assert.match(await qm.innerText(), /PV[\s\S]*Tipo[\s\S]*Rampa/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      // 6. desfazer a viga comum pelo editor: voltam as duas vigas independentes
+      await page.getByRole('button', { name: 'Desfazer a viga comum', exact: true }).click();
+      await esperar(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.some((x) => x.comum || x.comumDe), null);
+      assert.equal((await modelo()).vigas.length, 3);
+      // 7. ajuste a planos inclinados: cumeeira em x = 5 (z = 0,3·x e z = 3 − 0,3·x)
+      await cmd(`viga.tracar {"grupo": "g_3", "pontos": [[4.8, 0], [5.3, 4], [5.1, 9]], "secao": {"b": 0.2, "h": 0.4}, "nome": "CM"}`);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.some((x) => x.nome === 'CM'), null);
+      await page.keyboard.press('Escape');
+      ed = await linha(2);
+      const campo = async (rot, valor) => { const c = ed.getByLabel(rot); await c.fill(String(valor)); await c.press('Enter'); };
+      await campo(/^Plano 1, inclinação a/, 0.3);
+      await campo(/^Plano 2, inclinação a/, -0.3);
+      await campo(/^Plano 2, cota c/, 3);
+      await ed.getByRole('button', { name: 'Ajustar a viga aos planos', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.find((x) => x.nome === 'CM')?.pontos.every((p) => Math.abs(p[0] - 5) < 1e-4), null);
     },
   },
 ];

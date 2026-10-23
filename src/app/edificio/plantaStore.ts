@@ -6,7 +6,7 @@ import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -100,6 +100,11 @@ interface PState {
   secaoViga: { b: number; h: number };
   alinhamento: Alinhamento;
   invertida: boolean;
+  /** Viga curva (E2b): o próximo trecho é um arco (clique na passagem e depois no fim); tecla R alterna. */
+  curvaViga: boolean;
+  /** Passagem do arco em andamento e passagens dos trechos já lançados da viga (null = trecho reto). */
+  passagemViga: [number, number] | null;
+  passagensViga: ([number, number] | null)[];
   tipoLaje: TipoLaje;
   tipoCarga: 'ponto' | 'linha' | 'area';
   /** G, Q ou id de caso adicional. */
@@ -107,6 +112,8 @@ interface PState {
   valorCarga: number;
   /** Copiar a seleção: número de cópias em série. */
   copias: number;
+  /** Conta-gotas de pilar (L4): pilar de que copiar os dados e se leva as cargas (não vai para o arquivo). */
+  contaGotas: { pilar: string | null; cargas: boolean };
   /** Girar a seleção: ângulo (graus, anti-horário) em torno do ponto clicado. */
   anguloGiro: number;
   /** Espelhar a seleção: mantém os originais (cópia espelhada de pilares e vigas). */
@@ -183,11 +190,15 @@ export const usePlanta = create<PState>((set) => ({
   secaoViga: { b: 0.15, h: 0.4 },
   alinhamento: 'centro',
   invertida: false,
+  curvaViga: false,
+  passagemViga: null,
+  passagensViga: [],
   tipoLaje: { tipo: 'macica', h: 0.1 },
   tipoCarga: 'area',
   caso: 'Q',
   valorCarga: 2,
   copias: 1,
+  contaGotas: { pilar: null, cargas: false },
   anguloGiro: 90,
   espelharCopia: false,
   cores: coresSalvas(),

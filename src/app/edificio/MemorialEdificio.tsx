@@ -24,6 +24,7 @@ import { normasNoMemorial } from '../../core/normas/memorial';
 import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
+import { MemorialAreasGrupos, MemorialGuia } from './MemorialGrupos';
 import { MemorialGabaritos } from './MemorialGabaritos';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
@@ -36,6 +37,8 @@ import { useRevisao } from './revisao';
 import { arranjoPilarTxt, arranjoVigaTxt } from './Armadura';
 import { linhasGruposVigotas } from './Vigotas';
 import { resumoSecoesVigas } from '../../core/building/secaoViga';
+import { resumoVigasCurvas } from '../../core/building/curvas';
+import { resumoVigasComuns } from '../../core/building/vigaComum';
 import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
 import { MemorialEluPorCombinacao, MemorialListagemGeral, MemorialQuantitativosDetalhados, MemorialTaxasPilares, MemorialVentoPavimentos } from './MemorialRelatorios';
@@ -54,12 +57,15 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const [iso, setIso] = useState(false);
   const [eluDet, setEluDet] = useState(false);
+  const [guia, setGuia] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && (!calculoAtual(estado) || !dimAtual(estado));
   const perfil = perfilDe(b);
   const opc = analise?.opcoes ?? opcoesEmUso(b.opcoes, perfil);
   const vinculos = useMemo(() => vinculosAlterados(b), [b]);
   const secoesEsp = useMemo(() => resumoSecoesVigas(b), [b]);
+  const vigasCurvas = useMemo(() => resumoVigasCurvas(b), [b]);
+  const vigasComuns = useMemo(() => resumoVigasComuns(b), [b]);
   const tabelas = useMemo(() => tabelasAlteradas(b), [b]);
   const ps = pavimentosOrdenados(b);
   const v = b.vento ?? VENTO_PADRAO;
@@ -116,6 +122,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
         <Spacer />
         <Check label="Incluir vista isométrica" checked={iso} onChange={setIso} />
         <Check label="ELU por combinação" checked={eluDet} onChange={setEluDet} />
+        <Check label="Incluir guia rápido (anexo)" checked={guia} onChange={setGuia} />
         <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
         <Button onClick={exportar}>Exportar HTML</Button>
         <Button onClick={onClose}>Fechar</Button>
@@ -154,6 +161,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>{[...ps].reverse().map((p) => <tr key={p.id}><td className="l">{p.nome}</td><td>{fmt(p.cota)}</td><td>{fmt(peDireito(b, p.id))}</td><td className="l">{b.grupos.find((g) => g.id === p.grupo)?.nome ?? '—'}</td></tr>)}</tbody>
           </table>
           <p>Fundação na cota {fmt(cotaFundacao(b))} m. {b.pilares.length} pilares{b.pilaresParede?.length ? `, ${b.pilaresParede.length} pilar(es)-parede` : ''}, {b.vigas.length} vigas e {b.lajes.length} lajes lançadas.</p>
+          <MemorialAreasGrupos b={b} />
           <MemorialGabaritos b={b} />
           {apoiados.length > 0 && <>
             <h3>Pilares que nascem acima da fundação (apoiados)</h3>
@@ -233,6 +241,40 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </tbody>
               </table>
               <p>Largura colaborante: bf = bw + b1 + b3, com b1 ≤ 0,1·a e b1 ≤ 0,5·b2 (a: distância entre pontos de momento nulo pelo número de vãos; b2: distância livre à viga vizinha). A mesa entra na rigidez da análise; a flexão é dimensionada {opc.mesaDimensionamento ? 'na seção T onde a mesa está comprimida' : 'só com a alma'} (a confirmar).</p>
+            </div>
+          )}
+          {vigasCurvas.length > 0 && (
+            <div data-memorial-vigas-curvas>
+              <h3>Vigas curvas</h3>
+              <table>
+                <thead><tr><th>Viga</th><th>Raio (m)</th><th>Ângulo (°)</th><th>Cordas</th><th>Corda máx. (cm)</th><th>Comprimento desenvolvido (m)</th></tr></thead>
+                <tbody>
+                  {vigasCurvas.map((x) => (
+                    <tr key={x.viga}>
+                      <td className="l">{x.nome}</td><td>{x.raios.map((r) => fmt(r, 2)).join('; ')}</td><td>{x.angulos.map((a) => fmt(a, 1)).join('; ')}</td>
+                      <td>{x.cordas}</td><td>{fmt(x.cordaMax * 100, 0)}</td><td>{fmt(x.comprimentoDesenvolvido, 2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p>Cada trecho curvo (arco por três pontos) é analisado como poligonal de cordas de até {fmt(opc.curvaSegmento, 0)} cm, as das pontas com 25 % do tamanho das do meio; a torção da curvatura é de equilíbrio e a viga curva mantém a rigidez à torção da seção bruta{opc.curvaTorcaoEquilibrio ? '' : ' (opção desligada: vale o redutor das vigas retas)'}. A verificação à torção é feita sempre. A força radial da armadura longitudinal (As·fyd/R) deve ser equilibrada pelos estribos (a confirmar). A elevação da prancha é desenvolvida ao longo do eixo (a confirmar a representação).</p>
+            </div>
+          )}
+          {vigasComuns.length > 0 && (
+            <div data-memorial-vigas-comuns>
+              <h3>Vigas comuns a dois grupos</h3>
+              <table>
+                <thead><tr><th>Viga de origem</th><th>Grupo de origem</th><th>Viga associada</th><th>Grupo associado</th><th>Comprimento (m)</th><th>Pavimento associado → pavimento que recebe a carga</th></tr></thead>
+                <tbody>
+                  {vigasComuns.map((x) => (
+                    <tr key={x.origem}>
+                      <td className="l">{x.nomeOrigem}</td><td className="l">{x.grupoOrigem}</td><td className="l">{x.nomeAssociada}</td><td className="l">{x.grupoAssociado}</td><td>{fmt(x.comprimento, 2)}</td>
+                      <td className="l">{x.pavimentos.map((q) => `${q.associado} → ${q.origem}`).join('; ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p>A viga comum é uma barra só no pórtico (a do grupo de origem), que recebe as lajes dos dois grupos: a viga associada apoia a laje do seu grupo e as reações são levadas à viga de origem, no pavimento do grupo de origem de menor cota igual ou acima do associado (senão o mais alto abaixo; a confirmar). Armadura, envoltórias e dimensionamento só na origem.</p>
             </div>
           )}
           {opcoesAlteradas(b.opcoes, perfil).length > 0 && <p className="warn">Opções diferentes do padrão do perfil: {opcoesAlteradas(b.opcoes, perfil).map((o) => o.rotulo.toLowerCase()).join('; ')}.</p>}
@@ -705,6 +747,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {h2('Premissas', true)}
           <ul>{PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <i>({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</i></li>)}</ul>
+          {guia && <MemorialGuia h2={h2} />}
           <p className="small">Resultados de ferramenta de apoio ao projeto: a responsabilidade pela concepção, verificação e detalhamento é do engenheiro responsável.</p>
         </div>
       </div>

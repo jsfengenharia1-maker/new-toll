@@ -5,6 +5,8 @@ import type * as THREE from 'three';
 import { direcaoOlhar, metadeAltura, posicaoCamera, type Camera3D, type EstadoCaminhar } from '../../core/vista3d/camera';
 import type { Cena3D, Objeto3D, TipoElemento3D } from '../../core/vista3d/registro';
 import { malhaDeTubos, type CamadaArmadura } from '../../core/vista3d/armaduras3d';
+import type { CenaDeformada } from '../../core/resultados/deformadaCena';
+import type { EixoDeformado } from '../../core/resultados/deformada';
 import type { Three } from './carregarThree';
 
 export interface CoresCena {
@@ -19,6 +21,8 @@ export interface AjustesMateriais {
 }
 
 interface Faixa { ini: number; fim: number; obj: Objeto3D }
+/** Atributo de posição da deformada: posições originais, deslocamentos e o atributo do three que recebe base + escala · fator · desl. */
+interface RegistroDef { attr: THREE.BufferAttribute; base: Float32Array; desl: Float32Array; geo: THREE.BufferGeometry }
 interface Bloco { chave: string; tipo: TipoElemento3D; pendente: boolean; mesh: THREE.Mesh; faixas: Faixa[] }
 
 /** Textura procedural de concreto: ruído em tons de cinza, gerado pixel a pixel (sem imagem externa). */
@@ -50,6 +54,8 @@ export class RenderizadorCena {
   private raiz: THREE.Group;
   private realce: THREE.Group;
   private arm: THREE.Group;
+  private def: THREE.Group;
+  private registrosDef: RegistroDef[] = [];
   private blocos: Bloco[] = [];
   private objetos = new Map<string, Objeto3D>();
   private ray: THREE.Raycaster;
@@ -74,7 +80,8 @@ export class RenderizadorCena {
     this.raiz = new T.Group();
     this.realce = new T.Group();
     this.arm = new T.Group();
-    this.cena.add(this.raiz, this.realce, this.arm);
+    this.def = new T.Group();
+    this.cena.add(this.raiz, this.realce, this.arm, this.def);
     this.cena.add(new T.HemisphereLight(undefined, undefined, 1.1));
     const sol = new T.DirectionalLight(undefined, 1.6);
     sol.position.set(-0.6, -0.9, 1.4);
@@ -218,6 +225,72 @@ export class RenderizadorCena {
     }
   }
 
+
+  // ---------------------------------------------------------------- deformada (V3)
+
+  private limparDeformada(): void {
+    for (const f of [...this.def.children]) { this.def.remove(f); const g = f as THREE.Mesh; g.geometry.dispose(); (g.material as THREE.Material).dispose(); }
+    this.registrosDef = [];
+  }
+
+  /** Cor da rampa (cores[0] = menor |Δ|) na posição `t` de 0 a 1. */
+  private corRampa(cores: THREE.Color[], t: number): THREE.Color {
+    const x = Math.min(1, Math.max(0, t)) * (cores.length - 1), i = Math.min(cores.length - 2, Math.floor(x));
+    return cores[i].clone().lerp(cores[i + 1], x - i);
+  }
+
+  /**
+   * Mostra a deformada no lugar da cena original (que fica oculta): `completa` = malhas refinadas coloridas por |Δ|;
+   * `simplificada` = eixos das barras. `cd` nulo desliga. `cores` = rampa `--v3d-def-1..5`.
+   */
+  definirDeformada(cd: CenaDeformada | null, eixos: EixoDeformado[] | null, cores: string[], modo: 'completa' | 'simplificada', dmax: number): void {
+    const T = this.T;
+    this.limparDeformada();
+    this.raiz.visible = !(cd || eixos);
+    if (!cd && !eixos) return;
+    const rampa = cores.map((c) => new T.Color(c)), cor = (d: number) => this.corRampa(rampa, dmax > 1e-12 ? d / dmax : 0);
+    const registrar = (geo: THREE.BufferGeometry, base: Float32Array, desl: Float32Array) => {
+      const attr = new T.Float32BufferAttribute(base.slice(), 3);
+      geo.setAttribute('position', attr);
+      this.registrosDef.push({ attr, base, desl, geo });
+    };
+    if (modo === 'completa' && cd) {
+      for (const o of cd.objetos) {
+        const geo = new T.BufferGeometry(), nv = o.pos.length / 3, col = new Float32Array(nv * 3);
+        for (let v = 0; v < nv; v++) { const c = cor(o.delta[v]); col[v * 3] = c.r; col[v * 3 + 1] = c.g; col[v * 3 + 2] = c.b; }
+        registrar(geo, o.pos, o.desl);
+        geo.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+        geo.setIndex(new T.Uint32BufferAttribute(o.idx, 1));
+        this.def.add(new T.Mesh(geo, new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+      }
+    } else if (eixos) {
+      const base: number[] = [], desl: number[] = [], col: number[] = [];
+      for (const e of eixos) for (let k = 0; k + 1 < e.delta.length; k++) {
+        for (const j of [k, k + 1]) {
+          base.push(e.pos[j * 3], e.pos[j * 3 + 1], e.pos[j * 3 + 2]); desl.push(e.desl[j * 3], e.desl[j * 3 + 1], e.desl[j * 3 + 2]);
+          const c = cor(e.delta[j]); col.push(c.r, c.g, c.b);
+        }
+      }
+      const geo = new T.BufferGeometry();
+      registrar(geo, Float32Array.from(base), Float32Array.from(desl));
+      geo.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+      this.def.add(new T.LineSegments(geo, new T.LineBasicMaterial({ vertexColors: true })));
+    }
+    this.atualizarDeformada(1, 1, true);
+  }
+
+  /** Posições = original + escala · fator · deslocamento; `normais` refaz o sombreamento (não nos quadros da animação). */
+  atualizarDeformada(escala: number, fator: number, normais: boolean): void {
+    const k = escala * fator;
+    for (const r of this.registrosDef) {
+      const a = r.attr.array as Float32Array;
+      for (let i = 0; i < a.length; i++) a[i] = r.base[i] + k * r.desl[i];
+      r.attr.needsUpdate = true;
+      if (normais && r.geo.index) r.geo.computeVertexNormals();
+      r.geo.computeBoundingSphere();
+    }
+  }
+
   // ---------------------------------------------------------------- realce (seleção e cursor)
 
   private construirRealce(ids: Iterable<string>, cor: string, opacidade: number): THREE.Mesh | null {
@@ -325,6 +398,7 @@ export class RenderizadorCena {
   dispose(): void {
     this.limpar();
     this.limparArmaduras();
+    this.limparDeformada();
     for (const f of [...this.realce.children]) { (f as THREE.Mesh).geometry.dispose(); ((f as THREE.Mesh).material as THREE.Material).dispose(); }
     this.textura?.dispose();
     this.R.dispose();

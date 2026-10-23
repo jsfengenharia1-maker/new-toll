@@ -141,6 +141,9 @@
   /* armaduras em 3D (V2): oito cores por bitola, tipo ou elemento (ciclo); no tema p&b, oito tons de cinza */
   --v3d-arm-1: #e4572e; --v3d-arm-2: #2e86ab; --v3d-arm-3: #76b041; --v3d-arm-4: #f5b700; --v3d-arm-5: #8f5bd6; --v3d-arm-6: #17a398; --v3d-arm-7: #d65db1; --v3d-arm-8: #9c8b6e;
   --v3d-pb-arm-1: #000000; --v3d-pb-arm-2: #333333; --v3d-pb-arm-3: #555555; --v3d-pb-arm-4: #777777; --v3d-pb-arm-5: #222222; --v3d-pb-arm-6: #444444; --v3d-pb-arm-7: #666666; --v3d-pb-arm-8: #888888;
+  /* deformada (V3): rampa de |Δ| do menor ao maior deslocamento; no tema p/b, tons de cinza */
+  --v3d-def-1: #2b6cb0; --v3d-def-2: #1fa3a3; --v3d-def-3: #6fbf4a; --v3d-def-4: #f2c230; --v3d-def-5: #d9402b;
+  --v3d-pb-def-1: #e6e6e6; --v3d-pb-def-2: #bdbdbd; --v3d-pb-def-3: #8f8f8f; --v3d-pb-def-4: #5c5c5c; --v3d-pb-def-5: #1a1a1a;
   /* grupos de pavimentos (marca por grupo; classe .grupo-c<i>): tons de cinza e o destaque */
   --grupo-0: #6995fe; --grupo-1: #f2f2f2; --grupo-2: #afafaf; --grupo-3: #8a8a8a;
   --grupo-4: #dbdbdb; --grupo-5: #6d6d6d; --grupo-6: #c4c4c4; --grupo-7: #555555;
@@ -616,7 +619,7 @@ svg.mono .hinge { fill: #fff !important; }
 .planta-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12px; }
 .planta-barra select { border: 1px solid var(--line); border-radius: var(--radius); padding: 3px 6px; background: var(--surface); color: var(--ink); font-size: 12px; }
 .planta-barra .pavsel { display: flex; gap: 6px; align-items: center; color: var(--muted); }
-.planta { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.planta { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .planta-cv { position: relative; flex: 1; min-height: 240px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 .planta-cv canvas { position: absolute; left: 0; top: 0; }
 .planta-cv canvas.int { cursor: none; }
@@ -862,6 +865,18 @@ tr.sel td { background: var(--accent-soft); }
 .v3d-iso .v3d-rotulo { fill: var(--v3d-pendente); font: 700 40px var(--font-ui); }
 /* cortes e seções (V2): elevação em SVG sobre a folha clara; o mesmo SVG vai para o memorial (memorial.css, escopo .memo) */
 .v3d[data-tema='pb'] { --v3d-arm-1: var(--v3d-pb-arm-1); --v3d-arm-2: var(--v3d-pb-arm-2); --v3d-arm-3: var(--v3d-pb-arm-3); --v3d-arm-4: var(--v3d-pb-arm-4); --v3d-arm-5: var(--v3d-pb-arm-5); --v3d-arm-6: var(--v3d-pb-arm-6); --v3d-arm-7: var(--v3d-pb-arm-7); --v3d-arm-8: var(--v3d-pb-arm-8); }
+.v3d[data-tema='pb'] { --v3d-def-1: var(--v3d-pb-def-1); --v3d-def-2: var(--v3d-pb-def-2); --v3d-def-3: var(--v3d-pb-def-3); --v3d-def-4: var(--v3d-pb-def-4); --v3d-def-5: var(--v3d-pb-def-5); }
+/* deformada (V3): legenda no rodapé da vista, tabelas de deslocamentos e perfil da flecha */
+.v3d-def-leg { display: flex; gap: 8px; align-items: center; padding: 3px 10px; font-size: 11.5px; border-top: 1px solid var(--line); background: var(--surface); }
+.v3d-def-rampa { flex: 0 0 220px; height: 10px; border-radius: 3px; border: 1px solid var(--line); background: linear-gradient(90deg, var(--v3d-def-1), var(--v3d-def-2), var(--v3d-def-3), var(--v3d-def-4), var(--v3d-def-5)); }
+.v3d-def-leg .num { font-family: var(--font-num); }
+.desloc-aba { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow: auto; }
+.desloc-aba .row { align-items: flex-end; flex-wrap: wrap; gap: 8px 12px; }
+.flecha-perfil { width: 100%; max-width: 640px; height: auto; background: var(--v3d-claro-fundo); border: 1px solid var(--line); border-radius: var(--radius); }
+.flecha-perfil .fp-eixo { stroke: var(--v3d-claro-linha); stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 0.5; }
+.flecha-perfil .fp-curva { fill: none; stroke: var(--v3d-claro-selecao); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.flecha-perfil .fp-ref { fill: none; stroke: var(--v3d-claro-linha); stroke-width: 1.2px; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.flecha-perfil .fp-txt { fill: var(--v3d-claro-linha); font: 11px var(--font-num); }
 .corte-folha { background: var(--v3d-claro-fundo); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; padding: 8px; }
 .corte-svg { display: block; width: 100%; height: auto; max-height: 68vh; }
 .corte-svg .corte-sec { fill: var(--v3d-claro-laje); stroke: var(--v3d-claro-linha); stroke-width: 1.4px; vector-effect: non-scaling-stroke; }
@@ -954,3 +969,28 @@ table.pp-lados tr[aria-selected="true"] { background: var(--accent-soft); }
 .recente-nome { font-weight: 600; font-size: 12.5px; }
 .recente-meta { color: var(--muted); font-size: 11.5px; }
 .filepick { display: inline-flex; }
+
+/* ---- ajuda e atalhos (L4) ---- */
+body.ajuda-on [data-ajuda] { outline: 1px dashed var(--accent-text); outline-offset: 1px; cursor: help; }
+body.ajuda-on { cursor: help; }
+.ajuda-painel { position: fixed; right: 16px; bottom: 16px; z-index: 70; width: min(380px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 10px 12px; box-shadow: var(--shadow-pop); display: grid; gap: 6px; }
+.ajuda-painel p { margin: 0; font-size: var(--fs); color: var(--ink); line-height: 1.45; }
+.ajuda-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-strong); }
+.tbtn.on { background: var(--accent-soft); color: var(--accent-text); }
+.icone { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.esq-grupos { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.esq-pav { display: flex; align-items: center; gap: 10px; padding: 3px 8px; border-left: 4px solid var(--grupo); background: var(--field); font-size: var(--fs); }
+.esq-pav.origem { background: var(--accent-soft); color: var(--accent-text); }
+.esq-pav.destino { outline: 2px solid var(--ok); outline-offset: -2px; }
+.esq-pav.origem.destino { outline-color: var(--bad); }
+.esq-marca { margin-left: auto; font-weight: 600; }
+.atalhos { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 8px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.atalhos .btn { padding: 2px 6px; min-width: 28px; }
+.atalho-linha { display: flex; align-items: center; gap: 6px; }
+.ajuda-ferr { position: absolute; left: 12px; bottom: 36px; z-index: 5; width: min(360px, calc(100% - 24px)); background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 8px 10px; display: grid; gap: 4px; font-size: var(--fs); color: var(--ink); }
+.ajuda-ferr p, .ajuda-ferr ol { margin: 0; }
+.ajuda-ferr ol { padding-left: 18px; }
+.guia { display: grid; gap: 6px; }
+.guia dl { margin: 0; display: grid; gap: 4px; }
+.guia dt { font-weight: 600; color: var(--ink-strong); }
+.guia dd { margin: 0 0 4px; color: var(--ink); }
