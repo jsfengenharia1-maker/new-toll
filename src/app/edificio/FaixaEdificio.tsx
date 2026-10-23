@@ -7,6 +7,10 @@ import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
 import { useInclinadasUI } from './InclinadasUI';
 import { importarMascara } from './mascaraImportar';
+import { useStore } from '../store';
+import { importarCargasDoEdificio } from '../Fundacoes';
+import { abrirJanela } from './Revisao';
+import { useAlvoSelecionado } from './alvo';
 import { mascaraNoGrupo, pavimentosOrdenados } from '../../core/building/types';
 
 const ui = (p: Parameters<ReturnType<typeof useEdifUI.getState>['set']>[0]) => useEdifUI.getState().set(p);
@@ -88,9 +92,75 @@ function Edicao() {
   );
 }
 
+const cfg = (id: string) => () => ui({ cfg: id });
+
+function CargasEAcoes() {
+  return (
+    <>
+      <RibbonGroup label="Casos e combinações">
+        <RibbonButton icon="casos" label="Casos de carga" onClick={cfg('casos')} />
+        <RibbonButton icon="estados" label="Estados-limite e combinações" onClick={cfg('estados')} />
+      </RibbonGroup>
+      <RibbonGroup label="Vento">
+        <RibbonButton icon="vento" label="Vento e combinações" onClick={cfg('vento')} />
+        <RibbonButton icon="vento" label="Ábacos de vento (NBR 6123)" onClick={cfg('abacos')} />
+      </RibbonGroup>
+      <RibbonGroup label="Outras ações">
+        <RibbonButton icon="empuxo" label="Empuxo de terra" onClick={cfg('empuxo')} />
+        <RibbonButton icon="casos" label="Etapas de carga (flechas)" onClick={cfg('etapasFlecha')} />
+        <RibbonButton icon="fogo" label="Incêndio" onClick={cfg('incendio')} />
+      </RibbonGroup>
+    </>
+  );
+}
+
+function Analise() {
+  const { calcular, calculando } = useBuilding();
+  return (
+    <>
+      <RibbonGroup label="Cálculo">
+        <RibbonButton icon="calcular" label="Calcular obra" title="Mesma ação de Calcular e dimensionar (aba Dimensionamento)" disabled={calculando} onClick={() => { void calcular(); }} />
+        <RibbonButton icon="modos" label="2ª ordem global…" title="Abre a vista Análise (P-Δ no lugar do γz)" onClick={() => ui({ aba: 'analise' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Resultados">
+        <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />
+        <RibbonButton icon="modos" label="Ver Deslocamentos" onClick={() => ui({ aba: 'deslocamentos' })} />
+        <RibbonButton icon="camadas" label="Ver Isovalores" onClick={() => ui({ aba: 'isovalores' })} />
+        <RibbonButton icon="verificacao" label="Ver Verificação" onClick={() => ui({ aba: 'verificacao' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Opções"><RibbonButton icon="config" label="Opções de cálculo…" onClick={cfg('opcoes')} /></RibbonGroup>
+    </>
+  );
+}
+
+function Dimensionamento() {
+  const { calcular, calculando, dim } = useBuilding();
+  const alvo = useAlvoSelecionado();
+  return (
+    <>
+      <RibbonGroup label="Calcular">
+        <RibbonButton icon="calcular" label="Calcular obra" disabled={calculando} onClick={() => { void calcular(); }} />
+        <RibbonButton icon="calcular" label="Calcular obra sem fundações" disabled={calculando} onClick={() => { void calcular(true); }} />
+        <RibbonButton icon="dimensionamento" label="Ver Dimensionamento" onClick={() => ui({ aba: 'dimensionamento' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Relatórios">
+        <RibbonButton icon="memorial" label="Memorial da obra" onClick={() => ui({ memo: true })} />
+        <RibbonButton icon="relatorio" label="Resultados do elemento" title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} disabled={!alvo || !dim} onClick={() => alvo && abrirJanela(alvo)} />
+      </RibbonGroup>
+      <RibbonGroup label="Proteção ao fogo"><RibbonButton icon="fogo" label="Resistência ao fogo…" onClick={cfg('incendio')} /></RibbonGroup>
+      <RibbonGroup label="Fundações">
+        <RibbonButton icon="enviar" label="Cargas para o módulo Fundações" disabled={!dim?.fundacao.length} onClick={() => { importarCargasDoEdificio(dim!.fundacao); useStore.getState().set({ module: 'fundacoes' }); }} />
+      </RibbonGroup>
+    </>
+  );
+}
+
 /** Corpo da aba `aba` da faixa do Edifício. Os cartões 03 a 05 acrescentam as demais abas. */
 export function FaixaEdificio({ aba }: { aba: string }): ReactNode {
   if (aba === 'lancamento') return <Lancamento />;
   if (aba === 'edicao') return <Edicao />;
+  if (aba === 'cargas') return <CargasEAcoes />;
+  if (aba === 'analise') return <Analise />;
+  if (aba === 'dimensionamento') return <Dimensionamento />;
   return null;
 }

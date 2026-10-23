@@ -68,11 +68,12 @@ import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
 import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
+import { useAlvoSelecionado } from './alvo';
 import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
 import { JanelaConfiguracao } from './Configuracao';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
-import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
+import { abrirJanela, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -393,15 +394,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
     for (const x of pilaresSelPuncao) porLaje.set(x.laje, [...(porLaje.get(x.laje) ?? []), x.pilar]);
     void executarERecalcular('lote', { comandos: [...porLaje].map(([id, pilares]) => ({ nome: 'laje.puncao', params: { id, pilares } })) });
   };
-  const alvo = ((): Alvo | null => {
-    for (const id of pl.selecao) {
-      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id) || b.fundacao?.corridas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
-      if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
-      if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
-      if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
-    }
-    return null;
-  })();
+  const alvo = useAlvoSelecionado();
   return (
     <div className="planta-barra">
       <label className="pavsel">Pavimento
