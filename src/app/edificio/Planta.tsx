@@ -29,6 +29,7 @@ import { abrirJanelaFundacao } from './Fundacao';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../../core/building/pilarParede';
 import { niveisDaParede, paredeDoPP, ppDaParede } from '../../core/building/paredesBase';
 import { aberturasNaPlanta } from './paredesLista';
+import { expandirDiagonais } from '../../core/building/diagonais';
 import type { PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
@@ -834,6 +835,18 @@ export function Planta() {
         const ex = C[0] + r * Math.cos(fim), ey = C[1] + r * Math.sin(fim), tg = fim + Math.PI / 2; // tangente no sentido do arco
         ctx.beginPath(); ctx.moveTo(ex + 6 * Math.cos(tg), ey + 6 * Math.sin(tg)); ctx.lineTo(ex + 4 * Math.cos(tg + 2.2), ey + 4 * Math.sin(tg + 2.2)); ctx.lineTo(ex + 4 * Math.cos(tg - 2.2), ey + 4 * Math.sin(tg - 2.2)); ctx.closePath(); ctx.fill();
       }
+    }
+    // diagonais de contraventamento (E2d): seta do extremo inicial ao final nos pavimentos em que a barra começa ou termina
+    if (pav) {
+      ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = cores.cota; ctx.fillStyle = cores.cota; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      for (const x of expandirDiagonais(b)) {
+        if (x.pavIni !== pav.id && x.pavFim !== pav.id) continue;
+        const [a, z] = [paraTela(x.pIni[0], x.pIni[1]), paraTela(x.pFim[0], x.pFim[1])], ang = Math.atan2(z[1] - a[1], z[0] - a[0]);
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(z[0], z[1]); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(z[0], z[1]); ctx.lineTo(z[0] - 10 * Math.cos(ang - 0.4), z[1] - 10 * Math.sin(ang - 0.4)); ctx.lineTo(z[0] - 10 * Math.cos(ang + 0.4), z[1] - 10 * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill();
+        ctx.fillText(x.nome, (a[0] + z[0]) / 2, (a[1] + z[1]) / 2 - 3);
+      }
+      ctx.restore();
     }
     desenharCargas(ctx);
   };
