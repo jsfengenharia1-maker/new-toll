@@ -611,7 +611,7 @@ export const flows = [
       assert.match(await memo.textContent(), /Vínculos e engastes alterados por elemento.*Pilar P1, lance até Tipo 1: engaste base 0\./s);
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       assert.doesNotMatch(await memo.textContent(), /Vínculos e engastes alterados/);
@@ -1776,7 +1776,7 @@ export const flows = [
       assert.equal(await lista.locator('.tablewrap tbody tr', { hasText: 'FUND_EXC_SEM_VIGA' }).count(), 0);
       assert.equal(await page.locator('[data-card-vigas-fundacao] tbody tr').count(), 4);
       // um desfazer remove elementos e vigas
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       assert.match(await grupo.locator('summary').first().innerText(), /Fundação \(0 elementos\)/i);
     },
@@ -4388,7 +4388,7 @@ export const flows = [
       await nova2.getByRole('button', { name: 'Criar obra' }).click();
       await page.getByRole('dialog', { name: 'Dados gerais da obra' }).getByRole('button', { name: 'Concluir' }).click();
       assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       assert.equal(await nPav(), 0);
       await page.getByRole('button', { name: 'Nova obra…' }).click();
       const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
@@ -4781,108 +4781,6 @@ export const flows = [
     },
   },
   {
-    name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
-    async run({ newPage, tmp }) {
-      const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const campo = async (loc, v) => { await loc.fill(v); await loc.press('Tab'); };
-      const nPav = () => page.locator('.edpav tbody tr').count();
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova.getByRole('button', { name: 'Assistente passo a passo' }).click();
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Nome da obra'), 'Obra L1 teste');
-      await campo(nova.getByLabel('Descrição (linha 1)'), 'Residencial fictício');
-      await campo(nova.getByLabel('Descrição (linha 2)'), 'Teste de interface');
-      await campo(nova.getByLabel('Cidade'), 'Cidade X');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('fck'), '35');
-      await nova.getByLabel('CAA').selectOption('III');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Repetições 2'), '2');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await nova.getByLabel('Criar malha de eixos').check();
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      await campo(nova.getByLabel('Revestimento e piso'), '1,5');
-      await nova.getByRole('button', { name: 'Avançar' }).click();
-      assert.match(await nova.innerText(), /4 em 3 grupo\(s\)/);
-      await nova.getByRole('button', { name: 'Criar obra' }).click();
-      const gerais = page.getByRole('dialog', { name: 'Dados gerais da obra' });
-      await gerais.waitFor();
-      assert.equal(await gerais.getByLabel('Nome da obra').inputValue(), 'Obra L1 teste');
-      assert.equal(await gerais.getByLabel('fck').inputValue(), '35');
-      await campo(gerais.getByLabel('Descrição (linha 2)'), 'Teste de interface 2');
-      await gerais.getByRole('button', { name: 'Concluir' }).click();
-      assert.equal(await nPav(), 4);
-      assert.match(await page.locator('[data-etapa="pavimentos"]').innerText(), /feito/);
-      assert.match(await page.locator('[data-etapa="pilares"]').innerText(), /pendente/);
-      const muros = await page.locator('[data-etapa="muros"]').innerText();
-      assert.match(muros, /indispon/);
-      assert.match(muros, /E1c/);
-      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
-      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
-      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
-      const mt = await memo.textContent();
-      assert.match(mt, /Descrição.*Residencial fictício · Teste de interface 2/s);
-      assert.match(mt, /Origem do lançamento.*Assistente de nova obra/s);
-      await memo.getByRole('button', { name: 'Fechar' }).click();
-      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
-      await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
-      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga.locator(':scope > summary').click();
-      await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
-      const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
-      const ws = JSON.parse(f.text);
-      assert.equal(ws.building.obra.cidade, 'Cidade Y');
-      assert.deepEqual(ws.versoes.map((v) => v.rotulo), ['obra.definir', 'obra.definir']);
-      assert.equal(ws.versoes[1].building.obra.cidade, 'Cidade X');
-      assert.equal(ws.versoes[0].building.obra.descricao[1], 'Teste de interface');
-      const file = join(tmp, f.name);
-      writeFileSync(file, f.text);
-      const page2 = await newPage(NO_PICKERS);
-      const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
-      await chooser.setFiles(file);
-      await page2.locator('.statusbar .msg', { hasText: 'aberto de' }).waitFor();
-      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const ga2 = page2.locator('details.group', { has: page2.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga2.locator(':scope > summary').click();
-      await ga2.getByRole('button', { name: 'Recuperar' }).click();
-      await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
-      await page2.close();
-      await page.getByRole('button', { name: 'Obras recentes…' }).click();
-      const rec = page.getByRole('dialog', { name: 'Obras recentes' });
-      await campo(rec.getByLabel('Buscar obra'), 'residencial');
-      assert.ok((await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count()) >= 1);
-      await campo(rec.getByLabel('Buscar obra'), 'zzzz');
-      assert.equal(await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count(), 0);
-      await campo(rec.getByLabel('Buscar obra'), '');
-      await rec.getByRole('button', { name: 'Guardar na biblioteca' }).click();
-      await rec.getByRole('button', { name: 'Abrir Obra L1 teste' }).waitFor();
-      await rec.getByRole('button', { name: /Abrir exemplo Exemplo: com subsolo/ }).click();
-      await rec.waitFor({ state: 'detached' });
-      assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova2 = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova2.getByRole('button', { name: 'Assistente passo a passo' }).click();
-      for (let i = 0; i < 6; i++) await nova2.getByRole('button', { name: 'Avançar' }).click();
-      await nova2.getByRole('button', { name: 'Criar obra' }).click();
-      await page.getByRole('dialog', { name: 'Dados gerais da obra' }).getByRole('button', { name: 'Concluir' }).click();
-      assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
-      assert.equal(await nPav(), 0);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
-      const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
-      await nova3.getByRole('button', { name: 'Cargas de arquivo de texto' }).click();
-      await nova3.getByRole('button', { name: 'Escolher arquivo de texto…' }).click();
-      const imp = page.getByRole('dialog', { name: 'Importar cargas de texto' });
-      await campo(imp.getByLabel('Nome da obra a criar'), 'Obra de arranques e2e');
-      await campo(imp.getByLabel('Ou cole o texto aqui'), 'Pilar;Caso;N;Hx;Hy;Mx;My;bx;by\nP1;G;500,5;0;0;0;0;30;40\nP1;Q;100;0;0;0;0;30;40\nP2;G;300;0;0;0;0;25;25\n');
-      assert.match(await imp.innerText(), /2 arranque\(s\), 2 hipótese\(s\)/);
-      await imp.getByRole('button', { name: 'Criar obra e calcular fundações' }).click();
-      await page.locator('.statusbar .msg', { hasText: 'Obra só com arranques' }).waitFor({ timeout: 120000 });
-    },
-  },
-  {
     name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
     async run({ newPage }) {
       const page = await newPage();
@@ -4983,7 +4881,7 @@ export const flows = [
       sv = await editor(0);
       await sv.getByLabel('Viga chata (altura da laje que contorna)', { exact: true }).check();
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.12, null);
-      await page.getByRole('button', { name: /Desfazer/ }).click();
+      await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas.find((v) => v.nome === 'V1')?.secao.h === 0.5, null);
       // 3. V2 não estrutural e V3 de amarração
       sv = await editor(1);
