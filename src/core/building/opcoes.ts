@@ -151,6 +151,12 @@ export interface OpcoesCalculo {
   vigotaRigidez: number;
   /** 1 = EI e GJ das nervuras das lajes de vigotas por ficha vêm da ficha do fabricante (K1.15.1-2); 0 = inércias calculadas pela geometria. */
   vigotaRigidezFicha: number;
+  /** 1 = igualação das vigotas ponto a ponto da discretização (passo de 0,25 m, E3b); 0 = pelos valores de pico de cada vigota. */
+  vigotaIgualacaoPonto: number;
+  /** 1 = redistribuição dos negativos das vigotas pela opção `redistribuicao` das vigas (δ ≥ 0,75); 0 = sem redistribuição. */
+  vigotaRedistribuir: number;
+  /** 1 = flecha das vigotas por ficha e moldadas com a rigidez fissurada de Branson (ficha do fabricante ou seção T); 0 = rigidez total. */
+  vigotaBranson: number;
   /** 1 = cargas de uso das classes B (escritórios) e C (garagens) como casos próprios, com o ψ da classe; 0 = um caso Q com o ψ da obra. */
   categoriasUso: number;
   /** EQU: γ das permanentes favoráveis no tombamento global (NBR 8681). */
@@ -629,6 +635,12 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Multiplica a inércia das nervuras das treliçadas na grelha (fissuração das nervuras). Menor rigidez manda mais carga para as vigas e aumenta a flecha.' },
   { chave: 'vigotaRigidezFicha', rotulo: 'Vigotas: rigidez das nervuras pela ficha do fabricante', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonte: 'Programa de referência (K1.15.1-2): pré-fabricadas usam a rigidez das fichas técnicas; as demais, inércias equivalentes calculadas', fonteNBR: 'NBR 6118 não conhece ficha de fabricante: seção T bruta calculada pela geometria (14.6.2 e 17.3.2)', aConfirmar: false,
     descricao: '1 = nas lajes de vigotas por ficha (E3a), o EI (e o GJ, se a ficha informar) da nervura na grelha vem da ficha; 0 = inércia da seção T calculada pela geometria. Treliçadas do catálogo interno e fichas sem EI sempre usam a inércia calculada. O redutor “Vigotas: redutor da rigidez à flexão” continua valendo sobre o resultado.' },
+  { chave: 'vigotaIgualacaoPonto', rotulo: 'Vigotas: igualação ponto a ponto', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonte: 'Programa de referência (C7.97): igualação ponto a ponto da discretização da vigota, com todas as combinações de todas as vigotas do grupo', fonteNBR: 'NBR 6118 não fixa o critério de igualação: pelos valores de pico de cada vigota', aConfirmar: false,
+    descricao: '1 = vigotas de um grupo de igualação são igualadas em cada ponto da discretização (passo de 0,25 m) e o dimensionamento usa o pico do diagrama igualado; 0 = igualam-se os valores de pico de cada vigota. Pelo máximo (critério 1) os dois coincidem; pela média o ponto a ponto é menos conservador.' },
+  { chave: 'vigotaRedistribuir', rotulo: 'Vigotas: redistribuição dos negativos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.2: redistribuição em vigas e vigotas, até 30 %); aqui limitada pela NBR 6118, 14.6.4.3 (δ ≥ 0,75; 0,90 em nós móveis), que prevalece sobre o 30 %; desligada por padrão para manter os resultados da R6 [a confirmar o padrão]', aConfirmar: true,
+    descricao: '1 = os negativos nas pontas das vigotas (apoios contínuos) são reduzidos por δ = 1 − “Redistribuição de negativos das vigas” (limitado a 25 %: δ ≥ 0,75, ou 0,90 se γz > 1,1) depois dos mínimos e da igualação, e o positivo aumenta pela metade da soma das reduções (equilíbrio). 0 = sem redistribuição.' },
+  { chave: 'vigotaBranson', rotulo: 'Vigotas: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson) e 17.3.1 (Mr); programa de referência (C7.31: rigidez total e fissurada da ficha); sem dado do fabricante, EI fissurado pelo estádio II da seção T [a confirmar]', aConfirmar: true,
+    descricao: '1 = nas lajes de vigotas por ficha e nas moldadas, a flecha usa a rigidez efetiva de Branson em cada barra da nervura (EI, EI fissurado e Mfis da ficha; sem eles, pela seção T com a armadura adotada) com o momento da combinação quase permanente, e a grelha é resolvida de novo; 0 = rigidez total. Treliçadas do catálogo interno seguem o redutor “rigidez à flexão das nervuras”.' },
   { chave: 'categoriasUso', rotulo: 'Categorias de uso como casos próprios', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 8681 (ações variáveis distintas combinadas como principal e secundárias) e NBR 6118, Tabela 11.2 (ψ por local); casos por categoria de uso do programa de referência', aConfirmar: false,
     descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'equGamaFav', rotulo: 'Equilíbrio (EQU): γ das permanentes favoráveis', min: 0.5, max: 1.2, passo: 0.05, padrao: 0.9, fonte: 'NBR 8681 (perda de equilíbrio como corpo rígido: permanentes de grande variabilidade favoráveis 0,9); valor a confirmar na norma', aConfirmar: true,
@@ -944,7 +956,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
   'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
-  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'equGamaFav', 'equGamaVento',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao',

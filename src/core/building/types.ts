@@ -673,6 +673,39 @@ export interface Laje {
   puncao?: GrupoPuncao[];
   /** Nervurada moldada no local (E3a): armadura de base atribuída às nervuras (inferior e superior: n barras de φ mm; estribo φ mm a cada s m); a E3b a usa e verifica. */
   armaduraMoldada?: ArmaduraMoldada;
+  /** Vigotas duplas e triplas (E3b, C7.14): vigota (índice, da primeira à última) com 2 ou 3 vigotas lado a lado; só em fichas que informam `multipla`. */
+  vigotasMultiplas?: VigotaMultipla[];
+  /** Vigotas editadas (E3b, C7.117–C7.123): tipo da série, armaduras, parciais, transversal e esforços atribuídos; bloqueadas até `armadura.desbloquear`. */
+  edicaoVigotas?: EdicaoVigota[];
+  /** Momentos mínimos por tipo de vão (E3b, C7.10): divisores de p·ℓ² (0 = desligado); ausente = os da obra. */
+  momentosMin?: MomentosMinLaje;
+  /** Classe de agressividade ambiental do pano (E3b, C7.11): nível de protensão das vigotas protendidas pela Tabela 13.4; ausente = a da obra. */
+  exposicao?: 'I' | 'II' | 'III' | 'IV';
+}
+
+/** Tipo de vão da vigota: extremo (contínua numa ponta), intermediário (contínua nas duas), isolado (biapoiada) ou balanço. */
+export type TipoVao = 'extremo' | 'intermediario' | 'isolado' | 'balanco';
+export const TIPOS_VAO: { v: TipoVao; rotulo: string }[] = [
+  { v: 'extremo', rotulo: 'Vão extremo' }, { v: 'intermediario', rotulo: 'Vão intermediário' }, { v: 'isolado', rotulo: 'Vão isolado' }, { v: 'balanco', rotulo: 'Balanço' },
+];
+/** Divisores de p·ℓ² dos momentos mínimos positivo e negativo por tipo de vão (0 = desligado). */
+export type MomentosMinLaje = Partial<Record<TipoVao, { pos?: number; neg?: number }>>;
+/** Vigota múltipla: `indice` da vigota escolhida (0 = primeira, da borda de inserção) e `n` (2 = dupla, 3 = tripla). */
+export interface VigotaMultipla { indice: number; n: 2 | 3 }
+/** Armadura parcial: n barras de φ mm no comprimento total, num comprimento dado (m) ou numa percentagem do comprimento da vigota. */
+export interface BarrasVigota { n: number; phi: number; comprimento?: number; percentual?: number }
+/**
+ * Vigota editada (E3b): `tipo` = tipo da série da ficha (armadas e protendidas); `inf` = armadura inferior adicional (armadas) ou
+ * principal (moldadas, até 2 barras); `sup` = armadura superior adicional sobre os apoios; `adicionalCurta` = segunda parcela do positivo;
+ * `transversal` = estribo (moldadas) ou armadura transversal da vigota armada; `momentos` = esforços atribuídos (igualação manual, vigota
+ * genérica de concreto): positivo, negativos das pontas (≤ 0) e cortantes das pontas, por nervura.
+ */
+export interface EdicaoVigota {
+  indice: number;
+  tipo?: string;
+  inf?: BarrasVigota; adicionalCurta?: BarrasVigota; sup?: BarrasVigota;
+  transversal?: { phi: number; s: number; zona?: number };
+  momentos?: { pos: number; neg: [number, number]; v: [number, number] };
 }
 
 export interface ArmaduraMoldada { inf: { n: number; phi: number }; sup?: { n: number; phi: number }; estribo?: { phi: number; s: number } }
@@ -963,7 +996,7 @@ export interface AgrupamentoPorticos { id: string; nome: string; vigas: string[]
 export interface CopiaLaje {
   laje: string; nome: string; grupo: string;
   contorno: [number, number][]; furos?: [number, number][][];
-  base?: ArmaduraBaseLaje; predefinidas?: ArmaduraPredefinida[]; edicao?: EdicaoLaje; semCalculo?: boolean; armaduraVigotas?: ArmaduraVigotas; puncao?: GrupoPuncao[]; tabela?: string;
+  base?: ArmaduraBaseLaje; predefinidas?: ArmaduraPredefinida[]; edicao?: EdicaoLaje; semCalculo?: boolean; armaduraVigotas?: ArmaduraVigotas; puncao?: GrupoPuncao[]; tabela?: string; edicaoVigotas?: EdicaoVigota[]; vigotasMultiplas?: VigotaMultipla[];
 }
 /** Cópia da armadura das lajes de todos os grupos (ou de um): dados das lajes, zonas de uniformização e linhas de dobra. */
 export interface CopiaArmaduraLajes { id: string; nome: string; data: string; lajes: CopiaLaje[]; zonas: ZonaUniformizacao[]; linhas: LinhaDobra[] }
