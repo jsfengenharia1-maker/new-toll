@@ -15,17 +15,18 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
    - remover worktrees e branches dos agentes juntados.
 4. Briefing padrão dos agentes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
-## Rodada em andamento (no momento da compactação)
-- Migração do layout BIMCraft, fatias D1→D3 (Sonnet baixo, um agente, cartões em `docs/cartoes/D1..D3`, patch de referência `docs/cartoes/D2/validado-D1-D2.patch`). Depois: D4 (navegador em árvore), D5 (painel de propriedades), D6 (ajuste de e2e e guarda `mapaLayout.test.ts`).
-- E3d (ábacos e punção nas nervuradas) — só núcleo; interface depois do layout (`docs/cartoes/E3d/00-pendente.md`).
-- E3e (lajes alveolares) — só núcleo; idem (`docs/cartoes/E3e/00-pendente.md`).
+## Rodada em andamento
+Nenhuma. Última rodada fechada em 23/10/2026: migração do layout D1–D3 (faixa de comandos com abas por módulo, docas, abas de vista, barra de status, Configuração da obra como janela fixa sobre a doca esquerda; 85/85 e2e), núcleos da E3d (ábacos e punção nas nervuradas) e E3e (lajes alveolares).
 
-## Fila depois da rodada
-1. Terminar a migração do layout (D4–D6).
-2. Interfaces pendentes, escritas já no layout novo: V5 (cartões antigos em `docs/cartoes/V5/` precisam ser revistos para o layout novo), E3c (`docs/cartoes/E3c/`, idem), E3d, E3e.
-3. Núcleos restantes: E3f (lajes inclinadas e rampas — Opus), E4a–E4e (escadas), L3 (IFC).
-4. Auditorias independentes das frentes E, L e V.
-5. Fechamento: revisão numérica (punção de borda/canto, nervuradas contra OpenSees quando houver o pacote, bloco multi-pilar), desempenho (teste de 13 pavimentos acima de 3 s nesta máquina), pacote (~4 MB: dividir em partes sob demanda), republicação do artifact, revisão final dos "a confirmar".
+## Próxima rodada (soltar ao retomar)
+1. Migração do layout D4 (navegador em árvore sincronizado com a planta) → D5 (painel de propriedades) → D6 (ajuste final dos e2e e guarda `mapaLayout.test.ts`): um agente Sonnet baixo em sequência, cartões em `docs/cartoes/D4..D6`. Desvios da D3 a respeitar: Configuração da obra não é modal; `.optbar` em linha única; `ui/Modal` com ouvinte de Esc em ref.
+2. Em paralelo, núcleos sem interface: E3f (lajes inclinadas e rampas — Opus), E4a (escadas: modelo e tipos — Sonnet médio).
+3. Depois da D6: reescrever no layout novo os cartões de interface pendentes (V5, E3c, E3d, E3e — os de V5/E3c foram escritos no layout antigo; E3d/E3e têm só `00-pendente.md`) e executá-los no Haiku.
+
+## Fila depois disso
+- E4b–E4e (escadas), L3 (IFC).
+- Auditorias independentes das frentes E, L e V.
+- Fechamento: revisão numérica (punção de borda/canto, nervuradas contra OpenSees quando houver o pacote, bloco multi-pilar), desempenho (13 pavimentos acima de 3 s nesta máquina), pacote (~4,2 MB: dividir em partes sob demanda), republicação do artifact, revisão final dos "a confirmar".
 
 ## Decisões recentes do usuário (já registradas no CLAUDE.md/plano)
 - Qualidade inegociável; revisão em lote; pendências normativas em `docs/pendencias-usuario.md`; itens "a confirmar" seguem o CYPECAD.
@@ -34,5 +35,5 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Lances desligados dos pilares: padrão do CYPECAD.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
-## Números no último merge (cc45104 / 62b8f9c)
-1.412 testes, 85 fluxos e2e, pacote 3.999 KB; checklists: manual de cálculo 432 Feito.
+## Números no último merge
+1.489 testes, 85 fluxos e2e (paralelo, ~4 min), pacote 4.151 KB.
