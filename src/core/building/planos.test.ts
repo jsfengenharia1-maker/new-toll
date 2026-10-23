@@ -9,6 +9,8 @@ import { verificar } from './verify';
 import type { BuildingModel, DefinicaoPlano } from './types';
 import { resolver3 } from '../fe3d';
 import ref from '../../../validation/opensees/inclinada.json';
+import { criarExemplo } from './exemplos';
+import { dimensionarEdificio } from './dimensionamento';
 
 const ok = (s: Sessao, nome: string, p: Record<string, unknown>) => { const r = s.executar(nome, p); if (!r.ok) throw new Error(`${nome}: ${r.erros.map((e) => e.mensagem).join(' ')}`); return r; };
 
@@ -331,5 +333,25 @@ describe('validação externa: OpenSees (validation/opensees/inclinada.py)', () 
     let e = 0, mx = 0;
     R.desloc.forEach((d, n) => { for (let k = 0; k < 6; k++) { e = Math.max(e, Math.abs(u[n * 6 + k] - d[k])); mx = Math.max(mx, Math.abs(d[k])); } });
     expect(e / mx).toBeLessThan(1e-8);
+  }, 120000);
+});
+
+describe('exemplo: cobertura em duas águas', () => {
+  it('analisa e dimensiona: cumeeira elevada, panos fora do diafragma, lajes e vigas inclinadas dimensionadas', () => {
+    const s = criarExemplo('telhado');
+    expect(verificar(s.modelo).filter((d) => d.severidade === 'erro')).toEqual([]);
+    const an = analisarEdificio(s.modelo);
+    expect(an.erro).toBeUndefined();
+    const cob = s.modelo.pavimentos.find((p) => p.nome === 'Cobertura')!;
+    // pilares da cumeeira (y = 4,5) sobem 1,35 m
+    expect(an.portico.modelo.nos.some((n) => Math.abs(n[1] - 4.5) < 1e-9 && Math.abs(n[2] - (cob.cota + 1.35)) < 1e-9)).toBe(true);
+    const soma = an.fundacao.filter((r) => r.caso === 'G').reduce((t, r) => t + r.N, 0);
+    expect(soma).toBeCloseTo(an.totais.G, 4);
+    const d = dimensionarEdificio(s.modelo, an);
+    const lajesCob = d.lajes.filter((l) => l.pavimento === cob.nome);
+    expect(lajesCob.length).toBe(6);
+    expect(lajesCob.every((l) => Number.isFinite(l.flecha ?? 0))).toBe(true);
+    const caibro = s.modelo.vigas.find((v) => v.grupo === cob.grupo && v.pontos[0][0] === 5 && v.plano)!;
+    expect(d.vigas.find((v) => v.viga === caibro.id)).toBeDefined();
   }, 120000);
 });

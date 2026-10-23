@@ -1332,7 +1332,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (!inc.barra[bi]) return;
           const t = gb.trechoDe[bi], br = ig.barras[bi], i0 = noInc(br0.i), j0 = noInc(br0.j);
           const GI = pt3(br0.i), GJ = pt3(br0.j), Lh = Math.hypot(GJ[0] - GI[0], GJ[1] - GI[1]), L3 = Math.hypot(Lh, GJ[2] - GI[2]), fq = L3 > 1e-12 ? Lh / L3 : 1;
-          const nb: Barra3 = { ...br, i: i0, j: j0 };
+          const nb: Barra3 = { ...br, i: i0, j: j0 }, rig: number[] = [0, 0];
           delete nb.offI; delete nb.offJ; delete nb.soPlano; delete nb.ref;
           for (const [ponta, n, outro, G, Go] of [['offI', br0.i, br0.j, GI, GJ], ['offJ', br0.j, br0.i, GJ, GI]] as const) {
             const base = offN[n] ?? [0, 0, 0];
@@ -1343,7 +1343,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
               let f2: V3 | null = null;
               if (k >= 0 && ig.pilarDe[outro] !== k) { const pil = pilarPor.get(gb.pilares[k])!, gp = geoEm(pil, pav.id), cs = consoloEm(t.viga.id, pil.id); f2 = offsetFace([G[0], G[1]], [Go[0], Go[1]], gp.p, gp.secao, cs ? -cs.a : op.trechoRigido * t.viga.secao.h, [G[0], G[1], 0]); }
               else if (k < 0) f2 = (ponta === 'offI' ? br.offI : br.offJ) ?? null;
-              if (f2) f = [f2[0], f2[1], Lh > 1e-12 ? ((Go[2] - G[2]) * Math.hypot(f2[0], f2[1])) / Lh : 0];
+              if (f2) { f = [f2[0], f2[1], Lh > 1e-12 ? ((Go[2] - G[2]) * Math.hypot(f2[0], f2[1])) / Lh : 0]; rig[ponta === 'offI' ? 0 : 1] = Math.hypot(f[0], f[1], f[2]); }
             }
             const o: V3 = [base[0] + f[0], base[1] + f[1], base[2] + f[2]];
             if (Math.hypot(o[0], o[1], o[2]) > 1e-9 || (t && ig.pilarDe[n] >= 0)) nb[ponta] = o;
@@ -1357,7 +1357,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           ptags.push(t ? { tipo: 'viga', ref: t.viga.id, pavimento: pav.id, fina: true } : { tipo: 'laje', ref: gb.tags[bi].ref, pavimento: pav.id });
           // cargas da grelha por comprimento em planta → por comprimento da barra 3D
           ig.distDe.forEach((mp, ic) => { for (const q of mp.get(bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q: [q[0] * fq, q[1] * fq, q[2] * fq] }); });
-          if (t && iG >= 0) for (const [o, j] of [[nb.offI, i0], [nb.offJ, j0]] as const) if (o) casosV[iG].nodais.push({ no: j, f: [0, 0, -pesoLinearViga(t.viga) * Math.hypot(o[0], o[1], o[2]), 0, 0, 0] });
+          // peso dos trechos rígidos até a face (a carga distribuída atua só na parte flexível)
+          if (t && iG >= 0) [i0, j0].forEach((j, e) => { if (rig[e] > 1e-12) casosV[iG].nodais.push({ no: j, f: [0, 0, -pesoLinearViga(t.viga) * rig[e], 0, 0, 0] }); });
           if (op.planoDiafragma) ligar.push([i0, j0]);
         });
         // cargas nodais da grelha nos nós só das barras inclinadas (com o momento do trecho rígido)

@@ -112,10 +112,20 @@ const naBorda = (p: P, c: P[], tol = 0.02) => c.some((q, i) => distSeg(p, q, c[(
 
 /** Trechos (pares de pontos) da viga que correm sobre a borda do pano. */
 function trechosNaBorda(v: Viga, l: Laje): [P, P][] {
-  const out: [P, P][] = [];
+  // sobreposição (colinear, a até 2 cm) de cada trecho da viga com cada aresta do contorno: a viga pode passar por vários panos
+  const out: [P, P][] = [], c = l.contorno as P[];
   for (let i = 0; i + 1 < v.pontos.length; i++) {
-    const a = v.pontos[i] as P, z = v.pontos[i + 1] as P, m: P = [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2];
-    if (naBorda(a, l.contorno as P[]) && naBorda(z, l.contorno as P[]) && naBorda(m, l.contorno as P[])) out.push([a, z]);
+    const a = v.pontos[i] as P, z = v.pontos[i + 1] as P, L = Math.hypot(z[0] - a[0], z[1] - a[1]);
+    if (L < 1e-9) continue;
+    const u: P = [(z[0] - a[0]) / L, (z[1] - a[1]) / L];
+    for (let k = 0; k < c.length; k++) {
+      const p = c[k], q = c[(k + 1) % c.length];
+      const dp = Math.abs((p[0] - a[0]) * u[1] - (p[1] - a[1]) * u[0]), dq = Math.abs((q[0] - a[0]) * u[1] - (q[1] - a[1]) * u[0]);
+      if (dp > 0.02 || dq > 0.02) continue;
+      const tp = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1], tq = (q[0] - a[0]) * u[0] + (q[1] - a[1]) * u[1];
+      const t0 = Math.max(0, Math.min(tp, tq)), t1 = Math.min(L, Math.max(tp, tq));
+      if (t1 - t0 > 0.01) out.push([[a[0] + u[0] * t0, a[1] + u[1] * t0], [a[0] + u[0] * t1, a[1] + u[1] * t1]]);
+    }
   }
   return out;
 }
@@ -398,3 +408,17 @@ export function esforcosDosPlanos(an: AnaliseEdificio): { normais: { ref: string
   });
   return { normais, empuxos };
 }
+
+/**
+ * Seletor único de tipo de pano (C7.1): os tipos que o programa calcula e o estado de cada um. Radier fecha com a base
+ * elástica (FU6, lançado pelas fundações) e laje mista (steel deck) fica fora do escopo (aço).
+ */
+export const TIPOS_PANO: { id: 'vigotas' | 'alveolar' | 'nervurada' | 'macica' | 'definir' | 'radier' | 'mista'; rotulo: string; disponivel: boolean; nota?: string }[] = [
+  { id: 'vigotas', rotulo: 'Vigotas (unidirecional)', disponivel: true },
+  { id: 'alveolar', rotulo: 'Alveolar', disponivel: true },
+  { id: 'nervurada', rotulo: 'Nervurada bidirecional (cubetas)', disponivel: true },
+  { id: 'macica', rotulo: 'Maciça', disponivel: true },
+  { id: 'definir', rotulo: 'Pano a definir', disponivel: true },
+  { id: 'radier', rotulo: 'Radier', disponivel: false, nota: 'lançado pelas fundações (base elástica, FU6)' },
+  { id: 'mista', rotulo: 'Mista (steel deck)', disponivel: false, nota: 'aço fora do escopo' },
+];
