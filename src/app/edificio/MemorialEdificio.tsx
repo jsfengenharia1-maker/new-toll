@@ -7,6 +7,7 @@ import { MemorialCortes } from './MemorialCortes';
 import { MemorialDiagonais } from './MemorialDiagonais';
 import { MemorialConsolos } from './MemorialConsolos';
 import { MemorialInclinadas } from './MemorialInclinadas';
+import { MemorialVigotasFicha } from './MemorialVigotasFicha';
 import { PAINEL_TELA } from '../../core/building/telasSoldadas';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { calculoAtual, dimAtual, useBuilding } from './store';
@@ -460,10 +461,10 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </>)}
-            {dim.vigotas && dim.vigotas.length > 0 && (<>
+            {dim.vigotas?.some((r) => !r.familia) && (<>
               {h2('Lajes treliçadas')}
               <p>Esforços por nervura (alinhamentos da grelha na direção das vigotas × intereixo), na envoltória ELU dos pavimentos do grupo, com momentos mínimos {opc.vigotaMomentoMinPositivo > 0 ? `p·ℓ²/${fmt(opc.vigotaMomentoMinPositivo, 0)}` : 'desligado'} (positivo) e {opc.vigotaMomentoMinNegativo > 0 ? `p·ℓ²/${fmt(opc.vigotaMomentoMinNegativo, 0)}` : 'desligado'} (negativo) e igualação entre vigotas vizinhas ({opc.vigotaIgualacao === 0 ? 'desligada' : opc.vigotaIgualacao === 1 ? 'pelo máximo' : 'pela média'}, diferença de {fmt(opc.vigotaIgualacaoDif, 0)} %). Positiva em seção T com o banzo inferior da treliça (CA-60) descontado e adicional de 1 a 2 barras por nervura; negativos na capa sobre os apoios, com comprimento pelo diagrama decalado mais lb (mínimo de {fmt(opc.vigotaNegativoVao, 0)} % do vão); cortante sem armadura transversal (NBR 6118, 19.4.1) com faixa maciçada quando necessário; capa conforme 13.2.4.2; distribuição pela Tabela 19.1. Treliça por modelo, peso pela geometria, adicional no comprimento eixo a eixo e igualação de 100 % a confirmar.</p>
-              {dim.vigotas.map((r) => (
+              {dim.vigotas.filter((r) => !r.familia).map((r) => (
                 <div key={r.laje} className="avoid">
                   <h3>Laje {r.nome} · {r.modelo}+{fmt(r.capa * 100, 0)} · {r.trelica} · {r.vigotas} vigotas{r.repeticoes > 1 ? ` · ${r.repeticoes} pavimentos` : ''} · {ST[r.status]}{r.bloqueada ? ' · armadura bloqueada' : ''}</h3>
                   <table>
@@ -476,6 +477,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </>)}
+            <MemorialVigotasFicha dim={dim} h2={h2} />
             {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
               {h2('Resumo geral de aço')}
               {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]] as const).map(([tit, rs]) => (

@@ -11,6 +11,7 @@ import { LanceDoPilar } from './Transicao';
 import { SecaoDaViga } from './SecaoVigaUI';
 import { VinculoEPremoldada } from './VinculoPremoldadaUI';
 import { VigaCurvaComum } from './VigaCurvaComumUI';
+import { VigotasPano } from './VigotasPano';
 
 const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
 /** O traçado de uma viga toca o da outra (cruzamento ou apoio) sem serem colineares? */
@@ -209,6 +210,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
               onChange={(c) => lote(lajes.filter((l) => ehNervurada(l.tipo)).map((l) => ({ nome: 'laje.editar', params: { id: l.id, vigotasBiapoiadas: c } })))} />
           </div>
         )}
+        {lajes.some((l) => ehNervurada(l.tipo)) && <VigotasPano lajes={lajes.filter((l) => ehNervurada(l.tipo))} />}
         <Hint>Bordas numeradas a partir do primeiro vértice do contorno, no sentido anti-horário. Bordas que tocam pilares ficam sempre engastadas.</Hint>
       </>)}
     </Group>

@@ -6049,4 +6049,118 @@ export const flows = [
       await page.keyboard.press('Escape');
     },
   },
+  {
+    name: 'E3b: vigotas por ficha (lista vigota a vigota, painéis, edição das selecionadas, dupla, esforços atribuídos, relatório, erro em vermelho), exposição e momentos mínimos por pano e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 });
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 5], [4, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "vigotas", "ficha": "ex:armada", "serie": "A12"}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
+      const abrir = async () => {
+        await cardL.locator('tbody tr').first().dblclick();
+        const j = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+        await j.waitFor();
+        await j.getByRole('radio', { name: 'Vigotas', exact: true }).click();
+        await j.locator('[data-vigotas-ficha]').waitFor();
+        return j;
+      };
+      let jan = await abrir();
+      // 1) vigota a vigota: planta com as vigotas reais e a lista
+      const nVig = parseInt(await jan.locator('svg[data-vigotas-individuais]').first().getAttribute('data-n-vigotas'), 10);
+      assert.equal(nVig, 10, `vigotas reais ${nVig}`);
+      const linhas = jan.locator('table[data-tabela-vigotas] tbody tr');
+      assert.equal(await linhas.count(), nVig);
+      assert.match(await linhas.first().innerText(), /A1/);
+      // painéis da vigota selecionada
+      const painel = jan.locator('[data-painel-vigota]');
+      assert.match(await painel.innerText(), /Tipo da série\s*A1/);
+      await painel.getByRole('radio', { name: 'Negativo', exact: true }).click();
+      assert.match(await painel.innerText(), /Mu da seção típica \/ maciça/);
+      await painel.getByRole('radio', { name: 'Flecha', exact: true }).click();
+      assert.match(await painel.innerText(), /Flecha total/);
+      // 2) seleção em intervalo e edição em lote (tipo A2 nas vigotas 2 a 4)
+      await linhas.nth(1).click();
+      await linhas.nth(3).click({ modifiers: ['Shift'] });
+      const ed = jan.locator('[data-editor-vigotas-ficha]');
+      assert.match(await ed.innerText(), /Editar as vigotas selecionadas \(3\)/);
+      await ed.getByLabel(/^Tipo da série/).selectOption('A2');
+      await ed.getByRole('button', { name: 'Aplicar às vigotas selecionadas', exact: true }).click();
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes ?? []).some((l) => (l.edicaoVigotas ?? []).length === 3), null);
+      await page.waitForFunction(() => document.querySelectorAll('[data-vigota-linha]').length === 10 && /A2/.test(document.querySelectorAll('[data-vigota-linha]')[2].textContent ?? ''), null, { timeout: 60000 });
+      assert.match(await linhas.nth(2).innerText(), /✎/);
+      // 3) vigota dupla na vigota 7 (a ficha de exemplo admite até a tripla): uma vigota a menos na lista
+      await linhas.nth(6).click();
+      await ed.getByLabel(/^Vigotas lado a lado/).selectOption('2');
+      await ed.getByRole('button', { name: 'Aplicar à primeira vigota selecionada', exact: true }).click();
+      await page.waitForFunction(() => document.querySelectorAll('[data-vigota-linha]').length === 9, null, { timeout: 60000 });
+      assert.match(await jan.locator('table[data-tabela-vigotas]').innerText(), /dupla/);
+      // 4) esforços atribuídos (igualação manual) na vigota 1
+      await linhas.first().click();
+      const campo = (rot) => ed.getByLabel(new RegExp('^' + rot.replace(/[+()]/g, '\\$&')));
+      await campo('Md+ atribuído').fill('3'); await campo('Md+ atribuído').press('Enter');
+      await campo('Vsd atribuído (início)').fill('2'); await campo('Vsd atribuído (início)').press('Enter');
+      await campo('Vsd atribuído (fim)').fill('2'); await campo('Vsd atribuído (fim)').press('Enter');
+      await ed.getByRole('button', { name: 'Atribuir esforços às selecionadas', exact: true }).click();
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes ?? []).some((l) => (l.edicaoVigotas ?? []).some((e) => e.momentos?.pos === 3)), null);
+      // 5) relatório de esforços da vigota
+      await linhas.first().click();
+      await jan.getByRole('button', { name: 'Relatório de esforços da vigota', exact: true }).click();
+      const rel = page.getByRole('dialog', { name: /Relatório de esforços da vigota 1/ });
+      await rel.waitFor();
+      await rel.locator('svg[data-diagrama="rel-M"]').waitFor();
+      assert.equal(await rel.locator('svg[data-diagrama]').count(), 3);
+      assert.equal(await rel.locator('svg[data-croqui-vigota]').count(), 1, 'croqui do grupo e da vigota');
+      assert.match(await rel.innerText(), /ELU/);
+      await rel.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // desbloquear a laje volta aos esforços calculados
+      await ed.getByRole('button', { name: 'Desbloquear a laje', exact: true }).click();
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes ?? []).every((l) => !(l.edicaoVigotas ?? []).length), null);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 6) carga alta: vigotas com erro em vermelho na lista, na planta e na lista de erros
+      await cmd('carga.area {"grupo": "g_3", "contorno": [[0, 0], [8, 0], [8, 5], [0, 5]], "valor": 25}');
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      jan = await abrir();
+      assert.equal(await jan.locator('[data-vigotas-com-erro]').count(), 1, 'contagem de vigotas com erro');
+      assert.ok(await jan.locator('table[data-tabela-vigotas] tbody tr[data-status="fail"]').count() >= 1, 'vigota com erro em vermelho na lista');
+      assert.ok(await jan.locator('svg[data-vigotas-individuais] g[data-status="fail"]').count() >= 1, 'vigota com erro em vermelho na planta');
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await page.locator('[data-lista-erros] [data-contagem]').waitFor();
+      assert.match(await page.locator('[data-lista-erros]').innerText(), /VIGOTA_(POS|CORTANTE|NEG)/);
+      // 7) exposição e momentos mínimos por pano (grupo Vínculos e engastes, com a laje selecionada na planta)
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
+      await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
+      const vg = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Vínculos, flambagem e cobrimento/ }) }).first();
+      await vg.locator('summary').first().click();
+      const pano = vg.locator('[data-vigotas-pano]');
+      await pano.waitFor();
+      await pano.getByLabel(/^Classe de agressividade do pano/).selectOption('III');
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes ?? []).some((l) => l.exposicao === 'III'), null);
+      await pano.getByLabel(/^Tipo de vão dos momentos mínimos/).selectOption('isolado');
+      const div = pano.getByLabel(/^Divisor do positivo mínimo/);
+      await div.fill('8'); await div.press('Enter');
+      await pano.getByRole('button', { name: 'Aplicar os momentos mínimos ao pano', exact: true }).click();
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes ?? []).some((l) => l.momentosMin?.isolado?.pos === 8), null);
+      // 8) memorial
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mv = memo.locator('[data-memorial-vigotas-ficha]');
+      await mv.waitFor();
+      assert.match(await mv.innerText(), /Armada exemplo \(fictícia\) A12/);
+      assert.match(await mv.innerText(), /Tipos: A\d/);
+      assert.equal(await mv.locator('[data-memorial-quantitativo-vigotas]').count(), 1, 'quantitativo das vigotas no memorial');
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
 ];
