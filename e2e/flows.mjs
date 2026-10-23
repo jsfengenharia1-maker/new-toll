@@ -1470,7 +1470,7 @@ export const flows = [
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       await page.getByRole('button', { name: 'Novo vazio' }).click();
-      assert.match(await page.locator('header .status').innerText(), /^0 pavimentos/);
+      assert.match(await page.locator('.statusbar .status').innerText(), /^0 pavimentos/);
       // ferramenta Pilar com "Arranque": a planta vai para o nível de fundação e o pilar nasce e morre na fundação
       await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
       await page.getByLabel('Arranque (pilar de altura zero, só leva cargas à fundação)').check();
