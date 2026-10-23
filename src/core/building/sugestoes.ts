@@ -154,6 +154,13 @@ export const SUGESTOES: Record<string, string> = {
   ALVEOLAR_SEM_APOIO: 'As placas alveolares precisam de viga nas duas pontas: feche o pano com vigas nos dois extremos das placas ou mude a direção das placas.',
   FICHA_ALVEOLAR_INEXISTENTE: 'Escolha outra ficha ou placa na laje alveolar, ou cadastre/importe a ficha que falta (comando ficha.alveolar, tabela “Placas alveolares” da biblioteca de normas ou arquivo JSON).',
   FICHA_ALVEOLAR_INCOERENTE: 'Corrija os campos apontados na ficha alveolar: dimensões positivas, capa menor que a altura, largura mínima menor que a padrão, apoio mínimo menor que o máximo, Mu maior que Mfis e momentos de serviço crescentes. O programa só confere a coerência lógica, nunca o dado do fabricante.',
+  // escadas (E4a)
+  ESCADA_ALTURA: 'Ajuste o número de degraus do tipo de lance (trechos, iniciais ou do patamar), o espelho ou o desnível inicial até a altura vencida igualar o desnível entre os pisos (tolerância de 1 mm).',
+  ESCADA_BLONDEL: 'Ajuste piso e espelho para 63 a 64 cm em 2e + p (ou altere os limites em Opções > Escadas).',
+  ESCADA_DIMENSOES: 'Ajuste o espelho ou a largura da escada, ou os limites em Opções > Escadas.',
+  ESCADA_PAREDE_SUP: 'Lance a parede entre o patamar e o piso de cima como carga linear (ou use apoio por tirante com a largura da parede).',
+  ESCADA_TIPO: 'Escolha um tipo de lance existente ou corrija a tipologia, o número de degraus, o desnível inicial ou o poço do tipo.',
+  ESCADA_GEOMETRIA: 'Corrija o apontado: pavimento de partida do grupo da escada, pavimento acima para chegar, degraus do patamar que caibam, apoios coerentes com o patamar apoiado ou livre.',
   // punção e cortante das lajes
   PUNCAO_BIELA: 'Aumente a espessura da laje, a seção do pilar ou o fck, ou use capitel/ábaco: a compressão no contorno C não se corrige com armadura.',
   PUNCAO_SEM_SOLUCAO: 'Aumente a espessura da laje ou o pilar; não há armadura de punção/cortante que resolva nessa seção.',

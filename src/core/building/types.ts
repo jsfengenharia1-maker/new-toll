@@ -7,6 +7,7 @@ import type { NormasModelo } from '../normas/tipos';
 import type { FlechasConfig } from './flechas';
 import type { FogoConfig } from './fogo';
 import type { TiposLajeObra } from './tiposLaje';
+import type { Escada, TipoLance } from './escadas';
 
 export const BUILDING_VERSION = 1;
 
@@ -1108,6 +1109,9 @@ export interface BuildingModel {
   tiposLaje?: TiposLajeObra;
   /** Ábacos das lajes nervuradas bidirecionais (E3d); ausente = nenhum. */
   abacos?: Abaco[];
+  /** Escadas (E4a) e seus tipos de lance reutilizáveis; ausente = nenhuma. */
+  escadas?: Escada[];
+  tiposLance?: TipoLance[];
 }
 
 /** Tipos de texto de referência da planta (L4, C3.30). */

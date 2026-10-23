@@ -173,6 +173,22 @@ export interface OpcoesCalculo {
   alveolarCapaMin: number;
   /** 1 = flecha das alveolares com a rigidez fissurada de Branson (EI e EI fissurado da ficha); 0 = rigidez total. */
   alveolarBranson: number;
+  /** Escadas (E4a): divisor do vão para a espessura pré-dimensionada (h = vão / divisor). */
+  escadaEspessuraDivisor: number;
+  /** Escadas: espessura mínima da laje (cm). */
+  escadaEspessuraMin: number;
+  /** Escadas: desnível mínimo no início do lance, quando existe (cm). */
+  escadaDesnivelMin: number;
+  /** Escadas: sobrecarga sem e com acesso ao público (kN/m²) e revestimento (kN/m² da projeção). */
+  escadaSobrecargaPrivada: number;
+  escadaSobrecargaPublica: number;
+  escadaRevestimento: number;
+  /** Escadas: limites de 2e + p (cm), do espelho (cm) e largura mínima (cm) que geram aviso. */
+  escadaBlondelMin: number;
+  escadaBlondelMax: number;
+  escadaEspelhoMin: number;
+  escadaEspelhoMax: number;
+  escadaLarguraMin: number;
   /** Nervuradas bidirecionais (E3c): passo da malha da grelha como fração do menor intereixo (1/3 no padrão do sistema). */
   nervuradaMalha: number;
   /** Nervuradas bidirecionais: inércia à flexão das barras = fator × inércia da faixa maciça de mesma altura, igual nas zonas maciça e aliviada; 0 = seção T real das nervuras. */
@@ -718,6 +734,28 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Espessura mínima da capa moldada no local sobre as placas; abaixo dela, erro ALVEOLAR_CAPA. 0 desliga a verificação.' },
   { chave: 'alveolarBranson', rotulo: 'Alveolares: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson); programa de referência (K1.9.83: propriedades da ficha, momentos médios do estado final)', aConfirmar: true,
     descricao: '1 = a flecha usa a rigidez efetiva de Branson em cada barra (EI, EI fissurado e Mfis da ficha, com o momento da combinação quase permanente) e a grelha é resolvida de novo; sem EI fissurado na ficha, rigidez total. 0 = rigidez total.' },
+  { chave: 'escadaEspessuraDivisor', rotulo: 'Escadas: espessura = vão / …', min: 15, max: 50, passo: 1, padrao: 30, fonte: 'Programa de referência (C8.19): 1/30 do maior vão real entre apoios; NBR 6118 não fixa para escadas [vão tomado na horizontal, a confirmar]', aConfirmar: true,
+    descricao: 'Espessura pré-dimensionada da laje do lance quando o tipo não informa a espessura: maior vão entre apoios dividido por este valor, em cm inteiros para cima, não menor que o mínimo.' },
+  { chave: 'escadaEspessuraMin', rotulo: 'Escadas: espessura mínima', unidade: 'cm', min: 5, max: 20, passo: 0.5, padrao: 8, fonte: 'NBR 6118, 13.2.4.1 (laje de piso não em balanço: 8 cm) [a confirmar o item]', aConfirmar: true,
+    descricao: 'Piso da espessura pré-dimensionada da laje da escada.' },
+  { chave: 'escadaDesnivelMin', rotulo: 'Escadas: desnível mínimo no início do lance', unidade: 'cm', min: 1, max: 50, passo: 1, padrao: 10, fonte: 'Programa de referência (C8.20): desnível inicial de pelo menos 10 cm', aConfirmar: false,
+    descricao: 'O desnível no início do lance (escada que nasce abaixo do piso, como na fundação) é zero ou pelo menos este valor.' },
+  { chave: 'escadaSobrecargaPrivada', rotulo: 'Escadas: sobrecarga sem acesso ao público', unidade: 'kN/m²', min: 0, max: 10, passo: 0.1, padrao: 2.5, fonte: 'NBR 6120 (escadas sem acesso ao público) [valor a confirmar]', aConfirmar: true,
+    descricao: 'Sobrecarga da escada (projeção horizontal) quando a escada não informa a sua e não tem acesso ao público.' },
+  { chave: 'escadaSobrecargaPublica', rotulo: 'Escadas: sobrecarga com acesso ao público', unidade: 'kN/m²', min: 0, max: 10, passo: 0.1, padrao: 3, fonte: 'NBR 6120 (escadas com acesso ao público) [valor a confirmar]', aConfirmar: true,
+    descricao: 'Sobrecarga da escada (projeção horizontal) com acesso ao público.' },
+  { chave: 'escadaRevestimento', rotulo: 'Escadas: revestimento', unidade: 'kN/m²', min: 0, max: 5, passo: 0.1, padrao: 1, fonte: 'Programa de referência / critério do app (1,0 kN/m², como nas lajes) [a confirmar]', aConfirmar: true,
+    descricao: 'Revestimento da escada (kN/m² da projeção horizontal) quando a escada não informa o seu.' },
+  { chave: 'escadaBlondelMin', rotulo: 'Escadas: 2e + p mínimo', unidade: 'cm', min: 50, max: 70, passo: 0.5, padrao: 63, fonte: 'NBR 9077 (fórmula de Blondel) [a confirmar]', aConfirmar: true,
+    descricao: 'Abaixo deste valor de 2·espelho + piso a escada recebe o aviso ESCADA_BLONDEL.' },
+  { chave: 'escadaBlondelMax', rotulo: 'Escadas: 2e + p máximo', unidade: 'cm', min: 50, max: 70, passo: 0.5, padrao: 64, fonte: 'NBR 9077 (fórmula de Blondel) [a confirmar]', aConfirmar: true,
+    descricao: 'Acima deste valor de 2·espelho + piso a escada recebe o aviso ESCADA_BLONDEL.' },
+  { chave: 'escadaEspelhoMin', rotulo: 'Escadas: espelho mínimo', unidade: 'cm', min: 10, max: 20, passo: 0.5, padrao: 16, fonte: 'NBR 9050 [a confirmar]', aConfirmar: true,
+    descricao: 'Espelho abaixo deste valor gera aviso.' },
+  { chave: 'escadaEspelhoMax', rotulo: 'Escadas: espelho máximo', unidade: 'cm', min: 15, max: 25, passo: 0.5, padrao: 18, fonte: 'NBR 9050 [a confirmar]', aConfirmar: true,
+    descricao: 'Espelho acima deste valor gera aviso.' },
+  { chave: 'escadaLarguraMin', rotulo: 'Escadas: largura mínima', unidade: 'cm', min: 60, max: 200, passo: 5, padrao: 120, fonte: 'NBR 9050 / NBR 9077 [a confirmar]', aConfirmar: true,
+    descricao: 'Largura da escada abaixo deste valor gera aviso.' },
   { chave: 'nervuradaMalha', rotulo: 'Nervuradas: malha da grelha', unidade: '× intereixo', min: 0.1, max: 1, passo: 0.05, padrao: 1 / 3, fonte: 'Programa de referência (K1.3.25): malha de 1/3 do intereixo da zona aliviada; NBR 6118 não fixa', aConfirmar: false,
     descricao: 'Passo da malha das barras da grelha das lajes nervuradas bidirecionais, como fração do menor intereixo das nervuras (60 cm → 20 cm). Cada barra representa uma faixa de nervuras.' },
   { chave: 'nervuradaInercia', rotulo: 'Nervuradas: inércia à flexão das barras', unidade: '× laje maciça', min: 0, max: 1, passo: 0.05, padrao: 0.5, padraoNBR: 0, fonte: 'Programa de referência (K1.3.26, K1.9.93): metade da inércia da zona maciça, igual nas zonas maciça e aliviada (inércia média, uma só por pano)', fonteNBR: 'NBR 6118, 14.7.7 [a confirmar o item]: rigidez da seção T das nervuras na zona aliviada e da laje maciça na zona maciça', aConfirmar: true,
@@ -1065,6 +1103,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'abacoFracao', 'abacoCone', 'abacoExtensao', 'abacoLimMin', 'abacoLimMax',
   // E3e: processo construtivo, malha e continuidade das lajes alveolares entram no modelo de cálculo
   'alveolarProcesso', 'alveolarMalha', 'alveolarContinuidade',
+  // E4a: espessura, desnível e cargas próprias das escadas (as reações entram nas vigas a partir da E4c)
+  'escadaEspessuraDivisor', 'escadaEspessuraMin', 'escadaDesnivelMin', 'escadaSobrecargaPrivada', 'escadaSobrecargaPublica', 'escadaRevestimento',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
@@ -1111,6 +1151,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'consoloHMinimo', 'consoloBraco', 'consoloMu', 'consoloCostura', 'consoloTensaoApoio', 'premoldadaIcamentoFracao', 'premoldadaIcamentoDinamico',
   // E3e: mínimos, capa e flecha das lajes alveolares (só o dimensionamento)
   'alveolarMomentoMinPositivo', 'alveolarMomentoMinNegativo', 'alveolarRedistribuir', 'alveolarCapaMin', 'alveolarBranson',
+  // E4a: limites que só geram avisos das escadas
+  'escadaBlondelMin', 'escadaBlondelMax', 'escadaEspelhoMin', 'escadaEspelhoMax', 'escadaLarguraMin',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
