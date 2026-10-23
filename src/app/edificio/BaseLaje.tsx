@@ -6,7 +6,7 @@ import { useBuilding } from './store';
 import { executarERecalcular } from './Armadura';
 import { Button, Check, NumField, Pill, Select } from '../ui';
 import { linhaLajes, tabelaDe } from '../../core/building/tabelasArmadura';
-import { PAINEL_TELA, TELAS } from '../../core/building/telasSoldadas';
+import { PAINEL_TELA, telasDe } from '../../core/building/telasSoldadas';
 import type { ArmaduraPredefinida, BaseFaceLaje, Laje } from '../../core/building/types';
 import { fmt, phiTxt } from './Detalhamento';
 
@@ -14,12 +14,13 @@ type Modo = 'nenhuma' | 'barras' | 'tela';
 interface FaceEd { modo: Modo; phi: [number, number]; s: [number, number]; tela: string; giro: boolean }
 const faceInicial = (f: BaseFaceLaje | undefined, phi0: number): FaceEd => ({
   modo: f?.tela ? 'tela' : f?.barras ? 'barras' : 'nenhuma',
-  phi: [f?.barras?.[0]?.phi ?? phi0, f?.barras?.[1]?.phi ?? phi0], s: [f?.barras?.[0]?.s ?? 20, f?.barras?.[1]?.s ?? 20], tela: f?.tela ?? TELAS[4].id, giro: !!f?.giro,
+  phi: [f?.barras?.[0]?.phi ?? phi0, f?.barras?.[1]?.phi ?? phi0], s: [f?.barras?.[0]?.s ?? 20, f?.barras?.[1]?.s ?? 20], tela: f?.tela ?? telasDe()[4].id, giro: !!f?.giro,
 });
 const paraComando = (e: FaceEd) => e.modo === 'tela' ? { tela: e.tela, ...(e.giro ? { giro: true } : {}) } : { barras: [0, 1].map((dir) => ({ dir, phi: e.phi[dir], s: e.s[dir] })) };
 
 function FaceEditor({ nome, ed, set, bitolas }: { nome: string; ed: FaceEd; set: (v: FaceEd) => void; bitolas: number[] }) {
   const op = bitolas.map((p) => ({ v: p, label: phiTxt(p) }));
+  const modelo = useBuilding((s) => s.sessao.modelo);
   return (
     <div data-base-face={nome}>
       <b className="small">Face {nome === 'inf' ? 'inferior' : 'superior'}</b>
@@ -33,7 +34,7 @@ function FaceEditor({ nome, ed, set, bitolas }: { nome: string; ed: FaceEd; set:
         ))}
         {ed.modo === 'tela' && (
           <>
-            <Select label="Tela (NBR 7481)" value={ed.tela} options={TELAS.map((t) => ({ v: t.id, label: `${t.id} · ${fmt(t.AsL)} cm²/m` }))} onChange={(v) => set({ ...ed, tela: v })} />
+            <Select label="Tela (NBR 7481)" value={ed.tela} options={telasDe(modelo).map((t) => ({ v: t.id, label: `${t.id} · ${fmt(t.AsL)} cm²/m` }))} onChange={(v) => set({ ...ed, tela: v })} />
             <Check label="Girar os fios" checked={ed.giro} onChange={(v) => set({ ...ed, giro: v })} />
           </>
         )}

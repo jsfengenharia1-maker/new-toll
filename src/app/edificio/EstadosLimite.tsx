@@ -2,7 +2,7 @@
 // execução, γ por origem, equilíbrio global e a janela das situações de projeto do usuário (criar, copiar, editar,
 // colar, importar da norma, biblioteca) com o alerta de responsabilidade.
 import { useEffect, useMemo, useState } from 'react';
-import { alertasSituacoes, comandosDaLista, CONTROLE_INFO, ESTADOS_INFO, estadoEmUso, fatoresDaSituacao, GAMA_ORIGEM, listaDeSituacoes, textosAlertas, type ListaSituacoes } from '../../core/building/acoes';
+import { alertasSituacoes, comandosDaLista, CONTROLE_INFO, ESTADOS_INFO, estadoEmUso, fatoresDaSituacao, gamasPorOrigem, listaDeSituacoes, textosAlertas, type ListaSituacoes } from '../../core/building/acoes';
 import { combinacoesDoEstado, combinacoesEdificio } from '../../core/building/combinacoes';
 import { gamas } from '../../core/building/materiais';
 import { casosDaObra, type BuildingModel, type ControleExecucao, type EstadoId, type SituacaoUsuario } from '../../core/building/types';
@@ -183,7 +183,7 @@ export function EstadosGrupo({ b }: { b: BuildingModel }) {
         <summary>γ por origem da ação</summary>
         <table className="data quadro">
           <thead><tr><th>Origem</th><th>Normal (desf./fav.)</th><th>Construção / especial</th><th>Excepcional</th></tr></thead>
-          <tbody>{GAMA_ORIGEM.map((l) => <tr key={l.id} title={l.fonte}><td className="tl">{l.origem}{l.aConfirmar ? ' *' : ''}</td>{[l.normal, l.especial, l.excepcional].map((p, i) => <td key={i} className="num">{fmt(p[0], 2)} / {fmt(p[1], 2)}</td>)}</tr>)}</tbody>
+          <tbody>{gamasPorOrigem(b).map((l) => <tr key={l.id} title={l.fonte}><td className="tl">{l.origem}{l.aConfirmar ? ' *' : ''}</td>{[l.normal, l.especial, l.excepcional].map((p, i) => <td key={i} className="num">{fmt(p[0], 2)} / {fmt(p[1], 2)}</td>)}</tr>)}</tbody>
         </table>
         <Hint>NBR 6118, Tabela 11.1 e linhas de empuxo e de ações indiretas da NBR 8681. * valores a confirmar. As combinações geradas usam γg, γq e γh dos materiais; os de construção/especial servem de referência para as situações do usuário.</Hint>
       </details>

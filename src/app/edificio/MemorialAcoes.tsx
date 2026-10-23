@@ -1,6 +1,6 @@
 // Memorial do edifício: ações e combinações da frente N2a (descrição e arranjos dos casos, compatibilidade, estados-limite,
 // controle de execução e γ por origem, situações do usuário com o alerta, empuxo de terra, equilíbrio global, ábacos de vento).
-import { alertasSituacoes, CONTROLE_INFO, ESTADOS_INFO, estadoEmUso, fatoresDaSituacao, GAMA_ORIGEM, textosAlertas } from '../../core/building/acoes';
+import { alertasSituacoes, CONTROLE_INFO, ESTADOS_INFO, estadoEmUso, fatoresDaSituacao, gamasPorOrigem, textosAlertas } from '../../core/building/acoes';
 import { abacoCaPreenchido, abacoVizPreenchido } from '../../core/building/abacosVento';
 import { combinacoesDoEstado, combinacoesEdificio } from '../../core/building/combinacoes';
 import { diagramaEmpuxo, kDoTipo } from '../../core/building/empuxo';
@@ -48,7 +48,7 @@ export function MemorialAcoes({ b, analise, dim }: { b: BuildingModel; analise: 
       <p>Controle de execução: <b>{CONTROLE_INFO[b.norma.controle ?? 'normal'].rotulo}</b> (γc padrão {fmt(CONTROLE_INFO[b.norma.controle ?? 'normal'].gamaC)}; em uso {fmt(g.c)}) — {CONTROLE_INFO[b.norma.controle ?? 'normal'].fonte}. γs {fmt(g.s)}, γg {fmt(g.g)}, γq {fmt(g.q)}, γh (empuxo) {fmt(g.h)}.</p>
       <table>
         <thead><tr><th className="l">γ por origem da ação (desfavorável / favorável)</th><th>Normal</th><th>Construção / especial</th><th>Excepcional</th><th className="l">Fonte</th></tr></thead>
-        <tbody>{GAMA_ORIGEM.map((l) => <tr key={l.id}><td className="l">{l.origem}</td>{[l.normal, l.especial, l.excepcional].map((p, i) => <td key={i}>{fmt(p[0])} / {fmt(p[1])}</td>)}<td className="l">{l.fonte}{l.aConfirmar ? '; a confirmar' : ''}</td></tr>)}</tbody>
+        <tbody>{gamasPorOrigem(b).map((l) => <tr key={l.id}><td className="l">{l.origem}</td>{[l.normal, l.especial, l.excepcional].map((p, i) => <td key={i}>{fmt(p[0])} / {fmt(p[1])}</td>)}<td className="l">{l.fonte}{l.aConfirmar ? '; a confirmar' : ''}</td></tr>)}</tbody>
       </table>
 
       {(b.situacoes?.length ?? 0) > 0 && (

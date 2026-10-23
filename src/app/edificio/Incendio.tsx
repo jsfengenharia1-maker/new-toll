@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { estadoEmUso } from '../../core/building/acoes';
 import { alturaDaEdificacao, MATERIAIS_REVESTIMENTO, sugestaoTrrf, trrfDoGrupo, type MaterialRevestimento } from '../../core/building/fogo';
-import { DIVISOES_OCUPACAO } from '../../core/building/fogoTabelas';
+import { divisoesOcupacao } from '../../core/building/fogoTabelas';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import type { BuildingModel } from '../../core/building/types';
 import { Button, Check, Group, Hint, NumCell, NumField, OptNumCell, Select } from '../ui';
@@ -14,7 +14,7 @@ type Mat = MaterialRevestimento | '';
 const MATERIAIS: { v: Mat; label: string }[] = [{ v: '', label: 'sem revestimento' }, ...MATERIAIS_REVESTIMENTO.map((m) => ({ v: m.v as Mat, label: m.rotulo }))];
 type TipoEl = 'viga' | 'pilar' | 'laje';
 const TIPOS_EL: { v: TipoEl; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'laje', label: 'Laje' }];
-const OCUPACOES:{ v: string; label: string }[] = [{ v: '', label: '— não informada —' }, ...DIVISOES_OCUPACAO.map((d) => ({ v: d.divisao, label: `${d.divisao} — ${d.ocupacao}` }))];
+const ocupacoesDe = (b: BuildingModel): { v: string; label: string }[] => [{ v: '', label: '— não informada —' }, ...divisoesOcupacao(b).map((d) => ({ v: d.divisao, label: `${d.divisao} — ${d.ocupacao}` }))];
 
 export function IncendioGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
@@ -32,7 +32,7 @@ export function IncendioGrupo({ b }: { b: BuildingModel }) {
   return (
     <Group title={ativo ? 'Incêndio (ligado)' : 'Incêndio'} open={false}>
       <Check label="Verificar resistência ao fogo (NBR 15200)" checked={ativo} onChange={(c) => f({ ativo: c })} />
-      <Select label="Ocupação (NBR 14432 / IT)" value={b.fogo?.ocupacao ?? ''} options={OCUPACOES} onChange={(v) => (v === '' ? f({ remover: { ocupacao: true } }) : f({ ocupacao: v }))} />
+      <Select label="Ocupação (NBR 14432 / IT)" value={b.fogo?.ocupacao ?? ''} options={ocupacoesDe(b)} onChange={(v) => (v === '' ? f({ remover: { ocupacao: true } }) : f({ ocupacao: v }))} />
       <div className="row wrap">
         <NumField label="Altura da edificação" unit="m" value={b.fogo?.altura ?? alturaDaEdificacao(b)} onChange={(v) => f({ altura: v })} />
         <Button disabled={b.fogo?.altura === undefined} onClick={() => f({ remover: { altura: true } })}>Altura pelos pavimentos</Button>
