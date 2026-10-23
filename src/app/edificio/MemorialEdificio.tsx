@@ -24,6 +24,7 @@ import { normasNoMemorial } from '../../core/normas/memorial';
 import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
+import { MemorialAreasGrupos, MemorialGuia } from './MemorialGrupos';
 import { MemorialGabaritos } from './MemorialGabaritos';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
@@ -54,6 +55,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
   const [today] = useState(() => new Date().toLocaleDateString('pt-BR'));
   const [iso, setIso] = useState(false);
   const [eluDet, setEluDet] = useState(false);
+  const [guia, setGuia] = useState(false);
   const r = useMemo(() => (analise ? resumoAnalise(b, analise) : null), [b, analise]);
   const velha = !!analise && (!calculoAtual(estado) || !dimAtual(estado));
   const perfil = perfilDe(b);
@@ -116,6 +118,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
         <Spacer />
         <Check label="Incluir vista isométrica" checked={iso} onChange={setIso} />
         <Check label="ELU por combinação" checked={eluDet} onChange={setEluDet} />
+        <Check label="Incluir guia rápido (anexo)" checked={guia} onChange={setGuia} />
         <Button variant="primary" onClick={() => { printHtmlDoc(html()); st.set({ message: 'Impressão do memorial: escolha “Salvar como PDF”.' }); }}>Imprimir / PDF</Button>
         <Button onClick={exportar}>Exportar HTML</Button>
         <Button onClick={onClose}>Fechar</Button>
@@ -154,6 +157,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <tbody>{[...ps].reverse().map((p) => <tr key={p.id}><td className="l">{p.nome}</td><td>{fmt(p.cota)}</td><td>{fmt(peDireito(b, p.id))}</td><td className="l">{b.grupos.find((g) => g.id === p.grupo)?.nome ?? '—'}</td></tr>)}</tbody>
           </table>
           <p>Fundação na cota {fmt(cotaFundacao(b))} m. {b.pilares.length} pilares{b.pilaresParede?.length ? `, ${b.pilaresParede.length} pilar(es)-parede` : ''}, {b.vigas.length} vigas e {b.lajes.length} lajes lançadas.</p>
+          <MemorialAreasGrupos b={b} />
           <MemorialGabaritos b={b} />
           {apoiados.length > 0 && <>
             <h3>Pilares que nascem acima da fundação (apoiados)</h3>
@@ -705,6 +709,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
 
           {h2('Premissas', true)}
           <ul>{PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <i>({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</i></li>)}</ul>
+          {guia && <MemorialGuia h2={h2} />}
           <p className="small">Resultados de ferramenta de apoio ao projeto: a responsabilidade pela concepção, verificação e detalhamento é do engenheiro responsável.</p>
         </div>
       </div>
