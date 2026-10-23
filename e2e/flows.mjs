@@ -5563,4 +5563,128 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'L5: contorno retangular, modo simples, Backspace, prolongar por comprimento, panos a definir, abertura retangular, direção do pano e cargas rápidas',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`;
+      await cmd('lote {"comandos": [' + [pil(0, 0), pil(8, 0), pil(8, 5), pil(0, 5)].join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      const solta = () => page.evaluate(() => document.activeElement?.blur?.());
+      const abrir = async () => { const d = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: /^Ferramentas de lançamento/ }) }).first(); if (!(await d.evaluate((x) => x.open))) await d.locator(':scope > summary').click(); return d; };
+      const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };
+      const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
+      const msgBarra = (t) => page.locator('.statusbar .msg', { hasText: t }).waitFor();
+      const painel = await abrir();
+      const num = async (re, v) => { const c = painel.getByLabel(re); await c.fill(v); await c.press('Enter'); };
+
+      // 1) contorno retangular (ângulo zero): dois cliques e Enter criam as quatro vigas, um passo no desfazer
+      await painel.getByRole('button', { name: 'Lançar contorno retangular', exact: true }).click();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await solta();
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'contornoRet');
+      await clicar(0, 0);
+      await clicar(8, 5);
+      await page.keyboard.press('Enter');
+      await vigas(4);
+      await solta();
+      await page.keyboard.press('Control+z');
+      await vigas(0);
+      await page.keyboard.press('Control+y');
+      await vigas(4);
+
+      // 2) viga em polilinha: Backspace apaga o último ponto
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('v');
+      await clicar(0, 10);
+      await clicar(3, 10);
+      await page.keyboard.press('Backspace');
+      await clicar(6, 10);
+      await page.keyboard.press('Enter');
+      await vigas(5);
+      const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: /^Vigas — Tipo/ }) }).first();
+      if (!(await g.evaluate((x) => x.open))) await g.locator(':scope > summary').click();
+      assert.equal((await g.locator('table.quadro tbody tr').last().locator('td.num').first().innerText()).trim(), '6,00');
+
+      // 3) prolongar por comprimento fixo (O): 1,5 m a mais na ponta
+      await num(/^Prolongar por comprimento/, '1,5');
+      await solta();
+      await page.keyboard.press('o');
+      await clicar(5.9, 10.02);
+      await msgBarra('ajustada');
+      assert.equal((await g.locator('table.quadro tbody tr').last().locator('td.num').first().innerText()).trim(), '7,50');
+      await num(/^Prolongar por comprimento/, '0');
+
+      // 4) modo simples com deslocamento: cada par de pontos é uma viga
+      await painel.getByLabel('Modo simples: cada par de pontos é uma viga').check();
+      await num(/^Deslocamento da linha clicada/, '10');
+      await solta();
+      await page.keyboard.press('v');
+      await clicar(0, 12);
+      await clicar(4, 12);
+      await vigas(6);
+      await clicar(0, 13);
+      await clicar(4, 13);
+      await vigas(7);
+      await painel.getByLabel('Modo simples: cada par de pontos é uma viga').uncheck();
+      await num(/^Deslocamento da linha clicada/, '0');
+
+      // 5) panos a definir: erro DEFINIR_PANO e cálculo bloqueado até atribuir o tipo
+      await painel.getByRole('button', { name: 'Detectar panos como a definir', exact: true }).click();
+      await painel.getByText('1 pano(s) a definir', { exact: false }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: /^Verificação/ }).click();
+      await page.getByText('é um pano a definir', { exact: false }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise', exact: true }).click();
+      await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'DEFINIR_PANO' }).waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await painel.getByRole('button', { name: 'Atribuir o tipo da ferramenta Laje aos panos a definir', exact: true }).click();
+      await painel.getByText('Todo contorno fechado por vigas', { exact: false }).waitFor();
+
+      // 6) abertura retangular com viga de borda alta
+      await painel.getByLabel(/^Modo da abertura/).selectOption({ label: 'ângulo zero (dois cantos)' });
+      await painel.getByLabel(/^Viga de borda da abertura/).selectOption({ label: 'alta' });
+      await painel.getByRole('button', { name: 'Lançar abertura retangular', exact: true }).click();
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'aberturaRet');
+      await clicar(4, 2.5);
+      await clicar(2, 1);
+      await clicar(3, 2);
+      await msgBarra('Abertura retangular');
+      await vigas(11);
+
+      // 7) direção do pano por dois pontos
+      await painel.getByLabel(/^Direção do pano por/).selectOption({ label: 'dois pontos' });
+      await painel.getByRole('button', { name: 'Definir a direção do pano', exact: true }).click();
+      await clicar(6, 3.5);
+      await clicar(1, 1);
+      await clicar(2, 2);
+      await msgBarra('alterada');
+      await painel.getByRole('button', { name: 'Mudar o ponto de inserção do pano', exact: true }).click();
+      await clicar(6, 3.5);
+      await clicar(7.8, 4.8);
+      await msgBarra('alterada');
+
+      // 8) cargas rápidas: laje inteira (um clique) e ao longo da viga
+      await painel.getByRole('button', { name: 'Lançar carga na laje inteira', exact: true }).click();
+      await clicar(6, 3.5);
+      await msgBarra('kN/m²');
+      await painel.getByRole('button', { name: 'Lançar carga ao longo da viga', exact: true }).click();
+      await clicar(3, 10.02);
+      await msgBarra('carga(s) linear(es)');
+
+      // 9) memorial: aberturas com a viga de borda
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-aberturas]').innerText(), /L1\s+Tipo\s+1\s+\d+,\d+\s+viga alta/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await solta();
+      await page.keyboard.press('Control+z');
+      await page.keyboard.press('Control+z');
+    },
+  },
 ];

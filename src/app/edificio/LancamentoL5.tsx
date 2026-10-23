@@ -1,0 +1,87 @@
+// Ferramentas de lançamento de vigas, panos, aberturas e cargas (L5: C6.3, C6.6, C6.7, C6.9, C6.11, C6.51, C6.53, C7.2, C7.5,
+// C7.6, C7.17, C7.78 a C7.82, C10.24, C10.25, K1.9.54, K1.9.103). Grupo "Ferramentas de lançamento" da barra lateral;
+// a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
+// `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
+import { Button, Check, Group, Hint, NumField, Select } from '../ui';
+import { casosParaCarga, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { useBuilding } from './store';
+import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
+
+export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const ps = pavimentosOrdenados(b);
+  const grupo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[Math.min(1, ps.length - 1)]?.grupo ?? '';
+  const aDefinir = b.lajes.filter((l) => l.grupo === grupo && l.definir);
+  const l5 = pl.l5;
+  const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
+  const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
+  const casos = casosParaCarga(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : c.nome }));
+  const superficies = b.cargas.filter((c) => c.tipo === 'area' && c.grupo === grupo);
+  const vref = b.vigas.find((v) => v.id === l5.vigaRef);
+  return (
+    <Group title="Ferramentas de lançamento" open={false}>
+      <h4>Vigas</h4>
+      <div className="row wrap">
+        <Check label="Modo simples: cada par de pontos é uma viga" checked={l5.simples} onChange={(v) => set({ simples: v })} />
+        <NumField label="Deslocamento da linha clicada" unit="cm" width={110} value={l5.deslocamento} onChange={(v) => set({ deslocamento: v })} />
+      </div>
+      <Hint>O deslocamento leva a linha clicada (por exemplo a fachada com revestimento) à linha de ajuste (o limite estrutural): positivo para a esquerda do traçado, negativo para a direita. Na ferramenta Viga, Enter encerra, Backspace apaga o último ponto e Esc cancela.</Hint>
+      <div className="row wrap">
+        <NumField label="Prolongar por comprimento" unit="m" width={120} value={l5.comprimento} onChange={(v) => set({ comprimento: v })} />
+      </div>
+      <Hint>Com um comprimento diferente de zero, um clique perto da extremidade na ferramenta Prolongar viga (O) prolonga a viga nesse comprimento (negativo apara); com zero, a viga vai até o alvo clicado.</Hint>
+      <div className="row wrap">
+        <Button onClick={() => ir('contornoRet')}>Lançar contorno retangular</Button>
+        <Check label="Alinhar pela face externa dos pilares" checked={l5.alinharContorno} onChange={(v) => set({ alinharContorno: v })} />
+      </div>
+      <Hint>Dois cliques e Enter: cantos opostos, ângulo zero. Três cliques: um lado em qualquer ângulo e um ponto do lado oposto. As quatro vigas ficam do lado de fora da linha clicada, com a seção da ferramenta Viga.</Hint>
+
+      <h4>Aberturas retangulares</h4>
+      <div className="row wrap">
+        <Select label="Modo da abertura" value={l5.modoAbertura} options={[{ v: 'zero', label: 'ângulo zero (dois cantos)' }, { v: 'viga', label: 'paralela a uma viga' }, { v: 'nervuras', label: 'ângulo das nervuras do pano' }, { v: 'qualquer', label: 'qualquer ângulo (lado e ponto oposto)' }]} onChange={(v) => set({ modoAbertura: v })} />
+        <Select label="Viga de borda da abertura" value={l5.borda} options={[{ v: 'nenhuma', label: 'nenhuma' }, { v: 'chata', label: 'chata (altura da laje)' }, { v: 'alta', label: 'alta' }]} onChange={(v) => set({ borda: v })} />
+      </div>
+      <div className="row wrap">
+        <NumField label="Largura da viga de borda" unit="m" width={120} value={l5.bordaB} onChange={(v) => set({ bordaB: v })} />
+        <NumField label="Altura da viga de borda alta" unit="m" width={140} value={l5.bordaH} onChange={(v) => set({ bordaH: v })} />
+      </div>
+      <div className="row wrap">
+        <Button onClick={() => ir('aberturaRet')}>Lançar abertura retangular</Button>
+        {l5.modoAbertura === 'viga' && <Button disabled={!vref} onClick={() => set({ vigaRef: null })}>{vref ? `Trocar a viga de referência (${vref.nome})` : 'Viga de referência: clique na planta'}</Button>}
+      </div>
+      <Hint>Clique na laje e depois nos cantos (no modo de qualquer ângulo, os dois pontos de um lado e um do lado oposto). Largura e altura padrão da viga de borda: 15 × 40 cm [a confirmar]; a chata tem a altura da laje.</Hint>
+
+      <h4>Panos e direção</h4>
+      <div className="row wrap">
+        <Button disabled={!grupo} onClick={() => exec('laje.detectarPanos', { grupo, definir: true })}>Detectar panos como a definir</Button>
+        <Button disabled={!aDefinir.length} onClick={() => exec('laje.atribuir', { ids: aDefinir.map((l) => l.id), tipo: pl.tipoLaje })}>Atribuir o tipo da ferramenta Laje aos panos a definir</Button>
+      </div>
+      <Hint>{aDefinir.length ? `${aDefinir.length} pano(s) a definir (?) neste grupo: ${aDefinir.map((l) => l.nome).join(', ')}. A obra só calcula depois de atribuir o tipo de todos.` : 'Todo contorno fechado por vigas pode virar um pano a definir, marcado com ? na planta; o cálculo fica bloqueado até o tipo ser atribuído.'}</Hint>
+      <div className="row wrap">
+        <Select label="Direção do pano por" value={l5.direcaoModo} options={[{ v: 'viga', label: 'uma viga' }, { v: 'pontos', label: 'dois pontos' }]} onChange={(v) => set({ direcaoModo: v })} />
+        <Select label="Em relação à viga" value={l5.relacao} options={[{ v: 'paralela', label: 'paralela' }, { v: 'perpendicular', label: 'perpendicular' }]} onChange={(v) => set({ relacao: v })} />
+      </div>
+      <div className="row wrap">
+        <Button onClick={() => ir('direcaoPano')}>Definir a direção do pano</Button>
+        <Button onClick={() => ir('insercaoPano')}>Mudar o ponto de inserção do pano</Button>
+      </div>
+      <Hint>A direção padrão continua a do menor vão. O ponto de inserção (vértice do contorno) é a origem da numeração das vigotas e da malha.</Hint>
+
+      <h4>Cargas rápidas</h4>
+      <div className="row wrap">
+        <NumField label="Carga na laje inteira" unit="kN/m²" width={130} value={l5.valorLaje} disabled={!!l5.copiarCarga} onChange={(v) => set({ valorLaje: v })} />
+        <Select label="Caso da carga na laje" value={l5.casoLaje} options={casos} disabled={!!l5.copiarCarga} onChange={(v) => set({ casoLaje: v })} />
+        <Select label="Copiar de uma carga de superfície" value={l5.copiarCarga} options={[{ v: '', label: 'não copiar' }, ...superficies.map((c) => ({ v: c.id, label: `${c.id}: ${c.valor} kN/m² (${c.caso})` }))]} onChange={(v) => set({ copiarCarga: v })} />
+      </div>
+      <div className="row wrap"><Button onClick={() => ir('cargaLaje')}>Lançar carga na laje inteira</Button></div>
+      <Hint>Um clique na laje destacada lança a carga de superfície no contorno inteiro (as aberturas não são descontadas [a confirmar]). Copiando de uma carga existente, valem o valor e o caso dela.</Hint>
+      <div className="row wrap">
+        <NumField label="Carga ao longo da viga" unit="kN/m" width={130} value={l5.valorViga} onChange={(v) => set({ valorViga: v })} />
+        <Select label="Caso da carga na viga" value={l5.casoViga} options={casos} onChange={(v) => set({ casoViga: v })} />
+      </div>
+      <div className="row wrap"><Button onClick={() => ir('cargaViga')}>Lançar carga ao longo da viga</Button></div>
+      <Hint>Clique numa viga para a carga linear ao longo do eixo dela, ou clique em dois cantos para uma janela de captura: todas as vigas inteiramente dentro dela recebem a carga.</Hint>
+    </Group>
+  );
+}
