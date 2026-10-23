@@ -1,18 +1,17 @@
-# Análise de design: referência BIM (BeamCraft / BIMCraft) para o Statikos
+# Análise de design: referência BIMCraft para o Statikos
 
-Pesquisa de 23/10/2026. Só leitura; nada foi copiado. Valores de cor e medida entram como inspiração. Nenhum código, ícone, texto ou nome do projeto de referência entra no Statikos (reconstrução limpa). Prévia: `statikos-beamcraft.html` (artifact "Statikos Visual BIM"; fora do repositório, na pasta de trabalho da sessão).
+Pesquisa de 23/10/2026. Só leitura; nada foi copiado. Valores de cor e medida entram como inspiração. Nenhum código, ícone, texto ou nome do projeto de referência entra no Statikos (reconstrução limpa). Prévia: `statikos-bimcraft.html` (artifact "Statikos Visual BIM"; fora do repositório, na pasta de trabalho da sessão).
 
 ## 1. Projeto identificado e licença
 
-Busca no GitHub por "beamcraft" devolve 13 repositórios; só dois são plausíveis como "alternativa open source ao Revit".
+O usuário confirmou o nome: **BIMCraft**. Busca no GitHub ("bimcraft revit") devolve um único repositório original; os demais "BIMCraft" são forks.
 
-| Candidato | Link | Licença | O que é | Veredito |
-|---|---|---|---|---|
-| **BIMCraft** (IPedrax) | https://github.com/IPedrax/BIMCraft | MIT ou Apache-2.0 (NOTICE cita código portado de rvt-rs, Apache-2.0) | "Take de código aberto e limpo do fluxo do Revit", Rust + egui, IFC, comandos para agentes (MCP). Desktop com faixa de abas, Propriedades + Navegador de Projeto acoplados à esquerda, abas de vista, barra de status | **Mais provável.** É o que tem a cara de Revit com o painel de propriedades lateral e a navegação por abas; o usuário provavelmente trocou o nome |
-| **BeamCraft** (Apibim-com) | https://github.com/Apibim-com/BeamCraft | MPL-2.0 | Bancada de detalhamento de aço estrutural (tipo Tekla), Rust, IFC/DSTV. Pré-alfa: não há aplicação usável nem tema; `apps/beamcraft-ui` só tem 3 cores soltas | Existe com o nome exato, mas é Tekla, não Revit, e não tem identidade visual a extrair |
-| Outros "beamcraft" | DJtsdk/BeamCraft, captiencelovesarch/beamcraft (mod de Minecraft); TarfuPingouin/BeamCraft (SVG para GCode) | n/d | Sem relação | Descartados |
-
-Conclusão: a referência visual é o **BIMCraft** (tema em `crates/ui-egui/src/style.rs`, docas em `dock.rs`, capturas em `docs/images/*.png`). Se o usuário falava do BeamCraft da Apibim, nada muda neste documento, porque ele não tem UI. **Confirmar com o usuário** qual projeto ele viu. Licença permissiva: valores de cor e medida podem ser usados; aviso no `NOTICE` só se algum valor for copiado literalmente (aqui nenhum é; os valores propostos continuam os do Spectrum 2 já aprovados).
+| Item | Dado |
+|---|---|
+| Projeto | **BIMCraft** (IPedrax): https://github.com/IPedrax/BIMCraft, criado em 15/10/2026, 144 estrelas, "take de código aberto e limpo do fluxo do Revit", Rust + egui, IFC, comandos para agentes (MCP) |
+| Licença | MIT ou Apache-2.0 (o NOTICE cita código portado de rvt-rs, Apache-2.0). Valores de cor e medida podem ser usados; aviso no `NOTICE` só se algum valor for copiado literalmente (aqui nenhum é: os valores propostos continuam os do Spectrum 2 já aprovados) |
+| Onde li | tema em `crates/ui-egui/src/style.rs`, docas em `dock.rs`, layout em `lib.rs`, capturas em `docs/images/*.png` |
+| Não confundir | BeamCraft da Apibim (https://github.com/Apibim-com/BeamCraft, MPL-2.0) é detalhamento de aço tipo Tekla, pré-alfa, sem interface; descartado |
 
 ## 2. Traços extraídos do BIMCraft
 
@@ -89,4 +88,4 @@ Sem token de cor novo: faixa, abas, paletas e árvore usam os existentes (item a
 4. **Duplicação de botões:** Memorial como aba não pode duplicar o botão atual no e2e (`getByRole('button', {name:'Memorial'})`); manter um só elemento.
 5. **Aba contextual verde do BIMCraft** não adotada (paleta enxuta aprovada); se o usuário quiser, só como ponto verde.
 6. **Escopo:** é mudança de arquitetura de layout, não de pele; mexe nas três telas. Não é a etapa de "pele" já aprovada. Prioridade atual do projeto é funcionalidade; propor como frente própria com auditoria independente.
-7. **Dúvida aberta:** qual projeto o usuário quis dizer (seção 1) e se quer docas trocáveis (fase 2) ou só layout fixo.
+7. **Dúvida aberta:** se o usuário quer docas trocáveis (fase 2) ou só layout fixo.
