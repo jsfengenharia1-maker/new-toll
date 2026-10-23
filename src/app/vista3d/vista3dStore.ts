@@ -31,6 +31,14 @@ export interface V3State {
   armGhost: boolean;
   armSoSelecao: boolean;
   armEscala: number;
+  /** Deformada (V3): liga, hipótese ('' = o primeiro caso), escala manual, escala automática, só eixos, animação e período (s). */
+  deformada: boolean;
+  defHipotese: string;
+  defEscala: number;
+  defAuto: boolean;
+  defEixos: boolean;
+  defAnimar: boolean;
+  defPeriodo: number;
   set(p: Partial<Omit<V3State, 'set'>>): void;
 }
 
@@ -41,6 +49,7 @@ export const useVista3d = create<V3State>((set) => ({
   projecao: 'perspectiva', textura: false, detalhe: 'baixo',
   caminhar: false, velocidade: VELOCIDADE_INICIAL,
   armaduras: false, armPor: 'bitola', armTubos: false, armGhost: true, armSoSelecao: false, armEscala: 4,
+  deformada: false, defHipotese: '', defEscala: 50, defAuto: true, defEixos: false, defAnimar: false, defPeriodo: 2,
   set: (p) => set(p),
 }));
 

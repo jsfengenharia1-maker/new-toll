@@ -2,13 +2,15 @@
 // estático em SVG da mesma cena. Escopo por pavimento, grupo ou intervalo, tipos, transparência, perspectiva/isométrica,
 // caminhar, seleção sincronizada com a planta e captura PNG. A geometria vem de src/core/vista3d (função pura).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useBuilding } from '../edificio/store';
+import { calculoAtual, useBuilding } from '../edificio/store';
 import { usePlanta } from '../edificio/plantaStore';
 import { abrirJanela, irParaElemento } from '../edificio/Revisao';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { construirCena, resumoCena, TIPOS_3D, PAV_FUNDACAO, type Cena3D, type Objeto3D, type TipoElemento3D } from '../../core/vista3d/cena';
 import { isometricoSvg } from '../../core/vista3d/isometrico';
 import { armaduras3D, camadasDeArmadura, type AgruparPor } from '../../core/vista3d/armaduras3d';
+import { eixosDeformados, escalaAutomatica, fatorAnimacao, hipotesesDisponiveis } from '../../core/resultados/deformada';
+import { deformarCena } from '../../core/resultados/deformadaCena';
 import {
   ALTURA_OLHO, alternarProjecao, definirAngulos, enquadrar, iniciarCaminhar, type Camera3D, type EstadoCaminhar,
 } from '../../core/vista3d/camera';
@@ -72,6 +74,17 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     [b, rev, dim, st.armaduras, st.armSoSelecao, selecaoPlanta, pavsCena],
   );
   const camadasArm = useMemo(() => (arm ? camadasDeArmadura(arm, st.armPor) : []), [arm, st.armPor]);
+  // deformada (V3): hipótese (caso ou combinação), malha refinada colorida por |Δ| ou só os eixos das barras
+  const analiseAtual = useBuilding((s) => (calculoAtual(s) && !s.analise?.erro ? s.analise : null));
+  const hips = useMemo(() => (analiseAtual ? hipotesesDisponiveis(b, analiseAtual) : []), [b, rev, analiseAtual]);
+  const hip = hips.find((h) => h.id === st.defHipotese) ?? hips[0] ?? null;
+  const cd = useMemo(() => (st.deformada && analiseAtual && hip && !st.defEixos ? deformarCena(cena, analiseAtual, hip) : null), [st.deformada, st.defEixos, analiseAtual, hip, cena]);
+  const eixos = useMemo(
+    () => (st.deformada && analiseAtual && hip && st.defEixos ? eixosDeformados(analiseAtual, hip).filter((e) => (e.pavimento in cena.contagens.porPavimento || e.tipo === 'fundacao') && (st.tipos[e.tipo as TipoElemento3D] ?? true)) : null),
+    [st.deformada, st.defEixos, st.tipos, analiseAtual, hip, cena],
+  );
+  const defDmax = cd ? cd.dmax : eixos ? Math.max(0, ...eixos.flatMap((e) => e.delta)) : 0;
+  const escalaDef = st.defAuto ? (cd ? cd.escalaAuto : escalaAutomatica(defDmax, Math.max(1e-6, cena.limites.max[2] - cena.limites.min[2]))) : st.defEscala;
   const chaveEscopo = `${st.escopo}|${st.grupo}|${st.de}|${st.ate}|${st.pavimento}`;
   const ultimoEscopo = useRef('');
 
@@ -193,6 +206,29 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     pedir();
   }, [camadasArm, st.armTubos, st.armEscala, tema, status, pedir]);
 
+  useEffect(() => {
+    const r = rend.current, el = cont.current;
+    if (status !== 'pronto' || !r || !el) return;
+    r.definirDeformada(cd, eixos, [1, 2, 3, 4, 5].map((i) => cssVar(`v3d-def-${i}`, el)), cd ? 'completa' : 'simplificada', defDmax);
+    pedir();
+  }, [cd, eixos, tema, status, pedir]);
+  useEffect(() => {
+    if (!st.defAnimar) { rend.current?.atualizarDeformada(escalaDef, 1, true); pedir(); }
+  }, [escalaDef, cd, eixos, st.defAnimar, status, pedir]);
+  // animação u(t) = u·sin(2πt/T): para quando a aba fica oculta e começa desligada (prefers-reduced-motion)
+  useEffect(() => {
+    const r = rend.current;
+    if (status !== 'pronto' || !r || !(cd || eixos) || !st.defAnimar) return;
+    const t0 = performance.now();
+    let id = 0;
+    const volta = (t: number) => {
+      if (!document.hidden) { r.atualizarDeformada(escalaDef, fatorAnimacao((t - t0) / 1000, st.defPeriodo), false); pedir(); }
+      id = requestAnimationFrame(volta);
+    };
+    id = requestAnimationFrame(volta);
+    return () => cancelAnimationFrame(id);
+  }, [cd, eixos, st.defAnimar, st.defPeriodo, escalaDef, status, pedir]);
+
   // projeção: o enquadramento (alvo, distância, ângulos) é o mesmo nas duas
   useEffect(() => {
     if (camRef.current) { camRef.current = alternarProjecao(camRef.current, st.projecao); pedir(); }
@@ -312,6 +348,19 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
             {!fallback && st.armTubos && <Slider label="Espessura das barras" value={st.armEscala} min={1} max={20} unit="×" onChange={(v) => st.set({ armEscala: v })} />}
           </>
         )}
+        <Check label="Deformada" checked={st.deformada} onChange={(v) => st.set({ deformada: v })} />
+        {st.deformada && (
+          <>
+            <Dropdown aria-label="Hipótese da deformada" value={hip?.id ?? ''} onChange={(e) => st.set({ defHipotese: e.target.value })}>
+              {hips.map((h) => <option key={h.id} value={h.id}>{h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome}</option>)}
+            </Dropdown>
+            <Check label="Escala automática" checked={st.defAuto} onChange={(v) => st.set({ defAuto: v })} />
+            {!st.defAuto && <Slider label="Escala da deformada" value={st.defEscala} min={1} max={1000} unit="×" onChange={(v) => st.set({ defEscala: v })} />}
+            <Check label="Só eixos das barras" checked={st.defEixos} onChange={(v) => st.set({ defEixos: v })} />
+            {!fallback && <Check label="Animar" checked={st.defAnimar} onChange={(v) => st.set({ defAnimar: v })} />}
+            {!fallback && st.defAnimar && <Slider label="Período da animação" value={st.defPeriodo} min={0.5} max={8} step={0.5} unit=" s" onChange={(v) => st.set({ defPeriodo: v })} />}
+          </>
+        )}
         <Button onClick={() => { ajustarCamera(true); pedir(); setAngulos((a) => ({ ...a })); }}>Enquadrar</Button>
         <Button onClick={() => { void capturar(); }}>{fallback ? 'Baixar SVG' : 'Capturar PNG'}</Button>
       </div>
@@ -325,6 +374,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
         data-projecao={fallback ? 'svg' : st.projecao}
         data-status={status}
         data-caminhar={st.caminhar ? '1' : '0'}
+        data-deformada={cd || eixos ? JSON.stringify({ hipotese: hip?.nome, modo: cd ? 'completa' : 'eixos', dmaxMm: +(defDmax * 1000).toFixed(3), escala: +escalaDef.toFixed(2), animando: st.defAnimar, objetos: cd ? cd.objetos.length : eixos!.length }) : '0'}
         data-armaduras={arm ? JSON.stringify({ barras: arm.barras.length, segmentos: arm.segmentos, truncado: arm.truncado, camadas: camadasArm.length }) : '0'}
       >
         {fallback && <div className="v3d-iso-box" onClick={(e) => aoClicarSvg(e, false)} onDoubleClick={(e) => aoClicarSvg(e, true)} dangerouslySetInnerHTML={{ __html: svg }} />}
@@ -337,6 +387,15 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
         {dica && <div className="v3d-dica" style={{ left: dica.x, top: dica.y }}>{dica.texto}</div>}
         {cena.avisos.length > 0 && <div className="v3d-aviso" role="alert">{cena.avisos.join(' ')}</div>}
       </div>
+      {(cd || eixos) && !fallback && (
+        <div className="v3d-def-leg">
+          <span>Deslocamento resultante |Δ|:</span>
+          <span className="num">0</span>
+          <div className="v3d-def-rampa" role="img" aria-label="Legenda da deformada" />
+          <span className="num">{(defDmax * 1000).toFixed(2).replace('.', ',')} mm</span>
+          <span>{hip?.nome} · escala ×<span className="num">{escalaDef.toFixed(0)}</span>{cd?.avisos.length ? ` — ${cd.avisos.join(' ')}` : ''}</span>
+        </div>
+      )}
       <div className="v3d-st">
         <span>Cena: <b className="num">{cena.contagens.total}</b> objetos — {TIPOS_3D.filter((t) => contagem[t.v]).map((t) => `${t.label.toLowerCase()} ${contagem[t.v]}`).join(', ') || 'vazia'}</span>
         <span>Pavimentos: {Object.keys(cena.contagens.porPavimento).map(nomePav).join(', ') || '—'}</span>
@@ -348,6 +407,8 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
           </span>
         )}
         {aviso && <span>{aviso}</span>}
+        {st.deformada && !analiseAtual && <span className="muted">Calcule a estrutura (aba Dimensionamento) para ver a deformada.</span>}
+        {st.deformada && fallback && <span className="muted">A deformada só aparece com WebGL.</span>}
         {st.armaduras && !dim && <span className="muted">Calcule o dimensionamento para ver as armaduras.</span>}
         {st.armaduras && fallback && <span className="muted">As armaduras só aparecem com WebGL (aqui, o isométrico estático não as desenha).</span>}
         {arm && <span>Armaduras: <b className="num">{arm.barras.length}</b> barras, <span className="num">{arm.segmentos}</span> segmentos em {camadasArm.length} camada(s){arm.avisos.length ? ` — ${arm.avisos.join(' ')}` : ''}</span>}
