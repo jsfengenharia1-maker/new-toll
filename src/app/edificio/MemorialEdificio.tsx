@@ -20,6 +20,7 @@ import { memorialFlechas } from '../../core/building/flechas';
 import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import { normasNoMemorial } from '../../core/normas/memorial';
+import { fichasNoMemorial } from '../../core/building/tiposLaje';
 
 import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
@@ -744,6 +745,18 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <thead><tr><th>Tabela</th><th>Norma e edição</th><th>Fonte</th><th>Origem</th></tr></thead>
             <tbody>{normasNoMemorial(b).map((n) => <tr key={n.id}><td className="l">{n.titulo}</td><td className="l">{n.edicao}</td><td className="l">{n.fonte}{n.aConfirmar ? ' [a confirmar]' : ''}</td><td className="l">{n.origem}{n.nota ? ` (${n.nota})` : ''}</td></tr>)}</tbody>
           </table>
+
+          {fichasNoMemorial(b).length > 0 && (<>
+            {h2('Fichas de vigotas usadas')}
+            <p>Dados de ficha são do fabricante e não são verificados pelo programa, que só confere a coerência lógica. Peso por m² = capa + nervuras + enchimento, calculado (ou o informado na ficha).</p>
+            {fichasNoMemorial(b).map((f) => (
+              <table key={f.id} className="quadro" data-memorial-ficha={f.id}>
+                <caption>{f.nome} ({f.familia}; {f.origem}) — {f.marca}</caption>
+                <thead><tr><th>Laje</th><th>h (cm)</th><th>Intereixo (cm)</th><th>Capa (cm)</th><th>Nervura (cm)</th><th>Peso (kN/m²)</th><th>Mu+ (kN·m)</th><th>Mfis+ (kN·m)</th><th>VRd1 (kN)</th><th>Usada</th></tr></thead>
+                <tbody>{f.series.map((s) => <tr key={s.id}><td className="l">{s.id}{s.tipo ? ` (${s.tipo})` : ''}</td><td>{fmt(s.altura * 100, 0)}</td><td>{fmt(s.intereixo * 100, 0)}</td><td>{fmt(s.capa * 100, 1)}</td><td>{fmt(s.bw * 100, 1)}</td><td>{fmt(s.pp, 2)}</td><td>{s.Mu === undefined ? '—' : fmt(s.Mu, 2)}</td><td>{s.Mfis === undefined ? '—' : fmt(s.Mfis, 2)}</td><td>{s.VRd1 === undefined ? '—' : fmt(s.VRd1, 2)}</td><td>{s.usada ? 'sim' : ''}</td></tr>)}</tbody>
+              </table>
+            ))}
+          </>)}
 
           {h2('Premissas', true)}
           <ul>{PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <i>({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</i></li>)}</ul>
