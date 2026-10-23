@@ -20,6 +20,7 @@ import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Selec
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
+import { InclinadasHost } from './InclinadasUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { CoresPlanta } from './CoresPlanta';
 import { Pranchas } from './Pranchas';
@@ -238,6 +239,7 @@ export function Edificio() {
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
       <JanelaElemento />
       <JanelaCorte />
+      <InclinadasHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );
