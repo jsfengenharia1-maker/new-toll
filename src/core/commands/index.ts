@@ -13,6 +13,7 @@ import './tiposLaje';
 import './vigotas';
 import './nervuradas';
 import './abacos';
+import './alveolares';
 import './acoes';
 import './armaduras';
 import './agrupamento';

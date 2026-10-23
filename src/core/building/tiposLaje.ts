@@ -9,9 +9,10 @@ import { tabelaNorma, type FonteNormas } from '../normas';
 import type { Concrete } from '../concrete';
 import type { TipoLaje } from './types';
 import { geometriaBidirecional, validarForma, formaPor, type FormaLaje } from './nervuradas';
+import { errosTipoAlveolar, geometriaAlveolar, rotuloAlveolar, type FichaAlveolar } from './alveolares';
 
 /** Nervurada unidirecional: treliçada, por ficha ou moldada (a bidirecional, `nervurada`, tem geometria própria em `nervuradas.ts`). */
-export type TipoNervUni = Exclude<TipoLaje, { tipo: 'macica' } | { tipo: 'nervurada' }>;
+export type TipoNervUni = Exclude<TipoLaje, { tipo: 'macica' } | { tipo: 'nervurada' } | { tipo: 'alveolar' }>;
 
 export const GAMA_CONCRETO = 25; // kN/m³ (NBR 6120)
 
@@ -95,7 +96,7 @@ export interface FichaVigota {
   nota?: string;
 }
 
-export interface TiposLajeObra { fichas?: FichaVigota[]; enchimentos?: Enchimento[]; formas?: FormaLaje[] }
+export interface TiposLajeObra { fichas?: FichaVigota[]; enchimentos?: Enchimento[]; formas?: FormaLaje[]; /** Fichas de placas alveolares da obra (E3e). */ alveolares?: FichaAlveolar[] }
 /** O que as funções precisam do modelo: tabelas normativas (N3) e a biblioteca de tipos de laje da obra. */
 export type FonteLajes = FonteNormas & { tiposLaje?: TiposLajeObra };
 
@@ -534,6 +535,7 @@ export function errosTipoLaje(f: FonteLajes | undefined, t: TipoLaje | undefined
     const v = validarFicha(fi, f);
     return v.erros.length ? e('FICHA_INCOERENTE', `Ficha "${fi.nome}" incoerente: ${v.erros.join(' ')}`) : [];
   }
+  if (t.tipo === 'alveolar') return errosTipoAlveolar(f, t);
   if (t.tipo === 'nervurada') {
     const fm = formaPor(f, t.forma);
     if (!fm) return e('FORMA_INEXISTENTE', `Forma "${t.forma}" não existe (biblioteca de formas da obra ou tabela "Formas das lajes nervuradas" da biblioteca de normas).`);
@@ -552,7 +554,7 @@ export function errosTipoLaje(f: FonteLajes | undefined, t: TipoLaje | undefined
 // ---------------------------------------------------------------- atalhos para os consumidores
 
 /** Laje nervurada unidirecional (treliçada, por ficha ou moldada), em contraste com a maciça e com a nervurada bidirecional. */
-export const ehNervurada = (t: TipoLaje): t is TipoNervUni => t.tipo !== 'macica' && t.tipo !== 'nervurada';
+export const ehNervurada = (t: TipoLaje): t is TipoNervUni => t.tipo !== 'macica' && t.tipo !== 'nervurada' && t.tipo !== 'alveolar';
 /** Laje nervurada bidirecional moldada no local (E3c): grelha com nervuras nas duas direções. */
 export const ehBidirecional = (t: TipoLaje): t is Extract<TipoLaje, { tipo: 'nervurada' }> => t.tipo === 'nervurada';
 /**
@@ -561,6 +563,7 @@ export const ehBidirecional = (t: TipoLaje): t is Extract<TipoLaje, { tipo: 'ner
  */
 export function rotuloLaje(f: FonteLajes | undefined, t: TipoLaje): string {
   if (t.tipo === 'macica') return `h=${cm(t.h)}`;
+  if (t.tipo === 'alveolar') return rotuloAlveolar(f, t);
   if (t.tipo === 'nervurada') { const gb = geometriaBidirecional(f, t); return `NB ${cm(gb.capa)}+${cm(gb.hEnch)} i=${cm(gb.i[0])}×${cm(gb.i[1])} (h=${cm(gb.h)})`; }
   const g = geometriaNervurada(f, t);
   if (t.tipo === 'trelicada') return `TR ${t.modelo}+${cm(t.capa)} (h=${cm(g.hEnch + t.capa)})`;
@@ -568,11 +571,12 @@ export function rotuloLaje(f: FonteLajes | undefined, t: TipoLaje): string {
   return `NM ${cm(g.capa)}+${cm(g.hEnch)} i=${cm(g.intereixo)} (h=${cm(g.h)})`;
 }
 /** Espessura da maciça ou capa da nervurada (m). */
-export const capaLaje = (f: FonteLajes | undefined, t: TipoLaje): number => (t.tipo === 'macica' ? t.h : t.tipo === 'nervurada' ? t.capa : geometriaNervurada(f, t).capa);
+export const capaLaje = (f: FonteLajes | undefined, t: TipoLaje): number => (t.tipo === 'macica' ? t.h : t.tipo === 'nervurada' ? t.capa : t.tipo === 'alveolar' ? geometriaAlveolar(f, t).capa : geometriaNervurada(f, t).capa);
 /** Espessura equivalente de concreto (m): h da maciça ou capa + volume das nervuras por m². */
 export function espessuraConcreto(f: FonteLajes | undefined, t: TipoLaje): number {
   if (t.tipo === 'macica') return t.h;
   if (t.tipo === 'nervurada') return geometriaBidirecional(f, t).volume;
+  if (t.tipo === 'alveolar') return geometriaAlveolar(f, t).espessuraConcreto;
   const g = geometriaNervurada(f, t);
   return g.capa + (g.bw * g.hEnch) / g.intereixo;
 }

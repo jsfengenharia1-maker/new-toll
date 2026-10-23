@@ -169,8 +169,8 @@ registrar<{ ids: string[]; tipo: TipoVao; pos?: number; neg?: number; limpar?: b
   validar(b, p) {
     const sem = p.ids.filter((id) => !b.lajes.some((x) => x.id === id));
     if (sem.length) return err('LAJE_INEXISTENTE', `Laje ${sem.join(', ')} não existe.`);
-    const mac = b.lajes.filter((x) => p.ids.includes(x.id) && !ehNervurada(x.tipo));
-    if (mac.length) return err('LAJE_NAO_NERVURADA', `${mac.map((x) => x.nome).join(', ')} não é nervurada.`, mac.map((x) => x.id));
+    const mac = b.lajes.filter((x) => p.ids.includes(x.id) && !ehNervurada(x.tipo) && x.tipo.tipo !== 'alveolar');
+    if (mac.length) return err('LAJE_NAO_NERVURADA', `${mac.map((x) => x.nome).join(', ')} não é nervurada nem alveolar.`, mac.map((x) => x.id));
     if (!p.limpar && p.pos === undefined && p.neg === undefined) return err('PARAMETRO_INVALIDO', 'Informe `pos` e/ou `neg` (ou `limpar`).');
     return [];
   },

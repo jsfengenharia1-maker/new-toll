@@ -31,6 +31,8 @@ import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento'
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, resumoTelasLajes, type DetalheLaje } from './detalhamentoLajes';
 import { dimensionarVigotasFichas } from './vigotasFichas';
+import { dadosBransonAlveolar, dimensionarAlveolares, flechaFase1Alveolar, resumoAcoAlveolares, type ResultadoAlveolar } from './alveolaresDim';
+import { geometriaAlveolar, processoDoPano } from './alveolares';
 import { dimensionarNervuradas, resumoAcoNervuradas, type ResultadoNervurada } from './nervuradasDim';
 import { espessuraConcretoDaLaje } from './nervuradas';
 import { quantitativoMoldadas, quantitativoVigotas } from './vigotasRelatorio';
@@ -1473,8 +1475,12 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       const pr = propriedadesLaje(l.tipo), msgs: string[] = [];
       let As = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
       // flecha relativa aos apoios (elástica, por combinação); a composição (fator, etapas, fissuração) vem depois de todas as lajes
-      const flQP = flechaRelativa(g, l.id, fQP), fq = flechaRelativa(g, l.id, fQ);
+      let flQP = flechaRelativa(g, l.id, fQP);
+      const fq = flechaRelativa(g, l.id, fQ);
       const vao = Math.min(...vaos(l));
+      // alveolar, processo 2 (E3e): a fase 1 (placa isostática sob o peso próprio) soma à flecha da grelha contínua (permanentes, fator 1)
+      const fase1Alv = l.tipo.tipo === 'alveolar' && processoDoPano(l, op) === 2 ? (() => { const ga = geometriaAlveolar(b, l.tipo as Extract<typeof l.tipo, { tipo: 'alveolar' }>); return flechaFase1Alveolar(ga.pp, vaos(l)[0], ga.EI); })() : 0;
+      flQP += fase1Alv;
       if (l.tipo.tipo === 'macica') {
         const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
         const sec = { kind: 'rect' as const, bw: 1, h };
@@ -1527,7 +1533,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       ja.set(l.id, r);
       out.push(r);
       const metodoL = precisaMetodo || vigotaComBranson(b, l, op);
-      pend.push({ r, l, flQP, dG: metodoL ? flechaRelativa(g, l.id, fG) : 0, dQ: fq, dQqp: metodoL ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
+      if (l.tipo.tipo === 'alveolar' && !geometriaAlveolar(b, l.tipo).EIdaFicha) continue; // K1.9.75: sem EI na ficha a flecha não é verificada (aviso ALVEOLAR_SEM_DADOS)
+      pend.push({ r, l, flQP, dG: metodoL ? flechaRelativa(g, l.id, fG) + fase1Alv : 0, dQ: fq, dQqp: metodoL ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
     }
     // N2f: fissuração das lajes maciças (Branson por barra com a armadura calculada e a grelha recomposta); E3b: vigotas por ficha e moldadas
     const comBranson = (x: PendenteFlecha) => (x.l.tipo.tipo === 'macica' ? !!op.fissuracaoLajes && precisaMetodo : vigotaComBranson(b, x.l, op));
@@ -1596,7 +1603,17 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
     if (!x || t.dir === undefined || !t.largura) return;
     if (x.l.tipo.tipo !== 'macica') {
       // vigotas por ficha e moldadas (E3b): Ie/Ic de Branson da nervura com o momento quase permanente da barra
-      if (t.dir !== 0 || !ehNervurada(x.l.tipo)) return;
+      if (t.dir !== 0) return;
+      if (x.l.tipo.tipo === 'alveolar') {
+        // alveolar (E3e): Ie/Ic de Branson da faixa de 1 m com o EI, o EI fissurado e o Mfis da ficha
+        if (!vig.has(x.l.id)) vig.set(x.l.id, dadosBransonAlveolar(geometriaAlveolar(b, x.l.tipo)));
+        const dadosA = vig.get(x.l.id);
+        if (!dadosA) return;
+        const ma = momentosDaBarra(g.res!, i, fQP, t.largura, 1), Ma = Math.abs(ma[0]) >= Math.abs(ma[1]) ? ma[0] : ma[1], fa = fatorBranson(dadosA, Ma);
+        if (fa < 1 - 1e-9) fator.set(i, fa);
+        return;
+      }
+      if (!ehNervurada(x.l.tipo)) return;
       const g0 = geometriaNervurada(b, x.l.tipo);
       if (!vig.has(x.l.id)) vig.set(x.l.id, dadosBransonLaje(b, g, x.l, g0, c, fELU));
       const dados = vig.get(x.l.id);
@@ -1633,6 +1650,7 @@ interface ResFissuracao { kappa: Map<string, number>; resEl?: Resultado3; resCr?
 
 /** A laje de vigotas usa Branson na flecha (E3b): ficha armada, protendida, genérica ou moldada, com a opção ligada; a treliçada do catálogo interno, não. */
 function vigotaComBranson(b: BuildingModel, l: BuildingModel['lajes'][number], op: AnaliseEdificio['opcoes']): boolean {
+  if (l.tipo.tipo === 'alveolar') return !!op.alveolarBranson && !!dadosBransonAlveolar(geometriaAlveolar(b, l.tipo)); // E3e: Branson com a ficha da placa (EI fissurado e Mfis)
   return !!op.vigotaBranson && ehNervurada(l.tipo) && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) && geometriaNervurada(b, l.tipo).familia !== 'trelicada';
 }
 /** Opções com o método da NBR no lugar dos fatores simplificados da flecha (a ficha traz a rigidez fissurada). */
@@ -1674,7 +1692,9 @@ function flechasDosAlinhamentos(b: BuildingModel, op: AnaliseEdificio['opcoes'],
   const l = x.l, ang = ((l.direcao ?? 0) * Math.PI) / 180, resEl = fis.resEl ?? g.res!, resCr = fis.resCr ?? resEl;
   return alinhamentosDaLaje(g, l.id, [Math.cos(ang), Math.sin(ang)]).map((al) => {
     const el = flechaAlinhamento(g, al, fat.fQP, resEl), cr = flechaAlinhamento(g, al, fat.fQP, resCr), kappa = el > 1e-12 ? Math.max(1, cr / el) : 1;
-    const xi = { flQP: el, dG: flechaAlinhamento(g, al, fat.fG, resEl), dQ: flechaAlinhamento(g, al, fat.fQ, resEl), dQqp: flechaAlinhamento(g, al, fat.fQqp, resEl), vao: al.L };
+    // alveolar, processo 2 (E3e): soma a fase 1 isostática (peso próprio) à flecha do alinhamento
+    const ga = l.tipo.tipo === 'alveolar' && processoDoPano(l, op) === 2 ? geometriaAlveolar(b, l.tipo) : null, f1 = ga ? flechaFase1Alveolar(ga.pp, al.L, ga.EI) : 0;
+    const xi = { flQP: el + f1, dG: flechaAlinhamento(g, al, fat.fG, resEl) + f1, dQ: flechaAlinhamento(g, al, fat.fQ, resEl), dQqp: flechaAlinhamento(g, al, fat.fQqp, resEl), vao: al.L };
     const { f, total, ativa, variavel } = flechasDaLaje(b, op, l, xi, kappa, af);
     const ok = total <= f.limites.total && variavel <= f.limites.variavel && ativa <= f.limites.ativa;
     return { t: al.t, L: al.L, kappa, instantanea: f.instantanea, diferida: f.diferida, total, ativa, variavel, limites: { total: f.limites.total, ativa: f.limites.ativa, variavel: f.limites.variavel }, textos: { total: f.textos.total, ativa: f.textos.ativa, variavel: f.textos.variavel }, status: ok ? 'ok' : 'fail' };
@@ -1694,7 +1714,7 @@ export function quantitativos(b: BuildingModel): Quantitativo[] {
     for (const l of ls) {
       const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
       const t = espessuraConcretoDaLaje(b, l, (tp) => espessuraConcreto(b, tp));
-      cL += A * t; fL += A;
+      cL += A * t; if (l.tipo.tipo !== 'alveolar') fL += A; // alveolar (E3e): placas pré-moldadas e capa sobre elas, sem fôrma de laje
     }
     for (const v of vs) { const L = comprimentoPolilinha(v.pontos); cV += v.secao.b * v.secao.h * L; fV += (v.secao.b + 2 * v.secao.h) * L; }
     const hPav = ip === 0 ? b.obra.profundidadeFundacao : pav.cota - ps[ip - 1].cota;
@@ -1739,6 +1759,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   quantitativoVigotas?: ReturnType<typeof quantitativoVigotas>; quantitativoMoldadas?: ReturnType<typeof quantitativoMoldadas>;
   /** Lajes nervuradas bidirecionais (E3c): nervuras, mesa, cortante, armaduras e quantitativos por laje; aço por bitola (m, kg). */
   nervuradas?: ResultadoNervurada[]; resumoAcoNervuradas?: ReturnType<typeof resumoAcoNervuradas>;
+  /** Lajes alveolares (E3e): placas, escolha, serviço, cortante, negativos na capa, apoios e quantitativos por laje; aço dos negativos por bitola. */
+  alveolares?: ResultadoAlveolar[]; resumoAcoAlveolares?: ReturnType<typeof resumoAcoAlveolares>;
   /** Punção dos pilares que apoiam a laje maciça sem viga e das vigas chatas largas, por pavimento (N2d). */
   puncao?: ResultadoPuncao[];
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
@@ -1876,6 +1898,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
       }
     }
   }
+  { const av = dimensionarAlveolares(b, an, d.lajes, an.opcoes); if (av.length) { d.alveolares = av; d.resumoAcoAlveolares = resumoAcoAlveolares(av, an.opcoes.perdasAco); } }
   if (estadoEmUso(b, 'incendio').ativo) {
     // resistência ao fogo (N2g): método tabular/analítico sobre as dimensões e a armadura adotadas
     const gz = an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : null;

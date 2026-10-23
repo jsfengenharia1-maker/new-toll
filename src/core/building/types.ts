@@ -696,7 +696,9 @@ export type TipoLaje =
   /** Nervurada unidirecional moldada no local (E3a): nervuras como vigas T; `h` = altura total, `enchimento` = id da biblioteca. */
   | { tipo: 'moldada'; capa: number; intereixo: number; bw: number; h: number; enchimento: string }
   /** Nervurada bidirecional moldada no local (E3c): `forma` (cubeta da biblioteca, `formas`), altura total e capa (m). */
-  | { tipo: 'nervurada'; forma: string; hTotal: number; capa: number };
+  | { tipo: 'nervurada'; forma: string; hTotal: number; capa: number }
+  /** Alveolar protendida (E3e): `ficha` (obra, catálogo da biblioteca de normas ou exemplo) e `placa` adotada (código na ficha); a escolha automática só sugere (ver `Laje.alveolar`). */
+  | { tipo: 'alveolar'; ficha: string; placa: string };
 
 export interface Laje {
   id: string;
@@ -757,7 +759,18 @@ export interface Laje {
   zonasMacicas?: [number, number][][];
   /** Nervurada bidirecional (E3c, K1.9.94, K1.13.3): armadura base da mesa e das nervuras; ausente = só a calculada. */
   baseNervurada?: BaseNervurada;
+  /** Alveolar (E3e): placa fixada pelo usuário, negativos editados e processo construtivo do pano; ausente = tudo automático. */
+  alveolar?: ConfigAlveolar;
 }
+
+/** Negativo de uma ponta da placa alveolar na capa: φ (mm) a cada `s` (m); comprimento no pano em m ou em percentual do vão. */
+export interface NegativoAlveolarEd { phi: number; s: number; comprimento?: number; percentual?: number }
+/**
+ * Configuração do pano alveolar (E3e): `fixa` = a placa do tipo foi escolhida pelo usuário (a verificação não sugere trocar);
+ * `negativos` = armadura negativa editada nas pontas (início e fim no sentido da direção das placas), bloqueada até
+ * `armadura.desbloquear`; `processo` = processo construtivo do pano (ausente = opção `alveolarProcesso`).
+ */
+export interface ConfigAlveolar { fixa?: true; negativos?: [NegativoAlveolarEd | null, NegativoAlveolarEd | null]; processo?: 0 | 1 | 2 }
 
 /** Barras de uma nervura: n barras de φ mm. */
 export interface BarrasNervura { n: number; phi: number }

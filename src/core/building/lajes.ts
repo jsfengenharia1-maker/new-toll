@@ -8,6 +8,7 @@ import { GAMA_CONCRETO, ehNervurada, errosTipoLaje, geometriaNervurada, modelosT
 import { opcoesEmUso, perfilDe } from './opcoes';
 import { avisosForma, geometriaBidirecional, verificarGeometria } from './nervuradas';
 import { diagnosticosAbacos } from './abacos';
+import { geometriaAlveolar } from './alveolares';
 
 /**
  * Treliçadas unidirecionais com EPS [a confirmar com o fabricante]: altura do enchimento, intereixo, largura média da
@@ -23,6 +24,7 @@ export const GAMA_EPS = 0.2; // kN/m³ [a confirmar]; em uso: tabela `lajes.ench
 export function propriedadesLaje(t: TipoLaje, b?: FonteLajes): { h: number; pp: number; descricao: string } {
   if (t.tipo === 'macica') return { h: t.h, pp: GAMA_CONCRETO * t.h, descricao: `maciça h=${Math.round(t.h * 100)}` };
   if (t.tipo === 'nervurada') { const gb = geometriaBidirecional(b, t); return { h: gb.h, pp: gb.pp, descricao: gb.descricao }; }
+  if (t.tipo === 'alveolar') { const ga = geometriaAlveolar(b, t); return { h: ga.h, pp: ga.pp, descricao: ga.descricao }; }
   const g = geometriaNervurada(b, t);
   return { h: g.h, pp: g.pp, descricao: g.descricao };
 }
@@ -116,6 +118,8 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
       const gb = geometriaBidirecional(b, l.tipo);
       for (const a of [...verificarGeometria(gb, opcoesEmUso(b.opcoes, perfilDe(b)).nervuradaMesaMin / 100).avisos, ...avisosForma(gb)]) d.push({ codigo: a.codigo, severidade: a.severidade === 'erro' ? 'erro' : 'aviso', elementos: [l.id], mensagem: `${l.nome}: ${a.mensagem}` });
     }
+    for (const l of ls) if (l.tipo.tipo === 'alveolar' && !ehPano(l, panos))
+      d.push({ codigo: 'ALVEOLAR_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é alveolar e não está fechada por vigas nas pontas das placas (as placas precisam de apoio nas duas pontas).` });
     for (const l of ls) if (ehNervurada(l.tipo) && !ehPano(l, panos))
       d.push({ codigo: 'TRELICADA_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é treliçada e não está fechada por vigas (balanço ou contorno livre não é permitido).` });
   }

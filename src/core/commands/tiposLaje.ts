@@ -6,6 +6,7 @@ import {
   enchimentoPor, enchimentoPorOuExemplo, enchimentosCatalogo, errosTipoLaje, fichaPor, fichasDisponiveis, fichaPorGeometria, importarTiposLaje,
   type Enchimento, type FichaVigota, type FonteLajes, type ParamsGeometria,
 } from '../building/tiposLaje';
+import { fichasAlveolaresDisponiveis } from '../building/alveolares';
 import { concretoDe } from '../building/materiais';
 import { validarForma, type FormaLaje } from '../building/nervuradas';
 import type { BuildingModel, TipoLaje } from '../building/types';
@@ -43,6 +44,11 @@ export function garantirTipoNaObra(d: Draft<BuildingModel>, t: TipoLaje): void {
     }
   }
   if (t.tipo === 'moldada') copiarEnchimento(d, t.enchimento);
+  // alveolar (E3e): a ficha de exemplo vai para a obra; a do catálogo da biblioteca de normas fica por id
+  if (t.tipo === 'alveolar' && !b.tiposLaje?.alveolares?.some((f) => f.id === t.ficha)) {
+    const x = fichasAlveolaresDisponiveis(b).find((y) => y.ficha.id === t.ficha);
+    if (x && x.fonte === 'exemplo') { d.tiposLaje ??= {}; (d.tiposLaje.alveolares ??= []).push(copia(x.ficha)); }
+  }
 }
 function copiarEnchimento(d: Draft<BuildingModel>, id: string) {
   const b = d as BuildingModel;
@@ -56,7 +62,8 @@ export const limpar = (d: Draft<BuildingModel>) => {
   if (t.fichas && !t.fichas.length) delete t.fichas;
   if (t.enchimentos && !t.enchimentos.length) delete t.enchimentos;
   if (t.formas && !t.formas.length) delete t.formas;
-  if (!t.fichas && !t.enchimentos && !t.formas) delete d.tiposLaje;
+  if (t.alveolares && !t.alveolares.length) delete t.alveolares;
+  if (!t.fichas && !t.enchimentos && !t.formas && !t.alveolares) delete d.tiposLaje;
 };
 const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
 

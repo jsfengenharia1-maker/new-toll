@@ -157,6 +157,22 @@ export interface OpcoesCalculo {
   vigotaRedistribuir: number;
   /** 1 = flecha das vigotas por ficha e moldadas com a rigidez fissurada de Branson (ficha do fabricante ou seção T); 0 = rigidez total. */
   vigotaBranson: number;
+  /** Alveolares (E3e): processo construtivo, 0 = com escoramento (contínua sob a carga total), 1 = sem escoramento por engaste aproximado (1 − peso próprio / carga total), 2 = sem escoramento em duas fases. */
+  alveolarProcesso: number;
+  /** Alveolares: passo da malha (barras da grelha na direção das placas), m. */
+  alveolarMalha: number;
+  /** 1 = as placas continuam sobre os apoios compartilhados com outro pano (negativo na capa); 0 = todas apoiadas (rotação livre). */
+  alveolarContinuidade: number;
+  /** Alveolares: momento positivo mínimo p·ℓ²/x (0 = só o da análise). */
+  alveolarMomentoMinPositivo: number;
+  /** Alveolares: momento negativo mínimo nas pontas p·ℓ²/x (0 = só o da análise). */
+  alveolarMomentoMinNegativo: number;
+  /** 1 = redistribuição dos negativos das alveolares pela opção `redistribuicao` das vigas (δ ≥ 0,75; 0,90 em nós móveis); 0 = sem redistribuição. */
+  alveolarRedistribuir: number;
+  /** Alveolares: espessura mínima da capa moldada no local (cm). */
+  alveolarCapaMin: number;
+  /** 1 = flecha das alveolares com a rigidez fissurada de Branson (EI e EI fissurado da ficha); 0 = rigidez total. */
+  alveolarBranson: number;
   /** Nervuradas bidirecionais (E3c): passo da malha da grelha como fração do menor intereixo (1/3 no padrão do sistema). */
   nervuradaMalha: number;
   /** Nervuradas bidirecionais: inércia à flexão das barras = fator × inércia da faixa maciça de mesma altura, igual nas zonas maciça e aliviada; 0 = seção T real das nervuras. */
@@ -686,6 +702,22 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = os negativos nas pontas das vigotas (apoios contínuos) são reduzidos por δ = 1 − “Redistribuição de negativos das vigas” (limitado a 25 %: δ ≥ 0,75, ou 0,90 se γz > 1,1) depois dos mínimos e da igualação, e o positivo aumenta pela metade da soma das reduções (equilíbrio). 0 = sem redistribuição.' },
   { chave: 'vigotaBranson', rotulo: 'Vigotas: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson) e 17.3.1 (Mr); programa de referência (C7.31: rigidez total e fissurada da ficha); sem dado do fabricante, EI fissurado pelo estádio II da seção T [a confirmar]', aConfirmar: true,
     descricao: '1 = nas lajes de vigotas por ficha e nas moldadas, a flecha usa a rigidez efetiva de Branson em cada barra da nervura (EI, EI fissurado e Mfis da ficha; sem eles, pela seção T com a armadura adotada) com o momento da combinação quase permanente, e a grelha é resolvida de novo; 0 = rigidez total. Treliçadas do catálogo interno seguem o redutor “rigidez à flexão das nervuras”.' },
+  { chave: 'alveolarProcesso', rotulo: 'Alveolares: processo construtivo', min: 0, max: 2, passo: 1, padrao: 1, padraoNBR: 2, fonte: 'Programa de referência (K1.3.20, K1.9.77-K1.9.81): sem escoramento por engaste aproximado = 1 − peso próprio / carga total', fonteNBR: 'NBR 6118 (etapas construtivas): placa isostática sob o peso próprio e laje contínua sob a carga aplicada depois (duas fases) [a confirmar o item]', aConfirmar: true,
+    descricao: '0 = com escoramento: cálculo estático com continuidade e engaste de borda sob a carga total depois de retirar as escoras (negativos em geral maiores que os positivos). 1 = sem escoramento por engaste aproximado: coeficiente de engaste das bordas × (1 − peso próprio / carga total) com carga uniforme (peso 4,0 e carga total 10,0 kN/m² dão 0,6). 2 = sem escoramento em duas fases: placa isostática sob o peso próprio (p·ℓ²/8) mais laje contínua sob a carga aplicada depois. Cada pano pode ter o seu (laje.alveolar).' },
+  { chave: 'alveolarMalha', rotulo: 'Alveolares: malha da grelha', unidade: 'm', min: 0.1, max: 1.2, passo: 0.05, padrao: 0.4, fonte: 'Programa de referência (K1.3.19): barras a cada 40 cm na direção das placas; NBR 6118 não fixa', aConfirmar: false,
+    descricao: 'Espaçamento das barras da grelha na direção das placas alveolares (unidirecional, EI da ficha por metro, plano rígido, torção reduzida por “Rigidez à torção das lajes”). Cada barra representa uma faixa dessa largura.' },
+  { chave: 'alveolarContinuidade', rotulo: 'Alveolares: continuidade sobre apoios compartilhados', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (K1.9.74): negativo na capa sobre os apoios comuns a dois panos; borda livre apoiada [a confirmar o padrão]', aConfirmar: true,
+    descricao: '1 = nas bordas compartilhadas com outro pano as placas continuam (engaste da borda da análise, com o negativo na capa); nas bordas livres a placa é apoiada. 0 = todas as bordas apoiadas, sem negativo de cálculo. O engaste informado na aresta (laje.alveolar { engasteBordas }) vale em qualquer borda.' },
+  { chave: 'alveolarMomentoMinPositivo', rotulo: 'Alveolares: momento positivo mínimo (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 0, fonte: 'NBR 6118 não exige momento mínimo nas lajes pré-fabricadas; o programa de referência permite por tipo de vão (K1.9.76) [a confirmar o padrão]', aConfirmar: true,
+    descricao: 'Momento positivo mínimo das placas p·ℓ²/x (p = carga linear de cálculo); 0 = só o da análise. Cada pano pode ter o seu por tipo de vão (laje.momentosMin).' },
+  { chave: 'alveolarMomentoMinNegativo', rotulo: 'Alveolares: momento negativo mínimo nas pontas (p·ℓ² / …)', min: 0, max: 50, passo: 1, padrao: 0, fonte: 'NBR 6118 não exige; o programa de referência permite por tipo de vão (K1.9.76) [a confirmar o padrão]', aConfirmar: true,
+    descricao: 'Momento negativo mínimo nas pontas das placas p·ℓ²/x; 0 = só o da análise (borda apoiada sem negativo). Cada pano pode ter o seu por tipo de vão.' },
+  { chave: 'alveolarRedistribuir', rotulo: 'Alveolares: redistribuição dos negativos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.9.74: envoltórias incluem redistribuição e momentos mínimos); limitada pela NBR 6118, 14.6.4.3 (δ ≥ 0,75; 0,90 em nós móveis) [a confirmar o padrão]', aConfirmar: true,
+    descricao: '1 = os negativos nas pontas das placas contínuas são reduzidos por δ = 1 − “Redistribuição de negativos das vigas” (limitado a 25 %: δ ≥ 0,75, ou 0,90 se γz > 1,1) depois dos mínimos, e o positivo aumenta pela metade da soma das reduções (equilíbrio). 0 = sem redistribuição.' },
+  { chave: 'alveolarCapaMin', rotulo: 'Alveolares: capa mínima', unidade: 'cm', min: 0, max: 10, passo: 0.5, padrao: 4, fonte: 'NBR 14861 / NBR 9062 (capa estrutural de painéis alveolares) [a confirmar o valor: texto da norma não disponível; ver docs/pendencias-usuario.md]', aConfirmar: true,
+    descricao: 'Espessura mínima da capa moldada no local sobre as placas; abaixo dela, erro ALVEOLAR_CAPA. 0 desliga a verificação.' },
+  { chave: 'alveolarBranson', rotulo: 'Alveolares: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson); programa de referência (K1.9.83: propriedades da ficha, momentos médios do estado final)', aConfirmar: true,
+    descricao: '1 = a flecha usa a rigidez efetiva de Branson em cada barra (EI, EI fissurado e Mfis da ficha, com o momento da combinação quase permanente) e a grelha é resolvida de novo; sem EI fissurado na ficha, rigidez total. 0 = rigidez total.' },
   { chave: 'nervuradaMalha', rotulo: 'Nervuradas: malha da grelha', unidade: '× intereixo', min: 0.1, max: 1, passo: 0.05, padrao: 1 / 3, fonte: 'Programa de referência (K1.3.25): malha de 1/3 do intereixo da zona aliviada; NBR 6118 não fixa', aConfirmar: false,
     descricao: 'Passo da malha das barras da grelha das lajes nervuradas bidirecionais, como fração do menor intereixo das nervuras (60 cm → 20 cm). Cada barra representa uma faixa de nervuras.' },
   { chave: 'nervuradaInercia', rotulo: 'Nervuradas: inércia à flexão das barras', unidade: '× laje maciça', min: 0, max: 1, passo: 0.05, padrao: 0.5, padraoNBR: 0, fonte: 'Programa de referência (K1.3.26, K1.9.93): metade da inércia da zona maciça, igual nas zonas maciça e aliviada (inércia média, uma só por pano)', fonteNBR: 'NBR 6118, 14.7.7 [a confirmar o item]: rigidez da seção T das nervuras na zona aliviada e da laje maciça na zona maciça', aConfirmar: true,
@@ -1031,6 +1063,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'consoloExcentricidade', 'vinculoExternoFatorEI', 'premoldadaArticulada',
   // E3d: dimensões do ábaco automático (a zona maciça e o rebaixo entram na grelha das nervuradas)
   'abacoFracao', 'abacoCone', 'abacoExtensao', 'abacoLimMin', 'abacoLimMax',
+  // E3e: processo construtivo, malha e continuidade das lajes alveolares entram no modelo de cálculo
+  'alveolarProcesso', 'alveolarMalha', 'alveolarContinuidade',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
@@ -1075,6 +1109,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'diagonalFlambagemVertical', 'diagonalFlambagemTransversal', 'diagonalEsbeltezMax',
   // E2e: dimensionamento e verificação dos consolos e içamento das vigas pré-moldadas (só o dimensionamento)
   'consoloHMinimo', 'consoloBraco', 'consoloMu', 'consoloCostura', 'consoloTensaoApoio', 'premoldadaIcamentoFracao', 'premoldadaIcamentoDinamico',
+  // E3e: mínimos, capa e flecha das lajes alveolares (só o dimensionamento)
+  'alveolarMomentoMinPositivo', 'alveolarMomentoMinNegativo', 'alveolarRedistribuir', 'alveolarCapaMin', 'alveolarBranson',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

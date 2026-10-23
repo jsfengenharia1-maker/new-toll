@@ -328,6 +328,7 @@ export function verificarFogo(b: BuildingModel, d: Dimensionamento, op: OpcoesCa
     const t = trrfDe(l.id, l.grupo), rev = revDe(l.id, l.grupo), comp = cfg?.elementos?.[l.id]?.compartimentadora ?? !!op.fogoLajeCompartimentadora;
     const cov = cobrimentoLaje(b, l.cobrimento).inf * 1000;
     const x = { tipo: 'laje' as const, id: l.id, nome: r.nome, pavimento: r.pavimento, grupo: l.grupo, trrf: t.trrf, origemTrrf: t.origem, revestimento: rev };
+    if (l.tipo.tipo === 'alveolar') continue; // E3e: a NBR 15200 não tem tabela para alveolares; a resistência ao fogo da placa é do fabricante (premissa 'alveolares')
     if (l.tipo.tipo === 'trelicada') {
       const vg = d.vigotas?.find((y) => y.laje === l.id);
       if (!vg) continue;
