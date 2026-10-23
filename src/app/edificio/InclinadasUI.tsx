@@ -8,6 +8,7 @@ import { Button, Check, Hint, Modal, NumField, OptNumField, Pill, Select } from 
 import { resumoInclinadas } from '../../core/building/inclinadas';
 import { casosDaObra, centroNoLance, lancesDoPilar, pavimentosOrdenados, type BuildingModel, type CargaInclinada, type LigacaoBarra, type VigaInclinada } from '../../core/building/types';
 import { useBuilding } from './store';
+import { InclinadaResultados } from './InclinadasResultadosUI';
 
 interface EstadoJanela { aberta: boolean; id?: string; abrir: (id?: string) => void; fechar: () => void }
 /** Estado da janela das vigas inclinadas (a paleta Ctrl+K e a lista de erros a abrem). */
@@ -184,6 +185,7 @@ export function JanelaInclinadas({ id, onClose }: { id?: string; onClose: () => 
             </div>
           )}
         {v && <EditarInclinada key={v.id} b={b} v={v} />}
+        {v && <InclinadaResultados b={b} id={v.id} />}
         <LancarInclinada b={b} aoLancar={setSel} />
       </div>
     </Modal>
