@@ -13,10 +13,12 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
    - código em conflito: unir os dois lados à mão (comandos, opções, premissas, imports, registros);
    - `npm run checklists`, `npx tsc -b`, `npx vitest run` (completo), `npm run e2e` (completo, paralelo) — tudo verde antes de `git push origin HEAD:main HEAD:claude/quirky-curie-uqb7br`;
    - remover worktrees e branches dos agentes juntados.
-4. Briefing padrão dos agentes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
+4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-Nenhuma. Última rodada fechada em 23/10/2026: migração do layout D1–D3 (faixa de comandos com abas por módulo, docas, abas de vista, barra de status, Configuração da obra como janela fixa sobre a doca esquerda; 85/85 e2e), núcleos da E3d (ábacos e punção nas nervuradas) e E3e (lajes alveolares).
+23/10/2026: D4→D6 (Sonnet baixo), E3f núcleo (Opus), E4a núcleo (Sonnet médio), script `npm run checklist` (Haiku). Depois do merge: dividir `e2e/flows.mjs` em `e2e/flows/<frente>.mjs` (Sonnet baixo) e compactar.
+
+Anterior: Última rodada fechada em 23/10/2026: migração do layout D1–D3 (faixa de comandos com abas por módulo, docas, abas de vista, barra de status, Configuração da obra como janela fixa sobre a doca esquerda; 85/85 e2e), núcleos da E3d (ábacos e punção nas nervuradas) e E3e (lajes alveolares).
 
 ## Próxima rodada (soltar ao retomar)
 1. Migração do layout D4 (navegador em árvore sincronizado com a planta) → D5 (painel de propriedades) → D6 (ajuste final dos e2e e guarda `mapaLayout.test.ts`): um agente Sonnet baixo em sequência, cartões em `docs/cartoes/D4..D6`. Desvios da D3 a respeitar: Configuração da obra não é modal; `.optbar` em linha única; `ui/Modal` com ouvinte de Esc em ref.
