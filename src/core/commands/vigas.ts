@@ -1,6 +1,8 @@
 // Comandos de vigas: traçar, editar, dividir, unir, prolongar/aparar, mover, copiar (no grupo e para outros grupos),
 // remover, renumerar e ajustar às faces dos pilares.
 import { alturaVigaChata } from '../building/secaoViga';
+import { cortarPoligonal, ehCurva, juntarPoligonais, inverterPoligonal, montarPoligonal } from '../building/curvas';
+import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import type { Draft } from 'immer';
 import { centroPilar, comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
@@ -19,6 +21,28 @@ const alinSchema: JsonSchema = { type: 'string', enum: ['esq', 'centro', 'dir'],
 const coefSchema: JsonSchema = { type: 'number', minimum: 0, maximum: 1, description: 'coeficiente de engaste (0 = rótula, 1 = engaste)' };
 const vincSchema: JsonSchema = { type: 'string', enum: ['auto', 'engaste', 'articulado'] };
 const r6 = (v: number) => +v.toFixed(6);
+const passagensSchema: JsonSchema = { type: 'array', items: {}, description: 'ponto de passagem de cada trecho entre os pontos (null = trecho reto): o trecho vira o arco por início, passagem e fim (E2b)' };
+/** Corda máxima das vigas curvas (m), da opção `curvaSegmento`. */
+const cordaCurva = (b: Pick<BuildingModel, 'opcoes' | 'perfilOpcoes'>) => opcoesEmUso(b.opcoes, perfilDe(b)).curvaSegmento / 100;
+type Passagens = (P | null)[];
+/** Poligonal de uma viga a partir dos pontos de controle e das passagens (sem passagem, a poligonal limpa). */
+function poligonal(b: BuildingModel, pontos: P[], passagens: Passagens | undefined) {
+  if (!passagens?.some((q) => q)) return { pontos: limpar(pontos), arcos: [] as { ini: number; fim: number }[] };
+  return montarPoligonal(pontos, passagens, cordaCurva(b));
+}
+const erroPassagens = (pontos: P[], passagens: Passagens | undefined): Diagnostico[] | null => {
+  if (!passagens) return null;
+  if (passagens.length !== pontos.length - 1) return err('PASSAGENS_INVALIDAS', `Informe uma passagem (ou null) para cada um dos ${pontos.length - 1} trechos.`);
+  if (passagens.some((q) => q !== null && !(Array.isArray(q) && q.length === 2 && q.every((x) => typeof x === 'number' && Number.isFinite(x))))) return err('PASSAGENS_INVALIDAS', 'Cada passagem é null (trecho reto) ou um ponto [x, y] em m.');
+  return null;
+};
+const erroArcoDegenerado = (b: BuildingModel, pontos: P[], passagens: Passagens | undefined): Diagnostico[] | null => {
+  if (!passagens?.some((q) => q)) return null;
+  const r = montarPoligonal(pontos, passagens, cordaCurva(b));
+  return 'degenerado' in r ? err('VIGA_ARCO_DEGENERADO', `O trecho ${r.degenerado + 1} tem a passagem alinhada com o início e o fim: não define um arco.`) : null;
+};
+/** Vinculada de viga comum: geometria e seção vêm da origem (E2b). */
+const erroVinculada = (v: Viga | undefined, campos: string): Diagnostico[] | null => (v?.comumDe ? err('VIGA_COMUM_ASSOCIADA', `${v.nome} é a viga associada de uma viga comum: ${campos} se alteram na viga de origem (ou desfaça a viga comum).`, [v.id]) : null);
 const viga = (b: BuildingModel, id: string) => b.vigas.find((v) => v.id === id);
 const faltam = (b: BuildingModel, l: string[]) => l.filter((id) => !viga(b, id));
 
@@ -33,26 +57,29 @@ function limpar(pts: P[]): P[] {
   return out;
 }
 
-registrar<{ grupo: string; pontos: P[]; secao: { b: number; h: number }; alinhamento: Alinhamento; invertida: boolean; nome?: string }>({
+registrar<{ grupo: string; pontos: P[]; passagens?: Passagens; secao: { b: number; h: number }; alinhamento: Alinhamento; invertida: boolean; nome?: string }>({
   nome: 'viga.tracar',
-  descricao: 'Traça uma viga na planta do grupo por uma polilinha (m). `alinhamento` diz se a linha traçada é o eixo ou uma face. Nome automático V<n> do grupo.',
+  descricao: 'Traça uma viga na planta do grupo por uma polilinha (m). `alinhamento` diz se a linha traçada é o eixo ou uma face. Com `passagens` (um ponto por trecho, ou null), o trecho vira um arco por início, passagem e fim, discretizado em cordas de até a opção `curvaSegmento`; trechos retos e curvos podem se alternar. Nome automático V<n> do grupo.',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'pontos', 'secao'], properties: {
-    grupo: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, secao: secaoSchema,
+    grupo: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, passagens: passagensSchema, secao: secaoSchema,
     alinhamento: { ...alinSchema, default: 'centro' }, invertida: { type: 'boolean', default: false }, nome: { type: 'string', minLength: 1 },
   } },
   validar(b, p) {
     if (!b.grupos.some((g) => g.id === p.grupo)) return err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`);
+    const ep = erroPassagens(p.pontos, p.passagens) ?? erroArcoDegenerado(b, p.pontos, p.passagens);
+    if (ep) return ep;
     return limpar(p.pontos).length < 2 ? err('VIGA_DEGENERADA', 'A viga precisa de dois pontos distintos.') : [];
   },
   aplicar(d, p) {
     const nome = p.nome?.trim() || `V${proximaViga(d as BuildingModel, p.grupo)}`;
-    d.vigas.push({ id: novoId(d), nome, grupo: p.grupo, pontos: limpar(p.pontos), secao: { ...p.secao }, alinhamento: p.alinhamento, ...(p.invertida ? { invertida: true } : {}) });
-    return `${nome} traçada (${String(+comprimentoPolilinha(limpar(p.pontos)).toFixed(2)).replace('.', ',')} m).`;
+    const g = poligonal(d as BuildingModel, p.pontos, p.passagens) as { pontos: P[]; arcos: { ini: number; fim: number }[] };
+    d.vigas.push({ id: novoId(d), nome, grupo: p.grupo, pontos: g.pontos, secao: { ...p.secao }, alinhamento: p.alinhamento, ...(p.invertida ? { invertida: true } : {}), ...(g.arcos.length ? { arcos: g.arcos } : {}) });
+    return `${nome} ${g.arcos.length ? `curva traçada (${g.arcos.length} trecho(s) curvo(s), ` : 'traçada ('}${String(+comprimentoPolilinha(g.pontos).toFixed(2)).replace('.', ',')} m).`;
   },
 });
 
-registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
+registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
   engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string;
   mesa?: { tipo: 'ret' | 'T' | 'L'; bf?: number; hf?: number; a?: number }; chata?: boolean; estrutural?: boolean; amarracao?: boolean }>({
   nome: 'viga.editar',
@@ -61,7 +88,7 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
   // tabela, cobrimento e nome só mudam o dimensionamento; a seção muda rigidez e peso (rearmar com os esforços guardados)
   calculo: (p) => nivelEdicao(p, ['tabela', 'tabelaEstribo', 'cobrimento'], 'secao'),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
-    id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, secao: secaoSchema,
+    id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, pontos: { type: 'array', items: ponto, minItems: 2 }, passagens: passagensSchema, secao: secaoSchema,
     alinhamento: alinSchema, invertida: { type: 'boolean' }, nivel: { type: 'number', minimum: -5, maximum: 5 }, vinculoIni: vincSchema, vinculoFim: vincSchema,
     engasteIni: coefSchema, engasteFim: coefSchema, engasteLajes: coefSchema, torcaoEquilibrio: { type: 'boolean' }, foraDiafragma: { type: 'boolean' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
@@ -81,6 +108,12 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
   validar(b, p) {
     if (!viga(b, p.id)) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
     const v0 = viga(b, p.id)!;
+    if (p.pontos || p.secao || p.alinhamento || p.invertida !== undefined || p.nivel !== undefined || p.mesa || p.chata !== undefined) {
+      const ev = erroVinculada(v0, 'pontos, seção, alinhamento, desnível, mesa e altura');
+      if (ev) return ev;
+    }
+    if (p.passagens && !p.pontos) return err('PASSAGENS_SEM_PONTOS', 'As passagens acompanham os pontos: informe os dois.');
+    if (p.pontos) { const ep = erroPassagens(p.pontos, p.passagens) ?? erroArcoDegenerado(b, p.pontos, p.passagens); if (ep) return ep; }
     if (p.mesa && p.mesa.tipo !== 'ret') {
       const bw = p.secao?.b ?? v0.secao.b, h = p.secao?.h ?? v0.secao.h;
       if (p.mesa.bf !== undefined && p.mesa.bf <= bw) return err('MESA_INVALIDA', 'A largura da mesa (bf) precisa ser maior que a da alma.');
@@ -97,8 +130,12 @@ registrar<{ id: string; nome?: string; pontos?: P[]; secao?: { b: number; h: num
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.id)!;
     if (p.nome !== undefined) v.nome = p.nome.trim();
-    if (p.pontos) v.pontos = limpar(p.pontos);
     let aviso = '';
+    if (p.pontos) {
+      const g = poligonal(d as BuildingModel, p.pontos, p.passagens) as { pontos: P[]; arcos: { ini: number; fim: number }[] };
+      v.pontos = g.pontos;
+      if (g.arcos.length) v.arcos = g.arcos; else delete v.arcos;
+    }
     if (p.secao) { if (p.secao.b !== v.secao.b || p.secao.h !== v.secao.h) aviso = soltarArmaduraViga(v); v.secao = { ...p.secao }; }
     if (p.alinhamento) v.alinhamento = p.alinhamento;
     if (p.invertida !== undefined) { if (p.invertida) v.invertida = true; else delete v.invertida; }
@@ -140,6 +177,10 @@ registrar<{ ids: string[]; campo: 'secao' | 'alinhamento' | 'invertida' | 'nivel
   validar(b, p) {
     const f = faltam(b, p.ids);
     if (f.length) return err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`);
+    if (['secao', 'alinhamento', 'invertida', 'nivel', 'mesa', 'chata'].includes(p.campo)) {
+      const ev = p.ids.map((id) => erroVinculada(viga(b, id), 'seção, alinhamento, desnível, mesa e altura')).find((x) => x);
+      if (ev) return ev;
+    }
     const ok = p.campo === 'secao' ? typeof p.valor === 'object' && p.valor !== null && (p.valor as { b: number }).b > 0 && (p.valor as { h: number }).h > 0
       : p.campo === 'alinhamento' ? ['esq', 'centro', 'dir'].includes(p.valor as string)
       : p.campo === 'mesa' ? typeof p.valor === 'object' && p.valor !== null && ['ret', 'T', 'L'].includes((p.valor as { tipo: string }).tipo)
@@ -184,6 +225,8 @@ registrar<{ id: string; ponto: P }>({
   validar(b, p) {
     const v = viga(b, p.id);
     if (!v) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
+    const ev = erroVinculada(v, 'a divisão');
+    if (ev) return ev;
     const q = projetar(v.pontos, p.ponto), L = comprimentoPolilinha(v.pontos);
     const s = comprimentoPolilinha([...v.pontos.slice(0, q.i + 1), q.p]);
     return s < 0.01 || L - s < 0.01 ? err('DIVISAO_NA_PONTA', 'O ponto de divisão coincide com uma extremidade.', [v.id]) : [];
@@ -191,6 +234,7 @@ registrar<{ id: string; ponto: P }>({
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.id)!;
     const q = projetar(v.pontos as P[], p.ponto), m: P = [r6(q.p[0]), r6(q.p[1])];
+    if (ehCurva(v as Viga)) return dividirCurva(d, v as Viga, comprimentoPolilinha([...(v.pontos as P[]).slice(0, q.i + 1), m]));
     const a = limpar([...(v.pontos as P[]).slice(0, q.i + 1), m]), z = limpar([m, ...(v.pontos as P[]).slice(q.i + 1)]);
     const nova: Viga = { ...JSON.parse(JSON.stringify(v)), id: novoId(d), nome: `V${proximaViga(d as BuildingModel, v.grupo)}`, pontos: z };
     delete nova.vinculoIni;
@@ -201,6 +245,19 @@ registrar<{ id: string; ponto: P }>({
   },
 });
 
+/** Divide a viga curva na abscissa `s` (m): as duas partes mantêm os trechos curvos, com o corte sobre o arco. */
+export function dividirCurva(d: Draft<BuildingModel>, v: Viga, s: number): string {
+  const { a, z } = cortarPoligonal(v, s);
+  const nova: Viga = { ...JSON.parse(JSON.stringify(v)), id: novoId(d), nome: `V${proximaViga(d as BuildingModel, v.grupo)}`, pontos: z.pontos };
+  delete nova.vinculoIni; delete nova.arcos;
+  if (z.arcos.length) nova.arcos = z.arcos;
+  v.pontos = a.pontos;
+  if (a.arcos.length) v.arcos = a.arcos; else delete v.arcos;
+  delete v.vinculoFim;
+  d.vigas.push(nova);
+  return `${v.nome} dividida; o trecho final virou ${nova.nome}.`;
+}
+
 registrar<{ ids: string[] }>({
   nome: 'viga.unir',
   descricao: 'Une duas vigas do mesmo grupo, com a mesma seção e alinhamento, que têm uma extremidade em comum. Fica o nome da primeira.',
@@ -210,16 +267,37 @@ registrar<{ ids: string[] }>({
   validar(b, p) {
     const [v, w] = p.ids.map((id) => viga(b, id));
     if (!v || !w) return err('VIGA_INEXISTENTE', 'Viga inexistente.');
+    const ev = erroVinculada(v, 'a união') ?? erroVinculada(w, 'a união');
+    if (ev) return ev;
+    if (v.comum || w.comum) return err('VIGA_COMUM_UNIR', 'Desfaça a viga comum antes de unir.', [v.id, w.id]);
     if (v.grupo !== w.grupo || v.secao.b !== w.secao.b || v.secao.h !== w.secao.h || v.alinhamento !== w.alinhamento) return err('VIGAS_DIFERENTES', 'Só une vigas do mesmo grupo, seção e alinhamento.', [v.id, w.id]);
     return juntar(v.pontos, w.pontos) ? [] : err('VIGAS_SEM_PONTA_COMUM', `${v.nome} e ${w.nome} não têm extremidade em comum.`, [v.id, w.id]);
   },
   aplicar(d, p) {
     const v = d.vigas.find((x) => x.id === p.ids[0])!, w = d.vigas.find((x) => x.id === p.ids[1])!;
+    if (ehCurva(v as Viga) || ehCurva(w as Viga)) {
+      const u = unirPoligonais(v as Viga, w as Viga)!;
+      v.pontos = u.pontos;
+      if (u.arcos.length) v.arcos = u.arcos; else delete v.arcos;
+      d.vigas = d.vigas.filter((x) => x.id !== w.id);
+      return `${w.nome} unida a ${v.nome}.`;
+    }
     v.pontos = limpar(juntar(v.pontos as P[], w.pontos as P[])!);
     d.vigas = d.vigas.filter((x) => x.id !== w.id);
     return `${w.nome} unida a ${v.nome}.`;
   },
 });
+
+/** Une duas vigas com uma ponta em comum (com os trechos curvos), mantendo o sentido da primeira; null se não se tocam. */
+export function unirPoligonais(v: Pick<Viga, 'pontos' | 'arcos'>, w: Pick<Viga, 'pontos' | 'arcos'>): { pontos: P[]; arcos: { ini: number; fim: number }[] } | null {
+  const eq = (p: P, q: P) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-4;
+  const a = v.pontos as P[], z = w.pontos as P[];
+  if (eq(a[a.length - 1], z[0])) return juntarPoligonais(v, w);
+  if (eq(a[a.length - 1], z[z.length - 1])) return juntarPoligonais(v, inverterPoligonal(w));
+  if (eq(a[0], z[z.length - 1])) return juntarPoligonais(w, v);
+  if (eq(a[0], z[0])) return juntarPoligonais(inverterPoligonal(w), v);
+  return null;
+}
 
 /** Junta duas polilinhas com uma ponta em comum, mantendo o sentido da primeira. */
 function juntar(a: P[], z: P[]): P[] | null {
@@ -300,6 +378,7 @@ registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
   },
   aplicar(d, p) {
     const orig = p.ids.map((id) => JSON.parse(JSON.stringify(d.vigas.find((v) => v.id === id))) as Viga);
+    for (const v of orig) { delete v.comum; delete v.comumDe; }
     for (let k = 1; k <= p.vezes; k++) for (const v of orig)
       d.vigas.push({ ...v, id: novoId(d), nome: `V${proximaViga(d as BuildingModel, v.grupo)}`, pontos: v.pontos.map((q) => [r6(q[0] + k * p.dx), r6(q[1] + k * p.dy)] as P) });
     return `${orig.length * p.vezes} cópia(s) criada(s).`;
@@ -320,6 +399,7 @@ registrar<{ ids: string[]; grupos: string[] }>({
   aplicar(d, p) {
     const orig = p.ids.map((id) => JSON.parse(JSON.stringify(d.vigas.find((v) => v.id === id))) as Viga);
     let n = 0, pulou = 0;
+    for (const v of orig) { delete v.comum; delete v.comumDe; }
     for (const g of p.grupos) for (const v of orig) {
       if (g === v.grupo) continue;
       const igual = d.vigas.some((w) => w.grupo === g && JSON.stringify(w.pontos) === JSON.stringify(v.pontos) && w.secao.b === v.secao.b && w.secao.h === v.secao.h);
@@ -336,7 +416,13 @@ registrar<{ ids: string[] }>({
   descricao: 'Remove vigas.',
   risco: 'destrutivo',
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
-  validar(b, p) { const f = faltam(b, p.ids); return f.length ? err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`) : []; },
+  validar(b, p) {
+    const f = faltam(b, p.ids);
+    if (f.length) return err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`);
+    // a vinculada de uma viga comum volta sozinha se a origem continua: remova a origem ou desfaça a viga comum
+    const vinc = p.ids.map((id) => viga(b, id)!).filter((v) => v.comumDe && !p.ids.includes(v.comumDe));
+    return vinc.length ? err('VIGA_COMUM_ASSOCIADA', `${vinc.map((v) => v.nome).join(', ')}: viga associada de viga comum; remova a viga de origem ou desfaça a viga comum.`, vinc.map((v) => v.id)) : [];
+  },
   aplicar(d, p) { const s = new Set(p.ids); d.vigas = d.vigas.filter((v) => !s.has(v.id)); return `${p.ids.length} viga(s) removida(s).`; },
 });
 

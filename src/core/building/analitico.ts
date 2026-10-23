@@ -11,6 +11,8 @@ import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, TRELICADAS, eixosDasVigas } from './lajes';
 import { inerciaT, mesaDaViga, propriedadesRigidez } from './secaoViga';
+import { ehCurva } from './curvas';
+import { pavimentoAlvoComum } from './vigaComum';
 import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
 import { concretoDe, flambagemLance, gamas } from './materiais';
@@ -22,7 +24,7 @@ import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
 import { incluirParedes, reduzirCascas, type ParedesNoPortico } from './pilarParedeModelo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
-import { anguloNoLance, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
+import { pavimentosDoGrupo, anguloNoLance, centroPilar, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
 
 /** Opções de cálculo em uso + coeficiente de Poisson (NBR 6118, 8.2.9). */
 export type OpcoesAnalise = OpcoesCalculo & { nu: number };
@@ -216,6 +218,8 @@ interface GrelhaBase {
   trechoDe: (TrechoViga | null)[];
   /** Pilares presentes no pavimento. */
   pilares: string[];
+  /** Nós da planta sobre vigas associadas de viga comum (E2b): linha de apoio vertical da laje, reação levada à viga de origem. */
+  linhaComum: Set<number>;
 }
 
 /** Grelha do modelo integrado: associação dos nós aos pilares, barras com trecho rígido e a condensação. */
@@ -445,7 +449,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const grelhas: GrelhaPavimento[] = [];
   /** Pilar apoiado cujo pé entra na grelha do pavimento em que nasce: sobre viga (nó da viga) e, no modelo integrado, sobre laje. */
   const naGrelha = (p: Pilar) => { const a = apoios.get(p.id); return a?.tipo === 'viga' || (a?.tipo === 'laje' && op.modeloGlobal === 1); };
-  const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>> }>();
+  const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>>; comuns: Set<number> }>();
   const CASOS = casosDaObra(b).map((c) => c.id), zeros = () => Object.fromEntries(CASOS.map((c) => [c, 0])) as Record<CasoAnalise, number>;
   const totais = zeros();
   const cargasPavimento: Record<string, Record<CasoAnalise, number>> = Object.fromEntries(ps.map((p) => [p.id, zeros()]));
@@ -453,6 +457,12 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const transfDe = new WeakMap<Resultado3, Record<CasoAnalise, Map<number, number[]>>>();
   const basesGrelha = new Map<string, GrelhaBase>();
   const integrado = op.modeloGlobal === 1;
+  /** Viga associada de uma viga comum cuja origem existe e tem pavimento: sai da análise (a barra é a da origem). */
+  const comumEfetiva = (v: Viga) => { const o = v.comumDe ? b.vigas.find((x) => x.id === v.comumDe) : undefined; return !!o && pavimentosDoGrupo(b, o.grupo).length > 0; };
+  /** Viga comum a dois grupos (E2b): reações da linha de apoio das vigas associadas (kN, para cima, por caso), a aplicar na viga de origem no pavimento alvo. */
+  const comumExtra = new Map<string, { p: P; f: Record<string, number[]> }[]>();
+  /** Modelo integrado: cargas a retirar do superelemento da associada (nó da grelha e força por caso). */
+  const comumRetirar = new Map<string, { no: number; f: Record<string, number[]> }[]>();
   /** Pavimentos do modelo integrado: modelo-base da grelha e o seu superelemento. */
   const integPav = new Map<string, { gb: GrelhaBase; ig: IntegradoGrelha; gi: number }>();
   const cacheInteg = new Map<GrelhaBase, IntegradoGrelha>();
@@ -501,8 +511,13 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const trechoDe: (TrechoViga | null)[] = []; // barra da grelha → trecho de viga (null nas lajes)
     // N2e (K1.4.34): trecho fino dentro de um trecho grosso (cruzamento a cruzamento/apoio) com comprimento ≤ limite
     const curtaNaGrelha = (t: TrechoViga) => { const m: P = [(nos[t.a].p[0] + nos[t.z].p[0]) / 2, (nos[t.a].p[1] + nos[t.z].p[1]) / 2]; return grosso.trechos.some((g) => g.viga === t.viga && Math.hypot(grosso.nos[g.z].p[0] - grosso.nos[g.a].p[0], grosso.nos[g.z].p[1] - grosso.nos[g.a].p[1]) <= op.barraCurtaLimite + 1e-9 && distSeg(m, grosso.nos[g.a].p, grosso.nos[g.z].p) < 1e-3); };
+    // viga comum a dois grupos (E2b): a viga associada é uma viga normal da grelha deste grupo (apoia a laje com a sua rigidez), mas
+    // sem peso próprio; o que a laje e as cargas lançadas transmitem aos seus nós vai à viga de origem, e ela não é barra do pórtico
+    const linhaComum = new Set<number>();
     for (const t of trechos) {
       const v = t.viga, pv = propsBarraViga(b, v, op);
+      const associada = comumEfetiva(v);
+      if (associada) { linhaComum.add(t.a); linhaComum.add(t.z); }
       const bv: Barra3 = { i: no(t.a), j: no(t.z), E: Ev, G: Gv, ...pv };
       if (op.barraCurtaLimite > 0 && op.barraCurtaFator !== 1 && curtaNaGrelha(t)) { bv.A *= op.barraCurtaFator; bv.Iz *= op.barraCurtaFator; bv.Iy *= op.barraCurtaFator; bv.J *= op.barraCurtaFator; }
       vincularPontas(bv, t, trechos, nos, [5]);
@@ -510,7 +525,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       tags.push({ tipo: 'viga', ref: v.id });
       trechoDe.push(t);
       const pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
-      carregar('G', (cs) => cs.distribuidas.push({ barra: m.barras.length - 1, q: [0, 0, -pp] }));
+      if (!associada) carregar('G', (cs) => cs.distribuidas.push({ barra: m.barras.length - 1, q: [0, 0, -pp] }));
     }
     for (const { l, m: mm } of malhas) {
       const prop = propLaje(l, mm.sx, mm.sy, op);
@@ -592,7 +607,13 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       carga[CASOS[ic]] = s;
     });
     if (!m.barras.length) avisosB.push('sem vigas nem lajes (só pilares).');
-    return { m, tags, casos, apoio, transicao, idx, nos, trechos, grosso, carga, avisos: avisosB, trechoDe, pilares: pilares.map((p) => p.id) };
+    // E2b: viga que chega à associada de uma viga comum fora de um pilar: a reação dela não é levada à viga de origem
+    for (const i of linhaComum) {
+      if (apoio.has(i)) continue;
+      const w = trechos.find((x) => !x.viga.comumDe && (x.a === i || x.z === i));
+      if (w) avisosB.push(`Viga comum: ${w.viga.nome} chega à viga associada de uma viga comum fora de pilar; a reação dela não passa à viga de origem (analise-a apoiada na viga de origem).`);
+    }
+    return { m, tags, casos, apoio, transicao, idx, nos, trechos, grosso, carga, avisos: avisosB, trechoDe, pilares: pilares.map((p) => p.id), linhaComum };
   };
   /** Molas de rotação dos pilares na grelha do pavimento (4EI/L dos lances de baixo e de cima, com o engaste parcial). */
   const molasGrelha = (gb: GrelhaBase, ip: number, pav: (typeof ps)[number]) => {
@@ -750,13 +771,138 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       kt,
     };
   };
-  for (const [ip, pav] of ps.entries()) {
+  /** Forças que as lajes (e as cargas nodais) passam aos nós das vigas e dos pilares da grelha, por caso: cargas do pórtico no modelo separado. */
+  const transfDaSolucao = (gb: GrelhaBase, m: Modelo3, res: Resultado3): Record<CasoAnalise, Map<number, number[]>> => {
+    const feito = transfDe.get(res);
+    if (feito) return feito;
+    const { tags, casos, apoio, nos } = gb;
+    const transf = Object.fromEntries(CASOS.map((c) => [c, new Map()])) as Record<CasoAnalise, Map<number, number[]>>;
+    const gidx = new Map([...gb.idx].map(([i, gi]) => [gi, i]));
+    CASOS.forEach((c, ic) => {
+      const f = new Map<number, number[]>();
+      m.barras.forEach((br, bi) => {
+        if (tags[bi].tipo !== 'laje') return;
+        const e = res.esforcos[ic][bi];
+        for (const [noG, off] of [[br.i, 0], [br.j, 6]] as const) {
+          const i = gidx.get(noG)!;
+          if (!nos[i].viga && !apoio.has(i)) continue;
+          const g = paraGlobal(m, br, e, off); // força que o nó faz na barra
+          const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0];
+          for (let k = 0; k < 6; k++) acc[k] -= g[k]; // a laje empurra o nó
+          f.set(i, acc);
+        }
+      });
+      for (const n of casos[ic].nodais) { const i = gidx.get(n.no)!; if (!nos[i].viga && !apoio.has(i)) continue; const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0]; n.f.forEach((v, k) => (acc[k] += v)); f.set(i, acc); }
+      transf[c] = f;
+    });
+    transfDe.set(res, transf);
+    return transf;
+  };
+  /** Grupo, pilares presentes e modelo-base da grelha do pavimento (montado uma vez por grupo e pilares). */
+  const baseDoPav = (pav: (typeof ps)[number]) => {
     const grupo = b.grupos.find((g) => g.id === pav.grupo)!;
     // pilares que chegam ao pavimento e os que nascem nele sobre viga (e sobre laje, no modelo integrado): E1a
     const pilares = [...pilaresA, ...(paredes?.fatias ?? [])].filter((p) => lancesDoPilar(b, p).some((x) => x.id === pav.id) || (p.nasce === pav.id && naGrelha(p)));
     const chaveBase = `${grupo.id}|${pilares.map((p) => { const g = geoEm(p, pav.id), e = p.secoes?.find((x) => x.pavimento === lanceNoPavimento(b, p, pav.id)); return `${p.id}:${JSON.stringify({ s: g.secao, a: e?.ajuste, n: e?.angulo, x: e?.dx, y: e?.dy, t: p.nasce === pav.id })}`; }).join(';')}`;
     let gb = basesGrelha.get(chaveBase);
     if (!gb) { gb = montarBase(pav, grupo, pilares); basesGrelha.set(chaveBase, gb); }
+    return { grupo, gb };
+  };
+  /** Chave da solução da grelha: pavimentos do mesmo grupo têm a mesma grelha e a solução se reaproveita quando apoios e molas coincidem. */
+  const chaveGrelha = (grupoId: string, m: Modelo3, extra = '') => `${grupoId}|${m.nos.length}|${m.barras.length}|${[...m.apoios].filter(([, g]) => g.includes(2)).map(([n]) => n).join(',')}|${m.molas!.map((x) => `${x.no}:${x.gdl}:${x.k.toPrecision(12)}`).join(',')}${extra}`;
+  /** Viga comum (E2b): pavimento do grupo de origem que recebe a reação do nó `i` da linha de apoio da viga associada neste pavimento. */
+  const alvoComum = (gb: GrelhaBase, i: number, pav: (typeof ps)[number]) => {
+    const t = gb.trechos.find((x) => (x.a === i || x.z === i) && x.viga.comumDe);
+    const o = t ? b.vigas.find((x) => x.id === t.viga.comumDe) : undefined;
+    return o ? pavimentoAlvoComum(b, pav, o) : undefined;
+  };
+  /** Grelha com cargas nodais a mais por caso (as das vigas associadas na viga de origem; o oposto nas associadas do modelo integrado). */
+  const comCargasNodais = (gb: GrelhaBase, extras: { no: number; f: Record<string, number[]>; sinal: 1 | -1 }[]): GrelhaBase => {
+    const casosX = gb.casos.map((cs) => ({ ...cs, nodais: [...cs.nodais] }));
+    for (const x of extras) CASOS.forEach((c, ic) => { const f = x.f[c]; if (f && f.some((v) => v)) casosX[ic].nodais.push({ no: x.no, f: f.map((v) => x.sinal * v) }); });
+    return { ...gb, casos: casosX };
+  };
+  /** Nó da grelha (de viga) mais próximo de um ponto da planta: índice da planta e da grelha; null se não há. */
+  const noDeVigaMaisProximo = (gb: GrelhaBase, p: P): { i: number; gi: number } | null => {
+    let melhor: { i: number; gi: number } | null = null, dm = Infinity;
+    for (const [i, gi] of gb.idx) { if (!gb.nos[i].viga) continue; const d = Math.hypot(gb.nos[i].p[0] - p[0], gb.nos[i].p[1] - p[1]); if (d < dm) { dm = d; melhor = { i, gi }; } }
+    return melhor;
+  };
+  // pré-passo da viga comum (E2b). A viga associada é viga normal da grelha do seu grupo (apoia a laje com a rigidez da viga, sem peso
+  // próprio; pilares como molas, como no modelo separado). As forças que a laje e as cargas lançadas passam aos nós dela vão à viga de
+  // origem, no pavimento alvo. Dois passos, para a associada flexar como a viga única (com a carga das lajes dos dois grupos):
+  // (1) a associada flexa só com a carga do seu grupo; (2) resolve-se o pavimento alvo com as forças do passo 1, pega-se a carga que
+  // a viga de origem recebe do seu próprio grupo e a associada é resolvida de novo com ela (a laje vê a flexibilidade da viga única).
+  if (b.vigas.some((v) => comumEfetiva(v))) {
+    type FNo = Record<string, number[]>;
+    const zero6 = () => [0, 0, 0, 0, 0, 0];
+    /** Para cada pavimento com associada e cada nó dela (fora dos pilares): forças da laje e das cargas, com `cargaOrigem` (por pavimento e nó da planta) aplicada à associada. */
+    const resolverAssociadas = (cargaOrigem?: Map<string, FNo>) => {
+      const saida: { pav: (typeof ps)[number]; gi: number; i: number; p: P; pa: NonNullable<ReturnType<typeof alvoComum>>; f: FNo }[] = [];
+      for (const [ip, pav] of ps.entries()) {
+        const { grupo, gb } = baseDoPav(pav);
+        if (!gb.linhaComum.size || !gb.m.barras.length) continue;
+        const nodaisX = cargaOrigem ? [...gb.linhaComum].flatMap((i) => { const f = cargaOrigem.get(`${pav.id}|${i}`), gi = gb.idx.get(i); return f && gi !== undefined ? [{ no: gi, f, sinal: 1 as const }] : []; }) : [];
+        const gbX = nodaisX.length ? comCargasNodais(gb, nodaisX) : gb;
+        const m: Modelo3 = { ...gb.m, molas: molasGrelha(gb, ip, pav) };
+        let res: Resultado3;
+        if (cargaOrigem) res = resolver3(m, gbX.casos);
+        else { const chave = chaveGrelha(grupo.id, m); res = cacheGrelha.get(chave) ?? resolver3(m, gb.casos); cacheGrelha.set(chave, res); }
+        if (res.erro) continue; // o laço principal relata
+        const tr = transfDaSolucao(gb, m, res); // só as forças da laje e das cargas do próprio grupo (as da viga de origem não entram)
+        for (const i of gb.linhaComum) {
+          const gi = gb.idx.get(i), pa = gi === undefined || gb.apoio.has(i) ? undefined : alvoComum(gb, i, pav);
+          if (!pa || gi === undefined) continue;
+          const f: FNo = {};
+          for (const c of CASOS) f[c] = tr[c].get(i) ?? zero6();
+          saida.push({ pav, gi, i, p: gb.nos[i].p, pa, f });
+        }
+      }
+      return saida;
+    };
+    const registrarComum = (l: ReturnType<typeof resolverAssociadas>) => {
+      comumExtra.clear(); comumRetirar.clear();
+      for (const x of l) {
+        (comumExtra.get(x.pa.id) ?? comumExtra.set(x.pa.id, []).get(x.pa.id)!).push({ p: x.p, f: x.f });
+        // modelo integrado: a laje deste pavimento carrega a associada dentro do superelemento; a carga sai com o oposto
+        if (integrado) (comumRetirar.get(x.pav.id) ?? comumRetirar.set(x.pav.id, []).get(x.pav.id)!).push({ no: x.gi, f: x.f });
+      }
+    };
+    const passo1 = resolverAssociadas();
+    registrarComum(passo1);
+    // carga que a viga de origem recebe do seu próprio grupo: forças do pavimento alvo resolvido com o passo 1, menos as das associadas
+    const cargaOrigem = new Map<string, FNo>();
+    for (const [paId, extras] of comumExtra) {
+      const pavA = ps.find((x) => x.id === paId)!, ipA = ps.indexOf(pavA), { gb: gbA } = baseDoPav(pavA);
+      const nodais = extras.flatMap((x) => { const n = noDeVigaMaisProximo(gbA, x.p); return n ? [{ no: n.gi, f: x.f, sinal: 1 as const, i: n.i }] : []; });
+      const gbX = comCargasNodais(gbA, nodais);
+      const mA: Modelo3 = { ...gbA.m, molas: molasGrelha(gbA, ipA, pavA) };
+      const resA = resolver3(mA, gbX.casos);
+      if (resA.erro) continue;
+      const tr = transfDaSolucao(gbX, mA, resA);
+      const nosOrigem = new Set<number>();
+      for (const t of gbA.trechos) if (t.viga.comum) { nosOrigem.add(t.a); nosOrigem.add(t.z); }
+      for (const x of passo1.filter((y) => y.pa.id === paId)) {
+        const n = noDeVigaMaisProximo(gbA, x.p);
+        if (!n || !nosOrigem.has(n.i) || gbA.apoio.has(n.i)) continue;
+        const f: FNo = {};
+        for (const c of CASOS) {
+          const total = tr[c].get(n.i) ?? zero6(), asoc = nodais.filter((y) => y.i === n.i).reduce((u, y) => u.map((v, k) => v + (y.f[c]?.[k] ?? 0)), zero6());
+          f[c] = total.map((v, k) => v - asoc[k]);
+        }
+        cargaOrigem.set(`${x.pav.id}|${x.i}`, f);
+      }
+    }
+    if (cargaOrigem.size) registrarComum(resolverAssociadas(cargaOrigem));
+  }
+  for (const [ip, pav] of ps.entries()) {
+    const { grupo, gb: gbBase } = baseDoPav(pav);
+    // viga comum: este pavimento é o alvo das cargas de vigas associadas de outros grupos (viga de origem) ou tem viga associada (modelo integrado)
+    const extrasComuns = [
+      ...(comumExtra.get(pav.id) ?? []).map((x) => ({ no: noDeVigaMaisProximo(gbBase, x.p)?.gi ?? -1, f: x.f, sinal: 1 as const })),
+      ...(comumRetirar.get(pav.id) ?? []).map((x) => ({ no: x.no, f: x.f, sinal: -1 as const })),
+    ].filter((x) => x.no >= 0);
+    const gb = extrasComuns.length ? comCargasNodais(gbBase, extrasComuns) : gbBase;
     for (const a of gb.avisos) avisos.push(a.startsWith('sem vigas') ? `${pav.nome}: ${a}` : a);
     const { m: m0, tags, casos, apoio, nos, grosso, carga } = gb;
     let res: Resultado3 | null = null;
@@ -773,7 +919,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     } else if (m0.barras.length) {
       m = { ...m0, molas: molasGrelha(gb, ip, pav) };
       // pavimentos do mesmo grupo têm a mesma grelha; reaproveita a solução quando apoios e molas coincidem
-      const chave = `${grupo.id}|${m.nos.length}|${m.barras.length}|${[...m.apoios].filter(([, g]) => g.includes(2)).map(([n]) => n).join(',')}|${m.molas!.map((x) => `${x.no}:${x.gdl}:${x.k.toPrecision(12)}`).join(',')}`;
+      const chave = chaveGrelha(grupo.id, m, extrasComuns.length ? `|cx${pav.id}` : '');
       res = cacheGrelha.get(chave) ?? resolver3(m, casos);
       cacheGrelha.set(chave, res);
       if (res.erro) avisos.push(`${pav.nome}: ${res.erro}`);
@@ -784,34 +930,15 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           CASOS.forEach((c, ic) => (reacoes[pid][c] += r[ic]));
         }
         // forças das lajes sobre os nós das vigas (e cargas aplicadas nesses nós) → cargas do pórtico
-        const t0r = transfDe.get(res);
-        if (t0r) transf = t0r;
-        else {
-          const gidx = new Map([...gb.idx].map(([i, gi]) => [gi, i]));
-          CASOS.forEach((c, ic) => {
-            const f = new Map<number, number[]>();
-            m.barras.forEach((br, bi) => {
-              if (tags[bi].tipo !== 'laje') return;
-              const e = res!.esforcos[ic][bi];
-              for (const [noG, off] of [[br.i, 0], [br.j, 6]] as const) {
-                const i = gidx.get(noG)!;
-                if (!nos[i].viga && !apoio.has(i)) continue;
-                const g = paraGlobal(m, br, e, off); // força que o nó faz na barra
-                const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0];
-                for (let k = 0; k < 6; k++) acc[k] -= g[k]; // a laje empurra o nó
-                f.set(i, acc);
-              }
-            });
-            for (const n of casos[ic].nodais) { const i = gidx.get(n.no)!; if (!nos[i].viga && !apoio.has(i)) continue; const acc = f.get(i) ?? [0, 0, 0, 0, 0, 0]; n.f.forEach((v, k) => (acc[k] += v)); f.set(i, acc); }
-            transf[c] = f;
-          });
-          transfDe.set(res, transf);
-        }
+        transf = transfDaSolucao(gb, m, res);
       }
     }
+    // viga comum (E2b): os nós da linha de apoio da associada entregam a reação à viga de origem (pré-passo), não ao pórtico deste pavimento
+    const comuns = new Set<number>();
+    for (const i of gb.linhaComum) if (!apoio.has(i) && gb.idx.has(i) && alvoComum(gb, i, pav)) comuns.add(i);
     for (const c of CASOS) { totais[c] += carga[c]; cargasPavimento[pav.id][c] += carga[c]; }
     grelhas.push({ pavimento: pav.id, modelo: m, barras: tags, res, reacoes, carga, casos });
-    geoPav.set(pav.id, { nos, grosso, apoio, transf });
+    geoPav.set(pav.id, { nos, grosso, apoio, transf, comuns });
   }
 
   // ---- pórtico espacial ----
@@ -993,7 +1120,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
         return [gb.m.nos[n][0] - ig.centros[k][0] + (off?.[0] ?? 0), gb.m.nos[n][1] - ig.centros[k][1] + (off?.[1] ?? 0), 0];
       };
       gb.trechoDe.forEach((t, bi) => {
-        if (!t) return;
+        if (!t || comumEfetiva(t.viga)) return; // viga associada de viga comum: a barra é a da origem (E2b)
         const br = ig.barras[bi], i0 = noDe(br.i), j0 = noDe(br.j);
         if (i0 === j0) return; // trecho inteiro dentro do pilar: rígido
         const nb: Barra3 = { ...br, i: i0, j: j0, soPlano: true };
@@ -1041,6 +1168,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     /** Barra do pórtico de cada trecho grosso: índice, início da parte flexível e direção (para cargas concentradas). */
     const barraDe = new Map<number, { bi: number; ini: P; u: P; L: number } | { no: number }>();
     g.trechos.forEach((t, ti) => {
+      if (comumEfetiva(t.viga)) return; // viga associada de viga comum: a barra é a da origem (E2b)
       const v = t.viga, pv = propsBarraViga(b, v, op), pp = GAMA_CONCRETO * v.secao.b * v.secao.h;
       const ni = noViga(t.a), nj = noViga(t.z);
       const Lt = Math.hypot(g.nos[t.z].p[0] - g.nos[t.a].p[0], g.nos[t.z].p[1] - g.nos[t.a].p[1]);
@@ -1077,6 +1205,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const achaGrosso = (p: P) => g.nos.findIndex((n) => Math.hypot(n.p[0] - p[0], n.p[1] - p[1]) <= 0.005);
     CASOS.forEach((c, ic) => {
       for (const [i, f] of g0.transf[c]) {
+        if (g0.comuns.has(i)) continue; // reação da linha da viga associada: vai à viga de origem (E2b)
         const p = g0.nos[i].p, pid = g0.apoio.get(i);
         if (pid && noPilar.has(`${pid}|${pav.id}`)) { casosV[ic].nodais.push({ no: noPilar.get(`${pid}|${pav.id}`)!, f }); continue; }
         const k = achaGrosso(p);
@@ -1380,7 +1509,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
 // ---------------- auxiliares ----------------
 
 /** Fator de torção da viga: seção bruta na torção de equilíbrio, senão o redutor das opções. */
-const torcaoDe = (v: Viga, op: OpcoesAnalise) => (v.torcaoEquilibrio ? 1 : op.torcaoViga);
+/** Rigidez à torção (fração da bruta): plena na torção de equilíbrio, inclusive a da curvatura das vigas curvas (E2b). */
+const torcaoDe = (v: Viga, op: OpcoesAnalise) => (v.torcaoEquilibrio || (ehCurva(v) && op.curvaTorcaoEquilibrio) ? 1 : op.torcaoViga);
 
 /** Coeficiente de engaste da ponta inicial e final da viga (prevalece sobre o vínculo; articulado = 0). */
 const engastePonta = (v: Viga, fim: boolean) => (fim ? v.engasteFim ?? (v.vinculoFim === 'articulado' ? 0 : 1) : v.engasteIni ?? (v.vinculoIni === 'articulado' ? 0 : 1));
@@ -1390,7 +1520,9 @@ const engastePonta = (v: Viga, fim: boolean) => (fim ? v.engasteFim ?? (v.vincul
  * `gdl`: rotações locais afetadas (pórtico: 4 e 5; grelha: só a flexão vertical, 5).
  */
 function vincularPontas(br: Barra3, t: TrechoViga, trechos: TrechoViga[], nos: NoPlanta[], gdl: number[]) {
-  const v = t.viga, daViga = trechos.filter((x) => x.viga === v);
+  // trechos inteiros dentro de um pilar (poligonal que começa dentro do pilar, como a viga curva) não contam como ponta da viga
+  const dentroDoPilar = (x: TrechoViga) => { const pid = nos[x.a].pilar; return !!pid && pid === nos[x.z].pilar; };
+  const v = t.viga, daViga = trechos.filter((x) => x.viga === v && !dentroDoPilar(x));
   for (const [ponta, no, extremo, fim] of [['engI', t.a, t === daViga[0], false], ['engJ', t.z, t === daViga.at(-1), true]] as const) {
     let a = extremo ? engastePonta(v, fim) : 1;
     const pid = nos[no].pilar;

@@ -536,7 +536,21 @@ export interface Viga {
   estrutural?: false;
   /** Viga de amarração ou encadeado (K1.4.28): sem rigidez à flexão vertical; plano e EA rígidos. */
   amarracao?: boolean;
+  /**
+   * Trechos curvos (E2b, C6.12): faixas de vértices de `pontos` (de `ini` a `fim`, inclusive, com pelo menos 2 cordas) que
+   * discretizam um arco de círculo. O arco é o círculo pelos vértices `ini`, do meio e `fim`; `pontos` guarda sempre a
+   * poligonal já discretizada (a análise e o desenho usam as cordas) e `sincronizarCurvas` refaz a discretização
+   * quando a opção `curvaSegmento` muda. Ausente = só trechos retos.
+   */
+  arcos?: ArcoViga[];
+  /** Viga comum a dois grupos, lado da origem (E2b, C6.47): a viga associada (`comumDe`) é criada no grupo indicado. */
+  comum?: { grupo: string };
+  /** Viga comum, lado associado: id da viga de origem. Geometria e seção seguem a origem; não entra na análise nem no dimensionamento. */
+  comumDe?: string;
 }
+
+/** Trecho curvo de uma viga (E2b): faixa de vértices [ini, fim] de `Viga.pontos` sobre um arco de círculo. */
+export interface ArcoViga { ini: number; fim: number }
 
 export type TipoLaje =
   | { tipo: 'macica'; h: number }

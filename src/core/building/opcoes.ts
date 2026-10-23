@@ -408,6 +408,11 @@ export interface OpcoesCalculo {
   mesaDimensionamento: number;
   /** 1 = barras de canto na mesa (bitola de montagem) apoiando as pontas dos estribos das vigas T/L no detalhamento. */
   mesaBarrasCanto: number;
+  // ---- E2b: vigas curvas e comuns ----
+  /** Corda máxima da discretização das vigas curvas (cm); o arco vira poligonal de cordas de até este comprimento. */
+  curvaSegmento: number;
+  /** 1 = a torção da curvatura é de equilíbrio: a viga curva mantém a rigidez à torção da seção bruta (sem o redutor `torcaoViga`). */
+  curvaTorcaoEquilibrio: number;
 }
 
 export interface OpcaoInfo {
@@ -874,6 +879,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = a flexão é dimensionada na seção T (ou L) onde a mesa está comprimida (positivo com a mesa em cima; negativo se a viga é invertida). 0 = armadura pela alma.' },
   { chave: 'mesaBarrasCanto', rotulo: 'Vigas T/L: barras de canto na mesa', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Manual do programa de referência (barras adicionais para apoiar as pontas dos estribos na mesa); 2 barras (1 na L) de bitola de montagem em toda a extensão [a confirmar]', aConfirmar: true,
     descricao: 'No detalhamento da viga com mesa, acrescenta barras de canto no nível da mesa, na bitola de montagem, para amarrar as pontas dos estribos. 0 = sem.' },
+  { chave: 'curvaSegmento', rotulo: 'Vigas curvas: corda máxima da discretização', unidade: 'cm', min: 5, max: 200, passo: 5, padrao: 50, fonte: 'Programa de referência (a curva vira poligonal de trechos retos); a corda máxima é do Statikos [a confirmar]', aConfirmar: true,
+    descricao: 'A viga curva é analisada como uma poligonal de cordas de até este comprimento (o erro do momento e da torção cai com o quadrado da corda). Mudar a corda refaz a discretização dos arcos já lançados.' },
+  { chave: 'curvaTorcaoEquilibrio', rotulo: 'Vigas curvas: torção de equilíbrio (rigidez bruta)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 14.6.7 (a torção que decorre do equilíbrio não pode ser reduzida; item a confirmar); a torção da curvatura é de equilíbrio', aConfirmar: true,
+    descricao: '1 = a viga curva usa a rigidez à torção da seção bruta (a torção da curvatura é necessária ao equilíbrio e não pode ser reduzida); 0 = usa o redutor "Rigidez à torção das vigas" como nas vigas retas. A verificação da torção é feita sempre nas vigas curvas.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -889,6 +898,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'pilarParedeLimite', 'pilarParedeVigaAltura',
   // N2e: trecho rígido da viga apoiada, barras curtas e desnível entre panos entram no modelo de cálculo
   'vigaApoiadaRigida', 'barraCurtaLimite', 'barraCurtaFator', 'lajeDesnivelFator',
+  // E2b: discretização das vigas curvas e rigidez à torção da curvatura
+  'curvaSegmento', 'curvaTorcaoEquilibrio',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
