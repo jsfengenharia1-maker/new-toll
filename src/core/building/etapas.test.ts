@@ -12,7 +12,7 @@ describe('etapasDaObra', () => {
     const et = etapasDaObra(edificioVazio());
     expect(estados(et)).toEqual([
       ['obra', 'pendente'], ['pavimentos', 'pendente'], ['gabarito', 'pendente'], ['pilares', 'pendente'], ['pilaresParede', 'pendente'],
-      ['muros', 'indisponivel'], ['vigas', 'pendente'], ['lajes', 'pendente'], ['cargas', 'pendente'], ['escadas', 'indisponivel'], ['calculo', 'pendente'],
+      ['muros', 'indisponivel'], ['vigas', 'pendente'], ['lajes', 'pendente'], ['cargas', 'pendente'], ['escadas', 'pendente'], ['calculo', 'pendente'],
     ]);
     expect(proximaEtapa(et)!.id).toBe('obra');
   });
@@ -42,9 +42,9 @@ describe('etapasDaObra', () => {
     expect(porId(etapasDaObra(s.modelo), 'pilares').estado).toBe('pendente');
   });
 
-  it('muros e escadas indisponíveis; o detalhe de muros cita a E1c', () => {
+  it('muros indisponíveis (o detalhe cita a E1c); escadas pendentes até lançar a primeira (E4b)', () => {
     const et = etapasDaObra(edificioVazio());
-    expect(porId(et, 'escadas').estado).toBe('indisponivel');
+    expect(porId(et, 'escadas').estado).toBe('pendente');
     expect(porId(et, 'muros').detalhe).toContain('E1c');
   });
 });
