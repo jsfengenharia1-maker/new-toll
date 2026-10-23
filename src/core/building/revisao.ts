@@ -8,7 +8,7 @@ import { sugestaoDe } from './sugestoes';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada' | 'diagonal';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;
@@ -59,6 +59,12 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'INCLINADA_ESBELTEZ', nivel: 'aviso', re: /^Viga inclinada: esbeltez λ = \d+ acima de 90/, descricao: 'Viga inclinada: esbeltez acima de 90 (pilar-padrão não vale; resultado indicativo)' },
   { codigo: 'INCLINADA_BIELA', nivel: 'erro', re: /^Viga inclinada: compressão diagonal/, descricao: 'Viga inclinada: compressão diagonal do concreto esgotada (cortante e torção)' },
   { codigo: 'INCLINADA_NOS', nivel: 'info', re: /^Viga inclinada: o detalhe dos nós/, descricao: 'Viga inclinada: detalhe dos nós de extremidade a cargo do projetista' },
+  { codigo: 'DIAGONAL_ARMADURA', nivel: 'erro', re: /^Diagonal: (nenhuma disposição|a armadura informada|armadura longitudinal|as barras da armadura|a busca da armadura|estribo φ)/, descricao: 'Diagonal: armadura longitudinal ou estribos não atendem (tração ou compressão com flexão oblíqua, cortante e torção)' },
+  { codigo: 'DIAGONAL_ESBELTEZ_MAX', nivel: 'erro', re: /^Diagonal: esbeltez λ = \d+ acima de \d+ \(/, descricao: 'Diagonal comprimida: esbeltez acima do máximo' },
+  { codigo: 'DIAGONAL_ESBELTEZ', nivel: 'aviso', re: /^Diagonal: esbeltez λ = \d+ acima de 90:/, descricao: 'Diagonal comprimida: esbeltez acima de 90 (pilar-padrão não vale; resultado indicativo)' },
+  { codigo: 'DIAGONAL_BIELA', nivel: 'erro', re: /^Diagonal: compressão diagonal/, descricao: 'Diagonal: compressão diagonal do concreto esgotada (cortante e torção)' },
+  { codigo: 'DIAGONAL_CRUZAMENTO', nivel: 'info', re: /^Diagonal: (nó gerado|\d+ nós gerados) no cruzamento/, descricao: 'Diagonal: nó gerado no cruzamento com outra diagonal (flambagem pelo comprimento total)' },
+  { codigo: 'DIAGONAL_NOS', nivel: 'info', re: /^Diagonal: o detalhe dos nós/, descricao: 'Diagonal: detalhe dos nós de extremidade a cargo do projetista' },
   { codigo: 'VIGA_CURVA', nivel: 'info', re: /^Viga curva: /, descricao: 'Viga curva: raio, discretização em cordas e torção de equilíbrio da curvatura' },
   { codigo: 'VIGA_COMUM', nivel: 'info', re: /^Viga comum com o grupo /, descricao: 'Viga comum a dois grupos: barra única, armadura e envoltórias na origem' },
   { codigo: 'VIGA_COMUM_APOIA_VIGA', nivel: 'aviso', re: /^Viga comum: .* chega à viga associada/, descricao: 'Viga comum: outra viga chega à associada fora de pilar (reação não levada à origem)' },
@@ -232,6 +238,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   for (const d of dim?.detalhes ?? []) add('viga', d.viga, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
   for (const r of dim?.inclinadas ?? []) add('inclinada', r.inclinada, r.nome, undefined, r.mensagens);
+  for (const r of dim?.diagonais ?? []) add('diagonal', r.inclinada, r.nome, undefined, r.mensagens);
   // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const d of dim?.detalhesLajes ?? []) add('laje', d.laje, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));

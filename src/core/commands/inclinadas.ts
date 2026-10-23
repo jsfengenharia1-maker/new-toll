@@ -9,13 +9,13 @@ import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
 type P = [number, number];
-const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
+export const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
 const novoId = (d: Draft<BuildingModel>) => `vi_${(++d.seq).toString(36)}`;
-const ponto: JsonSchema = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, y] em m' };
-const secaoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['b', 'h'], properties: { b: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'largura (m)' }, h: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'altura (m)' } } };
-const ligSchema: JsonSchema = { type: 'string', enum: ['engastada', 'articulada'], description: 'ligação da ponta ao pilar ou à viga (padrão engastada)' };
-const nivelSchema: JsonSchema = { type: 'number', minimum: -10, maximum: 10, description: 'desnível da ponta em relação à cota do pavimento (m)' };
-const flambSchema: JsonSchema = { type: 'object', additionalProperties: false, properties: {
+export const ponto: JsonSchema = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, y] em m' };
+export const secaoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['b', 'h'], properties: { b: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'largura (m)' }, h: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'altura (m)' } } };
+export const ligSchema: JsonSchema = { type: 'string', enum: ['engastada', 'articulada'], description: 'ligação da ponta ao pilar ou à viga (padrão engastada)' };
+export const nivelSchema: JsonSchema = { type: 'number', minimum: -10, maximum: 10, description: 'desnível da ponta em relação à cota do pavimento (m)' };
+export const flambSchema: JsonSchema = { type: 'object', additionalProperties: false, properties: {
   vertical: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'coeficiente de flambagem no plano vertical (ℓe = k·ℓ entre os nós)' },
   transversal: { type: 'number', exclusiveMinimum: 0, maximum: 3, description: 'coeficiente de flambagem no plano transversal' },
 } };
@@ -28,22 +28,22 @@ const cargaSchema: JsonSchema = { type: 'object', additionalProperties: false, r
   ate: { type: 'number', minimum: 0, description: 'faixa e triangular: fim (m)' },
 } };
 const barras = (): JsonSchema => ({ type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 2, maximum: 40 }, phi: { type: 'number', enum: [8, 10, 12.5, 16, 20, 25, 32] } } });
-const fmt = (v: number, c = 2) => String(+v.toFixed(c)).replace('.', ',');
+export const fmt = (v: number, c = 2) => String(+v.toFixed(c)).replace('.', ',');
 
 type Cargas = { caso: string; tipo: CargaInclinada['tipo']; valor: number; valorFim?: number; de?: number; ate?: number }[];
-const pavNome = (b: BuildingModel, id: string) => b.pavimentos.find((p) => p.id === id)?.nome ?? id;
+export const pavNome = (b: BuildingModel, id: string) => b.pavimentos.find((p) => p.id === id)?.nome ?? id;
 
 /** Erros de geometria e de ligação da barra lançada. */
-function validarGeometria(b: BuildingModel, g: Pick<VigaInclinada, 'pavIni' | 'pavFim' | 'pIni' | 'pFim' | 'nivelIni' | 'nivelFim' | 'multipla'> & { id: string; nome: string }): Diagnostico[] {
+export function validarGeometria(b: BuildingModel, g: Pick<VigaInclinada, 'pavIni' | 'pavFim' | 'pIni' | 'pFim' | 'nivelIni' | 'nivelFim' | 'multipla'> & { id: string; nome: string }, pre: 'INCLINADA' | 'DIAGONAL' = 'INCLINADA'): Diagnostico[] {
   const pi = b.pavimentos.find((p) => p.id === g.pavIni), pf = b.pavimentos.find((p) => p.id === g.pavFim);
   if (!pi) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${g.pavIni} não existe.`);
   if (!pf) return err('PAVIMENTO_INEXISTENTE', `Pavimento ${g.pavFim} não existe.`);
   const dh = Math.hypot(g.pFim[0] - g.pIni[0], g.pFim[1] - g.pIni[1]), dz = Math.abs(pf.cota + (g.nivelFim ?? 0) - (pi.cota + (g.nivelIni ?? 0)));
-  if (dz < DESNIVEL_MIN) return err('INCLINADA_NIVEL', `As pontas estão na mesma cota (desnível ${fmt(dz * 100, 0)} cm): lance uma viga comum.`, [g.id]);
-  if (dh < 0.05) return err('INCLINADA_VERTICAL', 'As pontas estão uma sobre a outra: lance um pilar.', [g.id]);
+  if (dz < DESNIVEL_MIN) return err(`${pre}_NIVEL`, `As pontas estão na mesma cota (desnível ${fmt(dz * 100, 0)} cm): lance uma viga comum.`, [g.id]);
+  if (dh < 0.05) return err(`${pre}_VERTICAL`, 'As pontas estão uma sobre a outra: lance um pilar.', [g.id]);
   const out: Diagnostico[] = [];
   for (const [pav, p, nome] of [[g.pavIni, g.pIni, 'inicial'], [g.pavFim, g.pFim, 'final']] as const) {
-    if (!ligacaoDaPonta(b, pav, p)) out.push({ codigo: 'INCLINADA_SEM_APOIO', severidade: 'erro', elementos: [g.id], mensagem: `A ponta ${nome} não toca pilar nem viga do pavimento ${pavNome(b, pav)}: leve-a a um pilar ou ao eixo de uma viga.` });
+    if (!ligacaoDaPonta(b, pav, p)) out.push({ codigo: `${pre}_SEM_APOIO`, severidade: 'erro', elementos: [g.id], mensagem: `A ponta ${nome} não toca pilar nem viga do pavimento ${pavNome(b, pav)}: leve-a a um pilar ou ao eixo de uma viga.` });
   }
   return out;
 }
@@ -58,7 +58,7 @@ function validarCargas(b: BuildingModel, cargas: Cargas | undefined): Diagnostic
 }
 
 const comIds = (cargas: Cargas, ate: number): CargaInclinada[] => cargas.map((c, k) => ({ id: `c${ate + k + 1}`, ...c }));
-const limpar = <T extends object>(o: T): T => { for (const k of Object.keys(o) as (keyof T)[]) if (o[k] === undefined) delete o[k]; return o; };
+export const limpar = <T extends object>(o: T): T => { for (const k of Object.keys(o) as (keyof T)[]) if (o[k] === undefined) delete o[k]; return o; };
 /** A armadura bloqueada sai quando a geometria ou a seção muda (o recálculo gera outra). */
 function soltarArmadura(v: { armadura?: unknown }): string {
   const tinha = !!v.armadura;

@@ -226,6 +226,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // vigas inclinadas (E2c): armadura, utilização e mensagens por barra (a envoltória por estação fica fora; volume)
     ...(d.inclinadas?.length ? { inclinadas: prob(pav ? d.inclinadas.filter((r) => r.pavimento === pav.id || r.pavimentoFim === pav.id) : d.inclinadas).map(({ envoltoria: _e, ...r }) => r) } : {}),
     ...(d.resumoAcoInclinadas?.length ? { resumoAcoInclinadas: d.resumoAcoInclinadas } : {}),
+    // diagonais de contraventamento (E2d): como as inclinadas
+    ...(d.diagonais?.length ? { diagonais: prob(pav ? d.diagonais.filter((r) => r.pavimento === pav.id || r.pavimentoFim === pav.id) : d.diagonais).map(({ envoltoria: _e, ...r }) => r) } : {}),
+    ...(d.resumoAcoDiagonais?.length ? { resumoAcoDiagonais: d.resumoAcoDiagonais } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),

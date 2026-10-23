@@ -5,6 +5,7 @@ import './lancamento';
 import './vigas';
 import './vigasE2b';
 import './inclinadas';
+import './diagonais';
 import './lajes';
 import './lancamentoL5';
 import './tiposLaje';

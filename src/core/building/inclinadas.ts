@@ -4,7 +4,7 @@
 // entre dois pontos de pavimentos quaisquer, ligada a nós existentes, fora do diafragma.
 import { dentroPoligono, type P } from '../geom/faces';
 import type { Diagnostico } from './verify';
-import { contornoNoLance, geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type VigaInclinada } from './types';
+import { contornoNoLance, geometriaViga, lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Diagonal, type VigaInclinada } from './types';
 
 /** Tolerância de contato da ponta com o pilar ou a viga (m), além da meia largura da viga. */
 export const TOL_LIGACAO = 0.05;
@@ -30,6 +30,8 @@ export interface BarraInclinada {
   angulo: number;
   /** É a barra lançada (não uma repetição da múltipla). */
   lancada: boolean;
+  /** Diagonal de contraventamento (E2d), e não viga inclinada. */
+  diagonal?: boolean;
 }
 
 export type Ligacao = { tipo: 'pilar'; pilar: string } | { tipo: 'viga'; viga: string; ponto: P };
@@ -44,12 +46,13 @@ const pav = (b: BuildingModel, id: string) => b.pavimentos.find((p) => p.id === 
 export function barrasDaInclinada(b: BuildingModel, inc: VigaInclinada): BarraInclinada[] {
   const pi = pav(b, inc.pavIni), pf = pav(b, inc.pavFim);
   if (!pi || !pf) return [];
+  const diagonal = !!b.diagonais?.some((x) => x.id === inc.id), excluidas = (inc as Diagonal).excluidas ?? [];
   const par = (a: typeof pi, f: typeof pf, lancada: boolean): BarraInclinada => {
     const zIni = a.cota + (inc.nivelIni ?? 0), zFim = f.cota + (inc.nivelFim ?? 0);
     const dh = Math.hypot(inc.pFim[0] - inc.pIni[0], inc.pFim[1] - inc.pIni[1]), dz = zFim - zIni;
     return {
       id: `${inc.id}|${a.id}`, ref: inc.id, nome: inc.nome, rotulo: `${inc.nome} (${a.nome} → ${f.nome})`, inc,
-      pavIni: a.id, pavFim: f.id, pIni: inc.pIni, pFim: inc.pFim, zIni, zFim, L: Math.hypot(dh, dz), angulo: (Math.atan2(Math.abs(dz), dh) * 180) / Math.PI, lancada,
+      pavIni: a.id, pavFim: f.id, pIni: inc.pIni, pFim: inc.pFim, zIni, zFim, L: Math.hypot(dh, dz), angulo: (Math.atan2(Math.abs(dz), dh) * 180) / Math.PI, lancada, ...(diagonal ? { diagonal } : {}),
     };
   };
   if (!inc.multipla) return [par(pi, pf, true)];
@@ -58,15 +61,19 @@ export function barrasDaInclinada(b: BuildingModel, inc: VigaInclinada): BarraIn
   const out: BarraInclinada[] = [];
   for (let s = -gi.length; s <= gf.length; s++) {
     const a = gi[ki + s], f = gf[kf + s];
-    if (a && f) out.push(par(a, f, s === 0));
+    if (a && f && !excluidas.includes(a.id)) out.push(par(a, f, s === 0));
   }
   return out.sort((x, y) => x.zIni - y.zIni);
 }
 
-/** Todas as barras das vigas inclinadas da obra, na ordem de lançamento. */
-export const expandirInclinadas = (b: BuildingModel): BarraInclinada[] => (b.vigasInclinadas ?? []).flatMap((i) => barrasDaInclinada(b, i));
+/** Vigas inclinadas e diagonais de contraventamento (E2d): as duas são barras entre pavimentos de mesma forma. */
+export const entreGrupos = (b: Pick<BuildingModel, 'vigasInclinadas' | 'diagonais'>): VigaInclinada[] => [...(b.vigasInclinadas ?? []), ...(b.diagonais ?? [])];
+export const acharEntreGrupos = (b: Pick<BuildingModel, 'vigasInclinadas' | 'diagonais'>, id: string): VigaInclinada | undefined => entreGrupos(b).find((x) => x.id === id);
 
-export const temInclinadas = (b: Pick<BuildingModel, 'vigasInclinadas'>) => !!b.vigasInclinadas?.length;
+/** Todas as barras entre pavimentos da obra (vigas inclinadas, depois diagonais), na ordem de lançamento. */
+export const expandirInclinadas = (b: BuildingModel): BarraInclinada[] => entreGrupos(b).flatMap((i) => barrasDaInclinada(b, i));
+
+export const temInclinadas = (b: Pick<BuildingModel, 'vigasInclinadas' | 'diagonais'>) => !!(b.vigasInclinadas?.length || b.diagonais?.length);
 
 function distSegmento(p: P, a: P, z: P): { d: number; q: P } {
   const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy;
@@ -142,24 +149,26 @@ export function saidaDoContorno(p: P, dir: P, contorno: P[]): number {
 const fmt = (v: number, c = 2) => String(+v.toFixed(c)).replace('.', ',');
 const diag = (codigo: string, severidade: Diagnostico['severidade'], elementos: string[], mensagem: string): Diagnostico => ({ codigo, severidade, elementos, mensagem });
 
-/** Diagnósticos do lançamento das vigas inclinadas (referências, desnível, seção e ligações das pontas). */
-export function diagnosticosInclinadas(b: BuildingModel): Diagnostico[] {
+export function diagnosticosDe(b: BuildingModel, lista: VigaInclinada[], pre: 'INCLINADA' | 'DIAGONAL'): Diagnostico[] {
   const out: Diagnostico[] = [];
-  for (const inc of b.vigasInclinadas ?? []) {
+  for (const inc of lista) {
     const pi = pav(b, inc.pavIni), pf = pav(b, inc.pavFim);
-    if (!pi || !pf) { out.push(diag('INCLINADA_PAVIMENTO', 'erro', [inc.id], `${inc.nome}: pavimento inicial ou final inexistente.`)); continue; }
-    if (inc.secao.b <= 0 || inc.secao.h <= 0) out.push(diag('INCLINADA_SECAO', 'erro', [inc.id], `${inc.nome}: seção inválida.`));
+    if (!pi || !pf) { out.push(diag(`${pre}_PAVIMENTO`, 'erro', [inc.id], `${inc.nome}: pavimento inicial ou final inexistente.`)); continue; }
+    if (inc.secao.b <= 0 || inc.secao.h <= 0) out.push(diag(`${pre}_SECAO`, 'erro', [inc.id], `${inc.nome}: seção inválida.`));
     for (const bar of barrasDaInclinada(b, inc)) {
       const dz = Math.abs(bar.zFim - bar.zIni), dh = Math.hypot(bar.pFim[0] - bar.pIni[0], bar.pFim[1] - bar.pIni[1]);
-      if (dz < DESNIVEL_MIN) out.push(diag('INCLINADA_NIVEL', 'erro', [inc.id], `${bar.rotulo}: as pontas estão na mesma cota (desnível ${fmt(dz * 100, 0)} cm); lance como viga comum.`));
-      else if (dh < 0.05) out.push(diag('INCLINADA_VERTICAL', 'erro', [inc.id], `${bar.rotulo}: barra vertical; lance como pilar.`));
+      if (dz < DESNIVEL_MIN) out.push(diag(`${pre}_NIVEL`, 'erro', [inc.id], `${bar.rotulo}: as pontas estão na mesma cota (desnível ${fmt(dz * 100, 0)} cm); lance como viga comum.`));
+      else if (dh < 0.05) out.push(diag(`${pre}_VERTICAL`, 'erro', [inc.id], `${bar.rotulo}: barra vertical; lance como pilar.`));
       for (const [pavId, p, nome] of [[bar.pavIni, bar.pIni, 'inicial'], [bar.pavFim, bar.pFim, 'final']] as const) {
-        if (!ligacaoDaPonta(b, pavId, p)) out.push(diag('INCLINADA_SEM_APOIO', 'erro', [inc.id], `${bar.rotulo}: a ponta ${nome} não toca pilar nem viga do pavimento ${pav(b, pavId)?.nome}.`));
+        if (!ligacaoDaPonta(b, pavId, p)) out.push(diag(`${pre}_SEM_APOIO`, 'erro', [inc.id], `${bar.rotulo}: a ponta ${nome} não toca pilar nem viga do pavimento ${pav(b, pavId)?.nome}.`));
       }
     }
   }
   return out;
 }
+
+/** Diagnósticos do lançamento das vigas inclinadas (referências, desnível, seção e ligações das pontas). */
+export const diagnosticosInclinadas = (b: BuildingModel): Diagnostico[] => diagnosticosDe(b, b.vigasInclinadas ?? [], 'INCLINADA');
 
 export interface LinhaInclinada {
   id: string; nome: string; barras: number; pavimentoIni: string; pavimentoFim: string; secao: string; comprimento: number; angulo: number; multipla: boolean;

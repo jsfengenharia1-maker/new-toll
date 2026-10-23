@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 33 | 30 | 20 | 25 |
+| 6. Vigas | 108 | 33 | 41 | 9 | 25 |
 | 7. Lajes | 195 | 33 | 46 | 49 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 20 | 2 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **130** | **144** | **185** |
+| **Total** | **763** | **304** | **141** | **133** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 61 | 137 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 72 | 126 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 37 | 2 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 30 | 5 | 35 |
@@ -328,17 +328,17 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Feito | — | comando `viga.tramo` e `resolverTramos` (`detalhamento.ts`): vigas consecutivas e alinhadas do mesmo grupo com a mesma bitola e nº de passantes têm a barra inferior corrida do eixo do apoio comum, sem emenda nem gancho, até a barra máxima (senão TRAMO_IGNORADO); botão "Tramo com…" na aba Detalhamento da viga (R7b) |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Feito | — | `viga.unir`/`viga.dividir` com ferramentas na planta (R7-0); o bloqueio e o detalhe editado saem no mesmo passo quando o nº de vãos muda e o recálculo redimensiona (R7f) |
 | C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Parcial | E | núcleo: `VigaInclinada` (`vigasInclinadas`; `inclinadas.ts`: `barrasDaInclinada`, `ligacaoDaPonta`), comandos `inclinada.criar/editar/mover/remover` (pavimentos inicial e final, pontas em pilar ou viga, desnível, ligações engastada ou articulada, simples ou múltipla = uma barra por par de pavimentos de mesma posição); barra de 2 nós no pórtico (`analitico.ts`); aço fora; lançamento por dois cliques nos cartões E2c [E2c] |
-| C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento [E2d] |
-| C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E | [E2d] |
-| C6.38 | Diagonal de concreto (largura e altura) ou de aço (perfil da biblioteca, em posição normal ou girada). | Falta | E | [E2d] |
-| C6.39 | Ligação das extremidades da diagonal: engastada ou articulada. | Falta | E | [E2d] |
-| C6.40 | Coeficientes de flambagem vertical e transversal aplicados ao comprimento total entre nós, em planos globais (não nos eixos locais). O cruzamento entre barras inclinadas não reduz o comprimento. | Falta | E | [E2d] |
-| C6.41 | Copiar os dados de uma diagonal existente. | Falta | E | [E2d] |
-| C6.42 | Diagonal lançada por clique em dois pontos (ex.: viga de partida e viga oposta), sem trocar de pavimento. Setas indicam a diagonal na planta. | Falta | E | [E2d] |
-| C6.43 | Nó gerado no cruzamento de diagonais. Elas são dimensionadas à tração e à compressão, com verificação da esbeltez máxima da norma. | Falta | E | [E2d] |
-| C6.44 | Apagar diagonal: em todos os grupos, se for múltipla. | Falta | E | [E2d] |
-| C6.45 | Informação da diagonal (tipo, grupos, comprimento real, seção, ligações, flambagem), também desenhada na prancha de vigas do grupo inicial. | Falta | E | [E2d] |
-| C6.46 | Editar, mover extremos e atribuir propriedades a diagonais existentes: a operação vale só no grupo atual. | Falta | E | [E2d] |
+| C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Parcial | E | núcleo: `Diagonal` (`diagonais`; `diagonais.ts`) sobre a barra das inclinadas (`barrasDaInclinada`): pavimentos inicial e final em grupos quaisquer, atravessando os intermediários, ponta em pilar ou viga, comando `diagonal.criar`; lançamento por dois cliques nos cartões E2d [E2d] |
+| C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Parcial | E | núcleo: `multipla` em `diagonal.criar/editar` = uma barra por par de pavimentos de mesma posição dos grupos inicial e final (`barrasDaInclinada`) [E2d] |
+| C6.38 | Diagonal de concreto (largura e altura) ou de aço (perfil da biblioteca, em posição normal ou girada). | Parcial | E | núcleo: seção de concreto b × h (`Diagonal.secao`); perfil de aço fora do escopo (decisão da spec) [E2d] |
+| C6.39 | Ligação das extremidades da diagonal: engastada ou articulada. | Parcial | E | núcleo: `ligIni`/`ligFim` engastada (padrão) ou articulada (flexões liberadas na barra 3D) em `diagonal.criar/editar/atribuir` [E2d] |
+| C6.40 | Coeficientes de flambagem vertical e transversal aplicados ao comprimento total entre nós, em planos globais (não nos eixos locais). O cruzamento entre barras inclinadas não reduz o comprimento. | Parcial | E | núcleo: coeficientes de flambagem vertical e transversal (opções `diagonalFlambagemVertical` e `diagonalFlambagemTransversal`, ou por diagonal em `flambagem`) sobre o comprimento total entre as pontas (`ResultadoInclinada.le`), em planos globais; o cruzamento com outra diagonal não o reduz (`estacoesDaBarra`, teste `diagonais.test.ts`) [E2d] |
+| C6.41 | Copiar os dados de uma diagonal existente. | Parcial | E | núcleo: `diagonal.atribuir { id, de, campos? }` copia seção, ligações, flambagem e cobrimento de outra diagonal; diálogo nos cartões E2d [E2d] |
+| C6.42 | Diagonal lançada por clique em dois pontos (ex.: viga de partida e viga oposta), sem trocar de pavimento. Setas indicam a diagonal na planta. | Parcial | E | núcleo: `diagonal.criar` com pontos nos dois pavimentos sem trocar de pavimento; setas na planta e lançamento por dois cliques nos cartões E2d [E2d] |
+| C6.43 | Nó gerado no cruzamento de diagonais. Elas são dimensionadas à tração e à compressão, com verificação da esbeltez máxima da norma. | Parcial | E | núcleo: `cruzamentosDiagonais` (nó comum às duas diagonais, cada uma dividida em dois trechos, em `analitico.ts`); `dimensionarInclinadas(…, 'diagonal')`: tração e compressão com flexão oblíqua por fibras e esbeltez máxima (opção `diagonalEsbeltezMax`, padrão 200, DIAGONAL_ESBELTEZ_MAX); validado contra o OpenSees (`validation/opensees/diagonal.py`) e a estática [E2d] |
+| C6.44 | Apagar diagonal: em todos os grupos, se for múltipla. | Parcial | E | núcleo: `diagonal.remover { ids }` apaga a diagonal e, se múltipla, todas as suas barras [E2d] |
+| C6.45 | Informação da diagonal (tipo, grupos, comprimento real, seção, ligações, flambagem), também desenhada na prancha de vigas do grupo inicial. | Parcial | E | núcleo: `resumoDiagonais` (grupos, comprimento real, seção, ligações, flambagem, nós de cruzamento) e `memorialDiagonais`; desenho na prancha de vigas do grupo inicial (`blocoInclinada`, título DIAGONAL DESENVOLVIDA); janela de informação nos cartões E2d [E2d; representação a confirmar] |
+| C6.46 | Editar, mover extremos e atribuir propriedades a diagonais existentes: a operação vale só no grupo atual. | Parcial | E | núcleo: `pavimento` (grupo atual) em `diagonal.editar/mover/atribuir`: a barra do grupo sai da múltipla (`Diagonal.excluidas`) e vira diagonal própria, sem tocar nas demais [E2d] |
 | C6.47 | Viga comum a dois grupos (ex.: borda entre laje horizontal e laje inclinada), lançada uma vez e criada automaticamente no outro grupo. | Parcial | E | núcleo: `Viga.comum`/`comumDe`, `viga.comum` cria a viga associada no outro grupo e a mantém igual (`sincronizarComuns`, `vigaComum.ts`); uma barra só no pórtico: a associada apoia a laje do seu grupo (viga normal da grelha, sem peso) e as forças nos seus nós vão à viga de origem no pavimento alvo (pré-passo em `analitico.ts`, modelos separado e integrado; até 10 % da viga única equivalente, `vigaComum.test.ts`); interface nos cartões E2b-1 e E2b-2 [E2b] |
 | C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Parcial | E | núcleo: armadura, envoltórias, dimensionamento e prancha só na origem (a associada fica fora de `dim.vigas` e a origem informa a viga comum); eixo em traço-ponto na planta e atalho para abrir o grupo de origem nos cartões E2b-1 e E2b-2 [E2b] |
 | C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Parcial | E | núcleo: `viga.comum { de, ate }` divide a viga e só a parte indicada vira comum; cada parte pode ser comum a um grupo diferente (`vigaComum.test.ts`); campos no cartão E2b-1 [E2b] |
@@ -1055,3 +1055,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3a, núcleo (catálogo e fichas de vigotas).** C7.19–C7.23, C7.25–C7.30, C7.36 e C7.37 de Falta/Parcial a Parcial com nota própria (núcleo e comandos prontos; editor, cascata e biblioteca do usuário nos cartões `docs/cartoes/E3a/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
+- **23/10/2026 — E2d, núcleo (diagonais de contraventamento).** C6.36 a C6.46 passam de Falta a Parcial com nota própria (barra das inclinadas entre grupos, nó nos cruzamentos sem reduzir ℓe, dimensionamento à tração e à compressão com esbeltez máxima, comandos `diagonal.*` com o grupo atual, memorial e prancha prontos; interface nos cartões `docs/cartoes/E2d/`).

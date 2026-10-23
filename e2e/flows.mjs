@@ -5480,10 +5480,6 @@ export const flows = [
   },
   {
     name: 'E2c: viga inclinada entre pavimentos (lançamento, ligação, carga, resultados, armadura bloqueada e memorial)',
-    },
-  },
-  {
-    name: 'E3a: tipos de laje (copiar a ficha de exemplo, erro lógico, enchimento, atribuir em cascata, exportar e importar JSON, ficha em uso, memorial)',
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
@@ -5691,9 +5687,13 @@ export const flows = [
       await page.keyboard.press('Control+z');
     },
   },
-    },
-  },
   {
+    name: 'E3a: tipos de laje (copiar a ficha de exemplo, erro lógico, enchimento, atribuir em cascata, exportar e importar JSON, ficha em uso, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [0, 4], [5, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
