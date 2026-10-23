@@ -209,7 +209,7 @@ describe('laje.copiarDados', () => {
     expect(n.engasteBordas).toEqual([0, 1, 1, 1]);
     expect(n.cobrimento).toBeUndefined();
     expect(s.executar('laje.copiarDados', { de: la.id, para: [la.id], campos: ['tipo'] }).ok).toBe(false);
-    expect(s.executar('laje.copiarDados', { de: la.id, para: [lb.id], campos: ['plano'] }).ok).toBe(false);
+    expect(s.executar('laje.copiarDados', { de: la.id, para: [lb.id], campos: ['plano'] }).ok).toBe(true); // E3f: o plano de inclinação passou a ser copiável
   });
 });
 

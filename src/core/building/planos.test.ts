@@ -350,6 +350,7 @@ describe('exemplo: cobertura em duas águas', () => {
     const d = dimensionarEdificio(s.modelo, an);
     const lajesCob = d.lajes.filter((l) => l.pavimento === cob.nome);
     expect(lajesCob.length).toBe(6);
+    { const gc = an.grelhas.find((x) => x.pavimento === cob.id)!; expect(gc.res!.desloc.some((u) => u.some(Number.isNaN))).toBe(false); expect(gc.res!.esforcos.some((c) => c.some((e) => e.some(Number.isNaN)))).toBe(false); }
     expect(lajesCob.every((l) => Number.isFinite(l.flecha ?? 0))).toBe(true);
     const caibro = s.modelo.vigas.find((v) => v.grupo === cob.grupo && v.pontos[0][0] === 5 && v.plano)!;
     expect(d.vigas.find((v) => v.viga === caibro.id)).toBeDefined();

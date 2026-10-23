@@ -286,6 +286,8 @@ function deslocGrelha(gb: GrelhaBase, ig: IntegradoGrelha, uB: ArrayLike<number>
     for (const n of nos) {
       const a = ig.assoc[n];
       if (a >= 0) { const dx = gb.m.nos[n][0] - ig.centros[a][0], dy = gb.m.nos[n][1] - ig.centros[a][1]; ug[n * 6 + 2] = uB[3 * a] + uB[3 * a + 1] * dy - uB[3 * a + 2] * dx; ug[n * 6 + 3] = uB[3 * a + 1]; ug[n * 6 + 4] = uB[3 * a + 2]; continue; }
+      if (ig.juncao[n] >= 0) { const o = 3 * (ig.pils.length + ig.juncao[n]); ug[n * 6 + 2] = uB[o]; ug[n * 6 + 3] = uB[o + 1]; ug[n * 6 + 4] = uB[o + 2]; continue; }
+      if (!ig.noSE[n]) continue;
       for (let g = 0; g < 3; g++) { const i = 3 * ig.interno[n] + g; let s = k === undefined ? 0 : c.Z[k][i]; for (let b = 0; b < nb; b++) s -= c.X[i * nb + b] * uB[b]; ug[n * 6 + 2 + g] = s; }
     }
     return ug;
@@ -293,6 +295,9 @@ function deslocGrelha(gb: GrelhaBase, ig: IntegradoGrelha, uB: ArrayLike<number>
   const uI = recuperarInternos(ig.cond, uB, k);
   for (let n = 0; n < nn; n++) {
     const a = ig.assoc[n];
+    // E3f: junção = gdl de fronteira; nó só de barras inclinadas fica para o pórtico
+    if (a < 0 && ig.juncao[n] >= 0) { const o = 3 * (ig.pils.length + ig.juncao[n]); ug[n * 6 + 2] = uB[o]; ug[n * 6 + 3] = uB[o + 1]; ug[n * 6 + 4] = uB[o + 2]; continue; }
+    if (a < 0 && !ig.noSE[n]) continue;
     if (a < 0) { const o = 3 * ig.interno[n]; ug[n * 6 + 2] = uI[o]; ug[n * 6 + 3] = uI[o + 1]; ug[n * 6 + 4] = uI[o + 2]; continue; }
     const dx = gb.m.nos[n][0] - ig.centros[a][0], dy = gb.m.nos[n][1] - ig.centros[a][1];
     ug[n * 6 + 2] = uB[3 * a] + uB[3 * a + 1] * dy - uB[3 * a + 2] * dx; ug[n * 6 + 3] = uB[3 * a + 1]; ug[n * 6 + 4] = uB[3 * a + 2];
