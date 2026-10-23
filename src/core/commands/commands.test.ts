@@ -42,6 +42,8 @@ function base() {
   // L2: a máscara sai da origem da importação (para `mascara.origemOriginal` ter o que desfazer)
   expect(s.executar('mascara.editar', { id: s.modelo.mascaras[0].id, dx: 0.5 }).ok).toBe(true);
   expect(s.executar('carga.pilar', { pilar: s.modelo.pilares[0].id, caso: 'Q', N: 50 }).ok).toBe(true);
+  // L6: uma cota de planta entre as faces de P1 e P2 (para editar, travar, mover pelo valor e remover)
+  expect(s.executar('cota.criar', { grupo: 'g_3', refs: [{ elem: { tipo: 'pilar', id: s.modelo.pilares[0].id }, parte: 'faceB' }, { elem: { tipo: 'pilar', id: s.modelo.pilares[1].id }, parte: 'faceA' }], linha: { angulo: 0, offset: -1 } }).ok).toBe(true);
   // R7a: uma tabela de vigas criada (para restaurar e remover) e a padrão dos estribos alterada
   expect(s.executar('tabela.definir', { tipo: 'vigas', tabela: { id: 'so16', nome: 'Só φ16', linhas: [{ bAte: 999, hAte: 999, pos: { bitolas: [16], nMin: 2, camadas: 2 }, neg: { bitolas: [16], nMin: 2, camadas: 2 }, passante: 0.5 }] } }).ok).toBe(true);
   expect(s.executar('tabela.definir', { tipo: 'estribos', tabela: { id: 'padrao', nome: 'Padrão', linhas: [{ bAte: 999, bitolas: [5, 6.3], sMin: 8, sMax: 20, ramos: [2, 4] }] } }).ok).toBe(true);
@@ -303,6 +305,13 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'laje.aberturaRetangular': (b) => ({ id: b.lajes[0].id, modo: 'zero', c1: [10.5, 0.5], c2: [11.2, 1.2], borda: 'alta' }),
   'carga.areaNaLaje': (b) => ({ laje: b.lajes[0].id, valor: 1.5, caso: 'Q' }),
   'carga.aoLongoDaViga': (b) => ({ vigas: [b.vigas[0].id], valor: 3, caso: 'G' }),
+  // L6
+  'cota.criar': (b) => ({ grupo: 'g_3', refs: [{ elem: { tipo: 'pilar', id: b.pilares[1].id }, parte: 'faceB' }, { elem: { tipo: 'pilar', id: b.pilares[2].id }, parte: 'faceA' }], linha: { angulo: 90, offset: 2 }, estilo: 'baseline' }),
+  'cota.editar': (b) => ({ id: b.cotas![0].id, linha: { angulo: 0, offset: -2 } }),
+  'cota.remover': (b) => ({ ids: [b.cotas![0].id] }),
+  'cota.travar': (b) => ({ id: b.cotas![0].id, travada: true }),
+  'cota.mover': (b) => ({ alvo: { tipo: 'pilar', id: b.pilares[1].id }, delta: [0.1, 0] }),
+  'cota.valor': (b) => ({ id: b.cotas![0].id, indice: 0, valor: 3.5 }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 
@@ -417,7 +426,7 @@ describe('revisão de cálculo', () => {
     for (const c of listarComandos().filter((x) => x.calculo === false)) {
       const r = aplicarComando(b0, c.nome, EXEMPLOS[c.nome](b0));
       expect(r.ok, c.nome).toBe(true);
-      expect(r.patches!.every((p) => ['prancha', 'vista', 'cortes', 'secoes', 'seq'].includes(String(p.path[0]))), c.nome).toBe(true);
+      expect(r.patches!.every((p) => ['prancha', 'vista', 'cortes', 'secoes', 'seq', 'cotas'].includes(String(p.path[0]))), c.nome).toBe(true);
     }
     const src = import.meta.glob(['../building/*.ts', '!../building/*.test.ts', '!../building/types.ts', '!../building/file.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
     expect(Object.keys(src).length).toBeGreaterThan(10);
