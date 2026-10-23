@@ -552,6 +552,64 @@ export interface Viga {
 /** Trecho curvo de uma viga (E2b): faixa de vértices [ini, fim] de `Viga.pontos` sobre um arco de círculo. */
 export interface ArcoViga { ini: number; fim: number }
 
+/** Ligação de uma ponta da barra entre grupos (E2c): engastada (gira com o nó) ou articulada (flexões livres). */
+export type LigacaoBarra = 'engastada' | 'articulada';
+
+/**
+ * Carga própria de uma viga inclinada (E2c, K1.9.114), vertical (gravidade), por caso. Posições em metros ao longo da parte
+ * flexível da barra a partir da ponta inicial. `concentrada`: força `valor` (kN) em `de`; `linear`: `valor` (kN/m, por metro
+ * de barra) em todo o comprimento; `faixa`: `valor` de `de` a `ate`; `triangular`: varia linearmente de `valor` em `de` a
+ * `valorFim` (padrão 0) em `ate`.
+ */
+export interface CargaInclinada {
+  id: string;
+  caso: string;
+  tipo: 'concentrada' | 'linear' | 'faixa' | 'triangular';
+  valor: number;
+  valorFim?: number;
+  de?: number;
+  ate?: number;
+}
+
+/** Armadura editada e bloqueada de uma viga inclinada: barras nas faces superior e inferior, pele em cada face lateral e estribos. */
+export interface ArmaduraInclinada {
+  sup: { n: number; phi: number };
+  inf: { n: number; phi: number };
+  /** Barras intermediárias em cada face lateral (além das de canto). */
+  laterais?: { n: number; phi: number };
+  estribo: { phi: number; s: number };
+}
+
+/**
+ * Viga inclinada de concreto entre pavimentos (E2c; C6.35, K1.3.16, K1.9.114): barra de 2 nós e 6 gdl entre o ponto `pIni`
+ * no pavimento `pavIni` e `pFim` em `pavFim` (cota do pavimento + desnível da ponta), ligada ao pilar ou à viga que a
+ * ponta toca. Não impõe diafragma. `multipla` repete a barra em cada par de pavimentos de mesma posição dentro dos
+ * grupos inicial e final. Base das diagonais de contraventamento (E2d).
+ */
+export interface VigaInclinada {
+  id: string;
+  nome: string;
+  pavIni: string;
+  pavFim: string;
+  pIni: [number, number];
+  pFim: [number, number];
+  /** Desnível da ponta em relação à cota do pavimento (m). */
+  nivelIni?: number;
+  nivelFim?: number;
+  secao: { b: number; h: number };
+  multipla?: boolean;
+  /** Ligações das pontas (padrão engastadas). */
+  ligIni?: LigacaoBarra;
+  ligFim?: LigacaoBarra;
+  cargas?: CargaInclinada[];
+  /** Coeficientes de flambagem por plano (ausentes = os das opções). */
+  flambagem?: { vertical?: number; transversal?: number };
+  /** Cobrimento próprio (cm); ausente = o das vigas. */
+  cobrimento?: number;
+  /** Armadura editada e bloqueada: o recálculo só a verifica. */
+  armadura?: ArmaduraInclinada;
+}
+
 export type TipoLaje =
   | { tipo: 'macica'; h: number }
   /** Treliçada unidirecional (vigotas + enchimento de EPS); `modelo` do catálogo (lajes.ts). */
@@ -798,6 +856,8 @@ export interface BuildingModel {
   vigas: Viga[];
   lajes: Laje[];
   cargas: Carga[];
+  /** Vigas inclinadas entre pavimentos (E2c); ausente = nenhuma. */
+  vigasInclinadas?: VigaInclinada[];
   vento?: Vento;
   /** Pranchas: dados do carimbo (definidos pelo usuário), formato e escala. */
   prancha?: ConfigPrancha;

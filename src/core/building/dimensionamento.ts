@@ -44,6 +44,7 @@ import { bransonFlecha, composicaoEtapas, inerciaMediaVao, etapasDe, fracoesGGru
 import { dadosDosArcos, ehCurva } from './curvas';
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
 import { verificarFogo, type ResultadoFogo } from './fogo';
+import { detalharInclinada, dimensionarInclinadas, resumoAcoInclinadas, type DetalheInclinada, type ResultadoInclinada } from './inclinadasDim';
 export { TAXAS };
 
 const AVISO_CA60 = 'CA-60 só existe até φ10: confira as bitolas maiores.';
@@ -1592,6 +1593,8 @@ export { cargasParaFundacao } from './fundacao';
 export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
   /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
   detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
+  /** Vigas inclinadas entre pavimentos (E2c): flexo-compressão oblíqua, cortante e torção; detalhamento (barras e estribos) e resumo do aço. */
+  inclinadas?: ResultadoInclinada[]; detalhesInclinadas?: DetalheInclinada[]; resumoAcoInclinadas?: ReturnType<typeof resumoAcoInclinadas>;
   /** Detalhamento dos pilares (barras por lance, emendas, arranques, estribos e grampos) e resumo do aço dos pilares. */
   detalhesPilares?: DetalhePilar[]; resumoAcoPilares?: ReturnType<typeof resumoAcoPilares>;
   /** Detalhamento das lajes maciças (posições de barras, bordas, avisos) e resumo do aço das lajes. */
@@ -1671,6 +1674,10 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   suspensoesVigas(b, an, vigas);
   const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
+  { // vigas inclinadas (E2c)
+    const inc = dimensionarInclinadas(b, an, elu, (bi, xs) => porCaso(an, bi, xs));
+    if (inc.length) { d.inclinadas = inc; d.detalhesInclinadas = inc.map((r) => detalharInclinada(b, r, an.opcoes.perdasAco)); d.resumoAcoInclinadas = resumoAcoInclinadas(b, d.detalhesInclinadas); }
+  }
   { const pp = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs)); if (pp.length) d.pilaresParede = pp; }
   { const pw = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs), 'paredes'); if (pw.length) d.paredes = pw; }
   if (d.paredes || d.pilaresParede) {

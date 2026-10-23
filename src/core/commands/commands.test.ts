@@ -85,6 +85,9 @@ function base() {
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[120, 0], [126, 0], [130, 4]], passagens: [null, [129, 0.8]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[140, 0], [146, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
   expect(s.executar('viga.comum', { id: s.modelo.vigas.at(-1)!.id, grupo: s.modelo.grupos.find((g) => g.nome === 'Vazio')!.id }).ok).toBe(true);
+  // E2c: uma viga inclinada entre os pilares P1 e P2 (do segundo ao terceiro pavimento)
+  expect(s.executar('inclinada.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [0, 0], pFim: [4, 3], secao: { b: 0.2, h: 0.4 } }).ok).toBe(true);
+  expect(s.executar('inclinada.armadura', { id: s.modelo.vigasInclinadas![0].id, sup: { n: 2, phi: 10 }, inf: { n: 2, phi: 10 }, estribo: { phi: 5, s: 0.2 } }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -193,6 +196,12 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'viga.comum': (b) => ({ id: b.vigas[0].id, grupo: b.grupos.find((g) => g.nome === 'Vazio')!.id, de: 0.5, ate: 2.5 }),
   'viga.comumDesfazer': (b) => ({ id: b.vigas.find((v) => v.comum)!.id }),
   'viga.ajustarPlano': (b) => ({ id: b.vigas[1].id, modo: 'maximaDeclividade', planos: [{ a: 0.1, b: 0.1, c: 0 }] }),
+  'inclinada.criar': (b) => ({ pavIni: b.pavimentos[2].id, pavFim: b.pavimentos[3].id, pIni: [4, 3], pFim: [0, 0], secao: { b: 0.2, h: 0.4 }, multipla: true, ligFim: 'articulada', cargas: [{ caso: 'G', tipo: 'triangular', valor: 5, valorFim: 0, de: 0, ate: 3 }], nome: 'VI9' }),
+  'inclinada.editar': (b) => ({ id: b.vigasInclinadas![0].id, nome: 'VI-A', secao: { b: 0.25, h: 0.5 }, ligIni: 'articulada', flambagem: { vertical: 0.9 }, cargas: [{ caso: 'Q', tipo: 'concentrada', valor: 20, de: 1 }] }),
+  'inclinada.mover': (b) => ({ id: b.vigasInclinadas![0].id, ponta: 'ambas', dx: 0.05, dy: 0 }),
+  'inclinada.remover': (b) => ({ ids: [b.vigasInclinadas![0].id] }),
+  'inclinada.armadura': (b) => ({ id: b.vigasInclinadas![0].id, sup: { n: 2, phi: 12.5 }, inf: { n: 3, phi: 16 }, laterais: { n: 1, phi: 8 }, estribo: { phi: 6.3, s: 0.15 } }),
+  'inclinada.redimensionar': () => ({}),
   'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
   'viga.alinharFace': (b) => ({ grupo: 'g_3', ids: [b.vigas[1].id], lado: 'esq' }),
   'laje.detectarPanos': () => ({ grupo: 'g_3' }),
