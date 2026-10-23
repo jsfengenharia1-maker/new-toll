@@ -15,6 +15,9 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 7. AUDIT do DXF/DWG no AutoCAD.
 8. NBR 16868-1 (alvenaria estrutural, 2020): fk e γm, esbeltez, tração e cisalhamento, alvenaria armada — base da E1e, escrita sem o texto da norma.
 
+## Como o material vira dado (biblioteca de normas, N3)
+Cada tabela abaixo que já existe no código é uma tabela da biblioteca de normas (`src/core/normas/`, id entre parênteses nas linhas). Quando o usuário enviar o texto, a transcrição é feita pelo próprio app (grupo "Biblioteca de normas", ou JSON importado) ou trocando as linhas de fábrica em `src/core/normas/*.ts`; o memorial registra a edição e se a tabela é de fábrica ou alterada. Fora da biblioteca: ábacos de Ca e vizinhança do vento (guardados em `vento.abacos`, editáveis em "Ábacos de vento") e as opções da alvenaria estrutural (NBR 16868; opções `alvenaria*`). Limites de Blévot: tabela `blevot.bielas`.
+
 ## NBR 6123 (vento)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
@@ -26,7 +29,7 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## NBR 6122:2019 (fundações)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
-| Tabela 4 (estacas moldadas: classe/γc, fck, σ sem armar, comprimento mínimo da armadura, As,mín) — só veio do projeto de 2018 | Dimensionamento estrutural de escavada e hélice | `STRUCT` em `src/core/piles.ts` | Hélice 30/2,7 e 40/3,6; escavada 25/3,1 e 40/5,0; Lmín 4/2 m; σ 6/5 MPa; ρmín 0,4 % |
+| Tabela 4 (estacas moldadas: classe/γc, fck, σ sem armar, comprimento mínimo da armadura, As,mín) — só veio do projeto de 2018 | Dimensionamento estrutural de escavada e hélice | `STRUCT` em `src/core/piles.ts` (tabela da biblioteca `nbr6122.estacas-moldadas`) | Hélice 30/2,7 e 40/3,6; escavada 25/3,1 e 40/5,0; Lmín 4/2 m; σ 6/5 MPa; ρmín 0,4 % |
 | Majoração de σadm com vento (item e valor) | Verificação geotécnica com combinações de vento | `terreno.fatorVento` em `src/core/building/fundacao.ts` | 1,0 (sem majoração); campo editável |
 | Itens do alívio de 50 % da viga de equilíbrio e do travamento de blocos | Vigas de fundação | `src/core/building/vigasFundacao.ts`, `fundacao.ts` | Alívio de 50 % e travamento do app, itens não conferidos |
 | Padm das estacas (mín[(Rp+Rl)/2; Rp/4+Rl/1,3]) e limite 1,25·Rl da escavada: texto da edição vigente | Capacidade de carga das estacas | `src/core/piles.ts` | Fórmulas confirmadas pelo usuário; edição de 2010 mantida |
@@ -36,10 +39,10 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## NBR 15200:2012 e NBR 14432 (fogo; frente N2g, código em `fogo.ts` e `fogoTabelas.ts`)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
-| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | `src/core/building/fogo.ts` e `fogoTabelas.ts` | Edição de 2004 (até 120 min) e fórmula analítica |
-| Tabelas de vigas biapoiadas e contínuas (bmín/c1, 180 min) | Verificação de viga ao fogo | `fogo.ts` | Idem |
-| As nove tabelas gerais do método tabular de pilares (μfi, λ, e/b) | Pilares ao fogo | `fogo.ts` | Idem |
-| NBR 14432: TRRF por ocupação, altura e área | Sugestão de TRRF por grupo | `fogo.ts`, `b.fogo.trrf` | IT 06 do CBMMG |
+| Tabelas tabulares de lajes maciças e nervuradas (h mín. e c1 por TRRF, incluindo 180 min) | Verificação de laje ao fogo | (tabelas `nbr15200.laje-apoiada`, `laje-lisa`, `nervurada-biapoiada`, `nervurada-continua`) `src/core/building/fogo.ts` e `fogoTabelas.ts` | Edição de 2004 (até 120 min) e fórmula analítica |
+| Tabelas de vigas biapoiadas e contínuas (bmín/c1, 180 min) | Verificação de viga ao fogo | `fogo.ts` (tabelas `nbr15200.viga-biapoiada`, `nbr15200.viga-continua`) | Idem |
+| As nove tabelas gerais do método tabular de pilares (μfi, λ, e/b) | Pilares ao fogo | `fogo.ts` (tabelas `nbr15200.pilar-2004`, `nbr15200.pilar-uma-face`) | Idem |
+| NBR 14432: TRRF por ocupação, altura e área | Sugestão de TRRF por grupo | `fogo.ts`, `b.fogo.trrf` (tabela `nbr14432.trrf-ocupacao`) | IT 06 do CBMMG |
 | Pilar com vento nas combinações determinantes: a NBR 15200 manda desprezar o vento na excentricidade de 1ª ordem (confirmar o texto e o item) | Limite e ≤ 0,15·b do método analítico | `fogo.ts` (`semVento`, `e` nulo vira aviso FOGO_LIMITES) | Combinações sem vento; se todas levam vento, sem verificação e aviso |
 
 ## NBR 6118:2023 e NBR 6120
@@ -48,10 +51,10 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 | Numeração de todos os itens citados (o código usa a edição de 2014) | Referências no memorial e nas mensagens | `src/core/building/premissas.ts`, `origem.ts`, `fonte` em `opcoes.ts` | Numeração de 2014 |
 | ηc para fck > 40 (item 8.2.10.1) e demais mudanças de 2023 em diagrama tensão-deformação | Resistência de cálculo de C50 em diante | `src/core/concrete.ts` (linha de `etac`) | (40/fck)^(1/3) |
 | Itens/fórmulas: Wp de borda e canto, K da Tabela 19.2, ψ do vento na punção | Punção | `src/core/building/puncao.ts` | Wp pela definição ∫\|e\|dℓ em torno do centroide de u* (conferido por integração independente em `puncao.test.ts`): borda 40×40, d = 20 cm, 0,5627 m² perpendicular à borda (51,6 % da fórmula fechada de 1,0913 m², que o app reproduz na direção paralela) e canto 0,3231 m² (29,6 %); critério, não erro de implementação; conservador (τ maior). Enviar o texto do item 19.5.2.3/19.5.2.4 para fechar; K do app |
-| NBR 6120:2019 Tabela 10 completa (9 categorias novas da L1) | Cargas variáveis por uso e ψ por categoria | `src/core/building/categoriasUso.ts`, `USOS` em `types.ts` | 6 usos: 1,5; 2,0; 3,0; 2,5; 3,0; 1,0 kN/m² |
+| NBR 6120:2019 Tabela 10 completa (9 categorias novas da L1) | Cargas variáveis por uso e ψ por categoria | `src/core/building/categoriasUso.ts`, `USOS` em `types.ts` (tabela `nbr6120.uso`) | 6 usos: 1,5; 2,0; 3,0; 2,5; 3,0; 1,0 kN/m² |
 | NBR 6120: carga em planos inclinados e escadas (item) | Frentes E3 e E4 | `src/core/building/lajes.ts` (planos) | Projeção horizontal [a confirmar] |
-| NBR 8681: γ de equilíbrio e do empuxo; controle de execução | Estados-limite de equilíbrio | `src/core/building/acoes.ts` (`GAMA_ORIGEM`) | 0,9/1,4 e 1,4 |
-| NBR 8681 / NBR 6118:2023 (tabelas de γ): linhas de empuxo de terra e ações indiretas (retração, temperatura, recalque) de `GAMA_ORIGEM` | γ por origem da ação nas combinações | `src/core/building/acoes.ts` (`GAMA_ORIGEM`, `gamaDaOrigem`) | Valores provisórios do app por origem (empuxo 1,4 ELU; ações indiretas conforme a linha da tabela), sem tabela conferida |
+| NBR 8681: γ de equilíbrio e do empuxo; controle de execução | Estados-limite de equilíbrio | `src/core/building/acoes.ts` (`GAMA_ORIGEM`; tabela `nbr8681.gama-origem`) | 0,9/1,4 e 1,4 |
+| NBR 8681 / NBR 6118:2023 (tabelas de γ): linhas de empuxo de terra e ações indiretas (retração, temperatura, recalque) de `GAMA_ORIGEM` | γ por origem da ação nas combinações | `src/core/building/acoes.ts` (`GAMA_ORIGEM`, `gamaDaOrigem`; tabela `nbr8681.gama-origem`) | Valores provisórios do app por origem (empuxo 1,4 ELU; ações indiretas conforme a linha da tabela), sem tabela conferida |
 | NBR 6118:2023, 15.8.3.3 / 8.2: 1,1·σcd na resistência do método geral dos pilares | Método geral (curva tensão-deformação do concreto) | `src/core/metodoGeral.ts` (constante comentada "[a confirmar]", linha 53) | 1,1·σcd do app |
 | NBR 6118:2023, 8.2.11 e Tabela 8.2: coeficiente de fluência φ (valor de 2,5 usado no pilar com fluência) | Efeito da fluência no pilar (λ > 90) | opção `pilarFluencia` em `src/core/building/opcoes.ts` (~694), `metodoGeral.ts` | φ = 2,5, Tabela 8.2 não consultada |
 | NBR 6118, 14.6.3 (e apoios): ΔM = R·t/8 do momento de ligação nos apoios extremos, divisor e item | Momento nos apoios (premissa `n2e-apoios`) | `src/core/building/apoios.ts` (`deltaMApoio`, ~16) | ΔM = R·t/8, divisor e item não conferidos com o texto |
@@ -60,8 +63,8 @@ PDF da norma, fotos legíveis das páginas (tabela inteira, com cabeçalho e not
 ## NBR 7481 e catálogos de fabricantes
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
-| Catálogo de telas soldadas: dimensões da série Q e séries L e T, painéis | Armadura base de lajes | `src/core/building/telasSoldadas.ts` | Série Q de catálogos de terceiros; painel 2,45 × 6,00 m; traspasse 20 cm; L/T ausentes |
-| SCAC: cargas, tração e momento admissível das pré-moldadas centrifugadas | Estacas pré-moldadas | `PRECAST_CATALOG` em `src/core/piles.ts` | Menor valor da faixa; momento "com o fabricante" |
+| Catálogo de telas soldadas: dimensões da série Q e séries L e T, painéis | Armadura base de lajes | `src/core/building/telasSoldadas.ts` (tabela `nbr7481.telas-q`) | Série Q de catálogos de terceiros; painel 2,45 × 6,00 m; traspasse 20 cm; L/T ausentes |
+| SCAC: cargas, tração e momento admissível das pré-moldadas centrifugadas | Estacas pré-moldadas | `PRECAST_CATALOG` em `src/core/piles.ts` (tabela `scac.pre-moldadas`) | Menor valor da faixa; momento "com o fabricante" |
 | Critério de nega pelo SPT das pré-moldadas (norma ou fabricante) | Comprimento da estaca | `precastStopN` em `piles.ts` | N = 30 ajustável |
 | Catálogo de treliçadas (TR 8644 a TR 25856) e EPS | Vigotas e lajes treliçadas | `TRELICAS` em `src/core/building/vigotas.ts` | Geometria nominal; γ EPS 0,2 kN/m³ |
 | Perfis soldados e propriedades W/HP contra catálogo | Aço (NBR 8800) | `src/core/profiles.ts` | Calculadas pela geometria |

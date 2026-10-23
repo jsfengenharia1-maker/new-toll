@@ -1,6 +1,7 @@
 // Ações e combinações (frente N2a): estados-limite selecionáveis, γ por origem, controle de execução, situações de
 // projeto do usuário (com o alerta de responsabilidade) e verificação de equilíbrio (tombamento global, EQU).
 // Núcleo puro. Valores sem fonte aberta confirmada ficam marcados "a confirmar".
+import { tabelaNorma, type FonteNormas } from '../normas';
 import type { AnaliseEdificio } from './analitico';
 import type { OpcoesCalculo } from './opcoes';
 import { casosDaObra, centroPilar, contornoPilar, type BuildingModel, type ControleExecucao, type EstadoConfig, type EstadoId, type SituacaoUsuario } from './types';
@@ -73,14 +74,14 @@ export const GAMA_EMPUXO = 1.4;
  * empuxo e de ações indiretas da NBR 8681. As linhas "em uso" (permanentes, variáveis, empuxo) vêm dos materiais
  * (`gamas`); as demais são de referência.
  */
-export const GAMA_ORIGEM: LinhaGama[] = [
-  { id: 'permanentes', origem: 'Permanentes diretas (peso próprio, elementos construtivos)', normal: [1.4, 1.0], especial: [1.3, 1.0], excepcional: [1.2, 1.0], fonte: 'NBR 6118, Tabela 11.1 (grande variabilidade); NBR 8681, Tabela 1', aConfirmar: false },
-  { id: 'variaveis', origem: 'Variáveis diretas (sobrecargas de uso)', normal: [1.4, 0], especial: [1.2, 0], excepcional: [1.0, 0], fonte: 'NBR 6118, Tabela 11.1; NBR 8681, Tabela 4', aConfirmar: false },
-  { id: 'vento', origem: 'Variável: vento', normal: [1.4, 0], especial: [1.2, 0], excepcional: [1.0, 0], fonte: 'NBR 6118, Tabela 11.1 (variáveis); NBR 8681', aConfirmar: false },
-  { id: 'empuxo', origem: 'Empuxo de terra e de líquidos (caso H)', normal: [GAMA_EMPUXO, 1.0], especial: [1.3, 1.0], excepcional: [1.2, 1.0], fonte: 'NBR 8681 (linha de empuxo tratada como permanente; valores a confirmar na norma)', aConfirmar: true },
-  { id: 'indiretas', origem: 'Indiretas: recalques de apoio e retração', normal: [1.2, 0], especial: [1.2, 0], excepcional: [0, 0], fonte: 'NBR 6118, Tabela 11.1', aConfirmar: false },
-  { id: 'protensao', origem: 'Protensão', normal: [1.2, 0.9], especial: [1.2, 0.9], excepcional: [1.2, 0.9], fonte: 'NBR 6118, Tabela 11.1 (não aplicável ao edifício de concreto armado)', aConfirmar: false },
-];
+export function gamasPorOrigem(b?: FonteNormas): LinhaGama[] {
+  return tabelaNorma(b, 'nbr8681.gama-origem').map((l) => ({
+    id: l.id as string, origem: l.origem as string, normal: [l.nD as number, l.nF as number], especial: [l.eD as number, l.eF as number], excepcional: [l.xD as number, l.xF as number],
+    fonte: l.fonte as string, aConfirmar: l.aConfirmar === 1,
+  }));
+}
+/** Tabela de fábrica (biblioteca de normas, `nbr8681.gama-origem`). */
+export const GAMA_ORIGEM: LinhaGama[] = gamasPorOrigem();
 
 // ---------------- controle de execução ----------------
 

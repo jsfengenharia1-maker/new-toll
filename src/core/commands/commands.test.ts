@@ -45,6 +45,8 @@ function base() {
   // R7a: uma tabela de vigas criada (para restaurar e remover) e a padrão dos estribos alterada
   expect(s.executar('tabela.definir', { tipo: 'vigas', tabela: { id: 'so16', nome: 'Só φ16', linhas: [{ bAte: 999, hAte: 999, pos: { bitolas: [16], nMin: 2, camadas: 2 }, neg: { bitolas: [16], nMin: 2, camadas: 2 }, passante: 0.5 }] } }).ok).toBe(true);
   expect(s.executar('tabela.definir', { tipo: 'estribos', tabela: { id: 'padrao', nome: 'Padrão', linhas: [{ bAte: 999, bitolas: [5, 6.3], sMin: 8, sMax: 20, ramos: [2, 4] }] } }).ok).toBe(true);
+  // N3: uma tabela normativa alterada (para restaurar)
+  expect(s.executar('norma.tabela.definir', { id: 'scac.pre-moldadas', linhas: [{ D: 26, P: 450, T: 150 }, { D: 33, P: 800, T: 180 }] }).ok).toBe(true);
   expect(s.executar('viga.armadura', { id: s.modelo.vigas[1].id, inf: { n: 2, phi: 10 }, estribo: { phi: 5, s: 0.2 } }).ok).toBe(true);
   expect(s.executar('sondagem.criar', { nome: 'SP-01', x: 0, y: 0, nivelAgua: 6, leituras: [5, 8, 10, 12, 15, 18, 20, 25].map((N) => ({ N, solo: 'areia' })) }).ok).toBe(true);
   expect(s.executar('fundacao.terreno', { sigmaAdm: 250, estacas: [{ tipo: 'helice', D: 40, modo: 'informada', capacidade: 600 }] }).ok).toBe(true);
@@ -113,6 +115,8 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'armadura.desbloquear': () => ({ tipo: 'viga' }),
   'tabela.definir': () => ({ tipo: 'pilares', tabela: { id: 'p25', nome: 'Pilares φ ≥ 16', bitolas: [16, 20, 25], espacamentos: [30, 20, 15], estribos: [{ phiAte: 20, phiT: 6.3, sMax: 15 }] } }),
   'tabela.restaurar': () => ({ tipos: ['estribos'] }),
+  'norma.tabela.definir': () => ({ id: 'nbr7481.telas-q', linhas: [{ id: 'Q138', n: 140, phi: 4.2, s: 10 }, { id: 'QX', n: 200, phi: 5, s: 10 }], edicao: 'NBR 7481 (edição do usuário)', nota: 'teste' }),
+  'norma.tabela.restaurar': () => ({ ids: ['scac.pre-moldadas'] }),
   'laje.puncao': (b) => ({ id: b.lajes[0].id, adicionar: [{ pilar: b.pilares[0].id, linhas: 8, barras: 3, phi: 6.3, s: 0.12 }] }),
   'laje.armaduraVigotas': (b) => ({ ids: [b.lajes[1].id], inf: { n: 1, phi: 8 }, sup: { n: 2, phi: 6.3 } }),
   'viga.detalhe': (b) => ({ id: b.vigas[0].id, barras: [{ pos: 'N1', s0: 0.1, ganchos: [false, true], perna: 12 }], zonas: [{ zona: 0, phi: 6.3, s: 0.15, ramos: 4 }], fatorEmenda: 1.5 }),

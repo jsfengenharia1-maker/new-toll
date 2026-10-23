@@ -8,7 +8,7 @@ import { motivoTramo } from '../building/detalhamento';
 import { agrupamentoDe, geometriaIdentica } from '../building/agrupamento';
 import { ehModeloPortico, motivoCopia, perfilDaViga, type ModeloPortico } from '../building/copiaArmadura';
 import { linhaLajes, tabelaDe } from '../building/tabelasArmadura';
-import { TELAS } from '../building/telasSoldadas';
+import { telaPor } from '../building/telasSoldadas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -274,7 +274,7 @@ registrar<{ ids: string[]; remover?: boolean }>({
 const BITOLA_LAJE = [5, 6.3, 8, 10, 12.5, 16];
 interface FaceBaseP { tela?: string; giro?: boolean; barras?: { dir: 0 | 1; phi: number; s: number }[] }
 const faceBase: JsonSchema = { type: 'object', additionalProperties: false, properties: {
-  tela: { type: 'string', enum: TELAS.map((t) => t.id), description: 'designação da tela soldada (NBR 7481)' },
+  tela: { type: 'string', description: 'designação da tela soldada (NBR 7481, tabela nbr7481.telas-q da biblioteca de normas)' },
   giro: { type: 'boolean', description: 'tela com os fios principais na direção 1 da laje' },
   barras: { type: 'array', minItems: 1, maxItems: 2, items: { type: 'object', additionalProperties: false, required: ['dir', 'phi', 's'], properties: { dir: { type: 'integer', enum: [0, 1] }, phi: { type: 'number', enum: BITOLA_LAJE }, s: { type: 'number', minimum: 5, maximum: 33, description: 'espaçamento (cm)' } } } },
 } };
@@ -298,6 +298,7 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
     for (const [nome, f] of [['inf', p.inf], ['sup', p.sup]] as const) {
       if (!f) continue;
       if (!!f.tela === !!f.barras) return err('BASE_FACE', `Base ${nome}: informe a tela ou as barras (uma só).`);
+      if (f.tela && !telaPor(f.tela, b)) return err('TELA_INEXISTENTE', `Base ${nome}: tela ${f.tela} não está no catálogo da obra.`);
       if (f.barras) {
         if (new Set(f.barras.map((x) => x.dir)).size !== f.barras.length) return err('BASE_FACE', `Base ${nome}: direção repetida.`);
         for (const l of b.lajes.filter((x) => p.ids.includes(x.id))) {

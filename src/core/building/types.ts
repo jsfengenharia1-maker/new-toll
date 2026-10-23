@@ -3,6 +3,7 @@
 import { opcoesEmUso, type OpcoesCalculo } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
+import type { NormasModelo } from '../normas/tipos';
 import type { FlechasConfig } from './flechas';
 import type { FogoConfig } from './fogo';
 
@@ -824,6 +825,8 @@ export interface BuildingModel {
   fundacao?: FundacaoEdificio;
   /** Tabelas de armadura alteradas ou criadas pelo usuário (R7a); as de fábrica não são guardadas. */
   tabelas?: TabelasArmadura;
+  /** Tabelas normativas alteradas pelo usuário (N3, biblioteca de normas); as de fábrica não são guardadas. */
+  normas?: NormasModelo;
   /** Tramos predefinidos (R7b): vigas consecutivas alinhadas cuja armadura inferior passante corre sem emenda no apoio comum. */
   tramos?: string[][];
   /** Zonas de uniformização da armadura das lajes (R7e). */
