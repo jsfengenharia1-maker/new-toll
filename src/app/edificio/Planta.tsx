@@ -18,6 +18,7 @@ import { isFooting } from '../../core/footings';
 import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
 import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilares';
 import { vigasDoClique } from '../../core/building/lancamentoDxf';
+import { pontaProlongada } from '../../core/building/lancamentoL5';
 import { panosDoGrupo } from '../../core/building/lajes';
 import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
 import { montarPoligonal } from '../../core/building/curvas';
@@ -912,6 +913,19 @@ export function Planta() {
       const [ax, ay] = paraTela(...pontos[0]);
       ctx.strokeStyle = pl.ferramenta === 'laje' ? cores.laje : cores.carga; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, ay); ctx.stroke(); ctx.setLineDash([]);
     }
+    // prolongar por comprimento fixo (L5, C6.53): prévia da nova ponta da viga sob o cursor
+    if (pl.ferramenta === 'prolongar' && pl.l5.comprimento && !pontos.length && !s.pan) {
+      const v = vigaSob(s.cursor, 12);
+      if (v) {
+        const a0 = v.pontos[0], z0 = v.pontos[v.pontos.length - 1], ini = Math.hypot(s.cursor[0] - a0[0], s.cursor[1] - a0[1]) <= Math.hypot(s.cursor[0] - z0[0], s.cursor[1] - z0[1]);
+        const [a, z] = ini ? [v.pontos[1], a0] : [v.pontos[v.pontos.length - 2], z0], q = pontaProlongada(a as P2, z as P2, pl.l5.comprimento);
+        if (q) {
+          const [x0, y0] = paraTela(z[0], z[1]), [x1, y1] = paraTela(q[0], q[1]);
+          ctx.strokeStyle = cores.viga; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+          ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = cores.cota; ctx.fillText(`${fmt(pl.l5.comprimento, 2)} m`, x1 + 8, y1 - 8);
+        }
+      }
+    }
     // prévia da viga
     if (pl.ferramenta === 'viga' && pontos.length && !s.pan) {
       // viga curva (E2b): trechos curvos já lançados e o em andamento (passagem marcada) como arcos pela mesma discretização da viga
@@ -1269,6 +1283,13 @@ export function Planta() {
     if (f === 'viga') {
       // viga curva (E2b): no trecho curvo o 1º clique é a passagem do arco e o 2º, o fim; os trechos retos guardam null
       const P = usePlanta.getState(), n = pontosRef.current.length;
+      if (P.l5.simples) {
+        // modo simples (L5, C6.7): cada par de pontos é uma viga independente
+        if (!n) { setPontos(novos); return; }
+        setPontos([]);
+        exec('viga.tracar', { grupo, pontos: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, simples: true, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
+        return;
+      }
       if (!n) { P.set({ passagemViga: null, passagensViga: [] }); setPontos(novos); return; }
       if (P.curvaViga && !P.passagemViga) { P.set({ passagemViga: [p[0], p[1]] }); msg('Passagem do arco marcada: clique no fim do arco.'); desenharInteracao(); return; }
       P.set({ passagensViga: [...P.passagensViga.slice(0, n - 1), P.curvaViga ? P.passagemViga : null], passagemViga: null });
@@ -1339,6 +1360,8 @@ export function Planta() {
         const w = it.current.cursor, a = v.pontos[0], z = v.pontos[v.pontos.length - 1];
         it.current.vigaRef = v.id; it.current.extremidade = Math.hypot(w[0] - a[0], w[1] - a[1]) <= Math.hypot(w[0] - z[0], w[1] - z[1]) ? 'ini' : 'fim';
         usePlanta.getState().set({ selecao: new Set([v.id]) });
+        const cp = usePlanta.getState().l5.comprimento;
+        if (cp) { it.current.vigaRef = null; exec('viga.prolongar', { id: v.id, extremidade: it.current.extremidade, ate: { comprimento: cp } }); return; } // L5 (C6.53): comprimento fixo
         setPontos([it.current.extremidade === 'ini' ? a : z]); return;
       }
       const id = it.current.vigaRef, ext = it.current.extremidade;
@@ -1433,7 +1456,7 @@ export function Planta() {
     const P = usePlanta.getState();
     // passagens dos arcos (E2b), uma por trecho: null = reto
     const passagens = Array.from({ length: Math.max(0, pts.length - 1) }, (_, i) => { const q = P.passagensViga[i]; return q ? [+q[0].toFixed(4), +q[1].toFixed(4)] : null; });
-    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida });
+    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
     P.set({ passagemViga: null, passagensViga: [] });
     setPontos([]);
   };
@@ -1579,6 +1602,13 @@ export function Planta() {
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'r') { P.set({ angulo: (P.angulo + 90) % 360 }); return; }
       if (P.pavimento === 'fundacao' && k.toLowerCase() === 'r') { const sel = selecionados().fundacoes; if (sel.length) { exec('lote', { comandos: sel.map((id) => ({ nome: 'fundacao.girar', params: { ids: [id], angulo: (b.fundacao?.elementos.find((e) => e.id === id)?.angulo ?? 0) + 90 } })) }); return; } }
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
+      if (k === 'Backspace' && P.ferramenta === 'viga' && pontos.length) {
+        // L5 (C6.6): Backspace apaga o último ponto da sequência de pontos da viga
+        e.preventDefault();
+        P.set({ passagemViga: null, passagensViga: P.passagensViga.slice(0, Math.max(0, pontos.length - 2)) });
+        setPontos(pontos.slice(0, -1));
+        return;
+      }
       if ((k === 'Delete' || k === 'Backspace') && P.selecao.size) {
         const sel = selecionados();
         const cmds = [...(sel.corridas.length ? [{ nome: 'corrida.remover', params: { ids: sel.corridas } }] : []), ...(sel.radiers.length ? [{ nome: 'radier.remover', params: { ids: sel.radiers } }] : []), ...(sel.vigasEl.length ? [{ nome: 'vigaElastica.remover', params: { ids: sel.vigasEl } }] : []), ...(sel.limites.length ? [{ nome: 'limite.remover', params: { ids: sel.limites } }] : []), ...(sel.vigasFund.length ? [{ nome: 'vigaFundacao.remover', params: { ids: sel.vigasFund } }] : []), ...(sel.fundacoes.length ? [{ nome: 'fundacao.remover', params: { ids: sel.fundacoes } }] : []), ...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : []),

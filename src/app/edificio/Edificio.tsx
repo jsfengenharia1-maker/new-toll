@@ -57,6 +57,7 @@ import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
 import { DadosL4Grupo } from './DadosL4';
+import { LancamentoL5Grupo } from './LancamentoL5';
 import { BarraAtalhos } from './BarraAtalhos';
 import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
@@ -142,6 +143,7 @@ export function Edificio() {
         <MurosGrupo b={b} />
         <AlvenariaGrupo b={b} />
         <VigasGrupo b={b} />
+        <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
         <LajesGrupo b={b} />
         <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
