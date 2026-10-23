@@ -33,7 +33,7 @@ export function OpcoesGrupo({ b }: { b: BuildingModel }) {
       {OPCOES_INFO.map((o) => {
         const pad = padraoDe(o, perfil), dif = o.padraoNBR !== undefined && o.padraoNBR !== o.padrao;
         return (
-          <div key={o.chave} className="row wrap u-items-end">
+          <div key={o.chave} className="row wrap u-items-end" data-ajuda={`opcao:${o.chave}`}>
             {o.booleana
               ? <Check label={o.rotulo} checked={!!op[o.chave]} onChange={(c) => exec('opcoes.definir', { valores: { [o.chave]: c ? 1 : 0 } })} />
               : <NumField label={o.rotulo} unit={o.unidade} width={190} value={op[o.chave]} onChange={(v) => exec('opcoes.definir', { valores: { [o.chave]: v } })} />}

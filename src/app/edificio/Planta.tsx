@@ -29,7 +29,8 @@ import { aberturasNaPlanta } from './paredesLista';
 import type { PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
-import { Input } from '../ui';
+import { Input, useAjuda } from '../ui';
+import { ajudaDaFerramenta } from '../../core/ajuda';
 import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
 type P2 = [number, number];
@@ -180,6 +181,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
 
 export function Planta() {
   const { sessao, exec, diags } = useBuilding();
+  const aj = useAjuda();
   const b = sessao.modelo;
   const pl = usePlanta();
   const pavs = pavimentosOrdenados(b);
@@ -1580,7 +1582,7 @@ export function Planta() {
   const passo = PASSOS[pl.ferramenta][Math.min(pontos.length, PASSOS[pl.ferramenta].length - 1)];
   return (
     <div className="planta">
-      <div ref={wrap} className="planta-cv" data-tema={pl.tema} data-nivel={nivelFund ? 'fundacao' : pav?.nome} onContextMenu={(e) => e.preventDefault()}>
+      <div ref={wrap} className="planta-cv" data-ajuda={`ferramenta:${pl.ferramenta}`} data-tema={pl.tema} data-nivel={nivelFund ? 'fundacao' : pav?.nome} onContextMenu={(e) => e.preventDefault()}>
         <canvas ref={cvM} />
         <canvas ref={cvE} />
         <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
@@ -1595,11 +1597,26 @@ export function Planta() {
             onChange={(e) => setDigitando(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirmarDigitado(); if (e.key === 'Escape') setDigitando(null); e.stopPropagation(); }} onBlur={() => setDigitando(null)} />
         )}
       </div>
-      <div className="planta-st">
+      <div className="planta-st" data-ajuda={`ferramenta:${pl.ferramenta}`}>
         <span ref={statusRef} className="num">—</span>
         <span className="muted">{passo}</span>
+        {TECLA_FERRAMENTA[pl.ferramenta] && <span className="muted">Tecla {TECLA_FERRAMENTA[pl.ferramenta]}</span>}
       </div>
+      {aj.ligada && <AjudaFerramenta f={pl.ferramenta} />}
     </div>
+  );
+}
+
+/** Ajuda da ferramenta ativa durante o lançamento (L4, C6.2): o que ela faz, os passos e a tecla. */
+function AjudaFerramenta({ f }: { f: Ferramenta }) {
+  const h = ajudaDaFerramenta(f, PASSOS[f], TECLA_FERRAMENTA[f]);
+  return (
+    <aside className="ajuda-ferr" aria-label="Ajuda da ferramenta ativa" data-ajuda-controle>
+      <b>{h.titulo}</b>
+      <p>{h.texto}</p>
+      <ol>{h.passos.map((x, i) => <li key={i}>{x}</li>)}</ol>
+      {h.tecla && <p className="hint">Tecla de atalho: {h.tecla}</p>}
+    </aside>
   );
 }
 

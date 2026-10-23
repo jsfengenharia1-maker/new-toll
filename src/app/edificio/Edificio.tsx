@@ -14,7 +14,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, download } from '../ui';
+import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -55,6 +55,9 @@ import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
 import { DadosL4Grupo } from './DadosL4';
+import { BarraAtalhos } from './BarraAtalhos';
+import { GuiaRapidoDialogo } from './GuiaRapido';
+import type { Atalho } from '../../core/ajuda';
 import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo, type DialogoGrupos } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
@@ -68,15 +71,22 @@ const corGrupo = (b: BuildingModel, id: string) => `grupo-c${Math.max(0, b.grupo
 const num = (t: string) => parseFloat(t.replace(',', '.'));
 
 export function Edificio() {
-  const { sessao, exec, novo, diags } = useBuilding();
+  const { sessao, exec, novo, diags, desfazer, refazer } = useBuilding();
+  const aj = useAjuda();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
   const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
   const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
   const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
-  const [dialogoL4, setDialogoL4] = useState<DialogoGrupos>(null);
+  const [dialogoL4, setDialogoL4] = useState<DialogoGrupos | 'guia'>(null);
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
+  const executarAtalho = (a: Atalho) => {
+    if (a.tipo === 'ferramenta') { setAba('planta'); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
+    if (a.tipo === 'aba') { setAba(a.alvo as typeof aba); return; }
+    if (a.alvo === 'desfazer') desfazer(); else if (a.alvo === 'refazer') refazer(); else if (a.alvo === 'ajuda') aj.alternar();
+    else if (a.alvo === 'guia' || a.alvo === 'copiarGrupo' || a.alvo === 'unirPavimentos') setDialogoL4(a.alvo);
+  };
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
   const irEtapa = (id: EtapaId) => {
     if (id === 'obra') { setDialogoL1('gerais'); return; }
@@ -90,13 +100,14 @@ export function Edificio() {
   return (
     <div className="edif">
       <aside className="fund-in edif-in">
+        <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
         <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => setDialogoL1('nova')}>Nova obra…</Button><Button variant="mini" onClick={() => setDialogoL1('recentes')}>Obras recentes…</Button><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
           <DadosGeraisCorpo b={b} />
         </Group>
 
         <Group title={`Pavimentos (${ps.length})`}>
-          <table className="data loads-ed edpav">
+          <table className="data loads-ed edpav" {...dataAjuda('barra:pavimentos')}>
             <thead><tr><th>Nome</th><th>Grupo</th><th>Cota (m)</th><th>Pé-dir.</th><th /></tr></thead>
             <tbody>
               {[...ps].reverse().map((p) => (
@@ -187,7 +198,7 @@ export function Edificio() {
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
           {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
-            <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
+            <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} data-ajuda={`aba:${k}`} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
           ))}
         </div>
         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
@@ -214,6 +225,7 @@ export function Edificio() {
       {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} />}
       {dialogoL4 === 'copiarGrupo' && <CopiarGrupoDialogo b={b} onClose={() => setDialogoL4(null)} />}
       {dialogoL4 === 'unirPavimentos' && <UnirPavimentosDialogo b={b} onClose={() => setDialogoL4(null)} />}
+      {dialogoL4 === 'guia' && <GuiaRapidoDialogo obra={b.obra.nome} onClose={() => setDialogoL4(null)} />}
       {dialogoL2?.tipo === 'lancar' && <LancamentoDxf inicial={dialogoL2.inicial} onClose={() => setDialogoL2(null)} />}
       {dialogoL2?.tipo === 'gabaritos' && <GerenciadorGabaritos onClose={() => setDialogoL2(null)} onLancar={(id) => setDialogoL2({ tipo: 'lancar', inicial: id })} />}
       {dialogoL2?.tipo === 'vistas' && <VistasRapidas onClose={() => setDialogoL2(null)} />}
