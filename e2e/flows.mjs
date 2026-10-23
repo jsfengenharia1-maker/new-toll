@@ -23,6 +23,11 @@ async function faixaAba(page, nome) {
   await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: nome, exact: true }).click();
 }
 
+/** Abre a aba contextual da faixa (aparece com um elemento selecionado: Pilar, Viga, Laje ou Fundação). */
+async function faixaCtx(page) {
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.ctx').click();
+}
+
 async function tab(page, name) {
   await page.locator('.panel .tabs').getByRole('tab', { name, exact: true }).click();
 }
@@ -795,14 +800,17 @@ export const flows = [
       const nomeAlvo = (await alvo.locator('td').first().innerText()).trim();
       await alvo.click();
       await page.locator('.planta-barra').waitFor();
-      assert.equal(await page.getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      await faixaCtx(page);
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
       // a planta marca os reprovados (chave Mostrar erros ligada) e a chave desliga
+      await faixaAba(page, 'Vista');
       const chave = page.getByLabel('Mostrar erros');
       assert.equal(await chave.isChecked(), true);
       await chave.uncheck();
       await chave.check();
       // janela do elemento pela planta
-      await page.getByRole('button', { name: 'Resultados do elemento' }).click();
+      await faixaCtx(page);
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).click();
       const jan = page.getByRole('dialog', { name: /Resultados do elemento/ });
       await jan.waitFor();
       assert.match(await jan.getAttribute('aria-label'), new RegExp(nomeAlvo.split(' ').at(-1)));
@@ -1122,6 +1130,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // camada de armadura das lajes na planta
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       const camada = page.getByLabel('Armadura das lajes na planta');
       await camada.selectOption('inf');
       await page.waitForTimeout(300);
@@ -1320,6 +1329,7 @@ export const flows = [
       assert.ok(reprovou, 'bloqueio com 0 barras adicionais deve reprovar (ARM_BLOQ ou VIGOTA_POS) na lista de erros');
       // camada de armadura das lajes na planta (inclui as treliçadas)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       const camada = page.getByLabel('Armadura das lajes na planta');
       await camada.selectOption('inf');
       await page.waitForTimeout(300);
@@ -1398,8 +1408,9 @@ export const flows = [
       await erroDivisa.click();
       await page.locator('.planta-barra').waitFor();
       assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
-      assert.equal(await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
-      await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).click();
+      await faixaCtx(page);
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).click();
       const jan = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S1/ });
       await jan.waitFor();
       const jt = await jan.innerText();
@@ -1587,12 +1598,13 @@ export const flows = [
       await pal.getByLabel('Buscar comando, pavimento ou elemento').press('Enter');
       await page.locator('summary', { hasText: /^Lajes — Tipo \([1-9]/ }).waitFor();
       // cores da planta editáveis (tema atual) e restaurar
-      await page.locator('.planta-barra').getByRole('button', { name: /^Cores/ }).click();
+      await faixaAba(page, 'Vista');
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: /^Cores/ }).click();
       const cores = page.getByRole('dialog', { name: /Cores da planta/ });
       await cores.getByLabel('Cor: Vigas').fill('#ff0000');
-      await page.locator('.planta-barra').getByRole('button', { name: 'Cores (1)' }).waitFor();
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Cores (1)' }).waitFor();
       await cores.getByRole('button', { name: 'Restaurar as cores do tema' }).click();
-      await page.locator('.planta-barra').getByRole('button', { name: 'Cores', exact: true }).waitFor();
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Cores', exact: true }).waitFor();
       await cores.getByRole('button', { name: 'Fechar' }).click();
       // remove as vigas soltas (y > 5) e a cópia do pilar por janela de cruzamento antes do cálculo
       await solta();
@@ -2130,6 +2142,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // planta: mapa de tensões e viga sobre base elástica (X)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Mapa da base elástica').selectOption('tensao');
       await page.locator('.planta-st').click();
       await page.keyboard.press('x');
@@ -3295,6 +3308,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // camada na planta (Tipo 1): contornos dos 9 pilares
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Armadura das lajes na planta').selectOption('puncao');
       await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-puncao') === '9', null, { timeout: 15000 });
       // ferramenta: um clique no pilar interno lança o grupo informado; no modo Apagar, remove
@@ -3346,6 +3360,7 @@ export const flows = [
       await livre();
       // painel de edição não modal sob a planta, com as camadas inferior e superior juntas
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Armadura das lajes na planta').selectOption('editar');
       const painel = page.locator('[data-painel-edicao-lajes]');
       await painel.waitFor();
