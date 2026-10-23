@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
-| 7. Lajes | 195 | 58 | 35 | 35 | 67 |
+| 7. Lajes | 195 | 70 | 23 | 35 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **390** | **79** | **109** | **185** |
+| **Total** | **763** | **402** | **67** | **109** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 55 | 104 | 159 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 43 | 104 | 147 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -418,11 +418,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] — L4 núcleo: `laje.copiarDados` e `CAMPOS_COPIA_LAJE` (tipo, direção, desnível, engastes, cobrimento, tabela, armadura base); plano de inclinação entra com a E3f; interface: `DadosL4.tsx` (cartão 03) |
 | C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) [E3c] |
-| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | `Laje.momentosMin` por tipo de vão (extremo, intermediário, isolado, balanço) e comando `laje.momentosMin` sobre os valores da obra (`minimosDaFaixa`, `vigotasEsforcos.ts`); interface nos cartões E3b [E3b] |
-| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Parcial | E | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares na E3e; interface nos cartões E3b [E3b] |
+| C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Feito | — | `Laje.momentosMin` por tipo de vão (extremo, intermediário, isolado, balanço) e comando `laje.momentosMin` sobre os valores da obra (`minimosDaFaixa`, `vigotasEsforcos.ts`) [E3b] |
+| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Feito | — | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares na E3e [E3b] |
 | C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Feito | — | coeficiente de engaste por borda da laje (laje.editar engasteBordas, Vínculos; N1a), também nas treliçadas |
 | C7.13 | Processo construtivo das alveolares: com ou sem escoramento. | Fora | — |  |
-| C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Parcial | E | `Laje.vigotasMultiplas` e comando `vigota.multipla` (dupla/tripla até o máximo da ficha, vigotas ao lado apagadas; esforços ÷ n + peso do conjunto); interface nos cartões E3b [E3b] |
+| C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Feito | — | `Laje.vigotasMultiplas` e comando `vigota.multipla` (dupla/tripla até o máximo da ficha, vigotas ao lado apagadas; esforços ÷ n + peso do conjunto) [E3b] |
 | | **7.1.2.1 Pano a definir** | | | |
 | C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano [E3f] |
 | C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação [E3f] |
@@ -514,7 +514,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); [V5] núcleo: `textoVigota` com a chave desligada (protendida, armada com treliça e adicional, moldada com φ e comprimento); protendida e moldada dependem da E3b; aço fora; falta a camada na planta |
 | C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo por nervura na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (M por metro de largura, majorado, junto a cada vigota); falta a camada na planta |
 | C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (V por metro nas duas pontas, ou a treliça, ou φ e espaçamento dos estribos); falta a camada na planta |
-| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Parcial | E | armadura inferior das nervuras moldadas por vigota (`posicoes` inferior, lista de vigotas); a vista na planta não ligada com a exibição de esforços; interface nos cartões E3b [E3b] |
+| C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Parcial | E | armadura inferior das nervuras moldadas por vigota (`posicoes` inferior, lista de vigotas); a vista na planta não ligada com a exibição de esforços [E3b] |
 | C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Parcial | V | [V5] núcleo: chave geral `esforcos` em `rotulosDeVigotas`/`textoVigota`, que condiciona as vistas e desliga a armadura inferior (C7.91); interface na aba Esforços (cartão V5-3); falta a camada na planta |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
 | C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E | [E3f] |
@@ -526,8 +526,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.99 | Cortante igualada sempre pelo máximo entre as combinações das vigotas do grupo. | Feito | — | cortante igualada sempre pelo máximo do grupo (R6) |
 | C7.100 | Igualação da armadura superior: percentual de diferença e critério (maior ou média) definidos pelo usuário; compara a área de aço de cada vigota com a vizinha, iguala se a diferença é menor que o percentual e segue em cadeia por todo o pano e por todos os panos. | Parcial | E | igualação dos momentos (e não da área de aço) com percentual e critério editáveis, ponto a ponto; negativos pelo mesmo grupo (R6/E3b) |
 | | **7.2.1.3 Erros de vigotas** | | | |
-| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Parcial | E | cada vigota com situação e mensagens (`VigotaIndividual.status`, `mensagens`); interface nos cartões E3b (vermelho na planta e na lista) [E3b] |
-| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | E | flecha total, ativa e das variáveis por vigota com Branson e etapas (`flechasDosAlinhamentos`, `VIGOTA_FLECHA`, sugestão de aumentar a altura); flecha de montagem (escoramento) não calculada (pendência do usuário); interface nos cartões E3b [E3b] |
+| C7.101 | Vigotas com erro (flecha, cortante ou outro) aparecem em vermelho; consulta da mensagem clicando na vigota. | Feito | — | cada vigota com situação e mensagens (`VigotaIndividual.status`, `mensagens`) (vermelho na planta e na lista) [E3b] |
+| C7.102 | Erro de armadura inferior: flecha instantânea, diferida ou ativa acima do limite (por peso próprio, sobrecarga ou carga de montagem); sugere aumentar a espessura. | Parcial | E | flecha total, ativa e das variáveis por vigota com Branson e etapas (`flechasDosAlinhamentos`, `VIGOTA_FLECHA`, sugestão de aumentar a altura); flecha de montagem (escoramento) não calculada (pendência do usuário) [E3b] |
 | C7.103 | Erro: momento positivo no apoio da vigota; sugere mudar o coeficiente de engastamento do pano ou rever a continuidade da armadura inferior. | Feito | — | aviso VIGOTA_APOIO (momento positivo na ponta da vigota; rever engaste ou continuidade) (R6) |
 | C7.104 | Erro: altura da laje insuficiente para a flexão. | Feito | — | erro VIGOTA_ALTURA (flexão positiva exige armadura de compressão: aumentar a altura) (R6) |
 | C7.105 | Erro: nenhuma vigota da série (protendida ou armada) cobre o momento positivo máximo. | Feito | — | erro `VIGOTA_POS` (ficha de fabricante) ou aviso `VIGOTA_TABELA` (ficha do usuário e genérica) quando nenhum tipo da série cobre o momento positivo, mesmo com adicional (`dimensionarVigotasFichas`) [E3b] |
@@ -543,14 +543,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.115 | Aviso: extremidades engastadas/contínuas não dimensionadas em vigotas de aço (articuladas nas bordas; em balanço o pano interno dá continuidade só para equilíbrio local, sem dimensionar o negativo). | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
 | C7.116 | Erro: cortante calculada acima da resistência da ficha da vigota; sugere laje mais alta ou vigota dupla. | Feito | — | erro `VIGOTA_CORTANTE` contra VRd1 da ficha (ou 19.4.1 sem ela) com a sugestão de laje mais alta ou vigota dupla (`dimensionarVigotasFichas`) [E3b] |
 | | **7.2.1.4 Informação da vigota** | | | |
-| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Parcial | E | flecha, esforços, tipo e armadura de cada vigota em `ResultadoVigotas.lista`; interface nos cartões E3b (consulta por clique) [E3b] |
+| C7.117 | Consulta, por clique, da flecha e de outros dados de uma vigota. | Feito | — | flecha, esforços, tipo e armadura de cada vigota em `ResultadoVigotas.lista` (consulta por clique) [E3b] |
 | | **7.2.1.5 Atribuição manual** | | | |
-| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Parcial | E | comando `vigota.editar` (de/ate ou lista, da primeira à última vigota); interface nos cartões E3b (seleção destacada) [E3b] |
-| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Parcial | E | comando `vigota.momentos` (momento positivo, negativos e cortantes das pontas atribuídos; vigota à parte); interface nos cartões E3b [E3b] |
-| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Parcial | E | `vigota.editar` com `tipo` da série e `transversal` (armada: soma Vsw ao VRd1); interface nos cartões E3b [E3b] |
-| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Parcial | E | armaduras parciais por comprimento total, comprimento dado ou percentual do comprimento, sempre em percentual nos resultados e nas pranchas (`ParcelaVigota.percentual`); interface nos cartões E3b [E3b] |
-| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Parcial | E | `vigota.editar` com `tipo` na protendida (serviço e ELU verificados); interface nos cartões E3b [E3b] |
-| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Parcial | E | moldada: armadura inferior (até 2 barras) e transversal editáveis, comprimento limitado ao da vigota, zona de estribos em número de barras (`vigota.editar`, `quantitativoMoldadas`); interface nos cartões E3b [E3b] |
+| C7.118 | Atribuição de dados a vigotas selecionadas da primeira à última (destacadas em amarelo). | Feito | — | comando `vigota.editar` (de/ate ou lista, da primeira à última vigota) (seleção destacada) [E3b] |
+| C7.119 | Vigota genérica de concreto: atribuir momento fletor e cortantes de extremidade (igualação manual). | Feito | — | comando `vigota.momentos` (momento positivo, negativos e cortantes das pontas atribuídos; vigota à parte) [E3b] |
+| C7.120 | Vigota armada: trocar o tipo dentro da série e a armadura transversal. | Feito | — | `vigota.editar` com `tipo` da série e `transversal` (armada: soma Vsw ao VRd1) [E3b] |
+| C7.121 | Vigota armada: armaduras parciais definidas por comprimento total, comprimento dado ou percentual do comprimento; exibidas sempre em percentual na tela e nos desenhos. | Feito | — | armaduras parciais por comprimento total, comprimento dado ou percentual do comprimento, sempre em percentual nos resultados e nas pranchas (`ParcelaVigota.percentual`) [E3b] |
+| C7.122 | Vigota protendida: trocar o tipo dentro da série. | Feito | — | `vigota.editar` com `tipo` na protendida (serviço e ELU verificados) [E3b] |
+| C7.123 | Vigota moldada no local: alterar armadura inferior (até duas barras longitudinais) e transversal; comprimento das barras editável sem ultrapassar a face externa das vigas; zona de estribos convertida em número de barras pelo espaçamento. | Feito | — | moldada: armadura inferior (até 2 barras) e transversal editáveis, comprimento limitado ao da vigota, zona de estribos em número de barras (`vigota.editar`, `quantitativoMoldadas`) [E3b] |
 | C7.124 | Vigota de aço: trocar o perfil dentro da série. | Fora | — | vigotas de aço (aço no edifício fora do escopo, como C7.39) |
 | C7.125 | Treliça metálica: trocar o perfil dos banzos ou das diagonais dentro da série. | Fora | — | treliças metálicas (aço no edifício fora do escopo, como C7.40) |
 | | **7.2.2 Lajes maciças e nervuradas (cogumelo/ábacos)** | | | |
@@ -625,8 +625,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.190 | Relatórios de lajes mistas: esforços, quantitativo das lajes e quantitativo de armadura. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.191 | Dados das lajes mistas no relatório de dados da obra e quantidades no quantitativo geral. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.192 | Configuração própria dos elementos de laje mista no desenho da planta de formas. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
-| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Parcial | E | `relatorioEsforcos` (`vigotasRelatorio.ts`): envoltórias de momento, cortante e torção do alinhamento e croqui do grupo de pavimentos e da vigota; interface nos cartões E3b [E3b] |
-| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | `quantitativoVigotas` (número e comprimento com perdas por tipo) e `quantitativoMoldadas` (inferior, superior e transversal); estribo em ômega e cortante em comprimento total não implementados (pendência do usuário); interface nos cartões E3b [E3b] |
+| C7.193 | Relatório de esforços em vigotas: envoltórias de momento, cortante e torção de um alinhamento, com croqui do grupo de pavimentos e da vigota. | Feito | — | `relatorioEsforcos` (`vigotasRelatorio.ts`): envoltórias de momento, cortante e torção do alinhamento e croqui do grupo de pavimentos e da vigota [E3b] |
+| C7.194 | Quantitativo das vigotas: peso e comprimento por metro com perda; nas moldadas no local, armaduras superior, inferior e transversal (cortante em comprimento total ou estribo em ômega). | Parcial | E | `quantitativoVigotas` (número e comprimento com perdas por tipo) e `quantitativoMoldadas` (inferior, superior e transversal); estribo em ômega e cortante em comprimento total não implementados (pendência do usuário) [E3b] |
 | C7.195 | Desenho de panos inclinados na planta: tangente da inclinação junto ao texto de cota e croqui do pavimento com tamanho configurável (só com lajes inclinadas). | Falta | E | [E3f] |
 
 ## 8. Escadas
@@ -1067,3 +1067,5 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3b, núcleo (vigotas completas).** C7.34, C7.35, C7.97, C7.105, C7.106, C7.110, C7.112 e C7.116 passam a Feito; C7.10, C7.11, C7.14, C7.31, C7.32, C7.91, C7.101, C7.102, C7.117–C7.123, C7.193 e C7.194 seguem Parcial com nota própria (núcleo e comandos prontos; aba Vigotas, exposição, momentos mínimos por pano, relatório e memorial nos cartões `docs/cartoes/E3b/`); C7.100 segue Parcial (igualação dos momentos, não da área de aço). Pendências do usuário: Tabela 13.4, combinação rara, parcelas, ômega, flecha de montagem (`docs/pendencias-usuario.md`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (8 itens do manual do usuário a Feito).
+- **23/10/2026 — E3b, interface (cartões 1 a 3).** Itens passam a Feito pela interface: C7.10, C7.11, C7.14, C7.101, C7.117 a C7.123 e C7.193 (aba Vigotas por ficha, exposição e momentos mínimos por pano, relatório de esforços, memorial das vigotas por ficha, e2e `E3b`). Notas de C7.91, C7.102 e C7.194 sem a expressão de interface, seguem Parcial. C7.31 e C7.32 seguem Parcial: a nota aponta falta de Mfis e rigidez fissurada, o que contradiz o cartão 3 (pendente de decisão).
+  - Situação: Feito +12; Parcial sem mudança de contagem nos itens não citados (ver recontagem em `npm run checklists`).

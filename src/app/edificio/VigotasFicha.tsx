@@ -6,10 +6,11 @@ import { useMemo, useState } from 'react';
 import { useBuilding } from './store';
 import { executarERecalcular } from './Armadura';
 import { fmt, phiTxt } from './Detalhamento';
-import { Mensagens } from './Revisao';
-import { Button, Hint, KV, NumField, Pill, Select, Seg } from '../ui';
+import { Diagrama, Mensagens } from './Revisao';
+import { Button, Hint, KV, Modal, NumField, Pill, Select, Seg } from '../ui';
 import { fichaPor } from '../../core/building/tiposLaje';
 import type { GrupoVigotas, ResultadoVigotas, VigotaIndividual } from '../../core/building/vigotas';
+import { relatorioEsforcos } from '../../core/building/vigotasRelatorio';
 
 const num = (v: number, d = 2) => fmt(v, d);
 const BITOLAS = [6.3, 8, 10, 12.5, 16, 20, 25].map((v) => ({ v, label: `φ${String(v).replace('.', ',')}` }));
@@ -121,8 +122,35 @@ function linhasPainel(r: ResultadoVigotas, v: VigotaIndividual, g: GrupoVigotas,
     : [['Flecha', 'sem resultado para esta vigota']];
 }
 
+/** Relatório de esforços da vigota (C7.193): envoltórias de momento, cortante e torção do alinhamento e croqui do grupo de pavimentos. */
+function RelatorioVigota({ r, v, onClose }: { r: ResultadoVigotas; v: VigotaIndividual; onClose: () => void }) {
+  const b = useBuilding((s) => s.sessao.modelo), an = useBuilding((s) => s.analise);
+  const rel = an ? relatorioEsforcos(b, an, r, v.indice) : null;
+  const W = 420, m = 14, xs = rel ? rel.croqui.contorno.map((p) => p[0]) : [0, 1], ys = rel ? rel.croqui.contorno.map((p) => p[1]) : [0, 1];
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), esc = (W - 2 * m) / Math.max(Math.max(...xs) - x0, 0.5), H = (Math.max(...ys) - y0) * esc + 2 * m;
+  const X = (q: number) => +(m + (q - x0) * esc).toFixed(1), Y = (q: number) => +(H - m - (q - y0) * esc).toFixed(1);
+  return (
+    <Modal titulo={`Relatório de esforços da vigota ${v.indice + 1}`} onClose={onClose} larga>
+      {!rel ? <p className="muted">Sem esforços da grelha para esta vigota: calcule o edifício.</p> : (
+        <div data-relatorio-vigota={v.indice}>
+          <p className="small">{rel.combinacao}. Pavimentos do grupo: {rel.pavimentos.join(', ')}. Esforços por nervura, no alinhamento da grelha mais próximo da vigota.</p>
+          <svg className="det" viewBox={`0 0 ${W} ${H.toFixed(0)}`} role="img" aria-label="Croqui do grupo de pavimentos e da vigota" data-croqui-vigota>
+            <path d={rel.croqui.contorno.map((p, i) => `${i ? 'L' : 'M'}${X(p[0])},${Y(p[1])}`).join('') + 'Z'} className="det-contorno" />
+            {rel.croqui.vigotas.map((q, i) => <line key={i} x1={X(q[0][0])} y1={Y(q[0][1])} x2={X(q[1][0])} y2={Y(q[1][1])} className="member st-ok" />)}
+            <line x1={X(rel.croqui.vigota[0][0])} y1={Y(rel.croqui.vigota[0][1])} x2={X(rel.croqui.vigota[1][0])} y2={Y(rel.croqui.vigota[1][1])} className="member sel" />
+          </svg>
+          <Diagrama id="rel-M" titulo="Momento por nervura" unid="kN·m" xs={rel.x} L={rel.x.at(-1) ?? 0} baixo cor="dg-m" series={[{ ys: rel.Mmax, rot: 'Mmax' }, { ys: rel.Mmin, rot: 'Mmin', alt: true }]} />
+          <Diagrama id="rel-V" titulo="Cortante por nervura" unid="kN" xs={rel.x} L={rel.x.at(-1) ?? 0} cor="dg-v" series={[{ ys: rel.V, rot: 'V' }]} />
+          <Diagrama id="rel-T" titulo="Torção por nervura" unid="kN·m" xs={rel.x} L={rel.x.at(-1) ?? 0} cor="dg-m" series={[{ ys: rel.T, rot: 'T' }]} />
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function PainelVigota({ r, v }: { r: ResultadoVigotas; v: VigotaIndividual }) {
   const [painel, setPainel] = useState<Painel>('pos');
+  const [relatorio, setRelatorio] = useState(false);
   const g = r.grupos[v.grupo];
   if (!g) return null;
   return (
@@ -131,6 +159,8 @@ function PainelVigota({ r, v }: { r: ResultadoVigotas; v: VigotaIndividual }) {
       <Seg value={painel} options={PAINEIS} onChange={setPainel} small />
       <KV rows={linhasPainel(r, v, g, painel)} />
       {v.mensagens.length > 0 && <Mensagens msgs={v.mensagens} />}
+      <Button onClick={() => setRelatorio(true)}>Relatório de esforços da vigota</Button>
+      {relatorio && <RelatorioVigota r={r} v={v} onClose={() => setRelatorio(false)} />}
     </section>
   );
 }

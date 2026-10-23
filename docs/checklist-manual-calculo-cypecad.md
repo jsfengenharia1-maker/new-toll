@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 5 | 1 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 33 | 6 | 10 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 64 | 13 | 2 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 65 | 12 | 2 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 40 | 5 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -21,11 +21,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 59 | 10 | 34 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 43 | 15 | 1 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 85 | 11 | 1 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 20 | 3 | 1 | 19 |
-| **Total** | **661** | **420** | **67** | **63** | **111** |
+| **Total** | **661** | **422** | **65** | **63** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 63 | 95 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 30 | 63 | 93 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **67** | **63** | **130** |
+| **Total** | **65** | **63** | **128** |
 
 ## Divergências de premissa
 
@@ -212,7 +212,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.4.5 Momentos mínimos (págs. 19–20)** | | | |
 | K1.4.38 | Vigas: momento mínimo como fração do isostático pl²/8, na forma pl²/x com x inteiro > 8, para negativo e positivo; padrão 0 (não aplica). | Feito | — | opções momentoMinPositivo e momentoMinNegativo (p·ℓ²/x, 0 = desligado), p·ℓ² = 8 × isostático das cargas verticais (N1e) |
 | K1.4.39 | Recomendação: armadura para negativo pl²/32 e positivo pl²/20; pode valer para toda a estrutura, parte ou cada viga. | Feito | — | recomendados p·ℓ²/20 (positivo) e p·ℓ²/32 (negativo) citados na opção; padrão desligado como no manual (N1e) |
-| K1.4.40 | Vigotas e alveolares: momentos mínimos por obra ou por pano; recomendado ½ do momento isostático (wl²/16) para positivo e negativo. | Parcial | E | momentos mínimos p·ℓ²/16 por obra (opções) e por pano e tipo de vão (`Laje.momentosMin`, `laje.momentosMin`); interface nos cartões E3b [E3b] |
+| K1.4.40 | Vigotas e alveolares: momentos mínimos por obra ou por pano; recomendado ½ do momento isostático (wl²/16) para positivo e negativo. | Feito | — | momentos mínimos p·ℓ²/16 por obra (opções) e por pano e tipo de vão (`Laje.momentosMin`, `laje.momentosMin`) [E3b] |
 | K1.4.41 | Envoltórias deslocadas para atender aos mínimos e depois aplicada a redistribuição de negativos. | Feito | — | mínimos aplicados antes e depois a redistribuição, que também reduz o negativo mínimo nos apoios internos (N1e) |
 | K1.4.42 | Carga linear equivalente obtida das cortantes: p = (V1+V2)/l; com mínimo positivo, verifica Mv ≥ pl²/8. | Feito | — | carga equivalente p = (V1 + V2)/ℓ dos cortantes das cargas verticais nas pontas do vão (N1e) |
 | K1.4.43 | Se o mínimo for menor que o de cálculo, prevalece o maior. | Feito | — | prevalece o maior entre o mínimo e o de cálculo (N1e) |
@@ -733,7 +733,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.5-6 | Necessidade de armadura comprimida no negativo → retirada dos blocos de enchimento (maciçamento) até onde deixa de ser necessária, indicada em planta por uma linha. | Feito | — | faixa maciçada necessária junto aos apoios pelo negativo e pelo cortante, hachurada na planta da laje (R6) |
 | K1.12.5-7 | Consulta em tela das envoltórias de momento e cortante (majoradas) por vigota. | Feito | — | diagramas de M e V (majorados) por vigota na aba Vigotas (R6) |
 | K1.12.5-8 | Extremidades das vigotas: mesmo com negativo nulo, arma para momento = % do positivo máximo do vão (configurável). | Feito | — | momento negativo mínimo p·ℓ²/16 (metade do isostático) em todas as pontas, configurável (vigotaMomentoMinNegativo, R6) |
-| K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Parcial | E | momentos mínimos configuráveis para toda a obra (`vigotaMomentoMin*`) e por pano (`laje.momentosMin`); interface nos cartões E3b [E3b] |
+| K1.12.5-9 | Momentos mínimos positivos e negativos configuráveis para toda a obra ou por pano. | Feito | — | momentos mínimos configuráveis para toda a obra (`vigotaMomentoMin*`) e por pano (`laje.momentosMin`) [E3b] |
 | K1.12.5-10 | Limitação: não verifica necessidade de armadura comprimida no vão. | Fora | — | limitação do outro programa |
 | K1.12.5-11 | Cortantes nas extremidades das vigotas nos desenhos: majorados e por metro de largura. | Feito | — | cortantes das pontas majorados (ELU) por nervura e por metro de largura (`cortantesDasPontas`, `VigotaIndividual.cortantePorMetro`) nas pranchas de lajes de vigotas (`sheets/armacaoLajes.ts`) [E3b] |
 | K1.12.5-12 | Flechas verificadas conforme a norma, distinguindo vigota armada e protendida (detalhe no cap. 2 do manual). | Parcial | E | N2f: vigotas armadas pelas regras das lajes (etapas, fatores 1,75/1,25 e limites próprios das treliçadas); protendidas com a E3 [E3] |
@@ -995,3 +995,5 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3b, núcleo (vigotas completas).** K1.3.18, K1.4.2, K1.4.87, K1.5.5, K1.12.5-1, K1.12.5-4 e K1.12.5-11 passam a Feito (vigota a vigota com igualação ponto a ponto, redistribuição limitada pela NBR em 25 % — o 30 % do programa de referência não é adotado —, cortante das moldadas, carga linear por vigota, tipo por momento e cortantes por metro nas pranchas); K1.4.40 e K1.12.5-9 seguem Parcial até a interface dos momentos mínimos por pano (cartões `docs/cartoes/E3b/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (7 itens).
+- **23/10/2026 — E3b, interface (cartões 1 a 3).** K1.4.40 e K1.12.5-9 passam a Feito pela interface (momentos mínimos por obra e por pano). Notas de K1.4.40 e K1.12.5-9 sem a expressão de interface.
+  - Situação: Feito +2; Parcial -2.
