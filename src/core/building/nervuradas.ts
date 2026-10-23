@@ -5,7 +5,8 @@
 // `nervuradasDim.ts`. Núcleo puro; kN, m. Dados de fabricante NÃO vêm no programa: o catálogo traz geometrias genéricas.
 import { tabelaNorma, type FonteNormas } from '../normas';
 import { areaPoligono, dentroPoligono, type P } from '../geom/faces';
-import type { BuildingModel, Laje, TipoLaje } from './types';
+import { intersecaoPoligonos } from '../geom/recorte';
+import type { Abaco, BuildingModel, Laje, TipoLaje } from './types';
 import { opcoesEmUso, perfilDe } from './opcoes';
 import { enchimentoPorOuExemplo, GAMA_CONCRETO, secaoT, type FonteLajes } from './tiposLaje';
 
@@ -155,10 +156,11 @@ export function propBarraNervurada(g: GeometriaBidirecional, k: 0 | 1, w: number
   return { A: macica ? w * g.h : n * (s * g.capa + bw * g.hEnch), I, J, As: (5 / 6) * (macica ? w * g.h : n * bw * g.h) };
 }
 /** Propriedades de uma barra cuja faixa tem a fração `fm` em zona maciça: mistura linear das propriedades das duas zonas. */
-export function propBarraNervuradaMista(g: GeometriaBidirecional, k: 0 | 1, w: number, fm: number, op: Pick<OpNervurada, 'nervuradaInercia' | 'nervuradaTorcao' | 'torcaoLaje'>): PropBarraNervurada {
+export function propBarraNervuradaMista(g: GeometriaBidirecional, k: 0 | 1, w: number, fm: number, op: Pick<OpNervurada, 'nervuradaInercia' | 'nervuradaTorcao' | 'torcaoLaje'>, hMac?: number): PropBarraNervurada {
   const a = propBarraNervurada(g, k, w, false, op);
   if (fm <= 0) return a;
-  const m = propBarraNervurada(g, k, w, true, op);
+  // ábaco rebaixado (E3d): a parte maciça tem a altura do ábaco
+  const m = propBarraNervurada(hMac !== undefined && hMac > g.h + 1e-9 ? { ...g, h: hMac } : g, k, w, true, op);
   return { A: (1 - fm) * a.A + fm * m.A, I: (1 - fm) * a.I + fm * m.I, J: (1 - fm) * a.J + fm * m.J, As: (1 - fm) * a.As + fm * m.As };
 }
 /** Altura da laje maciça de mesma inércia por metro que a nervura em T da direção k (comparação com a placa). */
@@ -259,21 +261,68 @@ export function arranjoNervuras(l: Pick<Laje, 'contorno' | 'furos' | 'direcao' |
   return { angulo: ang, origem: ref, nervuras, cubetas, areaCubetas: cubetas.length * g.cubeta, loc, glob, aliviada, fracMacica };
 }
 
-/** Geometria e arranjo da laje nervurada bidirecional com as opções da obra (faixa maciça junto às vigas); `null` nas demais lajes. */
-export function arranjoDaLaje(b: Pick<BuildingModel, 'opcoes' | 'perfilOpcoes' | 'normas' | 'tiposLaje'>, l: Laje): { g: GeometriaBidirecional; arr: ArranjoNervuras } | null {
+// ---------------------------------------------------------------- ábacos (E3d)
+
+/**
+ * Zona efetiva de um ábaco: o polígono nominal (m) ajustado ao número de cubetas inteiras e recortado pelo contorno da laje. Um
+ * retângulo alinhado às nervuras cresce para fora até os eixos de nervuras mais próximos (a cubeta que o ábaco toca em parte
+ * sai inteira); um polígono qualquer vale como está. Vazio (< 3 vértices) se o ábaco fica fora do pano.
+ */
+export function poligonoEfetivoAbaco(l: Pick<Laje, 'contorno' | 'direcao' | 'pontoNervuras' | 'insercao'>, g: Pick<GeometriaBidirecional, 'i'>, poligono: P[]): P[] {
+  const ang = (direcaoNervurada(l) * Math.PI) / 180, c = Math.cos(ang), s = Math.sin(ang);
+  const loc = (p: P): P => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], glob = (p: P): P => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  const cont = l.contorno as P[], ref = loc((l.pontoNervuras ?? cont[l.insercao ?? 0] ?? cont[0]) as P), q = poligono.map(loc);
+  const x0 = Math.min(...q.map((p) => p[0])), x1 = Math.max(...q.map((p) => p[0])), y0 = Math.min(...q.map((p) => p[1])), y1 = Math.max(...q.map((p) => p[1]));
+  let r: P[] = poligono;
+  if (Math.abs(areaPoligono(q)) >= (x1 - x0) * (y1 - y0) * 0.999 - 1e-9) {
+    const px = g.i[1], py = g.i[0];
+    const lo = (v: number, o: number, p: number) => o + Math.floor((v - o) / p + 1e-9) * p, hi = (v: number, o: number, p: number) => o + Math.ceil((v - o) / p - 1e-9) * p;
+    const a = lo(x0, ref[0], px), b = hi(x1, ref[0], px), cc = lo(y0, ref[1], py), d = hi(y1, ref[1], py);
+    r = ([[a, cc], [b, cc], [b, d], [a, d]] as P[]).map(glob);
+  }
+  return intersecaoPoligonos(r, cont);
+}
+
+export interface AbacoEfetivo { abaco: Abaco; poligono: P[]; area: number }
+/** Ábacos da laje com a zona efetiva (os que ficam fora do pano não entram). */
+export function abacosEfetivos(b: Pick<BuildingModel, 'abacos'>, l: Laje, g: Pick<GeometriaBidirecional, 'i'>): AbacoEfetivo[] {
+  const out: AbacoEfetivo[] = [];
+  for (const a of b.abacos ?? []) {
+    if (a.laje !== l.id) continue;
+    const poligono = poligonoEfetivoAbaco(l, g, a.poligono as P[]);
+    if (poligono.length >= 3) out.push({ abaco: a, poligono, area: Math.abs(areaPoligono(poligono)) });
+  }
+  return out;
+}
+/** A laje com os ábacos somados às zonas maciças (a própria laje, se não há ábacos). */
+export function lajeComAbacos(b: Pick<BuildingModel, 'abacos'>, l: Laje, g: Pick<GeometriaBidirecional, 'i'>): Laje {
+  const ab = abacosEfetivos(b, l, g);
+  return ab.length ? { ...l, zonasMacicas: [...(l.zonasMacicas ?? []), ...ab.map((x) => x.poligono as [number, number][])] } : l;
+}
+/** Altura total (m) do maior ábaco que contém o ponto; `undefined` fora de qualquer ábaco. */
+export function alturaAbacoEm(efs: AbacoEfetivo[], p: P): number | undefined {
+  let h: number | undefined;
+  for (const e of efs) if (dentroPoligono(p, e.poligono)) h = Math.max(h ?? 0, e.abaco.hAbaco);
+  return h;
+}
+/** Volume (m³) de concreto do rebaixo dos ábacos que descem abaixo da laje (área × (hAbaco − h)). */
+export const volumeRebaixoAbacos = (efs: AbacoEfetivo[], h: number): number => efs.reduce((t, e) => t + e.area * Math.max(0, e.abaco.hAbaco - h), 0);
+
+/** Geometria e arranjo da laje nervurada bidirecional com as opções da obra (faixa maciça junto às vigas, ábacos); `null` nas demais lajes. */
+export function arranjoDaLaje(b: Pick<BuildingModel, 'opcoes' | 'perfilOpcoes' | 'normas' | 'tiposLaje' | 'abacos'>, l: Laje): { g: GeometriaBidirecional; arr: ArranjoNervuras; abacos: AbacoEfetivo[]; volumeRebaixo: number } | null {
   if (l.tipo.tipo !== 'nervurada' || l.definir) return null;
-  const g = geometriaBidirecional(b, l.tipo);
-  return { g, arr: arranjoNervuras(l, g, opcoesEmUso(b.opcoes, perfilDe(b)).nervuradaMacicoViga) };
+  const g = geometriaBidirecional(b, l.tipo), abacos = abacosEfetivos(b, l, g);
+  return { g, arr: arranjoNervuras(lajeComAbacos(b, l, g), g, opcoesEmUso(b.opcoes, perfilDe(b)).nervuradaMacicoViga), abacos, volumeRebaixo: volumeRebaixoAbacos(abacos, g.h) };
 }
 
 /**
  * Espessura equivalente de concreto (m) da laje para os quantitativos: a da maciça, a da nervurada unidirecional pela
  * tabela e a da bidirecional pelas cubetas inteiras do arranjo (a margem e as zonas maciças entram inteiras).
  */
-export function espessuraConcretoDaLaje(b: Pick<BuildingModel, 'opcoes' | 'perfilOpcoes' | 'normas' | 'tiposLaje'>, l: Laje, esp: (t: TipoLaje) => number): number {
+export function espessuraConcretoDaLaje(b: Pick<BuildingModel, 'opcoes' | 'perfilOpcoes' | 'normas' | 'tiposLaje' | 'abacos'>, l: Laje, esp: (t: TipoLaje) => number): number {
   const a = arranjoDaLaje(b, l);
   if (!a) return esp(l.tipo);
-  const q = quantitativoNervurada(l, a.g, a.arr);
+  const q = quantitativoNervurada(l, a.g, a.arr, a.volumeRebaixo);
   return q.area > 0 ? q.volumeConcreto / q.area : esp(l.tipo);
 }
 
@@ -335,12 +384,14 @@ export interface QuantitativoNervurada {
   volumeConcreto: number; areaFormaCubetas: number; volumeEnchimento: number; pesoEnchimento: number;
   /** Peso próprio médio (kN/m²) e peso total do concreto (kN). */
   ppMedio: number; pesoConcreto: number;
+  /** Concreto (m³) do rebaixo dos ábacos abaixo da laje, já somado a `volumeConcreto`. */
+  volumeRebaixo: number;
 }
 /** Concreto, formas e enchimento: concreto = área × h − cubetas × volume da cubeta (a parte maciça entra inteira). */
-export function quantitativoNervurada(l: Pick<Laje, 'contorno' | 'furos'>, g: GeometriaBidirecional, arr: ArranjoNervuras): QuantitativoNervurada {
+export function quantitativoNervurada(l: Pick<Laje, 'contorno' | 'furos'>, g: GeometriaBidirecional, arr: ArranjoNervuras, volumeRebaixo = 0): QuantitativoNervurada {
   const area = Math.abs(areaPoligono(l.contorno as P[])) - (l.furos ?? []).reduce((t, f) => t + Math.abs(areaPoligono(f as P[])), 0);
   const nCub = arr.cubetas.length, areaCub = nCub * g.cubeta, volVazio = areaCub * g.hEnch;
-  const volumeConcreto = area * g.h - volVazio;
+  const volumeConcreto = area * g.h - volVazio + volumeRebaixo;
   const per = (g.forma.tipo === 'perdida' ? 1 : 0), volEnch = per ? volVazio : 0;
   // contato da forma: fundo + 4 faces (cubeta prismática; a cubeta troncopiramidal real fica a confirmar com o fabricante)
   const lados = (() => { const [i0, i1] = g.i, [b0, b1] = g.bw, a = i1 - b1, bb = i0 - b0; return 2 * (a + bb) * g.hEnch + a * bb; })();
@@ -348,6 +399,6 @@ export function quantitativoNervurada(l: Pick<Laje, 'contorno' | 'furos'>, g: Ge
   return {
     area, areaCubetas: areaCub, areaMacica: Math.max(0, area - nCub * g.i[0] * g.i[1]), cubetas: nCub, blocos: Math.ceil(nCub / Math.max(1, g.pecas)),
     volumeConcreto, areaFormaCubetas: g.recuperavel ? nCub * lados : 0, volumeEnchimento: volEnch, pesoEnchimento: pesoEnch,
-    ppMedio: area > 0 ? (volumeConcreto * GAMA_CONCRETO + pesoEnch) / area : 0, pesoConcreto: volumeConcreto * GAMA_CONCRETO,
+    ppMedio: area > 0 ? (volumeConcreto * GAMA_CONCRETO + pesoEnch) / area : 0, pesoConcreto: volumeConcreto * GAMA_CONCRETO, volumeRebaixo,
   };
 }

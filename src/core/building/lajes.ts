@@ -7,6 +7,7 @@ import { areaPoligono, dentroPoligono, faces, pontoInterno, type P } from '../ge
 import { GAMA_CONCRETO, ehNervurada, errosTipoLaje, geometriaNervurada, modelosTrelicadas, type FonteLajes } from './tiposLaje';
 import { opcoesEmUso, perfilDe } from './opcoes';
 import { avisosForma, geometriaBidirecional, verificarGeometria } from './nervuradas';
+import { diagnosticosAbacos } from './abacos';
 
 /**
  * Treliçadas unidirecionais com EPS [a confirmar com o fabricante]: altura do enchimento, intereixo, largura média da
@@ -118,6 +119,7 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
     for (const l of ls) if (ehNervurada(l.tipo) && !ehPano(l, panos))
       d.push({ codigo: 'TRELICADA_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é treliçada e não está fechada por vigas (balanço ou contorno livre não é permitido).` });
   }
+  d.push(...diagnosticosAbacos(b));
   for (const c of b.cargas) if (c.grupo !== 'fundacao' && !b.grupos.some((g) => g.id === c.grupo)) d.push({ codigo: 'CARGA_SEM_GRUPO', severidade: 'erro', elementos: [c.id], mensagem: 'Carga em grupo inexistente.' });
   return d;
 }

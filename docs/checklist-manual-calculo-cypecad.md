@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 62 | 15 | 26 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 64 | 17 | 22 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 43 | 15 | 1 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 44 | 14 | 1 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 31 | 6 | 4 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 34 | 6 | 1 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **432** | **74** | **44** | **111** |
+| **Total** | **661** | **438** | **75** | **37** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 39 | 44 | 83 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 40 | 37 | 77 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **74** | **44** | **118** |
+| **Total** | **75** | **37** | **112** |
 
 ## Divergências de premissa
 
@@ -488,10 +488,10 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.94 | Armadura base em malha (superior/inferior, duas direções) considerada no dimensionamento; mesmo alerta de detalhamento de 1.9.87. | Parcial | E | base das nervuras por direção considerada no dimensionamento só quando marcada (`laje.armaduraBase { nervuras }`); a malha da mesa e das zonas maciças fica descrita e desenhada, sem entrar no dimensionamento da mesa; alerta de detalhamento como o da 1.9.87 [E3c] |
 | K1.9.95 | Viga chata entre panos de alturas diferentes assume a altura da laje mais espessa; viga alta: parte saliente medida a partir da maior altura. | Feito | — | viga chata assume a altura da laje mais espessa que a toca, nervurada ou não (`alturaVigaChata`); viga alta: parte saliente = h da viga − maior altura (`parteSalienteViga`, `lajesQueTocam`, memorial das nervuradas) [E3c] |
 | K1.9.96 | Engaste de borda do pano 0–1. | Feito | — | `Laje.engasteBordas` (0 a 1 por aresta) vale para as nervuradas (`engasteBorda`, `laje.nervurada { engasteBordas }`) [E3c] |
-| K1.9.97 | Ábacos (zonas maciças) gerados automaticamente nos pilares ou em qualquer zona, com a mesma espessura do pano aliviado; altura pode descer abaixo da zona aliviada. | Falta | E | ábacos automáticos [E3d] |
-| K1.9.98 | Ábaco automático: dimensão em cada direção = 1/6 da distância ao pilar mais próximo dentro de cone de visão de 40°; sem pilar visível (borda), usa o valor do sentido oposto; limites 2,5 a 5 vezes a altura (texto); parâmetros de geração configuráveis. | Falta | E | ábacos (dimensões) [E3d] |
-| K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Falta | E | ábacos manuais [E3d] |
-| K1.9.100 | Ábacos sempre têm armadura base entre nervuras, descontada da armadura das nervuras; não é medida nem detalhada — alerta para legenda e detalhes; tabela informativa sempre impressa na planta. | Falta | E | ábacos (armadura base) [E3d] |
+| K1.9.97 | Ábacos (zonas maciças) gerados automaticamente nos pilares ou em qualquer zona, com a mesma espessura do pano aliviado; altura pode descer abaixo da zona aliviada. | Parcial | E | ábacos automáticos nos pilares (`abaco.gerar`) e em qualquer zona (`abaco.criar` por polígono), com a espessura do pano e altura `hAbaco` que pode descer abaixo da laje (rebaixo na grelha e no concreto: `abacosEfetivos`, `propBarraNervuradaMista`); ferramenta Ábaco na interface pendente (cartões) [E3d] |
+| K1.9.98 | Ábaco automático: dimensão em cada direção = 1/6 da distância ao pilar mais próximo dentro de cone de visão de 40°; sem pilar visível (borda), usa o valor do sentido oposto; limites 2,5 a 5 vezes a altura (texto); parâmetros de geração configuráveis. | Feito | — | 1/6 da distância ao pilar mais próximo no cone de 40°, sem pilar usa o sentido oposto, limites 2,5 a 5 h e parâmetros nas opções `abaco*` (`dimensionarAbacoPilar`; testes: malha de 6 × 6 m, cone, limites, borda) [E3d] |
+| K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Parcial | E | ábacos manuais ajustados ao número de cubetas inteiras (`poligonoEfetivoAbaco`) e aviso `ABACO_VIGA` quando comprido e estreito (`diagnosticosAbacos`, confirmável com `comoViga`); desenho à mão na planta pendente na interface [E3d] |
+| K1.9.100 | Ábacos sempre têm armadura base entre nervuras, descontada da armadura das nervuras; não é medida nem detalhada — alerta para legenda e detalhes; tabela informativa sempre impressa na planta. | Feito | — | armadura base entre nervuras sempre colaborante (a superior desconta da calculada sobre o pilar), padrão 2 barras da tabela; o Statikos a desenha e a quantifica (resumo de aço, posições `abacoBase`) e imprime o quadro "Armadura base dos ábacos" nas pranchas (`barrasBaseAbaco`, `armacaoLajes.ts`) [E3d] |
 | K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Parcial | E | cubetas desenhadas nas pranchas de formas e de armação (`arranjoDaLaje`); falta a camada opcional na planta (cartão) [E3c] |
 | K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Feito | — | comando `laje.armaduraPredefinida` (face, ponto, direção, comprimento, φ, espaçamento e nº de barras; criar, editar e remover): medida como lançada e descontada do reforço só na faixa n × s, inclusive sobre bordas contínuas (R7d) |
 | | **Aberturas** | | | |
@@ -596,7 +596,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.11.3 Desenhos (págs. 75–76)** | | | |
 | K1.11.54 | Formatos padrão ou do usuário; impressora, plotter, DXF/DWG, PDF; detalhes DXF/DWG inseríveis; escala, espessuras, textos, moldura, modelo DXF/DWG; elementos por camadas. | Parcial | V | PDF, DXF R2000, DWG; A0–A4, carimbo, camadas; [V5] núcleo: detalhes DXF inseríveis (escala, posição e rotação), modelo de moldura e de legenda importado de DXF, estilo de camadas, penas e textos; faltam o formato do usuário (largura × altura livres) e as margens configuráveis; impressora e plotter pela impressão do navegador (PDF) |
 | K1.11.55 | Planta de locação: elementos cotados por pavimento em relação a eixos; opcionalmente áreas, volumes e aço em quadro. | Feito | — | prancha de locação e cargas: pilares cotados entre centros e eixos, tabela de cargas características e de cálculo e notas gerais (R5); áreas e volumes por folha nas pranchas de armação |
-| K1.11.56 | Plantas de fôrma/estrutura: vigas, pilares, pilares-parede, paredes, panos de vigotas (positivos, cortantes extremas, comprimentos de negativos), armaduras de maciças e nervuradas, quadro de armadura base, ábacos e nervuras, punção, zonas maciças/aliviadas, quadro de quantitativos; desenhos de fundação. | Parcial | E | plantas de formas, locação e armação de lajes maciças e treliçadas (barra representativa, distribuição, sentido das vigotas); sem fundações, ábacos, punção, zonas maciças/aliviadas e quadro de armadura base (R5) [E3d] |
+| K1.11.56 | Plantas de fôrma/estrutura: vigas, pilares, pilares-parede, paredes, panos de vigotas (positivos, cortantes extremas, comprimentos de negativos), armaduras de maciças e nervuradas, quadro de armadura base, ábacos e nervuras, punção, zonas maciças/aliviadas, quadro de quantitativos; desenhos de fundação. | Feito | — | pranchas de formas e de armação das lajes: contornos e cubetas, ábacos hachurados com nome, altura e cotas (`abacoDesenho.ts`), armadura base e reforço sobre o pilar, quadro de armadura base dos ábacos, armadura de punção (N2d) e concreto/aço com cubetas e rebaixo; fundações em FU5 [E3d] |
 | K1.11.57 | Detalhamento de vigas (pórticos): nome, escala, dimensões, barras (nº, bitola, comprimentos, posição), estribos (tipo, bitola, espaçamento), quadro resumo. | Feito | — | prancha de armação de vigas por grupo: elevação com barras (n Nk φ C=), estribos por zona, apoios, cotas, seção e estribo à parte, tabela de aço e resumo com perdas (R5); sem corte A-A nem 2ª camada |
 | K1.11.58 | Quadro de pilares e placas de base: seções, número, posição, trecho de estribos, tipos, bitolas, comprimentos, perfis; agrupados por tipos iguais; placas com dimensões, chumbadores e geometria; por pavimento, com resumo. | Parcial | E | quadro de pilares com seção, armadura longitudinal, estribos e grampos por lance, agrupado por pilares iguais (P1=P3), na prancha de pilares (R5); sem placas de base (aço) [E4e] |
 | K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Feito | — | prancha de armação de pilares: elevação com níveis, emendas e arranques, seções por arranjo com grampos e tabela de aço (R5); pilares-parede inexistentes no módulo |
@@ -786,13 +786,13 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.13.3 Lajes nervuradas (págs. 94–95)** | | | |
 | K1.13.3-1 | Critérios iguais aos das lajes maciças, salvo as diferenças abaixo. | Parcial | E | flexão em T e em retângulo, mínimos, cortante e fissuração do positivo pela NBR (`dimensionarNervuradas`); sem a verificação da tabela de armadura (R7a), da fissuração do negativo e do Wood-Armer [E3c] |
 | K1.13.3.1-1 | Armadura base pode distinguir zona maciça (ábaco) e zona aliviada. | Parcial | E | base da mesa e das zonas maciças (`baseNervurada.mesa`) distinta da base das nervuras (`baseNervurada.nervuras`); a zona maciça de ábaco é da E3d [E3c] |
-| K1.13.3.1-2 | Ábaco: padrão de 2 barras (da tabela) de borda a borda do ábaco, entre eixos de nervuras; sempre colaborante. | Falta | E | ábacos [E3d] |
-| K1.13.3.1-3 | Limitação: a armadura base do ábaco não é desenhada nem quantificada; o projetista detalha à parte. | Falta | E | ábacos (detalhe) [E3d] |
+| K1.13.3.1-2 | Ábaco: padrão de 2 barras (da tabela) de borda a borda do ábaco, entre eixos de nervuras; sempre colaborante. | Feito | — | 2 barras da tabela de armadura das lajes por vão entre eixos de nervuras, de borda a borda do ábaco, nas duas faces e direções; editável (`abaco.armaduraBase`) (`baseDoAbaco`, `barrasBasePadrao`) [E3d] |
+| K1.13.3.1-3 | Limitação: a armadura base do ábaco não é desenhada nem quantificada; o projetista detalha à parte. | Feito | — | limitação do programa de referência superada: o Statikos desenha e quantifica a armadura base do ábaco (`armacaoLajes.ts`, `resumoAcoNervuradas`) e mantém a tabela informativa nas pranchas [E3d] |
 | K1.13.3.1-4 | Nervuras: armadura base não considerada por padrão; ativada por direção; tabelas próprias combinam base e reforço na nervura. | Parcial | E | base das nervuras não considerada por padrão e ativada por direção (`considerar`); base e reforço combinados por nervura nos resultados, no memorial e na prancha; falta a interface (cartão) [E3c] |
 | K1.13.3.1-5 | Armadura base das nervuras detalhada (opção) → desenhada e medida; senão só descrição geral na listagem. | Feito | — | base das nervuras detalhada (`baseNervurada.detalhada` ou opção `lajeBaseDetalhada`): posições `base` e `baseSup` desenhadas e medidas; senão só a descrição geral na listagem da prancha (`dimensionarNervuradas`, `montarPranchasLajes`) [E3c] |
 | K1.13.3.2-1 | Reforço longitudinal: mesmos critérios das maciças, concentrado nas nervuras; as envoltórias dos elementos adjacentes a cada nervura são agrupadas antes. | Feito | — | reforço concentrado nas nervuras: esforços de cada nervura = soma das faixas adjacentes da grelha pela parte dentro da banda do intereixo, envoltória dos pavimentos (`esforcosDaNervura`) [E3c] |
 | | **1.13.4 Armadura transversal das nervuradas (pág. 95)** | | | |
-| K1.13.4-1 | Punção nos ábacos com a mesma análise da laje maciça. | Falta | E | punção nos ábacos [E3d] |
+| K1.13.4-1 | Punção nos ábacos com a mesma análise da laje maciça. | Feito | — | punção nas nervuradas com ábaco como nas maciças (N2d): C e C′ a 2d com a altura do ábaco, C″ a 2d da borda do ábaco com a altura da laje, contornos recortados pelas cubetas, armadura radial (`abacosPuncao.ts`: `puncaoAbacos`; `puncao.ts`: `tirarDentro`) [E3d] |
 | K1.13.4-2 | Nervuras da zona aliviada: cortante verificado a cada 0,75d; se necessário, barras verticais (diâmetro e espaçamento) desenhadas e visíveis em tela. | Parcial | E | cortante a cada fator × d (opção `nervuradaCortanteDist`, 0,75): VRd1 de 19.4.1 e estribos (φ, espaçamento ≤ 0,75 d, zonas) desenhados e listados na prancha de armação; falta mostrá-los na tela (cartão) [E3c] |
 | K1.13.4-3 | Armadura de punção distribuída localmente: revisar e uniformizar para facilitar a obra; recomenda biblioteca de detalhes. | Fora | — | recomendação do manual |
 | K1.13.4.1-1 | Uniformização igual à das maciças, concentrando a armadura nas nervuras indicadas. | Parcial | E | uniformização automática entre nervuras vizinhas da mesma direção (opção `nervuradaIgualacaoDif`, 20 %); falta indicar as nervuras a concentrar [E3c] |
@@ -1000,3 +1000,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3c, núcleo (nervuradas bidirecionais).** K1.3.25, K1.3.26, K1.3.27, K1.5.4, K1.9.92, K1.9.95, K1.9.96, K1.13.3.1-5, K1.13.3.2-1 e K1.15.4-25 (manual de cálculo) passam a Feito; K1.9.90, K1.9.91, K1.9.93, K1.9.94, K1.9.101, K1.13.3-1, K1.13.3.1-1, K1.13.3.1-4, K1.13.4-2 e K1.13.4.1-1 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; editor de formas, grupo de nervuradas, camada na planta e memorial nos cartões `docs/cartoes/E3c/`; K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 seguem Parcial depois dos cartões: base da mesa só descrita, sem tabela R7a nem fissuração do negativo, ábaco na E3d e uniformização automática).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (10 itens a Feito; 16 de Falta a Parcial).
+
+- **23/10/2026 — E3d, núcleo (ábacos e punção nas nervuradas).** K1.9.98, K1.9.100, K1.11.56, K1.13.3.1-2, K1.13.3.1-3 e K1.13.4-1 passam a Feito; K1.9.97 e K1.9.99 passam de Falta a Parcial com nota própria (geração automática, ábacos manuais, ajuste às cubetas e aviso `ABACO_VIGA` prontos no núcleo e nos comandos; ferramenta Ábaco e janela de parâmetros nos cartões a escrever, ver `docs/cartoes/E3d/00-pendente.md`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (6 itens a Feito; 2 de Falta a Parcial).

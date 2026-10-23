@@ -10,7 +10,8 @@ import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import type { ResultadoLaje } from './dimensionamento';
 import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
-import { avisosForma, arranjoNervuras, geometriaBidirecional, passoMalhaNervurada, quantitativoNervurada, verificarGeometria, type ArranjoNervuras, type Nervura, type QuantitativoNervurada, type Regime } from './nervuradas';
+import { abacosEfetivos, avisosForma, arranjoNervuras, geometriaBidirecional, lajeComAbacos, passoMalhaNervurada, quantitativoNervurada, verificarGeometria, volumeRebaixoAbacos, type ArranjoNervuras, type Nervura, type QuantitativoNervurada, type Regime } from './nervuradas';
+import { baseDoAbaco, barrasBaseAbaco, trechosDentro, type BarrasBaseAbaco } from './abacos';
 import { errosTipoLaje } from './tiposLaje';
 import { lajesQueTocam, parteSalienteViga } from './secaoViga';
 import { casosDaObra, pavimentosDoGrupo, type BarrasNervura, type BuildingModel, type Laje } from './types';
@@ -112,7 +113,21 @@ export function escolherBarras(AsNec: number, bw: number, phiEst: number, cob: n
 
 // ---------------------------------------------------------------- resultados
 
-export interface SecaoCortante { x: number; V: number; VRd: number; estribo: boolean }
+/** `solido`: seção inteira dentro de um ábaco (banda maciça de largura igual ao intereixo; VRd1 com essa largura). */
+export interface SecaoCortante { x: number; V: number; VRd: number; estribo: boolean; solido?: boolean }
+/**
+ * Trecho de uma nervura dentro de um ábaco (E3d): momento negativo da banda sobre o pilar (seção maciça de largura = intereixo e altura
+ * do ábaco), armadura necessária descontada da base do ábaco (colaborante), reforço nas nervuras (que precisa caber na largura da nervura e
+ * cobrir o momento na borda do ábaco), comprimento da armadura negativa e cortante da banda maciça.
+ */
+export interface ArmaduraNervuraAbaco {
+  abaco: string; x0: number; x1: number; Mneg: number;
+  /** Armadura negativa necessária no ábaco (cm² por banda), a da base do ábaco (cm²) e a necessária na borda do ábaco, na nervura (cm²). */
+  AsNec: number; AsBase: number; AsBorda: number;
+  barras: BarraEscolhida | null; cabe: boolean; larguraMin: number; comprimento: number; dupla: boolean;
+  /** Cortante máximo no trecho (kN por banda), VRd1 e VRd2 da banda maciça e estribos se VRd1 < V ≤ VRd2. */
+  Vmax: number; VRd1: number; VRd2: number; estribo: { phi: number; s: number; barras: number } | null; ok: boolean;
+}
 export interface ArmaduraSup { Mneg: number; AsNec: number; barras: BarraEscolhida | null; comprimento: number; macica: boolean; bwEfetiva: number; dupla: boolean }
 export interface NervuraDim {
   dir: 0 | 1; indice: number; a: P; z: P; L: number;
@@ -124,6 +139,8 @@ export interface NervuraDim {
   cortante: { regime: Regime; passo: number; VRd1: number; VRd2: number; secoes: SecaoCortante[]; zonas: [number, number][]; estribo: { phi: number; s: number; barras: number } | null; ok: boolean };
   /** Grupo de uniformização (nervuras da mesma direção com a mesma armadura). */
   grupo: number;
+  /** Trechos da nervura dentro de ábacos (E3d); vazio se não há. */
+  abacos: ArmaduraNervuraAbaco[];
 }
 type BarraNervura = BarrasNervura & { As: number };
 
@@ -133,7 +150,7 @@ export interface MesaNervurada {
   /** Distância livre (m), carga de cálculo (kN/m²), momento (kN·m/m) e armadura necessária e adotada (cm²/m). */
   livre: number; qd: number; Md: number; AsNec: number; AsAdotada: number; phi: number; s: number;
 }
-export interface PosicaoAcoNervurada { tipo: 'inferior' | 'base' | 'baseSup' | 'superior' | 'estribo' | 'mesa'; aco: string; phi: number; n: number; comprimento: number }
+export interface PosicaoAcoNervurada { tipo: 'inferior' | 'base' | 'baseSup' | 'superior' | 'estribo' | 'mesa' | 'abaco' | 'abacoBase'; aco: string; phi: number; n: number; comprimento: number }
 export interface ResultadoNervurada {
   laje: string; nome: string; pavimentos: string[];
   /** Pavimentos do grupo que repetem a laje (multiplicam os quantitativos). */
@@ -146,6 +163,8 @@ export interface ResultadoNervurada {
   baseDetalhada: boolean;
   mesa: MesaNervurada;
   quantitativo: QuantitativoNervurada;
+  /** Ábacos da laje (zona efetiva, m²) e a armadura base de cada um (E3d). */
+  abacos: { id: string; hAbaco: number; area: number; automatico: boolean; pilar?: string; base: BarrasBaseAbaco[]; padrao: boolean }[];
   posicoes: PosicaoAcoNervurada[]; peso: number;
   mensagens: string[]; status: 'ok' | 'fail';
 }
@@ -174,7 +193,8 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     const erro = (t: string) => { msgs.push(t); falhou = true; };
     const ver = verificarGeometria(g, op.nervuradaMesaMin / 100);
     for (const a of [...ver.avisos, ...avisosForma(g)]) (a.severidade === 'erro' ? erro : a.severidade === 'info' ? info : aviso)(`${a.mensagem.replace(/\.$/, '')} (${tag}).`);
-    const arr = arranjoNervuras(l, g, op.nervuradaMacicoViga);
+    const arr = arranjoNervuras(lajeComAbacos(b, l, g), g, op.nervuradaMacicoViga);
+    const abEf = abacosEfetivos(b, l, g), baseAb = new Map(abEf.map((ef) => [ef.abaco.id, baseDoAbaco(b, l, ef.abaco, op)] as const));
     const pavs = pavimentosDoGrupo(b, l.grupo), grelhas = an.grelhas.filter((x) => x.res && pavs.some((p) => p.id === x.pavimento));
     const grupo = b.grupos.find((x) => x.id === l.grupo);
     // ---- esforços de cada nervura: envoltória dos pavimentos do grupo
@@ -269,6 +289,42 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         const comp = Math.min(rib.L, arred(ext + Math.max(dS, 12 * ((bs?.phi ?? 10) / 1000)), op.arredondamento));
         return { Mneg: eg.mNeg[ponta], AsNec: AsN, barras: bs ? { n: bs.n, phi: bs.phi, As: bs.As } : null, comprimento: r3(comp), macica, bwEfetiva: bwEf, dupla: fn.double };
       }) as [ArmaduraSup | null, ArmaduraSup | null];
+      // trechos dentro de ábacos (E3d): flexão negativa sobre o pilar na banda maciça, reforço na nervura e cortante da banda maciça
+      const abRib: ArmaduraNervuraAbaco[] = [];
+      for (const ef of abEf) for (const [s0, s1] of trechosDentro(rib.a, rib.z, ef.poligono)) {
+        if (s1 - s0 < 0.05) continue;
+        const nome = `${k === 0 ? 'X' : 'Y'}${rib.indice + 1}`, hAb = ef.abaco.hAbaco, dAb = hAb - cob.sup - 0.01;
+        const mn = (t: number) => interp(e.x, e.Mmin, Math.min(Math.max(t, 0), rib.L)) ?? 0, mv = (t: number) => interp(e.x, e.V, Math.min(Math.max(t, 0), rib.L)) ?? 0;
+        const dentro = e.x.filter((t) => t > s0 && t < s1);
+        const Mneg = Math.min(0, mn(s0), mn(s1), ...dentro.map(mn)), M = -Mneg;
+        const bAb = baseAb.get(ef.abaco.id)!.sup, AsBase = bAb ? bAb.n * barArea(bAb.phi) * 1e4 : 0;
+        const AsMinN = 0.0015 * bw * g.h * 1e4;
+        const fn = M > 0.05 ? beamFlexure({ kind: 'rect', bw: bf, h: hAb }, false, M, dAb, 0.03, c, aS.fyd) : null;
+        const AsNec = fn ? Math.max(fn.As * 1e4, AsMinN) : 0;
+        // na borda do ábaco o momento passa só para as nervuras (retângulo bw × h)
+        const Mb = -Math.min(0, s0 > 0.01 ? mn(s0) : 0, s1 < rib.L - 0.01 ? mn(s1) : 0);
+        const fb = Mb > 0.05 ? beamFlexure({ kind: 'rect', bw, h: g.h }, false, Mb, dS, 0.03, c, aS.fyd) : null;
+        const AsBorda = fb ? Math.max(fb.As * 1e4, AsMinN) : 0;
+        const AsRef = Math.max(0, AsNec - AsBase, AsBorda);
+        const bsel = escolherBarras(AsRef, bw, phiEstProv, cob.sup);
+        if (fn?.double || fb?.double) erro(`Nervuradas: flexão — nervura ${nome} de ${tag} sobre o ábaco: momento negativo ${fmt(Math.max(M, Mb))} kN·m por banda exige armadura de compressão; aumente a altura do ábaco ou a largura da nervura.`);
+        else if (AsRef > 0 && !bsel) erro(`Nervuradas: flexão — nervura ${nome} de ${tag} sobre o ábaco: armadura negativa de ${fmt(AsRef)} cm² por nervura excede 6φ25; aumente a altura do ábaco ou a laje.`);
+        else if (bsel && !bsel.cabe) erro(`Nervuradas: armadura não cabe na nervura ${nome} de ${tag} — negativo sobre o ábaco ${bsel.n}φ${fphi(bsel.phi)} pede nervura de ${fmt(bsel.need * 100, 1)} cm (largura ${fmt(bw * 100, 1)} cm); aumente a largura da nervura ou o ábaco, ou use barras mais grossas.`);
+        const regiao = regiaoNegativa(e, s0, s1, rib.L), phiB = bsel?.phi ?? bAb?.phi ?? 10;
+        const comp = Math.min(rib.L, arred(regiao[1] - regiao[0] + 2 * Math.max(dS, (12 * phiB) / 1000), op.arredondamento));
+        // cortante da banda maciça (largura = intereixo, altura do ábaco)
+        const AsTop = AsBase + (bsel?.As ?? 0), VRd1ab = vrd1(c, bf, dAb, AsTop / 1e4), VRd2ab = 0.27 * c.av2 * c.fcd * bf * dAb * 1000;
+        const Vab = Math.max(mv(s0), mv(s1), ...dentro.map(mv));
+        let estribo: ArmaduraNervuraAbaco['estribo'] = null, okAb = true;
+        if (Vab > VRd2ab) { okAb = false; erro(`Nervuradas: cortante ${fmt(Vab)} kN por banda acima de VRd2 = ${fmt(VRd2ab)} kN em ${tag}, nervura ${nome}, sobre o ábaco (biela comprimida, modelo I); aumente a altura do ábaco.`); }
+        else if (Vab > VRd1ab + 1e-9) {
+          const sh = beamShear(bf, dAb, Vab, c, aV.fyk, gm.s);
+          if (!sh.stirrup) { okAb = false; erro(`Nervuradas: cortante ${fmt(Vab)} kN por banda acima de VRd1 = ${fmt(VRd1ab)} kN em ${tag}, nervura ${nome}, sobre o ábaco, sem estribo possível; aumente a altura do ábaco.`); }
+          else { const sEs = Math.min(sh.stirrup.s, Math.floor(0.75 * dAb * 100) / 100); estribo = { phi: sh.stirrup.phi, s: sEs, barras: Math.ceil((s1 - s0) / sEs - 1e-9) + 1 }; aviso(`Nervuradas: estribos sobre o ábaco — nervura ${nome} de ${tag}: cortante ${fmt(Vab)} kN por banda acima de VRd1 = ${fmt(VRd1ab)} kN; estribos φ${fphi(estribo.phi)} c/${fmt(sEs * 100, 0)} no trecho do ábaco.`); }
+        }
+        abRib.push({ abaco: ef.abaco.id, x0: r3(s0), x1: r3(s1), Mneg, AsNec, AsBase, AsBorda, barras: bsel && AsRef > 0 ? { n: bsel.n, phi: bsel.phi, As: bsel.As } : null, cabe: !bsel || bsel.cabe, larguraMin: r3(bsel?.need ?? 0), comprimento: r3(comp), dupla: !!(fn?.double || fb?.double), Vmax: Vab, VRd1: VRd1ab, VRd2: VRd2ab, estribo, ok: okAb });
+      }
+      const solidoEm = (x0: number, x1: number) => abRib.find((a) => x0 >= a.x0 - 1e-6 && x1 <= a.x1 + 1e-6);
       // cortante a cada passo (19.4.1)
       const dd = dI, passo = op.nervuradaCortanteDist * dd, rho1 = AsInfTot / 1e4;
       const VRd1 = vrd1(c, bw, dd, rho1), VRd2c = 0.27 * c.av2 * c.fcd * bw * dd * 1000;
@@ -278,17 +334,17 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       for (let j = 0; j < nSec; j++) {
         const x0 = j * passo, x1 = Math.min(rib.L, (j + 1) * passo);
         const vs = [interp(e.x, e.V, x0) ?? 0, interp(e.x, e.V, x1) ?? 0, ...e.x.map((t, q) => (t > x0 && t < x1 ? e.V[q] : 0))];
-        const V = Math.max(...vs), preciso = regime === 'laje' ? V > VRd1 + 1e-9 : true;
-        secoes.push({ x: r3(x0), V, VRd: VRd1, estribo: preciso });
+        const V = Math.max(...vs), sol = solidoEm(x0, x1), preciso = sol ? false : regime === 'laje' ? V > VRd1 + 1e-9 : true;
+        secoes.push({ x: r3(x0), V, VRd: sol ? sol.VRd1 : VRd1, estribo: preciso, ...(sol ? { solido: true } : {}) });
         if (preciso) Vnec = Math.max(Vnec, V);
       }
-      const Vmax = Math.max(0, ...e.V);
+      const Vmax = Math.max(0, ...e.V), VmaxRib = abRib.length ? Math.max(0, ...secoes.filter((x) => !x.solido).map((x) => x.V)) : Vmax;
       let estribo: NervuraDim['cortante']['estribo'] = null, ok = true;
       const zonas: [number, number][] = [];
-      if (Vnec > 0 || regime !== 'laje') {
-        const sh = beamShear(bw, dd, Math.max(Vnec, Vmax), c, aV.fyk, gm.s);
-        if (!sh.ok) { ok = false; erro(`Nervuradas: cortante ${fmt(Vmax)} kN por nervura acima de VRd2 = ${fmt(sh.VRd2)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1} (biela comprimida, modelo I); aumente a largura da nervura ou a altura da laje.`); }
-        else if (!sh.stirrup) { ok = false; erro(`Nervuradas: cortante ${fmt(Vmax)} kN por nervura acima de VRd1 = ${fmt(VRd1)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1}, sem estribo possível; aumente a largura da nervura.`); }
+      if (Vnec > 0 || (regime !== 'laje' && secoes.some((x) => !x.solido))) {
+        const sh = beamShear(bw, dd, Math.max(Vnec, VmaxRib), c, aV.fyk, gm.s);
+        if (!sh.ok) { ok = false; erro(`Nervuradas: cortante ${fmt(VmaxRib)} kN por nervura acima de VRd2 = ${fmt(sh.VRd2)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1} (biela comprimida, modelo I); aumente a largura da nervura ou a altura da laje.`); }
+        else if (!sh.stirrup) { ok = false; erro(`Nervuradas: cortante ${fmt(VmaxRib)} kN por nervura acima de VRd1 = ${fmt(VRd1)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1}, sem estribo possível; aumente a largura da nervura.`); }
         else {
           const s = Math.min(sh.stirrup.s, Math.floor(passo * 100) / 100);
           // zonas: janelas consecutivas que precisam de estribo
@@ -306,7 +362,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         dir: k, indice: rib.indice, a: rib.a, z: rib.z, L: r3(rib.L), mPos: Math.max(0, ...e.Mmax), mNeg: [e.Mmin[0] < 0 ? e.Mmin[0] : 0, e.Mmin.at(-1)! < 0 ? e.Mmin.at(-1)! : 0],
         Vmax,
         inf: { AsNec, base, baseInformada: baseInfo(k), baseSup: baseSupInfo(k), reforco: esc ? { n: esc.n, phi: esc.phi, As: esc.As } : null, total: AsInfTot, cabe, larguraMin: r3(larguraMin), comprimento: compInf, Mu },
-        sup, cortante: { regime, passo: r3(passo), VRd1, VRd2: VRd2c, secoes, zonas: zonas.map(([a0, a1]) => [r3(a0), r3(a1)] as [number, number]), estribo, ok }, grupo: grupoDe[ri],
+        sup, cortante: { regime, passo: r3(passo), VRd1, VRd2: VRd2c, secoes, zonas: zonas.map(([a0, a1]) => [r3(a0), r3(a1)] as [number, number]), estribo, ok: ok && abRib.every((a) => a.ok) }, grupo: grupoDe[ri], abacos: abRib,
       };
     });
     if (fissurou.size) aviso(`Nervuradas: fissuração — armadura inferior aumentada em ${fissurou.size} nervura(s) de ${tag} (${[...fissurou].slice(0, 6).join(', ')}${fissurou.size > 6 ? '…' : ''}) para limitar a abertura de fissuras a ${fmt(wkLim)} mm (combinação frequente).`);
@@ -323,7 +379,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     const sD = Math.max(0.05, Math.min(0.2, Math.floor(((barArea(phiD) * 1e4) / AsNecMesa) * 100 + 1e-9) / 100));
     const mesa: MesaNervurada = { exigida, livre: r3(livre), qd, Md: exigida ? MdMesa : 0, AsNec: AsNecMesa, AsAdotada: (barArea(phiD) * 1e4) / sD, phi: phiD, s: sD };
     // ---- quantitativos
-    const quantitativo = quantitativoNervurada(l, g, arr);
+    const quantitativo = quantitativoNervurada(l, g, arr, volumeRebaixoAbacos(abEf, g.h));
     const Alaje = Math.abs(areaPoligono(l.contorno as P[])) - (l.furos ?? []).reduce((t, f) => t + Math.abs(areaPoligono(f as P[])), 0);
     const per = (phi: number) => barArea(phi) * 7850;
     for (const n of nervuras) {
@@ -336,14 +392,25 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         posicoes.push({ tipo: 'estribo', aco: aV.aco, phi: n.cortante.estribo.phi, n: n.cortante.estribo.barras, comprimento: r3(2 * (bwN - 2 * cob.inf) + 2 * (g.h - 2 * cob.inf) + 2 * Math.max(0.05, (5 * n.cortante.estribo.phi) / 1000)) });
       }
     }
+    // ábacos (E3d): reforço negativo nas nervuras sobre o pilar, estribos da banda maciça e armadura base entre nervuras
+    for (const n of nervuras) for (const a of n.abacos) {
+      const hAb = abEf.find((x) => x.abaco.id === a.abaco)!.abaco.hAbaco;
+      if (a.barras) posicoes.push({ tipo: 'abaco', aco: aS.aco, phi: a.barras.phi, n: a.barras.n, comprimento: r3(a.comprimento + Math.max(0.15, hAb - 2 * cob.sup)) });
+      if (a.estribo) posicoes.push({ tipo: 'estribo', aco: aV.aco, phi: a.estribo.phi, n: a.estribo.barras, comprimento: r3(2 * (g.i[n.dir] - 2 * cob.inf) + 2 * (hAb - 2 * cob.inf) + 2 * Math.max(0.05, (5 * a.estribo.phi) / 1000)) });
+    }
+    const abacosRes = abEf.map((ef) => {
+      const base = barrasBaseAbaco(b, l, ef, g, baseAb.get(ef.abaco.id)!);
+      for (const x of base) posicoes.push({ tipo: 'abacoBase', aco: x.face === 'inf' ? aI.aco : aS.aco, phi: x.phi, n: x.total, comprimento: x.comprimento });
+      return { id: ef.abaco.id, hAbaco: ef.abaco.hAbaco, area: ef.area, automatico: ef.abaco.automatico, ...(ef.abaco.pilar ? { pilar: ef.abaco.pilar } : {}), base, padrao: baseAb.get(ef.abaco.id)!.padrao };
+    });
     posicoes.push({ tipo: 'mesa', aco: aS.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sD) });
     const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * per(x.phi), 0);
     const regimeTxt = (r: Regime) => (r === 'laje' ? 'como laje' : r === 'viga' ? 'como viga' : 'mesa como laje maciça');
-    msgs.push(`Nervuradas bidirecionais: ${tag} — ${g.forma.nome} (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}), h = ${fmt(g.h * 100, 0)} cm, mesa ${fmt(g.capa * 100, 0)} cm, intereixo ${fmt(g.i[0] * 100, 0)} × ${fmt(g.i[1] * 100, 0)} cm, peso ${fmt(quantitativo.ppMedio)} kN/m², ${nervuras.length} nervura(s) em ${grupos.length} grupo(s); cisalhamento ${regimeTxt(ver.regime[0])} (X) e ${regimeTxt(ver.regime[1])} (Y).`);
+    msgs.push(`Nervuradas bidirecionais: ${tag} — ${g.forma.nome} (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}), h = ${fmt(g.h * 100, 0)} cm, mesa ${fmt(g.capa * 100, 0)} cm, intereixo ${fmt(g.i[0] * 100, 0)} × ${fmt(g.i[1] * 100, 0)} cm, peso ${fmt(quantitativo.ppMedio)} kN/m², ${nervuras.length} nervura(s) em ${grupos.length} grupo(s); cisalhamento ${regimeTxt(ver.regime[0])} (X) e ${regimeTxt(ver.regime[1])} (Y)${abEf.length ? `; ${abEf.length} ábaco(s) de ${fmt(abEf.reduce((t, x) => t + x.area, 0))} m² (zona maciça com cubetas retiradas)` : ''}.`);
     for (const r of rs) { r.mensagens.push(...msgs); if (falhou) r.status = 'fail'; }
     out.push({
       laje: l.id, nome: l.nome, pavimentos: rs.map((r) => r.pavimento), repeticoes: Math.max(1, pavs.length), forma: g.forma.id, formaNome: g.forma.nome, recuperavel: g.recuperavel, h: g.h, capa: g.capa, hEnch: g.hEnch, intereixo: g.i, bw: g.bw,
-      pp: g.pp, volume: g.volume, regime: ver.regime, nervuras, grupos, baseDetalhada, mesa, quantitativo, posicoes, peso, mensagens: msgs, status: falhou ? 'fail' : 'ok',
+      pp: g.pp, volume: g.volume, regime: ver.regime, nervuras, grupos, baseDetalhada, mesa, quantitativo, abacos: abacosRes, posicoes, peso, mensagens: msgs, status: falhou ? 'fail' : 'ok',
     });
   }
   return out;
@@ -356,6 +423,23 @@ function momentoU(c: ReturnType<typeof concretoDe>, bf: number, hf: number, bw: 
   if (y <= hf) { y = Math.min(y, yLim); return c.sigmaCd * bf * y * (d - y / 2) * 1000; }
   const Rcf = c.sigmaCd * (bf - bw) * hf, Rcw = Math.max(0, T - Rcf), yw = Math.min(Rcw / (c.sigmaCd * bw), yLim);
   return (Rcf * (d - hf / 2) + c.sigmaCd * bw * yw * (d - yw / 2)) * 1000;
+}
+
+/** Região (x0, x1, m ao longo da nervura) de momento negativo contínuo em torno do trecho [s0, s1]: até o ponto de momento nulo de cada lado ou a ponta da nervura. */
+export function regiaoNegativa(e: EsforcosNervura, s0: number, s1: number, L: number): [number, number] {
+  const mn = (t: number) => interp(e.x, e.Mmin, Math.min(Math.max(t, 0), L)) ?? 0;
+  const varre = (inicio: number, sentido: 1 | -1): number => {
+    let t = inicio, m = mn(t);
+    if (m >= 0) return t;
+    const nos = e.x.filter((x) => (sentido === 1 ? x > inicio + 1e-9 : x < inicio - 1e-9)).sort((a, z) => sentido * (a - z));
+    for (const x of [...nos, sentido === 1 ? L : 0]) {
+      const mx = mn(x);
+      if (mx >= 0) return t + (m / (m - mx)) * (x - t);
+      t = x; m = mx;
+    }
+    return t;
+  };
+  return [varre(s0, -1), varre(s1, 1)];
 }
 
 /** Extensão (m) do negativo a partir da ponta até o ponto de momento nulo (envoltória Mmin cruzando zero). */
@@ -449,6 +533,6 @@ export function resumoNervurada(r: ResultadoNervurada) {
   return {
     laje: r.laje, nome: r.nome, forma: r.formaNome, recuperavel: r.recuperavel, h: r.h, capa: r.capa, intereixo: r.intereixo, status: r.status,
     pesoMedio: +r.quantitativo.ppMedio.toFixed(2), concreto_m3: +r.quantitativo.volumeConcreto.toFixed(2), cubetas: r.quantitativo.cubetas, regime: r.regime,
-    direcaoX: env(dir(0)), direcaoY: env(dir(1)), grupos: r.grupos.length, mesa: { exigida: r.mesa.exigida, AsNec: +r.mesa.AsNec.toFixed(2), phi: r.mesa.phi, s: r.mesa.s }, aco_kg: +r.peso.toFixed(1), mensagens: r.mensagens,
+    direcaoX: env(dir(0)), direcaoY: env(dir(1)), grupos: r.grupos.length, ...(r.abacos.length ? { abacos: r.abacos.length, areaAbacos: +r.abacos.reduce((t, a) => t + a.area, 0).toFixed(2) } : {}), mesa: { exigida: r.mesa.exigida, AsNec: +r.mesa.AsNec.toFixed(2), phi: r.mesa.phi, s: r.mesa.s }, aco_kg: +r.peso.toFixed(1), mensagens: r.mensagens,
   };
 }

@@ -12,6 +12,7 @@
 // transversal pela 19.4.2. Unidades: kN, m, MPa (tensões); áreas de aço em cm² nas saídas.
 import { barArea, type Concrete } from '../concrete';
 import { areaPoligono, dentroPoligono, type P } from '../geom/faces';
+import { recorteConvexo } from '../geom/recorte';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import type { Resultado3 } from '../fe3d';
 import { forcaBasePilar, type ResultadoRadier } from './baseElastica';
@@ -30,7 +31,7 @@ import { anguloNoLance, casosDaObra, centroNoLance, centroPilar, dimsSecao, lanc
 
 export interface Apoio { centro: P; c1: number; c2: number; circular: boolean; angulo: number }
 export interface Regiao { poligonos: P[][]; furos: P[][] }
-type Seg = [P, P];
+export type Seg = [P, P];
 export type Lado = 'u+' | 'u-' | 'v+' | 'v-';
 
 const eixos = (angulo: number): [P, P] => { const a = (angulo * Math.PI) / 180; return [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]]; };
@@ -67,7 +68,7 @@ export function naLaje(q: P, reg: Regiao): boolean {
   return !reg.furos.some((f) => dentroPoligono(q, f) || distBorda(q, f) <= 1e-6);
 }
 
-function interseccao(a: P, z: P, p: P, q: P): number | null {
+export function interseccao(a: P, z: P, p: P, q: P): number | null {
   const rx = z[0] - a[0], ry = z[1] - a[1], sx = q[0] - p[0], sy = q[1] - p[1], den = rx * sy - ry * sx;
   if (Math.abs(den) < 1e-14) return null;
   const t = ((p[0] - a[0]) * sy - (p[1] - a[1]) * sx) / den, u = ((p[0] - a[0]) * ry - (p[1] - a[1]) * rx) / den;
@@ -174,28 +175,6 @@ export function polilinhas(pecas: Seg[]): P[][] {
   return out.map((l) => l.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)] as P));
 }
 
-/** Recorte de Sutherland-Hodgman de `sujeito` por um polígono convexo anti-horário. */
-function recorteConvexo(sujeito: P[], clip: P[]): P[] {
-  let saida = sujeito;
-  for (let i = 0; i < clip.length && saida.length; i++) {
-    const a = clip[i], z = clip[(i + 1) % clip.length], ent = saida;
-    saida = [];
-    const dentro = (p: P) => (z[0] - a[0]) * (p[1] - a[1]) - (z[1] - a[1]) * (p[0] - a[0]) >= -1e-12;
-    const cruza = (p: P, q: P): P => {
-      const dx = q[0] - p[0], dy = q[1] - p[1], den = (z[0] - a[0]) * dy - (z[1] - a[1]) * dx;
-      const t = den ? ((z[0] - a[0]) * (a[1] - p[1]) - (z[1] - a[1]) * (a[0] - p[0])) / den : 0;
-      return [p[0] + t * dx, p[1] + t * dy];
-    };
-    ent.forEach((p, k) => {
-      const q = ent[(k + 1) % ent.length], dp = dentro(p), dq = dentro(q);
-      if (dp && dq) saida.push(q);
-      else if (dp && !dq) saida.push(cruza(p, q));
-      else if (!dp && dq) { saida.push(cruza(p, q), q); }
-    });
-  }
-  return saida;
-}
-
 /** Área de laje (m²) dentro da curva convexa (laje menos furos). */
 export function areaDentro(curva: P[], reg: Regiao): number {
   const ccw = areaPoligono(curva) >= 0 ? curva : [...curva].reverse();
@@ -240,6 +219,11 @@ export interface EntradaPuncao {
   qd: number;
   /** Desconta de FSd a carga distribuída (qd) dentro de cada contorno (radier: reação do solo; NBR 6118, 19.5.2.1). */
   descontar?: boolean;
+  /**
+   * Cubetas da laje nervurada (E3d): polígonos em que só resta a capa; os trechos do contorno dentro deles saem (só as nervuras e
+   * as zonas maciças resistem ao cisalhamento no contorno). Ausente = laje cheia.
+   */
+  excluir?: P[][];
 }
 
 export interface ParametrosPuncao {
@@ -256,6 +240,23 @@ export interface ParametrosPuncao {
   bitolas: number[];
 }
 
+/** Retira dos segmentos os trechos que estão dentro de algum dos polígonos (cortados nas suas arestas). */
+export function tirarDentro(pecas: Seg[], polis: P[][]): Seg[] {
+  const out: Seg[] = [];
+  for (const [a, z] of pecas) {
+    const ts = [0, 1];
+    for (const poly of polis) for (let i = 0; i < poly.length; i++) { const t = interseccao(a, z, poly[i], poly[(i + 1) % poly.length]); if (t !== null) ts.push(t); }
+    ts.sort((x, y) => x - y);
+    const em = (t: number): P => [a[0] + t * (z[0] - a[0]), a[1] + t * (z[1] - a[1])];
+    for (let k = 0; k + 1 < ts.length; k++) {
+      if (ts[k + 1] - ts[k] < 1e-9) continue;
+      const m = em((ts[k] + ts[k + 1]) / 2);
+      if (!polis.some((poly) => dentroPoligono(m, poly))) out.push([em(ts[k]), em(ts[k + 1])]);
+    }
+  }
+  return out;
+}
+
 export interface Tensao { a: number; u: number; tau: number; Wp: [number, number]; K: [number, number]; M1: [number, number]; e: [number, number]; pecas: Seg[] }
 
 /** Tensão de cisalhamento de cálculo (MPa) no contorno afastado de `a`. */
@@ -264,6 +265,7 @@ export function tensaoNoContorno(ent: EntradaPuncao, livres: Lado[], a: number, 
   let pecas = recortar(curvaAfastada(ap, a), reg);
   const F = ent.descontar ? Math.max(0, ent.F - ent.qd * areaDentro(curvaAfastada(ap, a), reg)) : ent.F;
   pecas = descontarFuros(pecas, ap, reg.furos, furoDist * d);
+  if (ent.excluir?.length) pecas = tirarDentro(pecas, ent.excluir);
   const pr = propriedadesContorno(pecas, ap.angulo);
   const K = fatoresK(ap, livres);
   const [ux, vx] = eixos(ap.angulo);
@@ -498,6 +500,26 @@ export interface ResultadoPuncao {
   status: 'ok' | 'armadura' | 'fail';
   mensagens: string[];
   origens: Origem[];
+  /** Nervurada com ou sem ábaco (E3d): alturas por região, ábaco e a verificação fora dele (C″ a 2d da borda do ábaco). */
+  abaco?: AbacoPuncaoInfo;
+  /** Armadura de punção fora do ábaco (nas nervuras), quando o C″ a exige; a de `armadura` é a do ábaco. */
+  armaduraExterna?: ArmaduraPuncao;
+}
+/**
+ * Punção numa nervurada bidirecional (E3d): os contornos C e C′ (a 2·dAbaco da face do pilar) usam a altura do ábaco e o C″ (a 2·dLaje
+ * da borda do ábaco) usa a da laje; só as nervuras e as zonas maciças resistem (trechos do contorno sobre cubetas saem).
+ */
+export interface AbacoPuncaoInfo {
+  /** `undefined`: pilar sem ábaco (verificado nas nervuras com a altura da laje). */
+  id?: string; hAbaco: number; hLaje: number; dAbaco: number; dLaje: number;
+  /** Taxas de armadura negativa sobre o ábaco e fora dele. */
+  rhoAbaco: number; rhoLaje: number;
+  poligono?: P[]; retangulo?: { centro: P; c1: number; c2: number; angulo: number };
+  /** Menor extensão (m) da face do pilar à borda do ábaco, nos lados com laje. */
+  extensaoMin: number;
+  /** C′ (a 2·dAbaco da face) cai dentro do ábaco? Senão a região interna usa a altura útil da laje. */
+  c2NoAbaco: boolean;
+  externa?: { status: 'ok' | 'armadura' | 'fail'; tauRd1: number; tauRd3?: number };
 }
 export interface GrupoPuncaoInfo { id: string; linhas: number; barras: number; phi: number; s: number }
 
@@ -507,10 +529,10 @@ const NOMES_C = ['C', 'C′', 'C″'] as const;
 export const BITOLAS_PUNCAO = [5, 6.3, 8, 10, 12.5, 16];
 
 /** Pilar sem viga no pavimento (a laje se apoia direto) ou com viga chata larga: candidatos à punção. */
-export function sitiosPuncao(b: BuildingModel, pavId: string, op: Pick<OpcoesCalculo, 'puncaoVigaChata'>): { p: Pilar; centro: P; viga?: Viga; avisoViga?: string }[] {
+export function sitiosPuncao(b: BuildingModel, pavId: string, op: Pick<OpcoesCalculo, 'puncaoVigaChata'>, tipos: Laje['tipo']['tipo'][] = ['macica']): { p: Pilar; centro: P; viga?: Viga; avisoViga?: string }[] {
   const pav = b.pavimentos.find((x) => x.id === pavId);
   if (!pav) return [];
-  const vigas = b.vigas.filter((v) => v.grupo === pav.grupo), lajes = b.lajes.filter((l) => l.grupo === pav.grupo && l.tipo.tipo === 'macica');
+  const vigas = b.vigas.filter((v) => v.grupo === pav.grupo), lajes = b.lajes.filter((l) => l.grupo === pav.grupo && tipos.includes(l.tipo.tipo));
   const out: { p: Pilar; centro: P; viga?: Viga; avisoViga?: string }[] = [];
   for (const p of b.pilares) {
     if (!lancesDoPilar(b, p).some((x) => x.id === pavId)) continue;
@@ -570,6 +592,30 @@ function momentosDoNo(g: GrelhaPavimento, centro: P, fat: number[]): [number, nu
   return [Mx, My];
 }
 
+/** Fatores ELU por caso da análise (γg·G + γq·Q) e, com o vento principal, as variáveis reduzidas por ψ0 (modelo integrado). */
+export function fatoresPuncao(b: BuildingModel, an: AnaliseEdificio): { fat: number[]; fatW: number[]; gq: number } {
+  const gm = gamas(b), obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
+  const fat = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
+  const fatW = an.casos.map((id, ic) => (nat[ic] === 'Q' ? gm.q * (obra.find((x) => x.id === id)?.psi?.[0] ?? b.norma.psiQ?.[0] ?? 0.5) : fat[ic]));
+  return { fat, fatW, gq: gm.q };
+}
+
+/**
+ * Força de punção de cálculo (kN: reação do pilar na grelha do pavimento) e momentos (kN·m) que a laje transmite ao pilar, nos
+ * eixos do pilar (u = ao longo de b; o momento em torno de u tem excentricidade ao longo de v e vice-versa). `null` sem reação ou
+ * sem compressão. Compartilhado entre as maciças e as nervuradas com ábaco.
+ */
+export function solicitacaoPuncao(an: AnaliseEdificio, g: GrelhaPavimento, p: Pilar, pavId: string, centro: P, fat: number[], fatW: number[], gq: number): { F: number; M: [number, number]; angulo: number } | null {
+  const reac = g.reacoes[p.id];
+  if (!reac) return null;
+  const F = an.casos.reduce((s, id, ic) => s + fat[ic] * (reac[id] ?? 0), 0);
+  if (F <= 0) return null;
+  const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gq) : momentosDoNo(g, centro, fat) ?? [0, 0];
+  const angulo = anguloNoLance(p, pavId), a = (angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
+  const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
+  return { F, M: [Mv, Mu], angulo };
+}
+
 const clona = (r: ResultadoPuncao, pav: { id: string; nome: string }): ResultadoPuncao => ({ ...r, pavimento: pav.nome, pavimentoId: pav.id, id: `${r.pilar}|${pav.id}`, mensagens: [...r.mensagens] });
 
 /**
@@ -597,15 +643,9 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       const p = st.p, sec = secaoNoLance(p, pav.id), chave = `${p.id}|${JSON.stringify(sec)}|${st.viga?.id ?? ''}`;
       const r0 = ja.get(chave);
       if (r0) { out.push(clona(r0, pav)); continue; }
-      const reac = g.reacoes[p.id];
-      if (!reac) continue;
-      const F = an.casos.reduce((s, id, ic) => s + fat[ic] * (reac[id] ?? 0), 0);
-      if (F <= 0) continue;
-      const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gm.q) : momentosDoNo(g, st.centro, fat) ?? [0, 0];
-      // eixos do pilar: u ao longo de b. Momento em torno de u tem excentricidade ao longo de v, e vice-versa
-      const angP = anguloNoLance(p, pav.id), a = (angP * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
-      const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
-      const M: [number, number] = [Mv, Mu];
+      const sol = solicitacaoPuncao(an, g, p, pav.id, st.centro, fat, fatW, gm.q);
+      if (!sol) continue;
+      const { F, M, angulo: angP } = sol;
       const [w, hh] = dimsSecao(sec), circular = sec.tipo === 'circ';
       const ap: Apoio = { centro: st.centro, c1: w, c2: circular ? w : hh, circular, angulo: angP };
       const laje = lajes.find((l) => dentroPoligono(st.centro, l.contorno)) ?? lajes.find((l) => distBorda(st.centro, l.contorno) <= Math.max(w, hh)) ?? lajes[0];

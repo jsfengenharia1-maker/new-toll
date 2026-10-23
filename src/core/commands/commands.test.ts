@@ -60,6 +60,9 @@ function base() {
   expect(s.executar('fundacao.criar', { pilar: s.modelo.pilares[0].id, tipo: 'sapata', posicao: 'divisa', lado: [-1, 0] }).ok).toBe(true);
   // FU2: terceiro pilar e duas vigas de fundação (equilíbrio do elemento de P1 até P2; travamento P2–P3)
   expect(s.executar('pilar.inserir', { x: 0, y: 6, secao: { tipo: 'ret', b: 0.2, h: 0.2 } }).ok).toBe(true);
+  // E3d: pilar no meio da primeira nervurada e um ábaco manual no canto livre (abaco.gerar, editar, armaduraBase e remover)
+  expect(s.executar('pilar.inserir', { x: 23, y: 3, secao: { tipo: 'ret', b: 0.3, h: 0.3 } }).ok).toBe(true);
+  expect(s.executar('abaco.criar', { laje: s.modelo.lajes[3].id, poligono: [[24, 4], [26, 4], [26, 6], [24, 6]], hAbaco: 0.4 }).ok).toBe(true);
   // FU3: sapata sob P3 (para unir e igualar) e um limite poligonal
   expect(s.executar('fundacao.criar', { pilares: [s.modelo.pilares[2].id], tipo: 'sapata', posicao: 'centrada' }).ok).toBe(true);
   expect(s.executar('limite.criar', { pontos: [[-3, -3], [-3, 9]], nome: 'Divisa' }).ok).toBe(true);
@@ -237,6 +240,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'forma.tipo': () => ({ acao: 'criar', id: 'fm1', forma: { nome: 'Cubeta de teste', tipo: 'recuperavel', altura: 0.25, intereixo: [0.6, 0.6], bw: [0.1, 0.1] } }),
   'laje.nervurada': (b) => ({ ids: [b.lajes[3].id], forma: 'cat:rec-60-20', hTotal: 0.25, capa: 0.05, direcao: 30, passagem: [22, 3], zonasMacicas: [[[20.5, 0.5], [21.5, 0.5], [21.5, 1.5], [20.5, 1.5]]], engasteBordas: [0.5, 1, 1, 1] }),
   'laje.copiarPanos': (b) => ({ de: b.lajes[3].id, para: [b.lajes[4].id], incluirBase: true }),
+  'abaco.gerar': (b) => ({ lajes: [b.lajes[3].id], fracao: 0.2, cone: 35, limMin: 2, limMax: 4, hAbaco: 0.4 }),
+  'abaco.criar': (b) => ({ laje: b.lajes[3].id, poligono: [[20, 0], [22, 0], [22, 2], [20, 2]], hAbaco: 0.45, base: { inf: { n: 3, phi: 8 }, sem: ['sup'] }, comoViga: true }),
+  'abaco.editar': (b) => ({ id: b.abacos![0].id, poligono: [[24, 3], [26, 3], [26, 6], [24, 6]], hAbaco: 0.5, comoViga: true }),
+  'abaco.armaduraBase': (b) => ({ ids: [b.abacos![0].id], inf: { n: 2, phi: 10 }, sup: { n: 3, phi: 10 } }),
+  'abaco.remover': (b) => ({ ids: [b.abacos![0].id] }),
   'tipoLaje.importar': () => ({ fichas: [{ id: 'imp', nome: 'Importada', origem: 'usuario', familia: 'trelicada', series: [{ id: 'S', altura: 0.16, intereixo: 0.42, capa: 0.04, hEnch: 0.12, bwMin: 0.09, enchimento: 'eps', trelica: 'TR 12645' }] }] }),
   'vigota.editar': (b) => ({ id: b.lajes[2].id, de: 0, ate: 1, tipo: 'A1', inf: { n: 1, phi: 8, percentual: 60 }, sup: { n: 2, phi: 6.3 }, transversal: { phi: 5, s: 0.2 } }),
   'vigota.momentos': (b) => ({ id: b.lajes[2].id, indices: [2], pos: 3.5, neg: [-1, -2], v: [4, 5] }),

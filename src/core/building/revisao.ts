@@ -150,6 +150,10 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'NERV_ARM_DUPLA', nivel: 'aviso', re: /^Nervuradas: armadura dupla/, descricao: 'Nervuradas: armadura dupla no negativo da nervura' },
   { codigo: 'NERV_FISSURA_MAX', nivel: 'erro', re: /^Nervuradas: fissuração acima/, descricao: 'Nervuradas: abertura de fissuras acima do limite' },
   { codigo: 'NERV_FISSURA', nivel: 'aviso', re: /^Nervuradas: fissuração/, descricao: 'Nervuradas: armadura inferior aumentada pela fissuração' },
+  // ábacos das nervuradas bidirecionais (E3d); ABACO_VIGA, ABACO_FORA e ABACO_ALTURA vêm dos diagnósticos estáticos (`diagnosticosAbacos`)
+  { codigo: 'NERV_ESTRIBO_ABACO', nivel: 'aviso', re: /^Nervuradas: estribos sobre o ábaco/, descricao: 'Nervuradas: estribos na banda maciça sobre o ábaco (cortante acima de VRd1)' },
+  { codigo: 'ABACO_FALTA', nivel: 'aviso', re: /^Ábaco: .* sem viga e sem ábaco/, descricao: 'Ábaco: pilar sem viga e sem ábaco na laje nervurada (punção verificada só nas nervuras)' },
+  { codigo: 'ABACO_ARMADURA_FORA', nivel: 'aviso', re: /^Ábaco: a armadura de punção/, descricao: 'Ábaco: a armadura de punção passa da borda do ábaco' },
   { codigo: 'NERV_RESUMO', nivel: 'info', re: /^Nervuradas bidirecionais: /, descricao: 'Resumo da laje nervurada bidirecional (forma, peso, nervuras, regime de cisalhamento)' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
   // punção e cortante das lajes (N2d)

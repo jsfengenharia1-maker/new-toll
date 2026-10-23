@@ -183,7 +183,7 @@ export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensioname
     let ench: QuantPano['enchimento'];
     const nb = arranjoDaLaje(b, l);
     // nervurada bidirecional (E3c): peso e enchimento pelas cubetas inteiras do arranjo (forma perdida: material que fica na laje)
-    if (nb) { const q = quantitativoNervurada(l, nb.g, nb.arr); if (!nb.g.recuperavel) ench = { area: r2(q.areaCubetas), volume: r2(q.volumeEnchimento, 3), pecas: q.cubetas }; pr.pp = q.ppMedio; }
+    if (nb) { const q = quantitativoNervurada(l, nb.g, nb.arr, nb.volumeRebaixo); if (!nb.g.recuperavel) ench = { area: r2(q.areaCubetas), volume: r2(q.volumeEnchimento, 3), pecas: q.cubetas }; pr.pp = q.ppMedio; }
     if (ehNervurada(l.tipo)) {
       const k = geometriaNervurada(b, l.tipo), ae = (area * (k.intereixo - k.bw)) / k.intereixo;
       ench = { area: r2(ae), volume: r2(ae * k.hEnch, 3), pecas: Math.ceil(ae / (k.intereixo - k.bw) - 1e-9) };

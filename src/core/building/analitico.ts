@@ -11,7 +11,7 @@ import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, eixosDasVigas } from './lajes';
 import { capaLaje, ehNervurada, geometriaNervurada, type FonteLajes } from './tiposLaje';
-import { arranjoNervuras, direcaoNervurada, geometriaBidirecional, passoMalhaNervurada, propBarraNervurada, propBarraNervuradaMista } from './nervuradas';
+import { abacosEfetivos, alturaAbacoEm, arranjoNervuras, direcaoNervurada, geometriaBidirecional, lajeComAbacos, passoMalhaNervurada, propBarraNervurada, propBarraNervuradaMista } from './nervuradas';
 import { pilaresCoincidentes, textoPilarCoincidente } from './vinculoExterno';
 import { inerciaT, mesaDaViga, propriedadesRigidez } from './secaoViga';
 import { ehCurva } from './curvas';
@@ -565,7 +565,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const areaG = lajeG(l, b) + grupo.gRev, areaQ = grupo.q;
       /** Nervurada bidirecional (E3c): barras em zona maciça (faixa junto às vigas e zonas manuais) têm a rigidez e o peso da laje maciça. */
       const nerv = l.tipo.tipo === 'nervurada' ? geometriaBidirecional(b, l.tipo) : null;
-      const arrN = nerv ? arranjoNervuras(l, nerv, op.nervuradaMacicoViga) : null;
+      const arrN = nerv ? arranjoNervuras(lajeComAbacos(b, l, nerv), nerv, op.nervuradaMacicoViga) : null;
+      const abEf = nerv ? abacosEfetivos(b, l, nerv) : []; // ábacos (E3d): zona maciça e, se rebaixados, com a altura do ábaco
       const areaGMac = nerv ? GAMA_CONCRETO * nerv.h + grupo.gRev : areaG;
       for (const ln of mm.linhas) {
         const k = ln.dir;
@@ -575,7 +576,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (ids[j] === ids[j + 1]) continue;
           const midB: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
           const fmB = arrN ? arrN.fracMacica(midB, k, ln.largura) : 0;
-          const pr = nerv ? propBarraNervuradaMista(nerv, k, ln.largura, fmB, op) : prop[k];
+          const hAb = abEf.length && fmB ? alturaAbacoEm(abEf, midB) : undefined;
+          const pr = nerv ? propBarraNervuradaMista(nerv, k, ln.largura, fmB, op, hAb) : prop[k];
           const bl: Barra3 = { i: no(ids[j]), j: no(ids[j + 1]), E: El, G: Gl, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J };
           if (op.cortanteBarrasLaje && pr.As) bl.Ay = pr.As; // Timoshenko (K1.3.22)
           // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)
@@ -592,7 +594,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (!w) continue;
           // cargas de área: grupo + regiões de carga que contêm o meio da barra
           const mid: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
-          let g = fmB ? fmB * areaGMac + (1 - fmB) * areaG : areaG, q = areaQ;
+          let g = fmB ? fmB * (hAb !== undefined && hAb > nerv!.h ? GAMA_CONCRETO * hAb + grupo.gRev : areaGMac) + (1 - fmB) * areaG : areaG, q = areaQ;
           const outros: Record<string, number> = {}; // cargas de área em casos próprios (QB, QC, adicionais e arranjos)
           for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else if (c.caso === 'Q') q += c.valor; else outros[c.caso] = (outros[c.caso] ?? 0) + c.valor; }
           carregar('G', (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -g * w] }));
