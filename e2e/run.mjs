@@ -99,7 +99,7 @@ async function main() {
       mkdirSync(dir, { recursive: true });
       const newPage = async (init, ctxOpts = {}) => {
         const navegador = f.webgl ? await gl() : browser;
-        const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 900 }, locale: 'pt-BR', ...ctxOpts });
+        const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 1080 }, locale: 'pt-BR', ...ctxOpts });
         contexts.push(ctx);
         if (init) await ctx.addInitScript(init);
         const page = await ctx.newPage();
