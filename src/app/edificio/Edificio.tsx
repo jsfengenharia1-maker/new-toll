@@ -21,6 +21,7 @@ import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Selec
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
+import { DiagonaisHost } from './DiagonaisUI';
 import { InclinadasHost } from './InclinadasUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { CoresPlanta } from './CoresPlanta';
@@ -247,6 +248,7 @@ export function Edificio() {
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
+      <DiagonaisHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );

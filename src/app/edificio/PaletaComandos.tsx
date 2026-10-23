@@ -9,6 +9,7 @@ import { listarComandos } from '../../core/commands';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { useStore } from '../store';
 import { Button, Input, Modal } from '../ui';
+import { useDiagonaisUI } from './DiagonaisUI';
 import { useInclinadasUI } from './InclinadasUI';
 
 export interface ItemPaleta { id: string; tipo: 'Ferramenta' | 'Ação' | 'Comando' | 'Aba' | 'Pavimento' | 'Pilar' | 'Viga' | 'Laje'; rotulo: string; detalhe?: string; executar: () => void; repetivel: boolean }
@@ -44,6 +45,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
     { id: 'a:limpar', tipo: 'Ação', rotulo: 'Limpar a seleção', repetivel: true, executar: () => usePlanta.getState().set({ selecao: new Set() }) },
     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
     { id: 'a:inclinadas', tipo: 'Ação', rotulo: 'Vigas inclinadas', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useInclinadasUI.getState().abrir() },
+    { id: 'a:diagonais', tipo: 'Ação', rotulo: 'Diagonais de contraventamento', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useDiagonaisUI.getState().abrir() },
     { id: 'a:viga-curva', tipo: 'Ação', rotulo: 'Viga: alternar trecho reto ou curvo', detalhe: 'ferramenta Viga, tecla R', repetivel: true, executar: () => naPlanta({ ferramenta: 'viga', ...aoEscolher('viga'), curvaViga: !usePlanta.getState().curvaViga, passagemViga: null }) },
   );
   if (grupo) {
@@ -66,6 +68,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
   const nomeGrupo = (g: string) => b.grupos.find((x) => x.id === g)?.nome ?? g;
   for (const v of b.vigas) out.push({ id: `e:${v.id}`, tipo: 'Viga', rotulo: v.nome, detalhe: nomeGrupo(v.grupo), repetivel: false, executar: () => foco(v.id, pavDoGrupo(v.grupo)) });
   for (const v of b.vigasInclinadas ?? []) out.push({ id: `e:${v.id}`, tipo: 'Viga', rotulo: v.nome, detalhe: 'viga inclinada', repetivel: false, executar: () => useInclinadasUI.getState().abrir(v.id) });
+  for (const d of b.diagonais ?? []) out.push({ id: `e:${d.id}`, tipo: 'Viga', rotulo: d.nome, detalhe: 'diagonal de contraventamento', repetivel: false, executar: () => useDiagonaisUI.getState().abrir(d.id) });
   for (const l of b.lajes) out.push({ id: `e:${l.id}`, tipo: 'Laje', rotulo: l.nome, detalhe: nomeGrupo(l.grupo), repetivel: false, executar: () => foco(l.id, pavDoGrupo(l.grupo)) });
   return out;
 }

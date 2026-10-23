@@ -5760,4 +5760,96 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },
+  {
+    name: 'E2d: diagonais de contraventamento (lançamento em X, atribuir, nó no cruzamento, resultados e memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.4, "h": 0.4}}}`).join(', ') + ']}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 2, null);
+      // 1. janela pela paleta (Ctrl+K); primeira diagonal do Tipo 1 ao Tipo 2, de P2 a P1
+      const abrir = async () => {
+        await page.locator('#edcmd').blur();
+        await page.keyboard.press('Control+k');
+        await page.getByRole('dialog').getByRole('textbox').fill('Diagonais de contraventamento');
+        await page.keyboard.press('Enter');
+        const j = page.getByRole('dialog', { name: 'Diagonais de contraventamento', exact: true });
+        await j.waitFor();
+        return j;
+      };
+      let jan = await abrir();
+      await jan.getByLabel(/^Diagonal: centro do pilar do extremo inicial/).selectOption({ label: 'P2' });
+      await jan.getByLabel(/^Diagonal: centro do pilar do extremo final/).selectOption({ label: 'P1' });
+      for (const [rot, v] of [[/^Diagonal: largura b/, '25'], [/^Diagonal: altura h/, '40']]) { const c = jan.getByLabel(rot); await c.fill(v); await c.press('Enter'); }
+      await jan.getByRole('button', { name: 'Lançar diagonal', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.length === 1, null);
+      let m = await modelo(), d1 = m.diagonais[0];
+      assert.equal(d1.nome, 'D1');
+      assert.deepEqual(d1.pIni, [8, 0]);
+      assert.deepEqual(d1.pFim, [0, 0]);
+      assert.deepEqual(d1.secao, { b: 0.25, h: 0.4 });
+      assert.equal(m.pavimentos.find((p) => p.id === d1.pavIni).nome, 'Tipo 1');
+      assert.equal(m.pavimentos.find((p) => p.id === d1.pavFim).nome, 'Tipo 2');
+      await jan.locator('[data-diagonais-lista]').getByText('Tipo 1 → Tipo 2', { exact: true }).waitFor();
+      // 2. segunda diagonal em sentido oposto (forma o X), com o extremo final articulado
+      await jan.getByLabel(/^Diagonal: centro do pilar do extremo inicial/).selectOption({ label: 'P1' });
+      await jan.getByLabel(/^Diagonal: centro do pilar do extremo final/).selectOption({ label: 'P2' });
+      await jan.getByLabel(/^Diagonal: ligação do extremo final/).selectOption('articulada');
+      await jan.getByRole('button', { name: 'Lançar diagonal', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.length === 2, null);
+      m = await modelo();
+      const d2 = m.diagonais[1];
+      assert.equal(d2.nome, 'D2');
+      assert.deepEqual([d2.pIni, d2.pFim, d2.ligFim], [[0, 0], [8, 0], 'articulada']);
+      // 3. edita a seção da D2 (a recém-lançada está selecionada) e atribui os dados da D1
+      const larg = jan.getByLabel(/^Seção da diagonal: largura b/);
+      await larg.fill('30'); await larg.press('Enter');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.[1]?.secao?.b === 0.3, null);
+      await jan.getByLabel(/^Dados de outra diagonal/).selectOption({ label: 'D1' });
+      await jan.getByRole('button', { name: 'Atribuir os dados da diagonal', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.[1]?.secao?.b === 0.25, null);
+      m = await modelo();
+      assert.deepEqual(m.diagonais[1].secao, { b: 0.25, h: 0.4 });
+      assert.equal(m.diagonais[1].ligFim, undefined);
+      assert.match(await jan.locator('[data-diagonal-resultados]').innerText(), /Calcule o edifício/);
+      await page.keyboard.press('Escape');
+      // 4. cálculo e resultados: nó no cruzamento, flambagem pelo comprimento total, armadura, desenho e envoltória
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor({ timeout: 120000 });
+      jan = await abrir();
+      const res = jan.locator('[data-diagonal-resultados]');
+      await res.locator('[data-diagonal-desenho]').waitFor();
+      const txt = await res.innerText();
+      assert.match(txt, /Flambagem: ℓe = \d+,\d+ m \(vertical, λ = \d+\)/);
+      assert.match(txt, /Armadura: \d+φ[\d,]+ sup \+ \d+φ[\d,]+ inf/);
+      assert.match(await res.locator('[data-diagonal-cruzamento]').innerText(), /nó gerado no cruzamento com outra diagonal/);
+      assert.equal(await jan.locator('[data-diagonais-lista] tbody tr').count(), 2);
+      await res.getByRole('button', { name: /^Detalhe das seções da diagonal D\d/ }).click();
+      assert.ok((await res.locator('[data-diagonal-envoltoria] tbody tr').count()) > 21); // estações dos dois trechos
+      await res.getByRole('button', { name: /^Listagem da diagonal D\d/ }).click();
+      const lis = res.locator('[data-diagonal-listagem]');
+      await lis.waitFor();
+      assert.match(await lis.innerText(), /Materiais: C30, aço CA-50/);
+      await page.keyboard.press('Escape');
+      // 5. memorial
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mi = memo.locator('[data-memorial-diagonais]');
+      await mi.waitFor();
+      assert.match(await mi.locator('[data-memorial-diagonais-tabela="lista"]').innerText(), /D1[\s\S]*Tipo 1 → Tipo 2[\s\S]*25×40 cm/);
+      assert.match(await mi.innerText(), /nós de extremidade/);
+      assert.match(await mi.innerText(), /cruzamento/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 6. remover a D2 pela janela
+      jan = await abrir();
+      await jan.getByRole('button', { name: 'Editar D2', exact: true }).click();
+      await jan.getByRole('button', { name: 'Remover a diagonal', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.length === 1, null);
+      await page.keyboard.press('Escape');
+    },
+  },
 ];
