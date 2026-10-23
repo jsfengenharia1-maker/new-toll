@@ -5,6 +5,8 @@ import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara } from '../building/lajes';
 import { direcaoPorPontos, direcaoPorViga, verticeMaisProximo } from '../building/lancamentoL5';
 import { ehNervurada } from '../building/tiposLaje';
+/** Nervurada unidirecional ou alveolar: têm direção das vigotas/placas (padrão: o menor vão). */
+const unidirecional = (t: TipoLaje) => ehNervurada(t) || t.tipo === 'alveolar';
 import { garantirTipoNaObra, validarTipoLaje } from './tiposLaje';
 import { temBaseElastica } from '../building/baseElastica';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
@@ -22,8 +24,9 @@ const tipoSchema: JsonSchema = { oneOf: [
   { type: 'object', additionalProperties: false, required: ['tipo', 'modelo', 'capa'], properties: { tipo: { const: 'trelicada' }, modelo: { type: 'string' }, capa: { type: 'number', minimum: 0.03, maximum: 0.1, description: 'capa (m)' } } },
   { type: 'object', additionalProperties: false, required: ['tipo', 'ficha', 'serie'], properties: { tipo: { const: 'vigotas' }, ficha: { type: 'string', description: 'id da ficha (obra, catálogo "cat:trelicadas" ou exemplo)' }, serie: { type: 'string', description: 'id da laje da série' } } },
   { type: 'object', additionalProperties: false, required: ['tipo', 'capa', 'intereixo', 'bw', 'h', 'enchimento'], properties: { tipo: { const: 'moldada' }, capa: { type: 'number', minimum: 0.03, maximum: 0.2 }, intereixo: { type: 'number', minimum: 0.2, maximum: 1.5 }, bw: { type: 'number', minimum: 0.05, maximum: 0.6 }, h: { type: 'number', minimum: 0.08, maximum: 0.6, description: 'altura total (m)' }, enchimento: { type: 'string', description: 'id do enchimento' } } },
+  { type: 'object', additionalProperties: false, required: ['tipo', 'ficha', 'placa'], properties: { tipo: { const: 'alveolar' }, ficha: { type: 'string', description: 'id da ficha alveolar (obra, biblioteca de normas ou exemplo)' }, placa: { type: 'string', description: 'código da placa na ficha' } } },
   { type: 'object', additionalProperties: false, required: ['tipo', 'forma', 'hTotal', 'capa'], properties: { tipo: { const: 'nervurada' }, forma: { type: 'string', description: 'id da forma (cubeta) da biblioteca' }, hTotal: { type: 'number', minimum: 0.1, maximum: 0.8, description: 'altura total (m)' }, capa: { type: 'number', minimum: 0.03, maximum: 0.2, description: 'mesa (m)' } } },
-], description: 'Maciça {tipo: "macica", h}; treliçada {tipo: "trelicada", modelo: H8…H25, capa}; vigotas por ficha {tipo: "vigotas", ficha, serie}; nervurada unidirecional moldada no local {tipo: "moldada", capa, intereixo, bw, h, enchimento}; nervurada bidirecional {tipo: "nervurada", forma, hTotal, capa}', default: { tipo: 'macica', h: 0.1 } };
+], description: 'Maciça {tipo: "macica", h}; treliçada {tipo: "trelicada", modelo: H8…H25, capa}; vigotas por ficha {tipo: "vigotas", ficha, serie}; nervurada unidirecional moldada no local {tipo: "moldada", capa, intereixo, bw, h, enchimento}; nervurada bidirecional {tipo: "nervurada", forma, hTotal, capa}; alveolar {tipo: "alveolar", ficha, placa}', default: { tipo: 'macica', h: 0.1 } };
 const grupoOk = (b: BuildingModel, g: string) => (b.grupos.some((x) => x.id === g) ? [] : err('GRUPO_INEXISTENTE', `Grupo ${g} não existe.`));
 const anti = (p: P[]): P[] => (areaPoligono(p) < 0 ? [...p].reverse() : p).map((q) => [r6(q[0]), r6(q[1])] as P);
 const proximaLaje = (b: BuildingModel, grupo: string) => Math.max(0, ...b.lajes.filter((l) => l.grupo === grupo).map((l) => { const m = /^L(\d+)$/.exec(l.nome); return m ? +m[1] : 0; })) + 1;
@@ -50,7 +53,7 @@ registrar<{ grupo: string; tipo: TipoLaje; definir?: boolean }>({
     if (p.tipo && !p.definir) garantirTipoNaObra(d, p.tipo);
     for (const c of novos) {
       const cont = anti(c);
-      d.lajes.push({ id: novoId(d, 'l'), nome: `L${proximaLaje(d as BuildingModel, p.grupo)}`, grupo: p.grupo, contorno: cont, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(!p.definir && ehNervurada(p.tipo) ? { direcao: direcaoMenorVao(cont) } : {}) });
+      d.lajes.push({ id: novoId(d, 'l'), nome: `L${proximaLaje(d as BuildingModel, p.grupo)}`, grupo: p.grupo, contorno: cont, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(!p.definir && unidirecional(p.tipo) ? { direcao: direcaoMenorVao(cont) } : {}) });
     }
     return p.definir ? `${novos.length} pano(s) a definir criado(s).` : `${novos.length} laje(s) criada(s).`;
   },
@@ -79,7 +82,7 @@ registrar<{ grupo: string; ponto?: P; contorno?: P[]; tipo: TipoLaje; nome?: str
   aplicar(d, p) {
     const c = anti(contornoDe(d as BuildingModel, p)!);
     const nome = p.nome?.trim() || `L${proximaLaje(d as BuildingModel, p.grupo)}`;
-    const direcao = p.direcao ?? (!p.definir && ehNervurada(p.tipo) ? direcaoMenorVao(c) : undefined);
+    const direcao = p.direcao ?? (!p.definir && unidirecional(p.tipo) ? direcaoMenorVao(c) : undefined);
     if (p.tipo && !p.definir) garantirTipoNaObra(d, p.tipo);
     d.lajes.push({ id: novoId(d, 'l'), nome, grupo: p.grupo, contorno: c, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(direcao !== undefined ? { direcao } : {}) });
     return `${nome} criada (${fmt(Math.abs(areaPoligono(c)))} m²).`;
@@ -127,7 +130,7 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; direca
   aplicar(d, p) {
     const l = d.lajes.find((x) => x.id === p.id)!;
     if (p.nome !== undefined) l.nome = p.nome.trim();
-    if (p.tipo) { garantirTipoNaObra(d, p.tipo); l.tipo = { ...p.tipo }; delete l.definir; if (ehNervurada(p.tipo) && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
+    if (p.tipo) { garantirTipoNaObra(d, p.tipo); l.tipo = { ...p.tipo }; delete l.definir; if (unidirecional(p.tipo) && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
     if (p.direcao !== undefined) l.direcao = ((p.direcao % 180) + 180) % 180;
     if (p.direcaoPor) {
       const por = p.direcaoPor, ref = pontoInterno(l.contorno as P[]);
@@ -155,7 +158,7 @@ registrar<{ ids: string[]; tipo: TipoLaje }>({
   validar(b, p) { const f = p.ids.filter((id) => !b.lajes.some((l) => l.id === id)); return f.length ? err('LAJE_INEXISTENTE', `Laje(s) inexistente(s): ${f.join(', ')}.`) : validarTipoLaje(b, p.tipo); },
   aplicar(d, p) {
     garantirTipoNaObra(d, p.tipo);
-    for (const l of d.lajes) if (p.ids.includes(l.id)) { l.tipo = { ...p.tipo }; delete l.definir; if (ehNervurada(p.tipo) && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
+    for (const l of d.lajes) if (p.ids.includes(l.id)) { l.tipo = { ...p.tipo }; delete l.definir; if (unidirecional(p.tipo) && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
     return `${p.ids.length} laje(s) alterada(s).`;
   },
 });

@@ -12,20 +12,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 5 | 1 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 36 | 6 | 7 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 65 | 12 | 2 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 38 | 6 | 5 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 67 | 11 | 1 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 41 | 4 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 62 | 15 | 26 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 80 | 18 | 5 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 43 | 15 | 1 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 43 | 16 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 31 | 6 | 4 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 31 | 7 | 3 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **432** | **74** | **44** | **111** |
+| **Total** | **661** | **454** | **78** | **18** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 39 | 44 | 83 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 43 | 18 | 61 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **74** | **44** | **118** |
+| **Total** | **78** | **18** | **96** |
 
 ## Divergências de premissa
 
@@ -120,8 +120,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Feito | — | núcleo: barra de 2 nós e 6 gdl ligada a nós existentes (pilar com trecho rígido até a face − `trechoRigido`·h; viga: nó criado no eixo, só no modelo separado), pontas em cotas diferentes, fora do diafragma (nada a une ao corpo rígido; teste de zonas); validada contra o OpenSees (`validation/opensees/viga_inclinada.py`) [E2c] — Feito 23/10/2026: interface em InclinadasUI.tsx, InclinadasResultadosUI.tsx e MemorialInclinadas.tsx; e2e E2c [E2c] |
 | K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Parcial | E | núcleo: consolos curtos pela NBR 6118 22.5 e NBR 9062 (`consolos.ts`: muito curto por atrito-cisalhamento, curto por bielas e tirantes, longo como balanço; biela, contato, cortante, costura, ancoragem); coeficientes e itens da NBR 9062 a confirmar (`docs/pendencias-usuario.md`) [E2e] |
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Feito | — | vigotas reais posicionadas no pano a partir da borda do ponto de inserção, cada uma ligada ao alinhamento da grelha (`posicionarVigotas`, `ResultadoVigotas.lista`); duplas e triplas pela ficha [E3b] |
-| K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) [E3e] |
-| K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Falta | E | fase construtiva das alveolares [E3e] |
+| K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Feito | — | `TipoLaje` `alveolar` (ficha + placa) e a grelha unidirecional na direção das placas com barras a cada 40 cm (opção `alveolarMalha`) e EI da ficha por metro (`propLaje` em `analitico.ts`); fichas da obra (`ficha.alveolar`), da biblioteca de normas (`lajes.alveolares`, gabarito sem dados de fabricante) e JSON [E3e] |
+| K1.3.20 | Lajes alveolares: cálculo aproximado do processo construtivo alterando o engaste das bordas (método simplificado). | Feito | — | opção `alveolarProcesso`: 0 escorado (contínua sob a carga total), 1 engaste aproximado das bordas × (1 − pp/total), 2 duas fases (placa isostática + laje contínua); por pano em `laje.alveolar { processo }` [E3e] |
 | K1.3.21 | Lajes maciças: grelha de barras com malha máxima de 25 cm. | Feito | — | opções de cálculo: malha configurável, padrão 0,25 m (N1a) |
 | K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Feito | — | condensação estática exata (complemento de Schur) das grelhas no modelo integrado (`condensacao.ts`, N2b); barras de laje de Timoshenko (área 5/6·b·h, opção `cortanteBarrasLaje`, padrão do sistema 1, NBR 0); diafragma rígido mantido; torção com redutor editável (`torcaoLaje`) |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
@@ -201,7 +201,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: viga de vínculo externo com EI × 10² (`vinculoExternoFatorEI`), plano e EA × 10⁶, GJ × `torcaoViga` (`propsBarraViga`) [E2e] |
 | K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Parcial | E | casca com E = Ecs (EI bruto), torção pela placa e E × `axialPilares` nas cargas verticais (majora também a flexão: material isotrópico); 0,8·Eci·Ic no γz (`incluirParedes`, `analitico.ts`) [E1b] |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
-| K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Falta | E | lajes alveolares (mistas fora) [E3e] |
+| K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | EI bruto da ficha por metro, plano rígido do pavimento, GJ = 2I × “rigidez à torção das lajes” e EA grande (A = largura × altura) nas barras alveolares (`propLaje`); mistas fora [E3e] |
 | | **1.4.3 Coeficientes de rigidez à torção (pág. 19)** | | | |
 | K1.4.33 | Coeficiente redutor da rigidez à torção configurável (não se aplica a perfis de aço). | Feito | — | opções: redutores de torção de vigas, lajes e pilares editáveis (N1a) |
 | K1.4.34 | Barras com dimensão ≤ ao limite de "barra curta" usam o valor definido nas opções para elas. | Feito | — | opções `barraCurtaLimite` e `barraCurtaFator` (analitico.ts: pórtico e grelha); desligada por padrão, a confirmar; N2e |
@@ -258,7 +258,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas [E4d] |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
 | K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Feito | — | perdas de aço e barra máxima (opções perdasAco e barraMaxima, R3a) e opções de desenho das pranchas de armação (formato, escalas, lajes separadas, quadro de pilares) (R5) |
-| K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Parcial | E | negativos com ρmín e comprimento mínimo em % do vão (opção; NBR 0) nas treliçadas (R6); alveolares (E3) [E3e] |
+| K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Feito | — | negativos com ρmín e comprimento mínimo em % do vão (opção `vigotaNegativoVao`; NBR 0) nas treliçadas (R6), nas vigotas (E3b) e nas alveolares (`dimensionarAlveolares`: linha da ficha ou seção, comprimento = máx(% do vão; zero do diagrama + decalagem + lb)) [E3e] |
 | K1.4.81 | Momentos mínimos a resistir em lajes e vigas; armadura de vigas mestras. | Feito | — | momentos mínimos das vigas (N1e) e das vigotas (R6); lajes maciças `lajeMomentoMinPositivo/Negativo` (`dimensionarLajes`, padrão desligado, a confirmar); armadura de vigas mestras = suspensão (`suspensoesVigas`); N2e |
 | K1.4.82 | Coeficiente redutor da rigidez à flexão em lajes de vigotas. | Feito | — | redutor de rigidez à flexão das treliçadas na grelha (opção vigotaRigidez) (R6) |
 | K1.4.83 | Considerar armadura de torção em vigas. | Feito | — | torção das vigas verificada (NBR 6118 17.5), opção verificarTorcao (N1e) |
@@ -451,28 +451,28 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.60 | Coeficiente de engaste nas bordas/extremos das vigotas por pano (padrão 1). | Feito | — | engaste por borda da laje (engasteBordas, padrão 1), também nas treliçadas (N1a) |
 | K1.9.61 | Lajes mistas remetidas a capítulo próprio. | Fora | — | lajes mistas |
 | | **Lajes alveolares (ficha)** | | | |
-| K1.9.62 | Ficha: código (8 dígitos), descrição, altura total (placa + capa), largura da placa (ou intereixo), espessura da capa. | Falta | E | lajes alveolares (ficha) [E3e] |
-| K1.9.63 | Largura mínima de placa cortada longitudinalmente (placa especial de borda); a largura usada fica entre a mínima e a padrão. | Falta | E | lajes alveolares (placa de borda) [E3e] |
-| K1.9.64 | Profundidade de apoio mínima e máxima (placa oblíqua ao apoio); acima da máxima a placa é chanfrada; apoio lateral (sobreposição sobre apoio paralelo). | Falta | E | lajes alveolares (apoio) [E3e] |
-| K1.9.65 | Peso por m² do conjunto; volume de concreto de preenchimento (padrão: volume da capa); concretos e aço apenas informativos. | Falta | E | lajes alveolares (peso e volume) [E3e] |
-| K1.9.66 | Positivo: momento último; momento de fissuração (flecha por Branson); rigidez total da seção composta (usada na matriz de rigidez das barras); rigidez fissurada (Branson). | Falta | E | lajes alveolares (momentos e rigidez) [E3e] |
-| K1.9.67 | Momento de serviço conforme classe da protensão: ambiente I = classe III; II = classe II; III = classe I (equivalências dadas). | Falta | E | lajes alveolares (classe de protensão) [E3e] |
-| K1.9.68 | Momento de serviço calculado comparado com o da ficha conforme o ambiente; se não atende, busca outra placa da tabela; se nenhuma, aviso. | Falta | E | lajes alveolares (escolha da placa) [E3e] |
-| K1.9.69 | Cortante resistente da seção em duas colunas: momento de cálculo maior ou menor que o momento de descompressão (Mg, classe II). | Falta | E | lajes alveolares (cortante) [E3e] |
-| K1.9.70 | Negativo: pares de bitolas e espaçamento; para cada linha, momento último, momento de fissuração, rigidez total e fissurada (Branson) e cortante resistente. | Falta | E | lajes alveolares (negativos) [E3e] |
-| K1.9.71 | Cortante resistente comparada à de cálculo; se não atende, aviso e marcação "insuficiente" na tela e no desenho; sem dados na ficha, não verifica cortante. | Falta | E | lajes alveolares (cortante insuficiente) [E3e] |
-| K1.9.72 | Processo: escolhe a placa cujo momento último > Md positivo e cujo momento de serviço (combinações de deslocamentos, coluna do ambiente 1/2/3) atende; senão, aviso "fora de tabela". | Falta | E | lajes alveolares (processo) [E3e] |
-| K1.9.73 | Para a placa escolhida, verifica cortante de cálculo ≤ resistente para flexão positiva e negativa; senão aviso. | Falta | E | lajes alveolares (cortante) [E3e] |
-| K1.9.74 | Comprimentos de barras negativas pela envoltória; mínimos nas opções; envoltórias incluem redistribuição e momentos mínimos. | Falta | E | lajes alveolares (negativos) [E3e] |
-| K1.9.75 | Sem dados de flecha, ambiente ou cortante, a respectiva verificação não é feita. | Falta | E | lajes alveolares [E3e] |
-| K1.9.76 | Por pano: ambiente, engastes de borda e momentos mínimos por tipo de vão (extremo, intermediário, isolado, balanço). | Falta | E | lajes alveolares (dados por pano) [E3e] |
-| K1.9.77 | Processo construtivo escolhível: com escoramento ou sem escoramento (autoportante). | Falta | E | lajes alveolares (escoramento) [E3e] |
-| K1.9.78 | Com escoramento: cálculo estático com continuidade e engaste de borda 1 sob carga total (permanente + variável) após retirada dos escoras; negativos em geral maiores que positivos. | Falta | E | lajes alveolares (com escoramento) [E3e] |
-| K1.9.79 | Sem escoramento (placas leves): estado final = (1) placa isostática sob peso próprio (pl²/8) + (2) laje contínua sob a carga aplicada depois (permanente adicional + sobrecarga); em geral positivos > negativos. | Falta | E | lajes alveolares (sem escoramento) [E3e] |
-| K1.9.80 | Limitação: o programa não faz o cálculo em duas fases; aproxima o caso sem escoramento reduzindo o engaste nas continuidades. | Falta | E | lajes alveolares (aproximação) [E3e] |
-| K1.9.81 | Engaste aproximado = 1 − (peso próprio da laje / carga total), carga uniforme; exemplo: 400/(400+100+500) → 0,6; aplicado automaticamente aos panos de placas leves quando ativado o cálculo autoportante. | Falta | E | lajes alveolares (engaste aproximado) [E3e] |
+| K1.9.62 | Ficha: código (8 dígitos), descrição, altura total (placa + capa), largura da placa (ou intereixo), espessura da capa. | Parcial | E | `FichaAlveolar`/`PlacaAlveolar` (código, descrição, altura total placa + capa, largura, capa) com validação lógica (`validarFichaAlveolar`) e comando `ficha.alveolar`; falta o editor de fichas na interface (`docs/cartoes/E3e/00-pendente.md`) [E3e] |
+| K1.9.63 | Largura mínima de placa cortada longitudinalmente (placa especial de borda); a largura usada fica entre a mínima e a padrão. | Feito | — | largura mínima da placa cortada: `paginarPlacas` divide a faixa em placas inteiras e a de borda cortada (≥ mínima) ou duas iguais entre a mínima e a padrão; aviso ALVEOLAR_BORDA [E3e] |
+| K1.9.64 | Profundidade de apoio mínima e máxima (placa oblíqua ao apoio); acima da máxima a placa é chanfrada; apoio lateral (sobreposição sobre apoio paralelo). | Feito | — | apoio mínimo e máximo (`apoioDaPonta`: viga de borda, apoio compartilhado com junta de 2 cm, insuficiente, canto chanfrado da placa oblíqua) e apoio lateral por sobreposição (`apoioLateralDaViga`); comprimento da peça = vão livre + apoios [E3e] |
+| K1.9.65 | Peso por m² do conjunto; volume de concreto de preenchimento (padrão: volume da capa); concretos e aço apenas informativos. | Feito | — | peso por m² da placa + 25 × volume de concreto moldado (padrão: a capa; `geometriaAlveolar`); concreto e aço informativos [E3e] |
+| K1.9.66 | Positivo: momento último; momento de fissuração (flecha por Branson); rigidez total da seção composta (usada na matriz de rigidez das barras); rigidez fissurada (Branson). | Feito | — | `PlacaAlveolar.positivo` { Mu, Mfis, EI, EIfis }: EI na matriz da grelha (`propLaje`), Mu na escolha, Mfis e EI fissurado no Branson da flecha (`dadosBransonAlveolar`) [E3e] |
+| K1.9.67 | Momento de serviço conforme classe da protensão: ambiente I = classe III; II = classe II; III = classe I (equivalências dadas). | Feito | — | `PlacaAlveolar.servico` { Mdesc, Mparcial, Mlimitada, Mcompleta }: nível pela classe de agressividade do pano (I parcial, II limitada, III e IV completa = equivalências do programa de referência; `nivelPorCAA`, Tabela 13.4 a confirmar) [E3e] |
+| K1.9.68 | Momento de serviço calculado comparado com o da ficha conforme o ambiente; se não atende, busca outra placa da tabela; se nenhuma, aviso. | Feito | — | momento de serviço (combinação frequente ou rara do nível) comparado ao admissível da ficha; se não passa, outra placa da lista (`candidatas`), e sem nenhuma, ALVEOLAR_FORA_TABELA [E3e] |
+| K1.9.69 | Cortante resistente da seção em duas colunas: momento de cálculo maior ou menor que o momento de descompressão (Mg, classe II). | Feito | — | `VRd` e `VRdDesc` (seção descomprimida) na ficha; `vrdPositivo` escolhe a coluna pelo momento positivo na ponta × momento de descompressão; cortante no eixo do apoio, sem redução (a confirmar) [E3e] |
+| K1.9.70 | Negativo: pares de bitolas e espaçamento; para cada linha, momento último, momento de fissuração, rigidez total e fissurada (Branson) e cortante resistente. | Feito | — | linhas de negativo { φ, s, Mu, Mfis, EI, EIfis, VRd } na ficha (e na tabela da biblioteca de normas); a de menor Mu que cobre o momento e o cortante; sem linha, a seção (`asNegativoSecao`) [E3e] |
+| K1.9.71 | Cortante resistente comparada à de cálculo; se não atende, aviso e marcação "insuficiente" na tela e no desenho; sem dados na ficha, não verifica cortante. | Parcial | E | cortante de cálculo × resistente nas flexões positiva e negativa, aviso e `PlacaDim.status = insuficiente`; sem VRd na ficha não verifica; falta a marca na tela e no desenho (`docs/cartoes/E3e/00-pendente.md`) [E3e] |
+| K1.9.72 | Processo: escolhe a placa cujo momento último > Md positivo e cujo momento de serviço (combinações de deslocamentos, coluna do ambiente 1/2/3) atende; senão, aviso "fora de tabela". | Feito | — | `dimensionarAlveolares`: Mu > Md positivo e serviço atendido na placa adotada e nas outras da lista (demanda escalada pelo peso próprio), mesma altura primeiro; sem nenhuma, ALVEOLAR_FORA_TABELA [E3e] |
+| K1.9.73 | Para a placa escolhida, verifica cortante de cálculo ≤ resistente para flexão positiva e negativa; senão aviso. | Feito | — | cortante de cálculo ≤ resistente na flexão positiva (VRd/VRdDesc) e na negativa (VRd da linha escolhida); senão ALVEOLAR_PLACA [E3e] |
+| K1.9.74 | Comprimentos de barras negativas pela envoltória; mínimos nas opções; envoltórias incluem redistribuição e momentos mínimos. | Feito | — | comprimento dos negativos pelo diagrama da faixa (zero + decalagem + lb), mínimo em % do vão (`vigotaNegativoVao`), momentos mínimos por tipo de vão (`alveolarMomentoMin*`, `laje.momentosMin`) e redistribuição (`alveolarRedistribuir`, NBR 6118 14.6.4.3) [E3e] |
+| K1.9.75 | Sem dados de flecha, ambiente ou cortante, a respectiva verificação não é feita. | Feito | — | sem Mu, momentos de serviço, VRd ou EI na ficha, a verificação correspondente não é feita e o aviso ALVEOLAR_SEM_DADOS diz o que faltou (sem EI, a flecha não é verificada) [E3e] |
+| K1.9.76 | Por pano: ambiente, engastes de borda e momentos mínimos por tipo de vão (extremo, intermediário, isolado, balanço). | Parcial | E | ambiente (`laje.exposicao`), engastes de borda (`laje.alveolar { engasteBordas }`) e momentos mínimos por tipo de vão (`laje.momentosMin`) por pano nos comandos; falta a janela do pano (`docs/cartoes/E3e/00-pendente.md`) [E3e] |
+| K1.9.77 | Processo construtivo escolhível: com escoramento ou sem escoramento (autoportante). | Feito | — | processo construtivo escolhível por obra (`alveolarProcesso`) e por pano (`laje.alveolar { processo }`): com escoramento ou sem escoramento (engaste aproximado ou duas fases) [E3e] |
+| K1.9.78 | Com escoramento: cálculo estático com continuidade e engaste de borda 1 sob carga total (permanente + variável) após retirada dos escoras; negativos em geral maiores que positivos. | Feito | — | processo 0: grelha contínua sob a carga total, bordas compartilhadas com engaste da análise (negativos em geral maiores que os positivos) [E3e] |
+| K1.9.79 | Sem escoramento (placas leves): estado final = (1) placa isostática sob peso próprio (pl²/8) + (2) laje contínua sob a carga aplicada depois (permanente adicional + sobrecarga); em geral positivos > negativos. | Feito | — | processo 2: placa isostática sob o peso próprio (p·x(ℓ−x)/2, reações nas pontas, flecha 5pℓ⁴/384EI) mais a grelha contínua sob o resto; contra o cálculo manual de dois tramos [E3e] |
+| K1.9.80 | Limitação: o programa não faz o cálculo em duas fases; aproxima o caso sem escoramento reduzindo o engaste nas continuidades. | Feito | — | o Statikos faz o cálculo em duas fases (processo 2) além da aproximação por engaste (processo 1) [E3e] |
+| K1.9.81 | Engaste aproximado = 1 − (peso próprio da laje / carga total), carga uniforme; exemplo: 400/(400+100+500) → 0,6; aplicado automaticamente aos panos de placas leves quando ativado o cálculo autoportante. | Feito | — | processo 1: engaste das bordas × (1 − pp/carga total) (`fatorEngasteAproximado`, exemplo 4,0/10,0 → 0,6); padrão do sistema; a todas as placas, não só às leves (a confirmar) [E3e] |
 | K1.9.82 | Recomendação: consultar o fabricante e verificar a fase construtiva com peso próprio + sobrecarga de construção (usual 100 kg/m²). | Fora | — | recomendação do manual |
-| K1.9.83 | Flecha das alveolares com propriedades da ficha e diagrama de momentos médio do estado final; comparada aos limites das opções. | Falta | E | lajes alveolares (flecha) [E3e] |
+| K1.9.83 | Flecha das alveolares com propriedades da ficha e diagrama de momentos médio do estado final; comparada aos limites das opções. | Feito | — | flecha pela grelha com a ficha (EI) e Branson por barra com EI fissurado e Mfis da ficha, etapas da N2f e fase 1 do processo 2; limites das opções de flecha [E3e] |
 | | **Lajes maciças** | | | |
 | K1.9.84 | Espessura e direção de armadura por pano (espessura pode variar por pano). | Feito | — | espessura e direção da malha por laje (`laje.editar`) |
 | K1.9.85 | Engaste de borda com vigas de apoio 0–1 (inclui engaste parcial); desníveis entre panos como nas vigotas. | Feito | — | `engasteBorda` (analitico.ts) com `lajeDesnivelFator` (0,5 × a menor espessura, a confirmar): borda sem continuidade acima do limite; N2e |
@@ -549,7 +549,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.13 | Igualação de momentos, cortantes e negativos por média, diferença % ou máximo; editáveis. | Feito | — | igualação de momentos, cortantes (sempre pelo máximo) e negativos das vigotas pelo máximo ou pela média, com diferença % editável (vigotaIgualacao, vigotaIgualacaoDif; R6) |
 | K1.11.14 | Lajes mistas: ver capítulo próprio. | Fora | — | lajes mistas |
 | | **Alveolares** | | | |
-| K1.11.15 | Envoltórias médias por metro de faixa, placa escolhida, negativo nos apoios (nº, bitola, espaçamento, comprimento), flecha, erros de momento/cortante/flecha/ambiente; placa e negativos editáveis. | Falta | E | lajes alveolares [E3e] |
+| K1.11.15 | Envoltórias médias por metro de faixa, placa escolhida, negativo nos apoios (nº, bitola, espaçamento, comprimento), flecha, erros de momento/cortante/flecha/ambiente; placa e negativos editáveis. | Parcial | E | dados do relatório prontos (`ResultadoAlveolar`: envoltórias por metro, placa escolhida, negativos com nº/bitola/espaçamento/comprimento, flecha, erros; `resumoAlveolar`, `alveolaresNoMemorial`); falta a janela da laje e a edição na interface (`docs/cartoes/E3e/00-pendente.md`) [E3e] |
 | | **Maciças, nervuradas e radiers** | | | |
 | K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Feito | — | armadura base das lajes definida e alterada na janela da laje e por comando; malha de discretização pela opção `malha` (R7d) |
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Feito | — | As por metro (máximo por laje e direção) na tabela e no detalhamento; mapa de `AsInf` e `AsSup` (envoltória das duas direções) e por direção em `resultados/isovalores.ts`; interface nos cartões V4 [V4] — Feito 23/10/2026: interface: AbaIsovalores.tsx; e2e V4 [V4] |
@@ -745,7 +745,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **1.13 Lajes mistas (pág. 90)** | | | |
 | K1.13-1 | Remetidas a capítulo próprio do manual. | Fora | — | lajes mistas |
 | | **1.13.1 Lajes alveolares (pág. 90)** | | | |
-| K1.13.1-1 | Processo de cálculo remetido ao item 1.9 (entrada de dados). | Falta | E | lajes alveolares [E3e] |
+| K1.13.1-1 | Processo de cálculo remetido ao item 1.9 (entrada de dados). | Parcial | E | processo de cálculo no núcleo (K1.9.62 a K1.9.83); falta a entrada de dados na interface [E3e] |
 | | **1.13.2 Lajes maciças (págs. 91–94)** | | | |
 | | **1.13.2.1 Armadura base** | | | |
 | K1.13.2.1-1 | Opcional: armadura base superior e inferior, longitudinal e transversal, podendo diferir entre si; escolhida da tabela e editável. | Feito | — | base superior e inferior, nas duas direções, com valores diferentes; barras da tabela da laje (R7a) ou tela soldada (`BaseFaceLaje`) (R7d) |
@@ -1000,3 +1000,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3c, núcleo (nervuradas bidirecionais).** K1.3.25, K1.3.26, K1.3.27, K1.5.4, K1.9.92, K1.9.95, K1.9.96, K1.13.3.1-5, K1.13.3.2-1 e K1.15.4-25 (manual de cálculo) passam a Feito; K1.9.90, K1.9.91, K1.9.93, K1.9.94, K1.9.101, K1.13.3-1, K1.13.3.1-1, K1.13.3.1-4, K1.13.4-2 e K1.13.4.1-1 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; editor de formas, grupo de nervuradas, camada na planta e memorial nos cartões `docs/cartoes/E3c/`; K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 seguem Parcial depois dos cartões: base da mesa só descrita, sem tabela R7a nem fissuração do negativo, ábaco na E3d e uniformização automática).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (10 itens a Feito; 16 de Falta a Parcial).
+- **23/10/2026 — E3e, núcleo (lajes alveolares).** K1.3.19, K1.3.20, K1.4.32, K1.4.80, K1.9.63 a K1.9.70, K1.9.72 a K1.9.75, K1.9.77 a K1.9.81 e K1.9.83 passam a Feito (`alveolares.ts`, `alveolaresDim.ts`, `analitico.ts`, `dimensionamento.ts`; processos 0, 1 e 2 contra o cálculo manual de dois tramos); K1.9.62, K1.9.71, K1.9.76, K1.11.15 e K1.13.1-1 passam de Falta a Parcial (núcleo e comandos prontos; editor de fichas, janela do pano e relatório na interface, marca “insuficiente” no desenho). Sem dado de fabricante: gabarito na biblioteca de normas e ficha fictícia `ex:alveolar`; pendências em `docs/pendencias-usuario.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (23 itens a Feito; 5 de Falta a Parcial).

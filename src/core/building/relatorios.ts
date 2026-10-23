@@ -188,7 +188,7 @@ export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensioname
       const k = geometriaNervurada(b, l.tipo), ae = (area * (k.intereixo - k.bw)) / k.intereixo;
       ench = { area: r2(ae), volume: r2(ae * k.hEnch, 3), pecas: Math.ceil(ae / (k.intereixo - k.bw) - 1e-9) };
     }
-    return { laje: l.id, nome: l.nome, grupo: l.grupo, pavimentos: rep, tipo: pr.descricao, h: r2(t, 3), area: r2(area), volume: r2(area * t, 3), forma: r2(area), pesoProprio: r2(pr.pp * area, 1), ...(ench ? { enchimento: ench } : {}) };
+    return { laje: l.id, nome: l.nome, grupo: l.grupo, pavimentos: rep, tipo: pr.descricao, h: r2(t, 3), area: r2(area), volume: r2(area * t, 3), forma: l.tipo.tipo === 'alveolar' ? 0 : r2(area), pesoProprio: r2(pr.pp * area, 1), ...(ench ? { enchimento: ench } : {}) };
   });
   const vigas: QuantViga[] = b.vigas.map((v) => {
     const rep = Math.max(1, pavimentosDoGrupo(b, v.grupo).length), L = comprimentoPolilinha(v.pontos);

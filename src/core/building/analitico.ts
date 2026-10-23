@@ -11,6 +11,7 @@ import { spAdd, type SpRows } from '../math';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, eixosDasVigas } from './lajes';
 import { capaLaje, ehNervurada, geometriaNervurada, type FonteLajes } from './tiposLaje';
+import { cargasDoPano, engasteBordaAlveolar, fatorEngasteAproximado, geometriaAlveolar, processoDoPano } from './alveolares';
 import { arranjoNervuras, direcaoNervurada, geometriaBidirecional, passoMalhaNervurada, propBarraNervurada, propBarraNervuradaMista } from './nervuradas';
 import { pilaresCoincidentes, textoPilarCoincidente } from './vinculoExterno';
 import { inerciaT, mesaDaViga, propriedadesRigidez } from './secaoViga';
@@ -503,6 +504,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
     const cargas = b.cargas.filter((c) => c.grupo === grupo.id);
     const malhas = lajes.map((l) => ({ l, m: l.tipo.tipo === 'nervurada'
       ? malhaLaje(l.contorno, direcaoNervurada(l), passoMalhaNervurada(geometriaBidirecional(b, l.tipo), op), l.furos ?? [])
+      : l.tipo.tipo === 'alveolar' ? malhaLaje(l.contorno, l.direcao ?? 0, op.alveolarMalha, l.furos ?? [])
       : malhaLaje(l.contorno, ehNervurada(l.tipo) ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? []) }));
     // pontos das bordas das malhas e apoios dos pilares dividem as vigas
     const eixos = eixosDasVigas(b, grupo.id, true) as [P, P][];
@@ -567,10 +569,18 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const nerv = l.tipo.tipo === 'nervurada' ? geometriaBidirecional(b, l.tipo) : null;
       const arrN = nerv ? arranjoNervuras(l, nerv, op.nervuradaMacicoViga) : null;
       const areaGMac = nerv ? GAMA_CONCRETO * nerv.h + grupo.gRev : areaG;
+      /** Alveolar (E3e): processo construtivo. 1 = engaste das bordas × (1 − pp/carga total); 2 = o peso próprio vai como fase isostática (reações nas pontas), o resto na grelha contínua. */
+      const alv = l.tipo.tipo === 'alveolar' ? geometriaAlveolar(b, l.tipo) : null, procAlv = alv ? processoDoPano(l, op) : 0;
+      const fProcAlv = alv && procAlv === 1 ? fatorEngasteAproximado(alv.pp, cargasDoPano(b, l, alv).total) : 1, ppFase1 = alv && procAlv === 2 ? alv.pp : 0;
+      const uni = ehNervurada(l.tipo) || !!alv;
       for (const ln of mm.linhas) {
         const k = ln.dir;
-        const share = ehNervurada(l.tipo) ? (k === 0 ? 1 : 0) : 0.5;
+        const share = uni ? (k === 0 ? 1 : 0) : 0.5;
         const ids = ln.pontos.map((p) => achar(p, false));
+        if (ppFase1 && k === 0 && ids.length > 1) {
+          const pa = nos[ids[0]].p, pz = nos[ids[ids.length - 1]].p, R = (ppFase1 * ln.largura * Math.hypot(pz[0] - pa[0], pz[1] - pa[1])) / 2;
+          for (const id of [ids[0], ids[ids.length - 1]]) carregar('G', (cs) => cs.nodais.push({ no: no(id), f: [0, 0, -R, 0, 0, 0] }));
+        }
         for (let j = 0; j + 1 < ids.length; j++) {
           if (ids[j] === ids[j + 1]) continue;
           const midB: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
@@ -580,7 +590,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           if (op.cortanteBarrasLaje && pr.As) bl.Ay = pr.As; // Timoshenko (K1.3.22)
           // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)
           for (const [ponta, id] of [['engI', ids[j]], ['engJ', ids[j + 1]]] as const) {
-            let a = nos[id].viga && !nos[id].pilar ? engasteBorda(l, nos[id].p, trechos, nos, lajes, op.lajeDesnivelFator, b) : 1;
+            let a = nos[id].viga && (!nos[id].pilar || alv) ? engasteBorda(l, nos[id].p, trechos, nos, lajes, op.lajeDesnivelFator, b) : 1;
+            if (alv && k === 0 && nos[id].viga) a = engasteBordaAlveolar(l, nos[id].p, a, lajes, !!op.alveolarContinuidade, fProcAlv); // E3e: apoio simples ou contínuo na capa
             // N2e (K1.9.55): vigotas biapoiadas: rotações livres nas bordas da treliçada (extremos das linhas na direção das vigotas)
             if (l.vigotasBiapoiadas && ehNervurada(l.tipo) && k === 0 && nos[id].viga && (ponta === 'engI' ? j === 0 : j + 2 === ids.length)) a = 0;
             if (a < 1) bl[ponta] = [[5, a]];
@@ -593,6 +604,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
           // cargas de área: grupo + regiões de carga que contêm o meio da barra
           const mid: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
           let g = fmB ? fmB * areaGMac + (1 - fmB) * areaG : areaG, q = areaQ;
+          if (ppFase1) g = Math.max(0, g - ppFase1); // fase 1 do processo 2: o peso próprio da placa entra como reações nas pontas
           const outros: Record<string, number> = {}; // cargas de área em casos próprios (QB, QC, adicionais e arranjos)
           for (const c of cargas) if (c.tipo === 'area' && dentroPoligono(mid, c.pontos)) { if (c.caso === 'G') g += c.valor; else if (c.caso === 'Q') q += c.valor; else outros[c.caso] = (outros[c.caso] ?? 0) + c.valor; }
           carregar('G', (cs) => cs.distribuidas.push({ barra: bi, q: [0, 0, -g * w] }));
@@ -605,7 +617,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       const sobreViga = (p: P) => trechos.some((t) => { const a = nos[t.a].p, z = nos[t.z].p; if (p[0] < Math.min(a[0], z[0]) - 0.02 || p[0] > Math.max(a[0], z[0]) + 0.02 || p[1] < Math.min(a[1], z[1]) - 0.02 || p[1] > Math.max(a[1], z[1]) + 0.02) return false; const dx = z[0] - a[0], dy = z[1] - a[1], L2 = dx * dx + dy * dy; const u = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(a[0] + u * dx - p[0], a[1] + u * dy - p[1]) < 0.01; });
       mm.bordas.forEach((e, k) => {
         const L = Math.hypot(e.z[0] - e.a[0], e.z[1] - e.a[1]), mid: P = [(e.a[0] + e.z[0]) / 2, (e.a[1] + e.z[1]) / 2];
-        const sh = ehNervurada(l.tipo) ? [1, 0] : [0.5, 0.5];
+        const sh = uni ? [1, 0] : [0.5, 0.5];
         const larg = mm.pesoBorda[0][k] * sh[0] + mm.pesoBorda[1][k] * sh[1]; // m² de faixa por m de borda
         if (!larg) return;
         let g = nerv ? areaGMac : areaG, q = areaQ; // nervurada: a borda do pano é faixa maciça
@@ -1735,7 +1747,7 @@ function engasteBorda(l: Laje, p: P, trechos: TrechoViga[], nos: NoPlanta[], laj
   }
   // N2e (K1.9.85): desnível entre panos maior que fator × a menor espessura: a borda perde a continuidade
   if (fatorDesnivel > 0) {
-    const h = (x: Laje) => (x.tipo.tipo === 'macica' ? x.tipo.h : x.tipo.tipo === 'nervurada' ? x.tipo.hTotal : geometriaNervurada(fl, x.tipo).h);
+    const h = (x: Laje) => (x.tipo.tipo === 'macica' ? x.tipo.h : x.tipo.tipo === 'nervurada' ? x.tipo.hTotal : x.tipo.tipo === 'alveolar' ? geometriaAlveolar(fl, x.tipo).h : geometriaNervurada(fl, x.tipo).h);
     for (const l2 of lajes) {
       if (l2 === l || !(l2.contorno as P[]).some((q, i, c2) => { const q2 = c2[(i + 1) % c2.length]; return (Math.hypot(q[0] - z[0], q[1] - z[1]) < 0.02 && Math.hypot(q2[0] - a[0], q2[1] - a[1]) < 0.02); })) continue;
       if (Math.abs((l.nivel ?? 0) - (l2.nivel ?? 0)) > fatorDesnivel * Math.min(h(l), h(l2)) + 1e-9) return 0;
@@ -1769,6 +1781,7 @@ function centroide(p: P[]): P {
 function lajeG(l: Laje, fl?: FonteLajes) {
   if (l.tipo.tipo === 'macica') return GAMA_CONCRETO * l.tipo.h;
   if (l.tipo.tipo === 'nervurada') return geometriaBidirecional(fl, l.tipo).pp;
+  if (l.tipo.tipo === 'alveolar') return geometriaAlveolar(fl, l.tipo).pp;
   return geometriaNervurada(fl, l.tipo).pp;
 }
 
@@ -1781,6 +1794,11 @@ function propLaje(l: Laje, sx: number, sy: number, op: OpcoesAnalise, fl: FonteL
     return [sy, sx].map((w) => { const I = (w * h ** 3) / 12; return { A: w * h, I, J: op.torcaoLaje * 2 * I, As: (5 / 6) * w * h }; }) as [PropBarraLaje, PropBarraLaje];
   }
   if (l.tipo.tipo === 'nervurada') { const gb = geometriaBidirecional(fl, l.tipo); return [propBarraNervurada(gb, 0, sy, false, op), propBarraNervurada(gb, 1, sx, false, op)]; }
+  if (l.tipo.tipo === 'alveolar') {
+    // E3e: unidirecional; EI da ficha por metro (plano rígido, EA grande), torção reduzida pelo fator das lajes; na transversal só a capa
+    const g = geometriaAlveolar(fl, l.tipo), Ia = sy * (g.EI / El), Ic = (sx * g.capa ** 3) / 12;
+    return [{ A: sy * g.h, I: Ia, J: op.torcaoLaje * 2 * Ia, As: (5 / 6) * sy * g.h }, { A: sx * g.capa, I: Ic, J: op.torcaoLaje * 2 * Ic, As: (5 / 6) * sx * g.capa }];
+  }
   const g = geometriaNervurada(fl, l.tipo), c = { hEnch: g.hEnch, intereixo: g.intereixo, bw: g.bw }, capa = g.capa, h = g.h;
   const IT = inerciaT(c.intereixo, capa, g.bwRigidez, h);
   // rigidez das fichas (K1.15.1-2): EI e GJ da ficha no lugar da inércia calculada (opção vigotaRigidezFicha)

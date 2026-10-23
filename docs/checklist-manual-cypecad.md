@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
-| 7. Lajes | 195 | 70 | 29 | 29 | 67 |
+| 7. Lajes | 195 | 70 | 31 | 27 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **402** | **73** | **103** | **185** |
+| **Total** | **763** | **402** | **75** | **101** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 49 | 98 | 147 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 51 | 96 | 147 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -419,7 +419,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] — L4 núcleo: `laje.copiarDados` e `CAMPOS_COPIA_LAJE` (tipo, direção, desnível, engastes, cobrimento, tabela, armadura base); plano de inclinação entra com a E3f; interface: `DadosL4.tsx` (cartão 03) |
 | C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Parcial | E | cubetas inteiras desenhadas em traço fino nas pranchas de formas e de armação e nervuras com a largura real no arranjo (`arranjoNervuras`, `montarPrancha`, `montarPranchasLajes`); falta a camada “Nervuras e cubetas” na planta (cartão `docs/cartoes/E3c/`) [E3c] |
 | C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Feito | — | `Laje.momentosMin` por tipo de vão (extremo, intermediário, isolado, balanço) e comando `laje.momentosMin` sobre os valores da obra (`minimosDaFaixa`, `vigotasEsforcos.ts`) [E3b] |
-| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Feito | — | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares na E3e [E3b] |
+| C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Feito | — | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares: serviço, cortante e negativos na capa na E3e (`alveolaresDim.ts`) [E3b] [E3e] |
 | C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Feito | — | coeficiente de engaste por borda da laje (laje.editar engasteBordas, Vínculos; N1a), também nas treliçadas |
 | C7.13 | Processo construtivo das alveolares: com ou sem escoramento. | Fora | — |  |
 | C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Feito | — | `Laje.vigotasMultiplas` e comando `vigota.multipla` (dupla/tripla até o máximo da ficha, vigotas ao lado apagadas; esforços ÷ n + peso do conjunto) [E3b] |
@@ -463,7 +463,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.49 | Ábaco, extensão maciça: porcentagem da distância ao pilar vizinho, medida da face do pilar à borda do ábaco. | Falta | E | [E3d] |
 | C7.50 | Ábaco, comprimentos mínimo e máximo da face do pilar à borda, em relação à altura do ábaco. | Falta | E | [E3d] |
 | | **7.1.2.4 Lajes alveolares** | | | |
-| C7.51 | Lajes alveolares da biblioteca ou criadas pelo usuário, com ajuda sobre os dados pedidos. | Falta | E | alveolares [E3e] |
+| C7.51 | Lajes alveolares da biblioteca ou criadas pelo usuário, com ajuda sobre os dados pedidos. | Parcial | E | `ficha.alveolar` (criar, editar, copiar, remover, importar JSON), `laje.alveolar` e `laje.atribuir { tipo: alveolar }` com fichas da obra, da biblioteca de normas (`lajes.alveolares`) e de exemplo; a ajuda sobre os dados pedidos e a seleção ficam na interface (`docs/cartoes/E3e/00-pendente.md`) [E3e] |
 | | **7.1.2.5 Lajes mistas (steel deck)** | | | |
 | C7.52 | Laje com chapa de aço perfilada, concreto e armaduras superior e inferior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.53 | Chapa só como forma: resiste ao peso próprio, ao concreto fresco e às cargas de execução, e em serviço só a laje de concreto armado trabalha. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
@@ -572,7 +572,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.141 | Apagar grupos de armadura de punção (lajes cogumelo, maciças e nervuradas) um a um ou por janela de captura. | Parcial | E | apagar grupos de armadura de punção um a um, por pilar ou pela seleção por janela (comando `laje.puncao`, botão “Apagar punção da seleção”); lajes cogumelo e nervuradas com as nervuradas [N2d; resto E3d] |
 | | **7.2.3 Lajes alveolares** | | | |
 | C7.142 | Vistas de lajes alveolares inclinadas: desenho do dobramento e marca do ponto de dobra. | Falta | E | [E3f] |
-| C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Falta | E | [E3e] |
+| C7.143 | Catálogo de fabricante com fichas das placas alveolares; quadro de propriedades no relatório de dados da obra. | Parcial | E | catálogo editável na biblioteca de normas (gabarito sem dado de fabricante: o usuário cadastra as placas) e `placasNoMemorial` (quadro de propriedades das placas das fichas usadas, com a marca de procedência); falta o quadro no relatório de dados da obra na interface [E3e] |
 | | **7.2.4 Lajes mistas (steel deck)** | | | |
 | C7.144 | Cálculo em duas fases: construção e serviço. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.145 | Construção: resistência da fôrma de aço com peso do concreto, peso da fôrma e cargas de construção (operários, equipamentos). | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
@@ -1070,5 +1070,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3b, interface (cartões 1 a 3).** Itens passam a Feito pela interface: C7.10, C7.11, C7.14, C7.101, C7.117 a C7.123 e C7.193 (aba Vigotas por ficha, exposição e momentos mínimos por pano, relatório de esforços, memorial das vigotas por ficha, e2e `E3b`). Notas de C7.91, C7.102 e C7.194 sem a expressão de interface, seguem Parcial. C7.31 e C7.32 seguem Parcial: a nota aponta falta de Mfis e rigidez fissurada, o que contradiz o cartão 3 (pendente de decisão).
   - Situação: Feito +12; Parcial sem mudança de contagem nos itens não citados (ver recontagem em `npm run checklists`).
 - **23/10/2026 — E3c, núcleo (nervuradas bidirecionais).** C7.9, C7.42, C7.43, C7.44, C7.45 e C7.46 passam de Falta a Parcial com nota própria (formas recuperáveis e perdidas em catálogo editável e na obra, arranjo das nervuras e das cubetas, direção por viga ou por dois pontos e cópia entre panos prontos no núcleo e nas pranchas; editor, camada na planta e grupo nos cartões `docs/cartoes/E3c/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: sem mudança de contagem (os itens seguem na E).
+- **23/10/2026 — E3e, núcleo (lajes alveolares).** C7.51 e C7.143 passam de Falta a Parcial (fichas, catálogo editável, comandos e quadro de propriedades; sem dado de fabricante; falta a interface); a nota de C7.11 passa a citar as alveolares. Ver `docs/checklist-manual-calculo-cypecad.md` para os itens de cálculo.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança de contagem (os itens seguem na E).
