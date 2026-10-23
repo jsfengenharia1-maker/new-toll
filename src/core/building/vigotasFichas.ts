@@ -398,7 +398,9 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
         negativos, cortante, macico,
       };
     });
-    grupos.forEach((g, gi) => { for (const i of g.faixas) if (!g.especial) faixas[i].grupo = gi; });
+    // alinhamento → grupo: o da unidade regular; sem vigota regular, o da primeira unidade à parte que o usa
+    const atribuida = new Set<number>();
+    for (const passo of [false, true]) grupos.forEach((g, gi) => { if (!!g.especial !== passo) return; for (const i of g.faixas) if (!atribuida.has(i)) { faixas[i].grupo = gi; atribuida.add(i); } });
     // distribuição na capa (Tabela 19.1) como nas treliçadas
     const AsPrinc = Math.max(0, ...grupos.map((g) => (g.positiva.AsTrelica + g.positiva.AsAdicional) / intereixo)); // cm²/m
     const AsDist = Math.max(0.2 * AsPrinc, 0.9, 0.5 * RHO_MIN_LAJE * capa * 1e4);
