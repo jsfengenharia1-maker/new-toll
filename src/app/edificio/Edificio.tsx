@@ -2,6 +2,7 @@
 import { ehNervurada } from '../../core/building/tiposLaje';
 import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { AbaDeslocamentos } from './AbaDeslocamentos';
+import { AbaIsovalores } from './AbaIsovalores';
 import { useEffect, useRef, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
 import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
@@ -77,7 +78,7 @@ export function Edificio() {
   const aj = useAjuda();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
+  const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
   const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
   const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
@@ -199,7 +200,7 @@ export function Edificio() {
 
       <section className="edif-main">
         <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
+          {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
             <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} data-ajuda={`aba:${k}`} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
           ))}
         </div>
@@ -211,6 +212,7 @@ export function Edificio() {
             {aba === 'verificacao' && <div className="card"><h3>Verificação de lançamento</h3><Diagnosticos diags={diags} onIr={(ids) => { usePlanta.getState().set({ selecao: new Set(ids) }); setAba('planta'); }} /></div>}
             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
             {aba === 'deslocamentos' && <AbaDeslocamentos b={b} />}
+            {aba === 'isovalores' && <AbaIsovalores b={b} />}
             {aba === 'dimensionamento' && <DimensionamentoAba onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
             {aba === 'pranchas' && <Pranchas />}
             {aba === 'premissas' && (
