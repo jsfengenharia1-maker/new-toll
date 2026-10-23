@@ -4,7 +4,7 @@ import { alturaVigaChata } from '../building/secaoViga';
 import { cortarPoligonal, ehCurva, juntarPoligonais, inverterPoligonal, montarPoligonal } from '../building/curvas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import type { Draft } from 'immer';
-import { centroPilar, comprimentoPolilinha, deslocarPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
+import { centroPilar, comprimentoPolilinha, deslocarPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type FichaPremoldada, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { ajusteFaceTrecho, alinhamentoNaFace, pilaresQueChegam, proximaViga, TOL_FACE, type LadoFace } from '../building/vigas';
 import { deslocamentoDeClique, pontaProlongada } from '../building/lancamentoL5';
@@ -113,7 +113,8 @@ registrar<{ grupo: string; pontos: P[]; passagens?: Passagens; secao: { b: numbe
 
 registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; secao?: { b: number; h: number }; alinhamento?: Alinhamento; invertida?: boolean; nivel?: number; vinculoIni?: Vinculo; vinculoFim?: Vinculo;
   engasteIni?: number; engasteFim?: number; articulacoes?: string[]; torcaoEquilibrio?: boolean; engasteLajes?: number; foraDiafragma?: boolean; cobrimento?: number; tabela?: string; tabelaEstribo?: string;
-  mesa?: { tipo: 'ret' | 'T' | 'L'; bf?: number; hf?: number; a?: number }; chata?: boolean; estrutural?: boolean; amarracao?: boolean }>({
+  mesa?: { tipo: 'ret' | 'T' | 'L'; bf?: number; hf?: number; a?: number }; chata?: boolean; estrutural?: boolean; amarracao?: boolean;
+  vinculoExterno?: 'nenhum' | 'engaste' | 'articulacao' | 'deslizante'; premoldada?: { tipo: 'nenhuma' | 'armada' | 'ficha'; icamento?: number; ficha?: FichaPremoldada } }>({
   nome: 'viga.editar',
   descricao: 'Altera nome, pontos, seção, alinhamento, invertida, desnível do topo (m), vínculos das extremidades, coeficientes de engaste das pontas (0 = rótula, 1 = engaste), pilares intermediários articulados, torção de equilíbrio (seção bruta), coeficiente de engaste das lajes apoiadas na viga, viga fora do diafragma rígido, cobrimento próprio (cm), seção com mesa (mesa: T, L ou ret; bf, hf e a ausentes = mesa colaborante da NBR 6118 14.6.2.2), viga chata (altura da laje que contorna), viga não estrutural (estrutural: false, só fecha o contorno do pano) ou de amarração (sem rigidez à flexão vertical).',
   risco: 'escrita',
@@ -136,6 +137,17 @@ registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; seca
     chata: { type: 'boolean', description: 'viga chata: altura = a da laje que contorna' },
     estrutural: { type: 'boolean', description: 'false = viga não estrutural (só fecha o contorno do pano)' },
     amarracao: { type: 'boolean', description: 'viga de amarração (encadeado): sem rigidez à flexão vertical' },
+    vinculoExterno: { type: 'string', enum: ['nenhum', 'engaste', 'articulacao', 'deslizante'], description: 'vínculo externo contínuo (topo de muro): apoios em todos os nós; engaste (tudo), articulacao (deslocamentos) ou deslizante (só o vertical); nenhum remove' },
+    premoldada: { type: 'object', additionalProperties: false, required: ['tipo'], properties: {
+      tipo: { type: 'string', enum: ['nenhuma', 'armada', 'ficha'], description: 'armada = dimensionada (NBR 9062, γc do controle pré-moldado, ligações articuladas, içamento); ficha = pré-fabricada protendida ou treliçada com as propriedades do fabricante (só verificada)' },
+      icamento: { type: 'number', exclusiveMinimum: 0, maximum: 20, description: 'armada: distância (m) dos pontos de içamento às extremidades; ausente = a fração das opções' },
+      ficha: { type: 'object', additionalProperties: false, required: ['nome', 'MRdPos', 'VRd'], properties: {
+        nome: { type: 'string', minLength: 1 }, classe: { type: 'string', enum: ['protendida', 'trelicada', 'outra'] },
+        EI: { type: 'number', exclusiveMinimum: 0, description: 'rigidez à flexão vertical (kN·m²); ausente = a da seção bruta' }, peso: { type: 'number', minimum: 0, description: 'peso próprio (kN/m); ausente = o da seção' },
+        MRdPos: { type: 'number', exclusiveMinimum: 0, description: 'momento resistente de cálculo positivo (kN·m)' }, MRdNeg: { type: 'number', minimum: 0, description: 'momento resistente de cálculo negativo (kN·m)' },
+        VRd: { type: 'number', exclusiveMinimum: 0, description: 'cortante resistente de cálculo (kN)' }, TRd: { type: 'number', minimum: 0, description: 'torçor resistente de cálculo (kN·m)' },
+      } },
+    } },
   } },
   validar(b, p) {
     if (!viga(b, p.id)) return err('VIGA_INEXISTENTE', `Viga ${p.id} não existe.`);
@@ -146,6 +158,9 @@ registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; seca
     }
     if (p.passagens && !p.pontos) return err('PASSAGENS_SEM_PONTOS', 'As passagens acompanham os pontos: informe os dois.');
     if (p.pontos) { const ep = erroPassagens(p.pontos, p.passagens) ?? erroArcoDegenerado(b, p.pontos, p.passagens); if (ep) return ep; }
+    if (p.premoldada?.tipo === 'ficha' && !p.premoldada.ficha && !v0.premoldada?.ficha) return err('PREMOLDADA_SEM_FICHA', 'A viga pré-fabricada precisa da ficha do fabricante (nome, MRdPos e VRd).', [p.id]);
+    if (p.premoldada?.tipo === 'armada' && p.premoldada.ficha) return err('PREMOLDADA_FICHA_INVALIDA', 'A viga pré-moldada armada não tem ficha: use tipo "ficha".', [p.id]);
+    if (p.premoldada?.icamento !== undefined && p.premoldada.icamento * 2 >= comprimentoPolilinha(p.pontos ?? v0.pontos)) return err('PREMOLDADA_ICAMENTO', 'Os pontos de içamento passam do meio da viga.', [p.id]);
     if (p.mesa && p.mesa.tipo !== 'ret') {
       const bw = p.secao?.b ?? v0.secao.b, h = p.secao?.h ?? v0.secao.h;
       if (p.mesa.bf !== undefined && p.mesa.bf <= bw) return err('MESA_INVALIDA', 'A largura da mesa (bf) precisa ser maior que a da alma.');
@@ -186,6 +201,14 @@ registrar<{ id: string; nome?: string; pontos?: P[]; passagens?: Passagens; seca
         const hc = alturaVigaChata(d, v);
         if (hc !== null && Math.abs(hc - v.secao.h) > 1e-6) { aviso += soltarArmaduraViga(v); v.secao = { b: v.secao.b, h: hc }; }
       } else delete v.chata;
+    }
+    if (p.vinculoExterno !== undefined) { if (p.vinculoExterno === 'nenhum') delete v.vinculoExterno; else v.vinculoExterno = p.vinculoExterno; }
+    if (p.premoldada) {
+      if (p.premoldada.tipo === 'nenhuma') delete v.premoldada;
+      else {
+        const ficha = p.premoldada.tipo === 'ficha' ? p.premoldada.ficha ?? v.premoldada?.ficha : undefined;
+        v.premoldada = { tipo: p.premoldada.tipo, ...(p.premoldada.icamento !== undefined ? { icamento: p.premoldada.icamento } : {}), ...(ficha ? { ficha: { ...ficha } } : {}) };
+      }
     }
     if (p.articulacoes) { if (p.articulacoes.length) v.articulacoes = [...new Set(p.articulacoes)]; else delete v.articulacoes; }
     return `${v.nome} alterada.${aviso}`;
@@ -456,7 +479,12 @@ registrar<{ ids: string[] }>({
     const vinc = p.ids.map((id) => viga(b, id)!).filter((v) => v.comumDe && !p.ids.includes(v.comumDe));
     return vinc.length ? err('VIGA_COMUM_ASSOCIADA', `${vinc.map((v) => v.nome).join(', ')}: viga associada de viga comum; remova a viga de origem ou desfaça a viga comum.`, vinc.map((v) => v.id)) : [];
   },
-  aplicar(d, p) { const s = new Set(p.ids); d.vigas = d.vigas.filter((v) => !s.has(v.id)); return `${p.ids.length} viga(s) removida(s).`; },
+  aplicar(d, p) {
+    const s = new Set(p.ids);
+    d.vigas = d.vigas.filter((v) => !s.has(v.id));
+    if (d.consolos?.some((c) => s.has(c.viga))) { d.consolos = d.consolos.filter((c) => !s.has(c.viga)); if (!d.consolos.length) delete d.consolos; } // consolos das vigas removidas (E2e)
+    return `${p.ids.length} viga(s) removida(s).`;
+  },
 });
 
 registrar<{ grupo: string; tolerancia: number }>({

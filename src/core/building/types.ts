@@ -548,6 +548,74 @@ export interface Viga {
   comum?: { grupo: string };
   /** Viga comum, lado associado: id da viga de origem. Geometria e seção seguem a origem; não entra na análise nem no dimensionamento. */
   comumDe?: string;
+  /**
+   * Vínculo externo contínuo (E2e, C6.18, K1.3.9, K1.3.10): a viga simula o topo de um muro. Apoios em todos os nós da discretização
+   * (grelha e pórtico) e rigidez aumentada (EI × `vinculoExternoFatorEI`, plano e EA rígidos). `engaste` impede deslocamentos e
+   * rotações; `articulacao`, os deslocamentos; `deslizante`, só o vertical.
+   */
+  vinculoExterno?: 'engaste' | 'articulacao' | 'deslizante';
+  /** Viga pré-moldada (E2e, C6.17, K1.4.66): armada (NBR 9062, γc do controle pré-moldado, ligações articuladas) ou de ficha do fabricante. */
+  premoldada?: PremoldadaViga;
+}
+
+/**
+ * Viga pré-moldada (E2e). `armada`: dimensionada como as demais, com γc do controle pré-moldado, ligações articuladas por padrão (a
+ * menos de engaste informado) e verificação de içamento (pontos a `icamento` m das extremidades; ausente = a fração das opções).
+ * `ficha`: viga protendida ou treliçada pré-fabricada com propriedades do fabricante informadas (rigidez EI, peso, momentos e
+ * cortante resistentes): só é verificada, a armadura não é calculada.
+ */
+export interface PremoldadaViga {
+  tipo: 'armada' | 'ficha';
+  icamento?: number;
+  ficha?: FichaPremoldada;
+}
+
+/** Propriedades da ficha de uma viga pré-fabricada (kN, m): EI e peso ausentes = os da seção bruta. */
+export interface FichaPremoldada {
+  nome: string;
+  classe?: 'protendida' | 'trelicada' | 'outra';
+  EI?: number;
+  peso?: number;
+  MRdPos: number;
+  MRdNeg?: number;
+  VRd: number;
+  TRd?: number;
+}
+
+/**
+ * Consolo curto (E2e; C6.54 a C6.57, K1.3.17, K1.4.62) que apoia uma viga no pilar (juntas de dilatação); não serve para apoiar
+ * pilares. A viga tem a ponta `ponta` na face do pilar; o consolo a apoia num aparelho de apoio de `aparelho` (l ao longo da viga,
+ * b transversal), cujo centro fica a `a` da face. Modelo: apoio fixo no centro do aparelho (trecho rígido do pilar até ele), só a
+ * carga vertical (mais a horizontal mínima no aparelho) chega ao pilar e a viga fica desligada da face (sem momento).
+ */
+export interface Consolo {
+  id: string;
+  nome: string;
+  pilar: string;
+  viga: string;
+  ponta: 'ini' | 'fim';
+  /** Face do pilar (aresta do contorno em planta: 0 = y− local, 1 = x+, 2 = y+, 3 = x−; -1 em seção circular). */
+  face: number;
+  /** Largura do consolo, alturas na face e na ponta, distância do centro do aparelho à face e comprimento do balanço (m). */
+  b: number;
+  h: number;
+  hp: number;
+  a: number;
+  c: number;
+  aparelho: { l: number; b: number };
+  /** Força horizontal de cálculo informada no aparelho (kN); ausente = a mínima das opções. */
+  hd?: number;
+  /** Cobrimento próprio (cm); ausente = o dos pilares. */
+  cobrimento?: number;
+  /** Armadura editada e bloqueada: o recálculo só a verifica. */
+  armadura?: ArmaduraConsolo;
+}
+
+/** Armadura de um consolo: tirante (barras em uma camada), estribos horizontais de costura (n fechados) e verticais (φ c/ s). */
+export interface ArmaduraConsolo {
+  tirante: { n: number; phi: number };
+  horizontais: { n: number; phi: number };
+  verticais: { phi: number; s: number };
 }
 
 /** Trecho curvo de uma viga (E2b): faixa de vértices [ini, fim] de `Viga.pontos` sobre um arco de círculo. */
@@ -886,6 +954,8 @@ export interface BuildingModel {
   vigasInclinadas?: VigaInclinada[];
   /** Diagonais de contraventamento entre pavimentos (E2d); ausente = nenhuma. */
   diagonais?: Diagonal[];
+  /** Consolos curtos que apoiam vigas nos pilares (E2e); ausente = nenhum. */
+  consolos?: Consolo[];
   vento?: Vento;
   /** Pranchas: dados do carimbo (definidos pelo usuário), formato e escala. */
   prancha?: ConfigPrancha;

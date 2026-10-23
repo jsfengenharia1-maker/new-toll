@@ -93,6 +93,11 @@ function base() {
   // E2d: duas diagonais em X entre os mesmos pilares (do segundo ao terceiro pavimento)
   expect(s.executar('diagonal.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [0, 0], pFim: [4, 3], secao: { b: 0.2, h: 0.3 } }).ok).toBe(true);
   expect(s.executar('diagonal.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [4, 3], pFim: [0, 0], secao: { b: 0.25, h: 0.4 }, ligIni: 'articulada' }).ok).toBe(true);
+  // E2e: uma viga entre dois pilares longe dos demais, com um consolo na ponta inicial
+  for (const x of [160, 166]) expect(s.executar('pilar.inserir', { x, y: 0, secao: { tipo: 'ret', b: 0.3, h: 0.3 } }).ok).toBe(true);
+  expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[160, 0], [166, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
+  expect(s.executar('consolo.criar', { viga: s.modelo.vigas.at(-1)!.id, ponta: 'ini', pilar: s.modelo.pilares.at(-2)!.id }).ok).toBe(true);
+  expect(s.executar('consolo.editar', { id: s.modelo.consolos![0].id, armadura: { tirante: { n: 3, phi: 16 }, horizontais: { n: 2, phi: 8 }, verticais: { phi: 6.3, s: 0.2 } } }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -186,7 +191,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.remover': (b) => ({ ids: [b.pilares[0].id] }),
   'pilar.renumerar': () => ({}),
   'viga.tracar': () => ({ grupo: 'g_3', pontos: [[0, 3], [4, 3], [6, 5]], passagens: [null, [5.5, 3.5]], secao: { b: 0.15, h: 0.4 } }),
-  'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado', engasteFim: 0.5, torcaoEquilibrio: true, engasteLajes: 0.4, mesa: { tipo: 'T', bf: 0.8, hf: 0.1 }, amarracao: true, estrutural: false }),
+  'viga.editar': (b) => ({ id: b.vigas[0].id, secao: { b: 0.2, h: 0.5 }, vinculoIni: 'articulado', engasteFim: 0.5, torcaoEquilibrio: true, engasteLajes: 0.4, mesa: { tipo: 'T', bf: 0.8, hf: 0.1 }, amarracao: true, estrutural: false, vinculoExterno: 'deslizante', premoldada: { tipo: 'ficha', icamento: 0.1, ficha: { nome: 'VP', EI: 20000, peso: 3, MRdPos: 200, VRd: 150 } } }),
   'viga.atribuir': (b) => ({ ids: b.vigas.filter((v) => !v.comumDe).map((v) => v.id), campo: 'alinhamento', valor: 'dir' }),
   'viga.dividir': (b) => ({ id: b.vigas[1].id, ponto: [2, 0.1] }),
   'viga.unir': (b) => ({ ids: [b.vigas[1].id, b.vigas.find((v) => v.nome === 'V3')!.id] }),
@@ -212,6 +217,10 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'diagonal.mover': (b) => ({ id: b.diagonais![0].id, ponta: 'ambas', dx: 0.05, dy: 0 }),
   'diagonal.atribuir': (b) => ({ id: b.diagonais![0].id, de: b.diagonais![1].id, campos: ['secao', 'ligacoes'] }),
   'diagonal.remover': (b) => ({ ids: [b.diagonais![0].id] }),
+  'consolo.criar': (b) => ({ viga: b.vigas.at(-1)!.id, ponta: 'fim', pilar: b.pilares.at(-1)!.id, nome: 'CX', a: 0.25, h: 0.5, hp: 0.3, hd: 20, aparelho: { l: 0.2, b: 0.2 } }),
+  'consolo.editar': (b) => ({ id: b.consolos![0].id, nome: 'C-A', a: 0.25, hd: 30, armadura: { tirante: { n: 4, phi: 16 }, horizontais: { n: 3, phi: 8 }, verticais: { phi: 6.3, s: 0.15 } } }),
+  'consolo.remover': (b) => ({ ids: [b.consolos![0].id] }),
+  'consolo.redimensionar': () => ({}),
   'viga.ajustarFaces': () => ({ grupo: 'g_3', tolerancia: 0.3 }),
   'viga.alinharFace': (b) => ({ grupo: 'g_3', ids: [b.vigas[1].id], lado: 'esq' }),
   'laje.detectarPanos': () => ({ grupo: 'g_3' }),

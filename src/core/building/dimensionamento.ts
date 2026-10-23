@@ -19,6 +19,9 @@ import { espessuraConcreto } from './tiposLaje';
 import { vaosDaViga } from './vigas';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
 import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
+import { dimensionarConsolos, type ResultadoConsolo } from './consolos';
+import { verificarPremoldadas, type ResultadoPremoldada } from './premoldadas';
+import { classificar } from './revisao';
 import { aplicarDispensaVigasMuro, dimensionarAlvenaria, type ResultadoAlvenaria } from './alvenariaDim';
 import { detalharParedes, resumoAcoParedes, type DetalheParede } from './detalhamentoParedes';
 import { dimensionarMuroArrimo, matMuroDe, type ResultadoMuroDim } from './muroArrimoDim';
@@ -319,7 +322,8 @@ function prolongarSobreParede(b: BuildingModel, an: AnaliseEdificio, v: Building
 }
 
 function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], freq: CombinacaoEd[]): ResultadoViga[] {
-  const c = concretoDe(b, 'viga'), aPos = acoDe(b, 'vigaPos'), aNeg = acoDe(b, 'vigaNeg'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s;
+  // vigas pré-moldadas armadas (E2e): γc do controle pré-moldado (NBR 9062) [a confirmar o item]
+  const c0 = concretoDe(b, 'viga'), cPM = concretoDe({ ...b, norma: { ...b.norma, controle: 'premoldado' } }, 'viga'), aPos = acoDe(b, 'vigaPos'), aNeg = acoDe(b, 'vigaNeg'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s;
   const fywd = Math.min(aEst.fyk / gs, 435), fydL = Math.min(aPos.fyd, aNeg.fyd);
   const op = an.opcoes, af = deltaXi(op.t0Flecha);
   const caa = CAA_NUM[b.norma.caa], wkLim = op.limiteFissura || crackLimit(caa);
@@ -341,7 +345,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   for (const cs of an.portico.casos ?? []) for (const p of cs.pontuais ?? []) { const l = pontuais.get(p.barra); if (l) l.push(p); else pontuais.set(p.barra, [p]); }
   // nós de estrutura móvel quando γz > 1,1 (δ ≥ 0,90); nós fixos δ ≥ 0,75 (NBR 6118, 14.6.4.3)
   const gz = Math.max(1, ...(an.vento?.gamaZ ?? []).map((g) => g.max));
-  const deltaMin = gz > 1.1 ? 0.9 : 0.75, deltaX = c.fck > 50 ? 0.56 : 0.44;
+  const deltaMin = gz > 1.1 ? 0.9 : 0.75, deltaX = c0.fck > 50 ? 0.56 : 0.44;
   const noPilar = new Set<number>(), pilarNo = new Map<number, string>();
   // pilar que nasce sobre viga (transição) não é apoio da viga: o pé não entra em `noPilar` (a cadeia segue contínua)
   an.portico.barras.forEach((t, i) => { if (t.tipo === 'pilar') { for (const n of t.transicao === 'viga' || t.transicao === 'laje' ? [an.portico.modelo.barras[i].j] : [an.portico.modelo.barras[i].i, an.portico.modelo.barras[i].j]) { noPilar.add(n); if (t.ref && !pilarNo.has(n)) pilarNo.set(n, t.ref); } } });
@@ -354,6 +358,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
   for (const v of b.vigas) {
     const membros = pm.barras.map((t, i) => [t, i] as const).filter(([t]) => t.tipo === 'viga' && t.ref === v.id).map(([, i]) => i);
     if (!membros.length) continue;
+    const c = v.premoldada?.tipo === 'armada' ? cPM : c0;
     // E2a: seção T/L na flexão (opção mesaDimensionamento); fissuração e flecha seguem a mesma seção
     const { sec, fcPos, fcNeg, mesa } = secaoParaFlexao(b, v, op);
     // d da armadura positiva pela face inferior e da negativa pela superior (cobrimentos por face: materiais.ts)
@@ -1618,6 +1623,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
   detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
   /** Vigas inclinadas entre pavimentos (E2c): flexo-compressão oblíqua, cortante e torção; detalhamento (barras e estribos) e resumo do aço. */
+  /** Consolos curtos (E2e) e vigas pré-moldadas (armadas: içamento; de ficha: verificação) do último cálculo. */
+  consolos?: ResultadoConsolo[]; premoldadas?: ResultadoPremoldada[];
   inclinadas?: ResultadoInclinada[]; detalhesInclinadas?: DetalheInclinada[]; resumoAcoInclinadas?: ReturnType<typeof resumoAcoInclinadas>;
   /** Diagonais de contraventamento (E2d): o mesmo dimensionamento das inclinadas (tração e compressão com a esbeltez máxima), detalhe e resumo do aço. */
   diagonais?: ResultadoInclinada[]; detalhesDiagonais?: DetalheInclinada[]; resumoAcoDiagonais?: ReturnType<typeof resumoAcoInclinadas>;
@@ -1700,6 +1707,19 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   suspensoesVigas(b, an, vigas);
   const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
+  { // E2e: vigas de vínculo externo (topo de muro: não dimensionadas), pré-moldadas e consolos
+    for (const v of b.vigas) {
+      const r = v.vinculoExterno ? vigas.find((x) => x.viga === v.id) : undefined;
+      if (!r) continue;
+      r.mensagens = r.mensagens.filter((m) => classificar(m).nivel !== 'erro');
+      r.status = 'ok';
+      r.mensagens.push('Vínculo externo: a viga simula o topo de um muro (apoios em todos os nós); não é dimensionada como viga.');
+    }
+    const pm = verificarPremoldadas(b, an, vigas);
+    if (pm.length) d.premoldadas = pm;
+    const cs = dimensionarConsolos(b, an, vigas);
+    if (cs.length) d.consolos = cs;
+  }
   { // vigas inclinadas (E2c)
     const inc = dimensionarInclinadas(b, an, elu, (bi, xs) => porCaso(an, bi, xs));
     const dg = dimensionarInclinadas(b, an, elu, (bi, xs) => porCaso(an, bi, xs), 'diagonal');

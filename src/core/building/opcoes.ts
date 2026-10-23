@@ -427,6 +427,27 @@ export interface OpcoesCalculo {
   diagonalFlambagemTransversal: number;
   /** Esbeltez máxima λ das diagonais comprimidas (acima dela a barra não é permitida). */
   diagonalEsbeltezMax: number;
+  // ---- E2e: consolos, vínculo externo e vigas pré-moldadas ----
+  /** Força horizontal mínima no aparelho de apoio do consolo, como fração da vertical de cálculo. */
+  consoloHMinimo: number;
+  /** Braço de alavanca do modelo de bielas e tirantes do consolo, como fração da altura útil d. */
+  consoloBraco: number;
+  /** Coeficiente de atrito-cisalhamento do consolo muito curto (a < 0,5·d). */
+  consoloMu: number;
+  /** Armadura de costura (estribos horizontais fechados) como fração da área do tirante. */
+  consoloCostura: number;
+  /** Tensão máxima de contato no aparelho de apoio, como fração de fcd. */
+  consoloTensaoApoio: number;
+  /** O momento da excentricidade da carga do consolo (trecho rígido do eixo do pilar ao aparelho) chega ao pilar (1) ou só a vertical no eixo (0). */
+  consoloExcentricidade: number;
+  /** Multiplicador do EI das vigas de vínculo externo (simulam o topo de um muro; plano e EA rígidos). */
+  vinculoExternoFatorEI: number;
+  /** Ligações das vigas pré-moldadas armadas: articuladas (1) ou como as demais vigas (0). */
+  premoldadaArticulada: number;
+  /** Posição dos pontos de içamento das vigas pré-moldadas, como fração do vão a partir de cada extremidade. */
+  premoldadaIcamentoFracao: number;
+  /** Coeficiente dinâmico do peso próprio no içamento e no transporte das vigas pré-moldadas. */
+  premoldadaIcamentoDinamico: number;
 }
 
 export interface OpcaoInfo {
@@ -909,6 +930,26 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'ℓe = k·ℓ, com ℓ o comprimento total da diagonal entre os nós das pontas, para a esbeltez e os efeitos locais de 2ª ordem no plano transversal (horizontal). Cada diagonal pode ter o seu.' },
   { chave: 'diagonalEsbeltezMax', rotulo: 'Diagonais: esbeltez máxima das comprimidas', min: 90, max: 200, passo: 5, padrao: 200, fonte: 'NBR 6118, 15.8.3.3.5 (λ ≤ 200 em pilares) aplicada às diagonais comprimidas [a confirmar]', aConfirmar: true,
     descricao: 'Esbeltez λ acima da qual uma diagonal que trabalha à compressão é reprovada (erro DIAGONAL_ESBELTEZ_MAX); entre 90 e esse valor o pilar-padrão não vale e o resultado é indicativo (aviso). A diagonal só tracionada não tem esse limite.' },
+  { chave: 'consoloHMinimo', rotulo: 'Consolos: força horizontal mínima no aparelho', unidade: '× Vd', min: 0, max: 0.5, passo: 0.01, padrao: 0.16, fonte: 'NBR 9062: força horizontal mínima no aparelho de apoio de 0,16 da vertical (texto da norma não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'Hd = máx(Hd informada no consolo; esta fração × Vd), aplicada no nível do topo do consolo, afastando o consolo do pilar (aumenta o tirante).' },
+  { chave: 'consoloBraco', rotulo: 'Consolos: braço de alavanca da biela e tirante', unidade: '× d', min: 0.6, max: 0.95, passo: 0.05, padrao: 0.8, fonte: 'NBR 6118, 22.5 e NBR 9062: z ≈ 0,8·d (modelo de bielas e tirantes; texto não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'z = coeficiente × d no consolo curto (0,5·d ≤ a ≤ d): Rst = Vd·a/z + Hd·(1 + (h − d)/z); a biela tem inclinação tan θ = z/a.' },
+  { chave: 'consoloMu', rotulo: 'Consolos: coeficiente de atrito-cisalhamento (a < 0,5·d)', min: 0.5, max: 2.5, passo: 0.1, padrao: 1.4, fonte: 'NBR 9062: atrito-cisalhamento, μ = 1,4 em concreto monolítico (texto não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'Consolo muito curto: As = Vd/(μ·fyd) + Hd/fyd.' },
+  { chave: 'consoloCostura', rotulo: 'Consolos: armadura de costura', unidade: '× As,tirante', min: 0.2, max: 1, passo: 0.05, padrao: 0.4, fonte: 'NBR 9062 e El Debs: estribos horizontais fechados ≥ 0,4·As,tirante, distribuídos em 2/3 de d (texto não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'Área dos estribos horizontais fechados do consolo como fração da do tirante.' },
+  { chave: 'consoloTensaoApoio', rotulo: 'Consolos: tensão de contato no aparelho', unidade: '× fcd', min: 0.5, max: 1.2, passo: 0.05, padrao: 0.85, fonte: 'NBR 6118, 22.5/22.7 e NBR 9062: contato sob o aparelho ≤ 0,85·fcd (texto não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'Limite de Vd / (área do aparelho) em fração de fcd.' },
+  { chave: 'consoloExcentricidade', rotulo: 'Consolos: momento da excentricidade no pilar', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (manual do usuário, C6.56): apoio fixo no centro do aparelho, só a carga vertical chega ao pilar; o trecho rígido até o aparelho dá o momento V·e [a confirmar]', aConfirmar: true,
+    descricao: '1 = o apoio da viga está no centro do aparelho, a e da face (trecho rígido a partir do eixo do pilar), de modo que a vertical chega ao pilar com o momento V·e. 0 = a vertical chega no eixo do pilar.' },
+  { chave: 'vinculoExternoFatorEI', rotulo: 'Vínculo externo: multiplicador do EI da viga', unidade: '×', min: 1, max: 10000, passo: 10, padrao: 100, fonte: 'Programa de referência (manual de cálculo, K1.4.29): EI bruto × 10², plano e EA rígidos', aConfirmar: false,
+    descricao: 'Rigidez à flexão vertical da viga que simula o topo de um muro (apoios em todos os nós de discretização). O plano horizontal e a área são penalizados (× 10⁶).' },
+  { chave: 'premoldadaArticulada', rotulo: 'Vigas pré-moldadas: ligações articuladas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 9062: ligações articuladas por padrão nas vigas pré-moldadas simplesmente apoiadas (engaste só quando informado) [a confirmar o item]', aConfirmar: true,
+    descricao: '1 = a viga pré-moldada é articulada nas duas pontas, salvo engaste informado na viga. 0 = vínculo como o das demais vigas.' },
+  { chave: 'premoldadaIcamentoFracao', rotulo: 'Vigas pré-moldadas: posição dos pontos de içamento', unidade: '× vão', min: 0.1, max: 0.3, passo: 0.01, padrao: 0.2, fonte: 'Prática (dois pontos a 0,2·ℓ; o ótimo para momentos iguais é 0,207·ℓ) [a confirmar]', aConfirmar: true,
+    descricao: 'Distância de cada ponto de içamento à extremidade, como fração do vão. A viga pode ter a sua (comando viga.editar { premoldada: { icamento } }).' },
+  { chave: 'premoldadaIcamentoDinamico', rotulo: 'Vigas pré-moldadas: coeficiente dinâmico no içamento', min: 1, max: 2, passo: 0.05, padrao: 1.3, fonte: 'NBR 9062: majoração do peso próprio no manuseio e transporte (1,3; texto não disponível) [a confirmar]', aConfirmar: true,
+    descricao: 'Multiplica o peso próprio na verificação do içamento (momentos nos pontos de içamento e no meio do vão), com γf = 1,4.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -926,6 +967,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'vigaApoiadaRigida', 'barraCurtaLimite', 'barraCurtaFator', 'lajeDesnivelFator',
   // E2b: discretização das vigas curvas e rigidez à torção da curvatura
   'curvaSegmento', 'curvaTorcaoEquilibrio',
+  // E2e: o momento da excentricidade do consolo, o vínculo externo contínuo e as ligações das pré-moldadas entram no modelo de cálculo
+  'consoloExcentricidade', 'vinculoExternoFatorEI', 'premoldadaArticulada',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
@@ -968,6 +1011,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'inclinadaFlambagemVertical', 'inclinadaFlambagemTransversal',
   // E2d: flambagem e esbeltez máxima das diagonais (só o dimensionamento)
   'diagonalFlambagemVertical', 'diagonalFlambagemTransversal', 'diagonalEsbeltezMax',
+  // E2e: dimensionamento e verificação dos consolos e içamento das vigas pré-moldadas (só o dimensionamento)
+  'consoloHMinimo', 'consoloBraco', 'consoloMu', 'consoloCostura', 'consoloTensaoApoio', 'premoldadaIcamentoFracao', 'premoldadaIcamentoDinamico',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
@@ -1033,6 +1078,8 @@ export function vinculosAlterados(b: BuildingModel): string[] {
       v.chata && 'viga chata (altura da laje que contorna)',
       v.estrutural === false && 'não estrutural (só fecha o contorno do pano)',
       v.amarracao && 'amarração (sem rigidez à flexão vertical)',
+      v.vinculoExterno && `vínculo externo (${{ engaste: 'engaste', articulacao: 'articulação', deslizante: 'articulação com deslizamento horizontal' }[v.vinculoExterno]}): apoios em todos os nós, EI × fator`,
+      v.premoldada && (v.premoldada.tipo === 'ficha' ? `pré-fabricada de ficha${v.premoldada.ficha ? ` (${v.premoldada.ficha.nome})` : ''}` : `pré-moldada armada${v.premoldada.icamento !== undefined ? ` (içamento a ${f(v.premoldada.icamento * 100)} cm das extremidades)` : ''}`),
     ].filter(Boolean);
     if (partes.length) out.push(`Viga ${v.nome}: ${partes.join('; ')}.`);
   }

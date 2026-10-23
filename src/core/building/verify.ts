@@ -2,6 +2,8 @@
 // os mesmos para a interface, a linha de comando e o MCP. Roda após cada comando.
 import { diagnosticosInclinadas } from './inclinadas';
 import { diagnosticosDiagonais } from './diagonais';
+import { diagnosticosConsolos } from './consolos';
+import { diagnosticosVinculoExterno } from './vinculoExterno';
 import { mascaraParaMundo, peDireito, pavimentosOrdenados, type BuildingModel, type Mascara } from './types';
 import { diagnosticosPilares } from './pilares';
 import { diagnosticosTransicao } from './transicao';
@@ -113,7 +115,7 @@ export function verificar(b: BuildingModel): Diagnostico[] {
   for (const [n, ids] of nomes) if (ids.length > 1) d.push({ codigo: 'EIXO_NOME_DUPLICADO', severidade: 'aviso', elementos: ids, mensagem: `Há ${ids.length} eixos com o nome “${n}”.` });
 
   d.push(...mascarasDesalinhadas(b));
-  d.push(...diagnosticosPilares(b), ...diagnosticosTransicao(b), ...diagnosticosVigas(b), ...diagnosticosLajes(b), ...aberturasDiafragma(b), ...diagnosticosPilaresParede(b), ...diagnosticosParedes(b), ...diagnosticosInclinadas(b), ...diagnosticosDiagonais(b));
+  d.push(...diagnosticosPilares(b), ...diagnosticosTransicao(b), ...diagnosticosVigas(b), ...diagnosticosLajes(b), ...aberturasDiafragma(b), ...diagnosticosPilaresParede(b), ...diagnosticosParedes(b), ...diagnosticosInclinadas(b), ...diagnosticosDiagonais(b), ...diagnosticosConsolos(b), ...diagnosticosVinculoExterno(b));
   return d;
 }
 
