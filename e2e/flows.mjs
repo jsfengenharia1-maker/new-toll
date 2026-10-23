@@ -3298,7 +3298,8 @@ export const flows = [
       await page.getByLabel('Armadura das lajes na planta').selectOption('puncao');
       await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-puncao') === '9', null, { timeout: 15000 });
       // ferramenta: um clique no pilar interno lança o grupo informado; no modo Apagar, remove
-      await page.getByRole('button', { name: 'Armadura de punção', exact: true }).click();
+      await faixaAba(page, 'Edição');
+      await page.getByRole('radio', { name: 'Armadura de punção', exact: true }).click();
       await page.keyboard.press('f');
       const [px, py] = await telaDe(page, 6, 6);
       await page.mouse.click(px, py);

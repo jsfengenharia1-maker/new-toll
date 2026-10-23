@@ -374,10 +374,8 @@ export function NomeObra() {
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
-const FERRAMENTAS = ferramentas(['fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
+const FERRAMENTAS = ferramentas(['fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'medir']);
 /** Radier (W) e viga sobre base elástica (X): pelas teclas e pelos botões do grupo Fundação (a barra não cabe numa linha). */
-/** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
-const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
 function PlantaBarra({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
@@ -415,9 +413,6 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
         {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</Button>)}
       </div>
-      <div className="seg small" role="radiogroup" aria-label="Edição">
-        {EDICAO.map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</Button>)}
-      </div>
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
@@ -449,7 +444,6 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
         {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
       </Dropdown>
-      {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
       {pl.ferramenta === 'puncao' && (<>
         <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
           {(['adicionar', 'apagar'] as const).map((m) => <Button variant="nenhuma" key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</Button>)}

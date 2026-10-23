@@ -65,8 +65,32 @@ function Lancamento() {
   );
 }
 
+function Edicao() {
+  const dim = useBuilding((s) => s.dim);
+  const pl = usePlanta();
+  return (
+    <>
+      <RibbonGroup label="Modificar" radios="Ferramenta">
+        <Ferr f="mover" icon="mover" /><Ferr f="copiar" icon="copiar" /><Ferr f="girar" icon="girar" /><Ferr f="espelhar" icon="espelhar" />
+        <Ferr f="dividir" icon="dividir" /><Ferr f="unir" icon="unir" /><Ferr f="prolongar" icon="prolongar" />
+      </RibbonGroup>
+      <RibbonGroup label="Grupos">
+        <RibbonButton icon="copiarGrupo" label="Copiar de outro grupo…" onClick={() => ui({ l4: 'copiarGrupo' })} />
+        <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
+      </RibbonGroup>
+      <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
+      <RibbonGroup label="Lajes" radios="Ferramenta">
+        <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
+        <Ferr f="zonaLaje" icon="zona" /><Ferr f="linhaDobra" icon="dobra" /><Ferr f="direcaoPano" icon="laje" /><Ferr f="insercaoPano" icon="laje" />
+        <RibbonButton icon="zona" label="Editar armaduras das lajes" title="Abre o painel de edição das armaduras sob a planta" onClick={() => { ui({ aba: 'planta' }); pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes }); }} />
+      </RibbonGroup>
+    </>
+  );
+}
+
 /** Corpo da aba `aba` da faixa do Edifício. Os cartões 03 a 05 acrescentam as demais abas. */
 export function FaixaEdificio({ aba }: { aba: string }): ReactNode {
   if (aba === 'lancamento') return <Lancamento />;
+  if (aba === 'edicao') return <Edicao />;
   return null;
 }
