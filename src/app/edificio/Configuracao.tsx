@@ -55,7 +55,7 @@ export function JanelaConfiguracao({ b }: { b: BuildingModel }) {
   useEffect(() => { corpo.current?.querySelectorAll('details.group').forEach((d) => { (d as HTMLDetailsElement).open = true; }); }, [secao.id, b]);
   const width = `${Math.max(docaW, 320)}px`;
   return (
-    <div className="cfg-janela" role="dialog" aria-label="Configuração da obra" style={{ width }} hidden={!cfg}>
+    <div className="cfg-janela" role={cfg ? "dialog" : undefined} aria-label={cfg ? "Configuração da obra" : undefined} style={{ width }} hidden={!cfg}>
       <div className="modal-head"><b>Configuração da obra</b><Spacer /><Button variant="ghost" onClick={fechar}>Fechar</Button></div>
       <div className="cfg">
         <nav className="cfg-ind" aria-label="Seções da configuração">
