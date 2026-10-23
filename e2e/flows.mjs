@@ -2601,6 +2601,113 @@ export const flows = [
     },
   },
   {
+    webgl: true,
+    name: 'V3: deformada 3D (hipótese, escala, eixos, animação, legenda), consulta de deslocamentos por nó, máximos por pano e pavimento, CSV e flecha entre dois pontos da laje',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+
+      // ---- sem cálculo: aviso na aba
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      await page.getByText('Calcule a estrutura (aba Dimensionamento) para consultar os deslocamentos.').waitFor();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
+
+      // ---- deformada na vista 3D
+      await page.locator('.edif-tabs').getByRole('tab', { name: '3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const status = await cv.getAttribute('data-status');
+      console.log(`        (V3: vista 3D em modo ${status})`);
+      assert.equal(await cv.getAttribute('data-deformada'), '0');
+      await page.getByLabel('Deformada', { exact: true }).check();
+      await page.waitForFunction(() => { const a = document.querySelector('.v3d-cv')?.getAttribute('data-deformada'); return !!a && a !== '0'; });
+      const def = async () => JSON.parse(await cv.getAttribute('data-deformada'));
+      const d0 = await def();
+      assert.equal(d0.modo, 'completa');
+      assert.ok(d0.dmaxMm > 0.01 && d0.escala > 1 && d0.objetos > 5, JSON.stringify(d0));
+      if (status === 'pronto') {
+        const leg = page.locator('.v3d-def-leg');
+        await leg.waitFor();
+        assert.match(await leg.innerText(), /mm/);
+        assert.equal(await leg.getByRole('img', { name: 'Legenda da deformada', exact: true }).count(), 1);
+      }
+      // troca a hipótese: o máximo muda
+      const lista = page.locator('.v3d-barra').getByLabel('Hipótese da deformada', { exact: true });
+      const valores = await lista.locator('option').evaluateAll((os) => os.map((o) => o.value));
+      assert.ok(valores.includes('caso:G') && valores.includes('caso:Q') && valores.length > 4, valores.join(','));
+      await lista.selectOption('caso:Q');
+      await page.waitForFunction((n) => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).dmaxMm !== n, d0.dmaxMm);
+      const dq = await def();
+      assert.ok(dq.dmaxMm > 0 && dq.dmaxMm < d0.dmaxMm, `${dq.dmaxMm} < ${d0.dmaxMm}`);
+      // escala manual e de volta à automática
+      await page.getByLabel('Escala automática', { exact: true }).uncheck();
+      await page.locator('.v3d-barra .slider', { hasText: 'Escala da deformada' }).locator('input').fill('100');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).escala === 100);
+      await page.getByLabel('Escala automática', { exact: true }).check();
+      // estrutura simplificada (eixos)
+      await page.getByLabel('Só eixos das barras', { exact: true }).check();
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).modo === 'eixos');
+      await page.getByLabel('Só eixos das barras', { exact: true }).uncheck();
+      await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).modo === 'completa');
+      // animação (só com WebGL): liga, ajusta o período, desliga
+      if (status === 'pronto') {
+        await page.getByLabel('Animar', { exact: true }).check();
+        await page.waitForFunction(() => JSON.parse(document.querySelector('.v3d-cv').getAttribute('data-deformada')).animando === true);
+        await page.locator('.v3d-barra .slider', { hasText: 'Período da animação' }).locator('input').fill('4');
+        await page.waitForFunction(() => Number(document.querySelector('.v3d-cv')?.getAttribute('data-frame-ms')) >= 0);
+        await page.getByLabel('Animar', { exact: true }).uncheck();
+      }
+      await page.getByLabel('Deformada', { exact: true }).uncheck();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-deformada') === '0');
+
+      // ---- aba Deslocamentos: consulta por nó
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      await page.getByLabel(/^X da consulta/).fill('3');
+      await page.getByLabel(/^X da consulta/).press('Enter');
+      await page.getByLabel(/^Y da consulta/).fill('2,5');
+      await page.getByLabel(/^Y da consulta/).press('Enter');
+      const consulta = page.locator('[data-consulta-no]');
+      await consulta.waitFor();
+      assert.ok((await consulta.locator('tbody tr').count()) > 5);
+      const linhaG = consulta.locator('tbody tr', { hasText: /^Caso G/ }).first();
+      const uzG = parseFloat((await linhaG.locator('td').nth(3).innerText()).replace(',', '.'));
+      assert.ok(uzG < -0.01, `uz de G no meio da laje: ${uzG} mm`);
+      // máximos por pano e por pavimento
+      assert.ok(Number(await page.locator('[data-desloc-panos]').getAttribute('data-desloc-panos')) >= 1);
+      assert.ok(Number(await page.locator('[data-desloc-pilares]').getAttribute('data-desloc-pilares')) >= 3);
+      // CSV da malha
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar CSV dos deslocamentos da malha', exact: true }).click()]);
+      assert.equal(dl.suggestedFilename(), 'deslocamentos-malha.csv');
+
+      // ---- flecha entre dois pontos: combinação mais desfavorável (padrão), secante e tangente
+      const flecha = async () => JSON.parse(await page.locator('[data-flecha]').getAttribute('data-flecha'));
+      await page.locator('[data-flecha]').waitFor();
+      const f0 = await flecha();
+      assert.ok(f0.L > 4 && f0.flechaMm > 0.01 && f0.razao > 1, JSON.stringify(f0));
+      await page.getByLabel(/^X inicial/).fill('1');
+      await page.getByLabel(/^X inicial/).press('Enter');
+      await page.waitForFunction((L) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).L !== L, f0.L);
+      const f1 = await flecha();
+      assert.ok(f1.L < f0.L);
+      await page.getByRole('radio', { name: 'Tangente no ponto inicial', exact: true }).click();
+      await page.waitForFunction((v) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm !== v, f1.flechaMm);
+      await page.getByRole('radio', { name: 'Secante', exact: true }).click();
+      await page.waitForFunction((v) => JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm === v, f1.flechaMm);
+      await page.getByLabel(/^Amplificação da flecha/).fill('2');
+      await page.getByLabel(/^Amplificação da flecha/).press('Enter');
+      await page.waitForFunction((v) => Math.abs(JSON.parse(document.querySelector('[data-flecha]').getAttribute('data-flecha')).flechaMm - 2 * v) < 0.01, f1.flechaMm);
+      await page.getByLabel(/^Hipótese da flecha/).selectOption('caso:G');
+      assert.equal(await page.locator('svg.flecha-perfil path.fp-curva').count(), 1);
+    },
+  },
+  {
     name: 'N2a: compatibilidade e arranjos em xadrez, estados-limite, situações do usuário com alerta, empuxo (caso H), ábacos de vento e memorial',
     async run({ newPage }) {
       const page = await newPage();
