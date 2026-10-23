@@ -6,7 +6,8 @@ import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -15,6 +16,30 @@ export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao:
   !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };
 /** Faces da camada de armadura das lajes na planta. */
 export const facesLaje = (v: 'nenhuma' | 'inf' | 'sup' | 'ambas'): ('inf' | 'sup')[] => (v === 'ambas' ? ['inf', 'sup'] : v === 'nenhuma' ? [] : [v]);
+/** Ferramentas de lançamento da L5 (não vão para o arquivo): modo simples e deslocamento da viga, contorno, abertura, cargas, direção e prolongar. */
+export interface L5Estado {
+  simples: boolean;
+  /** Deslocamento (cm) entre a linha clicada e a linha de ajuste da viga; à esquerda do traçado, negativo à direita. */
+  deslocamento: number;
+  alinharContorno: boolean;
+  modoAbertura: 'viga' | 'zero' | 'nervuras' | 'qualquer';
+  borda: 'nenhuma' | 'chata' | 'alta';
+  bordaB: number;
+  bordaH: number;
+  /** Viga de referência da abertura paralela a uma viga (escolhida na planta). */
+  vigaRef: string | null;
+  valorLaje: number;
+  casoLaje: string;
+  /** Carga existente de que copiar valor e caso na carga da laje inteira ('' = não copia). */
+  copiarCarga: string;
+  valorViga: number;
+  casoViga: string;
+  direcaoModo: 'viga' | 'pontos';
+  relacao: 'paralela' | 'perpendicular';
+  /** Prolongar por comprimento fixo (m; 0 = prolongar até o alvo clicado). */
+  comprimento: number;
+}
+export const L5_PADRAO: L5Estado = { simples: false, deslocamento: 0, alinharContorno: true, modoAbertura: 'zero', borda: 'nenhuma', bordaB: 0.15, bordaH: 0.4, vigaRef: null, valorLaje: 2, casoLaje: 'Q', copiarCarga: '', valorViga: 5, casoViga: 'G', direcaoModo: 'viga', relacao: 'paralela', comprimento: 0 };
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -114,6 +139,8 @@ interface PState {
   copias: number;
   /** Conta-gotas de pilar (L4): pilar de que copiar os dados e se leva as cargas (não vai para o arquivo). */
   contaGotas: { pilar: string | null; cargas: boolean };
+  /** Ferramentas de lançamento (L5). */
+  l5: L5Estado;
   /** Girar a seleção: ângulo (graus, anti-horário) em torno do ponto clicado. */
   anguloGiro: number;
   /** Espelhar a seleção: mantém os originais (cópia espelhada de pilares e vigas). */
@@ -199,6 +226,7 @@ export const usePlanta = create<PState>((set) => ({
   valorCarga: 2,
   copias: 1,
   contaGotas: { pilar: null, cargas: false },
+  l5: { ...L5_PADRAO },
   anguloGiro: 90,
   espelharCopia: false,
   cores: coresSalvas(),
