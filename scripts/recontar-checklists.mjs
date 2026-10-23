@@ -8,7 +8,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
-const arq = (n) => join(raiz, 'docs', n);
 const FRENTES = ['N', 'R', 'E', 'FU', 'L', 'V'];
 const SIT = ['Feito', 'Parcial', 'Falta', 'Fora'];
 const pend = (s) => s === 'Parcial' || s === 'Falta';
@@ -58,7 +57,8 @@ const pf = (its, f) => {
   return [p, a, p + a];
 };
 
-function recontaChecklist(nome, tituloResumo, tituloPend) {
+function recontaChecklist(docs, nome, tituloResumo, tituloPend) {
+  const arq = (n) => join(docs, n);
   let md = readFileSync(arq(nome), 'utf8');
   const its = itens(md);
   md = reescreve(md, tituloResumo, (rot) => {
@@ -80,20 +80,28 @@ function recontaChecklist(nome, tituloResumo, tituloPend) {
   return its;
 }
 
-const u = recontaChecklist('checklist-manual-cypecad.md', 'Resumo por capítulo', 'Pendências por frente');
-const k = recontaChecklist('checklist-manual-calculo-cypecad.md', 'Resumo por seção', 'Pendências por frente');
+/** Recalcula as tabelas de resumo e de pendências de `docs` (padrão: docs/). Devolve a contagem de itens por checklist. */
+export function recontar(docs = join(raiz, 'docs')) {
+  const u = recontaChecklist(docs, 'checklist-manual-cypecad.md', 'Resumo por capítulo', 'Pendências por frente');
+  const k = recontaChecklist(docs, 'checklist-manual-calculo-cypecad.md', 'Resumo por seção', 'Pendências por frente');
 
-let plano = readFileSync(arq('plano-frentes.md'), 'utf8');
-plano = reescreve(plano, 'Pendências por frente', (rot) => {
-  if (rot.includes('Total')) {
-    const a = pf(u, 'N'); void a;
-    const tu = u.filter((x) => pend(x.situacao)).length, tk = k.filter((x) => pend(x.situacao)).length;
-    return [tu, tk, tu + tk];
-  }
-  const f = rot.split(' ')[0];
-  if (!FRENTES.includes(f)) return null;
-  const a = pf(u, f)[2], b = pf(k, f)[2];
-  return [a, b, a + b];
-});
-writeFileSync(arq('plano-frentes.md'), plano);
-console.log(`checklists recontados: manual do usuário ${u.length} itens, manual de cálculo ${k.length} itens.`);
+  let plano = readFileSync(join(docs, 'plano-frentes.md'), 'utf8');
+  plano = reescreve(plano, 'Pendências por frente', (rot) => {
+    if (rot.includes('Total')) {
+      const a = pf(u, 'N'); void a;
+      const tu = u.filter((x) => pend(x.situacao)).length, tk = k.filter((x) => pend(x.situacao)).length;
+      return [tu, tk, tu + tk];
+    }
+    const f = rot.split(' ')[0];
+    if (!FRENTES.includes(f)) return null;
+    const a = pf(u, f)[2], b = pf(k, f)[2];
+    return [a, b, a + b];
+  });
+  writeFileSync(join(docs, 'plano-frentes.md'), plano);
+  return { usuario: u.length, calculo: k.length };
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const r = recontar();
+  console.log(`checklists recontados: manual do usuário ${r.usuario} itens, manual de cálculo ${r.calculo} itens.`);
+}
