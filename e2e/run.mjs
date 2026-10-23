@@ -4,15 +4,16 @@
 //   npm run e2e                  build + vite preview numa porta livre + todos os fluxos
 //   npm run e2e -- --no-build    reaproveita o dist/ atual
 //   npm run e2e -- memorial      só os fluxos cujo nome contém "memorial"
+//   npm run e2e -- --workers N  N navegadores em paralelo (padrão mín(4, CPUs/2); 1 = serial)
 //   npm run e2e -- --headed      abre o navegador visível
 //
 // Navegador: PW_CHROMIUM=/caminho/do/chrome usa esse executável; sem a variável, o Chromium
 // padrão do Playwright e, se ele não estiver instalado, /opt/pw-browsers/chromium-1194 (ambiente de nuvem).
 // Runner próprio, mínimo, sobre a biblioteca `playwright` (sem @playwright/test).
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { cpus, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -22,7 +23,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const skipBuild = args.includes('--no-build');
 const headed = args.includes('--headed');
-const filter = args.find((a) => !a.startsWith('--'));
+const iw = args.indexOf('--workers');
+const workers = iw >= 0 ? Math.max(1, parseInt(args[iw + 1], 10) || 1) : Math.max(1, Math.min(4, Math.floor(cpus().length / 2)));
+const filter = args.find((a, i) => !a.startsWith('--') && !(iw >= 0 && i === iw + 1));
 const FALLBACK_CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
 function freePort(p) {
@@ -77,19 +80,25 @@ async function main() {
   process.on('SIGINT', () => { stop(); process.exit(130); });
 
   const tmp = mkdtempSync(join(tmpdir(), 'statikos-e2e-'));
-  let browser, browserGL;
+  const browsers = [];
   let failed = 0;
   try {
     await waitHttp(baseURL);
-    browser = await launch();
     const list = flows.filter((f) => !filter || f.name.toLowerCase().includes(filter.toLowerCase()));
-    console.log(`\n${list.length} fluxo(s) em ${baseURL}\n`);
-    for (const f of list) {
+    const paralelos = list.filter((f) => !f.serial);
+    const seriais = list.filter((f) => f.serial);
+    const n = Math.max(1, Math.min(workers, list.length));
+    console.log(`\n${list.length} fluxo(s) em ${baseURL} (${n} worker(s))\n`);
+
+    async function runFlow(f, browser, gl) {
       const t0 = Date.now();
       const contexts = [];
       const errors = [];
+      // pasta própria por fluxo: nomes fixos de arquivo não colidem entre workers
+      const dir = join(tmp, f.name.replace(/\W+/g, '-'));
+      mkdirSync(dir, { recursive: true });
       const newPage = async (init, ctxOpts = {}) => {
-        const navegador = f.webgl ? (browserGL ??= await launch(true)) : browser;
+        const navegador = f.webgl ? await gl() : browser;
         const ctx = await navegador.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1400, height: 900 }, locale: 'pt-BR', ...ctxOpts });
         contexts.push(ctx);
         if (init) await ctx.addInitScript(init);
@@ -100,7 +109,7 @@ async function main() {
         return page;
       };
       try {
-        await f.run({ newPage, baseURL, tmp });
+        await f.run({ newPage, baseURL, tmp: dir });
         if (errors.length) throw new Error(`erro de JavaScript na página: ${errors[0]}`);
         console.log(`  ok    ${f.name} (${Date.now() - t0} ms)`);
       } catch (e) {
@@ -112,14 +121,25 @@ async function main() {
         for (const c of contexts) await c.close().catch(() => {});
       }
     }
+
+    // fila compartilhada: cada worker tem seu navegador (e o de WebGL, sob demanda)
+    async function worker(fila) {
+      const browser = await launch();
+      let browserGL;
+      browsers.push(browser);
+      const gl = async () => { if (!browserGL) { browserGL = await launch(true); browsers.push(browserGL); } return browserGL; };
+      while (fila.length) await runFlow(fila.shift(), browser, gl);
+    }
+    const fila = [...paralelos];
+    await Promise.all(Array.from({ length: n }, () => worker(fila)));
+    if (seriais.length) await worker([...seriais]);
     console.log(`\n${list.length - failed} ok, ${failed} falha(s)`);
   } catch (e) {
     failed++;
     console.error(String(e?.message ?? e));
     if (serverLog) console.error(serverLog);
   } finally {
-    await browser?.close().catch(() => {});
-    await browserGL?.close().catch(() => {});
+    for (const b of browsers) await b.close().catch(() => {});
     stop();
     if (!failed) rmSync(tmp, { recursive: true, force: true });
   }

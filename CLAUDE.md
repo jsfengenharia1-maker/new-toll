@@ -20,6 +20,7 @@ Web app de análise estrutural de pórticos planos 2D, com dimensionamento, fund
 - **Branches/worktrees.** Toda nova branch ou worktree sai do `main` atualizado (`git fetch origin main && git worktree add -b <branch> ../<dir> origin/main`).
 - **Plugin ECC** (`affaan-m/ECC`) habilitado em `.claude/settings.json`.
 - **Design system obrigatório (decisão do usuário, 20/10/2026).** Toda interface nova usa a biblioteca `src/app/ui` e as classes/tokens de `src/app/design/global.css` (papel: `memorial.css`), para que uma mudança de design num lugar valha no app inteiro. Sem cor literal em TS/TSX, sem CSS fora de `src/app/design`, toda classe definida no CSS, estilo inline só para valores calculados; `design.test.ts` reprova quem quebrar. Guia: `docs/design-system.md`. Prioridade atual: funcionalidades; o redesenho visual (proposta no artifact https://claude.ai/artifact/XkWi2JtGrgPQka5Rk7G389) fica para depois.
+- Agentes de núcleo consultam `docs/mapa-codigo.md` por grep antes de varrer o código.
 - **Histórico.** O que cada fatia entregou e as premissas 'a confirmar' por fatia estão em `docs/historico-fatias.md` (consultar por grep, não ler inteiro). Toda fatia nova acrescenta ali uma linha; o CLAUDE.md só muda quando surge regra nova.
 
 ## Comandos
@@ -29,6 +30,8 @@ npm run dev      # Vite
 npm test         # vitest: 737 testes (analíticos, NBR 6118, NBR 8800, fundações, exemplos, arquivo de trabalho, DXF, cotas, caminho, perfis, comandos do edifício, CLI, MCP e design system)
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
+npm run e2e -- --workers N  # N navegadores em paralelo (padrão mín(4, CPUs/2); 1 = serial; fluxo com `serial: true` roda sozinho no fim)
+npm run mapa     # regenera docs/mapa-codigo.md (exports e 'usado por' de cada arquivo de src/); src/core/mapa.test.ts reprova se estiver velho
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
 npm run cli      # dist-cli/statikos.mjs: linha de comando + servidor MCP (Node ≥ 20)
 npm run agente   # exemplo de agente pelo MCP (docs/exemplos/agente-mcp.mjs), depois do npm run cli
