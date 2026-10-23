@@ -14,6 +14,7 @@ import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations }
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
 import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
+import { FaixaModulo } from './app/FaixaModulo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
@@ -263,7 +264,7 @@ export default function App() {
   return (
     <AjudaProvider>
     <div className="app">
-      <header className="topbar">
+      <header className="topbar qbar">
         <div className="brand">
           <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 18 L2 6 L14 2 L26 6 L26 18" /><path d="M2 6 L26 6" className="thin" /><path d="M14 2 L14 6" className="thin" /></svg>
           <span className="bname">Statikos</span>
@@ -299,11 +300,6 @@ export default function App() {
           <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
           <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
         </div>
-        <div className="modsw" role="tablist" aria-label="Módulo">
-          <button type="button" role="tab" aria-selected={st.module === 'portico'} className={st.module === 'portico' ? 'on' : ''} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
-          <button type="button" role="tab" aria-selected={st.module === 'edificio'} className={st.module === 'edificio' ? 'on' : ''} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
-          <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} className={st.module === 'fundacoes' ? 'on' : ''} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
-        </div>
         <span className={`status ${status.cls}`}>{status.text}</span>
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
@@ -312,7 +308,14 @@ export default function App() {
         <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
+      <nav className="modtabs" role="tablist" aria-label="Módulo">
+        <button type="button" role="tab" aria-selected={st.module === 'portico'} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
+        <button type="button" role="tab" aria-selected={st.module === 'edificio'} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
+        <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
+      </nav>
 
+      <div className="work">
+      <FaixaModulo modulo={st.module} />
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
         <nav className="toolbar" aria-label="Ferramentas">
@@ -349,6 +352,7 @@ export default function App() {
       </div>
 
       )}
+      </div>
       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
       {st.libraryOpen && <Library />}
       <footer className="statusbar">
