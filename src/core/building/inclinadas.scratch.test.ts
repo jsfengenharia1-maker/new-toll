@@ -1,0 +1,22 @@
+import { it } from 'vitest';
+import { Sessao } from '../commands';
+import { analisarEdificio } from './analitico';
+import { porCaso } from './dimensionamento';
+const ok = (s: Sessao, nome: string, p: Record<string, unknown>) => { const r = s.executar(nome, p); if (!r.ok) throw new Error(`${nome}: ${r.erros.map((e) => e.mensagem).join(' ')}`); return r; };
+it('scratch', () => {
+  const s = new Sessao();
+  ok(s, 'obra.definir', { nome: 'T' });
+  ok(s, 'pavimento.criar', { nome: 'Térreo', cota: 0, uso: 'comum' });
+  ok(s, 'pavimento.criar', { nome: 'P1', cota: 3, uso: 'comum' });
+  ok(s, 'pavimento.criar', { nome: 'P2', cota: 6, uso: 'comum' });
+  for (const [x, y] of [[0, 0], [8, 0]]) ok(s, 'pilar.inserir', { x, y, secao: { tipo: 'ret', b: 0.8, h: 0.8 } });
+  ok(s, 'inclinada.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [0, 0], pFim: [8, 0], secao: { b: 0.3, h: 0.6 }, ligIni: 'articulada', ligFim: 'articulada' });
+  const an = analisarEdificio(s.modelo);
+  const inc = an.inclinadas![0];
+  console.log(an.erro, inc.L, inc.Lf, inc.angulo);
+  const xs = [0, inc.Lf / 4, inc.Lf / 2, (3 * inc.Lf) / 4, inc.Lf];
+  const pc = porCaso(an, inc.bi, xs);
+  console.log(JSON.stringify(pc.G.map((e) => [e.x.toFixed(2), e.N.toFixed(2), e.Vy.toFixed(2), e.Mz.toFixed(2), e.Vz.toFixed(2), e.My.toFixed(3), e.T.toFixed(3)])));
+  const q = 25 * 0.3 * 0.6, th = (inc.angulo * Math.PI) / 180;
+  console.log('q', q, 'mid M', (q * Math.cos(th) * inc.Lf ** 2) / 8, 'V0', (q * Math.cos(th) * inc.Lf) / 2, 'N0 roller', -q * Math.sin(th) * inc.Lf, 'N0 fixed', -q * Math.sin(th) * inc.Lf / 2);
+});

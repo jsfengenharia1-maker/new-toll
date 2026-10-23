@@ -413,6 +413,11 @@ export interface OpcoesCalculo {
   curvaSegmento: number;
   /** 1 = a torção da curvatura é de equilíbrio: a viga curva mantém a rigidez à torção da seção bruta (sem o redutor `torcaoViga`). */
   curvaTorcaoEquilibrio: number;
+  // ---- E2c: vigas inclinadas ----
+  /** Coeficiente de flambagem das vigas inclinadas no plano vertical (ℓe = k·ℓ entre os nós); a viga pode ter o próprio. */
+  inclinadaFlambagemVertical: number;
+  /** Coeficiente de flambagem das vigas inclinadas no plano transversal (horizontal). */
+  inclinadaFlambagemTransversal: number;
 }
 
 export interface OpcaoInfo {
@@ -883,6 +888,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'A viga curva é analisada como uma poligonal de cordas de até este comprimento (o erro do momento e da torção cai com o quadrado da corda). Mudar a corda refaz a discretização dos arcos já lançados.' },
   { chave: 'curvaTorcaoEquilibrio', rotulo: 'Vigas curvas: torção de equilíbrio (rigidez bruta)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 14.6.7 (a torção que decorre do equilíbrio não pode ser reduzida; item a confirmar); a torção da curvatura é de equilíbrio', aConfirmar: true,
     descricao: '1 = a viga curva usa a rigidez à torção da seção bruta (a torção da curvatura é necessária ao equilíbrio e não pode ser reduzida); 0 = usa o redutor "Rigidez à torção das vigas" como nas vigas retas. A verificação da torção é feita sempre nas vigas curvas.' },
+  { chave: 'inclinadaFlambagemVertical', rotulo: 'Vigas inclinadas: coeficiente de flambagem no plano vertical', min: 0.5, max: 3, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.6 (barra biarticulada entre os nós: ℓe = ℓ); coeficiente por plano como no programa de referência [a confirmar]', aConfirmar: true,
+    descricao: 'ℓe = k·ℓ, com ℓ o comprimento da barra entre os nós, para a esbeltez e os efeitos locais de 2ª ordem no plano vertical (flexão em torno do eixo horizontal da seção). Cada viga pode ter o seu.' },
+  { chave: 'inclinadaFlambagemTransversal', rotulo: 'Vigas inclinadas: coeficiente de flambagem no plano transversal', min: 0.5, max: 3, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.6 (barra biarticulada entre os nós: ℓe = ℓ); coeficiente por plano como no programa de referência [a confirmar]', aConfirmar: true,
+    descricao: 'ℓe = k·ℓ para a esbeltez e os efeitos locais de 2ª ordem no plano transversal (horizontal). Cada viga pode ter o seu.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -938,6 +947,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin',
   // E2a: seções T/L (flexão na seção T e barras de canto da mesa)
   'mesaDimensionamento', 'mesaBarrasCanto',
+  // E2c: coeficientes de flambagem das vigas inclinadas (só o dimensionamento)
+  'inclinadaFlambagemVertical', 'inclinadaFlambagemTransversal',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
