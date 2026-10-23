@@ -32,6 +32,7 @@ npm test         # vitest: 1499 testes (analíticos, NBR 6118, NBR 8800, fundaç
 npm run build    # dist/index.html único (vite-plugin-singlefile) + public/ (manifest, sw.js, ícones)
 npm run e2e      # testes de interface: build + vite preview numa porta livre (4200–4209) + fluxos Playwright
 npm run e2e -- --workers N  # N navegadores em paralelo (padrão mín(4, CPUs/2); 1 = serial; fluxo com `serial: true` roda sozinho no fim)
+npm run checklist -- get|set|lote|historico  # edita linhas dos checklists sem abrir os arquivos (get <id>; set <id> --situacao S --frente F --nota/--acrescentar "t"; lote <json>; recontagem automática)
 npm run mapa     # regenera docs/mapa-codigo.md (exports e 'usado por' de cada arquivo de src/); src/core/mapa.test.ts reprova se estiver velho
 npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json)
 npm run cli      # dist-cli/statikos.mjs: linha de comando + servidor MCP (Node ≥ 20)
