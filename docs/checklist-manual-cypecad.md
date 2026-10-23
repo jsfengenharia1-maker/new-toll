@@ -20,9 +20,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
-| 12. Isovalores e deformada | 22 | 0 | 0 | 22 | 0 |
+| 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **68** | **206** | **185** |
+| **Total** | **763** | **304** | **73** | **201** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 164 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 22 | 17 | 39 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 10 | 25 | 35 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
 
 ## 0. Apresentação do programa
 
@@ -905,14 +905,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Falta | V | [V4] |
 | C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V | [V4] |
 | C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Falta | V | [V4] |
-| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Falta | V | [V3] |
+| C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Parcial | V | [V3]: núcleo `flechaPontos.ts` (`flechaEntrePontos`: secante ou tangente; máxima relativa, absoluta ou entre os pontos; amplificação; `flechaMaisDesfavoravel`); aba Deslocamentos nos cartões V3; falta a ferramenta com cliques na planta e o acesso pelas envoltórias |
 | C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Falta | V | [V4] |
 | | **12.2 Deformada** | | | |
-| C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Falta | V | [V3] |
-| C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Falta | V | [V3] |
-| C12.20 | Animação da deformada para identificar comportamento anômalo. | Falta | V | [V3] |
-| C12.21 | Elementos deformados coloridos pelo deslocamento resultante (vetor de Δx, Δy, Δz), com legenda no rodapé. | Falta | V | [V3] |
-| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Falta | V | [V3] |
+| C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Parcial | V | [V3]: núcleo `resultados/deformada.ts` e `deformadaCena.ts` (`hipotesesDisponiveis`, `deformarCena`); aba/controles na vista 3D nos cartões V3 |
+| C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Parcial | V | [V3]: hipótese/combinação, escala (automática 5 % da altura, editável), completa ou simplificada (`eixosDeformados`) e animação no núcleo; cartões V3; lajes nervuradas/cogumelo seguem a malha da grelha |
+| C12.20 | Animação da deformada para identificar comportamento anômalo. | Parcial | V | [V3]: `fatorAnimacao(t, T)` = sin(2πt/T), período padrão 2 s (a confirmar); animação na interface nos cartões V3 |
+| C12.21 | Elementos deformados coloridos pelo deslocamento resultante (vetor de Δx, Δy, Δz), com legenda no rodapé. | Parcial | V | [V3]: módulo do deslocamento (Δ) por vértice (`ObjetoDeformado.delta`), rampa `--v3d-def-*` e legenda no rodapé nos cartões V3 |
+| C12.22 | Várias janelas de deformada simultâneas para comparar hipóteses/combinações. | Falta | V | [V3]: várias janelas lado a lado ainda não têm núcleo nem cartão (só uma deformada na vista 3D) |
 
 ## 13. Tabelas e bibliotecas
 
@@ -1044,3 +1044,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
 - **22/10/2026 — V2, núcleo (cortes, seções e armaduras em 3D).** C3.31, C3.32 e C3.34 passam de Falta a Parcial (núcleo e comandos prontos; interface nos cartões `docs/cartoes/V2/`); C3.33 segue Falta (marcas e folha nas pranchas pendentes). Pendências por frente: V sem mudança de contagem de Falta além de 3 itens que viram Parcial.
+- **23/10/2026 — V3, núcleo (deformada, deslocamentos e flecha entre pontos).** C12.16 e C12.18–C12.21 passam de Falta a Parcial (núcleo `src/core/resultados/` pronto e testado; interface nos cartões `docs/cartoes/V3/`); C12.22 (várias janelas lado a lado) segue Falta. Pendências por frente: V sem mudança de contagem além de 5 itens que viram Parcial.
