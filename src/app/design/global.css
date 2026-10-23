@@ -1082,13 +1082,14 @@ body.ajuda-on { cursor: help; }
   .dock-grip, .dock-toggle { display: none; }
 }
 
-.cfg { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--sp-4); min-height: 60vh; max-height: 75vh; }
-.cfg-ind { display: flex; flex-direction: column; gap: var(--sp-1); overflow-y: auto; border-right: 1px solid var(--line); padding-right: var(--sp-3); }
+.edif { position: relative; }
+.cfg-janela { position: absolute; top: 0; bottom: 0; left: 0; z-index: 6; display: flex; flex-direction: column; max-width: 100%; background: var(--surface); border-right: 1px solid var(--line); box-shadow: var(--shadow-pop); }
+.cfg { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); }
+.cfg-ind { display: flex; flex-wrap: wrap; gap: var(--sp-1); max-height: 7.5rem; overflow-y: auto; border-bottom: 1px solid var(--line); padding-bottom: var(--sp-2); }
 .cfg-item { height: var(--h-ctl); padding: 0 var(--sp-3); border: 0; border-radius: var(--radius); background: none; color: var(--ink); text-align: left; white-space: nowrap; }
 .cfg-item:hover { background: var(--hover); }
 .cfg-item.on { background: var(--accent-soft); color: var(--accent-text); }
-.cfg-corpo { overflow-y: auto; min-width: 0; }
-@media (max-width: 900px) { .cfg { grid-template-columns: 1fr; } .cfg-ind { flex-direction: row; flex-wrap: wrap; border-right: 0; padding-right: 0; } }
+.cfg-corpo { flex: 1; overflow-y: auto; min-height: 0; min-width: 0; }
 .rstack { display: flex; flex-direction: column; gap: var(--sp-2); justify-content: center; min-width: 180px; }
 .optbar { min-height: var(--h-ctl-lg); flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
 .optbar > * { flex: none; }

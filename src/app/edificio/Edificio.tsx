@@ -27,14 +27,7 @@ import { lerQuadroVigas } from '../../core/building/quadros';
 import { Pranchas } from './Pranchas';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
-import { OpcoesGrupo } from './OpcoesCalculo';
-import { EtapasFlechaGrupo } from './EtapasFlecha';
-import { IncendioGrupo } from './Incendio';
 import { FogoCard } from './FogoCard';
-import { MateriaisGrupo } from './Materiais';
-import { TabelasGrupo } from './TabelasArmadura';
-import { BibliotecaNormasGrupo } from './BibliotecaNormas';
-import { TiposLajeGrupo } from './TiposLaje';
 import { enchimentosDisponiveis, fichasDisponiveis } from '../../core/building/tiposLaje';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
@@ -44,13 +37,8 @@ import { ParedesGrupo } from './ParedesUI';
 import { CortesGrupo, JanelaCorte } from './CortesUI';
 import { MurosGrupo } from './MurosUI';
 import { AlvenariaGrupo } from './AlvenariaUI';
-import { CasosGrupo } from './Casos';
-import { AbacosVentoGrupo } from './AbacosVento';
-import { EmpuxoGrupo } from './Empuxo';
-import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote, executarERecalcular } from './Armadura';
 import { AgrupamentosCard, CopiaLajesCard, RearmarCard, SelecaoBloqueio } from './Rearmar';
-import { FundacaoGrupo } from './Fundacao';
 import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
@@ -66,10 +54,10 @@ import { BarraAtalhos } from './BarraAtalhos';
 import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
 import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './GruposL4';
-import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
+import { DadosGeraisJanela } from './DadosGerais';
 import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
 import { JanelaConfiguracao } from './Configuracao';
-import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
+import { EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
 import { abrirJanela, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
@@ -80,7 +68,7 @@ const corGrupo = (b: BuildingModel, id: string) => `grupo-c${Math.max(0, b.grupo
 const num = (t: string) => parseFloat(t.replace(',', '.'));
 
 export function Edificio() {
-  const { sessao, exec, novo, diags, desfazer, refazer } = useBuilding();
+  const { sessao, exec, diags, desfazer, refazer } = useBuilding();
   const aj = useAjuda();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
@@ -114,9 +102,6 @@ export function Edificio() {
       <aside className="fund-in edif-in">
         <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
-        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
-          <DadosGeraisCorpo b={b} />
-        </Group>
 
         <Group title={`Pavimentos (${ps.length})`}>
           <table className="data loads-ed edpav" {...dataAjuda('barra:pavimentos')}>
@@ -155,23 +140,9 @@ export function Edificio() {
         <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
         <LajesGrupo b={b} />
         <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
-        <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
         <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
-        <VentoGrupo b={b} />
-        <AbacosVentoGrupo b={b} />
-        <CasosGrupo b={b} />
-        <EstadosGrupo b={b} />
-        <EmpuxoGrupo b={b} />
-        <OpcoesGrupo b={b} />
-        <EtapasFlechaGrupo b={b} />
-        <IncendioGrupo b={b} />
-        <MateriaisGrupo b={b} />
-        <TabelasGrupo b={b} />
-        <BibliotecaNormasGrupo b={b} />
-        <TiposLajeGrupo b={b} />
         <VinculosGrupo b={b} />
-        <ArquivoGrupo />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -1051,7 +1022,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
   );
 }
 
-function VentoGrupo({ b }: { b: BuildingModel }) {
+export function VentoGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];

@@ -28,6 +28,44 @@ async function faixaCtx(page) {
   await page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.ctx').click();
 }
 
+/** Janela Configuração da obra (cobre a doca esquerda do Edifício, sem bloquear o desenho). */
+const janelaCfg = (page) => page.getByRole('dialog', { name: 'Configuração da obra' });
+async function fecharCfg(page) {
+  if (await janelaCfg(page).count()) await janelaCfg(page).getByRole('button', { name: 'Fechar', exact: true }).click();
+}
+/** Abre a Configuração da obra numa seção do índice (título do índice) e devolve a janela; a aba da faixa volta ao que era. */
+async function abrirConfiguracao(page, secao) {
+  if (!(await janelaCfg(page).count())) {
+    const ativa = page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.on');
+    const antes = (await ativa.count()) ? (await ativa.first().innerText()).trim() : null;
+    await faixaAba(page, 'Arquivo');
+    await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: 'Configuração da obra…' }).click();
+    if (antes && antes !== 'Arquivo') await faixaAba(page, antes);
+  }
+  await page.getByRole('navigation', { name: 'Seções da configuração' }).getByRole('button', { name: secao, exact: true }).click();
+  return janelaCfg(page);
+}
+
+/** Título do grupo → seção da Configuração da obra (grupos que saíram da coluna esquerda). */
+const SECAO_CFG = [
+  ['Dados gerais', 'Dados gerais'], ['Opções de cálculo', 'Opções de cálculo'], ['Materiais e segurança', 'Materiais e segurança'], ['Tabelas de armadura', 'Tabelas de armadura'],
+  ['Biblioteca de normas', 'Biblioteca de normas'], ['Tipos de laje', 'Tipos de laje'], ['Casos de carga', 'Casos de carga'],
+  ['Compatibilidade entre casos', 'Casos de carga'], ['Arranjos alternados', 'Casos de carga'], ['Estados-limite', 'Estados-limite e combinações'],
+  ['Vento e combinações', 'Vento e combinações'], ['Ábacos de vento', 'Ábacos de vento'], ['Empuxo de terra', 'Empuxo de terra'],
+  ['Etapas de carga', 'Etapas de carga'], ['Incêndio', 'Incêndio'], ['Arquivo e versões', 'Arquivo e versões'],
+  ['Fundação', 'Fundação (terreno, estacas, sondagens, parâmetros)'], ['Parâmetros das sapatas corridas', 'Fundação (terreno, estacas, sondagens, parâmetros)'],
+];
+
+/** Grupo recolhível (`details.group`) do Edifício pelo título, onde estiver: Configuração da obra (abre a seção) ou coluna esquerda (fecha a Configuração). Deixa o grupo aberto. */
+async function grupoEdif(page, titulo) {
+  const txt = titulo instanceof RegExp ? titulo.source.replace(/^\^/, '').replace(/\\(.)/g, '$1') : titulo;
+  const s = SECAO_CFG.find(([p]) => txt.startsWith(p));
+  if (s) await abrirConfiguracao(page, s[1]); else await fecharCfg(page);
+  const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: titulo }) }).first();
+  if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
+  return g;
+}
+
 async function tab(page, name) {
   await page.locator('.panel .tabs').getByRole('tab', { name, exact: true }).click();
 }
@@ -98,7 +136,7 @@ async function importarMascara(page, tmp, extra = 0) {
   const f = join(tmp, `planta-${extra}.dxf`);
   writeFileSync(f, dxfPlanta(extra));
   await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-  await page.locator('summary', { hasText: 'Máscara' }).click();
+  await grupoEdif(page, 'Máscara');
   await page.setInputFiles('input[aria-label="Arquivo DXF da máscara"]', f);
   await page.locator('.statusbar .msg', { hasText: 'unidade cm ($INSUNITS)' }).waitFor();
 }
@@ -375,7 +413,7 @@ export const flows = [
       await page.keyboard.type('7,5;5');
       await page.keyboard.press('Enter');
       await page.locator('summary', { hasText: 'Pilares (2)' }).waitFor();
-      await page.locator('summary', { hasText: /^Pilares \(/ }).click();
+      await grupoEdif(page, /^Pilares \(/);
       assert.equal(await page.getByLabel('x de P2').inputValue(), '7,500');
       // sobreposição recusada
       await page.keyboard.type('7,55;5');
@@ -433,7 +471,7 @@ export const flows = [
       for (const [x, y] of [[5, 4], [0, 4], [0, 0]]) { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy); }
       await page.keyboard.press('Enter');
       await page.locator('summary', { hasText: 'Vigas — Tipo (2)' }).waitFor();
-      await page.locator('summary', { hasText: 'Vigas' }).click();
+      await grupoEdif(page, 'Vigas');
       assert.equal(await page.getByLabel('Seção de V1').inputValue(), '15x40');
       await page.locator('.statusbar .status.ok').waitFor();
       // viga solta digitada: erro de verificação; desfazer volta ao estado sem erro
@@ -461,10 +499,10 @@ export const flows = [
       const [sx, sy] = await telaDe(page, 2.5, 2);
       await page.mouse.move(sx, sy); await page.mouse.click(sx, sy);
       await page.locator('summary', { hasText: 'Lajes — Tipo (1)' }).waitFor();
-      await page.locator('summary', { hasText: 'Lajes' }).click();
+      await grupoEdif(page, 'Lajes');
       await page.getByRole('button', { name: 'Preencher todos os panos' }).click();
       await page.locator('summary', { hasText: 'Lajes — Tipo (2)' }).waitFor();
-      await page.locator('summary', { hasText: 'Cargas' }).click();
+      await grupoEdif(page, 'Cargas');
       await page.getByRole('button', { name: 'Gerar 1 trecho(s) de parede' }).click();
       await page.locator('summary', { hasText: 'Cargas — Tipo (1)' }).waitFor();
       await page.locator('.statusbar .msg', { hasText: '1 trecho(s) de alvenaria (3 m, altura 2,5 m)' }).waitFor();
@@ -575,7 +613,7 @@ export const flows = [
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
-      await page.locator('summary', { hasText: 'Vigas — Tipo' }).click();
+      await grupoEdif(page, 'Vigas — Tipo');
       await page.getByRole('button', { name: 'Contorno na face externa' }).click();
       await page.locator('.statusbar .msg', { hasText: 'alinhada(s) à face externa' }).waitFor();
       for (const v of ['V1', 'V2', 'V3', 'V4']) assert.notEqual(await page.getByLabel(`Alinhamento de ${v}`).inputValue(), 'centro');
@@ -588,7 +626,7 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const malha = page.getByLabel('Malha da grelha das lajes');
       assert.equal(await malha.inputValue(), '0,25');
       await malha.fill('0,5');
@@ -606,9 +644,9 @@ export const flows = [
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const base = page.getByLabel('Engaste na base');
       assert.equal(await base.inputValue(), '1');
       await base.fill('0');
@@ -634,7 +672,7 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Materiais e segurança' }).click();
+      await grupoEdif(page, 'Materiais e segurança');
       const fck = page.getByLabel('fck vigas');
       assert.equal(await fck.inputValue(), '30');
       await fck.fill('35');
@@ -660,16 +698,16 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // caso adicional pelo grupo "Casos de carga"
-      await page.locator('summary', { hasText: 'Casos de carga' }).click();
+      await grupoEdif(page, 'Casos de carga');
       await page.getByLabel('Novo caso').fill('Neve');
       await page.getByLabel('Novo caso').press('Enter');
       await page.getByRole('button', { name: 'Criar caso' }).click();
       await page.locator('.statusbar .msg', { hasText: 'Caso Neve (Q) criado' }).waitFor();
       assert.equal(await page.getByLabel('Natureza de Neve').inputValue(), 'Q');
       // carga no pilar selecionado
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').filter({ has: page.locator('input[aria-label^="Nome de P1"]') }).first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       await page.getByLabel(/^Caso \(lance/).selectOption({ label: 'Neve' });
       const n = page.getByLabel('N (kN)');
       await n.fill('25');
@@ -681,7 +719,7 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
       await page.getByRole('button', { name: 'Calcular', exact: true }).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
-      await page.locator('summary', { hasText: /^Combinações \(\d+\)$/ }).click();
+      await grupoEdif(page, /^Combinações \(\d+\)$/);
       const quadro = page.locator('.edif-out .card', { hasText: 'Exportar CSV' });
       assert.match(await quadro.locator('thead').textContent(), /Neve/);
       assert.ok(await quadro.locator('tbody tr').count() > 4);
@@ -699,7 +737,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('summary', { hasText: 'Vento e combinações' }).click();
+      await grupoEdif(page, 'Vento e combinações');
       const xn = page.getByLabel('Coef. sentido −X');
       assert.equal(await xn.inputValue(), '1');
       await xn.fill('0,5');
@@ -729,7 +767,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const red = page.getByLabel('Redistribuição de negativos das vigas');
       await red.fill('20');
       await red.press('Enter');
@@ -758,7 +796,7 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const red = page.getByLabel('Redistribuição de negativos das vigas');
       assert.equal(await red.inputValue(), '15');
       await page.getByLabel('Perfil dos padrões').selectOption('nbr');
@@ -1199,7 +1237,7 @@ export const flows = [
       assert.match(await prev.textContent(), /kN/);
       assert.match(await lista.innerText(), /SLP/);
       // opção de armação: escala das vigas muda a folha
-      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await grupoEdif(page, 'Opções de armação e locação');
       await tipo.selectOption({ label: 'Armação de vigas' });
       await page.getByLabel('Escala das vigas').selectOption({ label: '1:50' });
       await page.waitForFunction(() => /1:50/.test(document.querySelector('[data-lista-folhas]')?.textContent ?? ''));
@@ -1358,14 +1396,13 @@ export const flows = [
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // arranque (nasce e morre na fundação): linha da tabela de pilares e opção "fundação (arranque)" do seletor "Morre"
       await cmd('pilar.inserir {"x": 3.5, "y": 2.5, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}, "nasce": "fundacao", "morre": "fundacao"}');
-      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      await grupoEdif(page, 'Pilares (');
       const linhaArr = page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last();
       assert.match(await linhaArr.innerText(), /arranque/);
       assert.equal(await linhaArr.locator('select[aria-label^="Morre"] option[value="fundacao"]').count(), 1);
 
       // grupo Fundação: terreno (σadm informada) e planta do nível de fundação
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1472,7 +1509,7 @@ export const flows = [
       await page.getByRole('button', { name: 'Novo vazio' }).click();
       assert.match(await page.locator('.statusbar .status').innerText(), /^0 pavimentos/);
       // ferramenta Pilar com "Arranque": a planta vai para o nível de fundação e o pilar nasce e morre na fundação
-      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      await grupoEdif(page, 'Pilares (');
       await page.getByLabel('Arranque (pilar de altura zero, só leva cargas à fundação)').check();
       assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
@@ -1484,8 +1521,7 @@ export const flows = [
       await page.locator('select[aria-label="Morre P1"]').waitFor();
       assert.match(await page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last().innerText(), /arranque/);
       // terreno, sapata automática (clique no centro do pilar = centrada) e cargas no arranque
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('250');
       await sigma.press('Enter');
@@ -1523,7 +1559,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await page.locator('.planta-cv[data-vista]').waitFor();
       const solta = () => page.evaluate(() => document.activeElement?.blur?.());
-      const abrir = async (t) => { const d = page.locator('.edif-in details', { has: page.locator('summary', { hasText: t }) }).first(); if (!(await d.evaluate((x) => x.open))) await d.locator('summary').click(); return d; };
+      const abrir = (t) => grupoEdif(page, t);
       await solta();
       const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
       const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };
@@ -1649,8 +1685,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1766,8 +1801,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1808,8 +1842,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [3, 0], [7, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('120');
       await sigma.press('Enter');
@@ -1944,8 +1977,7 @@ export const flows = [
       // parede externa (retângulo 15 × 10 m): clique no meio do lado inferior
       await page.mouse.click(...(await telaDe(page, 7.5, 0)));
       await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (4 vértices)' }).waitFor();
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const linha = grupo.locator('table[data-limites-tabela] tbody tr');
       assert.equal(await linha.count(), 1);
       assert.match(await linha.first().innerText(), /L1\s+4\s+fechado/);
@@ -1975,8 +2007,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [2, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       // estaca de capacidade informada (500 kN)
       await grupo.getByRole('button', { name: '+ estaca' }).click();
       await grupo.locator('table[data-estacas] select[aria-label^="Modo da estaca"]').selectOption('informada');
@@ -2020,8 +2051,7 @@ export const flows = [
       await cmd('eixo.malha {"dx": [7], "dy": [5]}');
       // pilares 19 × 19 não atendem: sem esta opção (R7c) ficariam fora da prancha de pilares do conjunto
       await cmd('opcoes.definir {"valores": {"pilarInsuficienteSemDesenho": 0}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -2065,7 +2095,7 @@ export const flows = [
       await page.locator('[data-folha-item]', { hasText: /quantitativos/ }).click();
       await page.waitForFunction(() => /QUANTITATIVOS POR ELEMENTO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
       // ancoragem editável: muda o desenho depois de calcular as fundações
-      await page.locator('summary', { hasText: 'Ancoragem das vigas de fundação' }).click();
+      await grupoEdif(page, 'Ancoragem das vigas de fundação');
       const anc = page.locator('[data-ancoragem-vf] tbody tr').first().locator('input').first();
       await anc.fill('120');
       await anc.press('Enter');
@@ -2092,8 +2122,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -2181,8 +2210,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [8, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 6], [8, 6]], [[0, 0], [0, 6]], [[8, 0], [8, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('200');
       await sigma.press('Enter');
@@ -2273,8 +2301,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('250');
       await sigma.press('Enter');
@@ -2513,7 +2540,7 @@ export const flows = [
       // ---- corte traçado na planta: a janela abre sozinha com a elevação hachurada
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
       await page.locator('.planta-cv[data-vista]').waitFor();
-      await page.locator('summary', { hasText: /^Cortes e seções/ }).click();
+      await grupoEdif(page, /^Cortes e seções/);
       await page.getByRole('button', { name: 'Traçar corte na planta', exact: true }).click();
       await page.waitForTimeout(300);
       const [ax, ay] = await telaDe(page, -1, 2.5), [bx, by] = await telaDe(page, 7, 2.5);
@@ -2840,7 +2867,7 @@ export const flows = [
       const grupo = (t) => page.locator('details.group', { has: page.locator(':scope > summary', { hasText: t }) });
 
       // ---- casos: compatibilidade e arranjos ----
-      await page.locator('summary', { hasText: /^Casos de carga/ }).click();
+      await grupoEdif(page, /^Casos de carga/);
       const casos = grupo(/^Casos de carga/);
       for (const n of ['Água', 'Vazio']) {
         await casos.getByLabel('Novo caso').fill(n);
@@ -2861,7 +2888,7 @@ export const flows = [
       assert.match(await casos.innerText(), /arranjo de Uso alternado/);
 
       // ---- estados-limite ----
-      await page.locator('summary', { hasText: /^Estados-limite e combinações/ }).click();
+      await grupoEdif(page, /^Estados-limite e combinações/);
       const est = grupo(/^Estados-limite e combinações/);
       assert.equal(await est.getByLabel('Ativar Concreto armado (ELU)').isDisabled(), true);
       await est.getByLabel('Ativar Flechas (quase permanentes)').uncheck();
@@ -2906,7 +2933,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
 
       // ---- empuxo de terra e caso H ----
-      await page.locator('summary', { hasText: /^Empuxo de terra/ }).click();
+      await grupoEdif(page, /^Empuxo de terra/);
       const emp = grupo(/^Empuxo de terra/);
       await emp.getByLabel('Novo tipo de empuxo').fill('Subsolo');
       await emp.getByLabel('Novo tipo de empuxo').press('Enter');
@@ -2928,7 +2955,7 @@ export const flows = [
       await msg('Caso Empuxo do subsolo alterado');
 
       // ---- ábacos de vento ----
-      await page.locator('summary', { hasText: /^Ábacos de vento/ }).click();
+      await grupoEdif(page, /^Ábacos de vento/);
       const ab = grupo(/^Ábacos de vento/);
       assert.deepEqual(await ab.getByLabel('Coeficiente de arrasto Ca').locator('option').allInnerTexts(), ['Informado (Ca em X e Y)']);
       await ab.locator('summary', { hasText: /^Ca, baixa turbulência/ }).click();
@@ -2979,8 +3006,7 @@ export const flows = [
       const antes = await cardVigas.locator('tbody tr').first().innerText();
       assert.ok(!/φ25/.test(antes), `esperava a viga sem φ25 antes da tabela: ${antes}`);
       // grupo Tabelas de armadura (fechado) e a aba de vigas
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Tabelas de armadura' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Tabelas de armadura');
       const tabela = g.locator('table[data-tabela="vigas"]');
       await tabela.waitFor();
       const chips = (rot) => g.getByRole('group', { name: rot });
@@ -3111,8 +3137,7 @@ export const flows = [
       assert.match(await jan.locator('[data-tramo-viga]').innerText(), /Não há viga consecutiva e alinhada/);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // opções do perfil do sistema: redução de lb ligada e negativos mínimos
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.ok(await g.getByLabel('Vigas: reduzir lb por As,calc/As,ef').isChecked());
       assert.match(await g.innerText(), /Vigas: comprimento mínimo dos negativos/);
       // memorial: critérios do detalhamento das vigas
@@ -3169,8 +3194,7 @@ export const flows = [
       assert.equal(await jan.locator('[data-avisos-det]').getByText('detalhe editado insuficiente').count(), 0);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // opções: corte no topo e adensamento
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.ok(!(await g.getByLabel('Pilares: cortar as barras no topo do último lance').isChecked()));
       assert.ok(await g.getByLabel('Pilares: seção insuficiente sem desenho nem quantitativo').isChecked());
       assert.match(await g.innerText(), /Pilares: traspasse mínimo reduzido/);
@@ -3245,8 +3269,7 @@ export const flows = [
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Telas soldadas da base das lajes/);
       // opção de detalhamento da base na lista de opções
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.match(await g.innerText(), /Lajes: traspasse entre painéis de tela soldada/);
       assert.ok(!(await g.getByLabel('Lajes: detalhar a armadura base').isChecked()));
       // memorial: base, painéis e resumo de telas
@@ -3473,7 +3496,7 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // opção no grupo Opções de cálculo, ligada por padrão (padrão do sistema)
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const opcao = page.getByLabel('Modelo integrado (lajes no pórtico)');
       assert.equal(await opcao.isChecked(), true);
       assert.equal(await page.getByLabel('Deformação por cortante nas barras de laje').isChecked(), true);
@@ -3513,9 +3536,9 @@ export const flows = [
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // vínculo externo: molas na base do P1 (giros) e carga uniforme no lance
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const vinc = page.locator('[data-vinculo-externo]');
       await vinc.waitFor();
       await vinc.getByLabel('Vínculo da base').selectOption({ label: 'molas' });
@@ -4063,7 +4086,7 @@ export const flows = [
       await page.locator('.prancha-prev[data-tipo="paredes"] svg').first().waitFor({ timeout: 90000 });
       assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /SCM/);
       assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /M1/);
-      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await grupoEdif(page, 'Opções de armação e locação');
       await page.getByLabel('Escala das elevações de paredes').selectOption({ label: '1:75' });
       await page.locator('.prancha-prev[data-tipo="paredes"][data-escala="75"]').waitFor({ timeout: 90000 });
     },
@@ -4147,8 +4170,7 @@ export const flows = [
       await gp.getByRole('button', { name: 'Selecionar M1' }).click();
       assert.match(await page.locator('[data-pw-base-parede]').innerText(), /Deslizamento[\s\S]*μ 0,9/);
       // 4. a opção "Reprovar o deslizamento (parede)" desligada: o erro some e o FS continua informado
-      const gf = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
-      if (!(await gf.evaluate((d) => d.open))) await gf.locator(':scope > summary').click();
+      const gf = await grupoEdif(page, /^Fundação \(/);
       const par = gf.locator('details', { has: page.locator(':scope > summary', { hasText: 'Parâmetros das sapatas corridas' }) }).first();
       if (!(await par.evaluate((d) => d.open))) await par.locator(':scope > summary').click();
       await par.getByLabel('Reprovar o deslizamento (parede)', { exact: true }).uncheck();
@@ -4286,7 +4308,7 @@ export const flows = [
       await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
       await prev.locator('svg').waitFor();
       const n0 = await prev.locator('svg circle').count();
-      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await grupoEdif(page, 'Opções de armação e locação');
       await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
       await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
       await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
@@ -4340,8 +4362,7 @@ export const flows = [
       await lista.locator('details summary').click();
       assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
       // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Arredondamento do diagrama no apoio/);
       assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
@@ -4382,8 +4403,7 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
-      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
-      await etapas.locator('summary').click();
+      const etapas = await grupoEdif(page, 'Etapas de carga (flechas)');
       assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
       assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
       // colagem de uma etapa única: a lista vira uma linha
@@ -4394,8 +4414,7 @@ export const flows = [
       await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
       await livre();
       // 2) opções de cálculo com os limites de flecha
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
@@ -4471,8 +4490,7 @@ export const flows = [
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
-      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga.locator(':scope > summary').click();
+      const ga = await grupoEdif(page, /^Arquivo e versões/);
       await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
       const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
       const ws = JSON.parse(f.text);
@@ -4487,8 +4505,7 @@ export const flows = [
       await chooser.setFiles(file);
       await page2.locator('.statusbar .msg', { hasText: 'aberto de' }).waitFor();
       await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const ga2 = page2.locator('details.group', { has: page2.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga2.locator(':scope > summary').click();
+      const ga2 = await grupoEdif(page2, /^Arquivo e versões/);
       await ga2.getByRole('button', { name: 'Recuperar' }).click();
       await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
       await page2.close();
@@ -4546,8 +4563,7 @@ export const flows = [
       // sem a verificação ligada: nenhum card de fogo
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
       // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Incêndio');
       await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
       await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
       assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
@@ -4766,7 +4782,7 @@ export const flows = [
       await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
       await prev.locator('svg').waitFor();
       const n0 = await prev.locator('svg circle').count();
-      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+      await grupoEdif(page, 'Opções de armação e locação');
       await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
       await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
       await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
@@ -4820,8 +4836,7 @@ export const flows = [
       await lista.locator('details summary').click();
       assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
       // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Arredondamento do diagrama no apoio/);
       assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
@@ -4862,8 +4877,7 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
-      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
-      await etapas.locator('summary').click();
+      const etapas = await grupoEdif(page, 'Etapas de carga (flechas)');
       assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
       assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
       // colagem de uma etapa única: a lista vira uma linha
@@ -4874,8 +4888,7 @@ export const flows = [
       await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
       await livre();
       // 2) opções de cálculo com os limites de flecha
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
@@ -4924,8 +4937,7 @@ export const flows = [
       // sem a verificação ligada: nenhum card de fogo
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
       // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Incêndio');
       await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
       await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
       assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
@@ -4978,7 +4990,7 @@ export const flows = [
       // seleciona a viga da linha `i` da tabela (V1 = 0 … V4 = 3) e devolve o editor de seção
       const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
       await gvigas.locator(':scope > summary').click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const editor = async (i) => {
         await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click();
         const sv = page.locator('[data-secao-viga]');
@@ -5055,11 +5067,7 @@ export const flows = [
       const page = await newPage(NO_PICKERS);
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const msgBarra = (re) => page.locator('.statusbar .msg', { hasText: re }).waitFor();
-      const abrirGrupo = async (re) => {
-        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
-        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
-        return g;
-      };
+      const abrirGrupo = (re) => grupoEdif(page, re);
       const arq = join(tmp, 'grade.dxf');
       writeFileSync(arq, dxfGradeL2());
       const arqDwg = join(tmp, 'arq.dwg');
@@ -5228,15 +5236,13 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Biblioteca de normas' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Biblioteca de normas');
       await g.getByLabel(/^Norma/).selectOption('NBR 14432 / IT 06');
       const tabela = g.locator('table[data-tabela-norma="nbr14432.trrf-ocupacao"]');
       await tabela.waitFor();
       assert.match(await g.locator('[data-selos-norma]').innerText(), /de fábrica/);
       assert.match(await g.locator('[data-selos-norma]').innerText(), /a confirmar/);
-      const inc = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await inc.locator('summary').click();
+      const inc = await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial(?! N3)/);
       // 1) altera a ocupação da primeira linha: selo "alterada" e a opção do grupo Incêndio muda
       const cel = g.getByLabel('Ocupação da linha 1', { exact: true });
@@ -5281,11 +5287,7 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage(NO_PICKERS);
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const abrirGrupo = async (re) => {
-        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
-        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
-        return g;
-      };
+      const abrirGrupo = (re) => grupoEdif(page, re);
       const cmd = async (txt) => { await page.locator('#edcmd').fill(txt); await page.locator('#edcmd').press('Enter'); };
       const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`;
       const viga = (a, z) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": [${JSON.stringify(a)}, ${JSON.stringify(z)}], "secao": {"b": 0.15, "h": 0.4}}}`;
@@ -5722,8 +5724,7 @@ export const flows = [
       const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [0, 4], [5, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Tipos de laje/ }) }).first();
-      await g.locator('summary').first().click();
+      const g = await grupoEdif(page, /^Tipos de laje/);
       // 1) a ficha de exemplo é fictícia e somente leitura; copiar dá uma ficha editável
       await g.getByLabel(/^Ficha de vigotas/).selectOption({ label: 'Armada exemplo (fictícia) · exemplo fictício' });
       assert.match(await g.locator('[data-selos-ficha]').innerText(), /somente leitura/);
@@ -5747,8 +5748,7 @@ export const flows = [
       await pe.fill('0,6'); await pe.press('Enter');
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.enchimentos?.[0]?.pesoM2 === 0.6, null);
       // 4) atribuir em cascata no grupo Lajes e preencher os panos
-      const lj = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Lajes/ }) }).first();
-      await lj.locator('summary').first().click();
+      const lj = await grupoEdif(page, /^Lajes/);
       await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('vigotas');
       await lj.getByLabel(/^Fabricante \(filtro\)/).selectOption('Fictício');
       const copia = (await modelo()).tiposLaje.fichas[0];
@@ -6000,7 +6000,7 @@ export const flows = [
       // 3. V3 do lado x = 6 com vínculo externo e V4 pré-moldada: editor da viga
       const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
       await gvigas.locator(':scope > summary').click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const editor = async (i) => {
         await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click();
         const sv = page.locator('[data-vinculo-premoldada]');
@@ -6163,8 +6163,7 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
       await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
-      const vg = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Vínculos, flambagem e cobrimento/ }) }).first();
-      await vg.locator('summary').first().click();
+      const vg = await grupoEdif(page, /^Vínculos, flambagem e cobrimento/);
       const pano = vg.locator('[data-vigotas-pano]');
       await pano.waitFor();
       await pano.getByLabel(/^Classe de agressividade do pano/).selectOption('III');
