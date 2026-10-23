@@ -19,6 +19,7 @@ import { resumoAnalise } from '../../core/building/resumo';
 import { memorialFlechas } from '../../core/building/flechas';
 import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
+import { normasNoMemorial } from '../../core/normas/memorial';
 
 import { cotaFundacao, inicioDe, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, ORIGEM_ROTULO } from '../../core/building/types';
 import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao';
@@ -694,6 +695,13 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             <MemorialQuantitativosDetalhados b={b} dim={dim} />
             {eluDet && <MemorialEluPorCombinacao dim={dim} h2={h2} />}
           </>)}
+
+          {h2('Tabelas normativas em uso')}
+          <p>Biblioteca de normas da obra: tabelas que o cálculo lê, com a edição, a fonte e a origem (de fábrica ou alterada pelo projetista).</p>
+          <table className="quadro" data-memorial-normas>
+            <thead><tr><th>Tabela</th><th>Norma e edição</th><th>Fonte</th><th>Origem</th></tr></thead>
+            <tbody>{normasNoMemorial(b).map((n) => <tr key={n.id}><td className="l">{n.titulo}</td><td className="l">{n.edicao}</td><td className="l">{n.fonte}{n.aConfirmar ? ' [a confirmar]' : ''}</td><td className="l">{n.origem}{n.nota ? ` (${n.nota})` : ''}</td></tr>)}</tbody>
+          </table>
 
           {h2('Premissas', true)}
           <ul>{PREMISSAS.map((p) => <li key={p.id}><b>{p.tema}.</b> {p.texto} <i>({p.fonte}{p.aConfirmar ? '; a confirmar' : ''})</i></li>)}</ul>
