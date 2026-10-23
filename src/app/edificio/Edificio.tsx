@@ -22,6 +22,7 @@ import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
+import { ConsolosHost } from './ConsolosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { CoresPlanta } from './CoresPlanta';
@@ -249,6 +250,7 @@ export function Edificio() {
       <JanelaCorte />
       <InclinadasHost />
       <DiagonaisHost />
+      <ConsolosHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );

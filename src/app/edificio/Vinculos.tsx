@@ -9,6 +9,7 @@ import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
 import { LanceDoPilar } from './Transicao';
 import { SecaoDaViga } from './SecaoVigaUI';
+import { VinculoEPremoldada } from './VinculoPremoldadaUI';
 import { VigaCurvaComum } from './VigaCurvaComumUI';
 
 const fmt = (v: number) => String(+v.toFixed(2)).replace('.', ',');
@@ -166,6 +167,7 @@ export function VinculosGrupo({ b }: { b: BuildingModel }) {
           <Check label="Fora do diafragma rígido" checked={!!v0.foraDiafragma} onChange={(c) => lote(vigas.map((x) => ({ nome: 'viga.editar', params: { id: x.id, foraDiafragma: c } })))} />
         </div>
         <SecaoDaViga b={b} vigas={vigas} />
+        <VinculoEPremoldada vigas={vigas} />
         <VigaCurvaComum b={b} vigas={vigas} />
         {vigas.length === 1 && pav && (() => {
           const pavG = ps.find((p) => p.grupo === v0.grupo) ?? pav;
