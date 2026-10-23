@@ -54,6 +54,7 @@ import { LancamentoDxf } from './LancamentoDxf';
 import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos';
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
+import { DadosL4Grupo } from './DadosL4';
 import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo, type DialogoGrupos } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
@@ -129,6 +130,7 @@ export function Edificio() {
         <AlvenariaGrupo b={b} />
         <VigasGrupo b={b} />
         <LajesGrupo b={b} />
+        <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
         <CortesGrupo b={b} onPlanta={() => setAba('planta')} />

@@ -30,6 +30,7 @@ import type { PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
 import { Input } from '../ui';
+import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
 type P2 = [number, number];
 const RAIO_PX = 12;
@@ -130,7 +131,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
@@ -151,6 +152,8 @@ const PASSOS: Record<Ferramenta, string[]> = {
   mover: ['Ponto base do deslocamento da seleção.', 'Ponto de destino.'],
   medir: ['Primeiro ponto.', 'Segundo ponto.'],
   vigaGabarito: ['Clique numa linha, arco ou polilinha do gabarito (modo eixo: a viga sai pelo eixo; modo face: a linha é a face da viga).', 'Clique do lado em que o corpo da viga deve ficar (a linha é a face oposta ao clique).'],
+  moverRef: ['Clique no texto de referência (nome) de um pilar, viga ou laje.', 'Clique no novo local do texto (Esc cancela; “Restaurar posições” no grupo Referências volta ao automático).'],
+  contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
   girarFund: ['Primeiro ponto da direção: os elementos de fundação selecionados giram para a direção dos dois pontos.', 'Segundo ponto da direção.'],
@@ -186,6 +189,9 @@ export function Planta() {
   /** Grupo das cargas: no nível de fundação, as cargas sobre as vigas e os elementos de fundação (FU2). */
   const grupoCarga = nivelFund ? 'fundacao' : grupo;
   const cores = paleta(pl.tema, pl.cores[pl.tema]);
+  /** Textos de referência (L4): tipos visíveis da obra e deslocamento do usuário em pixels. */
+  const textosVis = textosVisiveis(b);
+  const descRef = (id: string): [number, number] => { const r = refDe(b, id), k = vista?.k ?? 1; return r ? [r.dx * k, -r.dy * k] : [0, 0]; };
 
   const wrap = useRef<HTMLDivElement>(null);
   const cvM = useRef<HTMLCanvasElement>(null), cvE = useRef<HTMLCanvasElement>(null), cvI = useRef<HTMLCanvasElement>(null);
@@ -202,7 +208,7 @@ export function Planta() {
   const it = useRef({
     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
-    baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
+    baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
   });
 
   // ---- dados derivados ----
@@ -480,8 +486,9 @@ export function Planta() {
       ctx.strokeStyle = cAlerta ?? cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
       const [tx, ty] = paraTela(c[0], c[1]);
       ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
-      ctx.fillText(`${l.nome}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx, ty - 8);
-      ctx.font = '10px system-ui, sans-serif'; ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx, ty + 6);
+      const [lx, ly] = descRef(l.id);
+      if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
+      ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx + lx, ty + 6 + ly);
       if (l.tipo.tipo === 'trelicada') { // seta dupla na direção das vigotas
         const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
         ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
@@ -573,9 +580,10 @@ export function Planta() {
       const a = paraTela(...g.esq[k]), z = paraTela(...g.esq[k + 1]);
       let ang = Math.atan2(z[1] - a[1], z[0] - a[0]);
       if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
-      ctx.save(); ctx.translate((a[0] + z[0]) / 2, (a[1] + z[1]) / 2); ctx.rotate(ang);
+      const [vx, vy] = descRef(v.id);
+      ctx.save(); ctx.translate((a[0] + z[0]) / 2 + vx, (a[1] + z[1]) / 2 + vy); ctx.rotate(ang - ((refDe(b, v.id)?.rot ?? 0) * Math.PI) / 180);
       ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.viga;
-      ctx.fillText(`${v.nome} ${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}${v.invertida ? ' inv.' : ''}${v.mesa ? ` ${v.mesa.tipo}` : ''}${v.chata ? ' chata' : ''}${v.estrutural === false ? ' n.est.' : ''}${v.amarracao ? ' amar.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
+      ctx.fillText(`${textosVis.includes('nomes') ? `${v.nome} ` : ''}${textosVis.includes('secoes') ? `${Math.round(v.secao.b * 100)}x${Math.round(v.secao.h * 100)}` : ''}${v.invertida ? ' inv.' : ''}${v.mesa ? ` ${v.mesa.tipo}` : ''}${v.chata ? ' chata' : ''}${v.estrutural === false ? ' n.est.' : ''}${v.amarracao ? ' amar.' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}${bloqueados.has(v.id) ? ' ▣' : ''}`, 0, -3);
       ctx.restore();
     }
     // base elástica (FU6): radiers (contorno, furos, rótulo) e vigas sobre base elástica (faixa b), sob os elementos
@@ -774,7 +782,8 @@ export function Planta() {
       if (sel) { ctx.save(); ctx.globalAlpha = 0.25; ctx.lineWidth = 8; ctx.strokeStyle = cores.selecao; ctx.stroke(path); ctx.restore(); }
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.texto;
-      ctx.fillText(q.p.nome + (erro ? ' ⚠' : avi ? ' !' : '') + (bloqueados.has(q.p.id) ? ' ▣' : ''), Math.max(...xs) + 4, Math.min(...ys) - 3);
+      const [px0, py0] = descRef(q.p.id);
+      if (textosVis.includes('nomes')) ctx.fillText(q.p.nome + (erro ? ' ⚠' : avi ? ' !' : '') + (bloqueados.has(q.p.id) ? ' ▣' : ''), Math.max(...xs) + 4 + px0, Math.min(...ys) - 3 + py0);
     }
     // pilares-parede (E1b): um contorno por lado, hachurado se chega, tracejado se vem de baixo; lado em barra com traço mais fino
     for (const w of paredesPl) {
@@ -821,7 +830,7 @@ export function Planta() {
     for (const c of cargas) {
       const sel = pl.selecao.has(c.id), cor = sel ? cores.selecao : c.origem ? cores.parede : cores.carga;
       const pts = c.pontos.map((q) => paraTela(q[0], q[1]));
-      const rot = `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${b.casos?.find((x) => x.id === c.caso)?.nome ?? c.caso}`;
+      const rot = !textosVis.includes('cargas') ? '' : `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${b.casos?.find((x) => x.id === c.caso)?.nome ?? c.caso}`;
       ctx.strokeStyle = cor; ctx.fillStyle = cor;
       if (c.tipo === 'ponto') {
         const [x, y] = pts[0];
@@ -1218,6 +1227,28 @@ export function Planta() {
       const lado = pos === 'divisa' || pos === 'canto' ? ladoPeloClique(b, q.p, w, pos) : undefined;
       const r = exec('fundacao.criar', { ...base, ...(lado ? { lado } : {}) });
       if (r.ok) usePlanta.getState().set({ selecao: new Set() });
+      return;
+    }
+    if (f === 'moverRef') {
+      if (nivelFund || !pav) { msg('Abra um pavimento para mover textos de referência.'); return; }
+      if (!it.current.refEl) {
+        const a = ancoraMaisProxima(ancorasRef(b, pav.id), it.current.cursor, 40 / (vista?.k || 1));
+        if (!a) { msg('Clique perto do texto de referência de um pilar, viga ou laje.'); return; }
+        it.current.refEl = a.id; it.current.refDe = a.ponto; usePlanta.getState().set({ selecao: new Set([a.id]) }); setPontos([a.ponto]); return;
+      }
+      const id = it.current.refEl, de = it.current.refDe;
+      it.current.refEl = null; setPontos([]);
+      exec('ref.mover', { id, ...deslocamentoPorCliques(b, id, de, [p[0], p[1]]) });
+      return;
+    }
+    if (f === 'contaGotas') {
+      const P = usePlanta.getState(), q = pilarSob(it.current.cursor);
+      if (q || !P.contaGotas.pilar) {
+        if (!q) { msg('Clique num pilar para pegar os dados dele.'); return; }
+        P.set({ contaGotas: { ...P.contaGotas, pilar: q.p.id }, selecao: new Set([q.p.id]) });
+        msg(`Dados de ${q.p.nome} pegos: clique onde inserir um pilar novo (ou noutro pilar para trocar).`); return;
+      }
+      exec('pilar.inserir', { x: +p[0].toFixed(4), y: +p[1].toFixed(4), copiarDe: P.contaGotas.pilar, incluirCargas: P.contaGotas.cargas });
       return;
     }
     if (f === 'viga') { setPontos(novos); return; }
