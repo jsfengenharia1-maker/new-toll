@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 13 | 36 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 14 | 6 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 16 | 4 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 19 | 2 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 7 | 1 | 19 |
-| **Total** | **661** | **388** | **86** | **76** | **111** |
+| **Total** | **661** | **388** | **88** | **74** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 48 | 71 | 119 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 5 | 20 |
-| **Total** | **86** | **76** | **162** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 17 | 3 | 20 |
+| **Total** | **88** | **74** | **162** |
 
 ## Divergências de premissa
 
@@ -552,14 +552,14 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.15 | Envoltórias médias por metro de faixa, placa escolhida, negativo nos apoios (nº, bitola, espaçamento, comprimento), flecha, erros de momento/cortante/flecha/ambiente; placa e negativos editáveis. | Falta | E | lajes alveolares [E3e] |
 | | **Maciças, nervuradas e radiers** | | | |
 | K1.11.16 | Armadura base definida/modificada; malha de discretização (modelo 3D). | Feito | — | armadura base das lajes definida e alterada na janela da laje e por comando; malha de discretização pela opção `malha` (R7d) |
-| K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | V | As por metro (máximo por laje e direção) na tabela e no detalhamento; sem mapa [V4] |
+| K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Parcial | V | As por metro (máximo por laje e direção) na tabela e no detalhamento; mapa de `AsInf` e `AsSup` (envoltória das duas direções) e por direção em `resultados/isovalores.ts`; interface nos cartões V4 [V4] |
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Parcial | V | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (cartões V3); falta abrir pelo clique no nó da vista 3D [V3] |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
 | K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado (radier/FU6 não incluído); tabela na aba Deslocamentos (cartões V3) [V3] |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Parcial | E | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); nervuras com as nervuradas (E3d) [N2d] |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Feito | — | `igualarPosicoes`/`maximosDe` (lajesEdicao.ts): φ, espaçamento e comprimento da posição de maior taxa e o maior comprimento; edição de n, φ, espaçamento, comprimento e ganchos por posição (`laje.barras`), bloqueada e verificada no recálculo (ARM_BLOQ, BLOQ_IGNORADO) (R7e) |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |
-| K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Falta | V | isovalores e isolinhas [V4] |
+| K1.11.24 | Isovalores e isolinhas de esforços, deslocamentos e taxas. | Parcial | V | `resultados/bandas.ts` e `isovalores.ts` (campos, bandas, isolinhas, legenda, SVG, DXF e CSV); interface nos cartões V4 [V4] |
 | K1.11.25 | Linhas de dobra/emenda introduzidas antes do cálculo respeitam comprimentos mínimos; depois do cálculo, emendas construtivas de 30 cm sem recálculo. | Feito | — | linhas de dobra centram a emenda por traspasse da inferior (`detalharLaje`, `gerarMalha`) e o mínimo em % do vão dos negativos usa o vão até a linha seguinte; depois do cálculo, `laje.barras` com `emendar` corta a barra com traspasse de 30 cm (opção `lajeEmendaConstrutiva`) sem recalcular (R7e) |
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Feito | — | `laje.barras` com `refazer`: descarta edição e geração sem cálculo e refaz com os esforços da análise, mantendo `zonasLaje` e `linhasDobra` (R7e) |
 | | **Pilares** | | | |
@@ -580,7 +580,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.39 | Fatores de ampliação por combinação e fator resultante da ação horizontal; relatório. | Feito | — | ampliação por direção (0,95·γz) na aba Análise e no memorial |
 | K1.11.40 | Forças de vento X e Y por pavimento. | Feito | — | forças de vento por pavimento (aba Análise) |
 | K1.11.41 | Sismo: períodos por modo, coeficientes de participação de massa por direção e coeficiente sísmico do espectro de deslocamentos. | Fora | — | sismo |
-| K1.11.42 | Isovalores de deslocamentos, esforços e taxas (cm²/m) em maciças e nervuradas por grupo. | Falta | V | isovalores de lajes [V4] |
+| K1.11.42 | Isovalores de deslocamentos, esforços e taxas (cm²/m) em maciças e nervuradas por grupo. | Parcial | V | `campoDoPavimento` (maciças com Wood-Armer; demais lajes só momentos e cortantes das barras); nervuradas e cogumelo dependem da E3c e E3d; interface nos cartões V4 [V4] |
 | K1.11.43 | Deformada 3D por caso e combinação, com animação. | Parcial | V | núcleo da deformada 3D por caso e combinação, com animação (`resultados/deformada.ts`, `deformadaCena.ts`); interface nos cartões V3 [V3] |
 | | **1.11.2 Relatórios (págs. 73–75)** | | | |
 | K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Parcial | E | `listagemGeral` (`relatorios.ts`) e seção "Listagem geral" do memorial: obra, materiais, pavimentos, grupos, coordenadas (ponto fixo e centro), dimensões, vínculos e engaste dos pilares, pesos próprio/permanente/variável por laje (R7g); faltam pilares-parede (E1b); sismo fora |
