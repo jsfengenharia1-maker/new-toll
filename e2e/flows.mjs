@@ -5852,4 +5852,70 @@ export const flows = [
       await page.keyboard.press('Escape');
     },
   },
+  {
+    name: 'L6: cotas temporárias editáveis, desfazer, série de cotas com Tab e Esc e fixar a cota',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      await cmd('lote {"comandos": [' + [0, 5, 10].map((x) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": 0, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 3, null);
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await reenquadrarAte(page, [[0, -3], [10, 3]]);
+      const solta = () => page.evaluate(() => document.activeElement?.blur?.());
+      const clicar = async (x, y, dx = 0) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx + dx, sy); };
+
+      // 1) selecionar o pilar do meio mostra as cotas temporárias; clicar no valor, digitar 450 e Enter move o selecionado
+      await clicar(5, 0);
+      await solta();
+      await clicar(7.5, 0);
+      const campo = page.getByLabel('Valor da cota (cm)', { exact: true });
+      await campo.waitFor();
+      assert.equal(await campo.inputValue(), '470');
+      await campo.fill('450');
+      await campo.press('Enter');
+      await esperar(() => Math.abs(JSON.parse(localStorage.getItem('statikos:building')).building.pilares[1].x - 5.2) < 1e-6, null);
+      assert.equal((await modelo()).pilares[2].x, 10);
+      // um desfazer restaura
+      await solta();
+      await page.keyboard.press('Control+z');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.pilares[1].x === 5, null);
+
+      // 2) fixar: a marca + ao lado do valor cria a cota permanente de 470 cm
+      await clicar(5, 0);
+      await solta();
+      await clicar(7.5, 0, 24);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.cotas?.length === 1, null);
+      assert.equal((await modelo()).cotas[0].refs.length, 2);
+
+      // 3) série: D com Medir ativa alterna para Cota em série; Tab troca face e eixo; Enter fecha; clique posiciona a linha
+      await solta();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('d');
+      await page.keyboard.press('d');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'cota');
+      await clicar(0, 0);
+      await clicar(5, 0);
+      await clicar(10, 0);
+      await page.keyboard.press('Tab');
+      await page.locator('.statusbar .msg', { hasText: 'eixos e centros' }).waitFor();
+      await page.keyboard.press('Tab');
+      await page.locator('.statusbar .msg', { hasText: 'faces' }).waitFor();
+      await page.keyboard.press('Enter');
+      await clicar(5, -2);
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.cotas?.length === 2, null);
+      const serie = (await modelo()).cotas[1];
+      assert.equal(serie.refs.length, 4);
+      assert.equal(serie.linha.offset, -2);
+      // Esc termina a ferramenta
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('canvas.int').getAttribute('data-ferramenta'), 'selecionar');
+      // desfazer da cota criada: um passo
+      await page.keyboard.press('Control+z');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.cotas?.length === 1, null);
+    },
+  },
 ];

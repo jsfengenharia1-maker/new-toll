@@ -43,6 +43,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
     { id: 'a:desfazer', tipo: 'Ação', rotulo: 'Desfazer', detalhe: 'Ctrl+Z', repetivel: true, executar: ctx.desfazer },
     { id: 'a:refazer', tipo: 'Ação', rotulo: 'Refazer', detalhe: 'Ctrl+Y', repetivel: true, executar: ctx.refazer },
     { id: 'a:limpar', tipo: 'Ação', rotulo: 'Limpar a seleção', repetivel: true, executar: () => usePlanta.getState().set({ selecao: new Set() }) },
+    { id: 'a:cotas-temp', tipo: 'Ação', rotulo: 'Cotas temporárias: ligar ou desligar', detalhe: pl.cotasTemp ? 'ligadas' : 'desligadas', repetivel: true, executar: () => usePlanta.getState().set({ cotasTemp: !usePlanta.getState().cotasTemp }) },
     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
     { id: 'a:inclinadas', tipo: 'Ação', rotulo: 'Vigas inclinadas', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useInclinadasUI.getState().abrir() },
     { id: 'a:diagonais', tipo: 'Ação', rotulo: 'Diagonais de contraventamento', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useDiagonaisUI.getState().abrir() },

@@ -404,7 +404,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `cotas.test.ts`: (sem exports)
   - usado por: -
 - `cotas.ts`: TOL_COTA, dirCota, normalCota, offsetDoPonto, chaveElem, existeElem, nomeElem, rotuloCota, resolverRef, TrechoCota, trechosCota, textoCota, GeometriaCota, geometriaCota, temCotas, sincronizarCotas, Movimento, ErroMovimento, PlanoMovimento, planejarMovimento, comandosDoMovimento, PlanoValor, planejarValor
-  - usado por: core/building/cotas.test.ts, core/commands/cotas.ts, core/commands/registry.ts, core/geom/cotasTemp.ts, core/sheets/prancha.ts
+  - usado por: app/edificio/Planta.tsx, core/building/cotas.test.ts, core/commands/cotas.ts, core/commands/registry.ts, core/geom/cotasTemp.ts, core/sheets/prancha.ts
 - `curvas.test.ts`: (sem exports)
   - usado por: -
 - `curvas.ts`: CORDA_PADRAO, CirculoArco, arcoPor3, FRACAO_PONTA, numeroDeCordas, passosDoArco, pontosDoArco, discretizarArco, circuloDoArco, arcoValido, ehCurva, temCurvas, dadosDosArcos, comprimentoDesenvolvido, controleDaViga, montarPoligonal, sincronizarCurvas, pontoNaAbscissa, cortarPoligonal, juntarPoligonais, inverterPoligonal, decomporPoligonal, PlanoInclinado, planoPor3Pontos, ajustarAoPlano, LinhaVigaCurva, resumoVigasCurvas
@@ -848,7 +848,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `cadeias.ts`: Pt, CadeiaL, simplificarCadeia, cadeiasDe, retanguloDe, paresParalelos
   - usado por: core/building/lancamentoDxf.test.ts, core/building/lancamentoDxf.ts
 - `cotasTemp.ts`: MAX_COTAS_TEMP, MAX_CANDIDATOS, ModoRef, PadraoRefTemp, PADRAO_REF_TEMP, RefTemp, alternarModo, chavePar, IndiceCotasTemp, indiceCotasTemp, CotaTemp, cotasTemporarias, deltaDaCotaTemp, paramsMoverCotaTemp, paramsFixarCotaTemp, rotuloCotaTemp
-  - usado por: core/building/cotas.test.ts
+  - usado por: app/edificio/Planta.tsx, app/edificio/plantaStore.ts, core/building/cotas.test.ts
 - `faces.test.ts`: (sem exports)
   - usado por: -
 - `faces.ts`: P, OpcoesFaces, areaPoligono, dentroPoligono, pontoInterno, faces

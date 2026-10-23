@@ -34,6 +34,9 @@ import type { PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
 import { Input, useAjuda } from '../ui';
+import type { ElemCota } from '../../core/building/types';
+import { alternarModo, chavePar, cotasTemporarias, indiceCotasTemp, PADRAO_REF_TEMP, paramsFixarCotaTemp, paramsMoverCotaTemp, type CotaTemp, type ModoRef } from '../../core/geom/cotasTemp';
+import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/cotas';
 import { ajudaDaFerramenta } from '../../core/ajuda';
 import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
 
@@ -136,7 +139,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
@@ -163,6 +166,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   cargaLaje: ['Clique numa laje (destacada): lança a carga de superfície do painel Ferramentas de lançamento.'],
   cargaViga: ['Clique numa viga para lançar a carga linear ao longo dela, ou clique em dois cantos para uma janela de captura.', 'Segundo canto da janela: as vigas inteiramente dentro dela recebem a carga.'],
   direcaoPano: ['Clique no pano cuja direção mudar.', 'Clique numa viga (paralela ou perpendicular, conforme o painel) ou, no modo de dois pontos, no primeiro ponto.', 'Segundo ponto da direção.'],
+  cota: ['Clique em pilares, vigas ou paredes (ou em pontos livres) para acrescentar referências à série; Tab alterna face e eixo; Backspace tira a última; Enter fecha a série.', 'Clique onde posicionar a linha de cota (um número digitado dá a distância em cm da primeira referência). Esc termina.'],
   insercaoPano: ['Clique no pano.', 'Clique perto do vértice que será o ponto de inserção do pano.'],
   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
@@ -210,8 +214,12 @@ export function Planta() {
   const statusRef = useRef<HTMLSpanElement>(null);
   const [tam, setTam] = useState<[number, number]>([800, 500]);
   const [digitando, setDigitando] = useState<string | null>(null);
+  /** Campo de edição do valor de uma cota (L6): posição na tela, texto em cm e a ação que aplica o valor (m). */
+  const [cotaEd, setCotaEd] = useState<{ x: number; y: number; texto: string; aplicar: (m: number) => void } | null>(null);
   const [posDig, setPosDig] = useState<P2>([0, 0]);
   const [pontos, setPontosEstado] = useState<P2[]>([]);
+  /** Série da ferramenta Cota (L6): referências escolhidas, se já pede a linha e o modo (face ou eixo) das próximas. */
+  const cotaSerie = useRef<{ refs: { elem?: ElemCota; ponto: P2 }[]; linha: boolean; modo: ModoRef }>({ refs: [], linha: false, modo: 'face' });
   // espelho síncrono dos vértices em lançamento: cliques e Enter em sequência rápida chegam antes da nova renderização e leriam o estado antigo
   const pontosRef = useRef<P2[]>([]);
   const setPontos = (v: P2[]) => { pontosRef.current = v; setPontosEstado(v); };
@@ -221,6 +229,8 @@ export function Planta() {
     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
     baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, lajeAb: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
+    /** Zonas clicáveis das cotas (valor, pés e marcas) refeitas a cada desenho (L6). */
+    zonas: [] as { x: number; y: number; r: number; acao: () => void; pe?: boolean }[],
   });
 
   // ---- dados derivados ----
@@ -893,10 +903,61 @@ export function Planta() {
     ctx.fillText(c.tipo + (it.current.caps.length > 1 ? `  (Tab: ${it.current.ciclo % it.current.caps.length + 1}/${it.current.caps.length})` : ''), x + 10, y - 9);
   };
 
+  /** Cotas permanentes do pavimento (L6): chamadas, linha, marcas e valor em cm. */
+  const desenharCotasPermanentes = (ctx: CanvasRenderingContext2D) => {
+    if (nivelFund) return;
+    ctx.lineWidth = 1; ctx.strokeStyle = cores.cota; ctx.fillStyle = cores.cota; ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for (const c of b.cotas ?? []) {
+      if (c.grupo !== grupo) continue;
+      const g = geometriaCota(b, c, 0.05);
+      ctx.beginPath();
+      for (const [a, z] of [...g.chamadas, ...g.linhas]) { const [x0, y0] = paraTela(a[0], a[1]), [x1, y1] = paraTela(z[0], z[1]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
+      for (const q of g.marcas) { const [x, y] = paraTela(q[0], q[1]); ctx.moveTo(x - 4, y + 4); ctx.lineTo(x + 4, y - 4); }
+      ctx.stroke();
+      g.textos.forEach((t, i) => {
+        const [x, y] = paraTela(t.p[0], t.p[1]);
+        ctx.save(); ctx.translate(x, y - 2); ctx.rotate((-t.ang * Math.PI) / 180); ctx.fillText(t.s, 0, 0); ctx.restore();
+        if (pl.ferramenta !== 'selecionar') return;
+        // clique no valor edita (move o elemento da referência final); o quadrado ao lado trava e destrava
+        it.current.zonas.push({ x, y: y - 6, r: 14, acao: () => setCotaEd({ x, y, texto: t.s, aplicar: (m) => { exec('cota.valor', { id: c.id, indice: i, valor: m }); } }) });
+        if (i === 0) { ctx.fillText(c.travada ? '▣' : '▢', x + 22, y - 2); it.current.zonas.push({ x: x + 22, y: y - 6, r: 8, acao: () => { exec('cota.travar', { id: c.id, travada: !c.travada }); } }); }
+      });
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  };
+
+  /** Cotas temporárias da seleção (L6): linha até o vizinho, valor editável, pés que trocam face e eixo e marca que fixa. */
+  const desenharCotasTemporarias = (ctx: CanvasRenderingContext2D) => {
+    ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = 1;
+    for (const c of cotasT) {
+      const [x0, y0] = paraTela(c.a[0], c.a[1]), [x1, y1] = paraTela(c.z[0], c.z[1]), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      ctx.strokeStyle = c.editavel ? cores.captura : cores.guia; ctx.fillStyle = ctx.strokeStyle; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+      for (const [px, py] of [[x0, y0], [x1, y1]]) ctx.fillRect(px - 3, py - 3, 6, 6);
+      const txt = String(Math.round(c.valor * 100));
+      ctx.fillText(txt, mx, my - 6);
+      if (!c.editavel) continue;
+      it.current.zonas.push({ x: mx, y: my - 10, r: 16, acao: () => setCotaEd({ x: mx, y: my, texto: txt, aplicar: (m) => { exec('cota.mover', paramsMoverCotaTemp(c, m)); } }) });
+      const trocar = (lado: 'sel' | 'viz') => {
+        if (!c.vizinho || elemsSel.length !== 1) return;
+        const P = usePlanta.getState(), k = chavePar(c.alvo, c.vizinho), ant = P.refTemp[k] ?? {};
+        P.set({ refTemp: { ...P.refTemp, [k]: { ...ant, [lado]: alternarModo(lado === 'sel' ? c.modoSel : c.modoViz) } } });
+      };
+      it.current.zonas.push({ x: x0, y: y0, r: 7, pe: true, acao: () => trocar('sel') });
+      if (c.vizinho?.tipo !== 'eixo') it.current.zonas.push({ x: x1, y: y1, r: 7, pe: true, acao: () => trocar('viz') });
+      const par = paramsFixarCotaTemp(grupo, c);
+      if (par) { ctx.fillText('+', mx + 24, my - 6); it.current.zonas.push({ x: mx + 24, y: my - 8, r: 11, acao: () => { exec('cota.criar', par); } }); }
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  };
+
   const desenharInteracao = () => {
     const v = vista, ctx = prep(cvI.current);
     if (!v || !ctx) return;
     ctx.clearRect(0, 0, tam[0], tam[1]);
+    it.current.zonas = [];
+    desenharCotasPermanentes(ctx);
+    desenharCotasTemporarias(ctx);
     const s = it.current, [px, py] = paraTela(...s.ponto);
     // janela de seleção
     if (s.janela) {
@@ -1180,6 +1241,61 @@ export function Planta() {
     return pil ? { id, nome: el?.nome ?? pil.p.nome, centro: centroPilar(pil.p, secaoBase(b, pil.p)) as P2 } : null;
   };
 
+  // cotas temporárias (L6): elementos selecionados e as cotas até os vizinhos mais próximos
+  const elemsSel = useMemo<ElemCota[]>(() => (nivelFund ? [] : [...pl.selecao].flatMap((id): ElemCota[] => (b.pilares.some((x) => x.id === id) ? [{ tipo: 'pilar', id }] : b.vigas.some((x) => x.id === id) ? [{ tipo: 'viga', id }] : b.paredes?.some((x) => x.id === id) ? [{ tipo: 'parede', id }] : []))), [pl.selecao, b, nivelFund]);
+  const indTemp = useMemo(() => (grupo && !nivelFund ? indiceCotasTemp(b, grupo) : null), [b, grupo, nivelFund]);
+  const cotasT = useMemo<CotaTemp[]>(() => (pl.cotasTemp && pl.ferramenta === 'selecionar' && indTemp && elemsSel.length ? cotasTemporarias(b, indTemp, elemsSel, PADRAO_REF_TEMP, pl.refTemp) : []), [pl.cotasTemp, pl.ferramenta, pl.refTemp, indTemp, elemsSel, b]);
+
+  // ---- cota em série (L6) ----
+  /** Elemento da planta sob o ponto para a cota: pilar, viga ou parede (null = ponto livre). */
+  const elemCotaSob = (w: P2): ElemCota | null => {
+    const q = pilarSob(w);
+    if (q && q.estado !== 'inferior') return { tipo: 'pilar', id: q.p.id };
+    const v = vigaSob(w);
+    if (v) return { tipo: 'viga', id: v.id };
+    const pp = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(w, l.contorno)));
+    return pp && paredeDoPP(b, pp.pp) ? { tipo: 'parede', id: pp.pp.id } : null;
+  };
+  const agirCota = (p: P2) => {
+    if (nivelFund || !pav) { msg('A cota em série é lançada nas plantas dos pavimentos.'); return; }
+    const S = cotaSerie.current;
+    if (S.linha) { finalizarCota(p); return; }
+    const elem = elemCotaSob(it.current.cursor) ?? undefined;
+    const ponto = (elem && resolverRef(b, grupo, { elem, parte: 'centro' }, 0)) || p;
+    const ult = S.refs.at(-1);
+    if (ult && (elem ? ult.elem?.id === elem.id : Math.hypot(ult.ponto[0] - ponto[0], ult.ponto[1] - ponto[1]) < 1e-6)) return;
+    S.refs.push({ elem, ponto: ponto as P2 });
+    setPontos(S.refs.map((r) => r.ponto));
+    msg(`${S.refs.length} referência(s) (${S.modo === 'face' ? 'faces' : 'eixos'}). Enter fecha a série; Tab troca face e eixo; Backspace tira a última.`);
+  };
+  /** Enter/duplo clique: fecha a série e passa a pedir a linha de cota. */
+  const fecharSerie = () => {
+    const S = cotaSerie.current;
+    if (S.refs.length < 2) { msg('Cota em série: ao menos 2 referências.'); return; }
+    S.linha = true;
+    msg('Clique onde posicionar a linha de cota (ou digite a distância em cm da primeira referência).');
+  };
+  /** Cria a cota permanente: `p` = ponto da linha ou `distancia` (m) da primeira referência pela normal. */
+  const finalizarCota = (p: P2 | null, distancia = 0) => {
+    const S = cotaSerie.current;
+    const pts = S.refs.map((r) => r.ponto);
+    const dx = pts.at(-1)![0] - pts[0][0], dy = pts.at(-1)![1] - pts[0][1];
+    const angulo = Math.abs(dx) >= Math.abs(dy) ? 0 : 90, u = angulo ? [0, 1] : [1, 0];
+    const ordem = [...S.refs].sort((a, z) => a.ponto[0] * u[0] + a.ponto[1] * u[1] - (z.ponto[0] * u[0] + z.ponto[1] * u[1]));
+    const refs: Record<string, unknown>[] = [];
+    ordem.forEach((r, i) => {
+      if (!r.elem) { refs.push({ fixo: [+r.ponto[0].toFixed(4), +r.ponto[1].toFixed(4)], parte: 'centro' }); return; }
+      if (S.modo === 'eixo') { refs.push({ elem: r.elem, parte: 'centro' }); return; }
+      if (i === 0) refs.push({ elem: r.elem, parte: 'faceB' });
+      else if (i === ordem.length - 1) refs.push({ elem: r.elem, parte: 'faceA' });
+      else refs.push({ elem: r.elem, parte: 'faceA' }, { elem: r.elem, parte: 'faceB' });
+    });
+    const offset = p ? offsetDoPonto(angulo, p) : offsetDoPonto(angulo, ordem[0].ponto) + distancia;
+    cotaSerie.current = { refs: [], linha: false, modo: S.modo };
+    setPontos([]);
+    exec('cota.criar', { grupo, refs, linha: { angulo, offset: +offset.toFixed(4) } });
+  };
+
   // ---- ações das ferramentas ----
   const selecionados = () => ({ corridas: corridasP.filter((x) => pl.selecao.has(x.c.id)).map((x) => x.c.id), radiers: radiers.filter((r) => pl.selecao.has(r.id)).map((r) => r.id), vigasEl: vigasEl.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), limites: limites.filter((l) => pl.selecao.has(l.id)).map((l) => l.id), vigasFund: vigasFund.filter((x) => pl.selecao.has(x.v.id)).map((x) => x.v.id), fundacoes: fund.filter((f) => pl.selecao.has(f.el.id)).map((f) => f.el.id), pilares: b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id), eixos: b.eixos.filter((e) => pl.selecao.has(e.id)).map((e) => e.id), vigas: vigas.filter(({ v }) => pl.selecao.has(v.id)).map(({ v }) => v.id), lajes: lajes.filter(({ l }) => pl.selecao.has(l.id)).map(({ l }) => l.id), cargas: cargas.filter((c) => pl.selecao.has(c.id)).map((c) => c.id) });
   const agir = (p: P2) => {
@@ -1193,6 +1309,7 @@ export function Planta() {
       return;
     }
     if (f === 'selecionar') return;
+    if (f === 'cota') { agirCota(p); return; }
     if (f === 'vigaGabarito') {
       // L2 (C6.63): clique na linha, arco ou polilinha do gabarito; no modo face, o 2º clique diz o lado do corpo da viga
       if (nivelFund) { msg('A viga pelo gabarito é lançada nas plantas dos pavimentos.'); return; }
@@ -1623,6 +1740,12 @@ export function Planta() {
     if (e.button === 1 || (e.button === 0 && it.current.espaco)) { it.current.pan = { x: sx, y: sy, v: { ...vista! } }; return; }
     if (e.button === 2) { if (POLILINHAS.includes(pl.ferramenta)) terminar(); else setPontos([]); return; }
     if (e.button !== 0) return;
+    if (pl.ferramenta === 'selecionar') {
+      // o pé da cota só vale fora do elemento selecionado (clicar no próprio elemento continua selecionando)
+      const sob = elemCotaSob(paraMundo(sx, sy));
+      const zona = it.current.zonas.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r && !(q.pe && sob && pl.selecao.has(sob.id)));
+      if (zona) { zona.acao(); return; }
+    }
     capturar(sx, sy);
     if (pl.ferramenta === 'selecionar') { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
     agir(it.current.ponto);
@@ -1677,6 +1800,7 @@ export function Planta() {
       if (k === ' ') { it.current.espaco = e.type === 'keydown'; e.preventDefault(); return; }
       if (e.type !== 'keydown') return;
       if (espera && /^[\d@\-+.,;<]$/.test(k)) { setPosDig([...it.current.tela]); setDigitando(k); e.preventDefault(); return; }
+      if (k === 'Enter' && P.ferramenta === 'cota') { fecharSerie(); return; }
       if (k === 'Enter' && POLILINHAS.includes(P.ferramenta)) { terminar(); return; }
       if (k === 'Enter' && P.ferramenta === 'contornoRet' && pontos.length === 2) { // L5: cantos opostos, ângulo zero
         setPontos([]);
@@ -1693,11 +1817,14 @@ export function Planta() {
       }
       if (P.ferramenta === 'viga' && k.toLowerCase() === 'r') { P.set({ curvaViga: !P.curvaViga, passagemViga: null }); msg(P.curvaViga ? 'Próximo trecho da viga: reto.' : 'Próximo trecho da viga: curvo (passagem e fim do arco).'); return; }
       if (P.ferramenta === 'viga' && k.toLowerCase() === 'a') { const o = ['centro', 'esq', 'dir'] as const; P.set({ alinhamento: o[(o.indexOf(P.alinhamento) + 1) % 3] }); msg(`Alinhamento: ${({ centro: 'eixo', esq: 'face esquerda', dir: 'face direita' })[o[(o.indexOf(P.alinhamento) + 1) % 3]]}.`); return; }
+      // D com a ferramenta Medir ativa alterna para a Cota em série (e de volta)
+      if (k.toLowerCase() === 'd' && (P.ferramenta === 'medir' || P.ferramenta === 'cota')) { const nova: Ferramenta = P.ferramenta === 'medir' ? 'cota' : 'medir'; P.set({ ferramenta: nova }); cotaSerie.current = { refs: [], linha: false, modo: 'face' }; setPontos([]); msg(`${ROTULO_FERRAMENTA[nova]} (D alterna Medir e Cota em série).`); return; }
       const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao', b: 'vigaFund', k: 'girarFund', n: 'insFund', t: 'limite', q: 'limiteMascara', w: 'radier', x: 'vigaElastica', i: 'dividir', j: 'unir', o: 'prolongar', y: 'copiar', g: 'girar', h: 'espelhar', z: 'puncao' };
       // A é a tecla da sapata corrida só no nível de fundação e fora das ferramentas em que A já é outra coisa (alinhamento da viga, ajuste do pilar)
       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
-      if (k === 'Escape') { P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
+      if (k === 'Escape') { cotaSerie.current = { refs: [], linha: false, modo: cotaSerie.current.modo }; P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
+      if (k === 'Tab' && P.ferramenta === 'cota') { e.preventDefault(); const S = cotaSerie.current; S.modo = S.modo === 'face' ? 'eixo' : 'face'; msg(`Referência da série: ${S.modo === 'face' ? 'faces' : 'eixos e centros'}.`); return; }
       if (k === 'Tab') { e.preventDefault(); const s = it.current; s.ciclo++; s.cap = s.caps.length ? s.caps[s.ciclo % s.caps.length] : null; if (s.cap) s.ponto = [s.cap.x, s.cap.y]; desenharInteracao(); return; }
       if (k === 'F8') { e.preventDefault(); P.set({ orto: !P.orto }); msg(`Ortogonal ${P.orto ? 'desligado' : 'ligado'}.`); return; }
       if (k === 'F3') {
@@ -1714,6 +1841,7 @@ export function Planta() {
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'r') { P.set({ angulo: (P.angulo + 90) % 360 }); return; }
       if (P.pavimento === 'fundacao' && k.toLowerCase() === 'r') { const sel = selecionados().fundacoes; if (sel.length) { exec('lote', { comandos: sel.map((id) => ({ nome: 'fundacao.girar', params: { ids: [id], angulo: (b.fundacao?.elementos.find((e) => e.id === id)?.angulo ?? 0) + 90 } })) }); return; } }
       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
+      if (k === 'Backspace' && P.ferramenta === 'cota' && cotaSerie.current.refs.length && !cotaSerie.current.linha) { e.preventDefault(); cotaSerie.current.refs.pop(); setPontos(cotaSerie.current.refs.map((r) => r.ponto)); return; }
       if (k === 'Backspace' && P.ferramenta === 'viga' && pontos.length) {
         // L5 (C6.6): Backspace apaga o último ponto da sequência de pontos da viga
         e.preventDefault();
@@ -1737,6 +1865,12 @@ export function Planta() {
   });
 
   const confirmarDigitado = () => {
+    if (pl.ferramenta === 'cota' && cotaSerie.current.linha) {
+      const v = Number((digitando ?? '').replace(',', '.'));
+      setDigitando(null);
+      if (Number.isFinite(v)) finalizarCota(null, v / 100); else msg('Digite a distância da linha em cm.');
+      return;
+    }
     // com um pilar de baixo sob o cursor, "@dx;dy" sem ponto anterior é relativo ao ponto fixo dele (E1a)
     const qb = it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) : null;
     const p = pontoDigitado(digitando ?? '', pontos.at(-1) ?? (pl.ferramenta === 'pilar' && qb ? [refBaixo(qb.p).x, refBaixo(qb.p).y] : null), it.current.cursor);
@@ -1755,10 +1889,20 @@ export function Planta() {
         <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => {
-            if (POLILINHAS.includes(pl.ferramenta)) terminar(pl.ferramenta === 'viga' && usePlanta.getState().passagemViga ? pontosRef.current : pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
+            if (pl.ferramenta === 'cota') fecharSerie();
+            else if (POLILINHAS.includes(pl.ferramenta)) terminar(pl.ferramenta === 'viga' && usePlanta.getState().passagemViga ? pontosRef.current : pontosRef.current.slice(0, -1).length >= 2 ? pontosRef.current.slice(0, -1) : pontosRef.current);
             else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
           }} />
+        {cotaEd && (
+          <Input className="digita" autoFocus aria-label="Valor da cota (cm)" style={{ left: cotaEd.x + 12, top: cotaEd.y + 8 }} value={cotaEd.texto}
+            onChange={(e) => setCotaEd({ ...cotaEd, texto: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { const v = Number(cotaEd.texto.replace(',', '.')); const f = cotaEd.aplicar; setCotaEd(null); if (Number.isFinite(v) && v >= 0) f(v / 100); else msg('Valor da cota inválido.'); }
+              if (e.key === 'Escape') setCotaEd(null);
+              e.stopPropagation();
+            }} onBlur={() => setCotaEd(null)} />
+        )}
         {digitando !== null && (
           <Input className="digita" autoFocus aria-label="Valor digitado" style={{ left: posDig[0] + 16, top: posDig[1] + 12 }} value={digitando}
             onChange={(e) => setDigitando(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirmarDigitado(); if (e.key === 'Escape') setDigitando(null); e.stopPropagation(); }} onBlur={() => setDigitando(null)} />
