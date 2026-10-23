@@ -31,3 +31,26 @@ Decisão do usuário, 23/10/2026. Todo briefing cita este arquivo; o agente o l�
 - e2e com `{ exact: true }`, exceto NumField/Select (regex ancorada no início).
 - Cada cartão compila sozinho, na ordem. Sem botões novos acima do canvas/barra da planta.
 - Premissas: CYPECAD onde define, NBR 6118 onde não; material normativo não verificável em `docs/pendencias-usuario.md`.
+
+## Bloqueio automático (gancho do projeto)
+`.claude/hooks/limitar-leitura.mjs` (PreToolUse em Read e Bash) recusa Read sem `limit` (ou com `limit` > 800) de arquivo acima de 60 KB e `cat/less/more` de arquivo grande sem pipe. A mensagem de recusa indica a alternativa; nenhum conteúdo fica inacessível. Erro no próprio gancho libera a chamada.
+
+## Tipos de agente (`.claude/agents/`)
+- `verificador` (Haiku): roda tsc/vitest/build/e2e e devolve só exit, contagens e falhas; nunca edita. O gate final do orquestrador antes do merge continua sendo executado por ele mesmo, conferindo exit e contagens.
+- `cartao` (Haiku): executa cartões; não cria cálculo; para após duas falhas e nunca altera valor esperado de teste para passar.
+- `nucleo` (Sonnet): núcleo + cartões. Opus continua sendo chamado com o tipo geral para cálculo novo.
+
+## Acoplamento
+Mudanças acopladas (função de cálculo, testes e comando da mesma função) ficam no mesmo agente; paralelismo só entre cartões/fatias independentes (arquivos distintos).
+
+## NOTAS.md e relatório
+Cada agente mantém `NOTAS.md` na raiz do worktree (plano, decisões, ponto atual; não commitar). Relatório final, uma vez, neste formato:
+```
+branch: <nome> | commits: <n> (<hashes curtos>)
+arquivos: <lista curta>
+verificação: tsc exit=<n> | vitest passou=<n> falhou=<n> | build exit=<n> | e2e passou=<n>/<total> (ou "não tocou interface")
+itens: <ids Feito> | parciais: <ids>
+a confirmar: <lista ou "nenhum">
+pendências normativas: <lista ou "nenhuma">
+desvios do briefing/cartões: <lista ou "nenhum">
+```

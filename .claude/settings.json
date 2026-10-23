@@ -1,10 +1,27 @@
 {
   "extraKnownMarketplaces": {
     "ecc": {
-      "source": { "source": "github", "repo": "affaan-m/ECC" }
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/ECC"
+      }
     }
   },
   "enabledPlugins": {
     "ecc@ecc": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/limitar-leitura.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
