@@ -23,6 +23,7 @@ import './paredes';
 import './paredesArmadura';
 import './alvenaria';
 import './cortes';
+import './grupos';
 
 export * from './registry';
 export { PARAMS_FUNDACAO } from './fundacao';

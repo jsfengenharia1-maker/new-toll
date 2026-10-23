@@ -2,6 +2,7 @@
 // do modelo, e folha, carimbo e quadro de pilares no espaço do papel (mm). Os escritores (PDF, DXF, DWG, SVG)
 // recebem a mesma prancha.
 import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
+import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { TRELICADAS } from '../building/lajes';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
@@ -264,7 +265,8 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
   for (const l of el.lajes) {
     const pi = pontoInterno(l.contorno);
     const tipo = l.tipo.tipo === 'macica' ? `h=${cm(l.tipo.h)}` : `TR ${l.tipo.modelo}+${cm(l.tipo.capa)} (h=${cm((TRELICADAS[l.tipo.modelo] ?? TRELICADAS.H12).hEnch + l.tipo.capa)})`;
-    modelo.push({ t: 'txt', c: 'LAJE', p: pi, h: 3 * k, s: l.nome, ah: 'c', av: 'base' }, { t: 'txt', c: 'LAJE', p: [pi[0], pi[1] - 1.5 * k], h: 2.2 * k, s: tipo, ah: 'c', av: 'topo' });
+    const pr = pontoRef(b, l.id, pi), rl = refDe(b, l.id)?.rot;
+    modelo.push({ t: 'txt', c: 'LAJE', p: pr, h: 3 * k, s: l.nome, ah: 'c', av: 'base', ...(rl ? { ang: rl } : {}) }, { t: 'txt', c: 'LAJE', p: [pr[0], pr[1] - 1.5 * k], h: 2.2 * k, s: tipo, ah: 'c', av: 'topo', ...(rl ? { ang: rl } : {}) });
     for (const f of l.furos ?? []) {
       modelo.push({ t: 'pl', c: 'LAJE', pts: f, fechada: true });
       const [a0, b0, a1, b1] = caixa(f);
@@ -292,12 +294,13 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     const inv = ang > 90.01 || ang < -89.99;
     if (inv) ang += ang > 0 ? -180 : 180;
     const off = 1.2 * k;
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [a[0] + ux * tm + nx * off, a[1] + uy * tm + ny * off], h: 2.5 * k, s: `${v.nome} ${cm(v.secao.b)}×${cm(v.secao.h)}`, ang, ah: 'c', av: inv ? 'topo' : 'base' });
+    modelo.push({ t: 'txt', c: 'TEXTO', p: pontoRef(b, v.id, [a[0] + ux * tm + nx * off, a[1] + uy * tm + ny * off]), h: 2.5 * k, s: `${v.nome} ${cm(v.secao.b)}×${cm(v.secao.h)}`, ang: ang + (refDe(b, v.id)?.rot ?? 0), ah: 'c', av: inv ? 'topo' : 'base' });
   }
   const rotPilar = (p: Pilar, s: SecaoPilar, c: P[]) => {
     const [, , x1, y1] = caixa(c);
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base' });
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo' });
+    const [rx, ry] = pontoRef(b, p.id, [x1, y1]), rr = refDe(b, p.id)?.rot;
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base', ...(rr ? { ang: rr } : {}) });
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo', ...(rr ? { ang: rr } : {}) });
   };
   for (const p of el.chegam) {
     const s = secaoNoLance(p, ref!.id), c = contornoPilar(p, s);

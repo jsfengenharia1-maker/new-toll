@@ -9,10 +9,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 33 | 4 | 9 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 33 | 8 | 5 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
-| 3. Grupos e pavimentos | 41 | 28 | 8 | 2 | 3 |
-| 4. Pilares | 63 | 49 | 5 | 2 | 7 |
+| 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
+| 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
 | 6. Vigas | 108 | 33 | 10 | 40 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **73** | **201** | **185** |
+| **Total** | **763** | **304** | **80** | **194** | **185** |
 
 ## Pendências por frente
 
@@ -32,7 +32,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 164 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 22 | 17 | 39 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 29 | 10 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
 
 ## 0. Apresentação do programa
@@ -54,15 +54,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.3 | Primeira barra de ferramentas, comum a todas as abas, com opções de visualização e de gabarito. | Feito | — | barra da planta (vista, capturas, eixos, cotas, grade, unidades) |
 | C1.4 | Desfazer e refazer a última alteração nas abas de pilares, de vigas e de resultados. | Feito | — | desfazer/refazer por comando (200 passos) |
 | C1.5 | Segunda barra de ferramentas com atalhos para opções dos menus. | Feito | — | barra de ferramentas da planta com atalhos de teclado |
-| C1.6 | Barra de atalhos configurável: o usuário põe e tira botões. | Falta | L | barra configurável pelo usuário [L4] |
+| C1.6 | Barra de atalhos configurável: o usuário põe e tira botões. | Parcial | L | barra configurável pelo usuário [L4] — L4 núcleo: `ATALHOS_CATALOGO`, `normalizarBarra`, `lerBarra`/`salvarBarra` (`src/core/ajuda/atalhos.ts`); interface: `BarraAtalhos.tsx` (cartão 04) |
 | C1.7 | Cor de fundo da área de desenho à escolha entre branco, cinza e preto, para contraste com os elementos. | Feito | — | temas escuro, claro e preto e branco |
 | | **1.2 Ajuda na tela** | | | |
-| C1.8 | Ajuda contextual por tecla de função (F1): destaca os itens que têm ajuda e mostra a explicação do item clicado, inclusive de itens dentro de menus. | Falta | L | ajuda contextual (F1) por item [L4] |
-| C1.9 | Botão de ajuda na barra de título que liga o mesmo modo de ajuda, válido também para os ícones das barras. | Falta | L | modo de ajuda [L4] |
-| C1.10 | O modo de ajuda se desliga com o botão direito, com um novo clique no botão ou com Esc. | Falta | L | [L4] |
-| C1.11 | As janelas de diálogo têm botão de ajuda próprio na barra de título. | Parcial | L | dicas fixas nos painéis [L4] |
-| C1.12 | Botão de informação geral sobre o conteúdo da janela, presente em várias janelas. | Parcial | L | dicas e aba Premissas [L4] |
-| C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Parcial | L | README e docs/ia.md; sem guia rápido imprimível na interface [L4] |
+| C1.8 | Ajuda contextual por tecla de função (F1): destaca os itens que têm ajuda e mostra a explicação do item clicado, inclusive de itens dentro de menus. | Parcial | L | ajuda contextual (F1) por item [L4] — L4 núcleo: catálogo `AJUDAS` e `ajudaDe` (`src/core/ajuda/catalogo.ts`); interface: `ui/Ajuda.tsx` e `data-ajuda` (cartões 01 e 04) |
+| C1.9 | Botão de ajuda na barra de título que liga o mesmo modo de ajuda, válido também para os ícones das barras. | Parcial | L | modo de ajuda [L4] — L4: `BotaoAjuda` na barra de título (cartão 01) |
+| C1.10 | O modo de ajuda se desliga com o botão direito, com um novo clique no botão ou com Esc. | Parcial | L | [L4] — L4: `AjudaProvider` desliga com Esc, botão direito e novo clique no botão (cartão 01) |
+| C1.11 | As janelas de diálogo têm botão de ajuda próprio na barra de título. | Parcial | L | dicas fixas nos painéis [L4] — L4: `Modal` com botão de ajuda próprio (`ajuda`, cartão 01) |
+| C1.12 | Botão de informação geral sobre o conteúdo da janela, presente em várias janelas. | Parcial | L | dicas e aba Premissas [L4] — L4: `Modal` com botão de informação (`info`, cartão 01) |
+| C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Parcial | L | README e docs/ia.md; sem guia rápido imprimível na interface [L4] — L4 núcleo: `guiaRapido` (`src/core/ajuda/guia.ts`); interface: `GuiaRapido.tsx` e anexo do memorial (cartões 04 e 05) |
 | | **1.3 Criação de obra** | | | |
 | C1.14 | Obra nova com pasta, nome e descrição. | Feito | — | descrição de até 2 linhas e origem em `Obra` (`obra.definir`); obras na lista de recentes e na biblioteca (sem pastas: o navegador não as tem) [L1] |
 | C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | janela `NovaObra.tsx`: assistente, vazia, padrão, exemplo e texto; DXF/DWG chegam na L2 e IFC na L3 [L1]; modo DXF/DWG feito na L2 (`NovaObra.tsx`); IFC na L3 |
@@ -146,7 +146,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.4 | Os resultados na tela são a envoltória dos pavimentos do grupo. | Feito | — | vigas e vigotas pela envoltória dos pavimentos do grupo, armadura das lajes maciças pela envoltória do grupo (R4); resultados das lajes na janela com seletor por pavimento ou envoltória do grupo (`envoltoriaLajes` em `puncao.ts`, `Revisao.tsx`) [N2d] |
 | C3.5 | O dimensionamento é único para todos os pavimentos do grupo. | Feito | — | vigas, lajes maciças e vigotas dimensionadas uma vez pela envoltória do grupo (R3a, R4, R6); pilares por lance |
 | C3.6 | Desenho único por grupo (uma planta de formas, um desenho de vigas etc.). | Feito | — | uma prancha de formas por grupo |
-| C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre [L4] |
+| C3.7 | Regra: só é preciso separar grupos onde um elemento vertical (pilar, pilar-parede, muro) ou viga inclinada nasce ou morre. | Parcial | L | verificação avisa pilar que nasce/morre [L4] — L4 núcleo: `sugerirGrupos` (`gruposCopia.ts`, código GRUPO_QUEBRA); interface: `GruposL4.tsx` (cartão 02) |
 | C3.8 | Sem pavimentos, só existe a criação. Depois aparecem apagar pavimentos, editar pavimentos, editar grupos, unir grupos e dividir grupos. | Feito | — | pavimento criar/editar/remover/repetir; grupo criar/editar/remover/desvincular |
 | C3.9 | Novos pavimentos criados agrupados ou isolados. | Feito | — |  |
 | C3.10 | Dados dos novos pavimentos: quantidade, alturas, carga variável, carga permanente (revestimento etc.) e nome de cada pavimento. | Feito | — | cota, nome, grupo; cargas por grupo |
@@ -161,15 +161,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C3.19 | Aviso: cada categoria a mais aumenta o número de combinações e o tempo de cálculo. | Fora | — |  |
 | C3.20 | Cota do plano de fundação definida na edição de pavimentos, com reajuste automático das cotas de todos os pavimentos. | Feito | — | profundidade da fundação |
 | C3.21 | Renomear pavimentos na edição de pavimentos. | Feito | — |  |
-| C3.22 | Unir pavimentos num grupo, selecionando-os. | Parcial | L | mudar o grupo do pavimento; sem “unir grupos” em lote [L4] |
+| C3.22 | Unir pavimentos num grupo, selecionando-os. | Parcial | L | mudar o grupo do pavimento; sem “unir grupos” em lote [L4] — L4 núcleo: `pavimento.unir` e `resumoUniao`; interface: `UnirPavimentosDialogo` (cartão 02) |
 | C3.23 | Editar grupos (nome, cargas, categoria de uso), com destaque no esquema dos pavimentos selecionados. | Feito | — | grupo.editar |
 | C3.24 | Dividir um grupo, separando seus pavimentos. | Feito | — | grupo.desvincular |
-| C3.25 | Copiar para o grupo atual o conteúdo de outro grupo escolhido no esquema, com origem e destino em cores diferentes. | Parcial | L | viga.copiarParaGrupos (só vigas) [L4] |
+| C3.25 | Copiar para o grupo atual o conteúdo de outro grupo escolhido no esquema, com origem e destino em cores diferentes. | Parcial | L | viga.copiarParaGrupos (só vigas) [L4] — L4 núcleo: `grupo.copiarConteudo` (`copiarConteudoGrupo`: pilares, vigas, lajes, cargas e paredes; somar ou substituir); interface: `CopiarGrupoDialogo` com esquema de grupos (cartão 02) |
 | C3.26 | Recarregar o grupo da última gravação, perdendo as alterações posteriores, com confirmação. | Fora | — | desfazer cobre isso |
-| C3.27 | Informação de áreas do grupo: total (inclui a área de pilares e muros), vigas e lajes. | Parcial | L | área de lajes e quantitativos; sem quadro de áreas do grupo [L4] |
+| C3.27 | Informação de áreas do grupo: total (inclui a área de pilares e muros), vigas e lajes. | Parcial | L | área de lajes e quantitativos; sem quadro de áreas do grupo [L4] — L4 núcleo: `areasDoGrupo`; interface: quadro de áreas (cartão 02) e memorial (cartão 05) |
 | C3.28 | Consulta das cotas relativas e absolutas de cada pavimento. | Feito | — | cotas e pé-direito |
-| C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Falta | L | mover textos de referência na planta [L4] |
-| C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Parcial | L | camadas de exibição na planta; sem escolher tipos de texto [L4] |
+| C3.29 | Mudar posição e representação das referências (textos) dos elementos com dois cliques (texto e novo local). | Parcial | L | mover textos de referência na planta [L4] — L4 núcleo: `ref.mover`, `vista.refs`, `ancorasRef`; pranchas de formas e locação respeitam o deslocamento (`prancha.ts`, `locacao.ts`); interface: ferramenta `moverRef` (cartão 03) |
+| C3.30 | Ligar/desligar de forma permanente as referências na planta, escolhendo os tipos de texto visíveis. | Parcial | L | camadas de exibição na planta; sem escolher tipos de texto [L4] — L4 núcleo: `vista.textos` (comando `vista.textos`); interface: grupo Referências e dados (cartão 03) |
 | C3.31 | Corte vertical do edifício por linha traçada, visto na tela e nas pranchas. | Parcial | V | cortes verticais do edifício [V2]: núcleo `vista3d/corte.ts` (`cortarCena`, `desenharCorte`), comando `corte.criar`; tela nos cartões `docs/cartoes/V2/`; pranchas pendentes |
 | C3.32 | Cortes do edifício sem limite de número, cada um com nome. Editar e apagar. | Parcial | V | [V2]: `b.cortes[]`, comandos `corte.criar/editar/remover` (`commands/cortes.ts`); lista na interface nos cartões V2 |
 | C3.33 | Cortes do edifício ativáveis na prancha de cada planta, com tamanho configurável. | Falta | V | [V2]: marcas na tela nos cartões V2; `prancha.cortes` e folha de cortes nas pranchas pendentes |
@@ -212,11 +212,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.23 | A transmissão de esforços entre pilares sobrepostos considera a excentricidade. O detalhe construtivo fica com o usuário. | Feito | — | nó do pavimento no centro da seção de baixo e trecho rígido horizontal até o centro do lance de cima: N·e transmitido (`analitico.ts`; N2c) |
 | C4.24 | Pilar que nasce sobre outro não admite vinculação exterior. | Feito | — | `Pilar.inicio` = apoiado (sem vínculo externo) ou fundação; `aceitaVinculoExterno` só no início fundação (a N2c a usa nos vínculos); início apoiado em pilar da fundação é erro PILAR_INICIO (E1a) |
 | C4.25 | Edição completa do pilar ou de cada propriedade em separado. | Feito | — | editar tudo ou um campo; quadro de pilares |
-| C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote [L4] |
+| C4.26 | Mudar o ponto fixo do pilar sem mover o pilar, aplicando o novo ponto fixo a vários pilares. | Parcial | L | pilar.editar muda o ajuste; sem “sem mover” em lote [L4] — L4 núcleo: `pilar.pontoFixo` (`mudarPontoFixo`, contorno mantido a 1e-9); interface: `DadosL4.tsx` (cartão 03) |
 | C4.27 | Ponto fixo dos pilares visível durante o lançamento de vigas e lajes. | Feito | — | ponto fixo visível |
-| C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Falta | L | copiar dados de um pilar (conta-gotas) [L4] |
+| C4.28 | Pilar novo com os dados copiados de um pilar existente, escolhido na tela. | Parcial | L | copiar dados de um pilar (conta-gotas) [L4] — L4 núcleo: `pilar.inserir { copiarDe }` (`dadosDoPilar`); interface: ferramenta conta-gotas (cartão 03) |
 | C4.29 | O formulário de pilar novo guarda os dados do último pilar lançado. | Feito | — | ferramenta guarda a última seção |
-| C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Falta | L | [L4] |
+| C4.30 | Cópia de pilar que leva também as cargas horizontais e as cargas no topo. | Parcial | L | [L4] — L4 núcleo: `incluirCargas` em `pilar.copiar` e `pilar.inserir`; interface: opção do conta-gotas (cartão 03) |
 | C4.31 | Pilar-parede: geometria composta de retângulos, nome, grupos inicial e final, espessura, vinculação exterior e ângulo. | Feito | — | `PilarParede` (tipo, nome, `nasce`/`morre`, ponto, ângulo, base engastada ou rotulada; molas não) em `types.ts`; comandos `pilarParede.*` (`commands/pilarParede.ts`); geometria em `pilarParede.ts` [E1b] |
 | C4.32 | Tipos de pilar-parede gravados com a obra, reutilizáveis sem limite. | Feito | — | `BuildingModel.tiposPilarParede`, comando `pilarParede.tipo` (criar, editar, remover; remoção bloqueada com pilares do tipo) e editor com prévia no grupo Pilares-parede [E1b] |
 | C4.33 | Taxas geométricas mínimas dos pilares por norma e tipo de aço, substituíveis por valores do usuário (cargas estáticas e dinâmicas separadamente). | Feito | — | opção `pilarTaxaMin` (%; 0 = 0,4 % da norma), com o mínimo mecânico 0,15·Nd/fyd (`dimensionamento.ts`; N2c); o app não separa cargas dinâmicas |
@@ -294,7 +294,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **6.1 Lançamento** | | | |
 | C6.1 | Lançamento do contorno do pavimento combinando gabarito DXF/DWG e ferramentas de viga. | Feito | — | vigas sobre a máscara com capturas |
-| C6.2 | Ajudas genérica e específica durante o lançamento. | Parcial | L | dicas e mensagens [L4] |
+| C6.2 | Ajudas genérica e específica durante o lançamento. | Parcial | L | dicas e mensagens [L4] — L4 núcleo: `ajudaDaFerramenta`; interface: painel `AjudaFerramenta` e tecla na barra de estado da planta (cartão 04) |
 | C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral [L5] |
 | C6.4 | Troca do tipo de viga atual a partir do painel. | Feito | — |  |
 | C6.5 | Modo contínuo: o fim de uma viga é o início da próxima. A sequência só vale depois de encerrada pelo menu de contexto. | Feito | — | polilinha contínua; Enter encerra |
@@ -416,7 +416,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.5 | Mudar o ponto de inserção do pano. | Falta | L | [L5] |
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
-| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] |
+| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] — L4 núcleo: `laje.copiarDados` e `CAMPOS_COPIA_LAJE` (tipo, direção, desnível, engastes, cobrimento, tabela, armadura base); plano de inclinação entra com a E3f; interface: `DadosL4.tsx` (cartão 03) |
 | C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) [E3c] |
 | C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | momentos mínimos das vigotas p·ℓ²/16 por obra (opções, R6); sem valor por pano [E3b] |
 | C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Falta | E | classe de exposição por pano (vigotas protendidas e alveolares: E3) [E3b] |
@@ -1045,3 +1045,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
 - **22/10/2026 — V2, núcleo (cortes, seções e armaduras em 3D).** C3.31, C3.32 e C3.34 passam de Falta a Parcial (núcleo e comandos prontos; interface nos cartões `docs/cartoes/V2/`); C3.33 segue Falta (marcas e folha nas pranchas pendentes). Pendências por frente: V sem mudança de contagem de Falta além de 3 itens que viram Parcial.
 - **23/10/2026 — V3, núcleo (deformada, deslocamentos e flecha entre pontos).** C12.16 e C12.18–C12.21 passam de Falta a Parcial (núcleo `src/core/resultados/` pronto e testado; interface nos cartões `docs/cartoes/V3/`); C12.22 (várias janelas lado a lado) segue Falta. Pendências por frente: V sem mudança de contagem além de 5 itens que viram Parcial.
+- **23/10/2026 — L4, núcleo (cópias de grupo, grupos e áreas, referências e ajudas).** C1.6, C1.8, C1.9, C1.10, C3.29, C4.28 e C4.30 passam de Falta a Parcial; C1.11–C1.13, C6.2, C3.7, C3.22, C3.25, C3.27, C3.30, C4.26, C7.8 e K1.4.69 seguem Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/L4/`; C7.8: o plano de inclinação entra com a E3f). Pendências por frente: L sem mudança de contagem.

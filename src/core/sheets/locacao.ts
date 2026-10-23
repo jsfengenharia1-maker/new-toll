@@ -3,6 +3,7 @@
 // de maior N, como as cargas enviadas a Fundações) e de cálculo (ELU de maior Nd), em kN e kN·m, e notas gerais
 // do modelo (concreto, aço, cobrimentos, CAA, γ, normas).
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
+import { pontoRef, refDe } from '../building/vistaObra';
 import type { AnaliseEdificio } from '../building/analitico';
 import { combinacoesDoEstado, type CombinacaoEd } from '../building/combinacoes';
 import { cargasParaFundacao } from '../building/dimensionamento';
@@ -111,7 +112,8 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
   for (const { p, s, c } of pils) {
     const [, , x1, y1] = caixa(c);
     modelo.push({ t: 'hach', c: 'PILAR-HACH', pts: c }, { t: 'pl', c: 'PILAR', pts: c, fechada: true });
-    modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base' }, { t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo' });
+    const [rx, ry] = pontoRef(b, p.id, [x1, y1]), rr = refDe(b, p.id)?.rot;
+    modelo.push({ t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base', ...(rr ? { ang: rr } : {}) }, { t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo', ...(rr ? { ang: rr } : {}) });
   }
   for (const w of paredes) {
     for (const c of w.cs) modelo.push({ t: 'hach', c: 'PILAR-HACH', pts: c }, { t: 'pl', c: 'PILAR', pts: c, fechada: true });

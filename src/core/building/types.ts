@@ -833,6 +833,8 @@ export interface BuildingModel {
   zonasLaje?: ZonaUniformizacao[];
   /** Linhas de dobra das lajes (R7e). */
   linhasDobra?: LinhaDobra[];
+  /** Vista permanente da obra (L4): tipos de texto de referência visíveis na planta e textos deslocados. */
+  vista?: VistaObra;
   /** Agrupamentos de pórticos (R7f): vigas armadas com a mesma armadura (a do pórtico que governa) e um só desenho nas pranchas. */
   agrupamentos?: AgrupamentoPorticos[];
   /** Cópias da armadura das lajes (R7f), guardadas para recuperar depois (ex.: antes de abrir um furo imprevisto). */
@@ -842,6 +844,13 @@ export interface BuildingModel {
   /** Resistência ao fogo (N2g): TRRF por grupo, ocupação, revestimentos e dados por elemento; só o que difere do padrão. */
   fogo?: FogoConfig;
 }
+
+/** Tipos de texto de referência da planta (L4, C3.30). */
+export type TipoTexto = 'nomes' | 'secoes' | 'cotas' | 'cargas' | 'niveis';
+/** Deslocamento (m, eixos da planta) e rotação (graus) do texto de referência de um elemento (L4, C3.29). */
+export interface RefPos { dx: number; dy: number; rot?: number }
+/** Vista da obra gravada com ela: tipos de texto visíveis (ausente = todos) e posições dos textos de referência por id de elemento. */
+export interface VistaObra { textos?: TipoTexto[]; refs?: Record<string, RefPos> }
 
 /** Agrupamento de pórticos: vigas que levam a mesma armadura (a envoltória do grupo). Uma viga pertence a um só agrupamento. */
 export interface AgrupamentoPorticos { id: string; nome: string; vigas: string[] }

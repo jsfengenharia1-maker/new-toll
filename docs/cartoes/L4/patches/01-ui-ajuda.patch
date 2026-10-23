@@ -1,0 +1,203 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 5aa43ad..b60b59e 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -13,7 +13,7 @@ import { SAMPLES } from './app/samples';
+ import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
+ import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
+ import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
+-import { copyText, download, ThemeSelect } from './app/ui';
++import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
+ import { useAnalysis, resultFor, sourceLabel } from './app/results';
+ import { buildDxf } from './app/dxf';
+ import { svgExportCss } from './app/exportCss';
+@@ -261,6 +261,7 @@ export default function App() {
+   const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
+ 
+   return (
++    <AjudaProvider>
+     <div className="app">
+       <header className="topbar">
+         <div className="brand">
+@@ -307,6 +308,7 @@ export default function App() {
+         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
+         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
+         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
++        <BotaoAjuda />
+         <ThemeSelect />
+         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
+       </header>
+@@ -378,6 +380,7 @@ export default function App() {
+         </label>
+       </footer>
+     </div>
++    </AjudaProvider>
+   );
+ }
+ 
+diff --git a/src/app/design/global.css b/src/app/design/global.css
+index 3418b3e..c16eeb8 100644
+--- a/src/app/design/global.css
++++ b/src/app/design/global.css
+@@ -954,3 +954,12 @@ table.pp-lados tr[aria-selected="true"] { background: var(--accent-soft); }
+ .recente-nome { font-weight: 600; font-size: 12.5px; }
+ .recente-meta { color: var(--muted); font-size: 11.5px; }
+ .filepick { display: inline-flex; }
++
++/* ---- ajuda e atalhos (L4) ---- */
++body.ajuda-on [data-ajuda] { outline: 1px dashed var(--accent-text); outline-offset: 1px; cursor: help; }
++body.ajuda-on { cursor: help; }
++.ajuda-painel { position: fixed; right: 16px; bottom: 16px; z-index: 70; width: min(380px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 10px 12px; box-shadow: var(--shadow-pop); display: grid; gap: 6px; }
++.ajuda-painel p { margin: 0; font-size: var(--fs); color: var(--ink); line-height: 1.45; }
++.ajuda-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-strong); }
++.tbtn.on { background: var(--accent-soft); color: var(--accent-text); }
++.icone { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+diff --git a/src/app/ui/Ajuda.tsx b/src/app/ui/Ajuda.tsx
+new file mode 100644
+index 0000000..bd83ebd
+--- /dev/null
++++ b/src/app/ui/Ajuda.tsx
+@@ -0,0 +1,71 @@
++// Modo de ajuda (L4: C1.8–C1.12, C6.2): F1 ou o botão da barra de título liga o modo; itens com `data-ajuda="<id>"` ficam
++// destacados e o clique em um deles mostra a explicação no painel. Desliga com o botão direito, novo clique no botão ou Esc.
++// Os textos vêm de `src/core/ajuda` (catálogo próprio do projeto + OPCOES_INFO).
++import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
++import { ajudaDe, type Ajuda } from '../../core/ajuda';
++
++interface Ctx { ligada: boolean; item: Ajuda | null; alternar(): void; desligar(): void; mostrar(id: string | null): void }
++const AjudaCtx = createContext<Ctx>({ ligada: false, item: null, alternar() {}, desligar() {}, mostrar() {} });
++export const useAjuda = () => useContext(AjudaCtx);
++
++/** Atributo que marca um item como tendo ajuda: `<div {...dataAjuda('aba:planta')}>`. */
++export const dataAjuda = (id: string) => ({ 'data-ajuda': id });
++
++export function AjudaProvider({ children }: { children: ReactNode }) {
++  const [ligada, setLigada] = useState(false);
++  const [item, setItem] = useState<Ajuda | null>(null);
++  const desligar = useCallback(() => { setLigada(false); setItem(null); }, []);
++  const alternar = useCallback(() => { setLigada((v) => { if (v) setItem(null); return !v; }); }, []);
++  const mostrar = useCallback((id: string | null) => setItem(id ? ajudaDe(id) ?? null : null), []);
++
++  useEffect(() => {
++    document.body.classList.toggle('ajuda-on', ligada);
++    return () => document.body.classList.remove('ajuda-on');
++  }, [ligada]);
++
++  useEffect(() => {
++    const tecla = (e: KeyboardEvent) => {
++      if (e.key === 'F1') { e.preventDefault(); alternar(); return; }
++      if (e.key === 'Escape' && ligada) { e.preventDefault(); e.stopPropagation(); desligar(); }
++    };
++    // captura: o Esc do modo de ajuda vem antes dos de janelas e ferramentas
++    window.addEventListener('keydown', tecla, true);
++    return () => window.removeEventListener('keydown', tecla, true);
++  }, [ligada, alternar, desligar]);
++
++  useEffect(() => {
++    if (!ligada) return;
++    const dentroDoPainel = (t: EventTarget | null) => t instanceof Element && !!t.closest('[data-ajuda-controle]');
++    const clique = (e: MouseEvent) => {
++      if (dentroDoPainel(e.target)) return;
++      e.preventDefault(); e.stopPropagation();
++      const alvo = e.target instanceof Element ? e.target.closest('[data-ajuda]') : null;
++      const id = alvo?.getAttribute('data-ajuda');
++      setItem(id ? ajudaDe(id) ?? null : { id: '', grupo: 'barras', titulo: 'Sem ajuda', texto: 'Este item não tem ajuda própria. Itens destacados com borda tracejada têm.' });
++    };
++    const direito = (e: MouseEvent) => { e.preventDefault(); desligar(); };
++    document.addEventListener('click', clique, true);
++    document.addEventListener('contextmenu', direito, true);
++    return () => { document.removeEventListener('click', clique, true); document.removeEventListener('contextmenu', direito, true); };
++  }, [ligada, desligar]);
++
++  const v = useMemo(() => ({ ligada, item, alternar, desligar, mostrar }), [ligada, item, alternar, desligar, mostrar]);
++  return (
++    <AjudaCtx.Provider value={v}>
++      {children}
++      {(ligada || item) && (
++        <aside className="ajuda-painel" role="status" aria-label="Ajuda" data-ajuda-controle>
++          <div className="ajuda-cab"><b>{item ? item.titulo : 'Modo de ajuda'}</b><button type="button" className="mini" aria-label="Fechar a ajuda" onClick={desligar}>×</button></div>
++          <p>{item ? item.texto : 'Clique num item destacado para ver a explicação. Botão direito, Esc ou um novo clique no botão de ajuda saem do modo.'}</p>
++          {item?.ver?.length ? <p className="hint">Veja também: {item.ver.map((id) => ajudaDe(id)?.titulo ?? id).join(', ')}.</p> : null}
++        </aside>
++      )}
++    </AjudaCtx.Provider>
++  );
++}
++
++/** Botão de ajuda da barra de título (liga e desliga o modo de ajuda). */
++export function BotaoAjuda({ className = 'tbtn' }: { className?: string }) {
++  const { ligada, alternar } = useAjuda();
++  return <button type="button" className={`${className}${ligada ? ' on' : ''}`} aria-pressed={ligada} aria-label="Modo de ajuda (F1)" title="Modo de ajuda (F1)" data-ajuda-controle onClick={alternar}>?</button>;
++}
+diff --git a/src/app/ui/Icone.tsx b/src/app/ui/Icone.tsx
+new file mode 100644
+index 0000000..3f47cc8
+--- /dev/null
++++ b/src/app/ui/Icone.tsx
+@@ -0,0 +1,23 @@
++// Ícones próprios dos atalhos (L4, C1.6): traços simples em 22 × 22, na cor do texto. Nomes = `Atalho.icone` de src/core/ajuda/atalhos.ts.
++const TRACOS: Record<string, string> = {
++  desfazer: 'M8 5 L3 10 L8 15 M3 10 H14 A5 5 0 0 1 14 20',
++  refazer: 'M14 5 L19 10 L14 15 M19 10 H8 A5 5 0 0 0 8 20',
++  ajuda: 'M8 8 A3 3 0 1 1 11 11 V13 M11 16 V17',
++  guia: 'M5 3 H17 V19 H5 Z M8 7 H14 M8 10 H14 M8 13 H12',
++  copiarGrupo: 'M3 3 H12 V12 H3 Z M10 10 H19 V19 H10 Z',
++  unirPavimentos: 'M3 5 H19 M3 11 H19 M3 17 H19 M11 5 V17',
++  selecionar: 'M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z',
++  pilar: 'M6 4 H16 V18 H6 Z M6 4 L16 18',
++  viga: 'M2 8 H20 V14 H2 Z',
++  laje: 'M3 5 H19 V17 H3 Z M3 11 H19',
++  carga: 'M11 3 V15 M6 10 L11 16 L16 10 M4 19 H18',
++  eixo: 'M2 11 H20 M11 2 V20 M11 5 A0 0 0 0 1 11 5',
++  mover: 'M11 2 V20 M2 11 H20 M11 2 L8 5 M11 2 L14 5 M11 20 L8 17 M11 20 L14 17',
++  copiar: 'M7 7 H18 V18 H7 Z M4 15 V4 H15',
++  medir: 'M3 16 L19 16 M3 12 V19 M19 12 V19 M7 16 V14 M11 16 V13 M15 16 V14',
++  dimensionamento: 'M4 18 V8 M9 18 V4 M14 18 V11 M19 18 V6',
++  verificacao: 'M4 11 L9 16 L18 5',
++};
++export function Icone({ nome }: { nome: string }) {
++  return <svg viewBox="0 0 22 22" className="icone" aria-hidden="true"><path d={TRACOS[nome] ?? TRACOS.ajuda} /></svg>;
++}
+diff --git a/src/app/ui/index.tsx b/src/app/ui/index.tsx
+index 6ca028a..1d53f66 100644
+--- a/src/app/ui/index.tsx
++++ b/src/app/ui/index.tsx
+@@ -1,6 +1,7 @@
+ // Biblioteca de componentes do Statikos. Toda peça de interface reutilizável mora aqui e se veste
+ // só com classes de design/global.css (tokens + componentes). Ver docs/design-system.md.
+ import { zip } from '../../core/zip';
++import { useAjuda } from './Ajuda';
+ import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
+ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
+ 
+@@ -277,7 +278,9 @@ export function KV({ rows }: { rows: [string, string][] }) {
+ }
+ 
+ /** Janela sobre a tela (fecha com Esc, clique fora ou o botão). `larga` para tabelas e diagramas. */
+-export function Modal({ titulo, onClose, larga, children }: { titulo: string; onClose: () => void; larga?: boolean; children: ReactNode }) {
++export function Modal({ titulo, onClose, larga, ajuda, info, children }: { titulo: string; onClose: () => void; larga?: boolean; ajuda?: string; info?: string; children: ReactNode }) {
++  const aj = useAjuda();
++  const [verInfo, setVerInfo] = useState(false);
+   useEffect(() => {
+     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+     window.addEventListener('keydown', k);
+@@ -286,7 +289,11 @@ export function Modal({ titulo, onClose, larga, children }: { titulo: string; on
+   return (
+     <div className="modal-back" role="dialog" aria-label={titulo} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+       <div className={cx('modal', larga && 'larga')}>
+-        <div className="modal-head"><b>{titulo}</b><Spacer /><Button variant="ghost" onClick={onClose}>Fechar</Button></div>
++        <div className="modal-head"><b>{titulo}</b><Spacer />
++          {info && <Button variant="mini" aria-label={`Informação sobre ${titulo}`} aria-pressed={verInfo} onClick={() => setVerInfo(!verInfo)}>i</Button>}
++          {ajuda && <Button variant="mini" aria-label={`Ajuda de ${titulo}`} onClick={() => aj.mostrar(ajuda)}>?</Button>}
++          <Button variant="ghost" onClick={onClose}>Fechar</Button></div>
++        {info && verInfo && <p className="hint" role="note">{info}</p>}
+         {children}
+       </div>
+     </div>
+@@ -306,3 +313,6 @@ export function ThemeSelect() {
+     </label>
+   );
+ }
++
++export { AjudaProvider, BotaoAjuda, dataAjuda, useAjuda } from './Ajuda';
++export { Icone } from './Icone';
