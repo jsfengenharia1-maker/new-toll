@@ -1,5 +1,6 @@
 // Comandos da planta: máscara (DXF de referência) e pilares.
 import type { Draft } from 'immer';
+import { dadosDoPilar } from '../building/pilarDados';
 import { centroPilar, geoLance, inicioDe, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Mascara, type Pilar, type RegrasCamadas, type SecaoPilar, type VinculoBasePilar } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { pilaresSobrepostos, refsPilar } from '../building/pilares';
@@ -253,7 +254,7 @@ const secaoSchema: JsonSchema = { oneOf: [
 ], description: 'Seção: {tipo: "ret", b, h} ou {tipo: "circ", d}, em m' };
 const ajusteSchema: JsonSchema = { type: 'string', enum: ['c', 'n', 's', 'l', 'o', 'ne', 'no', 'se', 'so'], description: 'Ponto fixo: centro, faces (n, s, l, o) ou cantos' };
 
-type PilarIn = { x?: number; y?: number; secao: SecaoPilar; ajuste?: Ajuste; angulo?: number; nasce?: string; morre?: string; nome?: string; inicio?: 'fundacao' | 'apoiado'; sobre?: { pilar: string; dx?: number; dy?: number } };
+type PilarIn = { x?: number; y?: number; secao?: SecaoPilar; copiarDe?: string; incluirCargas?: boolean; ajuste?: Ajuste; angulo?: number; nasce?: string; morre?: string; nome?: string; inicio?: 'fundacao' | 'apoiado'; sobre?: { pilar: string; dx?: number; dy?: number } };
 
 const proximoNumero = (b: BuildingModel) => Math.max(0, ...b.pilares.map((p) => { const m = /^P(\d+)$/.exec(p.nome); return m ? +m[1] : 0; })) + 1;
 
@@ -265,15 +266,30 @@ const sobreSchema: JsonSchema = { type: 'object', additionalProperties: false, r
 /** Pilar resolvido a partir dos parâmetros (posição relativa ao pilar de baixo, nascimento herdado), ou o erro. */
 function resolverPilar(b: BuildingModel, p: PilarIn): { novo: Pilar } | { erro: Diagnostico[] } {
   let baixo: Pilar | undefined;
+  const fonte = p.copiarDe ? b.pilares.find((q) => q.id === p.copiarDe) : undefined;
+  if (p.copiarDe && !fonte) return { erro: err('PILAR_INEXISTENTE', `Pilar ${p.copiarDe} não existe.`) };
+  const dados = fonte ? dadosDoPilar(fonte) : {};
+  const secao = p.secao ?? dados.secao;
+  if (!secao) return { erro: err('SECAO', 'Informe a seção ou o pilar de que copiar os dados (`copiarDe`).') };
   if (p.sobre) {
     baixo = b.pilares.find((q) => q.id === p.sobre!.pilar);
     if (!baixo) return { erro: err('PILAR_INEXISTENTE', `Pilar ${p.sobre.pilar} não existe.`) };
   } else if (p.x === undefined || p.y === undefined) return { erro: err('POSICAO', 'Informe x e y, ou `sobre` (pilar de baixo).') };
   const ref = baixo ? geoLance(baixo, lancesDoPilar(b, baixo).at(-1)?.id ?? '').p : undefined;
-  const nasce = p.nasce ?? baixo?.morre ?? 'fundacao';
-  const morre = p.morre ?? pavimentosOrdenados(b).at(-1)?.id ?? '';
+  const nasce = p.nasce ?? baixo?.morre ?? dados.nasce ?? 'fundacao';
+  const morre = p.morre ?? dados.morre ?? pavimentosOrdenados(b).at(-1)?.id ?? '';
   const x = p.x ?? ref!.x + (p.sobre!.dx ?? 0), y = p.y ?? ref!.y + (p.sobre!.dy ?? 0);
-  const novo: Pilar = { id: '?', nome: '?', x, y, angulo: p.angulo ?? baixo?.angulo ?? 0, ajuste: p.ajuste ?? baixo?.ajuste ?? 'c', nasce, morre, secao: p.secao, ...(p.inicio ? { inicio: p.inicio } : {}) };
+  const novo: Pilar = { id: '?', nome: '?', x, y, angulo: p.angulo ?? baixo?.angulo ?? dados.angulo ?? 0, ajuste: p.ajuste ?? baixo?.ajuste ?? dados.ajuste ?? 'c', nasce, morre, secao, ...(p.inicio ? { inicio: p.inicio } : {}) };
+  if (fonte) {
+    // dados por lance só valem nos lances do pilar novo; cobrimento e tabela vêm como estão
+    const ls = new Set(lancesDoPilar(b, novo).map((l) => l.id));
+    for (const k of ['secoes', 'fck', 'engastes', 'flambagem', 'apoiosIntermediarios'] as const) {
+      const v = (dados[k] as { pavimento: string }[] | undefined)?.filter((e) => ls.has(e.pavimento));
+      if (v?.length) (novo as unknown as Record<string, unknown>)[k] = v;
+    }
+    if (dados.cobrimento !== undefined) novo.cobrimento = dados.cobrimento;
+    if (dados.tabela !== undefined) novo.tabela = dados.tabela;
+  }
   if (novo.inicio === 'apoiado' && nasce === 'fundacao') return { erro: err('PILAR_INICIO', 'Pilar que nasce na fundação não pode ser apoiado em outro elemento.') };
   if (novo.inicio && inicioDe({ nasce, inicio: undefined }) === novo.inicio) delete novo.inicio; // igual ao padrão: não grava
   return { novo };
@@ -283,8 +299,10 @@ registrar<PilarIn>({
   nome: 'pilar.inserir',
   descricao: 'Insere um pilar no ponto (x, y) do ponto fixo, com seção, ângulo e os pavimentos em que nasce (padrão: fundação) e morre (padrão: o mais alto). Arranque (pilar de altura zero, só para levar cargas à fundação): nasce e morre "fundacao"; vale mesmo sem pavimentos. Pilar que nasce sobre outro pilar, viga ou laje (transição): nasce no pavimento do elemento de apoio; `sobre` dá x, y relativos ao pilar de baixo e herda dele nascimento, ponto fixo e ângulo; o nome automático é o do pilar de baixo mais uma letra (P5a). `inicio` "fundacao" num pavimento acima da fundação dá vínculo externo (sem apoio embaixo).',
   risco: 'escrita',
-  schema: { type: 'object', additionalProperties: false, required: ['secao'], properties: {
-    x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema, ajuste: { ...ajusteSchema, description: 'Ponto fixo: centro (padrão), faces (n, s, l, o) ou cantos; herdado do pilar de baixo com `sobre`' },
+  schema: { type: 'object', additionalProperties: false, properties: {
+    x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
+    copiarDe: { type: 'string', description: 'id de um pilar existente de que copiar seção, ângulo, ponto fixo, nascimento, morte, seções por lance, engastes, flambagem, fck, travamentos, cobrimento e tabela (L4); o que for informado junto prevalece' },
+    incluirCargas: { type: 'boolean', description: 'com copiarDe: leva também as cargas do pilar de origem (horizontais e do topo) nos lances do novo' }, ajuste: { ...ajusteSchema, description: 'Ponto fixo: centro (padrão), faces (n, s, l, o) ou cantos; herdado do pilar de baixo com `sobre`' },
     angulo: { type: 'number', description: 'graus, anti-horário (padrão 0)' },
     nasce: { type: 'string', description: '"fundacao" (padrão) ou id do pavimento' },
     morre: { type: 'string', description: 'id do pavimento mais alto; padrão: o mais alto da obra; "fundacao" (com nasce "fundacao") = arranque' },
@@ -305,7 +323,12 @@ registrar<PilarIn>({
     const ap = inicioDe(novo) === 'apoiado' && novo.nasce !== 'fundacao' ? apoioDoPilar(d as BuildingModel, novo) : null;
     const baixo = ap?.tipo === 'pilar' ? (d as BuildingModel).pilares.find((q) => q.id === ap.principal) : undefined;
     const nome = p.nome?.trim() || (baixo ? nomeSobre(d as BuildingModel, baixo) : `P${proximoNumero(d as BuildingModel)}`);
-    d.pilares.push({ ...novo, id: novoId(d, 'p'), nome, secao: { ...p.secao } });
+    const id = novoId(d, 'p');
+    d.pilares.push({ ...novo, id, nome, secao: { ...novo.secao } });
+    if (p.incluirCargas && p.copiarDe) {
+      const ls = new Set(lancesDoPilar(d as BuildingModel, novo).map((l) => l.id));
+      for (const c of (d.cargasPilar ?? []).filter((x) => x.pilar === p.copiarDe && ls.has(x.pavimento))) (d.cargasPilar ??= []).push({ ...JSON.parse(JSON.stringify(c)), id: novoId(d, 'cp'), pilar: id });
+    }
     return `${nome} inserido em (${fmt(novo.x)}; ${fmt(novo.y)}).`;
   },
 });
@@ -556,12 +579,12 @@ registrar<{ ids: string[]; dx: number; dy: number }>({
   },
 });
 
-registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
+registrar<{ ids: string[]; dx: number; dy: number; vezes: number; incluirCargas?: boolean }>({
   nome: 'pilar.copiar',
-  descricao: 'Copia pilares com deslocamento (dx, dy), repetido `vezes` (cópias em série). As cópias recebem os próximos números.',
+  descricao: 'Copia pilares com deslocamento (dx, dy), repetido `vezes` (cópias em série). As cópias recebem os próximos números. Com `incluirCargas`, cada cópia leva as cargas do pilar de origem (horizontais e do topo).',
   risco: 'escrita',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' }, vezes: { type: 'integer', minimum: 1, maximum: 100, default: 1 } } },
+  schema: { type: 'object', additionalProperties: false, required: ['ids', 'dx', 'dy'], properties: { ids, dx: { type: 'number' }, dy: { type: 'number' }, vezes: { type: 'integer', minimum: 1, maximum: 100, default: 1 }, incluirCargas: { type: 'boolean', description: 'leva as cargas do pilar de origem às cópias' } } },
   validar(b, p) {
     const falta = p.ids.filter((id) => !b.pilares.some((x) => x.id === id));
     if (falta.length) return err('PILAR_INEXISTENTE', `Pilar(es) inexistente(s): ${falta.join(', ')}.`);
@@ -575,7 +598,12 @@ registrar<{ ids: string[]; dx: number; dy: number; vezes: number }>({
   aplicar(d, p) {
     let n = proximoNumero(d as BuildingModel);
     const orig = p.ids.map((id) => d.pilares.find((x) => x.id === id)!).map((q) => JSON.parse(JSON.stringify(q)) as Pilar);
-    for (let k = 1; k <= p.vezes; k++) for (const q of orig) d.pilares.push({ ...q, id: novoId(d, 'p'), nome: `P${n++}`, x: +(q.x + k * p.dx).toFixed(9), y: +(q.y + k * p.dy).toFixed(9) });
+    const cargas = JSON.parse(JSON.stringify(d.cargasPilar ?? [])) as NonNullable<typeof d.cargasPilar>;
+    for (let k = 1; k <= p.vezes; k++) for (const q of orig) {
+      const id = novoId(d, 'p');
+      d.pilares.push({ ...q, id, nome: `P${n++}`, x: +(q.x + k * p.dx).toFixed(9), y: +(q.y + k * p.dy).toFixed(9) });
+      if (p.incluirCargas) for (const c of cargas.filter((x) => x.pilar === q.id)) (d.cargasPilar ??= []).push({ ...c, id: novoId(d, 'cp'), pilar: id });
+    }
     return `${p.ids.length * p.vezes} cópia(s) criada(s).`;
   },
 });

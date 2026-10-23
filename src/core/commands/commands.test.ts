@@ -261,6 +261,14 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'muro.arrimo': (b) => ({ id: b.murosArrimo![0].id, nome: 'MA1', H: 3.5, tTopo: 0.2, tBase: 0.35, B: 2.4, ponta: 0.5, hBase: 0.45, solo: { gama: 18, phi: 30, metodo: 'rankine' }, sobrecarga: 10 }),
   'muro.remover': (b) => ({ ids: [b.murosArrimo![0].id] }),
   'viga.embutir': (b) => ({ viga: b.vigas.at(-1)!.id, parede: b.paredes![0].id }),
+  // L4
+  'grupo.copiarConteudo': () => ({ de: 'g_3', para: 'g_7', modo: 'somar' }),
+  'pavimento.unir': (b) => ({ ids: [b.pavimentos.find((x) => x.grupo === 'g_7')!.id, b.pavimentos.find((x) => x.grupo === 'g_3')!.id], grupo: 'g_3' }),
+  'ref.mover': (b) => ({ id: b.pilares[0].id, dx: 0.3, dy: 0.2, rot: 15 }),
+  'vista.textos': () => ({ textos: ['nomes', 'cotas'] }),
+  'pilar.pontoFixo': (b) => ({ ids: [b.pilares[0].id], ajuste: 'so', mantemPosicao: true }),
+  'laje.copiarDados': (b) => ({ de: b.lajes[1].id, para: [b.lajes[0].id], campos: ['tipo', 'cobrimento'] }),
+  'portico.renumerar': () => ({ grupo: 'g_3' }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 
@@ -375,7 +383,7 @@ describe('revisão de cálculo', () => {
     for (const c of listarComandos().filter((x) => x.calculo === false)) {
       const r = aplicarComando(b0, c.nome, EXEMPLOS[c.nome](b0));
       expect(r.ok, c.nome).toBe(true);
-      expect(r.patches!.every((p) => ['prancha', 'cortes', 'secoes', 'seq'].includes(String(p.path[0]))), c.nome).toBe(true);
+      expect(r.patches!.every((p) => ['prancha', 'vista', 'cortes', 'secoes', 'seq'].includes(String(p.path[0]))), c.nome).toBe(true);
     }
     const src = import.meta.glob(['../building/*.ts', '!../building/*.test.ts', '!../building/types.ts', '!../building/file.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
     expect(Object.keys(src).length).toBeGreaterThan(10);
