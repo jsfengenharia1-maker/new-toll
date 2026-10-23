@@ -1,6 +1,7 @@
 // Prancha em SVG (prévia na interface): mesma geometria do PDF, com y para cima convertido.
-import { CAMADAS, TRACOS, type Prancha } from './prancha';
+import { TRACOS, type Prancha } from './prancha';
 import { dyBase, primitivasNoPapel } from './papel';
+import { camadaEstilo } from './estilo';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const n = (v: number) => +v.toFixed(2);
@@ -9,7 +10,7 @@ export function svgPrancha(pr: Prancha): string {
   const H = pr.H, Y = (y: number) => n(H - y);
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pr.W} ${pr.H}" font-family="Helvetica, Arial, sans-serif" stroke-linecap="round" stroke-linejoin="round">`, `<rect width="${pr.W}" height="${pr.H}" fill="#fff"/>`];
   for (const q of primitivasNoPapel(pr)) {
-    const cam = CAMADAS[q.c], w = cam.pena, tr = cam.tipo === 'cont' ? '' : ` stroke-dasharray="${TRACOS[cam.tipo].join(' ')}"`;
+    const cam = camadaEstilo(pr, q.c), w = cam.pena, tr = cam.tipo === 'cont' ? '' : ` stroke-dasharray="${TRACOS[cam.tipo].join(' ')}"`;
     const attr = `data-camada="${q.c}"`;
     if (q.t === 'pl') out.push(`<${q.fechada ? 'polygon' : 'polyline'} ${attr} points="${q.pts.map((p) => `${n(p[0])},${Y(p[1])}`).join(' ')}" fill="none" stroke="#000" stroke-width="${w}"${tr}/>`);
     else if (q.t === 'hach') out.push(`<polygon ${attr} points="${q.pts.map((p) => `${n(p[0])},${Y(p[1])}`).join(' ')}" fill="#9a9a9a" stroke="none"/>`);

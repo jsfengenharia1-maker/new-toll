@@ -7,6 +7,9 @@ import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { rotuloLaje } from '../building/tiposLaje';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
+import type { EstiloDesenho } from './estilo';
+import { primitivasDoSimbolo, simbolosEmUso } from './simbolos';
+import { aplicarMoldura } from './saidas';
 import { marcasPontoFixo, primitivasMascara } from './gabarito';
 
 export type { P };
@@ -36,6 +39,13 @@ export const CAMADAS = {
   // opções de desenho (R7g): gabarito (máscara DXF/DWG) na pena mais fina das existentes e ponto fixo dos pilares
   'MASCARA': { cor: 8, pena: 0.13, tipo: 'cont' },
   'PONTO-FIXO': { cor: 1, pena: 0.18, tipo: 'cont' },
+  // cargas por caso (V5, K1.11.62): uma camada por natureza (G, Q, W, E, H) e uma para os casos adicionais
+  'CARGA-G': { cor: 5, pena: 0.35, tipo: 'cont' },
+  'CARGA-Q': { cor: 1, pena: 0.35, tipo: 'cont' },
+  'CARGA-W': { cor: 3, pena: 0.35, tipo: 'cont' },
+  'CARGA-E': { cor: 6, pena: 0.35, tipo: 'cont' },
+  'CARGA-H': { cor: 4, pena: 0.35, tipo: 'cont' },
+  'CARGA-ADIC': { cor: 2, pena: 0.35, tipo: 'cont' },
 } as const;
 export type Camada = keyof typeof CAMADAS;
 /** Padrões de traço no papel (mm): traço, espaço, ... */
@@ -58,13 +68,13 @@ export const LARGURA_LEGENDA = 178;
 export const ESCALAS = [75, 100, 125, 200, 250];
 
 /** Tipos de prancha do conjunto (R5) e sigla no carimbo. */
-export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes';
+export type TipoPrancha = 'formas' | 'locacao' | 'vigas' | 'pilares' | 'lajes' | 'fundacao' | 'paredes' | 'cargas' | 'perspectiva';
 /**
  * Siglas das folhas de referência (fundação indireta SFN, direta SFS, formas SCF, vigas SCV, pilares SCP); lajes SCL por
  * extensão [a confirmar]. A sigla de `fundacao` é a padrão (SFN); cada folha de fundação leva a sua em `Prancha.sigla`
  * (`siglaFundacao`). Paredes e pilares-parede (E1d): SCM por extensão [a confirmar]. A locação dos pilares era SFN e passou a SLP, para não colidir com a fundação indireta.
  */
-export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM' };
+export const SIGLAS: Record<TipoPrancha, string> = { formas: 'SCF', locacao: 'SLP', vigas: 'SCV', pilares: 'SCP', lajes: 'SCL', fundacao: 'SFN', paredes: 'SCM', cargas: 'SCC', perspectiva: 'SCX' };
 export const siglaDe = (p: Pick<Prancha, 'tipo' | 'sigla'>) => p.sigla ?? SIGLAS[p.tipo ?? 'formas'];
 
 /** Linha da tabela de aço de uma prancha (comprimentos em cm e m). */
@@ -93,6 +103,8 @@ export interface Prancha {
   elementos?: string[];
   /** Logo do carimbo (papel, mm): retângulo e o JPEG em base64 com as dimensões em px. */
   logo?: LogoPrancha;
+  /** Estilo de desenho resolvido (V5): camadas e penas diferentes do padrão; ausente = `CAMADAS`. */
+  estilo?: EstiloDesenho;
 }
 
 export interface LogoPrancha { x0: number; y0: number; x1: number; y1: number; dados: string; largura: number; altura: number }
@@ -302,14 +314,15 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     modelo.push({ t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry + 0.8 * k], h: 2.5 * k, s: p.nome, av: 'base', ...(rr ? { ang: rr } : {}) });
     modelo.push({ t: 'txt', c: 'TEXTO', p: [rx + 0.8 * k, ry - 0.4 * k], h: 2 * k, s: secTxt(s), av: 'topo', ...(rr ? { ang: rr } : {}) });
   };
+  const simb = simbolosEmUso(cfg.simbolos);
   for (const p of el.chegam) {
     const s = secaoNoLance(p, ref!.id), c = contornoPilar(p, s);
-    modelo.push({ t: 'hach', c: 'PILAR-HACH', pts: c }, { t: 'pl', c: 'PILAR', pts: c, fechada: true });
+    modelo.push(...primitivasDoSimbolo(p.morre === ref!.id ? simb.morre : simb.passa, c));
     rotPilar(p, s, c);
   }
   for (const p of el.nascem) {
     const c = contornoBase(b, p);
-    modelo.push({ t: 'pl', c: 'PILAR-NASCE', pts: c, fechada: true });
+    modelo.push(...primitivasDoSimbolo(simb.nasce, c));
     rotPilar(p, secaoBase(b, p), c);
   }
   // pilares-parede: contorno de cada lado (hachura nos que chegam, tracejado nos que nascem) e o nome com a espessura
@@ -394,6 +407,7 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
     for (let x = W - 185; x > 210; x -= 190) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[x, 0], [x, 5]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[x, H - 5], [x, H]] });
     for (let y = 297; y < H - 1; y += 297) papel.push({ t: 'pl', c: 'FOLHA-FINA', pts: [[0, y], [5, y]] }, { t: 'pl', c: 'FOLHA-FINA', pts: [[W - 5, y], [W, y]] });
   }
+  const nMold = papel.length;
   const cb = { ...cfg.carimbo, ...(o.carimbo ?? {}) };
   const lx0 = fx1 - LARGURA_LEGENDA, lx1 = fx1;
   const wCont = 0.56 * LARGURA_LEGENDA - 4;
@@ -427,7 +441,8 @@ export function folhaECarimbo(b: BuildingModel, formato: Formato, o: OpcoesFolha
     y = yb;
   }
   papel.push(txt('FOLHA-FINA', lx1 - 1, fy0 + hLeg + 1.2, 1.6, 'Gerado pelo Statikos — conferir antes de emitir', 'd'));
-  return { papel, hLeg, moldura: { x0: fx0, y0: fy0, x1: fx1, y1: fy1 }, logo };
+  const semLegenda = cfg.moldura?.modelo?.modo === 'moldura+legenda';
+  return { papel: aplicarMoldura(papel, cfg.moldura, nMold, [nMold, papel.length]), hLeg, moldura: { x0: fx0, y0: fy0, x1: fx1, y1: fy1 }, logo: semLegenda ? undefined : logo };
 }
 
 /** Uma prancha por grupo com elementos lançados, numeradas na ordem dos pavimentos. */

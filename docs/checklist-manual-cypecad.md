@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
 | 6. Vigas | 108 | 33 | 41 | 9 | 25 |
-| 7. Lajes | 195 | 33 | 46 | 49 | 67 |
+| 7. Lajes | 195 | 33 | 47 | 48 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
-| 12. Isovalores e deformada | 22 | 0 | 20 | 2 | 0 |
+| 12. Isovalores e deformada | 22 | 0 | 21 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **141** | **133** | **185** |
+| **Total** | **763** | **304** | **143** | **131** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 72 | 126 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 37 | 2 | 39 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 30 | 5 | 35 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 32 | 3 | 35 |
 
 ## 0. Apresentação do programa
 
@@ -247,7 +247,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Feito | — | janela “Seleção para bloqueio” (`SelecaoBloqueio`, `Rearmar.tsx`): por grupo, todos, nenhum, seleção da planta e mostrar na planta, com contagem e marcador ▣ dos bloqueados; pilares de aço não existem no edifício (R7f) |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); sem diagrama de envoltória por hipótese ou combinação [V5] |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços nos cartões `docs/cartoes/V5/`; falta o seletor na janela do pilar |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Parcial | E | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; `linhasQuadroPilares`) e a seção do estribo à parte na prancha de paredes (`armacaoParedes.ts`); falta o desenho das condições de estribos dos consolos [E2] |
@@ -398,7 +398,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.102 | Editar a armadura de vigas inclinadas. | Parcial | E | núcleo: `inclinada.armadura { id, sup, inf, laterais?, estribo }` edita e bloqueia (o recálculo só verifica a flexo-compressão oblíqua e o cortante); formulário nos cartões E2c [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Feito | — | "Mostrar" na aba Detalhamento da viga: inferior, superior, pele, estribos (zonas) e seção, no `plantaStore.detMostrar` (R7b); zonas de confinamento não se aplicam a vigas no perfil NBR |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Feito | — | fator do comprimento de emenda por viga (campo na edição do detalhamento, `viga.detalhe`) e opção `vigaFatorEmenda` para a obra (R7b) |
-| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação [V5] |
+| C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); [V5] núcleo: `diagramaViga` por caso, combinação ou envoltória (superposição conferida) e aba Esforços nos cartões `docs/cartoes/V5/`; falta o seletor na janela da viga; sismo dinâmico fora |
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
 | C6.107 | Desenho da armadura de vigas inclinadas. | Parcial | E | núcleo: `blocoInclinada` (`sheets/armacaoVigas.ts`): elevação desenvolvida com barras superiores, inferiores e de pele, estribos e seção na prancha de vigas do grupo do pavimento inicial, com tabela de aço [E2c; representação a confirmar] |
@@ -504,18 +504,18 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
 | | **7.2 Resultados de lajes (lido só o começo)** | | | |
-| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje (planta com grupos de igualação e diagramas) e camada "Armadura das lajes" na planta (R6); sem as vistas de momentos/tipos combinadas com esforços na planta [V5] |
+| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje e camada "Armadura das lajes" na planta (R6); [V5] núcleo: `rotulosDeVigotas` combina momentos/tipos com esforços pela chave; vista na aba Esforços (cartões V5); falta a camada na planta |
 
 ## 7. Lajes (continuação)
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.2.1.1 Vistas de resultados das lajes de vigotas (continuação)** | | | |
-| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); sem a vista de tipos na planta (protendida e moldada no local: E3; aço fora) [V5] |
-| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo de cálculo por nervura na tabela por grupo e nos diagramas (por metro no núcleo) (R6); sem o valor junto a cada vigota na planta [V5] |
-| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); sem vista na planta com o tipo de treliça [V5] |
+| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); [V5] núcleo: `textoVigota` com a chave desligada (protendida, armada com treliça e adicional, moldada com φ e comprimento); protendida e moldada dependem da E3b; aço fora; falta a camada na planta |
+| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo por nervura na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (M por metro de largura, majorado, junto a cada vigota); falta a camada na planta |
+| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (V por metro nas duas pontas, ou a treliça, ou φ e espaçamento dos estribos); falta a camada na planta |
 | C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Falta | E | vigotas moldadas no local (E3) [E3b] |
-| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Falta | V | chave geral de exibição de esforços das vigotas [V5] |
+| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Parcial | V | [V5] núcleo: chave geral `esforcos` em `rotulosDeVigotas`/`textoVigota`, que condiciona as vistas e desliga a armadura inferior (C7.91); interface na aba Esforços (cartão V5-3); falta a camada na planta |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
 | C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Falta | E | [E3f] |
 | C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Falta | E | [E3f] |
@@ -618,7 +618,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.185 | Apagar armadura superior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.186 | Consulta/edição dos dados do pano também na aba de resultados. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.2.5 Diagramas de esforços** | | | |
-| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); sem torção nem por hipótese ou combinação (alveolares e mistas: E/fora) [V5] |
+| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); [V5] núcleo: `diagramaVigotas` por caso, combinação ou envoltória, com torção nula registrada; alveolares e mistas: E/fora |
 | C7.188 | Para hipótese sísmica dinâmica, escolha do modo de vibração. | Fora | — | sismo |
 | C7.189 | Consulta clicando nos alinhamentos de vigas, vigotas, alveolares ou lajes mistas. | Feito | — | clique duplo em vigas (R1) e clique na vigota da aba Vigotas (R6) abre os diagramas |
 | | **7.3 Desenhos e relatórios de lajes** | | | |
@@ -903,7 +903,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C12.11 | Radier: tensão máxima no terreno, levantamento (mm) e tensão por hipótese/combinação. | Parcial | V | [V4]: `campoDoRadier` (tensão máxima e mínima da envoltória das raras, kPa, e recalque em mm; tensão mínima negativa = levantamento); por hipótese ou combinação não existe (o resultado do radier é a envoltória das raras) |
 | C12.12 | Limites de valor máximo e/ou mínimo para restringir a faixa exibida (a ordem das cores se mantém); um limite só localiza o ponto extremo. | Parcial | V | [V4]: `Limites` em `bandas`, `isolinhas` e `extremos` (faixa exibida = limites; a ordem das cores se mantém; com um limite só, o extremo é localizado dentro da faixa); campos de limite na aba (cartões V4) |
 | C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Parcial | V | [V4]: limite mínimo = armadura adotada, ou σadm do radier, restringe o mapa à região insuficiente; "onde cabe certo diâmetro" fica por conta do usuário (limite = área do diâmetro) |
-| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V | [V4]: depende dos diagramas de esforços das vigas por hipótese (V5); o mapa de lajes está na aba Isovalores |
+| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Parcial | V | [V5] núcleo: `hipotesesDeEsforco` (envoltória, combinação e caso) para vigas, pilares, diagonais e vigotas; menu na aba Esforços (cartão V5-3); o mapa de lajes está na aba Isovalores; alveolares e mistas: E/fora |
 | C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Parcial | V | [V4]: clique no mapa abre a janela da laje (`elementoNoPonto` e `abrirJanela`, cartões V4); menu de lajes igual ao da aba de resultados não incluído |
 | C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Parcial | V | [V3]: núcleo `flechaPontos.ts` (`flechaEntrePontos`: secante ou tangente; máxima relativa, absoluta ou entre os pontos; amplificação; `flechaMaisDesfavoravel`); aba Deslocamentos nos cartões V3; falta a ferramenta com cliques na planta e o acesso pelas envoltórias |
 | C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Parcial | V | [V4]: várias janelas independentes (`isovaloresStore`, cartões V4), configuração mantida até fechar o programa |
@@ -1056,3 +1056,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
 - **23/10/2026 — E2d, núcleo (diagonais de contraventamento).** C6.36 a C6.46 passam de Falta a Parcial com nota própria (barra das inclinadas entre grupos, nó nos cruzamentos sem reduzir ℓe, dimensionamento à tração e à compressão com esbeltez máxima, comandos `diagonal.*` com o grupo atual, memorial e prancha prontos; interface nos cartões `docs/cartoes/E2d/`).
+- **23/10/2026 — V5, núcleo (esforços por hipótese, vistas de vigotas e saídas).** C7.92 e C12.14 de Falta a Parcial; C4.60, C6.105, C7.87, C7.88, C7.89, C7.90 e C7.187 seguem Parcial com nota nova (núcleo em `src/core/resultados/` e `src/core/sheets/`; interface nos cartões `docs/cartoes/V5/`; C7.91 depende da E3b).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na V).

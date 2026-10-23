@@ -2,6 +2,7 @@
 // layout de papel com uma janela (viewport) na escala da prancha. Camadas com cor, tipo de linha e espessura
 // (pena), texto em cp1252 (acentos) e hachura sólida nos pilares. Uma prancha por arquivo.
 import { CAMADAS, TRACOS, type Camada, type Prancha, type Prim } from './prancha';
+import { camadaEstilo, nomeCamada } from './estilo';
 
 const LW = [0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211];
 /** Espessura em centésimos de mm, arredondada para um valor aceito pelo DXF. */
@@ -97,7 +98,7 @@ export function escreverDxf(pr: Prancha, o: { arquivoLogo?: string } = {}): Uint
     };
     ly('0', 7, 'Continuous', -3);
     ly('JANELA', 8, 'Continuous', -3, false);
-    for (const c of camadas) ly(c, CAMADAS[c].cor, TIPO_LINHA[CAMADAS[c].tipo], lw(CAMADAS[c].pena));
+    for (const c of camadas) { const ce = camadaEstilo(pr, c); ly(ce.nome, ce.cor, TIPO_LINHA[ce.tipo], lw(ce.pena)); }
   });
   tabela('STYLE', H.tStyle, 1, () => {
     reg('STYLE', H.styStd, H.tStyle, 'AcDbTextStyleTableRecord', 'Standard'); g(40, 0); g(41, 1); g(50, 0); g(71, 0); g(42, 2.5); g(3, 'arial.ttf'); g(4, '');
@@ -132,18 +133,18 @@ export function escreverDxf(pr: Prancha, o: { arquivoLogo?: string } = {}): Uint
   };
   const escrever = (q: Prim, papel: boolean) => {
     if (q.t === 'pl') {
-      ent('LWPOLYLINE', papel, q.c, 'AcDbPolyline'); g(90, q.pts.length); g(70, q.fechada ? 1 : 0); g(43, 0);
+      ent('LWPOLYLINE', papel, nomeCamada(pr, q.c), 'AcDbPolyline'); g(90, q.pts.length); g(70, q.fechada ? 1 : 0); g(43, 0);
       for (const p of q.pts) { g(10, p[0]); g(20, p[1]); }
     } else if (q.t === 'circ') {
-      ent('CIRCLE', papel, q.c, 'AcDbCircle'); g(10, q.centro[0]); g(20, q.centro[1]); g(30, 0); g(40, q.r);
+      ent('CIRCLE', papel, nomeCamada(pr, q.c), 'AcDbCircle'); g(10, q.centro[0]); g(20, q.centro[1]); g(30, 0); g(40, q.r);
     } else if (q.t === 'hach') {
-      ent('HATCH', papel, q.c, 'AcDbHatch'); g(10, 0); g(20, 0); g(30, 0); g(210, 0); g(220, 0); g(230, 1);
+      ent('HATCH', papel, nomeCamada(pr, q.c), 'AcDbHatch'); g(10, 0); g(20, 0); g(30, 0); g(210, 0); g(220, 0); g(230, 1);
       g(2, 'SOLID'); g(70, 1); g(71, 0); g(91, 1); g(92, 3); g(72, 0); g(73, 1); g(93, q.pts.length);
       for (const p of q.pts) { g(10, p[0]); g(20, p[1]); }
       g(97, 0); g(75, 0); g(76, 1); g(98, 0);
     } else {
       const ah = q.ah === 'c' ? 1 : q.ah === 'd' ? 2 : 0, av = q.av === 'meio' ? 2 : q.av === 'topo' ? 3 : 0;
-      ent('TEXT', papel, q.c, 'AcDbText'); g(10, q.p[0]); g(20, q.p[1]); g(30, 0); g(40, q.h); g(1, q.s); if (q.ang) g(50, q.ang); g(7, 'Standard');
+      ent('TEXT', papel, nomeCamada(pr, q.c), 'AcDbText'); g(10, q.p[0]); g(20, q.p[1]); g(30, 0); g(40, q.h); g(1, q.s); if (q.ang) g(50, q.ang); g(7, 'Standard');
       if (ah || av) { g(72, ah); g(11, q.p[0]); g(21, q.p[1]); g(31, 0); }
       g(100, 'AcDbText'); if (av) g(73, av);
     }
@@ -163,7 +164,7 @@ export function escreverDxf(pr: Prancha, o: { arquivoLogo?: string } = {}): Uint
   for (const q of pap) escrever(q, true);
   // logo do carimbo: IMAGE no papel, referenciando a imagem externa (IMAGEDEF)
   if (logo) {
-    g(0, 'IMAGE'); g(5, H.imgEnt); g(330, H.brPaper); g(100, 'AcDbEntity'); g(67, 1); g(8, 'FOLHA'); g(100, 'AcDbRasterImage'); g(90, 0);
+    g(0, 'IMAGE'); g(5, H.imgEnt); g(330, H.brPaper); g(100, 'AcDbEntity'); g(67, 1); g(8, nomeCamada(pr, 'FOLHA')); g(100, 'AcDbRasterImage'); g(90, 0);
     g(10, logo.x0); g(20, logo.y0); g(30, 0);
     g(11, (logo.x1 - logo.x0) / logo.largura); g(21, 0); g(31, 0); g(12, 0); g(22, (logo.y1 - logo.y0) / logo.altura); g(32, 0);
     g(13, logo.largura); g(23, logo.altura); g(340, H.imgDef); g(70, 7); g(280, 0); g(281, 50); g(282, 50); g(283, 0); g(360, H.imgReactor);

@@ -1,12 +1,14 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import { base64Bytes, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import type { Draft } from 'immer';
-import { ORIGEM_ROTULO, type OrigemObra, ARMACAO_PADRAO, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
+import { ORIGEM_ROTULO, type OrigemObra, ARMACAO_PADRAO, SIMBOLOS_PADRAO, type DetalheDxf, type EstiloParcial, type SimbolosPilar, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
 import { OPCOES_INFO, efeitoDaOpcao, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
 import { gamaCDoControle } from '../building/acoes';
 import { GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
+import { detalheDeDxf } from '../sheets/saidas';
+import { validarEstilo } from '../sheets/estilo';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -104,7 +106,10 @@ registrar<{ ativo?: boolean; v0?: number; s1?: number; s3?: number; categoria?: 
 
 const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'registro', 'art', 'etapa', 'desenho', 'revisao', 'data'] as const;
 
-registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao>; logo?: { dados: string; nome?: string }; removerLogo?: boolean }>({
+interface DxfIns { dxf: string; nome?: string; x: number; y: number; escala?: number; rotacao?: number; folhas?: string[] }
+registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao>; logo?: { dados: string; nome?: string }; removerLogo?: boolean;
+  simbolos?: Partial<SimbolosPilar>; estilo?: EstiloParcial; estiloPadrao?: boolean; moldura?: { dxf: string; nome?: string; x: number; y: number; escala?: number; modo?: 'moldura' | 'moldura+legenda' }; removerMoldura?: boolean;
+  detalhe?: DxfIns; removerDetalhes?: string[] }>({
   nome: 'prancha.definir',
   calculo: false,
   descricao: `Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 75, escalaSecao 25, escalaPilares 40, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1) e o logo do carimbo ("logo": JPEG em base64, até ${Math.round(LIMITE_LOGO / 1024)} KB em base64; "removerLogo" o retira). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.`,
@@ -122,8 +127,20 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     } },
     logo: { type: 'object', additionalProperties: false, required: ['dados'], properties: { dados: { type: 'string', minLength: 8, description: 'JPEG em base64 (sem o prefixo data:)' }, nome: { type: 'string' } } },
     removerLogo: { type: 'boolean' },
+    simbolos: { type: 'object', additionalProperties: false, properties: Object.fromEntries(['passa', 'nasce', 'morre'].map((k) => [k, { type: 'string', enum: ['hachura', 'tracejado', 'cruz', 'solido', 'vazio'] }])), description: 'Símbolo do pilar que passa, nasce ou morre no pavimento (planta de formas)' },
+    estilo: { type: 'object', additionalProperties: false, description: 'Estilo de desenho (padrão NBR 16861): camadas por nome do catálogo (nome, cor ACI, pena em mm, tipo cont|trac|eixo) e fator de texto por tipo (rotulos, cotas, eixos, carimbo, quadros, armadura, cargas)', properties: {
+      camadas: { type: 'object', description: 'nome da camada do catálogo → { nome, cor, pena, tipo }' },
+      textos: { type: 'object', description: 'tipo de texto → fator (0,5 a 3)' } } },
+    estiloPadrao: { type: 'boolean', description: 'Volta ao estilo padrão (apaga o estilo da obra)' },
+    moldura: { type: 'object', additionalProperties: false, required: ['dxf', 'x', 'y'], properties: { dxf: { type: 'string', description: 'Texto do DXF do modelo de moldura' }, nome: { type: 'string' }, x: { type: 'number', description: 'mm, posição do ponto (0,0) do desenho na folha' }, y: { type: 'number' }, escala: { type: 'number', exclusiveMinimum: 0 }, modo: { type: 'string', enum: ['moldura', 'moldura+legenda'] } } },
+    removerMoldura: { type: 'boolean' },
+    detalhe: { type: 'object', additionalProperties: false, required: ['dxf', 'x', 'y'], properties: { dxf: { type: 'string' }, nome: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, escala: { type: 'number', exclusiveMinimum: 0 }, rotacao: { type: 'number' }, folhas: { type: 'array', items: { type: 'string' } } } },
+    removerDetalhes: { type: 'array', items: { type: 'string' } },
   } },
   validar(_b, p) {
+    const ev = validarEstilo(p.estilo);
+    if (ev.length) return err('ESTILO_INVALIDO', ev[0]);
+    for (const x of [p.moldura, p.detalhe]) if (x) { const d = detalheDeDxf(x.dxf, x.nome ?? 'DXF'); if ('erro' in d) return err('DXF_INVALIDO', d.erro); }
     if (!p.logo) return [];
     if (p.logo.dados.length > LIMITE_LOGO) return [{ codigo: 'LOGO_GRANDE', severidade: 'erro', elementos: [], mensagem: `Logo com ${Math.round(p.logo.dados.length / 1024)} KB em base64: o limite é ${Math.round(LIMITE_LOGO / 1024)} KB (reduza a imagem).` }];
     const bytes = base64Bytes(p.logo.dados), info = bytes && infoJpeg(bytes);
@@ -143,6 +160,24 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
       if (v === undefined) continue;
       if (v.trim()) d.prancha.carimbo[k] = v.trim(); else delete d.prancha.carimbo[k];
     }
+    if (p.simbolos) {
+      const sm = { ...(d.prancha.simbolos ?? {}), ...p.simbolos };
+      for (const k of ['passa', 'nasce', 'morre'] as const) if (sm[k] === SIMBOLOS_PADRAO[k]) delete sm[k];
+      if (Object.keys(sm).length) d.prancha.simbolos = sm; else delete d.prancha.simbolos;
+    }
+    if (p.estiloPadrao) delete d.prancha.estilo;
+    if (p.estilo) {
+      const e: EstiloParcial = { camadas: { ...(d.prancha.estilo?.camadas ?? {}) }, textos: { ...(d.prancha.estilo?.textos ?? {}) } };
+      for (const [c, v] of Object.entries(p.estilo.camadas ?? {})) e.camadas![c] = { ...(e.camadas![c] ?? {}), ...v };
+      Object.assign(e.textos!, p.estilo.textos ?? {});
+      if (!Object.keys(e.camadas!).length) delete e.camadas;
+      if (!Object.keys(e.textos!).length) delete e.textos;
+      if (Object.keys(e).length) d.prancha.estilo = e; else delete d.prancha.estilo;
+    }
+    if (p.removerMoldura) delete d.prancha.moldura;
+    if (p.moldura) { const det = detalheDeDxf(p.moldura.dxf, p.moldura.nome ?? 'Moldura') as DetalheDxf; d.prancha.moldura = { modelo: { detalhe: det, x: p.moldura.x, y: p.moldura.y, escala: p.moldura.escala ?? 1, modo: p.moldura.modo ?? 'moldura' } }; }
+    if (p.removerDetalhes?.length) { d.prancha.detalhes = (d.prancha.detalhes ?? []).filter((x) => !p.removerDetalhes!.includes(x.id)); if (!d.prancha.detalhes.length) delete d.prancha.detalhes; }
+    if (p.detalhe) { const det = detalheDeDxf(p.detalhe.dxf, p.detalhe.nome ?? 'Detalhe') as DetalheDxf; (d.prancha.detalhes ??= []).push({ id: novoId(d, 'dt'), detalhe: det, x: p.detalhe.x, y: p.detalhe.y, escala: p.detalhe.escala ?? 1, ...(p.detalhe.rotacao ? { rotacao: p.detalhe.rotacao } : {}), ...(p.detalhe.folhas?.length ? { folhas: p.detalhe.folhas } : {}) }); }
     if (p.formato !== undefined) d.prancha.formato = p.formato;
     if (p.escala !== undefined) d.prancha.escala = p.escala;
     return 'Pranchas: dados alterados.';

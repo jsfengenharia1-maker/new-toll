@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 15 | 34 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 16 | 4 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 19 | 1 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 19 | 2 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 17 | 6 | 1 | 19 |
-| **Total** | **661** | **389** | **89** | **72** | **111** |
+| **Total** | **661** | **389** | **92** | **69** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 49 | 69 | 118 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 17 | 3 | 20 |
-| **Total** | **89** | **72** | **161** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 20 | 0 | 20 |
+| **Total** | **92** | **69** | **161** |
 
 ## Divergências de premissa
 
@@ -231,7 +231,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.54 | Perfis metálicos: opção de reduzir o perfil quando possível ou mantê-lo e só verificar; esforços vêm do perfil lançado — se a inércia mudar muito, recalcular; escolhe o perfil mais econômico. | Fora | — | perfis metálicos |
 | K1.4.55 | Mudança de seção entre pavimentos: dobra da armadura com inclinação limitada (ângulo depende da espessura da laje ou viga); se exceder, cortar e ancorar a barra inferior e colocar arranques para o lance de cima. | Feito | — | mudança de seção: dobra se o deslocamento das faces/altura da viga ≤ 1:6; senão a barra de baixo ancora no nó com gancho e entram arranques ancorados lb abaixo e emendados lb acima (R3b) |
 | K1.4.56 | Arredondamento de comprimentos de barras: múltiplo de 5 cm (padrão). | Feito | — | comprimentos arredondados para cima ao múltiplo de 5 cm (opção arredondamento), também nos pilares (R3b) |
-| K1.4.57 | Símbolos gráficos para pilar que nasce, passa ou morre no pavimento (selecionáveis). | Parcial | V | prancha: pilar que chega hachurado, que nasce tracejado; símbolos fixos [V5] |
+| K1.4.57 | Símbolos gráficos para pilar que nasce, passa ou morre no pavimento (selecionáveis). | Parcial | V | prancha: pilar que chega hachurado, que nasce tracejado; [V5] núcleo: símbolos selecionáveis por pilar que passa, nasce ou morre (`b.prancha.simbolos`, `simbolos.ts`, `prancha.definir`) na planta de formas; falta a planta do app (canvas) e o editor na aba Pranchas (cartão V5-4) |
 | K1.4.58 | Emendas no terço central do lance (zona sísmica): padrão desativado; recomendado em alta sismicidade. | Fora | — | sismo |
 | K1.4.59 | Emendas em paredes e pilares-parede: verifica se a armadura na emenda está comprimida ou tracionada; fator de ampliação do comprimento de emenda conforme o espaçamento das barras. | Feito | — | `comprimentoEmenda` e `detalharParedes` (`detalhamentoParedes.ts`): tracionada se algum elemento do quarto superior do pano traciona a vertical, α0t pela proporção (`paredeEmendaProp`), ampliação pelo espaçamento (`paredeEmendaAmpliar`) [E1d] |
 | K1.4.60 | Paredes/pilares-parede: grau de cumprimento exigido da armadura (picos de tensão); padrão 90 %; recomenda-se conferir onde não atinge 100 % e se precisa armadura local. | Feito | — | opção `paredeCumprimento` (90 %; NBR 100 %), `escolherMalhasPano` e `fracaoAtende` (`paredesArmadura.ts`); pontos que não atendem e armadura local necessária em `ResultadoPano.pontos/reforcos` [E1d] |
@@ -270,7 +270,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | | **Fundações (listadas)** | | | |
 | K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Feito | — | opções gerais de sapatas, blocos, tubulões, vigas de fundação e sapatas corridas no edifício (`fundacao.opcoes`, `PARAMS_FUNDACAO`, `vigaEq*`/`vigaTrav*`/`vigaFund*`/`corrida*` em Opções de cálculo; editor "Parâmetros do cálculo"); particulares por elemento, por viga e por sapata corrida (seção, `fixa`, equilíbrio por ponta, B, h, aba, k, σadm) |
 | | **Desenho** | | | |
-| K1.4.90 | Camadas, tamanho de texto e penas configuráveis. | Parcial | V | camadas e penas fixas (NBR 16861); não configuráveis [V5] |
+| K1.4.90 | Camadas, tamanho de texto e penas configuráveis. | Parcial | V | camadas e penas da NBR 16861; [V5] núcleo: estilo editável de camadas (nome, cor ACI, pena, tipo de linha) e fator de texto por tipo (`b.prancha.estilo`, `estilo.ts`) aplicado a PDF, SVG, DXF e DWG, salvo e aberto em arquivo; editor no cartão V5-4; tamanho de texto por fator (não por altura absoluta) e penas fora da série: a confirmar |
 | K1.4.91 | Opções gerais (marcadas) afetam todas as obras: mudar e recalcular pode alterar resultados; as demais ficam salvas com a obra. | Fora | — | opções por instalação do outro programa |
 | K1.4.92 | Restauração dos padrões por instalação limpa ou botão de valores padrão. | Fora | — | restauração de opções por instalação |
 
@@ -311,7 +311,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado (padrão 1,3); N2a: Ca automático pelo ábaco de baixa/alta turbulência (curvas por h/l1, interpolação) pronto, tabelas vazias: pontos da figura da NBR 6123 a fornecer pelo usuário; forma cilíndrica fora |
 | K1.5.30 | Coeficiente de rajada para locais expostos (vales, encostas). | Feito | — | S1 (topográfico) e S3 editáveis |
 | K1.5.31 | Força total por pavimento = pressão × área × coef. de forma × coef. de rajada; aplicada no centro geométrico do contorno do pavimento. | Feito | — | força no mestre (centro das lajes) com excentricidade ± 0,075·largura |
-| K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Parcial | V | forças por pavimento na aba Análise; não no memorial nem em planta [V5] |
+| K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Parcial | V | forças por pavimento na aba Análise; [V5] núcleo: `ventoPorPavimento`, `tabelaVento` e `setasDeVento` (tabela por pavimento e direção e resultantes por zona); falta o desenho na planta e o memorial |
 | K1.5.33 | Para cada norma a pressão é calculada automaticamente com dados próprios da norma. | Feito | — | pressão automática pela NBR 6123 |
 | K1.5.34 | Estruturas 3D integradas: sem cargas automáticas; cargas manuais em nós e barras, combináveis com as automáticas por casos adicionais. | Fora | — | estruturas 3D integradas |
 | K1.5.35 | Alerta ao importar do programa 3D: conferir combinatória e compatibilidade dos casos (sobretudo vento gerado por gerador de pórticos). | Fora | — | importação de outro programa 3D |
@@ -543,7 +543,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.8 | Coeficiente de engaste nas bordas consultável. | Feito | — | coeficientes de engaste das bordas consultáveis em Vínculos e listados no memorial (N1a) |
 | K1.11.9 | Vigas de aço: perfil dimensionado e perfis da série que atendem; vigas mistas: dimensionamento dos conectores. | Fora | — | vigas de aço e mistas |
 | K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Feito | — | seção alterada (`calculo: 'secao'`) + “Rearmar alterados” ou “todos” com os mesmos esforços, sem nova análise; travamento da armadura com verificação em vermelho (R2); aviso ESFORCO_ANTIGO pede nova análise quando a rigidez variou muito (R7f) |
-| K1.11.11 | Cargas exibidas graficamente por caso (cores). | Parcial | V | cargas desenhadas na planta com cor única, não por caso [V5] |
+| K1.11.11 | Cargas exibidas graficamente por caso (cores). | Parcial | V | cargas na planta com cor única; [V5] núcleo: `classeDoCaso` e `legendaDeCargas` (tokens `--carga-caso-*` por natureza e por caso adicional) e camadas CARGA-* nas pranchas; falta pintar o canvas da planta |
 | | **Lajes de vigotas** | | | |
 | K1.11.12 | Envoltórias de momento e cortante por vigota (majoradas), negativos (nº, bitola, comprimento), momentos e cortantes nos extremos por metro. | Feito | — | diagramas de M e V por vigota com MRd/VRd1, negativos (n, φ, comprimento) e cortantes das pontas por grupo na janela da laje treliçada (R6) |
 | K1.11.13 | Igualação de momentos, cortantes e negativos por média, diferença % ou máximo; editáveis. | Feito | — | igualação de momentos, cortantes (sempre pelo máximo) e negativos das vigotas pelo máximo ou pela média, com diferença % editável (vigotaIgualacao, vigotaIgualacaoDif; R6) |
@@ -564,9 +564,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.26 | "Rearmar" lajes com os esforços iniciais (com linha de igualação). | Feito | — | `laje.barras` com `refazer`: descarta edição e geração sem cálculo e refaz com os esforços da análise, mantendo `zonasLaje` e `linhasDobra` (R7e) |
 | | **Pilares** | | | |
 | K1.11.27 | Armadura consultável e editável; mudança de dimensão gera nova armadura. | Feito | — | armadura do pilar editável por lance (R2); mudar a seção do elemento solta a armadura bloqueada no mesmo passo (desfazível) e o recálculo gera a nova (R7f) |
-| K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Falta | V | esforços ao longo do pilar e diagramas (só no Pórtico 2D) [V5] |
+| K1.11.28 | Esforços por caso (N, M, V, T) em qualquer ponto da altura e diagramas. | Parcial | V | [V5] núcleo: `diagramaPilar` (N, M, V e T por caso, combinação ou envoltória, em qualquer altura, conferido com as cargas na fundação) e aba Esforços (cartões V5); falta o seletor na janela do pilar |
 | K1.11.29 | Esforços mais desfavoráveis (majorados) por lance que determinam a armadura; pode haver várias combinações determinantes (atendem a armadura escolhida mas não a imediatamente inferior). | Feito | — | janela do pilar com as combinações determinantes por lance: Nd, momentos de base e topo por direção, Md,tot e tração (R1) |
-| K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Falta | V | diagrama de deformações e tensões da seção [V5] |
+| K1.11.30 | Diagramas de deformação e tensão do concreto e aço na reta normal à linha neutra. | Parcial | V | [V5] núcleo: `estadoDaSecao` (plano de deformações, domínio, linha neutra, tensões do concreto e do aço por barra; ∫σ = N e momento iguais ao cálculo por fibras) e seção na aba Esforços (viga e pilar retangular); seção circular e poligonal fora |
 | K1.11.31 | Momentos ampliados por excentricidade acidental e de 2ª ordem (flambagem) destacados. | Feito | — | janela do pilar com momentos de 1ª ordem na base e no topo e Md,tot com M1d,mín e 2ª ordem por combinação determinante (R1) |
 | K1.11.32 | Código de motivo quando não atende (ex.: taxa excessiva acima do máximo de norma — armadura mantida); sinal de limite excedido após edição. | Feito | — | código do motivo por lance (ARMADURA, ESBELTEZ, GAMA_N, TRACAO…) e ARM_BLOQ quando a armadura editada não atende (R1, R2) |
 | K1.11.33 | Recalcular se mudanças significativas (rigidez mudou). | Feito | — | aviso "o modelo mudou: recalcule" |
@@ -594,7 +594,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.52 | Fundações: materiais, ações, geometria de sapatas, blocos, vigas centradoras e de travamento, quantitativos e verificações realizadas. | Feito | — | memorial do edifício com terreno, materiais, ações, geometria e verificações dos elementos de fundação, vigas de equilíbrio e de travamento, base elástica e sapatas corridas (`MemorialEdificio.tsx`) e quantitativos de concreto, forma, aço e estacas (`quantitativosFundacao`, FU5) |
 | K1.11.53 | Consolos curtos; estruturas 3D integradas; verificações ELU de pilares e vigas. | Parcial | E | verificações ELU por combinação no memorial a pedido ("ELU por combinação": combinações determinantes dos pilares e extremos das vigas, `MemorialEluPorCombinacao`, R7g); faltam consolos curtos (E2) |
 | | **1.11.3 Desenhos (págs. 75–76)** | | | |
-| K1.11.54 | Formatos padrão ou do usuário; impressora, plotter, DXF/DWG, PDF; detalhes DXF/DWG inseríveis; escala, espessuras, textos, moldura, modelo DXF/DWG; elementos por camadas. | Parcial | V | PDF, DXF R2000, DWG; A0–A4, carimbo, camadas; sem formato ou moldura do usuário [V5] |
+| K1.11.54 | Formatos padrão ou do usuário; impressora, plotter, DXF/DWG, PDF; detalhes DXF/DWG inseríveis; escala, espessuras, textos, moldura, modelo DXF/DWG; elementos por camadas. | Parcial | V | PDF, DXF R2000, DWG; A0–A4, carimbo, camadas; [V5] núcleo: detalhes DXF inseríveis (escala, posição e rotação), modelo de moldura e de legenda importado de DXF, estilo de camadas, penas e textos; faltam o formato do usuário (largura × altura livres) e as margens configuráveis; impressora e plotter pela impressão do navegador (PDF) |
 | K1.11.55 | Planta de locação: elementos cotados por pavimento em relação a eixos; opcionalmente áreas, volumes e aço em quadro. | Feito | — | prancha de locação e cargas: pilares cotados entre centros e eixos, tabela de cargas características e de cálculo e notas gerais (R5); áreas e volumes por folha nas pranchas de armação |
 | K1.11.56 | Plantas de fôrma/estrutura: vigas, pilares, pilares-parede, paredes, panos de vigotas (positivos, cortantes extremas, comprimentos de negativos), armaduras de maciças e nervuradas, quadro de armadura base, ábacos e nervuras, punção, zonas maciças/aliviadas, quadro de quantitativos; desenhos de fundação. | Parcial | E | plantas de formas, locação e armação de lajes maciças e treliçadas (barra representativa, distribuição, sentido das vigotas); sem fundações, ábacos, punção, zonas maciças/aliviadas e quadro de armadura base (R5) [E3d] |
 | K1.11.57 | Detalhamento de vigas (pórticos): nome, escala, dimensões, barras (nº, bitola, comprimentos, posição), estribos (tipo, bitola, espaçamento), quadro resumo. | Feito | — | prancha de armação de vigas por grupo: elevação com barras (n Nk φ C=), estribos por zona, apoios, cotas, seção e estribo à parte, tabela de aço e resumo com perdas (R5); sem corte A-A nem 2ª camada |
@@ -602,7 +602,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.59 | Detalhamento de pilares e pilares-parede: elevação e tabela de comprimentos de barras. | Feito | — | prancha de armação de pilares: elevação com níveis, emendas e arranques, seções por arranjo com grampos e tabela de aço (R5); pilares-parede inexistentes no módulo |
 | K1.11.60 | Cargas na fundação: arranques com cargas por caso em eixos globais (pilares e pilares-parede). | Feito | — | arranques com cargas por caso em eixos globais (FU1: `carga.pilar` no arranque, `CargasNoPilar` na interface, `reacoesArranques`); cargas na fundação em tabela e envio às Fundações; desenho na FU5: tabela de cargas (Nk, Nd, momentos e forças horizontais) na locação e arranques na planta de fundação |
 | K1.11.61 | Paredes de subsolo/portantes: elevações por trecho com tabela de armadura por pavimento e quantitativos aproximados. | Feito | — | `montarPranchasParedes` (tipo `paredes`, sigla SCM a confirmar): elevação por trecho com aberturas, barras dos panos, reforços, verga/montantes/cantos, quadro de armadura por pavimento, emendas e quantitativo aproximado [E1d] |
-| K1.11.62 | Desenho de cargas especiais por caso e grupo; consolos curtos; isolinhas de lajes; estrutura 3D. | Falta | V | desenho de cargas, isolinhas e vista 3D [V5] |
+| K1.11.62 | Desenho de cargas especiais por caso e grupo; consolos curtos; isolinhas de lajes; estrutura 3D. | Parcial | V | [V5] núcleo: prancha de cargas por caso e grupo (`montarPranchasCargas`, tipo `cargas`, sigla SCC a confirmar) e perspectiva axonométrica (`montarPranchaPerspectiva`, tipo `perspectiva`, SCX a confirmar); isolinhas de lajes na V4 (falta a folha de resultados); consolos curtos dependem da E2e |
 
 ## 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90)
 
@@ -984,3 +984,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E2d, núcleo (diagonais de contraventamento).** K1.4.88 segue Parcial, agora com as opções de flambagem e a esbeltez máxima das diagonais (comprimento total entre as pontas, sem redução no cruzamento); interface nos cartões `docs/cartoes/E2d/`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança de contagem.
+- **23/10/2026 — V5, núcleo (esforços por hipótese, vistas de vigotas e saídas).** K1.11.28, K1.11.30 e K1.11.62 de Falta a Parcial; K1.4.57, K1.4.90, K1.5.32, K1.11.11 e K1.11.54 seguem Parcial com nota nova (núcleo em `src/core/resultados/` e `src/core/sheets/`; interface nos cartões `docs/cartoes/V5/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na V).

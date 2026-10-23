@@ -12,9 +12,12 @@ import { montarPranchasLajes } from './armacaoLajes';
 import { montarPranchasParedes } from './armacaoParedes';
 import { montarPranchaLocacao } from './locacao';
 import { montarPranchasFundacao } from './fundacao';
+import { montarPranchaPerspectiva, montarPranchasCargas } from './folhasV5';
+import { aplicarEstilo } from './estilo';
+import { inserirDetalhes } from './saidas';
 
 export type TipoSaida = TipoPrancha | 'todas';
-export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'todas'];
+export const TIPOS_PRANCHA: TipoSaida[] = ['formas', 'locacao', 'fundacao', 'vigas', 'pilares', 'paredes', 'lajes', 'cargas', 'perspectiva', 'todas'];
 /** Ordem das pranchas no conjunto. */
 export const ORDEM_CONJUNTO: TipoPrancha[] = ['locacao', 'fundacao', 'formas', 'vigas', 'pilares', 'paredes', 'lajes'];
 /** Tipos que exigem análise e dimensionamento. */
@@ -32,9 +35,11 @@ export interface OpcoesConjunto {
   armaduras?: Record<string, string>;
 }
 
+/** Folhas só pedidas por nome (fora do conjunto completo): cargas por caso e perspectiva (V5). */
+export const FOLHAS_AVULSAS: TipoPrancha[] = ['cargas', 'perspectiva'];
 export const tiposDe = (t: OpcoesConjunto['tipos']): TipoPrancha[] => {
   const xs = Array.isArray(t) ? t : [t ?? 'formas'];
-  return xs.includes('todas') ? ORDEM_CONJUNTO : ORDEM_CONJUNTO.filter((x) => xs.includes(x));
+  return xs.includes('todas') ? ORDEM_CONJUNTO : [...ORDEM_CONJUNTO, ...FOLHAS_AVULSAS].filter((x) => xs.includes(x));
 };
 
 /** Armaduras dos pilares por `${pilar}|${pavimento}` para o quadro da planta de formas. */
@@ -68,7 +73,11 @@ export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim
     else if (t === 'pilares') out.push(...montarPranchasPilares(b, an, dim!, oa));
     else if (t === 'paredes') { const pr = montarPranchasParedes(b, an, dim!, oa); if (!pr.length && !pedeTodas) avisos.push('Pranchas de paredes: não há paredes ou pilares-parede calculados.'); out.push(...pr); }
     else if (t === 'lajes') out.push(...montarPranchasLajes(b, an, dim!, oa));
+    else if (t === 'cargas') { const prs = montarPranchasCargas(b, oa); if (!prs.length) avisos.push('Pranchas de cargas: não há cargas lançadas.'); out.push(...prs); }
+    else if (t === 'perspectiva') { const pr = montarPranchaPerspectiva(b, oa); if (pr) out.push(pr); else avisos.push('Perspectiva: não há elementos para desenhar.'); }
   }
-  out.forEach((pr, i) => numerarPrancha(pr, i + 1, out.length));
-  return { pranchas: out, avisos };
+  // V5: detalhes DXF inseridos e estilo de desenho (camadas, penas e textos) da obra
+  const finais = out.map((pr) => aplicarEstilo(inserirDetalhes(pr, b.prancha?.detalhes, pr.tipo ?? 'formas'), b.prancha?.estilo));
+  finais.forEach((pr, i) => numerarPrancha(pr, i + 1, finais.length));
+  return { pranchas: finais, avisos };
 }
