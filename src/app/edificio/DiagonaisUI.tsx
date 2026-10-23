@@ -9,6 +9,7 @@ import { resumoDiagonais } from '../../core/building/diagonais';
 import { barrasDaInclinada } from '../../core/building/inclinadas';
 import { centroNoLance, lancesDoPilar, pavimentosOrdenados, type BuildingModel, type Diagonal, type LigacaoBarra } from '../../core/building/types';
 import { useBuilding } from './store';
+import { DiagonalResultados } from './DiagonaisResultadosUI';
 
 interface EstadoJanela { aberta: boolean; id?: string; abrir: (id?: string) => void; fechar: () => void }
 /** Estado da janela das diagonais (a paleta Ctrl+K a abre). */
@@ -146,6 +147,7 @@ export function JanelaDiagonais({ id, onClose }: { id?: string; onClose: () => v
             </div>
           )}
         {v && <EditarDiagonal key={v.id} b={b} v={v} outras={(b.diagonais ?? []).filter((x) => x.id !== v.id)} />}
+        {v && <DiagonalResultados b={b} id={v.id} />}
         <LancarDiagonal b={b} aoLancar={setSel} />
       </div>
     </Modal>
