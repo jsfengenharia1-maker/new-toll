@@ -694,7 +694,9 @@ export type TipoLaje =
   /** Vigotas por ficha (E3a): `ficha` (obra, catálogo ou exemplo) e `serie` (laje da série por altura e intereixo). */
   | { tipo: 'vigotas'; ficha: string; serie: string }
   /** Nervurada unidirecional moldada no local (E3a): nervuras como vigas T; `h` = altura total, `enchimento` = id da biblioteca. */
-  | { tipo: 'moldada'; capa: number; intereixo: number; bw: number; h: number; enchimento: string };
+  | { tipo: 'moldada'; capa: number; intereixo: number; bw: number; h: number; enchimento: string }
+  /** Nervurada bidirecional moldada no local (E3c): `forma` (cubeta da biblioteca, `formas`), altura total e capa (m). */
+  | { tipo: 'nervurada'; forma: string; hTotal: number; capa: number };
 
 export interface Laje {
   id: string;
@@ -749,7 +751,24 @@ export interface Laje {
   momentosMin?: MomentosMinLaje;
   /** Classe de agressividade ambiental do pano (E3b, C7.11): nível de protensão das vigotas protendidas pela Tabela 13.4; ausente = a da obra. */
   exposicao?: 'I' | 'II' | 'III' | 'IV';
+  /** Nervurada bidirecional (E3c, K1.9.93): ponto por onde passa o eixo de uma nervura de cada direção (origem do arranjo das nervuras); ausente = o ponto de inserção do pano. */
+  pontoNervuras?: [number, number];
+  /** Nervurada bidirecional (E3c): zonas maciças manuais (polígonos, m), além da faixa junto às vigas da opção `nervuradaMacicoViga`. */
+  zonasMacicas?: [number, number][][];
+  /** Nervurada bidirecional (E3c, K1.9.94, K1.13.3): armadura base da mesa e das nervuras; ausente = só a calculada. */
+  baseNervurada?: BaseNervurada;
 }
+
+/** Barras de uma nervura: n barras de φ mm. */
+export interface BarrasNervura { n: number; phi: number }
+/** Armadura base de uma direção de nervuras: barras inferiores e superiores em cada nervura; só entra no dimensionamento com `considerar`. */
+export interface BaseNervuraDir { inf?: BarrasNervura; sup?: BarrasNervura; considerar?: boolean }
+/**
+ * Armadura base da nervurada bidirecional (E3c): `mesa` = malha na capa e nas zonas maciças (barras ou tela, como as maciças);
+ * `nervuras` = barras corridas nas nervuras de cada direção (0 = a da laje, 1 = transversal); `detalhada` sobrepõe a opção
+ * `lajeBaseDetalhada` (desenhada e medida; senão só a descrição geral na listagem).
+ */
+export interface BaseNervurada { mesa?: ArmaduraBaseLaje; nervuras?: [BaseNervuraDir | null, BaseNervuraDir | null]; detalhada?: boolean }
 
 /** Tipo de vão da vigota: extremo (contínua numa ponta), intermediário (contínua nas duas), isolado (biapoiada) ou balanço. */
 export type TipoVao = 'extremo' | 'intermediario' | 'isolado' | 'balanco';

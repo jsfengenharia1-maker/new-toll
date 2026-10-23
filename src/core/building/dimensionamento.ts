@@ -31,6 +31,8 @@ import { detalharVigas, resumoAcoVigas, type DetalheViga } from './detalhamento'
 import { detalharPilares, resumoAcoPilares, type DetalhePilar } from './detalhamentoPilares';
 import { detalharLajes, escolherBarrasLaje, resumoAcoLajes, resumoTelasLajes, type DetalheLaje } from './detalhamentoLajes';
 import { dimensionarVigotasFichas } from './vigotasFichas';
+import { dimensionarNervuradas, resumoAcoNervuradas, type ResultadoNervurada } from './nervuradasDim';
+import { espessuraConcretoDaLaje } from './nervuradas';
 import { quantitativoMoldadas, quantitativoVigotas } from './vigotasRelatorio';
 import { dimensionarVigotas, quantitativoTrelicas, resumoAcoVigotas, type ResultadoVigotas } from './vigotas';
 import { casosDaObra, centroNoLance, comprimentoPolilinha, contornoNoLance, dimsSecao, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, secaoNoLance, type BuildingModel } from './types';
@@ -1560,7 +1562,7 @@ function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x:
 
 /** Flechas de uma laje (ou de uma vigota) para as deformações elásticas `x`, o fator de fissuração `kappa` e αf: método, ativa e variável com os limites. */
 function flechasDaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], l: BuildingModel['lajes'][number], x: Pick<PendenteFlecha, 'flQP' | 'dG' | 'dQ' | 'dQqp' | 'vao'>, kappa: number, af: number) {
-  const mac = l.tipo.tipo === 'macica', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
+  const mac = l.tipo.tipo === 'macica' || l.tipo.tipo === 'nervurada', tipoL = tipoFlechaLaje(l), lims = limitesEmUso(b, op, tipoL);
   const inst = instantaneasPorCategoria(x.dG * kappa, fracoesGLaje(b, l), x.dQ * kappa, x.dQqp * kappa);
   const comp = composicaoEtapas(etapasDe(b, tipoL), inst, { rho: 0, qInstantanea: op.flechaQInstantanea ? 'total' : 'qp' });
   const fatA = mac ? op.fatorFlechaAtiva : op.fatorFlechaAtivaTrelicada, fatC = mac ? op.fatorFlechaConforto : op.fatorFlechaConfortoTrelicada;
@@ -1630,7 +1632,7 @@ interface ResFissuracao { kappa: Map<string, number>; resEl?: Resultado3; resCr?
 
 /** A laje de vigotas usa Branson na flecha (E3b): ficha armada, protendida, genérica ou moldada, com a opção ligada; a treliçada do catálogo interno, não. */
 function vigotaComBranson(b: BuildingModel, l: BuildingModel['lajes'][number], op: AnaliseEdificio['opcoes']): boolean {
-  return !!op.vigotaBranson && l.tipo.tipo !== 'macica' && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) && geometriaNervurada(b, l.tipo).familia !== 'trelicada';
+  return !!op.vigotaBranson && ehNervurada(l.tipo) && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) && geometriaNervurada(b, l.tipo).familia !== 'trelicada';
 }
 /** Opções com o método da NBR no lugar dos fatores simplificados da flecha (a ficha traz a rigidez fissurada). */
 const opMetodo = (op: AnaliseEdificio['opcoes']): AnaliseEdificio['opcoes'] => ({ ...op, fatorFlechaLaje: 0, fatorFlechaAtivaTrelicada: 0, fatorFlechaConfortoTrelicada: 0 });
@@ -1690,7 +1692,7 @@ export function quantitativos(b: BuildingModel): Quantitativo[] {
     let cL = 0, fL = 0, cV = 0, fV = 0, cP = 0, fP = 0;
     for (const l of ls) {
       const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
-      const t = espessuraConcreto(b, l.tipo);
+      const t = espessuraConcretoDaLaje(b, l, (tp) => espessuraConcreto(b, tp));
       cL += A * t; fL += A;
     }
     for (const v of vs) { const L = comprimentoPolilinha(v.pontos); cV += v.secao.b * v.secao.h * L; fV += (v.secao.b + 2 * v.secao.h) * L; }
@@ -1734,6 +1736,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   resumoAcoVigotas?: ReturnType<typeof resumoAcoVigotas>; trelicas?: ReturnType<typeof quantitativoTrelicas>;
   /** Vigotas por tipo (número e comprimento com perdas) e armaduras das nervuras moldadas no local (E3b). */
   quantitativoVigotas?: ReturnType<typeof quantitativoVigotas>; quantitativoMoldadas?: ReturnType<typeof quantitativoMoldadas>;
+  /** Lajes nervuradas bidirecionais (E3c): nervuras, mesa, cortante, armaduras e quantitativos por laje; aço por bitola (m, kg). */
+  nervuradas?: ResultadoNervurada[]; resumoAcoNervuradas?: ReturnType<typeof resumoAcoNervuradas>;
   /** Punção dos pilares que apoiam a laje maciça sem viga e das vigas chatas largas, por pavimento (N2d). */
   puncao?: ResultadoPuncao[];
   /** Fundações lançadas no edifício (FU1), calculadas depois da estrutura com as reações na base dos pilares. */
@@ -1857,6 +1861,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.trelicas = quantitativoTrelicas(d.vigotas, an.opcoes.perdasAco);
   d.quantitativoVigotas = quantitativoVigotas(d.vigotas, an.opcoes.perdasAco);
   { const q = quantitativoMoldadas(d.vigotas, an.opcoes.perdasAco); if (q.length) d.quantitativoMoldadas = q; }
+  { const ns = dimensionarNervuradas(b, an, d.lajes, an.opcoes); if (ns.length) { d.nervuradas = ns; d.resumoAcoNervuradas = resumoAcoNervuradas(ns, an.opcoes.perdasAco); } }
   if (estadoEmUso(b, 'incendio').ativo) {
     // resistência ao fogo (N2g): método tabular/analítico sobre as dimensões e a armadura adotadas
     const gz = an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : null;

@@ -168,6 +168,14 @@ export function secaoParaFlexao(b: BuildingModel, v: Viga, op: Pick<OpcoesCalcul
  * entre as lajes (`nivel`), do topo mais alto à face inferior mais baixa [a confirmar]. `null` se nenhuma laje a toca.
  */
 export function alturaVigaChata(b: BuildingModel, v: Viga): number | null {
+  const ls = lajesQueTocam(b, v);
+  if (!ls.length) return null;
+  const topo = Math.max(...ls.map((l) => l.nivel ?? 0)), base = Math.min(...ls.map((l) => (l.nivel ?? 0) - propriedadesLaje(l.tipo, b).h));
+  return Math.round((topo - base) * 1000) / 1000;
+}
+
+/** Lajes do grupo da viga que a tocam (um lado ou outro do traçado). */
+export function lajesQueTocam(b: BuildingModel, v: Viga): BuildingModel['lajes'] {
   const eixo = geometriaViga(v).eixo.map((q) => [q[0], q[1]] as P);
   const toca = (l: BuildingModel['lajes'][number]) => {
     for (let i = 0; i + 1 < eixo.length; i++) for (const t of [0.1, 0.3, 0.5, 0.7, 0.9]) {
@@ -177,10 +185,17 @@ export function alturaVigaChata(b: BuildingModel, v: Viga): number | null {
     }
     return false;
   };
-  const ls = b.lajes.filter((l) => l.grupo === v.grupo && toca(l));
+  return b.lajes.filter((l) => l.grupo === v.grupo && toca(l));
+}
+
+/**
+ * Parte saliente da viga alta (m, K1.9.95): altura da viga menos a maior altura entre as panos que a tocam (a laje mais
+ * espessa, nervurada ou não); 0 se a viga não passa da laje (viga chata ou do mesmo nível); `null` se nenhuma laje a toca.
+ */
+export function parteSalienteViga(b: BuildingModel, v: Viga): number | null {
+  const ls = lajesQueTocam(b, v);
   if (!ls.length) return null;
-  const topo = Math.max(...ls.map((l) => l.nivel ?? 0)), base = Math.min(...ls.map((l) => (l.nivel ?? 0) - propriedadesLaje(l.tipo).h));
-  return Math.round((topo - base) * 1000) / 1000;
+  return Math.round(Math.max(0, v.secao.h - Math.max(...ls.map((l) => propriedadesLaje(l.tipo, b).h))) * 1000) / 1000;
 }
 
 /**

@@ -5,6 +5,7 @@ import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentos
 import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { rotuloLaje } from '../building/tiposLaje';
+import { arranjoDaLaje } from '../building/nervuradas';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
 import type { EstiloDesenho } from './estilo';
@@ -299,6 +300,8 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     const tipo = rotuloLaje(b, l.tipo);
     const pr = pontoRef(b, l.id, pi), rl = refDe(b, l.id)?.rot;
     modelo.push({ t: 'txt', c: 'LAJE', p: pr, h: 3 * k, s: l.nome, ah: 'c', av: 'base', ...(rl ? { ang: rl } : {}) }, { t: 'txt', c: 'LAJE', p: [pr[0], pr[1] - 1.5 * k], h: 2.2 * k, s: tipo, ah: 'c', av: 'topo', ...(rl ? { ang: rl } : {}) });
+    // nervurada bidirecional (E3c): cubetas inteiras em traço fino (o resto é maciço)
+    for (const cb of arranjoDaLaje(b, l)?.arr.cubetas ?? []) modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
     for (const f of l.furos ?? []) {
       modelo.push({ t: 'pl', c: 'LAJE', pts: f, fechada: true });
       const [a0, b0, a1, b1] = caixa(f);

@@ -8,6 +8,7 @@ import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
 import { espessuraConcreto } from '../building/tiposLaje';
+import { arranjoDaLaje } from '../building/nervuradas';
 import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
 import { siglaReforco } from '../building/lajesEdicao';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
@@ -40,7 +41,8 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     const lajes = b.lajes.filter((l) => l.grupo === g);
     const dets = (dim.detalhesLajes ?? []).filter((d) => lajes.some((l) => l.id === d.laje));
     const vigs = (dim.vigotas ?? []).filter((v) => v.grupo === g);
-    if (!dets.length && !vigs.length) continue;
+    const nervs = (dim.nervuradas ?? []).filter((n) => lajes.some((l) => l.id === n.laje));
+    if (!dets.length && !vigs.length && !nervs.length) continue;
     const pavs = pavimentosDoGrupo(b, g), ref = pavs[0], nomeG = b.grupos.find((x) => x.id === g)?.nome ?? g;
     const vigas = b.vigas.filter((v) => v.grupo === g);
     const pilares = ref ? b.pilares.filter((p) => lancesDoPilar(b, p).some((x) => x.id === ref.id)) : [];
@@ -55,6 +57,8 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       for (const f of l.furos ?? []) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: f, fechada: true });
       const pi = pontoInterno(l.contorno);
       fundo.push({ t: 'txt', c: 'TEXTO', p: [pi[0] + 3 * k, pi[1] + 3 * k], h: 3 * k, s: l.nome, ah: 'e', av: 'base' });
+      // nervurada bidirecional (E3c): cubetas inteiras em traço fino
+      for (const cb of arranjoDaLaje(b, l)?.arr.cubetas ?? []) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
     }
     // linhas de dobra do grupo (R7e): traço e ponto, rotuladas LD1…
     (b.linhasDobra ?? []).filter((ln) => ln.grupo === g).forEach((ln, i) => {
@@ -150,6 +154,56 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         }
         linhas.forEach((s, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [pi[0], pi[1] - (7 + 3 * i) * k], h: 2 * k, s, ah: 'c', av: 'topo' }));
       }
+      // nervuradas bidirecionais (E3c): posições por grupo de uniformização (nervura representativa com o rótulo), mesa e base
+      for (const nv of nervs) {
+        const l = lajes.find((x) => x.id === nv.laje);
+        if (!l) continue;
+        const pi = pontoInterno(l.contorno), rep = nv.repeticoes, linhas: string[] = [];
+        if (fl.faces.includes('inf')) linhas.push(`${nv.formaNome} · h ${cmInt(nv.h)} · mesa ${cmInt(nv.capa)} · ${nv.nervuras.length} nervuras em ${nv.grupos.length} grupos · intereixo ${cmInt(nv.intereixo[0])} × ${cmInt(nv.intereixo[1])}`);
+        nv.grupos.forEach((gp, gi) => {
+          const nome = `${gp.dir === 0 ? 'X' : 'Y'}${gi + 1}`, r0 = nv.nervuras[gp.nervuras[0]], nr = gp.nervuras.length;
+          const desenhar = (c: 'ARMADURA' | 'ARMADURA-NEG', a: P, z: P, txt: string, t: number) => {
+            const { ang, n } = angLegivel(a, z);
+            modelo.push({ t: 'pl', c, pts: [a, z] }, { t: 'txt', c: 'TEXTO', p: [a[0] + (z[0] - a[0]) * t + n[0] * 0.8 * k, a[1] + (z[1] - a[1]) * t + n[1] * 0.8 * k], h: 1.8 * k, s: txt, ang, ah: 'c', av: 'base' });
+          };
+          const pt = (x: number): P => { const L = Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) || 1; return [r0.a[0] + ((r0.z[0] - r0.a[0]) * x) / L, r0.a[1] + ((r0.z[1] - r0.a[1]) * x) / L]; };
+          if (fl.faces.includes('inf')) {
+            for (const [tipo, b2] of [['base', nv.baseDetalhada ? r0.inf.baseInformada : null], ['inferior', r0.inf.reforco]] as const) {
+              if (!b2) continue;
+              const total = nr * b2.n, C = cmInt(r0.inf.comprimento), pos = reg.pos(`NB|${tipo}`, acoI, b2.phi, C, total * rep);
+              desenhar('ARMADURA', r0.a, r0.z, `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(b2.phi)} C=${C} (${b2.n}φ por nervura${tipo === 'base' ? ', base' : ''}, ${nr} nervura${nr > 1 ? 's' : ''})`, 0.35);
+            }
+            if (r0.cortante.estribo) {
+              const e = r0.cortante.estribo, perim = 2 * (nv.bw[gp.dir] - 2 * cobrimentoLaje(b, l.cobrimento).inf) + 2 * (nv.h - 2 * cobrimentoLaje(b, l.cobrimento).inf) + 2 * Math.max(0.05, (5 * e.phi) / 1000);
+              const total = gp.nervuras.reduce((t, i) => t + (nv.nervuras[i].cortante.estribo?.barras ?? 0), 0), C = cmInt(perim), pos = reg.pos('NB|estribo', acoDe(b, 'lajeCortante').aco, e.phi, C, total * rep);
+              linhas.push(`${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(e.phi)} c/${cmInt(e.s)} C=${C} — estribos das nervuras (zonas ${r0.cortante.zonas.map(([a0, a1]) => `${nf(a0)}–${nf(a1)} m`).join(', ')})`);
+            }
+          } else {
+            if (nv.baseDetalhada && r0.inf.baseSup) {
+              const b2 = r0.inf.baseSup, total = nr * b2.n, C = cmInt(Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) + 2 * Math.max(0.1, b2.phi / 100)), pos = reg.pos('NB|baseSup', acoS, b2.phi, C, total * rep);
+              desenhar('ARMADURA-NEG', r0.a, r0.z, `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(b2.phi)} C=${C} (${b2.n}φ por nervura, base superior, ${nr} nervura${nr > 1 ? 's' : ''})`, 0.7);
+            }
+            r0.sup.forEach((sp, ponta) => {
+              if (!sp?.barras) return;
+              const total = gp.nervuras.reduce((t, i) => t + (nv.nervuras[i].sup[ponta]?.barras?.n ?? 0), 0), C = cmInt(sp.comprimento + Math.max(0.15, nv.h - 2 * cobrimentoLaje(b, l.cobrimento).sup)), pos = reg.pos('NB|superior', acoS, sp.barras.phi, C, total * rep);
+              const L = Math.hypot(r0.z[0] - r0.a[0], r0.z[1] - r0.a[1]) || 1, x0 = ponta === 0 ? 0 : L - sp.comprimento, x1 = ponta === 0 ? sp.comprimento : L;
+              desenhar('ARMADURA-NEG', pt(x0), pt(x1), `${nome}: ${qtd(rep, total)} ${pos} ${phiTxt(sp.barras.phi)} C=${C}`, 0.5);
+            });
+          }
+        });
+        // base das nervuras não detalhada: só a descrição geral (fora do desenho e do quantitativo)
+        if (!nv.baseDetalhada && fl.faces.includes('inf')) {
+          const bd = ([0, 1] as const).flatMap((dr) => { const x = l.baseNervurada?.nervuras?.[dr]; return x && (x.inf || x.sup) ? [`${dr === 0 ? 'X' : 'Y'}: ${[x.inf && `inferior ${x.inf.n}φ${String(x.inf.phi).replace('.', ',')}`, x.sup && `superior ${x.sup.n}φ${String(x.sup.phi).replace('.', ',')}`].filter(Boolean).join(', ')}${x.considerar ? ' (considerada)' : ''}`] : []; });
+          if (bd.length) linhas.push(`Base das nervuras (descrição geral, não detalhada): ${bd.join('; ')}`);
+        }
+        if (fl.faces.includes('sup')) {
+          const pos = reg.pos('NB|mesa', acoS, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / nv.mesa.s) * rep);
+          linhas.push(`${pos} ${phiTxt(nv.mesa.phi)} c/${cmInt(nv.mesa.s)} nas duas direções — malha da mesa${nv.mesa.exigida ? ' (flexão da mesa verificada)' : ' (distribuição)'}`);
+        }
+        const bn = l.baseNervurada;
+        if (bn && fl.faces.includes('sup') && bn.mesa) linhas.push(`Base da mesa e das zonas maciças: ${(['inf', 'sup'] as const).flatMap((f2) => (bn.mesa![f2] ? [`${f2 === 'inf' ? 'inferior' : 'superior'} ${bn.mesa![f2]!.tela ?? bn.mesa![f2]!.barras!.map((x) => (x ? `φ${String(x.phi).replace('.', ',')} c/${x.s}` : '—')).join(' / ')}`] : [])).join('; ')}`);
+        linhas.forEach((s2, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [pi[0], pi[1] - (7 + 3 * i) * k], h: 2 * k, s: s2, ah: 'c', av: 'topo' }));
+      }
       // armadura de punção (N2d): estribos ou conectores em linhas radiais, entre as armaduras superior e inferior
       // (desenhada na folha das negativas; quantidades por pavimento do grupo)
       const punc = fl.faces.includes('sup') ? (dim.puncao ?? []).filter((r) => r.pavimentoId === ref?.id && (r.armadura || r.manual.length)) : [];
@@ -197,7 +251,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       out.push(montarFolha({
         b, formato: pl.formato, tipo: 'lajes', titulo: `Armação das lajes — ${nomeG} — ${fl.rot.toLowerCase()}`, conteudo: `ARMAÇÃO DAS LAJES — ${nomeG.toUpperCase()} — ${fl.rot}`,
         escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, desenho: [], tabelas: [nts, ...blocosTela, tabelaAco(aco.tabela), resumoAco(aco, fck)],
-        legenda: `ESCALA 1:${pl.escala} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: pl.avisos, modelo, janela: pl.janela, aco, elementos: [...dets.map((d) => d.nome), ...vigs.map((v) => v.nome)],
+        legenda: `ESCALA 1:${pl.escala} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: pl.avisos, modelo, janela: pl.janela, aco, elementos: [...dets.map((d) => d.nome), ...vigs.map((v) => v.nome), ...nervs.map((n) => n.nome)],
       }));
     }
   }

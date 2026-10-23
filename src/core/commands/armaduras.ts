@@ -280,22 +280,31 @@ const faceBase: JsonSchema = { type: 'object', additionalProperties: false, prop
   barras: { type: 'array', minItems: 1, maxItems: 2, items: { type: 'object', additionalProperties: false, required: ['dir', 'phi', 's'], properties: { dir: { type: 'integer', enum: [0, 1] }, phi: { type: 'number', enum: BITOLA_LAJE }, s: { type: 'number', minimum: 5, maximum: 33, description: 'espaçamento (cm)' } } } },
 } };
 
-registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean; detalhadaPadrao?: boolean; remover?: ('inf' | 'sup')[] }>({
+interface BaseNervuraP { dir: 0 | 1; inf?: { n: number; phi: number }; sup?: { n: number; phi: number }; considerar?: boolean; remover?: boolean }
+registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean; detalhadaPadrao?: boolean; remover?: ('inf' | 'sup')[]; nervuras?: BaseNervuraP[] }>({
   nome: 'laje.armaduraBase',
-  descricao: 'Define a armadura base de lajes maciças (R7d), por pano ou seleção: face `inf` e/ou `sup` com tela soldada (`tela` pela designação da NBR 7481, `giro` troca a direção dos fios principais) ou `barras` por direção da malha (`dir` 0 = maior aresta, `phi` mm da tabela da laje, `s` cm). A base é sempre colaborante: o reforço é a armadura necessária menos a base. `detalhada` (desenhada e medida) sobrepõe a opção lajeBaseDetalhada; `detalhadaPadrao` volta a opção; `remover` apaga faces.',
+  descricao: 'Define a armadura base de lajes maciças (R7d), por pano ou seleção: face `inf` e/ou `sup` com tela soldada (`tela` pela designação da NBR 7481, `giro` troca a direção dos fios principais) ou `barras` por direção da malha (`dir` 0 = maior aresta, `phi` mm da tabela da laje, `s` cm). A base é sempre colaborante: o reforço é a armadura necessária menos a base. `detalhada` (desenhada e medida) sobrepõe a opção lajeBaseDetalhada; `detalhadaPadrao` volta a opção; `remover` apaga faces. Nervuradas bidirecionais (E3c): `inf`/`sup` são a malha da mesa e das zonas maciças e `nervuras` traz as barras corridas de cada direção (`inf`, `sup`, `considerar` para entrar no dimensionamento, `remover`); `detalhada` desenha e mede a base das nervuras.',
   risco: 'escrita',
   calculo: 'detalhe',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
     ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, inf: faceBase, sup: faceBase, detalhada: { type: 'boolean' }, detalhadaPadrao: { type: 'boolean' },
     remover: { type: 'array', items: { type: 'string', enum: ['inf', 'sup'] } },
+    nervuras: { type: 'array', minItems: 1, maxItems: 2, description: 'nervuradas bidirecionais (E3c): barras corridas nas nervuras de cada direção (0 = a da laje, 1 = transversal); `considerar` as inclui no dimensionamento (padrão: não); `remover` apaga a configuração da direção', items: { type: 'object', additionalProperties: false, required: ['dir'], properties: {
+      dir: { type: 'integer', enum: [0, 1] }, inf: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 6 }, phi: { type: 'number', enum: [6.3, 8, 10, 12.5, 16, 20, 25] } } },
+      sup: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 6 }, phi: { type: 'number', enum: [6.3, 8, 10, 12.5, 16, 20, 25] } } },
+      considerar: { type: 'boolean' }, remover: { type: 'boolean' },
+    } } },
   } },
   validar(b, p) {
     const sem = p.ids.filter((id) => !b.lajes.some((x) => x.id === id));
     if (sem.length) return err('LAJE_INEXISTENTE', `Laje ${sem.join(', ')} não existe.`);
-    const nm = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'macica');
-    if (nm.length) return err('LAJE_NAO_MACICA', `${nm.map((x) => x.nome).join(', ')} não é maciça (a base vale para lajes maciças).`, nm.map((x) => x.id));
-    if (!p.inf && !p.sup && p.detalhada === undefined && !p.detalhadaPadrao && !p.remover?.length) return err('SEM_EDICAO', 'Informe inf, sup, detalhada ou remover.');
+    const nm = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'macica' && x.tipo.tipo !== 'nervurada');
+    if (nm.length) return err('LAJE_NAO_MACICA', `${nm.map((x) => x.nome).join(', ')} não é maciça nem nervurada bidirecional (a base vale para essas lajes).`, nm.map((x) => x.id));
+    const sn = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'nervurada');
+    if (p.nervuras?.length && sn.length) return err('LAJE_NAO_NERVURADA', `${sn.map((x) => x.nome).join(', ')} não é nervurada bidirecional (a base nas nervuras vale só para elas).`, sn.map((x) => x.id));
+    if (!p.inf && !p.sup && p.detalhada === undefined && !p.detalhadaPadrao && !p.remover?.length && !p.nervuras?.length) return err('SEM_EDICAO', 'Informe inf, sup, nervuras, detalhada ou remover.');
+    if (p.nervuras?.some((x) => !x.remover && !x.inf && !x.sup && x.considerar === undefined)) return err('SEM_EDICAO', 'Cada direção de nervuras pede inf, sup, considerar ou remover.');
     for (const [nome, f] of [['inf', p.inf], ['sup', p.sup]] as const) {
       if (!f) continue;
       if (!!f.tela === !!f.barras) return err('BASE_FACE', `Base ${nome}: informe a tela ou as barras (uma só).`);
@@ -315,6 +324,30 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
     const conv = (f: FaceBaseP) => f.tela ? { tela: f.tela, ...(f.giro ? { giro: true } : {}) } : { barras: [0, 1].map((k) => { const x = f.barras!.find((y) => y.dir === k); return x ? { phi: x.phi, s: x.s } : null; }) as [{ phi: number; s: number } | null, { phi: number; s: number } | null] };
     for (const l of d.lajes) {
       if (!p.ids.includes(l.id)) continue;
+      if (l.tipo.tipo === 'nervurada') {
+        // nervurada bidirecional (E3c): malha da mesa e das zonas maciças + barras corridas nas nervuras
+        const bn = { ...(l.baseNervurada ?? {}) }, mesa = { ...(bn.mesa ?? {}) };
+        if (p.inf) mesa.inf = conv(p.inf);
+        if (p.sup) mesa.sup = conv(p.sup);
+        for (const f of p.remover ?? []) delete mesa[f];
+        if (mesa.inf || mesa.sup) bn.mesa = mesa; else delete bn.mesa;
+        if (p.nervuras) {
+          const nv: [Record<string, unknown> | null, Record<string, unknown> | null] = [bn.nervuras?.[0] ? { ...bn.nervuras[0] } : null, bn.nervuras?.[1] ? { ...bn.nervuras[1] } : null];
+          for (const x of p.nervuras) {
+            if (x.remover) { nv[x.dir] = null; continue; }
+            const atual = { ...(nv[x.dir] ?? {}) };
+            if (x.inf) atual.inf = { ...x.inf };
+            if (x.sup) atual.sup = { ...x.sup };
+            if (x.considerar !== undefined) { if (x.considerar) atual.considerar = true; else delete atual.considerar; }
+            nv[x.dir] = Object.keys(atual).length ? atual : null;
+          }
+          if (nv[0] || nv[1]) bn.nervuras = nv as NonNullable<typeof bn.nervuras>; else delete bn.nervuras;
+        }
+        if (p.detalhada !== undefined) bn.detalhada = p.detalhada;
+        if (p.detalhadaPadrao) delete bn.detalhada;
+        if (bn.mesa || bn.nervuras || bn.detalhada !== undefined) l.baseNervurada = bn; else delete l.baseNervurada;
+        continue;
+      }
       const base = { ...(l.base ?? {}) };
       if (p.inf) base.inf = conv(p.inf);
       if (p.sup) base.sup = conv(p.sup);

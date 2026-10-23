@@ -162,7 +162,7 @@ export function limitesEmUso(b: Pick<BuildingModel, 'flechas'>, op: OpcoesCalcul
 }
 
 /** Tipo de elemento de uma laje para as flechas. */
-export const tipoFlechaLaje = (l: Pick<Laje, 'tipo'>): TipoElementoFlecha => (l.tipo.tipo === 'macica' ? 'macica' : 'trelicada');
+export const tipoFlechaLaje = (l: Pick<Laje, 'tipo'>): TipoElementoFlecha => (l.tipo.tipo === 'macica' || l.tipo.tipo === 'nervurada' ? 'macica' : 'trelicada');
 
 /** Frações da carga permanente por categoria (somam 1; sem carga, tudo no peso próprio). */
 export type FracoesG = Record<CategoriaG, number>;

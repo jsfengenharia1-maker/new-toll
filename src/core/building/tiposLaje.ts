@@ -8,6 +8,10 @@
 import { tabelaNorma, type FonteNormas } from '../normas';
 import type { Concrete } from '../concrete';
 import type { TipoLaje } from './types';
+import { geometriaBidirecional, validarForma, formaPor, type FormaLaje } from './nervuradas';
+
+/** Nervurada unidirecional: treliçada, por ficha ou moldada (a bidirecional, `nervurada`, tem geometria própria em `nervuradas.ts`). */
+export type TipoNervUni = Exclude<TipoLaje, { tipo: 'macica' } | { tipo: 'nervurada' }>;
 
 export const GAMA_CONCRETO = 25; // kN/m³ (NBR 6120)
 
@@ -91,7 +95,7 @@ export interface FichaVigota {
   nota?: string;
 }
 
-export interface TiposLajeObra { fichas?: FichaVigota[]; enchimentos?: Enchimento[] }
+export interface TiposLajeObra { fichas?: FichaVigota[]; enchimentos?: Enchimento[]; formas?: FormaLaje[] }
 /** O que as funções precisam do modelo: tabelas normativas (N3) e a biblioteca de tipos de laje da obra. */
 export type FonteLajes = FonteNormas & { tiposLaje?: TiposLajeObra };
 
@@ -203,7 +207,7 @@ function pesoNervurada(capa: number, hNerv: number, intereixo: number, bw: numbe
 }
 
 /** Geometria da laje nervurada unidirecional (qualquer tipo menos maciça). */
-export function geometriaNervurada(f: FonteLajes | undefined, t: Exclude<TipoLaje, { tipo: 'macica' }>): GeometriaNervurada {
+export function geometriaNervurada(f: FonteLajes | undefined, t: TipoNervUni): GeometriaNervurada {
   if (t.tipo === 'trelicada') {
     const m = modelosTrelicadas(f), ausente = m[t.modelo] ? undefined : `modelo "${t.modelo}" não está no catálogo`;
     const c = m[t.modelo] ?? m.H12 ?? Object.values(m)[0];
@@ -481,36 +485,41 @@ export function fichasNoMemorial(b: FonteLajes & { lajes: { tipo: TipoLaje }[] }
 // ---------------------------------------------------------------- exportar / importar
 
 export const FORMATO_TIPOS_LAJE = 'statikos-tipos-laje';
-export interface ArquivoTiposLaje { formato: typeof FORMATO_TIPOS_LAJE; versao: 1; fichas: FichaVigota[]; enchimentos: Enchimento[] }
+export interface ArquivoTiposLaje { formato: typeof FORMATO_TIPOS_LAJE; versao: 1; fichas: FichaVigota[]; enchimentos: Enchimento[]; /** Formas (cubetas) das nervuradas bidirecionais (E3c); ausente nos arquivos anteriores. */ formas?: FormaLaje[] }
 const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
 /** JSON versionado das fichas e enchimentos da obra (todos, ou os ids indicados); fichas de catálogo e exemplo são resolvidas por id. */
-export function exportarTiposLaje(b: FonteLajes | undefined, sel?: { fichas?: string[]; enchimentos?: string[] }): string {
+export function exportarTiposLaje(b: FonteLajes | undefined, sel?: { fichas?: string[]; enchimentos?: string[]; formas?: string[] }): string {
   const fichas = fichasDisponiveis(b).map((x) => x.ficha).filter((x) => (sel?.fichas ? sel.fichas.includes(x.id) : b?.tiposLaje?.fichas?.some((y) => y.id === x.id)));
   const ids = new Set(fichas.flatMap((x) => x.series.map((s) => s.enchimento)));
   const ench = enchimentosDisponiveis(b).filter((e) => (sel?.enchimentos ? sel.enchimentos.includes(e.id) : b?.tiposLaje?.enchimentos?.some((y) => y.id === e.id)));
   // enchimentos das fichas exportadas que são da obra ou de exemplo vão junto, para o arquivo ser autossuficiente
   for (const id of ids) { const e = enchimentoPorOuExemplo(b, id); if (e && !ench.some((x) => x.id === id) && !enchimentosCatalogo(b).some((x) => x.id === id)) ench.push(e); }
-  const out: ArquivoTiposLaje = { formato: FORMATO_TIPOS_LAJE, versao: 1, fichas: copia(fichas), enchimentos: copia(ench) };
+  // formas da obra (todas ou as indicadas); as do catálogo ficam por id
+  const formas = (b?.tiposLaje?.formas ?? []).filter((x) => (sel?.formas ? sel.formas.includes(x.id) : true));
+  for (const fm of formas) if (fm.enchimento && !ench.some((x) => x.id === fm.enchimento)) { const e = enchimentoPorOuExemplo(b, fm.enchimento); if (e && !enchimentosCatalogo(b).some((x) => x.id === e.id)) ench.push(e); }
+  const out: ArquivoTiposLaje = { formato: FORMATO_TIPOS_LAJE, versao: 1, fichas: copia(fichas), enchimentos: copia(ench), ...(formas.length ? { formas: copia(formas) } : {}) };
   return JSON.stringify(out, null, 2);
 }
 
 const ehObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 
 /** Lê o JSON exportado; só a estrutura é conferida aqui (a coerência lógica das fichas é `validarFicha`). */
-export function importarTiposLaje(texto: string): { ok: true; fichas: FichaVigota[]; enchimentos: Enchimento[] } | { ok: false; erros: string[] } {
+export function importarTiposLaje(texto: string): { ok: true; fichas: FichaVigota[]; enchimentos: Enchimento[]; formas: FormaLaje[] } | { ok: false; erros: string[] } {
   let j: unknown;
   try { j = JSON.parse(texto); } catch { return { ok: false, erros: ['JSON inválido'] }; }
   if (!ehObj(j) || j.formato !== FORMATO_TIPOS_LAJE) return { ok: false, erros: [`Arquivo não é uma biblioteca de tipos de laje do Statikos (formato "${FORMATO_TIPOS_LAJE}").`] };
   const erros: string[] = [];
-  const fichas = Array.isArray(j.fichas) ? j.fichas : [], enchimentos = Array.isArray(j.enchimentos) ? j.enchimentos : [];
+  const fichas = Array.isArray(j.fichas) ? j.fichas : [], enchimentos = Array.isArray(j.enchimentos) ? j.enchimentos : [], formas = Array.isArray(j.formas) ? j.formas : [];
+  formas.forEach((x, i) => { if (!ehObj(x) || typeof x.id !== 'string' || typeof x.nome !== 'string' || !Array.isArray(x.intereixo) || !Array.isArray(x.bw)) erros.push(`forma ${i + 1}: estrutura inválida (id, nome, intereixo e bw)`); });
+  if (new Set(formas.map((x) => (x as FormaLaje).id)).size !== formas.length) erros.push('formas com identificador repetido');
   fichas.forEach((x, i) => {
     if (!ehObj(x) || typeof x.id !== 'string' || typeof x.nome !== 'string' || typeof x.familia !== 'string' || !Array.isArray(x.series) || !x.series.every(ehObj)) erros.push(`ficha ${i + 1}: estrutura inválida (id, nome, familia e series)`);
   });
   enchimentos.forEach((x, i) => { if (!ehObj(x) || typeof x.id !== 'string' || typeof x.nome !== 'string' || !MATERIAIS.has(String(x.material))) erros.push(`enchimento ${i + 1}: estrutura inválida (id, nome e material)`); });
   if (new Set(fichas.map((x) => (x as FichaVigota).id)).size !== fichas.length) erros.push('fichas com identificador repetido');
   if (new Set(enchimentos.map((x) => (x as Enchimento).id)).size !== enchimentos.length) erros.push('enchimentos com identificador repetido');
-  return erros.length ? { ok: false, erros } : { ok: true, fichas: copia(fichas) as FichaVigota[], enchimentos: copia(enchimentos) as Enchimento[] };
+  return erros.length ? { ok: false, erros } : { ok: true, fichas: copia(fichas) as FichaVigota[], enchimentos: copia(enchimentos) as Enchimento[], formas: copia(formas) as FormaLaje[] };
 }
 
 /** Erros do tipo de laje (existência da ficha, série e enchimento; coerência lógica da ficha), com código e mensagem. */
@@ -525,6 +534,14 @@ export function errosTipoLaje(f: FonteLajes | undefined, t: TipoLaje | undefined
     const v = validarFicha(fi, f);
     return v.erros.length ? e('FICHA_INCOERENTE', `Ficha "${fi.nome}" incoerente: ${v.erros.join(' ')}`) : [];
   }
+  if (t.tipo === 'nervurada') {
+    const fm = formaPor(f, t.forma);
+    if (!fm) return e('FORMA_INEXISTENTE', `Forma "${t.forma}" não existe (biblioteca de formas da obra ou tabela "Formas das lajes nervuradas" da biblioteca de normas).`);
+    const v = validarForma(fm, f);
+    if (v.length) return e('FORMA_INCOERENTE', `Forma "${fm.nome}" incoerente: ${v.join(' ')}`);
+    if (!(t.capa > 0 && t.hTotal > t.capa + 0.01)) return e('TIPOLAJE_INVALIDO', 'Nervurada bidirecional: capa positiva e altura total maior que a capa.');
+    return [];
+  }
   if (t.tipo === 'moldada') {
     if (!enchimentoPorOuExemplo(f, t.enchimento)) return e('ENCHIMENTO_INEXISTENTE', `Enchimento "${t.enchimento}" não existe.`);
     if (!(t.capa > 0 && t.intereixo > 0 && t.bw > 0 && t.h > t.capa + 0.01 && t.bw < t.intereixo)) return e('TIPOLAJE_INVALIDO', 'Nervurada moldada: capa, intereixo e largura devem ser positivos, a largura menor que o intereixo e a altura maior que a capa.');
@@ -534,24 +551,28 @@ export function errosTipoLaje(f: FonteLajes | undefined, t: TipoLaje | undefined
 
 // ---------------------------------------------------------------- atalhos para os consumidores
 
-/** Laje nervurada unidirecional (treliçada, por ficha ou moldada), em contraste com a maciça. */
-export const ehNervurada = (t: TipoLaje): t is Exclude<TipoLaje, { tipo: 'macica' }> => t.tipo !== 'macica';
+/** Laje nervurada unidirecional (treliçada, por ficha ou moldada), em contraste com a maciça e com a nervurada bidirecional. */
+export const ehNervurada = (t: TipoLaje): t is TipoNervUni => t.tipo !== 'macica' && t.tipo !== 'nervurada';
+/** Laje nervurada bidirecional moldada no local (E3c): grelha com nervuras nas duas direções. */
+export const ehBidirecional = (t: TipoLaje): t is Extract<TipoLaje, { tipo: 'nervurada' }> => t.tipo === 'nervurada';
 /**
  * Rótulo do tipo de laje nas legendas das pranchas (formas e armação): maciça "h=12"; treliçada "TR H12+4 (h=16)"; por ficha
  * "<ficha> <série> (h=…)", com a referência da ficha e da série (E3a); moldada "NM capa+enchimento i=… (h=…)".
  */
 export function rotuloLaje(f: FonteLajes | undefined, t: TipoLaje): string {
   if (t.tipo === 'macica') return `h=${cm(t.h)}`;
+  if (t.tipo === 'nervurada') { const gb = geometriaBidirecional(f, t); return `NB ${cm(gb.capa)}+${cm(gb.hEnch)} i=${cm(gb.i[0])}×${cm(gb.i[1])} (h=${cm(gb.h)})`; }
   const g = geometriaNervurada(f, t);
   if (t.tipo === 'trelicada') return `TR ${t.modelo}+${cm(t.capa)} (h=${cm(g.hEnch + t.capa)})`;
   if (t.tipo === 'vigotas') return `${g.ficha?.nome ?? t.ficha} ${t.serie} (h=${cm(g.h)})`;
   return `NM ${cm(g.capa)}+${cm(g.hEnch)} i=${cm(g.intereixo)} (h=${cm(g.h)})`;
 }
 /** Espessura da maciça ou capa da nervurada (m). */
-export const capaLaje = (f: FonteLajes | undefined, t: TipoLaje): number => (t.tipo === 'macica' ? t.h : geometriaNervurada(f, t).capa);
+export const capaLaje = (f: FonteLajes | undefined, t: TipoLaje): number => (t.tipo === 'macica' ? t.h : t.tipo === 'nervurada' ? t.capa : geometriaNervurada(f, t).capa);
 /** Espessura equivalente de concreto (m): h da maciça ou capa + volume das nervuras por m². */
 export function espessuraConcreto(f: FonteLajes | undefined, t: TipoLaje): number {
   if (t.tipo === 'macica') return t.h;
+  if (t.tipo === 'nervurada') return geometriaBidirecional(f, t).volume;
   const g = geometriaNervurada(f, t);
   return g.capa + (g.bw * g.hEnch) / g.intereixo;
 }
