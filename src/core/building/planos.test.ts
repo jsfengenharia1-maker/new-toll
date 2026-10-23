@@ -4,10 +4,11 @@
 import { describe, expect, it } from 'vitest';
 import { Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
-import { coeficientesPlano, croquiPavimento, dobraDaBarra, faceSuperiorDaViga, inclinacaoDoPlano, inclinacaoPercentual, marcaDeDobra, planosNoMemorial, pontosDeControle, secaoNoPlano, setaDeclividade, textoInclinacao, vigasIncoerentes, zPlano, capturaPlano, diagnosticosPlanos, cotaDaLaje } from './planos';
+import { coeficientesPlano, croquiPavimento, dobraDaBarra, faceSuperiorDaViga, inclinacaoDoPlano, inclinacaoPercentual, marcaDeDobra, planosNoMemorial, pontosDeControle, secaoNoPlano, setaDeclividade, textoInclinacao, vigasIncoerentes, zPlano, capturaPlano, diagnosticosPlanos, cotaDaLaje, esforcosDosPlanos } from './planos';
 import { verificar } from './verify';
 import type { BuildingModel, DefinicaoPlano } from './types';
 import { resolver3 } from '../fe3d';
+import ref from '../../../validation/opensees/inclinada.json';
 
 const ok = (s: Sessao, nome: string, p: Record<string, unknown>) => { const r = s.executar(nome, p); if (!r.ok) throw new Error(`${nome}: ${r.erros.map((e) => e.mensagem).join(' ')}`); return r; };
 
@@ -92,6 +93,13 @@ describe('pórtico de duas águas (vigas em planos inclinados) contra o método 
     const pesoPilar = 25 * 0.04 * h;
     expect(rA.N).toBeCloseTo(w * a + pesoPilar, 6);
     expect(an.portico.res!.desloc[ig].length).toBeGreaterThan(0);
+    // memorial: empuxo no topo do pilar (= −H, a reação da base equilibra) e caibros comprimidos (N ≈ −H·cos θ − V·sen θ no beiral)
+    const ef = esforcosDosPlanos(an);
+    const emp = ef.empuxos.find((x) => x.caso === 'G' && x.pilar === rA.pilar)!;
+    expect(emp.Hx).toBeCloseTo(-H, 4);
+    const nc = ef.normais.find((x) => x.caso === 'G' && x.tipo === 'viga')!;
+    const s0 = Math.hypot(a, f), Nbeiral = -(H * a + w * a * f) / s0;
+    expect(nc.Nmin).toBeCloseTo(Nbeiral, 2);
   });
 
   it('planoDiafragma = 1 prende as pontas no plano; 0 deixa abrir', () => {
@@ -296,4 +304,32 @@ describe('comandos dos planos', () => {
     ok(s, 'plano.atribuir', { lajes: [s.modelo.lajes[1].id] });
     expect(s.modelo.lajes[1].plano).toBeUndefined();
   });
+});
+
+describe('validação externa: OpenSees (validation/opensees/inclinada.py)', () => {
+  it('telhado com panos inclinados: deslocamentos do modelo cheio iguais aos do OpenSees (erro relativo < 1e-8)', async () => {
+    const { s } = telhado();
+    ok(s, 'plano.corrigirVigas', { vigas: [...new Set(vigasIncoerentes(s.modelo).map((x) => x.viga))] });
+    const an = analisarEdificio(s.modelo, { engasteTopoUltimo: 1 }, { cheio: true });
+    const ch = an.cheio!;
+    const PROC = 'node:process', FS = 'node:fs';
+    const env = ((await import(/* @vite-ignore */ PROC)) as { env: Record<string, string | undefined> }).env;
+    if (env.GERAR_OPENSEES) {
+      const fs = (await import(/* @vite-ignore */ FS)) as { writeFileSync: (p: string, d: string) => void };
+      const m = ch.modelo, c = ch.casos[0];
+      fs.writeFileSync('validation/opensees/inclinada.modelo.json', JSON.stringify({
+        nos: m.nos, apoios: [...m.apoios], escravos: m.escravos,
+        barras: m.barras.map((b) => ({ i: b.i, j: b.j, E: b.E, G: b.G, A: b.A, Iy: b.Iy, Iz: b.Iz, J: b.J, Ay: b.Ay ?? null, ref: b.ref ?? null, offI: b.offI ?? null, offJ: b.offJ ?? null, eng: !!(b.engI?.length || b.engJ?.length || b.libI?.length || b.libJ?.length) })),
+        nodais: c.nodais, distribuidas: c.distribuidas,
+      }));
+    }
+    expect(ch.modelo.barras.every((b) => !b.engI?.length && !b.engJ?.length && !b.libI?.length && !b.libJ?.length)).toBe(true);
+    expect(an.portico.barras.some((t) => t.tipo === 'laje')).toBe(true);
+    const r = resolver3(ch.modelo, [ch.casos[0]]);
+    const u = r.desloc[0], R = ref as { nos: number; desloc: number[][] };
+    expect(R.nos).toBe(ch.modelo.nos.length);
+    let e = 0, mx = 0;
+    R.desloc.forEach((d, n) => { for (let k = 0; k < 6; k++) { e = Math.max(e, Math.abs(u[n * 6 + k] - d[k])); mx = Math.max(mx, Math.abs(d[k])); } });
+    expect(e / mx).toBeLessThan(1e-8);
+  }, 120000);
 });

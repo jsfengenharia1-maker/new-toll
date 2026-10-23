@@ -52,8 +52,8 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 const sinc = (l: Laje, k: keyof Laje, v: unknown) => { if (v === undefined) delete l[k]; else (l as unknown as Record<string, unknown>)[k] = clone(v); };
 
 /**
- * Campos que `laje.copiarDados` sabe copiar. Extensível: a E3f acrescenta `plano` (inclinação) aqui, com `alerta` para
- * desligar a cópia entre panos de inclinações diferentes.
+ * Campos que `laje.copiarDados` sabe copiar. `plano` (E3f): o plano de inclinação, com `alerta` quando os panos têm
+ * inclinações diferentes (desligue a cópia do plano para manter a do destino); plano de outro grupo não é copiado.
  */
 export const CAMPOS_COPIA_LAJE: Record<string, CampoCopiaLaje> = {
   tipo: { rotulo: 'Tipo (maciça ou treliçada)', copiar: (a, z) => { z.tipo = clone(a.tipo); return null; } },
@@ -69,4 +69,9 @@ export const CAMPOS_COPIA_LAJE: Record<string, CampoCopiaLaje> = {
   cobrimento: { rotulo: 'Cobrimento', copiar: (a, z) => { sinc(z, 'cobrimento', a.cobrimento); return null; } },
   tabela: { rotulo: 'Tabela de armadura', copiar: (a, z) => { sinc(z, 'tabela', a.tabela); return null; } },
   armaduraBase: { rotulo: 'Armadura base', copiar: (a, z) => { sinc(z, 'base', a.base); return null; } },
+  plano: {
+    rotulo: 'Plano de inclinação',
+    copiar: (a, z) => { if (a.plano && a.grupo !== z.grupo) return `${z.nome}: o plano de ${a.nome} é de outro grupo; plano não copiado.`; sinc(z, 'plano', a.plano); return null; },
+    alerta: (a, z) => ((a.plano ?? '') !== (z.plano ?? '') ? `${z.nome} tem inclinação diferente de ${a.nome}: a cópia troca o plano de inclinação (desligue "Plano de inclinação" para manter o de ${z.nome}).` : null),
+  },
 };

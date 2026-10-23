@@ -5,6 +5,8 @@
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { contornoPilar, type BuildingModel, type DefinicaoPlano, type Laje, type Plano, type Viga } from './types';
 import type { Diagnostico } from './verify';
+import type { AnaliseEdificio } from './analitico';
+import { baseBarra } from '../fe3d';
 
 /** Plano z = a·x + b·y + c (z = desnível em relação ao topo do pavimento, m). */
 export interface CoefPlano { a: number; b: number; c: number }
@@ -366,3 +368,33 @@ export const SEQUENCIA_PLANOS: string[] = [
   'Só panos inclinados: desníveis positivos a partir do pavimento. Pano horizontal numa extremidade: desníveis negativos no grupo superior, com vigas comuns. Horizontais nas duas extremidades: rampa num grupo intermediário.',
   'Curvas de rampa: de preferência em plano horizontal (pano curvo inclinado não é modelado).',
 ];
+
+/**
+ * Esforços normais das barras dos panos e vigas inclinados (E3f, memorial) e empuxo horizontal no topo dos pilares dos
+ * pavimentos com planos, por caso vertical: N mínimo (compressão) e máximo (tração) por elemento (kN; laje por barra da faixa)
+ * e a força horizontal que o lance recebe no topo (kN, eixos globais).
+ */
+export function esforcosDosPlanos(an: AnaliseEdificio): { normais: { ref: string; tipo: 'laje' | 'viga'; caso: string; Nmin: number; Nmax: number }[]; empuxos: { pilar: string; pavimento: string; caso: string; Hx: number; Hy: number }[] } {
+  const normais: { ref: string; tipo: 'laje' | 'viga'; caso: string; Nmin: number; Nmax: number }[] = [], empuxos: { pilar: string; pavimento: string; caso: string; Hx: number; Hy: number }[] = [];
+  const res = an.portico.res, pm = an.portico.modelo, tags = an.portico.barras;
+  if (!res || !an.planos) return { normais, empuxos };
+  const pavs = new Set(an.planos.map((x) => x.pavimento));
+  an.casos.forEach((caso, ic) => {
+    const acc = new Map<string, { tipo: 'laje' | 'viga'; Nmin: number; Nmax: number }>();
+    for (const x of an.planos!) for (const k of x.barras) {
+      const t = tags[k], e = res.esforcos[ic][k], N = [-e[0], e[6]];
+      const a = acc.get(t.ref) ?? { tipo: t.tipo === 'laje' ? 'laje' as const : 'viga' as const, Nmin: Infinity, Nmax: -Infinity };
+      a.Nmin = Math.min(a.Nmin, ...N); a.Nmax = Math.max(a.Nmax, ...N);
+      acc.set(t.ref, a);
+    }
+    for (const [ref, a] of acc) normais.push({ ref, caso, ...a });
+    tags.forEach((t, k) => {
+      if (t.tipo !== 'pilar' || !pavs.has(t.pavimento) || k >= pm.barras.length) return;
+      const { R } = baseBarra(pm, pm.barras[k]), e = res.esforcos[ic][k];
+      // força que o nó de cima aplica no lance (extremidade j), em eixos globais
+      const g = [0, 1, 2].map((c) => R[0][c] * e[6] + R[1][c] * e[7] + R[2][c] * e[8]);
+      empuxos.push({ pilar: t.ref, pavimento: t.pavimento, caso, Hx: g[0], Hy: g[1] });
+    });
+  });
+  return { normais, empuxos };
+}

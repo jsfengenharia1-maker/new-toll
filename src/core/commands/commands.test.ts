@@ -101,6 +101,10 @@ function base() {
   // E2d: duas diagonais em X entre os mesmos pilares (do segundo ao terceiro pavimento)
   expect(s.executar('diagonal.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [0, 0], pFim: [4, 3], secao: { b: 0.2, h: 0.3 } }).ok).toBe(true);
   expect(s.executar('diagonal.criar', { pavIni: s.modelo.pavimentos[1].id, pavFim: s.modelo.pavimentos[2].id, pIni: [4, 3], pFim: [0, 0], secao: { b: 0.25, h: 0.4 }, ligIni: 'articulada' }).ok).toBe(true);
+  // E3f: plano inclinado na primeira laje (10–12 × 0–2) e uma viga horizontal na borda y = 2, incoerente com ele
+  expect(s.executar('plano.criar', { grupo: 'g_3', nome: 'Rampa', tipo: 'maximaDeclividade', pontos: [[10, 0], [12, 0]], desnivel: 0, inclinacao: 10 }).ok).toBe(true);
+  expect(s.executar('plano.atribuir', { plano: s.modelo.planos![0].id, lajes: [s.modelo.lajes[0].id] }).ok).toBe(true);
+  expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[10, 2], [12, 2]], secao: { b: 0.15, h: 0.4 } }).ok).toBe(true);
   // E2e: uma viga entre dois pilares longe dos demais, com um consolo na ponta inicial
   for (const x of [160, 166]) expect(s.executar('pilar.inserir', { x, y: 0, secao: { tipo: 'ret', b: 0.3, h: 0.3 } }).ok).toBe(true);
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[160, 0], [166, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
@@ -344,6 +348,13 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'cota.travar': (b) => ({ id: b.cotas![0].id, travada: true }),
   'cota.mover': (b) => ({ alvo: { tipo: 'pilar', id: b.pilares[1].id }, delta: [0.1, 0] }),
   'cota.valor': (b) => ({ id: b.cotas![0].id, indice: 0, valor: 3.5 }),
+  // E3f
+  'plano.criar': () => ({ grupo: 'g_3', nome: 'Água', tipo: 'tresPontos', pontos: [[0, 0, 0], [4, 0, 0.4], [0, 3, 0]] }),
+  'plano.editar': (b) => ({ id: b.planos![0].id, nome: 'Rampa B', inclinacao: 8, unidade: 'graus' }),
+  'plano.remover': (b) => ({ ids: [b.planos![0].id] }),
+  'plano.atribuir': (b) => ({ plano: b.planos![0].id, lajes: [b.lajes[1].id], vigas: [b.vigas.find((v) => v.pontos[0][0] === 10 && v.pontos[0][1] === 2)!.id] }),
+  'plano.corrigirVigas': (b) => ({ vigas: [b.vigas.find((v) => v.pontos[0][0] === 10 && v.pontos[0][1] === 2)!.id] }),
+  'laje.aDefinir': (b) => ({ ids: [b.lajes[0].id], espessura: 0.12, nivel: 0.1 }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 
