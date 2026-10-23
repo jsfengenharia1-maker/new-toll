@@ -12,6 +12,7 @@ import './lancamentoL5';
 import './tiposLaje';
 import './vigotas';
 import './nervuradas';
+import './abacos';
 import './acoes';
 import './armaduras';
 import './agrupamento';

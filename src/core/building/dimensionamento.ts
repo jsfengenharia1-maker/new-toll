@@ -41,6 +41,7 @@ import { areaPoligono } from '../geom/faces';
 import { calcularFundacaoEdificio, type OpcoesFundacao, type ResultadoFundacao } from './fundacao';
 import type { ResultadoVigaFundacao } from './vigasFundacao';
 import { TAXAS } from './premissas';
+import { puncaoAbacos } from './abacosPuncao';
 import { cortanteLaje, puncaoEdificio, puncaoRadier, sitiosPuncao, type CortanteLaje, type ResultadoPuncao } from './puncao';
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
@@ -1862,6 +1863,19 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.quantitativoVigotas = quantitativoVigotas(d.vigotas, an.opcoes.perdasAco);
   { const q = quantitativoMoldadas(d.vigotas, an.opcoes.perdasAco); if (q.length) d.quantitativoMoldadas = q; }
   { const ns = dimensionarNervuradas(b, an, d.lajes, an.opcoes); if (ns.length) { d.nervuradas = ns; d.resumoAcoNervuradas = resumoAcoNervuradas(ns, an.opcoes.perdasAco); } }
+  // punção nas nervuradas com ábaco (E3d): depois das nervuras (a taxa de armadura sobre o ábaco vem delas); as mensagens entram na laje
+  {
+    const pn = puncaoAbacos(b, an, d.nervuradas ?? [], an.opcoes);
+    if (pn.length) {
+      d.puncao = [...(d.puncao ?? []), ...pn];
+      for (const r of pn) {
+        const l = d.lajes.find((x) => x.laje === r.laje && x.pavimento === r.pavimento);
+        if (!l) continue;
+        l.mensagens.push(...r.mensagens);
+        if (r.status === 'fail') l.status = 'fail';
+      }
+    }
+  }
   if (estadoEmUso(b, 'incendio').ativo) {
     // resistência ao fogo (N2g): método tabular/analítico sobre as dimensões e a armadura adotadas
     const gz = an.vento?.gamaZ.length ? Math.max(...an.vento.gamaZ.map((g) => g.max)) : null;

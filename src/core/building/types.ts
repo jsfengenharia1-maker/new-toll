@@ -761,6 +761,28 @@ export interface Laje {
 
 /** Barras de uma nervura: n barras de φ mm. */
 export interface BarrasNervura { n: number; phi: number }
+/**
+ * Ábaco (capitel) de uma nervurada bidirecional (E3d): zona maciça junto ao pilar (ou em qualquer ponto), com a espessura do pano
+ * aliviado (`hAbaco` = altura total no ábaco, que pode descer abaixo da laje). `poligono` é o nominal (m); a zona efetiva é ajustada
+ * às cubetas inteiras (`abacos.ts`). `automatico`: gerado a partir do pilar `pilar` (refeito por `abaco.gerar`); senão desenhado à mão.
+ * `base`: armadura base entre nervuras (barras corridas de borda a borda, uma por vão entre eixos de nervuras); ausente = o padrão (2φ da tabela).
+ */
+export interface Abaco {
+  id: string; laje: string; poligono: [number, number][]; hAbaco: number; automatico: boolean;
+  pilar?: string;
+  /** Dimensões da geração automática (parâmetros e extensão em cada face), para o memorial. */
+  gerado?: GeradoAbaco;
+  base?: ArmaduraBaseAbaco;
+  /** Ábaco manual usado para simular uma viga (aviso `ABACO_VIGA`): confirmação do usuário em vez do aviso. */
+  comoViga?: boolean;
+}
+/** Parâmetros usados na geração e a extensão (m, da face do pilar à borda) de cada face: de onde veio (pilar no cone, sentido oposto ou mínimo) e se o limite mínimo/máximo valeu. */
+export interface GeradoAbaco {
+  fracao: number; cone: number; extensao: number; limMin: number; limMax: number;
+  faces: { lado: 'u+' | 'u-' | 'v+' | 'v-'; extensao: number; origem: 'cone' | 'oposto' | 'minimo'; vizinho?: string; distancia?: number; limitado?: 'min' | 'max' }[];
+}
+/** Armadura base do ábaco: n barras de φ mm em cada vão entre eixos de nervuras, nas faces inferior e superior, nas duas direções. */
+export interface ArmaduraBaseAbaco { inf?: BarrasNervura | null; sup?: BarrasNervura | null }
 /** Armadura base de uma direção de nervuras: barras inferiores e superiores em cada nervura; só entra no dimensionamento com `considerar`. */
 export interface BaseNervuraDir { inf?: BarrasNervura; sup?: BarrasNervura; considerar?: boolean }
 /**
@@ -1071,6 +1093,8 @@ export interface BuildingModel {
   fogo?: FogoConfig;
   /** Fichas de vigotas e enchimentos da obra (E3a); só o que a obra usa ou criou, o catálogo interno não é guardado. */
   tiposLaje?: TiposLajeObra;
+  /** Ábacos das lajes nervuradas bidirecionais (E3d); ausente = nenhum. */
+  abacos?: Abaco[];
 }
 
 /** Tipos de texto de referência da planta (L4, C3.30). */

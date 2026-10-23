@@ -171,6 +171,16 @@ export interface OpcoesCalculo {
   nervuradaCortanteDist: number;
   /** Nervuradas bidirecionais: diferença máxima (%) entre nervuras vizinhas para adotar a mesma armadura (uniformização); 0 = cada nervura a sua. */
   nervuradaIgualacaoDif: number;
+  /** Ábacos das nervuradas (E3d): dimensão do ábaco em cada face do pilar = fração da distância ao pilar mais próximo no cone de busca (1/6). */
+  abacoFracao: number;
+  /** Ábacos: semiabertura (graus) do cone de busca a partir da normal de cada face do pilar (40). */
+  abacoCone: number;
+  /** Ábacos: extensão maciça (zona maciça sem rebaixo) além da borda do ábaco, em % da distância ao pilar vizinho (0). */
+  abacoExtensao: number;
+  /** Ábacos: comprimento mínimo da face do pilar à borda do ábaco, em múltiplos da altura do ábaco (2,5). */
+  abacoLimMin: number;
+  /** Ábacos: comprimento máximo da face do pilar à borda do ábaco, em múltiplos da altura do ábaco (5). */
+  abacoLimMax: number;
   /** 1 = cargas de uso das classes B (escritórios) e C (garagens) como casos próprios, com o ψ da classe; 0 = um caso Q com o ψ da obra. */
   categoriasUso: number;
   /** EQU: γ das permanentes favoráveis no tombamento global (NBR 8681). */
@@ -690,6 +700,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'As nervuras são verificadas ao cortante em seções espaçadas deste fator × d; onde a solicitação passa do VRd1 (19.4.1) entram os estribos, com espaçamento limitado pelo mesmo passo.' },
   { chave: 'nervuradaIgualacaoDif', rotulo: 'Nervuradas: uniformização da armadura entre nervuras vizinhas', unidade: '%', min: 0, max: 50, passo: 5, padrao: 20, fonte: 'Programa de referência (K1.13.3.2-1): uniformização da armadura concentrada nas nervuras; limite de 20 % do Statikos [a confirmar]', aConfirmar: true,
     descricao: 'Nervuras vizinhas da mesma direção cujos momentos diferem menos que este percentual adotam a armadura da mais solicitada (menos posições no desenho). 0 = cada nervura com a sua.' },
+  { chave: 'abacoFracao', rotulo: 'Ábacos: dimensão em relação ao vão', unidade: '× distância ao pilar', min: 0.05, max: 0.5, passo: 0.01, padrao: 1 / 6, fonte: 'Programa de referência (C7.47, K1.9.98): 1/6 da distância ao pilar mais próximo; a NBR 6118 não fixa; distância entre eixos e extensão a partir da face do pilar [a confirmar]', aConfirmar: true,
+    descricao: 'Extensão do ábaco automático, a partir de cada face do pilar, como fração da distância entre eixos do pilar e do pilar mais próximo dentro do cone de busca daquela face. Sem pilar no cone (borda), vale a do sentido oposto; sem pilar em nenhum dos dois, o comprimento mínimo.' },
+  { chave: 'abacoCone', rotulo: 'Ábacos: cone de busca do pilar vizinho', unidade: '° (semiabertura)', min: 5, max: 89, passo: 5, padrao: 40, fonte: 'Programa de referência (C7.48, K1.9.98): cone de visão de 40° a partir de cada face; semiabertura em torno da normal da face [a confirmar]', aConfirmar: true,
+    descricao: 'Um pilar só conta como vizinho de uma face se o ângulo entre a normal da face e a direção do centro dele (a partir do centro da face) for no máximo este valor.' },
+  { chave: 'abacoExtensao', rotulo: 'Ábacos: extensão maciça além do ábaco', unidade: '% da distância', min: 0, max: 30, passo: 1, padrao: 0, fonte: 'Programa de referência (C7.49): extensão maciça em % da distância ao pilar vizinho, da face do pilar à borda; padrão 0 (sem faixa maciça além do ábaco) [a confirmar]', aConfirmar: true,
+    descricao: 'Faixa maciça (sem cubetas, na altura da laje, sem rebaixo) além da borda do ábaco automático, em percentual da distância ao pilar vizinho da face. 0 = a zona maciça é o próprio ábaco.' },
+  { chave: 'abacoLimMin', rotulo: 'Ábacos: comprimento mínimo da face à borda', unidade: '× altura do ábaco', min: 0.5, max: 10, passo: 0.25, padrao: 2.5, fonte: 'Programa de referência (C7.50, K1.9.98): 2,5 a 5 vezes a altura do ábaco (texto); a NBR 6118 não fixa [a confirmar]', aConfirmar: true,
+    descricao: 'Menor extensão admitida do ábaco automático a partir da face do pilar, em múltiplos da altura do ábaco. Também vale quando não há pilar vizinho em nenhum dos sentidos.' },
+  { chave: 'abacoLimMax', rotulo: 'Ábacos: comprimento máximo da face à borda', unidade: '× altura do ábaco', min: 1, max: 20, passo: 0.25, padrao: 5, fonte: 'Programa de referência (C7.50, K1.9.98): 2,5 a 5 vezes a altura do ábaco (texto); a NBR 6118 não fixa [a confirmar]', aConfirmar: true,
+    descricao: 'Maior extensão admitida do ábaco automático a partir da face do pilar, em múltiplos da altura do ábaco.' },
   { chave: 'categoriasUso', rotulo: 'Categorias de uso como casos próprios', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 8681 (ações variáveis distintas combinadas como principal e secundárias) e NBR 6118, Tabela 11.2 (ψ por local); casos por categoria de uso do programa de referência', aConfirmar: false,
     descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'equGamaFav', rotulo: 'Equilíbrio (EQU): γ das permanentes favoráveis', min: 0.5, max: 1.2, passo: 0.05, padrao: 0.9, fonte: 'NBR 8681 (perda de equilíbrio como corpo rígido: permanentes de grande variabilidade favoráveis 0,9); valor a confirmar na norma', aConfirmar: true,
@@ -1009,6 +1029,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'curvaSegmento', 'curvaTorcaoEquilibrio',
   // E2e: o momento da excentricidade do consolo, o vínculo externo contínuo e as ligações das pré-moldadas entram no modelo de cálculo
   'consoloExcentricidade', 'vinculoExternoFatorEI', 'premoldadaArticulada',
+  // E3d: dimensões do ábaco automático (a zona maciça e o rebaixo entram na grelha das nervuradas)
+  'abacoFracao', 'abacoCone', 'abacoExtensao', 'abacoLimMin', 'abacoLimMax',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e

@@ -219,7 +219,7 @@ registrar<{ ids: string[] }>({
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
   validar(b, p) { const f = p.ids.filter((id) => !b.lajes.some((l) => l.id === id)); return f.length ? err('LAJE_INEXISTENTE', `Laje(s) inexistente(s): ${f.join(', ')}.`) : []; },
-  aplicar(d, p) { const s = new Set(p.ids); d.lajes = d.lajes.filter((l) => !s.has(l.id)); return `${p.ids.length} laje(s) removida(s).`; },
+  aplicar(d, p) { const s = new Set(p.ids); d.lajes = d.lajes.filter((l) => !s.has(l.id)); if (d.abacos) { d.abacos = d.abacos.filter((a) => !s.has(a.laje)); if (!d.abacos.length) delete d.abacos; } return `${p.ids.length} laje(s) removida(s).`; },
 });
 
 registrar<{ grupo: string; tolerancia: number }>({

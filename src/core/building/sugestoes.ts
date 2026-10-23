@@ -121,6 +121,16 @@ export const SUGESTOES: Record<string, string> = {
   NERV_FISSURA_MAX: 'Aumente a altura da laje ou a largura da nervura (mais braço e mais aço na camada) ou, se o projeto permitir, o limite de abertura de fissuras nas opções.',
   NERV_FISSURA: 'Informativo: a armadura positiva das nervuras foi aumentada para limitar a abertura de fissuras (NBR 6118, 17.3.3.2); uma laje mais alta evita o acréscimo.',
   NERV_ARM_DUPLA: 'Informativo: a nervura tem armadura de compressão no negativo; confira a ancoragem e, se preferir, maciçe a faixa do apoio.',
+  // ábacos das nervuradas bidirecionais (E3d)
+  NERV_ESTRIBO_ABACO: 'Informativo: a banda maciça sobre o ábaco precisa de estribos; aumente a altura do ábaco (hAbaco) ou o ábaco para dispensá-los.',
+  ABACO_FALTA: 'Gere o ábaco do pilar (abaco.gerar) ou desenhe um manual: sem ábaco o pilar apoia só nas nervuras e o contorno de punção atravessa as cubetas, o que quase sempre reprova.',
+  ABACO_ARMADURA_FORA: 'Aumente o ábaco (fração ou comprimento máximo nas opções), a altura útil ou a laje: as linhas de armadura de punção calculadas passam da borda do ábaco e a altura útil fora dele é menor.',
+  ABACO_VIGA: 'Defina uma viga em vez de simular a viga com um ábaco comprido e estreito; use ábaco em bordas livres e junto aos pilares (ou confirme com comoViga no ábaco).',
+  ABACO_FORA: 'Corrija o polígono do ábaco para ficar dentro do pano nervurado, ou remova o ábaco: ele não tem efeito fora da laje nervurada bidirecional.',
+  ABACO_ALTURA: 'Ajuste a altura do ábaco (hAbaco) para pelo menos a altura total da laje: o ábaco tem a espessura do pano e pode descer abaixo dele, nunca ficar acima.',
+  ABACO_INCOERENTE: 'Corrija o polígono (3 ou mais vértices, área não nula, dentro do pano nervurado) e a altura do ábaco (entre a da laje e 1,2 m).',
+  ABACO_NENHUM: 'Informe os pilares (pilares) ou use somenteSemViga: false: os pilares do pano têm viga encostada ou não há pilares no pano.',
+  ABACO_INEXISTENTE: 'Confira o id do ábaco na lista de ábacos da laje.',
   // tipos de laje nervurada (E3a)
   FICHA_INEXISTENTE: 'Escolha outra ficha ou laje da série em “Tipos de laje”, ou importe a ficha que falta (biblioteca do usuário ou arquivo JSON).',
   FICHA_INCOERENTE: 'Corrija os campos apontados na ficha (editor em “Tipos de laje”): Mu maior que Mfis, altura maior que capa + enchimento, valores positivos e séries sem repetição. O programa só confere a coerência lógica, não o dado do fabricante.',

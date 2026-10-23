@@ -8,7 +8,8 @@ import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { PosicaoLaje } from '../building/detalhamentoLajes';
 import { espessuraConcreto } from '../building/tiposLaje';
-import { arranjoDaLaje } from '../building/nervuradas';
+import { arranjoDaLaje, espessuraConcretoDaLaje } from '../building/nervuradas';
+import { nomeAbaco, linhaBaseAbaco, primitivasAbaco } from './abacoDesenho';
 import { acoDe, cobrimentoLaje, fckDe } from '../building/materiais';
 import { siglaReforco } from '../building/lajesEdicao';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
@@ -58,7 +59,10 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       const pi = pontoInterno(l.contorno);
       fundo.push({ t: 'txt', c: 'TEXTO', p: [pi[0] + 3 * k, pi[1] + 3 * k], h: 3 * k, s: l.nome, ah: 'e', av: 'base' });
       // nervurada bidirecional (E3c): cubetas inteiras em traço fino
-      for (const cb of arranjoDaLaje(b, l)?.arr.cubetas ?? []) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
+      const nb = arranjoDaLaje(b, l);
+      for (const cb of nb?.arr.cubetas ?? []) fundo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
+      // ábacos (E3d): zona maciça com hachura, nome e cotas
+      for (const ef of nb?.abacos ?? []) fundo.push(...primitivasAbaco(l, ef, nomeAbaco(nb!.abacos, ef.abaco.id), k, 'FORMA-FINA'));
     }
     // linhas de dobra do grupo (R7e): traço e ponto, rotuladas LD1…
     (b.linhasDobra ?? []).filter((ln) => ln.grupo === g).forEach((ln, i) => {
@@ -72,7 +76,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
     let concreto = 0, forma = 0;
     for (const l of lajes) {
       const A = Math.abs(areaPoligono(l.contorno)) - (l.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
-      const t = espessuraConcreto(b, l.tipo);
+      const t = espessuraConcretoDaLaje(b, l, (tp) => espessuraConcreto(b, tp));
       concreto += A * t * pavs.length; forma += A * pavs.length;
     }
     const folhas: { faces: Face[]; rot: string }[] = cfg.lajesSeparadas ? [{ faces: ['inf'], rot: 'POSITIVAS' }, { faces: ['sup'], rot: 'NEGATIVAS' }] : [{ faces: ['inf', 'sup'], rot: 'POSITIVAS E NEGATIVAS' }];
@@ -112,6 +116,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       // base em tela soldada detalhada: painel com diagonais e "T1 – Q138 – 2,45 × 6,00" (m), traspasse pelos retângulos sobrepostos
       const telas = new Map<string, { n: number; area: number; peso: number }>();
       const relacao: string[][] = [];
+      const linhasAbaco: string[][] = [];
       for (const d of dets) for (const pn of d.paineis ?? []) {
         if (!fl.faces.includes(pn.face)) continue;
         const c = pn.face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG', [A, B, C, D] = pn.poligono, cx: P = [(A[0] + C[0]) / 2, (A[1] + C[1]) / 2];
@@ -200,22 +205,52 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
           const pos = reg.pos('NB|mesa', acoS, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / nv.mesa.s) * rep);
           linhas.push(`${pos} ${phiTxt(nv.mesa.phi)} c/${cmInt(nv.mesa.s)} nas duas direções — malha da mesa${nv.mesa.exigida ? ' (flexão da mesa verificada)' : ' (distribuição)'}`);
         }
+        // ábacos (E3d): reforço negativo nas nervuras sobre o pilar (folha das negativas), estribos da banda maciça (folha das positivas) e armadura base entre nervuras
+        const arrAb = arranjoDaLaje(b, l), efsAb = arrAb?.abacos ?? [];
+        if (efsAb.length) {
+          const acoSup = acoS, hAb = (id: string) => efsAb.find((e) => e.abaco.id === id)!.abaco.hAbaco;
+          for (const n of nv.nervuras) for (const a of n.abacos) {
+            const nome = nomeAbaco(efsAb, a.abaco), L = Math.hypot(n.z[0] - n.a[0], n.z[1] - n.a[1]) || 1, pt = (x: number): P => [n.a[0] + ((n.z[0] - n.a[0]) * x) / L, n.a[1] + ((n.z[1] - n.a[1]) * x) / L];
+            if (a.barras && fl.faces.includes('sup')) {
+              const C = cmInt(a.comprimento + Math.max(0.15, hAb(a.abaco) - 2 * cobrimentoLaje(b, l.cobrimento).sup)), pos = reg.pos('NB|abaco', acoSup, a.barras.phi, C, a.barras.n * rep);
+              const meio = (a.x0 + a.x1) / 2, ini = Math.min(Math.max(0, meio - a.comprimento / 2), Math.max(0, L - a.comprimento)), p0 = pt(ini), p1 = pt(Math.min(L, ini + a.comprimento)), { ang, n: nn } = angLegivel(p0, p1);
+              modelo.push({ t: 'pl', c: 'ARMADURA-NEG', pts: [p0, p1] }, { t: 'txt', c: 'TEXTO', p: [(p0[0] + p1[0]) / 2 + nn[0] * 0.8 * k, (p0[1] + p1[1]) / 2 + nn[1] * 0.8 * k], h: 1.6 * k, s: `${nome} ${n.dir === 0 ? 'X' : 'Y'}${n.indice + 1}: ${qtd(rep, a.barras.n)} ${pos} ${phiTxt(a.barras.phi)} C=${C}`, ang, ah: 'c', av: 'base' });
+            }
+            if (a.estribo && fl.faces.includes('inf')) {
+              const perim = 2 * (nv.intereixo[n.dir] - 2 * cobrimentoLaje(b, l.cobrimento).inf) + 2 * (hAb(a.abaco) - 2 * cobrimentoLaje(b, l.cobrimento).inf) + 2 * Math.max(0.05, (5 * a.estribo.phi) / 1000);
+              const C = cmInt(perim), pos = reg.pos('NB|estribo', acoDe(b, 'lajeCortante').aco, a.estribo.phi, C, a.estribo.barras * rep);
+              linhas.push(`${nome} ${n.dir === 0 ? 'X' : 'Y'}${n.indice + 1}: ${qtd(rep, a.estribo.barras)} ${pos} ${phiTxt(a.estribo.phi)} c/${cmInt(a.estribo.s)} C=${C} — estribos da banda maciça sobre o ábaco`);
+            }
+          }
+          for (const ab of nv.abacos) {
+            const ef = efsAb.find((e) => e.abaco.id === ab.id), nome = nomeAbaco(efsAb, ab.id);
+            if (!ef) continue;
+            for (const x of ab.base) {
+              if (!fl.faces.includes(x.face)) continue;
+              const acoB = x.face === 'inf' ? acoI : acoS, C = cmInt(x.comprimento), pos = reg.pos(`AB|${x.face}`, acoB, x.phi, C, x.total * rep);
+              const [p0, p1] = linhaBaseAbaco(l, ef, x.dir, x.face === 'inf' ? -1.2 * k : 1.2 * k), { ang, n: nn } = angLegivel(p0, p1);
+              modelo.push({ t: 'pl', c: x.face === 'inf' ? 'ARMADURA' : 'ARMADURA-NEG', pts: [p0, p1] }, { t: 'txt', c: 'TEXTO', p: [(p0[0] + p1[0]) / 2 + nn[0] * 0.8 * k, (p0[1] + p1[1]) / 2 + nn[1] * 0.8 * k], h: 1.6 * k, s: `${nome}: ${qtd(rep, x.total)} ${pos} ${phiTxt(x.phi)} C=${C} (${x.porVao} por vão × ${x.vaos})`, ang, ah: 'c', av: 'base' });
+              linhasAbaco.push([nome, x.dir === 0 ? 'X' : 'Y', x.face === 'inf' ? 'inferior' : 'superior', pos, `${x.porVao} × ${x.vaos}`, phiTxt(x.phi), String(C), String(x.total * rep)]);
+            }
+          }
+        }
         const bn = l.baseNervurada;
         if (bn && fl.faces.includes('sup') && bn.mesa) linhas.push(`Base da mesa e das zonas maciças: ${(['inf', 'sup'] as const).flatMap((f2) => (bn.mesa![f2] ? [`${f2 === 'inf' ? 'inferior' : 'superior'} ${bn.mesa![f2]!.tela ?? bn.mesa![f2]!.barras!.map((x) => (x ? `φ${String(x.phi).replace('.', ',')} c/${x.s}` : '—')).join(' / ')}`] : [])).join('; ')}`);
         linhas.forEach((s2, i) => modelo.push({ t: 'txt', c: 'TEXTO', p: [pi[0], pi[1] - (7 + 3 * i) * k], h: 2 * k, s: s2, ah: 'c', av: 'topo' }));
       }
       // armadura de punção (N2d): estribos ou conectores em linhas radiais, entre as armaduras superior e inferior
       // (desenhada na folha das negativas; quantidades por pavimento do grupo)
-      const punc = fl.faces.includes('sup') ? (dim.puncao ?? []).filter((r) => r.pavimentoId === ref?.id && (r.armadura || r.manual.length)) : [];
+      const punc = fl.faces.includes('sup') ? (dim.puncao ?? []).filter((r) => r.pavimentoId === ref?.id && (r.armadura || r.armaduraExterna || r.manual.length)) : [];
       const acoP = acoDe(b, 'lajePuncao').aco;
       for (const r of punc) {
         const rep = (dim.puncao ?? []).filter((x) => x.pilar === r.pilar && x.laje === r.laje && pavs.some((pv) => pv.id === x.pavimentoId)).length || 1;
         const l = lajes.find((x) => x.id === r.laje), cob = cobrimentoLaje(b, l?.cobrimento), alt = r.h - cob.inf - cob.sup;
         const nomeP = b.pilares.find((x) => x.id === r.pilar)?.nome ?? r.nome;
         const linhasTxt: string[] = [];
-        if (r.armadura) {
-          const a = r.armadura, ganchos = a.tipo === 'estribo' ? 2 * Math.max(0.05, 0.008 * a.phi) : 2 * 1.5 * a.phi / 1000;
-          const C = cmInt(a.tipo === 'estribo' ? 2 * alt + ganchos : alt + ganchos), n = a.total * rep;
+        // nervuradas com ábaco (E3d): a armadura do C′ fica no ábaco (altura do ábaco) e a do C″ nas nervuras (altura da laje)
+        for (const [a, altA] of [[r.armadura, alt], [r.armaduraExterna, (r.abaco?.hLaje ?? r.h) - cob.inf - cob.sup]] as const) if (a) {
+          const ganchos = a.tipo === 'estribo' ? 2 * Math.max(0.05, 0.008 * a.phi) : 2 * 1.5 * a.phi / 1000;
+          const C = cmInt(a.tipo === 'estribo' ? 2 * altA + ganchos : altA + ganchos), n = a.total * rep;
           const pos = reg.pos(`PUN|${a.tipo}`, acoP, a.phi, C, n);
           for (const linha of a.posicoes) {
             if (linha.length > 1) modelo.push({ t: 'pl', c: 'ARMADURA-NEG', pts: linha });
@@ -239,6 +274,11 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
         modelo.push({ t: 'circ', c: 'ARMADURA-NEG', centro: g2.ponto!, r: 1.5 * k });
         modelo.push({ t: 'txt', c: 'TEXTO', p: [g2.ponto![0], g2.ponto![1] - 2.5 * k], h: 1.8 * k, s: `${qtd(pavs.length, g2.linhas * g2.barras)} ${pos} ${phiTxt(g2.phi)} C=${C} — punção informada, ${g2.linhas} linhas × ${g2.barras}, c/${cmInt(g2.s ?? 0.15)} cm`, ah: 'c', av: 'topo' });
       }
+      // quadro de armadura base dos ábacos (E3d): armadura entre nervuras, de borda a borda do ábaco, descontada da das nervuras
+      const blocosAbaco: BlocoTabela[] = linhasAbaco.length ? [{
+        titulo: 'ARMADURA BASE DOS ÁBACOS', cols: [{ w: 22, rot: 'ÁBACO' }, { w: 20, rot: 'DIR.' }, { w: 30, rot: 'FACE' }, { w: 22, rot: 'POS.' }, { w: 32, rot: 'POR VÃO × VÃOS' }, { w: 22, rot: 'φ' }, { w: 28, rot: 'C (cm)' }, { w: 26, rot: 'TOTAL' }],
+        linhas: linhasAbaco, rodape: ['Barras entre eixos de nervuras, de borda a borda do ábaco; colaborantes (a superior desconta da armadura negativa sobre o pilar).'],
+      }] : [];
       const aco = acoDaFolha(reg.tabela, perdas, concreto, forma);
       const nts = notas([
         'Medidas em cm; bitolas (φ) em mm. Barra representativa de cada posição com a linha de distribuição; pernas e ganchos rebatidos no plano.',
@@ -250,7 +290,7 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
       ]);
       out.push(montarFolha({
         b, formato: pl.formato, tipo: 'lajes', titulo: `Armação das lajes — ${nomeG} — ${fl.rot.toLowerCase()}`, conteudo: `ARMAÇÃO DAS LAJES — ${nomeG.toUpperCase()} — ${fl.rot}`,
-        escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, desenho: [], tabelas: [nts, ...blocosTela, tabelaAco(aco.tabela), resumoAco(aco, fck)],
+        escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, desenho: [], tabelas: [nts, ...blocosTela, ...blocosAbaco, tabelaAco(aco.tabela), resumoAco(aco, fck)],
         legenda: `ESCALA 1:${pl.escala} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: pl.avisos, modelo, janela: pl.janela, aco, elementos: [...dets.map((d) => d.nome), ...vigs.map((v) => v.nome), ...nervs.map((n) => n.nome)],
       }));
     }

@@ -6,6 +6,7 @@ import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { rotuloLaje } from '../building/tiposLaje';
 import { arranjoDaLaje } from '../building/nervuradas';
+import { nomeAbaco, primitivasAbaco } from './abacoDesenho';
 import { contornoDoLado, ladosDoPP, lancesDoPP } from '../building/pilarParede';
 import { encaixar } from './logo';
 import type { EstiloDesenho } from './estilo';
@@ -301,7 +302,10 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
     const pr = pontoRef(b, l.id, pi), rl = refDe(b, l.id)?.rot;
     modelo.push({ t: 'txt', c: 'LAJE', p: pr, h: 3 * k, s: l.nome, ah: 'c', av: 'base', ...(rl ? { ang: rl } : {}) }, { t: 'txt', c: 'LAJE', p: [pr[0], pr[1] - 1.5 * k], h: 2.2 * k, s: tipo, ah: 'c', av: 'topo', ...(rl ? { ang: rl } : {}) });
     // nervurada bidirecional (E3c): cubetas inteiras em traço fino (o resto é maciço)
-    for (const cb of arranjoDaLaje(b, l)?.arr.cubetas ?? []) modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
+    const nb = arranjoDaLaje(b, l);
+    for (const cb of nb?.arr.cubetas ?? []) modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: cb.poligono, fechada: true });
+    // ábacos (E3d): zona maciça efetiva com hachura, nome e cotas
+    for (const ef of nb?.abacos ?? []) modelo.push(...primitivasAbaco(l, ef, `${nomeAbaco(nb!.abacos, ef.abaco.id)} h=${Math.round(ef.abaco.hAbaco * 100)}`, k, 'LAJE'));
     for (const f of l.furos ?? []) {
       modelo.push({ t: 'pl', c: 'LAJE', pts: f, fechada: true });
       const [a0, b0, a1, b1] = caixa(f);

@@ -260,6 +260,8 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
 const resumoPuncao = (r: ResultadoPuncao) => ({
   pilar: r.nome, pavimento: r.pavimento, laje: r.lajeNome, apoio: r.tipo, FSd: +r.F.toFixed(1), tauSdC: +r.contornos[0].tau.toFixed(3), tauRd2: +r.tauRd2.toFixed(3), tauSdC2: +r.contornos[1].tau.toFixed(3), tauRd1: +r.tauRd1.toFixed(3),
   ...(r.armadura ? { armadura: `${r.armadura.linhas} linhas × ${r.armadura.barras} ${r.armadura.tipo === 'estribo' ? 'estribos' : 'conectores'} φ${r.armadura.phi}` } : {}),
+  // nervuradas (E3d): ábaco (ou ausência dele), alturas úteis e a tensão no C″ a 2d da borda do ábaco
+  ...(r.abaco ? { abaco: { id: r.abaco.id ?? null, hAbaco: r.abaco.hAbaco, hLaje: r.abaco.hLaje, tauSdC3: r.contornos[2] ? +r.contornos[2].tau.toFixed(3) : null, ...(r.armaduraExterna ? { armaduraForaDoAbaco: `${r.armaduraExterna.linhas} linhas × ${r.armaduraExterna.barras} φ${r.armaduraExterna.phi}` } : {}) } } : {}),
   status: r.status === 'armadura' ? 'review' : r.status, mensagens: r.mensagens,
 });
 /** Elementos com armadura fora das tabelas de armadura (R7a): fora de tabela ou armadura manual necessária. */
