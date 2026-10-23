@@ -316,3 +316,5 @@ export function ThemeSelect() {
 
 export { AjudaProvider, BotaoAjuda, dataAjuda, useAjuda } from './Ajuda';
 export { Icone } from './Icone';
+
+export { Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, type RibbonTabDef } from './Ribbon';
