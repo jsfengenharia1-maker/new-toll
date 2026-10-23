@@ -16,13 +16,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
 | 7. Lajes | 195 | 73 | 32 | 23 | 67 |
-| 8. Escadas | 65 | 0 | 0 | 65 | 0 |
+| 8. Escadas | 65 | 0 | 26 | 39 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **405** | **76** | **97** | **185** |
+| **Total** | **763** | **405** | **102** | **71** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 52 | 92 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 78 | 66 | 144 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -636,38 +636,38 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **8.1 Generalidades** | | | |
 | C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Falta | E | [E4c] |
 | C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Falta | E | [E4c] |
-| C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Falta | E | [E4a] |
-| C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Falta | E | [E4a] |
+| C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Parcial | E | [E4a] núcleo 23/10/2026: tipologias (`Tipologia`, `TIPOLOGIAS`) e geometria `geometriaEscada` (`escadas.ts`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Parcial | E | [E4a] núcleo 23/10/2026: modelo `Escada`/`LanceEscada`/`TipoLance` e patamares em `geometriaEscada`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | | **8.2 Acesso ao módulo** | | | |
 | C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Falta | E | [E4b] |
 | | **8.3.1 Criar escada** | | | |
 | C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Falta | E | [E4b] |
 | C8.7 | A escada nova começa no grupo atual, indicado na janela. | Falta | E | [E4b] |
-| C8.8 | Dados comuns valem para todos os lances; partes com dados diferentes (ex.: outra carga) devem virar escadas separadas. | Falta | E | [E4a] |
-| C8.9 | Geometria comum: largura da escada (comprimento dos degraus). | Falta | E | [E4a] |
-| C8.10 | Geometria comum: piso (passo em planta) e espelho (altura do degrau). | Falta | E | [E4a] |
-| C8.11 | Geometria comum: sentido de giro ao subir (esquerda ou direita). | Falta | E | [E4a] |
-| C8.12 | Geometria comum: posição do último degrau do lance — formado pelo patamar ou sobre a laje inclinada. | Falta | E | [E4a] |
-| C8.13 | Cargas comuns: modo de execução dos degraus (concretados com a laje ou em alvenaria), que afeta o peso próprio e o volume de concreto. | Falta | E | [E4a] |
-| C8.14 | Cargas comuns: peso de corrimãos (total, considerando um ou dois), revestimento e sobrecarga. | Falta | E | [E4a] |
-| C8.15 | Lances (trechos entre pavimentos) podem ter dados diferentes entre si: espessura, cota inicial, tipologia, número de degraus. | Falta | E | [E4a] |
-| C8.16 | Escolha do tipo de lance numa lista de tipos predefinidos ou criação de tipo novo. | Falta | E | [E4a] |
+| C8.8 | Dados comuns valem para todos os lances; partes com dados diferentes (ex.: outra carga) devem virar escadas separadas. | Parcial | E | [E4a] núcleo 23/10/2026: dados comuns na `Escada`; comandos `escada.criar`/`escada.dados`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.9 | Geometria comum: largura da escada (comprimento dos degraus). | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.largura`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.10 | Geometria comum: piso (passo em planta) e espelho (altura do degrau). | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.piso` e `Escada.espelho`; avisos ESCADA_BLONDEL e ESCADA_DIMENSOES; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.11 | Geometria comum: sentido de giro ao subir (esquerda ou direita). | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.giro` (esq/dir) aplicado em cada patamar; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.12 | Geometria comum: posição do último degrau do lance — formado pelo patamar ou sobre a laje inclinada. | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.ultimoDegrau` (patamar/laje) no comprimento do trecho; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.13 | Cargas comuns: modo de execução dos degraus (concretados com a laje ou em alvenaria), que afeta o peso próprio e o volume de concreto. | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.execucao`/`bloco`: peso dos degraus e volume de concreto em `CargasLance`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.14 | Cargas comuns: peso de corrimãos (total, considerando um ou dois), revestimento e sobrecarga. | Parcial | E | [E4a] núcleo 23/10/2026: `Escada.corrimao`/`revestimento`/`sobrecarga`/`acesso` e opções `escada*`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.15 | Lances (trechos entre pavimentos) podem ter dados diferentes entre si: espessura, cota inicial, tipologia, número de degraus. | Parcial | E | [E4a] núcleo 23/10/2026: `LanceEscada` (tipo, pavimento, cota inicial, repetição); `lance.criar`/`editar`/`remover`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.16 | Escolha do tipo de lance numa lista de tipos predefinidos ou criação de tipo novo. | Parcial | E | [E4a] núcleo 23/10/2026: `TIPOS_LANCE_PREDEFINIDOS` copiados para a obra ao usar; `tipoLance.criar`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.17 | Tipos de lance ficam na biblioteca da obra, reutilizáveis em vários lances e escadas; importação/exportação entre obras pelo gerenciador de biblioteca. | Falta | E | [E4b] |
-| C8.18 | Tipo de lance: referência (nome). | Falta | E | [E4a] |
-| C8.19 | Tipo de lance: espessura da laje dada pelo usuário ou pré-dimensionada pelo programa como 1/30 do maior vão real entre apoios. | Falta | E | [E4a] |
-| C8.20 | Tipo de lance: desnível no início do lance (≥ 10 cm), ex.: escada que nasce na fundação e atravessa contrapiso. | Falta | E | [E4a] |
-| C8.21 | Tipo de lance: número de degraus iniciais construídos sobre o piso; gera reação uniforme de superfície (carga permanente média dos degraus), sem sobrecarga, pois o piso já tem a sua. | Falta | E | [E4a] |
-| C8.22 | Tipo de lance: tipologia de lances e patamares. | Falta | E | [E4a] |
-| C8.23 | Tipo de lance: número de degraus de cada trecho, conforme a tipologia. | Falta | E | [E4a] |
-| C8.24 | Tipo de lance: largura do vão central (poço), só com patamares de meia-volta. | Falta | E | [E4a] |
-| C8.25 | Tipo de lance: número de degraus construídos sobre o patamar intermediário. | Falta | E | [E4a] |
-| C8.26 | Patamar intermediário apoiado ou livre; apoio frontal, lateral ou ambos, com tipo e largura. | Falta | E | [E4a] |
-| C8.27 | Apoio do patamar por tirante pendurado em elemento do piso de cima; a largura serve para somar o peso da alvenaria entre o patamar e o piso superior. | Falta | E | [E4a] |
-| C8.28 | Apoio do patamar em parede de alvenaria (15,70 kN/m³) ou de concreto (24,53 kN/m³): peso de parede de largura dada e altura entre patamar e piso de baixo, aplicado no elemento sob a borda apoiada. | Falta | E | [E4a] |
-| C8.29 | Parede entre o patamar e o piso de cima (ou outra divisória) deve ser lançada pelo usuário como carga linear. | Falta | E | [E4a] |
-| C8.30 | Apoio do patamar por conectores de cisalhamento em viga ou muro, que recebem a reação de extremidade. | Falta | E | [E4a] |
-| C8.31 | Número de lances iguais consecutivos (pavimentos seguidos com o mesmo tipo de lance). | Falta | E | [E4a] |
-| C8.32 | Número ilimitado de lances por escada. | Falta | E | [E4a] |
+| C8.18 | Tipo de lance: referência (nome). | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.nome`; `tipoLance.criar`/`editar`/`copiar`/`remover`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.19 | Tipo de lance: espessura da laje dada pelo usuário ou pré-dimensionada pelo programa como 1/30 do maior vão real entre apoios. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.espessura` ou vão/30 (`LanceGeo.espessura`; opções `escadaEspessuraDivisor`/`Min`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.20 | Tipo de lance: desnível no início do lance (≥ 10 cm), ex.: escada que nasce na fundação e atravessa contrapiso. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.desnivelInicial` (0 ou ≥ `escadaDesnivelMin`), ESCADA_ALTURA; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.21 | Tipo de lance: número de degraus iniciais construídos sobre o piso; gera reação uniforme de superfície (carga permanente média dos degraus), sem sobrecarga, pois o piso já tem a sua. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.degrausIniciais`: `SuperficieEscada` com γ·e/2, sem sobrecarga; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.22 | Tipo de lance: tipologia de lances e patamares. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.tipologia`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.23 | Tipo de lance: número de degraus de cada trecho, conforme a tipologia. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.trechos`; ESCADA_TIPOLOGIA; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.24 | Tipo de lance: largura do vão central (poço), só com patamares de meia-volta. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.poco` (só meia-volta; ESCADA_POCO); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.25 | Tipo de lance: número de degraus construídos sobre o patamar intermediário. | Parcial | E | [E4a] núcleo 23/10/2026: `TipoLance.degrausPatamar`: carga de superfície no patamar; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.26 | Patamar intermediário apoiado ou livre; apoio frontal, lateral ou ambos, com tipo e largura. | Parcial | E | [E4a] núcleo 23/10/2026: `LanceEscada.patamares` (`ApoioPatamar`: apoiado/livre, borda frontal/lateral, tipo e largura); ESCADA_PATAMAR_APOIO; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.27 | Apoio do patamar por tirante pendurado em elemento do piso de cima; a largura serve para somar o peso da alvenaria entre o patamar e o piso superior. | Parcial | E | [E4a] núcleo 23/10/2026: apoio `tirante`: γ·largura·(piso de cima − patamar) no elemento de cima (`LinhaApoio`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.28 | Apoio do patamar em parede de alvenaria (15,70 kN/m³) ou de concreto (24,53 kN/m³): peso de parede de largura dada e altura entre patamar e piso de baixo, aplicado no elemento sob a borda apoiada. | Parcial | E | [E4a] núcleo 23/10/2026: apoio `alvenaria`/`concreto`: γ·largura·(patamar − espessura − piso de baixo) sob a borda (BLOCOS; 15,70/24,53 do programa de referência a confirmar); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.29 | Parede entre o patamar e o piso de cima (ou outra divisória) deve ser lançada pelo usuário como carga linear. | Parcial | E | [E4a] núcleo 23/10/2026: aviso ESCADA_PAREDE_SUP; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.30 | Apoio do patamar por conectores de cisalhamento em viga ou muro, que recebem a reação de extremidade. | Parcial | E | [E4a] núcleo 23/10/2026: apoio `conector` (reação na E4c); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.31 | Número de lances iguais consecutivos (pavimentos seguidos com o mesmo tipo de lance). | Parcial | E | [E4a] núcleo 23/10/2026: `LanceEscada.repetir`: um lance por pavimento (`instanciasDaEscada`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
+| C8.32 | Número ilimitado de lances por escada. | Parcial | E | [E4a] núcleo 23/10/2026: lista de lances sem limite; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | | **8.3.1.3 Inserção na obra** | | | |
 | C8.33 | Inserção no pavimento atual: o primeiro lance acompanha o cursor; clique fixa o início, a escada gira em torno dele e o segundo clique define a direção. | Falta | E | [E4b] |
 | C8.34 | Capturas a gabarito DXF/DWG e modo ortogonal para posicionar. | Falta | E | [E4b] |
@@ -1079,3 +1079,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3e, núcleo (lajes alveolares).** C7.51 e C7.143 passam de Falta a Parcial (fichas, catálogo editável, comandos e quadro de propriedades; sem dado de fabricante; falta a interface); a nota de C7.11 passa a citar as alveolares. Ver `docs/checklist-manual-calculo-cypecad.md` para os itens de cálculo.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: sem mudança de contagem (os itens seguem na E).
+- **23/10/2026 — E4a, núcleo (escadas: modelo e tipos).** 25 itens do cap. 8 (C8.3, C8.4, C8.8–C8.16, C8.18–C8.32) passam de Falta a Parcial: `src/core/building/escadas.ts` (modelo `Escada`/`LanceEscada`/`TipoLance`, tipologias, `geometriaEscada` com polígonos 3D, degraus, altura vencida, espessura vão/30, cargas próprias e apoios do patamar), comandos `escada.*`, `lance.*` e `tipoLance.*`, 11 opções `escada*`, códigos ESCADA_*; falta a interface (cartões em `docs/cartoes/E4a/`) e o lançamento (E4b). C8.17 segue na E4b. Pendências por frente: sem mudança de contagem (os itens seguem na E).

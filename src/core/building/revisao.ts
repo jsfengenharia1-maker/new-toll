@@ -5,10 +5,11 @@ import type { AnaliseEdificio } from './analitico';
 import type { Dimensionamento } from './dimensionamento';
 import { estadoEmUso } from './acoes';
 import { sugestaoDe } from './sugestoes';
+import { diagnosticosEscadas } from './escadas';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada' | 'diagonal' | 'consolo';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada' | 'diagonal' | 'consolo' | 'escada';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;
@@ -168,6 +169,13 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'ALVEOLAR_LARGURA', nivel: 'aviso', re: /^Alveolares: faixa de/, descricao: 'Alveolares: faixa do pano menor que a largura mínima da placa cortada' },
   { codigo: 'ALVEOLAR_CAPA', nivel: 'erro', re: /^Alveolares: capa/, descricao: 'Alveolares: capa abaixo do mínimo' },
   { codigo: 'ALVEOLAR_RESUMO', nivel: 'info', re: /^Alveolares: alveolar /, descricao: 'Resumo da laje alveolar (placa, número de placas, vão, momento, processo)' },
+  // escadas (E4a)
+  { codigo: 'ESCADA_ALTURA', nivel: 'erro', re: /^Escada [^:]+, lance \d+.*não fecha o desnível/, descricao: 'Escada: os degraus não fecham o desnível entre os pisos' },
+  { codigo: 'ESCADA_BLONDEL', nivel: 'aviso', re: /^Escada [^:]+: 2e \+ p/, descricao: 'Escada: relação de Blondel (2e + p) fora do intervalo' },
+  { codigo: 'ESCADA_DIMENSOES', nivel: 'aviso', re: /^Escada [^:]+: (espelho|largura)/, descricao: 'Escada: espelho ou largura fora dos limites' },
+  { codigo: 'ESCADA_PAREDE_SUP', nivel: 'aviso', re: /^Escada [^:]+, lance \d+.*parede entre o patamar/, descricao: 'Escada: parede entre o patamar e o piso de cima deve ser lançada como carga linear' },
+  { codigo: 'ESCADA_TIPO', nivel: 'erro', re: /^Escada [^:]+, lance \d+.*(tipo de lance|tipo ")/, descricao: 'Escada: tipo de lance inexistente ou incoerente' },
+  { codigo: 'ESCADA_GEOMETRIA', nivel: 'erro', re: /^Escada [^:]+(, lance \d+)?: /, descricao: 'Escada: erro geométrico (pavimento, patamar, trecho ou apoio)' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
   // punção e cortante das lajes (N2d)
   { codigo: 'PUNCAO_BIELA', nivel: 'erro', re: /^Punção em .*τSd/, descricao: 'Punção: compressão diagonal (τSd > τRd2 no contorno C)' },
@@ -323,6 +331,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   ]);
   for (const v of dim?.alvenaria?.vigasMuro ?? []) add('viga', v.viga, v.nome, undefined, v.mensagens);
   for (const m of dim?.muros ?? []) add('obra', m.id, m.nome ?? 'Muro', undefined, m.mensagens.map((x) => `Muro ${m.nome ?? ''}: ${x}`));
+  for (const e of b.escadas ?? []) add('escada', e.id, e.nome, undefined, diagnosticosEscadas(b).filter((d) => d.elementos.includes(e.id)).map((d) => d.mensagem));
   for (const a of dim?.avisosFundacao ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   for (const a of dim?.avisosAcoes ?? []) add('obra', undefined, b.obra?.nome || 'Obra', undefined, [a]);
   // com fundações lançadas, pilar que nasce na fundação sem elemento
