@@ -15,6 +15,7 @@ import { acoDe, cobrimentoLaje, cobrimentoViga, concretoDe, gamas } from './mate
 import { aplicarEdicoes, uniformizarLajes, type Exigencias } from './lajesEdicao';
 import type { OpcoesCalculo } from './opcoes';
 import { areaBarraBase, areaTela, PAINEL_TELA, resumoTelas, telaPor, type PainelTela } from './telasSoldadas';
+import type { FonteNormas } from '../normas';
 import { casosDaObra, geometriaViga, pavimentosDoGrupo, type BaseFaceLaje, type BuildingModel, type Laje, type Viga } from './types';
 
 /** Taxa mínima das lajes (mesma do dimensionamento, 0,15 % para qualquer fck, a confirmar). */
@@ -286,16 +287,16 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   // ---- armadura base (R7d): área por direção, indicação e reforço = necessária − base
   const baseLaje = l.base, baseDet = baseLaje?.detalhada ?? op.lajeBaseDetalhada === 1;
   const barraBase = (f: BaseFaceLaje | undefined, k: 0 | 1): { phi: number; s: number } | null => {
-    if (f?.tela) { const t = telaPor(f.tela); return t ? (((f.giro ? 1 - k : k) === 0) ? { phi: t.phiL, s: t.sL / 100 } : { phi: t.phiT, s: t.sT / 100 }) : null; }
+    if (f?.tela) { const t = telaPor(f.tela, b); return t ? (((f.giro ? 1 - k : k) === 0) ? { phi: t.phiL, s: t.sL / 100 } : { phi: t.phiT, s: t.sT / 100 }) : null; }
     const x = f?.barras?.[k]; return x ? { phi: x.phi, s: x.s / 100 } : null;
   };
   const areaBase = (f: BaseFaceLaje | undefined): [number, number] => {
-    if (f?.tela) { const t = telaPor(f.tela); return t ? areaTela(t, f.giro) : [0, 0]; }
+    if (f?.tela) { const t = telaPor(f.tela, b); return t ? areaTela(t, f.giro) : [0, 0]; }
     return [0, 1].map((k) => { const x = f?.barras?.[k]; return x ? areaBarraBase(x.phi, x.s) : 0; }) as [number, number];
   };
   const baseInf = areaBase(baseLaje?.inf), baseSup = areaBase(baseLaje?.sup);
-  if (baseLaje?.inf?.tela && !telaPor(baseLaje.inf.tela)) avisos.push(`Tela ${baseLaje.inf.tela} da base inferior não está no catálogo.`);
-  if (baseLaje?.sup?.tela && !telaPor(baseLaje.sup.tela)) avisos.push(`Tela ${baseLaje.sup.tela} da base superior não está no catálogo.`);
+  if (baseLaje?.inf?.tela && !telaPor(baseLaje.inf.tela, b)) avisos.push(`Tela ${baseLaje.inf.tela} da base inferior não está no catálogo.`);
+  if (baseLaje?.sup?.tela && !telaPor(baseLaje.sup.tela, b)) avisos.push(`Tela ${baseLaje.sup.tela} da base superior não está no catálogo.`);
   /** Reforço sobre a base: com a redução de densidade, a bitola da base em espaçamento múltiplo (uma barra a cada k da base). */
   const escolherReforco = (ref: number, smax: number, bb: { phi: number; s: number } | null, ca60: boolean, hh = h) => {
     if (op.lajeReforcoReducao && bb) {
@@ -481,7 +482,7 @@ export function detalharLaje(b: BuildingModel, l: Laje, porLaje: Map<string, Res
   // ---- painéis de tela soldada da base detalhada (padrão 2,45 × 6,00 m, traspasse entre painéis)
   const paineis: PainelTela[] = [];
   const painelDeTela = (face: 'inf' | 'sup', f: BaseFaceLaje | undefined) => {
-    const t = telaPor(f?.tela);
+    const t = telaPor(f?.tela, b);
     if (!t) return;
     const g = f!.giro ? 1 : 0, ua = U[g], uc = U[1 - g], cobF = face === 'inf' ? cob.inf : cob.sup, lap = op.lajeTelaTraspasse / 100;
     const loc = (p: P): P => [dot(p, ua), dot(p, uc)], glob = (a: number, cc: number): P => add(add([0, 0], ua, a), uc, cc);
@@ -711,8 +712,8 @@ export function resumoAcoLajes(b: BuildingModel, dets: DetalheLaje[], perdas: nu
 }
 
 /** Resumo das telas soldadas da base detalhada por designação: painéis (com as repetições dos grupos), área (m²) e peso (kg). */
-export function resumoTelasLajes(dets: DetalheLaje[], perdas: number) {
-  return resumoTelas(dets.flatMap((d) => (d.paineis ?? []).map((p) => ({ designacao: p.designacao, comprimento: p.comprimento, largura: p.largura, repeticoes: d.repeticoes }))), perdas);
+export function resumoTelasLajes(dets: DetalheLaje[], perdas: number, b?: FonteNormas) {
+  return resumoTelas(dets.flatMap((d) => (d.paineis ?? []).map((p) => ({ designacao: p.designacao, comprimento: p.comprimento, largura: p.largura, repeticoes: d.repeticoes }))), perdas, b);
 }
 
 /** Trechos de uma reta c = cte dentro dos anéis (radier, FU6). */

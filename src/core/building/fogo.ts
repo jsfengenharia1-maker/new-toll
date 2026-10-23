@@ -6,11 +6,11 @@ import type { OpcoesCalculo } from './opcoes';
 import { vaos } from './lajes';
 import { cobrimentoLaje, cobrimentoPilar, cobrimentoViga } from './materiais';
 import {
-  EFICIENCIA_PROTETOR_2004, EFICIENCIA_REVESTIMENTO, LAJE_APOIADA, LAJE_LISA, NERVURADA_BIAPOIADA, NERVURADA_CONTINUA, PILAR_TABELA_2004,
-  PILAR_UMA_FACE, TRRF_TABELADOS, VIGA_BIAPOIADA, VIGA_CONTINUA, trrfSugerido, type ParBC, type SugestaoTrrf, type TabelaNervurada, type TabelaViga,
+  TRRF_TABELADOS, tabelasFogo, trrfSugerido, type ParBC, type SugestaoTrrf, type TabelaNervurada, type TabelaViga,
 } from './fogoTabelas';
 import { dimsSecao, pavimentosOrdenados, secaoNoLance, type BuildingModel, type Laje, type Viga, type Vinculo } from './types';
 import { barArea } from '../concrete';
+import type { FonteNormas } from '../normas';
 
 // ---------------- dados do modelo ----------------
 
@@ -41,9 +41,10 @@ export interface FogoConfig {
 }
 
 /** Espessura equivalente de concreto (mm) de um revestimento: espessura × eficiência relativa ao concreto. */
-export function espessuraEquivalente(r?: RevestimentoFogo | null): number {
+export function espessuraEquivalente(r?: RevestimentoFogo | null, normas?: FonteNormas): number {
   if (!r || !(r.espessura > 0)) return 0;
-  const ef = r.material === 'protetor' ? r.eficiencia ?? EFICIENCIA_PROTETOR_2004 : EFICIENCIA_REVESTIMENTO[r.material];
+  const T = tabelasFogo(normas);
+  const ef = r.material === 'protetor' ? r.eficiencia ?? T.EFICIENCIA_PROTETOR_2004 : T.EFICIENCIA_REVESTIMENTO[r.material];
   return r.espessura * ef;
 }
 
@@ -93,7 +94,8 @@ export interface EntradaViga {
   continua: boolean;
 }
 /** Vigas: bmín/c1 e largura da alma (fogo em três faces: o revestimento soma nas duas laterais e embaixo). */
-export function fogoViga(e: EntradaViga): AvaliacaoFogo {
+export function fogoViga(e: EntradaViga, normas?: FonteNormas): AvaliacaoFogo {
+  const { VIGA_BIAPOIADA, VIGA_CONTINUA } = tabelasFogo(normas);
   const T: TabelaViga = e.continua ? VIGA_CONTINUA : VIGA_BIAPOIADA, d = e.revestimento;
   const b = e.b + 2 * d, c1 = e.c1 + d;
   const pass = (i: number) => b >= T.bw[i] && T.combinacoes[i].some(([bm, cm]) => b >= bm && c1 >= cm);
@@ -115,7 +117,8 @@ export interface EntradaLaje {
   bw?: number; biapoiada?: boolean;
 }
 /** Lajes (fogo por baixo: o revestimento soma na espessura e em c1). */
-export function fogoLaje(e: EntradaLaje): AvaliacaoFogo {
+export function fogoLaje(e: EntradaLaje, normas?: FonteNormas): AvaliacaoFogo {
+  const { LAJE_APOIADA, LAJE_LISA, NERVURADA_BIAPOIADA, NERVURADA_CONTINUA } = tabelasFogo(normas);
   const d = e.revestimento, c1 = e.c1 + d, h = e.h + d;
   const i = TRRF_TABELADOS.indexOf(tabeladoPara(e.trrf) ?? 120);
   const adot = `h ${f0(h)} mm, c1 ${f1(c1)} mm${d ? ` (revestimento +${f1(d)} mm)` : ''}`;
@@ -161,7 +164,8 @@ export function larguraEfetiva(b: number, h: number, Ac?: number): number {
 }
 
 /** Pilares: uma face exposta (tabela da 2012), analítico (mais de uma face) ou tabular da edição de 2004 por μfi. */
-export function fogoPilar(e: EntradaPilar): AvaliacaoFogo {
+export function fogoPilar(e: EntradaPilar, normas?: FonteNormas): AvaliacaoFogo {
+  const { PILAR_UMA_FACE, PILAR_TABELA_2004 } = tabelasFogo(normas);
   const c1 = e.c1 + e.revestimento, bMin = Math.min(e.b, e.h);
   const adot = `${e.circular ? `D ${f0(e.b)}` : `${f0(e.b)} × ${f0(e.h)}`} mm, c1 ${f1(c1)} mm${e.revestimento ? ` (revestimento +${f1(e.revestimento)} mm, só em c1)` : ''}, ${e.faces} face${e.faces > 1 ? 's' : ''} exposta${e.faces > 1 ? 's' : ''}`;
   const it = tabeladoPara(e.trrf);
@@ -247,7 +251,7 @@ export function alturaDaEdificacao(b: BuildingModel): number {
 export function sugestaoTrrf(b: BuildingModel): (SugestaoTrrf & { divisao: string; altura: number }) | null {
   const dv = b.fogo?.ocupacao;
   if (!dv) return null;
-  const altura = alturaDaEdificacao(b), s = trrfSugerido(dv, altura);
+  const altura = alturaDaEdificacao(b), s = trrfSugerido(dv, altura, b);
   return s ? { ...s, divisao: dv, altura } : null;
 }
 /** TRRF de um grupo (min) e de onde veio: do grupo, da ocupação (NBR 14432/IT) ou o padrão das opções. */
@@ -301,7 +305,7 @@ const semV0 = (r: { determinantes?: { combinacao: string }[] }, ctx: ContextoFog
 export function verificarFogo(b: BuildingModel, d: Dimensionamento, op: OpcoesCalculo, ctx: ContextoFogo, vaosDaViga: (v: Viga) => number): ResultadoFogo {
   const cfg = b.fogo, elementos: FogoElemento[] = [];
   const grupoNome = (g: string) => b.grupos.find((x) => x.id === g)?.nome ?? g;
-  const revDe = (id: string, grupo: string) => espessuraEquivalente(cfg?.elementos?.[id]?.revestimento ?? cfg?.revestimentos?.[grupo]);
+  const revDe = (id: string, grupo: string) => espessuraEquivalente(cfg?.elementos?.[id]?.revestimento ?? cfg?.revestimentos?.[grupo], b);
   const trrfDe = (id: string, grupo: string) => { const t = cfg?.elementos?.[id]?.trrf; return t !== undefined ? { trrf: t, origem: 'elemento' as const } : trrfDoGrupo(b, op, grupo); };
   const add = (x: Omit<FogoElemento, 'trf' | 'limiteTabela' | 'folga' | 'metodo' | 'tabela' | 'exigido' | 'adotado' | 'status' | 'mensagens'>, a: AvaliacaoFogo) => {
     const status: FogoElemento['status'] = a.erros.length ? 'fail' : a.avisos.length ? 'review' : 'ok';
@@ -315,7 +319,7 @@ export function verificarFogo(b: BuildingModel, d: Dimensionamento, op: OpcoesCa
     const camadas = Number(/\((\d+) camadas\)/.exec(r.barrasInf)?.[1] ?? 1), t = trrfDe(v.id, v.grupo), rev = revDe(v.id, v.grupo);
     const c1 = c1Viga({ cobInf: cob.inf * 1000, cobLat: cob.lat * 1000, phiT: r.arranjo.estribo?.phi ?? 5, phi, n, camadas, b: r.b * 1000 });
     add({ tipo: 'viga', id: v.id, nome: r.nome, grupo: v.grupo, trrf: t.trrf, origemTrrf: t.origem, revestimento: rev },
-      fogoViga({ b: r.b * 1000, c1, revestimento: rev, trrf: t.trrf, continua: vigaContinua(v, vaosDaViga(v)) }));
+      fogoViga({ b: r.b * 1000, c1, revestimento: rev, trrf: t.trrf, continua: vigaContinua(v, vaosDaViga(v)) }, b));
   }
 
   for (const r of d.lajes) {
@@ -327,13 +331,13 @@ export function verificarFogo(b: BuildingModel, d: Dimensionamento, op: OpcoesCa
     if (l.tipo.tipo === 'trelicada') {
       const vg = d.vigotas?.find((y) => y.laje === l.id);
       if (!vg) continue;
-      add(x, fogoLaje({ tipo: 'nervurada', h: l.tipo.capa * 1000, c1: (vg.h - vg.d.inf) * 1000, revestimento: rev, trrf: t.trrf, compartimentadora: comp, bw: vg.bw * 1000, biapoiada: !!l.vigotasBiapoiadas }));
+      add(x, fogoLaje({ tipo: 'nervurada', h: l.tipo.capa * 1000, c1: (vg.h - vg.d.inf) * 1000, revestimento: rev, trrf: t.trrf, compartimentadora: comp, bw: vg.bw * 1000, biapoiada: !!l.vigotasBiapoiadas }, b));
       continue;
     }
     const Asmax = Math.max(...r.As.pos) * 1e-4, phi = Asmax > 0 ? ctx.phiLaje(Asmax, r.h) : 8;
     const lisa = cfg?.elementos?.[l.id]?.lisa ?? ehLisa(b, l), [v1, v2] = vaos(l), razao = Math.max(v1, v2) / Math.max(1e-6, Math.min(v1, v2));
     // c1 = cobrimento + φ/2; em duas direções, a média das duas camadas (+ φ/2) [a confirmar]
-    add(x, fogoLaje({ tipo: lisa ? 'lisa' : 'macica', h: r.h * 1000, c1: cov + phi / 2 + (lisa || razao <= 2 ? phi / 2 : 0), revestimento: rev, trrf: t.trrf, compartimentadora: comp, razao }));
+    add(x, fogoLaje({ tipo: lisa ? 'lisa' : 'macica', h: r.h * 1000, c1: cov + phi / 2 + (lisa || razao <= 2 ? phi / 2 : 0), revestimento: rev, trrf: t.trrf, compartimentadora: comp, razao }, b));
   }
 
   const ps = pavimentosOrdenados(b), ultimo = ps[ps.length - 1]?.id;
@@ -351,7 +355,7 @@ export function verificarFogo(b: BuildingModel, d: Dimensionamento, op: OpcoesCa
     const dets = r.determinantes ?? [], semV = ctx.semVento ? dets.filter((x) => ctx.semVento!(x.combinacao)) : dets;
     for (const dt of semV) if (dt.Nd > 1e-6) e = Math.max(e ?? 0, (Math.hypot(Math.max(...dt.Mu.map(Math.abs)), Math.max(...dt.Mv.map(Math.abs))) / dt.Nd) * 1000);
     add({ tipo: 'pilar', id: p.id, nome: r.nome, pavimento: r.pavimento, grupo: pav.grupo, trrf: t.trrf, origemTrrf: t.origem, revestimento: rev },
-      fogoPilar({ b: w * 1000, h: h * 1000, circular: sec.tipo === 'circ', c1, revestimento: rev, n, As: n * barArea(a.phi) * 1e6, lef, e, faces: ce?.faces ?? op.fogoFacesPilar, muFi: ce?.muFi ?? op.fogoMuFi, trrf: t.trrf, metodo: op.fogoPilarMetodo ? 1 : 0 }));
+      fogoPilar({ b: w * 1000, h: h * 1000, circular: sec.tipo === 'circ', c1, revestimento: rev, n, As: n * barArea(a.phi) * 1e6, lef, e, faces: ce?.faces ?? op.fogoFacesPilar, muFi: ce?.muFi ?? op.fogoMuFi, trrf: t.trrf, metodo: op.fogoPilarMetodo ? 1 : 0 }, b));
   }
 
   const grupos = [...new Set(b.pavimentos.map((p) => p.grupo))].map((g) => ({ grupo: g, nome: grupoNome(g), ...trrfDoGrupo(b, op, g) }));

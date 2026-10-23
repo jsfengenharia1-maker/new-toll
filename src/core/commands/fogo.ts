@@ -3,7 +3,7 @@
 import type { Draft } from 'immer';
 import type { BuildingModel } from '../building/types';
 import type { Diagnostico } from '../building/verify';
-import { DIVISOES_OCUPACAO } from '../building/fogoTabelas';
+import { divisoesOcupacao } from '../building/fogoTabelas';
 import { estadoInfo } from '../building/acoes';
 import type { FogoConfig, FogoElementoConfig, RevestimentoFogo } from '../building/fogo';
 import { registrar } from './registry';
@@ -71,7 +71,7 @@ registrar<P>({
     for (const [id, c] of Object.entries(p.elementos ?? {})) { if (!ids.has(id)) return err('ELEMENTO_INEXISTENTE', `Elemento ${id} não existe (use o id de uma viga, pilar ou laje).`, [id]); const e = validarElemento(c); if (e) return err('FOGO_ELEMENTO_INVALIDO', `Elemento ${id}: ${e}.`, [id]); }
     for (const g of [...(p.remover?.trrf ?? []), ...(p.remover?.revestimentos ?? [])]) if (!grupos.has(g)) return err('GRUPO_INEXISTENTE', `Grupo ${g} não existe.`, [g]);
     for (const id of Object.keys(p.remover?.elementos ?? {})) if (!ids.has(id)) return err('ELEMENTO_INEXISTENTE', `Elemento ${id} não existe.`, [id]);
-    if (p.ocupacao !== undefined && !DIVISOES_OCUPACAO.some((x) => x.divisao.toUpperCase() === p.ocupacao!.trim().toUpperCase())) return err('OCUPACAO_DESCONHECIDA', `Divisão de ocupação "${p.ocupacao}" fora da tabela (ex.: A-2, B-1, C-2, D-1, E-1, F-8, G-1, H-3, I-2, J-3).`);
+    if (p.ocupacao !== undefined && !divisoesOcupacao(b).some((x) => x.divisao.toUpperCase() === p.ocupacao!.trim().toUpperCase())) return err('OCUPACAO_DESCONHECIDA', `Divisão de ocupação "${p.ocupacao}" fora da tabela (ex.: A-2, B-1, C-2, D-1, E-1, F-8, G-1, H-3, I-2, J-3).`);
     return [];
   },
   aplicar(d, p) {

@@ -1680,7 +1680,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   d.resumoAcoPilares = resumoAcoPilares(b, d.detalhesPilares, an.opcoes.perdasAco);
   d.detalhesLajes = detalharLajes(b, d, an, an.opcoes);
   d.resumoAcoLajes = resumoAcoLajes(b, d.detalhesLajes, an.opcoes.perdasAco);
-  { const t = resumoTelasLajes(d.detalhesLajes, an.opcoes.perdasAco); if (t.length) d.resumoTelas = t; }
+  { const t = resumoTelasLajes(d.detalhesLajes, an.opcoes.perdasAco, b); if (t.length) d.resumoTelas = t; }
   d.puncao = puncaoEdificio(b, an, d.lajes, an.opcoes);
   if (!d.puncao.length) delete d.puncao;
   // mensagens da punção entram na laje do pavimento (revisão, planta e janela da laje)

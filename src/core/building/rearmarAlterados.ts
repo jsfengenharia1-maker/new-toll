@@ -24,7 +24,7 @@ export interface InfoRearme {
 const iguais = (a: unknown, z: unknown) => a === z || JSON.stringify(a) === JSON.stringify(z);
 
 /** Campos do modelo que valem para a obra toda: se mudaram, todos os elementos precisam ser refeitos. */
-const GLOBAIS = ['opcoes', 'perfilOpcoes', 'norma', 'tabelas', 'tramos', 'zonasLaje', 'linhasDobra', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'agrupamentos'] as const;
+const GLOBAIS = ['opcoes', 'perfilOpcoes', 'norma', 'tabelas', 'normas', 'tramos', 'zonasLaje', 'linhasDobra', 'casos', 'compat', 'estados', 'situacoes', 'empuxos', 'agrupamentos'] as const;
 
 /** Elementos cuja entrada mudou entre dois modelos, e os campos globais que mudaram. */
 export function elementosAlterados(antes: BuildingModel, agora: BuildingModel) {

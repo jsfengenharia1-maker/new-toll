@@ -15,7 +15,7 @@ import { sobrepoe } from '../geom/poly';
 import { segmentoCortaPoligono } from '../footingsGroup';
 import type { Pt } from '../footings';
 import { isCaisson } from '../caissons';
-import { defaultFoundationParams, PILE_LABEL, type Boring, type FCol, type FCombo, type FixedDims, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
+import { defaultFoundationParams, limitesBlevot, PILE_LABEL, type Boring, type FCol, type FCombo, type FixedDims, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
 import type { AnaliseEdificio } from './analitico';
 import { reacoesArranques } from './analitico';
 import { estadoEmUso } from './acoes';
@@ -95,7 +95,7 @@ export const secaoBase = (b: BuildingModel, p: Pilar) => { const l = lancesDoPil
 export function parametrosFundacao(b: BuildingModel): FoundationParams {
   const g = gamas(b), op = opcoesEmUso(b.opcoes, perfilDe(b));
   return {
-    ...defaultFoundationParams(), gammaC: g.c, gammaS: g.s, gammaF: g.g,
+    ...defaultFoundationParams(), ...limitesBlevot(b), ...(b.normas ? { normas: b.normas } : {}), gammaC: g.c, gammaS: g.s, gammaF: g.g,
     ftLevantamento: op.fundDescolamento === 1, ftVaoAltura: op.fundVaoAltura, ftBalancoAltura: op.fundBalancoAltura, ftSimplesGamma: op.fundSimplesGamma, ftRhoMinReduz: op.fundReducaoTaxa === 1,
     ...b.fundacao?.params, fckFound: fckDe(b, 'fundacao'), fyk: acoDe(b, 'fundacao').fyk, cover: cobrimentoFundacao(b),
   };

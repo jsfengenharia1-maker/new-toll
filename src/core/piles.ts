@@ -2,6 +2,7 @@
 // blocos rígidos de 1 a 6 estacas, carga horizontal (Miche) e dimensionamento estrutural (NBR 6122:2019, Tabela 4).
 // Unidades: kN, m, kN·m (internamente MPa/MN no cálculo de seção).
 import { barArea, circleBars, circleWidth, concrete, momentCapacity, type Concrete } from './concrete';
+import { tabelaNorma, type FonteNormas, type NormasModelo } from './normas';
 
 export type SoilClass = 'argila' | 'silteArgiloso' | 'silteArenoso' | 'areia';
 export type PileType = 'escavada' | 'helice' | 'premoldada';
@@ -124,6 +125,8 @@ export interface FoundationParams {
   gammaC: number; gammaS: number;
   // blocos de coroamento (C1)
   capThetaMin: number; capThetaMax: number; // graus
+  /** Versão do usuário das tabelas da biblioteca de normas (N3), quando o módulo vem de um edifício. */
+  normas?: NormasModelo;
   capKR: number; capK2: number; capK3: number; capK4: number; capK5: number; capK6: number;
   capEdge: number; // m, da face da estaca à borda do bloco
   capDprime: number; // m, do eixo do tirante à face inferior (mínimo)
@@ -317,7 +320,7 @@ export const defaultFoundationParams = (): FoundationParams => ({
   sptAvgDepth: 'common', sptAvgWater: 'shallowest',
   fckFound: 30, gammaC: 1.4, gammaS: 1.15,
   capThetaMin: 45, capThetaMax: 55,
-  capKR: 0.9, capK2: 1.4, capK3: 1.75, capK4: 2.1, capK5: 2.1, capK6: 2.1,
+  ...limitesBlevot(),
   capEdge: 0.15, capDprime: 0.1, capBand: 1.2, capDistRatio: 0.2, capSuspFactor: 3, capSkinRatio: 0.001, cap1Ratio: 1,
   ftSigmaMode: 'spt', ftSigmaAdm: 200, ftDepth: 1.5, ftPP: 5, ftSptDiv: 50, ftNmaxEst: 20, ftBulb: 2,
   ftEdgeFactor: 1, ftMinCompressed: 2 / 3, ftMaxRatio: 2.5, ftKind: 'rigida', ftMethod: 'ceb70', ftRhoMin: 0.0015, ftH0Min: 0.2, gammaSoil: 18,
@@ -352,17 +355,30 @@ const GROUP: Record<SoilClass, Group> = { argila: 0, silteArgiloso: 1, silteAren
 export const ALPHA: Record<PileType, [number, number, number]> = { premoldada: [1, 1, 1], escavada: [0.85, 0.6, 0.5], helice: [0.3, 0.3, 0.3] };
 export const BETA: Record<PileType, [number, number, number]> = { premoldada: [1, 1, 1], escavada: [0.8, 0.65, 0.5], helice: [1, 1, 1] };
 
-/** NBR 6122:2019, Tabela 4 (projeto de 2018 — conferir no texto publicado). */
-export const STRUCT: Record<'escavada' | 'helice', { 'I-II': { fck: number; gc: number }; 'III-IV': { fck: number; gc: number }; Lmin: number; sigmaLim: number; rhoMin: number }> = {
-  helice: { 'I-II': { fck: 30, gc: 2.7 }, 'III-IV': { fck: 40, gc: 3.6 }, Lmin: 4, sigmaLim: 6, rhoMin: 0.004 },
-  escavada: { 'I-II': { fck: 25, gc: 3.1 }, 'III-IV': { fck: 40, gc: 5.0 }, Lmin: 2, sigmaLim: 5, rhoMin: 0.004 },
-};
+type EstruturalMoldada = { 'I-II': { fck: number; gc: number }; 'III-IV': { fck: number; gc: number }; Lmin: number; sigmaLim: number; rhoMin: number };
+/** NBR 6122:2019, Tabela 4 (projeto de 2018 — conferir no texto publicado). Biblioteca de normas: `nbr6122.estacas-moldadas`. */
+export function estruturalMoldadas(b?: FonteNormas): Record<'escavada' | 'helice', EstruturalMoldada> {
+  const rows = tabelaNorma(b, 'nbr6122.estacas-moldadas');
+  const out = {} as Record<'escavada' | 'helice', EstruturalMoldada>;
+  for (const t of ['escavada', 'helice'] as const) {
+    const l = rows.find((r) => r.tipo === t)!;
+    out[t] = { 'I-II': { fck: l.fckI as number, gc: l.gcI as number }, 'III-IV': { fck: l.fckIII as number, gc: l.gcIII as number }, Lmin: l.Lmin as number, sigmaLim: l.sigmaLim as number, rhoMin: l.rhoMin as number };
+  }
+  return out;
+}
+export const STRUCT = estruturalMoldadas();
 
-/** Carga estrutural e de tração de catálogo (SCAC, estacas centrifugadas; menor valor da faixa), kN. */
-export const PRECAST_CATALOG: Record<number, { P: number; T: number }> = {
-  26: { P: 500, T: 150 }, 33: { P: 800, T: 180 }, 38: { P: 1000, T: 210 }, 42: { P: 1250, T: 240 },
-  50: { P: 1700, T: 270 }, 60: { P: 2350, T: 370 }, 70: { P: 3150, T: 480 }, 80: { P: 4000, T: 640 },
-};
+/** Carga estrutural e de tração de catálogo (SCAC, estacas centrifugadas; menor valor da faixa), kN. Biblioteca de normas: `scac.pre-moldadas`. */
+export function catalogoPreMoldadas(b?: FonteNormas): Record<number, { P: number; T: number }> {
+  return Object.fromEntries(tabelaNorma(b, 'scac.pre-moldadas').map((l) => [l.D as number, { P: l.P as number, T: l.T as number }]));
+}
+export const PRECAST_CATALOG = catalogoPreMoldadas();
+
+/** Limites das bielas de Blévot (KR e K para 2 a 6 estacas) da biblioteca de normas. */
+export function limitesBlevot(b?: FonteNormas): { capKR: number; capK2: number; capK3: number; capK4: number; capK5: number; capK6: number } {
+  const v = (k: string) => tabelaNorma(b, 'blevot.bielas').find((l) => l.param === k)!.valor as number;
+  return { capKR: v('KR'), capK2: v('K2'), capK3: v('K3'), capK4: v('K4'), capK5: v('K5'), capK6: v('K6') };
+}
 
 export const PHI_PILE = [6.3, 8, 10, 12.5, 16, 20, 25];
 
@@ -501,8 +517,8 @@ export interface PileStructure {
   ok: boolean; messages: string[];
 }
 
-function pileConcrete(type: 'escavada' | 'helice', caa: FoundationParams['caa']): { c: Concrete; fck: number; gc: number } {
-  const t = STRUCT[type][caa];
+function pileConcrete(type: 'escavada' | 'helice', caa: FoundationParams['caa'], norm?: FonteNormas): { c: Concrete; fck: number; gc: number } {
+  const t = estruturalMoldadas(norm)[type][caa];
   return { c: concrete(t.fck, t.gc), fck: t.fck, gc: t.gc };
 }
 
@@ -511,7 +527,7 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
   const Ac = (Math.PI * D * D) / 4;
   const { nh, label: nhLabel } = nhFor(b, p);
   if (type === 'premoldada') {
-    const cat = PRECAST_CATALOG[Math.round(D * 100)];
+    const cat = catalogoPreMoldadas(p)[Math.round(D * 100)];
     const ok = !!cat && pl.Nmax <= cat.P && Math.max(0, -pl.Nmin) <= cat.T;
     const E = 30000 * 1000; // kN/m², ordem de grandeza para concreto C40 (T de Miche)
     const T = ((E * Math.PI * D ** 4) / 64 / (nh * 1000)) ** 0.2;
@@ -521,8 +537,8 @@ export function pileStructure(type: PileType, D: number, L: number, pl: PileLoad
     const gf = p.gammaF ?? 1.4;
     return { kind: 'catalogo', Pcat: cat?.P, Tcat: cat?.T, Nd: gf * pl.Nmax, NdMin: pl.NdMin, Td: Math.max(0, -pl.NdMin), needComp: false, AsComp: 0, AsTension: 0, AsMin: 0, Md: gf * Mk, Mk, T, nh, nhLabel, longPile: L - p.cutoff > 4 * T, armedLength: 0, armedReason: 'armadura de fábrica', options: [], ok, messages };
   }
-  const st = STRUCT[type];
-  const { c, fck, gc } = pileConcrete(type, p.caa);
+  const st = estruturalMoldadas(p)[type];
+  const { c, fck, gc } = pileConcrete(type, p.caa, p);
   const fyd = p.fyk / 1.15;
   const GAMMA_F = p.gammaF ?? 1.4;
   const Nd = GAMMA_F * pl.Nmax;

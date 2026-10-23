@@ -10,6 +10,7 @@ import './agrupamento';
 import './armadurasLajes';
 import './copiaLajes';
 import './tabelas';
+import './normas';
 import './fundacao';
 import './baseElastica';
 import './corrida';
