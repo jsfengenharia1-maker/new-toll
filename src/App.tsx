@@ -13,7 +13,7 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { copyText, download, ThemeSelect } from './app/ui';
+import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
@@ -261,6 +261,7 @@ export default function App() {
   const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
   return (
+    <AjudaProvider>
     <div className="app">
       <header className="topbar">
         <div className="brand">
@@ -307,6 +308,7 @@ export default function App() {
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
+        <BotaoAjuda />
         <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
@@ -378,6 +380,7 @@ export default function App() {
         </label>
       </footer>
     </div>
+    </AjudaProvider>
   );
 }
 

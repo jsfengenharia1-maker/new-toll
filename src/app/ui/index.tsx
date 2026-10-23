@@ -1,6 +1,7 @@
 // Biblioteca de componentes do Statikos. Toda peça de interface reutilizável mora aqui e se veste
 // só com classes de design/global.css (tokens + componentes). Ver docs/design-system.md.
 import { zip } from '../../core/zip';
+import { useAjuda } from './Ajuda';
 import { definirTema, temaSalvoApp, type TemaApp } from '../design/tema';
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
 
@@ -277,7 +278,9 @@ export function KV({ rows }: { rows: [string, string][] }) {
 }
 
 /** Janela sobre a tela (fecha com Esc, clique fora ou o botão). `larga` para tabelas e diagramas. */
-export function Modal({ titulo, onClose, larga, children }: { titulo: string; onClose: () => void; larga?: boolean; children: ReactNode }) {
+export function Modal({ titulo, onClose, larga, ajuda, info, children }: { titulo: string; onClose: () => void; larga?: boolean; ajuda?: string; info?: string; children: ReactNode }) {
+  const aj = useAjuda();
+  const [verInfo, setVerInfo] = useState(false);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', k);
@@ -286,7 +289,11 @@ export function Modal({ titulo, onClose, larga, children }: { titulo: string; on
   return (
     <div className="modal-back" role="dialog" aria-label={titulo} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={cx('modal', larga && 'larga')}>
-        <div className="modal-head"><b>{titulo}</b><Spacer /><Button variant="ghost" onClick={onClose}>Fechar</Button></div>
+        <div className="modal-head"><b>{titulo}</b><Spacer />
+          {info && <Button variant="mini" aria-label={`Informação sobre ${titulo}`} aria-pressed={verInfo} onClick={() => setVerInfo(!verInfo)}>i</Button>}
+          {ajuda && <Button variant="mini" aria-label={`Ajuda de ${titulo}`} onClick={() => aj.mostrar(ajuda)}>?</Button>}
+          <Button variant="ghost" onClick={onClose}>Fechar</Button></div>
+        {info && verInfo && <p className="hint" role="note">{info}</p>}
         {children}
       </div>
     </div>
@@ -306,3 +313,6 @@ export function ThemeSelect() {
     </label>
   );
 }
+
+export { AjudaProvider, BotaoAjuda, dataAjuda, useAjuda } from './Ajuda';
+export { Icone } from './Icone';
