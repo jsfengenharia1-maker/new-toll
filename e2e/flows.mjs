@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { writeDwg2018 } from 'nasjidwg';
 
 /** Remove a File System Access API: o app cai no download e no <input type=file>. */
 const NO_PICKERS = () => {
@@ -90,6 +91,46 @@ async function importarMascara(page, tmp, extra = 0) {
   await page.locator('summary', { hasText: 'Máscara' }).click();
   await page.setInputFiles('input[aria-label="Arquivo DXF da máscara"]', f);
   await page.locator('.statusbar .msg', { hasText: 'unidade cm ($INSUNITS)' }).waitFor();
+}
+
+/** DXF fictício da L2 (cm): grade 3 × 2 de pilares 20 × 50, pilar girado e circular, vigas por faces, eixos, contorno, abertura e ponto fixo.
+ *  O canto inferior esquerdo do desenho (-50; -100) vai à origem: mundo = (x / 100 + 0,5; y / 100 + 1,0). */
+function dxfGradeL2() {
+  const L = [];
+  const p = (...a) => L.push(...a.map(String));
+  const poli = (lay, pts) => p(0, 'LWPOLYLINE', 8, lay, 90, pts.length, 70, 1, ...pts.flatMap(([x, y]) => [10, x, 20, y]));
+  const linha = (lay, a, z) => p(0, 'LINE', 8, lay, 10, a[0], 20, a[1], 11, z[0], 21, z[1]);
+  const texto = (lay, x, y, t) => p(0, 'TEXT', 8, lay, 10, x, 20, y, 40, 10, 1, t);
+  const ret = (cx, cy, b, h, ang = 0) => {
+    const a = (ang * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => [+(cx + ((i * b) / 2) * c - ((j * h) / 2) * s).toFixed(4), +(cy + ((i * b) / 2) * s + ((j * h) / 2) * c).toFixed(4)]);
+  };
+  p(0, 'SECTION', 2, 'HEADER', 9, '$INSUNITS', 70, 5, 0, 'ENDSEC', 0, 'SECTION', 2, 'ENTITIES');
+  let n = 1;
+  for (const y of [0, 450]) for (const x of [0, 500, 1000]) { poli('PILARES', ret(x, y, 20, 50)); texto('TEXTO', x + 30, y + 40, `P${n++}`); }
+  poli('PILARES', ret(0, 0, 8, 8)); // contorno duplicado dentro do P1: ambíguo
+  poli('PILARES', ret(750, 700, 30, 30, 30));
+  p(0, 'CIRCLE', 8, 'PILARES', 10, 250, 20, 700, 40, 20);
+  for (const y of [0, 450]) for (const [x0, x1] of [[10, 490], [510, 990]]) { linha('VIGAS', [x0, y + 7.5], [x1, y + 7.5]); linha('VIGAS', [x0, y - 7.5], [x1, y - 7.5]); }
+  linha('VIGAS', [300, 300], [400, 300]); // linha sem par: ambígua
+  for (const [x, nome] of [[0, 'A'], [500, 'B'], [1000, 'C']]) { linha('EIXOS', [x, -100], [x, 550]); texto('EIXOS', x - 5, -125, nome); }
+  poli('CONTORNO', [[-50, -50], [1050, -50], [1050, 500], [-50, 500]]);
+  poli('ABERTURA', [[200, 150], [260, 150], [260, 210], [200, 210]]);
+  poli('PONTO-FIXO', [[1005, 470], [1015, 470], [1015, 480], [1005, 480]]);
+  p(0, 'ENDSEC', 0, 'EOF');
+  return L.join('\n');
+}
+
+/** DWG R2018 mínimo (um pilar 30 × 30 cm numa polilinha fechada, em m), gerado com o escritor do nasjidwg. */
+function dwgMinimoL2() {
+  const c = (i) => ({ kind: 'aci', index: i });
+  const camada = (name, i) => ({ name, color: c(i), on: true, frozen: false, locked: false });
+  return writeDwg2018({
+    header: { version: 'R2018', codepage: 'ANSI_1252', insUnits: 6, linetypeScale: 1, vars: {} },
+    layers: [camada('0', 7), camada('PILARES', 1)], linetypes: [{ name: 'Continuous', description: 'Solid line', pattern: [] }], textStyles: [{ name: 'Standard', font: 'arial.ttf' }], blocks: {},
+    entities: [{ type: 'polyline', layer: 'PILARES', color: { kind: 'byLayer' }, vertices: [{ x: 0, y: 0 }, { x: 0.3, y: 0 }, { x: 0.3, y: 0.3 }, { x: 0, y: 0.3 }], closed: true }],
+    paperSpace: [], layouts: [{ name: 'Model', tabOrder: 0 }], warnings: [],
+  }).data;
 }
 
 export const flows = [
@@ -4877,6 +4918,176 @@ export const flows = [
       assert.match(txt, /V2[\s\S]*não estrutural/);
       assert.match(txt, /V3[\s\S]*amarração/);
       assert.match(txt, /dimensionada na seção T onde a mesa está comprimida/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  },
+  {
+    name: 'L2: lançamento por DXF/DWG por camada, gerenciador de gabaritos, vistas por pavimento, viga pelo gabarito e F3',
+    async run({ newPage, tmp }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const msgBarra = (re) => page.locator('.statusbar .msg', { hasText: re }).waitFor();
+      const abrirGrupo = async (re) => {
+        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
+        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
+        return g;
+      };
+      const arq = join(tmp, 'grade.dxf');
+      writeFileSync(arq, dxfGradeL2());
+      const arqDwg = join(tmp, 'arq.dwg');
+      writeFileSync(arqDwg, dwgMinimoL2());
+      // 1) Nova obra › Lançamento por DXF/DWG: cria o edifício padrão e abre o assistente
+      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      const nova = page.getByRole('dialog', { name: 'Nova obra' });
+      await nova.getByRole('button', { name: 'Lançamento por DXF/DWG', exact: true }).click();
+      await nova.getByRole('button', { name: 'Criar edifício padrão e lançar pelo gabarito…', exact: true }).click();
+      const wiz = page.getByRole('dialog', { name: 'Lançamento por DXF/DWG' });
+      await wiz.waitFor();
+      // passo Arquivos: um DXF e um DWG (o leitor de DWG vem de vendor/, sob demanda)
+      await wiz.locator('input[type=file]').setInputFiles(arq);
+      await wiz.getByLabel('Remover grade.dxf', { exact: true }).waitFor();
+      assert.match(await wiz.innerText(), /DXF\s+7 camada/);
+      await wiz.locator('input[type=file]').setInputFiles(arqDwg);
+      await wiz.getByLabel('Remover arq.dwg', { exact: true }).waitFor();
+      assert.match(await wiz.innerText(), /DWG\s+1 camada/);
+      assert.equal(await wiz.getByLabel(/^Unidade de grade\.dxf/).inputValue(), '0.01');
+      assert.equal(await wiz.getByLabel(/^Unidade de arq\.dwg/).inputValue(), '1');
+      await wiz.getByLabel('Remover arq.dwg', { exact: true }).click();
+      await wiz.getByRole('button', { name: 'Avançar', exact: true }).click();
+      // passo Camadas: papéis sugeridos pelo nome e pela geometria, visibilidade, cor e prévia
+      const prev = wiz.getByRole('img', { name: 'Prévia das camadas', exact: true });
+      assert.equal(await wiz.getByLabel('Papel da camada PILARES', { exact: true }).inputValue(), 'pilar');
+      assert.equal(await wiz.getByLabel('Papel da camada VIGAS', { exact: true }).inputValue(), 'vigaFaces');
+      assert.equal(await wiz.getByLabel('Papel da camada EIXOS', { exact: true }).inputValue(), 'eixo');
+      assert.equal(await wiz.getByLabel('Papel da camada CONTORNO', { exact: true }).inputValue(), 'contorno');
+      assert.equal(await wiz.getByLabel('Papel da camada ABERTURA', { exact: true }).inputValue(), 'abertura');
+      assert.equal(await wiz.getByLabel('Papel da camada PONTO-FIXO', { exact: true }).inputValue(), 'pontoFixo');
+      assert.equal(await prev.locator('path').count(), 6);
+      await wiz.getByLabel('Camada EIXOS visível', { exact: true }).uncheck();
+      assert.equal(await prev.locator('path').count(), 5);
+      await wiz.getByLabel('Camada EIXOS visível', { exact: true }).check();
+      await wiz.getByLabel('Cor da camada PILARES', { exact: true }).fill('#ff0000');
+      assert.equal(await prev.locator('path[data-camada="PILARES"]').getAttribute('stroke'), '#ff0000');
+      await wiz.getByLabel(/^Altura da viga/).fill('45');
+      await wiz.getByLabel(/^Altura da viga/).press('Tab');
+      await wiz.getByRole('button', { name: 'Avançar', exact: true }).click();
+      // passo Grupos: o gabarito entra no grupo da planta aberta
+      assert.equal(await wiz.getByLabel('grade em Tipo', { exact: true }).isChecked(), true);
+      await wiz.getByRole('button', { name: 'Avançar', exact: true }).click();
+      // passo Revisão: contagens, ambíguo desmarcado e aplicação parcial (sem as vigas, que saem pelo clique no gabarito)
+      const rev = wiz.locator('[data-revisao="grade"]');
+      const txt = await rev.innerText();
+      assert.match(txt, /Pilares\s+9/);
+      assert.match(txt, /Vigas\s+2/);
+      assert.match(txt, /Eixos\s+3/);
+      assert.match(txt, /Aberturas\s+1/);
+      assert.match(txt, /Contorno do edifício\s+1/);
+      assert.match(txt, /linha sem par/i);
+      assert.equal(await wiz.getByLabel(/^Incluir PILAR_DENTRO_DE_PILAR em grade/).isChecked(), false);
+      await wiz.getByLabel('Lançar vigas de grade', { exact: true }).uncheck();
+      await wiz.getByRole('button', { name: 'Aplicar lançamento', exact: true }).click();
+      await wiz.waitFor({ state: 'detached' });
+      await page.locator('summary', { hasText: /^Pilares \(8\)/ }).waitFor();
+      assert.ok((await page.locator('tr.lancado').count()) >= 8);
+      assert.equal(await page.locator('summary', { hasText: /^Eixos \(3\)/ }).count(), 1);
+      // um passo só no histórico: desfazer tira o gabarito e os elementos; refazer devolve
+      await page.keyboard.press('Control+z');
+      await page.locator('summary', { hasText: 'Pilares (0)' }).waitFor();
+      await page.keyboard.press('Control+y');
+      await page.locator('summary', { hasText: 'Pilares (8)' }).waitFor();
+      // 2) viga pelo gabarito: clique na face e depois do lado do corpo da viga
+      const masc = await abrirGrupo(/^Máscara/);
+      assert.match(await masc.locator('summary').innerText(), /Máscara — Tipo \(1\)/);
+      await masc.getByRole('button', { name: 'Viga pelo gabarito', exact: true }).click();
+      await reenquadrarAte(page, [[3.0, 1.075], [3.0, 1.4], [3.0, 0.75]]);
+      const clique = async (x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.click(px, py); };
+      await clique(3.0, 1.075);
+      await clique(3.0, 1.4);
+      await page.locator('summary', { hasText: /^Vigas — Tipo \(1\)/ }).waitFor();
+      await abrirGrupo(/^Vigas — Tipo/);
+      assert.equal(await page.getByLabel('Alinhamento de V1', { exact: true }).inputValue(), 'dir');
+      await clique(3.0, 1.075);
+      await clique(3.0, 0.75);
+      await page.locator('summary', { hasText: /^Vigas — Tipo \(2\)/ }).waitFor();
+      assert.equal(await page.getByLabel('Alinhamento de V2', { exact: true }).inputValue(), 'esq');
+      await clique(3.0, 1.075);
+      await clique(3.0, 1.4);
+      await msgBarra(/já foram lançadas/);
+      await masc.getByRole('radio', { name: 'Linha = eixo', exact: true }).click();
+      await clique(3.0, 0.925);
+      await page.locator('summary', { hasText: /^Vigas — Tipo \(3\)/ }).waitFor();
+      assert.equal(await page.getByLabel('Alinhamento de V3', { exact: true }).inputValue(), 'centro');
+      await page.keyboard.press('Escape');
+      // 3) F3 e a janela de captura
+      await masc.getByRole('button', { name: 'Capturas…', exact: true }).click();
+      const cap = page.getByRole('dialog', { name: 'Modos de captura' });
+      await cap.getByRole('button', { name: 'Nenhum', exact: true }).click();
+      await cap.getByRole('button', { name: 'Concluir', exact: true }).click();
+      await cap.waitFor({ state: 'detached' });
+      await page.keyboard.press('F3');
+      await cap.waitFor();
+      await cap.getByRole('button', { name: 'Todos', exact: true }).click();
+      await cap.getByRole('button', { name: 'Concluir', exact: true }).click();
+      await cap.waitFor({ state: 'detached' });
+      await page.keyboard.press('F3');
+      await msgBarra(/Capturas desligadas/);
+      await page.keyboard.press('F3');
+      await msgBarra(/Capturas ligadas/);
+      // 4) gerenciador de gabaritos: apelido, textos, visibilidade, unidade e origem original, copiar, salvar e abrir a configuração
+      await masc.getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
+      const ger = page.getByRole('dialog', { name: 'Gabaritos e vistas' });
+      const prevG = ger.getByRole('img', { name: 'Prévia da configuração de grade', exact: true });
+      assert.equal(await prevG.locator('path').count(), 6);
+      await ger.getByLabel('Camada EIXOS visível em grade', { exact: true }).uncheck();
+      assert.equal(await prevG.locator('path').count(), 5);
+      await ger.getByLabel('Camada EIXOS visível em grade', { exact: true }).check();
+      await ger.getByLabel('Textos da camada TEXTO em grade', { exact: true }).uncheck();
+      const ap = ger.getByLabel('Apelido da camada PILARES em grade', { exact: true });
+      await ap.fill('Pilares da arquitetura');
+      await ap.press('Tab');
+      await ger.getByLabel('Unidade de grade', { exact: true }).selectOption('1');
+      const bOriginal = ger.getByRole('button', { name: 'Origem original de grade', exact: true });
+      await bOriginal.click();
+      assert.equal(await ger.getByLabel('Unidade de grade', { exact: true }).inputValue(), '0.01');
+      assert.equal(await bOriginal.isDisabled(), true);
+      const cfg = await downloadText(page, () => ger.getByRole('button', { name: 'Salvar configuração de grade', exact: true }).click());
+      const j = JSON.parse(cfg.text);
+      assert.equal(j.versao, 1);
+      const pil = j.camadas.find((c) => c.nome === 'PILARES');
+      assert.equal(pil.apelido, 'Pilares da arquitetura');
+      assert.equal(j.camadas.find((c) => c.nome === 'TEXTO').textos, false);
+      assert.equal(j.regras.papeis.VIGAS, 'vigaFaces');
+      pil.apelido = 'Pilares abertos do arquivo';
+      pil.cor = '#00ff00';
+      const cfgArq = join(tmp, 'camadas-grade.json');
+      writeFileSync(cfgArq, JSON.stringify(j));
+      await ger.locator('input[type=file][aria-label="Abrir configuração de grade…"]').setInputFiles(cfgArq);
+      await page.waitForFunction(() => document.querySelector('input[aria-label="Apelido da camada PILARES em grade"]')?.value === 'Pilares abertos do arquivo');
+      assert.equal(await ger.getByLabel('Cor da camada PILARES em grade', { exact: true }).inputValue(), '#00ff00');
+      await ger.getByLabel(/^Copiar grade para o grupo/).selectOption({ label: 'Cobertura' });
+      await ger.getByRole('button', { name: 'Copiar vista de grade', exact: true }).click();
+      await ger.getByLabel(/^Gabarito/).selectOption({ label: 'grade (Cobertura) — Cobertura' });
+      assert.equal(await ger.getByLabel('Nome do gabarito grade (Cobertura)', { exact: true }).inputValue(), 'grade (Cobertura)');
+      await ger.getByRole('button', { name: 'Remover grade (Cobertura)', exact: true }).click();
+      await ger.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 5) vistas por pavimento: desligar a vista tira o desenho da planta
+      await masc.getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
+      const vis = page.getByRole('dialog', { name: 'Vistas por pavimento' });
+      const segs = () => page.locator('.planta-cv').getAttribute('data-segmentos').then(Number);
+      assert.ok((await segs()) > 0);
+      await vis.getByLabel('grade em Tipo 1', { exact: true }).uncheck();
+      await page.waitForFunction(() => document.querySelector('.planta-cv')?.dataset.segmentos === '0');
+      await vis.getByLabel('grade em Tipo 1', { exact: true }).check();
+      await page.waitForFunction(() => Number(document.querySelector('.planta-cv')?.dataset.segmentos) > 0);
+      await vis.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 6) memorial: gabaritos, unidade, escala e papéis
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const mg = await memo.locator('[data-memorial-gabaritos]').innerText();
+      assert.match(mg, /grade\.dxf \(DXF\)/);
+      assert.match(mg, /Pilares abertos do arquivo: pilares/);
+      assert.match(mg, /cm/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   },

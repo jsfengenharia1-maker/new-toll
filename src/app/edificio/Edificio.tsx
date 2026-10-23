@@ -6,14 +6,15 @@ import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
 import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
+import { UNIDADES, unidadeProvavel } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
-import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type TipoLaje } from '../../core/building/types';
+import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArranque, lancesDoPilar, mascaraNoGrupo, pavimentosOrdenados, peDireito, USOS, VENTO_PADRAO, type Ajuste, type Alinhamento, type BuildingModel, type CategoriaUso, type CategoriaVento, type TipoLaje } from '../../core/building/types';
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Select, TextCell, TextField, Textarea, download } from '../ui';
+import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, download } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -48,6 +49,8 @@ import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao
 import { ResumoAco } from './Detalhamento';
 import { CartaoRelatorios } from './RelatoriosUI';
 import { NovaObra } from './NovaObra';
+import { LancamentoDxf } from './LancamentoDxf';
+import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos';
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
@@ -68,6 +71,8 @@ export function Edificio() {
   const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
   const [memo, setMemo] = useState(false);
   const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
+  const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
+  const janelaCapturas = usePlanta((s) => s.janelaCapturas);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
   const irEtapa = (id: EtapaId) => {
     if (id === 'obra') { setDialogoL1('gerais'); return; }
@@ -112,7 +117,7 @@ export function Edificio() {
           <Hint>Cota = topo da laje estrutural. Pavimentos do mesmo grupo compartilham a planta; “+1” repete o pavimento logo acima e sobe os de cima.</Hint>
         </Group>
 
-        <MascaraGrupo b={b} />
+        <MascaraGrupo b={b} abrir={setDialogoL2} />
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
         <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -199,7 +204,11 @@ export function Edificio() {
         )}
       </section>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
-      {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} />}
+      {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} />}
+      {dialogoL2?.tipo === 'lancar' && <LancamentoDxf inicial={dialogoL2.inicial} onClose={() => setDialogoL2(null)} />}
+      {dialogoL2?.tipo === 'gabaritos' && <GerenciadorGabaritos onClose={() => setDialogoL2(null)} onLancar={(id) => setDialogoL2({ tipo: 'lancar', inicial: id })} />}
+      {dialogoL2?.tipo === 'vistas' && <VistasRapidas onClose={() => setDialogoL2(null)} />}
+      {janelaCapturas && <JanelaCapturas onClose={() => usePlanta.getState().set({ janelaCapturas: false })} />}
       {dialogoL1 === 'recentes' && <ObrasRecentes onClose={() => setDialogoL1(null)} onAberta={() => setDialogoL1(null)} />}
       {dialogoL1 === 'texto' && <ImportarTexto onClose={() => setDialogoL1(null)} onCriada={() => { setDialogoL1(null); useStore.getState().set({ module: 'fundacoes' }); }} />}
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
@@ -428,23 +437,14 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   );
 }
 
-const UNIDADES = [{ v: 1, label: 'm' }, { v: 0.01, label: 'cm' }, { v: 0.001, label: 'mm' }];
-
-/** Unidade provável do desenho quando o DXF não informa (maior dimensão do desenho) [a confirmar]. */
-export function unidadeProvavel(bbox: [number, number, number, number] | null): number {
-  if (!bbox) return 1;
-  const D = Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]);
-  return D > 5000 ? 0.001 : D > 300 ? 0.01 : 1;
-}
-
-function MascaraGrupo({ b }: { b: BuildingModel }) {
+function MascaraGrupo({ b, abrir }: { b: BuildingModel; abrir: (d: { tipo: 'lancar' } | { tipo: 'gabaritos' } | { tipo: 'vistas' }) => void }) {
   const { exec } = useBuilding();
   const pl = usePlanta();
   const ref = useRef<HTMLInputElement>(null);
   const ps = pavimentosOrdenados(b);
   const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const grupo = b.grupos.find((g) => g.id === pav?.grupo);
-  const ms = b.mascaras.filter((m) => m.grupo === grupo?.id);
+  const ms = b.mascaras.filter((m) => !!grupo && mascaraNoGrupo(m, grupo.id));
   const importar = async (f: File) => {
     if (!grupo) return;
     const txt = await f.text();
@@ -463,6 +463,10 @@ function MascaraGrupo({ b }: { b: BuildingModel }) {
         <Button disabled={!grupo} onClick={() => ref.current?.click()}>Importar DXF…</Button>
         <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ''; }} />
         {ms.length > 0 && <Button onClick={() => pl.set({ ferramenta: 'alinhar' })}>Alinhar por 2 pontos</Button>}
+        <Button onClick={() => abrir({ tipo: 'lancar' })}>Lançar por DXF/DWG…</Button>
+        <Button onClick={() => abrir({ tipo: 'gabaritos' })}>Gabaritos e vistas…</Button>
+        <Button onClick={() => abrir({ tipo: 'vistas' })}>Vistas por pavimento…</Button>
+        <Button onClick={() => pl.set({ janelaCapturas: true })}>Capturas…</Button>
         {ms.length > 0 && <label className="check small"><Input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
       </div>
       {ms.map((m) => (
@@ -489,6 +493,12 @@ function MascaraGrupo({ b }: { b: BuildingModel }) {
           </table>
         </div>
       ))}
+      {ms.length > 0 && (
+        <div className="row wrap">
+          <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />
+          <Button variant={pl.ferramenta === 'vigaGabarito' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'vigaGabarito' })}>Viga pelo gabarito</Button>
+        </div>
+      )}
       <Hint>A máscara pertence ao grupo do pavimento da planta. Escala pela unidade do DXF ($INSUNITS); sem ela, estimada pelo tamanho do desenho.</Hint>
     </Group>
   );
@@ -540,7 +550,7 @@ function PilaresGrupo({ b }: { b: BuildingModel }) {
             {b.pilares.map((p) => {
               const l = lancesDoPilar(b, p);
               return (
-                <tr key={p.id} className={pl.selecao.has(p.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([p.id]) })}>
+                <tr key={p.id} className={`${pl.selecao.has(p.id) ? 'on' : ''}${p.origemLancamento ? ' lancado' : ''}`} title={p.origemLancamento ? `Lançado do gabarito (${p.origemLancamento})` : undefined} onClick={() => pl.set({ selecao: new Set([p.id]) })}>
                   <td><TextCell value={p.nome} label={`Nome de ${p.nome}`} onCommit={(v) => exec('pilar.editar', { id: p.id, nome: v })} /></td>
                   <td><TextCell value={fmt(p.x, 3)} num label={`x de ${p.nome}`} onCommit={(v) => { const x = num(v); if (Number.isFinite(x)) exec('pilar.editar', { id: p.id, x }); }} /></td>
                   <td><TextCell value={fmt(p.y, 3)} num label={`y de ${p.nome}`} onCommit={(v) => { const y = num(v); if (Number.isFinite(y)) exec('pilar.editar', { id: p.id, y }); }} /></td>
@@ -629,7 +639,7 @@ function VigasGrupo({ b }: { b: BuildingModel }) {
           <thead><tr><th>Viga</th><th>b x h (cm)</th><th>Linha</th><th>L (m)</th><th>Desnível (m)</th></tr></thead>
           <tbody>
             {vs.map((v) => (
-              <tr key={v.id} className={pl.selecao.has(v.id) ? 'on' : ''} onClick={() => pl.set({ selecao: new Set([v.id]) })}>
+              <tr key={v.id} className={`${pl.selecao.has(v.id) ? 'on' : ''}${v.origemLancamento ? ' lancado' : ''}`} title={v.origemLancamento ? `Lançada do gabarito (${v.origemLancamento})` : undefined} onClick={() => pl.set({ selecao: new Set([v.id]) })}>
                 <td><TextCell value={v.nome} label={`Nome de ${v.nome}`} onCommit={(t) => exec('viga.editar', { id: v.id, nome: t })} /></td>
                 <td><TextCell value={`${cm(v.secao.b)}x${cm(v.secao.h)}`} label={`Seção de ${v.nome}`} onCommit={(t) => { const r = /^\s*([\d.,]+)\s*[x×*]\s*([\d.,]+)\s*$/i.exec(t); if (r) exec('viga.editar', { id: v.id, secao: { b: num(r[1]) / 100, h: num(r[2]) / 100 } }); }} /></td>
                 <td><Dropdown aria-label={`Alinhamento de ${v.nome}`} value={v.alinhamento} onChange={(e) => exec('viga.editar', { id: v.id, alinhamento: e.target.value })}>{ALINHAMENTOS.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}</Dropdown></td>
@@ -714,7 +724,7 @@ function CargasGrupo({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
   const grupo = grupoAtual(b, pl.pavimento);
   const cs = b.cargas.filter((c) => c.grupo === grupo?.id);
-  const camadas = [...new Set(b.mascaras.filter((m) => m.grupo === grupo?.id).flatMap((m) => m.camadas.map((c) => c.nome)))];
+  const camadas = [...new Set(b.mascaras.filter((m) => !!grupo && mascaraNoGrupo(m, grupo.id)).flatMap((m) => m.camadas.map((c) => c.nome)))];
   const [camada, setCamada] = useState('');
   const [bloco, setBloco] = useState('ceramico');
   const cam = camadas.includes(camada) ? camada : (camadas.find((c) => /alv|par|wall/i.test(c)) ?? camadas[0] ?? '');

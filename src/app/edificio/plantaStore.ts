@@ -6,7 +6,7 @@ import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao';
+  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -27,6 +27,12 @@ interface PState {
   polar: boolean;
   capturas: Set<TipoCaptura>;
   inferior: boolean;
+  /** Capturas que estavam ligadas antes de F3 desligá-las (F3 as restaura; vazio = abre a janela de seleção). */
+  capturasAntes: Set<TipoCaptura>;
+  /** Janela de seleção dos modos de captura aberta (não vai para o arquivo). */
+  janelaCapturas: boolean;
+  /** Ferramenta Viga pelo gabarito (L2): a linha clicada é a face oposta ao 2º clique (face) ou o eixo (eixo). */
+  modoVigaGab: 'face' | 'eixo';
   tema: Tema;
   /** Mostra em vermelho/amarelo os elementos com erro/aviso da revisão do dimensionamento. */
   mostrarErros: boolean;
@@ -130,6 +136,9 @@ export const usePlanta = create<PState>((set) => ({
   orto: false,
   polar: true,
   capturas: new Set(TODAS),
+  capturasAntes: new Set(),
+  janelaCapturas: false,
+  modoVigaGab: 'face',
   inferior: true,
   tema: temaSalvo(),
   mostrarErros: true,

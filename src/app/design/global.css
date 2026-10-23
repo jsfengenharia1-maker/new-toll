@@ -925,6 +925,24 @@ table.pp-lados tr[aria-selected="true"] { background: var(--accent-soft); }
 .nova-obra { display: grid; gap: 10px; min-height: 340px; align-content: start; }
 .nova-obra-rodape { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--line); }
 .nova-obra table.data input { min-width: 0; }
+/* L2: lançamento por camada, gabaritos e vistas */
+.lanc { display: grid; gap: 10px; min-height: 300px; align-content: start; }
+.lanc-corpo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.lanc-rodape { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--line); }
+.lanc-amb { display: grid; gap: 4px; }
+.lanc table.data input[type='color'] { width: 34px; padding: 0; }
+.vistas-pav { min-width: 90px; }
+.edif table.data tr.lancado td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.prev-cv { width: 100%; height: 280px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+.prev-cv { stroke: var(--faint); }
+.prev-ln { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.prev-ln.papel-texto, .prev-ln.papel-parede, .prev-ln.papel-ignorar { stroke: var(--faint); }
+.prev-ln.papel-pilar, .prev-ln.papel-pilarParede { stroke: var(--ink-strong); stroke-width: 2; }
+.prev-ln.papel-vigaFaces, .prev-ln.papel-vigaEixo { stroke: var(--accent-text); stroke-width: 1.4; }
+.prev-ln.papel-contorno { stroke: var(--warn); }
+.prev-ln.papel-abertura { stroke: var(--bad); }
+.prev-ln.papel-eixo { stroke: var(--muted); stroke-dasharray: 6 3; }
+.prev-ln.papel-pontoFixo { stroke: var(--ok); stroke-width: 2; }
 .etapas { display: grid; gap: 4px; }
 .etapa { display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
 .etapa.indisponivel { opacity: 0.6; }
