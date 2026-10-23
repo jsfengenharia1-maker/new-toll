@@ -115,7 +115,7 @@ export function Edificio() {
       <aside className="fund-in edif-in">
         <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
-        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => setDialogoL1('nova')}>Nova obra…</Button><Button variant="mini" onClick={() => setDialogoL1('recentes')}>Obras recentes…</Button><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
+        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
           <DadosGeraisCorpo b={b} />
         </Group>
 

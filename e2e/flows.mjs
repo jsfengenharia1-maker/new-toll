@@ -18,6 +18,11 @@ async function fileMenu(page, item) {
   await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: item }).first().click();
 }
 
+/** Abre uma aba da faixa de comandos (a faixa guarda a aba ativa). */
+async function faixaAba(page, nome) {
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: nome, exact: true }).click();
+}
+
 async function tab(page, name) {
   await page.locator('.panel .tabs').getByRole('tab', { name, exact: true }).click();
 }
@@ -4409,7 +4414,7 @@ export const flows = [
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const campo = async (loc, v) => { await loc.fill(v); await loc.press('Tab'); };
       const nPav = () => page.locator('.edpav tbody tr').count();
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova = page.getByRole('dialog', { name: 'Nova obra' });
       await nova.getByRole('button', { name: 'Assistente passo a passo' }).click();
       await nova.getByRole('button', { name: 'Avançar' }).click();
@@ -4471,7 +4476,7 @@ export const flows = [
       await ga2.getByRole('button', { name: 'Recuperar' }).click();
       await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
       await page2.close();
-      await page.getByRole('button', { name: 'Obras recentes…' }).click();
+      await fileMenu(page, 'Obras recentes…');
       const rec = page.getByRole('dialog', { name: 'Obras recentes' });
       await campo(rec.getByLabel('Buscar obra'), 'residencial');
       assert.ok((await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count()) >= 1);
@@ -4483,7 +4488,7 @@ export const flows = [
       await rec.getByRole('button', { name: /Abrir exemplo Exemplo: com subsolo/ }).click();
       await rec.waitFor({ state: 'detached' });
       assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova2 = page.getByRole('dialog', { name: 'Nova obra' });
       await nova2.getByRole('button', { name: 'Assistente passo a passo' }).click();
       for (let i = 0; i < 6; i++) await nova2.getByRole('button', { name: 'Avançar' }).click();
@@ -4492,7 +4497,7 @@ export const flows = [
       assert.equal(await nPav(), 5);
       await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       assert.equal(await nPav(), 0);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
       await nova3.getByRole('button', { name: 'Cargas de arquivo de texto' }).click();
       await nova3.getByRole('button', { name: 'Escolher arquivo de texto…' }).click();
@@ -5044,7 +5049,7 @@ export const flows = [
       const arqDwg = join(tmp, 'arq.dwg');
       writeFileSync(arqDwg, dwgMinimoL2());
       // 1) Nova obra › Lançamento por DXF/DWG: cria o edifício padrão e abre o assistente
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova = page.getByRole('dialog', { name: 'Nova obra' });
       await nova.getByRole('button', { name: 'Lançamento por DXF/DWG', exact: true }).click();
       await nova.getByRole('button', { name: 'Criar edifício padrão e lançar pelo gabarito…', exact: true }).click();
@@ -5126,7 +5131,8 @@ export const flows = [
       assert.equal(await page.getByLabel('Alinhamento de V3', { exact: true }).inputValue(), 'centro');
       await page.keyboard.press('Escape');
       // 3) F3 e a janela de captura
-      await masc.getByRole('button', { name: 'Capturas…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Capturas…', exact: true }).click();
       const cap = page.getByRole('dialog', { name: 'Modos de captura' });
       await cap.getByRole('button', { name: 'Nenhum', exact: true }).click();
       await cap.getByRole('button', { name: 'Concluir', exact: true }).click();
@@ -5141,7 +5147,8 @@ export const flows = [
       await page.keyboard.press('F3');
       await msgBarra(/Capturas ligadas/);
       // 4) gerenciador de gabaritos: apelido, textos, visibilidade, unidade e origem original, copiar, salvar e abrir a configuração
-      await masc.getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
       const ger = page.getByRole('dialog', { name: 'Gabaritos e vistas' });
       const prevG = ger.getByRole('img', { name: 'Prévia da configuração de grade', exact: true });
       assert.equal(await prevG.locator('path').count(), 6);
@@ -5178,7 +5185,8 @@ export const flows = [
       await ger.getByRole('button', { name: 'Remover grade (Cobertura)', exact: true }).click();
       await ger.getByRole('button', { name: 'Fechar', exact: true }).click();
       // 5) vistas por pavimento: desligar a vista tira o desenho da planta
-      await masc.getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
       const vis = page.getByRole('dialog', { name: 'Vistas por pavimento' });
       const segs = () => page.locator('.planta-cv').getAttribute('data-segmentos').then(Number);
       assert.ok((await segs()) > 0);
