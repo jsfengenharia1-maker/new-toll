@@ -1,0 +1,123 @@
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index 5d469b0..39cb7df 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -34,7 +34,7 @@ import { useStore } from '../store';
+ import { executarERecalcular, idsBloqueados } from './Armadura';
+ import { Input, useAjuda } from '../ui';
+ import type { ElemCota } from '../../core/building/types';
+-import type { ModoRef } from '../../core/geom/cotasTemp';
++import { alternarModo, chavePar, cotasTemporarias, indiceCotasTemp, PADRAO_REF_TEMP, paramsFixarCotaTemp, paramsMoverCotaTemp, type CotaTemp, type ModoRef } from '../../core/geom/cotasTemp';
+ import { geometriaCota, offsetDoPonto, resolverRef } from '../../core/building/cotas';
+ import { ajudaDaFerramenta } from '../../core/ajuda';
+ import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVisiveis } from '../../core/building/vistaObra';
+@@ -213,6 +213,8 @@ export function Planta() {
+   const statusRef = useRef<HTMLSpanElement>(null);
+   const [tam, setTam] = useState<[number, number]>([800, 500]);
+   const [digitando, setDigitando] = useState<string | null>(null);
++  /** Campo de edição do valor de uma cota (L6): posição na tela, texto em cm e a ação que aplica o valor (m). */
++  const [cotaEd, setCotaEd] = useState<{ x: number; y: number; texto: string; aplicar: (m: number) => void } | null>(null);
+   const [posDig, setPosDig] = useState<P2>([0, 0]);
+   const [pontos, setPontosEstado] = useState<P2[]>([]);
+   /** Série da ferramenta Cota (L6): referências escolhidas, se já pede a linha e o modo (face ou eixo) das próximas. */
+@@ -226,6 +228,8 @@ export function Planta() {
+     cursor: [0, 0] as P2, tela: [0, 0] as P2, cap: null as Captura | null, caps: [] as Captura[], ciclo: 0, ponto: [0, 0] as P2,
+     guia: false, pan: null as null | { x: 0 | number; y: number; v: Vista }, janela: null as null | { a: P2; z: P2 }, espaco: false,
+     baixo: null as string | null, fundPilar: null as string | null, insEl: null as string | null, vigaRef: null as string | null, lajeAb: null as string | null, refEl: null as string | null, refDe: [0, 0] as P2, vfIni: null as string | null, extremidade: 'fim' as 'ini' | 'fim', cache: null as HTMLCanvasElement | null, vistaCache: null as Vista | null, timer: 0 as number | ReturnType<typeof setTimeout>, quadros: [] as number[],
++    /** Zonas clicáveis das cotas (valor, pés e marcas) refeitas a cada desenho (L6). */
++    zonas: [] as { x: number; y: number; r: number; acao: () => void; pe?: boolean }[],
+   });
+ 
+   // ---- dados derivados ----
+@@ -897,7 +901,39 @@ export function Planta() {
+       for (const [a, z] of [...g.chamadas, ...g.linhas]) { const [x0, y0] = paraTela(a[0], a[1]), [x1, y1] = paraTela(z[0], z[1]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
+       for (const q of g.marcas) { const [x, y] = paraTela(q[0], q[1]); ctx.moveTo(x - 4, y + 4); ctx.lineTo(x + 4, y - 4); }
+       ctx.stroke();
+-      for (const t of g.textos) { const [x, y] = paraTela(t.p[0], t.p[1]); ctx.save(); ctx.translate(x, y - 2); ctx.rotate((-t.ang * Math.PI) / 180); ctx.fillText(t.s, 0, 0); ctx.restore(); }
++      g.textos.forEach((t, i) => {
++        const [x, y] = paraTela(t.p[0], t.p[1]);
++        ctx.save(); ctx.translate(x, y - 2); ctx.rotate((-t.ang * Math.PI) / 180); ctx.fillText(t.s, 0, 0); ctx.restore();
++        if (pl.ferramenta !== 'selecionar') return;
++        // clique no valor edita (move o elemento da referência final); o quadrado ao lado trava e destrava
++        it.current.zonas.push({ x, y: y - 6, r: 14, acao: () => setCotaEd({ x, y, texto: t.s, aplicar: (m) => { exec('cota.valor', { id: c.id, indice: i, valor: m }); } }) });
++        if (i === 0) { ctx.fillText(c.travada ? '▣' : '▢', x + 22, y - 2); it.current.zonas.push({ x: x + 22, y: y - 6, r: 8, acao: () => { exec('cota.travar', { id: c.id, travada: !c.travada }); } }); }
++      });
++    }
++    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
++  };
++
++  /** Cotas temporárias da seleção (L6): linha até o vizinho, valor editável, pés que trocam face e eixo e marca que fixa. */
++  const desenharCotasTemporarias = (ctx: CanvasRenderingContext2D) => {
++    ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = 1;
++    for (const c of cotasT) {
++      const [x0, y0] = paraTela(c.a[0], c.a[1]), [x1, y1] = paraTela(c.z[0], c.z[1]), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
++      ctx.strokeStyle = c.editavel ? cores.captura : cores.guia; ctx.fillStyle = ctx.strokeStyle; ctx.setLineDash([4, 3]);
++      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
++      for (const [px, py] of [[x0, y0], [x1, y1]]) ctx.fillRect(px - 3, py - 3, 6, 6);
++      const txt = String(Math.round(c.valor * 100));
++      ctx.fillText(txt, mx, my - 6);
++      if (!c.editavel) continue;
++      it.current.zonas.push({ x: mx, y: my - 10, r: 16, acao: () => setCotaEd({ x: mx, y: my, texto: txt, aplicar: (m) => { exec('cota.mover', paramsMoverCotaTemp(c, m)); } }) });
++      const trocar = (lado: 'sel' | 'viz') => {
++        if (!c.vizinho || elemsSel.length !== 1) return;
++        const P = usePlanta.getState(), k = chavePar(c.alvo, c.vizinho), ant = P.refTemp[k] ?? {};
++        P.set({ refTemp: { ...P.refTemp, [k]: { ...ant, [lado]: alternarModo(lado === 'sel' ? c.modoSel : c.modoViz) } } });
++      };
++      it.current.zonas.push({ x: x0, y: y0, r: 7, pe: true, acao: () => trocar('sel') });
++      if (c.vizinho?.tipo !== 'eixo') it.current.zonas.push({ x: x1, y: y1, r: 7, pe: true, acao: () => trocar('viz') });
++      const par = paramsFixarCotaTemp(grupo, c);
++      if (par) { ctx.fillText('+', mx + 24, my - 6); it.current.zonas.push({ x: mx + 24, y: my - 8, r: 11, acao: () => { exec('cota.criar', par); } }); }
+     }
+     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+   };
+@@ -906,7 +942,9 @@ export function Planta() {
+     const v = vista, ctx = prep(cvI.current);
+     if (!v || !ctx) return;
+     ctx.clearRect(0, 0, tam[0], tam[1]);
++    it.current.zonas = [];
+     desenharCotasPermanentes(ctx);
++    desenharCotasTemporarias(ctx);
+     const s = it.current, [px, py] = paraTela(...s.ponto);
+     // janela de seleção
+     if (s.janela) {
+@@ -1190,6 +1228,11 @@ export function Planta() {
+     return pil ? { id, nome: el?.nome ?? pil.p.nome, centro: centroPilar(pil.p, secaoBase(b, pil.p)) as P2 } : null;
+   };
+ 
++  // cotas temporárias (L6): elementos selecionados e as cotas até os vizinhos mais próximos
++  const elemsSel = useMemo<ElemCota[]>(() => (nivelFund ? [] : [...pl.selecao].flatMap((id): ElemCota[] => (b.pilares.some((x) => x.id === id) ? [{ tipo: 'pilar', id }] : b.vigas.some((x) => x.id === id) ? [{ tipo: 'viga', id }] : b.paredes?.some((x) => x.id === id) ? [{ tipo: 'parede', id }] : []))), [pl.selecao, b, nivelFund]);
++  const indTemp = useMemo(() => (grupo && !nivelFund ? indiceCotasTemp(b, grupo) : null), [b, grupo, nivelFund]);
++  const cotasT = useMemo<CotaTemp[]>(() => (pl.cotasTemp && pl.ferramenta === 'selecionar' && indTemp && elemsSel.length ? cotasTemporarias(b, indTemp, elemsSel, PADRAO_REF_TEMP, pl.refTemp) : []), [pl.cotasTemp, pl.ferramenta, pl.refTemp, indTemp, elemsSel, b]);
++
+   // ---- cota em série (L6) ----
+   /** Elemento da planta sob o ponto para a cota: pilar, viga ou parede (null = ponto livre). */
+   const elemCotaSob = (w: P2): ElemCota | null => {
+@@ -1684,6 +1727,12 @@ export function Planta() {
+     if (e.button === 1 || (e.button === 0 && it.current.espaco)) { it.current.pan = { x: sx, y: sy, v: { ...vista! } }; return; }
+     if (e.button === 2) { if (POLILINHAS.includes(pl.ferramenta)) terminar(); else setPontos([]); return; }
+     if (e.button !== 0) return;
++    if (pl.ferramenta === 'selecionar') {
++      // o pé da cota só vale fora do elemento selecionado (clicar no próprio elemento continua selecionando)
++      const sob = elemCotaSob(paraMundo(sx, sy));
++      const zona = it.current.zonas.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r && !(q.pe && sob && pl.selecao.has(sob.id)));
++      if (zona) { zona.acao(); return; }
++    }
+     capturar(sx, sy);
+     if (pl.ferramenta === 'selecionar') { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
+     agir(it.current.ponto);
+@@ -1832,6 +1881,15 @@ export function Planta() {
+             else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
+             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
+           }} />
++        {cotaEd && (
++          <Input className="digita" autoFocus aria-label="Valor da cota (cm)" style={{ left: cotaEd.x + 12, top: cotaEd.y + 8 }} value={cotaEd.texto}
++            onChange={(e) => setCotaEd({ ...cotaEd, texto: e.target.value })}
++            onKeyDown={(e) => {
++              if (e.key === 'Enter') { const v = Number(cotaEd.texto.replace(',', '.')); const f = cotaEd.aplicar; setCotaEd(null); if (Number.isFinite(v) && v >= 0) f(v / 100); else msg('Valor da cota inválido.'); }
++              if (e.key === 'Escape') setCotaEd(null);
++              e.stopPropagation();
++            }} onBlur={() => setCotaEd(null)} />
++        )}
+         {digitando !== null && (
+           <Input className="digita" autoFocus aria-label="Valor digitado" style={{ left: posDig[0] + 16, top: posDig[1] + 12 }} value={digitando}
+             onChange={(e) => setDigitando(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirmarDigitado(); if (e.key === 'Escape') setDigitando(null); e.stopPropagation(); }} onBlur={() => setDigitando(null)} />
