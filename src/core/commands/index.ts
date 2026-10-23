@@ -11,6 +11,7 @@ import './lajes';
 import './lancamentoL5';
 import './tiposLaje';
 import './vigotas';
+import './nervuradas';
 import './acoes';
 import './armaduras';
 import './agrupamento';

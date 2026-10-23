@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
-| 7. Lajes | 195 | 58 | 35 | 35 | 67 |
+| 7. Lajes | 195 | 58 | 41 | 29 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **390** | **79** | **109** | **185** |
+| **Total** | **763** | **390** | **85** | **103** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 55 | 104 | 159 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 61 | 98 | 159 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -417,7 +417,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Feito | — | L5 núcleo: `laje.editar { direcaoPor: { viga, relacao } / { pontos } }`; interface: ferramenta `direcaoPano` (cartão 04) — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] — L4 núcleo: `laje.copiarDados` e `CAMPOS_COPIA_LAJE` (tipo, direção, desnível, engastes, cobrimento, tabela, armadura base); plano de inclinação entra com a E3f; interface: `DadosL4.tsx` (cartão 03) |
-| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) [E3c] |
+| C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Parcial | E | cubetas inteiras desenhadas em traço fino nas pranchas de formas e de armação e nervuras com a largura real no arranjo (`arranjoNervuras`, `montarPrancha`, `montarPranchasLajes`); falta a camada “Nervuras e cubetas” na planta (cartão `docs/cartoes/E3c/`) [E3c] |
 | C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Parcial | E | `Laje.momentosMin` por tipo de vão (extremo, intermediário, isolado, balanço) e comando `laje.momentosMin` sobre os valores da obra (`minimosDaFaixa`, `vigotasEsforcos.ts`); interface nos cartões E3b [E3b] |
 | C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Parcial | E | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares na E3e; interface nos cartões E3b [E3b] |
 | C7.12 | Coeficiente de engastamento de borda por pano ou para todos do grupo (não disponível em nervuradas; nelas se usa o engaste de extremidade das vigas). | Feito | — | coeficiente de engaste por borda da laje (laje.editar engasteBordas, Vínculos; N1a), também nas treliçadas |
@@ -453,11 +453,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.40 | Laje com vigotas treliçadas de aço biapoiadas: tipo (banzos com um ou dois perfis), série de perfis, altura nominal, ângulo das diagonais entre 30° e 60°, intereixo e espessura da capa (não colaborante). | Fora | — |  |
 | C7.41 | Coeficiente de redução da rigidez à torção das lajes de vigotas, consultável e editável nas opções gerais. | Feito | — | redutor da torção das lajes editável nas opções (torcaoLaje, N1a), vale para as treliçadas |
 | | **7.1.2.3 Lajes nervuradas bidirecionais** | | | |
-| C7.42 | Forma perdida ou recuperável. | Falta | E | nervurada bidirecional [E3c] |
-| C7.43 | Formas importadas da biblioteca ou definidas pelo usuário, e editáveis. | Falta | E | [E3c] |
-| C7.44 | Disposição das formas visível na tela. | Falta | E | [E3c] |
-| C7.45 | Pano lançado paralelo a uma viga ou por dois pontos. | Falta | E | [E3c] |
-| C7.46 | Copiar panos nervurados no mesmo grupo e atribuir armadura de base aos panos do grupo. | Falta | E | [E3c] |
+| C7.42 | Forma perdida ou recuperável. | Parcial | E | forma recuperável ou perdida (`FormaLaje.tipo`; a perdida soma o enchimento no peso); falta o editor no grupo “Tipos de laje” (cartão) [E3c] |
+| C7.43 | Formas importadas da biblioteca ou definidas pelo usuário, e editáveis. | Parcial | E | formas do catálogo da biblioteca de normas (tabela `lajes.formas`, editável) e da obra (`forma.tipo`: criar, editar, copiar, remover; importar e exportar JSON); falta o editor (cartão) [E3c] |
+| C7.44 | Disposição das formas visível na tela. | Parcial | E | arranjo das cubetas pronto (`arranjoDaLaje`) e desenhado nas pranchas; falta mostrá-lo na planta (cartão) [E3c] |
+| C7.45 | Pano lançado paralelo a uma viga ou por dois pontos. | Parcial | E | `laje.nervurada { direcaoPor }` (viga com paralela ou perpendicular, ou dois pontos); falta a atribuição pela interface (cartão) [E3c] |
+| C7.46 | Copiar panos nervurados no mesmo grupo e atribuir armadura de base aos panos do grupo. | Parcial | E | `laje.copiarPanos { de, para, incluirBase }` (tipo, direção, passagem, engaste, cobrimento e tabela) e `laje.armaduraBase` com vários panos; falta a interface (cartão) [E3c] |
 | C7.47 | Geração automática de ábacos (capitéis), com parâmetros configuráveis. | Falta | E | ábacos/capitéis [E3d] |
 | C7.48 | Ábaco, ângulo de visão: cone de busca a partir de cada face do pilar. O pilar mais próximo dentro do cone dá o vão de referência, e sem pilar vale o mínimo. | Falta | E | [E3d] |
 | C7.49 | Ábaco, extensão maciça: porcentagem da distância ao pilar vizinho, medida da face do pilar à borda do ábaco. | Falta | E | [E3d] |
@@ -1067,3 +1067,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3b, núcleo (vigotas completas).** C7.34, C7.35, C7.97, C7.105, C7.106, C7.110, C7.112 e C7.116 passam a Feito; C7.10, C7.11, C7.14, C7.31, C7.32, C7.91, C7.101, C7.102, C7.117–C7.123, C7.193 e C7.194 seguem Parcial com nota própria (núcleo e comandos prontos; aba Vigotas, exposição, momentos mínimos por pano, relatório e memorial nos cartões `docs/cartoes/E3b/`); C7.100 segue Parcial (igualação dos momentos, não da área de aço). Pendências do usuário: Tabela 13.4, combinação rara, parcelas, ômega, flecha de montagem (`docs/pendencias-usuario.md`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (8 itens do manual do usuário a Feito).
+- **23/10/2026 — E3c, núcleo (nervuradas bidirecionais).** C7.9, C7.42, C7.43, C7.44, C7.45 e C7.46 passam de Falta a Parcial com nota própria (formas recuperáveis e perdidas em catálogo editável e na obra, arranjo das nervuras e das cubetas, direção por viga ou por dois pontos e cópia entre panos prontos no núcleo e nas pranchas; editor, camada na planta e grupo nos cartões `docs/cartoes/E3c/`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: sem mudança de contagem (os itens seguem na E).

@@ -9,6 +9,7 @@ import type { Dimensionamento, ResultadoPilar, ResultadoViga } from './dimension
 import { acoDe, cobrimentoViga, concretoDe, fckDe, gamas } from './materiais';
 import { areaLaje, propriedadesLaje } from './lajes';
 import { ehNervurada, espessuraConcreto, geometriaNervurada } from './tiposLaje';
+import { arranjoDaLaje, espessuraConcretoDaLaje, quantitativoNervurada } from './nervuradas';
 import {
   centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, peDireito, secaoNoLance,
   type BuildingModel, type Pilar, type Viga,
@@ -176,10 +177,13 @@ export interface QuantitativosDetalhados { panos: QuantPano[]; vigas: QuantViga[
 
 /** Espessura equivalente de concreto (m) da laje (treliçada: capa + nervuras). */
 
-export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensionamento, 'quantitativos' | 'resumoAcoVigas' | 'resumoAcoPilares' | 'resumoAcoLajes' | 'resumoAcoVigotas'>): QuantitativosDetalhados {
+export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensionamento, 'quantitativos' | 'resumoAcoVigas' | 'resumoAcoPilares' | 'resumoAcoLajes' | 'resumoAcoVigotas'> & Partial<Pick<Dimensionamento, 'resumoAcoNervuradas'>>): QuantitativosDetalhados {
   const panos: QuantPano[] = b.lajes.map((l) => {
-    const rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo, b), t = espessuraConcreto(b, l.tipo);
+    const rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo, b), t = espessuraConcretoDaLaje(b, l, (tp) => espessuraConcreto(b, tp));
     let ench: QuantPano['enchimento'];
+    const nb = arranjoDaLaje(b, l);
+    // nervurada bidirecional (E3c): peso e enchimento pelas cubetas inteiras do arranjo (forma perdida: material que fica na laje)
+    if (nb) { const q = quantitativoNervurada(l, nb.g, nb.arr); if (!nb.g.recuperavel) ench = { area: r2(q.areaCubetas), volume: r2(q.volumeEnchimento, 3), pecas: q.cubetas }; pr.pp = q.ppMedio; }
     if (ehNervurada(l.tipo)) {
       const k = geometriaNervurada(b, l.tipo), ae = (area * (k.intereixo - k.bw)) / k.intereixo;
       ench = { area: r2(ae), volume: r2(ae * k.hEnch, 3), pecas: Math.ceil(ae / (k.intereixo - k.bw) - 1e-9) };
@@ -194,9 +198,9 @@ export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensioname
   const area = panos.reduce((t, p) => t + p.area * p.pavimentos, 0);
   const concreto = dim.quantitativos.reduce((t, q) => t + q.concreto.lajes + q.concreto.vigas + q.concreto.pilares, 0);
   const forma = dim.quantitativos.reduce((t, q) => t + q.forma.lajes + q.forma.vigas + q.forma.pilares, 0);
-  const detalhado = !!(dim.resumoAcoVigas || dim.resumoAcoPilares || dim.resumoAcoLajes || dim.resumoAcoVigotas);
+  const detalhado = !!(dim.resumoAcoVigas || dim.resumoAcoPilares || dim.resumoAcoLajes || dim.resumoAcoVigotas || dim.resumoAcoNervuradas);
   const soma = (rs?: { pesoComPerdas: number }[]) => (rs ?? []).reduce((t, x) => t + x.pesoComPerdas, 0);
-  const aco = detalhado ? soma(dim.resumoAcoVigas) + soma(dim.resumoAcoPilares) + soma(dim.resumoAcoLajes) + soma(dim.resumoAcoVigotas) : dim.quantitativos.reduce((t, q) => t + q.aco, 0);
+  const aco = detalhado ? soma(dim.resumoAcoVigas) + soma(dim.resumoAcoPilares) + soma(dim.resumoAcoLajes) + soma(dim.resumoAcoVigotas) + soma(dim.resumoAcoNervuradas) : dim.quantitativos.reduce((t, q) => t + q.aco, 0);
   return {
     panos, vigas, enchimento: { area: r2(enchimento.area), volume: r2(enchimento.volume, 3), pecas: enchimento.pecas },
     indices: { area: r2(area), concreto: r2(concreto), forma: r2(forma), aco: r2(aco, 1), kgPorM2: area > 0 ? r2(aco / area, 2) : 0, m3PorM2: area > 0 ? r2(concreto / area, 3) : 0, m2PorM2: area > 0 ? r2(forma / area, 2) : 0, kgPorM3: concreto > 0 ? r2(aco / concreto, 1) : 0, acoDetalhado: detalhado },

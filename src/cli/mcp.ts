@@ -15,6 +15,7 @@ import { comFundacao } from '../core/building/dimensionamento';
 import { resumoVigaFundacao, type ResultadoVigaFundacao } from '../core/building/vigasFundacao';
 import { resumoAnalise } from '../core/building/resumo';
 import { resumoVigotas } from '../core/building/vigotas';
+import { resumoNervurada } from '../core/building/nervuradasDim';
 import { abrirSessao, dimensionar, gravarPranchas, resumo, TIPOS_PRANCHA, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
 export const VERSAO_SERVIDOR = '0.1.0';
@@ -248,6 +249,8 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.puncao?.length ? { puncao: (pav ? d.puncao.filter((r) => r.pavimentoId === pav.id) : d.puncao).map(resumoPuncao).filter((r) => !soProblemas || r.status !== 'ok') } : {}),
     // treliçadas: só o resumo por laje (sem os alinhamentos e diagramas) e o aço/treliças
     ...(d.vigotas?.length ? { vigotas: prob(pav ? d.vigotas.filter((v) => v.pavimentos.includes(pav.nome)) : d.vigotas).map(resumoVigotas) } : {}),
+    // nervuradas bidirecionais (E3c): resumo por laje (forma, peso, envoltória por direção, regime de cisalhamento, mesa) e aço
+    ...(d.nervuradas?.length ? { nervuradas: prob(d.nervuradas).map(resumoNervurada), resumoAcoNervuradas: d.resumoAcoNervuradas } : {}),
     ...(d.resumoAcoVigotas?.length ? { resumoAcoVigotas: d.resumoAcoVigotas, trelicas: d.trelicas } : {}),
     ...(d.quantitativoVigotas?.some((x) => x.familia !== 'trelicada') ? { quantitativoVigotas: d.quantitativoVigotas, ...(d.quantitativoMoldadas ? { quantitativoMoldadas: d.quantitativoMoldadas } : {}) } : {}),
     resumo: { vigas: contaStatus(d.vigas), pilares: contaStatus(d.pilares), lajes: contaStatus(d.lajes), ...(d.puncao?.length ? { puncao: contaStatus(d.puncao.map((r) => ({ status: r.status === 'armadura' ? 'review' : r.status }))) } : {}), ...(foraTabela(d) ? { foraDeTabela: foraTabela(d) } : {}), ...(d.fogo ? { fogo: { total: d.fogo.resumo.total, ok: d.fogo.resumo.ok, revisar: d.fogo.resumo.revisar, naoAtende: d.fogo.resumo.naoAtende } } : {}), ...(d.fundacoes?.length ? { fundacoes: contaStatus(d.fundacoes) } : {}), ...(d.vigasFundacao?.length ? { vigasFundacao: contaStatus(d.vigasFundacao) } : {}) },
@@ -273,6 +276,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, quantitativoVigotas: { type: 'array' }, quantitativoMoldadas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, basesMuros: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, nervuradas: { type: 'array' }, resumoAcoNervuradas: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, quantitativoVigotas: { type: 'array' }, quantitativoMoldadas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, basesMuros: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

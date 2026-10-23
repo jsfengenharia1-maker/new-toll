@@ -157,6 +157,20 @@ export interface OpcoesCalculo {
   vigotaRedistribuir: number;
   /** 1 = flecha das vigotas por ficha e moldadas com a rigidez fissurada de Branson (ficha do fabricante ou seção T); 0 = rigidez total. */
   vigotaBranson: number;
+  /** Nervuradas bidirecionais (E3c): passo da malha da grelha como fração do menor intereixo (1/3 no padrão do sistema). */
+  nervuradaMalha: number;
+  /** Nervuradas bidirecionais: inércia à flexão das barras = fator × inércia da faixa maciça de mesma altura, igual nas zonas maciça e aliviada; 0 = seção T real das nervuras. */
+  nervuradaInercia: number;
+  /** Nervuradas bidirecionais: inércia à torção das barras = fator × a de flexão (2 no padrão do sistema); 0 = torção geométrica das nervuras reduzida por `torcaoLaje`. */
+  nervuradaTorcao: number;
+  /** Nervuradas bidirecionais: faixa maciça junto às vigas de borda (m; 0 = nervuras até a viga). */
+  nervuradaMacicoViga: number;
+  /** Nervuradas bidirecionais: espessura mínima da mesa (cm; 4, ou 5 com tubulações embutidas). */
+  nervuradaMesaMin: number;
+  /** Nervuradas bidirecionais: cortante das nervuras verificado a cada fator × d. */
+  nervuradaCortanteDist: number;
+  /** Nervuradas bidirecionais: diferença máxima (%) entre nervuras vizinhas para adotar a mesma armadura (uniformização); 0 = cada nervura a sua. */
+  nervuradaIgualacaoDif: number;
   /** 1 = cargas de uso das classes B (escritórios) e C (garagens) como casos próprios, com o ψ da classe; 0 = um caso Q com o ψ da obra. */
   categoriasUso: number;
   /** EQU: γ das permanentes favoráveis no tombamento global (NBR 8681). */
@@ -662,6 +676,20 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = os negativos nas pontas das vigotas (apoios contínuos) são reduzidos por δ = 1 − “Redistribuição de negativos das vigas” (limitado a 25 %: δ ≥ 0,75, ou 0,90 se γz > 1,1) depois dos mínimos e da igualação, e o positivo aumenta pela metade da soma das reduções (equilíbrio). 0 = sem redistribuição.' },
   { chave: 'vigotaBranson', rotulo: 'Vigotas: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson) e 17.3.1 (Mr); programa de referência (C7.31: rigidez total e fissurada da ficha); sem dado do fabricante, EI fissurado pelo estádio II da seção T [a confirmar]', aConfirmar: true,
     descricao: '1 = nas lajes de vigotas por ficha e nas moldadas, a flecha usa a rigidez efetiva de Branson em cada barra da nervura (EI, EI fissurado e Mfis da ficha; sem eles, pela seção T com a armadura adotada) com o momento da combinação quase permanente, e a grelha é resolvida de novo; 0 = rigidez total. Treliçadas do catálogo interno seguem o redutor “rigidez à flexão das nervuras”.' },
+  { chave: 'nervuradaMalha', rotulo: 'Nervuradas: malha da grelha', unidade: '× intereixo', min: 0.1, max: 1, passo: 0.05, padrao: 1 / 3, fonte: 'Programa de referência (K1.3.25): malha de 1/3 do intereixo da zona aliviada; NBR 6118 não fixa', aConfirmar: false,
+    descricao: 'Passo da malha das barras da grelha das lajes nervuradas bidirecionais, como fração do menor intereixo das nervuras (60 cm → 20 cm). Cada barra representa uma faixa de nervuras.' },
+  { chave: 'nervuradaInercia', rotulo: 'Nervuradas: inércia à flexão das barras', unidade: '× laje maciça', min: 0, max: 1, passo: 0.05, padrao: 0.5, padraoNBR: 0, fonte: 'Programa de referência (K1.3.26, K1.9.93): metade da inércia da zona maciça, igual nas zonas maciça e aliviada (inércia média, uma só por pano)', fonteNBR: 'NBR 6118, 14.7.7 [a confirmar o item]: rigidez da seção T das nervuras na zona aliviada e da laje maciça na zona maciça', aConfirmar: true,
+    descricao: 'Fator sobre a inércia da faixa maciça de mesma altura total (largura = passo da malha), igual nas zonas maciça e aliviada. 0 = inércia real da nervura em T (mesa = intereixo) na zona aliviada e da laje maciça nas zonas maciças.' },
+  { chave: 'nervuradaTorcao', rotulo: 'Nervuradas: inércia à torção das barras', unidade: '× inércia à flexão', min: 0, max: 4, passo: 0.5, padrao: 2, padraoNBR: 0, fonte: 'Programa de referência (K1.3.27): inércia à torção = 2 × a de flexão', fonteNBR: 'NBR 6118, 14.6.2 e 14.7.7 [a confirmar]: torção geométrica das nervuras com rigidez reduzida (opção “Rigidez à torção das lajes”)', aConfirmar: true,
+    descricao: 'J = fator × I das barras da grelha. 0 = constante de torção do retângulo da nervura (bw × h) vezes o redutor “Rigidez à torção das lajes” (zona maciça: 2I × redutor).' },
+  { chave: 'nervuradaMacicoViga', rotulo: 'Nervuradas: faixa maciça junto às vigas', unidade: 'm', min: 0, max: 1, passo: 0.05, padrao: 0, fonte: 'Prática de projeto; o programa de referência trata os maciçamentos como zonas desenhadas [a confirmar o padrão]', aConfirmar: true,
+    descricao: 'Largura da faixa maciça ao longo do contorno do pano (vigas de borda). 0 = nervuras até a viga. As zonas maciças manuais do pano são acrescentadas a esta faixa.' },
+  { chave: 'nervuradaMesaMin', rotulo: 'Nervuradas: espessura mínima da mesa', unidade: 'cm', min: 3, max: 8, passo: 0.5, padrao: 4, fonte: 'NBR 6118, 13.2.4.2: mesa ≥ 1/15 da distância entre as faces das nervuras e ≥ 4 cm (5 cm com tubulações embutidas) [a confirmar o item]', aConfirmar: true,
+    descricao: 'Mínimo absoluto da mesa (capa) das nervuradas; a verificação usa o maior entre ele e 1/15 da distância livre entre nervuras (aviso NERV_MESA).' },
+  { chave: 'nervuradaCortanteDist', rotulo: 'Nervuradas: passo da verificação do cortante', unidade: '× d', min: 0.25, max: 1, passo: 0.05, padrao: 0.75, fonte: 'Programa de referência (K1.13.4-2): cortante verificado a cada 0,75 d ao longo da nervura', aConfirmar: false,
+    descricao: 'As nervuras são verificadas ao cortante em seções espaçadas deste fator × d; onde a solicitação passa do VRd1 (19.4.1) entram os estribos, com espaçamento limitado pelo mesmo passo.' },
+  { chave: 'nervuradaIgualacaoDif', rotulo: 'Nervuradas: uniformização da armadura entre nervuras vizinhas', unidade: '%', min: 0, max: 50, passo: 5, padrao: 20, fonte: 'Programa de referência (K1.13.3.2-1): uniformização da armadura concentrada nas nervuras; limite de 20 % do Statikos [a confirmar]', aConfirmar: true,
+    descricao: 'Nervuras vizinhas da mesma direção cujos momentos diferem menos que este percentual adotam a armadura da mais solicitada (menos posições no desenho). 0 = cada nervura com a sua.' },
   { chave: 'categoriasUso', rotulo: 'Categorias de uso como casos próprios', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 8681 (ações variáveis distintas combinadas como principal e secundárias) e NBR 6118, Tabela 11.2 (ψ por local); casos por categoria de uso do programa de referência', aConfirmar: false,
     descricao: 'Grupos de escritórios (classe B) e de garagens (classe C) têm a carga de uso num caso próprio (QB, QC) com o ψ da classe; os demais usos (residencial, serviço, áreas comuns, cobertura) ficam no caso Q com o ψ da obra. 0 = um caso Q para todos.' },
   { chave: 'equGamaFav', rotulo: 'Equilíbrio (EQU): γ das permanentes favoráveis', min: 0.5, max: 1.2, passo: 0.05, padrao: 0.9, fonte: 'NBR 8681 (perda de equilíbrio como corpo rígido: permanentes de grande variabilidade favoráveis 0,9); valor a confirmar na norma', aConfirmar: true,
@@ -967,7 +995,7 @@ export const OPCOES_INFO: OpcaoInfo[] = [
 // ---- o que cada opção refaz (R7f) ----
 /** Opções lidas pela análise estrutural (rigidez, malha, vento, base elástica): mudar uma refaz a análise. */
 export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof OpcoesCalculo>([
-  'malha', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
+  'malha', 'nervuradaMalha', 'nervuradaInercia', 'nervuradaTorcao', 'nervuradaMacicoViga', 'mesaRigidez', 'torcaoViga', 'torcaoLaje', 'torcaoPilar', 'axialPilares', 'trechoRigido', 'engasteTopoUltimo', 'zonasIndependentes', 'limiteGamaZ',
   'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
@@ -999,7 +1027,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
   'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
-  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'equGamaFav', 'equGamaVento',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao',

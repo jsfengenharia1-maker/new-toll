@@ -5,6 +5,8 @@ import type { Diagnostico } from './verify';
 import { eixosDasParedes } from './paredesBase';
 import { areaPoligono, dentroPoligono, faces, pontoInterno, type P } from '../geom/faces';
 import { GAMA_CONCRETO, ehNervurada, errosTipoLaje, geometriaNervurada, modelosTrelicadas, type FonteLajes } from './tiposLaje';
+import { opcoesEmUso, perfilDe } from './opcoes';
+import { avisosForma, geometriaBidirecional, verificarGeometria } from './nervuradas';
 
 /**
  * Treliçadas unidirecionais com EPS [a confirmar com o fabricante]: altura do enchimento, intereixo, largura média da
@@ -19,6 +21,7 @@ export const GAMA_EPS = 0.2; // kN/m³ [a confirmar]; em uso: tabela `lajes.ench
 /** Altura total (m) e peso próprio (kN/m²) do tipo de laje (nervuradas: pelo catálogo, ficha ou geometria da obra `b`). */
 export function propriedadesLaje(t: TipoLaje, b?: FonteLajes): { h: number; pp: number; descricao: string } {
   if (t.tipo === 'macica') return { h: t.h, pp: GAMA_CONCRETO * t.h, descricao: `maciça h=${Math.round(t.h * 100)}` };
+  if (t.tipo === 'nervurada') { const gb = geometriaBidirecional(b, t); return { h: gb.h, pp: gb.pp, descricao: gb.descricao }; }
   const g = geometriaNervurada(b, t);
   return { h: g.h, pp: g.pp, descricao: g.descricao };
 }
@@ -107,6 +110,11 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
     for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++)
       if (lajesSeSobrepoem(ls[i], ls[j])) d.push({ codigo: 'LAJES_SOBREPOSTAS', severidade: 'erro', elementos: [ls[i].id, ls[j].id], mensagem: `${ls[i].nome} e ${ls[j].nome} se sobrepõem.` });
     for (const l of ls) for (const x of errosTipoLaje(b, l.tipo)) d.push({ codigo: x.codigo, severidade: 'erro', elementos: [l.id], mensagem: `${l.nome}: ${x.mensagem}` });
+    // nervuradas bidirecionais (E3c): mesa, nervura, espaçamento e altura da cubeta (NBR 6118, 13.2.4.2)
+    for (const l of ls) if (l.tipo.tipo === 'nervurada' && !l.definir && !errosTipoLaje(b, l.tipo).length) {
+      const gb = geometriaBidirecional(b, l.tipo);
+      for (const a of [...verificarGeometria(gb, opcoesEmUso(b.opcoes, perfilDe(b)).nervuradaMesaMin / 100).avisos, ...avisosForma(gb)]) d.push({ codigo: a.codigo, severidade: a.severidade === 'erro' ? 'erro' : 'aviso', elementos: [l.id], mensagem: `${l.nome}: ${a.mensagem}` });
+    }
     for (const l of ls) if (ehNervurada(l.tipo) && !ehPano(l, panos))
       d.push({ codigo: 'TRELICADA_SEM_APOIO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é treliçada e não está fechada por vigas (balanço ou contorno livre não é permitido).` });
   }

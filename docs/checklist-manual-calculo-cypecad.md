@@ -12,20 +12,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 5 | 1 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 33 | 6 | 10 | 10 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 36 | 6 | 7 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 64 | 13 | 2 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 40 | 5 | 0 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 41 | 4 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 59 | 10 | 34 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 62 | 15 | 26 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 43 | 15 | 1 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 85 | 11 | 1 | 23 |
-| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
+| 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 31 | 6 | 4 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
-| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 20 | 3 | 1 | 19 |
-| **Total** | **661** | **420** | **67** | **63** | **111** |
+| 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
+| **Total** | **661** | **430** | **76** | **44** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 63 | 95 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 41 | 44 | 85 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **67** | **63** | **130** |
+| **Total** | **76** | **44** | **120** |
 
 ## Divergências de premissa
 
@@ -126,9 +126,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.22 | Lajes maciças: condensação estática (método exato) de todos os GL; considera deformação por cortante; mantém diafragma rígido; considera rigidez à torção. | Feito | — | condensação estática exata (complemento de Schur) das grelhas no modelo integrado (`condensacao.ts`, N2b); barras de laje de Timoshenko (área 5/6·b·h, opção `cortanteBarrasLaje`, padrão do sistema 1, NBR 0); diafragma rígido mantido; torção com redutor editável (`torcaoLaje`) |
 | K1.3.23 | Lajes mistas (fôrma de aço trapezoidal): unidirecionais com barras a cada 40 cm; a chapa pode ser só fôrma perdida ou colaborante (comportamento misto). | Fora | — | lajes mistas |
 | K1.3.24 | Radiers: lajes maciças "flutuantes", mesma discretização das lajes, com molas pelo coeficiente de reação; cada pano pode ter coeficiente distinto. | Feito | — | radier como grelha de barras com a rigidez à flexão e à torção das lajes maciças, malha das opções passando pelos pilares (`gradeRadier`), molas k × área de influência; k por radier ou o padrão `radierK` (`src/core/building/baseElastica.ts`); placa contra o OpenSees (`validation/opensees/radier.py`, ±3 %) |
-| K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Falta | E | lajes nervuradas bidirecionais [E3c] |
-| K1.3.26 | Lajes nervuradas: inércia à flexão das barras = metade da da zona maciça (tanto na zona maciça quanto na aliviada, como média); inércia à torção = 2 × a de flexão. | Falta | E | lajes nervuradas (inércias da malha) [E3c] |
-| K1.3.27 | Lajes nervuradas: malha igual nas zonas maciça e aliviada; considera cortante, diafragma e rigidez à torção. | Falta | E | lajes nervuradas [E3c] |
+| K1.3.25 | Lajes nervuradas: grelha com malha = 1/3 do intereixo das nervuras da zona aliviada. | Feito | — | malha da grelha = fração do menor intereixo da zona aliviada (opção `nervuradaMalha`, padrão 1/3; `passoMalhaNervurada`, `analisarEdificio`) [E3c] |
+| K1.3.26 | Lajes nervuradas: inércia à flexão das barras = metade da da zona maciça (tanto na zona maciça quanto na aliviada, como média); inércia à torção = 2 × a de flexão. | Feito | — | padrão do sistema: inércia à flexão = 0,5 × a da faixa maciça de mesma altura, igual nas zonas maciça e aliviada, e à torção = 2 × a de flexão (opções `nervuradaInercia` e `nervuradaTorcao`); perfil NBR: seção T real e torção geométrica (`propBarraNervurada`); contra Navier: α = 0,00410 × 0,00406 (placa) e 0,00820 × 0,00820 (grelha ortótropa) [E3c] |
+| K1.3.27 | Lajes nervuradas: malha igual nas zonas maciça e aliviada; considera cortante, diafragma e rigidez à torção. | Feito | — | mesma malha nas zonas maciça e aliviada, com cortante de Timoshenko (`cortanteBarrasLaje`), diafragma e rigidez à torção (`propBarraNervuradaMista`: faixa mista pela fração maciça) [E3c] |
 | K1.3.28 | Pilares-parede: seção qualquer composta de retângulos, entre pavimentos, com nível inicial e final; altura de cada lado constante, espessura variável. | Feito | — | tipo = lados (segmentos do eixo) com espessura à esquerda e à direita; mesma planta em toda a altura, espessura por pavimento (`LadoPilarParede.porPavimento`), `nasce`/`morre` por pavimento [E1b] |
 | K1.3.29 | Pilares-parede: cada lado deve ter dimensão ≥ 5 × a outra; senão a discretização por elemento finito não é adequada e pode ser tratado como pilar (elemento linear). | Feito | — | lado ≥ `pilarParedeLimite` (5) × espessura vira casca de 6 nós; o mais curto, barra (PPAREDE_LADO_CURTO, informação) (`pilarParede.ts`, `geometriaParedes`) [E1b] |
 | K1.3.30 | Pilares-parede: vigas e lajes ligam-se aos lados em qualquer posição/direção por meio de viga fictícia de largura = espessura do trecho e altura constante de 25 cm; nós não coincidem com os da viga. | Feito | — | viga fictícia de altura `pilarParedeVigaAltura` (25 cm) no topo de cada nível e fatias do topo como apoios da grelha para vigas e lajes em qualquer posição (`pilarParedeModelo.ts`, `incluirParedes`; premissa e1b-ligacao a confirmar) [E1b] |
@@ -282,7 +282,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.1 | Peso próprio dos elementos de concreto pelo volume da seção bruta × 2,5 (t/m³, sistema MKS) para pilares, pilares-parede, paredes, vigas e lajes. | Feito | — | γ = 25 kN/m³ na seção bruta de pilares, vigas e lajes |
 | K1.5.2 | Peso próprio da laje definido pelo usuário na escolha do tipo; pode variar por pavimento/pano. | Feito | — | peso próprio pelo tipo de laje (maciça ou catálogo de treliçadas) |
 | K1.5.3 | Laje maciça: h × 2,5; idem nos ábacos (maciços) das nervuradas. | Feito | — | maciça h × 25 (`lajeG`) |
-| K1.5.4 | Zona aliviada das nervuradas e lajes de vigotas: valor da ficha da laje. | Parcial | E | treliçadas pelo catálogo (a confirmar); nervuradas faltam [E3c] |
+| K1.5.4 | Zona aliviada das nervuradas e lajes de vigotas: valor da ficha da laje. | Feito | — | peso e volume da zona aliviada pelas formas (`geometriaBidirecional`) e das fichas das vigotas; a margem maciça entra com o peso da laje maciça (`espessuraConcretoDaLaje`, `quantitativoNervurada`) [E3c] |
 | K1.5.5 | Vigotas: peso por m² × intereixo = carga linear em cada vigota. | Feito | — | carga linear do peso próprio de cada vigota = peso por m² × intereixo, ou do conjunto nas duplas e triplas (`VigotaIndividual.pesoLinear`); os esforços saem da grelha com a carga lançada [E3b] |
 | K1.5.6 | Lajes maciças e nervuradas: peso × área de influência aplicado em cada nó. | Feito | — | carga de área distribuída nas barras e bordas da grelha |
 | K1.5.7 | Carga permanente adicional (revestimento e divisórias) uniforme no pavimento; divisórias podem ser tratadas como variáveis se mudarem. | Feito | — | revestimento por grupo (gRev) e cargas de área; alvenaria da máscara como G |
@@ -481,18 +481,18 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.88 | Armadura base inferior sempre contínua, com emendas nas zonas de máximo negativo; superior descontínua, só onde necessária; no radier posições invertidas; medida como adicional. | Feito | — | positiva contínua com emenda por traspasse acima da barra máxima, na base inferior detalhada com o centro da emenda junto à borda contínua (opção `lajeBaseEmendaApoio`); superior só onde necessária (base superior que atende dispensa negativo e distribuição). Radier (FU6) segue `detalharRadier`, sem a base (R7d) |
 | K1.9.89 | Lajes maciças podem ser radier: espessura, coeficiente de reação e tensão admissível; armadura base do radier pela taxa mínima automática das opções. | Feito | — | radier lançado por contorno no nível de fundação com espessura, k e σadm por elemento (`radier.criar/editar`); armadura mínima 0,15 % por face e direção como nas lajes (`src/core/building/baseElastica.ts`) |
 | | **Lajes nervuradas** | | | |
-| K1.9.90 | Zona aliviada e zona maciça; fôrma recuperável ou perdida (biblioteca editável). | Falta | E | lajes nervuradas [E3c] |
-| K1.9.91 | Dados: nome, altura total, capa, nº de peças do bloco, intereixo ou vão entre nervuras (iguais ou distintos em X e Y), largura da nervura (X e Y), peso próprio indicativo e volume de concreto m³/m² indicativo. | Falta | E | lajes nervuradas (dados) [E3c] |
-| K1.9.92 | Estimativa automática de peso e volume (nervuras + capa + material de enchimento padrão concreto); em fôrma recuperável só o concreto. | Falta | E | lajes nervuradas (peso e volume) [E3c] |
-| K1.9.93 | Ponto de passagem da malha por pano e direção das nervuras livres; desníveis entre panos. | Falta | E | lajes nervuradas (malha) [E3c] |
-| K1.9.94 | Armadura base em malha (superior/inferior, duas direções) considerada no dimensionamento; mesmo alerta de detalhamento de 1.9.87. | Falta | E | lajes nervuradas (armadura base) [E3c] |
-| K1.9.95 | Viga chata entre panos de alturas diferentes assume a altura da laje mais espessa; viga alta: parte saliente medida a partir da maior altura. | Falta | E | lajes nervuradas (vigas entre panos) [E3c] |
-| K1.9.96 | Engaste de borda do pano 0–1. | Falta | E | lajes nervuradas (engaste) [E3c] |
+| K1.9.90 | Zona aliviada e zona maciça; fôrma recuperável ou perdida (biblioteca editável). | Parcial | E | zona aliviada (células com cubeta inteira) e zona maciça (margem, faixa `nervuradaMacicoViga` e `Laje.zonasMacicas`); forma recuperável ou perdida na biblioteca (tabela `lajes.formas`, `forma.tipo`); falta o editor (cartão) [E3c] |
+| K1.9.91 | Dados: nome, altura total, capa, nº de peças do bloco, intereixo ou vão entre nervuras (iguais ou distintos em X e Y), largura da nervura (X e Y), peso próprio indicativo e volume de concreto m³/m² indicativo. | Parcial | E | `FormaLaje`: nome, altura da cubeta (total = cubeta + capa), nº de peças do bloco, intereixo e largura da nervura em X e Y, peso e volume indicativos; falta o editor (cartão) [E3c] |
+| K1.9.92 | Estimativa automática de peso e volume (nervuras + capa + material de enchimento padrão concreto); em fôrma recuperável só o concreto. | Feito | — | peso = 25 × (capa + altura da cubeta × (1 − fração da cubeta)) + enchimento da perdida, em kN/m² e m³/m²; recuperável só o concreto; indicativos informados substituem (`geometriaBidirecional`) [E3c] |
+| K1.9.93 | Ponto de passagem da malha por pano e direção das nervuras livres; desníveis entre panos. | Parcial | E | ponto de passagem das nervuras por pano (`Laje.pontoNervuras`, `laje.nervurada { passagem }`), direção livre e desníveis entre panos (opção `lajeDesnivelFator` com a altura da nervurada); falta marcar o ponto na planta (cartão) [E3c] |
+| K1.9.94 | Armadura base em malha (superior/inferior, duas direções) considerada no dimensionamento; mesmo alerta de detalhamento de 1.9.87. | Parcial | E | base das nervuras por direção considerada no dimensionamento só quando marcada (`laje.armaduraBase { nervuras }`); a malha da mesa e das zonas maciças fica descrita e desenhada, sem entrar no dimensionamento da mesa; alerta de detalhamento como o da 1.9.87 [E3c] |
+| K1.9.95 | Viga chata entre panos de alturas diferentes assume a altura da laje mais espessa; viga alta: parte saliente medida a partir da maior altura. | Feito | — | viga chata assume a altura da laje mais espessa que a toca, nervurada ou não (`alturaVigaChata`); viga alta: parte saliente = h da viga − maior altura (`parteSalienteViga`, `lajesQueTocam`, memorial das nervuradas) [E3c] |
+| K1.9.96 | Engaste de borda do pano 0–1. | Feito | — | `Laje.engasteBordas` (0 a 1 por aresta) vale para as nervuradas (`engasteBorda`, `laje.nervurada { engasteBordas }`) [E3c] |
 | K1.9.97 | Ábacos (zonas maciças) gerados automaticamente nos pilares ou em qualquer zona, com a mesma espessura do pano aliviado; altura pode descer abaixo da zona aliviada. | Falta | E | ábacos automáticos [E3d] |
 | K1.9.98 | Ábaco automático: dimensão em cada direção = 1/6 da distância ao pilar mais próximo dentro de cone de visão de 40°; sem pilar visível (borda), usa o valor do sentido oposto; limites 2,5 a 5 vezes a altura (texto); parâmetros de geração configuráveis. | Falta | E | ábacos (dimensões) [E3d] |
 | K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Falta | E | ábacos manuais [E3d] |
 | K1.9.100 | Ábacos sempre têm armadura base entre nervuras, descontada da armadura das nervuras; não é medida nem detalhada — alerta para legenda e detalhes; tabela informativa sempre impressa na planta. | Falta | E | ábacos (armadura base) [E3d] |
-| K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Falta | E | desenho dos caixotes [E3c] |
+| K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Parcial | E | cubetas desenhadas nas pranchas de formas e de armação (`arranjoDaLaje`); falta a camada opcional na planta (cartão) [E3c] |
 | K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Feito | — | comando `laje.armaduraPredefinida` (face, ponto, direção, comprimento, φ, espaçamento e nº de barras; criar, editar e remover): medida como lançada e descontada do reforço só na faixa n × s, inclusive sobre bordas contínuas (R7d) |
 | | **Aberturas** | | | |
 | K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | L | `laje.abertura` cria furo e aviso de região sem laje; a grelha ignora os furos [L5] — L5 núcleo: marca de pano a definir e abertura retangular com viga de borda; "apagar o pano = abertura (cruz tracejada)" não feito; a grelha ainda ignora os furos  |
@@ -784,18 +784,18 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.13.2.4-17 | Ancoragem na laje medida a partir da face do apoio; com vigas largas, conferir se a barra atravessa a viga e alongar a ancoragem se necessário. | Feito | — | ponta ancorada além da face: atravessa a viga até a face oposta menos o cobrimento e usa gancho/aviso quando a viga é estreita (R4) |
 | K1.13.2.4-18 | Opção: armadura média uniforme por direção em lajes retangulares apoiadas em vigas. | Feito | — | opção `lajeArmaduraMedia` (padrão desligada): lajes de quatro lados apoiados em vigas, sem furos nem borda livre, usam a média dos momentos positivos máximos das linhas da grelha (`momentosPositivosPorLinha`), nunca menos que a mínima (R7e) |
 | | **1.13.3 Lajes nervuradas (págs. 94–95)** | | | |
-| K1.13.3-1 | Critérios iguais aos das lajes maciças, salvo as diferenças abaixo. | Falta | E | lajes nervuradas [E3c] |
-| K1.13.3.1-1 | Armadura base pode distinguir zona maciça (ábaco) e zona aliviada. | Falta | E | lajes nervuradas (armadura base) [E3c] |
+| K1.13.3-1 | Critérios iguais aos das lajes maciças, salvo as diferenças abaixo. | Parcial | E | flexão em T e em retângulo, mínimos, cortante e fissuração do positivo pela NBR (`dimensionarNervuradas`); sem a verificação da tabela de armadura (R7a), da fissuração do negativo e do Wood-Armer [E3c] |
+| K1.13.3.1-1 | Armadura base pode distinguir zona maciça (ábaco) e zona aliviada. | Parcial | E | base da mesa e das zonas maciças (`baseNervurada.mesa`) distinta da base das nervuras (`baseNervurada.nervuras`); a zona maciça de ábaco é da E3d [E3c] |
 | K1.13.3.1-2 | Ábaco: padrão de 2 barras (da tabela) de borda a borda do ábaco, entre eixos de nervuras; sempre colaborante. | Falta | E | ábacos [E3d] |
 | K1.13.3.1-3 | Limitação: a armadura base do ábaco não é desenhada nem quantificada; o projetista detalha à parte. | Falta | E | ábacos (detalhe) [E3d] |
-| K1.13.3.1-4 | Nervuras: armadura base não considerada por padrão; ativada por direção; tabelas próprias combinam base e reforço na nervura. | Falta | E | nervuras (armadura base) [E3c] |
-| K1.13.3.1-5 | Armadura base das nervuras detalhada (opção) → desenhada e medida; senão só descrição geral na listagem. | Falta | E | nervuras (detalhe) [E3c] |
-| K1.13.3.2-1 | Reforço longitudinal: mesmos critérios das maciças, concentrado nas nervuras; as envoltórias dos elementos adjacentes a cada nervura são agrupadas antes. | Falta | E | nervuras (reforço) [E3c] |
+| K1.13.3.1-4 | Nervuras: armadura base não considerada por padrão; ativada por direção; tabelas próprias combinam base e reforço na nervura. | Parcial | E | base das nervuras não considerada por padrão e ativada por direção (`considerar`); base e reforço combinados por nervura nos resultados, no memorial e na prancha; falta a interface (cartão) [E3c] |
+| K1.13.3.1-5 | Armadura base das nervuras detalhada (opção) → desenhada e medida; senão só descrição geral na listagem. | Feito | — | base das nervuras detalhada (`baseNervurada.detalhada` ou opção `lajeBaseDetalhada`): posições `base` e `baseSup` desenhadas e medidas; senão só a descrição geral na listagem da prancha (`dimensionarNervuradas`, `montarPranchasLajes`) [E3c] |
+| K1.13.3.2-1 | Reforço longitudinal: mesmos critérios das maciças, concentrado nas nervuras; as envoltórias dos elementos adjacentes a cada nervura são agrupadas antes. | Feito | — | reforço concentrado nas nervuras: esforços de cada nervura = soma das faixas adjacentes da grelha pela parte dentro da banda do intereixo, envoltória dos pavimentos (`esforcosDaNervura`) [E3c] |
 | | **1.13.4 Armadura transversal das nervuradas (pág. 95)** | | | |
 | K1.13.4-1 | Punção nos ábacos com a mesma análise da laje maciça. | Falta | E | punção nos ábacos [E3d] |
-| K1.13.4-2 | Nervuras da zona aliviada: cortante verificado a cada 0,75d; se necessário, barras verticais (diâmetro e espaçamento) desenhadas e visíveis em tela. | Falta | E | cortante nas nervuras [E3c] |
+| K1.13.4-2 | Nervuras da zona aliviada: cortante verificado a cada 0,75d; se necessário, barras verticais (diâmetro e espaçamento) desenhadas e visíveis em tela. | Parcial | E | cortante a cada fator × d (opção `nervuradaCortanteDist`, 0,75): VRd1 de 19.4.1 e estribos (φ, espaçamento ≤ 0,75 d, zonas) desenhados e listados na prancha de armação; falta mostrá-los na tela (cartão) [E3c] |
 | K1.13.4-3 | Armadura de punção distribuída localmente: revisar e uniformizar para facilitar a obra; recomenda biblioteca de detalhes. | Fora | — | recomendação do manual |
-| K1.13.4.1-1 | Uniformização igual à das maciças, concentrando a armadura nas nervuras indicadas. | Falta | E | uniformização nas nervuras [E3c] |
+| K1.13.4.1-1 | Uniformização igual à das maciças, concentrando a armadura nas nervuras indicadas. | Parcial | E | uniformização automática entre nervuras vizinhas da mesma direção (opção `nervuradaIgualacaoDif`, 20 %); falta indicar as nervuras a concentrar [E3c] |
 
 ## 1.14 Flechas de vigas (págs. 95–97)
 
@@ -856,7 +856,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.15.4-22 | Flecha ativa (após as paredes): exclui a instantânea do peso próprio e a diferida dele até 60 dias (ξ = 2 − 0,8 = 1,2); ξ médio 0,987 → λ = 0,93; fração instantânea sem peso próprio 4/10,5 = 0,38; δativa = (0,38·1,5 + 0,93·1,5)·δi = 1,965·δi. | Parcial | N | N2f: ativa sem a instantânea do peso próprio e com a diferida após as paredes; exemplo dá 1,98·δi (registrado 1,965 com λ arredondado) em `flechasEtapas.test.ts`. Parcial: o exemplo do manual registra 1,965·δi (λ 0,93) e a função dá 1,981·δi (λ 0,940): diferença de 0,8 % não reproduzida, tolerância mantida em 0,02 |
 | K1.15.4-23 | Conclusão maciça: ativa ≈ 2,0× e total ≈ 3,0× a flecha elástica com seção bruta. | Fora | — | conclusão do exemplo (ver divergências) |
 | K1.15.4-24 | Caso 2, nervurada com caixões perdidos: Ig da zona aliviada 61 567 cm⁴; do ábaco (maciça 30 cm × 82 cm) 184 500 cm⁴; média ao longo do vão 123 033,5 cm⁴. | Fora | — | exemplo numérico |
-| K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Falta | E | nervuradas: inércia única na malha [E3c] |
+| K1.15.4-25 | Hipótese de modelagem: a malha de todo o pano nervurado (zona aliviada e ábaco) usa uma inércia única, igual à metade da zona maciça (no exemplo 92 250 cm⁴), para os deslocamentos elásticos. | Feito | — | inércia única por pano: padrão do sistema = 0,5 × a da faixa maciça, igual nas zonas aliviada e maciça (`nervuradaInercia`); perfil NBR usa a seção T real [E3c] |
 | K1.15.4-26 | Mcr: ábaco (0,82 m) 40,96 kN·m no negativo; zona aliviada 10,27 kN·m no positivo. | Fora | — | exemplo numérico |
 | K1.15.4-27 | Cargas: peso próprio 4,6 kN/m² (só zona aliviada, o ábaco pouco influi), paredes 1,0, revestimento 1,0, uso 2,0 → 8,6 kN/m². | Fora | — | exemplo numérico |
 | K1.15.4-28 | Momentos na nervura: esq. 45,2 ≥ 40,96 (fissura pouco), dir. 15,1 < 40,96, vão 20,1 > 10,27 (fissura no positivo). | Fora | — | exemplo numérico |
@@ -995,3 +995,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3b, núcleo (vigotas completas).** K1.3.18, K1.4.2, K1.4.87, K1.5.5, K1.12.5-1, K1.12.5-4 e K1.12.5-11 passam a Feito (vigota a vigota com igualação ponto a ponto, redistribuição limitada pela NBR em 25 % — o 30 % do programa de referência não é adotado —, cortante das moldadas, carga linear por vigota, tipo por momento e cortantes por metro nas pranchas); K1.4.40 e K1.12.5-9 seguem Parcial até a interface dos momentos mínimos por pano (cartões `docs/cartoes/E3b/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (7 itens).
+- **23/10/2026 — E3c, núcleo (nervuradas bidirecionais).** K1.3.25, K1.3.26, K1.3.27, K1.5.4, K1.9.92, K1.9.95, K1.9.96, K1.13.3.1-5, K1.13.3.2-1 e K1.15.4-25 (manual de cálculo) passam a Feito; K1.9.90, K1.9.91, K1.9.93, K1.9.94, K1.9.101, K1.13.3-1, K1.13.3.1-1, K1.13.3.1-4, K1.13.4-2 e K1.13.4.1-1 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; editor de formas, grupo de nervuradas, camada na planta e memorial nos cartões `docs/cartoes/E3c/`; K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 seguem Parcial depois dos cartões: base da mesa só descrita, sem tabela R7a nem fissuração do negativo, ábaco na E3d e uniformização automática).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (10 itens a Feito; 16 de Falta a Parcial).

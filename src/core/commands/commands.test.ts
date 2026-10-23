@@ -32,6 +32,9 @@ function base() {
     ['laje.criar', { grupo: 'g_3', contorno: [[10, 3], [12, 3], [12, 5], [10, 5]], tipo: { tipo: 'trelicada', modelo: 'H12', capa: 0.04 } }],
     // E3b: laje de vigotas por ficha com vigota múltipla (ex:armada admite até a tripla)
     ['laje.criar', { grupo: 'g_3', contorno: [[14, 0], [18, 0], [18, 5], [14, 5]], tipo: { tipo: 'vigotas', ficha: 'ex:armada', serie: 'A12' } }],
+    // E3c: duas lajes nervuradas bidirecionais (laje.nervurada, laje.copiarPanos e a base nas nervuras)
+    ['laje.criar', { grupo: 'g_3', contorno: [[20, 0], [26, 0], [26, 6], [20, 6]], tipo: { tipo: 'nervurada', forma: 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 } }],
+    ['laje.criar', { grupo: 'g_3', contorno: [[20, 8], [26, 8], [26, 14], [20, 14]], tipo: { tipo: 'nervurada', forma: 'cat:rec-80-30', hTotal: 0.35, capa: 0.05 } }],
     ['carga.ponto', { grupo: 'g_3', ponto: [1, 1], valor: 10 }],
     ['caso.criar', { nome: 'Empuxo', natureza: 'G' }],
     ['caso.criar', { nome: 'Água', natureza: 'Q' }],
@@ -231,6 +234,9 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'laje.atribuir': (b) => ({ ids: b.lajes.map((l) => l.id), tipo: { tipo: 'trelicada', modelo: 'H16', capa: 0.04 } }),
   'tipoLaje.ficha': () => ({ acao: 'copiar', de: 'ex:armada', nome: 'Cópia do exemplo' }),
   'tipoLaje.enchimento': () => ({ acao: 'criar', id: 'gen', enchimento: { nome: 'Genérico', material: 'generico', pesoM2: 0.5 } }),
+  'forma.tipo': () => ({ acao: 'criar', id: 'fm1', forma: { nome: 'Cubeta de teste', tipo: 'recuperavel', altura: 0.25, intereixo: [0.6, 0.6], bw: [0.1, 0.1] } }),
+  'laje.nervurada': (b) => ({ ids: [b.lajes[3].id], forma: 'cat:rec-60-20', hTotal: 0.25, capa: 0.05, direcao: 30, passagem: [22, 3], zonasMacicas: [[[20.5, 0.5], [21.5, 0.5], [21.5, 1.5], [20.5, 1.5]]], engasteBordas: [0.5, 1, 1, 1] }),
+  'laje.copiarPanos': (b) => ({ de: b.lajes[3].id, para: [b.lajes[4].id], incluirBase: true }),
   'tipoLaje.importar': () => ({ fichas: [{ id: 'imp', nome: 'Importada', origem: 'usuario', familia: 'trelicada', series: [{ id: 'S', altura: 0.16, intereixo: 0.42, capa: 0.04, hEnch: 0.12, bwMin: 0.09, enchimento: 'eps', trelica: 'TR 12645' }] }] }),
   'vigota.editar': (b) => ({ id: b.lajes[2].id, de: 0, ate: 1, tipo: 'A1', inf: { n: 1, phi: 8, percentual: 60 }, sup: { n: 2, phi: 6.3 }, transversal: { phi: 5, s: 0.2 } }),
   'vigota.momentos': (b) => ({ id: b.lajes[2].id, indices: [2], pos: 3.5, neg: [-1, -2], v: [4, 5] }),

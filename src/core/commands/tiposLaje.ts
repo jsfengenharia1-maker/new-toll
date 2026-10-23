@@ -7,6 +7,7 @@ import {
   type Enchimento, type FichaVigota, type FonteLajes, type ParamsGeometria,
 } from '../building/tiposLaje';
 import { concretoDe } from '../building/materiais';
+import { validarForma, type FormaLaje } from '../building/nervuradas';
 import type { BuildingModel, TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { registrar } from './registry';
@@ -24,6 +25,7 @@ const fichasEmUso = (b: BuildingModel) => new Set(b.lajes.flatMap((l) => (l.tipo
 const enchimentosEmUso = (b: BuildingModel) => new Set([
   ...(b.tiposLaje?.fichas ?? []).flatMap((f) => f.series.map((s) => s.enchimento)),
   ...b.lajes.flatMap((l) => (l.tipo.tipo === 'moldada' ? [l.tipo.enchimento] : [])),
+  ...(b.tiposLaje?.formas ?? []).flatMap((f) => (f.enchimento ? [f.enchimento] : [])),
 ]);
 
 /** Erros do tipo de laje (existência da ficha, série e enchimento; coerência lógica da ficha). Usado por `laje.*`. */
@@ -48,12 +50,13 @@ function copiarEnchimento(d: Draft<BuildingModel>, id: string) {
   const e = enchimentoPorOuExemplo(b, id);
   if (e) { d.tiposLaje ??= {}; (d.tiposLaje.enchimentos ??= []).push(copia(e)); }
 }
-const limpar = (d: Draft<BuildingModel>) => {
+export const limpar = (d: Draft<BuildingModel>) => {
   const t = d.tiposLaje;
   if (!t) return;
   if (t.fichas && !t.fichas.length) delete t.fichas;
   if (t.enchimentos && !t.enchimentos.length) delete t.enchimentos;
-  if (!t.fichas && !t.enchimentos) delete d.tiposLaje;
+  if (t.formas && !t.formas.length) delete t.formas;
+  if (!t.fichas && !t.enchimentos && !t.formas) delete d.tiposLaje;
 };
 const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
 
@@ -209,8 +212,8 @@ registrar<ParamsEnchimento>({
 
 // ---------------------------------------------------------------- tipoLaje.importar
 
-interface ParamsImportar { texto?: string; fichas?: FichaVigota[]; enchimentos?: Enchimento[]; substituir?: boolean }
-const lerImport = (p: ParamsImportar) => (p.texto !== undefined ? importarTiposLaje(p.texto) : ({ ok: true, fichas: p.fichas ?? [], enchimentos: p.enchimentos ?? [] } as const));
+interface ParamsImportar { texto?: string; fichas?: FichaVigota[]; enchimentos?: Enchimento[]; formas?: FormaLaje[]; substituir?: boolean }
+const lerImport = (p: ParamsImportar) => (p.texto !== undefined ? importarTiposLaje(p.texto) : ({ ok: true, fichas: p.fichas ?? [], enchimentos: p.enchimentos ?? [], formas: p.formas ?? [] } as const));
 
 registrar<ParamsImportar>({
   nome: 'tipoLaje.importar',
@@ -219,30 +222,34 @@ registrar<ParamsImportar>({
   calculo: (p) => !!(p as unknown as ParamsImportar).substituir,
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
-    texto: { type: 'string' }, fichas: { type: 'array', items: fichaSchema }, enchimentos: { type: 'array', items: { type: 'object' } }, substituir: { type: 'boolean' },
+    texto: { type: 'string' }, fichas: { type: 'array', items: fichaSchema }, enchimentos: { type: 'array', items: { type: 'object' } }, formas: { type: 'array', items: { type: 'object' } }, substituir: { type: 'boolean' },
   } },
   validar(b, p) {
-    if (p.texto === undefined && !p.fichas?.length && !p.enchimentos?.length) return err('PARAMETRO_INVALIDO', 'Informe `texto` ou `fichas`/`enchimentos`.');
+    if (p.texto === undefined && !p.fichas?.length && !p.enchimentos?.length && !p.formas?.length) return err('PARAMETRO_INVALIDO', 'Informe `texto` ou `fichas`/`enchimentos`/`formas`.');
     const r = lerImport(p);
     if (!r.ok) return err('TIPOLAJE_IMPORTACAO', `Arquivo recusado: ${r.erros.join('; ')}.`);
     for (const e of r.enchimentos) { const c = checarEnchimento(e); if (c.length) return c; }
+    for (const fm of r.formas) { const c = validarForma(fm, b); if (c.length) return err('FORMA_INCOERENTE', `Forma "${fm.nome}" incoerente: ${c.join(' ')}`); }
     const repetidos = [
       ...r.fichas.filter((f) => !p.substituir && daObra(b, f.id)).map((f) => `ficha ${f.id}`),
       ...r.enchimentos.filter((e) => !p.substituir && b.tiposLaje?.enchimentos?.some((x) => x.id === e.id)).map((e) => `enchimento ${e.id}`),
       ...r.enchimentos.filter((e) => enchimentosCatalogo(b).some((x) => x.id === e.id)).map((e) => `enchimento ${e.id} (id reservado do catálogo)`),
       ...r.fichas.filter((f) => f.id.startsWith('cat:') || f.id.startsWith('ex:')).map((f) => `ficha ${f.id} (id reservado)`),
+      ...r.formas.filter((f) => !p.substituir && b.tiposLaje?.formas?.some((x) => x.id === f.id)).map((f) => `forma ${f.id}`),
+      ...r.formas.filter((f) => f.id.startsWith('cat:')).map((f) => `forma ${f.id} (id reservado do catálogo)`),
     ];
     if (repetidos.length) return err('TIPOLAJE_EXISTENTE', `Já existem na obra: ${repetidos.join(', ')}. Use \`substituir\` para trocar.`);
     return [];
   },
   aplicar(d, p) {
-    const r = lerImport(p) as { ok: true; fichas: FichaVigota[]; enchimentos: Enchimento[] };
+    const r = lerImport(p) as { ok: true; fichas: FichaVigota[]; enchimentos: Enchimento[]; formas: FormaLaje[] };
     d.tiposLaje ??= {};
-    const fs = (d.tiposLaje.fichas ??= []), es = (d.tiposLaje.enchimentos ??= []);
+    const fs = (d.tiposLaje.fichas ??= []), es = (d.tiposLaje.enchimentos ??= []), fms = (d.tiposLaje.formas ??= []);
+    for (const f of r.formas) { const i = fms.findIndex((x) => x.id === f.id); if (i >= 0) fms[i] = copia(f); else fms.push(copia(f)); }
     for (const e of r.enchimentos) { const i = es.findIndex((x) => x.id === e.id); if (i >= 0) es[i] = copia(e); else es.push(copia(e)); }
     for (const f of r.fichas) { const i = fs.findIndex((x) => x.id === f.id); if (i >= 0) fs[i] = copia(f); else fs.push(copia(f)); }
     limpar(d);
-    return `${r.fichas.length} ficha(s) e ${r.enchimentos.length} enchimento(s) importados.`;
+    return `${r.fichas.length} ficha(s), ${r.enchimentos.length} enchimento(s) e ${r.formas.length} forma(s) importados.`;
   },
 });
 
