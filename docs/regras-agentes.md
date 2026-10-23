@@ -8,7 +8,7 @@ Decisão do usuário, 23/10/2026. Todo briefing cita este arquivo; o agente o l�
 - Relatório UMA vez, curto: branch, commits, itens, premissas "a confirmar", pendências, números.
 
 ## Leitura de arquivos (o contexto é o maior custo)
-- Proibido ler inteiros: `docs/checklist-manual-cypecad.md`, `docs/checklist-manual-calculo-cypecad.md`, `docs/mapa-codigo.md`, `docs/historico-fatias.md`, `docs/plano-execucao.md`, `e2e/flows.mjs` (ou `e2e/flows/*`, quando dividido). Use `grep -n` e `sed -n 'a,bp'` em trechos.
+- Proibido ler inteiros: `docs/checklist-manual-cypecad.md`, `docs/checklist-manual-calculo-cypecad.md`, `docs/mapa-codigo.md`, `docs/historico-fatias.md`, `docs/plano-execucao.md`, `e2e/flows/*`. Use `grep -n` e `sed -n 'a,bp'` em trechos.
 - Checklists: `npm run checklist -- get <id>` / `set` / `lote` (quando disponível) em vez de editar à mão.
 - Código: `grep` no `docs/mapa-codigo.md` para achar o arquivo; leia só as funções que vai tocar.
 
@@ -30,6 +30,7 @@ Decisão do usuário, 23/10/2026. Todo briefing cita este arquivo; o agente o l�
 ## Convenções de projeto
 - CLAUDE.md, design system (`src/app/ui`, tokens de `src/app/design/global.css`).
 - e2e com `{ exact: true }`, exceto NumField/Select (regex ancorada no início).
+- Fluxos e2e novos vão no arquivo da frente em `e2e/flows/` (exportar o fluxo) e ganham uma linha em `e2e/flows/index.mjs`; nunca num arquivo único.
 - Cada cartão compila sozinho, na ordem. Sem botões novos acima do canvas/barra da planta.
 - Premissas: CYPECAD onde define, NBR 6118 onde não; material normativo não verificável em `docs/pendencias-usuario.md`.
 

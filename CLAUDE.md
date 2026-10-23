@@ -38,7 +38,7 @@ npx tsc -b       # app + linha de comando (tsconfig.app.json e tsconfig.cli.json
 npm run cli      # dist-cli/statikos.mjs: linha de comando + servidor MCP (Node ≥ 20)
 npm run agente   # exemplo de agente pelo MCP (docs/exemplos/agente-mcp.mjs), depois do npm run cli
 ```
-Testes de interface em `e2e/` (`run.mjs` é um runner próprio sobre a lib `playwright`, sem @playwright/test; `flows.mjs` tem os fluxos). Ficam fora do `npm test` e do build do Netlify. Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, na falta dele, /opt/pw-browsers/chromium-1194 (nuvem). `npm run e2e -- --no-build <filtro>` roda só parte dos fluxos.
+Testes de interface em `e2e/` (`run.mjs` é um runner próprio sobre a lib `playwright`, sem @playwright/test; `flows/` tem os fluxos: um arquivo por frente, `helpers.mjs` e `index.mjs`, cuja lista define a ordem de execução). Ficam fora do `npm test` e do build do Netlify. Navegador: `PW_CHROMIUM=<caminho>`; sem a variável, o Chromium padrão do Playwright e, na falta dele, /opt/pw-browsers/chromium-1194 (nuvem). `npm run e2e -- --no-build <filtro>` roda só parte dos fluxos.
 
 ## Arquitetura
 Veja a tabela no `README.md`. Resumo:

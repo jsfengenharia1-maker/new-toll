@@ -9,7 +9,7 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
    - `git merge --no-edit <branch>`;
    - docs em conflito: `python3 scripts/orquestracao/resolver-docs.py <arquivos .md>` (mantém a linha de checklist de maior situação; cuidado: quando um branch REBAIXA itens, reaplicar as linhas dele);
    - `docs/mapa-codigo.md`: `git checkout --theirs` e depois `npm run mapa`;
-   - `e2e/flows.mjs`: `python3 scripts/orquestracao/flows-add.py <branch> "<Prefixo:>"` (reconstrói = HEAD + fluxos novos do branch) e `node --check e2e/flows.mjs`;
+   - `e2e/flows/`: mergear o arquivo da frente (sem conflito, é arquivo novo) e acrescentar a linha do fluxo em `e2e/flows/index.mjs` (import do arquivo, se novo, e entrada na lista, na ordem desejada); conferir com `node --check e2e/flows/index.mjs` e o e2e;
    - código em conflito: unir os dois lados à mão (comandos, opções, premissas, imports, registros);
    - `npm run checklists`, `npx tsc -b`, `npx vitest run` (completo), `npm run e2e` (completo, paralelo) — tudo verde antes de `git push origin HEAD:main HEAD:claude/quirky-curie-uqb7br`;
    - remover worktrees e branches dos agentes juntados.
