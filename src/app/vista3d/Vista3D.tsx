@@ -8,6 +8,7 @@ import { abrirJanela, irParaElemento } from '../edificio/Revisao';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { construirCena, resumoCena, TIPOS_3D, PAV_FUNDACAO, type Cena3D, type Objeto3D, type TipoElemento3D } from '../../core/vista3d/cena';
 import { isometricoSvg } from '../../core/vista3d/isometrico';
+import { armaduras3D, camadasDeArmadura, type AgruparPor } from '../../core/vista3d/armaduras3d';
 import {
   ALTURA_OLHO, alternarProjecao, definirAngulos, enquadrar, iniciarCaminhar, type Camera3D, type EstadoCaminhar,
 } from '../../core/vista3d/camera';
@@ -64,6 +65,13 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
     [b, rev, opcoes, dim?.fundacoes, dim?.vigasFundacao],
   );
   cenaRef.current = cena;
+  // armaduras (V2): barras dos pavimentos da cena (ou só dos elementos selecionados), fundidas em uma camada por cor
+  const pavsCena = useMemo(() => Object.keys(cena.contagens.porPavimento).filter((p) => p !== PAV_FUNDACAO), [cena]);
+  const arm = useMemo(
+    () => (st.armaduras && dim ? armaduras3D(b, dim, { pavimentos: pavsCena, ...(st.armSoSelecao && selecaoPlanta.size ? { elementos: [...selecaoPlanta] } : {}) }) : null),
+    [b, rev, dim, st.armaduras, st.armSoSelecao, selecaoPlanta, pavsCena],
+  );
+  const camadasArm = useMemo(() => (arm ? camadasDeArmadura(arm, st.armPor) : []), [arm, st.armPor]);
   const chaveEscopo = `${st.escopo}|${st.grupo}|${st.de}|${st.ate}|${st.pavimento}`;
   const ultimoEscopo = useRef('');
 
@@ -170,11 +178,20 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
   }, [cena, tema, status]);
 
   useEffect(() => {
-    rend.current?.atualizarMateriais({ opacidade: { laje: 1 - st.transpLajes / 100, parede: 1 - st.transpParedes / 100 }, textura: st.textura });
+    const fantasma = st.armaduras && st.armGhost && !!arm?.barras.length;
+    rend.current?.atualizarMateriais({ opacidade: fantasma ? { pilar: 0.15, viga: 0.15, laje: 0.1, parede: 0.1, escada: 0.15, fundacao: 0.15 } : { laje: 1 - st.transpLajes / 100, parede: 1 - st.transpParedes / 100 }, textura: st.textura });
     pedir();
-  }, [st.transpLajes, st.transpParedes, st.textura, cena, pedir]);
+  }, [st.transpLajes, st.transpParedes, st.textura, st.armaduras, st.armGhost, arm, cena, pedir]);
 
   useEffect(() => { rend.current?.selecionar(selecaoPlanta); pedir(); }, [selecaoPlanta, pedir]);
+
+  useEffect(() => {
+    const r = rend.current, el = cont.current;
+    if (status !== 'pronto' || !r || !el) return;
+    const cores = Array.from({ length: 8 }, (_, i) => cssVar(`v3d-arm-${i + 1}`, el));
+    r.definirArmaduras(camadasArm, cores, st.armTubos ? 'tubos' : 'linhas', 0.0025 * st.armEscala);
+    pedir();
+  }, [camadasArm, st.armTubos, st.armEscala, tema, status, pedir]);
 
   // projeção: o enquadramento (alvo, distância, ângulos) é o mesmo nas duas
   useEffect(() => {
@@ -280,6 +297,21 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
         {!fallback && st.caminhar && <Slider label="Velocidade" value={st.velocidade} min={0.5} max={8} step={0.5} unit=" m/s" onChange={(v) => st.set({ velocidade: v })} />}
         {!fallback && <Check label="Textura" checked={st.textura} onChange={(v) => st.set({ textura: v })} />}
         <Seg small value={st.detalhe} options={[{ v: 'baixo', label: 'Detalhe baixo' }, { v: 'alto', label: 'Detalhe alto', title: 'Vigotas das lajes treliçadas' }]} onChange={(v) => st.set({ detalhe: v })} />
+        <Check label="Armaduras" checked={st.armaduras} onChange={(v) => st.set({ armaduras: v })} />
+        {st.armaduras && (
+          <>
+            <Dropdown aria-label="Colorir armaduras por" value={st.armPor} onChange={(e) => st.set({ armPor: e.target.value as AgruparPor })}>
+              <option value="bitola">Cor por bitola</option>
+              <option value="tipo">Cor por tipo de barra</option>
+              <option value="elemento">Cor por elemento</option>
+              <option value="posicao">Cor por posição</option>
+            </Dropdown>
+            <Check label="Concreto translúcido" checked={st.armGhost} onChange={(v) => st.set({ armGhost: v })} />
+            <Check label="Só elementos selecionados" checked={st.armSoSelecao} onChange={(v) => st.set({ armSoSelecao: v })} />
+            {!fallback && <Check label="Barras como tubos" checked={st.armTubos} onChange={(v) => st.set({ armTubos: v })} />}
+            {!fallback && st.armTubos && <Slider label="Espessura das barras" value={st.armEscala} min={1} max={20} unit="×" onChange={(v) => st.set({ armEscala: v })} />}
+          </>
+        )}
         <Button onClick={() => { ajustarCamera(true); pedir(); setAngulos((a) => ({ ...a })); }}>Enquadrar</Button>
         <Button onClick={() => { void capturar(); }}>{fallback ? 'Baixar SVG' : 'Capturar PNG'}</Button>
       </div>
@@ -293,6 +325,7 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
         data-projecao={fallback ? 'svg' : st.projecao}
         data-status={status}
         data-caminhar={st.caminhar ? '1' : '0'}
+        data-armaduras={arm ? JSON.stringify({ barras: arm.barras.length, segmentos: arm.segmentos, truncado: arm.truncado, camadas: camadasArm.length }) : '0'}
       >
         {fallback && <div className="v3d-iso-box" onClick={(e) => aoClicarSvg(e, false)} onDoubleClick={(e) => aoClicarSvg(e, true)} dangerouslySetInnerHTML={{ __html: svg }} />}
         {fallback && (
@@ -315,6 +348,9 @@ export function Vista3D({ onPlanta }: { onPlanta: () => void }) {
           </span>
         )}
         {aviso && <span>{aviso}</span>}
+        {st.armaduras && !dim && <span className="muted">Calcule o dimensionamento para ver as armaduras.</span>}
+        {st.armaduras && fallback && <span className="muted">As armaduras só aparecem com WebGL (aqui, o isométrico estático não as desenha).</span>}
+        {arm && <span>Armaduras: <b className="num">{arm.barras.length}</b> barras, <span className="num">{arm.segmentos}</span> segmentos em {camadasArm.length} camada(s){arm.avisos.length ? ` — ${arm.avisos.join(' ')}` : ''}</span>}
         {!dim?.fundacoes?.length && b.fundacao?.elementos.length ? <span className="muted">Calcule as fundações para vê-las na vista 3D.</span> : null}
         <span className="muted">Arraste: girar · Shift ou botão direito: deslocar · roda: aproximar · clique: selecionar · duplo clique: abrir a janela · Home: enquadrar</span>
       </div>

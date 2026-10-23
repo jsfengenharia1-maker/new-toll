@@ -33,7 +33,7 @@ import { Input } from '../ui';
 type P2 = [number, number];
 const RAIO_PX = 12;
 /** Ferramentas de polilinha: Enter, duplo clique e botão direito terminam. */
-const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida', 'parede'];
+const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida', 'parede', 'corte'];
 const dprAtual = () => Math.min(2, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const msg = (m: string) => useStore.getState().set({ message: m });
@@ -130,7 +130,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
 
@@ -155,6 +155,8 @@ const PASSOS: Record<Ferramenta, string[]> = {
   insFund: ['Clique no elemento de fundação (sapata ou bloco) cujo ponto de inserção quer mover.', 'Clique no novo centro do elemento (posição livre; o pilar fica excêntrico).'],
   limite: ['Primeiro vértice do limite (divisa, poço, reservatório); “Limite fechado” na barra fecha a polilinha.', 'Próximo vértice; Enter ou botão direito termina; Esc cancela.'],
   limiteMascara: ['Clique sobre uma linha da máscara DXF: a polilinha ligada a ela vira o limite da fundação.'],
+  corte: ['Clique os vértices do traçado do corte (capturas valem; Enter, duplo clique ou botão direito termina; Esc cancela). O lado visto e a profundidade ficam no grupo Cortes e seções.'],
+  secao: ['Primeiro ponto da linha de seção do pavimento.', 'Segundo ponto: a seção abre em uma janela.'],
   zonaLaje: ['Primeiro ponto da zona de uniformização das armaduras das lajes (linha ou canto do retângulo; forma, face e direção na barra).', 'Segundo ponto (outro canto, ou o fim da linha).'],
   linhaDobra: ['Primeiro ponto da linha de dobra das lajes (negativo máximo e emenda preferencial da armadura inferior).', 'Segundo ponto da linha.'],
   puncao: ['Clique num pilar que apoia a laje sem viga: adiciona (ou apaga, conforme o modo da barra) o grupo de armadura de punção informado. Calcule o dimensionamento antes; Esc volta a Selecionar.'],
@@ -408,6 +410,33 @@ export function Planta() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, cvM.current!.width, cvM.current!.height);
     ctx.drawImage(s.cache, 0, 0);
+  };
+
+  /** Marcas dos cortes (traço e ponto, seta para o lado visto e nome nas pontas) e das linhas de seção do pavimento (V2). */
+  const marcasDeCorte = (ctx: CanvasRenderingContext2D) => {
+    if (!pl.mostrarCortes) return;
+    ctx.save();
+    ctx.font = '12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = cores.janela; ctx.fillStyle = cores.janela; ctx.lineWidth = 2;
+    for (const c of b.cortes ?? []) {
+      const pts = c.pontos.map((q) => paraTela(q[0], q[1]));
+      ctx.setLineDash([16, 5, 3, 5]); ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke(); ctx.setLineDash([]);
+      for (const ini of [true, false]) {
+        const a = ini ? pts[0] : pts[pts.length - 1], z = ini ? pts[1] : pts[pts.length - 2], L = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1;
+        const ux = ((ini ? 1 : -1) * (z[0] - a[0])) / L, uy = ((ini ? 1 : -1) * (z[1] - a[1])) / L, lado = c.sentido === 'esq' ? 1 : -1;
+        const nx = lado * uy, ny = -lado * ux, fx = a[0] + nx * 26, fy = a[1] + ny * 26;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(fx, fy); ctx.moveTo(fx, fy); ctx.lineTo(fx - nx * 8 + ny * 5, fy - ny * 8 - nx * 5); ctx.moveTo(fx, fy); ctx.lineTo(fx - nx * 8 - ny * 5, fy - ny * 8 + nx * 5); ctx.stroke();
+        ctx.fillText(c.nome, a[0] - ux * 18, a[1] - uy * 18);
+      }
+    }
+    for (const sc of b.secoes ?? []) {
+      if (sc.pavimento && sc.pavimento !== pav?.id) continue;
+      const a = paraTela(sc.a[0], sc.a[1]), z = paraTela(sc.b[0], sc.b[1]);
+      ctx.setLineDash([]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(z[0], z[1]); ctx.stroke();
+      for (const q of [a, z]) { ctx.beginPath(); ctx.arc(q[0], q[1], 4, 0, 2 * Math.PI); ctx.fill(); }
+      ctx.fillText(sc.nome, (a[0] + z[0]) / 2, (a[1] + z[1]) / 2 - 10);
+    }
+    ctx.restore();
   };
 
   const desenharModelo = () => {
@@ -795,6 +824,7 @@ export function Planta() {
         ctx.fillText(rot, Math.min(...xs) + 4, Math.max(...ys) - 4);
       }
     }
+    if (!nivelFund) marcasDeCorte(ctx);
   };
 
   const glifo = (ctx: CanvasRenderingContext2D, c: Captura) => {
@@ -871,6 +901,12 @@ export function Planta() {
         ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
         ctx.fillText(`${esc.length} pilar${esc.length === 1 ? '' : 'es'} escolhido${esc.length === 1 ? '' : 's'}${esc.length >= 2 ? ' — Enter cria' : ' — escolha ao menos mais um'}`, cen[0][0] + 10, cen[0][1] - 14);
       }
+    }
+    // corte e linha de seção em desenho: vértices dados e o trecho até o cursor
+    if ((pl.ferramenta === 'corte' || pl.ferramenta === 'secao') && pontos.length && !s.pan) {
+      const tela = [...pontos, s.ponto].map((q) => paraTela(q[0], q[1]));
+      ctx.strokeStyle = cores.janela; ctx.lineWidth = 2; ctx.setLineDash([16, 5, 3, 5]);
+      ctx.beginPath(); tela.forEach((c, i) => (i ? ctx.lineTo(...c) : ctx.moveTo(...c))); ctx.stroke(); ctx.setLineDash([]);
     }
     // limite em desenho: vértices já dados e o trecho até o cursor (fecha ao primeiro vértice se for fechado)
     if (pl.ferramenta === 'limite' && nivelFund && pontos.length && !s.pan) {
@@ -1234,6 +1270,14 @@ export function Planta() {
       exec('viga.prolongar', { id, extremidade: ext, ate });
       return;
     }
+    if (f === 'secao') {
+      if (novos.length < 2) { setPontos(novos); return; }
+      setPontos([]);
+      const r = exec('secao.criar', { a: [+novos[0][0].toFixed(4), +novos[0][1].toFixed(4)], b: [+novos[1][0].toFixed(4), +novos[1][1].toFixed(4)], ...(!nivelFund && pav ? { pavimento: pav.id } : {}) });
+      const nova = useBuilding.getState().sessao.modelo.secoes?.at(-1);
+      if (r.ok && nova) usePlanta.getState().set({ janelaCorte: { tipo: 'secao', id: nova.id } });
+      return;
+    }
     if (f === 'copiar' && novos.length === 2) {
       const dx = +(novos[1][0] - novos[0][0]).toFixed(4), dy = +(novos[1][1] - novos[0][1]).toFixed(4), vezes = Math.max(1, Math.round(pl.copias));
       const sel = selecionados();
@@ -1281,6 +1325,15 @@ export function Planta() {
     if (f === 'limite') {
       const fechado = usePlanta.getState().limiteFechado;
       if (pts.length >= (fechado ? 3 : 2)) exec('limite.criar', { pontos: q, ...(fechado ? { fechado: true } : {}) }); else msg(fechado ? 'Limite fechado: ao menos 3 vértices.' : 'Limite: ao menos 2 vértices.');
+      setPontos([]); return;
+    }
+    if (f === 'corte') {
+      const cl = usePlanta.getState().corteLanc;
+      if (pts.length >= 2) {
+        const r = exec('corte.criar', { pontos: q, sentido: cl.sentido, ...(cl.profundidade > 0 ? { profundidade: cl.profundidade } : {}) });
+        const novo = useBuilding.getState().sessao.modelo.cortes?.at(-1);
+        if (r.ok && novo) usePlanta.getState().set({ janelaCorte: { tipo: 'corte', id: novo.id } });
+      } else msg('Corte: ao menos 2 pontos.');
       setPontos([]); return;
     }
     if (f === 'parede') { if (pts.length >= 2) exec('parede.criar', { ...(usePlanta.getState().pwParams ?? {}), pontos: q }); else msg('Parede: ao menos 2 pontos.'); setPontos([]); return; }
