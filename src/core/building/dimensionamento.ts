@@ -1260,6 +1260,8 @@ function barrasLaje(As: number, h: number, linha?: { bitolas: number[] }) {
 interface GeoWoodArmer {
   /** Por nó (na ordem de chegada das barras): contribuições [barra, ponta (0 ou 6), direção] e vizinhos das faixas nas duas direções. */
   nos: { contrib: [number, 0 | 6, 0 | 1][]; nx: number; ny: number; faixa: [number[], number[]] }[];
+  /** Nó da grelha de cada entrada de `nos` (V4: campos de isovalores). */
+  ids: number[];
 }
 const cacheWoodArmer = new WeakMap<object, Map<string, GeoWoodArmer | null>>();
 function geoWoodArmer(g: GrelhaPavimento, lajeId: string): GeoWoodArmer | null {
@@ -1283,7 +1285,7 @@ function geoWoodArmer(g: GrelhaPavimento, lajeId: string): GeoWoodArmer | null {
   const R = Math.hypot(s / 2, 0.5) + 1e-3, cel = new Map<string, number[]>();
   const chave = (x: number, y: number) => `${Math.floor(x / R)}:${Math.floor(y / R)}`;
   nos.forEach((q, iq) => { const k = chave(m.nos[q][0], m.nos[q][1]); const l = cel.get(k); if (l) l.push(iq); else cel.set(k, [iq]); });
-  const out: GeoWoodArmer = { nos: [] };
+  const out: GeoWoodArmer = { nos: [], ids: nos };
   nos.forEach((n) => {
     const p = m.nos[n], gx = Math.floor(p[0] / R), gy = Math.floor(p[1] / R), cand: number[] = [];
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const iq of cel.get(`${gx + dx}:${gy + dy}`) ?? []) cand.push(iq);
@@ -1308,8 +1310,18 @@ function geoWoodArmer(g: GrelhaPavimento, lajeId: string): GeoWoodArmer | null {
  * A geometria (contribuições e faixas) fica em cache por grelha e laje (pavimentos do grupo compartilham).
  */
 function momentosWoodArmer(g: GrelhaPavimento, lajeId: string, fat: number[]): { pos: [number, number]; neg: [number, number] } {
+  const pos: [number, number] = [0, 0], neg: [number, number] = [0, 0];
+  for (const x of woodArmerNos(g, lajeId, fat)) {
+    pos[0] = Math.max(pos[0], x.inf[0]); pos[1] = Math.max(pos[1], x.inf[1]);
+    neg[0] = Math.min(neg[0], x.sup[0]); neg[1] = Math.min(neg[1], x.sup[1]);
+  }
+  return { pos, neg };
+}
+
+/** Wood-Armer em cada nó da laje (V4): nó da grelha, momentos de cálculo inferiores (≥ 0) e superiores (≤ 0) por metro nas direções 0 e 1. */
+export function woodArmerNos(g: GrelhaPavimento, lajeId: string, fat: number[]): { no: number; inf: [number, number]; sup: [number, number] }[] {
   const res = g.res!, geo = geoWoodArmer(g, lajeId);
-  if (!geo) return { pos: [0, 0], neg: [0, 0] };
+  if (!geo) return [];
   // valores por nó: médias de mx, my e do volvente nas pontas das barras (na ordem das barras)
   const nn = geo.nos.length, MX = new Float64Array(nn), MY = new Float64Array(nn), TT = new Float64Array(nn);
   geo.nos.forEach((x, k) => {
@@ -1324,15 +1336,26 @@ function momentosWoodArmer(g: GrelhaPavimento, lajeId: string, fat: number[]): {
     }
     MX[k] = x.nx ? sx / x.nx : 0; MY[k] = x.ny ? sy / x.ny : 0; TT[k] = x.contrib.length ? st / x.contrib.length : 0;
   });
-  const pos: [number, number] = [0, 0], neg: [number, number] = [0, 0];
   const media = (ids: number[], v: Float64Array) => { if (!ids.length) return 0; let t = 0; for (const q of ids) t += v[q]; return t / ids.length; };
-  for (const x of geo.nos) {
+  return geo.nos.map((x, k) => {
     const fx = { M: media(x.faixa[0], MX), t: media(x.faixa[0], TT) }, fy = { M: media(x.faixa[1], MY), t: media(x.faixa[1], TT) };
     const w = woodArmer(fx.M, fy.M, Math.max(fx.t, fy.t));
-    pos[0] = Math.max(pos[0], w.inf[0]); pos[1] = Math.max(pos[1], w.inf[1]);
-    neg[0] = Math.min(neg[0], w.sup[0]); neg[1] = Math.min(neg[1], w.sup[1]);
-  }
-  return { pos, neg };
+    return { no: geo.ids[k], inf: w.inf, sup: w.sup };
+  });
+}
+
+/** Fatores ELU (γg, γh, γq) por caso da grelha, na ordem de `an.casos` (V4: os mesmos da armadura das lajes). */
+export function fatoresELULaje(b: BuildingModel, an: AnaliseEdificio): number[] {
+  const gm = gamas(b), obra = casosDaObra(b);
+  return an.casos.map((id) => { const n = obra.find((c) => c.id === id)?.natureza ?? 'G'; return n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0; });
+}
+
+/** Armadura necessária (cm²/m) de uma laje maciça para o momento de cálculo `M` (kN·m/m) na face `inf` ou `sup`, sem o aumento por fissuração (V4). */
+export function armaduraNecessariaLaje(b: BuildingModel, an: AnaliseEdificio, l: { tipo: { tipo: string; h?: number }; cobrimento?: number }, M: number, face: 'inf' | 'sup'): number {
+  const h = (l.tipo as { h: number }).h, c = concretoDe(b, 'laje'), cob = cobrimentoLaje(b, l.cobrimento);
+  const d = h - (face === 'inf' ? cob.inf : cob.sup) - 0.005, fyd = acoDe(b, face === 'inf' ? 'lajeInf' : 'lajeSup').fyd, op = an.opcoes;
+  const amin = (op.lajeTaxaMin > 0 ? op.lajeTaxaMin / 100 : 0.0015) * h;
+  return Math.max(amin, M ? beamFlexure({ kind: 'rect', bw: 1, h }, false, Math.abs(M), d, 0.02, c, fyd).As : 0) * 1e4;
 }
 
 /**

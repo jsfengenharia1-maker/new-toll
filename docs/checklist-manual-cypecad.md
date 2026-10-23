@@ -20,9 +20,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
-| 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
+| 12. Isovalores e deformada | 22 | 0 | 20 | 2 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **88** | **186** | **185** |
+| **Total** | **763** | **304** | **103** | **171** | **185** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 156 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 29 | 10 | 39 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 30 | 5 | 35 |
 
 ## 0. Apresentação do programa
 
@@ -890,23 +890,23 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **12.1 Mapas de isovalores** | | | |
-| C12.1 | Aba própria de isovalores: esforços e deslocamentos em cores com escala de valores, e opção de isolinhas. | Falta | V | [V4] |
-| C12.2 | Legenda de cores no rodapé com os valores e os extremos máximo e mínimo. | Falta | V | [V4] |
-| C12.3 | Isolinhas como curvas de nível: lugar dos pontos com o mesmo valor. | Falta | V | [V4] |
-| C12.4 | Mapas e isolinhas anexáveis a desenhos e imprimíveis. | Falta | V | [V4] |
-| C12.5 | Painel para ligar/desligar isolinhas e valores e escolher hipótese/combinação e grandeza. | Falta | V | [V4] |
-| C12.6 | Mapas por pavimento para lajes nervuradas, maciças e cogumelo: deslocamentos, esforços e áreas de aço. | Falta | V | [V4] |
-| C12.7 | Deslocamentos por hipótese ou combinação: vertical z (mm, negativo para baixo), giro em x e giro em y da malha. | Falta | V | [V4] |
-| C12.8 | Esforços por hipótese ou combinação: cortante total (√(Qx² + Qy²)), cortante X, cortante Y, momento X, momento Y e momento XY (torção). | Falta | V | [V4] |
-| C12.9 | Esforços de cálculo (envoltória mais desfavorável para armar): cortante total, X e Y; momentos X e Y para armadura inferior e para armadura superior. | Falta | V | [V4] |
-| C12.10 | Áreas de aço necessárias para o esforço de cálculo: superior ou inferior, em X ou Y. | Falta | V | [V4] |
-| C12.11 | Radier: tensão máxima no terreno, levantamento (mm) e tensão por hipótese/combinação. | Falta | V | [V4] |
-| C12.12 | Limites de valor máximo e/ou mínimo para restringir a faixa exibida (a ordem das cores se mantém); um limite só localiza o ponto extremo. | Falta | V | [V4] |
-| C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Falta | V | [V4] |
-| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V | [V4] |
-| C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Falta | V | [V4] |
+| C12.1 | Aba própria de isovalores: esforços e deslocamentos em cores com escala de valores, e opção de isolinhas. | Parcial | V | [V4]: aba "Isovalores" nos cartões V4 (núcleo `resultados/bandas.ts` e `isovalores.ts`: `campoDoPavimento`, bandas e isolinhas) |
+| C12.2 | Legenda de cores no rodapé com os valores e os extremos máximo e mínimo. | Parcial | V | [V4]: `legenda` (itens por banda, mínimo e máximo com posição); legenda e texto dos extremos na aba (cartões V4) |
+| C12.3 | Isolinhas como curvas de nível: lugar dos pontos com o mesmo valor. | Parcial | V | [V4]: `isolinhas` (marching triangles, níveis automáticos 1-2-5 ou definidos) e `encadear`; testadas contra campo linear e quadrático e a placa de Navier |
+| C12.4 | Mapas e isolinhas anexáveis a desenhos e imprimíveis. | Parcial | V | [V4]: `svgIsovalores`, `csvCampo` e `dxfIsolinhas` (camada ISOLINHAS); botões SVG, PNG, DXF e CSV nos cartões V4; falta a folha "Resultados" na prancha [SCR a confirmar] e a figura no memorial |
+| C12.5 | Painel para ligar/desligar isolinhas e valores e escolher hipótese/combinação e grandeza. | Parcial | V | [V4]: janela com seletores de grandeza, hipótese ou combinação e pavimento, e Check de isolinhas e valores (cartões V4) |
+| C12.6 | Mapas por pavimento para lajes nervuradas, maciças e cogumelo: deslocamentos, esforços e áreas de aço. | Parcial | V | [V4]: mapas por pavimento das lajes maciças (e dos demais tipos para momentos e cortantes, por barras sem Wood-Armer); nervuradas e cogumelo dependem da E3c e E3d; figura no memorial pendente |
+| C12.7 | Deslocamentos por hipótese ou combinação: vertical z (mm, negativo para baixo), giro em x e giro em y da malha. | Parcial | V | [V4]: grandezas `uz` (mm), `rx` e `ry` (mrad) por caso e combinação (`campoDoPavimento`) |
+| C12.8 | Esforços por hipótese ou combinação: cortante total (√(Qx² + Qy²)), cortante X, cortante Y, momento X, momento Y e momento XY (torção). | Parcial | V | [V4]: grandezas `Q`, `Qx`, `Qy`, `Mx`, `My` e `Mxy` (módulo da torção) por caso e combinação, médias nodais das pontas das barras da grelha |
+| C12.9 | Esforços de cálculo (envoltória mais desfavorável para armar): cortante total, X e Y; momentos X e Y para armadura inferior e para armadura superior. | Parcial | V | [V4]: `QCalc`, `QxCalc`, `QyCalc`, `MxInf`, `MyInf`, `MxSup`, `MySup` pela combinação ELU (`woodArmerNos`, mesma função do dimensionamento; máximos coincidem com `mPos` e `mNeg`) |
+| C12.10 | Áreas de aço necessárias para o esforço de cálculo: superior ou inferior, em X ou Y. | Parcial | V | [V4]: `AsInfX`, `AsInfY`, `AsSupX`, `AsSupY` (`armaduraNecessariaLaje`, mesma fórmula do dimensionamento, sem o aumento por fissuração); só lajes maciças |
+| C12.11 | Radier: tensão máxima no terreno, levantamento (mm) e tensão por hipótese/combinação. | Parcial | V | [V4]: `campoDoRadier` (tensão máxima e mínima da envoltória das raras, kPa, e recalque em mm; tensão mínima negativa = levantamento); por hipótese ou combinação não existe (o resultado do radier é a envoltória das raras) |
+| C12.12 | Limites de valor máximo e/ou mínimo para restringir a faixa exibida (a ordem das cores se mantém); um limite só localiza o ponto extremo. | Parcial | V | [V4]: `Limites` em `bandas`, `isolinhas` e `extremos` (faixa exibida = limites; a ordem das cores se mantém; com um limite só, o extremo é localizado dentro da faixa); campos de limite na aba (cartões V4) |
+| C12.13 | Usos: ver onde a armadura base não basta, onde cabe certo diâmetro, e onde a tensão no solo passa da admissível (dando-a como mínimo). | Parcial | V | [V4]: limite mínimo = armadura adotada, ou σadm do radier, restringe o mapa à região insuficiente; "onde cabe certo diâmetro" fica por conta do usuário (limite = área do diâmetro) |
+| C12.14 | Menu de esforços em vigas, vigotas, alveolares e lajes mistas por hipótese, combinação ou envoltória. | Falta | V | [V4]: depende dos diagramas de esforços das vigas por hipótese (V5); o mapa de lajes está na aba Isovalores |
+| C12.15 | Menu de lajes maciças/nervuradas igual ao da aba de resultados, com vista e edição da armadura. | Parcial | V | [V4]: clique no mapa abre a janela da laje (`elementoNoPonto` e `abrirJanela`, cartões V4); menu de lajes igual ao da aba de resultados não incluído |
 | C12.16 | Flecha entre dois pontos: secante ou tangente num ponto, com máxima relativa, máxima absoluta ou entre os dois pontos; por hipótese simples, combinação, combinação mais desfavorável e fator de amplificação (também acessível pelas envoltórias). | Parcial | V | [V3]: núcleo `flechaPontos.ts` (`flechaEntrePontos`: secante ou tangente; máxima relativa, absoluta ou entre os pontos; amplificação; `flechaMaisDesfavoravel`); aba Deslocamentos nos cartões V3; falta a ferramenta com cliques na planta e o acesso pelas envoltórias |
-| C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Falta | V | [V4] |
+| C12.17 | Várias janelas simultâneas de isovalores/envoltórias (ex.: permanente e variável lado a lado, ou pavimentos diferentes); configuração mantida até fechar o programa. | Parcial | V | [V4]: várias janelas independentes (`isovaloresStore`, cartões V4), configuração mantida até fechar o programa |
 | | **12.2 Deformada** | | | |
 | C12.18 | Aba de deformada 3D após o cálculo, por hipótese simples ou combinação. | Parcial | V | [V3]: núcleo `resultados/deformada.ts` e `deformadaCena.ts` (`hipotesesDisponiveis`, `deformarCena`); aba/controles na vista 3D nos cartões V3 |
 | C12.19 | Opções: escolher hipótese/combinação, fator de escala, estrutura completa ou simplificada, mostrar lajes nervuradas/cogumelo e animação. | Parcial | V | [V3]: hipótese/combinação, escala (automática 5 % da altura, editável), completa ou simplificada (`eixosDeformados`) e animação no núcleo; cartões V3; lajes nervuradas/cogumelo seguem a malha da grelha |
@@ -1049,3 +1049,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E2b, núcleo (vigas curvas e viga comum a dois grupos).** C6.12, C6.13, C6.32, C6.47, C6.48, C6.49, C6.50 e C6.58 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; interface nos cartões `docs/cartoes/E2b/`; C6.58: as linhas indicativas na planta dependem das lajes inclinadas da E3f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
+- **23/10/2026 — V4, núcleo (isovalores e isolinhas).** C12.1 a C12.13, C12.15 e C12.17 de Falta a Parcial (núcleo em `src/core/resultados/bandas.ts` e `isovalores.ts`; interface nos cartões `docs/cartoes/V4/`); C12.14 segue Falta (diagramas da V5). Validado contra campo linear, quadrático, placa de Navier e o dimensionamento das lajes.
