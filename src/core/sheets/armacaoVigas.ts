@@ -5,6 +5,7 @@
 // (barras iguais somadas); tabela de aço e resumo por bitola com perdas, concreto e forma da folha.
 import type { AnaliseEdificio } from '../building/analitico';
 import { dadosDosArcos } from '../building/curvas';
+import type { DetalheInclinada, ResultadoInclinada } from '../building/inclinadasDim';
 import { acoDaBarraViga, ganchoNoventa, type BarraViga, type DetalheViga } from '../building/detalhamento';
 import type { Dimensionamento } from '../building/dimensionamento';
 import { acoDe, cobrimentoViga, fckDe } from '../building/materiais';
@@ -179,6 +180,51 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   return out;
 }
 
+/**
+ * Viga inclinada (E2c, C6.107, K1.12.2-5): elevação desenvolvida ao longo da barra (comprimento da parte flexível), barras superiores
+ * acima e inferiores e de pele abaixo com "n Nk φ C=", zona única de estribos "n Nk c/s", seção transversal com as barras e o aviso
+ * dos nós a cargo do projetista [a confirmar a representação].
+ */
+export function blocoInclinada(b: BuildingModel, det: DetalheInclinada, res: ResultadoInclinada, posDe: PosDe): Prim[] {
+  const cfg = cfgArmacao(b), kE = 1000 / cfg.escalaVigas, kS = 1000 / cfg.escalaSecao, acoL = acoDe(b, 'vigaPos').aco, acoE = acoDe(b, 'vigaEstribo').aco;
+  const out: Prim[] = [], hb = det.h * kE, X = (s: number) => s * kE, xf = X(det.Lf);
+  const pl = (c: Prim['c'], ...pts: [number, number][]) => out.push({ t: 'pl', c, pts });
+  pl('CONCRETO', [0, 0], [xf, 0], [xf, hb], [0, hb], [0, 0]);
+  out.push(txt('TEXTO', 0, -1.6, 1.8, 'nó (a cargo do projetista)', 'e', 'topo'), txt('TEXTO', xf, -1.6, 1.8, 'nó (a cargo do projetista)', 'd', 'topo'));
+  const linha = (br: (typeof det.barras)[number], y: number, c: Prim['c']) => {
+    pl(c, [0, y], [xf, y]);
+    const pos = posDe(`I|${br.face}`, acoL, br.phi, cmInt(br.comprimento), br.n);
+    out.push(txt('TEXTO', xf / 2, y + 0.8, 2.2, `${br.n} ${pos} ${phiTxt(br.phi)} C=${cmInt(br.comprimento)}`, 'c', 'base'));
+  };
+  det.barras.filter((x) => x.face === 'sup').forEach((x) => linha(x, hb + 6, 'ARMADURA-NEG'));
+  det.barras.filter((x) => x.face === 'inf').forEach((x) => linha(x, -6, 'ARMADURA'));
+  det.barras.filter((x) => x.face === 'lateral').forEach((x) => linha(x, -14, 'ARMADURA'));
+  const e = det.estribos, ce = cmInt(e.comprimento), pe = posDe(`E|${cmInt(e.largura)}|${cmInt(e.altura)}`, acoE, e.phi, ce, e.n);
+  out.push(...cotaHorizontal(-22, [0, xf], [`${e.n} ${pe} c/${cmInt(e.s)}`]), ...cotaHorizontal(-28, [0, xf], [`${cotaCm(det.Lf)} (entre faces; ${cotaCm(det.L)} entre as pontas)`]));
+  out.push(txt('TEXTO', 0, hb + 14, 5, res.nome, 'e', 'base'));
+  out.push(txt('TEXTO', 0, hb + 11, 2, `ESC 1:${cfg.escalaVigas} · ${cotaCm(det.b)}×${cotaCm(det.h)} · VIGA INCLINADA DESENVOLVIDA (${nf(res.angulo, 1)}° com a horizontal)`, 'e', 'base'));
+  // seção transversal com as barras
+  const xs = xf + 14, ws = det.b * kS, hs = det.h * kS, ys = -2, a = res.arranjo, cob = cobrimentoViga(b, b.vigasInclinadas?.find((v) => v.id === det.inclinada)?.cobrimento);
+  out.push(txt('TEXTO', xs + ws / 2, ys + hs + 7, 2.5, 'SEÇÃO', 'c', 'base'), txt('TEXTO', xs + ws / 2, ys + hs + 4, 1.8, `ESC 1:${cfg.escalaSecao}`, 'c', 'base'));
+  pl('CONCRETO', [xs, ys], [xs + ws, ys], [xs + ws, ys + hs], [xs, ys + hs], [xs, ys]);
+  const phiT = e.phi / 1000, fila = (n: number, phi: number, y: number) => {
+    const al = (cob.lat + phiT + phi / 2000) * kS, r = Math.max((phi / 2000) * kS, 0.45);
+    for (let i = 0; i < n; i++) out.push(ponto('ARMADURA', n > 1 ? xs + al + ((ws - 2 * al) * i) / (n - 1) : xs + ws / 2, y, r));
+  };
+  fila(a.sup.n, a.sup.phi, ys + hs - (cob.sup + phiT + a.sup.phi / 2000) * kS);
+  fila(a.inf.n, a.inf.phi, ys + (cob.inf + phiT + a.inf.phi / 2000) * kS);
+  if (a.laterais) for (let k = 1; k <= a.laterais.n; k++) {
+    const y = ys + (cob.inf + phiT) * kS + ((hs - (cob.inf + cob.sup + 2 * phiT) * kS) * k) / (a.laterais.n + 1), r = Math.max((a.laterais.phi / 2000) * kS, 0.45), al = (cob.lat + phiT + a.laterais.phi / 2000) * kS;
+    out.push(ponto('ARMADURA', xs + al, y, r), ponto('ARMADURA', xs + ws - al, y, r));
+  }
+  out.push(...cotaHorizontal(ys - 3, [xs, xs + ws], [cotaCm(det.b)]));
+  out.push({ t: 'txt', c: 'COTA', p: [xs - 1.5, ys + hs / 2], h: 1.8, s: cotaCm(det.h), ang: 90, ah: 'c', av: 'base' });
+  const ye = ys - 12 - e.altura * kS, we = e.largura * kS, he = e.altura * kS;
+  pl('ARMADURA', [xs, ye], [xs + we, ye], [xs + we, ye + he], [xs, ye + he], [xs, ye]);
+  out.push(txt('TEXTO', xs, ye - 3, 2.2, `${e.n} ${pe} ${phiTxt(e.phi)} C=${ce}`, 'e', 'topo'));
+  return out;
+}
+
 /** Vigas detalhadas de um grupo, na ordem dos nomes. */
 /**
  * Vigas do grupo para desenhar. Pórticos agrupados (R7f) com geometria idêntica saem num só desenho, com todas as
@@ -212,9 +258,14 @@ export function montarPranchasVigas(b: BuildingModel, _an: AnaliseEdificio | nul
   for (const g of gruposOrdenados(b)) {
     if (gSel && g !== gSel) continue;
     const lista = vigasDoGrupo(b, dim, g);
-    if (!lista.length) continue;
+    // vigas inclinadas (E2c): desenhadas na prancha do grupo do pavimento inicial
+    const incs = (dim.inclinadas ?? []).flatMap((r) => { const det = dim.detalhesInclinadas?.find((x) => x.barra === r.barra); return det && b.pavimentos.find((p) => p.id === r.pavimento)?.grupo === g ? [{ r, det }] : []; });
+    if (!lista.length && !incs.length) continue;
     const nomeG = b.grupos.find((x) => x.id === g)?.nome ?? g, pavs = pavimentosDoGrupo(b, g);
-    const blocos: Bloco[] = lista.map(({ d, v }) => { const ch = new Chaves(); return bloco(blocoViga(b, d, v, (k, a, p, c) => ch.pos(k, a, p, c)), ch.s, v.nome); });
+    const blocos: Bloco[] = [
+      ...lista.map(({ d, v }) => { const ch = new Chaves(); return bloco(blocoViga(b, d, v, (k, a, p, c) => ch.pos(k, a, p, c)), ch.s, v.nome); }),
+      ...incs.map(({ r, det }) => { const ch = new Chaves(); return bloco(blocoInclinada(b, det, r, (k, a, p, c) => ch.pos(k, a, p, c)), ch.s, r.nome); }),
+    ];
     const { formato, avisos } = formatoArmacao(cfg.formato, blocos);
     const area = areaArmacao(formato);
     const nts = notas([
@@ -232,7 +283,15 @@ export function montarPranchasVigas(b: BuildingModel, _an: AnaliseEdificio | nul
       const reg = new Posicoes(), desenho: Prim[] = [];
       let concreto = 0, forma = 0;
       for (const i of idx) {
-        const { d, v, membros, rep } = lista[i], c = col[i];
+        const c = col[i];
+        if (i >= lista.length) {
+          const { r, det } = incs[i - lista.length];
+          const bl = bloco(blocoInclinada(b, det, r, (k, a, p, cc, q) => reg.pos(k, a, p, cc, q)), new Set(), r.nome);
+          desenho.push(...mover(bl.prims, area.x0 + c.x, area.y1 - c.y));
+          concreto += det.b * det.h * det.L; forma += (det.b + 2 * det.h) * det.L;
+          continue;
+        }
+        const { d, v, membros, rep } = lista[i];
         const bl = bloco(blocoViga(b, d, v, (k, a, p, cc, q) => reg.pos(k, a, p, cc, q)), new Set(), v.nome);
         desenho.push(...mover(bl.prims, area.x0 + c.x, area.y1 - c.y));
         for (const m of membros) { const L = comprimentoPolilinha(m.pontos); concreto += m.secao.b * m.secao.h * L * rep; forma += (m.secao.b + 2 * m.secao.h) * L * rep; }
@@ -242,7 +301,7 @@ export function montarPranchasVigas(b: BuildingModel, _an: AnaliseEdificio | nul
       out.push(montarFolha({
         b, formato, tipo: 'vigas', titulo: `Armação das vigas — ${nomeG}${sufixo}`, conteudo: `ARMAÇÃO DAS VIGAS — ${nomeG.toUpperCase()}${sufixo}`,
         escala: 'INDICADA', escalaNum: cfg.escalaVigas, carimbo: o.carimbo, desenho, tabelas: [nts, tabelaAco(aco.tabela), resumoAco(aco, fck)],
-        legenda: `Elevações 1:${cfg.escalaVigas} · seções 1:${cfg.escalaSecao} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: f === 0 ? avisos : [], aco, elementos: idx.flatMap((i) => lista[i].membros.map((m) => m.nome)),
+        legenda: `Elevações 1:${cfg.escalaVigas} · seções 1:${cfg.escalaSecao} · ${pavs.map((p) => p.nome).join(', ')}`, avisos: f === 0 ? avisos : [], aco, elementos: idx.flatMap((i) => (i < lista.length ? lista[i].membros.map((m) => m.nome) : [incs[i - lista.length].r.nome])),
       }));
     }
   }

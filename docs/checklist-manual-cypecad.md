@@ -14,7 +14,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 33 | 18 | 32 | 25 |
+| 6. Vigas | 108 | 33 | 27 | 23 | 25 |
 | 7. Lajes | 195 | 33 | 31 | 64 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **88** | **186** | **185** |
+| **Total** | **763** | **304** | **97** | **177** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 156 | 198 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 51 | 147 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 29 | 10 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
@@ -327,7 +327,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.32 | Viga curva agrupada por padrão como poliviga e como tramo de armadura predefinido, com opções de compor e decompor. | Parcial | E | núcleo: poliviga = uma viga só com trechos retos e curvos (um desenho, um conjunto de vãos, uma barra inferior corrida, sem tramo), `viga.compor` e `viga.decompor` (`vigasE2b.ts`, `decomporPoligonal`, `unirPoligonais`); dividir e unir preservam os arcos; botões no cartão E2b-1 [E2b] |
 | C6.33 | Tramo de armadura predefinido: vigas consecutivas sem emenda da armadura inferior em ponto intermediário, enquanto a barra não passa do comprimento máximo configurado. | Feito | — | comando `viga.tramo` e `resolverTramos` (`detalhamento.ts`): vigas consecutivas e alinhadas do mesmo grupo com a mesma bitola e nº de passantes têm a barra inferior corrida do eixo do apoio comum, sem emenda nem gancho, até a barra máxima (senão TRAMO_IGNORADO); botão "Tramo com…" na aba Detalhamento da viga (R7b) |
 | C6.34 | Compor ou decompor muda o número de vãos do pórtico. Para atualizar a armadura, basta redimensionar. | Feito | — | `viga.unir`/`viga.dividir` com ferramentas na planta (R7-0); o bloqueio e o detalhe editado saem no mesmo passo quando o nº de vãos muda e o recálculo redimensiona (R7f) |
-| C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Falta | E | vigas inclinadas entre grupos [E2c] |
+| C6.35 | Vigas inclinadas de aço ou concreto entre um grupo inicial e um final: simples (uma só) ou múltipla (uma por pavimento). | Parcial | E | núcleo: `VigaInclinada` (`vigasInclinadas`; `inclinadas.ts`: `barrasDaInclinada`, `ligacaoDaPonta`), comandos `inclinada.criar/editar/mover/remover` (pavimentos inicial e final, pontas em pilar ou viga, desnível, ligações engastada ou articulada, simples ou múltipla = uma barra por par de pavimentos de mesma posição); barra de 2 nós no pórtico (`analitico.ts`); aço fora; lançamento por dois cliques nos cartões E2c [E2c] |
 | C6.36 | Diagonais de contraventamento entre grupos inicial e final de pavimento único, podendo atravessar grupos intermediários. | Falta | E | diagonais de contraventamento [E2d] |
 | C6.37 | Diagonal simples ou múltipla (uma por pavimento). | Falta | E | [E2d] |
 | C6.38 | Diagonal de concreto (largura e altura) ou de aço (perfil da biblioteca, em posição normal ou girada). | Falta | E | [E2d] |
@@ -361,13 +361,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.65 | Erro: diâmetro do estribo acima de 1/10 da espessura (limite de norma específica). | Feito | — | erro ESTRIBO_BITOLA (φt ≤ bw/10, NBR 6118 18.3.3.2) no detalhamento das vigas, também para a bitola editada de uma zona; lista de erros e planta (R7b) |
 | C6.66 | Aviso de desnível longitudinal que pede detalhe especial (estribos adicionais para a continuidade da armadura). | Feito | — | `desniveisLongitudinais` (`detalhamento.ts`): aviso DESNIVEL_LONG para vigas consecutivas alinhadas com faces superior ou inferior diferindo mais que a opção `vigaDesnivelLimite` (2 cm, a confirmar) (R7b) |
 | C6.67 | Erro de barra mais longa que o máximo quando não é possível dividi-la (> 12 m). | Feito | — | aviso no detalhamento quando a barra passa do comprimento máximo e não cabe a emenda (opção barraMaxima, padrão 12 m; R3a) |
-| C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Falta | E | [E2c] |
-| C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Falta | E | [E2c] |
-| C6.70 | Listagem da viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento (aço), resultado do dimensionamento e erros. | Falta | E | [E2c] |
-| C6.71 | Vigas inclinadas com erro em vermelho, com detalhe por clique. | Falta | E | [E2c] |
-| C6.72 | Edição de viga inclinada de concreto: geometria (largura e altura), armadura (estribos, superior, inferior, pele), verificação, dimensionamento, detalhamento e vista 3D. | Falta | E | [E2c] |
+| C6.68 | Relatório de erros das vigas inclinadas após o cálculo. | Parcial | E | núcleo: mensagens `Viga inclinada: …` com códigos INCLINADA_ARMADURA, INCLINADA_ESBELTEZ(_MAX), INCLINADA_BIELA e INCLINADA_NOS em `CODIGOS_REVISAO`/`SUGESTOES` e tipo `inclinada` em `revisarEdificio`; relatório na interface nos cartões E2c [E2c] |
+| C6.69 | Informação da viga inclinada: tipo, pavimentos, seção ou dimensões, armadura, engastamento e flambagem. | Parcial | E | núcleo: `resumoInclinadas` (pavimentos, seção, comprimento, ângulo, ligações, armadura) e `ResultadoInclinada` (flambagem `le`/`lambda`, armadura, estribo, utilização); janela de informação nos cartões E2c [E2c] |
+| C6.70 | Listagem da viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento (aço), resultado do dimensionamento e erros. | Parcial | E | núcleo: `listagemInclinada` (`inclinadasDim.ts`): materiais, descrição, esforços por hipótese e por combinação ELU em 21 estações, envoltórias, aproveitamento, resultado e erros; tela nos cartões E2c [E2c] |
+| C6.71 | Vigas inclinadas com erro em vermelho, com detalhe por clique. | Parcial | E | núcleo: situação `fail`/`review` e mensagens por barra (`revisarEdificio`, porElemento `inclinada|id`); vermelho e clique para o detalhe nos cartões E2c [E2c] |
+| C6.72 | Edição de viga inclinada de concreto: geometria (largura e altura), armadura (estribos, superior, inferior, pele), verificação, dimensionamento, detalhamento e vista 3D. | Parcial | E | núcleo: geometria (`inclinada.editar`), armadura (`inclinada.armadura`), verificação e dimensionamento (`dimensionarInclinadas`), detalhamento (`detalharInclinada`); editor em SVG nos cartões E2c; a vista 3D vem com a frente V [E2c] |
 | C6.73 | Viga inclinada de aço: verificação de outros perfis da série. | Fora | — |  |
-| C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Falta | E | [E2c] |
+| C6.74 | Redimensionar todas as vigas inclinadas de concreto com os esforços do último cálculo. | Parcial | E | núcleo: `inclinada.redimensionar { ids? }` solta o bloqueio e o dimensionamento refaz com os esforços do último cálculo (nível `detalhe`, sem nova análise); botão nos cartões E2c [E2c] |
 | C6.75 | Redimensionar os perfis das vigas inclinadas de aço (só maiores ou toda a série). | Fora | — |  |
 | C6.76 | Copiar a armadura entre pórticos do mesmo grupo ou de grupos diferentes (destino escolhido por menu de contexto). | Feito | — | `viga.copiarArmadura` entre vigas de qualquer grupo; “Copiar para…” lista as vigas de todos os grupos (`CopiarArmadura`, `Detalhamento.tsx`) (R7f) |
 | C6.77 | Na cópia vão diâmetro, número e ancoragem (montagem e 1ª camada inferior), diâmetro, número e comprimento (demais barras) e diâmetro, espaçamento e extensão dos estribos. Não há aviso se a armadura copiada for menor que a necessária. | Feito | — | a cópia leva armadura bloqueada (nº, bitola, estribo, laterais) e o detalhe editado com os comprimentos (R7b); não avisa armadura menor que a necessária, o recálculo reprova (R7f) |
@@ -395,13 +395,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.99 | Erro de conector: mesa estreita demais para dois conectores (distâncias mínimas entre conectores e à borda). | Fora | — | conectores de vigas mistas |
 | C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Falta | E | [E2e] |
 | C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Falta | E | [E2e] |
-| C6.102 | Editar a armadura de vigas inclinadas. | Falta | E | [E2c] |
+| C6.102 | Editar a armadura de vigas inclinadas. | Parcial | E | núcleo: `inclinada.armadura { id, sup, inf, laterais?, estribo }` edita e bloqueia (o recálculo só verifica a flexo-compressão oblíqua e o cortante); formulário nos cartões E2c [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Feito | — | "Mostrar" na aba Detalhamento da viga: inferior, superior, pele, estribos (zonas) e seção, no `plantaStore.detMostrar` (R7b); zonas de confinamento não se aplicam a vigas no perfil NBR |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Feito | — | fator do comprimento de emenda por viga (campo na edição do detalhamento, `viga.detalhe`) e opção `vigaFatorEmenda` para a obra (R7b) |
 | C6.105 | Envoltórias de esforços em vigas (momento, cortante, torção) por hipótese simples ou combinação. Em sismo dinâmico, escolha do modo de vibração. | Parcial | V | diagramas de M, V e T da envoltória ELU na janela da viga (R1); sem por hipótese simples ou combinação [V5] |
 | C6.106 | Diagramas consultados por clique em alinhamentos de vigas, lajes alveolares ou lajes mistas. | Feito | — | diagramas da viga por clique duplo na planta, nas tabelas ou na lista de erros (R1); alveolares e mistas não existem no edifício |
 | | **6.3 Desenhos de vigas** | | | |
-| C6.107 | Desenho da armadura de vigas inclinadas. | Falta | E | vigas inclinadas (E2) [E2c] |
+| C6.107 | Desenho da armadura de vigas inclinadas. | Parcial | E | núcleo: `blocoInclinada` (`sheets/armacaoVigas.ts`): elevação desenvolvida com barras superiores, inferiores e de pele, estribos e seção na prancha de vigas do grupo do pavimento inicial, com tabela de aço [E2c; representação a confirmar] |
 | C6.108 | Desenho de consolos: vistas frontal e lateral cotadas, armadura principal e estribos, medidas e referências do pórtico e do pilar. | Falta | E | consolos (E2) [E2e] |
 
 ## 7. Lajes
@@ -1049,3 +1049,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E2b, núcleo (vigas curvas e viga comum a dois grupos).** C6.12, C6.13, C6.32, C6.47, C6.48, C6.49, C6.50 e C6.58 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; interface nos cartões `docs/cartoes/E2b/`; C6.58: as linhas indicativas na planta dependem das lajes inclinadas da E3f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
+- **23/10/2026 — E2c, núcleo (vigas inclinadas entre pavimentos).** C6.35, C6.68, C6.69, C6.70, C6.71, C6.72, C6.74, C6.102 e C6.107 passam de Falta a Parcial com nota própria (núcleo, comandos, dimensionamento, listagem e desenho da prancha prontos; interface nos cartões `docs/cartoes/E2c/`).

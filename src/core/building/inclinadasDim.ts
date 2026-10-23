@@ -333,3 +333,48 @@ export function resumoAcoInclinadas(b: BuildingModel, dets: DetalheInclinada[]):
   }
   return [...m.values()].sort((p, q) => p.aco.localeCompare(q.aco) || p.phi - q.phi).map((e) => ({ ...e, peso: e.comprimento * barArea(e.phi) * PESO_ACO }));
 }
+
+// ---------------- listagem (C6.70, K1.12.2-6) ----------------
+
+export interface ListagemInclinada {
+  nome: string;
+  /** Materiais: fck (MPa), aço das barras e dos estribos, cobrimento (cm), γc e γs. */
+  materiais: { fck: number; acoLongitudinal: string; acoEstribo: string; cobrimento: number; gamaC: number; gamaS: number };
+  /** Descrição: seção, comprimentos, ângulo, ligações e coeficientes de flambagem. */
+  descricao: string[];
+  /** Estações (abscissa na parte flexível) e esforços por caso (hipótese) e por combinação ELU. */
+  xs: number[];
+  casos: Record<string, Estacao[]>;
+  combinacoes: { nome: string; estacoes: Estacao[] }[];
+  /** Envoltória por estação (para o estudo das seções e dos nós de ligação), aproveitamento, resultado e erros. */
+  envoltoria: EstacaoEnvoltoria[];
+  aproveitamento: number;
+  resultado: string;
+  erros: string[];
+}
+
+const somaFatores = (pc: Record<string, Estacao[]>, fatores: Record<string, number>, n: number): Estacao[] =>
+  Array.from({ length: n }, (_, i) => {
+    const e: Estacao = { x: 0, N: 0, Vy: 0, Vz: 0, My: 0, Mz: 0, T: 0 };
+    for (const nome in fatores) { const s = pc[nome]?.[i]; if (!s) continue; e.x = s.x; for (const k of ['N', 'Vy', 'Vz', 'My', 'Mz', 'T'] as const) e[k] += fatores[nome] * s[k]; }
+    return e;
+  });
+
+/** Listagem completa de uma viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento e erros. */
+export function listagemInclinada(b: BuildingModel, an: AnaliseEdificio, r: ResultadoInclinada, elu: CombinacaoEd[], estacoes: (bi: number, xs: number[]) => Record<string, Estacao[]>): ListagemInclinada | null {
+  const inc = an.inclinadas?.find((x) => x.id === r.barra), vi = b.vigasInclinadas?.find((x) => x.id === r.inclinada);
+  if (!inc || !vi) return null;
+  const xs = r.envoltoria.map((e) => e.x), pc = estacoes(inc.bi, xs), c = concretoDe(b, 'viga'), g = gamas(b);
+  return {
+    nome: r.nome,
+    materiais: { fck: c.fck, acoLongitudinal: acoDe(b, 'vigaPos').aco, acoEstribo: acoDe(b, 'vigaEstribo').aco, cobrimento: +(cobrimentoViga(b, vi.cobrimento).lat * 100).toFixed(1), gamaC: g.c, gamaS: g.s },
+    descricao: [
+      `Seção ${r.secao} cm; comprimento entre as pontas ${nf(r.L, 2)} m, parte flexível ${nf(r.Lf, 2)} m, ângulo ${nf(r.angulo, 1)}° com a horizontal.`,
+      `Pavimentos: ${r.pavimento} → ${r.pavimentoFim}; ligações das pontas: ${r.ligacao}.`,
+      `Flambagem: ℓe = ${nf(r.le[0], 2)} m (plano vertical, λ = ${nf(r.lambda[0], 0)}) e ${nf(r.le[1], 2)} m (plano transversal, λ = ${nf(r.lambda[1], 0)}).`,
+    ],
+    xs, casos: pc, combinacoes: elu.map((cb) => ({ nome: cb.nome, estacoes: somaFatores(pc, cb.fatores, xs.length) })),
+    envoltoria: r.envoltoria, aproveitamento: Math.max(r.util, r.utilCortante), resultado: `${r.armadura}; estribos ${r.estribo}; ${r.status === 'ok' ? 'atende' : r.status === 'review' ? 'revisar' : 'não atende'}`,
+    erros: r.mensagens.filter((m) => !m.startsWith('Viga inclinada: o detalhe dos nós')),
+  };
+}

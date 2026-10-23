@@ -12,20 +12,20 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 4 | 2 | 1 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 4 | 14 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 14 | 6 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 31 | 5 | 13 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 59 | 16 | 4 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 38 | 7 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 12 | 37 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 54 | 13 | 36 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 13 | 7 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 13 | 8 | 23 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 39 | 14 | 6 | 3 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 76 | 19 | 2 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 29 | 1 | 11 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 16 | 7 | 1 | 19 |
-| **Total** | **661** | **388** | **75** | **87** | **111** |
+| **Total** | **661** | **388** | **86** | **76** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 37 | 82 | 119 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 48 | 71 | 119 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 3 | 0 | 3 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 5 | 20 |
-| **Total** | **75** | **87** | **162** |
+| **Total** | **86** | **76** | **162** |
 
 ## Divergências de premissa
 
@@ -117,7 +117,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.13 | Para evitar engaste por continuidade: rótula na extremidade da viga junto ao apoio. | Fora | — | conselho de modelagem; rótula de extremidade já existe |
 | K1.3.14 | Limitação: não se obtêm as reações desses apoios em muro. | Fora | — | limitação do outro programa |
 | K1.3.15 | Vigas de fundação: vigas "flutuantes" sobre meio elástico; molas nos nós a partir do coeficiente de reação (módulo de reação do solo). | Feito | — | vigas de fundação sobre base elástica (Winkler) no pórtico espacial: barras b × h divididas pela malha das opções, molas k × b × comprimento de influência e giro k·b³/12 por metro (`src/core/building/baseElastica.ts`, `montarBaseElastica`); validada contra Hetényi (erro 0,01 % no recalque e 0,07 % no momento) |
-| K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Falta | E | vigas inclinadas [E2c] |
+| K1.3.16 | Vigas inclinadas: barras entre dois pontos no mesmo nível ou em níveis diferentes, com 2 nós; ligando zonas independentes não impõem diafragma (6 GL livres). | Parcial | E | núcleo: barra de 2 nós e 6 gdl ligada a nós existentes (pilar com trecho rígido até a face − `trechoRigido`·h; viga: nó criado no eixo, só no modelo separado), pontas em cotas diferentes, fora do diafragma (nada a une ao corpo rígido; teste de zonas); validada contra o OpenSees (`validation/opensees/viga_inclinada.py`) [E2c] |
 | K1.3.17 | Consolos curtos: tratados em capítulo próprio (fora do trecho lido). | Falta | E | consolos curtos (NBR 6118 22.5) [E2e] |
 | K1.3.18 | Lajes de vigotas: vigotas são barras nos panos entre vigas/paredes, com nós nas interseções; vigotas duplas e triplas permitidas; geometria da vigota definida na ficha da laje. | Parcial | E | treliçadas como faixas T na grelha (`propriedadesLaje`); vigotas não são barras individuais [E3b] |
 | K1.3.19 | Lajes alveolares: unidirecionais, discretizadas por barras a cada 40 cm; propriedades e resistências pela ficha da laje (biblioteca do usuário). | Falta | E | lajes alveolares (NBR 14861) [E3e] |
@@ -194,7 +194,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.22 | Termos da matriz com seção bruta de todos os elementos de concreto. | Feito | — | seção bruta em todos os elementos (Ecs) |
 | K1.4.23 | Termos: EI/L (flexão), GJ/L (torção), EA/L (axial). | Feito | — | EA, EI e GJ nas barras 3D (`fe3d.ts`) |
 | K1.4.24 | Pilares: EIy, EIz bruto; GJ bruto × coeficiente de redução de torção; EA bruto × coeficiente de rigidez axial. | Feito | — | opções: GJ dos pilares × coeficiente (padrão 1) e EA × coeficiente (padrão 2) (N1a) |
-| K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Falta | E | vigas inclinadas [E2c] |
+| K1.4.25 | Vigas inclinadas: EI bruto nas duas direções; GJ bruto × coef.; EA bruto. | Parcial | E | núcleo: EI bruto nas duas direções (Iz = b·h³/12, Iy = h·b³/12), GJ × `torcaoViga`, EA bruto (`analitico.ts`, bloco das vigas inclinadas) [E2c] |
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
 | K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: `Viga.amarracao` (EI vertical × 10⁻¹⁵, A e plano × 10⁶, GJ das demais vigas; `propsBarraViga` em `analitico.ts`); interface no cartão E2a-1 [E2a] |
@@ -266,7 +266,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.85 | Limites de flecha para vigas, vigotas, alveolares e mistas. | Parcial | E | N2f: limites por tipo de flecha (total, ativa, variável, instantânea) e de elemento (vigas, maciças, treliçadas) na forma ℓ/x, ℓ/x + cm ou cm (`flechas.ts`: `limitesEmUso`, `limiteFlecha`; comando `flechas.limites`); alveolares e mistas com a E3 [E3] |
 | K1.4.86 | Flecha ativa e total a longo prazo — processo construtivo. | Feito | — | N2f: etapas de carga do processo construtivo (`ETAPAS_PADRAO`, `etapas.definir`), `composicaoEtapas` (ativa e total a longo prazo) em vigas e lajes (`flechas.ts`, `dimensionamento.ts`) |
 | K1.4.87 | Cortante em lajes de vigotas moldadas in loco. | Parcial | E | cortante das nervuras sem armadura transversal (19.4.1, VRd1 e VRd2) com faixa maciçada (R6); vigotas moldadas no local (E3) [E3b] |
-| K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Falta | E | vigas inclinadas e contraventamentos [E2c] |
+| K1.4.88 | Coeficientes de flambagem em vigas inclinadas e em diagonais de contraventamento. | Parcial | E | núcleo: coeficientes de flambagem por plano (opções `inclinadaFlambagemVertical` e `inclinadaFlambagemTransversal`, ou por viga em `flambagem`) sobre o comprimento entre nós; esbeltez e efeitos locais de 2ª ordem por plano (`inclinadasDim.ts`); diagonais na E2d [E2c] |
 | | **Fundações (listadas)** | | | |
 | K1.4.89 | Sapatas, sapatas corridas e blocos: opções gerais e particulares; vigas de equilíbrio e de travamento: opções gerais e particulares. | Feito | — | opções gerais de sapatas, blocos, tubulões, vigas de fundação e sapatas corridas no edifício (`fundacao.opcoes`, `PARAMS_FUNDACAO`, `vigaEq*`/`vigaTrav*`/`vigaFund*`/`corrida*` em Opções de cálculo; editor "Parâmetros do cálculo"); particulares por elemento, por viga e por sapata corrida (seção, `fixa`, equilíbrio por ponta, B, h, aba, k, σadm) |
 | | **Desenho** | | | |
@@ -508,7 +508,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.112 | Vigas centradoras absorvem os momentos transmitidos à sapata/bloco; várias numa direção dividem o momento proporcionalmente às rigidezes. | Feito | — | FU2: alavanca com várias vigas repartindo o momento pela rigidez EI/ℓ (`alavanca` em `vigasFundacao.ts`); componente que nenhuma viga equilibra fica no elemento; alívio e alavanca na janela do elemento; momentos do pilar ficam no elemento (a confirmar) |
 | | **1.9.10–1.9.11 Cargas, vigas inclinadas, contraventamentos, escadas (pág. 65)** | | | |
 | K1.9.113 | Cargas concentradas, lineares e superficiais lançadas graficamente, com cor por caso. | Feito | — | ponto, linha e área na planta por caso (`carga.*`); cor única |
-| K1.9.114 | Vigas inclinadas: dimensões, cargas (concentrada, linear, faixa, triangular…), grupos inicial e final; sempre 6 GL; concreto retangular ou metálica; biengastadas ou biarticuladas. | Falta | E | vigas inclinadas [E2c] |
+| K1.9.114 | Vigas inclinadas: dimensões, cargas (concentrada, linear, faixa, triangular…), grupos inicial e final; sempre 6 GL; concreto retangular ou metálica; biengastadas ou biarticuladas. | Parcial | E | núcleo: seção b × h de concreto (metálica fora), cargas concentrada, linear, faixa e triangular por caso, pavimentos inicial e final, sempre 6 gdl, ligações engastada ou articulada (`VigaInclinada`, `inclinada.criar`) [E2c] |
 | K1.9.115 | Contraventamentos em X: vigas inclinadas cruzadas entre dois apoios e dois pavimentos; sempre perfis metálicos. | Fora | — | contraventamento metálico |
 | K1.9.116 | Escadas remetidas a capítulo próprio. | Falta | E | escadas [E4c] |
 
@@ -587,7 +587,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
 | K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | N | envoltórias de M, V e T com combinações determinantes (R1), armadura colocada (R3a), diagrama de capacidade resistente MRd+/MRd− da armadura detalhada (`capacidadeViga`, linhas tracejadas no diagrama de momentos), arquivo de intercâmbio da armadura (JSON e CSV de barras, `intercambioArmadura`), resumo de aço e etiquetas nas pranchas (R5, R7g); falta a flecha ativa (N2) |
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Feito | — | `quantitativosDetalhados` (`relatorios.ts`): área, concreto, fôrma e peso próprio por pano e por viga, enchimento das treliçadas (área, volume, peças de 1,00 m [a confirmar]), treliças por tipo (R6) e índices kg/m², m³/m², m²/m² e kg/m³ da obra; no memorial e na aba Dimensionamento (R7g) |
-| K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Falta | E | vigas inclinadas [E2c] |
+| K1.11.48 | Vigas inclinadas: envoltórias de momento, normal, cortante e armadura. | Parcial | E | núcleo: `ResultadoInclinada.envoltoria` (21 estações: N, Mz, My máximos e mínimos, cortantes, torção e utilização) e `listagemInclinada`; apresentação nos cartões E2c [E2c] |
 | K1.11.49 | Pilares e pilares-parede: barras, esforços na base, por caso e mais desfavoráveis. | Feito | — | barras do pilar no detalhamento (R3b), esforços na base por caso e envoltórias em "Cargas na fundação" |
 | K1.11.50 | Deslocamentos por caso por pilar e pavimento; deslocamentos máximos de pilares por pavimento na combinação mais desfavorável de cada direção (não simultâneos); distorções máximas dos pilares. | Parcial | V | `deslocamentosPilares` (por caso, pilar e pavimento) e `maximosPilaresCombinados` (combinação mais desfavorável de cada direção e distorção); tabelas nos cartões V3; deslocamento do vento por direção e distorção seguem na R1 [V3] |
 | K1.11.51 | Efeitos de 2ª ordem; cargas de vento; participação sísmica (períodos, massas, coeficiente sísmico por direção). | Feito | — | γz e deslocamentos laterais no memorial; forças de vento por pavimento e zona (`ventoPorPavimento`, `MemorialVentoPavimentos`) no memorial (R7g); participação sísmica fora de escopo (K1.2.7) |
@@ -664,12 +664,12 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.1-24 | Essa expressão vale para as normas em geral; NB-1 e Eurocódigo 2 usam fórmulas próprias. | Feito | — | fórmula da NBR 6118 no edifício (vigas e lajes maciças) (N1e) |
 | K1.12.1-25 | Verificação ativa e não atendida: o programa alonga barras ou aumenta a taxa até atender e emite aviso (não erro) entre os erros da viga. | Feito | — | armadura aumentada até atender wk, com mensagem (N1e) |
 | | **1.12.2 Vigas inclinadas (pág. 84)** | | | |
-| K1.12.2-1 | Podem ser de concreto armado ou de aço. | Falta | E | vigas inclinadas de concreto [E2c] |
-| K1.12.2-2 | Dimensionadas à flexo-compressão oblíqua pela envoltória de momentos e esforço normal; estribos por cortante. | Falta | E | vigas inclinadas (flexo-compressão) [E2c] |
-| K1.12.2-3 | Armadura dimensionada para dois planos paralelos às faces: vertical e horizontal. | Falta | E | vigas inclinadas (dois planos) [E2c] |
-| K1.12.2-4 | Armadura longitudinal superior e inferior apresentada = máximo (envoltória) de todas as seções ao longo da barra. | Falta | E | vigas inclinadas (envoltória) [E2c] |
-| K1.12.2-5 | A armadura entra nos desenhos, mas a consulta é só em tela; o detalhe dos nós de extremidade (cruzamentos) fica a cargo do projetista. | Falta | E | vigas inclinadas (desenho) [E2c] |
-| K1.12.2-6 | Saída opcional: envoltória de esforços em listagem, para estudo das seções e dos nós de ligação. | Falta | E | vigas inclinadas (listagem) [E2c] |
+| K1.12.2-1 | Podem ser de concreto armado ou de aço. | Parcial | E | núcleo: vigas inclinadas de concreto armado dimensionadas; aço fora do escopo (nota do item) [E2c] |
+| K1.12.2-2 | Dimensionadas à flexo-compressão oblíqua pela envoltória de momentos e esforço normal; estribos por cortante. | Parcial | E | núcleo: flexo-compressão ou flexo-tração oblíqua por fibras (`fiber.ts`) em todas as estações e combinações ELU, com 2ª ordem local e momento mínimo; estribos pelo cortante dos dois planos e pela torção (`dimensionarInclinadas`) [E2c] |
+| K1.12.2-3 | Armadura dimensionada para dois planos paralelos às faces: vertical e horizontal. | Parcial | E | núcleo: armadura dimensionada nos dois planos paralelos às faces: superior, inferior e pele em cada face lateral (`ArmaduraInclinada`) [E2c] |
+| K1.12.2-4 | Armadura longitudinal superior e inferior apresentada = máximo (envoltória) de todas as seções ao longo da barra. | Parcial | E | núcleo: armadura superior e inferior adotadas = o necessário à pior seção da envoltória ao longo da barra (busca com verificação de todas as seções) [E2c] |
+| K1.12.2-5 | A armadura entra nos desenhos, mas a consulta é só em tela; o detalhe dos nós de extremidade (cruzamentos) fica a cargo do projetista. | Parcial | E | núcleo: a armadura entra na prancha de vigas (`blocoInclinada`) e na consulta; aviso INCLINADA_NOS: detalhe dos nós a cargo do projetista [E2c] |
+| K1.12.2-6 | Saída opcional: envoltória de esforços em listagem, para estudo das seções e dos nós de ligação. | Parcial | E | núcleo: `listagemInclinada` devolve a envoltória e os esforços por caso e combinação para estudo das seções e dos nós; saída na interface nos cartões E2c [E2c] |
 | K1.12.2-7 | Viga inclinada de aço segue os critérios dos pilares de aço. | Fora | — | aço |
 | | **1.12.3 Vigas de aço (pág. 85)** | | | |
 | K1.12.3-1 | Dimensionadas pela norma e tipo de aço escolhidos; o programa propõe o perfil ótimo da série. | Fora | — | aço no edifício (o Pórtico 2D faz NBR 8800) |
@@ -976,3 +976,4 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — V3, núcleo (deformada, deslocamentos e flecha entre pontos).** K1.11.18, K1.11.43, K1.15.4-1, K1.15.4-4, K1.15.4-5 e K1.15.4-6 de Falta a Parcial; K1.11.20, K1.11.50 e K1.15.3-1 seguem Parcial com a nota atualizada (consultas e tabelas no núcleo, interface nos cartões `docs/cartoes/V3/`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na V).
+- **23/10/2026 — E2c, núcleo (vigas inclinadas entre pavimentos).** K1.3.16, K1.4.25, K1.4.88, K1.9.114, K1.11.48 e K1.12.2-1 a K1.12.2-6 passam de Falta a Parcial com nota própria (barra de 2 nós e 6 gdl fora do diafragma, flambagem por plano, flexo-compressão oblíqua por fibras, envoltória e listagem; validação OpenSees).

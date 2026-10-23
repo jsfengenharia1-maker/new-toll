@@ -223,6 +223,9 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     ...(d.avisosAcoes?.length ? { avisosAcoes: d.avisosAcoes } : {}),
     // resistência ao fogo (N2g): TRRF por grupo e TRF por elemento (só os problemas com `so_problemas`)
     ...(d.fogo ? { fogo: { grupos: d.fogo.grupos, ...(d.fogo.sugestao ? { sugestao: d.fogo.sugestao } : {}), elementos: (pav ? d.fogo.elementos.filter((e) => e.pavimento === pav.nome || (e.tipo === 'viga' && e.grupo === pav.grupo)) : d.fogo.elementos).filter((e) => !soProblemas || e.status !== 'ok').map(({ id, nome, tipo, pavimento, trrf, trf, folga, metodo, status, mensagens }) => ({ id, nome, tipo, pavimento, trrf, trf, folga, metodo, status, mensagens })) } } : {}),
+    // vigas inclinadas (E2c): armadura, utilização e mensagens por barra (a envoltória por estação fica fora; volume)
+    ...(d.inclinadas?.length ? { inclinadas: prob(pav ? d.inclinadas.filter((r) => r.pavimento === pav.id || r.pavimentoFim === pav.id) : d.inclinadas).map(({ envoltoria: _e, ...r }) => r) } : {}),
+    ...(d.resumoAcoInclinadas?.length ? { resumoAcoInclinadas: d.resumoAcoInclinadas } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),

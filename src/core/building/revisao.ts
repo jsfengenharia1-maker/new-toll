@@ -8,7 +8,7 @@ import { sugestaoDe } from './sugestoes';
 import type { BuildingModel, EstadoId } from './types';
 
 export type NivelRevisao = 'erro' | 'aviso';
-export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede';
+export type TipoRevisao = 'viga' | 'pilar' | 'laje' | 'fundacao' | 'obra' | 'pilarParede' | 'parede' | 'inclinada';
 
 export interface ItemRevisao {
   tipo: TipoRevisao;
@@ -54,6 +54,11 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'VIGA_MESA', nivel: 'info', re: /^Mesa colaborante: /, descricao: 'Viga T ou L: largura colaborante e critério de flexão' },
   { codigo: 'VIGA_AMARRACAO', nivel: 'info', re: /^Amarração: /, descricao: 'Viga de amarração: sem rigidez à flexão vertical' },
   { codigo: 'VIGA_CURVA_DESVIO', nivel: 'aviso', re: /^Desvio da armadura em viga curva: /, descricao: 'Viga curva: força radial da armadura longitudinal a equilibrar pelos estribos (verificação a confirmar)' },
+  { codigo: 'INCLINADA_ARMADURA', nivel: 'erro', re: /^Viga inclinada: (nenhuma disposição|a armadura informada|armadura longitudinal|as barras da armadura|a busca da armadura|estribo φ)/, descricao: 'Viga inclinada: armadura longitudinal ou estribos não atendem (flexo-compressão oblíqua, cortante e torção)' },
+  { codigo: 'INCLINADA_ESBELTEZ_MAX', nivel: 'erro', re: /^Viga inclinada: esbeltez λ = \d+ acima de 200/, descricao: 'Viga inclinada: esbeltez acima de 200' },
+  { codigo: 'INCLINADA_ESBELTEZ', nivel: 'aviso', re: /^Viga inclinada: esbeltez λ = \d+ acima de 90/, descricao: 'Viga inclinada: esbeltez acima de 90 (pilar-padrão não vale; resultado indicativo)' },
+  { codigo: 'INCLINADA_BIELA', nivel: 'erro', re: /^Viga inclinada: compressão diagonal/, descricao: 'Viga inclinada: compressão diagonal do concreto esgotada (cortante e torção)' },
+  { codigo: 'INCLINADA_NOS', nivel: 'info', re: /^Viga inclinada: o detalhe dos nós/, descricao: 'Viga inclinada: detalhe dos nós de extremidade a cargo do projetista' },
   { codigo: 'VIGA_CURVA', nivel: 'info', re: /^Viga curva: /, descricao: 'Viga curva: raio, discretização em cordas e torção de equilíbrio da curvatura' },
   { codigo: 'VIGA_COMUM', nivel: 'info', re: /^Viga comum com o grupo /, descricao: 'Viga comum a dois grupos: barra única, armadura e envoltórias na origem' },
   { codigo: 'VIGA_COMUM_APOIA_VIGA', nivel: 'aviso', re: /^Viga comum: .* chega à viga associada/, descricao: 'Viga comum: outra viga chega à associada fora de pilar (reação não levada à origem)' },
@@ -225,6 +230,7 @@ export function revisarEdificio(b: BuildingModel, an: AnaliseEdificio | null, di
   // avisos do detalhamento com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhes ?? []) add('viga', d.viga, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const p of dim?.pilares ?? []) add('pilar', p.pilar, p.nome, p.pavimento, p.mensagens);
+  for (const r of dim?.inclinadas ?? []) add('inclinada', r.inclinada, r.nome, undefined, r.mensagens);
   // avisos do detalhamento dos pilares com código próprio (os demais ficam só na aba Detalhamento)
   for (const d of dim?.detalhesPilares ?? []) add('pilar', d.pilar, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
   for (const d of dim?.detalhesLajes ?? []) add('laje', d.laje, d.nome, undefined, d.avisos.filter((m) => classificar(m).codigo !== 'AVISO'));
