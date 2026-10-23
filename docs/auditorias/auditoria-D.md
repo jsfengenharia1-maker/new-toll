@@ -1,0 +1,45 @@
+# Auditoria independente da frente D (migração do layout, D1 a D6)
+
+Data: 23/10/2026. Base: `main` 2004ccf. Comparação com o estado antes da D1 (`71b39f5^`, build próprio). Só leitura do código; nada foi corrigido.
+
+## Números
+- `npx vitest run`: 148 arquivos passaram (1 pulado), 1566 testes passaram, 0 falharam (575 s).
+- `npm run e2e -- --workers 4`: 87 ok, 0 falhas (85 fluxos antes da D1, 87 agora).
+- Rótulos de botão, aba, campo e opção do app antes da D1 (1337 nomes acessíveis em Pórtico, Edifício e Fundações, com todas as abas, vistas, seções da Configuração e grupos abertos): 1331 existem no app novo; 6 ausentes, todos explicados (rótulo do menu "Arquivo ▾" e itens do menu com texto de atalho, títulos de grupo "Obra" e "Linha de comando", que viraram botões/campo com outro nome). Varredura estática dos 1114 rótulos `aria-label/title/label/texto de botão` do código antigo: 0 ausentes no código novo.
+- Destinos `RB:aba / grupo` do mapa (224 linhas): 7 apontam para grupo que não existe com esse nome (lista no item 4).
+- Cor literal, `style` fora de `width`, CSS fora de `src/app/design`, classes não definidas: 0 achados nos arquivos da D.
+
+## Achados (priorizados)
+
+### Corrigir
+1. **Doca guardada sem validação** (`src/app/layout.ts` `ler()`, linhas 22-31): `localStorage` com `w: "abc"` gera doca de 1 px; `w: 99999` gera doca de 99999 px (medido: central some). Correção: em `ler()` aplicar `Number.isFinite` + `limitaDoca` em cada `w` e booleano estrito em `aberta`.
+2. **Duas docas somam mais que a janela** (`Dock.tsx`, `DOCA_MAX = 640` fixo): 640 + 640 em 1280 px deixa a largura do desenho em 0 px (medido). Correção: limitar `w` por `innerWidth - outra doca - 320` (ou `max-width` em CSS na coluna central com `min-width`).
+3. **Botão de recolher da doca direita cobre o título** (`global.css` `.dock.r .dock-toggle { left: 0 }`): "Propriedades" aparece como "ropriedades" em 1280, 1366 e 1920 (screenshots). Correção: `padding-left` de 20 px em `.phead` da doca direita, ou toggle dentro do cabeçalho.
+4. **Mapa x realidade, destinos que não existem**: `Arquivo/Importar` (E12; o botão está em Arquivo/Obra), `Cargas e ações/Aplicar` e `/Combinações` (P50, P52; Pórtico tem um único botão "Cargas e combinações" que só troca de painel), `Edição/Transformar` (P47; só "Transformar seleção…" que abre o painel), `Cargas e ações/Empuxo` (E35; está em "Outras ações"), `Dimensionamento/Incêndio` (E38; "Proteção ao fogo"), `Lançamento/Lajes` (E42), `Vista/Consulta` (T14). Nenhum comando se perdeu, mas o mapa promete botões que a faixa não tem. Correção: atualizar o mapa para o que existe (ou criar os botões).
+5. **Navegador menor que o mapa**: a árvore só tem Pavimentos, Pilares, Vigas, Lajes, Eixos, Fundação e Vistas (`arvore.ts` `montarArvore`). O mapa promete nós Grupos, Cargas, Cortes, Pilares-parede, Paredes, Muros, Alvenaria (E14, E19-E30) e Sondagens/Apoios no módulo Fundações (M2, M3). Medido: após `parede.criar`, nenhum nó novo. Pavimentos/Grupos/Eixos continuam em tabelas na paleta "Dados da obra" (`Edificio.tsx` 113-178), não em PROP. Correção: registrar a divergência no mapa e abrir cartão para os nós que faltam.
+6. **Cartão de tipo ignora vários elementos** (`Propriedades.tsx` `useResumoSelecao`, linhas 14-28): selecionando parede, pilar-parede, muro, viga de fundação, radier, sapata corrida ou consolo, mostra "Obra / Nada selecionado" apesar da seleção. A aba contextual da faixa (`alvo.ts`) cobre só fundação, viga, pilar e laje. Correção: cobrir os demais tipos ou texto "N elementos selecionados".
+7. **Teclado**: nenhuma navegação por setas na faixa, nas abas de vista, nas de módulo nem na árvore (medido: ArrowRight/ArrowDown não movem o foco; todas as abas e itens com `tabIndex=0`; 200+ Tab sem chegar à planta). Árvore e faixa pedem tabindex móvel (roving) e setas/Home/End; falta `aria-controls`/`tabpanel`. Correção: hook de roving tabindex em `Ribbon`, `ViewTabs` e `Tree` (um componente só, vale para todos).
+8. **Configuração da obra** (`Configuracao.tsx`): `role="dialog"` sem mover o foco ao abrir nem devolvê-lo, sem `aria-modal` (coerente com não bloquear), e Esc não fecha (decisão registrada no commit 90bcad2, mas diverge de `Modal`). Medido: foco continua no botão da faixa. Correção: foco no título/primeiro item ao abrir e devolução ao fechar; Esc com foco dentro da janela.
+9. **Largura**: abas "Arquivo" (2469 px) e "Lançamento" (2314 px) da faixa rolam na horizontal em qualquer tela, até em 1920 (a barra é fina e o corte não tem indício); em 1280 rolam também "Edição" e "Fundações". Botões importantes (Importar DXF, Lançar por DXF/DWG) ficam fora da vista no 1280. Correção: dividir grupos em mais abas ou menu "mais"; sombra/seta de rolagem.
+10. **Altura da faixa muda por aba** (87 a 141 px: Vista 141, Arquivo 101, Análise 81): o desenho muda de altura ao trocar de aba (1366x650: 314, 300, 260 px). Correção: `min-height` único em `.ribbon` igual ao maior grupo, ou empilhar os controles da aba Vista em colunas.
+11. **Telas até 900 px** (`global.css`, `@media (max-width: 900px) { .dock, .dock-in { display: contents } }`): em 800x700 o Edifício empilha Navegador/Dados/desenho, o desenho fica em y=425 com 360 px e a página rola (scrollH 794 > 700). Antes da D1 também empilhava (scrollH 2246); não é regressão grave, mas o estado é pior de ler. Correção: nessa faixa, doca como gaveta sobreposta (botão da QA) e desenho em tela cheia.
+12. **Pórtico em 1024 px**: rolagem horizontal da página (scrollW 1058): rótulo `.gridsel` da barra de status passa da borda (antes da D1: 1024). Correção: `flex-wrap` ou `overflow-x:auto` em `.statusbar`.
+
+### Sugestão
+13. **Cobertura do `mapaLayout.test.ts`**: só confere as 41 ferramentas (rótulo + tecla no texto do mapa) e as 10 vistas, e a contagem do cabeçalho; não olha o app. Não cobre: destinos RB/NAV/PROP/CFG/SB das outras ~170 linhas, existência dos botões, nem `ABAS_FAIXA`. Proposta: teste que lê as linhas `RB:aba / grupo` e confere contra os grupos renderizados (o script de auditoria fez isso: 7 divergências).
+14. Documentação: o mapa diz "Ferramentas 40 (T1 a T40)" mas soma 41; `00-plano-D1-a-D6.md` ainda diz "223 itens".
+15. **Radiogroup com botões comuns** (`FaixaEdificio.tsx`, `RibbonGroup radios="Ferramenta"`): grupos "Elementos", "Gabarito" e "Cálculo" misturam `role=radio` com botões de ação (Vigas inclinadas, Importar DXF, Gabaritos…). Pórtico usa `aria-pressed`, Edifício `role=radio`: inconsistente. Padronizar.
+16. **Botão de recolher dentro do `tablist`** (`Ribbon.tsx`, `.rtab-toggle`): filho `button` em `role=tablist` é ARIA inválido. Mover para fora do tablist.
+17. **Comandos duplicados** (regra 3 do mapa, um elemento por comando): "Fundação" e "Medir" existem na faixa e na barra da planta (`.planta-barra`); "Resultados" (Pórtico) na faixa e na aba do painel; "Calcular obra" em duas abas; "2ª ordem global…" e "Ver Análise" levam à mesma vista. Nomes de aba repetidos em três tablists (Fundações, Análise, Dimensionamento, Pranchas): leitor de tela e seletores ambíguos.
+18. **Abas vazias no módulo Fundações**: "Dimensionamento" e "Fundações" da faixa só têm uma dica (`FaixaFundacoes.tsx`); o módulo não tem NAV/PROP (M2, M3, M5 do mapa). Esconder as abas ou acrescentar os botões de Premissas e Restaurar padrões.
+19. **Configuração**: 320 px por padrão corta o índice (15 seções, `max-height: 7.5rem`, 10 visíveis) e quebra rótulos dos campos; sugerir largura inicial maior (480 px) ou índice em coluna.
+20. **Árvore**: `montarArvore` descarta vigas/lajes cujo `grupo` não existe (a contagem do nó mostra o total, os filhos menos); `Tree` não tem virtualização para centenas de pilares (cada um com `tabIndex=0`).
+21. **Canvas menor**: em 1280x800 o desenho fica 600x464 (era 880x559), em 1366x650 686x314. A faixa recolhida devolve 87 px; considerar recolher a faixa automaticamente abaixo de 760 px de altura.
+22. Pré-existente, não é da D: Esc na Paleta de comandos (Ctrl+K) não fecha com o foco no campo (`PaletaComandos.tsx` linha 115, `stopPropagation` no `onKeyDown` impede o ouvinte do `Modal`).
+
+### e2e (item 4 da solicitação)
+23. **Nada enfraquecido**: das 3 asserções removidas no diff, 3 foram reescritas com o escopo novo (`Resultados do elemento` na faixa contextual; `.statusbar .status`); 16 acrescentadas. V4 (`scrollIntoViewIfNeeded` antes do `boundingBox`) só garante visibilidade do mapa. `layout:` filtra por inclusão (o único fluxo com esse texto); `faixaCtx` usa `.rtab.ctx` (classe, não papel).
+24. **Fragilidade**: E3b acrescentou `press('f')` + `waitForTimeout(500)` e D4 `waitForTimeout(400)`: esperas fixas para o enquadramento. Trocar por espera de condição (transformada da planta estável). Viewport dos fluxos subiu de 900 para 1080 de altura (`e2e/run.mjs`): nenhum fluxo roda em tela real de 1366x768 ou 1280x800, onde os achados 2, 9 e 21 aparecem. Sugestão: um fluxo de layout em 1280x800 com asserções de tamanho mínimo do desenho (largura >= 400, altura >= 300).
+
+### Bloqueante
+Nenhum. Testes e e2e verdes; nenhum comando ou opção anterior ficou inalcançável.
