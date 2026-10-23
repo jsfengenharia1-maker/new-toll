@@ -1619,6 +1619,8 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
   detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
   /** Vigas inclinadas entre pavimentos (E2c): flexo-compressão oblíqua, cortante e torção; detalhamento (barras e estribos) e resumo do aço. */
   inclinadas?: ResultadoInclinada[]; detalhesInclinadas?: DetalheInclinada[]; resumoAcoInclinadas?: ReturnType<typeof resumoAcoInclinadas>;
+  /** Diagonais de contraventamento (E2d): o mesmo dimensionamento das inclinadas (tração e compressão com a esbeltez máxima), detalhe e resumo do aço. */
+  diagonais?: ResultadoInclinada[]; detalhesDiagonais?: DetalheInclinada[]; resumoAcoDiagonais?: ReturnType<typeof resumoAcoInclinadas>;
   /** Detalhamento dos pilares (barras por lance, emendas, arranques, estribos e grampos) e resumo do aço dos pilares. */
   detalhesPilares?: DetalhePilar[]; resumoAcoPilares?: ReturnType<typeof resumoAcoPilares>;
   /** Detalhamento das lajes maciças (posições de barras, bordas, avisos) e resumo do aço das lajes. */
@@ -1700,6 +1702,8 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
   { // vigas inclinadas (E2c)
     const inc = dimensionarInclinadas(b, an, elu, (bi, xs) => porCaso(an, bi, xs));
+    const dg = dimensionarInclinadas(b, an, elu, (bi, xs) => porCaso(an, bi, xs), 'diagonal');
+    if (dg.length) { d.diagonais = dg; d.detalhesDiagonais = dg.map((r) => detalharInclinada(b, r, an.opcoes.perdasAco)); d.resumoAcoDiagonais = resumoAcoInclinadas(b, d.detalhesDiagonais); }
     if (inc.length) { d.inclinadas = inc; d.detalhesInclinadas = inc.map((r) => detalharInclinada(b, r, an.opcoes.perdasAco)); d.resumoAcoInclinadas = resumoAcoInclinadas(b, d.detalhesInclinadas); }
   }
   { const pp = esforcosPilaresParede(b, an, (bi, xs) => porCaso(an, bi, xs)); if (pp.length) d.pilaresParede = pp; }

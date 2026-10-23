@@ -611,6 +611,14 @@ export interface VigaInclinada {
   armadura?: ArmaduraInclinada;
 }
 
+/**
+ * Diagonal de contraventamento de concreto (E2d; C6.36 a C6.46): a mesma barra de 2 nós e 6 gdl da viga inclinada, entre pontos de
+ * pavimentos quaisquer (pode atravessar grupos intermediários), sem cargas próprias além do peso. `excluidas` guarda os pavimentos
+ * iniciais das barras de uma diagonal múltipla que passaram a ser diagonais próprias (editar, mover e atribuir valem só no grupo
+ * atual, C6.46). Nos cruzamentos de diagonais o pórtico ganha um nó, sem reduzir o comprimento de flambagem.
+ */
+export interface Diagonal extends VigaInclinada { excluidas?: string[] }
+
 export type TipoLaje =
   | { tipo: 'macica'; h: number }
   /** Treliçada unidirecional (vigotas + enchimento de EPS); `modelo` do catálogo (lajes.ts). */
@@ -876,6 +884,8 @@ export interface BuildingModel {
   cargas: Carga[];
   /** Vigas inclinadas entre pavimentos (E2c); ausente = nenhuma. */
   vigasInclinadas?: VigaInclinada[];
+  /** Diagonais de contraventamento entre pavimentos (E2d); ausente = nenhuma. */
+  diagonais?: Diagonal[];
   vento?: Vento;
   /** Pranchas: dados do carimbo (definidos pelo usuário), formato e escala. */
   prancha?: ConfigPrancha;

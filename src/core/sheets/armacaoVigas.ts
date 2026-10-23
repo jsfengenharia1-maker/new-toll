@@ -5,6 +5,7 @@
 // (barras iguais somadas); tabela de aço e resumo por bitola com perdas, concreto e forma da folha.
 import type { AnaliseEdificio } from '../building/analitico';
 import { dadosDosArcos } from '../building/curvas';
+import { acharEntreGrupos } from '../building/inclinadas';
 import type { DetalheInclinada, ResultadoInclinada } from '../building/inclinadasDim';
 import { acoDaBarraViga, ganchoNoventa, type BarraViga, type DetalheViga } from '../building/detalhamento';
 import type { Dimensionamento } from '../building/dimensionamento';
@@ -202,9 +203,9 @@ export function blocoInclinada(b: BuildingModel, det: DetalheInclinada, res: Res
   const e = det.estribos, ce = cmInt(e.comprimento), pe = posDe(`E|${cmInt(e.largura)}|${cmInt(e.altura)}`, acoE, e.phi, ce, e.n);
   out.push(...cotaHorizontal(-22, [0, xf], [`${e.n} ${pe} c/${cmInt(e.s)}`]), ...cotaHorizontal(-28, [0, xf], [`${cotaCm(det.Lf)} (entre faces; ${cotaCm(det.L)} entre as pontas)`]));
   out.push(txt('TEXTO', 0, hb + 14, 5, res.nome, 'e', 'base'));
-  out.push(txt('TEXTO', 0, hb + 11, 2, `ESC 1:${cfg.escalaVigas} · ${cotaCm(det.b)}×${cotaCm(det.h)} · VIGA INCLINADA DESENVOLVIDA (${nf(res.angulo, 1)}° com a horizontal)`, 'e', 'base'));
+  out.push(txt('TEXTO', 0, hb + 11, 2, `ESC 1:${cfg.escalaVigas} · ${cotaCm(det.b)}×${cotaCm(det.h)} · ${b.diagonais?.some((x) => x.id === det.inclinada) ? 'DIAGONAL' : 'VIGA INCLINADA'} DESENVOLVIDA (${nf(res.angulo, 1)}° com a horizontal)`, 'e', 'base'));
   // seção transversal com as barras
-  const xs = xf + 14, ws = det.b * kS, hs = det.h * kS, ys = -2, a = res.arranjo, cob = cobrimentoViga(b, b.vigasInclinadas?.find((v) => v.id === det.inclinada)?.cobrimento);
+  const xs = xf + 14, ws = det.b * kS, hs = det.h * kS, ys = -2, a = res.arranjo, cob = cobrimentoViga(b, acharEntreGrupos(b, det.inclinada)?.cobrimento);
   out.push(txt('TEXTO', xs + ws / 2, ys + hs + 7, 2.5, 'SEÇÃO', 'c', 'base'), txt('TEXTO', xs + ws / 2, ys + hs + 4, 1.8, `ESC 1:${cfg.escalaSecao}`, 'c', 'base'));
   pl('CONCRETO', [xs, ys], [xs + ws, ys], [xs + ws, ys + hs], [xs, ys + hs], [xs, ys]);
   const phiT = e.phi / 1000, fila = (n: number, phi: number, y: number) => {
@@ -259,7 +260,7 @@ export function montarPranchasVigas(b: BuildingModel, _an: AnaliseEdificio | nul
     if (gSel && g !== gSel) continue;
     const lista = vigasDoGrupo(b, dim, g);
     // vigas inclinadas (E2c): desenhadas na prancha do grupo do pavimento inicial
-    const incs = (dim.inclinadas ?? []).flatMap((r) => { const det = dim.detalhesInclinadas?.find((x) => x.barra === r.barra); return det && b.pavimentos.find((p) => p.id === r.pavimento)?.grupo === g ? [{ r, det }] : []; });
+    const incs = [...(dim.inclinadas ?? []).map((r) => ({ r, dets: dim.detalhesInclinadas })), ...(dim.diagonais ?? []).map((r) => ({ r, dets: dim.detalhesDiagonais }))].flatMap(({ r, dets }) => { const det = dets?.find((x) => x.barra === r.barra); return det && b.pavimentos.find((p) => p.id === r.pavimento)?.grupo === g ? [{ r, det }] : []; });
     if (!lista.length && !incs.length) continue;
     const nomeG = b.grupos.find((x) => x.id === g)?.nome ?? g, pavs = pavimentosDoGrupo(b, g);
     const blocos: Bloco[] = [

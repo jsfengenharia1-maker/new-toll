@@ -10,7 +10,7 @@ import type { CombinacaoEd } from './combinacoes';
 import type { Estacao } from './dimensionamento';
 import { ganchoNoventa, estriboComprimento, lbBasico } from './detalhamento';
 import { acoDe, cobrimentoViga, concretoDe, gamas } from './materiais';
-import { barrasDaInclinada } from './inclinadas';
+import { acharEntreGrupos, barrasDaInclinada, entreGrupos } from './inclinadas';
 import type { ArmaduraInclinada, BuildingModel, VigaInclinada } from './types';
 
 /** Bitolas longitudinais do dimensionamento automático (mm). */
@@ -20,6 +20,25 @@ const PHI_ESTRIBO_GEOMETRIA = 0.0063;
 const DMAX = 0.019;
 /** Estações por barra (extremos incluídos) e fração da barra em que a 2ª ordem local atinge o máximo (meia onda de seno). */
 const N_ESTACOES = 21;
+
+type FnEstacoes = (bi: number, xs: number[]) => Record<string, Estacao[]>;
+
+/**
+ * Estações de uma barra entre pavimentos e esforços por caso nelas. Uma diagonal dividida nos cruzamentos (E2d) tem várias barras no
+ * pórtico: as estações de cada trecho são concatenadas (abscissa contada desde a ponta inicial; o nó aparece nos dois trechos).
+ */
+export function estacoesDaBarra(inc: InclinadaNoPortico, estacoes: FnEstacoes, n = N_ESTACOES): { xs: number[]; pc: Record<string, Estacao[]> } {
+  if (!inc.segs || inc.segs.length < 2) { const xs = Array.from({ length: n }, (_, i) => (inc.Lf * i) / (n - 1)); return { xs, pc: estacoes(inc.bi, xs) }; }
+  const xs: number[] = [], pc: Record<string, Estacao[]> = {};
+  let off = 0;
+  for (const sg of inc.segs) {
+    const m = Math.max(5, Math.round(((n - 1) * sg.Lf) / inc.Lf) + 1), loc = Array.from({ length: m }, (_, i) => (sg.Lf * i) / (m - 1)), r = estacoes(sg.bi, loc);
+    for (const nome in r) (pc[nome] ??= []).push(...r[nome].map((e) => ({ ...e, x: e.x + off })));
+    xs.push(...loc.map((x) => x + off));
+    off += sg.Lf;
+  }
+  return { xs, pc };
+}
 
 export interface EstacaoEnvoltoria {
   /** Abscissa na parte flexível (m). */
@@ -98,14 +117,15 @@ export interface OpcoesDimInclinada {
  * Dimensiona (ou, com armadura bloqueada, verifica) as vigas inclinadas da análise. `estacoes(bi, xs)` devolve os esforços por
  * caso nas abscissas `xs` da barra `bi` do pórtico (porCaso do dimensionamento).
  */
-export function dimensionarInclinadas(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], estacoes: (bi: number, xs: number[]) => Record<string, Estacao[]>): ResultadoInclinada[] {
+export function dimensionarInclinadas(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], estacoes: FnEstacoes, tipo: 'inclinada' | 'diagonal' = 'inclinada'): ResultadoInclinada[] {
   if (!an.inclinadas?.length || !an.portico.res) return [];
   const c = concretoDe(b, 'viga'), aLong = acoDe(b, 'vigaPos'), aEst = acoDe(b, 'vigaEstribo'), gs = gamas(b).s, op = an.opcoes;
   const fywd = Math.min(aEst.fyk / gs, 435), fyd = aLong.fyd;
   const out: ResultadoInclinada[] = [];
-  const barras = new Map(b.vigasInclinadas?.flatMap((v) => barrasDaInclinada(b, v).map((x) => [x.id, x] as const)) ?? []);
+  const barras = new Map(entreGrupos(b).flatMap((v) => barrasDaInclinada(b, v).map((x) => [x.id, x] as const)));
   for (const inc of an.inclinadas) {
-    const vi = b.vigasInclinadas?.find((x) => x.id === inc.ref);
+    if (!!inc.diagonal !== (tipo === 'diagonal')) continue;
+    const vi = acharEntreGrupos(b, inc.ref);
     if (!vi) continue;
     out.push(dimensionarUma(b, inc, vi, barras.get(inc.id)?.rotulo ?? inc.nome, elu, estacoes, { c, aEst, aLong, gs, fywd, fyd, op }));
   }
@@ -114,12 +134,12 @@ export function dimensionarInclinadas(b: BuildingModel, an: AnaliseEdificio, elu
 
 interface Ctx { c: ReturnType<typeof concretoDe>; aEst: ReturnType<typeof acoDe>; aLong: ReturnType<typeof acoDe>; gs: number; fywd: number; fyd: number; op: AnaliseEdificio['opcoes'] }
 
-function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaInclinada, rotulo: string, elu: CombinacaoEd[], estacoes: (bi: number, xs: number[]) => Record<string, Estacao[]>, k: Ctx): ResultadoInclinada {
+function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaInclinada, rotulo: string, elu: CombinacaoEd[], estacoes: FnEstacoes, k: Ctx): ResultadoInclinada {
   const { c, aEst, gs, fywd, fyd, op } = k;
   const { b: bw, h } = vi.secao, Ac = bw * h, cob = cobrimentoViga(b, vi.cobrimento), mensagens: string[] = [];
   // ---- esforços por combinação nas estações ----
-  const n = N_ESTACOES, xs = Array.from({ length: n }, (_, i) => (inc.Lf * i) / (n - 1));
-  const pc = estacoes(inc.bi, xs);
+  const { xs, pc } = estacoesDaBarra(inc, estacoes);
+  const diag = !!inc.diagonal, lamLim = diag ? op.diagonalEsbeltezMax : 200;
   const comb = (cb: CombinacaoEd, i: number, kk: keyof Estacao) => { let s = 0; for (const nome in cb.fatores) { const e = pc[nome]; if (e) s += cb.fatores[nome] * e[i][kk]; } return s; };
   type Linha = { cb: string; N: number[]; Mz: number[]; My: number[]; Vy: number[]; Vz: number[]; T: number[] };
   const linhas: Linha[] = elu.map((cb) => {
@@ -127,7 +147,7 @@ function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaIncli
     return { cb: cb.nome, N: col('N'), Mz: col('Mz'), My: col('My'), Vy: col('Vy'), Vz: col('Vz'), T: col('T') };
   });
   // ---- flambagem por plano (ℓe = k·ℓ entre os nós) e esbeltez ----
-  const kV = vi.flambagem?.vertical ?? op.inclinadaFlambagemVertical, kT = vi.flambagem?.transversal ?? op.inclinadaFlambagemTransversal;
+  const kV = vi.flambagem?.vertical ?? (diag ? op.diagonalFlambagemVertical : op.inclinadaFlambagemVertical), kT = vi.flambagem?.transversal ?? (diag ? op.diagonalFlambagemTransversal : op.inclinadaFlambagemTransversal);
   const le: [number, number] = [kV * inc.L, kT * inc.L], lambda: [number, number] = [le[0] / (h / Math.sqrt(12)), le[1] / (bw / Math.sqrt(12))];
   // ---- pontos de cálculo: compressão com mínimo e 2ª ordem; tração e flexão simples sem acréscimos ----
   const pontos: Ponto[] = [];
@@ -150,6 +170,7 @@ function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaIncli
       for (const s of sinais) pontos.push({ combinacao: l.cb, x, N, Mz: s * v.tot, My: t.tot, Nc: Nd / 1000, mx: t.tot / 1000, my: (s * v.tot) / 1000 });
     });
   }
+  const soTracao = diag && !pontos.some((p) => p.Nc > 0); // diagonal só tracionada: sem limite de esbeltez nem 2ª ordem
   const comp = linhas.flatMap((l) => l.N).map((v) => -v), NdMax = Math.max(0, ...comp), NtMax = Math.max(0, ...comp.map((v) => -v));
   // ---- cortante e torção (máximos sobre todas as combinações e estações) ----
   const maxAbs = (f: (l: Linha) => number[]) => Math.max(0, ...linhas.flatMap((l) => f(l).map(Math.abs)));
@@ -190,7 +211,7 @@ function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaIncli
     bloqueada = true;
     util = completo(arranjo);
     if (!barrasDaSecao(bw, h, cob, arranjo).cabe) mensagens.push('Viga inclinada: as barras da armadura informada não cabem numa camada com o espaçamento mínimo da NBR 6118 (18.3.2.2); aumente a seção ou use bitolas menores.');
-  } else if (lamMax <= 200 && pontos.length) {
+  } else if ((lamMax <= lamLim || soTracao) && pontos.length) {
     // candidatos simétricos (mesmo número de barras em cima e embaixo), por área crescente; busca binária pela utilização
     const cands: ArmaduraInclinada[] = [];
     for (const phi of PHI_PRINCIPAL) for (let nb = 2; nb <= 12; nb++) {
@@ -269,9 +290,9 @@ function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaIncli
   // ---- mensagens e situação ----
   let status: ResultadoInclinada['status'] = 'ok';
   const As = areaCm2(arranjo);
-  if (lamMax > 200) { status = 'fail'; mensagens.push(`Viga inclinada: esbeltez λ = ${nf(lamMax, 0)} acima de 200 (NBR 6118, 15.8.3.3.5): aumente a seção, trave a barra ou reduza o comprimento entre nós.`); }
-  else if (lamMax > 90) { status = 'review'; mensagens.push(`Viga inclinada: esbeltez λ = ${nf(lamMax, 0)} acima de 90: o pilar-padrão com curvatura aproximada não vale (NBR 6118, 15.8.3.3.2); resultado indicativo, confira por método mais rigoroso.`); }
-  if (!pontos.length && lamMax <= 200) mensagens.push('Viga inclinada: sem combinações ELU para dimensionar.');
+  if (lamMax > lamLim && !soTracao) { status = 'fail'; mensagens.push(`Viga inclinada: esbeltez λ = ${nf(lamMax, 0)} acima de ${nf(lamLim, 0)} (NBR 6118, 15.8.3.3.5): aumente a seção, trave a barra ou reduza o comprimento entre nós.`); }
+  else if (lamMax > 90 && !soTracao) { status = 'review'; mensagens.push(`Viga inclinada: esbeltez λ = ${nf(lamMax, 0)} acima de 90: o pilar-padrão com curvatura aproximada não vale (NBR 6118, 15.8.3.3.2); resultado indicativo, confira por método mais rigoroso.`); }
+  if (!pontos.length && (lamMax <= lamLim || soTracao)) mensagens.push('Viga inclinada: sem combinações ELU para dimensionar.');
   if (util > 1 + 1e-9) {
     status = 'fail';
     mensagens.push(`Viga inclinada: ${bloqueada ? 'a armadura informada' : 'nenhuma disposição com até 4 % de armadura'} não atende a flexo-${NdMax > 0 && NdMax >= NtMax ? 'compressão' : 'tração'} oblíqua (utilização ${nf(util * 100, 0)} %); aumente a seção${bloqueada ? ' ou a armadura' : ''}.`);
@@ -280,12 +301,13 @@ function dimensionarUma(b: BuildingModel, inc: InclinadaNoPortico, vi: VigaIncli
   if (As.total > AsMax + 1e-9) { status = 'fail'; mensagens.push(`Viga inclinada: armadura longitudinal ${nf(As.total)} cm² acima de 4 % da seção (${nf(AsMax)} cm²).`); }
   if (!sV.ok || !sH.ok || utilCortante > 1 + 1e-9 || tor.TRd2 < Td - 1e-9) { status = 'fail'; mensagens.push(`Viga inclinada: compressão diagonal do concreto esgotada (cortante${Td > 0 ? ' e torção' : ''}, ${nf(utilCortante * 100, 0)} % de VRd2/TRd2): aumente a largura ou a altura da seção.`); }
   if (!estriboOk) { status = 'fail'; mensagens.push(`Viga inclinada: estribo φ${nf(estribo.phi, estribo.phi % 1 ? 1 : 0)} c/${nf(estribo.s * 100, 0)} abaixo do necessário pelo cortante e pela torção.`); }
+  if (inc.cruzamentos) mensagens.push(`Viga inclinada: ${inc.cruzamentos === 1 ? 'nó gerado' : `${inc.cruzamentos} nós gerados`} no cruzamento com outra diagonal; a flambagem continua pelo comprimento total entre as pontas (${nf(inc.L, 2)} m), sem redução pelo cruzamento.`);
   mensagens.push('Viga inclinada: o detalhe dos nós de extremidade (ancoragem, cruzamento com pilar ou viga) fica a cargo do projetista; as pontas foram calculadas com a ligação informada (NBR 6118, cap. 22).');
   return {
     inclinada: inc.ref, barra: inc.id, nome: rotulo, pavimento: inc.pavimento, pavimentoFim: inc.pavimentoFim, secao: `${nf(bw * 100, 0)}×${nf(h * 100, 0)}`, b: bw, h, L: inc.L, Lf: inc.Lf, angulo: inc.angulo,
     ligacao: `${vi.ligIni === 'articulada' ? 'articulada' : 'engastada'} / ${vi.ligFim === 'articulada' ? 'articulada' : 'engastada'}`, le, lambda,
     Nd: { compressao: NdMax, tracao: NtMax }, Mz, My, Vd: [Vy, Vz], Td, arranjo, As, taxa: As.total / (Ac * 1e4),
-    armadura: textoArmadura(arranjo), estribo: `φ${nf(estribo.phi, estribo.phi % 1 ? 1 : 0)} c/${nf(estribo.s * 100, 0)}`, util, utilCortante, determinantes, envoltoria, ...(bloqueada ? { bloqueada } : {}), status, mensagens,
+    armadura: textoArmadura(arranjo), estribo: `φ${nf(estribo.phi, estribo.phi % 1 ? 1 : 0)} c/${nf(estribo.s * 100, 0)}`, util, utilCortante, determinantes, envoltoria, ...(bloqueada ? { bloqueada } : {}), status, mensagens: diag ? mensagens.map((m) => m.replace(/^Viga inclinada:/, 'Diagonal:')) : mensagens,
   };
 }
 
@@ -307,7 +329,7 @@ const arred = (v: number) => Math.round(v * 100) / 100;
 
 /** Barras longitudinais ao longo da barra inteira (entre as pontas lançadas) e estribos a cada `s` na parte flexível. */
 export function detalharInclinada(b: BuildingModel, r: ResultadoInclinada, perdas = 0): DetalheInclinada {
-  const vi = b.vigasInclinadas?.find((x) => x.id === r.inclinada), cob = cobrimentoViga(b, vi?.cobrimento), c = concretoDe(b, 'viga'), aLong = acoDe(b, 'vigaPos');
+  const vi = acharEntreGrupos(b, r.inclinada), cob = cobrimentoViga(b, vi?.cobrimento), c = concretoDe(b, 'viga'), aLong = acoDe(b, 'vigaPos');
   const a = r.arranjo, barras: BarraInclinadaDet[] = [];
   const C = arred(r.L);
   barras.push({ pos: 'N1', face: 'sup', n: a.sup.n, phi: a.sup.phi, comprimento: C }, { pos: 'N2', face: 'inf', n: a.inf.n, phi: a.inf.phi, comprimento: C });
@@ -361,20 +383,20 @@ const somaFatores = (pc: Record<string, Estacao[]>, fatores: Record<string, numb
   });
 
 /** Listagem completa de uma viga inclinada: materiais, descrição, esforços por hipótese e combinação, envoltórias, aproveitamento e erros. */
-export function listagemInclinada(b: BuildingModel, an: AnaliseEdificio, r: ResultadoInclinada, elu: CombinacaoEd[], estacoes: (bi: number, xs: number[]) => Record<string, Estacao[]>): ListagemInclinada | null {
-  const inc = an.inclinadas?.find((x) => x.id === r.barra), vi = b.vigasInclinadas?.find((x) => x.id === r.inclinada);
+export function listagemInclinada(b: BuildingModel, an: AnaliseEdificio, r: ResultadoInclinada, elu: CombinacaoEd[], estacoes: FnEstacoes): ListagemInclinada | null {
+  const inc = an.inclinadas?.find((x) => x.id === r.barra), vi = acharEntreGrupos(b, r.inclinada);
   if (!inc || !vi) return null;
-  const xs = r.envoltoria.map((e) => e.x), pc = estacoes(inc.bi, xs), c = concretoDe(b, 'viga'), g = gamas(b);
+  const { xs, pc } = estacoesDaBarra(inc, estacoes), c = concretoDe(b, 'viga'), g = gamas(b);
   return {
     nome: r.nome,
     materiais: { fck: c.fck, acoLongitudinal: acoDe(b, 'vigaPos').aco, acoEstribo: acoDe(b, 'vigaEstribo').aco, cobrimento: +(cobrimentoViga(b, vi.cobrimento).lat * 100).toFixed(1), gamaC: g.c, gamaS: g.s },
     descricao: [
       `Seção ${r.secao} cm; comprimento entre as pontas ${nf(r.L, 2)} m, parte flexível ${nf(r.Lf, 2)} m, ângulo ${nf(r.angulo, 1)}° com a horizontal.`,
-      `Pavimentos: ${r.pavimento} → ${r.pavimentoFim}; ligações das pontas: ${r.ligacao}.`,
+      `Pavimentos: ${r.pavimento} → ${r.pavimentoFim}; ligações das pontas: ${r.ligacao}${inc.cruzamentos ? `; ${inc.cruzamentos} nó(s) gerado(s) no cruzamento com outra diagonal` : ''}.`,
       `Flambagem: ℓe = ${nf(r.le[0], 2)} m (plano vertical, λ = ${nf(r.lambda[0], 0)}) e ${nf(r.le[1], 2)} m (plano transversal, λ = ${nf(r.lambda[1], 0)}).`,
     ],
     xs, casos: pc, combinacoes: elu.map((cb) => ({ nome: cb.nome, estacoes: somaFatores(pc, cb.fatores, xs.length) })),
     envoltoria: r.envoltoria, aproveitamento: Math.max(r.util, r.utilCortante), resultado: `${r.armadura}; estribos ${r.estribo}; ${r.status === 'ok' ? 'atende' : r.status === 'review' ? 'revisar' : 'não atende'}`,
-    erros: r.mensagens.filter((m) => !m.startsWith('Viga inclinada: o detalhe dos nós')),
+    erros: r.mensagens.filter((m) => !/^(Viga inclinada|Diagonal): o detalhe dos nós/.test(m)),
   };
 }

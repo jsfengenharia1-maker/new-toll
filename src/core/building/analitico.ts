@@ -13,6 +13,7 @@ import { GAMA_CONCRETO, eixosDasVigas } from './lajes';
 import { capaLaje, ehNervurada, geometriaNervurada, type FonteLajes } from './tiposLaje';
 import { inerciaT, mesaDaViga, propriedadesRigidez } from './secaoViga';
 import { ehCurva } from './curvas';
+import { cruzamentosDaBarra, DIST_MIN_EXTREMO } from './diagonais';
 import { DESNIVEL_MIN, expandirInclinadas, ligacaoDaPonta, pontosDeLigacaoNaViga, saidaDoContorno, type Ligacao } from './inclinadas';
 import { pavimentoAlvoComum } from './vigaComum';
 import { casosVento, type CoefVento, type CasoVento, type Classe, type ZonaVento } from './vento';
@@ -361,14 +362,18 @@ export interface DeslocamentosVento {
 
 /** Barra do pórtico: viga, pilar ou da base elástica (FU6: radier ou viga sobre base elástica; `pavimento` = 'fundacao'). */
 export interface BarraPortico {
-  tipo: 'viga' | 'pilar' | 'fundacao' | 'parede' | 'inclinada'; ref: string; pavimento: string;
+  tipo: 'viga' | 'pilar' | 'fundacao' | 'parede' | 'inclinada' | 'diagonal'; ref: string; pavimento: string;
   /** Modelo integrado: barra da divisão fina da viga (esforços da grelha condensada; poucas estações no dimensionamento). */
   fina?: boolean;
   /** Primeiro lance de pilar apoiado (E1a): em que elemento a base se apoia no modelo. */
   transicao?: 'pilar' | 'viga' | 'laje';
 }
 /** Viga inclinada no pórtico (E2c): barra `bi` de `portico.modelo`, comprimento entre as pontas e da parte flexível, nós e ligações das pontas. */
-export interface InclinadaNoPortico { id: string; ref: string; nome: string; pavimento: string; pavimentoFim: string; bi: number; L: number; Lf: number; angulo: number; nos: [number, number]; ligacao: [Ligacao, Ligacao] }
+export interface InclinadaNoPortico { id: string; ref: string; nome: string; pavimento: string; pavimentoFim: string; bi: number; L: number; Lf: number; angulo: number; nos: [number, number]; ligacao: [Ligacao, Ligacao];
+  /** Diagonal de contraventamento (E2d). */
+  diagonal?: boolean;
+  /** Diagonal dividida nos cruzamentos: barras do pórtico em ordem (`bi` é a primeira) e o número de nós gerados; `Lf` é o total. */
+  segs?: { bi: number; Lf: number }[]; cruzamentos?: number }
 export interface AnaliseEdificio {
   erro?: string;
   avisos: string[];
@@ -381,7 +386,7 @@ export interface AnaliseEdificio {
   };
   /** 2ª ordem global por P-Δ (N2c, opção segundaOrdem = 1): por combinação ELU, iterações, convergência e amplificação dos deslocamentos horizontais. */
   segundaOrdem?: { metodo: 'pDelta'; combinacoes: { nome: string; caso?: string; iteracoes: number; convergiu: boolean; amplificacao: number; erro?: string }[]; amplificacaoMax: number; iteracoesMax: number; ms: number };
-  /** Vigas inclinadas entre pavimentos (E2c) que entraram no pórtico. */
+  /** Vigas inclinadas (E2c) e diagonais de contraventamento (E2d) que entraram no pórtico. */
   inclinadas?: InclinadaNoPortico[];
   /** Base elástica (FU6): nós com molas, barras do radier e das vigas sobre base elástica e pilares sem vínculo externo. */
   baseElastica?: BaseElasticaAnalise;
@@ -1285,7 +1290,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   // ---- vigas inclinadas entre pavimentos (E2c) ----
   // Barra de 2 nós e 6 gdl ligada aos nós existentes (pilar: face do pilar menos trechoRigido·h; viga: nó criado no eixo), fora do
   // diafragma (nada a une ao corpo rígido do pavimento). EI bruto nas duas direções, GJ × coeficiente das vigas, EA bruto.
-  const inclinadasInfo: InclinadaNoPortico[] = [];
+  const inclinadasInfo: InclinadaNoPortico[] = [], nosCruzamento = new Map<string, number>();
   for (const bar of expandirInclinadas(b)) {
     const inc = bar.inc, s = inc.secao, dh = Math.hypot(bar.pFim[0] - bar.pIni[0], bar.pFim[1] - bar.pIni[1]);
     if (dh < 0.05 || Math.abs(bar.zFim - bar.zIni) < DESNIVEL_MIN) { avisos.push(`${bar.rotulo}: barra inclinada ignorada (pontas na mesma cota ou uma sobre a outra).`); continue; }
@@ -1312,15 +1317,30 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       ligs.push(lig);
     });
     if (falha || nos[0] === nos[1]) { avisos.push(`${bar.rotulo}: barra inclinada fora do modelo (${falha || 'as duas pontas caem no mesmo nó'}).`); continue; }
-    const barra: Barra3 = { i: nos[0], j: nos[1], E: Ev, G: Gv, A: s.b * s.h, Iz: (s.b * s.h ** 3) / 12, Iy: (s.h * s.b ** 3) / 12, J: op.torcaoViga * torcaoRet(s.b, s.h), ref: [0, 0, 1], offI: offs[0], offJ: offs[1] };
-    if (inc.ligIni === 'articulada') barra.libI = [4, 5];
-    if (inc.ligFim === 'articulada') barra.libJ = [4, 5];
-    const bi = pm.barras.length, Lf = baseBarra(pm, barra).L, pp = GAMA_CONCRETO * s.b * s.h;
-    pm.barras.push(barra);
-    ptags.push({ tipo: 'inclinada', ref: inc.id, pavimento: bar.pavIni });
-    // peso próprio: na parte flexível; o dos trechos rígidos vai para os nós
-    casosV[0].distribuidas.push({ barra: bi, q: [0, 0, -pp] });
+    const base3: Omit<Barra3, 'i' | 'j'> = { E: Ev, G: Gv, A: s.b * s.h, Iz: (s.b * s.h ** 3) / 12, Iy: (s.h * s.b ** 3) / 12, J: op.torcaoViga * torcaoRet(s.b, s.h), ref: [0, 0, 1] };
+    const pp = GAMA_CONCRETO * s.b * s.h, tag = bar.diagonal ? 'diagonal' : 'inclinada';
+    // E2d: nó nos cruzamentos de diagonais (barra dividida; a abscissa é sobre a parte flexível; o comprimento de flambagem continua o total)
+    const A0 = pm.nos[nos[0]], B0 = pm.nos[nos[1]], pa: V3 = [A0[0] + offs[0][0], A0[1] + offs[0][1], A0[2] + offs[0][2]], pb: V3 = [B0[0] + offs[1][0], B0[1] + offs[1][1], B0[2] + offs[1][2]];
+    const Lflex = Math.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+    const cortes = (bar.diagonal ? cruzamentosDaBarra(b, bar.id) : []).map((c) => ({ c, x: ((c.pos[0] - pa[0]) * (pb[0] - pa[0]) + (c.pos[1] - pa[1]) * (pb[1] - pa[1]) + (c.pos[2] - pa[2]) * (pb[2] - pa[2])) / Lflex }))
+      .filter((k) => k.x > DIST_MIN_EXTREMO && Lflex - k.x > DIST_MIN_EXTREMO).sort((p, q) => p.x - q.x);
+    const nosSeg = [nos[0], ...cortes.map((k) => { let n = nosCruzamento.get(k.c.chave); if (n === undefined) { n = pm.nos.length; nosCruzamento.set(k.c.chave, n); pm.nos.push([...k.c.pos] as V3); } return n; }), nos[1]];
+    const segs: { bi: number; Lf: number }[] = [];
+    for (let k = 0; k + 1 < nosSeg.length; k++) {
+      const barra: Barra3 = { ...base3, i: nosSeg[k], j: nosSeg[k + 1] };
+      if (k === 0) barra.offI = offs[0];
+      if (k + 2 === nosSeg.length) barra.offJ = offs[1];
+      if (k === 0 && inc.ligIni === 'articulada') barra.libI = [4, 5];
+      if (k + 2 === nosSeg.length && inc.ligFim === 'articulada') barra.libJ = [4, 5];
+      const bk = pm.barras.length, Lk = baseBarra(pm, barra).L;
+      pm.barras.push(barra);
+      ptags.push({ tipo: tag, ref: inc.id, pavimento: bar.pavIni });
+      casosV[0].distribuidas.push({ barra: bk, q: [0, 0, -pp] }); // peso próprio na parte flexível
+      segs.push({ bi: bk, Lf: Lk });
+    }
+    const bi = segs[0].bi, Lf = segs.reduce((t, x) => t + x.Lf, 0);
     let peso = pp * Lf;
+    // o peso dos trechos rígidos vai para os nós
     for (const [off, n] of [[offs[0], nos[0]], [offs[1], nos[1]]] as const) { const w = pp * Math.hypot(off[0], off[1], off[2]); if (w) casosV[0].nodais.push({ no: n, f: [0, 0, -w, 0, 0, 0] }); peso += w; }
     totais.G += peso; cargasPavimento[bar.pavIni].G += peso / 2; cargasPavimento[bar.pavFim].G += peso / 2;
     // cargas próprias (K1.9.114): concentrada, linear, faixa e triangular, verticais, por caso
@@ -1347,7 +1367,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
       }
       totais[c.caso] += total; cargasPavimento[bar.pavIni][c.caso] += total / 2; cargasPavimento[bar.pavFim][c.caso] += total / 2;
     }
-    inclinadasInfo.push({ id: bar.id, ref: inc.id, nome: bar.rotulo, pavimento: bar.pavIni, pavimentoFim: bar.pavFim, bi, L: bar.L, Lf, angulo: bar.angulo, nos: [nos[0], nos[1]], ligacao: [ligs[0], ligs[1]] });
+    inclinadasInfo.push({ id: bar.id, ref: inc.id, nome: bar.rotulo, pavimento: bar.pavIni, pavimentoFim: bar.pavFim, bi, L: bar.L, Lf, angulo: bar.angulo, nos: [nos[0], nos[1]], ligacao: [ligs[0], ligs[1]], ...(bar.diagonal ? { diagonal: true } : {}), ...(segs.length > 1 ? { segs, cruzamentos: segs.length - 1 } : {}) });
   }
   // engaste parcial no topo só onde há vigas no nó: sem elas o giro ficaria sem rigidez (mecanismo)
   const nBarras = new Map<number, number>();
@@ -1406,7 +1426,7 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   fundacao.push(...reacoesArranques(b));
 
   // rigidez reduzida da NBR 6118, 15.7.3 (γz e P-Δ): vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic
-  const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo === 'parede' || t.tipo === 'inclinada' ? 'viga' : t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
+  const kEci = (t: BarraPortico) => { const c = concretoDe(b, t.tipo === 'parede' || t.tipo === 'inclinada' || t.tipo === 'diagonal' ? 'viga' : t.tipo, t.tipo === 'pilar' ? t.pavimento : undefined); return c.Eci / c.Ecs; };
   const reduzida = (br: Barra3, i: number) => { if (ptags[i].tipo === 'parede') return br; const k = kEci(ptags[i]), f = (ptags[i].tipo === 'pilar' ? 0.8 : 0.4) * k; return { ...br, E: br.E * k, G: br.G * k, Iz: br.Iz * f / k, Iy: br.Iy * f / k }; };
   // cascas dos pilares-parede com 0,8·Eci·Ic como os pilares (E1b; a confirmar)
   const cascasR = pm.cascas ? { cascas: reduzirCascas(pm.cascas, (0.8 * concretoDe(b, 'pilar').Eci) / concretoDe(b, 'pilar').Ecs) } : {};

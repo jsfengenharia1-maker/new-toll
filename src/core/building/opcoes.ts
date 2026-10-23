@@ -420,6 +420,13 @@ export interface OpcoesCalculo {
   inclinadaFlambagemVertical: number;
   /** Coeficiente de flambagem das vigas inclinadas no plano transversal (horizontal). */
   inclinadaFlambagemTransversal: number;
+  // ---- E2d: diagonais de contraventamento ----
+  /** Coeficiente de flambagem das diagonais no plano vertical (ℓe = k·ℓ, ℓ = comprimento total entre os nós, sem reduzir nos cruzamentos). */
+  diagonalFlambagemVertical: number;
+  /** Coeficiente de flambagem das diagonais no plano transversal. */
+  diagonalFlambagemTransversal: number;
+  /** Esbeltez máxima λ das diagonais comprimidas (acima dela a barra não é permitida). */
+  diagonalEsbeltezMax: number;
 }
 
 export interface OpcaoInfo {
@@ -896,6 +903,12 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'ℓe = k·ℓ, com ℓ o comprimento da barra entre os nós, para a esbeltez e os efeitos locais de 2ª ordem no plano vertical (flexão em torno do eixo horizontal da seção). Cada viga pode ter o seu.' },
   { chave: 'inclinadaFlambagemTransversal', rotulo: 'Vigas inclinadas: coeficiente de flambagem no plano transversal', min: 0.5, max: 3, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.6 (barra biarticulada entre os nós: ℓe = ℓ); coeficiente por plano como no programa de referência [a confirmar]', aConfirmar: true,
     descricao: 'ℓe = k·ℓ para a esbeltez e os efeitos locais de 2ª ordem no plano transversal (horizontal). Cada viga pode ter o seu.' },
+  { chave: 'diagonalFlambagemVertical', rotulo: 'Diagonais: coeficiente de flambagem no plano vertical', min: 0.5, max: 3, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.6 (barra biarticulada entre os nós: ℓe = ℓ); coeficiente por plano como no programa de referência [a confirmar]', aConfirmar: true,
+    descricao: 'ℓe = k·ℓ, com ℓ o comprimento total da diagonal entre os nós das pontas (o cruzamento com outra diagonal não o reduz), para a esbeltez e os efeitos locais de 2ª ordem no plano vertical. Cada diagonal pode ter o seu.' },
+  { chave: 'diagonalFlambagemTransversal', rotulo: 'Diagonais: coeficiente de flambagem no plano transversal', min: 0.5, max: 3, passo: 0.05, padrao: 1, fonte: 'NBR 6118, 15.6 (barra biarticulada entre os nós: ℓe = ℓ); coeficiente por plano como no programa de referência [a confirmar]', aConfirmar: true,
+    descricao: 'ℓe = k·ℓ, com ℓ o comprimento total da diagonal entre os nós das pontas, para a esbeltez e os efeitos locais de 2ª ordem no plano transversal (horizontal). Cada diagonal pode ter o seu.' },
+  { chave: 'diagonalEsbeltezMax', rotulo: 'Diagonais: esbeltez máxima das comprimidas', min: 90, max: 200, passo: 5, padrao: 200, fonte: 'NBR 6118, 15.8.3.3.5 (λ ≤ 200 em pilares) aplicada às diagonais comprimidas [a confirmar]', aConfirmar: true,
+    descricao: 'Esbeltez λ acima da qual uma diagonal que trabalha à compressão é reprovada (erro DIAGONAL_ESBELTEZ_MAX); entre 90 e esse valor o pilar-padrão não vale e o resultado é indicativo (aviso). A diagonal só tracionada não tem esse limite.' },
 ];
 
 // ---- o que cada opção refaz (R7f) ----
@@ -953,6 +966,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'mesaDimensionamento', 'mesaBarrasCanto',
   // E2c: coeficientes de flambagem das vigas inclinadas (só o dimensionamento)
   'inclinadaFlambagemVertical', 'inclinadaFlambagemTransversal',
+  // E2d: flambagem e esbeltez máxima das diagonais (só o dimensionamento)
+  'diagonalFlambagemVertical', 'diagonalFlambagemTransversal', 'diagonalEsbeltezMax',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
