@@ -15,7 +15,7 @@ export const GRUPOS_AJUDA: { id: GrupoAjuda; rotulo: string; noGuia: boolean }[]
 /** Identificadores das abas do edifício (Edificio.tsx) e das ferramentas da planta (plantaStore.ts); um teste do app confere que não falta nenhum. */
 export const IDS_ABAS = ['planta', 'vista3d', 'elevacao', 'verificacao', 'analise', 'dimensionamento', 'pranchas', 'premissas'] as const;
 export const IDS_FERRAMENTAS = ['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'mover', 'medir', 'alinhar', 'fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida',
-  'dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar', 'puncao', 'zonaLaje', 'linhaDobra', 'pilarParede', 'parede', 'corte', 'secao', 'vigaGabarito', 'moverRef', 'contaGotas'] as const;
+  'dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar', 'puncao', 'zonaLaje', 'linhaDobra', 'pilarParede', 'parede', 'corte', 'secao', 'vigaGabarito', 'moverRef', 'contaGotas', 'contornoRet', 'aberturaRet', 'cargaLaje', 'cargaViga', 'direcaoPano', 'insercaoPano'] as const;
 
 const A = (id: string, grupo: GrupoAjuda, titulo: string, texto: string, ver?: string[]): Ajuda => ({ id, grupo, titulo, texto, ...(ver ? { ver } : {}) });
 
@@ -64,6 +64,12 @@ export const AJUDAS: Ajuda[] = [
   A('ferramenta:vigaGabarito', 'ferramentas', 'Viga pelo gabarito', 'Cria a viga clicando numa linha do gabarito; o modo diz se a linha é a face ou o eixo.'),
   A('ferramenta:moverRef', 'ferramentas', 'Mover texto de referência', 'Dois cliques: primeiro no texto (nome) do pilar, da viga ou da laje, depois no novo local. A posição fica gravada na obra e as pranchas de formas e locação a respeitam.'),
   A('ferramenta:contaGotas', 'ferramentas', 'Conta-gotas de pilar', 'Clique num pilar existente para pegar seus dados (seção, ponto fixo, lances, engastes, flambagem, cobrimento e, se marcado, as cargas); cada clique seguinte em lugar livre insere um pilar novo com esses dados. Esc volta a Selecionar.'),
+  A('ferramenta:contornoRet', 'ferramentas', 'Contorno retangular de vigas', 'Dois cliques (cantos opostos, ângulo zero) ou três cliques (um lado e um ponto do lado oposto, qualquer ângulo) criam as quatro vigas do contorno externo, do lado de fora da linha clicada; com a opção marcada, alinha pela face externa dos pilares. Esc cancela.'),
+  A('ferramenta:aberturaRet', 'ferramentas', 'Abertura retangular', 'Abertura retangular numa laje, em quatro modos: paralela a uma viga escolhida, ângulo zero, no ângulo das nervuras do pano ou qualquer ângulo (dois pontos de um lado e um do lado oposto). A viga de borda (nenhuma, chata ou alta) é traçada junto.'),
+  A('ferramenta:cargaLaje', 'ferramentas', 'Carga na laje inteira', 'Um clique numa laje (destacada) lança uma carga de superfície com o valor e o caso escolhidos, ou copiados de uma carga existente.'),
+  A('ferramenta:cargaViga', 'ferramentas', 'Carga ao longo da viga', 'Clique numa viga para lançar uma carga linear ao longo do eixo dela, ou arraste uma janela de captura para lançar em todas as vigas inteiramente dentro dela.'),
+  A('ferramenta:direcaoPano', 'ferramentas', 'Direção do pano', 'Clique no pano e depois numa viga (paralela ou perpendicular a ela) ou em dois pontos para definir a direção das vigotas e nervuras.'),
+  A('ferramenta:insercaoPano', 'ferramentas', 'Ponto de inserção do pano', 'Clique no pano e depois perto do vértice que será a origem da numeração das vigotas e da malha.'),
   // barras e painéis
   A('barra:atalhos', 'barras', 'Barra de atalhos', 'Botões de acesso rápido. Personalize pelo botão de configuração: ponha, tire e reordene os botões. A escolha fica salva neste navegador; “Restaurar padrão” volta à barra original.'),
   A('barra:ajuda', 'barras', 'Modo de ajuda', 'F1 ou o botão de ajuda liga o modo: os itens com ajuda ficam destacados e o clique em um deles mostra a explicação. Desliga com o botão direito, novo clique no botão ou Esc.'),

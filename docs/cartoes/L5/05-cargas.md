@@ -1,0 +1,111 @@
+# L5 — cartão 05: Cargas rápidas: laje inteira e ao longo da viga
+
+Classe: Haiku (interface sobre núcleo pronto; código validado).
+
+## Arquivos
+- `src/app/edificio/Planta.tsx`
+- `src/app/edificio/LancamentoL5.tsx`
+
+## O que faz
+Ferramentas `cargaLaje` (um clique na laje) e `cargaViga` (clique na viga ou janela de captura de dois cliques) e seção "Cargas rápidas" do painel (valor, caso, copiar de uma carga de superfície).
+
+## Núcleo usado (já existe)
+Comandos e funções da L5 listados em `00-indice.md`; sem núcleo novo.
+
+## Aplicação
+`git apply docs/cartoes/L5/patches/05-cargas.patch` (ou aplique o bloco `diff` abaixo, trecho a trecho).
+
+## Verificação
+- `npx tsc -b`; `npx vitest run src/app`
+
+## Rótulos e regras
+Rótulos "Lançar carga na laje inteira" e "Lançar carga ao longo da viga" (Button), "Caso da carga na laje" e "Caso da carga na viga" (Select; o "Caso" da seção Cargas já existe, por isso o texto é diferente).
+
+## Patch
+```diff
+diff --git a/src/app/edificio/LancamentoL5.tsx b/src/app/edificio/LancamentoL5.tsx
+index e054330..5fe84e8 100644
+--- a/src/app/edificio/LancamentoL5.tsx
++++ b/src/app/edificio/LancamentoL5.tsx
+@@ -3,7 +3,7 @@
+ // a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
+ // `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
+ import { Button, Check, Group, Hint, NumField, Select } from '../ui';
+-import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
++import { casosParaCarga, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+ import { useBuilding } from './store';
+ import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
+ 
+@@ -16,6 +16,8 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
+   const l5 = pl.l5;
+   const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
+   const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
++  const casos = casosParaCarga(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : c.nome }));
++  const superficies = b.cargas.filter((c) => c.tipo === 'area' && c.grupo === grupo);
+   const vref = b.vigas.find((v) => v.id === l5.vigaRef);
+   return (
+     <Group title="Ferramentas de lançamento" open={false}>
+@@ -65,6 +67,21 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
+         <Button onClick={() => ir('insercaoPano')}>Mudar o ponto de inserção do pano</Button>
+       </div>
+       <Hint>A direção padrão continua a do menor vão. O ponto de inserção (vértice do contorno) é a origem da numeração das vigotas e da malha.</Hint>
++
++      <h4>Cargas rápidas</h4>
++      <div className="row wrap">
++        <NumField label="Carga na laje inteira" unit="kN/m²" width={130} value={l5.valorLaje} disabled={!!l5.copiarCarga} onChange={(v) => set({ valorLaje: v })} />
++        <Select label="Caso da carga na laje" value={l5.casoLaje} options={casos} disabled={!!l5.copiarCarga} onChange={(v) => set({ casoLaje: v })} />
++        <Select label="Copiar de uma carga de superfície" value={l5.copiarCarga} options={[{ v: '', label: 'não copiar' }, ...superficies.map((c) => ({ v: c.id, label: `${c.id}: ${c.valor} kN/m² (${c.caso})` }))]} onChange={(v) => set({ copiarCarga: v })} />
++      </div>
++      <div className="row wrap"><Button onClick={() => ir('cargaLaje')}>Lançar carga na laje inteira</Button></div>
++      <Hint>Um clique na laje destacada lança a carga de superfície no contorno inteiro (as aberturas não são descontadas [a confirmar]). Copiando de uma carga existente, valem o valor e o caso dela.</Hint>
++      <div className="row wrap">
++        <NumField label="Carga ao longo da viga" unit="kN/m" width={130} value={l5.valorViga} onChange={(v) => set({ valorViga: v })} />
++        <Select label="Caso da carga na viga" value={l5.casoViga} options={casos} onChange={(v) => set({ casoViga: v })} />
++      </div>
++      <div className="row wrap"><Button onClick={() => ir('cargaViga')}>Lançar carga ao longo da viga</Button></div>
++      <Hint>Clique numa viga para a carga linear ao longo do eixo dela, ou clique em dois cantos para uma janela de captura: todas as vigas inteiramente dentro dela recebem a carga.</Hint>
+     </Group>
+   );
+ }
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index 7c6996e..b9ff1cb 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -918,6 +918,11 @@ export function Planta() {
+       const lj = lajes.find((x) => dentroPoligono(s.cursor, x.l.contorno as P2[]))?.l;
+       if (lj) { ctx.beginPath(); lj.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); ctx.globalAlpha = 0.3; ctx.fillStyle = cores.aviso; ctx.fill(); ctx.globalAlpha = 1; }
+     }
++    // L5: janela de captura das cargas ao longo das vigas
++    if (pl.ferramenta === 'cargaViga' && pontos.length === 1 && !s.pan) {
++      const [ax, ay] = paraTela(...pontos[0]);
++      ctx.strokeStyle = cores.janela; ctx.lineWidth = 1; ctx.setLineDash([5, 4]); ctx.strokeRect(ax, ay, px - ax, py - ay); ctx.setLineDash([]);
++    }
+     // L5: prévia do contorno retangular e da abertura retangular
+     if ((pl.ferramenta === 'contornoRet' || pl.ferramenta === 'aberturaRet') && pontos.length && !s.pan) {
+       const alvo = [...(pl.ferramenta === 'aberturaRet' ? pontos.slice(1) : pontos), s.ponto];
+@@ -1329,6 +1334,24 @@ export function Planta() {
+       exec('laje.aberturaRetangular', { id: it.current.lajeAb, modo: L.modoAbertura, c1, c2, ...(L.modoAbertura === 'qualquer' ? { c3 } : {}), ...(L.modoAbertura === 'viga' ? { viga: L.vigaRef } : {}), borda: L.borda, secaoBorda: { b: L.bordaB, h: L.bordaH } });
+       return;
+     }
++    if (f === 'cargaLaje') {
++      // L5 (C10.24): um clique na laje (destacada) lança a carga de superfície nela inteira
++      if (nivelFund || !pav) { msg('A carga na laje inteira é lançada nas plantas dos pavimentos.'); return; }
++      const L = usePlanta.getState().l5, l = lajes.find((x) => dentro(it.current.cursor, x.l.contorno))?.l;
++      if (!l) { msg('Clique dentro de uma laje.'); return; }
++      exec('carga.areaNaLaje', L.copiarCarga ? { laje: l.id, copiarDe: L.copiarCarga } : { laje: l.id, valor: L.valorLaje, caso: L.casoLaje });
++      return;
++    }
++    if (f === 'cargaViga') {
++      // L5 (C10.25): clique numa viga = carga ao longo do eixo dela; dois cliques em lugar livre = janela de captura
++      if (nivelFund || !pav) { msg('A carga ao longo da viga é lançada nas plantas dos pavimentos.'); return; }
++      const L = usePlanta.getState().l5, c = it.current.cursor, v = pontos.length ? null : vigaSob(c);
++      if (v) { exec('carga.aoLongoDaViga', { vigas: [v.id], valor: L.valorViga, caso: L.casoViga }); return; }
++      if (novos.length < 2) { setPontos(novos); msg('Segundo canto da janela de captura.'); return; }
++      setPontos([]);
++      exec('carga.aoLongoDaViga', { grupo, janela: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), valor: L.valorViga, caso: L.casoViga });
++      return;
++    }
+     if (f === 'direcaoPano' || f === 'insercaoPano') {
+       // L5 (C7.5, C7.6, K1.9.54): 1º clique no pano; depois uma viga (ou dois pontos) para a direção, ou o vértice para a inserção
+       if (nivelFund || !pav) { msg('Panos são editados nas plantas dos pavimentos.'); return; }
+```

@@ -625,8 +625,17 @@ export interface Laje {
   origemLancamento?: string;
   furos?: [number, number][][];
   tipo: TipoLaje;
+  /**
+   * Pano a definir (L5, C7.2/C7.17): contorno fechado por vigas ainda sem tipo, marcado com "?". `tipo` guarda só um
+   * valor provisório (maciça h = 10 cm); a obra com pano a definir não calcula (`DEFINIR_PANO`). Atribuir o tipo limpa a marca.
+   */
+  definir?: true;
   /** Direção das vigotas (graus, anti-horário a partir de +x); padrão: menor vão. */
   direcao?: number;
+  /** Ponto de inserção do pano (L5, C7.5): índice do vértice do contorno, origem da numeração das vigotas e da malha; ausente = o primeiro. */
+  insercao?: number;
+  /** Viga de borda de cada abertura de `furos` (L5, C7.78): nenhuma, chata ou alta; faltando = nenhuma. */
+  furosBorda?: ('nenhuma' | 'chata' | 'alta')[];
   /** Desnível do topo em relação ao pavimento (m; negativo = rebaixada). */
   nivel?: number;
   /** Coeficiente de engaste por borda do contorno (índice k = aresta k → k+1; ausente = 1). Bordas em pilares ficam engastadas. */

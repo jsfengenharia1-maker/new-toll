@@ -1,0 +1,88 @@
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index 7881293..b9b4194 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -133,7 +133,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
+ 
+ /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
+ export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
+-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
++  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
+ };
+ export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
+@@ -155,6 +155,12 @@ const PASSOS: Record<Ferramenta, string[]> = {
+   medir: ['Primeiro ponto.', 'Segundo ponto.'],
+   vigaGabarito: ['Clique numa linha, arco ou polilinha do gabarito (modo eixo: a viga sai pelo eixo; modo face: a linha é a face da viga).', 'Clique do lado em que o corpo da viga deve ficar (a linha é a face oposta ao clique).'],
+   moverRef: ['Clique no texto de referência (nome) de um pilar, viga ou laje.', 'Clique no novo local do texto (Esc cancela; “Restaurar posições” no grupo Referências volta ao automático).'],
++  contornoRet: ['Primeiro canto do contorno externo (dois cliques: cantos opostos, ângulo zero; três: um lado e um ponto do lado oposto).', 'Segundo ponto: com Enter, o contorno de ângulo zero; com outro clique, o terceiro ponto define o lado oposto. Esc cancela.', 'Ponto do lado oposto (qualquer ângulo).'],
++  aberturaRet: ['Clique na laje onde abrir (modo paralela a uma viga: antes, clique na viga de referência).', 'Primeiro ponto da abertura (canto, ou um lado no modo de qualquer ângulo).', 'Segundo ponto (canto oposto, ou o outro ponto do lado).', 'Ponto do lado oposto (modo de qualquer ângulo). Esc cancela.'],
++  cargaLaje: ['Clique numa laje (destacada): lança a carga de superfície do painel Ferramentas de lançamento.'],
++  cargaViga: ['Clique numa viga para lançar a carga linear ao longo dela, ou clique em dois cantos para uma janela de captura.', 'Segundo canto da janela: as vigas inteiramente dentro dela recebem a carga.'],
++  direcaoPano: ['Clique no pano cuja direção mudar.', 'Clique numa viga (paralela ou perpendicular, conforme o painel) ou, no modo de dois pontos, no primeiro ponto.', 'Segundo ponto da direção.'],
++  insercaoPano: ['Clique no pano.', 'Clique perto do vértice que será o ponto de inserção do pano.'],
+   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
+   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
+   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
+diff --git a/src/app/edificio/plantaStore.ts b/src/app/edificio/plantaStore.ts
+index 4bce02f..525611d 100644
+--- a/src/app/edificio/plantaStore.ts
++++ b/src/app/edificio/plantaStore.ts
+@@ -6,7 +6,8 @@ import { cssVar } from '../design/tokens';
+ import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
+ 
+ export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
+-  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas';
++  | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
++  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano';
+ /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
+ export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
+ export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
+@@ -15,6 +16,30 @@ export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao:
+   !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };
+ /** Faces da camada de armadura das lajes na planta. */
+ export const facesLaje = (v: 'nenhuma' | 'inf' | 'sup' | 'ambas'): ('inf' | 'sup')[] => (v === 'ambas' ? ['inf', 'sup'] : v === 'nenhuma' ? [] : [v]);
++/** Ferramentas de lançamento da L5 (não vão para o arquivo): modo simples e deslocamento da viga, contorno, abertura, cargas, direção e prolongar. */
++export interface L5Estado {
++  simples: boolean;
++  /** Deslocamento (cm) entre a linha clicada e a linha de ajuste da viga; à esquerda do traçado, negativo à direita. */
++  deslocamento: number;
++  alinharContorno: boolean;
++  modoAbertura: 'viga' | 'zero' | 'nervuras' | 'qualquer';
++  borda: 'nenhuma' | 'chata' | 'alta';
++  bordaB: number;
++  bordaH: number;
++  /** Viga de referência da abertura paralela a uma viga (escolhida na planta). */
++  vigaRef: string | null;
++  valorLaje: number;
++  casoLaje: string;
++  /** Carga existente de que copiar valor e caso na carga da laje inteira ('' = não copia). */
++  copiarCarga: string;
++  valorViga: number;
++  casoViga: string;
++  direcaoModo: 'viga' | 'pontos';
++  relacao: 'paralela' | 'perpendicular';
++  /** Prolongar por comprimento fixo (m; 0 = prolongar até o alvo clicado). */
++  comprimento: number;
++}
++export const L5_PADRAO: L5Estado = { simples: false, deslocamento: 0, alinharContorno: true, modoAbertura: 'zero', borda: 'nenhuma', bordaB: 0.15, bordaH: 0.4, vigaRef: null, valorLaje: 2, casoLaje: 'Q', copiarCarga: '', valorViga: 5, casoViga: 'G', direcaoModo: 'viga', relacao: 'paralela', comprimento: 0 };
+ export type Tema = 'escuro' | 'claro' | 'pb';
+ export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
+ 
+@@ -114,6 +139,8 @@ interface PState {
+   copias: number;
+   /** Conta-gotas de pilar (L4): pilar de que copiar os dados e se leva as cargas (não vai para o arquivo). */
+   contaGotas: { pilar: string | null; cargas: boolean };
++  /** Ferramentas de lançamento (L5). */
++  l5: L5Estado;
+   /** Girar a seleção: ângulo (graus, anti-horário) em torno do ponto clicado. */
+   anguloGiro: number;
+   /** Espelhar a seleção: mantém os originais (cópia espelhada de pilares e vigas). */
+@@ -199,6 +226,7 @@ export const usePlanta = create<PState>((set) => ({
+   valorCarga: 2,
+   copias: 1,
+   contaGotas: { pilar: null, cargas: false },
++  l5: { ...L5_PADRAO },
+   anguloGiro: 90,
+   espelharCopia: false,
+   cores: coresSalvas(),

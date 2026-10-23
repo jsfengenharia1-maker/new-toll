@@ -1,0 +1,117 @@
+# L5 — cartão 04: Panos a definir, direção e ponto de inserção
+
+Classe: Haiku (interface sobre núcleo pronto; código validado).
+
+## Arquivos
+- `src/app/edificio/Planta.tsx`
+- `src/app/edificio/LancamentoL5.tsx`
+
+## O que faz
+Marca "?" e "a definir" na planta, círculo no ponto de inserção, ferramentas `direcaoPano` e `insercaoPano`, seção "Panos e direção" do painel (detectar panos como a definir, atribuir o tipo, direção por viga ou dois pontos).
+
+## Núcleo usado (já existe)
+Comandos e funções da L5 listados em `00-indice.md`; sem núcleo novo.
+
+## Aplicação
+`git apply docs/cartoes/L5/patches/04-panos.patch` (ou aplique o bloco `diff` abaixo, trecho a trecho).
+
+## Verificação
+- `npx tsc -b`; `npx vitest run src/app`
+
+## Rótulos e regras
+Botões "Detectar panos como a definir", "Atribuir o tipo da ferramenta Laje aos panos a definir", "Definir a direção do pano", "Mudar o ponto de inserção do pano". O erro DEFINIR_PANO já aparece na aba Verificação com "ver na planta" e com a sugestão de definir como maciça (núcleo).
+
+## Patch
+```diff
+diff --git a/src/app/edificio/LancamentoL5.tsx b/src/app/edificio/LancamentoL5.tsx
+index ab02f72..e054330 100644
+--- a/src/app/edificio/LancamentoL5.tsx
++++ b/src/app/edificio/LancamentoL5.tsx
+@@ -3,11 +3,16 @@
+ // a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
+ // `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
+ import { Button, Check, Group, Hint, NumField, Select } from '../ui';
+-import type { BuildingModel } from '../../core/building/types';
++import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
++import { useBuilding } from './store';
+ import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
+ 
+ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
++  const { exec } = useBuilding();
+   const pl = usePlanta();
++  const ps = pavimentosOrdenados(b);
++  const grupo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[Math.min(1, ps.length - 1)]?.grupo ?? '';
++  const aDefinir = b.lajes.filter((l) => l.grupo === grupo && l.definir);
+   const l5 = pl.l5;
+   const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
+   const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
+@@ -44,6 +49,22 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
+         {l5.modoAbertura === 'viga' && <Button disabled={!vref} onClick={() => set({ vigaRef: null })}>{vref ? `Trocar a viga de referência (${vref.nome})` : 'Viga de referência: clique na planta'}</Button>}
+       </div>
+       <Hint>Clique na laje e depois nos cantos (no modo de qualquer ângulo, os dois pontos de um lado e um do lado oposto). Largura e altura padrão da viga de borda: 15 × 40 cm [a confirmar]; a chata tem a altura da laje.</Hint>
++
++      <h4>Panos e direção</h4>
++      <div className="row wrap">
++        <Button disabled={!grupo} onClick={() => exec('laje.detectarPanos', { grupo, definir: true })}>Detectar panos como a definir</Button>
++        <Button disabled={!aDefinir.length} onClick={() => exec('laje.atribuir', { ids: aDefinir.map((l) => l.id), tipo: pl.tipoLaje })}>Atribuir o tipo da ferramenta Laje aos panos a definir</Button>
++      </div>
++      <Hint>{aDefinir.length ? `${aDefinir.length} pano(s) a definir (?) neste grupo: ${aDefinir.map((l) => l.nome).join(', ')}. A obra só calcula depois de atribuir o tipo de todos.` : 'Todo contorno fechado por vigas pode virar um pano a definir, marcado com ? na planta; o cálculo fica bloqueado até o tipo ser atribuído.'}</Hint>
++      <div className="row wrap">
++        <Select label="Direção do pano por" value={l5.direcaoModo} options={[{ v: 'viga', label: 'uma viga' }, { v: 'pontos', label: 'dois pontos' }]} onChange={(v) => set({ direcaoModo: v })} />
++        <Select label="Em relação à viga" value={l5.relacao} options={[{ v: 'paralela', label: 'paralela' }, { v: 'perpendicular', label: 'perpendicular' }]} onChange={(v) => set({ relacao: v })} />
++      </div>
++      <div className="row wrap">
++        <Button onClick={() => ir('direcaoPano')}>Definir a direção do pano</Button>
++        <Button onClick={() => ir('insercaoPano')}>Mudar o ponto de inserção do pano</Button>
++      </div>
++      <Hint>A direção padrão continua a do menor vão. O ponto de inserção (vértice do contorno) é a origem da numeração das vigotas e da malha.</Hint>
+     </Group>
+   );
+ }
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index e3c34a6..7c6996e 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -497,9 +497,10 @@ export function Planta() {
+       const [tx, ty] = paraTela(c[0], c[1]);
+       ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
+       const [lx, ly] = descRef(l.id);
+-      if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
+-      ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx + lx, ty + 6 + ly);
+-      if (l.tipo.tipo === 'trelicada') { // seta dupla na direção das vigotas
++      if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${l.definir ? ' ?' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
++      ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.definir ? 'a definir' : l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}`, tx + lx, ty + 6 + ly);
++      if (l.insercao !== undefined && l.contorno[l.insercao]) { const [ix, iy] = paraTela(l.contorno[l.insercao][0], l.contorno[l.insercao][1]); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, 5, 0, 2 * Math.PI); ctx.stroke(); } // ponto de inserção do pano (L5)
++      if (l.tipo.tipo === 'trelicada' && !l.definir) { // seta dupla na direção das vigotas
+         const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
+         ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
+         ctx.moveTo(tx - ux * L, cy - uy * L); ctx.lineTo(tx + ux * L, cy + uy * L);
+@@ -1328,6 +1329,27 @@ export function Planta() {
+       exec('laje.aberturaRetangular', { id: it.current.lajeAb, modo: L.modoAbertura, c1, c2, ...(L.modoAbertura === 'qualquer' ? { c3 } : {}), ...(L.modoAbertura === 'viga' ? { viga: L.vigaRef } : {}), borda: L.borda, secaoBorda: { b: L.bordaB, h: L.bordaH } });
+       return;
+     }
++    if (f === 'direcaoPano' || f === 'insercaoPano') {
++      // L5 (C7.5, C7.6, K1.9.54): 1º clique no pano; depois uma viga (ou dois pontos) para a direção, ou o vértice para a inserção
++      if (nivelFund || !pav) { msg('Panos são editados nas plantas dos pavimentos.'); return; }
++      const P = usePlanta.getState(), c = it.current.cursor;
++      if (!pontos.length) {
++        const l = lajes.find((x) => dentro(c, x.l.contorno))?.l;
++        if (!l) { msg('Clique dentro de um pano (laje).'); return; }
++        it.current.lajeAb = l.id; P.set({ selecao: new Set([l.id]) }); setPontos([p]); return;
++      }
++      const id = it.current.lajeAb;
++      if (f === 'insercaoPano') { setPontos([]); exec('laje.editar', { id, insercaoPonto: [+p[0].toFixed(4), +p[1].toFixed(4)] }); return; }
++      if (P.l5.direcaoModo === 'viga') {
++        const v = vigaSob(c);
++        if (!v) { msg('Clique numa viga (a direção sai paralela ou perpendicular ao trecho clicado).'); return; }
++        setPontos([]); exec('laje.editar', { id, direcaoPor: { viga: v.id, relacao: P.l5.relacao } }); return;
++      }
++      if (novos.length < 3) { setPontos(novos); return; }
++      setPontos([]);
++      exec('laje.editar', { id, direcaoPor: { pontos: novos.slice(1).map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]) } });
++      return;
++    }
+     if (f === 'viga') {
+       // viga curva (E2b): no trecho curvo o 1º clique é a passagem do arco e o 2º, o fim; os trechos retos guardam null
+       const P = usePlanta.getState(), n = pontosRef.current.length;
+```

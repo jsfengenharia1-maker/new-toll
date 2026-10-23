@@ -12,7 +12,7 @@ describe('cobertura da ajuda', () => {
     for (const g of GRUPOS_AJUDA) expect(todasAjudas().some((a) => a.grupo === g.id), g.id).toBe(true);
     for (const o of OPCOES_INFO) { const a = ajudaDe(`opcao:${o.chave}`); expect(a?.texto, o.chave).toContain(o.descricao); expect(a!.texto).toContain(o.fonte); }
     expect(IDS_ABAS.length).toBe(8);
-    expect(IDS_FERRAMENTAS.length).toBe(34);
+    expect(IDS_FERRAMENTAS.length).toBe(40);
   });
   it('ids únicos, textos e títulos preenchidos, "ver" aponta para ajudas que existem', () => {
     const todas = todasAjudas();

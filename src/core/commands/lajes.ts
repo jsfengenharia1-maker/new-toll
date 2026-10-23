@@ -3,6 +3,7 @@ import type { Draft } from 'immer';
 import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, mascaraNoGrupo, pavimentosDoGrupo, pavimentosOrdenados, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { BLOCOS, direcaoMenorVao, panosDoGrupo, paredesDaMascara, TRELICADAS } from '../building/lajes';
+import { direcaoPorPontos, direcaoPorViga, verticeMaisProximo } from '../building/lancamentoL5';
 import { temBaseElastica } from '../building/baseElastica';
 import { areaPoligono, dentroPoligono, pontoInterno, type P } from '../geom/faces';
 import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
@@ -23,36 +24,39 @@ const anti = (p: P[]): P[] => (areaPoligono(p) < 0 ? [...p].reverse() : p).map((
 const proximaLaje = (b: BuildingModel, grupo: string) => Math.max(0, ...b.lajes.filter((l) => l.grupo === grupo).map((l) => { const m = /^L(\d+)$/.exec(l.nome); return m ? +m[1] : 0; })) + 1;
 const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toString(36)}`;
 const coberto = (b: BuildingModel, grupo: string, q: P, exceto?: string) => b.lajes.find((l) => l.grupo === grupo && l.id !== exceto && dentroPoligono(q, l.contorno));
+/** O ponto está numa abertura de alguma laje do grupo? (o pano fechado pelas vigas de borda de uma abertura não é um pano novo) */
+export const naAbertura = (b: BuildingModel, grupo: string, q: P) => b.lajes.some((l) => l.grupo === grupo && (l.furos ?? []).some((f) => dentroPoligono(q, f as P[])));
 
-registrar<{ grupo: string; tipo: TipoLaje }>({
+registrar<{ grupo: string; tipo: TipoLaje; definir?: boolean }>({
   nome: 'laje.detectarPanos',
-  descricao: 'Cria lajes em todas as regiões fechadas pelo eixo das vigas do grupo que ainda não têm laje.',
+  descricao: 'Cria lajes em todas as regiões fechadas pelo eixo das vigas do grupo que ainda não têm laje. Com `definir` (L5), cada região vira um pano a definir (marcado com "?"): a obra só calcula depois de atribuir o tipo.',
   risco: 'escrita',
-  schema: { type: 'object', additionalProperties: false, required: ['grupo'], properties: { grupo: { type: 'string' }, tipo: tipoSchema } },
+  schema: { type: 'object', additionalProperties: false, required: ['grupo'], properties: { grupo: { type: 'string' }, tipo: tipoSchema, definir: { type: 'boolean', description: 'cria panos a definir em vez de lajes com o tipo' } } },
   validar(b, p) {
     const g = grupoOk(b, p.grupo);
     if (g.length) return g;
-    const n = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x))).length;
+    const n = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x)) && !naAbertura(b, p.grupo, pontoInterno(x))).length;
     return n ? [] : err('SEM_PANOS_NOVOS', 'Nenhuma região fechada por vigas sem laje.');
   },
   aplicar(d, p) {
     const b = d as BuildingModel;
-    const novos = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x)));
+    const novos = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x)) && !naAbertura(b, p.grupo, pontoInterno(x)));
     for (const c of novos) {
       const cont = anti(c);
-      d.lajes.push({ id: novoId(d, 'l'), nome: `L${proximaLaje(d as BuildingModel, p.grupo)}`, grupo: p.grupo, contorno: cont, tipo: { ...p.tipo }, ...(p.tipo.tipo === 'trelicada' ? { direcao: direcaoMenorVao(cont) } : {}) });
+      d.lajes.push({ id: novoId(d, 'l'), nome: `L${proximaLaje(d as BuildingModel, p.grupo)}`, grupo: p.grupo, contorno: cont, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(!p.definir && p.tipo.tipo === 'trelicada' ? { direcao: direcaoMenorVao(cont) } : {}) });
     }
-    return `${novos.length} laje(s) criada(s).`;
+    return p.definir ? `${novos.length} pano(s) a definir criado(s).` : `${novos.length} laje(s) criada(s).`;
   },
 });
 
-registrar<{ grupo: string; ponto?: P; contorno?: P[]; tipo: TipoLaje; nome?: string; direcao?: number }>({
+registrar<{ grupo: string; ponto?: P; contorno?: P[]; tipo: TipoLaje; nome?: string; direcao?: number; definir?: boolean }>({
   nome: 'laje.criar',
   descricao: 'Cria uma laje: no pano fechado por vigas que contém `ponto`, ou com o `contorno` informado (balanços e regiões livres).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo'], properties: {
     grupo: { type: 'string' }, ponto, contorno: { type: 'array', items: ponto, minItems: 3 }, tipo: tipoSchema,
     nome: { type: 'string', minLength: 1 }, direcao: { type: 'number', description: 'graus (vigotas da treliçada)' },
+    definir: { type: 'boolean', description: 'cria um pano a definir (L5): o tipo vem depois e a obra não calcula até lá' },
   } },
   validar(b, p) {
     const g = grupoOk(b, p.grupo);
@@ -67,8 +71,8 @@ registrar<{ grupo: string; ponto?: P; contorno?: P[]; tipo: TipoLaje; nome?: str
   aplicar(d, p) {
     const c = anti(contornoDe(d as BuildingModel, p)!);
     const nome = p.nome?.trim() || `L${proximaLaje(d as BuildingModel, p.grupo)}`;
-    const direcao = p.direcao ?? (p.tipo.tipo === 'trelicada' ? direcaoMenorVao(c) : undefined);
-    d.lajes.push({ id: novoId(d, 'l'), nome, grupo: p.grupo, contorno: c, tipo: { ...p.tipo }, ...(direcao !== undefined ? { direcao } : {}) });
+    const direcao = p.direcao ?? (!p.definir && p.tipo.tipo === 'trelicada' ? direcaoMenorVao(c) : undefined);
+    d.lajes.push({ id: novoId(d, 'l'), nome, grupo: p.grupo, contorno: c, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(direcao !== undefined ? { direcao } : {}) });
     return `${nome} criada (${fmt(Math.abs(areaPoligono(c)))} m²).`;
   },
 });
@@ -78,29 +82,50 @@ function contornoDe(b: BuildingModel, p: { grupo: string; ponto?: P; contorno?: 
   return panosDoGrupo(b, p.grupo).find((x) => dentroPoligono(p.ponto!, x)) ?? null;
 }
 
-registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string; vigotasBiapoiadas?: boolean }>({
+registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; direcaoPor?: { viga?: string; relacao?: 'paralela' | 'perpendicular'; pontos?: [P, P] }; insercao?: number; insercaoPonto?: P; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string; vigotasBiapoiadas?: boolean }>({
   nome: 'laje.editar',
-  descricao: 'Altera nome, tipo, direção das vigotas (graus), desnível, contorno, aberturas coeficientes de engaste das bordas (um por aresta do contorno, 0 = articulada, 1 = engastada) ou cobrimento próprio (cm) de uma laje.',
+  descricao: 'Altera nome, tipo, direção das vigotas (graus), desnível, contorno, aberturas coeficientes de engaste das bordas (um por aresta do contorno, 0 = articulada, 1 = engastada) ou cobrimento próprio (cm) de uma laje. L5: `direcaoPor` define a direção por uma viga (paralela ou perpendicular ao trecho mais próximo) ou por dois pontos; `insercao` (índice do vértice) ou `insercaoPonto` (vértice mais próximo) muda o ponto de inserção do pano; atribuir `tipo` a um pano a definir o define.',
   risco: 'escrita',
   calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento']),
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { ...tipoSchema, default: undefined }, direcao: { type: 'number' },
+    direcaoPor: { type: 'object', additionalProperties: false, properties: {
+      viga: { type: 'string', description: 'id da viga de referência' }, relacao: { type: 'string', enum: ['paralela', 'perpendicular'], default: 'paralela' },
+      pontos: { type: 'array', items: ponto, minItems: 2, maxItems: 2, description: 'dois pontos: a direção é a da reta entre eles' },
+    }, description: 'direção das vigotas por uma viga ou por dois pontos (C7.6, K1.9.54)' },
+    insercao: { type: 'integer', minimum: 0, description: 'índice do vértice do contorno (ponto de inserção do pano)' }, insercaoPonto: ponto,
     nivel: { type: 'number', minimum: -2, maximum: 2 }, contorno: { type: 'array', items: ponto, minItems: 3 }, furos: { type: 'array', items: { type: 'array', items: ponto, minItems: 3 } },
     engasteBordas: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, description: 'coeficiente por aresta do contorno (aresta k vai do vértice k ao k+1); lista vazia = todas engastadas' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de armadura das lajes (R7a); "padrao" ou vazio volta à padrão da obra' },
     vigotasBiapoiadas: { type: 'boolean', description: 'treliçadas: vigotas biapoiadas (rotações livres nas bordas, sem continuidade com o pano vizinho); false volta às contínuas' },
   } },
-  validar: (b, p) => (b.lajes.some((l) => l.id === p.id) ? tabelaInexistente(b, [['lajes', p.tabela]]) : err('LAJE_INEXISTENTE', `Laje ${p.id} não existe.`)),
+  validar(b, p) {
+    const l = b.lajes.find((x) => x.id === p.id);
+    if (!l) return err('LAJE_INEXISTENTE', `Laje ${p.id} não existe.`);
+    if (p.direcaoPor) {
+      const { viga, pontos } = p.direcaoPor;
+      if (!viga === !pontos) return err('PARAMETRO_INVALIDO', '`direcaoPor`: informe `viga` ou `pontos` (um dos dois).');
+      if (viga && !b.vigas.some((v) => v.id === viga)) return err('VIGA_INEXISTENTE', `Viga ${viga} não existe.`);
+      if (pontos && Math.hypot(pontos[1][0] - pontos[0][0], pontos[1][1] - pontos[0][1]) < 1e-3) return err('PARAMETRO_INVALIDO', 'Os dois pontos da direção são coincidentes.');
+    }
+    if (p.insercao !== undefined && p.insercao >= l.contorno.length) return err('PARAMETRO_INVALIDO', `A laje tem ${l.contorno.length} vértices (índice de 0 a ${l.contorno.length - 1}).`);
+    return tabelaInexistente(b, [['lajes', p.tabela]]);
+  },
   aplicar(d, p) {
     const l = d.lajes.find((x) => x.id === p.id)!;
     if (p.nome !== undefined) l.nome = p.nome.trim();
-    if (p.tipo) { l.tipo = { ...p.tipo }; if (p.tipo.tipo === 'trelicada' && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
+    if (p.tipo) { l.tipo = { ...p.tipo }; delete l.definir; if (p.tipo.tipo === 'trelicada' && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
     if (p.direcao !== undefined) l.direcao = ((p.direcao % 180) + 180) % 180;
+    if (p.direcaoPor) {
+      const por = p.direcaoPor, ref = pontoInterno(l.contorno as P[]);
+      l.direcao = por.pontos ? direcaoPorPontos(por.pontos[0], por.pontos[1]) : direcaoPorViga(d.vigas.find((v) => v.id === por.viga)!.pontos as P[], por.relacao ?? 'paralela', ref);
+    }
+    if (p.insercao !== undefined || p.insercaoPonto) { const i = p.insercao ?? verticeMaisProximo(l.contorno as P[], p.insercaoPonto!); if (i) l.insercao = i; else delete l.insercao; }
     if (p.nivel !== undefined) { if (p.nivel) l.nivel = p.nivel; else delete l.nivel; }
     if (p.contorno) l.contorno = anti(p.contorno);
-    if (p.furos) { if (p.furos.length) l.furos = p.furos.map(anti); else delete l.furos; }
+    if (p.furos) { if (p.furos.length) l.furos = p.furos.map(anti); else delete l.furos; delete l.furosBorda; }
     if (p.cobrimento !== undefined) { if (p.cobrimento) l.cobrimento = p.cobrimento; else delete l.cobrimento; }
     atribuirTabela(l, 'tabela', p.tabela);
     if (p.vigotasBiapoiadas !== undefined) { if (p.vigotasBiapoiadas) l.vigotasBiapoiadas = true; else delete l.vigotasBiapoiadas; }
@@ -117,7 +142,7 @@ registrar<{ ids: string[]; tipo: TipoLaje }>({
   schema: { type: 'object', additionalProperties: false, required: ['ids', 'tipo'], properties: { ids, tipo: { ...tipoSchema, default: undefined } } },
   validar(b, p) { const f = p.ids.filter((id) => !b.lajes.some((l) => l.id === id)); return f.length ? err('LAJE_INEXISTENTE', `Laje(s) inexistente(s): ${f.join(', ')}.`) : []; },
   aplicar(d, p) {
-    for (const l of d.lajes) if (p.ids.includes(l.id)) { l.tipo = { ...p.tipo }; if (p.tipo.tipo === 'trelicada' && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
+    for (const l of d.lajes) if (p.ids.includes(l.id)) { l.tipo = { ...p.tipo }; delete l.definir; if (p.tipo.tipo === 'trelicada' && l.direcao === undefined) l.direcao = direcaoMenorVao(l.contorno as P[]); }
     return `${p.ids.length} laje(s) alterada(s).`;
   },
 });
