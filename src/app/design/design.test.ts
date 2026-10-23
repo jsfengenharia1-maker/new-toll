@@ -149,4 +149,21 @@ describe('design system', () => {
     });
     expect(achados).toEqual([]);
   });
+  it('layout BIMCraft: token da faixa e classes dos componentes novos definidos', () => {
+    const g = semComentarios(GLOBAL);
+    expect(g).toMatch(/--h-ribbon:\s*56px/);
+    for (const c of ['ribbon-wrap', 'rtabs', 'rtab', 'ribbon', 'rgrp', 'rbtn', 'rl', 'dock', 'dock-grip', 'dock-toggle', 'pal', 'phead', 'pbody', 'tree', 'tn', 'vtabs', 'modtabs', 'work', 'typecard', 'cfg'])
+      expect(g, `.${c}`).toMatch(new RegExp(`\\.${c}[\\s,.{:\\[]`));
+  });
+
+  it('faixa de comandos: nenhum botão da ui/Ribbon sem rótulo textual', () => {
+    const r = codigo['/src/app/ui/Ribbon.tsx'];
+    expect(r).toContain('<span className="rbl">{label}</span>');
+  });
+
+  it('docas: largura sempre em px (porcentagem numa coluna auto do grid zera o desenho)', () => {
+    const d = codigo['/src/app/ui/Dock.tsx'];
+    expect(d).toMatch(/const largura = `\$\{w\}px`/);
+    expect(d).not.toMatch(/min\(\$\{w\}px, 100%\)/);
+  });
 });
