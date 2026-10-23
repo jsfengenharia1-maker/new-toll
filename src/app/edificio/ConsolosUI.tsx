@@ -7,6 +7,7 @@ import { Button, Hint, Modal, NumField, OptNumField, Select } from '../ui';
 import { consoloPadrao, faceDoPilar, pontaDaViga, pontaToca } from '../../core/building/consolos';
 import type { BuildingModel, Consolo } from '../../core/building/types';
 import { calculoAtual, dimAtual, useBuilding } from './store';
+import { ConsoloResultados } from './ConsolosResultadosUI';
 
 interface EstadoJanela { aberta: boolean; id?: string; abrir: (id?: string) => void; fechar: () => void }
 /** Estado da janela dos consolos (a paleta Ctrl+K a abre). */
@@ -124,6 +125,7 @@ export function JanelaConsolos({ id, onClose }: { id?: string; onClose: () => vo
             </div>
           )}
         {c && <EditarConsolo key={c.id} b={b} c={c} />}
+        {c && <ConsoloResultados b={b} id={c.id} />}
         <LancarConsolo b={b} aoLancar={setSel} />
       </div>
     </Modal>
