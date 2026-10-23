@@ -719,7 +719,7 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Análise' }).click();
       await page.getByRole('button', { name: 'Calcular', exact: true }).click();
       await page.locator('.statusbar .msg', { hasText: 'Análise concluída' }).waitFor();
-      await grupoEdif(page, /^Combinações \(\d+\)$/);
+      await page.locator('summary', { hasText: /^Combinações \(\d+\)$/ }).click();
       const quadro = page.locator('.edif-out .card', { hasText: 'Exportar CSV' });
       assert.match(await quadro.locator('thead').textContent(), /Neve/);
       assert.ok(await quadro.locator('tbody tr').count() > 4);
@@ -1237,7 +1237,7 @@ export const flows = [
       assert.match(await prev.textContent(), /kN/);
       assert.match(await lista.innerText(), /SLP/);
       // opção de armação: escala das vigas muda a folha
-      await grupoEdif(page, 'Opções de armação e locação');
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await tipo.selectOption({ label: 'Armação de vigas' });
       await page.getByLabel('Escala das vigas').selectOption({ label: '1:50' });
       await page.waitForFunction(() => /1:50/.test(document.querySelector('[data-lista-folhas]')?.textContent ?? ''));
@@ -1506,7 +1506,7 @@ export const flows = [
     async run({ newPage }) {
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.getByRole('button', { name: 'Novo vazio' }).click();
+      await fileMenu(page, 'Novo vazio');
       assert.match(await page.locator('.statusbar .status').innerText(), /^0 pavimentos/);
       // ferramenta Pilar com "Arranque": a planta vai para o nível de fundação e o pilar nasce e morre na fundação
       await grupoEdif(page, 'Pilares (');
@@ -2095,7 +2095,7 @@ export const flows = [
       await page.locator('[data-folha-item]', { hasText: /quantitativos/ }).click();
       await page.waitForFunction(() => /QUANTITATIVOS POR ELEMENTO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''));
       // ancoragem editável: muda o desenho depois de calcular as fundações
-      await grupoEdif(page, 'Ancoragem das vigas de fundação');
+      await page.locator('summary', { hasText: 'Ancoragem das vigas de fundação' }).click();
       const anc = page.locator('[data-ancoragem-vf] tbody tr').first().locator('input').first();
       await anc.fill('120');
       await anc.press('Enter');
@@ -2946,6 +2946,7 @@ export const flows = [
       await na.press('Enter');
       await page.waitForFunction((r) => parseFloat(document.querySelector('.emp-box').getAttribute('data-resultante')) > r, R0);
       assert.ok(await caixa.locator('svg.emp-fig polygon.emp-agua').count() >= 1, 'a água entra no diagrama');
+      await grupoEdif(page, /^Casos de carga/);
       await casos.getByLabel('Novo caso').fill('Empuxo do subsolo');
       await casos.getByLabel('Novo caso').press('Enter');
       await casos.locator('label.field', { has: page.locator('.flabel', { hasText: /^Natureza$/ }) }).locator('select').selectOption('H');
@@ -4086,7 +4087,7 @@ export const flows = [
       await page.locator('.prancha-prev[data-tipo="paredes"] svg').first().waitFor({ timeout: 90000 });
       assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /SCM/);
       assert.match(await page.locator('.prancha-prev[data-tipo="paredes"]').innerText(), /M1/);
-      await grupoEdif(page, 'Opções de armação e locação');
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await page.getByLabel('Escala das elevações de paredes').selectOption({ label: '1:75' });
       await page.locator('.prancha-prev[data-tipo="paredes"][data-escala="75"]').waitFor({ timeout: 90000 });
     },
@@ -4187,6 +4188,7 @@ export const flows = [
       assert.match(tj, /Deslizamento/);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // 6. trocar a base da parede M2 para apoio direto pelo editor remove a sapata (e a de M1 fica)
+      await fecharCfg(page);
       await gp.getByRole('button', { name: 'Selecionar M2' }).click();
       const base2 = page.locator('[data-pw-base-parede]');
       await base2.getByLabel('Base da parede', { exact: true }).selectOption('apoio');
@@ -4308,7 +4310,7 @@ export const flows = [
       await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
       await prev.locator('svg').waitFor();
       const n0 = await prev.locator('svg circle').count();
-      await grupoEdif(page, 'Opções de armação e locação');
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
       await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
       await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
@@ -4489,6 +4491,7 @@ export const flows = [
       assert.match(mt, /Origem do lançamento.*Assistente de nova obra/s);
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await abrirConfiguracao(page, 'Dados gerais');
       await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
       const ga = await grupoEdif(page, /^Arquivo e versões/);
       await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
@@ -4507,6 +4510,7 @@ export const flows = [
       await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const ga2 = await grupoEdif(page2, /^Arquivo e versões/);
       await ga2.getByRole('button', { name: 'Recuperar' }).click();
+      await abrirConfiguracao(page2, 'Dados gerais');
       await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
       await page2.close();
       await fileMenu(page, 'Obras recentes…');
@@ -4648,6 +4652,7 @@ export const flows = [
       await et.getByRole('button', { name: 'Salvar tipo de alvenaria', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('table[data-alv-tipos] tbody tr')?.textContent?.includes('3,50'), null, { timeout: 20000 });
       // 3. duas paredes de blocos de 12 m com laje maciça e uma porta fora da modulação
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposAlvenaria?.length ?? 0) > 0, null);
       const mat = (await modelo()).tiposAlvenaria[0].id;
       await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
       await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
@@ -4782,7 +4787,7 @@ export const flows = [
       await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
       await prev.locator('svg').waitFor();
       const n0 = await prev.locator('svg circle').count();
-      await grupoEdif(page, 'Opções de armação e locação');
+      await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
       await page.getByLabel(/^Gabarito \(máscara DXF\/DWG\)/).waitFor();
       await page.getByLabel('Ponto fixo dos pilares nas formas e nas lajes').check();
       await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building')).building.prancha?.armacao?.pontoFixo === 1, null, { timeout: 15000 });
@@ -5237,20 +5242,25 @@ export const flows = [
       const page = await newPage();
       await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const g = await grupoEdif(page, 'Biblioteca de normas');
+      await grupoEdif(page, 'Biblioteca de normas');
       await g.getByLabel(/^Norma/).selectOption('NBR 14432 / IT 06');
       const tabela = g.locator('table[data-tabela-norma="nbr14432.trrf-ocupacao"]');
       await tabela.waitFor();
       assert.match(await g.locator('[data-selos-norma]').innerText(), /de fábrica/);
       assert.match(await g.locator('[data-selos-norma]').innerText(), /a confirmar/);
       const inc = await grupoEdif(page, 'Incêndio');
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial(?! N3)/);
       // 1) altera a ocupação da primeira linha: selo "alterada" e a opção do grupo Incêndio muda
+      await grupoEdif(page, 'Biblioteca de normas');
       const cel = g.getByLabel('Ocupação da linha 1', { exact: true });
       await cel.fill('Residencial N3'); await cel.press('Enter');
       await page.waitForFunction(() => /alterada pela obra/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
       assert.match(await g.locator('summary').first().innerText(), /\(1 alterada\)/);
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial N3/);
       // 2) valor inválido num número: mensagem e nada gravado
+      await grupoEdif(page, 'Biblioteca de normas');
       const num = g.getByLabel('S2 (subsolo > 10 m) da linha 1', { exact: true });
       await num.fill('abc'); await num.press('Enter');
       await g.locator('[data-erros-normas]').waitFor();
@@ -5263,7 +5273,9 @@ export const flows = [
       assert.equal(j.tabelas['nbr14432.trrf-ocupacao'].linhas[0].ocupacao, 'Residencial N3');
       await g.getByRole('button', { name: 'Restaurar tabela de fábrica', exact: true }).click();
       await page.waitForFunction(() => /de fábrica/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial(?! N3)/);
+      await grupoEdif(page, 'Biblioteca de normas');
       await g.getByLabel('Arquivo de normas').setInputFiles({ name: 'normas.json', mimeType: 'application/json', buffer: Buffer.from(text) });
       await page.waitForFunction(() => /alterada pela obra/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
       // arquivo inválido: mensagem
@@ -5758,6 +5770,7 @@ export const flows = [
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.tipo?.tipo === 'vigotas', null);
       assert.equal((await modelo()).lajes[0].tipo.serie, 'A12');
       // 5) a ficha em uso não pode ser removida
+      await grupoEdif(page, /^Tipos de laje/);
       await g.getByRole('button', { name: 'Remover ficha', exact: true }).click();
       await g.locator('[data-erros-tipos-laje]').waitFor();
       assert.match(await g.locator('[data-erros-tipos-laje]').innerText(), /usada por lajes/);

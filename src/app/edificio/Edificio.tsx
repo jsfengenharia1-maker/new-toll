@@ -217,7 +217,7 @@ export function Edificio() {
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
       {ui.jan === 'malha' && <Modal titulo="Malha de eixos" onClose={() => ui.set({ jan: null })}><Malha /></Modal>}
       {ui.jan === 'novoPavimento' && <Modal titulo="Novo pavimento" onClose={() => ui.set({ jan: null })}><NovoPavimento b={b} /></Modal>}
-      {ui.cfg && <JanelaConfiguracao b={b} />}
+      <JanelaConfiguracao b={b} />
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
