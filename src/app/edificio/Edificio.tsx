@@ -54,6 +54,7 @@ import { LancamentoDxf } from './LancamentoDxf';
 import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos';
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
+import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo, type DialogoGrupos } from './GruposL4';
 import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
 import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
@@ -73,6 +74,7 @@ export function Edificio() {
   const [memo, setMemo] = useState(false);
   const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
   const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
+  const [dialogoL4, setDialogoL4] = useState<DialogoGrupos>(null);
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
   const irEtapa = (id: EtapaId) => {
@@ -118,6 +120,7 @@ export function Edificio() {
           <Hint>Cota = topo da laje estrutural. Pavimentos do mesmo grupo compartilham a planta; “+1” repete o pavimento logo acima e sobe os de cima.</Hint>
         </Group>
 
+        <GruposCopiaGrupo b={b} abrir={setDialogoL4} />
         <MascaraGrupo b={b} abrir={setDialogoL2} />
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -207,6 +210,8 @@ export function Edificio() {
       </section>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
       {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} />}
+      {dialogoL4 === 'copiarGrupo' && <CopiarGrupoDialogo b={b} onClose={() => setDialogoL4(null)} />}
+      {dialogoL4 === 'unirPavimentos' && <UnirPavimentosDialogo b={b} onClose={() => setDialogoL4(null)} />}
       {dialogoL2?.tipo === 'lancar' && <LancamentoDxf inicial={dialogoL2.inicial} onClose={() => setDialogoL2(null)} />}
       {dialogoL2?.tipo === 'gabaritos' && <GerenciadorGabaritos onClose={() => setDialogoL2(null)} onLancar={(id) => setDialogoL2({ tipo: 'lancar', inicial: id })} />}
       {dialogoL2?.tipo === 'vistas' && <VistasRapidas onClose={() => setDialogoL2(null)} />}
