@@ -319,3 +319,4 @@ export { Icone } from './Icone';
 
 export { Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, type RibbonTabDef } from './Ribbon';
 export { Dock, Palette } from './Dock';
+export { Tree, TreeItem } from './Tree';
