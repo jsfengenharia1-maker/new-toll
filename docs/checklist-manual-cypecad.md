@@ -14,15 +14,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 28 | 9 | 1 | 3 |
 | 4. Pilares | 63 | 49 | 7 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 22 | 4 | 0 | 4 |
-| 6. Vigas | 108 | 33 | 18 | 32 | 25 |
-| 7. Lajes | 195 | 33 | 31 | 64 | 67 |
+| 6. Vigas | 108 | 33 | 21 | 29 | 25 |
+| 7. Lajes | 195 | 33 | 36 | 59 | 67 |
 | 8. Escadas | 65 | 0 | 0 | 65 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 19 | 4 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 0 | 5 | 17 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **304** | **88** | **186** | **185** |
+| **Total** | **763** | **304** | **96** | **178** | **185** |
 
 ## Pendências por frente
 
@@ -32,7 +32,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 156 | 198 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 29 | 10 | 39 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 37 | 2 | 39 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 15 | 20 | 35 |
 
 ## 0. Apresentação do programa
@@ -295,15 +295,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **6.1 Lançamento** | | | |
 | C6.1 | Lançamento do contorno do pavimento combinando gabarito DXF/DWG e ferramentas de viga. | Feito | — | vigas sobre a máscara com capturas |
 | C6.2 | Ajudas genérica e específica durante o lançamento. | Parcial | L | dicas e mensagens [L4] — L4 núcleo: `ajudaDaFerramenta`; interface: painel `AjudaFerramenta` e tecla na barra de estado da planta (cartão 04) |
-| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral [L5] |
+| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral [L5] — L5 grupo "Ferramentas de lançamento" na barra lateral (não é painel flutuante); interface no cartão 02 |
 | C6.4 | Troca do tipo de viga atual a partir do painel. | Feito | — |  |
 | C6.5 | Modo contínuo: o fim de uma viga é o início da próxima. A sequência só vale depois de encerrada pelo menu de contexto. | Feito | — | polilinha contínua; Enter encerra |
-| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Parcial | L | Enter/Esc; apagar último ponto a conferir [L5] |
-| C6.7 | Modo simples: cada viga com início e fim independentes. | Parcial | L | polilinha de 2 pontos [L5] |
+| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Parcial | L | Enter/Esc; apagar último ponto a conferir [L5] — L5 Enter/Esc; Backspace apaga o último ponto (cartão 02); Ctrl+T e Ctrl+B do programa de referência não são copiados |
+| C6.7 | Modo simples: cada viga com início e fim independentes. | Parcial | L | polilinha de 2 pontos [L5] — L5 núcleo: `viga.tracar { simples }` (pares de pontos); interface: cartão 02  |
 | C6.8 | Linha de ajuste da viga: eixo ou uma das faces. | Feito | — | eixo ou face |
-| C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Falta | L | deslocamento configurável entre linha clicada e linha de ajuste [L5] |
+| C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Parcial | L | deslocamento configurável entre linha clicada e linha de ajuste [L5] — L5 núcleo: `viga.tracar { deslocamentoClique }` (cm, à esquerda do traçado); interface: campo no painel e memorização no store (cartão 02)  |
 | C6.10 | Troca cíclica do ajuste (eixo/faces) por atalho (Ctrl+E) durante o lançamento. | Feito | — | tecla A |
-| C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Falta | L | [L5] |
+| C6.11 | Deslocamento útil quando o desenho mostra a fachada (com revestimentos) e não o limite estrutural. | Parcial | L |  [L5] — L5 núcleo: `deslocamentoClique` (fachada com revestimento × limite estrutural); interface: cartão 02  |
 | C6.12 | Viga reta por dois pontos e viga curva por três (início, passagem e fim). A curva vira uma poligonal de trechos retos. | Parcial | E | núcleo: `viga.tracar { passagens }` (um ponto de passagem por trecho; o arco por três pontos vira poligonal de cordas de até a opção `curvaSegmento`, cordas das pontas com 25 % das do meio; `Viga.arcos`, `curvas.ts`: `arcoPor3`, `montarPoligonal`, `sincronizarCurvas`); torção da curvatura de equilíbrio (opção `curvaTorcaoEquilibrio`, rigidez bruta) e verificação à torção sempre; validado contra o arco circular biapoiado em planta sob carga uniforme (M e T, convergência com a corda; `curvas.test.ts`); elevação desenvolvida na prancha de vigas; interface nos cartões `docs/cartoes/E2b/` [E2b] |
 | C6.13 | Alternância reta/curva por atalho (Ctrl+A) e trechos retos e curvos alternados no modo contínuo, começando por qualquer um dos dois. | Parcial | E | núcleo: `viga.tracar` aceita trechos retos e curvos alternados no mesmo traçado, começando por qualquer um (passagem `null` = trecho reto); tecla R, prévia dos arcos e item da paleta no cartão E2b-2 [E2b] |
 | C6.14 | Janela da viga atual: tipo e propriedades (dimensões, seção, conectores etc.). | Feito | — | seção, invertida |
@@ -343,9 +343,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.48 | Viga comum com eixo em traço-ponto. Armadura e envoltórias são consultadas no grupo de origem. | Parcial | E | núcleo: armadura, envoltórias, dimensionamento e prancha só na origem (a associada fica fora de `dim.vigas` e a origem informa a viga comum); eixo em traço-ponto na planta e atalho para abrir o grupo de origem nos cartões E2b-1 e E2b-2 [E2b] |
 | C6.49 | Viga comum em metade do comprimento: cada parte pode ser comum a um grupo diferente. | Parcial | E | núcleo: `viga.comum { de, ate }` divide a viga e só a parte indicada vira comum; cada parte pode ser comum a um grupo diferente (`vigaComum.test.ts`); campos no cartão E2b-1 [E2b] |
 | C6.50 | Desfazer viga comum, voltando às duas vigas originais (feito no grupo associado). | Parcial | E | núcleo: `viga.comumDesfazer` (a partir da origem ou da associada) devolve as duas vigas originais, independentes; desfazer do comando também; botão no cartão E2b-1 [E2b] |
-| C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Falta | L | contorno retangular [L5] |
+| C6.51 | Contorno externo retangular fora do perímetro atual: com ângulo zero (dois cantos) ou com qualquer ângulo (dois cantos de um lado e um ponto do lado oposto). | Parcial | L | contorno retangular [L5] — L5 núcleo: `viga.contornoRetangular` (ângulo zero ou qualquer ângulo, corpo para fora, alinhamento pela face externa dos pilares e pontas fechadas); interface: ferramenta `contornoRet` (cartão 03)  |
 | C6.52 | Atribuir as propriedades da viga atual a vigas já lançadas, uma a uma ou por janela. O mesmo vale para muros. | Feito | — | viga.atribuir |
-| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga, com a ferramenta Prolongar viga (O) na planta (R7-0); sem comprimento fixo nem arraste da extremidade [L5] |
+| C6.53 | Prolongar viga por comprimento fixo (pré-visualizado) ou arrastando a extremidade. | Parcial | L | comando `viga.prolongar` até ponto, eixo ou viga, com a ferramenta Prolongar viga (O) na planta (R7-0); sem comprimento fixo nem arraste da extremidade [L5] — L5 `viga.prolongar` até ponto, eixo ou viga (R7-0) e, no núcleo da L5, por comprimento fixo (`ate.comprimento`; arrastar = o ponto projetado); prévia e campo: cartão 02 |
 | C6.54 | Consolos curtos para apoiar viga indiretamente no pilar (juntas de dilatação). Não servem para apoiar pilares. | Falta | E | consolos [E2e] |
 | C6.55 | Lançamento de consolo: viga até a face do pilar, tipo e geometria do consolo (com área de apoio) e clique na face do pilar. | Falta | E | [E2e] |
 | C6.56 | Modelagem do consolo: apoio fixo interno no centro do apoio, transmissão só da carga vertical e viga desligada da face do pilar (sem momento nem cortante). | Falta | E | [E2e] |
@@ -410,11 +410,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **7.1.1 Gestão de panos** | | | |
 | C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | maciça e treliçada; sem alveolar, steel deck, nervurada bidirecional, radier [E3f] |
-| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | panos detectados; pano sem laje gera aviso [L5] |
+| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | panos detectados; pano sem laje gera aviso [L5] — L5 núcleo: `laje.detectarPanos { definir }` cria panos a definir (`Laje.definir`, marcados com "?" na planta, cartão 04); a criação automática ao fechar o contorno não existe (botão "Detectar panos como a definir")  |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
-| C7.5 | Mudar o ponto de inserção do pano. | Falta | L | [L5] |
-| C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos [L5] |
+| C7.5 | Mudar o ponto de inserção do pano. | Parcial | L |  [L5] — L5 núcleo: `Laje.insercao` (vértice) por `laje.editar { insercao / insercaoPonto }`; ainda não muda a numeração das vigotas nem a origem da malha (E3b); interface: ferramenta `insercaoPano` (cartão 04)  |
+| C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Parcial | L | direção editável (número); não por viga/2 pontos [L5] — L5 núcleo: `laje.editar { direcaoPor: { viga, relacao } / { pontos } }`; interface: ferramenta `direcaoPano` (cartão 04)  |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | L | laje.atribuir (tipo); sem escolher o que copiar [L4] — L4 núcleo: `laje.copiarDados` e `CAMPOS_COPIA_LAJE` (tipo, direção, desnível, engastes, cobrimento, tabela, armadura base); plano de inclinação entra com a E3f; interface: `DadosL4.tsx` (cartão 03) |
 | C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Falta | E | desenho das nervuras e cubetas (nervuradas: E3) [E3c] |
@@ -426,7 +426,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **7.1.2.1 Pano a definir** | | | |
 | C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | remover/criar laje no pano [E3f] |
 | C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Parcial | E | desnível da laje; sem inclinação [E3f] |
-| C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Falta | L | bloquear o cálculo com pano sem tipo [L5] |
+| C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Parcial | L | bloquear o cálculo com pano sem tipo [L5] — L5 núcleo: erro `DEFINIR_PANO` (verificação, com "ver na planta" e sugestão) e `analisarEdificio` recusa a obra com pano a definir; o pano sem laje continua só aviso  |
 | C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Feito | — | pano fechado por vigas sem laje: polígono translúcido tracejado com "?" na vista 3D [V1] |
 | | **7.1.2.2 Lajes de vigotas** | | | |
 | C7.19 | Tipos de laje de vigotas disponíveis conforme a norma escolhida. | Parcial | E | catálogo H8–H25 próprio [a confirmar] [E3a] |
@@ -493,11 +493,11 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Falta | E | lajes inclinadas e planos [E3f] |
 | C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Falta | E | lajes inclinadas e planos [E3f] |
 | | **7.1.4 Aberturas** | | | |
-| C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Parcial | L | abertura em laje (polígono); sem viga de borda automática [L5] |
-| C7.79 | Abertura retangular paralela a uma viga escolhida (dois cantos internos opostos). | Falta | L | [L5] |
-| C7.80 | Abertura retangular com ângulo zero (dois cantos). | Parcial | L | abertura por contorno [L5] |
-| C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Falta | L | [L5] |
-| C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Falta | L | [L5] |
+| C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Parcial | L | abertura em laje (polígono); sem viga de borda automática [L5] — L5 núcleo: `laje.aberturaRetangular { borda: nenhuma / chata / alta }` (vigas de borda traçadas, `Laje.furosBorda`; 15 × 40 cm a confirmar); interface: cartão 03; memorial: cartão 06  |
+| C7.79 | Abertura retangular paralela a uma viga escolhida (dois cantos internos opostos). | Parcial | L |  [L5] — L5 núcleo: `laje.aberturaRetangular { modo: viga }`; interface: cartão 03  |
+| C7.80 | Abertura retangular com ângulo zero (dois cantos). | Parcial | L | abertura por contorno [L5] — L5 núcleo: `laje.aberturaRetangular { modo: zero }`; interface: cartão 03  |
+| C7.81 | Abertura retangular no ângulo das nervuras do pano (paralela aos eixos gerais se o pano estiver vazio). | Parcial | L |  [L5] — L5 núcleo: `laje.aberturaRetangular { modo: nervuras }` (ângulo das nervuras; sem nervuras, eixos gerais); interface: cartão 03  |
+| C7.82 | Abertura retangular com qualquer ângulo (dois pontos de um lado e arraste até o lado oposto). | Parcial | L |  [L5] — L5 núcleo: `laje.aberturaRetangular { modo: qualquer }` (lado e ponto oposto); interface: cartão 03  |
 | | **7.1.5 Opções de lajes** | | | |
 | C7.83 | Limites de flecha ativa das lajes de vigotas (padrões próprios, como nas vigas). | Feito | — | N2f: limites próprios das treliçadas por tipo de flecha (`flechas.limites`, grupo "Etapas de carga (flechas)" em `EtapasFlecha.tsx`), ativa ℓ/500 e 10 mm e fator 1,75; e2e N2f |
 | C7.84 | Limites de flecha total a longo prazo das lajes de vigotas. | Feito | — | limite da flecha total a longo prazo editável (ℓ/250), comum a todas as lajes, treliçadas inclusive (N1d) |
@@ -796,8 +796,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C10.22 | Cargas no nível da fundação, consideradas só por radiers. | Feito | — | cargas do grupo "fundacao" sobre radier ou viga sobre base elástica entram na análise global (revisão de cálculo) e saem das vigas e elementos de fundação (`montarBaseElastica`, `pontoNaBase`) |
 | C10.23 | Aviso no cálculo quando há radier e o grupo de fundação não tem carga, com opção de defini-la na hora e seguir o cálculo. | Feito | — | FU6: aviso FUND_RADIER_SEM_CARGA quando há radier e o nível de fundação não tem carga sobre ele; FU8c: comando `radier.carga` (G e Q de área sobre o contorno, um passo no histórico) e botão "Definir carga e seguir" (`CargaRadier` em `BaseElasticaUI.tsx`, no editor e na janela do radier; `radierSemCarga` em `baseElastica.ts`), que refaz o cálculo do edifício; e2e FU8 |
 | | **10.3 Menu de cargas** | | | |
-| C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje [L5] |
-| C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” [L5] |
+| C10.24 | Carga de superfície em uma laje inteira com um clique (laje destacada em amarelo), com valor e hipótese, podendo copiar de carga existente. | Parcial | L | carga de área por polígono; sem clique na laje [L5] — L5 núcleo: `carga.areaNaLaje` (valor, caso ou `copiarDe`; aberturas não descontadas, a confirmar); interface: ferramenta `cargaLaje` (cartão 05)  |
+| C10.25 | Cargas lineares automáticas ao longo do eixo de vigas, uma a uma ou por janela de captura. | Parcial | L | carga linear por pontos; sem “ao longo da viga” [L5] — L5 núcleo: `carga.aoLongoDaViga` (por vigas ou janela de captura); interface: ferramenta `cargaViga` (cartão 05)  |
 | | **10.4 Desenhos e relatórios** | | | |
 | C10.26 | Desenho de distribuição de cargas especiais com as cargas permanentes e variáveis por grupo; nos demais desenhos as cargas aparecem só se o usuário configurar. | Parcial | E | prancha de locação com as cargas características e de cálculo por pilar (R5); sem cargas especiais por grupo [E4e] |
 
@@ -1049,3 +1049,4 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E2b, núcleo (vigas curvas e viga comum a dois grupos).** C6.12, C6.13, C6.32, C6.47, C6.48, C6.49, C6.50 e C6.58 passam de Falta a Parcial com nota própria (núcleo e comandos prontos; interface nos cartões `docs/cartoes/E2b/`; C6.58: as linhas indicativas na planta dependem das lajes inclinadas da E3f).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: nenhuma mudança de contagem de frente (os itens seguem na E).
+- **23/10/2026 — L5, núcleo (ferramentas de lançamento de vigas, panos, aberturas e cargas).** C6.9, C6.11, C6.51, C7.5, C7.17, C7.79, C7.81 e C7.82 passam de Falta a Parcial; C6.3, C6.6, C6.7, C6.53, C7.2, C7.6, C7.78, C7.80, C10.24, C10.25, K1.9.54 e K1.9.103 seguem Parcial com nota própria (núcleo pronto, interface nos cartões `docs/cartoes/L5/`). Pendências por frente: L sem mudança de contagem.

@@ -4,9 +4,10 @@ import { alturaVigaChata } from '../building/secaoViga';
 import { cortarPoligonal, ehCurva, juntarPoligonais, inverterPoligonal, montarPoligonal } from '../building/curvas';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import type { Draft } from 'immer';
-import { centroPilar, comprimentoPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
+import { centroPilar, comprimentoPolilinha, deslocarPolilinha, geometriaViga, pavimentosDoGrupo, secaoNoLance, type Alinhamento, type BuildingModel, type Pilar, type Viga, type Vinculo } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { ajusteFaceTrecho, alinhamentoNaFace, pilaresQueChegam, proximaViga, TOL_FACE, type LadoFace } from '../building/vigas';
+import { deslocamentoDeClique, pontaProlongada } from '../building/lancamentoL5';
 import { atribuirTabela, nivelEdicao, tabelaInexistente } from './tabelas';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
@@ -57,23 +58,54 @@ function limpar(pts: P[]): P[] {
   return out;
 }
 
-registrar<{ grupo: string; pontos: P[]; passagens?: Passagens; secao: { b: number; h: number }; alinhamento: Alinhamento; invertida: boolean; nome?: string }>({
+/** Desloca a linha clicada para a linha de ajuste (L5): `cm` à esquerda do traçado (negativo: à direita); pontos de passagem acompanham o trecho. */
+function linhaDeAjuste(pontos: P[], passagens: Passagens | undefined, cm: number | undefined): { pontos: P[]; passagens: Passagens | undefined } {
+  const d = deslocamentoDeClique(cm ?? 0);
+  if (!d || pontos.length < 2) return { pontos, passagens };
+  const pts = deslocarPolilinha(pontos, d).map((q) => [r6(q[0]), r6(q[1])] as P);
+  const pas = passagens?.map((q, i) => {
+    if (!q) return null;
+    const a = pontos[i], z = pontos[i + 1], L = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1;
+    return [r6(q[0] - ((z[1] - a[1]) / L) * d), r6(q[1] + ((z[0] - a[0]) / L) * d)] as P;
+  });
+  return { pontos: pts, passagens: pas };
+}
+
+registrar<{ grupo: string; pontos: P[]; passagens?: Passagens; secao: { b: number; h: number }; alinhamento: Alinhamento; invertida: boolean; nome?: string; simples?: boolean; deslocamentoClique?: number }>({
   nome: 'viga.tracar',
-  descricao: 'Traça uma viga na planta do grupo por uma polilinha (m). `alinhamento` diz se a linha traçada é o eixo ou uma face. Com `passagens` (um ponto por trecho, ou null), o trecho vira um arco por início, passagem e fim, discretizado em cordas de até a opção `curvaSegmento`; trechos retos e curvos podem se alternar. Nome automático V<n> do grupo.',
+  descricao: 'Traça uma viga na planta do grupo por uma polilinha (m). `alinhamento` diz se a linha traçada é o eixo ou uma face. Com `passagens` (um ponto por trecho, ou null), o trecho vira um arco por início, passagem e fim, discretizado em cordas de até a opção `curvaSegmento`; trechos retos e curvos podem se alternar. Nome automático V<n> do grupo. `simples` (L5): cada par de pontos (1º-2º, 3º-4º…) é uma viga independente. `deslocamentoClique` (cm, L5): distância entre a linha clicada (ex.: a fachada com revestimento) e a linha de ajuste (o limite estrutural), à esquerda do traçado (negativo: à direita).',
   risco: 'escrita',
   schema: { type: 'object', additionalProperties: false, required: ['grupo', 'pontos', 'secao'], properties: {
     grupo: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, passagens: passagensSchema, secao: secaoSchema,
     alinhamento: { ...alinSchema, default: 'centro' }, invertida: { type: 'boolean', default: false }, nome: { type: 'string', minLength: 1 },
+    simples: { type: 'boolean', description: 'modo simples: cada par de pontos é uma viga independente' },
+    deslocamentoClique: { type: 'number', minimum: -300, maximum: 300, description: 'cm entre a linha clicada e a linha de ajuste (esquerda do traçado; negativo = direita)' },
   } },
   validar(b, p) {
     if (!b.grupos.some((g) => g.id === p.grupo)) return err('GRUPO_INEXISTENTE', `Grupo ${p.grupo} não existe.`);
+    if (p.simples) {
+      if (p.passagens) return err('SIMPLES_COM_ARCO', 'O modo simples não aceita trechos curvos: trace a viga curva em polilinha.');
+      if (p.pontos.length % 2) return err('SIMPLES_PONTOS_IMPARES', 'No modo simples os pontos vêm em pares (início e fim de cada viga).');
+      return p.pontos.some((q, i) => i % 2 === 0 && limpar([q, p.pontos[i + 1]]).length < 2) ? err('VIGA_DEGENERADA', 'A viga precisa de dois pontos distintos.') : [];
+    }
     const ep = erroPassagens(p.pontos, p.passagens) ?? erroArcoDegenerado(b, p.pontos, p.passagens);
     if (ep) return ep;
     return limpar(p.pontos).length < 2 ? err('VIGA_DEGENERADA', 'A viga precisa de dois pontos distintos.') : [];
   },
   aplicar(d, p) {
+    if (p.simples) {
+      const nomes: string[] = [];
+      for (let i = 0; i + 1 < p.pontos.length; i += 2) {
+        const par = linhaDeAjuste([p.pontos[i], p.pontos[i + 1]], undefined, p.deslocamentoClique).pontos;
+        const nome = (p.nome?.trim() && p.pontos.length === 2 ? p.nome.trim() : undefined) ?? `V${proximaViga(d as BuildingModel, p.grupo)}`;
+        d.vigas.push({ id: novoId(d), nome, grupo: p.grupo, pontos: limpar(par), secao: { ...p.secao }, alinhamento: p.alinhamento, ...(p.invertida ? { invertida: true } : {}) });
+        nomes.push(nome);
+      }
+      return `${nomes.join(', ')} traçada(s) no modo simples.`;
+    }
+    const aj = linhaDeAjuste(p.pontos, p.passagens, p.deslocamentoClique);
     const nome = p.nome?.trim() || `V${proximaViga(d as BuildingModel, p.grupo)}`;
-    const g = poligonal(d as BuildingModel, p.pontos, p.passagens) as { pontos: P[]; arcos: { ini: number; fim: number }[] };
+    const g = poligonal(d as BuildingModel, aj.pontos, aj.passagens) as { pontos: P[]; arcos: { ini: number; fim: number }[] };
     d.vigas.push({ id: novoId(d), nome, grupo: p.grupo, pontos: g.pontos, secao: { ...p.secao }, alinhamento: p.alinhamento, ...(p.invertida ? { invertida: true } : {}), ...(g.arcos.length ? { arcos: g.arcos } : {}) });
     return `${nome} ${g.arcos.length ? `curva traçada (${g.arcos.length} trecho(s) curvo(s), ` : 'traçada ('}${String(+comprimentoPolilinha(g.pontos).toFixed(2)).replace('.', ',')} m).`;
   },
@@ -310,14 +342,14 @@ function juntar(a: P[], z: P[]): P[] | null {
   return null;
 }
 
-registrar<{ id: string; extremidade: 'ini' | 'fim'; ate: { viga?: string; eixo?: string; ponto?: P } }>({
+registrar<{ id: string; extremidade: 'ini' | 'fim'; ate: { viga?: string; eixo?: string; ponto?: P; comprimento?: number } }>({
   nome: 'viga.prolongar',
-  descricao: 'Prolonga ou apara a extremidade da viga, na direção do trecho, até o eixo de outra viga, um eixo de referência ou a projeção de um ponto.',
+  descricao: 'Prolonga ou apara a extremidade da viga, na direção do trecho, até o eixo de outra viga, um eixo de referência, a projeção de um ponto (arrastar a extremidade) ou por um comprimento fixo em m (L5; negativo apara).',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id', 'extremidade', 'ate'], properties: {
     id: { type: 'string' }, extremidade: { type: 'string', enum: ['ini', 'fim'] },
-    ate: { type: 'object', additionalProperties: false, properties: { viga: { type: 'string' }, eixo: { type: 'string' }, ponto } },
+    ate: { type: 'object', additionalProperties: false, properties: { viga: { type: 'string' }, eixo: { type: 'string' }, ponto, comprimento: { type: 'number', description: 'm; negativo apara' } } },
   } },
   validar(b, p) {
     const v = viga(b, p.id);
@@ -333,10 +365,11 @@ registrar<{ id: string; extremidade: 'ini' | 'fim'; ate: { viga?: string; eixo?:
   },
 });
 
-function novaPonta(b: BuildingModel, v: Viga, ext: 'ini' | 'fim', ate: { viga?: string; eixo?: string; ponto?: P }): P | null {
+function novaPonta(b: BuildingModel, v: Viga, ext: 'ini' | 'fim', ate: { viga?: string; eixo?: string; ponto?: P; comprimento?: number }): P | null {
   const pts = v.pontos, n = pts.length;
   const [a, z] = ext === 'fim' ? [pts[n - 2], pts[n - 1]] : [pts[1], pts[0]];
   const dx = z[0] - a[0], dy = z[1] - a[1];
+  if (ate.comprimento !== undefined) return pontaProlongada(a, z, ate.comprimento);
   if (ate.ponto) { const L2 = dx * dx + dy * dy, t = ((ate.ponto[0] - a[0]) * dx + (ate.ponto[1] - a[1]) * dy) / L2; return t > 0 ? [r6(a[0] + t * dx), r6(a[1] + t * dy)] : null; }
   const linhas: [P, P][] = [];
   const w = ate.viga ? viga(b, ate.viga) : undefined, e = ate.eixo ? b.eixos.find((x) => x.id === ate.eixo) : undefined;
@@ -483,33 +516,36 @@ registrar<{ grupo: string; ids?: string[]; lado: LadoFace }>({
     const f = faltam(b, p.ids ?? []);
     return f.length ? err('VIGA_INEXISTENTE', `Viga(s) inexistente(s): ${f.join(', ')}.`) : [];
   },
-  aplicar(d, p) {
-    const b = d as BuildingModel;
-    const ps = pavimentosDoGrupo(b, p.grupo).flatMap((pav) => pilaresQueChegam(b, pav.id).map((x) => ({ p: JSON.parse(JSON.stringify(x)) as Pilar, pav: pav.id })));
-    const centros = [...new Map(ps.map((x) => [x.p.id, centroPilar(x.p, secaoNoLance(x.p, x.pav))])).values()];
-    const interior: P | null = centros.length ? [centros.reduce((t, c) => t + c[0], 0) / centros.length, centros.reduce((t, c) => t + c[1], 0) / centros.length] : null;
-    // vigas de contorno: todos os pilares do grupo do lado de dentro da viga (folga de 0,3 m)
-    const contorno = (v: Viga) => {
-      const L = (i: number) => Math.hypot(v.pontos[i + 1][0] - v.pontos[i][0], v.pontos[i + 1][1] - v.pontos[i][1]);
-      let im = 0;
-      for (let i = 1; i + 1 < v.pontos.length; i++) if (L(i) > L(im)) im = i;
-      const a = v.pontos[im], z = v.pontos[im + 1], l = L(im) || 1, nx = -(z[1] - a[1]) / l, ny = (z[0] - a[0]) / l;
-      const lado = centros.map((c) => (c[0] - a[0]) * nx + (c[1] - a[1]) * ny);
-      return lado.every((x) => x <= 0.3) || lado.every((x) => x >= -0.3);
-    };
-    const nomes: string[] = [];
-    for (const v of d.vigas) {
-      if (v.grupo !== p.grupo || (p.ids ? !p.ids.includes(v.id) : p.lado !== 'externa' || !contorno(v as Viga))) continue;
-      const vv = JSON.parse(JSON.stringify(v)) as Viga;
-      const r = alinhamentoNaFace(vv, ps, p.lado, interior);
-      if (!r) continue;
-      v.pontos = deslocarTrechos(vv.pontos, r.desloc);
-      v.alinhamento = r.alinhamento;
-      nomes.push(v.nome);
-    }
-    return nomes.length ? `${nomes.join(', ')} alinhada(s) à face ${p.lado === 'externa' ? 'externa' : p.lado === 'esq' ? 'esquerda' : 'direita'} dos pilares. Se o contorno das lajes mudou, detecte os panos de novo.` : 'Nenhuma viga apoiada em pilar para alinhar.';
-  },
+  aplicar: (d, p) => alinharFaceNoRascunho(d, p),
 });
+
+/** Alinha as vigas pela face dos pilares (`viga.alinharFace`); também usada pelo contorno retangular (L5). */
+export function alinharFaceNoRascunho(d: Draft<BuildingModel>, p: { grupo: string; ids?: string[]; lado: LadoFace }): string {
+  const b = d as BuildingModel;
+  const ps = pavimentosDoGrupo(b, p.grupo).flatMap((pav) => pilaresQueChegam(b, pav.id).map((x) => ({ p: JSON.parse(JSON.stringify(x)) as Pilar, pav: pav.id })));
+  const centros = [...new Map(ps.map((x) => [x.p.id, centroPilar(x.p, secaoNoLance(x.p, x.pav))])).values()];
+  const interior: P | null = centros.length ? [centros.reduce((t, c) => t + c[0], 0) / centros.length, centros.reduce((t, c) => t + c[1], 0) / centros.length] : null;
+  // vigas de contorno: todos os pilares do grupo do lado de dentro da viga (folga de 0,3 m)
+  const contorno = (v: Viga) => {
+    const L = (i: number) => Math.hypot(v.pontos[i + 1][0] - v.pontos[i][0], v.pontos[i + 1][1] - v.pontos[i][1]);
+    let im = 0;
+    for (let i = 1; i + 1 < v.pontos.length; i++) if (L(i) > L(im)) im = i;
+    const a = v.pontos[im], z = v.pontos[im + 1], l = L(im) || 1, nx = -(z[1] - a[1]) / l, ny = (z[0] - a[0]) / l;
+    const lado = centros.map((c) => (c[0] - a[0]) * nx + (c[1] - a[1]) * ny);
+    return lado.every((x) => x <= 0.3) || lado.every((x) => x >= -0.3);
+  };
+  const nomes: string[] = [];
+  for (const v of d.vigas) {
+    if (v.grupo !== p.grupo || (p.ids ? !p.ids.includes(v.id) : p.lado !== 'externa' || !contorno(v as Viga))) continue;
+    const vv = JSON.parse(JSON.stringify(v)) as Viga;
+    const r = alinhamentoNaFace(vv, ps, p.lado, interior);
+    if (!r) continue;
+    v.pontos = deslocarTrechos(vv.pontos, r.desloc);
+    v.alinhamento = r.alinhamento;
+    nomes.push(v.nome);
+  }
+  return nomes.length ? `${nomes.join(', ')} alinhada(s) à face ${p.lado === 'externa' ? 'externa' : p.lado === 'esq' ? 'esquerda' : 'direita'} dos pilares. Se o contorno das lajes mudou, detecte os panos de novo.` : 'Nenhuma viga apoiada em pilar para alinhar.';
+}
 
 /** Desloca cada trecho da polilinha de s[i] para a esquerda; vértices internos pela interseção dos trechos deslocados. */
 function deslocarTrechos(pts: P[], s: number[]): P[] {

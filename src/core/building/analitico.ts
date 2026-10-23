@@ -437,6 +437,8 @@ export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {
   const vazio: AnaliseEdificio = { avisos, opcoes: op, casos: casosDaObra(b).map((c) => c.id), grelhas: [], portico: { modelo: { nos: [], barras: [], apoios: new Map() }, barras: [], mestres: {}, zonas: {}, res: null }, fundacao: [], vento: null, cargasPavimento: {}, totais: { G: 0, Q: 0 }, gdl: 0, ms: 0 };
   if (!ps.length) return { ...vazio, erro: 'A obra não tem pavimentos.', fundacao: reacoesArranques(b) };
   if (!b.pilares.length && !ppDaObra(b).length) return { ...vazio, erro: 'A obra não tem pilares.' };
+  const aDefinir = b.lajes.filter((l) => l.definir);
+  if (aDefinir.length) return { ...vazio, erro: `DEFINIR_PANO: a obra tem ${aDefinir.length} pano(s) a definir (${aDefinir.slice(0, 5).map((l) => l.nome).join(', ')}${aDefinir.length > 5 ? '…' : ''}); atribua o tipo da laje antes de calcular.` };
   if (b.pilares.length && b.pilares.every(ehArranque) && !ppDaObra(b).length) return { ...vazio, erro: 'A obra só tem arranques: calcule só a fundação.', fundacao: reacoesArranques(b) };
   /** Pilares-parede (E1b): lados em barra viram pilares virtuais; as fatias do topo dos lados em casca são apoios virtuais da grelha. */
   const paredes = geometriaParedes(b, op);

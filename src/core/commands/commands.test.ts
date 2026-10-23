@@ -278,6 +278,11 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'pilar.pontoFixo': (b) => ({ ids: [b.pilares[0].id], ajuste: 'so', mantemPosicao: true }),
   'laje.copiarDados': (b) => ({ de: b.lajes[1].id, para: [b.lajes[0].id], campos: ['tipo', 'cobrimento'] }),
   'portico.renumerar': () => ({ grupo: 'g_3' }),
+  // L5
+  'viga.contornoRetangular': () => ({ grupo: 'g_3', c1: [-20, 20], c2: [-14, 24], secao: { b: 0.15, h: 0.5 } }),
+  'laje.aberturaRetangular': (b) => ({ id: b.lajes[0].id, modo: 'zero', c1: [10.5, 0.5], c2: [11.2, 1.2], borda: 'alta' }),
+  'carga.areaNaLaje': (b) => ({ laje: b.lajes[0].id, valor: 1.5, caso: 'Q' }),
+  'carga.aoLongoDaViga': (b) => ({ vigas: [b.vigas[0].id], valor: 3, caso: 'G' }),
   'lote': () => ({ comandos: [{ nome: 'pilar.inserir', params: { x: 8, y: 0, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }, { nome: 'pilar.inserir', params: { x: 8, y: 3, secao: { tipo: 'ret', b: 0.2, h: 0.2 } } }] }),
 };
 

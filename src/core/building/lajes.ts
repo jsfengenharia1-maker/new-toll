@@ -104,8 +104,10 @@ export function diagnosticosLajes(b: BuildingModel): Diagnostico[] {
     const panos = panosDoGrupo(b, g.id);
     for (const p of panos) {
       const q = pontoInterno(p);
-      if (!ls.some((l) => dentroPoligono(q, l.contorno))) d.push({ codigo: 'PANO_SEM_LAJE', severidade: 'aviso', elementos: [], mensagem: `Região fechada por vigas sem laje em “${g.nome}” (${String(+Math.abs(areaPoligono(p)).toFixed(2)).replace('.', ',')} m²).`, sugestao: { comando: 'laje.criar', params: { grupo: g.id, ponto: [+q[0].toFixed(4), +q[1].toFixed(4)] }, texto: 'Criar laje maciça h=10 neste pano' } });
+      if (!ls.some((l) => dentroPoligono(q, l.contorno) || (l.furos ?? []).some((f) => dentroPoligono(q, f)))) d.push({ codigo: 'PANO_SEM_LAJE', severidade: 'aviso', elementos: [], mensagem: `Região fechada por vigas sem laje em “${g.nome}” (${String(+Math.abs(areaPoligono(p)).toFixed(2)).replace('.', ',')} m²).`, sugestao: { comando: 'laje.criar', params: { grupo: g.id, ponto: [+q[0].toFixed(4), +q[1].toFixed(4)] }, texto: 'Criar laje maciça h=10 neste pano' } });
     }
+    for (const l of ls) if (l.definir)
+      d.push({ codigo: 'DEFINIR_PANO', severidade: 'erro', elementos: [l.id], mensagem: `${l.nome} é um pano a definir (?): atribua o tipo da laje antes de calcular.`, sugestao: { comando: 'laje.editar', params: { id: l.id, tipo: { tipo: 'macica', h: 0.1 } }, texto: `Definir ${l.nome} como maciça h=10` } });
     for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++)
       if (lajesSeSobrepoem(ls[i], ls[j])) d.push({ codigo: 'LAJES_SOBREPOSTAS', severidade: 'erro', elementos: [ls[i].id, ls[j].id], mensagem: `${ls[i].nome} e ${ls[j].nome} se sobrepõem.` });
     for (const l of ls) if (l.tipo.tipo === 'trelicada' && !ehPano(l, panos))

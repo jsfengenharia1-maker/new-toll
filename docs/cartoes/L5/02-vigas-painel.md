@@ -1,0 +1,159 @@
+# L5 — cartão 02: Painel de vigas: modo simples, deslocamento, Backspace e prolongar por comprimento
+
+Classe: Haiku (interface sobre núcleo pronto; código validado).
+
+## Arquivos
+- `src/app/edificio/LancamentoL5.tsx` (novo)
+- `src/app/edificio/Edificio.tsx`
+- `src/app/edificio/Planta.tsx`
+
+## O que faz
+Grupo "Ferramentas de lançamento" na barra lateral (`LancamentoL5.tsx`, seção Vigas): modo simples, deslocamento da linha clicada, comprimento de prolongar. `Planta.tsx`: `viga.tracar` com `simples` e `deslocamentoClique`, Backspace apaga o último ponto da viga, prolongar por comprimento fixo com prévia.
+
+## Núcleo usado (já existe)
+Comandos e funções da L5 listados em `00-indice.md`; sem núcleo novo.
+
+## Aplicação
+`git apply docs/cartoes/L5/patches/02-vigas-painel.patch` (ou aplique o bloco `diff` abaixo, trecho a trecho).
+
+## Verificação
+- `npx tsc -b`; `npx vitest run src/app`; `npm run e2e -- --no-build viga` (depois do cartão 07: `npm run e2e -- L5`)
+
+## Rótulos e regras
+Rótulos: "Modo simples: cada par de pontos é uma viga" (Check), "Deslocamento da linha clicada" e "Prolongar por comprimento" (NumField: no e2e, regex ancorada `/^Deslocamento da linha clicada/`). Backspace só age com a ferramenta Viga e pontos pendentes; com seleção e sem pontos continua apagando a seleção.
+
+## Patch
+```diff
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index 0f97c74..0eaa278 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -56,6 +56,7 @@ import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos
+ import { ObrasRecentes } from './ObrasRecentes';
+ import { ImportarTexto } from './ImportarTexto';
+ import { DadosL4Grupo } from './DadosL4';
++import { LancamentoL5Grupo } from './LancamentoL5';
+ import { BarraAtalhos } from './BarraAtalhos';
+ import { GuiaRapidoDialogo } from './GuiaRapido';
+ import type { Atalho } from '../../core/ajuda';
+@@ -141,6 +142,7 @@ export function Edificio() {
+         <MurosGrupo b={b} />
+         <AlvenariaGrupo b={b} />
+         <VigasGrupo b={b} />
++        <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
+         <LajesGrupo b={b} />
+         <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
+         <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
+diff --git a/src/app/edificio/LancamentoL5.tsx b/src/app/edificio/LancamentoL5.tsx
+new file mode 100644
+index 0000000..91435cd
+--- /dev/null
++++ b/src/app/edificio/LancamentoL5.tsx
+@@ -0,0 +1,28 @@
++// Ferramentas de lançamento de vigas, panos, aberturas e cargas (L5: C6.3, C6.6, C6.7, C6.9, C6.11, C6.51, C6.53, C7.2, C7.5,
++// C7.6, C7.17, C7.78 a C7.82, C10.24, C10.25, K1.9.54, K1.9.103). Grupo "Ferramentas de lançamento" da barra lateral;
++// a lógica está nos comandos `viga.tracar`, `viga.prolongar`, `viga.contornoRetangular`, `laje.aberturaRetangular`,
++// `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
++import { Check, Group, Hint, NumField } from '../ui';
++import type { BuildingModel } from '../../core/building/types';
++import { usePlanta, type L5Estado } from './plantaStore';
++
++export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
++  const pl = usePlanta();
++  const l5 = pl.l5;
++  const set = (p: Partial<L5Estado>) => pl.set({ l5: { ...usePlanta.getState().l5, ...p } });
++  void b; void onPlanta;
++  return (
++    <Group title="Ferramentas de lançamento" open={false}>
++      <h4>Vigas</h4>
++      <div className="row wrap">
++        <Check label="Modo simples: cada par de pontos é uma viga" checked={l5.simples} onChange={(v) => set({ simples: v })} />
++        <NumField label="Deslocamento da linha clicada" unit="cm" width={110} value={l5.deslocamento} onChange={(v) => set({ deslocamento: v })} />
++      </div>
++      <Hint>O deslocamento leva a linha clicada (por exemplo a fachada com revestimento) à linha de ajuste (o limite estrutural): positivo para a esquerda do traçado, negativo para a direita. Na ferramenta Viga, Enter encerra, Backspace apaga o último ponto e Esc cancela.</Hint>
++      <div className="row wrap">
++        <NumField label="Prolongar por comprimento" unit="m" width={120} value={l5.comprimento} onChange={(v) => set({ comprimento: v })} />
++      </div>
++      <Hint>Com um comprimento diferente de zero, um clique perto da extremidade na ferramenta Prolongar viga (O) prolonga a viga nesse comprimento (negativo apara); com zero, a viga vai até o alvo clicado.</Hint>
++    </Group>
++  );
++}
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index b9b4194..8409e68 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -17,6 +17,7 @@ import { isFooting } from '../../core/footings';
+ import { IndiceCaptura, ordenar, pontoDigitado, restringir, type Captura } from '../../core/geom/snap';
+ import { geometriaMascara, geometriaPorCamada } from '../../core/building/pilares';
+ import { vigasDoClique } from '../../core/building/lancamentoDxf';
++import { pontaProlongada } from '../../core/building/lancamentoL5';
+ import { panosDoGrupo } from '../../core/building/lajes';
+ import { dentroPoligono, pontoInterno, type P } from '../../core/geom/faces';
+ import { montarPoligonal } from '../../core/building/curvas';
+@@ -911,6 +912,19 @@ export function Planta() {
+       const [ax, ay] = paraTela(...pontos[0]);
+       ctx.strokeStyle = pl.ferramenta === 'laje' ? cores.laje : cores.carga; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, ay); ctx.stroke(); ctx.setLineDash([]);
+     }
++    // prolongar por comprimento fixo (L5, C6.53): prévia da nova ponta da viga sob o cursor
++    if (pl.ferramenta === 'prolongar' && pl.l5.comprimento && !pontos.length && !s.pan) {
++      const v = vigaSob(s.cursor, 12);
++      if (v) {
++        const a0 = v.pontos[0], z0 = v.pontos[v.pontos.length - 1], ini = Math.hypot(s.cursor[0] - a0[0], s.cursor[1] - a0[1]) <= Math.hypot(s.cursor[0] - z0[0], s.cursor[1] - z0[1]);
++        const [a, z] = ini ? [v.pontos[1], a0] : [v.pontos[v.pontos.length - 2], z0], q = pontaProlongada(a as P2, z as P2, pl.l5.comprimento);
++        if (q) {
++          const [x0, y0] = paraTela(z[0], z[1]), [x1, y1] = paraTela(q[0], q[1]);
++          ctx.strokeStyle = cores.viga; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
++          ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = cores.cota; ctx.fillText(`${fmt(pl.l5.comprimento, 2)} m`, x1 + 8, y1 - 8);
++        }
++      }
++    }
+     // prévia da viga
+     if (pl.ferramenta === 'viga' && pontos.length && !s.pan) {
+       // viga curva (E2b): trechos curvos já lançados e o em andamento (passagem marcada) como arcos pela mesma discretização da viga
+@@ -1268,6 +1282,13 @@ export function Planta() {
+     if (f === 'viga') {
+       // viga curva (E2b): no trecho curvo o 1º clique é a passagem do arco e o 2º, o fim; os trechos retos guardam null
+       const P = usePlanta.getState(), n = pontosRef.current.length;
++      if (P.l5.simples) {
++        // modo simples (L5, C6.7): cada par de pontos é uma viga independente
++        if (!n) { setPontos(novos); return; }
++        setPontos([]);
++        exec('viga.tracar', { grupo, pontos: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, simples: true, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
++        return;
++      }
+       if (!n) { P.set({ passagemViga: null, passagensViga: [] }); setPontos(novos); return; }
+       if (P.curvaViga && !P.passagemViga) { P.set({ passagemViga: [p[0], p[1]] }); msg('Passagem do arco marcada: clique no fim do arco.'); desenharInteracao(); return; }
+       P.set({ passagensViga: [...P.passagensViga.slice(0, n - 1), P.curvaViga ? P.passagemViga : null], passagemViga: null });
+@@ -1338,6 +1359,8 @@ export function Planta() {
+         const w = it.current.cursor, a = v.pontos[0], z = v.pontos[v.pontos.length - 1];
+         it.current.vigaRef = v.id; it.current.extremidade = Math.hypot(w[0] - a[0], w[1] - a[1]) <= Math.hypot(w[0] - z[0], w[1] - z[1]) ? 'ini' : 'fim';
+         usePlanta.getState().set({ selecao: new Set([v.id]) });
++        const cp = usePlanta.getState().l5.comprimento;
++        if (cp) { it.current.vigaRef = null; exec('viga.prolongar', { id: v.id, extremidade: it.current.extremidade, ate: { comprimento: cp } }); return; } // L5 (C6.53): comprimento fixo
+         setPontos([it.current.extremidade === 'ini' ? a : z]); return;
+       }
+       const id = it.current.vigaRef, ext = it.current.extremidade;
+@@ -1432,7 +1455,7 @@ export function Planta() {
+     const P = usePlanta.getState();
+     // passagens dos arcos (E2b), uma por trecho: null = reto
+     const passagens = Array.from({ length: Math.max(0, pts.length - 1) }, (_, i) => { const q = P.passagensViga[i]; return q ? [+q[0].toFixed(4), +q[1].toFixed(4)] : null; });
+-    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida });
++    if (pts.length >= 2) exec('viga.tracar', { grupo, pontos: pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(passagens.some((q) => q) ? { passagens } : {}), secao: pl.secaoViga, alinhamento: pl.alinhamento, invertida: pl.invertida, ...(P.l5.deslocamento ? { deslocamentoClique: P.l5.deslocamento } : {}) });
+     P.set({ passagemViga: null, passagensViga: [] });
+     setPontos([]);
+   };
+@@ -1578,6 +1601,13 @@ export function Planta() {
+       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'r') { P.set({ angulo: (P.angulo + 90) % 360 }); return; }
+       if (P.pavimento === 'fundacao' && k.toLowerCase() === 'r') { const sel = selecionados().fundacoes; if (sel.length) { exec('lote', { comandos: sel.map((id) => ({ nome: 'fundacao.girar', params: { ids: [id], angulo: (b.fundacao?.elementos.find((e) => e.id === id)?.angulo ?? 0) + 90 } })) }); return; } }
+       if (P.ferramenta === 'pilar' && k.toLowerCase() === 'a') { const o = ['c', 'so', 's', 'se', 'l', 'ne', 'n', 'no', 'o'] as const; P.set({ ajuste: o[(o.indexOf(P.ajuste) + 1) % o.length] }); return; }
++      if (k === 'Backspace' && P.ferramenta === 'viga' && pontos.length) {
++        // L5 (C6.6): Backspace apaga o último ponto da sequência de pontos da viga
++        e.preventDefault();
++        P.set({ passagemViga: null, passagensViga: P.passagensViga.slice(0, Math.max(0, pontos.length - 2)) });
++        setPontos(pontos.slice(0, -1));
++        return;
++      }
+       if ((k === 'Delete' || k === 'Backspace') && P.selecao.size) {
+         const sel = selecionados();
+         const cmds = [...(sel.corridas.length ? [{ nome: 'corrida.remover', params: { ids: sel.corridas } }] : []), ...(sel.radiers.length ? [{ nome: 'radier.remover', params: { ids: sel.radiers } }] : []), ...(sel.vigasEl.length ? [{ nome: 'vigaElastica.remover', params: { ids: sel.vigasEl } }] : []), ...(sel.limites.length ? [{ nome: 'limite.remover', params: { ids: sel.limites } }] : []), ...(sel.vigasFund.length ? [{ nome: 'vigaFundacao.remover', params: { ids: sel.vigasFund } }] : []), ...(sel.fundacoes.length ? [{ nome: 'fundacao.remover', params: { ids: sel.fundacoes } }] : []), ...(sel.pilares.length ? [{ nome: 'pilar.remover', params: { ids: sel.pilares } }] : []), ...(sel.vigas.length ? [{ nome: 'viga.remover', params: { ids: sel.vigas } }] : []), ...(sel.eixos.length ? [{ nome: 'eixo.remover', params: { ids: sel.eixos } }] : []),
+```
