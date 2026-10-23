@@ -179,3 +179,28 @@ export function escadasPorGrupo(b: BuildingModel): EscadasDoGrupo[] {
     }),
   })).filter((g) => g.escadas.length);
 }
+
+// ---------------------------------------------------------------- desenho em planta (camada, formas, locação)
+
+export interface DesenhoPlantaEscada {
+  /** Polígonos (degraus iniciais, trechos e patamares) de todos os lances. */
+  contornos: P[][];
+  /** Degraus em traço fino. */
+  degraus: [P, P][];
+  /** Setas de subida (haste e pontas), cada uma como segmento. */
+  setas: [P, P][];
+  /** Ponto da referência (nome) da escada: centro da caixa; null sem geometria. */
+  rotulo: P | null;
+  nome: string;
+}
+/** Primitivas 2D da escada para a planta, as formas e a locação (contorno, degraus, setas de subida, referência). */
+export function desenhoPlantaEscada(g: GeometriaEscada): DesenhoPlantaEscada {
+  const c = g.caixa;
+  return {
+    contornos: contornosEscada(g),
+    degraus: g.lances.flatMap((l) => l.degrausLinhas.map((d): [P, P] => [d.a, d.b])),
+    setas: g.lances.flatMap((l) => l.setas),
+    rotulo: c ? [(c[0] + c[2]) / 2, (c[1] + c[3]) / 2] : null,
+    nome: g.escada.nome,
+  };
+}

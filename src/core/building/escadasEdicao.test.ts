@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { geometriaEscada, nomeSequencial, tiposLanceDisponiveis } from './escadas';
 import {
-  anguloDeInsercao, deltaPorPontos, escadasNaJanela, escadasNoPonto, escadasPorGrupo, exportarTiposLance, girarPonto, lerBibliotecaTiposLance, previaInsercao, tiposLanceIguais,
+  anguloDeInsercao, deltaPorPontos, desenhoPlantaEscada, escadasNaJanela, escadasNoPonto, escadasPorGrupo, exportarTiposLance, girarPonto, lerBibliotecaTiposLance, previaInsercao, tiposLanceIguais,
 } from './escadasEdicao';
 import { OPCOES_PADRAO_CALCULO } from './opcoes';
 
@@ -210,6 +210,16 @@ describe('E4b: prévia, erro geométrico e seleção', () => {
     expect(escadasNoPonto(s.modelo, 'g_3', [500, 500])).toEqual([]);
     expect(escadasNoPonto(s.modelo, 'g_3', [500, 500], 0.1)).toEqual([]);
     expect(escadasNoPonto(s.modelo, 'g_4', [cx, cy])).toEqual([]);
+  });
+  it('primitivas de desenho: contorno, degraus, setas e rótulo', () => {
+    const { s } = obra();
+    const d = desenhoPlantaEscada(geo(s, 'e1'));
+    const c = geo(s, 'e1').caixa!;
+    expect(d.nome).toBe('E1');
+    expect(d.contornos.length).toBeGreaterThan(0);
+    expect(d.degraus.length).toBeGreaterThanOrEqual(17);
+    expect(d.setas.length).toBeGreaterThan(0);
+    expect(d.rotulo).toEqual([(c[0] + c[2]) / 2, (c[1] + c[3]) / 2]);
   });
   it('lista por grupo', () => {
     const { s } = obra();
