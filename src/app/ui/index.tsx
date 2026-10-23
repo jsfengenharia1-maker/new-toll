@@ -281,11 +281,14 @@ export function KV({ rows }: { rows: [string, string][] }) {
 export function Modal({ titulo, onClose, larga, ajuda, info, children }: { titulo: string; onClose: () => void; larga?: boolean; ajuda?: string; info?: string; children: ReactNode }) {
   const aj = useAjuda();
   const [verInfo, setVerInfo] = useState(false);
+  // `onClose` fica numa ref: o ouvinte de Esc é registrado uma vez (um re-render no meio do evento, causado por outro ouvinte, não pode desligá-lo antes da vez dele)
+  const fechar = useRef(onClose);
+  fechar.current = onClose;
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar.current(); };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [onClose]);
+  }, []);
   return (
     <div className="modal-back" role="dialog" aria-label={titulo} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={cx('modal', larga && 'larga')}>
@@ -316,3 +319,8 @@ export function ThemeSelect() {
 
 export { AjudaProvider, BotaoAjuda, dataAjuda, useAjuda } from './Ajuda';
 export { Icone } from './Icone';
+
+export { Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, type RibbonTabDef } from './Ribbon';
+export { Dock, Palette } from './Dock';
+export { Tree, TreeItem } from './Tree';
+export { ViewTabs, StatusBar, type ViewTabDef } from './ViewTabs';

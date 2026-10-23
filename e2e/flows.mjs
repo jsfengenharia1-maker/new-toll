@@ -14,8 +14,56 @@ const NO_PICKERS = () => {
 };
 
 async function fileMenu(page, item) {
-  await page.getByRole('button', { name: 'Arquivo ▾' }).click();
-  await page.locator('.menu button', { hasText: item }).first().click();
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: 'Arquivo', exact: true }).click();
+  await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: item }).first().click();
+}
+
+/** Abre uma aba da faixa de comandos (a faixa guarda a aba ativa). */
+async function faixaAba(page, nome) {
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).getByRole('tab', { name: nome, exact: true }).click();
+}
+
+/** Abre a aba contextual da faixa (aparece com um elemento selecionado: Pilar, Viga, Laje ou Fundação). */
+async function faixaCtx(page) {
+  await page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.ctx').click();
+}
+
+/** Janela Configuração da obra (cobre a doca esquerda do Edifício, sem bloquear o desenho). */
+const janelaCfg = (page) => page.getByRole('dialog', { name: 'Configuração da obra' });
+async function fecharCfg(page) {
+  if (await janelaCfg(page).count()) await janelaCfg(page).getByRole('button', { name: 'Fechar', exact: true }).click();
+}
+/** Abre a Configuração da obra numa seção do índice (título do índice) e devolve a janela; a aba da faixa volta ao que era. */
+async function abrirConfiguracao(page, secao) {
+  if (!(await janelaCfg(page).count())) {
+    const ativa = page.getByRole('tablist', { name: 'Faixa de comandos' }).locator('.rtab.on');
+    const antes = (await ativa.count()) ? (await ativa.first().innerText()).trim() : null;
+    await faixaAba(page, 'Arquivo');
+    await page.getByRole('toolbar', { name: /^Comandos: Arquivo/ }).getByRole('button', { name: 'Configuração da obra…' }).click();
+    if (antes && antes !== 'Arquivo') await faixaAba(page, antes);
+  }
+  await page.getByRole('navigation', { name: 'Seções da configuração' }).getByRole('button', { name: secao, exact: true }).click();
+  return janelaCfg(page);
+}
+
+/** Título do grupo → seção da Configuração da obra (grupos que saíram da coluna esquerda). */
+const SECAO_CFG = [
+  ['Dados gerais', 'Dados gerais'], ['Opções de cálculo', 'Opções de cálculo'], ['Materiais e segurança', 'Materiais e segurança'], ['Tabelas de armadura', 'Tabelas de armadura'],
+  ['Biblioteca de normas', 'Biblioteca de normas'], ['Tipos de laje', 'Tipos de laje'], ['Casos de carga', 'Casos de carga'],
+  ['Compatibilidade entre casos', 'Casos de carga'], ['Arranjos alternados', 'Casos de carga'], ['Estados-limite', 'Estados-limite e combinações'],
+  ['Vento e combinações', 'Vento e combinações'], ['Ábacos de vento', 'Ábacos de vento'], ['Empuxo de terra', 'Empuxo de terra'],
+  ['Etapas de carga', 'Etapas de carga'], ['Incêndio', 'Incêndio'], ['Arquivo e versões', 'Arquivo e versões'],
+  ['Fundação', 'Fundação (terreno, estacas, sondagens, parâmetros)'], ['Parâmetros das sapatas corridas', 'Fundação (terreno, estacas, sondagens, parâmetros)'],
+];
+
+/** Grupo recolhível (`details.group`) do Edifício pelo título, onde estiver: Configuração da obra (abre a seção) ou coluna esquerda (fecha a Configuração). Deixa o grupo aberto. */
+async function grupoEdif(page, titulo) {
+  const txt = titulo instanceof RegExp ? titulo.source.replace(/^\^/, '').replace(/\\(.)/g, '$1') : titulo;
+  const s = SECAO_CFG.find(([p]) => txt.startsWith(p));
+  if (s) await abrirConfiguracao(page, s[1]); else await fecharCfg(page);
+  const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: titulo }) }).first();
+  if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
+  return g;
 }
 
 async function tab(page, name) {
@@ -87,8 +135,8 @@ async function reenquadrarAte(page, pontos) {
 async function importarMascara(page, tmp, extra = 0) {
   const f = join(tmp, `planta-${extra}.dxf`);
   writeFileSync(f, dxfPlanta(extra));
-  await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-  await page.locator('summary', { hasText: 'Máscara' }).click();
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  await grupoEdif(page, 'Máscara');
   await page.setInputFiles('input[aria-label="Arquivo DXF da máscara"]', f);
   await page.locator('.statusbar .msg', { hasText: 'unidade cm ($INSUNITS)' }).waitFor();
 }
@@ -298,7 +346,7 @@ export const flows = [
     name: 'edifício: pavimentos por comando, verificação, desfazer, salvar e reabrir',
     async run({ newPage, tmp }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const linhas = page.locator('table.edpav tbody tr');
       await linhas.first().waitFor();
       assert.equal(await linhas.count(), 5); // edifício padrão
@@ -314,7 +362,7 @@ export const flows = [
       await page.locator('#edcmd').press('Enter');
       await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'Tipo 4' }).waitFor();
-      await page.locator('.topbar .status.bad').waitFor();
+      await page.locator('.statusbar .status.bad').waitFor();
       await page.locator('.diags li.erro').getByRole('button', { name: /Criar um grupo próprio/ }).click();
       await page.locator('.diags', { hasText: 'Tipo 4' }).waitFor({ state: 'detached' });
 
@@ -342,7 +390,7 @@ export const flows = [
       const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
       await chooser.setFiles(file);
       await page2.locator('.statusbar .msg', { hasText: 'edifício com 6 pavimento(s)' }).waitFor();
-      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       await page2.waitForFunction(() => document.querySelectorAll('table.edpav tbody tr').length === 6);
       assert.equal(await page2.getByLabel('Cota de Tipo 4').inputValue(), '12,50');
     },
@@ -365,7 +413,7 @@ export const flows = [
       await page.keyboard.type('7,5;5');
       await page.keyboard.press('Enter');
       await page.locator('summary', { hasText: 'Pilares (2)' }).waitFor();
-      await page.locator('summary', { hasText: /^Pilares \(/ }).click();
+      await grupoEdif(page, /^Pilares \(/);
       assert.equal(await page.getByLabel('x de P2').inputValue(), '7,500');
       // sobreposição recusada
       await page.keyboard.type('7,55;5');
@@ -410,7 +458,7 @@ export const flows = [
     name: 'planta: vigas por clique com captura no centro dos pilares, verificação e desfazer',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       await page.locator('#edcmd').fill('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await page.locator('#edcmd').press('Enter');
       await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
@@ -423,18 +471,18 @@ export const flows = [
       for (const [x, y] of [[5, 4], [0, 4], [0, 0]]) { const [sx, sy] = await telaDe(page, x, y); await page.mouse.move(sx, sy); await page.mouse.click(sx, sy); }
       await page.keyboard.press('Enter');
       await page.locator('summary', { hasText: 'Vigas — Tipo (2)' }).waitFor();
-      await page.locator('summary', { hasText: 'Vigas' }).click();
+      await grupoEdif(page, 'Vigas');
       assert.equal(await page.getByLabel('Seção de V1').inputValue(), '15x40');
-      await page.locator('.topbar .status.ok').waitFor();
+      await page.locator('.statusbar .status.ok').waitFor();
       // viga solta digitada: erro de verificação; desfazer volta ao estado sem erro
       await page.keyboard.type('2;2'); await page.keyboard.press('Enter');
       await page.keyboard.type('3;2'); await page.keyboard.press('Enter');
       await page.keyboard.press('Enter');
-      await page.locator('.topbar .status.bad', { hasText: '1 erro' }).waitFor();
+      await page.locator('.statusbar .status.bad', { hasText: '1 erro' }).waitFor();
       await page.locator('.edif-tabs').getByRole('tab', { name: /Verificação/ }).click();
       await page.locator('.diags li.erro', { hasText: 'V3 não se apoia' }).waitFor();
       await page.keyboard.press('Control+z');
-      await page.locator('.topbar .status.ok').waitFor();
+      await page.locator('.statusbar .status.ok').waitFor();
     },
   },
 {
@@ -451,10 +499,10 @@ export const flows = [
       const [sx, sy] = await telaDe(page, 2.5, 2);
       await page.mouse.move(sx, sy); await page.mouse.click(sx, sy);
       await page.locator('summary', { hasText: 'Lajes — Tipo (1)' }).waitFor();
-      await page.locator('summary', { hasText: 'Lajes' }).click();
+      await grupoEdif(page, 'Lajes');
       await page.getByRole('button', { name: 'Preencher todos os panos' }).click();
       await page.locator('summary', { hasText: 'Lajes — Tipo (2)' }).waitFor();
-      await page.locator('summary', { hasText: 'Cargas' }).click();
+      await grupoEdif(page, 'Cargas');
       await page.getByRole('button', { name: 'Gerar 1 trecho(s) de parede' }).click();
       await page.locator('summary', { hasText: 'Cargas — Tipo (1)' }).waitFor();
       await page.locator('.statusbar .msg', { hasText: '1 trecho(s) de alvenaria (3 m, altura 2,5 m)' }).waitFor();
@@ -464,7 +512,7 @@ export const flows = [
     name: 'análise do edifício no worker: cargas na fundação em equilíbrio, vento e γz',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -485,7 +533,7 @@ export const flows = [
     name: 'dimensionamento do edifício: tabelas, cargas enviadas ao módulo Fundações e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -520,7 +568,7 @@ export const flows = [
     name: 'pranchas: prévia, carimbo e downloads em PDF, DXF e DWG',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -561,11 +609,11 @@ export const flows = [
     name: 'vigas: contorno locado na face externa dos pilares',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
-      await page.locator('summary', { hasText: 'Vigas — Tipo' }).click();
+      await grupoEdif(page, 'Vigas — Tipo');
       await page.getByRole('button', { name: 'Contorno na face externa' }).click();
       await page.locator('.statusbar .msg', { hasText: 'alinhada(s) à face externa' }).waitFor();
       for (const v of ['V1', 'V2', 'V3', 'V4']) assert.notEqual(await page.getByLabel(`Alinhamento de ${v}`).inputValue(), 'centro');
@@ -577,8 +625,8 @@ export const flows = [
     name: 'opções de cálculo do edifício: alterar, marcar e voltar ao padrão',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const malha = page.getByLabel('Malha da grelha das lajes');
       assert.equal(await malha.inputValue(), '0,25');
       await malha.fill('0,5');
@@ -593,12 +641,12 @@ export const flows = [
     name: 'vínculos: engaste na base do pilar selecionado, desfazer e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const base = page.getByLabel('Engaste na base');
       assert.equal(await base.inputValue(), '1');
       await base.fill('0');
@@ -623,8 +671,8 @@ export const flows = [
     name: 'materiais e segurança: fck das vigas, γc e voltar ao padrão',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Materiais e segurança' }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await grupoEdif(page, 'Materiais e segurança');
       const fck = page.getByLabel('fck vigas');
       assert.equal(await fck.inputValue(), '30');
       await fck.fill('35');
@@ -644,22 +692,22 @@ export const flows = [
     name: 'casos de carga: caso adicional, carga no pilar e lista de combinações',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // caso adicional pelo grupo "Casos de carga"
-      await page.locator('summary', { hasText: 'Casos de carga' }).click();
+      await grupoEdif(page, 'Casos de carga');
       await page.getByLabel('Novo caso').fill('Neve');
       await page.getByLabel('Novo caso').press('Enter');
       await page.getByRole('button', { name: 'Criar caso' }).click();
       await page.locator('.statusbar .msg', { hasText: 'Caso Neve (Q) criado' }).waitFor();
       assert.equal(await page.getByLabel('Natureza de Neve').inputValue(), 'Q');
       // carga no pilar selecionado
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').filter({ has: page.locator('input[aria-label^="Nome de P1"]') }).first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       await page.getByLabel(/^Caso \(lance/).selectOption({ label: 'Neve' });
       const n = page.getByLabel('N (kN)');
       await n.fill('25');
@@ -684,12 +732,12 @@ export const flows = [
     name: 'vento: coeficiente por sentido e platibanda no grupo, estado e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('summary', { hasText: 'Vento e combinações' }).click();
+      await grupoEdif(page, 'Vento e combinações');
       const xn = page.getByLabel('Coef. sentido −X');
       assert.equal(await xn.inputValue(), '1');
       await xn.fill('0,5');
@@ -714,12 +762,12 @@ export const flows = [
     name: 'N1e: redistribuição e limite de fissura nas opções, colunas Td/wk e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const red = page.getByLabel('Redistribuição de negativos das vigas');
       await red.fill('20');
       await red.press('Enter');
@@ -747,8 +795,8 @@ export const flows = [
     name: 'perfis de padrões: sistema × NBR 6118 nas opções, com o outro padrão ao lado',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const red = page.getByLabel('Redistribuição de negativos das vigas');
       assert.equal(await red.inputValue(), '15');
       await page.getByLabel('Perfil dos padrões').selectOption('nbr');
@@ -765,7 +813,7 @@ export const flows = [
     name: 'R1: erros na planta, lista clicável, janela do elemento com diagramas, deslocamentos e CSV',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
@@ -790,14 +838,17 @@ export const flows = [
       const nomeAlvo = (await alvo.locator('td').first().innerText()).trim();
       await alvo.click();
       await page.locator('.planta-barra').waitFor();
-      assert.equal(await page.getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      await faixaCtx(page);
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
       // a planta marca os reprovados (chave Mostrar erros ligada) e a chave desliga
+      await faixaAba(page, 'Vista');
       const chave = page.getByLabel('Mostrar erros');
       assert.equal(await chave.isChecked(), true);
       await chave.uncheck();
       await chave.check();
       // janela do elemento pela planta
-      await page.getByRole('button', { name: 'Resultados do elemento' }).click();
+      await faixaCtx(page);
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).click();
       const jan = page.getByRole('dialog', { name: /Resultados do elemento/ });
       await jan.waitFor();
       assert.match(await jan.getAttribute('aria-label'), new RegExp(nomeAlvo.split(' ').at(-1)));
@@ -859,7 +910,7 @@ export const flows = [
     name: 'R2: edita a armadura de uma viga (2 φ8 reprova), restaura, bloqueia em lote e conta',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -931,7 +982,7 @@ export const flows = [
     name: 'R3a: detalhamento da viga (elevação, tabela de barras), resumo de aço com CSV e cópia de armadura',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -1011,7 +1062,7 @@ export const flows = [
     name: 'R3b: prédio de 3 pavimentos-tipo, detalhamento do pilar (elevação, tabelas), resumo geral de aço e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('pavimento.repetir {"id": "pav_6", "vezes": 2}');
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
@@ -1067,7 +1118,7 @@ export const flows = [
     name: 'R4: duas lajes contínuas, detalhamento da laje (planta SVG, tabela de posições), resumo geral de aço com lajes e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -1117,6 +1168,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // camada de armadura das lajes na planta
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       const camada = page.getByLabel('Armadura das lajes na planta');
       await camada.selectOption('inf');
       await page.waitForTimeout(300);
@@ -1138,7 +1190,7 @@ export const flows = [
     name: 'R5: pranchas de armação (vigas, pilares, lajes), locação com cargas e conjunto numerado; aviso sem cálculo; PDF',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -1231,7 +1283,7 @@ export const flows = [
     name: 'R6: duas lajes treliçadas H12 contínuas, janela Vigotas (planta SVG, diagramas, tabela de grupos), bloqueio da armadura, resumo de aço com treliças e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -1315,6 +1367,7 @@ export const flows = [
       assert.ok(reprovou, 'bloqueio com 0 barras adicionais deve reprovar (ARM_BLOQ ou VIGOTA_POS) na lista de erros');
       // camada de armadura das lajes na planta (inclui as treliçadas)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       const camada = page.getByLabel('Armadura das lajes na planta');
       await camada.selectOption('inf');
       await page.waitForTimeout(300);
@@ -1336,21 +1389,20 @@ export const flows = [
     name: 'FU1: fundação no edifício — divisa e centrada lançadas na planta, cálculo, janela do elemento, FUND_EXC_SEM_VIGA, σadm sem refazer a análise e aba Fundações em leitura',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // arranque (nasce e morre na fundação): linha da tabela de pilares e opção "fundação (arranque)" do seletor "Morre"
       await cmd('pilar.inserir {"x": 3.5, "y": 2.5, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}, "nasce": "fundacao", "morre": "fundacao"}');
-      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      await grupoEdif(page, 'Pilares (');
       const linhaArr = page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last();
       assert.match(await linhaArr.innerText(), /arranque/);
       assert.equal(await linhaArr.locator('select[aria-label^="Morre"] option[value="fundacao"]').count(), 1);
 
       // grupo Fundação: terreno (σadm informada) e planta do nível de fundação
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1393,8 +1445,9 @@ export const flows = [
       await erroDivisa.click();
       await page.locator('.planta-barra').waitFor();
       assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
-      assert.equal(await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
-      await page.locator('.planta-barra').getByRole('button', { name: 'Resultados do elemento' }).click();
+      await faixaCtx(page);
+      assert.equal(await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).isEnabled(), true);
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Resultados do elemento' }).click();
       const jan = page.getByRole('dialog', { name: /Resultados do elemento — Fundação S1/ });
       await jan.waitFor();
       const jt = await jan.innerText();
@@ -1439,7 +1492,7 @@ export const flows = [
       await jan3.getByRole('button', { name: 'Fechar' }).click();
 
       // aba Fundações em leitura: aviso, elementos do edifício listados e controles desabilitados
-      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Fundações', exact: true }).click();
       const aviso = page.locator('[data-fundacoes-edificio]');
       await aviso.waitFor();
       assert.match(await aviso.innerText(), /modo leitura/);
@@ -1452,11 +1505,11 @@ export const flows = [
     name: 'FU1: obra vazia só com arranques — arranque pela planta de fundação, cargas, sapata e cálculo só da fundação',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      await page.getByRole('button', { name: 'Novo vazio' }).click();
-      assert.match(await page.locator('header .status').innerText(), /^0 pavimentos/);
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await fileMenu(page, 'Novo vazio');
+      assert.match(await page.locator('.statusbar .status').innerText(), /^0 pavimentos/);
       // ferramenta Pilar com "Arranque": a planta vai para o nível de fundação e o pilar nasce e morre na fundação
-      await page.locator('details.group > summary', { hasText: 'Pilares (' }).click();
+      await grupoEdif(page, 'Pilares (');
       await page.getByLabel('Arranque (pilar de altura zero, só leva cargas à fundação)').check();
       assert.equal(await page.locator('.planta-cv').getAttribute('data-nivel'), 'fundacao');
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
@@ -1468,8 +1521,7 @@ export const flows = [
       await page.locator('select[aria-label="Morre P1"]').waitFor();
       assert.match(await page.locator('tr', { has: page.locator('select[aria-label^="Morre"]') }).last().innerText(), /arranque/);
       // terreno, sapata automática (clique no centro do pilar = centrada) e cargas no arranque
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('250');
       await sigma.press('Enter');
@@ -1501,13 +1553,13 @@ export const flows = [
     name: 'R7-0: dividir, unir e prolongar viga pela planta e desfazer; copiar e espelhar; quadro de vigas colado; Ctrl+K e Enter repete; cores da planta; janela da viga com origem e face do pilar; logo no carimbo',
     async run({ newPage, tmp }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await page.locator('.planta-cv[data-vista]').waitFor();
       const solta = () => page.evaluate(() => document.activeElement?.blur?.());
-      const abrir = async (t) => { const d = page.locator('.edif-in details', { has: page.locator('summary', { hasText: t }) }).first(); if (!(await d.evaluate((x) => x.open))) await d.locator('summary').click(); return d; };
+      const abrir = (t) => grupoEdif(page, t);
       await solta();
       const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
       const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };
@@ -1582,12 +1634,13 @@ export const flows = [
       await pal.getByLabel('Buscar comando, pavimento ou elemento').press('Enter');
       await page.locator('summary', { hasText: /^Lajes — Tipo \([1-9]/ }).waitFor();
       // cores da planta editáveis (tema atual) e restaurar
-      await page.locator('.planta-barra').getByRole('button', { name: /^Cores/ }).click();
+      await faixaAba(page, 'Vista');
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: /^Cores/ }).click();
       const cores = page.getByRole('dialog', { name: /Cores da planta/ });
       await cores.getByLabel('Cor: Vigas').fill('#ff0000');
-      await page.locator('.planta-barra').getByRole('button', { name: 'Cores (1)' }).waitFor();
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Cores (1)' }).waitFor();
       await cores.getByRole('button', { name: 'Restaurar as cores do tema' }).click();
-      await page.locator('.planta-barra').getByRole('button', { name: 'Cores', exact: true }).waitFor();
+      await page.getByRole('toolbar', { name: /^Comandos:/ }).getByRole('button', { name: 'Cores', exact: true }).waitFor();
       await cores.getByRole('button', { name: 'Fechar' }).click();
       // remove as vigas soltas (y > 5) e a cópia do pilar por janela de cruzamento antes do cálculo
       await solta();
@@ -1627,13 +1680,12 @@ export const flows = [
     name: 'FU2: sapata de divisa + viga de equilíbrio até um pilar interno — lançada pela planta, cálculo, FUND_EXC_SEM_VIGA some, janela da viga, giro por 2 pontos e cargas do nível',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1744,13 +1796,12 @@ export const flows = [
     name: 'FU4: Gerar fundações — diálogo, 4 sapatas de canto com as vigas de equilíbrio num passo só, cálculo sem FUND_EXC_SEM_VIGA e um desfazer',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -1785,14 +1836,13 @@ export const flows = [
     name: 'FU3: sapata associada de 2 pilares pela planta, limite que apara, altura constante, igualar, impor as calculadas e eliminar sobreposição',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       // P1 (0;0) e P2 (3;0) formam a associada; P3 (7;0) e P4 (8;0), a 1 m um do outro, se sobrepõem; P5 e P6 fecham o pórtico
       await cmd('lote {"comandos": [' + [[0, 0], [3, 0], [7, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('120');
       await sigma.press('Enter');
@@ -1913,7 +1963,7 @@ export const flows = [
     name: 'FU3: limite capturado da máscara DXF — a polilinha ligada ao clique vira um limite fechado e o editor de vértices o altera',
     async run({ newPage, tmp }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       // o nível de fundação mostra a máscara do grupo do pavimento mais baixo (Térreo)
       const sel = page.getByLabel('Pavimento da planta');
       await sel.selectOption(await sel.locator('option', { hasText: 'Térreo' }).first().getAttribute('value'));
@@ -1927,8 +1977,7 @@ export const flows = [
       // parede externa (retângulo 15 × 10 m): clique no meio do lado inferior
       await page.mouse.click(...(await telaDe(page, 7.5, 0)));
       await page.locator('.statusbar .msg', { hasText: 'Limite L1 criado (4 vértices)' }).waitFor();
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const linha = grupo.locator('table[data-limites-tabela] tbody tr');
       assert.equal(await linha.count(), 1);
       assert.match(await linha.first().innerText(), /L1\s+4\s+fechado/);
@@ -1953,13 +2002,12 @@ export const flows = [
     name: 'FU3: bloco sobre estacas com 2 pilares — escolhido na planta, cálculo, bielas por pilar na janela e pilar retirado volta ao bloco simples',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [2, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       // estaca de capacidade informada (500 kN)
       await grupo.getByRole('button', { name: '+ estaca' }).click();
       await grupo.locator('table[data-estacas] select[aria-label^="Modo da estaca"]').selectOption('informada');
@@ -1995,7 +2043,7 @@ export const flows = [
     name: 'FU5: pranchas de fundação — tipo Fundação, locação com rótulos e cargas, detalhamento das sapatas (SFS), vigas, quantitativos, ancoragem editável e conjunto numerado',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
@@ -2003,8 +2051,7 @@ export const flows = [
       await cmd('eixo.malha {"dx": [7], "dy": [5]}');
       // pilares 19 × 19 não atendem: sem esta opção (R7c) ficariam fora da prancha de pilares do conjunto
       await cmd('opcoes.definir {"valores": {"pilarInsuficienteSemDesenho": 0}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -2070,13 +2117,12 @@ export const flows = [
     name: 'FU6: radier sobre base elástica — lançado pela planta, pilares sem vínculo, cálculo, mapa por nó na janela, viga sobre base elástica e pranchas da base elástica',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('300');
       await sigma.press('Enter');
@@ -2125,6 +2171,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // planta: mapa de tensões e viga sobre base elástica (X)
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Mapa da base elástica').selectOption('tensao');
       await page.locator('.planta-st').click();
       await page.keyboard.press('x');
@@ -2157,14 +2204,13 @@ export const flows = [
     name: 'FU7a: sapata corrida — lançada pela planta (A) sob parede, cálculo rígido por metro, janela com corte transversal, edição, sob pilares na análise global e pranchas',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       // estrutura (para a análise) em y = 0 a 6; a parede da sapata SC1 fica entre x = 2 e 6 em y = 0 (longe dos pilares); os pilares de y = 6 ficam sobre a SC2
       await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [8, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 6], [8, 6]], [[0, 0], [0, 6]], [[8, 0], [8, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('200');
       await sigma.press('Enter');
@@ -2250,13 +2296,12 @@ export const flows = [
     name: 'FU8: cintas da sapata corrida de aba única (lançadas no editor, alavanca, alívio no elemento interno, janela e pranchas), radier sem carga (definir e seguir) e ligação com o módulo Fundações (sondagens nos dois sentidos, abrir no Edifício)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
-      await page.locator('details.group > summary', { hasText: /^Fundação \(/ }).click();
-      const grupo = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
+      const grupo = await grupoEdif(page, /^Fundação \(/);
       const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
       await sigma.fill('250');
       await sigma.press('Enter');
@@ -2332,7 +2377,7 @@ export const flows = [
 
       // ligação com o módulo Fundações: sondagens nos dois sentidos e atalho para o Edifício
       await cmd('sondagem.criar {"nome": "SP-E1", "x": 1, "y": 1, "nivelAgua": 6, "leituras": [{"N": 5, "solo": "areia"}, {"N": 8, "solo": "areia"}, {"N": 12, "solo": "areia"}, {"N": 18, "solo": "areia"}]}');
-      await page.getByRole('tab', { name: 'Fundações', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Fundações', exact: true }).click();
       const lig = page.locator('[data-ligacao-edificio]');
       await lig.waitFor();
       assert.match(await lig.innerText(), /1 furo\(s\) de sondagem no edifício/);
@@ -2352,7 +2397,7 @@ export const flows = [
     name: 'V1: vista 3D — abre a aba, canvas, filtro por pavimento muda data-cena, projeção, caminhar, transparência, seleção sincronizada com a planta e o vendor do three fora do HTML',
     async run({ newPage, baseURL }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2451,7 +2496,7 @@ export const flows = [
       // sem service worker para a rota abortar o vendor de verdade (o worker responderia por ele)
       const page = await newPage(undefined, { serviceWorkers: 'block' });
       await page.context().route('**/vendor/three-*', (r) => r.abort());
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2483,7 +2528,7 @@ export const flows = [
     name: 'V2: cortes e linhas de seção (traçar, janela, renomear, profundidade, memorial, apagar) e armaduras em 3D (vista do edifício e aba 3D da viga, do pilar e da laje)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2495,7 +2540,7 @@ export const flows = [
       // ---- corte traçado na planta: a janela abre sozinha com a elevação hachurada
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
       await page.locator('.planta-cv[data-vista]').waitFor();
-      await page.locator('summary', { hasText: /^Cortes e seções/ }).click();
+      await grupoEdif(page, /^Cortes e seções/);
       await page.getByRole('button', { name: 'Traçar corte na planta', exact: true }).click();
       await page.waitForTimeout(300);
       const [ax, ay] = await telaDe(page, -1, 2.5), [bx, by] = await telaDe(page, 7, 2.5);
@@ -2605,7 +2650,7 @@ export const flows = [
     name: 'V3: deformada 3D (hipótese, escala, eixos, animação, legenda), consulta de deslocamentos por nó, máximos por pano e pavimento, CSV e flecha entre dois pontos da laje',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2711,7 +2756,7 @@ export const flows = [
     name: 'V4: isovalores da laje (grandeza, hipótese, níveis, limites, isolinhas e valores), várias janelas independentes, clique abrindo a janela da laje e saídas SVG, PNG, DXF e CSV',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2813,7 +2858,7 @@ export const flows = [
     name: 'N2a: compatibilidade e arranjos em xadrez, estados-limite, situações do usuário com alerta, empuxo (caso H), ábacos de vento e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [0, 5, 10].flatMap((x) => [0, 4, 8].map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`)).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 8], [10, 8]], [[0, 0], [0, 8]], [[5, 0], [5, 8]], [[10, 0], [10, 8]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
@@ -2822,7 +2867,7 @@ export const flows = [
       const grupo = (t) => page.locator('details.group', { has: page.locator(':scope > summary', { hasText: t }) });
 
       // ---- casos: compatibilidade e arranjos ----
-      await page.locator('summary', { hasText: /^Casos de carga/ }).click();
+      await grupoEdif(page, /^Casos de carga/);
       const casos = grupo(/^Casos de carga/);
       for (const n of ['Água', 'Vazio']) {
         await casos.getByLabel('Novo caso').fill(n);
@@ -2843,7 +2888,7 @@ export const flows = [
       assert.match(await casos.innerText(), /arranjo de Uso alternado/);
 
       // ---- estados-limite ----
-      await page.locator('summary', { hasText: /^Estados-limite e combinações/ }).click();
+      await grupoEdif(page, /^Estados-limite e combinações/);
       const est = grupo(/^Estados-limite e combinações/);
       assert.equal(await est.getByLabel('Ativar Concreto armado (ELU)').isDisabled(), true);
       await est.getByLabel('Ativar Flechas (quase permanentes)').uncheck();
@@ -2888,7 +2933,7 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
 
       // ---- empuxo de terra e caso H ----
-      await page.locator('summary', { hasText: /^Empuxo de terra/ }).click();
+      await grupoEdif(page, /^Empuxo de terra/);
       const emp = grupo(/^Empuxo de terra/);
       await emp.getByLabel('Novo tipo de empuxo').fill('Subsolo');
       await emp.getByLabel('Novo tipo de empuxo').press('Enter');
@@ -2901,6 +2946,7 @@ export const flows = [
       await na.press('Enter');
       await page.waitForFunction((r) => parseFloat(document.querySelector('.emp-box').getAttribute('data-resultante')) > r, R0);
       assert.ok(await caixa.locator('svg.emp-fig polygon.emp-agua').count() >= 1, 'a água entra no diagrama');
+      await grupoEdif(page, /^Casos de carga/);
       await casos.getByLabel('Novo caso').fill('Empuxo do subsolo');
       await casos.getByLabel('Novo caso').press('Enter');
       await casos.locator('label.field', { has: page.locator('.flabel', { hasText: /^Natureza$/ }) }).locator('select').selectOption('H');
@@ -2910,7 +2956,7 @@ export const flows = [
       await msg('Caso Empuxo do subsolo alterado');
 
       // ---- ábacos de vento ----
-      await page.locator('summary', { hasText: /^Ábacos de vento/ }).click();
+      await grupoEdif(page, /^Ábacos de vento/);
       const ab = grupo(/^Ábacos de vento/);
       assert.deepEqual(await ab.getByLabel('Coeficiente de arrasto Ca').locator('option').allInnerTexts(), ['Informado (Ca em X e Y)']);
       await ab.locator('summary', { hasText: /^Ca, baixa turbulência/ }).click();
@@ -2945,7 +2991,7 @@ export const flows = [
     name: 'R7a: tabelas de armadura (bitola restrita muda a viga, tabela impossível gera FORA_TABELA com atalho, restaurar, exportar e importar JSON, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -2961,8 +3007,7 @@ export const flows = [
       const antes = await cardVigas.locator('tbody tr').first().innerText();
       assert.ok(!/φ25/.test(antes), `esperava a viga sem φ25 antes da tabela: ${antes}`);
       // grupo Tabelas de armadura (fechado) e a aba de vigas
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Tabelas de armadura' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Tabelas de armadura');
       const tabela = g.locator('table[data-tabela="vigas"]');
       await tabela.waitFor();
       const chips = (rot) => g.getByRole('group', { name: rot });
@@ -3036,7 +3081,7 @@ export const flows = [
     name: 'R7b: detalhamento de vigas (mostrar/ocultar, edição de posição com verificação DETALHE_INSUF, restaurar, opções no perfil do sistema, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -3093,8 +3138,7 @@ export const flows = [
       assert.match(await jan.locator('[data-tramo-viga]').innerText(), /Não há viga consecutiva e alinhada/);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // opções do perfil do sistema: redução de lb ligada e negativos mínimos
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.ok(await g.getByLabel('Vigas: reduzir lb por As,calc/As,ef').isChecked());
       assert.match(await g.innerText(), /Vigas: comprimento mínimo dos negativos/);
       // memorial: critérios do detalhamento das vigas
@@ -3108,7 +3152,7 @@ export const flows = [
     name: 'R7c: detalhamento de pilares (edição de espera e traspasse com PILAR_DET_INSUF, restaurar, corte no topo, adensamento, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -3151,8 +3195,7 @@ export const flows = [
       assert.equal(await jan.locator('[data-avisos-det]').getByText('detalhe editado insuficiente').count(), 0);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // opções: corte no topo e adensamento
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.ok(!(await g.getByLabel('Pilares: cortar as barras no topo do último lance').isChecked()));
       assert.ok(await g.getByLabel('Pilares: seção insuficiente sem desenho nem quantitativo').isChecked());
       assert.match(await g.innerText(), /Pilares: traspasse mínimo reduzido/);
@@ -3178,7 +3221,7 @@ export const flows = [
     name: 'R7d: armadura base das lajes (tela Q138 detalhada em painéis, reforço, predefinida), resumo de telas e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
@@ -3227,8 +3270,7 @@ export const flows = [
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Telas soldadas da base das lajes/);
       // opção de detalhamento da base na lista de opções
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       assert.match(await g.innerText(), /Lajes: traspasse entre painéis de tela soldada/);
       assert.ok(!(await g.getByLabel('Lajes: detalhar a armadura base').isChecked()));
       // memorial: base, painéis e resumo de telas
@@ -3245,7 +3287,7 @@ export const flows = [
     name: 'N2d: punção das lajes (contornos C, C′ e C″, armadura calculada, grupos informados, camada e ferramenta na planta, envoltória do grupo, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('vento.definir {"ativo": false}');
@@ -3290,10 +3332,12 @@ export const flows = [
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // camada na planta (Tipo 1): contornos dos 9 pilares
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Armadura das lajes na planta').selectOption('puncao');
       await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-puncao') === '9', null, { timeout: 15000 });
       // ferramenta: um clique no pilar interno lança o grupo informado; no modo Apagar, remove
-      await page.getByRole('button', { name: 'Armadura de punção', exact: true }).click();
+      await faixaAba(page, 'Edição');
+      await page.getByRole('radio', { name: 'Armadura de punção', exact: true }).click();
       await page.keyboard.press('f');
       const [px, py] = await telaDe(page, 6, 6);
       await page.mouse.click(px, py);
@@ -3328,7 +3372,7 @@ export const flows = [
     name: 'R7e: edição das armaduras das lajes (painel não modal, edição bloqueada com ARM_BLOQ, agrupar, zona, linha de dobra, geração sem cálculo e refazer, rótulos da prancha, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 4], [4, 4], [8, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 4], [8, 4]], [[0, 0], [0, 4]], [[4, 0], [4, 4]], [[8, 0], [8, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
@@ -3340,6 +3384,7 @@ export const flows = [
       await livre();
       // painel de edição não modal sob a planta, com as camadas inferior e superior juntas
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
       await page.getByLabel('Armadura das lajes na planta').selectOption('editar');
       const painel = page.locator('[data-painel-edicao-lajes]');
       await painel.waitFor();
@@ -3446,13 +3491,13 @@ export const flows = [
     name: 'N2b: modelo integrado (lajes condensadas no pórtico) em uso, opção no grupo Opções e volta ao modelo separado',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // opção no grupo Opções de cálculo, ligada por padrão (padrão do sistema)
-      await page.locator('summary', { hasText: 'Opções de cálculo' }).click();
+      await grupoEdif(page, 'Opções de cálculo');
       const opcao = page.getByLabel('Modelo integrado (lajes no pórtico)');
       assert.equal(await opcao.isChecked(), true);
       assert.equal(await page.getByLabel('Deformação por cortante nas barras de laje').isChecked(), true);
@@ -3486,15 +3531,15 @@ export const flows = [
     name: 'N2c: vínculo externo com molas, carga uniforme no pilar, P-Δ na aba Análise, 2ª ordem local e cortante por direção na janela do pilar, memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
       await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
       // vínculo externo: molas na base do P1 (giros) e carga uniforme no lance
-      await page.locator('summary', { hasText: 'Pilares (4)' }).click();
+      await grupoEdif(page, 'Pilares (4)');
       await page.locator('table.quadro tbody tr').first().click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const vinc = page.locator('[data-vinculo-externo]');
       await vinc.waitFor();
       await vinc.getByLabel('Vínculo da base').selectOption({ label: 'molas' });
@@ -3546,7 +3591,7 @@ export const flows = [
     name: 'R7f: mudar tabela não refaz a análise (contadores de revisão), agrupar pórticos, seleção para bloqueio, seção alterada com esforços antigos e rearmar alterados, cópia das lajes, memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -3662,7 +3707,7 @@ export const flows = [
     name: 'E1a: pilar sobre pilar (realce e coordenadas relativas ao pilar de baixo, nome P5a) e pilar sobre viga (transição): janela, viga de transição, memorial e pranchas',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
       const sec = (b, h) => `{"tipo": "ret", "b": ${b}, "h": ${h}}`;
@@ -3761,7 +3806,7 @@ export const flows = [
     name: 'E1b: pilar-parede (tipo reto criado no grupo, lançamento, planta, janela com esforços por lado, viga apoiada ao longo, memorial e pranchas)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const sec = '{"tipo": "ret", "b": 0.3, "h": 0.3}';
@@ -3836,7 +3881,7 @@ export const flows = [
     name: 'E1c: paredes de concreto (traçar na planta, abertura, empuxo de terra, fora do diafragma, janela com empuxo)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('obra.definir {"profundidadeFundacao": 1}');
@@ -3918,7 +3963,7 @@ export const flows = [
     name: 'E1d: armadura de paredes (janela com panos, bloqueio e desbloqueio, emendas, abertura, isovalores, muro de arrimo, memorial, resumo de aço e prancha de paredes)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -4051,7 +4096,7 @@ export const flows = [
     name: 'FU7b: sapata corrida de paredes e muros (base da parede criada no lançamento, cargas das reações da base, momento e deslizamento do empuxo, editor da parede, opção de deslizamento, base do muro de arrimo na fundação, memorial e pranchas)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -4126,8 +4171,7 @@ export const flows = [
       await gp.getByRole('button', { name: 'Selecionar M1' }).click();
       assert.match(await page.locator('[data-pw-base-parede]').innerText(), /Deslizamento[\s\S]*μ 0,9/);
       // 4. a opção "Reprovar o deslizamento (parede)" desligada: o erro some e o FS continua informado
-      const gf = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Fundação \(/ }) });
-      if (!(await gf.evaluate((d) => d.open))) await gf.locator(':scope > summary').click();
+      const gf = await grupoEdif(page, /^Fundação \(/);
       const par = gf.locator('details', { has: page.locator(':scope > summary', { hasText: 'Parâmetros das sapatas corridas' }) }).first();
       if (!(await par.evaluate((d) => d.open))) await par.locator(':scope > summary').click();
       await par.getByLabel('Reprovar o deslizamento (parede)', { exact: true }).uncheck();
@@ -4144,6 +4188,7 @@ export const flows = [
       assert.match(tj, /Deslizamento/);
       await jan.getByRole('button', { name: 'Fechar' }).click();
       // 6. trocar a base da parede M2 para apoio direto pelo editor remove a sapata (e a de M1 fica)
+      await fecharCfg(page);
       await gp.getByRole('button', { name: 'Selecionar M2' }).click();
       const base2 = page.locator('[data-pw-base-parede]');
       await base2.getByLabel('Base da parede', { exact: true }).selectOption('apoio');
@@ -4210,7 +4255,7 @@ export const flows = [
     name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -4302,7 +4347,7 @@ export const flows = [
     name: 'N2e: apoios, limites e avisos de modelagem (suspensão no cruzamento, arredondamento, viga-parede, opções e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('vento.definir {"ativo": false}');
@@ -4319,8 +4364,7 @@ export const flows = [
       await lista.locator('details summary').click();
       assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
       // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Arredondamento do diagrama no apoio/);
       assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
@@ -4348,7 +4392,7 @@ export const flows = [
     name: 'N2f: flechas por etapas (etapas, limites por elemento, janela da viga, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('vento.definir {"ativo": false}');
@@ -4361,8 +4405,7 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
-      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
-      await etapas.locator('summary').click();
+      const etapas = await grupoEdif(page, 'Etapas de carga (flechas)');
       assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
       assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
       // colagem de uma etapa única: a lista vira uma linha
@@ -4373,8 +4416,7 @@ export const flows = [
       await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
       await livre();
       // 2) opções de cálculo com os limites de flecha
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
@@ -4406,10 +4448,10 @@ export const flows = [
     name: 'L1: assistente de nova obra, dados gerais, etapas, versões no arquivo, recentes, exemplos, desfazer e texto de cargas',
     async run({ newPage, tmp }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const campo = async (loc, v) => { await loc.fill(v); await loc.press('Tab'); };
       const nPav = () => page.locator('.edpav tbody tr').count();
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova = page.getByRole('dialog', { name: 'Nova obra' });
       await nova.getByRole('button', { name: 'Assistente passo a passo' }).click();
       await nova.getByRole('button', { name: 'Avançar' }).click();
@@ -4449,9 +4491,9 @@ export const flows = [
       assert.match(mt, /Origem do lançamento.*Assistente de nova obra/s);
       await memo.getByRole('button', { name: 'Fechar' }).click();
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await abrirConfiguracao(page, 'Dados gerais');
       await campo(page.getByLabel('Cidade', { exact: true }), 'Cidade Y');
-      const ga = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga.locator(':scope > summary').click();
+      const ga = await grupoEdif(page, /^Arquivo e versões/);
       await campo(ga.getByLabel('Versões anteriores no arquivo'), '2');
       const f = await downloadText(page, () => fileMenu(page, 'Salvar no computador'));
       const ws = JSON.parse(f.text);
@@ -4465,13 +4507,13 @@ export const flows = [
       const [chooser] = await Promise.all([page2.waitForEvent('filechooser'), fileMenu(page2, 'Abrir trabalho do computador')]);
       await chooser.setFiles(file);
       await page2.locator('.statusbar .msg', { hasText: 'aberto de' }).waitFor();
-      await page2.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const ga2 = page2.locator('details.group', { has: page2.locator(':scope > summary', { hasText: /^Arquivo e versões/ }) });
-      await ga2.locator(':scope > summary').click();
+      await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const ga2 = await grupoEdif(page2, /^Arquivo e versões/);
       await ga2.getByRole('button', { name: 'Recuperar' }).click();
+      await abrirConfiguracao(page2, 'Dados gerais');
       await page2.waitForFunction(() => [...document.querySelectorAll('label.field')].find((l) => l.textContent.startsWith('Cidade'))?.querySelector('input')?.value === 'Cidade X');
       await page2.close();
-      await page.getByRole('button', { name: 'Obras recentes…' }).click();
+      await fileMenu(page, 'Obras recentes…');
       const rec = page.getByRole('dialog', { name: 'Obras recentes' });
       await campo(rec.getByLabel('Buscar obra'), 'residencial');
       assert.ok((await rec.locator('.recente-nome', { hasText: 'Obra L1 teste' }).count()) >= 1);
@@ -4483,7 +4525,7 @@ export const flows = [
       await rec.getByRole('button', { name: /Abrir exemplo Exemplo: com subsolo/ }).click();
       await rec.waitFor({ state: 'detached' });
       assert.equal(await nPav(), 5);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova2 = page.getByRole('dialog', { name: 'Nova obra' });
       await nova2.getByRole('button', { name: 'Assistente passo a passo' }).click();
       for (let i = 0; i < 6; i++) await nova2.getByRole('button', { name: 'Avançar' }).click();
@@ -4492,7 +4534,7 @@ export const flows = [
       assert.equal(await nPav(), 5);
       await page.getByRole('button', { name: 'Desfazer (Ctrl+Z)', exact: true }).click();
       assert.equal(await nPav(), 0);
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova3 = page.getByRole('dialog', { name: 'Nova obra' });
       await nova3.getByRole('button', { name: 'Cargas de arquivo de texto' }).click();
       await nova3.getByRole('button', { name: 'Escolher arquivo de texto…' }).click();
@@ -4508,7 +4550,7 @@ export const flows = [
     name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
@@ -4525,8 +4567,7 @@ export const flows = [
       // sem a verificação ligada: nenhum card de fogo
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
       // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Incêndio');
       await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
       await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
       assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
@@ -4568,7 +4609,7 @@ export const flows = [
     name: 'E1e: alvenaria estrutural (blocos e tipos no grupo, paredes de blocos, janela com panos, verga e modulação, quantitativo, cartão, memorial e biblioteca)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -4611,6 +4652,7 @@ export const flows = [
       await et.getByRole('button', { name: 'Salvar tipo de alvenaria', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('table[data-alv-tipos] tbody tr')?.textContent?.includes('3,50'), null, { timeout: 20000 });
       // 3. duas paredes de blocos de 12 m com laje maciça e uma porta fora da modulação
+      await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposAlvenaria?.length ?? 0) > 0, null);
       const mat = (await modelo()).tiposAlvenaria[0].id;
       await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
       await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
@@ -4690,7 +4732,7 @@ export const flows = [
     name: 'R7g: sugestões na legenda, janela do pilar (dados, taxa, situação e navegação), capacidade nas vigas, relatórios, gabarito e ponto fixo nas pranchas, memorial com listagem, índices e ELU por combinação',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [10, 0], [0, 4], [5, 4], [10, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [10, 0]], [[0, 4], [10, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]], [[10, 0], [10, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
@@ -4782,7 +4824,7 @@ export const flows = [
     name: 'N2e: apoios, limites e avisos de modelagem (suspensão no cruzamento, arredondamento, viga-parede, opções e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('vento.definir {"ativo": false}');
@@ -4799,8 +4841,7 @@ export const flows = [
       await lista.locator('details summary').click();
       assert.match(await lista.locator('details').innerText(), /VIGA_PAREDE/);
       // opções novas no grupo Opções de cálculo, com a fonte e o padrão por perfil
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Arredondamento do diagrama no apoio/);
       assert.match(t, /Vigas: armadura de suspensão nos apoios em vigas/);
@@ -4828,7 +4869,7 @@ export const flows = [
     name: 'N2f: flechas por etapas (etapas, limites por elemento, janela da viga, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       await cmd('vento.definir {"ativo": false}');
@@ -4841,8 +4882,7 @@ export const flows = [
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await livre();
       // 1) grupo Etapas de carga (flechas): quatro etapas padrão
-      const etapas = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Etapas de carga (flechas)' }) }).first();
-      await etapas.locator('summary').click();
+      const etapas = await grupoEdif(page, 'Etapas de carga (flechas)');
       assert.equal(await etapas.locator('[data-etapas] tbody tr').count(), 4);
       assert.equal(await etapas.locator('[data-etapas] tbody tr').first().locator('input').first().inputValue(), 'Desforma (peso próprio)');
       // colagem de uma etapa única: a lista vira uma linha
@@ -4853,8 +4893,7 @@ export const flows = [
       await etapas.getByRole('button', { name: 'Voltar ao padrão' }).click();
       await livre();
       // 2) opções de cálculo com os limites de flecha
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Opções de cálculo' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Opções de cálculo');
       const t = await g.innerText();
       assert.match(t, /Limite da flecha ativa \(vão \/ …\)/);
       assert.match(t, /Fator simplificado da flecha ativa \(maciças\)/);
@@ -4886,7 +4925,7 @@ export const flows = [
     name: 'N2g: resistência ao fogo (grupo Incêndio, TRRF, revestimento, card do Dimensionamento, erros e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
       const calcular = async () => {
@@ -4903,8 +4942,7 @@ export const flows = [
       // sem a verificação ligada: nenhum card de fogo
       assert.equal(await page.locator('[data-card-fogo]').count(), 0);
       // 1) grupo Incêndio: liga a verificação e informa ocupação e altura (sugestão pela IT)
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await g.locator('summary').click();
+      const g = await grupoEdif(page, 'Incêndio');
       await g.getByLabel('Verificar resistência ao fogo (NBR 15200)').check();
       await g.getByLabel('Ocupação (NBR 14432 / IT)').selectOption('D-1');
       assert.match(await g.innerText(), /Sugestão: TRRF de \d+ min/);
@@ -4946,7 +4984,7 @@ export const flows = [
     name: 'E2a: seção das vigas (T com mesa colaborante, chata, não estrutural e de amarração), detalhe com barras de canto da mesa e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -4957,7 +4995,7 @@ export const flows = [
       // seleciona a viga da linha `i` da tabela (V1 = 0 … V4 = 3) e devolve o editor de seção
       const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
       await gvigas.locator(':scope > summary').click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const editor = async (i) => {
         await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click();
         const sv = page.locator('[data-secao-viga]');
@@ -5032,19 +5070,15 @@ export const flows = [
     name: 'L2: lançamento por DXF/DWG por camada, gerenciador de gabaritos, vistas por pavimento, viga pelo gabarito e F3',
     async run({ newPage, tmp }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const msgBarra = (re) => page.locator('.statusbar .msg', { hasText: re }).waitFor();
-      const abrirGrupo = async (re) => {
-        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
-        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
-        return g;
-      };
+      const abrirGrupo = (re) => grupoEdif(page, re);
       const arq = join(tmp, 'grade.dxf');
       writeFileSync(arq, dxfGradeL2());
       const arqDwg = join(tmp, 'arq.dwg');
       writeFileSync(arqDwg, dwgMinimoL2());
       // 1) Nova obra › Lançamento por DXF/DWG: cria o edifício padrão e abre o assistente
-      await page.getByRole('button', { name: 'Nova obra…' }).click();
+      await fileMenu(page, 'Nova obra…');
       const nova = page.getByRole('dialog', { name: 'Nova obra' });
       await nova.getByRole('button', { name: 'Lançamento por DXF/DWG', exact: true }).click();
       await nova.getByRole('button', { name: 'Criar edifício padrão e lançar pelo gabarito…', exact: true }).click();
@@ -5105,7 +5139,8 @@ export const flows = [
       // 2) viga pelo gabarito: clique na face e depois do lado do corpo da viga
       const masc = await abrirGrupo(/^Máscara/);
       assert.match(await masc.locator('summary').innerText(), /Máscara — Tipo \(1\)/);
-      await masc.getByRole('button', { name: 'Viga pelo gabarito', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('radio', { name: 'Viga pelo gabarito', exact: true }).click();
       await reenquadrarAte(page, [[3.0, 1.075], [3.0, 1.4], [3.0, 0.75]]);
       const clique = async (x, y) => { const [px, py] = await telaDe(page, x, y); await page.mouse.click(px, py); };
       await clique(3.0, 1.075);
@@ -5120,13 +5155,14 @@ export const flows = [
       await clique(3.0, 1.075);
       await clique(3.0, 1.4);
       await msgBarra(/já foram lançadas/);
-      await masc.getByRole('radio', { name: 'Linha = eixo', exact: true }).click();
+      await page.getByRole('radio', { name: 'Linha = eixo', exact: true }).click();
       await clique(3.0, 0.925);
       await page.locator('summary', { hasText: /^Vigas — Tipo \(3\)/ }).waitFor();
       assert.equal(await page.getByLabel('Alinhamento de V3', { exact: true }).inputValue(), 'centro');
       await page.keyboard.press('Escape');
       // 3) F3 e a janela de captura
-      await masc.getByRole('button', { name: 'Capturas…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Capturas…', exact: true }).click();
       const cap = page.getByRole('dialog', { name: 'Modos de captura' });
       await cap.getByRole('button', { name: 'Nenhum', exact: true }).click();
       await cap.getByRole('button', { name: 'Concluir', exact: true }).click();
@@ -5141,7 +5177,8 @@ export const flows = [
       await page.keyboard.press('F3');
       await msgBarra(/Capturas ligadas/);
       // 4) gerenciador de gabaritos: apelido, textos, visibilidade, unidade e origem original, copiar, salvar e abrir a configuração
-      await masc.getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Gabaritos e vistas…', exact: true }).click();
       const ger = page.getByRole('dialog', { name: 'Gabaritos e vistas' });
       const prevG = ger.getByRole('img', { name: 'Prévia da configuração de grade', exact: true });
       assert.equal(await prevG.locator('path').count(), 6);
@@ -5178,7 +5215,8 @@ export const flows = [
       await ger.getByRole('button', { name: 'Remover grade (Cobertura)', exact: true }).click();
       await ger.getByRole('button', { name: 'Fechar', exact: true }).click();
       // 5) vistas por pavimento: desligar a vista tira o desenho da planta
-      await masc.getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('toolbar', { name: /^Comandos: Lançamento/ }).getByRole('button', { name: 'Vistas por pavimento…', exact: true }).click();
       const vis = page.getByRole('dialog', { name: 'Vistas por pavimento' });
       const segs = () => page.locator('.planta-cv').getAttribute('data-segmentos').then(Number);
       assert.ok((await segs()) > 0);
@@ -5202,24 +5240,27 @@ export const flows = [
     name: 'N3: biblioteca de normas (editar uma linha da tabela de TRRF, ver o resultado no grupo Incêndio, valor inválido, exportar e importar JSON, restaurar, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Biblioteca de normas' }) }).first();
-      await g.locator('summary').click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const g = await grupoEdif(page, 'Biblioteca de normas');
+      await grupoEdif(page, 'Biblioteca de normas');
       await g.getByLabel(/^Norma/).selectOption('NBR 14432 / IT 06');
       const tabela = g.locator('table[data-tabela-norma="nbr14432.trrf-ocupacao"]');
       await tabela.waitFor();
       assert.match(await g.locator('[data-selos-norma]').innerText(), /de fábrica/);
       assert.match(await g.locator('[data-selos-norma]').innerText(), /a confirmar/);
-      const inc = page.locator('.edif-in details', { has: page.locator('summary', { hasText: 'Incêndio' }) }).first();
-      await inc.locator('summary').click();
+      const inc = await grupoEdif(page, 'Incêndio');
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial(?! N3)/);
       // 1) altera a ocupação da primeira linha: selo "alterada" e a opção do grupo Incêndio muda
+      await grupoEdif(page, 'Biblioteca de normas');
       const cel = g.getByLabel('Ocupação da linha 1', { exact: true });
       await cel.fill('Residencial N3'); await cel.press('Enter');
       await page.waitForFunction(() => /alterada pela obra/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
       assert.match(await g.locator('summary').first().innerText(), /\(1 alterada\)/);
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial N3/);
       // 2) valor inválido num número: mensagem e nada gravado
+      await grupoEdif(page, 'Biblioteca de normas');
       const num = g.getByLabel('S2 (subsolo > 10 m) da linha 1', { exact: true });
       await num.fill('abc'); await num.press('Enter');
       await g.locator('[data-erros-normas]').waitFor();
@@ -5232,7 +5273,9 @@ export const flows = [
       assert.equal(j.tabelas['nbr14432.trrf-ocupacao'].linhas[0].ocupacao, 'Residencial N3');
       await g.getByRole('button', { name: 'Restaurar tabela de fábrica', exact: true }).click();
       await page.waitForFunction(() => /de fábrica/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
+      await grupoEdif(page, 'Incêndio');
       assert.match(await inc.getByLabel('Ocupação (NBR 14432 / IT)').innerText(), /A-1 — Residencial(?! N3)/);
+      await grupoEdif(page, 'Biblioteca de normas');
       await g.getByLabel('Arquivo de normas').setInputFiles({ name: 'normas.json', mimeType: 'application/json', buffer: Buffer.from(text) });
       await page.waitForFunction(() => /alterada pela obra/.test(document.querySelector('[data-selos-norma]')?.textContent ?? ''));
       // arquivo inválido: mensagem
@@ -5255,12 +5298,8 @@ export const flows = [
     name: 'L4: cópia entre grupos, união, áreas, ajuda F1, atalhos configuráveis, guia rápido, referências e memorial',
     async run({ newPage }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
-      const abrirGrupo = async (re) => {
-        const g = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: re }) }).first();
-        if (!(await g.evaluate((d) => d.open))) await g.locator(':scope > summary').click();
-        return g;
-      };
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const abrirGrupo = (re) => grupoEdif(page, re);
       const cmd = async (txt) => { await page.locator('#edcmd').fill(txt); await page.locator('#edcmd').press('Enter'); };
       const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`;
       const viga = (a, z) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": [${JSON.stringify(a)}, ${JSON.stringify(z)}], "secao": {"b": 0.15, "h": 0.4}}}`;
@@ -5368,7 +5407,7 @@ export const flows = [
     name: 'E2b: viga curva (traçado por três pontos), poliviga, viga comum a dois grupos, ajuste a planos e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -5482,7 +5521,7 @@ export const flows = [
     name: 'E2c: viga inclinada entre pavimentos (lançamento, ligação, carga, resultados, armadura bloqueada e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -5567,7 +5606,7 @@ export const flows = [
     name: 'L5: contorno retangular, modo simples, Backspace, prolongar por comprimento, panos a definir, abertura retangular, direção do pano e cargas rápidas',
     async run({ newPage }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`;
       await cmd('lote {"comandos": [' + [pil(0, 0), pil(8, 0), pil(8, 5), pil(0, 5)].join(', ') + ']}');
@@ -5691,14 +5730,13 @@ export const flows = [
     name: 'E3a: tipos de laje (copiar a ficha de exemplo, erro lógico, enchimento, atribuir em cascata, exportar e importar JSON, ficha em uso, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
       await cmd('lote {"comandos": [' + [[0, 0], [5, 0], [0, 4], [5, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [5, 0]], [[0, 4], [5, 4]], [[0, 0], [0, 4]], [[5, 0], [5, 4]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
-      const g = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Tipos de laje/ }) }).first();
-      await g.locator('summary').first().click();
+      const g = await grupoEdif(page, /^Tipos de laje/);
       // 1) a ficha de exemplo é fictícia e somente leitura; copiar dá uma ficha editável
       await g.getByLabel(/^Ficha de vigotas/).selectOption({ label: 'Armada exemplo (fictícia) · exemplo fictício' });
       assert.match(await g.locator('[data-selos-ficha]').innerText(), /somente leitura/);
@@ -5722,8 +5760,7 @@ export const flows = [
       await pe.fill('0,6'); await pe.press('Enter');
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.enchimentos?.[0]?.pesoM2 === 0.6, null);
       // 4) atribuir em cascata no grupo Lajes e preencher os panos
-      const lj = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Lajes/ }) }).first();
-      await lj.locator('summary').first().click();
+      const lj = await grupoEdif(page, /^Lajes/);
       await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('vigotas');
       await lj.getByLabel(/^Fabricante \(filtro\)/).selectOption('Fictício');
       const copia = (await modelo()).tiposLaje.fichas[0];
@@ -5733,6 +5770,7 @@ export const flows = [
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.tipo?.tipo === 'vigotas', null);
       assert.equal((await modelo()).lajes[0].tipo.serie, 'A12');
       // 5) a ficha em uso não pode ser removida
+      await grupoEdif(page, /^Tipos de laje/);
       await g.getByRole('button', { name: 'Remover ficha', exact: true }).click();
       await g.locator('[data-erros-tipos-laje]').waitFor();
       assert.match(await g.locator('[data-erros-tipos-laje]').innerText(), /usada por lajes/);
@@ -5764,7 +5802,7 @@ export const flows = [
     name: 'E2d: diagonais de contraventamento (lançamento em X, atribuir, nó no cruzamento, resultados e memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -5856,7 +5894,7 @@ export const flows = [
     name: 'L6: cotas temporárias editáveis, desfazer, série de cotas com Tab e Esc e fixar a cota',
     async run({ newPage }) {
       const page = await newPage(NO_PICKERS);
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
@@ -5922,7 +5960,7 @@ export const flows = [
     name: 'E2e: consolos curtos (lançar, editar, resultados e relatório, armadura bloqueada), vínculo externo e pré-moldada da viga, memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
@@ -5975,7 +6013,7 @@ export const flows = [
       // 3. V3 do lado x = 6 com vínculo externo e V4 pré-moldada: editor da viga
       const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
       await gvigas.locator(':scope > summary').click();
-      await page.locator('summary', { hasText: 'Vínculos, flambagem e cobrimento' }).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
       const editor = async (i) => {
         await gvigas.locator('table.quadro tbody tr').nth(i).locator('td').nth(3).click();
         const sv = page.locator('[data-vinculo-premoldada]');
@@ -6053,7 +6091,7 @@ export const flows = [
     name: 'E3b: vigotas por ficha (lista vigota a vigota, painéis, edição das selecionadas, dupla, esforços atribuídos, relatório, erro em vermelho), exposição e momentos mínimos por pano e memorial',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 });
       await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [8, 0], [0, 5], [4, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
@@ -6138,8 +6176,7 @@ export const flows = [
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
       const [ax, ay] = await telaDe(page, -0.6, -0.6), [bx, by] = await telaDe(page, 8.6, 5.6);
       await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
-      const vg = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Vínculos, flambagem e cobrimento/ }) }).first();
-      await vg.locator('summary').first().click();
+      const vg = await grupoEdif(page, /^Vínculos, flambagem e cobrimento/);
       const pano = vg.locator('[data-vigotas-pano]');
       await pano.waitFor();
       await pano.getByLabel(/^Classe de agressividade do pano/).selectOption('III');

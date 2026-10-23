@@ -11,8 +11,16 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 
 - `Canvas.tsx`: modelBounds, fitView, svgSize, Canvas
   - usado por: App.tsx
+- `FaixaArquivo.tsx`: AcoesArquivo, FaixaArquivo
+  - usado por: App.tsx
+- `FaixaFundacoes.tsx`: FaixaFundacoes
+  - usado por: App.tsx
+- `FaixaModulo.tsx`: ABAS_FAIXA, FaixaModulo
+  - usado por: App.tsx
+- `FaixaPortico.tsx`: FaixaPortico
+  - usado por: App.tsx
 - `Fundacoes.tsx`: importarCargasDoEdificio, Fundacoes
-  - usado por: App.tsx, app/edificio/Edificio.tsx
+  - usado por: App.tsx, app/FaixaFundacoes.tsx, app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx
 - `FundacoesDetail.tsx`: Tbc, phiTxt, barTxt, CapDetail, FootingDetail, CaissonDetail, SolutionDetail
   - usado por: app/Fundacoes.tsx, app/MemorialFundacoes.tsx, app/edificio/Fundacao.tsx
 - `Library.tsx`: buildCharacteristics, saveCharacteristics, Library
@@ -50,7 +58,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `AbaIsovalores.tsx`: AbaIsovalores
   - usado por: app/edificio/Edificio.tsx
 - `AbacosVento.tsx`: lerPontos, AbacosVentoGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `AberturasArmaduraUI.tsx`: AberturasArmadura
   - usado por: app/edificio/ParedesUI.tsx
 - `AlvenariaResumo.tsx`: CartaoAlvenaria, MemorialAlvenaria
@@ -72,23 +80,27 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `BaseParedeUI.tsx`: BaseDaParede
   - usado por: app/edificio/ParedesUI.tsx
 - `BibliotecaNormas.tsx`: BibliotecaNormasGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `Casos.tsx`: NATUREZAS, naturezaTexto, psiDoCaso, CasosGrupo
-  - usado por: app/edificio/Edificio.tsx, app/edificio/MemorialEdificio.tsx
+  - usado por: app/edificio/Configuracao.tsx, app/edificio/MemorialEdificio.tsx
 - `CasosArranjos.tsx`: CompatibilidadeCasos, CombinarAdicionais, lerTrajeto, ArranjosCasos
   - usado por: app/edificio/Casos.tsx
+- `Configuracao.tsx`: SecaoCfg, SECOES, JanelaConfiguracao
+  - usado por: app/edificio/Edificio.tsx
 - `ConsolosResultadosUI.tsx`: DesenhoConsolo, ConsoloResultados
   - usado por: app/edificio/ConsolosUI.tsx
 - `ConsolosUI.tsx`: useConsolosUI, ConsolosHost, JanelaConsolos
   - usado por: app/edificio/Edificio.tsx, app/edificio/PaletaComandos.tsx
+- `ControlesPlanta.tsx`: ControlesPlanta
+  - usado por: App.tsx
 - `CoresPlanta.tsx`: CoresPlanta
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/FaixaEdificio.tsx
 - `CorridaUI.tsx`: ehCorrida, Mensagens, CorridaBloco, JanelaCorrida
   - usado por: app/edificio/BaseParedeUI.tsx, app/edificio/Fundacao.tsx, app/edificio/MurosUI.tsx, app/edificio/Revisao.tsx
 - `CortesUI.tsx`: CortesGrupo, JanelaCorte
   - usado por: app/edificio/Edificio.tsx
 - `DadosGerais.tsx`: DadosGeraisCorpo, DadosGeraisJanela
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx, app/edificio/Edificio.tsx
 - `DadosL4.tsx`: DadosL4Grupo
   - usado por: app/edificio/Edificio.tsx
 - `Detalhamento.tsx`: fmt, phiTxt, TIPO_BARRA, FACE_BARRA, linhasBarras, linhasEstribos, EdicaoDetalhe, TramoDaViga, DetalheDaViga, CopiarArmadura, LinhaAco, perdasDoResumo, somarResumosAco, csvAco, ResumoAco
@@ -103,38 +115,40 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/Edificio.tsx, app/edificio/PaletaComandos.tsx
 - `EdicaoLajes.tsx`: EdicaoPosicoes, ZonasELinhas, GerarArmadura, PainelEdicaoLajes, RotulosLajes
   - usado por: app/edificio/DetalhamentoLaje.tsx, app/edificio/Edificio.tsx, app/edificio/Pranchas.tsx
-- `Edificio.tsx`: Edificio, NomeObra
-  - usado por: App.tsx
+- `Edificio.tsx`: AtalhosEdificio, Edificio, NovoPavimento, Malha, LinhaComando, NomeObra, VentoGrupo
+  - usado por: App.tsx, app/edificio/Configuracao.tsx
 - `Empuxo.tsx`: EmpuxoGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `EstadosLimite.tsx`: lerColagem, EstadosGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `EtapasFlecha.tsx`: EtapasFlechaGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `EtapasObra.tsx`: EtapasGrupo, ArquivoGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx, app/edificio/Edificio.tsx
+- `FaixaEdificio.tsx`: irFerramenta, Ferr, ROTULO_CTX, FaixaEdificio
+  - usado por: App.tsx
 - `FlechasTabela.tsx`: TabelaFlechas
   - usado por: app/edificio/Revisao.tsx
 - `FogoCard.tsx`: FogoCard
   - usado por: app/edificio/Edificio.tsx
 - `Fundacao.tsx`: abrirJanelaFundacao, irParaFundacao, FundacaoGrupo, JanelaFundacao, copiarSondagensParaModulo, LigacaoEdificio, FundacoesDoEdificio, JanelaDaFundacao
-  - usado por: app/Fundacoes.tsx, app/edificio/Edificio.tsx, app/edificio/Planta.tsx, app/edificio/Revisao.tsx
+  - usado por: app/Fundacoes.tsx, app/edificio/Configuracao.tsx, app/edificio/Planta.tsx, app/edificio/Revisao.tsx
 - `FundacaoGrupoUI.tsx`: AssociarPilares, OpcoesSapatas, SobreposicaoBloco, LimitesBloco, montarImpostas, ElementoGrupoEditor
   - usado por: app/edificio/Fundacao.tsx
 - `Gabaritos.tsx`: GerenciadorGabaritos, VistasRapidas, JanelaCapturas
   - usado por: app/edificio/Edificio.tsx
 - `GruposL4.tsx`: DialogoGrupos, GruposCopiaGrupo, CopiarGrupoDialogo, UnirPavimentosDialogo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Edificio.tsx, app/edificio/uiStore.ts
 - `GuiaRapido.tsx`: GuiaConteudo, GuiaRapidoDialogo
   - usado por: app/edificio/Edificio.tsx, app/edificio/MemorialGrupos.tsx
 - `ImportarTexto.tsx`: ImportarTexto
   - usado por: app/edificio/Edificio.tsx
 - `Incendio.tsx`: IncendioGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `InclinadasResultadosUI.tsx`: DesenhoInclinada, InclinadaResultados
   - usado por: app/edificio/InclinadasUI.tsx
 - `InclinadasUI.tsx`: useInclinadasUI, InclinadasHost, JanelaInclinadas
-  - usado por: app/edificio/Edificio.tsx, app/edificio/PaletaComandos.tsx, app/edificio/Revisao.tsx
+  - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/PaletaComandos.tsx, app/edificio/Revisao.tsx
 - `IsovaloresParede.tsx`: IsovaloresParede
   - usado por: app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx
 - `LancamentoDxf.tsx`: LancamentoDxf
@@ -142,7 +156,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `LancamentoL5.tsx`: LancamentoL5Grupo
   - usado por: app/edificio/Edificio.tsx
 - `Materiais.tsx`: MateriaisGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `MateriaisBiblioteca.tsx`: MateriaisBiblioteca
   - usado por: app/edificio/Materiais.tsx
 - `MemorialAcoes.tsx`: MemorialAcoes
@@ -180,7 +194,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `ObrasRecentes.tsx`: ObrasRecentes
   - usado por: app/edificio/Edificio.tsx
 - `OpcoesCalculo.tsx`: desligadaEmZero, valorOpcaoTxt, OpcoesGrupo
-  - usado por: app/edificio/Edificio.tsx, app/edificio/MemorialEdificio.tsx
+  - usado por: app/edificio/Configuracao.tsx, app/edificio/MemorialEdificio.tsx
 - `PaletaComandos.tsx`: ItemPaleta, filtrarPaleta, PaletaComandos
   - usado por: app/edificio/Edificio.tsx
 - `ParedesUI.test.ts`: (sem exports)
@@ -190,7 +204,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `PilarParedeUI.tsx`: PreviaTipo, PilaresParedeGrupo, JanelaPilarParede, CartaoPilaresParede
   - usado por: app/edificio/Edificio.tsx, app/edificio/Revisao.tsx
 - `Planta.tsx`: ladoPeloClique, posicaoPeloClique, ROTULO_FERRAMENTA, TECLA_FERRAMENTA, Planta
-  - usado por: app/edificio/Edificio.tsx, app/edificio/PaletaComandos.tsx
+  - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/PaletaComandos.tsx
 - `Pranchas.tsx`: Pranchas
   - usado por: app/edificio/Edificio.tsx
 - `PreviaCamadas.tsx`: CamadaPrevia, PreviaCamadas
@@ -202,15 +216,15 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `RelatoriosUI.tsx`: DadosDoPilar, TaxaDoLance, SituacaoPilares, relatorioPilaresCsv, relatorioPilaresHtml, listagemGeralCsv, quantitativosCsv, CartaoRelatorios
   - usado por: app/edificio/Edificio.tsx, app/edificio/Revisao.tsx
 - `Revisao.tsx`: ST_TXT, Alvo, abrirJanela, irParaElemento, useCliqueDuplo, LinhaElemento, ListaErros, Mensagens, Diagrama, Origens, ApoioDoPilar, JanelaElemento, Deslocamentos, listagemCsv, BotaoExportar
-  - usado por: app/edificio/AbaIsovalores.tsx, app/edificio/Edificio.tsx, app/edificio/FogoCard.tsx, app/edificio/Puncao.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/SegundaOrdem.tsx, app/edificio/Transicao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/vista3d/Vista3D.tsx
+  - usado por: app/edificio/AbaIsovalores.tsx, app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/FogoCard.tsx, app/edificio/Puncao.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/SegundaOrdem.tsx, app/edificio/Transicao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/edificio/alvo.ts, app/vista3d/Vista3D.tsx
 - `SecaoVigaUI.tsx`: PreviaSecaoViga, SecaoDaViga
   - usado por: app/edificio/Vinculos.tsx
 - `SegundaOrdem.tsx`: SegundaOrdemAnalise, SegundaOrdemPilar
   - usado por: app/edificio/Edificio.tsx, app/edificio/Revisao.tsx
 - `TabelasArmadura.tsx`: TabelasGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `TiposLaje.tsx`: TiposLajeGrupo
-  - usado por: app/edificio/Edificio.tsx
+  - usado por: app/edificio/Configuracao.tsx
 - `Transicao.tsx`: AJUSTES_LANCE, LanceDoPilar
   - usado por: app/edificio/Vinculos.tsx
 - `VigaCurvaComumUI.tsx`: VigaCurvaComum
@@ -227,6 +241,8 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/Vinculos.tsx
 - `Vinculos.tsx`: CargasNoPilar, VinculosGrupo
   - usado por: app/edificio/Edificio.tsx, app/edificio/Fundacao.tsx
+- `alvo.ts`: useAlvoSelecionado
+  - usado por: App.tsx, app/edificio/FaixaEdificio.tsx
 - `calculo.ts`: DimEdificio, Conjunto, FundacoesEdificio, Obsoleto, calcular, montarConjuntoNoWorker, calcularFundacoesNoWorker, rearmarNoWorker
   - usado por: app/edificio/Armadura.tsx, app/edificio/Detalhamento.tsx, app/edificio/Pranchas.tsx, app/edificio/Revisao.tsx, app/edificio/calculo.worker.ts, app/edificio/store.ts
 - `calculo.worker.ts`: (sem exports)
@@ -240,13 +256,15 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `isovaloresStore.ts`: JanelaIso, useIso
   - usado por: app/edificio/AbaIsovalores.tsx
 - `lancamentoLeitura.ts`: UNIDADES, unidadeProvavel, GabaritoLido, carregarLeitorDwg, lerGabarito
-  - usado por: app/edificio/Edificio.tsx, app/edificio/Gabaritos.tsx, app/edificio/LancamentoDxf.tsx
+  - usado por: app/edificio/Edificio.tsx, app/edificio/Gabaritos.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/mascaraImportar.ts
+- `mascaraImportar.ts`: importarMascara
+  - usado por: app/edificio/FaixaEdificio.tsx
 - `novaObraArranques.test.ts`: (sem exports)
   - usado por: -
 - `paredesLista.ts`: linhasParedes, aberturasNaPlanta
   - usado por: app/edificio/ParedesUI.test.ts, app/edificio/ParedesUI.tsx, app/edificio/Planta.tsx
 - `plantaStore.ts`: Ferramenta, FERRAMENTAS_FUNDACAO, MANTEM_SELECAO, aoEscolher, facesLaje, L5Estado, L5_PADRAO, Tema, Vista, usePlanta, Paleta, CHAVES, paletaBase, paleta, hexDaCor
-  - usado por: app/edificio/Armadura.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/CoresPlanta.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/MurosUI.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Rearmar.tsx, app/edificio/Revisao.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/Vinculos.tsx, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
+  - usado por: app/edificio/Armadura.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/ControlesPlanta.tsx, app/edificio/CoresPlanta.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/MurosUI.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Rearmar.tsx, app/edificio/Revisao.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/Vinculos.tsx, app/edificio/alvo.ts, app/edificio/mascaraImportar.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
 - `recentes.test.ts`: (sem exports)
   - usado por: -
 - `recentes.ts`: OrigemRecente, ObraRecente, CHAVE_RECENTES, LIMITE_HISTORICO, ULTIMAS, lerRecentes, registrarRecente, ultimasObras, buscarRecentes, limparRecentes
@@ -254,7 +272,9 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `revisao.ts`: useRevisao
   - usado por: app/edificio/MemorialEdificio.tsx, app/edificio/Planta.tsx, app/edificio/Revisao.tsx
 - `store.ts`: podeRearmar, dimAtual, fundacaoAtual, calculoAtual, OpcoesArquivo, useBuilding, edificioParaArquivo
-  - usado por: App.tsx, app/Fundacoes.tsx, app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AberturasArmaduraUI.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/ArmaduraAlvenariaUI.tsx, app/edificio/ArmaduraParedeUI.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoLaje.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/FogoCard.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/ImportarTexto.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/IsovaloresParede.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialDiagonais.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObra.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Puncao.tsx, app/edificio/Rearmar.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/edificio/novaObraArranques.test.ts, app/edificio/revisao.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
+  - usado por: App.tsx, app/FaixaArquivo.tsx, app/FaixaFundacoes.tsx, app/Fundacoes.tsx, app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AberturasArmaduraUI.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/ArmaduraAlvenariaUI.tsx, app/edificio/ArmaduraParedeUI.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoLaje.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/FogoCard.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/ImportarTexto.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/IsovaloresParede.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialDiagonais.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObra.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Puncao.tsx, app/edificio/Rearmar.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/edificio/alvo.ts, app/edificio/novaObraArranques.test.ts, app/edificio/revisao.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
+- `uiStore.ts`: AbaEdificio, DialogoL1, DialogoL2, DialogoL4, JanelaForm, useEdifUI
+  - usado por: app/FaixaArquivo.tsx, app/edificio/Configuracao.tsx, app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/PaletaComandos.tsx, app/edificio/Revisao.tsx
 - `vigotasFaixas.ts`: faixasVisiveis, larguraGrupo
   - usado por: app/edificio/Planta.tsx, app/edificio/Vigotas.tsx
 ## src/app/
@@ -263,8 +283,14 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: App.tsx
 - `foundationDrawing.ts`: svgCap, svgFooting, svgCaisson
   - usado por: app/FundacoesDetail.tsx, app/MemorialFundacoes.tsx
+- `fundacoesAcoes.ts`: useAcoesFundacoes
+  - usado por: app/FaixaFundacoes.tsx, app/Fundacoes.tsx
 - `history.ts`: Activity, getHistory, logActivity, mergeHistory
   - usado por: App.tsx, app/Library.tsx, app/Memorial.tsx, app/workspace.ts
+- `layout.test.ts`: (sem exports)
+  - usado por: -
+- `layout.ts`: Modulo, Doca, DOCA_MIN, DOCA_MAX, limitaDoca, useLayout
+  - usado por: app/FaixaModulo.tsx, app/edificio/Configuracao.tsx, app/layout.test.ts, app/ui/Dock.tsx
 ## src/app/panels/
 
 - `Cargas.tsx`: CargasPanel
@@ -288,19 +314,29 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `results.ts`: useAnalysis, resultFor, Eff, effPoly, samplePoints, Series, memberSeries, globalDisp, fmt, sourceLabel, getDesign, useDesign, linkText, isSemi, ilFieldOf, ilStaticValue
   - usado por: App.tsx, app/Canvas.tsx, app/Fundacoes.tsx, app/FundacoesDetail.tsx, app/Library.tsx, app/Memorial.tsx, app/MemorialFundacoes.tsx, app/SondagemEditor.tsx, app/drawing.ts, app/dxf.test.ts, app/dxf.ts, app/foundationDrawing.ts, app/panels/Cargas.tsx, app/panels/Dimensionar.tsx, app/panels/Estrutura.tsx, app/panels/Influencia.tsx, app/panels/Modos.tsx, app/panels/Resultados.tsx, app/pathTable.ts
 - `samples.ts`: samplePortico, sampleViga, sampleTrelica, SAMPLES
-  - usado por: App.tsx, app/dims.test.ts, app/dxf.test.ts, app/pathTable.test.ts, app/store.ts, app/workspace.test.ts, core/design.test.ts, core/samples.test.ts, core/secondorder.test.ts
+  - usado por: App.tsx, app/FaixaArquivo.tsx, app/dims.test.ts, app/dxf.test.ts, app/pathTable.test.ts, app/store.ts, app/workspace.test.ts, core/design.test.ts, core/samples.test.ts, core/secondorder.test.ts
 - `storage.ts`: SavedCharacteristics, LibraryKind, LibraryPayload, LibraryItem, LibraryEntry, storageBackend, listLibrary, saveToLibrary, loadFromLibrary, deleteFromLibrary, LIMITE_EDIFICIO, salvarEdificioNaBiblioteca
   - usado por: app/Fundacoes.tsx, app/Library.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Detalhamento.tsx, app/edificio/EstadosLimite.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/TiposLaje.tsx, app/edificio/recentes.test.ts, app/workspace.ts
 - `store.ts`: Tool, Tab, Diagram, Source, View, ILState, persist, useStore
-  - usado por: App.tsx, app/Canvas.tsx, app/Fundacoes.tsx, app/Library.tsx, app/Memorial.tsx, app/edificio/Armadura.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Detalhamento.tsx, app/edificio/Edificio.tsx, app/edificio/Fundacao.tsx, app/edificio/Gabaritos.tsx, app/edificio/GuiaRapido.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/PaletaComandos.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Rearmar.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/store.ts, app/panels/Cargas.tsx, app/panels/Dimensionar.tsx, app/panels/Estrutura.tsx, app/panels/Influencia.tsx, app/panels/Modos.tsx, app/panels/Resultados.tsx, app/results.ts, app/units.ts
+  - usado por: App.tsx, app/Canvas.tsx, app/FaixaFundacoes.tsx, app/FaixaPortico.tsx, app/Fundacoes.tsx, app/Library.tsx, app/Memorial.tsx, app/edificio/Armadura.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Detalhamento.tsx, app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Fundacao.tsx, app/edificio/Gabaritos.tsx, app/edificio/GuiaRapido.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/PaletaComandos.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Rearmar.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/mascaraImportar.ts, app/edificio/store.ts, app/panels/Cargas.tsx, app/panels/Dimensionar.tsx, app/panels/Estrutura.tsx, app/panels/Influencia.tsx, app/panels/Modos.tsx, app/panels/Resultados.tsx, app/results.ts, app/units.ts
 ## src/app/ui/
 
 - `Ajuda.tsx`: useAjuda, dataAjuda, AjudaProvider, BotaoAjuda
   - usado por: app/ui/index.tsx
-- `Icone.tsx`: Icone
+- `Dock.tsx`: Dock, Palette
   - usado por: app/ui/index.tsx
-- `index.tsx`: ButtonVariant, Button, Chip, Tone, Pill, Note, Alert, Spacer, useId, NumField, TextField, TextArea, FilePick, Seg, Group, Check, Select, Dropdown, Input, Textarea, ColorField, Slider, Hint, copyText, download, OptNumField, OptNumCell, NumCell, TextCell, UseBar, KV, Modal, ThemeSelect, AjudaProvider, BotaoAjuda, dataAjuda, useAjuda, Icone
-  - usado por: App.tsx, app/Fundacoes.tsx, app/FundacoesDetail.tsx, app/Library.tsx, app/Memorial.tsx, app/SondagemEditor.tsx, app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AberturasArmaduraUI.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/ArmaduraAlvenariaUI.tsx, app/edificio/ArmaduraParedeUI.tsx, app/edificio/BarraAtalhos.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/CoresPlanta.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoLaje.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/FlechasTabela.tsx, app/edificio/FogoCard.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/GuiaRapido.tsx, app/edificio/ImportarTexto.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/IsovaloresParede.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObra.tsx, app/edificio/NovaObraPassos.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Puncao.tsx, app/edificio/Rearmar.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/SegundaOrdem.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/panels/Cargas.tsx, app/panels/Dimensionar.tsx, app/panels/Estrutura.tsx, app/panels/Influencia.tsx, app/panels/Modos.tsx, app/panels/Resultados.tsx, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
+- `Icone.tsx`: Icone, NOMES_ICONE
+  - usado por: app/ui/Ribbon.tsx, app/ui/icone.test.ts, app/ui/index.tsx
+- `Ribbon.tsx`: RibbonTabDef, Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint
+  - usado por: app/ui/index.tsx
+- `Tree.tsx`: Tree, TreeItem
+  - usado por: app/ui/index.tsx
+- `ViewTabs.tsx`: ViewTabDef, ViewTabs, StatusBar
+  - usado por: app/ui/index.tsx
+- `icone.test.ts`: (sem exports)
+  - usado por: -
+- `index.tsx`: ButtonVariant, Button, Chip, Tone, Pill, Note, Alert, Spacer, useId, NumField, TextField, TextArea, FilePick, Seg, Group, Check, Select, Dropdown, Input, Textarea, ColorField, Slider, Hint, copyText, download, OptNumField, OptNumCell, NumCell, TextCell, UseBar, KV, Modal, ThemeSelect, AjudaProvider, BotaoAjuda, dataAjuda, useAjuda, Icone, Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, RibbonTabDef, Dock, Palette, Tree, TreeItem, ViewTabs, StatusBar, ViewTabDef
+  - usado por: App.tsx, app/FaixaArquivo.tsx, app/FaixaFundacoes.tsx, app/FaixaModulo.tsx, app/FaixaPortico.tsx, app/Fundacoes.tsx, app/FundacoesDetail.tsx, app/Library.tsx, app/Memorial.tsx, app/SondagemEditor.tsx, app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AberturasArmaduraUI.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/ArmaduraAlvenariaUI.tsx, app/edificio/ArmaduraParedeUI.tsx, app/edificio/BarraAtalhos.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/Configuracao.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/ControlesPlanta.tsx, app/edificio/CoresPlanta.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoLaje.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/FlechasTabela.tsx, app/edificio/FogoCard.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/GuiaRapido.tsx, app/edificio/ImportarTexto.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/IsovaloresParede.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObra.tsx, app/edificio/NovaObraPassos.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/Puncao.tsx, app/edificio/Rearmar.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/SegundaOrdem.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/Vigotas.tsx, app/edificio/VigotasFicha.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/panels/Cargas.tsx, app/panels/Dimensionar.tsx, app/panels/Estrutura.tsx, app/panels/Influencia.tsx, app/panels/Modos.tsx, app/panels/Resultados.tsx, app/ui/Dock.tsx, app/ui/Ribbon.tsx, app/ui/Tree.tsx, app/ui/ViewTabs.tsx, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
 ## src/app/
 
 - `units.test.ts`: (sem exports)
@@ -666,7 +702,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `transicao.ts`: ApoioPilar, areaComum, apoioDoPilar, apoiosDosPilares, pilaresSobre, excentricidadeApoio, letraSequencial, nomeSobre, diagnosticosTransicao
   - usado por: app/edificio/MemorialEdificio.tsx, app/edificio/Revisao.tsx, core/building/analitico.ts, core/building/detalhamentoPilares.ts, core/building/dimensionamento.ts, core/building/gruposCopia.ts, core/building/transicao.test.ts, core/building/verify.ts, core/commands/planta.ts, core/sheets/armacaoPilares.ts
 - `types.ts`: BUILDING_VERSION, CategoriaUso, OrigemObra, ORIGEM_ROTULO, Obra, Norma, ControleExecucao, CategoriaVento, Vento, CurvaAbaco, AbacosVento, VENTO_PADRAO, Pavimento, Grupo, Eixo, CamadaGeo, PapelCamada, RegrasCamadas, CamadaMascara, Mascara, gruposDaMascara, mascaraNoGrupo, SecaoPilar, Ajuste, Pilar, LadoPilarParede, TipoPilarParede, PilarParede, MuroArrimoObra, ArranjoParede, ArmaduraPano, EmendaParede, ArmaduraAbertura, AberturaParede, ArmaduraVerga, TipoBloco, TipoAlvenaria, EmpuxoParede, Parede, VinculoBasePilar, DetalhePilarEditado, ArmaduraPilar, EdicaoBarra, EdicaoZona, DetalheEditado, ArmaduraViga, Alinhamento, Vinculo, Viga, PremoldadaViga, FichaPremoldada, Consolo, ArmaduraConsolo, ArcoViga, LigacaoBarra, CargaInclinada, ArmaduraInclinada, VigaInclinada, Diagonal, TipoLaje, Laje, BarrasNervura, BaseNervuraDir, BaseNervurada, TipoVao, TIPOS_VAO, MomentosMinLaje, VigotaMultipla, BarrasVigota, EdicaoVigota, ArmaduraMoldada, GrupoPuncao, BaseFaceLaje, ArmaduraBaseLaje, ArmaduraPredefinida, EdicaoBarraLaje, EdicaoLaje, ZonaUniformizacao, LinhaDobra, ArmaduraVigotas, CasoFisico, Natureza, CasoAdicional, RelacaoCasos, CompatCasos, EstadoId, EstadoConfig, EstadosLimite, SituacaoUsuario, EstratoEmpuxo, TipoEmpuxo, CargaPilar, Carga, CorteEdificio, LinhaSecao, BuildingModel, TipoTexto, RefPos, VistaObra, ElemCota, ParteCota, RefCota, CotaPlanta, AgrupamentoPorticos, CopiaLaje, CopiaArmaduraLajes, EstacaTerreno, TerrenoFundacao, TipoFundacao, PosicaoFundacao, ElementoFundacao, ImpostasFundacao, LimiteFundacao, FundacaoEdificio, AbaCorrida, SapataCorrida, CintaCorrida, Radier, VigaElastica, TipoVigaFundacao, VigaFundacao, FUNDACAO_VAZIA, ehArranque, Formato, Carimbo, ConfigPrancha, SimboloPilar, SimbolosPilar, SIMBOLOS_PADRAO, EstiloCamadaParcial, EstiloParcial, DetalheDxf, DetalheInserido, ConfigMoldura, PRANCHA_PADRAO, ConfigArmacao, ARMACAO_PADRAO, USOS, qDoUso, COBRIMENTOS, edificioVazio, pavimentosOrdenados, peDireito, cotaFundacao, normalizarEdificio, lancesDoPilar, engasteNoLance, secaoNoLance, inicioDe, aceitaVinculoExterno, geoLance, centroNoLance, contornoNoLance, anguloNoLance, lanceNoPavimento, dimsSecao, centroPilar, contornoPilar, mascaraParaMundo, offsetsViga, deslocarPolilinha, geometriaViga, trechosViga, comprimentoPolilinha, pavimentosDoGrupo, ClasseUso, CLASSE_DO_USO, PSI_CLASSE, CASO_DA_CLASSE, classesProprias, casoUsoDoGrupo, CasoObra, parDeCasos, casosDaObra, relacaoEfetiva, casosParaCarga
-  - usado por: app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialAcoes.tsx, app/edificio/MemorialConsolos.tsx, app/edificio/MemorialCortes.tsx, app/edificio/MemorialDiagonais.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MemorialGabaritos.tsx, app/edificio/MemorialGrupos.tsx, app/edificio/MemorialInclinadas.tsx, app/edificio/MemorialL5.tsx, app/edificio/MemorialParedes.tsx, app/edificio/MemorialPilarParede.tsx, app/edificio/MemorialRelatorios.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObraPassos.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/PreviaCamadas.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/edificio/calculo.ts, app/edificio/calculo.worker.ts, app/edificio/desenhoMemorial.ts, app/edificio/empuxoFig.ts, app/edificio/fundacaoGrupo.ts, app/edificio/paredesLista.ts, app/edificio/plantaStore.ts, app/edificio/recentes.test.ts, app/edificio/recentes.ts, app/edificio/store.ts, app/vista3d/Vista3D.tsx, app/vista3d/vista3dStore.ts, cli/mcp.ts, cli/run.ts, core/building/abacosVento.ts, core/building/acoes.test.ts, core/building/acoes.ts, core/building/agrupamento.ts, core/building/alvenaria.test.ts, core/building/alvenaria.ts, core/building/alvenariaDim.ts, core/building/alvenariaLista.ts, core/building/analitico.ts, core/building/assistente.test.ts, core/building/assistente.ts, core/building/baseElastica.test.ts, core/building/baseElastica.ts, core/building/baseMuro.ts, core/building/campoParede.ts, core/building/categoriasUso.test.ts, core/building/categoriasUso.ts, core/building/cintasCorrida.ts, core/building/combinacoes.ts, core/building/consolos.ts, core/building/copiaArmadura.ts, core/building/corridaParede.ts, core/building/cotas.test.ts, core/building/cotas.ts, core/building/curvas.ts, core/building/desbloqueio.ts, core/building/detalhamento.ts, core/building/detalhamentoLajes.ts, core/building/detalhamentoParedes.ts, core/building/detalhamentoPilares.test.ts, core/building/detalhamentoPilares.ts, core/building/detalhamentoPilaresOpcoes.test.ts, core/building/diafragma.ts, core/building/diagonais.ts, core/building/dimensionamento.ts, core/building/empuxo.ts, core/building/etapas.test.ts, core/building/etapas.ts, core/building/exemplos.test.ts, core/building/exemplos.ts, core/building/file.ts, core/building/file.versoes.test.ts, core/building/flechas.ts, core/building/fogo.ts, core/building/fundacao.test.ts, core/building/fundacao.ts, core/building/fundacaoGerar.test.ts, core/building/fundacaoGerar.ts, core/building/gruposCopia.test.ts, core/building/gruposCopia.ts, core/building/importarArranques.test.ts, core/building/inclinadas.ts, core/building/inclinadasDim.ts, core/building/lajes.ts, core/building/lajesEdicao.ts, core/building/lancamentoDxf.test.ts, core/building/lancamentoDxf.ts, core/building/lancamentoL5.test.ts, core/building/lancamentoL5.ts, core/building/materiais.ts, core/building/memorialAlvenaria.ts, core/building/memorialConsolos.ts, core/building/memorialDiagonais.ts, core/building/memorialInclinadas.ts, core/building/memorialParedes.ts, core/building/muroArrimo.ts, core/building/muroArrimoDim.ts, core/building/nervuradas.test.ts, core/building/nervuradas.ts, core/building/nervuradasDim.test.ts, core/building/nervuradasDim.ts, core/building/opcoes.ts, core/building/paredes.test.ts, core/building/paredes.ts, core/building/paredesBase.ts, core/building/paredesDim.ts, core/building/paredesLista.ts, core/building/pilarDados.ts, core/building/pilarParede.test.ts, core/building/pilarParede.ts, core/building/pilarParedeEsforcos.ts, core/building/pilarParedeModelo.ts, core/building/pilares.ts, core/building/porticos.ts, core/building/premissas.ts, core/building/premoldadas.ts, core/building/puncao.ts, core/building/quadros.ts, core/building/r70.test.ts, core/building/rearmar.ts, core/building/rearmarAlterados.ts, core/building/relatorios.ts, core/building/resumo.ts, core/building/revisao.ts, core/building/sapataCorrida.test.ts, core/building/sapataCorrida.ts, core/building/sapataParede.test.ts, core/building/secaoViga.ts, core/building/segundaOrdem.test.ts, core/building/tabelasArmadura.ts, core/building/tiposLaje.test.ts, core/building/tiposLaje.ts, core/building/transicao.test.ts, core/building/transicao.ts, core/building/vento.ts, core/building/verify.ts, core/building/vigaComum.test.ts, core/building/vigaComum.ts, core/building/vigas.ts, core/building/vigasFundacao.test.ts, core/building/vigasFundacao.ts, core/building/vigotas.ts, core/building/vigotasEsforcos.ts, core/building/vigotasFichas.ts, core/building/vigotasRelatorio.ts, core/building/vinculoExterno.ts, core/building/vistaObra.ts, core/commands/acoes.ts, core/commands/agrupamento.ts, core/commands/alvenaria.ts, core/commands/armaduras.ts, core/commands/armadurasLajes.ts, core/commands/baseElastica.ts, core/commands/commands.test.ts, core/commands/consolos.ts, core/commands/copiaLajes.ts, core/commands/corrida.ts, core/commands/cortes.ts, core/commands/cotas.ts, core/commands/diagonais.ts, core/commands/edicao.ts, core/commands/flechas.ts, core/commands/fogo.ts, core/commands/fundacao.ts, core/commands/grupos.ts, core/commands/inclinadas.ts, core/commands/lajes.ts, core/commands/lancamento.ts, core/commands/lancamentoL5.ts, core/commands/nervuradas.ts, core/commands/normas.ts, core/commands/obra.ts, core/commands/obraAssistente.ts, core/commands/paredes.ts, core/commands/paredesArmadura.ts, core/commands/pilarParede.ts, core/commands/planta.test.ts, core/commands/planta.ts, core/commands/registry.ts, core/commands/tabelas.ts, core/commands/tiposLaje.ts, core/commands/vigas.test.ts, core/commands/vigas.ts, core/commands/vigasE2b.ts, core/commands/vigotas.ts, core/dxf/read.ts, core/geom/cotasTemp.ts, core/normas/normas.test.ts, core/resultados/cargasCaso.ts, core/resultados/consultas.ts, core/resultados/deformada.ts, core/resultados/esforcosCaso.ts, core/resultados/estadoElementos.ts, core/resultados/flechaPontos.ts, core/resultados/isovalores.ts, core/resultados/vigotasVista.ts, core/sheets/armacao.test.ts, core/sheets/armacao.ts, core/sheets/armacaoConsolos.ts, core/sheets/armacaoLajes.ts, core/sheets/armacaoParedes.ts, core/sheets/armacaoPilares.ts, core/sheets/armacaoVigas.ts, core/sheets/conjunto.ts, core/sheets/estilo.ts, core/sheets/folhasV5.ts, core/sheets/fundacao.ts, core/sheets/fundacaoCorrida.ts, core/sheets/fundacaoDetalhe.ts, core/sheets/fundacaoRadier.ts, core/sheets/gabarito.ts, core/sheets/locacao.ts, core/sheets/prancha.ts, core/sheets/saidas.ts, core/sheets/simbolos.ts, core/sheets/v5.test.ts, core/vista3d/armaduras3d.ts, core/vista3d/cena.ts, core/vista3d/corte.ts, core/vista3d/fundacoes3d.ts, core/vista3d/lajes3d.ts, core/vista3d/pilares3d.ts, core/vista3d/registro.ts, core/vista3d/v2.test.ts, core/vista3d/vigas3d.ts, core/vista3d/vista3d.test.ts
+  - usado por: app/edificio/AbaDeslocamentos.tsx, app/edificio/AbaIsovalores.tsx, app/edificio/AbacosVento.tsx, app/edificio/AlvenariaResumo.tsx, app/edificio/AlvenariaUI.tsx, app/edificio/Armadura.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseLaje.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/BibliotecaNormas.tsx, app/edificio/Casos.tsx, app/edificio/CasosArranjos.tsx, app/edificio/Configuracao.tsx, app/edificio/ConsolosResultadosUI.tsx, app/edificio/ConsolosUI.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosGerais.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/DetalhamentoPilar.tsx, app/edificio/DiagonaisResultadosUI.tsx, app/edificio/DiagonaisUI.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/Empuxo.tsx, app/edificio/EstadosLimite.tsx, app/edificio/EtapasFlecha.tsx, app/edificio/EtapasObra.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/GruposL4.tsx, app/edificio/Incendio.tsx, app/edificio/InclinadasResultadosUI.tsx, app/edificio/InclinadasUI.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/Materiais.tsx, app/edificio/MateriaisBiblioteca.tsx, app/edificio/MemorialAcoes.tsx, app/edificio/MemorialConsolos.tsx, app/edificio/MemorialCortes.tsx, app/edificio/MemorialDiagonais.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MemorialGabaritos.tsx, app/edificio/MemorialGrupos.tsx, app/edificio/MemorialInclinadas.tsx, app/edificio/MemorialL5.tsx, app/edificio/MemorialParedes.tsx, app/edificio/MemorialPilarParede.tsx, app/edificio/MemorialRelatorios.tsx, app/edificio/MurosUI.tsx, app/edificio/NovaObraPassos.tsx, app/edificio/ObrasRecentes.tsx, app/edificio/OpcoesCalculo.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/PreviaCamadas.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TiposLaje.tsx, app/edificio/Transicao.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigaFundacao.tsx, app/edificio/VigotasPano.tsx, app/edificio/VinculoPremoldadaUI.tsx, app/edificio/Vinculos.tsx, app/edificio/alvo.ts, app/edificio/calculo.ts, app/edificio/calculo.worker.ts, app/edificio/desenhoMemorial.ts, app/edificio/empuxoFig.ts, app/edificio/fundacaoGrupo.ts, app/edificio/paredesLista.ts, app/edificio/plantaStore.ts, app/edificio/recentes.test.ts, app/edificio/recentes.ts, app/edificio/store.ts, app/vista3d/Vista3D.tsx, app/vista3d/vista3dStore.ts, cli/mcp.ts, cli/run.ts, core/building/abacosVento.ts, core/building/acoes.test.ts, core/building/acoes.ts, core/building/agrupamento.ts, core/building/alvenaria.test.ts, core/building/alvenaria.ts, core/building/alvenariaDim.ts, core/building/alvenariaLista.ts, core/building/analitico.ts, core/building/assistente.test.ts, core/building/assistente.ts, core/building/baseElastica.test.ts, core/building/baseElastica.ts, core/building/baseMuro.ts, core/building/campoParede.ts, core/building/categoriasUso.test.ts, core/building/categoriasUso.ts, core/building/cintasCorrida.ts, core/building/combinacoes.ts, core/building/consolos.ts, core/building/copiaArmadura.ts, core/building/corridaParede.ts, core/building/cotas.test.ts, core/building/cotas.ts, core/building/curvas.ts, core/building/desbloqueio.ts, core/building/detalhamento.ts, core/building/detalhamentoLajes.ts, core/building/detalhamentoParedes.ts, core/building/detalhamentoPilares.test.ts, core/building/detalhamentoPilares.ts, core/building/detalhamentoPilaresOpcoes.test.ts, core/building/diafragma.ts, core/building/diagonais.ts, core/building/dimensionamento.ts, core/building/empuxo.ts, core/building/etapas.test.ts, core/building/etapas.ts, core/building/exemplos.test.ts, core/building/exemplos.ts, core/building/file.ts, core/building/file.versoes.test.ts, core/building/flechas.ts, core/building/fogo.ts, core/building/fundacao.test.ts, core/building/fundacao.ts, core/building/fundacaoGerar.test.ts, core/building/fundacaoGerar.ts, core/building/gruposCopia.test.ts, core/building/gruposCopia.ts, core/building/importarArranques.test.ts, core/building/inclinadas.ts, core/building/inclinadasDim.ts, core/building/lajes.ts, core/building/lajesEdicao.ts, core/building/lancamentoDxf.test.ts, core/building/lancamentoDxf.ts, core/building/lancamentoL5.test.ts, core/building/lancamentoL5.ts, core/building/materiais.ts, core/building/memorialAlvenaria.ts, core/building/memorialConsolos.ts, core/building/memorialDiagonais.ts, core/building/memorialInclinadas.ts, core/building/memorialParedes.ts, core/building/muroArrimo.ts, core/building/muroArrimoDim.ts, core/building/nervuradas.test.ts, core/building/nervuradas.ts, core/building/nervuradasDim.test.ts, core/building/nervuradasDim.ts, core/building/opcoes.ts, core/building/paredes.test.ts, core/building/paredes.ts, core/building/paredesBase.ts, core/building/paredesDim.ts, core/building/paredesLista.ts, core/building/pilarDados.ts, core/building/pilarParede.test.ts, core/building/pilarParede.ts, core/building/pilarParedeEsforcos.ts, core/building/pilarParedeModelo.ts, core/building/pilares.ts, core/building/porticos.ts, core/building/premissas.ts, core/building/premoldadas.ts, core/building/puncao.ts, core/building/quadros.ts, core/building/r70.test.ts, core/building/rearmar.ts, core/building/rearmarAlterados.ts, core/building/relatorios.ts, core/building/resumo.ts, core/building/revisao.ts, core/building/sapataCorrida.test.ts, core/building/sapataCorrida.ts, core/building/sapataParede.test.ts, core/building/secaoViga.ts, core/building/segundaOrdem.test.ts, core/building/tabelasArmadura.ts, core/building/tiposLaje.test.ts, core/building/tiposLaje.ts, core/building/transicao.test.ts, core/building/transicao.ts, core/building/vento.ts, core/building/verify.ts, core/building/vigaComum.test.ts, core/building/vigaComum.ts, core/building/vigas.ts, core/building/vigasFundacao.test.ts, core/building/vigasFundacao.ts, core/building/vigotas.ts, core/building/vigotasEsforcos.ts, core/building/vigotasFichas.ts, core/building/vigotasRelatorio.ts, core/building/vinculoExterno.ts, core/building/vistaObra.ts, core/commands/acoes.ts, core/commands/agrupamento.ts, core/commands/alvenaria.ts, core/commands/armaduras.ts, core/commands/armadurasLajes.ts, core/commands/baseElastica.ts, core/commands/commands.test.ts, core/commands/consolos.ts, core/commands/copiaLajes.ts, core/commands/corrida.ts, core/commands/cortes.ts, core/commands/cotas.ts, core/commands/diagonais.ts, core/commands/edicao.ts, core/commands/flechas.ts, core/commands/fogo.ts, core/commands/fundacao.ts, core/commands/grupos.ts, core/commands/inclinadas.ts, core/commands/lajes.ts, core/commands/lancamento.ts, core/commands/lancamentoL5.ts, core/commands/nervuradas.ts, core/commands/normas.ts, core/commands/obra.ts, core/commands/obraAssistente.ts, core/commands/paredes.ts, core/commands/paredesArmadura.ts, core/commands/pilarParede.ts, core/commands/planta.test.ts, core/commands/planta.ts, core/commands/registry.ts, core/commands/tabelas.ts, core/commands/tiposLaje.ts, core/commands/vigas.test.ts, core/commands/vigas.ts, core/commands/vigasE2b.ts, core/commands/vigotas.ts, core/dxf/read.ts, core/geom/cotasTemp.ts, core/normas/normas.test.ts, core/resultados/cargasCaso.ts, core/resultados/consultas.ts, core/resultados/deformada.ts, core/resultados/esforcosCaso.ts, core/resultados/estadoElementos.ts, core/resultados/flechaPontos.ts, core/resultados/isovalores.ts, core/resultados/vigotasVista.ts, core/sheets/armacao.test.ts, core/sheets/armacao.ts, core/sheets/armacaoConsolos.ts, core/sheets/armacaoLajes.ts, core/sheets/armacaoParedes.ts, core/sheets/armacaoPilares.ts, core/sheets/armacaoVigas.ts, core/sheets/conjunto.ts, core/sheets/estilo.ts, core/sheets/folhasV5.ts, core/sheets/fundacao.ts, core/sheets/fundacaoCorrida.ts, core/sheets/fundacaoDetalhe.ts, core/sheets/fundacaoRadier.ts, core/sheets/gabarito.ts, core/sheets/locacao.ts, core/sheets/prancha.ts, core/sheets/saidas.ts, core/sheets/simbolos.ts, core/sheets/v5.test.ts, core/vista3d/armaduras3d.ts, core/vista3d/cena.ts, core/vista3d/corte.ts, core/vista3d/fundacoes3d.ts, core/vista3d/lajes3d.ts, core/vista3d/pilares3d.ts, core/vista3d/registro.ts, core/vista3d/v2.test.ts, core/vista3d/vigas3d.ts, core/vista3d/vista3d.test.ts
 - `vento.test.ts`: (sem exports)
   - usado por: -
 - `vento.ts`: S2_PARAM, FR, Classe, classeVento, s2, ForcaPavimento, CoefVento, CasoVento, ZonaVento, casosVento
@@ -832,7 +868,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `read.test.ts`: (sem exports)
   - usado por: -
 - `read.ts`: DxfLido, metrosPorUnidade, lerDxf
-  - usado por: app/edificio/Edificio.tsx, app/edificio/lancamentoLeitura.ts, core/building/lancamentoDxf.test.ts, core/dxf/dwgLeitor.ts, core/dxf/read.test.ts, core/sheets/prancha.test.ts, core/sheets/saidas.ts
+  - usado por: app/edificio/lancamentoLeitura.ts, app/edificio/mascaraImportar.ts, core/building/lancamentoDxf.test.ts, core/dxf/dwgLeitor.ts, core/dxf/read.test.ts, core/sheets/prancha.test.ts, core/sheets/saidas.ts
 ## src/core/
 
 - `edit.test.ts`: (sem exports)

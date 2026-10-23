@@ -9,6 +9,7 @@ import { listarComandos } from '../../core/commands';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { useStore } from '../store';
 import { Button, Input, Modal } from '../ui';
+import { useEdifUI } from './uiStore';
 import { useDiagonaisUI } from './DiagonaisUI';
 import { useConsolosUI } from './ConsolosUI';
 import { useInclinadasUI } from './InclinadasUI';
@@ -78,7 +79,8 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
 }
 
 export function PaletaComandos({ setAba }: { setAba: (a: string) => void }) {
-  const [aberta, setAberta] = useState(false);
+  const aberta = useEdifUI((s) => s.paleta);
+  const setAberta = (f: boolean | ((a: boolean) => boolean)) => useEdifUI.getState().set({ paleta: typeof f === 'function' ? f(useEdifUI.getState().paleta) : f });
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (useStore.getState().module !== 'edificio') return;

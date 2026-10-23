@@ -3,13 +3,12 @@ import { ehNervurada } from '../../core/building/tiposLaje';
 import { SegundaOrdemAnalise } from './SegundaOrdem';
 import { AbaDeslocamentos } from './AbaDeslocamentos';
 import { AbaIsovalores } from './AbaIsovalores';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
-import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
+import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
 import { Planta, ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { listarComandos } from '../../core/commands';
-import { lerDxf, metrosPorUnidade } from '../../core/dxf/read';
-import { UNIDADES, unidadeProvavel } from './lancamentoLeitura';
+import { UNIDADES } from './lancamentoLeitura';
 import { BLOCOS, paredesDaMascara, propriedadesLaje, TRELICADAS, vaos, areaLaje } from '../../core/building/lajes';
 import { alturaAlvenaria } from '../../core/commands/lajes';
 import { resumoAnalise } from '../../core/building/resumo';
@@ -17,7 +16,7 @@ import { casosDaObra, casosParaCarga, comprimentoPolilinha, cotaFundacao, ehArra
 import { useStore } from '../store';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import type { Diagnostico } from '../../core/building/verify';
-import { Button, Check, Dropdown, Group, Hint, Input, Note, NumField, Seg, Select, TextCell, TextField, Textarea, dataAjuda, download, useAjuda } from '../ui';
+import { Button, Check, Dock, Dropdown, Group, Hint, Input, Modal, Note, NumField, Seg, Select, TextCell, TextField, Textarea, ViewTabs, dataAjuda, download, useAjuda } from '../ui';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
 import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
@@ -25,18 +24,10 @@ import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
-import { CoresPlanta } from './CoresPlanta';
 import { Pranchas } from './Pranchas';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
-import { OpcoesGrupo } from './OpcoesCalculo';
-import { EtapasFlechaGrupo } from './EtapasFlecha';
-import { IncendioGrupo } from './Incendio';
 import { FogoCard } from './FogoCard';
-import { MateriaisGrupo } from './Materiais';
-import { TabelasGrupo } from './TabelasArmadura';
-import { BibliotecaNormasGrupo } from './BibliotecaNormas';
-import { TiposLajeGrupo } from './TiposLaje';
 import { enchimentosDisponiveis, fichasDisponiveis } from '../../core/building/tiposLaje';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
@@ -46,13 +37,8 @@ import { ParedesGrupo } from './ParedesUI';
 import { CortesGrupo, JanelaCorte } from './CortesUI';
 import { MurosGrupo } from './MurosUI';
 import { AlvenariaGrupo } from './AlvenariaUI';
-import { CasosGrupo } from './Casos';
-import { AbacosVentoGrupo } from './AbacosVento';
-import { EmpuxoGrupo } from './Empuxo';
-import { EstadosGrupo } from './EstadosLimite';
 import { BloqueioLote, executarERecalcular } from './Armadura';
 import { AgrupamentosCard, CopiaLajesCard, RearmarCard, SelecaoBloqueio } from './Rearmar';
-import { FundacaoGrupo } from './Fundacao';
 import { PainelEdicaoLajes } from './EdicaoLajes';
 import { POSICAO_LABEL, TIPO_FUNDACAO_LABEL } from '../../core/building/fundacao';
 import { ResumoAco } from './Detalhamento';
@@ -67,11 +53,13 @@ import { LancamentoL5Grupo } from './LancamentoL5';
 import { BarraAtalhos } from './BarraAtalhos';
 import { GuiaRapidoDialogo } from './GuiaRapido';
 import type { Atalho } from '../../core/ajuda';
-import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo, type DialogoGrupos } from './GruposL4';
-import { DadosGeraisCorpo, DadosGeraisJanela } from './DadosGerais';
-import { ArquivoGrupo, EtapasGrupo } from './EtapasObra';
+import { CopiarGrupoDialogo, GruposCopiaGrupo, UnirPavimentosDialogo } from './GruposL4';
+import { DadosGeraisJanela } from './DadosGerais';
+import { useEdifUI, type AbaEdificio, type DialogoL1, type DialogoL2, type DialogoL4 } from './uiStore';
+import { JanelaConfiguracao } from './Configuracao';
+import { EtapasGrupo } from './EtapasObra';
 import type { EtapaId } from '../../core/building/etapas';
-import { abrirJanela, type Alvo, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
+import { abrirJanela, BotaoExportar, Deslocamentos, irParaElemento, JanelaElemento, LinhaElemento, ListaErros } from './Revisao';
 
 
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
@@ -79,23 +67,32 @@ const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const corGrupo = (b: BuildingModel, id: string) => `grupo-c${Math.max(0, b.grupos.findIndex((g) => g.id === id)) % 8}`;
 const num = (t: string) => parseFloat(t.replace(',', '.'));
 
-export function Edificio() {
-  const { sessao, exec, novo, diags, desfazer, refazer } = useBuilding();
+/** Atalhos de uso frequente (ferramentas, vistas, desfazer, ajuda, guia): ficam no cabeçalho, como barra de acesso rápido. */
+export function AtalhosEdificio() {
   const aj = useAjuda();
+  const { desfazer, refazer } = useBuilding();
+  const executar = (a: Atalho) => {
+    const ui = useEdifUI.getState();
+    if (a.tipo === 'ferramenta') { ui.set({ aba: 'planta' }); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
+    if (a.tipo === 'aba') { ui.set({ aba: a.alvo as AbaEdificio }); return; }
+    if (a.alvo === 'desfazer') desfazer(); else if (a.alvo === 'refazer') refazer(); else if (a.alvo === 'ajuda') aj.alternar();
+    else if (a.alvo === 'guia' || a.alvo === 'copiarGrupo' || a.alvo === 'unirPavimentos') ui.set({ l4: a.alvo });
+  };
+  return <BarraAtalhos executar={executar} />;
+}
+
+export function Edificio() {
+  const { sessao, exec, diags } = useBuilding();
   const b = sessao.modelo;
   const ps = pavimentosOrdenados(b);
-  const [aba, setAba] = useState<'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'dimensionamento' | 'pranchas' | 'premissas'>('planta');
-  const [memo, setMemo] = useState(false);
-  const [dialogoL1, setDialogoL1] = useState<null | 'nova' | 'recentes' | 'texto' | 'gerais'>(null);
-  const [dialogoL2, setDialogoL2] = useState<null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' }>(null);
-  const [dialogoL4, setDialogoL4] = useState<DialogoGrupos | 'guia'>(null);
+  const ui = useEdifUI();
+  const aba = ui.aba, memo = ui.memo, dialogoL1 = ui.l1, dialogoL2 = ui.l2, dialogoL4 = ui.l4;
+  const setAba = (a: AbaEdificio) => ui.set({ aba: a });
+  const setMemo = (v: boolean) => ui.set({ memo: v });
+  const setDialogoL1 = (v: DialogoL1) => ui.set({ l1: v });
+  const setDialogoL2 = (v: DialogoL2) => ui.set({ l2: v });
+  const setDialogoL4 = (v: DialogoL4) => ui.set({ l4: v });
   const janelaCapturas = usePlanta((s) => s.janelaCapturas);
-  const executarAtalho = (a: Atalho) => {
-    if (a.tipo === 'ferramenta') { setAba('planta'); usePlanta.getState().set({ ferramenta: a.alvo as Ferramenta, ...aoEscolher(a.alvo as Ferramenta) }); return; }
-    if (a.tipo === 'aba') { setAba(a.alvo as typeof aba); return; }
-    if (a.alvo === 'desfazer') desfazer(); else if (a.alvo === 'refazer') refazer(); else if (a.alvo === 'ajuda') aj.alternar();
-    else if (a.alvo === 'guia' || a.alvo === 'copiarGrupo' || a.alvo === 'unirPavimentos') setDialogoL4(a.alvo);
-  };
   const nErr = diags.filter((d) => d.severidade === 'erro').length;
   const irEtapa = (id: EtapaId) => {
     if (id === 'obra') { setDialogoL1('gerais'); return; }
@@ -108,12 +105,9 @@ export function Edificio() {
 
   return (
     <div className="edif">
+      <Dock id="edificio-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={400}>
       <aside className="fund-in edif-in">
-        <BarraAtalhos executar={executarAtalho} />
         <EtapasGrupo b={b} aoIr={irEtapa} />
-        <Group title="Obra" aside={<span className="row"><Button variant="mini" onClick={() => setDialogoL1('nova')}>Nova obra…</Button><Button variant="mini" onClick={() => setDialogoL1('recentes')}>Obras recentes…</Button><Button variant="mini" onClick={() => novo(false)}>Novo padrão</Button><Button variant="mini" onClick={() => novo(true)}>Novo vazio</Button></span>}>
-          <DadosGeraisCorpo b={b} />
-        </Group>
 
         <Group title={`Pavimentos (${ps.length})`}>
           <table className="data loads-ed edpav" {...dataAjuda('barra:pavimentos')}>
@@ -142,7 +136,7 @@ export function Edificio() {
         </Group>
 
         <GruposCopiaGrupo b={b} abrir={setDialogoL4} />
-        <MascaraGrupo b={b} abrir={setDialogoL2} />
+        <MascaraGrupo b={b} />
         <PilaresGrupo b={b} />
         <PilaresParedeGrupo b={b} onPlanta={() => setAba('planta')} />
         <ParedesGrupo b={b} onPlanta={() => setAba('planta')} />
@@ -152,23 +146,9 @@ export function Edificio() {
         <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
         <LajesGrupo b={b} />
         <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
-        <FundacaoGrupo b={b} onPlanta={() => setAba('planta')} />
         <CargasGrupo b={b} />
         <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
-        <VentoGrupo b={b} />
-        <AbacosVentoGrupo b={b} />
-        <CasosGrupo b={b} />
-        <EstadosGrupo b={b} />
-        <EmpuxoGrupo b={b} />
-        <OpcoesGrupo b={b} />
-        <EtapasFlechaGrupo b={b} />
-        <IncendioGrupo b={b} />
-        <MateriaisGrupo b={b} />
-        <TabelasGrupo b={b} />
-        <BibliotecaNormasGrupo b={b} />
-        <TiposLajeGrupo b={b} />
         <VinculosGrupo b={b} />
-        <ArquivoGrupo />
 
         <Group title={`Grupos (${b.grupos.length})`} open={false}>
           <table className="data loads-ed">
@@ -201,17 +181,12 @@ export function Edificio() {
           )}
         </Group>
 
-        <Group title="Linha de comando">
-          <LinhaComando />
-        </Group>
       </aside>
+      </Dock>
 
       <section className="edif-main">
-        <div className="edif-tabs" role="tablist">
-          {([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => (
-            <Button variant="nenhuma" key={k} type="button" role="tab" aria-selected={aba === k} data-ajuda={`aba:${k}`} className={`${aba === k ? 'on' : ''}${k === 'verificacao' && nErr ? ' bad' : ''}`} onClick={() => setAba(k)}>{l}</Button>
-          ))}
-        </div>
+        <ViewTabs className="edif-tabs" label="Vistas" active={aba} onChange={(k) => setAba(k as typeof aba)}
+          tabs={([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => ({ id: k, label: l, ajuda: `aba:${k}`, bad: k === 'verificacao' && nErr > 0 }))} />
         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
         {aba !== 'planta' && aba !== 'vista3d' && (
@@ -246,6 +221,9 @@ export function Edificio() {
       {dialogoL1 === 'recentes' && <ObrasRecentes onClose={() => setDialogoL1(null)} onAberta={() => setDialogoL1(null)} />}
       {dialogoL1 === 'texto' && <ImportarTexto onClose={() => setDialogoL1(null)} onCriada={() => { setDialogoL1(null); useStore.getState().set({ module: 'fundacoes' }); }} />}
       {dialogoL1 === 'gerais' && <DadosGeraisJanela b={b} onClose={() => setDialogoL1(null)} />}
+      {ui.jan === 'malha' && <Modal titulo="Malha de eixos" onClose={() => ui.set({ jan: null })}><Malha /></Modal>}
+      {ui.jan === 'novoPavimento' && <Modal titulo="Novo pavimento" onClose={() => ui.set({ jan: null })}><NovoPavimento b={b} /></Modal>}
+      <JanelaConfiguracao b={b} />
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
@@ -258,7 +236,7 @@ export function Edificio() {
 
 /** Campo de tabela que confirma no Enter ou ao sair. */
 
-function NovoPavimento({ b }: { b: BuildingModel }) {
+export function NovoPavimento({ b }: { b: BuildingModel }) {
   const exec = useBuilding((s) => s.exec);
   const ps = pavimentosOrdenados(b);
   const topo = ps.at(-1);
@@ -275,7 +253,7 @@ function NovoPavimento({ b }: { b: BuildingModel }) {
   );
 }
 
-function Malha() {
+export function Malha() {
   const exec = useBuilding((s) => s.exec);
   const [dx, setDx] = useState('5; 5; 5');
   const [dy, setDy] = useState('4; 4');
@@ -292,7 +270,7 @@ function Malha() {
   );
 }
 
-function LinhaComando() {
+export function LinhaComando() {
   const exec = useBuilding((s) => s.exec);
   const [t, setT] = useState('');
   const [erro, setErro] = useState('');
@@ -309,11 +287,10 @@ function LinhaComando() {
   return (
     <>
       <form className="row" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
-        <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
+        <Input id="edcmd" className="cmdline" list="edcmds" aria-label="Linha de comando do edifício" title="Os mesmos comandos da interface, da linha de comando (statikos exec) e do servidor MCP. Ctrl+Z desfaz." placeholder='pavimento.criar {"nome": "Ático", "cota": 15}' value={t} onChange={(e) => setT(e.target.value)} />
         <datalist id="edcmds">{nomes.map((n) => <option key={n} value={n} />)}</datalist>
       </form>
-      {erro && <p className="hint bad">{erro}</p>}
-      <Hint>Os mesmos comandos da interface, da linha de comando (<code>statikos exec</code>) e do servidor MCP. Ctrl+Z desfaz.</Hint>
+      {erro && <span className="hint bad">{erro}</span>}
     </>
   );
 }
@@ -369,10 +346,8 @@ export function NomeObra() {
 }
 
 const ferramentas = (fs: Ferramenta[]) => fs.map((f) => ({ f, tecla: TECLA_FERRAMENTA[f] ?? '', rot: ROTULO_FERRAMENTA[f] }));
-const FERRAMENTAS = ferramentas(['selecionar', 'pilar', 'viga', 'laje', 'carga', 'eixo', 'fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'mover', 'medir']);
+const FERRAMENTAS = ferramentas(['fundacao', 'vigaFund', 'girarFund', 'insFund', 'limite', 'limiteMascara', 'medir']);
 /** Radier (W) e viga sobre base elástica (X): pelas teclas e pelos botões do grupo Fundação (a barra não cabe numa linha). */
-/** Ferramentas de edição (R7-0): dividir, unir e prolongar vigas; copiar, girar e espelhar a seleção. */
-const EDICAO = ferramentas(['dividir', 'unir', 'prolongar', 'copiar', 'girar', 'espelhar']);
 
 function PlantaBarra({ b }: { b: BuildingModel }) {
   const pl = usePlanta();
@@ -380,9 +355,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
   const nivelFund = pl.pavimento === 'fundacao';
   const atual = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const dim = useBuilding((s) => s.dim);
-  const { exec, calcularFundacao, calculandoFund } = useBuilding();
-  const elementosSel = (b.fundacao?.elementos ?? []).filter((e) => pl.selecao.has(e.id));
-  const vigasFundSel = (b.fundacao?.vigas ?? []).filter((v) => pl.selecao.has(v.id));
+  const { calcularFundacao, calculandoFund } = useBuilding();
   // armadura de punção informada nos pilares selecionados (apagar por janela de seleção)
   const pilaresSelPuncao = b.lajes.flatMap((l) => [...new Set((l.puncao ?? []).filter((g) => g.pilar && pl.selecao.has(g.pilar)).map((g) => g.pilar!))].map((pilar) => ({ laje: l.id, pilar })));
   const apagarPuncaoSelecao = () => {
@@ -390,17 +363,8 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
     for (const x of pilaresSelPuncao) porLaje.set(x.laje, [...(porLaje.get(x.laje) ?? []), x.pilar]);
     void executarERecalcular('lote', { comandos: [...porLaje].map(([id, pilares]) => ({ nome: 'laje.puncao', params: { id, pilares } })) });
   };
-  const alvo = ((): Alvo | null => {
-    for (const id of pl.selecao) {
-      if (b.fundacao?.elementos.some((x) => x.id === id) || b.fundacao?.vigas?.some((x) => x.id === id) || b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id) || b.fundacao?.corridas?.some((x) => x.id === id)) return { tipo: 'fundacao', id };
-      if (b.vigas.some((x) => x.id === id)) return { tipo: 'viga', id };
-      if (b.pilares.some((x) => x.id === id)) return { tipo: 'pilar', id, pavimento: atual?.nome };
-      if (b.lajes.some((x) => x.id === id)) return { tipo: 'laje', id, pavimento: atual?.nome };
-    }
-    return null;
-  })();
   return (
-    <div className="planta-barra">
+    <div className="planta-barra optbar">
       <label className="pavsel">Pavimento
         <Dropdown aria-label="Pavimento da planta" value={nivelFund ? 'fundacao' : atual?.id ?? ''} onChange={(e) => pl.set({ pavimento: e.target.value, selecao: new Set(), ...(e.target.value === 'fundacao' ? {} : FERRAMENTAS_FUNDACAO.includes(pl.ferramenta) ? { ferramenta: 'selecionar' as Ferramenta } : {}) })}>
           {[...ps].reverse().map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmt(p.cota)})</option>)}
@@ -410,9 +374,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
       <div className="seg small" role="radiogroup" aria-label="Ferramenta">
         {FERRAMENTAS.filter((t) => nivelFund || t.f === 'fundacao' || !FERRAMENTAS_FUNDACAO.includes(t.f)).map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f, ...aoEscolher(t.f) })}>{t.rot}</Button>)}
       </div>
-      <div className="seg small" role="radiogroup" aria-label="Edição">
-        {EDICAO.map((t) => <Button variant="nenhuma" key={t.f} type="button" role="radio" aria-checked={pl.ferramenta === t.f} className={pl.ferramenta === t.f ? 'on' : ''} title={`${t.rot} (${t.tecla})`} onClick={() => pl.set({ ferramenta: t.f })}>{t.rot}</Button>)}
-      </div>
+      {pl.ferramenta === 'vigaGabarito' && <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />}
       {pl.ferramenta === 'copiar' && <NumField label="Cópias" width={70} value={pl.copias} onChange={(v) => v >= 1 && v <= 100 && pl.set({ copias: Math.round(v) })} />}
       {pl.ferramenta === 'girar' && <NumField label="Ângulo" unit="°" width={80} value={pl.anguloGiro} onChange={(v) => pl.set({ anguloGiro: v })} />}
       {pl.ferramenta === 'espelhar' && <label className="check small"><Input type="checkbox" checked={pl.espelharCopia} onChange={(e) => pl.set({ espelharCopia: e.target.checked })} /> <span>Manter os originais (cópia)</span></label>}
@@ -426,25 +388,7 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <label className="check small" title="Aba de um lado só: vigas de equilíbrio (cintas) até sapatas internas"><Input type="checkbox" checked={pl.corridaLanc.equilibrio} onChange={(e) => pl.set({ corridaLanc: { ...pl.corridaLanc, equilibrio: e.target.checked } })} /> <span>Cintas</span></label>
       </>}
       {pl.ferramenta === 'vigaElastica' && <><NumField label="b" unit="m" width={70} value={pl.secaoVigaElastica.b} onChange={(v) => v >= 0.15 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, b: v } })} /><NumField label="h" unit="m" width={70} value={pl.secaoVigaElastica.h} onChange={(v) => v >= 0.2 && pl.set({ secaoVigaElastica: { ...pl.secaoVigaElastica, h: v } })} /></>}
-      {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
-        <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
-      </Dropdown> : null}
       {(pl.ferramenta === 'limite' || pl.ferramenta === 'limiteMascara') && <label className="check small" title="Limite fechado (poço, reservatório) ou aberto (divisa)"><Input type="checkbox" checked={pl.limiteFechado} onChange={(e) => pl.set({ limiteFechado: e.target.checked })} /> <span>Limite fechado</span></label>}
-      <label className="check small"><Input type="checkbox" checked={pl.orto} onChange={(e) => pl.set({ orto: e.target.checked })} /> <span>Orto (F8)</span></label>
-      <label className="check small"><Input type="checkbox" checked={pl.polar} onChange={(e) => pl.set({ polar: e.target.checked })} /> <span>Polar 15° (F10)</span></label>
-      <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
-      <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><Input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
-      <Dropdown aria-label="Armadura das lajes na planta" title="Camada da planta: barras representativas das lajes maciças e vigotas das treliçadas, ou contornos críticos e armadura de punção dos pilares do pavimento (vermelho onde a tensão excede a resistência); calcule o dimensionamento primeiro. A opção editar abre o painel de edição da armadura das lajes sob a planta (posições, zonas de uniformização, linhas de dobra e geração sem cálculo)" value={pl.camadaPuncao ? 'puncao' : pl.painelLajes ? 'editar' : pl.armaduraLajes}
-        onChange={(e) => {
-          const v = e.target.value as 'nenhuma' | 'inf' | 'sup' | 'ambas' | 'editar' | 'puncao';
-          if (v === 'puncao') pl.set({ camadaPuncao: true, armaduraLajes: 'nenhuma', painelLajes: false });
-          else if (v === 'editar') pl.set({ camadaPuncao: false, painelLajes: true, armaduraLajes: pl.armaduraLajes === 'nenhuma' ? 'ambas' : pl.armaduraLajes });
-          else pl.set({ camadaPuncao: false, painelLajes: false, armaduraLajes: v });
-        }}>
-        <option value="nenhuma">Armadura das lajes: não</option><option value="inf">Armadura das lajes: inferior</option><option value="sup">Armadura das lajes: superior</option><option value="ambas">Armadura das lajes: ambas</option><option value="editar">Armadura das lajes: editar</option>
-        {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
-      </Dropdown>
-      {!!dim?.puncao?.length && <Button title="Ferramenta Armadura de punção (Z): clique num pilar para adicionar ou apagar o grupo de armadura de punção" onClick={() => pl.set({ ferramenta: 'puncao' })}>Armadura de punção</Button>}
       {pl.ferramenta === 'puncao' && (<>
         <div className="seg small" role="radiogroup" aria-label="Modo da armadura de punção">
           {(['adicionar', 'apagar'] as const).map((m) => <Button variant="nenhuma" key={m} type="button" role="radio" aria-checked={pl.puncaoModo === m} className={pl.puncaoModo === m ? 'on' : ''} onClick={() => pl.set({ puncaoModo: m })}>{m === 'adicionar' ? 'Adicionar' : 'Apagar'}</Button>)}
@@ -455,55 +399,23 @@ function PlantaBarra({ b }: { b: BuildingModel }) {
         <NumField label="Espaç." unit="cm" width={70} value={Math.round(pl.puncaoGrupo.s * 100)} onChange={(v) => v >= 3 && v <= 30 && pl.set({ puncaoGrupo: { ...pl.puncaoGrupo, s: v / 100 } })} />
       </>)}
       {!!pilaresSelPuncao.length && <Button title="Apaga a armadura de punção informada nos pilares selecionados (use a seleção por janela da ferramenta Selecionar)" onClick={() => apagarPuncaoSelecao()}>Apagar punção da seleção</Button>}
-      {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
       {nivelFund && (<>
         <Button disabled={!dim || calculandoFund} title="Calcula só as fundações, com a análise em vigor (a estrutura não é refeita)" onClick={() => calcularFundacao()}>{calculandoFund ? 'Calculando…' : 'Calcular fundações'}</Button>
-        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados em 90° (R)" onClick={() => exec('lote', { comandos: elementosSel.map((e) => ({ nome: 'fundacao.girar', params: { ids: [e.id], angulo: e.angulo + 90 } })) })}>Girar 90°</Button>
-        <Button disabled={!elementosSel.length} title="Gira os elementos selecionados para o ângulo do pilar" onClick={() => exec('fundacao.girar', { ids: elementosSel.map((e) => e.id), doPilar: true })}>Ao pilar</Button>
-        <Button variant="danger" disabled={!elementosSel.length && !vigasFundSel.length} title="Remove os elementos e as vigas de fundação selecionados (Del)" onClick={() => {
-          const cmds = [...(vigasFundSel.length ? [{ nome: 'vigaFundacao.remover', params: { ids: vigasFundSel.map((v) => v.id) } }] : []), ...(elementosSel.length ? [{ nome: 'fundacao.remover', params: { ids: elementosSel.map((e) => e.id) } }] : [])];
-          exec('lote', { comandos: cmds }); pl.set({ selecao: new Set() });
-        }}>Remover</Button>
       </>)}
-      <Button disabled={!alvo || !dim} title={dim ? 'Resultados do elemento selecionado' : 'Calcule o dimensionamento primeiro'} onClick={() => alvo && abrirJanela(alvo)}>Resultados do elemento</Button>
-      <Dropdown aria-label="Tema da planta" value={pl.tema} onChange={(e) => pl.set({ tema: e.target.value as Tema })}>
-        <option value="escuro">Escuro</option><option value="claro">Claro</option><option value="pb">P&amp;B</option>
-      </Dropdown>
-      <CoresPlanta />
     </div>
   );
 }
 
-function MascaraGrupo({ b, abrir }: { b: BuildingModel; abrir: (d: { tipo: 'lancar' } | { tipo: 'gabaritos' } | { tipo: 'vistas' }) => void }) {
+function MascaraGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
   const pl = usePlanta();
-  const ref = useRef<HTMLInputElement>(null);
   const ps = pavimentosOrdenados(b);
   const pav = ps.find((p) => p.id === pl.pavimento) ?? ps[Math.min(1, ps.length - 1)];
   const grupo = b.grupos.find((g) => g.id === pav?.grupo);
   const ms = b.mascaras.filter((m) => !!grupo && mascaraNoGrupo(m, grupo.id));
-  const importar = async (f: File) => {
-    if (!grupo) return;
-    const txt = await f.text();
-    const r = lerDxf(txt);
-    const escala = metrosPorUnidade(r.insunits) ?? unidadeProvavel(r.bbox);
-    const res = exec('mascara.importar', { grupo: grupo.id, nome: f.name.replace(/\.dxf$/i, ''), geo: r.camadas, escala });
-    if (res.ok) {
-      const ign = Object.entries(r.ignoradas).map(([k, n]) => `${n} ${k}`).join(', ');
-      useStore.getState().set({ message: `${f.name}: ${r.segmentos} segmento(s) em ${Object.keys(r.camadas).length} camada(s), unidade ${UNIDADES.find((u) => u.v === escala)?.label ?? escala} ${metrosPorUnidade(r.insunits) ? '($INSUNITS)' : '(estimada pelo tamanho; confira)'}${ign ? ` · ignoradas: ${ign}` : ''}.` });
-      usePlanta.getState().set({ vista: null });
-    }
-  };
   return (
     <Group title={`Máscara — ${grupo?.nome ?? '—'} (${ms.length})`} open={false}>
       <div className="row wrap">
-        <Button disabled={!grupo} onClick={() => ref.current?.click()}>Importar DXF…</Button>
-        <input ref={ref} type="file" accept=".dxf" hidden aria-label="Arquivo DXF da máscara" onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ''; }} />
-        {ms.length > 0 && <Button onClick={() => pl.set({ ferramenta: 'alinhar' })}>Alinhar por 2 pontos</Button>}
-        <Button onClick={() => abrir({ tipo: 'lancar' })}>Lançar por DXF/DWG…</Button>
-        <Button onClick={() => abrir({ tipo: 'gabaritos' })}>Gabaritos e vistas…</Button>
-        <Button onClick={() => abrir({ tipo: 'vistas' })}>Vistas por pavimento…</Button>
-        <Button onClick={() => pl.set({ janelaCapturas: true })}>Capturas…</Button>
         {ms.length > 0 && <label className="check small"><Input type="checkbox" checked={pl.alinharEscala} onChange={(e) => pl.set({ alinharEscala: e.target.checked })} /> <span>ajustar escala</span></label>}
       </div>
       {ms.map((m) => (
@@ -530,12 +442,6 @@ function MascaraGrupo({ b, abrir }: { b: BuildingModel; abrir: (d: { tipo: 'lanc
           </table>
         </div>
       ))}
-      {ms.length > 0 && (
-        <div className="row wrap">
-          <Seg small value={pl.modoVigaGab} onChange={(v) => pl.set({ modoVigaGab: v })} options={[{ v: 'face', label: 'Linha = face' }, { v: 'eixo', label: 'Linha = eixo' }]} />
-          <Button variant={pl.ferramenta === 'vigaGabarito' ? 'primary' : 'default'} onClick={() => pl.set({ ferramenta: 'vigaGabarito' })}>Viga pelo gabarito</Button>
-        </div>
-      )}
       <Hint>A máscara pertence ao grupo do pavimento da planta. Escala pela unidade do DXF ($INSUNITS); sem ela, estimada pelo tamanho do desenho.</Hint>
     </Group>
   );
@@ -1122,7 +1028,7 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
   );
 }
 
-function VentoGrupo({ b }: { b: BuildingModel }) {
+export function VentoGrupo({ b }: { b: BuildingModel }) {
   const { exec } = useBuilding();
   const v = b.vento ?? VENTO_PADRAO;
   const psi = b.norma.psiQ ?? [0.5, 0.4, 0.3];

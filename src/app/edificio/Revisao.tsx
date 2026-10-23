@@ -5,6 +5,7 @@ import { JanelaParede } from './ParedesUI';
 import type { Origem } from '../../core/building/origem';
 import { useRef, useState } from 'react';
 import { useBuilding } from './store';
+import { useEdifUI } from './uiStore';
 import { usePlanta } from './plantaStore';
 import { useRevisao } from './revisao';
 import { Button, KV, Modal, Pill, Seg, Select, download } from '../ui';
@@ -89,6 +90,7 @@ function abrirTabela(b: BuildingModel, tipo: TipoRevisao, id: string, codigo: st
   const alvo = tipo === 'viga' ? { tipo: estribo ? 'estribos' as const : 'vigas' as const, id: (estribo ? v?.tabelaEstribo : v?.tabela) ?? 'padrao' }
     : tipo === 'pilar' ? { tipo: 'pilares' as const, id: p?.tabela ?? 'padrao' } : { tipo: 'lajes' as const, id: l?.tabela ?? 'padrao' };
   usePlanta.getState().set({ tabelaFoco: { ...alvo, n: (usePlanta.getState().tabelaFoco?.n ?? 0) + 1 } });
+  useEdifUI.getState().set({ cfg: 'tabelas' });
 }
 
 // ---------------------------------------------------------------- lista de erros e avisos

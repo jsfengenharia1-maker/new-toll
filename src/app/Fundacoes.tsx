@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from './store';
 import { useBuilding } from './edificio/store';
-import { Button, Check, Chip, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
+import { Button, Check, Chip, Dock, Group, Hint, Input, Note, NumCell, NumField, OptNumCell, OptNumField, Pill, Select, TextField } from './ui';
 import { fmt, getDesign, useAnalysis } from './results';
 import { buildCharacteristics } from './Library';
+import { useAcoesFundacoes } from './fundacoesAcoes';
 import { listLibrary, loadFromLibrary, type LibraryItem, type SavedCharacteristics } from './storage';
 import {
   KIND_LABEL, PILE_LABEL, PRECAST_CATALOG, STRUCT, boringsOf, defaultFoundationParams, normalizeFoundation, recommendedOption, sampleFoundation,
@@ -44,7 +45,6 @@ export function importarCargasDoEdificio(loads: FLoad[]) {
 export function Fundacoes() {
   const st = useStore();
   const a = useAnalysis();
-  const edDim = useBuilding((s) => s.dim), edVelha = useBuilding((s) => s.revAnalise !== s.sessao.revCalculo);
   const f: FoundationData = useMemo(() => normalizeFoundation(clone(st.model.foundation ?? sampleFoundation())), [st.model.foundation]);
   const upd = (fn: (d: FoundationData) => void, msg?: string) => st.commit((m) => {
     const d = normalizeFoundation(clone(m.foundation ?? f));
@@ -74,6 +74,7 @@ export function Fundacoes() {
     const ch = buildCharacteristics(st.model, getDesign(a));
     upd((d) => mergeLoads(d, ch.supports), `${ch.supports.length} apoio(s) importados do pórtico atual (valores característicos).`);
   };
+  useEffect(() => { useAcoesFundacoes.getState().set({ importarDoPortico: importModel }); });
   const importSaved = async (id: string) => {
     const e = await loadFromLibrary(id);
     if (!e) return;
@@ -103,14 +104,13 @@ export function Fundacoes() {
         {leitura && <FundacoesDoEdificio />}
       </div>
     <fieldset className="fund" disabled={leitura} data-somente-leitura={leitura || undefined}>
+      <Dock id="fundacoes-esq" lado="esq" rotulo="painel lateral esquerdo" padrao={440}>
       <aside className="fund-in">
         <SondagemEditor furos={borings} cutoff={p.cutoff} sol={(x) => (selDesign && selDesign.boring.id === x.id ? selPile : null)} onEdit={(i, fn, msg) => upd((d) => fn(d.borings![i]), msg)} onAdd={addBoring} onRemove={removeBoring}
           onMessage={(m) => st.set({ message: m })} media={{ depth: p.sptAvgDepth, water: p.sptAvgWater, onChange: setP }} />
 
         <Group title="Cargas por apoio (características)">
           <div className="row wrap">
-            <Button onClick={importModel}>Importar do pórtico atual</Button>
-            <Button disabled={!edDim?.fundacao.length} title={edDim ? (edVelha ? 'O edifício mudou depois do cálculo: as cargas são do último cálculo.' : 'Cargas do último cálculo do edifício.') : 'Calcule o edifício (aba Edifício › Análise) para importar.'} onClick={() => edDim && importarCargasDoEdificio(edDim.fundacao)}>Importar do edifício</Button>
             {saved.length > 0 && <Select value="" options={[{ v: '', label: 'Características salvas…' }, ...saved.map((s) => ({ v: s.id, label: s.name }))]} onChange={(id) => id && importSaved(id)} />}
           </div>
           <div className="tablewrap">
@@ -137,6 +137,7 @@ export function Fundacoes() {
 
         <Premissas p={p} setP={setP} reset={() => upd((d) => { d.params = defaultFoundationParams(); }, 'Premissas restauradas.')} />
       </aside>
+      </Dock>
 
       <section className="fund-out">
         {designs.length === 0 && <p className="hint">Lance as cargas dos apoios para dimensionar.</p>}

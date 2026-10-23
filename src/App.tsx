@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
-import { useStore, type Tab, type Tool } from './app/store';
+import { useEffect, useRef, useState } from 'react';
+import { useStore, type Tab } from './app/store';
 import { Canvas, fitView, svgSize } from './app/Canvas';
 import { EstruturaPanel } from './app/panels/Estrutura';
 import { CargasPanel } from './app/panels/Cargas';
@@ -13,24 +13,23 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { AjudaProvider, BotaoAjuda, copyText, download, ThemeSelect } from './app/ui';
+import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
+import { FaixaModulo } from './app/FaixaModulo';
+import { FaixaPortico } from './app/FaixaPortico';
+import { FaixaFundacoes } from './app/FaixaFundacoes';
+import { FaixaArquivo, type AcoesArquivo } from './app/FaixaArquivo';
+import { FaixaEdificio, ROTULO_CTX } from './app/edificio/FaixaEdificio';
+import { ControlesPlanta } from './app/edificio/ControlesPlanta';
+import { LinhaComando } from './app/edificio/Edificio';
+import { useAlvoSelecionado } from './app/edificio/alvo';
 import { useAnalysis, resultFor, sourceLabel } from './app/results';
 import { buildDxf } from './app/dxf';
 import { svgExportCss } from './app/exportCss';
 import { adoptLaunchedFile, buildWorkspace, canPickFiles, launchQueue, currentFileName, forgetFile, mergeWorkspace, parseWorkspace, pickFromDisk, writeToDisk, WORKSPACE_EXT } from './app/workspace';
 import { logActivity } from './app/history';
-import { Edificio, NomeObra } from './app/edificio/Edificio';
+import { AtalhosEdificio, Edificio, NomeObra } from './app/edificio/Edificio';
 import { edificioParaArquivo, useBuilding } from './app/edificio/store';
 import { memo } from './app/design/tokens';
-
-const TOOLS: { t: Tool; key: string; label: string; icon: JSX.Element }[] = [
-  { t: 'select', key: 'S', label: 'Selecionar', icon: <path d="M5 3 L5 17 L9 13 L12 19 L14 18 L11 12 L16 12 Z" /> },
-  { t: 'node', key: 'N', label: 'Inserir nó', icon: <><rect x="7" y="7" width="8" height="8" /><path d="M11 2v3M11 17v3M2 11h3M17 11h3" /></> },
-  { t: 'member', key: 'M', label: 'Inserir barra', icon: <><path d="M4 17 L18 5" /><rect x="2" y="15" width="4" height="4" /><rect x="16" y="3" width="4" height="4" /></> },
-  { t: 'dim', key: 'D', label: 'Cota (2 pontos e a posição da linha)', icon: <><path d="M3 16 L19 16" /><path d="M3 12 L3 19 M19 12 L19 19" /><path d="M6 13 L3 16 L6 19 M16 13 L19 16 L16 19" /></> },
-  { t: 'zoom', key: 'Z', label: 'Zoom por janela', icon: <><circle cx="9" cy="9" r="6" /><path d="M14 14 L20 20" /><path d="M6 9 H12 M9 6 V12" /></> },
-  { t: 'pan', key: 'H', label: 'Mover vista', icon: <path d="M11 2v18M2 11h18M11 2l-3 3M11 2l3 3M11 20l-3-3M11 20l3-3M2 11l3-3M2 11l3 3M20 11l-3-3M20 11l-3 3" /> },
-];
 
 const TABS: { t: Tab; label: string }[] = [
   { t: 'estrutura', label: 'Estrutura' },
@@ -58,7 +57,6 @@ export default function App() {
   const bd = useBuilding();
   const svgRef = useRef<SVGSVGElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [menu, setMenu] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [coord, setCoord] = useState('');
 
@@ -104,7 +102,7 @@ export default function App() {
   }, []);
 
 
-  const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); setMenu(false); };
+  const load = (m: Model, fromFile = false) => { st.setModel(m, false, fromFile); setTimeout(fit, 0); };
 
   const openText = async (txt: string, fileName: string) => {
     try {
@@ -121,14 +119,12 @@ export default function App() {
   };
 
   const openWork = async () => {
-    setMenu(false);
     const r = await pickFromDisk();
     if (r === 'unsupported') fileRef.current?.click();
     else if (r !== null) await openText(r, currentFileName() ?? 'arquivo');
   };
 
   const saveWork = async (saveAs = false) => {
-    setMenu(false);
     const s = useStore.getState();
     const ws = await buildWorkspace(s.model, edificioParaArquivo());
     const txt = JSON.stringify(ws);
@@ -160,12 +156,10 @@ export default function App() {
   const saveJSON = async () => {
     const txt = JSON.stringify(st.model, null, 1);
     const name = `${slug(st.model.name)}.json`;
-    setMenu(false);
     const r = await download(name, txt, 'application/json');
     if (r === 'saved') st.set({ message: `Modelo salvo como ${name}.` });
     else if (r === 'declined') st.set({ message: 'Download cancelado.' });
     else { const ok = await copyText(txt); st.set({ message: ok ? `Modelo exportado como ${name}. Se o download não iniciar, o JSON já está na área de transferência.` : `Modelo exportado como ${name}.` }); }
-    setMenu(false);
   };
 
   const exportSVG = async () => {
@@ -176,10 +170,8 @@ export default function App() {
     style.textContent = svgExportCss();
     clone.insertBefore(style, clone.firstChild);
     const txt = new XMLSerializer().serializeToString(clone);
-    setMenu(false);
     const r = await download(`${slug(st.model.name)}-${st.tab}.svg`, txt, 'image/svg+xml');
     st.set({ message: r === 'declined' ? 'Download cancelado.' : 'Desenho exportado em SVG (abre no navegador, Inkscape ou CAD).' });
-    setMenu(false);
   };
 
   /** Desenho atual como PNG (2×), com o mesmo estilo do SVG exportado. */
@@ -204,7 +196,6 @@ export default function App() {
     } finally { URL.revokeObjectURL(url); }
   };
   const exportPNG = async () => {
-    setMenu(false);
     const b = await pngBlob();
     if (!b) return;
     const url = URL.createObjectURL(b), el = document.createElement('a');
@@ -213,7 +204,6 @@ export default function App() {
     st.set({ message: 'Desenho exportado em PNG.' });
   };
   const copyPNG = async () => {
-    setMenu(false);
     try {
       const b = await pngBlob();
       if (!b) return;
@@ -233,7 +223,6 @@ export default function App() {
   });
 
   const exportDXF = async () => {
-    setMenu(false);
     const s = useStore.getState();
     const ok = !a.prep.error;
     const txt = buildDxf({
@@ -258,40 +247,34 @@ export default function App() {
   };
 
   const nErr = bd.diags.filter((d) => d.severidade === 'erro').length;
+  const alvo = useAlvoSelecionado();
+  const acoes: AcoesArquivo = {
+    novo: () => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); },
+    abrir: openWork, salvar: saveWork, biblioteca: () => st.set({ libraryOpen: true }),
+    json: saveJSON, svg: exportSVG, png: exportPNG, copiar: copyPNG, dxf: exportDXF,
+    importarTabelas: () => tablesRef.current?.click(),
+    exemplo: (key) => { const s = SAMPLES.find((x) => x.key === key); if (!s) return; const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); },
+    podeSalvarComo: canPickFiles(),
+  };
+  const corpoFaixa = (aba: string) => aba === 'arquivo' ? <FaixaArquivo a={acoes} edificio={st.module === 'edificio'} />
+    : st.module === 'edificio' ? <FaixaEdificio aba={aba} />
+    : st.module === 'portico' ? <FaixaPortico aba={aba} setTab={setTab} enquadrar={fit} />
+    : <FaixaFundacoes aba={aba} />;
+
   const status = st.module === 'edificio' ? { cls: nErr ? 'bad' : 'ok', text: `${bd.sessao.modelo.pavimentos.length} pavimentos${nErr ? ` · ${nErr} erro(s)` : ''}` } : a.prep.error ? { cls: 'bad', text: 'Instável' } : { cls: 'ok', text: `${st.model.nodes.length} nós · ${st.model.members.length} barras · ${a.prep.free.length} gdl` };
 
   return (
     <AjudaProvider>
     <div className="app">
-      <header className="topbar">
+      <header className="topbar qbar">
         <div className="brand">
           <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 18 L2 6 L14 2 L26 6 L26 18" /><path d="M2 6 L26 6" className="thin" /><path d="M14 2 L14 6" className="thin" /></svg>
           <span className="bname">Statikos</span>
           <span className="bsub">pórticos planos</span>
         </div>
-        <div className="menuwrap">
-          <button type="button" className="tbtn" aria-expanded={menu} onClick={() => setMenu(!menu)}>Arquivo ▾</button>
-          {menu && (
-            <div className="menu" onMouseLeave={() => setMenu(false)}>
-              <button type="button" onClick={() => { const m = emptyModel(); forgetFile(); load(m); logActivity('Novo modelo', m.name); }}>Novo modelo</button>
-              <button type="button" onClick={openWork}>Abrir trabalho do computador… <span className="kbd">Ctrl+O</span></button>
-              <button type="button" onClick={() => saveWork(false)}>Salvar no computador <span className="kbd">Ctrl+S</span></button>
-              {canPickFiles() && <button type="button" onClick={() => saveWork(true)}>Salvar como… <span className="kbd">Ctrl+Shift+S</span></button>}
-              <button type="button" onClick={() => { setMenu(false); st.set({ libraryOpen: true }); }}>Biblioteca e histórico…</button>
-              <div className="msep">Exportar</div>
-              <button type="button" onClick={saveJSON}>Só o modelo (.json)</button>
-              <button type="button" onClick={exportSVG}>Exportar desenho (SVG)</button>
-              <button type="button" onClick={exportPNG}>Exportar desenho (PNG)</button>
-              <button type="button" onClick={copyPNG}>Copiar desenho</button>
-              <button type="button" onClick={() => { setMenu(false); tablesRef.current?.click(); }}>Importar materiais, seções e unidades de outro arquivo…</button>
-              <button type="button" onClick={exportDXF}>Desenho DXF (CAD)</button>
-              <div className="msep">Exemplos</div>
-              {SAMPLES.map((s) => <button type="button" key={s.key} onClick={() => { const m = s.make(); if (s.key === 'portico') m.combinations = nbrCombinations(m.cases, 1); forgetFile(); load(m); }}>{s.label}</button>)}
-            </div>
-          )}
           <input ref={tablesRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importTablesFrom(f); e.target.value = ''; }} />
           <input ref={fileRef} type="file" accept={`${WORKSPACE_EXT},.json,application/json`} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
-        </div>
+        {st.module === 'edificio' && <AtalhosEdificio />}
         <div className="mname" title={st.module === 'edificio' ? 'Nome da obra' : 'Nome do modelo'}>
           {st.module === 'edificio' ? <NomeObra /> : <input aria-label="Nome do modelo" value={st.model.name} onChange={(e) => st.commit((m) => { m.name = e.target.value; })} />}
         </div>
@@ -299,12 +282,6 @@ export default function App() {
           <button type="button" className="tbtn icon" title="Desfazer (Ctrl+Z)" disabled={st.module === 'edificio' ? !bd.sessao.podeDesfazer : !st.past.length} onClick={st.module === 'edificio' ? bd.desfazer : st.undo}><svg viewBox="0 0 22 22"><path d="M8 5 L3 10 L8 15M3 10 H13 a5 5 0 0 1 0 10 H10" /></svg></button>
           <button type="button" className="tbtn icon" title="Refazer (Ctrl+Y)" disabled={st.module === 'edificio' ? !bd.sessao.podeRefazer : !st.future.length} onClick={st.module === 'edificio' ? bd.refazer : st.redo}><svg viewBox="0 0 22 22"><path d="M14 5 L19 10 L14 15M19 10 H9 a5 5 0 0 0 0 10 H12" /></svg></button>
         </div>
-        <div className="modsw" role="tablist" aria-label="Módulo">
-          <button type="button" role="tab" aria-selected={st.module === 'portico'} className={st.module === 'portico' ? 'on' : ''} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
-          <button type="button" role="tab" aria-selected={st.module === 'edificio'} className={st.module === 'edificio' ? 'on' : ''} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
-          <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} className={st.module === 'fundacoes' ? 'on' : ''} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
-        </div>
-        <span className={`status ${status.cls}`}>{status.text}</span>
         <button type="button" className={`tbtn memo-btn${st.unsaved ? ' unsaved' : ''}`} onClick={() => saveWork(false)} title={st.unsaved ? 'Há alterações não salvas no computador (Ctrl+S)' : 'Salvar no computador (Ctrl+S)'}>{st.unsaved ? '● ' : ''}Salvar</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ libraryOpen: true })}>Biblioteca</button>
         <button type="button" className="tbtn memo-btn" onClick={() => st.set({ memorialOpen: true })}>Memorial</button>
@@ -312,20 +289,16 @@ export default function App() {
         <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
+      <nav className="modtabs" role="tablist" aria-label="Módulo">
+        <button type="button" role="tab" aria-selected={st.module === 'portico'} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
+        <button type="button" role="tab" aria-selected={st.module === 'edificio'} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
+        <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>
+      </nav>
 
+      <div className="work">
+      <FaixaModulo modulo={st.module} corpo={corpoFaixa} contextual={st.module === 'edificio' && alvo ? { id: 'ctx', label: ROTULO_CTX[alvo.tipo] ?? 'Elemento' } : undefined} />
       {st.module === 'fundacoes' ? <Fundacoes /> : st.module === 'edificio' ? <Edificio /> : (
       <div className={`main${panelOpen ? '' : ' nopanel'}`}>
-        <nav className="toolbar" aria-label="Ferramentas">
-          {TOOLS.map((t) => (
-            <button type="button" key={t.t} className={`tool${st.tool === t.t ? ' on' : ''}`} title={`${t.label} (${t.key})`} aria-label={t.label} onClick={() => { st.set({ tool: t.t }); if ((t.t === 'node' || t.t === 'member') && (st.tab === 'resultados' || st.tab === 'influencia')) st.set({ tab: 'estrutura' }); }}>
-              <svg viewBox="0 0 22 22">{t.icon}</svg>
-              <span className="kbd">{t.key}</span>
-            </button>
-          ))}
-          <div className="tsep" />
-          <button type="button" className="tool" title="Enquadrar (F)" aria-label="Enquadrar" onClick={fit}><svg viewBox="0 0 22 22"><path d="M3 8V3h5M14 3h5v5M19 14v5h-5M8 19H3v-5" /></svg><span className="kbd">F</span></button>
-        </nav>
-
         <section className="stage">
           <Canvas svgRef={svgRef} />
           {st.tool === 'member' && <div className="toast">Clique no ponto inicial e nos seguintes. Esc ou botão direito encerra a sequência.</div>}
@@ -333,6 +306,7 @@ export default function App() {
         </section>
 
         {panelOpen && (
+          <Dock id="portico-dir" lado="dir" rotulo="painel lateral direito" padrao={380}>
           <aside className="panel">
             <div className="tabs" role="tablist">
               {TABS.map((t, i) => (
@@ -345,14 +319,18 @@ export default function App() {
             {st.tab === 'influencia' && <InfluenciaPanel />}
             {st.tab === 'dimensionar' && <DimensionarPanel />}
           </aside>
+          </Dock>
         )}
       </div>
 
       )}
+      </div>
       {st.memorialOpen && <Memorial onClose={() => st.set({ memorialOpen: false })} />}
       {st.libraryOpen && <Library />}
-      <footer className="statusbar">
-        <span className="msg">{st.message}</span>
+      <StatusBar mensagem={st.message}>
+        {st.module === 'edificio' && <LinhaComando />}
+        <span className={`status ${status.cls}`}>{status.text}</span>
+        {st.module === 'portico' && (<>
         <form className="coordin" onSubmit={(e) => { e.preventDefault(); submitCoord(); }}>
           <input id="coordinput" aria-label="Entrada por coordenadas" placeholder="x y  ou  x1 y1 x2 y2  ↵" value={coord} onChange={(e) => setCoord(e.target.value)} />
         </form>
@@ -378,7 +356,9 @@ export default function App() {
             {LENGTH_UNITS.map((u) => <option key={u.v} value={u.v}>{u.label}</option>)}
           </select>
         </label>
-      </footer>
+        </>)}
+        {st.module === 'edificio' && <ControlesPlanta />}
+      </StatusBar>
     </div>
     </AjudaProvider>
   );
