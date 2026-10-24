@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { create } from 'zustand';
 import { Button, Check, Group, Hint, Modal, Note, NumField, OptNumField, Select, Seg } from '../ui';
-import { geometriaEscada, tiposLanceDisponiveis, type Escada, type GeometriaEscada, type LanceGeo } from '../../core/building/escadas';
+import { geometriaEscada, tiposLanceDisponiveis, type ApoioBorda, type Escada, type GeometriaEscada, type LanceGeo, type TipoApoioPatamar } from '../../core/building/escadas';
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 import { useBuilding } from './store';
 import { TiposLanceAba } from './TiposLanceUI';
@@ -142,23 +142,35 @@ function Lances({ b, e, g }: { b: BuildingModel; e: Escada; g: GeometriaEscada }
               <Select label={`Tipo do lance ${i + 1}`} value={l.tipo} options={tipos.map((t) => ({ v: t.id, label: t.nome }))} onChange={(v) => exec('lance.editar', { escada: e.id, lance: l.id, tipo: v })} />
               <Select label={`Pavimento de partida do lance ${i + 1}`} value={l.pavimento ?? ''} options={[{ v: '', label: 'automático' }, ...ps.map((p) => ({ v: p.id, label: p.nome }))]}
                 onChange={(v) => (v ? exec('lance.editar', { escada: e.id, lance: l.id, pavimento: v }) : exec('lance.editar', { escada: e.id, lance: l.id, padrao: ['pavimento'] }))} />
+              <OptNumField label={`Cota inicial do lance ${i + 1}`} unit="m" width={150} value={l.cotaInicial} onChange={(v) => (v === undefined ? exec('lance.editar', { escada: e.id, lance: l.id, padrao: ['cotaInicial'] }) : exec('lance.editar', { escada: e.id, lance: l.id, cotaInicial: v }))} />
               <NumField label={`Lances iguais consecutivos ${i + 1}`} width={140} value={l.repetir ?? 1} onChange={(v) => exec('lance.editar', { escada: e.id, lance: l.id, repetir: Math.max(1, Math.round(v)) })} />
               <Button variant="mini" onClick={() => exec('lance.duplicar', { escada: e.id, lance: l.id })}>Duplicar lance {i + 1}</Button>
               <Button variant="danger" onClick={() => exec('lance.remover', { escada: e.id, lance: l.id })}>Remover lance {i + 1}</Button>
             </div>
             {Array.from({ length: nPat }, (_, k) => {
-              const ap = l.patamares?.[k], fr = ap?.apoios?.find((a) => a.borda === 'frontal');
-              const grava = (apoiado: boolean, tipo: string, largura: number) => {
+              const ap = l.patamares?.[k];
+              const de = (bd: 'frontal' | 'lateral') => ap?.apoios?.find((a) => a.borda === bd);
+              const grava = (apoiado: boolean, apoios: ApoioBorda[]) => {
                 const lista = [...(l.patamares ?? [])];
                 while (lista.length <= k) lista.push({ apoiado: false });
-                lista[k] = apoiado ? { apoiado: true, apoios: tipo === 'nenhum' ? [] : [{ borda: 'frontal', tipo: tipo as 'tirante', largura }] } : { apoiado: false };
+                lista[k] = apoiado ? { apoiado: true, apoios } : { apoiado: false };
                 exec('lance.editar', { escada: e.id, lance: l.id, patamares: lista });
               };
+              /** Troca o apoio de uma borda (frontal ou lateral) mantendo o da outra; `nenhum` tira o apoio da borda. */
+              const troca = (bd: 'frontal' | 'lateral', tipo: string, largura: number) => {
+                const outra = de(bd === 'frontal' ? 'lateral' : 'frontal');
+                const nova: ApoioBorda[] = tipo === 'nenhum' ? [] : [{ ...de(bd), borda: bd, tipo: tipo as TipoApoioPatamar, largura }];
+                grava(true, bd === 'frontal' ? [...nova, ...(outra ? [outra] : [])] : [...(outra ? [outra] : []), ...nova]);
+              };
+              const TIPOS_APOIO = [{ v: 'nenhum', label: 'nenhum' }, { v: 'alvenaria', label: 'parede de alvenaria' }, { v: 'concreto', label: 'parede de concreto' }, { v: 'tirante', label: 'tirante no piso de cima' }, { v: 'conector', label: 'conectores de cisalhamento' }];
+              const fr = de('frontal'), la = de('lateral');
               return (
                 <div key={k} className="row wrap u-items-end" data-patamar={k + 1}>
-                  <Check label={`Patamar ${k + 1} apoiado (lance ${i + 1})`} checked={!!ap?.apoiado} onChange={(v) => grava(v, fr?.tipo ?? 'alvenaria', fr?.largura ?? 0.15)} />
-                  {ap?.apoiado && <Select label={`Apoio frontal do patamar ${k + 1} (lance ${i + 1})`} value={fr?.tipo ?? 'nenhum'} options={[{ v: 'nenhum', label: 'nenhum' }, { v: 'alvenaria', label: 'parede de alvenaria' }, { v: 'concreto', label: 'parede de concreto' }, { v: 'tirante', label: 'tirante no piso de cima' }, { v: 'conector', label: 'conectores de cisalhamento' }]} onChange={(v) => grava(true, v, fr?.largura ?? 0.15)} />}
-                  {ap?.apoiado && fr && <NumField label={`Largura do apoio ${k + 1} (lance ${i + 1})`} unit="m" width={130} value={fr.largura} onChange={(v) => grava(true, fr.tipo, v)} />}
+                  <Check label={`Patamar ${k + 1} apoiado (lance ${i + 1})`} checked={!!ap?.apoiado} onChange={(v) => grava(v, ap?.apoios?.length ? ap.apoios : [{ borda: 'frontal', tipo: 'alvenaria', largura: 0.15 }])} />
+                  {ap?.apoiado && <Select label={`Apoio frontal do patamar ${k + 1} (lance ${i + 1})`} value={fr?.tipo ?? 'nenhum'} options={TIPOS_APOIO} onChange={(v) => troca('frontal', v, fr?.largura ?? 0.15)} />}
+                  {ap?.apoiado && fr && <NumField label={`Largura do apoio ${k + 1} (lance ${i + 1})`} unit="m" width={130} value={fr.largura} onChange={(v) => troca('frontal', fr.tipo, v)} />}
+                  {ap?.apoiado && <Select label={`Apoio lateral do patamar ${k + 1} (lance ${i + 1})`} value={la?.tipo ?? 'nenhum'} options={TIPOS_APOIO} onChange={(v) => troca('lateral', v, la?.largura ?? 0.15)} />}
+                  {ap?.apoiado && la && <NumField label={`Largura do apoio lateral ${k + 1} (lance ${i + 1})`} unit="m" width={130} value={la.largura} onChange={(v) => troca('lateral', la.tipo, v)} />}
                 </div>
               );
             })}

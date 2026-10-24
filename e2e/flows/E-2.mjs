@@ -878,6 +878,13 @@ export const f_E4b_editar = {
       assert.equal(await numero(dados.getByLabel(/^Origem x/)), 3);
       assert.equal(await numero(dados.getByLabel(/^Sentido de subida/)), 180);
       await jan.getByRole('radio', { name: 'Lances', exact: true }).click();
+      // patamar apoiado com apoio lateral e cota inicial do lance (C8.15, C8.26)
+      await jan.getByRole('checkbox', { name: 'Patamar 1 apoiado (lance 1)', exact: true }).check();
+      await jan.getByLabel(/^Apoio lateral do patamar 1 \(lance 1\)/).selectOption('alvenaria');
+      await page.waitForFunction(() => { const l = (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.[0]; return l?.patamares?.[0]?.apoiado && l.patamares[0].apoios.some((x) => x.borda === 'lateral' && x.tipo === 'alvenaria'); });
+      await jan.getByLabel(/^Cota inicial do lance 1/).fill('0');
+      await jan.getByLabel(/^Cota inicial do lance 1/).press('Enter');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.[0]?.cotaInicial === 0);
       await jan.getByRole('button', { name: 'Duplicar lance 1', exact: true }).click();
       await jan.getByRole('button', { name: 'Duplicar lance 2', exact: true }).waitFor();
       await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.length === 2);
