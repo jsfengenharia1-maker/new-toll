@@ -14,6 +14,7 @@ import { pontoInterno } from '../geom/faces';
 import { areaArmacao, cfgArmacao, montarFolha, nf, plantaNaFolha, type BlocoTabela } from './armacao';
 import { caixa, type Camada, type P, type Prancha, type Prim } from './prancha';
 import type { OpcoesArmacao } from './armacaoVigas';
+import { comEscadas, type ResultadoEscadas } from '../building/escadasCalculo';
 
 /** Camada da carga: por natureza e, nos casos adicionais, a camada dos adicionais. */
 export function camadaDaCarga(b: BuildingModel, caso: string): Camada {
@@ -24,8 +25,33 @@ export function camadaDaCarga(b: BuildingModel, caso: string): Camada {
 
 const unidade = (c: Carga) => (c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²');
 
+/** Primitivas das cargas (ponto, linha e área), cada uma na camada da natureza do caso, com o valor e a unidade; `k` = m por mm do papel. */
+export function primitivasCargas(b: BuildingModel, cargas: Carga[], k: number): Prim[] {
+  const modelo: Prim[] = [];
+  for (const c of cargas) {
+    const cam = camadaDaCarga(b, c.caso), esc = c.escada ? b.escadas?.find((e) => e.id === c.escada!.escada)?.nome : undefined, txt = `${nf(c.valor, 2)} ${unidade(c)}${esc ? ` (${esc})` : ''}`;
+    if (c.tipo === 'ponto') {
+      const [x, y] = c.pontos[0];
+      modelo.push({ t: 'circ', c: cam, centro: [x, y], r: 1.2 * k }, { t: 'pl', c: cam, pts: [[x - 1.2 * k, y], [x + 1.2 * k, y]] }, { t: 'pl', c: cam, pts: [[x, y - 1.2 * k], [x, y + 1.2 * k]] },
+        { t: 'txt', c: cam, p: [x + 1.6 * k, y + 0.6 * k], h: 2 * k, s: txt });
+    } else if (c.tipo === 'linha') {
+      modelo.push({ t: 'pl', c: cam, pts: c.pontos });
+      const i = Math.floor((c.pontos.length - 1) / 2), a = c.pontos[i], z = c.pontos[i + 1];
+      let ang = (Math.atan2(z[1] - a[1], z[0] - a[0]) * 180) / Math.PI;
+      if (ang > 90.01 || ang < -89.99) ang += ang > 0 ? -180 : 180;
+      modelo.push({ t: 'txt', c: cam, p: [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2 + 0.8 * k], h: 2 * k, s: txt, ang, ah: 'c' });
+    } else {
+      modelo.push({ t: 'pl', c: cam, pts: c.pontos, fechada: true });
+      modelo.push({ t: 'txt', c: cam, p: pontoInterno(c.pontos), h: 2.2 * k, s: txt, ah: 'c', av: 'meio' });
+    }
+  }
+  return modelo;
+}
+
 /** Uma prancha por grupo com cargas lançadas: planta fina da estrutura, cargas por caso (camada por natureza) e a tabela de casos. */
-export function montarPranchasCargas(b: BuildingModel, o: OpcoesArmacao = {}): Prancha[] {
+export function montarPranchasCargas(b0: BuildingModel, o: OpcoesArmacao & { escadas?: ResultadoEscadas } = {}): Prancha[] {
+  // reações das escadas (E4e, C10.26): cargas lineares e de superfície derivadas do cálculo das escadas, nos casos G e Q do grupo que as recebe
+  const b = o.escadas ? comEscadas(b0, o.escadas) : b0;
   const grupos = b.grupos.filter((g) => b.cargas.some((c) => c.grupo === g.id) && (!o.grupo || g.id === o.grupo || g.nome === o.grupo));
   const cfg = cfgArmacao(b);
   return grupos.map((g, ig) => {
@@ -40,32 +66,22 @@ export function montarPranchasCargas(b: BuildingModel, o: OpcoesArmacao = {}): P
     for (const l of lajes) modelo.push({ t: 'pl', c: 'LAJE', pts: l.contorno, fechada: true });
     for (const v of vigas) { const gv = geometriaViga(v); modelo.push({ t: 'pl', c: 'FORMA-FINA', pts: [...gv.esq, ...[...gv.dir].reverse()], fechada: true }); }
     for (const p of pilares) modelo.push({ t: 'pl', c: 'PILAR', pts: contornoPilar(p, p.secao), fechada: true });
-    for (const c of cargas) {
-      const cam = camadaDaCarga(b, c.caso), txt = `${nf(c.valor, 2)} ${unidade(c)}`;
-      if (c.tipo === 'ponto') {
-        const [x, y] = c.pontos[0];
-        modelo.push({ t: 'circ', c: cam, centro: [x, y], r: 1.2 * k }, { t: 'pl', c: cam, pts: [[x - 1.2 * k, y], [x + 1.2 * k, y]] }, { t: 'pl', c: cam, pts: [[x, y - 1.2 * k], [x, y + 1.2 * k]] },
-          { t: 'txt', c: cam, p: [x + 1.6 * k, y + 0.6 * k], h: 2 * k, s: txt });
-      } else if (c.tipo === 'linha') {
-        modelo.push({ t: 'pl', c: cam, pts: c.pontos });
-        const i = Math.floor((c.pontos.length - 1) / 2), a = c.pontos[i], z = c.pontos[i + 1];
-        let ang = (Math.atan2(z[1] - a[1], z[0] - a[0]) * 180) / Math.PI;
-        if (ang > 90.01 || ang < -89.99) ang += ang > 0 ? -180 : 180;
-        modelo.push({ t: 'txt', c: cam, p: [(a[0] + z[0]) / 2, (a[1] + z[1]) / 2 + 0.8 * k], h: 2 * k, s: txt, ang, ah: 'c' });
-      } else {
-        modelo.push({ t: 'pl', c: cam, pts: c.pontos, fechada: true });
-        modelo.push({ t: 'txt', c: cam, p: pontoInterno(c.pontos), h: 2.2 * k, s: txt, ah: 'c', av: 'meio' });
-      }
-    }
+    modelo.push(...primitivasCargas(b, cargas, k));
     const leg = legendaDeCargas(b, g.id);
     const tabela: BlocoTabela = {
       titulo: `CARGAS POR CASO — ${g.nome.toUpperCase()}`,
       cols: [{ w: 22, rot: 'CASO' }, { w: 16, rot: 'NATUREZA' }, { w: 16, rot: 'CARGAS' }, { w: 30, rot: 'CAMADA' }, { w: 30, rot: 'TOTAL (kN)' }],
       linhas: leg.map((e) => [e.nome, e.natureza, String(e.n), camadaDaCarga(b, e.caso), nf(cargas.filter((c) => c.caso === e.caso && c.tipo === 'ponto').reduce((t, c) => t + c.valor, 0))]),
     };
+    // reações das escadas por apoio (E4e): carga transmitida em G e Q ao grupo, em kN/m (linhas) ou kN/m² (degraus iniciais)
+    const dasEscadas = cargas.filter((c) => c.escada);
+    const tEsc: BlocoTabela[] = dasEscadas.length ? [{
+      titulo: 'REAÇÕES DAS ESCADAS NO GRUPO', cols: [{ w: 24, rot: 'ESCADA' }, { w: 18, rot: 'LANCE' }, { w: 56, rot: 'APOIO' }, { w: 22, rot: 'CASO' }, { w: 40, rot: 'CARGA' }],
+      linhas: dasEscadas.map((c) => [b.escadas?.find((e) => e.id === c.escada!.escada)?.nome ?? c.escada!.escada, String(c.escada!.lance), c.escada!.apoio, b.casos?.find((x) => x.id === c.caso)?.nome ?? c.caso, `${nf(c.valor, 2)} ${unidade(c)}`]),
+    }] : [];
     return montarFolha({
       b, formato: pl.formato, tipo: 'cargas', titulo: `Cargas — ${g.nome}`, conteudo: `CARGAS POR CASO — ${g.nome.toUpperCase()}`, escala: `1:${pl.escala}`, escalaNum: pl.escala, carimbo: o.carimbo, numero: ig + 1,
-      desenho: [], tabelas: [tabela], legenda: `ESCALA 1:${pl.escala} · cargas em kN, kN/m e kN/m² · total só das concentradas`, avisos: pl.avisos, modelo, janela: pl.janela, elementos: leg.map((e) => e.nome),
+      desenho: [], tabelas: [tabela, ...tEsc], legenda: `ESCALA 1:${pl.escala} · cargas em kN, kN/m e kN/m² · total só das concentradas`, avisos: pl.avisos, modelo, janela: pl.janela, elementos: leg.map((e) => e.nome),
     } as Parameters<typeof montarFolha>[0]);
   });
 }

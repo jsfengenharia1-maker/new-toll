@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { Button, Modal, Note, Pill } from '../ui';
 import { assinaturaEscadas, calcularEscadas, diagnosticoRecalcular, type ResultadoEscadas } from '../../core/building/escadasCalculo';
 import { resumoCalculoEscadas } from '../../core/building/escadasResumo';
+import { IsovaloresEscada } from './EscadaIsovalores';
 import { useBuilding } from './store';
 
 interface EstadoJanela { aberta: boolean; abrir: () => void; fechar: () => void }
@@ -43,6 +44,15 @@ function JanelaCalculo({ onClose }: { onClose: () => void }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assinatura, temEscadas]);
+  // isovalores (E4e): o cálculo com detalhe (malha e deslocamentos nodais) só roda quando o usuário os pede
+  const [verIso, setVerIso] = useState(false);
+  const [det, setDet] = useState<ResultadoEscadas | null>(null);
+  useEffect(() => {
+    if (!verIso || !temEscadas) { setDet(null); return; }
+    const t = setTimeout(() => setDet(calcularEscadas(b, { detalhe: true })), 30);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verIso, assinatura, temEscadas]);
   const lances = res ? resumoCalculoEscadas(res) : [];
   const nomePav = (id?: string) => b.pavimentos.find((p) => p.id === id)?.nome ?? '—';
   const nomeGrupo = (id?: string) => (id === 'fundacao' ? 'fundação' : b.grupos.find((g) => g.id === id)?.nome ?? id ?? '—');
@@ -69,6 +79,14 @@ function JanelaCalculo({ onClose }: { onClose: () => void }) {
             {l.avisos.map((a, i) => <p className="small" key={i}>{a}</p>)}
           </div>
         ))}
+        {res && !ocupado && lances.length > 0 && (
+          <div data-escada-isovalores>
+            <h3>Isovalores do lance</h3>
+            <Button data-escada-iso-botao onClick={() => setVerIso((v) => !v)}>{verIso ? 'Ocultar isovalores' : 'Ver esforços e deslocamentos por isovalores'}</Button>
+            {verIso && !det && <p className="small">Calculando a malha…</p>}
+            {verIso && det && <IsovaloresEscada res={det} />}
+          </div>
+        )}
         {res && <p className="small">Premissas a confirmar (ver Premissas e pendências): apoios das bordas como viga rígida, E da alvenaria do apoio do patamar, malha e esforços nos centroides.</p>}
       </div>
     </Modal>

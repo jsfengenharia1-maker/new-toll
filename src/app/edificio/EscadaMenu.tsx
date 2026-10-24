@@ -7,6 +7,8 @@ import { useNovaEscadaUI } from './NovaEscadaUI';
 import { useStore } from '../store';
 import { useEscadaCalculoUI } from './EscadaCalculoUI';
 import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
+import { useEdifUI } from './uiStore';
+import { useVista3d } from '../vista3d/vista3dStore';
 
 /** Escolhe a ferramenta Escada. No nível de fundação não há escadas: mostra a mensagem e não troca a ferramenta. */
 export function escolherEscada(): boolean {
@@ -53,6 +55,7 @@ export function EscadaMenu() {
       <Button variant="mini" disabled={!(b.escadas ?? []).length} title="Armadura e detalhamento de cada lance, com seleção do lance" onClick={() => useEscadaArmaduraUI.getState().abrir()}>Ver detalhe de armadura</Button>
       <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Ver esforços e deslocamentos</Button>
       <Button variant="mini" disabled={!escadasDoGrupo.length} title="Cálculo individual de cada lance, antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada</Button>
+      <Button variant="mini" disabled={!(b.escadas ?? []).length} title="Abre a vista 3D com as escadas (forma e interferências com vigas, lajes e pilares)" data-escada-ver-3d onClick={() => { useVista3d.getState().set({ tipos: { ...useVista3d.getState().tipos, escada: true } }); useEdifUI.getState().set({ aba: 'vista3d' }); }}>Conferir na vista 3D</Button>
       <Hint>{grupo ? `Grupo atual: ${grupo.nome}` : 'Grupo atual: —'}</Hint>
     </div>
   );

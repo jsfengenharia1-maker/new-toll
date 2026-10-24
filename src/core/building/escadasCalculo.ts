@@ -124,6 +124,8 @@ export interface ResultadoLance {
   descricao?: DescricaoLance;
   /** Só com `calcularEscadas(b, { detalhe: true })` (validação externa e isovalores): coordenadas do modelo local e deslocamento vertical (m) de cada nó, nos casos G e Q. */
   nosDetalhe?: { x: number; y: number; z: number; uz: [number, number] }[];
+  /** Só com `detalhe`: os 6 nós (3 vértices e 3 meios de lado) de cada elemento de casca, na ordem de `elems`, como índices de `nosDetalhe` (isovalores do lance, E4e). */
+  triangulosDetalhe?: number[][];
   avisos: string[];
   erro?: string;
   ms: number;
@@ -444,7 +446,7 @@ function calcularLance(b: BuildingModel, g: GeometriaEscada, l: LanceGeo, ordem:
     FX, FY, corrimao: l.cargas.corrimao,
   };
   return {
-    ...base, descricao, ...(detalhe ? { nosDetalhe: nos.map((n, i) => ({ x: n[0], y: n[1], z: n[2], uz: [res.desloc[0][i * 6 + 2], res.desloc[1][i * 6 + 2]] as [number, number] })) } : {}), nos: nos.length, elementos: cascas.length, gdl: res.neq, carga: total, apoios: apoios.map(({ nosLinha: _n, molaDe: _m, ...a }) => a), equilibrio, deslocamento, momentos, elems, cargas,
+    ...base, descricao, ...(detalhe ? { nosDetalhe: nos.map((n, i) => ({ x: n[0], y: n[1], z: n[2], uz: [res.desloc[0][i * 6 + 2], res.desloc[1][i * 6 + 2]] as [number, number] })), triangulosDetalhe: cascas.map((c) => [...c.nos]) } : {}), nos: nos.length, elementos: cascas.length, gdl: res.neq, carga: total, apoios: apoios.map(({ nosLinha: _n, molaDe: _m, ...a }) => a), equilibrio, deslocamento, momentos, elems, cargas,
     avisos: avisos, ms: (typeof performance !== 'undefined' ? performance.now() : 0) - t0,
   };
 }
