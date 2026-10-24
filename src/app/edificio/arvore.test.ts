@@ -14,10 +14,11 @@ function obra() {
 }
 
 describe('árvore do navegador', () => {
-  it('raiz com o nome da obra e as sete seções, pavimentos do mais alto ao mais baixo', () => {
+  it('raiz com o nome da obra e as quinze seções, pavimentos do mais alto ao mais baixo', () => {
     const t = montarArvore(obra());
     expect(t.rotulo).toBe('Residencial Teste');
-    expect(t.filhos!.map((f) => f.id)).toEqual(['pavs', 'pilares', 'vigas', 'lajes', 'eixos', 'fundacao', 'vistas']);
+    expect(t.filhos!.map((f) => f.id)).toEqual(['pavs', 'pilares', 'vigas', 'lajes', 'pilaresParede', 'paredes', 'muros', 'alvenaria', 'grupos', 'cargas', 'cortes', 'eixos', 'fundacao', 'sondagens', 'vistas']);
+    expect(t.filhos!.filter((f) => ['pilaresParede', 'paredes', 'muros', 'alvenaria', 'cortes', 'sondagens'].includes(f.id)).map((f) => f.contagem)).toEqual([0, 0, 0, 0, 0, 0]);
     expect(t.filhos![0].contagem).toBe(3);
     expect(t.filhos![0].filhos!.map((f) => f.rotulo)).toEqual(['Tipo 2', 'Tipo 1', 'Térreo']);
     expect(t.filhos![0].filhos![0].alvo).toEqual({ tipo: 'pavimento', id: 'p3' });
@@ -33,7 +34,7 @@ describe('árvore do navegador', () => {
   });
 
   it('vistas na ordem das abas', () => {
-    const v = montarArvore(obra()).filhos![6];
+    const v = montarArvore(obra()).filhos!.find((f) => f.id === 'vistas')!;
     expect(v.filhos!.map((f) => f.rotulo)).toEqual(VISTAS.map((x) => x[1]));
     expect(v.filhos![0].alvo).toEqual({ tipo: 'vista', id: 'planta' });
     expect(VISTAS.length).toBe(10);
