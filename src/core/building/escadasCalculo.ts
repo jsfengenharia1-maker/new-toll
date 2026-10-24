@@ -28,7 +28,7 @@ import { resolver3, type Caso3, type Modelo3, type V3 } from '../fe3d';
 import type { Casca3 } from '../casca';
 import type { P } from '../geom/faces';
 import { concretoDe, gamas } from './materiais';
-import { opcoesEmUso, perfilDe } from './opcoes';
+import { OPCOES_ARMADURA_ESCADA, opcoesEmUso, perfilDe } from './opcoes';
 import { geometriaEscadas, tiposLanceDisponiveis, type GeometriaEscada, type LanceGeo, type TipoApoioPatamar } from './escadas';
 import type { BuildingModel, Carga } from './types';
 import type { Diagnostico } from './verify';
@@ -169,9 +169,9 @@ interface Ret { tipo: 'lance' | 'patamar'; trecho: number; c: [P, P, P, P]; z: [
 /** Assinatura (hash) do que define as reações: escadas, tipos, cotas, concreto e opções das escadas. */
 export function assinaturaEscadas(b: BuildingModel): string {
   const o = opcoesEmUso(b.opcoes, perfilDe(b));
-  const chaves = Object.keys(o).filter((k) => k.startsWith('escada')).sort();
+  const chaves = Object.keys(o).filter((k) => k.startsWith('escada') && !OPCOES_ARMADURA_ESCADA.includes(k)).sort();
   const usados = new Set((b.escadas ?? []).flatMap((e) => e.lances.map((l) => l.tipo)));
-  const dados = JSON.stringify([b.escadas ?? [], tiposLanceDisponiveis(b).filter((t) => usados.has(t.id)), b.pavimentos.map((p) => [p.id, p.grupo, p.cota]), chaves.map((k) => [k, (o as unknown as Record<string, number>)[k]]), b.norma.fck, b.norma.fckElem?.laje ?? null]);
+  const dados = JSON.stringify([(b.escadas ?? []).map(({ armadura: _a, ...e }) => e), tiposLanceDisponiveis(b).filter((t) => usados.has(t.id)), b.pavimentos.map((p) => [p.id, p.grupo, p.cota]), chaves.map((k) => [k, (o as unknown as Record<string, number>)[k]]), b.norma.fck, b.norma.fckElem?.laje ?? null]);
   let h = 5381;
   for (let i = 0; i < dados.length; i++) h = (Math.imul(h, 33) ^ dados.charCodeAt(i)) >>> 0;
   return h.toString(16);

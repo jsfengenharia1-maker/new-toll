@@ -1164,6 +1164,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   // E4c: malha, rigidez da alvenaria do patamar e travamento horizontal dos apoios entram no cálculo das escadas (e nas reações)
   'escadaMalha', 'escadaEAlvenaria', 'escadaApoioFixoDois',
 ]);
+/** Opções da armadura e do detalhamento das escadas (E4d): só o dimensionamento; não entram na assinatura do cálculo das escadas. */
+export const OPCOES_ARMADURA_ESCADA: readonly string[] = ['escadaIgualarSupInf', 'escadaEspacamentoMultiplo', 'escadaIgualarSecoes', 'escadaEsperas', 'escadaPassadores', 'escadaAncoragemViga', 'escadaCobrimento', 'escadaProfundidadeFundacao', 'escadaDistribuicao'];
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e
  * `pilarTaxaMin` são lidas só por `dimensionarPilares`/`flambagemLance` sobre a análise vigente). Mudar uma refaz o
@@ -1212,7 +1214,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   // E4a: limites que só geram avisos das escadas
   'escadaBlondelMin', 'escadaBlondelMax', 'escadaEspelhoMin', 'escadaEspelhoMax', 'escadaLarguraMin',
   // E4d: armadura e detalhamento das escadas (só o dimensionamento sobre o cálculo da escada vigente)
-  'escadaIgualarSupInf', 'escadaEspacamentoMultiplo', 'escadaIgualarSecoes', 'escadaEsperas', 'escadaPassadores', 'escadaAncoragemViga', 'escadaCobrimento', 'escadaProfundidadeFundacao', 'escadaDistribuicao',
+  ...OPCOES_ARMADURA_ESCADA,
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;

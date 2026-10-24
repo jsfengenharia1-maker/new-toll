@@ -6,7 +6,8 @@ import { analisarEdificio } from './analitico';
 import { dimensionarEdificio } from './dimensionamento';
 import { ancorarBarra, armarEscadas, asFlexaoEscada, deltaXi, momentosDoElemento, type ResultadoArmaduraLance } from './escadasArmadura';
 import { escadasArmaduraNoMemorial, resumoArmaduraEscadas } from './escadasArmaduraResumo';
-import { calcularEscadas } from './escadasCalculo';
+import { assinaturaEscadas, calcularEscadas } from './escadasCalculo';
+import { desenhoArmaduraLance } from './escadasArmaduraDesenho';
 import { acoDe, cobrimentoLaje, concretoDe } from './materiais';
 import { OPCOES_PADRAO_CALCULO, type OpcoesCalculo } from './opcoes';
 import { quantitativosDetalhados } from './relatorios';
@@ -285,6 +286,33 @@ describe('E4d: integração com o dimensionamento, o resumo geral, o MCP e o mem
     const sem = novo().modelo, ds = dimensionarEdificio(sem, analisarEdificio(sem), { fundacao: false });
     expect('escadasArmadura' in ds).toBe(false);
     expect('resumoAcoEscadas' in ds).toBe(false);
+  });
+});
+
+describe('E4d: assinatura do cálculo e desenho', () => {
+  it('editar a armadura ou as opções da armadura não muda a assinatura do cálculo (sem falso aviso de recálculo)', () => {
+    const s = escada({ tipo: { tipologia: 'reto', trechos: [18], espessura: 0.15 } });
+    const a0 = assinaturaEscadas(s.modelo);
+    ok(s, 'escada.armadura', { id: 'e1', lance: 1, trecho: 'L1', familia: 'infL', phi: 16, s: 0.15 });
+    ok(s, 'escada.opcoesArmadura', { id: 'e1', ancoragemViga: 40 });
+    ok(s, 'opcoes.definir', { valores: { escadaIgualarSupInf: 1, escadaEsperas: 0, escadaCobrimento: 3 } });
+    expect(assinaturaEscadas(s.modelo)).toBe(a0);
+    ok(s, 'opcoes.definir', { valores: { escadaMalha: 0.2 } });
+    expect(assinaturaEscadas(s.modelo)).not.toBe(a0); // a malha muda as reações
+  });
+  it('desenho do lance reto: um segmento por posição longitudinal, transversais ao longo do trecho e perfil com a cota', () => {
+    const l = arma(escada({ tipo: { tipologia: 'reto', trechos: [18], espessura: 0.15 } }));
+    const d = desenhoArmaduraLance(l);
+    expect(d.trechos).toHaveLength(1);
+    expect(d.largura).toBeCloseTo(l.trechos[0].comprimento, 9);
+    expect(d.trechos[0].z1 - d.trechos[0].z0).toBeCloseTo(l.trechos[0].declive * l.trechos[0].comprimento, 9);
+    expect(d.trechos[0].z1 - d.trechos[0].z0).toBeCloseTo(17 * E, 3); // 17 espelhos no lance
+    const N1 = d.barras.find((x) => x.direcao === 'L' && x.face === 'inf')!;
+    expect(N1.elevacao).toHaveLength(1);
+    expect(N1.planta).toHaveLength(barras(l, 'L1', 'infL')[0].n);
+    expect(N1.elevacao[0][0][1]).toBeLessThan(d.trechos[0].z0 + 0.0001); // armadura inferior abaixo do eixo
+    const T = d.barras.find((x) => x.direcao === 'T' && x.face === 'inf')!;
+    expect(T.planta).toHaveLength(barras(l, 'L1', 'infT')[0].n);
   });
 });
 

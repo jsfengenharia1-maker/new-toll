@@ -101,6 +101,8 @@ export interface TrechoArmadura {
   tipo: 'lance' | 'patamar';
   /** Comprimento horizontal e inclinado (m), largura (m), espessura (m) e alturas úteis (m). */
   comprimento: number; comprimentoInclinado: number; largura: number; h: number; dInf: number; dSup: number;
+  /** Declividade (dz/dx) e cota do início do trecho no modelo do lance (m), para os desenhos. */
+  declive: number; z0: number;
   faixas: FaixaEscada[];
   /** Armadura principal inferior (cm²/m): necessária e mínima. */
   AsMin: number;
@@ -169,7 +171,7 @@ const cortanteDoElemento = (el: Pick<ElementoEscada, 'G' | 'Q'>, fg: number, fq:
 
 // ---------------------------------------------------------------- geometria dos trechos
 
-interface RetGeo { tipo: 'lance' | 'patamar'; trecho: number; chave: string; dir: P; nrm: P; u0: number; u1: number; v0: number; v1: number; L: number; B: number; declive: number; fInc: number }
+interface RetGeo { tipo: 'lance' | 'patamar'; trecho: number; chave: string; z0: number; dir: P; nrm: P; u0: number; u1: number; v0: number; v1: number; L: number; B: number; declive: number; fInc: number }
 
 function geometriaRets(l: ResultadoLance): RetGeo[] {
   const rets = l.descricao?.rets ?? [];
@@ -182,7 +184,7 @@ function geometriaRets(l: ResultadoLance): RetGeo[] {
     }
     const nrm: P = [-dir[1], dir[0]], us = r.c.map((q) => dot(q, dir)), vs = r.c.map((q) => dot(q, nrm));
     const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
-    return { tipo: r.tipo, trecho: r.trecho, chave: `${r.tipo === 'lance' ? 'L' : 'P'}${r.trecho + 1}`, dir, nrm, u0, u1, v0, v1, L: u1 - u0, B: v1 - v0, declive, fInc: Math.sqrt(1 + declive * declive) };
+    return { tipo: r.tipo, trecho: r.trecho, chave: `${r.tipo === 'lance' ? 'L' : 'P'}${r.trecho + 1}`, z0: r.z[0], dir, nrm, u0, u1, v0, v1, L: u1 - u0, B: v1 - v0, declive, fInc: Math.sqrt(1 + declive * declive) };
   });
 }
 
@@ -286,7 +288,7 @@ function armarLance(ctx: Ctx, l: ResultadoLance): ResultadoArmaduraLance {
       for (const i of [0, 1] as const) { f.mInf[i] = Math.max(f.mInf[i], m.inf[i]); f.mSup[i] = Math.max(f.mSup[i], m.sup[i]); mkI[k][i] = Math.max(mkI[k][i], s.inf[i]); mkS[k][i] = Math.max(mkS[k][i], s.sup[i]); }
       f.V = Math.max(f.V, cortanteDoElemento(el, ctx.fg, ctx.fq));
     }
-    const trecho: TrechoArmadura = { chave: g.chave, tipo: g.tipo, comprimento: g.L, comprimentoInclinado: g.L * g.fInc, largura: g.B, h, dInf: dI, dSup: dS, faixas, AsMin: amin, cortante: { VSd: 0, VRd1: 0, VRd2: 0, Asw: 0, ok: true }, wk: 0, wkLim: ctx.wkLim, barras: [] };
+    const trecho: TrechoArmadura = { chave: g.chave, tipo: g.tipo, comprimento: g.L, comprimentoInclinado: g.L * g.fInc, largura: g.B, h, dInf: dI, dSup: dS, declive: g.declive, z0: g.z0, faixas, AsMin: amin, cortante: { VSd: 0, VRd1: 0, VRd2: 0, Asw: 0, ok: true }, wk: 0, wkLim: ctx.wkLim, barras: [] };
     trechos.push(trecho);
     // ---- áreas necessárias por faixa (cm²/m)
     for (const f of faixas) {
