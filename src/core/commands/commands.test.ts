@@ -6,6 +6,8 @@ import { importarArranques, UNIDADES_PADRAO } from '../building/importarArranque
 import { verificar } from '../building/verify';
 import { propostaDeLancamento, REGRAS_PADRAO, sugerirRegras } from '../building/lancamentoDxf';
 import { lerEdificio } from '../building/file';
+import { lidoFicticio } from '../ifc/fixtureIfc';
+import { mapeamentoPadrao, propostaIfc } from '../ifc/proposta';
 
 function padrao(): Sessao {
   const s = new Sessao();
@@ -198,6 +200,7 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'mascara.origemOriginal': (b) => ({ id: b.mascaras[0].id }),
   'mascara.configurar': (b) => ({ id: b.mascaras[0].id, configuracao: { versao: 1, camadas: [{ nome: 'PORTA', visivel: false, capturavel: true, apelido: 'Portas' }] } }),
   'lancamento.aplicar': (b) => ({ grupo: 'g_3', mascara: b.mascaras[0].id, proposta: propostaDeLancamento(b, b.mascaras[0], { ...REGRAS_PADRAO, papeis: { PAREDE: 'pilar' } }) }),
+  'ifc.importar': () => { const l = lidoFicticio({ andares: 2 }); return { proposta: propostaIfc(l, mapeamentoPadrao(l), 'exemplo.ifc') }; },
   'viga.daMascara': () => ({ grupo: 'g_3', ponto: [6, 0], cursor: [6, 1], modo: 'eixo', secao: { b: 0.15, h: 0.4 } }),
   'pilar.inserir': () => ({ x: 4, y: 0, secao: { tipo: 'circ', d: 0.4 }, nasce: 'pav_2', morre: 'pav_6' }),
   'pilar.editar': (b) => ({ id: b.pilares[0].id, ajuste: 'so', angulo: 90 }),

@@ -39,6 +39,7 @@ import { apoioDoPilar, excentricidadeApoio } from '../../core/building/transicao
 import { svgIsometrico, svgPlantaGrupo } from './desenhoMemorial';
 import { MemorialAreasGrupos, MemorialGuia } from './MemorialGrupos';
 import { MemorialGabaritos } from './MemorialGabaritos';
+import { MemorialIfc } from './MemorialIfc';
 import { MemorialAberturas } from './MemorialL5';
 import { casosDaObra } from '../../core/building/types';
 import { combinacoesEdificio } from '../../core/building/combinacoes';
@@ -180,6 +181,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <MemorialAreasGrupos b={b} />
           <MemorialAberturas b={b} />
           <MemorialGabaritos b={b} />
+          <MemorialIfc b={b} />
           {apoiados.length > 0 && <>
             <h3>Pilares que nascem acima da fundação (apoiados)</h3>
             <table>

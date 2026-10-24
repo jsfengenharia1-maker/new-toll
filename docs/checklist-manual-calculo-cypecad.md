@@ -33,9 +33,9 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 1 | 32 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 1 | 33 |
 | FU — Fundações | 4 | 0 | 4 |
-| L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
+| L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
 | **Total** | **60** | **1** | **61** |
 
@@ -495,7 +495,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Feito | — | E3c: camada opcional Nervuras e cubetas na planta (caixa do grupo Nervuradas), com as cubetas desenhadas [E3c] |
 | K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Feito | — | comando `laje.armaduraPredefinida` (face, ponto, direção, comprimento, φ, espaçamento e nº de barras; criar, editar e remover): medida como lançada e descontada do reforço só na faixa n × s, inclusive sobre bordas contínuas (R7d) |
 | | **Aberturas** | | | |
-| K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | L | `laje.abertura` cria furo e aviso de região sem laje; a grelha ignora os furos [L5] — L5 núcleo: marca de pano a definir e abertura retangular com viga de borda; "apagar o pano = abertura (cruz tracejada)" não feito; a grelha ainda ignora os furos  |
+| K1.9.103 | Pano sem laje fica vazio (marcado com "?"); apagar o pano = abertura (cruz tracejada); aberturas retangulares em panos maciços e nervurados. | Parcial | E | E3b: a grelha ainda ignora os furos (`laje.abertura` cria o furo e o aviso de região sem laje [L5]); L7: "apagar o pano = abertura (cruz tracejada)" ainda não feito |
 | K1.9.104 | Vigas chatas entre duas aberturas ou abertura e contorno, sem laje lateral, ficam sem altura: trocar por viga alta com dimensões. | Fora | — | regra interna de vigas chatas |
 | K1.9.105 | Blocos de menor altura ao lado de abertura são desconsiderados, com aviso de dado incorreto. | Fora | — | regra interna de nervuradas |
 | K1.9.106 | Limitação: zona independente fechada por vigas com abertura interna mantém o diafragma rígido; com ação horizontal os resultados não serão corretos — usar vigas inclinadas ou vigas livres desligadas (6 GL). | Feito | — | aviso DIAFRAGMA_ABERTURA (`aberturasDiafragma` em `diafragma.ts`, na verificação de lançamento): zona fechada por vigas com abertura interna acima de `aberturaDiafragma` (33 % da área, a confirmar) ou pavimento com aberturas acima do limite, sugerindo vigas fora do diafragma (N1a) (N2b) |

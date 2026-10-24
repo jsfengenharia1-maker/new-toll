@@ -1,0 +1,5 @@
+web-ifc 0.0.78
+Licença: MPL-2.0 (web-ifc-LICENSE.txt).
+Origem do código-fonte: https://github.com/ThatOpen/engine_web-ifc (pacote npm "web-ifc@0.0.78", versão fixa na devDependency).
+Os arquivos web-ifc-0.0.78.mjs (minificação do web-ifc-api.js do pacote) e web-ifc-0.0.78.wasm (web-ifc.wasm do pacote, cópia byte a byte)
+são distribuídos sem modificação do código-fonte. Carregados só quando o usuário escolhe um arquivo IFC; não fazem parte do dist/index.html.

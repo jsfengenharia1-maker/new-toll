@@ -9,12 +9,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 41 | 1 | 4 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 44 | 0 | 2 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
-| 6. Vigas | 108 | 57 | 26 | 0 | 25 |
+| 6. Vigas | 108 | 58 | 25 | 0 | 25 |
 | 7. Lajes | 195 | 94 | 34 | 0 | 67 |
 | 8. Escadas | 65 | 60 | 1 | 4 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **492** | **74** | **12** | **185** |
+| **Total** | **763** | **496** | **72** | **10** | **185** |
 
 ## Pendências por frente
 
@@ -30,9 +30,9 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 56 | 7 | 63 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 57 | 7 | 64 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 5 | 2 | 7 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 2 | 0 | 2 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
 
 ## 0. Apresentação do programa
@@ -65,15 +65,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Feito | — | L4 núcleo: `guiaRapido` (`src/core/ajuda/guia.ts`); interface: `GuiaRapido.tsx` e anexo do memorial (cartões 04 e 05) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
 | | **1.3 Criação de obra** | | | |
 | C1.14 | Obra nova com pasta, nome e descrição. | Feito | — | descrição de até 2 linhas e origem em `Obra` (`obra.definir`); obras na lista de recentes e na biblioteca (sem pastas: o navegador não as tem) [L1] |
-| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | janela `NovaObra.tsx`: assistente, vazia, padrão, exemplo e texto; DXF/DWG chegam na L2 e IFC na L3 [L1]; modo DXF/DWG feito na L2 (`NovaObra.tsx`); IFC na L3 |
+| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Feito | — | L3: modo 'Importação de IFC' habilitado na janela NovaObra.tsx (abre LancamentoIfc.tsx, via Edificio.tsx); DXF/DWG na L2 e IFC na L3 [L1] |
 | C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Feito | — | `assistente.ts` (`gerarObra`), comando `obra.assistente`, janela `NovaObra.tsx` em 6 etapas, guia `etapas.ts`/`EtapasObra.tsx` [L1] |
 | C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Feito | — | lançamento automático [L2] — L2: `lancamentoDxf.ts` (`propostaDeLancamento`: pilares, vigas, contorno, aberturas, eixos) e `lancamento.aplicar`; interface: LancamentoDxf.tsx, Edificio.tsx |
 | C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Feito | — | lançamento automático por DXF [L2] — L2: `mascara.importar` (`grupos`, `arquivo`), `lerDwg`, vários arquivos por lançamento; interface: lancamentoLeitura.ts, LancamentoDxf.tsx |
 | C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Feito | — | cores/visibilidade de camadas existem na máscara, não em assistente [L2] — L2: `mascara.camadas` (cor, visibilidade), `PreviaCamadas`; interface: PreviaCamadas.tsx, LancamentoDxf.tsx |
 | C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Feito | — | uma máscara por grupo [L2] — L2: `Mascara.grupos`, `mascara.editar { grupos }`; interface: LancamentoDxf.tsx, Gabaritos.tsx |
 | C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Feito | — | camada → tipo de elemento (pilar, contorno, abertura) [L2] — L2: `RegrasCamadas`, `sugerirRegras`, `mascara.regras` (papel por camada); interface: LancamentoDxf.tsx |
-| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Falta | L | IFC [L3] |
-| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Falta | L | IFC [L3] |
+| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Feito | — | IFC [L3]: núcleo (src/core/ifc/ler.ts, proposta.ts, comando src/core/commands/ifc.ts) e interface: janela Importação de IFC (src/app/edificio/LancamentoIfc.tsx, leitura sob demanda em ifcLeitura.ts, modo em NovaObra.tsx); passo Edifício e pavimentos pede nome, cota, pé-direito, uso e grupo após a leitura; e2e f_L3 (e2e/flows/L.mjs) |
+| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Feito | — | IFC [L3]: núcleo (src/core/ifc/materiais.ts, ifc.importar) e interface: passo Materiais da janela LancamentoIfc.tsx liga o material do arquivo a pilares, vigas, lajes e paredes, com fck e aço por tipo; e2e f_L3 (e2e/flows/L.mjs) |
 | C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Feito | — | ao criar, abre `DadosGerais.tsx` (normas, materiais, perfil de padrões) [L1] |
 | C1.25 | Depois do lançamento automático, todos os dados ficam editáveis. Lajes, cargas adicionais, fundações e dados particulares são completados à mão. | Fora | — | depende do lançamento automático |
 | C1.26 | Roteiro recomendado, passo 1: dados gerais (nome, descrição, materiais e opções, nível de controle de execução). | Feito | — | obra + norma (fck, aço, CAA, cobrimentos, ψ) |
@@ -133,7 +133,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C2.18 | Escolha dos grupos em que cada vista aparece. | Feito | — | uma máscara ligada a um grupo [L2] — L2: `Mascara.grupos`; interface: Planta.tsx, Gabaritos.tsx |
 | C2.19 | Janela rápida para ligar/desligar vistas por pavimento. | Feito | — | janela rápida de vistas por pavimento [L2] — L2: `Mascara.visivel` (`mascara.editar`), `vistasDoGrupo`; interface: Gabaritos.tsx |
 | C2.20 | Janela de seleção dos modos de captura de objetos (snap) do DXF/DWG. | Feito | — | tipos de captura |
-| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Feito | — | liga/desliga capturas (botão); tecla própria a conferir [L2] — L2: F3 com `capturasAntes` e a janela de capturas (estado no `plantaStore`); interface: plantaStore.ts, Planta.tsx, Gabaritos.tsx |
+| C2.21 | Tecla de função (F3) liga/desliga as capturas. Se nenhum modo estiver escolhido, abre a janela de seleção. | Feito | — | liga/desliga capturas (botão e F3) [L2] — L2: F3 com `capturasAntes` e a janela de capturas (estado no `plantaStore`); interface: plantaStore.ts, Planta.tsx, Gabaritos.tsx |
 | C2.22 | Nas pranchas, opção de desenhar o gabarito DXF/DWG associado a cada pavimento. | Feito | — | opção de prancha `mascara` (`prancha.definir { armacao: { mascara: 1 } }`): `sheets/gabarito.ts` (`primitivasMascara`) desenha as camadas visíveis da máscara do grupo na camada MASCARA (pena 0,13 mm [a confirmar]) nas formas (`prancha.ts`) e nas lajes (`armacaoLajes.ts`); padrão desligado; caixa em Pranchas › Opções de armação (R7g) |
 
 ## 3. Grupos e pavimentos
@@ -295,10 +295,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **6.1 Lançamento** | | | |
 | C6.1 | Lançamento do contorno do pavimento combinando gabarito DXF/DWG e ferramentas de viga. | Feito | — | vigas sobre a máscara com capturas |
 | C6.2 | Ajudas genérica e específica durante o lançamento. | Feito | — | L4 núcleo: `ajudaDaFerramenta`; interface: painel `AjudaFerramenta` e tecla na barra de estado da planta (cartão 04) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
-| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | grupo Vigas na barra lateral [L5] — L5 grupo "Ferramentas de lançamento" na barra lateral (não é painel flutuante); interface no cartão 02 |
+| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | decisão: o painel flutuante virou o grupo "Ferramentas de lançamento" da barra lateral (fechado por padrão, sem abrir sozinho após a escolha do tipo de seção), conforme o layout do design system (`docs/design-system.md`); mesmas opções [L5] — interface: LancamentoL5.tsx, Planta.tsx — Parcial (orquestrador 24/10): o grupo de ferramentas não abre sozinho após a escolha do tipo de seção; subfatia L7. |
 | C6.4 | Troca do tipo de viga atual a partir do painel. | Feito | — |  |
 | C6.5 | Modo contínuo: o fim de uma viga é o início da próxima. A sequência só vale depois de encerrada pelo menu de contexto. | Feito | — | polilinha contínua; Enter encerra |
-| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Parcial | L | Enter/Esc; apagar último ponto a conferir [L5] — L5 Enter/Esc; Backspace apaga o último ponto (cartão 02); Ctrl+T e Ctrl+B do programa de referência não são copiados |
+| C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Feito | — | decisão: atalhos do programa de referência não são copiados (reconstrução limpa); funcionalidade coberta por Enter (encerra a sequência de pontos), Esc (cancela) e Backspace (apaga o último ponto) na ferramenta Viga (`viga.tracar`; Planta.tsx) [L5] |
 | C6.7 | Modo simples: cada viga com início e fim independentes. | Feito | — | L5 núcleo: `viga.tracar { simples }` (pares de pontos); interface: cartão 02 — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C6.8 | Linha de ajuste da viga: eixo ou uma das faces. | Feito | — | eixo ou face |
 | C6.9 | Distinção entre a linha clicada (introdução) e a linha de ajuste, com deslocamento configurável entre elas. | Feito | — | L5 núcleo: `viga.tracar { deslocamentoClique }` (cm, à esquerda do traçado); interface: campo no painel e memorização no store (cartão 02) — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
@@ -410,10 +410,10 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **7.1.1 Gestão de panos** | | | |
 | C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | E3f: seletor único de tipo de pano (TipoPano.tsx): vigotas, alveolar, nervurada, maciça e pano a definir; mista e radier aparecem indisponíveis (TIPOS_PANO) [E3f] — Parcial (orquestrador 24/10): ressalva da nota pendente. |
-| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | panos detectados; pano sem laje gera aviso [L5] — L5 núcleo: `laje.detectarPanos { definir }` cria panos a definir (`Laje.definir`, marcados com "?" na planta, cartão 04); a criação automática ao fechar o contorno não existe (botão "Detectar panos como a definir")  |
+| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | L7 (pano automático e cruz tracejada): a criação automática ao fechar o contorno não existe (hoje só pelo botão "Detectar panos como a definir"); `laje.detectarPanos { definir }` cria panos a definir (`Laje.definir`, marcados com "?" na planta, cartão 04); panos detectados e pano sem laje geram aviso [L5] |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
-| C7.5 | Mudar o ponto de inserção do pano. | Parcial | L |  [L5] — L5 núcleo: `Laje.insercao` (vértice) por `laje.editar { insercao / insercaoPonto }`; ainda não muda a numeração das vigotas nem a origem da malha (E3b); interface: ferramenta `insercaoPano` (cartão 04)  |
+| C7.5 | Mudar o ponto de inserção do pano. | Parcial | E | E3b: a inserção ainda não muda a numeração das vigotas nem a origem da malha [L5] — núcleo: `Laje.insercao` (vértice) por `laje.editar { insercao / insercaoPonto }`; interface: ferramenta `insercaoPano` (cartão 04) |
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Feito | — | L5 núcleo: `laje.editar { direcaoPor: { viga, relacao } / { pontos } }`; interface: ferramenta `direcaoPano` (cartão 04) — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | E | L4 (DadosL4.tsx, cópia de dados) e E3f: alerta de troca de plano na cópia (CAMPOS_COPIA_LAJE.plano); cópia do plano só entre panos do mesmo grupo [E3f] — Parcial (orquestrador 24/10): ressalva da nota pendente. |

@@ -164,6 +164,8 @@ A ferramenta `comandos` lista `obra.assistente` (cria pavimentos, grupos, eixos 
 
 Lançamento por gabarito (DXF/DWG já importado como máscara pelo `mascara.importar`): `mascara.regras` define o papel de cada camada (pilar, viga por faces ou por eixo, contorno, abertura, eixo, ponto fixo...), `lancamento.aplicar` lança no grupo a proposta revisada (pilares, vigas, eixos, lajes nos panos e aberturas; um passo no histórico, e o que já foi lançado do mesmo gabarito não duplica) e `viga.daMascara` gera vigas por um clique numa linha, arco ou polilinha do gabarito (pela face, do lado do cursor, ou pelo eixo). Também sem ferramenta própria (`previa`). A proposta (`Proposta`, contagens, ambíguos, ignorados e avisos) é calculada no núcleo por `propostaDeLancamento`.
 
+Importação de IFC (L3): o comando `ifc.importar` aplica a proposta de lançamento de um arquivo IFC (pavimentos e grupos, pilares contínuos entre pavimentos, vigas, lajes com aberturas, paredes de concreto, fck e aço por tipo de elemento; reimportar não duplica) e fica sem ferramenta própria (`previa`/`comandos`). A leitura do arquivo pelo web-ifc (`lerIfc`, `propostaIfc` em `src/core/ifc/`) acontece no app, que carrega o leitor de `public/vendor` só ao escolher o arquivo; a linha de comando e o servidor MCP não leem IFC (o web-ifc de 3,5 MB + 1,6 MB de WASM não vai no `dist-cli`), então um agente só recebe a proposta já calculada.
+
 A `previa` mostra o que o comando faz antes de aplicar. Exemplo:
 
 ```json
@@ -182,4 +184,5 @@ Depois de conferir a prévia, a ferramenta `aplicar` recebe o token devolvido (f
 - Pranchas de armação sem detalhes de blocos/sapatas, sem corte A-A por trecho e com as barras das lajes por barra representativa.
 - Pilar-parede só é sinalizado.
 - Máscara só em DXF.
-- No artifact do claude.ai não há DWG (o escritor fica fora do arquivo único).
+- Sem leitura de IFC pela linha de comando e pelo MCP (só o comando `ifc.importar`, com a proposta pronta).
+- No artifact do claude.ai não há DWG nem leitura de IFC (o escritor de DWG e o web-ifc ficam fora do arquivo único).

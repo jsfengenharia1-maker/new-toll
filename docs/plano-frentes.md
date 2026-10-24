@@ -8,9 +8,9 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 9 | 11 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 0 | 7 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 63 | 32 | 95 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 64 | 33 | 97 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026, núcleo e interface, e FU4 em 20/10/2026) | 0 | 4 | 4 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 7 | 1 | 8 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 2 | 0 | 2 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas, V6b várias janelas de deformada, V6c vista 3D da viga de fundação, V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 14 | 8 | 22 |
 
 Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de funções descritas no do usuário); os totais não são somas de funcionalidades distintas. Contagens conferidas em 20/10/2026 após a frente R (histórico no fim de cada checklist); `src/core/checklists.test.ts` reprova quando esta tabela ou os resumos dos checklists não batem com as linhas.
@@ -21,7 +21,7 @@ A frente E é grande demais para uma spec só e se divide em quatro:
 
 | Subfrente | Conteúdo | Itens do manual do usuário |
 |---|---|---|
-| E1 | Pilares sobre pilares e transições, pilar-parede de verdade, muros e paredes estruturais, alvenaria estrutural, contenção com empuxo. Spec: `spec-frente-E1.md` (E1a–E1e; 80 itens: 40 do manual do usuário — cap. 4, cap. 5, C6.19 e C6.59 — e 40 do de cálculo) | cap. 4 (13) + cap. 5 (25) + 2 do cap. 6 |
+| E1 | Pilares sobre pilares e transições, pilar-parede de verdade, muros e paredes estruturais (E1c: passo "Muros e paredes" do assistente, `etapas.ts`, C1.29), alvenaria estrutural, contenção com empuxo. Spec: `spec-frente-E1.md` (E1a–E1e; 80 itens: 40 do manual do usuário — cap. 4, cap. 5, C6.19 e C6.59 — e 40 do de cálculo) | cap. 4 (13) + cap. 5 (25) + 2 do cap. 6 |
 | E2 | Vigas T, chatas, curvas e inclinadas; vigas entre pavimentos; diagonais; consolos; viga comum a dois grupos; vínculo externo; pré-moldadas. Spec: `spec-frente-E2.md` (E2a–E2e; 61 itens: 41 do manual do usuário e 20 do de cálculo) | cap. 6 (41) |
 | E3 | Lajes nervuradas bidirecionais com ábacos, alveolares, inclinadas e rampas; vigotas completas (catálogo, igualação, erros). Spec: `spec-frente-E3.md` (E3a–E3f; 148 itens: 77 do manual do usuário, todos do cap. 7, e 71 do de cálculo) | cap. 7 (77) |
 | E4 | Escadas, mais os itens gerais C0.1, C1.33, C1.34, C10.26 e K1.11.58. Spec: `spec-frente-E4.md` (E4a–E4e; 80 itens: 69 do manual do usuário e 11 do de cálculo) | cap. 8 (65) + 4 gerais |
