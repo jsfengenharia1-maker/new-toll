@@ -59,6 +59,9 @@ Cada tabela abaixo que já existe no código é uma tabela da biblioteca de norm
 | NBR 6118:2023, 8.2.11 e Tabela 8.2: coeficiente de fluência φ (valor de 2,5 usado no pilar com fluência) | Efeito da fluência no pilar (λ > 90) | opção `pilarFluencia` em `src/core/building/opcoes.ts` (~694), `metodoGeral.ts` | φ = 2,5, Tabela 8.2 não consultada |
 | NBR 6118, 14.6.3 (e apoios): ΔM = R·t/8 do momento de ligação nos apoios extremos, divisor e item | Momento nos apoios (premissa `n2e-apoios`) | `src/core/building/apoios.ts` (`deltaMApoio`, ~16) | ΔM = R·t/8, divisor e item não conferidos com o texto |
 | NBR 6118, Tabela 17.1 (ξ(t)): conversão de dias em meses com 30 d/mês no cálculo da flecha diferida e ativa | Flecha diferida e ativa por etapas | `src/core/building/flechas.ts` (`xiDias`, ~72) | 30 d/mês |
+| NBR 6118, 18.3.3.2: espaçamento transversal entre ramos sucessivos do estribo (st,máx = d ≤ 800 mm se Vd ≤ 0,20·VRd2; 0,6d ≤ 350 mm se maior), valores e numeração conferidos de memória (R8b) | Ramos do estribo das vigas | `src/core/building/detalhamento.ts` (`ramosTransversais`), opção `vigaEstriboRamosTransv` | Valores de memória da edição de 2014, não conferidos com o texto |
+| NBR 6118, 17.4.2.2: decalagem aℓ = d (caso geral, modelo I) usada nos cortes da armadura principal das vigas de fundação (R8b) | Cortes da armadura das vigas de fundação | `src/core/building/vigaFundacaoCortes.ts` | aℓ = d |
+| NBR 6118, 18.2.4 × 18.4.3: item que traz a regra dos grampos nas barras a mais de 20φt do canto dos pilares | Referência nas mensagens e no memorial | `tabelasArmadura.ts` (`MODOS_GRAMPOS`), `detalhamentoPilares.ts` (`gramposPorEstribo`), `revisao.ts` (GRAMPOS_TABELA) | Citado como 18.2.4 desde a R7g |
 
 ## NBR 7481 e catálogos de fabricantes
 | O que falta | Para que serve | Onde entra | Valor provisório |

@@ -19,6 +19,8 @@ import { alfa0t, lbBasico } from './detalhamento';
 import { cortesLaje, escolherBarrasLaje, RHO_MIN_LAJE, type DetalheLaje, type PosicaoLaje } from './detalhamentoLajes';
 import { GAMA_CONCRETO } from './lajes';
 import { classificar } from './revisao';
+import { cortesVigaFundacao, textoCortesFace, type CortesVF } from './vigaFundacaoCortes';
+import { fracaoPassante } from './tabelasArmadura';
 import { alturaUtilVF, geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type GeoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
@@ -491,7 +493,8 @@ export interface ResultadoVigaElastica {
   bw?: number; forma?: { tipo: GeoSecaoVF['tipo']; mesa: 'inferior' | 'superior'; bf: number; hf: number };
   /** Armadura da mesa em balanço, tratada como laje (E5k). */
   mesaBalanco?: MesaBalanco;
-  armadura: { inf: { As: number; barras: BarChoice | null }; sup: { As: number; barras: BarChoice | null }; AsMin: number; AsMinSup?: number; estribo: { phi: number; s: number; legs: number } | null; pele?: BarChoice | null };
+  armadura: { inf: { As: number; barras: BarChoice | null }; sup: { As: number; barras: BarChoice | null }; AsMin: number; AsMinSup?: number; estribo: { phi: number; s: number; legs: number } | null; pele?: BarChoice | null;
+    /** Cortes da armadura principal por face (opção `vigaFundCortes`, R8b); ausente = barras corridas. */ cortes?: CortesVF };
   nos: NoResultadoBase[];
   volume: number; aco: number;
   status: 'ok' | 'fail'; mensagens: string[]; notas: string[];
@@ -664,7 +667,19 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   const fp = { ...defaultFoundationParams(), ...(b.fundacao?.params ?? {}) };
   const mesa: MesaBalanco | null = fx && v.geo ? mesaEmBalanco({ g: v.geo, sigma: v.geo.mesa === 'inferior' ? Math.max(0, t.max) : 0, gammaF: fp.gammaF, cob, c, fyd: aco.fyd, rhoMin: fp.ftRhoMin }, msgs) : null;
   const kg = (A: number, len: number) => A * len * 7850;
-  const acoKg = (inf.barras ? kg(inf.barras.As, L) : 0) + (sup.barras ? kg(sup.barras.As, L) : 0) + (est ? kg(barArea(est.phi), perim) * (Math.ceil(L / est.s) + 1) : 0) + (pele ? 2 * kg(pele.As, L) : 0)
+  // cortes da armadura principal (R8b, K1.12.12): na viga de fundação a face de maior momento faz o papel dos negativos
+  let cortes: CortesVF | undefined;
+  if (op.vigaFundCortes && inf.barras && sup.barras && L > 0) {
+    const ca60 = aco.aco === 'CA-60', supBoa = v.h < 0.6 && v.h - cob <= 0.3;
+    cortes = cortesVigaFundacao({
+      s, Minf, Msup, L, d: dd, cobPonta: cob, passante: fracaoPassante(b, { secao: { b: bw, h: v.h } }), gruposNegativos: op.vigaGruposSup, gruposPositivos: op.vigaCortesInf, minPct: op.vigaGrupoMinPct,
+      inf: { n: inf.barras.n, phi: inf.barras.phi, AsFlex: fi.As + fs.As2, AsMin, lb: lbBasico(inf.barras.phi, c, aco.fyd, true, ca60) },
+      sup: { n: sup.barras.n, phi: sup.barras.phi, AsFlex: fs.As + fi.As2, AsMin: AsMinSup, lb: lbBasico(sup.barras.phi, c, aco.fyd, supBoa, ca60) },
+    });
+    notas.push(`Cortes da armadura principal (convenção invertida: a face de maior momento faz o papel dos negativos; aℓ = d): ${textoCortesFace(cortes.inf)}; ${textoCortesFace(cortes.sup)}.`);
+  }
+  const kgFace = (b2: BarChoice | null, f?: { comprimentoTotal: number; phi: number }) => (b2 ? (f ? kg(barArea(f.phi), f.comprimentoTotal) : kg(b2.As, L)) : 0);
+  const acoKg = kgFace(inf.barras, cortes?.inf) + kgFace(sup.barras, cortes?.sup) + (est ? kg(barArea(est.phi), perim) * (Math.ceil(L / est.s) + 1) : 0) + (pele ? 2 * kg(pele.As, L) : 0)
     + (mesa && v.geo ? kg((mesa.barras?.As ?? mesa.AsAdot * 1e-4) + (mesa.distribuicao.barras?.As ?? mesa.distribuicao.As * 1e-4), mesa.balanco * v.geo.lados * L) : 0);
   if (v.geo?.temMesa && fx) notas.push(`Seção ${textoSecaoVF(v.geo)}: contato com o solo ${fmt(v.b * 100, 0)} cm (${v.geo.mesa === 'inferior' ? 'largura da mesa' : 'largura da alma'}); rigidez EI pela seção composta (Iz = ${(v.secao?.Iz ?? v.geo.Iz).toExponential(3).replace('.', ',')} m⁴); flexão em T onde a mesa está comprimida e cortante na alma (${fmt(bw * 100, 0)} cm); mesa em balanço como laje [a confirmar].`);
   notas.push(`Molas k × b × comprimento de influência (k = ${fmt(v.k ?? op.radierK, 0)} kN/m³); giro em torno do eixo com k·b³/12 por metro; envoltória ELU nas pontas das barras.`);
@@ -672,7 +687,7 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   return {
     ...(v.parede ? { parede: v.parede } : {}),
     id: v.id, nome: v.nome, b: v.b, h: v.h, k: v.k ?? op.radierK, sigmaAdm: sAdm, L, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
-    Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, ...(fx ? { AsMinSup } : {}), estribo: est, ...(pele ? { pele } : {}) }, nos: t.out,
+    Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, ...(fx ? { AsMinSup } : {}), estribo: est, ...(pele ? { pele } : {}), ...(cortes ? { cortes } : {}) }, nos: t.out,
     ...(v.geo ? { bw, forma: { tipo: v.geo.tipo, mesa: v.geo.mesa, bf: v.geo.bf, hf: v.geo.hf } } : {}), ...(mesa ? { mesaBalanco: mesa } : {}),
     volume, aco: acoKg, status: msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok', mensagens: msgs, notas,
   };

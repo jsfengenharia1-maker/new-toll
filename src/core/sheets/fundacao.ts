@@ -375,7 +375,7 @@ function montarFundacao(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimen
     const gv = new Map<string, ResultadoVigaFundacao[]>();
     for (const v of vs) {
       const a = v.armadura, bs = (x?: { phi: number; n: number; layers: number } | null) => (x ? [x.phi, x.n, x.layers] : null);
-      const k = JSON.stringify(['corrida' in v, v.tipo, c1(v.bAdot), c1(v.hAdot), c1(v.L), bs(a.sup.barras), bs(a.inf.barras), bs(a.pele?.barras), a.estribo && [a.estribo.phi, c1(a.estribo.s)], c1(a.ancoragem.ini), c1(a.ancoragem.fim)]);
+      const k = JSON.stringify(['corrida' in v, v.tipo, c1(v.bAdot), c1(v.hAdot), c1(v.L), bs(a.sup.barras), bs(a.inf.barras), bs(a.pele?.barras), a.estribo && [a.estribo.phi, c1(a.estribo.s)], c1(a.ancoragem.ini), c1(a.ancoragem.fim), a.cortes ? [a.cortes.sup.grupos, a.cortes.inf.grupos].map((gs) => gs.map((x) => [x.n, c1(x.s0), c1(x.s1)])) : null]);
       (gv.get(k) ?? gv.set(k, []).get(k)!).push(v);
     }
     const area = areaArmacao('A1'), larg = area.x1 - area.x0;

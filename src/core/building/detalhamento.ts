@@ -8,7 +8,7 @@ import type { Dimensionamento, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Viga, contornoNoLance } from './types';
-import { bitolaDaLista, fracaoPassante, linhaVigas, tabelaDe } from './tabelasArmadura';
+import { bitolaDaLista, fracaoPassante, linhaEstribos, linhaVigas, tabelaDe } from './tabelasArmadura';
 import { vaosDaViga, vigaTocaPilar } from './vigas';
 import { secaoParaFlexao } from './secaoViga';
 import { ehVirtual, todosPilares } from './pilarParede';
@@ -35,8 +35,18 @@ export interface BarraViga {
   /** Tramo predefinido: a barra continua na viga indicada (sem emenda nem gancho nesse extremo). */
   continuaCom?: string;
 }
-/** Zona de estribos: `n` peças a cada `s`; `ramos` > 2 (estribo duplo ou triplo): `n` já conta todas as peças. */
-export interface ZonaEstribo { s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number; /** Estribo em U (aberto no topo; R7g). */ u?: boolean; /** Estribos adicionais de suspensão (N2e, NBR 6118 18.3.6). */ suspensao?: boolean }
+/**
+ * Zona de estribos: `n` peças a cada `s`; `ramos` > 2 (estribo duplo ou triplo): `n` já conta todas as peças fechadas.
+ * Com `grampos` (R8b), `ramos` é o total de ramos da seção, `n` conta só os estribos fechados e os grampos vão numa zona
+ * companheira (`grampo`) do mesmo trecho, com as suas peças e o seu comprimento.
+ */
+export interface ZonaEstribo {
+  s0: number; s1: number; phi: number; s: number; n: number; comprimento: number; ramos?: number;
+  /** Estribo em U (aberto no topo; R7g). */ u?: boolean;
+  /** Estribos adicionais de suspensão (N2e, NBR 6118 18.3.6). */ suspensao?: boolean;
+  /** Grampos verticais abertos por seção nesta zona (R8b, K1.12.1-7); as peças estão na zona companheira. */ grampos?: number;
+  /** Zona companheira dos grampos (R8b): `n` peças de grampo, `comprimento` de cada uma e `largura` (m) entre os ramos. */ grampo?: boolean; largura?: number;
+}
 export interface DetalheViga {
   viga: string; nome: string;
   /** Pavimentos em que a viga se repete (grupo). */
@@ -145,7 +155,7 @@ export function extensaoDaViga(v: Viga, apoios: ApoioViga[]): [number, number] {
 const arred = (x: number, passo: number) => Math.ceil(x / passo - 1e-9) * passo;
 
 /** Intervalos contíguos de uma grade onde `f(i)` é verdadeiro. */
-function intervalos(n: number, f: (i: number) => boolean): [number, number][] {
+export function intervalos(n: number, f: (i: number) => boolean): [number, number][] {
   const out: [number, number][] = [];
   let i0 = -1;
   for (let i = 0; i <= n; i++) {
@@ -277,6 +287,34 @@ export function resolverTramos(b: BuildingModel, dim: Dimensionamento, op: Opcoe
     });
   }
   return { tramos, avisos };
+}
+
+/** Máximo de ramos do estribo pelo espaçamento transversal (3 conjuntos de estribo e grampos na mesma seção, K1.12.1-7). */
+export const RAMOS_MAX = 6;
+/**
+ * Ramos do estribo pelo espaçamento transversal entre ramos sucessivos (NBR 6118, 18.3.3.2, R8b): st = (bw − 2c − φt)/(ramos − 1)
+ * não pode passar de st,máx = mín(d; 0,8 m) se Vd ≤ 0,20·VRd2, ou mín(0,6d; 0,35 m) se maior. Devolve o menor número par de
+ * ramos ≥ o do cálculo que atende, até `ramosMax` (a norma prevalece sobre a lista de ramos da tabela de estribos, que limita só a
+ * escolha pelo cálculo); `ok` é falso se nem `ramosMax` atende.
+ */
+export function ramosTransversais(o: { bw: number; cobLat: number; phiT: number; d: number; VRd2: number; Vd: number; ramosCalc: number; ramosMax: number }): { ramos: number; st: number; stMax: number; ok: boolean } {
+  const W = o.bw - 2 * o.cobLat - o.phiT / 1000, stMax = o.Vd <= 0.2 * o.VRd2 ? Math.min(o.d, 0.8) : Math.min(0.6 * o.d, 0.35);
+  const nec = Math.max(2, 2 * Math.ceil((Math.ceil(W / stMax - 1e-9) + 1) / 2)), ramos = Math.max(o.ramosCalc, Math.min(nec, o.ramosMax));
+  return { ramos, st: W / (ramos - 1), stMax, ok: W / (ramos - 1) <= stMax + 1e-9 };
+}
+
+/**
+ * Bitola do estribo de uma zona (R8b, K1.12.1-6): a menor das `candidatas` (mm, menores que a da viga) que mantém a densidade
+ * de armadura transversal da zona com espaçamento s' = ⌊s·A(φ)/A(φt)⌋ (cm, limitado a `smax`) de pelo menos `sTroca` (m).
+ * Sem candidata que sirva, a bitola da viga com o mesmo espaçamento.
+ */
+export function bitolaDaZona(o: { s: number; phiT: number; candidatas: number[]; smax: number; sTroca: number }): { phi: number; s: number } {
+  for (const q of [...o.candidatas].sort((p, z) => p - z)) {
+    if (q >= o.phiT - 1e-9) break;
+    const s2 = Math.floor(Math.min((o.s * barArea(q)) / barArea(o.phiT), o.smax) * 100 + 1e-9) / 100;
+    if (s2 >= o.sTroca - 1e-9) return { phi: q, s: s2 };
+  }
+  return { phi: o.phiT, s: o.s };
 }
 
 export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: OpcoesCalculo, tramo: TramoViga = {}): DetalheViga {
@@ -503,37 +541,59 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   }
   // estribos por zonas fora dos pilares: espaçamento exigido pelo cortante e pela torção em cada ponto
   const fywd = Math.min(aEst.fyk / 1.15, 435), A1 = barArea(phiT), ramos = r.arranjo.estribo?.legs ?? 2;
-  const nPecasR = (len: number, s: number, rm: number) => (Math.floor(len / s + 1e-9) + 1) * (rm / 2), nPecas = (len: number, s: number) => nPecasR(len, s, ramos);
+  const nPecasR = (len: number, s: number, rm: number) => (Math.floor(len / s + 1e-9) + 1) * (rm / 2);
   const he = (bw * h) / (2 * (bw + h)), Ae = (bw - he) * (h - he);
-  const Vc0 = 0.6 * c.fctd * bw * d * 1000, aswMin = ((0.2 * c.fctm) / aEst.fyk) * bw;
-  const smax = (Vmx: number) => Math.min(Vmx <= 0.67 * 0.27 * c.av2 * c.fcd * bw * d * 1000 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2), r.estriboSmax ?? Infinity);
+  const Vc0 = 0.6 * c.fctd * bw * d * 1000, aswMin = ((0.2 * c.fctm) / aEst.fyk) * bw, VRd2 = 0.27 * c.av2 * c.fcd * bw * d * 1000;
+  const smax = (Vmx: number) => Math.min(Vmx <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2), r.estriboSmax ?? Infinity);
   const aswI = Float64Array.from({ length: nG }, (_, i) => Math.max(aswMin, Math.max(0, Vd[i] - Vc0) / 1000 / (0.9 * d * fywd) + (Td[i] / 1000) / (Ae * fywd)));
   const smaxI = Float64Array.from({ length: nG }, (_, i) => smax(Vd[i]));
+  // ramos pelo espaçamento transversal entre ramos sucessivos (18.3.3.2, R8b): st ≤ d (800 mm) com Vd ≤ 0,20·VRd2; senão st ≤ 0,6d (350 mm)
+  const tabEst = tabelaDe(b, 'estribos', v.tabelaEstribo), ramosMax = Math.max(RAMOS_MAX, ...linhaEstribos(tabEst, bw).ramos);
+  const wInt = bw - 2 * cob.lat - phiT / 1000; // distância entre os eixos dos ramos externos
+  const trans = (Vmx: number) => ramosTransversais({ bw, cobLat: cob.lat, phiT, d, VRd2, Vd: Vmx, ramosCalc: ramos, ramosMax });
+  const stMax = (Vmx: number) => trans(Vmx).stMax;
+  const ramosTransv = (Vmx: number) => (op.vigaEstriboRamosTransv ? trans(Vmx).ramos : ramos);
+  const ramosI = Int32Array.from({ length: nG }, (_, i) => ramosTransv(Vd[i]));
+  if (op.vigaEstriboRamosTransv) {
+    const falta = Array.from(Vd).some((vv) => !trans(vv).ok);
+    if (falta) avisos.push(`Estribos: espaçamento transversal entre ramos acima de st,máx (NBR 6118, 18.3.3.2) com ${ramosMax} ramos, o máximo considerado; reduza a largura da viga ou use apoios intermediários.`);
+  }
   /** Espaçamento exigido em cada ponto com `rm` ramos de bitola `phi`. */
   const sNec = (i: number, rm: number, phi: number) => Math.floor(Math.min(smaxI[i], (rm * barArea(phi)) / aswI[i]) * 100) / 100;
-  let sReq = Float64Array.from({ length: nG }, (_, i) => sNec(i, ramos, phiT));
+  let sReq = Float64Array.from({ length: nG }, (_, i) => sNec(i, ramosI[i], phiT));
+  let rmReq = Int32Array.from(ramosI);
   if (op.vigaEstriboExtensao) { // zona mais densa estendida de d/2 para o lado menos exigido (K1.12.1-9)
-    const ke = Math.round(d / 2 / dx), base = sReq;
+    const ke = Math.round(d / 2 / dx), base = sReq, baseR = rmReq;
     sReq = Float64Array.from(base, (_, i) => { let m = Infinity; for (let j = Math.max(0, i - ke); j <= Math.min(nG - 1, i + ke); j++) m = Math.min(m, base[j]); return m; });
+    rmReq = Int32Array.from(baseR, (_, i) => { let m = 0; for (let j = Math.max(0, i - ke); j <= Math.min(nG - 1, i + ke); j++) m = Math.max(m, baseR[j]); return m; });
   }
-  if (op.vigaEstriboSimetria) { const base = sReq; sReq = Float64Array.from(base, (x, i) => Math.min(x, base[nG - 1 - i])); }
-  const sCentral = Math.floor(Math.min(smax(0), (ramos * A1) / aswMin) * 100) / 100;
+  if (op.vigaEstriboSimetria) { const base = sReq, baseR = rmReq; sReq = Float64Array.from(base, (x, i) => Math.min(x, base[nG - 1 - i])); rmReq = Int32Array.from(baseR, (x, i) => Math.max(x, baseR[nG - 1 - i])); }
+  const sCentralDe = (rm: number) => Math.floor(Math.min(smax(0), (rm * A1) / aswMin) * 100) / 100;
   const dentroPilar = (s: number) => apoios.some((a) => s > a.s0 + 1e-9 && s < a.s1 - 1e-9);
-  const compEst = (phi: number, u = !!op.vigaEstriboU) => arred(estriboComprimento(bw - 2 * cob.lat, h - cob.inf - cob.sup, phi, op.vigaEstriboGancho, u), passo);
-  const uGlobal = !!op.vigaEstriboU, compEstribo = compEst(phiT);
+  const alt = h - cob.inf - cob.sup;
+  const compEst = (phi: number, u = !!op.vigaEstriboU) => arred(estriboComprimento(bw - 2 * cob.lat, alt, phi, op.vigaEstriboGancho, u), passo);
+  /** Grampo vertical aberto entre dois ramos internos adjacentes (R8b): largura = espaçamento transversal entre ramos. */
+  const compGrampo = (phi: number, rm: number) => arred(estriboComprimento((bw - 2 * cob.lat - phi / 1000) / (rm - 1), alt, phi, op.vigaEstriboGancho, true), passo);
+  const gramposDe = (rm: number) => (op.vigaEstriboGrampos && rm > 2 ? rm / 2 - 1 : 0);
+  const uGlobal = !!op.vigaEstriboU;
   const zonaMin = op.vigaEstriboZonaMin / 100;
   const estribos: ZonaEstribo[] = [];
+  const novaZona = (s0: number, s1: number, phi: number, sj: number, rm: number): ZonaEstribo => {
+    const g = gramposDe(rm);
+    return { s0, s1, phi, s: sj, n: nPecasR(s1 - s0, sj, rm) - g * (Math.floor((s1 - s0) / sj + 1e-9) + 1), comprimento: compEst(phi, uGlobal), ...(rm > 2 ? { ramos: rm } : {}), ...(uGlobal ? { u: true } : {}), ...(g ? { grampos: g } : {}) };
+  };
+  const repecas = (z: ZonaEstribo, len: number, sj: number) => { const rm = z.ramos ?? 2, g = z.grampos ?? 0; return nPecasR(len, sj, rm) - g * (Math.floor(len / sj + 1e-9) + 1); };
   for (const [i0, i1] of intervalos(nG, (i) => !dentroPilar(sG(i)) && sG(i) > ext[0] + cob.lat && sG(i) < ext[1] - cob.lat)) {
     // dentro do trecho livre, zonas com o espaçamento da faixa (mais denso perto dos apoios)
     let j = i0;
     while (j <= i1) {
-      const sj = Math.min(sReq[j], sCentral);
+      const rmj = rmReq[j], sj = Math.min(sReq[j], sCentralDe(rmj));
       let k2 = j;
-      while (k2 + 1 <= i1 && Math.min(sReq[k2 + 1], sCentral) === sj) k2++;
-      const s0 = sG(j), s1 = sG(k2), len = s1 - s0;
+      while (k2 + 1 <= i1 && rmReq[k2 + 1] === rmj && Math.min(sReq[k2 + 1], sCentralDe(rmj)) === sj) k2++;
+      const s0 = sG(j), s1 = sG(k2);
       const ant = estribos.at(-1);
-      if (ant && Math.abs(ant.s1 - s0) < dx + 1e-9 && ant.s === sj) { ant.s1 = s1; ant.n = nPecas(ant.s1 - ant.s0, sj); }
-      else estribos.push({ s0, s1, phi: phiT, s: sj, n: nPecas(len, sj), comprimento: compEstribo, ...(ramos > 2 ? { ramos } : {}), ...(uGlobal ? { u: true } : {}) });
+      if (ant && Math.abs(ant.s1 - s0) < dx + 1e-9 && ant.s === sj && (ant.ramos ?? 2) === rmj) { ant.s1 = s1; ant.n = repecas(ant, ant.s1 - ant.s0, sj); }
+      else estribos.push(novaZona(s0, s1, phiT, sj, rmj));
       j = k2 + 1;
     }
   }
@@ -541,8 +601,24 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   for (let i = estribos.length - 1; i > 0; i--) {
     const z = estribos[i], a = estribos[i - 1];
     if (Math.abs(a.s1 - z.s0) <= dx + 1e-9 && (z.s1 - z.s0 < 2 * z.s || a.s1 - a.s0 < 2 * a.s || (zonaMin > 0 && (z.s1 - z.s0 < zonaMin - 1e-9 || a.s1 - a.s0 < zonaMin - 1e-9)))) {
-      const s = Math.min(a.s, z.s);
-      estribos.splice(i - 1, 2, { ...a, s1: z.s1, s, n: nPecas(z.s1 - a.s0, s) });
+      const s = Math.min(a.s, z.s), rm = Math.max(a.ramos ?? 2, z.ramos ?? 2); // a mais densa e com mais ramos: nunca menos armadura que a de cada uma
+      const m = novaZona(a.s0, z.s1, phiT, s, rm);
+      estribos.splice(i - 1, 2, m);
+    }
+  }
+  // bitola por zona (R8b, K1.12.1-6): a menor bitola da tabela que mantém a densidade da zona com espaçamento ≥ mínimo de troca
+  if (op.vigaEstriboPhiZona > 0) {
+    const sTroca = Math.max(op.vigaEstriboPhiZona, linhaEstribos(tabEst, bw).sMin) / 100;
+    const phiMin = Math.max(5, r.estriboPhiMin ?? 0), cand = [...linhaEstribos(tabEst, bw).bitolas].sort((p, q) => p - q).filter((q) => q >= phiMin - 1e-9 && q < phiT - 1e-9 && q <= (bw * 1000) / 10 + 1e-9);
+    for (const z of estribos) {
+      let smx = Infinity;
+      for (let i = 0; i < nG; i++) if (sG(i) >= z.s0 - 1e-9 && sG(i) <= z.s1 + 1e-9) smx = Math.min(smx, smaxI[i]);
+      const t = bitolaDaZona({ s: z.s, phiT, candidatas: cand, smax: smx, sTroca });
+      if (t.phi !== z.phi) { z.phi = t.phi; z.s = t.s; z.comprimento = compEst(t.phi, !!z.u); z.n = repecas(z, z.s1 - z.s0, t.s); }
+    }
+    for (let i = estribos.length - 1; i > 0; i--) { // zonas vizinhas iguais voltam a ser uma só
+      const a = estribos[i - 1], z = estribos[i];
+      if (Math.abs(a.s1 - z.s0) <= dx + 1e-9 && a.phi === z.phi && a.s === z.s && (a.ramos ?? 2) === (z.ramos ?? 2)) { a.s1 = z.s1; a.n = repecas(a, a.s1 - a.s0, a.s); estribos.splice(i, 1); }
     }
   }
   if (phiT > (bw * 1000) / 10 + 1e-9) avisos.push(`Estribo φ${String(phiT).replace('.', ',')} acima de bw/10 (${((bw * 1000) / 10).toFixed(0)} mm), NBR 6118 18.3.3.2.`);
@@ -556,9 +632,20 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     for (let i = 0; i < nG; i++) if (sG(i) >= z.s0 - 1e-9 && sG(i) <= z.s1 + 1e-9) pior = Math.min(pior, sNec(i, rm, phi));
     if (s > pior + 1e-9) avisos.push(`Detalhe editado insuficiente: estribo da zona E${e.zona + 1} com s = ${(s * 100).toFixed(0)} cm, exigido ${(pior * 100).toFixed(0)} cm ou menos.`);
     if (e.u !== undefined) { if (e.u) z.u = true; else delete z.u; }
-    z.phi = phi; z.s = s; z.comprimento = compEst(phi, !!z.u); z.n = nPecasR(z.s1 - z.s0, s, rm);
+    const g = Math.max(0, Math.min(rm / 2 - 1, Math.round(e.grampos ?? Math.min(z.grampos ?? 0, rm / 2 - 1))));
+    z.phi = phi; z.s = s; z.comprimento = compEst(phi, !!z.u);
     if (rm > 2) z.ramos = rm; else delete z.ramos;
+    if (g) z.grampos = g; else delete z.grampos;
+    z.n = repecas(z, z.s1 - z.s0, s);
   }
+  // grampos verticais abertos (R8b, K1.12.1-7): zona companheira com as peças e o comprimento dos grampos de cada zona
+  const editadas = new Set((edit?.zonas ?? []).map((e) => e.zona));
+  const gramposZ: ZonaEstribo[] = [];
+  estribos.forEach((z) => {
+    if (!z.grampos) return;
+    const q = Math.floor((z.s1 - z.s0) / z.s + 1e-9) + 1;
+    gramposZ.push({ s0: z.s0, s1: z.s1, phi: z.phi, s: z.s, n: q * z.grampos, comprimento: compGrampo(z.phi, z.ramos ?? 2), u: true, grampo: true, largura: (bw - 2 * cob.lat - z.phi / 1000) / ((z.ramos ?? 2) - 1) });
+  });
   if (edit?.barras?.length) {
     for (const e of edit.barras) {
       const x = barras.find((q) => q.pos === e.pos);
@@ -583,6 +670,16 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     };
     verificar('inf', AsPosD, lbI, phiI); verificar('sup', AsNegD, lbS, phiS);
   }
+  // memória detalhada (R8b): cada zona (não editada) refeita pelos números registrados: s = mín(smax; ramos·Asw1/asw)
+  if (comMem) estribos.forEach((z, i) => {
+    if (editadas.has(i)) return;
+    const rm = z.ramos ?? 2;
+    let aswZ = 0, smZ = Infinity, vmx = 0;
+    for (let k = 0; k < nG; k++) if (sG(k) >= z.s0 - 1e-9 && sG(k) <= z.s1 + 1e-9) { aswZ = Math.max(aswZ, aswI[k]); smZ = Math.min(smZ, smaxI[k]); vmx = Math.max(vmx, Vd[k]); }
+    mem!.passo({ etapa: 'detalhamento', elemento: elMem, topico: 'Estribos – zonas', descricao: `Zona E${i + 1} (${fm(z.s0)} a ${fm(z.s1)} m): espaçamento com ${rm} ramos de φ${fm(z.phi)}${z.grampos ? ` (1 estribo e ${z.grampos} grampo(s) aberto(s))` : ''}`, formula: 's ≤ mín(smax; ramos·Asw,1/asw); asw = máx(ρsw,mín·bw; Vsw/(0,9·d·fywd) + Tsd/(Ae·fywd))', expressao: `s = ${fm(z.s)} ≤ mín(${fm(smZ)}; ${rm}·${fm(barArea(z.phi) * 1e4)} cm²/${fm(aswZ * 1e4)} cm²/m)`, resultado: z.s, unidade: 'm', norma: 'NBR 6118:2023, 17.4.1.1.1 e 18.3.3.2', entradas: { ramos: rm, phi: z.phi, asw: aswZ, smax: smZ, aswMin, Vd: vmx, s0: z.s0, s1: z.s1 } });
+    if (op.vigaEstriboRamosTransv) mem!.passo({ etapa: 'detalhamento', elemento: elMem, topico: 'Estribos – zonas', descricao: `Zona E${i + 1}: espaçamento transversal entre ramos sucessivos`, formula: 'st = (bw − 2c − φt)/(ramos − 1) ≤ st,máx; st,máx = d (≤ 800 mm) se Vd ≤ 0,20·VRd2, senão 0,6d (≤ 350 mm)', expressao: `st = ${fm(wInt / (rm - 1))} ${wInt / (rm - 1) <= stMax(vmx) + 1e-9 ? '≤' : '>'} ${fm(stMax(vmx))} m`, resultado: wInt / (rm - 1), unidade: 'm', norma: 'NBR 6118:2023, 18.3.3.2', entradas: { bw, cobLat: cob.lat, phiT: phiT / 1000, ramos: rm, d, VRd2, Vd: vmx, stMax: stMax(vmx), wInt } });
+  });
+  estribos.push(...gramposZ);
   // suspensão (N2e): estribos adicionais no cruzamento com a viga apoiada, na largura bw + h/2 de cada lado, depois das edições
   for (const sp of r.suspensoes ?? []) {
     const s0 = Math.max(ext[0], sp.s - sp.largura / 2), s1 = Math.min(ext[1], sp.s + sp.largura / 2);

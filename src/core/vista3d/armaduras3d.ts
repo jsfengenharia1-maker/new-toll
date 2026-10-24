@@ -169,8 +169,10 @@ function barrasDaViga(b: BuildingModel, v: Viga, d: DetalheViga, pav: { id: stri
       const P = (e: number, z: number): V3 => [f.p[0] + f.n[0] * e, f.p[1] + f.n[1] * e, z];
       const TL = P(he, zt), TR = P(-he, zt), BR = P(-he, zb), BL = P(he, zb);
       const g = (c: number, sn: number): V3 => [TL[0] - f.n[0] * leg * c, TL[1] - f.n[1] * leg * c, TL[2] - leg * sn];
-      const caminho = [g(0.707, 0.707), TL, TR, BR, BL, TL, g(0.2, 0.9798)];
-      if (!emitir({ posicao: `E${zi + 1}`, tipo: 'estribo', phi: zn.phi, caminho, comprimento: zn.comprimento })) return;
+      // grampo vertical aberto (R8b): U com a abertura em cima, largura = espaçamento entre ramos, centrado na seção
+      const hg = zn.grampo ? Math.max(0.01, (zn.largura ?? 0.1) / 2) : 0, GL = P(hg, zt), GR = P(-hg, zt), GBL = P(hg, zb), GBR = P(-hg, zb);
+      const caminho = zn.grampo ? [GL, GBL, GBR, GR] : [g(0.707, 0.707), TL, TR, BR, BL, TL, g(0.2, 0.9798)];
+      if (!emitir({ posicao: zn.grampo ? `G${zi + 1}` : `E${zi + 1}`, tipo: 'estribo', phi: zn.phi, caminho, comprimento: zn.comprimento })) return;
     }
   });
 }

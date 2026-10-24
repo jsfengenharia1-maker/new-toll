@@ -75,8 +75,8 @@ export function montarPranchasBaseElastica(b: BuildingModel, dim: Dimensionament
     linhas: rads.map((r) => [r.nome, String(cmInt(r.h)), nf(r.sigmaMax / 1000), r.sigmaAdm ? nf(r.sigmaAdm / 1000) : '—', nf(r.recalque * 1000, 1), `${nf(r.As.pos[0])} / ${nf(r.As.pos[1])}`, `${nf(r.As.neg[0])} / ${nf(r.As.neg[1])}`]),
   });
   if (ves.length) tabs.push({
-    titulo: 'VIGAS SOBRE BASE ELÁSTICA', cols: [{ w: 14, rot: 'VIGA' }, { w: 16, rot: 'SEÇÃO' }, { w: 14, rot: 'L (m)' }, { w: 20, rot: 'INFERIOR' }, { w: 20, rot: 'SUPERIOR' }, { w: 22, rot: 'ESTRIBO' }, { w: 16, rot: 'σmáx (MPa)' }],
-    linhas: ves.map((v) => { const a = v.armadura, t = (x: { n: number; phi: number } | null) => (x ? `${x.n} ${phiTxt(x.phi)}` : '—'); return [v.nome, `${cmInt(v.b)}×${cmInt(v.h)}`, nf(v.L), t(a.inf.barras), t(a.sup.barras), a.estribo ? `${phiTxt(a.estribo.phi)} c/${cmInt(a.estribo.s)}` : '—', nf(v.sigmaMax / 1000)]; }),
+    titulo: 'VIGAS SOBRE BASE ELÁSTICA', cols: [{ w: 14, rot: 'VIGA' }, { w: 16, rot: 'SEÇÃO' }, { w: 14, rot: 'L (m)' }, { w: 34, rot: 'INFERIOR' }, { w: 34, rot: 'SUPERIOR' }, { w: 22, rot: 'ESTRIBO' }, { w: 16, rot: 'σmáx (MPa)' }],
+    linhas: ves.map((v) => { const a = v.armadura, t = (x: { n: number; phi: number } | null, f?: { passantes: number; grupos: { n: number; comprimento: number }[] }) => (x ? `${x.n} ${phiTxt(x.phi)}${f?.grupos.length ? ` (${f.passantes} corridas${f.grupos.map((g) => ` + ${g.n}×${nf(g.comprimento)} m`).join('')})` : ''}` : '—'); return [v.nome, `${cmInt(v.b)}×${cmInt(v.h)}`, nf(v.L), t(a.inf.barras, a.cortes?.inf), t(a.sup.barras, a.cortes?.sup), a.estribo ? `${phiTxt(a.estribo.phi)} c/${cmInt(a.estribo.s)}` : '—', nf(v.sigmaMax / 1000)]; }),
   });
   const nts = notas([
     'Medidas em cm; bitolas (φ) em mm; tensões em MPa. Barra representativa de cada posição com a linha de distribuição; pernas rebatidas no plano.',

@@ -163,9 +163,9 @@ registrar<{ de?: string; modelo?: ModeloPortico; para: string[] }>({
   },
 });
 
-registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; ganchos?: [boolean, boolean]; perna?: number }[]; zonas?: { zona: number; phi?: number; s?: number; ramos?: number; u?: boolean }[]; fatorEmenda?: number; remover?: boolean }>({
+registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; ganchos?: [boolean, boolean]; perna?: number }[]; zonas?: { zona: number; phi?: number; s?: number; ramos?: number; u?: boolean; grampos?: number }[]; fatorEmenda?: number; remover?: boolean }>({
   nome: 'viga.detalhe',
-  descricao: 'Edita o detalhamento de uma viga (R7b): por posição de barra (N1, N2, …) os extremos `s0`/`s1` ao longo do traçado (m), os `ganchos` de 90° nas pontas e a `perna` reta (× φ); por zona de estribos (índice 0, 1, …) bitola `phi`, espaçamento `s` (m) e `ramos`; e o `fatorEmenda` do comprimento de traspasse. O recálculo aplica as edições e verifica a cobertura da armadura necessária, os estribos e a barra máxima (DETALHE_INSUF); vale enquanto o número de vãos não muda. `remover: true` volta ao detalhamento calculado.',
+  descricao: 'Edita o detalhamento de uma viga (R7b): por posição de barra (N1, N2, …) os extremos `s0`/`s1` ao longo do traçado (m), os `ganchos` de 90° nas pontas e a `perna` reta (× φ); por zona de estribos (índice 0, 1, …) bitola `phi`, espaçamento `s` (m) e `ramos`, `u` e `grampos` (grampos verticais abertos entre os ramos, R8b); e o `fatorEmenda` do comprimento de traspasse. O recálculo aplica as edições e verifica a cobertura da armadura necessária, os estribos e a barra máxima (DETALHE_INSUF); vale enquanto o número de vãos não muda. `remover: true` volta ao detalhamento calculado.',
   risco: 'escrita',
   calculo: 'detalhe',
   mcp: false,
@@ -177,6 +177,7 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
     } } },
     zonas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['zona'], properties: {
       zona: { type: 'integer', minimum: 0, maximum: 60 }, phi: { type: 'number', enum: BITOLA_T }, s: { type: 'number', minimum: 0.03, maximum: 0.5 }, ramos: { type: 'integer', enum: [2, 4, 6] }, u: { type: 'boolean', description: 'estribo em U (aberto no topo) nesta zona' },
+      grampos: { type: 'integer', minimum: 0, maximum: 2, description: 'dos ramos/2 conjuntos da seção, quantos são grampos verticais abertos (R8b); pelo menos 1 estribo fechado' },
     } } },
     fatorEmenda: { type: 'number', minimum: 0.5, maximum: 2 },
     remover: { type: 'boolean' },
@@ -188,6 +189,7 @@ registrar<{ id: string; barras?: { pos: string; s0?: number; s1?: number; gancho
     if (!p.barras?.length && !p.zonas?.length && p.fatorEmenda === undefined) return err('SEM_EDICAO', 'Informe barras, zonas ou fatorEmenda.', [p.id]);
     for (const e of p.barras ?? []) if (!/^N[0-9]+$/.test(e.pos)) return err('POSICAO_INVALIDA', `Posição ${e.pos} inválida (use N1, N2, …).`, [p.id]);
     for (const e of p.barras ?? []) if (e.s0 !== undefined && e.s1 !== undefined && e.s1 <= e.s0) return err('BARRA_INVERTIDA', `Posição ${e.pos}: s1 deve ser maior que s0.`, [p.id]);
+    for (const e of p.zonas ?? []) if (e.grampos !== undefined && e.grampos > (e.ramos ?? 6) / 2 - 1) return err('GRAMPOS_EXCESSO', `Zona ${e.zona}: ${e.grampos} grampo(s) com ${e.ramos ?? 'o número de'} ramos deixa menos de 1 estribo fechado; use grampos ≤ ramos/2 − 1.`, [p.id]);
     return [];
   },
   aplicar(d, p) {

@@ -1,5 +1,6 @@
 // R7a: tabelas de armadura editáveis. As tabelas de fábrica reproduzem a escolha anterior; tabela restrita força a
 // bitola; sem solução na tabela, φ25 forçado (vigas) ou armadura própria (pilares); simetria dos pilares por tolerância.
+import { ANTES_R8B } from './antesR8b';
 import { describe, expect, it } from 'vitest';
 import { barArea, chooseBars, chooseStirrup } from '../concrete';
 import { comandosEdificioPadrao, Sessao } from '../commands';
@@ -234,7 +235,7 @@ describe('pilares: simetria por tolerância e tabela', { timeout: 120000 }, () =
 
   it('tolerância: 0 % = menor armadura; 25 % aceita a simétrica 6 φ10; 1000 % = comportamento anterior', () => {
     const arm = (tol?: number) => {
-      const { s } = predio(6, sec, vb, tol === undefined ? [] : [['opcoes.definir', { valores: { pilarSimetria: tol } }]]);
+      const { s } = predio(6, sec, vb, [['opcoes.definir', { valores: { ...ANTES_R8B, ...(tol === undefined ? {} : { pilarSimetria: tol }) } }]]);
       return pil(dim(s.modelo), 'P1', 'Cobertura');
     };
     const t0 = arm(), t25 = arm(25), t1000 = arm(1000);
@@ -259,7 +260,7 @@ describe('pilares: simetria por tolerância e tabela', { timeout: 120000 }, () =
   });
 
   it('tabela de pilares restrita às bitolas φ20 e φ25 força a bitola; a tabela esgotada cai na armadura própria com aviso', () => {
-    const { s, ok } = predio(6, sec, vb, [['opcoes.definir', { valores: { pilarSimetria: 1000 } }]]);
+    const { s, ok } = predio(6, sec, vb, [['opcoes.definir', { valores: { pilarSimetria: 1000, ...ANTES_R8B } }]]);
     const livre = dim(s.modelo);
     const t: TabelaPilares = { id: 'grossa', nome: 'Só φ20 e φ25', bitolas: [20, 25], espacamentos: [30, 20], estribos: [{ phiAte: 25, phiT: 6.3, sMax: 15 }] };
     ok('tabela.definir', { tipo: 'pilares', tabela: t });

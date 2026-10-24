@@ -22,6 +22,8 @@ export interface CtxMemoriaPilar {
   As: number; phi: number; nBarras: number; armadura: string; bloq: boolean;
   cortante: { dir: string; Vsd: number; Vc: number; VRd2: number; asw: number; combinacao: string; bw: number; d: number }[];
   est: { phi: number; s: number }; phiTmin: number; sTmax: number;
+  /** Menor armadura que atende em cada bitola testada, com a opção de ordem por taxa (R8b). */
+  ordemTaxa?: { phi: number; As: number }[];
   /** E5m: lance dividido por vigas em desnível. `fl`, λ, esforços e cheques são os do trecho `trechoDet` (maior utilização). */
   trechos?: TrechoPilar[]; trechoDet?: number; trechoEsbelto?: number;
 }
@@ -113,6 +115,7 @@ export function registrarPilar(mem: Registrador, x: CtxMemoriaPilar) {
   const ta = 'Armadura longitudinal';
   P('dimensionamento', ta, { descricao: 'Armadura mínima', formula: `As,mín = máx(0,15·Nd/fyd; ${fm(x.taxaMin)} %·Ac)`, expressao: `As,mín = máx(0,15·${fm(x.NdMax)}/1000/${fm(x.fyd)}; ${fm(x.taxaMin / 100)}·${fm(x.Ac)}) = ${cm2(x.AsMin)}`, resultado: x.AsMin, unidade: 'm²', norma: `${NBR}, 17.3.5.3.1`, entradas: { Nd: x.NdMax, fyd: x.fyd, taxa: x.taxaMin, Ac: x.Ac } });
   P('dimensionamento', ta, { descricao: 'Armadura máxima', formula: 'As,máx = 4 %·Ac', expressao: `As,máx = 0,04·${fm(x.Ac)} = ${cm2(x.AsMax)}`, resultado: x.AsMax, unidade: 'm²', norma: `${NBR}, 17.3.5.3.2`, entradas: { Ac: x.Ac } });
+  if (x.ordemTaxa?.length && !x.bloq) P('detalhamento', ta, { descricao: 'Disposições testadas em ordem crescente de taxa (menor armadura que atende, por bitola)', formula: 'As = mín over φ(As que atende); empate: menor φ', expressao: x.ordemTaxa.map((q) => `φ${fm(q.phi)}: ${cm2(q.As)}`).join('; ') + ` → ${cm2(x.As)}`, resultado: x.As, unidade: 'm²', norma: 'Critério do programa de referência (K1.12.4-2)', entradas: Object.fromEntries(x.ordemTaxa.map((q) => [`As_${q.phi}`, q.As])) });
   P('detalhamento', ta, { descricao: `Armadura adotada${x.bloq ? ' (bloqueada)' : ''}`, formula: 'As = n·π·φ²/4, As,mín ≤ As ≤ As,máx', expressao: `As = ${x.nBarras}·π·(${fm(x.phi / 1000)})²/4 = ${cm2(x.As)}`, resultado: x.As, unidade: 'm²', norma: `${NBR}, 18.4.2`, entradas: { n: x.nBarras, phi: x.phi } });
 
   // ---- cortante e estribos
