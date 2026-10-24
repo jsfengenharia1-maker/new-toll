@@ -4,6 +4,7 @@ import { Dropdown, Input, RibbonButton, RibbonGroup } from '../ui';
 import { CoresPlanta } from './CoresPlanta';
 import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
+import { PlanosFaixa } from './PlanosUI';
 import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
 import { useInclinadasUI } from './InclinadasUI';
@@ -101,6 +102,7 @@ function Edicao() {
         <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
       </RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
+      <PlanosFaixa />
       <RibbonGroup label="Lajes" radios="Ferramenta">
         <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={() => ui({ cfg: 'tiposLaje' })} />
         <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />

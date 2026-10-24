@@ -1,8 +1,9 @@
 // Árvore do Navegador da obra (D4): Obra > Pavimentos, Pilares, Vigas e Lajes por grupo, Eixos, Fundação e Vistas.
 // Função pura sobre o modelo: a interface (Navegador.tsx) só desenha e liga a seleção à planta.
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
+import { rotuloPlano } from './planosUtil';
 
-export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista' | 'pilarParede' | 'parede' | 'muro' | 'alvenaria' | 'grupo' | 'carga' | 'corte' | 'sondagem' | 'escada';
+export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista' | 'pilarParede' | 'parede' | 'muro' | 'alvenaria' | 'grupo' | 'carga' | 'corte' | 'sondagem' | 'escada' | 'plano';
 export interface NoArvore {
   id: string;
   rotulo: string;
@@ -18,6 +19,12 @@ export const VISTAS: [string, string][] = [['planta', 'Planta'], ['vista3d', '3D
 
 const folha = (prefixo: string, nivel: number, x: { id: string; nome: string }, tipo: TipoNo): NoArvore => ({ id: `${prefixo}:${x.id}`, rotulo: x.nome, nivel, alvo: { tipo, id: x.id } });
 
+/** Nó "Planos" do grupo (E3f), dentro das lajes: um filho por plano, com a inclinação no rótulo; ausente sem planos. */
+function noPlanos(b: BuildingModel, raiz: 'vigas' | 'lajes', grupo: string): NoArvore[] {
+  const planos = raiz === 'lajes' ? (b.planos ?? []).filter((p) => p.grupo === grupo) : [];
+  return planos.length ? [{ id: `planos:${grupo}`, rotulo: 'Planos', nivel: 4, contagem: planos.length, filhos: planos.map((p) => ({ id: `plano:${p.id}`, rotulo: rotuloPlano(p), nivel: 5, alvo: { tipo: 'plano' as const, id: p.id } })) }] : [];
+}
+
 /** Nós de grupo (Tipo, Cobertura…) com as vigas ou lajes de cada um; só grupos que têm elementos. */
 function porGrupo(b: BuildingModel, raiz: 'vigas' | 'lajes', tipo: 'viga' | 'laje'): NoArvore[] {
   const lista: { id: string; nome: string; grupo: string }[] = b[raiz];
@@ -25,7 +32,7 @@ function porGrupo(b: BuildingModel, raiz: 'vigas' | 'lajes', tipo: 'viga' | 'laj
     .filter((g) => lista.some((x) => x.grupo === g.id))
     .map((g) => {
       const doGrupo = lista.filter((x) => x.grupo === g.id);
-      return { id: `${raiz}:${g.id}`, rotulo: g.nome, nivel: 3, contagem: doGrupo.length, filhos: doGrupo.map((x) => folha(tipo, 4, x, tipo)) };
+      return { id: `${raiz}:${g.id}`, rotulo: g.nome, nivel: 3, contagem: doGrupo.length, filhos: [...doGrupo.map((x) => folha(tipo, 4, x, tipo)), ...noPlanos(b, raiz, g.id)] };
     });
 }
 

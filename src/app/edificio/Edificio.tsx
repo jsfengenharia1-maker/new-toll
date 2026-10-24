@@ -25,6 +25,7 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
+import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaHost } from './EscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
@@ -223,6 +224,7 @@ export function Edificio() {
           <VigasGrupo b={b} />
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
+          <PlanosGrupo b={b} />
           <AlveolaresGrupo b={b} />
           <NervuradasGrupo b={b} />
           <AbacosGrupo b={b} />
@@ -253,6 +255,7 @@ export function Edificio() {
       <EscadaHost />
       <DiagonaisHost />
       <ConsolosHost />
+      <PlanosHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );

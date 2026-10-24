@@ -79,6 +79,10 @@ interface PState {
   camadaAbacos: boolean;
   /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
   camadaPuncao: boolean;
+  /** Plano escolhido no Navegador ou no grupo "Planos" (E3f), para "Atribuir plano" (não vai para o arquivo). */
+  planoSel: string | null;
+  /** Janela "Novo plano" aberta pela faixa (E3f). */
+  novoPlano: boolean;
   /** Camada "Placas alveolares" (E3e): placas numeradas das lajes alveolares do pavimento (não vai para o arquivo). */
   camadaPlacas: boolean;
   /** Ferramenta Armadura de punção: adicionar ou apagar grupos ao clicar num pilar, e o grupo lançado (linhas radiais, barras por linha, φ em mm, espaçamento em m). */
@@ -197,6 +201,8 @@ export const usePlanta = create<PState>((set) => ({
   camadaNervuras: false,
   camadaAbacos: false,
   camadaPuncao: false,
+  planoSel: null,
+  novoPlano: false,
   camadaPlacas: false,
   puncaoModo: 'adicionar',
   puncaoGrupo: { linhas: 8, barras: 3, phi: 6.3, s: 0.12 },
