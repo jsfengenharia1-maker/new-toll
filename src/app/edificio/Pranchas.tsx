@@ -7,6 +7,7 @@ import { Button, Check, download, Group, Hint, NumField, Select, TextField } fro
 import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
 import { siglaDe } from '../../core/sheets/prancha';
 import { RotulosLajes } from './EdicaoLajes';
+import { ResultadosPranchas } from './ResultadosPranchas';
 import { EstiloPranchas } from './EstiloPranchas';
 import { nf } from '../../core/sheets/armacao';
 import { zip } from '../../core/zip';
@@ -26,7 +27,7 @@ const CAMPOS: [keyof Carimbo, string][] = [
 const ROTULO_TIPO: Record<TipoSaida, string> = {
   formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', escadas: 'Detalhamento das escadas', cargas: 'Cargas por caso e grupo', perspectiva: 'Perspectiva axonométrica', resultados: 'Resultados (mapa de isovalores por pavimento)', todas: 'Conjunto completo',
 };
-const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f }));
+const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4', 'livre'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f === 'livre' ? 'livre (folha do usuário)' : f }));
 /** Opções de escala (denominador); inclui o valor em uso, mesmo que fora da lista. */
 const escalas = (base: number[], atual: number, auto?: string) => [...new Set([...base, atual])].sort((x, y) => x - y).map((e) => ({ v: e, label: e ? `1:${e}` : auto ?? 'automática' }));
 const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
@@ -157,6 +158,7 @@ export function Pranchas() {
             </>
           )}
         </div>
+        {tipo === 'resultados' && <ResultadosPranchas />}
         <EstiloPranchas />
         {precisa && !dim && <Hint><span data-aviso-calculo="sem">As pranchas de armação e a tabela de cargas da locação exigem o cálculo. Calcule e dimensione o edifício na aba Dimensionamento.</span></Hint>}
         {precisa && dim && !atual && <p className="hint bad" data-aviso-calculo="desatualizado">O dimensionamento é de uma revisão anterior do modelo. Recalcule na aba Dimensionamento para gerar as pranchas de armação e a locação com cargas.</p>}

@@ -73,6 +73,8 @@ interface PState {
   tema: Tema;
   /** Mostra em vermelho/amarelo os elementos com erro/aviso da revisão do dimensionamento. */
   mostrarErros: boolean;
+  /** Pilares da planta com os símbolos escolhidos para as pranchas (passa, nasce, morre; V7d; não vai para o arquivo). */
+  simbolosPlanta: boolean;
   /** Camada de armadura das lajes na planta: barras representativas inferiores, superiores ou nenhuma (não vai para o arquivo). */
   armaduraLajes: 'nenhuma' | 'inf' | 'sup' | 'ambas';
   /** Cargas coloridas por caso (G, Q, W, E, H e casos adicionais) com legenda na planta (V6e, não vai para o arquivo). */
@@ -229,6 +231,7 @@ export const usePlanta = create<PState>((set) => ({
   inferior: true,
   tema: temaSalvo(),
   mostrarErros: true,
+  simbolosPlanta: false,
   armaduraLajes: 'nenhuma',
   cargasPorCaso: true,
   ventoPlanta: '',

@@ -903,3 +903,81 @@ export const f_V7b = {
       await page.waitForFunction(() => document.querySelector('.planta-cv').getAttribute('data-vigotas-rotulos') === '0');
     },
   };
+
+export const f_V7d = {
+    name: 'V7d: símbolos dos pilares na planta e editor com amostras, estilo (tipo de linha, pena da série), folha livre e margens, mapa da folha de resultados',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      const cv = page.locator('.planta-cv');
+
+      // ---- planta: a chave liga os símbolos escolhidos para as pranchas
+      await faixaAba(page, 'Vista');
+      await cv.waitFor();
+      assert.equal(await cv.getAttribute('data-simbolos-planta'), '');
+      await page.getByLabel('Símbolos das pranchas', { exact: true }).check();
+      await page.waitForFunction(() => document.querySelector('.planta-cv').getAttribute('data-simbolos-planta') === 'hachura|tracejado|hachura');
+
+      // ---- editor: amostras acompanham a escolha, e a planta também
+      await faixaAba(page, 'Pranchas');
+      await page.getByRole('toolbar', { name: /^Comandos: Pranchas/ }).getByRole('button', { name: 'Estilo de desenho e símbolos…', exact: true }).click();
+      await page.locator('[data-estilo-pranchas]').waitFor();
+      assert.equal(await page.locator('[data-simbolos-previa]').getAttribute('data-simbolos-previa'), 'hachura|tracejado|hachura');
+      assert.equal(await page.locator('[data-simbolo-previa]').count(), 3);
+      await page.getByLabel(/^Símbolo do pilar que passa/).selectOption({ label: 'Cruz (X)' });
+      assert.equal(await page.locator('[data-simbolos-previa]').getAttribute('data-simbolos-previa'), 'cruz|tracejado|hachura');
+      await abas.getByRole('tab', { name: 'Planta', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('.planta-cv').getAttribute('data-simbolos-planta') === 'cruz|tracejado|hachura');
+      await abas.getByRole('tab', { name: 'Pranchas', exact: true }).click();
+      await page.getByRole('button', { name: 'Símbolos padrão', exact: true }).click();
+      assert.equal(await page.locator('[data-simbolos-previa]').getAttribute('data-simbolos-previa'), 'hachura|tracejado|hachura');
+
+      // ---- estilo: tipo de linha e pena da série entram no resumo das camadas alteradas
+      assert.equal(await page.locator('[data-estilo-resumo]').count(), 0);
+      await page.getByLabel(/^Camada do estilo/).selectOption('PILAR');
+      await page.getByLabel(/^Tipo de linha da camada/).selectOption({ label: 'Tracejada' });
+      await page.getByLabel(/^Pena da série NBR 16861/).selectOption({ label: '0.5 mm' });
+      await page.locator('[data-estilo-resumo="1"]').waitFor();
+      assert.match(await page.locator('[data-estilo-resumo] tbody').innerText(), /PILAR\s+PILAR\s+\d+\s+0\.5\s+Tracejada/);
+      await page.getByRole('button', { name: 'Voltar ao estilo padrão', exact: true }).click();
+      assert.equal(await page.locator('[data-estilo-resumo]').count(), 0);
+
+      // ---- folha livre e margens
+      await page.getByLabel(/^Formato/).selectOption({ label: 'livre (folha do usuário)' });
+      await page.getByLabel(/^Largura da folha livre/).fill('500');
+      await page.getByLabel(/^Largura da folha livre/).press('Enter');
+      await page.getByLabel(/^Altura da folha livre/).fill('330');
+      await page.getByLabel(/^Altura da folha livre/).press('Enter');
+      await page.getByLabel(/^Margem esquerda/).fill('15');
+      await page.getByLabel(/^Margem esquerda/).press('Enter');
+      await page.locator('[data-folha-usuario="500x330|15|7"]').waitFor();
+      await page.locator('.prancha-prev[data-formato="livre"][data-estado="pronto"]').waitFor({ timeout: 30000 });
+      assert.match(await page.locator('.prancha-prev svg').first().getAttribute('viewBox'), /^0 0 500 330$/);
+      // área útil insuficiente: recusado, a folha não muda
+      await page.getByLabel(/^Largura da folha livre/).fill('200');
+      await page.getByLabel(/^Largura da folha livre/).press('Enter');
+      await page.locator('.statusbar .msg', { hasText: 'área útil' }).waitFor();
+      await page.locator('[data-folha-usuario="500x330|15|7"]').waitFor();
+      await page.getByRole('button', { name: 'Folha e margens padrão', exact: true }).click();
+      await page.locator('[data-folha-usuario="420x297|20|7"]').waitFor();
+      await page.getByLabel(/^Formato/).selectOption({ label: 'automático' });
+
+      // ---- folha de resultados: grandeza e hipótese
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await abas.getByRole('tab', { name: 'Pranchas', exact: true }).click();
+      await page.getByLabel(/^Tipo de prancha/).selectOption({ label: 'Resultados (mapa de isovalores por pavimento)' });
+      await page.locator('[data-resultados-folha="uz|"]').waitFor();
+      await page.getByLabel(/^Grandeza do mapa/).selectOption('Mx');
+      await page.getByLabel(/^Hipótese do mapa/).selectOption('caso:G');
+      await page.locator('[data-resultados-folha="Mx|caso:G"]').waitFor();
+      await page.locator('.prancha-prev[data-tipo="resultados"][data-estado="pronto"]').waitFor({ timeout: 60000 });
+      assert.match(await page.locator('.prancha-prev svg').first().innerHTML(), /MOMENTO MX/);
+    },
+  };

@@ -4,7 +4,7 @@
 import type { AnaliseEdificio } from '../building/analitico';
 import type { Dimensionamento } from '../building/dimensionamento';
 import type { BuildingModel, Formato } from '../building/types';
-import { montarPranchas, type Prancha, type TipoPrancha } from './prancha';
+import { comFolha, montarPranchas, type Prancha, type TipoPrancha } from './prancha';
 import { numerarPrancha, type OpcoesCarimbo } from './armacao';
 import { acharGrupo, montarPranchasVigas } from './armacaoVigas';
 import { montarPranchasPilares } from './armacaoPilares';
@@ -57,6 +57,10 @@ export function armadurasDoDim(b: BuildingModel, dim: Dimensionamento): Record<s
  * armação ficam de fora (aviso na primeira prancha) e a locação sai sem a tabela de cargas.
  */
 export function montarConjunto(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento | null, o: OpcoesConjunto = {}): { pranchas: Prancha[]; avisos: string[] } {
+  return comFolha(b.prancha, () => montarConjuntoNaFolha(b, an, dim, o));
+}
+
+function montarConjuntoNaFolha(b: BuildingModel, an: AnaliseEdificio | null, dim: Dimensionamento | null, o: OpcoesConjunto): { pranchas: Prancha[]; avisos: string[] } {
   const tipos = tiposDe(o.tipos), avisos: string[] = [];
   const out: Prancha[] = [];
   const oa = { grupo: o.grupo, carimbo: o.carimbo };

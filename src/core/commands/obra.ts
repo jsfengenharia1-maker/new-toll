@@ -1,7 +1,7 @@
 // Comandos de organização da obra: dados gerais, norma, grupos, pavimentos e eixos.
 import { base64Bytes, infoJpeg, LIMITE_LOGO } from '../sheets/logo';
 import type { Draft } from 'immer';
-import { ORIGEM_ROTULO, type OrigemObra, ARMACAO_PADRAO, SIMBOLOS_PADRAO, type DetalheDxf, type EstiloParcial, type SimbolosPilar, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
+import { ORIGEM_ROTULO, type OrigemObra, ARMACAO_PADRAO, SIMBOLOS_PADRAO, type DetalheDxf, type EscolhaResultados, type EstiloParcial, type FolhaUsuario, type SimbolosPilar, COBRIMENTOS, PRANCHA_PADRAO, USOS, VENTO_PADRAO, qDoUso, type AbacosVento, type BuildingModel, type Carimbo, type CategoriaUso, type CategoriaVento, type ControleExecucao, type CurvaAbaco, type ConfigArmacao, type ConfigPrancha, type Norma } from '../building/types';
 import type { Diagnostico } from '../building/verify';
 import { abacoCaPreenchido, abacoVizPreenchido, validarAbacos } from '../building/abacosVento';
 import { OPCOES_INFO, efeitoDaOpcao, padraoDe, perfilDe, type OpcoesCalculo, type PerfilOpcoes } from '../building/opcoes';
@@ -9,6 +9,8 @@ import { gamaCDoControle } from '../building/acoes';
 import { ascendentesAco, GAMAS_PADRAO, POSICOES_ACO, type PosicaoAco } from '../building/materiais';
 import { detalheDeDxf } from '../sheets/saidas';
 import { validarEstilo } from '../sheets/estilo';
+import { validarFolha } from '../sheets/prancha';
+import { GRANDEZAS_ISO } from '../resultados/isovalores';
 import { registrar } from './registry';
 import type { JsonSchema } from './schema';
 
@@ -109,7 +111,7 @@ const CAMPOS_CARIMBO = ['empresa', 'obra', 'cliente', 'local', 'responsavel', 'r
 interface DxfIns { dxf: string; nome?: string; x: number; y: number; escala?: number; rotacao?: number; folhas?: string[] }
 registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; escala?: number; armacao?: Partial<ConfigArmacao>; logo?: { dados: string; nome?: string }; removerLogo?: boolean;
   simbolos?: Partial<SimbolosPilar>; estilo?: EstiloParcial; estiloPadrao?: boolean; moldura?: { dxf: string; nome?: string; x: number; y: number; escala?: number; modo?: 'moldura' | 'moldura+legenda' }; removerMoldura?: boolean;
-  detalhe?: DxfIns; removerDetalhes?: string[] }>({
+  detalhe?: DxfIns; removerDetalhes?: string[]; folha?: FolhaUsuario; folhaPadrao?: boolean; resultados?: EscolhaResultados }>({
   nome: 'prancha.definir',
   calculo: false,
   descricao: `Define os dados do carimbo das pranchas (empresa, obra, cliente, local, responsável técnico, registro profissional, ART/RRT, etapa do projeto, desenho, revisão, data), o formato (A0–A4 ou auto) e a escala (denominador; 0 = automática) das formas, e as opções das pranchas de armação e locação ("armacao": formato, escalaVigas 75, escalaSecao 25, escalaPilares 40, escalaLajes e escalaLocacao 0 = a das formas, lajesSeparadas 1 = positivas e negativas em folhas separadas, quadroPilares 1, cotasUsuario 1 = cotas permanentes de planta do usuário nas formas e na locação) e o logo do carimbo ("logo": JPEG em base64, até ${Math.round(LIMITE_LOGO / 1024)} KB em base64; "removerLogo" o retira). Campos de texto vazios e valores iguais ao padrão voltam ao padrão.`,
@@ -117,10 +119,14 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
   mcp: false,
   schema: { type: 'object', additionalProperties: false, properties: {
     carimbo: { type: 'object', additionalProperties: false, properties: Object.fromEntries(CAMPOS_CARIMBO.map((k) => [k, { type: 'string', maxLength: 120 }])) },
-    formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
+    formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4', 'livre'] },
     escala: { type: 'number', enum: [0, 20, 25, 50, 75, 100, 125, 200, 250] },
+    folha: { type: 'object', additionalProperties: false, description: 'Folha do usuário (formato "livre") e margens, em mm: largura e altura (150 a 5000; padrão 420 × 297), margemEsq (padrão 20) e margem (demais lados; padrão 10 em A0–A1 e 7 nas outras). As margens valem para todos os formatos.', properties: {
+      largura: { type: 'number', minimum: 150, maximum: 5000 }, altura: { type: 'number', minimum: 150, maximum: 5000 }, margemEsq: { type: 'number', minimum: 0, maximum: 100 }, margem: { type: 'number', minimum: 0, maximum: 100 } } },
+    folhaPadrao: { type: 'boolean', description: 'Volta a folha e as margens ao padrão' },
+    resultados: { type: 'object', additionalProperties: false, description: 'Mapa da folha de resultados: grandeza (id de isovalores das lajes, ex.: uz, Mx, AsInf; "" = deslocamento vertical) e hipótese (id "caso:G" ou "comb:<nome>"; "" = quase permanente)', properties: { grandeza: { type: 'string' }, hipotese: { type: 'string' } } },
     armacao: { type: 'object', additionalProperties: false, properties: {
-      formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] },
+      formato: { type: 'string', enum: ['auto', 'A0', 'A1', 'A2', 'A3', 'A4', 'livre'] },
       escalaVigas: { type: 'number', enum: [20, 25, 50, 75, 100] }, escalaSecao: { type: 'number', enum: [10, 20, 25, 50] }, escalaPilares: { type: 'number', enum: [20, 25, 40, 50, 75, 100] },
       escalaLajes: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaLocacao: { type: 'number', enum: [0, 50, 75, 100, 125, 200, 250] }, escalaFundacao: { type: 'number', enum: [25, 50] }, escalaParedes: { type: 'number', enum: [20, 25, 40, 50, 75, 100] }, escalaEscadas: { type: 'number', enum: [10, 20, 25, 50] },
       lajesSeparadas: { type: 'number', enum: [0, 1] }, quadroPilares: { type: 'number', enum: [0, 1] }, mascara: { type: 'number', enum: [0, 1] }, pontoFixo: { type: 'number', enum: [0, 1] }, cotasUsuario: { type: 'number', enum: [0, 1] }, cargasNasFormas: { type: 'number', enum: [0, 1] }, croqui: { type: 'number', minimum: 0, maximum: 200 },
@@ -137,9 +143,13 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     detalhe: { type: 'object', additionalProperties: false, required: ['dxf', 'x', 'y'], properties: { dxf: { type: 'string' }, nome: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, escala: { type: 'number', exclusiveMinimum: 0 }, rotacao: { type: 'number' }, folhas: { type: 'array', items: { type: 'string' } } } },
     removerDetalhes: { type: 'array', items: { type: 'string' } },
   } },
-  validar(_b, p) {
+  validar(b, p) {
     const ev = validarEstilo(p.estilo);
     if (ev.length) return err('ESTILO_INVALIDO', ev[0]);
+    const fv = validarFolha({ ...(p.folhaPadrao ? {} : b.prancha?.folha ?? {}), ...(p.folha ?? {}) });
+    if (p.folha && !p.folhaPadrao && fv.length) return err('FOLHA_INVALIDA', fv[0]);
+    const g = p.resultados?.grandeza;
+    if (g && !GRANDEZAS_ISO.some((x) => x.id === g && x.grupo !== 'radier')) return err('GRANDEZA_INVALIDA', `Grandeza de resultados desconhecida ou do radier: ${g}.`);
     for (const x of [p.moldura, p.detalhe]) if (x) { const d = detalheDeDxf(x.dxf, x.nome ?? 'DXF'); if ('erro' in d) return err('DXF_INVALIDO', d.erro); }
     if (!p.logo) return [];
     if (p.logo.dados.length > LIMITE_LOGO) return [{ codigo: 'LOGO_GRANDE', severidade: 'erro', elementos: [], mensagem: `Logo com ${Math.round(p.logo.dados.length / 1024)} KB em base64: o limite é ${Math.round(LIMITE_LOGO / 1024)} KB (reduza a imagem).` }];
@@ -178,6 +188,13 @@ registrar<{ carimbo?: Partial<Carimbo>; formato?: ConfigPrancha['formato']; esca
     if (p.moldura) { const det = detalheDeDxf(p.moldura.dxf, p.moldura.nome ?? 'Moldura') as DetalheDxf; d.prancha.moldura = { modelo: { detalhe: det, x: p.moldura.x, y: p.moldura.y, escala: p.moldura.escala ?? 1, modo: p.moldura.modo ?? 'moldura' } }; }
     if (p.removerDetalhes?.length) { d.prancha.detalhes = (d.prancha.detalhes ?? []).filter((x) => !p.removerDetalhes!.includes(x.id)); if (!d.prancha.detalhes.length) delete d.prancha.detalhes; }
     if (p.detalhe) { const det = detalheDeDxf(p.detalhe.dxf, p.detalhe.nome ?? 'Detalhe') as DetalheDxf; (d.prancha.detalhes ??= []).push({ id: novoId(d, 'dt'), detalhe: det, x: p.detalhe.x, y: p.detalhe.y, escala: p.detalhe.escala ?? 1, ...(p.detalhe.rotacao ? { rotacao: p.detalhe.rotacao } : {}), ...(p.detalhe.folhas?.length ? { folhas: p.detalhe.folhas } : {}) }); }
+    if (p.folhaPadrao) delete d.prancha.folha;
+    if (p.folha) { d.prancha.folha = { ...(d.prancha.folha ?? {}), ...p.folha }; if (!Object.keys(d.prancha.folha).length) delete d.prancha.folha; }
+    if (p.resultados) {
+      const r: EscolhaResultados = { ...(d.prancha.resultados ?? {}) };
+      for (const k of ['grandeza', 'hipotese'] as const) { const v = p.resultados[k]; if (v === undefined) continue; if (v) r[k] = v; else delete r[k]; }
+      if (Object.keys(r).length) d.prancha.resultados = r; else delete d.prancha.resultados;
+    }
     if (p.formato !== undefined) d.prancha.formato = p.formato;
     if (p.escala !== undefined) d.prancha.escala = p.escala;
     return 'Pranchas: dados alterados.';

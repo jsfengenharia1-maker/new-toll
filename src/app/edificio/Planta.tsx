@@ -13,6 +13,8 @@ import { classeDoCaso, legendaDeCargas, metrosPorKNVento, setasDeVento, ventoPor
 import { cssVar } from '../design/tokens';
 import { useEdifUI } from './uiStore';
 import { useRevisao } from './revisao';
+import { desenharSimboloPilar } from './simbolosCanvas';
+import { simboloDoEstado, simbolosEmUso } from '../../core/sheets/simbolos';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
 import { MenuFerramentaMouse } from './MenuFerramentaMouse';
 import { EscadaMenu, escolherEscada } from './EscadaMenu';
@@ -679,6 +681,7 @@ export function Planta() {
         if (v.k > 40 && x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
       }
     }
+    if (wrap.current) wrap.current.dataset.simbolosPlanta = pl.simbolosPlanta ? (() => { const m = simbolosEmUso(b.prancha?.simbolos); return `${m.passa}|${m.nasce}|${m.morre}`; })() : '';
     if (wrap.current) { wrap.current.dataset.vigotasRotulos = String(rotVigotas.length); wrap.current.dataset.vigotasLegenda = rotVigotas.length ? legendaVigotas(pl.vigotasVista, pl.vigotasEsforcos) : ''; }
     if (rotVigotas.length && v.k > 25) {
       ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cores.texto;
@@ -931,15 +934,21 @@ export function Planta() {
         ctx.setLineDash([4, 3]); ctx.strokeStyle = cores.fantasma; ctx.lineWidth = 1; ctx.stroke(path); ctx.setLineDash([]);
         continue;
       }
-      if (q.estado === 'chega') { ctx.fillStyle = cores.pilar; ctx.fill(path); }
-      if (q.estado === 'nasce') { // hachura
-        ctx.save(); ctx.clip(path); ctx.strokeStyle = cores.pilar; ctx.lineWidth = 1;
-        const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-        ctx.beginPath(); for (let x = x0 - (y1 - y0); x < x1; x += 5) { ctx.moveTo(x, y1); ctx.lineTo(x + (y1 - y0), y0); } ctx.stroke(); ctx.restore();
+      // símbolos das pranchas (V7d): chega = passa, morre, nasce; sem a chave, o desenho de sempre
+      const simb = pl.simbolosPlanta ? simboloDoEstado(q.estado === 'morre' ? 'morre' : q.estado === 'nasce' ? 'nasce' : 'chega', simbolosEmUso(b.prancha?.simbolos)) : null;
+      if (simb) desenharSimboloPilar(ctx, pts as [number, number][], simb, cores.pilar);
+      else {
+        if (q.estado === 'chega') { ctx.fillStyle = cores.pilar; ctx.fill(path); }
+        if (q.estado === 'nasce') { // hachura
+          ctx.save(); ctx.clip(path); ctx.strokeStyle = cores.pilar; ctx.lineWidth = 1;
+          const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+          ctx.beginPath(); for (let x = x0 - (y1 - y0); x < x1; x += 5) { ctx.moveTo(x, y1); ctx.lineTo(x + (y1 - y0), y0); } ctx.stroke(); ctx.restore();
+        }
       }
       const sel = pl.selecao.has(q.p.id), erro = comErro.has(q.p.id), avi = comAviso.has(q.p.id);
       ctx.strokeStyle = erro ? cores.erro : avi ? cores.aviso : sel ? cores.selecao : cores.pilarBorda; ctx.lineWidth = erro || avi ? 3 : sel ? 2.5 : 1.5;
-      ctx.stroke(path);
+      if (simb === 'tracejado') ctx.setLineDash([4, 3]);
+      ctx.stroke(path); ctx.setLineDash([]);
       if (sel) { ctx.save(); ctx.globalAlpha = 0.25; ctx.lineWidth = 8; ctx.strokeStyle = cores.selecao; ctx.stroke(path); ctx.restore(); }
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       ctx.fillStyle = erro ? cores.erro : avi ? cores.aviso : cores.texto;
