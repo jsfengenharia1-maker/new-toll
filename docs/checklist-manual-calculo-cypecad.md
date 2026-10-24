@@ -18,14 +18,14 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 97 | 6 | 0 | 13 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 99 | 4 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 51 | 8 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 89 | 7 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **511** | **38** | **1** | **111** |
+| **Total** | **661** | **513** | **36** | **1** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 13 | 1 | 14 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 11 | 1 | 12 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **38** | **1** | **39** |
+| **Total** | **36** | **1** | **37** |
 
 ## Divergências de premissa
 
@@ -488,9 +488,9 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.94 | Armadura base em malha (superior/inferior, duas direções) considerada no dimensionamento; mesmo alerta de detalhamento de 1.9.87. | Parcial | E | base das nervuras por direção considerada no dimensionamento só quando marcada (`laje.armaduraBase { nervuras }`); a malha da mesa e das zonas maciças fica descrita e desenhada, sem entrar no dimensionamento da mesa; alerta de detalhamento como o da 1.9.87 [E3c] — E5g: entrada da malha da mesa e das zonas maciças no dimensionamento da mesa |
 | K1.9.95 | Viga chata entre panos de alturas diferentes assume a altura da laje mais espessa; viga alta: parte saliente medida a partir da maior altura. | Feito | — | viga chata assume a altura da laje mais espessa que a toca, nervurada ou não (`alturaVigaChata`); viga alta: parte saliente = h da viga − maior altura (`parteSalienteViga`, `lajesQueTocam`, memorial das nervuradas) [E3c] |
 | K1.9.96 | Engaste de borda do pano 0–1. | Feito | — | `Laje.engasteBordas` (0 a 1 por aresta) vale para as nervuradas (`engasteBorda`, `laje.nervurada { engasteBordas }`) [E3c] |
-| K1.9.97 | Ábacos (zonas maciças) gerados automaticamente nos pilares ou em qualquer zona, com a mesma espessura do pano aliviado; altura pode descer abaixo da zona aliviada. | Parcial | E | E3d: ábacos automáticos nos pilares na interface (abaco.gerar, AbacosUI.tsx); ábaco em qualquer zona por polígono (abaco.criar) sem ferramenta na planta — E5b: ferramenta Ábaco na planta (polígono em qualquer zona) |
+| K1.9.97 | Ábacos (zonas maciças) gerados automaticamente nos pilares ou em qualquer zona, com a mesma espessura do pano aliviado; altura pode descer abaixo da zona aliviada. | Feito | — | E3d: ábacos automáticos nos pilares na interface (abaco.gerar, AbacosUI.tsx); ábaco em qualquer zona por polígono (abaco.criar) sem ferramenta na planta — E5b: ferramenta Ábaco na planta (polígono em qualquer zona) — E5b: ferramenta Ábaco na planta, retângulo por dois cantos ou polígono em qualquer zona do pano nervurado (abaco.criar); e2e E5b-abaco |
 | K1.9.98 | Ábaco automático: dimensão em cada direção = 1/6 da distância ao pilar mais próximo dentro de cone de visão de 40°; sem pilar visível (borda), usa o valor do sentido oposto; limites 2,5 a 5 vezes a altura (texto); parâmetros de geração configuráveis. | Feito | — | 1/6 da distância ao pilar mais próximo no cone de 40°, sem pilar usa o sentido oposto, limites 2,5 a 5 h e parâmetros nas opções `abaco*` (`dimensionarAbacoPilar`; testes: malha de 6 × 6 m, cone, limites, borda) [E3d] |
-| K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Parcial | E | E3d: ábacos manuais por campos (centro e dimensões) no grupo Ábacos, com aviso ABACO_VIGA; desenho à mão na planta ainda não existe — E5b: desenhar o ábaco na planta, ajustado ao número de caixotes |
+| K1.9.99 | Ábacos manuais ajustados ao número de caixotes; não usar para simular vigas (definir vigas); usar sempre em bordas livres. | Feito | — | E3d: ábacos manuais por campos (centro e dimensões) no grupo Ábacos, com aviso ABACO_VIGA; desenho à mão na planta ainda não existe — E5b: desenhar o ábaco na planta, ajustado ao número de caixotes — E5b: ábaco desenhado na planta fecha em caixotes inteiros com a contagem na prévia (abacoAjustadoAosCaixotes); aviso ABACO_VIGA mantido; e2e E5b-abaco |
 | K1.9.100 | Ábacos sempre têm armadura base entre nervuras, descontada da armadura das nervuras; não é medida nem detalhada — alerta para legenda e detalhes; tabela informativa sempre impressa na planta. | Feito | — | armadura base entre nervuras sempre colaborante (a superior desconta da calculada sobre o pilar), padrão 2 barras da tabela; o Statikos a desenha e a quantifica (resumo de aço, posições `abacoBase`) e imprime o quadro "Armadura base dos ábacos" nas pranchas (`barrasBaseAbaco`, `armacaoLajes.ts`) [E3d] |
 | K1.9.101 | Desenho opcional dos caixotes da zona aliviada. | Feito | — | E3c: camada opcional Nervuras e cubetas na planta (caixa do grupo Nervuradas), com as cubetas desenhadas [E3c] |
 | K1.9.102 | Armadura pré-definida em qualquer posição/direção, descontada da armadura adicional na sua área. | Feito | — | comando `laje.armaduraPredefinida` (face, ponto, direção, comprimento, φ, espaçamento e nº de barras; criar, editar e remover): medida como lançada e descontada do reforço só na faixa n × s, inclusive sobre bordas contínuas (R7d) |

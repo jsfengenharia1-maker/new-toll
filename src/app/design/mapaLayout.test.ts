@@ -20,8 +20,8 @@ describe('mapa de migração do layout', () => {
     expect(mapa).toContain('**226 itens**');
   });
 
-  it('as 44 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
-    expect(rotulos.length).toBe(44);
+  it('as 47 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
+    expect(rotulos.length).toBe(47);
     for (const { id, rotulo } of rotulos) {
       const linha = mapa.split('\n').find((l) => /^\| T\d+ \|/.test(l) && l.includes(`| ${rotulo} |`));
       expect(linha, `ferramenta ${id} (${rotulo}) sem linha T no mapa`).toBeTruthy();

@@ -9,7 +9,7 @@ import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano' | 'escada' | 'flecha' | 'diagonal' | 'consolo' | 'abaco';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -181,6 +181,9 @@ interface PState {
   cores: Partial<Record<Tema, Partial<Paleta>>>;
   /** Ferramenta Escada (E4b): função (criar, editar, apagar, mover, girar); dados e lances da última escada lançada (C8.38, zerados ao trocar de obra);
    *  inserção repetida (C8.35) e escada de que a nova copia dados e lances (C8.39). Não vão para o arquivo. */
+  /** Ferramenta Diagonal (E5b, C6.42): pavimento da ponta final ('' = o pavimento acima) e seção (m). Ferramenta Ábaco (K1.9.97): forma (retângulo por dois cantos ou polígono) e altura (cm; 0 = a do pano). */
+  diagonalDef: { pavFim: string; b: number; h: number };
+  abacoDef: { forma: 'ret' | 'poli'; h: number };
   escadaFn: 'criar' | 'editar' | 'apagar' | 'mover' | 'girar';
   escadaPadrao: { dados: DadosComunsEscada; lances: Omit<LanceEscada, 'id'>[]; nome?: string; angulo?: number } | null;
   escadaRepetir: boolean;
@@ -261,6 +264,8 @@ export const usePlanta = create<PState>((set) => ({
   ppAngulo: 0,
   ppParams: null,
   pwParams: null,
+  diagonalDef: { pavFim: '', b: 0.2, h: 0.3 },
+  abacoDef: { forma: 'ret', h: 0 },
   escadaFn: 'criar',
   escadaPadrao: null,
   escadaRepetir: true,
@@ -305,8 +310,10 @@ export const usePlanta = create<PState>((set) => ({
 export type Paleta = {
   fundo: string; mascara: string; eixo: string; viga: string; laje: string; carga: string; parede: string; pilar: string; pilarBorda: string; texto: string; cota: string;
   selecao: string; captura: string; guia: string; erro: string; aviso: string; janela: string; cruzamento: string; fantasma: string; limite: string;
+  /** Linhas dos planos inclinados (E5b, C6.58) e cursor sobre o eixo ou a face de viga (C7.66). */
+  magenta: string; capturaViga: string;
 };
-export const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma', 'limite'] as const;
+export const CHAVES = ['fundo', 'mascara', 'eixo', 'viga', 'laje', 'carga', 'parede', 'pilar', 'pilarBorda', 'texto', 'cota', 'selecao', 'captura', 'guia', 'erro', 'aviso', 'janela', 'cruzamento', 'fantasma', 'limite', 'magenta', 'capturaViga'] as const;
 const cache = new Map<Tema, Paleta>();
 /** Paleta do tema no design system (global.css), sem as alterações do usuário. */
 export function paletaBase(t: Tema): Paleta {

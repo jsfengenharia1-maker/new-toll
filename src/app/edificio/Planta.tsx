@@ -13,6 +13,7 @@ import { cssVar } from '../design/tokens';
 import { useEdifUI } from './uiStore';
 import { useRevisao } from './revisao';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { MenuFerramentaMouse } from './MenuFerramentaMouse';
 import { EscadaMenu, escolherEscada } from './EscadaMenu';
 import { dadosComunsDe, geometriaEscada, nomeSequencial, tiposLanceDisponiveis } from '../../core/building/escadas';
 import { anguloDeInsercao, deltaPorPontos, desenhoPlantaEscada, escadasNaJanela, escadasNoPonto, girarEscada, previaInsercao } from '../../core/building/escadasEdicao';
@@ -43,7 +44,8 @@ import { contornoDoLado, ladosDoPP, lancesDoPP } from '../../core/building/pilar
 import { niveisDaParede, paredeDoPP, ppDaParede } from '../../core/building/paredesBase';
 import { aberturasNaPlanta } from './paredesLista';
 import { expandirDiagonais } from '../../core/building/diagonais';
-import type { PilarParede } from '../../core/building/types';
+import { abacoAjustadoAosCaixotes, consoloNaFace, linhasMagenta, moverPontoDoPlano, nervuradaSob, paramsDiagonalPlanta, reescreverCotaDoPlano, reescreverInclinacaoDoPlano, retanguloNasNervuras, rotulosDoPlano, type ParamsEdicaoPlano } from '../../core/building/ferramentasMouse';
+import type { Plano, PilarParede } from '../../core/building/types';
 import { useStore } from '../store';
 import { executarERecalcular, idsBloqueados } from './Armadura';
 import { Input, useAjuda } from '../ui';
@@ -56,7 +58,7 @@ import { ancoraMaisProxima, ancorasRef, deslocamentoPorCliques, refDe, textosVis
 type P2 = [number, number];
 const RAIO_PX = 12;
 /** Ferramentas de polilinha: Enter, duplo clique e botão direito terminam. */
-const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida', 'parede', 'corte'];
+const POLILINHAS = ['viga', 'laje', 'carga', 'limite', 'radier', 'vigaElastica', 'corrida', 'parede', 'corte', 'abaco'];
 const dprAtual = () => Math.min(2, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
 const fmt = (v: number, d = 2) => v.toFixed(d).replace('.', ',');
 const msg = (m: string) => useStore.getState().set({ message: m });
@@ -153,7 +155,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', flecha: 'Flecha entre dois pontos', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada', diagonal: 'Diagonal por dois pontos', consolo: 'Consolo na face do pilar', abaco: 'Ábaco',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
 
@@ -206,6 +208,9 @@ const PASSOS: Record<Ferramenta, string[]> = {
   girar: ['Clique o centro do giro da seleção (ângulo na barra da planta; digite x;y e Enter para coordenadas).'],
   espelhar: ['1º ponto do eixo de espelhamento da seleção.', '2º ponto do eixo.'],
   escada: ['Escolha a função no menu (Criar, Editar, Apagar, Mover, Girar). Em Criar, o clique inicial põe o início da escada e o segundo define a direção; Esc volta a Selecionar.'],
+  diagonal: ['Primeiro ponto da diagonal de contraventamento, neste pavimento (pilar ou eixo de viga; a seção e o pavimento da ponta final ficam no menu da ferramenta).', 'Segundo ponto: a ponta final, no pavimento escolhido no menu (padrão: o pavimento acima), sem trocar de planta.'],
+  consolo: ['Clique na face do pilar em que a viga se apoia: o consolo nasce com a geometria de partida (ajuste na janela de consolos); a face em destaque indica a viga escolhida.'],
+  abaco: ['Primeiro canto do ábaco (ou primeiro vértice, no modo polígono), dentro de um pano nervurado.', 'Canto oposto (retângulo) ou próximo vértice; Enter, duplo clique ou botão direito fecha o polígono. A zona cresce até os eixos das nervuras mais próximos (caixotes inteiros).'],
   pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'], parede: ['Clique os vértices do eixo da parede (capturas valem; Enter termina; Esc cancela).'],
 };
 
@@ -232,6 +237,8 @@ export function Planta() {
   const [digitando, setDigitando] = useState<string | null>(null);
   /** Campo de edição do valor de uma cota (L6): posição na tela, texto em cm e a ação que aplica o valor (m). */
   const [cotaEd, setCotaEd] = useState<{ x: number; y: number; texto: string; aplicar: (m: number) => void } | null>(null);
+  /** Campo de edição de um texto do plano na planta (E5b, C7.67): posição, texto e a conversão do valor digitado em parâmetros de `plano.editar`. */
+  const [planoEd, setPlanoEd] = useState<{ x: number; y: number; texto: string; rotulo: string; aplicar: (v: number) => ParamsEdicaoPlano | null } | null>(null);
   const [posDig, setPosDig] = useState<P2>([0, 0]);
   const [pontos, setPontosEstado] = useState<P2[]>([]);
   /** Série da ferramenta Cota (L6): referências escolhidas, se já pede a linha e o modo (face ou eixo) das próximas. */
@@ -249,6 +256,9 @@ export function Planta() {
     zonas: [] as { x: number; y: number; r: number; acao: () => void; pe?: boolean }[],
     /** Escadas escolhidas no 1º clique das funções Mover e Girar da ferramenta Escada (E4b). */
     escadaIds: [] as string[],
+    /** Pontos e textos clicáveis dos planos (tela) refeitos a cada desenho, e o ponto de plano em arrasto (E5b). */
+    zonasPlano: [] as { x: number; y: number; r: number; id: string; indice: number; tipo: 'ponto' | 'cota' | 'inclinacao'; valor: number }[],
+    arrasto: null as null | { id: string; indice: number; ponto: P2; origem: P2 },
   });
 
   // ---- dados derivados ----
@@ -1328,9 +1338,72 @@ export function Planta() {
         }
       }
     }
+    // E5b: linhas magenta dos planos (C6.58), pontos e textos editáveis do plano (C7.67), cursor sobre eixo ou face de viga (C7.66)
+    // e prévias das ferramentas Consolo e Ábaco
+    s.zonasPlano = [];
+    const planosG = nivelFund ? [] : (b.planos ?? []).filter((x) => x.grupo === grupo);
+    const verLinhas = planosG.length > 0 && (pl.ferramenta === 'plano' || (!!pl.planoSel && planosG.some((x) => x.id === pl.planoSel)));
+    const linhasM = verLinhas ? linhasMagenta(b, grupo, pl.ferramenta === 'plano' ? {} : { plano: pl.planoSel ?? undefined }) : [];
+    if (wrap.current) wrap.current.dataset.linhasMagenta = linhasM.map((l) => l.tipo === 'interseccao' ? 'i' : 'd').join('');
+    if (linhasM.length) {
+      ctx.save(); ctx.strokeStyle = cores.magenta; ctx.lineWidth = 2;
+      for (const l of linhasM) { const [a, z] = [paraTela(l.a[0], l.a[1]), paraTela(l.z[0], l.z[1])]; ctx.setLineDash(l.tipo === 'declividade' ? [9, 5] : []); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(z[0], z[1]); ctx.stroke(); }
+      ctx.restore();
+    }
+    if (pl.ferramenta === 'plano' && planosG.length) {
+      ctx.save(); ctx.font = '11px system-ui, sans-serif'; ctx.lineWidth = 1;
+      for (const pln of planosG) {
+        const ar = s.arrasto?.id === pln.id ? s.arrasto : null;
+        const ef = ar ? ({ ...pln, def: { ...pln.def, pontos: moverPontoDoPlano(pln, ar.indice, ar.ponto).pontos } } as Plano) : pln;
+        const rot = rotulosDoPlano(ef), cs = rot.filter((r) => r.tipo === 'cota');
+        if (cs.length > 1) { ctx.strokeStyle = cores.magenta; ctx.setLineDash([3, 3]); ctx.beginPath(); cs.forEach((r, i) => { const [qx, qy] = paraTela(r.ponto[0], r.ponto[1]); if (i) ctx.lineTo(qx, qy); else ctx.moveTo(qx, qy); }); if (cs.length > 2) ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+        for (const r of rot) {
+          const [qx, qy] = paraTela(r.ponto[0], r.ponto[1]), w = ctx.measureText(r.texto).width;
+          if (r.tipo === 'cota') {
+            ctx.fillStyle = pl.planoSel === pln.id ? cores.selecao : cores.magenta; ctx.fillRect(qx - 4, qy - 4, 8, 8);
+            ctx.fillStyle = cores.texto; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(r.texto, qx + 10, qy - 8);
+            if (!ar) { s.zonasPlano.push({ x: qx, y: qy, r: 8, id: pln.id, indice: r.indice, tipo: 'ponto', valor: r.valor }); s.zonasPlano.push({ x: qx + 10 + w / 2, y: qy - 14, r: w / 2 + 4, id: pln.id, indice: r.indice, tipo: 'cota', valor: r.valor }); }
+          } else {
+            ctx.fillStyle = cores.magenta; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.texto, qx, qy);
+            if (!ar) s.zonasPlano.push({ x: qx, y: qy, r: w / 2 + 4, id: pln.id, indice: -1, tipo: 'inclinacao', valor: r.valor });
+          }
+        }
+      }
+      ctx.restore();
+    }
+    const capV = pl.ferramenta === 'plano' && !nivelFund && !s.pan && pav ? capturaPlano(b, grupo, [s.cursor[0], s.cursor[1]], 0.15) : null;
+    if (wrap.current) wrap.current.dataset.cursorCaptura = capV ? capV.tipo : '';
+    if (capV) {
+      const [cx, cy] = paraTela(capV.ponto[0], capV.ponto[1]);
+      ctx.save(); ctx.strokeStyle = cores.capturaViga; ctx.fillStyle = cores.capturaViga; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx + 7, cy); ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 7, cy); ctx.closePath(); ctx.stroke();
+      ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(capV.tipo === 'eixo' ? 'eixo da viga' : 'face da viga', cx + 10, cy - 8);
+      ctx.restore();
+    }
+    if (pl.ferramenta === 'consolo' && !nivelFund && !s.pan && pav) {
+      const r = consoloNaFace(b, naPlanta.map((q) => q.p), todasVigas.filter((v) => v.grupo === grupo), s.cursor);
+      if (wrap.current) wrap.current.dataset.consoloFace = r.ok ? `${r.pilar}|${r.viga}|${r.ponta}` : '';
+      if (r.ok && r.aresta) {
+        const [a, z] = [paraTela(r.aresta[0][0], r.aresta[0][1]), paraTela(r.aresta[1][0], r.aresta[1][1])];
+        ctx.save(); ctx.strokeStyle = cores.captura; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(z[0], z[1]); ctx.stroke(); ctx.restore();
+      }
+    } else if (wrap.current && wrap.current.dataset.consoloFace) wrap.current.dataset.consoloFace = '';
+    if (pl.ferramenta === 'abaco' && !nivelFund && !s.pan && pontos.length) {
+      const l = nervuradaSob(b, grupo, pontos[0]), ret = pl.abacoDef.forma === 'ret';
+      const pts = ret ? (l ? retanguloNasNervuras(l, pontos[0], s.ponto) : []) : [...pontos, s.ponto];
+      const r = l && pts.length >= 3 ? abacoAjustadoAosCaixotes(b, l, pts) : null;
+      if (wrap.current) wrap.current.dataset.abacoCaixotes = r?.ok ? r.caixotes.join('x') : '';
+      if (r?.ok) {
+        const ts = r.poligono.map((q) => paraTela(q[0], q[1]));
+        ctx.save(); ctx.beginPath(); ts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath();
+        ctx.globalAlpha = 0.25; ctx.fillStyle = cores.captura; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = cores.captura; ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = cores.texto; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(`${r.caixotes[0]} × ${r.caixotes[1]} caixotes`, px + 12, py - 12);
+        ctx.restore();
+      }
+    } else if (wrap.current && wrap.current.dataset.abacoCaixotes) wrap.current.dataset.abacoCaixotes = '';
     // mira
     const [mx, my] = paraTela(...s.cursor);
-    ctx.strokeStyle = cores.texto; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.strokeStyle = capV ? cores.capturaViga : cores.texto; ctx.lineWidth = 1; ctx.beginPath();
     ctx.moveTo(mx - 14, my); ctx.lineTo(mx + 14, my); ctx.moveTo(mx, my - 14); ctx.lineTo(mx, my + 14); ctx.stroke();
     ctx.strokeRect(mx - 4, my - 4, 8, 8);
     if (s.cap) glifo(ctx, s.cap);
@@ -1370,7 +1443,7 @@ export function Planta() {
     s.guia = false;
     s.baixo = pl.ferramenta === 'pilar' ? (baixoSob(w)?.p.id ?? (s.cap ? baixoSob([s.cap.x, s.cap.y])?.p.id : null) ?? null) : null;
     if (s.cap) s.ponto = [s.cap.x, s.cap.y];
-    else if (ref && (pl.orto || pl.polar)) {
+    else if (ref && (pl.orto || pl.polar) && !(pl.ferramenta === 'abaco' && pl.abacoDef.forma === 'ret')) {
       const passo = pl.orto ? 90 : 15;
       const q = restringir(ref, w, passo);
       const desvio = Math.hypot(q[0] - w[0], q[1] - w[1]) * vista!.k;
@@ -1541,6 +1614,36 @@ export function Planta() {
     const f = pl.ferramenta;
     const novos = [...pontosRef.current, p];
     if (f === 'escada') { agirEscada(p); return; }
+    if (f === 'diagonal') {
+      // E5b (C6.42): dois cliques na planta do pavimento; a ponta final vai ao pavimento escolhido no menu (padrão: o de cima)
+      if (nivelFund || !pav) { msg('A diagonal é lançada nas plantas dos pavimentos.'); return; }
+      if (!pontosRef.current.length) { setPontos([p]); msg('Ponta inicial marcada: clique a ponta final.'); return; }
+      const d = usePlanta.getState().diagonalDef, par = paramsDiagonalPlanta(b, pav.id, d.pavFim, pontosRef.current[0], p, { b: d.b, h: d.h });
+      setPontos([]);
+      if (!par) { msg('Não há pavimento acima: escolha o pavimento da ponta final no menu da ferramenta.'); return; }
+      exec('diagonal.criar', par);
+      return;
+    }
+    if (f === 'consolo') {
+      // E5b (C6.55): clique na face do pilar em que a viga se apoia
+      if (nivelFund || !pav) { msg('O consolo é lançado nas plantas dos pavimentos.'); return; }
+      const r = consoloNaFace(b, naPlanta.map((q) => q.p), todasVigas.filter((v) => v.grupo === grupo), p);
+      if (!r.ok) { msg(r.motivo); return; }
+      exec('consolo.criar', { viga: r.viga, ponta: r.ponta, pilar: r.pilar });
+      return;
+    }
+    if (f === 'abaco') {
+      // E5b (K1.9.97, K1.9.99): retângulo por dois cantos (alinhado às nervuras) ou polígono; a zona fecha em caixotes inteiros
+      if (nivelFund || !pav) { msg('O ábaco é lançado nas plantas dos pavimentos.'); return; }
+      const ret = usePlanta.getState().abacoDef.forma === 'ret';
+      if (!pontosRef.current.length) {
+        if (!nervuradaSob(b, grupo, p)) { msg('Clique dentro de um pano nervurado (bidirecional) para começar o ábaco.'); return; }
+        setPontos([p]); msg(ret ? 'Primeiro canto marcado: clique o canto oposto.' : 'Primeiro vértice marcado: próximos vértices; Enter fecha o ábaco.'); return;
+      }
+      if (ret) { const ini = pontosRef.current[0]; setPontos([]); criarAbaco([ini, p]); return; }
+      setPontos(novos);
+      return;
+    }
     if (f === 'pilar') {
       // sobre um pilar de baixo que admite outro por cima: coordenadas relativas ao ponto fixo dele (nasce no pavimento em que ele morre)
       const q = !pl.arranque ? baixoSob(p) ?? (it.current.baixo ? naPlanta.find((x) => x.p.id === it.current.baixo) ?? null : null) : null;
@@ -1912,8 +2015,20 @@ export function Planta() {
   };
 
   /** Enter/duplo clique: termina a polilinha da ferramenta atual. */
+  /** Cria o ábaco com os pontos clicados (2 = cantos do retângulo nas nervuras; 3 ou mais = polígono) no pano do primeiro ponto. */
+  const criarAbaco = (pts: P2[]) => {
+    const l = pts.length ? nervuradaSob(b, grupo, pts[0]) : null;
+    if (!l || pts.length < 2) { msg('Ábaco: marque os pontos dentro de um pano nervurado.'); return; }
+    const poli = pts.length === 2 ? retanguloNasNervuras(l, pts[0], pts[1]) : pts;
+    const r = abacoAjustadoAosCaixotes(b, l, poli);
+    if (!r.ok) { msg(r.motivo ?? 'Ábaco fora do pano.'); return; }
+    const h = usePlanta.getState().abacoDef.h;
+    const res = exec('abaco.criar', { laje: l.id, poligono: poli.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), ...(h > 0 ? { hAbaco: h / 100 } : {}) });
+    if (res.ok) { usePlanta.getState().set({ camadaAbacos: true }); msg(`Ábaco de ${r.caixotes[0]} × ${r.caixotes[1]} caixotes em ${l.nome}.`); }
+  };
   const terminar = (pts: P2[] = pontosRef.current) => {
     const f = usePlanta.getState().ferramenta, tc = usePlanta.getState().tipoCarga;
+    if (f === 'abaco') { if (pts.length >= 3) criarAbaco(pts); else msg('Ábaco: ao menos 3 vértices (ou dois cantos no modo retângulo).'); setPontos([]); return; }
     const q = pts.map((x) => [+x[0].toFixed(4), +x[1].toFixed(4)]);
     if (f === 'viga') { terminarViga(pts); return; }
     if (f === 'limite') {
@@ -2015,6 +2130,16 @@ export function Planta() {
       const zona = it.current.zonas.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r && !(q.pe && sob && pl.selecao.has(sob.id)));
       if (zona) { zona.acao(); return; }
     }
+    if (pl.ferramenta === 'plano' && !nivelFund && !pontosRef.current.length) {
+      // E5b (C7.67): arrastar o ponto do plano ou reescrever a cota/inclinação sobre o texto
+      const z = it.current.zonasPlano.find((q) => Math.hypot(q.x - sx, q.y - sy) <= q.r), pln = z ? b.planos?.find((x) => x.id === z.id) : undefined;
+      if (z && pln) {
+        if (z.tipo === 'ponto') { const o = pln.def.pontos[z.indice] as number[]; it.current.arrasto = { id: z.id, indice: z.indice, ponto: [o[0], o[1]], origem: [o[0], o[1]] }; pl.set({ planoSel: z.id }); return; }
+        setPlanoEd({ x: sx, y: sy, texto: (z.tipo === 'cota' ? z.valor * 100 : z.valor).toFixed(1).replace('.', ','), rotulo: z.tipo === 'cota' ? 'Cota do ponto do plano (cm)' : 'Inclinação do plano (%)',
+          aplicar: (v) => (z.tipo === 'cota' ? reescreverCotaDoPlano(pln, z.indice, v / 100) : reescreverInclinacaoDoPlano(pln, v)) });
+        return;
+      }
+    }
     capturar(sx, sy);
     if (pl.ferramenta === 'selecionar' || (pl.ferramenta === 'escada' && pl.escadaFn === 'apagar')) { it.current.janela = { a: paraMundo(sx, sy), z: paraMundo(sx, sy) }; return; }
     agir(it.current.ponto);
@@ -2025,6 +2150,7 @@ export function Planta() {
     if (s.pan) { pl.set({ vista: { ...s.pan.v, ox: s.pan.v.ox + sx - s.pan.x, oy: s.pan.v.oy + sy - s.pan.y } }); return; }
     if (s.janela) s.janela.z = paraMundo(sx, sy);
     capturar(sx, sy);
+    if (s.arrasto) s.arrasto.ponto = s.ponto;
     const t0 = performance.now();
     desenharInteracao();
     registrarQuadro(performance.now() - t0);
@@ -2032,6 +2158,13 @@ export function Planta() {
   const onUp = (e: React.PointerEvent) => {
     const s = it.current;
     if (s.pan) { s.pan = null; desenharMascara(false); return; }
+    if (s.arrasto) {
+      const a = s.arrasto, pln = b.planos?.find((x) => x.id === a.id);
+      s.arrasto = null;
+      if (pln && Math.hypot(a.ponto[0] - a.origem[0], a.ponto[1] - a.origem[1]) > 1e-4) exec('plano.editar', moverPontoDoPlano(pln, a.indice, a.ponto));
+      desenharInteracao();
+      return;
+    }
     if (s.janela) {
       const [ax, ay] = paraTela(...s.janela.a), [zx, zy] = paraTela(...s.janela.z);
       if (pl.ferramenta === 'escada') {
@@ -2173,6 +2306,15 @@ export function Planta() {
             else if (pl.ferramenta === 'selecionar' && !nivelFund && paredesPl.some((q) => q.estado !== 'inferior' && q.lados.some((l) => dentro(it.current.cursor, l.contorno)))) { const q = paredesPl.find((x) => x.estado !== 'inferior' && x.lados.some((l) => dentro(it.current.cursor, l.contorno)))!; usePlanta.getState().set({ janela: { tipo: paredeDoPP(b, q.pp) ? 'parede' : 'pilarParede', id: q.pp.id } }); }
             else if (pl.ferramenta === 'selecionar' && nivelFund) { const f = [...fund].reverse().find((x) => dentro(it.current.cursor, x.contorno)); const w = it.current.cursor, vf = !f && vigasFund.find(({ g, larg }) => !g.erro && distSeg(w, g.a, g.z) < Math.max(6 / (vista?.k || 1), larg / 2)); const ve = !f && !vf && vigasEl.find((x) => distPolilinha(w, x.v.pontos as P2[]) < Math.max(6 / (vista?.k || 1), x.v.b / 2)), ra = !f && !vf && !ve && radiers.find((r) => dentro(w, r.contorno as P2[])), co = !f && !vf && !ve && !ra && corridasP.find((x) => dentro(w, x.contorno)); if (f) abrirJanelaFundacao(f.el.id); else if (vf) abrirJanelaFundacao(vf.v.id); else if (ve) abrirJanelaFundacao(ve.v.id); else if (ra) abrirJanelaFundacao(ra.id); else if (co) abrirJanelaFundacao(co.c.id); }
           }} />
+        {planoEd && (
+          <Input className="digita" autoFocus aria-label={planoEd.rotulo} style={{ left: planoEd.x + 12, top: planoEd.y + 8 }} value={planoEd.texto}
+            onChange={(e) => setPlanoEd({ ...planoEd, texto: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { const v = Number(planoEd.texto.replace(',', '.')), f = planoEd.aplicar; setPlanoEd(null); const par = Number.isFinite(v) ? f(v) : null; if (par) exec('plano.editar', par); else msg('Valor inválido para o plano.'); }
+              if (e.key === 'Escape') setPlanoEd(null);
+              e.stopPropagation();
+            }} onBlur={() => setPlanoEd(null)} />
+        )}
         {cotaEd && (
           <Input className="digita" autoFocus aria-label="Valor da cota (cm)" style={{ left: cotaEd.x + 12, top: cotaEd.y + 8 }} value={cotaEd.texto}
             onChange={(e) => setCotaEd({ ...cotaEd, texto: e.target.value })}
@@ -2188,6 +2330,7 @@ export function Planta() {
         )}
       </div>
       {pl.ferramenta === 'escada' && <EscadaMenu />}
+      {(pl.ferramenta === 'diagonal' || pl.ferramenta === 'abaco') && <MenuFerramentaMouse />}
       <div className="planta-st" data-ajuda={`ferramenta:${pl.ferramenta}`}>
         <span ref={statusRef} className="num">—</span>
         <span className="muted">{passo}</span>
