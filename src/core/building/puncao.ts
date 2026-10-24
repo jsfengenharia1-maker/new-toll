@@ -25,6 +25,8 @@ import { acoDe, cobrimentoFundacao, cobrimentoLaje, concretoDe, gamas } from './
 import { GAMA_CONCRETO } from './lajes';
 import { vrd1 } from './vigotas';
 import { vigaTocaPilar } from './vigas';
+import { fm, memoriaAtiva } from '../memoria/registrador';
+import { registrarPuncaoRepetida, registrarSolicitacaoPuncao, registrarSolicitacaoRadier, registrarVerificacaoPuncao, type DetSolicitacaoRadier } from '../memoria/puncao';
 import { anguloNoLance, casosDaObra, centroNoLance, centroPilar, dimsSecao, lancesDoPilar, secaoNoLance, trechosViga, type BuildingModel, type Laje, type Pilar, type Viga } from './types';
 
 // ---------------------------------------------------------------- geometria
@@ -224,6 +226,8 @@ export interface EntradaPuncao {
    * as zonas maciças resistem ao cisalhamento no contorno). Ausente = laje cheia.
    */
   excluir?: P[][];
+  /** Memória detalhada (MD4): `verificarPuncao` devolve em `det` os intermediários que o cálculo não guarda. Só com a memória ligada. */
+  detalhar?: boolean;
 }
 
 export interface ParametrosPuncao {
@@ -320,6 +324,25 @@ export interface ResultadoVerificacao {
   cortante: { superficies: SuperficieCortante[]; falha: boolean; aFalha: number; vRd2: number };
   status: 'ok' | 'armadura' | 'fail';
   mensagens: string[];
+  /** Intermediários da verificação (só com `EntradaPuncao.detalhar`; memória detalhada MD4). */
+  det?: DetVerificacao;
+}
+
+/** Como a verificação terminou (memória detalhada). */
+export type DesfechoPuncao = 'ok' | 'biela' | 'bielaCortante' | 'semSolucaoC3' | 'semSolucaoCortante' | 'vcCobre' | 'informadaAtende' | 'semBitola' | 'armadura';
+
+/** Intermediários de `verificarPuncao` que o resultado não traz: limites de cortante, passos da armadura e escolha da bitola. */
+export interface DetVerificacao {
+  vRd2: number; vc: number; vR1: number; s0: number; sr: number; pernas: number;
+  /** Contornos C″ tentados na busca do número de linhas (C′ → n-ésimo anel + 2d): n, a, u, τSd. */
+  tentativas: { n: number; a: number; u: number; tau: number }[];
+  precisaPunc: boolean; nb: number; nbCort: number; nbTot: number;
+  AswPunc: number; AswCort: number; AswReq: number; manAsw: number; manAneis: number; AswAuto: number;
+  u1: number; aUlt: number; sT: number; nMinT: number; nCap: number;
+  /** Número de barras por linha de cada bitola permitida, o limite para preferir poucas linhas e a bitola escolhida. */
+  bitolas: { phi: number; n: number }[]; limiteLinhas: number; escolha?: { phi: number; n: number; poucasLinhas: boolean };
+  AswEf: number;
+  desfecho: DesfechoPuncao;
 }
 
 const arred = (x: number, p = 0.005) => Math.floor(x / p + 1e-9) * p;
@@ -372,6 +395,7 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const sup: SuperficieCortante[] = [];
   const vR1 = vrd1(c, 1, d, par.rho * d);
   let aFalha = 0, falha = false, AswCort = 0;
+  const D: DetVerificacao | undefined = ent.detalhar ? { vRd2, vc, vR1, s0, sr, pernas, tentativas: [], precisaPunc: false, nb: 0, nbCort: 0, nbTot: 0, AswPunc: 0, AswCort: 0, AswReq: 0, manAsw: 0, manAneis: 0, AswAuto: 0, u1: 0, aUlt: 0, sT: 0, nMinT: 0, nCap: 0, bitolas: [], limiteLinhas: 0, AswEf: 0, desfecho: 'ok' } : undefined;
   if (par.passoCortante > 0 && F > 0) {
     for (let k = 0; k < 80; k++) {
       const a = 2 * d + k * par.passoCortante * d, t = k === 0 ? C2 : tens(a), A = areaDentro(curvaAfastada(ap, a), reg), V = F - ent.qd * A;
@@ -384,39 +408,49 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
     }
   }
   const cortante = { superficies: sup, falha, aFalha, vRd2 };
-  const sai = (status: ResultadoVerificacao['status'], extra: Partial<ResultadoVerificacao> = {}): ResultadoVerificacao => ({ tipo, livres, C, C2, tauRd2: t2, tauRd1: t1, tauRd3c: t3c, cortante, status, mensagens: msgs, ...extra });
+  const sai = (status: ResultadoVerificacao['status'], extra: Partial<ResultadoVerificacao> = {}, desfecho: DesfechoPuncao = 'ok'): ResultadoVerificacao => {
+    if (D) D.desfecho = desfecho;
+    return { tipo, livres, C, C2, tauRd2: t2, tauRd1: t1, tauRd3c: t3c, cortante, status, mensagens: msgs, ...(D ? { det: D } : {}), ...extra };
+  };
   if (C.tau > t2 + 1e-9) {
     msgs.push(`Punção: τSd = ${fmt(C.tau)} MPa > τRd2 = ${fmt(t2)} MPa no contorno C (compressão diagonal); aumente a espessura da laje, a seção do pilar ou o fck.`);
-    return sai('fail');
+    return sai('fail', {}, 'biela');
   }
   const sRd2 = sup.find((x) => !x.ok && x.v > vRd2);
   if (sRd2) {
     msgs.push(`Cortante da laje: ${fmt(sRd2.v)} kN/m > VRd2 = ${fmt(vRd2)} kN/m na superfície a ${fmt(sRd2.a)} m do pilar; aumente a espessura ou o fck.`);
-    return sai('fail');
+    return sai('fail', {}, 'bielaCortante');
   }
   const precisaPunc = C2.tau > t1 + 1e-9;
+  if (D) D.precisaPunc = precisaPunc;
   if (!precisaPunc && !falha) return sai('ok');
   // ---- armadura de punção e de cortante (linhas radiais) ----
   let nb = 0;
   if (precisaPunc) {
-    for (let n = 1; n <= 14; n++) if (tens(s0 + (n - 1) * sr + 2 * d).tau <= t1 + 1e-9) { nb = n; break; }
-    if (!nb) { msgs.push('Punção sem solução: a tensão no contorno C″ não cai a τRd1 com até 14 linhas de armadura; aumente a espessura da laje, a seção do pilar ou o fck.'); return sai('fail'); }
+    for (let n = 1; n <= 14; n++) {
+      const tn = tens(s0 + (n - 1) * sr + 2 * d);
+      D?.tentativas.push({ n, a: tn.a, u: tn.u, tau: tn.tau });
+      if (tn.tau <= t1 + 1e-9) { nb = n; break; }
+    }
+    if (!nb) { msgs.push('Punção sem solução: a tensão no contorno C″ não cai a τRd1 com até 14 linhas de armadura; aumente a espessura da laje, a seção do pilar ou o fck.'); return sai('fail', {}, 'semSolucaoC3'); }
   }
   const AswPunc = precisaPunc ? (Math.max(0, C2.tau - t3c) * C2.u * sr * 1e4) / (1.5 * par.fywd) : 0; // cm² por anel
   const nbCort = falha ? Math.max(1, Math.ceil((aFalha - s0) / sr) + 1) : 0;
   const nbTot = Math.max(nb, nbCort), AswReq = Math.max(AswPunc, AswCort);
-  if (nbTot > 14) { msgs.push('Cortante da laje sem solução: a armadura transversal exigiria mais de 14 linhas; aumente a espessura da laje.'); return sai('fail'); }
+  if (D) Object.assign(D, { nb, nbCort, nbTot, AswPunc, AswCort, AswReq });
+  if (nbTot > 14) { msgs.push('Cortante da laje sem solução: a armadura transversal exigiria mais de 14 linhas; aumente a espessura da laje.'); return sai('fail', {}, 'semSolucaoCortante'); }
   // armadura informada pelo usuário soma-se à calculada: se cobre todos os anéis, só falta a diferença
   const manAsw = par.manual?.Asw ?? 0, manAneis = par.manual?.aneis ?? 0;
   const AswAuto = manAneis >= nbTot ? Math.max(0, AswReq - manAsw) : AswReq;
+  if (D) Object.assign(D, { manAsw, manAneis, AswAuto });
   if (AswAuto <= 1e-9) {
     if (manAsw <= 1e-9) {
       // nenhuma armadura exigida (a parcela Vc da laje cobre o cortante) e nenhuma informada: limite de C′ segue τRd1
       msgs.push(`Cortante da laje: a superfície a ${fmt(aFalha)} m do pilar excede VRd1, mas a parcela Vc da laje com armadura transversal (19.4.2) cobre a solicitação; nenhuma armadura é necessária e nenhuma foi informada.`);
-      return sai('ok');
+      return sai('ok', {}, 'vcCobre');
     }
     msgs.push('Armadura de punção informada atende; nenhuma armadura calculada foi acrescentada.');
-    return sai('armadura', { tauRd3: t3c + (1.5 * manAsw * par.fywd) / (sr * C2.u * 1e4) });
+    return sai('armadura', { tauRd3: t3c + (1.5 * manAsw * par.fywd) / (sr * C2.u * 1e4) }, 'informadaAtende');
   }
   const aUlt = s0 + (nbTot - 1) * sr, u1 = tens(s0).u;
   const sT = C.tau <= 0.63 * t2 ? 2 * d : 1.5 * d; // espaçamento tangencial máximo no contorno C′ [a confirmar]
@@ -427,14 +461,16 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const pref = par.bitolas.find((phi) => nrDe(phi) <= Math.max(nMinT, 16));
   if (pref) escolha = { phi: pref, n: nrDe(pref) };
   else for (const phi of [...par.bitolas].reverse()) if (nrDe(phi) <= nCap) { escolha = { phi, n: nrDe(phi) }; break; }
-  if (!escolha) { msgs.push('Punção sem solução: a armadura necessária não cabe nas linhas radiais com as bitolas permitidas (φ ≤ h/20); aumente a espessura da laje.'); return sai('fail'); }
+  if (D) Object.assign(D, { u1, aUlt, sT, nMinT, nCap, bitolas: par.bitolas.map((phi) => ({ phi, n: nrDe(phi) })), limiteLinhas: Math.max(nMinT, 16), ...(escolha ? { escolha: { ...escolha, poucasLinhas: !!pref } } : {}) });
+  if (!escolha) { msgs.push('Punção sem solução: a armadura necessária não cabe nas linhas radiais com as bitolas permitidas (φ ≤ h/20); aumente a espessura da laje.'); return sai('fail', {}, 'semBitola'); }
   const AswEf = escolha.n * pernas * barArea(escolha.phi) * 1e4 + (manAneis >= nbTot ? manAsw : 0);
   const arm: ArmaduraPuncao = { tipo: par.tipoArm, phi: escolha.phi, linhas: escolha.n, barras: nbTot, s0, sr, pernas, AswAnel: AswEf, total: escolha.n * nbTot, posicoes: [] };
   arm.posicoes = posicoesPuncao(ent, arm, par.furoDist);
   const C3 = tens(aUlt + 2 * d);
   const tauRd3 = t3c + (1.5 * AswEf * par.fywd) / (sr * C2.u * 1e4);
+  if (D) D.AswEf = AswEf;
   msgs.push(`${precisaPunc ? 'Punção' : 'Cortante da laje (armadura transversal)'}: armadura de ${arm.linhas} linhas radiais com ${arm.barras} ${par.tipoArm === 'estribo' ? 'estribos (grampos)' : 'conectores'} de φ${String(arm.phi).replace('.', ',')} (primeira a ${Math.round(s0 * 100)} cm da face, entre barras ${Math.round(sr * 100)} cm).`);
-  return sai('armadura', { armadura: arm, C3, tauRd3 });
+  return sai('armadura', { armadura: arm, C3, tauRd3 }, 'armadura');
 }
 
 /**
@@ -587,25 +623,33 @@ export function gruposDoPilar(b: BuildingModel, pilar: string): { id: string; li
  * módulo caso a caso como no modelo separado e, com vento, a pior de duas combinações ELU: uso principal com o vento
  * acompanhante (ψ0 = 0,6) e vento principal com o uso reduzido por ψ0; o vento ampliado por 0,95·γz quando couber.
  */
-function momentosIntegrado(mp: Record<string, [number, number]> | undefined, an: AnaliseEdificio, fat: number[], fatW: number[], gq: number): [number, number] {
+function momentosIntegrado(mp: Record<string, [number, number]> | undefined, an: AnaliseEdificio, fat: number[], fatW: number[], gq: number, det?: DetSolicitacao): [number, number] {
   if (!mp) return [0, 0];
   const soma = (f: number[]) => [0, 1].map((k) => an.casos.reduce((t, id, ic) => t + Math.abs(f[ic] * (mp[id]?.[k] ?? 0)), 0)) as [number, number];
   const g1 = soma(fat);
   const W: [number, number] = [0, 0];
+  const vento: { nome: string; amp: number; m: [number, number] }[] = [];
   for (const cv of an.vento?.casos ?? []) {
     const m = mp[cv.nome];
     if (!m) continue;
     // com P-Δ (N2c) a ampliação dos momentos do vento na laje é a maior amplificação dos deslocamentos das combinações
     const amp = an.segundaOrdem ? Math.max(1, an.segundaOrdem.amplificacaoMax) : Math.max(1, an.vento?.gamaZ.find((x) => x.direcao === cv.direcao)?.ampliacao ?? 1);
+    if (det) vento.push({ nome: cv.nome, amp, m: [m[0], m[1]] });
     for (const k of [0, 1]) W[k] = Math.max(W[k], Math.abs(m[k]) * amp);
   }
-  if (!W[0] && !W[1]) return g1;
+  const casos = det ? an.casos.map((id, ic) => ({ caso: id, f: fat[ic], fW: fatW[ic], m: [mp[id]?.[0] ?? 0, mp[id]?.[1] ?? 0] as [number, number] })) : [];
+  if (!W[0] && !W[1]) {
+    if (det) det.integrado = { gq, g1, W, casos, vento, resultado: g1 };
+    return g1;
+  }
   const g2 = soma(fatW);
-  return [0, 1].map((k) => Math.max(g1[k] + gq * 0.6 * W[k], g2[k] + gq * W[k])) as [number, number];
+  const res = [0, 1].map((k) => Math.max(g1[k] + gq * 0.6 * W[k], g2[k] + gq * W[k])) as [number, number];
+  if (det) det.integrado = { gq, g1, g2, W, casos, vento, resultado: res };
+  return res;
 }
 
 /** Momentos (kN·m) transmitidos pelo pilar à laje na grelha (molas de rotação), combinados em módulo caso a caso. */
-function momentosDoNo(g: GrelhaPavimento, centro: P, fat: number[]): [number, number] | null {
+function momentosDoNo(g: GrelhaPavimento, centro: P, fat: number[], det?: DetSolicitacao): [number, number] | null {
   const m = g.modelo, res = g.res as Resultado3 | null;
   if (!res || !m.molas) return null;
   let melhor = -1, dm = Infinity;
@@ -614,6 +658,7 @@ function momentosDoNo(g: GrelhaPavimento, centro: P, fat: number[]): [number, nu
   const kx = m.molas.find((x) => x.no === melhor && x.gdl === 3)?.k ?? 0, ky = m.molas.find((x) => x.no === melhor && x.gdl === 4)?.k ?? 0;
   let Mx = 0, My = 0;
   fat.forEach((f, ic) => { Mx += Math.abs(f * kx * res.desloc[ic][melhor * 6 + 3]); My += Math.abs(f * ky * res.desloc[ic][melhor * 6 + 4]); });
+  if (det) det.molas = { no: melhor, dist: dm, kx, ky, casos: fat.map((f, ic) => ({ caso: '', f, rx: res.desloc[ic][melhor * 6 + 3], ry: res.desloc[ic][melhor * 6 + 4] })), resultado: [Mx, My] };
   return [Mx, My];
 }
 
@@ -630,15 +675,28 @@ export function fatoresPuncao(b: BuildingModel, an: AnaliseEdificio): { fat: num
  * eixos do pilar (u = ao longo de b; o momento em torno de u tem excentricidade ao longo de v e vice-versa). `null` sem reação ou
  * sem compressão. Compartilhado entre as maciças e as nervuradas com ábaco.
  */
-export function solicitacaoPuncao(an: AnaliseEdificio, g: GrelhaPavimento, p: Pilar, pavId: string, centro: P, fat: number[], fatW: number[], gq: number): { F: number; M: [number, number]; angulo: number } | null {
+export function solicitacaoPuncao(an: AnaliseEdificio, g: GrelhaPavimento, p: Pilar, pavId: string, centro: P, fat: number[], fatW: number[], gq: number, det?: DetSolicitacao): { F: number; M: [number, number]; angulo: number } | null {
   const reac = g.reacoes[p.id];
   if (!reac) return null;
   const F = an.casos.reduce((s, id, ic) => s + fat[ic] * (reac[id] ?? 0), 0);
   if (F <= 0) return null;
-  const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gq) : momentosDoNo(g, centro, fat) ?? [0, 0];
+  const Mx = g.momentos ? momentosIntegrado(g.momentos[p.id], an, fat, fatW, gq, det) : momentosDoNo(g, centro, fat, det) ?? [0, 0];
   const angulo = anguloNoLance(p, pavId), a = (angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
   const Mu = Math.abs(Mx[0] * co) + Math.abs(Mx[1] * si), Mv = Math.abs(Mx[0] * si) + Math.abs(Mx[1] * co);
+  if (det) {
+    det.casos = an.casos.map((id, ic) => ({ caso: id, f: fat[ic], R: reac[id] ?? 0 }));
+    if (det.molas) det.molas.casos.forEach((c, ic) => { c.caso = an.casos[ic]; });
+    Object.assign(det, { F, Mx: [Mx[0], Mx[1]], angulo, M: [Mv, Mu] });
+  }
   return { F, M: [Mv, Mu], angulo };
+}
+
+/** Intermediários da solicitação de punção (memória detalhada): reações por caso, momentos do modelo integrado ou das molas de rotação e a rotação aos eixos do pilar. */
+export interface DetSolicitacao {
+  casos: { caso: string; f: number; R: number }[];
+  F: number; Mx: [number, number]; angulo: number; M: [number, number];
+  integrado?: { gq: number; g1: [number, number]; g2?: [number, number]; W: [number, number]; casos: { caso: string; f: number; fW: number; m: [number, number] }[]; vento: { nome: string; amp: number; m: [number, number] }[]; resultado: [number, number] };
+  molas?: { no: number; dist: number; kx: number; ky: number; casos: { caso: string; f: number; rx: number; ry: number }[]; resultado: [number, number] };
 }
 
 const clona = (r: ResultadoPuncao, pav: { id: string; nome: string }): ResultadoPuncao => ({ ...r, pavimento: pav.nome, pavimentoId: pav.id, id: `${r.pilar}|${pav.id}`, mensagens: [...r.mensagens] });
@@ -667,8 +725,10 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
     for (const st of sitiosPuncao(b, pav.id, op)) {
       const p = st.p, sec = secaoNoLance(p, pav.id), chave = `${p.id}|${JSON.stringify(sec)}|${st.viga?.id ?? ''}`;
       const r0 = ja.get(chave);
-      if (r0) { out.push(clona(r0, pav)); continue; }
-      const sol = solicitacaoPuncao(an, g, p, pav.id, st.centro, fat, fatW, gm.q);
+      const elP = `Punção ${p.nome} · ${pav.nome}`, memP = memoriaAtiva(), regP = memP && memP.aceita(elP) ? memP : null; // memória detalhada (MD4)
+      if (r0) { out.push(clona(r0, pav)); if (regP) registrarPuncaoRepetida(regP, elP, `Punção ${p.nome} · ${r0.pavimento}`); continue; }
+      const detS: DetSolicitacao | undefined = regP ? ({} as DetSolicitacao) : undefined;
+      const sol = solicitacaoPuncao(an, g, p, pav.id, st.centro, fat, fatW, gm.q, detS);
       if (!sol) continue;
       const { F, M, angulo: angP } = sol;
       const [w, hh] = dimsSecao(sec), circular = sec.tipo === 'circ';
@@ -698,8 +758,17 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
         bitolas: BITOLAS_PUNCAO.filter((x) => x <= h * 1000 / 20 + 1e-9),
         ...(manual.length ? { manual: { Asw: Math.max(...manual.map((q) => q.linhas * pernasM * barArea(q.phi) * 1e4)), aneis: Math.min(...manual.map((q) => q.barras)) } } : {}) };
       const qd = gm.g * (laje.tipo.tipo === 'macica' ? GAMA_CONCRETO * laje.tipo.h : 0) + gm.g * (grupo?.gRev ?? 0) + gm.q * (grupo?.q ?? 0);
-      const ent: EntradaPuncao = { ap, reg, d, h, F, M, qd };
+      const ent: EntradaPuncao = { ap, reg, d, h, F, M, qd, ...(regP ? { detalhar: true } : {}) };
       const v = verificarPuncao(ent, par);
+      if (regP && detS) {
+        registrarSolicitacaoPuncao(regP, elP, detS);
+        const hMac = laje.tipo.tipo === 'macica' ? laje.tipo.h : 0;
+        registrarVerificacaoPuncao(regP, elP, {
+          c, ent, par, v, cob, fyd: fyP, limFywd: op.puncaoTipoArmadura ? 300 : 250,
+          rho: st.viga ? { h, viga: true } : { h, As: [rl?.As.neg[0] ?? 0, rl?.As.neg[1] ?? 0], b: [1, 1], faceTexto: 'armadura negativa (face superior) da laje' },
+          carga: { descricao: 'Carga distribuída de cálculo da laje, para a varredura de cortante', formula: 'qd = γg·(γc,conc·h + grev) + γq·q', expressao: `qd = ${fm(gm.g)}·(${fm(GAMA_CONCRETO)}·${fm(hMac)} + ${fm(grupo?.gRev ?? 0)}) + ${fm(gm.q)}·${fm(grupo?.q ?? 0)} = ${fm(qd)} kN/m²`, entradas: { gg: gm.g, gq: gm.q, gammaConc: hMac ? GAMA_CONCRETO : 0, h: hMac, grev: grupo?.gRev ?? 0, q: grupo?.q ?? 0 } },
+        });
+      }
       const msgs = v.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}`));
       if (st.avisoViga) msgs.unshift(st.avisoViga);
       for (const g2 of manual) if (g2.s > 0.75 * d + 1e-9) msgs.push(`Punção em ${p.nome}: espaçamento informado de ${(g2.s * 100).toFixed(0)} cm maior que 0,75d = ${(0.75 * d * 100).toFixed(1).replace('.', ',')} cm (NBR 6118, 19.5.3.5).`);
@@ -749,7 +818,9 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
       const perto = nosR.filter((n) => Math.hypot(n.x - centro[0], n.y - centro[1]) <= Math.max(w, hh) / 2 + 3 * d);
       const a = (p.angulo * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
       const livres = ladosLivres(ap, reg, d);
-      let melhor: { ent: EntradaPuncao; tau: number; nome: string } | null = null;
+      const elR = `Punção ${p.nome} · Radier ${rad.nome}`, memR = memoriaAtiva(), regR = memR && memR.aceita(elR) ? memR : null; // memória detalhada (MD4)
+      let melhor: { ent: EntradaPuncao; tau: number; nome: string; det?: DetSolicitacaoRadier } | null = null;
+      const taus: { nome: string; tau: number }[] = [];
       for (const cb of combs) {
         const f = nomes.map((n) => cb.fatores[n] ?? 0);
         const F = f.reduce((s, fi, ic) => s + fi * fb[ic].N, 0), Mx = f.reduce((s, fi, ic) => s + fi * fb[ic].Mx, 0), My = f.reduce((s, fi, ic) => s + fi * fb[ic].My, 0);
@@ -758,11 +829,24 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
         const q = perto.length ? perto.reduce((s, n) => s + f.reduce((t, fi, ic) => t - fi * n.k * desl[ic][n.no * 6 + 2], 0), 0) / perto.length : 0;
         const ent: EntradaPuncao = { ap, reg, d, h: rad.h, F, M: [Math.abs(Mv), Math.abs(Mu)], qd: Math.max(0, q), descontar: true };
         const tau = tensaoNoContorno(ent, livres, 2 * d, op.puncaoFuroDist).tau;
-        if (!melhor || tau > melhor.tau) melhor = { ent, tau, nome: cb.nome };
+        if (regR) taus.push({ nome: cb.nome, tau });
+        if (!melhor || tau > melhor.tau) {
+          melhor = { ent, tau, nome: cb.nome };
+          if (regR) melhor.det = { combinacao: cb.nome, angulo: p.angulo, casos: nomes.map((caso, ic) => ({ caso, f: f[ic], N: fb[ic].N, Mx: fb[ic].Mx, My: fb[ic].My })), F, Mx, My, Mu, Mv, M: ent.M, nos: perto.map((n) => ({ no: n.no, k: n.k, q: f.reduce((t, fi, ic) => t - fi * n.k * desl[ic][n.no * 6 + 2], 0) })), qd: ent.qd, tauC2: tau, candidatas: [] };
+        }
       }
       if (!melhor) continue;
+      if (regR && melhor.det) { melhor.det.candidatas = taus; melhor.ent.detalhar = true; }
       const par: ParametrosPuncao = { c, rho, fywd, tipoArm: op.puncaoTipoArmadura ? 'conector' : 'estribo', s0f: Math.min(0.5, op.puncaoS0), srf: Math.min(0.75, op.puncaoSr), passoCortante: op.cortanteVarredura ? op.cortanteVarreduraPasso : 0, furoDist: op.puncaoFuroDist, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (rad.h * 1000) / 20 + 1e-9) };
       const v = verificarPuncao(melhor.ent, par), ent = melhor.ent;
+      if (regR && melhor.det) {
+        registrarSolicitacaoRadier(regR, elR, melhor.det);
+        registrarVerificacaoPuncao(regR, elR, {
+          c, ent, par, v, cob, fyd: acoDe(b, 'lajePuncao').fyd, limFywd: op.puncaoTipoArmadura ? 300 : 250,
+          rho: { h: rad.h, As: [rr.As.pos[0], rr.As.pos[1]], b: [1, 1], faceTexto: 'armadura inferior do radier' },
+          carga: { descricao: 'Reação do solo de cálculo sob o radier (pressão ELU k·w média nos nós próximos ao pilar), descontada de FSd dentro de cada contorno e na varredura de cortante', formula: 'qd = máx(0; média(Σ −γi·k·wi))', expressao: `qd = ${fm(ent.qd)} kN/m² (${perto.length} nós)`, entradas: { nNos: perto.length, qd: ent.qd } },
+        });
+      }
       const msgs = v.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}`));
       if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);
       const mk = (k: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[k], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });

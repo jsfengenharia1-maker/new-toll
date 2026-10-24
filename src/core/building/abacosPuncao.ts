@@ -13,9 +13,12 @@ import { arranjoDaLaje, type AbacoEfetivo } from './nervuradas';
 import type { ResultadoNervurada } from './nervuradasDim';
 import type { OpcoesCalculo } from './opcoes';
 import { COMB_ELU_LAJE, origem } from './origem';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarAbacoPuncao, registrarPuncaoRepetida, registrarSolicitacaoPuncao, registrarVerificacaoPuncao } from '../memoria/puncao';
+import { fm as fmMem } from '../memoria/registrador';
 import {
   BITOLAS_PUNCAO, fatoresPuncao, gruposDoPilar, ladosLivres, polilinhas, sitiosPuncao, solicitacaoPuncao, verificarPuncao,
-  type Apoio, type EntradaPuncao, type ParametrosPuncao, type Regiao, type ResultadoPuncao, type Tensao, type AbacoPuncaoInfo,
+  type Apoio, type DetSolicitacao, type EntradaPuncao, type ParametrosPuncao, type Regiao, type ResultadoPuncao, type Tensao, type AbacoPuncaoInfo,
 } from './puncao';
 import { dimsSecao, secaoNoLance, type BuildingModel, type Laje } from './types';
 
@@ -31,12 +34,13 @@ function retanguloEnvolvente(ap: Apoio, poligono: P[]): { centro: P; c1: number;
 }
 
 /** Taxa de armadura negativa (média geométrica das direções) sobre o ábaco (base + reforço) e fora dele (só o reforço nas nervuras). */
-export function taxasAbaco(nerv: ResultadoNervurada | undefined, abacoId: string | undefined, intereixo: [number, number], hAbaco: number, hLaje: number, dAbaco: number, dLaje: number): { rhoAbaco: number; rhoLaje: number } {
+export function taxasAbaco(nerv: ResultadoNervurada | undefined, abacoId: string | undefined, intereixo: [number, number], hAbaco: number, hLaje: number, dAbaco: number, dLaje: number, det?: { as: { dentro: number; fora: number }[] }): { rhoAbaco: number; rhoLaje: number } {
   const as = [0, 1].map((k) => {
     let dentro = 0, fora = 0;
     for (const n of nerv?.nervuras ?? []) if (n.dir === k) for (const a of n.abacos) if (a.abaco === abacoId) { dentro = Math.max(dentro, a.AsBase + (a.barras?.As ?? 0)); fora = Math.max(fora, a.barras?.As ?? 0); }
     return { dentro, fora };
   });
+  if (det) det.as = as;
   const taxa = (campo: 'dentro' | 'fora', h: number, d: number) => Math.min(0.02, Math.sqrt([0, 1].reduce((t, k) => t * (Math.max(as[k][campo], 0.0015 * h * intereixo[k] * 1e4) / (1e4 * intereixo[k] * d)), 1)));
   return { rhoAbaco: taxa('dentro', hAbaco, dAbaco), rhoLaje: taxa('fora', hLaje, dLaje) };
 }
@@ -69,8 +73,10 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       if (st.viga) continue;
       const p = st.p, sec = secaoNoLance(p, pav.id), ef = abacoDoPonto(efs, st.centro), chave = `${p.id}|${JSON.stringify(sec)}|${ef?.abaco.id ?? ''}`;
       const r0 = ja.get(chave);
-      if (r0) { out.push({ ...r0, pavimento: pav.nome, pavimentoId: pav.id, id: `${p.id}|${pav.id}`, mensagens: [...r0.mensagens] }); continue; }
-      const sol = solicitacaoPuncao(an, g, p, pav.id, st.centro, fat, fatW, gq);
+      const elP = `Punção ${p.nome} · ${pav.nome}`, memP = memoriaAtiva(), regP = memP && memP.aceita(elP) ? memP : null; // memória detalhada (MD4)
+      if (r0) { out.push({ ...r0, pavimento: pav.nome, pavimentoId: pav.id, id: `${p.id}|${pav.id}`, mensagens: [...r0.mensagens] }); if (regP) registrarPuncaoRepetida(regP, elP, `Punção ${p.nome} · ${r0.pavimento}`); continue; }
+      const detS: DetSolicitacao | undefined = regP ? ({} as DetSolicitacao) : undefined;
+      const sol = solicitacaoPuncao(an, g, p, pav.id, st.centro, fat, fatW, gq, detS);
       if (!sol) continue;
       const { F, M, angulo } = sol, [w, hh] = dimsSecao(sec), circular = sec.tipo === 'circ';
       const ap: Apoio = { centro: st.centro, c1: w, c2: circular ? w : hh, circular, angulo };
@@ -78,14 +84,16 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       const g0 = arr(laje).g, hLaje = g0.h, cob = cobrimentoLaje(b, laje.cobrimento).sup, dLaje = Math.max(0.05, hLaje - cob - 0.01);
       const hAb = ef ? ef.abaco.hAbaco : hLaje, dAb = Math.max(0.05, hAb - cob - 0.01);
       const nerv = nervs.find((x) => x.laje === laje.id);
-      const tx = taxasAbaco(nerv, ef?.abaco.id, g0.i, hAb, hLaje, dAb, dLaje);
+      const detTx = regP ? { as: [] as { dentro: number; fora: number }[] } : undefined;
+      const tx = taxasAbaco(nerv, ef?.abaco.id, g0.i, hAb, hLaje, dAb, dLaje, detTx);
       const livres = ladosLivres(ap, reg, dAb);
       // extensão mínima da face do pilar à borda do ábaco (lados com laje) e se o C′ (2·dAbaco) fica dentro do ábaco
       let extMin = Infinity, rect: ReturnType<typeof retanguloEnvolvente> | undefined;
+      const extsMem: { lado: string; ext: number }[] = [];
       if (ef) {
         rect = retanguloEnvolvente(ap, ef.poligono);
         const meiaU = ap.c1 / 2, meiaV = (circular ? ap.c1 : ap.c2) / 2;
-        for (const [lado, ext] of [['u+', rect.u[1] - meiaU], ['u-', -rect.u[0] - meiaU], ['v+', rect.v[1] - meiaV], ['v-', -rect.v[0] - meiaV]] as const) if (!livres.includes(lado)) extMin = Math.min(extMin, ext);
+        for (const [lado, ext] of [['u+', rect.u[1] - meiaU], ['u-', -rect.u[0] - meiaU], ['v+', rect.v[1] - meiaV], ['v-', -rect.v[0] - meiaV]] as const) if (!livres.includes(lado)) { extMin = Math.min(extMin, ext); if (regP) extsMem.push({ lado, ext }); }
       }
       const c2NoAbaco = !!ef && extMin >= 2 * dAb - 1e-9;
       const dInt = c2NoAbaco ? dAb : dLaje, hInt = c2NoAbaco ? hAb : hLaje, rhoInt = c2NoAbaco ? tx.rhoAbaco : tx.rhoLaje;
@@ -97,16 +105,18 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
       const manual = gruposDoPilar(b, p.id), pernasM = op.puncaoTipoArmadura ? 1 : 2;
       const parInt: ParametrosPuncao = { ...parBase, rho: rhoInt, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hInt * 1000) / 20 + 1e-9),
         ...(manual.length ? { manual: { Asw: Math.max(...manual.map((q) => q.linhas * pernasM * barArea(q.phi) * 1e4)), aneis: Math.min(...manual.map((q) => q.barras)) } } : {}) };
-      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd, excluir: cubetas };
+      const entInt: EntradaPuncao = { ap, reg, d: dInt, h: hInt, F, M, qd, excluir: cubetas, ...(regP ? { detalhar: true } : {}) };
       const vi = verificarPuncao(entInt, parInt);
       const prefixo = ef ? ' (ábaco)' : ' (sem ábaco)';
       const msgs = vi.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome}${prefixo}`));
       // fora do ábaco: o ábaco faz o papel do pilar (C″ a 2·dLaje da sua borda, com a altura da laje)
-      let ve: ReturnType<typeof verificarPuncao> | undefined, apAb: Apoio | undefined;
+      let ve: ReturnType<typeof verificarPuncao> | undefined, apAb: Apoio | undefined, entExt: EntradaPuncao | undefined, parExtMem: ParametrosPuncao | undefined;
       if (ef && rect) {
         apAb = { centro: rect.centro, c1: rect.c1, c2: rect.c2, circular: false, angulo: rect.angulo };
         const parExt: ParametrosPuncao = { ...parBase, rho: tx.rhoLaje, bitolas: BITOLAS_PUNCAO.filter((x) => x <= (hLaje * 1000) / 20 + 1e-9) };
-        ve = verificarPuncao({ ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas }, parExt);
+        entExt = { ap: apAb, reg, d: dLaje, h: hLaje, F, M, qd, excluir: cubetas, ...(regP ? { detalhar: true } : {}) };
+        parExtMem = parExt;
+        ve = verificarPuncao(entExt, parExt);
         msgs.push(...ve.mensagens.map((m) => m.replace(/^(Punção|Cortante da laje)/, `$1 em ${p.nome} (fora do ábaco, C″ a 2d da borda)`)));
       } else msgs.push(`Ábaco: ${p.nome} apoia a laje nervurada ${laje.nome} sem viga e sem ábaco; punção verificada nas nervuras com a altura da laje (h = ${fm(hLaje * 100, 0)} cm). Gere o ábaco (abaco.gerar) ou lance um manual.`);
       if (vi.armadura && ef && vi.armadura.s0 + (vi.armadura.barras - 1) * vi.armadura.sr > extMin + 1e-9)
@@ -119,6 +129,16 @@ export function puncaoAbacos(b: BuildingModel, an: AnaliseEdificio, nervs: Resul
         if (uC2 > 0 && g2.linhas > Math.max(1, Math.floor(uC2 / 0.05))) msgs.push(`Punção em ${p.nome}${prefixo}: ${g2.linhas} linhas radiais não cabem no contorno C′ útil (u = ${fm(uC2, 2)} m sobre as nervuras, sem as cubetas); posicione as linhas nas nervuras.`);
       }
       if (Math.max(w, hh) > 5 * Math.min(w, hh)) msgs.push(`Pilar-parede ${p.nome} (${(w * 100).toFixed(0)}×${(hh * 100).toFixed(0)} cm): a distribuição de tensões no contorno não é uniforme; punção verificada no contorno completo [a confirmar].`);
+      if (regP && detS && detTx) {
+        const kInt = c2NoAbaco ? 'dentro' : 'fora', rotInt = ef ? ' – região interna (ábaco)' : '', cobL = cobrimentoLaje(b, laje.cobrimento).sup;
+        const asDe = (campo: 'dentro' | 'fora'): [number, number] => [detTx.as[0]?.[campo] ?? 0, detTx.as[1]?.[campo] ?? 0];
+        registrarSolicitacaoPuncao(regP, elP, detS);
+        registrarAbacoPuncao(regP, elP, { hAbaco: hAb, hLaje, dAbaco: dAb, dLaje, rhoAbaco: tx.rhoAbaco, rhoLaje: tx.rhoLaje, extensaoMin: Number.isFinite(extMin) ? extMin : 0, c2NoAbaco, temAbaco: !!ef, cob: cobL, nome: laje.nome, ...(rect ? { retangulo: { c1: rect.c1, c2: rect.c2, angulo: rect.angulo } } : {}), extensoes: extsMem });
+        const cargaN = { descricao: 'Carga distribuída de cálculo da laje nervurada (peso próprio médio + revestimento + acidental), para a varredura de cortante nas nervuras', formula: 'qd = γg·(pp + grev) + γq·q (opção de cortante nas nervuras ligada)', expressao: `qd = ${fmMem(gm.g)}·(${fmMem(g0.pp)} + ${fmMem(grupoLaje?.gRev ?? 0)}) + ${fmMem(gm.q)}·${fmMem(grupoLaje?.q ?? 0)} = ${fmMem(qd)} kN/m²`, entradas: { ligada: op.puncaoNervCortante ? 1 : 0, gg: gm.g, gq: gm.q, pp: g0.pp, grev: grupoLaje?.gRev ?? 0, q: grupoLaje?.q ?? 0 } };
+        const comum = { c, fyd: acoDe(b, 'lajePuncao').fyd, limFywd: op.puncaoTipoArmadura ? 300 : 250, cob: cobL };
+        registrarVerificacaoPuncao(regP, elP, { ...comum, rot: rotInt, ent: entInt, par: parInt, v: vi, rho: { h: hInt, As: asDe(kInt), b: g0.i, faceTexto: 'armadura negativa nas nervuras' }, carga: cargaN });
+        if (ve && entExt && parExtMem) registrarVerificacaoPuncao(regP, elP, { ...comum, rot: ' – fora do ábaco', ent: entExt, par: parExtMem, v: ve, apoio: 'ábaco', rho: { h: hLaje, As: asDe('fora'), b: g0.i, faceTexto: 'reforço nas nervuras fora do ábaco' }, carga: cargaN });
+      }
       const mk = (nome: 0 | 1 | 2, t: Tensao, lim: number, limNome: string) => ({ nome: NOMES_C[nome], a: t.a, u: t.u, tau: t.tau, limite: lim, limiteNome: limNome, ok: t.tau <= lim + 1e-9, Wp: t.Wp, e: t.e, M1: t.M1, pontos: polilinhas(t.pecas) });
       const lim2 = vi.tauRd3 ?? vi.tauRd1;
       const contornos = [mk(0, vi.C, vi.tauRd2, 'τRd2'), mk(1, vi.C2, lim2, vi.tauRd3 !== undefined ? 'τRd3' : 'τRd1')];
