@@ -16,13 +16,13 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-23/10/2026 (soltar/conferir ao retomar): (a) dividir `e2e/flows.mjs` em `e2e/flows/<frente>.mjs` com os mesmos 87 fluxos (Sonnet baixo); (b) auditoria independente da frente D (layout) — só relatório (Sonnet médio); (c) núcleo da E4b (escadas: lançamento, edição e biblioteca; Sonnet médio). Briefings citam `docs/regras-agentes.md`. Agentes de worktree em `.claude/worktrees/agent-*`.
+24/10/2026 (conferir ao retomar): (a) D7 — correções da auditoria D (`docs/auditorias/auditoria-D.md`, 12 itens "corrigir" + sugestões baratas; Sonnet baixo); (b) núcleo da E4c (cálculo das escadas; Sonnet alto); (c) reescrever no layout novo os cartões de interface de V5, E3c, E3d, E3e e completar os da E3f (TSX), validando aplicar/reverter (Sonnet médio, só docs/cartoes).
 
-Última rodada fechada em 23/10/2026 (main 438fcb4): layout D4–D6 (navegador em árvore, Propriedades, `mapaLayout.test.ts`), script `npm run checklist`, núcleos E4a (escadas) e E3f (inclinadas, rampas, desníveis; validado com método das forças e OpenSees), padrão das paredes sob o patamar 15,70/24,53 kN/m³ (programa de referência).
+Última rodada fechada em 24/10/2026 (main 6cdccb9): e2e divididos em `e2e/flows/<frente>.mjs` (equivalência provada), auditoria D (sem bloqueante), núcleo E4b. 1.586 testes, 87 e2e, pacote 4.233 KB. Atenção: testes "telhado"/"cobertura" (exemplos/planos) passam isolados (~10 s), mas estouram 120 s com a máquina carregada.
 
 ## Próxima rodada (depois desta)
-1. Cartões de interface no layout novo e execução no Haiku (tipo `cartao`): V5, E3c, E3d, E3e (reescrever), E3f (só especificação: escrever o TSX), E4a (01–04; o 04 já é do layout novo), E4b. Fluxos novos em `e2e/flows/<frente>.mjs`.
-2. E4c (cálculo das escadas, Sonnet alto) em paralelo.
+1. Execução dos cartões no Haiku (tipo `cartao`), 3 agentes por frente: (E3c+E3d+E3e), (E3f+V5), (E4a+E4b). Fluxos novos em `e2e/flows/<frente>.mjs` + linha no `index.mjs`.
+2. Depois: E4d, E4e, L3, auditorias E/L/V, fechamento.
 
 ## Fila depois disso
 - E4b–E4e (escadas), L3 (IFC).
@@ -37,4 +37,4 @@ Atualizado em 23/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.566 testes, 87 fluxos e2e (paralelo), pacote 4.224 KB.
+1.586 testes, 87 fluxos e2e (paralelo), pacote 4.233 KB.
