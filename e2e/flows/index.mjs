@@ -11,6 +11,7 @@ import * as m_V from './V.mjs';
 import * as m_E_1 from './E-1.mjs';
 import * as m_E_2 from './E-2.mjs';
 import * as m_L from './L.mjs';
+import * as m_E_3 from './E-3.mjs';
 import * as m_layout from './layout.mjs';
 import * as m_D from './D.mjs';
 
@@ -105,6 +106,7 @@ export const flows = [
   m_E_2.f_E3d,
   m_E_2.f_E4a,
   m_E_2.f_E3e,
+  m_E_3.f_E3f,
   m_layout.f_layout,
   m_layout.f_layout_1280,
   m_layout.f_layout_1024,

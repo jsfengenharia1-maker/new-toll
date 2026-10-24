@@ -26,6 +26,7 @@ import { deltaXi } from '../../core/design';
 import { PREMISSAS, TAXAS } from '../../core/building/premissas';
 import { normasNoMemorial } from '../../core/normas/memorial';
 import { fichasNoMemorial } from '../../core/building/tiposLaje';
+import { MemorialPlanos } from './MemorialPlanos';
 import { MemorialAlveolares } from './MemorialAlveolares';
 import { MemorialNervuradas } from './MemorialNervuradas';
 import { MemorialAbacos } from './MemorialAbacos';
@@ -202,6 +203,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
           <MemorialNervuradas b={b} dim={dim} h2={h2} />
           <MemorialAbacos b={b} dim={dim} h2={h2} />
           <MemorialAlveolares b={b} dim={dim} h2={h2} />
+          <MemorialPlanos b={b} an={analise} h2={h2} />
           <MemorialListagemGeral b={b} h2={h2} />
           {h2('Ações')}
           <table>
