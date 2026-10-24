@@ -9,7 +9,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 1 | 2 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 41 | 3 | 2 | 10 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 44 | 0 | 2 | 10 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **476** | **82** | **20** | **185** |
+| **Total** | **763** | **479** | **79** | **20** | **185** |
 
 ## Pendências por frente
 
@@ -32,7 +32,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 57 | 17 | 74 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 7 | 0 | 7 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 4 | 0 | 4 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
 
 ## 0. Apresentação do programa
@@ -65,15 +65,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.13 | Guia rápido que reúne as ajudas das opções das abas, para consultar e imprimir. As ajudas dos diálogos não entram no guia. | Feito | — | L4 núcleo: `guiaRapido` (`src/core/ajuda/guia.ts`); interface: `GuiaRapido.tsx` e anexo do memorial (cartões 04 e 05) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
 | | **1.3 Criação de obra** | | | |
 | C1.14 | Obra nova com pasta, nome e descrição. | Feito | — | descrição de até 2 linhas e origem em `Obra` (`obra.definir`); obras na lista de recentes e na biblioteca (sem pastas: o navegador não as tem) [L1] |
-| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Parcial | L | janela `NovaObra.tsx`: assistente, vazia, padrão, exemplo e texto; DXF/DWG chegam na L2 e IFC na L3 [L1]; modo DXF/DWG feito na L2 (`NovaObra.tsx`); IFC na L3 — ; L3: núcleo do modo IFC pronto (24/10/2026); o chip habilitado e a janela chegam com os cartões docs/cartoes/L3/ (02), então a linha passa a Feito |
+| C1.15 | Escolha do modo de criação: obra vazia (lançamento manual), lançamento automático por DXF/DWG, lançamento automático por IFC ou exemplo de lançamento automático. Os modos automáticos dependem de licença. | Feito | — | L3: modo 'Importação de IFC' habilitado na janela NovaObra.tsx (abre LancamentoIfc.tsx, via Edificio.tsx); DXF/DWG na L2 e IFC na L3 [L1] |
 | C1.16 | Assistente passo a passo no lançamento automático, que pede pavimentos, alturas e cargas. | Feito | — | `assistente.ts` (`gerarObra`), comando `obra.assistente`, janela `NovaObra.tsx` em 6 etapas, guia `etapas.ts`/`EtapasObra.tsx` [L1] |
 | C1.17 | O lançamento automático gera o contorno do edifício e os elementos de apoio. | Feito | — | lançamento automático [L2] — L2: `lancamentoDxf.ts` (`propostaDeLancamento`: pilares, vigas, contorno, aberturas, eixos) e `lancamento.aplicar`; interface: LancamentoDxf.tsx, Edificio.tsx |
 | C1.18 | Lançamento por DXF/DWG: carrega um ou vários arquivos como gabarito. | Feito | — | lançamento automático por DXF [L2] — L2: `mascara.importar` (`grupos`, `arquivo`), `lerDwg`, vários arquivos por lançamento; interface: lancamentoLeitura.ts, LancamentoDxf.tsx |
 | C1.19 | No assistente DXF/DWG, troca das cores das camadas e escolha das camadas visíveis. | Feito | — | cores/visibilidade de camadas existem na máscara, não em assistente [L2] — L2: `mascara.camadas` (cor, visibilidade), `PreviaCamadas`; interface: PreviaCamadas.tsx, LancamentoDxf.tsx |
 | C1.20 | No assistente DXF/DWG, associação de cada arquivo a grupos de pavimentos. | Feito | — | uma máscara por grupo [L2] — L2: `Mascara.grupos`, `mascara.editar { grupos }`; interface: LancamentoDxf.tsx, Gabaritos.tsx |
 | C1.21 | No assistente DXF/DWG, escolha das camadas que definem a geometria de cada tipo de elemento. | Feito | — | camada → tipo de elemento (pilar, contorno, abertura) [L2] — L2: `RegrasCamadas`, `sugerirRegras`, `mascara.regras` (papel por camada); interface: LancamentoDxf.tsx |
-| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Parcial | L | IFC [L3]: núcleo feito em 24/10/2026: leitura do IFC2x3/IFC4 pelo web-ifc 0.0.78 (`src/core/ifc/ler.ts`: pavimentos por IfcBuildingStorey, pilares, vigas, lajes com aberturas e paredes de concreto, unidades e posicionamento aninhado, fallback pela malha), proposta com pavimentos, grupos (`agruparPavimentos`), pilares contínuos e relatório (`proposta.ts`) e comando `ifc.importar` (`src/core/commands/ifc.ts`); falta a interface (janela Importação de IFC, passo Edifício e pavimentos: cartões `docs/cartoes/L3/`) |
-| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Parcial | L | IFC [L3]: núcleo feito em 24/10/2026: `src/core/ifc/materiais.ts` (material mais usado por tipo de elemento, fck e aço lidos do nome ou de StrengthClass/CompressiveStrength) e atribuição em `ifc.importar` (`norma.fckElem`/`acoPos`); falta a interface (passo Materiais: cartões `docs/cartoes/L3/`) |
+| C1.22 | Lançamento por IFC: importa o arquivo e depois pede os dados do edifício e dos pavimentos. | Feito | — | IFC [L3]: núcleo (src/core/ifc/ler.ts, proposta.ts, comando src/core/commands/ifc.ts) e interface: janela Importação de IFC (src/app/edificio/LancamentoIfc.tsx, leitura sob demanda em ifcLeitura.ts, modo em NovaObra.tsx); passo Edifício e pavimentos pede nome, cota, pé-direito, uso e grupo após a leitura; e2e f_L3 (e2e/flows/L.mjs) |
+| C1.23 | No lançamento por IFC, os materiais do arquivo são ligados a tipos de elemento estrutural, com propriedades atribuídas a cada seleção. | Feito | — | IFC [L3]: núcleo (src/core/ifc/materiais.ts, ifc.importar) e interface: passo Materiais da janela LancamentoIfc.tsx liga o material do arquivo a pilares, vigas, lajes e paredes, com fck e aço por tipo; e2e f_L3 (e2e/flows/L.mjs) |
 | C1.24 | Ao fim do lançamento automático, a obra é gerada e abre a janela de dados gerais (normas e propriedades da obra). | Feito | — | ao criar, abre `DadosGerais.tsx` (normas, materiais, perfil de padrões) [L1] |
 | C1.25 | Depois do lançamento automático, todos os dados ficam editáveis. Lajes, cargas adicionais, fundações e dados particulares são completados à mão. | Fora | — | depende do lançamento automático |
 | C1.26 | Roteiro recomendado, passo 1: dados gerais (nome, descrição, materiais e opções, nível de controle de execução). | Feito | — | obra + norma (fck, aço, CAA, cobrimentos, ψ) |
