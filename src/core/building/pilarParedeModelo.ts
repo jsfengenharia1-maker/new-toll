@@ -205,6 +205,9 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
   return out;
 }
 
+/** Multiplicador só da rigidez axial (E5j, K1.4.30): E_y da membrana × fator; EI, cisalhamento no plano e placa brutos. */
+export const axialCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, fAxial: fator }));
+
 /** Rigidez reduzida das cascas no γz e no P-Δ (pilares: 0,8·Eci·Ic; NBR 6118, 15.7.3). */
 export const reduzirCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, E: c.E * fator }));
 

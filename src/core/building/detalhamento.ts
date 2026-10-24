@@ -261,6 +261,10 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const dI = h - cob.inf - phiT / 1000 - 0.008, dS = h - cob.sup - phiT / 1000 - 0.008, d = Math.min(dI, dS);
   const avisos: string[] = [];
   const apoios = apoiosDaViga(b, v);
+  // parede ou pilar-parede no meio da viga (K1.3.59): o diagrama e a armadura valem só até (prolongamento + extensão) × h de cada face;
+  // o trecho central de um contato mais longo não é dimensionado, mas a armadura corre contínua (a viga não é partida em duas)
+  const limParede = (op.vigaApoioLongProlong + op.vigaApoioLongBarras) * h, virtuais = new Set(todosPilares(b).filter(ehVirtual).map((p) => p.id));
+  for (const a of apoios.slice(1, -1)) if (virtuais.has(a.pilar) && a.s1 - a.s0 > 2 * limParede + 1e-9) avisos.push(`Parede ou pilar-parede no meio da viga com contato de ${(a.s1 - a.s0).toFixed(2).replace('.', ',')} m (mais de 2 × ${limParede.toFixed(2).replace('.', ',')} m): fora desse alcance o cálculo não dimensiona a viga e a armadura segue contínua sobre a parede; interrompa a viga e a armadura manualmente depois de ${limParede.toFixed(2).replace('.', ',')} m da face.`);
   const ext = extensaoDaViga(v, apoios);
   const c0 = ext[0] + cob.lat, c1 = ext[1] - cob.lat; // pontas das barras (cobrimento na ponta)
   // detalhe editado: vale enquanto o número de vãos não mudou

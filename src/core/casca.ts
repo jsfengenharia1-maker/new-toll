@@ -26,6 +26,12 @@ export interface Casca3 {
   ref?: V3;
   /** Material com rigidez própria (alvenaria, E1e): os fatores de rigidez do concreto (EA dos pilares, 0,8·Eci) não se aplicam. */
   semReducao?: boolean;
+  /**
+   * Fator só sobre a rigidez axial (direção local y, vertical nas paredes) da membrana (E5j, K1.4.30): E_y = fAxial·E, E_x e
+   * o cisalhamento no plano ficam brutos, e a flexão da placa e o cortante transversal não mudam. Membrana ortótropa
+   * D = Dm·[[1, ν√f, 0], [ν√f, f, 0], [0, 0, (1−ν)/2]]. Ausente ou 1 = isótropo.
+   */
+  fAxial?: number;
 }
 
 /** Elemento montado: rigidez global 36 × 36 (por linhas), gdl, base local e dados para cargas e esforços. */
@@ -34,6 +40,8 @@ export interface ElementoCasca {
   /** Matrizes B no centroide (locais): membrana 3 × 36, curvaturas 3 × 36, cortante 2 × 36. */
   Bm: number[][]; Bb: number[][]; Bs: number[][];
   Dm: number; Db: number; Ds: number; nu: number;
+  /** Fator axial da membrana (ver `Casca3.fAxial`); 1 = isótropo. */
+  fAxial: number;
   /** Carga nodal equivalente local de pressão unitária (36). */
   fq: Float64Array;
   /** Rigidez local (para esforços sem transformar de novo). */
@@ -152,9 +160,10 @@ export function rigidezCasca(nos: V3[], c: Casca3): ElementoCasca {
   };
   const Kl = new Float64Array(36 * 36), fq = new Float64Array(36);
   const nu = c.nu, half = (1 - nu) / 2;
-  const addBtDB = (B: number[][], D: number, w: number, iso: boolean) => {
-    // D isótropo [[1,ν,0],[ν,1,0],[0,0,(1−ν)/2]]·D (membrana e flexão) ou D·I₂ (cortante)
-    const DB = iso ? [B[0].map((v, j) => D * (v + nu * B[1][j])), B[1].map((v, j) => D * (nu * B[0][j] + v)), B[2].map((v) => D * half * v)] : B.map((r) => r.map((v) => D * v));
+  const fa = c.fAxial ?? 1, sf = Math.sqrt(fa);
+  const addBtDB = (B: number[][], D: number, w: number, iso: boolean, ort = false) => {
+    // D isótropo [[1,ν,0],[ν,1,0],[0,0,(1−ν)/2]]·D (membrana e flexão) ou D·I₂ (cortante); `ort`: membrana com E_y = fa·E
+    const DB = ort ? [B[0].map((v, j) => D * (v + nu * sf * B[1][j])), B[1].map((v, j) => D * (nu * sf * B[0][j] + fa * v)), B[2].map((v) => D * half * v)] : iso ? [B[0].map((v, j) => D * (v + nu * B[1][j])), B[1].map((v, j) => D * (nu * B[0][j] + v)), B[2].map((v) => D * half * v)] : B.map((r) => r.map((v) => D * v));
     for (let a = 0; a < 36; a++) for (let k = 0; k < B.length; k++) { const ba = B[k][a]; if (!ba) continue; for (let b = 0; b < 36; b++) Kl[a * 36 + b] += w * ba * DB[k][b]; }
   };
   let area = 0;
@@ -162,7 +171,7 @@ export function rigidezCasca(nos: V3[], c: Casca3): ElementoCasca {
     const { N, dx, dy, det } = derivadas(L1, L2, L3);
     const w = det / 6; // peso 1/6 na área de referência 1/2
     area += w;
-    addBtDB(Bmem(dx, dy), Dm, w, true);
+    addBtDB(Bmem(dx, dy), Dm, w, true, fa !== 1);
     addBtDB(Bcurv(dx, dy), Db, w, true);
     for (let i = 0; i < 6; i++) fq[ix(i, 2)] += w * N[i];
   }
@@ -202,7 +211,7 @@ export function rigidezCasca(nos: V3[], c: Casca3): ElementoCasca {
   }
   const { N: Nc, dx: dxc, dy: dyc } = derivadas(1 / 3, 1 / 3, 1 / 3);
   const xc = Nc.reduce((s, v, i) => s + v * xy[i][0], 0), yc = Nc.reduce((s, v, i) => s + v * xy[i][1], 0);
-  return { K, Kl, dofs: c.nos.flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)), R, area, Bm: Bmem(dxc, dyc), Bb: Bcurv(dxc, dyc), Bs: Bcort(xc, yc), Dm, Db, Ds, nu, fq };
+  return { K, Kl, dofs: c.nos.flatMap((n) => [0, 1, 2, 3, 4, 5].map((g) => n * 6 + g)), R, area, Bm: Bmem(dxc, dyc), Bb: Bcurv(dxc, dyc), Bs: Bcort(xc, yc), Dm, Db, Ds, nu, fAxial: fa, fq };
 }
 
 /** Carga nodal equivalente global (36) de pressão uniforme q ao longo da normal local z. */
@@ -228,7 +237,8 @@ export function esforcosCasca(e: ElementoCasca, u: ArrayLike<number>, q = 0, for
   const mul = (B: number[][]) => B.map((r) => r.reduce((s, v, j) => s + v * ul[j], 0));
   const eps = mul(e.Bm), kap = mul(e.Bb), gam = mul(e.Bs), nu = e.nu, h2 = (1 - nu) / 2;
   const out = new Float64Array(8);
-  out[0] = e.Dm * (eps[0] + nu * eps[1]); out[1] = e.Dm * (nu * eps[0] + eps[1]); out[2] = e.Dm * h2 * eps[2];
+  const sf = Math.sqrt(e.fAxial);
+  out[0] = e.Dm * (eps[0] + nu * sf * eps[1]); out[1] = e.Dm * (nu * sf * eps[0] + e.fAxial * eps[1]); out[2] = e.Dm * h2 * eps[2];
   out[3] = -e.Db * (kap[0] + nu * kap[1]); out[4] = -e.Db * (nu * kap[0] + kap[1]); out[5] = -e.Db * h2 * kap[2];
   out[6] = e.Ds * gam[0]; out[7] = e.Ds * gam[1];
   if (forcasNo) {
