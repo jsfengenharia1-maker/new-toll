@@ -33,7 +33,7 @@ function digest(d: ReturnType<typeof dimensionarEdificio>) {
 
 describe('R7b: perfil NBR reproduz o detalhamento das vigas anterior', () => {
   // baseline gerado pelo código anterior à R7b (perfil do sistema); as opções novas com os valores da NBR reproduzem o resultado
-  const NBR_DET = { vigaReducaoLb: 0, vigaNegativoVao: 0, vigaSimetriaNegativos: 0, vigaNegativosUnir: 0, vigaEstriboExtensao: 0 };
+  const NBR_DET = { vigaReducaoLb: 0, vigaNegativoVao: 0, vigaSimetriaNegativos: 0, vigaNegativosUnir: 0, vigaEstriboExtensao: 0, vigaCortesInf: 1, vigaGruposSup: 1, vigaAncoragemFolga: 0, vigaAncoragemEixo: 0 };
   it('vigas de 2 e 3 vãos e edifício de exemplo (digest idêntico ao do código anterior)', () => {
     for (const [vaos, ref] of [[[5, 5], base.v2], [[5, 5, 5], base.v3]] as const) {
       const t = viga3([...vaos]);

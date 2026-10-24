@@ -93,6 +93,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'LAJE_EDIT_BARRA_MAX', nivel: 'aviso', re: /^Posição editada .* barra máxima/, descricao: 'Laje: posição editada mais longa que a barra máxima' },
   { codigo: 'LAJE_ZONA_VAZIA', nivel: 'aviso', re: /^Zona de uniformização .* atinge/, descricao: 'Laje: zona de uniformização sem barras suficientes (face ou direção sem barras)' },
   { codigo: 'FORA_TABELA', nivel: 'erro', re: /^Fora de tabela \((barras|estribos)\)/, descricao: 'Viga: armadura sem solução na tabela (φ25 ou estribo fora do mínimo da tabela)' },
+  { codigo: 'FORA_TABELA_MONTAGEM', nivel: 'aviso', re: /^Fora de tabela \((montagem|adicional)\)/, descricao: 'Viga: bitola de montagem ou adicional fora da lista da tabela (trocada pela maior da lista que não a supera)' },
   { codigo: 'ARM_MANUAL', nivel: 'erro', re: /^Armadura manual necessária/, descricao: 'Pilar: nem a tabela nem a armadura própria atendem (amplie a tabela ou a seção)' },
   { codigo: 'FORA_TABELA_PILAR', nivel: 'aviso', re: /^Fora de tabela \(pilar\)/, descricao: 'Pilar: armadura própria fora da tabela' },
   { codigo: 'FORA_TABELA_LAJE', nivel: 'aviso', re: /^Fora de tabela \(laje\)/, descricao: 'Laje: armadura necessária não cabe nas bitolas e espaçamentos da tabela' },

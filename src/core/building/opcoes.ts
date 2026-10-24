@@ -73,6 +73,13 @@ export interface OpcoesCalculo {
   vigaMontagemGancho: number;
   vigaMontagemEixo: number;
   vigaPernaGancho: number;
+  /** Cortes escalonados, bitolas e ancoragem construtiva das vigas (R8a). */
+  vigaCortesInf: number;
+  vigaGruposSup: number;
+  vigaGrupoMinPct: number;
+  vigaReforcoBitola: number;
+  vigaAncoragemFolga: number;
+  vigaAncoragemEixo: number;
   vigaEstriboExtensao: number;
   vigaEstriboZonaMin: number;
   vigaEstriboSimetria: number;
@@ -686,6 +693,18 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Com a montagem reta, ligada: a barra termina no eixo do apoio extremo; desligada: vai até o cobrimento da ponta.' },
   { chave: 'vigaPernaGancho', rotulo: 'Vigas: perna reta mínima dos ganchos', unidade: '× φ', min: 8, max: 20, passo: 1, padrao: 8, fonte: 'NBR 6118, 9.4.2.3 (ponta reta ≥ 8φ no gancho de 90°)', aConfirmar: false,
     descricao: 'Perna reta dos ganchos de 90° das barras longitudinais das vigas.' },
+  { chave: 'vigaCortesInf', rotulo: 'Vigas: comprimentos de corte dos reforços inferiores', unidade: 'grupos', min: 1, max: 3, passo: 1, padrao: 3, padraoNBR: 1, fonteNBR: 'NBR 6118 não fixa o número de cortes: todas as barras do reforço de um trecho com o mesmo comprimento (comportamento anterior)', fonte: 'Programa de referência (K1.12.6: até 3 comprimentos de corte nos positivos); 3 por padrão', aConfirmar: false,
+    descricao: 'As barras do reforço inferior de um trecho são divididas em até este número de grupos; cada grupo termina onde a armadura necessária decalada (aℓ) deixa de exigir as suas barras, mais o prolongamento. A divisão escolhida é a de menor comprimento total de barra respeitando o % mínimo por grupo. 1 = um só comprimento.' },
+  { chave: 'vigaGruposSup', rotulo: 'Vigas: grupos de comprimentos dos negativos', unidade: 'grupos', min: 1, max: 3, passo: 1, padrao: 3, padraoNBR: 1, fonteNBR: 'NBR 6118 não fixa o número de cortes: negativos de um apoio com o mesmo comprimento (comportamento anterior)', fonte: 'Programa de referência (K1.12.12: até 3 grupos de comprimentos nos negativos); 3 por padrão', aConfirmar: false,
+    descricao: 'As barras negativas de cada região são divididas em até este número de grupos de comprimentos diferentes (o mais longo sempre cobre o diagrama inteiro), cada um cortado pelo diagrama decalado + ancoragem, ou pelo mínimo em % do vão. 1 = um só comprimento.' },
+  { chave: 'vigaGrupoMinPct', rotulo: 'Vigas: mínimo de barras por grupo de comprimento', unidade: '% das barras', min: 0, max: 100, passo: 5, padrao: 20, fonte: 'Programa de referência (K1.12.12: % mínimo por grupo nas opções); 20 % a confirmar', aConfirmar: true,
+    descricao: 'Cada grupo de comprimento (reforços inferiores e negativos) leva ao menos esta % das barras da região (arredondada para cima, mínimo de 1 barra). Se não couberem os grupos permitidos, usa menos grupos.' },
+  { chave: 'vigaReforcoBitola', rotulo: 'Vigas: bitola das barras dos reforços inferiores', unidade: 'mm (0 = a das passantes)', min: 0, max: 25, passo: 0.1, padrao: 0, fonte: 'Programa de referência (K1.12.7: grupos com bitolas que podem diferir); 0 = mesma bitola das passantes (comportamento anterior)', aConfirmar: false,
+    descricao: 'Bitola das barras de reforço inferior (grupos 2 e 3 da tabela). 0 = a das passantes. Valor fora da lista “adicional” da tabela de armadura: aviso “Fora de tabela (adicional)” e troca pela maior da lista que não a supera.' },
+  { chave: 'vigaAncoragemFolga', rotulo: 'Vigas: folga da ponta das barras nos apoios extremos', unidade: 'cm (0 = cobrimento)', min: 0, max: 10, passo: 0.5, padrao: 3, padraoNBR: 0, fonteNBR: 'Cobrimento lateral da viga na ponta das barras (comportamento anterior)', fonte: 'Programa de referência (K1.12.7: ancoragem construtiva até a face oposta do apoio menos 3 cm)', aConfirmar: false,
+    descricao: 'Distância da ponta das barras à face externa do apoio extremo (ancoragem construtiva: do eixo do apoio até a face oposta menos esta folga). 0 = usa o cobrimento lateral da viga.' },
+  { chave: 'vigaAncoragemEixo', rotulo: 'Vigas: ancoragem das passantes pelo cálculo, a partir do eixo do apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'Ancoragem construtiva sempre (comportamento anterior; a NBR 6118 18.3.2.4.1 mede a ancoragem a partir da face)', fonte: 'Programa de referência (K1.12.7: construtiva, salvo quando o cálculo exige ancoragem menor a partir do eixo); medida do eixo a confirmar', aConfirmar: true,
+    descricao: 'Ligada: a passante termina na menor das distâncias a partir do eixo do apoio extremo entre a ancoragem construtiva e a exigida pelo cálculo (Rst = (aℓ/d)·Vd; mínimo 5,5φ + pino); a necessária é mostrada no aviso de ancoragem. Desligada: sempre a construtiva.' },
   { chave: 'vigaEstriboExtensao', rotulo: 'Vigas: estender zonas de estribos em d/2', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não pede extensão: a zona termina onde o espaçamento exigido permite abrir (comportamento anterior)', fonte: 'Programa de referência (K1.12.1-9: necessário + d/2)', aConfirmar: false,
     descricao: 'Cada zona de estribos mais densa é estendida de d/2 para o lado da zona menos exigida.' },
   { chave: 'vigaEstriboZonaMin', rotulo: 'Vigas: comprimento mínimo da zona de estribos', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 0, fonte: 'Opção do programa de referência (K1.4.65); padrão desligado (resta a regra de 2 espaçamentos)', aConfirmar: false,
@@ -1256,7 +1275,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'woodArmer', 't0Flecha', 'fatorFlechaLaje', 'limiteFlechaTotal', 'limiteFlechaSensorial', 'redistribuicao', 'momentoMinPositivo',
   'momentoMinNegativo', 'cortanteApoio', 'cortanteDistancia', 'verificarTorcao', 'limiteFissura', 'barraMaxima', 'arredondamento', 'perdasAco',
   'bitolaMontagem', 'vigaReducaoLb', 'vigaNegativoVao', 'vigaReforcoVao', 'vigaSimetriaNegativos', 'vigaNegativosUnir', 'vigaMontagemContinua',
-  'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
+  'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaCortesInf', 'vigaGruposSup', 'vigaGrupoMinPct', 'vigaReforcoBitola', 'vigaAncoragemFolga', 'vigaAncoragemEixo', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
   'vigaEstriboSimetria', 'vigaEstriboGancho', 'vigaEstriboU', 'vigaAsMinPonto', 'vigaFatorEmenda', 'vigaDesnivelLimite', 'continuidadePilares', 'pilarSimetria', 'pilarBarraMaxima', 'pilarUniaoLances',
   'ancoragemReduzidaTopo', 'pilarContinuidadeInicio', 'pilarContinuidadeFaces', 'pilarProlongarSemViga', 'pilarCorteTopo',
   'pilarReducaoIntermediarios', 'pilarReducaoMinimo', 'pilarAdensamento', 'pilarAdensamentoAltura', 'pilarAdensamentoEspacamento',
