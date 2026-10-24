@@ -1,7 +1,7 @@
 // Fluxos de interface — E (parte 2/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { grupoEdif, tab, downloadText, telaDe, enquadrarEstavel } from './helpers.mjs';
+import { grupoEdif, tab, downloadText, telaDe, enquadrarEstavel, faixaAba } from './helpers.mjs';
 
 export const f_E2c = {
     name: 'E2c: viga inclinada entre pavimentos (lançamento, ligação, carga, resultados, armadura bloqueada e memorial)',
@@ -501,3 +501,62 @@ export const f_E3b = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   };
+
+export const f_E4a = {
+    name: 'E4a: escadas (janela com dados comuns, lances e tipos de lance, prévia em planta e corte, erro de altura em vermelho)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escadas…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Escadas', exact: true });
+      await jan.waitFor();
+      // 1) escada nova com o tipo meia-volta 9 + 9: o espelho padrão (17,5 cm) não fecha os 3 m
+      await jan.getByRole('button', { name: 'Criar escada', exact: true }).click();
+      await jan.locator('[data-escada-lances]').waitFor();
+      await jan.locator('[data-escada-erro="ESCADA_ALTURA"]').waitFor();
+      assert.match(await jan.locator('[data-escada-erro="ESCADA_ALTURA"]').innerText(), /18 degraus × 0,175 m = 3,150 m não fecha o desnível de 3,000 m/);
+      // 2) dados comuns: espelho de 1/6 m fecha a altura; a prévia em planta e o corte aparecem
+      await jan.getByRole('radio', { name: 'Dados comuns', exact: true }).click();
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.locator('[data-escada-erro]').waitFor({ state: 'detached' });
+      await jan.locator('[data-escada-planta] polygon').first().waitFor();
+      assert.equal(await jan.locator('[data-escada-planta] polygon').count(), 3, 'dois lances e um patamar');
+      await jan.locator('[data-escada-corte]').waitFor();
+      // 3) lances: espessura pré-dimensionada e resumo
+      await jan.getByRole('radio', { name: 'Lances', exact: true }).click();
+      assert.match(await jan.locator('[data-escada-resumo]').innerText(), /18\s+3,000\s+\d+ \(vão\/30\)/);
+      // 4) tipos de lance: o tipo em uso não pode ser removido; criar um tipo novo
+      await jan.getByRole('radio', { name: 'Tipos de lance', exact: true }).click();
+      const tipo = jan.locator('[data-tipo-lance]').first();
+      await tipo.waitFor();
+      assert.equal(await tipo.getByRole('button', { name: /^Remover / }).isDisabled(), true);
+      await jan.getByLabel('Referência do tipo').last().fill('Reto de 12');
+      await jan.getByLabel('Degraus de cada trecho').last().fill('12');
+      await jan.getByRole('button', { name: 'Criar tipo de lance', exact: true }).click();
+      await jan.locator('[data-tipo-lance="Reto de 12"]').waitFor();
+      // desnível inicial menor que 10 cm é recusado
+      await jan.getByLabel('Desnível no início do lance').last().fill('0.05');
+      await jan.getByLabel('Desnível no início do lance').last().press('Tab');
+      await jan.getByRole('button', { name: 'Criar tipo de lance', exact: true }).click();
+      await jan.getByText(/o desnível inicial deve ser zero ou pelo menos 10 cm/).waitFor();
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 5) memorial: seção Escadas com os dados, a geometria e as cargas
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const me = memo.locator('[data-memorial-escadas]');
+      await me.waitFor();
+      assert.match(await me.innerText(), /Largura, piso e espelho/);
+      assert.match(await me.innerText(), /18 degraus · 3,000 m para um desnível de 3,000 m/);
+      assert.match(await me.innerText(), /\[a confirmar\]/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+};
