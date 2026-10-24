@@ -346,6 +346,79 @@ export const f_FU7c = {
     },
   };
 
+export const f_FU7d = {
+    name: 'FU7d: fundação do pilar-parede (lançar a sapata pela janela, resultado, base sobre molas e iteração de B com a sapata calculada)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const calcular = async () => {
+        await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+        await livre();
+      };
+      const abrirJanela = async () => {
+        const cartao = page.locator('[data-pp-cartao]');
+        await cartao.waitFor({ timeout: 30000 });
+        await cartao.getByRole('button', { name: 'Resultados de PP1' }).click();
+        const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar-parede PP1/ });
+        await jp.waitFor();
+        return jp;
+      };
+      // 1. modelo enxuto: Térreo e Tipo 1, um pilar-parede de 3,0 m × 30 cm e o terreno com σadm
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+      let b0 = await modelo();
+      for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+        const p = b0.pavimentos.find((x) => x.nome === nome);
+        const antes = b0.pavimentos.length;
+        await cmd('pavimento.remover {"id": "' + p.id + '"}');
+        await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+        b0 = await modelo();
+      }
+      const tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+      await cmd('fundacao.terreno {"sigmaAdm": 300}');
+      await cmd('opcoes.definir {"valores": {"fundParedeK": 100000}}');
+      await cmd('pilarParede.tipo {"nome": "PP", "vertices": [[0, 0], [3, 0]], "esq": 0.15, "dir": 0.15}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposPilarParede?.length === 1, null);
+      await cmd('pilarParede.inserir {"tipo": "' + (await modelo()).tiposPilarParede[0].id + '", "x": 0, "y": 0, "angulo": 0, "morre": "' + tipo1.id + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilaresParede?.length === 1, null);
+      // 2. cálculo e janela do pilar-parede: sem fundação lançada, a seção oferece o lançamento
+      await calcular();
+      let jp = await abrirJanela();
+      const sec = jp.locator('[data-fund-pp]');
+      await sec.waitFor();
+      assert.match(await sec.innerText(), /Retângulo envolvente 300 × 30 cm/);
+      await sec.locator('[data-fund-pp-lancar]').click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.fundacao?.elementos?.length === 1, null);
+      assert.deepEqual((await modelo()).fundacao.elementos[0].pilares, [(await modelo()).pilaresParede[0].id]);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      // 3. recalcula: a sapata do pilar-parede é dimensionada pelas reações da base (N = 90 kN: peso próprio da parede)
+      await calcular();
+      jp = await abrirJanela();
+      const res = jp.locator('[data-fund-pp-resultado]');
+      await res.waitFor({ timeout: 30000 });
+      assert.match(await res.innerText(), /S1[\s\S]*Sapata[\s\S]*atende/);
+      assert.match(await res.innerText(), /3,10 × 1,25 m/);
+      // 4. base sobre molas: B das molas iterado com a sapata calculada (310 × 125 cm)
+      await jp.locator('[data-fund-pp-molas]').click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilaresParede?.[0]?.vinculoBase === 'molas', null);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+      await calcular();
+      jp = await abrirJanela();
+      const it = jp.locator('[data-fund-pp-iteracao]');
+      await it.waitFor({ timeout: 30000 });
+      assert.match(await it.innerText(), /convergiu em 2 análise/);
+      assert.match(await it.innerText(), /Sapata usada nas molas: 310 × 125 cm/);
+      assert.match(await it.locator('tbody tr').first().innerText(), /espessura \+ 2 × balanço/);
+      await jp.getByRole('button', { name: 'Fechar' }).click();
+    },
+  };
+
 export const f_E5k = {
     name: 'E5k: vigas de fundação T, L e plana — seção no editor da viga de equilíbrio e da viga sobre base elástica, contato pela mesa, resultados com a mesa em balanço e seção na janela',
     async run({ newPage }) {

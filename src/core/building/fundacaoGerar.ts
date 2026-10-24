@@ -5,6 +5,7 @@
 // executa como um passo só; tudo continua editável depois. Sem análise: a estimativa de sobreposição e do número de
 // estacas usa as cargas informadas (`cargas`, kN característicos por pilar), se vierem. Unidades: kN, m.
 import { pilaresNaBase } from './baseElastica';
+import { pilaresEquivalentesPP } from './fundacaoPilarParede';
 import { sptSigma } from '../footings';
 import type { P } from '../geom/faces';
 import { sobrepoe } from '../geom/poly';
@@ -138,7 +139,7 @@ export function planejarFundacoes(b: BuildingModel, par: ParametrosGerar = {}): 
   const contagem = { sapatas: 0, blocos: 0, tubuloes: 0, divisa: 0, canto: 0, associadas: 0, equilibrio: 0, travamento: 0 };
   const passos: PassoGerar[] = [];
   const fe = b.fundacao;
-  const todos = b.pilares.filter((p) => p.nasce === 'fundacao');
+  const todos = [...b.pilares, ...(op.fundPilarParede ? pilaresEquivalentesPP(b) : [])].filter((p) => p.nasce === 'fundacao');
   const jaTem = new Set((fe?.elementos ?? []).flatMap((e) => e.pilares))
   for (const x of pilaresNaBase(b)) jaTem.add(x.pilar); // sobre radier ou viga sobre base elástica (FU6): sem elemento próprio
   const escolhidos = par.pilares ? new Set(par.pilares) : null;

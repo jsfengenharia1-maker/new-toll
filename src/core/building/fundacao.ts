@@ -7,6 +7,7 @@
 // ponta oposta) e de travamento (blocos de 1 e 2 estacas), cargas do nível de fundação sobre vigas e elementos e
 // dimensionamento das vigas (vigasFundacao.ts).
 // Unidades: kN, m, kN/m² (σadm), graus.
+import { acharPilar, pilaresParedeEmUso } from './fundacaoPilarParede';
 import { corridasEfetivas } from './corridaParede';
 import { designSupport, type SupportDesign } from '../foundation';
 import { columnOffset, isFooting } from '../footings';
@@ -60,7 +61,7 @@ export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fund
   const out = new Map<string, FLoad>();
   if (!combs.length) return out;
   let id = 0;
-  for (const p of b.pilares) {
+  for (const p of [...b.pilares, ...pilaresParedeEmUso(b)]) {
     const r = porPilar.get(p.id);
     if (!r) continue;
     const v = (cb: CombinacaoEd, k: 'N' | 'Vx' | 'Vy' | 'Mx' | 'My') => Object.entries(cb.fatores).reduce((s, [n, f]) => s + f * (r[n]?.[k] ?? 0), 0);
@@ -594,9 +595,9 @@ function calcularGrupo(b: BuildingModel, el: ElementoFundacao, cx: Contexto): Re
   const fe = b.fundacao!;
   const msgs: string[] = [], notas: string[] = [];
   const prof = +(cx.zt - cx.cota).toFixed(3);
-  const pils = el.pilares.map((id) => b.pilares.find((x) => x.id === id));
+  const pils = el.pilares.map((id) => acharPilar(b, id));
   const vazio = (c: [number, number], extra: Partial<ResultadoFundacao> = {}): ResultadoFundacao => ({
-    id: el.id, nome: el.nome, tipo: el.tipo, posicao: el.posicao, pilarIds: el.pilares, pilares: el.pilares.map((id) => b.pilares.find((x) => x.id === id)?.nome ?? id),
+    id: el.id, nome: el.nome, tipo: el.tipo, posicao: el.posicao, pilarIds: el.pilares, pilares: el.pilares.map((id) => acharPilar(b, id)?.nome ?? id),
     cota: cx.cota, profundidade: prof, centro: c, angulo: el.angulo, contorno: [], ap: 0, bp: 0, excentricidade: [0, 0], carga: null, dims: {}, volume: 0,
     status: 'fail', mensagens: msgs, notas, resumo: `${el.nome}: não calculado`, projeto: null, ...(el.simples ? { simples: true } : {}), ...(el.alturaConstante ? { alturaConstante: true } : {}), ...extra,
   });
@@ -720,10 +721,10 @@ function calcularGrupo(b: BuildingModel, el: ElementoFundacao, cx: Contexto): Re
 function calcularElemento(b: BuildingModel, el: ElementoFundacao, cx: Contexto): ResultadoFundacao {
   const fe = b.fundacao!;
   const msgs: string[] = [], notas: string[] = [];
-  const p = b.pilares.find((x) => x.id === el.pilares[0]);
+  const p = acharPilar(b, el.pilares[0]);
   const prof = +(cx.zt - cx.cota).toFixed(3);
   const vazio = (c: [number, number], extra: Partial<ResultadoFundacao> = {}): ResultadoFundacao => ({
-    id: el.id, nome: el.nome, tipo: el.tipo, posicao: el.posicao, pilarIds: el.pilares, pilares: el.pilares.map((id) => b.pilares.find((x) => x.id === id)?.nome ?? id),
+    id: el.id, nome: el.nome, tipo: el.tipo, posicao: el.posicao, pilarIds: el.pilares, pilares: el.pilares.map((id) => acharPilar(b, id)?.nome ?? id),
     cota: cx.cota, profundidade: prof, centro: c, angulo: el.angulo, contorno: [], ap: 0, bp: 0, excentricidade: [0, 0], carga: null, dims: {}, volume: 0,
     status: 'fail', mensagens: msgs, notas, resumo: `${el.nome}: não calculado`, projeto: null, ...extra,
   });

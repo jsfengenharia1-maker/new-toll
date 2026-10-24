@@ -25,7 +25,8 @@ import {
 import { FUNDACAO_VAZIA, casosDaObra, cotaFundacao, dimsSecao, ehArranque, type BuildingModel, type ElementoFundacao, type EstacaTerreno, type PosicaoFundacao, type TipoFundacao, type TipoVigaFundacao, type VigaFundacao } from '../../core/building/types';
 import type { ResultadoVigaFundacao } from '../../core/building/vigasFundacao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
-import { pilaresNaBase } from '../../core/building/baseElastica';
+import { pilaresNaBase } from '../../core/building/baseElastica';import { acharPilar, pilaresEquivalentesPP } from '../../core/building/fundacaoPilarParede';
+
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
 const TIPOS = (Object.keys(TIPO_FUNDACAO_LABEL) as TipoFundacao[]).map((v) => ({ v, label: TIPO_FUNDACAO_LABEL[v] }));
@@ -264,7 +265,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
             <thead><tr><th>Elemento</th><th>Pilar</th><th>Posição</th><th>Cota</th><th>Resultado</th><th /></tr></thead>
             <tbody>{fe.elementos.map((e) => {
               const r = resultados.find((x) => x.id === e.id);
-              const pil = b.pilares.find((p) => p.id === e.pilares[0]);
+              const pil = acharPilar(b, e.pilares[0]);
               return (
                 <tr key={e.id} className={`click ${pl.selecao.has(e.id) ? 'on ' : ''}${r ? cls(r.status) : ''}`} data-fundacao-id={e.id} onClick={() => irParaFundacao(e.id)} onDoubleClick={() => abrirJanelaFundacao(e.id)} title="Clique: ver na planta. Duplo clique: resultados do elemento.">
                   <td className="tl">{e.nome} <span className="muted">{TIPO_FUNDACAO_LABEL[e.tipo]}</span></td>
@@ -322,7 +323,7 @@ export function FundacaoGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta: () 
 function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: ElementoFundacao; r?: ResultadoFundacao; onPlanta: () => void }) {
   const { exec } = useBuilding();
   const fe = b.fundacao!;
-  const pil = b.pilares.find((p) => p.id === el.pilares[0]);
+  const pil = acharPilar(b, el.pilares[0]);
   const trocarPosicao = (posicao: PosicaoFundacao) => {
     const ladoAjuste = pil ? ladoDoAjuste(pil) : [0, 0];
     const nz = ladoAjuste.filter((x) => x !== 0).length;
@@ -337,7 +338,7 @@ function ElementoEditor({ b, el, r, onPlanta }: { b: BuildingModel; el: Elemento
   };
   return (
     <div className="card" data-editor-fundacao={el.id}>
-      <h4>{el.nome} — {TIPO_FUNDACAO_LABEL[el.tipo]}{el.pilares.length > 1 ? ` sob ${el.pilares.length} pilares (${el.pilares.map((id) => b.pilares.find((p) => p.id === id)?.nome ?? id).join(', ')})` : pil ? ` sob ${pil.nome}` : ''}</h4>
+      <h4>{el.nome} — {TIPO_FUNDACAO_LABEL[el.tipo]}{el.pilares.length > 1 ? ` sob ${el.pilares.length} pilares (${el.pilares.map((id) => acharPilar(b, id)?.nome ?? id).join(', ')})` : pil ? ` sob ${pil.nome}` : ''}</h4>
       <div className="row wrap u-items-end">
         <Select label="Tipo" value={el.tipo} options={TIPOS} onChange={(v) => exec('fundacao.editar', { id: el.id, tipo: v, ...(v === 'tubulao' ? { posicao: 'centrada' } : {}) })} />
         <Select label="Posição" value={el.posicao} options={el.tipo === 'tubulao' ? POSICOES.filter((o) => o.v === 'centrada') : el.pilares.length > 1 ? POSICOES.filter((o) => o.v === 'centrada' || o.v === 'livre') : POSICOES} onChange={trocarPosicao} />
@@ -407,7 +408,7 @@ const eqParam = (o: EqOpcao) => (o === 'auto' ? 'auto' as const : { ini: o === '
 
 /** Nome de uma ponta (elemento ou pilar). */
 function nomePonta(b: BuildingModel, id: string) {
-  return b.fundacao?.elementos.find((e) => e.id === id)?.nome ?? b.pilares.find((p) => p.id === id)?.nome ?? id;
+  return b.fundacao?.elementos.find((e) => e.id === id)?.nome ?? acharPilar(b, id)?.nome ?? id;
 }
 
 /** Lançamento, lista e edição das vigas de fundação (equilíbrio e travamento). */
@@ -463,8 +464,8 @@ function VigaFundacaoEditor({ b, v, r, nSel }: { b: BuildingModel; v: VigaFundac
   const [modelo, setModelo] = useState<string>('');
   const modeloEf = outras.some((x) => x.id === modelo) ? modelo : outras[0]?.id ?? '';
   const pontas = [
-    ...fe.elementos.map((e) => ({ v: e.id, label: `${e.nome} (${b.pilares.find((p) => p.id === e.pilares[0])?.nome ?? '—'})` })),
-    ...b.pilares.filter((p) => p.nasce === 'fundacao' && !fe.elementos.some((e) => e.pilares.includes(p.id))).map((p) => ({ v: p.id, label: `${p.nome} (sem elemento)` })),
+    ...fe.elementos.map((e) => ({ v: e.id, label: `${e.nome} (${acharPilar(b, e.pilares[0])?.nome ?? '—'})` })),
+    ...[...b.pilares, ...pilaresEquivalentesPP(b)].filter((p) => p.nasce === 'fundacao' && !fe.elementos.some((e) => e.pilares.includes(p.id))).map((p) => ({ v: p.id, label: `${p.nome} (sem elemento)` })),
   ];
   const ed = (patch: Record<string, unknown>) => exec('vigaFundacao.editar', { id: v.id, ...patch });
   const outrasSel = (fe.vigas ?? []).filter((x) => pl.selecao.has(x.id) && x.id !== v.id).map((x) => x.id);
@@ -552,7 +553,7 @@ export function JanelaFundacao({ id }: { id: string }) {
   const p = { ...P0, ftSigmaMode: informada ? 'informada' as const : 'spt' as const, tbSigmaMode: informada ? 'informada' as const : 'spt' as const };
   const pr = r.projeto;
   const c = r.carga;
-  const sec = (() => { const pil = b.pilares.find((x) => x.id === r.pilarIds[0]); return pil ? dimsSecao(secaoBase(b, pil)) : null; })();
+  const sec = (() => { const pil = acharPilar(b, r.pilarIds[0]); return pil ? dimsSecao(secaoBase(b, pil)) : null; })();
   const f: FoundationData | null = pr ? { boring: pr.boring, borings: [pr.boring], loads: [pr.load], params: p } : null;
   return (
     <div data-janela-fundacao={id}>

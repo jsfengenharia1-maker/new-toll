@@ -14,6 +14,7 @@ import { fracaoPassante } from './tabelasArmadura';
 import { geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
+import { acharPilar } from './fundacaoPilarParede';
 import { classificar } from './revisao';
 import { casosDaObra, centroPilar, contornoPilar, lancesDoPilar, secaoNoLance, type BuildingModel, type Carga, type ElementoFundacao, type Pilar, type VigaFundacao } from './types';
 
@@ -28,8 +29,8 @@ export interface PontaVF { pilar: Pilar; elemento?: ElementoFundacao; nome: stri
 /** Resolve a ponta (id de elemento ou de pilar que nasce na fundação). */
 export function pontaVF(b: BuildingModel, id: string): PontaVF | null {
   const el = b.fundacao?.elementos.find((e) => e.id === id);
-  if (el) { const p = b.pilares.find((x) => x.id === el.pilares[0]); return p ? { pilar: p, elemento: el, nome: el.nome } : null; }
-  const p = b.pilares.find((x) => x.id === id);
+  if (el) { const p = acharPilar(b, el.pilares[0]); return p ? { pilar: p, elemento: el, nome: el.nome } : null; }
+  const p = acharPilar(b, id);
   if (!p || p.nasce !== 'fundacao') return null;
   const e = b.fundacao?.elementos.find((x) => x.pilares.includes(p.id));
   return { pilar: p, elemento: e, nome: e ? e.nome : p.nome };
