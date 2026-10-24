@@ -1,4 +1,4 @@
-// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças).
+// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -109,5 +109,63 @@ export const f_MD2 = {
       assert.ok(zip.dados.toString('latin1').includes('memoria/memoria.csv'));
       await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
       await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD3 = {
+    name: 'MD3: memória de cálculo detalhada das nervuradas (seção T, regime de cisalhamento, negativos, mesa, quantitativo) e das vigotas treliçadas (treliça, grupos, montagem, distribuição; HTML, JSON e CSV)',
+    async run({ newPage }) {
+      const montar = async (tipo, opcoes) => {
+        const page = await newPage();
+        await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+        const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+        await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [12, 0], [0, 5], [6, 5], [12, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+        await cmd('lote {"comandos": [' + [[[0, 0], [12, 0]], [[0, 5], [12, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]], [[12, 0], [12, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+        await cmd(`laje.detectarPanos {"grupo": "g_3", "tipo": ${tipo}}`);
+        if (opcoes) await cmd(`opcoes.definir {"valores": ${opcoes}}`);
+        await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+        await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+        await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+        await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+        const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+        const doc = dlg.locator('[data-memoria-detalhada]');
+        await doc.waitFor({ timeout: 90000 });
+        return { page, dlg, doc };
+      };
+      const baixar = async (page, dlg, rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
+        return readFileSync(await dl.path()).toString('utf8');
+      };
+      // nervuradas bidirecionais
+      {
+        const { page, dlg, doc } = await montar('{"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}');
+        const t = await doc.innerText();
+        for (const s of ['Laje L1', 'Laje L2', 'Seção da nervura', 'Regime de cisalhamento e da mesa', 'Nervura X1 – esforços', 'Nervura X1 – flexão positiva', 'Linha neutra', 'Armadura mínima da nervura', 'Nervura X1 – cortante', 'Seções de verificação', 'Carga de cálculo da mesa', 'Quantitativo de aço', 'Peso total do aço da laje']) assert.ok(t.includes(s), `falta "${s}" na memória das nervuradas`);
+        assert.match(t, /VRd1 = 0,25·/);
+        assert.ok(await doc.locator('a[href="#md-dimensionamento-laje-l1"]').count() >= 1);
+        const html = await baixar(page, dlg, 'Exportar HTML');
+        assert.match(html, /^<!doctype html>[\s\S]*data-memoria-detalhada[\s\S]*Nervura X1/);
+        const mem = JSON.parse(await baixar(page, dlg, 'Exportar JSON'));
+        const dosL1 = mem.passos.filter((p) => p.elemento === 'Laje L1');
+        assert.ok(dosL1.length > 60, `passos da nervurada: ${dosL1.length}`);
+        assert.ok(dosL1.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+        assert.ok(dosL1.some((p) => p.topico === 'Mesa'));
+        const zip = await baixar(page, dlg, 'Dados da análise e OpenSees (ZIP)');
+        assert.ok(zip.includes('memoria/memoria.csv') && zip.includes('Nervura X1'));
+        await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+        await dlg.waitFor({ state: 'detached' });
+      }
+      // vigotas treliçadas
+      {
+        const { page, dlg, doc } = await montar('{"tipo": "trelicada", "modelo": "H12", "capa": 0.04}', '{"vigotaMontagem": 1, "vigotaEscoraDist": 1.2}');
+        const t = await doc.innerText();
+        for (const s of ['Laje L1', 'Banzo inferior da treliça', 'Capa mínima', 'Grupo 1 – esforços', 'Grupo 1 – flexão positiva', 'Grupo 1 – cortante na ponta inicial', 'Faixa maciçada necessária', 'Montagem sobre escoras', 'Distribuição na capa', 'Quantitativo de aço']) assert.ok(t.includes(s), `falta "${s}" na memória das vigotas`);
+        const mem = JSON.parse(await baixar(page, dlg, 'Exportar JSON'));
+        const dosL1 = mem.passos.filter((p) => p.elemento === 'Laje L1');
+        assert.ok(dosL1.length > 40 && dosL1.every((p) => p.id && p.formula && p.expressao));
+        assert.ok(dosL1.some((p) => p.topico === 'Montagem sobre escoras' && typeof p.entradas.q === 'number'));
+        await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+        await dlg.waitFor({ state: 'detached' });
+      }
     },
   };

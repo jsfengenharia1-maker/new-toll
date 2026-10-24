@@ -144,4 +144,5 @@ export const flows = [
   m_L.f_L7,
   m_MD.f_MD1,
   m_MD.f_MD2,
+  m_MD.f_MD3,
 ];
