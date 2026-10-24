@@ -1,20 +1,17 @@
-# E3c — cartão 1: editor de formas (cubetas) no grupo "Tipos de laje"
+# E3c — cartão 1: editor de formas (cubetas) na seção "Tipos de laje"
 
-Classe: Haiku (editor no padrão de `EnchimentosUI`, sem núcleo novo).
+Executor: Haiku (editor no padrão de `EnchimentosUI`, sem núcleo novo). Regras em `0-leia-primeiro.md`. **Aplicar depois da D7.**
 
-## Arquivos (2)
-1. **Novo** `src/app/edificio/FormasLaje.tsx` com o conteúdo exato abaixo.
-2. `src/app/edificio/TiposLaje.tsx`: importar `FormasLajeUI`, montá-lo logo abaixo dos enchimentos e contar as formas no título do grupo, na importação e na biblioteca do usuário (diff abaixo).
+## Onde aparece
+Configuração da obra > seção **Tipos de laje** (`TiposLajeGrupo` em `TiposLaje.tsx`, que a Configuração monta): o editor de formas fica logo abaixo dos enchimentos; o título do grupo passa a contar as formas.
 
 ## Núcleo usado (já existe)
-`formasDisponiveis(b)` (formas da obra e do catálogo da biblioteca de normas, tabela `lajes.formas`), `validarForma`, `geometriaBidirecional` e `TIPOS_FORMA` (`src/core/building/nervuradas.ts`), comando `forma.tipo { acao: criar | editar | copiar | remover, id?, forma?, de?, nome? }` (`mcp: false`), `exportarTiposLaje`/`importarTiposLaje` (o JSON leva `formas`) e `tipoLaje.importar` (aceita `formas`). As formas do catálogo são geometrias genéricas, sem dado de fabricante, somente leitura (copiar para editar).
+`formasDisponiveis(b)` (formas da obra e do catálogo da biblioteca de normas, tabela `lajes.formas`), `validarForma`, `geometriaBidirecional` e `TIPOS_FORMA` (`src/core/building/nervuradas.ts`), comando `forma.tipo { acao: criar | editar | copiar | remover, id?, forma?, de?, nome? }`, `exportarTiposLaje`/`importarTiposLaje` (o JSON leva `formas`) e `tipoLaje.importar`. As formas do catálogo são geometrias genéricas, sem dado de fabricante, somente leitura (copiar para editar).
 
-## Regras
-Componentes de `src/app/ui` (nunca `<button>`, `<input>` ou `<select>` crus). Rótulos únicos na tela. Sem CSS novo, sem cor literal, sem botão na barra da planta. Nos testes de interface (`e2e/flows.mjs`), `getByRole`/`getByLabel` com `{ exact: true }`, exceto `NumField` e `Select`, cujo rótulo vem com texto extra: nesses, regex ancorada (`/^Forma da nervurada/`). O núcleo e os comandos (`forma.tipo`, `laje.nervurada`, `laje.copiarPanos`, `laje.armaduraBase`, `tipoLaje.importar`) já existem e estão testados; não altere nada de `src/core/`.
+## Rótulos
+"Forma da biblioteca", "Nova forma", "Copiar forma", "Remover forma", "Nome da forma", "Tipo da forma", "Enchimento da forma perdida", "Altura da cubeta", "Peças por bloco", "Intereixo da forma na direção X", "Intereixo da forma na direção Y", "Largura da nervura da forma em X", "Largura da nervura da forma em Y", "Peso indicativo da forma", "Volume de concreto indicativo da forma". Atributos de teste: `data-formas-laje`, `data-selos-forma`, `data-volume-forma`, `data-pp-forma`, `data-resumo-forma`, `data-erros-forma`. Os erros dos comandos aparecem no `data-erros-tipos-laje` já existente.
 
-Rótulos: "Forma da biblioteca", "Nova forma", "Copiar forma", "Remover forma", "Nome da forma", "Tipo da forma", "Enchimento da forma perdida", "Altura da cubeta", "Peças por bloco", "Intereixo da forma na direção X", "Intereixo da forma na direção Y", "Largura da nervura da forma em X", "Largura da nervura da forma em Y", "Peso indicativo da forma", "Volume de concreto indicativo da forma". Atributos de teste: `data-formas-laje`, `data-selos-forma`, `data-volume-forma`, `data-pp-forma`, `data-resumo-forma`, `data-erros-forma`. Os erros dos comandos aparecem no `data-erros-tipos-laje` já existente.
-
-## Conteúdo de `src/app/edificio/FormasLaje.tsx`
+**Arquivo novo** `src/app/edificio/FormasLaje.tsx`
 ```tsx
 // Formas (cubetas) das lajes nervuradas bidirecionais (frente E3c), dentro do grupo "Tipos de laje": biblioteca da obra
 // (criar, copiar, editar, remover) e do catálogo da biblioteca de normas (geometrias genéricas, só leitura, a confirmar).
@@ -100,58 +97,62 @@ export function FormasLajeUI({ b, roda }: { b: BuildingModel; roda: (n: string, 
 }
 ```
 
-## Diff de `src/app/edificio/TiposLaje.tsx`
-```diff
---- a/src/app/edificio/TiposLaje.tsx
-+++ b/src/app/edificio/TiposLaje.tsx
-@@ -11,6 +11,7 @@
- import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
- import { useStore } from '../store';
- import { useBuilding } from './store';
-+import { FormasLajeUI } from './FormasLaje';
- 
- type Aba = 'geometria' | 'positivo' | 'negativo' | 'cortante' | 'protensao' | 'resumo';
- const ABAS: { v: Aba; label: string }[] = [
-@@ -74,7 +75,7 @@
- 
-   return (
-     <div data-grupo-tipos-laje>
--      <Group title={`Tipos de laje${(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s))` : ''}`} open={false}>
-+      <Group title={`Tipos de laje${(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s), ${b.tiposLaje?.formas?.length ?? 0} forma(s))` : ''}`} open={false}>
-         <div className="row wrap">
-           <Select label="Ficha de vigotas" value={ficha.id} options={todas.map((x) => ({ v: x.ficha.id, label: `${x.ficha.nome} · ${FONTE_ROTULO[x.fonte]}` }))} onChange={(x) => { setFid(x); setSid(''); }} />
-           <Select label="Laje da série" value={serie.id} options={ficha.series.map((s) => ({ v: s.id, label: `${s.id} · h ${cm(s.altura)} · i ${cm(s.intereixo)}${s.tipo ? ` · ${s.tipo}` : ''}` }))} onChange={setSid} />
-@@ -181,6 +182,7 @@
-         {msg.length > 0 && <p className="small bad" role="alert" data-erros-tipos-laje>{msg.join(' ')}</p>}
- 
-         <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
-+        <FormasLajeUI b={b} roda={roda} />
-         <ArquivoTiposLaje b={b} roda={roda} setMsg={setMsg} />
-         <BibliotecaTiposLaje b={b} roda={roda} />
-         <Hint>Dados de ficha são do fabricante: o programa só confere a coerência lógica. Fichas de catálogo e de exemplo são copiadas para a obra ao atribuir; copie uma ficha para editá-la. O catálogo das treliçadas fica na biblioteca de normas.</Hint>
-@@ -222,7 +224,7 @@
-     const texto = await f.text();
-     const r = importarTiposLaje(texto);
-     if (!r.ok) { setMsg(r.erros); return; }
--    if (roda('tipoLaje.importar', { texto, substituir: true })) useStore.getState().set({ message: `${r.fichas.length} ficha(s) e ${r.enchimentos.length} enchimento(s) importados.` });
-+    if (roda('tipoLaje.importar', { texto, substituir: true })) useStore.getState().set({ message: `${r.fichas.length} ficha(s), ${r.enchimentos.length} enchimento(s) e ${r.formas.length} forma(s) importados.` });
-   };
-   return (
-     <div className="row wrap">
-@@ -239,11 +241,11 @@
-   const [aviso, setAviso] = useState('');
-   const recarregar = () => listLibrary().then((r) => setItens(r.items.filter((i) => i.kind === 'tiposLaje'))).catch(() => {});
-   useEffect(() => { recarregar(); }, []);
--  const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) > 0;
-+  const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) > 0;
-   const gravar = async () => {
-     try {
-       const arq = JSON.parse(exportarTiposLaje(b));
--      await saveToLibrary('tiposLaje', nome.trim(), `${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s)`, arq);
-+      await saveToLibrary('tiposLaje', nome.trim(), `${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s), ${(arq.formas ?? []).length} forma(s)`, arq);
-       setNome(''); recarregar(); setAviso(`Tipos de laje “${nome.trim()}” gravados.`);
-     } catch (e) { setAviso((e as Error).message); }
-   };
+## Edições em `src/app/edificio/TiposLaje.tsx`
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+import { useBuilding } from './store';
+```
+por
+```text
+import { useBuilding } from './store';
+import { FormasLajeUI } from './FormasLaje';
+```
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s))` : ''
+```
+por
+```text
+(b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) ? ` (${b.tiposLaje?.fichas?.length ?? 0} ficha(s), ${b.tiposLaje?.enchimentos?.length ?? 0} enchimento(s), ${b.tiposLaje?.formas?.length ?? 0} forma(s))` : ''
+```
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+        <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
+```
+por
+```text
+        <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
+        <FormasLajeUI b={b} roda={roda} />
+```
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+`${r.fichas.length} ficha(s) e ${r.enchimentos.length} enchimento(s) importados.`
+```
+por
+```text
+`${r.fichas.length} ficha(s), ${r.enchimentos.length} enchimento(s) e ${r.formas.length} forma(s) importados.`
+```
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) > 0;
+```
+por
+```text
+const temAlgo = (b.tiposLaje?.fichas?.length ?? 0) + (b.tiposLaje?.enchimentos?.length ?? 0) + (b.tiposLaje?.formas?.length ?? 0) > 0;
+```
+
+**Trocar em** `src/app/edificio/TiposLaje.tsx`
+```text
+`${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s)`
+```
+por
+```text
+`${arq.fichas.length} ficha(s), ${arq.enchimentos.length} enchimento(s), ${(arq.formas ?? []).length} forma(s)`
 ```
 
 ## Verificação
