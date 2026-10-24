@@ -21,11 +21,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 101 | 2 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 53 | 6 | 0 | 3 |
-| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 89 | 7 | 1 | 23 |
+| 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 90 | 7 | 0 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **521** | **28** | **1** | **111** |
+| **Total** | **661** | **522** | **28** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 3 | 1 | 4 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 3 | 0 | 3 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **28** | **1** | **29** |
+| **Total** | **28** | **0** | **28** |
 
 ## Divergências de premissa
 
@@ -698,7 +698,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.12.4-16 | Hipótese: pilar predominantemente comprimido; pilar tracionado (tirante) exige alongar ancoragens e detalhar ligações manualmente. | Feito | — | pilar tracionado verificado por fibras sem 2ª ordem, com aviso TRACAO (frente 0) |
 | K1.12.4-17 | Armadura vertical: último e penúltimo lances armados pelos seus esforços; depois, lance a lance de cima para baixo, sem que o inferior tenha menos armadura que o superior (critério de continuidade opcional). | Feito | — | último e penúltimo lances pelos seus esforços e, de cima para baixo, o inferior não tem menos armadura que o superior (opção continuidadePilares) (R3b) |
 | K1.12.4-18 | Seções verificadas por pavimento: topo e base do lance e base do lance superior; com cargas horizontais aplicadas no pilar, também seções intermediárias. | Feito | — | topo e base do lance e, com carga horizontal no lance, também as seções das cargas e nove internas (αb = 1 quando o maior momento é interno; `dimensionamento.ts`, N2c) |
-| K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Falta | E | cota própria da base e travamento intermediário já existem (`Pilar.cotaBase`, `Pilar.apoiosIntermediarios`, N2c), mas o pórtico espacial não considera `Viga.nivel` (as vigas chegam ao nível do pavimento) e o pilar não é dividido em trechos nas cotas das vigas com desnível; exige nós intermediários nos pilares, vigas ligadas neles e esforços/armadura por trecho (E5j avaliou: item grande, fora desta subfatia; E1a não o entrega) |
+| K1.12.4-19 | Pilar com desnível: mesma metodologia para cada trecho em que fica dividido. | Feito | — | E5m: viga com nível próprio que não se sobrepõe às do pavimento divide o pilar: nó intermediário no pórtico (desnivel.ts desniveisDaObra/trechosDoLance/flambagemTrecho; analitico.ts sub-barras com BarraPortico.trecho, viga ligada ao nó com trecho rígido horizontal até a face e, nas outras pontas, vertical; modelo integrado: viga em desnível como barra 3D fora da grelha), cada trecho verificado com ℓe entre nós travados, momentos mínimos, 2ª ordem local e cortante, armadura do lance atendendo a todos (dimensionarPilares, ResultadoPilar.trechos); opção desnivelVigaPilar (padrão 1); janela do pilar e memorial com a tabela por trecho; validação: método dos deslocamentos à mão, solver 2D e OpenSees (validation/opensees/desnivel.py); critério de sobreposição, nó fora do diafragma e armadura única por lance a confirmar — Correção E5m: cargas lançadas sobre a viga em desnível vão à barra da viga no pórtico (reação no nó intermediário; testado com normais por trecho à mão e integrado = separado); tabela de pilares com a envoltória do lance e o número de trechos, deslocamentos por lance do pé ao topo (consultas.ts lancesDoPortico), diagrama de esforços com os nós intermediários indicados. Armadura e detalhamento por lance: a confirmar. |
 | K1.12.4-20 | Estribos dispostos não atendem o cortante → aviso; correções sugeridas: reduzir espaçamento, aumentar diâmetro, outra disposição de estribos/grampos (via tabelas e recálculo dos pilares) ou aumentar armadura vertical. | Feito | — | estribo pelo cortante verificado (aviso ESTRIBO_V) e estribo editado reprovado com o motivo (Asw/s, φt, s) e ARM_BLOQ (N1e, R2) |
 | K1.12.4-21 | Opções de armação: continuidade das barras ou não; manter diâmetro das barras de canto; manter número e diâmetro das barras das faces. | Feito | — | opções `continuidadePilares` (continuidade das barras), bitola de canto e `pilarContinuidadeFaces` (número de barras das faces) a partir do penúltimo ou do último lance (R7c) |
 | K1.12.4-22 | Edição: alterar seção (rearma), armadura vertical e tipo de estribo. | Feito | — | seção editável (pilar.editar, recalcula e rearma); armadura vertical e estribo editáveis por lance com bloqueio (R2) |
@@ -1024,3 +1024,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **24/10/2026 — fatia E5f (aço próprio e punção das nervuradas e ábacos).** K1.6.7, K1.9.8 e K1.11.21 passam de Parcial a Feito (posições de aço das nervuradas, vigotas in loco e ábacos; punção e cortante nas nervuras do ábaco).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E5 diminui (3 itens a Feito).
+- **24/10/2026 — fatia E5m (pilar com vigas em desnível).** K1.12.4-19 passa a Feito: nós intermediários do pilar nas cotas das vigas em desnível (`desnivel.ts`), vigas ligadas neles no pórtico (modelo separado e integrado) e cada trecho verificado com a metodologia do lance (`dimensionarPilares`, `ResultadoPilar.trechos`).
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (1 item a Feito).

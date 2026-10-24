@@ -99,6 +99,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
   const pav = pavs.includes(j.pavimento) ? j.pavimento : pavs[0];
   const dViga = dv.find((d) => d.pavimento === pav);
   const dPilar = useMemo(() => (j.tipo === 'pilar' && elemento ? diagramaPilar(an, elemento, hip) : null), [j.tipo, an, elemento, hip]);
+  const nosDesn = j.tipo === 'pilar' ? (an.desniveis?.nos ?? []).filter((x) => x.pilar === elemento) : [];
   const dDiag = useMemo(() => (j.tipo === 'diagonal' && elemento ? diagramaInclinada(an, elemento, hip) : null), [j.tipo, an, elemento, hip]);
   const diag: DiagramaBarras | null = dViga ?? dPilar ?? dDiag;
   const us = dViga ? dViga.s : dPilar ? dPilar.altura : dDiag ? dDiag.pontos.map((p) => p.x) : [];
@@ -143,6 +144,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
         {!elementos.length && <p className="hint">Nenhum elemento calculado deste tipo.</p>}
         {diag && <Diagrama n={n} d={diag} g={j.grandeza} us={us} unidade={info.unidade} />}
         {diag && diag.ignorados.length > 0 && <p className="hint small">Casos sem esforço nesta barra: {diag.ignorados.join(', ')}.</p>}
+        {dPilar && nosDesn.length > 0 && <p className="hint small" data-esf-trechos={nosDesn.length}>Lances divididos por vigas em desnível: nós intermediários nas cotas {nosDesn.map((x) => f2(x.cota)).join('; ')} m; o diagrama percorre todos os trechos de cada lance (base ao topo).</p>}
         {diag && (
           <p className="hint small" data-esf-extremos>
             {info.label}: máximo {f2(diag.extremos[j.grandeza].max.valor)} {info.unidade} ({diag.extremos[j.grandeza].max.por}); mínimo {f2(diag.extremos[j.grandeza].min.valor)} {info.unidade} ({diag.extremos[j.grandeza].min.por}).

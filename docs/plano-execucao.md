@@ -23,7 +23,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
-| Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5l (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
+| Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5m (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
 | Fechamento | revisão numérica (Wp de borda/canto da punção, queda de momentos das vigas no modelo integrado, bloco multi-pilar com sinal do momento), desempenho (13 pavimentos ≤ 3 s, teste no CI), pacote (divisão em partes sob demanda), republicação do artifact, revisão final dos "a confirmar" | | | |
 
 Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as vigotas da R6/R7; V usa os resultados de N2 e E; L (lançamento por DXF/IFC) não depende de nada e fica depois da R7 por dividir arquivos da planta com a R7-0.
@@ -99,6 +99,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | E5j apoios longitudinais, rigidez axial das paredes, alvenaria por pavimento e pilar com desnível (5 linhas) | S3 | — |
 | E5k vigas de fundação T, L e plana (1 linha) | S3 | S1 |
 | E5l vínculo externo (apoio contínuo em muro) no modelo integrado (4 linhas) | O | — |
+| E5m pilar com vigas em desnível: nós intermediários no pórtico, vigas na própria cota e verificação por trecho (1 linha, K1.12.4-19, separada da E5j) | O | S1 |
 | Specs E3, E4, L, V (escritas em 20/10/2026) | S2 | — |
 | Auditorias de fim de frente | S2 | — |
 | Conflitos de checklist e docs | H | — |
@@ -220,3 +221,4 @@ Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e
 - 24/10/2026: E5j, núcleo concluído no worktree (K1.12.21 Feito com `vigaApoioLongEixos`; K1.4.30 `axialParedeSeparado` + `Casca3.fAxial`, K1.3.59 aviso de parede no meio e K1.3.31 espessura por pavimento nos três tipos seguem Parcial; K1.12.4-19 segue Falta: o pórtico ignora `Viga.nivel`, item grande). Sem interface nova (opções no painel genérico).
 - 24/10/2026: E5g concluída (K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 Feito). Dimensionamento das nervuradas: fissuração do negativo (opção `nervuradaFissuraNegativo`), malha da mesa considerada (`considerarMesa`) com momento positivo qd·ℓ²/24, Wood-Armer nas zonas maciças (opção `nervuradaWoodArmer`, `zonaMacica`), tabela de armadura R7a, nervuras que concentram a armadura (`nervurasConcentrar`). Ver `docs/historico-fatias.md`.
 - 24/10/2026: E5f concluída (K1.6.7, K1.9.8, K1.11.21, C7.139 e C7.141 Feito). Aço próprio de nervuradas, vigotas in loco e ábacos (`POSICAO_PAI`, `acoDe`), grupos de estribos informados e cortante por varredura nas nervuras do ábaco (`puncaoAbacos`, opção `puncaoNervCortante`), clique no ábaco sob o cursor (`alvoPuncaoNoPonto`); testes `nervuradasE5f.test.ts` e fluxo e2e `E5f`.
+- 24/10/2026: E5m concluída no worktree (K1.12.4-19 Feito): pilar com vigas em desnível — nós intermediários no pórtico (modelo separado e integrado), verificação por trecho, opção `desnivelVigaPilar`, tabela por trecho na janela do pilar e no memorial; validação analítica, solver 2D e OpenSees (`validation/opensees/desnivel.py`). 1835 testes; e2e 121/121.

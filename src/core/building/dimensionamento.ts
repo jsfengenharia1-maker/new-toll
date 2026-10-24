@@ -10,6 +10,7 @@ import { baseBarra, resolver3, type Caso3, type Modelo3, type Resultado3, type V
 import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
 import { BITOLAS_TABELA, ESPACAMENTOS_PILAR, bitolasPilar, escolherBarrasViga, escolherEstribo, espacamentosPilar, estriboDaTabelaPilar, linhaLajes, pilarRestrito, modoGrampos, tabelaDe, tabelaPilarNaSecao } from './tabelasArmadura';
 import { acoDe, cobrimentoLaje, cobrimentoPilar, cobrimentoViga, concretoDe, flambagemLance, gamas } from './materiais';
+import { flambagemTrecho } from './desnivel';
 import { fiberAxialRange, fiberCapacity, fiberMesh, polyProps, circlePolygon, type FiberSection, type Pt, type RBar } from '../fiber';
 import type { AnaliseEdificio, GrelhaPavimento } from './analitico';
 import { deltaXi } from '../design';
@@ -879,7 +880,7 @@ export interface ResultadoPilar {
   bloqueada?: boolean;
   arranjo?: { phi: number; n?: number; nb?: number; nh?: number; /** faces superior e direita, quando diferem de nb e nh (arranjo não simétrico) */ nbS?: number; nhD?: number; estribo: { phi: number; s: number } };
   /** Combinações determinantes: Nd (kN, + compressão), momentos de 1ª ordem nas pontas (base, topo) por direção e de cálculo com 2ª ordem (kN·m). */
-  determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean; /** Maior momento nas seções intermediárias (u, v), com carga horizontal no lance. */ Mi?: [number, number] }[];
+  determinantes?: { combinacao: string; Nd: number; Mu: [number, number]; Mv: [number, number]; MuTot: number; MvTot: number; tracao: boolean; /** Maior momento nas seções intermediárias (u, v), com carga horizontal no lance. */ Mi?: [number, number]; /** Trecho do lance (E5m), quando dividido por vigas em desnível. */ trecho?: number }[];
   /** Origem de cada grandeza: combinação determinante, fórmula e item da NBR 6118. */
   origens?: Origem[];
   /** Comprimentos de flambagem (m) nas direções u (ao longo de b) e v. */
@@ -890,6 +891,13 @@ export interface ResultadoPilar {
    * (lances desligados).
    */
   local?: { metodo: [MetodoLocal, MetodoLocal]; ecc: [number, number]; lances: [number, number]; secoesIntermediarias: boolean };
+  /**
+   * Pilar com vigas em desnível (E5m, K1.12.4-19): verificação de cada trecho do lance com a armadura adotada — alturas a
+   * partir da base do lance (m), ℓe e λ por direção, maior Nd (kN), utilização, combinação determinante e método local.
+   */
+  trechos?: { de: number; ate: number; le: [number, number]; lambda: [number, number]; Nd: number; util: number; combinacao: string; metodo: [MetodoLocal, MetodoLocal] }[];
+  /** Trecho (índice em `trechos`) de onde vêm λ, ℓe e os efeitos locais informados no lance (o mais esbelto). */
+  trechoDeterminante?: number;
   /** Cortante por direção (N2c): u = esforço ao longo de b (Vy local), v = ao longo de h; kN, cm²/m e cm². */
   cortante?: { u: CortanteDirecao; v?: CortanteDirecao };
   armadura: string; As: number; estribo: string; status: 'ok' | 'fail' | 'review'; mensagens: string[];
@@ -963,54 +971,67 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
   for (let li = ls.length - 1; li >= 0; li--) {
     const lance = ls[li], cont = op.continuidadePilares && li <= ls.length - (op.pilarContinuidadeInicio ? 3 : 2) && acima ? acima : null;
     const c = concretoDe(b, 'pilar', lance.id, p), cob = cobrimentoPilar(b, p.cobrimento);
-    const bi = pm.barras.findIndex((t) => t.tipo === 'pilar' && t.ref === p.id && t.pavimento === lance.id);
-    if (bi < 0) continue;
+    // E5m: lance dividido por vigas em desnível: uma barra por trecho (um só trecho sem desnível)
+    const bis: number[] = [];
+    pm.barras.forEach((t, i) => { if (t.tipo === 'pilar' && t.ref === p.id && t.pavimento === lance.id) bis.push(i); });
+    if (!bis.length) continue;
     const s = secaoNoLance(p, lance.id), [w, h] = dimsSecao(s);
     const circ = s.tipo === 'circ' ? s.d : null;
-    const { L } = baseBarra(pm.modelo, pm.modelo.barras[bi]);
-    // seções intermediárias (N2c, K1.12.4-18): com carga horizontal no lance, também nas cargas e em nove pontos internos
-    const cargasLance = (b.cargasPilar ?? []).filter((x) => x.pilar === p.id && x.pavimento === lance.id && (x.Hx || x.Hy) && ((x.tipo ?? 'concentrada') !== 'concentrada' || (x.altura !== undefined && x.altura > 1e-9 && x.altura < L - 1e-9)));
-    const xsInt = cargasLance.length ? [...new Set([...cargasLance.flatMap((x) => (x.tipo ?? 'concentrada') === 'concentrada' ? [x.altura!] : x.tipo === 'faixa' ? [x.altura ?? 0, x.ate ?? L] : []), ...Array.from({ length: 9 }, (_, k) => ((k + 1) * L) / 10)].filter((x) => x > 1e-9 && x < L - 1e-9).map((x) => Math.min(L, x)))].sort((a, z) => a - z) : [];
-    const pc = porCaso(an, bi, [0, L, ...xsInt]);
     const poly: Pt[] = circ ? circlePolygon(circ) : [[0, 0], [w, 0], [w, h], [0, h]];
     const P = polyProps(poly), Ac = circ ? (Math.PI * circ * circ) / 4 : w * h;
     const iu = Math.sqrt(P.Iy / P.A), iv = Math.sqrt(P.Ix / P.A); // u ao longo de x da seção (b), v ao longo de y (h)
-    // comprimento de flambagem por direção: ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6; nós contraventados pelo diafragma)
-    const fl = flambagemLance(b, p, lance.id), lamU = fl.leU / iu, lamV = fl.leV / iv, le: [number, number] = [fl.leU, fl.leV];
     const gn = gammaNFor(Math.min(w, h));
     const msgs: string[] = [];
-    { const pcu = avisoPilarCurto(L, w, h, op.criterioLinear); if (pcu) msgs.push(pcu.mensagem); }
-    if (Math.max(lamU, lamV) > 200) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: 0, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['λ > 200.'] }); continue; }
-    // solicitações por combinação: Nd (compressão +), momentos nas duas direções nas duas pontas (u: flexão com deslocamento ao longo de b → Mz local)
-    const sol = elu.map((cb) => {
-      const N0 = -comb(pc, cb, 0, 'N') * gn, NL = -comb(pc, cb, 1, 'N') * gn;
-      // maior momento nas seções intermediárias (com sinal), por direção
-      const mi = (k: 'Mz' | 'My') => xsInt.reduce((m, _, j) => { const v = comb(pc, cb, 2 + j, k) * gn; return Math.abs(v) > Math.abs(m) ? v : m; }, 0);
-      return { nome: cb.nome, Nd: Math.max(N0, NL), Nt: Math.min(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn], Mi: [mi('Mz'), mi('My')] as [number, number] };
-    });
-    const NdMax = Math.max(0, ...sol.map((x) => x.Nd));
-    const AsMin = Math.max((0.15 * NdMax) / 1000 / FYD, ((op.pilarTaxaMin || 0.4) / 100) * Ac), AsMax = 0.04 * Ac;
-    // combinações determinantes (Nd máx./mín., maiores momentos em cada direção e a maior soma relativa)
     const am = (m: number[]) => Math.max(Math.abs(m[0]), Math.abs(m[1]));
-    const comp = sol.filter((x) => x.Nd > 0), pick = new Set<number>();
-    const arg = (f: (x: (typeof sol)[number]) => number) => comp.reduce((bi, x, i) => (f(x) > f(comp[bi]) ? i : bi), 0);
-    if (comp.length) for (const f of [(x: (typeof sol)[number]) => x.Nd, (x: (typeof sol)[number]) => -x.Nd, (x: (typeof sol)[number]) => am(x.Mu), (x: (typeof sol)[number]) => am(x.Mv), (x: (typeof sol)[number]) => am(x.Mu) / w + am(x.Mv) / h]) pick.add(arg(f));
-    const solD = [...pick].map((i) => comp[i]);
-    // tração (N < 0 numa das pontas): mais tracionada e maiores momentos; sem efeitos de 2ª ordem nem M1d,mín
-    const tra = sol.filter((x) => x.Nt < 0), pickT = new Set<number>();
-    const argT = (f: (x: (typeof sol)[number]) => number) => tra.reduce((bi, x, i) => (f(x) > f(tra[bi]) ? i : bi), 0);
-    if (tra.length) for (const f of [(x: (typeof sol)[number]) => -x.Nt, (x: (typeof sol)[number]) => am(x.Mu), (x: (typeof sol)[number]) => am(x.Mv)]) pickT.add(argT(f));
-    const traD = [...pickT].map((i) => tra[i]);
-    const mesh = fiberMesh(poly, circ ? 24 : 16);
-    // efeitos locais (N2c): método por esbeltez e fluência (15.8.4) para λ > 90, com NSg e MSg da quase permanente
-    const metodo = [lamU, lamV].map((l) => (l > 140 ? 'geral' : l > 90 ? 'curvaturaFluencia' : 'curvatura')) as [MetodoLocal, MetodoLocal];
-    const ecc: [number, number] = [0, 0];
-    [lamU, lamV].forEach((lam, k) => {
-      if (lam <= 90 || !qp) return;
-      const NSg = Math.max(-comb(pc, qp, 0, 'N'), -comb(pc, qp, 1, 'N')), kM = k === 0 ? 'Mz' : 'My', MSg = Math.max(Math.abs(comb(pc, qp, 0, kM)), Math.abs(comb(pc, qp, 1, kM)));
-      const leK = k === 0 ? fl.leU : fl.leV, I = k === 0 ? P.Iy : P.Ix;
-      ecc[k] = excentricidadeFluencia(NSg, MSg, excentricidadeAcidental(fl.l, leK), op.pilarFluencia, c.Eci * 1000 * I, leK);
+    type Sol = { nome: string; Nd: number; Nt: number; Mu: number[]; Mv: number[]; Mi: [number, number] };
+    const trs = bis.map((bi, k) => {
+      const { L } = baseBarra(pm.modelo, pm.modelo.barras[bi]);
+      // comprimento de flambagem por direção: ℓe = mín(ℓ0 + h; ℓ) × α (NBR 6118, 15.6; nós contraventados pelo diafragma); E5m: por trecho
+      const fl = bis.length > 1 && an.desniveis ? flambagemTrecho(b, p, lance.id, k, an.desniveis) : flambagemLance(b, p, lance.id);
+      // E5m: alturas das cargas lançadas a partir da base do trecho
+      const de = bis.length > 1 ? (fl as { de?: number }).de ?? 0 : 0, rel = (x: number) => x - de;
+      // seções intermediárias (N2c, K1.12.4-18): com carga horizontal no lance, também nas cargas e em nove pontos internos
+      const cargasLance = (b.cargasPilar ?? []).filter((x) => x.pilar === p.id && x.pavimento === lance.id && (x.Hx || x.Hy) && ((x.tipo ?? 'concentrada') !== 'concentrada' || (x.altura !== undefined && rel(x.altura) > 1e-9 && rel(x.altura) < L - 1e-9)));
+      const xsInt = cargasLance.length ? [...new Set([...cargasLance.flatMap((x) => (x.tipo ?? 'concentrada') === 'concentrada' ? [rel(x.altura!)] : x.tipo === 'faixa' ? [rel(x.altura ?? 0), x.ate !== undefined ? rel(x.ate) : L] : []), ...Array.from({ length: 9 }, (_, k) => ((k + 1) * L) / 10)].filter((x) => x > 1e-9 && x < L - 1e-9).map((x) => Math.min(L, x)))].sort((a, z) => a - z) : [];
+      const pc = porCaso(an, bi, [0, L, ...xsInt]);
+      const lamU = fl.leU / iu, lamV = fl.leV / iv, le: [number, number] = [fl.leU, fl.leV];
+      { const pcu = avisoPilarCurto(L, w, h, op.criterioLinear); if (pcu && !msgs.includes(pcu.mensagem)) msgs.push(pcu.mensagem); }
+      // solicitações por combinação: Nd (compressão +), momentos nas duas direções nas duas pontas (u: flexão com deslocamento ao longo de b → Mz local)
+      const sol: Sol[] = elu.map((cb) => {
+        const N0 = -comb(pc, cb, 0, 'N') * gn, NL = -comb(pc, cb, 1, 'N') * gn;
+        // maior momento nas seções intermediárias (com sinal), por direção
+        const mi = (k: 'Mz' | 'My') => xsInt.reduce((m, _, j) => { const v = comb(pc, cb, 2 + j, k) * gn; return Math.abs(v) > Math.abs(m) ? v : m; }, 0);
+        return { nome: cb.nome, Nd: Math.max(N0, NL), Nt: Math.min(N0, NL), Mu: [comb(pc, cb, 0, 'Mz') * gn, comb(pc, cb, 1, 'Mz') * gn], Mv: [comb(pc, cb, 0, 'My') * gn, comb(pc, cb, 1, 'My') * gn], Mi: [mi('Mz'), mi('My')] as [number, number] };
+      });
+      // combinações determinantes (Nd máx./mín., maiores momentos em cada direção e a maior soma relativa)
+      const comp = sol.filter((x) => x.Nd > 0), pick = new Set<number>();
+      const arg = (f: (x: Sol) => number) => comp.reduce((bi, x, i) => (f(x) > f(comp[bi]) ? i : bi), 0);
+      if (comp.length) for (const f of [(x: Sol) => x.Nd, (x: Sol) => -x.Nd, (x: Sol) => am(x.Mu), (x: Sol) => am(x.Mv), (x: Sol) => am(x.Mu) / w + am(x.Mv) / h]) pick.add(arg(f));
+      const solD = [...pick].map((i) => comp[i]);
+      // tração (N < 0 numa das pontas): mais tracionada e maiores momentos; sem efeitos de 2ª ordem nem M1d,mín
+      const tra = sol.filter((x) => x.Nt < 0), pickT = new Set<number>();
+      const argT = (f: (x: Sol) => number) => tra.reduce((bi, x, i) => (f(x) > f(tra[bi]) ? i : bi), 0);
+      if (tra.length) for (const f of [(x: Sol) => -x.Nt, (x: Sol) => am(x.Mu), (x: Sol) => am(x.Mv)]) pickT.add(argT(f));
+      const traD = [...pickT].map((i) => tra[i]);
+      // efeitos locais (N2c): método por esbeltez e fluência (15.8.4) para λ > 90, com NSg e MSg da quase permanente
+      const metodo = [lamU, lamV].map((l) => (l > 140 ? 'geral' : l > 90 ? 'curvaturaFluencia' : 'curvatura')) as [MetodoLocal, MetodoLocal];
+      const ecc: [number, number] = [0, 0];
+      [lamU, lamV].forEach((lam, k) => {
+        if (lam <= 90 || !qp) return;
+        const NSg = Math.max(-comb(pc, qp, 0, 'N'), -comb(pc, qp, 1, 'N')), kM = k === 0 ? 'Mz' : 'My', MSg = Math.max(Math.abs(comb(pc, qp, 0, kM)), Math.abs(comb(pc, qp, 1, kM)));
+        const leK = k === 0 ? fl.leU : fl.leV, I = k === 0 ? P.Iy : P.Ix;
+        ecc[k] = excentricidadeFluencia(NSg, MSg, excentricidadeAcidental(fl.l, leK), op.pilarFluencia, c.Eci * 1000 * I, leK);
+      });
+      return { bi, L, de, fl, pc, xsInt, lamU, lamV, le, sol, solD, tra, traD, metodo, ecc };
     });
+    // trecho determinante para λ, ℓe e efeitos locais informados (o de maior esbeltez; um só sem desnível)
+    const tg = trs.reduce((a, t) => (Math.max(t.lamU, t.lamV) > Math.max(a.lamU, a.lamV) ? t : a), trs[0]);
+    const { fl, lamU, lamV, le, metodo, ecc } = tg;
+    if (Math.max(lamU, lamV) > 200) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: 0, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: ['λ > 200.'] }); continue; }
+    const NdMax = Math.max(0, ...trs.flatMap((t) => t.sol.map((x) => x.Nd)));
+    const AsMin = Math.max((0.15 * NdMax) / 1000 / FYD, ((op.pilarTaxaMin || 0.4) / 100) * Ac), AsMax = 0.04 * Ac;
+    const tra = trs.flatMap((t) => t.tra);
+    const mesh = fiberMesh(poly, circ ? 24 : 16);
     const direcao = (Nd: number, M: number[], hDir: number, lam: number, Le: number, Mi = 0, e = 0) => {
       const MA = Math.max(Math.abs(M[0]), Math.abs(M[1])), MB = Math.min(Math.abs(M[0]), Math.abs(M[1]));
       const M1min = Nd * (0.015 + 0.03 * hDir);
@@ -1038,12 +1059,14 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     };
     /** Maior utilização da armadura; com `parar`, devolve assim que passar de 1 (só interessa se atende). */
     let ultimoDet = '';
-    const avaliar = (bars: RBar[], parar = false, simetrica = true) => {
+    const avaliar = (bars: RBar[], parar = false, simetrica = true, so?: (typeof trs)[number]) => {
       const S: FiberSection = { mesh, bars, cx: P.cx, cy: P.cy, c, fyd: FYD, poly };
       const { NRc, NRt } = fiberAxialRange(S);
       let util = 0, det = '';
       // mesma sequência de máximos do cálculo; guarda a combinação que deu o maior
       const sobe = (u: number, nome: string) => { const nu = Math.max(util, u); if (nu !== util) det = nome; util = nu; };
+      // E5m: a armadura do lance atende a todos os trechos (cada um com ℓe, esforços e efeitos locais próprios)
+      for (const { traD, solD, lamU, lamV, fl, ecc, metodo } of so ? [so] : trs) {
       for (const x of traD) {
         if (x.Nt / 1000 < NRt) { sobe(99, x.nome); continue; }
         const mu = am(x.Mu), mv = am(x.Mv);
@@ -1062,6 +1085,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
           sobe(utilFlexao(S, x.Nd / 1000, mu, mv, simetrica), x.nome);
           if (parar && util > 1) { ultimoDet = det; return util; }
         }
+      }
       }
       ultimoDet = det;
       return util;
@@ -1189,7 +1213,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     const dirs: { bw: number; d: number; WA: number; M: 'Mz' | 'My' }[] = circ ? [{ bw: circ, d: 0.8 * circ, WA: circ / 8, M: 'Mz' }] : [{ bw: h, d: w - a, WA: w / 6, M: 'Mz' }, { bw: w, d: h - a, WA: h / 6, M: 'My' }];
     let asw = 0, Vd = 0, biela = 0, cVd = '';
     const porDir: (CortanteDirecao | undefined)[] = [];
-    for (const cb of elu) for (const i of [0, 1]) {
+    for (const { pc } of trs) for (const cb of elu) for (const i of [0, 1]) {
       const Vy = comb(pc, cb, i, 'Vy') * gn, Vz = comb(pc, cb, i, 'Vz') * gn, Nc = -comb(pc, cb, i, 'N'), comp = Nc > 0;
       const Vs = circ ? [Math.hypot(Vy, Vz)] : [Math.abs(Vy), Math.abs(Vz)];
       Vs.forEach((V, k) => {
@@ -1236,7 +1260,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     }
     if (msgs.some((x) => x.startsWith('Armadura bloqueada insuficiente') || x.startsWith('Armadura bloqueada acima'))) status = 'fail';
     const r2 = (x: number) => Math.round(x * 100) / 100;
-    const determinantes = [
+    const determinantes = trs.flatMap(({ solD, traD, lamU, lamV, fl, ecc, metodo, xsInt }, kt) => [
       ...solD.map((x) => {
         const du = direcao(x.Nd, x.Mu, w, lamU, fl.leU, x.Mi[0], ecc[0]), dv = direcao(x.Nd, x.Mv, h, lamV, fl.leV, x.Mi[1], ecc[1]);
         // método geral: o total vem da integração com a armadura adotada
@@ -1245,13 +1269,19 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
           if (metodo[0] === 'geral') du.tot = Math.max(geral(S, x.Nd, x.Mu, w, fl.leU, 0, ecc[0]), du.M1);
           if (metodo[1] === 'geral') dv.tot = Math.max(geral(S, x.Nd, x.Mv, h, fl.leV, 1, ecc[1]), dv.M1);
         }
-        return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false, ...(xsInt.length ? { Mi: x.Mi.map(r2) as [number, number] } : {}) };
+        return { combinacao: x.nome, Nd: r2(x.Nd), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(du.tot), MvTot: r2(dv.tot), tracao: false, ...(xsInt.length ? { Mi: x.Mi.map(r2) as [number, number] } : {}), ...(trs.length > 1 ? { trecho: kt } : {}) };
       }),
-      ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true })),
-    ];
+      ...traD.map((x) => ({ combinacao: x.nome, Nd: r2(x.Nt), Mu: x.Mu.map(r2) as [number, number], Mv: x.Mv.map(r2) as [number, number], MuTot: r2(Math.max(Math.abs(x.Mu[0]), Math.abs(x.Mu[1]))), MvTot: r2(Math.max(Math.abs(x.Mv[0]), Math.abs(x.Mv[1]))), tracao: true, ...(trs.length > 1 ? { trecho: kt } : {}) })),
+    ]);
+    // E5m: verificação de cada trecho com a armadura adotada (ℓe, λ, maior Nd e utilização)
+    const trechosRes = trs.length > 1 ? trs.map((t) => {
+      const a0 = cob + 0.005 + melhor!.phi / 2000, bars = barrasDoArranjo(poly, circ, a0, melhor!.arr, barArea(melhor!.phi)), arr = melhor!.arr as object;
+      const u = avaliar(bars, false, !('nbS' in arr || 'nhD' in arr), t);
+      return { de: r3(t.de), ate: r3(t.de + t.L), le: [r3(t.le[0]), r3(t.le[1])] as [number, number], lambda: [t.lamU, t.lamV] as [number, number], Nd: r2(Math.max(0, ...t.sol.map((x) => x.Nd))), util: u, combinacao: ultimoDet, metodo: t.metodo };
+    }) : undefined;
     res.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util,
       origens: [origem('Armadura longitudinal', melhor.det || '—', 'pilar'), origem('Armadura mínima e máxima', NdMax > 0 ? 'Nd máximo' : '—', 'pilarLimites'), origem('Estribos', cVd || '—', 'pilarEstribo')], lambda: [lamU, lamV], le,
-      local: { metodo, ecc: ecc.map((x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : x)) as [number, number], lances: fl.desligados, secoesIntermediarias: xsInt.length > 0 }, ...(cortante ? { cortante } : {}), armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+      local: { metodo, ecc: ecc.map((x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : x)) as [number, number], lances: fl.desligados, secoesIntermediarias: trs.some((t) => t.xsInt.length > 0) }, ...(trechosRes ? { trechos: trechosRes, trechoDeterminante: trs.indexOf(tg) } : {}), ...(cortante ? { cortante } : {}), armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
     const ult = res.at(-1);
     if (ult && ult.pavimentoId === lance.id && ult.As > 0 && ult.arranjo) acima = { As: ult.As, phi: ult.arranjo.phi, arr: ult.arranjo as unknown as ArranjoPilar, sec: ult.secao };
   }

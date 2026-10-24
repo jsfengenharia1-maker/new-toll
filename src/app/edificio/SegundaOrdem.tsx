@@ -51,6 +51,15 @@ export function SegundaOrdemPilar({ x }: { x: ResultadoPilar }) {
         ...(loc.lances[0] > 1 || loc.lances[1] > 1 ? [['Lances desligados somados (u / v)', `${loc.lances[0]} / ${loc.lances[1]}`] as [string, string]] : []),
         ...(loc.secoesIntermediarias ? [['Seções verificadas', 'base, topo, cargas e nove internas (carga horizontal no lance)'] as [string, string]] : []),
       ]} />}
+      {x.trechos && (
+        <div className="tablewrap">
+          <p className="muted small">Lance dividido por vigas em desnível (K1.12.4-19): cada trecho verificado com o seu ℓe, os seus esforços e efeitos locais; a armadura do lance atende a todos.</p>
+          <table className="data quadro" data-pilar-trechos={x.trechos.length}>
+            <thead><tr><th>Trecho</th><th>Da base (m)</th><th>ℓe u / v (m)</th><th>λ u / v</th><th>Nd (kN)</th><th>Uso</th><th>Combinação</th></tr></thead>
+            <tbody>{x.trechos.map((t, k) => <tr key={k}><td className="num">{k + 1}</td><td className="num">{fmt(t.de)} a {fmt(t.ate)}</td><td className="num">{fmt(t.le[0])} / {fmt(t.le[1])}</td><td className="num">{fmt(t.lambda[0], 0)} / {fmt(t.lambda[1], 0)}</td><td className="num">{fmt(t.Nd, 0)}</td><td className="num">{fmt(t.util)}</td><td className="tl small">{t.combinacao || '—'}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
       {gov && M && <Diagrama id="M2" titulo={`Momento ${k === 0 ? 'Mu (b)' : 'Mv (h)'} de 1ª e 2ª ordem · ${gov.combinacao}`} unid="kN·m" xs={xs} L={L} cor="dg-m"
         series={[{ ys: m1, rot: 'M1d' }, { ys: m2, rot: 'Md,tot', alt: true }]} />}
       {gov && <p className="muted small">Abscissa ao longo de ℓe a partir da base; M1d linear entre as pontas e o acréscimo de 2ª ordem com a forma senoidal do pilar-padrão até Md,tot (no método geral, o maior momento da integração).</p>}

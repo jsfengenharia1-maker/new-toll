@@ -33,6 +33,7 @@ import { incluirParedes, axialCascas, pontosBaseDasParedes, reduzirCascas, type 
 import { eixoDaBaseParede, reacaoDoNo } from './corridaParede';
 import { calcularEscadas, comEscadas, type ResultadoEscadas } from './escadasCalculo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
+import { chaveDesnivel, desniveisDaObra, nosDoLance, representante, type DesniveisObra } from './desnivel';
 import { pavimentosDoGrupo, anguloNoLance, centroPilar, contornoNoLance, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
 
 /** Opções de cálculo em uso + coeficiente de Poisson (NBR 6118, 8.2.9). */
@@ -252,11 +253,13 @@ interface GrelhaBase {
   pilares: string[];
   /** Nós da planta sobre vigas associadas de viga comum (E2b): linha de apoio vertical da laje, reação levada à viga de origem. */
   linhaComum: Set<number>;
+  /** E5m: cargas de linha e de ponto sobre vigas em desnível (fora da grelha; vão direto à barra da viga no pórtico, na sua cota). */
+  desnCargas?: { ic: number; p: P; f: number; viga: string }[];
   /**
    * Panos e vigas inclinados (E3f, só no modelo integrado): barras da grelha que vão ao pórtico como barras 3D (1), cota de
    * cada nó da grelha em relação ao pavimento (m), normal do plano de cada barra de laje inclinada e fator da largura verdadeira.
    */
-  inc?: { barra: Uint8Array; z: Float64Array; normal: (V3 | null)[]; fator: Float64Array };
+  inc?: { barra: Uint8Array; z: Float64Array; normal: (V3 | null)[]; fator: Float64Array; /** E5m: desnível das barras de vigas em desnível (por índice). */ zDes?: Record<number, number> };
 }
 
 /** Grelha do modelo integrado: associação dos nós aos pilares, barras com trecho rígido e a condensação. */
@@ -422,6 +425,8 @@ export interface BarraPortico {
   fina?: boolean;
   /** Primeiro lance de pilar apoiado (E1a): em que elemento a base se apoia no modelo. */
   transicao?: 'pilar' | 'viga' | 'laje';
+  /** Pilar dividido por vigas em desnível (E5m): trecho do lance, de baixo para cima (ausente = lance inteiro). */
+  trecho?: number;
 }
 /** Viga inclinada no pórtico (E2c): barra `bi` de `portico.modelo`, comprimento entre as pontas e da parte flexível, nós e ligações das pontas. */
 export interface InclinadaNoPortico { id: string; ref: string; nome: string; pavimento: string; pavimentoFim: string; bi: number; L: number; Lf: number; angulo: number; nos: [number, number]; ligacao: [Ligacao, Ligacao];
@@ -449,6 +454,8 @@ export interface AnaliseEdificio {
   baseElastica?: BaseElasticaAnalise;
   /** Pilares-parede (E1b): cascas, nós das fatias do topo, nós da base e centro de cada um. */
   paredes?: ParedesNoPortico;
+  /** Vigas em desnível (E5m): nós intermediários dos pilares e vigas ligadas a eles (só quando há algum). */
+  desniveis?: DesniveisObra;
   /** Pilares que nascem apoiados (E1a): elemento de apoio detectado e se o pé foi ligado a ele (senão, apoio fixo provisório). */
   apoiados?: Record<string, { apoio: 'pilar' | 'viga' | 'laje' | null; ligado: boolean }>;
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
@@ -508,6 +515,13 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const Ev = Em('viga'), Gv = Gm(Ev), El = Em('laje'), Gl = Gm(El);
   const avisos: string[] = [];
   const ps = pavimentosOrdenados(b);
+  /** Vigas em desnível (E5m): nós intermediários dos pilares nas cotas das vigas que não se sobrepõem às do pavimento. */
+  const des = desniveisDaObra(b, !!op.desnivelVigaPilar);
+  avisos.push(...des.avisos);
+  /** Desnível da viga no pórtico (E5m): o seu `nivel` se ela divide algum pilar; senão 0 (no nível do pavimento). */
+  const dzViga = (v: Viga) => (des.vigas.has(v.id) ? v.nivel ?? 0 : 0);
+  /** E5m: viga em desnível do grupo cujo eixo traçado passa pelo ponto (até meia largura + 1 cm). */
+  const vigaDesnEm = (grupo: string, q: P) => b.vigas.find((v) => des.vigas.has(v.id) && v.grupo === grupo && v.pontos.some((a, k) => k + 1 < v.pontos.length && distSeg(q, a, v.pontos[k + 1]) <= v.secao.b / 2 + 0.01))?.id;
   /** Consolos (E2e): a viga apoiada fica sem momento na face do pilar; vigas pré-moldadas articuladas por padrão. */
   const consolosAtivos = (b.consolos ?? []).filter((c) => b.vigas.some((v) => v.id === c.viga) && b.pilares.some((p) => p.id === c.pilar));
   const ctxPontas: CtxPontas = { consolos: new Set(consolosAtivos.map((c) => `${c.viga}|${c.pilar}`)), pmArt: !!op.premoldadaArticulada };
@@ -533,7 +547,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const grelhas: GrelhaPavimento[] = [];
   /** Pilar apoiado cujo pé entra na grelha do pavimento em que nasce: sobre viga (nó da viga) e, no modelo integrado, sobre laje. */
   const naGrelha = (p: Pilar) => { const a = apoios.get(p.id); return a?.tipo === 'viga' || (a?.tipo === 'laje' && op.modeloGlobal === 1); };
-  const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>>; comuns: Set<number> }>();
+  const geoPav = new Map<string, { nos: NoPlanta[]; grosso: { nos: NoPlanta[]; trechos: TrechoViga[] }; apoio: Map<number, string>; transf: Record<CasoAnalise, Map<number, number[]>>; comuns: Set<number>; desnCargas?: GrelhaBase['desnCargas'] }>();
   const CASOS = casosDaObra(b).map((c) => c.id), zeros = () => Object.fromEntries(CASOS.map((c) => [c, 0])) as Record<CasoAnalise, number>;
   const totais = zeros();
   const cargasPavimento: Record<string, Record<CasoAnalise, number>> = Object.fromEntries(ps.map((p) => [p.id, zeros()]));
@@ -610,6 +624,8 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     // E3f: barras inclinadas (pórtico 3D no modelo integrado), cota de cada nó da grelha, normal do plano e fator da largura verdadeira
     const incB: number[] = [], normB: (V3 | null)[] = [], fatB: number[] = [], zNo = new Map<number, number>();
     const marcarInc = (inc: boolean, nrm: V3 | null = null, fat = 1) => { incB.push(inc ? 1 : 0); normB.push(nrm); fatB.push(fat); };
+    /** E5m: desnível de cada barra de viga em desnível (modelo integrado), por índice de barra. */
+    const zDesB: Record<number, number> = {};
     const cotaNo = (gi: number, z: number) => { const z0 = zNo.get(gi); if (z0 === undefined) zNo.set(gi, z); else if (Math.abs(z0 - z) > 0.01) avisosB.push(`Plano: cotas diferentes no mesmo nó (${m.nos[gi][0].toFixed(2)}; ${m.nos[gi][1].toFixed(2)}): ${(z0 * 100).toFixed(0)} × ${(z * 100).toFixed(0)} cm (viga e pano incoerentes; vale a primeira).`); };
     for (const t of trechos) {
       const v = t.viga, pv = propsBarraViga(b, v, op);
@@ -624,7 +640,13 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       // E3f: viga num plano inclinado: peso pela extensão verdadeira; no modelo integrado, barra 3D fora da grelha se sai do pavimento
       const plV = v.plano ? planoPor(b, v.plano) : undefined, tV = plV ? Math.hypot(plV.coef.a, plV.coef.b) : 0;
       let fL = 1;
-      if (plV && tV > TOL_INCLINACAO) {
+      const dzV = dzViga(v);
+      if (dzV && integrado) {
+        // E5m: viga em desnível no modelo integrado: barra 3D fora da grelha na sua cota (nós de pilar ligados ao nó intermediário)
+        for (const [gi, i] of [[bv.i, t.a], [bv.j, t.z]] as const) if (!nos[i].pilar) cotaNo(gi, dzV);
+        marcarInc(true);
+        zDesB[m.barras.length - 1] = dzV;
+      } else if (plV && tV > TOL_INCLINACAO) {
         const zf = cotaDaViga(b, v), pa = nos[t.a].p, pz = nos[t.z].p, za = zf(pa), zz = zf(pz), Lh = Math.hypot(pz[0] - pa[0], pz[1] - pa[1]);
         fL = Lh > 1e-9 ? Math.hypot(Lh, zz - za) / Lh : 1;
         const inc = integrado && Math.max(Math.abs(za), Math.abs(zz)) > 1e-3;
@@ -732,6 +754,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       });
     }
     // cargas de linha (paredes) e de ponto: discretizadas no nó mais próximo da grelha
+    const desnCargas: { ic: number; p: P; f: number; viga: string }[] = [];
     const maisProximo = (p: P) => { let best = -1, d = Infinity; for (const [i, gi] of idx) { const dd = Math.hypot(nos[i].p[0] - p[0], nos[i].p[1] - p[1]); if (dd < d) { d = dd; best = gi; } } return best; };
     for (const c of cargas) {
       if (c.tipo === 'area') continue;
@@ -741,7 +764,12 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         const a = c.pontos[k], z = c.pontos[k + 1], L = Math.hypot(z[0] - a[0], z[1] - a[1]), n = Math.max(1, Math.ceil(L / (op.malha / 2)));
         for (let s = 0; s < n; s++) { const t = (s + 0.5) / n; pts.push({ p: [a[0] + t * (z[0] - a[0]), a[1] + t * (z[1] - a[1])], f: (c.valor * L) / n }); }
       }
-      for (const { p, f } of pts) { const gi = maisProximo(p); if (gi >= 0) carregar(c.caso, (cs) => cs.nodais.push({ no: gi, f: [0, 0, -f, 0, 0, 0] })); }
+      for (const { p, f } of pts) {
+        // E5m: carga sobre viga em desnível: fora da grelha (no nó do pilar ela chegaria ao nó do pavimento); vai à barra da viga no pórtico
+        const vd = des.vigas.size ? vigaDesnEm(grupo.id, p) : undefined;
+        if (vd) { const ic = CASOS.indexOf(c.caso === 'Q' ? casoQ : c.caso); if (ic >= 0) desnCargas.push({ ic, p, f, viga: vd }); continue; }
+        const gi = maisProximo(p); if (gi >= 0) carregar(c.caso, (cs) => cs.nodais.push({ no: gi, f: [0, 0, -f, 0, 0, 0] }));
+      }
     }
     // apoios: w preso nos pilares (as molas de rotação dos lances, por pavimento, entram em `molasGrelha`)
     for (let gi = 0; gi < m.nos.length; gi++) m.apoios.set(gi, [0, 1, 5]);
@@ -753,6 +781,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       let s = 0;
       for (const d of cs.distribuidas) { const br = m.barras[d.barra], a = m.nos[br.i], z = m.nos[br.j]; s += -d.q[2] * Math.hypot(z[0] - a[0], z[1] - a[1]); }
       for (const n of cs.nodais) s += -n.f[2];
+      for (const d of desnCargas) if (d.ic === ic) s += d.f;
       carga[CASOS[ic]] = s;
     });
     if (!m.barras.length) avisosB.push('sem vigas nem lajes (só pilares).');
@@ -762,8 +791,8 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       const w = trechos.find((x) => !x.viga.comumDe && (x.a === i || x.z === i));
       if (w) avisosB.push(`Viga comum: ${w.viga.nome} chega à viga associada de uma viga comum fora de pilar; a reação dela não passa à viga de origem (analise-a apoiada na viga de origem).`);
     }
-    const inc = incB.some(Boolean) ? { barra: Uint8Array.from(incB), z: Float64Array.from(m.nos, (_, gi) => zNo.get(gi) ?? 0), normal: normB, fator: Float64Array.from(fatB) } : undefined;
-    return { m, tags, casos, apoio, transicao, idx, nos, trechos, grosso, carga, avisos: avisosB, trechoDe, pilares: pilares.map((p) => p.id), linhaComum, ...(inc ? { inc } : {}) };
+    const inc = incB.some(Boolean) ? { barra: Uint8Array.from(incB), z: Float64Array.from(m.nos, (_, gi) => zNo.get(gi) ?? 0), normal: normB, fator: Float64Array.from(fatB), ...(Object.keys(zDesB).length ? { zDes: zDesB } : {}) } : undefined;
+    return { m, tags, casos, apoio, transicao, idx, nos, trechos, grosso, carga, avisos: avisosB, trechoDe, pilares: pilares.map((p) => p.id), linhaComum, ...(inc ? { inc } : {}), ...(desnCargas.length ? { desnCargas } : {}) };
   };
   /** Molas de rotação dos pilares na grelha do pavimento (4EI/L dos lances de baixo e de cima, com o engaste parcial). */
   const molasGrelha = (gb: GrelhaBase, ip: number, pav: (typeof ps)[number]) => {
@@ -1123,7 +1152,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     for (const i of gb.linhaComum) if (!apoio.has(i) && gb.idx.has(i) && alvoComum(gb, i, pav)) comuns.add(i);
     for (const c of CASOS) { totais[c] += carga[c]; cargasPavimento[pav.id][c] += carga[c]; }
     grelhas.push({ pavimento: pav.id, modelo: m, barras: tags, res, reacoes, carga, casos });
-    geoPav.set(pav.id, { nos, grosso, apoio, transf, comuns });
+    geoPav.set(pav.id, { nos, grosso, apoio, transf, comuns, desnCargas: gb.desnCargas });
   }
 
   // ---- pórtico espacial ----
@@ -1153,6 +1182,8 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const primeiroLance = new Map<string, number>();
   // nós dos pilares por nível (base na fundação)
   const noPilar = new Map<string, number>(); // `${pilar}|${pav ou 'base'}`
+  /** E5m: nó intermediário do pilar de cada grupo de vigas em desnível (`chaveDesnivel`); nós a menos de 1 cm usam o primeiro. */
+  const noDesn = new Map<string, number>();
   /** Por pavimento (modelo separado): nó do pórtico no ponto do eixo de uma viga (vigas inclinadas, E2c). */
   const nosVigaPav = new Map<string, (p: P) => number | undefined>();
   // pilares apoiados (E1a): o pé liga-se ao elemento de apoio (pilar de baixo, nó da viga ou nó da grelha da laje) quando o
@@ -1196,10 +1227,13 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     }
     for (const x of l) {
       const cx = centroNoLance(p, x.id);
+      // E5m: nós intermediários nas cotas das vigas em desnível (no centro da seção do lance)
+      if (des.nos.length) for (const n of nosDoLance(des, p.id, x.id)) { noDesn.set(chaveDesnivel(p.id, n.pavimento, n.desnivel), pm.nos.length); pm.nos.push([cx[0], cx[1], n.cota]); }
       // E3f: pilar que só recebe barras de pano ou viga inclinados: o topo do lance sobe ao plano
       noPilar.set(`${p.id}|${x.id}`, pm.nos.length); pm.nos.push([cx[0], cx[1], x.cota + (integPav.get(x.id)?.ig.zPilar.get(p.id) ?? 0)]);
     }
   }
+  for (const n of des.nos) { const k = chaveDesnivel(n.pilar, n.pavimento, n.desnivel); if (!noDesn.has(k)) { const r = representante(des, n); const j = noDesn.get(chaveDesnivel(r.pilar, r.pavimento, r.desnivel)); if (j !== undefined) noDesn.set(k, j); } }
   // sobre pilar: o pé é o nó do topo do pilar de baixo; a parte fora da projeção liga-se por trecho rígido (offset da ponta)
   for (const p of deferidos) {
     const a = apoios.get(p.id) as { principal: string }, qn = noPilar.get(`${a.principal}|${p.nasce}`)!;
@@ -1214,7 +1248,12 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     let ant = noPilar.get(p.nasce === 'fundacao' ? `${p.id}|base` : `${p.id}|${p.nasce}`);
     const lig = baseLigada.get(p.id);
     for (const x of l) {
-      const sx = secaoNoLance(p, x.id), angX = anguloNoLance(p, x.id), inr = inerciasPilar(sx, angX), j = noPilar.get(`${p.id}|${x.id}`)!;
+      const sx = secaoNoLance(p, x.id), angX = anguloNoLance(p, x.id), inr = inerciasPilar(sx, angX), jTopo = noPilar.get(`${p.id}|${x.id}`)!;
+      // E5m: trechos do lance entre os nós intermediários das vigas em desnível (um só sem desnível)
+      const meios = des.nos.length ? nosDoLance(des, p.id, x.id).map((n) => noDesn.get(chaveDesnivel(p.id, n.pavimento, n.desnivel))!) : [];
+      const cadeia = [...meios, jTopo];
+      cadeia.forEach((j, tr) => {
+      const prim = tr === 0, ult = tr === cadeia.length - 1;
       const a = (angX * Math.PI) / 180;
       // eixo local y = direção b da seção (Iz: deslocamento em y local)
       const Ep = Em('pilar', x.id, p);
@@ -1223,38 +1262,84 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       // com pilar apoiado em cima, o topo é contínuo; na base de pilar sobre viga ou laje, o engaste da transição
       const eg = engasteNoLance(p, x.id), aTopo = eg.topo * (x === l.at(-1) && !sobreDe.has(p.id) ? op.engasteTopoUltimo : 1);
       const aBase = eg.base * (x === l[0] && (lig === 'viga' || lig === 'laje') ? op.engasteTransicao : 1);
-      if (aTopo < 1) barra.engJ = [[4, aTopo], [5, aTopo]];
-      if (aBase < 1) barra.engI = [[4, aBase], [5, aBase]];
-      if (x === l[0] && base?.offsets.has(p.id) && base.info.pilares[p.id]) barra.offI = base.offsets.get(p.id);
-      else if (x === l[0] && offBase.has(p.id)) barra.offI = offBase.get(p.id);
-      else {
-        // excentricidade entre lances (N2c): o nó do pavimento fica no centro da seção de baixo; o lance de cima liga-se
-        // a ele por trecho rígido horizontal até o seu centro (N·e transmitido), e a parte flexível fica vertical
-        const pi = pm.nos[ant!], dx = pm.nos[j][0] - pi[0], dy = pm.nos[j][1] - pi[1];
-        if (Math.hypot(dx, dy) > 1e-9) barra.offI = [dx, dy, 0];
+      if (aTopo < 1 && ult) barra.engJ = [[4, aTopo], [5, aTopo]];
+      if (aBase < 1 && prim) barra.engI = [[4, aBase], [5, aBase]];
+      // trecho acima de nó intermediário (E5m): vertical, sem excentricidade
+      if (prim) {
+        if (x === l[0] && base?.offsets.has(p.id) && base.info.pilares[p.id]) barra.offI = base.offsets.get(p.id);
+        else if (x === l[0] && offBase.has(p.id)) barra.offI = offBase.get(p.id);
+        else {
+          // excentricidade entre lances (N2c): o nó do pavimento fica no centro da seção de baixo; o lance de cima liga-se
+          // a ele por trecho rígido horizontal até o seu centro (N·e transmitido), e a parte flexível fica vertical
+          const pi = pm.nos[ant!], dx = pm.nos[j][0] - pi[0], dy = pm.nos[j][1] - pi[1];
+          if (Math.hypot(dx, dy) > 1e-9) barra.offI = [dx, dy, 0];
+        }
       }
       // comprimento flexível entre faces (opção): trecho rígido vertical no topo, da face inferior da viga mais alta ao nó
-      if (op.pilarComprimento === 1) {
+      if (op.pilarComprimento === 1 && ult) {
         const hT = flambagemLance(b, p, x.id).hTopo, H = pm.nos[j][2] - pm.nos[ant!][2];
         if (hT > 1e-9 && hT < H - 1e-6) barra.offJ = [0, 0, -hT];
       }
-      if (x === l[0]) primeiroLance.set(p.id, pm.barras.length);
+      if (x === l[0] && prim) primeiroLance.set(p.id, pm.barras.length);
       pm.barras.push(barra);
-      ptags.push({ tipo: 'pilar', ref: p.id, pavimento: x.id, ...(x === l[0] && lig ? { transicao: lig } : {}) });
-      // peso próprio do lance no nó de cima
+      ptags.push({ tipo: 'pilar', ref: p.id, pavimento: x.id, ...(x === l[0] && lig && prim ? { transicao: lig } : {}), ...(cadeia.length > 1 ? { trecho: tr } : {}) });
+      // peso próprio do lance (de cada trecho) no nó de cima
       const [w, h] = dimsSecao(sx), area = sx.tipo === 'circ' ? (Math.PI * w * w) / 4 : w * h;
       const H = pm.nos[j][2] - pm.nos[ant!][2];
       casosV[0].nodais.push({ no: j, f: [0, 0, -GAMA_CONCRETO * area * H, 0, 0, 0] });
       totais.G += GAMA_CONCRETO * area * H;
       cargasPavimento[x.id].G += GAMA_CONCRETO * area * H;
       ant = j;
+      });
     }
   }
+  /** E5m: carga vertical f sobre viga em desnível: na barra (cand: trechos da viga com início da parte flexível, direção e comprimento) mais próxima do ponto. */
+  const cargaNaVigaDesn = (ic: number, q: P, f: number, cand: { bi: number; ini: P; u: P; L: number; a: P; z: P }[]) => {
+    let melhor: (typeof cand)[number] | undefined, dm = Infinity;
+    for (const c of cand) { const d = distSeg(q, c.a, c.z); if (d < dm - 1e-12) { dm = d; melhor = c; } }
+    if (!melhor) return false;
+    const br = pm.barras[melhor.bi], a = (q[0] - melhor.ini[0]) * melhor.u[0] + (q[1] - melhor.ini[1]) * melhor.u[1], F = [0, 0, -f, 0, 0, 0];
+    if (a <= 0 || a >= melhor.L) casosV[ic].nodais.push({ no: a <= 0 ? br.i : br.j, f: F }); // no trecho rígido
+    else (casosV[ic].pontuais ??= []).push({ barra: melhor.bi, a, f: F });
+    return true;
+  };
+  /** E5m: carga lançada num lance dividido em trechos (alturas a partir da base do lance; eixos como no lance inteiro). */
+  const cargaPilarTrechos = (cp: NonNullable<BuildingModel['cargasPilar']>[number], ic: number, bi0: number) => {
+    const bis: number[] = [];
+    for (let k = bi0; k < ptags.length && ptags[k].tipo === 'pilar' && ptags[k].ref === cp.pilar && ptags[k].pavimento === cp.pavimento; k++) bis.push(k);
+    const z0 = pm.nos[pm.barras[bis[0]].i][2], Htot = pm.nos[pm.barras[bis.at(-1)!].j][2] - z0;
+    const pil = b.pilares.find((q) => q.id === cp.pilar)!, ang = cp.eixos === 'local' ? (pil.angulo * Math.PI) / 180 : 0, ca = Math.cos(ang), sa = Math.sin(ang);
+    const gl = (x: number, y: number) => [x * ca - y * sa, x * sa + y * ca];
+    const [Hx, Hy] = gl(cp.Hx, cp.Hy), [Mx, My] = gl(cp.Mx, cp.My);
+    /** Barra e posição local de uma altura do lance (no nó de cima do trecho quando cai no nó). */
+    const ponto = (alt: number, f: number[]) => {
+      for (const k of bis) {
+        const br = pm.barras[k], a = alt - (pm.nos[br.i][2] - z0), H = pm.nos[br.j][2] - pm.nos[br.i][2];
+        if (a <= 1e-9 && k === bis[0]) { casosV[ic].nodais.push({ no: br.i, f }); return; }
+        if (a < H - 1e-9) { (casosV[ic].pontuais ??= []).push({ barra: k, a, f }); return; }
+        if (a <= H + 1e-9) { casosV[ic].nodais.push({ no: br.j, f }); return; }
+      }
+      casosV[ic].nodais.push({ no: pm.barras[bis.at(-1)!].j, f });
+    };
+    const tipo = cp.tipo ?? 'concentrada';
+    if (tipo === 'concentrada') { ponto(cp.altura ?? Htot, [Hx, Hy, -cp.N, Mx, My, cp.T ?? 0]); totais[cp.caso] += cp.N; cargasPavimento[cp.pavimento][cp.caso] += cp.N; }
+    else if (tipo === 'uniforme') {
+      let Lf = 0;
+      for (const k of bis) { casosV[ic].distribuidas.push({ barra: k, q: [Hx, Hy, -cp.N] }); Lf += baseBarra(pm, pm.barras[k]).L; }
+      totais[cp.caso] += cp.N * Lf; cargasPavimento[cp.pavimento][cp.caso] += cp.N * Lf;
+    } else {
+      const a0 = Math.max(0, Math.min(Htot, cp.altura ?? 0)), a1 = Math.max(a0, Math.min(Htot, cp.ate ?? Htot)), n = 20, d = (a1 - a0) / n;
+      if (d > 0) for (let k = 0; k < n; k++) ponto(a0 + (k + 0.5) * d, [Hx * d, Hy * d, -cp.N * d, 0, 0, 0]);
+      totais[cp.caso] += cp.N * (a1 - a0); cargasPavimento[cp.pavimento][cp.caso] += cp.N * (a1 - a0);
+    }
+  };
   // cargas lançadas nos pilares: no topo do lance (nó) ou ao longo dele (concentrada na barra)
   for (const cp of b.cargasPilar ?? []) {
-    const ic = CASOS.indexOf(cp.caso), bi = ptags.findIndex((t) => t.tipo === 'pilar' && t.ref === cp.pilar && t.pavimento === cp.pavimento);
-    if (ic < 0 || bi < 0) continue;
-    const br = pm.barras[bi], H = pm.nos[br.j][2] - pm.nos[br.i][2];
+    const ic = CASOS.indexOf(cp.caso), bi0 = ptags.findIndex((t) => t.tipo === 'pilar' && t.ref === cp.pilar && t.pavimento === cp.pavimento);
+    if (ic < 0 || bi0 < 0) continue;
+    // E5m: lance dividido em trechos: a carga vai ao trecho que contém a altura (uniforme e faixa, a cada trecho)
+    if (ptags[bi0].trecho !== undefined) { cargaPilarTrechos(cp, ic, bi0); continue; }
+    const bi = bi0, br = pm.barras[bi], H = pm.nos[br.j][2] - pm.nos[br.i][2];
     // eixos locais da seção (N2c): x ao longo de b, y ao longo de h, girados pelo ângulo do pilar
     const pil = b.pilares.find((q) => q.id === cp.pilar)!, ang = cp.eixos === 'local' ? (pil.angulo * Math.PI) / 180 : 0, ca = Math.cos(ang), sa = Math.sin(ang);
     const gl = (x: number, y: number) => [x * ca - y * sa, x * sa + y * ca];
@@ -1399,14 +1484,22 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
           return j;
         };
         const barP = new Int32Array(gb.m.barras.length).fill(-1), iG = CASOS.indexOf('G');
+        /** E5m: barras 3D das vigas em desnível (para as cargas lançadas sobre elas). */
+        const candDesn = new Map<string, { bi: number; ini: P; u: P; L: number; a: P; z: P }[]>();
         gb.m.barras.forEach((br0, bi) => {
           if (!inc.barra[bi]) return;
-          const t = gb.trechoDe[bi], br = ig.barras[bi], i0 = noInc(br0.i), j0 = noInc(br0.j);
-          const GI = pt3(br0.i), GJ = pt3(br0.j), Lh = Math.hypot(GJ[0] - GI[0], GJ[1] - GI[1]), L3 = Math.hypot(Lh, GJ[2] - GI[2]), fq = L3 > 1e-12 ? Lh / L3 : 1;
+          // E5m: viga em desnível: cota própria da barra e ponta no pilar dividido ligada ao nó intermediário
+          const zd = inc.zDes?.[bi];
+          const noDz = (n: number) => { const kp = ig.pilarDe[n]; return zd !== undefined && kp >= 0 ? noDesn.get(chaveDesnivel(gb.pilares[kp], pav.id, zd)) : undefined; };
+          const ptB = (n: number): V3 => (zd === undefined ? pt3(n) : [gb.m.nos[n][0], gb.m.nos[n][1], z + zd]);
+          const t = gb.trechoDe[bi], br = ig.barras[bi], dI = noDz(br0.i), dJ = noDz(br0.j), i0 = dI ?? noInc(br0.i), j0 = dJ ?? noInc(br0.j);
+          const GI = ptB(br0.i), GJ = ptB(br0.j), Lh = Math.hypot(GJ[0] - GI[0], GJ[1] - GI[1]), L3 = Math.hypot(Lh, GJ[2] - GI[2]), fq = L3 > 1e-12 ? Lh / L3 : 1;
           const nb: Barra3 = { ...br, i: i0, j: j0 }, rig: number[] = [0, 0];
           delete nb.offI; delete nb.offJ; delete nb.soPlano; delete nb.ref;
           for (const [ponta, n, outro, G, Go] of [['offI', br0.i, br0.j, GI, GJ], ['offJ', br0.j, br0.i, GJ, GI]] as const) {
-            const base = offN[n] ?? [0, 0, 0];
+            const jn = ponta === 'offI' ? i0 : j0, P0 = pm.nos[jn];
+            const base: V3 = zd === undefined ? offN[n] ?? [0, 0, 0] : [G[0] - P0[0], G[1] - P0[1], G[2] - P0[2]];
+            if (zd !== undefined && mapN[n] < 0) { mapN[n] = jn; offN[n] = Math.hypot(base[0], base[1], base[2]) > 1e-9 ? base : null; }
             let f: V3 = [0, 0, 0];
             if (t) {
               // viga: trecho rígido até a face do pilar menos trechoRigido·h (na direção da barra, subindo com ela)
@@ -1425,6 +1518,10 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
           const k = pm.barras.length;
           pm.barras.push(nb);
           barP[bi] = k; barrasInc.add(k);
+          if (t && zd !== undefined) {
+            const ini: P = [a3[0] + oI[0], a3[1] + oI[1]], fim: P = [z3[0] + oJ[0], z3[1] + oJ[1]], Lf = Math.hypot(fim[0] - ini[0], fim[1] - ini[1]);
+            if (Lf > 1e-12) candDesn.set(t.viga.id, [...(candDesn.get(t.viga.id) ?? []), { bi: k, ini, u: [(fim[0] - ini[0]) / Lf, (fim[1] - ini[1]) / Lf], L: Lf, a: [GI[0], GI[1]], z: [GJ[0], GJ[1]] }]);
+          }
           ptags.push(t ? { tipo: 'viga', ref: t.viga.id, pavimento: pav.id, fina: true } : { tipo: 'laje', ref: gb.tags[bi].ref, pavimento: pav.id });
           // cargas da grelha por comprimento em planta → por comprimento da barra 3D
           ig.distDe.forEach((mp, ic) => { for (const q of mp.get(bi) ?? []) casosV[ic].distribuidas.push({ barra: k, q: [q[0] * fq, q[1] * fq, q[2] * fq] }); });
@@ -1432,6 +1529,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
           if (t && iG >= 0) [i0, j0].forEach((j, e) => { if (rig[e] > 1e-12) casosV[iG].nodais.push({ no: j, f: [0, 0, -pesoLinearViga(t.viga) * rig[e], 0, 0, 0] }); });
           if (op.planoDiafragma) ligar.push([i0, j0]);
         });
+        for (const d of gb.desnCargas ?? []) if (!cargaNaVigaDesn(d.ic, d.p, d.f, candDesn.get(d.viga) ?? [])) avisos.push(`Desnível: carga sobre a viga ${d.viga} sem barra no pórtico (desprezada).`);
         // cargas nodais da grelha nos nós só das barras inclinadas (com o momento do trecho rígido)
         gb.casos.forEach((cs, ic) => { for (const nd of cs.nodais) {
           if (ig.noSE[nd.no]) continue;
@@ -1455,7 +1553,9 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     g.trechos.forEach((t, ti) => {
       if (comumEfetiva(t.viga)) return; // viga associada de viga comum: a barra é a da origem (E2b)
       const v = t.viga, pv = propsBarraViga(b, v, op), pp = pesoLinearViga(v);
-      const ni = noViga(t.a), nj = noViga(t.z);
+      // E5m: viga em desnível: ponta no pilar dividido → nó intermediário; nas outras, trecho rígido vertical até a sua cota
+      const dz = dzViga(v), noDz = (i: number) => { const pid = g.nos[i].pilar; return dz && pid ? noDesn.get(chaveDesnivel(pid, pav.id, dz)) : undefined; };
+      const ni = noDz(t.a) ?? noViga(t.a), nj = noDz(t.z) ?? noViga(t.z);
       const Lt = Math.hypot(g.nos[t.z].p[0] - g.nos[t.a].p[0], g.nos[t.z].p[1] - g.nos[t.a].p[1]);
       if (ni === nj) { casosV[0].nodais.push({ no: ni, f: [0, 0, -pp * Lt, 0, 0, 0] }); barraDe.set(ti, { no: ni }); return; } // dentro do pilar
       const barra: Barra3 = { i: ni, j: nj, E: Ev, G: Gv, ...pv };
@@ -1470,6 +1570,10 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         const pil = pilarPor.get(pid)!;
         const gp = geoEm(pil, pav.id), cs = consoloEm(v.id, pid), off = offsetFace(g.nos[i].p, g.nos[outro].p, gp.p, gp.secao, cs ? -cs.a : op.trechoRigido * v.secao.h, pm.nos[k === 'I' ? ni : nj]); // consolo (E2e): rígido até o centro do aparelho
         if (off) { if (k === 'I') barra.offI = off; else barra.offJ = off; }
+      }
+      if (dz) for (const [k, n] of [['offI', ni], ['offJ', nj]] as const) {
+        const ez = z + dz - pm.nos[n][2];
+        if (Math.abs(ez) > 1e-9) barra[k] = [barra[k]?.[0] ?? 0, barra[k]?.[1] ?? 0, ez];
       }
       vincularPontas(barra, t, g.trechos, g.nos, [4, 5], ctxPontas);
       pm.barras.push(barra);
@@ -1513,6 +1617,11 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         (casosV[ic].pontuais ??= []).push({ barra: bd.bi, a, f });
       }
     });
+    // E5m: cargas lançadas sobre vigas em desnível: na barra da viga (na sua cota), não no nó do pavimento
+    for (const d of g0.desnCargas ?? []) {
+      const cand = g.trechos.flatMap((t, ti) => { const bd = barraDe.get(ti); return t.viga.id === d.viga && bd && !('no' in bd) ? [{ ...bd, a: g.nos[t.a].p, z: g.nos[t.z].p }] : []; });
+      if (!cargaNaVigaDesn(d.ic, d.p, d.f, cand)) { const t = g.trechos.find((x) => x.viga.id === d.viga), bd = t ? barraDe.get(g.trechos.indexOf(t)) : undefined; if (bd && 'no' in bd) casosV[d.ic].nodais.push({ no: bd.no, f: [0, 0, -d.f, 0, 0, 0] }); }
+    }
     }
     // vínculo externo (E2e): apoios nos nós das vigas (engaste: tudo; articulação: deslocamentos; deslizante: só o vertical) e rigidez de folga nos gdl livres
     for (const [n, tipo] of veNos) {
@@ -1897,7 +2006,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   if (base) avisos.push(...avisosBaseElastica(b, base.info));
   const cheio = extra.cheio && detalhes.length ? modeloCheio(pmV, casosV, detalhes, ps, CASOS) : undefined;
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: noParedes } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: noParedes } : {}), ...(des.nos.length ? { desniveis: des } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
 }
 
 // ---------------- auxiliares ----------------

@@ -382,6 +382,8 @@ export interface OpcoesCalculo {
   segundaOrdem: number;
   /** Comprimento da barra do pilar (N2c): 0 = entre cotas dos pavimentos; 1 = parte flexível até a face inferior da viga mais alta. */
   pilarComprimento: number;
+  /** Vigas em desnível (E5m, K1.12.4-19): 1 = a viga com nível próprio que não se sobrepõe às do pavimento divide o pilar (nó na sua cota); 0 = no nível do pavimento. */
+  desnivelVigaPilar: number;
   /** 1 = lances sem viga nem laje que os travem numa direção somam-se aos vizinhos na flambagem (ℓ0 = máx αi × Σ ℓi). */
   pilarLancesDesligados: number;
   /** Coeficiente de fluência φ dos pilares com λ > 90 (NBR 6118, 15.8.4). */
@@ -986,6 +988,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Ligado: cada combinação ELU é resolvida no pórtico espacial com rigidez reduzida (vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic, lajes 0,3·Eci·Ic) somando a matriz geométrica P-Δ dos pilares, iterando as normais até convergir; os efeitos de 2ª ordem viram forças fictícias aplicadas ao modelo de cálculo. Não há ampliação 0,95·γz; o γz continua informado.' },
   { chave: 'pilarComprimento', rotulo: 'Pilares: comprimento flexível entre faces', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (opção: comprimento = altura entre cotas ou distância livre entre faces); NBR 6118 não fixa o modelo; padrão entre cotas (comportamento anterior), a confirmar', aConfirmar: true,
     descricao: 'Ligado: a parte flexível de cada lance vai do topo da laje de baixo até a face inferior da viga mais alta que chega ao pilar no topo; o trecho dentro da viga é rígido. Desligado: barra inteira entre as cotas dos pavimentos.' },
+  { chave: 'desnivelVigaPilar', rotulo: 'Pilares: vigas em desnível dividem o pilar', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (pilar com vigas em desnível: nó na cota de cada viga e a mesma metodologia em cada trecho); NBR 6118, 14.6 e 15.6 (nós nos pontos de ligação; ℓe entre nós travados). Critério de sobreposição: a confirmar', aConfirmar: true,
+    descricao: 'Ligado: viga com nível próprio (sem plano) que não se sobrepõe em altura às vigas ou à laje do nível do pavimento no pilar (desnível negativo maior que a altura da viga mais alta do nível; positivo maior que a altura da própria viga) entra no pórtico na sua cota, ligada a um nó intermediário do pilar (trecho rígido horizontal até a face, como no pavimento); o lance fica dividido em trechos, e cada trecho é verificado com o seu comprimento de flambagem, momentos mínimos e 2ª ordem local, com a armadura do lance. Na outra ponta (viga ou pilar em que ela se sobrepõe) a viga liga-se ao nó do pavimento por trecho rígido vertical. Desligado: todas as vigas no nível do pavimento (comportamento anterior).' },
   { chave: 'pilarLancesDesligados', rotulo: 'Pilares: lances desligados somados na flambagem', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118, 15.6: ℓe por lance entre os nós do pórtico; o lance destravado se ajusta pelo α (comportamento anterior)', fonte: 'Programa de referência (ℓ0 = máx αi × soma dos lances sem travamento); NBR 6118, 15.6 (ℓe entre pontos travados)', aConfirmar: false,
     descricao: 'Lance cujo topo não tem viga nem laje que o trave numa direção (vigas com o eixo a menos de 45° da direção, ou laje junto ao pilar) soma-se ao lance de cima: o comprimento de flambagem da cadeia é o maior α × a soma das alturas, por direção.' },
   { chave: 'pilarFluencia', rotulo: 'Pilares: coeficiente de fluência (λ > 90)', min: 0, max: 5, passo: 0.1, padrao: 2.5, fonte: 'NBR 6118, 15.8.4 (fluência obrigatória para λ > 90) e 8.2.11 (φ pela Tabela 8.2); valor padrão 2,5 sem fonte específica, a confirmar', aConfirmar: true,
@@ -1217,6 +1221,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'limiteDeslocTopo', 'limiteDeslocPavimento', 'vigotaRigidez', 'vigotaRigidezFicha', 'modeloGlobal', 'cortanteBarrasLaje', 'planoDiafragma', 'planoCargaProjecao', 'malhaCasca', 'aberturaDiafragma', 'categoriasUso', 'radierK', 'radierMalha', 'corridaBPadrao', 'corridaHPadrao', 'fundBalancoAltura',
   // N2c: P-Δ 3D no lugar do γz e trecho rígido no topo dos pilares (face inferior da viga) entram no modelo de cálculo
   'segundaOrdem', 'pilarComprimento',
+  // E5m: vigas em desnível dividem o pilar (nós intermediários no pórtico)
+  'desnivelVigaPilar',
   // E1a: engaste da base do pilar apoiado em viga ou laje (transição) entra na rigidez do modelo
   'engasteTransicao', 'fundParedeK', 'fundParedeAba',
   // E1b: modelo do pilar-parede (casca ou barra) e viga fictícia do topo

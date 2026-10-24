@@ -418,6 +418,16 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
               </table>
             </>)}
             <p>Cortante nos pilares (17.4.2, modelo I): na flexo-compressão Vc = Vc0·(1 + M0/Msd,máx) ≤ 2·Vc0 (17.4.2.2 c), com M0 = N·W/A (momento de descompressão; N com γf = 1,0 tomado como Nd/γg, a confirmar) e Msd,máx o maior momento das pontas na direção do cortante; Vc = 0 com tração; dispensa do estribo mínimo quando Vsd ≤ Vc em pilar comprimido; seção circular com bw = D e d = 0,8·D. Quando o cortante manda, o estribo vem da mensagem "Estribos pelo cortante".</p>
+            {dim.pilares.some((x) => x.trechos) && (<>
+              <h3>Pilares com vigas em desnível (verificação por trecho)</h3>
+              <table data-memorial-trechos>
+                <thead><tr><th>Pilar</th><th>Lance</th><th>Trecho (m, da base do lance)</th><th>ℓe (b / h, m)</th><th>λ (b / h)</th><th>Nd (kN)</th><th>Uso</th><th>Combinação</th></tr></thead>
+                <tbody>{dim.pilares.filter((x) => x.trechos).flatMap((x) => x.trechos!.map((t, k) => <tr key={`${x.pilar}-${x.pavimento}-${k}`}><td className="l">{x.nome}</td><td className="l">{x.pavimento}</td><td>{fmt(t.de)} a {fmt(t.ate)}</td><td>{fmt(t.le[0])} / {fmt(t.le[1])}</td><td>{fmt(t.lambda[0], 0)} / {fmt(t.lambda[1], 0)}</td><td>{fmt(t.Nd, 0)}</td><td>{fmt(t.util)}</td><td className="l">{t.combinacao || '—'}</td></tr>))}</tbody>
+              </table>
+            </>)}
+            <p data-memorial-desnivel>{opc.desnivelVigaPilar
+              ? 'Pilares com vigas em desnível (K1.12.4-19, opção "vigas em desnível dividem o pilar", ligada): a viga com nível próprio (sem plano) que não se sobrepõe em altura às vigas ou à laje do nível do pavimento no pilar (desnível negativo maior que a altura da viga mais alta do nível, ou da espessura da laje que contém o pilar; positivo maior que a altura da própria viga) entra no pórtico na sua cota, ligada a um nó intermediário do pilar no centro da seção (trecho rígido horizontal até a face menos a fração das opções, como no pavimento); na outra ponta, sobre viga ou pilar em que se sobrepõe, liga-se ao nó do pavimento por trecho rígido vertical. No modelo integrado, a viga em desnível sai da grelha e vai ao pórtico como barra 3D na sua cota (como as vigas em plano inclinado), e o nó intermediário fica fora do diafragma rígido. O lance fica dividido em trechos com a mesma metodologia de cada lance: ℓe = mín(ℓ0 + h; ℓ) × α por trecho e direção, entre nós travados (o nó intermediário trava só a direção das suas vigas, a menos de 45°; ℓ0 = ℓ − altura da viga mais alta do nó de cima), momentos mínimos, 2ª ordem local e cortante com os esforços de cada trecho; a armadura do lance é a que atende a todos os trechos, e o detalhamento segue por lance. Critério de sobreposição e nó fora do diafragma: a confirmar.'
+              : 'Vigas em desnível: opção "vigas em desnível dividem o pilar" desligada; todas as vigas ligadas ao nó do pavimento (comportamento anterior).'}</p>
             <MemorialTaxasPilares b={b} dim={dim} />
             {dim.detalhesPilares && dim.detalhesPilares.length > 0 && (<>
               {h2('Detalhamento dos pilares')}
