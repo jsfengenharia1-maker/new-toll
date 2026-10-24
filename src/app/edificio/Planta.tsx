@@ -8,6 +8,8 @@ import { corDoPlano } from './planosUtil';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useResultados } from './resultadosStore';
+import { classeDoCaso, legendaDeCargas, metrosPorKNVento, setasDeVento, ventoPorPavimento } from '../../core/resultados/cargasCaso';
+import { cssVar } from '../design/tokens';
 import { useEdifUI } from './uiStore';
 import { useRevisao } from './revisao';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
@@ -959,8 +961,11 @@ export function Planta() {
 
   const desenharCargas = (ctx: CanvasRenderingContext2D) => {
     ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    // V6e (K1.11.11): cor por caso (tokens --carga-caso-*), exceto no tema P&B; as cargas de origem automática seguem a cor de parede
+    const porCaso = pl.cargasPorCaso && pl.tema !== 'pb', corCaso = new Map<string, string>();
+    const corDoCaso = (caso: string) => { let v = corCaso.get(caso); if (!v) { v = cssVar(classeDoCaso(b, caso)) || cores.carga; corCaso.set(caso, v); } return v; };
     for (const c of cargas) {
-      const sel = pl.selecao.has(c.id), cor = sel ? cores.selecao : c.origem ? cores.parede : cores.carga;
+      const sel = pl.selecao.has(c.id), cor = sel ? cores.selecao : c.origem ? cores.parede : porCaso ? corDoCaso(c.caso) : cores.carga;
       const pts = c.pontos.map((q) => paraTela(q[0], q[1]));
       const rot = !textosVis.includes('cargas') ? '' : `${String(+c.valor.toFixed(2)).replace('.', ',')} ${c.tipo === 'ponto' ? 'kN' : c.tipo === 'linha' ? 'kN/m' : 'kN/m²'} ${b.casos?.find((x) => x.id === c.caso)?.nome ?? c.caso}`;
       ctx.strokeStyle = cor; ctx.fillStyle = cor;
@@ -978,7 +983,45 @@ export function Planta() {
         ctx.fillText(rot, Math.min(...xs) + 4, Math.max(...ys) - 4);
       }
     }
+    if (wrap.current && !porCaso) wrap.current.dataset.legendaCargas = '';
+    if (porCaso) legendaCargasPlanta(ctx, corDoCaso);
+    desenharVentoPlanta(ctx);
     if (!nivelFund) marcasDeCorte(ctx);
+  };
+
+  /** Legenda das cores das cargas por caso (V6e): canto superior direito, só os casos com carga lançada no grupo. */
+  const legendaCargasPlanta = (ctx: CanvasRenderingContext2D, corDoCaso: (caso: string) => string) => {
+    const leg = legendaDeCargas(b, grupoCarga);
+    if (wrap.current) wrap.current.dataset.legendaCargas = leg.map((e) => `${e.classe}:${e.n}`).join(',');
+    if (!leg.length || !cvM.current) return;
+    const W = cvM.current.clientWidth;
+    ctx.save(); ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const larg = Math.max(...leg.map((e) => ctx.measureText(`${e.nome} (${e.n})`).width)) + 30;
+    leg.forEach((e, i) => {
+      const x = W - larg - 10, y = 18 + i * 16;
+      ctx.fillStyle = corDoCaso(e.caso); ctx.fillRect(x, y - 5, 14, 3 + (e.natureza === 'W' ? 2 : 4));
+      ctx.fillStyle = cores.texto; ctx.fillText(`${e.nome} (${e.n})`, x + 20, y);
+    });
+    ctx.restore();
+  };
+
+  /** Setas das forças de vento por zona do pavimento aberto (V6e, K1.5.32): comprimento proporcional à força; rótulo em kN. */
+  const desenharVentoPlanta = (ctx: CanvasRenderingContext2D) => {
+    const an = useBuilding.getState().analise;
+    if (wrap.current) wrap.current.dataset.ventoSetas = '0';
+    if (!pl.ventoPlanta || nivelFund || !pav || !an?.vento || !vista) return;
+    const lin = ventoPorPavimento(b, an).find((l) => l.pavimento === pav.id), caso = lin?.casos.find((c) => c.caso === pl.ventoPlanta);
+    if (!lin || !caso) return;
+    const setas = setasDeVento(lin, pl.ventoPlanta, metrosPorKNVento(lin, pl.ventoPlanta, 70 / vista.k));
+    ctx.save(); ctx.strokeStyle = ctx.fillStyle = cssVar('carga-caso-w') || cores.carga; ctx.lineWidth = 2.5; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    for (const s of setas) {
+      const [x0, y0] = paraTela(s.de[0], s.de[1]), [x1, y1] = paraTela(s.para[0], s.para[1]), ang = Math.atan2(y1 - y0, x1 - x0);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 10 * Math.cos(ang - 0.4), y1 - 10 * Math.sin(ang - 0.4)); ctx.lineTo(x1 - 10 * Math.cos(ang + 0.4), y1 - 10 * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill();
+      ctx.fillText(`${fmt(s.F, 1)} kN`, x1 + 4, y1 - 3);
+    }
+    ctx.restore();
+    if (wrap.current) wrap.current.dataset.ventoSetas = String(setas.length);
   };
 
   const glifo = (ctx: CanvasRenderingContext2D, c: Captura) => {

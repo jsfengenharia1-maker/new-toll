@@ -40,7 +40,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `tema.ts`: TemaApp, EVENTO_TEMA, temaSalvoApp, aplicarTema, temaEfetivo, definirTema, iniciarTema
   - usado por: app/edificio/plantaStore.ts, app/ui/index.tsx, main.tsx
 - `tokens.ts`: MEMORIAL_CSS, IMPRESSAO_APP_CSS, lerTokens, memo, cssVar
-  - usado por: App.tsx, app/Memorial.tsx, app/design/design.test.ts, app/drawing.ts, app/edificio/GuiaRapido.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MemorialPilarParede.tsx, app/edificio/Pranchas.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/desenhoMemorial.ts, app/edificio/empuxoFig.ts, app/edificio/planosUtil.ts, app/edificio/plantaStore.ts, app/foundationDrawing.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
+  - usado por: App.tsx, app/Memorial.tsx, app/design/design.test.ts, app/drawing.ts, app/edificio/GuiaRapido.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/MemorialEdificio.tsx, app/edificio/MemorialPilarParede.tsx, app/edificio/Planta.tsx, app/edificio/Pranchas.tsx, app/edificio/RelatoriosUI.tsx, app/edificio/desenhoMemorial.ts, app/edificio/empuxoFig.ts, app/edificio/planosUtil.ts, app/edificio/plantaStore.ts, app/foundationDrawing.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
 ## src/app/
 
 - `dims.test.ts`: (sem exports)
@@ -221,7 +221,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/MemorialEdificio.tsx
 - `MemorialPlanos.tsx`: MemorialPlanos
   - usado por: app/edificio/MemorialEdificio.tsx
-- `MemorialRelatorios.tsx`: MemorialListagemGeral, MemorialVentoPavimentos, MemorialTaxasPilares, MemorialQuantitativosDetalhados, MemorialEluPorCombinacao
+- `MemorialRelatorios.tsx`: MemorialListagemGeral, MemorialVentoPavimentos, MemorialVentoResumo, MemorialTaxasPilares, MemorialQuantitativosDetalhados, MemorialEluPorCombinacao
   - usado por: app/edificio/MemorialEdificio.tsx
 - `MemorialVigotasFicha.tsx`: MemorialVigotasFicha
   - usado por: app/edificio/MemorialEdificio.tsx
@@ -1099,8 +1099,8 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/AbaIsovalores.tsx, core/resultados/isovalores.test.ts, core/resultados/isovalores.ts, core/resultados/resultados.test.ts
 - `cargasCaso.test.ts`: (sem exports)
   - usado por: -
-- `cargasCaso.ts`: CLASSES_CARGA_NATUREZA, N_CLASSES_ADICIONAIS, classeAdicional, TODAS_CLASSES_CARGA, classeDoCaso, EntradaLegendaCarga, legendaDeCargas, cargasPorGrupoECaso, ZonaVentoLinha, LinhaVentoPavimento, ventoPorPavimento, tabelaVento, setasDeVento
-  - usado por: core/resultados/cargasCaso.test.ts, core/sheets/folhasV5.ts
+- `cargasCaso.ts`: CLASSES_CARGA_NATUREZA, N_CLASSES_ADICIONAIS, classeAdicional, TODAS_CLASSES_CARGA, classeDoCaso, EntradaLegendaCarga, legendaDeCargas, cargasPorGrupoECaso, ZonaVentoLinha, LinhaVentoPavimento, ventoPorPavimento, tabelaVento, setasDeVento, metrosPorKNVento
+  - usado por: app/edificio/MemorialRelatorios.tsx, app/edificio/Planta.tsx, core/resultados/cargasCaso.test.ts, core/sheets/folhasV5.ts
 - `consultas.ts`: Desloc6, ConsultaNo, AlvoConsulta, consultaNo, MaximoPano, maximosPorPano, DeslocamentoPilar, deslocamentosPilares, MaximoCombinado, maximosPilaresCombinados, LinhaMalha, tabelaDeslocamentosMalha, csvDeslocamentos
   - usado por: app/edificio/AbaDeslocamentos.tsx, app/edificio/ConsultaNoUI.tsx, app/vista3d/Vista3D.tsx, core/resultados/resultados.test.ts
 - `deformada.ts`: Hipotese, hipoteseDeCaso, hipoteseDeCombinacao, hipotesesDisponiveis, DeslocamentosHipotese, deslocPorticoDoCaso, deslocamentosHipotese, PontoDeformado, cargasDistribuidasHipotese, pontoDaBarra, deslocResultante, deslocamentoMaximo, FRACAO_ESCALA_AUTO, PONTOS_POR_BARRA, PERIODO_ANIMACAO, escalaAutomatica, fatorAnimacao, EixoDeformado, eixosDeformados

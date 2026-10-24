@@ -1,10 +1,11 @@
 // Seções de relatório do memorial do edifício (frente R7g): listagem geral ampliada, forças de vento por pavimento,
 // taxa As/Ac dos pilares, quantitativos por pano e viga com índices por m² e, quando pedido, as verificações ELU por combinação.
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import type { AnaliseEdificio } from '../../core/building/analitico';
 import type { Dimensionamento } from '../../core/building/dimensionamento';
 import type { BuildingModel } from '../../core/building/types';
 import { listagemGeral, quantitativosDetalhados, taxasPilares, ventoPorPavimento } from '../../core/building/relatorios';
+import { tabelaVento, ventoPorPavimento as ventoPorPavimentoV5 } from '../../core/resultados/cargasCaso';
 
 const fmt = (v: number | undefined, d = 2) => (v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(d).replace('.', ','));
 const AJUSTE_TXT: Record<string, string> = { c: 'centro', n: 'face superior', s: 'face inferior', l: 'face direita', o: 'face esquerda', ne: 'canto sup. dir.', no: 'canto sup. esq.', se: 'canto inf. dir.', so: 'canto inf. esq.' };
@@ -52,6 +53,29 @@ export function MemorialVentoPavimentos({ b, analise }: { b: BuildingModel; anal
           <tbody>{c.forcas.map((f, i) => <tr key={i}><td className="l">{f.pavimento}</td><td>{f.zona}</td><td>{fmt(f.z)}</td><td>{fmt(f.largura)}</td><td>{fmt(f.vk)}</td><td>{fmt(f.F, 1)}</td><td>{fmt(f.Mz, 1)}</td></tr>)}</tbody>
         </table>
       ))}
+    </div>
+  );
+}
+
+/** Resumo do vento por pavimento e direção (V6e, K1.5.32): força e momento de torção resultantes, sem excentricidade, e a soma na base. */
+export function MemorialVentoResumo({ b, analise }: { b: BuildingModel; analise: AnaliseEdificio | null }) {
+  if (!analise?.vento) return null;
+  const t = tabelaVento(ventoPorPavimentoV5(b, analise));
+  if (!t.cabecalho.length) return null;
+  return (
+    <div data-memorial-vento-resumo={t.linhas.length}>
+      <h3>Resumo do vento por pavimento e direção</h3>
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Pavimento</th>{t.cabecalho.map((c) => <th key={c} colSpan={2}>{c}</th>)}</tr>
+          <tr>{t.cabecalho.map((c) => <Fragment key={c}><th>F (kN)</th><th>Mz (kN·m)</th></Fragment>)}</tr>
+        </thead>
+        <tbody>
+          {t.linhas.map((l) => <tr key={l.pavimento}><td className="l">{l.pavimento}</td>{l.valores.map((v, i) => <Fragment key={i}><td>{fmt(v.F, 1)}</td><td>{fmt(v.Mz, 1)}</td></Fragment>)}</tr>)}
+          <tr><td className="l"><b>Soma na base</b></td>{t.base.map((v, i) => <Fragment key={i}><td><b>{fmt(v.F, 1)}</b></td><td><b>{fmt(v.Mz, 1)}</b></td></Fragment>)}</tr>
+        </tbody>
+      </table>
+      <p>Somas das zonas de cada pavimento nos casos sem excentricidade; F com o sinal do sentido positivo do eixo da direção (x para 0° e 180°, y para 90° e 270°). As setas por zona aparecem na planta (camada Vento na planta).</p>
     </div>
   );
 }

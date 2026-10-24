@@ -72,6 +72,10 @@ interface PState {
   mostrarErros: boolean;
   /** Camada de armadura das lajes na planta: barras representativas inferiores, superiores ou nenhuma (não vai para o arquivo). */
   armaduraLajes: 'nenhuma' | 'inf' | 'sup' | 'ambas';
+  /** Cargas coloridas por caso (G, Q, W, E, H e casos adicionais) com legenda na planta (V6e, não vai para o arquivo). */
+  cargasPorCaso: boolean;
+  /** Caso de vento cujas forças por pavimento aparecem como setas na planta ('' = nenhum; V6e, não vai para o arquivo). */
+  ventoPlanta: string;
   /** Painel de edição da armadura das lajes (R7e): aberto sob a planta, não modal (não vai para o arquivo). */
   painelLajes: boolean;
   /** Ferramentas Zona de uniformização e Linha de dobra (R7e): forma, face, direção das barras (null = qualquer) e largura da faixa da linha (m). */
@@ -212,6 +216,8 @@ export const usePlanta = create<PState>((set) => ({
   tema: temaSalvo(),
   mostrarErros: true,
   armaduraLajes: 'nenhuma',
+  cargasPorCaso: true,
+  ventoPlanta: '',
   painelLajes: false,
   zonaForma: 'linha',
   zonaFace: 'sup',

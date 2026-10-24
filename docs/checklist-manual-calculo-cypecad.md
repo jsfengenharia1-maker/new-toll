@@ -14,18 +14,18 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.2 Análise realizada (págs. 4–5) | 10 | 8 | 1 | 0 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 43 | 6 | 0 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 67 | 11 | 1 | 13 |
-| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 41 | 4 | 0 | 14 |
+| 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 42 | 3 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 91 | 12 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 46 | 13 | 0 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 47 | 12 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **484** | **64** | **2** | **111** |
+| **Total** | **661** | **486** | **62** | **2** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 2 | 33 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 12 | 0 | 12 |
-| **Total** | **64** | **2** | **66** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 10 | 0 | 10 |
+| **Total** | **62** | **2** | **64** |
 
 ## Divergências de premissa
 
@@ -311,7 +311,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.5.29 | Coeficiente de forma (esbeltez e forma em planta: retangular, cilíndrica etc.). | Parcial | N | Ca informado (padrão 1,3); N2a: Ca automático pelo ábaco de baixa/alta turbulência (curvas por h/l1, interpolação) pronto, tabelas vazias: pontos da figura da NBR 6123 a fornecer pelo usuário; forma cilíndrica fora |
 | K1.5.30 | Coeficiente de rajada para locais expostos (vales, encostas). | Feito | — | S1 (topográfico) e S3 editáveis |
 | K1.5.31 | Força total por pavimento = pressão × área × coef. de forma × coef. de rajada; aplicada no centro geométrico do contorno do pavimento. | Feito | — | força no mestre (centro das lajes) com excentricidade ± 0,075·largura |
-| K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Parcial | V | forças por pavimento na aba Análise; [V5] núcleo: `ventoPorPavimento`, `tabelaVento` e `setasDeVento` (tabela por pavimento e direção e resultantes por zona); falta o desenho na planta e o memorial — V6e: setas de vento na planta (`setasDeVento`) e seção no memorial |
+| K1.5.32 | Força de vento por pavimento visível na tela e em relatório. | Feito | — | forças por pavimento na aba Análise; [V5] núcleo: `ventoPorPavimento`, `tabelaVento` e `setasDeVento` (tabela por pavimento e direção e resultantes por zona) — Feito 24/10/2026 [V6e]: camada Vento na planta (Planta.tsx, `desenharVentoPlanta`, lista no grupo Camadas da faixa Vista; escala `metrosPorKNVento`) e resumo por pavimento e direção no memorial (`MemorialVentoResumo`); e2e V6e |
 | K1.5.33 | Para cada norma a pressão é calculada automaticamente com dados próprios da norma. | Feito | — | pressão automática pela NBR 6123 |
 | K1.5.34 | Estruturas 3D integradas: sem cargas automáticas; cargas manuais em nós e barras, combináveis com as automáticas por casos adicionais. | Fora | — | estruturas 3D integradas |
 | K1.5.35 | Alerta ao importar do programa 3D: conferir combinatória e compatibilidade dos casos (sobretudo vento gerado por gerador de pórticos). | Fora | — | importação de outro programa 3D |
@@ -543,7 +543,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.8 | Coeficiente de engaste nas bordas consultável. | Feito | — | coeficientes de engaste das bordas consultáveis em Vínculos e listados no memorial (N1a) |
 | K1.11.9 | Vigas de aço: perfil dimensionado e perfis da série que atendem; vigas mistas: dimensionamento dos conectores. | Fora | — | vigas de aço e mistas |
 | K1.11.10 | Mudança de seção + "rearmar" com os mesmos esforços (só pórticos alterados ou todos); travamento de armadura para verificação posterior; recalcular se variações grandes; edição manual por conta do usuário com verificação por cores. | Feito | — | seção alterada (`calculo: 'secao'`) + “Rearmar alterados” ou “todos” com os mesmos esforços, sem nova análise; travamento da armadura com verificação em vermelho (R2); aviso ESFORCO_ANTIGO pede nova análise quando a rigidez variou muito (R7f) |
-| K1.11.11 | Cargas exibidas graficamente por caso (cores). | Parcial | V | cargas na planta com cor única; [V5] núcleo: `classeDoCaso` e `legendaDeCargas` (tokens `--carga-caso-*` por natureza e por caso adicional) e camadas CARGA-* nas pranchas; falta pintar o canvas da planta — V6e: pintar o canvas da planta por caso (`legendaDeCargas`) |
+| K1.11.11 | Cargas exibidas graficamente por caso (cores). | Feito | — | [V5] núcleo: `classeDoCaso` e `legendaDeCargas` (tokens `--carga-caso-*` por natureza e por caso adicional) e camadas CARGA-* nas pranchas — Feito 24/10/2026 [V6e]: canvas da planta pinta as cargas por caso com legenda (Planta.tsx, chave Cargas por caso na faixa Vista; tema P&B mantém cor única); e2e V6e |
 | | **Lajes de vigotas** | | | |
 | K1.11.12 | Envoltórias de momento e cortante por vigota (majoradas), negativos (nº, bitola, comprimento), momentos e cortantes nos extremos por metro. | Feito | — | diagramas de M e V por vigota com MRd/VRd1, negativos (n, φ, comprimento) e cortantes das pontas por grupo na janela da laje treliçada (R6) |
 | K1.11.13 | Igualação de momentos, cortantes e negativos por média, diferença % ou máximo; editáveis. | Feito | — | igualação de momentos, cortantes (sempre pelo máximo) e negativos das vigotas pelo máximo ou pela média, com diferença % editável (vigotaIgualacao, vigotaIgualacaoDif; R6) |

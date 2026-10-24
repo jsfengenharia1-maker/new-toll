@@ -66,6 +66,7 @@ export const flows = [
   m_V.f_V4,
   m_V.f_V5,
   m_V.f_V6d,
+  m_V.f_V6e,
   m_N.f_N2a,
   m_R_1.f_R7a,
   m_R_2.f_R7b,

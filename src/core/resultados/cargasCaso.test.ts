@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from '../building/analitico';
-import { TODAS_CLASSES_CARGA, cargasPorGrupoECaso, classeDoCaso, legendaDeCargas, setasDeVento, tabelaVento, ventoPorPavimento } from './cargasCaso';
+import { TODAS_CLASSES_CARGA, cargasPorGrupoECaso, classeDoCaso, legendaDeCargas, metrosPorKNVento, setasDeVento, tabelaVento, ventoPorPavimento } from './cargasCaso';
 
 function predio() {
   const s = new Sessao();
@@ -76,6 +76,13 @@ describe('vento por pavimento (K1.5.32)', () => {
     expect(s90[0].para[0]).toBeCloseTo(s90[0].de[0], 12);
     expect(s90[0].para[1] - s90[0].de[1]).toBeCloseTo(0.1 * w90.zonas[0].F, 9);
     expect(setasDeVento(l, 'inexistente', 1)).toEqual([]);
+  });
+
+  it('escala das setas: a maior força do caso fica com o comprimento pedido', () => {
+    const l = ventoPorPavimento(b, an)[0], w0 = l.casos.find((c) => c.direcao === 0 && c.exc === 0)!;
+    const k = metrosPorKNVento(l, w0.caso, 1.5), s = setasDeVento(l, w0.caso, k);
+    expect(Math.max(...s.map((x) => Math.hypot(x.para[0] - x.de[0], x.para[1] - x.de[1])))).toBeCloseTo(1.5, 9);
+    expect(metrosPorKNVento(l, 'inexistente', 1.5)).toBe(0);
   });
 
   it('sem vento ativo não há tabela', () => {

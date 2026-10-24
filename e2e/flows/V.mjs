@@ -658,3 +658,59 @@ export const f_V6d = {
       assert.equal(await jp.locator('svg[aria-label="Diagrama de esforços (pilar)"]').count(), 1);
     },
   };
+
+export const f_V6e = {
+    name: 'V6e: cargas coloridas por caso com legenda na planta, setas de vento por pavimento (camada Vento na planta) e resumo do vento no memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('carga.linha {"grupo": "g_3", "caso": "G", "valor": 5, "pontos": [[0, 0], [6, 0]]}');
+      await cmd('carga.ponto {"grupo": "g_3", "caso": "Q", "valor": 10, "ponto": [3, 2]}');
+      await cmd('carga.ponto {"grupo": "g_3", "caso": "Q", "valor": 4, "ponto": [2, 3]}');
+      const cv = page.locator('.planta-cv');
+      const leg = async () => cv.getAttribute('data-legenda-cargas');
+      await page.waitForFunction(() => (document.querySelector('.planta-cv')?.getAttribute('data-legenda-cargas') ?? '').includes('carga-caso-q:2'));
+      const l0 = await leg();
+      assert.ok(l0.includes('carga-caso-g:1') && l0.includes('carga-caso-q:2'), l0);
+
+      // chave Cargas por caso: desligada, a legenda some e a cor volta a ser única
+      await faixaAba(page, 'Vista');
+      const chave = page.getByRole('checkbox', { name: 'Cargas por caso' });
+      await chave.uncheck();
+      await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-legenda-cargas') === '');
+      await chave.check();
+      await page.waitForFunction(() => (document.querySelector('.planta-cv')?.getAttribute('data-legenda-cargas') ?? '').includes('carga-caso-g'));
+
+      // sem cálculo não há vento por pavimento para desenhar
+      assert.equal(await page.getByLabel('Vento na planta', { exact: true }).count(), 0);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // setas de vento: uma por zona do pavimento aberto
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta', exact: true }).click();
+      await faixaAba(page, 'Vista');
+      const vento = page.getByLabel('Vento na planta', { exact: true });
+      await vento.waitFor();
+      const casos = await vento.locator('option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+      assert.ok(casos.length >= 4, casos.join(','));
+      assert.equal(await cv.getAttribute('data-vento-setas'), '0');
+      await vento.selectOption(casos[0]);
+      await page.waitForFunction(() => Number(document.querySelector('.planta-cv')?.getAttribute('data-vento-setas')) >= 1);
+      await vento.selectOption('');
+      await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-vento-setas') === '0');
+
+      // memorial: resumo do vento por pavimento e direção, com a soma na base
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const r = memo.locator('[data-memorial-vento-resumo]');
+      await r.waitFor();
+      assert.ok(+(await r.getAttribute('data-memorial-vento-resumo')) >= 1);
+      assert.match(await r.innerText(), /Soma na base/);
+    },
+  };

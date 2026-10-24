@@ -53,7 +53,7 @@ import { resumoVigasCurvas } from '../../core/building/curvas';
 import { resumoVigasComuns } from '../../core/building/vigaComum';
 import { FACE_POS_LAJE, linhasPosicoesLaje, rotuloPosicaoLaje, TIPO_POS_LAJE } from './DetalhamentoLaje';
 import { FACE_BARRA, linhasBarras, linhasEstribos, perdasDoResumo, somarResumosAco, TIPO_BARRA } from './Detalhamento';
-import { MemorialEluPorCombinacao, MemorialListagemGeral, MemorialQuantitativosDetalhados, MemorialTaxasPilares, MemorialVentoPavimentos } from './MemorialRelatorios';
+import { MemorialEluPorCombinacao, MemorialListagemGeral, MemorialQuantitativosDetalhados, MemorialTaxasPilares, MemorialVentoPavimentos, MemorialVentoResumo } from './MemorialRelatorios';
 import { emendasPilar, linhasBarrasPilar, linhasEstribosPilar, TRANSICAO } from './DetalhamentoPilar';
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -312,6 +312,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
             {analise?.segundaOrdem
               ? <p data-memorial-2ordem="pDelta">γz com rigidez reduzida (vigas 0,4·Eci·Ic; pilares 0,8·Eci·Ic), só informado: os efeitos globais de 2ª ordem vêm do <b>processo P-Δ</b> (opção de cálculo). Cada combinação ELU é resolvida no pórtico espacial com a mesma rigidez reduzida{opc.modeloGlobal === 1 ? ' (lajes 0,3·Eci·Ic)' : ''} somando a matriz geométrica dos pilares (parcela P-Δ de corpo rígido, N/L), com as normais atualizadas a cada iteração até a convergência dos deslocamentos (tolerância 10⁻⁵); as forças fictícias −K_G·u finais entram no modelo de cálculo como um caso por combinação, sem a ampliação 0,95·γz. {analise.segundaOrdem.combinacoes.length} combinações; maior amplificação dos deslocamentos horizontais {fmt(analise.segundaOrdem.amplificacaoMax, 3)}; até {analise.segundaOrdem.iteracoesMax} iterações{analise.segundaOrdem.combinacoes.some((c) => c.erro) ? `; sem convergência (instabilidade) em: ${analise.segundaOrdem.combinacoes.filter((c) => c.erro).map((c) => c.nome).join('; ')}` : '; todas convergiram'}. Validação: igual ao P-Δ do Pórtico 2D num pórtico plano e ao OpenSees (transformação P-Delta) num pórtico espacial com diafragma.</p>
               : <p data-memorial-2ordem="gamaZ">γz com rigidez reduzida (vigas 0,4·Eci·Ic; pilares 0,8·Eci·Ic). Entre 1,1 e 1,3, o vento das ELU é majorado por 0,95·γz. O processo P-Δ é opção de cálculo (alternativa ao γz).</p>}
+            <MemorialVentoResumo b={b} analise={analise ?? null} />
             <MemorialVentoPavimentos b={b} analise={analise ?? null} />
             {desloc.length > 0 && (<>
               <h3>Deslocamentos laterais do vento</h3>

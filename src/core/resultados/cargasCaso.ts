@@ -102,3 +102,9 @@ export function setasDeVento(l: LinhaVentoPavimento, caso: string, metrosPorKN: 
   if (!c) return [];
   return c.zonas.filter((z) => z.ponto).map((z) => ({ de: z.ponto!, para: [z.ponto![0] + z.vetor[0] * metrosPorKN, z.ponto![1] + z.vetor[1] * metrosPorKN] as [number, number], F: z.F }));
 }
+
+/** Escala das setas (m por kN) para que a maior força do caso no pavimento tenha a seta de `comprimento` (m); 0 sem força. */
+export function metrosPorKNVento(l: LinhaVentoPavimento, caso: string, comprimento: number): number {
+  const c = l.casos.find((x) => x.caso === caso), maxF = Math.max(0, ...(c?.zonas ?? []).map((z) => Math.abs(z.F)));
+  return maxF > 1e-9 ? comprimento / maxF : 0;
+}

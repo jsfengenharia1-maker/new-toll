@@ -220,6 +220,7 @@ function Pranchas() {
 function Vista() {
   const pl = usePlanta();
   const dim = useBuilding((s) => s.dim);
+  const an = useBuilding((s) => s.analise);
   const b = useBuilding((s) => s.sessao.modelo);
   const nivelFund = pl.pavimento === 'fundacao';
   return (
@@ -247,6 +248,10 @@ function Vista() {
           {!!dim?.puncao?.length && <option value="puncao">Punção e cortante</option>}
           </Dropdown>
           <label className="check small" title="Pinta de vermelho (erro) e amarelo (aviso) os elementos reprovados no dimensionamento"><Input type="checkbox" checked={pl.mostrarErros} onChange={(e) => pl.set({ mostrarErros: e.target.checked })} /> <span>Mostrar erros</span></label>
+          <label className="check small" title="Pinta as cargas pela cor do caso (permanente, variável, vento, excepcional, adicionais) e mostra a legenda no canto da planta"><Input type="checkbox" checked={pl.cargasPorCaso} onChange={(e) => pl.set({ cargasPorCaso: e.target.checked })} /> <span>Cargas por caso</span></label>
+          {!!an?.vento && !nivelFund && <Dropdown aria-label="Vento na planta" title="Setas das forças de vento por zona do pavimento aberto, para o caso escolhido (depois de calcular)" value={pl.ventoPlanta} onChange={(e) => pl.set({ ventoPlanta: e.target.value })}>
+            <option value="">Vento na planta: não</option>{an.vento.casos.map((c) => <option key={c.nome} value={c.nome}>Vento na planta: {c.nome}</option>)}
+          </Dropdown>}
           <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
           {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
           {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
