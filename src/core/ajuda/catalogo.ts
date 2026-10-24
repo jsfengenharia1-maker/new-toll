@@ -1,6 +1,7 @@
 // Catálogo de ajudas do modo de ajuda (F1) e do guia rápido (L4: C1.8–C1.13, C6.2). Textos próprios do projeto.
 // As ajudas das opções vêm de OPCOES_INFO (descrição, fonte e padrões), sem repetir o texto.
 import { OPCOES_INFO, padraoDe, type OpcaoInfo } from '../building/opcoes';
+import { CASOS_GUIA_PLANOS, LIMITACOES_PLANOS, SEQUENCIA_PLANOS } from '../building/planos';
 
 export type GrupoAjuda = 'abas' | 'ferramentas' | 'barras' | 'janelas' | 'opcoes';
 export interface Ajuda { id: string; grupo: GrupoAjuda; titulo: string; texto: string; ver?: string[] }
@@ -77,7 +78,9 @@ export const AJUDAS: Ajuda[] = [
   A('barra:camadas', 'barras', 'Camadas e textos', 'Liga ou desliga camadas da planta e escolhe, de forma permanente na obra, os tipos de texto de referência visíveis (nomes, seções, cotas, cargas e níveis).'),
   A('barra:grupos', 'barras', 'Grupos de pavimentos', 'Pavimentos iguais formam um grupo e compartilham a planta. “Copiar de outro grupo” traz o conteúdo de um grupo; “Unir” reúne pavimentos num grupo; as áreas do grupo aparecem no quadro de áreas.'),
   A('barra:pavimentos', 'barras', 'Pavimentos', 'Lista de pavimentos com nome, cota e grupo. +1 repete o pavimento no mesmo grupo.'),
+  A('barra:planos', 'barras', 'Planos inclinados', `Panos e vigas inclinados seguem um plano do grupo (grupo Planos da doca Propriedades; Novo plano na faixa). Sequência recomendada: ${SEQUENCIA_PLANOS.slice(0, 4).map((t, i) => `${i + 1}) ${t}`).join(' ')} Casos-guia: ${CASOS_GUIA_PLANOS.map((c) => `${c.titulo}: ${c.texto}`).join(' ')} Limitações: ${LIMITACOES_PLANOS.join(' ')} Exemplos prontos em Obras recentes: cobertura em duas águas, mansarda com águas-furtadas, rampa de garagem e rampa entre pavimentos.`, ['janela:novoPlano']),
   // janelas
+  A('janela:novoPlano', 'janelas', 'Novo plano', `Define o plano do grupo por três pontos (cada um com o desnível), por reta horizontal mais inclinação ou por linha de máxima declividade, em % ou graus; depois o plano é atribuído aos panos e vigas. Sequência: ${SEQUENCIA_PLANOS.slice(0, 4).join(' ')} ${SEQUENCIA_PLANOS[4]} ${SEQUENCIA_PLANOS[5]}`, ['barra:planos']),
   A('janela:geral', 'janelas', 'Janelas de diálogo', 'Fecham com Esc, clique fora ou o botão Fechar. O botão de ajuda da janela explica o que ela faz; o de informação resume o conteúdo.'),
   A('janela:copiarGrupo', 'janelas', 'Copiar de outro grupo', 'Escolha o grupo de origem (azul) e o de destino (verde), os tipos de elemento e o modo: somar ignora o que já existe igual; substituir apaga antes o que o destino tem dos tipos escolhidos. A operação se desfaz em um passo.'),
   A('janela:unirPavimentos', 'janelas', 'Unir pavimentos', 'Reúne os pavimentos escolhidos num grupo. O grupo que ficar sem pavimentos é removido com as vigas, lajes e cargas dele; a contagem aparece antes de confirmar.'),

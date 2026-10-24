@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 82 | 1 | 0 | 25 |
-| 7. Lajes | 195 | 116 | 12 | 0 | 67 |
+| 7. Lajes | 195 | 121 | 7 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **554** | **20** | **3** | **186** |
+| **Total** | **763** | **559** | **15** | **3** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 7 | 0 | 7 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 2 | 0 | 2 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -474,7 +474,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.58 | Uso para cargas predominantemente estáticas, incluindo galpões com cargas móveis. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.59 | Limites verificados: espessura total da laje, espessura de concreto sobre as nervuras da chapa e altura mínima dos conectores (vigas mistas). | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.1.3 Lajes inclinadas e desníveis** | | | |
-| C7.60 | Fluxo: lançar tudo na horizontal e depois atribuir inclinações ou desníveis. | Parcial | E | E3f: lançar na horizontal e atribuir o plano depois (grupo Planos da faixa e da doca); ajuda F1 com `SEQUENCIA_PLANOS` ainda não existe [E3f] — E5d: ajuda F1 da sequência (mesma pendência do C7.72) |
+| C7.60 | Fluxo: lançar tudo na horizontal e depois atribuir inclinações ou desníveis. | Feito | — | E3f: lançar na horizontal e atribuir o plano depois (grupo Planos da faixa e da doca); E5d: CASOS_GUIA_PLANOS, LIMITACOES_PLANOS e SEQUENCIA_PLANOS (planos.ts) na ajuda F1 (catalogo.ts: barra:planos e janela:novoPlano, botão ? do Novo plano), no grupo Planos da doca e no memorial dos planos (data-limitacoes-planos); e2e E5d |
 | C7.61 | Lista de planos com nome editável, indicação de plano já atribuído, cor por plano e valores (cota ou inclinação). | Feito | — | E3f: lista de planos no Navegador e grupo Planos (nome, cor por plano na planta, valores em cota ou % e graus) [E3f] |
 | C7.62 | Atribuir um plano a panos do grupo, que passam a ter a cor do plano. | Feito | — | E3f: atribuir e retirar plano dos panos (Atribuir plano, Retirar plano) com a cor do plano na planta (--plano-N) [E3f] |
 | C7.63 | Plano inclinado por três pontos com desnível de cada um em relação ao pavimento. | Feito | — | E3f: três pontos com desnível de cada um na definição na planta e na janela Novo plano (plano.criar) [E3f] |
@@ -485,13 +485,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.68 | Editar plano numericamente. | Feito | — | E3f: edição numérica no grupo Planos (tipo, pontos, desnível, inclinação, unidade; plano.editar) [E3f] |
 | C7.69 | Seta indicando o sentido descendente da máxima declividade no pano. Aviso quando as nervuras não são paralelas ou perpendiculares a ela. | Feito | — | E3f: seta de declividade na planta (setaDeclividade) e aviso PLANO_NERVURAS nos diagnósticos [E3f] |
 | C7.70 | Incoerência de inclinação entre vigas e pano adjacente detectada (vigas em vermelho) e corrigida por clique, copiando a inclinação do pano. | Feito | — | E3f: vigas incoerentes em vermelho (PLANO_VIGA) e Copiar inclinação do pano (plano.corrigirVigas) no grupo Planos [E3f] |
-| C7.71 | Casos-guia: só panos inclinados (desníveis positivos), pano horizontal numa extremidade (desníveis negativos no grupo superior com vigas comuns), horizontais nas duas extremidades (rampa num grupo intermediário) e sobreposições na projeção (um grupo por cota). | Parcial | E | E3f: casos-guia em SEQUENCIA_PLANOS (núcleo) e testes do telhado e da rampa em grupo intermediário; E5d: casos-guia na interface e na ajuda F1 (`src/core/ajuda/catalogo.ts`, com o teste de contagem) |
-| C7.72 | Sequência recomendada: grupos, panos horizontais, vigas comuns, panos a inclinar (vigas de transição ajustadas às interseções do gabarito), planos e atribuição. | Parcial | E | E3f: sequência recomendada em SEQUENCIA_PLANOS (núcleo); E5d: ajuda F1 com a sequência (`src/core/ajuda/catalogo.ts`, teste de contagem) |
+| C7.71 | Casos-guia: só panos inclinados (desníveis positivos), pano horizontal numa extremidade (desníveis negativos no grupo superior com vigas comuns), horizontais nas duas extremidades (rampa num grupo intermediário) e sobreposições na projeção (um grupo por cota). | Feito | — | E3f: casos-guia em SEQUENCIA_PLANOS e testes do telhado e da rampa em grupo intermediário; E5d: CASOS_GUIA_PLANOS, LIMITACOES_PLANOS e SEQUENCIA_PLANOS (planos.ts) na ajuda F1 (catalogo.ts: barra:planos e janela:novoPlano, botão ? do Novo plano), no grupo Planos da doca e no memorial dos planos (data-limitacoes-planos); e2e E5d |
+| C7.72 | Sequência recomendada: grupos, panos horizontais, vigas comuns, panos a inclinar (vigas de transição ajustadas às interseções do gabarito), planos e atribuição. | Feito | — | E3f: sequência recomendada em SEQUENCIA_PLANOS; E5d: CASOS_GUIA_PLANOS, LIMITACOES_PLANOS e SEQUENCIA_PLANOS (planos.ts) na ajuda F1 (catalogo.ts: barra:planos e janela:novoPlano, botão ? do Novo plano), no grupo Planos da doca e no memorial dos planos (data-limitacoes-planos); e2e E5d |
 | C7.73 | Projeção horizontal da viga pelo eixo ou pela face, com a face superior desenhada em linha contínua (cumeeira mais larga, rincão mais estreito). | Feito | — | E3f: face superior das vigas planas em traço contínuo na planta (faceSuperiorDaViga) [E3f] |
 | C7.74 | Rotação da seção de vigas horizontais (cumeeira, borda) para acompanhar o pano, só em vigas planas. Sem coincidência com a interseção, não gira e ganha altura para os dois panos. | Feito | — | E3f: seção das vigas planas gira com o pano (secaoNoPlano) e face superior desenhada na planta [E3f] |
-| C7.75 | Limitações: pano inclinado não se apoia em muro, e não há viga comum com o coroamento de muro. | Parcial | E | E3f: aviso PLANO_MURO (núcleo, diagnósticos); E5d: texto da limitação na interface e no memorial dos planos |
+| C7.75 | Limitações: pano inclinado não se apoia em muro, e não há viga comum com o coroamento de muro. | Feito | — | E3f: aviso PLANO_MURO (núcleo, diagnósticos); E5d: CASOS_GUIA_PLANOS, LIMITACOES_PLANOS e SEQUENCIA_PLANOS (planos.ts) na ajuda F1 (catalogo.ts: barra:planos e janela:novoPlano, botão ? do Novo plano), no grupo Planos da doca e no memorial dos planos (data-limitacoes-planos); e2e E5d |
 | C7.76 | Na planta de formas, valor da inclinação junto ao texto de desnível, com croqui opcional do pavimento (pilares, eixos de vigas, setas de inclinação) em quadro de tamanho configurável. | Feito | — | E3f: textoInclinacao na planta; E5a: nas formas, inclinação sob o rótulo do pano (prancha.ts) e croqui do pavimento (croquiPavimento, sheets/croquiPrancha.ts primitivasCroqui) só com lajes inclinadas, lado configurável pela opção armacao.croqui (mm, padrão 60; campo Croqui em Opções de armação e locação); premissa e5a-pranchas-inclinadas |
-| C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Parcial | E | E3f: exemplo cobertura em duas águas (criarExemplo('telhado'), Obras recentes) calculado e com memorial dos planos (e2e E3f); mansarda, rampa de garagem e rampa entre pavimentos sem exemplo na interface (rampa de garagem só no teste) [E3f] — E5d: exemplos de mansarda com águas-furtadas, de rampa de garagem e de rampa entre pavimentos em `criarExemplo` (a rampa de garagem só existe no teste) |
+| C7.77 | Exemplos: telhado de duas águas, mansarda com águas-furtadas, rampa de garagem para subsolo (grupo intermediário, pilares próprios, muro na base, viga comum no topo) e rampa entre pavimentos de estacionamento. Curvas de rampa de preferência em plano horizontal. | Feito | — | E3f: exemplo cobertura em duas águas (criarExemplo('telhado')); E5d: criarExemplo('mansarda'), ('rampaGaragem') e ('rampaPavimentos') em exemplos.ts, listados em Obras recentes e Nova obra; testes em planos.test.ts (análise, dimensionamento, equilíbrio, tempo) e e2e E5d |
 | | **7.1.4 Aberturas** | | | |
 | C7.78 | Aberturas retangulares com escolha do tipo de viga de borda, nos quatro modos a seguir. | Feito | — | L5 núcleo: `laje.aberturaRetangular { borda: nenhuma / chata / alta }` (vigas de borda traçadas, `Laje.furosBorda`; 15 × 40 cm a confirmar); interface: cartão 03; memorial: cartão 06 — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C7.79 | Abertura retangular paralela a uma viga escolhida (dois cantos internos opostos). | Feito | — | L5 núcleo: `laje.aberturaRetangular { modo: viga }`; interface: cartão 03 — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
