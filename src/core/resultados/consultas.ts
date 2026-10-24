@@ -135,14 +135,14 @@ export function maximosPorRadier(b: BuildingModel, an: AnaliseEdificio): MaximoB
 export interface DeslocamentoPilar {
   pilar: string; pavimento: string; pavimentoNome: string; z: number; altura: number;
   /** Topo do lance: ux, uy (m) por caso simples; distorção = deslocamento relativo ao pé do lance / altura. */
-  casos: Record<string, { ux: number; uy: number; dx: number; dy: number }>;
+  casos: Record<string, { ux: number; uy: number; dx: number; dy: number; /** distorção do lance por direção = Δ ÷ altura (V7c) */ gx: number; gy: number }>;
 }
 
 /**
  * Lances de pilar do pórtico: pé (nó i da primeira barra) e topo (nó j da última). Lance dividido por vigas em desnível
  * (E5m, `BarraPortico.trecho`): as barras consecutivas do mesmo pilar e pavimento formam um lance só.
  */
-function lancesDoPortico(an: AnaliseEdificio): { t: AnaliseEdificio['portico']['barras'][number]; base: number; topo: number; zBase: number; zTopo: number }[] {
+export function lancesDoPortico(an: AnaliseEdificio): { t: AnaliseEdificio['portico']['barras'][number]; base: number; topo: number; zBase: number; zTopo: number }[] {
   const pm = an.portico, nb = Math.min(pm.barras.length, pm.modelo.barras.length), out: ReturnType<typeof lancesDoPortico> = [];
   for (let bi = 0; bi < nb; bi++) {
     const t = pm.barras[bi];
@@ -169,7 +169,8 @@ export function deslocamentosPilares(b: BuildingModel, an: AnaliseEdificio): Des
     const casos: DeslocamentoPilar['casos'] = {};
     for (const [nome, u] of vet) {
       const ux = u[topo * 6], uy = u[topo * 6 + 1];
-      casos[nome] = { ux, uy, dx: ux - u[base * 6], dy: uy - u[base * 6 + 1] };
+      const dx = ux - u[base * 6], dy = uy - u[base * 6 + 1];
+      casos[nome] = { ux, uy, dx, dy, gx: altura > 0 ? dx / altura : 0, gy: altura > 0 ? dy / altura : 0 };
     }
     out.push({ pilar: t.ref, pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: zTopo, altura, casos });
   }
@@ -179,8 +180,8 @@ export function deslocamentosPilares(b: BuildingModel, an: AnaliseEdificio): Des
 export interface MaximoCombinado {
   pavimento: string; pavimentoNome: string; z: number;
   /** Maior |ux| e |uy| do topo dos pilares entre as combinações (não simultâneos: cada direção tem a sua combinação) e a distorção. */
-  x: { valor: number; combinacao: string; pilar: string; distorcao: number };
-  y: { valor: number; combinacao: string; pilar: string; distorcao: number };
+  x: { valor: number; combinacao: string; pilar: string; distorcao: number; /** combinação e pilar da distorção máxima (V7c) */ combinacaoDistorcao: string; pilarDistorcao: string };
+  y: { valor: number; combinacao: string; pilar: string; distorcao: number; combinacaoDistorcao: string; pilarDistorcao: string };
 }
 
 /**
@@ -195,13 +196,13 @@ export function maximosPilaresCombinados(b: BuildingModel, an: AnaliseEdificio, 
   for (const { t, base, topo, zBase, zTopo } of lancesDoPortico(an)) {
     const altura = zTopo - zBase;
     const pav = pavs.find((p) => p.id === t.pavimento);
-    const r = out.get(t.pavimento) ?? { pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: zTopo, x: { valor: 0, combinacao: '', pilar: '', distorcao: 0 }, y: { valor: 0, combinacao: '', pilar: '', distorcao: 0 } };
+    const r = out.get(t.pavimento) ?? { pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: zTopo, x: { valor: 0, combinacao: '', pilar: '', distorcao: 0, combinacaoDistorcao: '', pilarDistorcao: '' }, y: { valor: 0, combinacao: '', pilar: '', distorcao: 0, combinacaoDistorcao: '', pilarDistorcao: '' } };
     out.set(t.pavimento, r);
     combs.forEach((c, k) => {
       (['x', 'y'] as const).forEach((eixo, e) => {
         const v = Math.abs(us[k][topo * 6 + e]), rel = Math.abs(us[k][topo * 6 + e] - us[k][base * 6 + e]);
         if (v > r[eixo].valor) r[eixo] = { ...r[eixo], valor: v, combinacao: c.nome, pilar: t.ref };
-        if (altura > 0 && rel / altura > r[eixo].distorcao) r[eixo].distorcao = rel / altura;
+        if (altura > 0 && rel / altura > r[eixo].distorcao) r[eixo] = { ...r[eixo], distorcao: rel / altura, combinacaoDistorcao: c.nome, pilarDistorcao: t.ref };
       });
     });
   }

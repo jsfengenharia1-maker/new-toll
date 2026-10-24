@@ -1050,3 +1050,63 @@ export const f_V7e = {
       assert.match(await dr.locator('tbody tr').first().innerText(), /-\d+,\d\d/);
     },
   };
+
+export const f_V7c = {
+    name: 'V7c: seção circular no estado da seção, esforços do pilar-parede por hipótese e vento por direção, distorção e vento na malha',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      await cmd('pilarParede.tipo {"nome": "Reta 4 m", "vertices": [[0, 0], [4, 0]], "esq": 0.1, "dir": 0.1}');
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposPilarParede?.length === 1);
+      await cmd('pilarParede.inserir {"tipo": "' + (await modelo()).tiposPilarParede[0].id + '", "x": 0, "y": 0}');
+      await cmd('lote {"comandos": [' + [[0, 5], [4, 5], [7, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "circ", "d": 0.4}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[1, 0], [7, 0]], [[0, 5], [4, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [4, 0], [4, 5], [0, 5]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 120000 });
+
+      // ---- estado da seção do pilar circular
+      await abas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+      const janela = page.locator('[data-esf-janela="1"]');
+      await janela.waitFor();
+      await janela.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption('pilar');
+      await janela.locator('[data-esf-secao]').waitFor();
+      assert.equal(await janela.locator('svg[aria-label^="Seção do concreto"] circle.esf-sec-conc').count(), 1);
+      assert.ok(await janela.locator('svg[aria-label^="Seção do concreto"] circle.esf-barra-aco, svg[aria-label^="Seção do concreto"] circle.esf-barra-aco-esc').count() >= 6);
+
+      // ---- pilar-parede por hipótese
+      await janela.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption('pilarParede');
+      await janela.locator('[data-esf-pp]').waitFor();
+      const lerPP = async () => JSON.parse(await janela.locator('[data-esf-pp]').getAttribute('data-esf-pp'));
+      const e0 = await lerPP();
+      assert.equal(e0.tipo, 'pilarParede');
+      assert.equal(e0.envoltoria, true);
+      assert.ok(e0.lances >= 2 && e0.max > e0.min, JSON.stringify(e0));
+      assert.equal(await janela.locator('svg[aria-label^="Diagrama do pilar-parede"] polyline.esf-curva-min').count(), 1);
+      await janela.getByLabel(/^Hipótese \(janela 1\)/).selectOption('caso:G');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pp]').getAttribute('data-esf-pp')).hipotese === 'caso:G');
+      const eG = await lerPP();
+      assert.equal(eG.envoltoria, false);
+      assert.ok(eG.min < 0 && eG.max <= e0.max + 1e-6, JSON.stringify([eG, e0]));
+      assert.equal(await janela.locator('svg[aria-label^="Diagrama do pilar-parede"] polyline.esf-curva-min').count(), 0);
+      await janela.getByLabel(/^Grandeza do pilar-parede \(janela 1\)/).selectOption('Mo');
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pp]').getAttribute('data-esf-pp')).grandeza === 'Mo');
+      await janela.locator('[data-esf-pp-base]').waitFor();
+
+      // ---- vento por direção, distorção e vento na malha
+      await abas.getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      const vd = page.locator('[data-desloc-vento]');
+      await vd.waitFor();
+      assert.ok(Number(await vd.getAttribute('data-desloc-vento')) >= 4);
+      assert.ok((await vd.locator('tbody tr').count()) >= 8);
+      assert.match(await vd.locator('tbody tr').first().innerText(), /\d,\d\d\d‰/);
+      await page.locator('[data-desloc-vento-topo]').waitFor();
+      assert.ok(Number(await page.locator('[data-desloc-vento-panos]').getAttribute('data-desloc-vento-panos')) >= 1);
+      await page.getByRole('button', { name: 'Baixar CSV do vento na malha', exact: true }).waitFor();
+      await page.getByRole('columnheader', { name: /^Pilar e combinação da distorção x/ }).waitFor();
+    },
+  };

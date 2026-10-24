@@ -13,12 +13,13 @@ import { Button, Check, Group, Hint, Select } from '../ui';
 import { useEdifUI } from './uiStore';
 import { useIso } from './isovaloresStore';
 import { useEsforcos, type JanelaEsforco, type TipoElementoEsforco } from './esforcosStore';
+import { EsforcosPilarParede } from './EsforcosPilarParedeUI';
 
 export const GRANDEZAS: { v: Componente; label: string; unidade: string }[] = [
   { v: 'Mz', label: 'Momento no plano (M)', unidade: 'kN·m' }, { v: 'Vy', label: 'Cortante (V no plano)', unidade: 'kN' }, { v: 'T', label: 'Torção (T)', unidade: 'kN·m' },
   { v: 'N', label: 'Normal (N)', unidade: 'kN' }, { v: 'My', label: 'Momento fora do plano', unidade: 'kN·m' }, { v: 'Vz', label: 'Cortante fora do plano', unidade: 'kN' },
 ];
-const TIPOS: { v: TipoElementoEsforco; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'diagonal', label: 'Diagonal' }, { v: 'vigotas', label: 'Vigotas' }, { v: 'alveolar', label: 'Alveolares' }];
+const TIPOS: { v: TipoElementoEsforco; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'diagonal', label: 'Diagonal' }, { v: 'pilarParede', label: 'Pilar-parede' }, { v: 'vigotas', label: 'Vigotas' }, { v: 'alveolar', label: 'Alveolares' }];
 const VISTAS: { v: VistaVigota; label: string }[] = [{ v: 'momentos', label: 'Momentos / tipos' }, { v: 'cortantes', label: 'Cortantes / treliça' }, { v: 'armaduraInferior', label: 'Armadura inferior (moldada)' }];
 const LARG = 640, ALT = 220, PAD = 28;
 const f2 = (v: number) => v.toFixed(2).replace('.', ',');
@@ -68,9 +69,10 @@ function SecaoSvg({ n, e }: { n: number; e: EstadoDoElemento }) {
   const u = s.normal, ln = s.s0 === null ? null : { cx: e.b / 2 + s.s0 * u[0], cy: e.h / 2 + s.s0 * u[1] };
   return (
     <svg className="esf-svg" role="img" aria-label={`Seção do concreto (janela ${n})`} viewBox={`0 0 ${W + 2 * m} ${H + 2 * m}`}>
-      <rect className="esf-sec-conc" x={m} y={m} width={W} height={H} />
+      {e.forma === 'circ' ? <circle className="esf-sec-conc" cx={m + W / 2} cy={m + H / 2} r={W / 2} /> : <rect className="esf-sec-conc" x={m} y={m} width={W} height={H} />}
       <svg x={m} y={m} width={W} height={H} overflow="hidden">
-        {ln && <line className="esf-sec-ln" x1={(ln.cx - u[1] * 5) * esc} y1={(e.h - (ln.cy + u[0] * 5)) * esc} x2={(ln.cx + u[1] * 5) * esc} y2={(e.h - (ln.cy - u[0] * 5)) * esc} />}
+        {e.forma === 'circ' && <clipPath id={`esf-clip-${n}`}><circle cx={W / 2} cy={H / 2} r={W / 2} /></clipPath>}
+        {ln && <line className="esf-sec-ln" clipPath={e.forma === 'circ' ? `url(#esf-clip-${n})` : undefined} x1={(ln.cx - u[1] * 5) * esc} y1={(e.h - (ln.cy + u[0] * 5)) * esc} x2={(ln.cx + u[1] * 5) * esc} y2={(e.h - (ln.cy - u[0] * 5)) * esc} />}
       </svg>
       {s.barras.map((q, i) => <circle key={i} className={q.escoa ? 'esf-barra-aco-esc' : 'esf-barra-aco'} cx={X(q.x)} cy={Y(q.y)} r={Math.max(2.5, Math.sqrt(q.A / Math.PI) * esc)} />)}
     </svg>
@@ -89,6 +91,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
     if (j.tipo === 'pilar') return b.pilares.map((p) => ({ v: p.id, label: p.nome }));
     if (j.tipo === 'diagonal') return (an.inclinadas ?? []).map((i) => ({ v: i.id, label: i.nome }));
     if (j.tipo === 'alveolar') return (dim?.alveolares ?? []).map((r) => ({ v: r.laje, label: r.nome }));
+    if (j.tipo === 'pilarParede') return (dim?.pilaresParede ?? []).map((r) => ({ v: r.id, label: r.nome }));
     return (dim?.vigotas ?? []).map((r) => ({ v: r.laje, label: r.nome }));
   }, [j.tipo, b, an, dim]);
   const elemento = elementos.find((e) => e.v === j.elemento)?.v ?? elementos[0]?.v ?? '';
@@ -138,7 +141,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
           <Select label={`Tipo de elemento (janela ${n})`} value={j.tipo} options={TIPOS} onChange={(v) => mudar(n, { tipo: v, elemento: '' })} />
           <Select label={`Elemento (janela ${n})`} value={elemento} options={elementos} onChange={(v) => mudar(n, { elemento: v })} />
           <Select label={`Hipótese (janela ${n})`} value={hip.id} options={hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))} onChange={(v) => mudar(n, { hipotese: v })} />
-          {j.tipo !== 'vigotas' && j.tipo !== 'alveolar' && <Select label={`Grandeza (janela ${n})`} value={j.grandeza} options={GRANDEZAS.map((g) => ({ v: g.v, label: g.label }))} onChange={(v) => mudar(n, { grandeza: v })} />}
+          {j.tipo !== 'vigotas' && j.tipo !== 'alveolar' && j.tipo !== 'pilarParede' && <Select label={`Grandeza (janela ${n})`} value={j.grandeza} options={GRANDEZAS.map((g) => ({ v: g.v, label: g.label }))} onChange={(v) => mudar(n, { grandeza: v })} />}
           {j.tipo === 'viga' && pavs.length > 1 && <Select label={`Pavimento (janela ${n})`} value={pav} options={pavs.map((p) => ({ v: p, label: b.pavimentos.find((x) => x.id === p)?.nome ?? p }))} onChange={(v) => mudar(n, { pavimento: v })} />}
         </div>
         {!elementos.length && <p className="hint">Nenhum elemento calculado deste tipo.</p>}
@@ -156,6 +159,7 @@ function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
             <p className="hint small">{estado.rotulo}. Domínio {estado.estado.dominio}; εc = {f2(estado.estado.epsTopo * 1000)}‰; linha neutra x = {estado.estado.x === null ? '—' : f2(estado.estado.x * 100)} cm (x/d = {estado.estado.xd === null ? '—' : f2(estado.estado.xd)}); MRd = {f2(estado.estado.MRd)} kN·m.</p>
           </div>
         )}
+        {j.tipo === 'pilarParede' && <EsforcosPilarParede n={n} j={j} pp={dim?.pilaresParede?.find((r) => r.id === elemento)} hip={hip} mudar={(p) => mudar(n, p)} />}
         {j.tipo === 'alveolar' && faixaAlv && <DiagramaFaixa n={n} f={faixaAlv} />}
         {j.tipo === 'alveolar' && (
           <p className="hint small">Faixa de 1 m de largura de maior momento na hipótese escolhida (só os casos verticais atuam na grelha). Lajes mistas não fazem parte do programa. <Button variant="mini" onClick={() => { useIso.getState().nova({ grandeza: 'Mx', hipotese: hip.tipo === 'envoltoria' ? '' : hip.id }); useEdifUI.getState().set({ aba: 'isovalores' }); }}>Abrir o mapa de momentos das lajes</Button></p>

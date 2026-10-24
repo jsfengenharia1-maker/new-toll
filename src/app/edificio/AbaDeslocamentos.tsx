@@ -8,6 +8,7 @@ import { casosDoPortico, consultaNo, csvDeslocamentos, maximosPilaresCombinados,
 import { flechaDaHipotese, flechaEnvoltoria, flechaMaisDesfavoravel, type FamiliaEnvoltoria, type MedidaFlecha, type ReferenciaFlecha } from '../../core/resultados/flechaPontos';
 import { Button, Group, Hint, NumField, Seg, Select, download } from '../ui';
 import { TabelaConsultaNo } from './ConsultaNoUI';
+import { DeslocamentosVento } from './DeslocamentosVento';
 import { useResultados } from './resultadosStore';
 
 const mm = (v: number, d = 2) => (v * 1000).toFixed(d).replace('.', ',');
@@ -127,13 +128,13 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
         )}
         <div className="tablewrap" data-desloc-pilares={pilares.length}>
           <table className="data quadro">
-            <thead><tr><th>Pavimento</th><th>|ux| máx. (mm)</th><th>Combinação em x</th><th>Distorção x</th><th>|uy| máx. (mm)</th><th>Combinação em y</th><th>Distorção y</th></tr></thead>
+            <thead><tr><th>Pavimento</th><th>|ux| máx. (mm)</th><th>Combinação em x</th><th>Distorção x</th><th>Pilar e combinação da distorção x</th><th>|uy| máx. (mm)</th><th>Combinação em y</th><th>Distorção y</th><th>Pilar e combinação da distorção y</th></tr></thead>
             <tbody>
               {pilares.map((p) => (
                 <tr key={p.pavimento}>
                   <td className="tl">{p.pavimentoNome}</td>
-                  <td className="num">{mm(p.x.valor)}</td><td className="tl">{p.x.combinacao}</td><td className="num">{num(p.x.distorcao * 1000, 3)}‰</td>
-                  <td className="num">{mm(p.y.valor)}</td><td className="tl">{p.y.combinacao}</td><td className="num">{num(p.y.distorcao * 1000, 3)}‰</td>
+                  <td className="num">{mm(p.x.valor)}</td><td className="tl">{p.x.combinacao}</td><td className="num">{num(p.x.distorcao * 1000, 3)}‰</td><td className="tl">{p.x.pilarDistorcao} · {p.x.combinacaoDistorcao}</td>
+                  <td className="num">{mm(p.y.valor)}</td><td className="tl">{p.y.combinacao}</td><td className="num">{num(p.y.distorcao * 1000, 3)}‰</td><td className="tl">{p.y.pilarDistorcao} · {p.y.combinacaoDistorcao}</td>
                 </tr>
               ))}
             </tbody>
@@ -142,6 +143,8 @@ export function AbaDeslocamentos({ b }: { b: BuildingModel }) {
         <Hint>Topo dos pilares nas combinações frequentes; cada direção tem a sua combinação (não simultâneos). Distorção = deslocamento relativo do lance ÷ altura.</Hint>
         <div className="row"><Button onClick={() => { void baixarCsv(); }}>Baixar CSV dos deslocamentos da malha</Button></div>
       </Group>
+
+      <DeslocamentosVento b={b} an={an} />
 
       <Group title="Flecha entre dois pontos">
         <div className="row">
