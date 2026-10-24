@@ -96,6 +96,7 @@ function EditarConsolo({ b, c }: { b: BuildingModel; c: Consolo }) {
 export function JanelaConsolos({ id, onClose }: { id?: string; onClose: () => void }) {
   const b = useBuilding((s) => s.sessao.modelo);
   const dim = useBuilding((s) => (calculoAtual(s) && dimAtual(s) ? s.dim : null));
+  const exec = useBuilding((s) => s.exec);
   const [sel, setSel] = useState<string | undefined>(id);
   const c = b.consolos?.find((x) => x.id === (sel ?? id)) ?? b.consolos?.[0];
   const nome = (tipo: 'pilares' | 'vigas', i: string) => b[tipo].find((x) => x.id === i)?.nome ?? i;
@@ -124,6 +125,12 @@ export function JanelaConsolos({ id, onClose }: { id?: string; onClose: () => vo
               </table>
             </div>
           )}
+        {!!b.consolos?.length && (
+          <div className="row wrap">
+            <Button disabled={!b.consolos.some((x) => x.armadura)} onClick={() => exec('consolo.redimensionar', {})}>Redimensionar todos os consolos</Button>
+            <Hint>Solta a armadura bloqueada de todos os consolos: o dimensionamento refaz com os esforços do último cálculo (a vertical vem da envoltória ELU da viga).</Hint>
+          </div>
+        )}
         {c && <EditarConsolo key={c.id} b={b} c={c} />}
         {c && <ConsoloResultados b={b} id={c.id} />}
         <LancarConsolo b={b} aoLancar={setSel} />

@@ -170,6 +170,9 @@ interface PState {
   l5: L5Estado;
   /** Contador que abre o grupo Ferramentas de lançamento ao escolher o tipo da seção da viga (L7, C6.3). */
   abrirLancamento: number;
+  /** Pano de origem da cópia de dados (L4, C7.8), escolhido pelo menu de contexto do Navegador; `abrirDadosL4` abre o grupo Referências e dados. */
+  origemDadosPano: string;
+  abrirDadosL4: number;
   /** Cotas temporárias ao selecionar (L6) e as trocas de referência da sessão (face/eixo por par de elementos; não vão para o arquivo). */
   cotasTemp: boolean;
   refTemp: RefTemp;
@@ -293,6 +296,8 @@ export const usePlanta = create<PState>((set) => ({
   refTemp: {},
   l5: { ...L5_PADRAO },
   abrirLancamento: 0,
+  origemDadosPano: '',
+  abrirDadosL4: 0,
   anguloGiro: 90,
   espelharCopia: false,
   cores: coresSalvas(),

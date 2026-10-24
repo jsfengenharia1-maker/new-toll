@@ -22,7 +22,7 @@ export function DadosL4Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const grupo = ps.find((p) => p.id === pl.pavimento)?.grupo ?? ps[Math.min(1, ps.length - 1)]?.grupo ?? '';
   const [ajuste, setAjuste] = useState<Ajuste>('c');
   const [manter, setManter] = useState(true);
-  const [origem, setOrigem] = useState('');
+  const origem = pl.origemDadosPano, setOrigem = (v: string) => pl.set({ origemDadosPano: v });
   const [campos, setCampos] = useState<string[]>(['tipo']);
   const pilaresSel = b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id);
   const lajesSel = b.lajes.filter((l) => pl.selecao.has(l.id)).map((l) => l.id);
@@ -33,7 +33,7 @@ export function DadosL4Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
   const erros = grupo ? avaliarNumeracao(b, grupo) : [];
   const alternaTexto = (t: (typeof TIPOS_TEXTO_TODOS)[number], on: boolean) => exec('vista.textos', { textos: TIPOS_TEXTO_TODOS.filter((x) => (x === t ? on : vis.includes(x))) });
   return (
-    <Group title="Referências e dados" open={false}>
+    <Group key={pl.abrirDadosL4} title="Referências e dados" open={pl.abrirDadosL4 > 0}>
       <h4>Textos de referência na planta</h4>
       <div className="row wrap" data-textos-visiveis>
         {TIPOS_TEXTO_TODOS.map((t) => <Check key={t} label={`Mostrar texto: ${ROTULO_TEXTO[t].toLowerCase()}`} checked={vis.includes(t)} onChange={(v) => alternaTexto(t, v)} />)}
@@ -68,7 +68,7 @@ export function DadosL4Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
             const alertas = lajesSel.filter((id) => id !== lajeOrigem.id).flatMap((id) => { const z = b.lajes.find((x) => x.id === id); const t = z ? CAMPOS_COPIA_LAJE.plano.alerta?.(lajeOrigem, z) : null; return t ? [t] : []; });
             return alertas.length > 0 ? <Note data-alerta-plano-copia><b>Atenção: troca de plano.</b> {alertas.map((t, i) => <div key={i}>{t}</div>)}</Note> : null;
           })()}
-          <Hint>Copie tipo, direção, desnível, plano de inclinação, engastes, cobrimento, tabela e armadura base entre panos do mesmo grupo (o plano de outro grupo não é copiado).</Hint>
+          <Hint>Copie tipo, direção, desnível, plano de inclinação, engastes, cobrimento, tabela e armadura base entre panos do mesmo grupo (o plano de outro grupo é copiado pelo menu de contexto do pano no Navegador, que cria o mesmo plano no grupo de destino).</Hint>
         </>
       )}
 

@@ -276,3 +276,111 @@ export const f_E5b_abaco = {
     await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 1);
   },
 };
+
+export const f_E5c = {
+  name: 'E5c: etapa Muros ligada, redimensionar todos os consolos, radier no seletor de tipo de pano, cópia de dados e de plano pelo menu do Navegador, abertura de pano selecionável para pano a definir',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+    const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 });
+    await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 4.5], [0, 4.5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pilares?.length === 4, null);
+    const g2 = (await modelo()).grupos.find((g) => g.nome === 'Cobertura').id;
+    for (const g of ['g_3', g2]) {
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[6, 0], [6, 4.5]], [[6, 4.5], [0, 4.5]], [[0, 4.5], [0, 0]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "${g}", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd(`laje.detectarPanos {"grupo": "${g}", "tipo": {"tipo": "macica", "h": 0.12}}`);
+    }
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 2, null);
+    let m = await modelo();
+    // 1) etapa Muros e paredes (C1.29): pendente e opcional; a primeira parede a marca como feita
+    const etapa = page.locator('[data-etapa="muros"]');
+    assert.match(await etapa.innerText(), /pendente/);
+    assert.match(await etapa.innerText(), /Opcional/);
+    await cmd(`parede.criar {"pontos": [[0, 0], [3, 0]], "espessura": 0.2, "tipo": "concreto", "nasce": "${m.pavimentos[0].id}", "morre": "${m.pavimentos[1].id}"}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 1, null);
+    await etapa.getByText('feito', { exact: true }).waitFor();
+    assert.match(await etapa.innerText(), /1 parede\(s\), 0 muro\(s\) de arrimo/);
+    // 2) redimensionar todos os consolos (C6.101): o botão só vale com armadura fixada
+    const v1 = m.vigas.find((v) => v.nome === 'V1').id, p1 = m.pilares.find((p) => p.nome === 'P1').id;
+    await cmd(`consolo.criar {"viga": "${v1}", "ponta": "ini", "pilar": "${p1}"}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.consolos?.length === 1, null);
+    const abrirConsolos = async () => {
+      await page.locator('#edcmd').blur();
+      await page.keyboard.press('Control+k');
+      await page.getByRole('dialog').getByRole('textbox').fill('Consolos curtos');
+      await page.keyboard.press('Enter');
+      const j = page.getByRole('dialog', { name: 'Consolos curtos', exact: true });
+      await j.waitFor();
+      return j;
+    };
+    let jan = await abrirConsolos();
+    const todos = jan.getByRole('button', { name: 'Redimensionar todos os consolos', exact: true });
+    await todos.waitFor();
+    assert.equal(await todos.isDisabled(), true);
+    await jan.getByRole('button', { name: 'Fechar' }).click();
+    const c1 = (await modelo()).consolos[0].id;
+    await cmd(`consolo.editar {"id": "${c1}", "armadura": {"tirante": {"n": 4, "phi": 12.5}, "horizontais": {"n": 2, "phi": 8}, "verticais": {"phi": 8, "s": 0.15}}}`);
+    await esperar(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.consolos?.[0]?.armadura, null);
+    jan = await abrirConsolos();
+    const todos2 = jan.getByRole('button', { name: 'Redimensionar todos os consolos', exact: true });
+    assert.equal(await todos2.isDisabled(), false);
+    await todos2.click();
+    await esperar(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.consolos?.[0]?.armadura, null);
+    assert.equal(await todos2.isDisabled(), true);
+    await jan.getByRole('button', { name: 'Fechar' }).click();
+    // 3) radier no seletor de tipo de pano (C7.1): lança a placa com o contorno do pano
+    const lj = await grupoEdif(page, /^Lajes —/);
+    await lj.locator('table.loads-ed tbody tr').nth(0).click();
+    const tp = await grupoEdif(page, /^Tipo de pano/);
+    await tp.getByLabel(/^Tipo de pano/).selectOption('radier');
+    await tp.getByLabel(/^Espessura do radier/).fill('0,4');
+    await tp.getByRole('button', { name: 'Lançar o radier com o contorno do pano', exact: true }).click();
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.fundacao?.radiers?.length === 1, null);
+    m = await modelo();
+    assert.equal(m.fundacao.radiers[0].h, 0.4);
+    assert.equal(m.fundacao.radiers[0].contorno.length, 4);
+    // 4) menu de contexto do pano no Navegador (C7.8): copiar dados e copiar o plano para um pano de outro grupo
+    await cmd('plano.criar {"grupo": "g_3", "tipo": "maximaDeclividade", "pontos": [[0, 0], [0, 4.5]], "desnivel": 0, "inclinacao": 20}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 1, null);
+    m = await modelo();
+    const lajeG3 = m.lajes.find((l) => l.grupo === 'g_3'), lajeG2 = m.lajes.find((l) => l.grupo === g2);
+    await cmd(`plano.atribuir {"plano": "${m.planos[0].id}", "lajes": ["${lajeG3.id}"]}`);
+    await esperar(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.find((l) => l.grupo === 'g_3')?.plano, null);
+    const arv = page.getByRole('tree', { name: 'Navegador da obra' });
+    const noLajes = arv.getByRole('treeitem', { name: /^Lajes/ });
+    if ((await noLajes.getAttribute('aria-expanded')) !== 'true') await noLajes.click();
+    const noCob = arv.getByRole('treeitem', { name: /^Cobertura\s*1$/ });
+    if ((await noCob.getAttribute('aria-expanded')) !== 'true') await noCob.click();
+    const folhas = arv.getByRole('treeitem', { name: /^L1$/ });
+    await folhas.nth(1).waitFor();
+    assert.equal(await folhas.count(), 2);
+    await folhas.nth(1).click(); // destino: o pano do grupo Cobertura fica selecionado
+    await folhas.nth(0).click({ button: 'right' });
+    await page.getByRole('menu', { name: 'Menu do pano' }).waitFor();
+    await page.getByRole('menuitem', { name: /^Copiar o plano deste pano/ }).click();
+    await esperar((id) => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.find((l) => l.id === id)?.plano, lajeG2.id);
+    m = await modelo();
+    assert.equal(m.planos.length, 2);
+    const novoPlano = m.planos.find((p) => p.grupo === g2);
+    assert.deepEqual(novoPlano.def, m.planos.find((p) => p.grupo === 'g_3').def);
+    assert.equal(m.lajes.find((l) => l.id === lajeG2.id).plano, novoPlano.id);
+    await folhas.nth(0).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^Copiar dados deste pano/ }).click();
+    const dados = await grupoEdif(page, /^Referências e dados/);
+    assert.equal(await dados.getByLabel('Pano de origem dos dados').inputValue(), lajeG3.id);
+    // 5) abertura de pano selecionável (C7.15): o pano apagado vira abertura; clicar nela e transformar em pano a definir
+    await folhas.nth(0).click();
+    await cmd(`laje.apagarPano {"ids": ["${lajeG3.id}"]}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.panosVazios?.length === 1, null);
+    await page.waitForFunction(() => document.querySelector('canvas.int')?.getAttribute('data-panos-vazios') === '1', null, { timeout: 20000 });
+    await enquadrarEstavel(page);
+    const [ax, ay] = await telaDe(page, 3, 2.25);
+    await page.mouse.click(ax, ay);
+    const ab = page.locator('[data-grupo-abertura-pano]');
+    await ab.waitFor();
+    await ab.getByRole('button', { name: 'Transformar em pano a definir', exact: true }).click();
+    await esperar(() => { const b = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building; return !b?.panosVazios?.length && b?.lajes?.some((l) => l.grupo === 'g_3' && l.definir); }, null);
+  },
+};

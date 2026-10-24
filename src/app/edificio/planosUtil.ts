@@ -1,7 +1,7 @@
 // Funções puras da interface dos planos inclinados (frente E3f): rótulo do Navegador, campos de edição e parâmetros dos comandos
 // `plano.criar` e `plano.editar`. Sem React; o cálculo é do núcleo (`planos.ts`).
 import { coeficientesPlano, inclinacaoDoPlano } from '../../core/building/planos';
-import type { DefinicaoPlano, Plano } from '../../core/building/types';
+import type { BuildingModel, DefinicaoPlano, Plano } from '../../core/building/types';
 import { cssVar } from '../design/tokens';
 
 /** Cor do plano (índice 0 a 7, token `--plano-N` do design system). */
@@ -47,4 +47,25 @@ export function paramsDoPlano(d: DadosPlano): Record<string, unknown> {
   return d.tipo === 'tresPontos'
     ? { tipo: d.tipo, pontos: d.pontos }
     : { tipo: d.tipo, pontos: d.pontos, desnivel: d.desnivel, inclinacao: d.inclinacao, unidade: d.unidade };
+}
+
+/** Passo da cópia do plano de um pano para panos de outro grupo (C7.8): reaproveita o plano igual do grupo ou manda criá-lo. */
+export interface PassoCopiaPlano { grupo: string; lajes: string[]; existente?: string; criar?: Record<string, unknown> }
+
+const mesmaDef = (a: DefinicaoPlano, b: DefinicaoPlano) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Cópia do plano de inclinação do pano `origem` para os panos `destinos` (C7.8). Os planos são de um grupo, mas a definição
+ * é geométrica (coordenadas da obra): para destinos de outro grupo, o plano é recriado no grupo (ou reaproveitado se já existe
+ * um igual); no mesmo grupo basta atribuir. Origem sem plano: os destinos voltam à horizontal (`existente` ausente e `criar` ausente).
+ */
+export function passosCopiaPlano(b: BuildingModel, origem: string, destinos: string[]): PassoCopiaPlano[] {
+  const o = b.lajes.find((l) => l.id === origem), pl = o?.plano ? (b.planos ?? []).find((p) => p.id === o.plano) : undefined;
+  const por = new Map<string, string[]>();
+  for (const id of destinos) { const l = b.lajes.find((x) => x.id === id); if (l && id !== origem) por.set(l.grupo, [...(por.get(l.grupo) ?? []), id]); }
+  return [...por].map(([grupo, lajes]) => {
+    if (!pl) return { grupo, lajes };
+    const igual = (b.planos ?? []).find((p) => p.grupo === grupo && (p.id === pl.id || mesmaDef(p.def, pl.def)));
+    return igual ? { grupo, lajes, existente: igual.id } : { grupo, lajes, criar: { grupo, nome: pl.nome, cor: pl.cor ?? 0, ...paramsDoPlano(dadosDoPlano(pl)) } };
+  });
 }

@@ -410,8 +410,8 @@ export function esforcosDosPlanos(an: AnaliseEdificio): { normais: { ref: string
 }
 
 /**
- * Seletor único de tipo de pano (C7.1): os tipos que o programa calcula e o estado de cada um. Radier fecha com a base
- * elástica (FU6, lançado pelas fundações) e laje mista (steel deck) fica fora do escopo (aço).
+ * Seletor único de tipo de pano (C7.1): os tipos que o programa calcula e o estado de cada um. Radier lança a placa sobre base
+ * elástica (FU6) com o contorno do pano (E5c) e laje mista (steel deck) fica fora do escopo (aço).
  */
 export const TIPOS_PANO: { id: 'vigotas' | 'alveolar' | 'nervurada' | 'macica' | 'definir' | 'radier' | 'mista'; rotulo: string; disponivel: boolean; nota?: string }[] = [
   { id: 'vigotas', rotulo: 'Vigotas (unidirecional)', disponivel: true },
@@ -419,6 +419,6 @@ export const TIPOS_PANO: { id: 'vigotas' | 'alveolar' | 'nervurada' | 'macica' |
   { id: 'nervurada', rotulo: 'Nervurada bidirecional (cubetas)', disponivel: true },
   { id: 'macica', rotulo: 'Maciça', disponivel: true },
   { id: 'definir', rotulo: 'Pano a definir', disponivel: true },
-  { id: 'radier', rotulo: 'Radier', disponivel: false, nota: 'lançado pelas fundações (base elástica, FU6)' },
+  { id: 'radier', rotulo: 'Radier', disponivel: true, nota: 'lança a placa sobre base elástica (FU6) com o contorno do pano' },
   { id: 'mista', rotulo: 'Mista (steel deck)', disponivel: false, nota: 'aço fora do escopo' },
 ];
