@@ -32,7 +32,7 @@ export function linhasBarras(d: DetalheViga) {
   return d.barras.map((x) => ({ ...x, total: x.n * x.comprimento, peso: x.n * x.comprimento * kgM(x.phi) }));
 }
 export function linhasEstribos(d: DetalheViga) {
-  return d.estribos.map((z, i) => ({ ...z, pos: z.suspensao ? `S${d.estribos.slice(0, i).filter((q) => q.suspensao).length + 1}` : `E${i + 1}`, total: z.n * z.comprimento, peso: z.n * z.comprimento * kgM(z.phi) }));
+  return d.estribos.map((z, i) => ({ ...z, pos: z.suspensao ? `S${d.estribos.slice(0, i).filter((q) => q.suspensao).length + 1}` : z.grampo ? `G${d.estribos.slice(0, i).filter((q) => q.grampo).length + 1}` : `E${i + 1}`, total: z.n * z.comprimento, peso: z.n * z.comprimento * kgM(z.phi) }));
 }
 const rotuloBarra = (x: BarraViga) => `${x.pos} – ${x.n} ${phiTxt(x.phi)} – C = ${fmt(x.comprimento)}${x.editada ? ' (editada)' : ''}${x.continuaCom ? ' (tramo)' : ''}`;
 
@@ -65,6 +65,7 @@ function Elevacao({ d, h, mostrar }: { d: DetalheViga; h: number; mostrar: { inf
       {d.apoios.map((a) => <rect key={a.pilar} x={X(a.s0)} y={yT - 24} width={Math.max(2, (a.s1 - a.s0) * esc)} height={Hb + 48} className="det-pilar" data-apoio={a.pilar} />)}
       <rect x={X(e0)} y={yT} width={Lt * esc} height={Hb} className="det-contorno" />
       {(mostrar.estribos ? d.estribos : []).map((z, i) => {
+        if (z.grampo) return null; // os grampos ocupam o trecho do estribo da zona
         const px = z.s * esc, ticks = px >= 3.5;
         return ticks
           ? <g key={i} data-zona={i}>{Array.from({ length: z.n }, (_, k) => <line key={k} x1={X(z.s0 + k * z.s)} x2={X(z.s0 + k * z.s)} y1={yT + 4} y2={yB - 4} className="det-fio" />)}</g>
@@ -85,10 +86,10 @@ function Elevacao({ d, h, mostrar }: { d: DetalheViga; h: number; mostrar: { inf
         );
       })}
       {mostrar.estribos && d.estribos.map((z, i) => (
-        <text key={i} x={(X(z.s0) + X(z.s1)) / 2} y={yB + 34 + (i % 2) * 11} textAnchor="middle" className="det-txt" data-rotulo-estribo={i}>{z.n} {phiTxt(z.phi)} c/{Math.round(z.s * 100)}</text>
+        <text key={i} x={(X(z.s0) + X(z.s1)) / 2} y={yB + 34 + (i % 2) * 11} textAnchor="middle" className="det-txt" data-rotulo-estribo={i}>{z.n} {phiTxt(z.phi)}{z.grampo ? ' grampos' : ''} c/{Math.round(z.s * 100)}</text>
       ))}
       <text x={mx} y={yB + 15} className="det-txt cota">Estribos por zona</text>
-      {mostrar.estribos && d.estribos.map((z, i) => (
+      {mostrar.estribos && d.estribos.filter((z) => !z.grampo).map((z, i) => (
         <g key={i}>
           <line x1={X(z.s0)} x2={X(z.s1)} y1={yCota - 8} y2={yCota - 8} className="det-cota" />
           <line x1={X(z.s0)} x2={X(z.s0)} y1={yCota - 12} y2={yCota - 4} className="det-cota" />
@@ -152,7 +153,7 @@ function Secao({ d, b, h, cob, phiT, tipoMesa, invertida }: { d: DetalheViga; b:
 // ---------------------------------------------------------------- edição fina do detalhamento (R7b)
 
 type LinhaBarra = { pos: string; s0: number; s1: number; g0: boolean; g1: boolean; perna: number };
-type LinhaZona = { zona: number; phi: number; s: number; ramos: number; u: boolean };
+type LinhaZona = { zona: number; phi: number; s: number; ramos: number; u: boolean; grampos: number };
 const arredM = (x: number) => Math.round(x * 100) / 100;
 
 /** Editor das posições das barras (extremos, ganchos, perna), das zonas de estribos e do fator de emenda; aplica `viga.detalhe`. */
@@ -160,7 +161,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
   const b = useBuilding((s) => s.sessao.modelo), calculando = useBuilding((s) => s.calculando);
   const op = opcoesEmUso(b.opcoes, perfilDe(b));
   const barras0: LinhaBarra[] = d.barras.map((x) => ({ pos: x.pos, s0: arredM(x.s0), s1: arredM(x.s1), g0: x.ganchos[0], g1: x.ganchos[1], perna: x.perna ?? op.vigaPernaGancho }));
-  const zonas0: LinhaZona[] = d.estribos.flatMap((z, i) => (z.suspensao ? [] : [{ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2, u: !!z.u }]));
+  const zonas0: LinhaZona[] = d.estribos.flatMap((z, i) => (z.suspensao || z.grampo ? [] : [{ zona: i, phi: z.phi, s: z.s, ramos: z.ramos ?? 2, u: !!z.u, grampos: z.grampos ?? 0 }]));
   const [barras, setBarras] = useState(barras0), [zonas, setZonas] = useState(zonas0);
   const [fator, setFator] = useState(v.detalhe?.fatorEmenda ?? op.vigaFatorEmenda);
   const chave = JSON.stringify([barras0, zonas0]);
@@ -174,7 +175,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
   const aplicar = async () => {
     const params: Record<string, unknown> = { id: v.id };
     if (mudB.length) params.barras = mudB.map((x) => ({ pos: x.pos, s0: x.s0, s1: x.s1, ganchos: [x.g0, x.g1], perna: x.perna }));
-    if (mudZ.length) params.zonas = mudZ.map((x) => ({ zona: x.zona, phi: x.phi, s: x.s, ...(x.ramos !== 2 || d.estribos[x.zona]?.ramos ? { ramos: x.ramos } : {}), ...(x.u !== !!d.estribos[x.zona]?.u ? { u: x.u } : {}) }));
+    if (mudZ.length) params.zonas = mudZ.map((x) => ({ zona: x.zona, phi: x.phi, s: x.s, ...(x.ramos !== 2 || d.estribos[x.zona]?.ramos ? { ramos: x.ramos } : {}), ...(x.u !== !!d.estribos[x.zona]?.u ? { u: x.u } : {}), ...(x.grampos !== (d.estribos[x.zona]?.grampos ?? 0) ? { grampos: x.grampos } : {}) }));
     if (fator !== fator0) params.fatorEmenda = fator;
     await executarERecalcular('viga.detalhe', params);
   };
@@ -202,7 +203,7 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
       </div>
       <div className="tablewrap">
         <table className="data quadro" data-tabela-edicao-zonas>
-          <thead><tr><th>Zona</th><th>Trecho (m)</th><th>Bitola</th><th>Espaç. (cm)</th><th>Ramos</th><th>Em U</th></tr></thead>
+          <thead><tr><th>Zona</th><th>Trecho (m)</th><th>Bitola</th><th>Espaç. (cm)</th><th>Ramos</th><th>Grampos</th><th>Em U</th></tr></thead>
           <tbody>
             {zonas.map((z) => (
               <tr key={z.zona} data-edicao-zona={z.zona}>
@@ -210,7 +211,8 @@ export function EdicaoDetalhe({ d, v }: { d: DetalheViga; v: Viga }) {
                 <td className="tl">{fmt(d.estribos[z.zona]?.s0 ?? 0)} a {fmt(d.estribos[z.zona]?.s1 ?? 0)}</td>
                 <td><Select value={z.phi} options={BITOLAS_EST.map((p) => ({ v: p, label: phiTxt(p) }))} onChange={(q) => altZ(z.zona, { phi: q })} /></td>
                 <td><NumField label={`E${z.zona + 1} espaçamento`} width={90} value={Math.round(z.s * 1000) / 10} onChange={(q) => altZ(z.zona, { s: q / 100 })} /></td>
-                <td><Select value={z.ramos} options={[2, 4, 6].map((r) => ({ v: r, label: String(r) }))} onChange={(q) => altZ(z.zona, { ramos: q })} /></td>
+                <td><Select value={z.ramos} options={[2, 4, 6].map((r) => ({ v: r, label: String(r) }))} onChange={(q) => altZ(z.zona, { ramos: q, grampos: Math.min(z.grampos, q / 2 - 1) })} /></td>
+                <td><Select aria-label={`E${z.zona + 1} grampos`} value={z.grampos} options={Array.from({ length: z.ramos / 2 }, (_, k) => ({ v: k, label: String(k) }))} onChange={(q) => altZ(z.zona, { grampos: q })} /></td>
                 <td><Check label="U" checked={z.u} onChange={(c) => altZ(z.zona, { u: c })} /></td>
               </tr>
             ))}
@@ -291,7 +293,7 @@ export function DetalheDaViga({ id }: { id: string }) {
           <thead><tr><th>Pos.</th><th>Tipo</th><th>Face</th><th>Quant.</th><th>φ (mm)</th><th>C unit. (m)</th><th>C total (m)</th><th>Peso (kg)</th></tr></thead>
           <tbody>
             {barras.map((x) => <tr key={x.pos}><td className="tl">{x.pos}{x.editada ? ' ✎' : ''}</td><td className="tl">{TIPO_BARRA[x.tipo]}{x.continuaCom ? ` (tramo com ${b.vigas.find((q) => q.id === x.continuaCom)?.nome ?? ''})` : ''}</td><td className="tl">{FACE_BARRA[x.face]}</td><td className="num">{x.n}</td><td className="num">{fmt(x.phi, x.phi % 1 ? 1 : 0)}</td><td className="num">{fmt(x.comprimento)}</td><td className="num">{fmt(x.total)}</td><td className="num">{fmt(x.peso)}</td></tr>)}
-            {est.map((z) => <tr key={z.pos}><td className="tl">{z.pos}</td><td className="tl">Estribo</td><td className="tl">s = {fmt(z.s0)} a {fmt(z.s1)} m, c/{Math.round(z.s * 100)} cm</td><td className="num">{z.n}</td><td className="num">{fmt(z.phi, z.phi % 1 ? 1 : 0)}</td><td className="num">{fmt(z.comprimento)}</td><td className="num">{fmt(z.total)}</td><td className="num">{fmt(z.peso)}</td></tr>)}
+            {est.map((z) => <tr key={z.pos}><td className="tl">{z.pos}</td><td className="tl">{z.grampo ? 'Grampo' : 'Estribo'}</td><td className="tl">s = {fmt(z.s0)} a {fmt(z.s1)} m, c/{Math.round(z.s * 100)} cm</td><td className="num">{z.n}</td><td className="num">{fmt(z.phi, z.phi % 1 ? 1 : 0)}</td><td className="num">{fmt(z.comprimento)}</td><td className="num">{fmt(z.total)}</td><td className="num">{fmt(z.peso)}</td></tr>)}
             <tr><td className="tl" colSpan={7}><b>Total de uma viga</b></td><td className="num"><b>{fmt(d.peso)}</b></td></tr>
           </tbody>
         </table>
@@ -451,7 +453,7 @@ export function csvAco(dim: DimEdificio): string {
   lin.push(['Lista de barras'], ['Viga', 'Pos.', 'Tipo', 'Quant.', 'φ (mm)', 'C unit. (m)', 'Repetições', 'C total (m)', 'Peso (kg)']);
   for (const d of dets) {
     for (const x of linhasBarras(d)) lin.push([d.nome, x.pos, TIPO_BARRA[x.tipo], String(x.n), fmt(x.phi, x.phi % 1 ? 1 : 0), fmt(x.comprimento), String(d.repeticoes), fmt(x.total * d.repeticoes), fmt(x.peso * d.repeticoes)]);
-    for (const z of linhasEstribos(d)) lin.push([d.nome, z.pos, 'Estribo', String(z.n), fmt(z.phi, z.phi % 1 ? 1 : 0), fmt(z.comprimento), String(d.repeticoes), fmt(z.total * d.repeticoes), fmt(z.peso * d.repeticoes)]);
+    for (const z of linhasEstribos(d)) lin.push([d.nome, z.pos, z.grampo ? 'Grampo' : 'Estribo', String(z.n), fmt(z.phi, z.phi % 1 ? 1 : 0), fmt(z.comprimento), String(d.repeticoes), fmt(z.total * d.repeticoes), fmt(z.peso * d.repeticoes)]);
   }
   lin.push([], ['Lista de barras dos pilares'], ['Pilar', 'Pos.', 'Tipo', 'Quant.', 'φ (mm)', 'C unit. (m)', 'C total (m)', 'Peso (kg)']);
   for (const d of detsP) {

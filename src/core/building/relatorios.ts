@@ -131,7 +131,7 @@ export function intercambioArmadura(b: BuildingModel, dim: Dimensionamento): Int
   const acoFace = (face: string) => (face === 'inf' ? acoDe(b, 'vigaPos') : acoDe(b, 'vigaNeg')).aco;
   for (const d of dim.detalhes ?? []) {
     for (const x of d.barras) barras.push({ elemento: 'viga', id: d.viga, nome: d.nome, pos: x.pos, tipo: x.tipo, aco: acoFace(x.face), phi: x.phi, quant: x.n, comprimento: r2(x.comprimento), repeticoes: d.repeticoes, trecho: [r2(x.s0), r2(x.s1)] });
-    d.estribos.forEach((z, i) => barras.push({ elemento: 'viga', id: d.viga, nome: d.nome, pos: `E${i + 1}`, tipo: z.u ? 'estribo em U' : 'estribo', aco: acoDe(b, 'vigaEstribo').aco, phi: z.phi, quant: z.n, comprimento: r2(z.comprimento), repeticoes: d.repeticoes, trecho: [r2(z.s0), r2(z.s1)], s: z.s }));
+    d.estribos.forEach((z, i) => barras.push({ elemento: 'viga', id: d.viga, nome: d.nome, pos: z.grampo ? `G${d.estribos.slice(0, i).filter((q) => q.grampo).length + 1}` : `E${i + 1}`, tipo: z.grampo ? 'grampo' : z.u ? 'estribo em U' : 'estribo', aco: acoDe(b, 'vigaEstribo').aco, phi: z.phi, quant: z.n, comprimento: r2(z.comprimento), repeticoes: d.repeticoes, trecho: [r2(z.s0), r2(z.s1)], s: z.s }));
   }
   for (const d of dim.detalhesPilares ?? []) {
     for (const x of d.barras) barras.push({ elemento: 'pilar', id: d.pilar, nome: d.nome, pos: x.pos, tipo: x.tipo === 'arranque' ? 'arranque' : 'longitudinal', aco: acoDe(b, 'pilarLong').aco, phi: x.phi, quant: x.n, comprimento: r2(x.comprimento), repeticoes: 1, trecho: [r2(x.z0), r2(x.z1)] });

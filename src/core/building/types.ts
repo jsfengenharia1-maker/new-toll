@@ -488,7 +488,7 @@ export interface EdicaoBarra {
   perna?: number;
 }
 /** Edição de uma zona de estribos (índice na ordem do detalhamento calculado). */
-export interface EdicaoZona { zona: number; phi?: number; s?: number; ramos?: number; /** Estribo em U nesta zona (R7g). */ u?: boolean }
+export interface EdicaoZona { zona: number; phi?: number; s?: number; ramos?: number; /** Estribo em U nesta zona (R7g). */ u?: boolean; /** Grampos verticais abertos por seção (R8b): dos `ramos / 2` conjuntos, quantos são grampos (o resto, estribos fechados; pelo menos 1 fechado). */ grampos?: number }
 /** Detalhamento editado de uma viga (R7b): verificado a cada recálculo; vale enquanto o número de vãos não muda. */
 export interface DetalheEditado {
   barras?: EdicaoBarra[];

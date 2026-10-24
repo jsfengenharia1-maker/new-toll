@@ -44,6 +44,7 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'AGRUP_BLOQ', nivel: 'aviso', re: /^Agrupamento .*: a armadura bloqueada/, descricao: 'Pórtico agrupado com armadura bloqueada própria: fica fora da equalização' },
   { codigo: 'ARMADURA', nivel: 'erro', re: /^(Nenhuma armadura|Não atende com até 4)/, descricao: 'Seção insuficiente com a armadura máxima' },
   { codigo: 'ESTRIBO_BITOLA', nivel: 'erro', re: /^Estribo φ.* acima de bw\/10/, descricao: 'Viga: bitola do estribo acima de bw/10 (18.3.3.2)' },
+  { codigo: 'ESTRIBO_RAMOS', nivel: 'aviso', re: /^Estribos: espaçamento transversal entre ramos/, descricao: 'Viga: espaçamento transversal entre ramos acima de st,máx mesmo com o máximo de ramos da tabela (18.3.3.2)' },
   { codigo: 'DESNIVEL_LONG', nivel: 'aviso', re: /^Desnível longitudinal/, descricao: 'Vigas alinhadas com faces desniveladas: detalhe especial' },
   { codigo: 'TRAMO_IGNORADO', nivel: 'aviso', re: /^Tramo predefinido desconsiderado/, descricao: 'Tramo predefinido não aplicado (vigas, bitola ou barra máxima)' },
   { codigo: 'DETALHE_INSUF', nivel: 'erro', re: /^Detalhe editado insuficiente/, descricao: 'Viga: detalhamento editado não cobre a armadura necessária ou os estribos' },

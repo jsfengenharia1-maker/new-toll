@@ -143,13 +143,15 @@ describe('pranchas de fundação (FU5)', () => {
     expect(t.some((x) => /^Superior: \d+ N\d+ φ\d+,\d C=\d+$/.test(x))).toBe(true);
     expect(v0.armadura.ancoragem.editada).toEqual({ ini: false, fim: false });
     expect(v0.armadura.ancoragem.ini).toBeCloseTo(v0.armadura.lb, 9);
-    const sup = pr.aco!.tabela.find((l) => l.phi === v0.armadura.sup.barras!.phi && l.quant === v0.armadura.sup.barras!.n)!;
+    // com os cortes da armadura principal (R8b) a posição das barras corridas tem só as passantes; a mais comprida do mesmo φ é ela
+    const corrida = (tab: NonNullable<typeof pr.aco>['tabela'], r: typeof v0) => tab.filter((l) => l.phi === r.armadura.sup.barras!.phi && l.quant === (r.armadura.cortes?.sup.grupos.length ? r.armadura.cortes.sup.passantes : r.armadura.sup.barras!.n)).sort((a, z) => z.cUnit - a.cUnit)[0];
+    const sup = corrida(pr.aco!.tabela, v0);
     // edita a ancoragem da ponta inicial para 1,00 m
     expect(s.executar('vigaFundacao.editar', { id: s.modelo.fundacao!.vigas![0].id, ancoragem: { ini: 1 } }).ok).toBe(true);
     const dim2 = dimensionarEdificio(s.modelo, an), v1 = dim2.vigasFundacao![0];
     expect(v1.armadura.ancoragem).toMatchObject({ ini: 1, editada: { ini: true, fim: false } });
     const pr2 = porTitulo(montarPranchasFundacao(s.modelo, an, dim2), /vigas de fundação/);
-    const sup2 = pr2.aco!.tabela.find((l) => l.phi === v1.armadura.sup.barras!.phi && l.quant === v1.armadura.sup.barras!.n)!;
+    const sup2 = corrida(pr2.aco!.tabela, v1);
     expect(sup2.cUnit - sup.cUnit).toBeCloseTo((1 - v0.armadura.lb) * 100, -0.5);
     expect(textos(pr2).some((x) => /Ancoragem das barras superiores: 100 cm \/ \d+ cm .*editada/.test(x))).toBe(true);
     // abaixo do lb: aviso FUND_VIGA_ANCORAGEM, sem reprovar
@@ -160,6 +162,20 @@ describe('pranchas de fundação (FU5)', () => {
     // 0 volta ao lb calculado
     expect(s.executar('vigaFundacao.editar', { id: s.modelo.fundacao!.vigas![0].id, ancoragem: { ini: 0, fim: 0 } }).ok).toBe(true);
     expect(s.modelo.fundacao!.vigas![0].ancoragem).toBeUndefined();
+  });
+
+  it('vigas de fundação com cortes da armadura principal (R8b): uma posição por grupo, com o comprimento do grupo', () => {
+    const v0 = dim.vigasFundacao![0], ct = v0.armadura.cortes;
+    expect(ct, 'o fixture deve ter cortes na armadura principal').toBeDefined();
+    const pr = porTitulo(montarPranchasFundacao(s.modelo, an, dim), /vigas de fundação/);
+    const t = textos(pr);
+    const face = ct!.sup.papel === 'negativos' ? ct!.sup : ct!.inf, rot = face.face === 'sup' ? 'Superior' : 'Inferior';
+    const cortes = t.filter((x) => x.startsWith(`${rot} (corte):`));
+    expect(face.grupos.length).toBeGreaterThan(0);
+    expect(cortes).toHaveLength(face.grupos.length);
+    face.grupos.forEach((g, i) => expect(cortes[i]).toMatch(new RegExp(`^${rot} \\(corte\\): ${g.n} N\\d+ φ.* C=${Math.round(g.comprimento * 100)}$`)));
+    // a posição das corridas leva só as passantes
+    expect(t.some((x) => new RegExp(`^${rot}: ${face.passantes} N\\d+ `).test(x))).toBe(true);
   });
 
   it('quantitativos: concreto, forma, aço e estacas; aço total = soma das folhas de detalhamento', () => {

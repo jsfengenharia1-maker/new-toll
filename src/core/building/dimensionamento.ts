@@ -198,6 +198,8 @@ export interface ResultadoViga {
   suspensoes?: SuspensaoViga[];
   /** Espaçamento máximo dos estribos imposto pelas opções ou pela armadura comprimida (m), quando menor que o da norma (N2e). */
   estriboSmax?: number;
+  /** Bitola mínima do estribo imposta pelo cálculo (mm), p. ex. φℓ/4 com armadura comprimida (R8b). */
+  estriboPhiMin?: number;
 }
 
 /** Armadura de suspensão (NBR 6118, 18.3.6) na viga de apoio, no cruzamento com uma viga apoiada nela (N2e). */
@@ -624,7 +626,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     // estribos: cortante + torção, com mínimo e espaçamento máximo pelo cortante (17.4.1.1.1 e 18.3.3.2)
     const aswMin = ((0.2 * c.fctm) / aEst.fyk) * v.secao.b, aswS = Math.max(aswMin, env.asw);
     let smax = V <= 0.67 * VRd2 ? Math.min(0.6 * d, 0.3) : Math.min(0.3 * d, 0.2);
-    let smaxImposto = Infinity;
+    let smaxImposto = Infinity, phiMinImposto = 0;
     if (op.vigaEstriboSmax > 0) { smax = Math.min(smax, op.vigaEstriboSmax / 100); smaxImposto = op.vigaEstriboSmax / 100; }
     const tabBarras = tabelaDe(b, 'vigas', v.tabela), tabEst0 = tabelaDe(b, 'estribos', v.tabelaEstribo);
     const tabEst = op.vigaEstriboSmin > 0 ? { ...tabEst0, linhas: tabEst0.linhas.map((l) => ({ ...l, sMin: op.vigaEstriboSmin })) } : tabEst0;
@@ -692,7 +694,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       const phiC = Math.max(fi.double ? bs?.phi ?? op.bitolaMontagem : 0, fs.double ? bi?.phi ?? 0 : 0), sC = Math.min(smax, 0.2, v.secao.b, (12 * phiC) / 1000);
       const eC = escolherEstribo(tabEst, v.secao.b, aswS, sC, phiC / 4);
       if (eC) {
-        est = { phi: eC.phi, s: eC.s, legs: eC.legs }; smaxImposto = Math.min(smaxImposto, sC);
+        est = { phi: eC.phi, s: eC.s, legs: eC.legs }; smaxImposto = Math.min(smaxImposto, sC); phiMinImposto = phiC / 4;
         msgs.push(`Estribos com armadura comprimida (φ${String(phiC).replace('.', ',')}): s ≤ mín(20 cm; b; 12φ) = ${Math.floor(sC * 100)} cm e φt ≥ φℓ/4 = ${(phiC / 4).toFixed(1).replace('.', ',')} mm (NBR 6118, 18.2.4 e 18.3.3.2) [a confirmar].`);
       }
     }
@@ -798,6 +800,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       estribo: est ? `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}${est.legs > 2 ? ` (${est.legs} ramos)` : ''}` : '—',
       ...(transicoes.length ? { transicoes } : {}),
       ...(smaxImposto < Infinity ? { estriboSmax: smaxImposto } : {}),
+      ...(phiMinImposto > 0 ? { estriboPhiMin: phiMinImposto } : {}),
       status: msgs.some((x) => x.startsWith('Transição ') || x.startsWith('Biela') || x.startsWith('Armadura inferior') || x.startsWith('Armadura bloqueada insuficiente') || (x.startsWith('Flecha') && !x.startsWith('Flecha instantânea')) || x.startsWith('Abertura')) ? 'fail' : 'ok', mensagens: msgs,
       bloqueada: bloq, arranjo: { inf: bi ? { n: bi.n, phi: bi.phi } : null, sup: AsSup && bs ? { n: bs.n, phi: bs.phi } : null, estribo: est ? { phi: est.phi, s: est.s, ...(est.legs > 2 ? { legs: est.legs } : {}) } : null, laterais: lat ? { n: lat.n, phi: lat.phi } : null },
     });
@@ -1150,12 +1153,26 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     }
     // tabela de armadura (R7a): bitolas e espaçamentos das disposições; simetria por tolerância (opção pilarSimetria)
     const tabP = tabelaPilarNaSecao(tabelaDe(b, 'pilares', p.tabela), w, h), restrito = pilarRestrito(tabP);
+    // ordem global por taxa (R8b, K1.12.4-2): com a opção, todas as bitolas da tabela são testadas e vale a de menor armadura (empate: a menor bitola)
+    let porBitola = new Map<number, number>();
     const buscar = (phis: number[], esps: number[]) => {
+      porBitola = new Map();
       busca: for (const phi of bloq ? [] : phis) {
         if (phi < 10 || phi > 25 || phi / 1000 > tMin / 8 || (cont && phi < cont.phi)) continue; // φ10 a φ25 (premissa dim-pilares); continuidade
         const a = cob + 0.005 + phi / 2000, Ab = barArea(phi), wi = w - 2 * a, hi = h - 2 * a;
-        const cands = esps.map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, Ab) }; }).filter(({ bars, arr }) => { const As = bars.length * Ab; return As >= Math.max(AsMin, cont?.As ?? 0) - 1e-12 && As <= AsMax && okFaces(arr); });
-        const anota = ({ bars, arr }: (typeof cands)[number], u: number) => { const As = bars.length * Ab, m = melhor as Escolha | null; if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr, det: ultimoDet }; };
+        // ordem por taxa (R8b): só interessam disposições com armadura menor que a da melhor que já atende
+        const AsCap = op.pilarOrdemTaxa && melhor && (melhor as Escolha).util <= 1 ? (melhor as Escolha).As - 1e-12 : Infinity;
+        if (Math.max(3, Math.ceil(Math.max(AsMin, cont?.As ?? 0) / Ab - 1e-9)) * Ab > AsCap) continue;
+        const cands = esps.map((sp) => { const arr = arranjoPorEspacamento(poly, circ, a, sp); return { arr, bars: barrasDoArranjo(poly, circ, a, arr, Ab) }; }).filter(({ bars, arr }) => { const As = bars.length * Ab; return As >= Math.max(AsMin, cont?.As ?? 0) - 1e-12 && As <= AsMax && As <= AsCap && okFaces(arr); });
+        const anota = ({ bars, arr }: (typeof cands)[number], u: number) => {
+          const As = bars.length * Ab, m = melhor as Escolha | null;
+          if (op.pilarOrdemTaxa) {
+            if (u <= 1) porBitola.set(phi, Math.min(porBitola.get(phi) ?? Infinity, As));
+            if (!m || (m.util > 1 && (u < m.util || u <= 1)) || (u <= 1 && m.util <= 1 && (As < m.As - 1e-12 || (Math.abs(As - m.As) <= 1e-12 && phi === m.phi && u < m.util)))) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr, det: ultimoDet };
+            return;
+          }
+          if (!m || u < m.util || (u <= 1 && m.util <= 1 && As < m.As)) melhor = { util: u, txt: `${bars.length} φ${String(phi).replace('.', ',')}`, As, phi, arr, det: ultimoDet };
+        };
         // disposição simétrica (as duas faces opostas iguais): a mais densa primeiro; se nem ela atende, a bitola inteira não atende
         let sim: { cd: (typeof cands)[number]; u: number } | null = null;
         if (cands.length) {
@@ -1175,7 +1192,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
           const spMax = Math.max(...esps), spMin = Math.min(...esps);
           const kmin = (L: number) => Math.max(0, Math.ceil(L / spMax - 1e-9) - 1), kmax = (L: number) => Math.max(kmin(L), Math.floor(L / spMin + 1e-9) - 1);
           const Nsim = sim ? sim.cd.bars.length : Infinity;
-          const lo0 = Math.max(4 + 2 * kmin(wi) + 2 * kmin(hi), Math.ceil(Math.max(AsMin, cont?.As ?? 0) / Ab - 1e-9)), hiG = Math.min(4 + 2 * kmax(wi) + 2 * kmax(hi), Math.floor(AsMax / Ab + 1e-9));
+          const lo0 = Math.max(4 + 2 * kmin(wi) + 2 * kmin(hi), Math.ceil(Math.max(AsMin, cont?.As ?? 0) / Ab - 1e-9)), hiG = Math.min(4 + 2 * kmax(wi) + 2 * kmax(hi), Math.floor(AsMax / Ab + 1e-9), Number.isFinite(AsCap) ? Math.floor(AsCap / Ab + 1e-9) : Infinity);
           type Ach = { arr: ArranjoPilar; bars: RBar[]; u: number; simetrica: boolean };
           const memo = new Map<string, Ach | null>();
           /** Primeira disposição de N barras que atende (as simétricas primeiro); `soSim`: só as duplamente simétricas. */
@@ -1216,20 +1233,22 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
           const escolhida = sel && simAlt && simAlt.bars.length <= sel.bars.length * (1 + op.pilarSimetria / 100) + 1e-9 ? simAlt : sel;
           if (escolhida) {
             anota({ arr: escolhida.arr, bars: escolhida.bars }, avaliar(escolhida.bars, false, escolhida.simetrica)); // refaz a avaliação: utilização exata e combinação determinante
-            break busca;
+            if (!op.pilarOrdemTaxa) break busca;
+            continue;
           }
         }
-        if (sim) break busca;
+        if (sim && !op.pilarOrdemTaxa) break busca;
       }
     };
     buscar(bitolasPilar(tabP), espacamentosPilar(tabP));
+    let ordemTaxa = [...porBitola].sort((p, q) => p[0] - q[0]).map(([phi, As]) => ({ phi, As }));
     let foraTabelaPilar = false;
     if (restrito && !bloq && (!melhor || (melhor as Escolha).util > 1)) {
       // reserva (R7a): armadura própria fora da tabela, em uma camada no contorno (bitolas e espaçamentos de fábrica)
       const daTabela = melhor as Escolha | null;
       melhor = null;
       buscar(BITOLAS_TABELA.pilares, ESPACAMENTOS_PILAR.map((x) => x / 100));
-      if (melhor && (melhor as Escolha).util <= 1) foraTabelaPilar = true; else melhor = melhor ?? daTabela;
+      if (melhor && (melhor as Escolha).util <= 1) { foraTabelaPilar = true; ordemTaxa = [...porBitola].sort((p, q) => p[0] - q[0]).map(([phi, As]) => ({ phi, As })); } else melhor = melhor ?? daTabela;
     }
     if (!melhor) { res.push({ pilar: p.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, util: 99, lambda: [lamU, lamV], le, armadura: '—', As: 0, estribo: '—', status: 'fail', mensagens: [restrito ? `Armadura manual necessária: nenhuma disposição da tabela "${tabP.nome}" entre As,mín e 4 % cabe na seção; amplie a tabela ou a seção.` : 'Nenhuma armadura entre As,mín e 4 % cabe na seção.'] }); continue; }
     let status: ResultadoPilar['status'] = melhor.util <= 1 ? 'ok' : 'fail';
@@ -1357,6 +1376,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
         As: melhor.As, phi: melhor.phi, nBarras: barsF.length, armadura: melhor.txt, bloq,
         cortante: porDir.map((q, k) => (q ? { dir: circ ? 'radial' : k === 0 ? 'u' : 'v', Vsd: q.Vsd, Vc: q.Vc, VRd2: q.VRd2, asw: q.asw, combinacao: q.combinacao, bw: dirs[k].bw, d: dirs[k].d } : null)).filter((q) => q !== null),
         est, phiTmin: phiT, sTmax: sT,
+        ...(op.pilarOrdemTaxa && ordemTaxa.length > 1 ? { ordemTaxa } : {}),
         ...(trechosMem ? { trechos: trechosMem, trechoDet: kDet, trechoEsbelto: trs.indexOf(tg) } : {}),
       });
     }

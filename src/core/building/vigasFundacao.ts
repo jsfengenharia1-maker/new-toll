@@ -9,6 +9,8 @@ import { barArea, beamAsMin, beamFlexure, beamShear, chooseBars, type BarChoice 
 import { dentroPoligono, type P } from '../geom/faces';
 import { defaultFoundationParams } from '../piles';
 import { lbBasico } from './detalhamento';
+import { cortesVigaFundacao, textoCortesFace, type CortesVF } from './vigaFundacaoCortes';
+import { fracaoPassante } from './tabelasArmadura';
 import { geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
@@ -268,7 +270,9 @@ export interface ResultadoVigaFundacao {
   mesaBalanco?: MesaBalanco;
   armadura: { sup: ArmaduraVF; inf: ArmaduraVF; pele?: { AsFace: number; barras: BarChoice | null }; estribo: { phi: number; s: number; legs: number } | null; aswS: number; VRd2: number; lb: number; d: number;
     /** Ancoragem das barras superiores além da face do pilar de cada ponta (m): a adotada, e se foi editada (C11.45). */
-    ancoragem: { ini: number; fim: number; editada: { ini: boolean; fim: boolean } } };
+    ancoragem: { ini: number; fim: number; editada: { ini: boolean; fim: boolean } };
+    /** Cortes da armadura principal por face (opção `vigaFundCortes`, R8b); ausente = barras corridas. */
+    cortes?: CortesVF };
   /** Concreto (m³, entre as faces dos pilares) e aço (kg, estimado pelas barras e estribos). */
   volume: number; aco: number;
   status: 'ok' | 'fail';
@@ -401,14 +405,27 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   const est = r.sh.stirrup;
   const nEst = est ? Math.ceil(Lest / est.s) + 1 : 0, perim = 2 * (bw - 2 * cob + h - 2 * cob) + 0.2;
   const kg = (A: number, len: number) => A * len * 7850;
-  const aco_ = (r.sup.barras ? kg(r.sup.barras.As, Lc + anc.ini + anc.fim) : 0) + (r.inf.barras ? kg(r.inf.barras.As, L) : 0)
+  // cortes da armadura principal (R8b, K1.12.12): a face de maior momento de cálculo faz o papel dos negativos (convenção invertida)
+  let cortes: CortesVF | undefined;
+  if (op.vigaFundCortes && r.sup.barras && r.inf.barras && L > 0) {
+    const ca60 = aco.aco === 'CA-60';
+    cortes = cortesVigaFundacao({
+      s: xs, Minf, Msup, L, d: r.d, cobPonta: cob, passante: fracaoPassante(b, { secao: { b: bw, h } }), gruposNegativos: op.vigaGruposSup, gruposPositivos: op.vigaCortesInf, minPct: op.vigaGrupoMinPct,
+      inf: { n: r.inf.barras.n, phi: r.inf.barras.phi, AsFlex: r.inf.As, AsMin: r.inf.AsMin, lb: lbBasico(r.inf.barras.phi, c, fyd, true, ca60) },
+      sup: { n: r.sup.barras.n, phi: r.sup.barras.phi, AsFlex: r.sup.As, AsMin: r.sup.AsMin, lb: lbBasico(r.sup.barras.phi, c, fyd, h < 0.6, ca60) },
+    });
+    notas.push(`Cortes da armadura principal (convenção invertida: a face de maior momento faz o papel dos negativos; aℓ = d): ${textoCortesFace(cortes.inf)}; ${textoCortesFace(cortes.sup)}.`);
+  }
+  /** Aço de uma face: barras corridas (comprimento `inteiro`, com ancoragens) e, com cortes, os grupos escalonados. */
+  const kgFace = (x: BarChoice | null, f: CortesVF['inf'] | undefined, inteiro: number) => (x ? (f ? kg(barArea(f.phi), f.passantes * inteiro + f.grupos.reduce((t, gr) => t + gr.n * gr.comprimento, 0)) : kg(x.As, inteiro)) : 0);
+  const aco_ = kgFace(r.sup.barras, cortes?.sup, Lc + anc.ini + anc.fim) + kgFace(r.inf.barras, cortes?.inf, L)
     + (est ? kg(barArea(est.phi), perim) * nEst : 0) + (r.pele?.barras ? 2 * kg(r.pele.barras.As, L) : 0);
   const txt = (x: BarChoice | null) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}` : '—');
   const status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
   return {
     ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd, eixo: [g.a, g.z], faces: { ini: fi, fim: ff },
     diagrama: { s: xs, Msup, Minf, V },
-    armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d, ancoragem: anc },
+    armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d, ancoragem: anc, ...(cortes ? { cortes } : {}) },
     volume: (r.geo && !r.geo.erro ? r.geo.A : bw * h) * Lc, aco: aco_ + (mesaB && r.geo ? kg((mesaB.barras?.As ?? mesaB.AsAdot * 1e-4) + (mesaB.distribuicao.barras?.As ?? mesaB.distribuicao.As * 1e-4), mesaB.balanco * r.geo.lados * Lc) : 0),
     ...(r.geo && !r.geo.erro && r.geo.tipo !== 'retangular' ? { forma: { tipo: r.geo.tipo, mesa: r.geo.mesa, bf: r.geo.bf, hf: r.geo.hf } } : {}), ...(mesaB ? { mesaBalanco: mesaB } : {}), status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),
     resumo: `${v.nome} ${Math.round(bw * 100)}×${Math.round(h * 100)}: sup. ${txt(r.sup.barras)}, inf. ${txt(r.inf.barras)}${est ? `, estribo φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : ''} (Md ${fmt(Md.sup, 1)}/${fmt(Md.inf, 1)} kN·m; Vd ${fmt(Vd, 1)} kN)`,

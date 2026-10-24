@@ -653,3 +653,59 @@ export const f_R8a = {
       assert.deepEqual(l0.adicional, [10, 12.5, 16, 20, 25, 32]);
     },
   };
+
+export const f_R8b = {
+    name: 'R8b: viga larga com 4 ramos pelo espaçamento transversal, grampos por zona (edição), opções e memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [8, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 6], [8, 6]], [[0, 0], [0, 6]], [[8, 0], [8, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.6, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      // opções: ramos pelo espaçamento transversal ligada por padrão; grampos e bitola por zona à disposição
+      const g = await grupoEdif(page, 'Opções de cálculo');
+      assert.ok(await g.getByLabel('Vigas: ramos dos estribos pelo espaçamento transversal').isChecked());
+      assert.equal(await g.getByLabel('Vigas: ramos além dos 2 do estribo em grampos verticais abertos').isChecked(), false);
+      assert.match(await g.innerText(), /Vigas: bitola do estribo por zona/);
+      assert.match(await g.innerText(), /Pilares: testar as disposições em ordem crescente de taxa/);
+      assert.match(await g.innerText(), /Vigas de fundação: cortes da armadura principal/);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 90000 });
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 90000 });
+      await livre();
+      const cardVigas = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) });
+      await cardVigas.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Detalhamento' }).click();
+      const ed = jan.locator('[data-edicao-detalhe]');
+      await ed.waitFor();
+      // viga de 60 cm: 4 ramos em todas as zonas (st = 0,532/3 = 17,7 cm ≤ 0,6d = 21,2 cm), sem grampos
+      const tz = ed.locator('table[data-tabela-edicao-zonas]');
+      const zona = tz.locator('[data-edicao-zona="0"]');
+      assert.equal(await zona.locator('select').nth(1).inputValue(), '4');
+      assert.equal(await zona.getByLabel('E1 grampos').inputValue(), '0');
+      assert.equal(await jan.locator('table[data-tabela-barras] tr', { hasText: 'Grampo' }).count(), 0);
+      // 1 grampo na zona E1: surge a posição G1 na tabela de barras e o rótulo "grampos" na elevação
+      await zona.getByLabel('E1 grampos').selectOption('1');
+      await ed.getByRole('button', { name: 'Aplicar edição' }).click();
+      await livre();
+      await jan.locator('table[data-tabela-barras] tr', { hasText: 'Grampo' }).first().waitFor();
+      assert.match(await jan.locator('table[data-tabela-barras]').innerText(), /G1\s+Grampo/);
+      assert.match(await jan.locator('svg[data-detalhe]').textContent(), /grampos c\//);
+      assert.equal(await jan.locator('[data-edicao-zona="0"]').getByLabel('E1 grampos').inputValue(), '1');
+      // restaurar o calculado: os grampos somem
+      await ed.getByRole('button', { name: 'Restaurar calculado' }).click();
+      await livre();
+      await page.waitForFunction(() => !document.querySelector('[data-detalhe-editado]'));
+      assert.equal(await jan.locator('table[data-tabela-barras] tr', { hasText: 'Grampo' }).count(), 0);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      // memorial: critério dos ramos pelo espaçamento transversal
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      assert.match(await memo.locator('[data-memorial-det-vigas]').innerText(), /ramos pelo espaçamento transversal/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  };

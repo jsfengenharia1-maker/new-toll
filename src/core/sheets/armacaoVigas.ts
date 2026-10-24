@@ -111,12 +111,12 @@ export function blocoViga(b: BuildingModel, det: DetalheViga, v: Viga, posDe: Po
   desenhar(inf, y2 - 11, false);
   // estribos: uma posição por bitola e comprimento na viga
   const eLarg = bw - 2 * cob.lat, eAlt = h - cob.inf - cob.sup;
-  const kEst = (z: { phi: number; comprimento: number; u?: boolean; suspensao?: boolean }) => `${z.suspensao ? 'S|' : ''}${z.phi}|${cmInt(z.comprimento)}${z.u ? '|U' : ''}`;
-  const est = new Map<string, { phi: number; C: number; n: number; u: boolean; s: boolean }>();
-  for (const z of det.estribos) { const k = kEst(z); const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0, u: !!z.u, s: !!z.suspensao }; e.n += z.n; est.set(k, e); }
+  const kEst = (z: { phi: number; comprimento: number; u?: boolean; suspensao?: boolean; grampo?: boolean }) => `${z.suspensao ? 'S|' : ''}${z.grampo ? 'G|' : ''}${z.phi}|${cmInt(z.comprimento)}${z.u ? '|U' : ''}`;
+  const est = new Map<string, { phi: number; C: number; n: number; u: boolean; s: boolean; g: boolean }>();
+  for (const z of det.estribos) { const k = kEst(z); const e = est.get(k) ?? { phi: z.phi, C: cmInt(z.comprimento), n: 0, u: !!z.u, s: !!z.suspensao, g: !!z.grampo }; e.n += z.n; est.set(k, e); }
   const posEst = new Map<string, string>();
-  for (const [k, e] of est) posEst.set(k, posDe(`${e.s ? 'S' : 'E'}${e.u ? 'U' : ''}|${cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
-  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(kEst(z))} ${z.suspensao ? 'suspensão' : `c/${cmInt(z.s)}`}`]));
+  for (const [k, e] of est) posEst.set(k, posDe(`${e.s ? 'S' : e.g ? 'G' : 'E'}${e.u ? 'U' : ''}|${e.g ? e.C : cmInt(eLarg)}|${cmInt(eAlt)}`, acoE, e.phi, e.C, e.n * rep));
+  for (const z of det.estribos) out.push(...cotaHorizontal(y2, [X(z.s0), X(z.s1)], [`${qtd(rep, z.n)} ${posEst.get(kEst(z))} ${z.suspensao ? 'suspensão' : z.grampo ? `grampos c/${cmInt(z.s)}` : `c/${cmInt(z.s)}`}`]));
   // ---- título ----
   const yTit = hb + d + 8 + Math.max(0, nSup - 1) * 9 + 9;
   const pavs = pavimentosDoGrupo(b, v.grupo);

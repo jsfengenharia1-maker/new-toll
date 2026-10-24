@@ -80,6 +80,14 @@ export interface OpcoesCalculo {
   vigaReforcoBitola: number;
   vigaAncoragemFolga: number;
   vigaAncoragemEixo: number;
+  /** Estribos: ramos pelo espaçamento transversal, grampos abertos e bitola por zona (R8b). */
+  vigaEstriboRamosTransv: number;
+  vigaEstriboGrampos: number;
+  vigaEstriboPhiZona: number;
+  /** Fundação: cortes da armadura principal das vigas de fundação (R8b). */
+  vigaFundCortes: number;
+  /** Ordem global por taxa na busca da armadura dos pilares (R8b). */
+  pilarOrdemTaxa: number;
   vigaEstriboExtensao: number;
   vigaEstriboZonaMin: number;
   vigaEstriboSimetria: number;
@@ -709,6 +717,16 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Distância da ponta das barras à face externa do apoio extremo (ancoragem construtiva: do eixo do apoio até a face oposta menos esta folga). 0 = usa o cobrimento lateral da viga.' },
   { chave: 'vigaAncoragemEixo', rotulo: 'Vigas: ancoragem das passantes pelo cálculo, a partir do eixo do apoio', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'Ancoragem construtiva sempre (comportamento anterior; a NBR 6118 18.3.2.4.1 mede a ancoragem a partir da face)', fonte: 'Programa de referência (K1.12.7: construtiva, salvo quando o cálculo exige ancoragem menor a partir do eixo); medida do eixo a confirmar', aConfirmar: true,
     descricao: 'Ligada: a passante termina na menor das distâncias a partir do eixo do apoio extremo entre a ancoragem construtiva e a exigida pelo cálculo (Rst = (aℓ/d)·Vd; mínimo 5,5φ + pino); a necessária é mostrada no aviso de ancoragem. Desligada: sempre a construtiva.' },
+  { chave: 'vigaEstriboRamosTransv', rotulo: 'Vigas: ramos dos estribos pelo espaçamento transversal', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 18.3.3.2 (espaçamento transversal entre ramos sucessivos st ≤ d e 800 mm se Vd ≤ 0,20·VRd2; st ≤ 0,6d e 350 mm se maior) [numeração de 2014, a confirmar]', aConfirmar: true,
+    descricao: 'Ligada: em cada trecho de estribos, o número de ramos é o maior entre o do cálculo e o que mantém o espaçamento entre ramos sucessivos (largura interna do estribo ÷ (ramos − 1)) dentro de st,máx; a norma prevalece sobre a lista de ramos da tabela de estribos, até 6 ramos (3 conjuntos de estribo e grampos na seção; acima, aviso). Desligada: ramos só pelo cálculo, como antes.' },
+  { chave: 'vigaEstriboGrampos', rotulo: 'Vigas: ramos além dos 2 do estribo em grampos verticais abertos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.12.1-7: estribos e grampos combináveis); padrão com estribos fechados múltiplos (comportamento anterior); a confirmar', aConfirmar: true,
+    descricao: 'Ligada: nos trechos com mais de 2 ramos, um estribo fechado perimetral e os demais ramos em grampos verticais abertos (U, largura = espaçamento transversal entre ramos, abertura em cima), pares de ramos internos. Desligada: estribos fechados duplos ou triplos. Cada trecho pode ser editado com o número de grampos.' },
+  { chave: 'vigaEstriboPhiZona', rotulo: 'Vigas: bitola do estribo por zona', unidade: 'cm (0 = a mesma bitola na viga)', min: 0, max: 30, passo: 1, padrao: 0, fonte: 'Programa de referência (K1.12.1-6: diâmetros diferentes por zona da viga); desligada por padrão (comportamento anterior); espaçamento mínimo de troca a confirmar', aConfirmar: true,
+    descricao: 'Maior que zero: cada zona de estribos recebe a menor bitola da tabela de estribos (a partir de 5 mm e do mínimo exigido pelo cálculo) que mantenha a mesma densidade de armadura transversal com espaçamento de pelo menos este valor e dentro do máximo da zona. 0 = a bitola do cortante crítico em toda a viga.' },
+  { chave: 'vigaFundCortes', rotulo: 'Vigas de fundação: cortes da armadura principal', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não fixa cortes: barras de cada face corridas em toda a viga (comportamento anterior)', fonte: 'Programa de referência (K1.12.12: superior, inferior em vigas de fundação; até 3 grupos de comprimentos)', aConfirmar: false,
+    descricao: 'Ligada: nas vigas de fundação sobre base elástica e de equilíbrio/travamento, a face de maior momento de cálculo (a que faz o papel dos negativos: inferior sob os pilares quando o solo reage para cima) tem as barras divididas em até `vigaGruposSup` grupos de comprimentos e a outra face (positivos) em até `vigaCortesInf`, cortados pelo diagrama decalado de d mais a ancoragem lb; a parcela corrida (passante) segue a da tabela de vigas. Desligada: todas as barras corridas.' },
+  { chave: 'pilarOrdemTaxa', rotulo: 'Pilares: testar as disposições em ordem crescente de taxa', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'Menor bitola que atende, com o menor número de barras nela (comportamento anterior)', fonte: 'Programa de referência (K1.12.4-2: com a tabela de armaduras, testa as disposições em ordem crescente de taxa)', aConfirmar: false,
+    descricao: 'Ligada: todas as bitolas da tabela são testadas e vale a disposição que atende com a menor armadura total (menor taxa); empate: a de menor bitola. Desligada: vale a primeira bitola (crescente) que atende, com o menor número de barras nela.' },
   { chave: 'vigaEstriboExtensao', rotulo: 'Vigas: estender zonas de estribos em d/2', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, padraoNBR: 0, fonteNBR: 'NBR 6118 não pede extensão: a zona termina onde o espaçamento exigido permite abrir (comportamento anterior)', fonte: 'Programa de referência (K1.12.1-9: necessário + d/2)', aConfirmar: false,
     descricao: 'Cada zona de estribos mais densa é estendida de d/2 para o lado da zona menos exigida.' },
   { chave: 'vigaEstriboZonaMin', rotulo: 'Vigas: comprimento mínimo da zona de estribos', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 0, fonte: 'Opção do programa de referência (K1.4.65); padrão desligado (resta a regra de 2 espaçamentos)', aConfirmar: false,
@@ -1283,7 +1301,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'woodArmer', 't0Flecha', 'fatorFlechaLaje', 'limiteFlechaTotal', 'limiteFlechaSensorial', 'redistribuicao', 'momentoMinPositivo',
   'momentoMinNegativo', 'cortanteApoio', 'cortanteDistancia', 'verificarTorcao', 'limiteFissura', 'barraMaxima', 'arredondamento', 'perdasAco',
   'bitolaMontagem', 'vigaReducaoLb', 'vigaNegativoVao', 'vigaReforcoVao', 'vigaSimetriaNegativos', 'vigaNegativosUnir', 'vigaMontagemContinua',
-  'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaCortesInf', 'vigaGruposSup', 'vigaGrupoMinPct', 'vigaReforcoBitola', 'vigaAncoragemFolga', 'vigaAncoragemEixo', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
+  'vigaMontagemColaborante', 'vigaMontagemGancho', 'vigaMontagemEixo', 'vigaPernaGancho', 'vigaCortesInf', 'vigaGruposSup', 'vigaGrupoMinPct', 'vigaReforcoBitola', 'vigaAncoragemFolga', 'vigaAncoragemEixo', 'vigaEstriboRamosTransv', 'vigaEstriboGrampos', 'vigaEstriboPhiZona', 'pilarOrdemTaxa', 'vigaEstriboExtensao', 'vigaEstriboZonaMin',
   'vigaEstriboSimetria', 'vigaEstriboGancho', 'vigaEstriboU', 'vigaAsMinPonto', 'vigaFatorEmenda', 'vigaDesnivelLimite', 'continuidadePilares', 'pilarSimetria', 'pilarBarraMaxima', 'pilarUniaoLances',
   'ancoragemReduzidaTopo', 'pilarContinuidadeInicio', 'pilarContinuidadeFaces', 'pilarProlongarSemViga', 'pilarCorteTopo',
   'pilarReducaoIntermediarios', 'pilarReducaoMinimo', 'pilarAdensamento', 'pilarAdensamentoAltura', 'pilarAdensamentoEspacamento',

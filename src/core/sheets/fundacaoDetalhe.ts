@@ -307,13 +307,21 @@ export function desenharViga(c: Ctx, vs: ResultadoVigaFundacao[], escala: number
   const rotulos: string[] = [];
   const barra = (bs: { phi: number; n: number } | null, tipo: 'sup' | 'inf', yy: number, texto: string) => {
     if (!bs) return;
+    // cortes da armadura principal (R8b): n corridas e os grupos escalonados, cada um numa posição (linhas empilhadas para dentro da viga)
+    const ct = a.cortes?.[tipo], nPas = ct?.grupos.length ? ct.passantes : bs.n;
     const Lreta = tipo === 'sup' ? v.L - fi - ff + a.ancoragem.ini + a.ancoragem.fim : v.L - fi - ff + 2 * 0.1;
-    const C = cBarra(Lreta, bs.phi, 2), pos = c.posDe(`V${tipo}|${cmInt(Lreta)}`, aco, bs.phi, C, rep * bs.n);
+    const C = cBarra(Lreta, bs.phi, 2), pos = c.posDe(`V${tipo}|${cmInt(Lreta)}`, aco, bs.phi, C, rep * nPas);
     const xa = tipo === 'sup' ? xFi - a.ancoragem.ini * k : xFi - 0.1 * k, xz = tipo === 'sup' ? xFf + a.ancoragem.fim * k : xFf + 0.1 * k, gk = ganchoNoventa(bs.phi) * k * (tipo === 'sup' ? 1 : 1);
     const dir = tipo === 'sup' ? -1 : 1;
     out.push({ t: 'pl', c: 'ARMADURA', pts: [[xa, yy + dir * gk], [xa, yy], [xz, yy], [xz, yy + dir * gk]] });
-    out.push(txt('TEXTO', (xFi + xFf) / 2, yy + (tipo === 'sup' ? 1.2 : -1.2), 2, `${rotulo(rep, bs.n, pos, bs.phi, '', C)} ${texto}`, 'c', tipo === 'sup' ? 'base' : 'topo'));
-    rotulos.push(`${tipo === 'sup' ? 'Superior' : 'Inferior'}: ${rotulo(rep, bs.n, pos, bs.phi, '', C)}`);
+    out.push(txt('TEXTO', (xFi + xFf) / 2, yy + (tipo === 'sup' ? 1.2 : -1.2), 2, `${rotulo(rep, nPas, pos, bs.phi, '', C)} ${texto}`, 'c', tipo === 'sup' ? 'base' : 'topo'));
+    rotulos.push(`${tipo === 'sup' ? 'Superior' : 'Inferior'}: ${rotulo(rep, nPas, pos, bs.phi, '', C)}`);
+    if (ct?.grupos.length) ct.grupos.forEach((gr, gi) => {
+      const yg = yy + (tipo === 'sup' ? -1 : 1) * (gi + 1) * 2.4, Cg = cBarra(gr.comprimento, bs.phi, 0), pg = c.posDe(`V${tipo}c|${cmInt(gr.comprimento)}`, aco, bs.phi, Cg, rep * gr.n);
+      out.push({ t: 'pl', c: 'ARMADURA', pts: [[xi + gr.s0 * k, yg], [xi + gr.s1 * k, yg]] });
+      out.push(txt('TEXTO', xi + ((gr.s0 + gr.s1) / 2) * k, yg + (tipo === 'sup' ? 1 : -1) * 0.1, 1.8, rotulo(rep, gr.n, pg, bs.phi, '', Cg), 'c', tipo === 'sup' ? 'base' : 'topo'));
+      rotulos.push(`${tipo === 'sup' ? 'Superior' : 'Inferior'} (corte): ${rotulo(rep, gr.n, pg, bs.phi, '', Cg)}`);
+    });
   };
   barra(a.sup.barras, 'sup', yTop - cob * k, '(sup.)');
   barra(a.inf.barras, 'inf', yBot + cob * k, '(inf.)');

@@ -64,6 +64,7 @@ export const SUGESTOES: Record<string, string> = {
   AGRUP_IGNORADO: 'Confira se os pórticos agrupados têm o mesmo número de vãos e seções iguais; desfaça o agrupamento ou corrija as diferenças.',
   AGRUP_BLOQ: 'Desbloqueie a armadura do pórtico ou retire-o do agrupamento: pórticos com armadura bloqueada própria ficam fora da equalização.',
   ARMADURA: 'Aumente a seção do elemento ou o fck; com 4 % de armadura (pilar) ou a armadura máxima (viga) a seção não resiste.',
+  ESTRIBO_RAMOS: 'Inclua estribos de 6 ou mais ramos (ou grampos) na tabela de estribos da faixa de largura da viga, ou reduza a largura da viga (NBR 6118, 18.3.3.2: st ≤ d ou 0,6d).',
   ESTRIBO_BITOLA: 'Reduza a bitola do estribo (φt ≤ bw/10, NBR 6118 18.3.3.2) e use mais ramos ou menor espaçamento, ou aumente a largura da viga.',
   DESNIVEL_LONG: 'Alinhe as faces das vigas consecutivas ou detalhe a emenda na mudança de nível; o limite do aviso está nas opções.',
   TRAMO_IGNORADO: 'Confira o tramo predefinido: as vigas precisam ser consecutivas e alinhadas, com bitola compatível e dentro da barra máxima.',

@@ -20,6 +20,7 @@ import { montarConjunto } from '../sheets/conjunto';
 import { lerQuadroVigas } from './quadros';
 import { ANTES_N2E } from './antesN2e';
 import { ANTES_N4C } from './antesN4c';
+import { ANTES_R8B } from './antesR8b';
 
 function sessao() {
   const s = new Sessao();
@@ -244,7 +245,7 @@ describe('regressão: edifício fictício de 10 pavimentos (3 × 2 vãos, lajes 
   // desde a N2b o padrão é o modelo integrado; as opções do modelo anterior reproduzem estes valores exatamente
   const { s } = predio(5);
   // N2c: o Térreo e a Cobertura não têm vigas; a soma dos lances desligados (padrão do sistema) muda os pilares de baixo
-  s.executar('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0, pilarLancesDesligados: 0, ...ANTES_N2E, ...ANTES_N4C } });
+  s.executar('opcoes.definir', { valores: { modeloGlobal: 0, cortanteBarrasLaje: 0, pilarLancesDesligados: 0, ...ANTES_N2E, ...ANTES_N4C, ...ANTES_R8B } });
   const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
   it('γz, deslocamento do topo e reações', () => {
     expect(s.modelo.pavimentos).toHaveLength(10);
@@ -286,7 +287,7 @@ describe('regressão N2b: o mesmo edifício no modelo integrado (padrão do sist
   // topo −2,3 %, V2 Mpos −11 % e Mneg −7,6 % (as lajes ligadas aos pilares entram no pórtico e tiram momento de vento das
   // vigas), N do P1 +1,1 %, Nd do P5 −1,6 %, L1 mNeg +2,6 %. Com vigas muito rígidas os dois modelos coincidem (< 0,2 %).
   const { s } = predio(5);
-  s.executar('opcoes.definir', { valores: { pilarLancesDesligados: 0, ...ANTES_N2E, ...ANTES_N4C } }); // N2c (ver o bloco de cima) e N2e (valores de antes da frente)
+  s.executar('opcoes.definir', { valores: { pilarLancesDesligados: 0, ...ANTES_N2E, ...ANTES_N4C, ...ANTES_R8B } }); // N2c (ver o bloco de cima) e N2e (valores de antes da frente)
   const an = analisarEdificio(s.modelo), d = dimensionarEdificio(s.modelo, an);
   it('γz, deslocamento do topo e reações', () => {
     expect(an.opcoes.modeloGlobal).toBe(1);
