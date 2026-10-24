@@ -248,15 +248,18 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     const pavs = pavimentosDoGrupo(b, l.grupo), grelhas = an.grelhas.filter((x) => x.res && pavs.some((p) => p.id === x.pavimento));
     const grupo = b.grupos.find((x) => x.id === l.grupo);
     // ---- esforços de cada nervura: envoltória dos pavimentos do grupo
-    const envFat = (fat: number[]) => arr.nervuras.map((rib) => {
+    const envFat = (fat: number[]) => {
+      const linhasPorGrelha = grelhas.map((gr) => linhasDaGrelha(gr, l, fat, arr)); // não depende da nervura: uma vez por pavimento
+      return arr.nervuras.map((rib) => {
       let acc: EsforcosNervura | null = null;
-      for (const gr of grelhas) {
-        const e = esforcosDaNervura(rib, linhasDaGrelha(gr, l, fat, arr), g.i[rib.dir], arr);
+      for (let ig = 0; ig < grelhas.length; ig++) {
+        const e = esforcosDaNervura(rib, linhasPorGrelha[ig], g.i[rib.dir], arr);
         if (!acc) { acc = e; continue; }
         acc = { x: acc.x, Mmax: acc.x.map((t, j) => Math.max(acc!.Mmax[j], interp(e.x, e.Mmax, t) ?? -Infinity)), Mmin: acc.x.map((t, j) => Math.min(acc!.Mmin[j], interp(e.x, e.Mmin, t) ?? Infinity)), V: acc.x.map((t, j) => Math.max(acc!.V[j], interp(e.x, e.V, t) ?? 0)) };
       }
       return acc ?? { x: [0, rib.L], Mmax: [0, 0], Mmin: [0, 0], V: [0, 0] };
     });
+    };
     const esf = envFat(fELU), esfF = envFat(fFreq);
     // ---- uniformização: nervuras vizinhas da mesma direção com momentos próximos adotam a armadura da mais solicitada
     const grupoDe = new Array<number>(arr.nervuras.length).fill(0);
