@@ -16,9 +16,9 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-25/10/2026 (conferir ao retomar): E5g (nervuradas; ajuste pedido: mínimos das zonas maciças pela NBR 6118 Tab. 19.1 — negativa ρmín, positiva 0,67ρmín — no lugar de 0,15%h nas duas faces) e E5e (vigotas: igualação, flecha de montagem).
+26/10/2026 (conferir ao retomar): (a) integração da memória detalhada MD1 (branch `md-memoria-detalhada`) com a E5m (pilar por trechos) — agente em `md-integra`; (b) MD2 memória das lajes (branch `md2`, sobre `md-memoria-detalhada`; mesclar depois da integração).
 
-Já no main: E5l, E5h, E5a, E5j, E5i (C5.6 Parcial: falta tabela de aço da alvenaria armada), E5b (ferramentas de planta com o mouse), E5k (vigas de fundação T/L/plana). 1.830 testes, 120 e2e, pacote 4.772 KB. Restam da E5: c, d, f (e g/e em andamento); K1.12.4-19 (pilar com desnível) sem fatia — exige nós intermediários nos pilares.
+Já no main: E5 inteira (a–m), correção da punção das maciças (limite de C′ com armadura informada; mensagem do caso Vc cobre) e regressão de desempenho das nervuradas (11,5 s → 1,6 s), fatias de resíduo V7a–e, N4a–c, R8a–b, E6a–d (E6d resolvida pela E5m; remover do plano) com o teste `checklists-donos.test.ts` (todo pendente cita fatia aberta). 1.906 testes, 126 e2e, pacote 4.845 KB. Pendentes: 15+4 (usuário) e 28+2 (cálculo).
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
@@ -37,4 +37,4 @@ Já no main: E5l, E5h, E5a, E5j, E5i (C5.6 Parcial: falta tabela de aço da alve
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.830 testes, 120 fluxos e2e (paralelo), pacote 4.772 KB.
+1.906 testes, 126 fluxos e2e (paralelo), pacote 4.845 KB.
