@@ -3,6 +3,9 @@
 // (NBR 6118, Tabela 13.4 [a confirmar]), duas parcelas de negativo, vigotas duplas e triplas, edição por vigota, erros e
 // avisos. Reaproveita os alinhamentos, mínimos e igualação de `vigotas.ts`/`vigotasEsforcos.ts`. Unidades: kN, m; cm² nas áreas.
 // As treliçadas do catálogo interno continuam em `dimensionarVigotas` (R6).
+import { conversaoDaLaje, igualarPorArea } from './vigotasArea';
+import { mensagemMontagem, montagemDaLaje } from './vigotasMontagem';
+import { comprimentoEstribo } from './vigotasRelatorio';
 import { barArea, beamFlexure, beamShear, type BeamSection } from '../concrete';
 import type { P } from '../geom/faces';
 import { areaPoligono } from '../geom/faces';
@@ -88,7 +91,8 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     if (l.armaduraVigotas) msgsLaje(l.id, ['Armadura bloqueada desconsiderada: a laje não é treliçada.'], false);
     const moldada = g0.tipo === 'moldada', ficha = g0.ficha, serie = g0.serie;
     const { intereixo, bw, hEnch, capa, h } = g0;
-    const prep = prepararVigotas(b, an, l, intereixo, op);
+    const conv = conversaoDaLaje(b, l, g0, op);
+    const prep = prepararVigotas(b, an, l, intereixo, op, conv);
     if (!prep) continue;
     const { faixas, mins, idxGr, u, nomesPav } = prep, pavs = pavimentosDoGrupo(b, l.grupo);
     const msgs: Msg[] = prep.avisos.map((texto) => ({ texto, erro: false }));
@@ -127,8 +131,8 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     // grupos de igualação → vigotas
     const grupoDe = new Map<number, number>();
     idxGr.forEach((ids, gi) => ids.forEach((i) => grupoDe.set(i, gi)));
-    const crit = op.vigotaIgualacao, ponto = !!op.vigotaIgualacaoPonto;
-    const igualar = (vs: number[], cr: number, neg = false) => (!vs.length ? 0 : cr === 2 ? vs.reduce((t, v) => t + v, 0) / vs.length : neg ? Math.min(...vs) : Math.max(...vs));
+    const crit = op.vigotaIgualacao, ponto = !!op.vigotaIgualacaoPonto && !conv;
+    const igualar = conv ? igualarPorArea(conv) : (vs: number[], cr: number, neg = false) => (!vs.length ? 0 : cr === 2 ? vs.reduce((t, v) => t + v, 0) / vs.length : neg ? Math.min(...vs) : Math.max(...vs));
     const eg = idxGr.map((ids) => esforcosDoGrupo(ids, faixas, mins, crit, ponto, igualar));
     const redist = idxGr.map((ids, gi) => {
       if (!op.vigotaRedistribuir) return { esforcos: eg[gi].esforcos, delta: 1, aplicada: false };
@@ -377,7 +381,14 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
       if (moldada) {
         if (barrasPos?.n) posicoes.push({ tipo: 'inferior', aco: aI.aco, phi: barrasPos.phi, n: barrasPos.n * nv, comprimento: compPos, percentual: pct(compPos, L) });
         for (const ng of negativos) for (const p of ng?.parcelas ?? []) if (p.n) posicoes.push({ tipo: 'superior', aco: aS.aco, phi: p.phi, n: p.n * nv, comprimento: p.comprimento });
-        for (const ct of cortante) if (ct.estribo && ct.estribo.barras) posicoes.push({ tipo: 'transversal', aco: aV.aco, phi: ct.estribo.phi, n: ct.estribo.barras * nv, comprimento: 2 * (bw - 2 * cob.inf) + 2 * (h - 2 * cob.inf) + 2 * Math.max(0.05, 5 * ct.estribo.phi / 1000) });
+        // C7.194: estribo fechado ou em ômega; cortante em todo o comprimento = uma só posição com o espaçamento da ponta mais exigente
+        const comprEst = (phi: number) => comprimentoEstribo({ bw, h, cob: cob.inf, phi, omega: !!op.vigotaEstriboOmega, aba: op.vigotaOmegaAba / 100 });
+        const comEst = cortante.filter((ct) => ct.estribo && ct.estribo.barras);
+        if (op.vigotaCortanteTotal && comEst.length) {
+          const ct = comEst.reduce((a, z) => (z.estribo!.s < a.estribo!.s ? z : a));
+          for (const k of cortante) if (k.estribo) k.estribo = { ...k.estribo, zona: r3(L), barras: Math.ceil(L / ct.estribo!.s) + 1 };
+          posicoes.push({ tipo: 'transversal', aco: aV.aco, phi: ct.estribo!.phi, n: (Math.ceil(L / ct.estribo!.s) + 1) * nv, comprimento: comprEst(ct.estribo!.phi) });
+        } else for (const ct of comEst) posicoes.push({ tipo: 'transversal', aco: aV.aco, phi: ct.estribo!.phi, n: ct.estribo!.barras * nv, comprimento: comprEst(ct.estribo!.phi) });
       } else {
         for (const p of parcelas) posicoes.push({ tipo: 'adicional', aco: aI.aco, phi: p.phi, n: p.n * nv, comprimento: p.comprimento, percentual: p.percentual });
         for (const ng of negativos) for (const p of ng?.parcelas ?? []) if (p.n) posicoes.push({ tipo: 'negativa', aco: aS.aco, phi: p.phi, n: p.n * nv, comprimento: p.comprimento, percentual: p.percentual });
@@ -435,6 +446,9 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     const tipos = new Map<string, number>();
     for (const g of grupos) { const k = g.tipo ?? (moldada ? 'moldada' : '—'); tipos.set(k, (tipos.get(k) ?? 0) + g.vigotas); }
     const rotuloFam = FAMILIAS_VIGOTA.find((x) => x.v === (ficha?.familia ?? 'moldada'))?.rotulo ?? 'Moldada no local';
+    // E5e (C7.102): flecha de montagem da vigota sobre escoras (não vale para as moldadas no local)
+    const montagem = !moldada && op.vigotaMontagem ? montagemDaLaje(c, g0, trNome ? trelicasDe(b)[trNome] : undefined, Math.max(...grupos.map((g) => g.L)), op) : undefined;
+    if (montagem && !montagem.ok) erro(mensagemMontagem(montagem));
     const resumo = moldada
       ? `Vigotas moldadas: ${g0.descricao}, ${lista.length} nervura(s) em ${grupos.length} grupo(s); Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura; inferior ${[...new Set(grupos.map((g) => (g.positiva.barras?.n ? `${g.positiva.barras.n}φ${fphi(g.positiva.barras.phi)}` : '—')))].join(' / ')}.`
       : `Vigotas por ficha: ${g0.descricao} (${rotuloFam}), ${lista.length} vigota(s) em ${grupos.length} grupo(s); tipos ${[...tipos.entries()].map(([k, v]) => `${k} × ${v}`).join(', ')}; Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura${protendida ? `; protensão ${nivel} (CAA ${caa}, combinação ${comb})` : ''}.`;
@@ -447,7 +461,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
       intereixo, bw, capa, h, d: { inf: r3(dI), sup: r3(dS) }, vigotas: lista.length, comprimentoVigotas: r3(comprimentoVigotas), faixas, grupos,
       distribuicao: { AsNec: AsDist, aco: aS.aco, phi: phiD, s: sD }, verificacaoCapa: { minima: capaMin, ok: capaOk }, bloqueada: !!(l.edicaoVigotas?.length),
       posicoes, peso, pesoTrelica: trNome ? comprimentoVigotas * pesoTrelica(trNome, b) : 0, status: erros.length ? 'fail' : 'ok', mensagens: [...erros, ...outras],
-      lista, familia: ficha?.familia ?? 'moldada', ...(ficha ? { ficha: ficha.id, fichaNome: ficha.nome } : {}), ...(serie ? { serie: serie.id } : {}),
+      ...(montagem ? { montagem } : {}), lista, familia: ficha?.familia ?? 'moldada', ...(ficha ? { ficha: ficha.id, fichaNome: ficha.nome } : {}), ...(serie ? { serie: serie.id } : {}),
       ...(protendida ? { protensao: { caa, nivel, combinacao: comb } } : {}),
     });
   }

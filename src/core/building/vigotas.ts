@@ -15,6 +15,8 @@ import { vaos } from './lajes';
 import { esforcosDoGrupo, minimosDaFaixa, pontasContinuas, posicionarVigotas, redistribuirNegativos, tipoDeVao, type DiagramaVigota, type MinimosFaixa, type VigotaPosicionada } from './vigotasEsforcos';
 import type { FlechaAlinhamento } from './dimensionamento';
 import { ehNervurada, geometriaNervurada, modelosTrelicadas, trelicasDe, type FamiliaVigota, type FonteLajes } from './tiposLaje';
+import { conversaoDaLaje, gruposEmCadeia, igualarPorArea, type ConversaoArea } from './vigotasArea';
+import { mensagemMontagem, montagemDaLaje } from './vigotasMontagem';
 import { acoDe, cobrimentoLaje, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje, type TipoVao } from './types';
@@ -185,6 +187,8 @@ export interface ResultadoVigotas {
   /** Família e ficha (E3b); ausentes nas treliçadas do catálogo interno. */
   familia?: FamiliaVigota; ficha?: string; fichaNome?: string; serie?: string;
   /** Protensão (E3b): classe de agressividade do pano, nível pela Tabela 13.4 e combinação de serviço. */
+  /** Flecha de montagem da vigota sobre escoras (E5e, C7.102), quando a verificação está ligada. */
+  montagem?: import('./vigotasMontagem').VerificacaoMontagem;
   protensao?: { caa: 'I' | 'II' | 'III' | 'IV'; nivel: 'parcial' | 'limitada' | 'completa'; combinacao: 'frequente' | 'rara' };
 }
 
@@ -274,7 +278,7 @@ export const deltaMinVigotas = (an: AnaliseEdificio): number => ((an.vento?.gama
 export interface PreparoVigotas {
   u: P; nomesPav: string[]; faixas: FaixaVigota[]; mins: MinimosFaixa[]; idxGr: number[][]; avisos: string[];
 }
-export function prepararVigotas(b: BuildingModel, an: AnaliseEdificio, l: Laje, intereixo: number, op: OpcoesCalculo): PreparoVigotas | null {
+export function prepararVigotas(b: BuildingModel, an: AnaliseEdificio, l: Laje, intereixo: number, op: OpcoesCalculo, conv?: ConversaoArea): PreparoVigotas | null {
   const gm = gamas(b), obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
   const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
   const ang = ((l.direcao ?? 0) * Math.PI) / 180, u: P = [Math.cos(ang), Math.sin(ang)];
@@ -302,7 +306,8 @@ export function prepararVigotas(b: BuildingModel, an: AnaliseEdificio, l: Laje, 
   // tração inferior nas pontas (momento positivo no apoio)
   if (faixas.some((f) => [f.Mmax[0], f.Mmax.at(-1)!].some((M) => M > Math.max(0.1, 0.05 * f.calc.mPos))))
     avisos.push('Vigotas: tração inferior junto ao apoio (momento positivo na ponta da vigota); reveja o engaste das bordas ou a continuidade da armadura inferior.');
-  const idxGr = gruposIgualacao(mins.map((m) => m.esforcos.mPos), op.vigotaIgualacaoDif, op.vigotaIgualacao);
+  // E5e (C7.100): com a igualação pela área, a diferença é medida entre as áreas de aço das vizinhas, em cadeia
+  const idxGr = conv ? gruposEmCadeia(mins.map((m) => conv.pos.areaDe(m.esforcos.mPos)), op.vigotaIgualacaoDif, op.vigotaIgualacao) : gruposIgualacao(mins.map((m) => m.esforcos.mPos), op.vigotaIgualacaoDif, op.vigotaIgualacao);
   return { u, nomesPav, faixas, mins, idxGr, avisos };
 }
 
@@ -339,7 +344,8 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
     const trTab = trelicasDe(b), nomeTr = g0.trelica && trTab[g0.trelica] ? g0.trelica : 'TR 12645', tr = trTab[nomeTr] ?? TRELICAS[nomeTr];
     const modeloNome = l.tipo.tipo === 'trelicada' ? l.tipo.modelo : l.tipo.tipo === 'vigotas' ? l.tipo.serie : '';
     const { intereixo, bw, hEnch } = g0, capa = g0.capa, h = hEnch + capa;
-    const prep = prepararVigotas(b, an, l, intereixo, op);
+    const conv = conversaoDaLaje(b, l, g0, op);
+    const prep = prepararVigotas(b, an, l, intereixo, op, conv);
     if (!prep) continue;
     const { nomesPav, faixas, mins, idxGr, u } = prep, pavs = pavimentosDoGrupo(b, l.grupo);
     const erros: string[] = [], avisos: string[] = [...prep.avisos];
@@ -361,7 +367,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       const nv = gi === idxGr.length - 1 ? restante : Math.min(restante, Math.round((nTotal * lg) / larguraTotal));
       restante -= nv;
       const crit = op.vigotaIgualacao;
-      const eg = esforcosDoGrupo(ids, faixas, mins, crit, !!op.vigotaIgualacaoPonto, igualar);
+      const eg = esforcosDoGrupo(ids, faixas, mins, crit, !!op.vigotaIgualacaoPonto && !conv, conv ? igualarPorArea(conv) : igualar);
       const continuas = ids.map((i) => pontasContinuas(faixas[i]));
       const red = op.vigotaRedistribuir ? redistribuirNegativos(eg.esforcos, [continuas.some((c) => c[0]), continuas.some((c) => c[1])], op.redistribuicao, deltaMinVigotas(an)) : null;
       const esf: EsforcosVigota = red?.esforcos ?? eg.esforcos;
@@ -427,6 +433,9 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
         negativos, cortante, macico,
       };
     });
+    // E5e (C7.102): flecha de montagem da vigota sobre escoras
+    const montagem = op.vigotaMontagem ? montagemDaLaje(c, g0, tr, Math.max(...grupos.map((g) => g.L)), op) : undefined;
+    if (montagem && !montagem.ok) erros.push(mensagemMontagem(montagem));
     // distribuição na capa (NBR 6118, Tabela 19.1, armadura secundária de lajes em uma direção) [a confirmar]
     const AsPrinc = Math.max(...grupos.map((g) => AsTrel + (g.positiva.barras?.As ?? g.positiva.AsAdicional))) / intereixo; // cm²/m
     const AsDist = Math.max(0.2 * AsPrinc, 0.9, 0.5 * RHO_MIN_LAJE * capa * 1e4);
@@ -451,7 +460,7 @@ export function dimensionarVigotas(b: BuildingModel, an: AnaliseEdificio, lajes:
       banzoInf: { n: 2, phi: tr.inf, As: AsBanzo }, intereixo, bw, capa, h, d: { inf: r3(dI), sup: r3(dS) },
       vigotas: nTotal, comprimentoVigotas: r3(comprimentoVigotas), faixas, grupos,
       distribuicao: { AsNec: AsDist, aco: aS.aco, phi: phiD, s: sD }, verificacaoCapa: { minima: capaMin, ok: capaOk }, bloqueada: !!trava,
-      posicoes, peso, pesoTrelica: comprimentoVigotas * pesoTrelica(nomeTr, b),
+      posicoes, peso, pesoTrelica: comprimentoVigotas * pesoTrelica(nomeTr, b), ...(montagem ? { montagem } : {}),
       status: erros.length ? 'fail' : 'ok', mensagens: msgs,
       lista: listaDeVigotas(posicionarVigotas(l, faixas, nTotal, B, u), faixas, grupos, l, () => g0.pp * intereixo),
     });

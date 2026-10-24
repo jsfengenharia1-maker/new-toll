@@ -87,6 +87,16 @@ export function quantitativoVigotas(vs: ResultadoVigotas[], perdas: number): Lin
   return [...m.values()].map((e) => ({ ...e, comprimento: +e.comprimento.toFixed(3), comprimentoComPerdas: +(e.comprimento * (1 + perdas / 100)).toFixed(3) })).sort((a, z) => a.familia.localeCompare(z.familia) || a.tipo.localeCompare(z.tipo));
 }
 
+/**
+ * Comprimento (m) de um estribo da nervura moldada (C7.194): fechado = perímetro dentro do cobrimento + 2 ganchos de máx(5 cm; 5φ);
+ * em ômega = base + 2 pernas até o cobrimento do topo + 2 abas horizontais de máx(aba; 10φ) ancoradas na capa [a confirmar].
+ */
+export function comprimentoEstribo(p: { bw: number; h: number; cob: number; phi: number; omega: boolean; aba: number }): number {
+  const base = p.bw - 2 * p.cob, perna = p.h - 2 * p.cob;
+  if (p.omega) return base + 2 * perna + 2 * Math.max(p.aba, (10 * p.phi) / 1000);
+  return 2 * base + 2 * perna + 2 * Math.max(0.05, (5 * p.phi) / 1000);
+}
+
 export interface LinhaArmaduraMoldada { posicao: 'inferior' | 'superior' | 'transversal'; aco: string; phi: number; comprimento: number; peso: number; pesoComPerdas: number }
 /** Armaduras das nervuras moldadas no local (C7.194): inferior, superior e transversal por aço e bitola (kg), com repetições e perdas. */
 export function quantitativoMoldadas(vs: ResultadoVigotas[], perdas: number): LinhaArmaduraMoldada[] {

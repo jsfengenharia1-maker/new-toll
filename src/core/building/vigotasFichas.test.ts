@@ -13,6 +13,7 @@ import { armaduraEquivalente, dadosBranson, fatorBranson } from './vigotasFlecha
 import { cortantesDasPontas, quantitativoMoldadas, quantitativoVigotas, relatorioEsforcos } from './vigotasRelatorio';
 import { escolherPorMomento, fichaPor } from './tiposLaje';
 import { igualar, type FaixaVigota } from './vigotas';
+import { dadosDeResultado, rotulosDeVigotas, vistaDisponivel } from '../resultados/vigotasVista';
 
 type Ok = (n: string, p: Record<string, unknown>) => void;
 /** Pavimento com um vão de 4 m (5 m em y) de lajes de vigotas na direção x, vigas 15×45 em pilares 25×25; mínimos das vigotas desligados. */
@@ -425,5 +426,71 @@ describe('E3b: vigota a vigota, relatório de esforços e escolha por momento', 
     // o pico do relatório é o da faixa (sem mínimos nem igualação)
     expect(Math.max(...rel.Mmax)).toBeCloseTo(v.faixas[v.lista![4].faixa].calc.mPos, 2);
     expect(relatorioEsforcos(b, an, v, 99)).toBeNull();
+  });
+});
+
+describe('E5e: igualação pela área, flecha de montagem e ômega', () => {
+  const H12 = { tipo: 'trelicada', modelo: 'H12', capa: 0.04 };
+  const op = (valores: Record<string, number>) => (ok: Ok) => ok('opcoes.definir', { valores });
+  it('flecha de montagem: biapoiada reprova, com escoras a cada 1,5 m passa e fica no resultado', () => {
+    const sem = pav(H12, { extra: op({ vigotaMontagem: 1, vigotaEscoraDist: 0 }) });
+    expect(sem.v.montagem!.escoras).toBe(0);
+    expect(sem.v.montagem!.flecha).toBeCloseTo((5 * sem.v.montagem!.q * 4 ** 4) / (384 * sem.v.montagem!.EI), 6);
+    expect(sem.v.mensagens.some((m) => /^Vigotas: flecha de montagem/.test(m))).toBe(true);
+    expect(sem.v.status).toBe('fail');
+    const com = pav(H12, { extra: op({ vigotaMontagem: 1, vigotaEscoraDist: 1.5 }) });
+    expect(com.v.montagem!.escoras).toBe(2);
+    expect(com.v.montagem!.ok).toBe(true);
+    expect(com.v.mensagens.some((m) => /flecha de montagem/.test(m))).toBe(false);
+    expect(pav(H12).v.montagem).toBeUndefined();
+  });
+  it('flecha de montagem em vigotas por ficha; moldadas ficam de fora', () => {
+    expect(pav(ARMADA, { extra: op({ vigotaMontagem: 1, vigotaEscoraDist: 1 }) }).v.montagem).toBeDefined();
+    expect(pav(MOLDADA, { biapoiada: true, extra: op({ vigotaMontagem: 1 }) }).v.montagem).toBeUndefined();
+  });
+  it('igualação pela área com 100 % de diferença dá o mesmo grupo único do critério pelo máximo', () => {
+    const a = pav(H12, { vaos: [4, 4], extra: op({ vigotaIgualacaoBase: 0, vigotaIgualacaoPonto: 0 }) }).v, b = pav(H12, { vaos: [4, 4], extra: op({ vigotaIgualacaoBase: 1 }) }).v;
+    expect(b.grupos.length).toBe(a.grupos.length);
+    expect(b.grupos[0].esforcos.mPos).toBeCloseTo(a.grupos[0].esforcos.mPos, 9);
+  });
+  it('igualação pela área: soma das vigotas dos grupos é o total do pano', () => {
+    const r = pav(H12, { vaos: [4], carga: 4, extra: op({ vigotaIgualacaoBase: 1, vigotaIgualacaoDif: 0.01 }) }).v;
+    expect(r.grupos.reduce((t, g) => t + g.vigotas, 0)).toBe(r.vigotas);
+  });
+  const est = (ok: Ok, s: Sessao, valores: Record<string, number> = {}) => {
+    ok('laje.editar', { id: s.modelo.lajes[0].id, armaduraMoldada: { inf: { n: 2, phi: 12.5 }, estribo: { phi: 5, s: 0.1 } } });
+    if (Object.keys(valores).length) ok('opcoes.definir', { valores });
+  };
+  it('estribo em ômega e cortante em todo o comprimento mudam as posições transversais das moldadas', () => {
+    const base = { biapoiada: true, carga: 14 };
+    const fech = pav({ ...MOLDADA, bw: 0.12 }, { ...base, extra: (ok, s) => est(ok, s) });
+    const tr = (r: typeof fech) => r.v.posicoes.filter((p) => p.tipo === 'transversal');
+    expect(tr(fech).length).toBeGreaterThan(0);
+    const om = pav({ ...MOLDADA, bw: 0.12 }, { ...base, extra: (ok, s) => est(ok, s, { vigotaEstriboOmega: 1 }) });
+    // fechado: 2(bw−2c) + 2(h−2c) + 2 ganchos; ômega: (bw−2c) + 2(h−2c) + 2 abas → diferença = (bw−2c) + 2·gancho − 2·aba
+    expect(tr(fech)[0].comprimento).toBeGreaterThan(tr(om)[0].comprimento);
+    expect(tr(om)[0].n).toBe(tr(fech)[0].n);
+    const tot = pav({ ...MOLDADA, bw: 0.12 }, { ...base, extra: (ok, s) => est(ok, s, { vigotaCortanteTotal: 1 }) });
+    expect(tr(tot).length).toBe(1);
+    expect(tr(tot)[0].n).toBeGreaterThanOrEqual(tr(fech)[0].n);
+  });
+});
+
+describe('E5e: vista da armadura inferior das moldadas (C7.91)', () => {
+  it('dados e rótulos da vista: texto da armadura inferior só com os esforços desligados', () => {
+    const { v } = pav({ ...MOLDADA, bw: 0.12 }, { biapoiada: true, carga: 6, extra: (ok, s) => ok('laje.editar', { id: s.modelo.lajes[0].id, armaduraMoldada: { inf: { n: 2, phi: 12.5 }, estribo: { phi: 5, s: 0.1 } } }) });
+    const dados = dadosDeResultado(v), g = v.grupos[0];
+    expect(dados[0].familia).toBe('moldada');
+    expect(dados[0].inferior).toEqual({ phi: 12.5, comprimento: g.positiva.comprimento });
+    const sem = rotulosDeVigotas(v, 'armaduraInferior', false);
+    expect(sem.length).toBe(v.faixas.length);
+    expect(sem[0].texto).toBe(`φ12,5 c=${g.positiva.comprimento.toFixed(2).replace('.', ',')} m`);
+    expect(rotulosDeVigotas(v, 'armaduraInferior', true)).toEqual([]);
+    expect(vistaDisponivel('armaduraInferior', true)).toBe(false);
+    expect(rotulosDeVigotas(v, 'momentos', true)[0].texto).toMatch(/^M = /);
+  });
+  it('armadas e protendidas por ficha: tipo na vista de momentos', () => {
+    expect(rotulosDeVigotas(pav(ARMADA).v, 'momentos', false)[0].texto).toMatch(/^Armada/);
+    expect(rotulosDeVigotas(pav(PROT).v, 'momentos', false)[0].texto).toBe('Protendida');
   });
 });

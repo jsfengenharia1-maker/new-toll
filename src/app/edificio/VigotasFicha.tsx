@@ -7,10 +7,12 @@ import { useBuilding } from './store';
 import { executarERecalcular } from './Armadura';
 import { fmt, phiTxt } from './Detalhamento';
 import { Diagrama, Mensagens } from './Revisao';
-import { Button, Hint, KV, Modal, NumField, Pill, Select, Seg } from '../ui';
+import { Button, Hint, Input, KV, Modal, NumField, Pill, Select, Seg } from '../ui';
 import { fichaPor } from '../../core/building/tiposLaje';
 import type { GrupoVigotas, ResultadoVigotas, VigotaIndividual } from '../../core/building/vigotas';
 import { relatorioEsforcos } from '../../core/building/vigotasRelatorio';
+import { rotulosDeVigotas, vistaDisponivel, type VistaVigota } from '../../core/resultados/vigotasVista';
+import { usePlanta } from './plantaStore';
 
 const num = (v: number, d = 2) => fmt(v, d);
 const BITOLAS = [6.3, 8, 10, 12.5, 16, 20, 25].map((v) => ({ v, label: `φ${String(v).replace('.', ',')}` }));
@@ -31,6 +33,8 @@ const paramsSel = (id: string, sel: number[]) => { const iv = intervalo(sel); re
 
 function PlantaIndividual({ r, sel, onSel }: { r: ResultadoVigotas; sel: number[]; onSel: (i: number, estende: boolean) => void }) {
   const l = useBuilding((s) => s.sessao.modelo.lajes.find((x) => x.id === r.laje));
+  const vista = usePlanta((s) => s.vigotasVista), esf = usePlanta((s) => s.vigotasEsforcos);
+  const rot = useMemo(() => (vista === 'nenhuma' ? [] : rotulosDeVigotas(r, vista, esf)), [r, vista, esf]);
   if (!l || !r.lista) return null;
   const W = 960, m = 40, xs = l.contorno.map((p) => p[0]), ys = l.contorno.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -49,8 +53,29 @@ function PlantaIndividual({ r, sel, onSel }: { r: ResultadoVigotas; sel: number[
           </g>
         );
       })}
+      {rot.map((x, i) => <text key={i} x={X(x.pos[0])} y={Y(x.pos[1]) - 4} textAnchor="middle" className="det-txt" data-rotulo-vigota={x.faixa}>{x.texto}</text>)}
       <text x={W - 8} y={H - 4} textAnchor="end" className="det-txt cota">vigotas reais a partir da borda do ponto de inserção · vermelho = com erro · clique seleciona, Shift+clique estende</text>
     </svg>
+  );
+}
+
+// ---------------------------------------------------------------- vista na planta (C7.91)
+
+const VISTAS: { v: 'nenhuma' | VistaVigota; label: string }[] = [
+  { v: 'nenhuma', label: 'Sem texto' }, { v: 'momentos', label: 'Momentos / tipo' }, { v: 'cortantes', label: 'Cortantes / estribos' }, { v: 'armaduraInferior', label: 'Armadura inferior' },
+];
+/** Texto das vigotas na planta (vale também no desenho do pavimento): a armadura inferior das moldadas não existe com os esforços ligados. */
+function VistaNaPlanta({ moldada }: { moldada: boolean }) {
+  const vista = usePlanta((s) => s.vigotasVista), esf = usePlanta((s) => s.vigotasEsforcos), set = usePlanta((s) => s.set);
+  const indisponivel = vista !== 'nenhuma' && !vistaDisponivel(vista, esf);
+  return (
+    <div className="row small" data-vista-vigotas={vista} data-vista-esforcos={esf ? 'sim' : 'nao'}>
+      <span>Vista na planta</span>
+      <Seg small value={vista} options={VISTAS} onChange={(v) => set({ vigotasVista: v })} />
+      <label className="check small"><Input type="checkbox" checked={esf} onChange={(e) => set({ vigotasEsforcos: e.target.checked })} /> <span>Exibir esforços</span></label>
+      {indisponivel && <Hint>A vista da armadura inferior fica indisponível com a exibição de esforços ligada: desligue os esforços.</Hint>}
+      {vista === 'armaduraInferior' && !moldada && !indisponivel && <Hint>A armadura inferior em texto existe só nas lajes moldadas no local.</Hint>}
+    </div>
   );
 }
 
@@ -240,6 +265,7 @@ export function VigotasPorFicha({ r }: { r: ResultadoVigotas }) {
     <div data-vigotas-ficha={r.laje}>
       <p className="small">Vigota a vigota: cada vigota real recebe os esforços do alinhamento da grelha mais próximo (momentos mínimos por tipo de vão, igualação ponto a ponto) e é verificada contra a ficha ({r.fichaNome ?? 'nervurada moldada no local'}). Vigotas duplas e triplas, editadas ou com esforços atribuídos ficam à parte.</p>
       <p className="small">{lista.length} vigota(s) · {nFalha ? <b className="bad" data-vigotas-com-erro>{nFalha} com erro</b> : 'nenhuma com erro'}</p>
+      <VistaNaPlanta moldada={r.familia === 'moldada'} />
       <PlantaIndividual r={r} sel={sel} onSel={seleciona} />
       <ListaVigotas r={r} sel={sel} onSel={seleciona} />
       <Hint>Esforços por nervura; cortantes por metro de largura ao lado do cortante majorado (ELU). O erro da vigota aparece em vermelho na lista e na planta.</Hint>

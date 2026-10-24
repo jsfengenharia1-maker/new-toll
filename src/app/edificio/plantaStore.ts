@@ -1,4 +1,5 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
+import type { VistaVigota } from '../../core/resultados/vigotasVista';
 import { create } from 'zustand';
 import { pavimentosOrdenados, type AbaCorrida, type Ajuste, type Alinhamento, type BuildingModel, type PosicaoFundacao, type TipoFundacao, type TipoLaje, type TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
@@ -106,6 +107,9 @@ interface PState {
   puncaoGrupo: { linhas: number; barras: number; phi: number; s: number };
   /** Lajes treliçadas na camada de armadura: todas as faixas (true) ou uma por grupo de igualação (padrão). */
   vigotasTodas: boolean;
+  /** Vista dos textos das vigotas na planta (E5e, C7.91): momentos, cortantes ou armadura inferior das moldadas; com a chave de esforços ligada a armadura inferior não existe. */
+  vigotasVista: 'nenhuma' | VistaVigota;
+  vigotasEsforcos: boolean;
   /** Elemento aberto na janela de resultados (não vai para o arquivo). */
   janela: { tipo: 'viga' | 'pilar' | 'laje' | 'fundacao' | 'pilarParede' | 'parede'; id: string; pavimento?: string } | null;
   /** Pedido de centralizar a planta num elemento (n muda a cada pedido). */
@@ -229,6 +233,8 @@ export const usePlanta = create<PState>((set) => ({
   zonaLargura: 0.5,
   detMostrar: { inf: true, sup: true, pele: true, estribos: true, secao: true },
   vigotasTodas: false,
+  vigotasVista: 'nenhuma',
+  vigotasEsforcos: false,
   camadaNervuras: false,
   camadaAbacos: false,
   camadaPuncao: false,

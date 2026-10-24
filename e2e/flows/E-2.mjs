@@ -1435,3 +1435,38 @@ export const f_E4e = {
       assert.match(await prev.textContent(), /\(E1\)/);
     },
 };
+
+export const f_E5e = {
+    name: 'E5e: vista dos textos das vigotas moldadas (armadura inferior indisponível com os esforços ligados)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [0, 5], [4, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [4, 0]], [[0, 5], [4, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "moldada", "capa": 0.05, "intereixo": 0.5, "bw": 0.12, "h": 0.25, "enchimento": "eps"}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
+      await cardL.locator('tbody tr').first().dblclick();
+      const jan = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jan.waitFor();
+      await jan.getByRole('radio', { name: 'Vigotas', exact: true }).click();
+      await jan.locator('[data-vigotas-ficha]').waitFor();
+      const vista = jan.locator('[data-vista-vigotas]');
+      const rot = jan.locator('svg[data-vigotas-individuais] text[data-rotulo-vigota]');
+      assert.equal(await rot.count(), 0, 'sem texto por padrão');
+      await vista.getByRole('radio', { name: 'Armadura inferior', exact: true }).click();
+      assert.ok(await rot.count() >= 1, 'textos da armadura inferior');
+      assert.match(await rot.first().textContent(), /^φ\d+(,\d)? c=\d+,\d\d m$/);
+      // com a exibição de esforços ligada a vista da armadura inferior não existe
+      await vista.getByRole('checkbox', { name: 'Exibir esforços' }).check();
+      assert.equal(await rot.count(), 0, 'armadura inferior indisponível com esforços');
+      assert.match(await vista.innerText(), /indisponível/);
+      assert.equal(await vista.getAttribute('data-vista-esforcos'), 'sim');
+      // momentos com esforços: M⁺ por metro
+      await vista.getByRole('radio', { name: 'Momentos / tipo', exact: true }).click();
+      assert.match(await rot.first().textContent(), /^M = \d+,\d\d kN·m\/m$/);
+    },
+};
