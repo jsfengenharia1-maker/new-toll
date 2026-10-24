@@ -72,7 +72,7 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | P46 | Estrutura: Dimensionamento das barras | 1 | Estrutura | DOCA-D / PROP | |
 | P47 | Estrutura: Transformar seleção (mover, copiar, girar, espelhar; Repetir última) | 1 | Estrutura | RB:edicao / Seleção (botão "Transformar seleção…") e DOCA-D | |
 | P48 | Estrutura: Cotas manuais | 1 | Estrutura | DOCA-D / PROP | |
-| P49 | Painel Cargas: Casos de carga | 2 | panels/Cargas | RB:cargas / Casos; DOCA-D | |
+| P49 | Painel Cargas: Casos de carga | 2 | panels/Cargas | RB:cargas / Casos e combinações; DOCA-D | |
 | P50 | Cargas: Aplicar carga | 2 | Cargas | RB:cargas / Cargas; DOCA-D | |
 | P51 | Cargas: lista “Cargas em <caso>” | 2 | Cargas | DOCA-D | |
 | P52 | Cargas: Combinações | 2 | Cargas | RB:cargas / Cargas; DOCA-D | |
@@ -119,7 +119,7 @@ Regras gerais do mapa: (1) nenhum comando muda de nome, de rótulo acessível (`
 | E30 | Cortes e seções | | CortesUI.tsx | NAV (nó Cortes); RB:lancamento / Cortes (ferramentas Corte, Seção) | `JanelaCorte` (JAN) |
 | E31 | Vento e combinações | | Edificio.tsx `VentoGrupo` | RB:cargas / Vento; CFG:Vento | |
 | E32 | Ábacos de vento (NBR 6123) | | AbacosVento.tsx | CFG:Vento | |
-| E33 | Casos de carga (+ arranjos) | | Casos.tsx, CasosArranjos.tsx | RB:cargas / Casos; CFG:Casos de carga | |
+| E33 | Casos de carga (+ arranjos) | | Casos.tsx, CasosArranjos.tsx | RB:cargas / Casos e combinações; CFG:Casos de carga | |
 | E34 | Estados-limite e combinações | | EstadosLimite.tsx | CFG:Estados-limite | |
 | E35 | Empuxo de terra | | Empuxo.tsx | RB:cargas / Outras ações; CFG:Empuxo | |
 | E36 | Opções de cálculo (perfis sistema/NBR) | | OpcoesCalculo.tsx | CFG:Opções de cálculo; RB:analise (botão) | |
