@@ -2,6 +2,7 @@
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
 import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { ehNervurada, rotuloLaje } from '../../core/building/tiposLaje';
+import { arranjoDaLaje } from '../../core/building/nervuradas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useRevisao } from './revisao';
@@ -338,6 +339,8 @@ export function Planta() {
   // punção e cortante (N2d): contornos críticos e armadura dos pilares do pavimento (camada opcional)
   const dimPuncao = useBuilding((st) => st.dim?.puncao);
   const puncaoPlanta = useMemo(() => (pl.camadaPuncao && dimPuncao && pav ? dimPuncao.filter((r) => r.pavimentoId === pav.id) : []), [dimPuncao, pav?.id, pl.camadaPuncao]);
+  // nervuradas bidirecionais (E3c): cubetas inteiras do arranjo (camada opcional)
+  const cubetasPlanta = useMemo(() => (pl.camadaNervuras ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.arr.cubetas ?? []).map((cb) => cb.poligono)) : []), [b, lajes, pl.camadaNervuras]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -512,6 +515,16 @@ export function Planta() {
       if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${l.definir ? ' ?' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
       ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.definir ? 'a definir' : l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}` : rotuloLaje(b, l.tipo), tx + lx, ty + 6 + ly);
       if (l.insercao !== undefined && l.contorno[l.insercao]) { const [ix, iy] = paraTela(l.contorno[l.insercao][0], l.contorno[l.insercao][1]); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, 5, 0, 2 * Math.PI); ctx.stroke(); } // ponto de inserção do pano (L5)
+      if (l.tipo.tipo === 'nervurada' && !l.definir) { // nervurada bidirecional: setas duplas nas duas direções das nervuras
+        const a0 = ((l.direcao ?? 0) * Math.PI) / 180, L = 16, cy = ty + 22;
+        ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
+        for (const ang of [a0, a0 + Math.PI / 2]) {
+          const ux = Math.cos(ang), uy = -Math.sin(ang);
+          ctx.moveTo(tx - ux * L, cy - uy * L); ctx.lineTo(tx + ux * L, cy + uy * L);
+          for (const sgn of [1, -1]) { const ex = tx + sgn * ux * L, ey = cy + sgn * uy * L; ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 6 - uy * 3.5), ey - sgn * (uy * 6 + ux * 3.5)); ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 6 + uy * 3.5), ey - sgn * (uy * 6 - ux * 3.5)); }
+        }
+        ctx.stroke();
+      }
       if (ehNervurada(l.tipo) && !l.definir) { // seta dupla na direção das vigotas
         const a = ((l.direcao ?? 0) * Math.PI) / 180, L = 22, ux = Math.cos(a), uy = -Math.sin(a), cy = ty + 18 + Math.abs(uy) * L;
         ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.2; ctx.beginPath();
@@ -519,6 +532,16 @@ export function Planta() {
         for (const sgn of [1, -1]) { const ex = tx + sgn * ux * L, ey = cy + sgn * uy * L; ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 - uy * 4), ey - sgn * (uy * 7 + ux * 4)); ctx.moveTo(ex, ey); ctx.lineTo(ex - sgn * (ux * 7 + uy * 4), ey - sgn * (uy * 7 - ux * 4)); }
         ctx.stroke();
       }
+    }
+    // nervuradas bidirecionais (E3c): cubetas inteiras em traço fino (camada opcional)
+    if (cubetasPlanta.length) {
+      ctx.strokeStyle = cores.laje; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.9;
+      for (const poli of cubetasPlanta) {
+        ctx.beginPath();
+        poli.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+        ctx.closePath(); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
     // painéis de tela soldada da base detalhada (retângulo com diagonais e designação)
     if (painelLajes.length) {
