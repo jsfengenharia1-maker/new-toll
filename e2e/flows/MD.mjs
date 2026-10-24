@@ -1,4 +1,4 @@
-// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas).
+// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -193,5 +193,61 @@ export const f_MD3 = {
         await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
         await dlg.waitFor({ state: 'detached' });
       }
+    },
+  };
+
+export const f_MD4 = {
+    name: 'MD4: memória de cálculo detalhada da punção (FSd e momentos, K, contornos C, C′ e C″ com u, Wp e τSd, varredura de cortante, armadura de punção; filtro, HTML, JSON e CSV)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('vento.definir {"ativo": false}');
+      await cmd('grupo.editar {"id": "g_3", "q": 14}');
+      const xs = [0.25, 6, 11.75];
+      await cmd('lote {"comandos": [' + xs.flatMap((x) => xs.map((y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.5, "h": 0.5}}}`)).join(', ') + ']}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [12, 0], [12, 12], [0, 12]], "tipo": {"tipo": "macica", "h": 0.16}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const t = await doc.innerText();
+      for (const s of ['Punção P5 · Tipo 1', 'Punção P1 · Tipo 1', 'Solicitação (FSd e momentos)', 'Tipo de apoio e coeficiente K', 'Tensões resistentes', 'Contorno C', 'Contorno C′', 'Cortante da laje no entorno do pilar (19.4.1)', 'Armadura de punção – dimensionamento', 'Armadura de punção – disposição']) assert.ok(t.includes(s), `falta "${s}"`);
+      assert.match(t, /τRd2 = 0,27·/);
+      assert.match(t, /τSd = .* MPa/);
+      assert.match(t, /NBR 6118:2023, 19\.5\.3\.1/);
+      assert.equal(await doc.locator('#md-dimensionamento-puncao-p5-tipo-1').count(), 1);
+      const total = await doc.locator('tr[data-passo]').count();
+      // filtro por elemento: só o pilar interno P5 (e os passos globais)
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Punção P5 · Tipo 1' });
+      await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length < n, total);
+      const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
+      assert.ok(tf.includes('Punção P5 · Tipo 1') && !tf.includes('Punção P1 · Tipo 1') && !tf.includes('Viga V1') && tf.includes('Contorno C′'));
+      const baixar = async (rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
+        return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
+      };
+      const html = await baixar('Exportar HTML');
+      assert.match(html.dados.toString('utf8'), /^<!doctype html>[\s\S]*data-memoria-detalhada[\s\S]*Punção P5 · Tipo 1[\s\S]*Contorno C′/);
+      const json = await baixar('Exportar JSON');
+      const mem = JSON.parse(json.dados.toString('utf8'));
+      const dosP5 = mem.passos.filter((p) => p.elemento === 'Punção P5 · Tipo 1');
+      assert.ok(dosP5.length > 60, `passos da punção: ${dosP5.length}`);
+      assert.ok(dosP5.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      assert.ok(['esforcos', 'dimensionamento', 'detalhamento'].every((e) => dosP5.some((p) => p.etapa === e)));
+      // o contorno traz todos os segmentos (x0, y0, x1, y1) e u é a soma dos comprimentos
+      const pu = dosP5.find((p) => p.topico === 'Contorno C′' && p.descricao.startsWith('Contorno C′ a'));
+      const segs = JSON.parse(pu.entradas.segmentos);
+      assert.equal(segs.length, pu.entradas.trechos);
+      const u = segs.reduce((s, [x0, y0, x1, y1]) => s + Math.hypot(x1 - x0, y1 - y0), 0);
+      assert.ok(Math.abs(u - pu.resultado) < 1e-9 * u);
+      assert.ok(dosP5.some((p) => p.topico === 'Armadura de punção – disposição' && typeof p.entradas.total === 'number'));
+      const zip = await baixar('Dados da análise e OpenSees (ZIP)');
+      assert.ok(zip.dados.toString('latin1').includes('memoria/memoria.csv'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
     },
   };
