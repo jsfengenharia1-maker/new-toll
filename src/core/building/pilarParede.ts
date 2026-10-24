@@ -46,6 +46,8 @@ export interface LadoGeo {
   esp(pav: string): { esq: number; dir: number; t: number };
   /** Espessura total máxima entre os lances. */
   tMax: number;
+  /** Trecho [s0, s1] do lado existente no lance (recorte das paredes, E6d; padrão [0, L]). */
+  ext(pav: string): [number, number];
 }
 
 const rot = (p: P, ang: number): P => [p[0] * Math.cos(ang) - p[1] * Math.sin(ang), p[0] * Math.sin(ang) + p[1] * Math.cos(ang)];
@@ -60,12 +62,13 @@ export function ladosDoPP(b: BuildingModel, pp: PilarParede, limite = opcoesEmUs
     const L = Math.hypot(z[0] - a[0], z[1] - a[1]), A = Math.atan2(z[1] - a[1], z[0] - a[0]);
     const esp = (pav: string) => { const e = l.porPavimento?.find((x) => x.pavimento === pav); const esq = e?.esq ?? l.esq, dir = e?.dir ?? l.dir; return { esq, dir, t: esq + dir }; };
     const tMax = Math.max(...(lances.length ? lances.map((x) => esp(x.id).t) : [l.esq + l.dir]));
-    return { pp, i, id: `${pp.id}:${i}`, nome: `${pp.nome}.${i + 1}`, a, z, L, ang: A, angGraus: (A * 180) / Math.PI, u: [Math.cos(A), Math.sin(A)], n: [-Math.sin(A), Math.cos(A)], casca: L >= limite * tMax - 1e-9, esp, tMax };
+    const ext = (pav: string): [number, number] => { const e = l.porPavimento?.find((x) => x.pavimento === pav); return [Math.max(0, e?.s0 ?? 0), Math.min(L, e?.s1 ?? L)]; };
+    return { pp, i, id: `${pp.id}:${i}`, nome: `${pp.nome}.${i + 1}`, a, z, L, ang: A, angGraus: (A * 180) / Math.PI, u: [Math.cos(A), Math.sin(A)], n: [-Math.sin(A), Math.cos(A)], casca: L >= limite * tMax - 1e-9, esp, tMax, ext };
   });
 }
 
 /** Centro do retângulo do lado no lance (o plano do eixo deslocado de (esq − dir)/2 para a esquerda), e as dimensões. */
-export function retanguloDoLado(g: LadoGeo, pav: string, s0 = 0, s1 = g.L): { c: P; comp: number; t: number } {
+export function retanguloDoLado(g: LadoGeo, pav: string, s0 = g.ext(pav)[0], s1 = g.ext(pav)[1]): { c: P; comp: number; t: number } {
   const e = g.esp(pav), sm = (s0 + s1) / 2, d = (e.esq - e.dir) / 2;
   return { c: [g.a[0] + g.u[0] * sm + g.n[0] * d, g.a[1] + g.u[1] * sm + g.n[1] * d], comp: s1 - s0, t: e.t };
 }
@@ -75,12 +78,13 @@ export type PilarVirtual = Pilar & { origem: { pp: string; lado: number; tipo: '
 export const ehVirtual = (p: Pilar): p is PilarVirtual => 'origem' in p;
 
 /** Pilar virtual (retângulo comp × t, eixo local x ao longo do lado) com as seções por lance. */
-function pilarVirtualDoLado(g: LadoGeo, id: string, nome: string, nasce: string, morre: string, lancesIds: string[], s0: number, s1: number, tipo: 'lado' | 'fatia'): PilarVirtual {
+function pilarVirtualDoLado(g: LadoGeo, id: string, nome: string, nasce: string, morre: string, lancesIds: string[], s0: number | undefined, s1: number | undefined, tipo: 'lado' | 'fatia'): PilarVirtual {
+  // s0/s1 ausentes: o trecho do lado existente em cada lance (recorte das paredes, E6d)
   const pav0 = lancesIds[0] ?? '', r0 = retanguloDoLado(g, pav0, s0, s1);
   const secoes: NonNullable<Pilar['secoes']> = [];
   for (const pv of lancesIds.slice(1)) {
     const r = retanguloDoLado(g, pv, s0, s1);
-    if (Math.abs(r.t - r0.t) > 1e-9 || Math.abs(r.c[0] - r0.c[0]) > 1e-9 || Math.abs(r.c[1] - r0.c[1]) > 1e-9) secoes.push({ pavimento: pv, secao: { tipo: 'ret', b: r.comp, h: r.t }, dx: r.c[0] - r0.c[0], dy: r.c[1] - r0.c[1] });
+    if (Math.abs(r.t - r0.t) > 1e-9 || Math.abs(r.comp - r0.comp) > 1e-9 || Math.abs(r.c[0] - r0.c[0]) > 1e-9 || Math.abs(r.c[1] - r0.c[1]) > 1e-9) secoes.push({ pavimento: pv, secao: { tipo: 'ret', b: r.comp, h: r.t }, dx: r.c[0] - r0.c[0], dy: r.c[1] - r0.c[1] });
   }
   return {
     id, nome, x: r0.c[0], y: r0.c[1], angulo: g.angGraus, ajuste: 'c', nasce, morre, secao: { tipo: 'ret', b: r0.comp, h: r0.t }, ...(secoes.length ? { secoes } : {}),
@@ -96,7 +100,7 @@ function cacheLados(b: BuildingModel) {
   const lados: LadoGeo[] = [], virtuais: PilarVirtual[] = [];
   for (const pp of ppDaObra(b)) {
     const ls = lancesDoPP(b, pp).map((x) => x.id);
-    for (const g of ladosDoPP(b, pp)) { lados.push(g); virtuais.push(pilarVirtualDoLado(g, g.id, g.nome, pp.nasce, pp.morre, ls, 0, g.L, 'lado')); }
+    for (const g of ladosDoPP(b, pp)) { lados.push(g); virtuais.push(pilarVirtualDoLado(g, g.id, g.nome, pp.nasce, pp.morre, ls, undefined, undefined, 'lado')); }
   }
   c = { lados, virtuais, todos: virtuais.length ? [...b.pilares, ...virtuais] : b.pilares };
   memoLados.set(b, c);
@@ -111,8 +115,10 @@ export const pilaresVirtuaisDosLados = (b: BuildingModel): PilarVirtual[] => (pp
 
 /** Contorno (retângulo no mundo) do lado no lance. */
 export function contornoDoLado(g: LadoGeo, pav: string): P[] {
-  const e = g.esp(pav), a: P = [g.a[0] + g.n[0] * e.esq, g.a[1] + g.n[1] * e.esq], z: P = [g.z[0] + g.n[0] * e.esq, g.z[1] + g.n[1] * e.esq];
-  const a2: P = [g.a[0] - g.n[0] * e.dir, g.a[1] - g.n[1] * e.dir], z2: P = [g.z[0] - g.n[0] * e.dir, g.z[1] - g.n[1] * e.dir];
+  // trecho existente no lance (recorte das paredes, E6d)
+  const [s0, s1] = g.ext(pav), A: P = s0 > 0 ? [g.a[0] + g.u[0] * s0, g.a[1] + g.u[1] * s0] : g.a, Z: P = s1 < g.L ? [g.a[0] + g.u[0] * s1, g.a[1] + g.u[1] * s1] : g.z;
+  const e = g.esp(pav), a: P = [A[0] + g.n[0] * e.esq, A[1] + g.n[1] * e.esq], z: P = [Z[0] + g.n[0] * e.esq, Z[1] + g.n[1] * e.esq];
+  const a2: P = [A[0] - g.n[0] * e.dir, A[1] - g.n[1] * e.dir], z2: P = [Z[0] - g.n[0] * e.dir, Z[1] - g.n[1] * e.dir];
   return [a2, z2, z, a];
 }
 
@@ -270,7 +276,7 @@ export function geometriaParedes(b: BuildingModel, op: Pick<OpcoesCalculo, 'malh
     for (const g of ladosPP) for (const v of [g.a, g.z]) { const k = chaveXY(v), e = vertices.get(k); if (e) e.lados.push(g.id); else vertices.set(k, { p: v, lados: [g.id] }); }
     const lancesIds = lances.map((x) => x.id);
     for (const g of ladosPP) {
-      if (!g.casca) { barras.push(pilarVirtualDoLado(g, g.id, g.nome, pp.nasce, pp.morre, lancesIds, 0, g.L, 'lado')); continue; }
+      if (!g.casca) { barras.push(pilarVirtualDoLado(g, g.id, g.nome, pp.nasce, pp.morre, lancesIds, undefined, undefined, 'lado')); continue; }
       // junções: vértices de outros lados do mesmo pilar-parede sobre o eixo deste (T e cruz)
       const obr: number[] = [];
       for (const o of ladosPP) if (o.id !== g.id) for (const v of [o.a, o.z]) {
@@ -286,8 +292,10 @@ export function geometriaParedes(b: BuildingModel, op: Pick<OpcoesCalculo, 'malh
       // fatias do topo de cada nível (lances 1..n): uma por vértice da malha, cobrindo o lado inteiro
       for (let k = 1; k < zs.length; k++) {
         const pav = lancesIds[k - 1], nasce = k === 1 ? pp.nasce : lancesIds[k - 2];
+        const [e0, e1] = g.ext(pav);
         S.forEach((s, q) => {
-          const s0 = q === 0 ? 0 : (S[q - 1] + s) / 2, s1 = q === S.length - 1 ? g.L : (s + S[q + 1]) / 2;
+          if (s < e0 - 1e-6 || s > e1 + 1e-6) return; // recorte do lance (E6d): sem parede, sem fatia
+          const s0 = q === 0 || Math.abs(s - e0) < 1e-6 ? e0 : (S[q - 1] + s) / 2, s1 = q === S.length - 1 || Math.abs(s - e1) < 1e-6 ? e1 : (s + S[q + 1]) / 2;
           const f = pilarVirtualDoLado(g, `${g.id}@${pav}.${q}`, `${g.nome}@${q}`, nasce, pav, [pav], s0, s1, 'fatia');
           f.engastes = [{ pavimento: pav, topo: 0, base: 0 }];
           fatias.push(f);

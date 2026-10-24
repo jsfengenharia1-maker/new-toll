@@ -1,6 +1,6 @@
 // Pilar-parede no pórtico (E1b): nós, cascas, apoios, pesos, viga fictícia do topo e ligações dos lados em barra.
 // A geometria e as regras estão em `pilarParede.ts`; aqui só a montagem do modelo do pórtico espacial.
-import type { Barra3, Caso3, Casca3, V3 } from '../fe3d';
+import type { AxialMedio3, Barra3, Caso3, Casca3, V3 } from '../fe3d';
 import { chaveXY, ladosDoPP, lancesDoPP, malhaDaGrade, paraT6, pontoDoLado, retanguloDoLado, type ModeloParedes } from './pilarParede';
 import { paredeDoPP, paredeTocaLaje, ppDaObra } from './paredesBase';
 import type { BuildingModel, Parede } from './types';
@@ -34,7 +34,16 @@ export interface ParedesNoPortico {
   empuxo: { parede: string; caso: string; F: [number, number] }[];
   /** Avisos da montagem (base em viga sem nó de ligação, FU7c). */
   avisos: string[];
+  /**
+   * Faixas axiais (E6d, K1.4.30): uma por pilar-parede de concreto e linha da grade (todos os lados juntos), com os gdl uz
+   * das linhas inferior e superior, os coeficientes da média ponderada por E·t, EA/Δz da faixa e o fator de cada casca.
+   * Só para montar a parcela axial (`axiaisDasFaixas`); não vai para o resultado.
+   */
+  faixasAxiais?: FaixaAxial[];
 }
+
+/** Faixa horizontal de cascas de um pilar-parede (ver `ParedesNoPortico.faixasAxiais`). */
+export interface FaixaAxial { pp: string; dofs: number[]; c: number[]; EAporDz: number; cascas: { casca: number; fator: number }[] }
 
 /** Molas de Winkler da base de uma parede (FU7c): k (kN/m³), largura B (m) da sapata e se a base é rotulada (sem molas de giro). */
 export interface BaseWinkler { k: number; /** Largura (m); ausente = espessura de cada lado + 2 × `aba`. */ B?: number; aba?: number; rotula: boolean }
@@ -110,6 +119,8 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     out.base[pp.id] = [];
   }
   const rigida = { E: e.Ev * 100, G: e.Gv * 100, A: 10, Iz: 10, Iy: 10, J: 10 };
+  // faixas axiais (E6d): por pilar-parede e linha j da grade, pesos E·t·ℓ·φ das arestas das linhas inferior e superior
+  const faixas = new Map<string, { pp: string; dz: number; sup: Map<number, number>; inf: Map<number, number>; EAs: number; EAi: number; cascas: { casca: number; Et: number }[] }>();
   for (const gr of geo.grades) {
     const { lado: g, S, Z, nivel } = gr, pp = g.pp, zs = geo.niveisZ[pp.id], lances = lancesDoPP(b, pp);
     const malha = paraT6(malhaDaGrade(S, Z, gr.furos));
@@ -128,6 +139,23 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
       const lance = lances[k], esp = g.esp(lance.id).t;
       const area = Math.abs((c3[1][0] - c3[0][0]) * (c3[2][1] - c3[0][1]) - (c3[2][0] - c3[0][0]) * (c3[1][1] - c3[0][1])) / 2;
       pm.cascas.push({ nos: t.map((i) => ids[i]) as [number, number, number, number, number, number], E: mat?.E ?? e.Ec(lance.id), nu: mat?.nu ?? e.nu, h: esp, ref: [g.u[0], g.u[1], 0], ...(mat ? { semReducao: true } : {}) });
+      if (!mat) {
+        let j = 0;
+        while (j + 2 < Z.length && zc > Z[j + 1]) j++;
+        const chave = `${pp.id}|${j}`, Ec = e.Ec(lance.id);
+        let f = faixas.get(chave);
+        if (!f) faixas.set(chave, (f = { pp: pp.id, dz: Z[j + 1] - Z[j], sup: new Map(), inf: new Map(), EAs: 0, EAi: 0, cascas: [] }));
+        f.cascas.push({ casca: pm.cascas.length - 1, Et: Ec * esp });
+        for (const [a, b2, m] of [[0, 1, 3], [1, 2, 4], [2, 0, 5]] as const) {
+          const pa = malha.pontos[t[a]], pb = malha.pontos[t[b2]];
+          if (Math.abs(pa[1] - pb[1]) > 1e-9) continue;
+          const naSup = Math.abs(pa[1] - Z[j + 1]) < 1e-9, naInf = Math.abs(pa[1] - Z[j]) < 1e-9;
+          if (!naSup && !naInf) continue;
+          const w = Ec * esp * Math.abs(pb[0] - pa[0]), mp = naSup ? f.sup : f.inf;
+          if (naSup) f.EAs += w; else f.EAi += w;
+          for (const [q, fr] of [[a, 1 / 6], [m, 2 / 3], [b2, 1 / 6]] as const) mp.set(ids[t[q]], (mp.get(ids[t[q]]) ?? 0) + w * fr);
+        }
+      }
       out.info.push({ k: pm.cascas.length - 1, pp: pp.id, lado: g.i, ladoId: g.id, lance: lance.id, t: esp, area, s: sc, z: zc });
       // peso próprio: carga consistente de pressão uniforme (vértices 0, meios dos lados 1/3 cada)
       const W = (mat?.gama ?? e.gama) * esp * area;
@@ -170,7 +198,8 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     for (let k = 1; k < zs.length; k++) {
       const pav = lances[k - 1].id, zk = Z[nivel[k]];
       noPilar.set(`${g.id}|${pav}`, meio(zk));
-      S.forEach((s, q) => { const n = no(pontoDoLado(g, s, zk)); noPilar.set(`${g.id}@${pav}.${q}|${pav}`, n); out.nosFatia.push({ no: n, lado: g.id, pavimento: pav }); });
+      const [e0, e1] = g.ext(pav);
+      S.forEach((s, q) => { if (s < e0 - 1e-6 || s > e1 + 1e-6) return; const n = no(pontoDoLado(g, s, zk)); noPilar.set(`${g.id}@${pav}.${q}|${pav}`, n); out.nosFatia.push({ no: n, lado: g.id, pavimento: pav }); });
       // viga fictícia: barras entre os nós consecutivos da linha do nível (vértices e meios)
       const linha = malha.pontos.map(([s, z], i) => ({ s, z, i })).filter((p) => usado[p.i] && Math.abs(p.z - zk) < 1e-9).sort((a, c) => a.s - c.s);
       // parede que não toca laje neste nível fica fora do diafragma (K1.2.5, K1.3.36)
@@ -183,6 +212,12 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
       }
     }
   }
+  out.faixasAxiais = [...faixas.values()].filter((f) => f.EAs > 0 && f.EAi > 0).map((f) => {
+    const EA = (f.EAs + f.EAi) / 2, dofs: number[] = [], c: number[] = [];
+    for (const [n, w] of f.sup) { dofs.push(n * 6 + 2); c.push(w / f.EAs); }
+    for (const [n, w] of f.inf) { dofs.push(n * 6 + 2); c.push(-w / f.EAi); }
+    return { pp: f.pp, dofs, c, EAporDz: EA / f.dz, cascas: f.cascas.map((x) => ({ casca: x.casca, fator: x.Et / EA })) };
+  });
   // barras dos lados curtos: ligação rígida ao vértice comum em cada nível (a base é engastada)
   for (const p of geo.barras) {
     const pp = ppDaObra(b).find((x) => x.id === p.origem.pp)!, g = ladosDoPP(b, pp).find((l) => l.i === p.origem.lado)!;
@@ -207,6 +242,13 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
 
 /** Multiplicador só da rigidez axial (E5j, K1.4.30): E_y da membrana × fator; EI, cisalhamento no plano e placa brutos. */
 export const axialCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, fAxial: fator }));
+
+/**
+ * Parcela axial das paredes nas cargas verticais (E6d, K1.4.30): faixa com k = (fator − 1)·EA/Δz sobre o alongamento
+ * médio, de modo que o modo uniforme fique com fator·EA e a flexão no plano, o cisalhamento e a placa fiquem brutos.
+ */
+export const axiaisDasFaixas = (faixas: FaixaAxial[] | undefined, fator: number): AxialMedio3[] =>
+  fator === 1 ? [] : (faixas ?? []).map((f) => ({ dofs: f.dofs, c: f.c, k: (fator - 1) * f.EAporDz, cascas: f.cascas }));
 
 /** Rigidez reduzida das cascas no γz e no P-Δ (pilares: 0,8·Eci·Ic; NBR 6118, 15.7.3). */
 export const reduzirCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, E: c.E * fator }));

@@ -38,6 +38,16 @@ export function errosProprios(b: BuildingModel, w: Parede): Diagnostico[] {
   for (let i = 0; i + 1 < w.pontos.length; i++) if (Math.hypot(w.pontos[i + 1][0] - w.pontos[i][0], w.pontos[i + 1][1] - w.pontos[i][1]) < 0.05) return [e('PAREDE_GEOMETRIA', `trecho ${i + 1} menor que 5 cm.`)];
   if (espessuras(w).some((t) => t < 0.05)) return [e('PAREDE_GEOMETRIA', 'espessura total menor que 5 cm.')];
   if (!niveisDaParede(b, w).zs.length) return [e('PAREDE_SEM_LANCE', 'a parede precisa morrer acima do pavimento em que nasce.')];
+  // recorte do lance (E6d): só nas pontas, sem eliminar o lado da ponta (para tirar um lado inteiro, outra parede com nasce/morre)
+  const n = w.pontos.length - 1, Lt = (i: number) => Math.hypot(w.pontos[i + 1][0] - w.pontos[i][0], w.pontos[i + 1][1] - w.pontos[i][1]);
+  const topos = niveisDaParede(b, w).topos;
+  for (const pv of w.porPavimento ?? []) {
+    const ci = pv.corteIni ?? 0, cf = pv.corteFim ?? 0;
+    if (!ci && !cf) continue;
+    if (!topos.includes(pv.pavimento)) { d.push(e('PAREDE_CORTE', `recorte num pavimento que não é topo de lance da parede.`)); continue; }
+    const resto = n === 1 ? Lt(0) - ci - cf : Math.min(Lt(0) - ci, Lt(n - 1) - cf);
+    if (resto < 0.05 - 1e-9) d.push(e('PAREDE_CORTE', `o recorte do lance de ${b.pavimentos.find((p) => p.id === pv.pavimento)?.nome ?? pv.pavimento} elimina o lado da ponta (deixe ao menos 5 cm; para mudar a planta, lance outra parede com nasce/morre).`));
+  }
   for (const r of furosDaParede(b, w).ruins) d.push({ codigo: 'PAREDE_ABERTURA', severidade: 'erro', elementos: [w.id, r.a.id], mensagem: `${w.nome}: ${r.motivo}.` });
   for (const em of w.empuxos ?? []) {
     const caso = b.casos?.find((c) => c.id === em.caso) ?? (['G', 'Q'].includes(em.caso) ? { id: em.caso, natureza: em.caso } : undefined);
@@ -60,7 +70,8 @@ export function diagnosticosParedes(b: BuildingModel): Diagnostico[] {
     const pp = ppDaParede(w), lados = ladosDoPP(b, pp, op.pilarParedeLimite), furos = furosDaParede(b, w).porTrecho;
     for (const g of lados) if (!g.casca) {
       d.push({ codigo: 'PAREDE_TRECHO_CURTO', severidade: 'info', elementos: [w.id], mensagem: `${g.nome}: trecho de ${fmt(g.L * 100)} cm com espessura até ${fmt(g.tMax * 100)} cm (< ${fmt(op.pilarParedeLimite)} × a espessura) tratado como pilar (barra).` });
-      if (furos[g.i]?.length) d.push({ codigo: 'PAREDE_ABERTURA_BARRA', severidade: 'aviso', elementos: [w.id, ...furos[g.i].map((f) => f.id)], mensagem: `${g.nome}: abertura num trecho tratado como pilar (barra), desconsiderada no modelo.` });
+      const abs = (furos[g.i] ?? []).filter((f) => !f.corte);
+      if (abs.length) d.push({ codigo: 'PAREDE_ABERTURA_BARRA', severidade: 'aviso', elementos: [w.id, ...abs.map((f) => f.id)], mensagem: `${g.nome}: abertura num trecho tratado como pilar (barra), desconsiderada no modelo.` });
     }
     // pilares dentro da parede
     const lances = lancesDoPP(b, pp);

@@ -120,7 +120,7 @@ describe('pilar-parede por casca: solução conhecida', () => {
     let Rx = 0, My = 0;
     for (const [n, rr] of r.reacoes[0]) { Rx += rr[0]; My += rr[4] - pm.nos[n][0] * rr[2]; }
     expect(Rx).toBeCloseTo(-P, 5);
-    expect(Math.abs(My / (P * H) + 1)).toBeLessThan(0.005); // a mola do giro no plano da casca desequilibra ≈ 0,2 % do momento
+    expect(Math.abs(My / (P * H) + 1)).toBeLessThan(1e-9); // giro no plano relativo (24/10/2026): equilíbrio exato (antes a mola presa ao chão desequilibrava ≈ 0,2 %)
   });
 });
 

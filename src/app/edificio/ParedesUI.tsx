@@ -140,6 +140,7 @@ function EditorParede({ b, w }: { b: BuildingModel; w: Parede }) {
         {(w.tipo ?? 'concreto') === 'concreto' && <Check label="Armar a parede" checked={w.armar !== false} onChange={(v) => exec('parede.editar', { id: w.id, armar: v })} />}
       </div>
       <BaseDaParede b={b} w={w} />
+      <RecortesDaParede w={w} topos={niveis.topos} nomePav={nomePav} exec={exec} />
       <h4>Aberturas</h4>
       {(w.aberturas ?? []).length > 0 && (
         <table className="data quadro" data-pw-aberturas>
@@ -280,5 +281,40 @@ export function CartaoParedes({ onIr }: { onIr: (id: string) => void }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Recorte por pavimento (E6d, K1.3.31): comprimento retirado do início e do fim da polilinha em cada lance (os lados das
+ * pontas ficam mais curtos nesse lance). Grava em `porPavimento` pelo comando parede.editar.
+ */
+function RecortesDaParede({ w, topos, nomePav, exec }: { w: Parede; topos: string[]; nomePav: (id: string) => string; exec: (nome: string, p: Record<string, unknown>) => unknown }) {
+  const grava = (pav: string, campo: 'corteIni' | 'corteFim', cm: number) => {
+    const atual = w.porPavimento?.find((e) => e.pavimento === pav) ?? { pavimento: pav, esq: w.esq, dir: w.dir };
+    const novo = { ...atual, [campo]: cm2m(cm) };
+    if (!novo[campo]) delete novo[campo];
+    const vazio = !novo.corteIni && !novo.corteFim && novo.esq === w.esq && novo.dir === w.dir;
+    exec('parede.editar', { id: w.id, porPavimento: [...(w.porPavimento ?? []).filter((e) => e.pavimento !== pav), ...(vazio ? [] : [novo])] });
+  };
+  return (
+    <>
+      <h4>Recorte por pavimento</h4>
+      <table className="data quadro" data-pw-recortes>
+        <thead><tr><th>Lance (topo)</th><th>Início (cm)</th><th>Fim (cm)</th></tr></thead>
+        <tbody>
+          {topos.map((pav) => {
+            const e = w.porPavimento?.find((x) => x.pavimento === pav);
+            return (
+              <tr key={pav}>
+                <td className="tl">{nomePav(pav)}</td>
+                <td><NumField label={`Recorte no início em ${nomePav(pav)}`} unit="cm" width={80} min={0} value={m2cm(e?.corteIni ?? 0)} onChange={(v) => grava(pav, 'corteIni', v)} /></td>
+                <td><NumField label={`Recorte no fim em ${nomePav(pav)}`} unit="cm" width={80} min={0} value={m2cm(e?.corteFim ?? 0)} onChange={(v) => grava(pav, 'corteFim', v)} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Hint>O recorte retira o trecho das pontas da polilinha só naquele lance; os lados do meio ficam inteiros.</Hint>
+    </>
   );
 }

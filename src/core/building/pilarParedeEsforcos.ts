@@ -78,7 +78,7 @@ export function esforcosPilaresParede(b: BuildingModel, an: AnaliseEdificio, por
             for (const e of els) {
               const v = res.cascas?.[ic]?.[e.k];
               if (!v) continue;
-              const w = e.area / H, ds = e.s - g.L / 2;
+              const w = e.area / H, ds = e.s - (g.ext(lance.id)[0] + g.ext(lance.id)[1]) / 2; // centro do trecho existente no lance (E6d)
               r.N += v[1] * w; r.Vp += v[2] * w; r.Mp += v[1] * ds * w; r.Vo += v[7] * w; r.Mo += v[4] * w;
             }
             return r;

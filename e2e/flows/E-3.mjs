@@ -469,3 +469,26 @@ export const f_E5m = {
     await memo.getByRole('button', { name: 'Fechar' }).click();
   },
 };
+
+export const f_E6d = {
+  name: 'E6d: parede com recorte por pavimento (lado da ponta mais curto num lance) pelo editor da parede',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+    await cmd('parede.criar {"pontos": [[0, 0], [6, 0]], "espessura": 0.2}');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 1, null, { timeout: 20000 });
+    const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes \(/ }) });
+    if (!(await gp.evaluate((d) => d.open))) await gp.locator(':scope > summary').click();
+    await gp.getByRole('button', { name: 'Selecionar M1' }).click();
+    await gp.locator('table[data-pw-recortes]').waitFor();
+    const campo = gp.getByLabel(/^Recorte no fim em/).last();
+    await campo.fill('200');
+    await campo.press('Enter');
+    await page.waitForFunction(() => { const w = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.[0]; return w?.porPavimento?.some((e) => e.corteFim === 2); }, null, { timeout: 20000 });
+    // zera o recorte: a entrada do pavimento some (espessura igual à da parede)
+    await campo.fill('0');
+    await campo.press('Enter');
+    await page.waitForFunction(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.[0]?.porPavimento?.length, null, { timeout: 20000 });
+  },
+};

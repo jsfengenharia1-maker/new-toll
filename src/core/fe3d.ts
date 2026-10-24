@@ -65,6 +65,32 @@ export interface Modelo3 {
   superelementos?: Superelemento3[];
   /** Cascas de 6 nós (casca.ts). */
   cascas?: Casca3[];
+  /** Rigidez axial média de faixas de cascas (E6d, K1.4.30): ver `AxialMedio3`. */
+  axiaisMedios?: AxialMedio3[];
+}
+
+/**
+ * Parcela axial uniforme de uma faixa horizontal de cascas (E6d, K1.4.30): energia ½·k·δ², com δ = Σ cᵢ·u[dofᵢ] o
+ * alongamento médio da faixa (média ponderada por E·t do deslocamento vertical da linha superior menos o da inferior).
+ * Equivale a uma barra axial ligada às médias das duas linhas: majora só o modo de deformação uniforme da seção, sem
+ * mudar a flexão no plano (modo de média nula) nem criar pico de força num nó. O esforço N = k·δ (tração > 0) volta às
+ * cascas da faixa como tensão uniforme: Ny += fator·N em cada casca listada.
+ */
+export interface AxialMedio3 {
+  dofs: number[]; c: number[]; k: number;
+  cascas?: { casca: number; fator: number }[];
+}
+
+/** Soma k·c·cᵀ de cada faixa axial na rigidez (gdl mapeados para as equações). */
+function somarAxiais(K: SpRows, mapa: [number, number][][], axs: AxialMedio3[] | undefined) {
+  for (const ax of axs ?? []) {
+    const n = ax.dofs.length;
+    for (let a = 0; a < n; a++) for (const [ea, ca] of mapa[ax.dofs[a]]) for (let b = 0; b < n; b++) {
+      const v = ax.k * ax.c[a] * ax.c[b];
+      if (!v) continue;
+      for (const [eb, cb] of mapa[ax.dofs[b]]) spAdd(K, ea, eb, ca * cb * v);
+    }
+  }
 }
 
 export interface Caso3 {
@@ -365,6 +391,7 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   }
   casos.forEach((c, ic) => { for (const pr of c.pressoes ?? []) { const ce = cas[pr.casca], f = cargaPressaoCasca(ce, pr.q); for (let a = 0; a < 36; a++) for (const [e, cf] of mapa[ce.dofs[a]]) P[ic][e] += cf * f[a]; } });
   for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
+  somarAxiais(K, mapa, m.axiaisMedios);
   casos.forEach((c, ic) => { for (const n of c.nodais) n.f.forEach((v, g) => { for (const [e, cf] of mapa[n.no * 6 + g]) P[ic][e] += cf * v; }); });
 
   const vazio: Resultado3 = { desloc: [], esforcos: [], reacoes: [], neq, hb: 0 };
@@ -402,6 +429,13 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
       for (let a = 0; a < nb; a++) { let s = -(cs?.P[a] ?? 0); for (let c = 0; c < nb; c++) s += se.K[a * nb + c] * u[se.dofs[c]]; forcasNo[se.dofs[a]] += s; }
     });
     if (cas.length) esfCascas.push(cas.map((ce, k) => esforcosCasca(ce, u, (caso.pressoes ?? []).filter((p) => p.casca === k).reduce((s, p) => s + p.q, 0), forcasNo)));
+    for (const ax of m.axiaisMedios ?? []) {
+      let d = 0;
+      ax.dofs.forEach((g, a) => (d += ax.c[a] * u[g]));
+      const N = ax.k * d;
+      ax.dofs.forEach((g, a) => (forcasNo[g] += ax.c[a] * N));
+      if (cas.length) for (const { casca, fator } of ax.cascas ?? []) esfCascas[esfCascas.length - 1][casca][1] += fator * N;
+    }
     const rc = new Map<number, number[]>();
     const nodaisNo = new Map<number, Caso3['nodais']>();
     for (const n of caso.nodais) { const l = nodaisNo.get(n.no); if (l) l.push(n); else nodaisNo.set(n.no, [n]); }
@@ -506,6 +540,7 @@ export function fatorar3(m: Modelo3): Fatorado3 {
     }
   }
   for (const s of m.molas ?? []) for (const [e, c] of mapa[s.no * 6 + s.gdl]) for (const [e2, c2] of mapa[s.no * 6 + s.gdl]) spAdd(K, e, e2, c * c2 * s.k);
+  somarAxiais(K, mapa, m.axiaisMedios);
   const { order, hb } = neq ? rcmOrder(K, Array.from({ length: neq }, (_, i) => i)) : { order: [], hb: 0 };
   const pos = new Int32Array(neq);
   order.forEach((e, p) => (pos[e] = p));

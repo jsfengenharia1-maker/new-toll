@@ -8,7 +8,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 7 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 0 | 0 | 0 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 2 | 3 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026, núcleo e interface, e FU4 em 20/10/2026) | 0 | 1 | 1 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas, V6b várias janelas de deformada, V6c vista 3D da viga de fundação, V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 8 | 8 | 16 |
@@ -66,7 +66,6 @@ Itens Parcial ou Falta cujas notas só citavam fatias já encerradas (`node scri
 | R8a | R | 4 | vigas: comprimentos de corte, grupos, ancoragem, montagem e adicional | núcleo + interface |
 | E6a | E | 1 | tabela de aço da alvenaria armada na prancha | núcleo + interface |
 | E6b | E | 1 | igualação das vigotas entre panos | núcleo |
-| E6d | E | 2 | paredes: lados variáveis por pavimento, rigidez axial separada da flexão (resíduo da E6c) | núcleo + interface |
 
 ## Fora do escopo (decidido)
 

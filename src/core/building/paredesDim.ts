@@ -412,8 +412,8 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
         const es = esforcosDoLado(res, g.i, lance.id, elu);
         if (!g.casca) {
           // lado curto: dimensionado como pilar
-          const bar = dimensionarLadoBarra({ L: g.L, t, a: d1, le: op.paredeFlambagem * H, conc, fyd: aV.fyd, limites: { t, bitolaMax: op.paredeBitolaMax, espMin: op.paredeEspMin, espMax: op.paredeEspMax }, taxaMin: op.paredeTaxaVertMin, taxaMax: op.paredeTaxaVertMax, esforcos: es });
-          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: g.L, t, util: bar.util, combo: bar.combo, barra: bar, status: bar.ok ? (Math.max(bar.lambdaP, bar.lambdaO) > 90 ? 'review' : 'ok') : 'fail', mensagens: bar.mensagens });
+          const bar = dimensionarLadoBarra({ L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t, a: d1, le: op.paredeFlambagem * H, conc, fyd: aV.fyd, limites: { t, bitolaMax: op.paredeBitolaMax, espMin: op.paredeEspMin, espMax: op.paredeEspMax }, taxaMin: op.paredeTaxaVertMin, taxaMax: op.paredeTaxaVertMax, esforcos: es });
+          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t, util: bar.util, combo: bar.combo, barra: bar, status: bar.ok ? (Math.max(bar.lambdaP, bar.lambdaO) > 90 ? 'review' : 'ok') : 'fail', mensagens: bar.mensagens });
           continue;
         }
         const gr = geo.grades.find((x) => x.lado.id === g.id) as GradeLado;
@@ -458,9 +458,11 @@ export function dimensionarParedes(b: BuildingModel, an: AnaliseEdificio, elu: C
           const vert = panosLado.filter((p) => p.vert).sort((x, y) => y.asVert - x.asVert)[0]?.vert ?? null;
           const ref = panosLado.find((p) => p.vert === vert) ?? panosLado[0];
           const refores = panosLado.flatMap((p) => p.reforcos.filter((q) => q.direcao === 'vertical').map((q) => ({ ...q, de: q.de, ate: q.ate })));
-          const bars = barrasDoLado(g.L, t, d1, vert ? { ...vert, As: asMalha(vert.phi, vert.s) } : null, refores);
-          const S = secaoDoLado(g.L, t, bars, conc, aV.fyd), v = verificarLado(S, es);
-          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: g.L, t, util: v.util, combo: v.combo, status: v.util <= 1.05 ? 'ok' : 'fail', mensagens: v.util > 1.05 ? [`Verificação global do lado: utilização ${fmt(v.util)} em ${v.combo} (armadura vertical adotada menor que a exigida pelas resultantes; a casca concentra a tração nas bordas).`] : [] });
+          // trecho existente no lance (recorte, E6d): seção de comprimento e1 − e0, reforços referidos a e0
+          const [e0, e1] = g.ext(lance.id), Lc = e1 - e0, refL = e0 ? refores.map((q) => ({ ...q, de: q.de - e0, ate: q.ate - e0 })) : refores;
+          const bars = barrasDoLado(Lc, t, d1, vert ? { ...vert, As: asMalha(vert.phi, vert.s) } : null, refL);
+          const S = secaoDoLado(Lc, t, bars, conc, aV.fyd), v = verificarLado(S, es);
+          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: Lc, t, util: v.util, combo: v.combo, status: v.util <= 1.05 ? 'ok' : 'fail', mensagens: v.util > 1.05 ? [`Verificação global do lado: utilização ${fmt(v.util)} em ${v.combo} (armadura vertical adotada menor que a exigida pelas resultantes; a casca concentra a tração nas bordas).`] : [] });
           void ref;
         }
       }

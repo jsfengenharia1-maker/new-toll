@@ -83,7 +83,8 @@ export function detalharParedes(b: BuildingModel, res: ResultadoParedeDim[], op:
         const ultimo = k === lances.length - 1;
         const nomes = { lado: g.i, nomeLado: g.nome, pavimento: lance.id, nomePav: lance.nome };
         const lbDe = (phi: number, boa: boolean, h: boolean) => lbBasico(phi, conc, h ? aH.fyd : aV.fyd, boa, (h ? aH.aco : aV.aco) === 'CA-60');
-        concreto += g.L * t * H; forma += 2 * g.L * H + 2 * t * H;
+        const Lc = g.ext(lance.id)[1] - g.ext(lance.id)[0]; // trecho existente no lance (recorte, E6d)
+        concreto += Lc * t * H; forma += 2 * Lc * H + 2 * t * H;
         const panos = r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id);
         const ladoRes = r.lados.find((l) => l.lado === g.i && l.pavimento === lance.id);
         // emenda no topo do lance (com o de cima): tracionada se algum pano traciona junto ao topo
