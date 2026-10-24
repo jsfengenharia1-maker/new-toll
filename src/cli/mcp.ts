@@ -234,6 +234,8 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // consolos curtos e vigas pré-moldadas (E2e): resultado por elemento (sem a envoltória)
     ...(d.consolos?.length ? { consolos: d.consolos } : {}),
     ...(d.premoldadas?.length ? { premoldadas: d.premoldadas } : {}),
+    // escadas (E4c): reações por apoio (G e Q, kN e kN/m), momentos de cálculo e deslocamentos por lance; a armadura entra com a E4d
+    ...(d.escadas?.length ? { escadas: pav ? d.escadas.filter((x) => x.pavimento === pav.id || x.pavimentoTopo === pav.id) : d.escadas } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),

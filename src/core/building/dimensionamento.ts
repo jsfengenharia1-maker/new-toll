@@ -3,6 +3,7 @@
 // (momentos por metro da grelha) e quantitativos. Cargas para o módulo Fundações.
 import type { InfoRearme } from './rearmarAlterados';
 import { comEscadas } from './escadasCalculo';
+import { resumoCalculoEscadas, type ResumoLanceCalculo } from './escadasResumo';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, resolver3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
@@ -1736,7 +1737,7 @@ export { cargasParaFundacao } from './fundacao';
 
 // ---------------- tudo ----------------
 
-export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
+export interface Dimensionamento { escadas?: ResumoLanceCalculo[]; vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
   /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
   detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
   /** Vigas inclinadas entre pavimentos (E2c): flexo-compressão oblíqua, cortante e torção; detalhamento (barras e estribos) e resumo do aço. */
@@ -1832,6 +1833,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   suspensoesVigas(b, an, vigas);
   const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
+  if (an.escadas?.lances.length) d.escadas = resumoCalculoEscadas(an.escadas); // escadas (E4c): reações, momentos e deslocamentos por lance
   { // E2e: vigas de vínculo externo (topo de muro: não dimensionadas), pré-moldadas e consolos
     for (const v of b.vigas) {
       const r = v.vinculoExterno ? vigas.find((x) => x.viga === v.id) : undefined;

@@ -6,6 +6,10 @@ import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from './analitico';
 import { assinaturaEscadas, calcularEscadas, cargasDasEscadas, comEscadas, diagnosticoRecalcular } from './escadasCalculo';
 import { OPCOES_PADRAO_CALCULO } from './opcoes';
+import { dimensionarEdificio } from './dimensionamento';
+import { escadasCalculoNoMemorial } from './escadasResumo';
+import { afetaCalculo } from '../commands/registry';
+import { filtrarDim } from '../../cli/mcp';
 import { concretoDe, gamas } from './materiais';
 import { classificar } from './revisao';
 import type { BuildingModel } from './types';
@@ -328,5 +332,36 @@ describe('E4c: constantes', () => {
     const gm = gamas(r.b);
     const el = r.l.elems.reduce((m, e) => (e.G[3] > m.G[3] ? e : m));
     expect(r.l.momentos.MxPos).toBeGreaterThanOrEqual(gm.g * el.G[3] + gm.q * el.Q[3] - 1e-9);
+  });
+});
+
+describe('E4c: resumo, memorial e invalidação do cálculo', () => {
+  const com = predioComEscada(true);
+  const an = analisarEdificio(com);
+  it('os comandos das escadas invalidam o cálculo (Comando.calculo)', () => {
+    for (const n of ['escada.criar', 'escada.editar', 'escada.mover', 'escada.girar', 'escada.remover', 'escada.copiarDe', 'lance.duplicar', 'tipoLance.editar']) expect(afetaCalculo(n), n).toBe(true);
+  });
+  it('dimensionar traz o resumo por lance com reações em kN e kN/m', () => {
+    const d = dimensionarEdificio(com, an, { fundacao: false });
+    expect(d.escadas).toHaveLength(1);
+    const e = d.escadas![0];
+    expect(e.reacoes.map((r) => r.apoio)).toEqual(['inf', 'sup']);
+    expect(e.reacoes[0].G).toBeCloseTo(an.escadas!.lances[0].apoios[0].reacao.G, 3);
+    expect(e.reacoes[0].GporMetro).toBeCloseTo(e.reacoes[0].G / 1.2, 2);
+    expect(e.momentos.MxPos).toBeGreaterThan(30);
+    expect(e.deslocamentoMm.G).toBeGreaterThan(1);
+    const f = filtrarDim(com, { ...d, fundacao: [] } as never, 'Tipo 1') as { escadas?: unknown[] };
+    expect(f.escadas).toHaveLength(1);
+    expect((filtrarDim(com, { ...d, fundacao: [] } as never, 'Cobertura') as { escadas?: unknown[] }).escadas ?? []).toHaveLength(0);
+    const sem = predioComEscada(false);
+    expect('escadas' in dimensionarEdificio(sem, analisarEdificio(sem), { fundacao: false })).toBe(false);
+  });
+  it('memorial: modelo, apoios, reações, esforços e deslocamentos de cada lance, com as premissas a confirmar', () => {
+    const rows = escadasCalculoNoMemorial(com, an.escadas!);
+    const secoes = new Set(rows.map((r) => r.secao));
+    expect([...secoes]).toEqual(expect.arrayContaining(['Modelo', 'Apoios', 'Reações', 'Esforços e deslocamentos']));
+    expect(rows.find((r) => r.rotulo === 'Método')!.valor).toMatch(/fora da análise global/);
+    expect(rows.find((r) => r.secao === 'Reações' && r.lance === 1)!.valor).toMatch(/kN\/m/);
+    expect(rows.some((r) => r.aConfirmar)).toBe(true);
   });
 });
