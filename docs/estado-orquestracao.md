@@ -16,12 +16,12 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-25/10/2026 (conferir ao retomar): E4e — relatório, desenhos e fechamento da frente E (nucleo Sonnet médio, worktree a partir da E4d). Ao fechar: auditoria E.
+25/10/2026 (conferir ao retomar): subfatias E5 (lista em `docs/plano-execucao.md`): (a) E5l vínculo externo no modelo integrado (Opus, núcleo); (b) E5h inserção do pano e furos na grelha (Sonnet alto); (c) E5a pranchas das lajes inclinadas (Sonnet médio).
 
-Última rodada fechada: E4d (armadura das escadas, núcleo + interface), L3 (IFC, web-ifc 0.0.78 vendorizado; núcleo + interface), auditorias V e L (sem bloqueantes) e correções (V6; V6d–V6f: flecha por cliques, consulta de nó na 3D, esforços do pilar na altura, cargas por caso e vento na planta, folha Resultados SCR, figuras de isovalores no memorial; correções L). C6.3 Parcial (L7). 1.714 testes, 111 e2e, pacote 4.657 KB.
+Última rodada fechada (25/10/2026): E4e (relatório, prancha SCE, 3D e isovalores das escadas), auditoria E + correções (35 itens conferidos Feito; 53 Parcial com subfatias E5a–E5l), FU7c (paredes com sapata corrida sobre molas k=100 000 kN/m³ — padrão do sistema; perfil NBR = engaste; baselines antigos fixados com fundParedeK 0; viga de fundação da parede; viga embutida), L7 (pano automático; obra com pano a definir não calcula, regra já existente). 1.750 testes, 114 e2e, pacote 4.708 KB.
 
 ## Próxima rodada (depois desta)
-1. Auditoria E (independente) e correções; FU7c; L7 (pano automático, cruz tracejada, painel de ferramentas C6.3).
+1. Demais E5 (b–g, i–k), FU7d.
 2. Fechamento: revisão numérica, desempenho, pacote (~4,7 MB: dividir sob demanda), republicação do artifact, revisão final dos "a confirmar".
 
 ## Fila depois disso
@@ -37,4 +37,4 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.714 testes, 111 fluxos e2e (paralelo), pacote 4.657 KB.
+1.750 testes, 114 fluxos e2e (paralelo), pacote 4.708 KB.
