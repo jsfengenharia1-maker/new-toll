@@ -92,6 +92,8 @@
   --pl-escuro-cruzamento: #6995fe;
   --pl-escuro-fantasma: rgba(242,242,242,0.35);
   --pl-escuro-limite: #afafaf;
+  --pl-escuro-magenta: #f06ef0;
+  --pl-escuro-captura-viga: #3fd0a0;
   --pl-claro-fundo: #ffffff;
   --pl-claro-mascara: #b8b8b8;
   --pl-claro-eixo: #8f8f8f;
@@ -112,6 +114,8 @@
   --pl-claro-cruzamento: #3b63fb;
   --pl-claro-fantasma: rgba(19,19,19,0.35);
   --pl-claro-limite: #505050;
+  --pl-claro-magenta: #c2189c;
+  --pl-claro-captura-viga: #0a8f63;
   color-scheme: dark;
   --pl-pb-fundo: #FFFFFF;
   --pl-pb-mascara: #9A9A9A;
@@ -133,6 +137,8 @@
   --pl-pb-cruzamento: #000000;
   --pl-pb-fantasma: rgba(0,0,0,0.35);
   --pl-pb-limite: #000000;
+  --pl-pb-magenta: #000000;
+  --pl-pb-captura-viga: #000000;
   /* planos inclinados (E3f): cor de cada plano (índice 0 a 7) no preenchimento dos panos da planta; neutros e o accent da paleta enxuta */
   --plano-0: #6995fe; --plano-1: #8a8a8a; --plano-2: #3b63fb; --plano-3: #afafaf; --plano-4: #505050; --plano-5: #a0a0a0; --plano-6: #717171; --plano-7: #dbdbdb;
   /* vista 3D (V1): cores por tipo de elemento nos três temas da planta; o contêiner .v3d[data-tema] liga o tema às variáveis --v3d-<chave> */

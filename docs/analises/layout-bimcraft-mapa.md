@@ -182,6 +182,9 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
 | T42 | Definir plano na planta | | PlanosUI | RB:edicao / Planos (E3f; acrescentada após o mapa) |
 | T43 | Escada | Shift+E | EscadaMenu.tsx, Planta.tsx | RB:lancamento / Elementos (E4b; acrescentada após o mapa) |
 | T44 | Flecha entre dois pontos | | Planta.tsx, AbaDeslocamentos.tsx | RB:analise / Consultas (V6d; acrescentada após o mapa) |
+| T45 | Diagonal por dois pontos | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
+| T46 | Consolo na face do pilar | | Planta.tsx | RB:lancamento / Elementos (E5b; acrescentada após o mapa) |
+| T47 | Ábaco | | Planta.tsx, MenuFerramentaMouse.tsx | RB:lancamento / Ábacos (E5b; acrescentada após o mapa) |
 
 Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
 

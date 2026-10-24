@@ -1,6 +1,6 @@
 // Fluxos de interface — E (parte 3/3): planos inclinados, rampas e desníveis (E3f).
 import assert from 'node:assert/strict';
-import { faixaAba, fileMenu, grupoEdif } from './helpers.mjs';
+import { faixaAba, fileMenu, grupoEdif, telaDe, enquadrarEstavel } from './helpers.mjs';
 
 export const f_E3f = {
   name: 'E3f: planos inclinados (novo plano, árvore, atribuir, propriedades, vigas incoerentes, tipo de pano e pano a definir, cobertura em duas águas, memorial, diafragma)',
@@ -143,5 +143,136 @@ export const f_E5a = {
     await cq.fill('0'); await cq.press('Enter');
     await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.prancha?.armacao?.croqui === 0, null);
     await page.waitForFunction(() => !/CROQUI DO PAVIMENTO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''), null, { timeout: 20000 });
+  },
+};
+
+// ---------------------------------------------------------------- E5b: ferramentas de planta com o mouse
+
+/** Pórtico 8 × 5 m no grupo g_3 com a planta aberta e enquadrada; `laje` = tipo do pano (JSON) ou null. */
+async function porticoE5b(page, laje, extra = []) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+  await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5], ...extra].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+  await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.45}}}`).join(', ') + ']}');
+  if (laje) await cmd(`laje.detectarPanos {"grupo": "g_3", "tipo": ${laje}}`);
+  await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+  await enquadrarEstavel(page);
+  return cmd;
+}
+const modeloE5b = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+const clicarE5b = async (page, x, y, dx = 0, dy = 0) => { const [px, py] = await telaDe(page, x, y); await page.mouse.move(px + dx, py + dy); await page.mouse.click(px + dx, py + dy); };
+const dadoPlanta = (page, k) => page.locator('.planta-cv').getAttribute(k);
+const esperarModelo = (page, fn) => page.waitForFunction(fn, null, { timeout: 20000 });
+
+export const f_E5b = {
+  name: 'E5b: diagonal por dois cliques, consolo na face do pilar, linhas magenta, cursor de captura e edição do plano (arrasto e textos)',
+  async run({ newPage }) {
+    const page = await newPage();
+    // pilar extra em (12; 2) com uma viga que sai da face direita (x = 12,15): o consolo se lança pelo clique nessa face
+    const cmd = await porticoE5b(page, null, [[12, 2]]);
+    await cmd('viga.tracar {"grupo": "g_3", "pontos": [[12.15, 2], [15, 2]], "secao": {"b": 0.15, "h": 0.45}}');
+    await enquadrarEstavel(page);
+    // 1) diagonal: dois cliques nos pilares (0; 0) e (8; 5), a ponta final no pavimento de cima
+    await faixaAba(page, 'Lançamento');
+    await page.getByRole('radio', { name: 'Diagonal por dois pontos', exact: true }).click();
+    await page.locator('[data-diagonal-menu]').waitFor();
+    await clicarE5b(page, 0, 0); await clicarE5b(page, 8, 5);
+    await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.diagonais?.length === 1);
+    let m = await modeloE5b(page);
+    assert.ok(Math.hypot(m.diagonais[0].pIni[0], m.diagonais[0].pIni[1]) < 0.2);
+    assert.ok(Math.hypot(m.diagonais[0].pFim[0] - 8, m.diagonais[0].pFim[1] - 5) < 0.2);
+    assert.notEqual(m.diagonais[0].pavIni, m.diagonais[0].pavFim);
+    // 2) consolo: o clique na face do pilar cria o consolo da viga que chega a ela
+    await page.getByRole('radio', { name: 'Consolo na face do pilar', exact: true }).click();
+    await clicarE5b(page, 12.2, 2);
+    await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.consolos?.length === 1);
+    m = await modeloE5b(page);
+    assert.equal(m.consolos[0].ponta, 'ini');
+    assert.equal(m.consolos[0].viga, m.vigas.find((v) => v.pontos[0][0] > 12).id);
+    // clique fora de qualquer pilar: nada é criado
+    await clicarE5b(page, 4, 2.5);
+    assert.equal((await modeloE5b(page)).consolos.length, 1);
+    // 3) planos: z = 0,05·x e z = 0,5 − 0,05·x; a ferramenta mostra as linhas magenta (1 interseção e 2 máximas declividades)
+    await cmd('plano.criar {"grupo": "g_3", "tipo": "tresPontos", "pontos": [[0, 0, 0], [8, 0, 0.4], [0, 2.5, 0]]}');
+    await cmd('plano.criar {"grupo": "g_3", "tipo": "tresPontos", "pontos": [[0, 5, 0.5], [8, 5, 0.1], [4, 2.5, 0.3]]}');
+    await faixaAba(page, 'Edição');
+    await page.getByRole('radio', { name: 'Definir plano na planta', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-linhas-magenta') === 'idd', null, { timeout: 20000 });
+    // cursor sobre o eixo e sobre a face da viga y = 0 (b = 0,15: face em y = 0,075)
+    const [ex, ey] = await telaDe(page, 4, 0); await page.mouse.move(ex, ey);
+    await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-cursor-captura') === 'eixo', null, { timeout: 20000 });
+    const [fx, fy] = await telaDe(page, 4, 0.075); await page.mouse.move(fx, fy);
+    await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-cursor-captura') === 'face', null, { timeout: 20000 });
+    const [lx, ly] = await telaDe(page, 6, 2.5); await page.mouse.move(lx, ly);
+    await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-cursor-captura') === '', null, { timeout: 20000 });
+    // arrastar o ponto (8; 0) do 1º plano até (8; 1): x e y mudam; a cota do ponto (0,40 m) fica
+    const [ax, ay] = await telaDe(page, 8, 0), [bx, by] = await telaDe(page, 8, 1);
+    await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move((ax + bx) / 2, (ay + by) / 2); await page.mouse.move(bx, by); await page.mouse.up();
+    await esperarModelo(page, () => Math.abs((JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.[0]?.def?.pontos?.[1]?.[1] ?? 9) - 1) < 0.05);
+    m = await modeloE5b(page);
+    assert.ok(Math.abs(m.planos[0].def.pontos[1][0] - 8) < 0.05);
+    assert.ok(Math.abs(m.planos[0].def.pontos[1][2] - 0.4) < 1e-9);
+    // reescrever a cota do ponto (0; 2,5) sobre o texto: 25 cm
+    await clicarE5b(page, 0, 2.5, 36, -14);
+    const campo = page.getByLabel('Cota do ponto do plano (cm)');
+    await campo.waitFor();
+    await campo.fill('25'); await campo.press('Enter');
+    await esperarModelo(page, () => Math.abs((JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.[0]?.def?.pontos?.[2]?.[2] ?? 9) - 0.25) < 1e-9);
+    // reescrever a inclinação sobre o texto do centro do 1º plano: 20 %
+    m = await modeloE5b(page);
+    const pts = m.planos[0].def.pontos, cx = (pts[0][0] + pts[1][0] + pts[2][0]) / 3, cy = (pts[0][1] + pts[1][1] + pts[2][1]) / 3;
+    await clicarE5b(page, cx, cy);
+    const inc = page.getByLabel('Inclinação do plano (%)');
+    await inc.waitFor();
+    await inc.fill('20'); await inc.press('Enter');
+    await esperarModelo(page, () => {
+      const p = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.[0]?.def?.pontos;
+      if (!p) return false;
+      const [p0, p1, p2] = p, dx1 = p1[0] - p0[0], dy1 = p1[1] - p0[1], dx2 = p2[0] - p0[0], dy2 = p2[1] - p0[1], dz1 = p1[2] - p0[2], dz2 = p2[2] - p0[2];
+      const det = dx1 * dy2 - dx2 * dy1, a = (dz1 * dy2 - dz2 * dy1) / det, b = (dx1 * dz2 - dx2 * dz1) / det;
+      return Math.abs(Math.hypot(a, b) - 0.2) < 1e-3;
+    });
+    // Ctrl+Z desfaz a última edição (a inclinação)
+    await page.keyboard.press('Control+z');
+    await esperarModelo(page, () => Math.abs((JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.[0]?.def?.pontos?.[2]?.[2] ?? 9) - 0.25) < 1e-9);
+  },
+};
+
+export const f_E5b_abaco = {
+  name: 'E5b-abaco: ferramenta Ábaco (retângulo por dois cantos fechado em caixotes inteiros, polígono, altura e desfazer)',
+  async run({ newPage }) {
+    const page = await newPage();
+    await porticoE5b(page, '{"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}');
+    await faixaAba(page, 'Lançamento');
+    await page.getByRole('radio', { name: 'Ábaco', exact: true }).click();
+    const menu = page.locator('[data-abaco-menu]');
+    await menu.waitFor();
+    // fora de um pano nervurado o 1º clique é recusado
+    await clicarE5b(page, 20, 20);
+    assert.equal((await modeloE5b(page)).abacos ?? undefined, undefined);
+    // retângulo: a prévia mostra o número de caixotes
+    await clicarE5b(page, 2, 1.5);
+    const [qx, qy] = await telaDe(page, 3.1, 2.7); await page.mouse.move(qx, qy);
+    await page.waitForFunction(() => /^\d+x\d+$/.test(document.querySelector('.planta-cv')?.getAttribute('data-abaco-caixotes') ?? ''), null, { timeout: 20000 });
+    const [nx, ny] = (await dadoPlanta(page, 'data-abaco-caixotes')).split('x').map(Number);
+    assert.ok(nx >= 2 && ny >= 2);
+    await page.mouse.click(qx, qy);
+    await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 1);
+    let m = await modeloE5b(page);
+    assert.equal(m.abacos[0].automatico, false);
+    assert.equal(m.abacos[0].poligono.length, 4);
+    assert.equal(m.abacos[0].hAbaco, 0.35);
+    // polígono com altura de 40 cm: três vértices e Enter
+    await menu.getByRole('radio', { name: 'Polígono', exact: true }).click();
+    await menu.getByLabel(/^Altura do ábaco/).fill('40'); await menu.getByLabel(/^Altura do ábaco/).press('Tab');
+    await clicarE5b(page, 5, 1.5); await clicarE5b(page, 7, 1.5); await clicarE5b(page, 6, 3.5);
+    await page.keyboard.press('Enter');
+    await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 2);
+    m = await modeloE5b(page);
+    assert.equal(m.abacos[1].hAbaco, 0.4);
+    assert.equal(m.abacos[1].poligono.length, 3);
+    // Ctrl+Z desfaz o polígono
+    await page.keyboard.press('Control+z');
+    await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 1);
   },
 };

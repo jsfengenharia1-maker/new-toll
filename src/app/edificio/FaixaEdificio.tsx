@@ -61,7 +61,8 @@ function Abacos() {
   const b = sessao.modelo;
   const pilares = b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id);
   return (
-    <RibbonGroup label="Ábacos">
+    <RibbonGroup label="Ábacos" radios="Ferramenta">
+      <Ferr f="abaco" icon="zona" />
       <RibbonButton icon="zona" label="Gerar ábacos nos pilares" title="Gera os ábacos automáticos nos pilares selecionados; sem pilares selecionados, em todos os pilares sem viga das lajes nervuradas" disabled={!b.lajes.some((l) => l.tipo.tipo === 'nervurada' && !l.definir)}
         onClick={() => { const r = exec('abaco.gerar', pilares.length ? { pilares } : {}); if (r.ok) pl.set({ camadaAbacos: true }); else useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Não foi possível gerar os ábacos.' }); }} />
     </RibbonGroup>
@@ -74,6 +75,7 @@ function Lancamento() {
       <RibbonGroup label="Seleção" radios="Ferramenta"><Ferr f="selecionar" icon="selecionar" /></RibbonGroup>
       <RibbonGroup label="Elementos" radios="Ferramenta">
         <Ferr f="pilar" icon="pilar" /><Ferr f="pilarParede" icon="pilarParede" /><Ferr f="viga" icon="viga" /><Ferr f="laje" icon="laje" /><Ferr f="parede" icon="parede" />
+        <Ferr f="diagonal" icon="vigaInclinada" /><Ferr f="consolo" icon="viga" />
         <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
         <RibbonButton icon="escada" label="Escada" title="Escada (Shift+E): lança a escada na planta" onClick={() => escolherEscada()} />
         <RibbonButton icon="escada" label="Escadas…" onClick={() => useEscadaUI.getState().abrir()} />
