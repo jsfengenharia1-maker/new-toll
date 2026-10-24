@@ -31,6 +31,7 @@ const TRACOS: Record<string, string> = {
   pilarParede: 'M7 3 H15 V19 H7 Z M7 8 H15 M7 14 H15',
   parede: 'M3 6 H19 V16 H3 Z M3 11 H19 M9 6 V11 M14 11 V16',
   vigaInclinada: 'M3 16 L19 6 M3 19 L19 9',
+  escada: 'M3 20 H8 V15 H13 V10 H18 V5 H21',
   malha: 'M3 7 H19 M3 15 H19 M7 3 V19 M15 3 V19',
   cargaLaje: 'M3 17 H19 M5 4 V12 M5 12 L3 9 M5 12 L7 9 M11 4 V12 M11 12 L9 9 M11 12 L13 9 M17 4 V12 M17 12 L15 9 M17 12 L19 9',
   cargaViga: 'M3 16 H19 M4 6 H18 M6 6 V13 M11 6 V13 M16 6 V13',

@@ -1114,3 +1114,11 @@ body.ajuda-on { cursor: help; }
 [data-mais="d"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
 [data-mais="e"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
 [data-mais="e d"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+/* Escadas (E4a): prévias em planta e em corte */
+.escada-prev { width: 100%; max-width: 420px; height: auto; max-height: 280px; background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); }
+.escada-prev .e-trecho { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 0.03; }
+.escada-prev .e-patamar { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 0.03; }
+.escada-prev .e-degrau { fill: none; stroke: var(--line-strong); stroke-width: 0.012; }
+.escada-prev .e-seta { fill: none; stroke: var(--accent-text); stroke-width: 0.04; }
+.escada-prev .e-nivel { fill: none; stroke: var(--line-strong); stroke-width: 0.02; stroke-dasharray: 0.1 0.08; }
+.escada-prev .e-perfil { fill: none; stroke: var(--accent); stroke-width: 0.04; stroke-linejoin: round; }
