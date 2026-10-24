@@ -64,6 +64,8 @@ import { acrescimoEm, acrescimoEst, cortanteRedist, perfisRedistribuicao, tRedis
 import { armaduraSuspensao, avisoPilarCurto, avisosDoVao, cubicaNoApoio, deltaMApoio, estribosSuspensao, fatorCargaProxima, larguraSuspensao, parcelaAoApoio, reduzirNegativo } from './apoios';
 import { verificarFogo, type ResultadoFogo } from './fogo';
 import { memoriaAtiva } from '../memoria/registrador';
+import type { DetBransonNerv, DetFase1 } from '../memoria/flechaBranson';
+import { registrarFlechaAlinhamento } from '../memoria/vigotasFlecha';
 import { registrarViga, type ComposicaoEsforco } from '../memoria/vigaConcreto';
 import { registrarPilar } from '../memoria/pilarConcreto';
 import { detalharInclinada, dimensionarInclinadas, resumoAcoInclinadas, type DetalheInclinada, type ResultadoInclinada } from './inclinadasDim';
@@ -1582,7 +1584,7 @@ function flechaRelativa(g: GrelhaPavimento, lajeId: string, fat: number[], res: 
 }
 
 function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[] {
-  const mem = memoriaAtiva(), usados = new Set<string>();
+  const mem = memoriaAtiva(), usados = new Set<string>(), usadosFlecha = new Set<string>();
   const c = concretoDe(b, 'laje'), fInf = acoDe(b, 'lajeInf').fyd, fSup = acoDe(b, 'lajeSup').fyd, gm = gamas(b), op = an.opcoes;
   // natureza e ψ2 de cada caso, na ordem dos resultados da grelha
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((c) => c.id === id)?.natureza ?? 'G');
@@ -1643,8 +1645,12 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       const fq = flechaRelativa(g, l.id, fQ);
       const vao = Math.min(...vaos(l));
       // alveolar, processo 2 (E3e): a fase 1 (placa isostática sob o peso próprio) soma à flecha da grelha contínua (permanentes, fator 1)
-      const fase1Alv = l.tipo.tipo === 'alveolar' && processoDoPano(l, op) === 2 ? (() => { const ga = geometriaAlveolar(b, l.tipo as Extract<typeof l.tipo, { tipo: 'alveolar' }>); return flechaFase1Alveolar(ga.pp, vaos(l)[0], ga.EI); })() : 0;
+      let fase1D: DetFase1 | undefined;
+      const fase1Alv = l.tipo.tipo === 'alveolar' && processoDoPano(l, op) === 2 ? (() => { const ga = geometriaAlveolar(b, l.tipo as Extract<typeof l.tipo, { tipo: 'alveolar' }>), f1 = flechaFase1Alveolar(ga.pp, vaos(l)[0], ga.EI); if (mem) fase1D = { pp: ga.pp, vao: vaos(l)[0], EI: ga.EI, f1 }; return f1; })() : 0;
       flQP += fase1Alv;
+      // memória detalhada (MD3b): a flecha das demais lajes (nervuradas, vigotas, treliçadas, alveolares) no elemento da laje
+      let elF: string | undefined, topF = '';
+      if (mem && l.tipo.tipo !== 'macica') { const e = `Laje ${l.nome}`; if (mem.aceita(e)) { elF = e; topF = usadosFlecha.has(l.id) ? ` · ${pav.nome}` : ''; usadosFlecha.add(l.id); } }
       if (l.tipo.tipo === 'macica') {
         const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
         const sec = { kind: 'rect' as const, bw: 1, h };
@@ -1715,7 +1721,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       out.push(r);
       const metodoL = precisaMetodo || vigotaComBranson(b, l, op);
       if (l.tipo.tipo === 'alveolar' && !geometriaAlveolar(b, l.tipo).EIdaFicha) continue; // K1.9.75: sem EI na ficha a flecha não é verificada (aviso ALVEOLAR_SEM_DADOS)
-      pend.push({ el: elL, r, l, flQP, dG: metodoL ? flechaRelativa(g, l.id, fG) + fase1Alv : 0, dQ: fq, dQqp: metodoL ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
+      pend.push({ el: elL ?? elF, ...(topF ? { topico: topF } : {}), ...(fase1D ? { fase1: fase1D } : {}), r, l, flQP, dG: metodoL ? flechaRelativa(g, l.id, fG) + fase1Alv : 0, dQ: fq, dQqp: metodoL ? flechaRelativa(g, l.id, fQqp) : 0, vao, cortOk: !cort || cort.ok });
     }
     // N2f: fissuração das lajes maciças (Branson por barra com a armadura calculada e a grelha recomposta); E3b: vigotas por ficha e moldadas
     const comBranson = (x: PendenteFlecha) => (x.l.tipo.tipo === 'macica' ? !!op.fissuracaoLajes && precisaMetodo : vigotaComBranson(b, x.l, op));
@@ -1723,6 +1729,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
     for (const x of pend) {
       const kp = fis.kappa.get(x.l.id) ?? 1, vb = vigotaComBranson(b, x.l, op);
       x.fisDet = fis.det?.get(x.l.id);
+      x.fisN = fis.detN?.get(x.l.id);
       finalizarFlechaLaje(b, vb ? opMetodo(op) : op, x, kp, af);
       if (vb && g.res) x.r.flechasVigotas = flechasDosAlinhamentos(b, vb ? opMetodo(op) : op, g, x, { fG, fQ, fQP, fQqp }, fis, af);
     }
@@ -1730,7 +1737,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
   return out;
 }
 
-type PendenteFlecha = { r: ResultadoLaje; l: BuildingModel['lajes'][number]; flQP: number; dG: number; dQ: number; dQqp: number; vao: number; cortOk: boolean; /** Memória detalhada (MD2): elemento e dados da fissuração da grelha. */ el?: string; fisDet?: DetFiss };
+type PendenteFlecha = { r: ResultadoLaje; l: BuildingModel['lajes'][number]; flQP: number; dG: number; dQ: number; dQqp: number; vao: number; cortOk: boolean; /** Memória detalhada (MD2): elemento e dados da fissuração da grelha. */ el?: string; fisDet?: DetFiss; /** MD3b: sufixo do tópico, Branson da nervura e fase 1 das alveolares. */ topico?: string; fisN?: DetBransonNerv; fase1?: DetFase1 };
 
 /**
  * Flechas da laje por tipo (N2f) e mensagens: total pelo fator simplificado (`fatorFlechaLaje`) ou pelo método (etapas
@@ -1741,7 +1748,7 @@ function finalizarFlechaLaje(b: BuildingModel, op: AnaliseEdificio['opcoes'], x:
   const { r, l } = x, mac = l.tipo.tipo === 'macica';
   const { f, total, ativa, variavel, lim, limQ, metodo, fatC, comp, inst, fatA } = flechasDaLaje(b, op, l, x, kappa, af);
   const msgs = r.mensagens, mem = memoriaAtiva();
-  if (mem && x.el && mac && mem.aceita(x.el)) registrarLajeFlecha(mem, x.el, { c: concretoDe(b, 'laje'), h: (l.tipo as { h: number }).h, metodo: op.fatorFlechaLaje > 0 ? 'simplificado' : op.flechaEtapas ? 'etapas' : 'fator', fatorSimplificado: op.fatorFlechaLaje, homogeneizada: !!op.inerciaHomogeneizada, flQP: x.flQP, dG: x.dG, dQ: x.dQ, dQqp: x.dQqp, kappa, af, fiss: x.fisDet, f, comp, inst, qInst: op.flechaQInstantanea ? 'total' : 'qp', fatA, fatC, total, ativa, variavel, lim, limQ });
+  if (mem && x.el && mem.aceita(x.el)) registrarLajeFlecha(mem, x.el, { c: concretoDe(b, 'laje'), ...(mac ? { h: (l.tipo as { h: number }).h } : { topico: `Flecha (ELS-DEF)${x.topico ?? ''}`, ...(x.fisN ? { fissN: x.fisN } : {}), ...(x.fase1 ? { fase1: x.fase1 } : {}) }), metodo: op.fatorFlechaLaje > 0 ? 'simplificado' : op.flechaEtapas ? 'etapas' : 'fator', fatorSimplificado: op.fatorFlechaLaje, homogeneizada: !!op.inerciaHomogeneizada, flQP: x.flQP, dG: x.dG, dQ: x.dQ, dQqp: x.dQqp, kappa, af, fiss: mac ? x.fisDet : undefined, f, comp, inst, qInst: op.flechaQInstantanea ? 'total' : 'qp', fatA, fatC, total, ativa, variavel, lim, limQ });
   // vigotas por ficha e moldadas (E3b, C7.102): a sugestão do erro de flecha é aumentar a espessura
   const sug = !mac && l.tipo.tipo !== 'trelicada' && !(l.tipo.tipo === 'vigotas' && l.tipo.ficha === FICHA_TRELICADAS) ? ' Aumente a altura da laje.' : '';
   if (total > lim) msgs.push(`Flecha total ${(total * 1000).toFixed(1)} mm > ${f.textos.total} = ${(lim * 1000).toFixed(1)} mm (relativa aos apoios, ${metodo}).${sug}`);
@@ -1778,6 +1785,14 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
   const out = new Map<string, number>();
   if (!lajes.length || !g.res || !g.casos) return { kappa: out };
   const det = memoriaAtiva() ? new Map<string, DetFiss>() : undefined; // memória detalhada (MD2)
+  const detN = memoriaAtiva() ? new Map<string, DetBransonNerv>() : undefined; // memória detalhada (MD3b): nervura mais fissurada
+  const anota = (id: string, i: number, Ma: number, d: DadosBranson, f: number) => {
+    if (!detN) return;
+    const pos = Ma >= 0, cur = detN.get(id) ?? { barra: i, Ma, pos, EI: 0, EIfis: 0, Mfis: 0, fonte: d.fonte, f: Infinity, n: 0, nFiss: 0 };
+    cur.n++; if (f < 1 - 1e-9) cur.nFiss++;
+    if (f < cur.f) Object.assign(cur, { barra: i, Ma, pos, EI: pos ? d.EI : d.negEI, EIfis: pos ? d.EIfis : d.negEIfis, Mfis: pos ? d.Mfis : d.negMfis, fonte: d.fonte, f });
+    detN.set(id, cur);
+  };
   const porLaje = new Map(lajes.map((x) => [x.l.id, x]));
   const fator = new Map<number, number>();
   const media = new Map<string, { neg: number; pos: number; mPos: number; barras: number[] }>();
@@ -1794,6 +1809,7 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
         const dadosA = vig.get(x.l.id);
         if (!dadosA) return;
         const ma = momentosDaBarra(g.res!, i, fQP, t.largura, 1), Ma = Math.abs(ma[0]) >= Math.abs(ma[1]) ? ma[0] : ma[1], fa = fatorBranson(dadosA, Ma);
+        anota(x.l.id, i, Ma, dadosA, fa);
         if (fa < 1 - 1e-9) fator.set(i, fa);
         return;
       }
@@ -1804,6 +1820,7 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
       if (!dados) return;
       const ms = momentosDaBarra(g.res!, i, fQP, t.largura, g0.intereixo), M = Math.abs(ms[0]) >= Math.abs(ms[1]) ? ms[0] : ms[1];
       const f = fatorBranson(dados, M);
+      anota(x.l.id, i, M, dados, f);
       if (f < 1 - 1e-9) fator.set(i, f);
       return;
     }
@@ -1828,15 +1845,15 @@ function fissuracaoGrelha(b: BuildingModel, g: GrelhaPavimento, lajes: PendenteF
     }
   });
   for (const [ch, e] of media) { const f = inerciaMediaVao(e.neg, e.neg, e.pos); for (const i of e.barras) fator.set(i, f); const dd = det?.get(ch.split('|')[0]); if (dd) (dd.media ??= []).push({ neg: e.neg, pos: e.pos, f }); }
-  if (![...fator.values()].some((f) => f < 1 - 1e-9)) return { kappa: out, resEl: g.res, resCr: g.res, det };
+  if (![...fator.values()].some((f) => f < 1 - 1e-9)) return { kappa: out, resEl: g.res, resCr: g.res, det, detN };
   const resEl = g.integrado ? resolver3(g.modelo, g.casos) : g.res, resCr = resolverGrelhaFissurada(g.modelo, g.casos, fator);
-  if (resEl.erro || resCr.erro) return { kappa: out, det };
-  for (const { l } of lajes) { const e = flechaRelativa(g, l.id, fQP, resEl), k = flechaRelativa(g, l.id, fQP, resCr); if (e > 1e-12) out.set(l.id, Math.max(1, k / e)); const dd = det?.get(l.id); if (dd) { dd.el = e; dd.cr = k; } }
-  return { kappa: out, resEl, resCr, det };
+  if (resEl.erro || resCr.erro) return { kappa: out, det, detN };
+  for (const { l } of lajes) { const e = flechaRelativa(g, l.id, fQP, resEl), k = flechaRelativa(g, l.id, fQP, resCr); if (e > 1e-12) out.set(l.id, Math.max(1, k / e)); const dd = det?.get(l.id); if (dd) { dd.el = e; dd.cr = k; } const dn = detN?.get(l.id); if (dn) { dn.el = e; dn.cr = k; } }
+  return { kappa: out, resEl, resCr, det, detN };
 }
 
 /** Fatores de fissuração por laje e as grelhas elástica e fissurada de onde saíram (as mesmas barras para todas as lajes do pavimento). */
-interface ResFissuracao { kappa: Map<string, number>; resEl?: Resultado3; resCr?: Resultado3; /** Memória detalhada (MD2): barra mais fissurada por laje. */ det?: Map<string, DetFiss> }
+interface ResFissuracao { kappa: Map<string, number>; resEl?: Resultado3; resCr?: Resultado3; /** Memória detalhada (MD2): barra mais fissurada por laje. */ det?: Map<string, DetFiss>; /** MD3b: nervura mais fissurada por laje de vigotas, nervurada ou alveolar. */ detN?: Map<string, DetBransonNerv> }
 
 /** A laje de vigotas usa Branson na flecha (E3b): ficha armada, protendida, genérica ou moldada, com a opção ligada; a treliçada do catálogo interno, não. */
 function vigotaComBranson(b: BuildingModel, l: BuildingModel['lajes'][number], op: AnaliseEdificio['opcoes']): boolean {
@@ -1880,12 +1897,14 @@ function dadosBransonLaje(b: BuildingModel, g: GrelhaPavimento, l: BuildingModel
  */
 function flechasDosAlinhamentos(b: BuildingModel, op: AnaliseEdificio['opcoes'], g: GrelhaPavimento, x: PendenteFlecha, fat: { fG: number[]; fQ: number[]; fQP: number[]; fQqp: number[] }, fis: ResFissuracao, af: number): FlechaAlinhamento[] {
   const l = x.l, ang = ((l.direcao ?? 0) * Math.PI) / 180, resEl = fis.resEl ?? g.res!, resCr = fis.resCr ?? resEl;
-  return alinhamentosDaLaje(g, l.id, [Math.cos(ang), Math.sin(ang)]).map((al) => {
+  const memA = memoriaAtiva();
+  return alinhamentosDaLaje(g, l.id, [Math.cos(ang), Math.sin(ang)]).map((al, ia) => {
     const el = flechaAlinhamento(g, al, fat.fQP, resEl), cr = flechaAlinhamento(g, al, fat.fQP, resCr), kappa = el > 1e-12 ? Math.max(1, cr / el) : 1;
     // alveolar, processo 2 (E3e): soma a fase 1 isostática (peso próprio) à flecha do alinhamento
     const ga = l.tipo.tipo === 'alveolar' && processoDoPano(l, op) === 2 ? geometriaAlveolar(b, l.tipo) : null, f1 = ga ? flechaFase1Alveolar(ga.pp, al.L, ga.EI) : 0;
     const xi = { flQP: el + f1, dG: flechaAlinhamento(g, al, fat.fG, resEl) + f1, dQ: flechaAlinhamento(g, al, fat.fQ, resEl), dQqp: flechaAlinhamento(g, al, fat.fQqp, resEl), vao: al.L };
-    const { f, total, ativa, variavel } = flechasDaLaje(b, op, l, xi, kappa, af);
+    const fl = flechasDaLaje(b, op, l, xi, kappa, af), { f, total, ativa, variavel } = fl;
+    if (memA && x.el && memA.aceita(x.el)) registrarFlechaAlinhamento(memA, x.el, `Flecha do alinhamento ${ia + 1}${x.topico ?? ''}`, { indice: ia, t: al.t, L: al.L, el, cr, kappa, fase1: ga ? { pp: ga.pp, vao: al.L, EI: ga.EI, f1 } : null, flecha: { c: concretoDe(b, 'laje'), metodo: op.fatorFlechaLaje > 0 ? 'simplificado' : op.flechaEtapas ? 'etapas' : 'fator', fatorSimplificado: op.fatorFlechaLaje, homogeneizada: !!op.inerciaHomogeneizada, flQP: xi.flQP, dG: xi.dG, dQ: xi.dQ, dQqp: xi.dQqp, af, f, comp: fl.comp, inst: fl.inst, qInst: op.flechaQInstantanea ? 'total' : 'qp', fatA: fl.fatA, fatC: fl.fatC, total, ativa, variavel, lim: fl.lim, limQ: fl.limQ } });
     const ok = total <= f.limites.total && variavel <= f.limites.variavel && ativa <= f.limites.ativa;
     return { t: al.t, L: al.L, kappa, instantanea: f.instantanea, diferida: f.diferida, total, ativa, variavel, limites: { total: f.limites.total, ativa: f.limites.ativa, variavel: f.limites.variavel }, textos: { total: f.textos.total, ativa: f.textos.ativa, variavel: f.textos.variavel }, status: ok ? 'ok' : 'fail' };
   });

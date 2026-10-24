@@ -8,7 +8,7 @@ import type { P } from '../geom/faces';
 import { areaPoligono } from '../geom/faces';
 import type { AnaliseEdificio } from './analitico';
 import {
-  apoioDaPonta, apoioLateralDaViga, bordaCompartilhada, cargasDoPano, comprimentoDaPeca, geometriaAlveolar, larguraDaViga, paginarPlacas, processoDoPano,
+  apoioDaPonta, apoioLateralDaViga, bordaCompartilhada, cargasDoPano, comprimentoDaPeca, fatorEngasteAproximado, geometriaAlveolar, JUNTA_APOIO, larguraDaViga, paginarPlacas, processoDoPano,
   vrdPositivo, type ApoioLateral, type ApoioPlaca, type GeometriaAlveolar, type NegativoPlaca, type PlacaAlveolar, type PlacaPaginada, type ProcessoAlveolar,
 } from './alveolares';
 import { lbBasico } from './detalhamento';
@@ -21,6 +21,8 @@ import { alcance, arred, deltaMinVigotas, dot, faixasDaGrelha, fmt, fphi, r3, ty
 import { minimosDaFaixa, pontasContinuas, redistribuirNegativos } from './vigotasEsforcos';
 import { combinacaoDoNivel, momentoDoNivel, nivelPorCAA, type NivelProtensao } from './vigotasFichas';
 import { casosDaObra, pavimentosDoGrupo, type BuildingModel, type Laje, type NegativoAlveolarEd } from './types';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarAlveolarBase, registrarAlveolarEscolha, registrarAlveolarEsforcos, registrarAlveolarPlacas, registrarAlveolarVerificacao, type CtxAlvVerificacao, type FaixaAlv, type PlacaApoio, type PontaVer } from '../memoria/alveolares';
 import type { DadosBranson } from './vigotasFlecha';
 
 const ACO_KG_M3 = 7850;
@@ -160,6 +162,7 @@ function muNegativoSecao(p: PlacaAlveolar, ctx: Pick<ContextoVerificacao, 'c' | 
   const comAlma = p.hfInf && p.bwAlma;
   return momentoResistenteT(ctx.c, 1, comAlma ? p.hfInf! : p.altura, comAlma ? p.bwAlma! : 1, ctx.dNeg, As, ctx.fyd);
 }
+const secaoNegativo = (p: PlacaAlveolar): BeamSection => (p.hfInf && p.bwAlma ? { kind: 'tee', bw: p.bwAlma, h: p.altura, bf: 1, hf: p.hfInf } : { kind: 'rect', bw: 1, h: p.altura });
 /** Armadura necessária (m²/m) do negativo `M` (kN·m/m) pela seção da placa; `null` se pede armadura dupla. */
 function asNegativoSecao(p: PlacaAlveolar, ctx: Pick<ContextoVerificacao, 'c' | 'fyd' | 'dNeg'>, M: number): number | null {
   const sec: BeamSection = p.hfInf && p.bwAlma ? { kind: 'tee', bw: p.bwAlma, h: p.altura, bf: 1, hf: p.hfInf } : { kind: 'rect', bw: 1, h: p.altura };
@@ -186,16 +189,18 @@ interface VerificacaoPlaca {
  * nível de protensão do ambiente; negativo na capa em cada ponta (linha da ficha de menor Mu que cobre e, nela, o cortante;
  * senão a seção); cortante nas flexões positiva e negativa. `adequada` é `null` se a placa não tem Mu (verificação não feita).
  */
-function verificarPlaca(p: PlacaAlveolar, geo: GeometriaAlveolar, ctx: ContextoVerificacao): VerificacaoPlaca {
+function verificarPlaca(p: PlacaAlveolar, geo: GeometriaAlveolar, ctx: ContextoVerificacao, det?: Partial<CtxAlvVerificacao> & { pontas: PontaVer[] }): VerificacaoPlaca {
   const motivos: string[] = [], r = geo.resist;
   const dem = { mPos: ctx.d.mPos * ctx.ratioELU, mNeg: ctx.d.mNeg.map((m) => m * ctx.ratioELU) as [number, number], v: ctx.d.v.map((v) => v * ctx.ratioELU) as [number, number], ms: ctx.d.ms * ctx.ratioServico };
   const Mu = r.Mu ?? null;
+  if (det) { det.dem = dem; det.demanda = ctx.d; det.ratioELU = ctx.ratioELU; det.ratioServico = ctx.ratioServico; det.Mu = Mu; det.servico = null; }
   let flexao: boolean | null = null;
   if (Mu !== null) { flexao = dem.mPos <= Mu + 1e-9; if (!flexao) motivos.push(`momento positivo ${fmt(dem.mPos)} > Mu ${fmt(Mu)} kN·m/m`); }
   // serviço
   let servico: boolean | null = null, Madm: number | null = null;
   if (r.servico) {
     Madm = momentoDoNivel({ protensao: { Mdesc: r.servico.Mdesc ?? 0, ...(r.servico.Mparcial !== undefined ? { Mparcial: r.servico.Mparcial } : {}), ...(r.servico.Mlimitada !== undefined ? { Mlimitada: r.servico.Mlimitada } : {}), ...(r.servico.Mcompleta !== undefined ? { Mcompleta: r.servico.Mcompleta } : {}) } } as SerieFicha, ctx.nivel);
+    if (det) det.servico = { nivel: ctx.nivel, Madm, Mdesc: r.servico.Mdesc ?? null, ok: Madm !== null ? dem.ms <= Madm + 1e-9 : null };
     if (Madm !== null) { servico = dem.ms <= Madm + 1e-9; if (!servico) motivos.push(`momento de serviço ${fmt(dem.ms)} > ${fmt(Madm)} kN·m/m (protensão ${ctx.nivel})`); }
   }
   // negativos e cortante
@@ -205,7 +210,8 @@ function verificarPlaca(p: PlacaAlveolar, geo: GeometriaAlveolar, ctx: ContextoV
   const linhas = [...r.negativos].sort((a, z) => a.Mu - z.Mu || a.phi - z.phi);
   for (const k of [0, 1] as const) {
     const M = -dem.mNeg[k], ed = ctx.edicao[k], Vd = dem.v[k];
-    if (M < NEG_MIN && !ed) { cortante[k].ok = VRdPos[k] === undefined || Vd <= VRdPos[k]! + 1e-9; if (!cortante[k].ok) motivos.push(`cortante ${fmt(Vd)} > VRd ${fmt(VRdPos[k]!)} kN/m na ponta ${k ? 'final' : 'inicial'}`); continue; }
+    const pv: PontaVer | null = det ? { k, M, Vd, mEnd: ctx.d.mEnd[k] * ctx.ratioELU, VRdPos: VRdPos[k] ?? null, semNeg: false, res: { VRd: r.VRd ?? null, VRdDesc: r.VRdDesc ?? null, Mdesc: r.servico?.Mdesc ?? null }, ed: ed ? { phi: ed.phi, s: ed.s } : null, linhas: linhas.map((q) => ({ phi: q.phi, s: q.s, Mu: q.Mu, VRd: q.VRd ?? null })), origem: null, secao: null, escolha: null, VRd: null, regiao: 'positiva', okCort: true, comp: null } : null;
+    if (M < NEG_MIN && !ed) { cortante[k].ok = VRdPos[k] === undefined || Vd <= VRdPos[k]! + 1e-9; if (!cortante[k].ok) motivos.push(`cortante ${fmt(Vd)} > VRd ${fmt(VRdPos[k]!)} kN/m na ponta ${k ? 'final' : 'inicial'}`); if (pv && det) { pv.semNeg = true; pv.okCort = cortante[k].ok; det.pontas.push(pv); } continue; }
     const ponta = k ? 'final' : 'inicial';
     let escolha: NegativoAlveolar | null = null;
     const base = { Md: Math.max(M, 0), x0: 0, al: 0, lb: 0, comprimento: 0, barras: 0 };
@@ -213,19 +219,23 @@ function verificarPlaca(p: PlacaAlveolar, geo: GeometriaAlveolar, ctx: ContextoV
       const linha = linhas.find((x) => Math.abs(x.phi - ed.phi) < 1e-9 && Math.abs(x.s - ed.s) < 1e-9), As = barArea(ed.phi) / ed.s;
       const Mued = linha?.Mu ?? muNegativoSecao(p, ctx, As);
       escolha = { ...base, phi: ed.phi, s: ed.s, AsNec: 0, AsAdotada: As, Mu: Mued, fonte: 'editado', ...(linha ? { linha } : {}), ok: Mued >= M - 1e-9 };
+      if (pv) pv.origem = 'editado';
       if (!escolha.ok) motivos.push(`negativo editado φ${fphi(ed.phi)} c/${fmt(ed.s * 100, 1)} (Mu ${fmt(Mued)}) < ${fmt(M)} kN·m/m na ponta ${ponta}`);
     } else {
       const linha = linhas.find((x) => x.Mu >= M - 1e-9 && (x.VRd === undefined || x.VRd >= Vd - 1e-9));
-      if (linha) escolha = { ...base, phi: linha.phi, s: linha.s, AsNec: 0, AsAdotada: barArea(linha.phi) / linha.s, Mu: linha.Mu, fonte: 'ficha', linha, ok: true };
+      if (linha) { escolha = { ...base, phi: linha.phi, s: linha.s, AsNec: 0, AsAdotada: barArea(linha.phi) / linha.s, Mu: linha.Mu, fonte: 'ficha', linha, ok: true }; if (pv) pv.origem = 'ficha'; }
       else if (linhas.length && linhas.some((x) => x.Mu >= M - 1e-9)) {
         // há linha que resiste ao momento mas nenhuma ao cortante
         const x = linhas.find((y) => y.Mu >= M - 1e-9)!;
         escolha = { ...base, phi: x.phi, s: x.s, AsNec: 0, AsAdotada: barArea(x.phi) / x.s, Mu: x.Mu, fonte: 'ficha', linha: x, ok: true };
+        if (pv) pv.origem = 'ficha-sem-cortante';
       } else {
         const AsNec = asNegativoSecao(p, ctx, M);
+        if (pv) pv.origem = 'secao';
         if (AsNec === null) { motivos.push(`negativo ${fmt(M)} kN·m/m pede armadura de compressão na ponta ${ponta}`); escolha = { ...base, phi: 0, s: 0, AsNec: 0, AsAdotada: 0, Mu: 0, fonte: 'secao', ok: false }; }
         else {
           const AsMin = RHO_MIN_LAJE * ctx.capa, b = escolherBarrasNeg(AsNec, AsMin);
+          if (pv) pv.secao = { AsNec, AsMin, alvo: Math.max(AsNec, AsMin), sec: secaoNegativo(p) };
           if (!b) { motivos.push(`negativo ${fmt(M)} kN·m/m: nenhuma bitola até φ16 c/10 cobre ${fmt(AsNec * 1e4)} cm²/m na ponta ${ponta}`); escolha = { ...base, phi: 16, s: 0.1, AsNec: AsNec * 1e4, AsAdotada: barArea(16) / 0.1, Mu: 0, fonte: 'secao', ok: false }; }
           else escolha = { ...base, phi: b.phi, s: b.s, AsNec: AsNec * 1e4, AsAdotada: b.As, Mu: muNegativoSecao(p, ctx, b.As), fonte: 'secao', ok: true };
         }
@@ -235,6 +245,7 @@ function verificarPlaca(p: PlacaAlveolar, geo: GeometriaAlveolar, ctx: ContextoV
     negativos[k] = escolha;
     const VRdNeg = escolha?.linha?.VRd ?? null;
     cortante[k] = { Vd, VRd: VRdNeg ?? VRdPos[k] ?? null, regiao: 'negativa', ok: (VRdNeg ?? VRdPos[k]) === undefined || (VRdNeg ?? VRdPos[k] ?? Infinity) >= Vd - 1e-9 };
+    if (pv && det) { pv.escolha = escolha ? { phi: escolha.phi, s: escolha.s, AsNec: escolha.AsNec, AsAdotada: escolha.AsAdotada, Mu: escolha.Mu, fonte: escolha.fonte, ok: escolha.ok } : null; pv.VRd = cortante[k].VRd; pv.regiao = 'negativa'; pv.okCort = cortante[k].ok; det.pontas.push(pv); }
     if (!cortante[k].ok) motivos.push(`cortante ${fmt(Vd)} > VRd ${fmt(cortante[k].VRd!)} kN/m (flexão negativa) na ponta ${ponta}`);
   }
   const adequada = Mu === null ? null : motivos.length === 0;
@@ -276,6 +287,8 @@ export function dimensionarAlveolares(b: BuildingModel, an: AnaliseEdificio, laj
     if (l.tipo.tipo !== 'alveolar' || errosTipoLaje(b, l.tipo).length) continue;
     const geo = geometriaAlveolar(b, l.tipo), tag = l.nome;
     if (geo.ausente) continue;
+    const memA = memoriaAtiva(), elA = `Laje ${l.nome}`, regA = memA?.aceita(elA) ? memA : null; // memória detalhada (MD3b)
+    const faixasDet: FaixaAlv[] = [];
     const msgs: { texto: string; erro: boolean }[] = [];
     const erro = (t: string) => msgs.push({ texto: t, erro: true }), aviso = (t: string) => msgs.push({ texto: t, erro: false });
     const pavs = pavimentosDoGrupo(b, l.grupo), pavIds = pavs.map((p) => p.id), nomesPav = pavs.map((p) => p.nome);
@@ -295,9 +308,12 @@ export function dimensionarAlveolares(b: BuildingModel, an: AnaliseEdificio, laj
     const lin = faixasELU.map((f) => {
       const calc = calcDe(f), m = minimosDaFaixa({ L: f.L, calc }, opMin, l);
       // K1.9.74: redistribuição dos negativos das pontas contínuas depois dos mínimos (limitada pela NBR 6118, 14.6.4.3)
-      const rd = op.alveolarRedistribuir ? redistribuirNegativos(m.esforcos, pontasContinuas({ L: f.L, calc }), op.redistribuicao, dMin) : null;
+      const cont = pontasContinuas({ L: f.L, calc });
+      const rd = op.alveolarRedistribuir ? redistribuirNegativos(m.esforcos, cont, op.redistribuicao, dMin) : null;
       if (rd?.aplicada) aviso(`Alveolares: redistribuição dos negativos em ${tag}: δ = ${fmt(rd.delta)} (NBR 6118, 14.6.4.3).`);
-      return { f, esf: rd?.aplicada ? rd.esforcos : m.esforcos, tipoVao: m.tipo };
+      const esfF = rd?.aplicada ? rd.esforcos : m.esforcos;
+      if (regA) faixasDet.push({ t: f.t, largura: f.largura, L: f.L, calc, tipo: m.tipo, divisorPos: m.divisorPos, divisorNeg: m.divisorNeg, pisoPos: m.pisoPos, pisoNeg: m.pisoNeg, min: m.esforcos, rd: rd ? { delta: rd.delta, aplicada: rd.aplicada, pct: op.redistribuicao, deltaMin: dMin, continuas: [cont[0], cont[1]] } : null, esf: esfF, mEnd: [Math.max(0, f.Mmax[0]), Math.max(0, f.Mmax.at(-1)!)], });
+      return { f, esf: esfF, tipoVao: m.tipo };
     });
     // ---- paginação
     const pag = paginarPlacas(l, adotada.largura, adotada.larguraMin);
@@ -324,7 +340,8 @@ export function dimensionarAlveolares(b: BuildingModel, an: AnaliseEdificio, laj
     const psiS = comb === 'rara' ? 1 : psiQ1, qSrv = (pp: number) => pp + carg.permanentes + psiS * carg.variaveis;
     const ratio = (g2: GeometriaAlveolar) => ({ ratioELU: qELU(geo.pp) > 1e-9 ? qELU(g2.pp) / qELU(geo.pp) : 1, ratioServico: qSrv(geo.pp) > 1e-9 ? qSrv(g2.pp) / qSrv(geo.pp) : 1 });
     const ctxDe = (g2: GeometriaAlveolar, comEd: boolean): ContextoVerificacao => ({ ...ctxBase, capa: g2.placa.capa, dNeg: g2.placa.altura - cob.sup - 0.005, edicao: comEd ? ctxBase.edicao : [null, null], Ms: MsPano, ...ratio(g2), d: demanda });
-    const ver = verificarPlaca(adotada, geo, ctxDe(geo, true));
+    const detV: Partial<CtxAlvVerificacao> & { pontas: PontaVer[] } | undefined = regA ? { pontas: [] } : undefined;
+    const ver = verificarPlaca(adotada, geo, ctxDe(geo, true), detV);
     // ---- escolha da placa (lista da série): mesma altura primeiro, por Mu crescente; depois as outras alturas
     const geoDe = (p: PlacaAlveolar): GeometriaAlveolar => geometriaAlveolar(b, { tipo: 'alveolar', ficha: ficha.id, placa: p.id });
     const ordem = [...ficha.placas].sort((a, z) => {
@@ -369,14 +386,19 @@ export function dimensionarAlveolares(b: BuildingModel, an: AnaliseEdificio, laj
       const ed = ctxBase.edicao[k];
       const auto = Math.min(Lk, arred(Math.max((op.vigotaNegativoVao / 100) * Lk, x0 + al + lb), op.arredondamento));
       const comprimento = ed ? (ed.comprimento !== undefined ? Math.min(Lk, ed.comprimento) : ed.percentual !== undefined ? (ed.percentual / 100) * Lk : auto) : auto;
-      return { ...n, comprimento: r3(comprimento), x0: r3(x0), al: r3(al), lb: r3(lb), barras: n.s ? Math.ceil(pag.B / n.s - 1e-6) : 0 };
+      const barrasN = n.s ? Math.ceil(pag.B / n.s - 1e-6) : 0;
+      const pvN = detV?.pontas.find((q) => q.k === k);
+      if (pvN) pvN.comp = { Lk, x0, al, lb, pct: op.vigotaNegativoVao / 100, arredOp: op.arredondamento, decalagem: op.lajeDecalagem, auto, final: comprimento, editado: !!ed, barras: barrasN, larguraPano: pag.B };
+      return { ...n, comprimento: r3(comprimento), x0: r3(x0), al: r3(al), lb: r3(lb), barras: barrasN };
     }) as [NegativoAlveolar | null, NegativoAlveolar | null];
     // ---- placas: peças, apoios e situação
     const larg = (pt: P) => larguraDaViga(b, l.grupo, pt);
+    const apoiosDet: PlacaApoio[] = [];
     const placas: PlacaDim[] = porPlaca.map(({ pl, env }) => {
       const bI = larg(pl.a), bF = larg(pl.z), extra = pl.obliqua ? pl.largura * Math.abs(Math.tan((pl.angulo * Math.PI) / 180)) : 0, ap = [apoioDaPonta(adotada, bI, bordaCompartilhada(l, pl.a, b.lajes), extra), apoioDaPonta(adotada, bF, bordaCompartilhada(l, pl.z, b.lajes), extra)] as [ApoioPlaca, ApoioPlaca];
       const comprimento = comprimentoDaPeca(pl.Lmax, bI, bF, ap[0].adotado, ap[1].adotado);
       const insuf = ver.adequada === false && !!env;
+      if (regA) apoiosDet.push({ numero: `${tag}-P${pl.indice + 1}`, largura: pl.largura, Lmax: pl.Lmax, bI, bF, compI: bordaCompartilhada(l, pl.a, b.lajes), compF: bordaCompartilhada(l, pl.z, b.lajes), dispI: ap[0].disponivel, dispF: ap[1].disponivel, adotI: ap[0].adotado, adotF: ap[1].adotado, apoioMin: adotada.apoioMin, apoioMax: adotada.apoioMax, comprimento, situacao: ap.map((a) => a.situacao), cortada: pl.cortada, obliqua: pl.obliqua });
       return { ...pl, numero: `${tag}-P${pl.indice + 1}`, comprimento, apoios: ap, envoltoria: env, status: insuf || ap.some((a) => a.situacao === 'insuficiente') ? 'insuficiente' : 'ok' };
     });
     for (const p of placas) {
@@ -407,6 +429,15 @@ export function dimensionarAlveolares(b: BuildingModel, an: AnaliseEdificio, laj
       lista: [...lista.values()].sort((a, z) => z.largura - a.largura || z.comprimento - a.comprimento), numeroPlacas: placas.length, areaPlacas, pesoPlacas: areaPlacas * adotada.pesoM2,
       concretoLocal: areaPano * geo.volume, areaCapa: areaPano, negativos: [...neg.entries()].sort((a, z) => a[0] - z[0]).map(([phi, comprimento]) => ({ phi, comprimento, peso: comprimento * barArea(phi) * ACO_KG_M3 })),
     };
+    // ---- memória detalhada (MD3b)
+    if (regA) {
+      const serv = comb === 'rara' ? fRara : fFreq;
+      registrarAlveolarBase(regA, elA, { nome: tag, pavimentos: nomesPav.join(', '), ficha: ficha.id, fichaNome: ficha.nome, fabricante: ficha.fabricante ?? '—', ficticio: !!ficha.ficticio, placa: adotada.id, fixa, altura: geo.h, capa: geo.capa, ppPlaca: geo.ppPlaca, volume: geo.volume, pp: geo.pp, processo, engaste: processo === 1 ? fatorEngasteAproximado(geo.pp, carg.total) : null, vao: vaoPano, larguraPano: pag.B, nPlacas: placas.length, larguraPlaca: adotada.largura, permanentes: carg.permanentes, variaveis: carg.variaveis, gg: gm.g, gq: gm.q, psiS, qELU: qELU(geo.pp), qSrv: qSrv(geo.pp), nivel, caa, comb, c, fydSup: aS.fyd, acoSup: aS.aco, cobSup: cob.sup, dNeg: adotada.altura - cob.sup - 0.005, elu: an.casos.map((caso, i) => ({ caso, f: fELU[i] })).filter((q) => q.f !== 0), serv: an.casos.map((caso, i) => ({ caso, f: serv[i] })).filter((q) => q.f !== 0), faltam, redistribuir: !!op.alveolarRedistribuir, fase1: processo === 2 });
+      registrarAlveolarEsforcos(regA, elA, { processo, faixas: faixasDet, serv: faixasServ.map((f) => ({ t: f.t, largura: f.largura, ms: Math.max(0, ...f.Mmax) })), placas: porPlaca.map(({ pl, env, ms }) => ({ indice: pl.indice, t0: pl.t0, t1: pl.t1, largura: pl.largura, env: { mPos: env.mPos, mNeg: env.mNeg, v: env.v, mEnd: env.mEnd! }, ms })), envPano: { mPos: envPano.mPos, mNeg: envPano.mNeg, v: envPano.v, mEnd: envPano.mEnd! }, MsPano, minPos: op.alveolarMomentoMinPositivo, minNeg: op.alveolarMomentoMinNegativo });
+      registrarAlveolarVerificacao(regA, elA, { ...(detV as CtxAlvVerificacao), flexao: ver.flexao, c, fydSup: aS.fyd, dNeg: adotada.altura - cob.sup - 0.005, altura: adotada.altura, hfInf: adotada.hfInf ?? null, bwAlma: adotada.bwAlma ?? null, capa: adotada.capa });
+      registrarAlveolarEscolha(regA, elA, { candidatas, adotada: adotada.id, escolhida, fixa, trocar, adequadaAdotada: ver.adequada });
+      registrarAlveolarPlacas(regA, elA, { placas: apoiosDet, junta: JUNTA_APOIO, lateral: lateral.map((q) => ({ viga: q.viga, disponivel: q.disponivel, ok: q.ok })), apoioMin: adotada.apoioMin, capa: { espessura: adotada.capa, minima: capaMin, ok: capaOk, AsMinTela: RHO_MIN_LAJE * adotada.capa * 1e4, rhoMin: RHO_MIN_LAJE }, quant: { numeroPlacas: quant.numeroPlacas, areaPlacas: quant.areaPlacas, pesoM2: adotada.pesoM2, pesoPlacas: quant.pesoPlacas, areaPano, volume: geo.volume, concretoLocal: quant.concretoLocal, negativos: quant.negativos, lista: quant.lista }, repeticoes: pavs.length || 1 });
+    }
     // ---- resumo
     const aprovPos = geo.resist.Mu ? envPano.mPos / geo.resist.Mu : null;
     const rS = ver.Madm;
