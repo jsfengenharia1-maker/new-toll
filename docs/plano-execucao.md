@@ -23,7 +23,7 @@ No máximo 3 lanes de código ao mesmo tempo, mais 1 agente de documentação (s
 | Onda 2 | FU5 → FU6 → FU7a | R7c → R7d → R7e | N2a → N2b → N2c | specs E3, E4, L, V |
 | Onda 3 | E1 → FU7b | R7f → R7g | N2d → N2e → N2f → N2g | auditoria FU e R |
 | Onda 4 | E2 → E3a–E3f | L1 → L5 | V1 → V2 | auditoria N |
-| Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5) | — | V3 → V4 → V5 | auditoria E, L e V |
+| Onda 5 | E4a–E4e (a E4e depois de V1, V4 e V5); E5a–E5l (resíduos da frente E, após a auditoria E) | — | V3 → V4 → V5 | auditoria E, L e V |
 | Fechamento | revisão numérica (Wp de borda/canto da punção, queda de momentos das vigas no modelo integrado, bloco multi-pilar com sinal do momento), desempenho (13 pavimentos ≤ 3 s, teste no CI), pacote (divisão em partes sob demanda), republicação do artifact, revisão final dos "a confirmar" | | | |
 
 Dependências que definem a ordem: FU7b depende de E1 (muros); E3 aproveita as vigotas da R6/R7; V usa os resultados de N2 e E; L (lançamento por DXF/IFC) não depende de nada e fica depois da R7 por dividir arquivos da planta com a R7-0.
@@ -87,6 +87,18 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | V4 isovalores e isolinhas | S2 | S2 |
 | V5 esforços por hipótese, vistas de vigotas e saídas | S2 | S1 |
 | V6 pendentes da auditoria V: V6a pranchas de cortes, V6b janelas de deformada, V6c viga de fundação 3D, V6d cliques (planta e vista 3D), V6e vento e cargas por caso na planta, V6f folha Resultados e figuras no memorial (correções da auditoria V já feitas em 24/10/2026; V6d, V6e e V6f feitas em 24/10/2026 na branch `worktree-agent-a9dcb169364e84b69`, ainda sem merge) | S2 | S2 |
+| E5a pranchas das lajes inclinadas: dobramento, marca de dobra, croqui (6 linhas) | S2 | — |
+| E5b ferramentas de planta com o mouse: diagonal por dois cliques, consolo na face, linhas magenta, cursor de captura, arrasto de plano, ábaco (7 linhas) | — | S2 |
+| E5c botões, seletores e etapa Muros: redimensionar todos os consolos, abertura para pano a definir, cópia de plano entre grupos, radier no seletor, etapa Muros (5 linhas) | — | S1 |
+| E5d ajuda F1, textos de limitação e exemplos dos planos (5 linhas) | — | S1 (ajuda e textos), S2 (exemplos) |
+| E5e vigotas: igualação pela área, vista na planta, flecha de montagem e ômega (4 linhas; C7.102 e C7.194 dependem de `pendencias-usuario.md`) | S3 | S1 |
+| E5f aço próprio e punção das nervuradas e ábacos (5 linhas) | S3 | S1 |
+| E5g dimensionamento das nervuradas: malha da mesa, fissuração do negativo, Wood-Armer, base do ábaco, nervuras a concentrar (4 linhas) | S3 | S1 |
+| E5h inserção do pano (numeração e origem da malha) e furos na grelha (2 linhas; sobe a O se a grelha com furos falhar duas vezes) | S3 | S1 |
+| E5i saídas de paredes, alvenaria e consolos: relatório, listagem, plantas de blocos, estribos de consolos (5 linhas) | S2 | S1 |
+| E5j apoios longitudinais, rigidez axial das paredes, alvenaria por pavimento e pilar com desnível (5 linhas) | S3 | — |
+| E5k vigas de fundação T, L e plana (1 linha) | S3 | S1 |
+| E5l vínculo externo (apoio contínuo em muro) no modelo integrado (4 linhas) | O | — |
 | Specs E3, E4, L, V (escritas em 20/10/2026) | S2 | — |
 | Auditorias de fim de frente | S2 | — |
 | Conflitos de checklist e docs | H | — |

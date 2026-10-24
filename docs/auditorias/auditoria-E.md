@@ -37,3 +37,13 @@ Nenhum.
 7. **Referência independente para ábacos, alveolares e consolos.** `abacos.test.ts`, `alveolares.test.ts` e `consolos.test.ts` comparam com cálculo manual das mesmas fórmulas; sem OpenSees nem exemplo publicado (por exemplo exemplo resolvido de El Debs para consolo e de manual de fabricante para alveolar). Registrar em `pendencias-usuario.md` seção "Validação externa" (linha 80) os exemplos desejados.
 8. **Verificação por teste de cada Feito.** Heurística por nome de identificador: 122 das 289 linhas Feito não citam em crase nenhuma função que apareça em arquivo de teste (por exemplo C7.60 a C7.65, C7.68 a C7.70, C8.33 a C8.47, K1.9.62 a K1.9.83); a maioria é coberta por teste com outro nome (`calcularEscadas`, `analisarEdificio`) ou pelo e2e. Sugestão: nas notas, citar o teste (arquivo) para as linhas de cálculo.
 9. **Contagem 85 × 87** no histórico (linha 180) e no briefing: ajustar para 87 ou explicar a exclusão.
+
+## Correções aplicadas (24/10/2026)
+- Item 1 (corrigido): fatia E5 (E5a–E5l) em `plano-execucao.md` e `plano-frentes.md`; as 53 linhas que seguem Parcial ou Falta levam `E5x:` e o resíduo exato na nota.
+- Item 2 (corrigido): interfaces E2a–E2e conferidas contra os checklists; as linhas que a interface cobre passaram a Feito (35 no total com os itens 3 e 4; lista no histórico). Seguem Parcial: C6.42, C6.55, C6.58, C6.101 (E5b, E5c), C6.108 e C4.62 (E5i, sem teste do desenho de consolos) e as quatro de vínculo externo (E5l: `analitico.ts` avisa que os apoios contínuos não entram no modelo integrado, o padrão).
+- Item 3 (corrigido): K1.12.5-12 e K1.4.85 Feito; o que sobra (flecha de montagem, contraflecha) está no C7.102 (E5e) e nas pendências do usuário. C7.20, C7.26, C7.31, C7.32, C7.36, K1.9.51, K1.9.53 e K1.9.59 também estavam desatualizadas (E3a/E3b já entregaram o uso) e passaram a Feito.
+- Item 4 (corrigido): premissa `e4e-pranchas-escadas` (a confirmar) em `premissas.ts` e seção E4e em `pendencias-usuario.md` (sigla SCE, cortes sem degraus, planta do lance no sistema local, `escalaEscadas`, `cargasNasFormas`, relatório em três níveis).
+- Item 5 (corrigido): C7.1, C7.8, C7.15, C7.66, C7.67, C7.77 e C7.195 reescritas com o que falta e a subfatia; C7.60 passou a Parcial (E5d), coerente com C7.72.
+- Item 6 (corrigido): `ORDEM_CONJUNTO` não lista `resultados` de propósito (folha avulsa da V6f, `FOLHAS_AVULSAS`; teste de `v5.test.ts` já exigia que 'todas' a exclua). Teste novo em `sheets/escadasDetalhe.test.ts` com escadas e resultados juntos (ordem e contagem).
+- Item 9 (corrigido): contagem 85 → 87 no histórico.
+- Itens 7 e 8 (sugestões) não tratados.

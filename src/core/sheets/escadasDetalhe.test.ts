@@ -57,6 +57,21 @@ describe('E4e: prancha de detalhe das escadas', () => {
     expect(montarConjunto(s0, an0, d0, { tipos: 'todas' }).pranchas.some((x) => x.tipo === 'escadas')).toBe(false);
   });
 
+  it('conjunto com escadas e resultados juntos: escadas antes, resultados (folha avulsa) depois; fora do conjunto completo', { timeout: 120000 }, () => {
+    expect(ORDEM_CONJUNTO).not.toContain('resultados'); // V6f: a folha Resultados só sai pedida por nome
+    const e = pranchas.filter((x) => x.tipo === 'escadas').length;
+    const r = montarConjunto(b, an, dim, { tipos: 'resultados' }).pranchas.length;
+    expect(e).toBeGreaterThanOrEqual(1);
+    expect(r).toBeGreaterThanOrEqual(1);
+    // a ordem pedida não importa: sai a ordem do conjunto, depois as avulsas
+    for (const tipos of [['escadas', 'resultados'], ['resultados', 'escadas']] as const) {
+      const junto = montarConjunto(b, an, dim, { tipos: [...tipos] }).pranchas;
+      expect(junto).toHaveLength(e + r);
+      expect(junto.map((x) => x.tipo)).toEqual([...Array(e).fill('escadas'), ...Array(r).fill('resultados')]);
+    }
+    expect(montarConjunto(b, an, dim, { tipos: 'todas' }).pranchas.some((x) => x.tipo === 'resultados')).toBe(false);
+  });
+
   it('sem dimensionamento, avisa; com grupo sem escada, não desenha nada', () => {
     expect(montarConjunto(b, null, null, { tipos: 'escadas' }).avisos[0]).toMatch(/escadas|calcule/i);
     expect(montarConjunto(b, an, dim, { tipos: 'escadas', grupo: 'g_1' }).pranchas).toHaveLength(0);

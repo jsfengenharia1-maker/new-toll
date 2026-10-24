@@ -8,7 +8,7 @@ Base: `checklist-manual-cypecad.md` (manual do usuário, 763 itens) e `checklist
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 9 | 11 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas em 20/10/2026; o resíduo é a R7, especificada em `spec-frente-R.md` com as subfatias R7-0 e R7a–R7g, depois da FU; auditada no código em 20/10/2026) | 0 | 7 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 55 | 32 | 87 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 34 | 19 | 53 |
 | FU — Fundações integradas (spec: `spec-frente-FU.md`, aprovada em 20/10/2026; FU1 concluída, núcleo e interface, em 20/10/2026; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026, núcleo e interface, e FU4 em 20/10/2026) | 0 | 4 | 4 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 2 | 0 | 2 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas; V1 a V5 concluídas; V6 = correções da auditoria V, feita em 24/10/2026, e dona dos pendentes, subfatias V6a–V6f marcadas nas notas: V6a cortes nas pranchas, V6b várias janelas de deformada, V6c vista 3D da viga de fundação, V6d cliques na planta e na vista 3D, V6e vento e cargas por caso na planta, V6f folha Resultados e figuras de isovalores no memorial) | 14 | 8 | 22 |
@@ -17,7 +17,7 @@ Os dois manuais se sobrepõem em parte (o de cálculo detalha critérios de fun�
 
 O resíduo da R (antes marcado `[resíduo R]`; agora cada item leva a subfatia R7a–R7g nas notas dos checklists) reúne o que a spec da R deixou de fora e não cabe em outra frente: tabelas de armadura editáveis, armadura base e tela das lajes, uniformização e linhas de dobra, edição fina das barras (comprimentos, ganchos, simetria, estribos múltiplos), cópias de armadura entre grupos, agrupar pórticos, rearmar só os alterados e opções de desenho das pranchas (máscara, ponto fixo). Decisão do usuário (20/10/2026): fatia R7 da frente R, especificada em `spec-frente-R.md` e feita depois da FU. Os demais itens deixados de fora pela R foram para E3 (vigotas de fabricante, protendidas, moldadas no local, duplas), E2 (vigas T, consolos, curvas e inclinadas), N (punção e cortante das lajes, avisos de viga-parede e elemento linear, suspensão, arredondamento no apoio) e V (vistas de esforços na planta, deslocamentos por caso e nó, mapas).
 
-A frente E é grande demais para uma spec só e se divide em quatro:
+A frente E é grande demais para uma spec só e se divide em cinco (a E5 fecha os resíduos):
 
 | Subfrente | Conteúdo | Itens do manual do usuário |
 |---|---|---|
@@ -25,6 +25,10 @@ A frente E é grande demais para uma spec só e se divide em quatro:
 | E2 | Vigas T, chatas, curvas e inclinadas; vigas entre pavimentos; diagonais; consolos; viga comum a dois grupos; vínculo externo; pré-moldadas. Spec: `spec-frente-E2.md` (E2a–E2e; 61 itens: 41 do manual do usuário e 20 do de cálculo) | cap. 6 (41) |
 | E3 | Lajes nervuradas bidirecionais com ábacos, alveolares, inclinadas e rampas; vigotas completas (catálogo, igualação, erros). Spec: `spec-frente-E3.md` (E3a–E3f; 148 itens: 77 do manual do usuário, todos do cap. 7, e 71 do de cálculo) | cap. 7 (77) |
 | E4 | Escadas, mais os itens gerais C0.1, C1.33, C1.34, C10.26 e K1.11.58. Spec: `spec-frente-E4.md` (E4a–E4e; 80 itens: 69 do manual do usuário e 11 do de cálculo) | cap. 8 (65) + 4 gerais |
+
+| E5 | Fechamento dos resíduos da frente E (auditoria E, 24/10/2026): 53 linhas Parcial ou Falta agrupadas por tema em E5a–E5l; cada nota traz `E5x:` e o que falta. Sem spec própria: o escopo é o texto das notas. Modelo e esforço em `plano-execucao.md` | 53 (E5a 6, E5b 7, E5c 5, E5d 5, E5e 4, E5f 5, E5g 4, E5h 2, E5i 5, E5j 5, E5k 1, E5l 4) |
+
+Subfatias da E5: E5a pranchas das lajes inclinadas (núcleo); E5b ferramentas de planta com o mouse (interface); E5c botões, seletores e etapa Muros (interface); E5d ajuda F1, textos e exemplos dos planos (cartões); E5e vigotas: igualação, vista na planta, flecha de montagem e ômega (núcleo; C7.102 e C7.194 dependem de `pendencias-usuario.md`); E5f aço próprio e punção das nervuradas e ábacos (núcleo); E5g dimensionamento das nervuradas (núcleo); E5h inserção do pano e furos na grelha (núcleo); E5i saídas de paredes, alvenaria e consolos (núcleo e cartões); E5j apoios longitudinais, rigidez das paredes e pilar com desnível (núcleo); E5k vigas de fundação T, L e plana (núcleo e cartões); E5l vínculo externo no modelo integrado (núcleo).
 
 Os itens E que não estão nas specs da E1 e da E2 (228) foram alocados em 20/10/2026 às specs da E3 (148, fatias E3a–E3f) e da E4 (80, fatias E4a–E4e); os gerais C0.1, C1.34, C10.26, K1.11.58 ficam na E4e (fechamento da frente E) e K1.1.1 na E3f.
 

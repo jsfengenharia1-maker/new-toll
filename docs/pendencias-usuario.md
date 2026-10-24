@@ -262,6 +262,13 @@ Nenhum texto da NBR 9062 nem do item 22.5 da NBR 6118 estava disponível: os mé
 | E4d | NBR 6118:2014 | 13.3 (limite da flecha) e 17.3.2.1.2 (fator diferido) para a escada | Vão tomado como o maior vão entre apoios da E4a; fator das lajes (2,5) sobre G + ψ2·Q; conferir se a escada segue as lajes e o limite vão/250 | `escadasArmadura.ts` (flecha), opções `fatorFlechaLaje`, `limiteFlechaTotal` |
 | E4d | NBR 6118:2014 | Esforço normal da escada desprezado na flexão (apoio móvel em cima; com `escadaApoioFixoDois` existe e continua desprezado) e cortante dos elementos da casca sem redução a d do apoio | Conferir o tratamento; o pico da casca junto ao apoio fica a favor da segurança (≈ 9 % acima de q·ℓ/2 no lance reto) | `escadasArmadura.ts` |
 
+## Escadas, pranchas e relatório (E4e)
+| Frente | Norma | Item | O que falta | Onde entra |
+|---|---|---|---|---|
+| E4e | Programa de referência (C8.55) | Sigla de carimbo SCE da prancha de detalhe das escadas e representação dos cortes sem os degraus | Sem folha de referência de escadas: enviar a folha para conferir sigla, escala (padrão 1:25) e desenho | `sheets/escadasDetalhe.ts`, `sheets/prancha.ts` (`SIGLAS`), opção `escalaEscadas`, premissa `e4e-pranchas-escadas` |
+| E4e | Programa de referência (C8.51) | Planta do lance de isovalores no sistema local do lance (não desdobrada) e faixas de cor | Conferir se o programa de referência desdobra o lance (patamares e trechos inclinados em planta) | `escadasIsovalores.ts`, `EscadaIsovalores.tsx` |
+| E4e | Programa de referência (C8.54) | Reações das escadas na prancha de cargas (opção `cargasNasFormas`, padrão desligada) | Conferir o padrão e a forma da tabela | `sheets/folhasV5.ts` |
+
 ## Lajes inclinadas e rampas (E3f)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|
