@@ -11,6 +11,7 @@ import { analisarEdificio, type AnaliseEdificio } from './analitico';
 import { dimensionarEdificio } from './dimensionamento';
 import { desniveisDaObra, flambagemTrecho, trechosDoLance } from './desnivel';
 import { concretoDe } from './materiais';
+import { deslocamentosPilares } from '../resultados/consultas';
 
 function obra(valores: Record<string, number> = {}) {
   const s = new Sessao();
@@ -127,6 +128,48 @@ describe('E5m: pilar com vigas em desnível', () => {
     }
   });
 
+  it('carga linear sobre a viga em desnível chega ao pilar na cota da viga: normais e momentos por trecho (à mão), separado = integrado', () => {
+    const q = 20, L = 6, h = 2;
+    const res: Record<number, { N: [number, number]; Mp: number; Mv: number }> = {};
+    for (const modeloGlobal of [0, 1]) {
+      const { s, ok, g } = porticoPlano({ modeloGlobal });
+      ok('carga.linha', { grupo: g, pontos: [[0, 0], [L, 0]], valor: q, caso: 'G' });
+      const an = analisarEdificio(s.modelo);
+      expect(an.erro).toBeUndefined();
+      const m = an.portico.modelo, pil = barrasDe(an, 'pilar', s.modelo.pilares[0].id), noMeio = m.barras[pil[0]].j;
+      const ex = (bi: number) => an.portico.res!.esforcos[0][bi];
+      // a carga linear vira forças concentradas na barra da viga (discretização da grelha: n trechos de malha/2, força no meio de cada um)
+      const n = Math.max(1, Math.ceil(L / (an.opcoes.malha / 2))), P = (q * L) / n, xs = Array.from({ length: n }, (_, k) => ((k + 0.5) * L) / n);
+      const c = an.portico.casos![0];
+      expect((c.pontuais ?? []).length + c.nodais.filter((x) => x.no === noMeio && Math.abs(x.f[2] + P) < 1e-9).length).toBeGreaterThanOrEqual(n - 2);
+      // normais (compressão +): trecho de cima só o próprio peso (2 m de pilar); de baixo, + a metade da viga e o peso do trecho
+      const ppT = 25 * 0.09 * h, pv = 25 * 0.2 * 0.5;
+      const Nsup = ex(pil[1])[0], Ninf = ex(pil[0])[0]; // força da ponta i na barra, eixo local: + = compressão
+      expect(Nsup).toBeCloseTo(ppT, 6);
+      expect(Ninf).toBeCloseTo(ppT * 2 + (q * L + pv * L) / 2, 6);
+      // momentos: método dos deslocamentos à mão com o engaste perfeito das forças concentradas Σ P·a·b²/L² e o do peso próprio wL²/12
+      const Ec = concretoDe(s.modelo, 'pilar').Ecs * 1000, Eb = concretoDe(s.modelo, 'viga').Ecs * 1000;
+      const Ic = 0.3 ** 4 / 12, Ib = (0.2 * 0.5 ** 3) / 12, Ab = 0.2 * 0.5;
+      const MEP = (pv * L * L) / 12 + xs.reduce((t, a) => t + (P * a * (L - a) ** 2) / L ** 2, 0);
+      const k11 = (12 * Ec * Ic) / h ** 3 + (2 * Eb * Ab) / L, k12 = (6 * Ec * Ic) / h ** 2, k22 = (4 * Ec * Ic) / h + (2 * Eb * Ib) / L;
+      const det = k11 * k22 - k12 * k12, u = (k12 * MEP) / det, th = (-k11 * MEP) / det;
+      const Mb = (2 * Eb * Ib) / L * th + MEP, Mbase = (2 * Ec * Ic) / h * th + (6 * Ec * Ic) / h ** 2 * u, Mtopo = (4 * Ec * Ic) / h * th + (6 * Ec * Ic) / h ** 2 * u;
+      const eP = ex(pil[0]), Mp0 = Math.max(Math.abs(eP[4]), Math.abs(eP[5])), MpL = Math.max(Math.abs(eP[10]), Math.abs(eP[11]));
+      expect(Mp0).toBeCloseTo(Math.abs(Mbase), 6);
+      expect(MpL).toBeCloseTo(Math.abs(Mtopo), 6);
+      expect(MpL).toBeCloseTo(Math.abs(Mb), 6); // nó: momento do pilar de baixo = o da viga (o trecho de cima não tem momento)
+      const eS = ex(pil[1]);
+      expect(Math.max(Math.abs(eS[4]), Math.abs(eS[5]), Math.abs(eS[10]), Math.abs(eS[11]))).toBeLessThan(1e-9);
+      const bv = barrasDe(an, 'viga').find((bi) => m.barras[bi].i === noMeio || m.barras[bi].j === noMeio)!, eV = ex(bv);
+      res[modeloGlobal] = { N: [Ninf, Nsup], Mp: Mp0, Mv: m.barras[bv].i === noMeio ? Math.max(Math.abs(eV[4]), Math.abs(eV[5])) : Math.max(Math.abs(eV[10]), Math.abs(eV[11])) };
+    }
+    // modelo integrado = separado no mesmo caso
+    expect(res[1].N[0]).toBeCloseTo(res[0].N[0], 6);
+    expect(res[1].N[1]).toBeCloseTo(res[0].N[1], 6);
+    expect(res[1].Mp).toBeCloseTo(res[0].Mp, 6);
+    expect(res[1].Mv).toBeCloseTo(res[0].Mv, 6);
+  });
+
   it('modelos sem desnível idênticos com a opção ligada e desligada; desligada, a viga fica no nível do pavimento', () => {
     const a = porticoPlano({}, 0), b = porticoPlano({ desnivelVigaPilar: 0 }, 0);
     const ra = analisarEdificio(a.s.modelo), rb = analisarEdificio(b.s.modelo);
@@ -150,6 +193,12 @@ describe('E5m: pilar com vigas em desnível', () => {
     // a utilização do lance é a maior dos trechos
     expect(r.util).toBeCloseTo(Math.max(...r.trechos!.map((t) => t.util)), 12);
     expect(r.status).not.toBe('fail');
+    expect(r.trechoDeterminante).toBe(0); // λ máx. igual nos dois (v sem travamento no nó: ℓe = 4 m): vale o primeiro
+    // deslocamentos por lance (consultas): o lance dividido continua uma linha só, do pé ao topo
+    const dp = deslocamentosPilares(s.modelo, an).filter((x) => x.pilar === s.modelo.pilares[0].id);
+    expect(dp.length).toBe(1);
+    expect(dp[0].altura).toBeCloseTo(4, 12);
+    expect(dp[0].z).toBeCloseTo(4, 12);
   });
 
   it('pórtico espacial com desnível: equilíbrio e OpenSees (modelo separado)', async () => {

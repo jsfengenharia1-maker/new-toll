@@ -945,10 +945,10 @@ function DimensionamentoAba({ onIr, onMemorial }: { onIr: (tipo: 'viga' | 'pilar
               <thead><tr><th>Pilar</th><th>Lance</th><th>Seção</th><th>Nd (kN)</th><th>ℓe b / h (m)</th><th>λ b / h</th><th>Armadura</th><th>As (cm²)</th><th>Estribo</th><th>Vd (kN)</th><th>Uso</th><th>Bloq.</th><th>Situação</th></tr></thead>
               <tbody>{filtro(dim.pilares).map((x) => (
                 <LinhaElemento key={`${x.pilar}-${x.pavimento}`} className={`click ${cls(x.status)}`} title={x.mensagens.join(' ')} ir={() => onIr('pilar', x.pilar, x.pavimento)} abrir={() => abrirJanela({ tipo: 'pilar', id: x.pilar, pavimento: x.pavimento })}>
-                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.Vd === undefined ? '—' : fmt(x.Vd, 1)}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td data-bloq>{x.bloqueada ? 'bloq.' : ''}</td><td>{ST_TXT[x.status]}</td>
+                  <td className="tl">{x.nome}</td><td className="tl">{x.pavimento}{x.trechos && <span className="small" data-lance-trechos={x.trechos.length}>{` · ${x.trechos.length} trechos (envoltória; ℓe e λ do ${(x.trechoDeterminante ?? 0) + 1}º)`}</span>}</td><td>{x.secao}</td><td className="num">{fmt(x.Nd, 0)}</td><td className="num">{fmt(x.le[0])} / {fmt(x.le[1])}</td><td className="num">{fmt(x.lambda[0], 0)} / {fmt(x.lambda[1], 0)}</td><td>{x.armadura}</td><td className="num">{fmt(x.As * 1e4)}</td><td>{x.estribo}</td><td className="num">{x.Vd === undefined ? '—' : fmt(x.Vd, 1)}</td><td className="num">{x.util >= 99 ? '> 1' : fmt(x.util)}</td><td data-bloq>{x.bloqueada ? 'bloq.' : ''}</td><td>{ST_TXT[x.status]}</td>
                 </LinhaElemento>))}</tbody>
             </table>
-            <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes.</Hint>
+            <Hint>Uso = maior relação solicitação/resistência por fibras (flexão oblíqua) nas combinações determinantes. Lance dividido por vigas em desnível: a linha é a envoltória dos trechos (Nd e uso máximos; ℓe e λ do trecho mais esbelto); a verificação de cada trecho está na janela do pilar.</Hint>
           </div>
           <div className="card">
             <h3>Lajes</h3>

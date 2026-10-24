@@ -104,25 +104,40 @@ export interface DeslocamentoPilar {
   casos: Record<string, { ux: number; uy: number; dx: number; dy: number }>;
 }
 
-/** Topo e pé de cada lance de pilar (nós i e j da barra) com ux, uy e o deslocamento relativo entre pavimentos. */
-export function deslocamentosPilares(b: BuildingModel, an: AnaliseEdificio): DeslocamentoPilar[] {
-  const pm = an.portico, out: DeslocamentoPilar[] = [];
-  const pavs = new Map(pavimentosOrdenados(b).map((p) => [p.id, p]));
-  const nb = Math.min(pm.barras.length, pm.modelo.barras.length);
-  const hip = [...an.casos.map((c) => hipoteseDeCaso(c)), ...(an.vento?.casos ?? []).filter((_, i) => pm.resVento?.desloc[i]).map((c) => hipoteseDeCaso(c.nome))];
-  const vet = new Map(hip.map((h) => [h.nome, deslocamentosHipotese(an, h).portico]));
+/**
+ * Lances de pilar do pórtico: pé (nó i da primeira barra) e topo (nó j da última). Lance dividido por vigas em desnível
+ * (E5m, `BarraPortico.trecho`): as barras consecutivas do mesmo pilar e pavimento formam um lance só.
+ */
+function lancesDoPortico(an: AnaliseEdificio): { t: AnaliseEdificio['portico']['barras'][number]; base: number; topo: number; zBase: number; zTopo: number }[] {
+  const pm = an.portico, nb = Math.min(pm.barras.length, pm.modelo.barras.length), out: ReturnType<typeof lancesDoPortico> = [];
   for (let bi = 0; bi < nb; bi++) {
     const t = pm.barras[bi];
     if (t.tipo !== 'pilar') continue;
-    const bar = pm.modelo.barras[bi], a = pm.modelo.nos[bar.i], z = pm.modelo.nos[bar.j];
-    const [base, topo] = a[2] <= z[2] ? [bar.i, bar.j] : [bar.j, bar.i];
-    const altura = Math.abs(z[2] - a[2]), pav = pavs.get(t.pavimento);
+    let bf = bi;
+    if (t.trecho !== undefined) while (bf + 1 < nb && pm.barras[bf + 1].tipo === 'pilar' && pm.barras[bf + 1].ref === t.ref && pm.barras[bf + 1].pavimento === t.pavimento && pm.barras[bf + 1].trecho !== undefined) bf++;
+    const b0 = pm.modelo.barras[bi], b1 = pm.modelo.barras[bf];
+    const a = pm.modelo.nos[b0.i], z = pm.modelo.nos[b1.j];
+    const [base, topo] = a[2] <= z[2] ? [b0.i, b1.j] : [b1.j, b0.i];
+    out.push({ t, base, topo, zBase: Math.min(a[2], z[2]), zTopo: Math.max(a[2], z[2]) });
+    bi = bf;
+  }
+  return out;
+}
+
+/** Topo e pé de cada lance de pilar com ux, uy e o deslocamento relativo entre pavimentos. */
+export function deslocamentosPilares(b: BuildingModel, an: AnaliseEdificio): DeslocamentoPilar[] {
+  const pm = an.portico, out: DeslocamentoPilar[] = [];
+  const pavs = new Map(pavimentosOrdenados(b).map((p) => [p.id, p]));
+  const hip = [...an.casos.map((c) => hipoteseDeCaso(c)), ...(an.vento?.casos ?? []).filter((_, i) => pm.resVento?.desloc[i]).map((c) => hipoteseDeCaso(c.nome))];
+  const vet = new Map(hip.map((h) => [h.nome, deslocamentosHipotese(an, h).portico]));
+  for (const { t, base, topo, zBase, zTopo } of lancesDoPortico(an)) {
+    const altura = zTopo - zBase, pav = pavs.get(t.pavimento);
     const casos: DeslocamentoPilar['casos'] = {};
     for (const [nome, u] of vet) {
       const ux = u[topo * 6], uy = u[topo * 6 + 1];
       casos[nome] = { ux, uy, dx: ux - u[base * 6], dy: uy - u[base * 6 + 1] };
     }
-    out.push({ pilar: t.ref, pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: Math.max(a[2], z[2]), altura, casos });
+    out.push({ pilar: t.ref, pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: zTopo, altura, casos });
   }
   return out;
 }
@@ -139,19 +154,14 @@ export interface MaximoCombinado {
  * combinações do tipo `tipo` (padrão frequentes), e a distorção máxima (deslocamento relativo do lance / altura).
  */
 export function maximosPilaresCombinados(b: BuildingModel, an: AnaliseEdificio, tipo: CombinacaoEd['tipo'] = 'FREQ'): MaximoCombinado[] {
-  const pm = an.portico, combs = combinacoesEdificio(b, an).filter((c) => c.tipo === tipo);
+  const combs = combinacoesEdificio(b, an).filter((c) => c.tipo === tipo);
   const pavs = pavimentosOrdenados(b);
-  const nb = Math.min(pm.barras.length, pm.modelo.barras.length);
   const us = combs.map((c) => deslocamentosHipotese(an, hipoteseDeCombinacao(c)).portico);
   const out = new Map<string, MaximoCombinado>();
-  for (let bi = 0; bi < nb; bi++) {
-    const t = pm.barras[bi];
-    if (t.tipo !== 'pilar') continue;
-    const bar = pm.modelo.barras[bi], a = pm.modelo.nos[bar.i], z = pm.modelo.nos[bar.j];
-    const [base, topo] = a[2] <= z[2] ? [bar.i, bar.j] : [bar.j, bar.i];
-    const altura = Math.abs(z[2] - a[2]);
+  for (const { t, base, topo, zBase, zTopo } of lancesDoPortico(an)) {
+    const altura = zTopo - zBase;
     const pav = pavs.find((p) => p.id === t.pavimento);
-    const r = out.get(t.pavimento) ?? { pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: Math.max(a[2], z[2]), x: { valor: 0, combinacao: '', pilar: '', distorcao: 0 }, y: { valor: 0, combinacao: '', pilar: '', distorcao: 0 } };
+    const r = out.get(t.pavimento) ?? { pavimento: t.pavimento, pavimentoNome: pav?.nome ?? t.pavimento, z: zTopo, x: { valor: 0, combinacao: '', pilar: '', distorcao: 0 }, y: { valor: 0, combinacao: '', pilar: '', distorcao: 0 } };
     out.set(t.pavimento, r);
     combs.forEach((c, k) => {
       (['x', 'y'] as const).forEach((eixo, e) => {

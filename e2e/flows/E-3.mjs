@@ -296,12 +296,22 @@ export const f_E5m = {
     await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
     // janela do pilar: lance do Tipo 1 dividido em dois trechos pela viga 1,5 m abaixo do pavimento
     const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+    // tabela por lance: a linha do lance dividido é a envoltória e indica os trechos
+    await cardP.locator('[data-lance-trechos="2"]').first().waitFor();
+    assert.match(await cardP.locator('[data-lance-trechos="2"]').first().textContent(), /2 trechos \(envoltória/);
     await cardP.locator('tbody tr', { hasText: 'Tipo 1' }).first().dblclick();
     const jan = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
     await jan.waitFor();
     await jan.locator('table[data-pilar-trechos="2"]').first().waitFor();
     assert.match(await jan.textContent(), /Lance dividido por vigas em desnível/);
     await jan.getByRole('button', { name: 'Fechar' }).click();
+    // esforços do pilar: o diagrama percorre todos os trechos e indica os nós intermediários
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Esforços', exact: true }).click();
+    await page.locator('[data-esf-janela="1"]').waitFor();
+    await page.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption({ label: 'Pilar' });
+    await page.locator('[data-esf-janela="1"] [data-esf-trechos]').waitFor();
+    assert.equal(await page.locator('[data-esf-janela="1"] [data-esf-trechos]').getAttribute('data-esf-trechos'), '3');
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
     // memorial: premissa e tabela por trecho
     await page.getByRole('button', { name: 'Memorial do edifício' }).click();
     const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });

@@ -896,6 +896,8 @@ export interface ResultadoPilar {
    * partir da base do lance (m), ℓe e λ por direção, maior Nd (kN), utilização, combinação determinante e método local.
    */
   trechos?: { de: number; ate: number; le: [number, number]; lambda: [number, number]; Nd: number; util: number; combinacao: string; metodo: [MetodoLocal, MetodoLocal] }[];
+  /** Trecho (índice em `trechos`) de onde vêm λ, ℓe e os efeitos locais informados no lance (o mais esbelto). */
+  trechoDeterminante?: number;
   /** Cortante por direção (N2c): u = esforço ao longo de b (Vy local), v = ao longo de h; kN, cm²/m e cm². */
   cortante?: { u: CortanteDirecao; v?: CortanteDirecao };
   armadura: string; As: number; estribo: string; status: 'ok' | 'fail' | 'review'; mensagens: string[];
@@ -1279,7 +1281,7 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
     }) : undefined;
     res.push({ pilar: p.id, pavimentoId: lance.id, nome: p.nome, pavimento: lance.nome, secao: secTxt(s), Nd: NdMax, Vd, determinantes, bloqueada: bloq, arranjo: { phi: melhor.phi, ...melhor.arr, estribo: { phi: est.phi, s: est.s } }, util: melhor.util,
       origens: [origem('Armadura longitudinal', melhor.det || '—', 'pilar'), origem('Armadura mínima e máxima', NdMax > 0 ? 'Nd máximo' : '—', 'pilarLimites'), origem('Estribos', cVd || '—', 'pilarEstribo')], lambda: [lamU, lamV], le,
-      local: { metodo, ecc: ecc.map((x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : x)) as [number, number], lances: fl.desligados, secoesIntermediarias: trs.some((t) => t.xsInt.length > 0) }, ...(trechosRes ? { trechos: trechosRes } : {}), ...(cortante ? { cortante } : {}), armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
+      local: { metodo, ecc: ecc.map((x) => (Number.isFinite(x) ? Math.round(x * 1e5) / 1e5 : x)) as [number, number], lances: fl.desligados, secoesIntermediarias: trs.some((t) => t.xsInt.length > 0) }, ...(trechosRes ? { trechos: trechosRes, trechoDeterminante: trs.indexOf(tg) } : {}), ...(cortante ? { cortante } : {}), armadura: melhor.txt, As: melhor.As, estribo: `φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}`, status, mensagens: msgs });
     const ult = res.at(-1);
     if (ult && ult.pavimentoId === lance.id && ult.As > 0 && ult.arranjo) acima = { As: ult.As, phi: ult.arranjo.phi, arr: ult.arranjo as unknown as ArranjoPilar, sec: ult.secao };
   }
