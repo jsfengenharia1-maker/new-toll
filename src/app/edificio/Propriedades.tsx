@@ -23,6 +23,24 @@ export function useResumoSelecao() {
   if (laje) return { tipo: 'laje' as const, id, icone: 'laje', nome: laje.nome, desc: laje.tipo.tipo ?? 'laje', contagem: `Lajes (${n})` };
   const fund = b.fundacao?.elementos.find((x) => x.id === id);
   if (fund) return { tipo: 'fundacao' as const, id, icone: 'fundacao', nome: fund.nome, desc: String(fund.tipo), contagem: `Elementos de fundação (${n})` };
+  const pp = b.pilaresParede?.find((x) => x.id === id);
+  if (pp) return { tipo: 'pilarParede' as const, id, icone: 'pilar', nome: pp.nome, desc: `Pilar-parede · ${pp.tipo}`, contagem: `Pilares-parede (${n})` };
+  const parede = b.paredes?.find((x) => x.id === id);
+  if (parede) return { tipo: 'parede' as const, id, icone: 'laje', nome: parede.nome, desc: `Parede de ${parede.tipo === 'concreto' ? 'concreto' : parede.tipo === 'blocos' ? 'blocos' : 'alvenaria'} · ${parede.pontos.length - 1} trecho(s)`, contagem: `Paredes (${n})` };
+  const muro = b.murosArrimo?.find((x) => x.id === id);
+  if (muro) return { tipo: 'muro' as const, id, icone: 'fundacao', nome: muro.nome, desc: `Muro de arrimo · H ${String(+muro.H.toFixed(2)).replace('.', ',')} m`, contagem: `Muros (${n})` };
+  const f = b.fundacao;
+  const vf = f?.vigas?.find((x) => x.id === id);
+  if (vf) return { tipo: 'vigaFundacao' as const, id, icone: 'fundacao', nome: vf.nome, desc: `Viga de fundação · ${String(vf.tipo)}`, contagem: `Vigas de fundação (${n})` };
+  const ve = f?.vigasElasticas?.find((x) => x.id === id);
+  if (ve) return { tipo: 'vigaFundacao' as const, id, icone: 'fundacao', nome: ve.nome, desc: 'Viga de fundação sobre base elástica', contagem: `Vigas de fundação (${n})` };
+  const rad = f?.radiers?.find((x) => x.id === id);
+  if (rad) return { tipo: 'radier' as const, id, icone: 'fundacao', nome: rad.nome, desc: 'Radier sobre base elástica', contagem: `Radiers (${n})` };
+  const cor = f?.corridas?.find((x) => x.id === id);
+  if (cor) return { tipo: 'corrida' as const, id, icone: 'fundacao', nome: cor.nome, desc: 'Sapata corrida', contagem: `Sapatas corridas (${n})` };
+  const con = b.consolos?.find((x) => x.id === id);
+  if (con) return { tipo: 'consolo' as const, id, icone: 'pilar', nome: con.nome, desc: 'Consolo curto', contagem: `Consolos (${n})` };
+  if (n > 0) return { tipo: 'outros' as const, id, icone: 'obra', nome: `${n} elemento(s) selecionado(s)`, desc: 'Seleção', contagem: `Seleção (${n})` };
   return null;
 }
 
@@ -33,7 +51,7 @@ export function Propriedades({ children }: { children: ReactNode }) {
   // abre e rola até o grupo do tipo do selecionado (Pilares, Vigas, Lajes)
   useEffect(() => {
     if (!r) return;
-    const prefixo = r.tipo === 'pilar' ? 'Pilares' : r.tipo === 'viga' ? 'Vigas' : r.tipo === 'laje' ? 'Lajes' : '';
+    const prefixo = ({ pilar: 'Pilares', viga: 'Vigas', laje: 'Lajes', pilarParede: 'Pilares-parede', parede: 'Paredes', muro: 'Muros de arrimo' } as Record<string, string>)[r.tipo] ?? '';
     if (!prefixo) return;
     const g = [...(corpo.current?.querySelectorAll('details.group') ?? [])].find((d) => (d.querySelector(':scope > summary')?.textContent ?? '').startsWith(prefixo)) as HTMLDetailsElement | undefined;
     if (g) { g.open = true; g.scrollIntoView({ block: 'nearest' }); }

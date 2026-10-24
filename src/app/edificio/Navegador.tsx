@@ -8,6 +8,12 @@ import { irParaElemento } from './Revisao';
 import { caminhoAte, idDoNo, montarArvore, type NoArvore } from './arvore';
 import { lancesDoPilar, pavimentosOrdenados } from '../../core/building/types';
 
+/** Abre e mostra o grupo (`details.group`) cujo título começa por `prefixo`, em qualquer doca. */
+function abrirGrupo(prefixo: string) {
+  const g = [...document.querySelectorAll('details.group')].find((d) => (d.querySelector(':scope > summary')?.textContent ?? '').startsWith(prefixo)) as HTMLDetailsElement | undefined;
+  if (g) { g.open = true; g.scrollIntoView({ block: 'nearest' }); }
+}
+
 export function Navegador() {
   const b = useBuilding((s) => s.sessao.modelo);
   const arvore = useMemo(() => montarArvore(b), [b]);
@@ -19,7 +25,7 @@ export function Navegador() {
   const primeiro = [...selecao][0];
   useEffect(() => {
     if (!primeiro) return;
-    for (const tipo of ['pilar', 'viga', 'laje', 'eixo', 'fundacao'] as const) {
+    for (const tipo of ['pilar', 'viga', 'laje', 'eixo', 'fundacao', 'pilarParede', 'parede', 'carga'] as const) {
       const c = caminhoAte(arvore, idDoNo(tipo, primeiro));
       if (c.length) {
         setAbertos((a) => new Set([...a, ...c.slice(0, -1)]));
@@ -45,13 +51,23 @@ export function Navegador() {
     if (a.tipo === 'pavimento') { P.set({ pavimento: a.id, selecao: new Set() }); return; }
     if (a.tipo === 'eixo') { P.set({ selecao: new Set([a.id]), foco: { id: a.id, n: Date.now() } }); return; }
     const ps = pavimentosOrdenados(b);
+    if (a.tipo === 'carga') {
+      const c = b.cargas.find((x) => x.id === a.id);
+      const pav = c?.grupo === 'fundacao' ? 'fundacao' : ps.find((p) => p.grupo === c?.grupo)?.id;
+      P.set({ selecao: new Set([a.id]), ...(pav ? { pavimento: pav } : {}) });
+      return;
+    }
+    // elementos sem seleção própria na planta: abre o grupo do painel (Dados da obra ou Propriedades) ou a Configuração
+    const grupoDe: Partial<Record<typeof a.tipo, string>> = { muro: 'Muros de arrimo', alvenaria: 'Alvenaria estrutural', grupo: 'Grupos (', corte: 'Cortes e seções' };
+    if (a.tipo === 'sondagem') { ui.set({ cfg: 'fundacao' }); return; }
+    if (grupoDe[a.tipo]) { abrirGrupo(grupoDe[a.tipo]!); return; }
     if (a.tipo === 'pilar') {
       const p = b.pilares.find((x) => x.id === a.id);
       irParaElemento(b, 'pilar', a.id, p ? lancesDoPilar(b, p).at(-1)?.nome : undefined);
     } else if (a.tipo === 'laje') {
       const l = b.lajes.find((x) => x.id === a.id);
       irParaElemento(b, 'laje', a.id, ps.find((p) => p.grupo === l?.grupo)?.nome);
-    } else irParaElemento(b, a.tipo, a.id);
+    } else if (a.tipo === 'viga' || a.tipo === 'fundacao' || a.tipo === 'pilarParede' || a.tipo === 'parede') irParaElemento(b, a.tipo, a.id);
   };
   const desenhar = (n: NoArvore): ReactNode => (
     <TreeItem key={n.id} level={n.nivel} label={n.rotulo} count={n.contagem} expanded={n.filhos ? abertos.has(n.id) : undefined}

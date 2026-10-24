@@ -53,9 +53,22 @@ export function JanelaConfiguracao({ b }: { b: BuildingModel }) {
   const fechar = () => useEdifUI.getState().set({ cfg: null });
   // os grupos nascem recolhidos (<details>): dentro da janela abrem todos
   useEffect(() => { corpo.current?.querySelectorAll('details.group').forEach((d) => { (d as HTMLDetailsElement).open = true; }); }, [secao.id, b]);
+  // foco: ao abrir vai ao item ativo do índice; ao fechar volta ao elemento que abriu (Esc continua sem fechar a janela)
+  const janela = useRef<HTMLDivElement>(null);
+  const origem = useRef<HTMLElement | null>(null);
+  const aberta = !!cfg;
+  useEffect(() => {
+    if (aberta) {
+      if (!janela.current?.contains(document.activeElement)) origem.current = document.activeElement as HTMLElement | null;
+      janela.current?.querySelector<HTMLElement>('.cfg-item.on')?.focus();
+    } else if (origem.current) {
+      if (origem.current.isConnected) origem.current.focus();
+      origem.current = null;
+    }
+  }, [aberta]);
   const width = `${Math.max(docaW, 320)}px`;
   return (
-    <div className="cfg-janela" role={cfg ? "dialog" : undefined} aria-label={cfg ? "Configuração da obra" : undefined} style={{ width }} hidden={!cfg}>
+    <div className="cfg-janela" ref={janela} role={cfg ? "dialog" : undefined} aria-label={cfg ? "Configuração da obra" : undefined} style={{ width }} hidden={!cfg}>
       <div className="modal-head"><b>Configuração da obra</b><Spacer /><Button variant="ghost" onClick={fechar}>Fechar</Button></div>
       <div className="cfg">
         <nav className="cfg-ind" aria-label="Seções da configuração">

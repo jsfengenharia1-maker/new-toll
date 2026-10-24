@@ -2,7 +2,7 @@
 // Função pura sobre o modelo: a interface (Navegador.tsx) só desenha e liga a seleção à planta.
 import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
 
-export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista';
+export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista' | 'pilarParede' | 'parede' | 'muro' | 'alvenaria' | 'grupo' | 'carga' | 'corte' | 'sondagem';
 export interface NoArvore {
   id: string;
   rotulo: string;
@@ -39,8 +39,16 @@ export function montarArvore(b: BuildingModel): NoArvore {
       { id: 'pilares', rotulo: 'Pilares', nivel: 2, contagem: b.pilares.length, filhos: b.pilares.map((p) => folha('pilar', 3, p, 'pilar')) },
       { id: 'vigas', rotulo: 'Vigas', nivel: 2, contagem: b.vigas.length, filhos: porGrupo(b, 'vigas', 'viga') },
       { id: 'lajes', rotulo: 'Lajes', nivel: 2, contagem: b.lajes.length, filhos: porGrupo(b, 'lajes', 'laje') },
+      { id: 'pilaresParede', rotulo: 'Pilares-parede', nivel: 2, contagem: (b.pilaresParede ?? []).length, filhos: (b.pilaresParede ?? []).map((x) => folha('pilarParede', 3, x, 'pilarParede')) },
+      { id: 'paredes', rotulo: 'Paredes', nivel: 2, contagem: (b.paredes ?? []).length, filhos: (b.paredes ?? []).map((x) => folha('parede', 3, x, 'parede')) },
+      { id: 'muros', rotulo: 'Muros', nivel: 2, contagem: (b.murosArrimo ?? []).length, filhos: (b.murosArrimo ?? []).map((x) => folha('muro', 3, x, 'muro')) },
+      { id: 'alvenaria', rotulo: 'Alvenaria', nivel: 2, contagem: (b.tiposAlvenaria ?? []).length, filhos: (b.tiposAlvenaria ?? []).map((x) => folha('alvenaria', 3, x, 'alvenaria')) },
+      { id: 'grupos', rotulo: 'Grupos', nivel: 2, contagem: b.grupos.length, filhos: b.grupos.map((x) => folha('grupo', 3, x, 'grupo')) },
+      { id: 'cargas', rotulo: 'Cargas', nivel: 2, contagem: b.cargas.length, filhos: b.cargas.map((c) => ({ id: `carga:${c.id}`, rotulo: `${c.caso} · ${c.tipo} · ${String(c.valor).replace('.', ',')}`, nivel: 3, alvo: { tipo: 'carga' as const, id: c.id } })) },
+      { id: 'cortes', rotulo: 'Cortes', nivel: 2, contagem: (b.cortes ?? []).length, filhos: (b.cortes ?? []).map((x) => folha('corte', 3, x, 'corte')) },
       { id: 'eixos', rotulo: 'Eixos', nivel: 2, contagem: b.eixos.length, filhos: b.eixos.map((e) => folha('eixo', 3, e, 'eixo')) },
       { id: 'fundacao', rotulo: 'Fundação', nivel: 2, contagem: fund.length, filhos: fund.map((e) => folha('fund', 3, e, 'fundacao')) },
+      { id: 'sondagens', rotulo: 'Sondagens', nivel: 2, contagem: (b.fundacao?.sondagens ?? []).length, filhos: (b.fundacao?.sondagens ?? []).map((x, i) => ({ id: `sondagem:${x.id ?? i}`, rotulo: x.name, nivel: 3, alvo: { tipo: 'sondagem' as const, id: String(x.id ?? i) } })) },
       { id: 'vistas', rotulo: 'Vistas', nivel: 2, contagem: VISTAS.length, filhos: VISTAS.map(([id, rotulo]) => ({ id: `vista:${id}`, rotulo, nivel: 3, alvo: { tipo: 'vista' as const, id } })) },
     ],
   };
