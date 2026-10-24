@@ -6,7 +6,8 @@ import { combinacoesEdificio, type CombinacaoEd } from '../building/combinacoes'
 import type { Dimensionamento } from '../building/dimensionamento';
 import { pavimentosOrdenados, type BuildingModel } from '../building/types';
 import { dentroPoligono, type P } from '../geom/faces';
-import { deslocamentosHipotese, hipoteseDeCaso, hipoteseDeCombinacao, type Hipotese } from './deformada';
+import { vigasElasticasEf } from '../building/baseElastica';
+import { deslocPorticoDoCaso, deslocamentosHipotese, hipoteseDeCaso, hipoteseDeCombinacao, type Hipotese } from './deformada';
 
 export type Desloc6 = [number, number, number, number, number, number];
 const sextupla = (u: ArrayLike<number>, no: number): Desloc6 => [0, 1, 2, 3, 4, 5].map((k) => u[no * 6 + k]) as Desloc6;
@@ -94,6 +95,39 @@ export function maximosPorPano(b: BuildingModel, an: AnaliseEdificio): MaximoPan
       });
       out.push({ laje: l.id, nome: l.nome, pavimento: pav.id, pavimentoNome: pav.nome, casos });
     }
+  }
+  return out;
+}
+
+export interface MaximoBase {
+  /** Radier ou viga sobre base elástica (FU6). */
+  id: string; nome: string; tipo: 'radier' | 'viga';
+  /** Maior |uz| dos nós por caso (m; negativo = recalque, positivo = levantamento) e posição do nó. */
+  casos: Record<string, { uz: number; x: number; y: number; levantamento: boolean }>;
+}
+
+/** Casos com deslocamento no pórtico (verticais e de vento), na ordem da análise. */
+export const casosDoPortico = (an: AnaliseEdificio): string[] => [...an.casos, ...(an.vento?.casos ?? []).filter((c) => deslocPorticoDoCaso(an, c.nome)).map((c) => c.nome)];
+
+/**
+ * Deslocamento máximo do radier por caso (V7e, K1.11.20): o "pano" do radier é o próprio elemento; é o recalque do nó
+ * (negativo para baixo). Valor positivo = levantamento: o solo não traciona, a hipótese é inválida (aviso na tabela).
+ */
+export function maximosPorRadier(b: BuildingModel, an: AnaliseEdificio): MaximoBase[] {
+  const be = an.baseElastica;
+  if (!be) return [];
+  const nomes = new Map<string, string>([...(b.fundacao?.radiers ?? []).map((r) => [r.id, r.nome] as const), ...vigasElasticasEf(b).map((v) => [v.id, v.nome] as const)]);
+  const out: MaximoBase[] = [];
+  for (const ref of [...new Set(be.nos.map((n) => n.ref))]) {
+    const nos = be.nos.filter((n) => n.ref === ref), casos: MaximoBase['casos'] = {};
+    for (const c of casosDoPortico(an)) {
+      const u = deslocPorticoDoCaso(an, c);
+      if (!u) continue;
+      let melhor: { uz: number; x: number; y: number } | null = null;
+      for (const n of nos) { const uz = u[n.no * 6 + 2]; if (!melhor || Math.abs(uz) > Math.abs(melhor.uz)) melhor = { uz, x: n.x, y: n.y }; }
+      if (melhor) casos[c] = { ...melhor, levantamento: melhor.uz > 1e-9 };
+    }
+    out.push({ id: ref, nome: nomes.get(ref) ?? ref, tipo: nos[0].tipo, casos });
   }
   return out;
 }

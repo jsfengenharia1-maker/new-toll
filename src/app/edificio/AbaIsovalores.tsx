@@ -1,7 +1,7 @@
 // Aba "Isovalores" (V4): mapas de deslocamentos, esforços e áreas de aço das lajes (e tensões do radier) em bandas de
 // cor e isolinhas, com várias janelas lado a lado, limites mínimo e máximo, clique abrindo a janela da laje e saídas
 // SVG, PNG, DXF e CSV. A matemática vem de src/core/resultados (funções puras).
-import { useMemo, type MouseEvent } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { calculoAtual, useBuilding } from './store';
 import { abrirJanela, irParaElemento } from './Revisao';
 import { TabelaLajes } from './TabelaLajes';
@@ -12,8 +12,10 @@ import {
   niveisDefinidos, nosParaRotulo, svgIsovalores, valoresLegenda, type Campo, type Limites,
 } from '../../core/resultados/bandas';
 import {
-  campoDoPavimento, campoDoRadier, elementoNoPonto, GRANDEZAS_ISO, hipotesesDeLaje, infoGrandeza, pavimentosComMapa,
+  areaAcimaDoLimite, areaPorMetro, BITOLAS_LIMITE_MM, campoDoPavimento, campoDoRadier, csvRadierHipoteses, elementoNoPonto, espacamentoParaArea, GRANDEZAS_ISO, hipotesesDeLaje,
+  infoGrandeza, pavimentosComMapa, tabelaRadierPorHipotese,
 } from '../../core/resultados/isovalores';
+import { hipotesesDisponiveis } from '../../core/resultados/deformada';
 import { Button, Check, download, Group, Hint, NumField, OptNumField, Select, TextField } from '../ui';
 import { useIso, type JanelaIso } from './isovaloresStore';
 
@@ -46,6 +48,7 @@ export function AbaIsovalores({ b }: { b: BuildingModel }) {
       <div className="isov-janelas" data-isov-janelas={janelas.length}>
         {janelas.map((j) => <JanelaIsovalores key={j.id} j={j} b={b} />)}
       </div>
+      <RadierPorHipotese b={b} />
       <MenuLajes b={b} />
     </div>
   );
@@ -58,7 +61,9 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
   const n = j.id, info = infoGrandeza(j.grandeza), doRadier = info.grupo === 'radier';
   const pavs = useMemo(() => pavimentosComMapa(b, an), [b, an]);
   const radiers = dim?.radiers ?? [];
-  const hips = useMemo(() => hipotesesDeLaje(b, an), [b, an]);
+  const hipsLaje = useMemo(() => hipotesesDeLaje(b, an), [b, an]);
+  const hipsRadier = useMemo(() => (doRadier ? hipotesesDisponiveis(b, an) : []), [b, an, doRadier]);
+  const hips = doRadier ? hipsRadier : hipsLaje;
   const alvo = doRadier ? (radiers.find((r) => r.id === j.alvo)?.id ?? radiers[0]?.id ?? '') : (pavs.find((p) => p.id === j.alvo)?.id ?? pavs[0]?.id ?? '');
   const hip = hips.find((h) => h.id === j.hipotese) ?? hips[0];
   const lim: Limites = { ...(j.min !== undefined ? { min: j.min } : {}), ...(j.max !== undefined ? { max: j.max } : {}) };
@@ -66,7 +71,7 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
   const res = useMemo(() => {
     if (!alvo) return { campo: null as Campo | null, avisos: [doRadier ? 'Nenhum radier calculado.' : 'Sem pavimento com laje calculada.'] };
     return doRadier
-      ? campoDoRadier(b, dim, alvo, j.grandeza as 'rSigmaMax' | 'rSigmaMin' | 'rW')
+      ? campoDoRadier(b, dim, alvo, j.grandeza as 'rSigmaMax' | 'rSigmaMin' | 'rW' | 'rSigma' | 'rWh', { an, hipotese: info.porHipotese ? hip : undefined })
       : campoDoPavimento(b, an, dim, { pavimento: alvo, grandeza: j.grandeza, hipotese: info.porHipotese ? hip : undefined });
   }, [b, an, dim, alvo, j.grandeza, hip, doRadier, info.porHipotese]);
   const campo = res.campo;
@@ -75,7 +80,12 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
   const bs = useMemo(() => (campo ? bandas(campo, niveis, lim) : []), [campo, niveis, j.min, j.max]); // eslint-disable-line react-hooks/exhaustive-deps
   const linhas = useMemo(() => (campo && j.isolinhas ? isolinhas(campo, niveis, lim).flatMap((il) => encadear(il.segmentos)) : []), [campo, niveis, j.isolinhas, j.min, j.max]); // eslint-disable-line react-hooks/exhaustive-deps
   const leg = useMemo(() => (campo ? legenda(campo, niveis, lim) : null), [campo, niveis, j.min, j.max]); // eslint-disable-line react-hooks/exhaustive-deps
-  const ex = campo ? extremos(campo, lim) : null;
+  const ex = campo ? extremos(campo, lim) : null, exTotal = campo ? extremos(campo) : null;
+  // limite por diâmetro (C12.13): bitola e espaçamento viram o limite mínimo, e o mapa mostra onde a armadura não basta
+  const [phi, setPhi] = useState(10), [esp, setEsp] = useState(20);
+  const asBitola = areaPorMetro(phi, esp);
+  const sigAdm = doRadier ? dim?.radiers?.find((r) => r.id === alvo)?.sigmaAdm ?? null : null;
+  const acima = campo && j.min !== undefined ? areaAcimaDoLimite(campo, j.min) : null;
 
   function abrirNoPonto(pos: readonly number[]) {
     if (!campo || doRadier) return;
@@ -131,6 +141,30 @@ function JanelaIsovalores({ j, b }: { j: JanelaIso; b: BuildingModel }) {
           <NumField label={`Número de níveis (janela ${n})`} value={j.nNiveis} onChange={(v) => mudar(n, { nNiveis: Math.max(2, Math.min(40, Math.round(v))) })} />
           <TextField label={`Níveis definidos (janela ${n})`} value={j.niveisTexto} placeholder="vazio = automáticos (1-2-5)" onChange={(v) => mudar(n, { niveisTexto: v })} />
         </div>
+        {(info.grupo === 'armadura' || (doRadier && sigAdm !== null)) && (
+          <div className="row isov-barra" data-isov-limite-diametro>
+            {info.grupo === 'armadura' && (
+              <>
+                <Select label={`Bitola do limite (janela ${n})`} value={phi} options={BITOLAS_LIMITE_MM.map((v) => ({ v, label: `φ ${String(v).replace('.', ',')} mm` }))} onChange={setPhi} />
+                <NumField label={`Espaçamento do limite (janela ${n})`} unit="cm" value={esp} min={5} onChange={setEsp} />
+                <Button onClick={() => mudar(n, { min: +asBitola.toFixed(4) })}>{`Usar φ ${String(phi).replace('.', ',')} c/${String(esp).replace('.', ',')} = ${fmtIso(asBitola, 2)} cm²/m como limite mínimo (janela ${n})`}</Button>
+              </>
+            )}
+            {doRadier && sigAdm !== null && <Button onClick={() => mudar(n, { min: sigAdm })}>{`Usar a σadm do radier (${fmtIso(sigAdm, 1)} kPa) como limite mínimo (janela ${n})`}</Button>}
+          </div>
+        )}
+        {info.grupo === 'armadura' && exTotal?.max && (
+          <p className="hint small" data-iso-bitola-max={espacamentoParaArea(phi, exTotal.max.valor) ?? 'nao'}>
+            {espacamentoParaArea(phi, exTotal.max.valor) !== null
+              ? `φ ${String(phi).replace('.', ',')} mm a cada ${String(espacamentoParaArea(phi, exTotal.max.valor)).replace('.', ',')} cm (no máximo) cobre a maior taxa do mapa (${fmtIso(exTotal.max.valor, 2)} cm²/m).`
+              : `φ ${String(phi).replace('.', ',')} mm não cobre a maior taxa do mapa (${fmtIso(exTotal.max.valor, 2)} cm²/m) nem a cada 5 cm: use bitola maior.`}
+          </p>
+        )}
+        {acima && (
+          <p className="hint small" data-iso-acima={acima.fracao.toFixed(4)}>
+            Região com valor a partir do limite mínimo: {fmtIso(acima.area, 2)} m² de {fmtIso(acima.total, 2)} m² ({fmtIso(acima.fracao * 100, 1)} %).
+          </p>
+        )}
         <div className="row isov-barra">
           <Check label={`Isolinhas (janela ${n})`} checked={j.isolinhas} onChange={(v) => mudar(n, { isolinhas: v })} />
           <Check label={`Valores (janela ${n})`} checked={j.valores} onChange={(v) => mudar(n, { valores: v })} />
@@ -186,6 +220,42 @@ function MenuLajes({ b }: { b: BuildingModel }) {
       <h3>Lajes</h3>
       <TabelaLajes lajes={lajes} onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); useEdifUI.getState().set({ aba: 'planta' }); }} />
       <Hint>Mesma tabela da aba Dimensionamento: clique para ir à laje na planta; duplo clique abre a janela da laje (resultados, vista e edição da armadura).</Hint>
+    </div>
+  );
+}
+
+/** Radier e vigas sobre base elástica por hipótese (V7e, C12.11): tensões extremas, recalque e levantamento de cada caso e combinação. */
+function RadierPorHipotese({ b }: { b: BuildingModel }) {
+  const an = useBuilding((s) => (calculoAtual(s) && !s.analise?.erro ? s.analise : null));
+  const dim = useBuilding((s) => s.dim);
+  const ids = (dim?.radiers ?? []).map((r) => ({ id: r.id, nome: r.nome }));
+  const tabelas = useMemo(() => (an ? ids.map((r) => ({ ...r, linhas: tabelaRadierPorHipotese(b, an, r.id) })) : []), [b, an, dim?.radiers]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!tabelas.length) return null;
+  return (
+    <div className="card" data-radier-hipoteses={tabelas.length}>
+      <h3>Radier por hipótese</h3>
+      {tabelas.map((t) => (
+        <div key={t.id}>
+          <div className="row wrap"><strong>{t.nome}</strong>
+            <Button onClick={() => { void download(`radier-${t.nome}-hipoteses.csv`, csvRadierHipoteses(t.linhas), 'text/csv'); }}>{`Baixar CSV (${t.nome})`}</Button></div>
+          <div className="tablewrap">
+            <table className="data quadro">
+              <thead><tr><th>Hipótese</th><th>σ máx. (kPa)</th><th>σ mín. (kPa)</th><th>Recalque (mm)</th><th>Levantamento (mm)</th><th>Situação</th></tr></thead>
+              <tbody>
+                {t.linhas.map((l) => (
+                  <tr key={l.id} className={l.invalida ? 'bad' : undefined} data-radier-hipotese={l.id}>
+                    <td className="tl">{l.tipo === 'caso' ? `Caso ${l.hipotese}` : l.hipotese}</td>
+                    <td className="num">{fmtIso(l.sigmaMax, 1)}</td><td className="num">{fmtIso(l.sigmaMin, 1)}</td>
+                    <td className="num">{fmtIso(l.recalque, 2)}</td><td className="num">{fmtIso(l.levantamento, 2)}</td>
+                    <td className="tl">{l.invalida ? 'inválida: levantamento' : l.levantamento > 0 ? 'levantamento no caso' : 'ok'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      <Hint>Tensão no terreno σ = k·(−uz) e deslocamento vertical de cada nó do radier, por caso e por combinação. Combinação com levantamento é inválida: o solo não traciona (a análise é linear, sem iteração).</Hint>
     </div>
   );
 }

@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 101 | 2 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 55 | 4 | 0 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 56 | 3 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 97 | 0 | 0 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 23 | 1 | 0 | 19 |
-| **Total** | **661** | **536** | **14** | **0** | **111** |
+| **Total** | **661** | **537** | **13** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -36,8 +36,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 2 | 0 | 2 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 4 | 0 | 4 |
-| **Total** | **14** | **0** | **14** |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 3 | 0 | 3 |
+| **Total** | **13** | **0** | **13** |
 
 ## Divergências de premissa
 
@@ -555,7 +555,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.17 | Envoltória de áreas de armadura por metro nas direções de armadura, superior e inferior. | Feito | — | As por metro (máximo por laje e direção) na tabela e no detalhamento; mapa de `AsInf` e `AsSup` (envoltória das duas direções) e por direção em `resultados/isovalores.ts` e AbaIsovalores.tsx [V4] — Feito 24/10/2026 [V6f]: envoltória das taxas também nas nervuradas e cogumelo (zona aliviada pela nervura ÷ intereixo, zona maciça pela laje maciça equivalente; premissa v6f-folha-resultados); treliçadas e alveolares sem mapa de As; e2e V6f |
 | K1.11.18 | Deslocamentos (mm) por caso em qualquer nó; esforços por caso e taxa necessária por direção. | Feito | — | `consultaNo` (`resultados/consultas.ts`): deslocamentos por caso e combinação, esforços por caso e armadura da laje; interface na aba Deslocamentos (AbaDeslocamentos.tsx, `ConsultaNoUI.tsx`) [V3] — Feito 24/10/2026 [V6d]: chip Consultar nó da vista 3D (Vista3D.tsx; `RenderizadorCena.pickPonto` dá o ponto de contato; no isométrico estático vale o centro do objeto) mostra a tabela do nó e abre a aba Deslocamentos; e2e V6d |
 | K1.11.19 | Esforços de cálculo pelo método de Wood (combina momentos fletores e volventes/torção nas direções de armadura). | Feito | — | lajes maciças: Wood-Armer com o torçor, média em faixa de 1 m (opção, N1d) |
-| K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Parcial | V | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado (radier/FU6 não incluído); tabela na aba Deslocamentos (AbaDeslocamentos.tsx e Vista3D.tsx) [V3] — Resíduo [V7e]: radier por hipótese/combinação, limite por diâmetro e deslocamento do radier por pano. |
+| K1.11.20 | Deslocamento máximo por pano e caso (não é flecha); no radier é recalque; valor positivo = levantamento → hipótese inválida. | Feito | — | `maximosPorPano`: deslocamento máximo do nó por pano e caso, com levantamento marcado; tabela na aba Deslocamentos (AbaDeslocamentos.tsx e Vista3D.tsx) [V3]. [V7e] radier e viga sobre base elástica: `maximosPorRadier` (maior valor absoluto de uz dos nós por caso, negativo = recalque, positivo = levantamento, hipótese inválida), tabela na aba Deslocamentos; o pano do radier é o próprio elemento; e2e V7e. |
 | K1.11.21 | Verificação e armadura de punção e cortante em zonas maciças e nervuras. | Feito | — | punção e cortante de zonas maciças: contornos C, C′ e C″, armadura de punção em linhas radiais e armadura transversal de cortante (`src/core/building/puncao.ts`, NBR 6118 19.4 e 19.5); [N2d] — [E5f] punção das nervuradas com ábaco em abacosPuncao.ts: contornos C, C′ (altura do ábaco) e C″ (altura da laje, sem cubetas), biela τRd2, armadura calculada e grupos informados; cortante nas nervuras que chegam ao ábaco por varredura (opção puncaoNervCortante, NBR 6118 19.4.1) |
 | K1.11.22 | Igualação de barras por máximos de taxa e comprimento; edição de nº, bitola, espaçamento, comprimento e ganchos. | Feito | — | `igualarPosicoes`/`maximosDe` (lajesEdicao.ts): φ, espaçamento e comprimento da posição de maior taxa e o maior comprimento; edição de n, φ, espaçamento, comprimento e ganchos por posição (`laje.barras`), bloqueada e verificada no recálculo (ARM_BLOQ, BLOQ_IGNORADO) (R7e) |
 | K1.11.23 | Tensões excessivas no radier sinalizadas. | Feito | — | tensão no solo σ = k·w por nó nas combinações raras contra σadm (× fator de vento): FUND_RADIER_TENSAO; levantamento FUND_LEVANTAMENTO; mapa por nó na planta e na janela (`BaseElasticaUI.tsx`) |

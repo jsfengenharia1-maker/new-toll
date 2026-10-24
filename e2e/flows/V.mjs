@@ -981,3 +981,72 @@ export const f_V7d = {
       assert.match(await page.locator('.prancha-prev svg').first().innerHTML(), /MOMENTO MX/);
     },
   };
+
+export const f_V7e = {
+    name: 'V7e: radier por hipótese e combinação (mapa e tabela), limite mínimo por bitola e espaçamento e pela σadm, deslocamento do radier na aba Deslocamentos',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[1, 1], [7, 1], [7, 6], [1, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[1, 1], [7, 1]], [[1, 6], [7, 6]], [[1, 1], [1, 6]], [[7, 1], [7, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('caso.criar {"nome": "Piso", "natureza": "Q"}');
+      await cmd('radier.criar {"contorno": [[0, 0], [8, 0], [8, 7], [0, 7]], "h": 0.4, "k": 40000, "sigmaAdm": 300}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+
+      // ---- isovalores do radier por hipótese
+      await abas.getByRole('tab', { name: 'Isovalores', exact: true }).click();
+      const jan = page.locator('[data-isov-janela="1"]');
+      await jan.waitFor();
+      await page.getByLabel(/^Grandeza \(janela 1\)/).selectOption('rSigma');
+      const hip = page.getByLabel(/^Hipótese \(janela 1\)/);
+      await hip.waitFor();
+      const dados = async () => JSON.parse(await jan.getAttribute('data-iso'));
+      await hip.selectOption({ label: 'Caso G' });
+      await page.waitForFunction(() => { const d = document.querySelector('[data-isov-janela="1"]')?.getAttribute('data-iso'); return !!d && JSON.parse(d).grandeza === 'rSigma'; });
+      const dG = await dados();
+      assert.equal(dG.grandeza, 'rSigma');
+      assert.ok(dG.max > 0, JSON.stringify(dG));
+      // a combinação rara (última de cada família) tem tensão maior que o caso G isolado
+      const opcoes = await hip.locator('option').allTextContents();
+      const rara = opcoes.find((t) => /rara/i.test(t));
+      assert.ok(rara, opcoes.join(' | '));
+      await hip.selectOption({ label: rara });
+      await page.waitForFunction((g) => { const d = JSON.parse(document.querySelector('[data-isov-janela="1"]').getAttribute('data-iso')); return d.max > g + 1e-6; }, dG.max);
+
+      // ---- tabela por hipótese (casos e combinações) e levantamento
+      const tabela = page.locator('[data-radier-hipoteses="1"]');
+      await tabela.waitFor();
+      assert.ok((await tabela.locator('[data-radier-hipotese]').count()) >= 4);
+      assert.ok((await tabela.locator('[data-radier-hipotese^="caso:"]').count()) >= 2);
+      assert.ok((await tabela.locator('[data-radier-hipotese^="comb:"]').count()) >= 2);
+      assert.equal(await tabela.locator('tr.bad').count(), 0);
+      await tabela.getByRole('button', { name: /^Baixar CSV/ }).waitFor();
+
+      // ---- limite mínimo pela σadm do radier (tensão): nenhuma região passa de 300 kPa
+      await page.getByLabel(/^Grandeza \(janela 1\)/).selectOption('rSigmaMax');
+      await page.getByRole('button', { name: /^Usar a σadm do radier/ }).click();
+      await page.locator('[data-iso-acima]').waitFor();
+      assert.equal(await page.locator('[data-iso-acima]').getAttribute('data-iso-acima'), '0.0000');
+
+      // ---- limite mínimo por bitola e espaçamento (armadura da laje)
+      await page.getByLabel(/^Grandeza \(janela 1\)/).selectOption('AsInf');
+      await page.getByLabel(/^Bitola do limite \(janela 1\)/).selectOption({ label: 'φ 12,5 mm' });
+      await page.getByLabel(/^Espaçamento do limite \(janela 1\)/).fill('15');
+      await page.getByLabel(/^Espaçamento do limite \(janela 1\)/).press('Enter');
+      await page.getByRole('button', { name: /^Usar φ 12,5 c\/15 = 8,18 cm²\/m como limite mínimo/ }).click();
+      await page.waitForFunction(() => !!document.querySelector('[data-iso-acima]'));
+      assert.match(await page.locator('[data-iso-acima]').innerText(), /Região com valor a partir do limite mínimo/);
+      await page.locator('[data-iso-bitola-max]').waitFor();
+
+      // ---- deslocamento do radier por caso na aba Deslocamentos
+      await abas.getByRole('tab', { name: 'Deslocamentos', exact: true }).click();
+      const dr = page.locator('[data-desloc-radiers="1"]');
+      await dr.waitFor();
+      assert.match(await dr.locator('tbody tr').first().innerText(), /-\d+,\d\d/);
+    },
+  };
