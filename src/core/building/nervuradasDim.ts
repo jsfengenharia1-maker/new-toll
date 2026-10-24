@@ -16,6 +16,12 @@ import { errosTipoLaje } from './tiposLaje';
 import { lajesQueTocam, parteSalienteViga } from './secaoViga';
 import { casosDaObra, pavimentosDoGrupo, type BarrasNervura, type BuildingModel, type Laje } from './types';
 import { arred, gruposIgualacao, vrd1 } from './vigotas';
+import { woodArmerNos } from './dimensionamento';
+import { escolherBarrasLaje } from './detalhamentoLajes';
+import { ID_PADRAO, linhaLajes, tabelaDe } from './tabelasArmadura';
+import { areaBarraBase, areaTela, telaPor } from './telasSoldadas';
+import type { BaseFaceLaje } from './types';
+import { dentroPoligono } from '../geom/faces';
 
 const FI_NERV = [6.3, 8, 10, 12.5, 16, 20, 25];
 const DMAX = 0.019;
@@ -102,9 +108,9 @@ const COMBINACOES: BarraEscolhida[] = FI_NERV.flatMap((phi) => [1, 2, 3, 4, 5, 6
 export const larguraNecessaria = (n: number, phi: number, phiEst: number, cob: number): number => 2 * (cob + phiEst / 1000) + (n * phi) / 1000 + (n - 1) * Math.max(0.02, phi / 1000, 1.2 * DMAX);
 
 /** Menor combinação (em área) que cobre `AsNec` (cm²) e cabe na largura `bw`; sem caber, a menor por área, com `cabe: false`. */
-export function escolherBarras(AsNec: number, bw: number, phiEst: number, cob: number): (BarraEscolhida & { cabe: boolean; need: number }) | null {
+export function escolherBarras(AsNec: number, bw: number, phiEst: number, cob: number, phis?: number[]): (BarraEscolhida & { cabe: boolean; need: number }) | null {
   if (AsNec <= 1e-9) return null;
-  const ok = COMBINACOES.filter((x) => x.As >= AsNec - 1e-9);
+  const ok = COMBINACOES.filter((x) => x.As >= AsNec - 1e-9 && (!phis || phis.includes(x.phi)));
   if (!ok.length) return null;
   const cabem = ok.find((x) => larguraNecessaria(x.n, x.phi, phiEst, cob) <= bw + 1e-9);
   const x = cabem ?? ok[0];
@@ -128,7 +134,8 @@ export interface ArmaduraNervuraAbaco {
   /** Cortante máximo no trecho (kN por banda), VRd1 e VRd2 da banda maciça e estribos se VRd1 < V ≤ VRd2. */
   Vmax: number; VRd1: number; VRd2: number; estribo: { phi: number; s: number; barras: number } | null; ok: boolean;
 }
-export interface ArmaduraSup { Mneg: number; AsNec: number; barras: BarraEscolhida | null; comprimento: number; macica: boolean; bwEfetiva: number; dupla: boolean }
+/** `MFreq` e `wk`: momento negativo da combinação frequente (kN·m por nervura, ≥ 0) e abertura de fissuras (mm) com as barras escolhidas (E5g); 0 se a verificação está desligada. */
+export interface ArmaduraSup { Mneg: number; AsNec: number; barras: BarraEscolhida | null; comprimento: number; macica: boolean; bwEfetiva: number; dupla: boolean; MFreq: number; wk: number }
 export interface NervuraDim {
   dir: 0 | 1; indice: number; a: P; z: P; L: number;
   /** Esforços de cálculo por nervura (kN·m, kN). */
@@ -141,6 +148,8 @@ export interface NervuraDim {
   grupo: number;
   /** Trechos da nervura dentro de ábacos (E3d); vazio se não há. */
   abacos: ArmaduraNervuraAbaco[];
+  /** Concentração da armadura do grupo nas nervuras indicadas (E5g): 'recebe' = indicada (leva a armadura do grupo), 'cede' = só o mínimo. Ausente = sem concentração. */
+  concentracao?: 'recebe' | 'cede';
 }
 type BarraNervura = BarrasNervura & { As: number };
 
@@ -149,8 +158,28 @@ export interface MesaNervurada {
   exigida: boolean;
   /** Distância livre (m), carga de cálculo (kN/m²), momento (kN·m/m) e armadura necessária e adotada (cm²/m). */
   livre: number; qd: number; Md: number; AsNec: number; AsAdotada: number; phi: number; s: number;
+  /**
+   * Malha da mesa e das zonas maciças considerada na verificação (E5g, `baseNervurada.considerarMesa`): armadura da malha (cm²/m, o menor
+   * valor das duas direções) nas faces superior e inferior, momento positivo no meio do vão da mesa (qd·ℓ²/24, kN·m/m), armadura positiva
+   * necessária (cm²/m; só se a flexão da mesa é exigida) e o complemento calculado em cada face (cm²/m) além da malha.
+   */
+  malha?: { AsSup: number; AsInf: number; MdPos: number; AsNecPos: number; complementoSup: number; complementoInf: number; phi: number; sSup: number; sInf: number };
 }
-export interface PosicaoAcoNervurada { tipo: 'inferior' | 'base' | 'baseSup' | 'superior' | 'estribo' | 'mesa' | 'abaco' | 'abacoBase'; aco: string; phi: number; n: number; comprimento: number }
+/**
+ * Zona maciça (faixa junto às vigas e zonas manuais, fora dos ábacos) dimensionada por Wood-Armer (E5g, K1.13.3-1): momentos de cálculo por
+ * metro nos nós da grelha dentro da zona (inferior ≥ 0, superior ≤ 0), armadura necessária por direção (mínimo da laje maciça), malha da mesa
+ * considerada e armadura complementar (cm²/m) com a bitola e o espaçamento escolhidos.
+ */
+export interface ZonaMacicaNervurada {
+  area: number; nos: number;
+  Minf: [number, number]; Msup: [number, number];
+  AsNecInf: [number, number]; AsNecSup: [number, number];
+  AsMalhaInf: [number, number]; AsMalhaSup: [number, number];
+  complementoInf: [number, number]; complementoSup: [number, number];
+  barrasInf: ({ phi: number; s: number } | null)[]; barrasSup: ({ phi: number; s: number } | null)[];
+  ok: boolean;
+}
+export interface PosicaoAcoNervurada { tipo: 'inferior' | 'base' | 'baseSup' | 'superior' | 'estribo' | 'mesa' | 'abaco' | 'abacoBase' | 'zonaMacica'; aco: string; phi: number; n: number; comprimento: number }
 export interface ResultadoNervurada {
   laje: string; nome: string; pavimentos: string[];
   /** Pavimentos do grupo que repetem a laje (multiplicam os quantitativos). */
@@ -162,6 +191,8 @@ export interface ResultadoNervurada {
   /** Base das nervuras detalhada: desenhada e medida (senão só a descrição geral na listagem). */
   baseDetalhada: boolean;
   mesa: MesaNervurada;
+  /** Zona maciça por Wood-Armer (E5g); ausente se a opção está desligada ou não há zona maciça fora dos ábacos. */
+  zonaMacica?: ZonaMacicaNervurada;
   quantitativo: QuantitativoNervurada;
   /** Ábacos da laje (zona efetiva, m²) e a armadura base de cada um (E3d). */
   abacos: { id: string; hAbaco: number; area: number; automatico: boolean; pilar?: string; base: BarrasBaseAbaco[]; padrao: boolean }[];
@@ -239,7 +270,17 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       mPos: Math.max(0, ...gp.nervuras.map((i) => Math.max(0, ...esf[i].Mmax))),
       mPosF: Math.max(0, ...gp.nervuras.map((i) => Math.max(0, ...esfF[i].Mmax))),
       mNeg: [0, 1].map((k) => Math.min(0, ...gp.nervuras.map((i) => (k ? esf[i].Mmin.at(-1)! : esf[i].Mmin[0])))) as [number, number],
+      mNegF: [0, 1].map((k) => Math.min(0, ...gp.nervuras.map((i) => (k ? esfF[i].Mmin.at(-1)! : esfF[i].Mmin[0])))) as [number, number],
     }));
+    // ---- concentração da armadura nas nervuras indicadas (E5g, K1.13.4.1-1) e tabela de armadura (R7a, K1.13.3-1)
+    const concSet = ([0, 1] as const).map((k) => new Set(l.nervurasConcentrar?.[k] ?? []));
+    const concInfo = (ri: number) => {
+      const gp = grupos[grupoDe[ri]], k = arr.nervuras[ri].dir, marc = gp.nervuras.filter((i) => concSet[k].has(arr.nervuras[i].indice)).length, n = gp.nervuras.length;
+      return marc > 0 && marc < n ? { n, m: marc, recebe: concSet[k].has(arr.nervuras[ri].indice) } : null;
+    };
+    // tabela de armadura da laje (R7a): a padrão da obra não restringe (reproduz a escolha anterior); a editada limita as bitolas das nervuras às da linha da altura da laje
+    const tabL = tabelaDe(b, 'lajes', l.tabela), phisTab = tabL.id === ID_PADRAO ? undefined : linhaLajes(tabL, g.h).bitolas, foraTabela = new Set<string>();
+    const fissurouNeg = new Set<string>(), erroFissNeg: string[] = [];
     // ---- seções e armaduras
     const baseDir = (dir: 0 | 1): BarraNervura | null => { const bs = l.baseNervurada?.nervuras?.[dir]; return bs?.considerar && bs.inf ? { ...bs.inf, As: bs.inf.n * barArea(bs.inf.phi) * 1e4 } : null; };
     const barras = (x: { n: number; phi: number } | undefined): BarraNervura | null => (x ? { n: x.n, phi: x.phi, As: x.n * barArea(x.phi) * 1e4 } : null);
@@ -255,20 +296,32 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       // positivo (seção T)
       const tee = { kind: 'tee' as const, bw, h: g.h, bf, hf: g.capa };
       const fl = beamFlexure(tee, true, eg.mPos, dI, 0.03, c, aI.fyd);
-      const AsNec = eg.mPos > 0.01 ? Math.max(fl.As * 1e4, AsMin) : 0;
+      const AsNec0 = eg.mPos > 0.01 ? Math.max(fl.As * 1e4, AsMin) : 0;
+      const ci = concInfo(ri);
+      // concentração: a indicada leva a armadura do grupo (menos o mínimo das que cedem); as demais ficam com o mínimo
+      const AsNec = ci && AsNec0 > 0 ? (ci.recebe ? Math.max(AsMin, (ci.n * AsNec0 - (ci.n - ci.m) * AsMin) / ci.m) : AsMin) : AsNec0;
+      const fatorC = AsNec0 > 0 ? AsNec / AsNec0 : 1, cede = !!ci && !ci.recebe;
+      const nomeR = `${k === 0 ? 'X' : 'Y'}${rib.indice + 1}`;
+      const escTab = (As: number, bwx: number, cobx: number, _face: 'pos' | 'neg') => {
+        const r = escolherBarras(As, bwx, phiEstProv, cobx, phisTab);
+        if (r || As <= 1e-9) return r;
+        const livre = escolherBarras(As, bwx, phiEstProv, cobx);
+        if (livre) foraTabela.add(nomeR);
+        return livre;
+      };
       if (fl.double) erro(`Nervuradas: flexão — nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1} de ${tag}: momento positivo ${fmt(eg.mPos)} kN·m por nervura exige armadura dupla; aumente a altura da laje ou a largura da nervura.`);
       const base = baseDir(k);
       const falta = Math.max(0, AsNec - (base?.As ?? 0));
-      let esc = escolherBarras(falta, bw, phiEstProv, cob.inf);
+      let esc = escTab(falta, bw, cob.inf, 'pos');
       // fissuração na combinação frequente (17.3.3.2; seção T, momento positivo): aumenta a armadura até wk ≤ limite
-      if (esc && eg.mPosF > 0.01) {
+      if (esc && eg.mPosF > 0.01 && !cede) {
         let req = falta, it = 0, w = 0;
         for (; it < 30; it++) {
           const tot = (base?.As ?? 0) + esc.As, phiMax = Math.max(base?.phi ?? 0, esc.phi);
-          w = crackWidth(tee, true, tot / 1e4, phiMax, dI, eg.mPosF, c, caaNum).wk;
+          w = crackWidth(tee, true, tot / 1e4, phiMax, dI, eg.mPosF * fatorC, c, caaNum).wk;
           if (w <= wkLim + 1e-9) break;
           req *= 1.1;
-          const nova = escolherBarras(req, bw, phiEstProv, cob.inf);
+          const nova = escTab(req, bw, cob.inf, 'pos');
           if (!nova) break;
           esc = nova;
         }
@@ -294,19 +347,37 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         const t = ponta === 0 ? 0.05 / rib.L : 1 - 0.05 / rib.L, mp: P = [rib.a[0] + t * (rib.z[0] - rib.a[0]), rib.a[1] + t * (rib.z[1] - rib.a[1])];
         const macica = !arr.aliviada(mp), bwEf = macica ? bf : bw;
         const fn = beamFlexure({ kind: 'rect', bw: bwEf, h: g.h }, false, M, dS, 0.03, c, aS.fyd);
-        const AsN = Math.max(fn.As * 1e4, 0.0015 * bw * g.h * 1e4); // mínimo da própria nervura; a malha da zona maciça é a armadura base
+        const AsMinN0 = 0.0015 * bw * g.h * 1e4, AsN0 = Math.max(fn.As * 1e4, AsMinN0); // mínimo da própria nervura; a malha da zona maciça é a armadura base
+        const AsN = ci && AsN0 > 0 ? (ci.recebe ? Math.max(AsMinN0, (ci.n * AsN0 - (ci.n - ci.m) * AsMinN0) / ci.m) : AsMinN0) : AsN0;
         const nome = `${k === 0 ? 'X' : 'Y'}${rib.indice + 1}`;
         if (fn.double) {
           if (bw < 0.08) erro(`Nervuradas: flexão — nervura ${nome} de ${tag}: momento negativo ${fmt(M)} kN·m por nervura exige armadura de compressão, que a nervura de ${fmt(bw * 100, 1)} cm (< 8 cm) não admite; maciçe a faixa do apoio, aumente a altura ou a largura da nervura.`);
           else aviso(`Nervuradas: armadura dupla na nervura ${nome} de ${tag} (momento negativo ${fmt(M)} kN·m por nervura; x limitado a ${fmt(c.xLimRatio, 2)}d).`);
         }
-        const bs = escolherBarras(AsN, bwEf, phiEstProv, cob.sup);
+        let bs = escTab(AsN, bwEf, cob.sup, 'neg'), AsFinal = AsN, wkNeg = 0;
+        // fissuração do momento negativo na combinação frequente (E5g, K1.13.3-1; 17.3.3.2; retângulo, face superior)
+        const MF = -eg.mNegF[ponta], verFiss = !!op.nervuradaFissuraNegativo && !!bs && MF > 0.05 && !cede;
+        if (verFiss) {
+          let it = 0, w = 0;
+          const sec = { kind: 'rect' as const, bw: bwEf, h: g.h };
+          for (; it < 30; it++) {
+            w = crackWidth(sec, false, bs!.As / 1e4, bs!.phi, dS, MF * (AsN / AsN0), c, caaNum).wk;
+            if (w <= wkLim + 1e-9) break;
+            AsFinal *= 1.1;
+            const nova = escTab(AsFinal, bwEf, cob.sup, 'neg');
+            if (!nova) break;
+            bs = nova;
+          }
+          wkNeg = w;
+          if (it > 0 && w <= wkLim + 1e-9) fissurouNeg.add(nome);
+          if (w > wkLim + 1e-9) erroFissNeg.push(`${nome} (${fmt(w)} mm)`);
+        }
         if (!bs) erro(`Nervuradas: flexão — nervura ${nome} de ${tag}: armadura negativa de ${fmt(AsN)} cm² por nervura excede 6φ25; maciçe a faixa do apoio ou aumente a altura da laje.`);
         else if (!bs.cabe && !macica) erro(`Nervuradas: armadura não cabe na nervura ${nome} de ${tag} — negativo ${bs.n}φ${fphi(bs.phi)} pede nervura de ${fmt(bs.need * 100, 1)} cm (largura ${fmt(bw * 100, 1)} cm); aumente a largura da nervura ou a altura da laje, ou maciçe a faixa do apoio.`);
         // comprimento: até o ponto de momento nulo mais a decalagem (d) e a ancoragem
         const ext = extensaoNegativa(e, ponta as 0 | 1, rib.L);
         const comp = Math.min(rib.L, arred(ext + Math.max(dS, 12 * ((bs?.phi ?? 10) / 1000)), op.arredondamento));
-        return { Mneg: eg.mNeg[ponta], AsNec: AsN, barras: bs ? { n: bs.n, phi: bs.phi, As: bs.As } : null, comprimento: r3(comp), macica, bwEfetiva: bwEf, dupla: fn.double };
+        return { Mneg: eg.mNeg[ponta], AsNec: AsFinal, barras: bs ? { n: bs.n, phi: bs.phi, As: bs.As } : null, comprimento: r3(comp), macica, bwEfetiva: bwEf, dupla: fn.double, MFreq: verFiss ? MF : 0, wk: wkNeg };
       }) as [ArmaduraSup | null, ArmaduraSup | null];
       // trechos dentro de ábacos (E3d): flexão negativa sobre o pilar na banda maciça, reforço na nervura e cortante da banda maciça
       const abRib: ArmaduraNervuraAbaco[] = [];
@@ -381,11 +452,20 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         dir: k, indice: rib.indice, a: rib.a, z: rib.z, L: r3(rib.L), mPos: Math.max(0, ...e.Mmax), mNeg: [e.Mmin[0] < 0 ? e.Mmin[0] : 0, e.Mmin.at(-1)! < 0 ? e.Mmin.at(-1)! : 0],
         Vmax,
         inf: { AsNec, base, baseInformada: baseInfo(k), baseSup: baseSupInfo(k), reforco: esc ? { n: esc.n, phi: esc.phi, As: esc.As } : null, total: AsInfTot, cabe, larguraMin: r3(larguraMin), comprimento: compInf, Mu },
-        sup, cortante: { regime, passo: r3(passo), VRd1, VRd2: VRd2c, secoes, zonas: zonas.map(([a0, a1]) => [r3(a0), r3(a1)] as [number, number]), estribo, ok: ok && abRib.every((a) => a.ok) }, grupo: grupoDe[ri], abacos: abRib,
+        sup, ...(ci ? { concentracao: ci.recebe ? 'recebe' as const : 'cede' as const } : {}), cortante: { regime, passo: r3(passo), VRd1, VRd2: VRd2c, secoes, zonas: zonas.map(([a0, a1]) => [r3(a0), r3(a1)] as [number, number]), estribo, ok: ok && abRib.every((a) => a.ok) }, grupo: grupoDe[ri], abacos: abRib,
       };
     });
     if (fissurou.size) aviso(`Nervuradas: fissuração — armadura inferior aumentada em ${fissurou.size} nervura(s) de ${tag} (${[...fissurou].slice(0, 6).join(', ')}${fissurou.size > 6 ? '…' : ''}) para limitar a abertura de fissuras a ${fmt(wkLim)} mm (combinação frequente).`);
     if (erroFiss.length) erro(`Nervuradas: fissuração acima do limite de ${fmt(wkLim)} mm em ${erroFiss.slice(0, 4).join(', ')}${erroFiss.length > 4 ? '…' : ''} de ${tag} mesmo com 6φ25; aumente a altura da laje.`);
+    if (fissurouNeg.size) aviso(`Nervuradas: fissuração do negativo — armadura superior aumentada em ${fissurouNeg.size} nervura(s) de ${tag} (${[...fissurouNeg].slice(0, 6).join(', ')}${fissurouNeg.size > 6 ? '…' : ''}) para limitar a abertura de fissuras a ${fmt(wkLim)} mm (combinação frequente).`);
+    if (erroFissNeg.length) erro(`Nervuradas: fissuração do negativo acima do limite de ${fmt(wkLim)} mm em ${erroFissNeg.slice(0, 4).join(', ')}${erroFissNeg.length > 4 ? '…' : ''} de ${tag} mesmo com a maior armadura possível; aumente a altura da laje ou a largura da nervura.`);
+    if (foraTabela.size) aviso(`Fora de tabela (nervuradas): ${tag}, nervura(s) ${[...foraTabela].slice(0, 6).join(', ')}${foraTabela.size > 6 ? '…' : ''}: a armadura necessária não cabe com as bitolas da tabela de armadura "${tabL.nome}" (usadas bitolas fora dela).`);
+    for (const k of [0, 1] as const) {
+      const sem = [...concSet[k]].filter((i) => !arr.nervuras.some((r) => r.dir === k && r.indice === i));
+      if (sem.length) aviso(`Nervuradas: concentração — ${tag}: nervura(s) ${sem.map((i) => `${k === 0 ? 'X' : 'Y'}${i + 1}`).join(', ')} indicada(s) não existe(m).`);
+    }
+    const concGr = grupos.flatMap((gp, gi) => { const rs0 = gp.nervuras.map((i) => nervuras[i]); const rc = rs0.filter((x) => x.concentracao === 'recebe'); return rc.length ? [`${gp.dir === 0 ? 'X' : 'Y'}${gi + 1}: ${rc.map((x) => `${gp.dir === 0 ? 'X' : 'Y'}${x.indice + 1}`).join(', ')}`] : []; });
+    if (concGr.length) info(`Nervuradas: armadura concentrada nas nervuras indicadas de ${tag} — ${concGr.join('; ')}; as demais nervuras do grupo ficam com o mínimo (a armadura do grupo é a soma das necessárias) [a confirmar: distribuição transversal pela mesa].`);
     // ---- mesa: flexão da mesa entre nervuras (espaçamento > 65 cm) e malha de distribuição
     const livre = Math.max(...ver.livre), qd = gm.g * (g.pp + (grupo?.gRev ?? 0)) + gm.q * (grupo?.q ?? 0);
     const exigida = Math.max(g.i[0], g.i[1]) > 0.65 + 1e-9;
@@ -394,9 +474,32 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     const AsMin = Math.max(0.9, 0.5 * 0.0015 * g.capa * 1e4); // cm²/m [a confirmar: mínimo de distribuição na mesa]
     const AsNecMesa = Math.max(AsMin, exigida ? fm.As * 1e4 : 0);
     if (exigida && fm.double) erro(`Nervuradas: mesa de ${fmt(g.capa * 100)} cm de ${tag} não resiste à flexão entre nervuras (Md = ${fmt(MdMesa)} kN·m/m, vão livre ${fmt(livre * 100, 0)} cm); aumente a mesa.`);
-    const phiD = aS.aco === 'CA-60' && op.lajeBitolaMinima <= 5 ? 5 : 6.3;
-    const sD = Math.max(0.05, Math.min(0.2, Math.floor(((barArea(phiD) * 1e4) / AsNecMesa) * 100 + 1e-9) / 100));
-    const mesa: MesaNervurada = { exigida, livre: r3(livre), qd, Md: exigida ? MdMesa : 0, AsNec: AsNecMesa, AsAdotada: (barArea(phiD) * 1e4) / sD, phi: phiD, s: sD };
+    // tabela de armadura de lajes (R7a): a bitola de distribuição da mesa precisa estar na linha da espessura da mesa
+    const linhaMesa = linhaLajes(tabL, g.capa), ca60S = aS.aco === 'CA-60';
+    let phiD = ca60S && op.lajeBitolaMinima <= 5 ? 5 : 6.3;
+    if (tabL.id !== ID_PADRAO && !linhaMesa.bitolas.includes(phiD)) { const alt = [...linhaMesa.bitolas].sort((x, z) => x - z).find((p2) => p2 >= 6.3 || ca60S); if (alt) { phiD = alt; aviso(`Fora de tabela (nervuradas): a bitola de distribuição da mesa de ${tag} passa para φ${fphi(phiD)} (a tabela de lajes não tem φ${fphi(aS.aco === 'CA-60' && op.lajeBitolaMinima <= 5 ? 5 : 6.3)}).`); } }
+    // malha da mesa e das zonas maciças (E5g, K1.9.94): considerada na verificação da mesa quando marcada
+    const considerarMesa = !!l.baseNervurada?.considerarMesa;
+    const asFace = (f?: BaseFaceLaje): [number, number] => {
+      if (f?.tela) { const t = telaPor(f.tela, b); return t ? areaTela(t, f.giro) : [0, 0]; }
+      return [0, 1].map((q) => { const x = f?.barras?.[q]; return x ? areaBarraBase(x.phi, x.s) : 0; }) as [number, number];
+    };
+    const malhaInf = considerarMesa ? asFace(l.baseNervurada?.mesa?.inf) : ([0, 0] as [number, number]), malhaSup = considerarMesa ? asFace(l.baseNervurada?.mesa?.sup) : ([0, 0] as [number, number]);
+    const MdPos = exigida ? (qd * livre * livre) / 24 : 0, dmI = g.capa - cob.inf - 0.005;
+    const fmP = beamFlexure({ kind: 'rect', bw: 1, h: g.capa }, false, MdPos, dmI, 0.02, c, aI.fyd);
+    if (exigida && considerarMesa && fmP.double) erro(`Nervuradas: mesa de ${fmt(g.capa * 100)} cm de ${tag} não resiste ao momento positivo entre nervuras (Md = ${fmt(MdPos)} kN·m/m); aumente a mesa.`);
+    const AsNecPos = exigida ? Math.max(AsMin, fmP.As * 1e4) : 0;
+    const AsMalhaSup = Math.min(...malhaSup), AsMalhaInf = Math.min(...malhaInf);
+    const compSup = considerarMesa ? Math.max(0, AsNecMesa - AsMalhaSup) : AsNecMesa, compInf = considerarMesa ? Math.max(0, AsNecPos - AsMalhaInf) : 0;
+    const sDe = (As: number) => Math.max(0.05, Math.min(0.2, Math.floor(((barArea(phiD) * 1e4) / As) * 100 + 1e-9) / 100));
+    const sD = sDe(AsNecMesa);
+    const mesa: MesaNervurada = {
+      exigida, livre: r3(livre), qd, Md: exigida ? MdMesa : 0, AsNec: AsNecMesa, AsAdotada: (barArea(phiD) * 1e4) / sD, phi: phiD, s: sD,
+      ...(considerarMesa ? { malha: { AsSup: AsMalhaSup, AsInf: AsMalhaInf, MdPos, AsNecPos, complementoSup: compSup, complementoInf: compInf, phi: phiD, sSup: compSup > 0 ? sDe(compSup) : 0, sInf: compInf > 0 ? sDe(compInf) : 0 } } : {}),
+    };
+    // alerta de detalhamento (K1.9.94, como o da K1.9.87): a base entra no cálculo mas só aparece nos desenhos e quantitativos se detalhada
+    if ((considerarMesa || [0, 1].some((k) => l.baseNervurada?.nervuras?.[k]?.considerar)) && !baseDetalhada) aviso(`Nervuradas: a armadura base de ${tag} entra no cálculo mas a opção de detalhar a armadura base está desligada — ela não aparece nos desenhos, quantitativos e tabelas (a malha da mesa nunca entra no resumo de aço; só é descrita). Ative "Base das nervuras detalhada" para desenhar e medir a das nervuras.`);
+    if (considerarMesa && (compSup > 1e-9 || compInf > 1e-9)) aviso(`Nervuradas: a malha da base da mesa de ${tag} não cobre a armadura necessária (superior ${fmt(AsMalhaSup)} de ${fmt(AsNecMesa)} cm²/m${exigida ? `; inferior ${fmt(AsMalhaInf)} de ${fmt(AsNecPos)} cm²/m` : ''}); o complemento entra na armadura calculada da mesa.`);
     // ---- quantitativos
     const quantitativo = quantitativoNervurada(l, g, arr, volumeRebaixoAbacos(abEf, g.h));
     const Alaje = Math.abs(areaPoligono(l.contorno as P[])) - (l.furos ?? []).reduce((t, f) => t + Math.abs(areaPoligono(f as P[])), 0);
@@ -422,14 +525,58 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       for (const x of base) posicoes.push({ tipo: 'abacoBase', aco: x.face === 'inf' ? aI.aco : aS.aco, phi: x.phi, n: x.total, comprimento: x.comprimento });
       return { id: ef.abaco.id, hAbaco: ef.abaco.hAbaco, area: ef.area, automatico: ef.abaco.automatico, ...(ef.abaco.pilar ? { pilar: ef.abaco.pilar } : {}), base, padrao: baseAb.get(ef.abaco.id)!.padrao };
     });
-    posicoes.push({ tipo: 'mesa', aco: aS.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sD) });
+    if (!considerarMesa) posicoes.push({ tipo: 'mesa', aco: aS.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sD) });
+    else {
+      // com a malha considerada, a calculada é só o complemento de cada face
+      if (compSup > 1e-9) posicoes.push({ tipo: 'mesa', aco: aS.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sDe(compSup)) });
+      if (compInf > 1e-9) posicoes.push({ tipo: 'mesa', aco: aI.aco, phi: phiD, n: 1, comprimento: r3((2 * Alaje) / sDe(compInf)) });
+    }
+    // zona maciça por Wood-Armer (E5g, K1.13.3-1): momentos nos nós da grelha dentro da zona, fora dos ábacos (que têm o seu dimensionamento)
+    let zonaMacica: ZonaMacicaNervurada | undefined;
+    const aMac = Math.max(0, quantitativo.areaMacica - abEf.reduce((t, ef) => t + ef.area, 0));
+    if (op.nervuradaWoodArmer && aMac > 0.05) {
+      const eps = 0.01, Minf: [number, number] = [0, 0], Msup: [number, number] = [0, 0];
+      let nNos = 0;
+      for (const gr of grelhas) for (const x of woodArmerNos(gr, l.id, fELU)) {
+        const q = gr.modelo.nos[x.no] as number[], pt: P = [q[0], q[1]];
+        if ([[eps, eps], [-eps, eps], [eps, -eps], [-eps, -eps]].some(([dx, dy]) => arr.aliviada([pt[0] + dx, pt[1] + dy]))) continue;
+        if (abEf.some((ef) => dentroPoligono(pt, ef.poligono as P[]))) continue;
+        nNos++;
+        for (const k of [0, 1] as const) { Minf[k] = Math.max(Minf[k], x.inf[k]); Msup[k] = Math.min(Msup[k], x.sup[k]); }
+      }
+      if (nNos > 0) {
+        const amin = (op.lajeTaxaMin > 0 ? op.lajeTaxaMin / 100 : 0.0015) * g.h * 1e4, dI2 = g.h - cob.inf - 0.005, dS2 = g.h - cob.sup - 0.005;
+        const nec = (M: number, face: 'inf' | 'sup'): number => {
+          if (Math.abs(M) < 1e-3) return amin;
+          const f = beamFlexure({ kind: 'rect', bw: 1, h: g.h }, false, Math.abs(M), face === 'inf' ? dI2 : dS2, 0.02, c, face === 'inf' ? aI.fyd : aS.fyd);
+          if (f.double) erro(`Nervuradas: zona maciça de ${tag}: momento ${face === 'inf' ? 'positivo' : 'negativo'} de Wood-Armer ${fmt(Math.abs(M))} kN·m/m exige armadura dupla; aumente a altura da laje.`);
+          return Math.max(amin, f.As * 1e4);
+        };
+        const AsNecInf = [nec(Minf[0], 'inf'), nec(Minf[1], 'inf')] as [number, number], AsNecSup = [nec(Msup[0], 'sup'), nec(Msup[1], 'sup')] as [number, number];
+        const compI = AsNecInf.map((v, k) => Math.max(0, v - malhaInf[k])) as [number, number], compS = AsNecSup.map((v, k) => Math.max(0, v - malhaSup[k])) as [number, number];
+        const linhaZ = linhaLajes(tabelaDe(b, 'lajes', l.tabela), g.h), smin = op.lajeEspacamentoMinimo / 100, smaxP = Math.min(2 * g.h, 0.2);
+        const sel = (v: number, ca60: boolean) => { if (v <= 1e-9) return null; const r = escolherBarrasLaje(v / 1e4, g.h, smaxP, smin, op.lajeBitolaMinima, ca60, linhaZ); return r; };
+        const bI = compI.map((v) => sel(v, aI.aco === 'CA-60')), bS = compS.map((v) => sel(v, ca60S));
+        for (const [lista, aco, comp] of [[bI, aI.aco, compI], [bS, aS.aco, compS]] as const) lista.forEach((x, k) => {
+          if (!x) return;
+          if (!x.cabe) erro(`Nervuradas: zona maciça de ${tag}: armadura complementar de ${fmt(comp[k])} cm²/m na direção ${k === 0 ? 'X' : 'Y'} não cabe com os espaçamentos da tabela; aumente a altura da laje.`);
+          posicoes.push({ tipo: 'zonaMacica', aco, phi: x.phi, n: 1, comprimento: r3(aMac / x.s) });
+        });
+        const ok = [...bI, ...bS].every((x) => !x || x.cabe);
+        zonaMacica = {
+          area: r3(aMac), nos: nNos, Minf, Msup, AsNecInf, AsNecSup, AsMalhaInf: malhaInf, AsMalhaSup: malhaSup, complementoInf: compI, complementoSup: compS,
+          barrasInf: bI.map((x) => (x ? { phi: x.phi, s: x.s } : null)), barrasSup: bS.map((x) => (x ? { phi: x.phi, s: x.s } : null)), ok,
+        };
+        info(`Nervuradas: zona maciça de ${tag} (${fmt(aMac)} m²) por Wood-Armer: positivo ${fmt(Minf[0])}/${fmt(Minf[1])} kN·m/m, negativo ${fmt(Msup[0])}/${fmt(Msup[1])} kN·m/m (X/Y); armadura necessária ${fmt(Math.max(...AsNecInf))} cm²/m inferior e ${fmt(Math.max(...AsNecSup))} cm²/m superior${considerarMesa ? ', descontada a malha da base da mesa' : ''}.`);
+      }
+    }
     const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * per(x.phi), 0);
     const regimeTxt = (r: Regime) => (r === 'laje' ? 'como laje' : r === 'viga' ? 'como viga' : 'mesa como laje maciça');
     msgs.push(`Nervuradas bidirecionais: ${tag} — ${g.forma.nome} (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}), h = ${fmt(g.h * 100, 0)} cm, mesa ${fmt(g.capa * 100, 0)} cm, intereixo ${fmt(g.i[0] * 100, 0)} × ${fmt(g.i[1] * 100, 0)} cm, peso ${fmt(quantitativo.ppMedio)} kN/m², ${nervuras.length} nervura(s) em ${grupos.length} grupo(s); cisalhamento ${regimeTxt(ver.regime[0])} (X) e ${regimeTxt(ver.regime[1])} (Y)${abEf.length ? `; ${abEf.length} ábaco(s) de ${fmt(abEf.reduce((t, x) => t + x.area, 0))} m² (zona maciça com cubetas retiradas)` : ''}.`);
     for (const r of rs) { r.mensagens.push(...msgs); if (falhou) r.status = 'fail'; }
     out.push({
       laje: l.id, nome: l.nome, pavimentos: rs.map((r) => r.pavimento), repeticoes: Math.max(1, pavs.length), forma: g.forma.id, formaNome: g.forma.nome, recuperavel: g.recuperavel, h: g.h, capa: g.capa, hEnch: g.hEnch, intereixo: g.i, bw: g.bw,
-      pp: g.pp, volume: g.volume, regime: ver.regime, nervuras, grupos, baseDetalhada, mesa, quantitativo, abacos: abacosRes, posicoes, peso, mensagens: msgs, status: falhou ? 'fail' : 'ok',
+      pp: g.pp, volume: g.volume, regime: ver.regime, nervuras, grupos, baseDetalhada, mesa, ...(zonaMacica ? { zonaMacica } : {}), quantitativo, abacos: abacosRes, posicoes, peso, mensagens: msgs, status: falhou ? 'fail' : 'ok',
     });
   }
   return out;
@@ -496,6 +643,8 @@ export interface LinhaMemorialNervurada {
   verificacoes: { capaMin: number; regime: [string, string]; avisos: string[] };
   mesa: MesaNervurada;
   base: { mesa: string; nervuras: string[] };
+  /** Critérios da E5g (fissuração do negativo, malha da mesa considerada, zona maciça por Wood-Armer, concentração, tabela de armadura), um texto por item. */
+  criterios: string[];
   grupos: GrupoMemorialNervurada[];
   vigas: { nome: string; h: number; saliente: number }[];
   mensagens: string[];
@@ -538,11 +687,33 @@ export function nervuradasNoMemorial(b: BuildingModel, rs: ResultadoNervurada[],
         mesa: [face('inf'), face('sup')].filter(Boolean).join('; ') || 'sem base na mesa (só a malha de distribuição calculada)',
         nervuras: ([0, 1] as const).map((k) => { const x = bn?.nervuras?.[k]; return x ? `direção ${k === 0 ? 'X' : 'Y'}: ${[x.inf && `inferior ${phi(x.inf)}`, x.sup && `superior ${phi(x.sup)}`].filter(Boolean).join(', ') || '—'}${x.considerar ? ' (considerada no dimensionamento)' : ' (não considerada)'}` : `direção ${k === 0 ? 'X' : 'Y'}: sem base nas nervuras`; }),
       },
+      criterios: criteriosE5g(b, l, r, op),
       grupos,
       vigas: b.vigas.filter((v) => lajesQueTocam(b, v).some((x) => x.id === l.id)).map((v) => ({ nome: v.nome, h: v.secao.h, saliente: parteSalienteViga(b, v) ?? 0 })),
       mensagens: r.mensagens,
     }];
   });
+}
+
+/** Texto dos critérios de dimensionamento da E5g de uma laje (memorial): o que foi verificado e com que valores. */
+function criteriosE5g(b: BuildingModel, l: Laje, r: ResultadoNervurada, op: OpcoesCalculo): string[] {
+  const out: string[] = [];
+  out.push(op.nervuradaFissuraNegativo
+    ? 'Fissuração do momento negativo das nervuras (17.3.3.2, combinação frequente, seção retangular da nervura ou da banda maciça): armadura aumentada até a abertura de fissuras ficar abaixo do limite, como no positivo.'
+    : 'Fissuração do momento negativo das nervuras não verificada (opção desligada); só o positivo é verificado.');
+  const tab = tabelaDe(b, 'lajes', l.tabela);
+  out.push(tab.id === ID_PADRAO ? 'Tabela de armadura (R7a): a padrão da obra; as bitolas das nervuras não são restringidas.' : `Tabela de armadura (R7a) "${tab.nome}": as bitolas das nervuras e da mesa seguem a linha da tabela de lajes para a altura da laje.`);
+  const m = r.mesa.malha;
+  out.push(m
+    ? `Malha da base considerada na mesa: superior ${fmt(m.AsSup)} cm²/m e inferior ${fmt(m.AsInf)} cm²/m (menor das duas direções); necessárias ${fmt(r.mesa.AsNec)} cm²/m (negativo, qd·ℓ²/12) e ${fmt(m.AsNecPos)} cm²/m (positivo, qd·ℓ²/24, ${fmt(m.MdPos)} kN·m/m); complemento calculado ${fmt(m.complementoSup)} e ${fmt(m.complementoInf)} cm²/m.`
+    : 'Malha da base da mesa e das zonas maciças não considerada no dimensionamento (só descrita e desenhada); a mesa recebe a armadura calculada inteira.');
+  const z = r.zonaMacica;
+  out.push(z
+    ? `Zona maciça (${fmt(z.area)} m², fora dos ábacos) por Wood-Armer (mx* = mx + |mxy|, média em faixa de 1 m): positivo ${fmt(z.Minf[0])} / ${fmt(z.Minf[1])} kN·m/m e negativo ${fmt(z.Msup[0])} / ${fmt(z.Msup[1])} kN·m/m (X / Y); armadura necessária ${fmt(z.AsNecInf[0])} / ${fmt(z.AsNecInf[1])} cm²/m inferior e ${fmt(z.AsNecSup[0])} / ${fmt(z.AsNecSup[1])} cm²/m superior (mínimo de 0,15 % da seção maciça) [a confirmar: mínimo e aplicação do Wood-Armer às zonas maciças das nervuradas]; complemento além da malha: ${fmt(Math.max(...z.complementoInf))} cm²/m inferior e ${fmt(Math.max(...z.complementoSup))} cm²/m superior.`
+    : 'Zona maciça sem dimensionamento por Wood-Armer (opção desligada ou sem zona maciça fora dos ábacos).');
+  const conc = r.nervuras.filter((n) => n.concentracao === 'recebe');
+  if (conc.length) out.push(`Armadura concentrada nas nervuras ${conc.map((n) => `${n.dir === 0 ? 'X' : 'Y'}${n.indice + 1}`).join(', ')}: levam a armadura do grupo uniformizado menos o mínimo das demais [a confirmar: distribuição transversal pela mesa].`);
+  return out;
 }
 
 /** Resumo de uma laje nervurada bidirecional para a ferramenta `dimensionar` (sem as seções de cortante e os esforços das nervuras). */

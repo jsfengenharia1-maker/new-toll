@@ -227,6 +227,10 @@ export interface OpcoesCalculo {
   nervuradaCortanteDist: number;
   /** Nervuradas bidirecionais: diferença máxima (%) entre nervuras vizinhas para adotar a mesma armadura (uniformização); 0 = cada nervura a sua. */
   nervuradaIgualacaoDif: number;
+  /** Nervuradas bidirecionais (E5g, K1.13.3-1): abertura de fissuras do momento negativo das nervuras (retângulo bw × h; combinação frequente) limitada como a do positivo; 0 = desligada (comportamento anterior). */
+  nervuradaFissuraNegativo: number;
+  /** Nervuradas bidirecionais (E5g, K1.13.3-1): zonas maciças dimensionadas por Wood-Armer (momentos nos nós da grelha dentro da zona) e verificadas contra a malha da mesa; 0 = desligado (comportamento anterior). */
+  nervuradaWoodArmer: number;
   /** Ábacos das nervuradas (E3d): dimensão do ábaco em cada face do pilar = fração da distância ao pilar mais próximo no cone de busca (1/6). */
   abacoFracao: number;
   /** Ábacos: semiabertura (graus) do cone de busca a partir da normal de cada face do pilar (40). */
@@ -828,6 +832,10 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'As nervuras são verificadas ao cortante em seções espaçadas deste fator × d; onde a solicitação passa do VRd1 (19.4.1) entram os estribos, com espaçamento limitado pelo mesmo passo.' },
   { chave: 'nervuradaIgualacaoDif', rotulo: 'Nervuradas: uniformização da armadura entre nervuras vizinhas', unidade: '%', min: 0, max: 50, passo: 5, padrao: 20, fonte: 'Programa de referência (K1.13.3.2-1): uniformização da armadura concentrada nas nervuras; limite de 20 % do Statikos [a confirmar]', aConfirmar: true,
     descricao: 'Nervuras vizinhas da mesma direção cujos momentos diferem menos que este percentual adotam a armadura da mais solicitada (menos posições no desenho). 0 = cada nervura com a sua.' },
+  { chave: 'nervuradaFissuraNegativo', rotulo: 'Nervuradas: fissuração do momento negativo das nervuras', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.3.2 (abertura de fissuras na combinação frequente); K1.13.3-1: critérios iguais aos das lajes maciças, que verificam a fissuração do positivo e do negativo', aConfirmar: false,
+    descricao: 'Aumenta a armadura negativa das nervuras (seção retangular bw × h, face superior) até a abertura de fissuras calculada na combinação frequente ficar abaixo do limite da classe de agressividade. Desligada, só o positivo é verificado (comportamento anterior).' },
+  { chave: 'nervuradaWoodArmer', rotulo: 'Nervuradas: Wood-Armer nas zonas maciças', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Wood (1968) e Armer (1968); K1.13.3-1; aplicação às zonas maciças da grelha das nervuradas [a confirmar]', aConfirmar: true,
+    descricao: 'Nas zonas maciças (faixa junto às vigas, zonas manuais), os momentos de dimensionamento por metro somam o volvente (mx* = mx + |mxy|, como nas lajes maciças) e a armadura necessária é comparada com a malha da mesa considerada; o que falta é quantificado como armadura complementar. Nas nervuras da zona aliviada a torção é desprezada. Desligada: as zonas maciças ficam só com a malha de distribuição (comportamento anterior).' },
   { chave: 'abacoFracao', rotulo: 'Ábacos: dimensão em relação ao vão', unidade: '× distância ao pilar', min: 0.05, max: 0.5, passo: 0.01, padrao: 1 / 6, fonte: 'Programa de referência (C7.47, K1.9.98): 1/6 da distância ao pilar mais próximo; a NBR 6118 não fixa; distância entre eixos e extensão a partir da face do pilar [a confirmar]', aConfirmar: true,
     descricao: 'Extensão do ábaco automático, a partir de cada face do pilar, como fração da distância entre eixos do pilar e do pilar mais próximo dentro do cone de busca daquela face. Sem pilar no cone (borda), vale a do sentido oposto; sem pilar em nenhum dos dois, o comprimento mínimo.' },
   { chave: 'abacoCone', rotulo: 'Ábacos: cone de busca do pilar vizinho', unidade: '° (semiabertura)', min: 5, max: 89, passo: 5, padrao: 40, fonte: 'Programa de referência (C7.48, K1.9.98): cone de visão de 40° a partir de cada face; semiabertura em torno da normal da face [a confirmar]', aConfirmar: true,
@@ -1195,7 +1203,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
   'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
-  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'equGamaFav', 'equGamaVento',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao',

@@ -799,6 +799,8 @@ export interface Laje {
   zonasMacicas?: [number, number][][];
   /** Nervurada bidirecional (E3c, K1.9.94, K1.13.3): armadura base da mesa e das nervuras; ausente = só a calculada. */
   baseNervurada?: BaseNervurada;
+  /** Nervurada bidirecional (E5g, K1.13.4.1-1): nervuras (índice 0-based na direção) que concentram a armadura do grupo uniformizado, por direção (0 = a da laje, 1 = transversal); ausente ou vazio = todas as nervuras do grupo com a mesma armadura. */
+  nervurasConcentrar?: [number[], number[]];
   /** Alveolar (E3e): placa fixada pelo usuário, negativos editados e processo construtivo do pano; ausente = tudo automático. */
   alveolar?: ConfigAlveolar;
   /** Plano inclinado do pano (E3f, C7.62): id de `BuildingModel.planos` do mesmo grupo; a cota do topo é z(x, y) do plano (no lugar de `nivel`). */
@@ -857,10 +859,11 @@ export interface ArmaduraBaseAbaco { inf?: BarrasNervura | null; sup?: BarrasNer
 export interface BaseNervuraDir { inf?: BarrasNervura; sup?: BarrasNervura; considerar?: boolean }
 /**
  * Armadura base da nervurada bidirecional (E3c): `mesa` = malha na capa e nas zonas maciças (barras ou tela, como as maciças);
+ * `considerarMesa` (E5g) = a malha da mesa e das zonas maciças entra na verificação da mesa e da zona maciça (senão só descrita e desenhada);
  * `nervuras` = barras corridas nas nervuras de cada direção (0 = a da laje, 1 = transversal); `detalhada` sobrepõe a opção
  * `lajeBaseDetalhada` (desenhada e medida; senão só a descrição geral na listagem).
  */
-export interface BaseNervurada { mesa?: ArmaduraBaseLaje; nervuras?: [BaseNervuraDir | null, BaseNervuraDir | null]; detalhada?: boolean }
+export interface BaseNervurada { mesa?: ArmaduraBaseLaje; considerarMesa?: boolean; nervuras?: [BaseNervuraDir | null, BaseNervuraDir | null]; detalhada?: boolean }
 
 /** Tipo de vão da vigota: extremo (contínua numa ponta), intermediário (contínua nas duas), isolado (biapoiada) ou balanço. */
 export type TipoVao = 'extremo' | 'intermediario' | 'isolado' | 'balanco';
