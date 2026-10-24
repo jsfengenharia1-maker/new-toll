@@ -159,6 +159,24 @@ export interface OpcoesCalculo {
   vigotaRedistribuir: number;
   /** 1 = flecha das vigotas por ficha e moldadas com a rigidez fissurada de Branson (ficha do fabricante ou seção T); 0 = rigidez total. */
   vigotaBranson: number;
+  /** 1 = igualação das vigotas pela área de aço, em cadeia entre vizinhas (E5e, C7.100); 0 = pelos momentos (grupo cresce pela diferença dos extremos). */
+  vigotaIgualacaoBase: number;
+  /** 1 = verifica a flecha de montagem da vigota sobre escoras (E5e, C7.102); 0 = não verifica. */
+  vigotaMontagem: number;
+  /** Vigotas: distância máxima entre escoras (m) na montagem (0 = sem escora, biapoiada). */
+  vigotaEscoraDist: number;
+  /** Vigotas: carga de construção na montagem (kN/m²). */
+  vigotaCargaConstrucao: number;
+  /** Vigotas: limite da flecha de montagem = vão entre escoras / este valor. */
+  vigotaMontagemLimite: number;
+  /** Vigotas: altura da sapata de concreto da vigota (cm) na rigidez da vigota isolada. */
+  vigotaMontagemSapata: number;
+  /** 1 = estribo das nervuras moldadas em ômega (aberto no topo, com abas na capa); 0 = estribo fechado (E5e, C7.194). */
+  vigotaEstriboOmega: number;
+  /** Comprimento da aba horizontal de cada perna do estribo em ômega (cm). */
+  vigotaOmegaAba: number;
+  /** 1 = cortante das nervuras moldadas com estribo em todo o comprimento da vigota; 0 = só nas zonas onde V > VRd1 (E5e, C7.194). */
+  vigotaCortanteTotal: number;
   /** Alveolares (E3e): processo construtivo, 0 = com escoramento (contínua sob a carga total), 1 = sem escoramento por engaste aproximado (1 − peso próprio / carga total), 2 = sem escoramento em duas fases. */
   alveolarProcesso: number;
   /** Alveolares: passo da malha (barras da grelha na direção das placas), m. */
@@ -762,6 +780,24 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = nas lajes de vigotas por ficha (E3a), o EI (e o GJ, se a ficha informar) da nervura na grelha vem da ficha; 0 = inércia da seção T calculada pela geometria. Treliçadas do catálogo interno e fichas sem EI sempre usam a inércia calculada. O redutor “Vigotas: redutor da rigidez à flexão” continua valendo sobre o resultado.' },
   { chave: 'vigotaIgualacaoPonto', rotulo: 'Vigotas: igualação ponto a ponto', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonte: 'Programa de referência (C7.97): igualação ponto a ponto da discretização da vigota, com todas as combinações de todas as vigotas do grupo', fonteNBR: 'NBR 6118 não fixa o critério de igualação: pelos valores de pico de cada vigota', aConfirmar: false,
     descricao: '1 = vigotas de um grupo de igualação são igualadas em cada ponto da discretização (passo de 0,25 m) e o dimensionamento usa o pico do diagrama igualado; 0 = igualam-se os valores de pico de cada vigota. Pelo máximo (critério 1) os dois coincidem; pela média o ponto a ponto é menos conservador.' },
+  { chave: 'vigotaIgualacaoBase', rotulo: 'Vigotas: igualar pela área de aço', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.100): compara a área de aço de cada vigota com a vizinha e iguala se a diferença é menor que o percentual, em cadeia pelo pano; padrão desligado para manter os resultados da E3b [a confirmar o padrão]', aConfirmar: true,
+    descricao: '1 = a diferença da opção “Vigotas: diferença para igualar” é medida entre as áreas de aço (positiva, com ρmín) de vigotas vizinhas, uma a uma em cadeia (a vigota entra no grupo se difere da anterior menos que o percentual do maior); pela média, a área média do grupo dá o momento de cálculo (negativos pela seção retangular da nervura). 0 = pelos momentos, o grupo cresce enquanto máximo − mínimo < diferença × máximo.' },
+  { chave: 'vigotaMontagem', rotulo: 'Vigotas: verificar a flecha de montagem', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.102: flecha por carga de montagem); critério de verificação e rigidez da vigota isolada a confirmar (pendências do usuário); desligada por padrão para manter os resultados da E3b', aConfirmar: true,
+    descricao: '1 = a vigota sozinha, sobre escoras a cada “distância entre escoras” (0 = biapoiada), com o peso próprio da laje fresca e a carga de construção, não pode ter flecha instantânea acima do limite (vão entre escoras ÷ divisor). Não vale para as moldadas no local.' },
+  { chave: 'vigotaEscoraDist', rotulo: 'Vigotas: distância entre escoras na montagem', unidade: 'm', min: 0, max: 5, passo: 0.1, padrao: 1.5, fonte: 'Prática usual (escoras a cada 1,0 a 1,5 m, conforme o fabricante) [a confirmar com o fabricante]', aConfirmar: true,
+    descricao: 'Vão máximo da vigota entre escoras (ou entre apoio e escora) na montagem; o número de escoras intermediárias é o menor que respeita a distância. 0 = sem escora.' },
+  { chave: 'vigotaCargaConstrucao', rotulo: 'Vigotas: carga de construção na montagem', unidade: 'kN/m²', min: 0, max: 5, passo: 0.1, padrao: 1, fonte: 'Prática usual de formas e escoramentos (1,0 kN/m²) [a confirmar na norma]', aConfirmar: true,
+    descricao: 'Somada ao peso próprio da laje (concreto fresco, enchimento e vigota) na verificação da flecha de montagem.' },
+  { chave: 'vigotaMontagemLimite', rotulo: 'Vigotas: limite da flecha de montagem (vão / …)', min: 100, max: 1000, passo: 50, padrao: 500, fonte: 'Adotado ℓ/500 do vão entre escoras [a confirmar com o fabricante e a norma]', aConfirmar: true,
+    descricao: 'Flecha instantânea máxima da vigota na montagem = vão entre escoras ÷ este valor.' },
+  { chave: 'vigotaMontagemSapata', rotulo: 'Vigotas: altura da sapata da vigota', unidade: 'cm', min: 1, max: 10, passo: 0.5, padrao: 3, fonte: 'Altura usual da base de concreto das vigotas treliçadas [a confirmar com o fabricante]', aConfirmar: true,
+    descricao: 'Altura da base de concreto da vigota isolada (largura = largura da nervura); com treliça, os banzos de aço somam a rigidez da vigota na montagem.' },
+  { chave: 'vigotaEstriboOmega', rotulo: 'Vigotas moldadas: estribo em ômega', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.194: estribo fechado ou em ômega); comprimento do ômega a confirmar (pendências do usuário); padrão estribo fechado', aConfirmar: true,
+    descricao: '1 = o comprimento do estribo das nervuras moldadas é o do ômega: base + duas pernas até a capa + uma aba horizontal em cada perna; 0 = estribo fechado (perímetro da nervura + ganchos).' },
+  { chave: 'vigotaOmegaAba', rotulo: 'Vigotas moldadas: aba do estribo em ômega', unidade: 'cm', min: 2, max: 20, passo: 1, padrao: 5, fonte: 'Adotado máx(5 cm; 10φ) como aba mínima [a confirmar]', aConfirmar: true,
+    descricao: 'Aba horizontal de cada perna do ômega ancorada na capa; vale o maior entre este valor e 10φ.' },
+  { chave: 'vigotaCortanteTotal', rotulo: 'Vigotas moldadas: cortante em todo o comprimento', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (C7.194: cortante em comprimento total); padrão só nas zonas necessárias', aConfirmar: true,
+    descricao: '1 = onde a vigota precisa de estribo, o espaçamento calculado é mantido do começo ao fim (uma única posição); 0 = só nas zonas das pontas onde o cortante passa de VRd1.' },
   { chave: 'vigotaRedistribuir', rotulo: 'Vigotas: redistribuição dos negativos', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Programa de referência (K1.4.2: redistribuição em vigas e vigotas, até 30 %); aqui limitada pela NBR 6118, 14.6.4.3 (δ ≥ 0,75; 0,90 em nós móveis), que prevalece sobre o 30 %; desligada por padrão para manter os resultados da R6 [a confirmar o padrão]', aConfirmar: true,
     descricao: '1 = os negativos nas pontas das vigotas (apoios contínuos) são reduzidos por δ = 1 − “Redistribuição de negativos das vigas” (limitado a 25 %: δ ≥ 0,75, ou 0,90 se γz > 1,1) depois dos mínimos e da igualação, e o positivo aumenta pela metade da soma das reduções (equilíbrio). 0 = sem redistribuição.' },
   { chave: 'vigotaBranson', rotulo: 'Vigotas: flecha com rigidez fissurada (Branson)', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 6118, 17.3.2.1.1 (Branson) e 17.3.1 (Mr); programa de referência (C7.31: rigidez total e fissurada da ficha); sem dado do fabricante, EI fissurado pelo estádio II da seção T [a confirmar]', aConfirmar: true,
@@ -1221,7 +1257,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'pilarInsuficienteSemDesenho', 'lajeNegativoVao', 'lajeNegativoBorda', 'lajeDecalagem', 'lajeBitolaMinima', 'lajeEspacamentoMinimo',
   'lajeArmaduraCanto', 'lajePernasNegativos', 'lajeBaseDetalhada', 'lajeBaseEmendaApoio', 'lajeReforcoReducao', 'lajeTelaTraspasse',
   'lajeEmendaConstrutiva', 'lajeUniformizarPilares', 'lajeUniformizarPilaresLargura', 'lajeArmaduraMedia', 'lajeSiglaReforco', 'lajeNumeracao',
-  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
+  'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'vigotaIgualacaoBase', 'vigotaMontagem', 'vigotaEscoraDist', 'vigotaCargaConstrucao', 'vigotaMontagemLimite', 'vigotaMontagemSapata', 'vigotaEstriboOmega', 'vigotaOmegaAba', 'vigotaCortanteTotal', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
   'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos',

@@ -102,13 +102,30 @@ export function dadosDasVigotas(r: ResultadoVigotas): DadosVigota[] {
   }));
 }
 
+/**
+ * Dados por grupo de qualquer laje de vigotas (E5e, C7.91): treliçadas e armadas (treliça e adicional), protendidas (só a família)
+ * e moldadas no local (armadura inferior e estribos do cortante).
+ */
+export function dadosDeResultado(r: ResultadoVigotas): DadosVigota[] {
+  if (!r.familia || r.familia === 'trelicada') return dadosDasVigotas(r);
+  return r.grupos.map((g) => {
+    const mPos = g.porMetro.mPos, v = g.porMetro.v;
+    if (r.familia === 'protendida') return { familia: 'protendida' as const, mPos, v };
+    if (r.familia === 'moldada') {
+      const b = g.positiva.barras, est = g.cortante.find((c) => c.estribo)?.estribo;
+      return { familia: 'moldada' as const, mPos, v, ...(b?.n ? { inferior: { phi: b.phi, comprimento: g.positiva.comprimento } } : {}), ...(est ? { estribos: { phi: est.phi, s: est.s } } : {}) };
+    }
+    return { familia: 'armada' as const, mPos, v, trelica: r.trelica || undefined, adicional: g.positiva.barras?.n ? { n: g.positiva.barras.n, phi: g.positiva.barras.phi, comprimento: g.positiva.comprimento } : null };
+  });
+}
+
 export interface RotuloVigota { /** índice da faixa (alinhamento) e do grupo de igualação */ faixa: number; grupo: number; pos: P; /** ponta do cortante (0 início, 1 fim); ausente nos momentos */ ponta?: 0 | 1; texto: string }
 
 /**
  * Rótulos da vista na planta, um por alinhamento (momentos e armadura inferior no meio; cortantes junto a cada ponta, a
  * 15 % do comprimento). `dados` vem de `dadosDasVigotas` ou, nas fichas armadas, protendidas e moldadas (E3b), do chamador.
  */
-export function rotulosDeVigotas(r: ResultadoVigotas, vista: VistaVigota, esforcos: boolean, dados: DadosVigota[] = dadosDasVigotas(r)): RotuloVigota[] {
+export function rotulosDeVigotas(r: ResultadoVigotas, vista: VistaVigota, esforcos: boolean, dados: DadosVigota[] = dadosDeResultado(r)): RotuloVigota[] {
   const out: RotuloVigota[] = [];
   r.faixas.forEach((f, i) => {
     const d = dados[f.grupo];
