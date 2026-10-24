@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 83 | 0 | 0 | 25 |
-| 7. Lajes | 195 | 121 | 7 | 0 | 67 |
+| 7. Lajes | 195 | 126 | 2 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **560** | **14** | **3** | **186** |
+| **Total** | **763** | **565** | **9** | **3** | **186** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 2 | 0 | 2 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 10 | 3 | 13 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 5 | 3 | 8 |
 
 ## 0. Apresentação do programa
 
@@ -504,18 +504,18 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.85 | Cortante em nervuradas moldadas no local (só pela norma espanhola EHE): fórmula alternativa sem dependência da armadura longitudinal. | Fora | — | EHE |
 | C7.86 | Dimensionamento de vigotas treliçadas de aço: todas as barras iguais, banzos iguais ou cada barra independente. | Fora | — |  |
 | | **7.2 Resultados de lajes (lido só o começo)** | | | |
-| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Parcial | V | aba Vigotas na janela da laje e camada "Armadura das lajes" na planta (R6); [V5] núcleo: `rotulosDeVigotas` combina momentos/tipos com esforços pela chave; vista na aba Esforços (AbaEsforcos.tsx); falta a camada na planta — Resíduo [V7b]: camada de esforços e armadura das vigotas na planta. |
+| C7.87 | Vistas de resultados das lajes de vigotas na aba de resultados, com a opção de mostrar momentos/tipos combinada com a de mostrar esforços. O texto termina aqui. | Feito | — | aba Vigotas na janela da laje e camada "Armadura das lajes" na planta (R6); [V5] núcleo: `rotulosDeVigotas` combina momentos/tipos com esforços pela chave; vista na aba Esforços (AbaEsforcos.tsx); [V7b] camada na planta: lista "Vigotas" no grupo Camadas da faixa Vista (`CamadaVigotas.tsx`, estado de `plantaStore` compartilhado com a ficha da laje), texto ao lado de cada vigota no canvas e legenda da grandeza (`opcoesDeVistaVigotas`, `legendaVigotas` em `vigotasVista.ts`; e2e V7b) |
 
 ## 7. Lajes (continuação)
 
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.2.1.1 Vistas de resultados das lajes de vigotas (continuação)** | | | |
-| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Parcial | V | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); [V5] núcleo: `textoVigota` com a chave desligada (protendida, armada com treliça e adicional, moldada com φ e comprimento); protendida e moldada dependem da E3b; aço fora; falta a camada na planta — Resíduo [V7b]: camada de esforços e armadura das vigotas na planta. |
-| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Parcial | V | momento positivo por nervura na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (M por metro de largura, majorado, junto a cada vigota); falta a camada na planta — Resíduo [V7b]: camada de esforços e armadura das vigotas na planta. |
-| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Parcial | V | cortante por nervura com VRd1 na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (V por metro nas duas pontas, ou a treliça, ou φ e espaçamento dos estribos); falta a camada na planta — Resíduo [V7b]: camada de esforços e armadura das vigotas na planta. |
+| C7.88 | Com a exibição de esforços desligada, a vista de momentos mostra em vez dos valores o tipo de vigota (protendida ou armada), o perfil (vigota de aço e treliça metálica) ou o diâmetro e comprimento da armadura inferior (vigota moldada no local). | Feito | — | rótulo do grupo e armadura adicional por nervura na planta da laje (R6); [V5] núcleo: `textoVigota` com a chave desligada (protendida, armada com treliça e adicional, moldada com φ e comprimento; moldada e protendida pela E3b); vigota de aço fora do escopo (aço no edifício); [V7b] camada na planta: lista "Vigotas" no grupo Camadas da faixa Vista (`CamadaVigotas.tsx`, estado de `plantaStore` compartilhado com a ficha da laje), texto ao lado de cada vigota no canvas e legenda da grandeza (`opcoesDeVistaVigotas`, `legendaVigotas` em `vigotasVista.ts`; e2e V7b) |
+| C7.89 | Com a exibição de esforços ligada, mostra o momento positivo de cálculo por metro de largura (já majorado) junto a cada vigota. | Feito | — | momento positivo por nervura na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (M por metro de largura, majorado, junto a cada vigota); [V7b] camada na planta: lista "Vigotas" no grupo Camadas da faixa Vista (`CamadaVigotas.tsx`, estado de `plantaStore` compartilhado com a ficha da laje), texto ao lado de cada vigota no canvas e legenda da grandeza (`opcoesDeVistaVigotas`, `legendaVigotas` em `vigotasVista.ts`; e2e V7b) |
+| C7.90 | Vista de cortantes: com esforços ligados, mostra a cortante de cálculo por metro; desligados, mostra o tipo de treliça (vigota armada pré-fabricada) ou o diâmetro e espaçamento dos estribos (vigota moldada no local). | Feito | — | cortante por nervura com VRd1 na tabela e nos diagramas (R6); [V5] núcleo: `textoVigota` (V por metro nas duas pontas, ou a treliça, ou φ e espaçamento dos estribos); [V7b] camada na planta: lista "Vigotas" no grupo Camadas da faixa Vista (`CamadaVigotas.tsx`, estado de `plantaStore` compartilhado com a ficha da laje), texto ao lado de cada vigota no canvas e legenda da grandeza (`opcoesDeVistaVigotas`, `legendaVigotas` em `vigotasVista.ts`; e2e V7b) |
 | C7.91 | Vista da armadura inferior das lajes moldadas no local, indisponível quando a exibição de esforços está ligada. | Feito | — | vista na planta dos textos das vigotas (momentos, cortantes ou armadura inferior das moldadas) pela chave de esforços; a armadura inferior fica indisponível com os esforços ligados (`dadosDeResultado`, `rotulosDeVigotas`, `vistaDisponivel` em `vigotasVista.ts`; `VistaNaPlanta` em `VigotasFicha.tsx`; textos no canvas de `Planta.tsx`; e2e f_E5e) [E3b/V5/E5e] |
-| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Parcial | V | [V5] núcleo: chave geral `esforcos` em `rotulosDeVigotas`/`textoVigota`, que condiciona as vistas e desliga a armadura inferior (C7.91); interface na aba Esforços (AbaEsforcos.tsx); falta a camada na planta — Resíduo [V7b]: camada de esforços e armadura das vigotas na planta. |
+| C7.92 | Chave geral de exibição de esforços para todos os tipos de vigota, que condiciona as vistas de momentos e de cortantes. | Feito | — | [V5] núcleo: chave geral `esforcos` em `rotulosDeVigotas`/`textoVigota`, que condiciona as vistas e desliga a armadura inferior (C7.91); interface na aba Esforços (AbaEsforcos.tsx); [V7b] camada na planta: lista "Vigotas" no grupo Camadas da faixa Vista (`CamadaVigotas.tsx`, estado de `plantaStore` compartilhado com a ficha da laje), texto ao lado de cada vigota no canvas e legenda da grandeza (`opcoesDeVistaVigotas`, `legendaVigotas` em `vigotasVista.ts`; e2e V7b); a chave "Esforços das vigotas" muda a vista da armadura inferior para momentos |
 | C7.93 | Exibição agrupada: mostra um só valor de esforço/tipo para cada grupo de vigotas iguais. | Feito | — | rótulo "Gn · n vigotas" por grupo de igualação na planta e uma linha por grupo na tabela (R6) |
 | C7.94 | Armadura superior em lajes inclinadas: desenho do dobramento ao lado da barra. | Feito | — | E3f: dobraDaBarra; E5a: sheets/armacaoInclinadas.ts desenharDobra (perfil desdobrado ao lado da barra, comprimento real) chamada em armacaoLajes.ts; premissa e5a-pranchas-inclinadas |
 | C7.95 | Armadura superior em lajes inclinadas: marca do ponto de dobra como traço perpendicular ao eixo da barra. | Feito | — | E3f: marcaDeDobra; E5a: desenharDobra desenha a marca (traço perpendicular ao eixo) em cada ponto de dobra nas pranchas de armação das lajes (armacaoLajes.ts) |

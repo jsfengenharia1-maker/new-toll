@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from '../building/analitico';
 import { dimensionarEdificio } from '../building/dimensionamento';
-import { diagramaVigotas, dadosDasVigotas, rotulosDeVigotas, textoVigota, vistaDisponivel, type DadosVigota } from './vigotasVista';
+import { diagramaVigotas, dadosDasVigotas, legendaVigotas, opcoesDeVistaVigotas, rotulosDeVigotas, textoVigota, vistaDisponivel, type DadosVigota } from './vigotasVista';
 import { hipotesesDeEsforco, type Envoltoria } from './esforcosCaso';
 
 /** Duas lajes treliçadas H12+4 (vãos 4 + 4 m em x, 5 m em y; vigotas em x), sem vento. */
@@ -100,5 +100,26 @@ describe('vistas das vigotas na planta com a chave de esforços (C7.87 a C7.92)'
     expect(vOff).toHaveLength(r.faixas.length);
     expect(vOff[0].texto).toBe('TR 12645');
     expect(rotulosDeVigotas(r, 'armaduraInferior', false)).toEqual([]);
+  });
+});
+
+describe('camada das vigotas na planta (V7b)', () => {
+  it('a armadura inferior sai de oferta com os esforços ligados e os rótulos mudam com a chave', () => {
+    const off = opcoesDeVistaVigotas(false), on = opcoesDeVistaVigotas(true);
+    expect(off.map((o) => o.v)).toEqual(['nenhuma', 'momentos', 'cortantes', 'armaduraInferior']);
+    expect(off.every((o) => o.disponivel)).toBe(true);
+    expect(on.find((o) => o.v === 'armaduraInferior')!.disponivel).toBe(false);
+    expect(on.filter((o) => o.v !== 'armaduraInferior').every((o) => o.disponivel)).toBe(true);
+    expect(on.find((o) => o.v === 'momentos')!.label).toBe('Momentos');
+    expect(off.find((o) => o.v === 'momentos')!.label).toBe('Tipo de vigota');
+  });
+  it('a legenda descreve a grandeza escrita e é vazia sem texto ou com vista indisponível', () => {
+    expect(legendaVigotas('nenhuma', true)).toBe('');
+    expect(legendaVigotas('armaduraInferior', true)).toBe('');
+    expect(legendaVigotas('momentos', true)).toMatch(/momento positivo.*kN·m\/m/);
+    expect(legendaVigotas('cortantes', true)).toMatch(/cortante.*kN\/m/);
+    expect(legendaVigotas('armaduraInferior', false)).toMatch(/armadura inferior/);
+    expect(legendaVigotas('cortantes', false)).toMatch(/treliça.*estribos/);
+    expect(legendaVigotas('momentos', false)).toMatch(/tipo/);
   });
 });

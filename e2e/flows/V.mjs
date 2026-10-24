@@ -859,3 +859,47 @@ export const f_V7a = {
       await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pilar]').getAttribute('data-esf-pilar')).hipotese.startsWith('env:'));
     },
   };
+
+export const f_V7b = {
+    name: 'V7b: camada das vigotas na planta (vista, chave geral de esforços e legenda)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [4, 0], [0, 5], [4, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [4, 0]], [[0, 5], [4, 5]], [[0, 0], [0, 5]], [[4, 0], [4, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "moldada", "capa": 0.05, "intereixo": 0.5, "bw": 0.12, "h": 0.25, "enchimento": "eps"}}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await faixaAba(page, 'Vista');
+      const cv = page.locator('.planta-cv');
+      const vista = page.getByLabel('Vista das vigotas na planta');
+      const esf = page.getByLabel('Esforços das vigotas');
+      const rot = async () => parseInt(await cv.getAttribute('data-vigotas-rotulos'), 10);
+      // sem texto por padrão
+      await vista.waitFor();
+      assert.equal(await vista.inputValue(), 'nenhuma');
+      assert.equal(await rot(), 0);
+      assert.equal(await cv.getAttribute('data-vigotas-legenda'), '');
+      // armadura inferior (moldadas): φ e comprimento, sem esforços
+      await vista.selectOption('armaduraInferior');
+      await page.waitForFunction(() => parseInt(document.querySelector('.planta-cv').getAttribute('data-vigotas-rotulos'), 10) > 0);
+      assert.match(await cv.getAttribute('data-vigotas-legenda'), /armadura inferior/);
+      // chave geral de esforços: a armadura inferior sai de oferta e a vista passa a momentos por metro
+      await esf.check();
+      assert.equal(await vista.inputValue(), 'momentos');
+      assert.equal(await vista.locator('option[value="armaduraInferior"]').isDisabled(), true);
+      await page.waitForFunction(() => /momento positivo/.test(document.querySelector('.planta-cv').getAttribute('data-vigotas-legenda')));
+      assert.ok((await rot()) > 0);
+      await vista.selectOption('cortantes');
+      await page.waitForFunction(() => /cortante de cálculo/.test(document.querySelector('.planta-cv').getAttribute('data-vigotas-legenda')));
+      // esforços desligados: tipo da vigota
+      await esf.uncheck();
+      await vista.selectOption('momentos');
+      await page.waitForFunction(() => /tipo/.test(document.querySelector('.planta-cv').getAttribute('data-vigotas-legenda')));
+      await vista.selectOption('nenhuma');
+      await page.waitForFunction(() => document.querySelector('.planta-cv').getAttribute('data-vigotas-rotulos') === '0');
+    },
+  };

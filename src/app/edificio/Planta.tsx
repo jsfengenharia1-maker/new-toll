@@ -1,6 +1,6 @@
 // Planta do pavimento em Canvas 2D, em três camadas: máscara (com cache durante pan/zoom), modelo e interação.
 // Toda alteração vira comando do registro; a planta só calcula pontos (capturas, ortogonal/polar, digitação).
-import { rotulosDeVigotas } from '../../core/resultados/vigotasVista';
+import { legendaVigotas, rotulosDeVigotas } from '../../core/resultados/vigotasVista';
 import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { ehNervurada, rotuloLaje } from '../../core/building/tiposLaje';
 import { arranjoDaLaje } from '../../core/building/nervuradas';
@@ -679,10 +679,12 @@ export function Planta() {
         if (v.k > 40 && x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
       }
     }
-    if (wrap.current) wrap.current.dataset.vigotasRotulos = String(rotVigotas.length);
+    if (wrap.current) { wrap.current.dataset.vigotasRotulos = String(rotVigotas.length); wrap.current.dataset.vigotasLegenda = rotVigotas.length ? legendaVigotas(pl.vigotasVista, pl.vigotasEsforcos) : ''; }
     if (rotVigotas.length && v.k > 25) {
       ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cores.texto;
       for (const x of rotVigotas) { const [tx, ty] = paraTela(x.pos[0], x.pos[1]); ctx.fillText(x.texto, tx, ty - 8); }
+      const leg = legendaVigotas(pl.vigotasVista, pl.vigotasEsforcos);
+      if (leg) { ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(leg, 12, (wrap.current?.clientHeight || tam[1]) - 12); }
     }
     // lajes alveolares (E3e): placas numeradas com largura e comprimento; borda cortada e oblíqua em aviso; insuficiente em vermelho (camada opcional)
     if (wrap.current) wrap.current.dataset.placasAlveolares = String(placasPlanta.length);

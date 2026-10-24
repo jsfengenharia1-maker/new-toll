@@ -2,6 +2,7 @@
 import { useRef, type ReactNode } from 'react';
 import { Dropdown, Input, RibbonButton, RibbonGroup } from '../ui';
 import { CoresPlanta } from './CoresPlanta';
+import { CamadaVigotas } from './CamadaVigotas';
 import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
 import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { PlanosFaixa } from './PlanosUI';
@@ -257,6 +258,7 @@ function Vista() {
             <option value="">Vento na planta: não</option>{an.vento.casos.map((c) => <option key={c.nome} value={c.nome}>Vento na planta: {c.nome}</option>)}
           </Dropdown>}
           <label className="check small"><Input type="checkbox" checked={pl.inferior} onChange={(e) => pl.set({ inferior: e.target.checked })} /> <span>Inferior</span></label>
+          {!!dim?.vigotas?.length && <CamadaVigotas />}
           {!!dim?.vigotas?.length && <label className="check small" title="Lajes treliçadas: desenha todas as faixas de vigotas em vez de uma por grupo de igualação"><Input type="checkbox" checked={pl.vigotasTodas} onChange={(e) => pl.set({ vigotasTodas: e.target.checked })} /> <span>Mostrar todas as faixas</span></label>}
           {nivelFund && (b.fundacao?.radiers?.length || b.fundacao?.vigasElasticas?.length) ? <Dropdown aria-label="Mapa da base elástica" title="Valor por nó da base elástica (envoltória das raras), depois de calcular" value={pl.mapaBase} disabled={!dim?.radiers?.length && !dim?.vigasElasticas?.length} onChange={(e) => pl.set({ mapaBase: e.target.value as 'nenhum' | 'tensao' | 'recalque' })}>
           <option value="nenhum">Mapa da base elástica: não</option><option value="tensao">Mapa: tensão no solo</option><option value="recalque">Mapa: recalque</option>
