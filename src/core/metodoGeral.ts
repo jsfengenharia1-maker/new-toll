@@ -67,8 +67,28 @@ function sigma(e: number, c: Concrete, pico: number) {
  * Concreto com 1,1 × σcd (FATOR_FCD_SEGUNDA_ORDEM), aço bilinear com fyd.
  */
 export function relacaoMCurvatura(S: FiberSection, N: number, dir: 0 | 1, pontos = 40): ((M: number) => number | null) | null {
+  // A relação só depende da malha, das barras, do material e de N: a mesma seção é reavaliada por várias combinações e trechos.
+  let porMalha = cacheRelacao.get(S.mesh);
+  if (!porMalha) { porMalha = new Map(); cacheRelacao.set(S.mesh, porMalha); }
+  const chave = [dir, pontos, N, S.fyd, S.cx, S.cy, S.c.sigmaCd, S.c.ec2, S.c.ecu, S.c.n, S.poly.join(';'), S.bars.map((b) => b.x + ',' + b.y + ',' + b.A).join(';')].join('|');
+  if (porMalha.has(chave)) return porMalha.get(chave)!;
+  const r = calcularRelacao(S, N, dir, pontos);
+  porMalha.set(chave, r);
+  return r;
+}
+
+const cacheRelacao = new WeakMap<object, Map<string, ((M: number) => number | null) | null>>();
+
+/** Fibras com a mesma ordenada s (colunas da malha) somam as áreas: a força depende só de s. */
+function agrupar(itens: { s: number; A: number }[]) {
+  const m = new Map<number, number>();
+  for (const f of itens) m.set(f.s, (m.get(f.s) ?? 0) + f.A);
+  return [...m].map(([s, A]) => ({ s, A }));
+}
+
+function calcularRelacao(S: FiberSection, N: number, dir: 0 | 1, pontos: number): ((M: number) => number | null) | null {
   const pico = FATOR_FCD_SEGUNDA_ORDEM * S.c.sigmaCd;
-  const fs = S.mesh.map((f) => ({ s: (dir === 0 ? f.x - S.cx : f.y - S.cy), A: f.A }));
+  const fs = agrupar(S.mesh.map((f) => ({ s: (dir === 0 ? f.x - S.cx : f.y - S.cy), A: f.A })));
   const bs = S.bars.map((b) => ({ s: (dir === 0 ? b.x - S.cx : b.y - S.cy), A: b.A }));
   const sMax = Math.max(...S.poly.map((p) => (dir === 0 ? p[0] - S.cx : p[1] - S.cy)));
   const sMin = Math.min(...S.poly.map((p) => (dir === 0 ? p[0] - S.cx : p[1] - S.cy)));
