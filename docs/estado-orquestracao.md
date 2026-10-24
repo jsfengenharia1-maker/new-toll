@@ -17,16 +17,15 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 
 ## Rodada em andamento
 24/10/2026 (conferir ao retomar):
-- (a) `cartao` (Haiku): E4b (01–06) → E4c (01–04) + checklists/histórico de E4a, E4b, E4c.
-- (b) `cartao` (Haiku): E3e (01–05) → E3f (01–04) + linhas de checklist de E3c, E3d, E3e, E3f (notas nos 00-leia-primeiro/00-indice).
-- (c) `nucleo` (Sonnet alto): desempenho — `criarExemplo('telhado')` com `planoDiafragma` ligado não termina a análise em 5–9 min; e os testes lentos telhado/cobertura.
-Regra dada aos `cartao`: testes de inventário de UI (contagem de ícones, seções da árvore, ferramentas, grupos) podem ser atualizados quando o cartão acrescenta aquele item; valores de cálculo nunca.
+- (a) `nucleo` (Sonnet alto): E4d — armadura e detalhamento das escadas (núcleo + cartões em `docs/cartoes/E4d/`).
+- (b) `nucleo` (Sonnet médio): L3 — importação IFC (web-ifc vendorizado, aceito), núcleo + cartões em `docs/cartoes/L3/`.
+- (c) auditoria independente da frente V (agente que não a executou), relatório em `docs/auditorias/auditoria-V.md`.
 
-Última rodada fechada em 24/10/2026: cartões V5, E3c, E3d e E4a aplicados; cartões E3e e E3f (TSX) escritos e validados. 1.632 testes, 95 e2e, pacote 4.392 KB. Fluxos R3b/R4/R6 ajustados ao título novo do resumo de aço (com nervuradas).
+Última rodada fechada em 24/10/2026: cartões E3e, E3f, E4b e E4c aplicados; LDLᵀ esparso (`src/core/sparseldl.ts`, grau mínimo) no `fe3d.ts` acima de n·hb² > 4e8 — telhado com diafragma de >10 min para ~3,5 s, vitest completo de ~9 min para ~4 min. Sete itens da E3f com ressalva rebaixados a Parcial (C7.1, C7.8, C7.15, C7.66, C7.67, C7.77, C7.195). 1.648 testes, 105 e2e, pacote 4.492 KB.
 
 ## Próxima rodada (depois desta)
-1. E4d (armadura das escadas, núcleo Sonnet alto), E4e.
-2. L3 (IFC), FU7c, auditorias E/L/V, fechamento.
+1. Executar cartões E4d e L3 (Haiku/Sonnet conforme a fatia); E4e (relatório, desenhos e fechamento da frente E).
+2. FU7c, auditorias E e L, fechamento.
 
 ## Fila depois disso
 - E4d–E4e (escadas), L3 (IFC).
@@ -41,4 +40,4 @@ Regra dada aos `cartao`: testes de inventário de UI (contagem de ícones, seç�
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.632 testes, 95 fluxos e2e (paralelo), pacote 4.392 KB.
+1.648 testes, 105 fluxos e2e (paralelo), pacote 4.492 KB.
