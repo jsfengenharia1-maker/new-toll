@@ -23,7 +23,7 @@ export interface CaissonResult extends CaissonTry {
   tries: CaissonTry[];
 }
 
-const vol = (Df: number, Db: number, L: number, Hc: number, rod: number) => {
+export const vol = (Df: number, Db: number, L: number, Hc: number, rod: number) => {
   const base = Db > Df + 1e-9 ? (Math.PI / 12) * Hc * (Db * Db + Db * Df + Df * Df) + (Math.PI * Db * Db * rod) / 4 : 0;
   const fuste = (Math.PI * Df * Df) / 4 * Math.max(0, L - (Db > Df + 1e-9 ? Hc + rod : 0));
   return fuste + base;

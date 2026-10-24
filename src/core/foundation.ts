@@ -36,7 +36,7 @@ export function capCols(ld: FLoad): CapCol[] | undefined {
   return g.cols.map((q, i) => ({ label: q.label, x: q.x, y: q.y, ap: q.ap, bp: q.bp, Nk: cb.cols[i].N }));
 }
 
-const capExtra = (ld: FLoad) => ({ cols: capCols(ld), ...(ld.fixed ? { fixed: { lx: ld.fixed.A, ly: ld.fixed.B, h: ld.fixed.h ?? 0, ...(ld.fixed.bars?.x ? { bars: { phi: ld.fixed.bars.x.phi, n: ld.fixed.bars.x.n ?? 2 } } : {}) } } : {}) });
+export const capExtra = (ld: FLoad) => ({ cols: capCols(ld), ...(ld.fixed ? { fixed: { lx: ld.fixed.A, ly: ld.fixed.B, h: ld.fixed.h ?? 0, ...(ld.fixed.bars?.x ? { bars: { phi: ld.fixed.bars.x.phi, n: ld.fixed.bars.x.n ?? 2 } } : {}) } } : {}) });
 
 export function capFor(s: PileSolution, ld: FLoad, f: FoundationData): CapResult {
   const { ap, bp } = columnOf(ld, f.params);

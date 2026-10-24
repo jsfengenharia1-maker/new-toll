@@ -7,7 +7,10 @@ import { TIPO_FUNDACAO_LABEL, type ResultadoFundacao } from '../building/fundaca
 import { referenciaDoPP } from '../building/fundacaoPilarParede';
 import { casosDaObra, type BuildingModel } from '../building/types';
 import { fm, fp, type Registrador, type ValorMemoria } from './registrador';
+import { registrarBloco } from './bloco';
+import { registrarEstaca } from './estaca';
 import { registrarSapata } from './sapata';
+import { registrarTubulao } from './tubulao';
 
 type Reacao = AnaliseEdificio['fundacao'][number];
 
@@ -24,6 +27,8 @@ export function registrarFundacoes(mem: Registrador, b: BuildingModel, bb: Pick<
     for (const id of r.pilarIds) registrarCargasPilar(mem, el, b, bb, id, r.pilarIds.length > 1);
     registrarCargaAdotada(mem, el, r);
     if (r.tipo === 'sapata' && r.projeto) registrarSapata(mem, el, r.projeto);
+    else if (r.tipo === 'bloco' && r.projeto) { registrarEstaca(mem, el, r.projeto); registrarBloco(mem, el, r.projeto); }
+    else if (r.tipo === 'tubulao' && r.projeto) registrarTubulao(mem, el, r.projeto);
     resumoElemento(mem, el, r);
   }
 }
@@ -93,7 +98,7 @@ function registrarCargaAdotada(mem: Registrador, el: string, r: ResultadoFundaca
   mem.passo({ etapa: 'esforcos', elemento: el, topico: 'Carga adotada no elemento', descricao: `Carga característica usada no cálculo do elemento (momentos e forças horizontais girados para os eixos do elemento, ${fm(r.angulo)}°${extra.length ? `; ajustes: ${extra.join('; ')}` : ''}${c.source ? `; origem: ${c.source}` : ''})`, formula: 'Nk; Nk,mín; Nk,perm; H; M', expressao: `Nk = ${fm(c.Nk)} kN; Nk,mín = ${fm(c.NkMin)} kN; Nk,perm = ${fm(c.NkPerm ?? c.Nk)} kN; H = (${fm(c.Hx)}; ${fm(c.Hy)}) kN; M = (${fm(c.Mx)}; ${fm(c.My)}) kN·m`, resultado: c.Nk, unidade: 'kN', norma: 'NBR 6122:2019, 5.5', entradas: ent });
 }
 
-/** Resumo do elemento: dimensões e situação (as cadeias de blocos, estacas e tubulões vêm na fatia das fundações profundas). */
+/** Resumo do elemento: dimensões e situação. */
 function resumoElemento(mem: Registrador, el: string, r: ResultadoFundacao) {
   const dims: Record<string, ValorMemoria> = {};
   for (const [k, v] of Object.entries(r.dims)) if (typeof v === 'number') dims[k] = v;

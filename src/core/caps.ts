@@ -83,7 +83,7 @@ export function strutTops(coords: [number, number][], ap: number, bp: number, G 
 }
 
 /** Resolve o equilíbrio horizontal dos nós (estacas) da treliça plana de tirantes por mínimos quadrados. */
-function solveTies(coords: [number, number][], edges: [number, number][], h: [number, number][]): number[] {
+export function solveTies(coords: [number, number][], edges: [number, number][], h: [number, number][]): number[] {
   const m = edges.length, n = coords.length;
   const A: number[][] = Array.from({ length: 2 * n }, () => new Array(m).fill(0));
   edges.forEach(([a, b], e) => {

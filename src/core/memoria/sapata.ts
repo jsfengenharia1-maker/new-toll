@@ -8,6 +8,7 @@ import { basePressure, isFooting, kTable, overhangMoment, sptSigma, type Footing
 import type { FoundationParams } from '../piles';
 import { anchorageLength, bestBars, spacedBars } from '../rebar';
 import { fm, type Registrador, type ValorMemoria } from './registrador';
+import { cadeiaSapataGrupo } from './sapataGrupo';
 import { flexao } from './vigaConcreto';
 
 type Chave = Omit<Parameters<Registrador['passo']>[0], 'elemento' | 'etapa' | 'topico'>;
@@ -23,8 +24,9 @@ export function entradaSapata(d: SupportDesign): FootingInput {
 /** Cadeia completa de uma sapata isolada (ignora silenciosamente o que não for sapata isolada calculada com a memória ligada). */
 export function registrarSapata(mem: Registrador, el: string, d: SupportDesign): void {
   const f = d.footing, data = dadosDoProjeto.get(d);
-  if (!f || !isFooting(f) || !data || d.load.group) return;
-  cadeiaSapata(mem, el, entradaSapata(d), data.params, f);
+  if (!f || !isFooting(f) || !data) return;
+  if (d.load.group) cadeiaSapataGrupo(mem, el, { ...entradaSapata(d), group: d.load.group }, data.params, f);
+  else cadeiaSapata(mem, el, entradaSapata(d), data.params, f);
 }
 
 export function cadeiaSapata(mem: Registrador, el: string, inp: FootingInput, p: FoundationParams, f: FootingResult): void {
