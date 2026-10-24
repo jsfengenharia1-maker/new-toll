@@ -30,6 +30,7 @@ import { EscadaHost } from './EscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { Pranchas } from './Pranchas';
 import { AlveolarCampos, tipoAlveolarInicial } from './AlveolarTipo';
+import { AlveolaresGrupo } from './AlveolaresUI';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { FogoCard } from './FogoCard';
@@ -222,6 +223,7 @@ export function Edificio() {
           <VigasGrupo b={b} />
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
+          <AlveolaresGrupo b={b} />
           <NervuradasGrupo b={b} />
           <AbacosGrupo b={b} />
           <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
