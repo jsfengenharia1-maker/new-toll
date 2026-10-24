@@ -113,7 +113,7 @@ export const f_MD2 = {
   };
 
 export const f_MD3 = {
-    name: 'MD3: memória de cálculo detalhada das nervuradas (seção T, regime de cisalhamento, negativos, mesa, quantitativo) e das vigotas treliçadas (treliça, grupos, montagem, distribuição; HTML, JSON e CSV)',
+    name: 'MD3: memória de cálculo detalhada das nervuradas, das vigotas (treliçadas e por ficha), da flecha por alinhamento e das alveolares (HTML, JSON e CSV)',
     async run({ newPage }) {
       const montar = async (tipo, opcoes) => {
         const page = await newPage();
@@ -164,6 +164,32 @@ export const f_MD3 = {
         const dosL1 = mem.passos.filter((p) => p.elemento === 'Laje L1');
         assert.ok(dosL1.length > 40 && dosL1.every((p) => p.id && p.formula && p.expressao));
         assert.ok(dosL1.some((p) => p.topico === 'Montagem sobre escoras' && typeof p.entradas.q === 'number'));
+        await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+        await dlg.waitFor({ state: 'detached' });
+      }
+      // vigotas por ficha (armada): ficha, tipo da série e flecha de cada alinhamento (Branson)
+      {
+        const { page, dlg, doc } = await montar('{"tipo": "vigotas", "ficha": "ex:armada", "serie": "A12"}');
+        const t = await doc.innerText();
+        for (const s of ['Laje L1', 'Ficha e série', 'Grupo 1 – esforços', 'Grupo 1 – flexão positiva', 'Grupo 1 – cortante na ponta inicial', 'Distribuição na capa', 'Flecha do alinhamento 1']) assert.ok(t.includes(s), `falta "${s}" nas vigotas por ficha`);
+        assert.match(t, /Tipo da série/);
+        const mem = JSON.parse(await baixar(page, dlg, 'Exportar JSON'));
+        const dosL1 = mem.passos.filter((p) => p.elemento === 'Laje L1');
+        assert.ok(dosL1.length > 60 && dosL1.every((p) => p.id && p.formula && p.expressao));
+        assert.ok(dosL1.some((p) => p.topico === 'Ficha e série' && typeof p.entradas.nCandidatos === 'number'));
+        assert.ok(dosL1.some((p) => /^Flecha do alinhamento \d+/.test(p.topico) && /^Alinhamento \d+/.test(p.descricao) && typeof p.entradas.kappa === 'number'));
+        await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+        await dlg.waitFor({ state: 'detached' });
+      }
+      // lajes alveolares: placa, envoltória por metro, escolha da placa, apoios
+      {
+        const { page, dlg, doc } = await montar('{"tipo": "alveolar", "ficha": "ex:alveolar", "placa": "A25-3"}');
+        const t = await doc.innerText();
+        for (const s of ['Laje L1', 'Placa e cargas', 'Esforços por metro', 'Escolha da placa', 'Placas e apoios', 'Quantitativo']) assert.ok(t.includes(s), `falta "${s}" nas alveolares`);
+        const mem = JSON.parse(await baixar(page, dlg, 'Exportar JSON'));
+        const dosL1 = mem.passos.filter((p) => p.elemento === 'Laje L1');
+        assert.ok(dosL1.length > 20 && dosL1.every((p) => p.id && p.formula && p.expressao));
+        assert.ok(dosL1.some((p) => p.topico === 'Esforços por metro' && /^Placa \d+/.test(p.descricao) && typeof p.entradas.r_mPos === 'number'));
         await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
         await dlg.waitFor({ state: 'detached' });
       }

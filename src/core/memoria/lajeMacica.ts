@@ -1,6 +1,7 @@
 // Memória detalhada (MD fase 2): cadeia da laje maciça do módulo Edifícios. Chamada por `dimensionarLajes` e por
 // `detalharLaje` só com a memória ligada, com os mesmos números usados no cálculo (os que já existem e os recalculados
 // aqui pelas mesmas funções determinísticas: beamFlexure, crackWidth, bransonFlecha).
+import { passoFase1, passosBransonNervura, type DetBransonNerv, type DetFase1 } from './flechaBranson';
 import { beamFlexure, type BeamSection, type Concrete } from '../concrete';
 import { vcLaje } from '../building/puncao';
 import type { ComposicaoEtapas, FlechasElemento, FlechasInstantaneas } from '../building/flechas';
@@ -179,7 +180,9 @@ export function registrarLajeCortante(mem: Registrador, el: string, x: CtxLajeCo
 
 export interface DetFiss { barra: number; dir: 0 | 1; face: 'pos' | 'neg'; M: number; As: number; d: number; Mr: number; Ie: number; I1: number; III: number; f: number; n: number; nFiss: number; media?: { neg: number; pos: number; f: number }[]; el?: number; cr?: number }
 export interface CtxLajeFlecha {
-  c: Concrete; h: number; metodo: 'simplificado' | 'etapas' | 'fator'; fatorSimplificado: number; homogeneizada: boolean;
+  c: Concrete; h?: number; metodo: 'simplificado' | 'etapas' | 'fator'; fatorSimplificado: number; homogeneizada: boolean;
+  /** Fichas e nervuradas (MD3b): tópico próprio, Branson da nervura mais fissurada e a fase 1 das alveolares. */
+  topico?: string; fissN?: DetBransonNerv; fase1?: DetFase1;
   flQP: number; dG: number; dQ: number; dQqp: number; kappa: number; af: number; fiss?: DetFiss;
   f: FlechasElemento; comp: ComposicaoEtapas; inst: FlechasInstantaneas; qInst: 'total' | 'qp';
   fatA: number; fatC: number; total: number; ativa: number; variavel: number; lim: number; limQ: number;
@@ -187,13 +190,15 @@ export interface CtxLajeFlecha {
 
 /** Flechas imediatas, fissuração (Branson), diferida e totais, ativa e das variáveis. */
 export function registrarLajeFlecha(mem: Registrador, el: string, x: CtxLajeFlecha) {
-  const tf = 'Flecha (ELS-DEF)', c = x.c, f = x.f;
+  const tf = x.topico ?? 'Flecha (ELS-DEF)', c = x.c, f = x.f;
   const P = (p: Chave) => mem.passo({ etapa: 'dimensionamento', elemento: el, topico: tf, ...p });
   P({ descricao: 'Módulo secante do concreto', formula: 'Ecs = αi·Eci, αi = 0,8 + 0,2·fck/80 ≤ 1', expressao: `Ecs = ${fm(c.Ecs)}`, resultado: c.Ecs, unidade: 'MPa', norma: `${NBR}, 8.2.8`, entradas: { Eci: c.Eci, fck: c.fck } });
   P({ descricao: 'Flechas elásticas da grelha relativas aos apoios (maior flecha entre as linhas da malha da laje)', formula: 'f(qp): quase permanente; f(G): permanentes; f(Q): variáveis; f(ψ2·Q)', expressao: `f(qp) = ${fm(x.flQP * 1000)} mm; f(G) = ${fm(x.dG * 1000)} mm; f(Q) = ${fm(x.dQ * 1000)} mm; f(ψ2·Q) = ${fm(x.dQqp * 1000)} mm`, resultado: x.flQP, unidade: 'm', norma: `${NBR}, 17.3.2.1`, entradas: { flQP: x.flQP, dG: x.dG, dQ: x.dQ, dQqp: x.dQqp }, observacao: 'f(G), f(Q) e f(ψ2·Q) só são calculadas quando o método da NBR (etapas ou fissuração) está em uso.' });
+  if (x.fase1) passoFase1(mem, el, tf, x.fase1);
+  if (x.fissN) passosBransonNervura(mem, el, tf, x.fissN, x.kappa);
   const fi = x.fiss;
   if (fi) {
-    P({ descricao: `Fissuração (Branson) da barra mais fissurada da malha (barra ${fi.barra}, direção ${fi.dir}, armadura ${fi.face === 'pos' ? 'positiva' : 'negativa'}; ${fi.nFiss} de ${fi.n} barras com Ie < Ic)`, formula: 'Mr = α·fct,m·Ic/yt; Ie = (Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III ≤ Ic; f = Ie/Ic', expressao: `Mr = ${fm(fi.Mr)} kN·m/m; Ma = ${fm(fi.M)} kN·m/m; Ic = ${fm(fi.I1)}; III = ${fm(fi.III)} → Ie = ${fm(fi.Ie)} m⁴/m; Ie/Ic = ${fm(fi.f)}`, resultado: fi.f, unidade: '', norma: `${NBR}, 17.3.1 e 17.3.2.1.1`, aConfirmar: true, entradas: { Mr: fi.Mr, Ma: fi.M, Ic: fi.I1, III: fi.III, Ie: fi.Ie, h: x.h, As: fi.As, d: fi.d, homogeneizada: x.homogeneizada ? 1 : 0 }, observacao: x.homogeneizada ? 'Estádio I com a seção homogeneizada (opção).' : 'Estádio I com a seção bruta.' });
+    P({ descricao: `Fissuração (Branson) da barra mais fissurada da malha (barra ${fi.barra}, direção ${fi.dir}, armadura ${fi.face === 'pos' ? 'positiva' : 'negativa'}; ${fi.nFiss} de ${fi.n} barras com Ie < Ic)`, formula: 'Mr = α·fct,m·Ic/yt; Ie = (Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III ≤ Ic; f = Ie/Ic', expressao: `Mr = ${fm(fi.Mr)} kN·m/m; Ma = ${fm(fi.M)} kN·m/m; Ic = ${fm(fi.I1)}; III = ${fm(fi.III)} → Ie = ${fm(fi.Ie)} m⁴/m; Ie/Ic = ${fm(fi.f)}`, resultado: fi.f, unidade: '', norma: `${NBR}, 17.3.1 e 17.3.2.1.1`, aConfirmar: true, entradas: { Mr: fi.Mr, Ma: fi.M, Ic: fi.I1, III: fi.III, Ie: fi.Ie, h: x.h ?? 0, As: fi.As, d: fi.d, homogeneizada: x.homogeneizada ? 1 : 0 }, observacao: x.homogeneizada ? 'Estádio I com a seção homogeneizada (opção).' : 'Estádio I com a seção bruta.' });
     if (fi.media) for (const m of fi.media) P({ descricao: 'Inércia média do vão (opção): [(Ie,apoio + Ie,apoio)/2 + Ie,centro]/2 em Ie/Ic', formula: 'f = [(fneg + fneg)/2 + fpos]/2', expressao: `f = [(${fm(m.neg)} + ${fm(m.neg)})/2 + ${fm(m.pos)}]/2 = ${fm(m.f)}`, resultado: m.f, unidade: '', norma: `${NBR}, 17.3.2.1.1`, aConfirmar: true, entradas: { neg: m.neg, pos: m.pos } });
     if (fi.el !== undefined && fi.cr !== undefined) P({ descricao: 'Fator de fissuração da laje: grelha recomposta com Iz × Ie/Ic em cada barra, razão entre a flecha fissurada e a elástica', formula: 'κ = máx(1; δ,fissurada / δ,elástica)', expressao: `κ = máx(1; ${fm(fi.cr * 1000)}/${fm(fi.el * 1000)}) = ${fm(x.kappa)}`, resultado: x.kappa, unidade: '', norma: `${NBR}, 17.3.2.1.1`, aConfirmar: true, entradas: { cr: fi.cr, el: fi.el } });
   }
