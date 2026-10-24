@@ -922,3 +922,67 @@ export const f_E4b_copiar = {
       assert.equal(e2.lances[0].tipo, e1.lances[0].tipo);
     },
 };
+
+export const f_E4b_biblioteca = {
+    name: 'E4b-biblioteca: tipos de lance (em uso e bloqueio, desbloquear, copiar com nova referência, exportar, importar e biblioteca do usuário)',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      const abrirTipos = async (pg) => {
+        await faixaAba(pg, 'Lançamento');
+        await pg.getByRole('button', { name: 'Escadas…', exact: true }).click();
+        const j = pg.getByRole('dialog', { name: 'Escadas', exact: true });
+        await j.waitFor();
+        await j.getByRole('radio', { name: 'Tipos de lance', exact: true }).click();
+        return j;
+      };
+      const jan = await abrirTipos(page);
+      const tipo = jan.locator('[data-tipo-lance]').first();
+      await tipo.waitFor();
+      assert.match(await tipo.innerText(), /Em uso por 1 lance\(s\)/);
+      assert.match(await tipo.innerText(), /Bloqueado: o tipo é usado em outro lance/);
+      // campos desabilitados enquanto bloqueado; "Desbloquear" os habilita e a edição vale
+      await tipo.getByRole('button', { name: /^Editar / }).click();
+      const trechos = tipo.getByLabel('Degraus de cada trecho');
+      assert.equal(await trechos.isDisabled(), true);
+      await tipo.getByRole('button', { name: 'Salvar alterações do tipo', exact: true }).click();
+      await tipo.getByText(/bloqueado para edição/).waitFor();
+      await tipo.getByRole('button', { name: /^Desbloquear / }).click();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLance ?? [])[0]?.desbloqueado === true);
+      assert.equal(await trechos.isDisabled(), false);
+      await trechos.fill('10 + 8');
+      await tipo.getByRole('button', { name: 'Salvar alterações do tipo', exact: true }).click();
+      await page.waitForFunction(() => JSON.stringify((JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLance ?? [])[0]?.trechos) === '[10,8]');
+      // copiar com nova referência: o nome sugerido é "<nome> (cópia)"
+      await jan.locator('[data-tipo-lance]').first().getByRole('button', { name: /^Copiar com nova referência/ }).click();
+      await jan.getByRole('button', { name: 'Criar a cópia', exact: true }).click();
+      await jan.locator('[data-tipo-lance]').filter({ hasText: '(cópia)' }).waitFor();
+      // exportar da obra (.json)
+      await jan.getByText('Biblioteca de tipos de lance', { exact: true }).click();
+      const { name, text } = await downloadText(page, () => jan.getByRole('button', { name: 'Exportar da obra (.json)', exact: true }).click());
+      assert.match(name, /tipos-de-lance\.json$/);
+      const j = JSON.parse(text);
+      assert.equal(j.formato, 'statikos-tipos-lance');
+      assert.equal(j.tipos.length, 2);
+      // biblioteca do usuário: guardar e trazer (os tipos já existem na obra: nada duplica)
+      await jan.getByLabel('Nome na biblioteca do usuário', { exact: true }).fill('Meus tipos');
+      await jan.getByLabel('Nome na biblioteca do usuário', { exact: true }).press('Tab');
+      await jan.getByRole('button', { name: 'Guardar na biblioteca do usuário', exact: true }).click();
+      await jan.getByLabel(/^Tipos de lance guardados/).selectOption({ index: 1 });
+      await jan.getByRole('button', { name: 'Trazer da biblioteca do usuário', exact: true }).click();
+      await jan.locator('[data-aviso-tipos-lance]').filter({ hasText: /0 tipo\(s\) de lance importado\(s\); 2 já existia/ }).waitFor();
+      // importar numa obra nova: entra 1 tipo... (2 tipos distintos), e de novo diz que já existiam
+      const page2 = await newPage();
+      await page2.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const jan2 = await abrirTipos(page2);
+      await jan2.getByText('Biblioteca de tipos de lance', { exact: true }).click();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'tipos-de-lance.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await jan2.locator('[data-aviso-tipos-lance]').filter({ hasText: /2 tipo\(s\) de lance importado\(s\); 0 já existia/ }).waitFor();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'tipos-de-lance.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+      await jan2.locator('[data-aviso-tipos-lance]').filter({ hasText: /0 tipo\(s\) de lance importado\(s\); 2 já existia/ }).waitFor();
+      await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'ruim.json', mimeType: 'application/json', buffer: Buffer.from('{"formato": "outro"}') });
+      await jan2.locator('.note.bad').first().waitFor();
+    },
+};
