@@ -22,6 +22,9 @@ import { ID_PADRAO, linhaLajes, tabelaDe } from './tabelasArmadura';
 import { areaBarraBase, areaTela, telaPor } from './telasSoldadas';
 import type { BaseFaceLaje } from './types';
 import { dentroPoligono } from '../geom/faces';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarAcoNervurada, registrarMesa, registrarNervuraAbaco, registrarNervuraCortante, registrarNervuraEsforcos, registrarNervuraNegativa, registrarNervuraPositiva, registrarNervuradaBase, registrarZonaMacica, type CtxNervPositiva, type CtxNervNegativa } from '../memoria/nervurada';
+import type { ShearResult } from '../concrete';
 
 const FI_NERV = [6.3, 8, 10, 12.5, 16, 20, 25];
 const DMAX = 0.019;
@@ -288,6 +291,12 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
     const baseDetalhada = l.baseNervurada?.detalhada ?? op.lajeBaseDetalhada === 1;
     const posicoes: PosicaoAcoNervurada[] = [];
     const fissurou = new Set<string>(), erroFiss: string[] = [];
+    // memória detalhada (MD3): um elemento por laje nervurada
+    const memN = memoriaAtiva(), elN = `Laje ${l.nome}`, regN = memN?.aceita(elN) ? memN : null;
+    if (regN) {
+      const fat = (f: number[]) => an.casos.map((caso, i) => ({ caso, f: f[i] })).filter((q) => q.f !== 0);
+      registrarNervuradaBase(regN, elN, { nome: l.nome, pavimentos: rs.map((r) => r.pavimento).join(', '), forma: g.forma.nome, recuperavel: g.recuperavel, h: g.h, capa: g.capa, hEnch: g.hEnch, i: g.i, bw: g.bw, pp: g.pp, regime: ver.regime, nNervuras: arr.nervuras.length, nGrupos: grupos.length, tabela: tabL.nome, c, fydInf: aI.fyd, fydSup: aS.fyd, acoInf: aI.aco, acoSup: aS.aco, fywk: aV.fyk, fywd: Math.min(aV.fyk / gm.s, 435), gs: gm.s, cobInf: cob.inf, cobSup: cob.sup, dI: g.h - cob.inf - 0.01, dS: g.h - cob.sup - 0.01, caa: caaNum, wkLim, elu: fat(fELU), freq: fat(fFreq), capaMin: ver.capaMin });
+    }
     const nervuras: NervuraDim[] = arr.nervuras.map((rib, ri) => {
       const k = rib.dir, bw = g.bw[k], bf = g.i[k], dI = g.h - cob.inf - 0.01, dS = g.h - cob.sup - 0.01, e = esf[ri], eg = envolt[grupoDe[ri]];
       const AsMin = 0.0015 * (bf * g.capa + bw * g.hEnch) * 1e4; // cm²
@@ -302,6 +311,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       const AsNec = ci && AsNec0 > 0 ? (ci.recebe ? Math.max(AsMin, (ci.n * AsNec0 - (ci.n - ci.m) * AsMin) / ci.m) : AsMin) : AsNec0;
       const fatorC = AsNec0 > 0 ? AsNec / AsNec0 : 1, cede = !!ci && !ci.recebe;
       const nomeR = `${k === 0 ? 'X' : 'Y'}${rib.indice + 1}`;
+      if (regN) registrarNervuraEsforcos(regN, elN, { nome: nomeR, L: rib.L, mPos: Math.max(0, ...e.Mmax), mNeg: [Math.min(0, e.Mmin[0]), Math.min(0, e.Mmin.at(-1)!)], V: Math.max(0, ...e.V), grupo: grupoDe[ri], nGrupo: grupos[grupoDe[ri]].nervuras.length, gMPos: eg.mPos, gMPosF: eg.mPosF, gMNeg: eg.mNeg, gMNegF: eg.mNegF, igualacao: op.nervuradaIgualacaoDif });
       const escTab = (As: number, bwx: number, cobx: number, _face: 'pos' | 'neg') => {
         const r = escolherBarras(As, bwx, phiEstProv, cobx, phisTab);
         if (r || As <= 1e-9) return r;
@@ -314,11 +324,13 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       const falta = Math.max(0, AsNec - (base?.As ?? 0));
       let esc = escTab(falta, bw, cob.inf, 'pos');
       // fissuração na combinação frequente (17.3.3.2; seção T, momento positivo): aumenta a armadura até wk ≤ limite
+      let fissP: CtxNervPositiva['fiss'] = null;
       if (esc && eg.mPosF > 0.01 && !cede) {
         let req = falta, it = 0, w = 0;
         for (; it < 30; it++) {
           const tot = (base?.As ?? 0) + esc.As, phiMax = Math.max(base?.phi ?? 0, esc.phi);
           w = crackWidth(tee, true, tot / 1e4, phiMax, dI, eg.mPosF * fatorC, c, caaNum).wk;
+          if (regN) fissP = { executada: true, mPosF: eg.mPosF, fatorC, iteracoes: it, As: tot / 1e4, phi: phiMax, w, wkLim, caa: caaNum };
           if (w <= wkLim + 1e-9) break;
           req *= 1.1;
           const nova = escTab(req, bw, cob.inf, 'pos');
@@ -340,6 +352,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       const AsInfTot = (base?.As ?? 0) + (esc?.As ?? 0);
       const Mu = AsInfTot > 0 ? momentoU(c, bf, g.capa, bw, dI, AsInfTot / 1e4, aI.fyd) : 0;
       const compInf = r3(arred(rib.L + 2 * Math.max(0.1, (esc?.phi ?? base?.phi ?? 10) / 100), op.arredondamento));
+      if (regN) registrarNervuraPositiva(regN, elN, { nome: nomeR, sec: tee, c, fyd: aI.fyd, dI, cobInf: cob.inf, bw, bf, h: g.h, capa: g.capa, hEnch: g.hEnch, mPos: eg.mPos, fl: { As: fl.As, double: fl.double }, AsMin, AsNec0, conc: ci ? { n: ci.n, m: ci.m, recebe: ci.recebe } : null, AsNec, base, falta, esc, fiss: fissP, total: AsInfTot, Mu, comp: compInf });
       // negativo por ponta (retângulo; maciça no apoio = largura do intereixo)
       const sup = [0, 1].map((ponta): ArmaduraSup | null => {
         const M = -eg.mNeg[ponta];
@@ -357,11 +370,13 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         let bs = escTab(AsN, bwEf, cob.sup, 'neg'), AsFinal = AsN, wkNeg = 0;
         // fissuração do momento negativo na combinação frequente (E5g, K1.13.3-1; 17.3.3.2; retângulo, face superior)
         const MF = -eg.mNegF[ponta], verFiss = !!op.nervuradaFissuraNegativo && !!bs && MF > 0.05 && !cede;
+        let fissN: CtxNervNegativa['fiss'] = null;
         if (verFiss) {
           let it = 0, w = 0;
           const sec = { kind: 'rect' as const, bw: bwEf, h: g.h };
           for (; it < 30; it++) {
             w = crackWidth(sec, false, bs!.As / 1e4, bs!.phi, dS, MF * (AsN / AsN0), c, caaNum).wk;
+            if (regN) fissN = { MF, fator: AsN / AsN0, iteracoes: it, As: bs!.As / 1e4, phi: bs!.phi, w, wkLim, caa: caaNum };
             if (w <= wkLim + 1e-9) break;
             AsFinal *= 1.1;
             const nova = escTab(AsFinal, bwEf, cob.sup, 'neg');
@@ -377,6 +392,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         // comprimento: até o ponto de momento nulo mais a decalagem (d) e a ancoragem
         const ext = extensaoNegativa(e, ponta as 0 | 1, rib.L);
         const comp = Math.min(rib.L, arred(ext + Math.max(dS, 12 * ((bs?.phi ?? 10) / 1000)), op.arredondamento));
+        if (regN) registrarNervuraNegativa(regN, elN, { nome, ponta: ponta as 0 | 1, Mneg: eg.mNeg[ponta], macica, bw, bwEf, bf, h: g.h, dS, c, fyd: aS.fyd, fn: { As: fn.As, double: fn.double }, AsMinN0, AsN0, AsN, conc: ci ? { n: ci.n, m: ci.m, recebe: ci.recebe } : null, bs, AsFinal, cobSup: cob.sup, fiss: fissN, ext, comp, L: rib.L, arred: op.arredondamento });
         return { Mneg: eg.mNeg[ponta], AsNec: AsFinal, barras: bs ? { n: bs.n, phi: bs.phi, As: bs.As } : null, comprimento: r3(comp), macica, bwEfetiva: bwEf, dupla: fn.double, MFreq: verFiss ? MF : 0, wk: wkNeg };
       }) as [ArmaduraSup | null, ArmaduraSup | null];
       // trechos dentro de ábacos (E3d): flexão negativa sobre o pilar na banda maciça, reforço na nervura e cortante da banda maciça
@@ -405,13 +421,15 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         // cortante da banda maciça (largura = intereixo, altura do ábaco)
         const AsTop = AsBase + (bsel?.As ?? 0), VRd1ab = vrd1(c, bf, dAb, AsTop / 1e4), VRd2ab = 0.27 * c.av2 * c.fcd * bf * dAb * 1000;
         const Vab = Math.max(mv(s0), mv(s1), ...dentro.map(mv));
-        let estribo: ArmaduraNervuraAbaco['estribo'] = null, okAb = true;
+        let estribo: ArmaduraNervuraAbaco['estribo'] = null, okAb = true, shAb: ShearResult | null = null;
         if (Vab > VRd2ab) { okAb = false; erro(`Nervuradas: cortante ${fmt(Vab)} kN por banda acima de VRd2 = ${fmt(VRd2ab)} kN em ${tag}, nervura ${nome}, sobre o ábaco (biela comprimida, modelo I); aumente a altura do ábaco.`); }
         else if (Vab > VRd1ab + 1e-9) {
           const sh = beamShear(bf, dAb, Vab, c, aV.fyk, gm.s);
+          shAb = sh;
           if (!sh.stirrup) { okAb = false; erro(`Nervuradas: cortante ${fmt(Vab)} kN por banda acima de VRd1 = ${fmt(VRd1ab)} kN em ${tag}, nervura ${nome}, sobre o ábaco, sem estribo possível; aumente a altura do ábaco.`); }
           else { const sEs = Math.min(sh.stirrup.s, Math.floor(0.75 * dAb * 100) / 100); estribo = { phi: sh.stirrup.phi, s: sEs, barras: Math.ceil((s1 - s0) / sEs - 1e-9) + 1 }; aviso(`Nervuradas: estribos sobre o ábaco — nervura ${nome} de ${tag}: cortante ${fmt(Vab)} kN por banda acima de VRd1 = ${fmt(VRd1ab)} kN; estribos φ${fphi(estribo.phi)} c/${fmt(sEs * 100, 0)} no trecho do ábaco.`); }
         }
+        if (regN) registrarNervuraAbaco(regN, elN, { nome, abaco: ef.abaco.id, x0: s0, x1: s1, hAb, dAb, bf, bw, h: g.h, dS, c, fydSup: aAbS.fyd, fydBorda: aS.fyd, Mneg, Mb, fn: fn ? { As: fn.As, double: fn.double } : null, fb: fb ? { As: fb.As, double: fb.double } : null, AsMinN, AsBase, AsNec, AsBorda, AsRef, bsel, cobSup: cob.sup, regiao, phiB, comp, arred: op.arredondamento, AsTop, VRd1: VRd1ab, VRd2: VRd2ab, Vab, estribo, shear: shAb && estribo ? { VRd2: shAb.VRd2, Vc: shAb.Vc, aswS: shAb.aswS, aswMin: shAb.aswMin, smax: shAb.smax } : null, fywd: Math.min(aV.fyk / gm.s, 435) });
         abRib.push({ abaco: ef.abaco.id, x0: r3(s0), x1: r3(s1), Mneg, AsNec, AsBase, AsBorda, barras: bsel && AsRef > 0 ? { n: bsel.n, phi: bsel.phi, As: bsel.As } : null, cabe: !bsel || bsel.cabe, larguraMin: r3(bsel?.need ?? 0), comprimento: r3(comp), dupla: !!(fn?.double || fb?.double), Vmax: Vab, VRd1: VRd1ab, VRd2: VRd2ab, estribo, ok: okAb });
       }
       const solidoEm = (x0: number, x1: number) => abRib.find((a) => x0 >= a.x0 - 1e-6 && x1 <= a.x1 + 1e-6);
@@ -429,10 +447,11 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
         if (preciso) Vnec = Math.max(Vnec, V);
       }
       const Vmax = Math.max(0, ...e.V), VmaxRib = abRib.length ? Math.max(0, ...secoes.filter((x) => !x.solido).map((x) => x.V)) : Vmax;
-      let estribo: NervuraDim['cortante']['estribo'] = null, ok = true;
+      let estribo: NervuraDim['cortante']['estribo'] = null, ok = true, shN: ShearResult | null = null;
       const zonas: [number, number][] = [];
       if (Vnec > 0 || (regime !== 'laje' && secoes.some((x) => !x.solido))) {
         const sh = beamShear(bw, dd, Math.max(Vnec, VmaxRib), c, aV.fyk, gm.s);
+        shN = sh;
         if (!sh.ok) { ok = false; erro(`Nervuradas: cortante ${fmt(VmaxRib)} kN por nervura acima de VRd2 = ${fmt(sh.VRd2)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1} (biela comprimida, modelo I); aumente a largura da nervura ou a altura da laje.`); }
         else if (!sh.stirrup) { ok = false; erro(`Nervuradas: cortante ${fmt(VmaxRib)} kN por nervura acima de VRd1 = ${fmt(VRd1)} kN em ${tag}, nervura ${k === 0 ? 'X' : 'Y'}${rib.indice + 1}, sem estribo possível; aumente a largura da nervura.`); }
         else {
@@ -448,6 +467,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
           estribo = { phi: sh.stirrup.phi, s, barras };
         }
       }
+      if (regN) registrarNervuraCortante(regN, elN, { nome: nomeR, regime, c, bw, d: dd, AsTot: AsInfTot, passo, dist: op.nervuradaCortanteDist, L: rib.L, VRd1, VRd2: VRd2c, secoes, Vnec, Vmax, VmaxRib, shear: shN ? { VRd2: shN.VRd2, Vc: shN.Vc, aswS: shN.aswS, aswMin: shN.aswMin, smax: shN.smax, ok: shN.ok, temEstribo: !!shN.stirrup } : null, estribo, zonas, fywd: Math.min(aV.fyk / gm.s, 435), ok });
       return {
         dir: k, indice: rib.indice, a: rib.a, z: rib.z, L: r3(rib.L), mPos: Math.max(0, ...e.Mmax), mNeg: [e.Mmin[0] < 0 ? e.Mmin[0] : 0, e.Mmin.at(-1)! < 0 ? e.Mmin.at(-1)! : 0],
         Vmax,
@@ -497,6 +517,7 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
       exigida, livre: r3(livre), qd, Md: exigida ? MdMesa : 0, AsNec: AsNecMesa, AsAdotada: (barArea(phiD) * 1e4) / sD, phi: phiD, s: sD,
       ...(considerarMesa ? { malha: { AsSup: AsMalhaSup, AsInf: AsMalhaInf, MdPos, AsNecPos, complementoSup: compSup, complementoInf: compInf, phi: phiD, sSup: compSup > 0 ? sDe(compSup) : 0, sInf: compInf > 0 ? sDe(compInf) : 0 } } : {}),
     };
+    if (regN) registrarMesa(regN, elN, { c, capa: g.capa, exigida, livre, qd, gg: gm.g, gq: gm.q, pp: g.pp, gRev: grupo?.gRev ?? 0, q: grupo?.q ?? 0, Md: MdMesa, dm, fl: { As: fm.As, double: fm.double }, fydSup: aS.fyd, AsMin, AsNec: AsNecMesa, AsAdotada: mesa.AsAdotada, phi: phiD, s: sD, ...(mesa.malha ? { malha: { AsSup: AsMalhaSup, AsInf: AsMalhaInf, MdPos, AsNecPos, complementoSup: compSup, complementoInf: compInf, dmI, fydInf: aI.fyd, flP: { As: fmP.As, double: fmP.double }, sSup: mesa.malha.sSup, sInf: mesa.malha.sInf } } : {}) });
     // alerta de detalhamento (K1.9.94, como o da K1.9.87): a base entra no cálculo mas só aparece nos desenhos e quantitativos se detalhada
     if ((considerarMesa || [0, 1].some((k) => l.baseNervurada?.nervuras?.[k]?.considerar)) && !baseDetalhada) aviso(`Nervuradas: a armadura base de ${tag} entra no cálculo mas a opção de detalhar a armadura base está desligada — ela não aparece nos desenhos, quantitativos e tabelas (a malha da mesa nunca entra no resumo de aço; só é descrita). Ative "Base das nervuras detalhada" para desenhar e medir a das nervuras.`);
     if (considerarMesa && (compSup > 1e-9 || compInf > 1e-9)) aviso(`Nervuradas: a malha da base da mesa de ${tag} não cobre a armadura necessária (superior ${fmt(AsMalhaSup)} de ${fmt(AsNecMesa)} cm²/m${exigida ? `; inferior ${fmt(AsMalhaInf)} de ${fmt(AsNecPos)} cm²/m` : ''}); o complemento entra na armadura calculada da mesa.`);
@@ -567,10 +588,12 @@ export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, laj
           area: r3(aMac), nos: nNos, Minf, Msup, AsNecInf, AsNecSup, AsMalhaInf: malhaInf, AsMalhaSup: malhaSup, complementoInf: compI, complementoSup: compS,
           barrasInf: bI.map((x) => (x ? { phi: x.phi, s: x.s } : null)), barrasSup: bS.map((x) => (x ? { phi: x.phi, s: x.s } : null)), ok,
         };
+        if (regN) registrarZonaMacica(regN, elN, { ...zonaMacica!, h: g.h, c, dI: dI2, dS: dS2, fydInf: aI.fyd, fydSup: aS.fyd, taxaUsuario: op.lajeTaxaMin, amin });
         info(`Nervuradas: zona maciça de ${tag} (${fmt(aMac)} m²) por Wood-Armer: positivo ${fmt(Minf[0])}/${fmt(Minf[1])} kN·m/m, negativo ${fmt(Msup[0])}/${fmt(Msup[1])} kN·m/m (X/Y); armadura necessária ${fmt(Math.max(...AsNecInf))} cm²/m inferior e ${fmt(Math.max(...AsNecSup))} cm²/m superior${considerarMesa ? ', descontada a malha da base da mesa' : ''}.`);
       }
     }
     const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * per(x.phi), 0);
+    if (regN) registrarAcoNervurada(regN, elN, { posicoes, peso, repeticoes: Math.max(1, pavs.length) });
     const regimeTxt = (r: Regime) => (r === 'laje' ? 'como laje' : r === 'viga' ? 'como viga' : 'mesa como laje maciça');
     msgs.push(`Nervuradas bidirecionais: ${tag} — ${g.forma.nome} (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}), h = ${fmt(g.h * 100, 0)} cm, mesa ${fmt(g.capa * 100, 0)} cm, intereixo ${fmt(g.i[0] * 100, 0)} × ${fmt(g.i[1] * 100, 0)} cm, peso ${fmt(quantitativo.ppMedio)} kN/m², ${nervuras.length} nervura(s) em ${grupos.length} grupo(s); cisalhamento ${regimeTxt(ver.regime[0])} (X) e ${regimeTxt(ver.regime[1])} (Y)${abEf.length ? `; ${abEf.length} ábaco(s) de ${fmt(abEf.reduce((t, x) => t + x.area, 0))} m² (zona maciça com cubetas retiradas)` : ''}.`);
     for (const r of rs) { r.mensagens.push(...msgs); if (falhou) r.status = 'fail'; }
