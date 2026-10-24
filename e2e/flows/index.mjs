@@ -104,6 +104,7 @@ export const flows = [
   m_E_2.f_E3c,
   m_E_2.f_E3d,
   m_E_2.f_E4a,
+  m_E_2.f_E3e,
   m_layout.f_layout,
   m_layout.f_layout_1280,
   m_layout.f_layout_1024,
