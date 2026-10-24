@@ -1,4 +1,4 @@
-// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção).
+// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -245,6 +245,72 @@ export const f_MD4 = {
       const u = segs.reduce((s, [x0, y0, x1, y1]) => s + Math.hypot(x1 - x0, y1 - y0), 0);
       assert.ok(Math.abs(u - pu.resultado) < 1e-9 * u);
       assert.ok(dosP5.some((p) => p.topico === 'Armadura de punção – disposição' && typeof p.entradas.total === 'number'));
+      const zip = await baixar('Dados da análise e OpenSees (ZIP)');
+      assert.ok(zip.dados.toString('latin1').includes('memoria/memoria.csv'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD5 = {
+    name: 'MD5: memória de cálculo detalhada das fundações rasas (cargas na fundação, sapata isolada com σadm, tensões, altura, flexão e punção; sapata corrida; filtro, HTML, JSON e ZIP)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('vento.definir {"ativo": false}');
+      await cmd('lote {"comandos": [' + [0, 4, 8].flatMap((x) => [0, 4, 8].map((y) => [x, y])).map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      const leituras = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 30, 32, 35].map((N) => `{"N": ${N}, "solo": "silteArenoso"}`).join(', ');
+      await cmd(`sondagem.criar {"nome": "SP-01", "x": 2, "y": 2, "nivelAgua": 12, "leituras": [${leituras}]}`);
+      await cmd('fundacao.terreno {"sigmaAdm": 250}');
+      await cmd('fundacao.gerar {"tipo": "sapata", "associadas": false, "vigasEquilibrio": false, "vigasTravamento": false}');
+      await cmd('corrida.criar {"pontos": [[0, 20], [6, 20]], "bw": 0.2}');
+      await cmd('carga.linha {"grupo": "fundacao", "pontos": [[0, 20], [6, 20]], "valor": 150, "caso": "G"}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const t = await doc.innerText();
+      for (const s of ['Sapata corrida SC1', 'Cargas características por caso', 'Combinações raras (verificação geotécnica)', 'Envoltória das combinações raras', 'Carga adotada no elemento', 'Tensão admissível do solo', 'Peso próprio e dimensões em planta', 'Altura e ancoragem do pilar', 'Esforços de cálculo na base', 'Compressão diagonal e punção', 'Flexão transversal da aba (por metro)']) assert.ok(t.includes(s), `falta "${s}" na memória das fundações`);
+      assert.match(t, /σadm = .* kPa/);
+      assert.match(t, /NBR 6122:2019/);
+      const total = await doc.locator('tr[data-passo]').count();
+      const baixar = async (rot) => {
+        const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: rot, exact: true }).click()]);
+        return { nome: dl.suggestedFilename(), dados: readFileSync(await dl.path()) };
+      };
+      // só a sapata do pilar central tem solução (as de divisa e de canto pedem viga de equilíbrio): a cadeia dela
+      const mem0 = JSON.parse((await baixar('Exportar JSON')).dados.toString('utf8'));
+      const el = mem0.passos.find((p) => p.topico === 'Peso próprio e dimensões em planta')?.elemento;
+      assert.match(el, /^Sapata S\d+$/);
+      const outra = mem0.passos.find((p) => /^Sapata S\d+$/.test(p.elemento) && p.elemento !== el)?.elemento;
+      assert.equal(await doc.locator('#md-dimensionamento-' + el.toLowerCase().replace(' ', '-')).count(), 1);
+      // filtro por elemento: só essa sapata (e os passos globais)
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: el });
+      await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length < n, total);
+      const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
+      assert.ok(tf.includes(el), `filtro: falta ${el}`);
+      assert.ok(!tf.includes(outra + ' '), `filtro: sobrou ${outra}`);
+      assert.ok(!tf.includes('Viga V1'), 'filtro: sobrou viga');
+      assert.ok(tf.includes('Tensões no solo'), 'filtro: falta Tensões no solo');
+      const html = await baixar('Exportar HTML');
+      assert.match(html.dados.toString('utf8'), /^<!doctype html>[\s\S]*data-memoria-detalhada[\s\S]*Tensões no solo/);
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Todos' });
+      await page.waitForFunction((n) => document.querySelectorAll('[data-memoria-detalhada] tr[data-passo]').length >= n, total);
+      const json = await baixar('Exportar JSON');
+      const mem = JSON.parse(json.dados.toString('utf8'));
+      const s1 = mem.passos.filter((p) => p.elemento === el);
+      assert.ok(s1.length > 50, `passos da sapata: ${s1.length}`);
+      assert.ok(s1.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      assert.ok(['cargas', 'combinacoes', 'esforcos', 'dimensionamento', 'detalhamento'].every((e) => s1.some((p) => p.etapa === e)));
+      // as tensões na base trazem as entradas exatas: σmáx refeita de A, B, N, ex, ey
+      const pr = s1.find((p) => p.topico.startsWith('Tensões no solo') && p.descricao.startsWith('Tensões na base'));
+      assert.ok(typeof pr.entradas.A === 'number' && typeof pr.entradas.N === 'number' && typeof pr.resultado === 'number');
+      const sc = mem.passos.filter((p) => p.elemento === 'Sapata corrida SC1');
+      assert.ok(sc.length > 20 && sc.some((p) => p.topico === 'Flexão transversal da aba (por metro)' && /^Momento fletor por metro/.test(p.descricao) && typeof p.entradas.s0 === 'number'));
       const zip = await baixar('Dados da análise e OpenSees (ZIP)');
       assert.ok(zip.dados.toString('latin1').includes('memoria/memoria.csv'));
       await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();

@@ -10,6 +10,8 @@
 import { acharPilar, pilaresParedeEmUso } from './fundacaoPilarParede';
 import { corridasEfetivas } from './corridaParede';
 import { designSupport, type SupportDesign } from '../foundation';
+import { registrarFundacoes } from '../memoria/fundacao';
+import { memoriaAtiva } from '../memoria/registrador';
 import { columnOffset, isFooting } from '../footings';
 import { dentroPoligono, type P } from '../geom/faces';
 import { sobrepoe } from '../geom/poly';
@@ -394,6 +396,8 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
     const ok = r.dims.n === 1 ? us.some((a) => us.some((z) => cruz(a, z) >= 0.7)) : us.some((a) => cruz(a, linhaEstacas(r)) >= 0.7);
     if (!ok) r.mensagens.push(r.dims.n === 1 ? 'Bloco sem travamento: bloco de 1 estaca exige vigas de travamento em duas direções ortogonais (NBR 6122).' : 'Bloco sem travamento: bloco de 2 estacas exige viga de travamento na direção perpendicular à linha das estacas (NBR 6122).');
   }
+  const mem = memoriaAtiva();
+  if (mem) registrarFundacoes(mem, b, extra.length ? { fundacao: [...base.fundacao, ...extra], vento: base.vento } : base, res);
   return { elementos: res, vigas, avisos };
 }
 

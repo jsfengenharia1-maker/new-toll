@@ -151,7 +151,7 @@ function solve3(J: number[][], b: number[]): number[] | null {
  * Momento das tensões além das seções xc ± x1 (balanços ao longo de A), por unidade de largura total B.
  * xc: centro do pilar em relação ao centro da base (0 = centrado).
  */
-function overhangMoment(pr: Pressure, A: number, B: number, x1: number, axis: 'x' | 'y', xc = 0): number {
+export function overhangMoment(pr: Pressure, A: number, B: number, x1: number, axis: 'x' | 'y', xc = 0): number {
   const [L, W] = axis === 'x' ? [A, B] : [B, A];
   const lin = axis === 'x' ? (t: number) => strip(pr.s0 + pr.sx * t, pr.sy, W)[0] : (t: number) => strip(pr.s0 + pr.sy * t, pr.sx, W)[0];
   const a = xc + x1, z = xc - x1;
@@ -260,7 +260,7 @@ export interface FootingResult {
   volume: number;
 }
 
-const kTable = (r: number) => { const t = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 0.8]]; if (r <= 0.5) return 0.45; if (r >= 3) return 0.8; for (let i = 1; i < t.length; i++) if (r <= t[i][0]) return t[i - 1][1] + ((r - t[i - 1][0]) / (t[i][0] - t[i - 1][0])) * (t[i][1] - t[i - 1][1]); return 0.8; };
+export const kTable = (r: number) => { const t = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 0.8]]; if (r <= 0.5) return 0.45; if (r >= 3) return 0.8; for (let i = 1; i < t.length; i++) if (r <= t[i][0]) return t[i - 1][1] + ((r - t[i - 1][0]) / (t[i][0] - t[i - 1][0])) * (t[i][1] - t[i - 1][1]); return 0.8; };
 
 /**
  * Sapata isolada. O peso próprio entra como ftPP% de Nk; se o peso do concreto calculado for maior,
