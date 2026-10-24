@@ -38,6 +38,29 @@ describe('método geral', () => {
     expect(k(1.5 * MR)).toBeNull();
     expect(k(0.9 * MR)).not.toBeNull();
   });
+  it('M–N–1/r: fibras agrupadas por coluna = integração fibra a fibra; relação repetida vem do cache e muda com N ou com as barras', () => {
+    const c = concrete(30, 1.4), poly: Pt[] = [[0, 0], [0.2, 0], [0.2, 0.5], [0, 0.5]], P = polyProps(poly), Ab = Math.PI * 0.008 ** 2;
+    const bars = [0.045, 0.455].flatMap((y) => [{ x: 0.045, y, A: Ab }, { x: 0.155, y, A: Ab }]);
+    const S: FiberSection = { mesh: fiberMesh(poly, 16), bars, cx: P.cx, cy: P.cy, c, fyd: 500 / 1.15, poly };
+    const N = 0.8, rel = relacaoMCurvatura(S, N, 1)!;
+    expect(relacaoMCurvatura({ ...S, bars: bars.map((b) => ({ ...b })) }, N, 1)).toBe(rel); // mesma malha, mesmos dados
+    expect(relacaoMCurvatura(S, 0.9, 1)).not.toBe(rel);
+    expect(relacaoMCurvatura({ ...S, bars: bars.slice(0, 3) }, N, 1)).not.toBe(rel);
+    // referência independente: κ da relação → e0 que equilibra N (bisseção) → M somando cada fibra
+    const pico = 1.1 * c.sigmaCd, sg = (e: number) => (e <= 0 ? 0 : e >= c.ec2 ? pico : pico * (1 - (1 - e / c.ec2) ** c.n));
+    const forcas = (e0: number, k: number) => {
+      let Nr = 0, M = 0;
+      for (const f of S.mesh) { const s = f.y - S.cy, e = e0 + k * s; if (e > 0) { const F = sg(e) * f.A; Nr += F; M += F * s; } }
+      for (const b of bars) { const s = b.y - S.cy, e = e0 + k * s, F = (Math.max(-S.fyd, Math.min(S.fyd, 200000 * e)) - sg(e)) * b.A; Nr += F; M += F * s; }
+      return { Nr, M };
+    };
+    for (const M of [0.02, 0.06, 0.12]) {
+      const k = rel(M)!;
+      let a = -0.05, z = 0.01;
+      for (let i = 0; i < 80; i++) { const m = (a + z) / 2; if (forcas(m, k).Nr < N) a = m; else z = m; }
+      expect(Math.abs(forcas((a + z) / 2, k).M / M - 1)).toBeLessThan(0.02); // tabela de 40 pontos interpolada
+    }
+  });
   it('fluência e excentricidade acidental', () => {
     expect(excentricidadeAcidental(3, 3)).toBeCloseTo((1 / 200) * 1.5, 9); // θ1 = 1/(100√3) > 1/200: limitado a 1/200
     expect(excentricidadeAcidental(9, 9)).toBeCloseTo((1 / 300) * 4.5, 9);
