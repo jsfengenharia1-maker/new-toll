@@ -1,4 +1,4 @@
-// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas; MD5b: fundações profundas).
+// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas; MD5b: fundações profundas; MD6: escadas).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -386,6 +386,54 @@ export const f_MD5c = {
       const tb = ps.find((p) => p.descricao.startsWith('Tensão limite'));
       assert.ok(Math.abs(0.85 * tb.entradas.fck / tb.entradas.gc - tb.entradas.lim) < 1e-9);
       assert.ok(ps.some((p) => p.topico === 'Base alargada' && p.descricao.startsWith('Tensões na base circular')));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD6 = {
+    name: 'MD6: memória de cálculo detalhada das escadas (cargas e reações como cargas lineares, Wood-Armer por faixa, flexão, fissuração, cortante, flecha, ancoragens, barras e peso; filtro e JSON)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "T", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
+      await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [0.5, 1], "angulo": 0, "piso": 0.2967, "espelho": 0.16666667, "lances": [{"tipo": "T"}]}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const t = await doc.innerText();
+      for (const s of ['Escada E1 · Lance 1', 'Cargas do lance', 'Reações como cargas lineares', 'Esforços do trecho L1', 'Wood-Armer', 'Flexão – trecho L1', 'Fissuração – trecho L1', 'Cortante – trecho L1', 'Ancoragem – trecho L1', 'Flecha (ELS-DEF)', 'Barras – trecho L1', 'Quantitativo do lance']) assert.ok(t.includes(s), `falta "${s}"`);
+      assert.match(t, /Carga vertical total do caso G/);
+      const mem = await baixarJson(page, dlg);
+      const el = 'Escada E1 · Lance 1';
+      const ps = mem.passos.filter((p) => p.elemento === el);
+      assert.ok(ps.length > 100, `passos da escada: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      // carga total refeita das parcelas registradas
+      const tot = ps.find((p) => p.descricao.startsWith('Carga vertical total do caso G'));
+      const soma = Object.keys(tot.entradas).filter((k) => k.startsWith('parcela')).reduce((s, k) => s + tot.entradas[k], 0);
+      assert.ok(Math.abs(soma - tot.resultado) < 1e-9 * Math.max(1, Math.abs(tot.resultado)));
+      // reação como carga linear: q = R/ℓ + pp
+      const q = ps.find((p) => p.topico === 'Reações como cargas lineares' && p.descricao.includes('caso G'));
+      assert.ok(Math.abs(q.entradas.R / q.entradas.comprimento + q.entradas.pesoProprio - q.resultado) < 1e-9);
+      // lance reto biapoiado da E4d: As da faixa de maior momento ≈ 9,3 cm²/m (q·ℓ²/8: Md = 44,01 kN·m/m)
+      const as = ps.find((p) => p.topico.includes('faixa de maior momento') && p.topico.includes('armadura inferior, direção x') && p.descricao.startsWith('Armadura de tração'));
+      const As = as.entradas.C / as.entradas.fyd * 1e4;
+      assert.ok(As > 9.2 && As < 9.4, `As = ${As}`);
+      const md = ps.find((p) => p.topico.startsWith('Esforços do trecho L1') && /armadura inferior na direção x/.test(p.descricao) && p.resultado > 44);
+      assert.ok(md && md.resultado > 44 && md.resultado < 44.5, `Md = ${md?.resultado}`);
+      // filtro por elemento
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: el });
+      await page.waitForFunction(() => !document.querySelector('[data-memoria-detalhada]').innerText.includes('Viga V1'));
+      const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
+      assert.ok(tf.includes('Reações como cargas lineares') && tf.includes(el));
       await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
       await dlg.waitFor({ state: 'detached' });
     },
