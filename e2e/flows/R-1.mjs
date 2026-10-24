@@ -598,6 +598,7 @@ export const f_R7_0 = {
       await page.locator('.planta-cv[data-vista]').waitFor();
       const solta = () => page.evaluate(() => document.activeElement?.blur?.());
       const abrir = (t) => grupoEdif(page, t);
+      await (await abrir('Ferramentas de lançamento')).getByLabel('Criar o pano a definir (?) ao fechar um contorno por vigas').uncheck(); // L7: este fluxo calcula sem definir panos
       await solta();
       const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
       const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };

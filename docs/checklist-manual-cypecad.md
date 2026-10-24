@@ -14,15 +14,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
-| 6. Vigas | 108 | 58 | 25 | 0 | 25 |
-| 7. Lajes | 195 | 94 | 34 | 0 | 67 |
+| 6. Vigas | 108 | 59 | 24 | 0 | 25 |
+| 7. Lajes | 195 | 95 | 33 | 0 | 67 |
 | 8. Escadas | 65 | 60 | 1 | 4 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **496** | **72** | **10** | **185** |
+| **Total** | **763** | **498** | **70** | **10** | **185** |
 
 ## Pendências por frente
 
@@ -32,7 +32,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 57 | 7 | 64 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
-| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 2 | 0 | 2 |
+| L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
 
 ## 0. Apresentação do programa
@@ -295,7 +295,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | | **6.1 Lançamento** | | | |
 | C6.1 | Lançamento do contorno do pavimento combinando gabarito DXF/DWG e ferramentas de viga. | Feito | — | vigas sobre a máscara com capturas |
 | C6.2 | Ajudas genérica e específica durante o lançamento. | Feito | — | L4 núcleo: `ajudaDaFerramenta`; interface: painel `AjudaFerramenta` e tecla na barra de estado da planta (cartão 04) — Feito 23/10/2026: interface em src/app/edificio (BarraAtalhos, GuiaRapido, GruposL4, DadosL4, Planta), src/app/ui/Ajuda.tsx e Modal; e2e L4 [L4] |
-| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Parcial | L | decisão: o painel flutuante virou o grupo "Ferramentas de lançamento" da barra lateral (fechado por padrão, sem abrir sozinho após a escolha do tipo de seção), conforme o layout do design system (`docs/design-system.md`); mesmas opções [L5] — interface: LancamentoL5.tsx, Planta.tsx — Parcial (orquestrador 24/10): o grupo de ferramentas não abre sozinho após a escolha do tipo de seção; subfatia L7. |
+| C6.3 | Painel flutuante de ferramentas aberto depois da escolha do tipo de seção. | Feito | — | decisão: o painel flutuante virou o grupo "Ferramentas de lançamento" da barra lateral (`docs/design-system.md`), mesmas opções [L5]; L7: o grupo abre sozinho ao escolher o tipo da seção da viga (`SecaoVigaUI.tsx`, `abrirLancamento` em `plantaStore.ts`, `LancamentoL5.tsx`); e2e f_L7 |
 | C6.4 | Troca do tipo de viga atual a partir do painel. | Feito | — |  |
 | C6.5 | Modo contínuo: o fim de uma viga é o início da próxima. A sequência só vale depois de encerrada pelo menu de contexto. | Feito | — | polilinha contínua; Enter encerra |
 | C6.6 | Atalhos de teclado: encerrar a sequência (Ctrl+T) e apagar o último ponto (Ctrl+B). | Feito | — | decisão: atalhos do programa de referência não são copiados (reconstrução limpa); funcionalidade coberta por Enter (encerra a sequência de pontos), Esc (cancela) e Backspace (apaga o último ponto) na ferramenta Viga (`viga.tracar`; Planta.tsx) [L5] |
@@ -410,7 +410,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|---|
 | | **7.1.1 Gestão de panos** | | | |
 | C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | E3f: seletor único de tipo de pano (TipoPano.tsx): vigotas, alveolar, nervurada, maciça e pano a definir; mista e radier aparecem indisponíveis (TIPOS_PANO) [E3f] — Parcial (orquestrador 24/10): ressalva da nota pendente. |
-| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Parcial | L | L7 (pano automático e cruz tracejada): a criação automática ao fechar o contorno não existe (hoje só pelo botão "Detectar panos como a definir"); `laje.detectarPanos { definir }` cria panos a definir (`Laje.definir`, marcados com "?" na planta, cartão 04); panos detectados e pano sem laje geram aviso [L5] |
+| C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Feito | — | L7: pano automático — ao traçar vigas que fecham um contorno (`viga.tracar` ou contorno retangular) o app cria o pano a definir (?) no mesmo passo do desfazer (`store.ts` exec + `laje.detectarPanos { definir }`; opção "Criar o pano a definir ao fechar um contorno" no grupo Ferramentas de lançamento, ligada por padrão; comandos puros do núcleo e da CLI não criam sozinhos); também `laje.detectarPanos { definir }` pelo botão (L5, `Laje.definir` marcado com "?" na planta); panos detectados e pano sem laje geram aviso; `panoAutomatico.test.ts`, e2e f_L7 |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
 | C7.5 | Mudar o ponto de inserção do pano. | Parcial | E | E3b: a inserção ainda não muda a numeração das vigotas nem a origem da malha [L5] — núcleo: `Laje.insercao` (vértice) por `laje.editar { insercao / insercaoPonto }`; interface: ferramenta `insercaoPano` (cartão 04) |

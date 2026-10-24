@@ -109,6 +109,11 @@ export const fundacaoAtual = (st: Pick<BState, 'dim' | 'analise' | 'revAnalise' 
 /** A análise e o dimensionamento valem para o modelo atual? */
 export const calculoAtual = (st: Pick<BState, 'analise' | 'revAnalise' | 'sessao'>): boolean => !!st.analise && st.revAnalise === st.sessao.revCalculo;
 
+/** Comandos de vigas que podem fechar um contorno (L7). */
+const PANO_AUTO = new Set(['viga.tracar', 'viga.contornoRetangular']);
+/** Opção "criar o pano a definir ao fechar um contorno" (L7), espelhada de `usePlanta().l5.panoAuto` pelo painel (o store não importa a planta). */
+export const opcaoPano = { automatico: true };
+
 const msg = (m: string) => useStore.getState().set({ message: m });
 
 /** Registra a abertura da obra na lista de recentes (só metadados). */
@@ -135,6 +140,11 @@ export const useBuilding = create<BState>((set, get) => {
     diags: inicial.verificar(),
     exec(nome, params) {
       const s = get().sessao;
+      // L7 (C7.2): vigas que fecham um contorno criam o pano a definir no mesmo passo (um desfazer); sem contorno novo, segue o comando puro
+      if (PANO_AUTO.has(nome) && typeof params.grupo === 'string' && opcaoPano.automatico) {
+        const lote = s.executar('lote', { comandos: [{ nome, params }, { nome: 'laje.detectarPanos', params: { grupo: params.grupo, definir: true } }] }, 'usuario');
+        if (lote.ok) { atualizar(s); msg(lote.mensagem ?? `${nome} aplicado.`); sincronizar(); return lote; }
+      }
       const r = s.executar(nome, params, 'usuario');
       if (r.ok) { atualizar(s); msg(r.mensagem ?? `${nome} aplicado.`); sincronizar(); }
       else msg(r.erros.map((e) => e.mensagem).join(' '));

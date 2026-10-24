@@ -127,4 +127,5 @@ export const flows = [
   m_layout.f_layout_teclado,
   m_layout.f_layout_mapa,
   m_D.f_D4,
+  m_L.f_L7,
 ];

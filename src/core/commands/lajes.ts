@@ -34,6 +34,9 @@ const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toS
 const coberto = (b: BuildingModel, grupo: string, q: P, exceto?: string) => b.lajes.find((l) => l.grupo === grupo && l.id !== exceto && dentroPoligono(q, l.contorno));
 /** O ponto está numa abertura de alguma laje do grupo? (o pano fechado pelas vigas de borda de uma abertura não é um pano novo) */
 export const naAbertura = (b: BuildingModel, grupo: string, q: P) => b.lajes.some((l) => l.grupo === grupo && (l.furos ?? []).some((f) => dentroPoligono(q, f as P[])));
+/** O ponto está num pano apagado (abertura, L7)? A detecção de panos não o recria. */
+export const noPanoVazio = (b: BuildingModel, grupo: string, q: P) => (b.panosVazios ?? []).some((v) => v.grupo === grupo && dentroPoligono(q, v.contorno as P[]));
+const semLaje = (b: BuildingModel, grupo: string, q: P) => !coberto(b, grupo, q) && !naAbertura(b, grupo, q) && !noPanoVazio(b, grupo, q);
 
 registrar<{ grupo: string; tipo: TipoLaje; definir?: boolean }>({
   nome: 'laje.detectarPanos',
@@ -44,12 +47,12 @@ registrar<{ grupo: string; tipo: TipoLaje; definir?: boolean }>({
     const g = grupoOk(b, p.grupo);
     if (g.length) return g;
     if (!p.definir) { const tv = validarTipoLaje(b, p.tipo); if (tv.length) return tv; }
-    const n = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x)) && !naAbertura(b, p.grupo, pontoInterno(x))).length;
+    const n = panosDoGrupo(b, p.grupo).filter((x) => semLaje(b, p.grupo, pontoInterno(x))).length;
     return n ? [] : err('SEM_PANOS_NOVOS', 'Nenhuma região fechada por vigas sem laje.');
   },
   aplicar(d, p) {
     const b = d as BuildingModel;
-    const novos = panosDoGrupo(b, p.grupo).filter((x) => !coberto(b, p.grupo, pontoInterno(x)) && !naAbertura(b, p.grupo, pontoInterno(x)));
+    const novos = panosDoGrupo(b, p.grupo).filter((x) => semLaje(b, p.grupo, pontoInterno(x)));
     if (p.tipo && !p.definir) garantirTipoNaObra(d, p.tipo);
     for (const c of novos) {
       const cont = anti(c);
@@ -84,6 +87,7 @@ registrar<{ grupo: string; ponto?: P; contorno?: P[]; tipo: TipoLaje; nome?: str
     const nome = p.nome?.trim() || `L${proximaLaje(d as BuildingModel, p.grupo)}`;
     const direcao = p.direcao ?? (!p.definir && unidirecional(p.tipo) ? direcaoMenorVao(c) : undefined);
     if (p.tipo && !p.definir) garantirTipoNaObra(d, p.tipo);
+    if (d.panosVazios) { const q = pontoInterno(c); d.panosVazios = d.panosVazios.filter((v) => !(v.grupo === p.grupo && dentroPoligono(q, v.contorno as P[]))); if (!d.panosVazios.length) delete d.panosVazios; }
     d.lajes.push({ id: novoId(d, 'l'), nome, grupo: p.grupo, contorno: c, tipo: p.definir ? { tipo: 'macica', h: 0.1 } : { ...p.tipo }, ...(p.definir ? { definir: true as const } : {}), ...(direcao !== undefined ? { direcao } : {}) });
     return `${nome} criada (${fmt(Math.abs(areaPoligono(c)))} m²).`;
   },
@@ -223,6 +227,40 @@ registrar<{ ids: string[] }>({
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
   validar(b, p) { const f = p.ids.filter((id) => !b.lajes.some((l) => l.id === id)); return f.length ? err('LAJE_INEXISTENTE', `Laje(s) inexistente(s): ${f.join(', ')}.`) : []; },
   aplicar(d, p) { const s = new Set(p.ids); d.lajes = d.lajes.filter((l) => !s.has(l.id)); if (d.abacos) { d.abacos = d.abacos.filter((a) => !s.has(a.laje)); if (!d.abacos.length) delete d.abacos; } return `${p.ids.length} laje(s) removida(s).`; },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'laje.apagarPano',
+  descricao: 'Apaga o pano (L7): a laje é removida e a região fechada por vigas fica como abertura, marcada com a cruz tracejada; a detecção de panos não a recria. Restaurar com `laje.restaurarPano`.',
+  risco: 'destrutivo',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
+  validar(b, p) { const f = p.ids.filter((id) => !b.lajes.some((l) => l.id === id)); return f.length ? err('LAJE_INEXISTENTE', `Laje(s) inexistente(s): ${f.join(', ')}.`) : []; },
+  aplicar(d, p) {
+    const s = new Set(p.ids);
+    const apagadas = d.lajes.filter((l) => s.has(l.id));
+    for (const l of apagadas) (d.panosVazios ??= []).push({ id: novoId(d, 'pv'), grupo: l.grupo, contorno: l.contorno.map((q) => [q[0], q[1]] as [number, number]) });
+    d.lajes = d.lajes.filter((l) => !s.has(l.id));
+    if (d.abacos) { d.abacos = d.abacos.filter((a) => !s.has(a.laje)); if (!d.abacos.length) delete d.abacos; }
+    return `${apagadas.length} pano(s) apagado(s): ${apagadas.length > 1 ? 'viraram' : 'virou'} abertura.`;
+  },
+});
+
+registrar<{ ids: string[] }>({
+  nome: 'laje.restaurarPano',
+  descricao: 'Desfaz a abertura de um pano apagado (L7): o pano volta como pano a definir (?).',
+  risco: 'escrita',
+  mcp: false,
+  schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: { ids } },
+  validar(b, p) { const f = p.ids.filter((id) => !(b.panosVazios ?? []).some((v) => v.id === id)); return f.length ? err('PANO_VAZIO_INEXISTENTE', `Abertura(s) de pano inexistente(s): ${f.join(', ')}.`) : []; },
+  aplicar(d, p) {
+    const s = new Set(p.ids);
+    const alvo = (d.panosVazios ?? []).filter((v) => s.has(v.id));
+    d.panosVazios = (d.panosVazios ?? []).filter((v) => !s.has(v.id));
+    if (!d.panosVazios.length) delete d.panosVazios;
+    for (const v of alvo) d.lajes.push({ id: novoId(d, 'l'), nome: `L${proximaLaje(d as BuildingModel, v.grupo)}`, grupo: v.grupo, contorno: v.contorno.map((q) => [q[0], q[1]] as [number, number]), tipo: { tipo: 'macica', h: 0.1 }, definir: true });
+    return `${alvo.length} pano(s) restaurado(s) como a definir.`;
+  },
 });
 
 registrar<{ grupo: string; tolerancia: number }>({

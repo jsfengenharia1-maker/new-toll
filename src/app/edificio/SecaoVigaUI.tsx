@@ -5,6 +5,7 @@ import { Check, Hint, OptNumField, Select } from '../ui';
 import { alturaVigaChata, contornoSecaoViga, mesaDaViga } from '../../core/building/secaoViga';
 import type { BuildingModel, Viga } from '../../core/building/types';
 import { useBuilding } from './store';
+import { usePlanta } from './plantaStore';
 
 const cm = (v: number) => Math.round(v * 1000) / 10;
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
@@ -47,7 +48,7 @@ export function SecaoDaViga({ b, vigas }: { b: BuildingModel; vigas: Viga[] }) {
     <div data-secao-viga>
       <p className="small"><b>Seção {vigas.length > 1 ? `de ${vigas.length} vigas` : `de ${v0.nome}`}</b></p>
       <div className="row wrap u-items-end">
-        <Select label="Tipo da seção" value={tipo} options={TIPOS} onChange={(t) => lote({ mesa: novaMesa({ tipo: t }) })} />
+        <Select label="Tipo da seção" value={tipo} options={TIPOS} onChange={(t) => { lote({ mesa: novaMesa({ tipo: t }) }); const P = usePlanta.getState(); P.set({ abrirLancamento: P.abrirLancamento + 1 }); }} />
         {tipo !== 'ret' && (<>
           <OptNumField label="Largura da mesa bf (vazio = colaborante da norma)" unit="cm" width={230} value={v0.mesa?.bf === undefined ? undefined : cm(v0.mesa.bf)} onChange={(x) => lote({ mesa: novaMesa({ bf: x === undefined ? null : x / 100 }) })} />
           <OptNumField label="Espessura da mesa hf (vazio = laje)" unit="cm" width={200} value={v0.mesa?.hf === undefined ? undefined : cm(v0.mesa.hf)} onChange={(x) => lote({ mesa: novaMesa({ hf: x === undefined ? null : x / 100 }) })} />

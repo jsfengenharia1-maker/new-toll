@@ -500,6 +500,7 @@ export const f_L5 = {
       const vigas = (n) => page.locator('summary', { hasText: new RegExp(`^Vigas — Tipo \\(${n}\\)`) }).waitFor();
       const msgBarra = (t) => page.locator('.statusbar .msg', { hasText: t }).waitFor();
       const painel = await abrir();
+      await painel.getByLabel('Criar o pano a definir (?) ao fechar um contorno por vigas').uncheck(); // L7: o fluxo detecta os panos pelo botão
       const num = async (re, v) => { const c = painel.getByLabel(re); await c.fill(v); await c.press('Enter'); };
 
       // 1) contorno retangular (ângulo zero): dois cliques e Enter criam as quatro vigas, um passo no desfazer
@@ -673,5 +674,77 @@ export const f_L6 = {
       // desfazer da cota criada: um passo
       await page.keyboard.press('Control+z');
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.cotas?.length === 1, null);
+    },
+  };
+
+export const f_L7 = {
+    name: 'L7: pano a definir ao fechar o contorno (um desfazer), pano apagado vira abertura com cruz tracejada, restaurar e grupo de lançamento aberto ao escolher o tipo da seção',
+    async run({ newPage }) {
+      const page = await newPage(NO_PICKERS);
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const pil = (x, y) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`;
+      await cmd('lote {"comandos": [' + [pil(0, 0), pil(8, 0), pil(8, 5), pil(0, 5)].join(', ') + ']}');
+      await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      const solta = () => page.evaluate(() => document.activeElement?.blur?.());
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building')).building);
+      const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000 });
+      const clicar = async (x, y) => { const [sx, sy] = await telaDe(page, x, y); await page.mouse.click(sx, sy); };
+      const grupoLanc = page.locator('.edif-in details.group').filter({ has: page.locator(':scope > summary', { hasText: /^Ferramentas de lançamento/ }) }).first();
+      const abrirLanc = async () => { if (!(await grupoLanc.evaluate((x) => x.open))) await grupoLanc.locator(':scope > summary').click(); return grupoLanc; };
+
+      // 1) contorno retangular de vigas: o pano a definir nasce no mesmo passo (C7.2)
+      const painel = await abrirLanc();
+      await painel.getByRole('button', { name: 'Lançar contorno retangular', exact: true }).click();
+      await page.locator('.planta-cv[data-vista]').waitFor();
+      await solta();
+      await clicar(0, 0);
+      await clicar(8, 5);
+      await page.keyboard.press('Enter');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.lajes.length === 1, null);
+      let m = await modelo();
+      assert.equal(m.vigas.length, 4);
+      assert.equal(m.lajes[0].definir, true);
+      await painel.getByText('1 pano(s) a definir', { exact: false }).waitFor();
+      // um desfazer leva vigas e pano
+      await solta();
+      await page.keyboard.press('Control+z');
+      await esperar(() => { const b = JSON.parse(localStorage.getItem('statikos:building')).building; return b.vigas.length === 0 && b.lajes.length === 0; }, null);
+      await solta();
+      await page.keyboard.press('Control+y');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.lajes.length === 1, null);
+
+      // 2) apagar o pano selecionado: vira abertura (cruz tracejada) e a detecção não o recria
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('s');
+      await clicar(4, 2.5);
+      await painel.getByRole('button', { name: 'Apagar o pano selecionado (vira abertura)', exact: true }).click();
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.panosVazios?.length === 1, null);
+      m = await modelo();
+      assert.equal(m.lajes.length, 0);
+      assert.equal(await page.locator('canvas.int').getAttribute('data-panos-vazios'), '1');
+      await painel.getByText('1 abertura(s) de pano', { exact: false }).waitFor();
+      await painel.getByRole('button', { name: 'Detectar panos como a definir', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'Nenhuma região fechada por vigas sem laje' }).waitFor();
+      assert.equal((await modelo()).lajes.length, 0);
+
+      // 3) restaurar a abertura: volta como pano a definir
+      await painel.getByRole('button', { name: 'Restaurar a abertura 1 como pano', exact: true }).click();
+      await esperar(() => { const b = JSON.parse(localStorage.getItem('statikos:building')).building; return b.lajes.length === 1 && !b.panosVazios; }, null);
+      assert.equal((await modelo()).lajes[0].definir, true);
+
+      // 4) o grupo Ferramentas de lançamento abre ao escolher o tipo da seção da viga (C6.3)
+      await grupoLanc.locator(':scope > summary').click();
+      assert.equal(await grupoLanc.evaluate((x) => x.open), false);
+      const gvigas = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Vigas — / }) });
+      if (!(await gvigas.evaluate((x) => x.open))) await gvigas.locator(':scope > summary').click();
+      await gvigas.locator('table.quadro tbody tr').first().locator('td').nth(3).click();
+      await grupoEdif(page, 'Vínculos, flambagem e cobrimento');
+      const sv = page.locator('[data-secao-viga]');
+      await sv.waitFor();
+      await sv.getByLabel(/^Tipo da seção/).selectOption('T');
+      await esperar(() => JSON.parse(localStorage.getItem('statikos:building')).building.vigas.some((v) => v.mesa?.tipo === 'T'), null);
+      await page.waitForFunction(() => { const d = [...document.querySelectorAll('.edif-in details.group')].find((x) => /^Ferramentas de lançamento/.test(x.querySelector(':scope > summary')?.textContent ?? '')); return !!d?.open; }, null, { timeout: 15000 });
     },
   };
