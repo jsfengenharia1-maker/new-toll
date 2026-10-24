@@ -240,18 +240,35 @@ export interface ParametrosPuncao {
   bitolas: number[];
 }
 
-/** Retira dos segmentos os trechos que estão dentro de algum dos polígonos (cortados nas suas arestas). */
+/** Caixas envolventes dos polígonos, guardadas por lista (a mesma lista de cubetas é consultada em cada contorno). */
+const CAIXAS = new WeakMap<P[][], [number, number, number, number][]>();
+const caixasDe = (polis: P[][]) => {
+  let c = CAIXAS.get(polis);
+  if (!c) {
+    c = polis.map((poly) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of poly) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return [x0, y0, x1, y1] as [number, number, number, number]; });
+    CAIXAS.set(polis, c);
+  }
+  return c;
+};
+
+/**
+ * Retira dos segmentos os trechos que estão dentro de algum dos polígonos (cortados nas suas arestas). Cada segmento só
+ * consulta os polígonos cuja caixa envolvente toca a caixa do segmento (mesmo resultado, sem varrer todas as cubetas).
+ */
 export function tirarDentro(pecas: Seg[], polis: P[][]): Seg[] {
-  const out: Seg[] = [];
+  const out: Seg[] = [], caixas = caixasDe(polis), m = 1e-6;
   for (const [a, z] of pecas) {
+    const sx0 = Math.min(a[0], z[0]) - m, sx1 = Math.max(a[0], z[0]) + m, sy0 = Math.min(a[1], z[1]) - m, sy1 = Math.max(a[1], z[1]) + m;
+    const perto: P[][] = [];
+    for (let k = 0; k < polis.length; k++) { const c = caixas[k]; if (c[0] <= sx1 && c[2] >= sx0 && c[1] <= sy1 && c[3] >= sy0) perto.push(polis[k]); }
     const ts = [0, 1];
-    for (const poly of polis) for (let i = 0; i < poly.length; i++) { const t = interseccao(a, z, poly[i], poly[(i + 1) % poly.length]); if (t !== null) ts.push(t); }
+    for (const poly of perto) for (let i = 0; i < poly.length; i++) { const t = interseccao(a, z, poly[i], poly[(i + 1) % poly.length]); if (t !== null) ts.push(t); }
     ts.sort((x, y) => x - y);
     const em = (t: number): P => [a[0] + t * (z[0] - a[0]), a[1] + t * (z[1] - a[1])];
     for (let k = 0; k + 1 < ts.length; k++) {
       if (ts[k + 1] - ts[k] < 1e-9) continue;
-      const m = em((ts[k] + ts[k + 1]) / 2);
-      if (!polis.some((poly) => dentroPoligono(m, poly))) out.push([em(ts[k]), em(ts[k + 1])]);
+      const mp = em((ts[k] + ts[k + 1]) / 2);
+      if (!perto.some((poly) => dentroPoligono(mp, poly))) out.push([em(ts[k]), em(ts[k + 1])]);
     }
   }
   return out;
@@ -393,6 +410,11 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const manAsw = par.manual?.Asw ?? 0, manAneis = par.manual?.aneis ?? 0;
   const AswAuto = manAneis >= nbTot ? Math.max(0, AswReq - manAsw) : AswReq;
   if (AswAuto <= 1e-9) {
+    if (manAsw <= 1e-9) {
+      // nenhuma armadura exigida (a parcela Vc da laje cobre o cortante) e nenhuma informada: limite de C′ segue τRd1
+      msgs.push(`Cortante da laje: a superfície a ${fmt(aFalha)} m do pilar excede VRd1, mas a parcela Vc da laje com armadura transversal (19.4.2) cobre a solicitação; nenhuma armadura é necessária e nenhuma foi informada.`);
+      return sai('ok');
+    }
     msgs.push('Armadura de punção informada atende; nenhuma armadura calculada foi acrescentada.');
     return sai('armadura', { tauRd3: t3c + (1.5 * manAsw * par.fywd) / (sr * C2.u * 1e4) });
   }
@@ -684,7 +706,7 @@ export function puncaoEdificio(b: BuildingModel, an: AnaliseEdificio, lajesRes: 
       const r: ResultadoPuncao = {
         id: `${p.id}|${pav.id}`, pilar: p.id, nome: p.nome, pavimento: pav.nome, pavimentoId: pav.id, laje: laje.id, lajeNome: laje.nome, origem: origemEl, ...(st.viga ? { viga: st.viga.id } : {}),
         tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: angP, centro: st.centro, h, d, rho, fck: c.fck, F, M, K: v.C.K,
-        contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.armadura ? v.tauRd3 ?? v.tauRd1 : v.tauRd1, v.armadura ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
+        contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.tauRd3 ?? v.tauRd1, v.tauRd3 !== undefined ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
         tauRd1: v.tauRd1, tauRd2: v.tauRd2, ...(v.tauRd3 !== undefined ? { tauRd3: v.tauRd3 } : {}), ...(v.armadura ? { armadura: v.armadura } : {}),
         manual: manual.map(({ id, linhas, barras, phi, s }) => ({ id, linhas, barras, phi, s })), cortante: v.cortante, status: v.status, mensagens: msgs,
         origens: [origem('Punção', COMB_ELU_LAJE, 'puncao'), origem('Cortante da laje no entorno do pilar', COMB_ELU_LAJE, 'cortanteLaje')],
@@ -744,7 +766,7 @@ export function puncaoRadier(b: BuildingModel, an: AnaliseEdificio, radiers: Res
       lista.push({
         id: `${pid}|fundacao`, pilar: pid, nome: p.nome, pavimento: 'Fundação', pavimentoId: 'fundacao', laje: rad.id, lajeNome: rad.nome, origem: 'radier', combinacao: melhor.nome,
         tipo: v.tipo, livres: v.livres, c1: ap.c1, c2: ap.c2, circular, angulo: p.angulo, centro, h: rad.h, d, rho, fck: c.fck, F: ent.F, M: ent.M, K: v.C.K,
-        contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.armadura ? v.tauRd3 ?? v.tauRd1 : v.tauRd1, v.armadura ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
+        contornos: [mk(0, v.C, v.tauRd2, 'τRd2'), mk(1, v.C2, v.tauRd3 ?? v.tauRd1, v.tauRd3 !== undefined ? 'τRd3' : 'τRd1'), ...(v.C3 ? [mk(2, v.C3, v.tauRd1, 'τRd1')] : [])],
         tauRd1: v.tauRd1, tauRd2: v.tauRd2, ...(v.tauRd3 !== undefined ? { tauRd3: v.tauRd3 } : {}), ...(v.armadura ? { armadura: v.armadura } : {}),
         manual: [], cortante: v.cortante, status: v.status, mensagens: msgs,
         origens: [origem('Punção do radier', `${melhor.nome} (ELU; reação do solo descontada)`, 'puncao'), origem('Cortante no entorno do pilar', COMB_ELU_LAJE, 'cortanteLaje')],

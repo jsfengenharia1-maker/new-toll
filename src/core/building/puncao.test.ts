@@ -457,3 +457,66 @@ describe('punção do radier (FU6)', () => {
     expect(revisarEdificio(s.modelo, an, d).itens.some((i) => i.codigo === 'PUNCAO_BIELA' && i.tipo === 'fundacao' && i.id === r.id)).toBe(true);
   });
 });
+
+const par30 = (rho: number): ParametrosPuncao => ({ c: c30, rho, fywd: 250, tipoArm: 'estribo', s0f: 0.5, srf: 0.75, passoCortante: 0.75, furoDist: 8, bitolas: [5, 6.3, 8, 10] });
+
+describe('punção: limite do contorno C′ conforme a armadura (NBR 6118, 19.5.3.2 e 19.5.3.3) e mensagem de armadura informada', () => {
+  it('sem armadura: limite de C′ = τRd1 e a verificação confere τSd(C′) ≤ τRd1', () => {
+    const r = lisa(0.30, 2).d.puncao!.find((x) => x.tipo === 'interno' && x.pavimento === 'Tipo 1')!;
+    expect(r.status).toBe('ok');
+    expect(r.armadura).toBeUndefined();
+    const k = r.contornos[1], t1 = tauRd1(concrete(r.fck, 1.4), r.d, r.rho);
+    expect(k.limiteNome).toBe('τRd1');
+    expect(k.limite).toBeCloseTo(t1, 9);
+    expect(k.ok).toBe(k.tau <= t1 + 1e-9);
+    expect(k.ok).toBe(true);
+  });
+
+  it('armadura calculada: limite de C′ = τRd3 = 0,10(1+√(20/d))(100ρfck)^(1/3) + 1,5·Asw·fywd/(sr·u) (senα = 1)', () => {
+    const r = lisa(0.16, 14).d.puncao!.find((x) => x.tipo === 'interno' && x.pavimento === 'Tipo 1')!;
+    const a = r.armadura!, k = r.contornos[1];
+    const t3 = 0.10 * (1 + Math.sqrt(20 / (r.d * 100))) * Math.cbrt(100 * r.rho * r.fck) + (1.5 * a.AswAnel * 250) / (a.sr * k.u * 1e4);
+    expect(k.limiteNome).toBe('τRd3');
+    expect(k.limite).toBeCloseTo(t3, 9);
+    expect(r.tauRd3!).toBeCloseTo(t3, 9);
+    expect(k.ok).toBe(true);
+  });
+
+  it('só armadura informada cobre a exigência: limite de C′ = τRd3 (e não τRd1), C′ ok e mensagem "informada atende"', () => {
+    const need = lisa(0.16, 14).d.puncao!.find((x) => x.tipo === 'interno' && x.pavimento === 'Tipo 1')!.armadura!;
+    const com = lisa(0.16, 14, (ok, ss) => ok('laje.puncao', { id: ss.modelo.lajes[0].id, adicionar: [{ pilar: ss.modelo.pilares[4].id, linhas: 40, barras: need.barras, phi: 8, s: need.sr }] }));
+    const r = com.d.puncao!.find((x) => x.tipo === 'interno' && x.pavimento === 'Tipo 1')!;
+    expect(r.armadura).toBeUndefined();
+    const k = r.contornos[1], c = concrete(r.fck, 1.4);
+    const asw = 40 * 2 * (Math.PI * 0.8 ** 2 / 4); // 40 linhas × 2 pernas × φ8 = 40,21 cm²
+    const t3 = 0.10 * (1 + Math.sqrt(20 / (r.d * 100))) * Math.cbrt(100 * r.rho * r.fck) + (1.5 * asw * 250) / (need.sr * k.u * 1e4);
+    expect(k.tau).toBeGreaterThan(tauRd1(c, r.d, r.rho)); // sem a armadura informada C′ excederia τRd1
+    expect(k.limiteNome).toBe('τRd3');
+    expect(k.limite).toBeCloseTo(t3, 6);
+    expect(r.tauRd3!).toBeCloseTo(t3, 6);
+    expect(k.ok).toBe(true);
+    expect(r.mensagens.join(' ')).toMatch(/Armadura de punção informada atende/);
+  });
+
+  it('Vc cobre o cortante e não há grupo informado: sem armadura necessária, sem a mensagem de armadura informada', () => {
+    // d = 0,50, h = 0,55, ρ = 3 %, pilar 40×40; C′ a 2d = 1,0 m: u = 1,6 + 2π = 7,8832 m
+    // fctd = 0,7·0,3·30^(2/3)/1,4 = 1,4482 MPa; VRd1 (ρ limitado a 2 %; k = 1,6 − 0,5 = 1,1) = 0,25·1448,2·1,1·(1,2 + 0,8)·0,5 = 398,26 kN/m
+    // Vc (h ≥ 35 cm) = 0,6·1448,2·0,5 = 434,46 kN/m; τRd1 = 0,13·(1 + √(20/50))·(100·0,03·30)^(1/3) = 0,9507 MPa
+    // F = 3180 kN: v = F/u = 403,4 kN/m (entre VRd1 e Vc) e τSd(C′) = 0,807 MPa < τRd1
+    const ent: EntradaPuncao = { ap: pilar(0.4, 0.4), reg: { poligonos: [quad(-100, -100, 100, 100)], furos: [] }, d: 0.5, h: 0.55, F: 3180, M: [0, 0], qd: 0 };
+    expect(vcLaje(c30, 0.55, 0.5, 0.03)).toBeCloseTo(434.46, 1);
+    expect(vrd1(c30, 1, 0.5, 0.03 * 0.5)).toBeCloseTo(398.26, 1);
+    expect(tauRd1(c30, 0.5, 0.03)).toBeCloseTo(0.9507, 3);
+    const r = verificarPuncao(ent, par30(0.03));
+    expect(r.C2.u).toBeCloseTo(1.6 + 2 * Math.PI, 3);
+    expect(r.C2.tau).toBeCloseTo(0.807, 3);
+    expect(r.cortante.falha).toBe(true); // v > VRd1: a varredura marca a superfície
+    expect(r.cortante.superficies[0].Asw).toBe(0); // mas Vc cobre
+    expect(r.armadura).toBeUndefined();
+    expect(r.tauRd3).toBeUndefined();
+    expect(r.status).toBe('ok');
+    const m = r.mensagens.join(' ');
+    expect(m).not.toMatch(/informada atende/);
+    expect(m).toMatch(/Vc da laje .* cobre a solicitação; nenhuma armadura é necessária e nenhuma foi informada/);
+  });
+});
