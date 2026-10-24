@@ -59,6 +59,7 @@ import { ResumoAco } from './Detalhamento';
 import { CartaoRelatorios } from './RelatoriosUI';
 import { NovaObra } from './NovaObra';
 import { LancamentoDxf } from './LancamentoDxf';
+import { LancamentoIfc } from './LancamentoIfc';
 import { GerenciadorGabaritos, JanelaCapturas, VistasRapidas } from './Gabaritos';
 import { ObrasRecentes } from './ObrasRecentes';
 import { ImportarTexto } from './ImportarTexto';
@@ -241,7 +242,8 @@ export function Edificio() {
         </Propriedades>
       </Dock>
       {memo && <MemorialEdificio onClose={() => setMemo(false)} />}
-      {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} />}
+      {dialogoL1 === 'nova' && <NovaObra onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} onTexto={() => setDialogoL1('texto')} onDxf={() => { setDialogoL1(null); setDialogoL2({ tipo: 'lancar' }); }} onIfc={() => setDialogoL1('ifc')} />}
+      {dialogoL1 === 'ifc' && <LancamentoIfc onClose={() => setDialogoL1(null)} onCriada={() => setDialogoL1('gerais')} />}
       {dialogoL4 === 'copiarGrupo' && <CopiarGrupoDialogo b={b} onClose={() => setDialogoL4(null)} />}
       {dialogoL4 === 'unirPavimentos' && <UnirPavimentosDialogo b={b} onClose={() => setDialogoL4(null)} />}
       {dialogoL4 === 'guia' && <GuiaRapidoDialogo obra={b.obra.nome} onClose={() => setDialogoL4(null)} />}

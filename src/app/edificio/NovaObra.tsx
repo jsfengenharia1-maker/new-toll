@@ -17,10 +17,10 @@ const MODOS: { v: Modo; label: string; desabilitado?: string }[] = [
   { v: 'exemplo', label: 'Obra de exemplo' },
   { v: 'texto', label: 'Cargas de arquivo de texto' },
   { v: 'dxf', label: 'Lançamento por DXF/DWG' },
-  { v: 'ifc', label: 'Importação de IFC', desabilitado: 'Chega com a frente L3' },
+  { v: 'ifc', label: 'Importação de IFC' },
 ];
 
-export function NovaObra({ onClose, onCriada, onTexto, onDxf }: { onClose(): void; onCriada(): void; onTexto(): void; onDxf(): void }) {
+export function NovaObra({ onClose, onCriada, onTexto, onDxf, onIfc }: { onClose(): void; onCriada(): void; onTexto(): void; onDxf(): void; onIfc(): void }) {
   const [passo, setPasso] = useState<Passo>('modo');
   const [modo, setModo] = useState<Modo>('assistente');
   const [espec, setEspec] = useState<EspecificacaoObra>(() => structuredClone(ESPEC_PADRAO));
@@ -78,6 +78,12 @@ export function NovaObra({ onClose, onCriada, onTexto, onDxf }: { onClose(): voi
               <>
                 <Hint>Cria o edifício padrão (pavimentos e grupos para editar depois) e abre o assistente de lançamento: arquivos DXF ou DWG, camadas, grupos e revisão da proposta de pilares, vigas, eixos, lajes e aberturas.</Hint>
                 <div><Button variant="primary" onClick={() => { novo(false); onDxf(); }}>Criar edifício padrão e lançar pelo gabarito…</Button></div>
+              </>
+            )}
+            {modo === 'ifc' && (
+              <>
+                <Hint>Lê um arquivo IFC (IFC2x3 ou IFC4): pavimentos, pilares, vigas, lajes com aberturas e paredes de concreto; depois pede os dados do edifício e dos pavimentos e liga os materiais do arquivo aos tipos de elemento.</Hint>
+                <div><Button variant="primary" onClick={() => onIfc()}>Importar arquivo IFC…</Button></div>
               </>
             )}
           </>
