@@ -44,7 +44,7 @@ export type CasoAnalise = string;
 // ---------------- malha da laje ----------------
 
 /** Malha de uma laje: linhas paralelas às direções da laje, recortadas pelo contorno. */
-export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][] = []) {
+export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][] = [], origem?: P) {
   const a = (direcao * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
   const loc = (p: P): P => [p[0] * c + p[1] * sn, -p[0] * sn + p[1] * c];
   const glob = (p: P): P => [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c];
@@ -52,9 +52,23 @@ export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][
   const aneis = [pol, ...furos.map((f) => f.map(loc))]; // contorno e aberturas: a regra par-ímpar deixa os furos de fora
   const xs = pol.map((p) => p[0]), ys = pol.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const nx = Math.max(2, Math.round((x1 - x0) / s)), ny = Math.max(2, Math.round((y1 - y0) / s));
-  const sx = (x1 - x0) / nx, sy = (y1 - y0) / ny;
-  const X = Array.from({ length: nx - 1 }, (_, i) => x0 + (i + 1) * sx), Y = Array.from({ length: ny - 1 }, (_, j) => y0 + (j + 1) * sy);
+  let nx = Math.max(2, Math.round((x1 - x0) / s)), ny = Math.max(2, Math.round((y1 - y0) / s));
+  let sx = (x1 - x0) / nx, sy = (y1 - y0) / ny;
+  let X = Array.from({ length: nx - 1 }, (_, i) => x0 + (i + 1) * sx), Y = Array.from({ length: ny - 1 }, (_, j) => y0 + (j + 1) * sy);
+  // Ponto de inserção do pano (C7.5): as linhas partem da origem com o passo `s` sem ajuste e a sobra fica no lado oposto
+  // (linhas a menos de s/2 da borda não existem: a faixa vai para a borda). Sem origem, passo ajustado e simétrico (padrão).
+  if (origem) {
+    const [ox, oy] = loc(origem);
+    const rede = (o: number, a: number, z: number) => {
+      const out: number[] = [];
+      for (let k = Math.ceil((a - o) / s - 1e-9); o + k * s <= z + 1e-9; k++) { const v = o + k * s; if (v >= a + s / 2 - 1e-9 && v <= z - s / 2 + 1e-9) out.push(v); }
+      return out.length ? out : [(a + z) / 2];
+    };
+    X = rede(ox, x0, x1); Y = rede(oy, y0, y1); nx = X.length + 1; ny = Y.length + 1; sx = s; sy = s;
+  }
+  /** Largura de cada linha: metade da distância entre as vizinhas (a borda faz as vezes de vizinha nas pontas). */
+  const larguras = (V: number[], a: number, z: number) => V.map((_, i) => ((V[i + 1] ?? z) - (V[i - 1] ?? a)) / 2);
+  const LX = origem ? larguras(X, x0, x1) : X.map(() => sx), LY = origem ? larguras(Y, y0, y1) : Y.map(() => sy);
   /** Trechos internos da reta (coordenada fixa `v` no eixo `eixo`) dentro do polígono. */
   const cortes = (eixo: 0 | 1, v: number): [number, number][] => {
     const t: number[] = [];
@@ -69,13 +83,13 @@ export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][
   };
   // linhas: dir = 0 → paralela a x local (direção da laje); 1 → paralela a y local
   const linhas: { dir: 0 | 1; largura: number; pontos: P[]; borda: [boolean, boolean] }[] = [];
-  for (const y of Y) for (const [a0, a1] of cortes(1, y)) {
+  for (const [iy, y] of Y.entries()) for (const [a0, a1] of cortes(1, y)) {
     const ps = [a0, ...X.filter((x) => x > a0 + 1e-9 && x < a1 - 1e-9), a1];
-    linhas.push({ dir: 0, largura: sy, pontos: ps.map((x) => glob([x, y])), borda: [true, true] });
+    linhas.push({ dir: 0, largura: LY[iy], pontos: ps.map((x) => glob([x, y])), borda: [true, true] });
   }
-  for (const x of X) for (const [a0, a1] of cortes(0, x)) {
+  for (const [ix, x] of X.entries()) for (const [a0, a1] of cortes(0, x)) {
     const ps = [a0, ...Y.filter((y) => y > a0 + 1e-9 && y < a1 - 1e-9), a1];
-    linhas.push({ dir: 1, largura: sx, pontos: ps.map((y) => glob([x, y])), borda: [true, true] });
+    linhas.push({ dir: 1, largura: LX[ix], pontos: ps.map((y) => glob([x, y])), borda: [true, true] });
   }
   // faixas junto ao contorno (meia malha) que as linhas internas não cobrem: área por direção
   const A = Math.abs(areaPoligono(contorno)) - furos.reduce((t, f) => t + Math.abs(areaPoligono(f)), 0);
@@ -100,8 +114,10 @@ export function malhaLaje(contorno: P[], direcao: number, s: number, furos: P[][
     const soma = bordas.reduce((s1, e) => s1 + Math.abs((e.z[0] - e.a[0]) * u[d][0] + (e.z[1] - e.a[1]) * u[d][1]), 0);
     return bordas.map((e) => { const L = Math.hypot(e.z[0] - e.a[0], e.z[1] - e.a[1]); return soma ? (banda[d] * Math.abs(((e.z[0] - e.a[0]) * u[d][0] + (e.z[1] - e.a[1]) * u[d][1]) / L)) / soma : 0; });
   });
-  return { linhas, bordas, pesoBorda, sx, sy };
+  return { linhas, bordas, pesoBorda, sx, sy, variavel: !!origem };
 }
+/** Origem da malha: o vértice de inserção do pano (C7.5), se definido e não for o primeiro; senão nenhuma (malha simétrica de sempre). */
+export const origemMalha = (l: Pick<Laje, 'contorno' | 'insercao'>): P | undefined => (l.insercao ? (l.contorno[l.insercao] as P | undefined) : undefined);
 const comp = (ps: P[]) => ps.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - ps[i][0], p[1] - ps[i][1]), 0);
 
 // ---------------- propriedades ----------------
@@ -545,9 +561,9 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const lajes = b.lajes.filter((l) => l.grupo === grupo.id);
     const cargas = b.cargas.filter((c) => c.grupo === grupo.id);
     const malhas = lajes.map((l) => ({ l, m: l.tipo.tipo === 'nervurada'
-      ? malhaLaje(l.contorno, direcaoNervurada(l), passoMalhaNervurada(geometriaBidirecional(b, l.tipo), op), l.furos ?? [])
-      : l.tipo.tipo === 'alveolar' ? malhaLaje(l.contorno, l.direcao ?? 0, op.alveolarMalha, l.furos ?? [])
-      : malhaLaje(l.contorno, ehNervurada(l.tipo) ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? []) }));
+      ? malhaLaje(l.contorno, direcaoNervurada(l), passoMalhaNervurada(geometriaBidirecional(b, l.tipo), op), l.furos ?? [], origemMalha(l))
+      : l.tipo.tipo === 'alveolar' ? malhaLaje(l.contorno, l.direcao ?? 0, op.alveolarMalha, l.furos ?? [], origemMalha(l))
+      : malhaLaje(l.contorno, ehNervurada(l.tipo) ? l.direcao ?? 0 : direcaoPrincipal(l.contorno), op.malha, l.furos ?? [], origemMalha(l)) }));
     // pontos das bordas das malhas e apoios dos pilares dividem as vigas
     const eixos = eixosDasVigas(b, grupo.id, true) as [P, P][];
     const extras: P[] = [];
@@ -620,6 +636,15 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     }
     for (const { l, m: mm } of malhas) {
       const prop = propLaje(l, mm.sx, mm.sy, op, b, El, Gl);
+      /** Malha ancorada no ponto de inserção: a largura varia de linha a linha e a rigidez acompanha. */
+      const propLinhaCache = new Map<string, PropBarraLaje>();
+      const propLinha = (ln: (typeof mm.linhas)[number]): PropBarraLaje => {
+        if (!mm.variavel) return prop[ln.dir];
+        const ch = `${ln.dir}|${ln.largura.toFixed(9)}`;
+        let r = propLinhaCache.get(ch);
+        if (!r) { r = propLaje(l, ln.largura, ln.largura, op, b, El, Gl)[ln.dir]; propLinhaCache.set(ch, r); }
+        return r;
+      };
       const areaG = lajeG(l, b) + grupo.gRev, areaQ = grupo.q;
       /** Nervurada bidirecional (E3c): barras em zona maciça (faixa junto às vigas e zonas manuais) têm a rigidez e o peso da laje maciça. */
       const nerv = l.tipo.tipo === 'nervurada' ? geometriaBidirecional(b, l.tipo) : null;
@@ -650,7 +675,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
           const midB: P = [(nos[ids[j]].p[0] + nos[ids[j + 1]].p[0]) / 2, (nos[ids[j]].p[1] + nos[ids[j + 1]].p[1]) / 2];
           const fmB = arrN ? arrN.fracMacica(midB, k, ln.largura) : 0;
           const hAb = abEf.length && fmB ? alturaAbacoEm(abEf, midB) : undefined;
-          const pr = nerv ? propBarraNervuradaMista(nerv, k, ln.largura, fmB, op, hAb) : prop[k];
+          const pr = nerv ? propBarraNervuradaMista(nerv, k, ln.largura, fmB, op, hAb) : propLinha(ln);
           const bl: Barra3 = { i: no(ids[j]), j: no(ids[j + 1]), E: El, G: Gl, A: pr.A, Iz: pr.I, Iy: pr.A * 0.01, J: pr.J };
           if (op.cortanteBarrasLaje && pr.As) bl.Ay = pr.As; // Timoshenko (K1.3.22)
           // engaste da borda: coeficiente da laje nesta aresta × o da viga de apoio (bordas em pilares ficam engastadas)

@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 52 | 4 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 76 | 7 | 0 | 25 |
-| 7. Lajes | 195 | 99 | 29 | 0 | 67 |
+| 7. Lajes | 195 | 100 | 28 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **528** | **45** | **4** | **186** |
+| **Total** | **763** | **529** | **44** | **4** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 32 | 1 | 33 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 1 | 32 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -413,7 +413,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Feito | — | L7: pano automático — ao traçar vigas que fecham um contorno (`viga.tracar` ou contorno retangular) o app cria o pano a definir (?) no mesmo passo do desfazer (`store.ts` exec + `laje.detectarPanos { definir }`; opção "Criar o pano a definir ao fechar um contorno" no grupo Ferramentas de lançamento, ligada por padrão; comandos puros do núcleo e da CLI não criam sozinhos); também `laje.detectarPanos { definir }` pelo botão (L5, `Laje.definir` marcado com "?" na planta); panos detectados e pano sem laje geram aviso; `panoAutomatico.test.ts`, e2e f_L7 |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
-| C7.5 | Mudar o ponto de inserção do pano. | Parcial | E | E3b: a inserção ainda não muda a numeração das vigotas nem a origem da malha [L5] — E5h: a inserção passar a mudar a numeração e a origem da malha — núcleo: `Laje.insercao` (vértice) por `laje.editar { insercao / insercaoPonto }`; interface: ferramenta `insercaoPano` (cartão 04) |
+| C7.5 | Mudar o ponto de inserção do pano. | Feito | — | E5h: o ponto de inserção (laje.editar insercao/insercaoPonto; ferramenta Mudar o ponto de inserção do pano) numera as vigotas (posicionarVigotas) e ancora a malha da grelha no vértice (analitico.ts malhaLaje origem / origemMalha; passo sem ajuste, sobra no lado oposto, rigidez por linha); sem inserção a malha é a de sempre. Teste insercaoFuros.test.ts; e2e E5h. Ancorar a malha no vértice é critério do Statikos (premissa insercao-pano, a confirmar) |
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Feito | — | L5 núcleo: `laje.editar { direcaoPor: { viga, relacao } / { pontos } }`; interface: ferramenta `direcaoPano` (cartão 04) — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
 | C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | E | L4 (DadosL4.tsx, cópia de dados) e E3f: alerta de troca de plano na cópia (CAMPOS_COPIA_LAJE.plano); cópia do plano só entre panos do mesmo grupo [E3f] — E5c: copiar o plano de pano de outro grupo, escolhido por menu de contexto |
