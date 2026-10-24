@@ -4,6 +4,7 @@
 import type { InfoRearme } from './rearmarAlterados';
 import { comEscadas } from './escadasCalculo';
 import { resumoCalculoEscadas, type ResumoLanceCalculo } from './escadasResumo';
+import { armarEscadas, type ArmaduraEscadas, type LinhaResumoAco } from './escadasArmadura';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, resolver3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
@@ -1384,20 +1385,8 @@ export function armaduraNecessariaLaje(b: BuildingModel, an: AnaliseEdificio, l:
   return Math.max(amin, M ? beamFlexure({ kind: 'rect', bw: 1, h }, false, Math.abs(M), d, 0.02, c, fyd).As : 0) * 1e4;
 }
 
-/**
- * Wood-Armer (sinal: + traciona embaixo): armadura inferior mx* = mx + |mxy|, my* = my + |mxy|; se um sair
- * negativo, ele vira 0 e o outro = m + mxy²/|m do primeiro|. Superior análogo com sinais trocados (valores ≤ 0).
- */
-export function woodArmer(mx: number, my: number, mxy: number): { inf: [number, number]; sup: [number, number] } {
-  const t = Math.abs(mxy);
-  let ax = mx + t, ay = my + t;
-  if (ax < 0) { ax = 0; ay = Math.abs(mx) > 1e-12 ? my + (t * t) / Math.abs(mx) : my; }
-  else if (ay < 0) { ay = 0; ax = Math.abs(my) > 1e-12 ? mx + (t * t) / Math.abs(my) : mx; }
-  let bx = mx - t, by = my - t;
-  if (bx > 0) { bx = 0; by = Math.abs(mx) > 1e-12 ? my - (t * t) / Math.abs(mx) : my; }
-  else if (by > 0) { by = 0; bx = Math.abs(my) > 1e-12 ? mx - (t * t) / Math.abs(my) : mx; }
-  return { inf: [Math.max(0, ax), Math.max(0, ay)], sup: [Math.min(0, bx), Math.min(0, by)] };
-}
+export { woodArmer } from './woodArmer';
+import { woodArmer } from './woodArmer';
 
 /**
  * Maior flecha relativa aos apoios das linhas da malha da laje: em cada linha (cadeia de barras de uma direção),
@@ -1738,6 +1727,8 @@ export { cargasParaFundacao } from './fundacao';
 // ---------------- tudo ----------------
 
 export interface Dimensionamento { escadas?: ResumoLanceCalculo[]; vigas: ResultadoViga[]; pilares: ResultadoPilar[]; lajes: ResultadoLaje[]; quantitativos: Quantitativo[]; combinacoes: number;
+  /** Escadas (E4d): armadura e detalhamento por lance (trechos, barras, ligações, cortante, fissuras e flecha) e resumo do aço por bitola. */
+  escadasArmadura?: ArmaduraEscadas['lances']; resumoAcoEscadas?: LinhaResumoAco[];
   /** Detalhamento das vigas (barras, emendas, estribos por zona) e resumo do aço das vigas por bitola. */
   detalhes?: DetalheViga[]; resumoAcoVigas?: ReturnType<typeof resumoAcoVigas>;
   /** Vigas inclinadas entre pavimentos (E2c): flexo-compressão oblíqua, cortante e torção; detalhamento (barras e estribos) e resumo do aço. */
@@ -1833,7 +1824,11 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
   suspensoesVigas(b, an, vigas);
   const d: Dimensionamento = { vigas, pilares: dimensionarPilares(b, an, elu, combs.find((c) => c.tipo === 'QP')), lajes: dimensionarLajes(b, an), quantitativos: quantitativos(b), combinacoes: combs.length };
   if (agrupamentos?.length) d.agrupamentos = agrupamentos;
-  if (an.escadas?.lances.length) d.escadas = resumoCalculoEscadas(an.escadas); // escadas (E4c): reações, momentos e deslocamentos por lance
+  if (an.escadas?.lances.length) {
+    d.escadas = resumoCalculoEscadas(an.escadas); // escadas (E4c): reações, momentos e deslocamentos por lance
+    const ae = armarEscadas(b, an.escadas, an.opcoes); // escadas (E4d): armadura e detalhamento por lance
+    d.escadasArmadura = ae.lances; d.resumoAcoEscadas = ae.resumoAco;
+  }
   { // E2e: vigas de vínculo externo (topo de muro: não dimensionadas), pré-moldadas e consolos
     for (const v of b.vigas) {
       const r = v.vinculoExterno ? vigas.find((x) => x.viga === v.id) : undefined;

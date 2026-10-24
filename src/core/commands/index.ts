@@ -16,6 +16,7 @@ import './abacos';
 import './alveolares';
 import './escadas';
 import './escadasEdicao';
+import './escadasArmadura';
 import './planos';
 import './acoes';
 import './armaduras';

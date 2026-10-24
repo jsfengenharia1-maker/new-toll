@@ -177,7 +177,7 @@ export interface QuantitativosDetalhados { panos: QuantPano[]; vigas: QuantViga[
 
 /** Espessura equivalente de concreto (m) da laje (treliçada: capa + nervuras). */
 
-export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensionamento, 'quantitativos' | 'resumoAcoVigas' | 'resumoAcoPilares' | 'resumoAcoLajes' | 'resumoAcoVigotas'> & Partial<Pick<Dimensionamento, 'resumoAcoNervuradas'>>): QuantitativosDetalhados {
+export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensionamento, 'quantitativos' | 'resumoAcoVigas' | 'resumoAcoPilares' | 'resumoAcoLajes' | 'resumoAcoVigotas'> & Partial<Pick<Dimensionamento, 'resumoAcoNervuradas' | 'resumoAcoEscadas'>>): QuantitativosDetalhados {
   const panos: QuantPano[] = b.lajes.map((l) => {
     const rep = Math.max(1, pavimentosDoGrupo(b, l.grupo).length), area = areaLaje(l), pr = propriedadesLaje(l.tipo, b), t = espessuraConcretoDaLaje(b, l, (tp) => espessuraConcreto(b, tp));
     let ench: QuantPano['enchimento'];
@@ -200,7 +200,7 @@ export function quantitativosDetalhados(b: BuildingModel, dim: Pick<Dimensioname
   const forma = dim.quantitativos.reduce((t, q) => t + q.forma.lajes + q.forma.vigas + q.forma.pilares, 0);
   const detalhado = !!(dim.resumoAcoVigas || dim.resumoAcoPilares || dim.resumoAcoLajes || dim.resumoAcoVigotas || dim.resumoAcoNervuradas);
   const soma = (rs?: { pesoComPerdas: number }[]) => (rs ?? []).reduce((t, x) => t + x.pesoComPerdas, 0);
-  const aco = detalhado ? soma(dim.resumoAcoVigas) + soma(dim.resumoAcoPilares) + soma(dim.resumoAcoLajes) + soma(dim.resumoAcoVigotas) + soma(dim.resumoAcoNervuradas) : dim.quantitativos.reduce((t, q) => t + q.aco, 0);
+  const aco = detalhado ? soma(dim.resumoAcoVigas) + soma(dim.resumoAcoPilares) + soma(dim.resumoAcoLajes) + soma(dim.resumoAcoVigotas) + soma(dim.resumoAcoNervuradas) + soma(dim.resumoAcoEscadas) : dim.quantitativos.reduce((t, q) => t + q.aco, 0);
   return {
     panos, vigas, enchimento: { area: r2(enchimento.area), volume: r2(enchimento.volume, 3), pecas: enchimento.pecas },
     indices: { area: r2(area), concreto: r2(concreto), forma: r2(forma), aco: r2(aco, 1), kgPorM2: area > 0 ? r2(aco / area, 2) : 0, m3PorM2: area > 0 ? r2(concreto / area, 3) : 0, m2PorM2: area > 0 ? r2(forma / area, 2) : 0, kgPorM3: concreto > 0 ? r2(aco / concreto, 1) : 0, acoDetalhado: detalhado },

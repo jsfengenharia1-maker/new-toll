@@ -16,6 +16,7 @@ import { resumoVigaFundacao, type ResultadoVigaFundacao } from '../core/building
 import { resumoAnalise } from '../core/building/resumo';
 import { resumoVigotas } from '../core/building/vigotas';
 import { resumoNervurada } from '../core/building/nervuradasDim';
+import { resumoArmaduraEscadas } from '../core/building/escadasArmaduraResumo';
 import { resumoAlveolar } from '../core/building/alveolaresDim';
 import { abrirSessao, dimensionar, gravarPranchas, resumo, TIPOS_PRANCHA, salvarSessao, type Io, type OpcoesSaidaPranchas } from './run';
 
@@ -234,8 +235,10 @@ export function filtrarDim(b: BuildingModel, d: ReturnType<typeof dimensionar>, 
     // consolos curtos e vigas pré-moldadas (E2e): resultado por elemento (sem a envoltória)
     ...(d.consolos?.length ? { consolos: d.consolos } : {}),
     ...(d.premoldadas?.length ? { premoldadas: d.premoldadas } : {}),
-    // escadas (E4c): reações por apoio (G e Q, kN e kN/m), momentos de cálculo e deslocamentos por lance; a armadura entra com a E4d
+    // escadas (E4c): reações por apoio (G e Q, kN e kN/m), momentos de cálculo e deslocamentos por lance
     ...(d.escadas?.length ? { escadas: pav ? d.escadas.filter((x) => x.pavimento === pav.id || x.pavimentoTopo === pav.id) : d.escadas } : {}),
+    // escadas (E4d): armadura por lance (posições por trecho, ancoragens, esperas, passadores, cortante, fissuração, flecha) e aço por bitola
+    ...(d.escadasArmadura?.length ? { escadasArmadura: resumoArmaduraEscadas(pav ? d.escadasArmadura.filter((x) => x.pavimento === pav.id || x.pavimentoTopo === pav.id) : d.escadasArmadura), resumoAcoEscadas: d.resumoAcoEscadas ?? [] } : {}),
     ...(d.resumoAcoVigas ? { resumoAcoVigas: d.resumoAcoVigas } : {}),
     ...(d.resumoAcoPilares ? { resumoAcoPilares: d.resumoAcoPilares } : {}),
     ...(d.resumoAcoLajes ? { resumoAcoLajes: d.resumoAcoLajes } : {}),
@@ -283,6 +286,6 @@ const SAIDA_ALTERACAO = { type: 'object', properties: {
 } };
 const ELEM = { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, status: { type: 'string', enum: ['ok', 'review', 'fail'] }, mensagens: { type: 'array', items: { type: 'string' } } } } };
 const SAIDA_DIM = { type: 'object', properties: {
-  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, nervuradas: { type: 'array' }, resumoAcoNervuradas: { type: 'array' }, alveolares: { type: 'array' }, resumoAcoAlveolares: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, quantitativoVigotas: { type: 'array' }, quantitativoMoldadas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, basesMuros: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
+  vigas: ELEM, pilares: ELEM, lajes: ELEM, vigotas: { type: 'array' }, nervuradas: { type: 'array' }, resumoAcoNervuradas: { type: 'array' }, escadasArmadura: { type: 'array' }, resumoAcoEscadas: { type: 'array' }, alveolares: { type: 'array' }, resumoAcoAlveolares: { type: 'array' }, resumoAcoVigotas: { type: 'array' }, quantitativoVigotas: { type: 'array' }, quantitativoMoldadas: { type: 'array' }, resumoTelas: { type: 'array' }, trelicas: { type: 'array' }, quantitativos: { type: 'array' }, fundacao: { type: 'array' }, fundacoes: ELEM, vigasFundacao: ELEM, radiers: ELEM, vigasElasticas: ELEM, corridas: ELEM, basesMuros: ELEM, resumoAcoRadiers: { type: 'array' }, avisosFundacao: { type: 'array', items: { type: 'string' } }, equilibrio: { type: 'array' }, fogo: { type: 'object' }, avisosAcoes: { type: 'array', items: { type: 'string' } }, combinacoes: { type: 'number' },
   resumo: { type: 'object' }, erro: { type: 'string' },
 } };

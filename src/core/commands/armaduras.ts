@@ -90,22 +90,22 @@ registrar<{ ids: string[]; inf: { n: number; phi: number }; sup?: { n: number; p
   },
 });
 
-registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' | 'parede' }>({
+registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' | 'parede' | 'escada' }>({
   nome: 'armadura.desbloquear',
   descricao: 'Desbloqueia armaduras editadas (o recálculo volta a dimensioná-las): `ids` de pilares, vigas, lajes (treliçadas; vigotas editadas, E3b; placa fixada e negativos editados das alveolares, E3e; maciças com edição ou geradas sem cálculo, R7e), paredes e pilares-parede (malhas e emendas editadas, E1d; as aberturas da parede voltam à armadura calculada), ou todos de um `tipo`, ou todos sem parâmetros.',
   risco: 'escrita',
   calculo: 'detalhe',
   mcp: false,
-  schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar', 'laje', 'parede'] } } },
+  schema: { type: 'object', additionalProperties: false, properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, tipo: { type: 'string', enum: ['viga', 'pilar', 'laje', 'parede', 'escada'] } } },
   validar(b, p) {
-    const sem = (p.ids ?? []).filter((id) => !b.pilares.some((x) => x.id === id) && !b.vigas.some((x) => x.id === id) && !b.lajes.some((x) => x.id === id) && !b.paredes?.some((x) => x.id === id) && !b.pilaresParede?.some((x) => x.id === id));
+    const sem = (p.ids ?? []).filter((id) => !b.pilares.some((x) => x.id === id) && !b.escadas?.some((x) => x.id === id) && !b.vigas.some((x) => x.id === id) && !b.lajes.some((x) => x.id === id) && !b.paredes?.some((x) => x.id === id) && !b.pilaresParede?.some((x) => x.id === id));
     return sem.length ? err('ELEMENTO_INEXISTENTE', `Elemento ${sem.join(', ')} não existe.`) : [];
   },
   aplicar(d, p) {
     let n = 0;
     // pórticos agrupados: desbloquear um desbloqueia o agrupamento inteiro
     const ids = p.ids ? new Set(p.ids.flatMap((id) => agrupamentoDe(d as BuildingModel, id)?.vigas ?? [id])) : null;
-    const alvo = (id: string, t: 'viga' | 'pilar' | 'laje' | 'parede') => (ids ? ids.has(id) : !p.tipo || p.tipo === t);
+    const alvo = (id: string, t: 'viga' | 'pilar' | 'laje' | 'parede' | 'escada') => (ids ? ids.has(id) : !p.tipo || p.tipo === t);
     for (const w of [...(d.paredes ?? []), ...(d.pilaresParede ?? [])]) if ((w.armaduras || w.emendas) && alvo(w.id, 'parede')) { n += (w.armaduras?.length ?? 0) + (w.emendas?.length ?? 0); delete w.armaduras; delete w.emendas; }
     for (const w of d.paredes ?? []) for (const a of w.aberturas ?? []) if (a.armadura && alvo(w.id, 'parede')) { n++; delete a.armadura; }
     for (const q of d.pilares) if (q.armaduras && alvo(q.id, 'pilar')) { n += q.armaduras.length; delete q.armaduras; }
@@ -114,6 +114,7 @@ registrar<{ ids?: string[]; tipo?: 'viga' | 'pilar' | 'laje' | 'parede' }>({
     for (const l of d.lajes) if (l.edicaoVigotas?.length && alvo(l.id, 'laje')) { n += l.edicaoVigotas.length; delete l.edicaoVigotas; }
     for (const l of d.lajes) if (l.alveolar && (l.alveolar.negativos || l.alveolar.fixa) && alvo(l.id, 'laje')) { n += (l.alveolar.negativos ? 1 : 0) + (l.alveolar.fixa ? 1 : 0); delete l.alveolar.negativos; delete l.alveolar.fixa; if (!Object.keys(l.alveolar).length) delete l.alveolar; } // alveolar (E3e): placa fixada e negativos editados
     for (const l of d.lajes) if ((l.edicao || l.semCalculo) && alvo(l.id, 'laje')) { n++; delete l.edicao; delete l.semCalculo; }
+    for (const e of d.escadas ?? []) if (e.armadura?.bloqueadas?.length && alvo(e.id, 'escada')) { n += e.armadura.bloqueadas.length; delete e.armadura.bloqueadas; if (!Object.keys(e.armadura).length) delete e.armadura; }
     return n ? `${n} armadura(s) desbloqueada(s).` : 'Nenhuma armadura bloqueada.';
   },
 });

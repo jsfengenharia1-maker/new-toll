@@ -195,6 +195,24 @@ export interface OpcoesCalculo {
   escadaEAlvenaria: number;
   /** Escadas (E4c): 1 = lance apoiado nas duas bordas com translação horizontal presa nas duas (apoios fixos); 0 = fixo embaixo e móvel em cima. */
   escadaApoioFixoDois: number;
+  /** Escadas (E4d, C8.58): 1 = armaduras superior e inferior iguais, pelo maior valor (por direção e trecho). */
+  escadaIgualarSupInf: number;
+  /** Escadas (E4d, C8.59): 1 = espaçamentos das armaduras superior e inferior múltiplos entre si. */
+  escadaEspacamentoMultiplo: number;
+  /** Escadas (E4d, C8.60): 1 = armadura de todas as seções do lance igual (longitudinal e transversal), superior e depois inferior. */
+  escadaIgualarSecoes: number;
+  /** Escadas (E4d, C8.61): 1 = arranques (esperas) no início do primeiro lance. */
+  escadaEsperas: number;
+  /** Escadas (E4d, C8.62): 1 = barras de ligação (passadores) no fim do último lance. */
+  escadaPassadores: number;
+  /** Escadas (E4d, C8.63): comprimento disponível (cm) para ancorar as esperas do primeiro lance em viga chata; a largura da viga prevalece se maior. */
+  escadaAncoragemViga: number;
+  /** Escadas (E4d, C8.64): cobrimento nominal da escada (cm); 0 = o das lajes, conforme a classe de agressividade. */
+  escadaCobrimento: number;
+  /** Escadas (E4d, C8.65): profundidade da fundação (cm) para ancorar o início do lance quando não há elemento de fundação sob ele. */
+  escadaProfundidadeFundacao: number;
+  /** Escadas (E4d): armadura de distribuição mínima, em % da principal. */
+  escadaDistribuicao: number;
   /** Nervuradas bidirecionais (E3c): passo da malha da grelha como fração do menor intereixo (1/3 no padrão do sistema). */
   nervuradaMalha: number;
   /** Nervuradas bidirecionais: inércia à flexão das barras = fator × inércia da faixa maciça de mesma altura, igual nas zonas maciça e aliviada; 0 = seção T real das nervuras. */
@@ -772,6 +790,24 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Rigidez do apoio elástico do patamar: por metro de borda, k = E·largura / altura da parede (ou do tirante, do patamar ao piso de cima).' },
   { chave: 'escadaApoioFixoDois', rotulo: 'Escadas: lance com os dois apoios fixos na horizontal', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Hipótese do Statikos (sem fonte; o programa de referência simula as bordas como laje apoiada em viga rígida) [a confirmar]: apoio simples (fixo embaixo, móvel em cima), sem empuxo horizontal nem esforço normal no lance', aConfirmar: true,
     descricao: 'Desligado (padrão): a borda inferior prende a translação horizontal e a superior só a vertical (biapoiada). Ligado: as duas bordas prendem a horizontal e o lance trabalha também por esforço normal (arco/pórtico), com reação horizontal nos apoios.' },
+  { chave: 'escadaIgualarSupInf', rotulo: 'Escadas: igualar as armaduras superior e inferior', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (C8.58); desligada por padrão [a confirmar o padrão do programa]', aConfirmar: true,
+    descricao: 'Ligado: em cada trecho e direção, a armadura superior e a inferior recebem o maior valor entre as duas (área necessária); bitola e espaçamento saem desse valor.' },
+  { chave: 'escadaEspacamentoMultiplo', rotulo: 'Escadas: espaçamentos superior e inferior múltiplos entre si', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (C8.59); desligada por padrão [a confirmar o padrão do programa]', aConfirmar: true,
+    descricao: 'Ligado: o maior espaçamento (superior ou inferior) é arredondado para baixo a um múltiplo do menor, para as barras ficarem alinhadas; a armadura só aumenta.' },
+  { chave: 'escadaIgualarSecoes', rotulo: 'Escadas: igualar a armadura de todas as seções do lance', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Opção do programa de referência (C8.60); desligada por padrão [a confirmar o padrão do programa]', aConfirmar: true,
+    descricao: 'Ligado: todas as seções do trecho (faixas ao longo do vão) recebem a armadura da mais solicitada, na transversal e nas barras superiores, superior e depois inferior. Desligado: a distribuição e as barras superiores seguem a necessidade de cada seção; a principal inferior é contínua e sempre pela maior.' },
+  { chave: 'escadaEsperas', rotulo: 'Escadas: arranques (esperas) no início do primeiro lance', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Opção do programa de referência (C8.61) [a confirmar o padrão]; comprimento da espera pelo traspasse NBR 6118, 9.5.2 (α0t, Tabela 9.4)', aConfirmar: true,
+    descricao: 'Ligado: o primeiro lance parte de barras de espera ancoradas na viga ou na fundação de apoio (gancho ou dobra quando falta comprimento) e emendadas por traspasse à armadura inferior. Desligado: a armadura inferior se prolonga reta até o apoio e se ancora nele.' },
+  { chave: 'escadaPassadores', rotulo: 'Escadas: barras de ligação (passadores) no fim do lance', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Opção do programa de referência (C8.62) [a confirmar o padrão]', aConfirmar: true,
+    descricao: 'Ligado: no apoio superior do último lance, barras superiores de ligação com a laje ou a viga de chegada (área da armadura superior necessária no apoio, no mínimo ρmín), ancoradas no apoio e prolongadas no lance.' },
+  { chave: 'escadaAncoragemViga', rotulo: 'Escadas: comprimento disponível para ancorar as esperas em viga chata', unidade: 'cm', min: 0, max: 100, passo: 1, padrao: 20, fonte: 'Dado do projeto (C8.63) [a confirmar o valor padrão do programa]; a largura da viga de apoio prevalece se maior', aConfirmar: true,
+    descricao: 'Comprimento reto disponível, a partir da face da viga chata, para ancorar as esperas do primeiro lance. Se a ancoragem necessária for maior, as barras são dobradas; se a largura da viga de apoio for maior que este valor, ela prevalece.' },
+  { chave: 'escadaCobrimento', rotulo: 'Escadas: cobrimento nominal', unidade: 'cm', min: 0, max: 8, passo: 0.5, padrao: 0, fonte: 'NBR 6118, Tabela 7.2 (por classe de agressividade; laje); 0 = o das lajes dos dados gerais (C8.64)', aConfirmar: false,
+    descricao: '0 usa o cobrimento das lajes (que já segue a classe de agressividade ambiental); um valor positivo vale para as duas faces das escadas.' },
+  { chave: 'escadaProfundidadeFundacao', rotulo: 'Escadas: profundidade da fundação para ancorar o início do lance', unidade: 'cm', min: 10, max: 200, passo: 5, padrao: 40, fonte: 'Estimativa do Statikos (sem fonte; C8.65, K1.4.78) [a confirmar]', aConfirmar: true,
+    descricao: 'Quando não há elemento de fundação sob o início do primeiro lance (apoio no nível de fundação), as esperas descem esta profundidade a partir do apoio, menos o cobrimento; se não bastar, ganham perna horizontal.' },
+  { chave: 'escadaDistribuicao', rotulo: 'Escadas: armadura de distribuição mínima', unidade: '% da principal', min: 0, max: 100, passo: 5, padrao: 20, fonte: 'NBR 6118, 20.1: armadura secundária ≥ 20 % da principal, ≥ 0,9 cm²/m e espaçamento ≤ 33 cm [a confirmar o número do item]', aConfirmar: true,
+    descricao: 'Armadura transversal (de distribuição) mínima dos trechos e patamares, em porcentagem da armadura principal da mesma face, além do mínimo de 0,9 cm²/m e do mínimo de 0,5·ρmín·h.' },
   { chave: 'nervuradaMalha', rotulo: 'Nervuradas: malha da grelha', unidade: '× intereixo', min: 0.1, max: 1, passo: 0.05, padrao: 1 / 3, fonte: 'Programa de referência (K1.3.25): malha de 1/3 do intereixo da zona aliviada; NBR 6118 não fixa', aConfirmar: false,
     descricao: 'Passo da malha das barras da grelha das lajes nervuradas bidirecionais, como fração do menor intereixo das nervuras (60 cm → 20 cm). Cada barra representa uma faixa de nervuras.' },
   { chave: 'nervuradaInercia', rotulo: 'Nervuradas: inércia à flexão das barras', unidade: '× laje maciça', min: 0, max: 1, passo: 0.05, padrao: 0.5, padraoNBR: 0, fonte: 'Programa de referência (K1.3.26, K1.9.93): metade da inércia da zona maciça, igual nas zonas maciça e aliviada (inércia média, uma só por pano)', fonteNBR: 'NBR 6118, 14.7.7 [a confirmar o item]: rigidez da seção T das nervuras na zona aliviada e da laje maciça na zona maciça', aConfirmar: true,
@@ -1175,6 +1211,8 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'alveolarMomentoMinPositivo', 'alveolarMomentoMinNegativo', 'alveolarRedistribuir', 'alveolarCapaMin', 'alveolarBranson',
   // E4a: limites que só geram avisos das escadas
   'escadaBlondelMin', 'escadaBlondelMax', 'escadaEspelhoMin', 'escadaEspelhoMax', 'escadaLarguraMin',
+  // E4d: armadura e detalhamento das escadas (só o dimensionamento sobre o cálculo da escada vigente)
+  'escadaIgualarSupInf', 'escadaEspacamentoMultiplo', 'escadaIgualarSecoes', 'escadaEsperas', 'escadaPassadores', 'escadaAncoragemViga', 'escadaCobrimento', 'escadaProfundidadeFundacao', 'escadaDistribuicao',
 ]);
 const RE_BASE_ELASTICA = /^(corrida|radier)/;
 const RE_FUNDACAO = /^(fund|gerar|viga(Eq|Trav|Fund))/;
