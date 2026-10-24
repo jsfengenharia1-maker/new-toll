@@ -390,3 +390,75 @@ export const f_MD5c = {
       await dlg.waitFor({ state: 'detached' });
     },
   };
+
+// MD5c (radier e vigas de fundação)
+export const f_MD5d = {
+    name: 'MD5c: memória de cálculo detalhada do radier (tensões no solo por caso, Wood-Armer por nó, flexão por face e direção, fissuração, barras e referência à punção)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('vento.definir {"ativo": false}');
+      await cmd('lote {"comandos": [' + [[1, 1], [7, 1], [7, 6], [1, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[1, 1], [7, 1]], [[1, 6], [7, 6]], [[1, 1], [1, 6]], [[7, 1], [7, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      await cmd('caso.criar {"nome": "Piso", "natureza": "Q"}');
+      await cmd('radier.criar {"contorno": [[0, 0], [8, 0], [8, 7], [0, 7]], "h": 0.4, "k": 40000, "sigmaAdm": 300}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const t = await doc.innerText();
+      for (const s of ['Radier R1', 'Radier · tensões no solo', 'Wood-Armer', 'Flexão – face inferior (positiva)', 'Radier · punção']) assert.ok(t.includes(s), `falta "${s}"`);
+      const mem = await baixarJson(page, dlg);
+      const ps = mem.passos.filter((p) => p.elemento === 'Radier R1');
+      assert.ok(ps.length > 40, `passos do radier: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      // σmáx = −k·Σ f·uz refeita da decomposição por caso
+      const sm = ps.find((p) => p.topico === 'Radier · tensões no solo' && p.descricao.startsWith('Tensão máxima'));
+      const w = JSON.parse(sm.entradas.contrib).reduce((a, [, f, uz]) => a + f * uz, 0);
+      assert.ok(Math.abs(-sm.entradas.k * w - sm.resultado) < 1e-9 * Math.max(1, Math.abs(sm.resultado)));
+      assert.ok(ps.some((p) => /^Momentos da grelha – ELU/.test(p.topico) && p.descricao.startsWith('Momento mx')));
+      assert.ok(mem.passos.some((p) => /^Punção P\d+ · Radier R1$/.test(p.elemento)));
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: 'Radier R1' });
+      await page.waitForFunction(() => !document.querySelector('[data-memoria-detalhada]').innerText.includes('Viga V1'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD5e = {
+    name: 'MD5c: memória de cálculo detalhada das vigas de fundação (alavanca, travamento, esforços no ponto governante, seção, flexão, cortante e quantitativos)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('vento.definir {"ativo": false}');
+      await cmd('lote {"comandos": [' + [0, 4, 8].flatMap((x) => [0, 4].map((y) => [x, y])).map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('fundacao.terreno {"sigmaAdm": 250}');
+      await cmd('fundacao.gerar {"tipo": "sapata", "associadas": false, "vigasEquilibrio": true, "vigasTravamento": true}');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+      const doc = dlg.locator('[data-memoria-detalhada]');
+      await doc.waitFor({ timeout: 90000 });
+      const mem = await baixarJson(page, dlg);
+      const els = [...new Set(mem.passos.map((p) => p.elemento).filter((e) => /^Viga de fundação VF\d+$/.test(e)))];
+      assert.ok(els.length >= 1, 'vigas de fundação na memória');
+      const ps = mem.passos.filter((p) => p.elemento === els[0]);
+      assert.ok(ps.length > 20, `passos da viga: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      const ec = ps.find((p) => p.topico === 'Viga de fundação · esforços de cálculo');
+      assert.ok(Math.abs(ec.entradas.gf * ec.entradas.Vk - ec.entradas.Vd) < 1e-9 * Math.max(1, ec.entradas.Vd));
+      assert.ok(ps.some((p) => p.topico === 'Viga de fundação · cortante' && p.descricao.startsWith('Resistência da biela')));
+      const t = await doc.innerText();
+      assert.ok(t.includes(els[0]) && t.includes('Viga de fundação · seção'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };

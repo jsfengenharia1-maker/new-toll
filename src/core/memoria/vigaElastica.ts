@@ -2,7 +2,7 @@
 // (`dimensionarVigaElastica`, baseElastica.ts). Chamada pelo próprio cálculo só com a memória ligada, depois dele, com as variáveis
 // locais do dimensionamento (`CtxVigaElastica`): tensões no solo, envoltória ELU nas pontas das barras (combinação, barra, ponta e a
 // contribuição de cada caso), flexão inferior e superior (reaproveita `flexao` das vigas), As,mín, barras, cortante modelo I, pele,
-// volume e aço. O radier (casca sobre molas, Wood-Armer) fica para a MD seguinte.
+// volume e aço. O radier está em `radier.ts` e as vigas de equilíbrio e travamento em `vigaFundacao.ts` (MD5c).
 import type { BarChoice, BeamSection, Concrete, ShearResult } from '../concrete';
 import { fm, type Registrador, type ValorMemoria } from './registrador';
 import { flexao } from './vigaConcreto';
