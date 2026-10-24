@@ -3,12 +3,13 @@ import { create } from 'zustand';
 import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import type { RefTemp } from '../../core/geom/cotasTemp';
+import type { DadosComunsEscada } from '../../core/building/escadas';
 import { cssVar } from '../design/tokens';
 import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
 
 export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota';
+  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'escada';
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
@@ -155,6 +156,12 @@ interface PState {
   espelharCopia: boolean;
   /** Cores da planta alteradas pelo usuário, por tema (só neste navegador). */
   cores: Partial<Record<Tema, Partial<Paleta>>>;
+  /** Ferramenta Escada (E4b): função (criar, editar, apagar, mover, girar); dados e lances da última escada lançada (C8.38, zerados ao trocar de obra);
+   *  inserção repetida (C8.35) e escada de que a nova copia dados e lances (C8.39). Não vão para o arquivo. */
+  escadaFn: 'criar' | 'editar' | 'apagar' | 'mover' | 'girar';
+  escadaPadrao: { dados: DadosComunsEscada; lances: { tipo: string }[]; nome?: string } | null;
+  escadaRepetir: boolean;
+  escadaCopiar: string | null;
   /** Última ação repetível (Enter com a ferramenta Selecionar e nada pendente): ferramenta ou item da paleta. */
   ultimaAcao: { tipo: 'ferramenta'; f: Ferramenta } | { tipo: 'paleta'; rotulo: string; executar: () => void } | null;
   set(p: Partial<Omit<PState, 'set'>>): void;
@@ -220,6 +227,10 @@ export const usePlanta = create<PState>((set) => ({
   ppAngulo: 0,
   ppParams: null,
   pwParams: null,
+  escadaFn: 'criar',
+  escadaPadrao: null,
+  escadaRepetir: true,
+  escadaCopiar: null,
   corteLanc: { sentido: 'esq', profundidade: 0 },
   mostrarCortes: true,
   janelaCorte: null,

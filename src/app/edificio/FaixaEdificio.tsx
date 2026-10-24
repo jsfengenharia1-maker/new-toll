@@ -8,6 +8,7 @@ import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
 import { useInclinadasUI } from './InclinadasUI';
 import { useEscadaUI } from './EscadaUI';
+import { escolherEscada } from './EscadaMenu';
 import { importarMascara } from './mascaraImportar';
 import { useStore } from '../store';
 import { importarCargasDoEdificio } from '../Fundacoes';
@@ -71,6 +72,7 @@ function Lancamento() {
       <RibbonGroup label="Elementos" radios="Ferramenta">
         <Ferr f="pilar" icon="pilar" /><Ferr f="pilarParede" icon="pilarParede" /><Ferr f="viga" icon="viga" /><Ferr f="laje" icon="laje" /><Ferr f="parede" icon="parede" />
         <RibbonButton icon="vigaInclinada" label="Vigas inclinadas" onClick={() => useInclinadasUI.getState().abrir()} />
+        <RibbonButton icon="escada" label="Escada" title="Escada (Shift+E): lança a escada na planta" onClick={() => escolherEscada()} />
         <RibbonButton icon="escada" label="Escadas…" onClick={() => useEscadaUI.getState().abrir()} />
       </RibbonGroup>
       <RibbonGroup label="Eixos" radios="Ferramenta">

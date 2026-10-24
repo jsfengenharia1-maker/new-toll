@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useRevisao } from './revisao';
 import { aoEscolher, facesLaje, hexDaCor, paleta, usePlanta, type Ferramenta, type Vista } from './plantaStore';
+import { EscadaMenu, escolherEscada } from './EscadaMenu';
 import { poligonoZona, siglaReforco } from '../../core/building/lajesEdicao';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { corridaEfetiva } from '../../core/building/baseElastica';
@@ -141,9 +142,9 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
-  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
+  dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto', escada: 'Escada',
 };
-export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
+export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z', escada: 'Shift+E' };
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function proximoEixo(b: BuildingModel, horizontal: boolean) {
@@ -191,6 +192,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   copiar: ['Ponto base da cópia da seleção (pilares e vigas).', 'Ponto de destino (cópias em série pelo número da barra).'],
   girar: ['Clique o centro do giro da seleção (ângulo na barra da planta; digite x;y e Enter para coordenadas).'],
   espelhar: ['1º ponto do eixo de espelhamento da seleção.', '2º ponto do eixo.'],
+  escada: ['Escolha a função no menu (Criar, Editar, Apagar, Mover, Girar). Em Criar, o clique inicial põe o início da escada e o segundo define a direção; Esc volta a Selecionar.'],
   pilarParede: ['Clique para lançar o pilar-parede do tipo escolhido no grupo Pilares-parede (o primeiro vértice do tipo vai ao clique; R gira 90°; Esc volta a Selecionar).'], parede: ['Clique os vértices do eixo da parede (capturas valem; Enter termina; Esc cancela).'],
 };
 
@@ -1857,6 +1859,8 @@ export function Planta() {
       const ferr: Record<string, Ferramenta> = { s: 'selecionar', p: 'pilar', v: 'viga', l: 'laje', c: 'carga', e: 'eixo', m: 'mover', d: 'medir', u: 'fundacao', b: 'vigaFund', k: 'girarFund', n: 'insFund', t: 'limite', q: 'limiteMascara', w: 'radier', x: 'vigaElastica', i: 'dividir', j: 'unir', o: 'prolongar', y: 'copiar', g: 'girar', h: 'espelhar', z: 'puncao' };
       // A é a tecla da sapata corrida só no nível de fundação e fora das ferramentas em que A já é outra coisa (alinhamento da viga, ajuste do pilar)
       if (k.toLowerCase() === 'a' && nivelFund && P.ferramenta !== 'viga' && P.ferramenta !== 'pilar') { P.set({ ferramenta: 'corrida', ...aoEscolher('corrida') }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
+      // Shift+E: ferramenta Escada (E4b); a tecla E sozinha continua sendo Eixo
+      if (k === 'E' && e.shiftKey) { if (escolherEscada()) setPontos([]); return; }
       if (ferr[k.toLowerCase()]) { const fe = ferr[k.toLowerCase()]; P.set({ ferramenta: fe, ...aoEscolher(fe) }); it.current.fundPilar = null; it.current.vfIni = null; it.current.insEl = null; setPontos([]); return; }
       if (k === 'Escape') { cotaSerie.current = { refs: [], linha: false, modo: cotaSerie.current.modo }; P.set({ passagemViga: null, passagensViga: [] }); it.current.fundPilar = null; it.current.vigaRef = null; it.current.vfIni = null; it.current.insEl = null; if (P.pilaresFund.length) P.set({ pilaresFund: [] }); else if (pontos.length) setPontos([]); else P.set({ ferramenta: 'selecionar', selecao: new Set() }); return; }
       if (k === 'Tab' && P.ferramenta === 'cota') { e.preventDefault(); const S = cotaSerie.current; S.modo = S.modo === 'face' ? 'eixo' : 'face'; msg(`Referência da série: ${S.modo === 'face' ? 'faces' : 'eixos e centros'}.`); return; }
@@ -1943,6 +1947,7 @@ export function Planta() {
             onChange={(e) => setDigitando(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirmarDigitado(); if (e.key === 'Escape') setDigitando(null); e.stopPropagation(); }} onBlur={() => setDigitando(null)} />
         )}
       </div>
+      {pl.ferramenta === 'escada' && <EscadaMenu />}
       <div className="planta-st" data-ajuda={`ferramenta:${pl.ferramenta}`}>
         <span ref={statusRef} className="num">—</span>
         <span className="muted">{passo}</span>
