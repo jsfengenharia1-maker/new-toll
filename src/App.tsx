@@ -14,7 +14,7 @@ import { SAMPLES } from './app/samples';
 import { addMember, deleteSelection, ensureNode, importTables, nbrCombinations } from './core/edit';
 import { emptyModel, type ForceUnit, type LengthUnit, type Model } from './core/types';
 import { FORCE_UNITS, LENGTH_UNITS, makeUnits } from './app/units';
-import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect } from './app/ui';
+import { AjudaProvider, BotaoAjuda, copyText, download, Dock, StatusBar, ThemeSelect, useIndicioRolagem, useRoving } from './app/ui';
 import { FaixaModulo } from './app/FaixaModulo';
 import { FaixaPortico } from './app/FaixaPortico';
 import { FaixaFundacoes } from './app/FaixaFundacoes';
@@ -57,6 +57,9 @@ export default function App() {
   const a = useAnalysis();
   const bd = useBuilding();
   const svgRef = useRef<SVGSVGElement>(null);
+  const modtabs = useRef<HTMLElement>(null);
+  useRoving(modtabs, '[role="tab"]');
+  useIndicioRolagem(modtabs);
   const fileRef = useRef<HTMLInputElement>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   const [coord, setCoord] = useState('');
@@ -290,7 +293,7 @@ export default function App() {
         <ThemeSelect />
         <button type="button" className="tbtn panel-toggle" onClick={() => setPanelOpen(!panelOpen)}>{panelOpen ? 'Ocultar painel' : 'Painel'}</button>
       </header>
-      <nav className="modtabs" role="tablist" aria-label="Módulo">
+      <nav className="modtabs" role="tablist" aria-label="Módulo" ref={modtabs}>
         <button type="button" role="tab" aria-selected={st.module === 'portico'} onClick={() => st.set({ module: 'portico' })}>Pórtico</button>
         <button type="button" role="tab" aria-selected={st.module === 'edificio'} onClick={() => st.set({ module: 'edificio' })}>Edifício</button>
         <button type="button" role="tab" aria-selected={st.module === 'fundacoes'} onClick={() => st.set({ module: 'fundacoes' })}>Fundações</button>

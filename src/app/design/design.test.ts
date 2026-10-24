@@ -152,7 +152,7 @@ describe('design system', () => {
   it('layout BIMCraft: token da faixa e classes dos componentes novos definidos', () => {
     const g = semComentarios(GLOBAL);
     expect(g).toMatch(/--h-ribbon:\s*56px/);
-    for (const c of ['ribbon-wrap', 'rtabs', 'rtab', 'ribbon', 'rgrp', 'rbtn', 'rl', 'dock', 'dock-grip', 'dock-toggle', 'pal', 'phead', 'pbody', 'tree', 'tn', 'vtabs', 'modtabs', 'work', 'typecard', 'cfg'])
+    for (const c of ['ribbon-wrap', 'rtabs-wrap', 'rtabs', 'rtab', 'ribbon', 'rgrp', 'rbtn', 'rl', 'dock', 'dock-grip', 'dock-toggle', 'pal', 'phead', 'pbody', 'tree', 'tn', 'vtabs', 'modtabs', 'work', 'typecard', 'cfg'])
       expect(g, `.${c}`).toMatch(new RegExp(`\\.${c}[\\s,.{:\\[]`));
   });
 

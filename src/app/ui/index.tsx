@@ -323,5 +323,6 @@ export { Icone } from './Icone';
 export { Ribbon, RibbonTab, RibbonGroup, RibbonButton, RibbonHint, type RibbonTabDef } from './Ribbon';
 export { Dock, Palette } from './Dock';
 export { Tree, TreeItem } from './Tree';
+export { useRoving, useIndicioRolagem } from './teclado';
 export { ViewTabs, StatusBar, type ViewTabDef } from './ViewTabs';
 export { TypeCard } from './TypeCard';

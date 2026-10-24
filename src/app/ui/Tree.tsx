@@ -1,11 +1,14 @@
 // Árvore navegável (D1): Navegador da obra. Um TreeItem é um botão `role="treeitem"`; os filhos aparecem quando `expanded`.
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
+import { useRoving } from './teclado';
 import { Button } from './index';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
 export function Tree({ label, children }: { label: string; children: ReactNode }) {
-  return <ul className="tree" role="tree" aria-label={label}>{children}</ul>;
+  const ref = useRef<HTMLUListElement>(null);
+  useRoving(ref, '[role="treeitem"]', { vertical: true, arvore: true });
+  return <ul className="tree" role="tree" aria-label={label} ref={ref}>{children}</ul>;
 }
 
 /** Item da árvore. `level` 1–5 define o recuo. Sem `expanded` é folha. O clique na seta expande/recolhe (`onToggle`); o clique no rótulo seleciona (`onSelect`) ou, sem `onSelect`, expande. */

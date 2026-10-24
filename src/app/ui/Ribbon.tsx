@@ -1,5 +1,6 @@
 // Faixa de comandos (D1): abas por tarefa + grupos rotulados com botões grandes. Estilo em design/global.css (.ribbon-wrap, .rtabs, .rtab, .ribbon, .rgrp, .rbtn).
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useIndicioRolagem, useRoving } from './teclado';
 import { Button } from './index';
 import { Icone } from './Icone';
 
@@ -11,13 +12,19 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 export function Ribbon({ label, tabs, active, onActive, open, onOpen, children }: {
   label: string; tabs: RibbonTabDef[]; active: string; onActive: (id: string) => void; open: boolean; onOpen: (v: boolean) => void; children?: ReactNode;
 }) {
+  const abas = useRef<HTMLDivElement>(null), corpo = useRef<HTMLDivElement>(null);
+  useRoving(abas, '[role="tab"]');
+  useIndicioRolagem(abas);
+  useIndicioRolagem(corpo);
   return (
     <div className="ribbon-wrap">
-      <div className="rtabs" role="tablist" aria-label={label}>
-        {tabs.map((t) => <RibbonTab key={t.id} tab={t} selected={t.id === active} onSelect={() => { onActive(t.id); if (!open) onOpen(true); }} onToggle={() => onOpen(!open)} />)}
+      <div className="rtabs-wrap">
+        <div className="rtabs" role="tablist" aria-label={label} ref={abas}>
+          {tabs.map((t) => <RibbonTab key={t.id} tab={t} selected={t.id === active} onSelect={() => { onActive(t.id); if (!open) onOpen(true); }} onToggle={() => onOpen(!open)} />)}
+        </div>
         <Button variant="nenhuma" className="rtab-toggle" aria-label={open ? 'Recolher a faixa de comandos' : 'Expandir a faixa de comandos'} aria-expanded={open} title={open ? 'Recolher a faixa (duplo clique numa aba também)' : 'Expandir a faixa'} onClick={() => onOpen(!open)}>{open ? '⌃' : '⌄'}</Button>
       </div>
-      {open && <div className="ribbon" role="toolbar" aria-label={`Comandos: ${tabs.find((t) => t.id === active)?.label ?? ''}`}>{children}</div>}
+      {open && <div className="ribbon" ref={corpo} role="toolbar" aria-label={`Comandos: ${tabs.find((t) => t.id === active)?.label ?? ''}`}>{children}</div>}
     </div>
   );
 }
