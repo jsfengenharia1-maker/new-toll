@@ -572,6 +572,18 @@ export function Planta() {
         ctx.stroke();
       }
     }
+    // panos apagados = abertura (L7, K1.9.103): contorno e cruz tracejada pelas diagonais da caixa, recortadas no contorno
+    if (!nivelFund) for (const v of b.panosVazios ?? []) {
+      if (v.grupo !== grupo) continue;
+      const poly = new Path2D();
+      v.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) poly.lineTo(x, y); else poly.moveTo(x, y); });
+      poly.closePath();
+      const xs = v.contorno.map((q) => q[0]), ys = v.contorno.map((q) => q[1]);
+      const [x0, y0] = paraTela(Math.min(...xs), Math.min(...ys)), [x1, y1] = paraTela(Math.max(...xs), Math.max(...ys));
+      ctx.save(); ctx.clip(poly); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.moveTo(x0, y1); ctx.lineTo(x1, y0); ctx.stroke();
+      ctx.restore(); ctx.setLineDash([]);
+    }
     // nervuradas bidirecionais (E3c): cubetas inteiras em traço fino (camada opcional)
     if (cubetasPlanta.length) {
       ctx.strokeStyle = cores.laje; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.9;
@@ -2153,7 +2165,7 @@ export function Planta() {
       <div ref={wrap} className="planta-cv" data-ajuda={`ferramenta:${pl.ferramenta}`} data-tema={pl.tema} data-nivel={nivelFund ? 'fundacao' : pav?.nome} onContextMenu={(e) => e.preventDefault()}>
         <canvas ref={cvM} />
         <canvas ref={cvE} />
-        <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+        <canvas ref={cvI} className="int" data-ferramenta={pl.ferramenta} data-panos-vazios={(b.panosVazios ?? []).filter((v) => v.grupo === grupo).length} aria-label="Planta do pavimento" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
           onPointerLeave={() => { it.current.cap = null; desenharInteracao(); }}
           onDoubleClick={() => {
             if (pl.ferramenta === 'cota') fecharSerie();

@@ -47,8 +47,10 @@ export interface L5Estado {
   relacao: 'paralela' | 'perpendicular';
   /** Prolongar por comprimento fixo (m; 0 = prolongar até o alvo clicado). */
   comprimento: number;
+  /** Ao fechar um contorno por vigas, criar o pano a definir (?) automaticamente (L7, C7.2). */
+  panoAuto: boolean;
 }
-export const L5_PADRAO: L5Estado = { simples: false, deslocamento: 0, alinharContorno: true, modoAbertura: 'zero', borda: 'nenhuma', bordaB: 0.15, bordaH: 0.4, vigaRef: null, valorLaje: 2, casoLaje: 'Q', copiarCarga: '', valorViga: 5, casoViga: 'G', direcaoModo: 'viga', relacao: 'paralela', comprimento: 0 };
+export const L5_PADRAO: L5Estado = { simples: false, deslocamento: 0, alinharContorno: true, modoAbertura: 'zero', borda: 'nenhuma', bordaB: 0.15, bordaH: 0.4, vigaRef: null, valorLaje: 2, casoLaje: 'Q', copiarCarga: '', valorViga: 5, casoViga: 'G', direcaoModo: 'viga', relacao: 'paralela', comprimento: 0, panoAuto: true };
 export type Tema = 'escuro' | 'claro' | 'pb';
 export interface Vista { k: number; ox: number; oy: number } // px por m; tela = (ox + x·k, oy − y·k)
 
@@ -166,6 +168,8 @@ interface PState {
   contaGotas: { pilar: string | null; cargas: boolean };
   /** Ferramentas de lançamento (L5). */
   l5: L5Estado;
+  /** Contador que abre o grupo Ferramentas de lançamento ao escolher o tipo da seção da viga (L7, C6.3). */
+  abrirLancamento: number;
   /** Cotas temporárias ao selecionar (L6) e as trocas de referência da sessão (face/eixo por par de elementos; não vão para o arquivo). */
   cotasTemp: boolean;
   refTemp: RefTemp;
@@ -283,6 +287,7 @@ export const usePlanta = create<PState>((set) => ({
   cotasTemp: true,
   refTemp: {},
   l5: { ...L5_PADRAO },
+  abrirLancamento: 0,
   anguloGiro: 90,
   espelharCopia: false,
   cores: coresSalvas(),

@@ -4,7 +4,7 @@
 // `laje.detectarPanos`, `laje.editar`, `carga.areaNaLaje` e `carga.aoLongoDaViga`. Os cliques ficam em Planta.tsx.
 import { Button, Check, Group, Hint, NumField, Select } from '../ui';
 import { casosParaCarga, pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
-import { useBuilding } from './store';
+import { opcaoPano, useBuilding } from './store';
 import { usePlanta, type Ferramenta, type L5Estado } from './plantaStore';
 
 export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () => void }) {
@@ -18,9 +18,11 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
   const ir = (f: Ferramenta) => { pl.set({ ferramenta: f }); onPlanta?.(); };
   const casos = casosParaCarga(b).map((c) => ({ v: c.id, label: c.id === 'G' ? 'G (permanente)' : c.id === 'Q' ? 'Q (variável)' : c.nome }));
   const superficies = b.cargas.filter((c) => c.tipo === 'area' && c.grupo === grupo);
+  const vazios = (b.panosVazios ?? []).filter((v) => v.grupo === grupo);
+  const lajesSel = b.lajes.filter((l) => l.grupo === grupo && pl.selecao.has(l.id));
   const vref = b.vigas.find((v) => v.id === l5.vigaRef);
   return (
-    <Group title="Ferramentas de lançamento" open={false}>
+    <Group key={pl.abrirLancamento} title="Ferramentas de lançamento" open={pl.abrirLancamento > 0}>
       <h4>Vigas</h4>
       <div className="row wrap">
         <Check label="Modo simples: cada par de pontos é uma viga" checked={l5.simples} onChange={(v) => set({ simples: v })} />
@@ -54,10 +56,18 @@ export function LancamentoL5Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?
 
       <h4>Panos e direção</h4>
       <div className="row wrap">
+        <Check label="Criar o pano a definir (?) ao fechar um contorno por vigas" checked={l5.panoAuto} onChange={(v) => { opcaoPano.automatico = v; set({ panoAuto: v }); }} />
+      </div>
+      <div className="row wrap">
         <Button disabled={!grupo} onClick={() => exec('laje.detectarPanos', { grupo, definir: true })}>Detectar panos como a definir</Button>
         <Button disabled={!aDefinir.length} onClick={() => exec('laje.atribuir', { ids: aDefinir.map((l) => l.id), tipo: pl.tipoLaje })}>Atribuir o tipo da ferramenta Laje aos panos a definir</Button>
       </div>
       <Hint>{aDefinir.length ? `${aDefinir.length} pano(s) a definir (?) neste grupo: ${aDefinir.map((l) => l.nome).join(', ')}. A obra só calcula depois de atribuir o tipo de todos.` : 'Todo contorno fechado por vigas pode virar um pano a definir, marcado com ? na planta; o cálculo fica bloqueado até o tipo ser atribuído.'}</Hint>
+      <div className="row wrap">
+        <Button disabled={!lajesSel.length} onClick={() => exec('laje.apagarPano', { ids: lajesSel.map((l) => l.id) })}>Apagar o pano selecionado (vira abertura)</Button>
+        {vazios.map((v, i) => <Button key={v.id} onClick={() => exec('laje.restaurarPano', { ids: [v.id] })}>{`Restaurar a abertura ${i + 1} como pano`}</Button>)}
+      </div>
+      <Hint>{vazios.length ? `${vazios.length} abertura(s) de pano neste grupo (cruz tracejada): região fechada por vigas sem laje, sem aviso e sem carga de laje.` : 'Apagar um pano selecionado na planta deixa a região fechada por vigas como abertura, marcada com a cruz tracejada; a detecção de panos não a recria.'}</Hint>
       <div className="row wrap">
         <Select label="Direção do pano por" value={l5.direcaoModo} options={[{ v: 'viga', label: 'uma viga' }, { v: 'pontos', label: 'dois pontos' }]} onChange={(v) => set({ direcaoModo: v })} />
         <Select label="Em relação à viga" value={l5.relacao} options={[{ v: 'paralela', label: 'paralela' }, { v: 'perpendicular', label: 'perpendicular' }]} onChange={(v) => set({ relacao: v })} />

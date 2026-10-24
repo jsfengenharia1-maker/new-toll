@@ -734,6 +734,12 @@ export type TipoLaje =
   /** Alveolar protendida (E3e): `ficha` (obra, catálogo da biblioteca de normas ou exemplo) e `placa` adotada (código na ficha); a escolha automática só sugere (ver `Laje.alveolar`). */
   | { tipo: 'alveolar'; ficha: string; placa: string };
 
+/**
+ * Pano apagado = abertura (L7, K1.9.103): região fechada por vigas deliberadamente sem laje (shaft, vazio). Guarda o contorno do
+ * pano que foi apagado; a detecção de panos não o recria, o aviso de pano sem laje some e a planta o marca com a cruz tracejada.
+ */
+export interface PanoVazio { id: string; grupo: string; contorno: [number, number][] }
+
 export interface Laje {
   id: string;
   nome: string;
@@ -1161,6 +1167,8 @@ export interface BuildingModel {
   tiposLaje?: TiposLajeObra;
   /** Ábacos das lajes nervuradas bidirecionais (E3d); ausente = nenhum. */
   abacos?: Abaco[];
+  /** Panos apagados que viraram abertura (L7, cruz tracejada); ausente = nenhum. */
+  panosVazios?: PanoVazio[];
   /** Escadas (E4a) e seus tipos de lance reutilizáveis; ausente = nenhuma. */
   escadas?: Escada[];
   tiposLance?: TipoLance[];

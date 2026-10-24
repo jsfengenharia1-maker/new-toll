@@ -127,6 +127,7 @@ export const f_planta_3 = {
       await page.locator('#edcmd').fill('lote {"comandos": [' + [[0, 0], [5, 0], [5, 4], [0, 4]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.2, "h": 0.4}}}`).join(', ') + ']}');
       await page.locator('#edcmd').press('Enter');
       await page.locator('summary', { hasText: 'Pilares (4)' }).waitFor();
+      await (await grupoEdif(page, 'Ferramentas de lançamento')).getByLabel('Criar o pano a definir (?) ao fechar um contorno por vigas').uncheck(); // L7: este fluxo calcula sem definir panos
       await page.keyboard.press('f');
       await page.waitForTimeout(100);
       await page.locator('.planta-cv').click({ position: { x: 5, y: 5 }, button: 'right' }); // foco na planta, sem ação

@@ -116,6 +116,9 @@ function base() {
   expect(s.executar('viga.tracar', { grupo: 'g_3', pontos: [[160, 0], [166, 0]], secao: { b: 0.2, h: 0.5 } }).ok).toBe(true);
   expect(s.executar('consolo.criar', { viga: s.modelo.vigas.at(-1)!.id, ponta: 'ini', pilar: s.modelo.pilares.at(-2)!.id }).ok).toBe(true);
   expect(s.executar('consolo.editar', { id: s.modelo.consolos![0].id, armadura: { tirante: { n: 3, phi: 16 }, horizontais: { n: 2, phi: 8 }, verticais: { phi: 6.3, s: 0.2 } } }).ok).toBe(true);
+  // L7: um pano criado longe dos demais e apagado (abertura com cruz tracejada; para restaurar)
+  expect(s.executar('laje.criar', { grupo: 'g_3', contorno: [[200, 0], [204, 0], [204, 3], [200, 3]] }).ok).toBe(true);
+  expect(s.executar('laje.apagarPano', { ids: [s.modelo.lajes.at(-1)!.id] }).ok).toBe(true);
   return s.modelo;
 }
 
@@ -285,6 +288,8 @@ const EXEMPLOS: Record<string, (b: ReturnType<typeof base>) => Record<string, un
   'laje.exposicao': (b) => ({ ids: [b.lajes[1].id], caa: 'III' }),
   'laje.abertura': (b) => ({ id: b.lajes[0].id, contorno: [[10.5, 0.5], [11, 0.5], [11, 1]] }),
   'laje.remover': (b) => ({ ids: [b.lajes[0].id] }),
+  'laje.apagarPano': (b) => ({ ids: [b.lajes[0].id] }),
+  'laje.restaurarPano': (b) => ({ ids: [b.panosVazios![0].id] }),
   'laje.renumerar': () => ({ grupo: 'g_3' }),
   'carga.ponto': () => ({ grupo: 'g_3', ponto: [1, 1], valor: 10 }),
   'carga.linha': () => ({ grupo: 'g_3', pontos: [[0, 1], [4, 1]], valor: 5 }),
