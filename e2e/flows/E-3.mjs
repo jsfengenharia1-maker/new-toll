@@ -118,3 +118,30 @@ export const f_E5h = {
     await memo.getByRole('button', { name: 'Fechar' }).click();
   },
 };
+
+export const f_E5a = {
+  name: 'E5a: pranchas das lajes inclinadas (croqui do pavimento nas formas, tamanho configurável, só com lajes inclinadas)',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+    await fileMenu(page, 'Obras recentes…');
+    const rec = page.getByRole('dialog', { name: 'Obras recentes' });
+    await rec.getByRole('button', { name: /Abrir exemplo Exemplo: cobertura em duas águas/ }).click();
+    await rec.waitFor({ state: 'detached' });
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 2, null);
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+    await page.getByLabel('Tipo de prancha').selectOption({ label: 'Formas' });
+    const gPlanos = await page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null').building.planos[0].grupo);
+    await page.getByLabel('Grupo / pavimento').selectOption(gPlanos);
+    const prev = page.locator('.prancha-prev');
+    await prev.locator('svg').waitFor();
+    assert.match(await prev.textContent(), /CROQUI DO PAVIMENTO/);
+    await page.locator('summary', { hasText: 'Opções de armação e locação' }).click();
+    const cq = page.getByLabel(/^Croqui do pavimento/);
+    assert.equal(await cq.inputValue(), '60');
+    await cq.fill('0'); await cq.press('Enter');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.prancha?.armacao?.croqui === 0, null);
+    await page.waitForFunction(() => !/CROQUI DO PAVIMENTO/.test(document.querySelector('.prancha-prev')?.textContent ?? ''), null, { timeout: 20000 });
+  },
+};
