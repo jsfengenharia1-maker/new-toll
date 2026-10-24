@@ -7,7 +7,9 @@
 // Unidades: kN, m.
 import { barArea, beamAsMin, beamFlexure, beamShear, chooseBars, type BarChoice } from '../concrete';
 import { dentroPoligono, type P } from '../geom/faces';
+import { defaultFoundationParams } from '../piles';
 import { lbBasico } from './detalhamento';
+import { geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { classificar } from './revisao';
@@ -261,6 +263,9 @@ export interface ResultadoVigaFundacao {
   Md: { sup: number; inf: number }; Vd: number;
   /** Diagramas característicos ao longo da viga (s a partir do pilar da ponta inicial). */
   diagrama: { s: number[]; Msup: number[]; Minf: number[]; V: number[] };
+  /** Forma T, L ou plana (E5k) e a armadura da mesa em balanço (laje); `bAdot` é a largura da alma. */
+  forma?: { tipo: 'T' | 'L' | 'plana'; mesa: 'inferior' | 'superior'; bf: number; hf: number };
+  mesaBalanco?: MesaBalanco;
   armadura: { sup: ArmaduraVF; inf: ArmaduraVF; pele?: { AsFace: number; barras: BarChoice | null }; estribo: { phi: number; s: number; legs: number } | null; aswS: number; VRd2: number; lb: number; d: number;
     /** Ancoragem das barras superiores além da face do pilar de cada ponta (m): a adotada, e se foi editada (C11.45). */
     ancoragem: { ini: number; fim: number; editada: { ini: boolean; fim: boolean } } };
@@ -296,7 +301,7 @@ const GAMA_CONCRETO = 25;
 /** Cargas da viga por caso: peso próprio (G) entre os pilares e as cargas do nível de fundação na faixa da viga. */
 export function cargasDaViga(g: GeometriaVF, cs: CargaPontualVF[]): CargaPontualVF[] {
   if (g.erro) return [];
-  const n = Math.max(1, Math.ceil(g.L / PASSO)), pp = GAMA_CONCRETO * g.viga.b * g.viga.h * (g.L / n);
+  const n = Math.max(1, Math.ceil(g.L / PASSO)), gf = g.viga.forma ? geoSecaoVF(g.viga.b, g.viga.h, g.viga.forma, 'superior') : null, area = gf && !gf.erro ? gf.A : g.viga.b * g.viga.h, pp = GAMA_CONCRETO * area * (g.L / n);
   return [...Array.from({ length: n }, (_, k) => ({ caso: 'G', s: ((k + 0.5) * g.L) / n, P: pp })), ...cs];
 }
 
@@ -350,15 +355,19 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
   const bMin = op.vigaFundBMin / 100, hMin = op.vigaFundHMin / 100;
   const calc = (bw: number, h: number) => {
     const d = h - cob - 0.013, sec = { kind: 'rect' as const, bw, h };
-    const AsMin = beamAsMin(sec, false, d, c, fyd);
-    const fs = beamFlexure(sec, false, Md.sup, d, cob + 0.013, c, fyd), fi_ = beamFlexure(sec, false, Md.inf, d, cob + 0.013, c, fyd);
-    const sup: ArmaduraVF = { As: Math.max(fs.As + fi_.As2, AsMin), AsMin, barras: null, ...(fs.double ? { dupla: true } : {}) };
+    // seção T, L ou plana (E5k): T onde a mesa está comprimida; barras da face da mesa na largura da mesa; cortante na alma
+    const geo = v.forma ? geoSecaoVF(bw, h, v.forma, 'superior') : null;
+    const fx = geo && !geo.erro ? secoesFlexaoVF(geo) : null;
+    const secS = fx ? fx.sup.sec : sec, secI = fx ? fx.inf.sec : sec, fcS = fx?.sup.mesaComprimida ?? false, fcI = fx?.inf.mesaComprimida ?? false;
+    const AsMinI = beamAsMin(secI, fcI, d, c, fyd), AsMinS = fx ? beamAsMin(secS, fcS, d, c, fyd) : AsMinI, AsMin = AsMinI;
+    const fs = beamFlexure(secS, fcS, Md.sup, d, cob + 0.013, c, fyd), fi_ = beamFlexure(secI, fcI, Md.inf, d, cob + 0.013, c, fyd);
+    const sup: ArmaduraVF = { As: Math.max(fs.As + fi_.As2, AsMinS), AsMin: AsMinS, barras: null, ...(fs.double ? { dupla: true } : {}) };
     const inf: ArmaduraVF = { As: Math.max(fi_.As + fs.As2, AsMin), AsMin, barras: null, ...(fi_.double ? { dupla: true } : {}) };
-    sup.barras = chooseBars(sup.As, bw, cob, 0.005, 0.019); inf.barras = chooseBars(inf.As, bw, cob, 0.005, 0.019);
+    sup.barras = chooseBars(sup.As, fx ? fx.sup.larguraBarras : bw, cob, 0.005, 0.019); inf.barras = chooseBars(inf.As, fx ? fx.inf.larguraBarras : bw, cob, 0.005, 0.019);
     const sh = beamShear(bw, d, Vd, c, aco.fyk, gs);
     const pele = h > 0.6 ? { AsFace: 0.001 * bw * h, barras: null as BarChoice | null } : undefined;
-    const ok = !fs.double && !fi_.double && !!sup.barras && !!inf.barras && sh.ok && !!sh.stirrup;
-    return { d, sup, inf, sh, pele, ok };
+    const ok = !geo?.erro && !fs.double && !fi_.double && !!sup.barras && !!inf.barras && sh.ok && !!sh.stirrup;
+    return { d, sup, inf, sh, pele, ok, geo };
   };
   let bw = v.fixa ? v.b : Math.max(v.b, bMin), h = v.fixa ? v.h : Math.max(v.h, hMin);
   let r = calc(bw, h);
@@ -366,6 +375,12 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     busca: for (let bb = bw; bb <= Math.max(bw, 0.6) + 1e-9; bb = Math.round((bb + 0.05) * 100) / 100)
       for (let hh = h; hh <= 1.6 + 1e-9; hh = Math.round((hh + 0.05) * 100) / 100) { const t = calc(bb, hh); if (t.ok) { bw = bb; h = hh; r = t; break busca; } }
   }
+  if (r.geo?.erro) msgs.push(`Viga de fundação: forma da seção — ${r.geo.erro}`);
+  for (const a of r.geo?.avisos ?? []) msgs.push(`Viga de fundação: ${a}`);
+  // mesa em balanço (E5k): a viga não se apoia no solo, só a armadura mínima da mesa como laje
+  const fpar = { ...defaultFoundationParams(), ...(b.fundacao?.params ?? {}) };
+  const mesaB = r.geo && !r.geo.erro && r.geo.temMesa ? mesaEmBalanco({ g: r.geo, sigma: 0, gammaF: fpar.gammaF, cob, c, fyd, rhoMin: fpar.ftRhoMin }, msgs) : null;
+  if (mesaB && r.geo) notas.push(`Seção ${textoSecaoVF(r.geo)}: rigidez e flexão em T onde a mesa está comprimida, cortante na alma (${Math.round(bw * 100)} cm); a mesa em balanço não recebe carga do solo e leva só a armadura mínima de laje (ρmín ${fmt(fpar.ftRhoMin * 100, 2)} %) [a confirmar].`);
   if (v.fixa && (v.b < bMin - 1e-9 || v.h < hMin - 1e-9)) msgs.push(`Viga de fundação: seção abaixo do mínimo (${Math.round(v.b * 100)}×${Math.round(v.h * 100)} < ${Math.round(bMin * 100)}×${Math.round(hMin * 100)} cm).`);
   if (!v.fixa && (bw > v.b + 1e-9 || h > v.h + 1e-9)) notas.push(`Seção aumentada de ${Math.round(v.b * 100)}×${Math.round(v.h * 100)} para ${Math.round(bw * 100)}×${Math.round(h * 100)} cm (mínimo ${Math.round(bMin * 100)}×${Math.round(hMin * 100)} cm e esforços).`);
   if (r.sup.dupla || r.inf.dupla) msgs.push(`Viga de fundação: flexão com armadura dupla (x limitado) na seção ${Math.round(bw * 100)}×${Math.round(h * 100)} cm; aumente a altura.`);
@@ -394,7 +409,8 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd, eixo: [g.a, g.z], faces: { ini: fi, fim: ff },
     diagrama: { s: xs, Msup, Minf, V },
     armadura: { sup: r.sup, inf: r.inf, ...(r.pele ? { pele: r.pele } : {}), estribo: est, aswS: r.sh.aswS, VRd2: r.sh.VRd2, lb, d: r.d, ancoragem: anc },
-    volume: bw * h * Lc, aco: aco_, status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),
+    volume: (r.geo && !r.geo.erro ? r.geo.A : bw * h) * Lc, aco: aco_ + (mesaB && r.geo ? kg((mesaB.barras?.As ?? mesaB.AsAdot * 1e-4) + (mesaB.distribuicao.barras?.As ?? mesaB.distribuicao.As * 1e-4), mesaB.balanco * r.geo.lados * Lc) : 0),
+    ...(r.geo && !r.geo.erro && r.geo.tipo !== 'retangular' ? { forma: { tipo: r.geo.tipo, mesa: r.geo.mesa, bf: r.geo.bf, hf: r.geo.hf } } : {}), ...(mesaB ? { mesaBalanco: mesaB } : {}), status, ...(ent.cruzamentos?.length ? { cruzamentos: ent.cruzamentos } : {}),
     resumo: `${v.nome} ${Math.round(bw * 100)}×${Math.round(h * 100)}: sup. ${txt(r.sup.barras)}, inf. ${txt(r.inf.barras)}${est ? `, estribo φ${String(est.phi).replace('.', ',')} c/${Math.round(est.s * 100)}` : ''} (Md ${fmt(Md.sup, 1)}/${fmt(Md.inf, 1)} kN·m; Vd ${fmt(Vd, 1)} kN)`,
   };
 }

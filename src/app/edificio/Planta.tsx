@@ -21,7 +21,7 @@ import { baseNovaEscada, useNovaEscadaUI } from './NovaEscadaUI';
 import { useEscadaUI } from './EscadaUI';
 import { poligonoZona, siglaReforco } from '../../core/building/lajesEdicao';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
-import { corridaEfetiva } from '../../core/building/baseElastica';
+import { corridaEfetiva, vigasElasticasEf } from '../../core/building/baseElastica';
 import { geometriasCintas } from '../../core/building/cintasCorrida';
 import { contornoApoio, contornoCorrida, ladosDaBase } from '../../core/building/sapataCorrida';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
@@ -306,7 +306,7 @@ export function Planta() {
   const limites = useMemo(() => (nivelFund ? b.fundacao?.limites ?? [] : []), [nivelFund, b.fundacao?.limites]);
   // base elástica (FU6): radiers e vigas sobre base elástica, com o resultado por nó (mapa) do último cálculo
   const radiers = useMemo(() => (nivelFund ? b.fundacao?.radiers ?? [] : []), [nivelFund, b.fundacao?.radiers]);
-  const vigasEl = useMemo(() => (nivelFund ? (b.fundacao?.vigasElasticas ?? []).map((v) => ({ v, f: faixaVigaElastica(v) as P2[] })) : []), [nivelFund, b.fundacao?.vigasElasticas]);
+  const vigasEl = useMemo(() => (nivelFund ? vigasElasticasEf(b).filter((v) => !v.corrida && !v.parede).map((v) => ({ v, f: faixaVigaElastica(v) as P2[] })) : []), [nivelFund, b]);
   const dimRad = useBuilding((st) => st.dim?.radiers), dimVE = useBuilding((st) => st.dim?.vigasElasticas), dimCor = useBuilding((st) => st.dim?.corridas);
   // sapatas corridas (FU7a): base (largura calculada ou a efetiva) e elemento apoiado em planta
   const corridasP = useMemo(() => (nivelFund ? (b.fundacao?.corridas ?? []).map((c) => { const r = dimCor?.find((x) => x.id === c.id), B = r?.B ?? corridaEfetiva(b, c).B; const cintas = c.cintas?.length && c.aba !== 'ambas' ? geometriasCintas(b, c).itens.filter((x) => !x.erro).map((x) => { const rc = r?.cintas?.find((y) => y.id === x.cinta.id); return { nome: x.cinta.nome, a: x.g.a as P2, z: x.g.z as P2, larg: rc?.bAdot ?? x.cinta.b, alt: rc?.hAdot ?? x.cinta.h }; }) : []; return { c, r, B, contorno: contornoCorrida(c, B) as P2[], apoio: contornoApoio(c) as P2[], cintas }; }) : []), [nivelFund, b, dimCor]);

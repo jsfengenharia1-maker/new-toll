@@ -345,3 +345,81 @@ export const f_FU7c = {
       assert.equal(((await modelo()).fundacao?.corridas ?? []).length, 1);
     },
   };
+
+export const f_E5k = {
+    name: 'E5k: vigas de fundação T, L e plana — seção no editor da viga de equilíbrio e da viga sobre base elástica, contato pela mesa, resultados com a mesa em balanço e seção na janela',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      await cmd('lote {"comandos": [' + [[0, 0], [7, 0], [7, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.19, "h": 0.19}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.12, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const grupo = await grupoEdif(page, /^Fundação \(/);
+      const sigma = grupo.locator('label.field', { has: page.locator('.flabel', { hasText: /^σadm$/ }) }).locator('input');
+      await sigma.fill('300');
+      await sigma.press('Enter');
+      await page.getByRole('radio', { name: 'Fundação' }).click();
+      // viga de equilíbrio entre duas sapatas em y = 0 e viga sobre base elástica em y = 5 (sob P3 e P4)
+      await grupo.getByLabel('Posição no pilar').selectOption('divisa');
+      await page.mouse.click(...(await telaDe(page, -0.07, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S1 (sapata) lançado sob P1' }).waitFor();
+      await grupo.getByLabel('Posição no pilar').selectOption('centrada');
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'S2 (sapata) lançado sob P2' }).waitFor();
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('b');
+      await page.mouse.click(...(await telaDe(page, 0, 0)));
+      await page.mouse.click(...(await telaDe(page, 7, 0)));
+      await page.locator('.statusbar .msg', { hasText: 'VF1 (equilíbrio) lançada' }).waitFor();
+      await cmd('vigaElastica.criar {"pontos": [[0, 5], [7, 5]], "b": 0.4, "h": 0.8, "k": 30000, "sigmaAdm": 800}');
+      await page.locator('.statusbar .msg', { hasText: /VE1 \(40×80, sobre base elástica\) lançada/ }).waitFor();
+      // viga de equilíbrio: seção T com mesa em cima (padrão); a mesa vira campo do editor
+      await page.locator('.planta-st').click();
+      await page.keyboard.press('s');
+      await page.mouse.click(...(await telaDe(page, 3.5, 0)));
+      const edF = grupo.locator('[data-editor-viga-fundacao]');
+      await edF.waitFor();
+      assert.equal(await edF.locator('[data-forma-vf]').getAttribute('data-forma-vf'), 'retangular');
+      await edF.locator('[data-forma-vf] select').first().selectOption('T');
+      await page.locator('.statusbar .msg', { hasText: 'VF1 alterada' }).waitFor();
+      assert.equal(await edF.locator('[data-forma-vf]').getAttribute('data-forma-vf'), 'T');
+      const bfF = edF.getByLabel(/^Mesa bf/);
+      await bfF.fill('80');
+      await bfF.press('Enter');
+      await page.waitForFunction(() => /mesa 80 × 20 cm em cima/.test(document.querySelector('[data-editor-viga-fundacao] [data-forma-resumo]')?.textContent ?? ''));
+      // viga sobre base elástica: T invertido; contato com o solo = largura da mesa
+      await page.mouse.click(...(await telaDe(page, 3.5, 5)));
+      const edV = grupo.locator('[data-editor-viga-elastica]');
+      await edV.waitFor();
+      await edV.locator('[data-forma-vf] select').first().selectOption('T');
+      await page.locator('.statusbar .msg', { hasText: 'VE1 alterada' }).waitFor();
+      const bfV = edV.getByLabel(/^Mesa bf/);
+      await bfV.fill('140');
+      await bfV.press('Enter');
+      await page.waitForFunction(() => /contato com o solo 140 cm/.test(document.querySelector('[data-editor-viga-elastica] [data-forma-resumo]')?.textContent ?? ''));
+      // calcular
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const cardV = page.locator('[data-card-vigas-fundacao]');
+      await cardV.waitFor();
+      await cardV.locator('tbody tr', { hasText: 'VF1' }).dblclick();
+      const jf = page.getByRole('dialog', { name: /Resultados do elemento — Viga de fundação VF1/ });
+      await jf.waitFor();
+      assert.match(await jf.innerText(), /Seção T.*mesa 80 × 20 cm em cima/s);
+      assert.match(await jf.innerText(), /Mesa em balanço \(laje\)/);
+      assert.equal(await jf.locator('svg[data-secao-vf] polygon').count(), 1, 'contorno em T na seção transversal');
+      await jf.getByRole('button', { name: 'Fechar' }).click();
+      const cardB = page.locator('[data-card-base-elastica]');
+      await cardB.waitFor();
+      await cardB.locator('tbody tr', { hasText: 'VE1' }).dblclick();
+      const jb = page.getByRole('dialog', { name: /Resultados do elemento — .*VE1/ });
+      await jb.waitFor();
+      const tb = await jb.innerText();
+      assert.match(tb, /Viga T sobre base elástica: alma 40 × 80, mesa 140 × 20 cm/);
+      assert.match(tb, /Mesa em balanço \(laje\)/);
+      assert.match(tb, /Armadura/);
+      await jb.getByRole('button', { name: 'Fechar' }).click();
+    },
+  };

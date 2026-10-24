@@ -1409,6 +1409,19 @@ export interface Radier {
 }
 
 /**
+ * Forma da seção de uma viga de fundação (E5k, C6.22): T (mesa dos dois lados), L (mesa de um lado só) ou plana (retangular
+ * larga, b ≥ h). Ausente = retangular b × h. `bf` é a largura total da mesa e `hf` a sua espessura (m); `mesa` diz em que
+ * face fica a mesa: 'inferior' (T invertido, apoiada no solo: a largura de contato é a da mesa) ou 'superior' (a mesa é
+ * piso ou laje; a alma é que se apoia no solo). Padrão: inferior na viga sobre base elástica, superior na de equilíbrio/travamento.
+ */
+export interface FormaVF {
+  tipo: 'T' | 'L' | 'plana';
+  bf?: number;
+  hf?: number;
+  mesa?: 'inferior' | 'superior';
+}
+
+/**
  * Viga de fundação sobre base elástica (FU6): viga apoiada no solo ao longo do comprimento (molas k × largura ×
  * comprimento de influência), lançada por polilinha no nível de fundação; os pilares que nascem na fundação sobre ela
  * ficam sem vínculo externo.
@@ -1424,6 +1437,8 @@ export interface VigaElastica {
   /** Coeficiente de reação vertical (kN/m³); ausente = o das opções (`radierK`). */
   k?: number;
   sigmaAdm?: number;
+  /** Forma da seção (E5k): T, L ou plana; ausente = retangular. Com mesa, `b` é a largura da alma. */
+  forma?: FormaVF;
 }
 
 /** Viga de equilíbrio (alavanca: centra a fundação excêntrica) ou de travamento (bloco de 1 e 2 estacas). */
@@ -1452,6 +1467,8 @@ export interface VigaFundacao {
    * Ausente = o comprimento de ancoragem básico lb calculado; valor menor que lb gera aviso.
    */
   ancoragem?: { ini?: number; fim?: number };
+  /** Forma da seção (E5k): T, L ou plana; ausente = retangular. Com mesa, `b` é a largura da alma. */
+  forma?: FormaVF;
 }
 
 export const FUNDACAO_VAZIA = (): FundacaoEdificio => ({ terreno: { sigmaModo: 'informada', estacas: [] }, sondagens: [], elementos: [] });

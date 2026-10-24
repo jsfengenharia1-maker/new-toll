@@ -26,6 +26,7 @@ import { vrd1 } from './vigotas';
 import { classificar } from './revisao';
 import { calcularCintas, fatorCinta, geometriasCintas, resumoCinta, type ResultadoCinta } from './cintasCorrida';
 import { parcelasDaCarga } from './vigasFundacao';
+import { barrasPorMetro, type BarrasPorMetro } from './secaoVF';
 import { casosDaObra, deslocarPolilinha, type AbaCorrida, type BuildingModel, type SapataCorrida } from './types';
 import { cargasDosPilaresSobEixo, cargasLinearesDaParede, corridasEfetivas, pilaresSobEixo, reacoesDoPilar, type CorridaEfetiva } from './corridaParede';
 
@@ -61,7 +62,8 @@ export const modoCorrida = (b: BuildingModel, c: SapataCorrida): 'parede' | 'pil
 
 // ---------------- resultado ----------------
 
-export interface BarrasPorMetro { phi: number; s: number; As: number }
+export type { BarrasPorMetro };
+export { barrasPorMetro };
 
 export interface FlexaoTransversal {
   /** Método: CEB-70 (momento da pressão do solo) ou bielas. */
@@ -136,20 +138,6 @@ export interface ResultadoCorrida {
 
 const PHIS_PRINCIPAL = [8, 10, 12.5, 16, 20, 25];
 const PHIS_DIST = [6.3, 8, 10, 12.5, 16];
-
-/** Barras por metro: menor área efetiva com espaçamento entre smin e smax (m), arredondado para baixo ao cm. */
-export function barrasPorMetro(As: number, smin: number, smax: number, phis: number[], hMax?: number): BarrasPorMetro | null {
-  let melhor: BarrasPorMetro | null = null;
-  for (const phi of phis) {
-    if (hMax && phi > (hMax * 1000) / 8 + 1e-9) continue;
-    const a = barArea(phi);
-    const s = Math.floor(Math.min(smax, As > 0 ? a / As : smax) * 100 + 1e-6) / 100;
-    if (s < smin - 1e-9) continue;
-    const ef = a / s;
-    if (!melhor || ef < melhor.As - 1e-12) melhor = { phi, s, As: ef };
-  }
-  return melhor;
-}
 
 /** Pressão sob a base (faixa de 1 m) para a carga N (kN/m) com excentricidade e (m); `equilibrio`: reação uniforme (cintas absorvem o momento). */
 export function pressaoCorrida(B: number, N: number, e: number, equilibrio: boolean) {

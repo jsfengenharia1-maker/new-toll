@@ -7,6 +7,7 @@ import type { Diagnostico } from '../building/verify';
 import { areaPoligono, type P } from '../geom/faces';
 import { nomeRadier, nomeVigaElastica, noRadier, pilaresNaBase } from '../building/baseElastica';
 import { registrar } from './registry';
+import { formaDe, formaVFSchema, validarFormaVF, type FormaVFIn } from './formaVF';
 import type { JsonSchema } from './schema';
 
 const err = (codigo: string, mensagem: string, elementos: string[] = []): Diagnostico[] => [{ codigo, severidade: 'erro', elementos, mensagem }];
@@ -113,44 +114,46 @@ function validarVE(b: BuildingModel, pontos: P[]): Diagnostico[] {
   return [];
 }
 
-registrar<{ pontos: P[]; b: number; h: number; k?: number; sigmaAdm?: number; nome?: string }>({
+registrar<{ pontos: P[]; b: number; h: number; k?: number; sigmaAdm?: number; nome?: string; forma?: FormaVFIn }>({
   nome: 'vigaElastica.criar',
-  descricao: 'Lança uma viga de fundação sobre base elástica (Winkler) no nível de fundação, por polilinha do eixo (m): largura da base `b` e altura `h` (m; padrão 0,50 × 0,80), `k` (kN/m³; padrão o das opções) e σadm própria. Entra na análise global: os pilares que nascem na fundação sobre ela perdem o vínculo externo.',
+  descricao: 'Lança uma viga de fundação sobre base elástica (Winkler) no nível de fundação, por polilinha do eixo (m): largura da base `b` e altura `h` (m; padrão 0,50 × 0,80; com `forma` T, L ou plana, `b` é a largura da alma e o contato com o solo é a largura da mesa), `k` (kN/m³; padrão o das opções) e σadm própria. Entra na análise global: os pilares que nascem na fundação sobre ela perdem o vínculo externo.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['pontos'], properties: {
     pontos: { type: 'array', items: ponto, minItems: 2 }, b: { type: 'number', minimum: 0.15, maximum: 5, default: 0.5 }, h: { type: 'number', minimum: 0.2, maximum: 4, default: 0.8 },
-    k: kSchema, sigmaAdm: sigmaSchema, nome: { type: 'string', minLength: 1 },
+    k: kSchema, sigmaAdm: sigmaSchema, nome: { type: 'string', minLength: 1 }, forma: formaVFSchema,
   } },
-  validar: (b, p) => validarVE(b, p.pontos),
+  validar: (b, p) => [...validarVE(b, p.pontos), ...validarFormaVF(p.b, p.h, formaDe(p.forma), 'inferior')],
   aplicar(d, p) {
     const f = fund(d);
     const nome = p.nome?.trim() || nomeVigaElastica(d as BuildingModel);
-    const v: VigaElastica = { id: novoId(d, 've'), nome, pontos: p.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]), b: p.b, h: p.h, ...(p.k ? { k: p.k } : {}), ...(p.sigmaAdm ? { sigmaAdm: p.sigmaAdm } : {}) };
+    const v: VigaElastica = { id: novoId(d, 've'), nome, pontos: p.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]), b: p.b, h: p.h, ...(p.k ? { k: p.k } : {}), ...(p.sigmaAdm ? { sigmaAdm: p.sigmaAdm } : {}), ...(formaDe(p.forma) ? { forma: formaDe(p.forma) } : {}) };
     (f.vigasElasticas ??= []).push(v);
-    return `${nome} (${Math.round(p.b * 100)}×${Math.round(p.h * 100)}, sobre base elástica) lançada.`;
+    return `${nome} (${Math.round(p.b * 100)}×${Math.round(p.h * 100)}${p.forma && p.forma.tipo !== 'retangular' ? ` ${p.forma.tipo}` : ''}, sobre base elástica) lançada.`;
   },
 });
 
-registrar<{ id: string; pontos?: P[]; b?: number; h?: number; k?: number; sigmaAdm?: number; nome?: string; limpar?: ('k' | 'sigmaAdm')[] }>({
+registrar<{ id: string; pontos?: P[]; b?: number; h?: number; k?: number; sigmaAdm?: number; nome?: string; forma?: FormaVFIn; limpar?: ('k' | 'sigmaAdm')[] }>({
   nome: 'vigaElastica.editar',
-  descricao: 'Altera uma viga sobre base elástica: eixo, seção b × h (m), k (kN/m³), σadm (kN/m²) e nome; `limpar` volta k e σadm ao padrão.',
+  descricao: 'Altera uma viga sobre base elástica: eixo, seção b × h (m), k (kN/m³), σadm (kN/m²), nome e a forma da seção (`forma`: retangular, T, L ou plana com mesa `bf` × `hf`; `b` é a alma); `limpar` volta k e σadm ao padrão.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, b: { type: 'number', minimum: 0.15, maximum: 5 }, h: { type: 'number', minimum: 0.2, maximum: 4 },
-    k: kSchema, sigmaAdm: sigmaSchema, nome: { type: 'string', minLength: 1 }, limpar: { type: 'array', items: { type: 'string', enum: ['k', 'sigmaAdm'] } },
+    k: kSchema, sigmaAdm: sigmaSchema, nome: { type: 'string', minLength: 1 }, forma: formaVFSchema, limpar: { type: 'array', items: { type: 'string', enum: ['k', 'sigmaAdm'] } },
   } },
   validar(b, p) {
     const v = b.fundacao?.vigasElasticas?.find((x) => x.id === p.id);
     if (!v) return err('VIGA_ELASTICA_INEXISTENTE', `Viga sobre base elástica ${p.id} não existe.`);
-    return p.pontos ? validarVE(b, p.pontos) : [];
+    const forma = p.forma ? formaDe(p.forma) : v.forma;
+    return [...(p.pontos ? validarVE(b, p.pontos) : []), ...validarFormaVF(p.b ?? v.b, p.h ?? v.h, forma, 'inferior')];
   },
   aplicar(d, p) {
     const v = d.fundacao!.vigasElasticas!.find((x) => x.id === p.id)!;
     if (p.nome) v.nome = p.nome.trim();
     if (p.pontos) v.pontos = p.pontos.map((q) => [r6(q[0]), r6(q[1])] as [number, number]);
     for (const k of ['b', 'h', 'k', 'sigmaAdm'] as const) if (p[k] !== undefined) v[k] = p[k]!;
+    if (p.forma) { const f = formaDe(p.forma); if (f) v.forma = f; else delete v.forma; }
     for (const k of p.limpar ?? []) delete v[k];
     return `${v.nome} alterada.`;
   },
