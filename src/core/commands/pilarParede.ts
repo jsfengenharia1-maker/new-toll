@@ -92,7 +92,7 @@ registrar<TipoIn>({
   },
 });
 
-type PPIn = { tipo: string; x: number; y: number; angulo?: number; nasce?: string; morre?: string; nome?: string; vinculoBase?: 'engaste' | 'rotula' };
+type PPIn = { tipo: string; x: number; y: number; angulo?: number; nasce?: string; morre?: string; nome?: string; vinculoBase?: 'engaste' | 'rotula' | 'molas' };
 
 const proximoNumero = (b: BuildingModel) => Math.max(0, ...(b.pilaresParede ?? []).map((p) => { const m = /^PP(\d+)$/.exec(p.nome); return m ? +m[1] : 0; })) + 1;
 
@@ -116,7 +116,7 @@ registrar<PPIn>({
   schema: { type: 'object', additionalProperties: false, required: ['tipo', 'x', 'y'], properties: {
     tipo: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, angulo: { type: 'number' },
     nasce: { type: 'string', description: '"fundacao" (padrão) ou id do pavimento' }, morre: { type: 'string', description: 'id do pavimento mais alto; padrão: o mais alto da obra' },
-    nome: { type: 'string', minLength: 1 }, vinculoBase: { type: 'string', enum: ['engaste', 'rotula'] },
+    nome: { type: 'string', minLength: 1 }, vinculoBase: { type: 'string', enum: ['engaste', 'rotula', 'molas'] },
   } },
   validar(b, p) {
     const ps = [...b.pavimentos].sort((a, z) => a.cota - z.cota);
@@ -138,7 +138,7 @@ registrar<{ id: string } & Partial<PPIn>>({
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, tipo: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, angulo: { type: 'number' },
-    nasce: { type: 'string' }, morre: { type: 'string' }, nome: { type: 'string', minLength: 1 }, vinculoBase: { type: 'string', enum: ['engaste', 'rotula'] },
+    nasce: { type: 'string' }, morre: { type: 'string' }, nome: { type: 'string', minLength: 1 }, vinculoBase: { type: 'string', enum: ['engaste', 'rotula', 'molas'] },
   } },
   validar(b, p) {
     const q = b.pilaresParede?.find((x) => x.id === p.id);

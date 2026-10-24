@@ -84,7 +84,7 @@ function pilarVirtualDoLado(g: LadoGeo, id: string, nome: string, nasce: string,
   }
   return {
     id, nome, x: r0.c[0], y: r0.c[1], angulo: g.angGraus, ajuste: 'c', nasce, morre, secao: { tipo: 'ret', b: r0.comp, h: r0.t }, ...(secoes.length ? { secoes } : {}),
-    inicio: 'fundacao', ...(g.pp.vinculoBase && tipo === 'lado' ? { vinculoBase: { tipo: g.pp.vinculoBase } } : {}),
+    inicio: 'fundacao', ...(g.pp.vinculoBase === 'rotula' && tipo === 'lado' ? { vinculoBase: { tipo: 'rotula' as const } } : {}),
     origem: { pp: g.pp.id, lado: g.i, tipo, casca: g.casca },
   };
 }

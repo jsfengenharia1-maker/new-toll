@@ -10,6 +10,7 @@
 //  - PAREDE_SOBREPOSTA (erro): parede sobre outra parede ou pilar-parede; PAREDE_PILAR (aviso): pilar dentro da parede;
 //  - PAREDE_EMPUXO (erro): empuxo sem caso, caso de terra sem tipo de empuxo;
 //  - PAREDE_EMPUXO_DIAFRAGMA (aviso, K1.9.107): parede com empuxo e laje treliçada com vigotas paralelas a ela;
+//  - PAREDE_BASE_VIGA (aviso, FU7c): base em viga de fundação numa parede que não nasce na fundação;
 //  - PAREDE_FORA_DIAFRAGMA (info, K1.2.5/K1.3.36): nível em que a parede não toca laje (fora do diafragma);
 //  - VIGA_EMBUTIDA (erro): viga embutida em parede inexistente ou fora do eixo dela;
 //  - ALV_* e MURO_PILAR_* (E1e): paredes de alvenaria e de blocos, em `alvenaria.ts`.
@@ -87,6 +88,8 @@ export function diagnosticosParedes(b: BuildingModel): Diagnostico[] {
     const ga = ladosDoPP(b, A.pp), gb = ladosDoPP(b, B.pp);
     if (ga.some((x) => gb.some((y) => cruzaPoligonos(contornoDoLado(x, comum.id), contornoDoLado(y, comum.id), 0.02) && !vizinhos(x, y)))) d.push({ codigo: 'PAREDE_SOBREPOSTA', severidade: 'erro', elementos: [A.id, B.id], mensagem: `${A.nome} e ${B.nome} se sobrepõem.` });
   }
+  // base da parede em viga de fundação (FU7c): só vale para a parede que nasce na fundação
+  for (const w of validas) if (w.base?.tipo === 'viga' && w.nasce !== 'fundacao') d.push({ codigo: 'PAREDE_BASE_VIGA', severidade: 'aviso', elementos: [w.id], mensagem: `${w.nome}: a base em viga de fundação só vale para a parede que nasce na fundação (esta nasce em ${w.nasce}); a base foi ignorada.` });
   // vigas embutidas
   for (const v of b.vigas) if (v.embutida) {
     const w = b.paredes?.find((x) => x.id === v.embutida);

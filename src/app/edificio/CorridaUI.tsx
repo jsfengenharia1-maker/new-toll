@@ -77,7 +77,12 @@ export function CorridaBloco({ b, onPlanta }: { b: BuildingModel; onPlanta: () =
           <NumField label="FS mínimo ao deslizamento (parede)" width={190} value={op.fundCorridaFSDesliz} onChange={(v) => opc('fundCorridaFSDesliz', v)} />
           <Check label="Reprovar o deslizamento (parede)" checked={op.fundCorridaDeslizamento === 1} onChange={(v) => opc('fundCorridaDeslizamento', v ? 1 : 0)} />
         </div>
-        <Hint>O k das sapatas sob pilares é o do grupo Radier e vigas sobre base elástica (padrão 100 000 kN/m³, a confirmar). Mudar B, h ou k sob pilares refaz a análise do edifício.</Hint>
+        <div className="row wrap u-items-end" data-corrida-mola-parede>
+          <NumField label="k das molas da base da parede (0 = engaste; a confirmar)" unit="kN/m³" width={230} value={op.fundParedeK} onChange={(v) => opc('fundParedeK', v)} />
+          <NumField label="Balanço de cada lado das molas da parede (B não informada)" unit="cm" width={230} value={op.fundParedeAba} onChange={(v) => opc('fundParedeAba', v)} />
+          <Check label="Vigas embutidas em parede de concreto: armadura própria (mínimos)" checked={op.paredeVigaEmbutida === 1} onChange={(v) => opc('paredeVigaEmbutida', v ? 1 : 0)} />
+        </div>
+        <Hint>O k das sapatas sob pilares é o do grupo Radier e vigas sobre base elástica (padrão 100 000 kN/m³, a confirmar). Mudar B, h ou k sob pilares refaz a análise do edifício. A base da parede e do pilar-parede sobre sapata corrida entra na análise com molas de Winkler (k alto, vertical k·B e giro k·B³/12 por metro, FU7c); k = 0 volta ao engaste.</Hint>
       </Group>
       {cs.length > 0 && (
         <div className="tablewrap">

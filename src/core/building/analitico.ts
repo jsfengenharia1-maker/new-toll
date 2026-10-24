@@ -29,7 +29,8 @@ import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { geometriaParedes } from './pilarParede';
 import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
-import { incluirParedes, reduzirCascas, type ParedesNoPortico } from './pilarParedeModelo';
+import { incluirParedes, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
+import { eixoDaBaseParede, reacaoDoNo } from './corridaParede';
 import { calcularEscadas, comEscadas, type ResultadoEscadas } from './escadasCalculo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
 import { pavimentosDoGrupo, anguloNoLance, centroPilar, contornoNoLance, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
@@ -1116,7 +1117,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const zonas: Record<string, ZonaPortico[]> = {};
   const zf = cotaFundacao(b);
   // base elástica (FU6): radiers e vigas sobre molas no nível de fundação; os pilares sobre eles nascem num nó da malha
-  const base = montarBaseElastica(b, op, pm, zf, CASOS);
+  const base = montarBaseElastica(b, op, pm, zf, CASOS, paredes && b.paredes?.some((w) => w.base?.tipo === 'viga') ? pontosBaseDasParedes(b, paredes) : {});
   if (base) { for (let i = ptags.length; i < pm.barras.length; i++) { ptags.push({ tipo: 'fundacao', ref: base.info.barras[i]?.ref ?? '', pavimento: 'fundacao' }); } avisos.push(...base.avisos); }
   const primeiroLance = new Map<string, number>();
   // nós dos pilares por nível (base na fundação)
@@ -1247,13 +1248,29 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     }
   }
   // pilares-parede (E1b): cascas dos lados longos, viga fictícia no topo e ligação dos lados em barra
+  // base das paredes na fundação (FU7c): molas de Winkler sob a sapata corrida (opção fundParedeK) e viga de fundação (nós compartilhados)
+  const baseWinkler: Record<string, BaseWinkler> = {}, baseVigaNos: Record<string, number[]> = {};
+  for (const w of b.paredes ?? []) {
+    if (w.nasce !== 'fundacao') continue;
+    if (w.base?.tipo === 'sapataCorrida' && op.fundParedeK > 0) {
+      const c = b.fundacao?.corridas?.find((x) => x.parede === w.id);
+      baseWinkler[w.id] = { k: c?.k ?? op.fundParedeK, B: w.base.largura ?? c?.B ?? eixoDaBaseParede(b, w).bw + (2 * op.fundParedeAba) / 100, rotula: w.vinculoBase === 'rotula' };
+    } else if (w.base?.tipo === 'viga') {
+      const ids = new Set((base?.info.nos ?? []).filter((n) => n.tipo === 'viga' && n.ref === `vf_${w.id}`).map((n) => n.no));
+      if (ids.size) baseVigaNos[w.id] = [...ids];
+    }
+  }
+  // pilares-parede com a base em molas (FU7c): k das opções (ou o da base elástica, se aquele for 0)
+  for (const q of b.pilaresParede ?? []) if (q.nasce === 'fundacao' && q.vinculoBase === 'molas') baseWinkler[q.id] = { k: op.fundParedeK > 0 ? op.fundParedeK : op.radierK, aba: op.fundParedeAba / 100, rotula: false };
   const noParedes: ParedesNoPortico | undefined = paredes ? incluirParedes({
+    baseWinkler, baseViga: baseVigaNos,
     b, geo: paredes, pm, casosV, noPilar, Ec: (pav) => Em('pilar', pav), Ev, Gv, nu: op.nu, gama: GAMA_CONCRETO, ret, iG: CASOS.indexOf('G'),
     materialParede: (w) => { const t = tipoAlvenariaDe(b, w); if (!t || !ehAlvenaria(w)) return undefined; const r = resistenciaAlvenaria(t, blocoDe(b, t), op); return { E: r.E * 1000, nu: r.nu, gama: r.gama }; },
     hViga: op.pilarParedeVigaAltura / 100, caso: (id) => CASOS.indexOf(id),
     peso: (pav, kN) => { totais.G += kN; cargasPavimento[pav].G += kN; },
     etiqueta: (ref, pav) => ptags.push({ tipo: 'parede', ref, pavimento: pav }),
   }) : undefined;
+  if (noParedes) avisos.push(...noParedes.avisos);
   // vigas por pavimento (divisão grossa), com trecho rígido até a face do pilar menos 0,3h
   for (const pav of ps) {
     const z = pav.cota;
@@ -1655,14 +1672,14 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     const O = noParedes!.centro[pid] ?? [0, 0];
     let N = 0, Vx = 0, Vy = 0, Mx = 0, My = 0;
     for (const n of noParedes!.base[pid] ?? []) {
-      const r = r3.reacoes[ic].get(n);
+      const r = reacaoDoNo(pm, r3, ic, n);
       if (!r) continue;
       const x = pm.nos[n][0] - O[0], y = pm.nos[n][1] - O[1];
       N += r[2]; Vx += r[0]; Vy += r[1]; Mx += (r[3] ?? 0) + y * r[2]; My += (r[4] ?? 0) - x * r[2];
     }
     return { N, Vx, Vy, Mx, My };
   };
-  if (noParedes) for (const pid of Object.keys(noParedes.base)) CASOS.forEach((c, ic) => fundacao.push({ pilar: pid, caso: c, ...reacaoParede(res, ic, pid) }));
+  if (noParedes) for (const pid of Object.keys(noParedes.base).filter((q) => noParedes.base[q].length)) CASOS.forEach((c, ic) => fundacao.push({ pilar: pid, caso: c, ...reacaoParede(res, ic, pid) }));
   fundacao.push(...reacoesArranques(b));
 
   // rigidez reduzida da NBR 6118, 15.7.3 (γz e P-Δ): vigas 0,4·Eci·Ic, pilares 0,8·Eci·Ic
@@ -1684,7 +1701,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     if (resVento.erro) avisos.push(`Vento: ${resVento.erro}`);
     else {
       for (const [pid, k] of bases) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoBase(resVento!, ic, pid, k) }));
-      if (noParedes) for (const pid of Object.keys(noParedes.base)) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoParede(resVento!, ic, pid) }));
+      if (noParedes) for (const pid of Object.keys(noParedes.base).filter((q) => noParedes.base[q].length)) ven.casos.forEach((cv, ic) => fundacao.push({ pilar: pid, caso: cv.nome, ...reacaoParede(resVento!, ic, pid) }));
       // momentos que a laje transmite aos pilares no vento (modelo integrado): entram na punção
       // e esforços das vigas do diafragma no vento (grelha condensada, sem cargas)
       for (const { pav, dofs, ig } of seInfo) {

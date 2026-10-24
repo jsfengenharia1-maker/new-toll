@@ -234,6 +234,7 @@ export const SUGESTOES: Record<string, string> = {
   PAREDE_PILAR: 'Termine a parede na face do pilar ou remova o pilar: a parte comum entra duas vezes na rigidez e no peso.',
   PAREDE_EMPUXO: 'Escolha um caso H com tipo de empuxo de terra, ou informe o empuxo de líquido (cota da superfície e γ).',
   PAREDE_EMPUXO_DIAFRAGMA: 'Detalhe faixa maciça ou enchimento de concreto junto à parede (ou gire as vigotas) para o diafragma transmitir o empuxo; o modelo não faz isso sozinho.',
+  PAREDE_BASE_VIGA: 'Lance a viga de fundação só na parede que nasce na fundação (nasce = fundação) ou volte a base da parede ao apoio direto.',
   PAREDE_FORA_DIAFRAGMA: 'Informativo: a parede não toca laje neste nível e não segue o diafragma rígido; lance uma laje ou viga que a trave se for o caso.',
   PAREDE_TRECHO_CURTO: 'Informativo: o trecho foi tratado como pilar (barra); alongue-o para modelá-lo em casca, se preferir.',
   VIGA_EMBUTIDA: 'Coloque a viga sobre o eixo da parede ou desfaça a marcação de embutida.',

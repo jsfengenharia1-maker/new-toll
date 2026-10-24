@@ -6,7 +6,7 @@ import { useBuilding, calculoAtual } from './store';
 import { usePlanta } from './plantaStore';
 import { classificar } from '../../core/building/revisao';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
-import { TABELA_K, radierSemCarga, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
+import { TABELA_K, radierSemCarga, vigasElasticasEf, type NoResultadoBase, type ResultadoRadier, type ResultadoVigaElastica } from '../../core/building/baseElastica';
 import { faixaVigaElastica } from '../../core/sheets/fundacaoRadier';
 import { CartaoPuncao } from './Puncao';
 import { centroPilar, contornoPilar, type BuildingModel } from '../../core/building/types';
@@ -20,9 +20,9 @@ const abrir = (id: string) => usePlanta.getState().set({ janela: { tipo: 'fundac
 const irPara = (id: string) => usePlanta.getState().set({ pavimento: 'fundacao', selecao: new Set([id]), foco: { id, n: Date.now() } });
 
 /** O id é de um radier ou de uma viga sobre base elástica? */
-export const ehBaseElastica = (b: BuildingModel, id: string) => !!(b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id));
+export const ehBaseElastica = (b: BuildingModel, id: string) => !!(b.fundacao?.radiers?.some((x) => x.id === id) || b.fundacao?.vigasElasticas?.some((x) => x.id === id) || vigasElasticasEf(b).some((x) => x.parede && x.id === id));
 /** Nome do radier ou da viga sobre base elástica. */
-export const nomeBaseElastica = (b: BuildingModel, id: string) => [...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? [])].find((x) => x.id === id)?.nome;
+export const nomeBaseElastica = (b: BuildingModel, id: string) => [...(b.fundacao?.radiers ?? []), ...(b.fundacao?.vigasElasticas ?? []), ...vigasElasticasEf(b).filter((x) => x.parede)].find((x) => x.id === id)?.nome;
 
 function Mensagens({ msgs }: { msgs: string[] }) {
   if (!msgs.length) return <p className="muted small">Sem mensagens.</p>;
@@ -154,7 +154,7 @@ const faixa = (t: number) => (t <= 0.2 ? 0 : t <= 0.4 ? 1 : t <= 0.6 ? 2 : t <= 
 
 /** Mapa simples por nó: contorno do elemento, pilares e um círculo por nó com a cor da faixa (tensão ou recalque). */
 function MapaPorNo({ b, id, nos, modo, escala: ref }: { b: BuildingModel; id: string; nos: NoResultadoBase[]; modo: 'tensao' | 'recalque'; escala: number }) {
-  const r = b.fundacao?.radiers?.find((x) => x.id === id), v = b.fundacao?.vigasElasticas?.find((x) => x.id === id);
+  const r = b.fundacao?.radiers?.find((x) => x.id === id), v = vigasElasticasEf(b).find((x) => x.id === id && (x.parede || !x.corrida));
   const contorno = r ? r.contorno : v ? faixaVigaElastica(v) : [];
   const xs = [...contorno.map((p) => p[0]), ...nos.map((n) => n.x)], ys = [...contorno.map((p) => p[1]), ...nos.map((n) => n.y)];
   if (!xs.length) return null;

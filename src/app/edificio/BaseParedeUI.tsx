@@ -12,7 +12,8 @@ const cm = (v: number) => Math.round(v * 100);
 const ABAS: { v: AbaCorrida; label: string }[] = [
   { v: 'ambas', label: 'Abas dos dois lados' }, { v: 'esq', label: 'Aba à esquerda (apoio na divisa à direita)' }, { v: 'dir', label: 'Aba à direita (apoio na divisa à esquerda)' },
 ];
-const BASES: { v: 'apoio' | 'sapata'; label: string }[] = [{ v: 'apoio', label: 'apoio direto (engaste ou rótula)' }, { v: 'sapata', label: 'sapata corrida' }];
+type TipoBase = 'apoio' | 'sapata' | 'viga';
+const BASES: { v: TipoBase; label: string }[] = [{ v: 'apoio', label: 'apoio direto (engaste ou rótula)' }, { v: 'sapata', label: 'sapata corrida' }, { v: 'viga', label: 'viga de fundação (sem vínculo externo)' }];
 
 /** Base da parede: apoio direto ou sapata corrida (aba, B, h, σadm, atrito, cota) e os resultados dela. */
 export function BaseDaParede({ b, w }: { b: BuildingModel; w: Parede }) {
@@ -21,6 +22,13 @@ export function BaseDaParede({ b, w }: { b: BuildingModel; w: Parede }) {
   const c = b.fundacao?.corridas?.find((x) => x.parede === w.id);
   const r = c ? dim?.corridas?.find((x) => x.id === c.id) : undefined;
   const p = r?.parede;
+  const rv = dim?.vigasElasticas?.find((x) => x.parede === w.id);
+  const viga = w.base?.tipo === 'viga';
+  const editarBase = (campo: 'largura' | 'altura' | 'k') => (v: number | undefined) => {
+    const { [campo]: _x, ...resto } = w.base ?? { tipo: 'viga' as const };
+    void _x;
+    exec('parede.editar', { id: w.id, base: { ...resto, tipo: 'viga', ...(v === undefined ? {} : { [campo]: v }) } });
+  };
   const ed = (q: Record<string, unknown>) => exec('parede.sapata', { parede: w.id, ...q });
   const opt = (campo: 'B' | 'h' | 'sigmaAdm' | 'atrito' | 'cota') => (v: number | undefined) => ed(v === undefined ? { limpar: [campo] } : { [campo]: v });
   const rows: [string, string][] = r ? [
@@ -42,10 +50,43 @@ export function BaseDaParede({ b, w }: { b: BuildingModel; w: Parede }) {
       ) : (
         <>
           <div className="row wrap u-items-end">
-            <Select label="Base da parede" aria-label="Base da parede" value={c ? 'sapata' : 'apoio'} options={BASES}
-              onChange={(v) => { if (v === 'sapata' && !c) ed({}); else if (v === 'apoio' && c) ed({ remover: true }); }} />
+            <Select label="Base da parede" aria-label="Base da parede" value={viga ? 'viga' : c ? 'sapata' : 'apoio'} options={BASES}
+              onChange={(v) => {
+                if (v === 'sapata' && !c) ed({});
+                else if (v === 'viga' && !viga) exec('parede.editar', { id: w.id, base: { tipo: 'viga' } });
+                else if (v === 'apoio' && c) ed({ remover: true });
+                else if (v === 'apoio' && viga) exec('parede.editar', { id: w.id, base: { tipo: 'apoio' } });
+              }} />
           </div>
-          {c && (
+          {viga && (
+            <>
+              <div className="row wrap u-items-end" data-pw-base-viga>
+                <OptNumField label="Largura b da viga de fundação da parede (m; vazio = espessura + 20 cm)" width={190} value={w.base?.largura} onChange={editarBase('largura')} />
+                <OptNumField label="Altura h da viga de fundação da parede (m; vazio = 50 cm)" width={190} value={w.base?.altura} onChange={editarBase('altura')} />
+                <OptNumField label="k da viga de fundação da parede (kN/m³; vazio = base elástica)" width={190} value={w.base?.k} onChange={editarBase('k')} />
+              </div>
+              {rv ? (
+                <>
+                  <div className="row wrap u-items-center">
+                    <Pill tone={rv.status === 'ok' ? 'ok' : 'bad'}>{rv.status === 'ok' ? 'atende' : 'não atende'}</Pill>
+                    <Button onClick={() => usePlanta.getState().set({ janela: { tipo: 'fundacao', id: rv.id } })}>Resultados da viga de fundação da parede</Button>
+                  </div>
+                  <KV rows={[
+                    ['Viga', `${rv.nome}: ${cm(rv.b)} × ${cm(rv.h)} cm, k ${fmt(rv.k, 0)} kN/m³`],
+                    ['σ máx. / σadm', `${fmt(rv.sigmaMax, 1)} / ${rv.sigmaAdm ? fmt(rv.sigmaAdm, 0) : '—'} kN/m²`],
+                    ['Maior recalque', `${fmt(rv.recalque * 1000, 2)} mm`],
+                    ['Md inf. / sup. · Vd', `${fmt(rv.Md.inf, 1)} / ${fmt(rv.Md.sup, 1)} kN·m · ${fmt(rv.Vd, 1)} kN`],
+                  ]} />
+                  <Mensagens msgs={rv.mensagens} />
+                </>
+              ) : <p className="muted small" data-pw-base-sem-resultado>Calcule o edifício (aba Dimensionamento) para ver a viga de fundação da parede.</p>}
+              <Hint>
+                Viga sobre base elástica (molas k × b × comprimento de influência) sob o eixo da parede; os nós da base da casca são os nós da viga, e a rigidez da viga redistribui a carga ao longo da parede
+                (aberturas, pilares sobre ela). Nenhuma sapata corrida é criada. Premissa fundacao-parede-mola a confirmar.
+              </Hint>
+            </>
+          )}
+          {c && !viga && (
             <>
               <div className="row wrap u-items-end">
                 <Select label="Aba da sapata da parede" aria-label="Aba da sapata da parede" value={c.aba} options={ABAS} onChange={(v) => ed({ aba: v })} />

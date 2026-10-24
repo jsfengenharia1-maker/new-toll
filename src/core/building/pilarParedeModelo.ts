@@ -32,11 +32,20 @@ export interface ParedesNoPortico {
   foraDiafragma: { no: number; parede: string; pavimento: string }[];
   /** Paredes (E1c): resultante das pressões de empuxo aplicadas, por parede e caso (kN, eixos globais). */
   empuxo: { parede: string; caso: string; F: [number, number] }[];
+  /** Avisos da montagem (base em viga sem nó de ligação, FU7c). */
+  avisos: string[];
 }
+
+/** Molas de Winkler da base de uma parede (FU7c): k (kN/m³), largura B (m) da sapata e se a base é rotulada (sem molas de giro). */
+export interface BaseWinkler { k: number; /** Largura (m); ausente = espessura de cada lado + 2 × `aba`. */ B?: number; aba?: number; rotula: boolean }
 
 export interface EntradaParedes {
   b: BuildingModel; geo: ModeloParedes;
-  pm: { nos: V3[]; barras: Barra3[]; apoios: Map<number, number[]>; cascas?: Casca3[] };
+  pm: { nos: V3[]; barras: Barra3[]; apoios: Map<number, number[]>; cascas?: Casca3[]; molas?: { no: number; gdl: number; k: number }[] };
+  /** Paredes (id) com a base sobre molas de Winkler (sapata corrida, FU7c): k, B e rótula. */
+  baseWinkler?: Record<string, BaseWinkler>;
+  /** Paredes (id) com a base em viga de fundação (FU7c): nós da viga (índices em `pm.nos`) que os nós da base da casca reaproveitam. */
+  baseViga?: Record<string, number[]>;
   casosV: Caso3[];
   /** Nós dos pilares por `${id}|${pavimento}` (barras dos lados já criados) e `${id}|base`; recebe os das cascas e fatias. */
   noPilar: Map<string, number>;
@@ -89,7 +98,8 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     return i;
   };
   pm.cascas ??= [];
-  const out: ParedesNoPortico = { info: [], nosFatia: [], base: {}, centro: {}, nBarras: 0, foraDiafragma: [], empuxo: [] };
+  const out: ParedesNoPortico = { info: [], nosFatia: [], base: {}, centro: {}, nBarras: 0, foraDiafragma: [], empuxo: [], avisos: [] };
+  const semeadas = new Set<number>(Object.values(e.baseViga ?? {}).flat());
   // centro de cada pilar-parede: centroide das áreas dos lados no primeiro lance
   for (const pp of ppDaObra(b)) {
     const lances = lancesDoPP(b, pp);
@@ -103,6 +113,8 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
   for (const gr of geo.grades) {
     const { lado: g, S, Z, nivel } = gr, pp = g.pp, zs = geo.niveisZ[pp.id], lances = lancesDoPP(b, pp);
     const malha = paraT6(malhaDaGrade(S, Z, gr.furos));
+    // base em viga de fundação (FU7c): os nós da viga entram no mapa e a casca os reaproveita (mesmas coordenadas)
+    for (const nv of e.baseViga?.[pp.id] ?? []) mapa.set(`${Math.round(pm.nos[nv][0] * 1e4)}|${Math.round(pm.nos[nv][1] * 1e4)}|${Math.round(pm.nos[nv][2] * 1e4)}`, nv);
     // só os pontos usados pelos triângulos viram nós (as aberturas deixam pontos soltos na grade)
     const usado = new Uint8Array(malha.pontos.length);
     for (const t of malha.tris) for (const i of t) usado[i] = 1;
@@ -135,7 +147,24 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     for (const [n, w] of pesoNo) casosV[e.iG].nodais.push({ no: n, f: [0, 0, -w, 0, 0, 0] });
     // base: apoios nos nós do nível 0
     const apoio = pp.vinculoBase === 'rotula' ? [0, 1, 2] : [0, 1, 2, 3, 4, 5];
-    malha.pontos.forEach(([, z], i) => { if (usado[i] && Math.abs(z - Z[0]) < 1e-9) { pm.apoios.set(ids[i], apoio); out.base[pp.id].push(ids[i]); } });
+    const nbase: { i: number; s: number }[] = [];
+    malha.pontos.forEach(([s, z], i) => { if (usado[i] && Math.abs(z - Z[0]) < 1e-9) nbase.push({ i, s }); });
+    nbase.sort((a, c) => a.s - c.s);
+    const wk = e.baseWinkler?.[pp.id], emViga = !!e.baseViga?.[pp.id];
+    nbase.forEach((q, j) => {
+      const n = ids[q.i];
+      if (emViga && semeadas.has(n)) return; // nó da viga de fundação: o apoio é a base elástica
+      if (emViga) out.avisos.push(`Parede ${parede?.nome ?? pp.id}: nó da base da casca sem nó da viga de fundação na mesma posição; mantido engastado.`);
+      if (wk && !emViga) {
+        // molas de Winkler (FU7c): vertical k·B·Lt e giro em torno do eixo da parede k·B³·Lt/12 (diagonal em x e y), Lt = comprimento de influência do nó
+        const Lt = ((nbase[j + 1]?.s ?? q.s) - (nbase[j - 1]?.s ?? q.s)) / 2, Bm = wk.B ?? g.esp(lances[0].id).t + 2 * (wk.aba ?? 0.3), kz = wk.k * Bm * Lt, kr = (wk.k * Bm ** 3 * Lt) / 12;
+        pm.apoios.set(n, [0, 1, 5]);
+        const ml = (pm.molas ??= []);
+        ml.push({ no: n, gdl: 2, k: kz });
+        if (!wk.rotula) ml.push({ no: n, gdl: 3, k: kr * g.u[0] ** 2 + 1e-9 * kr }, { no: n, gdl: 4, k: kr * g.u[1] ** 2 + 1e-9 * kr });
+      } else pm.apoios.set(n, apoio);
+      out.base[pp.id].push(n);
+    });
     const meio = (z: number) => { let best = -1, d = Infinity; malha.pontos.forEach(([s, zz], i) => { if (usado[i] && Math.abs(zz - z) < 1e-9 && S.includes(s) && Math.abs(s - g.L / 2) < d) { d = Math.abs(s - g.L / 2); best = i; } }); return ids[best]; };
     noPilar.set(`${g.id}|base`, meio(Z[0]));
     for (let k = 1; k < zs.length; k++) {
@@ -178,3 +207,20 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
 
 /** Rigidez reduzida das cascas no γz e no P-Δ (pilares: 0,8·Eci·Ic; NBR 6118, 15.7.3). */
 export const reduzirCascas = (cascas: Casca3[] | undefined, fator: number): Casca3[] | undefined => cascas?.map((c) => (c.semReducao ? c : { ...c, E: c.E * fator }));
+
+/**
+ * Posições (x, y) dos nós da base das cascas de cada parede (id) na cota da fundação, na mesma malha de `incluirParedes`:
+ * a viga de fundação da base da parede (FU7c) cria seus nós nelas para a casca e a viga compartilharem os nós.
+ */
+export function pontosBaseDasParedes(b: BuildingModel, geo: ModeloParedes): Record<string, [number, number][]> {
+  const out: Record<string, [number, number][]> = {};
+  for (const gr of geo.grades) {
+    const { lado: g, S, Z } = gr, malha = paraT6(malhaDaGrade(S, Z, gr.furos));
+    const usado = new Uint8Array(malha.pontos.length);
+    for (const t of malha.tris) for (const i of t) usado[i] = 1;
+    const l = (out[g.pp.id] ??= []);
+    malha.pontos.forEach(([s, z], i) => { if (usado[i] && Math.abs(z - Z[0]) < 1e-9) { const p = pontoDoLado(g, s, z); l.push([p[0], p[1]]); } });
+  }
+  void b;
+  return out;
+}

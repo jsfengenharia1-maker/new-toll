@@ -95,7 +95,7 @@ export function PilaresParedeGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [nasce, setNasce] = useState('fundacao');
   const [morre, setMorre] = useState('');
-  const [vinc, setVinc] = useState<'engaste' | 'rotula'>('engaste');
+  const [vinc, setVinc] = useState<'engaste' | 'rotula' | 'molas'>('engaste');
   const morreEf = morre && ps.some((p) => p.id === morre) ? morre : ps.at(-1)?.id ?? '';
   const params = { tipo: tipo?.id ?? '', angulo: pl.ppAngulo, nasce, morre: morreEf, vinculoBase: vinc };
   return (
@@ -120,7 +120,7 @@ export function PilaresParedeGrupo({ b, onPlanta }: { b: BuildingModel; onPlanta
             <NumField label="Ângulo" unit="°" width={84} value={pl.ppAngulo} onChange={(v) => pl.set({ ppAngulo: v })} />
             <Select label="Nasce em" value={nasce} options={[{ v: 'fundacao', label: 'fundação' }, ...ps.slice(0, -1).map((p) => ({ v: p.id, label: p.nome }))]} onChange={setNasce} />
             <Select label="Morre em" value={morreEf} options={ps.map((p) => ({ v: p.id, label: p.nome }))} onChange={setMorre} />
-            <Select label="Base" value={vinc} options={[{ v: 'engaste', label: 'engastada' }, { v: 'rotula', label: 'rotulada' }]} onChange={setVinc} />
+            <Select label="Base" value={vinc} options={[{ v: 'engaste', label: 'engastada' }, { v: 'rotula', label: 'rotulada' }, { v: 'molas', label: 'sobre molas (sapata corrida)' }]} onChange={setVinc} />
           </div>
           <div className="row wrap">
             <Button variant="primary" disabled={!tipo || !ps.length} onClick={() => tipo && exec('pilarParede.inserir', { ...params, x: pos.x, y: pos.y })}>Inserir em (x; y)</Button>

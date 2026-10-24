@@ -736,6 +736,22 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
                 <tbody>{dim.corridas.filter((x) => x.parede).map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td className="l">{x.parede!.nome}</td><td className="l">{x.parede!.origem === 'reacoes' ? 'reações da análise' : 'só lançadas'}</td><td>{fmt(x.parede!.M, 1)}</td><td>{fmt(x.parede!.eM * 100, 0)}</td><td>{fmt(x.parede!.H, 1)}</td><td>{x.parede!.deslizamento ? fmt(x.parede!.deslizamento.mu) : '—'}</td><td>{x.parede!.deslizamento ? `${fmt(x.parede!.deslizamento.FS)} (${fmt(x.parede!.deslizamento.FSmin, 1)})` : '—'}</td><td className="l">{(x.parede!.pilaresEq ?? []).map((q) => `${q.pilar} ${fmt(q.a)} × ${fmt(q.a)} m`).join('; ') || '—'}</td></tr>)}</tbody>
               </table>
             </>)}
+            {!!(dim.vigasElasticas?.some((x) => x.parede) || dim.vigasEmbutidas?.length || (opc.fundParedeK > 0 && (b.paredes?.some((w) => w.nasce === 'fundacao' && w.base?.tipo === 'sapataCorrida') || b.pilaresParede?.some((q) => q.vinculoBase === 'molas')))) && (<>
+              <p data-memorial-fu7c>
+                Base de paredes e pilares-parede na análise e vigas embutidas (FU7c; todos os valores a confirmar). Parede e pilar-parede sobre sapata corrida entram no pórtico com molas de Winkler nos nós da base da casca:
+                vertical k·B·ℓ e giro em torno do eixo k·B³·ℓ/12 (ℓ = comprimento de influência do nó), com k = {fmt(opc.fundParedeK, 0)} kN/m³ (0 = engaste) e B = largura da base da parede ou espessura + 2 × {fmt(opc.fundParedeAba, 0)} cm;
+                deslocamentos horizontais e giro em planta presos. A base em viga de fundação é uma viga sobre base elástica sob o eixo da parede, cujos nós são os da base da casca (a rigidez da viga redistribui a carga). Viga embutida
+                em parede de concreto: {opc.paredeVigaEmbutida === 1 ? 'armadura própria, mínima (As,mín da NBR 6118, 17.3.5.2.1, e ρsw,mín = 0,2·fctm/fywk, 17.4.1.1.1), porque a parede a apoia em todo o comprimento' : 'dimensionada como viga comum'}.
+              </p>
+              {!!dim.vigasElasticas?.some((x) => x.parede) && <table data-memorial-vigas-parede>
+                <thead><tr><th className="l">Viga de fundação</th><th className="l">Parede</th><th>b × h (cm)</th><th>k (kN/m³)</th><th>σ máx. (kN/m²)</th><th>Recalque (mm)</th><th>Md inf. / sup. (kN·m)</th><th>Vd (kN)</th></tr></thead>
+                <tbody>{dim.vigasElasticas.filter((x) => x.parede).map((x) => <tr key={x.id}><td className="l">{x.nome}</td><td className="l">{b.paredes?.find((w) => w.id === x.parede)?.nome ?? x.parede}</td><td>{fmt(x.b * 100, 0)} × {fmt(x.h * 100, 0)}</td><td>{fmt(x.k, 0)}</td><td>{fmt(x.sigmaMax, 1)}</td><td>{fmt(x.recalque * 1000, 2)}</td><td>{fmt(x.Md.inf, 1)} / {fmt(x.Md.sup, 1)}</td><td>{fmt(x.Vd, 1)}</td></tr>)}</tbody>
+              </table>}
+              {!!dim.vigasEmbutidas?.length && <table data-memorial-vigas-embutidas>
+                <thead><tr><th className="l">Viga</th><th className="l">Parede</th><th>b × h (cm)</th><th>As,mín (cm²)</th><th className="l">Armadura (cada face)</th><th className="l">Estribo</th></tr></thead>
+                <tbody>{dim.vigasEmbutidas.map((x) => <tr key={x.viga}><td className="l">{x.nome}</td><td className="l">{x.nomeParede}</td><td>{fmt(x.b * 100, 0)} × {fmt(x.h * 100, 0)}</td><td>{fmt(x.AsMin * 1e4, 2)}</td><td className="l">{x.barras}</td><td className="l">{x.estribo}</td></tr>)}</tbody>
+              </table>}
+            </>)}
             {!!dim.basesMuros?.length && (<>
               {h2('Bases dos muros de arrimo na fundação')}
               <p>A σadm da base do muro é a própria, ou a informada do terreno, ou a menor estimada pelo SPT de todos os furos com a largura B do muro (o muro não tem posição em planta); a tensão máxima é a da estabilidade (rara, por metro, com a sobrecarga). Quantitativos da base: ponta, talão e distribuição; totais com o comprimento do muro.</p>

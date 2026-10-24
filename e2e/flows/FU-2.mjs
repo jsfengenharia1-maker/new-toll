@@ -151,7 +151,7 @@ export const f_FU7b = {
       const cs = (await modelo()).fundacao.corridas;
       assert.deepEqual(cs.map((c) => c.nome).sort(), ['SC-M1', 'SC-M2']);
       // este fluxo confere a verificação de cada sapata isolada (o conjunto travado pela laje é testado em sapataParede.test.ts)
-      await cmd('opcoes.definir {"valores": {"fundCorridaDeslizGrupo": 0}}');
+      await cmd('opcoes.definir {"valores": {"fundCorridaDeslizGrupo": 0, "fundParedeK": 0}}'); // FU7c: base engastada (opção antiga) fixada neste fluxo
       await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.opcoes?.fundCorridaDeslizGrupo === 0, null);
       assert.equal(cs.find((c) => c.nome === 'SC-M1').parede, m1);
       // 2. cálculo: as sapatas aparecem no cartão com "parede M1" e o deslizamento da base sob o empuxo reprova (FS < 1,5)
@@ -261,5 +261,87 @@ export const f_FU7b = {
       assert.match(await page.locator('.prancha-prev').innerText(), /deslizamento FS/);
       await page.locator('[data-folha-item]', { hasText: /quantitativos/i }).first().click();
       await page.waitForFunction(() => /Base de muro de arrimo/.test(document.querySelector('.prancha-prev')?.textContent ?? ''), null, { timeout: 90000 });
+    },
+  };
+
+export const f_FU7c = {
+    name: 'FU7c: base da parede em viga de fundação (editor da parede, viga sobre base elástica ligada à casca, resultados, cartão e memorial), molas na base da sapata da parede (opção) e vigas embutidas com armadura própria',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+      const livre = () => page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 120000 });
+      const calcular = async () => {
+        await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+        await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+        await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+        await livre();
+      };
+      // 1. modelo enxuto: Térreo e Tipo 1, uma parede de 6 m com a base em apoio direto e uma viga embutida no topo
+      await cmd('obra.definir {"profundidadeFundacao": 1}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+      let b0 = await modelo();
+      for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+        const p = b0.pavimentos.find((x) => x.nome === nome);
+        const antes = b0.pavimentos.length;
+        await cmd('pavimento.remover {"id": "' + p.id + '"}');
+        await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+        b0 = await modelo();
+      }
+      const tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+      await cmd('fundacao.terreno {"sigmaAdm": 200}');
+      await cmd('parede.criar {"pontos": [[0, 0], [6, 0]], "espessura": 0.2, "morre": "' + tipo1.id + '"}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 1, null);
+      const idW = (await modelo()).paredes[0].id;
+      await cmd('viga.tracar {"grupo": "' + tipo1.grupo + '", "pontos": [[0, 0], [6, 0]], "secao": {"b": 0.2, "h": 0.4}}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 1, null);
+      await cmd('viga.embutir {"viga": "' + (await modelo()).vigas[0].id + '", "parede": "' + idW + '"}');
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.[0]?.embutida, null);
+      // 2. editor da parede: base em viga de fundação (sem sapata corrida)
+      const gp = page.locator('details.group', { has: page.locator(':scope > summary', { hasText: /^Paredes \(/ }) });
+      if (!(await gp.evaluate((d) => d.open))) await gp.locator('summary').click();
+      await gp.getByRole('button', { name: 'Selecionar M1' }).click();
+      const base = page.locator('[data-pw-base-parede]');
+      await base.waitFor({ timeout: 30000 });
+      await base.getByLabel('Base da parede', { exact: true }).selectOption('viga');
+      await base.locator('[data-pw-base-viga]').waitFor();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.[0]?.base?.tipo === 'viga', null);
+      assert.equal(((await modelo()).fundacao?.corridas ?? []).length, 0);
+      // 3. cálculo: a viga de fundação da parede entra na base elástica e na lista de resultados
+      await calcular();
+      const card = page.locator('[data-card-base-elastica]');
+      await card.waitFor({ timeout: 30000 });
+      assert.match(await card.innerText(), /VF-M1[\s\S]*viga 40×50/);
+      await gp.getByRole('button', { name: 'Selecionar M1' }).click();
+      const rv = await page.locator('[data-pw-base-parede]').innerText();
+      assert.match(rv, /VF-M1: 40 × 50 cm/);
+      assert.match(rv, /Maior recalque/);
+      assert.match(rv, /Md inf\. \/ sup\./);
+      // 4. memorial: bloco da FU7c com a viga de fundação da parede e a viga embutida com armadura própria
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const textoMemo = await memo.textContent();
+      assert.match(textoMemo, /Base de paredes e pilares-parede na análise e vigas embutidas/);
+      assert.equal(await memo.locator('[data-memorial-vigas-parede]').count(), 1);
+      assert.equal(await memo.locator('[data-memorial-vigas-embutidas]').count(), 1);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+      // 5. voltar ao apoio direto remove a viga de fundação; a base em sapata corrida usa as molas das opções
+      await fecharCfg(page);
+      await gp.getByRole('button', { name: 'Selecionar M1' }).click();
+      await base.getByLabel('Base da parede', { exact: true }).selectOption('apoio');
+      await base.locator('[data-pw-base-viga]').waitFor({ state: 'detached' });
+      await base.getByLabel('Base da parede', { exact: true }).selectOption('sapata');
+      await base.getByLabel('Aba da sapata da parede', { exact: true }).waitFor();
+      const gf = await grupoEdif(page, /^Fundação \(/);
+      const par = gf.locator('details', { has: page.locator(':scope > summary', { hasText: 'Parâmetros das sapatas corridas' }) }).first();
+      if (!(await par.evaluate((d) => d.open))) await par.locator(':scope > summary').click();
+      const k = par.getByLabel('k das molas da base da parede (0 = engaste; a confirmar)');
+      assert.equal(await k.inputValue(), '100000');
+      await par.getByLabel('Vigas embutidas em parede de concreto: armadura própria (mínimos)', { exact: true }).waitFor();
+      await calcular();
+      assert.equal(((await modelo()).fundacao?.corridas ?? []).length, 1);
     },
   };

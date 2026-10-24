@@ -104,6 +104,12 @@ Cada tabela abaixo que já existe no código é uma tabela da biblioteca de norm
 | FU7b | NBR 6122:2019 e NBR 6118:2014 | Sapata sob parede: seção de referência do momento e dispersão da carga de pilar que nasce sobre a parede | Seção de referência a 15 % de bw (CEB-70) estendida à parede de concreto em contato com o solo e carga do pilar concentrada na janela de 1 m (a dispersão pela altura da sapata não é considerada) | `corridaParede.ts` (`cargasLinearesDaParede`), opções `corridaRefConcreto`, `corridaJanela` |
 | FU7b | NBR 6122:2019 | σadm do muro de arrimo isolado pelo SPT | Muro sem posição em planta usa o menor σadm entre os furos da obra (N̄/50 MPa com a largura B do muro): confirmar o critério de furo representativo | `baseMuro.ts` (`sigmaDoMuro`) |
 | FU7b | NBR 11682:2009 e NBR 6122:2019 | 5 (muros) e estabilidade ao deslizamento | Deslizamento de paredes de subsolo de topo travado por laje: o app usa a soma vetorial das reações horizontais da base de todas as paredes travadas contra Σ μ·N (empuxos opostos se anulam pela laje e pela ligação das bases); confirmar o critério (conjunto, pilares fora do somatório, ligação das sapatas por piso ou vigas de fundação) | opções `fundCorridaDeslizGrupo` e `fundCorridaDeslizamento`; `deslizamentoDoConjunto` em `sapataCorrida.ts` |
+## Base de paredes em molas, viga de fundação e vigas embutidas (FU7c)
+| Frente | Norma | Item | O que falta | Onde entra |
+|---|---|---|---|---|
+| FU7c | NBR 6122:2019 (e valores de livro-texto) | Coeficiente de reação vertical do solo (k) sob sapatas | Tabela de k por tipo de solo ou critério para o k da base da parede (padrão do sistema 100 000 kN/m³ = programa de referência; a norma não fixa) | `fundParedeK` em `opcoes.ts`, molas em `pilarParedeModelo.ts` (`incluirParedes`), `analitico.ts` |
+| FU7c | NBR 6118:2014 | 17.3.5.2.1 (As,mín) e 17.4.1.1.1 (ρsw,mín = 0,2·fctm/fywk) aplicados à viga embutida em parede | Confirmar que a viga embutida e a cinta de coroamento de parede de concreto podem ser armadas só com os mínimos (a norma não trata a viga embutida), e o espaçamento máximo | `vigaEmbutida.ts` (`aplicarVigasEmbutidas`), opção `paredeVigaEmbutida` |
+
 ## Alvenaria estrutural e blocos de concreto (E1e)
 
 Nenhum texto da NBR 16868 estava disponível: todas as fórmulas abaixo foram escritas de memória, marcadas "a confirmar" no app (opções `alvenaria*`) e no memorial (premissas `e1e-*`). O que o programa de referência define (cumprimento 80 %, tração 10 % da compressão, aviso no relatório) já está como padrão do sistema.
