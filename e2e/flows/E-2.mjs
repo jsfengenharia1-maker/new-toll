@@ -833,3 +833,92 @@ export const f_E4b_inserir = {
       assert.equal(await escadasNaPlanta(page), 'E1');
     },
 };
+
+/** Escada E1 (meia-volta 9 + 9, espelho 1/6 m) criada pela linha de comandos: origem (1; 1), subindo em +y. */
+const ESCADA_E1 = 'escada.criar {"id": "e1", "grupo": "g_3", "origem": [1, 1], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "pre:meia-volta-9-9"}]}';
+const modeloEscadas = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []);
+const numero = async (campo) => parseFloat((await campo.inputValue()).replace(',', '.'));
+
+export const f_E4b_editar = {
+    name: 'E4b-editar: funções Editar, Mover, Girar, Duplicar lance e Apagar da ferramenta Escada, com desfazer',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      const funcao = (nome) => menu.getByRole('radio', { name: nome, exact: true }).click();
+      // Editar: clicar na escada abre a janela; a largura muda pelo comando de dados
+      await funcao('Editar');
+      await clicarPlanta(page, 1, 2);
+      const jan = page.getByRole('dialog', { name: 'Escadas', exact: true });
+      await jan.waitFor();
+      const dados = jan.locator('[data-escada-dados]');
+      await dados.getByLabel(/^Largura da escada/).fill('1.3');
+      await dados.getByLabel(/^Largura da escada/).press('Tab');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.largura === 1.3);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // Mover: referência e destino (dx = 2 m)
+      await funcao('Mover');
+      await clicarPlanta(page, 1, 2); await clicarPlanta(page, 3, 2);
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.origem?.[0] === 3);
+      // Girar: clicar na escada e digitar 90 (soma ao sentido atual: 90 + 90 = 180)
+      await funcao('Girar');
+      await clicarPlanta(page, 3, 2);
+      await menu.getByLabel(/^Ângulo do giro/).fill('90');
+      await menu.getByLabel(/^Ângulo do giro/).press('Tab');
+      await menu.getByRole('button', { name: 'Girar', exact: true }).click();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.angulo === 180);
+      // a janela mostra origem e sentido; Duplicar lance 1 acrescenta um lance
+      await funcao('Editar');
+      await clicarPlanta(page, 2.8, 1);
+      await jan.waitFor();
+      assert.equal(await numero(dados.getByLabel(/^Origem x/)), 3);
+      assert.equal(await numero(dados.getByLabel(/^Sentido de subida/)), 180);
+      await jan.getByRole('radio', { name: 'Lances', exact: true }).click();
+      await jan.getByRole('button', { name: 'Duplicar lance 1', exact: true }).click();
+      await jan.getByRole('button', { name: 'Duplicar lance 2', exact: true }).waitFor();
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? [])[0]?.lances?.length === 2);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // Apagar por clique: E1 some; Ctrl+Z traz de volta
+      await funcao('Apagar');
+      await clicarPlanta(page, 2.8, 1);
+      await esperarEscadas(page, '');
+      await page.keyboard.press('Control+z');
+      await esperarEscadas(page, 'E1');
+      // Apagar por janela (da direita para a esquerda captura as escadas que a janela toca)
+      const [ax, ay] = await telaDe(page, 7.9, 4.9), [bx, by] = await telaDe(page, 1.0, 0.5);
+      await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up();
+      await esperarEscadas(page, '');
+    },
+};
+
+export const f_E4b_copiar = {
+    name: 'E4b-copiar: "Copiar dados de" outra escada, giro à direita e mesmos lances',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByLabel('Copiar dados de').selectOption({ label: 'E1' });
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.waitFor();
+      assert.ok(Math.abs((await numero(jan.getByLabel(/^Espelho \(altura do degrau\)/))) - 1 / 6) < 1e-3);
+      await jan.getByLabel(/^Giro ao subir/).selectOption('dir');
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 5, 1); await clicarPlanta(page, 5, 4);
+      await esperarEscadas(page, 'E1,E2');
+      await page.waitForFunction(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []).length === 2);
+      const [e1, e2] = await modeloEscadas(page);
+      assert.equal(e2.giro, 'dir');
+      assert.equal(e1.giro, undefined);
+      assert.equal(e2.lances.length, e1.lances.length);
+      assert.equal(e2.lances[0].tipo, e1.lances[0].tipo);
+    },
+};

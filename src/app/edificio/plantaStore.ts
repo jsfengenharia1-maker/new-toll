@@ -1,6 +1,6 @@
 // Estado de visualização e de ferramenta da planta (não vai para o arquivo).
 import { create } from 'zustand';
-import type { AbaCorrida, Ajuste, Alinhamento, PosicaoFundacao, TipoFundacao, TipoLaje, TipoVigaFundacao } from '../../core/building/types';
+import { pavimentosOrdenados, type AbaCorrida, type Ajuste, type Alinhamento, type BuildingModel, type PosicaoFundacao, type TipoFundacao, type TipoLaje, type TipoVigaFundacao } from '../../core/building/types';
 import { TODAS, type TipoCaptura } from '../../core/geom/snap';
 import type { RefTemp } from '../../core/geom/cotasTemp';
 import type { DadosComunsEscada, LanceEscada } from '../../core/building/escadas';
@@ -13,6 +13,13 @@ export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'e
 /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
 export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
 export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
+/** Grupo do pavimento aberto na planta (o mesmo pavimento que a Planta desenha quando nenhum foi escolhido: o segundo, ou o único). */
+export function grupoDaPlanta(b: BuildingModel, pavimento: string | null): { id: string; nome: string } | null {
+  const pavs = pavimentosOrdenados(b);
+  const pav = pavs.find((p) => p.id === pavimento) ?? pavs[Math.min(1, pavs.length - 1)];
+  const g = b.grupos.find((x) => x.id === pav?.grupo);
+  return g ? { id: g.id, nome: g.nome } : null;
+}
 /** Parâmetros que levam a planta ao nível de fundação ao escolher a ferramenta (e limpam a seleção, salvo as que a usam). */
 export const aoEscolher = (f: Ferramenta): Partial<{ pavimento: string; selecao: Set<string> }> =>
   !FERRAMENTAS_FUNDACAO.includes(f) ? {} : MANTEM_SELECAO.includes(f) ? { pavimento: 'fundacao' } : { pavimento: 'fundacao', selecao: new Set<string>() };

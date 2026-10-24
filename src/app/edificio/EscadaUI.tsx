@@ -100,6 +100,13 @@ export function DadosComuns({ e, muda: mudaFora }: { e: Escada; muda?: (p: Recor
   const muda = mudaFora ?? ((p: Record<string, unknown>) => exec('escada.dados', { id: e.id, ...p }));
   return (
     <div data-escada-dados>
+      {!mudaFora && (
+        <div className="row wrap u-items-end">
+          <NumField label="Origem x" unit="m" width={110} value={e.origem[0]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [v, e.origem[1]] })} />
+          <NumField label="Origem y" unit="m" width={110} value={e.origem[1]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [e.origem[0], v] })} />
+          <NumField label="Sentido de subida" unit="°" width={110} value={e.angulo} onChange={(v) => exec('escada.editar', { id: e.id, angulo: v })} />
+        </div>
+      )}
       <div className="row wrap u-items-end">
         <NumField label="Largura da escada" unit="m" width={120} value={e.largura} onChange={(v) => muda({ largura: v })} />
         <NumField label="Piso (passo em planta)" unit="m" width={130} value={e.piso} onChange={(v) => muda({ piso: v })} />
@@ -136,6 +143,7 @@ function Lances({ b, e, g }: { b: BuildingModel; e: Escada; g: GeometriaEscada }
               <Select label={`Pavimento de partida do lance ${i + 1}`} value={l.pavimento ?? ''} options={[{ v: '', label: 'automático' }, ...ps.map((p) => ({ v: p.id, label: p.nome }))]}
                 onChange={(v) => (v ? exec('lance.editar', { escada: e.id, lance: l.id, pavimento: v }) : exec('lance.editar', { escada: e.id, lance: l.id, padrao: ['pavimento'] }))} />
               <NumField label={`Lances iguais consecutivos ${i + 1}`} width={140} value={l.repetir ?? 1} onChange={(v) => exec('lance.editar', { escada: e.id, lance: l.id, repetir: Math.max(1, Math.round(v)) })} />
+              <Button variant="mini" onClick={() => exec('lance.duplicar', { escada: e.id, lance: l.id })}>Duplicar lance {i + 1}</Button>
               <Button variant="danger" onClick={() => exec('lance.remover', { escada: e.id, lance: l.id })}>Remover lance {i + 1}</Button>
             </div>
             {Array.from({ length: nPat }, (_, k) => {

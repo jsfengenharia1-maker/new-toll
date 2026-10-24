@@ -1,7 +1,7 @@
 // Menu da ferramenta Escada (E4b, C8.5): função (criar, editar, apagar, mover, girar), opções de criação (inserção repetida,
 // copiar dados de outra escada do grupo, C8.35 e C8.39), grupo atual da planta (C8.7) e os botões de resultados (E4c e E4d).
 import { Button, Check, Hint, Note, NumField, Select, Seg } from '../ui';
-import { aoEscolher, usePlanta } from './plantaStore';
+import { aoEscolher, grupoDaPlanta, usePlanta } from './plantaStore';
 import { useBuilding } from './store';
 import { useNovaEscadaUI } from './NovaEscadaUI';
 import { useStore } from '../store';
@@ -22,8 +22,7 @@ export function EscadaMenu() {
   const pl = usePlanta();
   const { sessao } = useBuilding();
   const b = sessao.modelo;
-  const pav = b.pavimentos.find((p) => p.id === pl.pavimento);
-  const grupo = b.grupos.find((g) => g.id === pav?.grupo);
+  const grupo = grupoDaPlanta(b, pl.pavimento);
   const escadasDoGrupo = (b.escadas ?? []).filter((e) => e.grupo === grupo?.id);
   return (
     <div className="escada-menu" data-escada-menu>

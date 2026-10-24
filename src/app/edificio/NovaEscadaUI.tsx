@@ -6,7 +6,7 @@ import { Button, Dropdown, Hint, Modal, Note } from '../ui';
 import { dadosComunsDe, geometriaEscada, tiposLanceDisponiveis, tiposLanceEmUso, type DadosComunsEscada, type LanceEscada } from '../../core/building/escadas';
 import { previaInsercao } from '../../core/building/escadasEdicao';
 import type { BuildingModel } from '../../core/building/types';
-import { usePlanta } from './plantaStore';
+import { grupoDaPlanta, usePlanta } from './plantaStore';
 import { useBuilding } from './store';
 import { DadosComuns } from './EscadaUI';
 
@@ -50,8 +50,7 @@ function JanelaNova({ onClose }: { onClose: () => void }) {
   const pl = usePlanta();
   const { sessao } = useBuilding();
   const b = sessao.modelo;
-  const pav = b.pavimentos.find((p) => p.id === pl.pavimento);
-  const grupo = b.grupos.find((g) => g.id === pav?.grupo) ?? b.grupos.find((g) => b.pavimentos.some((p) => p.grupo === g.id));
+  const grupo = grupoDaPlanta(b, pl.pavimento);
   const doGrupo = (b.escadas ?? []).filter((e) => e.grupo === grupo?.id);
   const base = baseNovaEscada(b, pl) ?? { dados: DADOS_INICIAIS, lances: [{ tipo: 'pre:meia-volta-9-9' }] as LanceNovo[] };
   const grava = (dados: DadosComunsEscada, lances: LanceNovo[]) => pl.set({ escadaPadrao: { dados, lances, nome: pl.escadaPadrao?.nome, angulo: pl.escadaPadrao?.angulo }, escadaCopiar: null });
