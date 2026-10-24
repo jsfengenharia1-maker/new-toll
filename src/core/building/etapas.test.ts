@@ -8,11 +8,11 @@ const estados = (et: ReturnType<typeof etapasDaObra>) => et.map((x) => [x.id, x.
 const porId = (et: ReturnType<typeof etapasDaObra>, id: string) => et.find((x) => x.id === id)!;
 
 describe('etapasDaObra', () => {
-  it('obra vazia: todas pendentes, exceto as indisponíveis', () => {
+  it('obra vazia: todas pendentes', () => {
     const et = etapasDaObra(edificioVazio());
     expect(estados(et)).toEqual([
       ['obra', 'pendente'], ['pavimentos', 'pendente'], ['gabarito', 'pendente'], ['pilares', 'pendente'], ['pilaresParede', 'pendente'],
-      ['muros', 'indisponivel'], ['vigas', 'pendente'], ['lajes', 'pendente'], ['cargas', 'pendente'], ['escadas', 'pendente'], ['calculo', 'pendente'],
+      ['muros', 'pendente'], ['vigas', 'pendente'], ['lajes', 'pendente'], ['cargas', 'pendente'], ['escadas', 'pendente'], ['calculo', 'pendente'],
     ]);
     expect(proximaEtapa(et)!.id).toBe('obra');
   });
@@ -42,9 +42,15 @@ describe('etapasDaObra', () => {
     expect(porId(etapasDaObra(s.modelo), 'pilares').estado).toBe('pendente');
   });
 
-  it('muros indisponíveis (o detalhe cita a E1c); escadas pendentes até lançar a primeira (E4b)', () => {
+  it('muros e paredes ligados (E5c): pendente sem paredes, feito com a primeira parede lançada; escadas pendentes até a primeira (E4b)', () => {
     const et = etapasDaObra(edificioVazio());
     expect(porId(et, 'escadas').estado).toBe('pendente');
-    expect(porId(et, 'muros').detalhe).toContain('E1c');
+    expect(porId(et, 'muros')).toMatchObject({ estado: 'pendente' });
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    const [p0, p1] = s.modelo.pavimentos;
+    const r = s.executar('parede.criar', { pontos: [[0, 0], [3, 0]], espessura: 0.2, tipo: 'concreto', nasce: p0.id, morre: p1.id });
+    expect(r.ok, r.erros.map((e) => e.mensagem).join(' ')).toBe(true);
+    expect(porId(etapasDaObra(s.modelo), 'muros')).toMatchObject({ estado: 'feito', detalhe: '1 parede(s), 0 muro(s) de arrimo' });
   });
 });

@@ -9,6 +9,7 @@ import { useEscadaUI } from './EscadaUI';
 import { useAvisoRecalcular } from './EscadaCalculoUI';
 import { caminhoAte, idDoNo, montarArvore, type NoArvore } from './arvore';
 import { lancesDoPilar, pavimentosOrdenados } from '../../core/building/types';
+import { passosCopiaPlano } from './planosUtil';
 
 /** Abre e mostra o grupo (`details.group`) cujo título começa por `prefixo`, em qualquer doca. */
 function abrirGrupo(prefixo: string) {
@@ -86,7 +87,7 @@ export function Navegador() {
     } else if (a.tipo === 'viga' || a.tipo === 'fundacao' || a.tipo === 'pilarParede' || a.tipo === 'parede') irParaElemento(b, a.tipo, a.id);
   };
   // menu do nó da escada (botão direito ou tecla de menu): Editar, Duplicar e Apagar (E4b)
-  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string; tipo: 'escada' | 'laje' } | null>(null);
   useEffect(() => {
     if (!menu) return;
     const fecha = () => setMenu(null), tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
@@ -100,10 +101,19 @@ export function Navegador() {
     const nova = useBuilding.getState().sessao.modelo.escadas?.at(-1);
     if (r.ok && nova) usePlanta.getState().set({ selecao: new Set([nova.id]) });
   };
+  // C7.8: plano do pano para os panos selecionados, inclusive de outro grupo (o plano é recriado no grupo de destino)
+  const copiarPlano = (origem: string) => {
+    const destinos = [...usePlanta.getState().selecao];
+    for (const p of passosCopiaPlano(useBuilding.getState().sessao.modelo, origem, destinos)) {
+      let plano = p.existente;
+      if (p.criar) { if (!exec('plano.criar', p.criar).ok) return; plano = useBuilding.getState().sessao.modelo.planos?.at(-1)?.id; }
+      if (!exec('plano.atribuir', { lajes: p.lajes, ...(plano ? { plano } : {}) }).ok) return;
+    }
+  };
   const desenhar = (n: NoArvore): ReactNode => (
     <TreeItem key={n.id} level={n.nivel} label={n.rotulo} count={n.contagem} expanded={n.filhos ? abertos.has(n.id) : undefined}
       extra={n.alvo?.tipo === 'escada' && recalcular ? <Pill tone="warn" title={recalcular}>recalcular</Pill> : undefined}
-      onContextMenu={n.alvo?.tipo === 'escada' ? (e: MouseEvent) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: n.alvo!.id }); } : undefined}
+      onContextMenu={n.alvo?.tipo === 'escada' || n.alvo?.tipo === 'laje' ? (e: MouseEvent) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: n.alvo!.id, tipo: n.alvo!.tipo as 'escada' | 'laje' }); } : undefined}
       onToggle={() => alternar(n.id)} selected={selecionado(n)} onSelect={n.alvo ? () => selecionar(n) : undefined}>
       {n.filhos?.map(desenhar)}
     </TreeItem>
@@ -111,11 +121,17 @@ export function Navegador() {
   return (
     <Palette titulo="Navegador" aside={<Button variant="mini" title="Recolhe todos os ramos" onClick={() => setAbertos(new Set(['obra']))}>Recolher ramos</Button>}>
       <Tree label="Navegador da obra">{desenhar(arvore)}</Tree>
-      {menu && (
+      {menu?.tipo === 'escada' && (
         <div className="menu fixo" role="menu" aria-label="Menu da escada" style={{ left: menu.x, top: menu.y }}>
           <Button variant="nenhuma" role="menuitem" onClick={() => { usePlanta.getState().set({ selecao: new Set([menu.id]) }); useEscadaUI.getState().abrir(menu.id); }}>Editar</Button>
           <Button variant="nenhuma" role="menuitem" onClick={() => duplicar(menu.id)}>Duplicar</Button>
           <Button variant="nenhuma" role="menuitem" onClick={() => { exec('escada.remover', { ids: [menu.id] }); }}>Apagar</Button>
+        </div>
+      )}
+      {menu?.tipo === 'laje' && (
+        <div className="menu fixo" role="menu" aria-label="Menu do pano" style={{ left: menu.x, top: menu.y }}>
+          <Button variant="nenhuma" role="menuitem" onClick={() => { const P = usePlanta.getState(); P.set({ origemDadosPano: menu.id, abrirDadosL4: P.abrirDadosL4 + 1 }); }}>Copiar dados deste pano…</Button>
+          <Button variant="nenhuma" role="menuitem" onClick={() => copiarPlano(menu.id)}>Copiar o plano deste pano para os selecionados</Button>
         </div>
       )}
     </Palette>

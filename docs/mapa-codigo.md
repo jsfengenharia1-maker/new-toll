@@ -293,7 +293,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: app/edificio/AbaIsovalores.tsx, app/edificio/Edificio.tsx
 - `TabelasArmadura.tsx`: TabelasGrupo
   - usado por: app/edificio/Configuracao.tsx
-- `TipoPano.tsx`: TipoPanoGrupo
+- `TipoPano.tsx`: TipoPanoGrupo, AberturaPanoGrupo
   - usado por: app/edificio/Edificio.tsx
 - `TiposLaje.tsx`: TiposLajeGrupo
   - usado por: app/edificio/Configuracao.tsx
@@ -347,8 +347,8 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: -
 - `paredesLista.ts`: linhasParedes, aberturasNaPlanta
   - usado por: app/edificio/ParedesUI.test.ts, app/edificio/ParedesUI.tsx, app/edificio/Planta.tsx
-- `planosUtil.ts`: corDoPlano, TipoDef, TIPOS_DEF, CORES_PLANO, fmtPlano, rotuloPlano, DadosPlano, DADOS_PLANO_NOVO, dadosDoPlano, trocaTipoDef, paramsDoPlano
-  - usado por: app/edificio/PlanosUI.test.ts, app/edificio/PlanosUI.tsx, app/edificio/Planta.tsx, app/edificio/arvore.ts
+- `planosUtil.ts`: corDoPlano, TipoDef, TIPOS_DEF, CORES_PLANO, fmtPlano, rotuloPlano, DadosPlano, DADOS_PLANO_NOVO, dadosDoPlano, trocaTipoDef, paramsDoPlano, PassoCopiaPlano, passosCopiaPlano
+  - usado por: app/edificio/Navegador.tsx, app/edificio/PlanosUI.test.ts, app/edificio/PlanosUI.tsx, app/edificio/Planta.tsx, app/edificio/arvore.ts
 - `plantaStore.ts`: Ferramenta, FERRAMENTAS_FUNDACAO, MANTEM_SELECAO, grupoDaPlanta, aoEscolher, facesLaje, L5Estado, L5_PADRAO, Tema, Vista, usePlanta, Paleta, CHAVES, paletaBase, paleta, hexDaCor
   - usado por: app/edificio/AbacosUI.tsx, app/edificio/AlveolaresUI.tsx, app/edificio/Armadura.tsx, app/edificio/BaseElasticaUI.tsx, app/edificio/BaseParedeUI.tsx, app/edificio/ControlesPlanta.tsx, app/edificio/CoresPlanta.tsx, app/edificio/CorridaUI.tsx, app/edificio/CortesUI.tsx, app/edificio/DadosL4.tsx, app/edificio/Detalhamento.tsx, app/edificio/EdicaoLajes.tsx, app/edificio/Edificio.tsx, app/edificio/EscadaMenu.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Fundacao.tsx, app/edificio/FundacaoGrupoUI.tsx, app/edificio/Gabaritos.tsx, app/edificio/LancamentoDxf.tsx, app/edificio/LancamentoL5.tsx, app/edificio/MenuFerramentaMouse.tsx, app/edificio/MurosUI.tsx, app/edificio/Navegador.tsx, app/edificio/NervuradasUI.tsx, app/edificio/NovaEscadaUI.tsx, app/edificio/PaletaComandos.tsx, app/edificio/ParedesUI.tsx, app/edificio/PilarParedeUI.tsx, app/edificio/PlanosUI.tsx, app/edificio/Planta.tsx, app/edificio/Propriedades.tsx, app/edificio/Rearmar.tsx, app/edificio/Revisao.tsx, app/edificio/SecaoVigaUI.tsx, app/edificio/TabelasArmadura.tsx, app/edificio/TipoPano.tsx, app/edificio/VigaCurvaComumUI.tsx, app/edificio/VigotasFicha.tsx, app/edificio/Vinculos.tsx, app/edificio/alvo.ts, app/edificio/escadaCanvas.ts, app/edificio/mascaraImportar.ts, app/vista3d/Armadura3D.tsx, app/vista3d/Vista3D.tsx
 - `recentes.test.ts`: (sem exports)

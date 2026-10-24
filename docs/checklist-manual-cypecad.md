@@ -9,20 +9,20 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Capítulo | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
 | 0. Apresentação do programa | 4 | 3 | 0 | 0 | 1 |
-| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 44 | 0 | 1 | 11 |
+| 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 45 | 0 | 0 | 11 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
-| 6. Vigas | 108 | 81 | 2 | 0 | 25 |
-| 7. Lajes | 195 | 113 | 15 | 0 | 67 |
+| 6. Vigas | 108 | 82 | 1 | 0 | 25 |
+| 7. Lajes | 195 | 116 | 12 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **549** | **24** | **4** | **186** |
+| **Total** | **763** | **554** | **20** | **3** | **186** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 11 | 1 | 12 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 7 | 0 | 7 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -79,7 +79,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C1.26 | Roteiro recomendado, passo 1: dados gerais (nome, descrição, materiais e opções, nível de controle de execução). | Feito | — | obra + norma (fck, aço, CAA, cobrimentos, ψ) |
 | C1.27 | Passo 2: pavimentos (níveis, grupos, alturas, cargas variáveis e permanentes). | Feito | — | pavimentos, grupos, uso, cargas |
 | C1.28 | Passo 3: pilares e pilares-parede (geometria e posição). | Feito | — | etapa Pilares-parede do guia (`etapas.ts`) leva à ferramenta (E1b) [L1] |
-| C1.29 | Passo 4: muros e paredes de apoio. | Falta | E | etapa Muros e paredes do guia existe e fica indisponível até a E1c (`MUROS_DISPONIVEIS` em `etapas.ts`) [L1] — E5c: a E1c já entregou as paredes (`Parede`, `paredes.ts`): ligar `MUROS_DISPONIVEIS`, estado da etapa pelas paredes lançadas e atualizar `etapas.test.ts` |
+| C1.29 | Passo 4: muros e paredes de apoio. | Feito | — | etapa Muros e paredes do guia ligada (`MUROS_DISPONIVEIS` em `etapas.ts`): opcional, pendente sem paredes nem muros de arrimo, feita com a primeira parede (E1c) ou muro lançado; o botão Ir escolhe a ferramenta Parede de concreto [L1] [E5c] |
 | C1.30 | Passo 5: vigas. | Feito | — | vigas |
 | C1.31 | Passo 6: lajes. | Feito | — | lajes |
 | C1.32 | Passo 7: cargas especiais, como as de paredes divisórias. As cargas gerais vêm dos pavimentos, e o peso próprio de pilares, muros, vigas e lajes é gerado automaticamente. | Feito | — | cargas especiais, alvenaria da máscara; peso próprio automático |
@@ -394,7 +394,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C6.98 | Erro de conector: mesa do perfil fina demais para soldar o conector (espessura mínima depende do diâmetro). | Fora | — | conectores de vigas mistas |
 | C6.99 | Erro de conector: mesa estreita demais para dois conectores (distâncias mínimas entre conectores e à borda). | Fora | — | conectores de vigas mistas |
 | C6.100 | Verificação de consolos após o cálculo: os com erro ficam em vermelho, e o clique dá o relatório das verificações. | Feito | — | núcleo: `dim.consolos` com status, mensagens e `relatorioConsolo`; códigos CONSOLO_* (lista de erros, tipo `consolo`); interface: lista com a linha em vermelho, erros e relatório de cada consolo (`ConsolosUI.tsx`, `ConsolosResultadosUI.tsx`; e2e E2e) [E2e; conferido 24/10/2026, auditoria E] |
-| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Parcial | E | núcleo: `consolo.redimensionar` solta a armadura bloqueada e o dimensionamento refaz com os esforços do último cálculo (a vertical vem da envoltória ELU da viga); botão Redimensionar o consolo (só o escolhido) em `ConsolosResultadosUI.tsx` [E2e] — E5c: botão para redimensionar todos os consolos (o comando sem `ids` já faz) |
+| C6.101 | Redimensionar a armadura de todos os consolos com os esforços do último cálculo. | Feito | — | núcleo: `consolo.redimensionar` solta a armadura bloqueada e o dimensionamento refaz com os esforços do último cálculo (a vertical vem da envoltória ELU da viga); botões Redimensionar o consolo (só o escolhido, `ConsolosResultadosUI.tsx`) e Redimensionar todos os consolos (`ConsolosUI.tsx`, comando sem `ids`) [E2e] [E5c] |
 | C6.102 | Editar a armadura de vigas inclinadas. | Feito | — | núcleo: `inclinada.armadura { id, sup, inf, laterais?, estribo }` edita e bloqueia (o recálculo só verifica a flexo-compressão oblíqua e o cortante); formulário nos cartões E2c [E2c] — Feito 23/10/2026: interface em InclinadasUI.tsx, InclinadasResultadosUI.tsx e MemorialInclinadas.tsx; e2e E2c [E2c] |
 | C6.103 | Configuração do editor de armaduras de vigas: escolher o que mostrar (superior, inferior, pele, faixas de estribos, seção, zonas de confinamento). | Feito | — | "Mostrar" na aba Detalhamento da viga: inferior, superior, pele, estribos (zonas) e seção, no `plantaStore.detMostrar` (R7b); zonas de confinamento não se aplicam a vigas no perfil NBR |
 | C6.104 | Fator multiplicador do comprimento de emenda (lb) no editor. | Feito | — | fator do comprimento de emenda por viga (campo na edição do detalhamento, `viga.detalhe`) e opção `vigaFatorEmenda` para a obra (R7b) |
@@ -409,14 +409,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **7.1.1 Gestão de panos** | | | |
-| C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Parcial | E | E3f: seletor único de tipo de pano (TipoPano.tsx): vigotas, alveolar, nervurada, maciça e pano a definir; mista e radier aparecem indisponíveis (TIPOS_PANO) [E3f] — E5c: liberar o radier no seletor (a FU6 tem radier); laje mista (steel deck) fora do escopo (aço) |
+| C7.1 | Tipos de pano: lajes de vigotas (unidirecionais), alveolares, mistas (steel deck), nervuradas bidirecionais (cubetas), maciças, radier e pano a definir. | Feito | — | E3f: seletor único de tipo de pano (TipoPano.tsx): vigotas, alveolar, nervurada, maciça e pano a definir; E5c: radier liberado (lança a placa sobre base elástica FU6 com o contorno e os furos do pano, `radier.criar`, espessura editável; o pano do pavimento não muda) [a confirmar]; laje mista (steel deck) segue indisponível no seletor: aço/misto no edifício está Fora do escopo decidido [E3f] [E5c] |
 | C7.2 | Todo contorno fechado por vigas vira automaticamente um pano a definir, marcado com um ponto de interrogação. | Feito | — | L7: pano automático — ao traçar vigas que fecham um contorno (`viga.tracar` ou contorno retangular) o app cria o pano a definir (?) no mesmo passo do desfazer (`store.ts` exec + `laje.detectarPanos { definir }`; opção "Criar o pano a definir ao fechar um contorno" no grupo Ferramentas de lançamento, ligada por padrão; comandos puros do núcleo e da CLI não criam sozinhos); também `laje.detectarPanos { definir }` pelo botão (L5, `Laje.definir` marcado com "?" na planta); panos detectados e pano sem laje geram aviso; `panoAutomatico.test.ts`, e2e f_L7 |
 | C7.3 | O lançamento do pano pede a direção da armadura, das nervuras ou das vigotas, dada por clique numa viga paralela ou perpendicular ao pano. | Feito | — | direção pelo menor vão, editável |
 | C7.4 | Apagar pano: o espaço vira abertura. | Feito | — | remover laje |
 | C7.5 | Mudar o ponto de inserção do pano. | Feito | — | E5h: o ponto de inserção (laje.editar insercao/insercaoPonto; ferramenta Mudar o ponto de inserção do pano) numera as vigotas (posicionarVigotas) e ancora a malha da grelha no vértice (analitico.ts malhaLaje origem / origemMalha; passo sem ajuste, sobra no lado oposto, rigidez por linha); sem inserção a malha é a de sempre. Teste insercaoFuros.test.ts; e2e E5h. Ancorar a malha no vértice é critério do Statikos (premissa insercao-pano, a confirmar) |
 | C7.6 | Mudar a direção do pano, por uma viga ou por dois pontos. | Feito | — | L5 núcleo: `laje.editar { direcaoPor: { viga, relacao } / { pontos } }`; interface: ferramenta `direcaoPano` (cartão 04) — Feito 23/10/2026: interface em LancamentoL5.tsx e Planta.tsx (ferramentas de lançamento); e2e L5 [L5] |
 | C7.7 | Consultar e editar os dados do pano. | Feito | — |  |
-| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Parcial | E | L4 (DadosL4.tsx, cópia de dados) e E3f: alerta de troca de plano na cópia (CAMPOS_COPIA_LAJE.plano); cópia do plano só entre panos do mesmo grupo [E3f] — E5c: copiar o plano de pano de outro grupo, escolhido por menu de contexto |
+| C7.8 | Copiar dados de outro pano, escolhendo o que copiar (plano de inclinação, engastamento etc.), inclusive de pano de outro grupo escolhido por menu de contexto. Alerta para desligar a cópia do plano entre panos de inclinações diferentes. | Feito | — | L4 (DadosL4.tsx, cópia de dados) e E3f: alerta de troca de plano na cópia (CAMPOS_COPIA_LAJE.plano); E5c: menu de contexto do pano no Navegador (botão direito): Copiar dados deste pano… (origem escolhida, inclusive de outro grupo) e Copiar o plano deste pano para os selecionados — para pano de outro grupo o plano é recriado no grupo de destino (ou reaproveitado se já existe um igual; `passosCopiaPlano` em `planosUtil.ts`) [E3f] [E5c] |
 | C7.9 | Mostrar as formas (cubetas) das lajes nervuradas e desenhar as nervuras com a largura real. | Feito | — | E3c: camada Nervuras e cubetas na planta (Planta.tsx, camadaNervuras) e cubetas nas pranchas de formas e de armação; nervuras com a largura real [E3c] |
 | C7.10 | Momentos mínimos por pano em lajes de vigotas, alveolares e mistas. | Feito | — | `Laje.momentosMin` por tipo de vão (extremo, intermediário, isolado, balanço) e comando `laje.momentosMin` sobre os valores da obra (`minimosDaFaixa`, `vigotasEsforcos.ts`) [E3b] |
 | C7.11 | Classe de ambiente (exposição) por pano em vigotas protendidas e alveolares, atribuída a um pano ou a todos do grupo. | Feito | — | `Laje.exposicao` por pano ou grupo (`laje.exposicao`) → nível de protensão pela NBR 6118, Tabela 13.4 (`nivelPorCAA`, a confirmar); alveolares: serviço, cortante e negativos na capa na E3e (`alveolaresDim.ts`) [E3b] [E3e] |
@@ -424,7 +424,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.13 | Processo construtivo das alveolares: com ou sem escoramento. | Fora | — |  |
 | C7.14 | Vigota dupla ou tripla ao lado de uma vigota escolhida, com apagamento posterior. | Feito | — | `Laje.vigotasMultiplas` e comando `vigota.multipla` (dupla/tripla até o máximo da ficha, vigotas ao lado apagadas; esforços ÷ n + peso do conjunto) [E3b] |
 | | **7.1.2.1 Pano a definir** | | | |
-| C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Parcial | E | E3f: pano a definir por Aplicar (laje.aDefinir) e volta a outro tipo pelo seletor; abertura para pano a definir só pela linha de comando (sem botão) [E3f] — E5c: botão para trocar abertura por pano a definir |
+| C7.15 | Trocar abertura ou pano já definido por pano a definir, e pano a definir por abertura ou por qualquer tipo de laje. | Feito | — | E3f: pano a definir por Aplicar (laje.aDefinir) e volta a outro tipo pelo seletor; E5c: a abertura de pano (pano apagado, cruz tracejada) é selecionável na planta e o grupo Abertura de pano da doca Propriedades a transforma em pano a definir (`laje.restaurarPano`, `AberturaPanoGrupo` em `TipoPano.tsx`); pano para abertura por Apagar o pano (`laje.apagarPano`) [E3f] [E5c] |
 | C7.16 | Pano a definir com desnível, inclinação e espessura. A espessura passa às vigas planas do contorno. | Feito | — | E3f: pano a definir com espessura, desnível e plano (laje.aDefinir; espessuraDefinir) no grupo Tipo de pano [E3f] |
 | C7.17 | Obra com pano a definir não pode ser calculada (evita esquecimento). | Feito | — | erro DEFINIR_PANO (verificação) e analisarEdificio recusa a obra com pano a definir; “Detectar panos como a definir” em Edificio.tsx; o pano sem laje continua só aviso [L5; Feito 23/10/2026] |
 | C7.18 | Pano a definir visível na vista 3D, para conferir aberturas e lajes antes de escolher o tipo. | Feito | — | pano fechado por vigas sem laje: polígono translúcido tracejado com "?" na vista 3D [V1] |

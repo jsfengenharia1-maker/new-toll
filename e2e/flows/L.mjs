@@ -41,8 +41,8 @@ export const f_L1 = {
       assert.match(await page.locator('[data-etapa="pavimentos"]').innerText(), /feito/);
       assert.match(await page.locator('[data-etapa="pilares"]').innerText(), /pendente/);
       const muros = await page.locator('[data-etapa="muros"]').innerText();
-      assert.match(muros, /indispon/);
-      assert.match(muros, /E1c/);
+      assert.match(muros, /pendente/);
+      assert.match(muros, /Opcional/);
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
       await page.getByRole('button', { name: 'Memorial do edifício' }).click();
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });

@@ -26,7 +26,7 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
-import { TipoPanoGrupo } from './TipoPano';
+import { AberturaPanoGrupo, TipoPanoGrupo } from './TipoPano';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaCalculoHost } from './EscadaCalculoUI';
@@ -116,7 +116,7 @@ export function Edificio() {
     if (id === 'calculo') { setAba('dimensionamento'); return; }
     if (id === 'escadas') { setAba('planta'); escolherEscada(); return; }
     if (id === 'pavimentos') { setAba('planta'); useStore.getState().set({ message: 'Pavimentos: edite a lista “Pavimentos” do painel (nome, cota, grupo, +1 para repetir).' }); return; }
-    const f = ({ gabarito: 'eixo', pilares: 'pilar', pilaresParede: 'pilarParede', vigas: 'viga', lajes: 'laje', cargas: 'carga' } as Partial<Record<EtapaId, Ferramenta>>)[id];
+    const f = ({ gabarito: 'eixo', pilares: 'pilar', pilaresParede: 'pilarParede', muros: 'parede', vigas: 'viga', lajes: 'laje', cargas: 'carga' } as Partial<Record<EtapaId, Ferramenta>>)[id];
     setAba('planta');
     if (f) usePlanta.getState().set({ ferramenta: f, ...aoEscolher(f) });
   };
@@ -233,6 +233,7 @@ export function Edificio() {
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
           <TipoPanoGrupo b={b} />
+          <AberturaPanoGrupo b={b} />
           <PlanosGrupo b={b} />
           <AlveolaresGrupo b={b} />
           <NervuradasGrupo b={b} />

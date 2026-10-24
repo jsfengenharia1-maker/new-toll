@@ -5,13 +5,14 @@ export type EtapaId = 'obra' | 'pavimentos' | 'gabarito' | 'pilares' | 'pilaresP
 export type EstadoEtapa = 'pendente' | 'feito' | 'indisponivel';
 export interface Etapa { id: EtapaId; rotulo: string; estado: EstadoEtapa; detalhe: string }
 
-/** Muros e paredes chegam com a frente E1c; escadas, com a E4. Troque para true quando existirem. */
-export const MUROS_DISPONIVEIS = false;
+/** Paredes (E1c) e muros de arrimo existem desde a E1c/E1d; a etapa Muros e paredes está ligada (E5c). */
+export const MUROS_DISPONIVEIS = true;
 export const ESCADAS_DISPONIVEIS = true;
 
 export function etapasDaObra(b: BuildingModel, calculado = false): Etapa[] {
   const nPil = b.pilares.filter((p) => !ehArranque(p)).length;
   const nPP = b.pilaresParede?.length ?? 0;
+  const nParedes = b.paredes?.length ?? 0, nArrimo = b.murosArrimo?.length ?? 0, nMuros = nParedes + nArrimo;
   const e = (id: EtapaId, rotulo: string, feito: boolean, detalhe: string): Etapa => ({ id, rotulo, estado: feito ? 'feito' : 'pendente', detalhe });
   const nomeDado = !!b.obra.nome.trim() && b.obra.nome !== 'Edifício sem nome';
   return [
@@ -21,7 +22,7 @@ export function etapasDaObra(b: BuildingModel, calculado = false): Etapa[] {
     e('pilares', 'Pilares', nPil > 0, `${nPil} pilar(es)`),
     e('pilaresParede', 'Pilares-parede', nPP > 0, nPP ? `${nPP} pilar(es)-parede` : 'Opcional: lance pelo grupo Pilares-parede.'),
     MUROS_DISPONIVEIS
-      ? e('muros', 'Muros e paredes', false, 'Lance os muros e paredes de apoio.')
+      ? e('muros', 'Muros e paredes', nMuros > 0, nMuros ? `${nParedes} parede(s), ${nArrimo} muro(s) de arrimo` : 'Opcional: lance as paredes pelo grupo Paredes e os muros de arrimo pelo grupo Muros.')
       : { id: 'muros', rotulo: 'Muros e paredes', estado: 'indisponivel', detalhe: 'Muros e paredes estruturais chegam com a frente E1c.' } as Etapa,
     e('vigas', 'Vigas', b.vigas.length > 0, `${b.vigas.length} viga(s)`),
     e('lajes', 'Lajes', b.lajes.length > 0, `${b.lajes.length} laje(s)`),

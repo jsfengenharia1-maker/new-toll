@@ -599,7 +599,8 @@ export function Planta() {
       poly.closePath();
       const xs = v.contorno.map((q) => q[0]), ys = v.contorno.map((q) => q[1]);
       const [x0, y0] = paraTela(Math.min(...xs), Math.min(...ys)), [x1, y1] = paraTela(Math.max(...xs), Math.max(...ys));
-      ctx.save(); ctx.clip(poly); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+      const selV = pl.selecao.has(v.id);
+      ctx.save(); ctx.clip(poly); ctx.strokeStyle = selV ? cores.selecao : cores.laje; ctx.lineWidth = selV ? 2 : 1; ctx.setLineDash([6, 4]);
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.moveTo(x0, y1); ctx.lineTo(x1, y0); ctx.stroke();
       ctx.restore(); ctx.setLineDash([]);
     }
@@ -2108,6 +2109,7 @@ export function Planta() {
     if (!id) for (const c of cargas) if (c.tipo === 'area' && dentro(w, c.pontos)) { id = c.id; break; }
     if (!id && !nivelFund) id = escadasNoPonto(b, grupo, w, tol)[0] ?? null;
     if (!id) for (const { l } of lajes) if (dentro(w, l.contorno)) { id = l.id; break; }
+    if (!id && !nivelFund) id = (b.panosVazios ?? []).find((v) => v.grupo === grupo && dentro(w, v.contorno as P2[]))?.id ?? null;
     const s = new Set(aditivo ? pl.selecao : []);
     if (id) { if (aditivo && s.has(id)) s.delete(id); else s.add(id); }
     pl.set({ selecao: s });
