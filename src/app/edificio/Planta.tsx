@@ -343,6 +343,9 @@ export function Planta() {
   const cubetasPlanta = useMemo(() => (pl.camadaNervuras ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.arr.cubetas ?? []).map((cb) => cb.poligono)) : []), [b, lajes, pl.camadaNervuras]);
   // ábacos das nervuradas bidirecionais (E3d): zona efetiva de cada ábaco (camada opcional)
   const abacosPlanta = useMemo(() => (pl.camadaAbacos ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.abacos ?? []).map((e) => e.poligono)) : []), [b, lajes, pl.camadaAbacos]);
+  // lajes alveolares (E3e): placas numeradas do pano, das lajes do pavimento (camada opcional)
+  const dimAlveolares = useBuilding((st) => st.dim?.alveolares);
+  const placasPlanta = useMemo(() => (pl.camadaPlacas && dimAlveolares ? dimAlveolares.filter((r) => lajes.some(({ l }) => l.id === r.laje)).flatMap((r) => r.placas) : []), [dimAlveolares, lajes, pl.camadaPlacas]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -607,6 +610,23 @@ export function Planta() {
         ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...z); ctx.stroke();
         if (v.k > 40 && x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
       }
+    }
+    // lajes alveolares (E3e): placas numeradas com largura e comprimento; borda cortada e oblíqua em aviso; insuficiente em vermelho (camada opcional)
+    if (wrap.current) wrap.current.dataset.placasAlveolares = String(placasPlanta.length);
+    if (placasPlanta.length) {
+      ctx.save();
+      ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const p of placasPlanta) {
+        const dx = p.z[0] - p.a[0], dy = p.z[1] - p.a[1], n = Math.hypot(dx, dy) || 1, nx = (-dy / n) * (p.largura / 2), ny = (dx / n) * (p.largura / 2);
+        const cantos = [[p.a[0] + nx, p.a[1] + ny], [p.z[0] + nx, p.z[1] + ny], [p.z[0] - nx, p.z[1] - ny], [p.a[0] - nx, p.a[1] - ny]];
+        const ruim = p.status === 'insuficiente';
+        ctx.strokeStyle = ruim ? cores.erro : p.cortada || p.obliqua ? cores.aviso : cores.laje; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = ruim ? 2.4 : 1;
+        ctx.beginPath();
+        cantos.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+        ctx.closePath(); ctx.stroke();
+        if (v.k > 18) { const [tx, ty] = paraTela((p.a[0] + p.z[0]) / 2, (p.a[1] + p.z[1]) / 2); ctx.fillText(`${p.numero.replace(/^.*-/, '')} · ${Math.round(p.largura * 100)} × ${p.comprimento.toFixed(2).replace('.', ',')}`, tx, ty); }
+      }
+      ctx.restore();
     }
     // punção e cortante: contornos C, C′ e C″ (vermelho onde a tensão excede a resistência) e a armadura de punção
     if (wrap.current) wrap.current.dataset.puncao = String(puncaoPlanta.length);
