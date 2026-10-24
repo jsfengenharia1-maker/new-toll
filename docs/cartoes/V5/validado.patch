@@ -1,0 +1,590 @@
+diff --git a/e2e/flows/V.mjs b/e2e/flows/V.mjs
+index fe886e8..8dc52c9 100644
+--- a/e2e/flows/V.mjs
++++ b/e2e/flows/V.mjs
+@@ -1,7 +1,7 @@
+ // Fluxos de interface — V (parte 1/1).
+ import assert from 'node:assert/strict';
+ import { join } from 'node:path';
+-import { grupoEdif, tab, telaDe } from './helpers.mjs';
++import { faixaAba, grupoEdif, tab, telaDe } from './helpers.mjs';
+ 
+ export const f_V1 = {
+     webgl: true,
+@@ -470,3 +470,95 @@ export const f_V4 = {
+       assert.equal((await dados(1)).grandeza, 'AsInfX');
+     },
+   };
++
++export const f_V5 = {
++    webgl: true,
++    name: 'V5: esforços por hipótese (envoltória, combinação, caso) em viga e pilar, estado da seção, janelas independentes, símbolos dos pilares e estilo de desenho nas pranchas',
++    async run({ newPage }) {
++      const page = await newPage();
++      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
++      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
++      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.4}}}`).join(', ') + ']}');
++      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
++      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
++
++      // ---- a vista aparece nas abas, no Navegador e na faixa (Análise)
++      const vistas = page.locator('.edif-tabs');
++      await vistas.getByRole('tab', { name: 'Esforços', exact: true }).click();
++      await page.getByText('Calcule a estrutura (aba Dimensionamento) para ver os diagramas por hipótese.').waitFor();
++      await vistas.getByRole('tab', { name: 'Planta', exact: true }).click();
++      const arvore = page.getByRole('tree', { name: 'Navegador da obra' });
++      const nv = arvore.getByRole('treeitem', { name: /^Vistas/ });
++      if ((await nv.getAttribute('aria-expanded')) !== 'true') await nv.click();
++      await arvore.getByRole('treeitem', { name: 'Esforços', exact: true }).click();
++      assert.equal(await vistas.getByRole('tab', { name: 'Esforços', exact: true }).getAttribute('aria-selected'), 'true');
++      await vistas.getByRole('tab', { name: 'Planta', exact: true }).click();
++      await faixaAba(page, 'Análise');
++      await page.getByRole('toolbar', { name: /^Comandos: Análise/ }).getByRole('button', { name: 'Ver Esforços', exact: true }).click();
++      assert.equal(await vistas.getByRole('tab', { name: 'Esforços', exact: true }).getAttribute('aria-selected'), 'true');
++
++      // ---- calcula e volta aos esforços
++      await vistas.getByRole('tab', { name: 'Dimensionamento' }).click();
++      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
++      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 60000 });
++      await vistas.getByRole('tab', { name: 'Esforços', exact: true }).click();
++
++      const dados = async (n) => JSON.parse(await page.locator(`[data-esf-janela="${n}"]`).getAttribute('data-esf'));
++      // ---- janela 1: viga, envoltória ELU (a primeira hipótese), momento no plano
++      await page.locator('[data-esf-janela="1"]').waitFor();
++      const d1 = await dados(1);
++      assert.equal(d1.tipo, 'viga');
++      assert.equal(d1.envoltoria, true);
++      assert.equal(d1.hipotese, 'env:ELU');
++      assert.ok(d1.max > 5 && d1.min < d1.max && d1.pontos > 20, JSON.stringify(d1));
++      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva').count(), 1);
++      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva-min').count(), 1);
++      // caso G: um só valor por ponto, sem a curva do mínimo
++      await page.getByLabel(/^Hipótese \(janela 1\)/).selectOption({ label: 'Caso G' });
++      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-janela="1"]').getAttribute('data-esf')).hipotese === 'caso:G');
++      const dG = await dados(1);
++      assert.equal(dG.envoltoria, false);
++      assert.ok(dG.max > 0 && dG.max < d1.max, JSON.stringify(dG));
++      assert.equal(await page.locator('[data-esf-janela="1"] polyline.esf-curva-min').count(), 0);
++      // a envoltória ELU contém o caso G majorado por 1,4
++      assert.ok(dG.max * 1.4 <= d1.max + 1e-6);
++      // estado da seção da viga: domínio, desenho e barras
++      const sec = page.locator('[data-esf-janela="1"] [data-esf-secao]');
++      await sec.waitFor();
++      assert.match(await sec.getAttribute('data-esf-secao'), /^(2|3|4)$/);
++      assert.ok((await sec.locator('svg.esf-svg circle').count()) >= 2);
++      assert.match(await sec.innerText(), /linha neutra x =/);
++
++      // ---- janela 2 independente: pilar, normal
++      await page.getByRole('button', { name: 'Nova janela de esforços', exact: true }).click();
++      await page.locator('[data-esf-janela="2"]').waitFor();
++      await page.getByLabel(/^Tipo de elemento \(janela 2\)/).selectOption({ label: 'Pilar' });
++      await page.getByLabel(/^Grandeza \(janela 2\)/).selectOption({ label: 'Normal (N)' });
++      await page.getByLabel(/^Hipótese \(janela 2\)/).selectOption({ label: 'Caso G' });
++      await page.waitForFunction(() => { const e = document.querySelector('[data-esf-janela="2"]'); const d = e && JSON.parse(e.getAttribute('data-esf') ?? 'null'); return d && d.tipo === 'pilar' && d.grandeza === 'N' && d.hipotese === 'caso:G'; });
++      const dP = await dados(2);
++      assert.ok(dP.max > 50, JSON.stringify(dP)); // compressão positiva: carga acumulada dos pavimentos
++      assert.equal((await dados(1)).tipo, 'viga'); // a janela 1 não mudou
++      assert.equal((await dados(1)).hipotese, 'caso:G');
++      await page.locator('[data-esf-janela="2"] [data-esf-secao]').waitFor();
++      // fechar a janela 2 mantém a 1
++      await page.getByRole('button', { name: 'Fechar janela 2', exact: true }).click();
++      assert.equal(await page.locator('[data-esf-janela]').count(), 1);
++
++      // ---- pranchas: símbolos dos pilares e estilo de desenho (pela faixa Pranchas)
++      await faixaAba(page, 'Pranchas');
++      await page.getByRole('toolbar', { name: /^Comandos: Pranchas/ }).getByRole('button', { name: 'Estilo de desenho e símbolos…', exact: true }).click();
++      await page.locator('[data-estilo-pranchas]').waitFor();
++      await page.getByLabel(/^Símbolo do pilar que passa/).selectOption({ label: 'Cruz (X)' });
++      assert.equal(await page.getByLabel(/^Símbolo do pilar que passa/).inputValue(), 'cruz');
++      await page.getByLabel(/^Camada do estilo/).selectOption('PILAR');
++      await page.getByLabel(/^Cor ACI da camada/).fill('30');
++      await page.getByLabel(/^Cor ACI da camada/).press('Enter');
++      await page.getByRole('button', { name: 'Voltar ao estilo padrão', exact: true }).click();
++      await page.getByRole('button', { name: 'Símbolos padrão', exact: true }).click();
++      assert.equal(await page.getByLabel(/^Símbolo do pilar que passa/).inputValue(), 'hachura');
++      // folha de perspectiva axonométrica na lista de tipos
++      await page.getByLabel(/^Tipo de prancha/).selectOption({ label: 'Perspectiva axonométrica' });
++      await page.locator('[data-lista-folhas="1"]').waitFor({ timeout: 30000 });
++    },
++  };
+diff --git a/e2e/flows/index.mjs b/e2e/flows/index.mjs
+index c85babe..2f416f8 100644
+--- a/e2e/flows/index.mjs
++++ b/e2e/flows/index.mjs
+@@ -63,6 +63,7 @@ export const flows = [
+   m_V.f_V2,
+   m_V.f_V3,
+   m_V.f_V4,
++  m_V.f_V5,
+   m_N.f_N2a,
+   m_R_1.f_R7a,
+   m_R_2.f_R7b,
+diff --git a/src/app/design/global.css b/src/app/design/global.css
+index 3707dd1..23e98bc 100644
+--- a/src/app/design/global.css
++++ b/src/app/design/global.css
+@@ -193,6 +193,9 @@
+   --emp-eixo: var(--muted);
+   --iso-0: #2b4ba8; --iso-1: #3f6fc4; --iso-2: #5c93d6; --iso-3: #86b6e2; --iso-4: #b3d4ea; --iso-5: #e3ece9;
+   --iso-6: #f2dcb4; --iso-7: #eab883; --iso-8: #de8d5c; --iso-9: #c95a3c; --iso-10: #a02a2a;
++  /* cargas por caso (V5, K1.11.11): natureza G, Q, W, E, H e casos adicionais */
++  --carga-caso-g: #2b6cb0; --carga-caso-q: #c05621; --carga-caso-w: #2f855a; --carga-caso-e: #805ad5; --carga-caso-h: #b7791f;
++  --carga-caso-adic-0: #d53f8c; --carga-caso-adic-1: #319795; --carga-caso-adic-2: #718096; --carga-caso-adic-3: #9c4221; --carga-caso-adic-4: #5a67d8; --carga-caso-adic-5: #38a169;
+ }
+ @media (prefers-color-scheme: light) {
+   :root:not([data-theme='dark']) {
+@@ -1012,6 +1015,30 @@ body.ajuda-on { cursor: help; }
+ .iso-ext { fill: none; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+ .iso-ext-max { stroke: var(--ink-strong); } .iso-ext-min { stroke: var(--muted); stroke-dasharray: 3 2; }
+ 
++/* esforços por hipótese (V5): diagramas de M, V, N e T, seção do concreto e vistas das vigotas */
++.esf-aba { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow: auto; }
++.esf-barra { align-items: flex-end; flex-wrap: wrap; gap: 8px 12px; }
++.esf-barra > .field { min-width: 150px; }
++.esf-svg { width: 100%; max-height: 300px; background: var(--surface); }
++.esf-eixo { stroke: var(--line-strong); stroke-width: 1px; fill: none; vector-effect: non-scaling-stroke; }
++.esf-curva { fill: none; stroke: var(--accent-text); stroke-width: 1.8px; vector-effect: non-scaling-stroke; }
++.esf-curva-min { fill: none; stroke: var(--muted); stroke-width: 1.4px; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
++.esf-area { fill: var(--accent-soft); stroke: none; opacity: 0.7; }
++.esf-valor { fill: var(--ink-strong); font: 10px var(--font-num); paint-order: stroke; stroke: var(--surface); stroke-width: 2px; }
++.esf-sec-conc { fill: var(--sunken); stroke: var(--ink-strong); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
++.esf-sec-tens { fill: var(--accent-soft); stroke: var(--accent-text); stroke-width: 1px; vector-effect: non-scaling-stroke; }
++.esf-sec-ln { stroke: var(--ink-strong); stroke-width: 1.2px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; }
++.esf-barra-aco { fill: var(--ink-strong); }
++.esf-barra-aco-esc { fill: var(--accent-text); }
++.esf-vig-faixa { stroke: var(--ink); stroke-width: 1px; fill: none; vector-effect: non-scaling-stroke; }
++.esf-vig-rot { fill: var(--ink-strong); font: 11px var(--font-num); paint-order: stroke; stroke: var(--surface); stroke-width: 2px; }
++.carga-caso-g { stroke: var(--carga-caso-g); color: var(--carga-caso-g); } .carga-caso-q { stroke: var(--carga-caso-q); color: var(--carga-caso-q); }
++.carga-caso-w { stroke: var(--carga-caso-w); color: var(--carga-caso-w); } .carga-caso-e { stroke: var(--carga-caso-e); color: var(--carga-caso-e); }
++.carga-caso-h { stroke: var(--carga-caso-h); color: var(--carga-caso-h); }
++.carga-caso-adic-0 { stroke: var(--carga-caso-adic-0); color: var(--carga-caso-adic-0); } .carga-caso-adic-1 { stroke: var(--carga-caso-adic-1); color: var(--carga-caso-adic-1); }
++.carga-caso-adic-2 { stroke: var(--carga-caso-adic-2); color: var(--carga-caso-adic-2); } .carga-caso-adic-3 { stroke: var(--carga-caso-adic-3); color: var(--carga-caso-adic-3); }
++.carga-caso-adic-4 { stroke: var(--carga-caso-adic-4); color: var(--carga-caso-adic-4); } .carga-caso-adic-5 { stroke: var(--carga-caso-adic-5); color: var(--carga-caso-adic-5); }
++
+ /* ---- layout inspirado no BIMCraft (D1): módulos, faixa de comandos, docas, árvore, abas de vista ---- */
+ .work { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; min-width: 0; }
+ .qbar { flex-wrap: wrap; row-gap: var(--sp-2); }
+diff --git a/src/app/edificio/AbaEsforcos.tsx b/src/app/edificio/AbaEsforcos.tsx
+new file mode 100644
+index 0000000..b50540f
+--- /dev/null
++++ b/src/app/edificio/AbaEsforcos.tsx
+@@ -0,0 +1,167 @@
++// Aba "Esforços" (V5): diagramas de M, V, N e T de vigas, pilares, diagonais e vigotas por hipótese (envoltória,
++// combinação ou caso), estado da seção do concreto (deformações, linha neutra e tensões) e vistas das vigotas com a
++// chave geral de exibição de esforços. A matemática vem de src/core/resultados (funções puras).
++import { useMemo } from 'react';
++import { calculoAtual, useBuilding } from './store';
++import type { BuildingModel } from '../../core/building/types';
++import {
++  diagramaInclinada, diagramaPilar, diagramaViga, hipotesesDeEsforco, type DiagramaBarras, type HipoteseEsforco, type Componente,
++} from '../../core/resultados/esforcosCaso';
++import { diagramaVigotas, rotulosDeVigotas, vistaDisponivel, type VistaVigota } from '../../core/resultados/vigotasVista';
++import { estadoDaViga, estadoDoPilar, type EstadoDoElemento } from '../../core/resultados/estadoElementos';
++import { Button, Check, Group, Hint, Select } from '../ui';
++import { useEsforcos, type JanelaEsforco, type TipoElementoEsforco } from './esforcosStore';
++
++const GRANDEZAS: { v: Componente; label: string; unidade: string }[] = [
++  { v: 'Mz', label: 'Momento no plano (M)', unidade: 'kN·m' }, { v: 'Vy', label: 'Cortante (V no plano)', unidade: 'kN' }, { v: 'T', label: 'Torção (T)', unidade: 'kN·m' },
++  { v: 'N', label: 'Normal (N)', unidade: 'kN' }, { v: 'My', label: 'Momento fora do plano', unidade: 'kN·m' }, { v: 'Vz', label: 'Cortante fora do plano', unidade: 'kN' },
++];
++const TIPOS: { v: TipoElementoEsforco; label: string }[] = [{ v: 'viga', label: 'Viga' }, { v: 'pilar', label: 'Pilar' }, { v: 'diagonal', label: 'Diagonal' }, { v: 'vigotas', label: 'Vigotas' }];
++const VISTAS: { v: VistaVigota; label: string }[] = [{ v: 'momentos', label: 'Momentos / tipos' }, { v: 'cortantes', label: 'Cortantes / treliça' }, { v: 'armaduraInferior', label: 'Armadura inferior (moldada)' }];
++const LARG = 640, ALT = 220, PAD = 28;
++const f2 = (v: number) => v.toFixed(2).replace('.', ',');
++
++export function AbaEsforcos({ b }: { b: BuildingModel }) {
++  const an = useBuilding((s) => (calculoAtual(s) && !s.analise?.erro ? s.analise : null));
++  const janelas = useEsforcos((s) => s.janelas);
++  const nova = useEsforcos((s) => s.nova);
++  if (!an) return <div className="card"><h3>Esforços</h3><p className="hint">Calcule a estrutura (aba Dimensionamento) para ver os diagramas por hipótese.</p></div>;
++  return (
++    <div className="esf-aba">
++      <div className="row">
++        <Button variant="primary" onClick={() => nova()}>Nova janela de esforços</Button>
++        <Hint>Escolha o elemento, a hipótese (envoltória, combinação ou caso) e a grandeza. As janelas ficam lado a lado.</Hint>
++      </div>
++      <div className="isov-janelas" data-esf-janelas={janelas.length}>
++        {janelas.map((j) => <JanelaEsforcos key={j.id} j={j} b={b} />)}
++      </div>
++    </div>
++  );
++}
++
++/** Diagrama em SVG: abscissa horizontal, valor na vertical (o momento é desenhado para baixo, do lado tracionado). */
++function Diagrama({ n, d, g, us, unidade }: { n: number; d: DiagramaBarras; g: Componente; us: number[]; unidade: string }) {
++  const u0 = Math.min(...us), u1 = Math.max(...us, u0 + 1e-6);
++  const vmax = Math.max(1e-9, ...d.pontos.map((p) => Math.max(Math.abs(p.max[g]), Math.abs(p.min[g]))));
++  const sinal = g === 'Mz' || g === 'My' ? 1 : -1, cy = ALT / 2;
++  const X = (u: number) => PAD + ((u - u0) / (u1 - u0)) * (LARG - 2 * PAD), Y = (v: number) => cy + sinal * (v / vmax) * (cy - PAD);
++  const pts = (k: 'max' | 'min') => d.pontos.map((p, i) => `${X(us[i]).toFixed(1)},${Y(p[k][g]).toFixed(1)}`).join(' ');
++  const env = d.hipotese.tipo === 'envoltoria', ex = d.extremos[g];
++  const area = `${X(us[0]).toFixed(1)},${cy} ${pts('max')} ${X(us.at(-1)!).toFixed(1)},${cy}`;
++  return (
++    <svg className="esf-svg" role="img" aria-label={`Diagrama de esforços (janela ${n})`} viewBox={`0 0 ${LARG} ${ALT}`}>
++      <line className="esf-eixo" x1={PAD} x2={LARG - PAD} y1={cy} y2={cy} />
++      <polygon className="esf-area" points={area} />
++      <polyline className="esf-curva" points={pts('max')} />
++      {env && <polyline className="esf-curva-min" points={pts('min')} />}
++      <text className="esf-valor" x={PAD} y={14}>{`máx ${f2(ex.max.valor)} ${unidade} · mín ${f2(ex.min.valor)} ${unidade}`}</text>
++    </svg>
++  );
++}
++
++/** Seção do concreto: contorno, barras (escoando em destaque) e linha neutra, na escala de 1 m = `esc` px. */
++function SecaoSvg({ n, e }: { n: number; e: EstadoDoElemento }) {
++  const esc = 260 / Math.max(e.b, e.h), W = e.b * esc, H = e.h * esc, m = 14, s = e.estado;
++  const X = (x: number) => m + x * esc, Y = (y: number) => m + (e.h - y) * esc; // y da seção para cima
++  const u = s.normal, ln = s.s0 === null ? null : { cx: e.b / 2 + s.s0 * u[0], cy: e.h / 2 + s.s0 * u[1] };
++  return (
++    <svg className="esf-svg" role="img" aria-label={`Seção do concreto (janela ${n})`} viewBox={`0 0 ${W + 2 * m} ${H + 2 * m}`}>
++      <rect className="esf-sec-conc" x={m} y={m} width={W} height={H} />
++      <svg x={m} y={m} width={W} height={H} overflow="hidden">
++        {ln && <line className="esf-sec-ln" x1={(ln.cx - u[1] * 5) * esc} y1={(e.h - (ln.cy + u[0] * 5)) * esc} x2={(ln.cx + u[1] * 5) * esc} y2={(e.h - (ln.cy - u[0] * 5)) * esc} />}
++      </svg>
++      {s.barras.map((q, i) => <circle key={i} className={q.escoa ? 'esf-barra-aco-esc' : 'esf-barra-aco'} cx={X(q.x)} cy={Y(q.y)} r={Math.max(2.5, Math.sqrt(q.A / Math.PI) * esc)} />)}
++    </svg>
++  );
++}
++
++function JanelaEsforcos({ j, b }: { j: JanelaEsforco; b: BuildingModel }) {
++  const an = useBuilding((s) => (calculoAtual(s) && !s.analise?.erro ? s.analise : null))!;
++  const dim = useBuilding((s) => s.dim);
++  const mudar = useEsforcos((s) => s.mudar), fechar = useEsforcos((s) => s.fechar);
++  const n = j.id;
++  const hips = useMemo(() => hipotesesDeEsforco(b, an), [b, an]);
++  const hip: HipoteseEsforco = hips.find((h) => h.id === j.hipotese) ?? hips[0];
++  const elementos = useMemo(() => {
++    if (j.tipo === 'viga') return b.vigas.map((v) => ({ v: v.id, label: v.nome }));
++    if (j.tipo === 'pilar') return b.pilares.map((p) => ({ v: p.id, label: p.nome }));
++    if (j.tipo === 'diagonal') return (an.inclinadas ?? []).map((i) => ({ v: i.id, label: i.nome }));
++    return (dim?.vigotas ?? []).map((r) => ({ v: r.laje, label: r.nome }));
++  }, [j.tipo, b, an, dim]);
++  const elemento = elementos.find((e) => e.v === j.elemento)?.v ?? elementos[0]?.v ?? '';
++  const info = GRANDEZAS.find((g) => g.v === j.grandeza)!;
++
++  const dv = useMemo(() => (j.tipo === 'viga' && elemento ? diagramaViga(b, an, elemento, hip) : []), [j.tipo, b, an, elemento, hip]);
++  const pavs = dv.map((d) => d.pavimento);
++  const pav = pavs.includes(j.pavimento) ? j.pavimento : pavs[0];
++  const dViga = dv.find((d) => d.pavimento === pav);
++  const dPilar = useMemo(() => (j.tipo === 'pilar' && elemento ? diagramaPilar(an, elemento, hip) : null), [j.tipo, an, elemento, hip]);
++  const dDiag = useMemo(() => (j.tipo === 'diagonal' && elemento ? diagramaInclinada(an, elemento, hip) : null), [j.tipo, an, elemento, hip]);
++  const diag: DiagramaBarras | null = dViga ?? dPilar ?? dDiag;
++  const us = dViga ? dViga.s : dPilar ? dPilar.altura : dDiag ? dDiag.pontos.map((p) => p.x) : [];
++
++  const estado = useMemo(() => {
++    if (!dim) return null;
++    if (j.tipo === 'viga') { const r = dim.vigas.find((x) => x.viga === elemento); return r ? estadoDaViga(b, r) : null; }
++    if (j.tipo === 'pilar') { const r = dim.pilares.find((x) => x.pilar === elemento && x.determinantes?.length); return r ? estadoDoPilar(b, r) : null; }
++    return null;
++  }, [j.tipo, dim, b, elemento]);
++
++  const vig = j.tipo === 'vigotas' ? dim?.vigotas?.find((r) => r.laje === elemento) : undefined;
++  const rotVig = useMemo(() => (vig ? rotulosDeVigotas(vig, j.vista, j.esforcos) : []), [vig, j.vista, j.esforcos]);
++  const dVig = useMemo(() => (vig ? diagramaVigotas(b, an, vig, hip) : []), [vig, b, an, hip]);
++
++  const dados = diag ? JSON.stringify({
++    tipo: j.tipo, hipotese: hip.id, grandeza: j.grandeza, pontos: diag.pontos.length, max: +diag.extremos[j.grandeza].max.valor.toFixed(3), min: +diag.extremos[j.grandeza].min.valor.toFixed(3),
++    porMax: diag.extremos[j.grandeza].max.por, porMin: diag.extremos[j.grandeza].min.por, envoltoria: hip.tipo === 'envoltoria',
++  }) : vig ? JSON.stringify({ tipo: 'vigotas', hipotese: hip.id, faixas: dVig.length, rotulos: rotVig.length, textos: rotVig.map((r) => r.texto), esforcos: j.esforcos, vista: j.vista }) : undefined;
++
++  // vigotas na planta: caixa dos alinhamentos
++  const vb = useMemo(() => {
++    if (!vig) return null;
++    const xs = vig.faixas.flatMap((f) => [f.a[0], f.z[0]]), ys = vig.faixas.flatMap((f) => [f.a[1], f.z[1]]);
++    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), k = 520 / Math.max(x1 - x0, 1e-6);
++    return { X: (x: number) => 40 + (x - x0) * k, Y: (y: number) => 20 + (y1 - y) * k, W: 80 + (x1 - x0) * k, H: 40 + (y1 - y0) * k };
++  }, [vig]);
++
++  return (
++    <Group title={`Janela ${n}`} aside={<Button variant="mini" onClick={() => fechar(n)}>{`Fechar janela ${n}`}</Button>}>
++      <div className="isov-janela" data-esf-janela={n} data-esf={dados}>
++        <div className="row esf-barra">
++          <Select label={`Tipo de elemento (janela ${n})`} value={j.tipo} options={TIPOS} onChange={(v) => mudar(n, { tipo: v, elemento: '' })} />
++          <Select label={`Elemento (janela ${n})`} value={elemento} options={elementos} onChange={(v) => mudar(n, { elemento: v })} />
++          <Select label={`Hipótese (janela ${n})`} value={hip.id} options={hips.map((h) => ({ v: h.id, label: h.tipo === 'caso' ? `Caso ${h.nome}` : h.nome }))} onChange={(v) => mudar(n, { hipotese: v })} />
++          {j.tipo !== 'vigotas' && <Select label={`Grandeza (janela ${n})`} value={j.grandeza} options={GRANDEZAS.map((g) => ({ v: g.v, label: g.label }))} onChange={(v) => mudar(n, { grandeza: v })} />}
++          {j.tipo === 'viga' && pavs.length > 1 && <Select label={`Pavimento (janela ${n})`} value={pav} options={pavs.map((p) => ({ v: p, label: b.pavimentos.find((x) => x.id === p)?.nome ?? p }))} onChange={(v) => mudar(n, { pavimento: v })} />}
++        </div>
++        {!elementos.length && <p className="hint">Nenhum elemento calculado deste tipo.</p>}
++        {diag && <Diagrama n={n} d={diag} g={j.grandeza} us={us} unidade={info.unidade} />}
++        {diag && diag.ignorados.length > 0 && <p className="hint small">Casos sem esforço nesta barra: {diag.ignorados.join(', ')}.</p>}
++        {diag && (
++          <p className="hint small" data-esf-extremos>
++            {info.label}: máximo {f2(diag.extremos[j.grandeza].max.valor)} {info.unidade} ({diag.extremos[j.grandeza].max.por}); mínimo {f2(diag.extremos[j.grandeza].min.valor)} {info.unidade} ({diag.extremos[j.grandeza].min.por}).
++          </p>
++        )}
++        {estado?.estado.resolvido && (
++          <div data-esf-secao={estado.estado.dominio}>
++            <SecaoSvg n={n} e={estado} />
++            <p className="hint small">{estado.rotulo}. Domínio {estado.estado.dominio}; εc = {f2(estado.estado.epsTopo * 1000)}‰; linha neutra x = {estado.estado.x === null ? '—' : f2(estado.estado.x * 100)} cm (x/d = {estado.estado.xd === null ? '—' : f2(estado.estado.xd)}); MRd = {f2(estado.estado.MRd)} kN·m.</p>
++          </div>
++        )}
++        {j.tipo === 'vigotas' && vig && vb && (
++          <>
++            <div className="row esf-barra">
++              <Check label={`Exibir esforços das vigotas (janela ${n})`} checked={j.esforcos} onChange={(v) => mudar(n, { esforcos: v, vista: !vistaDisponivel(j.vista, v) ? 'momentos' : j.vista })} />
++              <Select label={`Vista das vigotas (janela ${n})`} value={j.vista} options={VISTAS.filter((v) => vistaDisponivel(v.v, j.esforcos))} onChange={(v) => mudar(n, { vista: v })} />
++            </div>
++            <svg className="esf-svg" role="img" aria-label={`Vigotas da laje (janela ${n})`} viewBox={`0 0 ${vb.W} ${vb.H}`}>
++              {vig.faixas.map((f, i) => <line key={i} className="esf-vig-faixa" x1={vb.X(f.a[0])} y1={vb.Y(f.a[1])} x2={vb.X(f.z[0])} y2={vb.Y(f.z[1])} />)}
++              {rotVig.map((r, i) => <text key={i} className="esf-vig-rot" x={vb.X(r.pos[0])} y={vb.Y(r.pos[1])} textAnchor="middle">{r.texto}</text>)}
++            </svg>
++            {dVig.length > 0 && <p className="hint small">Hipótese {hip.nome}: M máx. {f2(Math.max(...dVig.flatMap((f) => f.Mmax.map((m) => m / f.intereixo))))} kN·m/m; V máx. {f2(Math.max(...dVig.flatMap((f) => f.V.map((v) => v / f.intereixo))))} kN/m; torção nula.</p>}
++          </>
++        )}
++      </div>
++    </Group>
++  );
++}
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index b104b0d..071e631 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -3,6 +3,7 @@ import { ehNervurada } from '../../core/building/tiposLaje';
+ import { SegundaOrdemAnalise } from './SegundaOrdem';
+ import { AbaDeslocamentos } from './AbaDeslocamentos';
+ import { AbaIsovalores } from './AbaIsovalores';
++import { AbaEsforcos } from './AbaEsforcos';
+ import { useEffect, useState } from 'react';
+ import { calculoAtual, dimAtual, podeRearmar as podeRearm, useBuilding } from './store';
+ import { FERRAMENTAS_FUNDACAO, aoEscolher, usePlanta, type Ferramenta } from './plantaStore';
+@@ -181,7 +182,7 @@ export function Edificio() {
+ 
+       <section className="edif-main">
+         <ViewTabs className="edif-tabs" label="Vistas" active={aba} onChange={(k) => setAba(k as typeof aba)}
+-          tabs={([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => ({ id: k, label: l, ajuda: `aba:${k}`, bad: k === 'verificacao' && nErr > 0 }))} />
++          tabs={([['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', `Verificação${diags.length ? ` (${diags.length})` : ''}`], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['esforcos', 'Esforços'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']] as const).map(([k, l]) => ({ id: k, label: l, ajuda: `aba:${k}`, bad: k === 'verificacao' && nErr > 0 }))} />
+         {aba === 'planta' && <><PlantaBarra b={b} /><Planta /><PainelEdicaoLajes /></>}
+         {aba === 'vista3d' && <Vista3D onPlanta={() => setAba('planta')} />}
+         {aba !== 'planta' && aba !== 'vista3d' && (
+@@ -191,6 +192,7 @@ export function Edificio() {
+             {aba === 'analise' && <Analise b={b} nErr={nErr} />}
+             {aba === 'deslocamentos' && <AbaDeslocamentos b={b} />}
+             {aba === 'isovalores' && <AbaIsovalores b={b} />}
++            {aba === 'esforcos' && <AbaEsforcos b={b} />}
+             {aba === 'dimensionamento' && <DimensionamentoAba onIr={(tipo, id, pav) => { irParaElemento(b, tipo, id, pav); setAba('planta'); }} onMemorial={() => setMemo(true)} />}
+             {aba === 'pranchas' && <Pranchas />}
+             {aba === 'premissas' && (
+diff --git a/src/app/edificio/EstiloPranchas.tsx b/src/app/edificio/EstiloPranchas.tsx
+new file mode 100644
+index 0000000..1fd8e93
+--- /dev/null
++++ b/src/app/edificio/EstiloPranchas.tsx
+@@ -0,0 +1,75 @@
++// Estilo de desenho, símbolos dos pilares e saídas das pranchas (V5, K1.4.57, K1.4.90, K1.11.54): tabela de camadas
++// (nome, cor ACI, pena), tamanho de texto por tipo, símbolos do pilar que passa, nasce ou morre, detalhes e modelo de
++// moldura importados de DXF. Os comandos são `prancha.definir`; a matemática vem de src/core/sheets.
++import { useRef, useState } from 'react';
++import { useBuilding } from './store';
++import { useStore } from '../store';
++import { Button, Group, Hint, NumField, Select, TextField } from '../ui';
++import { PRANCHA_PADRAO, SIMBOLOS_PADRAO } from '../../core/building/types';
++import { CAMADAS, type Camada } from '../../core/sheets/prancha';
++import { camadaEstilo, resolverEstilo, salvarEstilo, abrirEstilo, TIPOS_TEXTO, type TipoTexto } from '../../core/sheets/estilo';
++import { SIMBOLOS, simbolosEmUso } from '../../core/sheets/simbolos';
++import { download } from '../ui';
++
++const CAMADAS_OPC = (Object.keys(CAMADAS) as Camada[]).map((c) => ({ v: c, label: c }));
++const TEXTOS_OPC = (Object.keys(TIPOS_TEXTO) as TipoTexto[]).map((t) => ({ v: t, label: TIPOS_TEXTO[t].rotulo }));
++
++export function EstiloPranchas() {
++  const { sessao, exec } = useBuilding();
++  const msg = (m: string) => useStore.getState().set({ message: m });
++  const cfg = { ...PRANCHA_PADRAO, ...(sessao.modelo.prancha ?? {}) };
++  const simb = simbolosEmUso(cfg.simbolos), est = resolverEstilo(cfg.estilo);
++  const [camada, setCamada] = useState<Camada>('PILAR');
++  const [texto, setTexto] = useState<TipoTexto>('cotas');
++  const ce = camadaEstilo({ estilo: est }, camada);
++  const refEstilo = useRef<HTMLInputElement>(null), refDxf = useRef<HTMLInputElement>(null);
++  const [alvoDxf, setAlvoDxf] = useState<'detalhe' | 'moldura'>('detalhe');
++  const [pos, setPos] = useState({ x: 10, y: 10, escala: 1 });
++  const ok = (r: { ok: boolean; erros: { mensagem: string }[] }) => { if (!r.ok) msg(r.erros[0]?.mensagem ?? 'Não foi possível aplicar.'); };
++  const camadaPatch = (p: { nome?: string; cor?: number; pena?: number }) => ok(exec('prancha.definir', { estilo: { camadas: { [camada]: p } } }));
++  const dxf = async (f: File) => {
++    const t = await f.text();
++    ok(exec('prancha.definir', alvoDxf === 'moldura' ? { moldura: { dxf: t, nome: f.name, ...pos, modo: 'moldura' } } : { detalhe: { dxf: t, nome: f.name, ...pos } }));
++  };
++  return (
++    <Group title="Estilo de desenho, símbolos e saídas">
++      <div data-estilo-pranchas>
++        <div className="row wrap">
++          <Select label="Símbolo do pilar que passa" value={simb.passa} options={SIMBOLOS.map((s) => ({ v: s.v, label: s.rotulo }))} onChange={(v) => ok(exec('prancha.definir', { simbolos: { passa: v } }))} />
++          <Select label="Símbolo do pilar que nasce" value={simb.nasce} options={SIMBOLOS.map((s) => ({ v: s.v, label: s.rotulo }))} onChange={(v) => ok(exec('prancha.definir', { simbolos: { nasce: v } }))} />
++          <Select label="Símbolo do pilar que morre" value={simb.morre} options={SIMBOLOS.map((s) => ({ v: s.v, label: s.rotulo }))} onChange={(v) => ok(exec('prancha.definir', { simbolos: { morre: v } }))} />
++          <Button onClick={() => ok(exec('prancha.definir', { simbolos: { ...SIMBOLOS_PADRAO } }))}>Símbolos padrão</Button>
++        </div>
++        <div className="row wrap">
++          <Select label="Camada do estilo" value={camada} options={CAMADAS_OPC} onChange={setCamada} />
++          <TextField label="Nome da camada" value={ce.nome} onChange={(v) => camadaPatch({ nome: v.trim().toUpperCase() })} />
++          <NumField label="Cor ACI da camada" value={ce.cor} step="1" onChange={(v) => camadaPatch({ cor: Math.round(v) })} />
++          <NumField label="Pena da camada" unit="mm" value={ce.pena} onChange={(v) => camadaPatch({ pena: v })} />
++        </div>
++        <div className="row wrap">
++          <Select label="Tipo de texto" value={texto} options={TEXTOS_OPC} onChange={setTexto} />
++          <NumField label="Fator do tamanho do texto" value={est.textos[texto]} onChange={(v) => ok(exec('prancha.definir', { estilo: { textos: { [texto]: v } } }))} />
++          <Button onClick={() => ok(exec('prancha.definir', { estiloPadrao: true }))}>Voltar ao estilo padrão</Button>
++          <Button onClick={() => { void download('estilo-de-desenho.json', salvarEstilo('Estilo', cfg.estilo ?? {}), 'application/json'); }}>Salvar estilo em arquivo</Button>
++          <Button onClick={() => refEstilo.current?.click()}>Abrir estilo de arquivo</Button>
++          <input ref={refEstilo} type="file" accept=".json" hidden aria-label="Arquivo de estilo" onChange={async (e) => {
++            const f = e.target.files?.[0]; e.target.value = '';
++            if (!f) return;
++            const r = abrirEstilo(await f.text());
++            if ('erro' in r) msg(r.erro); else ok(exec('prancha.definir', { estiloPadrao: true, estilo: r.estilo }));
++          }} />
++        </div>
++        <div className="row wrap">
++          <Select label="DXF importado como" value={alvoDxf} options={[{ v: 'detalhe', label: 'Detalhe na folha' }, { v: 'moldura', label: 'Modelo de moldura' }]} onChange={setAlvoDxf} />
++          <NumField label="Posição X do DXF na folha" unit="mm" value={pos.x} onChange={(x) => setPos({ ...pos, x })} />
++          <NumField label="Posição Y do DXF na folha" unit="mm" value={pos.y} onChange={(y) => setPos({ ...pos, y })} />
++          <NumField label="Escala do DXF" value={pos.escala} onChange={(escala) => setPos({ ...pos, escala: escala > 0 ? escala : 1 })} />
++          <Button onClick={() => refDxf.current?.click()}>Importar DXF</Button>
++          <input ref={refDxf} type="file" accept=".dxf" hidden aria-label="Arquivo DXF" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await dxf(f); }} />
++          <Button disabled={!cfg.moldura && !cfg.detalhes?.length} onClick={() => ok(exec('prancha.definir', { removerMoldura: true, removerDetalhes: (cfg.detalhes ?? []).map((d) => d.id) }))}>Remover DXF importados</Button>
++        </div>
++        <Hint>Estilo padrão: NBR 16861. {cfg.detalhes?.length ?? 0} detalhe(s) DXF{cfg.moldura ? ' e modelo de moldura' : ''} na obra. Penas e cores fora do padrão: a confirmar.</Hint>
++      </div>
++    </Group>
++  );
++}
+diff --git a/src/app/edificio/FaixaEdificio.tsx b/src/app/edificio/FaixaEdificio.tsx
+index d9e9ef5..773314f 100644
+--- a/src/app/edificio/FaixaEdificio.tsx
++++ b/src/app/edificio/FaixaEdificio.tsx
+@@ -127,6 +127,7 @@ function Analise() {
+         <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />
+         <RibbonButton icon="modos" label="Ver Deslocamentos" onClick={() => ui({ aba: 'deslocamentos' })} />
+         <RibbonButton icon="camadas" label="Ver Isovalores" onClick={() => ui({ aba: 'isovalores' })} />
++        <RibbonButton icon="resultados" label="Ver Esforços" onClick={() => ui({ aba: 'esforcos' })} />
+         <RibbonButton icon="verificacao" label="Ver Verificação" onClick={() => ui({ aba: 'verificacao' })} />
+       </RibbonGroup>
+       <RibbonGroup label="Opções"><RibbonButton icon="config" label="Opções de cálculo…" onClick={cfg('opcoes')} /></RibbonGroup>
+@@ -179,10 +180,15 @@ function Fundacoes() {
+ 
+ function Pranchas() {
+   return (
+-    <RibbonGroup label="Folhas">
+-      <RibbonButton icon="pranchas" label="Abrir Pranchas" title="Abre a vista Pranchas (tipo, grupo, formato, escala, PDF, DXF e DWG)" onClick={() => ui({ aba: 'pranchas' })} />
+-      <RibbonButton icon="config" label="Opções de armação e locação…" onClick={() => ui({ aba: 'pranchas' })} />
+-    </RibbonGroup>
++    <>
++      <RibbonGroup label="Folhas">
++        <RibbonButton icon="pranchas" label="Abrir Pranchas" title="Abre a vista Pranchas (tipo, grupo, formato, escala, PDF, DXF e DWG)" onClick={() => ui({ aba: 'pranchas' })} />
++        <RibbonButton icon="config" label="Opções de armação e locação…" onClick={() => ui({ aba: 'pranchas' })} />
++      </RibbonGroup>
++      <RibbonGroup label="Estilo">
++        <RibbonButton icon="config" label="Estilo de desenho e símbolos…" title="Abre a vista Pranchas no bloco de estilo de desenho, símbolos dos pilares e DXF importados" onClick={() => { ui({ aba: 'pranchas' }); requestAnimationFrame(() => document.querySelector('[data-estilo-pranchas]')?.scrollIntoView({ block: 'nearest' })); }} />
++      </RibbonGroup>
++    </>
+   );
+ }
+ 
+diff --git a/src/app/edificio/Pranchas.tsx b/src/app/edificio/Pranchas.tsx
+index 1a9728a..c257a03 100644
+--- a/src/app/edificio/Pranchas.tsx
++++ b/src/app/edificio/Pranchas.tsx
+@@ -7,6 +7,7 @@ import { Button, Check, download, Group, Hint, NumField, Select, TextField } fro
+ import { PRECISA_CALCULO, TIPOS_PRANCHA, tiposDe, type TipoSaida } from '../../core/sheets/conjunto';
+ import { siglaDe } from '../../core/sheets/prancha';
+ import { RotulosLajes } from './EdicaoLajes';
++import { EstiloPranchas } from './EstiloPranchas';
+ import { nf } from '../../core/sheets/armacao';
+ import { zip } from '../../core/zip';
+ import { ARQUIVO_LOGO, base64Bytes, LIMITE_LOGO } from '../../core/sheets/logo';
+@@ -156,6 +157,7 @@ export function Pranchas() {
+             </>
+           )}
+         </div>
++        <EstiloPranchas />
+         {precisa && !dim && <Hint><span data-aviso-calculo="sem">As pranchas de armação e a tabela de cargas da locação exigem o cálculo. Calcule e dimensione o edifício na aba Dimensionamento.</span></Hint>}
+         {precisa && dim && !atual && <p className="hint bad" data-aviso-calculo="desatualizado">O dimensionamento é de uma revisão anterior do modelo. Recalcule na aba Dimensionamento para gerar as pranchas de armação e a locação com cargas.</p>}
+         {(tipo === 'fundacao' || tipo === 'todas') && atual && !fundAtual && !!b.fundacao?.elementos.length && (
+diff --git a/src/app/edificio/arvore.test.ts b/src/app/edificio/arvore.test.ts
+index c93cf6c..58ae903 100644
+--- a/src/app/edificio/arvore.test.ts
++++ b/src/app/edificio/arvore.test.ts
+@@ -36,7 +36,7 @@ describe('árvore do navegador', () => {
+     const v = montarArvore(obra()).filhos![6];
+     expect(v.filhos!.map((f) => f.rotulo)).toEqual(VISTAS.map((x) => x[1]));
+     expect(v.filhos![0].alvo).toEqual({ tipo: 'vista', id: 'planta' });
+-    expect(VISTAS.length).toBe(10);
++    expect(VISTAS.length).toBe(11);
+   });
+ 
+   it('caminhoAte e idDoNo', () => {
+diff --git a/src/app/edificio/arvore.ts b/src/app/edificio/arvore.ts
+index 594f41f..5122b56 100644
+--- a/src/app/edificio/arvore.ts
++++ b/src/app/edificio/arvore.ts
+@@ -14,7 +14,7 @@ export interface NoArvore {
+ }
+ 
+ /** Vistas do centro (ids de `AbaEdificio`), na ordem das abas. */
+-export const VISTAS: [string, string][] = [['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', 'Verificação'], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']];
++export const VISTAS: [string, string][] = [['planta', 'Planta'], ['vista3d', '3D'], ['elevacao', 'Elevação'], ['verificacao', 'Verificação'], ['analise', 'Análise'], ['deslocamentos', 'Deslocamentos'], ['isovalores', 'Isovalores'], ['esforcos', 'Esforços'], ['dimensionamento', 'Dimensionamento'], ['pranchas', 'Pranchas'], ['premissas', 'Premissas']];
+ 
+ const folha = (prefixo: string, nivel: number, x: { id: string; nome: string }, tipo: TipoNo): NoArvore => ({ id: `${prefixo}:${x.id}`, rotulo: x.nome, nivel, alvo: { tipo, id: x.id } });
+ 
+diff --git a/src/app/edificio/esforcosStore.ts b/src/app/edificio/esforcosStore.ts
+new file mode 100644
+index 0000000..70b78d5
+--- /dev/null
++++ b/src/app/edificio/esforcosStore.ts
+@@ -0,0 +1,44 @@
++// Estado das janelas de esforços por hipótese (V5, C12.14): várias janelas lado a lado, mantidas até fechar o programa.
++// Não vai para o arquivo .statikos.
++import { create } from 'zustand';
++import type { Componente } from '../../core/resultados/esforcosCaso';
++import type { VistaVigota } from '../../core/resultados/vigotasVista';
++
++export type TipoElementoEsforco = 'viga' | 'pilar' | 'diagonal' | 'vigotas';
++
++export interface JanelaEsforco {
++  /** Número da janela (nunca reutilizado; entra nos rótulos dos controles). */
++  id: number;
++  tipo: TipoElementoEsforco;
++  /** Id do elemento (viga, pilar, diagonal ou laje de vigotas); vazio = o primeiro. */
++  elemento: string;
++  /** Id da hipótese (envoltória, combinação ou caso); vazio = a primeira. */
++  hipotese: string;
++  grandeza: Componente;
++  /** Pavimento da viga (vazio = o primeiro). */
++  pavimento: string;
++  /** Vigotas: chave geral de exibição de esforços e vista. */
++  esforcos: boolean;
++  vista: VistaVigota;
++}
++
++interface EsfState {
++  janelas: JanelaEsforco[];
++  proximo: number;
++  nova: (base?: Partial<JanelaEsforco>) => void;
++  fechar: (id: number) => void;
++  mudar: (id: number, p: Partial<JanelaEsforco>) => void;
++}
++
++const padrao = (id: number): JanelaEsforco => ({ id, tipo: 'viga', elemento: '', hipotese: '', grandeza: 'Mz', pavimento: '', esforcos: true, vista: 'momentos' });
++
++export const useEsforcos = create<EsfState>((set) => ({
++  janelas: [padrao(1)],
++  proximo: 2,
++  nova: (base) => set((s) => {
++    const ult = s.janelas.at(-1);
++    return { janelas: [...s.janelas, { ...(ult ?? padrao(0)), ...base, id: s.proximo }], proximo: s.proximo + 1 };
++  }),
++  fechar: (id) => set((s) => ({ janelas: s.janelas.filter((j) => j.id !== id) })),
++  mudar: (id, p) => set((s) => ({ janelas: s.janelas.map((j) => (j.id === id ? { ...j, ...p } : j)) })),
++}));
+diff --git a/src/app/edificio/uiStore.ts b/src/app/edificio/uiStore.ts
+index f1081f2..3d1c1b0 100644
+--- a/src/app/edificio/uiStore.ts
++++ b/src/app/edificio/uiStore.ts
+@@ -2,7 +2,7 @@
+ import { create } from 'zustand';
+ import type { DialogoGrupos } from './GruposL4';
+ 
+-export type AbaEdificio = 'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'dimensionamento' | 'pranchas' | 'premissas';
++export type AbaEdificio = 'planta' | 'vista3d' | 'elevacao' | 'verificacao' | 'analise' | 'deslocamentos' | 'isovalores' | 'esforcos' | 'dimensionamento' | 'pranchas' | 'premissas';
+ export type DialogoL1 = null | 'nova' | 'recentes' | 'texto' | 'gerais';
+ export type DialogoL2 = null | { tipo: 'lancar'; inicial?: string } | { tipo: 'gabaritos' } | { tipo: 'vistas' };
+ export type DialogoL4 = DialogoGrupos | 'guia';
