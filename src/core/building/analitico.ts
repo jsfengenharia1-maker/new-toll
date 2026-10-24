@@ -30,6 +30,7 @@ import { geometriaParedes } from './pilarParede';
 import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
 import { incluirParedes, reduzirCascas, type ParedesNoPortico } from './pilarParedeModelo';
+import { calcularEscadas, comEscadas, type ResultadoEscadas } from './escadasCalculo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
 import { pavimentosDoGrupo, anguloNoLance, centroPilar, contornoNoLance, contornoPilar, cotaFundacao, dimsSecao, ehArranque, engasteNoLance, geoLance, inicioDe, lanceNoPavimento, lancesDoPilar, pavimentosOrdenados, secaoNoLance, casosDaObra, casoUsoDoGrupo, type BuildingModel, type Laje, type Pilar, type SecaoPilar, type Viga, centroNoLance } from './types';
 
@@ -445,6 +446,8 @@ export interface AnaliseEdificio {
   casos: CasoAnalise[];
   gdl: number;
   ms: number;
+  /** Escadas (E4c): cálculo à parte de cada lance; as reações entram como cargas lineares e de superfície na análise (só com escadas). */
+  escadas?: ResultadoEscadas;
   /**
    * Só com `analisarEdificio(b, o, { cheio: true })` (testes e validação externa): o modelo integrado montado sem
    * condensação (todas as barras das grelhas no pórtico) e os casos verticais, para conferir o superelemento.
@@ -473,6 +476,14 @@ export function reacoesArranques(b: BuildingModel): AnaliseEdificio['fundacao'] 
 }
 
 export function analisarEdificio(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, extra: { cheio?: boolean } = {}): AnaliseEdificio {
+  // escadas (E4c, C8.52): calculadas primeiro, à parte; as reações viram cargas nos elementos de apoio. Sem escada, nada muda.
+  if (!b.escadas?.length) return analisarSemEscadas(b, o, extra);
+  const esc = calcularEscadas(b), r = analisarSemEscadas(comEscadas(b, esc), o, extra);
+  r.avisos.push(...esc.avisos);
+  return { ...r, escadas: esc };
+}
+
+function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, extra: { cheio?: boolean } = {}): AnaliseEdificio {
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
   const op: OpcoesAnalise = { ...opcoesEmUso(b.opcoes, perfilDe(b)), nu: 0.2, ...o };
   // módulo Ecs (kN/m²) por tipo de elemento e, nos pilares, por lance (fck por elemento: materiais.ts)

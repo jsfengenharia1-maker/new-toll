@@ -10,22 +10,22 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 
 | Seção | Itens | Feito | Parcial | Falta | Fora |
 |---|---|---|---|---|---|
-| 1.1 Problema a resolver e escopo (pág. 4) | 8 | 6 | 0 | 1 | 1 |
-| 1.2 Análise realizada (págs. 4–5) | 10 | 7 | 1 | 1 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 38 | 6 | 5 | 10 |
+| 1.1 Problema a resolver e escopo (pág. 4) | 8 | 7 | 0 | 0 | 1 |
+| 1.2 Análise realizada (págs. 4–5) | 10 | 8 | 1 | 0 | 1 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 43 | 6 | 0 | 10 |
 | 1.4 Opções de cálculo (págs. 15–27) | 92 | 67 | 11 | 1 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 41 | 4 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
-| 1.9 Entrada de dados (págs. 41–65) | 116 | 83 | 19 | 1 | 13 |
-| 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 8 | 0 | 1 | 2 |
+| 1.9 Entrada de dados (págs. 41–65) | 116 | 83 | 20 | 0 | 13 |
+| 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
 | 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 44 | 15 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 86 | 10 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 34 | 7 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **462** | **77** | **11** | **111** |
+| **Total** | **661** | **470** | **78** | **2** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 42 | 11 | 53 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 43 | 2 | 45 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **77** | **11** | **88** |
+| **Total** | **78** | **2** | **80** |
 
 ## Divergências de premissa
 
@@ -79,7 +79,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.1.3 | Apoios possíveis: pilares de concreto ou aço, pilares-parede de concreto, paredes de concreto (com ou sem empuxo lateral) e paredes de alvenaria (comum ou de blocos de concreto). | Feito | — | pilares, pilares-parede (E1b) e paredes de concreto com ou sem empuxo (E1c: `Parede`, `paredesBase.ts`, `paredes.ts`); falta a alvenaria estrutural [E1e] — Feito 23/10/2026: alvenaria na janela de paredes (ParedesUI.tsx, AlvenariaUI.tsx, ArmaduraAlvenariaUI.tsx); e2e E1e [E1e] |
 | K1.1.4 | Fundações: sapatas isoladas, sapatas corridas/vigas de fundação, blocos sobre estacas e radiers. | Feito | — | sapatas isoladas e associadas, blocos de 1 a 6 estacas (e com vários pilares), tubulões, vigas de equilíbrio e de travamento (FU1–FU3), radier e vigas de fundação sobre base elástica no pórtico (FU6, `src/core/building/baseElastica.ts`) e sapatas corridas sob parede e sob pilares (FU7a, `src/core/building/sapataCorrida.ts`) |
 | K1.1.5 | Fundações podem ser projetadas isoladamente da estrutura, só com "arranques" de pilar com cargas. | Feito | — | módulo Fundações dimensiona só com cargas por apoio (`piles.ts`, `foundation.ts`) |
-| K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Falta | E | escadas [E4c] |
+| K1.1.6 | Escadas de concreto apoiadas nas lajes podem ser lançadas. | Feito | — | escadas lançadas (E4a/E4b) e calculadas (E4c); as reações viram cargas nas vigas e lajes de apoio |
 | K1.1.7 | Saídas: desenhos com dimensões e armaduras de vigas, pilares, pilares-parede e paredes (plotter, impressora, DXF/DWG, PDF), listagens de resultados e memórias de cálculo. | Feito | — | desenhos de formas, locação e armação de vigas, pilares, lajes, fundações e paredes/pilares-parede (SCM; PDF/DXF/DWG), tabelas de aço, listagens e memorial HTML; opção de escala das paredes em Pranchas [E1d] |
 | K1.1.8 | Com módulo 3D adicional: barras de aço, madeira e alumínio integradas ao edifício. | Fora | — | barras de aço, madeira e alumínio no edifício |
 
@@ -96,7 +96,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.2.7 | Cálculo estático para todos os casos de carga; para sismo, análise modal espectral. | Feito | — | estática para G, Q e 12 casos de vento; análise modal é do sismo (fora) |
 | K1.2.8 | Comportamento linear dos materiais; análise de 1ª ordem para deslocamentos e esforços. | Feito | — | análise linear de 1ª ordem; 2ª ordem global pelo γz |
 | K1.2.9 | Estruturas 3D integradas: sempre 6 GL por nó (sem diafragma). | Fora | — | estruturas 3D integradas (barras genéricas de aço/madeira) |
-| K1.2.10 | Escadas: 6 GL, calculadas à parte; reações transferidas à estrutura principal. | Falta | E | escadas [E4c] |
+| K1.2.10 | Escadas: 6 GL, calculadas à parte; reações transferidas à estrutura principal. | Feito | — | escadas [E4c] `calcularLance`: 6 gdl por nó, lance a lance, à parte; reações transferidas como cargas por `comEscadas` |
 
 ## 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15)
 
@@ -138,11 +138,11 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.34 | Paredes: elementos finitos triangulares de casca espessa (com deformação por cortante), 6 nós (vértices e meios dos lados), 6 GL por nó. | Feito | — | casca espessa plana de 6 nós, 6 gdl por nó (`src/core/casca.ts`, `Casca3` no `fe3d`): membrana LST e placa de Mindlin com cortante por interpolação mista (Raviart-Thomas girado, família MITC); testes de membrana e placa, placa apoiada contra Mindlin e parede em balanço contra Timoshenko (N2b); paredes do edifício na E1 |
 | K1.3.35 | Paredes: malha triangular adaptada à geometria e às aberturas, refinada em cantos, bordas e pontos singulares. | Feito | — | malha triangular própria (`src/core/geom/malhaTri.ts`): Delaunay restrita com contorno e aberturas preservados, pontos obrigatórios e refino à metade junto a cantos, aberturas e pontos; tamanho alvo `malhaCasca` (0,5 m, a confirmar); `paraT6` gera os nós dos meios (N2b) |
 | K1.3.36 | Paredes que não tocam lajes não ficam no diafragma daquele nível. | Feito | — | nós da parede no nível sem laje fora do diafragma (`foraDiafragma` em `pilarParedeModelo.ts`, `analitico.ts`); teste das duas paredes no Térreo em `paredes.test.ts` [E1c] |
-| K1.3.37 | Escadas: elementos finitos triangulares de casca espessa nos lances inclinados e patamares. | Falta | E | escadas [E4c] |
-| K1.3.38 | Escadas: apoios inicial e final simulados como laje por viga de rigidez elevada; apoios intermediários por apoios elásticos (alvenaria ou tirantes). | Falta | E | escadas (apoios) [E4c] |
-| K1.3.39 | Escadas: só casos gravitacionais (permanente e variável). | Falta | E | escadas (casos) [E4c] |
-| K1.3.40 | Escadas: calculadas à parte; reações integradas como cargas lineares aplicadas ao resto da estrutura nas ligações. | Falta | E | escadas (reações como cargas) [E4c] |
-| K1.3.41 | Escadas não entram na análise global (justificativa: grande influência das forças horizontais sobre elas). | Falta | E | escadas fora da análise global [E4c] |
+| K1.3.37 | Escadas: elementos finitos triangulares de casca espessa nos lances inclinados e patamares. | Feito | — | escadas [E4c] casca espessa triangular de 6 nós (N2b `casca.ts`, com `acoplarGiro` para as dobras entre trechos e patamares) nos lances inclinados e patamares; malha estruturada de ≈ 0,25 m (opção `escadaMalha`); validada contra o OpenSees (reações ≤ 0,5 %, flechas ≤ 2,2 %) |
+| K1.3.38 | Escadas: apoios inicial e final simulados como laje por viga de rigidez elevada; apoios intermediários por apoios elásticos (alvenaria ou tirantes). | Feito | — | escadas (apoios) [E4c] bordas inferior e superior como laje apoiada em viga rígida (gdl vertical preso, limite da penalização × 10⁶); patamar: parede/tirante = apoio elástico k = E·largura/altura (opção `escadaEAlvenaria`, a confirmar), conector = apoio rígido; patamar livre sem apoio |
+| K1.3.39 | Escadas: só casos gravitacionais (permanente e variável). | Feito | — | escadas (casos) [E4c] só G e Q em `calcularLance` |
+| K1.3.40 | Escadas: calculadas à parte; reações integradas como cargas lineares aplicadas ao resto da estrutura nas ligações. | Feito | — | escadas (reações como cargas) [E4c] `cargasDasEscadas`: cargas lineares uniformes (reação ÷ comprimento) aplicadas às ligações no resto da estrutura |
+| K1.3.41 | Escadas não entram na análise global (justificativa: grande influência das forças horizontais sobre elas). | Feito | — | escadas fora da análise global [E4c] sem vento nem segunda ordem (teste: casos e γz inalterados); justificativa no memorial (`escadasCalculoNoMemorial`) |
 | | **1.3.1 Dimensão dos nós (págs. 10–12)** | | | |
 | K1.3.42 | Nós gerais de dimensão finita no eixo dos pilares e nas interseções laje × eixo de viga; cada nó geral tem zero ou mais nós associados. | Feito | — | nó no eixo do pilar ligado à face por trecho rígido (`offsetFace`, offI/offJ) |
 | K1.3.43 | Nós associados: interseções de elementos de laje com faces de vigas e pilares, e de eixos de vigas com faces de pilares. | Feito | — | modelo integrado (N2b): nós da grelha dentro da seção do pilar (apoios das vigas, chegadas de lajes, pilar sem viga) ligados ao nó do pilar por trecho rígido até o eixo; eixo da viga com a face do pilar por trecho rígido até a face − 0,3h também na grelha; a laje vai até o eixo da viga, como na grelha |
@@ -510,7 +510,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.9.113 | Cargas concentradas, lineares e superficiais lançadas graficamente, com cor por caso. | Feito | — | ponto, linha e área na planta por caso (`carga.*`); cor única |
 | K1.9.114 | Vigas inclinadas: dimensões, cargas (concentrada, linear, faixa, triangular…), grupos inicial e final; sempre 6 GL; concreto retangular ou metálica; biengastadas ou biarticuladas. | Feito | — | núcleo: seção b × h de concreto (metálica fora), cargas concentrada, linear, faixa e triangular por caso, pavimentos inicial e final, sempre 6 gdl, ligações engastada ou articulada (`VigaInclinada`, `inclinada.criar`) [E2c] — Feito 23/10/2026: interface em InclinadasUI.tsx, InclinadasResultadosUI.tsx e MemorialInclinadas.tsx; e2e E2c [E2c] |
 | K1.9.115 | Contraventamentos em X: vigas inclinadas cruzadas entre dois apoios e dois pavimentos; sempre perfis metálicos. | Fora | — | contraventamento metálico |
-| K1.9.116 | Escadas remetidas a capítulo próprio. | Falta | E | escadas [E4c] |
+| K1.9.116 | Escadas remetidas a capítulo próprio. | Parcial | E | escadas [E4c] núcleo 24/10/2026: `escadasCalculoNoMemorial` (modelo, malha, apoios, reações, esforços e deslocamentos por lance); capítulo "Escadas" do memorial nos cartões `docs/cartoes/E4c/` |
 
 ## 1.10 Cálculo da estrutura (págs. 65–67)
 
@@ -525,7 +525,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.10.7 | Fase 5: dimensionamento e armação conforme envoltórias, geometria, materiais e tabelas; aviso se exceder limites de norma; processo continua até o fim e gera relatório. | Feito | — | dimensionamento no worker; status ok/não atende/revisar com mensagens |
 | K1.10.8 | Estruturas 3D integradas podem ser calculadas à parte dos pavimentos; recomenda-se dimensionar perfis antes do cálculo conjunto. | Fora | — | estruturas 3D integradas |
 | K1.10.9 | Aço: mudanças de perfil alteram inércias → iterar cálculos até convergir; concreto (seção bruta) normalmente sem iteração. | Fora | — | iteração de perfis de aço |
-| K1.10.10 | Escadas: reações nos apoios inferior, superior e intermediários convertidas em cargas lineares uniformes nos casos permanente e variável; sem cálculo integrado (efeito excessivo sob ação horizontal, fora da prática usual). | Falta | E | escadas [E4c] |
+| K1.10.10 | Escadas: reações nos apoios inferior, superior e intermediários convertidas em cargas lineares uniformes nos casos permanente e variável; sem cálculo integrado (efeito excessivo sob ação horizontal, fora da prática usual). | Feito | — | escadas [E4c] reações dos apoios inferior, superior e do patamar em cargas lineares uniformes G e Q, sem cálculo integrado; reação horizontal gera o aviso `ESCADA_HORIZONTAL` |
 | K1.10.11 | Erros consultáveis na tela ou impressos; recomenda-se revisar elemento a elemento. | Feito | — | filtro "só o que não atende", clique leva à planta; mensagens no memorial |
 
 ## 1.11 Resultados, relatórios e desenhos (págs. 67–76)
@@ -1010,3 +1010,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **23/10/2026 — E3f, núcleo (lajes inclinadas, rampas e desníveis).** K1.1.1 passa a Feito (vigotas, alveolares, nervuradas e maciças calculadas; mistas e vigotas de aço fora) e K1.9.57 a Feito (desnível e plano por pano; aviso DESNIVEL_VIGA, sem flexão transversal, como no programa de referência). Modelo 3D dos panos inclinados validado contra o método das forças (pórtico de duas águas) e o OpenSees (`validation/opensees/inclinada.py`).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (2 itens a Feito).
+- **24/10/2026 — E4c, núcleo (cálculo das escadas).** K1.1.6, K1.2.10, K1.3.37 a K1.3.41 e K1.10.10 passam de Falta a Feito; K1.9.116 de Falta a Parcial (capítulo do memorial nos cartões). Casca de 6 nós por lance com giro acoplado à rotação da membrana (as dobras entre trecho e patamar ficavam moles com o giro solto: reação do apoio do patamar 3,5 % abaixo do OpenSees; com o acoplamento, ≤ 0,5 %), apoios das bordas como viga rígida, patamar com apoio elástico, só G e Q, fora da análise global; reações como cargas lineares G e Q. Premissas a confirmar em `docs/pendencias-usuario.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (9 itens a Feito).

@@ -7,6 +7,7 @@
 //  - Depois de mudar seções (`calculo: 'secao'`), os esforços guardados são da estrutura antiga: o elemento cuja inércia
 //    variou além do limite recebe o aviso ESFORCO_ANTIGO, que pede nova análise.
 import type { AnaliseEdificio } from './analitico';
+import { comEscadas } from './escadasCalculo';
 import { dimensionarEdificio, type Dimensionamento } from './dimensionamento';
 import { resumoAcoVigas } from './detalhamento';
 import { resumoAcoPilares } from './detalhamentoPilares';
@@ -37,6 +38,7 @@ export function rearmar(b: BuildingModel, an: AnaliseEdificio, o: OpcoesRearmar)
   if (an.erro || !an.portico.res) return { erro: an.erro ?? 'A análise não tem resultados.' };
   if (o.modeloAnalise) { const motivo = mesmosElementos(o.modeloAnalise, b); if (motivo) return { erro: `Não dá para rearmar com os esforços guardados: ${motivo}. Refaça a análise.` }; }
   const todasVariacoes = o.modeloAnalise ? variacoesRigidez(o.modeloAnalise, b) : [];
+  b = comEscadas(b, an.escadas); // reações das escadas (E4c) como cargas nos elementos de apoio
   const antigo = todasVariacoes.length > 0;
   // as opções de dimensionamento e detalhamento vêm do modelo atual (a análise guardou as do momento em que foi feita)
   const op = { ...an.opcoes, ...opcoesEmUso(b.opcoes, perfilDe(b)) };

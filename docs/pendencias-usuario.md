@@ -241,6 +241,15 @@ Nenhum texto da NBR 9062 nem do item 22.5 da NBR 6118 estava disponível: os mé
 | E4a | NBR 9077 e NBR 9050 | Relação de Blondel (63 a 64 cm), espelho (16 a 18 cm), piso e largura mínima (120 cm) | Texto das normas não disponível; só geram avisos | opções `escadaBlondel*`, `escadaEspelho*`, `escadaLarguraMin` |
 | E4a | NBR 6118:2014 | 13.2.4.1 (espessura mínima de 8 cm) aplicada à laje da escada; vão de 1/30 tomado na horizontal | Conferir o item e se a escada segue as lajes de piso | opções `escadaEspessuraMin`/`Divisor` |
 
+## Escadas, cálculo (E4c)
+| Frente | Norma | Item | O que falta | Onde entra |
+|---|---|---|---|---|
+| E4c | Programa de referência (K1.3.37, K1.3.38; manual de cálculo) | Rigidez e vinculação dos apoios inferior e superior ("laje apoiada em viga de rigidez elevada"): quais translações ficam presas | Adotado: gdl vertical preso nas duas bordas (restrição exata, o limite da penalização × 10⁶), horizontal no sentido da subida preso embaixo, e em cima só a vertical (ou também a horizontal com a opção, ou quando as duas bordas estão na mesma abscissa). Conferir no CYPECAD a reação horizontal e o efeito no momento do lance (escada em L e meia-volta) | opção `escadaApoioFixoDois`; `escadasCalculo.ts` (`calcularLance`) |
+| E4c | NBR 16868-1 (alvenaria estrutural) e programa de referência | Módulo de elasticidade da alvenaria sob o patamar e dos tirantes (apoio elástico k = E·largura/altura) | Adotado E = 800·fpk com fpk = 3 MPa = 2400 MPa; o programa de referência pode usar outro valor/critério (altura do apoio, tirante só à tração). Enviar o valor do programa ou o item da norma | opção `escadaEAlvenaria`; `calcularLance` |
+| E4c | Programa de referência (K1.10.10, C8.2) | Forma de transmitir as reações: cargas lineares uniformes (reação ÷ comprimento da borda), G e Q separadas, no grupo do elemento de apoio; cargas de grupo valem para cada pavimento do grupo (maior valor entre os lances iguais); reação horizontal não transmitida | Conferir com um exemplo do programa (linha de apoio sobre a face ou o eixo da viga, escada que não existe em todos os pavimentos do grupo, nível de fundação) | `cargasDasEscadas`, `comEscadas` |
+| E4c | Programa de referência (K1.3.37) | Malha da casca (≈ 0,25 m, estruturada), esforços nos centroides dos elementos, degraus concretados sem rigidez, laje contínua entre trecho e patamar (a altura dos degraus do patamar e do degrau de chegada não eleva a laje), corrimão em kN/m nas bordas laterais dos trechos inclinados | Conferir os momentos do lance de um exemplo contra o programa de referência (tolerância e tamanho de malha) | opção `escadaMalha`; `calcularLance` |
+| E4c | NBR 6118:2014 | Momentos de cálculo da escada = γg·G + γq·máx(Q, 0) (sem a combinação com Q favorável) | Conferir se a escada segue as combinações de lajes (ELU normal, γg e γq da obra) | `calcularLance` (`momentos`) |
+
 ## Lajes inclinadas e rampas (E3f)
 | O que falta | Para que serve | Onde entra | Valor provisório |
 |---|---|---|---|

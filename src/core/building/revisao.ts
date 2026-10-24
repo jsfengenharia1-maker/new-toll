@@ -175,6 +175,12 @@ export const CODIGOS_REVISAO: { codigo: string; nivel: NivelRevisao | 'info'; re
   { codigo: 'ESCADA_DIMENSOES', nivel: 'aviso', re: /^Escada [^:]+: (espelho|largura)/, descricao: 'Escada: espelho ou largura fora dos limites' },
   { codigo: 'ESCADA_PAREDE_SUP', nivel: 'aviso', re: /^Escada [^:]+, lance \d+.*parede entre o patamar/, descricao: 'Escada: parede entre o patamar e o piso de cima deve ser lançada como carga linear' },
   { codigo: 'ESCADA_TIPO', nivel: 'erro', re: /^Escada [^:]+, lance \d+.*(tipo de lance|tipo ")/, descricao: 'Escada: tipo de lance inexistente ou incoerente' },
+  // escadas (E4c)
+  { codigo: 'ESCADA_CALCULO', nivel: 'erro', re: /^Escada [^:]+, lance \d+: cálculo/, descricao: 'Escada: o cálculo por casca do lance falhou (malha, apoio ou instabilidade)' },
+  { codigo: 'ESCADA_TIRANTE', nivel: 'aviso', re: /^Escada [^:]+, lance \d+: o tirante .*comprimido/, descricao: 'Escada: o tirante do patamar fica comprimido' },
+  { codigo: 'ESCADA_HORIZONTAL', nivel: 'aviso', re: /^Escada [^:]+, lance \d+: reação horizontal/, descricao: 'Escada: reação horizontal no apoio não é transmitida à estrutura (só as cargas verticais são aplicadas)' },
+  { codigo: 'ESCADA_RECALCULAR', nivel: 'aviso', re: /^Escada [^:]+: a escada mudou depois do último cálculo/, descricao: 'Escada alterada depois do último cálculo: recalcule a obra para atualizar as reações' },
+  { codigo: 'ESCADA_APOIO_CALCULO', nivel: 'aviso', re: /^Escada [^:]+, lance \d+: (o apoio|altura do apoio|equilíbrio vertical|direção do último trecho)/, descricao: 'Escada: apoio fora da malha, altura do apoio muito pequena ou equilíbrio vertical com erro' },
   { codigo: 'ESCADA_GEOMETRIA', nivel: 'erro', re: /^Escada [^:]+(, lance \d+)?: /, descricao: 'Escada: erro geométrico (pavimento, patamar, trecho ou apoio)' },
   { codigo: 'TRELICADA', nivel: 'info', re: /^Treliçada/, descricao: 'Resumo das vigotas (treliça, grupos, adicional)' },
   // punção e cortante das lajes (N2d)

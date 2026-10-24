@@ -18,6 +18,7 @@ import { isCaisson } from '../caissons';
 import { defaultFoundationParams, limitesBlevot, PILE_LABEL, type Boring, type FCol, type FCombo, type FixedDims, type FLoad, type FoundationKind, type FoundationParams } from '../piles';
 import type { AnaliseEdificio } from './analitico';
 import { reacoesArranques } from './analitico';
+import { comEscadas } from './escadasCalculo';
 import { estadoEmUso } from './acoes';
 import { combinacoesDoEstado, type CombinacaoEd } from './combinacoes';
 import { acoDe, cobrimentoFundacao, fckDe, gamas } from './materiais';
@@ -80,6 +81,7 @@ export function cargasPorPilar(b: BuildingModel, an: Pick<AnaliseEdificio, 'fund
 
 /** Cargas características por pilar para o módulo Fundações (lista, na ordem dos pilares). */
 export function cargasParaFundacao(b: BuildingModel, an: AnaliseEdificio, filtro?: (c: CombinacaoEd) => boolean): FLoad[] {
+  b = comEscadas(b, an.escadas);
   return [...cargasPorPilar(b, an, filtro).values()];
 }
 
@@ -240,6 +242,7 @@ type AlivioRecebido = { dN: number; dNMin: number; viga: string };
  * (alavanca), depois os demais com o alívio recebido; por fim, as vigas (esforços e armadura) e o travamento dos blocos.
  */
 export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): CalculoFundacao {
+  b = comEscadas(b, an?.escadas);
   const fe = b.fundacao;
   if (!fe?.elementos.length) return { elementos: [], vigas: [], avisos: [] };
   if (!estadoEmUso(b, 'fundacoes').ativo && !estadoEmUso(b, 'solo').ativo) return { elementos: [], vigas: [], avisos: ['Fundações não calculadas: os grupos "Fundações" e "Tensões no solo" estão desativados em Estados-limite.'] };
