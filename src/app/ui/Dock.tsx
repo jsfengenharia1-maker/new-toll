@@ -1,6 +1,6 @@
 // Docas laterais (D1): coluna redimensionável (arrastar a borda ou ← →) e recolhível, e Palette (cabeçalho + corpo) dentro dela.
-import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { DOCA_MAX, DOCA_MIN, useLayout } from '../layout';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { DOCA_MAX, DOCA_MIN, limitaDocaJanela, useLayout } from '../layout';
 import { Button } from './index';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -9,7 +9,13 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 export function Dock({ id, lado, rotulo, padrao, children }: { id: string; lado: 'esq' | 'dir'; rotulo: string; padrao: number; children: ReactNode }) {
   const doca = useLayout((s) => s.docas[id]);
   const setDoca = useLayout((s) => s.setDoca);
-  const w = doca?.w ?? padrao, aberta = doca?.aberta ?? true;
+  // a outra doca do mesmo módulo (prefixo do id) e a largura da janela limitam esta: o desenho nunca some
+  const prefixo = id.replace(/-(esq|dir)$/, '');
+  const outra = useLayout((s) => Object.entries(s.docas).filter(([k, d]) => k !== id && k.startsWith(`${prefixo}-`) && d.aberta).reduce((a, [, d]) => a + d.w, 0));
+  const [janela, setJanela] = useState(() => (typeof window === 'undefined' ? 1920 : window.innerWidth));
+  useEffect(() => { const f = () => setJanela(window.innerWidth); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
+  const aberta = doca?.aberta ?? true;
+  const w = limitaDocaJanela(doca?.w ?? padrao, janela, outra);
   const arrasto = useRef<{ x: number; w: number } | null>(null);
   const sinal = lado === 'esq' ? 1 : -1;
   const largura = `${w}px`; // sempre px: porcentagem numa coluna `auto` do grid zera a coluna do desenho

@@ -17,13 +17,26 @@ interface LayoutState extends Salvo {
 
 export const limitaDoca = (w: number) => Math.min(DOCA_MAX, Math.max(DOCA_MIN, Math.round(w)));
 
+/** Largura mínima que o desenho mantém quando as docas disputam a janela. */
+export const DESENHO_MIN = 360;
+/** Maior largura da doca para a janela `janela` quando a outra doca ocupa `outra` px. */
+export const limitaDocaJanela = (w: number, janela: number, outra: number) => Math.min(limitaDoca(w), Math.max(DOCA_MIN, Math.floor(janela - outra - DESENHO_MIN)));
+
 function ler(): Salvo {
   const vazio: Salvo = { faixaAberta: true, aba: {}, docas: {} };
   try {
     const t = window.localStorage.getItem(CHAVE);
     if (!t) return vazio;
     const j = JSON.parse(t) as Partial<Salvo>;
-    return { faixaAberta: j.faixaAberta !== false, aba: j.aba && typeof j.aba === 'object' ? j.aba : {}, docas: j.docas && typeof j.docas === 'object' ? j.docas : {} };
+    const aba: Record<string, string> = {};
+    if (j.aba && typeof j.aba === 'object') for (const [k, v] of Object.entries(j.aba)) if (typeof v === 'string') aba[k] = v;
+    const docas: Record<string, Doca> = {};
+    if (j.docas && typeof j.docas === 'object') {
+      for (const [k, d] of Object.entries(j.docas as Record<string, Partial<Doca> | null>)) {
+        if (d && typeof d === 'object' && typeof d.w === 'number' && Number.isFinite(d.w) && typeof d.aberta === 'boolean') docas[k] = { w: limitaDoca(d.w), aberta: d.aberta };
+      }
+    }
+    return { faixaAberta: j.faixaAberta !== false, aba, docas };
   } catch { return vazio; }
 }
 

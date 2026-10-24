@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { DOCA_MAX, DOCA_MIN, limitaDoca, useLayout } from './layout';
+import { describe, expect, it, vi } from 'vitest';
+import { DESENHO_MIN, DOCA_MAX, DOCA_MIN, limitaDoca, limitaDocaJanela, useLayout } from './layout';
 
 describe('layout', () => {
   it('limita a largura da doca entre 140 e 640 px e arredonda', () => {
@@ -24,5 +24,20 @@ describe('layout', () => {
     s.setFaixaAberta(false);
     expect(useLayout.getState().faixaAberta).toBe(false);
     s.setFaixaAberta(true);
+  });
+  it('duas docas no máximo deixam pelo menos DESENHO_MIN px ao desenho', () => {
+    expect(limitaDocaJanela(640, 1280, 640)).toBe(1280 - 640 - DESENHO_MIN);
+    expect(limitaDocaJanela(300, 1280, 300)).toBe(300);
+    expect(limitaDocaJanela(640, 500, 640)).toBe(DOCA_MIN);
+  });
+  it('valores guardados inválidos são descartados ao ler', async () => {
+    const dado = JSON.stringify({ faixaAberta: true, aba: { a: 'x', b: 3 }, docas: { ok: { w: 99999, aberta: true }, ruim: { w: 'abc', aberta: true }, nul: null, sem: { w: 300 } } });
+    vi.stubGlobal('window', { localStorage: { getItem: () => dado, setItem: () => undefined } });
+    vi.resetModules();
+    const m = await import('./layout');
+    const e = m.useLayout.getState();
+    expect(e.aba).toEqual({ a: 'x' });
+    expect(e.docas).toEqual({ ok: { w: DOCA_MAX, aberta: true } });
+    vi.unstubAllGlobals();
   });
 });
