@@ -13,6 +13,7 @@ import { vaosDaViga, vigaTocaPilar } from './vigas';
 import { secaoParaFlexao } from './secaoViga';
 import { ehVirtual, todosPilares } from './pilarParede';
 import { opcoesEmUso, perfilDe } from './opcoes';
+import { fm, memoriaAtiva } from '../memoria/registrador';
 
 export type FaceBarra = 'inf' | 'sup' | 'pele';
 export interface BarraViga {
@@ -294,6 +295,12 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const phiI = r.arranjo.inf?.phi ?? 10, phiS = r.arranjo.sup?.phi ?? 10, phiM = Math.min(phiS, op.bitolaMontagem);
   const lbI = lbBasico(phiI, c, aPos.fyd, true, aPos.aco === 'CA-60'), lbS = lbBasico(phiS, c, aNeg.fyd, supBoa, aNeg.aco === 'CA-60');
   const lbMin = (lb: number, phi: number) => Math.max(0.3 * lb, (10 * phi) / 1000, 0.1);
+  const mem = memoriaAtiva(), elMem = `Viga ${v.nome}`, comMem = !!mem?.aceita(elMem);
+  if (comMem) for (const [rot, phi, fyd, boa, ca60, lb] of [['inferior', phiI, aPos.fyd, true, aPos.aco === 'CA-60', lbI], ['superior', phiS, aNeg.fyd, supBoa, aNeg.aco === 'CA-60', lbS]] as const) {
+    const e1 = ca60 ? 1.4 : 2.25, e2 = boa ? 1 : 0.7, e3 = phi < 32 ? 1 : (132 - phi) / 100, fbd = e1 * e2 * e3 * c.fctd;
+    mem!.passo({ etapa: 'detalhamento', elemento: elMem, topico: `Ancoragem – armadura ${rot}`, descricao: `Resistência de aderência (${boa ? 'boa' : 'má'} aderência)`, formula: 'fbd = η1·η2·η3·fctd', expressao: `fbd = ${fm(e1)}·${fm(e2)}·${fm(e3)}·${fm(c.fctd)} = ${fm(fbd)}`, resultado: fbd, unidade: 'MPa', norma: 'NBR 6118:2023, 9.3.2.1', entradas: { eta1: e1, eta2: e2, eta3: e3, fctd: c.fctd } });
+    mem!.passo({ etapa: 'detalhamento', elemento: elMem, topico: `Ancoragem – armadura ${rot}`, descricao: `Comprimento de ancoragem básico (φ${fm(phi)})`, formula: 'lb = (φ/4)·(fyd/fbd) ≥ 25·φ', expressao: `lb = (${fm(phi / 1000)}/4)·(${fm(fyd)}/${fm(fbd)}) ≥ 25·${fm(phi / 1000)} → ${fm(lb)}`, resultado: lb, unidade: 'm', norma: 'NBR 6118:2023, 9.4.2.4', entradas: { phi, fyd, fbd } });
+  }
   /** Prolongamento além do ponto de corte: lb pleno (≥ 10φ) ou lb·As,calc/As,ef (≥ lb,mín) com a opção ligada (9.4.2.5). */
   const prolong = (lb: number, phi: number, AsCalc = 1, AsEf = 1) => (op.vigaReducaoLb ? Math.max(lb * Math.min(1, AsCalc / Math.max(AsEf, 1e-12)), lbMin(lb, phi)) : Math.max(lb, (10 * phi) / 1000));
   const barras: BarraViga[] = [], emendas: DetalheViga['emendas'] = [];
@@ -407,6 +414,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     if (!a || apoios.length < 2) continue;
     const disp = a.s1 - a.s0 - cob.lat, Rst = ((r.al / d) * Vd[i]) / 1000, AsCalc = Rst / aPos.fyd;
     const nec = Math.max(0.7 * lbI * Math.min(1, AsCalc / capPass), (5.5 * phiI) / 1000 + ((phiI < 20 ? 2.5 : 4) * phiI) / 1000, 0.06);
+    if (comMem) mem!.passo({ etapa: 'detalhamento', elemento: elMem, topico: 'Ancoragem – apoio extremo', descricao: `Ancoragem da armadura inferior no apoio ${b.pilares.find((p) => p.id === a.pilar)?.nome ?? a.pilar}: Rst = (aℓ/d)·Vd e lb,nec = máx(0,7·lb·As,calc/As,ef; r + 5,5φ; 6 cm)`, formula: 'lb,nec ≤ largura do apoio − cobrimento', expressao: `Rst = (${fm(r.al)}/${fm(d)})·${fm(Vd[i])} = ${fm(Rst * 1000)} kN; lb,nec = ${fm(nec)} ${nec <= disp + 1e-9 ? '≤' : '>'} ${fm(disp)}`, resultado: nec, unidade: 'm', norma: 'NBR 6118:2023, 18.3.2.4.1', entradas: { al: r.al, d, Vd: Vd[i], lb: lbI, AsCalc, capPass, disp } });
     if (nec > disp + 1e-9) avisos.push(`Ancoragem da armadura inferior no apoio extremo (${b.pilares.find((p) => p.id === a.pilar)?.nome ?? a.pilar}): ${(nec * 100).toFixed(0)} cm necessários > ${(disp * 100).toFixed(0)} cm disponíveis.`);
   }
   // pele (17.3.5.2.3: h > 60 cm, 0,10 % Ac,alma por face, s ≤ mín(20 cm; d/3)) e laterais de torção, por face

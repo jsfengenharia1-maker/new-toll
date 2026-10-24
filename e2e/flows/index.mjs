@@ -14,6 +14,7 @@ import * as m_L from './L.mjs';
 import * as m_E_3 from './E-3.mjs';
 import * as m_layout from './layout.mjs';
 import * as m_D from './D.mjs';
+import * as m_MD from './MD.mjs';
 
 export const flows = [
   m_portico.f_desenho_por_coordenadas_apoio_carga_e_di,
@@ -141,4 +142,5 @@ export const flows = [
   m_layout.f_layout_mapa,
   m_D.f_D4,
   m_L.f_L7,
+  m_MD.f_MD1,
 ];
