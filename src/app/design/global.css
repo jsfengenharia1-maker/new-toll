@@ -1157,3 +1157,12 @@ body.ajuda-on { cursor: help; }
 .escada-prev .e-seta { fill: none; stroke: var(--accent-text); stroke-width: 0.04; }
 .escada-prev .e-nivel { fill: none; stroke: var(--line-strong); stroke-width: 0.02; stroke-dasharray: 0.1 0.08; }
 .escada-prev .e-perfil { fill: none; stroke: var(--accent); stroke-width: 0.04; stroke-linejoin: round; }
+/* Escadas (E4d): elevação e planta da armadura de um lance */
+.escada-arm { width: 100%; max-width: 560px; height: auto; max-height: 300px; background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); }
+.escada-arm .a-trecho { fill: none; stroke: var(--accent); stroke-width: 0.04; stroke-linejoin: round; }
+.escada-arm .a-patamar { fill: none; stroke: var(--line-strong); stroke-width: 0.04; stroke-linejoin: round; }
+.escada-arm .a-trecho-p { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 0.02; }
+.escada-arm .a-patamar-p { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 0.02; }
+.escada-arm .a-inf { fill: none; stroke: var(--accent-text); stroke-width: 0.015; }
+.escada-arm .a-sup { fill: none; stroke: var(--ink); stroke-width: 0.015; stroke-dasharray: 0.06 0.03; }
+.escada-arm .a-rot { fill: var(--ink); font-size: 0.16px; }

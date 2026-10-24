@@ -30,6 +30,7 @@ import { TipoPanoGrupo } from './TipoPano';
 import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaCalculoHost } from './EscadaCalculoUI';
+import { EscadaArmaduraHost } from './EscadaArmaduraUI';
 import { EscadaHost } from './EscadaUI';
 import { NovaEscadaHost } from './NovaEscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
@@ -260,6 +261,7 @@ export function Edificio() {
       <JanelaCorte />
       <InclinadasHost />
       <EscadaCalculoHost />
+      <EscadaArmaduraHost />
       <EscadaHost />
       <NovaEscadaHost />
       <DiagonaisHost />

@@ -1,0 +1,509 @@
+diff --git a/e2e/flows/E-2.mjs b/e2e/flows/E-2.mjs
+index 86c9568..5967ca3 100644
+--- a/e2e/flows/E-2.mjs
++++ b/e2e/flows/E-2.mjs
+@@ -1168,6 +1168,77 @@ export const f_E4c_menu = {
+       await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+     },
+ };
++export const f_E4d = {
++    name: 'E4d: armadura da escada (janela com seleção do lance, posições contra o cálculo à mão, ligações, bloqueio e opções, resumo geral de aço e memorial)',
++    async run({ newPage }) {
++      const page = await newPage();
++      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
++      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
++      const esperar = (fn, arg, t = 30000) => page.waitForFunction(fn, arg, { timeout: t });
++      const nm = (s) => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
++      // pórtico 8 × 5 m com vigas nos eixos y = 0 e y = 5; escada reta de 18 degraus entre elas (origem x = 4, subindo em +y, 17 pisos de 5/17 m), laje de 15 cm
++      await cmd('lote {"comandos": [' + [[0, 0], [8, 0], [0, 5], [8, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
++      await cmd('lote {"comandos": [' + [[[0, 0], [8, 0]], [[0, 5], [8, 5]], [[0, 0], [0, 5]], [[8, 0], [8, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.5}}}`).join(', ') + ']}');
++      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
++      await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "Reto de 18", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
++      await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [4, 0], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "T"}]}');
++      await esperar(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []).length === 1, null);
++      // valores esperados à mão (q·ℓ²/8 por metro e flexão do bloco retangular, fck 30, CA-50, cobrimento 2,5 cm)
++      const piso = 0.2941176, esp = 0.1666667, ell = 17 * piso, cosA = piso / Math.hypot(piso, esp), h = 0.15, d = h - 0.025 - 0.005;
++      const pg = (25 * h) / cosA + (25 * esp) / 2 + 1, Md = (1.4 * (pg + 2.5) * ell * ell) / 8, sig = ((0.85 * 30) / 1.4) * 1000, fyd = (500 / 1.15) * 1000;
++      const lx = d * (1 - Math.sqrt(1 - (2 * Md) / (sig * d * d))), AsMao = (Md / (fyd * (d - lx / 2))) * 1e4;
++      // 1) janela da armadura (aba Análise da faixa)
++      await faixaAba(page, 'Análise');
++      await page.getByRole('button', { name: 'Armadura das escadas…', exact: true }).click();
++      const jan = page.getByRole('dialog', { name: 'Armadura da escada', exact: true });
++      await jan.waitFor();
++      const pos = jan.locator('[data-escada-arm-posicoes]');
++      await pos.waitFor({ timeout: 60000 });
++      const n1 = pos.locator('[data-escada-posicao="L1-N1"]');
++      const tn1 = await n1.innerText();
++      assert.match(tn1, /principal/);
++      assert.match(tn1, /inferior/);
++      assert.match(tn1, /φ12,5 c\/13/);
++      const asNec = nm(await n1.locator('td').nth(7).innerText());
++      assert.ok(Math.abs(asNec / AsMao - 1) < 0.02, `As nec. ${asNec} ≈ ${AsMao.toFixed(2)} cm²/m (à mão)`);
++      assert.equal(await jan.locator('[data-escada-arm-elevacao]').count(), 1);
++      assert.equal(await jan.locator('[data-escada-arm-planta]').count(), 1);
++      const lig = await jan.locator('[data-escada-arm-ligacoes]').innerText();
++      assert.match(lig, /esperas/);
++      assert.match(lig, /passadores/);
++      assert.match(await jan.locator('[data-escada-arm-verificacoes]').innerText(), /L1/);
++      // 2) editar e bloquear a principal inferior: φ16 c/15; a linha passa a "bloqueada" e o modelo guarda o bloqueio
++      await n1.getByLabel(/^φ/).selectOption({ label: '16' });
++      const s = n1.getByLabel(/^s/); await s.fill('15'); await s.press('Enter');
++      await n1.getByRole('button', { name: 'Bloquear', exact: true }).click();
++      await esperar(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas?.[0]?.armadura?.bloqueadas ?? []).length === 1, null);
++      assert.match(await pos.locator('[data-escada-posicao="L1-N1"]').innerText(), /bloqueada/);
++      assert.match(await pos.locator('[data-escada-posicao="L1-N1"]').innerText(), /φ16 c\/15/);
++      await jan.getByRole('button', { name: /^Desbloquear tudo/ }).click();
++      await esperar(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas?.[0]?.armadura, null);
++      assert.match(await pos.locator('[data-escada-posicao="L1-N1"]').innerText(), /φ12,5 c\/13/);
++      // 3) opção das ligações: sem esperas a linha de esperas some
++      await jan.getByText('Opções da armadura', { exact: true }).click();
++      await jan.getByLabel('Arranques (esperas) no início', { exact: true }).uncheck();
++      await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.opcoes?.escadaEsperas === 0, null);
++      assert.doesNotMatch(await jan.locator('[data-escada-arm-ligacoes]').innerText(), /esperas \(arranques\)/);
++      await jan.getByLabel('Arranques (esperas) no início', { exact: true }).check();
++      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
++      // 4) dimensionar: o aço das escadas soma ao resumo geral e o memorial traz o capítulo da armadura
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
++      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
++      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
++      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
++      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
++      const ma = memo.locator('[data-memorial-escadas-armadura]');
++      await ma.waitFor();
++      assert.match(await ma.innerText(), /Quinas entre trechos e patamares/);
++      assert.match(await ma.innerText(), /Lance 1, L1: N1/);
++      assert.match(await ma.innerText(), /\[a confirmar\]/);
++      assert.match(await memo.innerText(), /Escadas \(lances e patamares\)/);
++      await memo.getByRole('button', { name: 'Fechar' }).click();
++    },
++};
+ export const f_E3e = {
+     name: 'E3e: lajes alveolares (ficha da obra e erro lógico, atribuir ao pano, placa insuficiente e sugerida, placas na planta e borda cortada, negativo e processo, arquivo .json, memorial)',
+     async run({ newPage }) {
+diff --git a/e2e/flows/index.mjs b/e2e/flows/index.mjs
+index c287617..a66fb22 100644
+--- a/e2e/flows/index.mjs
++++ b/e2e/flows/index.mjs
+@@ -115,6 +115,7 @@ export const flows = [
+   m_E_2.f_E4b_guia,
+   m_E_2.f_E4b_formas,
+   m_E_2.f_E4c_menu,
++  m_E_2.f_E4d,
+   m_layout.f_layout,
+   m_layout.f_layout_1280,
+   m_layout.f_layout_1024,
+diff --git a/src/app/design/global.css b/src/app/design/global.css
+index 43634f6..41906df 100644
+--- a/src/app/design/global.css
++++ b/src/app/design/global.css
+@@ -1154,3 +1154,12 @@ body.ajuda-on { cursor: help; }
+ .escada-prev .e-seta { fill: none; stroke: var(--accent-text); stroke-width: 0.04; }
+ .escada-prev .e-nivel { fill: none; stroke: var(--line-strong); stroke-width: 0.02; stroke-dasharray: 0.1 0.08; }
+ .escada-prev .e-perfil { fill: none; stroke: var(--accent); stroke-width: 0.04; stroke-linejoin: round; }
++/* Escadas (E4d): elevação e planta da armadura de um lance */
++.escada-arm { width: 100%; max-width: 560px; height: auto; max-height: 300px; background: var(--field); border: 1px solid var(--line); border-radius: var(--radius); }
++.escada-arm .a-trecho { fill: none; stroke: var(--accent); stroke-width: 0.04; stroke-linejoin: round; }
++.escada-arm .a-patamar { fill: none; stroke: var(--line-strong); stroke-width: 0.04; stroke-linejoin: round; }
++.escada-arm .a-trecho-p { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 0.02; }
++.escada-arm .a-patamar-p { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 0.02; }
++.escada-arm .a-inf { fill: none; stroke: var(--accent-text); stroke-width: 0.015; }
++.escada-arm .a-sup { fill: none; stroke: var(--ink); stroke-width: 0.015; stroke-dasharray: 0.06 0.03; }
++.escada-arm .a-rot { fill: var(--ink); font-size: 0.16px; }
+diff --git a/src/app/edificio/Detalhamento.tsx b/src/app/edificio/Detalhamento.tsx
+index 6d36b44..76f5150 100644
+--- a/src/app/edificio/Detalhamento.tsx
++++ b/src/app/edificio/Detalhamento.tsx
+@@ -432,7 +432,7 @@ export function csvAco(dim: DimEdificio): string {
+     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
+     return l;
+   };
+-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo de aço das lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []))];
++  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo de aço das lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []), ...((dim.resumoAcoEscadas?.length ?? 0) > 0 ? tabela('Resumo de aço das escadas', dim.resumoAcoEscadas ?? []) : []), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? []))];
+   if (dim.trelicas?.length) {
+     lin.push(['Treliças eletrossoldadas por tipo'], ['Treliça', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
+     for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
+@@ -485,7 +485,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+   const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resPar = dim.resumoAcoParedes ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], resN = dim.resumoAcoNervuradas ?? [], tre = dim.trelicas ?? [];
+   const telas = dim.resumoTelas ?? [];
+   if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !resN.length && !telas.length) return null;
+-  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []));
++  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? []));
+   return (
+     <div className="card" data-resumo-aco>
+       <h3>Resumo de aço</h3>
+@@ -496,6 +496,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+       {(dim.resumoAcoAlveolares?.length ?? 0) > 0 && <TabelaAco titulo="Lajes alveolares (negativos na capa)" res={dim.resumoAcoAlveolares ?? []} marca="alveolares" />}
+       {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
+       {resN.length > 0 && <TabelaAco titulo="Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" res={resN} marca="nervuradas" />}
++      {(dim.resumoAcoEscadas?.length ?? 0) > 0 && <TabelaAco titulo="Escadas (lances e patamares)" res={dim.resumoAcoEscadas ?? []} marca="escadas" />}
+       {tre.length > 0 && (
+         <>
+           <h4>Treliças eletrossoldadas (por tipo)</h4>
+@@ -524,7 +525,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+           </div>
+         </>
+       )}
+-      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)" res={somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [])} marca="geral" />
++      <TabelaAco titulo={(dim.resumoAcoEscadas?.length ?? 0) > 0 ? 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas, alveolares e escadas)' : 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)'} res={somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? [])} marca="geral" />
+       <div className="row wrap">
+         <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
+       </div>
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index a9f411b..113b372 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -30,6 +30,7 @@ import { TipoPanoGrupo } from './TipoPano';
+ import { PlanosGrupo, PlanosHost } from './PlanosUI';
+ import { InclinadasHost } from './InclinadasUI';
+ import { EscadaCalculoHost } from './EscadaCalculoUI';
++import { EscadaArmaduraHost } from './EscadaArmaduraUI';
+ import { EscadaHost } from './EscadaUI';
+ import { NovaEscadaHost } from './NovaEscadaUI';
+ import { lerQuadroVigas } from '../../core/building/quadros';
+@@ -259,6 +260,7 @@ export function Edificio() {
+       <JanelaCorte />
+       <InclinadasHost />
+       <EscadaCalculoHost />
++      <EscadaArmaduraHost />
+       <EscadaHost />
+       <NovaEscadaHost />
+       <DiagonaisHost />
+diff --git a/src/app/edificio/EscadaArmaduraUI.tsx b/src/app/edificio/EscadaArmaduraUI.tsx
+new file mode 100644
+index 0000000..d9c2c90
+--- /dev/null
++++ b/src/app/edificio/EscadaArmaduraUI.tsx
+@@ -0,0 +1,159 @@
++// Armadura da escada (E4d, interface): janela com a seleção do lance (C8.49), elevação e planta em SVG, posições, ligações (esperas,
++// passadores, quinas), verificações, edição e bloqueio das barras e as opções da armadura. O cálculo está em
++// core/building/escadasArmadura.ts (e a casca em escadasCalculo.ts); aqui só se desenha e se lançam comandos.
++// Calcula na hora ao abrir e quando a escada muda (a casca é refeita só se a assinatura do cálculo mudar).
++import { useEffect, useMemo, useState } from 'react';
++import { create } from 'zustand';
++import { Button, Check, Group, Modal, Note, NumField, Pill, Select } from '../ui';
++import { assinaturaEscadas, calcularEscadas, type ResultadoEscadas } from '../../core/building/escadasCalculo';
++import { armarEscadas, type BarraEscada, type ResultadoArmaduraLance } from '../../core/building/escadasArmadura';
++import { desenhoArmaduraLance } from '../../core/building/escadasArmaduraDesenho';
++import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
++import { ID_PADRAO, tabelasDoTipo } from '../../core/building/tabelasArmadura';
++import { BITOLAS_ESCADA } from '../../core/commands/escadasArmadura';
++import type { Escada, FamiliaEscada } from '../../core/building/escadas';
++import { useBuilding } from './store';
++
++interface EstadoJanela { aberta: boolean; escada?: string; lance?: number; abrir: (escada?: string, lance?: number) => void; fechar: () => void }
++/** Estado da janela da armadura das escadas (a faixa, o menu da ferramenta e a paleta a abrem). */
++export const useEscadaArmaduraUI = create<EstadoJanela>((set) => ({ aberta: false, abrir: (escada, lance) => set({ aberta: true, escada, lance }), fechar: () => set({ aberta: false, escada: undefined, lance: undefined }) }));
++
++/** Monta a janela quando aberta (colocada uma vez no Edifício). */
++export function EscadaArmaduraHost() {
++  const { aberta, escada, lance, fechar } = useEscadaArmaduraUI();
++  return aberta ? <JanelaArmadura escadaInicial={escada} lanceInicial={lance} onClose={fechar} /> : null;
++}
++
++const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
++const phiTxt = (p: number) => fmt(p, p % 1 ? 1 : 0);
++const NOME_TIPO: Record<BarraEscada['tipo'], string> = { principal: 'principal', distribuicao: 'distribuição', negativo: 'negativo', passador: 'passador', espera: 'espera' };
++
++function Desenhos({ l }: { l: ResultadoArmaduraLance }) {
++  const d = desenhoArmaduraLance(l);
++  if (!d.trechos.length) return null;
++  const m = 0.4, w = d.largura + 2 * m, h = d.zMax - d.zMin + 2 * m;
++  const pt = (p: [number, number]) => `${(p[0] + m).toFixed(3)},${(d.zMax - p[1] + m).toFixed(3)}`;
++  const larg = Math.max(...d.trechos.map((t) => t.y1)), altP = larg + 2 * m;
++  const ptp = (p: [number, number]) => `${(p[0] + m).toFixed(3)},${(larg - p[1] + m).toFixed(3)}`;
++  return (
++    <div className="row wrap">
++      <svg className="escada-arm" viewBox={`0 0 ${w.toFixed(3)} ${h.toFixed(3)}`} role="img" aria-label="Elevação da armadura" data-escada-arm-elevacao>
++        {d.trechos.map((t) => <polyline key={t.chave} className={t.tipo === 'lance' ? 'a-trecho' : 'a-patamar'} points={`${pt([t.x0, t.z0])} ${pt([t.x1, t.z1])}`} />)}
++        {d.barras.map((b) => b.elevacao.map((seg, i) => <polyline key={`${b.trecho}-${b.pos}-${i}`} className={b.face === 'inf' ? 'a-inf' : 'a-sup'} points={seg.map(pt).join(' ')} />))}
++        {d.barras.filter((b) => b.direcao === 'L').map((b) => <text key={`t-${b.trecho}-${b.pos}`} className="a-rot" x={pt(b.elevacao[0][0]).split(',')[0]} y={Number(pt(b.elevacao[0][0]).split(',')[1]) + (b.face === 'inf' ? 0.2 : -0.08)}>{b.pos}</text>)}
++      </svg>
++      <svg className="escada-arm" viewBox={`0 0 ${w.toFixed(3)} ${altP.toFixed(3)}`} role="img" aria-label="Planta da armadura" data-escada-arm-planta>
++        {d.trechos.map((t) => <polygon key={t.chave} className={t.tipo === 'lance' ? 'a-trecho-p' : 'a-patamar-p'} points={[[t.x0, 0], [t.x1, 0], [t.x1, t.y1], [t.x0, t.y1]].map((p) => ptp(p as [number, number])).join(' ')} />)}
++        {d.barras.map((b) => b.planta.map((seg, i) => <polyline key={`${b.trecho}-${b.pos}-${i}`} className={b.face === 'inf' ? 'a-inf' : 'a-sup'} points={seg.map(ptp).join(' ')} />))}
++      </svg>
++    </div>
++  );
++}
++
++/** Uma posição: mostra os dados e deixa trocar bitola e espaçamento (a edição bloqueia a armadura da família no trecho). */
++function LinhaPosicao({ e, l, trecho, x }: { e: Escada | undefined; l: ResultadoArmaduraLance; trecho: string; x: BarraEscada }) {
++  const exec = useBuilding((s) => s.exec);
++  const [phi, setPhi] = useState<number>(x.phi);
++  const [sCm, setSCm] = useState<number>(+(x.s * 100).toFixed(1));
++  const editavel = x.familia !== 'espera' && !!e;
++  return (
++    <tr data-escada-posicao={`${trecho}-${x.pos}`}>
++      <td className="l">{x.pos}</td><td className="l">{trecho}</td><td className="l">{NOME_TIPO[x.tipo]}{x.bloqueada ? ' (bloqueada)' : ''}</td><td>{x.face === 'inf' ? 'inferior' : 'superior'}</td>
++      <td>{x.n}</td><td>φ{phiTxt(x.phi)} c/{fmt(x.s * 100, 0)}</td><td>{fmt(x.comprimento)}</td><td>{fmt(x.AsNec)}</td><td>{fmt(x.AsEf)}</td>
++      <td>{editavel ? (
++        <div className="row u-items-end">
++          <Select label="φ" value={phi} options={BITOLAS_ESCADA.map((p) => ({ v: p, label: phiTxt(p) }))} onChange={(v) => setPhi(Number(v))} />
++          <NumField label="s" unit="cm" width={70} value={sCm} onChange={setSCm} />
++          <Button variant="mini" onClick={() => exec('escada.armadura', { id: e!.id, lance: l.lance, trecho, familia: x.familia as FamiliaEscada, phi, s: sCm / 100 })}>Bloquear</Button>
++        </div>
++      ) : '—'}</td>
++    </tr>
++  );
++}
++
++function JanelaArmadura({ escadaInicial, lanceInicial, onClose }: { escadaInicial?: string; lanceInicial?: number; onClose: () => void }) {
++  const { sessao, exec } = useBuilding();
++  const b = sessao.modelo;
++  const [res, setRes] = useState<ResultadoEscadas | null>(null);
++  const [ocupado, setOcupado] = useState(false);
++  const [sel, setSel] = useState<string>('');
++  const temEscadas = (b.escadas?.length ?? 0) > 0;
++  // a casca só se refaz quando muda o que define as reações; a armadura (rápida) se refaz a cada edição ou opção
++  const assinatura = useMemo(() => assinaturaEscadas(b), [b]);
++  useEffect(() => {
++    if (!temEscadas) { setRes(null); return; }
++    setOcupado(true);
++    const t = setTimeout(() => { setRes(calcularEscadas(b)); setOcupado(false); }, 30);
++    return () => clearTimeout(t);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [assinatura, temEscadas]);
++  const op = useMemo(() => opcoesEmUso(b.opcoes, perfilDe(b)), [b]);
++  const arm = useMemo(() => (res ? armarEscadas(b, res, op) : null), [res, b, op]);
++  const lances = arm?.lances ?? [];
++  const chave = (x: ResultadoArmaduraLance) => `${x.escada}|${x.lance}`;
++  const inicial = lances.find((x) => x.escada === escadaInicial && x.lance === (lanceInicial ?? 1)) ?? lances.find((x) => x.escada === escadaInicial) ?? lances[0];
++  const l = lances.find((x) => chave(x) === sel) ?? inicial;
++  const e = l ? b.escadas?.find((x) => x.id === l.escada) : undefined;
++  const bloqueadas = e?.armadura?.bloqueadas?.length ?? 0;
++  const liga = (k: keyof typeof ROTULO) => <Check label={ROTULO[k]} checked={!!op[k]} onChange={(v) => exec('opcoes.definir', { valores: { [k]: v ? 1 : 0 } })} />;
++  const tabelas = tabelasDoTipo(b, 'lajes');
++  return (
++    <Modal titulo="Armadura da escada" onClose={onClose} larga ajuda="Cada trecho (lance ou patamar) é armado como laje maciça a partir dos esforços da casca. A principal inferior é contínua; a distribuição e as barras superiores seguem cada faixa. Editar uma família bloqueia a armadura dela: o recálculo só a verifica.">
++      <div data-escada-armadura>
++        {!temEscadas && <Note>A obra não tem escadas. Lance uma escada para armá-la.</Note>}
++        {ocupado && <p className="small" data-escada-arm-calculando>Calculando a escada…</p>}
++        {lances.length > 0 && (
++          <div className="row wrap u-items-end">
++            <Select label="Lance" value={l ? chave(l) : ''} options={lances.map((x) => ({ v: chave(x), label: `Escada ${x.nome}, lance ${x.lance}` }))} onChange={(v) => setSel(String(v))} />
++            {l && <Pill tone={l.status === 'ok' ? 'ok' : 'bad'}>{l.status === 'ok' ? 'atende' : 'revisar'}</Pill>}
++            {l && <Pill>{fmt(l.espessura * 100, 1)} cm</Pill>}
++            {l && <Pill>{fmt(l.peso, 1)} kg</Pill>}
++            {e && <Button variant="mini" disabled={!bloqueadas} onClick={() => exec('escada.armadura', { id: e.id, limpar: true })}>Desbloquear tudo{bloqueadas ? ` (${bloqueadas})` : ''}</Button>}
++          </div>
++        )}
++        {l?.erro && <Note tone="bad">{l.erro}</Note>}
++        {l && !l.erro && (
++          <>
++            <Desenhos l={l} />
++            <table className="data quadro" data-escada-arm-posicoes>
++              <thead><tr><th>Pos.</th><th>Trecho</th><th>Tipo</th><th>Face</th><th>Qtd.</th><th>Bitola</th><th>C (m)</th><th>As nec. (cm²/m)</th><th>As ef. (cm²/m)</th><th>Editar</th></tr></thead>
++              <tbody>{l.trechos.flatMap((t) => t.barras.map((x) => <LinhaPosicao key={`${t.chave}-${x.pos}`} e={e} l={l} trecho={t.chave} x={x} />))}</tbody>
++            </table>
++            <table className="data quadro" data-escada-arm-verificacoes>
++              <thead><tr><th>Trecho</th><th>Faixas</th><th>VSd (kN/m)</th><th>VRd1 (kN/m)</th><th>Asw (cm²/m²)</th><th>wk (mm)</th><th>Limite (mm)</th></tr></thead>
++              <tbody>{l.trechos.map((t) => <tr key={t.chave}><td className="l">{t.chave}</td><td>{t.faixas.length}</td><td>{fmt(t.cortante.VSd, 1)}</td><td>{fmt(t.cortante.VRd1, 1)}</td><td>{fmt(t.cortante.Asw)}</td><td>{fmt(t.wk)}</td><td>{fmt(t.wkLim)}</td></tr>)}</tbody>
++            </table>
++            <p className="small" data-escada-arm-flecha>Flecha total {fmt(l.flecha.total, 1)} mm (fator {fmt(l.flecha.fator, 2)} sobre a elástica) para o vão de {fmt(l.flecha.vao)} m; limite {fmt(l.flecha.limite, 1)} mm.</p>
++            <Group title="Ligações: esperas, passadores e quinas" open>
++              <table className="data quadro" data-escada-arm-ligacoes>
++                <thead><tr><th>Ligação</th><th>Apoio ou quina</th><th>Ancoragem</th><th>lb,nec (cm)</th><th>Disponível (cm)</th><th>Perna (cm)</th><th>Traspasse (cm)</th></tr></thead>
++                <tbody>{l.ligacoes.map((x, i) => <tr key={i}><td className="l">{x.rotulo}</td><td className="l">{x.descricao}</td><td>{x.ancoragem?.tipo ?? '—'}</td><td>{x.ancoragem ? fmt(x.ancoragem.lbNec * 100, 0) : '—'}</td><td>{x.ancoragem ? fmt(x.ancoragem.disponivel * 100, 0) : '—'}</td><td>{x.ancoragem ? fmt(x.ancoragem.perna * 100, 0) : '—'}</td><td>{x.traspasse ? fmt(x.traspasse * 100, 0) : '—'}</td></tr>)}</tbody>
++              </table>
++            </Group>
++            {l.mensagens.map((m, i) => <Note key={i} tone="bad">{m}</Note>)}
++          </>
++        )}
++        {l && e && (
++          <Group title="Opções da armadura" open={false}>
++            <div className="row wrap u-items-end" data-escada-arm-opcoes>
++              {liga('escadaIgualarSupInf')}
++              {liga('escadaEspacamentoMultiplo')}
++              {liga('escadaIgualarSecoes')}
++              {liga('escadaEsperas')}
++              {liga('escadaPassadores')}
++              <NumField label="Ancoragem em viga chata (esperas)" unit="cm" width={150} value={e.armadura?.ancoragemViga ?? op.escadaAncoragemViga} onChange={(v) => exec('escada.opcoesArmadura', { id: e.id, ancoragemViga: v })} />
++              <NumField label="Profundidade da fundação" unit="cm" width={130} value={e.armadura?.profundidadeFundacao ?? op.escadaProfundidadeFundacao} onChange={(v) => exec('escada.opcoesArmadura', { id: e.id, profundidadeFundacao: v })} />
++              <Select label="Tabela de armadura" value={e.armadura?.tabela ?? ID_PADRAO} options={tabelas.map((t) => ({ v: t.id, label: t.nome }))} onChange={(v) => exec('escada.opcoesArmadura', { id: e.id, tabela: String(v) })} />
++            </div>
++            <p className="small">Cobrimento, aço, distribuição mínima e padrões das opções em Opções de cálculo (“Escadas”) e Materiais. Valores a confirmar em Premissas e pendências.</p>
++          </Group>
++        )}
++      </div>
++    </Modal>
++  );
++}
++
++const ROTULO = {
++  escadaIgualarSupInf: 'Igualar armaduras superior e inferior', escadaEspacamentoMultiplo: 'Espaçamentos múltiplos entre si', escadaIgualarSecoes: 'Igualar a armadura de todas as seções',
++  escadaEsperas: 'Arranques (esperas) no início', escadaPassadores: 'Barras de ligação (passadores) no fim',
++} as const;
+diff --git a/src/app/edificio/EscadaMenu.tsx b/src/app/edificio/EscadaMenu.tsx
+index 80b567c..b2fdc19 100644
+--- a/src/app/edificio/EscadaMenu.tsx
++++ b/src/app/edificio/EscadaMenu.tsx
+@@ -6,6 +6,7 @@ import { useBuilding } from './store';
+ import { useNovaEscadaUI } from './NovaEscadaUI';
+ import { useStore } from '../store';
+ import { useEscadaCalculoUI } from './EscadaCalculoUI';
++import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
+ 
+ /** Escolhe a ferramenta Escada. No nível de fundação não há escadas: mostra a mensagem e não troca a ferramenta. */
+ export function escolherEscada(): boolean {
+@@ -49,7 +50,7 @@ export function EscadaMenu() {
+         </>
+       )}
+       {pl.escadaErros.map((e, i) => <Note key={i} tone="bad" data-escada-erro={e.codigo}>{e.mensagem}</Note>)}
+-      <Button variant="mini" disabled title="Disponível na frente E4d">Ver detalhe de armadura</Button>
++      <Button variant="mini" disabled={!(b.escadas ?? []).length} title="Armadura e detalhamento de cada lance, com seleção do lance" onClick={() => useEscadaArmaduraUI.getState().abrir()}>Ver detalhe de armadura</Button>
+       <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Ver esforços e deslocamentos</Button>
+       <Button variant="mini" disabled={!escadasDoGrupo.length} title="Cálculo individual de cada lance, antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada</Button>
+       <Hint>{grupo ? `Grupo atual: ${grupo.nome}` : 'Grupo atual: —'}</Hint>
+diff --git a/src/app/edificio/EscadaPropriedades.tsx b/src/app/edificio/EscadaPropriedades.tsx
+index 67971ab..84d9299 100644
+--- a/src/app/edificio/EscadaPropriedades.tsx
++++ b/src/app/edificio/EscadaPropriedades.tsx
+@@ -5,6 +5,10 @@ import type { Escada } from '../../core/building/escadas';
+ import { resumoCalculoEscadas } from '../../core/building/escadasResumo';
+ import { useBuilding } from './store';
+ import { useEscadaCalculoUI } from './EscadaCalculoUI';
++import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
++import { useMemo } from 'react';
++import { armarEscadas } from '../../core/building/escadasArmadura';
++import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
+ 
+ export function EscadaPropriedades({ e }: { e: Escada }) {
+   const { exec } = useBuilding();
+@@ -13,6 +17,9 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
+   const lances = res ? resumoCalculoEscadas(res).filter((l) => l.escada === e.nome) : [];
+   const soma = (c: 'G' | 'Q') => lances.reduce((t, l) => t + l.reacoes.reduce((u, r) => u + r[c], 0), 0);
+   const fmt = (v: number) => v.toFixed(2).replace('.', ',');
++  const b = useBuilding((s) => s.sessao.modelo);
++  const arm = useMemo(() => (res ? armarEscadas(b, res, opcoesEmUso(b.opcoes, perfilDe(b))).lances.filter((l) => l.nome === e.nome) : []), [b, res, e.nome]);
++  const kg = arm.reduce((t, l) => t + l.peso, 0);
+   return (
+     <div data-escada-propriedades>
+       <Group title="Posição">
+@@ -36,6 +43,10 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
+         <KV rows={[['Reações (G / Q)', lances.length ? `${fmt(soma('G'))} / ${fmt(soma('Q'))} kN` : '—']]} />
+         <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada…</Button>
+       </Group>
++      <Group title="Armadura" open={false}>
++        <KV rows={[['Aço (sem perdas)', arm.length ? `${fmt(kg)} kg` : '—'], ['Bloqueada', e.armadura?.bloqueadas?.length ? `${e.armadura.bloqueadas.length} família(s)` : 'não']]} />
++        <Button variant="mini" onClick={() => useEscadaArmaduraUI.getState().abrir(e.id)}>Armadura da escada…</Button>
++      </Group>
+       <Group title="Cargas" open={false}>
+         <div className="row wrap u-items-end">
+           <Select label="Execução dos degraus" value={e.execucao ?? 'concretados'} options={[{ v: 'concretados', label: 'concretados com a laje' }, { v: 'alvenaria', label: 'em alvenaria' }]} onChange={(v) => muda({ execucao: v })} />
+diff --git a/src/app/edificio/FaixaEdificio.tsx b/src/app/edificio/FaixaEdificio.tsx
+index 9a2cf67..3851c9f 100644
+--- a/src/app/edificio/FaixaEdificio.tsx
++++ b/src/app/edificio/FaixaEdificio.tsx
+@@ -9,6 +9,7 @@ import { useBuilding } from './store';
+ import { useEdifUI } from './uiStore';
+ import { useInclinadasUI } from './InclinadasUI';
+ import { useEscadaCalculoUI } from './EscadaCalculoUI';
++import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
+ import { useEscadaUI } from './EscadaUI';
+ import { escolherEscada } from './EscadaMenu';
+ import { importarMascara } from './mascaraImportar';
+@@ -146,6 +147,7 @@ function Analise() {
+         <RibbonButton icon="calcular" label="Calcular obra" title="Mesma ação de Calcular e dimensionar (aba Dimensionamento)" disabled={calculando} onClick={() => { void calcular(); }} />
+         <RibbonButton icon="modos" label="2ª ordem global…" title="Abre a vista Análise (P-Δ no lugar do γz)" onClick={() => ui({ aba: 'analise' })} />
+         <RibbonButton icon="calcular" label="Calcular escadas…" title="Cálculo individual de cada lance de escada (reações, esforços e deslocamentos), antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()} />
++        <RibbonButton icon="calcular" label="Armadura das escadas…" title="Armadura e detalhamento de cada lance de escada: posições, ancoragens, esperas e passadores, com edição e bloqueio" onClick={() => useEscadaArmaduraUI.getState().abrir()} />
+       </RibbonGroup>
+       <RibbonGroup label="Resultados">
+         <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />
+diff --git a/src/app/edificio/MemorialEdificio.tsx b/src/app/edificio/MemorialEdificio.tsx
+index 5bcde8a..24ee000 100644
+--- a/src/app/edificio/MemorialEdificio.tsx
++++ b/src/app/edificio/MemorialEdificio.tsx
+@@ -9,6 +9,7 @@ import { MemorialConsolos } from './MemorialConsolos';
+ import { MemorialInclinadas } from './MemorialInclinadas';
+ import { MemorialEscadas } from './MemorialEscadas';
+ import { MemorialEscadasCalculo } from './MemorialEscadasCalculo';
++import { MemorialEscadasArmadura } from './MemorialEscadasArmadura';
+ import { MemorialVigotasFicha } from './MemorialVigotasFicha';
+ import { PAINEL_TELA } from '../../core/building/telasSoldadas';
+ import { useMemo, useRef, useState, type ReactNode } from 'react';
+@@ -198,6 +199,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+ 
+           <MemorialEscadas b={b} h2={h2} />
+           <MemorialEscadasCalculo b={b} h2={h2} />
++          <MemorialEscadasArmadura b={b} dim={dim} h2={h2} />
+           <MemorialCortes b={b} dim={dim} h2={h2} />
+           <MemorialDiagonais b={b} dim={dim} h2={h2} />
+           <MemorialConsolos b={b} dim={dim} h2={h2} />
+@@ -490,9 +492,9 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+               ))}
+             </>)}
+             <MemorialVigotasFicha dim={dim} h2={h2} />
+-            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
++            {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0 || (dim.resumoAcoEscadas?.length ?? 0) > 0) && (<>
+               {h2('Resumo geral de aço')}
+-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])]] as const).map(([tit, rs]) => (
++              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []], ...((dim.resumoAcoEscadas?.length ?? 0) > 0 ? [['Escadas (lances e patamares)', dim.resumoAcoEscadas ?? []] as const] : []), [(dim.resumoAcoEscadas?.length ?? 0) > 0 ? 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas, alveolares e escadas)' : 'Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? [])]] as const).map(([tit, rs]) => (
+                 <div key={tit} className="avoid">
+                   <h3>{tit}</h3>
+                   <table>
+@@ -514,7 +516,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+                   <p>Painéis de {fmt(PAINEL_TELA.largura)} × {fmt(PAINEL_TELA.comprimento)} m cortados no pano, com traspasse de {fmt(opc.lajeTelaTraspasse, 0)} cm entre painéis e cobrimento nas bordas; peso = 7850 kg/m³ × área de aço das duas direções [a confirmar: dimensões dos fios e das malhas do catálogo conferidas por catálogos de fabricantes, séries L e T fora do catálogo].</p>
+                 </div>
+               )}
+-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
++              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [], dim.resumoAcoEscadas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+               {(dim.trelicas?.length ?? 0) > 0 && (
+                 <div className="avoid">
+                   <h3>Treliças eletrossoldadas (por tipo)</h3>
+diff --git a/src/app/edificio/MemorialEscadasArmadura.tsx b/src/app/edificio/MemorialEscadasArmadura.tsx
+new file mode 100644
+index 0000000..868c35e
+--- /dev/null
++++ b/src/app/edificio/MemorialEscadasArmadura.tsx
+@@ -0,0 +1,30 @@
++// Memorial das escadas, armadura (E4d): critérios, posições de cada trecho, ligações (quinas, esperas e passadores), verificações
++// (cortante, fissuração e flecha) e o aço de cada lance, com a marca "a confirmar" onde a premissa espera o programa de referência.
++// As linhas vêm de `escadasArmaduraNoMemorial` (núcleo); a seção só aparece com a obra dimensionada e entra no capítulo "Escadas".
++import type { ReactNode } from 'react';
++import type { Dimensionamento } from '../../core/building/dimensionamento';
++import { escadasArmaduraNoMemorial } from '../../core/building/escadasArmaduraResumo';
++import type { BuildingModel } from '../../core/building/types';
++
++export function MemorialEscadasArmadura({ b, dim, h2 }: { b: BuildingModel; dim: Dimensionamento | null; h2: (t: string) => ReactNode }) {
++  if (!dim?.escadasArmadura?.length) return null;
++  const linhas = escadasArmaduraNoMemorial(b, { lances: dim.escadasArmadura, resumoAco: dim.resumoAcoEscadas ?? [] });
++  const escadas = [...new Set(linhas.map((l) => l.escada))];
++  return (
++    <>
++      {h2('Escadas: armadura e detalhamento')}
++      <div data-memorial-escadas-armadura>
++        {escadas.map((nome) => (
++          <div className="avoid" key={nome} data-memorial-escada-armadura={nome}>
++            <h3>{nome === 'Todas' ? 'Aço das escadas' : `Escada ${nome}`}</h3>
++            <table>
++              <thead><tr><th className="l">Seção</th><th className="l">Item</th><th className="l">Valor</th></tr></thead>
++              <tbody>{linhas.filter((l) => l.escada === nome).map((l, i) => <tr key={i}><td className="l">{l.secao}</td><td className="l">{l.rotulo}</td><td className="l">{l.valor}{l.aConfirmar ? ' [a confirmar]' : ''}</td></tr>)}</tbody>
++            </table>
++          </div>
++        ))}
++        <p className="small">Esforços da casca de cada lance (capítulo anterior); armadura como laje maciça. Esperas, passadores, quinas, comprimento disponível em viga chata e profundidade da fundação são premissas a confirmar (Premissas e pendências).</p>
++      </div>
++    </>
++  );
++}
+diff --git a/src/app/edificio/PaletaComandos.tsx b/src/app/edificio/PaletaComandos.tsx
+index ce9dd37..17c24f5 100644
+--- a/src/app/edificio/PaletaComandos.tsx
++++ b/src/app/edificio/PaletaComandos.tsx
+@@ -14,6 +14,7 @@ import { useDiagonaisUI } from './DiagonaisUI';
+ import { useConsolosUI } from './ConsolosUI';
+ import { useInclinadasUI } from './InclinadasUI';
+ import { useEscadaCalculoUI } from './EscadaCalculoUI';
++import { useEscadaArmaduraUI } from './EscadaArmaduraUI';
+ 
+ export interface ItemPaleta { id: string; tipo: 'Ferramenta' | 'Ação' | 'Comando' | 'Aba' | 'Pavimento' | 'Pilar' | 'Viga' | 'Laje'; rotulo: string; detalhe?: string; executar: () => void; repetivel: boolean }
+ 
+@@ -50,6 +51,7 @@ function itensDaPaleta(b: BuildingModel, ctx: { exec: (n: string, p: Record<stri
+     { id: 'a:enquadrar', tipo: 'Ação', rotulo: 'Enquadrar a planta', detalhe: 'tecla F', repetivel: true, executar: () => naPlanta({ vista: null }) },
+     { id: 'a:inclinadas', tipo: 'Ação', rotulo: 'Vigas inclinadas', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useInclinadasUI.getState().abrir() },
+     { id: 'a:escadas-calculo', tipo: 'Ação', rotulo: 'Calcular escadas', detalhe: 'reações, esforços e deslocamentos de cada lance', repetivel: false, executar: () => useEscadaCalculoUI.getState().abrir() },
++    { id: 'a:escadas-armadura', tipo: 'Ação', rotulo: 'Armadura das escadas', detalhe: 'posições, ancoragens, esperas e passadores de cada lance', repetivel: false, executar: () => useEscadaArmaduraUI.getState().abrir() },
+     { id: 'a:diagonais', tipo: 'Ação', rotulo: 'Diagonais de contraventamento', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useDiagonaisUI.getState().abrir() },
+     { id: 'a:consolos', tipo: 'Ação', rotulo: 'Consolos curtos', detalhe: 'lançar, editar e ver resultados', repetivel: false, executar: () => useConsolosUI.getState().abrir() },
+     { id: 'a:viga-curva', tipo: 'Ação', rotulo: 'Viga: alternar trecho reto ou curvo', detalhe: 'ferramenta Viga, tecla R', repetivel: true, executar: () => naPlanta({ ferramenta: 'viga', ...aoEscolher('viga'), curvaViga: !usePlanta.getState().curvaViga, passagemViga: null }) },

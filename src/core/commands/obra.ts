@@ -255,7 +255,7 @@ registrar<{ fck?: Partial<Record<Elem, number>>; fckPilarPav?: { pavimento: stri
     if (p.aco) { n.acoPos ??= {}; for (const x of POSICOES_ACO) {
       const v = p.aco[x.k]; if (!v) continue;
       // montagem e pele seguem a positiva enquanto não têm aço próprio: com a positiva diferente da obra, o valor da obra fica registrado
-      const segue = (x.k === 'vigaMontagem' || x.k === 'vigaPele') && !!n.acoPos[ 'vigaPos' ];
+      const segue = ((x.k === 'vigaMontagem' || x.k === 'vigaPele') && !!n.acoPos[ 'vigaPos' ]) || (x.k === 'escadaInf' && !!n.acoPos.lajeInf) || (x.k === 'escadaSup' && !!n.acoPos.lajeSup);
       if (v === n.aco && !segue) delete n.acoPos[x.k]; else n.acoPos[x.k] = v;
     } }
     if (p.gamas) { n.gamas ??= {}; for (const k of ['c', 's', 'g', 'q', 'h'] as const) { const v = p.gamas[k]; if (v === undefined) continue; if (v === (k === 'c' ? gamaCDoControle(n.controle) : GAMAS_PADRAO[k])) delete n.gamas[k]; else n.gamas[k] = v; } }

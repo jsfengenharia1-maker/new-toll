@@ -16,13 +16,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
 | 7. Lajes | 195 | 94 | 34 | 0 | 67 |
-| 8. Escadas | 65 | 49 | 2 | 14 | 0 |
+| 8. Escadas | 65 | 60 | 1 | 4 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 19 | 2 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **481** | **75** | **22** | **185** |
+| **Total** | **763** | **492** | **74** | **12** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 57 | 17 | 74 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 56 | 7 | 63 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 5 | 2 | 7 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 11 | 3 | 14 |
@@ -634,12 +634,12 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **8.1 Generalidades** | | | |
-| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Parcial | E | [E4c] cálculo 24/10/2026: cada lance é um modelo isolado de casca espessa (`src/core/building/escadasCalculo.ts`, `calcularEscadas`); a armadura fica na E4d |
+| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Feito | — | [E4c] cálculo isolado de cada lance (`escadasCalculo.ts`, `calcularEscadas`); [E4d] armadura por lance e trecho (`escadasArmadura.ts`), aço no resumo geral (`Detalhamento.tsx`), memorial (`MemorialEscadasArmadura.tsx`, `escadasArmaduraResumo.ts`) e janela de armadura; e2e E4c-menu, E4d |
 | C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Feito | — | [E4c] `cargasDasEscadas`/`comEscadas` (`escadasCalculo.ts`): reações dos apoios inferior, superior e do patamar como cargas lineares uniformes (kN/m) G e Q e degraus iniciais como carga de superfície G, no grupo do elemento de apoio (viga, laje, parede, nível de fundação); aplicadas dentro de `analisarEdificio`, `dimensionarEdificio` e das fundações; testes `escadasCalculo.test.ts`. Tabela de reações na interface: cartões `docs/cartoes/E4c/` |
 | C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Feito | — | [E4a] núcleo 23/10/2026: tipologias (`Tipologia`, `TIPOLOGIAS`) e geometria `geometriaEscada` (`escadas.ts`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b — [E4b] interface concluída (24/10/2026): janela `EscadaUI.tsx` (`DadosComuns`, `Lances`) e `TiposLanceUI.tsx`, lançamento na planta (`Planta.tsx` `agirEscada`, `NovaEscadaUI.tsx`); e2e E4a e E4b-* |
 | C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Feito | — | [E4a] núcleo 23/10/2026: modelo `Escada`/`LanceEscada`/`TipoLance` e patamares em `geometriaEscada`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b — [E4b] interface concluída (24/10/2026): janela `EscadaUI.tsx` (`DadosComuns`, `Lances`) e `TiposLanceUI.tsx`, lançamento na planta (`Planta.tsx` `agirEscada`, `NovaEscadaUI.tsx`); e2e E4a e E4b-* |
 | | **8.2 Acesso ao módulo** | | | |
-| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Parcial | E | [E4b] menu flutuante nos cartões `docs/cartoes/E4b/01` (criar, editar, apagar, mover, girar; armadura e isovalores desabilitados até E4d/E4c); comandos `escada.*` prontos — [E4b] menu flutuante `EscadaMenu.tsx` com criar, editar, apagar, mover e girar; "Ver esforços e deslocamentos" na E4c/04; "Ver detalhe de armadura" segue desabilitado até a E4d (por isso Parcial) — [E4c] "Ver esforços e deslocamentos" e "Calcular escada" abrem `EscadaCalculoUI` (cartão E4c/04, e2e E4c-menu); só o detalhe de armadura depende da E4d |
+| C8.5 | Menu flutuante de escadas na aba de vigas, com: criar, editar, apagar, mover, girar, ver detalhe de armadura de todos os lances e ver esforços/deslocamentos por isovalores. | Parcial | E | [E4b] menu flutuante nos cartões `docs/cartoes/E4b/01` (criar, editar, apagar, mover, girar; armadura e isovalores desabilitados até E4d/E4c); comandos `escada.*` prontos — [E4b] menu flutuante `EscadaMenu.tsx` com criar, editar, apagar, mover e girar; "Ver esforços e deslocamentos" na E4c/04; "Ver detalhe de armadura" segue desabilitado até a E4d (por isso Parcial) — [E4c] "Ver esforços e deslocamentos" e "Calcular escada" abrem `EscadaCalculoUI` (cartão E4c/04, e2e E4c-menu); só o detalhe de armadura depende da E4d — [E4d] o detalhe de armadura (núcleo e comandos prontos) abre pelo menu na interface dos cartões E4d — — [E4d] "Ver detalhe de armadura" habilitado (abre `EscadaArmaduraUI.tsx`, e2e E4d); segue Parcial: isovalores de esforços/deslocamentos por lance no menu não existem na interface (vista 3D e isovalores da escada são C8.51, E4e) |
 | | **8.3.1 Criar escada** | | | |
 | C8.6 | Janela de nova escada com duas abas: dados comuns da escada e lances entre pavimentos. | Feito | — | [E4b] janela "Nova escada" (`NovaEscadaUI.tsx`: dados comuns, lances, tipos da obra e predefinidos, erros ESCADA_* em vermelho) e botão "Lançar na planta"; janela antiga "Escadas" mantém a criação por coordenadas; e2e E4b-inserir |
 | C8.7 | A escada nova começa no grupo atual, indicado na janela. | Feito | — | [E4b] grupo atual indicado no menu (`EscadaMenu.tsx`, `grupoDaPlanta`) e na janela "Nova escada"; `agirEscada` cria no grupo do pavimento aberto; e2e E4b-inserir |
@@ -688,7 +688,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.47 | Mover escada por ponto de referência, com capturas a gabarito. | Feito | — | [E4b] função Mover com dois pontos (`escada.mover`) e prévia deslocada; e2e E4b-editar |
 | C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Feito | — | [E4b] função Girar por pontos (`deltaPorPontos`) ou ângulo digitado no menu (`escada.girar`), em torno do início do lance; botão "Girar 90°" nas Propriedades; e2e E4b-editar |
 | | **8.4 Resultados, relatórios e desenhos** | | | |
-| C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Falta | E | [E4d] |
+| C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Feito | — | [E4d] janela "Armadura da escada" (`EscadaArmaduraUI.tsx`, `EscadaArmaduraHost`): Select de lance, elevação e planta (`desenhoArmaduraLance`), posições com As nec./ef., ligações, verificações, flecha; calcula ao abrir e a cada edição; botão na faixa (Análise) e na paleta; edição e bloqueio em `escada.armadura`; núcleo `escadasArmadura.ts`; e2e E4d |
 | C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Feito | — | [E4c] `calcularLance`: malha estruturada de casca de 6 nós (N2b, giro acoplado à membrana), casos G (peso próprio, degraus, revestimento, corrimão) e Q (sobrecarga); validado contra a viga biapoiada inclinada (reações, M = qℓ²/8, flecha, esforço normal), viga contínua com apoio rígido e elástico no patamar e o OpenSees (`escadasCalculo.validacao.test.ts`, `validation/opensees/escada.py`) |
 | C8.51 | Vista 3D do lance com isovalores de esforços e deslocamentos. | Falta | E | [E4e] |
 | C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Feito | — | [E4c] `analisarEdificio` calcula as escadas antes (`calcularEscadas`) e aplica as reações como cargas antes da análise do edifício; o resultado fica em `AnaliseEdificio.escadas`; obra sem escada não muda (identidade de `comEscadas`) |
@@ -697,15 +697,15 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.55 | Desenho de detalhe de cada escada: cortes longitudinais e transversais, quadro de propriedades por lance (geometria, cargas, materiais) e quadros de aço por escada, por lance e total. | Falta | E | [E4e] |
 | | **8.5 Configuração** | | | |
 | C8.56 | Concreto das escadas igual ao das lajes, dos dados gerais. | Feito | — | [E4c] `calcularLance`: E = Ecs de `concretoDe(b, 'laje')` (fck das lajes dos dados gerais); cobrimento e aço da obra entram na armadura (E4d) |
-| C8.57 | Escolha do aço e gestão das tabelas de armadura das escadas. | Falta | E | [E4d] |
-| C8.58 | Opção: igualar armaduras superior e inferior pelo maior valor. | Falta | E | [E4d] |
-| C8.59 | Opção: espaçamentos das armaduras superior e inferior múltiplos entre si. | Falta | E | [E4d] |
-| C8.60 | Opção: igualar a armadura de todas as seções (longitudinais e transversais) do lance, superior e depois inferior. | Falta | E | [E4d] |
-| C8.61 | Opção: arranques (esperas) no início. | Falta | E | [E4d] |
-| C8.62 | Opção: barras de ligação (passadores) no fim da laje. | Falta | E | [E4d] |
-| C8.63 | Dado: comprimento disponível para ancorar as esperas do primeiro lance em viga chata; se maior que o necessário dobra as barras; prevalece a largura da viga se maior. | Falta | E | [E4d] |
-| C8.64 | Dado: cobrimento nominal conforme a agressividade do ambiente. | Falta | E | [E4d] |
-| C8.65 | Dado: profundidade de fundação para ancorar o início do lance quando não há elemento de fundação sob ele. | Falta | E | [E4d] |
+| C8.57 | Escolha do aço e gestão das tabelas de armadura das escadas. | Feito | — | [E4d] aço próprio das escadas em Materiais (escadaInf/escadaSup, como o das lajes) e tabela de armadura por escada na janela (Select "Tabela de armadura", `escada.opcoesArmadura`); e2e E4d |
+| C8.58 | Opção: igualar armaduras superior e inferior pelo maior valor. | Feito | — | [E4d] opção `escadaIgualarSupInf` (padrão desligado, a confirmar): em cada trecho e direção a armadura superior e a inferior recebem o maior valor; `escadasArmadura.ts`, teste em `escadasArmadura.test.ts` |
+| C8.59 | Opção: espaçamentos das armaduras superior e inferior múltiplos entre si. | Feito | — | [E4d] opção `escadaEspacamentoMultiplo` (padrão desligado, a confirmar): o maior espaçamento vira múltiplo do menor, a área só aumenta; `multiplo` em `escadasArmadura.ts` |
+| C8.60 | Opção: igualar a armadura de todas as seções (longitudinais e transversais) do lance, superior e depois inferior. | Feito | — | [E4d] opção `escadaIgualarSecoes` (padrão desligado, a confirmar): faixas de ≈ 0,6 m ao longo do trecho; ligada, distribuição e barras superiores usam a maior faixa; a principal inferior é sempre contínua pela maior |
+| C8.61 | Opção: arranques (esperas) no início. | Feito | — | [E4d] opção `escadaEsperas` (padrão ligado, a confirmar): posição de espera ancorada no apoio inicial (reta, gancho ou dobra) e emendada por traspasse l0 = α0t·lb,nec; `escadasArmadura.ts` |
+| C8.62 | Opção: barras de ligação (passadores) no fim da laje. | Feito | — | [E4d] opção `escadaPassadores` (padrão ligado, a confirmar): negativa de borda do apoio final como passadores ancorados na laje ou viga de chegada |
+| C8.63 | Dado: comprimento disponível para ancorar as esperas do primeiro lance em viga chata; se maior que o necessário dobra as barras; prevalece a largura da viga se maior. | Feito | — | [E4d] opção `escadaAncoragemViga` (20 cm, a confirmar) e dado `escada.opcoesArmadura`: ancoragem reta se couber, dobra se faltar; a largura da viga de apoio prevalece se maior (`ancorarBarra`, `vigaDeApoio`) |
+| C8.64 | Dado: cobrimento nominal conforme a agressividade do ambiente. | Feito | — | [E4d] opção `escadaCobrimento` (0 = cobrimento das lajes, que segue a classe de agressividade; positivo vale para as duas faces); `contexto` em `escadasArmadura.ts` |
+| C8.65 | Dado: profundidade de fundação para ancorar o início do lance quando não há elemento de fundação sob ele. | Feito | — | [E4d] opção `escadaProfundidadeFundacao` (40 cm, a confirmar) e dado `escada.opcoesArmadura`: apoio no nível de fundação = sem elemento sob o lance; as esperas descem a profundidade menos o cobrimento, com dobra se não bastar |
 
 ## 9. Estruturas de aço, madeira e alumínio
 
@@ -1089,3 +1089,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **24/10/2026 — E4a e E4b, interface (escadas).** 45 itens a Feito: C8.3, C8.4, C8.6, C8.7, C8.8–C8.16, C8.17, C8.18–C8.32, C8.33–C8.36, C8.38–C8.48 e C1.33; C8.5 passa de Falta a Parcial (falta o detalhe de armadura, E4d). Interface em `NovaEscadaUI.tsx`, `EscadaMenu.tsx`, `TiposLanceUI.tsx`, `EscadaUI.tsx`, `Planta.tsx` (`agirEscada`, camada em canvas `escadaCanvas.ts`), `escadasPrancha.ts` (formas, locação e DXF) e fluxos e2e E4a e E4b-*.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (45 itens a Feito).
+- **24/10/2026 — E4d, núcleo (armadura e detalhamento das escadas).** C8.58 a C8.65 passam de Falta a Feito (opções `escadaIgualarSupInf`, `escadaEspacamentoMultiplo`, `escadaIgualarSecoes`, `escadaEsperas`, `escadaPassadores`, `escadaAncoragemViga`, `escadaCobrimento`, `escadaProfundidadeFundacao`); C8.49 e C8.57 de Falta a Parcial (janela da armadura e escolha da tabela nos cartões); C8.1 e C8.5 seguem Parcial. Núcleo em `src/core/building/escadasArmadura.ts` (`armarEscadas`: Wood-Armer dos elementos da casca, faixas ao longo do trecho, flexão, mínimos, distribuição, cortante, fissuração, flecha, quinas, ancoragens, esperas e passadores, aço somado ao resumo geral) e `escadasArmaduraResumo.ts` (MCP e memorial); comandos `escada.armadura` e `escada.opcoesArmadura`; aço próprio `escadaInf`/`escadaSup`. Premissas a confirmar em `docs/pendencias-usuario.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (8 itens a Feito).

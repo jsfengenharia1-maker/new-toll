@@ -130,7 +130,22 @@ export interface Escada {
   sobrecarga?: number;
   /** Acesso ao público (sobrecarga de 3,0 em vez de 2,5 kN/m²). */
   acesso?: 'publico';
+  /** Armadura e ligações da escada (E4d): tabela, dados do apoio do primeiro lance e armaduras editadas e bloqueadas. */
+  armadura?: ArmaduraEscadaDados;
   lances: LanceEscada[];
+}
+
+/** Famílias de barras de um trecho: inferior longitudinal (principal) e transversal (distribuição); superior no início, no fim e transversal. */
+export type FamiliaEscada = 'infL' | 'infT' | 'supIni' | 'supFim' | 'supT';
+/** Armadura editada e bloqueada (E4d, como a R2): o recálculo só a verifica. `lance` = número do lance na escada (1...), `trecho` = 'L1', 'P1'... */
+export interface BloqueioEscada { lance: number; trecho: string; familia: FamiliaEscada; phi: number; s: number }
+export interface ArmaduraEscadaDados {
+  /** Id da tabela de armadura das lajes usada pela escada; ausente = a padrão. */
+  tabela?: string;
+  /** Comprimento disponível (cm) para ancorar as esperas em viga chata e profundidade da fundação (cm): substituem as opções, só nesta escada. */
+  ancoragemViga?: number;
+  profundidadeFundacao?: number;
+  bloqueadas?: BloqueioEscada[];
 }
 
 // ---------------------------------------------------------------- tipos de lance predefinidos e acesso

@@ -46,7 +46,7 @@ export interface Norma {
   /** fck dos pilares por lance (pavimento do topo do lance). */
   fckPilarPav?: { pavimento: string; fck: number }[];
   /** Aço por posição de armadura; ausente = aço da obra. */
-  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor', 'CA-50' | 'CA-60'>>;
+  acoPos?: Partial<Record<'pilarLong' | 'pilarEstribo' | 'vigaPos' | 'vigaNeg' | 'vigaMontagem' | 'vigaPele' | 'vigaEstribo' | 'lajeInf' | 'lajeSup' | 'lajePuncao' | 'lajeCortante' | 'escadaInf' | 'escadaSup' | 'fundacao' | 'alvenariaVert' | 'alvenariaHor', 'CA-50' | 'CA-60'>>;
   /** Coeficientes de ponderação (padrão γc 1,4 [pelo controle de execução]; γs 1,15; γg 1,4; γq 1,4; γh do empuxo 1,4). */
   gamas?: Partial<{ c: number; s: number; g: number; q: number; h: number }>;
   /** Cobrimentos por face (cm); ausente = o do tipo de elemento. */
