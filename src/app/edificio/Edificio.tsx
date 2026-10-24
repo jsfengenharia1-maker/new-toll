@@ -33,6 +33,7 @@ import { importarCargasDoEdificio } from '../Fundacoes';
 import { FogoCard } from './FogoCard';
 import { enchimentosDisponiveis, fichasDisponiveis } from '../../core/building/tiposLaje';
 import { formasDisponiveis, geometriaBidirecional } from '../../core/building/nervuradas';
+import { NervuradasGrupo } from './NervuradasUI';
 import { VinculosGrupo } from './Vinculos';
 import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
 import { CartaoParedes } from './ParedesUI';
@@ -218,6 +219,7 @@ export function Edificio() {
           <VigasGrupo b={b} />
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
+          <NervuradasGrupo b={b} />
           <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
           <CargasGrupo b={b} />
           <CortesGrupo b={b} onPlanta={() => setAba('planta')} />
