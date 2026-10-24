@@ -501,3 +501,105 @@ export const f_E3b = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   };
+export const f_E3c = {
+    name: 'E3c: nervuradas bidirecionais (forma do catálogo e da obra, atribuir ao pano, ponto de passagem, base das nervuras, cópia entre panos, janela das nervuras, memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+      // dois panos 6 × 6 lado a lado, vigas de 20 × 50
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [12, 0], [0, 6], [6, 6], [12, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [12, 0]], [[0, 6], [12, 6]], [[0, 0], [0, 6]], [[6, 0], [6, 6]], [[12, 0], [12, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      // Tipos de laje fica na Configuração da obra; Lajes e Nervuradas bidirecionais, na doca Propriedades
+      const tipos = () => grupoEdif(page, 'Tipos de laje');
+      let tl = await tipos();
+      // 1) a forma do catálogo é genérica e somente leitura; copiar dá uma forma editável
+      await tl.getByLabel(/^Forma da biblioteca/).selectOption({ label: 'Recuperável 60 × 60, h = 30 (genérica) · catálogo' });
+      assert.match(await tl.locator('[data-selos-forma]').innerText(), /somente leitura/);
+      assert.match(await tl.locator('[data-selos-forma]').innerText(), /genérica, a confirmar/);
+      await tl.getByRole('button', { name: 'Copiar forma', exact: true }).click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.formas?.length === 1, null);
+      assert.match(await tl.locator('[data-selos-forma]').innerText(), /editável/);
+      const copia = (await modelo()).tiposLaje.formas[0];
+      // 2) resumo da forma: cubeta 50 × 50, volume e peso à mão (mesa de 5 cm: 0,05 + 0,30 × (1 − 0,25/0,36) = 0,142 m³/m²; 25 × 0,14167 = 3,54 kN/m²)
+      assert.match(await tl.locator('[data-volume-forma]').innerText(), /^0,142$/);
+      assert.match(await tl.locator('[data-pp-forma]').innerText(), /^3,54$/);
+      // 3) editar a altura da cubeta; largura da nervura maior que o intereixo é recusada
+      const alt = tl.getByLabel(/^Altura da cubeta/);
+      await alt.fill('25'); await alt.press('Enter');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.formas?.[0]?.altura === 0.25, null);
+      const bwx = tl.getByLabel(/^Largura da nervura da forma em X/);
+      await bwx.fill('70'); await bwx.press('Enter');
+      await tl.locator('[data-erros-tipos-laje]').waitFor();
+      assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /incoerente/);
+      assert.equal((await modelo()).tiposLaje.formas[0].bw[0], 0.1);
+      // 4) atribuir a nervurada bidirecional nos panos do grupo Lajes
+      const lj = await grupoEdif(page, /^Lajes/);
+      await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('nervurada');
+      await lj.getByLabel(/^Forma da nervurada/).selectOption(copia.id);
+      const ht = lj.getByLabel(/^Altura total da nervurada/);
+      await ht.fill('30'); await ht.press('Enter');
+      await lj.getByRole('button', { name: 'Preencher todos os panos', exact: true }).click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 2, null);
+      assert.deepEqual((await modelo()).lajes[0].tipo, { tipo: 'nervurada', forma: copia.id, hTotal: 0.3, capa: 0.05 });
+      assert.match(await lj.locator('table.loads-ed').innerText(), /nervurada/);
+      // 5) grupo Nervuradas bidirecionais: seleciona o pano L1 na tabela e ajusta o ponto de passagem
+      const nv = await grupoEdif(page, /^Nervuradas bidirecionais/);
+      await nv.getByLabel('Mostrar nervuras e cubetas na planta', { exact: true }).check();
+      await lj.locator('table.loads-ed tbody tr').nth(0).click();
+      const px = nv.getByLabel(/^Ponto de passagem das nervuras X/);
+      await px.fill('0,3'); await px.press('Enter');
+      const py = nv.getByLabel(/^Ponto de passagem das nervuras Y/);
+      await py.fill('0,3'); await py.press('Enter');
+      await nv.getByRole('button', { name: 'Aplicar o ponto de passagem', exact: true }).click();
+      await esperarModelo(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]; return Array.isArray(l?.pontoNervuras) && Math.abs(l.pontoNervuras[0] - 0.3) < 1e-9; }, null);
+      // 6) base das nervuras: 2φ8 em X, considerada e detalhada
+      await nv.getByLabel(/^Base inferior das nervuras X/).fill('2');
+      await nv.getByLabel(/^φ da base das nervuras X/).selectOption('8');
+      await nv.getByLabel('Considerar a base das nervuras X no dimensionamento', { exact: true }).check();
+      await nv.getByLabel('Base das nervuras detalhada (desenhada e medida)', { exact: true }).check();
+      await nv.getByRole('button', { name: 'Aplicar a base das nervuras', exact: true }).click();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.baseNervurada?.detalhada === true, null);
+      const bn = (await modelo()).lajes[0].baseNervurada;
+      assert.deepEqual(bn.nervuras[0], { inf: { n: 2, phi: 8 }, considerar: true });
+      // 7) copiar as características para o outro pano nervurado do grupo (com a base)
+      await nv.getByLabel('Copiar também a armadura base', { exact: true }).check();
+      await nv.getByRole('button', { name: 'Copiar para os demais panos nervurados do grupo', exact: true }).click();
+      await esperarModelo(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[1]; return !!l?.baseNervurada && Array.isArray(l?.pontoNervuras); }, null);
+      assert.deepEqual((await modelo()).lajes[1].pontoNervuras, [0.3, 0.3]);
+      // 8) a forma em uso não pode ser removida
+      tl = await tipos();
+      await tl.getByRole('button', { name: 'Remover forma', exact: true }).click();
+      await tl.locator('[data-erros-tipos-laje]').waitFor();
+      assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /usada por lajes/);
+      // 9) exportar o JSON leva as formas da obra
+      const { name, text } = await downloadText(page, () => tl.getByRole('button', { name: 'Exportar tipos de laje', exact: true }).click());
+      assert.match(name, /tipos-laje\.json$/);
+      assert.equal(JSON.parse(text).formas.length, 1);
+      // 10) cálculo, janela das nervuras e memorial
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await grupoEdif(page, /^Lajes/);
+      await lj.locator('table.loads-ed tbody tr').nth(0).click();
+      await nv.getByRole('button', { name: 'Nervuras da laje', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nervuras da laje L1' });
+      await jan.locator('[data-tabela-nervuras]').waitFor();
+      assert.ok((await jan.locator('[data-grupo-nervuras]').count()) >= 2);
+      assert.match(await jan.locator('[data-grupo-nervuras]').first().innerText(), /base 2φ8/);
+      assert.match(await jan.innerText(), /Cisalhamento: cisalhamento como laje/);
+      await jan.getByRole('button', { name: 'Fechar' }).click();
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const tab = memo.locator(`[data-memorial-nervurada="${(await modelo()).lajes[0].id}"]`);
+      await tab.waitFor();
+      assert.match(await tab.innerText(), /genérica/);
+      assert.match(await tab.innerText(), /\(cópia\)/);
+      assert.match(await memo.innerText(), /Lajes nervuradas bidirecionais \(nervuras, base e malha da mesa\)/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+  };
