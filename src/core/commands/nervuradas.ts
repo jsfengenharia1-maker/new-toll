@@ -81,6 +81,7 @@ interface ParamsNervurada {
   ids: string[]; forma?: string; hTotal?: number; capa?: number;
   direcao?: number; direcaoPor?: { viga?: string; relacao?: 'paralela' | 'perpendicular'; pontos?: [P, P] };
   passagem?: P; limparPassagem?: boolean; zonasMacicas?: P[][]; limparZonas?: boolean; engasteBordas?: number[];
+  concentrar?: { dir: 0 | 1; indices: number[] }[]; limparConcentrar?: boolean;
 }
 
 registrar<ParamsNervurada>({
@@ -97,6 +98,8 @@ registrar<ParamsNervurada>({
     } },
     passagem: ponto, limparPassagem: { type: 'boolean' }, zonasMacicas: { type: 'array', items: { type: 'array', items: ponto, minItems: 3 }, minItems: 1 }, limparZonas: { type: 'boolean' },
     engasteBordas: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, description: 'coeficiente por aresta do contorno; lista vazia = todas engastadas' },
+    concentrar: { type: 'array', maxItems: 2, items: { type: 'object', additionalProperties: false, required: ['dir', 'indices'], properties: { dir: { type: 'integer', enum: [0, 1] }, indices: { type: 'array', items: { type: 'integer', minimum: 0 }, description: 'índice (0 = primeira nervura da direção) das nervuras que concentram a armadura do grupo uniformizado; lista vazia = sem concentração' } } }, description: 'E5g: nervuras indicadas por direção (0 = a da laje, 1 = transversal) que recebem a armadura do grupo uniformizado; as demais ficam com o mínimo' },
+    limparConcentrar: { type: 'boolean' },
   } },
   validar(b, p) {
     const sem = p.ids.filter((id) => !b.lajes.some((l) => l.id === id));
@@ -127,7 +130,12 @@ registrar<ParamsNervurada>({
       const fora = lajes.filter((l) => p.zonasMacicas!.some((z) => !z.every((q) => dentroPoligono(q as P, l.contorno as P[]) || l.contorno.some((c) => Math.hypot(c[0] - q[0], c[1] - q[1]) < 1e-6))));
       if (fora.length) return err('ZONA_MACICA_FORA', `A zona maciça precisa ficar dentro de ${fora.map((l) => l.nome).join(', ')}.`, fora.map((l) => l.id));
     }
-    const vazio = !alguns && p.direcao === undefined && !p.direcaoPor && !p.passagem && !p.limparPassagem && !p.zonasMacicas && !p.limparZonas && !p.engasteBordas;
+    if (p.concentrar && new Set(p.concentrar.map((x) => x.dir)).size !== p.concentrar.length) return err('PARAMETRO_INVALIDO', '`concentrar`: direção repetida.');
+    if (p.concentrar || p.limparConcentrar) {
+      const nao = lajes.filter((l) => l.tipo.tipo !== 'nervurada' && !(p.forma !== undefined && p.hTotal !== undefined && p.capa !== undefined));
+      if (nao.length) return err('LAJE_NAO_NERVURADA', `${nao.map((l) => l.nome).join(', ')} não é nervurada bidirecional.`, nao.map((l) => l.id));
+    }
+    const vazio = !alguns && p.direcao === undefined && !p.direcaoPor && !p.passagem && !p.limparPassagem && !p.zonasMacicas && !p.limparZonas && !p.engasteBordas && !p.concentrar && !p.limparConcentrar;
     return vazio ? err('SEM_EDICAO', 'Informe ao menos um campo a alterar.') : [];
   },
   aplicar(d, p) {
@@ -146,6 +154,11 @@ registrar<ParamsNervurada>({
       }
       if (p.passagem) l.pontoNervuras = [p.passagem[0], p.passagem[1]]; else if (p.limparPassagem) delete l.pontoNervuras;
       if (p.zonasMacicas) l.zonasMacicas = [...(l.zonasMacicas ?? []), ...copia(p.zonasMacicas)] as [number, number][][]; else if (p.limparZonas) delete l.zonasMacicas;
+      if (p.concentrar) {
+        const c: [number[], number[]] = [[...(l.nervurasConcentrar?.[0] ?? [])], [...(l.nervurasConcentrar?.[1] ?? [])]];
+        for (const x of p.concentrar) c[x.dir] = [...new Set(x.indices)].sort((a, z) => a - z);
+        if (c[0].length || c[1].length) l.nervurasConcentrar = c; else delete l.nervurasConcentrar;
+      } else if (p.limparConcentrar) delete l.nervurasConcentrar;
       if (p.engasteBordas) { if (p.engasteBordas.some((a) => a !== 1)) l.engasteBordas = [...p.engasteBordas]; else delete l.engasteBordas; }
     }
     return `${p.ids.length} laje(s) nervurada(s) ajustada(s).`;

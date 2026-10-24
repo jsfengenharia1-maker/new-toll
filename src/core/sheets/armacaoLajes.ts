@@ -214,9 +214,22 @@ export function montarPranchasLajes(b: BuildingModel, _an: AnaliseEdificio | nul
           const bd = ([0, 1] as const).flatMap((dr) => { const x = l.baseNervurada?.nervuras?.[dr]; return x && (x.inf || x.sup) ? [`${dr === 0 ? 'X' : 'Y'}: ${[x.inf && `inferior ${x.inf.n}φ${String(x.inf.phi).replace('.', ',')}`, x.sup && `superior ${x.sup.n}φ${String(x.sup.phi).replace('.', ',')}`].filter(Boolean).join(', ')}${x.considerar ? ' (considerada)' : ''}`] : []; });
           if (bd.length) linhas.push(`Base das nervuras (descrição geral, não detalhada): ${bd.join('; ')}`);
         }
-        if (fl.faces.includes('sup')) {
-          const pos = reg.pos('NB|mesa', acoS, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / nv.mesa.s) * rep);
-          linhas.push(`${pos} ${phiTxt(nv.mesa.phi)} c/${cmInt(nv.mesa.s)} nas duas direções — malha da mesa${nv.mesa.exigida ? ' (flexão da mesa verificada)' : ' (distribuição)'}`);
+        // mesa: sem a malha considerada, a de distribuição inteira; com ela (E5g), só o complemento de cada face
+        const mh = nv.mesa.malha;
+        for (const f of ['sup', 'inf'] as const) {
+          if (!fl.faces.includes(f)) continue;
+          const sMesa = !mh ? (f === 'sup' ? nv.mesa.s : 0) : f === 'sup' ? mh.sSup : mh.sInf;
+          if (sMesa > 0) {
+            const pos = reg.pos(`NB|mesa|${f}`, f === 'sup' ? acoS : acoI, nv.mesa.phi, cmInt(1), Math.ceil((2 * nv.quantitativo.area) / sMesa) * rep);
+            linhas.push(`${pos} ${phiTxt(nv.mesa.phi)} c/${cmInt(sMesa)} nas duas direções — ${mh ? `complemento da malha da base da mesa (face ${f === 'sup' ? 'superior' : 'inferior'})` : `malha da mesa${nv.mesa.exigida ? ' (flexão da mesa verificada)' : ' (distribuição)'}`}`);
+          }
+          // zona maciça por Wood-Armer (E5g): armadura complementar por direção
+          const zm = nv.zonaMacica;
+          (f === 'sup' ? zm?.barrasSup : zm?.barrasInf)?.forEach((x, dr) => {
+            if (!x) return;
+            const pos = reg.pos(`NB|zona|${f}`, f === 'sup' ? acoS : acoI, x.phi, cmInt(1), Math.ceil(zm!.area / x.s) * rep);
+            linhas.push(`${pos} ${phiTxt(x.phi)} c/${cmInt(x.s)} na direção ${dr === 0 ? 'X' : 'Y'} — zona maciça (Wood-Armer, face ${f === 'sup' ? 'superior' : 'inferior'})`);
+          });
         }
         // ábacos (E3d): reforço negativo nas nervuras sobre o pilar (folha das negativas), estribos da banda maciça (folha das positivas) e armadura base entre nervuras
         const arrAb = arranjoDaLaje(b, l), efsAb = arrAb?.abacos ?? [];

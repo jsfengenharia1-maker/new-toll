@@ -1435,3 +1435,46 @@ export const f_E4e = {
       assert.match(await prev.textContent(), /\(E1\)/);
     },
 };
+
+export const f_E5g = {
+    name: 'E5g: dimensionamento das nervuradas (malha da mesa considerada, nervuras que concentram a armadura, critérios no memorial)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 6], [0, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 6], [6, 6]], [[0, 0], [0, 6]], [[6, 0], [6, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.6}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "nervurada", "forma": "cat:rec-60-30", "hTotal": 0.35, "capa": 0.05}}');
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 1, null);
+      const lj = await grupoEdif(page, /^Lajes/);
+      await lj.locator('table.loads-ed tbody tr').nth(0).click();
+      const nv = await grupoEdif(page, /^Nervuradas bidirecionais/);
+      // 1) malha base da mesa (φ6,3 c/20) considerada no dimensionamento
+      await nv.getByRole('button', { name: 'Aplicar a malha base da mesa', exact: true }).click();
+      await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.baseNervurada?.mesa?.inf, null);
+      await nv.getByLabel('Considerar a malha base da mesa e das zonas maciças no dimensionamento', { exact: true }).check();
+      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.baseNervurada?.considerarMesa === true, null);
+      // 2) nervura X5 concentra a armadura do grupo uniformizado
+      const cx = nv.getByLabel(/^Nervuras X que concentram a armadura/);
+      await cx.fill('5'); await cx.press('Enter');
+      await nv.getByRole('button', { name: 'Aplicar as nervuras que concentram a armadura', exact: true }).click();
+      await esperarModelo(() => JSON.stringify(JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.nervurasConcentrar) === '[[4],[]]', null);
+      assert.deepEqual((await modelo()).lajes[0].nervurasConcentrar, [[4], []]);
+      // 3) cálculo e memorial com os critérios
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const crit = memo.locator('[data-memorial-nervuradas-criterios]').first();
+      await crit.waitFor();
+      const txt = await crit.innerText();
+      assert.match(txt, /Fissuração do momento negativo das nervuras/);
+      assert.match(txt, /Malha da base considerada na mesa/);
+      assert.match(txt, /Zona maciça/);
+      assert.match(txt, /Armadura concentrada nas nervuras X5/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
+    },
+};

@@ -283,7 +283,7 @@ const faceBase: JsonSchema = { type: 'object', additionalProperties: false, prop
 } };
 
 interface BaseNervuraP { dir: 0 | 1; inf?: { n: number; phi: number }; sup?: { n: number; phi: number }; considerar?: boolean; remover?: boolean }
-registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean; detalhadaPadrao?: boolean; remover?: ('inf' | 'sup')[]; nervuras?: BaseNervuraP[] }>({
+registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean; detalhadaPadrao?: boolean; remover?: ('inf' | 'sup')[]; nervuras?: BaseNervuraP[]; considerarMesa?: boolean }>({
   nome: 'laje.armaduraBase',
   descricao: 'Define a armadura base de lajes maciças (R7d), por pano ou seleção: face `inf` e/ou `sup` com tela soldada (`tela` pela designação da NBR 7481, `giro` troca a direção dos fios principais) ou `barras` por direção da malha (`dir` 0 = maior aresta, `phi` mm da tabela da laje, `s` cm). A base é sempre colaborante: o reforço é a armadura necessária menos a base. `detalhada` (desenhada e medida) sobrepõe a opção lajeBaseDetalhada; `detalhadaPadrao` volta a opção; `remover` apaga faces. Nervuradas bidirecionais (E3c): `inf`/`sup` são a malha da mesa e das zonas maciças e `nervuras` traz as barras corridas de cada direção (`inf`, `sup`, `considerar` para entrar no dimensionamento, `remover`); `detalhada` desenha e mede a base das nervuras.',
   risco: 'escrita',
@@ -291,6 +291,7 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['ids'], properties: {
     ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, inf: faceBase, sup: faceBase, detalhada: { type: 'boolean' }, detalhadaPadrao: { type: 'boolean' },
+    considerarMesa: { type: 'boolean', description: 'nervuradas bidirecionais (E5g): a malha da mesa e das zonas maciças (`inf`/`sup`) entra na verificação da mesa e da zona maciça (Wood-Armer); o dimensionamento acrescenta só o complemento. Padrão: não considerada.' },
     remover: { type: 'array', items: { type: 'string', enum: ['inf', 'sup'] } },
     nervuras: { type: 'array', minItems: 1, maxItems: 2, description: 'nervuradas bidirecionais (E3c): barras corridas nas nervuras de cada direção (0 = a da laje, 1 = transversal); `considerar` as inclui no dimensionamento (padrão: não); `remover` apaga a configuração da direção', items: { type: 'object', additionalProperties: false, required: ['dir'], properties: {
       dir: { type: 'integer', enum: [0, 1] }, inf: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 6 }, phi: { type: 'number', enum: [6.3, 8, 10, 12.5, 16, 20, 25] } } },
@@ -305,7 +306,8 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
     if (nm.length) return err('LAJE_NAO_MACICA', `${nm.map((x) => x.nome).join(', ')} não é maciça nem nervurada bidirecional (a base vale para essas lajes).`, nm.map((x) => x.id));
     const sn = b.lajes.filter((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'nervurada');
     if (p.nervuras?.length && sn.length) return err('LAJE_NAO_NERVURADA', `${sn.map((x) => x.nome).join(', ')} não é nervurada bidirecional (a base nas nervuras vale só para elas).`, sn.map((x) => x.id));
-    if (!p.inf && !p.sup && p.detalhada === undefined && !p.detalhadaPadrao && !p.remover?.length && !p.nervuras?.length) return err('SEM_EDICAO', 'Informe inf, sup, nervuras, detalhada ou remover.');
+    if (p.considerarMesa !== undefined && b.lajes.some((x) => p.ids.includes(x.id) && x.tipo.tipo !== 'nervurada')) return err('LAJE_NAO_NERVURADA', 'considerarMesa vale só para nervuradas bidirecionais.');
+    if (!p.inf && !p.sup && p.detalhada === undefined && !p.detalhadaPadrao && !p.remover?.length && !p.nervuras?.length && p.considerarMesa === undefined) return err('SEM_EDICAO', 'Informe inf, sup, nervuras, considerarMesa, detalhada ou remover.');
     if (p.nervuras?.some((x) => !x.remover && !x.inf && !x.sup && x.considerar === undefined)) return err('SEM_EDICAO', 'Cada direção de nervuras pede inf, sup, considerar ou remover.');
     for (const [nome, f] of [['inf', p.inf], ['sup', p.sup]] as const) {
       if (!f) continue;
@@ -347,7 +349,8 @@ registrar<{ ids: string[]; inf?: FaceBaseP; sup?: FaceBaseP; detalhada?: boolean
         }
         if (p.detalhada !== undefined) bn.detalhada = p.detalhada;
         if (p.detalhadaPadrao) delete bn.detalhada;
-        if (bn.mesa || bn.nervuras || bn.detalhada !== undefined) l.baseNervurada = bn; else delete l.baseNervurada;
+        if (p.considerarMesa !== undefined) { if (p.considerarMesa) bn.considerarMesa = true; else delete bn.considerarMesa; }
+        if (bn.mesa || bn.nervuras || bn.detalhada !== undefined || bn.considerarMesa) l.baseNervurada = bn; else delete l.baseNervurada;
         continue;
       }
       const base = { ...(l.base ?? {}) };

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { nervuradasNoMemorial } from '../../core/building/nervuradasDim';
 import { opcoesEmUso, perfilDe } from '../../core/building/opcoes';
 import type { BuildingModel, Laje } from '../../core/building/types';
-import { Button, Check, Group, Hint, Modal, NumField, Select } from '../ui';
+import { Button, Check, Group, Hint, Modal, NumField, Select, TextField } from '../ui';
 import { Mensagens } from './Revisao';
 import { usePlanta } from './plantaStore';
 import { useBuilding } from './store';
@@ -51,6 +51,9 @@ function BaseNervuras({ ls }: { ls: Laje[] }) {
   const [inf, setInf] = useState<[{ n: number; phi: number }, { n: number; phi: number }]>([bn?.nervuras?.[0]?.inf ?? { n: 2, phi: 8 }, bn?.nervuras?.[1]?.inf ?? { n: 2, phi: 8 }]);
   const [cons, setCons] = useState<[boolean, boolean]>([!!bn?.nervuras?.[0]?.considerar, !!bn?.nervuras?.[1]?.considerar]);
   const [det, setDet] = useState(!!bn?.detalhada);
+  const lista = (d: 0 | 1) => (l0.nervurasConcentrar?.[d] ?? []).map((i) => i + 1).join(', ');
+  const [conc, setConc] = useState<[string, string]>([lista(0), lista(1)]);
+  const aplicarConc = () => exec('laje.nervurada', { ids, concentrar: ([0, 1] as const).map((dir) => ({ dir, indices: conc[dir].split(/[,;\s]+/).map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 1).map((x) => x - 1) })) });
   const [mesa, setMesa] = useState<{ phi: number; s: number }>(bn?.mesa?.inf?.barras?.[0] ?? { phi: 6.3, s: 20 });
   const aplicarNervuras = () => exec('laje.armaduraBase', { ids, detalhada: det, nervuras: ([0, 1] as const).map((dir) => ({ dir, ...(inf[dir].n > 0 ? { inf: inf[dir] } : {}), considerar: cons[dir] })) });
   const aplicarMesa = () => exec('laje.armaduraBase', { ids, inf: { barras: [{ dir: 0, phi: mesa.phi, s: mesa.s }, { dir: 1, phi: mesa.phi, s: mesa.s }] } });
@@ -74,7 +77,16 @@ function BaseNervuras({ ls }: { ls: Laje[] }) {
         <Button onClick={aplicarMesa}>Aplicar a malha base da mesa</Button>
         <Button variant="danger" disabled={!bn} onClick={() => exec('laje.armaduraBase', { ids, nervuras: [{ dir: 0, remover: true }, { dir: 1, remover: true }], remover: ['inf', 'sup'], detalhadaPadrao: true })}>Remover a armadura base</Button>
       </div>
-      <Hint>A base das nervuras só entra no dimensionamento quando marcada (por direção). Detalhada, é desenhada e medida; senão aparece só como descrição geral na listagem. A malha da mesa é descrita e desenhada, sem entrar no dimensionamento da mesa.</Hint>
+      <div className="row wrap">
+        <Check label="Considerar a malha base da mesa e das zonas maciças no dimensionamento" checked={!!bn?.considerarMesa} onChange={(c) => exec('laje.armaduraBase', { ids, considerarMesa: c })} />
+      </div>
+      <div className="row wrap">
+        {([0, 1] as const).map((d) => (
+          <TextField key={d} label={`Nervuras ${d === 0 ? 'X' : 'Y'} que concentram a armadura (números)`} value={conc[d]} onChange={(v) => setConc((p) => (d === 0 ? [v, p[1]] : [p[0], v]))} />
+        ))}
+        <Button onClick={aplicarConc}>Aplicar as nervuras que concentram a armadura</Button>
+      </div>
+      <Hint>A base das nervuras só entra no dimensionamento quando marcada (por direção). Detalhada, é desenhada e medida; senão aparece só como descrição geral na listagem. A malha da mesa é descrita e desenhada; só entra na verificação da mesa e da zona maciça (Wood-Armer) quando marcada, e o dimensionamento acrescenta o complemento. Nervuras que concentram a armadura: numere da primeira (1) à última de cada direção; as demais do grupo uniformizado ficam com o mínimo.</Hint>
     </div>
   );
 }

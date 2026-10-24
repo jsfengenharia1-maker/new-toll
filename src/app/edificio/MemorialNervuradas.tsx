@@ -33,6 +33,7 @@ export function MemorialNervuradas({ b, dim, h2 }: { b: BuildingModel; dim: Dime
               <tbody>{l.grupos.map((g) => <tr key={g.nome}><td className="l">{g.nome}</td><td className="l">{g.nervuras}</td><td>{fmt(g.L)}</td><td>{fmt(g.mPos)}</td><td>{fmt(g.mNeg[0])} / {fmt(g.mNeg[1])}</td><td>{fmt(g.Vmax)}</td><td>{fmt(g.Mu)}</td><td className="l">{g.inf}</td><td className="l">{g.sup}</td><td className="l">{g.estribo}</td></tr>)}</tbody>
             </table>
             <p>Base das nervuras: {l.base.nervuras.join('; ')}. Base da mesa e das zonas maciças: {l.base.mesa}.</p>
+            <ul data-memorial-nervuradas-criterios>{l.criterios.map((t, i) => <li key={i}>{t}</li>)}</ul>
             {l.vigas.length > 0 && <p>Vigas do pano: {l.vigas.map((v) => `${v.nome} (h ${fmt(v.h * 100, 0)} cm${v.saliente > 0 ? `, parte saliente ${fmt(v.saliente * 100, 0)} cm` : ', chata'})`).join('; ')}.</p>}
             {l.verificacoes.avisos.length > 0 && <ul>{l.verificacoes.avisos.map((m, i) => <li key={i}><i>{m}</i></li>)}</ul>}
           </div>

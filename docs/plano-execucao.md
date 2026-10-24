@@ -93,7 +93,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | E5d ajuda F1, textos de limitação e exemplos dos planos (5 linhas) | — | S1 (ajuda e textos), S2 (exemplos) |
 | E5e vigotas: igualação pela área, vista na planta, flecha de montagem e ômega (4 linhas; C7.102 e C7.194 dependem de `pendencias-usuario.md`) | S3 | S1 |
 | E5f aço próprio e punção das nervuradas e ábacos (5 linhas) | S3 | S1 |
-| E5g dimensionamento das nervuradas: malha da mesa, fissuração do negativo, Wood-Armer, base do ábaco, nervuras a concentrar (4 linhas) | S3 | S1 |
+| E5g dimensionamento das nervuradas: malha da mesa, fissuração do negativo, Wood-Armer, base do ábaco, nervuras a concentrar (4 linhas; feita em 24/10/2026) | S3 | S1 |
 | E5h inserção do pano (numeração e origem da malha) e furos na grelha (2 linhas; sobe a O se a grelha com furos falhar duas vezes) | S3 | S1 |
 | E5i saídas de paredes, alvenaria e consolos: relatório, listagem, plantas de blocos, estribos de consolos (5 linhas) | S2 | S1 |
 | E5j apoios longitudinais, rigidez axial das paredes, alvenaria por pavimento e pilar com desnível (5 linhas) | S3 | — |
@@ -218,3 +218,4 @@ Decisão do usuário (21/10/2026): depois de concluir o aplicativo, investigar e
 - 24/10/2026: FU7c, núcleo e interface concluídos (K1.9.47, K1.9.48 e K1.4.74 Feito; K1.9.110 Parcial até a FU7d). Molas de Winkler na base da parede e do pilar-parede (`fundParedeK`), base em viga de fundação (`Parede.base.tipo = 'viga'`), vigas embutidas em parede de concreto com armadura própria (`paredeVigaEmbutida`); e2e `FU7c`. Próxima da FU: FU7d (fundação do pilar-parede).
 - 24/10/2026: E5a concluída (pranchas das lajes inclinadas: C7.76, C7.94, C7.95, C7.129, C7.142 e C7.195 Feito; opção `armacao.croqui`, `sheets/armacaoInclinadas.ts`, `sheets/croquiPrancha.ts`, premissa `e5a-pranchas-inclinadas`). Ver `docs/historico-fatias.md`.
 - 24/10/2026: E5j, núcleo concluído no worktree (K1.12.21 Feito com `vigaApoioLongEixos`; K1.4.30 `axialParedeSeparado` + `Casca3.fAxial`, K1.3.59 aviso de parede no meio e K1.3.31 espessura por pavimento nos três tipos seguem Parcial; K1.12.4-19 segue Falta: o pórtico ignora `Viga.nivel`, item grande). Sem interface nova (opções no painel genérico).
+- 24/10/2026: E5g concluída (K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 Feito). Dimensionamento das nervuradas: fissuração do negativo (opção `nervuradaFissuraNegativo`), malha da mesa considerada (`considerarMesa`) com momento positivo qd·ℓ²/24, Wood-Armer nas zonas maciças (opção `nervuradaWoodArmer`, `zonaMacica`), tabela de armadura R7a, nervuras que concentram a armadura (`nervurasConcentrar`). Ver `docs/historico-fatias.md`.
