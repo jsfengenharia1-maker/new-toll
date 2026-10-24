@@ -349,9 +349,9 @@ export const sampleFoundation = (): FoundationData => ({
 });
 
 // ---------------------------------------------------------------- coeficientes
-const C_TIP: Record<SoilClass, number> = { argila: 120, silteArgiloso: 200, silteArenoso: 250, areia: 400 };
+export const C_TIP: Record<SoilClass, number> = { argila: 120, silteArgiloso: 200, silteArenoso: 250, areia: 400 };
 type Group = 0 | 1 | 2; // argilas, intermediários, areias
-const GROUP: Record<SoilClass, Group> = { argila: 0, silteArgiloso: 1, silteArenoso: 1, areia: 2 };
+export const GROUP: Record<SoilClass, Group> = { argila: 0, silteArgiloso: 1, silteArenoso: 1, areia: 2 };
 export const ALPHA: Record<PileType, [number, number, number]> = { premoldada: [1, 1, 1], escavada: [0.85, 0.6, 0.5], helice: [0.3, 0.3, 0.3] };
 export const BETA: Record<PileType, [number, number, number]> = { premoldada: [1, 1, 1], escavada: [0.8, 0.65, 0.5], helice: [1, 1, 1] };
 
@@ -385,7 +385,7 @@ export const PHI_PILE = [6.3, 8, 10, 12.5, 16, 20, 25];
 // ---------------------------------------------------------------- capacidade
 export interface Capacity { L: number; Rp: number; Rl: number; RpUsed: number; Padm: number; Tadm: number; Np: number; Nl: number; governs: 'global' | 'parcial' | 'ponta' }
 
-const clampN = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+export const clampN = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 export function capacity(type: PileType, D: number, L: number, b: Boring, cutoff: number): Capacity | null {
   const m = b.meters;

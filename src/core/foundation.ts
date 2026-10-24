@@ -3,6 +3,7 @@ import { designCap, type CapCol, type CapResult } from './caps';
 import { designFooting } from './footings';
 import { designFootingGroup } from './footingsGroup';
 import { designCaisson } from './caissons';
+import { memoriaAtiva } from './memoria/registrador';
 import { boringChoice, boringFor, columnOf, pilesByCapacity, solveSupport, type Boring, type FLoad, type FoundationData, type FoundationKind, type PileByCapacity, type PileSolution, type SupportResult } from './piles';
 
 export interface SupportDesign {
@@ -13,6 +14,9 @@ export interface SupportDesign {
   footing?: ReturnType<typeof designFooting>;
   caisson?: ReturnType<typeof designCaisson>;
 }
+
+/** Parâmetros usados em cada projeto, guardados só com a memória detalhada ligada (a memória refaz as contas com os mesmos parâmetros). */
+export const dadosDoProjeto = new WeakMap<SupportDesign, FoundationData>();
 
 /** Estaca adotada: a marcada no apoio (se ainda tiver solução); senão a recomendada do primeiro tipo com solução. */
 export function adoptedPile(r: SupportResult, ld: FLoad): { sol: PileSolution | null; adopted: boolean } {
@@ -32,7 +36,7 @@ export function capCols(ld: FLoad): CapCol[] | undefined {
   return g.cols.map((q, i) => ({ label: q.label, x: q.x, y: q.y, ap: q.ap, bp: q.bp, Nk: cb.cols[i].N }));
 }
 
-const capExtra = (ld: FLoad) => ({ cols: capCols(ld), ...(ld.fixed ? { fixed: { lx: ld.fixed.A, ly: ld.fixed.B, h: ld.fixed.h ?? 0, ...(ld.fixed.bars?.x ? { bars: { phi: ld.fixed.bars.x.phi, n: ld.fixed.bars.x.n ?? 2 } } : {}) } } : {}) });
+export const capExtra = (ld: FLoad) => ({ cols: capCols(ld), ...(ld.fixed ? { fixed: { lx: ld.fixed.A, ly: ld.fixed.B, h: ld.fixed.h ?? 0, ...(ld.fixed.bars?.x ? { bars: { phi: ld.fixed.bars.x.phi, n: ld.fixed.bars.x.n ?? 2 } } : {}) } } : {}) });
 
 export function capFor(s: PileSolution, ld: FLoad, f: FoundationData): CapResult {
   const { ap, bp } = columnOf(ld, f.params);
@@ -59,5 +63,6 @@ export function designSupport(ld: FLoad, f: FoundationData): SupportDesign {
   } else {
     out.caisson = designCaisson({ Nk: ld.Nk, NkMin: ld.NkMin, Mx: ld.Mx, My: ld.My, Hx: ld.Hx, Hy: ld.Hy, boring, ...(ld.fixed ? { fixed: { Db: ld.fixed.A, ...(ld.fixed.Df ? { Df: ld.fixed.Df } : {}) } } : {}) }, f.params);
   }
+  if (memoriaAtiva()) dadosDoProjeto.set(out, f);
   return out;
 }

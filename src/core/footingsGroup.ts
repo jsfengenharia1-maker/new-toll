@@ -10,6 +10,7 @@ import { barArea, beamFlexure, concrete } from './concrete';
 import { anchorageLength, bestBars, ceil05, spacedBars } from './rebar';
 import { pesoMinimoImposto, polyPressure, sigmaProvider, type FlexDir, type FootingInput, type FootingResult, type Pt } from './footings';
 import type { FCol, FCombo, FGroup, FoundationParams } from './piles';
+import { memoriaAtiva } from './memoria/registrador';
 
 type Seg = { a: Pt; b: Pt };
 
@@ -121,7 +122,7 @@ export function casosDoGrupo(cols: FCol[], combos: FCombo[]): Caso[] {
 
 // ---------------------------------------------------------------- diagrama de momentos por faixa
 
-interface Faixa { Mpos: number; xPos: number; Mneg: number; xNeg: number; larguraPos: number; larguraNeg: number; cPos: number }
+export interface Faixa { Mpos: number; xPos: number; Mneg: number; xNeg: number; larguraPos: number; larguraNeg: number; cPos: number }
 
 /** Transpõe x ↔ y (para tratar a direção y com o mesmo código). */
 const transp = (poly: Pt[]): Pt[] => poly.map(([x, y]) => [y, x]);
@@ -131,7 +132,7 @@ const transp = (poly: Pt[]): Pt[] => poly.map(([x, y]) => [y, x]);
  * pressão à esquerda − cargas dos pilares à esquerda (distribuídas na largura do pilar) + conjugados.
  * `cols`: posição u, largura a, N, conjugado c já com sinal. v = plano de tensões de cálculo (σ = v0 + v1·u + v2·w).
  */
-function faixa(poly: Pt[], v: [number, number, number], cols: { u: number; a: number; N: number; c: number }[], secE: number, secD: number): Faixa & { M: number[]; us: number[] } {
+export function faixa(poly: Pt[], v: [number, number, number], cols: { u: number; a: number; N: number; c: number }[], secE: number, secD: number): Faixa & { M: number[]; us: number[] } {
   const us0 = poly.map((q) => q[0]);
   const umin = Math.min(...us0), umax = Math.max(...us0);
   const n = 800, du = (umax - umin) / n;
@@ -186,6 +187,18 @@ function faixa(poly: Pt[], v: [number, number, number], cols: { u: number; a: nu
   }
   return { Mpos: Math.max(0, Mpos), xPos, Mneg, xNeg, larguraPos: larg(xPos), larguraNeg: larg(xNeg || (umin + umax) / 2), cPos, M, us };
 }
+
+// ---------------------------------------------------------------- detalhe para a memória
+
+/** Um diagrama de faixa (caso × direção) com a entrada e o resultado de `faixa`, guardado só com a memória ligada. */
+export interface DetFaixa { caso: number; ax: 'x' | 'y'; Nd: number; v: [number, number, number]; col: { u: number; a: number; N: number; c: number }[]; secE: number; secD: number; Mpos: number; xPos: number; Mneg: number; xNeg: number; larguraPos: number; larguraNeg: number; cPos: number; residuo: number }
+export interface DetGrupo {
+  casos: { label: string; sx: number; sy: number; N: number; Mx: number; My: number }[]; faixas: DetFaixa[];
+  env: Record<'x' | 'y', { Mpos: number; cPos: number; Wpos: number; Mneg: number; Wneg: number }>;
+  hBal: number; hVao: number; balanco: number; vao: number; lbCol: number; W0: number;
+}
+/** Detalhes do último `FootingResult` de sapata associada (só com a memória ligada; o resultado não muda). */
+export const detalheGrupo = new WeakMap<object, DetGrupo>();
 
 // ---------------------------------------------------------------- dimensionamento
 
@@ -325,9 +338,13 @@ function sizeGroup(inp: FootingInput, p: FoundationParams, W: number): FootingRe
   // momentos de cálculo por faixa: envoltória dos casos (pressão sem o peso próprio, N e M sem majorar além de γf)
   const dOf = (h: number) => h - p.cover - 0.01;
   let residuo = 0;
+  let detFaixas: DetFaixa[] = [];
+  const memoria = !!memoriaAtiva();
   const flexao = () => {
+    detFaixas = [];
     const env: Record<'x' | 'y', { Mpos: number; cPos: number; Wpos: number; Mneg: number; Wneg: number }> = { x: { Mpos: 0, cPos: 0, Wpos: 0, Mneg: 0, Wneg: 0 }, y: { Mpos: 0, cPos: 0, Wpos: 0, Mneg: 0, Wneg: 0 } };
     for (const cs of casos) {
+      const icaso = casos.indexOf(cs);
       const Nd = gf * cs.N;
       const pr = polyPressure(poly, Nd, cs.My / cs.N, cs.Mx / cs.N);
       if (!pr) continue;
@@ -342,6 +359,7 @@ function sizeGroup(inp: FootingInput, p: FoundationParams, W: number): FootingRe
         // fechamento do diagrama (equilíbrio de momentos da faixa): resíduo no fim / maior momento
         const escala = Math.max(1, ...f.M.map((m) => Math.abs(m)));
         residuo = Math.max(residuo, Math.abs(f.M[f.M.length - 1]) / escala);
+        if (memoria) detFaixas.push({ caso: icaso, ax, Nd, v, col, secE, secD, Mpos: f.Mpos, xPos: f.xPos, Mneg: f.Mneg, xNeg: f.xNeg, larguraPos: f.larguraPos, larguraNeg: f.larguraNeg, cPos: f.cPos, residuo: Math.abs(f.M[f.M.length - 1]) / escala });
         const e = env[ax];
         if (f.Mpos > e.Mpos) { e.Mpos = f.Mpos; e.cPos = Math.max(f.cPos, 0); e.Wpos = f.larguraPos; }
         if (f.Mneg < e.Mneg) { e.Mneg = f.Mneg; e.Wneg = f.larguraNeg; }
@@ -438,7 +456,7 @@ function sizeGroup(inp: FootingInput, p: FoundationParams, W: number): FootingRe
   // casos: o pior sinal de cada combinação
   const casosOut: FootingResult['cases'] = [];
   for (const o of best.out) { const k = casosOut.findIndex((q) => q.label === o.label); if (k < 0) casosOut.push(o); else if (o.sigmaMax > casosOut[k].sigmaMax) casosOut[k] = o; }
-  return {
+  const out: FootingResult = {
     ok, messages, A, B, W, Wconc, Wsoil, sigmaAdm: sg.s, sigmaSrc, spt: sg.spt ? { Nbar: sg.spt.Nbar, Nused: sg.spt.Nused, from: sg.spt.from, to: sg.spt.to } : undefined,
     cases: casosOut, kind: 'rigida', h, h0, d, hRigid: Math.max(hBal, hVao), lbCol, method: 'ceb70', methodNotes, sigmaD, colOffset: [0, 0],
     ...(dim ? { fixed: true } : {}), ...(inp.simples ? { simples: true } : {}), ...(inp.constH ? { constH: true } : {}), ...(p.ftLevantamento ? { levantamento: true } : {}),
@@ -449,5 +467,7 @@ function sizeGroup(inp: FootingInput, p: FoundationParams, W: number): FootingRe
     },
     flex, punch: { tauSd0: Math.max(...pilares.map((q) => q.tauSd0)), tauRd2, applies: false }, volume,
   };
+  if (memoria) detalheGrupo.set(out, { casos: casos.map((q) => ({ label: q.label, sx: q.sx, sy: q.sy, N: q.N, Mx: q.Mx, My: q.My })), faixas: detFaixas, env, hBal, hVao, balanco, vao, lbCol, W0: W });
+  return out;
 }
 

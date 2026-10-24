@@ -10,6 +10,8 @@
 // Reaproveita `footings.ts` (pressão sem tração, σadm pelo SPT), `concrete.ts`, `baseElastica.ts` e `vigasFundacao.ts`.
 // Unidades: kN, m, kN/m² (tensões), kN/m³ (k), por metro de comprimento da sapata quando indicado.
 import { barArea, beamFlexure, concrete } from '../concrete';
+import { registrarCorridaParede, registrarCorridaPilares } from '../memoria/sapataCorrida';
+import { memoriaAtiva } from '../memoria/registrador';
 import { basePressure, sigmaProvider } from '../footings';
 import { rawBoringFor, type Boring, type FLoad, type FoundationParams } from '../piles';
 import { ceil05 } from '../rebar';
@@ -382,7 +384,7 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
       if (jm >= 0) js.add(jm);
       if (jh >= 0) js.add(jh);
     }
-    return [...js].map((j) => ({ cb, q: qs[j], qMin: Number.isFinite(qMin) ? qMin : 0, m: ms[j], h: hs[j], vento: comVento(cx, cb), N }));
+    return [...js].map((j) => ({ cb, q: qs[j], qMin: Number.isFinite(qMin) ? qMin : 0, m: ms[j], h: hs[j], vento: comVento(cx, cb), N, j }));
   });
   if (!cargas.length) { msgs.push(`Sapata corrida ${c.nome}: sem carga nas combinações raras (os casos lançados não entram em nenhuma).`); return base(c.B ?? op.corridaBMin); }
   const Nk = Math.max(...cargas.map((x) => x.q)), NkMin = Math.min(...cargas.map((x) => x.qMin)), cMax = cargas.find((x) => x.q === Nk)!.cb.nome;
@@ -410,6 +412,7 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
     if (!sg) return null;
     const W = Math.max(W0, GAMA_CONC * areaSecaoParede(B, c.bw, g.h, g.h0));
     let pior: { sigmaMax: number; sigmaMin: number; compressed: number; e: number } | null = null;
+    let piorX: { x: (typeof cargas)[number]; qe: number; eGeom: number; eM: number } | null = null;
     for (const x of cargas) {
       const qe = qEf(x, B);
       if (qe === null) return null;
@@ -417,9 +420,9 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
       const eTot = (eqEf ? 0 : ecc(B)) + Math.abs(x.m) / (qe + W);
       const pr = pressaoCorrida(B, qe + W, eTot, false);
       if (!pr || pr.sigmaMax > P.ftEdgeFactor * sg.s * (x.vento ? cx.fv : 1) + 1e-6 || pr.compressed < (P.ftLevantamento ? 0 : P.ftMinCompressed) - 1e-6) return null;
-      if (!pior || pr.sigmaMax > pior.sigmaMax) pior = { sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed, e: eTot };
+      if (!pior || pr.sigmaMax > pior.sigmaMax) { pior = { sigmaMax: pr.sigmaMax, sigmaMin: pr.sigmaMin, compressed: pr.compressed, e: eTot }; piorX = { x, qe, eGeom: eqEf ? 0 : ecc(B), eM: Math.abs(x.m) / (qe + W) }; }
     }
-    return { g, sg, W, pior: pior! };
+    return { g, sg, W, pior: pior!, piorX: piorX! };
   };
   let B = 0, ok: NonNullable<ReturnType<typeof verifica>> | null = null;
   if (fixa) { B = c.B!; ok = verifica(B); }
@@ -432,7 +435,7 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
         : `Sapata corrida ${c.nome}: nenhuma largura até 8 m atende a σadm, a área comprimida e a excentricidade.`);
     return base(B0, { carga: { Nk, NkMin, Nd: P.gammaF * Nk, W: W0, comb: cMax }, sigmaAdm: sigmaFor(B0)?.s, sigmaFonte });
   }
-  const { g, sg, W, pior } = ok;
+  const { g, sg, W, pior, piorX } = ok;
   if (c.aba !== 'ambas' && !c.equilibrio && pior.e > 0) notas.push(`Aba de um lado sem cintas: pressão excêntrica (e = ${fmt(pior.e)} m) com σmáx = ${fmt(pior.sigmaMax, 1)} kN/m² e ${fmt(pior.compressed * 100, 0)} % comprimida.`);
   const eq = c.aba !== 'ambas' && eqEf;
   const cinta = eq ? Nk * ecc(B) : undefined;
@@ -483,7 +486,8 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
     dadosParede = { id: w.id, nome: w.nome, virtual: !!c.virtual, origem: cx.an && !cx.an.erro && cx.an.portico.res ? 'reacoes' : 'lancadas', M: Mmax, H: Hmax, eM: eMnet, ...(desliz ? { deslizamento: desliz } : {}), ...(travada ? { travada: true, forcas } : {}), pilares: pilaresEixo, ...(pilaresEq.length ? { pilaresEq: pilaresEq.map((x) => ({ ...x, rege: B >= x.a - 1e-9 })) } : {}) };
     notas.push(`Base da parede ${w.nome}${c.virtual ? ' (sapata derivada de Parede.base; edite com parede.sapata)' : ''}: ${dadosParede.origem === 'reacoes' ? 'cargas das reações da análise' : 'só as cargas lançadas'}; momento fora do plano até ${fmt(Mmax, 1)} kN·m/m (e = ${fmt(eMnet)} m) e cortante normal até ${fmt(Hmax, 1)} kN/m nas combinações raras${pilaresEixo.length ? `; pilar(es) sobre o eixo: ${pilaresEixo.join(', ')}` : ''}.`);
   }
-  const tr = flexaoTransversal({ B, bw: c.bw, aba: c.aba, equilibrio: eqEf, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd, ...(eMnet > 1e-9 ? { eExtra: eMnet } : {}) }, P, op, msgs, c.nome);
+  const ef: EntradaFlexao = { B, bw: c.bw, aba: c.aba, equilibrio: eqEf, alvenaria: !!c.alvenaria, h: g.h, h0: g.h0, hRigido: g.hRig, Nd, ...(eMnet > 1e-9 ? { eExtra: eMnet } : {}) };
+  const tr = flexaoTransversal(ef, P, op, msgs, c.nome);
   if (tr.cortante && !tr.cortante.ok) { /* mensagem já incluída */ }
   const sec = areaSecaoParede(B, c.bw, g.h, g.h0), volume = sec * L, forma = L * formaPorMetroParede(c.aba, B, c.bw, g.h, g.h0) + 2 * sec;
   if (c.h !== undefined && c.h < g.hRig - 1e-9) notas.push('Altura imposta menor que a rígida: sapata flexível.');
@@ -500,6 +504,8 @@ function calcularParede(cx: Contexto, c: CorridaEfetiva): ResultadoCorrida {
   };
   r.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
   r.resumo = resumoTexto(r);
+  const mem = memoriaAtiva();
+  if (mem) registrarCorridaParede(mem, { c, P, op, L, cj, mom, hor, cargas, Nk, NkMin, cMax, W0, furo: furoMaisProximo(b, c), sg, g, W, piorX, fv: cx.fv, B, qEfFinal, Nd, eMnet, ef, tr, sec, volume, cintas: !!cin, r });
   return r;
 }
 
@@ -541,7 +547,8 @@ function calcularSobPilares(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
     }
   }
   const netoK = Math.max(0, pMax - pesoPressao);
-  const tr = flexaoTransversal({ B: g.B, bw: g.bw, aba: c.aba, equilibrio: eq, alvenaria: !!c.alvenaria, h: g.h0, h0: g.h0, hRigido: g.hRig, Nd: P.gammaF * netoK * g.B }, P, op, msgs, c.nome);
+  const efP: EntradaFlexao = { B: g.B, bw: g.bw, aba: c.aba, equilibrio: eq, alvenaria: !!c.alvenaria, h: g.h0, h0: g.h0, hRigido: g.hRig, Nd: P.gammaF * netoK * g.B };
+  const tr = flexaoTransversal(efP, P, op, msgs, c.nome);
   if (lg.sigmaAdm !== null && lg.sigmaMax > lg.sigmaAdm + 1e-6) msgs.push(`Sapata corrida ${c.nome}: largura necessária ≈ ${fmt((lg.sigmaMax * g.B) / lg.sigmaAdm)} m (σmáx·B/σadm) para a σadm.`);
   const volume = lg.volume, forma = L * (2 * g.h) + 2 * secArea;
   const aco = lg.aco + ((tr.barras ? barArea(tr.barras.phi) / tr.barras.s : 0) * (g.B - 2 * P.cover) * L + (tr.distribuicao.barras ? (barArea(tr.distribuicao.barras.phi) / tr.distribuicao.barras.s) * (L - 2 * P.cover) * (g.B - 2 * P.cover) : 0)) * 7850;
@@ -556,6 +563,8 @@ function calcularSobPilares(cx: Contexto, c: SapataCorrida): ResultadoCorrida {
   };
   r.status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
   r.resumo = resumoTexto(r);
+  const mem = memoriaAtiva();
+  if (mem) registrarCorridaPilares(mem, { c, P, op, g, lg, pesoPressao, netoK, ecc, ef: efP, tr, r });
   return r;
 }
 
