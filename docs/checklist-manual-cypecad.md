@@ -16,13 +16,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
 | 7. Lajes | 195 | 73 | 55 | 0 | 67 |
-| 8. Escadas | 65 | 0 | 42 | 23 | 0 |
+| 8. Escadas | 65 | 4 | 44 | 17 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **405** | **142** | **31** | **185** |
+| **Total** | **763** | **409** | **144** | **25** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 118 | 26 | 144 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 120 | 20 | 140 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -634,8 +634,8 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | Item | Funcionalidade (palavras próprias) | Situação | Frente | Statikos |
 |---|---|---|---|---|
 | | **8.1 Generalidades** | | | |
-| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Falta | E | [E4c] |
-| C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Falta | E | [E4c] |
+| C8.1 | Módulo que calcula e arma as lajes de escada como elementos isolados da estrutura. | Parcial | E | [E4c] cálculo 24/10/2026: cada lance é um modelo isolado de casca espessa (`src/core/building/escadasCalculo.ts`, `calcularEscadas`); a armadura fica na E4d |
+| C8.2 | Reações da escada na estrutura principal, conforme geometria, apoios e cargas gravitacionais, transmitidas como cargas lineares e/ou de superfície, separadas em permanente e variável. | Feito | — | [E4c] `cargasDasEscadas`/`comEscadas` (`escadasCalculo.ts`): reações dos apoios inferior, superior e do patamar como cargas lineares uniformes (kN/m) G e Q e degraus iniciais como carga de superfície G, no grupo do elemento de apoio (viga, laje, parede, nível de fundação); aplicadas dentro de `analisarEdificio`, `dimensionarEdificio` e das fundações; testes `escadasCalculo.test.ts`. Tabela de reações na interface: cartões `docs/cartoes/E4c/` |
 | C8.3 | Escada composta por lances entre pavimentos com patamares; tipologias: lance reto; dois lances com patamar de meia-volta; três lances com patamares de quarto de volta; dois lances com patamar de volta inteira; dois lances consecutivos com patamar intermediário; n lances com patamares de meia-volta; n lances com patamares de quarto de volta. | Parcial | E | [E4a] núcleo 23/10/2026: tipologias (`Tipologia`, `TIPOLOGIAS`) e geometria `geometriaEscada` (`escadas.ts`); interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | C8.4 | Conceitos: escada = conjunto de lances entre pisos de uma circulação vertical; lance = trecho inclinado de degraus contínuos; patamar intermediário = plano horizontal entre dois lances. | Parcial | E | [E4a] núcleo 23/10/2026: modelo `Escada`/`LanceEscada`/`TipoLance` e patamares em `geometriaEscada`; interface nos cartões `docs/cartoes/E4a/`, lançamento na E4b |
 | | **8.2 Acesso ao módulo** | | | |
@@ -689,14 +689,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.48 | Girar escada em torno do início do lance no grupo atual, por ponto na tela ou ângulo digitado. | Parcial | E | [E4b] núcleo 23/10/2026: comando `escada.girar {ids, angulo, centro?}` em torno da origem (início do lance) e `deltaPorPontos` (giro por pontos); ângulo digitado/pontos na interface nos cartões `docs/cartoes/E4b/03` |
 | | **8.4 Resultados, relatórios e desenhos** | | | |
 | C8.49 | Ver detalhe de armadura de cada lance numa janela, com seleção do lance; calcula na hora se for a primeira vez ou houve mudança. | Falta | E | [E4d] |
-| C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Falta | E | [E4c] |
+| C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Feito | — | [E4c] `calcularLance`: malha estruturada de casca de 6 nós (N2b, giro acoplado à membrana), casos G (peso próprio, degraus, revestimento, corrimão) e Q (sobrecarga); validado contra a viga biapoiada inclinada (reações, M = qℓ²/8, flecha, esforço normal), viga contínua com apoio rígido e elástico no patamar e o OpenSees (`escadasCalculo.validacao.test.ts`, `validation/opensees/escada.py`) |
 | C8.51 | Vista 3D do lance com isovalores de esforços e deslocamentos. | Falta | E | [E4e] |
-| C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Falta | E | [E4c] |
-| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Falta | E | [E4c] |
+| C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Feito | — | [E4c] `analisarEdificio` calcula as escadas antes (`calcularEscadas`) e aplica as reações como cargas antes da análise do edifício; o resultado fica em `AnaliseEdificio.escadas`; obra sem escada não muda (identidade de `comEscadas`) |
+| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Parcial | E | [E4c] núcleo 24/10/2026: `calcularEscadas(b)` é o cálculo individual (reações por apoio e esforços sem rodar a obra); `assinaturaEscadas` e `diagnosticoRecalcular` (código `ESCADA_RECALCULAR`); `escada.*`/`lance.*`/`tipoLance.*` invalidam o cálculo; botão "Calcular escada", tabela de reações e aviso nos cartões `docs/cartoes/E4c/` |
 | C8.54 | Relatório de escadas: dados gerais (materiais, norma), dados comuns (geometria, cargas) e por lance (reações, armaduras, esforços em cada seção). | Falta | E | [E4e] |
 | C8.55 | Desenho de detalhe de cada escada: cortes longitudinais e transversais, quadro de propriedades por lance (geometria, cargas, materiais) e quadros de aço por escada, por lance e total. | Falta | E | [E4e] |
 | | **8.5 Configuração** | | | |
-| C8.56 | Concreto das escadas igual ao das lajes, dos dados gerais. | Falta | E | [E4c] |
+| C8.56 | Concreto das escadas igual ao das lajes, dos dados gerais. | Feito | — | [E4c] `calcularLance`: E = Ecs de `concretoDe(b, 'laje')` (fck das lajes dos dados gerais); cobrimento e aço da obra entram na armadura (E4d) |
 | C8.57 | Escolha do aço e gestão das tabelas de armadura das escadas. | Falta | E | [E4d] |
 | C8.58 | Opção: igualar armaduras superior e inferior pelo maior valor. | Falta | E | [E4d] |
 | C8.59 | Opção: espaçamentos das armaduras superior e inferior múltiplos entre si. | Falta | E | [E4d] |
@@ -1083,3 +1083,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **23/10/2026 — E3f, núcleo (lajes inclinadas, rampas e desníveis).** C7.60 a C7.77, C7.94, C7.95, C7.129, C7.142 e C7.195 passam de Falta a Parcial; C7.1, C7.15 e C7.16 seguem Parcial com nota nova; C7.8 (frente L) ganha o campo `plano` na cópia de dados. Núcleo em `src/core/building/planos.ts`, `analitico.ts` (panos inclinados em barras 3D fora do diafragma) e `src/core/commands/planos.ts`; interface nos cartões `docs/cartoes/E3f/`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E sem mudança de contagem (os itens seguem Parcial na E até a interface).
+- **24/10/2026 — E4c, núcleo (cálculo das escadas).** C8.2, C8.50, C8.52 e C8.56 passam de Falta a Feito; C8.1 e C8.53 de Falta a Parcial (armadura na E4d; botão, tabela e aviso nos cartões). Núcleo em `src/core/building/escadasCalculo.ts` (casca de 6 nós por lance, apoios rígidos e elásticos, reações como cargas, `comEscadas` dentro da análise), `escadasResumo.ts` (resumo do `dimensionar` e linhas do memorial), `casca.ts` (`acoplarGiro`) e opções `escadaMalha`, `escadaEAlvenaria`, `escadaApoioFixoDois`; validação analítica e contra o OpenSees (`validation/opensees/escada.py`); interface nos cartões `docs/cartoes/E4c/`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (4 itens a Feito).
