@@ -12,9 +12,9 @@ export function Tree({ label, children }: { label: string; children: ReactNode }
 }
 
 /** Item da árvore. `level` 1–5 define o recuo. Sem `expanded` é folha. O clique na seta expande/recolhe (`onToggle`); o clique no rótulo seleciona (`onSelect`) ou, sem `onSelect`, expande. */
-export function TreeItem({ level, label, count, icon, expanded, onToggle, selected, onSelect, onContextMenu, title, children }: {
+export function TreeItem({ level, label, count, icon, expanded, onToggle, selected, onSelect, onContextMenu, extra, title, children }: {
   level: number; label: string; count?: number | string; icon?: ReactNode; expanded?: boolean; onToggle?: () => void;
-  selected?: boolean; onSelect?: () => void; onContextMenu?: (e: MouseEvent) => void; title?: string; children?: ReactNode;
+  selected?: boolean; onSelect?: () => void; onContextMenu?: (e: MouseEvent) => void; extra?: ReactNode; title?: string; children?: ReactNode;
 }) {
   const folha = expanded === undefined;
   return (
@@ -24,6 +24,7 @@ export function TreeItem({ level, label, count, icon, expanded, onToggle, select
         {folha ? <span className="sp" /> : <span className="chev-w" onClick={(e) => { if (onSelect && onToggle) { e.stopPropagation(); onToggle(); } }}><svg className="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2 L8 6 L4 10" /></svg></span>}
         {icon}
         <span className="tl">{label}</span>
+        {extra}
         {count !== undefined && <span className="cnt">{count}</span>}
       </Button>
       {!folha && expanded && children && <ul role="group">{children}</ul>}

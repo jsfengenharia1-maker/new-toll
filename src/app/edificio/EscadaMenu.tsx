@@ -5,6 +5,7 @@ import { aoEscolher, grupoDaPlanta, usePlanta } from './plantaStore';
 import { useBuilding } from './store';
 import { useNovaEscadaUI } from './NovaEscadaUI';
 import { useStore } from '../store';
+import { useEscadaCalculoUI } from './EscadaCalculoUI';
 
 /** Escolhe a ferramenta Escada. No nível de fundação não há escadas: mostra a mensagem e não troca a ferramenta. */
 export function escolherEscada(): boolean {
@@ -49,7 +50,8 @@ export function EscadaMenu() {
       )}
       {pl.escadaErros.map((e, i) => <Note key={i} tone="bad" data-escada-erro={e.codigo}>{e.mensagem}</Note>)}
       <Button variant="mini" disabled title="Disponível na frente E4d">Ver detalhe de armadura</Button>
-      <Button variant="mini" disabled title="Disponível na frente E4c">Ver esforços e deslocamentos</Button>
+      <Button variant="mini" onClick={() => useEscadaCalculoUI.getState().abrir()}>Ver esforços e deslocamentos</Button>
+      <Button variant="mini" disabled={!escadasDoGrupo.length} title="Cálculo individual de cada lance, antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()}>Calcular escada</Button>
       <Hint>{grupo ? `Grupo atual: ${grupo.nome}` : 'Grupo atual: —'}</Hint>
     </div>
   );

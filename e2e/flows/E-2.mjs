@@ -1124,3 +1124,47 @@ export const f_E4c = {
       await jan2.getByRole('button', { name: 'Fechar', exact: true }).click();
     },
   };
+
+export const f_E4c_menu = {
+    name: 'E4c-menu: cálculo das escadas pelo menu da ferramenta, marca "recalcular" no Navegador e reações nas Propriedades',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd('tipoLance.criar {"id": "T", "tipo": {"nome": "Reto de 18", "tipologia": "reto", "trechos": [18], "espessura": 0.15}}');
+      await cmd('escada.criar {"id": "e1", "grupo": "g_3", "origem": [4, 0], "angulo": 90, "piso": 0.2941176, "espelho": 0.1666667, "lances": [{"tipo": "T"}]}');
+      await esperarEscadas(page, 'E1');
+      // menu da ferramenta: "Ver esforços e deslocamentos" abre a janela do cálculo
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByRole('button', { name: 'Ver esforços e deslocamentos', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Cálculo das escadas', exact: true });
+      await jan.locator('[data-escada-lance="E1-1"]').waitFor({ timeout: 60000 });
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // "Calcular escada" do menu abre a mesma janela
+      await menu.getByRole('button', { name: 'Calcular escada', exact: true }).click();
+      await jan.locator('[data-escada-lance="E1-1"]').waitFor({ timeout: 60000 });
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // sem a obra calculada: sem marca no Navegador e reações "—" nas Propriedades
+      await page.getByRole('treeitem', { name: /^Escadas/ }).click();
+      const no = page.getByRole('treeitem', { name: /^E1 — 1 lance/ });
+      await no.waitFor();
+      assert.equal(await no.getByText('recalcular', { exact: true }).count(), 0);
+      // calcula a obra: as Propriedades mostram as reações; alterar a escada põe a marca "recalcular" no nó
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await no.click();
+      await page.getByRole('dialog', { name: 'Escadas', exact: true }).getByRole('button', { name: 'Fechar', exact: true }).click();
+      const prop = page.locator('[data-escada-propriedades]');
+      await prop.waitFor();
+      await prop.getByText('Cálculo', { exact: true }).click();
+      assert.match(await prop.innerText(), /Reações \(G \/ Q\)\s*\d+,\d{2} \/ \d+,\d{2} kN/);
+      await cmd('escada.editar {"id": "e1", "largura": 1.3}');
+      await no.getByText('recalcular', { exact: true }).waitFor();
+      await prop.getByRole('button', { name: 'Calcular escada…', exact: true }).click();
+      await jan.locator('[data-escada-recalcular]').waitFor();
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+    },
+};

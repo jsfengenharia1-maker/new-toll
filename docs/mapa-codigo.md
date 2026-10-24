@@ -126,7 +126,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `Empuxo.tsx`: EmpuxoGrupo
   - usado por: app/edificio/Configuracao.tsx
 - `EscadaCalculoUI.tsx`: useEscadaCalculoUI, EscadaCalculoHost, useAvisoRecalcular
-  - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/PaletaComandos.tsx
+  - usado por: app/edificio/Edificio.tsx, app/edificio/EscadaMenu.tsx, app/edificio/EscadaPropriedades.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Navegador.tsx, app/edificio/PaletaComandos.tsx
 - `EscadaMenu.tsx`: escolherEscada, EscadaMenu
   - usado por: app/edificio/Edificio.tsx, app/edificio/FaixaEdificio.tsx, app/edificio/Planta.tsx
 - `EscadaPropriedades.tsx`: EscadaPropriedades
@@ -578,7 +578,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `escadasEdicao.ts`: normalizarAngulo, anguloDeInsercao, girarPonto, moverEscada, girarEscada, deltaPorPontos, contornosEscada, escadasNoPonto, escadasNaJanela, PreviaEscada, EntradaInsercao, previaInsercao, FORMATO_TIPOS_LANCE, TipoLanceExportado, BibliotecaTiposLance, exportarTiposLance, lerBibliotecaTiposLance, tiposLanceIguais, EscadasDoGrupo, escadasPorGrupo, DesenhoPlantaEscada, desenhoPlantaEscada
   - usado por: app/edificio/MemorialEscadas.tsx, app/edificio/NovaEscadaUI.tsx, app/edificio/Planta.tsx, app/edificio/TiposLanceUI.tsx, app/edificio/escadaCanvas.ts, app/storage.ts, core/building/escadasEdicao.test.ts, core/commands/escadasEdicao.ts, core/sheets/escadasPrancha.test.ts, core/sheets/escadasPrancha.ts
 - `escadasResumo.ts`: ResumoLanceCalculo, resumoCalculoEscadas, LinhaMemorialCalculoEscada, escadasCalculoNoMemorial
-  - usado por: app/edificio/EscadaCalculoUI.tsx, app/edificio/MemorialEscadasCalculo.tsx, core/building/dimensionamento.ts, core/building/escadasCalculo.test.ts
+  - usado por: app/edificio/EscadaCalculoUI.tsx, app/edificio/EscadaPropriedades.tsx, app/edificio/MemorialEscadasCalculo.tsx, core/building/dimensionamento.ts, core/building/escadasCalculo.test.ts
 - `etapas.test.ts`: (sem exports)
   - usado por: -
 - `etapas.ts`: EtapaId, EstadoEtapa, Etapa, MUROS_DISPONIVEIS, ESCADAS_DISPONIVEIS, etapasDaObra, proximaEtapa

@@ -1,11 +1,12 @@
 // Navegador da obra (doca esquerda): árvore Obra > Pavimentos, Pilares, Vigas e Lajes por grupo, Eixos, Fundação e Vistas.
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
-import { Button, Palette, Tree, TreeItem } from '../ui';
+import { Button, Palette, Pill, Tree, TreeItem } from '../ui';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { useEdifUI, type AbaEdificio } from './uiStore';
 import { irParaElemento } from './Revisao';
 import { useEscadaUI } from './EscadaUI';
+import { useAvisoRecalcular } from './EscadaCalculoUI';
 import { caminhoAte, idDoNo, montarArvore, type NoArvore } from './arvore';
 import { lancesDoPilar, pavimentosOrdenados } from '../../core/building/types';
 
@@ -80,6 +81,7 @@ export function Navegador() {
     return () => { window.removeEventListener('click', fecha); window.removeEventListener('keydown', tecla); window.removeEventListener('blur', fecha); };
   }, [menu]);
   const exec = useBuilding((s) => s.exec);
+  const recalcular = useAvisoRecalcular();
   const duplicar = (id: string) => {
     const r = exec('escada.copiarDe', { de: id, dx: 0, dy: 0 });
     const nova = useBuilding.getState().sessao.modelo.escadas?.at(-1);
@@ -87,6 +89,7 @@ export function Navegador() {
   };
   const desenhar = (n: NoArvore): ReactNode => (
     <TreeItem key={n.id} level={n.nivel} label={n.rotulo} count={n.contagem} expanded={n.filhos ? abertos.has(n.id) : undefined}
+      extra={n.alvo?.tipo === 'escada' && recalcular ? <Pill tone="warn" title={recalcular}>recalcular</Pill> : undefined}
       onContextMenu={n.alvo?.tipo === 'escada' ? (e: MouseEvent) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: n.alvo!.id }); } : undefined}
       onToggle={() => alternar(n.id)} selected={selecionado(n)} onSelect={n.alvo ? () => selecionar(n) : undefined}>
       {n.filhos?.map(desenhar)}
