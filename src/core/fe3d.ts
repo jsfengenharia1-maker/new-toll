@@ -3,7 +3,8 @@
 // Rigidez direta: K esparsa nas equações independentes, Cuthill-McKee reversa e LDLᵀ em banda (math.ts).
 // N2b: barra de Timoshenko (áreas de cisalhamento Ay/Az), barras só no plano (soPlano), gdl condensados
 // recuperados por superelementos (complemento de Schur, condensacao.ts) e cascas de 6 nós (casca.ts).
-import { BandLDL, rcmOrder, spAdd, type SpRows } from './math';
+import { rcmOrder, spAdd, type SpRows } from './math';
+import { fatorarLDL } from './sparseldl';
 import { cargaPressaoCasca, esforcosCasca, rigidezCasca, type Casca3 } from './casca';
 export type { Casca3 } from './casca';
 
@@ -372,7 +373,7 @@ export function resolver3(m: Modelo3, casos: Caso3[]): Resultado3 {
   order.forEach((e, p) => (pos[e] = p));
   let maxDiag = 0;
   for (let e = 0; e < neq; e++) maxDiag = Math.max(maxDiag, Math.abs(K[e].get(e) ?? 0));
-  const ldl = new BandLDL(neq, hb, (set) => { for (let e = 0; e < neq; e++) for (const [c, v] of K[e]) { const p = pos[e], q = pos[c]; if (q >= p) set(p, q, v); } }, maxDiag || 1);
+  const ldl = fatorarLDL(neq, hb, (set) => { for (let e = 0; e < neq; e++) for (const [c, v] of K[e]) { const p = pos[e], q = pos[c]; if (q >= p) set(p, q, v); } }, maxDiag || 1);
   if (ldl.singularRow >= 0) {
     const eq = order[ldl.singularRow], d = eqDe.indexOf(eq);
     return { ...vazio, hb, erro: `Estrutura instável (gdl ${['ux', 'uy', 'uz', 'rx', 'ry', 'rz'][d % 6]} do nó ${(d - (d % 6)) / 6}).` };
@@ -510,7 +511,7 @@ export function fatorar3(m: Modelo3): Fatorado3 {
   order.forEach((e, p) => (pos[e] = p));
   let maxDiag = 0;
   for (let e = 0; e < neq; e++) maxDiag = Math.max(maxDiag, Math.abs(K[e].get(e) ?? 0));
-  const ldl = new BandLDL(neq, hb, (set) => { for (let e = 0; e < neq; e++) for (const [c, v] of K[e]) { const p = pos[e], q = pos[c]; if (q >= p) set(p, q, v); } }, maxDiag || 1);
+  const ldl = fatorarLDL(neq, hb, (set) => { for (let e = 0; e < neq; e++) for (const [c, v] of K[e]) { const p = pos[e], q = pos[c]; if (q >= p) set(p, q, v); } }, maxDiag || 1);
   if (ldl.singularRow >= 0) return { erro: 'Estrutura instável.', neq, deslocamentos: () => [] };
   return {
     neq,

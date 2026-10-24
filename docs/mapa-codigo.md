@@ -1018,7 +1018,7 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
 - `mapa.test.ts`: (sem exports)
   - usado por: -
 - `math.ts`: Poly, P, linearPoly, gauss, Mat, zeros, matMul, transpose, matVec, inv3, LU, SpRows, spAdd, rcmOrder, BandLDL
-  - usado por: app/Canvas.tsx, app/drawing.ts, app/panels/Resultados.tsx, app/pathTable.ts, app/results.ts, core/building/analitico.ts, core/casca.test.ts, core/condensacao.ts, core/design.ts, core/element.ts, core/fe3d.ts, core/influence.ts, core/secondorder.ts, core/solver.test.ts, core/solver.ts, core/train-crosscheck.test.ts
+  - usado por: app/Canvas.tsx, app/drawing.ts, app/panels/Resultados.tsx, app/pathTable.ts, app/results.ts, core/building/analitico.ts, core/casca.test.ts, core/condensacao.ts, core/design.ts, core/element.ts, core/fe3d.ts, core/influence.ts, core/secondorder.ts, core/solver.test.ts, core/solver.ts, core/sparseldl.test.ts, core/sparseldl.ts, core/train-crosscheck.test.ts
 - `metodoGeral.test.ts`: (sem exports)
   - usado por: -
 - `metodoGeral.ts`: MetodoGeral, metodoGeral, FATOR_FCD_SEGUNDA_ORDEM, relacaoMCurvatura, excentricidadeFluencia, excentricidadeAcidental
@@ -1181,6 +1181,10 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: -
 - `solver.ts`: PMember, Prepared, MemberResult, CaseResult, RIGID, SolveOverride, PrepareOptions, prepare, factorFree, applySkew, assembleGlobal, dofMap, memberLoads, solveLoading, memberDisp, caseVectors, solveCase, combine, Analysis, analyze
   - usado por: app/Memorial.tsx, app/drawing.ts, app/dxf.test.ts, app/dxf.ts, app/pathTable.test.ts, app/pathTable.ts, app/results.ts, core/design.test.ts, core/design.ts, core/edit.test.ts, core/influence.test.ts, core/influence.ts, core/pdelta3.test.ts, core/samples.test.ts, core/secondorder.test.ts, core/secondorder.ts, core/solver.test.ts, core/train-crosscheck.test.ts
+- `sparseldl.test.ts`: (sem exports)
+  - usado por: -
+- `sparseldl.ts`: FatoracaoLDL, LIMITE_BANDA, definirLimiteBanda, fatorarLDL, grauMinimo, SparseLDL
+  - usado por: core/building/planos.test.ts, core/fe3d.ts, core/sparseldl.test.ts
 - `steel.ts`: E_STEEL, G_STEEL, SteelProps, steelProps, SteelCombo, SteelInput, SteelCheck, SteelDesign, designSteel
   - usado por: core/design.test.ts, core/design.ts, core/profiles.test.ts
 - `train-crosscheck.test.ts`: (sem exports)

@@ -7,9 +7,10 @@ import { analisarEdificio } from './analitico';
 import { coeficientesPlano, croquiPavimento, dobraDaBarra, faceSuperiorDaViga, inclinacaoDoPlano, inclinacaoPercentual, marcaDeDobra, planosNoMemorial, pontosDeControle, secaoNoPlano, setaDeclividade, textoInclinacao, vigasIncoerentes, zPlano, capturaPlano, diagnosticosPlanos, cotaDaLaje, esforcosDosPlanos } from './planos';
 import { verificar } from './verify';
 import type { BuildingModel, DefinicaoPlano } from './types';
-import { resolver3 } from '../fe3d';
+import { resolver3, type V3 } from '../fe3d';
 import ref from '../../../validation/opensees/inclinada.json';
 import { criarExemplo } from './exemplos';
+import { definirLimiteBanda } from '../sparseldl';
 import { dimensionarEdificio } from './dimensionamento';
 
 const ok = (s: Sessao, nome: string, p: Record<string, unknown>) => { const r = s.executar(nome, p); if (!r.ok) throw new Error(`${nome}: ${r.erros.map((e) => e.mensagem).join(' ')}`); return r; };
@@ -115,6 +116,47 @@ describe('pórtico de duas águas (vigas em planos inclinados) contra o método 
     };
     expect(desl(0)).toBeGreaterThan(1e-5);
     expect(Math.abs(desl(1))).toBeLessThan(1e-12);
+  });
+
+  it('planoDiafragma = 1: o empuxo vai para o diafragma (tirante rígido) e coincide com o pórtico plano equivalente com barra-tirante', () => {
+    const { b, L, h, f, a } = duasAguas();
+    const an = analisarEdificio(b, { engasteTopoUltimo: 1, planoDiafragma: 1 });
+    expect(an.erro).toBeUndefined();
+    const pm = an.portico.modelo, tags = an.portico.barras;
+    const caibro = pm.barras[tags.findIndex((t) => t.tipo === 'viga')], pilar = pm.barras[tags.findIndex((t) => t.tipo === 'pilar')];
+    const w = 25 * 0.2 * 0.6 * Math.hypot(a, f) / a; // peso por m de projeção
+    // modelo equivalente sem a opção: pórtico no plano x-z, bases articuladas, caibros rígidos na cumeeira e barra-tirante axialmente rígida entre os topos
+    const nos: V3[] = [[0, 0, 0], [0, 0, h], [a, 0, h + f], [L, 0, h], [L, 0, 0]];
+    const prop = { E: caibro.E, G: caibro.G };
+    const sec = { A: caibro.A, Iy: caibro.Iy, Iz: caibro.Iz, J: caibro.J };
+    const col = { A: pilar.A, Iy: pilar.Iy, Iz: pilar.Iz, J: pilar.J };
+    expect(pilar.Iy).toBeCloseTo(pilar.Iz, 12); // pilar quadrado: o eixo de flexão no plano não importa
+    const barras = [
+      { i: 0, j: 1, ...prop, ...col }, { i: 1, j: 2, ...prop, ...sec }, { i: 2, j: 3, ...prop, ...sec }, { i: 4, j: 3, ...prop, ...col },
+      { i: 1, j: 3, ...prop, A: 1e6, Iy: 1e-9, Iz: 1e-9, J: 1e-9 },
+    ];
+    const apoios = new Map<number, number[]>([[0, [0, 1, 2, 3, 5]], [4, [0, 1, 2, 3, 5]], [1, [1, 3, 5]], [2, [1, 3, 5]], [3, [1, 3, 5]]]);
+    const cos = a / Math.hypot(a, f);
+    const q: V3 = [0, 0, -w * cos];
+    const r = resolver3({ nos, barras, apoios }, [{ nodais: [], distribuidas: [{ barra: 1, q }, { barra: 2, q }] }]);
+    expect(r.erro).toBeUndefined();
+    const Htirante = r.esforcos[0][4][6]; // tração no tirante (N na ponta j; na i o sinal vem trocado) = empuxo dos caibros
+    const VbaseEq = r.reacoes[0].get(0)![0], NbeiralEq = Math.min(-r.esforcos[0][1][0], r.esforcos[0][1][6]);
+    expect(Htirante).toBeGreaterThan(10);
+    // o modelo do edifício dá o mesmo: resto de cortante nos pilares (pequeno, vem do giro do beiral), normal do caibro no beiral
+    const reac = an.fundacao.filter((x) => x.caso === 'G');
+    const [rA, rB] = [...reac].sort((x, y) => (b.pilares.find((p) => p.id === x.pilar)!.x - b.pilares.find((p) => p.id === y.pilar)!.x));
+    expect(rA.Vx).toBeCloseTo(VbaseEq, 5);
+    expect(rB.Vx).toBeCloseTo(-VbaseEq, 5);
+    expect(Math.abs(rA.Vx)).toBeLessThan(0.01 * Htirante); // quase todo o empuxo fica no tirante, não nos pilares
+    const nc = esforcosDosPlanos(an).normais.find((x) => x.caso === 'G' && x.tipo === 'viga')!;
+    expect(nc.Nmin / NbeiralEq).toBeCloseTo(1, 6);
+    // ordem de grandeza analítica: o arco de três rótulas teria H = w·L²/(8 f); aqui a cumeeira é rígida e o beiral é engastado no pilar (momento negativo na cumeeira: H um pouco maior)
+    const Harco = (w * L * L) / (8 * f);
+    expect(Htirante).toBeGreaterThan(Harco);
+    expect(Htirante).toBeLessThan(1.3 * Harco);
+    // a soma das reações verticais continua igual à carga
+    expect(reac.reduce((t, x) => t + x.N, 0)).toBeCloseTo(an.totais.G, 6);
   });
 
   it('modelo separado: aviso e pano na projeção', () => {
@@ -334,6 +376,64 @@ describe('validação externa: OpenSees (validation/opensees/inclinada.py)', () 
     R.desloc.forEach((d, n) => { for (let k = 0; k < 6; k++) { e = Math.max(e, Math.abs(u[n * 6 + k] - d[k])); mx = Math.max(mx, Math.abs(d[k])); } });
     expect(e / mx).toBeLessThan(1e-8);
   }, 120000);
+});
+
+describe('exemplo: cobertura em duas águas com os panos no diafragma (planoDiafragma = 1)', () => {
+  it('analisa e dimensiona em tempo razoável; equilíbrio das reações; mesmas cargas que sem a opção; panos presos ao diafragma', { timeout: 90000 }, () => {
+    const s = criarExemplo('telhado');
+    const t0 = Date.now();
+    const an = analisarEdificio(s.modelo, { planoDiafragma: 1 });
+    expect(an.erro).toBeUndefined();
+    const dt = Date.now() - t0;
+    const ig = an.casos.indexOf('G');
+    // equilíbrio global: verticais iguais à carga (peso próprio por área inclinada), horizontais da base em equilíbrio entre si
+    const reacG = an.fundacao.filter((r) => r.caso === 'G');
+    expect(reacG.reduce((t, r) => t + r.N, 0)).toBeCloseTo(an.totais.G, 6);
+    expect(Math.abs(reacG.reduce((t, r) => t + r.Vx, 0))).toBeLessThan(1e-6);
+    expect(Math.abs(reacG.reduce((t, r) => t + r.Vy, 0))).toBeLessThan(1e-6);
+    for (const c of an.casos.filter((x) => x !== 'G' && x in an.totais)) {
+      expect(an.fundacao.filter((r) => r.caso === c).reduce((t, r) => t + r.N, 0)).toBeCloseTo(an.totais[c], 6);
+    }
+    // referência independente: o mesmo modelo sem a opção tem as mesmas cargas verticais (a opção só muda o vínculo dos nós)
+    const sem = analisarEdificio(s.modelo, { planoDiafragma: 0 });
+    expect(sem.erro).toBeUndefined();
+    expect(an.totais.G).toBeCloseTo(sem.totais.G, 9);
+    // nós de pano ligados ao diafragma: ux, uy e rz iguais aos do mestre (+ rotação), e menos equações que sem a opção
+    const pm = an.portico.modelo, u = an.portico.res!.desloc[ig];
+    expect(pm.escravos!.length).toBeGreaterThan(sem.portico.modelo.escravos!.length);
+    for (const e of pm.escravos!) {
+      const dx = pm.nos[e.no][0] - pm.nos[e.mestre][0], dy = pm.nos[e.no][1] - pm.nos[e.mestre][1];
+      expect(u[e.no * 6]).toBeCloseTo(u[e.mestre * 6] - dy * u[e.mestre * 6 + 5], 12);
+      expect(u[e.no * 6 + 1]).toBeCloseTo(u[e.mestre * 6 + 1] + dx * u[e.mestre * 6 + 5], 12);
+    }
+    expect(an.portico.res!.neq).toBeLessThan(sem.portico.res!.neq);
+    // dimensiona sem erro
+    const cob = s.modelo.pavimentos.find((p) => p.nome === 'Cobertura')!;
+    const d = dimensionarEdificio(s.modelo, an);
+    expect(d.lajes.filter((l) => l.pavimento === cob.nome).length).toBe(6);
+    expect(d.lajes.filter((l) => l.pavimento === cob.nome).every((l) => Number.isFinite(l.flecha ?? 0))).toBe(true);
+    const gc = an.grelhas.find((x) => x.pavimento === cob.id)!;
+    expect(gc.res!.desloc.some((v) => v.some(Number.isNaN))).toBe(false);
+    expect(dt).toBeLessThan(60000); // antes: a banda do sistema passava de 6 700 e a fatoração não terminava em minutos
+  });
+
+  it('fatoração esparsa = fatoração em banda nos deslocamentos do telhado de duas águas (com e sem o diafragma)', () => {
+    const { s } = telhado();
+    ok(s, 'plano.corrigirVigas', { vigas: [...new Set(vigasIncoerentes(s.modelo).map((x) => x.viga))] });
+    for (const pd of [0, 1]) {
+      let banda, esparsa;
+      try {
+        definirLimiteBanda(Infinity);
+        banda = analisarEdificio(s.modelo, { planoDiafragma: pd });
+        definirLimiteBanda(0);
+        esparsa = analisarEdificio(s.modelo, { planoDiafragma: pd });
+      } finally { definirLimiteBanda(); }
+      expect(banda.erro).toBeUndefined();
+      expect(esparsa.erro).toBeUndefined();
+      const ub = banda.portico.res!.desloc, ue = esparsa.portico.res!.desloc;
+      ub.forEach((cb, ic) => { let m = 0, e = 0; cb.forEach((v, i) => { m = Math.max(m, Math.abs(v)); e = Math.max(e, Math.abs(v - ue[ic][i])); }); expect(e / (m || 1)).toBeLessThan(1e-9); });
+    }
+  });
 });
 
 describe('exemplo: cobertura em duas águas', () => {
