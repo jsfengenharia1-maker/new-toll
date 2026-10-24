@@ -2,16 +2,25 @@
 // avisos, com a marca "a confirmar" onde a convenção ainda espera o manual. As linhas vêm de `escadasNoMemorial` (núcleo).
 import type { ReactNode } from 'react';
 import { escadasNoMemorial } from '../../core/building/escadas';
+import { escadasPorGrupo } from '../../core/building/escadasEdicao';
 import type { BuildingModel } from '../../core/building/types';
 
 export function MemorialEscadas({ b, h2 }: { b: BuildingModel; h2: (t: string) => ReactNode }) {
   const linhas = escadasNoMemorial(b);
   if (!linhas.length) return null;
   const escadas = [...new Set(linhas.map((l) => l.escada))];
+  const grupos = escadasPorGrupo(b), fmt = (v: number) => v.toFixed(2).replace('.', ',');
   return (
     <>
       {h2('Escadas')}
       <div data-memorial-escadas>
+        <div className="avoid" data-memorial-escadas-grupo>
+          <h3>Escadas por grupo</h3>
+          <table>
+            <thead><tr><th className="l">Grupo</th><th className="l">Escada</th><th>Origem (x ; y) (m)</th><th>Sentido (°)</th><th>Lances</th><th>Degraus</th></tr></thead>
+            <tbody>{grupos.flatMap((g) => g.escadas.map((e) => <tr key={`${g.grupo}-${e.nome}`}><td className="l">{g.nomeGrupo}</td><td className="l">{e.nome}</td><td>{fmt(e.origem[0])} ; {fmt(e.origem[1])}</td><td>{fmt(e.angulo)}</td><td>{e.lances}</td><td>{e.degraus}</td></tr>))}</tbody>
+          </table>
+        </div>
         {escadas.map((nome) => (
           <div className="avoid" key={nome} data-memorial-escada={nome}>
             <h3>Escada {nome}</h3>

@@ -104,7 +104,7 @@ describe('pranchas', () => {
     for (let i = 1; i < tot; i++) { const off = +linhas[2 + i].slice(0, 10); expect(t.slice(off).startsWith(`${i} 0 obj`)).toBe(true); }
     expect(t).toContain('/MediaBox [0 0 1683.7795 1190.5512]');
     expect((t.match(/\/Type \/Page\b/g) ?? []).length).toBe(2);
-    expect((t.match(/\/Type \/OCG/g) ?? []).length).toBe(Object.keys(CAMADAS).length - 14); // PILAR-NASCE, FUNDACAO, MASCARA, PONTO-FIXO, as camadas de armação e as 6 de cargas (V5) não aparecem
+    expect((t.match(/\/Type \/OCG/g) ?? []).length).toBe(Object.keys(CAMADAS).length - 15); // PILAR-NASCE, ESCADAS (E4b), FUNDACAO, MASCARA, PONTO-FIXO, as camadas de armação e as 6 de cargas (V5) não aparecem
     expect(t).toContain('(V1 15\\32750) Tj'); // × em WinAnsi (0xD7)
     expect(t).toContain('(Escrit\\363rio Exemplo) Tj');
   });

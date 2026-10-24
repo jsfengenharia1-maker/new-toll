@@ -749,7 +749,7 @@ export const f_E4a = {
       await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
       // 4b) Navegador: abre o nó Escadas e seleciona E1; as Propriedades mostram a escada e o espelho é editável
       await page.getByRole('treeitem', { name: /^Escadas/ }).click();
-      await page.getByRole('treeitem', { name: 'E1', exact: true }).click();
+      await page.getByRole('treeitem', { name: /^E1/ }).click();
       const jan2 = page.getByRole('dialog', { name: 'Escadas', exact: true });
       await jan2.waitFor();
       await jan2.getByRole('button', { name: 'Fechar', exact: true }).click();
@@ -984,5 +984,71 @@ export const f_E4b_biblioteca = {
       await jan2.locator('[data-aviso-tipos-lance]').filter({ hasText: /0 tipo\(s\) de lance importado\(s\); 2 já existia/ }).waitFor();
       await jan2.getByLabel('Importar (.json)', { exact: true }).setInputFiles({ name: 'ruim.json', mimeType: 'application/json', buffer: Buffer.from('{"formato": "outro"}') });
       await jan2.locator('.note.bad').first().waitFor();
+    },
+};
+
+export const f_E4b_guia = {
+    name: 'E4b-guia: etapa Escadas do guia (pendente sem escada, feito depois do lançamento na planta)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await porticoParaEscadas(page);
+      const etapa = page.locator('[data-etapa="escadas"]');
+      await etapa.waitFor();
+      assert.match(await etapa.innerText(), /pendente/);
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      const menu = page.locator('[data-escada-menu]');
+      await menu.getByRole('button', { name: 'Dados da nova escada…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Nova escada', exact: true });
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).fill('0.16667');
+      await jan.getByLabel(/^Espelho \(altura do degrau\)/).press('Tab');
+      await jan.getByRole('button', { name: 'Lançar na planta', exact: true }).click();
+      await clicarPlanta(page, 1, 1); await clicarPlanta(page, 1, 4);
+      await esperarEscadas(page, 'E1');
+      assert.match(await etapa.innerText(), /feito/);
+      assert.match(await etapa.innerText(), /1 escada\(s\)/);
+      // Navegador: menu do nó (botão direito) duplica a escada; as Propriedades mostram a posição e giram 90°
+      await page.getByRole('treeitem', { name: /^Escadas/ }).click();
+      await page.getByRole('treeitem', { name: /^E1 — 1 lance\(s\)/ }).click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Duplicar', exact: true }).click();
+      await esperarEscadas(page, 'E1,E2');
+      const prop = page.locator('[data-escada-propriedades]');
+      await prop.waitFor();
+      await prop.getByRole('button', { name: 'Girar 90°', exact: true }).click();
+      await page.waitForFunction(() => { const e = (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.escadas ?? []); return e.length === 2 && e[1].angulo === 180 && e[0].angulo === 90; });
+      await page.getByRole('treeitem', { name: /^E2 — 1 lance\(s\)/ }).click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Apagar', exact: true }).click();
+      await esperarEscadas(page, 'E1');
+    },
+};
+
+export const f_E4b_formas = {
+    name: 'E4b-formas: escadas nas pranchas de formas e de locação e a tabela "Escadas por grupo" do memorial',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      const prev = page.locator('.prancha-prev');
+      await tipo.selectOption({ label: 'Formas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /E1/);
+      await tipo.selectOption({ label: 'Locação e cargas' });
+      await prev.locator('svg').waitFor();
+      assert.match(await prev.textContent(), /E1/);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+      const me = memo.locator('[data-memorial-escadas]');
+      await me.waitFor();
+      assert.match(await me.innerText(), /Escadas por grupo/);
+      const tab = me.locator('[data-memorial-escadas-grupo] tbody tr');
+      assert.equal(await tab.count(), 1);
+      assert.match(await tab.first().innerText(), /E1\s+1,00 ; 1,00\s+90,00\s+1\s+18/);
+      await memo.getByRole('button', { name: 'Fechar' }).click();
     },
 };

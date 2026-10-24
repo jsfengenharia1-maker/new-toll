@@ -1,6 +1,6 @@
 // Propriedades da escada selecionada (E4a, interface): grupos "Geometria" (largura, piso, espelho, giro, último degrau) e
 // "Cargas" (execução, corrimãos, revestimento, sobrecarga, acesso). Cada campo chama `escada.dados`; o núcleo valida.
-import { Check, Group, Hint, NumField, OptNumField, Select } from '../ui';
+import { Button, Check, Group, Hint, NumField, OptNumField, Select } from '../ui';
 import type { Escada } from '../../core/building/escadas';
 import { useBuilding } from './store';
 
@@ -9,6 +9,14 @@ export function EscadaPropriedades({ e }: { e: Escada }) {
   const muda = (p: Record<string, unknown>) => exec('escada.dados', { id: e.id, ...p });
   return (
     <div data-escada-propriedades>
+      <Group title="Posição">
+        <div className="row wrap u-items-end">
+          <NumField label="Origem x" unit="m" width={110} value={e.origem[0]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [v, e.origem[1]] })} />
+          <NumField label="Origem y" unit="m" width={110} value={e.origem[1]} onChange={(v) => exec('escada.editar', { id: e.id, origem: [e.origem[0], v] })} />
+          <NumField label="Sentido de subida" unit="°" width={110} value={e.angulo} onChange={(v) => exec('escada.editar', { id: e.id, angulo: v })} />
+          <Button variant="mini" onClick={() => exec('escada.girar', { ids: [e.id], angulo: 90 })}>Girar 90°</Button>
+        </div>
+      </Group>
       <Group title="Geometria">
         <div className="row wrap u-items-end">
           <NumField label="Largura da escada" unit="m" width={120} value={e.largura} onChange={(v) => muda({ largura: v })} />

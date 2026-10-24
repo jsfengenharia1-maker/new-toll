@@ -2,6 +2,7 @@
 // (hachurados) com o rótulo "Pn / b×h", tabela de cargas por pilar com valores característicos (combinação rara
 // de maior N, como as cargas enviadas a Fundações) e de cálculo (ELU de maior Nd), em kN e kN·m, e notas gerais
 // do modelo (concreto, aço, cobrimentos, CAA, γ, normas).
+import { primitivasEscadas } from './escadasPrancha';
 import { opcoesEmUso, perfilDe } from '../building/opcoes';
 import { pontoRef, refDe } from '../building/vistaObra';
 import type { AnaliseEdificio } from '../building/analitico';
@@ -120,6 +121,7 @@ export function montarPranchaLocacao(b: BuildingModel, an: AnaliseEdificio | nul
     const [, , x1, y1] = caixa(w.cs.flat());
     modelo.push({ t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 + 0.8 * k], h: 2.5 * k, s: w.pp.nome, av: 'base' }, { t: 'txt', c: 'TEXTO', p: [x1 + 0.8 * k, y1 - 0.4 * k], h: 2 * k, s: textoParede(b, w.pp, w.lance), av: 'topo' });
   }
+  modelo.push(...primitivasEscadas(b, k));
   const centros = [...pils.map(({ c }) => c), ...paredes.map((w) => w.cs.flat())].map((c) => { const [a0, b0, a1, b1] = caixa(c); return [(a0 + a1) / 2, (b0 + b1) / 2] as P; });
   eixosECotas(modelo, b.eixos, centros, cx, k);
   // cotas do usuário (L6) que só ligam pilares, paredes, eixos e pontos livres (a locação não tem vigas nem lajes)

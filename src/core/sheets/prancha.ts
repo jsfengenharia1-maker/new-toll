@@ -1,6 +1,7 @@
 // Montagem das pranchas (função pura): planta de formas de um grupo de pavimentos em escala real (m) no espaço
 // do modelo, e folha, carimbo e quadro de pilares no espaço do papel (mm). Os escritores (PDF, DXF, DWG, SVG)
 // recebem a mesma prancha.
+import { primitivasEscadas } from './escadasPrancha';
 import { ARMACAO_PADRAO, contornoPilar, geometriaViga, lancesDoPilar, pavimentosOrdenados, secaoNoLance, PRANCHA_PADRAO, type BuildingModel, type Carimbo, type Formato, type Pilar, type SecaoPilar, contornoNoLance } from '../building/types';
 import { pontoRef, refDe } from '../building/vistaObra';
 import { dentroPoligono, pontoInterno, type P } from '../geom/faces';
@@ -37,6 +38,8 @@ export const CAMADAS = {
   'ARMADURA': { cor: 1, pena: 0.35, tipo: 'cont' },
   'ARMADURA-NEG': { cor: 5, pena: 0.35, tipo: 'cont' },
   'FORMA-FINA': { cor: 8, pena: 0.18, tipo: 'cont' },
+  // escadas (E4b): contorno, seta de subida e nome nas formas e na locação
+  'ESCADAS': { cor: 6, pena: 0.35, tipo: 'cont' },
   // fundações (FU5): contorno dos elementos (sapatas, blocos, tubulões) e das vigas de fundação em planta
   'FUNDACAO': { cor: 6, pena: 0.5, tipo: 'cont' },
   // opções de desenho (R7g): gabarito (máscara DXF/DWG) na pena mais fina das existentes e ponto fixo dos pilares
@@ -312,6 +315,8 @@ export function montarPrancha(b: BuildingModel, grupo: string, o: OpcoesPrancha 
       modelo.push({ t: 'pl', c: 'LAJE', pts: [[a0, b0], [a1, b1]] }, { t: 'pl', c: 'LAJE', pts: [[a0, b1], [a1, b0]] });
     }
   }
+  // escadas do grupo (E4b)
+  modelo.push(...primitivasEscadas(b, k, [grupo]));
   // corpos que interrompem as faces das vigas: pilares e as outras vigas (cruzamentos e apoios em "T")
   const corposPilar = [...el.chegam.map((p) => contornoNoLance(p, ref!.id)), ...el.nascem.map((p) => contornoBase(b, p)), ...el.paredes.flatMap((w) => w.lados.map((l) => l.contorno))];
   const corpoViga = new Map(el.vigas.map((v) => { const gv = geometriaViga(v); return [v.id, [...gv.esq, ...[...gv.dir].reverse()] as P[]]; }));

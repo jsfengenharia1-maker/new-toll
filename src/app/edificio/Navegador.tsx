@@ -1,5 +1,5 @@
 // Navegador da obra (doca esquerda): árvore Obra > Pavimentos, Pilares, Vigas e Lajes por grupo, Eixos, Fundação e Vistas.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { Button, Palette, Tree, TreeItem } from '../ui';
 import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
@@ -71,8 +71,23 @@ export function Navegador() {
       irParaElemento(b, 'laje', a.id, ps.find((p) => p.grupo === l?.grupo)?.nome);
     } else if (a.tipo === 'viga' || a.tipo === 'fundacao' || a.tipo === 'pilarParede' || a.tipo === 'parede') irParaElemento(b, a.tipo, a.id);
   };
+  // menu do nó da escada (botão direito ou tecla de menu): Editar, Duplicar e Apagar (E4b)
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const fecha = () => setMenu(null), tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
+    window.addEventListener('click', fecha); window.addEventListener('keydown', tecla); window.addEventListener('blur', fecha);
+    return () => { window.removeEventListener('click', fecha); window.removeEventListener('keydown', tecla); window.removeEventListener('blur', fecha); };
+  }, [menu]);
+  const exec = useBuilding((s) => s.exec);
+  const duplicar = (id: string) => {
+    const r = exec('escada.copiarDe', { de: id, dx: 0, dy: 0 });
+    const nova = useBuilding.getState().sessao.modelo.escadas?.at(-1);
+    if (r.ok && nova) usePlanta.getState().set({ selecao: new Set([nova.id]) });
+  };
   const desenhar = (n: NoArvore): ReactNode => (
     <TreeItem key={n.id} level={n.nivel} label={n.rotulo} count={n.contagem} expanded={n.filhos ? abertos.has(n.id) : undefined}
+      onContextMenu={n.alvo?.tipo === 'escada' ? (e: MouseEvent) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: n.alvo!.id }); } : undefined}
       onToggle={() => alternar(n.id)} selected={selecionado(n)} onSelect={n.alvo ? () => selecionar(n) : undefined}>
       {n.filhos?.map(desenhar)}
     </TreeItem>
@@ -80,6 +95,13 @@ export function Navegador() {
   return (
     <Palette titulo="Navegador" aside={<Button variant="mini" title="Recolhe todos os ramos" onClick={() => setAbertos(new Set(['obra']))}>Recolher ramos</Button>}>
       <Tree label="Navegador da obra">{desenhar(arvore)}</Tree>
+      {menu && (
+        <div className="menu fixo" role="menu" aria-label="Menu da escada" style={{ left: menu.x, top: menu.y }}>
+          <Button variant="nenhuma" role="menuitem" onClick={() => { usePlanta.getState().set({ selecao: new Set([menu.id]) }); useEscadaUI.getState().abrir(menu.id); }}>Editar</Button>
+          <Button variant="nenhuma" role="menuitem" onClick={() => duplicar(menu.id)}>Duplicar</Button>
+          <Button variant="nenhuma" role="menuitem" onClick={() => { exec('escada.remover', { ids: [menu.id] }); }}>Apagar</Button>
+        </div>
+      )}
     </Palette>
   );
 }
