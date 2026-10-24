@@ -20,6 +20,12 @@ export function Navegador() {
   const arvore = useMemo(() => montarArvore(b), [b]);
   const selecao = usePlanta((s) => s.selecao);
   const pavAtual = usePlanta((s) => s.pavimento);
+  const planoSel = usePlanta((s) => s.planoSel);
+  useEffect(() => {
+    if (!planoSel) return;
+    const c = caminhoAte(arvore, `plano:${planoSel}`);
+    if (c.length) setAbertos((a) => new Set([...a, ...c.slice(0, -1)]));
+  }, [planoSel, arvore]);
   const aba = useEdifUI((s) => s.aba);
   const [abertos, setAbertos] = useState<Set<string>>(() => new Set(['obra', 'pavs']));
   const alternar = (id: string) => setAbertos((a) => { const n = new Set(a); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -40,6 +46,7 @@ export function Navegador() {
     if (!n.alvo) return undefined;
     if (n.alvo.tipo === 'vista') return aba === n.alvo.id;
     if (n.alvo.tipo === 'pavimento') return pavAtual === n.alvo.id && selecao.size === 0;
+    if (n.alvo.tipo === 'plano') return planoSel === n.alvo.id;
     return selecao.has(n.alvo.id);
   };
   const selecionar = (n: NoArvore) => {
@@ -51,6 +58,12 @@ export function Navegador() {
     const P = usePlanta.getState();
     if (a.tipo === 'escada') { P.set({ selecao: new Set([a.id]) }); useEscadaUI.getState().abrir(a.id); return; }
     if (a.tipo === 'pavimento'){ P.set({ pavimento: a.id, selecao: new Set() }); return; }
+    if (a.tipo === 'plano') {
+      const plano = (b.planos ?? []).find((x) => x.id === a.id), pav = pavimentosOrdenados(b).find((p) => p.grupo === plano?.grupo);
+      P.set({ planoSel: a.id, ...(pav ? { pavimento: pav.id } : {}) });
+      abrirGrupo('Planos');
+      return;
+    }
     if (a.tipo === 'eixo') { P.set({ selecao: new Set([a.id]), foco: { id: a.id, n: Date.now() } }); return; }
     const ps = pavimentosOrdenados(b);
     if (a.tipo === 'carga') {

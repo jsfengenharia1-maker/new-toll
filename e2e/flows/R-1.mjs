@@ -308,7 +308,7 @@ export const f_R3b = {
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento dos pilares/);
       assert.match(mt, /Resumo geral de aço/);
-      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas e nervuradas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares\)/);
       assert.match(mt, /detalhamento-pilares|Detalhamento\.\s*Pilares/);
     },
   };
@@ -334,7 +334,7 @@ export const f_R4 = {
       assert.ok(Math.abs(pg - (pv + pp + pl)) < 0.03, `geral ${pg} = ${pv} + ${pp} + ${pl}`);
       const csv = await downloadText(page, () => resumo.getByRole('button', { name: 'Exportar CSV do aço' }).click());
       assert.match(csv.text, /Resumo de aço das lajes/);
-      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares, paredes, lajes, vigotas e nervuradas\)/);
+      assert.match(csv.text, /Resumo geral de aço \(vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares\)/);
       assert.match(csv.text, /Lista de posições das lajes/);
       // janela da laje, aba Detalhamento
       const cardL = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes/ }) });
@@ -381,7 +381,7 @@ export const f_R4 = {
       const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
       const mt = await memo.textContent();
       assert.match(mt, /Detalhamento das lajes/);
-      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas e nervuradas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares\)/);
       assert.match(mt, /detalhamento-lajes|Detalhamento\.\s*Lajes/);
     },
   };
@@ -583,7 +583,7 @@ export const f_R6 = {
       const mt = await memo.textContent();
       assert.match(mt, /Lajes treliçadas/);
       assert.match(mt, /Treliças eletrossoldadas \(por tipo\)/);
-      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas e nervuradas\)/);
+      assert.match(mt, /Total geral \(vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares\)/);
     },
   };
 

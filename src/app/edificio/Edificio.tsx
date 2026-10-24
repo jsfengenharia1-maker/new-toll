@@ -25,10 +25,14 @@ import { MemorialEdificio } from './MemorialEdificio';
 import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
+import { TipoPanoGrupo } from './TipoPano';
+import { PlanosGrupo, PlanosHost } from './PlanosUI';
 import { InclinadasHost } from './InclinadasUI';
 import { EscadaHost } from './EscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { Pranchas } from './Pranchas';
+import { AlveolarCampos, tipoAlveolarInicial } from './AlveolarTipo';
+import { AlveolaresGrupo } from './AlveolaresUI';
 import { Vista3D } from '../vista3d/Vista3D';
 import { importarCargasDoEdificio } from '../Fundacoes';
 import { FogoCard } from './FogoCard';
@@ -221,6 +225,9 @@ export function Edificio() {
           <VigasGrupo b={b} />
           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
           <LajesGrupo b={b} />
+          <TipoPanoGrupo b={b} />
+          <PlanosGrupo b={b} />
+          <AlveolaresGrupo b={b} />
           <NervuradasGrupo b={b} />
           <AbacosGrupo b={b} />
           <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
@@ -250,6 +257,7 @@ export function Edificio() {
       <EscadaHost />
       <DiagonaisHost />
       <ConsolosHost />
+      <PlanosHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
     </div>
   );
@@ -637,7 +645,7 @@ function TipoLajeCampos({ b, tipo, onChange }: { b: BuildingModel; tipo: TipoLaj
   const trocaTipo = (v: TipoLaje['tipo']) => onChange(v === 'macica' ? { tipo: 'macica', h: 0.1 } : v === 'trelicada' ? { tipo: 'trelicada', modelo: 'H12', capa: TRELICADAS.H12.capa } : v === 'vigotas' ? { tipo: 'vigotas', ficha: 'cat:trelicadas', serie: 'H12' } : v === 'nervurada' ? { tipo: 'nervurada', forma: formasDisponiveis(b)[0]?.id ?? 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 } : { tipo: 'moldada', capa: 0.05, intereixo: 0.6, bw: 0.12, h: 0.25, enchimento: 'eps' });
   return (
     <div className="row wrap">
-      <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }, { v: 'vigotas', label: 'Vigotas por ficha' }, { v: 'moldada', label: 'Nervurada moldada no local' }, { v: 'nervurada', label: 'Nervurada bidirecional' }]} onChange={trocaTipo} />
+      <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }, { v: 'vigotas', label: 'Vigotas por ficha' }, { v: 'moldada', label: 'Nervurada moldada no local' }, { v: 'nervurada', label: 'Nervurada bidirecional' }, { v: 'alveolar', label: 'Alveolar' }]} onChange={(v) => (v === 'alveolar' ? onChange(tipoAlveolarInicial(b)) : trocaTipo(v))} />
       {tipo.tipo === 'macica'
         ? <NumField label="h" unit="cm" width={80} value={+(tipo.h * 100).toFixed(1)} onChange={(v) => v >= 7 && onChange({ tipo: 'macica', h: v / 100 })} />
         : tipo.tipo === 'vigotas' ? <>
@@ -658,6 +666,7 @@ function TipoLajeCampos({ b, tipo, onChange }: { b: BuildingModel; tipo: TipoLaj
           <NumField label="Mesa da nervurada" unit="cm" width={80} value={+(tipo.capa * 100).toFixed(1)} onChange={(v) => v >= 3 && onChange({ ...tipo, capa: v / 100 })} />
           <Hint>{(() => { const g = geometriaBidirecional(b, tipo); return `Zona aliviada: peso ${fmt(g.pp)} kN/m², concreto ${fmt(g.volume, 3)} m³/m², cubeta de ${Math.round(g.forma.altura * 100)} cm (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}).`; })()}</Hint>
         </>
+        : tipo.tipo === 'alveolar' ? <AlveolarCampos b={b} tipo={tipo} onChange={onChange} />
         : tipo.tipo !== 'trelicada' ? <Hint>Laje de vigotas por ficha ou nervurada moldada: edite o tipo no grupo “Tipos de laje”.</Hint>
         : <>
           <Select label="Enchimento" value={tipo.modelo} options={Object.keys(TRELICADAS).map((k) => ({ v: k, label: k }))} onChange={(v) => onChange({ tipo: 'trelicada', modelo: v, capa: TRELICADAS[v].capa })} />

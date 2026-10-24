@@ -11,6 +11,7 @@ import { Button, FilePick, Group, Hint, NumField, OptNumField, Pill, Seg, Select
 import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
 import { useStore } from '../store';
 import { useBuilding } from './store';
+import { FichasAlveolaresUI } from './FichasAlveolares';
 import { FormasLajeUI } from './FormasLaje';
 
 type Aba = 'geometria' | 'positivo' | 'negativo' | 'cortante' | 'protensao' | 'resumo';
@@ -183,6 +184,7 @@ export function TiposLajeGrupo({ b }: { b: BuildingModel }) {
 
         <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
         <FormasLajeUI b={b} roda={roda} />
+        <FichasAlveolaresUI b={b} roda={roda} />
         <ArquivoTiposLaje b={b} roda={roda} setMsg={setMsg} />
         <BibliotecaTiposLaje b={b} roda={roda} />
         <Hint>Dados de ficha são do fabricante: o programa só confere a coerência lógica. Fichas de catálogo e de exemplo são copiadas para a obra ao atribuir; copie uma ficha para editá-la. O catálogo das treliçadas fica na biblioteca de normas.</Hint>

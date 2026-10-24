@@ -432,7 +432,7 @@ export function csvAco(dim: DimEdificio): string {
     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
     return l;
   };
-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(res, resP, resPar, resL, resV, resN))];
+  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo de aço das lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []))];
   if (dim.trelicas?.length) {
     lin.push(['Treliças eletrossoldadas por tipo'], ['Treliça', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
     for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
@@ -485,7 +485,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
   const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resPar = dim.resumoAcoParedes ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], resN = dim.resumoAcoNervuradas ?? [], tre = dim.trelicas ?? [];
   const telas = dim.resumoTelas ?? [];
   if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !resN.length && !telas.length) return null;
-  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN));
+  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []));
   return (
     <div className="card" data-resumo-aco>
       <h3>Resumo de aço</h3>
@@ -493,6 +493,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
       <TabelaAco titulo="Pilares" res={resP} marca="pilares" />
       {resPar.length > 0 && <TabelaAco titulo="Paredes e pilares-parede" res={resPar} marca="paredes" />}
       <TabelaAco titulo="Lajes maciças" res={resL} marca="lajes" />
+      {(dim.resumoAcoAlveolares?.length ?? 0) > 0 && <TabelaAco titulo="Lajes alveolares (negativos na capa)" res={dim.resumoAcoAlveolares ?? []} marca="alveolares" />}
       {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
       {resN.length > 0 && <TabelaAco titulo="Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" res={resN} marca="nervuradas" />}
       {tre.length > 0 && (
@@ -523,7 +524,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
           </div>
         </>
       )}
-      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)" res={somarResumosAco(res, resP, resPar, resL, resV, resN)} marca="geral" />
+      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)" res={somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [])} marca="geral" />
       <div className="row wrap">
         <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
       </div>

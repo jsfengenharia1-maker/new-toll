@@ -64,7 +64,11 @@ export function DadosL4Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: () 
             {Object.entries(CAMPOS_COPIA_LAJE).map(([k, c]) => <Check key={k} label={`Copiar dado: ${c.rotulo.toLowerCase()}`} checked={campos.includes(k)} onChange={(v) => setCampos(v ? [...campos, k] : campos.filter((x) => x !== k))} />)}
           </div>
           <Button disabled={!lajesSel.filter((id) => id !== lajeOrigem?.id).length || !campos.length} onClick={() => exec('laje.copiarDados', { de: lajeOrigem.id, para: lajesSel.filter((id) => id !== lajeOrigem.id), campos })}>Copiar os dados para as lajes selecionadas</Button>
-          <Hint>O plano de inclinação entra com a E3f; até lá, copie tipo, direção, desnível, engastes, cobrimento, tabela e armadura base.</Hint>
+          {campos.includes('plano') && (() => {
+            const alertas = lajesSel.filter((id) => id !== lajeOrigem.id).flatMap((id) => { const z = b.lajes.find((x) => x.id === id); const t = z ? CAMPOS_COPIA_LAJE.plano.alerta?.(lajeOrigem, z) : null; return t ? [t] : []; });
+            return alertas.length > 0 ? <Note data-alerta-plano-copia><b>Atenção: troca de plano.</b> {alertas.map((t, i) => <div key={i}>{t}</div>)}</Note> : null;
+          })()}
+          <Hint>Copie tipo, direção, desnível, plano de inclinação, engastes, cobrimento, tabela e armadura base entre panos do mesmo grupo (o plano de outro grupo não é copiado).</Hint>
         </>
       )}
 

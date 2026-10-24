@@ -133,6 +133,8 @@
   --pl-pb-cruzamento: #000000;
   --pl-pb-fantasma: rgba(0,0,0,0.35);
   --pl-pb-limite: #000000;
+  /* planos inclinados (E3f): cor de cada plano (índice 0 a 7) no preenchimento dos panos da planta; neutros e o accent da paleta enxuta */
+  --plano-0: #6995fe; --plano-1: #8a8a8a; --plano-2: #3b63fb; --plano-3: #afafaf; --plano-4: #505050; --plano-5: #a0a0a0; --plano-6: #717171; --plano-7: #dbdbdb;
   /* vista 3D (V1): cores por tipo de elemento nos três temas da planta; o contêiner .v3d[data-tema] liga o tema às variáveis --v3d-<chave> */
   --v3d-escuro-fundo: #181818; --v3d-escuro-pilar: #dbdbdb; --v3d-escuro-viga: #8a8a8a; --v3d-escuro-laje: #6d6d6d; --v3d-escuro-parede: #555555;
   --v3d-escuro-escada: #afafaf; --v3d-escuro-fundacao: #444444; --v3d-escuro-pendente: #6995fe; --v3d-escuro-linha: #0a0a0a; --v3d-escuro-selecao: #6995fe; --v3d-escuro-destaque: #f2f2f2;
