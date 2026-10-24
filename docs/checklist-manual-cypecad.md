@@ -12,7 +12,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 1. Introdução ao programa: tela, ajuda, criação de obra e arquivos | 56 | 45 | 0 | 0 | 11 |
 | 2. Gabaritos DXF/DWG | 22 | 19 | 0 | 0 | 3 |
 | 3. Grupos e pavimentos | 41 | 36 | 1 | 1 | 3 |
-| 4. Pilares | 63 | 54 | 2 | 0 | 7 |
+| 4. Pilares | 63 | 55 | 1 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 26 | 0 | 0 | 4 |
 | 6. Vigas | 108 | 83 | 0 | 0 | 25 |
 | 7. Lajes | 195 | 127 | 1 | 0 | 67 |
@@ -22,7 +22,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 21 | 0 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **569** | **5** | **3** | **186** |
+| **Total** | **763** | **570** | **4** | **3** | **186** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 2 | 3 | 5 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 1 | 3 | 4 |
 
 ## 0. Apresentação do programa
 
@@ -247,7 +247,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Feito | — | janela “Seleção para bloqueio” (`SelecaoBloqueio`, `Rearmar.tsx`): por grupo, todos, nenhum, seleção da planta e mostrar na planta, com contagem e marcador ▣ dos bloqueados; pilares de aço não existem no edifício (R7f) |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços em AbaEsforcos.tsx; [V7a] janela do pilar com seletor de tipo (envoltória, combinação, caso), filtro por texto, hipótese, grandeza e altura (`SeletorHipotese`, `seletorEsforcos.ts`); [V7c] pilar-parede por hipótese (`esforcosPilarParedePorHipotese`, `baseDoPilarParede` em src/core/resultados/pilarParedeHipotese.ts; janela de esforços, tipo Pilar-parede: N, Vp, Mp, Vo, Mo por lado e pavimento e carga da base, por caso, combinação ou envoltória; superposição exata, equilíbrio com a base e envoltória ELU igual à do dimensionamento) — falta o momento de torção do conjunto do pilar-parede (as resultantes são por lado) — Resíduo [V7g]: torção do pilar-parede por hipótese |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Feito | — | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços em AbaEsforcos.tsx; [V7a] janela do pilar com seletor de tipo (envoltória, combinação, caso), filtro por texto, hipótese, grandeza e altura (`SeletorHipotese`, `seletorEsforcos.ts`); [V7c] pilar-parede por hipótese (`esforcosPilarParedePorHipotese`, `baseDoPilarParede` em src/core/resultados/pilarParedeHipotese.ts; janela de esforços, tipo Pilar-parede: N, Vp, Mp, Vo, Mo por lado e pavimento e carga da base, por caso, combinação ou envoltória; superposição exata, equilíbrio com a base e envoltória ELU igual à do dimensionamento); [V7g] torçor do conjunto do pilar-parede na base: Mz das reações dos nós da base em torno do eixo vertical pelo centroide dos lados (`reacaoParede` em analitico.ts, campo opcional `Mz` de `AnaliseEdificio.fundacao`, `ResultadoPilarParede.base.Mz`), por caso, combinação ou envoltória em `torsorDoPilarParede` (src/core/resultados/pilarParedeHipotese.ts; máximo, mínimo e combinação determinante; polo editável com transporte exato por combinação) e no quadro da janela de esforços do pilar-parede (polo x, y e botão Centroide); validado por equilíbrio global de momento em z a 1e-9 (pilar-parede em L sob força lateral excêntrica e vento no edifício) e contra o OpenSees (`validation/opensees/torcao_pp.py`, até 0,6 % da força aplicada na distribuição entre os lados com malha de 0,25 m); torçor só na base (por lance não); centro de cisalhamento teórico a confirmar (adotado o centroide) |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Feito | — | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; linhasQuadroPilares) e a seção do estribo à parte na prancha de paredes (armacaoParedes.ts); consolos (E5i): o quadro traz a linha de cada consolo com tirante, estribos verticais (φ c/s) e costura (n φ em 2/3 d) e o desenho do consolo mostra os mesmos estribos; armacaoConsolos.test.ts |
@@ -1101,3 +1101,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **24/10/2026 — fatia V7c (esforços do pilar-parede por hipótese).** C7.187 passa a Feito (alveolares na V6f; lajes mistas fora do escopo); C4.60 segue Parcial: `esforcosPilarParedePorHipotese` e `baseDoPilarParede` (src/core/resultados/pilarParedeHipotese.ts) e o tipo Pilar-parede na aba Esforços; falta a torção do conjunto (fatia V7g). Testes em `pilarParedeHipotese.test.ts`, e2e `V7c`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: V diminui (1 item a Feito), com a nova fatia V7g.
+- **24/10/2026 — fatia V7g (torçor do pilar-parede por hipótese).** C4.60 passa a Feito: `torsorDoPilarParede` e `Mz` na base do pilar-parede (`reacaoParede` em analitico.ts), por caso, combinação ou envoltória, com polo editável na janela de esforços; testes em `v7g.test.ts` (equilíbrio global em z a 1e-9 e OpenSees, `validation/opensees/torcao_pp.py`), e2e `V7g`. Torçor só na base; centro de cisalhamento teórico a confirmar.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: V diminui (1 item a Feito); V7g concluída.

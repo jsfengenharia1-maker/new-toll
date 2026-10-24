@@ -21,7 +21,7 @@ export interface LinhaPilarParede {
   porMax: Record<keyof Resultante, string>; porMin: Record<keyof Resultante, string>;
 }
 
-export interface BasePilarParede { N: number; Vx: number; Vy: number; Mx: number; My: number }
+export interface BasePilarParede { N: number; Vx: number; Vy: number; Mx: number; My: number; Mz: number }
 
 const partes = (h: HipoteseEsforco): { nome: string; fatores: Record<string, number> }[] => (h.tipo === 'envoltoria' ? h.combinacoes.map((c) => ({ nome: c.nome, fatores: c.fatores })) : [{ nome: h.nome, fatores: h.fatores }]);
 const soma = (fatores: Record<string, number>, casos: Record<string, Resultante>): Resultante => {
@@ -50,8 +50,8 @@ export function esforcosPilarParedePorHipotese(pp: ResultadoPilarParede, h: Hipo
 
 /** Cargas na base do pilar-parede para a hipótese (N > 0 compressão; kN e kN·m): valor ou extremos da envoltória. */
 export function baseDoPilarParede(pp: ResultadoPilarParede, h: HipoteseEsforco): { max: BasePilarParede; min: BasePilarParede } {
-  const ks: (keyof BasePilarParede)[] = ['N', 'Vx', 'Vy', 'Mx', 'My'];
-  const max = { N: -Infinity, Vx: -Infinity, Vy: -Infinity, Mx: -Infinity, My: -Infinity }, min = { N: Infinity, Vx: Infinity, Vy: Infinity, Mx: Infinity, My: Infinity };
+  const ks: (keyof BasePilarParede)[] = ['N', 'Vx', 'Vy', 'Mx', 'My', 'Mz'];
+  const max = { N: -Infinity, Vx: -Infinity, Vy: -Infinity, Mx: -Infinity, My: -Infinity, Mz: -Infinity }, min = { N: Infinity, Vx: Infinity, Vy: Infinity, Mx: Infinity, My: Infinity, Mz: Infinity };
   for (const p of partes(h)) {
     for (const k of ks) {
       let v = 0;
@@ -62,4 +62,33 @@ export function baseDoPilarParede(pp: ResultadoPilarParede, h: HipoteseEsforco):
   }
   for (const k of ks) { if (!Number.isFinite(max[k])) max[k] = 0; if (!Number.isFinite(min[k])) min[k] = 0; }
   return { max, min };
+}
+
+/** Torçor da base do pilar-parede para a hipótese (V7g, C4.60): momento da reação em torno do eixo vertical por `ref`. */
+export interface TorsorPilarParede {
+  /** Ponto de referência (m): o centroide dos lados (padrão) ou o ponto informado, e o centroide adotado pela análise. */
+  ref: [number, number]; centro: [number, number];
+  /** Valor da hipótese (caso e combinação: max = min) ou extremos da envoltória (kN·m; anti-horário +, visto de cima; reação). */
+  max: number; min: number;
+  /** Combinação de cada extremo. */
+  porMax: string; porMin: string;
+}
+
+/**
+ * Momento torçor da base em torno do eixo vertical por `ref` (padrão: o centroide). A análise dá o torçor Mz pelo centroide
+ * (soma dos momentos das reações dos nós da base mais as forças horizontais vezes os braços); a mudança de polo para P é
+ * exata em cada combinação: Mz(P) = Mz(O) + (Ox − Px)·Vy − (Oy − Py)·Vx. Na envoltória, o transporte vale por combinação,
+ * antes de tomar o máximo e o mínimo. Convenção: reação (aplicada pela fundação ao pilar-parede), como Mx e My da base.
+ */
+export function torsorDoPilarParede(pp: ResultadoPilarParede, h: HipoteseEsforco, ref?: [number, number]): TorsorPilarParede {
+  const O = pp.centro, P = ref ?? O;
+  let max = -Infinity, min = Infinity, porMax = '', porMin = '';
+  for (const p of partes(h)) {
+    let Mz = 0, Vx = 0, Vy = 0;
+    for (const [n, f] of Object.entries(p.fatores)) { const b = pp.base[n]; if (b) { Mz += f * b.Mz; Vx += f * b.Vx; Vy += f * b.Vy; } }
+    const v = Mz + (O[0] - P[0]) * Vy - (O[1] - P[1]) * Vx;
+    if (v > max) { max = v; porMax = p.nome; }
+    if (v < min) { min = v; porMin = p.nome; }
+  }
+  return { ref: [P[0], P[1]], centro: [O[0], O[1]], max: Number.isFinite(max) ? max : 0, min: Number.isFinite(min) ? min : 0, porMax, porMin };
 }

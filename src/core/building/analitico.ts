@@ -469,7 +469,7 @@ export interface AnaliseEdificio {
   /** Pilares que nascem apoiados (E1a): elemento de apoio detectado e se o pé foi ligado a ele (senão, apoio fixo provisório). */
   apoiados?: Record<string, { apoio: 'pilar' | 'viga' | 'laje' | null; ligado: boolean }>;
   /** Esforços na base de cada pilar por caso (G, Q, W…; kN, kN·m; N > 0 compressão). */
-  fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number }[];
+  fundacao: { pilar: string; caso: string; N: number; Vx: number; Vy: number; Mx: number; My: number; /** Só no pilar-parede (V7g): momento torçor da reação em torno do eixo vertical pelo centroide, anti-horário + (kN·m). */ Mz?: number }[];
   /** Vento (NBR 6123) e estabilidade global (γz por direção, com rigidez reduzida). */
   vento: { classe: Classe; altura: number; ca?: CoefVento; viz?: CoefVento; casos: CasoVento[]; gamaZ: { direcao: number; ventoPrincipal: number; usoPrincipal: number; max: number; ampliacao: number }[]; deslocamentos?: DeslocamentosVento[] } | null;
   /** Carga vertical característica por pavimento (kN), usada no γz. */
@@ -1844,14 +1844,15 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   // pilares-parede: resultante das reações dos nós da base, no centro do pilar-parede (E1b)
   const reacaoParede = (r3: Resultado3, ic: number, pid: string) => {
     const O = noParedes!.centro[pid] ?? [0, 0];
-    let N = 0, Vx = 0, Vy = 0, Mx = 0, My = 0;
+    let N = 0, Vx = 0, Vy = 0, Mx = 0, My = 0, Mz = 0;
     for (const n of noParedes!.base[pid] ?? []) {
       const r = reacaoDoNo(pm, r3, ic, n);
       if (!r) continue;
       const x = pm.nos[n][0] - O[0], y = pm.nos[n][1] - O[1];
       N += r[2]; Vx += r[0]; Vy += r[1]; Mx += (r[3] ?? 0) + y * r[2]; My += (r[4] ?? 0) - x * r[2];
+      Mz += (r[5] ?? 0) + x * r[1] - y * r[0]; // torçor da reação em torno do eixo vertical pelo centroide (V7g)
     }
-    return { N, Vx, Vy, Mx, My };
+    return { N, Vx, Vy, Mx, My, Mz };
   };
   if (noParedes) for (const pid of Object.keys(noParedes.base).filter((q) => noParedes.base[q].length)) CASOS.forEach((c, ic) => fundacao.push({ pilar: pid, caso: c, ...reacaoParede(res, ic, pid) }));
   fundacao.push(...reacoesArranques(b));

@@ -1177,3 +1177,53 @@ export const f_V7f = {
       await esperaProprias('pilares', 0);
     },
   };
+
+export const f_V7g = {
+    name: 'V7g: torçor da base do pilar-parede na janela de esforços (caso de vento, envoltória, mudança de polo)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      await cmd('pilarParede.tipo {"nome": "L 3x2", "vertices": [[0, 0], [3, 0], [3, 2]], "esq": 0.1, "dir": 0.1}');
+      await page.waitForFunction(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposPilarParede?.length === 1);
+      await cmd('pilarParede.inserir {"tipo": "' + (await modelo()).tiposPilarParede[0].id + '", "x": 0, "y": 0}');
+      await cmd('lote {"comandos": [' + [[0, 5], [7, 5], [7, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[1, 0], [7, 0]], [[0, 5], [7, 5]], [[0, 0], [0, 5]], [[7, 0], [7, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
+      await cmd('laje.criar {"grupo": "g_3", "contorno": [[0, 0], [7, 0], [7, 5], [0, 5]], "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 120000 });
+      await abas.getByRole('tab', { name: 'Esforços', exact: true }).click();
+      const janela = page.locator('[data-esf-janela="1"]');
+      await janela.waitFor();
+      await janela.getByLabel(/^Tipo de elemento \(janela 1\)/).selectOption('pilarParede');
+      await janela.locator('[data-esf-pp-torsor]').waitFor();
+      const lerT = async () => JSON.parse(await janela.locator('[data-esf-pp-torsor]').getAttribute('data-esf-pp-torsor'));
+      // envoltória ELU: máximo e mínimo do torçor, centroide como polo
+      const env = await lerT();
+      assert.equal(env.envoltoria, true);
+      assert.ok(env.max > env.min, JSON.stringify(env));
+      assert.deepEqual(env.ref, env.centro);
+      await janela.getByText(/Torçor da base \(Mz/).waitFor();
+      // caso de vento: valor único e mudança de polo exata (Mz(P) = Mz(O) + (Ox − Px)·Vy − (Oy − Py)·Vx)
+      const opcoes = await janela.getByLabel(/^Hipótese \(janela 1\)/).evaluate((el) => [...el.options].map((o) => o.value));
+      const vento = opcoes.find((v) => v.startsWith('caso:W'));
+      assert.ok(vento, JSON.stringify(opcoes));
+      await janela.getByLabel(/^Hipótese \(janela 1\)/).selectOption(vento);
+      await page.waitForFunction(() => JSON.parse(document.querySelector('[data-esf-pp-torsor]').getAttribute('data-esf-pp-torsor')).envoltoria === false);
+      const t0 = await lerT();
+      assert.equal(t0.max, t0.min);
+      assert.ok(Math.abs(t0.max) > 1 && Math.abs(t0.vx) + Math.abs(t0.vy) > 1, JSON.stringify(t0));
+      await janela.getByLabel(/^Polo do torçor x \(janela 1\)/).fill(String(t0.centro[0] + 2).replace('.', ','));
+      await janela.getByLabel(/^Polo do torçor x \(janela 1\)/).press('Enter');
+      await page.waitForFunction((x) => Math.abs(JSON.parse(document.querySelector('[data-esf-pp-torsor]').getAttribute('data-esf-pp-torsor')).ref[0] - x) < 1e-3, t0.centro[0] + 2);
+      const t1 = await lerT();
+      const esperado = t0.max + (t0.centro[0] - t1.ref[0]) * t0.vy - (t0.centro[1] - t1.ref[1]) * t0.vx;
+      assert.ok(Math.abs(t1.max - esperado) < 2e-3 + 1e-4 * Math.abs(esperado), JSON.stringify([t0, t1, esperado]));
+      await janela.getByRole('button', { name: /^Centroide \(janela 1\)/ }).click();
+      await page.waitForFunction(() => { const d = JSON.parse(document.querySelector('[data-esf-pp-torsor]').getAttribute('data-esf-pp-torsor')); return d.ref[0] === d.centro[0] && d.ref[1] === d.centro[1]; });
+      assert.ok(Math.abs((await lerT()).max - t0.max) < 1e-3);
+    },
+  };
