@@ -3,6 +3,8 @@
 import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
 import { ehNervurada, rotuloLaje } from '../../core/building/tiposLaje';
 import { arranjoDaLaje } from '../../core/building/nervuradas';
+import { capturaPlano, faceSuperiorDaViga, planoPor, secaoNoPlano, setaDeclividade, textoInclinacao } from '../../core/building/planos';
+import { corDoPlano } from './planosUtil';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBuilding } from './store';
 import { useRevisao } from './revisao';
@@ -140,7 +142,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
 
 /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
 export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+  selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
 };
 export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
@@ -169,6 +171,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
   direcaoPano: ['Clique no pano cuja direção mudar.', 'Clique numa viga (paralela ou perpendicular, conforme o painel) ou, no modo de dois pontos, no primeiro ponto.', 'Segundo ponto da direção.'],
   cota: ['Clique em pilares, vigas ou paredes (ou em pontos livres) para acrescentar referências à série; Tab alterna face e eixo; Backspace tira a última; Enter fecha a série.', 'Clique onde posicionar a linha de cota (um número digitado dá a distância em cm da primeira referência). Esc termina.'],
   insercaoPano: ['Clique no pano.', 'Clique perto do vértice que será o ponto de inserção do pano.'],
+  plano: ['Primeiro ponto do plano (captura o eixo ou a face da viga mais próxima); o tipo de definição e os desníveis ficam no grupo Planos da doca Propriedades.', 'Próximo ponto do plano.', 'Último ponto: cria o plano. Esc cancela.'],
   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
@@ -346,6 +349,8 @@ export function Planta() {
   // lajes alveolares (E3e): placas numeradas do pano, das lajes do pavimento (camada opcional)
   const dimAlveolares = useBuilding((st) => st.dim?.alveolares);
   const placasPlanta = useMemo(() => (pl.camadaPlacas && dimAlveolares ? dimAlveolares.filter((r) => lajes.some(({ l }) => l.id === r.laje)).flatMap((r) => r.placas) : []), [dimAlveolares, lajes, pl.camadaPlacas]);
+  // planos inclinados (E3f): cor de cada plano (tokens --plano-N) e número de panos com plano
+  const coresPlano = useMemo(() => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => corDoPlano(i)), [pl.tema]);
   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
 
@@ -512,13 +517,22 @@ export function Planta() {
       l.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); });
       path.closePath();
       for (const f of l.furos ?? []) { f.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); }); path.closePath(); }
-      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = cAlerta ?? (sel ? cores.selecao : cores.laje); ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
+      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = cAlerta ?? (sel ? cores.selecao : (l.plano ? coresPlano[(planoPor(b, l.plano)?.cor ?? 0) % 8] : cores.laje)); ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
       ctx.strokeStyle = cAlerta ?? cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
       const [tx, ty] = paraTela(c[0], c[1]);
       ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
       const [lx, ly] = descRef(l.id);
       if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${l.definir ? ' ?' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
       ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.definir ? 'a definir' : l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}` : rotuloLaje(b, l.tipo), tx + lx, ty + 6 + ly);
+      const seta = l.plano ? setaDeclividade(b, l) : null; // plano inclinado (E3f): seta da máxima declividade e texto de inclinação
+      if (seta) {
+        const xs = l.contorno.map((q) => q[0]), ys = l.contorno.map((q) => q[1]), lado = 0.3 * Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+        const [ax, ay] = paraTela(seta.origem[0], seta.origem[1]), [bx, by] = paraTela(seta.origem[0] + seta.direcao[0] * lado, seta.origem[1] + seta.direcao[1] * lado);
+        const ang = Math.atan2(by - ay, bx - ax);
+        ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+        ctx.moveTo(bx, by); ctx.lineTo(bx - 8 * Math.cos(ang - 0.4), by - 8 * Math.sin(ang - 0.4)); ctx.moveTo(bx, by); ctx.lineTo(bx - 8 * Math.cos(ang + 0.4), by - 8 * Math.sin(ang + 0.4)); ctx.stroke();
+        if (textosVis.includes('secoes')) { ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = cores.laje; ctx.fillText(textoInclinacao(b, l), tx + lx, ty + 20 + ly); }
+      }
       if (l.insercao !== undefined && l.contorno[l.insercao]) { const [ix, iy] = paraTela(l.contorno[l.insercao][0], l.contorno[l.insercao][1]); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, 5, 0, 2 * Math.PI); ctx.stroke(); } // ponto de inserção do pano (L5)
       if (l.tipo.tipo === 'nervurada' && !l.definir) { // nervurada bidirecional: setas duplas nas duas direções das nervuras
         const a0 = ((l.direcao ?? 0) * Math.PI) / 180, L = 16, cy = ty + 22;
@@ -627,6 +641,13 @@ export function Planta() {
         if (v.k > 18) { const [tx, ty] = paraTela((p.a[0] + p.z[0]) / 2, (p.a[1] + p.z[1]) / 2); ctx.fillText(`${p.numero.replace(/^.*-/, '')} · ${Math.round(p.largura * 100)} × ${p.comprimento.toFixed(2).replace('.', ',')}`, tx, ty); }
       }
       ctx.restore();
+    }
+    // planos inclinados (E3f, C7.73): vigas planas que giram com o plano mostram a face superior em traço contínuo
+    if (wrap.current) wrap.current.dataset.planosNaPlanta = String(lajes.filter(({ l }) => !!l.plano).length);
+    for (const { v } of vigas) {
+      if (!secaoNoPlano(b, v)?.gira) continue;
+      ctx.strokeStyle = cores.viga; ctx.lineWidth = 1; ctx.setLineDash([]);
+      for (const [fa, fz] of faceSuperiorDaViga(b, v).linhas) { const [x1, y1] = paraTela(fa[0], fa[1]), [x2, y2] = paraTela(fz[0], fz[1]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
     }
     // punção e cortante: contornos C, C′ e C″ (vermelho onde a tensão excede a resistência) e a armadura de punção
     if (wrap.current) wrap.current.dataset.puncao = String(puncaoPlanta.length);
@@ -1536,6 +1557,19 @@ export function Planta() {
       if (novos.length < 2) { setPontos(novos); msg('Segundo canto da janela de captura.'); return; }
       setPontos([]);
       exec('carga.aoLongoDaViga', { grupo, janela: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), valor: L.valorViga, caso: L.casoViga });
+      return;
+    }
+    if (f === 'plano') {
+      // E3f (C7.66): três cliques (três pontos, com os desníveis do grupo Planos) ou dois (reta horizontal ou máxima declividade); cada clique captura o eixo ou a face da viga mais próxima
+      const P = usePlanta.getState();
+      if (nivelFund || !pav) { msg('Planos são definidos nas plantas dos pavimentos.'); return; }
+      const cap = capturaPlano(b, grupo, [p[0], p[1]], 0.15), q: P2 = cap ? [cap.ponto[0], cap.ponto[1]] : p, d = P.planoDef, tres = d.tipo === 'tresPontos';
+      const pts = [...pontosRef.current, q];
+      if (pts.length < (tres ? 3 : 2)) { setPontos(pts); msg(`Ponto ${pts.length} do plano marcado${cap ? ` (${cap.tipo === 'eixo' ? 'eixo' : 'face'} da viga)` : ''}: marque o próximo.`); return; }
+      setPontos([]);
+      const pontos = pts.map((c, i) => (tres ? [+c[0].toFixed(4), +c[1].toFixed(4), d.z[i]] : [+c[0].toFixed(4), +c[1].toFixed(4)]));
+      const r = exec('plano.criar', tres ? { grupo, tipo: d.tipo, pontos } : { grupo, tipo: d.tipo, pontos, desnivel: d.desnivel, inclinacao: d.inclinacao });
+      if (r.ok) P.set({ planoSel: useBuilding.getState().sessao.modelo.planos?.filter((x) => x.grupo === grupo).at(-1)?.id ?? null });
       return;
     }
     if (f === 'direcaoPano' || f === 'insercaoPano') {

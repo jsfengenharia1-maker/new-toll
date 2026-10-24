@@ -2,7 +2,7 @@
 // do grupo têm definição por três pontos, por reta horizontal + inclinação ou por máxima declividade; panos e vigas recebem o plano
 // por `plano.atribuir`. Comandos: `plano.criar`, `plano.editar`, `plano.remover` e `plano.atribuir`.
 import { useState, type ReactNode } from 'react';
-import { coeficientesPlano, grausDaTangente, inclinacaoDoPlano, planoAtribuido } from '../../core/building/planos';
+import { coeficientesPlano, grausDaTangente, inclinacaoDoPlano, planoAtribuido, vigasIncoerentes } from '../../core/building/planos';
 import { pavimentosOrdenados, type BuildingModel, type Plano } from '../../core/building/types';
 import { Button, Group, Hint, Modal, NumField, Pill, RibbonButton, RibbonGroup, Select, TextField } from '../ui';
 import { useStore } from '../store';
@@ -97,6 +97,8 @@ export function PlanosGrupo({ b }: { b: BuildingModel }) {
     <div data-grupo-planos>
       <Group title={`Planos — ${grupo?.nome ?? '—'} (${n})`} open={false}>
         {grupo && <ListaPlanos b={b} grupo={grupo.id} />}
+        <DefinirNaPlanta />
+        {grupo && <CorrigirVigas b={b} grupo={grupo.id} />}
         <Hint>Fluxo: lance panos e vigas na horizontal, crie o plano e atribua. O plano muda a cota do topo do pano e da viga (z = a·x + b·y + c); desnível e inclinação em relação ao topo do pavimento.</Hint>
       </Group>
     </div>
@@ -152,5 +154,44 @@ export function PlanosFaixa({ children }: { children?: ReactNode }) {
       <RibbonButton icon="dobra" label="Retirar plano" title="Volta os panos e vigas selecionados à horizontal" disabled={!(lajes.length + vigas.length)} onClick={() => roda(alvo)} />
       {children}
     </RibbonGroup>
+  );
+}
+
+/** Definição do plano pelos cliques na planta (ferramenta `plano`): tipo e desníveis; visível com a ferramenta ativa. */
+function DefinirNaPlanta() {
+  const pl = usePlanta();
+  const d = pl.planoDef, tres = d.tipo === 'tresPontos';
+  if (pl.ferramenta !== 'plano') return <Hint>Para definir o plano na planta use “Definir plano na planta” (faixa, aba Edição, grupo Planos): marque os pontos com o mouse; o clique captura o eixo ou a face da viga mais próxima.</Hint>;
+  return (
+    <div data-definir-plano>
+      <div className="row wrap">
+        <Select label="Definição na planta" value={d.tipo} options={TIPOS_DEF} onChange={(v) => pl.set({ planoDef: { ...d, tipo: v } })} />
+        {tres
+          ? [0, 1, 2].map((k) => <NumField key={k} label={`Desnível do ponto ${k + 1}`} unit="m" width={110} value={d.z[k]} onChange={(v) => pl.set({ planoDef: { ...d, z: d.z.map((x, i) => (i === k ? v : x)) as [number, number, number] } })} />)
+          : <>
+            <NumField label="Desnível do primeiro ponto" unit="m" width={130} value={d.desnivel} onChange={(v) => pl.set({ planoDef: { ...d, desnivel: v } })} />
+            <NumField label="Inclinação da definição na planta" unit="%" width={130} value={d.inclinacao} onChange={(v) => pl.set({ planoDef: { ...d, inclinacao: v } })} />
+          </>}
+      </div>
+      <Hint>{tres ? 'Três cliques: um por ponto, com o desnível de cada um.' : d.tipo === 'retaHorizontal' ? 'Dois cliques: a reta horizontal; a inclinação sobe para a esquerda de p1 → p2.' : 'Dois cliques: a linha de máxima declividade; a inclinação sobe de p1 para p2.'} Esc cancela.</Hint>
+    </div>
+  );
+}
+
+/** Vigas incoerentes com o pano inclinado do grupo (PLANO_VIGA) e a correção pelo clique: copia a inclinação do pano para as selecionadas. */
+function CorrigirVigas({ b, grupo }: { b: BuildingModel; grupo: string }) {
+  const { exec } = useBuilding();
+  const pl = usePlanta();
+  const inc = vigasIncoerentes(b, grupo);
+  if (!inc.length) return null;
+  const sel = [...new Set(inc.filter((x) => pl.selecao.has(x.viga)).map((x) => x.viga))];
+  return (
+    <div data-vigas-incoerentes>
+      <p className="small bad" role="alert">{new Set(inc.map((x) => x.viga)).size} viga(s) não acompanham a inclinação do pano (erro PLANO_VIGA): selecione-as na planta e copie a inclinação do pano.</p>
+      <div className="row wrap">
+        <Button onClick={() => pl.set({ selecao: new Set(inc.map((x) => x.viga)) })}>Selecionar as vigas incoerentes</Button>
+        <Button disabled={!sel.length} onClick={() => { const r = exec('plano.corrigirVigas', { vigas: sel }); if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Correção recusada.' }); }}>Copiar inclinação do pano</Button>
+      </div>
+    </div>
   );
 }

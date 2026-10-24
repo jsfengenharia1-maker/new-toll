@@ -102,7 +102,7 @@ function Edicao() {
         <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
       </RibbonGroup>
       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
-      <PlanosFaixa />
+      <PlanosFaixa><Ferr f="plano" icon="laje" /></PlanosFaixa>
       <RibbonGroup label="Lajes" radios="Ferramenta">
         <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={() => ui({ cfg: 'tiposLaje' })} />
         <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
