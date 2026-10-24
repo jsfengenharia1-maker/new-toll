@@ -89,6 +89,16 @@ describe('rigidez axial das paredes separada da flexão (K1.4.30)', () => {
     novo.rs.forEach((v, i) => expect(Math.abs(v - antigo.rs[i])).toBeLessThan(1e-6 * (1 + Math.abs(v))));
     const a1 = reacoes(s, { axialPilares: 1, axialParedeSeparado: 1 }), a0 = reacoes(s, { axialPilares: 1, axialParedeSeparado: 0 });
     a1.rs.forEach((v, i) => expect(v).toBe(a0.rs[i]));
+    // E6d: parcela axial uniforme (opção 2, padrão): mesmas cargas totais; com EA × 1 idêntica às outras bit a bit
+    const media = reacoes(s, { axialPilares: 2, axialParedeSeparado: 2 });
+    media.rs.forEach((v, i) => expect(Math.abs(v - antigo.rs[i])).toBeLessThan(1e-6 * (1 + Math.abs(v))));
+    const a2 = reacoes(s, { axialPilares: 1, axialParedeSeparado: 2 });
+    a2.rs.forEach((v, i) => expect(v).toBe(a0.rs[i]));
+    expect(Array.from(a2.an.portico.res!.desloc[0])).toEqual(Array.from(a1.an.portico.res!.desloc[0]));
+    // a opção 2 muda a distribuição em relação à membrana ortótropa (parede mais flexível à flexão no plano)
+    const dif = media.an.portico.res!.desloc[0].reduce((m, v, k) => Math.max(m, Math.abs(v - novo.an.portico.res!.desloc[0][k])), 0);
+    expect(dif).toBeGreaterThan(0);
+    expect((media.an.paredes as Record<string, unknown>).faixasAxiais).toBeUndefined();
   }, 240000);
 });
 

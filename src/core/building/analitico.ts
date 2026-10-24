@@ -29,7 +29,7 @@ import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { geometriaParedes } from './pilarParede';
 import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
-import { incluirParedes, axialCascas, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
+import { incluirParedes, axialCascas, axiaisDasFaixas, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
 import { eixoDaBaseParede, reacaoDoNo } from './corridaParede';
 import { calcularEscadas, comEscadas, type ResultadoEscadas } from './escadasCalculo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
@@ -393,6 +393,9 @@ function modeloCheio(pmV: Modelo3, casosV: Caso3[], detalhes: { pav: string; gb:
   }
   return { modelo: m, casos, noGrelha };
 }
+
+/** Paredes no resultado sem as faixas axiais (só servem à montagem das cargas verticais, E6d). */
+const semFaixas = ({ faixasAxiais: _f, ...r }: ParedesNoPortico): ParedesNoPortico => r;
 
 /** Cópia do modelo sem as funções de recuperação dos superelementos (o resultado vai do worker para a interface). */
 const semFuncoes = (m: Modelo3): Modelo3 => (m.superelementos ? { ...m, superelementos: m.superelementos.map(({ dofs, K }) => ({ dofs, K })) } : m);
@@ -1767,7 +1770,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     if (br.engI && (nBarras.get(br.i) ?? 0) < 2 && !pm.apoios.has(br.i)) delete br.engI;
   });
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
-  const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)), ...(pm.cascas ? { cascas: (op.axialParedeSeparado ? axialCascas : reduzirCascas)(pm.cascas, op.axialPilares) } : {}) };
+  const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)), ...(pm.cascas ? (op.axialParedeSeparado === 2 ? { axiaisMedios: axiaisDasFaixas(noParedes?.faixasAxiais, op.axialPilares) } : { cascas: (op.axialParedeSeparado ? axialCascas : reduzirCascas)(pm.cascas, op.axialPilares) }) : {}) };
   const res = resolver3(pmV, casosV);
   if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: semFuncoes(pm), barras: ptags, mestres, zonas, res: null } };
   // modelo integrado: deslocamentos e esforços da grelha de cada pavimento por retrossubstituição; reações e momentos
@@ -2006,7 +2009,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
   if (base) avisos.push(...avisosBaseElastica(b, base.info));
   const cheio = extra.cheio && detalhes.length ? modeloCheio(pmV, casosV, detalhes, ps, CASOS) : undefined;
-  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: noParedes } : {}), ...(des.nos.length ? { desniveis: des } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
+  return { avisos, opcoes: op, casos: CASOS, grelhas, portico: { modelo: modeloFinal, barras: ptags, mestres, zonas, res, resVento, casos: casosV, casosVento: casosW, ...(resPD ? { resPDelta: resPD, casosPDelta: casosPD } : {}) }, ...(segundaOrdem ? { segundaOrdem } : {}), ...(inclinadasInfo.length ? { inclinadas: inclinadasInfo } : {}), ...(incInfo.length ? { planos: incInfo.map((x) => ({ pavimento: x.pav, barras: [...x.barP].filter((k) => k >= 0) })) } : {}), ...(base ? { baseElastica: base.info } : {}), ...(noParedes ? { paredes: semFaixas(noParedes) } : {}), ...(des.nos.length ? { desniveis: des } : {}), ...(apoios.size ? { apoiados: Object.fromEntries([...apoios].map(([id, a]) => [id, { apoio: a?.tipo ?? null, ligado: baseLigada.has(id) }])) } : {}), fundacao, vento, cargasPavimento, totais, gdl: res.neq + grelhas.reduce((s, g) => s + (g.res?.neq ?? 0), 0), ms, ...(cheio ? { cheio } : {}) };
 }
 
 // ---------------- auxiliares ----------------
