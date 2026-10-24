@@ -14,6 +14,8 @@ import { fracaoPassante } from './tabelasArmadura';
 import { geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
+import { registrarVigaFundacao } from '../memoria/vigaFundacao';
+import { memoriaAtiva } from '../memoria/registrador';
 import { acharPilar } from './fundacaoPilarParede';
 import { classificar } from './revisao';
 import { casosDaObra, centroPilar, contornoPilar, lancesDoPilar, secaoNoLance, type BuildingModel, type Carga, type ElementoFundacao, type Pilar, type VigaFundacao } from './types';
@@ -298,6 +300,8 @@ export interface EntradaVF {
   /** Cruzamentos para exibição. */
   cruzamentos?: ResultadoVigaFundacao['cruzamentos'];
   mensagens: string[]; notas: string[];
+  /** Memória detalhada (MD5c): origem do travamento e da alavanca de cada ponta, preenchida pela fundação só com a memória ligada. */
+  det?: { trav: { ponta: 'ini' | 'fim'; elemento: string; Nk: number; exc: number; nb: number }[]; alav: { ponta: 'ini' | 'fim'; elemento: string; N: number; R: number; fator: number }[] };
 }
 
 /** Peso específico do concreto armado (kN/m³). */
@@ -372,13 +376,15 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     const sh = beamShear(bw, d, Vd, c, aco.fyk, gs);
     const pele = h > 0.6 ? { AsFace: 0.001 * bw * h, barras: null as BarChoice | null } : undefined;
     const ok = !geo?.erro && !fs.double && !fi_.double && !!sup.barras && !!inf.barras && sh.ok && !!sh.stirrup;
-    return { d, sup, inf, sh, pele, ok, geo };
+    return { d, sup, inf, sh, pele, ok, geo, secS, secI, fcS, fcI };
   };
   let bw = v.fixa ? v.b : Math.max(v.b, bMin), h = v.fixa ? v.h : Math.max(v.h, hMin);
   let r = calc(bw, h);
+  const r0 = r;
+  let tentativas = 1;
   if (!v.fixa && !r.ok) {
     busca: for (let bb = bw; bb <= Math.max(bw, 0.6) + 1e-9; bb = Math.round((bb + 0.05) * 100) / 100)
-      for (let hh = h; hh <= 1.6 + 1e-9; hh = Math.round((hh + 0.05) * 100) / 100) { const t = calc(bb, hh); if (t.ok) { bw = bb; h = hh; r = t; break busca; } }
+      for (let hh = h; hh <= 1.6 + 1e-9; hh = Math.round((hh + 0.05) * 100) / 100) { const t = calc(bb, hh); tentativas++; if (t.ok) { bw = bb; h = hh; r = t; break busca; } }
   }
   if (r.geo?.erro) msgs.push(`Viga de fundação: forma da seção — ${r.geo.erro}`);
   for (const a of r.geo?.avisos ?? []) msgs.push(`Viga de fundação: ${a}`);
@@ -423,6 +429,21 @@ export function dimensionarVigaFundacao(b: BuildingModel, ent: EntradaVF, op: Op
     + (est ? kg(barArea(est.phi), perim) * nEst : 0) + (r.pele?.barras ? 2 * kg(r.pele.barras.As, L) : 0);
   const txt = (x: BarChoice | null) => (x ? `${x.n} φ${String(x.phi).replace('.', ',')}` : '—');
   const status = msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok';
+  const mem = memoriaAtiva(), elM = `Viga de fundação ${v.nome}`;
+  if (mem && mem.aceita(elM)) {
+    const vento2 = new Set(casosDaObra(b).filter((c0) => c0.natureza === 'W').map((c0) => c0.id));
+    const ppAll = cargasDaViga(g, []), npp = ppAll.length, csAll = cs.slice(npp);
+    const motivo0 = [r0.geo?.erro ? 'forma da seção' : '', r0.sup.dupla || r0.inf.dupla ? 'armadura dupla' : '', !r0.sup.barras || !r0.inf.barras ? 'armadura não cabe na largura' : '', !r0.sh.ok ? 'biela comprimida (Vd > VRd2)' : '', r0.sh.ok && !r0.sh.stirrup ? 'estribo não encontrado' : ''].filter(Boolean).join(', ');
+    registrarVigaFundacao(mem, {
+      el: elM, nome: v.nome, tipo: v.tipo, iniNome: g.ini?.nome ?? v.ini, fimNome: g.fim?.nome ?? v.fim, L, fi, ff, b0: v.b, h0: v.h, fixa: !!v.fixa, bMin, hMin, bw, h,
+      forma: r.geo && !r.geo.erro && r.geo.tipo !== 'retangular' ? textoSecaoVF(r.geo) : undefined,
+      equilibrio: ent.equilibrio, alavancas: ent.alavancas, alivio: ent.alivio, travamento: ent.travamento, det: ent.det, apoios: (ent.apoios ?? []).filter((a) => !vento2.has(a.caso)),
+      xs, Mlev, Vlev, biM: bi.M, biV: bi.V, Mtr, Vtr, Msup, Minf, V, npp, ppP: ppAll[0]?.P ?? 0, areaSecao: ppAll[0] ? ppAll[0].P / (GAMA_CONCRETO * (L / npp)) : bw * h, ext: csAll, reacoes: rq,
+      gf, Mk, Vk, Md, Vd, c, fyd, fyk: aco.fyk, gs, cob, d: r.d, secS: r.secS, secI: r.secI, fcS: r.fcS, fcI: r.fcI, sup: r.sup, inf: r.inf, sh: r.sh, pele: r.pele,
+      tentativas, inicialOk: r0.ok, inicialMotivo: motivo0, lb, phiSup, boaAderencia: h < 0.6, ancoragem: anc, Lc, Lest, nEst, perim, cortes, mesa: mesaB,
+      volume: (r.geo && !r.geo.erro ? r.geo.A : bw * h) * Lc, aco: aco_ + (mesaB && r.geo ? kg((mesaB.barras?.As ?? mesaB.AsAdot * 1e-4) + (mesaB.distribuicao.barras?.As ?? mesaB.distribuicao.As * 1e-4), mesaB.balanco * r.geo.lados * Lc) : 0), status, mensagens: msgs,
+    });
+  }
   return {
     ...vazio, bAdot: bw, hAdot: h, cargas: { ini: rq.ini, fim: rq.fim }, Mk, Vk, Md, Vd, eixo: [g.a, g.z], faces: { ini: fi, fim: ff },
     diagrama: { s: xs, Msup, Minf, V },

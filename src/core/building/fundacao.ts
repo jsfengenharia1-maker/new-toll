@@ -31,7 +31,7 @@ import type { ResultadoCinta } from './cintasCorrida';
 import type { ResultadoCorrida } from './sapataCorrida';
 import { pilaresDaCorrida, pontoNaBase, pontoNaCorrida } from './baseElastica';
 import {
-  abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
+  abscissaNaViga, alavanca, cargasDaViga, cruzamentosVF, dimensionarVigaFundacao, geometriaVF, type EntradaVF, parcelasDaCarga, pontasEquilibradas, reacoesComApoios,
   type AlavancaNaViga, type CargaPontualVF, type GeometriaVF, type ResultadoVigaFundacao, type VigaAlavanca,
 } from './vigasFundacao';
 import {
@@ -354,18 +354,20 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
     const msgs: string[] = [], notas: string[] = [];
     const alavancas: AlavancaNaViga[] = [];
     const alivio = { ini: 0, fim: 0 }, travamento = { ini: 0, fim: 0 };
+    const detMem = memoriaAtiva() ? { trav: [] as NonNullable<EntradaVF['det']>['trav'], alav: [] as NonNullable<EntradaVF['det']>['alav'] } : undefined; // memória detalhada (MD5c)
     if (!g.erro) {
       for (const ponta of ['ini', 'fim'] as const) {
         const el = g[ponta]?.elemento, r = el ? porId.get(el.id) : undefined;
         if (eq[ponta]) {
           const a = r?.alavanca?.vigas.find((x) => x.id === v.id);
-          if (a) { alavancas.push({ ponta, dN: a.dN, ei: a.ei, a: a.a, l: a.l }); alivio[ponta === 'ini' ? 'fim' : 'ini'] += a.dN; }
+          if (a) { alavancas.push({ ponta, dN: a.dN, ei: a.ei, a: a.a, l: a.l }); alivio[ponta === 'ini' ? 'fim' : 'ini'] += a.dN; if (detMem && r?.alavanca) detMem.alav.push({ ponta, elemento: r.nome, N: r.alavanca.N, R: r.alavanca.R, fator: r.alavanca.fator }); }
           else notas.push(`Alavanca de ${g[ponta]!.nome} não calculada (elemento sem solução ou fora dos níveis calculados): viga sem o momento de equilíbrio.`);
         }
         // travamento: excentricidade de execução das estacas dos blocos de 1 e 2 estacas, repartida entre as vigas da mesma direção
         if (r && r.carga && trava(r, g.u)) {
           const nb = vigasDe(r).filter((x) => trava(r, x.u) && cruz(dirPara(x, r), dirPara(g, r)) < 0.7).length || 1;
           travamento[ponta] = (r.carga.Nk * op.vigaTravExc) / 100 / nb;
+          detMem?.trav.push({ ponta, elemento: r.nome, Nk: r.carga.Nk, exc: op.vigaTravExc, nb });
         }
       }
       if (v.tipo === 'equilibrio' && !eq.ini && !eq.fim) msgs.push('Viga de fundação: viga de equilíbrio sem ponta excêntrica — calculada como travamento (sem alavanca).');
@@ -387,7 +389,7 @@ export function calcularFundacaoEdificio(b: BuildingModel, an: AnaliseEdificio |
         notas.push(`Recebe a reação de ${nomeVF(c.apoiada)} em s = ${fmt(c.sApoio)} m (${fmt(somaNV(outra), 1)} kN, soma dos casos sem vento).`);
       }
     }
-    vigas.push(dimensionarVigaFundacao(b, { g, equilibrio: eq, alavancas, cargas: naViga.get(v.id) ?? [], travamento, alivio, apoios: apoiosDe.get(v.id), cruzamentos, mensagens: msgs, notas }, op));
+    vigas.push(dimensionarVigaFundacao(b, { g, equilibrio: eq, alavancas, cargas: naViga.get(v.id) ?? [], travamento, alivio, apoios: apoiosDe.get(v.id), cruzamentos, mensagens: msgs, notas, ...(detMem ? { det: detMem } : {}) }, op));
   }
   // travamento obrigatório dos blocos de 1 e 2 estacas (NBR 6122)
   for (const r of res) {

@@ -16,6 +16,8 @@ import { eixoDaBaseParede } from './corridaParede';
 import { direcaoPrincipal, torcaoRet } from './analitico';
 import type { CombinacaoEd } from './combinacoes';
 import { alfa0t, lbBasico } from './detalhamento';
+import { registrarRadier, momentosRadier, type ItemFissRadier } from '../memoria/radier';
+import { registrarLajeBarras } from '../memoria/lajeMacica';
 import { cortesLaje, escolherBarrasLaje, RHO_MIN_LAJE, type DetalheLaje, type PosicaoLaje } from './detalhamentoLajes';
 import { GAMA_CONCRETO } from './lajes';
 import { classificar } from './revisao';
@@ -24,7 +26,7 @@ import { fracaoPassante } from './tabelasArmadura';
 import { alturaUtilVF, geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type GeoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
-import { memoriaAtiva } from '../memoria/registrador';
+import { fm as fmM, memoriaAtiva } from '../memoria/registrador';
 import { registrarVigaElastica } from '../memoria/vigaElastica';
 import type { ResultadoPuncao } from './puncao';
 import { casosDaObra, centroPilar, contornoPilar, ehArranque, secaoNoLance, lancesDoPilar, type BuildingModel, type Pilar, type Radier, type SapataCorrida, type VigaElastica } from './types';
@@ -503,7 +505,7 @@ export interface ResultadoVigaElastica {
 }
 
 /** Deslocamento vertical (uz) dos nós por nome de caso (casos verticais e de vento). */
-function deslocPorCaso(an: AnaliseEdificio): Map<string, Float64Array> {
+export function deslocPorCaso(an: AnaliseEdificio): Map<string, Float64Array> {
   const m = new Map<string, Float64Array>(), pm = an.portico;
   if (!pm.res) return m;
   an.casos.forEach((c, ic) => m.set(c, pm.res!.desloc[ic]));
@@ -546,8 +548,35 @@ export function tensoes(b: BuildingModel, an: AnaliseEdificio, raras: Combinacao
   return { out: out.map((o) => ({ ...o, sigma: Number.isFinite(o.sigma) ? o.sigma : 0, sigmaMin: Number.isFinite(o.sigmaMin) ? o.sigmaMin : 0 })), max, min, cMax, cMin, rec };
 }
 
+/** Memória detalhada (MD5c): nó e combinação que dão a tensão máxima, a mínima, o maior recalque e a maior razão σ/σadm, refeitos com as mesmas contas de `tensoes`. */
+export interface DetTensaoNo { valor: number; comb: string; no: number; x: number; y: number; k: number; area: number; porCaso: { caso: string; f: number; uz: number }[] }
+export interface DetTensoes { max: DetTensaoNo | null; min: DetTensaoNo | null; rec: DetTensaoNo | null; pior: { razao: number; comb: string; lim: number; vento: boolean } | null; fatorVento: number }
+export function detalheTensoes(b: BuildingModel, an: AnaliseEdificio, raras: CombinacaoEd[], nos: NoBase[], sigmaAdm: number | null): DetTensoes {
+  const desl = deslocPorCaso(an), fv = b.fundacao?.terreno.fatorVento ?? 1;
+  let max = -Infinity, min = Infinity, rec = 0, pior = 0;
+  type Ref = { c: CombinacaoEd; n: NoBase; sg: number; w: number };
+  let rMax: Ref | null = null, rMin: Ref | null = null, rRec: Ref | null = null, rPior: { c: CombinacaoEd; lim: number; vento: boolean } | null = null;
+  for (const c of raras) {
+    const vento = temVento(b, an, c), lim = sigmaAdm !== null ? sigmaAdm * (vento ? fv : 1) : Infinity;
+    for (const n of nos) {
+      let w = 0;
+      for (const k in c.fatores) { const d = desl.get(k); if (d) w += c.fatores[k] * d[n.no * 6 + 2]; }
+      const sg = -n.k * w;
+      if (sg > max) { max = sg; rMax = { c, n, sg, w }; }
+      if (sg < min) { min = sg; rMin = { c, n, sg, w }; }
+      if (-w > rec) { rec = -w; rRec = { c, n, sg, w }; }
+      if (sg / lim > pior) { pior = sg / lim; rPior = { c, lim, vento }; }
+    }
+  }
+  const mk = (r: Ref | null): DetTensaoNo | null => r ? { valor: r.sg, comb: r.c.nome, no: r.n.no, x: r.n.x, y: r.n.y, k: r.n.k, area: r.n.area, porCaso: Object.entries(r.c.fatores).filter(([k]) => desl.get(k)).map(([k, f]) => ({ caso: k, f, uz: desl.get(k)![r.n.no * 6 + 2] })) } : null;
+  return { max: mk(rMax), min: mk(rMin), rec: mk(rRec), pior: rPior ? { razao: pior, comb: rPior.c.nome, lim: rPior.lim, vento: rPior.vento } : null, fatorVento: fv };
+}
+
 /** σadm do elemento: a própria ou a informada do terreno (no modo pelo SPT sem valor do elemento: sem σadm). */
 export const sigmaDe = (b: BuildingModel, s?: number) => s ?? (b.fundacao?.terreno.sigmaModo !== 'sondagem' ? b.fundacao?.terreno.sigmaAdm ?? null : null);
+
+/** Wood-Armer por nó (memória detalhada): `woodArmerNos` de dimensionamento.ts, passado para não criar dependência circular. */
+export type WoodArmerNosFn = (g: GrelhaPavimento, lajeId: string, fat: number[], det?: { mx: number; my: number; tx: number; ty: number }[]) => { no: number; inf: [number, number]; sup: [number, number] }[];
 
 /**
  * Verifica e dimensiona a base elástica: tensões no solo (raras), radier por Wood-Armer (ELU, faixa de 1 m; armadura
@@ -555,7 +584,8 @@ export const sigmaDe = (b: BuildingModel, s?: number) => s ?? (b.fundacao?.terre
  * `momentosWA`: os momentos por Wood-Armer de uma grelha (dimensionamento.ts), passados para não criar dependência circular.
  */
 export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, combs: { raras: CombinacaoEd[]; elu: CombinacaoEd[]; freq: CombinacaoEd[] },
-  momentosWA: (g: GrelhaPavimento, ref: string, fat: number[]) => { pos: [number, number]; neg: [number, number] }): { radiers: ResultadoRadier[]; vigasElasticas: ResultadoVigaElastica[] } {
+  momentosWA: (g: GrelhaPavimento, ref: string, fat: number[]) => { pos: [number, number]; neg: [number, number] },
+  waNos?: WoodArmerNosFn): { radiers: ResultadoRadier[]; vigasElasticas: ResultadoVigaElastica[] } {
   const be = an.baseElastica, pm = an.portico;
   if (!be || !pm.res) return { radiers: [], vigasElasticas: [] };
   const raras = combs.raras.filter((c) => c.tipo === 'RARA'), elu = combs.elu.filter((c) => c.tipo === 'ELU'), freq = combs.freq.filter((c) => c.tipo === 'FREQ');
@@ -584,18 +614,37 @@ export function dimensionarBaseElastica(b: BuildingModel, an: AnaliseEdificio, c
     for (const [lado, ms] of [['pos', mPos], ['neg', mNeg]] as const) for (const k of [0, 1]) { const f = beamFlexure(sec, false, Math.abs(ms[k]), d, cob + 0.01, c, aco.fyd); if (f.double) msgs.push(`Radier ${r.nome}: espessura insuficiente na flexão (${lado === 'pos' ? 'face inferior' : 'face superior'}, direção ${k}: md = ${fmt(Math.abs(ms[k]))} kN·m/m).`); }
     // fissuração na frequente
     let wk = 0, aumentou = false;
+    const mem = memoriaAtiva(), elR = `Radier ${r.nome}`, regR = mem && waNos && mem.aceita(elR) ? mem : null;
+    const asNec = regR ? { pos: [...AsR.pos] as [number, number], neg: [...AsR.neg] as [number, number] } : null;
+    const itens: ItemFissRadier[] = [], MkMax = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
     for (const lado of ['pos', 'neg'] as const) for (const k of [0, 1]) {
       let Mk = 0;
       for (const cb of freq) { const m = momentosWA(grelha, r.id, fat(cb)); Mk = Math.max(Mk, Math.abs(lado === 'pos' ? m.pos[k] : m.neg[k])); }
       const w = () => { const br = escolherBarrasLaje(AsR[lado][k] / 1e4, h, Math.min(2 * h, 0.2), op.lajeEspacamentoMinimo / 100, 8, false); return Mk ? crackWidth(sec, false, br.As, br.phi, d, Mk, c, caa).wk : 0; };
-      let wi = w();
-      for (let it = 0; it < 20 && wi > wkLim; it++) { AsR[lado][k] *= 1.1; wi = w(); aumentou = true; }
+      const As0k = AsR[lado][k];
+      let wi = w(), nIt = 0;
+      for (let it = 0; it < 20 && wi > wkLim; it++) { AsR[lado][k] *= 1.1; wi = w(); aumentou = true; nIt++; }
       wk = Math.max(wk, wi);
+      if (regR) {
+        MkMax[lado][k] = Mk;
+        const br = escolherBarrasLaje(AsR[lado][k] / 1e4, h, Math.min(2 * h, 0.2), op.lajeEspacamentoMinimo / 100, 8, false);
+        itens.push({ face: lado, dir: k as 0 | 1, As0: As0k, AsFinal: AsR[lado][k], iteracoes: nIt, Mk, d, phi: br.phi, s: br.s, AsEf: br.As, smax: Math.min(2 * h, 0.2), wk: wi });
+      }
     }
     if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${fmt(wkLim, 2)} mm.`);
     if (wk > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${fmt(wk, 2)} mm > ${fmt(wkLim, 2)} mm.`);
     notas.push(`Malha de ${fmt(op.radierMalha, 2)} m, k = ${fmt(r.k ?? op.radierK, 0)} kN/m³, molas k × área de influência; punção sob os pilares verificada (NBR 6118, 19.5; N2d).`);
     const area = Math.abs(areaPoligono(r.contorno)) - (r.furos ?? []).reduce((s, f) => s + Math.abs(areaPoligono(f)), 0);
+    if (regR && waNos && asNec) {
+      const casos = nomes;
+      registrarRadier(regR, {
+        el: elR, nome: r.nome, h, k: r.k ?? op.radierK, malha: op.radierMalha, area, nNos: nos.length, sigmaAdm: sAdm, c, fyd: aco.fyd, fyk: aco.fyk, cob, d, amin,
+        solo: detalheTensoes(b, an, raras, nos, sAdm), resSolo: { max: t.max, min: t.min, cMax: t.cMax, cMin: t.cMin, rec: t.rec },
+        momentosELU: momentosRadier(waNos, grelha, r.id, casos, elu, fat, { pos: mPos, neg: mNeg }, 'ELU'),
+        mPos, mNeg, asNec, momentosFreq: momentosRadier(waNos, grelha, r.id, casos, freq, fat, { pos: MkMax.pos, neg: [-MkMax.neg[0], -MkMax.neg[1]] }, 'combinação frequente'),
+        itens, As: AsR, wk, wkLim, caa, rhoMin: RHO_MIN_LAJE,
+      });
+    }
     radiers.push({
       id: r.id, nome: r.nome, h, k: r.k ?? op.radierK, sigmaAdm: sAdm, area, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
       mPos, mNeg, As: AsR, wk, wkLim, angulo: direcaoPrincipal(r.contorno), nos: t.out,
@@ -740,11 +789,16 @@ export function detalharRadier(b: BuildingModel, r: Radier, res: ResultadoRadier
   const dot = (a: P, z: P) => a[0] * z[0] + a[1] * z[1];
   const avisos: string[] = [], posicoes: PosicaoLaje[] = [], emendas: DetalheLaje['emendas'] = [];
   const perna = Math.max(0, h - 2 * cob);
+  const elR = `Radier ${r.nome}`, mem0 = memoriaAtiva(), memR = mem0 && mem0.aceita(elR) ? mem0 : null; // memória detalhada (MD5c)
   const positivas: DetalheLaje['positivas'] = [];
   let np = 0, phiSup = 10;
   for (const face of ['inf', 'sup'] as const) for (const k of [0, 1] as const) {
     const nec = (face === 'inf' ? res.As.pos[k] : res.As.neg[k]) / 1e4;
     const br = escolherBarrasLaje(nec, h, smax, smin, 8, aco.aco === 'CA-60');
+    if (memR) {
+      const topico = `Barras – armadura ${face === 'inf' ? 'positiva' : 'negativa'}, direção ${k}`;
+      if (!memR.passos.some((q) => q.elemento === elR && q.topico === topico)) registrarLajeBarras(memR, elR, { face: face === 'inf' ? 'pos' : 'neg', dir: k, nec, h, smax, smin, phiMin: 8, tabela: 'radier (sem tabela de armadura)', ...br });
+    }
     if (!br.cabe) avisos.push(`Radier ${r.nome}: ${fmt(nec * 1e4, 2)} cm²/m (${face === 'inf' ? 'inferior' : 'superior'}, direção ${k}) não cabe com espaçamento ≥ ${fmt(smin * 100, 0)} cm.`);
     if (face === 'inf') positivas.push({ phi: br.phi, s: br.s, As: +(br.As * 1e4).toFixed(3), AsNec: +(nec * 1e4).toFixed(3), secundaria: false });
     else phiSup = br.phi;
@@ -792,6 +846,10 @@ export function detalharRadier(b: BuildingModel, r: Radier, res: ResultadoRadier
     }
   }
   const peso = posicoes.reduce((t, x) => t + x.n * x.comprimento * pesoLinear(x.phi), 0);
+  if (memR && !memR.passos.some((q) => q.elemento === elR && q.topico === 'Radier · quantitativos')) {
+    const area = Math.abs(areaPoligono(r.contorno)) - (r.furos ?? []).reduce((t, f) => t + Math.abs(areaPoligono(f)), 0);
+    memR.passo({ etapa: 'detalhamento', elemento: elR, topico: 'Radier · quantitativos', descricao: 'Volume de concreto e peso de aço das barras detalhadas (malha inferior e superior nas duas direções, com ganchos nas bordas e emendas)', formula: 'V = A·h; aço = Σ n·ℓ·peso linear', expressao: `V = ${fmM(area)}·${fmM(h)} = ${fmM(area * h)} m³; aço = ${fmM(peso)} kg (${posicoes.length} posições)`, resultado: peso, unidade: 'kg', norma: 'NBR 6118:2023, 20.1', entradas: { area, h, volume: area * h, peso, posicoes: posicoes.length, lbInf: lbBasico(positivas[0]?.phi ?? 10, c, aco.fyd, true, aco.aco === 'CA-60') } });
+  }
   return {
     laje: r.id, nome: r.nome, repeticoes: 1, h, angulo: +res.angulo.toFixed(3), positivas, bordas: [], posicoes,
     lb: { inf: lbBasico(positivas[0]?.phi ?? 10, c, aco.fyd, true, aco.aco === 'CA-60'), sup: lbBasico(phiSup, c, aco.fyd, h - cob <= 0.3, aco.aco === 'CA-60'), supBoaAderencia: h - cob <= 0.3 },

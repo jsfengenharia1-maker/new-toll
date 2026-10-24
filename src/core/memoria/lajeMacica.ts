@@ -127,7 +127,7 @@ export function registrarLajeFlexao(mem: Registrador, el: string, x: CtxLajeFlex
 }
 
 export interface ItemFissuracao { face: 'pos' | 'neg'; dir: 0 | 1; As0: number; AsFinal: number; iteracoes: number; Mk: number; d: number; phi: number; s: number; AsEf: number; smax: number; wk: number }
-export interface CtxLajeFissuracao { c: Concrete; sec: BeamSection; h: number; caa: 1 | 2 | 3 | 4; wkLim: number; itens: ItemFissuracao[]; wk: number }
+export interface CtxLajeFissuracao { c: Concrete; sec: BeamSection; h: number; caa: 1 | 2 | 3 | 4; wkLim: number; itens: ItemFissuracao[]; wk: number; criterio?: string }
 
 /** Fissuração na combinação frequente: aumento da armadura e abertura wk por face e direção. */
 export function registrarLajeFissuracao(mem: Registrador, el: string, x: CtxLajeFissuracao) {
@@ -135,7 +135,7 @@ export function registrarLajeFissuracao(mem: Registrador, el: string, x: CtxLaje
   for (const it of x.itens) {
     const nome = it.face === 'pos' ? 'positiva' : 'negativa', topico = `Fissuração – armadura ${nome}, direção ${it.dir}`;
     const P = (p: Chave) => mem.passo({ etapa: 'dimensionamento', elemento: el, topico, ...p });
-    P({ descricao: 'Barras consideradas na verificação (menor bitola com espaçamento ≥ 10 cm, s ≤ mín(2h; 20 cm))', formula: 's = mín(smáx; π·φ²/4 / As); As,ef = π·φ²/4 / s', expressao: `φ${fm(it.phi)} c/${fm(it.s * 100, 3)} cm → As,ef = ${fm(it.AsEf * 1e4)} cm²/m (As = ${fm(it.AsFinal)} cm²/m)`, resultado: it.AsEf, unidade: 'm²/m', norma: `${NBR}, 20.1 e 17.3.3.2`, entradas: { phi: it.phi, s: it.s, As: it.AsFinal / 1e4, smax: it.smax } });
+    P({ descricao: `Barras consideradas na verificação (${x.criterio ?? 'menor bitola com espaçamento ≥ 10 cm, s ≤ mín(2h; 20 cm)'})`, formula: 's = mín(smáx; π·φ²/4 / As); As,ef = π·φ²/4 / s', expressao: `φ${fm(it.phi)} c/${fm(it.s * 100, 3)} cm → As,ef = ${fm(it.AsEf * 1e4)} cm²/m (As = ${fm(it.AsFinal)} cm²/m)`, resultado: it.AsEf, unidade: 'm²/m', norma: `${NBR}, 20.1 e 17.3.3.2`, entradas: { phi: it.phi, s: it.s, As: it.AsFinal / 1e4, smax: it.smax } });
     if (it.iteracoes > 0) P({ descricao: `Aumento da armadura para limitar wk (${it.iteracoes} passos de 10 %)`, formula: 'As ← 1,1·As até wk ≤ wk,lim (no máximo 20 passos)', expressao: `As = ${fm(it.As0)}·1,1^${it.iteracoes} = ${fm(it.AsFinal)} cm²/m`, resultado: it.AsFinal, unidade: 'cm²/m', norma: `${NBR}, 17.3.3.2`, entradas: { As0: it.As0, passos: it.iteracoes, fator: 1.1, wkLim: x.wkLim } });
     passosFissuracao(mem, el, topico, { sec: x.sec, fc: false, As: it.AsEf, phi: it.phi, d: it.d, Mk: it.Mk, c: x.c, caa: x.caa, h: x.h, b: 1, wkLim: x.wkLim, wk: it.wk });
     ent[`wk_${it.face}${it.dir}`] = it.wk;

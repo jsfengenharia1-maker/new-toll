@@ -2166,7 +2166,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
     }
   }
   if (an.baseElastica) {
-    const be = dimensionarBaseElastica(b, an, { raras: combinacoesDoEstado(b, an, 'solo', combs), elu, freq }, momentosWoodArmer);
+    const be = dimensionarBaseElastica(b, an, { raras: combinacoesDoEstado(b, an, 'solo', combs), elu, freq }, momentosWoodArmer, woodArmerNos);
     if (be.radiers.length) {
       // punção sob os pilares do radier (N2d): mensagens e situação do radier
       const pr = puncaoRadier(b, an, be.radiers, elu, an.opcoes);
@@ -2174,6 +2174,7 @@ export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { 
         const l = pr.get(r.id);
         if (!l?.length) continue;
         r.puncao = l;
+        { const mm = memoriaAtiva(), elR = `Radier ${r.nome}`; if (mm && mm.aceita(elR)) mm.passo({ etapa: 'dimensionamento', elemento: elR, topico: 'Radier · punção', descricao: `Punção e cortante no entorno dos pilares do radier (reação do solo descontada no contorno): verificadas nos elementos ${l.map((x) => `"Punção ${x.nome} · Radier ${r.nome}"`).join(', ')}`, formula: 'ver os elementos de punção', expressao: l.map((x) => `${x.nome}: ${x.status}`).join('; '), resultado: l.every((x) => x.status !== 'fail') ? 'atende' : 'não atende', unidade: '', norma: 'NBR 6118:2023, 19.5', entradas: {} }); }
         r.mensagens.push(...l.flatMap((x) => x.mensagens));
         if (l.some((x) => x.status === 'fail')) r.status = 'fail';
       }
