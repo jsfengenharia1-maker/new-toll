@@ -163,6 +163,8 @@ export interface ResultadoViga {
   envoltoria: EnvoltoriaViga;
   /** Momentos ELU (kN·m; + traciona embaixo) nas faces dos pilares de apoio, com as combinações que os dão (só exibição: o cálculo usa o trecho rígido). */
   facesPilar: { s: number; pilar: string; nomePilar: string; Mmin: number; Mmax: number; combinacaoMin: string; combinacaoMax: string }[];
+  /** Vãos com apoio em parede ou pilar-parede (K1.12.21): vão entre faces `L` e vão de cálculo `Lc` dos momentos mínimos (m). */
+  vaosParede?: { L: number; Lc: number }[];
   /** Origem de cada grandeza: combinação determinante, fórmula e item da NBR 6118. */
   origens: Origem[];
   /** Maior torçor de cálculo (kN·m), armadura longitudinal de torção (m², no perímetro) e maior Vsd/VRd2 + Tsd/TRd2. */
@@ -228,11 +230,13 @@ function distPolilinha(pts: [number, number][], P: number[]): number {
 }
 
 /** Abscissa (m) da projeção de P no traçado da viga, a partir do primeiro ponto. */
-function abscissa(pts: [number, number][], P: number[]): number {
+function abscissa(pts: [number, number][], P: number[], livre = false): number {
   let melhor = Infinity, s = 0, acum = 0;
   for (let i = 0; i + 1 < pts.length; i++) {
     const a = pts[i], z = pts[i + 1], dx = z[0] - a[0], dy = z[1] - a[1], L = Math.hypot(dx, dy) || 1;
-    const t = Math.max(0, Math.min(L, ((P[0] - a[0]) * dx + (P[1] - a[1]) * dy) / L));
+    const t0 = ((P[0] - a[0]) * dx + (P[1] - a[1]) * dy) / L;
+    // `livre`: as pontas do traçado prolongam-se (apoio que passa da ponta da viga)
+    const t = Math.max(livre && i === 0 ? -Infinity : 0, Math.min(livre && i + 2 === pts.length ? Infinity : L, t0));
     const d = Math.hypot(a[0] + (dx * t) / L - P[0], a[1] + (dy * t) / L - P[1]);
     if (d < melhor - 1e-9) { melhor = d; s = acum + t; }
     acum += L;
@@ -441,7 +445,17 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       // vão de cálculo sobre pilar-parede ou parede (K1.12.21): vão livre + fator × h/2 por apoio de parede, no lugar do trecho rígido
       const ln = ladoDosNos(an), parede = ln.has(ini) || ln.has(fim);
       const ext = (no: number, r: number | null) => (ln.has(no) ? (op.vigaApoioLongVao * v.secao.h) / 2 - (r ?? 0) : 0);
-      vaos.push({ L: x0, xs, s: sAbs, M, Mv, V, Vv, T, Mk, corte, ini, fim, balanco: livre(ini) !== livre(fim), faces, ...(parede ? { Lc: x0 + ext(ini, rIc) + ext(fim, rJc) } : {}), rIni: rIc, rFim: rJc, oIni: rIc !== null ? Math.hypot(...(bI.offI ?? [0, 0, 0])) : 0, oFim: rJc !== null ? Math.hypot(...(bJ.offJ ?? [0, 0, 0])) : 0 });
+      // E5j (K1.12.21): o vão de cálculo não passa da distância entre os eixos dos apoios (centro do contato do pilar/parede com a viga;
+      // apoio que não é pilar, como a viga cruzada, vale o ponto onde o eixo da viga a cruza)
+      const centroApoio = (no: number, sFim: number) => {
+        const pl = pilarNo.has(no) ? todosPilares(b).find((q) => q.id === pilarNo.get(no)) : undefined, pav = pavimentosDoGrupo(b, v.grupo)[0];
+        if (!pl || !pav) return sFim;
+        const ss = contornoNoLance(pl, pav.id).map((q) => abscissa(v.pontos, q, true));
+        return ss.length ? (Math.min(...ss) + Math.max(...ss)) / 2 : sFim;
+      };
+      const eixos = Math.abs(centroApoio(fim, sAbs[sAbs.length - 1]) - centroApoio(ini, sAbs[0]));
+      const LcPar = parede ? x0 + ext(ini, rIc) + ext(fim, rJc) : 0;
+      vaos.push({ L: x0, xs, s: sAbs, M, Mv, V, Vv, T, Mk, corte, ini, fim, balanco: livre(ini) !== livre(fim), faces, ...(parede ? { Lc: op.vigaApoioLongEixos && eixos > 0 ? Math.min(LcPar, eixos) : LcPar } : {}), rIni: rIc, rFim: rJc, oIni: rIc !== null ? Math.hypot(...(bI.offI ?? [0, 0, 0])) : 0, oFim: rJc !== null ? Math.hypot(...(bJ.offJ ?? [0, 0, 0])) : 0 });
     }
     // N2e: arredondamento do diagrama dentro dos apoios internos (cúbica entre as faces ou ΔM = R·t/8)
     let arredondou = false;
@@ -733,7 +747,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
     out.push({
       viga: v.id, nome: v.nome, grupo: v.grupo, b: v.secao.b, h: v.secao.h, L: comprimentoPolilinha(v.pontos),
       flecha, limite, flechaQ, limiteQ, flechas: fv,
-      Mpos, Mneg, V, envoltoria: envolt, facesPilar, origens: [
+      Mpos, Mneg, V, envoltoria: envolt, facesPilar, ...(vaos.some((x) => x.Lc !== undefined) ? { vaosParede: vaos.filter((x) => x.Lc !== undefined).map((x) => ({ L: x.L, Lc: x.Lc! })) } : {}), origens: [
         origem('Armadura inferior', envolt.determinantes.Mmax, 'flexao'),
         ...(AsSup ? [origem('Armadura superior', envolt.determinantes.Mmin, 'flexao')] : []),
         origem('Estribos (cortante)', envolt.determinantes.V, 'cortante'),

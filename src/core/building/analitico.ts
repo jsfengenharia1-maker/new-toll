@@ -29,7 +29,7 @@ import { apoiosDosPilares, pilaresSobre } from './transicao';
 import { geometriaParedes } from './pilarParede';
 import { ppDaObra } from './paredesBase';
 import { blocoDe, ehAlvenaria, resistenciaAlvenaria, tipoAlvenariaDe } from './alvenaria';
-import { incluirParedes, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
+import { incluirParedes, axialCascas, pontosBaseDasParedes, reduzirCascas, type BaseWinkler, type ParedesNoPortico } from './pilarParedeModelo';
 import { eixoDaBaseParede, reacaoDoNo } from './corridaParede';
 import { calcularEscadas, comEscadas, type ResultadoEscadas } from './escadasCalculo';
 import { avisosBaseElastica, forcaBasePilar, montarBaseElastica, type BaseElasticaAnalise } from './baseElastica';
@@ -1620,7 +1620,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
     if (br.engI && (nBarras.get(br.i) ?? 0) < 2 && !pm.apoios.has(br.i)) delete br.engI;
   });
   // cargas verticais: multiplicador axial dos pilares (premissa 25)
-  const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)), ...(pm.cascas ? { cascas: reduzirCascas(pm.cascas, op.axialPilares) } : {}) };
+  const pmV: Modelo3 = { ...pm, barras: pm.barras.map((br, i) => (ptags[i].tipo === 'pilar' ? { ...br, A: br.A * op.axialPilares } : br)), ...(pm.cascas ? { cascas: (op.axialParedeSeparado ? axialCascas : reduzirCascas)(pm.cascas, op.axialPilares) } : {}) };
   const res = resolver3(pmV, casosV);
   if (res.erro) return { ...vazio, grelhas, avisos, erro: `Pórtico: ${res.erro}`, portico: { modelo: semFuncoes(pm), barras: ptags, mestres, zonas, res: null } };
   // modelo integrado: deslocamentos e esforços da grelha de cada pavimento por retrossubstituição; reações e momentos
