@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 7 | 0 | 0 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 8 | 1 | 0 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 43 | 6 | 0 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 67 | 11 | 1 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 68 | 11 | 0 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 41 | 4 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -25,7 +25,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 21 | 3 | 0 | 19 |
-| **Total** | **661** | **482** | **66** | **2** | **111** |
+| **Total** | **661** | **483** | **66** | **1** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 2 | 33 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 31 | 1 | 32 |
 | FU — Fundações | 4 | 0 | 4 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 1 | 0 | 1 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 14 | 0 | 14 |
-| **Total** | **66** | **2** | **68** |
+| **Total** | **66** | **1** | **67** |
 
 ## Divergências de premissa
 
@@ -255,7 +255,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.76 | Distância borda–centro da barra (lajes e nervuradas); detalhar armadura base nos desenhos (padrão desativado: não desenha nem mede). | Feito | — | ponta das barras a cobrimento da borda; opção `lajeBaseDetalhada` (padrão desligada, como no registro) e escolha por laje em `laje.armaduraBase`: não detalhada só indica φ c/ s ou a tela (desenho e notas da prancha), fora do quantitativo (R7d) |
 | K1.4.77 | Arredondamento de comprimentos; ganchos construtivos; critérios de disposição e numeração; armadura de lajes retangulares; cobrimentos de fundação; cobrimentos de vigotas, alveolares e mistas. | Feito | — | arredondamento (opção), ganchos de 90° e editáveis por posição, numeração N1… com opção `lajeNumeracao` (inferiores primeiro), disposição editável (`laje.barras`), armadura média de lajes retangulares (`lajeArmaduraMedia`) e cobrimentos de fundação (N1b); lajes alveolares e mistas fora do escopo do app (R7e) |
 | | **Escadas (listadas)** | | | |
-| K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Falta | E | escadas [E4d] |
+| K1.4.78 | Igualar armaduras; arranques na base e no topo (ligação à laje); posição da armadura; cobrimento; ancoragem na laje; altura da fundação. | Feito | — | escadas [E4d] igualações (opções `escadaIgualar*`), esperas e passadores, posição e cobrimento (`escadaCobrimento`), ancoragem na laje/viga e profundidade da fundação; `src/core/building/escadasArmadura.ts` |
 | | **Opções gerais de vigas e lajes (listadas)** | | | |
 | K1.4.79 | Opções de desenho; comprimento máximo de corte de barra; perdas de aço na medição. | Feito | — | perdas de aço e barra máxima (opções perdasAco e barraMaxima, R3a) e opções de desenho das pranchas de armação (formato, escalas, lajes separadas, quadro de pilares) (R5) |
 | K1.4.80 | Taxas mínimas de negativo em lajes de vigotas e alveolares; armadura em lajes comuns e alveolares. | Feito | — | negativos com ρmín e comprimento mínimo em % do vão (opção `vigotaNegativoVao`; NBR 0) nas treliçadas (R6), nas vigotas (E3b) e nas alveolares (`dimensionarAlveolares`: linha da ficha ou seção, comprimento = máx(% do vão; zero do diagrama + decalagem + lb)) [E3e] |
@@ -1013,3 +1013,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **24/10/2026 — E4c, núcleo (cálculo das escadas).** K1.1.6, K1.2.10, K1.3.37 a K1.3.41 e K1.10.10 passam de Falta a Feito; K1.9.116 de Falta a Parcial (capítulo do memorial nos cartões). Casca de 6 nós por lance com giro acoplado à rotação da membrana (as dobras entre trecho e patamar ficavam moles com o giro solto: reação do apoio do patamar 3,5 % abaixo do OpenSees; com o acoplamento, ≤ 0,5 %), apoios das bordas como viga rígida, patamar com apoio elástico, só G e Q, fora da análise global; reações como cargas lineares G e Q. Premissas a confirmar em `docs/pendencias-usuario.md`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E diminui (9 itens a Feito).
+- **24/10/2026 — E4d, núcleo (armadura das escadas).** K1.4.78 (igualar armaduras, arranques na base e no topo, posição, cobrimento, ancoragem na laje, altura da fundação) passa de Falta a Feito: `src/core/building/escadasArmadura.ts` e as opções `escadaIgualar*`, `escadaEsperas`, `escadaPassadores`, `escadaCobrimento`, `escadaAncoragemViga`, `escadaProfundidadeFundacao`. Premissas a confirmar em `docs/pendencias-usuario.md`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: E diminui (1 item a Feito).
