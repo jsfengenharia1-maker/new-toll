@@ -8,7 +8,7 @@ import type { Dimensionamento, ResultadoViga } from './dimensionamento';
 import { acoDe, cobrimentoViga, concretoDe } from './materiais';
 import type { OpcoesCalculo } from './opcoes';
 import { lancesDoPilar, pavimentosDoGrupo, type BuildingModel, type Viga, contornoNoLance } from './types';
-import { fracaoPassante } from './tabelasArmadura';
+import { bitolaDaLista, fracaoPassante, linhaVigas, tabelaDe } from './tabelasArmadura';
 import { vaosDaViga, vigaTocaPilar } from './vigas';
 import { secaoParaFlexao } from './secaoViga';
 import { ehVirtual, todosPilares } from './pilarParede';
@@ -155,6 +155,32 @@ function intervalos(n: number, f: (i: number) => boolean): [number, number][] {
   return out;
 }
 
+/**
+ * Divide `n` barras de um reforço em até `k` grupos de comprimentos de corte (R8a, K1.12.6 e K1.12.12). A barra `j` (0 a n−1) é
+ * exigida onde a armadura necessária decalada supera a capacidade de base mais `j` barras; `ext(j)` devolve o trecho [s0, s1]
+ * dessa barra (nested: j maior = trecho menor). Cada grupo é cortado pela sua barra mais longa; o grupo leva ao menos
+ * `minPct` % das barras (arredondado para cima, mínimo 1). Escolhe a partição de menor comprimento total de barra (menos grupos
+ * em empate) e funde grupos de mesmo trecho.
+ */
+export function agruparCortes(n: number, k: number, minPct: number, ext: (j: number) => [number, number]): { n: number; s0: number; s1: number }[] {
+  if (!(n >= 1) || n > 40) { const [s0, s1] = ext(0); return [{ n, s0, s1 }]; } // área absurda (sem solução): um só grupo, sem enumerar
+  const E = Array.from({ length: n }, (_, j) => ext(j));
+  const comp = (j: number) => E[j][1] - E[j][0];
+  const tam = Math.max(1, Math.ceil((n * minPct) / 100 - 1e-9));
+  let melhor: { cortes: number[]; custo: number } = { cortes: [0], custo: n * comp(0) };
+  const custo = (cortes: number[]) => cortes.reduce((t, c, i) => t + ((cortes[i + 1] ?? n) - c) * comp(c), 0);
+  const tenta = (cortes: number[]) => { const c = custo(cortes); if (c < melhor.custo - 1e-9) melhor = { cortes, custo: c }; };
+  const gMax = Math.min(Math.max(1, Math.round(k)), n);
+  if (gMax >= 2) for (let a = tam; a <= n - tam; a++) tenta([0, a]);
+  if (gMax >= 3) for (let a = tam; a <= n - 2 * tam; a++) for (let b = a + tam; b <= n - tam; b++) tenta([0, a, b]);
+  const out: { n: number; s0: number; s1: number }[] = [];
+  melhor.cortes.forEach((c, i) => {
+    const q = (melhor.cortes[i + 1] ?? n) - c, [s0, s1] = E[c], ant = out.at(-1);
+    if (ant && Math.abs(ant.s0 - s0) < 1e-9 && Math.abs(ant.s1 - s1) < 1e-9) ant.n += q; else out.push({ n: q, s0, s1 });
+  });
+  return out;
+}
+
 /** Tramo predefinido resolvido para uma viga: abscissa (m) do eixo do apoio comum em cada extremo ligado e a viga vizinha. */
 export interface TramoViga { ini?: { s: number; com: string }; fim?: { s: number; com: string } }
 
@@ -266,7 +292,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const limParede = (op.vigaApoioLongProlong + op.vigaApoioLongBarras) * h, virtuais = new Set(todosPilares(b).filter(ehVirtual).map((p) => p.id));
   for (const a of apoios.slice(1, -1)) if (virtuais.has(a.pilar) && a.s1 - a.s0 > 2 * limParede + 1e-9) avisos.push(`Parede ou pilar-parede no meio da viga com contato de ${(a.s1 - a.s0).toFixed(2).replace('.', ',')} m (mais de 2 × ${limParede.toFixed(2).replace('.', ',')} m): fora desse alcance o cálculo não dimensiona a viga e a armadura segue contínua sobre a parede; interrompa a viga e a armadura manualmente depois de ${limParede.toFixed(2).replace('.', ',')} m da face.`);
   const ext = extensaoDaViga(v, apoios);
-  const c0 = ext[0] + cob.lat, c1 = ext[1] - cob.lat; // pontas das barras (cobrimento na ponta)
+  const folga = op.vigaAncoragemFolga > 0 ? op.vigaAncoragemFolga / 100 : cob.lat; // folga da ponta à face externa do apoio extremo (ancoragem construtiva, K1.12.7)
+  const c0 = ext[0] + folga, c1 = ext[1] - folga; // pontas das barras
   // detalhe editado: vale enquanto o número de vãos não mudou
   const edit = v.detalhe && v.detalhe.vaos === vaosDaViga(b, v) ? v.detalhe : undefined;
   if (v.detalhe && !edit) avisos.push('Detalhe editado desconsiderado: o número de vãos da viga mudou desde a edição.');
@@ -291,8 +318,14 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const AsPosD = decala(AsPos), AsNegD = decala(AsNeg);
   // aderência (9.3.1): inferior boa; superior má quando fica a mais de 30 cm da face inferior (h < 60) ou h ≥ 60 cm
   const supBoa = h < 0.6 && h - cob.sup <= 0.3;
-  const phiI = r.arranjo.inf?.phi ?? 10, phiS = r.arranjo.sup?.phi ?? 10, phiM = Math.min(phiS, op.bitolaMontagem);
-  const lbI = lbBasico(phiI, c, aPos.fyd, true, aPos.aco === 'CA-60'), lbS = lbBasico(phiS, c, aNeg.fyd, supBoa, aNeg.aco === 'CA-60');
+  const phiI = r.arranjo.inf?.phi ?? 10, phiS = r.arranjo.sup?.phi ?? 10, phiM0 = Math.min(phiS, op.bitolaMontagem);
+  // bitolas de montagem e adicional pela tabela da viga (K1.12.18): fora da lista, aviso e troca
+  const linhaT = linhaVigas(tabelaDe(b, 'vigas', v.tabela), bw, h);
+  const bM = bitolaDaLista(linhaT.montagem, phiM0), phiM = bM.phi;
+  if (bM.fora) avisos.push(`Fora de tabela (montagem): φ${String(phiM0).replace('.', ',')} não está nas bitolas de montagem da tabela; adotada φ${String(phiM).replace('.', ',')}.`);
+  const bR = bitolaDaLista(linhaT.adicional, op.vigaReforcoBitola > 0 ? op.vigaReforcoBitola : phiI), phiR = bR.phi;
+  if (bR.fora) avisos.push(`Fora de tabela (adicional): φ${String(op.vigaReforcoBitola > 0 ? op.vigaReforcoBitola : phiI).replace('.', ',')} não está nas bitolas adicionais da tabela; adotada φ${String(phiR).replace('.', ',')}.`);
+  const lbI = lbBasico(phiI, c, aPos.fyd, true, aPos.aco === 'CA-60'), lbR = phiR === phiI ? lbI : lbBasico(phiR, c, aPos.fyd, true, aPos.aco === 'CA-60'), lbS = lbBasico(phiS, c, aNeg.fyd, supBoa, aNeg.aco === 'CA-60');
   const lbMin = (lb: number, phi: number) => Math.max(0.3 * lb, (10 * phi) / 1000, 0.1);
   /** Prolongamento além do ponto de corte: lb pleno (≥ 10φ) ou lb·As,calc/As,ef (≥ lb,mín) com a opção ligada (9.4.2.5). */
   const prolong = (lb: number, phi: number, AsCalc = 1, AsEf = 1) => (op.vigaReducaoLb ? Math.max(lb * Math.min(1, AsCalc / Math.max(AsEf, 1e-12)), lbMin(lb, phi)) : Math.max(lb, (10 * phi) / 1000));
@@ -329,26 +362,58 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const meiosVao = apoios.slice(1).map((a, i) => (apoios[i].s1 + a.s0) / 2);
   // inferior: passantes (máx(2; n/3) barras, 18.3.2.4) corridas, emendas sobre os apoios internos; tramo predefinido: sem emenda nem gancho no apoio comum
   const nInf = r.arranjo.inf?.n ?? 2, nPass = Math.max(2, Math.ceil(nInf * fracaoPassante(b, v) - 1e-9));
+  const capPass = nPass * barArea(phiI);
+  /** Ancoragem necessária (m) da armadura inferior no apoio extremo, na abscissa i da grade (18.3.2.4.1): Rst = (aℓ/d)·Vd. */
+  const necApoio = (i: number) => {
+    const Rst = ((r.al / d) * Vd[i]) / 1000, AsCalc = Rst / aPos.fyd;
+    const nec = Math.max(0.7 * lbI * Math.min(1, AsCalc / capPass), (5.5 * phiI) / 1000 + ((phiI < 20 ? 2.5 : 4) * phiI) / 1000, 0.06);
+    return Number.isFinite(nec) ? nec : Infinity;
+  };
+  // ancoragem pelo cálculo a partir do eixo (K1.12.7): construtiva (folga da face externa) ou, se menor, a exigida pelo cálculo
+  let aP = c0, zP = c1;
+  if (op.vigaAncoragemEixo && apoios.length >= 2) {
+    const a0 = apoios[0], a1 = apoios[apoios.length - 1];
+    if (!a0.corta && ext[0] >= a0.s0 - 1e-6) aP = Math.max(c0, (a0.s0 + a0.s1) / 2 - necApoio(0));
+    if (!a1.corta && ext[1] <= a1.s1 + 1e-6) zP = Math.min(c1, (a1.s0 + a1.s1) / 2 + necApoio(nG - 1));
+  }
   corrida('inf', 'passante', nPass, phiI, lbI, centrosApoio.slice(1, -1), {
+    a: aP, z: zP,
     ...(tramo.ini ? { a: tramo.ini.s, semGanchoIni: true, continuaIni: tramo.ini.com } : {}),
     ...(tramo.fim ? { z: tramo.fim.s, semGanchoFim: true, continuaFim: tramo.fim.com } : {}),
   });
   // reforços inferiores onde a As decalada passa da capacidade das passantes, prolongados por lb (≥ 10φ) ou lb·As,calc/As,ef
-  const capPass = nPass * barArea(phiI), Ai = barArea(phiI);
+  const Ai = barArea(phiR);
   const vaoDe = (s: number) => { const k2 = apoios.findIndex((a, q) => q + 1 < apoios.length && s >= (a.s0 + a.s1) / 2 && s <= (apoios[q + 1].s0 + apoios[q + 1].s1) / 2); return k2 < 0 ? null : { s0: apoios[k2].s1, s1: apoios[k2 + 1].s0 }; };
+  /** Trecho [primeiro, último] da grade (dentro de [i0, i1]) onde a necessária decalada supera `lim`; vazio devolve o último não vazio. */
+  const nivelGrade = (nec: Float64Array, i0: number, i1: number) => {
+    let ultimo: [number, number] = [i0, i1];
+    return (lim: number): [number, number] => {
+      let a = -1, z = -1;
+      for (let i = i0; i <= i1; i++) if (nec[i] > lim + 1e-9) { if (a < 0) a = i; z = i; }
+      if (a >= 0) ultimo = [a, z];
+      return ultimo;
+    };
+  };
   for (const [i0, i1] of intervalos(nG, (i) => AsPosD[i] > capPass + 1e-9)) {
     let mx = 0; for (let i = i0; i <= i1; i++) mx = Math.max(mx, AsPosD[i]);
     const n = r.bloqueada ? Math.max(0, nInf - nPass) : Math.ceil((mx - capPass) / Ai - 1e-9);
     if (n <= 0) continue;
-    const prolI = prolong(lbI, phiI, mx, capPass + n * Ai);
-    let s0 = Math.max(c0, sG(i0) - prolI), s1 = Math.min(c1, sG(i1) + prolI);
-    const vao = op.vigaReforcoVao > 0 ? vaoDe((sG(i0) + sG(i1)) / 2) : null;
-    if (vao && s1 - s0 < (op.vigaReforcoVao / 100) * (vao.s1 - vao.s0)) { // comprimento mínimo em % do vão, centrado no trecho exigido
-      const falta = (op.vigaReforcoVao / 100) * (vao.s1 - vao.s0) - (s1 - s0);
-      s0 = Math.max(c0, s0 - falta / 2); s1 = Math.min(c1, s1 + falta / 2);
+    const prolI = prolong(lbR, phiR, mx, capPass + n * Ai);
+    const extI = (a: number, z: number): [number, number] => {
+      let s0 = Math.max(c0, sG(a) - prolI), s1 = Math.min(c1, sG(z) + prolI);
+      const vao = op.vigaReforcoVao > 0 ? vaoDe((sG(a) + sG(z)) / 2) : null;
+      if (vao && s1 - s0 < (op.vigaReforcoVao / 100) * (vao.s1 - vao.s0)) { // comprimento mínimo em % do vão, centrado no trecho exigido
+        const falta = (op.vigaReforcoVao / 100) * (vao.s1 - vao.s0) - (s1 - s0);
+        s0 = Math.max(c0, s0 - falta / 2); s1 = Math.min(c1, s1 + falta / 2);
+      }
+      return [s0, s1];
+    };
+    const nivel = nivelGrade(AsPosD, i0, i1);
+    // até `vigaCortesInf` comprimentos de corte (K1.12.6): cada grupo vai até onde o diagrama decalado exige as suas barras
+    for (const g of agruparCortes(n, op.vigaCortesInf, op.vigaGrupoMinPct, (j) => extI(...nivel(capPass + j * Ai)))) {
+      const gp = nasPontas(g.s0, g.s1);
+      barras.push({ pos: `N${++np}`, face: 'inf', tipo: 'reforço', n: g.n, phi: phiR, s0: g.s0, s1: g.s1, ganchos: gp, comprimento: comp(g.s0, g.s1, gp, phiR) });
     }
-    const g = nasPontas(s0, s1);
-    barras.push({ pos: `N${++np}`, face: 'inf', tipo: 'reforço', n, phi: phiI, s0, s1, ganchos: g, comprimento: comp(s0, s1, g, phiI) });
   }
   // superior: montagem (2 barras) e negativos sobre os apoios. Montagem colaborante conta na área dos negativos; interrompida
   // (porta-estribos entre as pontas dos negativos) nunca é colaborante. Compressão superior exigida pelo cálculo => colaborante.
@@ -356,29 +421,34 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   if (montCont && !op.vigaMontagemColaborante && compSup) avisos.push('Montagem colaborante: o cálculo exige armadura de compressão superior, que a montagem fornece.');
   const aMont = acoDe(b, 'vigaMontagem'), lbM = lbBasico(phiM, c, aMont.fyd, supBoa, aMont.aco === 'CA-60');
   const capMont = colab ? 2 * barArea(phiM) : 0, As_ = barArea(phiS), nSup = r.arranjo.sup?.n ?? 0;
-  interface Reg { s0: number; s1: number; n: number; mx: number; ef: number }
-  let regs: Reg[] = [];
-  for (const [i0, i1] of intervalos(nG, (i) => AsNegD[i] > capMont + 1e-9)) {
-    let mx = 0; for (let i = i0; i <= i1; i++) mx = Math.max(mx, AsNegD[i]);
-    const n = r.bloqueada ? Math.max(0, nSup) : Math.ceil((mx - capMont) / As_ - 1e-9);
-    if (n <= 0) continue;
+  interface Reg { s0: number; s1: number; n: number; mx: number; ef: number; i0: number; i1: number }
+  /** Trecho do negativo que cobre a grade [a, z]: prolongamento além do corte e mínimo em % do vão adjacente. */
+  const extS = (a: number, z: number, mx: number, n: number): [number, number] => {
     const prolS = prolong(lbS, phiS, mx, capMont + n * As_);
-    let s0 = Math.max(c0, sG(i0) - prolS), s1 = Math.min(c1, sG(i1) + prolS);
+    let s0 = Math.max(c0, sG(a) - prolS), s1 = Math.min(c1, sG(z) + prolS);
     if (op.vigaNegativoVao > 0) { // comprimento mínimo em % do vão adjacente, a partir da face do apoio
-      const dentro = apoios.map((a, q) => ({ a, q })).filter(({ a }) => (a.s0 + a.s1) / 2 >= sG(i0) - 1e-6 && (a.s0 + a.s1) / 2 <= sG(i1) + 1e-6);
+      const dentro = apoios.map((ap, q) => ({ ap, q })).filter(({ ap }) => (ap.s0 + ap.s1) / 2 >= sG(a) - 1e-6 && (ap.s0 + ap.s1) / 2 <= sG(z) + 1e-6);
       if (dentro.length) {
         const qe = dentro[0].q, qd = dentro.at(-1)!.q;
         if (qe > 0) s0 = Math.max(c0, Math.min(s0, apoios[qe].s0 - (op.vigaNegativoVao / 100) * (apoios[qe].s0 - apoios[qe - 1].s1)));
         if (qd + 1 < apoios.length) s1 = Math.min(c1, Math.max(s1, apoios[qd].s1 + (op.vigaNegativoVao / 100) * (apoios[qd + 1].s0 - apoios[qd].s1)));
       }
     }
-    regs.push({ s0, s1, n, mx, ef: capMont + n * As_ });
+    return [s0, s1];
+  };
+  let regs: Reg[] = [];
+  for (const [i0, i1] of intervalos(nG, (i) => AsNegD[i] > capMont + 1e-9)) {
+    let mx = 0; for (let i = i0; i <= i1; i++) mx = Math.max(mx, AsNegD[i]);
+    const n = r.bloqueada ? Math.max(0, nSup) : Math.ceil((mx - capMont) / As_ - 1e-9);
+    if (n <= 0) continue;
+    const [s0, s1] = extS(i0, i1, mx, n);
+    regs.push({ s0, s1, n, mx, ef: capMont + n * As_, i0, i1 });
   }
   if (op.vigaNegativosUnir) { // negativos separados por menos de um comprimento de ancoragem viram uma barra só
     const un: Reg[] = [];
     for (const g of regs) {
       const ant = un.at(-1);
-      if (ant && g.s0 - ant.s1 < lbS) { ant.s1 = g.s1; ant.n = Math.max(ant.n, g.n); ant.mx = Math.max(ant.mx, g.mx); } else un.push({ ...g });
+      if (ant && g.s0 - ant.s1 < lbS) { ant.s1 = g.s1; ant.n = Math.max(ant.n, g.n); ant.mx = Math.max(ant.mx, g.mx); ant.i1 = g.i1; } else un.push({ ...g });
     }
     regs = un;
   }
@@ -399,14 +469,20 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     for (const [a, z] of lacunas) corrida('sup', 'montagem', 2, phiM, lbM, meiosVao, opM(a <= c0 + 1e-6 ? c0 : a - ovl, z >= c1 - 1e-6 ? c1 : z + ovl, a > c0 + 1e-6, z < c1 - 1e-6));
   }
   for (const g of regs) {
-    const gn = nasPontas(g.s0, g.s1);
-    barras.push({ pos: `N${++np}`, face: 'sup', tipo: 'negativo', n: g.n, phi: phiS, s0: g.s0, s1: g.s1, ganchos: gn, comprimento: comp(g.s0, g.s1, gn, phiS) });
+    // até `vigaGruposSup` grupos de comprimentos (K1.12.12): o mais longo nunca é menor que o da região; os demais, pelo diagrama
+    const nivel = nivelGrade(AsNegD, g.i0, g.i1);
+    const grupos = op.vigaGruposSup > 1 && g.n > 1
+      ? agruparCortes(g.n, op.vigaGruposSup, op.vigaGrupoMinPct, (j) => { const [a, z] = nivel(capMont + j * As_), [e0, e1] = extS(a, z, g.mx, g.n); return j === 0 ? [Math.min(e0, g.s0), Math.max(e1, g.s1)] : [e0, e1]; })
+      : [{ n: g.n, s0: g.s0, s1: g.s1 }];
+    for (const q of grupos) {
+      const gn = nasPontas(q.s0, q.s1);
+      barras.push({ pos: `N${++np}`, face: 'sup', tipo: 'negativo', n: q.n, phi: phiS, s0: q.s0, s1: q.s1, ganchos: gn, comprimento: comp(q.s0, q.s1, gn, phiS) });
+    }
   }
   // ancoragem nos apoios extremos (18.3.2.4.1): Rst = (aℓ/d)·Vd; disponível = largura do apoio − cobrimento
   for (const [a, i] of [[apoios[0], 0], [apoios.at(-1), nG - 1]] as const) {
     if (!a || apoios.length < 2) continue;
-    const disp = a.s1 - a.s0 - cob.lat, Rst = ((r.al / d) * Vd[i]) / 1000, AsCalc = Rst / aPos.fyd;
-    const nec = Math.max(0.7 * lbI * Math.min(1, AsCalc / capPass), (5.5 * phiI) / 1000 + ((phiI < 20 ? 2.5 : 4) * phiI) / 1000, 0.06);
+    const disp = a.s1 - a.s0 - folga, nec = necApoio(i);
     if (nec > disp + 1e-9) avisos.push(`Ancoragem da armadura inferior no apoio extremo (${b.pilares.find((p) => p.id === a.pilar)?.nome ?? a.pilar}): ${(nec * 100).toFixed(0)} cm necessários > ${(disp * 100).toFixed(0)} cm disponíveis.`);
   }
   // pele (17.3.5.2.3: h > 60 cm, 0,10 % Ac,alma por face, s ≤ mín(20 cm; d/3)) e laterais de torção, por face

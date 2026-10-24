@@ -47,7 +47,7 @@ function TabelaDeVigas({ t, grava }: { t: TabelaVigas; grava: (t: Tabela) => voi
     <>
       <div className="tablewrap">
       <table className="data quadro" data-tabela="vigas">
-        <thead><tr><th>Grupo</th><th>b até (cm)</th><th>h até (cm)</th><th>Positivos (φ mm)</th><th>Negativos (φ mm)</th><th>Passante (%)</th><th /></tr></thead>
+        <thead><tr><th>Grupo</th><th>b até (cm)</th><th>h até (cm)</th><th>Positivos (φ mm)</th><th>Negativos (φ mm)</th><th>Passante (%)</th><th>Montagem (φ mm)</th><th>Adicional (φ mm)</th><th /></tr></thead>
         <tbody>
           {t.linhas.map((l, i) => (
             <tr key={i}>
@@ -56,6 +56,9 @@ function TabelaDeVigas({ t, grava }: { t: TabelaVigas; grava: (t: Tabela) => voi
               <td><NumCell label={`h até do grupo ${i + 1}`} value={lim(l.hAte)} onChange={(v) => set(i, (x) => { x.hAte = deLim(v); })} /></td>
               {grupo(i, 'pos', l.pos)}{grupo(i, 'neg', l.neg)}
               <td><NumCell label={`Passante do grupo ${i + 1}`} value={+(l.passante * 100).toFixed(1)} onChange={(v) => set(i, (x) => { x.passante = v / 100; })} /></td>
+              {(['montagem', 'adicional'] as const).map((k) => (
+                <td key={k} className="tl"><Escolha valor={l[k] ?? BITOLAS_TABELA.vigas} ref_={BITOLAS_TABELA.vigas} rotulo={`${k === 'montagem' ? 'Montagem' : 'Adicional'} do grupo ${i + 1}`} onChange={(v) => set(i, (x) => { if (v.length === BITOLAS_TABELA.vigas.length) delete x[k]; else x[k] = v; })} /></td>
+              ))}
               <td><Button variant="danger" aria-label={`Remover grupo ${i + 1}`} disabled={t.linhas.length < 2} onClick={() => { const c = clone(t); c.linhas.splice(i, 1); grava(c); }}>×</Button></td>
             </tr>
           ))}
@@ -63,7 +66,7 @@ function TabelaDeVigas({ t, grava }: { t: TabelaVigas; grava: (t: Tabela) => voi
       </table>
       </div>
       <div className="row wrap"><Button onClick={() => { const c = clone(t), u = c.linhas.at(-1)!; c.linhas.push(clone({ ...u, bAte: SEM_LIMITE })); if (c.linhas.length > 1) c.linhas[c.linhas.length - 2].bAte = Math.min(c.linhas[c.linhas.length - 2].bAte, 40); grava(c); }}>Adicionar grupo</Button></div>
-      <Hint>Cada grupo vale para a primeira faixa que contém b e h da viga (0 = sem limite). As barras são as de menor número de camadas, depois menor área, entre as bitolas marcadas; n ≥ é o mínimo de barras. Passante: fração das barras inferiores que vai de apoio a apoio (NBR 6118, 18.3.2.4: ≥ 1/3 do vão positivo). Sem solução na tabela: φ25 e erro FORA_TABELA.</Hint>
+      <Hint>Cada grupo vale para a primeira faixa que contém b e h da viga (0 = sem limite). As barras são as de menor número de camadas, depois menor área, entre as bitolas marcadas; n ≥ é o mínimo de barras. Passante: fração das barras inferiores que vai de apoio a apoio (NBR 6118, 18.3.2.4: ≥ 1/3 do vão positivo). Sem solução na tabela: φ25 e erro FORA_TABELA. Montagem: bitolas permitidas ao porta-estribos; adicional: às barras dos reforços inferiores (todas marcadas = sem restrição); bitola das opções fora da lista: aviso “Fora de tabela” e troca pela maior da lista que não a supera.</Hint>
     </>
   );
 }

@@ -81,6 +81,7 @@ export const SUGESTOES: Record<string, string> = {
   LAJE_SEM_CALCULO: 'Recalcule a armadura da laje para verificar contra os esforços, ou confira manualmente a gerada só com a geometria.',
   LAJE_EDIT_BARRA_MAX: 'Divida a posição editada em duas ou aumente a barra máxima nas opções.',
   LAJE_ZONA_VAZIA: 'Ajuste o contorno da zona de uniformização para conter barras das duas faces e direções, ou desfaça a zona.',
+  FORA_TABELA_MONTAGEM: 'Inclua a bitola desejada nas listas de montagem ou adicional da tabela de armadura da viga, ou altere a bitola de montagem / dos reforços nas opções.',
   FORA_TABELA: 'Amplie as bitolas, camadas ou ramos da tabela de armadura, aumente a seção ou atribua outra tabela à viga.',
   ARM_MANUAL: 'Amplie a tabela de pilares (bitolas, espaçamentos, faixa de seção) ou aumente a seção; senão a armadura precisa ser manual.',
   FORA_TABELA_PILAR: 'Inclua na tabela de pilares uma disposição equivalente à armadura própria encontrada, ou aceite a armadura própria.',

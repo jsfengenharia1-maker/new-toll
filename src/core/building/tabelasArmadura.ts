@@ -27,7 +27,11 @@ export const SEM_LIMITE = 999;
 
 export interface GrupoBarras { bitolas: number[]; nMin: number; camadas: number }
 /** Faixa de seção das vigas: primeira linha com b ≤ bAte e h ≤ hAte (cm). */
-export interface LinhaVigas { bAte: number; hAte: number; pos: GrupoBarras; neg: GrupoBarras; passante: number }
+/**
+ * `montagem` e `adicional` (R8a, K1.12.18): bitolas permitidas à armadura de montagem (porta-estribos) e à adicional (reforços
+ * inferiores dos grupos de menor comprimento); ausentes = todas as bitolas.
+ */
+export interface LinhaVigas { bAte: number; hAte: number; pos: GrupoBarras; neg: GrupoBarras; passante: number; montagem?: number[]; adicional?: number[] }
 export interface TabelaVigas { id: string; nome: string; linhas: LinhaVigas[] }
 /** Faixa de largura dos estribos: bitolas, espaçamento mínimo e máximo (cm; 0 = só a norma) e ramos permitidos. */
 export interface LinhaEstribos { bAte: number; bitolas: number[]; sMin: number; sMax: number; ramos: number[] }
@@ -128,6 +132,8 @@ export function validarTabela(tipo: TipoTabela, t: Tabela): string[] {
         if (!(x[k].camadas >= 1 && x[k].camadas <= 4)) e.push(`linha ${i + 1}: camadas entre 1 e 4`);
       }
       if (!(x.passante > 0 && x.passante <= 1)) e.push(`linha ${i + 1}: fração passante entre 0 e 1`);
+      if (x.montagem) bit(x.montagem, `linha ${i + 1} montagem`);
+      if (x.adicional) bit(x.adicional, `linha ${i + 1} adicional`);
     });
   } else if (tipo === 'estribos') {
     const l = (t as TabelaEstribos).linhas;
@@ -175,7 +181,7 @@ export function validarTabela(tipo: TipoTabela, t: Tabela): string[] {
 /** Normaliza uma tabela (ordena as bitolas pela lista comercial) para guardar. */
 export function normalizarTabela(tipo: TipoTabela, t: Tabela): Tabela {
   const c = copia(t), ref = BITOLAS_TABELA[tipo];
-  if (tipo === 'vigas') for (const l of (c as TabelaVigas).linhas) { l.pos.bitolas = ordenadas(l.pos.bitolas, ref); l.neg.bitolas = ordenadas(l.neg.bitolas, ref); }
+  if (tipo === 'vigas') for (const l of (c as TabelaVigas).linhas) { l.pos.bitolas = ordenadas(l.pos.bitolas, ref); l.neg.bitolas = ordenadas(l.neg.bitolas, ref); if (l.montagem) l.montagem = ordenadas(l.montagem, ref); if (l.adicional) l.adicional = ordenadas(l.adicional, ref); }
   if (tipo === 'estribos' || tipo === 'lajes') for (const l of (c as TabelaEstribos | TabelaLajes).linhas) l.bitolas = ordenadas(l.bitolas, ref);
   if (tipo === 'pilares') { const p = c as TabelaPilares; p.bitolas = ordenadas(p.bitolas, ref); p.espacamentos = ESPACAMENTOS_PILAR.filter((x) => p.espacamentos.includes(x)); p.estribos.sort((a, z) => a.phiAte - z.phiAte); p.secoes?.forEach((x) => { if (x.bitolas) x.bitolas = ordenadas(x.bitolas, ref); if (x.espacamentos) x.espacamentos = ESPACAMENTOS_PILAR.filter((y) => x.espacamentos!.includes(y)); }); if (p.secoes && !p.secoes.length) delete p.secoes; if (p.grampos && !p.grampos.length) delete p.grampos; }
   if (tipo === 'vigas') (c as TabelaVigas).linhas.sort((a, z) => a.bAte - z.bAte || a.hAte - z.hAte);
@@ -196,6 +202,15 @@ export function linhaEstribos(t: TabelaEstribos, b: number): LinhaEstribos {
 }
 export function linhaLajes(t: TabelaLajes, h: number): LinhaLajes {
   return t.linhas.find((l) => h * 100 <= l.hAte + NA) ?? t.linhas.at(-1)!;
+}
+/**
+ * Bitola de montagem ou adicional pela tabela (K1.12.18): a desejada se estiver na lista; senão a maior da lista que não a
+ * supera (ou a menor da lista) com `fora` verdadeiro (aviso "Fora de tabela"). Sem lista: a desejada.
+ */
+export function bitolaDaLista(lista: number[] | undefined, phi: number): { phi: number; fora: boolean } {
+  if (!lista?.length || lista.includes(phi)) return { phi, fora: false };
+  const ordem = [...lista].sort((a, z) => a - z), menores = ordem.filter((x) => x <= phi + 1e-9);
+  return { phi: menores.length ? menores[menores.length - 1] : ordem[0], fora: true };
 }
 /** Fração das barras inferiores que passa de apoio a apoio, da tabela da viga. */
 export function fracaoPassante(b: BuildingModel, v: { secao: { b: number; h: number }; tabela?: string }): number {
@@ -265,7 +280,7 @@ const lim = (x: number) => (x >= SEM_LIMITE ? '∞' : String(x));
 
 /** Linhas de texto de uma tabela, para o memorial. */
 export function descreverTabela(tipo: TipoTabela, t: Tabela): string[] {
-  if (tipo === 'vigas') return (t as TabelaVigas).linhas.map((l, i) => `Grupo ${i + 1}: b ≤ ${lim(l.bAte)} cm, h ≤ ${lim(l.hAte)} cm — positivos φ ${bitolasTxt(l.pos.bitolas)} (≥ ${l.pos.nMin} barras, ${l.pos.camadas} camadas); negativos φ ${bitolasTxt(l.neg.bitolas)} (≥ ${l.neg.nMin}, ${l.neg.camadas} camadas); passante ≥ ${f1(l.passante * 100)} %`);
+  if (tipo === 'vigas') return (t as TabelaVigas).linhas.map((l, i) => `Grupo ${i + 1}: b ≤ ${lim(l.bAte)} cm, h ≤ ${lim(l.hAte)} cm — positivos φ ${bitolasTxt(l.pos.bitolas)} (≥ ${l.pos.nMin} barras, ${l.pos.camadas} camadas); negativos φ ${bitolasTxt(l.neg.bitolas)} (≥ ${l.neg.nMin}, ${l.neg.camadas} camadas); passante ≥ ${f1(l.passante * 100)} %${l.montagem ? `; montagem φ ${bitolasTxt(l.montagem)}` : ''}${l.adicional ? `; adicional φ ${bitolasTxt(l.adicional)}` : ''}`);
   if (tipo === 'estribos') return (t as TabelaEstribos).linhas.map((l, i) => `Grupo ${i + 1}: b ≤ ${lim(l.bAte)} cm — φ ${bitolasTxt(l.bitolas)}, s ≥ ${l.sMin} cm${l.sMax ? `, s ≤ ${l.sMax} cm` : ''}, ramos ${l.ramos.join('/')}`);
   if (tipo === 'pilares') { const p = t as TabelaPilares; return [`φ ${bitolasTxt(p.bitolas)}; espaçamentos ${p.espacamentos.join(' · ')} cm`, ...p.estribos.map((x) => `Estribo φt ${f1(x.phiT)} para φ ≤ ${f1(x.phiAte)}${x.sMax ? `, s ≤ ${x.sMax} cm` : ''}`), ...(p.secoes ?? []).map((x, i) => `Seção ${i + 1}: menor lado ≤ ${lim(x.ladoMenorAte)} cm, maior ≤ ${lim(x.ladoMaiorAte)} cm${x.bitolas ? ` — φ ${bitolasTxt(x.bitolas)}` : ''}${x.espacamentos ? `; espaçamentos ${x.espacamentos.join(' · ')} cm` : ''}${x.estribos ? `; estribos ${x.estribos.map((y) => `φt ${f1(y.phiT)} até φ ${f1(y.phiAte)}`).join(', ')}` : ''}`), ...(p.grampos ?? []).map((x, i) => `Grampos ${i + 1}: φ ≤ ${f1(x.phiAte)}, maior lado ≤ ${lim(x.ladoMaiorAte)} cm — ${MODOS_GRAMPOS.find((m) => m.v === x.modo)!.rotulo.toLowerCase()}`)]; }
   return (t as TabelaLajes).linhas.map((l, i) => `Faixa ${i + 1}: h ≤ ${lim(l.hAte)} cm — φ ${bitolasTxt(l.bitolas)}${l.sMin ? `, s ≥ ${l.sMin} cm` : ''}${l.sMax ? `, s ≤ ${l.sMax} cm` : ''}`);

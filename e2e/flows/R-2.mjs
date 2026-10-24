@@ -634,3 +634,22 @@ export const f_R7g_2 = {
       await lista.locator('tbody tr', { hasText: 'GRAMPOS_TABELA' }).first().waitFor({ timeout: 60000 });
     },
   };
+
+export const f_R8a = {
+    name: 'R8a: tabela de armadura das vigas com bitolas de montagem e adicional (colunas, exportar JSON)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const g = await grupoEdif(page, 'Tabelas de armadura');
+      await g.locator('table[data-tabela="vigas"]').waitFor();
+      assert.equal(await g.locator('th', { hasText: 'Montagem (φ mm)' }).count(), 1);
+      assert.equal(await g.locator('th', { hasText: 'Adicional (φ mm)' }).count(), 1);
+      // desmarca φ32 na montagem e φ8 no adicional do grupo 1
+      await g.getByRole('group', { name: 'Montagem do grupo 1' }).getByRole('button', { name: '32', exact: true }).click();
+      await g.getByRole('group', { name: 'Adicional do grupo 1' }).getByRole('button', { name: '8', exact: true }).click();
+      const { text } = await downloadText(page, () => g.getByRole('button', { name: 'Exportar JSON' }).click());
+      const l0 = JSON.parse(text).tabelas[0].tabela.linhas[0];
+      assert.deepEqual(l0.montagem, [8, 10, 12.5, 16, 20, 25]);
+      assert.deepEqual(l0.adicional, [10, 12.5, 16, 20, 25, 32]);
+    },
+  };
