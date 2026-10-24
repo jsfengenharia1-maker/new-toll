@@ -9,6 +9,9 @@ import type { Dimensionamento, ResultadoPilar, ResultadoViga } from './dimension
 import { acoDe, cobrimentoViga, concretoDe, fckDe, gamas } from './materiais';
 import { areaLaje, propriedadesLaje } from './lajes';
 import { ehNervurada, espessuraConcreto, geometriaNervurada } from './tiposLaje';
+import { ladosDoPP, lancesDoPP } from './pilarParede';
+import { ppDaParede } from './paredesBase';
+import { tipoAlvenariaDe } from './alvenaria';
 import { arranjoDaLaje, espessuraConcretoDaLaje, quantitativoNervurada } from './nervuradas';
 import {
   centroPilar, comprimentoPolilinha, dimsSecao, lancesDoPilar, pavimentosDoGrupo, pavimentosOrdenados, peDireito, secaoNoLance,
@@ -214,11 +217,17 @@ export interface ListagemPilar {
   nasce: string; morre: string; secoes: { pavimento: string; secao: string; b: number; h: number }[]; vinculo: string; engaste: string;
 }
 export interface ListagemLaje { id: string; nome: string; grupo: string; pavimentos: number; tipo: string; h: number; area: number; ppKNm2: number; revKNm2: number; qKNm2: number; pesoProprio: number; permanente: number; variavel: number }
+/** Lado (trecho reto) de uma parede ou pilar-parede: eixo no mundo, comprimento, ângulo e espessura por lance (K1.11.44). */
+export interface ListagemLadoParede { nome: string; a: [number, number]; z: [number, number]; L: number; angulo: number; modelo: 'casca' | 'barra'; espessuras: { pavimento: string; t: number }[] }
+/** Pilar-parede ou parede da obra: tipo/material, pavimentos em que nasce e morre, vínculo da base e lados. */
+export interface ListagemParedeElem { id: string; nome: string; categoria: 'pilar-parede' | 'parede'; descricao: string; nasce: string; morre: string; vinculo: string; aberturas: number; lados: ListagemLadoParede[] }
 export interface ListagemGeral {
   obra: { nome: string; cidade: string; profundidadeFundacao: number };
   materiais: { fck: number; aco: string; caa: string; gamaC: number; gamaS: number; gamaG: number; gamaQ: number };
   pavimentos: { id: string; nome: string; cota: number; altura: number; grupo: string; uso: string; gRev: number; q: number }[];
   pilares: ListagemPilar[]; lajes: ListagemLaje[];
+  /** Pilares-parede e paredes (concreto, blocos, alvenaria): coordenadas dos lados, espessuras e vínculos (K1.11.44, E5i). */
+  paredes: ListagemParedeElem[];
   /** Peso próprio, permanente e variável de todas as lajes (kN), já com as repetições dos pavimentos. */
   totais: { pesoProprio: number; permanente: number; variavel: number };
 }
@@ -243,11 +252,23 @@ export function listagemGeral(b: BuildingModel): ListagemGeral {
     return { id: l.id, nome: l.nome, grupo: gr?.nome ?? l.grupo, pavimentos: rep, tipo: pr.descricao, h: r2(pr.h, 3), area: r2(area), ppKNm2: r2(pr.pp), revKNm2: rev, qKNm2: q, pesoProprio: r2(pr.pp * area, 1), permanente: r2((pr.pp + rev) * area, 1), variavel: r2(q * area, 1) };
   });
   const tot = lajes.reduce((t, l) => ({ pesoProprio: t.pesoProprio + l.pesoProprio * l.pavimentos, permanente: t.permanente + l.permanente * l.pavimentos, variavel: t.variavel + l.variavel * l.pavimentos }), { pesoProprio: 0, permanente: 0, variavel: 0 });
+  const ladosDe = (pp: Parameters<typeof ladosDoPP>[1]): ListagemLadoParede[] => {
+    const lances = lancesDoPP(b, pp);
+    return ladosDoPP(b, pp).map((g) => ({
+      nome: g.nome, a: [r2(g.a[0], 3), r2(g.a[1], 3)], z: [r2(g.z[0], 3), r2(g.z[1], 3)], L: r2(g.L, 3), angulo: r2(g.angGraus, 1), modelo: g.casca ? 'casca' : 'barra',
+      espessuras: lances.map((l) => ({ pavimento: l.nome, t: r2(g.esp(l.id).t, 3) })),
+    }));
+  };
+  const vinc = (v?: string) => (v === 'rotula' ? 'base rotulada' : v === 'molas' ? 'base sobre molas' : 'engastado na base');
+  const paredes: ListagemParedeElem[] = [
+    ...(b.pilaresParede ?? []).map((pp) => ({ id: pp.id, nome: pp.nome, categoria: 'pilar-parede' as const, descricao: b.tiposPilarParede?.find((t) => t.id === pp.tipo)?.nome ?? pp.tipo, nasce: nomePav(pp.nasce), morre: nomePav(pp.morre), vinculo: vinc(pp.vinculoBase), aberturas: 0, lados: ladosDe(pp) })),
+    ...(b.paredes ?? []).map((w) => ({ id: w.id, nome: w.nome, categoria: 'parede' as const, descricao: w.tipo === 'concreto' ? 'concreto' : `${w.tipo === 'blocos' ? 'blocos de concreto' : 'alvenaria'}${tipoAlvenariaDe(b, w) ? ` (${tipoAlvenariaDe(b, w)!.nome})` : ''}`, nasce: nomePav(w.nasce), morre: nomePav(w.morre), vinculo: vinc(w.vinculoBase), aberturas: w.aberturas?.length ?? 0, lados: ladosDe(ppDaParede(w)) })),
+  ];
   return {
     obra: { nome: b.obra.nome, cidade: b.obra.cidade ?? '', profundidadeFundacao: b.obra.profundidadeFundacao },
     materiais: { fck: fckDe(b, 'viga'), aco: b.norma.aco, caa: b.norma.caa, gamaC: g.c, gamaS: g.s, gamaG: g.g, gamaQ: g.q },
     pavimentos: ps.map((p) => { const gr = b.grupos.find((x) => x.id === p.grupo); return { id: p.id, nome: p.nome, cota: p.cota, altura: r2(peDireito(b, p.id), 3), grupo: gr?.nome ?? p.grupo, uso: gr?.uso ?? '', gRev: gr?.gRev ?? 0, q: gr?.q ?? 0 }; }),
-    pilares, lajes, totais: { pesoProprio: r2(tot.pesoProprio, 1), permanente: r2(tot.permanente, 1), variavel: r2(tot.variavel, 1) },
+    pilares, lajes, paredes, totais: { pesoProprio: r2(tot.pesoProprio, 1), permanente: r2(tot.permanente, 1), variavel: r2(tot.variavel, 1) },
   };
 }
 

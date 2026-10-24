@@ -217,6 +217,11 @@ export function linhasQuadroPilares(dim: Dimensionamento, b?: BuildingModel): st
     for (const p of w.panos) out.push([p.nomeLado, p.nomePav, `${cmInt(p.s1 - p.s0)} × ${cmInt(p.t)}`, p.vert ? `${phiTxt(p.vert.phi)} c/${cmInt(p.vert.s)} (2 faces)` : '—', p.hor ? `${phiTxt(p.hor.phi)} c/${cmInt(p.hor.s)} (horiz.)` : '—', '—']);
     for (const l of w.lados.filter((x) => x.modelo === 'barra' && x.barra?.vert)) out.push([l.nome, l.nomePav, `${cmInt(l.L)} × ${cmInt(l.t)}`, `${l.barra!.n} ${phiTxt(l.barra!.vert!.phi)}`, `${phiTxt(l.barra!.estribo.phi)} c/${cmInt(l.barra!.estribo.s)}`, '—']);
   }
+  // consolos (E5i, C4.62): condições de estribos de cada consolo — verticais φ c/s e horizontais de costura (n φ em 2/3 d); a coluna ARMADURA traz o tirante
+  for (const r of [...(dim.consolos ?? [])].sort((a, z) => ordemNome(a.nome, z.nome))) {
+    const a = r.arranjo;
+    out.push([`Consolo ${r.nome}`, `pilar ${r.nomePilar}`, `${cmInt(r.b)} × ${cmInt(r.h)}`, `${a.tirante.n} ${phiTxt(a.tirante.phi)} (tirante)`, `${phiTxt(a.verticais.phi)} c/${cmInt(a.verticais.s)} (vert.)`, `${a.horizontais.n} ${phiTxt(a.horizontais.phi)} (costura)`]);
+  }
   return out;
 }
 

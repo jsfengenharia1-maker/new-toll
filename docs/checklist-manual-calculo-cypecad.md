@@ -20,12 +20,12 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.8 Combinações (págs. 39–41) | 8 | 4 | 0 | 0 | 4 |
 | 1.9 Entrada de dados (págs. 41–65) | 116 | 96 | 7 | 0 | 13 |
 | 1.10 Cálculo da estrutura (págs. 65–67) | 11 | 9 | 0 | 0 | 2 |
-| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 51 | 8 | 0 | 3 |
+| 1.11 Resultados, relatórios e desenhos (págs. 67–76) | 62 | 52 | 7 | 0 | 3 |
 | 1.12 Verificação e dimensionamento: vigas, pilares, paredes e vigotas (págs. 76–90) | 120 | 88 | 8 | 1 | 23 |
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **506** | **43** | **1** | **111** |
+| **Total** | **661** | **507** | **42** | **1** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 18 | 1 | 19 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 17 | 1 | 18 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **43** | **1** | **44** |
+| **Total** | **42** | **1** | **43** |
 
 ## Divergências de premissa
 
@@ -583,7 +583,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.11.42 | Isovalores de deslocamentos, esforços e taxas (cm²/m) em maciças e nervuradas por grupo. | Feito | — | `campoDoPavimento` e AbaIsovalores.tsx: deslocamentos, momentos e cortantes em maciças (com Wood-Armer) e nas demais lajes, nervuradas bidirecionais/cogumelo da E3c e E3d incluídas (momentos e cortantes das barras, sem a torção) [V4] — Feito 24/10/2026 [V6f]: taxas de armadura (cm²/m) nas nervuradas e cogumelo (`armaduraNecessariaNervurada`, validada contra a solução fechada do bloco retangular da seção T; zona maciça como laje maciça de mesma altura; sem Wood-Armer nem fissuração, a confirmar na premissa v6f-folha-resultados); e2e V6f |
 | K1.11.43 | Deformada 3D por caso e combinação, com animação. | Feito | — | núcleo da deformada 3D por caso e combinação, com animação (`resultados/deformada.ts`, `deformadaCena.ts`); interface em AbaDeslocamentos.tsx e Vista3D.tsx [V3] — Feito 23/10/2026: interface: Vista3D.tsx (deformada) e AbaDeslocamentos.tsx; e2e V3 [V3] |
 | | **1.11.2 Relatórios (págs. 73–75)** | | | |
-| K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Parcial | E | `listagemGeral` (`relatorios.ts`) e seção "Listagem geral" do memorial: obra, materiais, pavimentos, grupos, coordenadas (ponto fixo e centro), dimensões, vínculos e engaste dos pilares, pesos próprio/permanente/variável por laje (R7g); faltam pilares-parede (E1b); sismo fora — E5i: acrescentar pilares-parede e paredes à listagem geral |
+| K1.11.44 | Listagem geral: obra, grupos, pavimentos, alturas, coordenadas e dimensões de pilares e vínculos, pilares-parede, ações gravitacionais, vento, sismo, materiais, níveis de controle, lajes, geometria e pesos. | Feito | — | listagemGeral (relatorios.ts) e seção Listagem geral do memorial: obra, materiais, pavimentos, grupos, coordenadas (ponto fixo e centro), dimensões, vínculos e engaste dos pilares, pesos próprio/permanente/variável por laje (R7g); E5i: pilares-parede e paredes (coordenadas dos lados, L, ângulo, espessura por lance, nasce/morre, vínculo; CSV e memorial); sismo fora do escopo (K1.2.7) |
 | K1.11.45 | Listagem das combinações usadas. | Feito | — | quadro de combinações com fatores por caso e exportação em CSV na aba Análise; contagem e excepcionais no memorial (N1c) |
 | K1.11.46 | Vigas: envoltórias de capacidade necessária, momentos, cortantes, torções, armadura colocada, flecha ativa; envoltórias com gráficos; quantitativos; etiquetas de detalhamento; arquivo de intercâmbio texto da armadura. | Parcial | N | envoltórias de M, V e T com combinações determinantes (R1), armadura colocada (R3a), diagrama de capacidade resistente MRd+/MRd− da armadura detalhada (`capacidadeViga`, linhas tracejadas no diagrama de momentos), arquivo de intercâmbio da armadura (JSON e CSV de barras, `intercambioArmadura`), resumo de aço e etiquetas nas pranchas (R5, R7g); falta a flecha ativa (N2) |
 | K1.11.47 | Quantitativos: áreas e volumes de panos e vigas; vigotas por tipo e comprimento; blocos/caixotes; negativos de vigotas; quantidades por m² da obra; armadura de maciças e nervuradas. | Feito | — | `quantitativosDetalhados` (`relatorios.ts`): área, concreto, fôrma e peso próprio por pano e por viga, enchimento das treliçadas (área, volume, peças de 1,00 m [a confirmar]), treliças por tipo (R6) e índices kg/m², m³/m², m²/m² e kg/m³ da obra; no memorial e na aba Dimensionamento (R7g) |

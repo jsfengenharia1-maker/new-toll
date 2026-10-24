@@ -1,7 +1,7 @@
 // Fluxos de interface — E (parte 1/2).
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { grupoEdif, tab, num, telaDe, reenquadrarAte } from './helpers.mjs';
+import { grupoEdif, tab, num, telaDe, reenquadrarAte, downloadText } from './helpers.mjs';
 
 export const f_E1a = {
     name: 'E1a: pilar sobre pilar (realce e coordenadas relativas ao pilar de baixo, nome P5a) e pilar sobre viga (transição): janela, viga de transição, memorial e pranchas',
@@ -721,3 +721,71 @@ export const f_E2b = {
       await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.find((x) => x.nome === 'CM')?.pontos.every((p) => Math.abs(p[0] - 5) < 1e-4), null);
     },
   };
+
+// E5i: saídas de paredes e alvenaria — relatório de paredes e muros, listagem geral com paredes, planta de blocos nas pranchas.
+export const f_E5i = {
+  name: 'E5i: saídas de paredes (relatório de esforços e armaduras, listagem geral com paredes e planta de blocos nas pranchas)',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+    const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+    const esperarModelo = (fn, arg, t = 20000) => page.waitForFunction(fn, arg, { timeout: t });
+    await cmd('obra.definir {"profundidadeFundacao": 1}');
+    await esperarModelo(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos, null);
+    let b0 = await modelo();
+    for (const nome of ['Cobertura', 'Tipo 3', 'Tipo 2']) {
+      const p = b0.pavimentos.find((x) => x.nome === nome);
+      const antes = b0.pavimentos.length;
+      await cmd('pavimento.remover {"id": "' + p.id + '"}');
+      await esperarModelo((n) => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.pavimentos?.length === n, antes - 1);
+      b0 = await modelo();
+    }
+    const tipo1 = b0.pavimentos.find((p) => p.nome === 'Tipo 1');
+    await cmd('bloco.tipo {"nome": "B20", "comprimento": 0.4, "largura": 0.2, "altura": 0.2, "fbk": 8}');
+    await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.blocos?.length ?? 0) > 0, null);
+    const bloco = (await modelo()).blocos[0].id;
+    await cmd('alvenaria.tipo {"nome": "Blocos B20", "modelo": "blocos", "bloco": "' + bloco + '", "gama": 14}');
+    await esperarModelo(() => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposAlvenaria?.length ?? 0) > 0, null);
+    const mat = (await modelo()).tiposAlvenaria[0].id;
+    await cmd('laje.criar {"grupo": "' + tipo1.grupo + '", "contorno": [[0, 0], [12, 0], [12, 6], [0, 6]], "tipo": {"tipo": "macica", "h": 0.12}}');
+    await cmd('parede.criar {"pontos": [[0, 0], [12, 0]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+    await cmd('parede.criar {"pontos": [[0, 6], [12, 6]], "espessura": 0.2, "tipo": "blocos", "material": "' + mat + '", "morre": "' + tipo1.id + '"}');
+    await cmd('parede.criar {"pontos": [[0, 3], [12, 3]], "espessura": 0.2, "morre": "' + tipo1.id + '"}');
+    await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.paredes?.length === 3, null);
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+    await page.getByRole('button', { name: /^(Calcular e dimensionar|Recalcular)$/ }).click();
+    await page.getByRole('button', { name: 'Recalcular', exact: true }).waitFor({ timeout: 180000 });
+    await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((b) => b.textContent === 'Calculando…'), null, { timeout: 180000 });
+    // relatório de paredes e muros (CSV e HTML) e listagem geral com as paredes
+    const dc = await downloadText(page, () => page.locator('[data-relatorio="paredes-csv"]').click());
+    assert.equal(dc.name, 'relatorio-paredes.csv');
+    for (const t of ['Esforços resultantes por lado', 'Cargas na base', 'Armadura por pano e verificação de cortante', 'M3']) assert.ok(dc.text.includes(t), `o CSV traz "${t}"`);
+    const dh = await downloadText(page, () => page.locator('[data-relatorio="paredes-html"]').click());
+    assert.match(dh.text, /Relatório de esforços e armaduras de pilares-parede, paredes e muros/);
+    const dl = await downloadText(page, () => page.locator('[data-relatorio="listagem"]').click());
+    assert.ok(dl.text.includes('Parede / pilar-parede'), 'a listagem traz as paredes');
+    for (const t of ['M1;parede;blocos de concreto (Blocos B20)', 'M3;parede;concreto']) assert.ok(dl.text.includes(t), `a listagem traz "${t}"`);
+    // memorial: listagem geral com a tabela das paredes
+    await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+    const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+    await memo.locator('[data-listagem-paredes]').waitFor({ timeout: 30000 });
+    assert.equal(await memo.locator('[data-listagem-paredes] tbody tr').count(), 3);
+    await memo.getByRole('button', { name: 'Fechar' }).click();
+    // pranchas de paredes: planta de blocos do lance (a de concreto vem antes; a de alvenaria é a última do tipo)
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+    await page.getByLabel('Tipo de prancha').selectOption({ label: 'Armação de paredes e pilares-parede' });
+    const prev = page.locator('.prancha-prev[data-tipo="paredes"]');
+    await prev.locator('svg').first().waitFor({ timeout: 90000 });
+    assert.match(await prev.innerText(), /ARMAÇÃO DAS PAREDES/);
+    // a planta de blocos é a última folha do tipo (a lista de folhas traz o título)
+    const lista = page.locator('table[data-lista-folhas]');
+    assert.match(await lista.innerText(), /Alvenaria — planta de blocos · Tipo 1/);
+    await lista.locator('tr', { hasText: 'Alvenaria — planta de blocos · Tipo 1' }).click();
+    await page.locator('.prancha-prev[data-tipo="paredes"] svg').first().waitFor({ timeout: 90000 });
+    const txt = await prev.innerText();
+    assert.match(txt, /ALVENARIA ESTRUTURAL — ESQUEMA DOS BLOCOS E DAS ARMADURAS \(TIPO 1\)/);
+    assert.match(txt, /BLOCOS — TIPO 1/);
+    assert.match(txt, /B20/);
+  },
+};

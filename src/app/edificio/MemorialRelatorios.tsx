@@ -26,6 +26,15 @@ export function MemorialListagemGeral({ b, h2 }: { b: BuildingModel; h2: (c: Rea
         <thead><tr><th>Pilar</th><th>Ponto fixo x / y (m)</th><th>Centro x / y (m)</th><th>Ângulo (°)</th><th>Ponto fixo em</th><th>Nasce</th><th>Morre</th><th>Seções por lance (cm)</th><th>Vínculo / engaste</th></tr></thead>
         <tbody>{g.pilares.map((p) => <tr key={p.id}><td className="l">{p.nome}</td><td>{fmt(p.x, 3)} / {fmt(p.y, 3)}</td><td>{fmt(p.cx, 3)} / {fmt(p.cy, 3)}</td><td>{fmt(p.angulo, 1)}</td><td className="l">{AJUSTE_TXT[p.ajuste] ?? p.ajuste}</td><td className="l">{p.nasce}</td><td className="l">{p.morre}</td><td className="l">{p.secoes.map((s) => `${s.pavimento}: ${s.secao}`).join('; ')}</td><td className="l">{p.vinculo}; {p.engaste}</td></tr>)}</tbody>
       </table>
+      {g.paredes.length > 0 && (
+        <>
+          <h3>Paredes e pilares-parede: coordenadas, espessuras e vínculos</h3>
+          <table data-listagem-paredes>
+            <thead><tr><th>Elemento</th><th>Tipo / material</th><th>Nasce</th><th>Morre</th><th>Vínculo</th><th>Lado</th><th>Início x / y (m)</th><th>Fim x / y (m)</th><th>L (m)</th><th>Ângulo (°)</th><th>Modelo</th><th>Espessura por lance (cm)</th></tr></thead>
+            <tbody>{g.paredes.flatMap((w) => w.lados.map((l, i) => <tr key={`${w.id}-${i}`}><td className="l">{w.nome} ({w.categoria}{w.aberturas ? `, ${w.aberturas} abertura(s)` : ''})</td><td className="l">{w.descricao}</td><td className="l">{w.nasce}</td><td className="l">{w.morre}</td><td className="l">{w.vinculo}</td><td className="l">{l.nome}</td><td>{fmt(l.a[0], 3)} / {fmt(l.a[1], 3)}</td><td>{fmt(l.z[0], 3)} / {fmt(l.z[1], 3)}</td><td>{fmt(l.L, 3)}</td><td>{fmt(l.angulo, 1)}</td><td className="l">{l.modelo}</td><td className="l">{l.espessuras.map((e) => `${e.pavimento} ${fmt(e.t * 100, 1)}`).join(' | ')}</td></tr>))}</tbody>
+          </table>
+        </>
+      )}
       <h3>Lajes: geometria e pesos</h3>
       <table>
         <thead><tr><th>Laje</th><th>Grupo</th><th>Pav.</th><th>Tipo</th><th>Área (m²)</th><th>PP (kN/m²)</th><th>Rev. (kN/m²)</th><th>Var. (kN/m²)</th><th>Peso próprio (kN)</th><th>Permanente (kN)</th><th>Variável (kN)</th></tr></thead>

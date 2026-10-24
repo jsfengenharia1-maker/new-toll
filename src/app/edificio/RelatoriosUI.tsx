@@ -9,6 +9,7 @@ import { MEMO_CSS } from '../Memorial';
 import { memo } from '../design/tokens';
 import { cotaFundacao, contornoNoLance, engasteNoLance, geometriaViga, lancesDoPilar, pavimentosOrdenados, type BuildingModel, type Pilar } from '../../core/building/types';
 import type { Dimensionamento, ResultadoPilar } from '../../core/building/dimensionamento';
+import { relatorioParedes } from '../../core/building/relatorioParedes';
 import { relatorioEscadas, relatorioEscadasCsv, type TabelaRelatorio } from '../../core/building/escadasRelatorio';
 import { intercambioArmadura, intercambioCsv, listagemGeral, quantitativosDetalhados, taxaDoPilar, taxasPilares } from '../../core/building/relatorios';
 
@@ -126,6 +127,24 @@ export function relatorioPilaresHtml(b: BuildingModel, dim: Pick<Dimensionamento
     + `<h2>Armaduras e cortante</h2><p>Cortante na direção u: Vsd / Vc / VRd2 (kN). Taxa As/Ac pela seção bruta.</p><table><thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Armadura</th><th>As (cm²)</th><th>As/Ac (%)</th><th>Estribo</th><th>Vsd / Vc / VRd2</th><th>Utilização</th><th>Situação</th></tr></thead><tbody>${arm}</tbody></table></div></body></html>`;
 }
 
+// ---------------------------------------------------------------- relatório de pilares-parede, paredes e muros (E5i, C4.63)
+
+type DimParedes = Pick<Dimensionamento, 'pilaresParede' | 'paredes' | 'armaduraParedes' | 'muros'>;
+
+/** CSV do relatório: cada tabela com o título, o cabeçalho e as linhas, separadas por uma linha em branco. */
+export function relatorioParedesCsv(b: BuildingModel, dim: DimParedes): string {
+  const lin: string[][] = [];
+  for (const t of relatorioParedes(b, dim).tabelas) lin.push([t.titulo], t.cabecalho, ...t.linhas, []);
+  return csv(lin);
+}
+
+export function relatorioParedesHtml(b: BuildingModel, dim: DimParedes): string {
+  const titulo = `Relatório de esforços e armaduras de pilares-parede, paredes e muros · ${esc(b.obra.nome || 'Edifício')}`;
+  const r = relatorioParedes(b, dim);
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${titulo}</title><style>body{margin:0;background:${memo('paper')}}${MEMO_CSS}</style></head><body><div class="memo"><h1>${titulo}</h1>`
+    + (r.tabelas.length ? r.tabelas.map(tabelaHtml).join('') : '<p>A obra não tem pilares-parede, paredes de concreto nem muros de arrimo calculados.</p>') + '</div></body></html>';
+}
+
 // ---------------------------------------------------------------- relatório das escadas (E4e, C8.54)
 
 const tabelaHtml = (t: TabelaRelatorio) => (t.linhas.length ? `<h4>${esc(t.titulo)}</h4><table><thead><tr>${t.cabecalho.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.linhas.map((l) => `<tr>${l.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '');
@@ -149,6 +168,10 @@ export function listagemGeralCsv(b: BuildingModel): string {
   for (const p of g.pavimentos) lin.push([p.nome, fmt(p.cota), fmt(p.altura), p.grupo, p.uso, fmt(p.gRev), fmt(p.q)]);
   lin.push([], ['Pilar', 'x (m)', 'y (m)', 'Centro x (m)', 'Centro y (m)', 'Ângulo (°)', 'Ponto fixo', 'Nasce', 'Morre', 'Seções', 'Vínculo', 'Engaste']);
   for (const p of g.pilares) lin.push([p.nome, fmt(p.x, 3), fmt(p.y, 3), fmt(p.cx, 3), fmt(p.cy, 3), fmt(p.angulo, 1), AJUSTE_TXT[p.ajuste] ?? p.ajuste, p.nasce, p.morre, p.secoes.map((s) => `${s.pavimento} ${s.secao}`).join(' | '), p.vinculo, p.engaste]);
+  if (g.paredes.length) {
+    lin.push([], ['Parede / pilar-parede', 'Categoria', 'Tipo / material', 'Nasce', 'Morre', 'Vínculo', 'Aberturas', 'Lado', 'Início x (m)', 'Início y (m)', 'Fim x (m)', 'Fim y (m)', 'L (m)', 'Ângulo (°)', 'Modelo', 'Espessura por lance (m)']);
+    for (const w of g.paredes) for (const l of w.lados) lin.push([w.nome, w.categoria, w.descricao, w.nasce, w.morre, w.vinculo, String(w.aberturas), l.nome, fmt(l.a[0], 3), fmt(l.a[1], 3), fmt(l.z[0], 3), fmt(l.z[1], 3), fmt(l.L, 3), fmt(l.angulo, 1), l.modelo, l.espessuras.map((e) => `${e.pavimento} ${fmt(e.t, 3)}`).join(' | ')]);
+  }
   lin.push([], ['Laje', 'Grupo', 'Pavimentos', 'Tipo', 'h (m)', 'Área (m²)', 'Peso próprio (kN/m²)', 'Revestimento (kN/m²)', 'Variável (kN/m²)', 'Peso próprio (kN)', 'Permanente (kN)', 'Variável (kN)']);
   for (const l of g.lajes) lin.push([l.nome, l.grupo, String(l.pavimentos), l.tipo, fmt(l.h, 3), fmt(l.area), fmt(l.ppKNm2), fmt(l.revKNm2), fmt(l.qKNm2), fmt(l.pesoProprio, 1), fmt(l.permanente, 1), fmt(l.variavel, 1)]);
   return csv(lin);
@@ -181,6 +204,8 @@ export function CartaoRelatorios() {
         <Button data-relatorio="pilares-csv" onClick={() => download('relatorio-pilares.csv', relatorioPilaresCsv(b, dim), 'text/csv')}>Relatório dos pilares (CSV)</Button>
         {(b.escadas?.length ?? 0) > 0 && <Button data-relatorio="escadas-html" onClick={() => download('relatorio-escadas.html', relatorioEscadasHtml(b, dim), 'text/html')}>Relatório das escadas (HTML)</Button>}
         {(b.escadas?.length ?? 0) > 0 && <Button data-relatorio="escadas-csv" onClick={() => download('relatorio-escadas.csv', relatorioEscadasCsv(relatorioEscadas(b, dim)), 'text/csv')}>Relatório das escadas (CSV)</Button>}
+        {((dim.armaduraParedes?.length ?? 0) > 0 || (dim.muros?.length ?? 0) > 0) && <Button data-relatorio="paredes-html" onClick={() => download('relatorio-paredes.html', relatorioParedesHtml(b, dim), 'text/html')}>Relatório de paredes e muros (HTML)</Button>}
+        {((dim.armaduraParedes?.length ?? 0) > 0 || (dim.muros?.length ?? 0) > 0) && <Button data-relatorio="paredes-csv" onClick={() => download('relatorio-paredes.csv', relatorioParedesCsv(b, dim), 'text/csv')}>Relatório de paredes e muros (CSV)</Button>}
         <Button data-relatorio="listagem" onClick={() => download('listagem-geral.csv', listagemGeralCsv(b), 'text/csv')}>Listagem geral (CSV)</Button>
         <Button data-relatorio="quantitativos" onClick={() => download('quantitativos.csv', quantitativosCsv(b, dim), 'text/csv')}>Quantitativos (CSV)</Button>
         <Button data-relatorio="intercambio-json" onClick={() => download('armadura-intercambio.json', JSON.stringify(intercambioArmadura(b, dim), null, 2), 'application/json')}>Armadura: intercâmbio (JSON)</Button>
