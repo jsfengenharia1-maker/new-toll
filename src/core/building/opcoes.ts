@@ -381,6 +381,8 @@ export interface OpcoesCalculo {
   vigaApoioLongVao: number;
   /** 1 = o vão de cálculo sobre parede não passa da distância entre os eixos dos apoios (E5j, K1.12.21); 0 = só vão livre + acréscimo. */
   vigaApoioLongEixos: number;
+  /** Viga sobre parede no meio (E6c, K1.3.59): 1 = parte a viga e a armadura no trecho central de um contato longo; 0 = armadura contínua sobre a parede (comportamento anterior). */
+  vigaPartirParede: number;
   /** E3f: nós dos panos inclinados no diafragma do pavimento (1, só para comparação) ou livres com 6 gdl (0, padrão). */
   planoDiafragma: number;
   /** E3f: carga variável dos panos inclinados por m² de projeção horizontal (1, padrão) ou por m² de área inclinada (0). */
@@ -543,6 +545,8 @@ export interface OpcoesCalculo {
   /** Verga da alvenaria de blocos (E1e): apoio em cada lado (cm) e fiadas de canaleta. */
   alvenariaVergaApoio: number;
   alvenariaVergaFiadas: number;
+  /** Alvenaria armada (E6a): transpasse das barras verticais no quantitativo de aço, em diâmetros. */
+  alvenariaTranspasse: number;
   /** Vigas sobre muros de alvenaria (E1e, C6.59): 1 = armar (dimensionar) sempre; 0 = armadura opcional dispensada nas de alvenaria genérica e de coroamento em blocos. */
   alvenariaVigaArmar: number;
   /** Vigas sobre muros (E1e): largura e altura mínimas (cm). */
@@ -1062,6 +1066,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
   // ---- N2e: apoios, limites e avisos de modelagem ----
   { chave: 'vigaApoioLongEixos', rotulo: 'Viga em parede: vão de cálculo limitado à distância entre eixos', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'Programa de referência (vão de cálculo = menor entre a distância entre eixos e o vão livre + 2 alturas); NBR 6118, 14.6.2.4: cada ai ≤ t/2; a confirmar', aConfirmar: true,
     descricao: 'Ligado, o vão de cálculo da viga sobre parede ou pilar-parede é o menor entre vão livre + acréscimo e a distância entre os eixos dos apoios (centro do contato; para a viga cruzada, o ponto onde o eixo a cruza).' },
+  { chave: 'vigaPartirParede', rotulo: 'Viga sobre parede no meio: partir a viga e a armadura', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'Programa de referência (viga e armadura interrompidas depois do prolongamento, mesmo que a viga seja mais larga que o apoio); NBR 6118 não fixa; a confirmar', aConfirmar: true,
+    descricao: 'Parede ou pilar-parede no meio da viga com contato maior que 2 × (prolongamento + extensão) × h: a armadura é interrompida a (prolongamento + extensão) × h de cada face, sem ganchos nas pontas internas, e o trecho central fica sem barras. 0 mantém a armadura contínua sobre a parede (comportamento anterior), com aviso.' },
   { chave: 'arredondamentoApoio', rotulo: 'Arredondamento do diagrama no apoio', min: 0, max: 2, passo: 1, padrao: 1, padraoNBR: 2, fonteNBR: 'NBR 6118, 14.6.3 e Figura 14.7: ΔM = R·t/8 no apoio', fonte: 'Critério do programa de referência: parábola cúbica entre as faces do apoio com M e V das faces (manual de cálculo)', aConfirmar: false,
     descricao: '0 = sem arredondamento (diagrama do modelo); 1 = dentro do apoio, M(x) = a·x³ + b·x² + c·x + d com M e V das duas faces (Q = 3a·x² + 2b·x + c); 2 = reduz o momento negativo do apoio de ΔM = R·t/8 (R reação, t largura do apoio). Com “Redistribuição nas faces” ligada, o trecho do apoio é recalculado a partir das faces já redistribuídas; desligada, a redistribuição atua sobre o diagrama já arredondado.' },
   { chave: 'redistribuicaoFaces', rotulo: 'Redistribuição nas faces dos pilares', min: 0, max: 1, passo: 1, padrao: 1, padraoNBR: 0, booleana: true, fonteNBR: 'NBR 6118, 14.6.4.3: redistribuição do momento do eixo (diagrama do modelo), sem recálculo do trecho do apoio', fonte: 'Critério do programa de referência (K1.4.7): redistribuição aplicada aos negativos nas bordas dos apoios, afetando o vão livre, e momentos dentro do apoio recalculados a partir da face', aConfirmar: false,
@@ -1203,6 +1209,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Comprimento de apoio da verga e da contraverga além de cada lado da abertura, arredondado para cima ao módulo do bloco.' },
   { chave: 'alvenariaVergaFiadas', rotulo: 'Verga de blocos: fiadas de canaleta', min: 1, max: 4, passo: 1, padrao: 1, fonte: 'Prática de projeto (uma fiada de canaleta grauteada); a confirmar', aConfirmar: true,
     descricao: 'Altura da verga em fiadas de canaleta (cada fiada = altura modular do bloco).' },
+  { chave: 'alvenariaTranspasse', rotulo: 'Alvenaria armada: transpasse das barras verticais', unidade: 'φ', min: 0, max: 100, passo: 5, padrao: 50, fonte: 'Prática de projeto de alvenaria estrutural (comprimento de emenda no quantitativo de aço da prancha); NBR 16868-1 não consultada [a confirmar]', aConfirmar: true,
+    descricao: 'Comprimento somado a cada barra vertical da parede armada (por lance) para a emenda ou o arranque do lance seguinte, em diâmetros da barra. Só afeta o quantitativo de aço (tabela da prancha e memorial).' },
   { chave: 'fundParedeK', rotulo: 'Base de parede sobre sapata corrida: coeficiente de reação do solo (k)', unidade: 'kN/m³', min: 0, max: 1000000, passo: 1000, padrao: 100000, padraoNBR: 0, fonteNBR: 'NBR 6118 e NBR 6122 não fixam o coeficiente: sem mola, base da parede engastada (comportamento anterior)', fonte: 'Programa de referência (padrão alto, 100 000 kN/m³, evita recalque diferencial entre a parede e os pilares de vinculação externa); 0 = engaste; a confirmar', aConfirmar: true,
     descricao: 'Molas de Winkler na base da casca da parede de concreto que nasce na fundação com sapata corrida: vertical k·B por metro e giro em torno do eixo da parede k·B³/12 por metro; deslocamentos horizontais e giro em planta presos. 0 liga o engaste rígido (comportamento anterior). Vale para a parede com base em sapata corrida; a base em viga de fundação usa o k da base elástica.' },
   { chave: 'fundParedeAba', rotulo: 'Base de parede sobre sapata corrida: balanço de cada lado para as molas', unidade: 'cm', min: 0, max: 200, passo: 5, padrao: 30, fonte: 'Estimativa do Statikos (a largura B só é conhecida depois do cálculo); informar B na base da parede substitui', aConfirmar: true,
@@ -1311,7 +1319,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'vigotaIgualacaoBase', 'vigotaMontagem', 'vigotaEscoraDist', 'vigotaCargaConstrucao', 'vigotaMontagemLimite', 'vigotaMontagemSapata', 'vigotaEstriboOmega', 'vigotaOmegaAba', 'vigotaCortanteTotal', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
-  'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos',
+  'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos', 'vigaPartirParede',
   'arredondamentoApoio', 'redistribuicaoFaces', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
   'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',
   // N2f: flechas por etapas (só o dimensionamento)
@@ -1324,7 +1332,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'paredeHorFracVert', 'paredeEspMax', 'paredeEspMin', 'paredeBitolaMax', 'paredeFlambagem', 'paredeEmendaProp', 'paredeEmendaAmpliar', 'paredeAberturaCanto',
   // E1e: verificação, verga e vigas da alvenaria estrutural (só o dimensionamento sobre a análise vigente)
   'alvenariaCumprimento', 'alvenariaTracao', 'alvenariaGamaM', 'alvenariaFkPrisma', 'alvenariaPrisma', 'alvenariaFlambagem', 'alvenariaLambdaMax', 'alvenariaLambdaMaxArmada',
-  'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas',
+  'alvenariaExcMin', 'alvenariaCisalhInicial', 'alvenariaCisalhMax', 'alvenariaTaxaVertMin', 'alvenariaTaxaHorMin', 'alvenariaVergaApoio', 'alvenariaVergaFiadas', 'alvenariaTranspasse',
   'alvenariaVigaArmar', 'alvenariaVigaBMin', 'alvenariaVigaHMin', 'paredeVigaEmbutida',
   // E2a: seções T/L (flexão na seção T e barras de canto da mesa)
   'mesaDimensionamento', 'mesaBarrasCanto',

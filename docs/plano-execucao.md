@@ -114,7 +114,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | R8a vigas: comprimentos de corte, grupos de barras, ancoragem, montagem e adicional (4 itens) | S3 | S1 |
 | E6a tabela de aço da alvenaria armada na prancha (1 item) | S2 | S1 |
 | E6b igualação das vigotas entre panos; depende de `pendencias-usuario.md` (1 item) | S3 | — |
-| E6c paredes: lados variáveis por pavimento, viga partida sobre parede, rigidez axial separada da flexão (3 itens) | S3 | — |
+| E6d paredes: lados variáveis por pavimento, rigidez axial separada da flexão (2 itens; resíduo da E6c, que fez a viga partida) | S3 | — |
 | Specs E3, E4, L, V (escritas em 20/10/2026) | S2 | — |
 | Auditorias de fim de frente | S2 | — |
 | Conflitos de checklist e docs | H | — |

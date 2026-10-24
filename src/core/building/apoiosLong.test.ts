@@ -16,7 +16,7 @@ const ok = (s: Sessao, n: string, p: Record<string, unknown>) => { const r = s.e
 const nomePav = (b: BuildingModel, nome: string) => b.pavimentos.find((p) => p.nome === nome)!.id;
 
 /** Viga V1 de x = -3 a 7 em y = 0: pilar em x = -3, pilar-parede (contato `larg` m a partir de x = 0) e pilar em x = 7. */
-function vigaComParedeNoMeio(larg: number, h = 0.5, esp = 0.1) {
+function vigaComParedeNoMeio(larg: number, h = 0.5, esp = 0.1, bw = 0.2) {
   const xf = larg + 4;
   const s = padrao();
   const b0 = s.modelo, t1 = nomePav(b0, 'Tipo 1'), g = b0.pavimentos.find((p) => p.id === t1)!.grupo;
@@ -26,7 +26,7 @@ function vigaComParedeNoMeio(larg: number, h = 0.5, esp = 0.1) {
   ok(s, 'pilar.inserir', { x: xf, y: 0, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
   ok(s, 'pilar.inserir', { x: -3, y: 5, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
   ok(s, 'pilar.inserir', { x: xf, y: 5, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
-  ok(s, 'viga.tracar', { grupo: g, pontos: [[-3, 0], [xf, 0]], secao: { b: 0.2, h } });
+  ok(s, 'viga.tracar', { grupo: g, pontos: [[-3, 0], [xf, 0]], secao: { b: bw, h } });
   for (const pts of [[[-3, 5], [xf, 5]], [[-3, 0], [-3, 5]], [[xf, 0], [xf, 5]]]) ok(s, 'viga.tracar', { grupo: g, pontos: pts, secao: { b: 0.2, h: 0.5 } });
   ok(s, 'laje.criar', { grupo: g, contorno: [[-3, 0], [xf, 0], [xf, 5], [-3, 5]], tipo: { tipo: 'macica', h: 0.12 } });
   return s;
@@ -108,4 +108,50 @@ describe('espessura por pavimento da alvenaria e dos blocos (K1.3.31)', () => {
     // E e ν do tipo de alvenaria valem nos dois lances
     expect(new Set(an.portico.modelo.cascas!.map((c) => c.E)).size).toBe(1);
   }, 120000);
+});
+
+describe('viga e armadura partidas sobre a parede no meio (E6c, K1.3.59)', () => {
+  const detalhe = (partir: number, h = 0.5, bw = 0.2) => {
+    const s = vigaComParedeNoMeio(8, h, 0.1, bw);
+    ok(s, 'opcoes.definir', { valores: { vigaPartirParede: partir } });
+    const b = s.modelo, an = analisarEdificio(b), d = dimensionarEdificio(b, an, { fundacao: false });
+    const v = b.vigas[0], det = d.detalhes!.find((x) => x.viga === v.id)!;
+    const par = apoiosDaViga(b, v).find((a) => a.pilar.includes(':'))!;
+    return { det, par, lim: (1 + 2) * v.secao.h, passo: 0.05, d };
+  };
+  it('contato de 8 m, h = 0,5 m: nenhuma barra entra em [face + 1,5 m; face oposta − 1,5 m]; as pontas internas terminam em 1,5 m da face, sem gancho', () => {
+    const { det, par, lim } = detalhe(1);
+    const g0 = par.s0 + lim, g1 = par.s1 - lim;
+    expect(g1 - g0).toBeCloseTo(8 - 2 * lim, 6);
+    for (const x of det.barras) {
+      expect(x.s1 <= g0 + 1e-6 || x.s0 >= g1 - 1e-6, `${x.pos} ${x.tipo} ${x.s0}..${x.s1} cruza a partida`).toBe(true);
+    }
+    for (const face of ['inf', 'sup'] as const) {
+      const corridas = det.barras.filter((x) => x.face === face && (x.tipo === 'passante' || x.tipo === 'montagem'));
+      const esq = corridas.filter((x) => x.s1 <= g0 + 1e-6), dir = corridas.filter((x) => x.s0 >= g1 - 1e-6);
+      expect(esq.length).toBeGreaterThan(0);
+      expect(dir.length).toBeGreaterThan(0);
+      for (const x of esq) { expect(x.s1).toBeCloseTo(g0, 6); expect(x.ganchos[1]).toBe(false); if (!x.ganchos[0]) expect(x.comprimento).toBeCloseTo(Math.ceil((x.s1 - x.s0) / 0.05 - 1e-9) * 0.05, 6); }
+      for (const x of dir) { expect(x.s0).toBeCloseTo(g1, 6); expect(x.ganchos[0]).toBe(false); }
+    }
+    expect(det.avisos.join(' ')).toMatch(/partidas/);
+  }, 240000);
+  it('sem a opção (baseline anterior): as passantes cruzam a parede e o aviso pede a interrupção manual; com a opção o aço é menor', () => {
+    const a = detalhe(0, 0.8, 0.4), p = detalhe(1, 0.8, 0.4);
+    const g0 = a.par.s0 + a.lim, g1 = a.par.s1 - a.lim;
+    const meio = (g0 + g1) / 2;
+    expect(a.det.barras.some((x) => x.face === 'inf' && x.tipo === 'passante' && x.s0 < meio && x.s1 > meio)).toBe(true);
+    expect(p.det.barras.some((x) => x.s0 < meio && x.s1 > meio)).toBe(false);
+    expect(a.det.avisos.join(' ')).toMatch(/segue contínua/);
+    // barra de comprimento nulo na ponta da viga junto à parede não gera NaN na envoltória (correção desta fatia)
+    const rv = a.d.vigas[0];
+    expect(Number.isFinite(rv.Mpos) && Number.isFinite(rv.Mneg) && Number.isFinite(rv.AsInf)).toBe(true);
+    expect(rv.envoltoria.pontos.every((q) => Number.isFinite(q.Mmax) && Number.isFinite(q.Vmax))).toBe(true);
+    expect(Number.isFinite(a.det.peso)).toBe(true);
+    // peso: a economia é o trecho central (8 − 2·2,4 = 3,2 m com h = 0,8 m) das barras corridas (passantes, montagem, pele), menos nada nos estribos
+    expect(p.det.peso).toBeLessThan(a.det.peso);
+    const compCorridas = (det: typeof a.det) => det.barras.filter((x) => x.tipo === 'passante' || x.tipo === 'montagem' || x.tipo === 'pele').reduce((t, x) => t + x.n * (x.s1 - x.s0), 0);
+    expect(compCorridas(a.det) - compCorridas(p.det)).toBeGreaterThan(3.2 * 2 - 1e-6);
+    expect(p.det.estribos.length).toBe(a.det.estribos.length);
+  }, 240000);
 });
