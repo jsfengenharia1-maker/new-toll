@@ -27,8 +27,28 @@ export interface Obra {
   /** Descrição da obra: até 2 linhas de até 120 caracteres (K1.9.2). */
   descricao?: string[];
   origem?: OrigemObra;
+  /** Importação de IFC (L3): arquivo, esquema, mapeamento de materiais e relatório; ausente = obra não importada de IFC. */
+  ifc?: ImportacaoIfc;
   /** Profundidade do nível de fundação abaixo do pavimento mais baixo (m). */
   profundidadeFundacao: number;
+}
+
+/** O que a importação de IFC (comando `ifc.importar`) registra para o memorial. */
+export interface ImportacaoIfc {
+  arquivo: string;
+  esquema: string;
+  /** Metros por unidade de comprimento do arquivo. */
+  unidade: number;
+  /** Deslocamento aplicado às coordenadas (m). */
+  deslocamento: [number, number];
+  /** Material do arquivo ligado a cada tipo de elemento, com o fck e o aço atribuídos. */
+  materiais: { tipo: 'pilar' | 'viga' | 'laje' | 'fundacao'; material?: string; fck?: number; aco?: 'CA-50' | 'CA-60' }[];
+  /** Contagem por classe IFC do arquivo e o que foi lançado, ignorado ou ajustado. */
+  classes: Record<string, number>;
+  lancados: { pavimentos: number; pilares: number; vigas: number; lajes: number; paredes: number; furos: number; pulados: number; extremosAjustados: number };
+  ignorados: { classe: string; motivo: string; quantidade: number }[];
+  ambiguos: string[];
+  avisos: string[];
 }
 
 export interface Norma {
@@ -391,6 +411,8 @@ export interface EmpuxoParede {
  */
 export interface Parede {
   id: string; nome: string;
+  /** Origem do lançamento automático (`ifc:<GlobalId>`), para reimportar sem duplicar (L3). */
+  origemLancamento?: string;
   /** Concreto (E1c), alvenaria genérica ou blocos de concreto (E1e; o `material` dá o tipo de alvenaria). */
   tipo: 'concreto' | 'alvenaria' | 'blocos';
   /** Id do tipo de alvenaria (`tiposAlvenaria`) das paredes 'alvenaria' e 'blocos' (E1e). */

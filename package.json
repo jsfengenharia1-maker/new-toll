@@ -36,7 +36,8 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "web-ifc": "0.0.78"
   },
   "bin": {
     "statikos": "dist-cli/statikos.mjs"

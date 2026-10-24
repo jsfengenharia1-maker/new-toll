@@ -2,6 +2,7 @@
 import './obra';
 import './planta';
 import './lancamento';
+import './ifc';
 import './vigas';
 import './vigasE2b';
 import './inclinadas';
