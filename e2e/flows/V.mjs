@@ -1110,3 +1110,70 @@ export const f_V7c = {
       await page.getByRole('columnheader', { name: /^Pilar e combinação da distorção x/ }).waitFor();
     },
   };
+
+export const f_V7f = {
+    name: 'V7f: opções de cálculo próprias da viga, da laje e do pilar nas janelas dos elementos (alterar, ver a da obra, voltar)',
+    async run({ newPage }) {
+      const page = await newPage();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+      await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+      await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+      await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+      const abas = page.locator('.edif-tabs');
+      await abas.getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const propriasNoModelo = async (lista) => (await modelo())[lista].filter((e) => e.opcoes && Object.keys(e.opcoes).length).map((e) => ({ nome: e.nome, ...e.opcoes }));
+      const esperaProprias = async (lista, n) => { await page.waitForFunction(([l, q]) => (JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.[l] ?? []).filter((e) => e.opcoes && Object.keys(e.opcoes).length).length === q, [lista, n]); return propriasNoModelo(lista); };
+
+      // ---- viga
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Vigas$/ }) }).locator('tbody tr').first().dblclick();
+      const jv = page.getByRole('dialog', { name: /Resultados do elemento — Viga/ });
+      await jv.waitFor();
+      const gv = jv.locator('[data-opcoes-elemento^="viga:"]');
+      await gv.locator('summary').click();
+      assert.equal(await gv.getAttribute('data-opcoes-proprias'), '0');
+      await gv.getByLabel(/^Vigas: taxa mínima de armadura longitudinal/).fill('0.8');
+      await gv.getByLabel(/^Vigas: taxa mínima de armadura longitudinal/).press('Enter');
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="viga:"]')?.getAttribute('data-opcoes-proprias') === '1');
+      assert.equal((await esperaProprias('vigas', 1))[0].vigaTaxaMin, 0.8);
+      await gv.getByRole('button', { name: /^Usar a da obra: Vigas: taxa mínima/ }).click();
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="viga:"]')?.getAttribute('data-opcoes-proprias') === '0');
+      await esperaProprias('vigas', 0);
+      await jv.getByRole('button', { name: 'Fechar' }).click();
+
+      // ---- laje: valor fora da faixa é recusado; valor válido grava e a mensagem aparece nos resultados
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: /^Lajes$/ }) }).locator('tbody tr').first().dblclick();
+      const jl = page.getByRole('dialog', { name: /Resultados do elemento — Laje/ });
+      await jl.waitFor();
+      const gl = jl.locator('[data-opcoes-elemento^="laje:"]');
+      await gl.locator('summary').click();
+      await gl.getByLabel(/^Lajes: taxa mínima de armadura/).fill('9');
+      await gl.getByLabel(/^Lajes: taxa mínima de armadura/).press('Enter');
+      await page.waitForTimeout(800);
+      assert.equal(await gl.getAttribute('data-opcoes-proprias'), '0');
+      await gl.getByLabel(/^Lajes: taxa mínima de armadura/).fill('1');
+      await gl.getByLabel(/^Lajes: taxa mínima de armadura/).press('Enter');
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="laje:"]')?.getAttribute('data-opcoes-proprias') === '1');
+      assert.equal((await esperaProprias('lajes', 1))[0].lajeTaxaMin, 1);
+      await gl.getByRole('button', { name: /^Remover todas as opções próprias da laje/ }).click();
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="laje:"]')?.getAttribute('data-opcoes-proprias') === '0');
+      await jl.getByRole('button', { name: 'Fechar' }).click();
+
+      // ---- pilar
+      await page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) }).locator('tbody tr').first().dblclick();
+      const jp = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+      await jp.waitFor();
+      const gp = jp.locator('[data-opcoes-elemento^="pilar:"]');
+      await gp.locator('summary').click();
+      await gp.getByLabel(/^Pilares: taxa geométrica mínima/).fill('1');
+      await gp.getByLabel(/^Pilares: taxa geométrica mínima/).press('Enter');
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="pilar:"]')?.getAttribute('data-opcoes-proprias') === '1');
+      assert.equal((await esperaProprias('pilares', 1))[0].pilarTaxaMin, 1);
+      await gp.getByRole('button', { name: /^Remover todas as opções próprias do pilar/ }).click();
+      await page.waitForFunction(() => document.querySelector('[data-opcoes-elemento^="pilar:"]')?.getAttribute('data-opcoes-proprias') === '0');
+      await esperaProprias('pilares', 0);
+    },
+  };

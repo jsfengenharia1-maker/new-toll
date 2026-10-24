@@ -1,4 +1,5 @@
 // Comandos da planta: máscara (DXF de referência) e pilares.
+import { OPCOES_INFO, OPCOES_POR_PILAR, type OpcoesPilarPropria } from '../building/opcoes';
 import type { Draft } from 'immer';
 import { dadosDoPilar } from '../building/pilarDados';
 import { centroPilar, geoLance, inicioDe, lancesDoPilar, pavimentosOrdenados, type Ajuste, type BuildingModel, type CamadaGeo, type Mascara, type Pilar, type RegrasCamadas, type SecaoPilar, type VinculoBasePilar } from '../building/types';
@@ -333,17 +334,19 @@ registrar<PilarIn>({
   },
 });
 
-registrar<{ id: string } & Partial<Omit<PilarIn, 'nome' | 'sobre'>> & { nome?: string; cobrimento?: number; tabela?: string }>({
+registrar<{ id: string } & Partial<Omit<PilarIn, 'nome' | 'sobre'>> & { nome?: string; cobrimento?: number; tabela?: string; opcoes?: OpcoesPilarPropria }>({
   nome: 'pilar.editar',
   descricao: 'Altera nome, posição do ponto fixo, seção (de todos os lances sem seção própria), ponto fixo, ângulo, nascimento, morte, início (apoiado em outro elemento ou na fundação, com vínculo externo) ou cobrimento próprio (cm) de um pilar.',
   risco: 'escrita',
-  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento'], 'secao'),
+  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento', 'opcoes'], 'secao'),
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, x: { type: 'number' }, y: { type: 'number' }, secao: secaoSchema,
     ajuste: ajusteSchema, angulo: { type: 'number' }, nasce: { type: 'string' }, morre: { type: 'string' },
     inicio: { type: 'string', enum: ['fundacao', 'apoiado'], description: 'apoiado: nasce sobre pilar, viga ou laje, sem vínculo externo; fundacao: vínculo externo no pavimento em que nasce' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cm; 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de armadura dos pilares (R7a); "padrao" ou vazio volta à padrão da obra' },
+    opcoes: { type: 'object', additionalProperties: false, description: 'opções de cálculo só deste pilar (V7f, K1.4.1), no lugar das anteriores; {} volta às opções da obra. Chaves e faixas como em opcoes.definir',
+      properties: Object.fromEntries(OPCOES_POR_PILAR.map((k) => { const i = OPCOES_INFO.find((x) => x.chave === k)!; return [k, { type: 'number', minimum: i.min, maximum: i.max, description: i.rotulo }]; })) },
   } },
   validar(b, p) {
     const q = b.pilares.find((x) => x.id === p.id);
@@ -375,6 +378,7 @@ registrar<{ id: string } & Partial<Omit<PilarIn, 'nome' | 'sobre'>> & { nome?: s
     if (q.nasce === 'fundacao') delete q.inicio;
     if (p.cobrimento !== undefined) { if (p.cobrimento) q.cobrimento = p.cobrimento; else delete q.cobrimento; }
     atribuirTabela(q, 'tabela', p.tabela);
+    if (p.opcoes) { if (Object.keys(p.opcoes).length) q.opcoes = { ...p.opcoes }; else delete q.opcoes; }
     return `${q.nome} alterado.${aviso}`;
   },
 });

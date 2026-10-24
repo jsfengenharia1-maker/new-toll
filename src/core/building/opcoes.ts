@@ -1406,6 +1406,25 @@ export const OPCOES_POR_VIGA = [
 /** Opções próprias de uma viga (sobrepõem as gerais da obra só nessa viga). */
 export type OpcoesVigaPropria = Partial<Pick<OpcoesCalculo, (typeof OPCOES_POR_VIGA)[number]>>;
 
+/**
+ * Opções que uma laje pode ter só para ela (V7f, K1.4.1): as lidas pela armadura de flexão da laje maciça e da zona maciça
+ * das nervuradas (taxa mínima, momentos mínimos p·ℓ²/x, bitola e espaçamento mínimos). Só o dimensionamento (OPCOES_DETALHE).
+ */
+export const OPCOES_POR_LAJE = ['lajeTaxaMin', 'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'lajeBitolaMinima', 'lajeEspacamentoMinimo'] as const satisfies readonly (keyof OpcoesCalculo)[];
+export type OpcoesLajePropria = Partial<Pick<OpcoesCalculo, (typeof OPCOES_POR_LAJE)[number]>>;
+
+/**
+ * Opções que um pilar pode ter só para ele (V7f, K1.4.1): lidas só por `dimensionarPilares` (taxa mínima, fluência da
+ * excentricidade, simetria da armadura, ordem de bitolas por taxa, continuidade entre lances e das faces).
+ */
+export const OPCOES_POR_PILAR = ['pilarTaxaMin', 'pilarFluencia', 'pilarSimetria', 'pilarOrdemTaxa', 'continuidadePilares', 'pilarContinuidadeFaces'] as const satisfies readonly (keyof OpcoesCalculo)[];
+export type OpcoesPilarPropria = Partial<Pick<OpcoesCalculo, (typeof OPCOES_POR_PILAR)[number]>>;
+
+/** Texto das opções próprias de um elemento para mensagens e memória: "rótulo = valor; …". */
+export function textoOpcoesProprias(o: Partial<Record<string, number>> | undefined): string {
+  return Object.entries(o ?? {}).map(([k, x]) => `${OPCOES_INFO.find((i) => i.chave === k)?.rotulo ?? k} = ${String(x).replace('.', ',')}`).join('; ');
+}
+
 /** Opções que diferem do padrão do perfil. */
 export function opcoesAlteradas(o?: Partial<OpcoesCalculo>, perfil: PerfilOpcoes = 'sistema'): OpcaoInfo[] {
   return OPCOES_INFO.filter((i) => o?.[i.chave] !== undefined && o[i.chave] !== padraoDe(i, perfil));

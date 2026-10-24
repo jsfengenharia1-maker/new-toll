@@ -13,7 +13,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 7 | 0 | 0 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 9 | 0 | 0 | 1 |
 | 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 49 | 0 | 0 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 78 | 1 | 0 | 13 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 79 | 0 | 0 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 42 | 3 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 8 | 0 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -25,19 +25,19 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 40 | 1 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 24 | 0 | 0 | 19 |
-| **Total** | **661** | **543** | **7** | **0** | **111** |
+| **Total** | **661** | **544** | **6** | **0** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
 | Frente | Parcial | Falta | Total |
 |---|---|---|---|
-| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 7 | 0 | 7 |
+| N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 6 | 0 | 6 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 0 | 0 | 0 |
 | FU — Fundações | 0 | 0 | 0 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 0 | 0 | 0 |
-| **Total** | **7** | **0** | **7** |
+| **Total** | **6** | **0** | **6** |
 
 ## Divergências de premissa
 
@@ -168,7 +168,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 
 | Item | Critério / funcionalidade | Situação | Frente | Statikos |
 |---|---|---|---|---|
-| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Parcial | N | opções de cálculo editáveis com dois perfis de padrão (opcoes.ts); N2e acrescentou taxas, espaçamentos, arredondamento, suspensão e barra curta e fechou as tabelas de armadura da R7a; N4c: opções por viga no núcleo (`Viga.opcoes`, `OPCOES_POR_VIGA`, comando `viga.editar { opcoes }`, mensagem e memória) e redistribuição nas faces (`redistribuicaoFaces`) — Resíduo [V7f]: interface das opções próprias da viga e opções próprias de lajes e pilares |
+| K1.4.1 | Grande conjunto de parâmetros configuráveis que afetam esforços e dimensionamento; opções gerais, de vigas, de lajes, de ligações; tabelas de armadura e opções por elemento. | Feito | — | opções de cálculo editáveis com dois perfis de padrão (opcoes.ts); N2e acrescentou taxas, espaçamentos, arredondamento, suspensão e barra curta e fechou as tabelas de armadura da R7a; N4c: opções por viga no núcleo (`Viga.opcoes`, `OPCOES_POR_VIGA`, comando `viga.editar { opcoes }`, mensagem e memória) e redistribuição nas faces (`redistribuicaoFaces`); [V7f] opções próprias também de lajes (`OPCOES_POR_LAJE`: taxa mínima, momentos mínimos, bitola e espaçamento mínimos; maciça e zona maciça das nervuradas) e de pilares (`OPCOES_POR_PILAR`: taxa mínima, fluência, simetria, ordem por taxa, continuidade e continuidade das faces), comando `laje.editar` e `pilar.editar` com `opcoes` (faixa validada), mensagem e memória detalhada (`registrarOpcoesProprias`), e interface `OpcoesDoElemento.tsx` nas janelas da viga, da laje e do pilar (testes em `opcoesPorElemento.test.ts`, e2e `V7f`); listas fechadas das opções que só atuam no dimensionamento |
 | | **1.4.1 Redistribuições (págs. 15–18)** | | | |
 | K1.4.2 | Redistribuição de momentos negativos em vigas e vigotas até 30 % (configurável). | Feito | — | redistribuição dos negativos das vigas (15 %, NBR 0) e, nas vigotas, a mesma opção com `vigotaRedistribuir`, limitada pela NBR 6118 14.6.4.3 em δ ≥ 0,75 (0,90 em nós móveis): o limite de 30 % do programa de referência não é adotado, a NBR prevalece [E3b] |
 | K1.4.3 | Valores recomendados/padrão: 15 % para vigas e 25 % para vigotas (padrão). | Feito | — | redistribuição padrão 15 % nas vigas (opção 0 a 25 %, limites da NBR 14.6.4.3); vigotas fora (N1e) |
@@ -1039,3 +1039,6 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 - **24/10/2026 — fatia V7c (estado da seção circular, distorção e vento por direção, vento na malha).** K1.11.30, K1.11.50 e K1.15.3-1 passam a Feito: `estadoDoPilar` com pilar circular (`secaoCircularArmada`, `barrasDoCirculo`), `ventoPorDirecao`, `deslocamentosVentoMalha` e `maximosVentoPorPano` (src/core/resultados/ventoDirecao.ts), distorção com pilar e combinação em `maximosPilaresCombinados`; testes em `v7c.test.ts` e `ventoDirecao.test.ts`, e2e `V7c`.
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: V diminui (3 itens a Feito).
+- **24/10/2026 — fatia V7f (opções por elemento).** K1.4.1 passa a Feito: opções próprias de lajes e pilares (`OPCOES_POR_LAJE`, `OPCOES_POR_PILAR`) além das da viga, `laje.editar` e `pilar.editar` com `opcoes`, mensagem, memória detalhada e `OpcoesDoElemento.tsx` nas janelas dos elementos; testes em `opcoesPorElemento.test.ts`, e2e `V7f`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: V diminui (1 item a Feito).

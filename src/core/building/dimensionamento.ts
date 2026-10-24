@@ -22,6 +22,7 @@ import { GAMA_CONCRETO, propriedadesLaje, vaos } from './lajes';
 import { ehNervurada, espessuraConcreto, FICHA_TRELICADAS, geometriaNervurada, trelicasDe, type GeometriaNervurada } from './tiposLaje';
 import { alinhamentosDaLaje, armaduraEquivalente, dadosBranson, fatorBranson, flechaAlinhamento, momentosDaBarra, type DadosBranson } from './vigotasFlecha';
 import { vaosDaViga } from './vigas';
+import { registrarOpcoesProprias } from '../memoria/opcoesProprias';
 import { esforcosPilaresParede, type ResultadoPilarParede } from './pilarParedeEsforcos';
 import { dimensionarParedes, type ResultadoParedeDim } from './paredesDim';
 import { dimensionarConsolos, type ResultadoConsolo } from './consolos';
@@ -54,7 +55,7 @@ import { registrarLajeBarras, registrarLajeBase, registrarLajeCortante, registra
 import { detalharRadier, dimensionarBaseElastica, resumoAcoRadiers, type ResultadoRadier, type ResultadoVigaElastica } from './baseElastica';
 import { calcularCorridas, type ResultadoCorrida } from './sapataCorrida';
 import { temCorridas } from './corridaParede';
-import { OPCOES_INFO, opcoesEmUso, perfilDe } from './opcoes';
+import { opcoesEmUso, perfilDe, textoOpcoesProprias } from './opcoes';
 import { alturaVigaChata, secaoParaFlexao } from './secaoViga';
 import { calcularBasesMuros, type ResultadoBaseMuro } from './baseMuro';
 import { COMB_ELU_LAJE, COMB_FREQ, COMB_QP, origem, type Origem } from './origem';
@@ -619,7 +620,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       else msgs.push(`Carga próxima ao apoio: carga concentrada a ${f2(q.a)} m da face (d < a < 2d): cortante da carga multiplicado por a/2d = ${f2(q.a / (2 * d))} (NBR 6118, 17.4.1.2.1).`);
     }
     if (op.redistribuicao > 0 && vaos.some((vo) => interno(vo.ini) || interno(vo.fim))) msgs.push(`Redistribuição nos apoios internos: δ = ${delta.toFixed(2).replace('.', ',')}${delta > 1 - op.redistribuicao / 100 + 1e-6 ? ` (limitado: ${deltaMin === 0.9 ? 'nós móveis, δ ≥ 0,90' : 'δ ≥ 0,75'} e δ ≥ ${deltaX.toFixed(2).replace('.', ',')} + 1,25·x/d)` : ''}${op.redistribuicaoFaces ? '; aplicada nas faces dos pilares, com o trecho do apoio recalculado' : ''}.`);
-    if (v.opcoes && Object.keys(v.opcoes).length) msgs.push(`Opções próprias da viga: ${Object.entries(v.opcoes).map(([k, x]) => `${OPCOES_INFO.find((i) => i.chave === k)?.rotulo ?? k} = ${String(x).replace('.', ',')}`).join('; ')}.`);
+    if (v.opcoes && Object.keys(v.opcoes).length) msgs.push(`Opções próprias da viga: ${textoOpcoesProprias(v.opcoes)}.`);
     let AsInf = Math.max(flx(Mpos, dI, d2I, aPos.fyd, fcPos), asMinViga(dI, aPos.fyd, fcPos)), AsSup = Mneg < 0 ? flx(-Mneg, dS, d2S, aNeg.fyd, fcNeg) : 0;
     const AsFlex: [number, number] = [AsInf, AsSup];
     const fi = beamFlexure(sec, fcPos, Mpos, dI, d2I, c, aPos.fyd), fs = beamFlexure(sec, fcNeg, -Mneg, dS, d2S, c, aNeg.fyd);
@@ -774,6 +775,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         }
         return undefined;
       };
+      registrarOpcoesProprias(mem, `Viga ${v.nome}`, 'viga', v.opcoes);
       registrarViga(mem, {
         elemento: `Viga ${v.nome}`, b: v.secao.b, h: v.secao.h, c, fyk: aPos.fyk, fydPos: aPos.fyd, fydNeg: aNeg.fyd, fywk: aEst.fyk, fywd, gs, cob, dI, dS, d2I, d2S, d,
         sec, fcPos, fcNeg, taxaMin: op.vigaTaxaMin, Mpos, Mneg, V, delta, redistFaces: !!op.redistribuicaoFaces, redistribuicao: op.redistribuicao, deltaMin, deltaX, det: envolt.determinantes,
@@ -1003,8 +1005,10 @@ function distribuicoes(N: number, lb: number, lh: number, spMax: number, spMin: 
 
 function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: CombinacaoEd[], qp?: CombinacaoEd): ResultadoPilar[] {
   const FYD = acoDe(b, 'pilarLong').fyd, acoLong = acoDe(b, 'pilarLong').aco;
-  const pm = an.portico, out: ResultadoPilar[] = [], op = an.opcoes, mem = memoriaAtiva();
+  const pm = an.portico, out: ResultadoPilar[] = [], opG = an.opcoes, mem = memoriaAtiva();
   for (const p of b.pilares) {
+  // V7f: opções próprias do pilar (K1.4.1) sobrepõem as da obra só nele
+  const op: typeof opG = p.opcoes ? { ...opG, ...p.opcoes } : opG;
   // de cima para baixo: o último e o penúltimo lances pelos seus esforços; abaixo, com a opção de continuidade,
   // nenhum lance com menos armadura nem bitola de canto menor que o de cima (critério do programa de referência)
   const ls = lancesDoPilar(b, p), res: ResultadoPilar[] = [];
@@ -1337,7 +1341,9 @@ function dimensionarPilares(b: BuildingModel, an: AnaliseEdificio, elu: Combinac
       return { de: r3(t.de), ate: r3(t.de + t.L), le: [r3(t.le[0]), r3(t.le[1])] as [number, number], lambda: [t.lamU, t.lamV] as [number, number], Nd: r2(Math.max(0, ...t.sol.map((x) => x.Nd))), util: u, combinacao: ultimoDet, metodo: t.metodo };
     }) : undefined;
     const elMem = `Pilar ${p.nome} · ${lance.nome}`;
+    if (p.opcoes && Object.keys(p.opcoes).length) msgs.push(`Opções próprias do pilar: ${textoOpcoesProprias(p.opcoes)}.`);
     if (mem?.aceita(elMem)) {
+      registrarOpcoesProprias(mem, elMem, 'pilar', p.opcoes);
       // memória detalhada (MD): combinação determinante refeita com a armadura adotada (mesmas funções e a mesma ordem).
       // E5m: com trechos, vale o trecho de maior utilização (primeiro em caso de empate) e a combinação que o determinou
       let kDet = 0;
@@ -1633,6 +1639,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
     for (const l of b.lajes.filter((x) => x.grupo === pav.grupo)) {
       const r0 = ja.get(l.id);
       if (r0) { out.push({ ...r0, pavimento: pav.nome, mensagens: [...r0.mensagens] }); continue; }
+      // V7f: opções próprias da laje (K1.4.1) sobrepõem as da obra só nela
+      const opL: typeof op = l.opcoes ? { ...op, ...l.opcoes } : op;
       /** Momentos por metro (pos/neg nas duas direções) para os fatores dados por caso. */
       const momentos = (fat: number[]) => {
         let pos: [number, number] = [0, 0], neg: [number, number] = [0, 0], tem = false;
@@ -1660,6 +1668,7 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       const momELU = elL ? detMomentosLaje(g, l, op, an.casos, fELU, mPos, mNeg, 'ELU') : undefined;
       let wk = 0;
       const pr = propriedadesLaje(l.tipo), msgs: string[] = [];
+      if (l.opcoes && Object.keys(l.opcoes).length) msgs.push(`Opções próprias da laje: ${textoOpcoesProprias(l.opcoes)}.`);
       let As = { pos: [0, 0] as [number, number], neg: [0, 0] as [number, number] };
       // flecha relativa aos apoios (elástica, por combinação); a composição (fator, etapas, fissuração) vem depois de todas as lajes
       let flQP = flechaRelativa(g, l.id, fQP);
@@ -1675,15 +1684,15 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
       if (l.tipo.tipo === 'macica') {
         const h = l.tipo.h, cob = cobrimentoLaje(b, l.cobrimento), dI = h - cob.inf - 0.005, dS = h - cob.sup - 0.005;
         const sec = { kind: 'rect' as const, bw: 1, h };
-        const amin = (op.lajeTaxaMin > 0 ? op.lajeTaxaMin / 100 : 0.0015) * h; // ρmín 0,15 % (fck ≤ 30) [a confirmar por fck]; `lajeTaxaMin` substitui
+        const amin = (opL.lajeTaxaMin > 0 ? opL.lajeTaxaMin / 100 : 0.0015) * h; // ρmín 0,15 % (fck ≤ 30) [a confirmar por fck]; `lajeTaxaMin` substitui
         // N2e (K1.4.81): momentos mínimos p·ℓ²/x das lajes maciças (padrão desligado)
         let minimos: { pos: number; neg: number; p: number; vao: number } | undefined;
-        if (op.lajeMomentoMinPositivo > 0 || op.lajeMomentoMinNegativo > 0) {
+        if (opL.lajeMomentoMinPositivo > 0 || opL.lajeMomentoMinNegativo > 0) {
           const gr = b.grupos.find((x) => x.id === pav.grupo), p = gm.g * (25 * h + (gr?.gRev ?? 0)) + gm.q * (gr?.q ?? 0), pl2 = p * vao * vao;
-          minimos = { pos: op.lajeMomentoMinPositivo, neg: op.lajeMomentoMinNegativo, p, vao };
+          minimos = { pos: opL.lajeMomentoMinPositivo, neg: opL.lajeMomentoMinNegativo, p, vao };
           for (const k of [0, 1]) {
-            if (op.lajeMomentoMinPositivo > 0) mPos[k] = Math.max(mPos[k], pl2 / op.lajeMomentoMinPositivo);
-            if (op.lajeMomentoMinNegativo > 0 && mNeg[k] < 0) mNeg[k] = Math.min(mNeg[k], -pl2 / op.lajeMomentoMinNegativo);
+            if (opL.lajeMomentoMinPositivo > 0) mPos[k] = Math.max(mPos[k], pl2 / opL.lajeMomentoMinPositivo);
+            if (opL.lajeMomentoMinNegativo > 0 && mNeg[k] < 0) mNeg[k] = Math.min(mNeg[k], -pl2 / opL.lajeMomentoMinNegativo);
           }
         }
         const a = (M: number, dd: number, fyd: number) => Math.max(amin, M ? beamFlexure(sec, false, Math.abs(M), dd, 0.02, c, fyd).As : 0) * 1e4;
@@ -1693,7 +1702,8 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
           const gr = b.grupos.find((x) => x.id === pav.grupo);
           registrarLajeBase(mem, elL, { nome: l.nome, pavimento: pav.nome, h, vaos: vaos(l), inclinada: !!l.plano, gRev: gr?.gRev ?? 0, q: gr?.q ?? 0, gammaC: GAMA_CONCRETO, gg: gm.g, gq: gm.q, c, fydInf: fInf, fydSup: fSup, acoInf: acoDe(b, 'lajeInf').aco, acoSup: acoDe(b, 'lajeSup').aco, cobInf: cob.inf, cobSup: cob.sup, dI, dS, caa, wkLim });
           registrarMomentosLaje(mem, elL, momELU);
-          registrarLajeFlexao(mem, elL, { c, sec, h, dI, dS, fydInf: fInf, fydSup: fSup, taxaUsuario: op.lajeTaxaMin, amin: amin, grelha: grelhaELU, mPos, mNeg, minimos, As0: { pos: [...As.pos] as [number, number], neg: [...As.neg] as [number, number] } });
+          registrarOpcoesProprias(mem, elL, 'laje', l.opcoes);
+          registrarLajeFlexao(mem, elL, { c, sec, h, dI, dS, fydInf: fInf, fydSup: fSup, taxaUsuario: opL.lajeTaxaMin, amin: amin, grelha: grelhaELU, mPos, mNeg, minimos, As0: { pos: [...As.pos] as [number, number], neg: [...As.neg] as [number, number] } });
         }
         // fissuração na combinação frequente (17.3.3.2), faixa de 1 m; aumenta a armadura até wk ≤ limite
         const mk = momentos(fFreq);
@@ -1713,14 +1723,14 @@ function dimensionarLajes(b: BuildingModel, an: AnaliseEdificio): ResultadoLaje[
         if (aumentou) msgs.push(`Armadura aumentada para limitar a abertura de fissuras a ${wkLim.toFixed(2).replace('.', ',')} mm.`);
         if (wk > wkLim + 1e-9) msgs.push(`Abertura de fissuras ${wk.toFixed(2).replace('.', ',')} mm > ${wkLim.toFixed(2).replace('.', ',')} mm.`);
         // tabela de armadura (R7a): a armadura necessária cabe com as bitolas e espaçamentos da tabela?
-        const smin = op.lajeEspacamentoMinimo / 100, smaxP = Math.min(2 * h, 0.2);
+        const smin = opL.lajeEspacamentoMinimo / 100, smaxP = Math.min(2 * h, 0.2);
         const foraTab: string[] = [];
         for (const [lado, ca60] of [['pos', acoDe(b, 'lajeInf').aco === 'CA-60'], ['neg', acoDe(b, 'lajeSup').aco === 'CA-60']] as const) for (const k of [0, 1] as const) {
           const nec = As[lado][k] / 1e4;
           if (!nec) continue;
-          const com = escolherBarrasLaje(nec, h, smaxP, smin, op.lajeBitolaMinima, ca60, linha);
-          if (elL && mem) registrarLajeBarras(mem, elL, { face: lado, dir: k, nec, h, smax: smaxP, smin, phiMin: op.lajeBitolaMinima, tabela: tabelaDe(b, 'lajes', l.tabela).nome, ...com });
-          if (!com.cabe && escolherBarrasLaje(nec, h, smaxP, smin, op.lajeBitolaMinima, ca60).cabe) foraTab.push(`${lado === 'pos' ? 'positiva' : 'negativa'} na direção ${k} (${As[lado][k].toFixed(2).replace('.', ',')} cm²/m)`);
+          const com = escolherBarrasLaje(nec, h, smaxP, smin, opL.lajeBitolaMinima, ca60, linha);
+          if (elL && mem) registrarLajeBarras(mem, elL, { face: lado, dir: k, nec, h, smax: smaxP, smin, phiMin: opL.lajeBitolaMinima, tabela: tabelaDe(b, 'lajes', l.tabela).nome, ...com });
+          if (!com.cabe && escolherBarrasLaje(nec, h, smaxP, smin, opL.lajeBitolaMinima, ca60).cabe) foraTab.push(`${lado === 'pos' ? 'positiva' : 'negativa'} na direção ${k} (${As[lado][k].toFixed(2).replace('.', ',')} cm²/m)`);
         }
         if (foraTab.length) msgs.push(`Fora de tabela (laje): ${foraTab.join('; ')} não cabe com as bitolas e espaçamentos da tabela "${tabelaDe(b, 'lajes', l.tabela).nome}".`);
       }
