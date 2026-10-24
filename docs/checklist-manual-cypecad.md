@@ -16,13 +16,13 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 5. Muros e paredes estruturais | 30 | 25 | 1 | 0 | 4 |
 | 6. Vigas | 108 | 57 | 26 | 0 | 25 |
 | 7. Lajes | 195 | 73 | 55 | 0 | 67 |
-| 8. Escadas | 65 | 48 | 3 | 14 | 0 |
+| 8. Escadas | 65 | 49 | 2 | 14 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 21 | 2 | 0 | 3 |
 | 11. Fundações | 70 | 63 | 0 | 2 | 5 |
 | 12. Isovalores e deformada | 22 | 14 | 7 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **454** | **102** | **22** | **185** |
+| **Total** | **763** | **455** | **101** | **22** | **185** |
 
 ## Pendências por frente
 
@@ -30,7 +30,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 |---|---|---|---|
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 0 | 0 | 0 |
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 2 | 0 | 2 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 78 | 17 | 95 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 77 | 17 | 94 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 6 | 2 | 8 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 16 | 3 | 19 |
@@ -692,7 +692,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C8.50 | Cálculo isolado por elementos finitos com as hipóteses de peso próprio/permanente e sobrecarga. | Feito | — | [E4c] `calcularLance`: malha estruturada de casca de 6 nós (N2b, giro acoplado à membrana), casos G (peso próprio, degraus, revestimento, corrimão) e Q (sobrecarga); validado contra a viga biapoiada inclinada (reações, M = qℓ²/8, flecha, esforço normal), viga contínua com apoio rígido e elástico no patamar e o OpenSees (`escadasCalculo.validacao.test.ts`, `validation/opensees/escada.py`) |
 | C8.51 | Vista 3D do lance com isovalores de esforços e deslocamentos. | Falta | E | [E4e] |
 | C8.52 | Escadas calculadas primeiro no cálculo da obra, para aplicar as reações na estrutura. | Feito | — | [E4c] `analisarEdificio` calcula as escadas antes (`calcularEscadas`) e aplica as reações como cargas antes da análise do edifício; o resultado fica em `AnaliseEdificio.escadas`; obra sem escada não muda (identidade de `comEscadas`) |
-| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Parcial | E | [E4c] núcleo 24/10/2026: `calcularEscadas(b)` é o cálculo individual (reações por apoio e esforços sem rodar a obra); `assinaturaEscadas` e `diagnosticoRecalcular` (código `ESCADA_RECALCULAR`); `escada.*`/`lance.*`/`tipoLance.*` invalidam o cálculo; botão "Calcular escada", tabela de reações e aviso nos cartões `docs/cartoes/E4c/` |
+| C8.53 | Cálculo individual da escada antes do cálculo da obra; aviso para recalcular a obra se a escada mudar de forma que altere as reações. | Feito | — | [E4c] `calcularEscadas` (cálculo individual), janela "Calcular escadas…" (`EscadaCalculoUI.tsx`), aviso `ESCADA_RECALCULAR` (`diagnosticoRecalcular`) e e2e E4c |
 | C8.54 | Relatório de escadas: dados gerais (materiais, norma), dados comuns (geometria, cargas) e por lance (reações, armaduras, esforços em cada seção). | Falta | E | [E4e] |
 | C8.55 | Desenho de detalhe de cada escada: cortes longitudinais e transversais, quadro de propriedades por lance (geometria, cargas, materiais) e quadros de aço por escada, por lance e total. | Falta | E | [E4e] |
 | | **8.5 Configuração** | | | |
