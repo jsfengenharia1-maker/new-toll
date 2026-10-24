@@ -98,7 +98,7 @@ describe('rigidez axial das paredes separada da flexão (K1.4.30)', () => {
     // a opção 2 muda a distribuição em relação à membrana ortótropa (parede mais flexível à flexão no plano)
     const dif = media.an.portico.res!.desloc[0].reduce((m, v, k) => Math.max(m, Math.abs(v - novo.an.portico.res!.desloc[0][k])), 0);
     expect(dif).toBeGreaterThan(0);
-    expect((media.an.paredes as Record<string, unknown>).faixasAxiais).toBeUndefined();
+    expect(media.an.paredes?.faixasAxiais).toBeUndefined();
   }, 240000);
 });
 
