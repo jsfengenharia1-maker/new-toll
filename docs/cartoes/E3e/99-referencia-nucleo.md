@@ -1,6 +1,6 @@
-# E3e — o que a interface precisa (lajes alveolares)
+# E3e — referência do núcleo das lajes alveolares (para os cartões 1 a 5)
 
-Núcleo concluído em 23/10/2026 (ver `docs/historico-fatias.md`, premissa `alveolares` e `docs/pendencias-usuario.md`, seção "Lajes alveolares (E3e)"). Esta nota substitui os cartões enquanto o layout do app está em migração: escrever os cartões (Haiku, padrão `docs/cartoes/E3b/`) depois dela, só com `src/app/ui` e as classes de `global.css`. Sem dado de fabricante: toda tela mostra a marca da ficha (`marca`: "dado do fabricante, não verificado pelo programa" ou "ficha fictícia (demonstração)").
+Núcleo concluído em 23/10/2026 (ver `docs/historico-fatias.md`, premissa `alveolares` e `docs/pendencias-usuario.md`, seção "Lajes alveolares (E3e)"). Os cartões `01` a `05` desta pasta (layout novo, validados em `validado.patch`) usam só `src/app/ui` e as classes de `global.css`; esta nota é a referência de dados e funções. Sem dado de fabricante: toda tela mostra a marca da ficha (`marca`: "dado do fabricante, não verificado pelo programa" ou "ficha fictícia (demonstração)").
 
 ## 1. Tipos e dados (importar de `src/core/building/alveolares.ts` e `alveolaresDim.ts`)
 
@@ -30,13 +30,9 @@ Núcleo concluído em 23/10/2026 (ver `docs/historico-fatias.md`, premissa `alve
 - Sem Mu, serviço, VRd ou EI na ficha a verificação correspondente não é feita (aviso `ALVEOLAR_SEM_DADOS` diz o que faltou); mostrar "sem dado" e não "ok".
 - Resistência ao fogo das alveolares não é verificada (`fogo.ts` ignora o tipo); pendente do fabricante.
 
-## 4. e2e `E3e` (a escrever junto com os cartões)
+## 4. e2e `E3e`
 
-1. Cadastrar uma ficha alveolar (copiar `ex:alveolar`, editar um Mu para menor que Mfis: erro lógico em vermelho; corrigir).
-2. Lançar um pano 6 × 4,8 m, atribuir "Alveolar" (ficha da obra, placa A25-1) com carga adicional de 5 kN/m²: a lista de erros mostra `ALVEOLAR_PLACA` com a sugestão A25-2; "adotar a sugerida" zera o erro.
-3. Dois panos contíguos: negativo na capa na ponta comum (φ16 c/20) e comprimento mínimo de 25 % do vão; trocar o processo para "duas fases" e ver o negativo cair.
-4. Planta mostra 5 placas numeradas; pano de 5,5 m de largura mostra a placa de borda cortada de 70 cm.
-5. Exportar a ficha para `.json`, apagar e importar; memorial traz o quadro das placas com a marca da ficha.
+Implementado no cartão 5 (`f_E3e` em `e2e/flows/E-2.mjs`): ficha de exemplo copiada e erro lógico (Mu menor que Mfis recusado), atribuição ao pano, placa A25-1 insuficiente com a sugestão A25-2 e "adotar a sugerida", 5 placas por pano com a de borda cortada de 70 cm (pano de 5,5 m), negativo no apoio comum e queda do momento com o processo em duas fases, negativo editado φ16 c/20 com 25 % do vão e desbloqueio, exportar/importar/remover o `.json`, memorial. A carga permanente é de 10 kN/m² (dois panos contínuos em y), não os 5 kN/m² do pano isolado do texto antigo.
 
 ## 5. Itens dos checklists que viram Feito com a interface
 
