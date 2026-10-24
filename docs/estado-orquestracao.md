@@ -16,16 +16,17 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-24/10/2026 (conferir ao retomar), execução e escrita de cartões, a partir do main da rodada D7/E4c:
-- (a) `cartao` (Haiku): V5 → E3c → E3d (`docs/cartoes/<fatia>/`, `validado.patch` de referência; foram validados antes da D7, então âncoras podem ter mudado).
-- (b) `cartao` (Haiku): E4a (01–04) → E4b (01–06) → E4c (01–04; o 04 não foi validado).
-- (c) `nucleo` (Sonnet médio): escrever os cartões da E3e (spec em `E3e/00-pendente.md`) e o TSX da E3f (01–04), validando aplicar/reverter.
+24/10/2026 (conferir ao retomar):
+- (a) `cartao` (Haiku): E4b (01–06) → E4c (01–04) + checklists/histórico de E4a, E4b, E4c.
+- (b) `cartao` (Haiku): E3e (01–05) → E3f (01–04) + linhas de checklist de E3c, E3d, E3e, E3f (notas nos 00-leia-primeiro/00-indice).
+- (c) `nucleo` (Sonnet alto): desempenho — `criarExemplo('telhado')` com `planoDiafragma` ligado não termina a análise em 5–9 min; e os testes lentos telhado/cobertura.
+Regra dada aos `cartao`: testes de inventário de UI (contagem de ícones, seções da árvore, ferramentas, grupos) podem ser atualizados quando o cartão acrescenta aquele item; valores de cálculo nunca.
 
-Última rodada fechada em 24/10/2026: D7 (auditoria D corrigida, 4 e2e de layout), núcleo E4c (escadas por casca, validado analítico + OpenSees; `Casca3.acoplarGiro` opt-in), cartões V5/E3c/E3d reescritos. 1.631 testes, 91 e2e, pacote 4.304 KB. Testes "telhado"/"cobertura" passaram no gate desta vez.
+Última rodada fechada em 24/10/2026: cartões V5, E3c, E3d e E4a aplicados; cartões E3e e E3f (TSX) escritos e validados. 1.632 testes, 95 e2e, pacote 4.392 KB. Fluxos R3b/R4/R6 ajustados ao título novo do resumo de aço (com nervuradas).
 
 ## Próxima rodada (depois desta)
-1. Executar os cartões da E3e e da E3f (Haiku); E4d (armadura das escadas, núcleo Sonnet alto).
-2. Depois: E4e, L3, auditorias E/L/V, fechamento.
+1. E4d (armadura das escadas, núcleo Sonnet alto), E4e.
+2. L3 (IFC), FU7c, auditorias E/L/V, fechamento.
 
 ## Fila depois disso
 - E4d–E4e (escadas), L3 (IFC).
@@ -40,4 +41,4 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 - Biblioteca de normas editável (N3) feita; NBR 15200:2024 virá do usuário depois.
 
 ## Números no último merge
-1.631 testes, 91 fluxos e2e (paralelo), pacote 4.304 KB.
+1.632 testes, 95 fluxos e2e (paralelo), pacote 4.392 KB.
