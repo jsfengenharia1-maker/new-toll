@@ -228,15 +228,17 @@ export function armaduraNecessariaNervurada(b: BuildingModel, l: Laje, M: number
  * Dimensiona as lajes nervuradas bidirecionais da obra: um resultado por laje (envoltória dos pavimentos do grupo). Acrescenta
  * as mensagens às lajes em `lajes` e marca 'fail' nos erros.
  */
-export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], op: OpcoesCalculo): ResultadoNervurada[] {
+export function dimensionarNervuradas(b: BuildingModel, an: AnaliseEdificio, lajes: ResultadoLaje[], opG: OpcoesCalculo): ResultadoNervurada[] {
   const out: ResultadoNervurada[] = [];
   const c = concretoDe(b, 'laje'), gm = gamas(b), aI = acoDe(b, 'nervInf'), aS = acoDe(b, 'nervSup'), aAbS = acoDe(b, 'abacoSup'), aAbI = acoDe(b, 'abacoInf'), aV = acoDe(b, 'lajeCortante');
   const obra = casosDaObra(b), nat = an.casos.map((id) => obra.find((x) => x.id === id)?.natureza ?? 'G');
   const fELU = nat.map((n) => (n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0));
   const fFreq = an.casos.map((id, ic) => { const x = obra.find((y) => y.id === id); return nat[ic] === 'G' || nat[ic] === 'H' ? 1 : nat[ic] === 'Q' ? (x?.psi?.[1] ?? b.norma.psiQ?.[1] ?? 0.4) : 0; });
-  const caaNum = { I: 1, II: 2, III: 3, IV: 4 }[b.norma.caa] as 1 | 2 | 3 | 4, wkLim = op.limiteFissura || crackLimit(caaNum);
+  const caaNum = { I: 1, II: 2, III: 3, IV: 4 }[b.norma.caa] as 1 | 2 | 3 | 4, wkLim = opG.limiteFissura || crackLimit(caaNum);
   for (const l of b.lajes) {
     if (l.tipo.tipo !== 'nervurada' || l.definir || errosTipoLaje(b, l.tipo).length) continue;
+    // V7f: opções próprias da laje (K1.4.1) sobrepõem as da obra só nela
+    const op: OpcoesCalculo = l.opcoes ? { ...opG, ...l.opcoes } : opG;
     const g = geometriaBidirecional(b, l.tipo), cob = cobrimentoLaje(b, l.cobrimento), tag = l.nome;
     const rs = lajes.filter((x) => x.laje === l.id);
     const msgs: string[] = [];

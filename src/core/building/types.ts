@@ -1,6 +1,6 @@
 // Modelo físico do edifício (lançamento por pavimentos). Editado só por comandos (src/core/commands).
 // Unidades: m, kN, graus. Ids são strings curtas estáveis; o nome visível é campo separado e renumerável.
-import { opcoesEmUso, type OpcoesCalculo, type OpcoesVigaPropria } from './opcoes';
+import { opcoesEmUso, type OpcoesCalculo, type OpcoesLajePropria, type OpcoesPilarPropria, type OpcoesVigaPropria } from './opcoes';
 import type { Boring, FoundationParams, PileType } from '../piles';
 import type { TabelasArmadura } from './tabelasArmadura';
 import type { NormasModelo } from '../normas/tipos';
@@ -258,6 +258,8 @@ export interface Pilar {
   flambagem?: { pavimento: string; au?: number; av?: number }[];
   /** Cobrimento próprio (cm); ausente = o da obra. */
   cobrimento?: number;
+  /** Opções de cálculo só deste pilar (V7f, K1.4.1): taxa mínima, fluência, simetria, ordem e continuidade; as ausentes seguem as da obra. */
+  opcoes?: OpcoesPilarPropria;
   /** Armaduras editadas e bloqueadas por lance: o recálculo só as verifica. */
   armaduras?: ArmaduraPilar[];
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */
@@ -776,6 +778,8 @@ export interface Laje {
   vigotasBiapoiadas?: boolean;
   /** Cobrimento próprio (cm); ausente = o da obra. */
   cobrimento?: number;
+  /** Opções de cálculo só desta laje (V7f, K1.4.1): taxa mínima, momentos mínimos, bitola e espaçamento mínimos; as ausentes seguem as da obra. */
+  opcoes?: OpcoesLajePropria;
   /** Treliçadas: armadura adicional das vigotas editada e bloqueada (o recálculo só a verifica). */
   armaduraVigotas?: ArmaduraVigotas;
   /** Tabela de armadura (R7a); ausente = a padrão da obra. */

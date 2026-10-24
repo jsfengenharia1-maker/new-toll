@@ -1,4 +1,5 @@
 // Comandos de lajes (panos, tipos, aberturas) e de cargas (ponto, linha, área e alvenaria da máscara).
+import { OPCOES_INFO, OPCOES_POR_LAJE, type OpcoesLajePropria } from '../building/opcoes';
 import type { Draft } from 'immer';
 import { casosDaObra, casosParaCarga, ehArranque, lancesDoPilar, mascaraNoGrupo, pavimentosDoGrupo, pavimentosOrdenados, type ArmaduraMoldada, type BuildingModel, type CasoFisico, type Natureza, type Pilar, type TipoLaje } from '../building/types';
 import type { Diagnostico } from '../building/verify';
@@ -98,11 +99,11 @@ function contornoDe(b: BuildingModel, p: { grupo: string; ponto?: P; contorno?: 
   return panosDoGrupo(b, p.grupo).find((x) => dentroPoligono(p.ponto!, x)) ?? null;
 }
 
-registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; direcaoPor?: { viga?: string; relacao?: 'paralela' | 'perpendicular'; pontos?: [P, P] }; insercao?: number; insercaoPonto?: P; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string; vigotasBiapoiadas?: boolean; armaduraMoldada?: ArmaduraMoldada; limparArmaduraMoldada?: boolean }>({
+registrar<{ id: string; nome?: string; tipo?: TipoLaje; opcoes?: OpcoesLajePropria; direcao?: number; direcaoPor?: { viga?: string; relacao?: 'paralela' | 'perpendicular'; pontos?: [P, P] }; insercao?: number; insercaoPonto?: P; nivel?: number; contorno?: P[]; furos?: P[][]; engasteBordas?: number[]; cobrimento?: number; tabela?: string; vigotasBiapoiadas?: boolean; armaduraMoldada?: ArmaduraMoldada; limparArmaduraMoldada?: boolean }>({
   nome: 'laje.editar',
   descricao: 'Altera nome, tipo, direção das vigotas (graus), desnível, contorno, aberturas coeficientes de engaste das bordas (um por aresta do contorno, 0 = articulada, 1 = engastada) ou cobrimento próprio (cm) de uma laje. L5: `direcaoPor` define a direção por uma viga (paralela ou perpendicular ao trecho mais próximo) ou por dois pontos; `insercao` (índice do vértice) ou `insercaoPonto` (vértice mais próximo) muda o ponto de inserção do pano; atribuir `tipo` a um pano a definir o define.',
   risco: 'escrita',
-  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento']),
+  calculo: (p) => nivelEdicao(p, ['tabela', 'cobrimento', 'opcoes']),
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
     id: { type: 'string' }, nome: { type: 'string', minLength: 1 }, tipo: { ...tipoSchema, default: undefined }, direcao: { type: 'number' },
@@ -115,6 +116,8 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; direca
     engasteBordas: { type: 'array', items: { type: 'number', minimum: 0, maximum: 1 }, description: 'coeficiente por aresta do contorno (aresta k vai do vértice k ao k+1); lista vazia = todas engastadas' },
     cobrimento: { type: 'number', minimum: 0, maximum: 10, description: 'cobrimento próprio (cm); 0 volta ao da obra' },
     tabela: { type: 'string', description: 'id da tabela de armadura das lajes (R7a); "padrao" ou vazio volta à padrão da obra' },
+    opcoes: { type: 'object', additionalProperties: false, description: 'opções de cálculo só desta laje (V7f, K1.4.1), no lugar das anteriores; {} volta às opções da obra. Chaves e faixas como em opcoes.definir',
+      properties: Object.fromEntries(OPCOES_POR_LAJE.map((k) => { const i = OPCOES_INFO.find((x) => x.chave === k)!; return [k, { type: 'number', minimum: i.min, maximum: i.max, description: i.rotulo }]; })) },
     vigotasBiapoiadas: { type: 'boolean', description: 'treliçadas: vigotas biapoiadas (rotações livres nas bordas, sem continuidade com o pano vizinho); false volta às contínuas' },
     armaduraMoldada: { type: 'object', additionalProperties: false, required: ['inf'], properties: { inf: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 6 }, phi: { type: 'number', enum: [6.3, 8, 10, 12.5, 16, 20, 25] } } }, sup: { type: 'object', additionalProperties: false, required: ['n', 'phi'], properties: { n: { type: 'integer', minimum: 1, maximum: 6 }, phi: { type: 'number', enum: [6.3, 8, 10, 12.5, 16, 20, 25] } } }, estribo: { type: 'object', additionalProperties: false, required: ['phi', 's'], properties: { phi: { type: 'number', enum: [5, 6.3, 8, 10] }, s: { type: 'number', minimum: 0.05, maximum: 0.3 } } } }, description: 'nervurada moldada: armadura de base das nervuras (inferior e superior, estribo)' },
     limparArmaduraMoldada: { type: 'boolean', description: 'remove a armadura de base atribuída' },
@@ -146,6 +149,7 @@ registrar<{ id: string; nome?: string; tipo?: TipoLaje; direcao?: number; direca
     if (p.furos) { if (p.furos.length) l.furos = p.furos.map(anti); else delete l.furos; delete l.furosBorda; }
     if (p.cobrimento !== undefined) { if (p.cobrimento) l.cobrimento = p.cobrimento; else delete l.cobrimento; }
     atribuirTabela(l, 'tabela', p.tabela);
+    if (p.opcoes) { if (Object.keys(p.opcoes).length) l.opcoes = { ...p.opcoes }; else delete l.opcoes; }
     if (p.armaduraMoldada) l.armaduraMoldada = JSON.parse(JSON.stringify(p.armaduraMoldada)); else if (p.limparArmaduraMoldada) delete l.armaduraMoldada;
     if (p.vigotasBiapoiadas !== undefined) { if (p.vigotasBiapoiadas) l.vigotasBiapoiadas = true; else delete l.vigotasBiapoiadas; }
     if (p.engasteBordas) { if (p.engasteBordas.some((a) => a !== 1)) l.engasteBordas = [...p.engasteBordas]; else delete l.engasteBordas; }

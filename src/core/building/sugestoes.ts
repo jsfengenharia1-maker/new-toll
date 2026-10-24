@@ -7,6 +7,8 @@ export const SUGESTOES: Record<string, string> = {
   PLANO_COTAS: 'Corrija as vigas em vermelho copiando a inclinação do pano (plano.corrigirVigas) ou atribua o mesmo plano à viga e ao pano: no nó vale a primeira cota encontrada.',
   // vigas e pilares: dimensionamento
   OPCOES_VIGA: 'Informativo: esta viga tem opções de cálculo próprias (redistribuição, arredondamento, mínimos ou estribos) que sobrepõem as da obra; remova-as em viga.editar (opcoes vazio).',
+  OPCOES_LAJE: 'Informativo: esta laje tem opções de cálculo próprias (taxa mínima, momentos mínimos, bitola ou espaçamento mínimos) que sobrepõem as da obra; remova-as em laje.editar (opcoes vazio) ou na janela da laje.',
+  OPCOES_PILAR: 'Informativo: este pilar tem opções de cálculo próprias (taxa mínima, fluência, simetria, ordem ou continuidade) que sobrepõem as da obra; remova-as em pilar.editar (opcoes vazio) ou na janela do pilar.',
   ARREDONDAMENTO: 'Informativo: o diagrama dentro dos apoios internos foi arredondado; mude a opção “arredondamento do diagrama no apoio” (0, 1 ou 2) se o critério do projeto for outro.',
   VIGA_MESA: 'Informativo: largura colaborante da NBR 6118 (14.6.2.2) na rigidez; ligue “Vigas T/L: flexão na seção T” para dimensionar a flexão com a mesa comprimida, ou informe bf e hf na viga.',
   VIGA_AMARRACAO: 'Informativo: viga de amarração sem flexão vertical; se ela deve receber laje ou parede, desligue “amarração” na viga.',

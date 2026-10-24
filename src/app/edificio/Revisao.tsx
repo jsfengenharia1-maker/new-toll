@@ -1,6 +1,7 @@
 // Revisão de resultados do edifício (frente R1): lista de erros e avisos, janela de resultados por elemento
 // (diagramas de envoltória das vigas, combinações determinantes dos pilares, lajes), deslocamentos laterais e listagem em CSV.
 import { JanelaPilarParede } from './PilarParedeUI';
+import { OpcoesDoElemento } from './OpcoesDoElemento';
 import { JanelaParede } from './ParedesUI';
 import type { Origem } from '../../core/building/origem';
 import { useRef, useState } from 'react';
@@ -263,6 +264,7 @@ function JanelaViga({ id }: { id: string }) {
   return (
     <>
       <AbasDetalhe aba={aba} onChange={setAba} />
+      <OpcoesDoElemento tipo="viga" id={id} />
       <p className="small">Envoltória das combinações ELU em todos os pavimentos do grupo, em faixas de 0,25 m. Momento positivo desenhado para baixo (lado tracionado); abscissa s ao longo do traçado.</p>
       {pontos.length === 0 ? <p className="muted">Sem envoltória (viga sem vãos dimensionados).</p> : (
         <>
@@ -345,6 +347,7 @@ function JanelaPilar({ id, pavimento }: { id: string; pavimento?: string }) {
       <ApoioDoPilar id={id} />
       <SituacaoPilares id={id} pavimentoNome={pavimento} />
       {b.pilares.find((q) => q.id === id) && <DadosDoPilar b={b} p={b.pilares.find((q) => q.id === id)!} />}
+      <OpcoesDoElemento tipo="pilar" id={id} />
       <p className="small">Combinações determinantes por lance: Nd (compressão +), momentos de 1ª ordem na base e no topo em cada direção (u ao longo de b, v ao longo de h) e momento de cálculo total com os efeitos locais de 2ª ordem (Md,tot).</p>
       {lances.map((x) => (
         <section key={x.pavimento} className="rev-lance" data-lance={x.pavimento}>
@@ -420,6 +423,7 @@ function JanelaLaje({ id }: { id: string }) {
   return (
     <>
       {abas.length > 1 && <Seg value={atual} onChange={setAba} options={abas} />}
+      {atual === 'resultados' && <OpcoesDoElemento tipo="laje" id={id} />}
       {atual === '3d' ? <Armadura3D tipo="laje" id={id} /> : atual === 'vigotas' ? <JanelaVigotas id={id} /> : atual === 'detalhamento' ? <DetalheDaLaje id={id} /> : atual === 'puncao' ? <JanelaPuncao id={id} /> : <JanelaLajeResultados ls={ls} />}
     </>
   );

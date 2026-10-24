@@ -15,14 +15,14 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | 4. Pilares | 63 | 54 | 2 | 0 | 7 |
 | 5. Muros e paredes estruturais | 30 | 26 | 0 | 0 | 4 |
 | 6. Vigas | 108 | 83 | 0 | 0 | 25 |
-| 7. Lajes | 195 | 126 | 2 | 0 | 67 |
+| 7. Lajes | 195 | 127 | 1 | 0 | 67 |
 | 8. Escadas | 65 | 65 | 0 | 0 | 0 |
 | 9. Estruturas de aço, madeira e alumínio | 50 | 0 | 0 | 0 | 50 |
 | 10. Cargas | 26 | 22 | 1 | 0 | 3 |
 | 11. Fundações | 70 | 64 | 0 | 1 | 5 |
 | 12. Isovalores e deformada | 22 | 21 | 0 | 1 | 0 |
 | 13. Tabelas e bibliotecas | 11 | 4 | 0 | 0 | 7 |
-| **Total** | **763** | **568** | **6** | **3** | **186** |
+| **Total** | **763** | **569** | **5** | **3** | **186** |
 
 ## Pendências por frente
 
@@ -33,7 +33,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 1 | 0 | 1 |
 | FU — Fundações integradas (FU1 concluída, núcleo e interface; FU2 concluída em 20/10/2026; FU3 concluída em 21/10/2026; FU4 concluída em 20/10/2026) | 0 | 0 | 0 |
 | L — Produtividade de lançamento (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
-| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 3 | 3 | 6 |
+| V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 2 | 3 | 5 |
 
 ## 0. Apresentação do programa
 
@@ -247,7 +247,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C4.57 | Uso sugerido do bloqueio: estudar a sensibilidade da armadura ao engastamento, ao coeficiente de reação do solo ou ao radier. | Feito | — | armadura bloqueada permite recalcular a estrutura com outros engastes ou rigidezes e só verificar |
 | C4.58 | O bloqueio vale só para pilares de concreto. Em aço, o equivalente é calcular sem dimensionar os perfis. | Fora | — |  |
 | C4.59 | Seleção para bloqueio: um a um, por janela, ou bloquear/desbloquear todos. Selecionados em verde, pilares de aço em cinza e não selecionáveis. | Feito | — | janela “Seleção para bloqueio” (`SelecaoBloqueio`, `Rearmar.tsx`): por grupo, todos, nenhum, seleção da planta e mostrar na planta, com contagem e marcador ▣ dos bloqueados; pilares de aço não existem no edifício (R7f) |
-| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços em AbaEsforcos.tsx; [V7a] janela do pilar com seletor de tipo (envoltória, combinação, caso), filtro por texto, hipótese, grandeza e altura (`SeletorHipotese`, `seletorEsforcos.ts`); falta o diagrama por hipótese do pilar-parede (casca) — Resíduo [V7c]: esforços do pilar-parede por hipótese junto aos diagramas de alveolares e mistas. |
+| C4.60 | Envoltórias de esforços em pilares e pilares-parede (momentos, cortantes, torção) por hipótese ou por combinação. | Parcial | V | combinações determinantes por lance na janela do pilar (R1); [V5] núcleo: `diagramaPilar` (N, V, M e T por lance e em qualquer altura, por caso, combinação ou envoltória, em `src/core/resultados/esforcosCaso.ts`) e aba Esforços em AbaEsforcos.tsx; [V7a] janela do pilar com seletor de tipo (envoltória, combinação, caso), filtro por texto, hipótese, grandeza e altura (`SeletorHipotese`, `seletorEsforcos.ts`); [V7c] pilar-parede por hipótese (`esforcosPilarParedePorHipotese`, `baseDoPilarParede` em src/core/resultados/pilarParedeHipotese.ts; janela de esforços, tipo Pilar-parede: N, Vp, Mp, Vo, Mo por lado e pavimento e carga da base, por caso, combinação ou envoltória; superposição exata, equilíbrio com a base e envoltória ELU igual à do dimensionamento) — falta o momento de torção do conjunto do pilar-parede (as resultantes são por lado) — Resíduo [V7g]: torção do pilar-parede por hipótese |
 | | **4.3 Desenhos e relatórios de pilares** | | | |
 | C4.61 | Mostrar ou ocultar o ponto fixo dos pilares nas pranchas. | Feito | — | opção de prancha `pontoFixo` (`marcasPontoFixo` em `sheets/gabarito.ts`): cruz com círculo no ponto lançado, camada PONTO-FIXO, nas formas e nas lajes; padrão oculto (R7g) |
 | C4.62 | Detalhe das condições de estribos (configuradas em pilares, muros e consolos) desenhado no quadro de pilares. | Feito | — | pilares-parede e muros: quadro de pilares com os trechos em casca e os lados curtos (malha, barras, estribos; linhasQuadroPilares) e a seção do estribo à parte na prancha de paredes (armacaoParedes.ts); consolos (E5i): o quadro traz a linha de cada consolo com tirante, estribos verticais (φ c/s) e costura (n φ em 2/3 d) e o desenho do consolo mostra os mesmos estribos; armacaoConsolos.test.ts |
@@ -618,7 +618,7 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 | C7.185 | Apagar armadura superior. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | C7.186 | Consulta/edição dos dados do pano também na aba de resultados. | Fora | — | laje mista (steel deck): aço/misto fora do edifício |
 | | **7.2.5 Diagramas de esforços** | | | |
-| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Parcial | V | diagramas de momento e cortante da envoltória por vigota (R6); [V5] núcleo: `diagramaVigotas` por caso, combinação ou envoltória, com torção nula registrada; alveolares e mistas: E/fora — Resíduo [V7c]: estado da seção circular/poligonal, diagramas de alveolares e mistas, distorção e vento por direção, vento na malha. |
+| C7.187 | Diagramas de momento, cortante e torção em vigotas, placas alveolares e lajes mistas: envoltórias, por hipótese ou por combinação. | Feito | — | diagramas de momento e cortante da envoltória por vigota (R6); [V5] núcleo: `diagramaVigotas` por caso, combinação ou envoltória, com torção nula registrada; [V6f] alveolares por hipótese na janela de esforços (faixa de 1 m de maior momento, testada contra o equilíbrio da faixa); lajes mistas (steel deck) fora do escopo (aço) |
 | C7.188 | Para hipótese sísmica dinâmica, escolha do modo de vibração. | Fora | — | sismo |
 | C7.189 | Consulta clicando nos alinhamentos de vigas, vigotas, alveolares ou lajes mistas. | Feito | — | clique duplo em vigas (R1) e clique na vigota da aba Vigotas (R6) abre os diagramas |
 | | **7.3 Desenhos e relatórios de lajes** | | | |
@@ -1098,3 +1098,6 @@ Situação: **Feito**, **Parcial** (existe com menos opções), **Falta**, **For
 - **24/10/2026 — fatia E5f (aço próprio e punção das nervuradas e ábacos).** C7.139 e C7.141 passam de Parcial a Feito (grupos de estribos nas nervuras do ábaco, clique no ábaco sob o cursor, apagar em lajes cogumelo e nervuradas).
   - Situação: ver o resumo (recontado por `npm run checklists`).
   - Pendências por frente: E5 diminui (2 itens a Feito).
+- **24/10/2026 — fatia V7c (esforços do pilar-parede por hipótese).** C7.187 passa a Feito (alveolares na V6f; lajes mistas fora do escopo); C4.60 segue Parcial: `esforcosPilarParedePorHipotese` e `baseDoPilarParede` (src/core/resultados/pilarParedeHipotese.ts) e o tipo Pilar-parede na aba Esforços; falta a torção do conjunto (fatia V7g). Testes em `pilarParedeHipotese.test.ts`, e2e `V7c`.
+  - Situação: ver o resumo (recontado por `npm run checklists`).
+  - Pendências por frente: V diminui (1 item a Feito), com a nova fatia V7g.

@@ -4,7 +4,9 @@ import { create } from 'zustand';
 import type { Componente } from '../../core/resultados/esforcosCaso';
 import type { VistaVigota } from '../../core/resultados/vigotasVista';
 
-export type TipoElementoEsforco = 'viga' | 'pilar' | 'diagonal' | 'vigotas' | 'alveolar';
+import type { Resultante } from '../../core/building/pilarParedeEsforcos';
+
+export type TipoElementoEsforco = 'viga' | 'pilar' | 'diagonal' | 'pilarParede' | 'vigotas' | 'alveolar';
 
 export interface JanelaEsforco {
   /** Número da janela (nunca reutilizado; entra nos rótulos dos controles). */
@@ -20,6 +22,9 @@ export interface JanelaEsforco {
   /** Vigotas: chave geral de exibição de esforços e vista. */
   esforcos: boolean;
   vista: VistaVigota;
+  /** Pilar-parede (V7c): grandeza das resultantes e lado exibido no diagrama ao longo da altura. */
+  grandezaPP: keyof Resultante;
+  ladoPP: number;
 }
 
 interface EsfState {
@@ -30,7 +35,7 @@ interface EsfState {
   mudar: (id: number, p: Partial<JanelaEsforco>) => void;
 }
 
-const padrao = (id: number): JanelaEsforco => ({ id, tipo: 'viga', elemento: '', hipotese: '', grandeza: 'Mz', pavimento: '', esforcos: true, vista: 'momentos' });
+const padrao = (id: number): JanelaEsforco => ({ id, tipo: 'viga', elemento: '', hipotese: '', grandeza: 'Mz', pavimento: '', esforcos: true, vista: 'momentos', grandezaPP: 'N', ladoPP: 0 });
 
 export const useEsforcos = create<EsfState>((set) => ({
   janelas: [padrao(1)],

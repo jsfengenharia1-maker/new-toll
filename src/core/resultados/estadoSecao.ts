@@ -3,7 +3,7 @@
 // neutra. Usa as fibras de `fiber.ts` (a mesma conta do cálculo: nada é recalculado por outro caminho).
 // Seção: x = largura, y = altura (m); tensões em MPa, forças em MN e MN·m (compressão +).
 import { ES, barArea, type Concrete } from '../concrete';
-import { fiberEstado, fiberMesh, fiberSigmaC, fiberSolve, type FiberSection, type Pt, type RBar } from '../fiber';
+import { circlePolygon, fiberEstado, fiberMesh, fiberSigmaC, fiberSolve, polyProps, type FiberSection, type Pt, type RBar } from '../fiber';
 
 export type Dominio = '1' | '2' | '3' | '4' | '4a' | '5';
 
@@ -53,10 +53,28 @@ export function curvaConcreto(c: Concrete, n = 24): [number, number][] {
   return Array.from({ length: n + 1 }, (_, k) => { const e = (c.ecu * k) / n; return [e, fiberSigmaC(e, c)] as [number, number]; });
 }
 
+/** Seção poligonal qualquer (m) com barras dadas; o centro de referência é o centroide da poligonal (V7c, K1.11.30). */
+export function secaoArmada(poly: Pt[], barras: RBar[], c: Concrete, fyd: number, malha = 28): FiberSection {
+  const P = polyProps(poly);
+  return { mesh: fiberMesh(poly, malha), bars: barras, cx: P.cx, cy: P.cy, c, fyd, poly };
+}
+
 /** Seção retangular b × h (m) com barras dadas, malha de fibras 28 × 28. */
 export function secaoRetangularArmada(b: number, h: number, barras: RBar[], c: Concrete, fyd: number, malha = 28): FiberSection {
   const poly: Pt[] = [[0, 0], [b, 0], [b, h], [0, h]];
   return { mesh: fiberMesh(poly, malha), bars: barras, cx: b / 2, cy: h / 2, c, fyd, poly };
+}
+
+/** Seção circular de diâmetro D (m, centro em D/2, D/2) com barras dadas: polígono de 48 lados e malha de fibras 40 × 40. */
+export function secaoCircularArmada(D: number, barras: RBar[], c: Concrete, fyd: number, malha = 40): FiberSection {
+  const poly = circlePolygon(D);
+  return { mesh: fiberMesh(poly, malha), bars: barras, cx: D / 2, cy: D / 2, c, fyd, poly };
+}
+
+/** n barras igualmente espaçadas no círculo de diâmetro D, com o centro das barras a `a` da borda (mesmo arranjo do dimensionamento do pilar circular). */
+export function barrasDoCirculo(D: number, a: number, n: number, phi: number): RBar[] {
+  const rs = D / 2 - a, A = barArea(phi);
+  return Array.from({ length: n }, (_, k) => ({ x: D / 2 + rs * Math.cos((2 * Math.PI * k) / n), y: D / 2 + rs * Math.sin((2 * Math.PI * k) / n), A }));
 }
 
 /** Arranjo do pilar retangular (nb barras na face inferior, nbS na superior, nh à esquerda e nhD à direita, cantos compartilhados). a = centro da barra à face (m); phi em mm. */
