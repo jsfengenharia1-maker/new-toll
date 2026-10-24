@@ -16,9 +16,9 @@ Atualizado em 24/10/2026. Ler junto com o Andamento de `docs/plano-execucao.md`.
 4. Briefing padrão dos agentes: citar `docs/regras-agentes.md`. Antes: ver as rodadas recentes no histórico desta sessão; regras fixas — worktree próprio + `ln -s /home/user/new-toll/node_modules node_modules`; consultar `docs/mapa-codigo.md`; e2e com `{ exact: true }` exceto NumField/Select (regex ancorada); cada cartão compila sozinho; não criar tarefas agendadas; sem processos em segundo plano; relatório UMA vez; `npm run mapa` no fim.
 
 ## Rodada em andamento
-26/10/2026 (conferir ao retomar): (a) integração da memória detalhada MD1 (branch `md-memoria-detalhada`) com a E5m (pilar por trechos) — agente em `md-integra`; (b) MD2 memória das lajes (branch `md2`, sobre `md-memoria-detalhada`; mesclar depois da integração).
+24/10/2026 noite (conferir ao retomar): MD4 (memória da punção, branch md4) e E6d (Opus: rigidez axial das paredes separada da flexão + lados variáveis por pavimento, branch e6d). E6a/E6c juntadas na branch da sessão, aguardando o próximo gate.
 
-Já no main: E5 inteira (a–m), correção da punção das maciças (limite de C′ com armadura informada; mensagem do caso Vc cobre) e regressão de desempenho das nervuradas (11,5 s → 1,6 s), fatias de resíduo V7a–e, N4a–c, R8a–b, E6a–d (E6d resolvida pela E5m; remover do plano) com o teste `checklists-donos.test.ts` (todo pendente cita fatia aberta). 1.906 testes, 126 e2e, pacote 4.845 KB. Pendentes: 15+4 (usuário) e 28+2 (cálculo).
+No main (b10b16a): MD1 integrada à E5m, MD2 (lajes maciças), MD3 (nervuradas, vigotas, fichas, alveolares, flechas), R8a, R8b, N4c, V7a, V7b. 2.154 testes, 133 e2e, pacote 5.763 KB (cresceu com a memória detalhada: carregar sob demanda no fechamento). Decisão pendente do usuário: `vigaAncoragemEixo` (R8a) ligada no padrão do sistema mede a ancoragem do eixo (NBR: da face). Restam resíduos V7c, V7d, V7e, V7f, N4a, N4b (material do usuário), E6b (material), FU7d; MD5–MD9; fechamento.
 
 ## Próxima rodada (depois desta)
 1. Demais E5 (b–g, i–k), FU7d.
