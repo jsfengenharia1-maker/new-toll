@@ -1,20 +1,17 @@
-# E3c — cartão 3: grupo "Nervuradas bidirecionais" (ponto de passagem, zonas maciças, cópia entre panos, base e janela das nervuras)
+# E3c — cartão 3: grupo "Nervuradas bidirecionais" na doca Propriedades
 
-Classe: Haiku (grupo da barra lateral e janela no padrão de `VigotasPano` e de `RelatorioVigota`; os dados vêm prontos do núcleo).
+Executor: Haiku (grupo e janela no padrão de `VigotasPano` e de `RelatorioVigota`; os dados vêm prontos do núcleo). Regras em `0-leia-primeiro.md`. Depois do cartão 2. **Aplicar depois da D7** (toca `Edificio.tsx`).
 
-## Arquivos (2)
-1. **Novo** `src/app/edificio/NervuradasUI.tsx` com o conteúdo exato abaixo.
-2. `src/app/edificio/Edificio.tsx`: importar `NervuradasGrupo` e montá-lo logo abaixo de `<TiposLajeGrupo b={b} />` (diff abaixo; aplicar depois do cartão 2).
+## Onde aparece
+Doca **Propriedades**, logo abaixo do grupo "Lajes" (dentro de `<Propriedades>` em `Edificio.tsx`). O grupo só aparece quando a obra tem lajes nervuradas bidirecionais; os ajustes valem para os panos selecionados na planta (ou na tabela de lajes). A janela "Nervuras da laje L1" é um `Modal`.
 
 ## Núcleo usado (já existe)
-Comandos `laje.nervurada { ids, passagem?, limparPassagem?, limparZonas?, ... }`, `laje.copiarPanos { de, para, incluirBase? }` e `laje.armaduraBase { ids, inf?, sup?, nervuras?: [{ dir, inf?, sup?, considerar?, remover? }], detalhada?, detalhadaPadrao?, remover? }`; campos `Laje.pontoNervuras`, `Laje.zonasMacicas` e `Laje.baseNervurada`; `nervuradasNoMemorial(b, dim.nervuradas, opcoes)` (`nervuradasDim.ts`) para a tabela da janela, `Mensagens` (`Revisao.tsx`), `Modal` (`ui`) e o estado `camadaNervuras` do cartão 2.
+Comandos `laje.nervurada { ids, passagem?, limparPassagem?, limparZonas?, ... }`, `laje.copiarPanos { de, para, incluirBase? }` e `laje.armaduraBase { ids, inf?, sup?, nervuras?: [{ dir, inf?, sup?, considerar?, remover? }], detalhada?, detalhadaPadrao?, remover? }`; campos `Laje.pontoNervuras`, `Laje.zonasMacicas` e `Laje.baseNervurada`; `nervuradasNoMemorial(b, dim.nervuradas, opcoes)` (`nervuradasDim.ts`), `Mensagens` (`Revisao.tsx`), `Modal` (`ui`) e o estado `camadaNervuras` do cartão 2.
 
-## Regras
-Componentes de `src/app/ui` (nunca `<button>`, `<input>` ou `<select>` crus). Rótulos únicos na tela. Sem CSS novo, sem cor literal, sem botão na barra da planta. Nos testes de interface (`e2e/flows.mjs`), `getByRole`/`getByLabel` com `{ exact: true }`, exceto `NumField` e `Select`, cujo rótulo vem com texto extra: nesses, regex ancorada (`/^Forma da nervurada/`). O núcleo e os comandos (`forma.tipo`, `laje.nervurada`, `laje.copiarPanos`, `laje.armaduraBase`, `tipoLaje.importar`) já existem e estão testados; não altere nada de `src/core/`.
+## Rótulos
+Grupo "Nervuradas bidirecionais (n)"; "Mostrar nervuras e cubetas na planta", "Ponto de passagem das nervuras X", "Ponto de passagem das nervuras Y", "Aplicar o ponto de passagem", "Voltar ao ponto de inserção", "Limpar as zonas maciças manuais", "Copiar também a armadura base", "Copiar para os demais panos nervurados do grupo", "Nervuras da laje" (botão e janela "Nervuras da laje L1"), "Base inferior das nervuras X (barras)", "φ da base das nervuras X", "Considerar a base das nervuras X no dimensionamento" (e os de Y), "Base das nervuras detalhada (desenhada e medida)", "Aplicar a base das nervuras", "φ da malha base da mesa", "Espaçamento da malha base da mesa", "Aplicar a malha base da mesa", "Remover a armadura base". Atributos de teste: `data-grupo-nervuradas`, `data-base-nervuradas`, `data-nervuras-laje`, `data-tabela-nervuras`, `data-grupo-nervuras`.
 
-Rótulos: grupo "Nervuradas bidirecionais (n)"; "Mostrar nervuras e cubetas na planta", "Ponto de passagem das nervuras X", "Ponto de passagem das nervuras Y", "Aplicar o ponto de passagem", "Voltar ao ponto de inserção", "Limpar as zonas maciças manuais", "Copiar também a armadura base", "Copiar para os demais panos nervurados do grupo", "Nervuras da laje" (botão e janela "Nervuras da laje L1"), "Base inferior das nervuras X (barras)", "φ da base das nervuras X", "Considerar a base das nervuras X no dimensionamento" (e os de Y), "Base das nervuras detalhada (desenhada e medida)", "Aplicar a base das nervuras", "φ da malha base da mesa", "Espaçamento da malha base da mesa", "Aplicar a malha base da mesa", "Remover a armadura base". Atributos de teste: `data-grupo-nervuradas`, `data-base-nervuradas`, `data-nervuras-laje`, `data-tabela-nervuras`, `data-grupo-nervuras`. O grupo só aparece quando a obra tem lajes nervuradas bidirecionais; os ajustes valem para os panos selecionados na planta (ou na tabela de lajes).
-
-## Conteúdo de `src/app/edificio/NervuradasUI.tsx`
+**Arquivo novo** `src/app/edificio/NervuradasUI.tsx`
 ```tsx
 // Grupo "Nervuradas bidirecionais" da barra lateral (frente E3c): camada "Nervuras e cubetas" da planta, ponto de passagem das
 // nervuras, zonas maciças, cópia entre panos do grupo, armadura base (malha da mesa e barras nas nervuras, por direção) e a
@@ -141,26 +138,26 @@ export function NervuradasGrupo({ b }: { b: BuildingModel }) {
 }
 ```
 
-## Diff de `src/app/edificio/Edificio.tsx`
-```diff
---- a/src/app/edificio/Edificio.tsx
-+++ b/src/app/edificio/Edificio.tsx
-@@ -37,6 +37,7 @@
- import { TiposLajeGrupo } from './TiposLaje';
- import { enchimentosDisponiveis, fichasDisponiveis } from '../../core/building/tiposLaje';
- import { formasDisponiveis, geometriaBidirecional } from '../../core/building/nervuradas';
-+import { NervuradasGrupo } from './NervuradasUI';
- import { VinculosGrupo } from './Vinculos';
- import { CartaoPilaresParede, PilaresParedeGrupo } from './PilarParedeUI';
- import { CartaoParedes } from './ParedesUI';
-@@ -166,6 +167,7 @@
-         <TabelasGrupo b={b} />
-         <BibliotecaNormasGrupo b={b} />
-         <TiposLajeGrupo b={b} />
-+        <NervuradasGrupo b={b} />
-         <VinculosGrupo b={b} />
-         <ArquivoGrupo />
- 
+## Edições em `src/app/edificio/Edificio.tsx`
+
+**Trocar em** `src/app/edificio/Edificio.tsx`
+```text
+import { VinculosGrupo } from './Vinculos';
+```
+por
+```text
+import { NervuradasGrupo } from './NervuradasUI';
+import { VinculosGrupo } from './Vinculos';
+```
+
+**Trocar em** `src/app/edificio/Edificio.tsx`
+```text
+          <LajesGrupo b={b} />
+```
+por
+```text
+          <LajesGrupo b={b} />
+          <NervuradasGrupo b={b} />
 ```
 
 ## Verificação

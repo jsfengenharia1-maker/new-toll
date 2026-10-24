@@ -1,23 +1,14 @@
-# E3c — cartão 4: memorial das nervuradas, aço no resumo geral, e2e `E3c` e checklists
+# E3c — cartão 4: memorial das nervuradas, aço no resumo geral e fluxo e2e `E3c`
 
-Classe: Haiku (seção de memorial no padrão `MemorialInclinadas`, uma linha a mais nas tabelas de aço, fluxo e2e e checklists).
-
-## Arquivos (5)
-1. **Novo** `src/app/edificio/MemorialNervuradas.tsx` com o conteúdo exato abaixo.
-2. `src/app/edificio/MemorialEdificio.tsx`: importar e montar a seção e somar o aço das nervuradas no "Resumo geral de aço" (substituições abaixo; os trechos são únicos no arquivo, localizar por texto).
-3. `src/app/edificio/Detalhamento.tsx`: o aço das nervuradas entra no resumo da aba Dimensionamento e no CSV (substituições abaixo).
-4. `e2e/flows.mjs`: fluxo `E3c` (inserir no fim do vetor `flows`, imediatamente antes do `];` final, depois do último fluxo existente).
-5. Checklists (ver o último item).
+Executor: Haiku (seção de memorial no padrão `MemorialInclinadas`, uma linha a mais nas tabelas de aço e o fluxo e2e). Regras em `0-leia-primeiro.md`. Depois do cartão 3. Não toca a faixa nem o Navegador; o fluxo e2e usa a Configuração da obra e a doca Propriedades.
 
 ## Núcleo usado (já existe)
 `nervuradasNoMemorial(b, dim.nervuradas, opcoes)` (`nervuradasDim.ts`), `dim.nervuradas`, `dim.resumoAcoNervuradas` (aço por bitola, com repetições dos pavimentos e perdas; `quantitativosDetalhados` já o soma) e `LinhaAco`/`somarResumosAco` de `Detalhamento.tsx`.
 
-## Regras
-Componentes de `src/app/ui` (nunca `<button>`, `<input>` ou `<select>` crus). Rótulos únicos na tela. Sem CSS novo, sem cor literal, sem botão na barra da planta. Nos testes de interface (`e2e/flows.mjs`), `getByRole`/`getByLabel` com `{ exact: true }`, exceto `NumField` e `Select`, cujo rótulo vem com texto extra: nesses, regex ancorada (`/^Forma da nervurada/`). O núcleo e os comandos (`forma.tipo`, `laje.nervurada`, `laje.copiarPanos`, `laje.armaduraBase`, `tipoLaje.importar`) já existem e estão testados; não altere nada de `src/core/`.
+## Rótulos e atributos
+Seção "Lajes nervuradas bidirecionais" (`data-memorial-nervuradas`, `data-memorial-nervurada="<id da laje>"`); tabela do resumo de aço "Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" no memorial e na vista Dimensionamento (`marca="nervuradas"`); o total passa a se chamar "Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)".
 
-Rótulos e atributos: seção "Lajes nervuradas bidirecionais" (`data-memorial-nervuradas`, `data-memorial-nervurada="<id da laje>"`); tabela do resumo de aço "Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" no memorial e "Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" na aba Dimensionamento (`marca="nervuradas"`); o total passa a se chamar "Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)".
-
-## Conteúdo de `src/app/edificio/MemorialNervuradas.tsx`
+**Arquivo novo** `src/app/edificio/MemorialNervuradas.tsx`
 ```tsx
 // Memorial das lajes nervuradas bidirecionais (frente E3c): forma, peso e volume, modelo da grelha (malha e inércias),
 // verificações da NBR (mesa, nervura, espaçamento), mesa, armadura base e reforço por grupo de nervuras, vigas do pano e
@@ -64,68 +55,140 @@ export function MemorialNervuradas({ b, dim, h2 }: { b: BuildingModel; dim: Dime
 }
 ```
 
-## Substituições em `src/app/edificio/MemorialEdificio.tsx`
-1. Depois da linha `import { fichasNoMemorial } from '../../core/building/tiposLaje';` acrescentar:
-```tsx
+## Edições em `src/app/edificio/MemorialEdificio.tsx`
+
+**Trocar em** `src/app/edificio/MemorialEdificio.tsx`
+```text
+import { fichasNoMemorial } from '../../core/building/tiposLaje';
+```
+por
+```text
+import { fichasNoMemorial } from '../../core/building/tiposLaje';
 import { MemorialNervuradas } from './MemorialNervuradas';
 ```
-2. Logo depois da linha `<MemorialInclinadas b={b} dim={dim} h2={h2} />` acrescentar (mesma indentação):
-```tsx
-<MemorialNervuradas b={b} dim={dim} h2={h2} />
+
+**Trocar em** `src/app/edificio/MemorialEdificio.tsx`
+```text
+<MemorialInclinadas b={b} dim={dim} h2={h2} />
 ```
-3. Na condição do "Resumo geral de aço", trocar `(dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0` por:
-```tsx
-(dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0
-```
-4. Na lista de tabelas do mesmo resumo, trocar
-`['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Total geral (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]]` por:
-```tsx
-['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [])]]
-```
-5. No parágrafo "Perdas de …", trocar `somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])` (dentro de `perdasDoResumo(...)`) por:
-```tsx
-somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [])
+por
+```text
+<MemorialInclinadas b={b} dim={dim} h2={h2} />
+          <MemorialNervuradas b={b} dim={dim} h2={h2} />
 ```
 
-## Substituições em `src/app/edificio/Detalhamento.tsx`
-1. Em `csvAco` e em `ResumoAco`, depois de `resV = dim.resumoAcoVigotas ?? [], ` acrescentar `resN = dim.resumoAcoNervuradas ?? [], ` (as duas declarações; em `csvAco` vem antes de `dets = dim.detalhes ?? []` e em `ResumoAco` antes de `tre = dim.trelicas ?? []`).
-2. Em `csvAco`, trocar `...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(res, resP, resPar, resL, resV))]` por:
-```tsx
+**Trocar em** `src/app/edificio/MemorialEdificio.tsx`
+```text
+(dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0
+```
+por
+```text
+(dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0
+```
+
+**Trocar em** `src/app/edificio/MemorialEdificio.tsx`
+```text
+['Total geral (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [])]]
+```
+por
+```text
+['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [])]]
+```
+
+**Trocar em** `src/app/edificio/MemorialEdificio.tsx`
+```text
+perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? []))
+```
+por
+```text
+perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? []))
+```
+
+## Edições em `src/app/edificio/Detalhamento.tsx`
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+resV = dim.resumoAcoVigotas ?? [], dets = dim.detalhes ?? []
+```
+por
+```text
+resV = dim.resumoAcoVigotas ?? [], resN = dim.resumoAcoNervuradas ?? [], dets = dim.detalhes ?? []
+```
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+resV = dim.resumoAcoVigotas ?? [], tre = dim.trelicas ?? []
+```
+por
+```text
+resV = dim.resumoAcoVigotas ?? [], resN = dim.resumoAcoNervuradas ?? [], tre = dim.trelicas ?? []
+```
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes e vigotas)', somarResumosAco(res, resP, resPar, resL, resV))]
+```
+por
+```text
 ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(res, resP, resPar, resL, resV, resN))]
 ```
-3. Em `ResumoAco`, trocar `if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !telas.length) return null;` por:
-```tsx
-if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !resN.length && !telas.length) return null;
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+!resV.length && !telas.length) return null;
 ```
-4. Em `ResumoAco`, trocar `const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV));` por:
-```tsx
+por
+```text
+!resV.length && !resN.length && !telas.length) return null;
+```
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV));
+```
+por
+```text
 const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN));
 ```
-5. Em `ResumoAco`, depois da linha `{resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}` acrescentar:
-```tsx
-{resN.length > 0 && <TabelaAco titulo="Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" res={resN} marca="nervuradas" />}
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+      {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
 ```
-6. Em `ResumoAco`, trocar `<TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes e vigotas)" res={somarResumosAco(res, resP, resPar, resL, resV)} marca="geral" />` por:
-```tsx
+por
+```text
+      {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
+      {resN.length > 0 && <TabelaAco titulo="Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" res={resN} marca="nervuradas" />}
+```
+
+**Trocar em** `src/app/edificio/Detalhamento.tsx`
+```text
+<TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes e vigotas)" res={somarResumosAco(res, resP, resPar, resL, resV)} marca="geral" />
+```
+por
+```text
 <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)" res={somarResumosAco(res, resP, resPar, resL, resV, resN)} marca="geral" />
 ```
 
-## Fluxo e2e `E3c` (`e2e/flows.mjs`)
-Inserir antes do `];` final do vetor `flows`:
+## Fluxo e2e `E3c`
+O fluxo confere: forma do catálogo somente leitura e genérica (Configuração > Tipos de laje); copiar dá forma editável; resumo da forma (volume 0,142 m³/m² e peso 3,54 kN/m² à mão para a cubeta 50 × 50, h = 30 e mesa de 5 cm); editar a altura; largura da nervura maior que o intereixo é recusada; atribuir a nervurada nos panos (doca Propriedades, grupo Lajes); ponto de passagem; base das nervuras (considerada e detalhada); copiar para o outro pano; forma em uso não se remove; exportar o JSON com as formas; janela das nervuras; memorial e resumo de aço.
+
+**Acrescentar ao fim de** `e2e/flows/E-2.mjs`
 ```js
-  {
+export const f_E3c = {
     name: 'E3c: nervuradas bidirecionais (forma do catálogo e da obra, atribuir ao pano, ponto de passagem, base das nervuras, cópia entre panos, janela das nervuras, memorial)',
     async run({ newPage }) {
       const page = await newPage();
-      await page.getByRole('tab', { name: 'Edifício', exact: true }).click();
+      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
       const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
       const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
       const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
       // dois panos 6 × 6 lado a lado, vigas de 20 × 50
       await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [12, 0], [0, 6], [6, 6], [12, 6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
       await cmd('lote {"comandos": [' + [[[0, 0], [12, 0]], [[0, 6], [12, 6]], [[0, 0], [0, 6]], [[6, 0], [6, 6]], [[12, 0], [12, 6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
-      const tl = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Tipos de laje/ }) }).first();
-      await tl.locator('summary').first().click();
+      // Tipos de laje fica na Configuração da obra; Lajes e Nervuradas bidirecionais, na doca Propriedades
+      const tipos = () => grupoEdif(page, 'Tipos de laje');
+      let tl = await tipos();
       // 1) a forma do catálogo é genérica e somente leitura; copiar dá uma forma editável
       await tl.getByLabel(/^Forma da biblioteca/).selectOption({ label: 'Recuperável 60 × 60, h = 30 (genérica) · catálogo' });
       assert.match(await tl.locator('[data-selos-forma]').innerText(), /somente leitura/);
@@ -147,8 +210,7 @@ Inserir antes do `];` final do vetor `flows`:
       assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /incoerente/);
       assert.equal((await modelo()).tiposLaje.formas[0].bw[0], 0.1);
       // 4) atribuir a nervurada bidirecional nos panos do grupo Lajes
-      const lj = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Lajes/ }) }).first();
-      await lj.locator('summary').first().click();
+      const lj = await grupoEdif(page, /^Lajes/);
       await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('nervurada');
       await lj.getByLabel(/^Forma da nervurada/).selectOption(copia.id);
       const ht = lj.getByLabel(/^Altura total da nervurada/);
@@ -158,8 +220,7 @@ Inserir antes do `];` final do vetor `flows`:
       assert.deepEqual((await modelo()).lajes[0].tipo, { tipo: 'nervurada', forma: copia.id, hTotal: 0.3, capa: 0.05 });
       assert.match(await lj.locator('table.loads-ed').innerText(), /nervurada/);
       // 5) grupo Nervuradas bidirecionais: seleciona o pano L1 na tabela e ajusta o ponto de passagem
-      const nv = page.locator('.edif-in details', { has: page.locator('summary', { hasText: /^Nervuradas bidirecionais/ }) }).first();
-      await nv.locator('summary').first().click();
+      const nv = await grupoEdif(page, /^Nervuradas bidirecionais/);
       await nv.getByLabel('Mostrar nervuras e cubetas na planta', { exact: true }).check();
       await lj.locator('table.loads-ed tbody tr').nth(0).click();
       const px = nv.getByLabel(/^Ponto de passagem das nervuras X/);
@@ -183,6 +244,7 @@ Inserir antes do `];` final do vetor `flows`:
       await esperarModelo(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[1]; return !!l?.baseNervurada && Array.isArray(l?.pontoNervuras); }, null);
       assert.deepEqual((await modelo()).lajes[1].pontoNervuras, [0.3, 0.3]);
       // 8) a forma em uso não pode ser removida
+      tl = await tipos();
       await tl.getByRole('button', { name: 'Remover forma', exact: true }).click();
       await tl.locator('[data-erros-tipos-laje]').waitFor();
       assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /usada por lajes/);
@@ -195,6 +257,7 @@ Inserir antes do `];` final do vetor `flows`:
       await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
       await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
       await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      await grupoEdif(page, /^Lajes/);
       await lj.locator('table.loads-ed tbody tr').nth(0).click();
       await nv.getByRole('button', { name: 'Nervuras da laje', exact: true }).click();
       const jan = page.getByRole('dialog', { name: 'Nervuras da laje L1' });
@@ -213,12 +276,18 @@ Inserir antes do `];` final do vetor `flows`:
       assert.match(await memo.innerText(), /Lajes nervuradas bidirecionais \(nervuras, base e malha da mesa\)/);
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
-  },
+  };
 ```
-Os passos conferem: forma do catálogo somente leitura e genérica; copiar dá forma editável; resumo da forma (volume 0,142 m³/m² e peso 3,54 kN/m² à mão para a cubeta 50 × 50, h = 30 e mesa de 5 cm); editar a altura; largura da nervura maior que o intereixo recusada; atribuir a nervurada nos panos; ponto de passagem; base das nervuras (considerada e detalhada); copiar para o outro pano; forma em uso não se remove; exportar o JSON com as formas; janela das nervuras; memorial e resumo de aço. Rodar `npm run build` antes (o e2e usa `dist/`) e `npm run e2e -- E3`.
 
-## Checklists
-Depois do e2e verde, nos dois checklists mudar de Parcial para Feito (frente `—`) as linhas cuja nota diz "falta ... (cartão)": C7.9, C7.42, C7.43, C7.44, C7.45, C7.46 (`docs/checklist-manual-cypecad.md`) e K1.9.90, K1.9.91, K1.9.93, K1.9.101, K1.13.3.1-4 e K1.13.4-2 (`docs/checklist-manual-calculo-cypecad.md`); em cada nota trocar "falta ... (cartão)" por onde a interface está (`FormasLaje.tsx`, `NervuradasUI.tsx`, `Planta.tsx`, `Edificio.tsx`). C7.45: a direção por viga ou por dois pontos usa a ferramenta "Direção do pano" já existente na planta (L5) e `laje.nervurada { direcaoPor }`. Deixar Parcial K1.9.94, K1.13.3-1, K1.13.3.1-1 e K1.13.4.1-1 (limitações no texto da nota). Rodar `npm run checklists` e acrescentar a linha ao "Histórico de conferência" dos dois checklists e ao Andamento de `docs/plano-execucao.md`.
+**Trocar em** `e2e/flows/index.mjs`
+```text
+  m_E_2.f_E3b,
+```
+por
+```text
+  m_E_2.f_E3b,
+  m_E_2.f_E3c,
+```
 
 ## Verificação
-`npx tsc -b`; `npx vitest run src/app/design`; `npm run e2e -- E3` (os fluxos `E3a` e `E3c`, mais o `E3b` se os cartões dele já foram aplicados).
+`npx tsc -b`; `npx vitest run src/app/design`; `npm run e2e -- --workers 1 E3c 2>&1 | tail -15`.

@@ -1,4 +1,6 @@
-# E3d — o que a interface precisa (núcleo pronto; cartões a escrever depois da migração do layout)
+# E3d — referência do núcleo (dados, funções e comandos usados pela interface; os cartões 01 a 05 estão escritos e validados)
+
+**Atenção:** a seção "Onde a informação aparece" abaixo é o pedido original; o que foi entregue no layout novo (grupo na doca Propriedades, camada na planta, botão na faixa Lançamento, bloco na janela de punção, memorial) está em `00-leia-primeiro.md` e nos cartões 01 a 05, com as exceções listadas lá (ferramenta Ábaco por polígono e arrastar vértices na planta).
 
 Núcleo e pranchas já entregues (`docs/historico-fatias.md`, linha E3d). Cada item abaixo diz o dado ou a função do núcleo e onde a informação aparece. Tudo com `src/app/ui` e tokens de `global.css`; os comandos `abaco.*` (`mcp: false`) são acionados pela paleta e pelos botões, nunca editando o modelo direto.
 
