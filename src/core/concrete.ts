@@ -325,7 +325,8 @@ export interface FlexureResult {
   As: number; As2: number; x: number; xd: number; d: number; double: boolean; ok: boolean; msg?: string;
 }
 
-function blockForce(sec: BeamSection, flangeComp: boolean, x: number, c: Concrete) {
+/** Resultante C (MN) e braço z (m, da face comprimida) do bloco retangular de profundidade λx (exportada para a memória detalhada). */
+export function blockForce(sec: BeamSection, flangeComp: boolean, x: number, c: Concrete) {
   // resultante e braço (a partir da face comprimida) do bloco retangular
   const y = c.lambda * x;
   const tee = sec.kind === 'tee' && flangeComp && sec.bf && sec.hf;

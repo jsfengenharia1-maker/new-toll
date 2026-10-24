@@ -117,6 +117,10 @@ Alvenaria estrutural e blocos de concreto (frente E1e), pela `previa`: `bloco.ti
 | `statikos://log` | log de comandos |
 | `statikos://resultados` | dimensionamento do edifício (recalcula se o modelo mudou) |
 | `statikos://resultados/{pavimento}` | recorte por pavimento (id ou nome) |
+| `statikos://memoria` | memória de cálculo detalhada do último cálculo (passos com fórmula, valores exatos, resultado, unidade e item da NBR) |
+| `statikos://memoria/{elemento}` | memória detalhada de um elemento ("Viga V1", "Pilar P1 · Tipo 1"), com os passos globais |
+| `statikos://dados-analise` | dados da análise do pórtico (frente MD): nós, barras, seções, materiais, apoios, molas, diafragma, cargas por caso, combinações com os coeficientes, deslocamentos, reações e esforços por caso e por combinação (kN, m, rad) |
+| `statikos://opensees` | script Python (openseespy) do pórtico espacial para verificação independente (no modelo integrado, o modelo cheio equivalente com os casos da obra); grava `resultados_opensees.json` |
 
 ## Convenções
 
