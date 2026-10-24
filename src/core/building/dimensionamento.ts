@@ -402,6 +402,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
       // estações de cada barra da cadeia (primeiro passo: total de estações para alocar os vetores)
       const estacoes = cad.map((bi) => {
         const { L } = baseBarra(pm.modelo, mb[bi]);
+        if (L < 1e-9) return { L, xl: [] as number[] }; // barra de comprimento nulo (ponta da viga no nó da parede): sem estações (E6c: evitava NaN na envoltória)
         // barras da divisão fina do modelo integrado (≈ malha das lajes): só as pontas e estações a cada 0,25 m
         const n = pm.barras[bi].fina ? Math.max(1, Math.ceil(L / 0.25 - 1e-9)) : Math.max(4, Math.ceil(L / 0.25));
         const xl = Array.from({ length: n + 1 }, (_, k) => (k * L) / n);
@@ -437,7 +438,7 @@ function dimensionarVigas(b: BuildingModel, an: AnaliseEdificio, elu: Combinacao
         for (let k = 0; k < freq.length; k++) combinarEm(Mk[k], o, ne, freqC[k], ez);
         // momento na face dos pilares (a parte flexível começa trechoRigido·h antes da face): só para exibição
         for (const [r, no, xf] of [[rI, mb[bi].i, rI ?? 0], [rJ, mb[bi].j, L - (rJ ?? 0)]] as const) {
-          if (r === null) continue;
+          if (r === null || L < 1e-9) continue; // barra de comprimento nulo: sem face (E6c)
           const pf = porCaso(an, bi, [xf]), fz = vetorCasos(pf, nomesCasos, 'Mz'), fy = vetorCasos(pf, nomesCasos, 'Vy');
           const Mf = new Float64Array(elu.length), Mfv = new Float64Array(elu.length), Vf = new Float64Array(elu.length), Vfv = new Float64Array(elu.length), um = new Float64Array(1);
           for (let k = 0; k < elu.length; k++) { combinarEm(um, 0, 1, eluC[k], fz); Mf[k] = um[0]; combinarEm(um, 0, 1, eluVC[k], fz); Mfv[k] = um[0]; combinarEm(um, 0, 1, eluC[k], fy); Vf[k] = um[0]; combinarEm(um, 0, 1, eluVC[k], fy); Vfv[k] = um[0]; }

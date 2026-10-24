@@ -373,6 +373,8 @@ export interface OpcoesCalculo {
   vigaApoioLongVao: number;
   /** 1 = o vão de cálculo sobre parede não passa da distância entre os eixos dos apoios (E5j, K1.12.21); 0 = só vão livre + acréscimo. */
   vigaApoioLongEixos: number;
+  /** Viga sobre parede no meio (E6c, K1.3.59): 1 = parte a viga e a armadura no trecho central de um contato longo; 0 = armadura contínua sobre a parede (comportamento anterior). */
+  vigaPartirParede: number;
   /** E3f: nós dos panos inclinados no diafragma do pavimento (1, só para comparação) ou livres com 6 gdl (0, padrão). */
   planoDiafragma: number;
   /** E3f: carga variável dos panos inclinados por m² de projeção horizontal (1, padrão) ou por m² de área inclinada (0). */
@@ -1042,6 +1044,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
   // ---- N2e: apoios, limites e avisos de modelagem ----
   { chave: 'vigaApoioLongEixos', rotulo: 'Viga em parede: vão de cálculo limitado à distância entre eixos', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'Programa de referência (vão de cálculo = menor entre a distância entre eixos e o vão livre + 2 alturas); NBR 6118, 14.6.2.4: cada ai ≤ t/2; a confirmar', aConfirmar: true,
     descricao: 'Ligado, o vão de cálculo da viga sobre parede ou pilar-parede é o menor entre vão livre + acréscimo e a distância entre os eixos dos apoios (centro do contato; para a viga cruzada, o ponto onde o eixo a cruza).' },
+  { chave: 'vigaPartirParede', rotulo: 'Viga sobre parede no meio: partir a viga e a armadura', min: 0, max: 1, passo: 1, padrao: 1, fonte: 'Programa de referência (viga e armadura interrompidas depois do prolongamento, mesmo que a viga seja mais larga que o apoio); NBR 6118 não fixa; a confirmar', aConfirmar: true,
+    descricao: 'Parede ou pilar-parede no meio da viga com contato maior que 2 × (prolongamento + extensão) × h: a armadura é interrompida a (prolongamento + extensão) × h de cada face, sem ganchos nas pontas internas, e o trecho central fica sem barras. 0 mantém a armadura contínua sobre a parede (comportamento anterior), com aviso.' },
   { chave: 'arredondamentoApoio', rotulo: 'Arredondamento do diagrama no apoio', min: 0, max: 2, passo: 1, padrao: 1, padraoNBR: 2, fonteNBR: 'NBR 6118, 14.6.3 e Figura 14.7: ΔM = R·t/8 no apoio', fonte: 'Critério do programa de referência: parábola cúbica entre as faces do apoio com M e V das faces (manual de cálculo)', aConfirmar: false,
     descricao: '0 = sem arredondamento (diagrama do modelo); 1 = dentro do apoio, M(x) = a·x³ + b·x² + c·x + d com M e V das duas faces (Q = 3a·x² + 2b·x + c); 2 = reduz o momento negativo do apoio de ΔM = R·t/8 (R reação, t largura do apoio). A redistribuição atua sobre o diagrama já arredondado [a confirmar: no programa de referência atua nas faces e o trecho do apoio é recalculado depois].' },
   { chave: 'momentoFaceMin', rotulo: 'Momento mínimo na face do apoio', unidade: '% do M no eixo', min: 0, max: 100, passo: 5, padrao: 0, fonte: 'EC2 (65 % do momento no eixo) citado pelo manual do programa de referência; padrão 0 nos dois perfis. O momento no eixo é o da estação mais próxima do eixo (a parte flexível começa em face − 0,3h) [a confirmar]', aConfirmar: true,
@@ -1289,7 +1293,7 @@ export const OPCOES_DETALHE: ReadonlySet<string> = new Set<string>([
   'vigotaMomentoMinPositivo', 'vigotaMomentoMinNegativo', 'vigotaIgualacao', 'vigotaIgualacaoDif', 'vigotaNegativoVao', 'vigotaIgualacaoPonto', 'vigotaRedistribuir', 'vigotaBranson', 'vigotaIgualacaoBase', 'vigotaMontagem', 'vigotaEscoraDist', 'vigotaCargaConstrucao', 'vigotaMontagemLimite', 'vigotaMontagemSapata', 'vigotaEstriboOmega', 'vigotaOmegaAba', 'vigotaCortanteTotal', 'nervuradaMesaMin', 'nervuradaCortanteDist', 'nervuradaIgualacaoDif', 'nervuradaFissuraNegativo', 'nervuradaWoodArmer', 'equGamaFav', 'equGamaVento',
   'puncaoVerificar', 'puncaoTipoArmadura', 'puncaoS0', 'puncaoSr', 'puncaoFuroDist', 'puncaoVigaChata', 'cortanteLajes', 'cortanteVarredura',
   'cortanteVarreduraPasso', 'puncaoNervCortante', 'pilarLancesDesligados', 'pilarFluencia', 'pilarTaxaMin', 'rearmarLimiteRigidez',
-  'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos',
+  'vigaApoioLongProlong', 'vigaApoioLongBarras', 'vigaApoioLongVao', 'vigaApoioLongEixos', 'vigaPartirParede',
   'arredondamentoApoio', 'momentoFaceMin', 'envoltoriaCortante', 'vigaTaxaMin', 'lajeTaxaMin', 'vigaEstriboSmax', 'vigaEstriboSmin',
   'lajeMomentoMinPositivo', 'lajeMomentoMinNegativo', 'vigaSuspensao', 'vigaSuspensaoFator', 'criterioLinear', 'cargaProximaApoio', 'vigaEstriboComprimida',
   // N2f: flechas por etapas (só o dimensionamento)

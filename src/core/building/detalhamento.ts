@@ -291,7 +291,20 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   // parede ou pilar-parede no meio da viga (K1.3.59): o diagrama e a armadura valem só até (prolongamento + extensão) × h de cada face;
   // o trecho central de um contato mais longo não é dimensionado, mas a armadura corre contínua (a viga não é partida em duas)
   const limParede = (op.vigaApoioLongProlong + op.vigaApoioLongBarras) * h, virtuais = new Set(todosPilares(b).filter(ehVirtual).map((p) => p.id));
-  for (const a of apoios.slice(1, -1)) if (virtuais.has(a.pilar) && a.s1 - a.s0 > 2 * limParede + 1e-9) avisos.push(`Parede ou pilar-parede no meio da viga com contato de ${(a.s1 - a.s0).toFixed(2).replace('.', ',')} m (mais de 2 × ${limParede.toFixed(2).replace('.', ',')} m): fora desse alcance o cálculo não dimensiona a viga e a armadura segue contínua sobre a parede; interrompa a viga e a armadura manualmente depois de ${limParede.toFixed(2).replace('.', ',')} m da face.`);
+  // E6c: com a opção `vigaPartirParede`, o trecho central do contato longo (a partir de (prolongamento + extensão) × h de cada face) fica sem
+  // barras: as barras longitudinais são partidas ali, sem gancho nas pontas internas; sem a opção, seguem contínuas e há aviso
+  const partidas: [number, number][] = [];
+  for (const a of apoios.slice(1, -1)) if (virtuais.has(a.pilar) && a.s1 - a.s0 > 2 * limParede + 1e-9) {
+    const cm = (x: number) => x.toFixed(2).replace('.', ',');
+    if (op.vigaPartirParede) { partidas.push([a.s0 + limParede, a.s1 - limParede]); avisos.push(`Parede ou pilar-parede no meio da viga com contato de ${cm(a.s1 - a.s0)} m (mais de 2 × ${cm(limParede)} m): viga e armadura partidas; o trecho de ${cm(a.s0 + limParede)} a ${cm(a.s1 - limParede)} m (abscissa na viga) fica sem barras.`); }
+    else avisos.push(`Parede ou pilar-parede no meio da viga com contato de ${cm(a.s1 - a.s0)} m (mais de 2 × ${cm(limParede)} m): fora desse alcance o cálculo não dimensiona a viga e a armadura segue contínua sobre a parede; interrompa a viga e a armadura manualmente depois de ${cm(limParede)} m da face (ou ligue a opção de partir a viga sobre a parede).`);
+  }
+  const naPartida = (s: number) => partidas.some(([a, z]) => s > a + 1e-9 && s < z - 1e-9);
+  /** Barra [s0, s1] sem entrar no trecho partido: o lado da partida onde fica o centro da barra. */
+  const foraDasPartidas = (s0: number, s1: number): [number, number] => {
+    for (const [a, z] of partidas) if (s0 < z - 1e-9 && s1 > a + 1e-9) { if ((s0 + s1) / 2 < (a + z) / 2) s1 = Math.min(s1, a); else s0 = Math.max(s0, z); }
+    return [s0, s1];
+  };
   const ext = extensaoDaViga(v, apoios);
   const folga = op.vigaAncoragemFolga > 0 ? op.vigaAncoragemFolga / 100 : cob.lat; // folga da ponta à face externa do apoio extremo (ancoragem construtiva, K1.12.7)
   const c0 = ext[0] + folga, c1 = ext[1] - folga; // pontas das barras
@@ -313,6 +326,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     if (p.Mmax > 0) { const f = beamFlexure(sec, fcPos, p.Mmax, dI, 0.04, c, aPos.fyd); AsPos[i] = op.vigaAsMinPonto ? Math.max(f.As, AsMinI) : f.As; if (f.As2 > 1e-12) compSup = true; }
     AsNeg[i] = p.Mmin < 0 ? (op.vigaAsMinPonto ? Math.max(AsMinS, beamFlexure(sec, fcNeg, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : beamFlexure(sec, fcNeg, -p.Mmin, dS, 0.04, c, aNeg.fyd).As) : 0;
     Vd[i] = Math.max(Math.abs(p.Vmax), Math.abs(p.Vmin)); Td[i] = p.T;
+    if (naPartida(sG(i))) { AsPos[i] = 0; AsNeg[i] = 0; }
   }
   const k = Math.max(0, Math.round(r.al / dx));
   const decala = (a: Float64Array) => Float64Array.from(a, (_, i) => { let m = 0; for (let j = Math.max(0, i - k); j <= Math.min(nG - 1, i + k); j++) m = Math.max(m, a[j]); return m; });
@@ -342,7 +356,7 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
   const nasPontas = (s0: number, s1: number): [boolean, boolean] => [s0 <= c0 + 1e-6, s1 >= c1 - 1e-6];
   type OptsCorrida = { a?: number; z?: number; ganchos?: boolean; semGanchoIni?: boolean; semGanchoFim?: boolean; continuaIni?: string; continuaFim?: string };
   /** Barra corrida de a a z (padrão c0 a c1), dividida em peças ≤ Lmax com traspasse nos pontos candidatos (centros de apoio ou meio dos vãos). */
-  const corrida = (face: FaceBarra, tipo: BarraViga['tipo'], n: number, phi: number, lb: number, candidatos: number[], o: OptsCorrida = {}) => {
+  const corridaTrecho = (face: FaceBarra, tipo: BarraViga['tipo'], n: number, phi: number, lb: number, candidatos: number[], o: OptsCorrida = {}) => {
     const a = o.a ?? c0, z = o.z ?? c1, gOn = o.ganchos !== false;
     const gIni = gOn && !o.semGanchoIni, gFim = gOn && !o.semGanchoFim;
     const l0 = Math.max(alfa0t(1) * lb, 0.3 * alfa0t(1) * lb, (15 * phi) / 1000, 0.2) * fatorEmenda;
@@ -364,6 +378,14 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
       const cont = s0 <= a + 1e-6 && o.continuaIni ? o.continuaIni : s1 >= z - 1e-6 && o.continuaFim ? o.continuaFim : undefined;
       barras.push({ pos: `N${++np}`, face, tipo, n, phi, s0, s1, ganchos: g, comprimento: comp(s0, s1, g, phi), ...(cont ? { continuaCom: cont } : {}) });
     }
+  };
+  /** Barra corrida de a a z; nas partidas (E6c) vira uma corrida por trecho, sem gancho nas pontas internas. */
+  const corrida = (face: FaceBarra, tipo: BarraViga['tipo'], n: number, phi: number, lb: number, candidatos: number[], o: OptsCorrida = {}) => {
+    const a = o.a ?? c0, z = o.z ?? c1, trechos: [number, number][] = [];
+    let ini = a;
+    for (const [p0, p1] of partidas) if (p0 > ini + 1e-9 && p1 < z - 1e-9) { trechos.push([ini, p0]); ini = p1; }
+    trechos.push([ini, z]);
+    trechos.forEach(([x, y], q) => corridaTrecho(face, tipo, n, phi, lb, candidatos, { ...o, a: x, z: y, ...(q > 0 ? { semGanchoIni: true } : {}), ...(q < trechos.length - 1 ? { semGanchoFim: true } : {}), ...(q > 0 ? { continuaIni: undefined } : {}), ...(q < trechos.length - 1 ? { continuaFim: undefined } : {}) }));
   };
   const centrosApoio = apoios.map((a) => (a.s0 + a.s1) / 2);
   const meiosVao = apoios.slice(1).map((a, i) => (apoios[i].s1 + a.s0) / 2);
@@ -417,7 +439,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     };
     const nivel = nivelGrade(AsPosD, i0, i1);
     // até `vigaCortesInf` comprimentos de corte (K1.12.6): cada grupo vai até onde o diagrama decalado exige as suas barras
-    for (const g of agruparCortes(n, op.vigaCortesInf, op.vigaGrupoMinPct, (j) => extI(...nivel(capPass + j * Ai)))) {
+    for (const g0 of agruparCortes(n, op.vigaCortesInf, op.vigaGrupoMinPct, (j) => extI(...nivel(capPass + j * Ai)))) {
+      const [gs0, gs1] = foraDasPartidas(g0.s0, g0.s1), g = { ...g0, s0: gs0, s1: gs1 };
       const gp = nasPontas(g.s0, g.s1);
       barras.push({ pos: `N${++np}`, face: 'inf', tipo: 'reforço', n: g.n, phi: phiR, s0: g.s0, s1: g.s1, ganchos: gp, comprimento: comp(g.s0, g.s1, gp, phiR) });
     }
@@ -481,7 +504,8 @@ export function detalharViga(b: BuildingModel, v: Viga, r: ResultadoViga, op: Op
     const grupos = op.vigaGruposSup > 1 && g.n > 1
       ? agruparCortes(g.n, op.vigaGruposSup, op.vigaGrupoMinPct, (j) => { const [a, z] = nivel(capMont + j * As_), [e0, e1] = extS(a, z, g.mx, g.n); return j === 0 ? [Math.min(e0, g.s0), Math.max(e1, g.s1)] : [e0, e1]; })
       : [{ n: g.n, s0: g.s0, s1: g.s1 }];
-    for (const q of grupos) {
+    for (const q0 of grupos) {
+      const [qs0, qs1] = foraDasPartidas(q0.s0, q0.s1), q = { ...q0, s0: qs0, s1: qs1 };
       const gn = nasPontas(q.s0, q.s1);
       barras.push({ pos: `N${++np}`, face: 'sup', tipo: 'negativo', n: q.n, phi: phiS, s0: q.s0, s1: q.s1, ganchos: gn, comprimento: comp(q.s0, q.s1, gn, phiS) });
     }
