@@ -11,7 +11,7 @@ export interface TabelaMemorialConsolos { id: 'consolos' | 'consolos-armadura' |
 const f = (v: number, c = 2) => (Number.isFinite(v) ? v.toFixed(c).replace('.', ',') : '—');
 const ST = { ok: 'atende', fail: 'não atende' } as const;
 
-export function memorialConsolos(b: BuildingModel, dim: Dimensionamento | null, op: Pick<OpcoesCalculo, 'vinculoExternoFatorEI' | 'premoldadaArticulada' | 'premoldadaIcamentoFracao' | 'premoldadaIcamentoDinamico' | 'consoloHMinimo' | 'consoloBraco' | 'consoloMu' | 'consoloCostura' | 'consoloTensaoApoio'>): { tabelas: TabelaMemorialConsolos[]; notas: string[]; relatorios: string[][] } {
+export function memorialConsolos(b: BuildingModel, dim: Dimensionamento | null, op: Pick<OpcoesCalculo, 'vinculoExternoFatorEI' | 'vinculoExternoIntegrado' | 'modeloGlobal' | 'premoldadaArticulada' | 'premoldadaIcamentoFracao' | 'premoldadaIcamentoDinamico' | 'consoloHMinimo' | 'consoloBraco' | 'consoloMu' | 'consoloCostura' | 'consoloTensaoApoio'>): { tabelas: TabelaMemorialConsolos[]; notas: string[]; relatorios: string[][] } {
   const tabelas: TabelaMemorialConsolos[] = [], notas: string[] = [], relatorios: string[][] = [];
   const cs = dim?.consolos ?? [];
   if (cs.length) {
@@ -38,6 +38,7 @@ export function memorialConsolos(b: BuildingModel, dim: Dimensionamento | null, 
       linhas: ve.map((v) => [v.nome, `${f(v.secao.b * 100, 0)} × ${f(v.secao.h * 100, 0)}`, VINCULO_TXT[v.vinculoExterno!], `EI × ${f(op.vinculoExternoFatorEI, 0)} (plano e EA rígidos)`]),
     });
     notas.push('Viga de vínculo externo: apoios em todos os nós de discretização (a cada malha da grelha), EI bruto multiplicado pelo fator da tabela, plano horizontal e área rígidos (× 10⁶) e GJ reduzido como nas demais vigas; os graus de liberdade livres recebem rigidez de folga de 10⁴ kN/m ou kN·m/rad (sem efeito nos resultados). A viga simula o topo de um muro e não é dimensionada. Pilares coincidentes devem ser desligados no grupo para não travar o deslocamento vertical.');
+    if (op.modeloGlobal === 1) notas.push(op.vinculoExternoIntegrado ? 'Modelo integrado: os nós da viga de vínculo externo são nós de fronteira do superelemento da grelha (como os dos pilares) e recebem no pórtico os mesmos apoios e molas de folga do modelo separado; as reações do muro saem do pórtico (opção "Vínculo externo no modelo integrado" ligada).' : 'Modelo integrado com a opção "Vínculo externo no modelo integrado" desligada: os apoios contínuos do muro não entram no modelo (comportamento anterior; aviso na análise).');
   }
   const pm = dim?.premoldadas ?? [];
   if (pm.length) {

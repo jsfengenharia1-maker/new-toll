@@ -4,4 +4,5 @@ dist-cli
 .claude/worktrees/
 statikos-netlify.zip
 validation/opensees/integrado.modelo.json
+validation/opensees/vinculo_externo.modelo.json
 NOTAS.md

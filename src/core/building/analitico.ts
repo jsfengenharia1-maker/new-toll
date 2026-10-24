@@ -527,7 +527,7 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
   const integrado = op.modeloGlobal === 1;
   for (const v of b.vigas) if (v.vinculoExterno) for (const p of pilaresCoincidentes(b, v)) avisos.push(textoPilarCoincidente(v, p));
   if (!integrado && b.lajes.some((l) => lajeInclinada(b, l))) avisos.push('Plano: no modelo separado os panos inclinados são calculados na projeção horizontal, no diafragma (só o peso por área inclinada muda); ligue o modelo integrado para os panos fora do diafragma, com esforços normais e empuxos.');
-  if (integrado && b.vigas.some((v) => v.vinculoExterno)) avisos.push('Vínculo externo: os apoios contínuos das vigas de muro não entram no modelo integrado (nós da grelha condensados); use o modelo separado.');
+  if (integrado && !op.vinculoExternoIntegrado && b.vigas.some((v) => v.vinculoExterno)) avisos.push('Vínculo externo: os apoios contínuos das vigas de muro não entram no modelo integrado (opção "Vínculo externo no modelo integrado" desligada; nós da grelha condensados); ligue a opção ou use o modelo separado.');
   /** Viga associada de uma viga comum cuja origem existe e tem pavimento: sai da análise (a barra é a da origem). */
   const comumEfetiva = (v: Viga) => { const o = v.comumDe ? b.vigas.find((x) => x.id === v.comumDe) : undefined; return !!o && pavimentosDoGrupo(b, o.grupo).length > 0; };
   /** Viga comum a dois grupos (E2b): reações da linha de apoio das vigas associadas (kN, para cima, por caso), a aplicar na viga de origem no pavimento alvo. */
@@ -810,6 +810,12 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
         if (tI[n] && !tH[n]) noSE[n] = 0;
         else if (tI[n] && assoc0[n] < 0) { juncao[n] = nosJuncao.length; nosJuncao.push(n); }
       }
+    }
+    // E5l: nós das vigas de vínculo externo fora de pilar viram junções (fronteira do superelemento, nó do pórtico), onde o
+    // pórtico recebe os apoios do tipo escolhido, como no modelo separado (K1.3.9)
+    if (op.vinculoExternoIntegrado) for (const t of gb.trechos) if (t.viga.vinculoExterno) for (const i of [t.a, t.z]) {
+      const n = gb.idx.get(i);
+      if (n !== undefined && assoc0[n] < 0 && noSE[n] && juncao[n] < 0) { juncao[n] = nosJuncao.length; nosJuncao.push(n); }
     }
     // pilares que só recebem barras inclinadas: o nó do pórtico sobe à cota média dos nós do plano dentro dele
     const zPilar = new Map<string, number>();
@@ -1288,6 +1294,13 @@ function analisarSemEscadas(b: BuildingModel, o: Partial<OpcoesAnalise> = {}, ex
       const noP = new Map<number, number>(); // nó interno da grelha → nó do pórtico
       // E3f: junções (fronteira do superelemento fora de pilar): nó do pórtico na cota do pavimento, com uz, rx e ry livres
       const jNo = ig.nosJuncao.map((n) => { const j = pm.nos.length; pm.nos.push([gb.m.nos[n][0], gb.m.nos[n][1], z]); return j; });
+      // E5l: vínculo externo: apoios nas junções da viga (e no pilar coincidente, como no modelo separado; aviso VINCULO_PILAR)
+      if (op.vinculoExternoIntegrado) for (const t of gb.trechos) if (t.viga.vinculoExterno && !comumEfetiva(t.viga)) for (const i of [t.a, t.z]) {
+        const n = gb.idx.get(i);
+        if (n === undefined) continue;
+        const j = ig.juncao[n] >= 0 ? jNo[ig.juncao[n]] : ig.assoc[n] >= 0 ? colNo[ig.assoc[n]] : undefined;
+        if (j !== undefined) veNos.set(j, t.viga.vinculoExterno);
+      }
       const noDe = (n: number) => {
         const k = ig.assoc[n];
         if (k >= 0) return colNo[k];

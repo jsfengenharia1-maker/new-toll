@@ -538,6 +538,8 @@ export interface OpcoesCalculo {
   consoloExcentricidade: number;
   /** Multiplicador do EI das vigas de vínculo externo (simulam o topo de um muro; plano e EA rígidos). */
   vinculoExternoFatorEI: number;
+  /** Vínculo externo no modelo integrado (E5l): apoios nos nós da viga como nós de fronteira do superelemento (1) ou ignorados, com aviso (0, comportamento anterior). */
+  vinculoExternoIntegrado: number;
   /** Ligações das vigas pré-moldadas armadas: articuladas (1) ou como as demais vigas (0). */
   premoldadaArticulada: number;
   /** Posição dos pontos de içamento das vigas pré-moldadas, como fração do vão a partir de cada extremidade. */
@@ -1142,6 +1144,8 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: '1 = o apoio da viga está no centro do aparelho, a e da face (trecho rígido a partir do eixo do pilar), de modo que a vertical chega ao pilar com o momento V·e. 0 = a vertical chega no eixo do pilar.' },
   { chave: 'vinculoExternoFatorEI', rotulo: 'Vínculo externo: multiplicador do EI da viga', unidade: '×', min: 1, max: 10000, passo: 10, padrao: 100, fonte: 'Programa de referência (manual de cálculo, K1.4.29): EI bruto × 10², plano e EA rígidos', aConfirmar: false,
     descricao: 'Rigidez à flexão vertical da viga que simula o topo de um muro (apoios em todos os nós de discretização). O plano horizontal e a área são penalizados (× 10⁶).' },
+  { chave: 'vinculoExternoIntegrado', rotulo: 'Vínculo externo no modelo integrado', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'Programa de referência (manual de cálculo, K1.3.9: série de apoios nos nós de discretização da viga de apoio em muro, também no modelo único); a NBR 6118 não trata do tema', aConfirmar: false,
+    descricao: '1 = no modelo integrado, os nós da viga de vínculo externo viram nós de fronteira do superelemento da grelha (como os dos pilares) e recebem os apoios do tipo escolhido no pórtico, como no modelo separado. 0 = comportamento anterior à E5l: os apoios contínuos não entram no modelo integrado (aviso).' },
   { chave: 'premoldadaArticulada', rotulo: 'Vigas pré-moldadas: ligações articuladas', min: 0, max: 1, passo: 1, padrao: 1, booleana: true, fonte: 'NBR 9062: ligações articuladas por padrão nas vigas pré-moldadas simplesmente apoiadas (engaste só quando informado) [a confirmar o item]', aConfirmar: true,
     descricao: '1 = a viga pré-moldada é articulada nas duas pontas, salvo engaste informado na viga. 0 = vínculo como o das demais vigas.' },
   { chave: 'premoldadaIcamentoFracao', rotulo: 'Vigas pré-moldadas: posição dos pontos de içamento', unidade: '× vão', min: 0.1, max: 0.3, passo: 0.01, padrao: 0.2, fonte: 'Prática (dois pontos a 0,2·ℓ; o ótimo para momentos iguais é 0,207·ℓ) [a confirmar]', aConfirmar: true,
@@ -1167,6 +1171,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'curvaSegmento', 'curvaTorcaoEquilibrio',
   // E2e: o momento da excentricidade do consolo, o vínculo externo contínuo e as ligações das pré-moldadas entram no modelo de cálculo
   'consoloExcentricidade', 'vinculoExternoFatorEI', 'premoldadaArticulada',
+  // E5l: apoios do vínculo externo no modelo integrado
+  'vinculoExternoIntegrado',
   // E3d: dimensões do ábaco automático (a zona maciça e o rebaixo entram na grelha das nervuradas)
   'abacoFracao', 'abacoCone', 'abacoExtensao', 'abacoLimMin', 'abacoLimMax',
   // E3e: processo construtivo, malha e continuidade das lajes alveolares entram no modelo de cálculo

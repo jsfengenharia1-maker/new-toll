@@ -12,8 +12,8 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|---|---|
 | 1.1 Problema a resolver e escopo (pág. 4) | 8 | 7 | 0 | 0 | 1 |
 | 1.2 Análise realizada (págs. 4–5) | 10 | 9 | 0 | 0 | 1 |
-| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 45 | 4 | 0 | 10 |
-| 1.4 Opções de cálculo (págs. 15–27) | 92 | 73 | 6 | 0 | 13 |
+| 1.3 Discretização da estrutura, dimensão dos nós e envoltórias nos apoios (págs. 5–15) | 59 | 47 | 2 | 0 | 10 |
+| 1.4 Opções de cálculo (págs. 15–27) | 92 | 74 | 5 | 0 | 13 |
 | 1.5 Cargas: verticais, vento, sismo e 2ª ordem (págs. 27–37) | 59 | 42 | 3 | 0 | 14 |
 | 1.6 Materiais (págs. 37–38) | 11 | 7 | 1 | 0 | 3 |
 | 1.7 Coeficientes parciais de segurança (págs. 38–39) | 5 | 5 | 0 | 0 | 0 |
@@ -25,7 +25,7 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 | 1.13 Lajes alveolares, maciças e nervuradas (págs. 90–95) | 45 | 37 | 4 | 0 | 4 |
 | 1.14 Flechas de vigas (págs. 95–97) | 12 | 11 | 0 | 0 | 1 |
 | 1.15 Deformações de lajes e fundações (págs. 97–111) | 43 | 22 | 2 | 0 | 19 |
-| **Total** | **661** | **506** | **43** | **1** | **111** |
+| **Total** | **661** | **509** | **40** | **1** | **111** |
 
 ## Pendências por frente (Parcial + Falta)
 
@@ -33,11 +33,11 @@ Frente (só para Parcial e Falta): **N** cálculo e normas; **R** revisão de re
 |---|---|---|---|
 | N — Cálculo e normas (pendências na N2: `spec-frente-N2.md`, fatias N2a–N2g marcadas nas notas) | 9 | 0 | 9 |
 | R — Revisão de resultados e detalhamento (R1–R6 concluídas; o resíduo é a fatia R7, subfatias R7a–R7g, marcadas nas notas; auditoria de 20/10/2026 com a R7-0) | 7 | 0 | 7 |
-| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 18 | 1 | 19 |
+| E — Elementos estruturais (E1 e E2 especificadas em `spec-frente-E1.md` e `spec-frente-E2.md`, fatias E1a–E1e e E2a–E2e marcadas nas notas; E3 e E4 em `spec-frente-E3.md` e `spec-frente-E4.md`, fatias E3a–E3f e E4a–E4e marcadas nas notas) | 15 | 1 | 16 |
 | FU — Fundações | 1 | 0 | 1 |
 | L — Lançamento e produtividade (spec: `spec-frente-L.md`, fatias L1–L5 marcadas nas notas) | 0 | 0 | 0 |
 | V — Visualização (spec: `spec-frente-V.md`, fatias V1–V5 marcadas nas notas) | 8 | 0 | 8 |
-| **Total** | **43** | **1** | **44** |
+| **Total** | **40** | **1** | **41** |
 
 ## Divergências de premissa
 
@@ -110,8 +110,8 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.3.6 | Vigas: por padrão 3 GL (mantêm o diafragma), mesmo sem laje definida; podem ser desligadas do diafragma (vigas livres). | Feito | — | vigas no diafragma por padrão; opção "fora do diafragma" por viga (N1a) |
 | K1.3.7 | Tipos de viga: concreto armado, aço, mista, madeira; seções de biblioteca. | Feito | — | concreto armado retangular, T e L (mesa colaborante, `secaoViga.ts`); aço, mista e madeira fora do escopo (aço no edifício) [E2a]; interface: `SecaoVigaUI.tsx`, e2e E2a [conferido 24/10/2026, auditoria E] |
 | K1.3.8 | Eixo da barra de viga no plano médio vertical da alma, na altura do centro de gravidade. | Feito | — | eixo da viga no plano do pavimento (prática usual com diafragma) |
-| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Parcial | E | núcleo: série de apoios nos nós de discretização (a cada `malha`) da viga de vínculo externo, na grelha e no pórtico, com EI × 100 (`pontosVinculoExterno`, `propsBarraViga` em `analitico.ts`); fora do modelo integrado (aviso) [E2e] — E5l: apoios contínuos do vínculo externo no modelo integrado (hoje aviso e uso do modelo separado) |
-| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Parcial | E | núcleo: três tipos em `Viga.vinculoExterno`: engaste (6 gdl presos), articulação (deslocamentos presos), deslizante (só o vertical, sem reação horizontal); rigidez de folga de 10⁴ nos gdl livres (modo de corpo rígido); interface: seletor Vínculo externo da viga (`VinculoPremoldadaUI.tsx`) [E2e] — E5l: apoios contínuos do vínculo externo no modelo integrado (hoje aviso e uso do modelo separado) |
+| K1.3.9 | Viga de apoio em muro (apoio contínuo simulado): série de apoios nos nós de discretização com rigidez aumentada ×100 — equivale a viga muito rígida contínua com vãos curtos. | Feito | — | núcleo: série de apoios nos nós de discretização (a cada `malha`) da viga de vínculo externo, na grelha e no pórtico, com EI × 100 (`pontosVinculoExterno`, `propsBarraViga` em `analitico.ts`) [E2e]; no modelo integrado os nós viram fronteira do superelemento e recebem os apoios no pórtico (`integrarGrelha`, opção `vinculoExternoIntegrado`, padrão 1); validado pelos três momentos, contra o modelo separado e o OpenSees (`vinculoExternoIntegrado.test.ts`, `validation/opensees/vinculo_externo.py`) [E5l] |
+| K1.3.10 | Três tipos de apoio em muro: engaste (deslocamentos e rotações impedidos), articulação (deslocamentos impedidos, rotação livre), articulação com deslizamento horizontal (só vertical impedido). | Feito | — | núcleo: três tipos em `Viga.vinculoExterno`: engaste (6 gdl presos), articulação (deslocamentos presos), deslizante (só o vertical, sem reação horizontal); rigidez de folga de 10⁴ nos gdl livres (modo de corpo rígido); interface: seletor Vínculo externo da viga (`VinculoPremoldadaUI.tsx`) [E2e]; os três tipos também no modelo integrado, com reações iguais às do modelo separado (`vinculoExternoIntegrado.test.ts`) [E5l] |
 | K1.3.11 | Alerta: pilares que tocam esses apoios podem ficar "pendurados" — a carga não chega à fundação e podem surgir reações negativas. | Fora | — | alerta ligado a recurso inexistente (apoio em muro) |
 | K1.3.12 | Alerta: na articulação deslizante, viga contínua ou alinhada ao eixo do apoio gera engaste por continuidade (momentos negativos na borda); conferir se a obra garante isso; viga desalinhada comporta-se como articulada. | Fora | — | alerta ligado a recurso inexistente |
 | K1.3.13 | Para evitar engaste por continuidade: rótula na extremidade da viga junto ao apoio. | Fora | — | conselho de modelagem; rótula de extremidade já existe |
@@ -198,7 +198,7 @@ Lacunas de código encontradas na conferência (corrigidas em 20/10/2026, frente
 | K1.4.26 | Vigas de aço ou concreto: EI vertical bruto; EI no plano desprezado (∞, diafragma); GJ bruto × coef.; EA ∞. | Feito | — | vigas: EI bruto, GJ × 0,15; rigidez no plano dada pelo diafragma |
 | K1.4.27 | Vigotas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | treliçadas: seção T por nervura na grelha com redutor de EI (vigotaRigidez, R6) e GJ pelo redutor das lajes (torcaoLaje, N1a) |
 | K1.4.28 | Vigas perimetrais de borda (encadeados): EI vertical bruto × 10⁻¹⁵ (praticamente nula); plano ∞; GJ × coef.; EA ∞. | Feito | — | núcleo: `Viga.amarracao` (EI vertical × 10⁻¹⁵, A e plano × 10⁶, GJ das demais vigas; `propsBarraViga` em `analitico.ts`); interface no cartão E2a-1 [E2a] — Feito 23/10/2026: interface nos cartões E2a (Edificio.tsx, Detalhamento.tsx); e2e E2a [E2a] |
-| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Parcial | E | núcleo: viga de vínculo externo com EI × 10² (`vinculoExternoFatorEI`), plano e EA × 10⁶, GJ × `torcaoViga` (`propsBarraViga`) [E2e] — E5l: apoios contínuos do vínculo externo no modelo integrado (hoje aviso e uso do modelo separado) |
+| K1.4.29 | Apoio e engaste em muro: EI bruto × 10²; plano ∞; GJ × coef.; EA ∞. | Feito | — | núcleo: viga de vínculo externo com EI × 10² (`vinculoExternoFatorEI`), plano e EA × 10⁶, GJ × `torcaoViga` (`propsBarraViga`) [E2e]; no modelo integrado a mesma barra entra na grelha condensada, com os apoios nos nós de fronteira (`integrarGrelha`, opção `vinculoExternoIntegrado`) [E5l] |
 | K1.4.30 | Paredes e pilares-parede: EI bruto nas duas direções; torção pelo elemento finito plano; EA bruto × coef. de rigidez axial. | Parcial | E | casca com E = Ecs (EI bruto), torção pela placa e E × `axialPilares` nas cargas verticais (majora também a flexão: material isotrópico); 0,8·Eci·Ic no γz (`incluirParedes`, `analitico.ts`) [E1b] — E5j: separar a rigidez axial da flexão (E × `axialPilares` majora também a flexão) |
 | K1.4.31 | Lajes maciças e nervuradas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | opções: J das lajes × coeficiente (padrão 15 % de 2I) (N1a) |
 | K1.4.32 | Lajes alveolares e mistas: EI bruto; plano ∞; GJ × coef.; EA ∞. | Feito | — | EI bruto da ficha por metro, plano rígido do pavimento, GJ = 2I × “rigidez à torção das lajes” e EA grande (A = largura × altura) nas barras alveolares (`propLaje`); mistas fora [E3e] |
