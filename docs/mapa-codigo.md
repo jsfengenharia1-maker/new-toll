@@ -945,6 +945,8 @@ Uso: consultar por grep (`grep -n "nomeDoSimbolo" docs/mapa-codigo.md`), não le
   - usado por: core/building/escadasCalculo.ts, core/building/integrado.test.ts, core/casca.test.ts, core/cascaAxial.test.ts, core/fe3d.ts
 - `cascaAxial.test.ts`: (sem exports)
   - usado por: -
+- `checklists-donos.test.ts`: (sem exports)
+  - usado por: -
 - `checklists.test.ts`: (sem exports)
   - usado por: -
 - `columnGeneral.ts`: GeneralColumnInput, designColumnGeneral
