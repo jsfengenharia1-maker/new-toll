@@ -82,9 +82,12 @@ describe('pilar-parede em L: rigidez axial separada da flexão contra o OpenSees
       // equilíbrio global com a parcela axial (as forças da faixa entram nas reações da base)
       const P = caso === 1 ? 0 : 2 * ref.q * (caso === 4 ? ref.L1 : ref.L1 + ref.L2);
       expect(Math.abs(m.Rz - P)).toBeLessThan(1e-6 * Math.max(P, 1));
-      // momentos da base: 0,2 % (o giro no plano da casca tem mola própria, já presente com f = 1); a faixa não muda o momento
-      expect(Math.abs(m.Mx - o.Mx) / Math.abs(o.My)).toBeLessThan(0.002);
-      expect(Math.abs(m.My - o.My) / Math.abs(o.My)).toBeLessThan(0.002);
+      // momentos da base: equilíbrio exato (1e-9); desde 24/10/2026 o giro no plano da casca é relativo (antes a mola presa ao chão tirava ~0,13 % do momento)
+      // f = 1 fecha a 1e-8; com a faixa axial (f = 3) a parcela uniforme tem resultante na linha dos nós de cima e de baixo com pesos diferentes e sobra ≤ 2e-5
+      expect(Math.abs(m1.Mx - o1.Mx) / Math.abs(o.My)).toBeLessThan(1e-8);
+      expect(Math.abs(m1.My - o1.My) / Math.abs(o.My)).toBeLessThan(1e-8);
+      expect(Math.abs(m.Mx - o.Mx) / Math.abs(o.My)).toBeLessThan(1e-4);
+      expect(Math.abs(m.My - o.My) / Math.abs(o.My)).toBeLessThan(1e-4);
       expect(Math.abs(m.My - m1.My) / Math.abs(o.My)).toBeLessThan(1e-5);
       expect(Math.abs(m.Rz_x2 - o.Rz_x2) / Math.max(Math.abs(o.Rz_x2), 100)).toBeLessThan(0.05);
     });

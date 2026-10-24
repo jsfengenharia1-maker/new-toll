@@ -38,7 +38,7 @@ const CASOS: CasoEscada[] = ['G', 'Q'];
 const EPS = 1e-6;
 const NU = 0.2;
 /**
- * Fração de Hughes-Brezzi do giro no plano acoplado à rotação da membrana (`Casca3.acoplarGiro`). Com o giro solto (`kGiro` pequeno)
+ * Fração de Hughes-Brezzi do giro no plano acoplado à rotação da membrana (`Casca3.acoplarGiro`). Com o giro pouco acoplado (`kGiro` pequeno, relativo)
  * as dobras entre trechos e patamares ficam moles demais (reação do apoio do patamar 3,5 % abaixo do OpenSees, na escada em L);
  * com 1 as reações e flechas ficam a 0,5 % do OpenSees (escada.py). 10 dá praticamente o mesmo.
  */

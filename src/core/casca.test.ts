@@ -156,7 +156,7 @@ describe('casca de 6 nós: parede em balanço contra viga de Timoshenko', () => 
     const ponta: number[] = [];
     mod.nos.forEach((p, i) => {
       if (Math.abs(p[0]) < 1e-9) mod.apoios.set(i, [0, 1, 2, 3, 4, 5]);
-      else mod.apoios.set(i, [2, 3, 4, 5]);
+      else mod.apoios.set(i, [2, 3, 4]); // giro no plano (rz) livre: preso à rotação da membrana pela estabilização relativa (24/10/2026)
       if (Math.abs(p[0] - L) < 1e-9) ponta.push(i);
     });
     // cortante parabólico τ ∝ 1 − (2y′/H)²: forças nodais consistentes nos lados quadráticos do extremo
@@ -267,10 +267,19 @@ describe('casca: giro no plano acoplado à rotação da membrana (acoplarGiro, E
     return Array.from({ length: 36 }, (_, a) => Array.from({ length: 36 }, (_, b) => e.K[a * 36 + b] * u[b]).reduce((s, v) => s + v, 0));
   };
   const norma = (f: number[]) => Math.sqrt(f.reduce((s, v) => s + v * v, 0));
-  it('rotação de corpo rígido em torno da normal não gera força com o giro acoplado (e gera com o giro solto)', () => {
+  it('rotação de corpo rígido em torno da normal não gera força, com o giro acoplado nem com a estabilização padrão (kGiro relativo, 24/10/2026)', () => {
     const rig = (p: V3) => [-0.01 * p[1], 0.01 * p[0], 0, 0, 0, 0.01];
     expect(norma(forcas({ ...base, acoplarGiro: 1 }, rig))).toBeLessThan(1e-6);
-    expect(norma(forcas({ ...base }, rig))).toBeGreaterThan(1e-3);
+    expect(norma(forcas({ ...base }, rig))).toBeLessThan(1e-6);
+    expect(norma(forcas({ ...base, kGiro: 1e-2 }, rig))).toBeLessThan(1e-6);
+  });
+  it('giro com valor errado (θn ≠ ω) é penalizado pela estabilização padrão, com a rigidez γ = 6·kGiro·E·h', () => {
+    // só o giro nodal, uniforme: energia ½·u·K·u = ½·γ·A·θ² (ω = 0); A = 0,5
+    const soGiro = (): number[] => [0, 0, 0, 0, 0, 0.01];
+    const f = forcas({ ...base }, () => soGiro());
+    const gamma = 6 * 1e-4 * base.E * base.h;
+    const esperado = gamma * 0.5 * 0.01; // soma dos momentos nodais = γ·A·θ
+    expect(Array.from({ length: 6 }, (_, i) => f[6 * i + 5]).reduce((s, v) => s + v, 0) / esperado).toBeCloseTo(1, 6);
   });
   it('estiramento puro e flexão com curvatura constante: mesmas forças com e sem o acoplamento', () => {
     const esticar = (p: V3) => [0.001 * p[0], -0.0002 * p[1], 0, 0, 0, 0];
