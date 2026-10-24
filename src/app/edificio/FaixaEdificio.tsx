@@ -49,6 +49,20 @@ function Gabarito() {
   );
 }
 
+/** Ábacos das lajes nervuradas (E3d): gera nos pilares selecionados (ou em todos os pilares sem viga, sem seleção de pilares). */
+function Abacos() {
+  const { sessao, exec } = useBuilding();
+  const pl = usePlanta();
+  const b = sessao.modelo;
+  const pilares = b.pilares.filter((p) => pl.selecao.has(p.id)).map((p) => p.id);
+  return (
+    <RibbonGroup label="Ábacos">
+      <RibbonButton icon="zona" label="Gerar ábacos nos pilares" title="Gera os ábacos automáticos nos pilares selecionados; sem pilares selecionados, em todos os pilares sem viga das lajes nervuradas" disabled={!b.lajes.some((l) => l.tipo.tipo === 'nervurada' && !l.definir)}
+        onClick={() => { const r = exec('abaco.gerar', pilares.length ? { pilares } : {}); if (r.ok) pl.set({ camadaAbacos: true }); else useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Não foi possível gerar os ábacos.' }); }} />
+    </RibbonGroup>
+  );
+}
+
 function Lancamento() {
   return (
     <>
@@ -64,6 +78,7 @@ function Lancamento() {
       <RibbonGroup label="Cargas" radios="Ferramenta"><Ferr f="carga" icon="carga" /><Ferr f="cargaLaje" icon="cargaLaje" /><Ferr f="cargaViga" icon="cargaViga" /></RibbonGroup>
       <Gabarito />
       <RibbonGroup label="Lançamento rápido" radios="Ferramenta"><Ferr f="contornoRet" icon="contorno" /><Ferr f="aberturaRet" icon="abertura" /></RibbonGroup>
+      <Abacos />
       <RibbonGroup label="Cortes" radios="Ferramenta"><Ferr f="corte" icon="corte" /><Ferr f="secao" icon="secao" /></RibbonGroup>
       <RibbonGroup label="Pavimentos"><RibbonButton icon="pavimento" label="Novo pavimento…" onClick={() => ui({ jan: 'novoPavimento' })} /></RibbonGroup>
     </>
