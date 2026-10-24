@@ -276,3 +276,37 @@ export const f_E5b_abaco = {
     await esperarModelo(page, () => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.abacos?.length === 1);
   },
 };
+
+export const f_E5m = {
+  name: 'E5m: pilar com viga em desnível (nó intermediário, verificação por trecho na janela do pilar e memorial com a premissa)',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+    const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+    await cmd('lote {"comandos": [' + [[0, 0], [6, 0]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+    await cmd('viga.tracar {"grupo": "g_3", "pontos": [[0, 0], [6, 0]], "secao": {"b": 0.2, "h": 0.5}}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.length === 1, null);
+    const id = (await modelo()).vigas[0].id;
+    await cmd(`viga.editar {"id": "${id}", "nivel": -1.5}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.[0]?.nivel === -1.5, null);
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+    // janela do pilar: lance do Tipo 1 dividido em dois trechos pela viga 1,5 m abaixo do pavimento
+    const cardP = page.locator('.edif-out .card').filter({ has: page.locator('h3', { hasText: 'Pilares (por lance)' }) });
+    await cardP.locator('tbody tr', { hasText: 'Tipo 1' }).first().dblclick();
+    const jan = page.getByRole('dialog', { name: /Resultados do elemento — Pilar/ });
+    await jan.waitFor();
+    await jan.locator('table[data-pilar-trechos="2"]').first().waitFor();
+    assert.match(await jan.textContent(), /Lance dividido por vigas em desnível/);
+    await jan.getByRole('button', { name: 'Fechar' }).click();
+    // memorial: premissa e tabela por trecho
+    await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+    const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+    await memo.locator('table[data-memorial-trechos]').waitFor();
+    assert.match(await memo.locator('[data-memorial-desnivel]').textContent(), /vigas em desnível dividem o pilar", ligada/);
+    await memo.getByRole('button', { name: 'Fechar' }).click();
+  },
+};
