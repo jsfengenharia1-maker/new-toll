@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { comandosEdificioPadrao, Sessao } from '../commands';
 import { analisarEdificio } from '../building/analitico';
+import { edificioVazio } from '../building/types';
 import { comFundacao } from '../building/dimensionamento';
 import { elementoFundacao } from './fundacao';
 import type { ResultadoFundacao } from '../building/fundacao';
@@ -460,6 +461,61 @@ describe('MD5b sapata associada · casos, planta, altura, faixas e flexão', () 
     const vo = um(ps, 'Volume de concreto', 'Volume');
     igual(num(vo, 'V'), f.volume, 'V');
     expect(c.ligadaTudo).toEqual(c.desligada);
+  });
+});
+
+describe('MD5b viga sobre base elástica · esforços ELU, flexão, cortante e armaduras (sapata corrida sob pilares e viga de fundação)', () => {
+  function vazio() {
+    const s = new Sessao(edificioVazio());
+    ok(s, 'pavimento.criar', { nome: 'Térreo', cota: 0 });
+    ok(s, 'pilar.inserir', { x: 100, y: 100, secao: { tipo: 'ret', b: 0.3, h: 0.3 } });
+    ok(s, 'fundacao.terreno', { sigmaAdm: 250 });
+    return s;
+  }
+  it('sapata corrida sob pilares: envoltória (Σ f·M por caso), flexão, As, cortante e quantitativos refeitos', () => {
+    const s = vazio();
+    ok(s, 'corrida.criar', { pontos: [[0, 0], [12, 0]], bw: 0.4, B: 1.4, h: 0.7 });
+    for (const x of [1, 6, 11]) ok(s, 'pilar.inserir', { x, y: 0, secao: { tipo: 'ret', b: 0.4, h: 0.4 } });
+    for (const p of s.modelo.pilares) { ok(s, 'carga.pilar', { pilar: p.id, caso: 'G', N: 400 }); ok(s, 'carga.pilar', { pilar: p.id, caso: 'Q', N: 150 }); }
+    const c = rodar(s), r = c.desligada.corridas![0], lg = r.longitudinal!;
+    const ps = c.mem.passos.filter((p) => p.elemento === 'Sapata corrida SC1');
+    const env = passosDe(ps, /^Base elástica · esforços ELU/);
+    expect(env.length).toBe(3);
+    const alvo = [lg.Md.inf, lg.Md.sup, lg.Vd];
+    env.forEach((q, i) => {
+      const contrib = json<[string, number, number][]>(q, 'contribuicoes');
+      igual(Math.abs(contrib.reduce((a, [, f, v]) => a + f * v, 0)), num(q, 'valor'), `Σ f·caso ${i}`);
+      igual(num(q, 'valor'), alvo[i], `valor ${i}`); igual(q.resultado as number, alvo[i], `resultado ${i}`);
+    });
+    const dados = um(ps, 'Base elástica · dados', 'Sapata corrida sob pilares');
+    igual(num(dados, 'L'), lg.L, 'L'); igual(num(dados, 'h'), lg.h, 'h');
+    const sol = um(ps, 'Base elástica · tensões no solo', 'Pressão máxima');
+    igual(num(sol, 'sigmaMax'), lg.sigmaMax, 'σmáx'); igual(num(sol, 'recalque'), lg.recalque, 'recalque');
+    const ar = um(ps, 'Base elástica · armaduras longitudinais', 'Armadura mínima');
+    igual(num(ar, 'AsInf'), lg.armadura.inf.As, 'As,inf'); igual(num(ar, 'AsSup'), lg.armadura.sup.As, 'As,sup');
+    igual(Math.max(num(ar, 'AsFlexInf') + num(ar, 'As2Sup'), num(ar, 'AsMin')), num(ar, 'AsInf'), 'As,inf = máx(flexão + comp.; mín)');
+    igual(Math.max(num(ar, 'AsFlexSup') + num(ar, 'As2Inf'), num(ar, 'AsMinSup')), num(ar, 'AsSup'), 'As,sup');
+    const ct = um(ps, 'Base elástica · cortante', 'Resistência da biela');
+    igual(0.27 * num(ct, 'av2') * num(ct, 'fcd') * num(ct, 'bw') * num(ct, 'd') * 1000, num(ct, 'VRd2'), 'VRd2'); igual(0.6 * num(ct, 'fctd') * num(ct, 'bw') * num(ct, 'd') * 1000, num(ct, 'Vc'), 'Vc');
+    const at = um(ps, 'Base elástica · cortante', 'Armadura transversal');
+    const aswMin = ((0.2 * num(at, 'fctm')) / num(at, 'fywk')) * num(at, 'bw');
+    igual(Math.max(aswMin, Math.max(0, Math.abs(num(at, 'Vd')) / 1000 - num(at, 'Vc') / 1000) / (0.9 * num(at, 'd') * num(at, 'fywd'))), num(at, 'aswS'), 'Asw/s');
+    if (lg.armadura.estribo) { igual(num(at, 's'), lg.armadura.estribo.s, 's'); expect(num(at, 'phi')).toBe(lg.armadura.estribo.phi); }
+    igual(num(um(ps, 'Base elástica · pele, volume e aço', 'Volume'), 'V'), lg.volume, 'V'); igual(num(um(ps, 'Base elástica · pele, volume e aço', 'Volume'), 'aco'), lg.aco, 'aço');
+    expect(tem(ps, 'Base elástica · flexão inferior (tração embaixo)', 'Momento de cálculo')).toBe(true);
+    expect(c.ligadaTudo).toEqual(c.desligada);
+  });
+  it('viga de fundação sobre base elástica (não corrida): cadeia com o nome da viga', () => {
+    const s = vazio();
+    ok(s, 'vigaElastica.criar', { pontos: [[0, 0], [12, 0]], b: 0.6, h: 0.9, k: 30000 });
+    for (const x of [1, 6, 11]) ok(s, 'pilar.inserir', { x, y: 0, secao: { tipo: 'ret', b: 0.4, h: 0.4 } });
+    for (const p of s.modelo.pilares) ok(s, 'carga.pilar', { pilar: p.id, caso: 'G', N: 500 });
+    const c = rodar(s);
+    const el = c.mem.elementos.find((e) => e.startsWith('Viga sobre base elástica'));
+    expect(el).toBeDefined();
+    const ps = c.mem.passos.filter((p) => p.elemento === el);
+    expect(tem(ps, /^Base elástica · esforços ELU/, 'Cortante')).toBe(true);
+    expect(passosDe(ps, 'Base elástica · dados').length).toBe(2);
   });
 });
 

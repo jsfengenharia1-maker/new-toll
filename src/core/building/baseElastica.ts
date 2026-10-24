@@ -24,6 +24,8 @@ import { fracaoPassante } from './tabelasArmadura';
 import { alturaUtilVF, geoSecaoVF, mesaEmBalanco, secoesFlexaoVF, textoSecaoVF, type GeoSecaoVF, type MesaBalanco } from './secaoVF';
 import { acoDe, cobrimentoFundacao, concretoDe, gamas } from './materiais';
 import { opcoesEmUso, perfilDe, type OpcoesCalculo } from './opcoes';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarVigaElastica } from '../memoria/vigaElastica';
 import type { ResultadoPuncao } from './puncao';
 import { casosDaObra, centroPilar, contornoPilar, ehArranque, secaoNoLance, lancesDoPilar, type BuildingModel, type Pilar, type Radier, type SapataCorrida, type VigaElastica } from './types';
 
@@ -684,13 +686,22 @@ export function dimensionarVigaElastica(b: BuildingModel, an: AnaliseEdificio, v
   if (v.geo?.temMesa && fx) notas.push(`Seção ${textoSecaoVF(v.geo)}: contato com o solo ${fmt(v.b * 100, 0)} cm (${v.geo.mesa === 'inferior' ? 'largura da mesa' : 'largura da alma'}); rigidez EI pela seção composta (Iz = ${(v.secao?.Iz ?? v.geo.Iz).toExponential(3).replace('.', ',')} m⁴); flexão em T onde a mesa está comprimida e cortante na alma (${fmt(bw * 100, 0)} cm); mesa em balanço como laje [a confirmar].`);
   notas.push(`Molas k × b × comprimento de influência (k = ${fmt(v.k ?? op.radierK, 0)} kN/m³); giro em torno do eixo com k·b³/12 por metro; envoltória ELU nas pontas das barras.`);
   const volume = v.secao ? v.secao.A * L : v.b * v.h * L;
-  return {
+  const res: ResultadoVigaElastica = {
     ...(v.parede ? { parede: v.parede } : {}),
     id: v.id, nome: v.nome, b: v.b, h: v.h, k: v.k ?? op.radierK, sigmaAdm: sAdm, L, sigmaMax: t.max, sigmaMin: t.min, combMax: t.cMax, combMin: t.cMin, recalque: t.rec,
     Md, Vd, diagrama: { s, Minf, Msup, V }, armadura: { inf, sup, AsMin, ...(fx ? { AsMinSup } : {}), estribo: est, ...(pele ? { pele } : {}), ...(cortes ? { cortes } : {}) }, nos: t.out,
     ...(v.geo ? { bw, forma: { tipo: v.geo.tipo, mesa: v.geo.mesa, bf: v.geo.bf, hf: v.geo.hf } } : {}), ...(mesa ? { mesaBalanco: mesa } : {}),
     volume, aco: acoKg, status: msgs.some((m) => classificar(m).nivel === 'erro') ? 'fail' : 'ok', mensagens: msgs, notas,
   };
+  const mem = memoriaAtiva();
+  if (mem) {
+    registrarVigaElastica(mem, {
+      el: v.corrida ? `Sapata corrida ${v.nome}` : `Viga sobre base elástica ${v.nome}`, nome: v.nome, corrida: !!v.corrida, b: v.b, bw, h: v.h, k: v.k ?? op.radierK, L, nNos: nos.length, sigmaAdm: sAdm,
+      c, fyd: aco.fyd, fyk: aco.fyk, gs, cob, dd, secInf, secSup, fcInf, fcSup, AsMin, AsMinSup, fi, fs, inf, sup, sh, pele, solo: { max: t.max, min: t.min, cMax: t.cMax, cMin: t.cMin, rec: t.rec },
+      Md, Vd, elu, nomes, esforcos, barras: barras.map((x) => ({ bi: x.bi, L: baseBarra(pm.modelo, pm.modelo.barras[x.bi]).L })), volume, aco: acoKg, status: res.status, mensagens: msgs,
+    });
+  }
+  return res;
 }
 
 /** O radier não recebe nenhuma carga do nível de fundação (ponto, linha ou área dentro do contorno, ou o contorno dentro de uma carga de área)? */

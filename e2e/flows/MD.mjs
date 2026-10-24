@@ -1,4 +1,4 @@
-// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas).
+// Fluxos de interface — MD (memória de cálculo detalhada), parte 1/1 (MD1: vigas e pilares; MD2: lajes maciças; MD3: nervuradas e vigotas; MD4: punção; MD5: fundações rasas; MD5b: fundações profundas).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -313,6 +313,79 @@ export const f_MD5 = {
       assert.ok(sc.length > 20 && sc.some((p) => p.topico === 'Flexão transversal da aba (por metro)' && /^Momento fletor por metro/.test(p.descricao) && typeof p.entradas.s0 === 'number'));
       const zip = await baixar('Dados da análise e OpenSees (ZIP)');
       assert.ok(zip.dados.toString('latin1').includes('memoria/memoria.csv'));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+// MD5b: fundações profundas (blocos sobre estacas, estacas, tubulões)
+async function prepararProfundas(page, tipo, terreno) {
+  await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+  const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+  await cmd('vento.definir {"ativo": false}');
+  await cmd('lote {"comandos": [' + [0, 4, 8].flatMap((x) => [0, 4].map((y) => [x, y])).map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
+  const leituras = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 30, 32, 35].map((N) => `{"N": ${N}, "solo": "silteArenoso"}`).join(', ');
+  await cmd(`sondagem.criar {"nome": "SP-01", "x": 2, "y": 2, "nivelAgua": 12, "leituras": [${leituras}]}`);
+  await cmd(`fundacao.terreno ${terreno}`);
+  await cmd(`fundacao.gerar {"tipo": "${tipo}", ${tipo === 'bloco' ? '"estaca": "e_hc", ' : ''}"associadas": false, "vigasEquilibrio": false, "vigasTravamento": false}`);
+  await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+  await page.getByRole('button', { name: 'Calcular e dimensionar', exact: true }).click();
+  await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+  await page.getByRole('button', { name: 'Memória de cálculo detalhada', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Memória de cálculo detalhada' });
+  const doc = dlg.locator('[data-memoria-detalhada]');
+  await doc.waitFor({ timeout: 90000 });
+  return { dlg, doc };
+}
+async function baixarJson(page, dlg) {
+  const [dl] = await Promise.all([page.waitForEvent('download'), dlg.getByRole('button', { name: 'Exportar JSON', exact: true }).click()]);
+  return JSON.parse(readFileSync(await dl.path()).toString('utf8'));
+}
+
+export const f_MD5b = {
+    name: 'MD5b: memória de cálculo detalhada dos blocos sobre estacas e das estacas (Décourt-Quaresma por camada, Padm, Nd,mín, Miche; bielas e tirantes; filtro e JSON)',
+    async run({ newPage }) {
+      const page = await newPage();
+      const { dlg, doc } = await prepararProfundas(page, 'bloco', '{"sigmaAdm": 250, "estacas": [{"id": "e_hc", "tipo": "helice", "D": 40, "modo": "sondagem"}, {"id": "e_es", "tipo": "escavada", "D": 50, "modo": "sondagem"}]}');
+      const t = await doc.innerText();
+      for (const s of ['Bloco sobre estacas B1', 'Sondagem de cálculo', 'Limites de profundidade', 'Capacidade de carga', 'Cargas nas estacas', 'Materiais e parâmetros do bloco']) assert.ok(t.includes(s), `falta "${s}"`);
+      assert.match(t, /Padm = mín/);
+      assert.match(t, /Décourt-Quaresma/);
+      const mem = await baixarJson(page, dlg);
+      const el = mem.passos.find((p) => /^Bloco sobre estacas B\d+$/.test(p.elemento) && p.topico.startsWith('Capacidade de carga'))?.elemento;
+      assert.ok(el, 'bloco com estaca calculada pela sondagem');
+      const ps = mem.passos.filter((p) => p.elemento === el);
+      assert.ok(ps.length > 40, `passos do bloco: ${ps.length}`);
+      assert.ok(ps.every((p) => p.id && p.etapa && p.formula && p.expressao && p.entradas && typeof p.entradas === 'object'));
+      // Padm refeito das entradas registradas: mín[(Rp + Rl)/2; Rp/4 + Rl/1,3]
+      const pa = ps.find((p) => p.descricao.startsWith('Carga admissível'));
+      const { RpUsed, Rl, pGlobal, pParcial } = pa.entradas;
+      assert.ok(Math.abs(Math.min((RpUsed + Rl) / 2, RpUsed / 4 + Rl / 1.3) - Math.min(pGlobal, pParcial)) < 1e-9);
+      assert.ok(ps.filter((p) => p.descricao.startsWith('Camada do metro')).length >= 3);
+      assert.ok(ps.some((p) => p.topico === 'Cargas nas estacas' && p.descricao.startsWith('Nd,mín')));
+      // filtro por elemento
+      await dlg.getByLabel(/^Elemento/).selectOption({ label: el });
+      await page.waitForFunction(() => !document.querySelector('[data-memoria-detalhada]').innerText.includes('Viga V1'));
+      const tf = await dlg.locator('[data-memoria-detalhada]').innerText();
+      assert.ok(tf.includes('Capacidade de carga') && tf.includes(el));
+      await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await dlg.waitFor({ state: 'detached' });
+    },
+  };
+
+export const f_MD5c = {
+    name: 'MD5c: memória de cálculo detalhada dos tubulões (MD5b) (fuste, cota de apoio, σadm pelo SPT, base alargada e tensões)',
+    async run({ newPage }) {
+      const page = await newPage();
+      const { dlg, doc } = await prepararProfundas(page, 'tubulao', '{"sigmaAdm": 250}');
+      const t = await doc.innerText();
+      for (const s of ['Tubulão T1', 'Fuste', 'Cota de apoio', 'Base alargada']) assert.ok(t.includes(s), `falta "${s}"`);
+      const mem = await baixarJson(page, dlg);
+      const ps = mem.passos.filter((p) => /^Tubulão T\d+$/.test(p.elemento));
+      assert.ok(ps.length > 30);
+      const tb = ps.find((p) => p.descricao.startsWith('Tensão limite'));
+      assert.ok(Math.abs(0.85 * tb.entradas.fck / tb.entradas.gc - tb.entradas.lim) < 1e-9);
+      assert.ok(ps.some((p) => p.topico === 'Base alargada' && p.descricao.startsWith('Tensões na base circular')));
       await dlg.getByRole('button', { name: 'Fechar', exact: true }).click();
       await dlg.waitFor({ state: 'detached' });
     },
