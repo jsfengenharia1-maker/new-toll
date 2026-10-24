@@ -198,7 +198,8 @@ export function incluirParedes(e: EntradaParedes): ParedesNoPortico {
     for (let k = 1; k < zs.length; k++) {
       const pav = lances[k - 1].id, zk = Z[nivel[k]];
       noPilar.set(`${g.id}|${pav}`, meio(zk));
-      S.forEach((s, q) => { const n = no(pontoDoLado(g, s, zk)); noPilar.set(`${g.id}@${pav}.${q}|${pav}`, n); out.nosFatia.push({ no: n, lado: g.id, pavimento: pav }); });
+      const [e0, e1] = g.ext(pav);
+      S.forEach((s, q) => { if (s < e0 - 1e-6 || s > e1 + 1e-6) return; const n = no(pontoDoLado(g, s, zk)); noPilar.set(`${g.id}@${pav}.${q}|${pav}`, n); out.nosFatia.push({ no: n, lado: g.id, pavimento: pav }); });
       // viga fictícia: barras entre os nós consecutivos da linha do nível (vértices e meios)
       const linha = malha.pontos.map(([s, z], i) => ({ s, z, i })).filter((p) => usado[p.i] && Math.abs(p.z - zk) < 1e-9).sort((a, c) => a.s - c.s);
       // parede que não toca laje neste nível fica fora do diafragma (K1.2.5, K1.3.36)

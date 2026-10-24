@@ -20,7 +20,12 @@ export function tipoDaParede(w: Parede): TipoPilarParede {
   if (t) return t;
   t = {
     id: PREFIXO_PAREDE + w.id, nome: w.nome,
-    lados: w.pontos.slice(1).map((z, i) => ({ a: [w.pontos[i][0], w.pontos[i][1]], z: [z[0], z[1]], esq: w.esq, dir: w.dir, ...(w.porPavimento?.length ? { porPavimento: w.porPavimento.map((e) => ({ ...e })) } : {}) })),
+    lados: w.pontos.slice(1).map((z, i) => {
+      // recorte do lance (E6d): o início da polilinha corta o primeiro lado e o fim, o último
+      const L = Math.hypot(z[0] - w.pontos[i][0], z[1] - w.pontos[i][1]), ult = i === w.pontos.length - 2;
+      const pp = w.porPavimento?.map(({ corteIni, corteFim, ...e }) => ({ ...e, ...(i === 0 && corteIni ? { s0: corteIni } : {}), ...(ult && corteFim ? { s1: L - corteFim } : {}) }));
+      return { a: [w.pontos[i][0], w.pontos[i][1]], z: [z[0], z[1]], esq: w.esq, dir: w.dir, ...(pp?.length ? { porPavimento: pp } : {}) };
+    }),
   };
   memoTipo.set(w, t);
   return t;
@@ -62,15 +67,29 @@ export function niveisDaParede(b: BuildingModel, w: Pick<Parede, 'nasce' | 'morr
 }
 
 /** Furo retangular no plano (s, z) de um trecho. */
-export interface FuroTrecho { id: string; s0: number; s1: number; z0: number; z1: number }
+export interface FuroTrecho { id: string; s0: number; s1: number; z0: number; z1: number; /** Recorte do lance (E6d): parede ausente na altura do lance, não é abertura. */ corte?: boolean }
+
+/** Recortes dos lances da parede (E6d, K1.3.31): trecho [s0, s1] (no lado) e cotas do lance em que a parede não existe. */
+export function recortesDaParede(b: BuildingModel, w: Parede): FuroTrecho[][] {
+  const c = acumulados(w.pontos), { zs, topos } = niveisDaParede(b, w), n = w.pontos.length - 1;
+  const out: FuroTrecho[][] = w.pontos.slice(1).map(() => []);
+  for (const e of w.porPavimento ?? []) {
+    const k = topos.indexOf(e.pavimento);
+    if (k < 0) continue;
+    if (e.corteIni && e.corteIni > 1e-6) out[0].push({ id: `corte:${e.pavimento}:ini`, s0: 0, s1: e.corteIni, z0: zs[k], z1: zs[k + 1], corte: true });
+    if (e.corteFim && e.corteFim > 1e-6) { const L = c[n] - c[n - 1]; out[n - 1].push({ id: `corte:${e.pavimento}:fim`, s0: L - e.corteFim, s1: L, z0: zs[k], z1: zs[k + 1], corte: true }); }
+  }
+  return out;
+}
 
 /**
- * Aberturas da parede no plano (s, z) de cada trecho (s a partir do primeiro vértice do trecho), e as que não cabem:
+ * Aberturas da parede no plano (s, z) de cada trecho (s a partir do primeiro vértice do trecho), mais os recortes dos lances
+ * (E6d, `corte: true`, tratados como abertura da altura do lance na malha e nos panos), e as aberturas que não cabem:
  * fora da parede, atravessando um vértice da polilinha, num lance que a parede não tem ou sem lintel até o topo do lance.
  */
 export function furosDaParede(b: BuildingModel, w: Parede): { porTrecho: FuroTrecho[][]; ruins: { a: AberturaParede; motivo: string }[] } {
   const c = acumulados(w.pontos), { zs, bases } = niveisDaParede(b, w);
-  const porTrecho: FuroTrecho[][] = w.pontos.slice(1).map(() => []), ruins: { a: AberturaParede; motivo: string }[] = [];
+  const porTrecho: FuroTrecho[][] = w.pontos.slice(1).map(() => []), ruins: { a: AberturaParede; motivo: string }[] = [], cortes = recortesDaParede(b, w);
   for (const a of w.aberturas ?? []) {
     const k = bases.indexOf(a.pavimento);
     if (k < 0) { ruins.push({ a, motivo: 'pavimento da abertura fora dos lances da parede (lance-se no pavimento de baixo dos dois entre os quais fica)' }); continue; }
@@ -80,8 +99,11 @@ export function furosDaParede(b: BuildingModel, w: Parede): { porTrecho: FuroTre
     if (z1 > zs[k + 1] - 0.05 + 1e-9) { ruins.push({ a, motivo: 'abertura sem trecho de parede acima (lintel mínimo de 5 cm até o topo do lance)' }); continue; }
     const s0 = a.s - c[i], s1 = s0 + a.largura;
     if (s0 < 1e-6 && s1 > c[i + 1] - c[i] - 1e-6) { ruins.push({ a, motivo: 'abertura ocupa o trecho inteiro' }); continue; }
+    const rc = cortes[i].find((f) => s0 < f.s1 - 1e-6 && s1 > f.s0 + 1e-6 && z0 < f.z1 - 1e-6 && z1 > f.z0 + 1e-6);
+    if (rc) { ruins.push({ a, motivo: 'abertura no trecho recortado do lance' }); continue; }
     porTrecho[i].push({ id: a.id, s0, s1, z0, z1 });
   }
+  cortes.forEach((l, i) => porTrecho[i].push(...l));
   return { porTrecho, ruins };
 }
 

@@ -60,7 +60,7 @@ function elevacaoLado(b: BuildingModel, a: AlvoParede, iLado: number, k: number,
   const fs = parede ? furosDaParede(b, parede).porTrecho[iLado] ?? [] : [];
   for (const f of fs) {
     pl('CONCRETO', [X(f.s0), Y(f.z0)], [X(f.s1), Y(f.z0)], [X(f.s1), Y(f.z1)], [X(f.s0), Y(f.z1)], [X(f.s0), Y(f.z0)]);
-    pl('CONCRETO', [X(f.s0), Y(f.z0)], [X(f.s1), Y(f.z1)]); pl('CONCRETO', [X(f.s0), Y(f.z1)], [X(f.s1), Y(f.z0)]);
+    if (!f.corte) { pl('CONCRETO', [X(f.s0), Y(f.z0)], [X(f.s1), Y(f.z1)]); pl('CONCRETO', [X(f.s0), Y(f.z1)], [X(f.s1), Y(f.z0)]); } // recorte do lance (E6d): só o contorno
   }
   // panos
   const barras = a.det.barras.filter((x) => x.lado === iLado);

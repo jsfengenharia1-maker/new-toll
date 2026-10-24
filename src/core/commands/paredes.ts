@@ -16,7 +16,7 @@ const novoId = (d: Draft<BuildingModel>, pre: string) => `${pre}_${(++d.seq).toS
 const r4 = (v: number) => +v.toFixed(4);
 const ponto: JsonSchema = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, y] em m' };
 const ids: JsonSchema = { type: 'array', items: { type: 'string' }, minItems: 1 };
-const espPav: JsonSchema = { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pavimento', 'esq', 'dir'], properties: { pavimento: { type: 'string' }, esq: { type: 'number', minimum: 0, maximum: 3 }, dir: { type: 'number', minimum: 0, maximum: 3 } } }, description: 'espessuras médias próprias por pavimento (topo do lance), m' };
+const espPav: JsonSchema = { type: 'array', items: { type: 'object', additionalProperties: false, required: ['pavimento', 'esq', 'dir'], properties: { pavimento: { type: 'string' }, esq: { type: 'number', minimum: 0, maximum: 3 }, dir: { type: 'number', minimum: 0, maximum: 3 }, corteIni: { type: 'number', minimum: 0, maximum: 100, description: 'recorte do lance: comprimento retirado do início da polilinha (m; E6d)' }, corteFim: { type: 'number', minimum: 0, maximum: 100, description: 'recorte do lance: comprimento retirado do fim da polilinha (m)' } } }, description: 'espessuras médias próprias por pavimento (topo do lance) e recorte do lance nas pontas (os lados das pontas mais curtos nesse lance), m' };
 const empuxoSchema: JsonSchema = { type: 'object', additionalProperties: false, required: ['caso', 'lado'], properties: {
   caso: { type: 'string', description: 'id do caso: H com tipo de empuxo (terra) ou qualquer caso (líquido)' },
   lado: { type: 'string', enum: ['esq', 'dir'], description: 'lado do eixo (a → z) em que fica o terreno ou o líquido' },
@@ -81,7 +81,7 @@ registrar<ParedeIn>({
 
 registrar<{ id: string; pontos?: P[] } & Partial<Omit<ParedeIn, 'pontos'>>>({
   nome: 'parede.editar',
-  descricao: 'Altera polilinha, espessuras (esq/dir, `espessura` centrada ou por pavimento), pavimentos em que nasce e morre, nome, vínculo da base, armar ou base de uma parede. `porPavimento` vazio remove as espessuras próprias.',
+  descricao: 'Altera polilinha, espessuras (esq/dir, `espessura` centrada ou por pavimento; em `porPavimento`, `corteIni`/`corteFim` recortam o lance nas pontas da polilinha), pavimentos em que nasce e morre, nome, vínculo da base, armar ou base de uma parede. `porPavimento` vazio remove as espessuras próprias.',
   risco: 'escrita',
   mcp: false,
   schema: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' }, pontos: { type: 'array', items: ponto, minItems: 2 }, ...props } },

@@ -283,7 +283,8 @@ export interface Pilar {
 export interface LadoPilarParede {
   a: [number, number]; z: [number, number];
   esq: number; dir: number;
-  porPavimento?: { pavimento: string; esq: number; dir: number }[];
+  /** Espessuras por pavimento e, nas paredes (E6d), o trecho [s0, s1] do lado existente no lance (recorte; ausente = o lado inteiro). */
+  porPavimento?: { pavimento: string; esq: number; dir: number; s0?: number; s1?: number }[];
 }
 /** Tipo de pilar-parede gravado com a obra e reutilizável (E1b). */
 export interface TipoPilarParede { id: string; nome: string; lados: LadoPilarParede[] }
@@ -420,7 +421,11 @@ export interface Parede {
   /** Polilinha do eixo (m), 2 ou mais vértices. */
   pontos: [number, number][];
   esq: number; dir: number;
-  porPavimento?: { pavimento: string; esq: number; dir: number }[];
+  /**
+   * Espessuras médias por pavimento (topo do lance) e recorte do lance (E6d, K1.3.31): `corteIni`/`corteFim` (m) retiram
+   * esse comprimento do início e do fim da polilinha nesse lance (os lados das pontas ficam mais curtos; os do meio, inteiros).
+   */
+  porPavimento?: { pavimento: string; esq: number; dir: number; corteIni?: number; corteFim?: number }[];
   /** 'fundacao' ou id do pavimento em cuja laje a parede nasce. */
   nasce: string;
   morre: string;

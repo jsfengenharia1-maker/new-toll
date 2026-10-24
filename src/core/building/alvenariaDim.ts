@@ -305,8 +305,8 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
       for (const g of lados) for (const [k, lance] of lances.entries()) {
         const tt = g.esp(lance.id).t, H = zs[k + 1] - zs[k], es = esforcosDoLado(res0, g.i, lance.id, elu);
         if (!g.casca) {
-          const v = verificarLadoAlvenaria(g.L, tt, H, es, res, op);
-          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: g.L, t: tt, lambda: v.lambda, util: v.util, combo: v.combo, status: v.ok ? 'ok' : 'fail', mensagens: v.ok ? [] : [`Lado curto (pilar de alvenaria): utilização ${fmt(v.util)}${v.combo ? ` em ${v.combo}` : ''}${v.lambda > op.alvenariaLambdaMax ? `, esbeltez ${fmt(v.lambda, 1)}` : ''}.`] });
+          const Lc = g.ext(lance.id)[1] - g.ext(lance.id)[0], v = verificarLadoAlvenaria(Lc, tt, H, es, res, op);
+          r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'barra', L: Lc, t: tt, lambda: v.lambda, util: v.util, combo: v.combo, status: v.ok ? 'ok' : 'fail', mensagens: v.ok ? [] : [`Lado curto (pilar de alvenaria): utilização ${fmt(v.util)}${v.combo ? ` em ${v.combo}` : ''}${v.lambda > op.alvenariaLambdaMax ? `, esbeltez ${fmt(v.lambda, 1)}` : ''}.`] });
           continue;
         }
         const gr = geo.grades.find((x) => x.lado.id === g.id) as GradeLado;
@@ -324,7 +324,7 @@ export function dimensionarAlvenaria(b: BuildingModel, an: AnaliseEdificio, elu:
           const s = verificarPanoAlvenaria({ nome: `${g.nome} ${lance.nome}`, t: tt, H, elementos: dentro, combos, res, op, fydV: aV.fyd, fydH: aH.fyd, bloqueio: t.armadura, passoV: mod, passoH: alt });
           r.panos.push({ ...s, lado: g.i, nomeLado: g.nome, pavimento: lance.id, nomePav: lance.nome, pano: ip, panos: intervalos.length, s0: a, s1: z, z0: 0, z1: H });
         });
-        r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: g.L, t: tt, lambda: esbeltezAlvenaria(H, tt, op, res.armada).lambda, util: Math.max(0, ...r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).map((p) => Math.max(p.util.comp, p.util.trac, p.util.cis))), combo: '', status: r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).some((p) => p.status === 'fail') ? 'fail' : 'ok', mensagens: [] });
+        r.lados.push({ lado: g.i, nome: g.nome, pavimento: lance.id, nomePav: lance.nome, modelo: 'casca', L: g.ext(lance.id)[1] - g.ext(lance.id)[0], t: tt, lambda: esbeltezAlvenaria(H, tt, op, res.armada).lambda, util: Math.max(0, ...r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).map((p) => Math.max(p.util.comp, p.util.trac, p.util.cis))), combo: '', status: r.panos.filter((p) => p.lado === g.i && p.pavimento === lance.id).some((p) => p.status === 'fail') ? 'fail' : 'ok', mensagens: [] });
         // vergas das paredes de blocos (a alvenaria genérica não leva verga: sem aviso de tensões excessivas)
         if (bl) for (const f of fs) {
           const ab = w.aberturas?.find((x) => x.id === f.id);
