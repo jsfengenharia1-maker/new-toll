@@ -1485,6 +1485,8 @@ export interface ConfigArmacao {
   escalaFundacao: number;
   /** Elevação das paredes e dos pilares-parede (E1d). */
   escalaParedes: number;
+  /** Cortes longitudinais das escadas (E4e); os transversais seguem `escalaSecao`. */
+  escalaEscadas: number;
   /** Lajes: positivas e negativas em folhas separadas (1) ou na mesma folha, em camadas distintas (0). */
   lajesSeparadas: 0 | 1;
   /** Quadro de pilares (seção, armadura e estribos por lance) no fim das pranchas de pilares. */
@@ -1495,8 +1497,10 @@ export interface ConfigArmacao {
   pontoFixo: 0 | 1;
   /** Cotas permanentes de planta do usuário nas formas e na locação (L6; camada COTA); padrão ligado. */
   cotasUsuario: 0 | 1;
+  /** Cargas do grupo (inclusive as reações das escadas) desenhadas nas plantas de formas (E4e, C10.26); padrão desligado: só a prancha de cargas as traz. */
+  cargasNasFormas: 0 | 1;
 }
-export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, escalaParedes: 50, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0, cotasUsuario: 1 };
+export const ARMACAO_PADRAO: ConfigArmacao = { formato: 'auto', escalaVigas: 75, escalaSecao: 25, escalaPilares: 40, escalaLajes: 0, escalaLocacao: 0, escalaFundacao: 50, escalaParedes: 50, escalaEscadas: 25, lajesSeparadas: 1, quadroPilares: 1, mascara: 0, pontoFixo: 0, cotasUsuario: 1, cargasNasFormas: 0 };
 
 export const USOS: { v: CategoriaUso; label: string; q: number }[] = [
   { v: 'residencial', label: 'Residencial (dormitórios, sala, cozinha)', q: 1.5 },

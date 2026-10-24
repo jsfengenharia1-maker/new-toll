@@ -24,7 +24,7 @@ const CAMPOS: [keyof Carimbo, string][] = [
   ['desenho', 'Desenho'], ['revisao', 'Revisão'], ['data', 'Data'],
 ];
 const ROTULO_TIPO: Record<TipoSaida, string> = {
-  formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', cargas: 'Cargas por caso e grupo', perspectiva: 'Perspectiva axonométrica', todas: 'Conjunto completo',
+  formas: 'Formas', locacao: 'Locação e cargas', fundacao: 'Fundação (locação, detalhes e quantitativos)', vigas: 'Armação de vigas', pilares: 'Armação de pilares', lajes: 'Armação de lajes', paredes: 'Armação de paredes e pilares-parede', escadas: 'Detalhamento das escadas', cargas: 'Cargas por caso e grupo', perspectiva: 'Perspectiva axonométrica', todas: 'Conjunto completo',
 };
 const FORMATOS = (['auto', 'A0', 'A1', 'A2', 'A3', 'A4'] as const).map((f) => ({ v: f, label: f === 'auto' ? 'automático' : f }));
 /** Opções de escala (denominador); inclui o valor em uso, mesmo que fora da lista. */
@@ -75,7 +75,7 @@ export function Pranchas() {
   // cálculo válido = feito na revisão de cálculo atual (mudar só dados de prancha, como carimbo e escalas, não o invalida)
   const atual = !!dim && calculoAtual({ analise, revAnalise, sessao });
   const precisa = tiposDe(tipo).some((t) => PRECISA_CALCULO.includes(t));
-  const porGrupo = tipo === 'todas' || tipo === 'formas' || tipo === 'vigas' || tipo === 'lajes';
+  const porGrupo = tipo === 'todas' || tipo === 'formas' || tipo === 'vigas' || tipo === 'lajes' || tipo === 'escadas';
   const [hoje] = useState(() => new Date().toLocaleDateString('pt-BR'));
   // o conjunto é montado no worker do cálculo (que guarda a análise); respostas de pedidos antigos são descartadas
   const calc = atual ? idCalculo : null;
@@ -227,11 +227,13 @@ export function Pranchas() {
           <Select label="Escala da locação" value={arm.escalaLocacao} options={escalas([50, 75, 100, 125, 200, 250], arm.escalaLocacao, 'a das formas')} onChange={(e) => pa({ escalaLocacao: e })} />
           <Select label="Escala dos detalhes de fundação" value={arm.escalaFundacao} options={escalas([25, 50], arm.escalaFundacao)} onChange={(e) => pa({ escalaFundacao: e })} />
           <Select label="Escala das elevações de paredes" value={arm.escalaParedes} options={escalas([20, 25, 40, 50, 75, 100], arm.escalaParedes)} onChange={(e) => pa({ escalaParedes: e })} />
+          <Select label="Escala dos cortes das escadas" value={arm.escalaEscadas} options={escalas([10, 20, 25, 50], arm.escalaEscadas)} onChange={(e) => pa({ escalaEscadas: e })} />
         </div>
         <Check label="Lajes: positivas e negativas em folhas separadas" checked={arm.lajesSeparadas === 1} onChange={(v) => pa({ lajesSeparadas: v ? 1 : 0 })} />
         <Check label="Quadro de pilares no fim das pranchas de pilares" checked={arm.quadroPilares === 1} onChange={(v) => pa({ quadroPilares: v ? 1 : 0 })} />
         <Check label={`Gabarito (máscara DXF/DWG) nas formas e nas lajes${b.mascaras.length ? '' : ' (sem máscara importada)'}`} checked={arm.mascara === 1} onChange={(v) => pa({ mascara: v ? 1 : 0 })} />
         <Check label="Ponto fixo dos pilares nas formas e nas lajes" checked={arm.pontoFixo === 1} onChange={(v) => pa({ pontoFixo: v ? 1 : 0 })} />
+        <Check label="Cargas do grupo (com as reações das escadas) nas formas" checked={arm.cargasNasFormas === 1} onChange={(v) => pa({ cargasNasFormas: v ? 1 : 0 })} />
         <Check label="Cotas do usuário (cota em série) nas formas e na locação" checked={arm.cotasUsuario === 1} onChange={(v) => pa({ cotasUsuario: v ? 1 : 0 })} />
         <Hint>
           Padrões: folha automática (A1; A0 quando um elemento não cabe), vigas 1:{ARMACAO_PADRAO.escalaVigas}, seções 1:{ARMACAO_PADRAO.escalaSecao}, pilares 1:{ARMACAO_PADRAO.escalaPilares} (sobem para 1:50, 1:75… quando não cabem na altura), paredes 1:{ARMACAO_PADRAO.escalaParedes}, lajes e locação na escala das formas (automática a partir de 1:75), lajes em folhas separadas e quadro de pilares ligado. Escalas, formato e siglas (SFN, SCF, SCV, SCP) seguem as folhas de referência. A confirmar (premissa pranchas-armacao): a sigla das lajes (SCL), as penas em mm e a representação das lajes. As perdas do aço vêm das opções de cálculo.

@@ -1376,3 +1376,62 @@ export const f_E3e = {
       await memo.getByRole('button', { name: 'Fechar' }).click();
     },
   };
+
+export const f_E4e = {
+    name: 'E4e: escada na vista 3D (menu da ferramenta), isovalores do lance, relatório das escadas, prancha de detalhe (SCE) e reações das escadas na prancha de cargas',
+    async run({ newPage }) {
+      const page = await newPage();
+      const cmd = await porticoParaEscadas(page);
+      await cmd(ESCADA_E1);
+      await esperarEscadas(page, 'E1');
+      // 1) conferência na vista 3D pelo menu da ferramenta Escada
+      await faixaAba(page, 'Lançamento');
+      await page.getByRole('button', { name: 'Escada', exact: true }).click();
+      await page.getByRole('button', { name: 'Conferir na vista 3D', exact: true }).click();
+      const cv = page.locator('.v3d-cv');
+      await cv.waitFor();
+      await page.waitForFunction(() => document.querySelector('.v3d-cv')?.getAttribute('data-status') !== 'carregando');
+      const cena = JSON.parse(await cv.getAttribute('data-cena'));
+      assert.ok(cena.escada >= 1, `a escada aparece na cena 3D: ${JSON.stringify(cena)}`);
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
+      // 2) isovalores do lance na janela do cálculo: planta e vista 3D, troca de grandeza
+      await faixaAba(page, 'Análise');
+      await page.getByRole('button', { name: 'Calcular escadas…', exact: true }).click();
+      const jan = page.getByRole('dialog', { name: 'Cálculo das escadas', exact: true });
+      await jan.locator('[data-escada-lance="E1-1"]').waitFor({ timeout: 60000 });
+      await jan.locator('[data-escada-iso-botao]').click();
+      const iso = jan.locator('[data-escada-iso]');
+      await iso.waitFor({ timeout: 60000 });
+      assert.ok((await iso.locator('[data-escada-iso-svg="planta"] polygon').count()) > 50, 'triângulos na planta do lance');
+      assert.ok((await iso.locator('[data-escada-iso-svg="3d"] polygon').count()) > 50, 'triângulos na vista 3D do lance');
+      assert.equal(await iso.locator('[data-escada-iso-leg] .iso-cel').count(), 11);
+      assert.match(await iso.locator('[data-escada-iso-titulo]').innerText(), /Deslocamento vertical/);
+      await iso.getByLabel(/^Grandeza/).selectOption({ label: 'Mx (sentido da subida) (kN·m/m)' });
+      assert.match(await iso.locator('[data-escada-iso-titulo]').innerText(), /Mx \(sentido da subida\), γg·G \+ γq·Q \(ELU\)/);
+      await jan.getByRole('button', { name: 'Fechar', exact: true }).click();
+      // 3) dimensionar; relatório das escadas (CSV e HTML) com os três níveis
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+      const dl = await downloadText(page, () => page.locator('[data-relatorio="escadas-csv"]').click());
+      assert.equal(dl.name, 'relatorio-escadas.csv');
+      for (const t of ['DADOS GERAIS', 'ESCADA E1', 'Reações dos apoios', 'Esforços de cálculo em cada seção', 'Armaduras', 'Peso de aço (sem perdas)']) assert.ok(dl.text.includes(t), `o CSV traz "${t}"`);
+      const dh = await downloadText(page, () => page.locator('[data-relatorio="escadas-html"]').click());
+      assert.match(dh.text, /Relatório das escadas/);
+      assert.match(dh.text, /Dados comuns/);
+      // 4) prancha de detalhe das escadas e prancha de cargas com as reações
+      await page.locator('.edif-tabs').getByRole('tab', { name: 'Pranchas' }).click();
+      const tipo = page.getByLabel('Tipo de prancha');
+      const prev = page.locator('.prancha-prev');
+      await tipo.selectOption({ label: 'Detalhamento das escadas' });
+      await prev.locator('svg').waitFor({ timeout: 60000 });
+      const tp = await prev.textContent();
+      assert.match(tp, /CORTE A-A/);
+      assert.match(tp, /PROPRIEDADES DOS LANCES/);
+      assert.match(tp, /TOTAL DAS ESCADAS DA OBRA/);
+      assert.match(await page.locator('[data-lista-folhas]').innerText(), /SCE/);
+      await tipo.selectOption({ label: 'Cargas por caso e grupo' });
+      await prev.locator('svg').waitFor({ timeout: 60000 });
+      assert.match(await prev.textContent(), /\(E1\)/);
+    },
+};

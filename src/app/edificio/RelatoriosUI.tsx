@@ -9,6 +9,7 @@ import { MEMO_CSS } from '../Memorial';
 import { memo } from '../design/tokens';
 import { cotaFundacao, contornoNoLance, engasteNoLance, geometriaViga, lancesDoPilar, pavimentosOrdenados, type BuildingModel, type Pilar } from '../../core/building/types';
 import type { Dimensionamento, ResultadoPilar } from '../../core/building/dimensionamento';
+import { relatorioEscadas, relatorioEscadasCsv, type TabelaRelatorio } from '../../core/building/escadasRelatorio';
 import { intercambioArmadura, intercambioCsv, listagemGeral, quantitativosDetalhados, taxaDoPilar, taxasPilares } from '../../core/building/relatorios';
 
 const fmt = (v: number | undefined, d = 2) => (v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(d).replace('.', ','));
@@ -125,6 +126,20 @@ export function relatorioPilaresHtml(b: BuildingModel, dim: Pick<Dimensionamento
     + `<h2>Armaduras e cortante</h2><p>Cortante na direção u: Vsd / Vc / VRd2 (kN). Taxa As/Ac pela seção bruta.</p><table><thead><tr><th>Pilar</th><th>Lance</th><th>Seção (cm)</th><th>Armadura</th><th>As (cm²)</th><th>As/Ac (%)</th><th>Estribo</th><th>Vsd / Vc / VRd2</th><th>Utilização</th><th>Situação</th></tr></thead><tbody>${arm}</tbody></table></div></body></html>`;
 }
 
+// ---------------------------------------------------------------- relatório das escadas (E4e, C8.54)
+
+const tabelaHtml = (t: TabelaRelatorio) => (t.linhas.length ? `<h4>${esc(t.titulo)}</h4><table><thead><tr>${t.cabecalho.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.linhas.map((l) => `<tr>${l.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '');
+const linhasHtml = (ls: { rotulo: string; valor: string; aConfirmar?: boolean }[]) => `<table><tbody>${ls.map((l) => `<tr><td>${esc(l.rotulo)}</td><td>${esc(l.valor)}${l.aConfirmar ? ' <em>[a confirmar]</em>' : ''}</td></tr>`).join('')}</tbody></table>`;
+
+/** Relatório das escadas em HTML (dados gerais, dados comuns e, por lance, reações, esforços por seção, armaduras e verificações). */
+export function relatorioEscadasHtml(b: BuildingModel, dim: Dimensionamento | null): string {
+  const r = relatorioEscadas(b, dim), titulo = `Relatório das escadas · ${esc(b.obra.nome || 'Edifício')}`;
+  const corpo = r.escadas.map((e) => `<h2>Escada ${esc(e.nome)}</h2><h3>Dados comuns</h3>${linhasHtml(e.comuns)}`
+    + e.lances.map((l) => `<h3>${esc(e.nome)} — ${esc(l.titulo)}</h3>${linhasHtml(l.dados)}${tabelaHtml(l.reacoes)}${tabelaHtml(l.esforcos)}${tabelaHtml(l.armaduras)}${l.verificacoes.length ? `<h4>Verificações</h4>${linhasHtml(l.verificacoes)}` : ''}${l.avisos.map((a) => `<p><em>${esc(a)}</em></p>`).join('')}`).join('')).join('');
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${titulo}</title><style>body{margin:0;background:${memo('paper')}}${MEMO_CSS}</style></head><body><div class="memo"><h1>${titulo}</h1>`
+    + `<h2>Dados gerais</h2>${linhasHtml(r.gerais)}${r.avisos.map((a) => `<p><em>${esc(a)}</em></p>`).join('')}${corpo}</div></body></html>`;
+}
+
 // ---------------------------------------------------------------- listagens (K1.11.1, K1.11.44, K1.11.47)
 
 export function listagemGeralCsv(b: BuildingModel): string {
@@ -164,6 +179,8 @@ export function CartaoRelatorios() {
       <div className="row wrap">
         <Button data-relatorio="pilares-html" onClick={() => download('relatorio-pilares.html', relatorioPilaresHtml(b, dim), 'text/html')}>Relatório dos pilares (HTML)</Button>
         <Button data-relatorio="pilares-csv" onClick={() => download('relatorio-pilares.csv', relatorioPilaresCsv(b, dim), 'text/csv')}>Relatório dos pilares (CSV)</Button>
+        {(b.escadas?.length ?? 0) > 0 && <Button data-relatorio="escadas-html" onClick={() => download('relatorio-escadas.html', relatorioEscadasHtml(b, dim), 'text/html')}>Relatório das escadas (HTML)</Button>}
+        {(b.escadas?.length ?? 0) > 0 && <Button data-relatorio="escadas-csv" onClick={() => download('relatorio-escadas.csv', relatorioEscadasCsv(relatorioEscadas(b, dim)), 'text/csv')}>Relatório das escadas (CSV)</Button>}
         <Button data-relatorio="listagem" onClick={() => download('listagem-geral.csv', listagemGeralCsv(b), 'text/csv')}>Listagem geral (CSV)</Button>
         <Button data-relatorio="quantitativos" onClick={() => download('quantitativos.csv', quantitativosCsv(b, dim), 'text/csv')}>Quantitativos (CSV)</Button>
         <Button data-relatorio="intercambio-json" onClick={() => download('armadura-intercambio.json', JSON.stringify(intercambioArmadura(b, dim), null, 2), 'application/json')}>Armadura: intercâmbio (JSON)</Button>

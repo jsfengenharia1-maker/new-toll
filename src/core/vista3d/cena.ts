@@ -6,6 +6,7 @@ import './pilares3d';
 import './vigas3d';
 import './lajes3d';
 import './fundacoes3d';
+import './escadas3d';
 import { GERADORES_3D, PAV_FUNDACAO, type Cena3D, type ContextoCena, type Objeto3D, type OpcoesCena, type Rotulo3D } from './registro';
 
 export * from './registro';
