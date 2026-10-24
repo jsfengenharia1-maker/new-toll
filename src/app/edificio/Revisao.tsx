@@ -21,7 +21,7 @@ import { EditorArmaduraPilar, EditorArmaduraViga } from './Armadura';
 import { CopiarArmadura, DetalheDaViga } from './Detalhamento';
 import { DetalheDoPilar } from './DetalhamentoPilar';
 import { SegundaOrdemPilar } from './SegundaOrdem';
-import { EsforcosDoPilar } from './EsforcosPilarUI';
+import { EsforcosDaViga, EsforcosDoPilar } from './EsforcosPilarUI';
 import { DetalheDaLaje } from './DetalhamentoLaje';
 import { Armadura3D } from '../vista3d/Armadura3D';
 import { JanelaVigotas } from './Vigotas';
@@ -298,6 +298,7 @@ function JanelaViga({ id }: { id: string }) {
         </>
       ) : null}
       <Origens o={v.origens} />
+      <EsforcosDaViga id={id} />
       {v.flechas && <><h4>Flechas</h4><TabelaFlechas f={v.flechas} /></>}
       <h4>Resumo</h4>
       <KV rows={[

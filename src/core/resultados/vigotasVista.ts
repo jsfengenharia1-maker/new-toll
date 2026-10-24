@@ -68,6 +68,26 @@ const fmt = (x: number, n = 2) => x.toFixed(n).replace('.', ',');
 /** C7.91: a vista da armadura inferior das lajes moldadas no local não existe com a exibição de esforços ligada. */
 export const vistaDisponivel = (vista: VistaVigota, esforcos: boolean) => !(vista === 'armaduraInferior' && esforcos);
 
+/** Vistas oferecidas na camada da planta (V7b): sem texto e as três vistas; a armadura inferior sai de oferta com os esforços ligados. */
+export function opcoesDeVistaVigotas(esforcos: boolean): { v: 'nenhuma' | VistaVigota; label: string; disponivel: boolean }[] {
+  return [
+    { v: 'nenhuma', label: 'Sem texto', disponivel: true },
+    { v: 'momentos', label: esforcos ? 'Momentos' : 'Tipo de vigota', disponivel: true },
+    { v: 'cortantes', label: esforcos ? 'Cortantes' : 'Treliça / estribos', disponivel: true },
+    { v: 'armaduraInferior', label: 'Armadura inferior', disponivel: vistaDisponivel('armaduraInferior', esforcos) },
+  ];
+}
+
+/** Legenda do que a vista escreve ao lado de cada vigota na planta (C7.88 a C7.90 e C7.92); vazia sem texto ou com vista indisponível. */
+export function legendaVigotas(vista: 'nenhuma' | VistaVigota, esforcos: boolean): string {
+  if (vista === 'nenhuma' || !vistaDisponivel(vista, esforcos)) return '';
+  if (esforcos) return vista === 'momentos' ? 'Vigotas: momento positivo de cálculo por metro de largura (kN·m/m)' : 'Vigotas: cortante de cálculo por metro de largura, nas duas pontas (kN/m)';
+  if (vista === 'armaduraInferior') return 'Vigotas moldadas: armadura inferior (diâmetro e comprimento)';
+  return vista === 'momentos'
+    ? 'Vigotas: tipo (protendida ou armada com armadura adicional) ou armadura inferior das moldadas'
+    : 'Vigotas: treliça das armadas ou estribos das moldadas (diâmetro e espaçamento)';
+}
+
 /**
  * Texto de uma vigota na vista. Com a chave de esforços ligada: M⁺ por metro (momentos) ou V por metro (cortantes, uma
  * linha por ponta). Desligada: o tipo da vigota (protendida ou armada) ou o diâmetro e o comprimento da armadura inferior

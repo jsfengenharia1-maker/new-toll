@@ -104,7 +104,7 @@ Escalonamento: se um agente S falhar a verificação duas vezes ou relatar dúvi
 | E5m pilar com vigas em desnível: nós intermediários no pórtico, vigas na própria cota e verificação por trecho (1 linha, K1.12.4-19, separada da E5j) | O | S1 |
 | V7a seletor de esforços nas janelas do pilar e da viga (2 itens) | — | S1 |
 | V7b camada de esforços e armadura das vigotas na planta (5 itens) | — | S2 |
-| V7c estado da seção circular/poligonal, diagramas de alveolares e mistas, distorção e vento por direção, vento na malha (4 itens) | S3 | — |
+| V7c estado da seção circular/poligonal, diagramas de alveolares e mistas, esforços do pilar-parede por hipótese, distorção e vento por direção, vento na malha (4 itens) | S3 | — |
 | V7d planta e editor de símbolos, estilo de pranchas, formato e margens livres, folha de resultados (4 itens) | S2 | S2 |
 | V7e radier por hipótese/combinação, limite por diâmetro e deslocamento por pano (3 itens) | S2 | S1 |
 | N4a tabelas de fogo (NBR 15200:2012, 180 min, NBR 14432) e e ≤ 0,15·b; depende de `pendencias-usuario.md` (4 itens) | S3 | — |
