@@ -5,6 +5,8 @@ import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { useEdifUI } from './uiStore';
 import { lancesDoPilar } from '../../core/building/types';
+import { useEscadaUI } from './EscadaUI';
+import { EscadaPropriedades } from './EscadaPropriedades';
 
 const fmtCm = (v: number) => String(+(v * 100).toFixed(1)).replace('.', ',');
 
@@ -40,6 +42,8 @@ export function useResumoSelecao() {
   if (cor) return { tipo: 'corrida' as const, id, icone: 'fundacao', nome: cor.nome, desc: 'Sapata corrida', contagem: `Sapatas corridas (${n})` };
   const con = b.consolos?.find((x) => x.id === id);
   if (con) return { tipo: 'consolo' as const, id, icone: 'pilar', nome: con.nome, desc: 'Consolo curto', contagem: `Consolos (${n})` };
+  const esc = b.escadas?.find((x) => x.id === id);
+  if (esc) return { tipo: 'escada' as const, id, icone: 'escada', nome: esc.nome, desc: `Escada · ${esc.lances.length} lance(s)`, contagem: `Escadas (${n})` };
   if (n > 0) return { tipo: 'outros' as const, id, icone: 'obra', nome: `${n} elemento(s) selecionado(s)`, desc: 'Seleção', contagem: `Seleção (${n})` };
   return null;
 }
@@ -59,9 +63,9 @@ export function Propriedades({ children }: { children: ReactNode }) {
   return (
     <Palette titulo="Propriedades" grow>
       {r
-        ? <TypeCard icone={r.icone} nome={r.nome} tipo={r.desc} contagem={r.contagem} onEditarTipo={r.tipo === 'laje' ? () => useEdifUI.getState().set({ cfg: 'tiposLaje' }) : r.tipo === 'fundacao' ? () => useEdifUI.getState().set({ cfg: 'fundacao' }) : undefined} />
+        ? <TypeCard icone={r.icone} nome={r.nome} tipo={r.desc} contagem={r.contagem} onEditarTipo={r.tipo === 'escada' ? () => useEscadaUI.getState().abrir(r.id, 'tipos') : r.tipo === 'laje' ?() => useEdifUI.getState().set({ cfg: 'tiposLaje' }) : r.tipo === 'fundacao' ? () => useEdifUI.getState().set({ cfg: 'fundacao' }) : undefined} />
         : <TypeCard icone="obra" nome={b.obra.nome} tipo="Obra" contagem="Nada selecionado" />}
-      <div className="edif-in" ref={corpo}>{children}</div>
+      <div className="edif-in" ref={corpo}>{r?.tipo === 'escada' && b.escadas?.find((x) => x.id === r.id) && <EscadaPropriedades e={b.escadas.find((x) => x.id === r.id)!} />}{children}</div>
     </Palette>
   );
 }

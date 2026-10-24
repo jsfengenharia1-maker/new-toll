@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { edificioVazio } from '../../core/building/types';
+import { comandosEdificioPadrao, Sessao } from '../../core/commands';
 import { caminhoAte, idDoNo, montarArvore, VISTAS } from './arvore';
 
 function obra() {
@@ -14,10 +15,10 @@ function obra() {
 }
 
 describe('árvore do navegador', () => {
-  it('raiz com o nome da obra e as quinze seções, pavimentos do mais alto ao mais baixo', () => {
+  it('raiz com o nome da obra e as dezesseis seções, pavimentos do mais alto ao mais baixo', () => {
     const t = montarArvore(obra());
     expect(t.rotulo).toBe('Residencial Teste');
-    expect(t.filhos!.map((f) => f.id)).toEqual(['pavs', 'pilares', 'vigas', 'lajes', 'pilaresParede', 'paredes', 'muros', 'alvenaria', 'grupos', 'cargas', 'cortes', 'eixos', 'fundacao', 'sondagens', 'vistas']);
+    expect(t.filhos!.map((f) => f.id)).toEqual(['pavs', 'pilares', 'vigas', 'lajes', 'escadas', 'pilaresParede', 'paredes', 'muros', 'alvenaria', 'grupos', 'cargas', 'cortes', 'eixos', 'fundacao', 'sondagens', 'vistas']);
     expect(t.filhos!.filter((f) => ['pilaresParede', 'paredes', 'muros', 'alvenaria', 'cortes', 'sondagens'].includes(f.id)).map((f) => f.contagem)).toEqual([0, 0, 0, 0, 0, 0]);
     expect(t.filhos![0].contagem).toBe(3);
     expect(t.filhos![0].filhos!.map((f) => f.rotulo)).toEqual(['Tipo 2', 'Tipo 1', 'Térreo']);
@@ -38,6 +39,15 @@ describe('árvore do navegador', () => {
     expect(v.filhos!.map((f) => f.rotulo)).toEqual(VISTAS.map((x) => x[1]));
     expect(v.filhos![0].alvo).toEqual({ tipo: 'vista', id: 'planta' });
     expect(VISTAS.length).toBe(11);
+  });
+
+  it('escadas: nó "Escadas" com a contagem e o filho aponta para a escada', () => {
+    const s = new Sessao();
+    for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema');
+    expect(s.executar('escada.criar', { id: 'e1', grupo: 'g_3', origem: [0, 0], angulo: 0, piso: 0.2967, espelho: 0.5 / 3, lances: [{ tipo: 'pre:reto-18' }] }).ok).toBe(true);
+    const esc = montarArvore(s.modelo).filhos!.find((f) => f.id === 'escadas')!;
+    expect(esc.contagem).toBe(1);
+    expect(esc.filhos!.map((f) => f.alvo)).toEqual([{ tipo: 'escada', id: 'e1' }]);
   });
 
   it('caminhoAte e idDoNo', () => {

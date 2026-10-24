@@ -26,6 +26,7 @@ import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
 import { InclinadasHost } from './InclinadasUI';
+import { EscadaHost } from './EscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
 import { Pranchas } from './Pranchas';
 import { Vista3D } from '../vista3d/Vista3D';
@@ -246,6 +247,7 @@ export function Edificio() {
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
+      <EscadaHost />
       <DiagonaisHost />
       <ConsolosHost />
       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />

@@ -5,6 +5,7 @@ import { useBuilding } from './store';
 import { usePlanta } from './plantaStore';
 import { useEdifUI, type AbaEdificio } from './uiStore';
 import { irParaElemento } from './Revisao';
+import { useEscadaUI } from './EscadaUI';
 import { caminhoAte, idDoNo, montarArvore, type NoArvore } from './arvore';
 import { lancesDoPilar, pavimentosOrdenados } from '../../core/building/types';
 
@@ -48,7 +49,8 @@ export function Navegador() {
     if (a.tipo === 'vista') { ui.set({ aba: a.id as AbaEdificio }); return; }
     ui.set({ aba: 'planta' });
     const P = usePlanta.getState();
-    if (a.tipo === 'pavimento') { P.set({ pavimento: a.id, selecao: new Set() }); return; }
+    if (a.tipo === 'escada') { P.set({ selecao: new Set([a.id]) }); useEscadaUI.getState().abrir(a.id); return; }
+    if (a.tipo === 'pavimento'){ P.set({ pavimento: a.id, selecao: new Set() }); return; }
     if (a.tipo === 'eixo') { P.set({ selecao: new Set([a.id]), foco: { id: a.id, n: Date.now() } }); return; }
     const ps = pavimentosOrdenados(b);
     if (a.tipo === 'carga') {
