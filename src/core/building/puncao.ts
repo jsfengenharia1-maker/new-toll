@@ -336,7 +336,13 @@ export interface DetVerificacao {
   vRd2: number; vc: number; vR1: number; s0: number; sr: number; pernas: number;
   /** Contornos C″ tentados na busca do número de linhas (C′ → n-ésimo anel + 2d): n, a, u, τSd. */
   tentativas: { n: number; a: number; u: number; tau: number }[];
-  precisaPunc: boolean; nb: number; nbCort: number; nbTot: number;
+  precisaPunc: boolean; nb: number; nbCort: number;
+  /** máx(nb; nbCort), antes da reverificação do contorno C″ final. */
+  nbMax: number;
+  /** Número final de anéis (nbMax mais os acrescentados pela reverificação de C″). */
+  nbTot: number;
+  /** Reverificação de C″ a 2d da última linha (19.5.3.4) com nbMax, nbMax+1, … anéis: n, a, u, τSd (a última é a adotada). */
+  verifC3: { n: number; a: number; u: number; tau: number }[];
   AswPunc: number; AswCort: number; AswReq: number; manAsw: number; manAneis: number; AswAuto: number;
   u1: number; aUlt: number; sT: number; nMinT: number; nCap: number;
   /** Número de barras por linha de cada bitola permitida, o limite para preferir poucas linhas e a bitola escolhida. */
@@ -395,7 +401,7 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const sup: SuperficieCortante[] = [];
   const vR1 = vrd1(c, 1, d, par.rho * d);
   let aFalha = 0, falha = false, AswCort = 0;
-  const D: DetVerificacao | undefined = ent.detalhar ? { vRd2, vc, vR1, s0, sr, pernas, tentativas: [], precisaPunc: false, nb: 0, nbCort: 0, nbTot: 0, AswPunc: 0, AswCort: 0, AswReq: 0, manAsw: 0, manAneis: 0, AswAuto: 0, u1: 0, aUlt: 0, sT: 0, nMinT: 0, nCap: 0, bitolas: [], limiteLinhas: 0, AswEf: 0, desfecho: 'ok' } : undefined;
+  const D: DetVerificacao | undefined = ent.detalhar ? { vRd2, vc, vR1, s0, sr, pernas, tentativas: [], precisaPunc: false, nb: 0, nbCort: 0, nbMax: 0, nbTot: 0, verifC3: [], AswPunc: 0, AswCort: 0, AswReq: 0, manAsw: 0, manAneis: 0, AswAuto: 0, u1: 0, aUlt: 0, sT: 0, nMinT: 0, nCap: 0, bitolas: [], limiteLinhas: 0, AswEf: 0, desfecho: 'ok' } : undefined;
   if (par.passoCortante > 0 && F > 0) {
     for (let k = 0; k < 80; k++) {
       const a = 2 * d + k * par.passoCortante * d, t = k === 0 ? C2 : tens(a), A = areaDentro(curvaAfastada(ap, a), reg), V = F - ent.qd * A;
@@ -436,11 +442,29 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   }
   const AswPunc = precisaPunc ? (Math.max(0, C2.tau - t3c) * C2.u * sr * 1e4) / (1.5 * par.fywd) : 0; // cm² por anel
   const nbCort = falha ? Math.max(1, Math.ceil((aFalha - s0) / sr) + 1) : 0;
-  const nbTot = Math.max(nb, nbCort), AswReq = Math.max(AswPunc, AswCort);
-  if (D) Object.assign(D, { nb, nbCort, nbTot, AswPunc, AswCort, AswReq });
+  const nbMax = Math.max(nb, nbCort), AswReq = Math.max(AswPunc, AswCort);
+  let nbTot = nbMax;
+  if (D) Object.assign(D, { nb, nbCort, nbMax, nbTot, AswPunc, AswCort, AswReq });
   if (nbTot > 14) { msgs.push('Cortante da laje sem solução: a armadura transversal exigiria mais de 14 linhas; aumente a espessura da laje.'); return sai('fail', {}, 'semSolucaoCortante'); }
   // armadura informada pelo usuário soma-se à calculada: se cobre todos os anéis, só falta a diferença
   const manAsw = par.manual?.Asw ?? 0, manAneis = par.manual?.aneis ?? 0;
+  // C″ a 2d da última linha (19.5.3.4) na posição final: com mais anéis que a punção exige (cortante) ou com cubetas/aberturas
+  // o contorno pode cair onde u é menor e τSd > τRd1; acrescentam-se anéis até atender (no máximo 14)
+  let C3 = tens(s0 + (nbTot - 1) * sr + 2 * d);
+  if (AswReq > 1e-9 || manAsw > 1e-9) {
+    D?.verifC3.push({ n: nbTot, a: C3.a, u: C3.u, tau: C3.tau });
+    while (C3.tau > t1 + 1e-9 && nbTot < 14) {
+      nbTot++;
+      C3 = tens(s0 + (nbTot - 1) * sr + 2 * d);
+      D?.verifC3.push({ n: nbTot, a: C3.a, u: C3.u, tau: C3.tau });
+    }
+    if (D) D.nbTot = nbTot;
+    if (C3.tau > t1 + 1e-9) {
+      msgs.push(`Punção sem solução: o contorno C″ a 2d da última linha de armadura não atende a τRd1 (${fmt(C3.tau)} > ${fmt(t1)} MPa) com até 14 linhas, pelas descontinuidades do contorno (cubetas, aberturas ou bordas); aumente a espessura da laje, a seção do pilar ou o fck.`);
+      return sai('fail', { C3 }, 'semSolucaoC3');
+    }
+    if (nbTot > nbMax) msgs.push(`Punção: o contorno C″ a 2d da última linha excedia τRd1 com ${nbMax} linhas; acrescentadas ${nbTot - nbMax} (${nbTot} linhas, C″ a ${fmt(C3.a)} m da face).`);
+  }
   const AswAuto = manAneis >= nbTot ? Math.max(0, AswReq - manAsw) : AswReq;
   if (D) Object.assign(D, { manAsw, manAneis, AswAuto });
   if (AswAuto <= 1e-9) {
@@ -466,7 +490,6 @@ export function verificarPuncao(ent: EntradaPuncao, par: ParametrosPuncao): Resu
   const AswEf = escolha.n * pernas * barArea(escolha.phi) * 1e4 + (manAneis >= nbTot ? manAsw : 0);
   const arm: ArmaduraPuncao = { tipo: par.tipoArm, phi: escolha.phi, linhas: escolha.n, barras: nbTot, s0, sr, pernas, AswAnel: AswEf, total: escolha.n * nbTot, posicoes: [] };
   arm.posicoes = posicoesPuncao(ent, arm, par.furoDist);
-  const C3 = tens(aUlt + 2 * d);
   const tauRd3 = t3c + (1.5 * AswEf * par.fywd) / (sr * C2.u * 1e4);
   if (D) D.AswEf = AswEf;
   msgs.push(`${precisaPunc ? 'Punção' : 'Cortante da laje (armadura transversal)'}: armadura de ${arm.linhas} linhas radiais com ${arm.barras} ${par.tipoArm === 'estribo' ? 'estribos (grampos)' : 'conectores'} de φ${String(arm.phi).replace('.', ',')} (primeira a ${Math.round(s0 * 100)} cm da face, entre barras ${Math.round(sr * 100)} cm).`);

@@ -296,7 +296,7 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
   let nb = 0;
   for (const t of tent) { if (num(t, 'tauSd') <= t1 + 1e-9) { nb = num(t, 'n'); break; } }
   const desf = achar(c, el, T('Situação'), 'Situação').entradas.desfecho;
-  if (desf === 'semSolucaoC3') { expect(tent).toHaveLength(14); expect(nb).toBe(0); return { tausCalc, fywd, d, rho }; }
+  if (desf === 'semSolucaoC3' && !nb) { expect(tent).toHaveLength(14); return { tausCalc, fywd, d, rho }; }
   const pnb = todos(c, el, ts, 'Número de anéis exigido pela punção');
   if (pnb.length) expect(pnb[0].resultado).toBe(nb);
   const pp = todos(c, el, ts, 'Área de armadura por anel exigida pela punção')[0];
@@ -311,9 +311,24 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
     if (x.cortante) expect(rel(AswC, sup.filter((s) => !s.ok).reduce((m, s) => Math.max(m, s.Asw), 0))).toBeLessThan(1e-9);
   }
   const pnt = achar(c, el, ts, 'Anéis e área por anel necessários');
-  const nbTot = Math.max(nb, nbC), AswReq = Math.max(AswP, AswC);
-  expect(num(pnt, 'nbTot')).toBe(nbTot);
+  const nbMax = Math.max(nb, nbC), AswReq = Math.max(AswP, AswC);
+  expect(num(pnt, 'nbMax')).toBe(nbMax);
   expect(rel(AswReq, pnt.resultado as number)).toBeLessThan(1e-9);
+  // reverificação de C″ na posição final (19.5.3.4): anéis acrescentados até τSd,C″ ≤ τRd1 (no máximo 14)
+  const rv = todos(c, el, ts, 'Reverificação do contorno C″');
+  let nbTot = nbMax;
+  if (rv.length) {
+    expect(num(rv[0], 'n')).toBe(nbMax);
+    rv.forEach((p, i) => { expect(num(p, 'n')).toBe(nbMax + i); expect(rel(num(p, 'a'), s0 + (nbMax + i - 1) * srC + 2 * d)).toBeLessThan(1e-9); expect(rel(num(p, 'tauSd'), (p.resultado as number))).toBeLessThan(1e-9); });
+    for (const p of rv.slice(0, -1)) expect(num(p, 'tauSd')).toBeGreaterThan(t1 + 1e-9);
+    const ult = rv[rv.length - 1];
+    nbTot = num(ult, 'n');
+    if (desf === 'semSolucaoC3') { expect(nbTot).toBe(14); expect(num(ult, 'tauSd')).toBeGreaterThan(t1 + 1e-9); return { tausCalc, fywd, d, rho }; }
+    expect(num(ult, 'tauSd')).toBeLessThanOrEqual(t1 + 1e-9);
+    const pfin = achar(c, el, ts, 'Número final de anéis');
+    expect(pfin.resultado).toBe(nbTot);
+  }
+  expect(desf).not.toBe('semSolucaoC3');
   const out = { tausCalc, fywd, d, rho, nbTot, AswReq, t3c, sr: srC, s0 };
   const pinf = todos(c, el, ts, 'Armadura informada pelo usuário')[0];
   if (!pinf) return out;
@@ -351,8 +366,8 @@ function refazVerificacao(c: Caso, el: string, rot: string, x: Ref, opt: { comC3
     const pf = achar(c, el, ts, 'Verificação fora da armadura');
     expect(rel(s0 + (nbTot - 1) * srC + 2 * d, num(pf, 'a'))).toBeLessThan(1e-9);
     if (opt.comC3) expect(rel(num(pf, 'tauSd'), tausCalc[2])).toBeLessThan(1e-9);
-    expect(pf.resultado).toBe(num(pf, 'tauSd') <= t1 + 1e-9 ? 'atende' : 'não atende'); // com anéis a mais pelo cortante, C″ pode ficar acima de τRd1 (o cálculo não reverifica)
-    if (nbTot === nb) expect(num(pf, 'tauSd')).toBeLessThanOrEqual(t1 + 1e-9);
+    expect(pf.resultado).toBe('atende'); // C″ é reverificado na posição final: com anéis a mais pelo cortante também atende
+    expect(num(pf, 'tauSd')).toBeLessThanOrEqual(t1 + 1e-9);
     const disp = passosDe(c, el, T('Armadura de punção – disposição'))[0];
     expect(disp.etapa).toBe('detalhamento');
     expect(num(disp, 'total')).toBe(arm!.total);
