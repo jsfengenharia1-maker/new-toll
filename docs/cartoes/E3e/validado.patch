@@ -1,0 +1,887 @@
+diff --git a/e2e/flows/E-2.mjs b/e2e/flows/E-2.mjs
+index e17449a..b829ae4 100644
+--- a/e2e/flows/E-2.mjs
++++ b/e2e/flows/E-2.mjs
+@@ -702,3 +702,140 @@ export const f_E3d = {
+       await memo.getByRole('button', { name: 'Fechar' }).click();
+     },
+   };
++export const f_E3e = {
++    name: 'E3e: lajes alveolares (ficha da obra e erro lógico, atribuir ao pano, placa insuficiente e sugerida, placas na planta e borda cortada, negativo e processo, arquivo .json, memorial)',
++    async run({ newPage }) {
++      const page = await newPage();
++      await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
++      const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
++      const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
++      const esperarModelo = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
++      const nm = (s) => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
++      // dois panos 5,5 × 4,8 m empilhados (placas de 4,8 m de vão em y, apoio comum em y = 4,8), vigas de 20 × 50, carga permanente de 10 kN/m²
++      await cmd('vento.definir {"ativo": false}');
++      await cmd('lote {"comandos": [' + [[0, 0], [5.5, 0], [0, 4.8], [5.5, 4.8], [0, 9.6], [5.5, 9.6]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
++      await cmd('lote {"comandos": [' + [[[0, 0], [5.5, 0]], [[0, 4.8], [5.5, 4.8]], [[0, 9.6], [5.5, 9.6]], [[0, 0], [0, 9.6]], [[5.5, 0], [5.5, 9.6]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
++      await cmd('carga.area {"grupo": "g_3", "caso": "G", "contorno": [[-0.3, -0.3], [5.8, -0.3], [5.8, 9.9], [-0.3, 9.9]], "valor": 10}');
++      // 1) a ficha de exemplo é fictícia e somente leitura; copiar dá uma ficha editável
++      const tipos = () => grupoEdif(page, 'Tipos de laje');
++      let tl = await tipos();
++      let fa = tl.locator('[data-fichas-alveolares]');
++      await fa.getByLabel(/^Ficha alveolar da biblioteca/).selectOption({ label: 'Alveolar exemplo (fictícia) · exemplo fictício' });
++      assert.match(await fa.locator('[data-selos-alveolar]').innerText(), /somente leitura/);
++      assert.match(await fa.locator('[data-selos-alveolar]').innerText(), /ficha fictícia \(demonstração\)/);
++      await fa.getByRole('button', { name: 'Copiar ficha alveolar', exact: true }).click();
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.alveolares?.length === 1, null);
++      assert.match(await fa.locator('[data-selos-alveolar]').innerText(), /editável/);
++      const copia = (await modelo()).tiposLaje.alveolares[0];
++      assert.equal(copia.placas[0].id, 'A25-1');
++      // 2) Mu menor que Mfis é incoerente: o comando recusa e a mensagem aparece em vermelho; Mu coerente é aceito
++      await fa.getByRole('radio', { name: 'Positivo', exact: true }).click();
++      const mu = fa.getByLabel(/^Mu positivo da placa alveolar/);
++      await mu.fill('20'); await mu.press('Enter');
++      await tl.locator('[data-erros-tipos-laje]').waitFor();
++      assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /incoerente/);
++      assert.equal((await modelo()).tiposLaje.alveolares[0].placas[0].positivo.Mu, 40);
++      await mu.fill('41'); await mu.press('Enter');
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.alveolares?.[0]?.placas?.[0]?.positivo?.Mu === 41, null);
++      await tl.locator('[data-erros-tipos-laje]').waitFor({ state: 'detached' });
++      await fa.getByRole('radio', { name: 'Resumo', exact: true }).click();
++      assert.match(await fa.locator('[data-pp-alveolar]').innerText(), /^4,05$/);
++      // 3) atribuir "Alveolar" (ficha da obra, placa A25-1) a todos os panos
++      let lj = await grupoEdif(page, /^Lajes —/);
++      await lj.locator('label.field', { has: page.locator('.flabel', { hasText: /^Tipo$/ }) }).locator('select').selectOption('alveolar');
++      await lj.getByLabel(/^Ficha alveolar do tipo/).selectOption(copia.id);
++      await lj.getByLabel(/^Placa alveolar do tipo/).selectOption('A25-1');
++      assert.match(await lj.locator('[data-resumo-tipo-alveolar]').innerText(), /Mu 41 kN·m\/m/);
++      await lj.getByRole('button', { name: 'Preencher todos os panos', exact: true }).click();
++      await esperarModelo(() => { const m = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building; return m?.lajes?.length === 2 && m.lajes.every((l) => l.tipo.tipo === 'alveolar' && l.tipo.placa === 'A25-1'); }, null);
++      // 4) cálculo; a placa A25-1 não resiste: janela com a lista da série e a sugestão A25-2; "adotar a sugerida" zera o erro
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
++      await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
++      await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Planta' }).click();
++      lj = await grupoEdif(page, /^Lajes —/);
++      const av = await grupoEdif(page, /^Lajes alveolares/);
++      await av.getByLabel('Mostrar placas alveolares na planta', { exact: true }).check();
++      await lj.locator('table.loads-ed tbody tr').nth(0).click();
++      const abrir = async () => { await av.getByRole('button', { name: 'Janela da laje alveolar', exact: true }).click(); const j = page.getByRole('dialog', { name: 'Laje alveolar L1' }); await j.locator('[data-tabela-candidatas]').waitFor(); return j; };
++      let jan = await abrir();
++      assert.match(await jan.locator('[data-candidata="A25-1"]').innerText(), /insuficiente/);
++      assert.match(await jan.locator('[data-candidata="A25-2"]').innerText(), /sugerida/);
++      assert.match(await jan.innerText(), /ALVEOLAR_PLACA/);
++      assert.match(await jan.locator('[data-ficha-janela-alveolar]').innerText(), /ficha fictícia \(demonstração\)/);
++      await jan.getByRole('button', { name: 'Adotar a placa sugerida', exact: true }).click();
++      await page.waitForFunction(() => { const j = document.querySelector('[data-janela-alveolar]'); return !!j && /Placa adotada A25-2/.test(j.textContent ?? '') && !/ALVEOLAR_PLACA/.test(j.textContent ?? ''); }, null, { timeout: 90000 });
++      assert.equal((await modelo()).lajes[0].tipo.placa, 'A25-2');
++      assert.equal((await modelo()).lajes[0].alveolar.fixa, true);
++      // 5) planta: 5 placas por pano (a última, de borda, cortada de 70 cm)
++      assert.match(await jan.locator('[data-placa-alveolar]', { hasText: 'borda cortada' }).innerText(), /70/);
++      assert.equal(await jan.locator('[data-placa-alveolar]').count(), 5);
++      await jan.getByRole('button', { name: 'Fechar' }).click();
++      await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-placas-alveolares') === '10', null, { timeout: 20000 });
++      // 6) apoio comum: negativo de cálculo numa só ponta; "duas fases" reduz o momento negativo
++      jan = await abrir();
++      const negativo = async (j) => {
++        const linhas = j.locator('[data-tabela-negativos-alveolar] tbody tr');
++        for (let i = 0; i < await linhas.count(); i++) {
++          const t = await linhas.nth(i).innerText();
++          if (!/sem negativo/.test(t)) { const c = t.split('\t'); return { ponta: c[0].trim(), Md: nm(c[1]), texto: t }; }
++        }
++        return null;
++      };
++      const n1 = await negativo(jan);
++      assert.ok(n1 && n1.Md > 0, 'negativo no apoio comum');
++      await jan.getByRole('button', { name: 'Fechar' }).click();
++      await av.getByLabel(/^Processo construtivo do pano alveolar/).selectOption('2');
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.alveolar?.processo === 2, null);
++      jan = await abrir();
++      await page.waitForFunction(() => /em duas fases/.test(document.querySelector('[data-janela-alveolar]')?.textContent ?? ''), null, { timeout: 90000 });
++      const n2 = await negativo(jan);
++      assert.ok(n2 && n2.Md < n1.Md, `negativo cai com duas fases (${n1?.Md} -> ${n2?.Md})`);
++      await jan.getByRole('button', { name: 'Fechar' }).click();
++      // 7) negativo editado na ponta comum: φ16 c/20, comprimento mínimo de 25 % do vão; editado fica na janela e é desbloqueável
++      await av.getByLabel(/^Ponta do negativo editado/).selectOption({ label: n1.ponta });
++      await av.getByRole('button', { name: 'Aplicar o negativo na ponta', exact: true }).click();
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.alveolar?.negativos?.some((n) => !!n), null);
++      const ed = (await modelo()).lajes[0].alveolar.negativos.find((n) => !!n);
++      assert.deepEqual({ phi: ed.phi, s: ed.s, percentual: ed.percentual }, { phi: 16, s: 0.2, percentual: 25 });
++      jan = await abrir();
++      await page.waitForFunction(() => /editado/.test(document.querySelector('[data-tabela-negativos-alveolar]')?.textContent ?? ''), null, { timeout: 90000 });
++      const n3 = await negativo(jan);
++      assert.match(n3.texto, /φ16 c\/20/);
++      assert.ok(nm(n3.texto.split('\t')[4]) >= 0.25 * 4.8 - 0.01, 'comprimento mínimo de 25 % do vão');
++      await jan.getByRole('button', { name: 'Fechar' }).click();
++      await av.getByRole('button', { name: 'Desbloquear a armadura da laje alveolar', exact: true }).click();
++      await esperarModelo(() => { const a = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.alveolar; return !a?.negativos && !a?.fixa; }, null);
++      // 8) exportar a ficha para .json, importar como outra ficha e remover (a da obra em uso não sai)
++      tl = await tipos();
++      fa = tl.locator('[data-fichas-alveolares]');
++      const { name, text } = await downloadText(page, () => fa.getByRole('button', { name: 'Exportar fichas alveolares', exact: true }).click());
++      assert.match(name, /fichas-alveolares\.json$/);
++      const arq = JSON.parse(text);
++      assert.equal(arq.fichas.length, 1);
++      arq.fichas[0].id = 'fa_importada'; arq.fichas[0].nome = 'Ficha importada';
++      await fa.locator('input[type="file"]').setInputFiles({ name: 'fichas-alveolares.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(arq)) });
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.alveolares?.length === 2, null);
++      await fa.getByLabel(/^Ficha alveolar da biblioteca/).selectOption({ label: 'Ficha importada · da obra' });
++      await fa.getByRole('button', { name: 'Remover ficha alveolar', exact: true }).click();
++      await esperarModelo(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.tiposLaje?.alveolares?.length === 1, null);
++      await fa.getByLabel(/^Ficha alveolar da biblioteca/).selectOption({ label: copia.nome + ' · da obra' });
++      await fa.getByRole('button', { name: 'Remover ficha alveolar', exact: true }).click();
++      await tl.locator('[data-erros-tipos-laje]').waitFor();
++      assert.match(await tl.locator('[data-erros-tipos-laje]').innerText(), /usada por lajes/);
++      // 9) memorial: quadro das placas com a marca da ficha, laje a laje, lista de placas e resumo de aço
++      await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
++      await page.getByRole('button', { name: 'Memorial do edifício' }).click();
++      const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
++      const sec = memo.locator('[data-memorial-alveolares]');
++      await sec.waitFor();
++      await sec.locator('[data-memorial-alveolar]').first().waitFor({ timeout: 90000 });
++      assert.equal(await sec.locator('[data-memorial-alveolar]').count(), 2);
++      assert.match(await sec.locator('[data-quadro-placas-alveolares]').innerText(), /ficha fictícia \(demonstração\)/);
++      assert.match(await sec.locator('[data-quadro-placas-alveolares]').innerText(), /A30-1/);
++      await sec.locator('[data-lista-placas-alveolares]').waitFor();
++      await sec.locator('[data-aco-alveolares]').waitFor();
++      assert.match(await memo.innerText(), /Lajes alveolares \(negativos na capa\)/);
++      await memo.getByRole('button', { name: 'Fechar' }).click();
++    },
++  };
+diff --git a/e2e/flows/index.mjs b/e2e/flows/index.mjs
+index 9f63973..6a78523 100644
+--- a/e2e/flows/index.mjs
++++ b/e2e/flows/index.mjs
+@@ -102,6 +102,7 @@ export const flows = [
+   m_E_2.f_E3b,
+   m_E_2.f_E3c,
+   m_E_2.f_E3d,
++  m_E_2.f_E3e,
+   m_layout.f_layout,
+   m_layout.f_layout_1280,
+   m_layout.f_layout_1024,
+diff --git a/src/app/edificio/AlveolarTipo.tsx b/src/app/edificio/AlveolarTipo.tsx
+new file mode 100644
+index 0000000..db04734
+--- /dev/null
++++ b/src/app/edificio/AlveolarTipo.tsx
+@@ -0,0 +1,35 @@
++// Tipo "Alveolar" no seletor de tipo de pano (frente E3e): ficha (obra, catálogo da biblioteca de normas ou exemplo) e placa por
++// altura, com o resumo da placa e a marca da ficha. Os campos valem para o tipo de lançamento (grupo "Lajes") e para a troca do
++// tipo dos panos selecionados; a análise e a escolha da placa estão no grupo "Lajes alveolares".
++import { fichasAlveolaresDisponiveis, geometriaAlveolar, MARCA_FABRICANTE_ALVEOLAR } from '../../core/building/alveolares';
++import type { BuildingModel, TipoLaje } from '../../core/building/types';
++import { Hint, Select } from '../ui';
++
++type TipoAlveolar = Extract<TipoLaje, { tipo: 'alveolar' }>;
++const f2 = (x: number | undefined, n = 2) => (x === undefined ? '—' : String(+x.toFixed(n)).replace('.', ','));
++const FONTE = { obra: 'da obra', catalogo: 'catálogo', exemplo: 'exemplo' } as const;
++
++/** Tipo alveolar inicial: a primeira ficha disponível (a da obra primeiro) e a sua primeira placa. */
++export function tipoAlveolarInicial(b: BuildingModel): TipoLaje {
++  const f = fichasAlveolaresDisponiveis(b)[0]?.ficha;
++  return { tipo: 'alveolar', ficha: f?.id ?? 'ex:alveolar', placa: f?.placas[0]?.id ?? '' };
++}
++
++export function AlveolarCampos({ b, tipo, onChange }: { b: BuildingModel; tipo: TipoAlveolar; onChange: (t: TipoLaje) => void }) {
++  const todas = fichasAlveolaresDisponiveis(b);
++  const atual = todas.find((x) => x.ficha.id === tipo.ficha);
++  const g = geometriaAlveolar(b, tipo);
++  const marca = g.ficha.ficticio ? 'ficha fictícia (demonstração)' : g.ficha.origem === 'fabricante' ? MARCA_FABRICANTE_ALVEOLAR : 'ficha do usuário, não verificada pelo programa';
++  return (
++    <>
++      <Select label="Ficha alveolar do tipo" value={tipo.ficha} options={todas.map((x) => ({ v: x.ficha.id, label: `${x.ficha.nome} · ${FONTE[x.fonte]}` }))} onChange={(v) => onChange({ tipo: 'alveolar', ficha: v, placa: todas.find((x) => x.ficha.id === v)?.ficha.placas[0]?.id ?? '' })} />
++      <Select label="Placa alveolar do tipo" value={tipo.placa} options={(atual?.ficha.placas ?? []).map((p) => ({ v: p.id, label: `${p.id} · h ${f2(p.altura * 100, 0)} cm` }))} onChange={(v) => onChange({ ...tipo, placa: v })} />
++      <Hint>
++        <span data-resumo-tipo-alveolar>
++          Placa {g.placa.id}: altura {f2(g.h * 100, 0)} cm (capa {f2(g.capa * 100, 0)}), largura {f2(g.largura * 100, 0)} cm, peso próprio {f2(g.pp)} kN/m², Mu {f2(g.resist.Mu)} kN·m/m, VRd {f2(g.resist.VRd)} kN/m.
++          {g.ausente ? ` ${g.ausente}.` : ''} Sem dado na ficha, a verificação correspondente não é feita. Marca: {marca}.
++        </span>
++      </Hint>
++    </>
++  );
++}
+diff --git a/src/app/edificio/AlveolaresUI.tsx b/src/app/edificio/AlveolaresUI.tsx
+new file mode 100644
+index 0000000..525ca96
+--- /dev/null
++++ b/src/app/edificio/AlveolaresUI.tsx
+@@ -0,0 +1,152 @@
++// Grupo "Lajes alveolares" da doca Propriedades (frente E3e): camada "Placas alveolares" da planta, processo construtivo, direção
++// das placas, ambiente (CAA), negativos na capa por ponta, placa fixada x escolha automática, desbloqueio da armadura e a janela
++// "Laje alveolar" (verificações, lista da série com a sugestão, negativos, placas e diagramas da faixa que governa). Os dados vêm
++// do dimensionamento (`dim.alveolares`); comandos `laje.alveolar`, `laje.exposicao` e `armadura.desbloquear`. Sem dado na ficha
++// a verificação aparece como "sem dado", nunca como "ok".
++import { useState } from 'react';
++import { PROCESSOS_ALVEOLAR } from '../../core/building/alveolares';
++import type { ResultadoAlveolar } from '../../core/building/alveolaresDim';
++import type { BuildingModel, Laje } from '../../core/building/types';
++import { Button, Check, Group, Hint, Modal, NumField, Pill, Select } from '../ui';
++import { executarERecalcular } from './Armadura';
++import { Diagrama, Mensagens } from './Revisao';
++import { usePlanta } from './plantaStore';
++import { useBuilding } from './store';
++
++const f2 = (x: number | null | undefined, n = 2) => (x === null || x === undefined ? '—' : String(+x.toFixed(n)).replace('.', ','));
++/** Resultado de uma verificação: ok, não atende ou sem dado (a ficha não traz o valor resistente). */
++const Situacao = ({ ok }: { ok: boolean | null }) => (ok === null ? <Pill tone="na">sem dado</Pill> : ok ? <Pill tone="ok">atende</Pill> : <Pill tone="bad">não atende</Pill>);
++
++function JanelaAlveolar({ l, onClose }: { l: Laje; onClose: () => void }) {
++  const r: ResultadoAlveolar | undefined = useBuilding((s) => s.dim?.alveolares?.find((x) => x.laje === l.id));
++  const proc = r ? PROCESSOS_ALVEOLAR.find((x) => x.v === r.processo)?.rotulo : '';
++  const xs = r?.diagrama.x ?? [];
++  return (
++    <Modal titulo={`Laje alveolar ${l.nome}`} onClose={onClose} larga>
++      {!r ? <p className="muted">Sem resultado para esta laje: calcule e dimensione o edifício (aba Dimensionamento).</p> : (
++        <div data-janela-alveolar={l.id}>
++          <p className="small" data-ficha-janela-alveolar>{r.fichaNome} · {r.fabricante} · <Pill tone="warn">{r.marca}</Pill></p>
++          <p className="small">
++            Placa adotada {r.placaAdotada}{r.fixa ? ' (fixada)' : ' (automática)'}: altura {f2(r.h * 100, 0)} cm, capa {f2(r.capa * 100, 0)} cm, peso próprio {f2(r.pp)} kN/m²; vão {f2(r.vao)} m; largura do pano {f2(r.larguraPano)} m; {r.placas.length} placa(s). Processo: {proc}.
++          </p>
++          <table className="data quadro" data-verificacoes-alveolar>
++            <thead><tr><th>Verificação</th><th>Solicitante</th><th>Resistente</th><th>Aproveit.</th><th>Situação</th></tr></thead>
++            <tbody>
++              <tr><td className="l">Flexão positiva (kN·m/m)</td><td>{f2(r.positivo.Md)}</td><td>{f2(r.positivo.Mu)}</td><td>{f2(r.positivo.aproveitamento)}</td><td><Situacao ok={r.positivo.ok} /></td></tr>
++              {r.servico && <tr><td className="l">Serviço, protensão {r.servico.nivel}, CAA {r.servico.caa}, combinação {r.servico.combinacao} (kN·m/m)</td><td>{f2(r.servico.Ms)}</td><td>{f2(r.servico.Madm)}</td><td>{f2(r.servico.aproveitamento)}</td><td><Situacao ok={r.servico.ok} /></td></tr>}
++              {r.cortante.map((c, i) => <tr key={i}><td className="l">Cortante {i === 0 ? 'no início' : 'no fim'}, região {c.regiao} (kN/m)</td><td>{f2(c.Vd)}</td><td>{f2(c.VRd)}</td><td>{c.VRd ? f2(c.Vd / c.VRd) : '—'}</td><td><Situacao ok={c.VRd === null ? null : c.ok} /></td></tr>)}
++              <tr><td className="l">Capa (cm)</td><td>{f2(r.capaVerificacao.minima * 100, 1)} (mínima)</td><td>{f2(r.capaVerificacao.espessura * 100, 1)}</td><td>—</td><td><Situacao ok={r.capaVerificacao.ok} /></td></tr>
++              {r.lateral.map((x, i) => <tr key={i}><td className="l">Apoio lateral da placa de borda {i === 0 ? 'inicial' : 'final'} (cm)</td><td>—</td><td>{x.disponivel === null ? 'sem viga' : f2(x.disponivel * 100, 1)}</td><td>—</td><td><Situacao ok={x.ok} /></td></tr>)}
++              {r.flecha && <tr><td className="l">Flecha total (mm)</td><td>{f2(r.flecha.total * 1000, 1)}</td><td>{f2(r.flecha.limite * 1000, 1)}</td><td>{f2(r.flecha.total / r.flecha.limite)}</td><td><Situacao ok={r.flecha.ok} /></td></tr>}
++            </tbody>
++          </table>
++          <p className="small">Envoltória do pano por metro (ELU): M+ {f2(r.envoltoria.mPos)} kN·m/m; M− início / fim {f2(r.envoltoria.mNeg[0])} / {f2(r.envoltoria.mNeg[1])} kN·m/m; V início / fim {f2(r.envoltoria.v[0])} / {f2(r.envoltoria.v[1])} kN/m.</p>
++          <p className="small"><b>Placas da ficha</b> {r.trocar && r.placaEscolhida ? `— a verificação sugere a placa ${r.placaEscolhida}.` : '— a placa adotada atende, ou nenhuma da série atende.'}</p>
++          <table className="data quadro" data-tabela-candidatas>
++            <thead><tr><th>Placa</th><th>h (cm)</th><th>Mu (kN·m/m)</th><th>Situação</th><th>Motivos</th><th></th></tr></thead>
++            <tbody>
++              {r.candidatas.map((c) => (
++                <tr key={c.placa} data-candidata={c.placa}>
++                  <td className="l">{c.placa}</td><td>{f2(c.altura * 100, 0)}</td><td>{c.Mu === null ? 'sem dado' : f2(c.Mu)}</td>
++                  <td>{c.adequada ? <Pill tone="ok">atende</Pill> : <Pill tone="bad">insuficiente</Pill>}</td>
++                  <td className="l">{c.motivos.join('; ') || '—'}</td>
++                  <td className="l">{c.adotada ? 'adotada' : ''}{c.escolhida ? ' sugerida' : ''}</td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++          <div className="row wrap">
++            <Button disabled={!(r.trocar && r.placaEscolhida)} onClick={() => { void executarERecalcular('laje.alveolar', { ids: [l.id], placa: r.placaEscolhida }); }}>Adotar a placa sugerida</Button>
++          </div>
++          <p className="small"><b>Negativos na capa</b></p>
++          <table className="data quadro" data-tabela-negativos-alveolar>
++            <thead><tr><th>Ponta</th><th>Md− (kN·m/m)</th><th>Armadura</th><th>Barras</th><th>Comprimento (m)</th><th>Mu (kN·m/m)</th><th>Origem</th></tr></thead>
++            <tbody>
++              {r.negativos.map((n, i) => (
++                <tr key={i}>
++                  <td className="l">{i === 0 ? 'início' : 'fim'}</td>
++                  {n ? <><td>{f2(n.Md)}</td><td className="l">φ{f2(n.phi, 1)} c/{f2(n.s * 100, 1)}</td><td>{n.barras}</td><td>{f2(n.comprimento)}</td><td>{f2(n.Mu)}</td><td className="l">{n.fonte === 'ficha' ? 'linha da ficha' : n.fonte === 'secao' ? 'pela seção' : 'editado'}</td></> : <td className="l" colSpan={6}>sem negativo de cálculo</td>}
++                </tr>
++              ))}
++            </tbody>
++          </table>
++          <p className="small"><b>Placas do pano</b></p>
++          <table className="data quadro" data-tabela-placas-alveolar>
++            <thead><tr><th>Placa</th><th>Largura (cm)</th><th>Comprimento (m)</th><th>Apoios (cm)</th><th>Observação</th><th>Situação</th></tr></thead>
++            <tbody>
++              {r.placas.map((p) => (
++                <tr key={p.numero} data-placa-alveolar={p.numero}>
++                  <td className="l">{p.numero}</td><td>{f2(p.largura * 100, 0)}</td><td>{f2(p.comprimento)}</td>
++                  <td>{p.apoios.map((a) => (a.disponivel === null ? 'sem viga' : f2(a.adotado * 100, 1))).join(' / ')}</td>
++                  <td className="l">{[p.cortada ? 'borda cortada' : '', p.obliqua ? `oblíqua ${f2(p.angulo, 1)}°` : ''].filter(Boolean).join('; ') || '—'}</td>
++                  <td>{p.status === 'ok' ? <Pill tone="ok">ok</Pill> : <Pill tone="bad">insuficiente</Pill>}</td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++          <p className="small">Quantitativo: {r.quantitativo.numeroPlacas} placa(s), {f2(r.quantitativo.areaPlacas)} m², {f2(r.quantitativo.pesoPlacas, 0)} kN; concreto moldado no local {f2(r.quantitativo.concretoLocal)} m³; capa {f2(r.quantitativo.areaCapa)} m².</p>
++          {xs.length > 1 && (<>
++            <Diagrama id="alveolar-m" titulo="Momento por metro da faixa que governa" unid="kN·m/m" xs={xs} L={xs[xs.length - 1]} baixo cor="dg-m" series={[{ ys: r.diagrama.Mmax, rot: 'Mmáx' }, { ys: r.diagrama.Mmin, rot: 'Mmín', alt: true }]} />
++            <Diagrama id="alveolar-v" titulo="Cortante por metro da faixa que governa" unid="kN/m" xs={xs} L={xs[xs.length - 1]} cor="dg-v" series={[{ ys: r.diagrama.V, rot: 'V' }]} />
++          </>)}
++          <Mensagens msgs={r.mensagens} />
++        </div>
++      )}
++    </Modal>
++  );
++}
++
++/** Ajustes dos panos alveolares selecionados: processo, direção das placas, ambiente, placa fixada e negativos por ponta. */
++function Ajustes({ ls }: { ls: Laje[] }) {
++  const l0 = ls[0], ids = ls.map((l) => l.id);
++  const ed = l0.alveolar?.negativos?.find((n) => !!n) ?? undefined;
++  const [ponta, setPonta] = useState<0 | 1>(0);
++  const [phi, setPhi] = useState(ed?.phi ?? 16);
++  const [s, setS] = useState(ed ? ed.s * 100 : 20);
++  const [pct, setPct] = useState(ed?.percentual ?? 25);
++  const roda = (nome: string, p: Record<string, unknown>) => { void executarERecalcular(nome, p); };
++  return (
++    <div data-ajustes-alveolar>
++      <p className="small"><b>{ls.length > 1 ? `${ls.length} panos alveolares` : l0.nome}</b></p>
++      <div className="row wrap">
++        <Select<'obra' | 0 | 1 | 2> label="Processo construtivo do pano alveolar" value={l0.alveolar?.processo ?? 'obra'} options={[{ v: 'obra', label: 'o da opção das alveolares' }, ...PROCESSOS_ALVEOLAR.map((p) => ({ v: p.v, label: p.rotulo }))]} onChange={(v) => roda('laje.alveolar', { ids, processo: v })} />
++        <NumField label="Direção das placas alveolares" unit="°" width={110} value={+(l0.direcao ?? 0).toFixed(1)} onChange={(v) => roda('laje.alveolar', { ids, direcao: v })} />
++        <Select<'obra' | 'I' | 'II' | 'III' | 'IV'> label="Ambiente da laje alveolar (CAA)" value={l0.exposicao ?? 'obra'} options={[{ v: 'obra', label: 'o da obra' }, ...(['I', 'II', 'III', 'IV'] as const).map((c) => ({ v: c, label: `CAA ${c}` }))]} onChange={(v) => roda('laje.exposicao', { ids, caa: v })} />
++      </div>
++      <div className="row wrap">
++        <Button disabled={!ls.some((l) => l.alveolar?.fixa)} onClick={() => roda('laje.alveolar', { ids, fixar: false })}>Voltar à escolha automática da placa</Button>
++        <Button disabled={!ls.some((l) => l.alveolar?.fixa || l.alveolar?.negativos)} onClick={() => roda('armadura.desbloquear', { ids })}>Desbloquear a armadura da laje alveolar</Button>
++      </div>
++      <div className="row wrap">
++        <Select<0 | 1> label="Ponta do negativo editado" value={ponta} options={[{ v: 0, label: 'início' }, { v: 1, label: 'fim' }]} onChange={setPonta} />
++        <NumField label="φ do negativo editado da laje alveolar" unit="mm" width={100} value={phi} onChange={(v) => v >= 5 && v <= 25 && setPhi(v)} />
++        <NumField label="Espaçamento do negativo editado da laje alveolar" unit="cm" width={120} value={s} onChange={(v) => v >= 5 && v <= 40 && setS(v)} />
++        <NumField label="Comprimento do negativo editado" unit="% do vão" width={120} value={pct} onChange={(v) => v > 0 && v <= 100 && setPct(v)} />
++        <Button onClick={() => roda('laje.alveolar', { ids, negativos: { [ponta === 0 ? 'inicio' : 'fim']: { phi, s: s / 100, percentual: pct } } })}>Aplicar o negativo na ponta</Button>
++        <Button disabled={!ls.some((l) => l.alveolar?.negativos)} onClick={() => roda('laje.alveolar', { ids, negativos: { limpar: 'ambos' } })}>Limpar os negativos editados</Button>
++      </div>
++      <Hint>A troca de placa feita aqui a fixa: a verificação deixa de sugerir outra. Negativos editados ficam bloqueados até desbloquear a armadura. Início e fim seguem a direção das placas.</Hint>
++    </div>
++  );
++}
++
++export function AlveolaresGrupo({ b }: { b: BuildingModel }) {
++  const pl = usePlanta();
++  const [janela, setJanela] = useState<string | null>(null);
++  const alvs = b.lajes.filter((l) => l.tipo.tipo === 'alveolar');
++  const sel = alvs.filter((l) => pl.selecao.has(l.id));
++  if (!alvs.length) return null;
++  const aberta = alvs.find((l) => l.id === janela);
++  return (
++    <div data-grupo-alveolares>
++      <Group title={`Lajes alveolares (${alvs.length})`} open={false}>
++        <Check label="Mostrar placas alveolares na planta" checked={pl.camadaPlacas} onChange={(c) => pl.set({ camadaPlacas: c })} />
++        {!sel.length && <Hint>Selecione na planta (ou na tabela de lajes) um ou mais panos alveolares para ajustar o processo, a direção das placas, os negativos e abrir a janela da laje.</Hint>}
++        {sel.length > 0 && <Ajustes key={sel.map((l) => l.id).join(',')} ls={sel} />}
++        {sel.length === 1 && <div className="row wrap"><Button onClick={() => setJanela(sel[0].id)}>Janela da laje alveolar</Button></div>}
++        {aberta && <JanelaAlveolar l={aberta} onClose={() => setJanela(null)} />}
++        <Hint>A placa é a do tipo da laje; a lista da série mostra quais atendem e sugere a menor. Sem dado do fabricante na ficha, a verificação correspondente não é feita e aparece como “sem dado”. Resistência ao fogo das alveolares não é verificada.</Hint>
++      </Group>
++    </div>
++  );
++}
+diff --git a/src/app/edificio/Detalhamento.tsx b/src/app/edificio/Detalhamento.tsx
+index fdac1dd..6d36b44 100644
+--- a/src/app/edificio/Detalhamento.tsx
++++ b/src/app/edificio/Detalhamento.tsx
+@@ -432,7 +432,7 @@ export function csvAco(dim: DimEdificio): string {
+     l.push(['Total', '', fmt(tt.comprimento), fmt(tt.peso), fmt(tt.pesoComPerdas)], []);
+     return l;
+   };
+-  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(res, resP, resPar, resL, resV, resN))];
++  const lin: string[][] = [...tabela('Resumo de aço das vigas', res), ...tabela('Resumo de aço dos pilares', resP), ...tabela('Resumo de aço das paredes e pilares-parede', resPar), ...tabela('Resumo de aço das lajes', resL), ...tabela('Resumo de aço das lajes treliçadas (adicionais, negativos e distribuição)', resV), ...tabela('Resumo de aço das lajes nervuradas bidirecionais', resN), ...tabela('Resumo de aço das lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []), ...tabela('Resumo geral de aço (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []))];
+   if (dim.trelicas?.length) {
+     lin.push(['Treliças eletrossoldadas por tipo'], ['Treliça', 'Comprimento (m)', 'Peso (kg)', `Peso com perdas de ${fmt(perdasDoResumo(res), 1)} % (kg)`]);
+     for (const t of dim.trelicas) lin.push([t.trelica, fmt(t.comprimento), fmt(t.peso), fmt(t.pesoComPerdas)]);
+@@ -485,7 +485,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+   const res = dim.resumoAcoVigas ?? [], resP = dim.resumoAcoPilares ?? [], resPar = dim.resumoAcoParedes ?? [], resL = dim.resumoAcoLajes ?? [], resV = dim.resumoAcoVigotas ?? [], resN = dim.resumoAcoNervuradas ?? [], tre = dim.trelicas ?? [];
+   const telas = dim.resumoTelas ?? [];
+   if (!res.length && !resP.length && !resPar.length && !resL.length && !resV.length && !resN.length && !telas.length) return null;
+-  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN));
++  const perdas = perdasDoResumo(somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? []));
+   return (
+     <div className="card" data-resumo-aco>
+       <h3>Resumo de aço</h3>
+@@ -493,6 +493,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+       <TabelaAco titulo="Pilares" res={resP} marca="pilares" />
+       {resPar.length > 0 && <TabelaAco titulo="Paredes e pilares-parede" res={resPar} marca="paredes" />}
+       <TabelaAco titulo="Lajes maciças" res={resL} marca="lajes" />
++      {(dim.resumoAcoAlveolares?.length ?? 0) > 0 && <TabelaAco titulo="Lajes alveolares (negativos na capa)" res={dim.resumoAcoAlveolares ?? []} marca="alveolares" />}
+       {resV.length > 0 && <TabelaAco titulo="Lajes treliçadas (adicionais, negativos e distribuição)" res={resV} marca="vigotas" />}
+       {resN.length > 0 && <TabelaAco titulo="Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)" res={resN} marca="nervuradas" />}
+       {tre.length > 0 && (
+@@ -523,7 +524,7 @@ export function ResumoAco({ dim }: { dim: DimEdificio }) {
+           </div>
+         </>
+       )}
+-      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)" res={somarResumosAco(res, resP, resPar, resL, resV, resN)} marca="geral" />
++      <TabelaAco titulo="Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)" res={somarResumosAco(res, resP, resPar, resL, resV, resN, dim.resumoAcoAlveolares ?? [])} marca="geral" />
+       <div className="row wrap">
+         <Button onClick={() => download('aco-vigas-pilares-lajes.csv', csvAco(dim), 'text/csv')}>Exportar CSV do aço</Button>
+       </div>
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index 034bcc8..3ac5fc6 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -27,6 +27,8 @@ import { ConsolosHost } from './ConsolosUI';
+ import { InclinadasHost } from './InclinadasUI';
+ import { lerQuadroVigas } from '../../core/building/quadros';
+ import { Pranchas } from './Pranchas';
++import { AlveolarCampos, tipoAlveolarInicial } from './AlveolarTipo';
++import { AlveolaresGrupo } from './AlveolaresUI';
+ import { Vista3D } from '../vista3d/Vista3D';
+ import { importarCargasDoEdificio } from '../Fundacoes';
+ import { FogoCard } from './FogoCard';
+@@ -218,6 +220,7 @@ export function Edificio() {
+           <VigasGrupo b={b} />
+           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
+           <LajesGrupo b={b} />
++          <AlveolaresGrupo b={b} />
+           <NervuradasGrupo b={b} />
+           <AbacosGrupo b={b} />
+           <DadosL4Grupo b={b} onPlanta={() => setAba('planta')} />
+@@ -633,7 +636,7 @@ function TipoLajeCampos({ b, tipo, onChange }: { b: BuildingModel; tipo: TipoLaj
+   const trocaTipo = (v: TipoLaje['tipo']) => onChange(v === 'macica' ? { tipo: 'macica', h: 0.1 } : v === 'trelicada' ? { tipo: 'trelicada', modelo: 'H12', capa: TRELICADAS.H12.capa } : v === 'vigotas' ? { tipo: 'vigotas', ficha: 'cat:trelicadas', serie: 'H12' } : v === 'nervurada' ? { tipo: 'nervurada', forma: formasDisponiveis(b)[0]?.id ?? 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 } : { tipo: 'moldada', capa: 0.05, intereixo: 0.6, bw: 0.12, h: 0.25, enchimento: 'eps' });
+   return (
+     <div className="row wrap">
+-      <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }, { v: 'vigotas', label: 'Vigotas por ficha' }, { v: 'moldada', label: 'Nervurada moldada no local' }, { v: 'nervurada', label: 'Nervurada bidirecional' }]} onChange={trocaTipo} />
++      <Select label="Tipo" value={tipo.tipo} options={[{ v: 'macica', label: 'Maciça' }, { v: 'trelicada', label: 'Treliçada (EPS)' }, { v: 'vigotas', label: 'Vigotas por ficha' }, { v: 'moldada', label: 'Nervurada moldada no local' }, { v: 'nervurada', label: 'Nervurada bidirecional' }, { v: 'alveolar', label: 'Alveolar' }]} onChange={(v) => (v === 'alveolar' ? onChange(tipoAlveolarInicial(b)) : trocaTipo(v))} />
+       {tipo.tipo === 'macica'
+         ? <NumField label="h" unit="cm" width={80} value={+(tipo.h * 100).toFixed(1)} onChange={(v) => v >= 7 && onChange({ tipo: 'macica', h: v / 100 })} />
+         : tipo.tipo === 'vigotas' ? <>
+@@ -654,6 +657,7 @@ function TipoLajeCampos({ b, tipo, onChange }: { b: BuildingModel; tipo: TipoLaj
+           <NumField label="Mesa da nervurada" unit="cm" width={80} value={+(tipo.capa * 100).toFixed(1)} onChange={(v) => v >= 3 && onChange({ ...tipo, capa: v / 100 })} />
+           <Hint>{(() => { const g = geometriaBidirecional(b, tipo); return `Zona aliviada: peso ${fmt(g.pp)} kN/m², concreto ${fmt(g.volume, 3)} m³/m², cubeta de ${Math.round(g.forma.altura * 100)} cm (${g.recuperavel ? 'forma recuperável' : 'forma perdida'}).`; })()}</Hint>
+         </>
++        : tipo.tipo === 'alveolar' ? <AlveolarCampos b={b} tipo={tipo} onChange={onChange} />
+         : tipo.tipo !== 'trelicada' ? <Hint>Laje de vigotas por ficha ou nervurada moldada: edite o tipo no grupo “Tipos de laje”.</Hint>
+         : <>
+           <Select label="Enchimento" value={tipo.modelo} options={Object.keys(TRELICADAS).map((k) => ({ v: k, label: k }))} onChange={(v) => onChange({ tipo: 'trelicada', modelo: v, capa: TRELICADAS[v].capa })} />
+diff --git a/src/app/edificio/FichasAlveolares.tsx b/src/app/edificio/FichasAlveolares.tsx
+new file mode 100644
+index 0000000..6fb80f9
+--- /dev/null
++++ b/src/app/edificio/FichasAlveolares.tsx
+@@ -0,0 +1,234 @@
++// Fichas das lajes alveolares (frente E3e), dentro do grupo "Tipos de laje": biblioteca da obra (criar, copiar, editar, remover),
++// fichas do catálogo e de exemplo (somente leitura), placas com geometria, positivo, serviço, cortante e negativos, arquivo .json
++// e biblioteca do usuário. O dado de ficha é do fabricante: o programa só confere a coerência lógica. Comando: `ficha.alveolar`.
++import { useEffect, useState } from 'react';
++import {
++  exportarFichasAlveolares, fichasAlveolaresDisponiveis, importarFichasAlveolares, MARCA_FABRICANTE_ALVEOLAR, resistenciasPorMetro, validarFichaAlveolar,
++  type FichaAlveolar, type NegativoPlaca, type PlacaAlveolar,
++} from '../../core/building/alveolares';
++import type { BuildingModel } from '../../core/building/types';
++import { Button, FilePick, Hint, NumField, OptNumField, Pill, Seg, Select, TextField, download } from '../ui';
++import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
++import { useStore } from '../store';
++import { useBuilding } from './store';
++
++type Aba = 'geometria' | 'positivo' | 'servico' | 'cortante' | 'negativos' | 'resumo';
++const ABAS: { v: Aba; label: string }[] = [
++  { v: 'geometria', label: 'Geometria' }, { v: 'positivo', label: 'Positivo' }, { v: 'servico', label: 'Serviço' },
++  { v: 'cortante', label: 'Cortante' }, { v: 'negativos', label: 'Negativos' }, { v: 'resumo', label: 'Resumo' },
++];
++const FONTE_ROTULO = { obra: 'da obra', catalogo: 'catálogo interno', exemplo: 'exemplo fictício' } as const;
++const cm = (m: number) => +(m * 100).toFixed(2);
++const f2 = (x: number | undefined) => (x === undefined ? '—' : String(+x.toFixed(3)).replace('.', ','));
++const limpo = <T,>(t: T): T => JSON.parse(JSON.stringify(t)) as T;
++const marcaDe = (f: FichaAlveolar) => (f.ficticio ? 'ficha fictícia (demonstração)' : f.origem === 'fabricante' ? MARCA_FABRICANTE_ALVEOLAR : 'ficha do usuário, não verificada pelo programa');
++const NEGATIVO_NOVO: NegativoPlaca = { phi: 10, s: 0.2, Mu: 20 };
++
++export function FichasAlveolaresUI({ b, roda }: { b: BuildingModel; roda: (n: string, p: Record<string, unknown>) => boolean }) {
++  const [fid, setFid] = useState('');
++  const [pid, setPid] = useState('');
++  const [ni, setNi] = useState(0);
++  const [aba, setAba] = useState<Aba>('geometria');
++  const todas = fichasAlveolaresDisponiveis(b);
++  const atual = todas.find((x) => x.ficha.id === fid) ?? todas[0];
++  const ficha = atual.ficha;
++  const editavel = atual.fonte === 'obra' && ficha.origem !== 'fabricante';
++  const placa: PlacaAlveolar = ficha.placas.find((p) => p.id === pid) ?? ficha.placas[0];
++  const v = validarFichaAlveolar(ficha);
++  const sufixo = ficha.base === 'placa' ? 'por placa' : 'por metro';
++  const salvar = (nova: FichaAlveolar) => {
++    const { id: _id, origem: _origem, ...resto } = limpo(nova);
++    return roda('ficha.alveolar', { acao: 'editar', id: ficha.id, ficha: resto });
++  };
++  const mudaFicha = (patch: Partial<FichaAlveolar>) => salvar({ ...limpo(ficha), ...patch });
++  const mudaPlaca = (patch: Partial<PlacaAlveolar>) => {
++    if (patch.id) setPid(patch.id);
++    return mudaFicha({ placas: ficha.placas.map((p) => (p.id === placa.id ? { ...limpo(p), ...patch } : limpo(p))) });
++  };
++  const negs = placa.negativos ?? [];
++  const neg = negs[Math.min(ni, Math.max(0, negs.length - 1))];
++  const mudaNeg = (patch: Partial<NegativoPlaca>) => mudaPlaca({ negativos: negs.map((n) => (n === neg ? { ...n, ...patch } : n)) });
++  const nova = () => {
++    const id = `fa_${(b.tiposLaje?.alveolares ?? []).length + 1}_n`;
++    if (roda('ficha.alveolar', { acao: 'criar', id, ficha: { nome: 'Nova ficha alveolar', base: 'metro', placas: [{ id: 'P1', altura: 0.25, capa: 0.05, largura: 1.2, larguraMin: 0.3, apoioMin: 0.07, apoioMax: 0.15, pesoM2: 2.8 }] } })) { setFid(id); setPid(''); }
++  };
++  const copiar = () => {
++    const antes = new Set((b.tiposLaje?.alveolares ?? []).map((x) => x.id));
++    if (roda('ficha.alveolar', { acao: 'copiar', de: ficha.id })) {
++      const c = useBuilding.getState().sessao.modelo.tiposLaje?.alveolares?.find((x) => !antes.has(x.id));
++      if (c) { setFid(c.id); setPid(''); }
++    }
++  };
++  const novaPlaca = () => {
++    const id = `P${ficha.placas.length + 1}`;
++    if (mudaFicha({ placas: [...limpo(ficha.placas), { ...limpo(placa), id }] })) setPid(id);
++  };
++  const resumo = resistenciasPorMetro(ficha, placa);
++  const pp = placa.pesoM2 + 25 * (placa.volume ?? placa.capa);
++  const abaVis: Aba = editavel ? aba : 'resumo';
++  return (
++    <div data-fichas-alveolares>
++      <p className="small"><b>Fichas das lajes alveolares</b></p>
++      <div className="row wrap">
++        <Select label="Ficha alveolar da biblioteca" value={ficha.id} options={todas.map((x) => ({ v: x.ficha.id, label: `${x.ficha.nome} · ${FONTE_ROTULO[x.fonte]}` }))} onChange={(x) => { setFid(x); setPid(''); }} />
++        <Select label="Placa da ficha alveolar" value={placa.id} options={ficha.placas.map((p) => ({ v: p.id, label: `${p.id} · h ${cm(p.altura)} cm` }))} onChange={(x) => { setPid(x); setNi(0); }} />
++      </div>
++      <p className="small" data-selos-alveolar>
++        <Pill tone={editavel ? 'ok' : 'na'}>{editavel ? 'editável' : 'somente leitura'}</Pill>
++        <Pill tone="warn">{marcaDe(ficha)}</Pill>
++        {v.erros.length > 0 && <Pill tone="bad">{v.erros.length} erro(s) lógico(s)</Pill>}
++        <span className="muted"> {ficha.fabricante ?? '—'} · resistências {sufixo}</span>
++      </p>
++      <div className="row wrap">
++        <Button onClick={nova}>Nova ficha alveolar</Button>
++        <Button onClick={copiar}>Copiar ficha alveolar</Button>
++        <Button variant="danger" disabled={atual.fonte !== 'obra'} onClick={() => { if (roda('ficha.alveolar', { acao: 'remover', id: ficha.id })) { setFid(''); setPid(''); } }}>Remover ficha alveolar</Button>
++        <Button disabled={!editavel} onClick={novaPlaca}>Nova placa alveolar</Button>
++        <Button variant="danger" disabled={!editavel || ficha.placas.length < 2} onClick={() => { if (mudaFicha({ placas: ficha.placas.filter((p) => p.id !== placa.id) })) setPid(''); }}>Remover placa alveolar</Button>
++      </div>
++      {editavel ? <Seg small value={aba} options={ABAS.map((a) => ({ v: a.v, label: a.label }))} onChange={setAba} /> : <Hint>Ficha do catálogo ou de exemplo: somente leitura. Copie a ficha para editar os valores.</Hint>}
++
++      {abaVis === 'geometria' && (
++        <div data-aba-alveolar="geometria">
++          <div className="row wrap">
++            <TextField label="Nome da ficha alveolar" value={ficha.nome} onChange={(x) => x.trim() && mudaFicha({ nome: x.trim() })} />
++            <TextField label="Fabricante da ficha alveolar" value={ficha.fabricante ?? ''} onChange={(x) => mudaFicha({ fabricante: x.trim() || undefined })} />
++            <Select label="Base das resistências da ficha alveolar" value={ficha.base ?? 'metro'} options={[{ v: 'metro', label: 'por metro de largura' }, { v: 'placa', label: 'por placa' }]} onChange={(x) => mudaFicha({ base: x })} />
++          </div>
++          <div className="row wrap">
++            <TextField label="Código da placa alveolar" value={placa.id} onChange={(x) => x.trim() && x.trim() !== placa.id && mudaPlaca({ id: x.trim() })} />
++            <TextField label="Descrição da placa alveolar" value={placa.descricao ?? ''} onChange={(x) => mudaPlaca({ descricao: x.trim() || undefined })} />
++          </div>
++          <div className="row wrap">
++            <NumField label="Altura total da placa alveolar" unit="cm" width={110} value={cm(placa.altura)} onChange={(x) => mudaPlaca({ altura: x / 100 })} />
++            <NumField label="Capa da placa alveolar" unit="cm" width={110} value={cm(placa.capa)} onChange={(x) => mudaPlaca({ capa: x / 100 })} />
++            <NumField label="Largura da placa alveolar" unit="cm" width={110} value={cm(placa.largura)} onChange={(x) => mudaPlaca({ largura: x / 100 })} />
++            <NumField label="Largura mínima da placa alveolar cortada" unit="cm" width={110} value={cm(placa.larguraMin)} onChange={(x) => mudaPlaca({ larguraMin: x / 100 })} />
++            <NumField label="Apoio mínimo da placa alveolar" unit="cm" width={110} value={cm(placa.apoioMin)} onChange={(x) => mudaPlaca({ apoioMin: x / 100 })} />
++            <NumField label="Apoio máximo da placa alveolar" unit="cm" width={110} value={cm(placa.apoioMax)} onChange={(x) => mudaPlaca({ apoioMax: x / 100 })} />
++            <NumField label="Peso da placa alveolar" unit="kN/m²" width={110} value={placa.pesoM2} onChange={(x) => mudaPlaca({ pesoM2: x })} />
++            <OptNumField label="Volume moldado no local da placa alveolar" unit="m³/m²" width={130} value={placa.volume} onChange={(x) => mudaPlaca({ volume: x })} />
++          </div>
++        </div>
++      )}
++      {abaVis === 'positivo' && (
++        <div className="row wrap" data-aba-alveolar="positivo">
++          <NumField label="Mu positivo da placa alveolar" unit={`kN·m ${sufixo}`} width={130} value={placa.positivo?.Mu ?? 0} onChange={(x) => mudaPlaca({ positivo: x > 0 ? { ...placa.positivo, Mu: x } : undefined })} />
++          <OptNumField label="Mfis positivo da placa alveolar" unit={`kN·m ${sufixo}`} width={130} value={placa.positivo?.Mfis} onChange={(x) => placa.positivo && mudaPlaca({ positivo: { ...placa.positivo, Mfis: x } })} />
++          <OptNumField label="EI positivo da placa alveolar" unit={`kN·m² ${sufixo}`} width={130} value={placa.positivo?.EI} onChange={(x) => placa.positivo && mudaPlaca({ positivo: { ...placa.positivo, EI: x } })} />
++          <OptNumField label="EI fissurado positivo da placa alveolar" unit={`kN·m² ${sufixo}`} width={130} value={placa.positivo?.EIfis} onChange={(x) => placa.positivo && mudaPlaca({ positivo: { ...placa.positivo, EIfis: x } })} />
++        </div>
++      )}
++      {abaVis === 'servico' && (
++        <div className="row wrap" data-aba-alveolar="servico">
++          <OptNumField label="Momento de descompressão da placa alveolar" unit={`kN·m ${sufixo}`} width={140} value={placa.servico?.Mdesc} onChange={(x) => mudaPlaca({ servico: { ...placa.servico, Mdesc: x } })} />
++          <OptNumField label="Momento de serviço, protensão parcial" unit={`kN·m ${sufixo}`} width={140} value={placa.servico?.Mparcial} onChange={(x) => mudaPlaca({ servico: { ...placa.servico, Mparcial: x } })} />
++          <OptNumField label="Momento de serviço, protensão limitada" unit={`kN·m ${sufixo}`} width={140} value={placa.servico?.Mlimitada} onChange={(x) => mudaPlaca({ servico: { ...placa.servico, Mlimitada: x } })} />
++          <OptNumField label="Momento de serviço, protensão completa" unit={`kN·m ${sufixo}`} width={140} value={placa.servico?.Mcompleta} onChange={(x) => mudaPlaca({ servico: { ...placa.servico, Mcompleta: x } })} />
++        </div>
++      )}
++      {abaVis === 'cortante' && (
++        <div className="row wrap" data-aba-alveolar="cortante">
++          <OptNumField label="VRd da placa alveolar" unit={`kN ${sufixo}`} width={130} value={placa.VRd} onChange={(x) => mudaPlaca({ VRd: x })} />
++          <OptNumField label="VRd da seção descomprimida da placa alveolar" unit={`kN ${sufixo}`} width={130} value={placa.VRdDesc} onChange={(x) => mudaPlaca({ VRdDesc: x })} />
++        </div>
++      )}
++      {abaVis === 'negativos' && (
++        <div data-aba-alveolar="negativos">
++          <div className="row wrap">
++            <Select label="Linha de negativo da placa alveolar" value={negs.length ? Math.min(ni, negs.length - 1) : -1} options={negs.length ? negs.map((n, i) => ({ v: i, label: `φ${f2(n.phi)} c/${cm(n.s)} · Mu ${f2(n.Mu)}` })) : [{ v: -1, label: '(sem linhas: calculado pela seção)' }]} onChange={setNi} />
++            <Button onClick={() => { if (mudaPlaca({ negativos: [...negs, { ...NEGATIVO_NOVO, phi: 8 + negs.length * 2 }] })) setNi(negs.length); }}>Nova linha de negativo</Button>
++            <Button variant="danger" disabled={!neg} onClick={() => { if (mudaPlaca({ negativos: negs.filter((n) => n !== neg) })) setNi(0); }}>Remover linha de negativo</Button>
++          </div>
++          {neg && (
++            <div className="row wrap">
++              <NumField label="φ do negativo da placa alveolar" unit="mm" width={100} value={neg.phi} onChange={(x) => mudaNeg({ phi: x })} />
++              <NumField label="Espaçamento do negativo da placa alveolar" unit="cm" width={110} value={cm(neg.s)} onChange={(x) => mudaNeg({ s: x / 100 })} />
++              <NumField label="Mu do negativo da placa alveolar" unit={`kN·m ${sufixo}`} width={130} value={neg.Mu} onChange={(x) => mudaNeg({ Mu: x })} />
++              <OptNumField label="Mfis do negativo da placa alveolar" unit={`kN·m ${sufixo}`} width={130} value={neg.Mfis} onChange={(x) => mudaNeg({ Mfis: x })} />
++              <OptNumField label="EI do negativo da placa alveolar" unit={`kN·m² ${sufixo}`} width={130} value={neg.EI} onChange={(x) => mudaNeg({ EI: x })} />
++              <OptNumField label="EI fissurado do negativo da placa alveolar" unit={`kN·m² ${sufixo}`} width={130} value={neg.EIfis} onChange={(x) => mudaNeg({ EIfis: x })} />
++              <OptNumField label="VRd do negativo da placa alveolar" unit={`kN ${sufixo}`} width={130} value={neg.VRd} onChange={(x) => mudaNeg({ VRd: x })} />
++            </div>
++          )}
++          <div className="row wrap">
++            <OptNumField label="Espessura do banzo inferior da placa alveolar" unit="m" width={140} value={placa.hfInf} onChange={(x) => mudaPlaca({ hfInf: x })} />
++            <OptNumField label="Soma das almas por metro da placa alveolar" unit="m/m" width={140} value={placa.bwAlma} onChange={(x) => mudaPlaca({ bwAlma: x })} />
++          </div>
++        </div>
++      )}
++      {abaVis === 'resumo' && (
++        <div data-aba-alveolar="resumo">
++          <table className="data quadro" data-resumo-alveolar>
++            <tbody>
++              <tr><td className="l">Marca da ficha</td><td data-marca-alveolar>{marcaDe(ficha)}</td></tr>
++              <tr><td className="l">Altura total / capa (cm)</td><td>{f2(cm(placa.altura))} / {f2(cm(placa.capa))}</td></tr>
++              <tr><td className="l">Largura padrão / mínima (cm)</td><td>{f2(cm(placa.largura))} / {f2(cm(placa.larguraMin))}</td></tr>
++              <tr><td className="l">Apoio mínimo / máximo (cm)</td><td>{f2(cm(placa.apoioMin))} / {f2(cm(placa.apoioMax))}</td></tr>
++              <tr><td className="l">Peso próprio da laje (kN/m²)</td><td data-pp-alveolar>{f2(pp)}</td></tr>
++              <tr><td className="l">Mu positivo (kN·m/m)</td><td>{f2(resumo.Mu)}</td></tr>
++              <tr><td className="l">VRd (kN/m)</td><td>{f2(resumo.VRd)}</td></tr>
++              <tr><td className="l">Linhas de negativo</td><td>{resumo.negativos.length}</td></tr>
++            </tbody>
++          </table>
++        </div>
++      )}
++      {v.erros.length > 0 && <p className="small bad" role="alert" data-erros-alveolar>{v.erros.join(' ')}</p>}
++      {v.avisos.length > 0 && <p className="small muted" data-avisos-alveolar>{v.avisos.join(' ')}</p>}
++      <ArquivoAlveolares b={b} roda={roda} />
++      <BibliotecaAlveolares b={b} roda={roda} />
++    </div>
++  );
++}
++
++function ArquivoAlveolares({ b, roda }: { b: BuildingModel; roda: (n: string, p: Record<string, unknown>) => boolean }) {
++  const importar = async (f: File) => {
++    const texto = await f.text();
++    const r = importarFichasAlveolares(texto);
++    if (!r.ok) { useStore.getState().set({ message: r.erros.join(' ') }); return; }
++    if (roda('ficha.alveolar', { acao: 'importar', texto, substituir: true })) useStore.getState().set({ message: `${r.fichas.length} ficha(s) alveolar(es) importada(s).` });
++  };
++  return (
++    <div className="row wrap">
++      <Button disabled={!b.tiposLaje?.alveolares?.length} onClick={() => { void download('fichas-alveolares.json', exportarFichasAlveolares(b), 'application/json'); }}>Exportar fichas alveolares</Button>
++      <FilePick label="Importar JSON de fichas alveolares" accept=".json,application/json" onFile={(f) => { void importar(f); }} />
++    </div>
++  );
++}
++
++function BibliotecaAlveolares({ b, roda }: { b: BuildingModel; roda: (n: string, p: Record<string, unknown>) => boolean }) {
++  const [itens, setItens] = useState<LibraryItem[]>([]);
++  const [sel, setSel] = useState('');
++  const [nome, setNome] = useState('');
++  const [aviso, setAviso] = useState('');
++  const recarregar = () => listLibrary().then((r) => setItens(r.items.filter((i) => i.kind === 'fichasAlveolares'))).catch(() => {});
++  useEffect(() => { recarregar(); }, []);
++  const gravar = async () => {
++    try {
++      const arq = JSON.parse(exportarFichasAlveolares(b));
++      await saveToLibrary('fichasAlveolares', nome.trim(), `${arq.fichas.length} ficha(s) alveolar(es)`, arq);
++      setNome(''); recarregar(); setAviso(`Fichas alveolares “${nome.trim()}” gravadas.`);
++    } catch (e) { setAviso((e as Error).message); }
++  };
++  const trazer = async () => {
++    const e = sel ? await loadFromLibrary(sel) : null;
++    if (!e) { setAviso('Documento não encontrado na biblioteca.'); return; }
++    if (roda('ficha.alveolar', { acao: 'importar', texto: JSON.stringify(e.payload), substituir: true })) setAviso(`“${e.name}” trazida para a obra.`);
++  };
++  return (
++    <details className="small" data-biblioteca-alveolares>
++      <summary>Biblioteca de fichas alveolares</summary>
++      <div className="row wrap">
++        <TextField label="Nome na biblioteca de fichas alveolares" value={nome} onChange={setNome} />
++        <Button disabled={!nome.trim() || !b.tiposLaje?.alveolares?.length} onClick={gravar}>Gravar fichas alveolares da obra</Button>
++      </div>
++      <div className="row wrap">
++        <Select label="Fichas alveolares gravadas" value={sel} options={[{ v: '', label: itens.length ? '— escolha —' : '(vazia)' }, ...itens.map((i) => ({ v: i.id, label: `${i.name} · ${i.summary}` }))]} onChange={setSel} />
++        <Button disabled={!sel} onClick={trazer}>Trazer fichas alveolares para a obra</Button>
++        <Button variant="danger" disabled={!sel} onClick={async () => { await deleteFromLibrary(sel); setSel(''); recarregar(); }}>Excluir da biblioteca de fichas alveolares</Button>
++      </div>
++      {aviso && <span className="hint" data-aviso-biblioteca-alveolares>{aviso}</span>}
++      <Hint>Grava as fichas alveolares da obra para reutilizar em outras obras (arquivo versionado, o mesmo do botão Exportar).</Hint>
++    </details>
++  );
++}
+diff --git a/src/app/edificio/MemorialAlveolares.tsx b/src/app/edificio/MemorialAlveolares.tsx
+new file mode 100644
+index 0000000..7331b63
+--- /dev/null
++++ b/src/app/edificio/MemorialAlveolares.tsx
+@@ -0,0 +1,67 @@
++// Memorial das lajes alveolares (frente E3e): quadro de propriedades das placas das fichas usadas (com a marca da ficha), por laje a
++// ficha, a escolha da placa, flexão, comparação de serviço, cortante, negativos na capa, processo construtivo e flecha, lista de
++// placas e aço dos negativos. As linhas vêm do núcleo (`placasNoMemorial`, `alveolaresNoMemorial`, `listaDePlacas`).
++import type { ReactNode } from 'react';
++import { fmt } from './Detalhamento';
++import { placasNoMemorial } from '../../core/building/alveolares';
++import { alveolaresNoMemorial, listaDePlacas } from '../../core/building/alveolaresDim';
++import type { Dimensionamento } from '../../core/building/dimensionamento';
++import type { BuildingModel } from '../../core/building/types';
++
++const sd = (ok: boolean | null) => (ok === null ? 'sem dado' : ok ? 'atende' : 'não atende');
++
++export function MemorialAlveolares({ b, dim, h2 }: { b: BuildingModel; dim: Dimensionamento | null; h2: (t: string) => ReactNode }) {
++  const placas = placasNoMemorial(b);
++  const linhas = dim?.alveolares?.length ? alveolaresNoMemorial(dim.alveolares) : [];
++  if (!placas.length && !linhas.length) return null;
++  const lista = dim?.alveolares?.length ? listaDePlacas(dim.alveolares) : [];
++  const aco = dim?.resumoAcoAlveolares ?? [];
++  return (
++    <>
++      {h2('Lajes alveolares')}
++      <div data-memorial-alveolares>
++        <p>Placas alveolares protendidas pré-moldadas com capa estrutural moldada no local. Análise por grelha unidirecional na direção das placas, com a rigidez EI da ficha; esforços por metro de largura (envoltória ELU de todos os pavimentos do grupo). Os valores resistentes das placas (momentos, cortante, rigidez, negativos) são dados do fabricante, não verificados pelo programa; sem dado na ficha, a verificação correspondente não é feita e aparece como “sem dado”. A resistência ao fogo das alveolares não é verificada.</p>
++        {placas.length > 0 && (
++          <table data-quadro-placas-alveolares>
++            <thead><tr><th>Ficha</th><th>Marca</th><th>Placa</th><th>h (cm)</th><th>Capa (cm)</th><th>Largura (cm)</th><th>Apoio mín / máx (cm)</th><th>Peso próprio (kN/m²)</th><th>Mu (kN·m/m)</th><th>Mfis (kN·m/m)</th><th>VRd (kN/m)</th><th>Negativos</th><th>Usada</th></tr></thead>
++            <tbody>
++              {placas.map((p) => (
++                <tr key={`${p.fichaId}|${p.id}`}>
++                  <td className="l">{p.ficha}</td><td className="l">{p.marca}</td><td className="l">{p.id}</td><td>{fmt(p.altura * 100, 0)}</td><td>{fmt(p.capa * 100, 0)}</td><td>{fmt(p.largura * 100, 0)}</td>
++                  <td>{fmt(p.apoioMin * 100, 1)} / {fmt(p.apoioMax * 100, 1)}</td><td>{fmt(p.pp)}</td><td>{p.Mu === undefined ? '—' : fmt(p.Mu)}</td><td>{p.Mfis === undefined ? '—' : fmt(p.Mfis)}</td><td>{p.VRd === undefined ? '—' : fmt(p.VRd)}</td><td>{p.negativos}</td><td>{p.usada ? 'sim' : 'não'}</td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        )}
++        {linhas.map((l) => (
++          <div key={l.laje} className="avoid" data-memorial-alveolar={l.laje}>
++            <h3>Laje {l.laje} · {l.ficha}{l.pavimentos.length > 1 ? ` · ${l.pavimentos.length} pavimentos` : ''}</h3>
++            <p>Ficha: {l.ficha} ({l.marca}). Placa adotada {l.placa}{l.escolhida && l.escolhida !== l.placa ? `; a verificação sugere a placa ${l.escolhida}` : ''}. Processo construtivo: {l.processo}.</p>
++            <p>
++              Flexão positiva: Md {fmt(l.flexao.Md)} kN·m/m{l.flexao.Mu === null ? ' (sem Mu na ficha)' : `, Mu ${fmt(l.flexao.Mu)} kN·m/m`} — {sd(l.flexao.ok)}.
++              {l.servico ? ` Serviço (protensão ${l.servico.nivel}, CAA ${l.servico.caa}, combinação ${l.servico.combinacao}): Ms ${fmt(l.servico.Ms)} kN·m/m${l.servico.Madm === null ? ' (sem momento admissível na ficha)' : `, Madm ${fmt(l.servico.Madm)} kN·m/m`} — ${sd(l.servico.ok)}.` : ' Serviço: sem momentos de serviço na ficha.'}
++              {' '}Cortante: {l.cortante.map((c, i) => `${i === 0 ? 'início' : 'fim'} Vd ${fmt(c.Vd)} kN/m${c.VRd === null ? ' (sem VRd)' : `, VRd ${fmt(c.VRd)} kN/m`} — ${sd(c.VRd === null ? null : c.ok)}`).join('; ')}.
++            </p>
++            <p>Negativos na capa: {l.negativos.map((n, i) => `${i === 0 ? 'início' : 'fim'}: ${n ?? 'sem negativo de cálculo'}`).join('; ')}.{l.flecha ? ` Flecha: ${l.flecha}.` : ''}</p>
++            {l.mensagens.length > 0 && <ul>{l.mensagens.map((m, i) => <li key={i}><i>{m}</i></li>)}</ul>}
++          </div>
++        ))}
++        {lista.length > 0 && (
++          <table data-lista-placas-alveolares>
++            <thead><tr><th>Placa</th><th>Ficha</th><th>Largura (cm)</th><th>Comprimento (m)</th><th>Quantidade</th><th>Observação</th></tr></thead>
++            <tbody>
++              {lista.map((x, i) => <tr key={i}><td className="l">{x.placa}</td><td className="l">{x.ficha}</td><td>{fmt(x.largura * 100, 0)}</td><td>{fmt(x.comprimento)}</td><td>{x.quantidade}</td><td className="l">{[x.cortada ? 'borda cortada' : '', x.obliqua ? 'oblíqua' : ''].filter(Boolean).join('; ') || '—'}</td></tr>)}
++            </tbody>
++          </table>
++        )}
++        {aco.length > 0 && (
++          <table data-aco-alveolares>
++            <thead><tr><th>Aço</th><th>φ (mm)</th><th>Comprimento (m)</th><th>Peso (kg)</th><th>Peso com perdas (kg)</th></tr></thead>
++            <tbody>{aco.map((a) => <tr key={a.phi}><td className="l">{a.aco}</td><td>{fmt(a.phi, a.phi % 1 ? 1 : 0)}</td><td>{fmt(a.comprimento)}</td><td>{fmt(a.peso)}</td><td>{fmt(a.pesoComPerdas)}</td></tr>)}</tbody>
++          </table>
++        )}
++      </div>
++    </>
++  );
++}
+diff --git a/src/app/edificio/MemorialEdificio.tsx b/src/app/edificio/MemorialEdificio.tsx
+index 538bed1..194f21d 100644
+--- a/src/app/edificio/MemorialEdificio.tsx
++++ b/src/app/edificio/MemorialEdificio.tsx
+@@ -25,6 +25,7 @@ import { deltaXi } from '../../core/design';
+ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
+ import { normasNoMemorial } from '../../core/normas/memorial';
+ import { fichasNoMemorial } from '../../core/building/tiposLaje';
++import { MemorialAlveolares } from './MemorialAlveolares';
+ import { MemorialNervuradas } from './MemorialNervuradas';
+ import { MemorialAbacos } from './MemorialAbacos';
+ 
+@@ -198,6 +199,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+           <MemorialInclinadas b={b} dim={dim} h2={h2} />
+           <MemorialNervuradas b={b} dim={dim} h2={h2} />
+           <MemorialAbacos b={b} dim={dim} h2={h2} />
++          <MemorialAlveolares b={b} dim={dim} h2={h2} />
+           <MemorialListagemGeral b={b} h2={h2} />
+           {h2('Ações')}
+           <table>
+@@ -484,7 +486,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+             <MemorialVigotasFicha dim={dim} h2={h2} />
+             {((dim.resumoAcoVigas?.length ?? 0) > 0 || (dim.resumoAcoPilares?.length ?? 0) > 0 || (dim.resumoAcoLajes?.length ?? 0) > 0 || (dim.resumoAcoVigotas?.length ?? 0) > 0 || (dim.resumoAcoNervuradas?.length ?? 0) > 0 || (dim.resumoAcoParedes?.length ?? 0) > 0 || (dim.resumoTelas?.length ?? 0) > 0) && (<>
+               {h2('Resumo geral de aço')}
+-              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas e nervuradas)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [])]] as const).map(([tit, rs]) => (
++              {([['Vigas', dim.resumoAcoVigas ?? []], ['Pilares', dim.resumoAcoPilares ?? []], ['Paredes e pilares-parede', dim.resumoAcoParedes ?? []], ['Lajes maciças', dim.resumoAcoLajes ?? []], ['Lajes treliçadas (adicionais, negativos e distribuição)', dim.resumoAcoVigotas ?? []], ['Lajes nervuradas bidirecionais (nervuras, base e malha da mesa)', dim.resumoAcoNervuradas ?? []], ['Lajes alveolares (negativos na capa)', dim.resumoAcoAlveolares ?? []], ['Total geral (vigas, pilares, paredes, lajes, vigotas, nervuradas e alveolares)', somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])]] as const).map(([tit, rs]) => (
+                 <div key={tit} className="avoid">
+                   <h3>{tit}</h3>
+                   <table>
+@@ -506,7 +508,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+                   <p>Painéis de {fmt(PAINEL_TELA.largura)} × {fmt(PAINEL_TELA.comprimento)} m cortados no pano, com traspasse de {fmt(opc.lajeTelaTraspasse, 0)} cm entre painéis e cobrimento nas bordas; peso = 7850 kg/m³ × área de aço das duas direções [a confirmar: dimensões dos fios e das malhas do catálogo conferidas por catálogos de fabricantes, séries L e T fora do catálogo].</p>
+                 </div>
+               )}
+-              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
++              <p>Perdas de {fmt(perdasDoResumo(somarResumosAco(dim.resumoAcoVigas ?? [], dim.resumoAcoPilares ?? [], dim.resumoAcoParedes ?? [], dim.resumoAcoLajes ?? [], dim.resumoAcoVigotas ?? [], dim.resumoAcoNervuradas ?? [], dim.resumoAcoAlveolares ?? [])), 1)} % sobre o peso (opção "perdas de aço"). Lajes maciças pelo detalhamento; lajes treliçadas pelas barras adicionais, negativos e distribuição (as treliças eletrossoldadas vêm em tabela própria, abaixo, e não entram nos totais de barras); lajes nervuradas seguem estimadas por taxa na tabela de quantitativos e não entram neste resumo.</p>
+               {(dim.trelicas?.length ?? 0) > 0 && (
+                 <div className="avoid">
+                   <h3>Treliças eletrossoldadas (por tipo)</h3>
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index db53b3c..c4b387b 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -343,6 +343,9 @@ export function Planta() {
+   const cubetasPlanta = useMemo(() => (pl.camadaNervuras ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.arr.cubetas ?? []).map((cb) => cb.poligono)) : []), [b, lajes, pl.camadaNervuras]);
+   // ábacos das nervuradas bidirecionais (E3d): zona efetiva de cada ábaco (camada opcional)
+   const abacosPlanta = useMemo(() => (pl.camadaAbacos ? lajes.flatMap(({ l }) => (arranjoDaLaje(b, l)?.abacos ?? []).map((e) => e.poligono)) : []), [b, lajes, pl.camadaAbacos]);
++  // lajes alveolares (E3e): placas numeradas do pano, das lajes do pavimento (camada opcional)
++  const dimAlveolares = useBuilding((st) => st.dim?.alveolares);
++  const placasPlanta = useMemo(() => (pl.camadaPlacas && dimAlveolares ? dimAlveolares.filter((r) => lajes.some(({ l }) => l.id === r.laje)).flatMap((r) => r.placas) : []), [dimAlveolares, lajes, pl.camadaPlacas]);
+   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
+   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
+ 
+@@ -608,6 +611,23 @@ export function Planta() {
+         if (v.k > 40 && x.rot) { const [tx, ty] = paraTela((x.a[0] + x.z[0]) / 2, (x.a[1] + x.z[1]) / 2); ctx.fillText(x.rot, tx + 4, ty - 6); }
+       }
+     }
++    // lajes alveolares (E3e): placas numeradas com largura e comprimento; borda cortada e oblíqua em aviso; insuficiente em vermelho (camada opcional)
++    if (wrap.current) wrap.current.dataset.placasAlveolares = String(placasPlanta.length);
++    if (placasPlanta.length) {
++      ctx.save();
++      ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
++      for (const p of placasPlanta) {
++        const dx = p.z[0] - p.a[0], dy = p.z[1] - p.a[1], n = Math.hypot(dx, dy) || 1, nx = (-dy / n) * (p.largura / 2), ny = (dx / n) * (p.largura / 2);
++        const cantos = [[p.a[0] + nx, p.a[1] + ny], [p.z[0] + nx, p.z[1] + ny], [p.z[0] - nx, p.z[1] - ny], [p.a[0] - nx, p.a[1] - ny]];
++        const ruim = p.status === 'insuficiente';
++        ctx.strokeStyle = ruim ? cores.erro : p.cortada || p.obliqua ? cores.aviso : cores.laje; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = ruim ? 2.4 : 1;
++        ctx.beginPath();
++        cantos.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
++        ctx.closePath(); ctx.stroke();
++        if (v.k > 18) { const [tx, ty] = paraTela((p.a[0] + p.z[0]) / 2, (p.a[1] + p.z[1]) / 2); ctx.fillText(`${p.numero.replace(/^.*-/, '')} · ${Math.round(p.largura * 100)} × ${p.comprimento.toFixed(2).replace('.', ',')}`, tx, ty); }
++      }
++      ctx.restore();
++    }
+     // punção e cortante: contornos C, C′ e C″ (vermelho onde a tensão excede a resistência) e a armadura de punção
+     if (wrap.current) wrap.current.dataset.puncao = String(puncaoPlanta.length);
+     if (puncaoPlanta.length) {
+diff --git a/src/app/edificio/TiposLaje.tsx b/src/app/edificio/TiposLaje.tsx
+index 4cf42df..f1c3c01 100644
+--- a/src/app/edificio/TiposLaje.tsx
++++ b/src/app/edificio/TiposLaje.tsx
+@@ -11,6 +11,7 @@ import { Button, FilePick, Group, Hint, NumField, OptNumField, Pill, Seg, Select
+ import { deleteFromLibrary, listLibrary, loadFromLibrary, saveToLibrary, type LibraryItem } from '../storage';
+ import { useStore } from '../store';
+ import { useBuilding } from './store';
++import { FichasAlveolaresUI } from './FichasAlveolares';
+ import { FormasLajeUI } from './FormasLaje';
+ 
+ type Aba = 'geometria' | 'positivo' | 'negativo' | 'cortante' | 'protensao' | 'resumo';
+@@ -183,6 +184,7 @@ export function TiposLajeGrupo({ b }: { b: BuildingModel }) {
+ 
+         <EnchimentosUI b={b} eid={eid} setEid={setEid} roda={roda} />
+         <FormasLajeUI b={b} roda={roda} />
++        <FichasAlveolaresUI b={b} roda={roda} />
+         <ArquivoTiposLaje b={b} roda={roda} setMsg={setMsg} />
+         <BibliotecaTiposLaje b={b} roda={roda} />
+         <Hint>Dados de ficha são do fabricante: o programa só confere a coerência lógica. Fichas de catálogo e de exemplo são copiadas para a obra ao atribuir; copie uma ficha para editá-la. O catálogo das treliçadas fica na biblioteca de normas.</Hint>
+diff --git a/src/app/edificio/plantaStore.ts b/src/app/edificio/plantaStore.ts
+index d167d04..3e826be 100644
+--- a/src/app/edificio/plantaStore.ts
++++ b/src/app/edificio/plantaStore.ts
+@@ -79,6 +79,8 @@ interface PState {
+   camadaAbacos: boolean;
+   /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
+   camadaPuncao: boolean;
++  /** Camada "Placas alveolares" (E3e): placas numeradas das lajes alveolares do pavimento (não vai para o arquivo). */
++  camadaPlacas: boolean;
+   /** Ferramenta Armadura de punção: adicionar ou apagar grupos ao clicar num pilar, e o grupo lançado (linhas radiais, barras por linha, φ em mm, espaçamento em m). */
+   puncaoModo: 'adicionar' | 'apagar';
+   puncaoGrupo: { linhas: number; barras: number; phi: number; s: number };
+@@ -195,6 +197,7 @@ export const usePlanta = create<PState>((set) => ({
+   camadaNervuras: false,
+   camadaAbacos: false,
+   camadaPuncao: false,
++  camadaPlacas: false,
+   puncaoModo: 'adicionar',
+   puncaoGrupo: { linhas: 8, barras: 3, phi: 6.3, s: 0.12 },
+   janela: null,
+diff --git a/src/app/storage.ts b/src/app/storage.ts
+index aec97a4..9d1aa26 100644
+--- a/src/app/storage.ts
++++ b/src/app/storage.ts
+@@ -7,6 +7,7 @@ import type { ModeloPortico } from '../core/building/copiaArmadura';
+ import type { BuildingFile } from '../core/building/file';
+ import type { BibliotecaAlvenaria } from '../core/building/alvenariaLista';
+ import type { ArquivoTiposLaje } from '../core/building/tiposLaje';
++import type { ArquivoFichasAlveolares } from '../core/building/alveolares';
+ 
+ export interface SavedCharacteristics {
+   projectName: string;
+@@ -16,9 +17,9 @@ export interface SavedCharacteristics {
+   settings: Record<string, unknown>;
+ }
+ 
+-export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico' | 'edificio' | 'alvenaria' | 'tiposLaje';
++export type LibraryKind = 'project' | 'characteristics' | 'materiais' | 'combinacoes' | 'portico' | 'edificio' | 'alvenaria' | 'tiposLaje' | 'fichasAlveolares';
+ /** Conteúdo gravado na biblioteca: projeto, características das fundações, materiais do edifício, situações de projeto (N2a) ou modelo de armadura de pórtico (R7f) ou edifício inteiro (L1). */
+-export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico | BuildingFile | BibliotecaAlvenaria | ArquivoTiposLaje;
++export type LibraryPayload = Model | SavedCharacteristics | PerfilMateriais | ListaSituacoes | ModeloPortico | BuildingFile | BibliotecaAlvenaria | ArquivoTiposLaje | ArquivoFichasAlveolares;
+ export interface LibraryItem { id: string; kind: LibraryKind; name: string; savedAt: string; summary: string }
+ export interface LibraryEntry extends LibraryItem { payload: LibraryPayload }
+ 

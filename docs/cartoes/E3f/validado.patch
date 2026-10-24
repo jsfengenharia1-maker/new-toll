@@ -1,0 +1,897 @@
+diff --git a/docs/analises/layout-bimcraft-mapa.md b/docs/analises/layout-bimcraft-mapa.md
+index 3f18491..956f1f0 100644
+--- a/docs/analises/layout-bimcraft-mapa.md
++++ b/docs/analises/layout-bimcraft-mapa.md
+@@ -179,6 +179,7 @@ Todas as 40 ferramentas de `Ferramenta` (plantaStore.ts) e a tecla de `TECLA_FER
+ | T39 | Direção do pano | | LancamentoL5 | RB:edicao / Lajes |
+ | T40 | Inserção do pano (vértice) | | LancamentoL5 | RB:edicao / Lajes |
+ | T41 | Cota em série | | PlantaBarra | RB:lancamento / Anotação (L6; acrescentada após o mapa) |
++| T42 | Definir plano na planta | | PlanosUI | RB:edicao / Planos (E3f; acrescentada após o mapa) |
+ 
+ Opções e botões da `PlantaBarra` (barra da planta hoje, `.planta-barra`):
+ 
+@@ -311,7 +312,7 @@ Teclas da planta (Planta.tsx, `onKey`; só no módulo Edifício, com foco fora d
+ - Ferramentas da planta: 41 (T1 a T41); opções da barra da planta: 22 (B1 a B22); teclas: 16 (K1 a K16).
+ - Fundação, vistas e janelas: 13 (F1 a F13) + 10 vistas (V1 a V10) + 8 janelas (W1 a W8) = 31.
+ - Módulo Fundações: 6 (M1 a M6). Barra de status: 6 (S1 a S6).
+-- Total: 58 + 44 + 41 + 22 + 16 + 31 + 6 + 6 = **224 itens**, sem item sem destino; 13 duplicados resolvidos (seção 7).
++- Total: 58 + 44 + 42 + 22 + 16 + 31 + 6 + 6 = **225 itens**, sem item sem destino; 13 duplicados resolvidos (seção 7).
+ 
+ ## 9. Faixa de comandos por módulo (resumo dos grupos)
+ 
+diff --git a/e2e/flows/E-3.mjs b/e2e/flows/E-3.mjs
+new file mode 100644
+index 0000000..bf28e40
+--- /dev/null
++++ b/e2e/flows/E-3.mjs
+@@ -0,0 +1,93 @@
++// Fluxos de interface — E (parte 3/3): planos inclinados, rampas e desníveis (E3f).
++import assert from 'node:assert/strict';
++import { faixaAba, fileMenu, grupoEdif } from './helpers.mjs';
++
++export const f_E3f = {
++  name: 'E3f: planos inclinados (novo plano, árvore, atribuir, propriedades, vigas incoerentes, tipo de pano e pano a definir, cobertura em duas águas, memorial, diafragma)',
++  async run({ newPage }) {
++    const page = await newPage();
++    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
++    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
++    const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
++    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
++    const aba = (nome) => page.locator('.edif-tabs').getByRole('tab', { name: nome });
++    const calcular = async () => { await aba('Dimensionamento').click(); await page.getByRole('button', { name: 'Calcular e dimensionar' }).click(); };
++    // um pano 6 × 4,5 m, vigas de 20 × 50
++    await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 4.5], [0, 4.5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.3, "h": 0.3}}}`).join(', ') + ']}');
++    await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 4.5], [6, 4.5]], [[0, 0], [0, 4.5]], [[6, 0], [6, 4.5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.2, "h": 0.5}}}`).join(', ') + ']}');
++    await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
++    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 1, null);
++    // 1) novo plano: máxima declividade de (0; 0) a (0; 4,5), desnível 0, 30 %; a árvore do Navegador mostra o plano
++    await faixaAba(page, 'Edição');
++    await page.getByRole('button', { name: 'Novo plano', exact: true }).click();
++    const dlg = page.getByRole('dialog', { name: 'Novo plano' });
++    const y2 = dlg.getByLabel(/^y2/); await y2.fill('4,5'); await y2.press('Enter');
++    const inc = dlg.getByLabel(/^Inclinação do plano/); await inc.fill('30'); await inc.press('Enter');
++    await dlg.getByRole('button', { name: 'Criar', exact: true }).click();
++    await dlg.waitFor({ state: 'detached' });
++    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 1, null);
++    let m = await modelo();
++    assert.equal(m.planos.length, 1);
++    assert.equal(m.planos[0].nome, 'Plano 1');
++    await page.getByRole('treeitem', { name: /Plano 1 — 30,0 %/ }).waitFor();
++    // 2) atribuir o plano ao pano selecionado: a planta o desenha com a cor, a seta e o texto de inclinação
++    const lj = await grupoEdif(page, /^Lajes —/);
++    await lj.locator('table.loads-ed tbody tr').nth(0).click();
++    await page.getByRole('button', { name: 'Atribuir plano', exact: true }).click();
++    await esperar(() => !!JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.plano, null);
++    await page.waitForFunction(() => document.querySelector('.planta-cv')?.getAttribute('data-planos-na-planta') === '1', null, { timeout: 20000 });
++    // 3) propriedades do plano: leitura da inclinação e edição para 40 %; as vigas do contorno ficam incoerentes e a correção copia o plano do pano
++    const gp = await grupoEdif(page, /^Planos —/);
++    assert.match(await gp.locator('[data-leitura-plano]').innerText(), /30,0 %/);
++    assert.match(await gp.innerText(), /atribuído/);
++    const i40 = gp.getByLabel(/^Inclinação do plano/); await i40.fill('40'); await i40.press('Enter');
++    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.[0]?.def?.inclinacao === 40, null);
++    assert.match(await gp.locator('[data-leitura-plano]').innerText(), /40,0 %/);
++    await gp.locator('[data-vigas-incoerentes]').waitFor();
++    await gp.getByRole('button', { name: 'Selecionar as vigas incoerentes', exact: true }).click();
++    await gp.getByRole('button', { name: 'Copiar inclinação do pano', exact: true }).click();
++    await gp.locator('[data-vigas-incoerentes]').waitFor({ state: 'detached' });
++    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.vigas?.some((v) => !!v.plano), null);
++    m = await modelo();
++    assert.ok(m.vigas.some((v) => v.plano === m.planos[0].id));
++    // 4) retirar o plano do pano
++    await lj.locator('table.loads-ed tbody tr').nth(0).click();
++    await page.getByRole('button', { name: 'Retirar plano', exact: true }).click();
++    await esperar(() => !JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.plano, null);
++    // 5) tipo de pano: pano a definir com 12 cm (o cálculo recusa) e de volta a maciça
++    const tp = await grupoEdif(page, /^Tipo de pano/);
++    await tp.getByLabel(/^Tipo de pano/).selectOption({ label: 'Pano a definir' });
++    const esp = tp.getByLabel(/^Espessura do pano a definir/); await esp.fill('0,12'); await esp.press('Enter');
++    await tp.getByRole('button', { name: 'Aplicar', exact: true }).click();
++    await esperar(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]; return l?.definir === true && l?.espessuraDefinir === 0.12; }, null);
++    await calcular();
++    await page.locator('.statusbar .msg', { hasText: 'DEFINIR_PANO' }).waitFor({ timeout: 60000 });
++    await aba('Planta').click();
++    await lj.locator('table.loads-ed tbody tr').nth(0).click();
++    await (await grupoEdif(page, /^Tipo de pano/)).getByLabel(/^Tipo de pano/).selectOption({ label: 'Maciça' });
++    await esperar(() => { const l = JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]; return !l?.definir && l?.tipo?.tipo === 'macica'; }, null);
++    // 6) exemplo "cobertura em duas águas": cálculo sem erro, planos no memorial e a opção do diafragma
++    await fileMenu(page, 'Obras recentes…');
++    const rec = page.getByRole('dialog', { name: 'Obras recentes' });
++    await rec.getByRole('button', { name: /Abrir exemplo Exemplo: cobertura em duas águas/ }).click();
++    await rec.waitFor({ state: 'detached' });
++    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.planos?.length === 2, null);
++    assert.deepEqual((await modelo()).planos.map((p) => p.nome).sort(), ['Água norte', 'Água sul']);
++    await calcular();
++    await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 240000 });
++    await page.getByRole('button', { name: 'Memorial do edifício' }).click();
++    const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
++    const sec = memo.locator('[data-memorial-planos]');
++    await sec.waitFor();
++    assert.match(await sec.locator('[data-tabela-planos]').innerText(), /Água sul/);
++    assert.match(await sec.locator('[data-tabela-planos]').innerText(), /30,00/);
++    await memo.getByRole('button', { name: 'Fechar' }).click();
++    // opção do diafragma: liga e desliga (recalcular o exemplo com a opção ligada não terminou em 9 min: pendência de núcleo, ver o índice da E3f)
++    await grupoEdif(page, 'Opções de cálculo');
++    const dia = page.getByLabel('Panos inclinados no diafragma do pavimento');
++    await dia.check();
++    assert.equal(await dia.isChecked(), true);
++    await dia.uncheck();
++    assert.equal(await dia.isChecked(), false);
++  },
++};
+diff --git a/e2e/flows/index.mjs b/e2e/flows/index.mjs
+index 6a78523..976af96 100644
+--- a/e2e/flows/index.mjs
++++ b/e2e/flows/index.mjs
+@@ -11,6 +11,7 @@ import * as m_V from './V.mjs';
+ import * as m_E_1 from './E-1.mjs';
+ import * as m_E_2 from './E-2.mjs';
+ import * as m_L from './L.mjs';
++import * as m_E_3 from './E-3.mjs';
+ import * as m_layout from './layout.mjs';
+ import * as m_D from './D.mjs';
+ 
+@@ -103,6 +104,7 @@ export const flows = [
+   m_E_2.f_E3c,
+   m_E_2.f_E3d,
+   m_E_2.f_E3e,
++  m_E_3.f_E3f,
+   m_layout.f_layout,
+   m_layout.f_layout_1280,
+   m_layout.f_layout_1024,
+diff --git a/src/app/design/global.css b/src/app/design/global.css
+index 7345ce9..6881eff 100644
+--- a/src/app/design/global.css
++++ b/src/app/design/global.css
+@@ -133,6 +133,8 @@
+   --pl-pb-cruzamento: #000000;
+   --pl-pb-fantasma: rgba(0,0,0,0.35);
+   --pl-pb-limite: #000000;
++  /* planos inclinados (E3f): cor de cada plano (índice 0 a 7) no preenchimento dos panos da planta; neutros e o accent da paleta enxuta */
++  --plano-0: #6995fe; --plano-1: #8a8a8a; --plano-2: #3b63fb; --plano-3: #afafaf; --plano-4: #505050; --plano-5: #a0a0a0; --plano-6: #717171; --plano-7: #dbdbdb;
+   /* vista 3D (V1): cores por tipo de elemento nos três temas da planta; o contêiner .v3d[data-tema] liga o tema às variáveis --v3d-<chave> */
+   --v3d-escuro-fundo: #181818; --v3d-escuro-pilar: #dbdbdb; --v3d-escuro-viga: #8a8a8a; --v3d-escuro-laje: #6d6d6d; --v3d-escuro-parede: #555555;
+   --v3d-escuro-escada: #afafaf; --v3d-escuro-fundacao: #444444; --v3d-escuro-pendente: #6995fe; --v3d-escuro-linha: #0a0a0a; --v3d-escuro-selecao: #6995fe; --v3d-escuro-destaque: #f2f2f2;
+diff --git a/src/app/design/mapaLayout.test.ts b/src/app/design/mapaLayout.test.ts
+index 87c2e58..f1c3e39 100644
+--- a/src/app/design/mapaLayout.test.ts
++++ b/src/app/design/mapaLayout.test.ts
+@@ -17,11 +17,11 @@ const teclas = (() => {
+ describe('mapa de migração do layout', () => {
+   it('existe e tem a contagem do cabeçalho', () => {
+     expect(mapa).toBeTruthy();
+-    expect(mapa).toContain('**224 itens**');
++    expect(mapa).toContain('**225 itens**');
+   });
+ 
+-  it('as 41 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
+-    expect(rotulos.length).toBe(41);
++  it('as 42 ferramentas da planta têm linha no mapa, com a tecla quando existe', () => {
++    expect(rotulos.length).toBe(42);
+     for (const { id, rotulo } of rotulos) {
+       const linha = mapa.split('\n').find((l) => /^\| T\d+ \|/.test(l) && l.includes(`| ${rotulo} |`));
+       expect(linha, `ferramenta ${id} (${rotulo}) sem linha T no mapa`).toBeTruthy();
+diff --git a/src/app/edificio/DadosL4.tsx b/src/app/edificio/DadosL4.tsx
+index ea81ab0..271506a 100644
+--- a/src/app/edificio/DadosL4.tsx
++++ b/src/app/edificio/DadosL4.tsx
+@@ -64,7 +64,11 @@ export function DadosL4Grupo({ b, onPlanta }: { b: BuildingModel; onPlanta?: ()
+             {Object.entries(CAMPOS_COPIA_LAJE).map(([k, c]) => <Check key={k} label={`Copiar dado: ${c.rotulo.toLowerCase()}`} checked={campos.includes(k)} onChange={(v) => setCampos(v ? [...campos, k] : campos.filter((x) => x !== k))} />)}
+           </div>
+           <Button disabled={!lajesSel.filter((id) => id !== lajeOrigem?.id).length || !campos.length} onClick={() => exec('laje.copiarDados', { de: lajeOrigem.id, para: lajesSel.filter((id) => id !== lajeOrigem.id), campos })}>Copiar os dados para as lajes selecionadas</Button>
+-          <Hint>O plano de inclinação entra com a E3f; até lá, copie tipo, direção, desnível, engastes, cobrimento, tabela e armadura base.</Hint>
++          {campos.includes('plano') && (() => {
++            const alertas = lajesSel.filter((id) => id !== lajeOrigem.id).flatMap((id) => { const z = b.lajes.find((x) => x.id === id); const t = z ? CAMPOS_COPIA_LAJE.plano.alerta?.(lajeOrigem, z) : null; return t ? [t] : []; });
++            return alertas.length > 0 ? <Note data-alerta-plano-copia><b>Atenção: troca de plano.</b> {alertas.map((t, i) => <div key={i}>{t}</div>)}</Note> : null;
++          })()}
++          <Hint>Copie tipo, direção, desnível, plano de inclinação, engastes, cobrimento, tabela e armadura base entre panos do mesmo grupo (o plano de outro grupo não é copiado).</Hint>
+         </>
+       )}
+ 
+diff --git a/src/app/edificio/Edificio.tsx b/src/app/edificio/Edificio.tsx
+index 3ac5fc6..4ae37df 100644
+--- a/src/app/edificio/Edificio.tsx
++++ b/src/app/edificio/Edificio.tsx
+@@ -24,6 +24,8 @@ import { MemorialEdificio } from './MemorialEdificio';
+ import { PaletaComandos } from './PaletaComandos';
+ import { DiagonaisHost } from './DiagonaisUI';
+ import { ConsolosHost } from './ConsolosUI';
++import { TipoPanoGrupo } from './TipoPano';
++import { PlanosGrupo, PlanosHost } from './PlanosUI';
+ import { InclinadasHost } from './InclinadasUI';
+ import { lerQuadroVigas } from '../../core/building/quadros';
+ import { Pranchas } from './Pranchas';
+@@ -220,6 +222,8 @@ export function Edificio() {
+           <VigasGrupo b={b} />
+           <LancamentoL5Grupo b={b} onPlanta={() => setAba('planta')} />
+           <LajesGrupo b={b} />
++          <TipoPanoGrupo b={b} />
++          <PlanosGrupo b={b} />
+           <AlveolaresGrupo b={b} />
+           <NervuradasGrupo b={b} />
+           <AbacosGrupo b={b} />
+@@ -249,6 +253,7 @@ export function Edificio() {
+       <InclinadasHost />
+       <DiagonaisHost />
+       <ConsolosHost />
++      <PlanosHost />
+       <PaletaComandos setAba={(a) => setAba(a as typeof aba)} />
+     </div>
+   );
+diff --git a/src/app/edificio/FaixaEdificio.tsx b/src/app/edificio/FaixaEdificio.tsx
+index 226546a..38d68b7 100644
+--- a/src/app/edificio/FaixaEdificio.tsx
++++ b/src/app/edificio/FaixaEdificio.tsx
+@@ -4,6 +4,7 @@ import { Dropdown, Input, RibbonButton, RibbonGroup } from '../ui';
+ import { CoresPlanta } from './CoresPlanta';
+ import { aoEscolher, usePlanta, type Ferramenta, type Tema } from './plantaStore';
+ import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
++import { PlanosFaixa } from './PlanosUI';
+ import { useBuilding } from './store';
+ import { useEdifUI } from './uiStore';
+ import { useInclinadasUI } from './InclinadasUI';
+@@ -99,6 +100,7 @@ function Edicao() {
+         <RibbonButton icon="unirPavimentos" label="Unir pavimentos…" onClick={() => ui({ l4: 'unirPavimentos' })} />
+       </RibbonGroup>
+       <RibbonGroup label="Referências" radios="Ferramenta"><Ferr f="moverRef" icon="referencia" /><Ferr f="contaGotas" icon="contaGotas" /></RibbonGroup>
++      <PlanosFaixa><Ferr f="plano" icon="laje" /></PlanosFaixa>
+       <RibbonGroup label="Lajes" radios="Ferramenta">
+         <RibbonButton icon="laje" label="Tipos de laje…" title="Abre a Configuração da obra em Tipos de laje" onClick={() => ui({ cfg: 'tiposLaje' })} />
+         <Ferr f="puncao" icon="puncao" disabled={!dim?.puncao?.length} />
+diff --git a/src/app/edificio/MemorialEdificio.tsx b/src/app/edificio/MemorialEdificio.tsx
+index 194f21d..d1d31bf 100644
+--- a/src/app/edificio/MemorialEdificio.tsx
++++ b/src/app/edificio/MemorialEdificio.tsx
+@@ -25,6 +25,7 @@ import { deltaXi } from '../../core/design';
+ import { PREMISSAS, TAXAS } from '../../core/building/premissas';
+ import { normasNoMemorial } from '../../core/normas/memorial';
+ import { fichasNoMemorial } from '../../core/building/tiposLaje';
++import { MemorialPlanos } from './MemorialPlanos';
+ import { MemorialAlveolares } from './MemorialAlveolares';
+ import { MemorialNervuradas } from './MemorialNervuradas';
+ import { MemorialAbacos } from './MemorialAbacos';
+@@ -200,6 +201,7 @@ export function MemorialEdificio({ onClose }: { onClose: () => void }) {
+           <MemorialNervuradas b={b} dim={dim} h2={h2} />
+           <MemorialAbacos b={b} dim={dim} h2={h2} />
+           <MemorialAlveolares b={b} dim={dim} h2={h2} />
++          <MemorialPlanos b={b} an={analise} h2={h2} />
+           <MemorialListagemGeral b={b} h2={h2} />
+           {h2('Ações')}
+           <table>
+diff --git a/src/app/edificio/MemorialPlanos.tsx b/src/app/edificio/MemorialPlanos.tsx
+new file mode 100644
+index 0000000..fd937b9
+--- /dev/null
++++ b/src/app/edificio/MemorialPlanos.tsx
+@@ -0,0 +1,41 @@
++// Memorial dos planos inclinados (frente E3f): tabela dos planos (definição, inclinação, panos e vigas), esforços normais dos panos e
++// vigas inclinados e empuxo horizontal no topo dos pilares por caso, e a premissa. As linhas vêm do núcleo (`planosNoMemorial`,
++// `esforcosDosPlanos`); sem planos na obra a seção não aparece.
++import type { ReactNode } from 'react';
++import { fmt } from './Detalhamento';
++import type { AnaliseEdificio } from '../../core/building/analitico';
++import { esforcosDosPlanos, planosNoMemorial } from '../../core/building/planos';
++import { PREMISSAS } from '../../core/building/premissas';
++import type { BuildingModel } from '../../core/building/types';
++
++export function MemorialPlanos({ b, an, h2 }: { b: BuildingModel; an: AnaliseEdificio | null; h2: (t: string) => ReactNode }) {
++  const linhas = planosNoMemorial(b);
++  if (!linhas.length) return null;
++  const ef = an ? esforcosDosPlanos(an) : { normais: [], empuxos: [] };
++  const premissa = PREMISSAS.find((p) => p.id === 'planos');
++  return (
++    <>
++      {h2('Planos inclinados')}
++      <div data-memorial-planos>
++        <p>Panos e vigas com plano seguem a cota z(x, y) do plano (desnível em relação ao topo do pavimento); a inclinação do plano é a tangente da máxima declividade. Esforços normais (mínimo e máximo por caso vertical) dos panos e vigas inclinados e empuxo horizontal no topo dos pilares dos pavimentos com planos: do modelo integrado.</p>
++        <table data-tabela-planos>
++          <thead><tr><th>Plano</th><th>Grupo</th><th>Definição</th><th>Inclinação (%)</th><th>Inclinação (°)</th><th>Lajes</th><th>Vigas</th></tr></thead>
++          <tbody>{linhas.map((l) => <tr key={l.plano}><td className="l">{l.nome}</td><td className="l">{l.grupo}</td><td className="l">{l.definicao}</td><td>{fmt(l.percentual)}</td><td>{fmt(l.graus)}</td><td className="l">{l.lajes.join(', ') || '—'}</td><td className="l">{l.vigas.join(', ') || '—'}</td></tr>)}</tbody>
++        </table>
++        {ef.normais.length > 0 && (
++          <table data-normais-planos>
++            <thead><tr><th>Elemento</th><th>Tipo</th><th>Caso</th><th>N mín (kN)</th><th>N máx (kN)</th></tr></thead>
++            <tbody>{ef.normais.map((n, i) => <tr key={i}><td className="l">{n.ref}</td><td className="l">{n.tipo === 'laje' ? 'pano' : 'viga'}</td><td className="l">{n.caso}</td><td>{fmt(n.Nmin, 1)}</td><td>{fmt(n.Nmax, 1)}</td></tr>)}</tbody>
++          </table>
++        )}
++        {ef.empuxos.length > 0 && (
++          <table data-empuxos-planos>
++            <thead><tr><th>Pilar</th><th>Pavimento</th><th>Caso</th><th>Hx (kN)</th><th>Hy (kN)</th></tr></thead>
++            <tbody>{ef.empuxos.map((n, i) => <tr key={i}><td className="l">{n.pilar}</td><td className="l">{n.pavimento}</td><td className="l">{n.caso}</td><td>{fmt(n.Hx, 1)}</td><td>{fmt(n.Hy, 1)}</td></tr>)}</tbody>
++          </table>
++        )}
++        {premissa && <p data-premissa-planos><i>{premissa.texto}</i></p>}
++      </div>
++    </>
++  );
++}
+diff --git a/src/app/edificio/Navegador.tsx b/src/app/edificio/Navegador.tsx
+index d564e70..22c0a5c 100644
+--- a/src/app/edificio/Navegador.tsx
++++ b/src/app/edificio/Navegador.tsx
+@@ -19,6 +19,12 @@ export function Navegador() {
+   const arvore = useMemo(() => montarArvore(b), [b]);
+   const selecao = usePlanta((s) => s.selecao);
+   const pavAtual = usePlanta((s) => s.pavimento);
++  const planoSel = usePlanta((s) => s.planoSel);
++  useEffect(() => {
++    if (!planoSel) return;
++    const c = caminhoAte(arvore, `plano:${planoSel}`);
++    if (c.length) setAbertos((a) => new Set([...a, ...c.slice(0, -1)]));
++  }, [planoSel, arvore]);
+   const aba = useEdifUI((s) => s.aba);
+   const [abertos, setAbertos] = useState<Set<string>>(() => new Set(['obra', 'pavs']));
+   const alternar = (id: string) => setAbertos((a) => { const n = new Set(a); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+@@ -39,6 +45,7 @@ export function Navegador() {
+     if (!n.alvo) return undefined;
+     if (n.alvo.tipo === 'vista') return aba === n.alvo.id;
+     if (n.alvo.tipo === 'pavimento') return pavAtual === n.alvo.id && selecao.size === 0;
++    if (n.alvo.tipo === 'plano') return planoSel === n.alvo.id;
+     return selecao.has(n.alvo.id);
+   };
+   const selecionar = (n: NoArvore) => {
+@@ -49,6 +56,12 @@ export function Navegador() {
+     ui.set({ aba: 'planta' });
+     const P = usePlanta.getState();
+     if (a.tipo === 'pavimento') { P.set({ pavimento: a.id, selecao: new Set() }); return; }
++    if (a.tipo === 'plano') {
++      const plano = (b.planos ?? []).find((x) => x.id === a.id), pav = pavimentosOrdenados(b).find((p) => p.grupo === plano?.grupo);
++      P.set({ planoSel: a.id, ...(pav ? { pavimento: pav.id } : {}) });
++      abrirGrupo('Planos');
++      return;
++    }
+     if (a.tipo === 'eixo') { P.set({ selecao: new Set([a.id]), foco: { id: a.id, n: Date.now() } }); return; }
+     const ps = pavimentosOrdenados(b);
+     if (a.tipo === 'carga') {
+diff --git a/src/app/edificio/PlanosUI.test.ts b/src/app/edificio/PlanosUI.test.ts
+new file mode 100644
+index 0000000..07bab11
+--- /dev/null
++++ b/src/app/edificio/PlanosUI.test.ts
+@@ -0,0 +1,34 @@
++// E3f: funções puras da interface dos planos (rótulo do Navegador, campos e parâmetros dos comandos) contra o núcleo.
++import { describe, expect, it } from 'vitest';
++import { coeficientesPlano, inclinacaoDoPlano } from '../../core/building/planos';
++import type { Plano } from '../../core/building/types';
++import { comandosEdificioPadrao, Sessao } from '../../core/commands';
++import { DADOS_PLANO_NOVO, dadosDoPlano, paramsDoPlano, rotuloPlano, trocaTipoDef } from './planosUtil';
++
++const novaSessao = () => { const s = new Sessao(); for (const c of comandosEdificioPadrao()) s.executar(c.nome, c.params, 'sistema'); return s; };
++
++describe('E3f: interface dos planos', () => {
++  it('rótulo da árvore: nome e inclinação com 1 casa e vírgula', () => {
++    const pl: Plano = { id: 'p1', nome: 'Plano 1', grupo: 'g', def: { tipo: 'maximaDeclividade', pontos: [[0, 0], [0, 4.5]], desnivel: 0, inclinacao: 30 } };
++    expect(rotuloPlano(pl)).toBe('Plano 1 — 30,0 %');
++    expect(rotuloPlano({ ...pl, def: { tipo: 'tresPontos', pontos: [[0, 0, 0], [5, 0, 0], [0, 4, 0.8]] } })).toBe('Plano 1 — 20,0 %');
++  });
++  it('unidade graus: 45 graus criam um plano de 100 %', () => {
++    const s = novaSessao(), g = s.modelo.grupos[0].id;
++    const r = s.executar('plano.criar', { grupo: g, ...paramsDoPlano({ ...DADOS_PLANO_NOVO, unidade: 'graus', inclinacao: 45 }) });
++    expect(r.ok, r.erros.map((e) => e.mensagem).join(' ')).toBe(true);
++    const pl = s.modelo.planos![0];
++    expect(inclinacaoDoPlano(coeficientesPlano(pl.def)!).percentual).toBeCloseTo(100, 4);
++  });
++  it('trocar o tipo de definição aproveita os pontos e gera parâmetros aceitos pelo comando', () => {
++    const s = novaSessao(), g = s.modelo.grupos[0].id;
++    const tres = trocaTipoDef({ ...DADOS_PLANO_NOVO, desnivel: 0.3 }, 'tresPontos');
++    expect(tres.pontos).toEqual([[0, 0, 0.3], [0, 4, 0.3], [-4, 0, 0.3]]);
++    expect(s.executar('plano.criar', { grupo: g, ...paramsDoPlano(tres) }).ok).toBe(true);
++    const d = dadosDoPlano(s.modelo.planos![0]);
++    expect(d.tipo).toBe('tresPontos');
++    const volta = trocaTipoDef(d, 'retaHorizontal');
++    expect(volta.pontos).toEqual([[0, 0], [0, 4]]);
++    expect(volta.desnivel).toBeCloseTo(0.3, 12);
++  });
++});
+diff --git a/src/app/edificio/PlanosUI.tsx b/src/app/edificio/PlanosUI.tsx
+new file mode 100644
+index 0000000..4e09e1c
+--- /dev/null
++++ b/src/app/edificio/PlanosUI.tsx
+@@ -0,0 +1,197 @@
++// Planos inclinados (frente E3f): lista e propriedades do plano na doca Propriedades, janela "Novo plano" e a ação da faixa. Os planos
++// do grupo têm definição por três pontos, por reta horizontal + inclinação ou por máxima declividade; panos e vigas recebem o plano
++// por `plano.atribuir`. Comandos: `plano.criar`, `plano.editar`, `plano.remover` e `plano.atribuir`.
++import { useState, type ReactNode } from 'react';
++import { coeficientesPlano, grausDaTangente, inclinacaoDoPlano, planoAtribuido, vigasIncoerentes } from '../../core/building/planos';
++import { pavimentosOrdenados, type BuildingModel, type Plano } from '../../core/building/types';
++import { Button, Group, Hint, Modal, NumField, Pill, RibbonButton, RibbonGroup, Select, TextField } from '../ui';
++import { useStore } from '../store';
++import { usePlanta } from './plantaStore';
++import { useBuilding } from './store';
++import { CORES_PLANO, DADOS_PLANO_NOVO, dadosDoPlano, fmtPlano, paramsDoPlano, rotuloPlano, TIPOS_DEF, trocaTipoDef, type DadosPlano } from './planosUtil';
++
++/** Grupo de pavimentos da planta atual. */
++export function grupoDaPlanta(b: BuildingModel, pavimento: string | null) {
++  const ps = pavimentosOrdenados(b);
++  const pav = ps.find((p) => p.id === pavimento) ?? ps[Math.min(1, ps.length - 1)];
++  return b.grupos.find((g) => g.id === pav?.grupo);
++}
++
++/** Campos do plano (nome, cor, definição, pontos, desnível e inclinação); cada alteração devolve os dados novos. */
++function CamposPlano({ d, onChange }: { d: DadosPlano; onChange: (n: DadosPlano) => void }) {
++  const tres = d.tipo === 'tresPontos';
++  const ponto = (k: number, i: number, v: number) => onChange({ ...d, pontos: d.pontos.map((q, j) => (j === k ? q.map((x, m) => (m === i ? v : x)) : q)) });
++  const unidade = (u: '%' | 'graus') => onChange({ ...d, unidade: u, inclinacao: u === 'graus' ? +grausDaTangente(d.inclinacao / 100).toFixed(4) : +(Math.tan((d.inclinacao * Math.PI) / 180) * 100).toFixed(4) });
++  return (
++    <>
++      <div className="row wrap">
++        <TextField label="Nome do plano" value={d.nome} onChange={(x) => onChange({ ...d, nome: x.trim() })} />
++        <Select label="Cor do plano" value={d.cor} options={CORES_PLANO} onChange={(v) => onChange({ ...d, cor: v })} />
++        <Select label="Definição do plano" value={d.tipo} options={TIPOS_DEF} onChange={(v) => onChange(trocaTipoDef(d, v))} />
++      </div>
++      <div className="row wrap">
++        {d.pontos.map((q, k) => (
++          <span key={k} className="row wrap">
++            <NumField label={`x${k + 1}`} unit="m" width={90} value={q[0]} onChange={(v) => ponto(k, 0, v)} />
++            <NumField label={`y${k + 1}`} unit="m" width={90} value={q[1]} onChange={(v) => ponto(k, 1, v)} />
++            {tres && <NumField label={`z${k + 1}`} unit="m" width={90} value={q[2]} onChange={(v) => ponto(k, 2, v)} />}
++          </span>
++        ))}
++      </div>
++      {!tres && (
++        <div className="row wrap">
++          <NumField label="Desnível do plano" unit="m" width={110} value={d.desnivel} onChange={(v) => onChange({ ...d, desnivel: v })} />
++          <NumField label="Inclinação do plano" unit={d.unidade === '%' ? '%' : '°'} width={110} value={d.inclinacao} onChange={(v) => onChange({ ...d, inclinacao: v })} />
++          <Select label="Unidade da inclinação" value={d.unidade} options={[{ v: '%', label: '%' }, { v: 'graus', label: 'graus' }]} onChange={unidade} />
++        </div>
++      )}
++    </>
++  );
++}
++
++/** Propriedades do plano selecionado: cada alteração chama `plano.editar`. */
++export function PropriedadesPlano({ pl }: { pl: Plano }) {
++  const { exec } = useBuilding();
++  const b = useBuilding((s) => s.sessao.modelo);
++  const [un, setUn] = useState<'%' | 'graus'>('%');
++  const base = dadosDoPlano(pl);
++  const d: DadosPlano = un === '%' ? base : { ...base, unidade: 'graus', inclinacao: +grausDaTangente(base.inclinacao / 100).toFixed(4) };
++  const c = coeficientesPlano(pl.def), inc = c ? inclinacaoDoPlano(c) : null;
++  const muda = (n: DadosPlano) => {
++    if (n.unidade !== un) { setUn(n.unidade); return; }
++    const r = exec('plano.editar', { id: pl.id, nome: n.nome || pl.nome, cor: n.cor, ...paramsDoPlano(n) });
++    if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Plano recusado.' });
++  };
++  return (
++    <div data-propriedades-plano={pl.id}>
++      <CamposPlano d={d} onChange={muda} />
++      <p className="small">
++        <span data-leitura-plano>Inclinação: {inc ? `${fmtPlano(inc.percentual)} % (${fmtPlano(inc.graus)}°)` : '—'}</span>
++        {planoAtribuido(b, pl.id) && <> <Pill tone="ok">atribuído</Pill></>}
++      </p>
++      <div className="row wrap"><Button variant="danger" onClick={() => { exec('plano.remover', { ids: [pl.id] }); usePlanta.getState().set({ planoSel: null }); }}>Remover plano</Button></div>
++    </div>
++  );
++}
++
++/** Lista dos planos do grupo (a escolha vale também para a árvore do Navegador) e as propriedades do escolhido. */
++export function ListaPlanos({ b, grupo }: { b: BuildingModel; grupo: string }) {
++  const pl = usePlanta();
++  const planos = (b.planos ?? []).filter((p) => p.grupo === grupo);
++  const atual = planos.find((p) => p.id === pl.planoSel);
++  if (!planos.length) return <Hint>Sem planos neste grupo. Use “Novo plano” na faixa (aba Edição, grupo Planos) e atribua depois aos panos e vigas selecionados.</Hint>;
++  return (
++    <>
++      <Select label="Plano do grupo" value={atual?.id ?? ''} options={[{ v: '', label: '— escolha —' }, ...planos.map((p) => ({ v: p.id, label: rotuloPlano(p) }))]} onChange={(v) => pl.set({ planoSel: v || null })} />
++      {atual && <PropriedadesPlano key={atual.id} pl={atual} />}
++    </>
++  );
++}
++
++/** Grupo "Planos" da doca Propriedades. */
++export function PlanosGrupo({ b }: { b: BuildingModel }) {
++  const pl = usePlanta();
++  const grupo = grupoDaPlanta(b, pl.pavimento);
++  const n = (b.planos ?? []).filter((p) => p.grupo === grupo?.id).length;
++  return (
++    <div data-grupo-planos>
++      <Group title={`Planos — ${grupo?.nome ?? '—'} (${n})`} open={false}>
++        {grupo && <ListaPlanos b={b} grupo={grupo.id} />}
++        <DefinirNaPlanta />
++        {grupo && <CorrigirVigas b={b} grupo={grupo.id} />}
++        <Hint>Fluxo: lance panos e vigas na horizontal, crie o plano e atribua. O plano muda a cota do topo do pano e da viga (z = a·x + b·y + c); desnível e inclinação em relação ao topo do pavimento.</Hint>
++      </Group>
++    </div>
++  );
++}
++
++/** Janela "Novo plano". */
++export function CriarPlano({ b, grupo, onClose }: { b: BuildingModel; grupo: string; onClose: () => void }) {
++  const { exec } = useBuilding();
++  const [d, setD] = useState<DadosPlano>({ ...DADOS_PLANO_NOVO, cor: (b.planos ?? []).filter((p) => p.grupo === grupo).length % 8 });
++  const [erro, setErro] = useState('');
++  const criar = () => {
++    const r = exec('plano.criar', { grupo, ...(d.nome.trim() ? { nome: d.nome.trim() } : {}), cor: d.cor, ...paramsDoPlano(d) });
++    if (!r.ok) { setErro(r.erros[0]?.mensagem ?? 'Plano recusado.'); return; }
++    const novo = useBuilding.getState().sessao.modelo.planos?.filter((p) => p.grupo === grupo).at(-1);
++    usePlanta.getState().set({ planoSel: novo?.id ?? null });
++    onClose();
++  };
++  return (
++    <Modal titulo="Novo plano" onClose={onClose}>
++      <div data-novo-plano>
++        <CamposPlano d={d} onChange={setD} />
++        {erro && <p className="small bad" role="alert" data-erros-plano>{erro}</p>}
++        <div className="row wrap"><Button variant="primary" onClick={criar}>Criar</Button><Button onClick={onClose}>Cancelar</Button></div>
++      </div>
++    </Modal>
++  );
++}
++
++/** Monta a janela "Novo plano" quando aberta pela faixa (colocada uma vez no Edifício). */
++export function PlanosHost() {
++  const b = useBuilding((s) => s.sessao.modelo);
++  const aberta = usePlanta((s) => s.novoPlano), pavimento = usePlanta((s) => s.pavimento);
++  const grupo = grupoDaPlanta(b, pavimento);
++  return aberta && grupo ? <CriarPlano b={b} grupo={grupo.id} onClose={() => usePlanta.getState().set({ novoPlano: false })} /> : null;
++}
++
++/** Grupo "Planos" da faixa (aba Edição): novo plano e atribuir ou retirar o plano dos panos e vigas selecionados da planta. */
++export function PlanosFaixa({ children }: { children?: ReactNode }) {
++  const b = useBuilding((s) => s.sessao.modelo);
++  const { exec } = useBuilding();
++  const pl = usePlanta();
++  const grupo = grupoDaPlanta(b, pl.pavimento);
++  const lajes = b.lajes.filter((l) => pl.selecao.has(l.id) && l.grupo === grupo?.id).map((l) => l.id);
++  const vigas = b.vigas.filter((v) => pl.selecao.has(v.id) && v.grupo === grupo?.id).map((v) => v.id);
++  const plano = (b.planos ?? []).find((p) => p.id === pl.planoSel && p.grupo === grupo?.id);
++  const alvo = { ...(lajes.length ? { lajes } : {}), ...(vigas.length ? { vigas } : {}) };
++  const roda = (params: Record<string, unknown>) => { const r = exec('plano.atribuir', params); if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Atribuição recusada.' }); };
++  return (
++    <RibbonGroup label="Planos">
++      <RibbonButton icon="laje" label="Novo plano" title="Cria um plano inclinado no grupo da planta atual (três pontos, reta horizontal + inclinação ou máxima declividade)" disabled={!grupo} onClick={() => pl.set({ novoPlano: true })} />
++      <RibbonButton icon="zona" label="Atribuir plano" title="Atribui o plano escolhido no Navegador (ou no grupo Planos) aos panos e vigas selecionados na planta" disabled={!plano || !(lajes.length + vigas.length)} onClick={() => plano && roda({ plano: plano.id, ...alvo })} />
++      <RibbonButton icon="dobra" label="Retirar plano" title="Volta os panos e vigas selecionados à horizontal" disabled={!(lajes.length + vigas.length)} onClick={() => roda(alvo)} />
++      {children}
++    </RibbonGroup>
++  );
++}
++
++/** Definição do plano pelos cliques na planta (ferramenta `plano`): tipo e desníveis; visível com a ferramenta ativa. */
++function DefinirNaPlanta() {
++  const pl = usePlanta();
++  const d = pl.planoDef, tres = d.tipo === 'tresPontos';
++  if (pl.ferramenta !== 'plano') return <Hint>Para definir o plano na planta use “Definir plano na planta” (faixa, aba Edição, grupo Planos): marque os pontos com o mouse; o clique captura o eixo ou a face da viga mais próxima.</Hint>;
++  return (
++    <div data-definir-plano>
++      <div className="row wrap">
++        <Select label="Definição na planta" value={d.tipo} options={TIPOS_DEF} onChange={(v) => pl.set({ planoDef: { ...d, tipo: v } })} />
++        {tres
++          ? [0, 1, 2].map((k) => <NumField key={k} label={`Desnível do ponto ${k + 1}`} unit="m" width={110} value={d.z[k]} onChange={(v) => pl.set({ planoDef: { ...d, z: d.z.map((x, i) => (i === k ? v : x)) as [number, number, number] } })} />)
++          : <>
++            <NumField label="Desnível do primeiro ponto" unit="m" width={130} value={d.desnivel} onChange={(v) => pl.set({ planoDef: { ...d, desnivel: v } })} />
++            <NumField label="Inclinação da definição na planta" unit="%" width={130} value={d.inclinacao} onChange={(v) => pl.set({ planoDef: { ...d, inclinacao: v } })} />
++          </>}
++      </div>
++      <Hint>{tres ? 'Três cliques: um por ponto, com o desnível de cada um.' : d.tipo === 'retaHorizontal' ? 'Dois cliques: a reta horizontal; a inclinação sobe para a esquerda de p1 → p2.' : 'Dois cliques: a linha de máxima declividade; a inclinação sobe de p1 para p2.'} Esc cancela.</Hint>
++    </div>
++  );
++}
++
++/** Vigas incoerentes com o pano inclinado do grupo (PLANO_VIGA) e a correção pelo clique: copia a inclinação do pano para as selecionadas. */
++function CorrigirVigas({ b, grupo }: { b: BuildingModel; grupo: string }) {
++  const { exec } = useBuilding();
++  const pl = usePlanta();
++  const inc = vigasIncoerentes(b, grupo);
++  if (!inc.length) return null;
++  const sel = [...new Set(inc.filter((x) => pl.selecao.has(x.viga)).map((x) => x.viga))];
++  return (
++    <div data-vigas-incoerentes>
++      <p className="small bad" role="alert">{new Set(inc.map((x) => x.viga)).size} viga(s) não acompanham a inclinação do pano (erro PLANO_VIGA): selecione-as na planta e copie a inclinação do pano.</p>
++      <div className="row wrap">
++        <Button onClick={() => pl.set({ selecao: new Set(inc.map((x) => x.viga)) })}>Selecionar as vigas incoerentes</Button>
++        <Button disabled={!sel.length} onClick={() => { const r = exec('plano.corrigirVigas', { vigas: sel }); if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Correção recusada.' }); }}>Copiar inclinação do pano</Button>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/edificio/Planta.tsx b/src/app/edificio/Planta.tsx
+index c4b387b..2ecf6c7 100644
+--- a/src/app/edificio/Planta.tsx
++++ b/src/app/edificio/Planta.tsx
+@@ -3,6 +3,8 @@
+ import { faixasVisiveis, larguraGrupo } from './vigotasFaixas';
+ import { ehNervurada, rotuloLaje } from '../../core/building/tiposLaje';
+ import { arranjoDaLaje } from '../../core/building/nervuradas';
++import { capturaPlano, faceSuperiorDaViga, planoPor, secaoNoPlano, setaDeclividade, textoInclinacao } from '../../core/building/planos';
++import { corDoPlano } from './planosUtil';
+ import { useEffect, useMemo, useRef, useState } from 'react';
+ import { useBuilding } from './store';
+ import { useRevisao } from './revisao';
+@@ -140,7 +142,7 @@ const distSeg = (p: P2, a: P2, z: P2) => {
+ 
+ /** Nome de cada ferramenta (barra da planta, paleta e repetição pelo Enter) e a tecla de atalho. */
+ export const ROTULO_FERRAMENTA: Record<Ferramenta, string> = {
+-  selecionar: 'Selecionar', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
++  selecionar: 'Selecionar', plano: 'Definir plano na planta', pilar: 'Pilar', viga: 'Viga', laje: 'Laje', carga: 'Carga', eixo: 'Eixo', fundacao: 'Fundação', vigaFund: 'Viga de fundação', girarFund: 'Girar 2 pontos', insFund: 'Ponto de inserção', radier: 'Radier', vigaElastica: 'Viga sobre base elástica', vigaGabarito: 'Viga pelo gabarito', moverRef: 'Mover referência', contaGotas: 'Conta-gotas', contornoRet: 'Contorno retangular de vigas', aberturaRet: 'Abertura retangular', cargaLaje: 'Carga na laje inteira', cargaViga: 'Carga ao longo da viga', direcaoPano: 'Direção do pano', insercaoPano: 'Inserção do pano (vértice)', cota: 'Cota em série', corrida: 'Sapata corrida', limite: 'Limite da fundação', limiteMascara: 'Limite pela máscara', mover: 'Mover', medir: 'Medir', alinhar: 'Alinhar máscara',
+   dividir: 'Dividir viga', unir: 'Unir vigas', prolongar: 'Prolongar viga', copiar: 'Copiar', girar: 'Girar', espelhar: 'Espelhar', puncao: 'Armadura de punção', zonaLaje: 'Zona de uniformização', corte: 'Corte do edifício', secao: 'Linha de seção', linhaDobra: 'Linha de dobra', pilarParede: 'Pilar-parede', parede: 'Parede de concreto',
+ };
+ export const TECLA_FERRAMENTA: Partial<Record<Ferramenta, string>> = { selecionar: 'S', pilar: 'P', viga: 'V', laje: 'L', carga: 'C', eixo: 'E', fundacao: 'U', vigaFund: 'B', girarFund: 'K', insFund: 'N', radier: 'W', vigaElastica: 'X', corrida: 'A', limite: 'T', limiteMascara: 'Q', mover: 'M', medir: 'D', dividir: 'I', unir: 'J', prolongar: 'O', copiar: 'Y', girar: 'G', espelhar: 'H', puncao: 'Z' };
+@@ -169,6 +171,7 @@ const PASSOS: Record<Ferramenta, string[]> = {
+   direcaoPano: ['Clique no pano cuja direção mudar.', 'Clique numa viga (paralela ou perpendicular, conforme o painel) ou, no modo de dois pontos, no primeiro ponto.', 'Segundo ponto da direção.'],
+   cota: ['Clique em pilares, vigas ou paredes (ou em pontos livres) para acrescentar referências à série; Tab alterna face e eixo; Backspace tira a última; Enter fecha a série.', 'Clique onde posicionar a linha de cota (um número digitado dá a distância em cm da primeira referência). Esc termina.'],
+   insercaoPano: ['Clique no pano.', 'Clique perto do vértice que será o ponto de inserção do pano.'],
++  plano: ['Primeiro ponto do plano (captura o eixo ou a face da viga mais próxima); o tipo de definição e os desníveis ficam no grupo Planos da doca Propriedades.', 'Próximo ponto do plano.', 'Último ponto: cria o plano. Esc cancela.'],
+   contaGotas: ['Clique num pilar para pegar os dados dele (clique noutro pilar para trocar).', 'Clique onde inserir um pilar novo com esses dados (Esc volta a Selecionar).'],
+   alinhar: ['1º ponto na máscara.', 'Onde esse ponto deve ficar.', '2º ponto na máscara.', 'Onde o 2º ponto deve ficar.'],
+   vigaFund: ['Clique no primeiro elemento de fundação (ou pilar de arranque) da viga de fundação.', 'Clique no segundo elemento; a viga é lançada com o tipo e a seção do grupo Fundação. Esc cancela.'],
+@@ -346,6 +349,8 @@ export function Planta() {
+   // lajes alveolares (E3e): placas numeradas do pano, das lajes do pavimento (camada opcional)
+   const dimAlveolares = useBuilding((st) => st.dim?.alveolares);
+   const placasPlanta = useMemo(() => (pl.camadaPlacas && dimAlveolares ? dimAlveolares.filter((r) => lajes.some(({ l }) => l.id === r.laje)).flatMap((r) => r.placas) : []), [dimAlveolares, lajes, pl.camadaPlacas]);
++  // planos inclinados (E3f): cor de cada plano (tokens --plano-N) e número de panos com plano
++  const coresPlano = useMemo(() => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => corDoPlano(i)), [pl.tema]);
+   const bloqueados = useMemo(() => idsBloqueados({ vigas: b.vigas, pilares: b.pilares } as BuildingModel), [b.vigas, b.pilares]);
+   const comAviso = useMemo(() => new Set(pl.mostrarErros ? [...niveisRev.a].filter((i) => !comErro.has(i)) : []), [niveisRev, comErro, pl.mostrarErros]);
+ 
+@@ -512,13 +517,22 @@ export function Planta() {
+       l.contorno.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); });
+       path.closePath();
+       for (const f of l.furos ?? []) { f.forEach((q, i) => { const [x, y] = paraTela(q[0], q[1]); if (i) path.lineTo(x, y); else path.moveTo(x, y); }); path.closePath(); }
+-      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = cAlerta ?? (sel ? cores.selecao : cores.laje); ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
++      ctx.globalAlpha = sel ? 0.45 : 0.22; ctx.fillStyle = cAlerta ?? (sel ? cores.selecao : (l.plano ? coresPlano[(planoPor(b, l.plano)?.cor ?? 0) % 8] : cores.laje)); ctx.fill(path, 'evenodd'); ctx.globalAlpha = 1;
+       ctx.strokeStyle = cAlerta ?? cores.laje; ctx.lineWidth = 1; ctx.stroke(path);
+       const [tx, ty] = paraTela(c[0], c[1]);
+       ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cAlerta ?? cores.laje;
+       const [lx, ly] = descRef(l.id);
+       if (textosVis.includes('nomes')) ctx.fillText(`${l.nome}${l.definir ? ' ?' : ''}${erro ? ' ⚠' : avi ? ' !' : ''}`, tx + lx, ty - 8 + ly);
+       ctx.font = '10px system-ui, sans-serif'; if (textosVis.includes('secoes')) ctx.fillText(l.definir ? 'a definir' : l.tipo.tipo === 'macica' ? `h=${Math.round(l.tipo.h * 100)}` : l.tipo.tipo === 'trelicada' ? `${l.tipo.modelo}+${Math.round(l.tipo.capa * 100)}` : rotuloLaje(b, l.tipo), tx + lx, ty + 6 + ly);
++      const seta = l.plano ? setaDeclividade(b, l) : null; // plano inclinado (E3f): seta da máxima declividade e texto de inclinação
++      if (seta) {
++        const xs = l.contorno.map((q) => q[0]), ys = l.contorno.map((q) => q[1]), lado = 0.3 * Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
++        const [ax, ay] = paraTela(seta.origem[0], seta.origem[1]), [bx, by] = paraTela(seta.origem[0] + seta.direcao[0] * lado, seta.origem[1] + seta.direcao[1] * lado);
++        const ang = Math.atan2(by - ay, bx - ax);
++        ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
++        ctx.moveTo(bx, by); ctx.lineTo(bx - 8 * Math.cos(ang - 0.4), by - 8 * Math.sin(ang - 0.4)); ctx.moveTo(bx, by); ctx.lineTo(bx - 8 * Math.cos(ang + 0.4), by - 8 * Math.sin(ang + 0.4)); ctx.stroke();
++        if (textosVis.includes('secoes')) { ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = cores.laje; ctx.fillText(textoInclinacao(b, l), tx + lx, ty + 20 + ly); }
++      }
+       if (l.insercao !== undefined && l.contorno[l.insercao]) { const [ix, iy] = paraTela(l.contorno[l.insercao][0], l.contorno[l.insercao][1]); ctx.strokeStyle = cores.laje; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, 5, 0, 2 * Math.PI); ctx.stroke(); } // ponto de inserção do pano (L5)
+       if (l.tipo.tipo === 'nervurada' && !l.definir) { // nervurada bidirecional: setas duplas nas duas direções das nervuras
+         const a0 = ((l.direcao ?? 0) * Math.PI) / 180, L = 16, cy = ty + 22;
+@@ -628,6 +642,13 @@ export function Planta() {
+       }
+       ctx.restore();
+     }
++    // planos inclinados (E3f, C7.73): vigas planas que giram com o plano mostram a face superior em traço contínuo
++    if (wrap.current) wrap.current.dataset.planosNaPlanta = String(lajes.filter(({ l }) => !!l.plano).length);
++    for (const { v } of vigas) {
++      if (!secaoNoPlano(b, v)?.gira) continue;
++      ctx.strokeStyle = cores.viga; ctx.lineWidth = 1; ctx.setLineDash([]);
++      for (const [fa, fz] of faceSuperiorDaViga(b, v).linhas) { const [x1, y1] = paraTela(fa[0], fa[1]), [x2, y2] = paraTela(fz[0], fz[1]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
++    }
+     // punção e cortante: contornos C, C′ e C″ (vermelho onde a tensão excede a resistência) e a armadura de punção
+     if (wrap.current) wrap.current.dataset.puncao = String(puncaoPlanta.length);
+     if (puncaoPlanta.length) {
+@@ -1538,6 +1559,19 @@ export function Planta() {
+       exec('carga.aoLongoDaViga', { grupo, janela: novos.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4)]), valor: L.valorViga, caso: L.casoViga });
+       return;
+     }
++    if (f === 'plano') {
++      // E3f (C7.66): três cliques (três pontos, com os desníveis do grupo Planos) ou dois (reta horizontal ou máxima declividade); cada clique captura o eixo ou a face da viga mais próxima
++      const P = usePlanta.getState();
++      if (nivelFund || !pav) { msg('Planos são definidos nas plantas dos pavimentos.'); return; }
++      const cap = capturaPlano(b, grupo, [p[0], p[1]], 0.15), q: P2 = cap ? [cap.ponto[0], cap.ponto[1]] : p, d = P.planoDef, tres = d.tipo === 'tresPontos';
++      const pts = [...pontosRef.current, q];
++      if (pts.length < (tres ? 3 : 2)) { setPontos(pts); msg(`Ponto ${pts.length} do plano marcado${cap ? ` (${cap.tipo === 'eixo' ? 'eixo' : 'face'} da viga)` : ''}: marque o próximo.`); return; }
++      setPontos([]);
++      const pontos = pts.map((c, i) => (tres ? [+c[0].toFixed(4), +c[1].toFixed(4), d.z[i]] : [+c[0].toFixed(4), +c[1].toFixed(4)]));
++      const r = exec('plano.criar', tres ? { grupo, tipo: d.tipo, pontos } : { grupo, tipo: d.tipo, pontos, desnivel: d.desnivel, inclinacao: d.inclinacao });
++      if (r.ok) P.set({ planoSel: useBuilding.getState().sessao.modelo.planos?.filter((x) => x.grupo === grupo).at(-1)?.id ?? null });
++      return;
++    }
+     if (f === 'direcaoPano' || f === 'insercaoPano') {
+       // L5 (C7.5, C7.6, K1.9.54): 1º clique no pano; depois uma viga (ou dois pontos) para a direção, ou o vértice para a inserção
+       if (nivelFund || !pav) { msg('Panos são editados nas plantas dos pavimentos.'); return; }
+diff --git a/src/app/edificio/TipoPano.tsx b/src/app/edificio/TipoPano.tsx
+new file mode 100644
+index 0000000..e4701b5
+--- /dev/null
++++ b/src/app/edificio/TipoPano.tsx
+@@ -0,0 +1,78 @@
++// Seletor único de tipo de pano e pano a definir (frente E3f, C7.1, C7.15, C7.16): troca o tipo dos panos selecionados entre vigotas,
++// alveolar, nervurada bidirecional e maciça, ou os transforma em pano a definir (espessura, desnível e plano; o cálculo recusa
++// panos a definir). Radier e laje mista aparecem indisponíveis, com a nota. Comandos: `laje.atribuir` e `laje.aDefinir`.
++import { useState } from 'react';
++import { fichasAlveolaresDisponiveis } from '../../core/building/alveolares';
++import { formasDisponiveis } from '../../core/building/nervuradas';
++import { TIPOS_PANO } from '../../core/building/planos';
++import type { BuildingModel, Laje, TipoLaje } from '../../core/building/types';
++import { Button, Group, Hint, NumField, Select } from '../ui';
++import { useStore } from '../store';
++import { usePlanta } from './plantaStore';
++import { useBuilding } from './store';
++
++type TipoPanoId = (typeof TIPOS_PANO)[number]['id'];
++const idDoTipo = (l: Laje): TipoPanoId => (l.definir ? 'definir' : l.tipo.tipo === 'macica' ? 'macica' : l.tipo.tipo === 'nervurada' ? 'nervurada' : l.tipo.tipo === 'alveolar' ? 'alveolar' : 'vigotas');
++
++/** Tipo de laje inicial ao escolher o tipo de pano: o do lançamento (grupo "Lajes") se for do mesmo tipo; senão um padrão do tipo. */
++function tipoPadrao(b: BuildingModel, id: TipoPanoId, tl: TipoLaje, espessura: number): TipoLaje {
++  if (id === 'macica') return tl.tipo === 'macica' ? tl : { tipo: 'macica', h: espessura };
++  if (id === 'nervurada') return tl.tipo === 'nervurada' ? tl : { tipo: 'nervurada', forma: formasDisponiveis(b)[0]?.id ?? 'cat:rec-60-30', hTotal: 0.35, capa: 0.05 };
++  if (id === 'alveolar') {
++    if (tl.tipo === 'alveolar') return tl;
++    const f = fichasAlveolaresDisponiveis(b)[0]?.ficha;
++    return { tipo: 'alveolar', ficha: f?.id ?? 'ex:alveolar', placa: f?.placas[0]?.id ?? '' };
++  }
++  return tl.tipo === 'vigotas' || tl.tipo === 'trelicada' || tl.tipo === 'moldada' ? tl : { tipo: 'vigotas', ficha: 'cat:trelicadas', serie: 'H12' };
++}
++
++function Corpo({ b, ls }: { b: BuildingModel; ls: Laje[] }) {
++  const { exec } = useBuilding();
++  const pl = usePlanta();
++  const l0 = ls[0], ids = ls.map((l) => l.id);
++  const [escolha, setEscolha] = useState<TipoPanoId>(idDoTipo(l0));
++  const [dica, setDica] = useState('');
++  const [espessura, setEspessura] = useState(l0.espessuraDefinir ?? 0.1);
++  const [nivel, setNivel] = useState(l0.nivel ?? 0);
++  const [plano, setPlano] = useState(l0.plano ?? '');
++  const planos = (b.planos ?? []).filter((p) => p.grupo === l0.grupo);
++  const aviso = (r: { ok: boolean; erros: { mensagem: string }[] }) => { if (!r.ok) useStore.getState().set({ message: r.erros[0]?.mensagem ?? 'Recusado.' }); };
++  const escolher = (id: TipoPanoId) => {
++    const t = TIPOS_PANO.find((x) => x.id === id)!;
++    if (!t.disponivel) { setDica(`${t.rotulo}: ${t.nota ?? 'indisponível'}.`); return; }
++    setDica(''); setEscolha(id);
++    if (id !== 'definir') aviso(exec('laje.atribuir', { ids, tipo: tipoPadrao(b, id, pl.tipoLaje, espessura) }));
++  };
++  return (
++    <div data-tipo-pano>
++      <p className="small"><b>{ls.length > 1 ? `${ls.length} panos` : l0.nome}</b></p>
++      <div className="row wrap">
++        <Select label="Tipo de pano" value={escolha} options={TIPOS_PANO.map((t) => ({ v: t.id, label: t.disponivel ? t.rotulo : `${t.rotulo} (indisponível)` }))} onChange={escolher} />
++      </div>
++      {dica && <Hint>{dica}</Hint>}
++      {escolha === 'definir' && (
++        <div className="row wrap" data-pano-a-definir>
++          <NumField label="Espessura do pano a definir" unit="m" width={120} value={espessura} onChange={(v) => v >= 0.05 && v <= 1.5 && setEspessura(v)} />
++          <NumField label="Desnível do pano a definir" unit="m" width={120} value={nivel} onChange={(v) => v >= -10 && v <= 10 && setNivel(v)} />
++          <Select label="Plano do pano a definir" value={plano} options={[{ v: '', label: 'Horizontal' }, ...planos.map((p) => ({ v: p.id, label: p.nome }))]} onChange={setPlano} />
++          <Button variant="primary" onClick={() => aviso(exec('laje.aDefinir', { ids, espessura, nivel, ...(plano ? { plano } : {}) }))}>Aplicar</Button>
++        </div>
++      )}
++      <Hint>Pano a definir (?): a espessura passa às vigas chatas do contorno; o cálculo recusa panos a definir (erro DEFINIR_PANO) até atribuir o tipo da laje. Radier fecha com a base elástica das fundações; laje mista (aço) fica fora do escopo.</Hint>
++    </div>
++  );
++}
++
++/** Grupo "Tipo de pano" da doca Propriedades: aparece com panos selecionados. */
++export function TipoPanoGrupo({ b }: { b: BuildingModel }) {
++  const pl = usePlanta();
++  const sel = b.lajes.filter((l) => pl.selecao.has(l.id));
++  if (!sel.length) return null;
++  return (
++    <div data-grupo-tipo-pano>
++      <Group title={`Tipo de pano (${sel.length})`} open={false}>
++        <Corpo key={sel.map((l) => l.id).join(',')} b={b} ls={sel} />
++      </Group>
++    </div>
++  );
++}
+diff --git a/src/app/edificio/arvore.ts b/src/app/edificio/arvore.ts
+index 5dd6592..00b3fbf 100644
+--- a/src/app/edificio/arvore.ts
++++ b/src/app/edificio/arvore.ts
+@@ -1,8 +1,9 @@
+ // Árvore do Navegador da obra (D4): Obra > Pavimentos, Pilares, Vigas e Lajes por grupo, Eixos, Fundação e Vistas.
+ // Função pura sobre o modelo: a interface (Navegador.tsx) só desenha e liga a seleção à planta.
+ import { pavimentosOrdenados, type BuildingModel } from '../../core/building/types';
++import { rotuloPlano } from './planosUtil';
+ 
+-export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista' | 'pilarParede' | 'parede' | 'muro' | 'alvenaria' | 'grupo' | 'carga' | 'corte' | 'sondagem';
++export type TipoNo = 'pavimento' | 'pilar' | 'viga' | 'laje' | 'eixo' | 'fundacao' | 'vista' | 'pilarParede' | 'parede' | 'muro' | 'alvenaria' | 'grupo' | 'carga' | 'corte' | 'sondagem' | 'plano';
+ export interface NoArvore {
+   id: string;
+   rotulo: string;
+@@ -18,6 +19,12 @@ export const VISTAS: [string, string][] = [['planta', 'Planta'], ['vista3d', '3D
+ 
+ const folha = (prefixo: string, nivel: number, x: { id: string; nome: string }, tipo: TipoNo): NoArvore => ({ id: `${prefixo}:${x.id}`, rotulo: x.nome, nivel, alvo: { tipo, id: x.id } });
+ 
++/** Nó "Planos" do grupo (E3f), dentro das lajes: um filho por plano, com a inclinação no rótulo; ausente sem planos. */
++function noPlanos(b: BuildingModel, raiz: 'vigas' | 'lajes', grupo: string): NoArvore[] {
++  const planos = raiz === 'lajes' ? (b.planos ?? []).filter((p) => p.grupo === grupo) : [];
++  return planos.length ? [{ id: `planos:${grupo}`, rotulo: 'Planos', nivel: 4, contagem: planos.length, filhos: planos.map((p) => ({ id: `plano:${p.id}`, rotulo: rotuloPlano(p), nivel: 5, alvo: { tipo: 'plano' as const, id: p.id } })) }] : [];
++}
++
+ /** Nós de grupo (Tipo, Cobertura…) com as vigas ou lajes de cada um; só grupos que têm elementos. */
+ function porGrupo(b: BuildingModel, raiz: 'vigas' | 'lajes', tipo: 'viga' | 'laje'): NoArvore[] {
+   const lista: { id: string; nome: string; grupo: string }[] = b[raiz];
+@@ -25,7 +32,7 @@ function porGrupo(b: BuildingModel, raiz: 'vigas' | 'lajes', tipo: 'viga' | 'laj
+     .filter((g) => lista.some((x) => x.grupo === g.id))
+     .map((g) => {
+       const doGrupo = lista.filter((x) => x.grupo === g.id);
+-      return { id: `${raiz}:${g.id}`, rotulo: g.nome, nivel: 3, contagem: doGrupo.length, filhos: doGrupo.map((x) => folha(tipo, 4, x, tipo)) };
++      return { id: `${raiz}:${g.id}`, rotulo: g.nome, nivel: 3, contagem: doGrupo.length, filhos: [...doGrupo.map((x) => folha(tipo, 4, x, tipo)), ...noPlanos(b, raiz, g.id)] };
+     });
+ }
+ 
+diff --git a/src/app/edificio/planosUtil.ts b/src/app/edificio/planosUtil.ts
+new file mode 100644
+index 0000000..ab37eb0
+--- /dev/null
++++ b/src/app/edificio/planosUtil.ts
+@@ -0,0 +1,50 @@
++// Funções puras da interface dos planos inclinados (frente E3f): rótulo do Navegador, campos de edição e parâmetros dos comandos
++// `plano.criar` e `plano.editar`. Sem React; o cálculo é do núcleo (`planos.ts`).
++import { coeficientesPlano, inclinacaoDoPlano } from '../../core/building/planos';
++import type { DefinicaoPlano, Plano } from '../../core/building/types';
++import { cssVar } from '../design/tokens';
++
++/** Cor do plano (índice 0 a 7, token `--plano-N` do design system). */
++export const corDoPlano = (cor: number | undefined) => cssVar(`plano-${(cor ?? 0) % 8}`);
++
++export type TipoDef = DefinicaoPlano['tipo'];
++export const TIPOS_DEF: { v: TipoDef; label: string }[] = [
++  { v: 'tresPontos', label: 'Três pontos' }, { v: 'retaHorizontal', label: 'Reta horizontal + inclinação' }, { v: 'maximaDeclividade', label: 'Máxima declividade' },
++];
++export const CORES_PLANO = [0, 1, 2, 3, 4, 5, 6, 7].map((v) => ({ v, label: `Cor ${v + 1}` }));
++export const fmtPlano = (x: number, n = 1) => x.toFixed(n).replace('.', ',');
++
++/** Rótulo do nó do Navegador: `<nome> — <inclinação> %` (1 casa, vírgula). */
++export function rotuloPlano(pl: Plano): string {
++  const c = coeficientesPlano(pl.def);
++  return `${pl.nome} — ${fmtPlano(c ? inclinacaoDoPlano(c).percentual : 0)} %`;
++}
++
++/** Campos do formulário do plano. `pontos`: três [x, y, desnível] ou dois [x, y] (m); `inclinacao` em `unidade`. */
++export interface DadosPlano { nome: string; cor: number; tipo: TipoDef; pontos: number[][]; desnivel: number; inclinacao: number; unidade: '%' | 'graus' }
++export const DADOS_PLANO_NOVO: DadosPlano = { nome: '', cor: 0, tipo: 'maximaDeclividade', pontos: [[0, 0], [0, 4]], desnivel: 0, inclinacao: 10, unidade: '%' };
++
++export function dadosDoPlano(pl: Plano): DadosPlano {
++  const d = pl.def;
++  return d.tipo === 'tresPontos'
++    ? { nome: pl.nome, cor: pl.cor ?? 0, tipo: d.tipo, pontos: d.pontos.map((q) => [...q]), desnivel: 0, inclinacao: 0, unidade: '%' }
++    : { nome: pl.nome, cor: pl.cor ?? 0, tipo: d.tipo, pontos: d.pontos.map((q) => [...q]), desnivel: d.desnivel, inclinacao: d.inclinacao, unidade: '%' };
++}
++
++/** Troca o tipo de definição aproveitando os pontos; de dois para três pontos o terceiro sai perpendicular ao primeiro lado, na mesma cota. */
++export function trocaTipoDef(d: DadosPlano, tipo: TipoDef): DadosPlano {
++  if (tipo === d.tipo) return d;
++  if (tipo === 'tresPontos') {
++    const [a, b] = d.pontos;
++    return { ...d, tipo, pontos: [[a[0], a[1], d.desnivel], [b[0], b[1], d.desnivel], [a[0] - (b[1] - a[1]), a[1] + (b[0] - a[0]), d.desnivel]] };
++  }
++  if (d.tipo === 'tresPontos') return { ...d, tipo, pontos: [[d.pontos[0][0], d.pontos[0][1]], [d.pontos[1][0], d.pontos[1][1]]], desnivel: d.pontos[0][2], inclinacao: 0 };
++  return { ...d, tipo };
++}
++
++/** Parâmetros de `plano.criar` / `plano.editar` (sem `grupo` e `id`) a partir dos campos. */
++export function paramsDoPlano(d: DadosPlano): Record<string, unknown> {
++  return d.tipo === 'tresPontos'
++    ? { tipo: d.tipo, pontos: d.pontos }
++    : { tipo: d.tipo, pontos: d.pontos, desnivel: d.desnivel, inclinacao: d.inclinacao, unidade: d.unidade };
++}
+diff --git a/src/app/edificio/plantaStore.ts b/src/app/edificio/plantaStore.ts
+index 3e826be..df72d69 100644
+--- a/src/app/edificio/plantaStore.ts
++++ b/src/app/edificio/plantaStore.ts
+@@ -8,7 +8,7 @@ import { EVENTO_TEMA, temaEfetivo } from '../design/tema';
+ 
+ export type Ferramenta = 'selecionar' | 'pilar' | 'viga' | 'laje' | 'carga' | 'eixo' | 'mover' | 'medir' | 'alinhar' | 'fundacao' | 'vigaFund' | 'girarFund'
+   | 'limite' | 'limiteMascara' | 'insFund' | 'radier' | 'vigaElastica' | 'corrida' | 'dividir' | 'unir' | 'prolongar' | 'copiar' | 'girar' | 'espelhar' | 'puncao' | 'zonaLaje' | 'linhaDobra' | 'pilarParede' | 'parede' | 'corte' | 'secao' | 'vigaGabarito' | 'moverRef' | 'contaGotas'
+-  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota';
++  | 'contornoRet' | 'aberturaRet' | 'cargaLaje' | 'cargaViga' | 'direcaoPano' | 'insercaoPano' | 'cota' | 'plano';
+ /** Ferramentas que só existem no nível de fundação; as que mantêm a seleção ao serem escolhidas (agem sobre ela ou sobre um elemento). */
+ export const FERRAMENTAS_FUNDACAO: Ferramenta[] = ['fundacao', 'vigaFund', 'girarFund', 'limite', 'limiteMascara', 'insFund', 'radier', 'vigaElastica', 'corrida'];
+ export const MANTEM_SELECAO: Ferramenta[] = ['girarFund', 'insFund'];
+@@ -79,6 +79,12 @@ interface PState {
+   camadaAbacos: boolean;
+   /** Camada "Punção e cortante" (N2d): contornos críticos dos pilares do pavimento e a armadura de punção (não vai para o arquivo). */
+   camadaPuncao: boolean;
++  /** Plano escolhido no Navegador ou no grupo "Planos" (E3f), para "Atribuir plano" (não vai para o arquivo). */
++  planoSel: string | null;
++  /** Janela "Novo plano" aberta pela faixa (E3f). */
++  novoPlano: boolean;
++  /** Definição do plano na planta (E3f, ferramenta `plano`): tipo, desníveis dos pontos (três pontos) ou do primeiro ponto e inclinação em % (não vai para o arquivo). */
++  planoDef: { tipo: 'tresPontos' | 'retaHorizontal' | 'maximaDeclividade'; desnivel: number; inclinacao: number; z: [number, number, number] };
+   /** Camada "Placas alveolares" (E3e): placas numeradas das lajes alveolares do pavimento (não vai para o arquivo). */
+   camadaPlacas: boolean;
+   /** Ferramenta Armadura de punção: adicionar ou apagar grupos ao clicar num pilar, e o grupo lançado (linhas radiais, barras por linha, φ em mm, espaçamento em m). */
+@@ -197,6 +203,9 @@ export const usePlanta = create<PState>((set) => ({
+   camadaNervuras: false,
+   camadaAbacos: false,
+   camadaPuncao: false,
++  planoSel: null,
++  novoPlano: false,
++  planoDef: { tipo: 'maximaDeclividade', desnivel: 0, inclinacao: 10, z: [0, 0, 0] },
+   camadaPlacas: false,
+   puncaoModo: 'adicionar',
+   puncaoGrupo: { linhas: 8, barras: 3, phi: 6.3, s: 0.12 },
