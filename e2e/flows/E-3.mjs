@@ -91,3 +91,30 @@ export const f_E3f = {
     assert.equal(await dia.isChecked(), false);
   },
 };
+
+export const f_E5h = {
+  name: 'E5h: pano com abertura e ponto de inserção em outro vértice (malha ancorada no vértice, cálculo sem erro, memorial com a premissa)',
+  async run({ newPage }) {
+    const page = await newPage();
+    await page.getByRole('tablist', { name: 'Módulo' }).getByRole('tab', { name: 'Edifício', exact: true }).click();
+    const cmd = async (t) => { await page.locator('#edcmd').fill(t); await page.locator('#edcmd').press('Enter'); };
+    const modelo = () => page.evaluate(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building);
+    const esperar = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 20000 });
+    await cmd('lote {"comandos": [' + [[0, 0], [6, 0], [6, 5], [0, 5]].map(([x, y]) => `{"nome": "pilar.inserir", "params": {"x": ${x}, "y": ${y}, "secao": {"tipo": "ret", "b": 0.25, "h": 0.25}}}`).join(', ') + ']}');
+    await cmd('lote {"comandos": [' + [[[0, 0], [6, 0]], [[0, 5], [6, 5]], [[0, 0], [0, 5]], [[6, 0], [6, 5]]].map((p) => `{"nome": "viga.tracar", "params": {"grupo": "g_3", "pontos": ${JSON.stringify(p)}, "secao": {"b": 0.15, "h": 0.4}}}`).join(', ') + ']}');
+    await cmd('laje.detectarPanos {"grupo": "g_3", "tipo": {"tipo": "macica", "h": 0.12}}');
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.length === 1, null);
+    const id = (await modelo()).lajes[0].id;
+    await cmd(`laje.abertura {"id": "${id}", "contorno": [[2.5, 1.5], [4, 1.5], [4, 3], [2.5, 3]]}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.furos?.length === 1, null);
+    await cmd(`laje.editar {"id": "${id}", "insercaoPonto": [6, 5]}`);
+    await esperar(() => JSON.parse(localStorage.getItem('statikos:building') ?? 'null')?.building?.lajes?.[0]?.insercao === 2, null);
+    await page.locator('.edif-tabs').getByRole('tab', { name: 'Dimensionamento' }).click();
+    await page.getByRole('button', { name: 'Calcular e dimensionar' }).click();
+    await page.locator('.statusbar .msg', { hasText: 'dimensionamento em' }).waitFor({ timeout: 90000 });
+    await page.getByRole('button', { name: 'Memorial do edifício' }).click();
+    const memo = page.getByRole('dialog', { name: 'Memorial do edifício' });
+    assert.match(await memo.innerText(), /ponto de inserção do pano/i);
+    await memo.getByRole('button', { name: 'Fechar' }).click();
+  },
+};
