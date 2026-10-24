@@ -2,6 +2,7 @@
 // pilares (pilar-padrão com curvatura aproximada nas duas direções e flexão oblíqua por fibras), lajes maciças
 // (momentos por metro da grelha) e quantitativos. Cargas para o módulo Fundações.
 import type { InfoRearme } from './rearmarAlterados';
+import { comEscadas } from './escadasCalculo';
 import { resolverAgrupamentos, type InfoAgrupamento } from './agrupamento';
 import { baseBarra, resolver3, type Caso3, type Modelo3, type Resultado3, type V3 } from '../fe3d';
 import { barArea, beamAsMin, beamFlexure, chooseBars, chooseStirrup, crackLimit, crackWidth, gammaNFor, torsionRect } from '../concrete';
@@ -1797,6 +1798,7 @@ export interface Dimensionamento { vigas: ResultadoViga[]; pilares: ResultadoPil
 
 /** Campos das fundações no dimensionamento (elementos, vigas de fundação e avisos). */
 export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: OpcoesFundacao = {}): Pick<Dimensionamento, 'fundacoes' | 'vigasFundacao' | 'avisosFundacao' | 'corridas' | 'basesMuros'> {
+  b = comEscadas(b, an?.escadas);
   const corridas = calcularCorridas(b, an);
   const f = calcularFundacaoEdificio(b, an, { ...o, corridas });
   const basesMuros = b.murosArrimo?.length ? calcularBasesMuros(b, opcoesEmUso(b.opcoes, perfilDe(b))) : [];
@@ -1808,6 +1810,7 @@ export function comFundacao(b: BuildingModel, an: AnaliseEdificio | null, o: Opc
  * `fundacao`: opções do cálculo das fundações (modo, resultados anteriores, níveis).
  */
 export function dimensionarEdificio(b: BuildingModel, an: AnaliseEdificio, o: { fundacao?: false | OpcoesFundacao } = {}): Dimensionamento {
+  b = comEscadas(b, an.escadas); // reações das escadas (E4c) como cargas nos elementos de apoio
   const combs = combinacoesEdificio(b, an), elu = combinacoesDoEstado(b, an, 'concreto', combs), freq = combinacoesDoEstado(b, an, 'fissuracao', combs);
   let vigas = dimensionarVigas(b, an, elu, freq), agrupamentos: InfoAgrupamento[] | undefined;
   if (b.agrupamentos?.length) {

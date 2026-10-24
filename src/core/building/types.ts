@@ -1033,6 +1033,8 @@ export interface Carga {
   pontos: [number, number][]; // ponto: 1; linha: polilinha; área: contorno
   /** Origem automática (ex.: alvenaria da camada X da máscara), para regenerar. */
   origem?: { tipo: 'alvenaria'; camada: string; bloco: string; espessura: number; altura: number };
+  /** Carga gerada pelo cálculo das escadas (E4c): reação de um apoio ou degraus iniciais; derivada, nunca gravada na obra. */
+  escada?: { escada: string; lance: number; apoio: string };
 }
 
 /** Corte do edifício (V2): linha traçada na planta (poligonal); o observador olha para o lado `sentido` do traçado. */

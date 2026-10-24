@@ -189,6 +189,12 @@ export interface OpcoesCalculo {
   escadaEspelhoMin: number;
   escadaEspelhoMax: number;
   escadaLarguraMin: number;
+  /** Escadas (E4c): tamanho alvo das células da malha de casca (m). */
+  escadaMalha: number;
+  /** Escadas (E4c): módulo de elasticidade da alvenaria das paredes e dos tirantes sob o patamar (MPa). */
+  escadaEAlvenaria: number;
+  /** Escadas (E4c): 1 = lance apoiado nas duas bordas com translação horizontal presa nas duas (apoios fixos); 0 = fixo embaixo e móvel em cima. */
+  escadaApoioFixoDois: number;
   /** Nervuradas bidirecionais (E3c): passo da malha da grelha como fração do menor intereixo (1/3 no padrão do sistema). */
   nervuradaMalha: number;
   /** Nervuradas bidirecionais: inércia à flexão das barras = fator × inércia da faixa maciça de mesma altura, igual nas zonas maciça e aliviada; 0 = seção T real das nervuras. */
@@ -760,6 +766,12 @@ export const OPCOES_INFO: OpcaoInfo[] = [
     descricao: 'Espelho acima deste valor gera aviso.' },
   { chave: 'escadaLarguraMin', rotulo: 'Escadas: largura mínima', unidade: 'cm', min: 60, max: 200, passo: 5, padrao: 120, fonte: 'NBR 9050 / NBR 9077 [a confirmar]', aConfirmar: true,
     descricao: 'Largura da escada abaixo deste valor gera aviso.' },
+  { chave: 'escadaMalha', rotulo: 'Escadas: malha da casca (tamanho alvo)', unidade: 'm', min: 0.1, max: 1, passo: 0.05, padrao: 0.25, fonte: 'Critério do Statikos (sem fonte): a casca de 6 nós converge com células de ≈ 1/4 da largura da escada; a malha das cascas dos pilares-parede (1 m) é grossa para a laje fina da escada [a confirmar]', aConfirmar: true,
+    descricao: 'Tamanho alvo das células da malha de casca de cada lance da escada (malha estruturada alinhada aos trechos e patamares). Malha mais fina refina os esforços e aumenta o tempo de cálculo.' },
+  { chave: 'escadaEAlvenaria', rotulo: 'Escadas: E da alvenaria sob o patamar e dos tirantes', unidade: 'MPa', min: 500, max: 20000, passo: 100, padrao: 2400, fonte: 'Estimativa do Statikos (sem fonte): E = 800·fpk com fpk = 3 MPa (NBR 16868-1: 800·fpk, limite 16 GPa) [a confirmar]; a parede de concreto usa o Ecs das lajes', aConfirmar: true,
+    descricao: 'Rigidez do apoio elástico do patamar: por metro de borda, k = E·largura / altura da parede (ou do tirante, do patamar ao piso de cima).' },
+  { chave: 'escadaApoioFixoDois', rotulo: 'Escadas: lance com os dois apoios fixos na horizontal', min: 0, max: 1, passo: 1, padrao: 0, booleana: true, fonte: 'Hipótese do Statikos (sem fonte; o programa de referência simula as bordas como laje apoiada em viga rígida) [a confirmar]: apoio simples (fixo embaixo, móvel em cima), sem empuxo horizontal nem esforço normal no lance', aConfirmar: true,
+    descricao: 'Desligado (padrão): a borda inferior prende a translação horizontal e a superior só a vertical (biapoiada). Ligado: as duas bordas prendem a horizontal e o lance trabalha também por esforço normal (arco/pórtico), com reação horizontal nos apoios.' },
   { chave: 'nervuradaMalha', rotulo: 'Nervuradas: malha da grelha', unidade: '× intereixo', min: 0.1, max: 1, passo: 0.05, padrao: 1 / 3, fonte: 'Programa de referência (K1.3.25): malha de 1/3 do intereixo da zona aliviada; NBR 6118 não fixa', aConfirmar: false,
     descricao: 'Passo da malha das barras da grelha das lajes nervuradas bidirecionais, como fração do menor intereixo das nervuras (60 cm → 20 cm). Cada barra representa uma faixa de nervuras.' },
   { chave: 'nervuradaInercia', rotulo: 'Nervuradas: inércia à flexão das barras', unidade: '× laje maciça', min: 0, max: 1, passo: 0.05, padrao: 0.5, padraoNBR: 0, fonte: 'Programa de referência (K1.3.26, K1.9.93): metade da inércia da zona maciça, igual nas zonas maciça e aliviada (inércia média, uma só por pano)', fonteNBR: 'NBR 6118, 14.7.7 [a confirmar o item]: rigidez da seção T das nervuras na zona aliviada e da laje maciça na zona maciça', aConfirmar: true,
@@ -1113,6 +1125,8 @@ export const OPCOES_ANALISE: ReadonlySet<keyof OpcoesCalculo> = new Set<keyof Op
   'alveolarProcesso', 'alveolarMalha', 'alveolarContinuidade',
   // E4a: espessura, desnível e cargas próprias das escadas (as reações entram nas vigas a partir da E4c)
   'escadaEspessuraDivisor', 'escadaEspessuraMin', 'escadaDesnivelMin', 'escadaSobrecargaPrivada', 'escadaSobrecargaPublica', 'escadaRevestimento',
+  // E4c: malha, rigidez da alvenaria do patamar e travamento horizontal dos apoios entram no cálculo das escadas (e nas reações)
+  'escadaMalha', 'escadaEAlvenaria', 'escadaApoioFixoDois',
 ]);
 /**
  * Opções que só mexem no dimensionamento e no detalhamento (N2c incluída: `pilarLancesDesligados`, `pilarFluencia` e

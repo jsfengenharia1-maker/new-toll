@@ -163,6 +163,11 @@ export const SUGESTOES: Record<string, string> = {
   ESCADA_DIMENSOES: 'Ajuste o espelho ou a largura da escada, ou os limites em Opções > Escadas.',
   ESCADA_PAREDE_SUP: 'Lance a parede entre o patamar e o piso de cima como carga linear (ou use apoio por tirante com a largura da parede).',
   ESCADA_TIPO: 'Escolha um tipo de lance existente ou corrija a tipologia, o número de degraus, o desnível inicial ou o poço do tipo.',
+  ESCADA_CALCULO: 'Confira a geometria do lance (pavimento de partida e de chegada, trechos e patamares) e a malha em Opções > Escadas; o cálculo por casca precisa de ao menos um trecho inclinado e das duas bordas de apoio.',
+  ESCADA_TIRANTE: 'O tirante só trabalha à tração: use apoio por parede sob o patamar, aumente a largura do tirante ou deixe o patamar livre.',
+  ESCADA_HORIZONTAL: 'A reação horizontal só existe com a opção "dois apoios fixos"; desligue-a (apoio simples) ou preveja o empuxo no elemento de apoio, pois o programa aplica só cargas verticais.',
+  ESCADA_RECALCULAR: 'Recalcule a obra: a escada foi alterada depois da última análise e as cargas das suas reações na estrutura mudam.',
+  ESCADA_APOIO_CALCULO: 'Revise o apoio do patamar (borda, largura e pé-direito até o piso de cima) e o equilíbrio do lance; o apoio precisa estar sobre a borda do patamar.',
   ESCADA_GEOMETRIA: 'Corrija o apontado: pavimento de partida do grupo da escada, pavimento acima para chegar, degraus do patamar que caibam, apoios coerentes com o patamar apoiado ou livre.',
   // punção e cortante das lajes
   PUNCAO_BIELA: 'Aumente a espessura da laje, a seção do pilar ou o fck, ou use capitel/ábaco: a compressão no contorno C não se corrige com armadura.',
