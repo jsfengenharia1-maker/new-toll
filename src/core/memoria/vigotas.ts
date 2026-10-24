@@ -17,15 +17,17 @@ export interface CtxVigBase {
   intereixo: number; bw: number; capa: number; hEnch: number; h: number; pp: number; nVigotas: number; nGrupos: number; capaMin: number; rhoMin: number; AsMin: number;
   c: Concrete; fydInf: number; fydSup: number; acoInf: string; acoSup: string; gs: number; cobInf: number; cobSup: number; dI: number; dS: number;
   elu: CasoFat[]; bloqueada: boolean;
+  /** Fichas (armadas, protendidas, moldadas): sem treliça (`trelica` vazio), rótulo e tópico da geometria. */
+  rotulo?: string; topicoGeo?: string;
 }
 /** Cargas, geometria, treliça, mínimos, materiais e alturas úteis. */
 export function registrarVigotasBase(mem: Registrador, el: string, x: CtxVigBase) {
-  const c = x.c, gc = c.fck / c.fcd;
-  P(mem, el, 'cargas', 'Geometria e treliça', { descricao: `Laje treliçada ${x.nome} (${x.pavimentos}), modelo ${x.modelo}: peso próprio por m² da geometria (vigota, enchimento e capa)`, formula: 'pp (geometria do modelo)', expressao: `pp = ${fm(x.pp)} kN/m²; ${x.nVigotas} vigotas em ${x.nGrupos} grupo(s) de igualação`, resultado: x.pp, unidade: 'kN/m²', norma: 'NBR 6120:2019', entradas: { pp: x.pp, nVigotas: x.nVigotas, nGrupos: x.nGrupos } });
-  P(mem, el, 'cargas', 'Geometria e treliça', { descricao: 'Seção da nervura: intereixo (mesa), largura da nervura, capa, altura de enchimento e altura total', formula: 'h = capa + hEnch; seção T com mesa = intereixo', expressao: `intereixo ${fm(x.intereixo)} m; bw ${fm(x.bw)} m; capa ${fm(x.capa)} m; hEnch ${fm(x.hEnch)} m → h = ${fm(x.h)} m`, resultado: x.h, unidade: 'm', norma: `${NBR}, 13.2.4.2`, entradas: { intereixo: x.intereixo, bw: x.bw, capa: x.capa, hEnch: x.hEnch, h: x.h } });
-  P(mem, el, 'dimensionamento', 'Geometria e treliça', { descricao: 'Capa mínima: máx(4 cm; distância livre entre nervuras/15)', formula: 'hf,mín = máx(0,04; (intereixo − bw)/15)', expressao: `hf,mín = máx(0,04; (${fm(x.intereixo)} − ${fm(x.bw)})/15) = ${fm(x.capaMin)} m ${x.capa >= x.capaMin - 1e-9 ? '≤' : '>'} hf = ${fm(x.capa)} m`, resultado: x.capaMin, unidade: 'm', norma: `${NBR}, 13.2.4.2`, entradas: { intereixo: x.intereixo, bw: x.bw } });
-  P(mem, el, 'dimensionamento', 'Geometria e treliça', { descricao: `Banzo inferior da treliça ${x.trelica} (2φ${fm(x.phiBanzo)} CA-60) e área equivalente no aço da armadura inferior (${x.acoInf})`, formula: 'As,tr = 2·π·φ²/4; As,tr,eq = As,tr·(fyd,CA-60/fyd)', expressao: `As,tr = ${fm(x.AsBanzo)} cm²; As,tr,eq = ${fm(x.AsBanzo)}·${fm(x.fyd60)}/${fm(x.fydInf)} = ${fm(x.AsTrel)} cm²`, resultado: x.AsTrel, unidade: 'cm²', norma: `${NBR}, 17.2`, entradas: { phi: x.phiBanzo, fyd60: x.fyd60, fydInf: x.fydInf, gs: x.gs } });
-  P(mem, el, 'dimensionamento', 'Geometria e treliça', { descricao: 'Armadura mínima por nervura (ρmín da laje sobre a seção T)', formula: 'As,mín = ρmín·(intereixo·hf + bw·hEnch)', expressao: `As,mín = ${fm(x.rhoMin)}·(${fm(x.intereixo)}·${fm(x.capa)} + ${fm(x.bw)}·${fm(x.hEnch)})·10⁴ = ${fm(x.AsMin)} cm²`, resultado: x.AsMin, unidade: 'cm²', norma: `${NBR}, 19.3.3.2`, aConfirmar: true, entradas: { rhoMin: x.rhoMin, intereixo: x.intereixo, capa: x.capa, bw: x.bw, hEnch: x.hEnch } });
+  const c = x.c, gc = c.fck / c.fcd, tg = x.topicoGeo ?? 'Geometria e treliça';
+  P(mem, el, 'cargas', tg, { descricao: `${x.rotulo ?? 'Laje treliçada'} ${x.nome} (${x.pavimentos}), modelo ${x.modelo}: peso próprio por m² da geometria (vigota, enchimento e capa)`, formula: 'pp (geometria do modelo)', expressao: `pp = ${fm(x.pp)} kN/m²; ${x.nVigotas} vigotas em ${x.nGrupos} grupo(s) de igualação`, resultado: x.pp, unidade: 'kN/m²', norma: 'NBR 6120:2019', entradas: { pp: x.pp, nVigotas: x.nVigotas, nGrupos: x.nGrupos } });
+  P(mem, el, 'cargas', tg, { descricao: 'Seção da nervura: intereixo (mesa), largura da nervura, capa, altura de enchimento e altura total', formula: 'h = capa + hEnch; seção T com mesa = intereixo', expressao: `intereixo ${fm(x.intereixo)} m; bw ${fm(x.bw)} m; capa ${fm(x.capa)} m; hEnch ${fm(x.hEnch)} m → h = ${fm(x.h)} m`, resultado: x.h, unidade: 'm', norma: `${NBR}, 13.2.4.2`, entradas: { intereixo: x.intereixo, bw: x.bw, capa: x.capa, hEnch: x.hEnch, h: x.h } });
+  P(mem, el, 'dimensionamento', tg, { descricao: 'Capa mínima: máx(4 cm; distância livre entre nervuras/15)', formula: 'hf,mín = máx(0,04; (intereixo − bw)/15)', expressao: `hf,mín = máx(0,04; (${fm(x.intereixo)} − ${fm(x.bw)})/15) = ${fm(x.capaMin)} m ${x.capa >= x.capaMin - 1e-9 ? '≤' : '>'} hf = ${fm(x.capa)} m`, resultado: x.capaMin, unidade: 'm', norma: `${NBR}, 13.2.4.2`, entradas: { intereixo: x.intereixo, bw: x.bw } });
+  if (x.trelica) P(mem, el, 'dimensionamento', tg, { descricao: `Banzo inferior da treliça ${x.trelica} (2φ${fm(x.phiBanzo)} CA-60) e área equivalente no aço da armadura inferior (${x.acoInf})`, formula: 'As,tr = 2·π·φ²/4; As,tr,eq = As,tr·(fyd,CA-60/fyd)', expressao: `As,tr = ${fm(x.AsBanzo)} cm²; As,tr,eq = ${fm(x.AsBanzo)}·${fm(x.fyd60)}/${fm(x.fydInf)} = ${fm(x.AsTrel)} cm²`, resultado: x.AsTrel, unidade: 'cm²', norma: `${NBR}, 17.2`, entradas: { phi: x.phiBanzo, fyd60: x.fyd60, fydInf: x.fydInf, gs: x.gs } });
+  P(mem, el, 'dimensionamento', tg, { descricao: 'Armadura mínima por nervura (ρmín da laje sobre a seção T)', formula: 'As,mín = ρmín·(intereixo·hf + bw·hEnch)', expressao: `As,mín = ${fm(x.rhoMin)}·(${fm(x.intereixo)}·${fm(x.capa)} + ${fm(x.bw)}·${fm(x.hEnch)})·10⁴ = ${fm(x.AsMin)} cm²`, resultado: x.AsMin, unidade: 'cm²', norma: `${NBR}, 19.3.3.2`, aConfirmar: true, entradas: { rhoMin: x.rhoMin, intereixo: x.intereixo, capa: x.capa, bw: x.bw, hEnch: x.hEnch } });
   const tm = 'Materiais e alturas úteis';
   P(mem, el, 'dimensionamento', tm, { descricao: 'Resistência de cálculo do concreto', formula: 'fcd = fck / γc', expressao: `fcd = ${fm(c.fck)} / ${fm(gc)} = ${fm(c.fcd)}`, resultado: c.fcd, unidade: 'MPa', norma: `${NBR}, 12.3.3`, entradas: { fck: c.fck, gc } });
   P(mem, el, 'dimensionamento', tm, { descricao: 'Resistência de cálculo à tração', formula: 'fctd = 0,7·fct,m / γc', expressao: `fctd = 0,7·${fm(c.fctm)} / ${fm(gc)} = ${fm(c.fctd)}`, resultado: c.fctd, unidade: 'MPa', norma: `${NBR}, 8.2.5`, entradas: { fctm: c.fctm, gc } });
@@ -49,12 +51,22 @@ export interface CtxVigGrupo {
 }
 /** Um grupo de vigotas: esforços do grupo, redistribuição, flexão em T, adicional, negativos, cortante e maciçamento. */
 export function registrarGrupoVigotas(mem: Registrador, el: string, x: CtxVigGrupo) {
-  const tp = `Grupo ${x.gi + 1}`, ent = (o: Record<string, number | string>) => o;
+  const tp = `Grupo ${x.gi + 1}`;
+  registrarEsforcosGrupo(mem, el, tp, x);
+  registrarGrupoResto(mem, el, tp, x);
+}
+export type CtxEsforcosGrupo = Pick<CtxVigGrupo, 'gi' | 'nFaixas' | 'vigotas' | 'L' | 'criterio' | 'difPct' | 'porArea' | 'eg' | 'red' | 'esf'>;
+/** Esforços do grupo de igualação e a redistribuição dos negativos (compartilhado com as vigotas por ficha). */
+export function registrarEsforcosGrupo(mem: Registrador, el: string, tp: string, x: CtxEsforcosGrupo) {
+  const ent = (o: Record<string, number | string>) => o;
   P(mem, el, 'esforcos', `${tp} – esforços`, { descricao: `Grupo ${x.gi + 1}: ${x.nFaixas} alinhamento(s) da grelha e ${x.vigotas} vigota(s), comprimento médio ponderado ${fm(x.L)} m; igualação ${x.criterio > 0 ? `(critério ${fm(x.criterio)}, diferença ≤ ${fm(x.difPct)} %${x.porArea ? ', pela área de aço' : ''})` : 'desligada'}`, formula: 'esforços do grupo = igualação dos mínimos/analisados dos alinhamentos', expressao: `M+ = ${fm(x.eg.mPos)}; M− = ${fm(x.eg.mNeg[0])} / ${fm(x.eg.mNeg[1])} kN·m; V = ${fm(x.eg.v[0])} / ${fm(x.eg.v[1])} kN (por nervura)`, resultado: x.eg.mPos, unidade: 'kN·m', norma: 'NBR 6118, 14.7 (critério do programa)', entradas: ent({ nFaixas: x.nFaixas, vigotas: x.vigotas, L: x.L, mPos: x.eg.mPos, mNeg0: x.eg.mNeg[0], mNeg1: x.eg.mNeg[1], v0: x.eg.v[0], v1: x.eg.v[1] }) });
   if (x.red?.aplicada) {
     const r = x.red, dm = x.eg.mNeg.reduce((t, m, k) => t + (r.continuas[k] && m < -1e-9 ? -m * (1 - r.delta) : 0), 0);
     P(mem, el, 'esforcos', `${tp} – esforços`, { descricao: `Redistribuição dos negativos das pontas contínuas (δ = ${fm(r.delta, 3)}; pedido ${fm(r.pct)} %; δmín = ${fm(r.deltaMin)}): cada negativo × δ e o positivo cresce da metade da soma das reduções`, formula: 'δ = máx(1 − r/100; δmín); M−′ = δ·M−; M+′ = M+ + ΣΔM/2', expressao: `ΔM = ${fm(dm)} kN·m; M+′ = ${fm(x.eg.mPos)} + ${fm(dm)}/2 = ${fm(x.esf.mPos)} kN·m; M−′ = ${fm(x.esf.mNeg[0])} / ${fm(x.esf.mNeg[1])} kN·m`, resultado: x.esf.mPos, unidade: 'kN·m', norma: `${NBR}, 14.6.4.3`, entradas: { pct: r.pct, deltaMin: r.deltaMin, delta: r.delta, cont0: r.continuas[0] ? 1 : 0, cont1: r.continuas[1] ? 1 : 0, mPos: x.eg.mPos, mNeg0: x.eg.mNeg[0], mNeg1: x.eg.mNeg[1] } });
   }
+}
+function registrarGrupoResto(mem: Registrador, el: string, tp: string, x: CtxVigGrupo) {
+  const ent = (o: Record<string, number | string>) => o; void ent;
   // positivo
   const tpP = `${tp} – flexão positiva`;
   flexao(mem, el, tpP, fk(x.c, x.sec, x.h, x.bw), x.esf.mPos, x.dI, 0.03, x.fydInf, true, x.fl.As, true, { semMinimo: true });

@@ -25,6 +25,10 @@ import {
 } from './vigotas';
 import { esforcosDoGrupo, pontasContinuas, posicionarVigotas, redistribuirNegativos } from './vigotasEsforcos';
 import { momentoResistenteT } from './tiposLaje';
+import { memoriaAtiva } from '../memoria/registrador';
+import { registrarAcoNervurada } from '../memoria/nervurada';
+import { registrarVigotasLaje } from '../memoria/vigotas';
+import { registrarFichaBase, registrarFichaUnidade, type CtxFichaCort, type CtxFichaMoldada, type CtxFichaNeg, type CtxFichaPositiva, type Parc } from '../memoria/vigotasFichas';
 
 export type NivelProtensao = 'parcial' | 'limitada' | 'completa';
 /**
@@ -41,6 +45,7 @@ export function momentoDoNivel(s: SerieFicha, n: NivelProtensao): number | null 
   return (n === 'parcial' ? p.Mparcial ?? p.Mlimitada ?? p.Mcompleta : n === 'limitada' ? p.Mlimitada ?? p.Mcompleta : p.Mcompleta) ?? null;
 }
 
+const nomeTipoS = (s: SerieFicha) => s.tipo ?? s.id;
 const FI_MOLDADA = [6.3, 8, 10, 12.5, 16, 20, 25];
 /** Combinações de barras negativas fora da tabela (laje genérica e moldada): 1 a 4 barras de φ6,3 a φ25, por área crescente. */
 const ADICIONAIS_AMPLA = FI_MOLDADA.flatMap((phi) => [1, 2, 3, 4].map((n) => ({ n, phi, As: n * barArea(phi) * 1e4 }))).sort((a, z) => a.As - z.As || a.n - z.n);
@@ -129,6 +134,12 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     // protensão
     const caa = l.exposicao ?? b.norma.caa, nivel = nivelPorCAA(caa), comb = combinacaoDoNivel(nivel);
     const protendida = ficha?.familia === 'protendida';
+    // memória detalhada (MD3b): um elemento por laje de vigotas por ficha ou moldada
+    const memF = memoriaAtiva(), elF = `Laje ${l.nome}`, regF = memF?.aceita(elF) ? memF : null;
+    if (regF) {
+      const elu = an.casos.map((caso) => { const n = obra.find((x) => x.id === caso)?.natureza ?? 'G'; return { caso, f: n === 'G' ? gm.g : n === 'H' ? gm.h : n === 'Q' ? gm.q : 0 }; }).filter((q) => q.f !== 0);
+      registrarFichaBase(regF, elF, { nome: l.nome, pavimentos: nomesPav.join(', '), modelo: serie?.id ?? g0.descricao, familia: ficha?.familia ?? 'moldada', fichaNome: ficha?.nome ?? '', origem: ficha?.origem ?? 'moldada', serie: serie?.id ?? '', moldada, candidatos: cand.map((s) => ({ tipo: nomeTipoS(s), Mu: s.positivo!.Mu })), protendida, caa, nivel, comb, intereixo, bw, capa, hEnch, h, pp: g0.pp, nVigotas: nTotal, nGrupos: idxGr.length, capaMin, rhoMin: RHO_MIN_LAJE, AsMin, c, fydInf: aI.fyd, fydSup: aS.fyd, acoInf: aI.aco, acoSup: aS.aco, gs: gm.s, cobInf: cob.inf, cobSup: cob.sup, dI, dS, elu, bloqueada: !!l.edicaoVigotas?.length });
+    }
     const serv = protendida ? picosServico(b, an, l, intereixo, u, comb === 'rara' ? fRara : fFreq) : new Map<string, number>();
     // grupos de igualação → vigotas
     const grupoDe = new Map<number, number>();
@@ -136,9 +147,11 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     const crit = op.vigotaIgualacao, ponto = !!op.vigotaIgualacaoPonto && !conv;
     const igualar = conv ? igualarPorArea(conv) : (vs: number[], cr: number, neg = false) => (!vs.length ? 0 : cr === 2 ? vs.reduce((t, v) => t + v, 0) / vs.length : neg ? Math.min(...vs) : Math.max(...vs));
     const eg = idxGr.map((ids) => esforcosDoGrupo(ids, faixas, mins, crit, ponto, igualar));
+    const contG: [boolean, boolean][] = [];
     const redist = idxGr.map((ids, gi) => {
       if (!op.vigotaRedistribuir) return { esforcos: eg[gi].esforcos, delta: 1, aplicada: false };
       const cont = ids.map((i) => pontasContinuas(faixas[i]));
+      contG[gi] = [cont.some((x) => x[0]), cont.some((x) => x[1])];
       return redistribuirNegativos(eg[gi].esforcos, [cont.some((x) => x[0]), cont.some((x) => x[1])], op.redistribuicao, deltaMinVigotas(an));
     });
     for (const [gi, r] of redist.entries()) if (r.aplicada) aviso(`Vigotas: redistribuição dos negativos (grupo ${gi + 1}): δ = ${fmt(r.delta)} (NBR 6118, 14.6.4.3; positivo aumentado de ${fmt(r.esforcos.mPos - eg[gi].esforcos.mPos)} kN·m por nervura).`);
@@ -152,7 +165,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     }
     const unidades: Unidade[] = [...idxGr.map((_, gi) => ({ gi, indices: regulares.get(gi) ?? [], n: 1 as const })).filter((x) => x.indices.length), ...especiais];
     const posicoes: PosicaoVigota[] = [];
-    const nomeTipo = (s: SerieFicha) => s.tipo ?? s.id;
+    const nomeTipo = nomeTipoS;
     const lbX = (phi: number) => lbI(phi);
     const grupos: GrupoVigotas[] = unidades.map((un, ui) => {
       const ids = idxGr[un.gi], fs = ids.map((i) => faixas[i]);
@@ -171,6 +184,9 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
       }
       const nvig = un.indices.length;
       const escala = un.ed?.momentos ? 1 : n;
+      let multDet: Parameters<typeof registrarFichaUnidade>[2]['multipla'] = null;
+      if (regF && !un.ed?.momentos && n > 1 && ficha) { const conj = conjuntoVigotas(b, g0, n), dp = Math.max(0, conj.pesoLinear - g0.pp * intereixo) * gm.g; multDet = { n, pesoLinear: conj.pesoLinear, ppNerv: g0.pp * intereixo, gg: gm.g, dp, base: { mPos: base.mPos, mNeg: [...base.mNeg] as [number, number], v: [...base.v] as [number, number] } }; }
+      let posDet: CtxFichaPositiva | null = null, moldDet: CtxFichaMoldada | null = null;
       const MminDiag = () => diag.x.map((_, j) => -diag.Mmin[j] / escala);
       const Vdiag = diag.V.map((v) => v / escala);
       const xs = diag.x;
@@ -179,6 +195,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
       let AsNec = 0, AsBase = 0, barrasPos: { n: number; phi: number; As: number } | null = null, compPos = arred(L, op.arredondamento);
       let servico: DadosFichaGrupo['servico'];
       let moldadaInfo: DadosFichaGrupo['moldada'];
+      let adDet: CtxFichaPositiva['adicional'] = null, foraDet: CtxFichaPositiva['fora'] = null;
       const Md = esf.mPos;
       const fl = beamFlexure(tee, true, Md, dI, 0.03, c, aI.fyd);
       AsNec = Math.max(fl.As * 1e4, Md > 0 ? AsMin : 0);
@@ -223,9 +240,11 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
                 const xa = diag.x.filter((_, j) => diag.Mmax[j] / escala > Mu + 1e-9);
                 const reg = xa.length ? xa.at(-1)! - xa[0] : L, ext = reg + 2 * (lbX(ad.phi) + dI);
                 const curta = ext < 0.7 * L;
+                if (regF) adDet = { editado: false, cand: { n: ad.n, phi: ad.phi, As: ad.As, MuTot: MuT(c, g0, dI, AsBase / 1e4 + ad.As / 1e4, aI.fyd) }, reg, lb: lbX(ad.phi), ext, curta, L, arredOp: op.arredondamento };
                 parcelas.push({ n: ad.n, phi: ad.phi, As: ad.As, comprimento: r3(curta ? Math.min(L, arred(ext, op.arredondamento)) : arred(L, op.arredondamento)), percentual: pct(curta ? Math.min(L, ext) : L, L), tipo: curta ? 'curta' : 'total' });
-              }
+              } else if (regF) adDet = { editado: false, cand: null, reg: 0, lb: 0, ext: 0, curta: false, L, arredOp: op.arredondamento };
             }
+            if (regF && (ed?.inf || ed?.adicionalCurta)) adDet = { editado: true, cand: null, reg: 0, lb: 0, ext: 0, curta: false, L, arredOp: op.arredondamento };
             const AsAdTot = parcelas.reduce((t, p) => t + p.As, 0);
             MuTotal = MuT(c, g0, dI, AsBase / 1e4 + AsAdTot / 1e4, aI.fyd);
             // fora da parcela curta vale só o Mu com a parcela total
@@ -233,6 +252,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
             if (curta) {
               const MuSemCurta = MuT(c, g0, dI, AsBase / 1e4 + totais / 1e4, aI.fyd), folga = (L - curta.comprimento) / 2;
               const fora = diag.x.some((x, j) => (x < folga - 1e-9 || x > L - folga + 1e-9) && diag.Mmax[j] / escala > MuSemCurta + 1e-9);
+              if (regF) foraDet = { MuSemCurta, folga, fora };
               if (fora) erro(`Vigotas: momento positivo fora da parcela curta acima do resistente da vigota (${tag}); aumente a armadura parcial.`, un.indices);
             }
             AsEfInf = (AsBase + AsAdTot) / 1e4;
@@ -255,6 +275,14 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
           }
           barrasPos = parcelas[0] ? { n: parcelas[0].n, phi: parcelas[0].phi, As: parcelas[0].As } : protendida ? null : { n: 0, phi: 0, As: 0 };
           compPos = parcelas[0]?.comprimento ?? compPos;
+          if (regF) {
+            const Ms0 = protendida ? Math.max(...ids.map((i) => pico(serv, faixas[i]))) : 0;
+            posDet = {
+              Md, escala, protendida, fabricante, cand: cand.map((s) => ({ tipo: nomeTipo(s), Mu: mu(s), adm: protendida ? momentoDoNivel(s, nivel) : null, servOk: servOk(s) })), atribuido: atribuido ? cand.indexOf(atribuido) : -1, idx: cand.indexOf(esc), precisaAd,
+              servico: servico ? { Ms: servico.Mserv, servMax: Ms0, nivel, comb, caa, Madm: servico.Madm, Mdesc: servico.Mdesc, ok: servico.ok } : null,
+              Mu, AsBase, adicional: adDet, parcelas: parcelas.map((q) => ({ ...q })), MuTotal, AsAdTot: parcelas.reduce((t, q) => t + q.As, 0), fora: foraDet,
+            };
+          }
         }
       } else {
         // ---- moldada no local: armadura inferior (até 2 barras) e transversal verificadas na largura da nervura
@@ -285,10 +313,12 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
           barrasPos = { n: esc.n, phi: esc.phi, As: esc.As }; compPos = parcelas[0].comprimento;
         }
         moldadaInfo = { bars: esc ?? { n: 0, phi: 0, As: 0 }, AsNec, estribo: est ? { phi: est.phi, s: est.s } : null, larguraMin, bw };
+        if (regF) { const ctS = esc ? cabe(esc.n, esc.phi) : { ok: false, need: 0 }; moldDet = { AsNec, atribuida: atrib ? { n: atrib.n, phi: atrib.phi } : null, esc, cabe: ctS.ok, need: ctS.need, larguraMin, bw, phiEst, cobInf: cob.inf, ah: esc ? Math.max(0.02, esc.phi / 1000, 1.2 * DMAX) : 0, Mu, comprimento: compPos, L, arredOp: op.arredondamento, compEditado: un.ed?.inf?.comprimento !== undefined || un.ed?.inf?.percentual !== undefined }; }
       }
       // ---- negativos por ponta
       const negFicha = serie?.negativo;
       const generica = moldada || !fabricante;
+      const detNeg: (CtxFichaNeg | null)[] = [null, null], detCort: CtxFichaCort[] = [];
       const negativos = [0, 1].map((k): NegativoVigota | null => {
         const M = -esf.mNeg[k];
         if (M < 0.01) return null;
@@ -303,8 +333,8 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
         const fn = beamFlexure({ kind: 'rect', bw: M > MRdN ? intereixo : bw, h }, false, M, dS, 0.03, c, aS.fyd);
         const AsN = Math.max(fn.As * 1e4, AsMin);
         const edS = un.ed?.sup;
-        let br = escolher(ADICIONAIS, AsN);
-        if (!br && generica) { br = escolher(ADICIONAIS_AMPLA, AsN); if (br) aviso(`Vigotas: fora da tabela — armadura negativa de ${fmt(AsN)} cm² por nervura passa de 2φ12,5 (${tag}, ${pontaTxt}); calculada assim mesmo com ${br.n}φ${fphi(br.phi)}; use laje mais alta ou vigota dupla.`); }
+        let br = escolher(ADICIONAIS, AsN), ampla = false;
+        if (!br && generica) { br = escolher(ADICIONAIS_AMPLA, AsN); if (br) ampla = true; if (br) aviso(`Vigotas: fora da tabela — armadura negativa de ${fmt(AsN)} cm² por nervura passa de 2φ12,5 (${tag}, ${pontaTxt}); calculada assim mesmo com ${br.n}φ${fphi(br.phi)}; use laje mais alta ou vigota dupla.`); }
         if (edS) {
           const As = edS.n * barArea(edS.phi) * 1e4;
           if (As < AsN - 1e-6) erro(`Armadura bloqueada insuficiente: negativa da nervura ${edS.n}φ${fphi(edS.phi)} < ${fmt(AsN)} cm² por nervura (${tag}, ${pontaTxt}).`, un.indices);
@@ -317,12 +347,15 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
         const comprimentoEd = edS ? (edS.comprimento !== undefined ? Math.min(L, edS.comprimento) : edS.percentual !== undefined ? (edS.percentual / 100) * L : comprimento) : comprimento;
         // duas parcelas: a longa cobre o diagrama inteiro; a curta (as barras restantes) só onde o momento passa do que a longa resiste
         const ps: ParcelaVigota[] = [];
+        let divDet: CtxFichaNeg['dividida'] = null;
         if (br && br.n >= 2 && !edS) {
           const nA = Math.ceil(br.n / 2), AsA = nA * barArea(br.phi), MRdA = momentoResistenteT(c, bw, h, bw, dS, AsA, aS.fyd);
           const xB = alcance(xs, valdiag, MRdA, k as 0 | 1), compB = Math.min(comprimento, arred(Math.max(xB + al + lb, 0.1), op.arredondamento));
+          if (regF) divDet = { nA, AsA, MRdA, xB, compB, comprimento };
           ps.push({ n: nA, phi: br.phi, As: nA * barArea(br.phi) * 1e4, comprimento: r3(comprimento), percentual: pct(comprimento, L), tipo: 'longa' });
           ps.push({ n: br.n - nA, phi: br.phi, As: (br.n - nA) * barArea(br.phi) * 1e4, comprimento: r3(compB), percentual: pct(compB, L), tipo: 'curta' });
         } else if (br) ps.push({ n: br.n, phi: br.phi, As: br.As, comprimento: r3(comprimentoEd), percentual: pct(comprimentoEd, L), tipo: 'total' });
+        if (regF) detNeg[k] = { M, MRdN, MRdM, fonte: fonteLim, macico, bwEf: M > MRdN ? intereixo : bw, fn: { As: fn.As, double: fn.double }, AsN, br: br ? { n: br.n, phi: br.phi, As: br.As } : null, editada: edS ? { n: edS.n, phi: edS.phi } : null, ampla, x0, al, lb, lbN, comprimentoAuto: comprimento, comprimento: edS ? comprimentoEd : comprimento, L, pct: op.vigotaNegativoVao / 100, arredOp: op.arredondamento, decalagem: op.lajeDecalagem, dS, parcelas: ps.map((q): Parc => ({ ...q })), dividida: divDet };
         return {
           AsNec: AsN, barras: br, comprimento: edS ? comprimentoEd : comprimento, x0: r3(x0), al: r3(al), lb: r3(lb), MRdNervura: MRdN, macico: r3(macico),
           parcelas: ps, MuMacico: MRdM, fonteLimite: fonteLim, ...(negFicha?.Mfis !== undefined ? { Mfis: negFicha.Mfis } : {}), ...(negFicha?.EI !== undefined ? { EI: negFicha.EI } : {}), ...(negFicha?.EIfis !== undefined ? { EIfis: negFicha.EIfis } : {}),
@@ -334,11 +367,14 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
         const As1 = neg ? (neg.barras?.As || neg.AsNec) / 1e4 : Math.max(AsEfInf, 2 * barArea(5));
         const calc1 = vrd1(c, bw, dd, As1), V2 = vrd2(c, bw, dd);
         let V1 = calc1, fonte: 'ficha' | 'calculado' = 'calculado';
+        let fichaDet: CtxFichaCort['ficha'] = null, edDet: CtxFichaCort['editado'] = null, shDet: CtxFichaCort['sh'] = null;
         const cs = serie?.cortante;
         if (!moldada && cs) {
           fonte = 'ficha'; V1 = cs.VRd1;
+          if (regF) fichaDet = { VRd1: cs.VRd1, Mend: 0, Mdesc: serie?.protensao?.Mdesc ?? 0, VRd1Desc: null };
           if (protendida && cs.VRd1Descomprimida !== undefined) {
             const Mend = Math.max(...ids.map((i) => (k ? faixas[i].Mmax.at(-1)! : faixas[i].Mmax[0]))) / escala;
+            if (fichaDet) { fichaDet.Mend = Mend; fichaDet.VRd1Desc = cs.VRd1Descomprimida; }
             if (Mend <= (serie?.protensao?.Mdesc ?? 0)) V1 = cs.VRd1Descomprimida;
           }
         }
@@ -347,6 +383,7 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
           const e = un.ed?.transversal ?? l.armaduraMoldada?.estribo;
           if (Vsd > V1 + 1e-9) {
             const sh = beamShear(bw, dd, Vsd, c, aV.fyk, gm.s);
+            if (regF) shDet = { VRd2: sh.VRd2, Vc: sh.Vc, aswS: sh.aswS, aswMin: sh.aswMin, smax: sh.smax, ok: sh.ok, av2: c.av2, fywd: Math.min(aV.fyk / gm.s, 435), fywk: aV.fyk };
             const prov = e ? (2 * barArea(e.phi)) / e.s : 0;
             if (!sh.ok) erro(`Vigotas: cortante ${fmt(Vsd)} kN por nervura acima de VRd2 = ${fmt(sh.VRd2)} kN (biela comprimida, modelo I) (${tag}, ${k ? 'fim' : 'início'}); aumente a largura da nervura ou a altura.`, un.indices);
             else if (!e) {
@@ -364,12 +401,14 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
           const tr = un.ed?.transversal;
           if (tr && Vsd > V1) {
             const Vsw = ((2 * barArea(tr.phi)) / tr.s) * 0.9 * dd * Math.min(aV.fyk / gm.s, 435) * 1000, Vc = 0.6 * c.fctd * bw * dd * 1000;
+            if (regF) edDet = { V1pre: V1, Vc, Vsw, phi: tr.phi, s: tr.s, fywd: Math.min(aV.fyk / gm.s, 435) };
             V1 = Math.max(V1, Vc) + Vsw;
           }
         }
         if (!moldada && Vsd > Math.min(V1, V2) + 1e-9) {
           erro(`Vigotas: cortante ${fmt(Vsd)} kN por nervura acima do resistente ${fonte === 'ficha' ? 'da ficha' : 'calculado'} (${fmt(Math.min(V1, V2))} kN) (${tag}, ${k ? 'fim' : 'início'}); use laje mais alta ou vigota dupla.`, un.indices);
         }
+        if (regF) detCort[k] = { Vsd, d: dd, As1, V1calc: calc1, V2, V1, fonte, ficha: fichaDet, editado: edDet, sh: shDet, estribo: null, atribuido: moldada && !!(un.ed?.transversal ?? l.armaduraMoldada?.estribo), min: Math.min(V1, V2), ok: Vsd <= Math.min(V1, V2) + 1e-9 };
         return { Vsd, VRd1: V1, VRd2: V2, macico: 0, fonte, ...(est ? { estribo: est } : {}) };
       }) as [import('./vigotas').CortanteVigota, import('./vigotas').CortanteVigota];
       const macico = [0, 1].map((k) => negativos[k]?.macico ?? 0) as [number, number];
@@ -404,6 +443,16 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
         positivo: { Md, Mu, MuTotal, ...(Mfis !== undefined ? { Mfis } : {}), ...(EI !== undefined ? { EI } : {}), ...(EIfis !== undefined ? { EIfis } : {}), aprov: MuTotal > 0 ? Md / MuTotal : 0, fonte: !moldada && cand.length ? 'ficha' : 'calculado' },
         parcelas, ...(servico ? { servico } : {}), ...(moldadaInfo ? { moldada: moldadaInfo } : {}),
       };
+      if (regF) {
+        for (const k of [0, 1]) if (detCort[k]) detCort[k].estribo = cortante[k].estribo ? { phi: cortante[k].estribo!.phi, s: cortante[k].estribo!.s, zona: cortante[k].estribo!.zona, barras: cortante[k].estribo!.barras } : null;
+        const rd = redist[un.gi];
+        registrarFichaUnidade(regF, elF, {
+          tp: un.especial ? `Vigota ${un.indices[0] + 1}` : `Grupo ${un.gi + 1}`, tag, gi: un.gi, indices: un.indices, n, nvig,
+          grupo: { gi: un.gi, nFaixas: ids.length, vigotas: nvig, L, criterio: crit, difPct: op.vigotaIgualacaoDif, porArea: !!conv, eg: eg[un.gi].esforcos, red: op.vigotaRedistribuir ? { delta: rd.delta, aplicada: rd.aplicada, pct: op.redistribuicao, deltaMin: deltaMinVigotas(an), continuas: contG[un.gi] ?? [false, false] } : null, esf: base },
+          manual: !!un.ed?.momentos, multipla: multDet, esf, c, fydInf: aI.fyd, fydSup: aS.fyd, dI, dS, bw, intereixo, h, capa, hEnch, sec: tee, fl: { As: fl.As, double: fl.double }, AsMin, AsNec, moldada,
+          pos: posDet, mold: moldDet, negativos: detNeg, cortante: detCort, macico,
+        });
+      }
       return {
         faixas: ids, vigotas: nvig, L: r3(L), esforcos: esf, porMetro: pm(esf), diagrama: diag, indices: un.indices, ...(un.especial ? { especial: un.especial } : {}),
         ...(tipoEsc ? { tipo: nomeTipo(tipoEsc), serie: tipoEsc.id, tipoAtribuido: !!un.ed?.tipo } : {}), ficha: dados, tipoVao: mins[ids[0]].tipo, redistribuicao: { delta: redist[un.gi].delta, aplicada: redist[un.gi].aplicada },
@@ -451,6 +500,10 @@ export function dimensionarVigotasFichas(b: BuildingModel, an: AnaliseEdificio, 
     // E5e (C7.102): flecha de montagem da vigota sobre escoras (não vale para as moldadas no local)
     const montagem = !moldada && op.vigotaMontagem ? montagemDaLaje(c, g0, trNome ? trelicasDe(b)[trNome] : undefined, Math.max(...grupos.map((g) => g.L)), op) : undefined;
     if (montagem && !montagem.ok) erro(mensagemMontagem(montagem));
+    if (regF) {
+      registrarVigotasLaje(regF, elF, { montagem: montagem ? { ...montagem, dist: op.vigotaEscoraDist, pp: g0.pp, construcao: op.vigotaCargaConstrucao, intereixo, divisor: op.vigotaMontagemLimite } : undefined, AsPrinc, AsDist, phiD, sD, capa, bitolaMinima: op.lajeBitolaMinima, ca60: aS.aco === 'CA-60', posicoes, peso, repeticoes: Math.max(1, pavs.length) });
+      registrarAcoNervurada(regF, elF, { posicoes, peso, repeticoes: Math.max(1, pavs.length) });
+    }
     const resumo = moldada
       ? `Vigotas moldadas: ${g0.descricao}, ${lista.length} nervura(s) em ${grupos.length} grupo(s); Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura; inferior ${[...new Set(grupos.map((g) => (g.positiva.barras?.n ? `${g.positiva.barras.n}φ${fphi(g.positiva.barras.phi)}` : '—')))].join(' / ')}.`
       : `Vigotas por ficha: ${g0.descricao} (${rotuloFam}), ${lista.length} vigota(s) em ${grupos.length} grupo(s); tipos ${[...tipos.entries()].map(([k, v]) => `${k} × ${v}`).join(', ')}; Md+ máx. ${fmt(Math.max(...grupos.map((g) => g.esforcos.mPos)))} kN·m por nervura${protendida ? `; protensão ${nivel} (CAA ${caa}, combinação ${comb})` : ''}.`;
