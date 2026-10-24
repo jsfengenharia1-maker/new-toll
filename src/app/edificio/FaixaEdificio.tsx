@@ -7,6 +7,7 @@ import { ROTULO_FERRAMENTA, TECLA_FERRAMENTA } from './Planta';
 import { useBuilding } from './store';
 import { useEdifUI } from './uiStore';
 import { useInclinadasUI } from './InclinadasUI';
+import { useEscadaCalculoUI } from './EscadaCalculoUI';
 import { useEscadaUI } from './EscadaUI';
 import { escolherEscada } from './EscadaMenu';
 import { importarMascara } from './mascaraImportar';
@@ -142,6 +143,7 @@ function Analise() {
       <RibbonGroup label="Cálculo">
         <RibbonButton icon="calcular" label="Calcular obra" title="Mesma ação de Calcular e dimensionar (aba Dimensionamento)" disabled={calculando} onClick={() => { void calcular(); }} />
         <RibbonButton icon="modos" label="2ª ordem global…" title="Abre a vista Análise (P-Δ no lugar do γz)" onClick={() => ui({ aba: 'analise' })} />
+        <RibbonButton icon="calcular" label="Calcular escadas…" title="Cálculo individual de cada lance de escada (reações, esforços e deslocamentos), antes do cálculo da obra" onClick={() => useEscadaCalculoUI.getState().abrir()} />
       </RibbonGroup>
       <RibbonGroup label="Resultados">
         <RibbonButton icon="resultados" label="Ver Análise" onClick={() => ui({ aba: 'analise' })} />

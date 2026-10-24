@@ -27,6 +27,7 @@ import { PaletaComandos } from './PaletaComandos';
 import { DiagonaisHost } from './DiagonaisUI';
 import { ConsolosHost } from './ConsolosUI';
 import { InclinadasHost } from './InclinadasUI';
+import { EscadaCalculoHost } from './EscadaCalculoUI';
 import { EscadaHost } from './EscadaUI';
 import { NovaEscadaHost } from './NovaEscadaUI';
 import { lerQuadroVigas } from '../../core/building/quadros';
@@ -250,6 +251,7 @@ export function Edificio() {
       <JanelaElemento />
       <JanelaCorte />
       <InclinadasHost />
+      <EscadaCalculoHost />
       <EscadaHost />
       <NovaEscadaHost />
       <DiagonaisHost />
